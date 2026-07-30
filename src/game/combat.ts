@@ -1,7 +1,7 @@
 /** Combat entities, role matchups, and fight helpers. */
 
 import type { GameState } from './types'
-import { getModule } from './catalog'
+import { getModule, aiDoctrinesActive } from './catalog'
 import { computeShipStats } from './state'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
@@ -127,6 +127,10 @@ export function computeFightDamage(state: GameState): FightTickDamage {
     } else {
       incomingMult *= Math.pow(0.92, roles.defense)
       notes.push('Defense steadies boss pressure')
+    }
+    if (aiDoctrinesActive(state, 'boss-protocol')) {
+      playerDps *= 1.25
+      notes.push('Boss Protocol ×1.25')
     }
   }
 

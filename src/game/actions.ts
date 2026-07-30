@@ -6,6 +6,7 @@ import {
   buildingUpgradeCost,
   getBuilding,
   getChallenge,
+  getEssenceUpgrade,
   getFrame,
   getModule,
   type ResourceCost,
@@ -52,9 +53,11 @@ export function buyResearch(state: GameState, researchId: string): GameState {
   if (!def) return state
   if (state.research.unlocked.includes(researchId)) return state
   if (state.resources.data < def.costData) return state
+  if ((def.costEssence ?? 0) > state.resources.essence) return state
 
   const next = structuredClone(state)
   next.resources.data -= def.costData
+  next.resources.essence -= def.costEssence ?? 0
   next.research.unlocked = [...next.research.unlocked, researchId]
   return next
 }
@@ -69,6 +72,23 @@ export function buyAiNode(state: GameState, nodeId: string): GameState {
   const next = structuredClone(state)
   next.resources.aiPoints -= def.costAiPoints
   next.ai.purchased = [...next.ai.purchased, nodeId]
+  return next
+}
+
+export function buyEssenceUpgrade(state: GameState, upgradeId: string): GameState {
+  const def = getEssenceUpgrade(upgradeId)
+  if (!def) return state
+  if (state.essence.purchased.includes(upgradeId)) return state
+  if (state.resources.essence < def.costEssence) return state
+
+  const next = structuredClone(state)
+  next.resources.essence -= def.costEssence
+  next.essence.purchased = [...next.essence.purchased, upgradeId]
+  if (!next.combat.inFight) {
+    const stats = computeShipStats(next)
+    next.combat.playerHullMax = stats.hullMax
+    next.combat.playerHull = stats.hullMax
+  }
   return next
 }
 
@@ -162,6 +182,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const kept = {
     prestigeMatter: state.resources.prestigeMatter,
     challengePoints: state.resources.challengePoints,
+    essence: state.resources.essence,
+    essencePurchased: [...state.essence.purchased],
     unlockedFrames: [...state.shipyard.unlockedFrames],
     unlockedModules: [...state.shipyard.unlockedModules],
     frameId: state.shipyard.unlockedFrames.includes(state.shipyard.frameId)
@@ -179,6 +201,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     ...fresh.resources,
     prestigeMatter: kept.prestigeMatter,
     challengePoints: kept.challengePoints,
+    essence: kept.essence,
   }
   state.shipyard = {
     frameId: kept.frameId,
@@ -186,7 +209,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     unlockedFrames: kept.unlockedFrames,
     unlockedModules: kept.unlockedModules,
   }
-  // Prefer pulse-cannon fitted if available
   if (
     state.shipyard.modules.length === 0 &&
     kept.unlockedModules.includes('pulse-cannon')
@@ -200,6 +222,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.base = fresh.base
   state.research = fresh.research
   state.ai = fresh.ai
+  state.essence = { purchased: kept.essencePurchased }
   state.prestige = {
     prestigeCount: kept.prestigeCount,
     activeChallengeId: kept.activeChallengeId,

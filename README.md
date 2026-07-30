@@ -38,3 +38,4 @@ npm run build
 - Solo project: use **one feature per branch/PR** so slices stay reviewable.
 - Offline catch-up (up to 8h) runs on load; Auto Engage continues combat while away.
 - Combat uses entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
+- Essence buys permanent constructs; AI Points buy per-run doctrines (Focus Fire, Boss Protocol, Scavenger, Tactical Retreat).

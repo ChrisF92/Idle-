@@ -65,6 +65,11 @@ export interface AiState {
   purchased: string[]
 }
 
+export interface EssenceState {
+  /** Permanent essence upgrades kept across prestige. */
+  purchased: string[]
+}
+
 export interface PrestigeState {
   prestigeCount: number
   activeChallengeId: string | null
@@ -80,6 +85,7 @@ export interface GameState {
   base: BaseState
   research: ResearchState
   ai: AiState
+  essence: EssenceState
   prestige: PrestigeState
 }
 

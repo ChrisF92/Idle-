@@ -7,6 +7,7 @@ import {
   abandonChallenge,
   buyAiNode,
   buyResearch,
+  buyEssenceUpgrade,
   enterChallenge,
   fitModule,
   performPrestige,
@@ -24,6 +25,7 @@ type Action =
   | { type: 'engage' }
   | { type: 'upgrade-building'; buildingId: string }
   | { type: 'buy-research'; researchId: string }
+  | { type: 'buy-essence'; upgradeId: string }
   | { type: 'buy-ai'; nodeId: string }
   | { type: 'unlock-frame'; frameId: string }
   | { type: 'select-frame'; frameId: string }
@@ -47,6 +49,8 @@ function reducer(state: GameState, action: Action): GameState {
       return upgradeBuilding(state, action.buildingId)
     case 'buy-research':
       return buyResearch(state, action.researchId)
+    case 'buy-essence':
+      return buyEssenceUpgrade(state, action.upgradeId)
     case 'buy-ai':
       return buyAiNode(state, action.nodeId)
     case 'unlock-frame':
@@ -108,6 +112,8 @@ export function useGame() {
     upgradeBuilding: (buildingId: string) =>
       dispatch({ type: 'upgrade-building', buildingId }),
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),
+    buyEssenceUpgrade: (upgradeId: string) =>
+      dispatch({ type: 'buy-essence', upgradeId }),
     buyAiNode: (nodeId: string) => dispatch({ type: 'buy-ai', nodeId }),
     unlockFrame: (frameId: string) => dispatch({ type: 'unlock-frame', frameId }),
     selectFrame: (frameId: string) => dispatch({ type: 'select-frame', frameId }),

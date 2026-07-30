@@ -1,12 +1,15 @@
 import type { GameState, Resources, ShipCombatStats } from './types'
 import {
+  aiDoctrinesActive,
+  essenceDamageMultiplier,
+  essenceHullBonus,
   getFrame,
   getModule,
   metaDamageMultiplier,
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -68,6 +71,9 @@ export function createInitialState(now = Date.now()): GameState {
     ai: {
       purchased: [],
     },
+    essence: {
+      purchased: [],
+    },
     prestige: {
       prestigeCount: 0,
       activeChallengeId: null,
@@ -76,11 +82,11 @@ export function createInitialState(now = Date.now()): GameState {
   }
 }
 
-/** Derive combat stats from frame, modules, research, meta, and challenges. */
+/** Derive combat stats from frame, modules, research, meta, essence, and challenges. */
 export function computeShipStats(state: GameState): ShipCombatStats {
   const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
   let damage = frame.baseDamage
-  let hullMax = frame.baseHull
+  let hullMax = frame.baseHull + essenceHullBonus(state.essence.purchased)
   let damageTakenMult = 1
 
   for (const moduleId of state.shipyard.modules) {
@@ -92,10 +98,15 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   }
 
   damage *= researchDamageMultiplier(state.research.unlocked)
+  damage *= essenceDamageMultiplier(state.essence.purchased)
   damage *= metaDamageMultiplier(
     state.resources.prestigeMatter,
     state.resources.challengePoints,
   )
+
+  if (aiDoctrinesActive(state, 'focus-fire')) {
+    damage *= 1.12
+  }
 
   if (state.prestige.activeChallengeId === 'thin-hull') {
     hullMax *= 0.5

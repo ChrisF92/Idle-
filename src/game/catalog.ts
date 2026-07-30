@@ -20,7 +20,9 @@ export interface ResearchDef {
   name: string
   description: string
   costData: number
+  costEssence?: number
   damageBonus?: number
+  essenceBonus?: number
 }
 
 export interface AiNodeDef {
@@ -28,6 +30,18 @@ export interface AiNodeDef {
   name: string
   description: string
   costAiPoints: number
+  kind: 'automation' | 'doctrine' | 'qol'
+}
+
+export interface EssenceUpgradeDef {
+  id: string
+  name: string
+  description: string
+  costEssence: number
+  damageBonus?: number
+  hullBonus?: number
+  productionBonus?: number
+  bonusDataPerClear?: number
 }
 
 export interface ChallengeDef {
@@ -120,6 +134,14 @@ export const RESEARCH: ResearchDef[] = [
     costData: 60,
     damageBonus: 0.5,
   },
+  {
+    id: 'boss-harvester',
+    name: 'Boss Harvester',
+    description: 'Extract more Essence from bosses (+100%).',
+    costData: 40,
+    costEssence: 1,
+    essenceBonus: 1,
+  },
 ]
 
 export const AI_NODES: AiNodeDef[] = [
@@ -128,12 +150,66 @@ export const AI_NODES: AiNodeDef[] = [
     name: 'Auto Engage',
     description: 'Automatically start the next sector fight.',
     costAiPoints: 1,
+    kind: 'automation',
   },
   {
-    id: 'combat-log-filter',
-    name: 'Log Filter',
-    description: 'QoL placeholder: quieter combat summaries later.',
+    id: 'focus-fire',
+    name: 'Focus Fire',
+    description: 'Doctrine: +12% combat damage.',
     costAiPoints: 2,
+    kind: 'doctrine',
+  },
+  {
+    id: 'boss-protocol',
+    name: 'Boss Protocol',
+    description: 'Doctrine: +25% damage vs bosses.',
+    costAiPoints: 3,
+    kind: 'doctrine',
+  },
+  {
+    id: 'scavenger',
+    name: 'Scavenger Protocol',
+    description: 'Doctrine: +30% scrap from combat clears.',
+    costAiPoints: 2,
+    kind: 'doctrine',
+  },
+  {
+    id: 'tactical-retreat',
+    name: 'Tactical Retreat',
+    description: 'Doctrine: disengage at 25% hull instead of destruction.',
+    costAiPoints: 2,
+    kind: 'doctrine',
+  },
+]
+
+export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
+  {
+    id: 'essence-lattice',
+    name: 'Essence Lattice',
+    description: 'Permanent +10% combat damage.',
+    costEssence: 2,
+    damageBonus: 0.1,
+  },
+  {
+    id: 'resonant-plates',
+    name: 'Resonant Plates',
+    description: 'Permanent +25 hull.',
+    costEssence: 3,
+    hullBonus: 25,
+  },
+  {
+    id: 'siphon-array',
+    name: 'Siphon Array',
+    description: 'Permanent +1 Data on every sector clear.',
+    costEssence: 2,
+    bonusDataPerClear: 1,
+  },
+  {
+    id: 'catalyst-feed',
+    name: 'Catalyst Feed',
+    description: 'Permanent +15% base production.',
+    costEssence: 3,
+    productionBonus: 0.15,
   },
 ]
 
@@ -242,6 +318,14 @@ export function getChallenge(id: string): ChallengeDef | undefined {
   return CHALLENGES.find((c) => c.id === id)
 }
 
+export function getEssenceUpgrade(id: string): EssenceUpgradeDef | undefined {
+  return ESSENCE_UPGRADES.find((e) => e.id === id)
+}
+
+export function getAiNode(id: string): AiNodeDef | undefined {
+  return AI_NODES.find((n) => n.id === id)
+}
+
 export function buildingUpgradeCost(building: BuildingDef, currentLevel: number): ResourceCost {
   const factor = building.costScale ** currentLevel
   const cost: ResourceCost = {}
@@ -260,10 +344,61 @@ export function researchDamageMultiplier(unlocked: string[]): number {
   return bonus
 }
 
+export function essenceDamageMultiplier(purchased: string[]): number {
+  let bonus = 1
+  for (const id of purchased) {
+    const def = getEssenceUpgrade(id)
+    if (def?.damageBonus) bonus += def.damageBonus
+  }
+  return bonus
+}
+
+export function essenceHullBonus(purchased: string[]): number {
+  let hull = 0
+  for (const id of purchased) {
+    const def = getEssenceUpgrade(id)
+    if (def?.hullBonus) hull += def.hullBonus
+  }
+  return hull
+}
+
+export function essenceProductionMultiplier(purchased: string[]): number {
+  let bonus = 1
+  for (const id of purchased) {
+    const def = getEssenceUpgrade(id)
+    if (def?.productionBonus) bonus += def.productionBonus
+  }
+  return bonus
+}
+
+export function essenceBonusDataPerClear(purchased: string[]): number {
+  let total = 0
+  for (const id of purchased) {
+    const def = getEssenceUpgrade(id)
+    if (def?.bonusDataPerClear) total += def.bonusDataPerClear
+  }
+  return total
+}
+
+export function researchEssenceMultiplier(unlocked: string[]): number {
+  let mult = 1
+  for (const id of unlocked) {
+    const def = RESEARCH.find((r) => r.id === id)
+    if (def?.essenceBonus) mult += def.essenceBonus
+  }
+  return mult
+}
+
 export function metaDamageMultiplier(prestigeMatter: number, challengePoints: number): number {
   return 1 + prestigeMatter * 0.02 + challengePoints * 0.03
 }
 
 export function metaProductionMultiplier(prestigeMatter: number): number {
   return 1 + prestigeMatter * 0.02
+}
+
+/** AI combat doctrines are disabled during Silent Bridge. */
+export function aiDoctrinesActive(state: { prestige: { activeChallengeId: string | null }; ai: { purchased: string[] } }, nodeId: string): boolean {
+  if (state.prestige.activeChallengeId === 'no-ai') return false
+  return state.ai.purchased.includes(nodeId)
 }

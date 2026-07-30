@@ -49,7 +49,13 @@ export default function App() {
           />
         )}
         {tab === 'base' && <BaseTab state={game.state} onUpgrade={game.upgradeBuilding} />}
-        {tab === 'research' && <ResearchTab state={game.state} onBuy={game.buyResearch} />}
+        {tab === 'research' && (
+          <ResearchTab
+            state={game.state}
+            onBuyResearch={game.buyResearch}
+            onBuyEssence={game.buyEssenceUpgrade}
+          />
+        )}
         {tab === 'ai' && <AiTab state={game.state} onBuy={game.buyAiNode} />}
         {tab === 'prestige' && (
           <PrestigeTab

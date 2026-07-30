@@ -20,6 +20,12 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
   }
 }
 
+function withEssenceDefaults(state: Partial<GameState>): GameState['essence'] {
+  return {
+    purchased: state.essence?.purchased ?? [],
+  }
+}
+
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
   const parsed = raw as Partial<GameState> & { version?: number }
@@ -28,10 +34,10 @@ function migrate(raw: unknown): GameState | null {
     return {
       ...state,
       combat: withCombatDefaults(state.combat),
+      essence: withEssenceDefaults(state),
     }
   }
 
-  // v1 → current
   if (parsed.version === 1) {
     const base = createInitialState()
     const v1 = parsed as GameState
@@ -63,27 +69,28 @@ function migrate(raw: unknown): GameState | null {
         ...base.prestige,
         ...v1.prestige,
       },
+      essence: withEssenceDefaults(v1),
     }
   }
 
-  // v2 → v3: enemy family fields on combat
-  if (parsed.version === 2) {
+  if (parsed.version === 2 || parsed.version === 3) {
     const base = createInitialState()
-    const v2 = parsed as GameState
+    const prev = parsed as GameState
     return {
       ...base,
-      ...v2,
+      ...prev,
       version: SAVE_VERSION,
       combat: withCombatDefaults({
         ...base.combat,
-        ...v2.combat,
+        ...prev.combat,
       }),
       shipyard: {
         ...base.shipyard,
-        ...v2.shipyard,
-        unlockedFrames: v2.shipyard?.unlockedFrames ?? base.shipyard.unlockedFrames,
-        unlockedModules: v2.shipyard?.unlockedModules ?? base.shipyard.unlockedModules,
+        ...prev.shipyard,
+        unlockedFrames: prev.shipyard?.unlockedFrames ?? base.shipyard.unlockedFrames,
+        unlockedModules: prev.shipyard?.unlockedModules ?? base.shipyard.unlockedModules,
       },
+      essence: withEssenceDefaults(prev),
     }
   }
 

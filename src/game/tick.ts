@@ -1,6 +1,13 @@
 import type { GameState, Resources } from './types'
 import { computeShipStats, createInitialState } from './state'
-import { BUILDINGS, metaProductionMultiplier } from './catalog'
+import {
+  BUILDINGS,
+  aiDoctrinesActive,
+  essenceBonusDataPerClear,
+  essenceProductionMultiplier,
+  metaProductionMultiplier,
+  researchEssenceMultiplier,
+} from './catalog'
 import { tryCompleteChallenge } from './actions'
 import { computeFightDamage, enemyForSector } from './combat'
 
@@ -13,7 +20,9 @@ function pushLog(state: GameState, line: string, max = 40): void {
 }
 
 function applyProduction(state: GameState, dtSeconds: number): void {
-  const meta = metaProductionMultiplier(state.resources.prestigeMatter)
+  const meta =
+    metaProductionMultiplier(state.resources.prestigeMatter) *
+    essenceProductionMultiplier(state.essence.purchased)
 
   for (const building of BUILDINGS) {
     const level = state.base.buildings[building.id] ?? 0
@@ -48,15 +57,22 @@ function tickCombat(state: GameState): void {
   state.combat.enemyHull = Math.max(0, state.combat.enemyHull - playerDps)
   state.combat.playerHull = Math.max(0, state.combat.playerHull - enemyDps)
 
+  const retreatThreshold = aiDoctrinesActive(state, 'tactical-retreat')
+    ? state.combat.playerHullMax * 0.25
+    : 0
+
   if (state.combat.enemyHull <= 0) {
     const clearedSector = state.combat.sector
     const wasBoss = state.combat.isBoss
     const enemy = enemyForSector(clearedSector)
     const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
-    const scrapGain = enemy.scrapReward
-    const dataGain = dataBlocked ? 0 : enemy.dataReward
+    let scrapGain = enemy.scrapReward
+    if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
+    const siphonData = essenceBonusDataPerClear(state.essence.purchased)
+    const dataGain = dataBlocked ? 0 : enemy.dataReward + siphonData
     const aiGain = enemy.aiReward
-    const essenceGain = enemy.essenceReward
+    const essenceGain =
+      enemy.essenceReward * researchEssenceMultiplier(state.research.unlocked)
 
     state.resources.scrap += scrapGain
     state.resources.data += dataGain
@@ -70,7 +86,7 @@ function tickCombat(state: GameState): void {
     state.combat.isBoss = false
 
     const parts = [
-      `+${scrapGain} scrap`,
+      `+${scrapGain.toFixed(1)} scrap`,
       dataBlocked ? 'data blocked' : `+${dataGain} data`,
       `+${aiGain} AI`,
     ]
@@ -88,8 +104,9 @@ function tickCombat(state: GameState): void {
     state.combat.playerHullMax = refreshed.hullMax
     state.combat.playerHull = refreshed.hullMax
     tryCompleteChallenge(state)
-  } else if (state.combat.playerHull <= 0) {
+  } else if (state.combat.playerHull <= retreatThreshold) {
     const boss = state.combat.isBoss
+    const tactical = aiDoctrinesActive(state, 'tactical-retreat') && retreatThreshold > 0
     state.combat.inFight = false
     state.combat.enemyName = 'None'
     state.combat.enemyFamily = ''
@@ -99,19 +116,26 @@ function tickCombat(state: GameState): void {
     const refreshed = computeShipStats(state)
     state.combat.playerHullMax = refreshed.hullMax
     state.combat.playerHull = refreshed.hullMax
-    pushLog(
-      state,
-      boss
-        ? `Boss pressure overwhelming — retreated from sector ${state.combat.sector}.`
-        : `Hull critical — retreated from sector ${state.combat.sector}.`,
-    )
+    if (tactical) {
+      pushLog(
+        state,
+        `Tactical retreat from sector ${state.combat.sector}${boss ? ' boss' : ''} — hull critical threshold.`,
+      )
+    } else {
+      pushLog(
+        state,
+        boss
+          ? `Boss pressure overwhelming — retreated from sector ${state.combat.sector}.`
+          : `Hull critical — retreated from sector ${state.combat.sector}.`,
+      )
+    }
   }
 }
 
 function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight) return
-  if (!state.ai.purchased.includes('auto-engage')) return
   if (state.prestige.activeChallengeId === 'no-ai') return
+  if (!state.ai.purchased.includes('auto-engage')) return
   beginFight(state)
 }
 

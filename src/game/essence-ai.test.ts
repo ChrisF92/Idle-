@@ -1,0 +1,70 @@
+import { describe, expect, it } from 'vitest'
+import { createInitialState, computeShipStats } from './state'
+import { buyAiNode, buyEssenceUpgrade, buyResearch, performPrestige } from './actions'
+import { startCombat, advanceTicks } from './tick'
+import { computeFightDamage } from './combat'
+
+describe('essence upgrades', () => {
+  it('buys permanent lattice and boosts damage', () => {
+    let state = createInitialState(0)
+    const before = computeShipStats(state).damage
+    state.resources.essence = 2
+    state = buyEssenceUpgrade(state, 'essence-lattice')
+    expect(state.essence.purchased).toContain('essence-lattice')
+    expect(computeShipStats(state).damage).toBeGreaterThan(before)
+  })
+
+  it('keeps essence upgrades across prestige', () => {
+    let state = createInitialState(0)
+    state.resources.essence = 5
+    state = buyEssenceUpgrade(state, 'essence-lattice')
+    state.combat.sector = 8
+    state = performPrestige(state, 1000)
+    expect(state.essence.purchased).toContain('essence-lattice')
+    expect(state.resources.essence).toBeGreaterThanOrEqual(0)
+  })
+
+  it('research boss-harvester needs essence', () => {
+    let state = createInitialState(0)
+    state.resources.data = 100
+    state.resources.essence = 0
+    state = buyResearch(state, 'boss-harvester')
+    expect(state.research.unlocked).not.toContain('boss-harvester')
+
+    state.resources.essence = 1
+    state = buyResearch(state, 'boss-harvester')
+    expect(state.research.unlocked).toContain('boss-harvester')
+  })
+})
+
+describe('AI doctrines', () => {
+  it('focus-fire increases ship damage', () => {
+    let state = createInitialState(0)
+    const before = computeShipStats(state).damage
+    state.resources.aiPoints = 2
+    state = buyAiNode(state, 'focus-fire')
+    expect(computeShipStats(state).damage).toBeGreaterThan(before)
+  })
+
+  it('boss-protocol boosts boss damage', () => {
+    let state = createInitialState(0)
+    state.resources.aiPoints = 3
+    state = buyAiNode(state, 'boss-protocol')
+    state.combat.sector = 5
+    state = startCombat(state)
+    expect(state.combat.isBoss).toBe(true)
+    const notes = computeFightDamage(state).matchupNotes.join(' ')
+    expect(notes).toContain('Boss Protocol')
+  })
+
+  it('scavenger increases scrap rewards', () => {
+    let state = createInitialState(0)
+    state.resources.aiPoints = 2
+    state = buyAiNode(state, 'scavenger')
+    state = startCombat(state)
+    state.combat.enemyHull = 1
+    const scrapBefore = state.resources.scrap
+    advanceTicks(state, 1)
+    expect(state.resources.scrap - scrapBefore).toBeGreaterThan(5)
+  })
+})
