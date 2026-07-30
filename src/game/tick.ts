@@ -1,9 +1,11 @@
-import type { GameState } from './types'
+import type { GameState, Resources } from './types'
 import { computeShipStats, createInitialState } from './state'
 import { BUILDINGS, metaProductionMultiplier } from './catalog'
 import { tryCompleteChallenge } from './actions'
 
-const TICK_MS = 1000
+export const TICK_MS = 1000
+/** Live interval catch-up — keep short; long absences use offline catch-up. */
+export const LIVE_TICK_CAP = 5
 
 function pushLog(state: GameState, line: string, max = 40): void {
   state.combat.log = [line, ...state.combat.log].slice(0, max)
@@ -37,7 +39,6 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   }
 }
 
-/** Placeholder combat: simple hull trade until one side hits 0. */
 function tickCombat(state: GameState): void {
   if (!state.combat.inFight) return
 
@@ -121,28 +122,43 @@ function sectorEnemyName(sector: number): string {
   return names[(sector - 1) % names.length] ?? 'Unknown Entity'
 }
 
+/** Advance simulation by N one-second ticks (mutates). */
+export function advanceTicks(state: GameState, ticks: number): void {
+  for (let i = 0; i < ticks; i += 1) {
+    applyProduction(state, TICK_MS / 1000)
+    tickCombat(state)
+    maybeAutoEngage(state)
+  }
+}
+
 /**
- * Advance simulation by elapsed wall time.
- * Caps catch-up so reloads stay cheap until offline formulas are designed.
+ * Live tick path used by the UI interval.
+ * Long absences should call applyOfflineCatchUp instead.
  */
 export function tickGame(state: GameState, now = Date.now()): GameState {
   const next = structuredClone(state)
   const elapsed = Math.max(0, now - next.lastTickAt)
-  const ticks = Math.min(60, Math.floor(elapsed / TICK_MS))
+  const ticks = Math.min(LIVE_TICK_CAP, Math.floor(elapsed / TICK_MS))
 
-  if (ticks <= 0) {
-    next.lastTickAt = now
-    return next
-  }
-
-  for (let i = 0; i < ticks; i += 1) {
-    applyProduction(next, TICK_MS / 1000)
-    tickCombat(next)
-    maybeAutoEngage(next)
+  if (ticks > 0) {
+    advanceTicks(next, ticks)
   }
 
   next.lastTickAt = now
   return next
+}
+
+export function snapshotResources(resources: Resources): Resources {
+  return { ...resources }
+}
+
+export function resourceDelta(before: Resources, after: Resources): Partial<Resources> {
+  const gains: Partial<Resources> = {}
+  for (const key of Object.keys(before) as (keyof Resources)[]) {
+    const diff = after[key] - before[key]
+    if (Math.abs(diff) > 0.001) gains[key] = diff
+  }
+  return gains
 }
 
 export function resetGame(now = Date.now()): GameState {

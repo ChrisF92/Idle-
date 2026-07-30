@@ -1,7 +1,8 @@
-import { useEffect, useReducer, useRef } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import type { GameState } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import { tickGame, startCombat, resetGame } from '../game/tick'
+import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
   abandonChallenge,
   buyAiNode,
@@ -72,10 +73,21 @@ function reducer(state: GameState, action: Action): GameState {
   }
 }
 
+function loadWithOffline(): { state: GameState; report: OfflineReport | null } {
+  const loaded = loadOrCreateGame()
+  return applyOfflineCatchUp(loaded, Date.now())
+}
+
 export function useGame() {
-  const [state, dispatch] = useReducer(reducer, undefined, () => loadOrCreateGame())
-  const stateRef = useRef(state)
-  stateRef.current = state
+  const initial = useRef<{ state: GameState; report: OfflineReport | null } | null>(null)
+  if (!initial.current) {
+    initial.current = loadWithOffline()
+  }
+
+  const [state, dispatch] = useReducer(reducer, initial.current.state)
+  const [offlineReport, setOfflineReport] = useState<OfflineReport | null>(
+    initial.current.report,
+  )
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -90,6 +102,8 @@ export function useGame() {
 
   return {
     state,
+    offlineReport,
+    dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),
     upgradeBuilding: (buildingId: string) =>
       dispatch({ type: 'upgrade-building', buildingId }),
@@ -107,8 +121,11 @@ export function useGame() {
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyImportedSave: (code: string) => {
       const imported = importSave(code)
-      if (imported) dispatch({ type: 'replace', state: imported })
-      return imported !== null
+      if (!imported) return false
+      const { state: caughtUp, report } = applyOfflineCatchUp(imported, Date.now())
+      dispatch({ type: 'replace', state: caughtUp })
+      setOfflineReport(report)
+      return true
     },
     newGame: () => dispatch({ type: 'replace', state: createInitialState() }),
   }

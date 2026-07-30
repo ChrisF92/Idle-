@@ -3,6 +3,7 @@ import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { ResourceBar } from './components/ResourceBar'
 import { TabNav } from './components/TabNav'
+import { OfflineBanner } from './components/OfflineBanner'
 import { CombatTab } from './components/tabs/CombatTab'
 import { ShipyardTab } from './components/tabs/ShipyardTab'
 import { BaseTab } from './components/tabs/BaseTab'
@@ -24,6 +25,13 @@ export default function App() {
           <p className="tagline">Working title — fleet vs entities</p>
         </div>
       </header>
+
+      {game.offlineReport ? (
+        <OfflineBanner
+          report={game.offlineReport}
+          onDismiss={game.dismissOfflineReport}
+        />
+      ) : null}
 
       <ResourceBar resources={game.state.resources} />
       <TabNav active={tab} onChange={setTab} />

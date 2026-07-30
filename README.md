@@ -9,17 +9,18 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Simulation core under `src/game/` (UI-free, unit-tested)
 - PWA / Capacitor Android wrap planned later
 
-## Systems (skeleton tabs)
+## Systems (tabs)
 
 | Tab | Purpose |
 |---|---|
 | Combat | Sector push, tick combat, entity enemies |
-| Shipyard | Frames + modules |
-| Base | Idle industry |
-| Research | Unlock tree |
-| AI | AI Points / automation doctrines |
-| Prestige | Soft reset + challenges |
+| Shipyard | Unlock/fit frames + modules (affects damage/hull) |
+| Base | Idle industry upgrades |
+| Research | Unlock tree + damage bonuses |
+| AI | AI Points / Auto Engage |
+| Prestige | Soft reset at sector 8+ + challenge runs |
 | Stats | Save management |
+
 
 ## Develop
 
@@ -34,4 +35,5 @@ npm run build
 
 - Art is UI/text-first by design.
 - Game logic should stay in `src/game/`; React is presentation + input.
-- Solo project: still use branches/PRs so agents can iterate cleanly.
+- Solo project: use **one feature per branch/PR** so slices stay reviewable.
+- Offline catch-up (up to 8h) runs on load; Auto Engage continues combat while away.

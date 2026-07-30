@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
-import { tickGame, startCombat } from './tick'
+import { advanceTicks, startCombat, tickGame } from './tick'
+import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
 import { exportSave, importSave } from './save'
 import {
   buyAiNode,
@@ -21,15 +22,13 @@ describe('tickGame', () => {
     expect(next.resources.energy).toBeGreaterThan(start.resources.energy)
   })
 
-  it('resolves a fight and advances sector', () => {
-    let state = createInitialState(0)
-    state = startCombat(state)
-    expect(state.combat.inFight).toBe(true)
-
-    state = tickGame(state, 60_000)
-    expect(state.combat.sector).toBeGreaterThan(1)
-    expect(state.resources.scrap).toBeGreaterThan(0)
-    expect(state.resources.aiPoints).toBeGreaterThan(0)
+  it('caps live catch-up to a few seconds', () => {
+    const start = createInitialState(0)
+    const next = tickGame(start, 60_000)
+    // Live path only applies LIVE_TICK_CAP seconds of production
+    const gained = next.resources.scrap - start.resources.scrap
+    expect(gained).toBeGreaterThan(0)
+    expect(gained).toBeLessThan(5)
   })
 
   it('auto-engages when AI node is owned', () => {
@@ -37,6 +36,53 @@ describe('tickGame', () => {
     state.ai.purchased = ['auto-engage']
     state = tickGame(state, 1000)
     expect(state.combat.inFight).toBe(true)
+  })
+})
+
+describe('advanceTicks / combat', () => {
+  it('resolves a fight and advances sector', () => {
+    let state = createInitialState(0)
+    state = startCombat(state)
+    expect(state.combat.inFight).toBe(true)
+
+    const next = structuredClone(state)
+    advanceTicks(next, 60)
+    expect(next.combat.sector).toBeGreaterThan(1)
+    expect(next.resources.scrap).toBeGreaterThan(0)
+    expect(next.resources.aiPoints).toBeGreaterThan(0)
+  })
+})
+
+describe('offline catch-up', () => {
+  it('applies industry gains after a long absence', () => {
+    const state = createInitialState(0)
+    const { state: next, report } = applyOfflineCatchUp(state, 5 * 60 * 1000)
+    expect(next.resources.scrap).toBeGreaterThan(state.resources.scrap)
+    expect(report).not.toBeNull()
+    expect(report!.gains.scrap ?? 0).toBeGreaterThan(0)
+    expect(next.lastTickAt).toBe(5 * 60 * 1000)
+  })
+
+  it('pushes sectors offline when Auto Engage is owned', () => {
+    const state = createInitialState(0)
+    state.ai.purchased = ['auto-engage']
+    const { state: next, report } = applyOfflineCatchUp(state, 3 * 60 * 1000)
+    expect(next.combat.sector).toBeGreaterThan(1)
+    expect(report?.sectorsCleared ?? 0).toBeGreaterThan(0)
+  })
+
+  it('caps applied offline time', () => {
+    const state = createInitialState(0)
+    const away = MAX_OFFLINE_MS + 2 * 60 * 60 * 1000
+    const { report } = applyOfflineCatchUp(state, away)
+    expect(report?.capped).toBe(true)
+    expect(report?.appliedMs).toBe(MAX_OFFLINE_MS)
+  })
+
+  it('skips report for short gaps', () => {
+    const state = createInitialState(0)
+    const { report } = applyOfflineCatchUp(state, 10_000)
+    expect(report).toBeNull()
   })
 })
 
@@ -115,16 +161,12 @@ describe('prestige and challenges', () => {
     expect(state.prestige.activeChallengeId).toBe('no-ai')
     expect(state.combat.sector).toBe(1)
 
-    // Simulate clearing to sector 5 goal: after 5 clears, sector is 6
     state.combat.sector = 6
-    state.ai.purchased = ['auto-engage']
-    // Force a victory tick path via tryCompleteChallenge through combat
     state.combat.inFight = true
     state.combat.enemyHull = 1
     state.combat.enemyHullMax = 1
     state.combat.playerHull = 100
     state.combat.playerHullMax = 100
-    // Damage is high enough to finish in one tick
     state = tickGame(state, state.lastTickAt + 1000)
     expect(state.prestige.completedChallenges).toContain('no-ai')
     expect(state.prestige.activeChallengeId).toBeNull()
