@@ -5,11 +5,12 @@ import {
   essenceHullBonus,
   getFrame,
   getModule,
+  matterShopHullBonus,
   metaDamageMultiplier,
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 6
+export const SAVE_VERSION = 7
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -84,6 +85,7 @@ export function createInitialState(now = Date.now()): GameState {
       activeChallengeId: null,
       completedChallenges: [],
       shop: [],
+      matterShop: [],
     },
   }
 }
@@ -92,7 +94,10 @@ export function createInitialState(now = Date.now()): GameState {
 export function computeShipStats(state: GameState): ShipCombatStats {
   const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
   let damage = frame.baseDamage
-  let hullMax = frame.baseHull + essenceHullBonus(state.essence.purchased)
+  let hullMax =
+    frame.baseHull +
+    essenceHullBonus(state.essence.purchased) +
+    matterShopHullBonus(state.prestige.matterShop)
   let damageTakenMult = 1
 
   for (const moduleId of state.shipyard.modules) {
@@ -109,6 +114,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
     state.resources.prestigeMatter,
     state.resources.challengePoints,
     state.prestige.shop,
+    state.prestige.matterShop,
   )
 
   if (aiDoctrinesActive(state, 'focus-fire')) {

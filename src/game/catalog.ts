@@ -59,6 +59,21 @@ export interface ChallengeShopDef {
   matchupBonus?: number
 }
 
+export interface MatterShopDef {
+  id: string
+  name: string
+  description: string
+  costPm: number
+  damageBonus?: number
+  productionBonus?: number
+  hullBonus?: number
+  /** Multiplier on combat scrap rewards (0.25 = +25%). */
+  scrapBonus?: number
+  bonusDataPerClear?: number
+  /** Multiplier on post-loss repair delay (0.6 = 40% faster). */
+  repairMult?: number
+}
+
 export interface ChallengeDef {
   id: string
   name: string
@@ -273,6 +288,52 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   },
 ]
 
+/** Spend Prestige Matter for stronger specialized permanents (vs banked +2% dmg/prod). */
+export const MATTER_SHOP: MatterShopDef[] = [
+  {
+    id: 'matter-blade',
+    name: 'Matter Blade',
+    description: 'Permanent +15% combat damage (stronger than banking 3 PM).',
+    costPm: 3,
+    damageBonus: 0.15,
+  },
+  {
+    id: 'matter-forge',
+    name: 'Matter Forge',
+    description: 'Permanent +18% base production.',
+    costPm: 3,
+    productionBonus: 0.18,
+  },
+  {
+    id: 'matter-plating',
+    name: 'Matter Plating',
+    description: 'Permanent +50 hull.',
+    costPm: 4,
+    hullBonus: 50,
+  },
+  {
+    id: 'salvage-rights',
+    name: 'Salvage Rights',
+    description: 'Permanent +25% scrap from combat clears.',
+    costPm: 3,
+    scrapBonus: 0.25,
+  },
+  {
+    id: 'archive-spur',
+    name: 'Archive Spur',
+    description: 'Permanent +2 Data on every sector clear.',
+    costPm: 3,
+    bonusDataPerClear: 2,
+  },
+  {
+    id: 'drydock-boost',
+    name: 'Drydock Boost',
+    description: 'Permanent 40% faster repairs after losses.',
+    costPm: 4,
+    repairMult: 0.6,
+  },
+]
+
 export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'no-ai',
@@ -386,6 +447,10 @@ export function getChallengeShopItem(id: string): ChallengeShopDef | undefined {
   return CHALLENGE_SHOP.find((c) => c.id === id)
 }
 
+export function getMatterShopItem(id: string): MatterShopDef | undefined {
+  return MATTER_SHOP.find((m) => m.id === id)
+}
+
 export function getAiNode(id: string): AiNodeDef | undefined {
   return AI_NODES.find((n) => n.id === id)
 }
@@ -457,18 +522,64 @@ export function metaDamageMultiplier(
   prestigeMatter: number,
   challengePoints: number,
   shop: string[] = [],
+  matterShop: string[] = [],
 ): number {
-  // Unspent CP still helps a little; spending unlocks stronger shop effects.
+  // Unspent PM/CP still help a little; spending unlocks stronger shop effects.
   let mult = 1 + prestigeMatter * 0.02 + challengePoints * 0.02
   for (const id of shop) {
     const def = getChallengeShopItem(id)
     if (def?.damageBonus) mult += def.damageBonus
   }
+  for (const id of matterShop) {
+    const def = getMatterShopItem(id)
+    if (def?.damageBonus) mult += def.damageBonus
+  }
   return mult
 }
 
-export function metaProductionMultiplier(prestigeMatter: number): number {
-  return 1 + prestigeMatter * 0.02
+export function metaProductionMultiplier(
+  prestigeMatter: number,
+  matterShop: string[] = [],
+): number {
+  let mult = 1 + prestigeMatter * 0.02
+  for (const id of matterShop) {
+    const def = getMatterShopItem(id)
+    if (def?.productionBonus) mult += def.productionBonus
+  }
+  return mult
+}
+
+export function matterShopHullBonus(matterShop: string[]): number {
+  let total = 0
+  for (const id of matterShop) {
+    total += getMatterShopItem(id)?.hullBonus ?? 0
+  }
+  return total
+}
+
+export function matterShopScrapBonus(matterShop: string[]): number {
+  let total = 0
+  for (const id of matterShop) {
+    total += getMatterShopItem(id)?.scrapBonus ?? 0
+  }
+  return total
+}
+
+export function matterShopDataPerClear(matterShop: string[]): number {
+  let total = 0
+  for (const id of matterShop) {
+    total += getMatterShopItem(id)?.bonusDataPerClear ?? 0
+  }
+  return total
+}
+
+export function matterShopRepairMult(matterShop: string[]): number {
+  let mult = 1
+  for (const id of matterShop) {
+    const r = getMatterShopItem(id)?.repairMult
+    if (r != null) mult *= r
+  }
+  return mult
 }
 
 export function prestigeMinSectorFor(shop: string[]): number {

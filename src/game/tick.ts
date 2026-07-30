@@ -5,6 +5,8 @@ import {
   aiDoctrinesActive,
   essenceBonusDataPerClear,
   essenceProductionMultiplier,
+  matterShopDataPerClear,
+  matterShopScrapBonus,
   metaProductionMultiplier,
   researchEssenceMultiplier,
 } from './catalog'
@@ -46,8 +48,10 @@ function refreshPlayerHull(state: GameState): void {
 
 function applyProduction(state: GameState, dtSeconds: number): void {
   const meta =
-    metaProductionMultiplier(state.resources.prestigeMatter) *
-    essenceProductionMultiplier(state.essence.purchased)
+    metaProductionMultiplier(
+      state.resources.prestigeMatter,
+      state.prestige.matterShop,
+    ) * essenceProductionMultiplier(state.essence.purchased)
 
   for (const building of BUILDINGS) {
     const level = state.base.buildings[building.id] ?? 0
@@ -121,7 +125,10 @@ function tickCombat(state: GameState): void {
     const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
     let scrapGain = enemy.scrapReward
     if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
-    const siphonData = essenceBonusDataPerClear(state.essence.purchased)
+    scrapGain *= 1 + matterShopScrapBonus(state.prestige.matterShop)
+    const siphonData =
+      essenceBonusDataPerClear(state.essence.purchased) +
+      matterShopDataPerClear(state.prestige.matterShop)
     const dataGain = dataBlocked ? 0 : enemy.dataReward + siphonData
     const aiGain = enemy.aiReward
     const essenceGain =

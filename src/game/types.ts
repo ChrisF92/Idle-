@@ -85,6 +85,8 @@ export interface PrestigeState {
   completedChallenges: string[]
   /** Permanent Challenge Point shop purchases. */
   shop: string[]
+  /** Permanent Prestige Matter shop purchases. */
+  matterShop: string[]
 }
 
 export interface GameState {

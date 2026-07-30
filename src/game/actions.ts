@@ -10,6 +10,7 @@ import {
   getChallengeShopItem,
   getEssenceUpgrade,
   getFrame,
+  getMatterShopItem,
   getModule,
   prestigeMinSectorFor,
   type ResourceCost,
@@ -104,6 +105,23 @@ export function buyChallengeShop(state: GameState, itemId: string): GameState {
   const next = structuredClone(state)
   next.resources.challengePoints -= def.costCp
   next.prestige.shop = [...next.prestige.shop, itemId]
+  return next
+}
+
+export function buyMatterShop(state: GameState, itemId: string): GameState {
+  const def = getMatterShopItem(itemId)
+  if (!def) return state
+  if (state.prestige.matterShop.includes(itemId)) return state
+  if (state.resources.prestigeMatter < def.costPm) return state
+
+  const next = structuredClone(state)
+  next.resources.prestigeMatter -= def.costPm
+  next.prestige.matterShop = [...next.prestige.matterShop, itemId]
+  if (!next.combat.inFight) {
+    const stats = computeShipStats(next)
+    next.combat.playerHullMax = stats.hullMax
+    next.combat.playerHull = stats.hullMax
+  }
   return next
 }
 
@@ -208,6 +226,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     completedChallenges: [...state.prestige.completedChallenges],
     activeChallengeId: state.prestige.activeChallengeId,
     shop: [...state.prestige.shop],
+    matterShop: [...state.prestige.matterShop],
   }
 
   const fresh = createInitialState(now)
@@ -250,6 +269,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     activeChallengeId: kept.activeChallengeId,
     completedChallenges: kept.completedChallenges,
     shop: kept.shop,
+    matterShop: kept.matterShop,
   }
 
   const stats = computeShipStats(state)

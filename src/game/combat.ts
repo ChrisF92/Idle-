@@ -5,6 +5,7 @@ import {
   getModule,
   aiDoctrinesActive,
   challengeShopMatchupBonus,
+  matterShopRepairMult,
 } from './catalog'
 import { computeShipStats } from './state'
 
@@ -212,8 +213,10 @@ export function maybeAdvanceBossPhase(
 export function repairDelaySeconds(state: GameState): number {
   const base = 3 + state.combat.consecutiveLosses
   const capped = Math.min(8, base)
+  let delay = capped
   if (aiDoctrinesActive(state, 'auto-engage')) {
-    return Math.max(1, Math.ceil(capped / 2))
+    delay = Math.max(1, Math.ceil(capped / 2))
   }
-  return capped
+  delay = Math.max(1, Math.ceil(delay * matterShopRepairMult(state.prestige.matterShop)))
+  return delay
 }

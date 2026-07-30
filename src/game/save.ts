@@ -37,6 +37,7 @@ function withPrestigeDefaults(prestige: GameState['prestige'] | undefined): Game
     activeChallengeId: prestige?.activeChallengeId ?? null,
     completedChallenges: prestige?.completedChallenges ?? [],
     shop: prestige?.shop ?? [],
+    matterShop: prestige?.matterShop ?? [],
   }
 }
 
@@ -85,7 +86,13 @@ function migrate(raw: unknown): GameState | null {
     }
   }
 
-  if (parsed.version === 2 || parsed.version === 3 || parsed.version === 4 || parsed.version === 5) {
+  if (
+    parsed.version === 2 ||
+    parsed.version === 3 ||
+    parsed.version === 4 ||
+    parsed.version === 5 ||
+    parsed.version === 6
+  ) {
     const base = createInitialState()
     const prev = parsed as GameState
     return {

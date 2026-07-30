@@ -71,6 +71,7 @@ export default function App() {
             onEnterChallenge={game.enterChallenge}
             onAbandonChallenge={game.abandonChallenge}
             onBuyShop={game.buyChallengeShop}
+            onBuyMatterShop={game.buyMatterShop}
           />
         )}
         {tab === 'stats' && (

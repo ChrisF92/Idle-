@@ -14,6 +14,7 @@ import {
   buyAiNode,
   buyChallengeShop,
   buyEssenceUpgrade,
+  buyMatterShop,
   buyResearch,
   enterChallenge,
   fitModule,
@@ -36,6 +37,7 @@ type Action =
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-essence'; upgradeId: string }
   | { type: 'buy-challenge-shop'; itemId: string }
+  | { type: 'buy-matter-shop'; itemId: string }
   | { type: 'buy-ai'; nodeId: string }
   | { type: 'unlock-frame'; frameId: string }
   | { type: 'select-frame'; frameId: string }
@@ -67,6 +69,8 @@ function reducer(state: GameState, action: Action): GameState {
       return buyEssenceUpgrade(state, action.upgradeId)
     case 'buy-challenge-shop':
       return buyChallengeShop(state, action.itemId)
+    case 'buy-matter-shop':
+      return buyMatterShop(state, action.itemId)
     case 'buy-ai':
       return buyAiNode(state, action.nodeId)
     case 'unlock-frame':
@@ -134,6 +138,7 @@ export function useGame() {
       dispatch({ type: 'buy-essence', upgradeId }),
     buyChallengeShop: (itemId: string) =>
       dispatch({ type: 'buy-challenge-shop', itemId }),
+    buyMatterShop: (itemId: string) => dispatch({ type: 'buy-matter-shop', itemId }),
     buyAiNode: (nodeId: string) => dispatch({ type: 'buy-ai', nodeId }),
     unlockFrame: (frameId: string) => dispatch({ type: 'unlock-frame', frameId }),
     selectFrame: (frameId: string) => dispatch({ type: 'select-frame', frameId }),
