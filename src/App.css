@@ -213,6 +213,23 @@ button.danger {
   padding: 0.7rem;
 }
 
+.action-col {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: end;
+  flex: 0 0 auto;
+}
+
+.action-col button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.notice-warn {
+  color: #e0b06a;
+  font-size: 0.85rem;
+}
+
 .badge {
   flex: 0 0 auto;
   border: 1px solid var(--line);

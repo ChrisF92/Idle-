@@ -1,52 +1,66 @@
 import type { GameState } from './types'
 import { createInitialState } from './state'
+import { BUILDINGS, researchDamageMultiplier } from './catalog'
 
 const TICK_MS = 1000
-
-/** Building production per level per second (placeholder rates). */
-const BUILDING_RATES: Record<string, Partial<Record<keyof GameState['resources'], number>>> = {
-  scrapYard: { scrap: 0.5 },
-  powerCell: { energy: 0.2 },
-  foundry: { alloys: 0.15 },
-  sensorArray: { data: 0.08 },
-}
 
 function pushLog(state: GameState, line: string, max = 40): void {
   state.combat.log = [line, ...state.combat.log].slice(0, max)
 }
 
 function applyProduction(state: GameState, dtSeconds: number): void {
-  for (const [buildingId, level] of Object.entries(state.base.buildings)) {
+  for (const building of BUILDINGS) {
+    const level = state.base.buildings[building.id] ?? 0
     if (level <= 0) continue
-    const rates = BUILDING_RATES[buildingId]
-    if (!rates) continue
-    for (const [resource, perLevel] of Object.entries(rates)) {
+
+    if (building.upkeepScrapPerLevel) {
+      const upkeep = building.upkeepScrapPerLevel * level * dtSeconds
+      const available = state.resources.scrap
+      const paid = Math.min(available, upkeep)
+      state.resources.scrap -= paid
+      // Scale output if scrap-starved
+      const efficiency = upkeep > 0 ? paid / upkeep : 1
+      for (const [resource, perLevel] of Object.entries(building.rates)) {
+        const key = resource as keyof GameState['resources']
+        state.resources[key] += (perLevel ?? 0) * level * dtSeconds * efficiency
+      }
+      continue
+    }
+
+    for (const [resource, perLevel] of Object.entries(building.rates)) {
       const key = resource as keyof GameState['resources']
       state.resources[key] += (perLevel ?? 0) * level * dtSeconds
     }
   }
 }
 
+function playerDamage(state: GameState): number {
+  return 8 * researchDamageMultiplier(state.research.unlocked)
+}
+
 /** Placeholder combat: simple hull trade until one side hits 0. */
 function tickCombat(state: GameState): void {
   if (!state.combat.inFight) return
 
-  const playerDps = 8
+  const playerDps = playerDamage(state)
   const enemyDps = 5 + state.combat.sector * 0.8
 
   state.combat.enemyHull = Math.max(0, state.combat.enemyHull - playerDps)
   state.combat.playerHull = Math.max(0, state.combat.playerHull - enemyDps)
 
   if (state.combat.enemyHull <= 0) {
-    const scrapGain = 5 + state.combat.sector * 2
-    const dataGain = 1 + Math.floor(state.combat.sector / 3)
+    const clearedSector = state.combat.sector
+    const scrapGain = 5 + clearedSector * 2
+    const dataGain = 1 + Math.floor(clearedSector / 3)
+    const aiGain = clearedSector % 5 === 0 ? 1 : 0.15
     state.resources.scrap += scrapGain
     state.resources.data += dataGain
+    state.resources.aiPoints += aiGain
     state.combat.inFight = false
     state.combat.enemyName = 'None'
     pushLog(
       state,
-      `Sector ${state.combat.sector} cleared. +${scrapGain} scrap, +${dataGain} data.`,
+      `Sector ${clearedSector} cleared. +${scrapGain} scrap, +${dataGain} data, +${aiGain} AI.`,
     )
     state.combat.sector += 1
     state.combat.playerHull = state.combat.playerHullMax
@@ -58,17 +72,28 @@ function tickCombat(state: GameState): void {
   }
 }
 
+function maybeAutoEngage(state: GameState): void {
+  if (state.combat.inFight) return
+  if (!state.ai.purchased.includes('auto-engage')) return
+  if (state.prestige.activeChallengeId === 'no-ai') return
+  beginFight(state)
+}
+
+function beginFight(state: GameState): void {
+  const sector = state.combat.sector
+  const enemyHull = 40 + sector * 15
+  state.combat.inFight = true
+  state.combat.enemyName = sectorEnemyName(sector)
+  state.combat.enemyHull = enemyHull
+  state.combat.enemyHullMax = enemyHull
+  state.combat.playerHull = state.combat.playerHullMax
+  pushLog(state, `Engaging ${state.combat.enemyName} in sector ${sector}.`)
+}
+
 export function startCombat(state: GameState): GameState {
   if (state.combat.inFight) return state
   const next = structuredClone(state)
-  const sector = next.combat.sector
-  const enemyHull = 40 + sector * 15
-  next.combat.inFight = true
-  next.combat.enemyName = sectorEnemyName(sector)
-  next.combat.enemyHull = enemyHull
-  next.combat.enemyHullMax = enemyHull
-  next.combat.playerHull = next.combat.playerHullMax
-  pushLog(next, `Engaging ${next.combat.enemyName} in sector ${sector}.`)
+  beginFight(next)
   return next
 }
 
@@ -100,6 +125,7 @@ export function tickGame(state: GameState, now = Date.now()): GameState {
   for (let i = 0; i < ticks; i += 1) {
     applyProduction(next, TICK_MS / 1000)
     tickCombat(next)
+    maybeAutoEngage(next)
   }
 
   next.lastTickAt = now

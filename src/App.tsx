@@ -13,7 +13,15 @@ import { StatsTab } from './components/tabs/StatsTab'
 import './App.css'
 
 export default function App() {
-  const { state, engage, hardReset, applyImportedSave } = useGame()
+  const {
+    state,
+    engage,
+    upgradeBuilding,
+    buyResearch,
+    buyAiNode,
+    hardReset,
+    applyImportedSave,
+  } = useGame()
   const [tab, setTab] = useState<TabId>('combat')
 
   return (
@@ -31,9 +39,9 @@ export default function App() {
       <main className="main">
         {tab === 'combat' && <CombatTab state={state} onEngage={engage} />}
         {tab === 'shipyard' && <ShipyardTab state={state} />}
-        {tab === 'base' && <BaseTab state={state} />}
-        {tab === 'research' && <ResearchTab state={state} />}
-        {tab === 'ai' && <AiTab state={state} />}
+        {tab === 'base' && <BaseTab state={state} onUpgrade={upgradeBuilding} />}
+        {tab === 'research' && <ResearchTab state={state} onBuy={buyResearch} />}
+        {tab === 'ai' && <AiTab state={state} onBuy={buyAiNode} />}
         {tab === 'prestige' && <PrestigeTab state={state} />}
         {tab === 'stats' && (
           <StatsTab state={state} onHardReset={hardReset} onImport={applyImportedSave} />

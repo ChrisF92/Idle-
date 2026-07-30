@@ -19,7 +19,7 @@ export function createInitialState(now = Date.now()): GameState {
     version: SAVE_VERSION,
     lastTickAt: now,
     resources: {
-      scrap: 0,
+      scrap: 25,
       alloys: 0,
       energy: 10,
       data: 0,
