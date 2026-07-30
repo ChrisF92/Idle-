@@ -1,14 +1,17 @@
 import type { GameState, Resources } from './types'
 import {
   AI_NODES,
-  PRESTIGE_MIN_SECTOR,
   RESEARCH,
   buildingUpgradeCost,
+  challengeShopStartingAi,
+  challengeShopStartingScrap,
   getBuilding,
   getChallenge,
+  getChallengeShopItem,
   getEssenceUpgrade,
   getFrame,
   getModule,
+  prestigeMinSectorFor,
   type ResourceCost,
 } from './catalog'
 import { computeShipStats, createInitialState } from './state'
@@ -92,6 +95,18 @@ export function buyEssenceUpgrade(state: GameState, upgradeId: string): GameStat
   return next
 }
 
+export function buyChallengeShop(state: GameState, itemId: string): GameState {
+  const def = getChallengeShopItem(itemId)
+  if (!def) return state
+  if (state.prestige.shop.includes(itemId)) return state
+  if (state.resources.challengePoints < def.costCp) return state
+
+  const next = structuredClone(state)
+  next.resources.challengePoints -= def.costCp
+  next.prestige.shop = [...next.prestige.shop, itemId]
+  return next
+}
+
 export function unlockFrame(state: GameState, frameId: string): GameState {
   const def = getFrame(frameId)
   if (!def) return state
@@ -168,14 +183,14 @@ export function prestigeGainFor(state: GameState): number {
 
 export function canPrestige(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return false
-  return state.combat.sector >= PRESTIGE_MIN_SECTOR
+  return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
 }
 
 export function canEnterChallenge(state: GameState, challengeId: string): boolean {
   if (state.prestige.activeChallengeId) return false
   if (state.prestige.completedChallenges.includes(challengeId)) return false
   if (!getChallenge(challengeId)) return false
-  return state.combat.sector >= PRESTIGE_MIN_SECTOR
+  return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
 }
 
 function applyRunReset(state: GameState, now = Date.now()): void {
@@ -192,9 +207,13 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     prestigeCount: state.prestige.prestigeCount,
     completedChallenges: [...state.prestige.completedChallenges],
     activeChallengeId: state.prestige.activeChallengeId,
+    shop: [...state.prestige.shop],
   }
 
   const fresh = createInitialState(now)
+  const bonusScrap = challengeShopStartingScrap(kept.shop)
+  const bonusAi = challengeShopStartingAi(kept.shop)
+
   state.version = fresh.version
   state.lastTickAt = now
   state.resources = {
@@ -202,6 +221,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     prestigeMatter: kept.prestigeMatter,
     challengePoints: kept.challengePoints,
     essence: kept.essence,
+    scrap: fresh.resources.scrap + bonusScrap,
+    aiPoints: fresh.resources.aiPoints + bonusAi,
   }
   state.shipyard = {
     frameId: kept.frameId,
@@ -227,6 +248,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     prestigeCount: kept.prestigeCount,
     activeChallengeId: kept.activeChallengeId,
     completedChallenges: kept.completedChallenges,
+    shop: kept.shop,
   }
 
   const stats = computeShipStats(state)

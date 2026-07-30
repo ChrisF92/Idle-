@@ -26,6 +26,15 @@ function withEssenceDefaults(state: Partial<GameState>): GameState['essence'] {
   }
 }
 
+function withPrestigeDefaults(prestige: GameState['prestige'] | undefined): GameState['prestige'] {
+  return {
+    prestigeCount: prestige?.prestigeCount ?? 0,
+    activeChallengeId: prestige?.activeChallengeId ?? null,
+    completedChallenges: prestige?.completedChallenges ?? [],
+    shop: prestige?.shop ?? [],
+  }
+}
+
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
   const parsed = raw as Partial<GameState> & { version?: number }
@@ -35,6 +44,7 @@ function migrate(raw: unknown): GameState | null {
       ...state,
       combat: withCombatDefaults(state.combat),
       essence: withEssenceDefaults(state),
+      prestige: withPrestigeDefaults(state.prestige),
     }
   }
 
@@ -65,15 +75,12 @@ function migrate(raw: unknown): GameState | null {
         ...base.resources,
         ...v1.resources,
       },
-      prestige: {
-        ...base.prestige,
-        ...v1.prestige,
-      },
+      prestige: withPrestigeDefaults(v1.prestige),
       essence: withEssenceDefaults(v1),
     }
   }
 
-  if (parsed.version === 2 || parsed.version === 3) {
+  if (parsed.version === 2 || parsed.version === 3 || parsed.version === 4) {
     const base = createInitialState()
     const prev = parsed as GameState
     return {
@@ -91,6 +98,7 @@ function migrate(raw: unknown): GameState | null {
         unlockedModules: prev.shipyard?.unlockedModules ?? base.shipyard.unlockedModules,
       },
       essence: withEssenceDefaults(prev),
+      prestige: withPrestigeDefaults(prev.prestige),
     }
   }
 

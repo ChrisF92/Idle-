@@ -39,3 +39,4 @@ npm run build
 - Offline catch-up (up to 8h) runs on load; Auto Engage continues combat while away.
 - Combat uses entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
 - Essence buys permanent constructs; AI Points buy per-run doctrines (Focus Fire, Boss Protocol, Scavenger, Tactical Retreat).
+- Challenge Points can be spent in a permanent shop (or kept banked for a small damage bonus).

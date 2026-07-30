@@ -9,7 +9,7 @@ import {
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 4
+export const SAVE_VERSION = 5
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -78,6 +78,7 @@ export function createInitialState(now = Date.now()): GameState {
       prestigeCount: 0,
       activeChallengeId: null,
       completedChallenges: [],
+      shop: [],
     },
   }
 }
@@ -102,6 +103,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   damage *= metaDamageMultiplier(
     state.resources.prestigeMatter,
     state.resources.challengePoints,
+    state.prestige.shop,
   )
 
   if (aiDoctrinesActive(state, 'focus-fire')) {

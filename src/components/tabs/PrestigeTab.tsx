@@ -1,17 +1,19 @@
 import type { GameState } from '../../game/types'
-import { CHALLENGES, PRESTIGE_MIN_SECTOR } from '../../game/catalog'
+import { CHALLENGE_SHOP, CHALLENGES } from '../../game/catalog'
 import { RESOURCE_LABELS } from '../../game/state'
 import {
   canEnterChallenge,
   canPrestige,
   prestigeGainFor,
 } from '../../game/actions'
+import { prestigeMinSectorFor } from '../../game/catalog'
 
 interface PrestigeTabProps {
   state: GameState
   onPrestige: () => void
   onEnterChallenge: (challengeId: string) => void
   onAbandonChallenge: () => void
+  onBuyShop: (itemId: string) => void
 }
 
 export function PrestigeTab({
@@ -19,10 +21,12 @@ export function PrestigeTab({
   onPrestige,
   onEnterChallenge,
   onAbandonChallenge,
+  onBuyShop,
 }: PrestigeTabProps) {
   const { prestige, resources, combat } = state
   const gain = prestigeGainFor(state)
   const prestigeReady = canPrestige(state)
+  const minSector = prestigeMinSectorFor(prestige.shop)
   const active = prestige.activeChallengeId
     ? CHALLENGES.find((c) => c.id === prestige.activeChallengeId)
     : null
@@ -32,8 +36,8 @@ export function PrestigeTab({
       <header className="panel-header">
         <h2>Prestige & Challenges</h2>
         <p>
-          Soft reset at sector {PRESTIGE_MIN_SECTOR}+. Challenges are restricted prestige runs with
-          permanent Challenge Points.
+          Soft reset at sector {minSector}+. Spend Challenge Points on permanent rules — or keep
+          them banked for a small damage bonus.
         </p>
       </header>
 
@@ -57,8 +61,8 @@ export function PrestigeTab({
       </div>
 
       <p className="muted">
-        Prestige Matter: +2% damage & production each. Challenge Points: +3% damage each. Ship
-        unlocks are kept across prestiges.
+        Prestige Matter: +2% damage & production each. Unspent CP: +2% damage each. Shop purchases
+        are permanent.
       </p>
 
       {active ? (
@@ -76,16 +80,35 @@ export function PrestigeTab({
         <div className="stack">
           <p className="muted">
             Next prestige yields <strong>+{gain}</strong> Prestige Matter
-            {!prestigeReady
-              ? ` (need sector ${PRESTIGE_MIN_SECTOR}+)`
-              : ''}
-            .
+            {!prestigeReady ? ` (need sector ${minSector}+)` : ''}.
           </p>
           <button type="button" className="primary" disabled={!prestigeReady} onClick={onPrestige}>
             Prestige
           </button>
         </div>
       )}
+
+      <h3>Challenge Point shop</h3>
+      <ul className="def-list">
+        {CHALLENGE_SHOP.map((item) => {
+          const owned = prestige.shop.includes(item.id)
+          const canBuy = !owned && resources.challengePoints >= item.costCp
+          return (
+            <li key={item.id}>
+              <div>
+                <strong>{item.name}</strong>
+                <p className="muted">{item.description}</p>
+              </div>
+              <div className="action-col">
+                <span className="badge">{owned ? 'Owned' : `${item.costCp} CP`}</span>
+                <button type="button" disabled={!canBuy} onClick={() => onBuyShop(item.id)}>
+                  {owned ? 'Owned' : 'Buy'}
+                </button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
 
       <h3>Challenges</h3>
       <ul className="def-list">

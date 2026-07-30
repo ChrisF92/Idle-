@@ -1,8 +1,9 @@
 import type { GameState, Resources } from './types'
 import { RESOURCE_LABELS } from './state'
 import { advanceTicks, resourceDelta, snapshotResources, TICK_MS } from './tick'
+import { challengeShopOfflineMs } from './catalog'
 
-/** Hard cap so multi-day absences stay bounded. */
+/** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
 /** Only show a welcome-back report if away at least this long. */
@@ -38,7 +39,7 @@ function formatGains(gains: Partial<Resources>): string {
 
 /**
  * Apply offline progress for time since lastTickAt.
- * Uses the same 1s simulation ticks as live play, capped at MAX_OFFLINE_MS.
+ * Uses the same 1s simulation ticks as live play, capped by shop/offline rules.
  */
 export function applyOfflineCatchUp(
   state: GameState,
@@ -51,9 +52,10 @@ export function applyOfflineCatchUp(
     return { state: next, report: null }
   }
 
-  const appliedMs = Math.min(elapsedMs, MAX_OFFLINE_MS)
+  const maxMs = challengeShopOfflineMs(state.prestige.shop ?? [])
+  const appliedMs = Math.min(elapsedMs, maxMs)
   const ticks = Math.floor(appliedMs / TICK_MS)
-  const capped = elapsedMs > MAX_OFFLINE_MS
+  const capped = elapsedMs > maxMs
 
   const next = structuredClone(state)
   const beforeResources = snapshotResources(next.resources)

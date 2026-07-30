@@ -74,6 +74,8 @@ export interface PrestigeState {
   prestigeCount: number
   activeChallengeId: string | null
   completedChallenges: string[]
+  /** Permanent Challenge Point shop purchases. */
+  shop: string[]
 }
 
 export interface GameState {

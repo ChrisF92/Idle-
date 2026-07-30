@@ -1,7 +1,7 @@
 /** Combat entities, role matchups, and fight helpers. */
 
 import type { GameState } from './types'
-import { getModule, aiDoctrinesActive } from './catalog'
+import { getModule, aiDoctrinesActive, challengeShopMatchupBonus } from './catalog'
 import { computeShipStats } from './state'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
@@ -90,6 +90,7 @@ export function computeFightDamage(state: GameState): FightTickDamage {
   const family = (state.combat.enemyFamily || 'swarm') as EnemyFamily
   const roles = fittedRoles(state)
   const notes: string[] = []
+  const matchupScale = 1 + challengeShopMatchupBonus(state.prestige.shop)
 
   let playerDps = stats.damage
   let incomingMult = stats.damageTakenMult
@@ -99,19 +100,19 @@ export function computeFightDamage(state: GameState): FightTickDamage {
       : 5 + state.combat.sector * 0.8
 
   if (family === 'armored' && roles.weapon > 0) {
-    const bonus = 1 + 0.18 * roles.weapon
+    const bonus = 1 + 0.18 * roles.weapon * matchupScale
     playerDps *= bonus
     notes.push(`Weapons vs Armored ×${bonus.toFixed(2)}`)
   }
 
   if ((family === 'ethereal' || family === 'divine') && roles.utility > 0) {
-    const bonus = 1 + 0.2 * Math.min(roles.utility, 2)
+    const bonus = 1 + 0.2 * Math.min(roles.utility, 2) * matchupScale
     playerDps *= bonus
     notes.push(`Utility vs ${family} ×${bonus.toFixed(2)}`)
   }
 
   if (family === 'swarm' && roles.defense > 0) {
-    const reduce = Math.pow(0.88, roles.defense)
+    const reduce = Math.pow(0.88, roles.defense * matchupScale)
     incomingMult *= reduce
     notes.push(`Defense vs Swarm ×${reduce.toFixed(2)} incoming`)
   }

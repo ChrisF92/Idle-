@@ -44,6 +44,21 @@ export interface EssenceUpgradeDef {
   bonusDataPerClear?: number
 }
 
+export interface ChallengeShopDef {
+  id: string
+  name: string
+  description: string
+  costCp: number
+  damageBonus?: number
+  /** Overrides default prestige sector requirement when owned. */
+  prestigeMinSector?: number
+  startingScrap?: number
+  startingAiPoints?: number
+  offlineHours?: number
+  /** Extra effectiveness on role matchup bonuses (0.15 = +15%). */
+  matchupBonus?: number
+}
+
 export interface ChallengeDef {
   id: string
   name: string
@@ -213,6 +228,51 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   },
 ]
 
+export const CHALLENGE_SHOP: ChallengeShopDef[] = [
+  {
+    id: 'iron-will',
+    name: 'Iron Will',
+    description: 'Permanent +8% combat damage (spent CP).',
+    costCp: 1,
+    damageBonus: 0.08,
+  },
+  {
+    id: 'early-gate',
+    name: 'Early Gate',
+    description: 'Prestige / enter challenges from sector 6.',
+    costCp: 1,
+    prestigeMinSector: 6,
+  },
+  {
+    id: 'supply-cache',
+    name: 'Supply Cache',
+    description: 'Each run starts with +40 scrap.',
+    costCp: 1,
+    startingScrap: 40,
+  },
+  {
+    id: 'doctrine-seed',
+    name: 'Doctrine Seed',
+    description: 'Each run starts with +1 AI Point.',
+    costCp: 2,
+    startingAiPoints: 1,
+  },
+  {
+    id: 'deep-cache',
+    name: 'Deep Cache',
+    description: 'Offline catch-up cap becomes 12 hours.',
+    costCp: 2,
+    offlineHours: 12,
+  },
+  {
+    id: 'role-drills',
+    name: 'Role Drills',
+    description: '+20% effectiveness on role matchup bonuses.',
+    costCp: 2,
+    matchupBonus: 0.2,
+  },
+]
+
 export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'no-ai',
@@ -322,6 +382,10 @@ export function getEssenceUpgrade(id: string): EssenceUpgradeDef | undefined {
   return ESSENCE_UPGRADES.find((e) => e.id === id)
 }
 
+export function getChallengeShopItem(id: string): ChallengeShopDef | undefined {
+  return CHALLENGE_SHOP.find((c) => c.id === id)
+}
+
 export function getAiNode(id: string): AiNodeDef | undefined {
   return AI_NODES.find((n) => n.id === id)
 }
@@ -389,16 +453,74 @@ export function researchEssenceMultiplier(unlocked: string[]): number {
   return mult
 }
 
-export function metaDamageMultiplier(prestigeMatter: number, challengePoints: number): number {
-  return 1 + prestigeMatter * 0.02 + challengePoints * 0.03
+export function metaDamageMultiplier(
+  prestigeMatter: number,
+  challengePoints: number,
+  shop: string[] = [],
+): number {
+  // Unspent CP still helps a little; spending unlocks stronger shop effects.
+  let mult = 1 + prestigeMatter * 0.02 + challengePoints * 0.02
+  for (const id of shop) {
+    const def = getChallengeShopItem(id)
+    if (def?.damageBonus) mult += def.damageBonus
+  }
+  return mult
 }
 
 export function metaProductionMultiplier(prestigeMatter: number): number {
   return 1 + prestigeMatter * 0.02
 }
 
+export function prestigeMinSectorFor(shop: string[]): number {
+  let min = PRESTIGE_MIN_SECTOR
+  for (const id of shop) {
+    const def = getChallengeShopItem(id)
+    if (def?.prestigeMinSector) min = Math.min(min, def.prestigeMinSector)
+  }
+  return min
+}
+
+export function challengeShopStartingScrap(shop: string[]): number {
+  let total = 0
+  for (const id of shop) {
+    total += getChallengeShopItem(id)?.startingScrap ?? 0
+  }
+  return total
+}
+
+export function challengeShopStartingAi(shop: string[]): number {
+  let total = 0
+  for (const id of shop) {
+    total += getChallengeShopItem(id)?.startingAiPoints ?? 0
+  }
+  return total
+}
+
+export function challengeShopOfflineMs(shop: string[]): number {
+  let hours = 8
+  for (const id of shop) {
+    const h = getChallengeShopItem(id)?.offlineHours
+    if (h) hours = Math.max(hours, h)
+  }
+  return hours * 60 * 60 * 1000
+}
+
+export function challengeShopMatchupBonus(shop: string[]): number {
+  let bonus = 0
+  for (const id of shop) {
+    bonus += getChallengeShopItem(id)?.matchupBonus ?? 0
+  }
+  return bonus
+}
+
 /** AI combat doctrines are disabled during Silent Bridge. */
-export function aiDoctrinesActive(state: { prestige: { activeChallengeId: string | null }; ai: { purchased: string[] } }, nodeId: string): boolean {
+export function aiDoctrinesActive(
+  state: {
+    prestige: { activeChallengeId: string | null }
+    ai: { purchased: string[] }
+  },
+  nodeId: string,
+): boolean {
   if (state.prestige.activeChallengeId === 'no-ai') return false
   return state.ai.purchased.includes(nodeId)
 }
