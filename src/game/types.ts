@@ -19,6 +19,8 @@ export type TabId =
   | 'prestige'
   | 'stats'
 
+export type CombatStance = 'assault' | 'bulwark' | 'skirmish'
+
 export interface Resources {
   scrap: number
   alloys: number
@@ -41,6 +43,17 @@ export interface CombatState {
   sector: number
   highestSector: number
   inFight: boolean
+  /** Always-on sector push (USI-like). */
+  campaign: boolean
+  /** True after repeated losses — campaign waits for Resume. */
+  walled: boolean
+  /** Seconds before next auto-engage while campaign is on. */
+  repairTimer: number
+  consecutiveLosses: number
+  /** Loadout stance — changed only while idle. */
+  stance: CombatStance
+  /** Boss phase index 0–2. */
+  bossPhase: number
   playerHull: number
   playerHullMax: number
   enemyName: string

@@ -37,7 +37,15 @@ export default function App() {
       <TabNav active={tab} onChange={setTab} />
 
       <main className="main">
-        {tab === 'combat' && <CombatTab state={game.state} onEngage={game.engage} />}
+        {tab === 'combat' && (
+          <CombatTab
+            state={game.state}
+            onEngage={game.engage}
+            onToggleCampaign={game.setCampaign}
+            onResumeCampaign={game.resumeCampaign}
+            onSetStance={game.setStance}
+          />
+        )}
         {tab === 'shipyard' && (
           <ShipyardTab
             state={game.state}

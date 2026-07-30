@@ -254,10 +254,10 @@ button.danger {
   gap: 0.5rem;
 }
 
-.panel h3 {
-  font-size: 0.95rem;
-  letter-spacing: 0.03em;
-  margin-top: 0.25rem;
+.stance-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .badge {

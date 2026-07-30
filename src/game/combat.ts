@@ -1,7 +1,12 @@
-/** Combat entities, role matchups, and fight helpers. */
+/** Combat entities, role matchups, stances, and fight helpers. */
 
 import type { GameState } from './types'
-import { getModule, aiDoctrinesActive, challengeShopMatchupBonus } from './catalog'
+import {
+  getModule,
+  aiDoctrinesActive,
+  challengeShopMatchupBonus,
+  getStance,
+} from './catalog'
 import { computeShipStats } from './state'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
@@ -41,7 +46,9 @@ export function enemyForSector(sector: number): EnemyInstance {
     ? 'titan'
     : (FAMILY_ROTATION[(sector - 1) % FAMILY_ROTATION.length] ?? 'swarm')
   const names = NAMES[family]
-  const name = names[(Math.floor((sector - 1) / FAMILY_ROTATION.length)) % names.length] ?? 'Unknown Entity'
+  const name =
+    names[(Math.floor((sector - 1) / FAMILY_ROTATION.length)) % names.length] ??
+    'Unknown Entity'
 
   const baseHull = boss ? 90 + sector * 28 : 40 + sector * 15
   const baseDamage = boss ? 7 + sector * 1.1 : 5 + sector * 0.8
@@ -63,7 +70,7 @@ export function enemyForSector(sector: number): EnemyInstance {
 }
 
 function familyBlurb(family: EnemyFamily, boss: boolean): string {
-  if (boss) return 'Boss: bring Defense. Weapons help chip the shell.'
+  if (boss) return 'Boss: phases shift automatically. Defense helps early.'
   switch (family) {
     case 'swarm':
       return 'Swarm: high chip damage. Defense modules help.'
@@ -84,16 +91,19 @@ export interface FightTickDamage {
   matchupNotes: string[]
 }
 
-/** Apply role matchups vs the active enemy family. */
+/** Apply stance, role matchups, and doctrines vs the active enemy. */
 export function computeFightDamage(state: GameState): FightTickDamage {
   const stats = computeShipStats(state)
   const family = (state.combat.enemyFamily || 'swarm') as EnemyFamily
   const roles = fittedRoles(state)
   const notes: string[] = []
   const matchupScale = 1 + challengeShopMatchupBonus(state.prestige.shop)
+  const stance = getStance(state.combat.stance)
 
-  let playerDps = stats.damage
-  let incomingMult = stats.damageTakenMult
+  let playerDps = stats.damage * stance.damageMult
+  let incomingMult = stats.damageTakenMult * stance.incomingMult
+  notes.push(`${stance.name} stance`)
+
   const enemyBase =
     state.combat.enemyDamage > 0
       ? state.combat.enemyDamage
@@ -175,4 +185,38 @@ export function matchupHintForSector(sector: number, fittedModuleIds: string[]):
     return 'Hint: bosses punish naked hull — fit Defense.'
   }
   return enemy.blurb
+}
+
+/** Auto boss phase shifts — no player input. Mutates combat. */
+export function maybeAdvanceBossPhase(
+  state: GameState,
+  pushLog: (state: GameState, line: string) => void,
+): void {
+  if (!state.combat.isBoss || state.combat.enemyHullMax <= 0) return
+  const pct = state.combat.enemyHull / state.combat.enemyHullMax
+
+  if (state.combat.bossPhase < 1 && pct <= 2 / 3) {
+    state.combat.bossPhase = 1
+    state.combat.enemyFamily = 'armored'
+    state.combat.enemyTags = ['armored', 'boss']
+    state.combat.enemyDamage *= 1.15
+    pushLog(state, 'Boss phase 2 — shell hardens [armored].')
+  }
+
+  if (state.combat.bossPhase < 2 && pct <= 1 / 3) {
+    state.combat.bossPhase = 2
+    state.combat.enemyFamily = 'ethereal'
+    state.combat.enemyTags = ['ethereal', 'boss']
+    state.combat.enemyDamage *= 1.2
+    pushLog(state, 'Boss phase 3 — form frays [ethereal].')
+  }
+}
+
+export function repairDelaySeconds(state: GameState): number {
+  const base = 3 + state.combat.consecutiveLosses
+  const capped = Math.min(8, base)
+  if (aiDoctrinesActive(state, 'auto-engage')) {
+    return Math.max(1, Math.ceil(capped / 2))
+  }
+  return capped
 }

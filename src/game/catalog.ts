@@ -1,9 +1,44 @@
 /** Game content catalogs — costs, unlocks, and placeholder effects. */
 
-import type { Resources } from './types'
+import type { CombatStance, Resources } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
+export interface StanceDef {
+  id: CombatStance
+  name: string
+  description: string
+  damageMult: number
+  incomingMult: number
+}
+
+export const STANCES: StanceDef[] = [
+  {
+    id: 'assault',
+    name: 'Assault',
+    description: '+20% damage, +15% incoming. Push hard.',
+    damageMult: 1.2,
+    incomingMult: 1.15,
+  },
+  {
+    id: 'bulwark',
+    name: 'Bulwark',
+    description: '−20% incoming, −10% damage. Hold the line.',
+    damageMult: 0.9,
+    incomingMult: 0.8,
+  },
+  {
+    id: 'skirmish',
+    name: 'Skirmish',
+    description: '+10% damage and −10% incoming. Balanced pressure.',
+    damageMult: 1.1,
+    incomingMult: 0.9,
+  },
+]
+
+export function getStance(id: CombatStance): StanceDef {
+  return STANCES.find((s) => s.id === id) ?? STANCES[0]!
+}
 export interface BuildingDef {
   id: string
   name: string
@@ -162,8 +197,8 @@ export const RESEARCH: ResearchDef[] = [
 export const AI_NODES: AiNodeDef[] = [
   {
     id: 'auto-engage',
-    name: 'Auto Engage',
-    description: 'Automatically start the next sector fight.',
+    name: 'Rapid Recovery',
+    description: 'Campaign repairs after a loss finish in half the time.',
     costAiPoints: 1,
     kind: 'automation',
   },

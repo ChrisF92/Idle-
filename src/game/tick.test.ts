@@ -31,19 +31,19 @@ describe('tickGame', () => {
     expect(gained).toBeLessThan(5)
   })
 
-  it('auto-engages when AI node is owned', () => {
+  it('campaign auto-engages the next fight', () => {
     let state = createInitialState(0)
-    state.ai.purchased = ['auto-engage']
+    expect(state.combat.campaign).toBe(true)
     state = tickGame(state, 1000)
     expect(state.combat.inFight).toBe(true)
   })
 
   it('accumulates sub-second polls into combat ticks', () => {
     let state = createInitialState(0)
+    state.combat.campaign = false
     state = startCombat(state)
     const hullBefore = state.combat.enemyHull
 
-    // Simulate the UI interval: many <1s polls must not reset the clock.
     state = tickGame(state, 250)
     state = tickGame(state, 500)
     state = tickGame(state, 750)
@@ -78,9 +78,9 @@ describe('offline catch-up', () => {
     expect(next.lastTickAt).toBe(5 * 60 * 1000)
   })
 
-  it('pushes sectors offline when Auto Engage is owned', () => {
+  it('pushes sectors offline during campaign', () => {
     const state = createInitialState(0)
-    state.ai.purchased = ['auto-engage']
+    expect(state.combat.campaign).toBe(true)
     const { state: next, report } = applyOfflineCatchUp(state, 3 * 60 * 1000)
     expect(next.combat.sector).toBeGreaterThan(1)
     expect(report?.sectorsCleared ?? 0).toBeGreaterThan(0)

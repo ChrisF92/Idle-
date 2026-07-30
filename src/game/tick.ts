@@ -1,4 +1,4 @@
-import type { GameState, Resources } from './types'
+import type { CombatStance, GameState, Resources } from './types'
 import { computeShipStats, createInitialState } from './state'
 import {
   BUILDINGS,
@@ -9,14 +9,39 @@ import {
   researchEssenceMultiplier,
 } from './catalog'
 import { tryCompleteChallenge } from './actions'
-import { computeFightDamage, enemyForSector } from './combat'
+import {
+  computeFightDamage,
+  enemyForSector,
+  maybeAdvanceBossPhase,
+  repairDelaySeconds,
+} from './combat'
 
 export const TICK_MS = 1000
 /** Live interval catch-up — keep short; long absences use offline catch-up. */
 export const LIVE_TICK_CAP = 5
+/** After this many losses on a sector, campaign pauses at a wall. */
+export const WALL_AFTER_LOSSES = 2
 
 function pushLog(state: GameState, line: string, max = 40): void {
   state.combat.log = [line, ...state.combat.log].slice(0, max)
+}
+
+function clearEnemy(state: GameState): void {
+  state.combat.inFight = false
+  state.combat.enemyName = 'None'
+  state.combat.enemyFamily = ''
+  state.combat.enemyTags = []
+  state.combat.enemyDamage = 0
+  state.combat.isBoss = false
+  state.combat.bossPhase = 0
+  state.combat.enemyHull = 0
+  state.combat.enemyHullMax = 0
+}
+
+function refreshPlayerHull(state: GameState): void {
+  const refreshed = computeShipStats(state)
+  state.combat.playerHullMax = refreshed.hullMax
+  state.combat.playerHull = refreshed.hullMax
 }
 
 function applyProduction(state: GameState, dtSeconds: number): void {
@@ -49,12 +74,40 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   }
 }
 
+function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
+  clearEnemy(state)
+  refreshPlayerHull(state)
+  state.combat.consecutiveLosses += 1
+  state.combat.repairTimer = repairDelaySeconds(state)
+
+  if (state.combat.consecutiveLosses >= WALL_AFTER_LOSSES) {
+    state.combat.walled = true
+    pushLog(
+      state,
+      `Wall at sector ${state.combat.sector}. Campaign paused — upgrade loadout/stance, then Resume.`,
+    )
+  } else if (tactical) {
+    pushLog(
+      state,
+      `Tactical retreat from sector ${state.combat.sector}${boss ? ' boss' : ''}. Repairing ${state.combat.repairTimer}s…`,
+    )
+  } else {
+    pushLog(
+      state,
+      boss
+        ? `Boss pressure — retreated from sector ${state.combat.sector}. Repairing ${state.combat.repairTimer}s…`
+        : `Hull critical — retreated from sector ${state.combat.sector}. Repairing ${state.combat.repairTimer}s…`,
+    )
+  }
+}
+
 function tickCombat(state: GameState): void {
   if (!state.combat.inFight) return
 
   const { playerDps, enemyDps } = computeFightDamage(state)
 
   state.combat.enemyHull = Math.max(0, state.combat.enemyHull - playerDps)
+  maybeAdvanceBossPhase(state, pushLog)
   state.combat.playerHull = Math.max(0, state.combat.playerHull - enemyDps)
 
   const retreatThreshold = aiDoctrinesActive(state, 'tactical-retreat')
@@ -78,12 +131,11 @@ function tickCombat(state: GameState): void {
     state.resources.data += dataGain
     state.resources.aiPoints += aiGain
     state.resources.essence += essenceGain
-    state.combat.inFight = false
-    state.combat.enemyName = 'None'
-    state.combat.enemyFamily = ''
-    state.combat.enemyTags = []
-    state.combat.enemyDamage = 0
-    state.combat.isBoss = false
+
+    clearEnemy(state)
+    state.combat.consecutiveLosses = 0
+    state.combat.walled = false
+    state.combat.repairTimer = 0
 
     const parts = [
       `+${scrapGain.toFixed(1)} scrap`,
@@ -100,42 +152,26 @@ function tickCombat(state: GameState): void {
       state.combat.highestSector,
       state.combat.sector,
     )
-    const refreshed = computeShipStats(state)
-    state.combat.playerHullMax = refreshed.hullMax
-    state.combat.playerHull = refreshed.hullMax
+    refreshPlayerHull(state)
     tryCompleteChallenge(state)
   } else if (state.combat.playerHull <= retreatThreshold) {
     const boss = state.combat.isBoss
     const tactical = aiDoctrinesActive(state, 'tactical-retreat') && retreatThreshold > 0
-    state.combat.inFight = false
-    state.combat.enemyName = 'None'
-    state.combat.enemyFamily = ''
-    state.combat.enemyTags = []
-    state.combat.enemyDamage = 0
-    state.combat.isBoss = false
-    const refreshed = computeShipStats(state)
-    state.combat.playerHullMax = refreshed.hullMax
-    state.combat.playerHull = refreshed.hullMax
-    if (tactical) {
-      pushLog(
-        state,
-        `Tactical retreat from sector ${state.combat.sector}${boss ? ' boss' : ''} — hull critical threshold.`,
-      )
-    } else {
-      pushLog(
-        state,
-        boss
-          ? `Boss pressure overwhelming — retreated from sector ${state.combat.sector}.`
-          : `Hull critical — retreated from sector ${state.combat.sector}.`,
-      )
-    }
+    onFightLost(state, tactical, boss)
   }
 }
 
-function maybeAutoEngage(state: GameState): void {
+function tickRepair(state: GameState): void {
   if (state.combat.inFight) return
-  if (state.prestige.activeChallengeId === 'no-ai') return
-  if (!state.ai.purchased.includes('auto-engage')) return
+  if (state.combat.repairTimer <= 0) return
+  state.combat.repairTimer = Math.max(0, state.combat.repairTimer - 1)
+}
+
+function maybeCampaignEngage(state: GameState): void {
+  if (state.combat.inFight) return
+  if (!state.combat.campaign) return
+  if (state.combat.walled) return
+  if (state.combat.repairTimer > 0) return
   beginFight(state)
 }
 
@@ -149,6 +185,7 @@ function beginFight(state: GameState): void {
   state.combat.enemyTags = [...enemy.tags]
   state.combat.enemyDamage = enemy.damage
   state.combat.isBoss = enemy.isBoss
+  state.combat.bossPhase = 0
   state.combat.enemyHull = enemy.hull
   state.combat.enemyHullMax = enemy.hull
   state.combat.playerHullMax = stats.hullMax
@@ -156,7 +193,7 @@ function beginFight(state: GameState): void {
   const matchup = computeFightDamage(state)
   const note =
     matchup.matchupNotes.length > 0
-      ? ` Matchup: ${matchup.matchupNotes.join('; ')}.`
+      ? ` ${matchup.matchupNotes.join('; ')}.`
       : ` ${enemy.blurb}`
   pushLog(
     state,
@@ -166,8 +203,41 @@ function beginFight(state: GameState): void {
 
 export function startCombat(state: GameState): GameState {
   if (state.combat.inFight) return state
+  if (state.combat.repairTimer > 0) return state
   const next = structuredClone(state)
+  next.combat.walled = false
   beginFight(next)
+  return next
+}
+
+export function setCampaign(state: GameState, on: boolean): GameState {
+  const next = structuredClone(state)
+  next.combat.campaign = on
+  if (!on) {
+    pushLog(next, 'Campaign paused.')
+  } else {
+    next.combat.walled = false
+    pushLog(next, 'Campaign online — continuous sector push.')
+  }
+  return next
+}
+
+export function resumeCampaign(state: GameState): GameState {
+  const next = structuredClone(state)
+  next.combat.campaign = true
+  next.combat.walled = false
+  next.combat.repairTimer = 0
+  next.combat.consecutiveLosses = 0
+  pushLog(next, 'Campaign resumed.')
+  return next
+}
+
+export function setStance(state: GameState, stance: CombatStance): GameState {
+  if (state.combat.inFight) return state
+  if (state.combat.stance === stance) return state
+  const next = structuredClone(state)
+  next.combat.stance = stance
+  pushLog(next, `Stance set to ${stance}.`)
   return next
 }
 
@@ -176,7 +246,8 @@ export function advanceTicks(state: GameState, ticks: number): void {
   for (let i = 0; i < ticks; i += 1) {
     applyProduction(state, TICK_MS / 1000)
     tickCombat(state)
-    maybeAutoEngage(state)
+    tickRepair(state)
+    maybeCampaignEngage(state)
   }
 }
 
@@ -198,7 +269,6 @@ export function tickGame(state: GameState, now = Date.now()): GameState {
 
   const next = structuredClone(state)
   advanceTicks(next, ticks)
-  // Advance by whole seconds only so sub-second remainder carries forward.
   next.lastTickAt = state.lastTickAt + ticks * TICK_MS
   return next
 }

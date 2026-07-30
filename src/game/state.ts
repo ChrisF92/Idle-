@@ -9,7 +9,7 @@ import {
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 5
+export const SAVE_VERSION = 6
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -48,6 +48,12 @@ export function createInitialState(now = Date.now()): GameState {
       sector: 1,
       highestSector: 1,
       inFight: false,
+      campaign: true,
+      walled: false,
+      repairTimer: 0,
+      consecutiveLosses: 0,
+      stance: 'skirmish',
+      bossPhase: 0,
       playerHull: hullMax,
       playerHullMax: hullMax,
       enemyName: 'None',
@@ -57,7 +63,7 @@ export function createInitialState(now = Date.now()): GameState {
       isBoss: false,
       enemyHull: 0,
       enemyHullMax: 0,
-      log: ['Systems online. Awaiting sector engagement.'],
+      log: ['Systems online. Campaign armed — continuous push active.'],
     },
     base: {
       buildings: {

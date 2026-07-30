@@ -42,8 +42,8 @@ export function AiTab({ state, onBuy }: AiTabProps) {
       />
 
       <p className="placeholder">
-        Earn AI Points from sector clears (bonus on bosses). Doctrines reset on prestige;
-        re-buy each run.
+        Campaign runs continuous combat by default. Doctrines reset on prestige; re-buy each run.
+        Rapid Recovery shortens post-loss repair.
       </p>
     </section>
   )

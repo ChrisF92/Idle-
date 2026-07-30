@@ -17,6 +17,12 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     enemyDamage: combat.enemyDamage ?? 0,
     isBoss: combat.isBoss ?? false,
     highestSector: Math.max(1, combat.highestSector ?? combat.sector ?? 1),
+    campaign: combat.campaign ?? true,
+    walled: combat.walled ?? false,
+    repairTimer: combat.repairTimer ?? 0,
+    consecutiveLosses: combat.consecutiveLosses ?? 0,
+    stance: combat.stance ?? 'skirmish',
+    bossPhase: combat.bossPhase ?? 0,
   }
 }
 
@@ -80,7 +86,7 @@ function migrate(raw: unknown): GameState | null {
     }
   }
 
-  if (parsed.version === 2 || parsed.version === 3 || parsed.version === 4) {
+  if (parsed.version === 2 || parsed.version === 3 || parsed.version === 4 || parsed.version === 5) {
     const base = createInitialState()
     const prev = parsed as GameState
     return {
