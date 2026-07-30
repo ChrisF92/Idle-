@@ -6,7 +6,7 @@ import {
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 2
+export const SAVE_VERSION = 3
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -48,6 +48,10 @@ export function createInitialState(now = Date.now()): GameState {
       playerHull: hullMax,
       playerHullMax: hullMax,
       enemyName: 'None',
+      enemyFamily: '',
+      enemyTags: [],
+      enemyDamage: 0,
+      isBoss: false,
       enemyHull: 0,
       enemyHullMax: 0,
       log: ['Systems online. Awaiting sector engagement.'],

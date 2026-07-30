@@ -9,14 +9,29 @@ export function saveGame(state: GameState): void {
   }
 }
 
+function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
+  return {
+    ...combat,
+    enemyFamily: combat.enemyFamily ?? '',
+    enemyTags: combat.enemyTags ?? [],
+    enemyDamage: combat.enemyDamage ?? 0,
+    isBoss: combat.isBoss ?? false,
+    highestSector: Math.max(1, combat.highestSector ?? combat.sector ?? 1),
+  }
+}
+
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
   const parsed = raw as Partial<GameState> & { version?: number }
   if (parsed.version === SAVE_VERSION) {
-    return parsed as GameState
+    const state = parsed as GameState
+    return {
+      ...state,
+      combat: withCombatDefaults(state.combat),
+    }
   }
 
-  // v1 → v2: add shipyard unlock lists + highestSector
+  // v1 → current
   if (parsed.version === 1) {
     const base = createInitialState()
     const v1 = parsed as GameState
@@ -27,19 +42,19 @@ function migrate(raw: unknown): GameState | null {
       shipyard: {
         frameId: v1.shipyard?.frameId ?? 'scout-frame',
         modules: v1.shipyard?.modules ?? ['pulse-cannon'],
-        unlockedFrames: ['scout-frame', ...(v1.shipyard?.frameId === 'line-frame' ? ['line-frame'] : [])],
+        unlockedFrames: [
+          'scout-frame',
+          ...(v1.shipyard?.frameId === 'line-frame' ? ['line-frame'] : []),
+        ],
         unlockedModules: Array.from(
-          new Set([
-            'pulse-cannon',
-            ...(v1.shipyard?.modules ?? []),
-          ]),
+          new Set(['pulse-cannon', ...(v1.shipyard?.modules ?? [])]),
         ),
       },
-      combat: {
+      combat: withCombatDefaults({
         ...base.combat,
         ...v1.combat,
         highestSector: Math.max(1, v1.combat?.sector ?? 1),
-      },
+      }),
       resources: {
         ...base.resources,
         ...v1.resources,
@@ -47,6 +62,27 @@ function migrate(raw: unknown): GameState | null {
       prestige: {
         ...base.prestige,
         ...v1.prestige,
+      },
+    }
+  }
+
+  // v2 → v3: enemy family fields on combat
+  if (parsed.version === 2) {
+    const base = createInitialState()
+    const v2 = parsed as GameState
+    return {
+      ...base,
+      ...v2,
+      version: SAVE_VERSION,
+      combat: withCombatDefaults({
+        ...base.combat,
+        ...v2.combat,
+      }),
+      shipyard: {
+        ...base.shipyard,
+        ...v2.shipyard,
+        unlockedFrames: v2.shipyard?.unlockedFrames ?? base.shipyard.unlockedFrames,
+        unlockedModules: v2.shipyard?.unlockedModules ?? base.shipyard.unlockedModules,
       },
     }
   }

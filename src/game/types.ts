@@ -44,6 +44,10 @@ export interface CombatState {
   playerHull: number
   playerHullMax: number
   enemyName: string
+  enemyFamily: string
+  enemyTags: string[]
+  enemyDamage: number
+  isBoss: boolean
   enemyHull: number
   enemyHullMax: number
   log: string[]

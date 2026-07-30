@@ -2,6 +2,7 @@ import type { GameState, Resources } from './types'
 import { computeShipStats, createInitialState } from './state'
 import { BUILDINGS, metaProductionMultiplier } from './catalog'
 import { tryCompleteChallenge } from './actions'
+import { computeFightDamage, enemyForSector } from './combat'
 
 export const TICK_MS = 1000
 /** Live interval catch-up — keep short; long absences use offline catch-up. */
@@ -42,28 +43,41 @@ function applyProduction(state: GameState, dtSeconds: number): void {
 function tickCombat(state: GameState): void {
   if (!state.combat.inFight) return
 
-  const stats = computeShipStats(state)
-  const playerDps = stats.damage
-  const enemyDps = (5 + state.combat.sector * 0.8) * stats.damageTakenMult
+  const { playerDps, enemyDps } = computeFightDamage(state)
 
   state.combat.enemyHull = Math.max(0, state.combat.enemyHull - playerDps)
   state.combat.playerHull = Math.max(0, state.combat.playerHull - enemyDps)
 
   if (state.combat.enemyHull <= 0) {
     const clearedSector = state.combat.sector
-    const scrapGain = 5 + clearedSector * 2
+    const wasBoss = state.combat.isBoss
+    const enemy = enemyForSector(clearedSector)
     const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
-    const dataGain = dataBlocked ? 0 : 1 + Math.floor(clearedSector / 3)
-    const aiGain = clearedSector % 5 === 0 ? 1 : 0.15
+    const scrapGain = enemy.scrapReward
+    const dataGain = dataBlocked ? 0 : enemy.dataReward
+    const aiGain = enemy.aiReward
+    const essenceGain = enemy.essenceReward
+
     state.resources.scrap += scrapGain
     state.resources.data += dataGain
     state.resources.aiPoints += aiGain
+    state.resources.essence += essenceGain
     state.combat.inFight = false
     state.combat.enemyName = 'None'
-    const dataPart = dataBlocked ? 'data blocked' : `+${dataGain} data`
+    state.combat.enemyFamily = ''
+    state.combat.enemyTags = []
+    state.combat.enemyDamage = 0
+    state.combat.isBoss = false
+
+    const parts = [
+      `+${scrapGain} scrap`,
+      dataBlocked ? 'data blocked' : `+${dataGain} data`,
+      `+${aiGain} AI`,
+    ]
+    if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
     pushLog(
       state,
-      `Sector ${clearedSector} cleared. +${scrapGain} scrap, ${dataPart}, +${aiGain} AI.`,
+      `${wasBoss ? 'Boss' : 'Sector'} ${clearedSector} cleared. ${parts.join(', ')}.`,
     )
     state.combat.sector += 1
     state.combat.highestSector = Math.max(
@@ -75,12 +89,22 @@ function tickCombat(state: GameState): void {
     state.combat.playerHull = refreshed.hullMax
     tryCompleteChallenge(state)
   } else if (state.combat.playerHull <= 0) {
+    const boss = state.combat.isBoss
     state.combat.inFight = false
     state.combat.enemyName = 'None'
+    state.combat.enemyFamily = ''
+    state.combat.enemyTags = []
+    state.combat.enemyDamage = 0
+    state.combat.isBoss = false
     const refreshed = computeShipStats(state)
     state.combat.playerHullMax = refreshed.hullMax
     state.combat.playerHull = refreshed.hullMax
-    pushLog(state, `Hull critical — retreated from sector ${state.combat.sector}.`)
+    pushLog(
+      state,
+      boss
+        ? `Boss pressure overwhelming — retreated from sector ${state.combat.sector}.`
+        : `Hull critical — retreated from sector ${state.combat.sector}.`,
+    )
   }
 }
 
@@ -94,14 +118,26 @@ function maybeAutoEngage(state: GameState): void {
 function beginFight(state: GameState): void {
   const sector = state.combat.sector
   const stats = computeShipStats(state)
-  const enemyHull = 40 + sector * 15
+  const enemy = enemyForSector(sector)
   state.combat.inFight = true
-  state.combat.enemyName = sectorEnemyName(sector)
-  state.combat.enemyHull = enemyHull
-  state.combat.enemyHullMax = enemyHull
+  state.combat.enemyName = enemy.name
+  state.combat.enemyFamily = enemy.family
+  state.combat.enemyTags = [...enemy.tags]
+  state.combat.enemyDamage = enemy.damage
+  state.combat.isBoss = enemy.isBoss
+  state.combat.enemyHull = enemy.hull
+  state.combat.enemyHullMax = enemy.hull
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerHull = stats.hullMax
-  pushLog(state, `Engaging ${state.combat.enemyName} in sector ${sector}.`)
+  const matchup = computeFightDamage(state)
+  const note =
+    matchup.matchupNotes.length > 0
+      ? ` Matchup: ${matchup.matchupNotes.join('; ')}.`
+      : ` ${enemy.blurb}`
+  pushLog(
+    state,
+    `Engaging ${enemy.name} in sector ${sector} [${enemy.family}].${note}`,
+  )
 }
 
 export function startCombat(state: GameState): GameState {
@@ -109,17 +145,6 @@ export function startCombat(state: GameState): GameState {
   const next = structuredClone(state)
   beginFight(next)
   return next
-}
-
-function sectorEnemyName(sector: number): string {
-  const names = [
-    'Void Mite',
-    'Ashen Drifter',
-    'Hive Shard',
-    'God-Spark Remnant',
-    'Titan Larva',
-  ]
-  return names[(sector - 1) % names.length] ?? 'Unknown Entity'
 }
 
 /** Advance simulation by N one-second ticks (mutates). */
