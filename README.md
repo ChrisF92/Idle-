@@ -28,16 +28,18 @@ npm install
 npm run dev
 npm test
 npm run build
-npm run preview   # serves production build (PWA SW active)
+npm run build:pages   # GitHub Pages base path (/Idle-/)
+npm run preview
 ```
 
 ### Phone install (PWA)
 
-1. Deploy the `dist/` folder to any static HTTPS host (GitHub Pages, Cloudflare Pages, Netlify, etc.).
-2. Open the URL in Android Chrome → browser menu → **Install app** / **Add to Home screen**.
-3. Saves are per-origin/browser — use Stats → export/import to move between devices.
+1. Merge the PR stack to `main`, then in the repo: **Settings → Pages → Source: GitHub Actions**.
+2. After `Deploy GitHub Pages` succeeds, open **https://chrisf92.github.io/Idle-/**
+3. Android Chrome → **Install app** / **Add to Home screen**.
+4. Saves are per-browser origin — use Stats → export/import between devices.
 
-If hosting under a subpath (e.g. `https://user.github.io/Idle-/`), set Vite `base` to that path before building.
+Local Pages-shaped build: `npm run build:pages && npm run preview`
 
 ## Notes
 

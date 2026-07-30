@@ -2,7 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+/** Set `PAGES_BASE=/Idle-/` for GitHub Pages project site builds. */
+const base = process.env.PAGES_BASE || '/'
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -17,8 +21,8 @@ export default defineConfig({
         background_color: '#12161c',
         display: 'standalone',
         orientation: 'any',
-        start_url: '/',
-        scope: '/',
+        start_url: './',
+        scope: './',
         lang: 'en',
         categories: ['games', 'entertainment'],
         icons: [
@@ -42,10 +46,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallback: '/index.html',
+        navigateFallback: 'index.html',
       },
       devOptions: {
-        // Keep offline SW out of `npm run dev` noise; use preview/build to verify.
         enabled: false,
       },
     }),
