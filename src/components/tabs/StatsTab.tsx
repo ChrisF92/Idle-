@@ -34,6 +34,12 @@ export function StatsTab({ state, onHardReset, onImport }: StatsTabProps) {
         </div>
       </div>
 
+      <p className="muted">
+        Progressive Web App: after you deploy (HTTPS), Android Chrome can Install / Add to Home
+        screen for a fullscreen app-like play. Offline shell caches the last build; your save stays
+        in this browser&apos;s local storage.
+      </p>
+
       <div className="stack">
         <button
           type="button"

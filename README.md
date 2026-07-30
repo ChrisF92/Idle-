@@ -5,9 +5,9 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 ## Stack
 
 - **Vite + React + TypeScript**
+- **PWA** (`vite-plugin-pwa`) — installable on Android from a deployed HTTPS URL
 - Local save (`localStorage`) + export/import codes
 - Simulation core under `src/game/` (UI-free, unit-tested)
-- PWA / Capacitor Android wrap planned later
 
 ## Systems (tabs)
 
@@ -21,7 +21,6 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 | Prestige | Soft reset at sector 8+ + challenge runs |
 | Stats | Save management |
 
-
 ## Develop
 
 ```bash
@@ -29,7 +28,16 @@ npm install
 npm run dev
 npm test
 npm run build
+npm run preview   # serves production build (PWA SW active)
 ```
+
+### Phone install (PWA)
+
+1. Deploy the `dist/` folder to any static HTTPS host (GitHub Pages, Cloudflare Pages, Netlify, etc.).
+2. Open the URL in Android Chrome → browser menu → **Install app** / **Add to Home screen**.
+3. Saves are per-origin/browser — use Stats → export/import to move between devices.
+
+If hosting under a subpath (e.g. `https://user.github.io/Idle-/`), set Vite `base` to that path before building.
 
 ## Notes
 
