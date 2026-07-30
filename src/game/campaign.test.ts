@@ -4,43 +4,17 @@ import {
   advanceTicks,
   resumeCampaign,
   setCampaign,
-  setStance,
   startCombat,
   WALL_AFTER_LOSSES,
 } from './tick'
-import { computeFightDamage, maybeAdvanceBossPhase } from './combat'
+import { maybeAdvanceBossPhase } from './combat'
 
 describe('campaign combat', () => {
-  it('assault stance deals more damage than bulwark', () => {
-    let assault = createInitialState(0)
-    assault = setStance(assault, 'assault')
-    assault = startCombat(assault)
-
-    let bulwark = createInitialState(0)
-    bulwark = setStance(bulwark, 'bulwark')
-    bulwark = startCombat(bulwark)
-
-    expect(computeFightDamage(assault).playerDps).toBeGreaterThan(
-      computeFightDamage(bulwark).playerDps,
-    )
-    expect(computeFightDamage(assault).enemyDps).toBeGreaterThan(
-      computeFightDamage(bulwark).enemyDps,
-    )
-  })
-
-  it('blocks stance changes during a fight', () => {
-    let state = createInitialState(0)
-    state = startCombat(state)
-    const locked = setStance(state, 'assault')
-    expect(locked.combat.stance).toBe('skirmish')
-  })
-
   it('walls campaign after repeated losses', () => {
     let state = createInitialState(0)
     state.combat.campaign = true
     state.combat.consecutiveLosses = WALL_AFTER_LOSSES - 1
     state = startCombat(state)
-    // Force an instant loss
     state.combat.playerHull = 0
     state.combat.enemyHull = 1000
     advanceTicks(state, 1)

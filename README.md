@@ -50,4 +50,4 @@ Local Pages-shaped build: `npm run build:pages && npm run preview`
 - Combat uses entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
 - Essence buys permanent constructs; AI Points buy per-run doctrines (Focus Fire, Boss Protocol, Scavenger, Tactical Retreat).
 - Challenge Points can be spent in a permanent shop (or kept banked for a small damage bonus).
-- Combat uses **Campaign** mode (continuous push), idle-only stances, and automatic boss phases.
+- Combat uses **Campaign** mode (continuous push) and automatic boss phases.

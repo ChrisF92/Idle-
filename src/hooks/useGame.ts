@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import type { CombatStance, GameState } from '../game/types'
+import type { GameState } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import {
   tickGame,
@@ -7,7 +7,6 @@ import {
   resetGame,
   setCampaign,
   resumeCampaign,
-  setStance,
 } from '../game/tick'
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
@@ -33,7 +32,6 @@ type Action =
   | { type: 'engage' }
   | { type: 'set-campaign'; on: boolean }
   | { type: 'resume-campaign' }
-  | { type: 'set-stance'; stance: CombatStance }
   | { type: 'upgrade-building'; buildingId: string }
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-essence'; upgradeId: string }
@@ -61,8 +59,6 @@ function reducer(state: GameState, action: Action): GameState {
       return setCampaign(state, action.on)
     case 'resume-campaign':
       return resumeCampaign(state)
-    case 'set-stance':
-      return setStance(state, action.stance)
     case 'upgrade-building':
       return upgradeBuilding(state, action.buildingId)
     case 'buy-research':
@@ -131,7 +127,6 @@ export function useGame() {
     engage: () => dispatch({ type: 'engage' }),
     setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
     resumeCampaign: () => dispatch({ type: 'resume-campaign' }),
-    setStance: (stance: CombatStance) => dispatch({ type: 'set-stance', stance }),
     upgradeBuilding: (buildingId: string) =>
       dispatch({ type: 'upgrade-building', buildingId }),
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),

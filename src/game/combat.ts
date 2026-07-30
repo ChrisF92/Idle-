@@ -1,11 +1,10 @@
-/** Combat entities, role matchups, stances, and fight helpers. */
+/** Combat entities, role matchups, and fight helpers. */
 
 import type { GameState } from './types'
 import {
   getModule,
   aiDoctrinesActive,
   challengeShopMatchupBonus,
-  getStance,
 } from './catalog'
 import { computeShipStats } from './state'
 
@@ -91,18 +90,16 @@ export interface FightTickDamage {
   matchupNotes: string[]
 }
 
-/** Apply stance, role matchups, and doctrines vs the active enemy. */
+/** Apply role matchups and doctrines vs the active enemy. */
 export function computeFightDamage(state: GameState): FightTickDamage {
   const stats = computeShipStats(state)
   const family = (state.combat.enemyFamily || 'swarm') as EnemyFamily
   const roles = fittedRoles(state)
   const notes: string[] = []
   const matchupScale = 1 + challengeShopMatchupBonus(state.prestige.shop)
-  const stance = getStance(state.combat.stance)
 
-  let playerDps = stats.damage * stance.damageMult
-  let incomingMult = stats.damageTakenMult * stance.incomingMult
-  notes.push(`${stance.name} stance`)
+  let playerDps = stats.damage
+  let incomingMult = stats.damageTakenMult
 
   const enemyBase =
     state.combat.enemyDamage > 0

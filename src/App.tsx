@@ -43,7 +43,6 @@ export default function App() {
             onEngage={game.engage}
             onToggleCampaign={game.setCampaign}
             onResumeCampaign={game.resumeCampaign}
-            onSetStance={game.setStance}
           />
         )}
         {tab === 'shipyard' && (

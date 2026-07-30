@@ -1,6 +1,6 @@
-import type { CombatStance, GameState } from '../../game/types'
+import type { GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
-import { getChallenge, getFrame, STANCES } from '../../game/catalog'
+import { getChallenge, getFrame } from '../../game/catalog'
 import {
   computeFightDamage,
   enemyForSector,
@@ -12,7 +12,6 @@ interface CombatTabProps {
   onEngage: () => void
   onToggleCampaign: (on: boolean) => void
   onResumeCampaign: () => void
-  onSetStance: (stance: CombatStance) => void
 }
 
 export function CombatTab({
@@ -20,7 +19,6 @@ export function CombatTab({
   onEngage,
   onToggleCampaign,
   onResumeCampaign,
-  onSetStance,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -38,8 +36,8 @@ export function CombatTab({
       <header className="panel-header">
         <h2>Combat</h2>
         <p>
-          Campaign keeps fighting for you. Set stance and loadout, then leave it running — no
-          mid-fight micromanagement.
+          Campaign keeps fighting for you. Set your loadout, then leave it running — no mid-fight
+          micromanagement.
         </p>
       </header>
 
@@ -67,53 +65,26 @@ export function CombatTab({
 
       {combat.walled ? (
         <div className="notice-box">
-          <p>
-            Walled at sector {combat.sector}. Upgrade shipyard/stance, then resume campaign.
-          </p>
+          <p>Walled at sector {combat.sector}. Upgrade loadout, then resume campaign.</p>
           <button type="button" className="primary" onClick={onResumeCampaign}>
             Resume campaign
           </button>
         </div>
       ) : null}
 
-      <div className="stack">
-        <div className="stat-row">
-          <label className="muted" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={combat.campaign}
-              disabled={combat.walled}
-              onChange={(e) => onToggleCampaign(e.target.checked)}
-            />
-            Campaign (continuous push)
-          </label>
-          {combat.repairTimer > 0 ? (
-            <span className="muted">Repair {combat.repairTimer}s</span>
-          ) : null}
-        </div>
-
-        <div>
-          <p className="muted" style={{ marginBottom: '0.4rem' }}>
-            Stance (idle only)
-          </p>
-          <div className="stance-row">
-            {STANCES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={combat.stance === s.id ? 'primary' : undefined}
-                disabled={combat.inFight}
-                onClick={() => onSetStance(s.id)}
-                title={s.description}
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
-          <p className="muted" style={{ marginTop: '0.35rem' }}>
-            {STANCES.find((s) => s.id === combat.stance)?.description}
-          </p>
-        </div>
+      <div className="stat-row">
+        <label className="muted" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={combat.campaign}
+            disabled={combat.walled}
+            onChange={(e) => onToggleCampaign(e.target.checked)}
+          />
+          Campaign (continuous push)
+        </label>
+        {combat.repairTimer > 0 ? (
+          <span className="muted">Repair {combat.repairTimer}s</span>
+        ) : null}
       </div>
 
       <p className="muted">{hint}</p>
@@ -121,9 +92,7 @@ export function CombatTab({
       <div className="combat-grid">
         <div className="combat-side">
           <h3>{frame?.name ?? 'Frame'}</h3>
-          <p className="muted">
-            {combat.stance} · {state.shipyard.modules.join(', ') || 'No modules'}
-          </p>
+          <p className="muted">{state.shipyard.modules.join(', ') || 'No modules'}</p>
           <Meter label="Hull" value={combat.playerHull} max={combat.playerHullMax} />
           {fight ? (
             <p className="muted">Incoming {fight.enemyDps.toFixed(1)} / tick</p>

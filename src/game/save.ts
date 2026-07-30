@@ -21,7 +21,6 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     walled: combat.walled ?? false,
     repairTimer: combat.repairTimer ?? 0,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
-    stance: combat.stance ?? 'skirmish',
     bossPhase: combat.bossPhase ?? 0,
   }
 }

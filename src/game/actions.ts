@@ -208,7 +208,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     completedChallenges: [...state.prestige.completedChallenges],
     activeChallengeId: state.prestige.activeChallengeId,
     shop: [...state.prestige.shop],
-    stance: state.combat.stance,
   }
 
   const fresh = createInitialState(now)
@@ -240,7 +239,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.combat = {
     ...fresh.combat,
     campaign: true,
-    stance: kept.stance,
     log: [`Run reset. Prestige matter: ${kept.prestigeMatter}. Campaign re-armed.`],
   }
   state.base = fresh.base

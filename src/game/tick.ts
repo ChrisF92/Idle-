@@ -1,4 +1,4 @@
-import type { CombatStance, GameState, Resources } from './types'
+import type { GameState, Resources } from './types'
 import { computeShipStats, createInitialState } from './state'
 import {
   BUILDINGS,
@@ -84,7 +84,7 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
     state.combat.walled = true
     pushLog(
       state,
-      `Wall at sector ${state.combat.sector}. Campaign paused — upgrade loadout/stance, then Resume.`,
+      `Wall at sector ${state.combat.sector}. Campaign paused — upgrade loadout, then Resume.`,
     )
   } else if (tactical) {
     pushLog(
@@ -229,15 +229,6 @@ export function resumeCampaign(state: GameState): GameState {
   next.combat.repairTimer = 0
   next.combat.consecutiveLosses = 0
   pushLog(next, 'Campaign resumed.')
-  return next
-}
-
-export function setStance(state: GameState, stance: CombatStance): GameState {
-  if (state.combat.inFight) return state
-  if (state.combat.stance === stance) return state
-  const next = structuredClone(state)
-  next.combat.stance = stance
-  pushLog(next, `Stance set to ${stance}.`)
   return next
 }
 

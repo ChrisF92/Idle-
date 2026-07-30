@@ -52,7 +52,6 @@ export function createInitialState(now = Date.now()): GameState {
       walled: false,
       repairTimer: 0,
       consecutiveLosses: 0,
-      stance: 'skirmish',
       bossPhase: 0,
       playerHull: hullMax,
       playerHullMax: hullMax,

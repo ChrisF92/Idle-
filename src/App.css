@@ -254,12 +254,6 @@ button.danger {
   gap: 0.5rem;
 }
 
-.stance-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
 .badge {
   flex: 0 0 auto;
   border: 1px solid var(--line);
