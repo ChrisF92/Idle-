@@ -1,0 +1,77 @@
+/** Core game types — keep UI-free so simulation can be tested alone. */
+
+export type ResourceId =
+  | 'scrap'
+  | 'alloys'
+  | 'energy'
+  | 'data'
+  | 'essence'
+  | 'aiPoints'
+  | 'prestigeMatter'
+  | 'challengePoints'
+
+export type TabId =
+  | 'combat'
+  | 'shipyard'
+  | 'base'
+  | 'research'
+  | 'ai'
+  | 'prestige'
+  | 'stats'
+
+export interface Resources {
+  scrap: number
+  alloys: number
+  energy: number
+  data: number
+  essence: number
+  aiPoints: number
+  prestigeMatter: number
+  challengePoints: number
+}
+
+export interface ShipLoadout {
+  frameId: string
+  modules: string[]
+}
+
+export interface CombatState {
+  sector: number
+  inFight: boolean
+  playerHull: number
+  playerHullMax: number
+  enemyName: string
+  enemyHull: number
+  enemyHullMax: number
+  log: string[]
+}
+
+export interface BaseState {
+  buildings: Record<string, number>
+}
+
+export interface ResearchState {
+  unlocked: string[]
+}
+
+export interface AiState {
+  purchased: string[]
+}
+
+export interface PrestigeState {
+  prestigeCount: number
+  activeChallengeId: string | null
+  completedChallenges: string[]
+}
+
+export interface GameState {
+  version: number
+  lastTickAt: number
+  resources: Resources
+  shipyard: ShipLoadout
+  combat: CombatState
+  base: BaseState
+  research: ResearchState
+  ai: AiState
+  prestige: PrestigeState
+}
