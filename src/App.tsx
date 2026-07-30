@@ -13,15 +13,7 @@ import { StatsTab } from './components/tabs/StatsTab'
 import './App.css'
 
 export default function App() {
-  const {
-    state,
-    engage,
-    upgradeBuilding,
-    buyResearch,
-    buyAiNode,
-    hardReset,
-    applyImportedSave,
-  } = useGame()
+  const game = useGame()
   const [tab, setTab] = useState<TabId>('combat')
 
   return (
@@ -33,18 +25,38 @@ export default function App() {
         </div>
       </header>
 
-      <ResourceBar resources={state.resources} />
+      <ResourceBar resources={game.state.resources} />
       <TabNav active={tab} onChange={setTab} />
 
       <main className="main">
-        {tab === 'combat' && <CombatTab state={state} onEngage={engage} />}
-        {tab === 'shipyard' && <ShipyardTab state={state} />}
-        {tab === 'base' && <BaseTab state={state} onUpgrade={upgradeBuilding} />}
-        {tab === 'research' && <ResearchTab state={state} onBuy={buyResearch} />}
-        {tab === 'ai' && <AiTab state={state} onBuy={buyAiNode} />}
-        {tab === 'prestige' && <PrestigeTab state={state} />}
+        {tab === 'combat' && <CombatTab state={game.state} onEngage={game.engage} />}
+        {tab === 'shipyard' && (
+          <ShipyardTab
+            state={game.state}
+            onUnlockFrame={game.unlockFrame}
+            onSelectFrame={game.selectFrame}
+            onUnlockModule={game.unlockModule}
+            onFitModule={game.fitModule}
+            onUnfitModule={game.unfitModule}
+          />
+        )}
+        {tab === 'base' && <BaseTab state={game.state} onUpgrade={game.upgradeBuilding} />}
+        {tab === 'research' && <ResearchTab state={game.state} onBuy={game.buyResearch} />}
+        {tab === 'ai' && <AiTab state={game.state} onBuy={game.buyAiNode} />}
+        {tab === 'prestige' && (
+          <PrestigeTab
+            state={game.state}
+            onPrestige={game.prestige}
+            onEnterChallenge={game.enterChallenge}
+            onAbandonChallenge={game.abandonChallenge}
+          />
+        )}
         {tab === 'stats' && (
-          <StatsTab state={state} onHardReset={hardReset} onImport={applyImportedSave} />
+          <StatsTab
+            state={game.state}
+            onHardReset={game.hardReset}
+            onImport={game.applyImportedSave}
+          />
         )}
       </main>
     </div>

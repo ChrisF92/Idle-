@@ -230,6 +230,20 @@ button.danger {
   font-size: 0.85rem;
 }
 
+.notice-box {
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.panel h3 {
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  margin-top: 0.25rem;
+}
+
 .badge {
   flex: 0 0 auto;
   border: 1px solid var(--line);

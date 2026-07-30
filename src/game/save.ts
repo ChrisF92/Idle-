@@ -9,17 +9,56 @@ export function saveGame(state: GameState): void {
   }
 }
 
+function migrate(raw: unknown): GameState | null {
+  if (!raw || typeof raw !== 'object') return null
+  const parsed = raw as Partial<GameState> & { version?: number }
+  if (parsed.version === SAVE_VERSION) {
+    return parsed as GameState
+  }
+
+  // v1 → v2: add shipyard unlock lists + highestSector
+  if (parsed.version === 1) {
+    const base = createInitialState()
+    const v1 = parsed as GameState
+    return {
+      ...base,
+      ...v1,
+      version: SAVE_VERSION,
+      shipyard: {
+        frameId: v1.shipyard?.frameId ?? 'scout-frame',
+        modules: v1.shipyard?.modules ?? ['pulse-cannon'],
+        unlockedFrames: ['scout-frame', ...(v1.shipyard?.frameId === 'line-frame' ? ['line-frame'] : [])],
+        unlockedModules: Array.from(
+          new Set([
+            'pulse-cannon',
+            ...(v1.shipyard?.modules ?? []),
+          ]),
+        ),
+      },
+      combat: {
+        ...base.combat,
+        ...v1.combat,
+        highestSector: Math.max(1, v1.combat?.sector ?? 1),
+      },
+      resources: {
+        ...base.resources,
+        ...v1.resources,
+      },
+      prestige: {
+        ...base.prestige,
+        ...v1.prestige,
+      },
+    }
+  }
+
+  return null
+}
+
 export function loadGame(): GameState | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as GameState
-    if (!parsed || typeof parsed !== 'object') return null
-    if (parsed.version !== SAVE_VERSION) {
-      // Future: run migrations. For now, reject unknown versions.
-      return null
-    }
-    return parsed
+    return migrate(JSON.parse(raw))
   } catch {
     return null
   }
@@ -36,9 +75,7 @@ export function exportSave(state: GameState): string {
 export function importSave(code: string): GameState | null {
   try {
     const json = decodeURIComponent(escape(atob(code.trim())))
-    const parsed = JSON.parse(json) as GameState
-    if (!parsed?.version || parsed.version !== SAVE_VERSION) return null
-    return parsed
+    return migrate(JSON.parse(json))
   } catch {
     return null
   }

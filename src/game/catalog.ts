@@ -8,15 +8,10 @@ export interface BuildingDef {
   id: string
   name: string
   description: string
-  /** Required research id, if any. */
   requiresResearch?: string
-  /** Base upgrade cost at level 0 → 1. */
   baseCost: ResourceCost
-  /** Cost multiplier per existing level. */
   costScale: number
-  /** Production per level per second. */
   rates: ResourceCost
-  /** Optional scrap consumed per second per level (e.g. foundry). */
   upkeepScrapPerLevel?: number
 }
 
@@ -25,7 +20,6 @@ export interface ResearchDef {
   name: string
   description: string
   costData: number
-  /** Flat player DPS multiplier added when owned (1.0 = +100%). */
   damageBonus?: number
 }
 
@@ -41,7 +35,32 @@ export interface ChallengeDef {
   name: string
   description: string
   restriction: string
+  goalSector: number
+  rewardChallengePoints: number
 }
+
+export interface ShipFrameDef {
+  id: string
+  name: string
+  slots: number
+  baseDamage: number
+  baseHull: number
+  unlockCost: ResourceCost
+}
+
+export interface ShipModuleDef {
+  id: string
+  name: string
+  role: 'weapon' | 'defense' | 'utility'
+  description: string
+  damageBonus: number
+  hullBonus: number
+  /** Multiplier on incoming damage (0.9 = take 10% less). */
+  damageTakenMult: number
+  unlockCost: ResourceCost
+}
+
+export const PRESTIGE_MIN_SECTOR = 8
 
 export const BUILDINGS: BuildingDef[] = [
   {
@@ -123,35 +142,104 @@ export const CHALLENGES: ChallengeDef[] = [
     id: 'no-ai',
     name: 'Silent Bridge',
     description: 'Reach sector 5 with AI assists disabled.',
-    restriction: 'AI purchases inactive',
+    restriction: 'AI purchases and Auto Engage inactive',
+    goalSector: 5,
+    rewardChallengePoints: 1,
   },
   {
     id: 'thin-hull',
     name: 'Glass Frame',
     description: 'Reach sector 5 with half hull.',
     restriction: 'Player hull max ×0.5',
+    goalSector: 5,
+    rewardChallengePoints: 1,
   },
   {
     id: 'data-drought',
     name: 'Data Drought',
     description: 'Reach sector 8 without Data gains from combat.',
     restriction: 'Combat data drops disabled',
+    goalSector: 8,
+    rewardChallengePoints: 2,
   },
 ]
 
-export const SHIP_FRAMES = [
-  { id: 'scout-frame', name: 'Scout Frame', slots: 2 },
-  { id: 'line-frame', name: 'Line Frame', slots: 3 },
+export const SHIP_FRAMES: ShipFrameDef[] = [
+  {
+    id: 'scout-frame',
+    name: 'Scout Frame',
+    slots: 2,
+    baseDamage: 8,
+    baseHull: 100,
+    unlockCost: {},
+  },
+  {
+    id: 'line-frame',
+    name: 'Line Frame',
+    slots: 3,
+    baseDamage: 7,
+    baseHull: 140,
+    unlockCost: { alloys: 25, scrap: 40 },
+  },
 ]
 
-export const SHIP_MODULES = [
-  { id: 'pulse-cannon', name: 'Pulse Cannon', role: 'weapon' },
-  { id: 'plate-layer', name: 'Plate Layer', role: 'defense' },
-  { id: 'vector-thruster', name: 'Vector Thruster', role: 'utility' },
+export const SHIP_MODULES: ShipModuleDef[] = [
+  {
+    id: 'pulse-cannon',
+    name: 'Pulse Cannon',
+    role: 'weapon',
+    description: '+4 damage',
+    damageBonus: 4,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    unlockCost: {},
+  },
+  {
+    id: 'plate-layer',
+    name: 'Plate Layer',
+    role: 'defense',
+    description: '+35 hull',
+    damageBonus: 0,
+    hullBonus: 35,
+    damageTakenMult: 1,
+    unlockCost: { scrap: 20, alloys: 8 },
+  },
+  {
+    id: 'vector-thruster',
+    name: 'Vector Thruster',
+    role: 'utility',
+    description: 'Take 15% less damage',
+    damageBonus: 0,
+    hullBonus: 0,
+    damageTakenMult: 0.85,
+    unlockCost: { scrap: 30, alloys: 12 },
+  },
+  {
+    id: 'heavy-lance',
+    name: 'Heavy Lance',
+    role: 'weapon',
+    description: '+10 damage',
+    damageBonus: 10,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    unlockCost: { scrap: 50, alloys: 20 },
+  },
 ]
 
 export function getBuilding(id: string): BuildingDef | undefined {
   return BUILDINGS.find((b) => b.id === id)
+}
+
+export function getFrame(id: string): ShipFrameDef | undefined {
+  return SHIP_FRAMES.find((f) => f.id === id)
+}
+
+export function getModule(id: string): ShipModuleDef | undefined {
+  return SHIP_MODULES.find((m) => m.id === id)
+}
+
+export function getChallenge(id: string): ChallengeDef | undefined {
+  return CHALLENGES.find((c) => c.id === id)
 }
 
 export function buildingUpgradeCost(building: BuildingDef, currentLevel: number): ResourceCost {
@@ -170,4 +258,12 @@ export function researchDamageMultiplier(unlocked: string[]): number {
     if (def?.damageBonus) bonus += def.damageBonus
   }
   return bonus
+}
+
+export function metaDamageMultiplier(prestigeMatter: number, challengePoints: number): number {
+  return 1 + prestigeMatter * 0.02 + challengePoints * 0.03
+}
+
+export function metaProductionMultiplier(prestigeMatter: number): number {
+  return 1 + prestigeMatter * 0.02
 }

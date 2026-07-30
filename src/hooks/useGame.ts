@@ -2,7 +2,19 @@ import { useEffect, useReducer, useRef } from 'react'
 import type { GameState } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import { tickGame, startCombat, resetGame } from '../game/tick'
-import { buyAiNode, buyResearch, upgradeBuilding } from '../game/actions'
+import {
+  abandonChallenge,
+  buyAiNode,
+  buyResearch,
+  enterChallenge,
+  fitModule,
+  performPrestige,
+  selectFrame,
+  unfitModule,
+  unlockFrame,
+  unlockModule,
+  upgradeBuilding,
+} from '../game/actions'
 import { createInitialState } from '../game/state'
 
 type Action =
@@ -12,6 +24,14 @@ type Action =
   | { type: 'upgrade-building'; buildingId: string }
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-ai'; nodeId: string }
+  | { type: 'unlock-frame'; frameId: string }
+  | { type: 'select-frame'; frameId: string }
+  | { type: 'unlock-module'; moduleId: string }
+  | { type: 'fit-module'; moduleId: string }
+  | { type: 'unfit-module'; moduleId: string }
+  | { type: 'prestige' }
+  | { type: 'enter-challenge'; challengeId: string }
+  | { type: 'abandon-challenge' }
   | { type: 'hard-reset' }
 
 function reducer(state: GameState, action: Action): GameState {
@@ -28,6 +48,22 @@ function reducer(state: GameState, action: Action): GameState {
       return buyResearch(state, action.researchId)
     case 'buy-ai':
       return buyAiNode(state, action.nodeId)
+    case 'unlock-frame':
+      return unlockFrame(state, action.frameId)
+    case 'select-frame':
+      return selectFrame(state, action.frameId)
+    case 'unlock-module':
+      return unlockModule(state, action.moduleId)
+    case 'fit-module':
+      return fitModule(state, action.moduleId)
+    case 'unfit-module':
+      return unfitModule(state, action.moduleId)
+    case 'prestige':
+      return performPrestige(state)
+    case 'enter-challenge':
+      return enterChallenge(state, action.challengeId)
+    case 'abandon-challenge':
+      return abandonChallenge(state)
     case 'hard-reset':
       clearSave()
       return resetGame()
@@ -59,6 +95,15 @@ export function useGame() {
       dispatch({ type: 'upgrade-building', buildingId }),
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),
     buyAiNode: (nodeId: string) => dispatch({ type: 'buy-ai', nodeId }),
+    unlockFrame: (frameId: string) => dispatch({ type: 'unlock-frame', frameId }),
+    selectFrame: (frameId: string) => dispatch({ type: 'select-frame', frameId }),
+    unlockModule: (moduleId: string) => dispatch({ type: 'unlock-module', moduleId }),
+    fitModule: (moduleId: string) => dispatch({ type: 'fit-module', moduleId }),
+    unfitModule: (moduleId: string) => dispatch({ type: 'unfit-module', moduleId }),
+    prestige: () => dispatch({ type: 'prestige' }),
+    enterChallenge: (challengeId: string) =>
+      dispatch({ type: 'enter-challenge', challengeId }),
+    abandonChallenge: () => dispatch({ type: 'abandon-challenge' }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyImportedSave: (code: string) => {
       const imported = importSave(code)

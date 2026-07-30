@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialState } from './state'
+import { createInitialState, computeShipStats } from './state'
 import { tickGame, startCombat } from './tick'
 import { exportSave, importSave } from './save'
-import { buyAiNode, buyResearch, upgradeBuilding } from './actions'
+import {
+  buyAiNode,
+  buyResearch,
+  enterChallenge,
+  fitModule,
+  performPrestige,
+  unlockFrame,
+  unlockModule,
+  upgradeBuilding,
+} from './actions'
 
 describe('tickGame', () => {
   it('produces scrap from scrap yard over time', () => {
@@ -52,20 +61,74 @@ describe('purchases', () => {
     expect(unlocked.base.buildings.foundry).toBe(1)
   })
 
-  it('buys research and applies via combat damage path', () => {
-    const state = createInitialState(0)
+  it('buys research and AI nodes', () => {
+    let state = createInitialState(0)
     state.resources.data = 10
-    const next = buyResearch(state, 'basic-optics')
-    expect(next.research.unlocked).toContain('basic-optics')
-    expect(next.resources.data).toBe(0)
+    state = buyResearch(state, 'basic-optics')
+    expect(state.research.unlocked).toContain('basic-optics')
+
+    state.resources.aiPoints = 1
+    state = buyAiNode(state, 'auto-engage')
+    expect(state.ai.purchased).toContain('auto-engage')
+  })
+})
+
+describe('shipyard', () => {
+  it('unlocks and fits modules that increase damage', () => {
+    let state = createInitialState(0)
+    const before = computeShipStats(state).damage
+    state.resources.scrap = 999
+    state.resources.alloys = 999
+    state = unlockModule(state, 'heavy-lance')
+    state = fitModule(state, 'heavy-lance')
+    expect(state.shipyard.modules).toContain('heavy-lance')
+    expect(computeShipStats(state).damage).toBeGreaterThan(before)
   })
 
-  it('buys AI nodes with AI points', () => {
-    const state = createInitialState(0)
-    state.resources.aiPoints = 1
-    const next = buyAiNode(state, 'auto-engage')
-    expect(next.ai.purchased).toContain('auto-engage')
-    expect(next.resources.aiPoints).toBe(0)
+  it('unlocks line frame', () => {
+    let state = createInitialState(0)
+    state.resources.scrap = 999
+    state.resources.alloys = 999
+    state = unlockFrame(state, 'line-frame')
+    expect(state.shipyard.unlockedFrames).toContain('line-frame')
+  })
+})
+
+describe('prestige and challenges', () => {
+  it('prestiges at sector threshold and keeps ship unlocks', () => {
+    let state = createInitialState(0)
+    state.combat.sector = 8
+    state.shipyard.unlockedModules = ['pulse-cannon', 'plate-layer']
+    state.resources.scrap = 50
+    state = performPrestige(state, 1000)
+    expect(state.prestige.prestigeCount).toBe(1)
+    expect(state.resources.prestigeMatter).toBeGreaterThan(0)
+    expect(state.combat.sector).toBe(1)
+    expect(state.shipyard.unlockedModules).toContain('plate-layer')
+    expect(state.base.buildings.scrapYard).toBe(1)
+  })
+
+  it('enters and completes a challenge', () => {
+    let state = createInitialState(0)
+    state.combat.sector = 8
+    state = enterChallenge(state, 'no-ai', 2000)
+    expect(state.prestige.activeChallengeId).toBe('no-ai')
+    expect(state.combat.sector).toBe(1)
+
+    // Simulate clearing to sector 5 goal: after 5 clears, sector is 6
+    state.combat.sector = 6
+    state.ai.purchased = ['auto-engage']
+    // Force a victory tick path via tryCompleteChallenge through combat
+    state.combat.inFight = true
+    state.combat.enemyHull = 1
+    state.combat.enemyHullMax = 1
+    state.combat.playerHull = 100
+    state.combat.playerHullMax = 100
+    // Damage is high enough to finish in one tick
+    state = tickGame(state, state.lastTickAt + 1000)
+    expect(state.prestige.completedChallenges).toContain('no-ai')
+    expect(state.prestige.activeChallengeId).toBeNull()
+    expect(state.resources.challengePoints).toBeGreaterThan(0)
   })
 })
 

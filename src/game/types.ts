@@ -33,10 +33,13 @@ export interface Resources {
 export interface ShipLoadout {
   frameId: string
   modules: string[]
+  unlockedFrames: string[]
+  unlockedModules: string[]
 }
 
 export interface CombatState {
   sector: number
+  highestSector: number
   inFight: boolean
   playerHull: number
   playerHullMax: number
@@ -74,4 +77,10 @@ export interface GameState {
   research: ResearchState
   ai: AiState
   prestige: PrestigeState
+}
+
+export interface ShipCombatStats {
+  damage: number
+  hullMax: number
+  damageTakenMult: number
 }
