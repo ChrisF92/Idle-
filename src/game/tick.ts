@@ -183,17 +183,23 @@ export function advanceTicks(state: GameState, ticks: number): void {
 /**
  * Live tick path used by the UI interval.
  * Long absences should call applyOfflineCatchUp instead.
+ *
+ * Important: do NOT set lastTickAt to `now` when zero whole seconds elapsed.
+ * The UI polls every 250ms; resetting the clock each poll prevented combat/production
+ * from ever accumulating a full second.
  */
 export function tickGame(state: GameState, now = Date.now()): GameState {
-  const next = structuredClone(state)
-  const elapsed = Math.max(0, now - next.lastTickAt)
+  const elapsed = Math.max(0, now - state.lastTickAt)
   const ticks = Math.min(LIVE_TICK_CAP, Math.floor(elapsed / TICK_MS))
 
-  if (ticks > 0) {
-    advanceTicks(next, ticks)
+  if (ticks <= 0) {
+    return state
   }
 
-  next.lastTickAt = now
+  const next = structuredClone(state)
+  advanceTicks(next, ticks)
+  // Advance by whole seconds only so sub-second remainder carries forward.
+  next.lastTickAt = state.lastTickAt + ticks * TICK_MS
   return next
 }
 

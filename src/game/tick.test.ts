@@ -37,6 +37,21 @@ describe('tickGame', () => {
     state = tickGame(state, 1000)
     expect(state.combat.inFight).toBe(true)
   })
+
+  it('accumulates sub-second polls into combat ticks', () => {
+    let state = createInitialState(0)
+    state = startCombat(state)
+    const hullBefore = state.combat.enemyHull
+
+    // Simulate the UI interval: many <1s polls must not reset the clock.
+    state = tickGame(state, 250)
+    state = tickGame(state, 500)
+    state = tickGame(state, 750)
+    expect(state.combat.enemyHull).toBe(hullBefore)
+
+    state = tickGame(state, 1000)
+    expect(state.combat.enemyHull).toBeLessThan(hullBefore)
+  })
 })
 
 describe('advanceTicks / combat', () => {
