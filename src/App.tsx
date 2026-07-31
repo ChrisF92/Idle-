@@ -14,6 +14,7 @@ import { ResearchTab } from './components/tabs/ResearchTab'
 import { CodexTab } from './components/tabs/CodexTab'
 import { AiTab } from './components/tabs/AiTab'
 import { PrestigeTab } from './components/tabs/PrestigeTab'
+import { CoreTab } from './components/tabs/CoreTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import './App.css'
@@ -111,6 +112,9 @@ export default function App() {
             onBuyResearch={game.buyResearch}
             onBuyEssence={game.buyEssenceUpgrade}
           />
+        )}
+        {tab === 'core' && (
+          <CoreTab state={game.state} onAssign={game.assignWorker} />
         )}
         {tab === 'codex' && <CodexTab state={game.state} />}
         {tab === 'ai' && <AiTab state={game.state} onBuy={game.buyAiNode} />}

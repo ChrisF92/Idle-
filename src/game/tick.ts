@@ -19,6 +19,11 @@ import {
   researchEssenceMultiplier,
   workerManufactureSpeed,
 } from './catalog'
+import {
+  logisticsFabMult,
+  logisticsProdMult,
+  tickCoreTraining,
+} from './core'
 import { tryCompleteChallenge } from './actions'
 import {
   WAVES_PER_SECTOR,
@@ -86,7 +91,9 @@ function productionMeta(state: GameState): number {
       state.resources.prestigeMatter,
       state.prestige.matterShop,
       state.prestige.challengeClears,
-    ) * essenceProductionMultiplier(state.essence.purchased)
+    ) *
+    essenceProductionMultiplier(state.essence.purchased) *
+    logisticsProdMult(state.core?.ranks.logistics ?? 0)
   )
 }
 
@@ -129,7 +136,13 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     }
   }
 
-  advanceFabProject(state, dtSeconds, (line) => pushLog(state, line))
+  advanceFabProject(
+    state,
+    dtSeconds,
+    (line) => pushLog(state, line),
+    logisticsFabMult(state),
+  )
+  tickCoreTraining(state, dtSeconds)
 }
 
 /** Net industry rates (units / second). Combat drops are not included. */

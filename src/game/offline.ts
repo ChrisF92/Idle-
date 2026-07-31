@@ -18,6 +18,11 @@ import {
   researchEssenceMultiplier,
   workerManufactureSpeed,
 } from './catalog'
+import {
+  logisticsFabMult,
+  logisticsProdMult,
+  tickCoreTraining,
+} from './core'
 import { isSystemUnlocked } from './progression'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 /** Default hard cap; Deep Cache shop extends this. */
@@ -62,7 +67,9 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       state.resources.prestigeMatter,
       state.prestige.matterShop,
       state.prestige.challengeClears,
-    ) * essenceProductionMultiplier(state.essence.purchased)
+    ) *
+    essenceProductionMultiplier(state.essence.purchased) *
+    logisticsProdMult(state.core?.ranks.logistics ?? 0)
 
   for (const station of STATIONS) {
     if (!isStationUnlocked(state, station.id)) continue
@@ -96,9 +103,15 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     }
   }
 
-  advanceFabProject(state, seconds, (line) => {
-    state.combat.log = [line, ...state.combat.log].slice(0, 40)
-  })
+  advanceFabProject(
+    state,
+    seconds,
+    (line) => {
+      state.combat.log = [line, ...state.combat.log].slice(0, 40)
+    },
+    logisticsFabMult(state),
+  )
+  tickCoreTraining(state, seconds)
 }
 
 /**

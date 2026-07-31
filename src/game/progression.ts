@@ -49,6 +49,13 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Enemy families remember soft counters. Fit modules to match the sector.',
   },
   {
+    id: 'core',
+    requiresSectorEver: 5,
+    requiresResearch: 'core-training',
+    label: 'Core',
+    tip: 'Assign workers to training stations to raise Core attributes. Ranks wipe on prestige.',
+  },
+  {
     id: 'ai',
     requiresSectorEver: 0,
     label: 'AI',

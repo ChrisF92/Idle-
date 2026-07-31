@@ -19,6 +19,7 @@ import {
   partSellScrap,
   workerManufactureSpeed,
 } from '../../game/catalog'
+import { logisticsFabMult } from '../../game/core'
 import { RESOURCE_LABELS } from '../../game/state'
 
 interface BaseTabProps {
@@ -101,9 +102,10 @@ export function BaseTab({
   const recipeFilled =
     !!recipe &&
     PART_TYPES.every((pt) => (project?.contributed[pt] ?? 0) >= (recipe?.[pt] ?? 0))
+  const fabSpeed = logisticsFabMult(state)
   const fabEta =
     recipeFilled && fabWorkers > 0
-      ? ((1 - (project?.progress ?? 0)) * FAB_SECONDS) / fabWorkers
+      ? ((1 - (project?.progress ?? 0)) * FAB_SECONDS) / (fabWorkers * fabSpeed)
       : null
 
   return (
@@ -154,7 +156,7 @@ export function BaseTab({
 
       <h3>Stations</h3>
       <ul className="def-list">
-        {STATIONS.map((station) => {
+        {STATIONS.filter((s) => s.kind !== 'training').map((station) => {
           const unlocked = isStationUnlocked(state, station.id)
           const assigned = state.base.assignments[station.id] ?? 0
           const extras: string[] = []

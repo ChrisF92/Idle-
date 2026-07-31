@@ -15,8 +15,16 @@ import {
   moduleMasteryRank,
   researchDamageMultiplier,
 } from './catalog'
+import {
+  ballisticsDamageMult,
+  createEmptyCoreState,
+  platingArmorBonus,
+  platingHullMult,
+  reactorsShieldBonus,
+  sensorsEvasionBonus,
+} from './core'
 
-export const SAVE_VERSION = 15
+export const SAVE_VERSION = 16
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -114,6 +122,7 @@ export function createInitialState(now = Date.now()): GameState {
       discoveredModules: [],
       moduleMastery: {},
     },
+    core: createEmptyCoreState(),
     parts: {},
   }
 }
@@ -129,6 +138,7 @@ export function globalDamageMultiplier(state: GameState): number {
     state.prestige.challengeClears,
   )
   if (aiDoctrinesActive(state, 'focus-fire')) mult *= 1.12
+  mult *= ballisticsDamageMult(state.core?.ranks.ballistics ?? 0)
   return mult
 }
 
@@ -212,6 +222,14 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   if (state.prestige.activeChallengeId === 'thin-hull') {
     hullMax *= 0.5
   }
+
+  const platingRank = state.core?.ranks.plating ?? 0
+  const reactorsRank = state.core?.ranks.reactors ?? 0
+  const sensorsRank = state.core?.ranks.sensors ?? 0
+  hullMax *= platingHullMult(platingRank)
+  armor += platingArmorBonus(platingRank)
+  shieldMax += reactorsShieldBonus(reactorsRank)
+  evasion += sensorsEvasionBonus(sensorsRank)
 
   evasion = Math.min(0.45, evasion)
 

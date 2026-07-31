@@ -26,6 +26,11 @@ import {
 } from './catalog'
 import { WAVES_PER_SECTOR, isSystemUnlocked } from './progression'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
+import {
+  logisticsDropMult,
+  reactorsRepairMult,
+  sensorsMatchupBonus,
+} from './core'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -1079,7 +1084,10 @@ export function computeFightDamage(state: GameState): FightSummary {
   const family = (state.combat.enemyFamily || 'swarm') as EnemyFamily
   const roles = fittedRoles(state)
   const notes: string[] = []
-  const matchupScale = 1 + challengeShopMatchupBonus(state.prestige.shop)
+  const matchupScale =
+    1 +
+    challengeShopMatchupBonus(state.prestige.shop) +
+    sensorsMatchupBonus(state.core?.ranks.sensors ?? 0)
 
   let playerDps = stats.damage
   let incomingMult = stats.damageTakenMult
@@ -1243,6 +1251,7 @@ export function repairRatePerSecond(state: GameState): number {
   rate /= Math.max(0.2, shopMult)
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
   rate += stationRepairBonus(state)
+  rate *= reactorsRepairMult(state.core?.ranks.reactors ?? 0)
   return rate
 }
 
@@ -1353,11 +1362,13 @@ export function rollEnemyPartDrop(
   const table = getEnemyDropTable(unit.family)
   if (!table) return []
 
-  let chance = table.chance
+  let chance = table.chance * logisticsDropMult(state)
   let rolls = 1
   if (unit.isBoss) {
     chance = Math.min(1, chance * (table.bossChanceMult ?? 2))
     rolls = table.bossRolls ?? 2
+  } else {
+    chance = Math.min(1, chance)
   }
 
   const results: PartDropResult[] = []
@@ -1565,7 +1576,10 @@ export function simulateCombat(
 ): void {
   if (dt <= 0) return
   const roles = fittedRoles(state)
-  const matchupScale = 1 + challengeShopMatchupBonus(state.prestige.shop)
+  const matchupScale =
+    1 +
+    challengeShopMatchupBonus(state.prestige.shop) +
+    sensorsMatchupBonus(state.core?.ranks.sensors ?? 0)
   const focusFire = aiDoctrinesActive(state, 'focus-fire')
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
 

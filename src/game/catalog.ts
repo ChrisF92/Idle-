@@ -2,7 +2,7 @@
 
 import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, isSystemUnlocked } from './progression'
 import { formatCompact, formatStat } from './format'
-import type { GameState, PartType, Resources, WeaponTag } from './types'
+import type { CoreAttrId, GameState, PartType, Resources, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
@@ -13,7 +13,7 @@ export interface StationDef {
   description: string
   requiresResearch?: string
   /** System that must be unlocked before drones can be assigned. */
-  requiresSystem?: 'base' | 'research' | 'ai' | 'prestige'
+  requiresSystem?: 'base' | 'research' | 'ai' | 'prestige' | 'core'
   /** Resource rates per assigned worker drone (per second). */
   rates: ResourceCost
   /** Scrap drained per assigned drone per second (Foundry-style). */
@@ -22,6 +22,10 @@ export interface StationDef {
   repairPerDrone?: number
   /** Multiplier added to worker manufacture speed per drone (0.25 = +25%). */
   manufactureBonusPerDrone?: number
+  /** Production stations show in Base; training stations only on Core tab. */
+  kind?: 'production' | 'training' | 'special'
+  /** Core attribute trained by this station (training kind). */
+  trainsAttr?: CoreAttrId
 }
 
 export interface ResearchDef {
@@ -34,6 +38,8 @@ export interface ResearchDef {
   essenceBonus?: number
   /** Multiplier on worker drone manufacture speed. */
   manufactureBonus?: number
+  /** Additive Core training speed bonus (0.5 = +50%). */
+  trainingBonus?: number
 }
 
 export interface AiNodeDef {
@@ -48,6 +54,8 @@ export interface AiNodeDef {
   requiresSectorEver?: number
   /** Extra manufacture speed while owned (permanent AI). */
   manufactureBonus?: number
+  /** Additive Core training speed bonus (0.4 = +40%). */
+  trainingBonus?: number
 }
 
 export interface EssenceUpgradeDef {
@@ -125,6 +133,8 @@ export interface MatterShopDef {
   repairMult?: number
   bonusWorkerDrones?: number
   manufactureBonus?: number
+  /** Additive Core training speed bonus per rank scale (0.12 = +12% at rank 1). */
+  trainingBonus?: number
 }
 
 export interface ChallengeDef {
@@ -261,6 +271,58 @@ export const STATIONS: StationDef[] = [
     requiresSystem: 'base',
     requiresResearch: 'module-fab',
     rates: {},
+    kind: 'special',
+  },
+  {
+    id: 'train-ballistics',
+    name: 'Ballistics Range',
+    description: 'Workers drill targeting drills — trains the Ballistics Core attribute (fleet DPS).',
+    requiresSystem: 'base',
+    requiresResearch: 'core-training',
+    rates: {},
+    kind: 'training',
+    trainsAttr: 'ballistics',
+  },
+  {
+    id: 'train-plating',
+    name: 'Plating Yard',
+    description: 'Workers harden armor schemes — trains the Plating Core attribute (hull + armor).',
+    requiresSystem: 'base',
+    requiresResearch: 'core-training',
+    rates: {},
+    kind: 'training',
+    trainsAttr: 'plating',
+  },
+  {
+    id: 'train-reactors',
+    name: 'Reactor Lab',
+    description: 'Workers tune reactor feeds — trains the Reactors Core attribute (shields + repair).',
+    requiresSystem: 'base',
+    requiresResearch: 'core-training',
+    rates: {},
+    kind: 'training',
+    trainsAttr: 'reactors',
+  },
+  {
+    id: 'train-sensors',
+    name: 'Sensor Academy',
+    description: 'Workers calibrate sensor nets — trains the Sensors Core attribute (evasion + matchup).',
+    requiresSystem: 'base',
+    requiresResearch: 'core-training',
+    rates: {},
+    kind: 'training',
+    trainsAttr: 'sensors',
+  },
+  {
+    id: 'train-logistics',
+    name: 'Logistics Hub',
+    description:
+      'Workers practice supply chains — trains Logistics (industry, Fab Bay speed, part drops, and training speed).',
+    requiresSystem: 'base',
+    requiresResearch: 'core-training',
+    rates: {},
+    kind: 'training',
+    trainsAttr: 'logistics',
   },
 ]
 
@@ -285,6 +347,12 @@ export const RESEARCH: ResearchDef[] = [
     costData: 25,
   },
   {
+    id: 'core-training',
+    name: 'Core Training',
+    description: 'Unlocks the Core tab and five training stations for permanent-run attributes.',
+    costData: 30,
+  },
+  {
     id: 'drone-logistics',
     name: 'Drone Logistics',
     description: 'Unlocks the Drone Fabricator station and +40% manufacture speed.',
@@ -296,6 +364,13 @@ export const RESEARCH: ResearchDef[] = [
     name: 'Tactical Codex',
     description: 'Unlocks the Codex: enemy family intel and soft counters.',
     costData: 30,
+  },
+  {
+    id: 'core-drills',
+    name: 'Core Drills',
+    description: '+50% Core attribute training speed.',
+    costData: 55,
+    trainingBonus: 0.5,
   },
   {
     id: 'entity-anatomy',
@@ -361,6 +436,16 @@ export const AI_NODES: AiNodeDef[] = [
     permanent: true,
     requiresSectorEver: 10,
     manufactureBonus: 0.5,
+  },
+  {
+    id: 'neural-drill',
+    name: 'Neural Drill',
+    description: '+40% Core attribute training speed (permanent).',
+    costAiPoints: 3,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 12,
+    trainingBonus: 0.4,
   },
   {
     id: 'salvage-optimizer',
@@ -632,6 +717,14 @@ export const MATTER_SHOP: MatterShopDef[] = [
     maxRank: 6,
     bonusWorkerDrones: 3,
     manufactureBonus: 0.25,
+  },
+  {
+    id: 'synapse-lattice',
+    name: 'Synapse Lattice',
+    description: '+12% Core training speed per rank (rankable; extra ranks +45% of base).',
+    costPm: 4,
+    maxRank: 8,
+    trainingBonus: 0.12,
   },
 ]
 
@@ -1396,11 +1489,13 @@ export function getVisibleModules(state: GameState): ShipModuleDef[] {
 /**
  * Advance Fabrication Bay craft when recipe is filled and workers are assigned.
  * Mutates state. Returns true if a module was completed this call.
+ * `fabSpeedMult` comes from Logistics Core (default 1).
  */
 export function advanceFabProject(
   state: GameState,
   dtSeconds: number,
   log?: (line: string) => void,
+  fabSpeedMult = 1,
 ): boolean {
   if (dtSeconds <= 0) return false
   if (!isStationUnlocked(state, 'fab-bay')) return false
@@ -1410,7 +1505,7 @@ export function advanceFabProject(
   const recipe = getBlueprint(project.moduleId)
   if (!recipe || !isBlueprintComplete(project.contributed, recipe)) return false
 
-  project.progress += (workers * dtSeconds) / FAB_SECONDS
+  project.progress += (workers * dtSeconds * Math.max(0.05, fabSpeedMult)) / FAB_SECONDS
   if (project.progress < 1) return false
 
   const mod = getModule(project.moduleId)
@@ -2055,6 +2150,9 @@ export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string 
   }
   if (def.manufactureBonus) {
     bits.push(`+${(def.manufactureBonus * s * 100).toFixed(1)}% manufacture`)
+  }
+  if (def.trainingBonus) {
+    bits.push(`+${(def.trainingBonus * s * 100).toFixed(1)}% Core training`)
   }
   return bits.join(' · ') || 'Owned'
 }

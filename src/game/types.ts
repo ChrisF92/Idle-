@@ -19,7 +19,22 @@ export type TabId =
   | 'codex'
   | 'ai'
   | 'prestige'
+  | 'core'
   | 'stats'
+
+/** Worker-trained Core attributes (run-scoped; wiped on prestige). */
+export type CoreAttrId =
+  | 'reactors'
+  | 'ballistics'
+  | 'plating'
+  | 'sensors'
+  | 'logistics'
+
+export interface CoreState {
+  ranks: Record<CoreAttrId, number>
+  /** 0..1 progress toward the next rank for each attribute. */
+  progress: Record<CoreAttrId, number>
+}
 
 export type EnemyFamilyId =
   | 'swarm'
@@ -283,6 +298,8 @@ export interface GameState {
   prestige: PrestigeState
   codex: CodexState
   meta: MetaState
+  /** Run-scoped Core attribute ranks / training progress (wiped on prestige). */
+  core: CoreState
   /**
    * Account-permanent blueprint parts inventory (PartId → qty).
    * Persists across prestige / challenge resets.

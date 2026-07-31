@@ -103,7 +103,9 @@ export function assignWorker(
 export function autoBalanceWorkers(state: GameState): GameState {
   if (!state.ai.purchased.includes('auto-assign-workers')) return state
   if (state.prestige.activeChallengeId === 'no-ai') return state
-  const stations = STATIONS.filter((s) => isStationUnlocked(state, s.id))
+  const stations = STATIONS.filter(
+    (s) => s.kind !== 'training' && isStationUnlocked(state, s.id),
+  )
   if (stations.length === 0 || state.base.workerDrones <= 0) return state
 
   const next = structuredClone(state)
@@ -656,6 +658,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   }
   state.codex = { seenFamilies: kept.seenFamilies }
   state.meta = kept.meta
+  state.core = fresh.core
   state.parts = kept.parts
 
   const stats = computeShipStats(state)

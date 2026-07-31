@@ -1,6 +1,7 @@
-import type { GameState } from './types'
+import type { CoreAttrId, CoreState, GameState } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
 import { AI_NODES, isAiNodePermanent } from './catalog'
+import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
 
 export function saveGame(state: GameState): void {
   try {
@@ -222,6 +223,20 @@ function withPartsDefaults(
   return out
 }
 
+function withCoreDefaults(core: GameState['core'] | undefined): CoreState {
+  const empty = createEmptyCoreState()
+  if (!core || typeof core !== 'object') return empty
+  const ranks = { ...empty.ranks }
+  const progress = { ...empty.progress }
+  for (const id of CORE_ATTR_IDS) {
+    const r = Math.floor(Number(core.ranks?.[id as CoreAttrId] ?? 0))
+    const p = Number(core.progress?.[id as CoreAttrId] ?? 0)
+    ranks[id] = Number.isFinite(r) && r > 0 ? r : 0
+    progress[id] = Number.isFinite(p) ? Math.max(0, Math.min(1, p)) : 0
+  }
+  return { ranks, progress }
+}
+
 function withAiDefaults(ai: GameState['ai'] | undefined): GameState['ai'] {
   const purchased = ai?.purchased ?? []
   // Drop unknown ids; keep both permanent and doctrines as stored.
@@ -251,6 +266,7 @@ function migrate(raw: unknown): GameState | null {
       codex: withCodexDefaults(state.codex),
       ai: withAiDefaults(state.ai),
       meta: withMetaDefaults(state.meta, combat.highestSector),
+      core: withCoreDefaults(state.core),
       parts: withPartsDefaults(state.parts),
     }
   }
@@ -269,7 +285,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 11 ||
     parsed.version === 12 ||
     parsed.version === 13 ||
-    parsed.version === 14
+    parsed.version === 14 ||
+    parsed.version === 15
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
@@ -279,7 +296,8 @@ function migrate(raw: unknown): GameState | null {
     const clearedApprox =
       parsed.version === 10 ||
       parsed.version === 11 ||
-      parsed.version === 14
+      parsed.version === 14 ||
+      parsed.version === 15
         ? Math.max(0, prev.combat?.highestSector ?? 0)
         : Math.max(0, oldHighest - 1)
     const combat = withCombatDefaults({
@@ -311,6 +329,7 @@ function migrate(raw: unknown): GameState | null {
       codex: withCodexDefaults(prev.codex),
       ai,
       meta: withMetaDefaults(prev.meta, clearedApprox),
+      core: withCoreDefaults(prev.core),
       parts: withPartsDefaults(prev.parts),
     }
   }
