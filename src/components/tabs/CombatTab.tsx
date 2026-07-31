@@ -226,6 +226,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         </button>
         <button
           type="button"
+          data-guide="launch-btn"
           className={combat.docked ? 'primary mode-active' : ''}
           aria-pressed={combat.docked}
           onClick={() => {

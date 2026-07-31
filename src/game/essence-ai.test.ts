@@ -52,6 +52,7 @@ describe('AI doctrines', () => {
     state.resources.aiPoints = 3
     state = buyAiNode(state, 'boss-protocol')
     state.combat.sector = 5
+    state.combat.wave = 5
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
     const notes = computeFightDamage(state).matchupNotes.join(' ')

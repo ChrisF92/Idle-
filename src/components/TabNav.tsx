@@ -29,6 +29,7 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
           <button
             key={tab.id}
             type="button"
+            data-guide={`${tab.id}-tab`}
             className={
               active === tab.id ? 'tab active' : unlocked ? 'tab' : 'tab tab-locked'
             }

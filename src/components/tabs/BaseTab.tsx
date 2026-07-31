@@ -96,7 +96,13 @@ export function BaseTab({ state, onAssign, onAutoBalance }: BaseTabProps) {
                 <strong>{station.name}</strong>
                 <p className="muted">{station.description}</p>
                 {!unlocked ? (
-                  <p className="muted">Requires research: {station.requiresResearch}</p>
+                  <p className="muted">
+                    {station.requiresSystem && !station.requiresResearch
+                      ? `Requires ${station.requiresSystem} system`
+                      : station.requiresResearch
+                        ? `Requires research: ${station.requiresResearch}`
+                        : 'Locked'}
+                  </p>
                 ) : (
                   <p className="muted">
                     {rateLabel(station.rates) || 'Special duty'}
@@ -116,6 +122,7 @@ export function BaseTab({ state, onAssign, onAutoBalance }: BaseTabProps) {
                   </button>
                   <button
                     type="button"
+                    data-guide={`station-${station.id}-plus`}
                     disabled={!unlocked || idle <= 0}
                     onClick={() => onAssign(station.id, 1)}
                   >

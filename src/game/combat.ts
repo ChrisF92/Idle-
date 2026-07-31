@@ -17,6 +17,7 @@ import {
   matterShopRepairMult,
   stationRepairBonus,
 } from './catalog'
+import { WAVES_PER_SECTOR } from './progression'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
@@ -170,117 +171,403 @@ function packY(index: number, count: number): number {
 }
 
 export function enemyForSector(sector: number, wave = 1): SectorEncounter {
-  const boss = isBossSector(sector)
-  const family: EnemyFamily = boss
+  const bossSector = isBossSector(sector)
+  const bossWave = bossSector && wave >= WAVES_PER_SECTOR
+  const family: EnemyFamily = bossWave
     ? 'titan'
-    : (FAMILY_ROTATION[(sector - 1) % FAMILY_ROTATION.length] ?? 'swarm')
+    : bossSector
+      ? bossPreludeFamily(sector, wave)
+      : (FAMILY_ROTATION[(sector - 1) % FAMILY_ROTATION.length] ?? 'swarm')
   const names = NAMES[family]
   const name =
-    names[(Math.floor((sector - 1) / FAMILY_ROTATION.length)) % names.length] ??
+    names[(Math.floor((sector - 1) / FAMILY_ROTATION.length) + wave - 1) % names.length] ??
     'Unknown Entity'
 
-  const waveScale = 1 + Math.max(0, wave - 1) * 0.1
-  const units = boss
+  const waveScale = 1 + Math.max(0, wave - 1) * 0.08
+  const units = bossWave
     ? buildBossPack(sector, name, waveScale)
-    : buildPack(sector, family, name, waveScale)
+    : buildWavePack(sector, family, name, wave, waveScale)
 
   const waveLabel = `W${wave}`
   return {
     id: `${family}-${sector}-w${wave}`,
-    name: boss ? `${name} (Boss ${waveLabel})` : `${name} pack (${waveLabel})`,
+    name: bossWave
+      ? `${name} (Boss)`
+      : bossSector
+        ? `${name} vanguard (${waveLabel})`
+        : `${name} pack (${waveLabel})`,
     family,
-    tags: boss ? [family, 'boss'] : [family],
-    isBoss: boss,
-    scrapReward: boss ? 20 + sector * 4 : 5 + sector * 2,
-    dataReward: boss ? 4 + Math.floor(sector / 2) : 1 + Math.floor(sector / 3),
-    aiReward: boss ? 1.5 : sector % 5 === 0 ? 1 : 0.15,
-    essenceReward: boss ? 1 + Math.floor(sector / 10) : 0,
-    salvageReward: boss ? 8 + sector : 3 + Math.floor(sector * 0.8),
-    blurb: familyBlurb(family, boss),
+    tags: bossWave ? [family, 'boss'] : [family],
+    isBoss: bossWave,
+    scrapReward: bossSector ? 20 + sector * 4 : 5 + sector * 2,
+    dataReward: bossSector ? 4 + Math.floor(sector / 2) : 1 + Math.floor(sector / 3),
+    // AI Points come from achievements later — never from combat drops.
+    aiReward: 0,
+    essenceReward: bossWave ? 1 + Math.floor(sector / 10) : 0,
+    salvageReward: bossSector ? 8 + sector : 3 + Math.floor(sector * 0.8),
+    blurb: familyBlurb(family, bossWave),
     units,
   }
 }
 
-function buildPack(
+/** Prelude waves on boss sectors cycle supporting families before the titan. */
+function bossPreludeFamily(sector: number, wave: number): EnemyFamily {
+  const pool: EnemyFamily[] = ['swarm', 'armored', 'ethereal', 'divine']
+  return pool[(sector + wave) % pool.length] ?? 'swarm'
+}
+
+/**
+ * Wave-aware packs so W1–W5 are not identical.
+ * Wave patterns: skirmish → pressure → elite → mixed → climax.
+ */
+function buildWavePack(
   sector: number,
   family: EnemyFamily,
   name: string,
-  waveScale = 1,
+  wave: number,
+  waveScale: number,
 ): CombatUnit[] {
+  const pattern = ((wave - 1) % 5) as 0 | 1 | 2 | 3 | 4
   const scale = (1 + (sector - 1) * 0.12) * waveScale
-  const variant = sector % 2 === 0
+
   switch (family) {
-    case 'swarm': {
-      const count = Math.min(8, 4 + Math.floor(sector / 4) + (variant ? 1 : 0))
-      const units = Array.from({ length: count }, (_, i) =>
+    case 'swarm':
+      return buildSwarmWave(name, scale, pattern, sector)
+    case 'armored':
+      return buildArmoredWave(name, scale, pattern, sector)
+    case 'ethereal':
+      return buildEtherealWave(name, scale, pattern, sector)
+    case 'divine':
+      return buildDivineWave(name, scale, pattern, sector)
+    default:
+      return buildSwarmWave(name, scale, pattern, sector)
+  }
+}
+
+function buildSwarmWave(
+  name: string,
+  scale: number,
+  pattern: 0 | 1 | 2 | 3 | 4,
+  sector: number,
+): CombatUnit[] {
+  switch (pattern) {
+    case 0: // skirmish — small fast cloud
+      return Array.from({ length: 3 }, (_, i) =>
+        makeEnemyUnit({
+          name: `${name} Mite ${i + 1}`,
+          family: 'swarm',
+          hull: 12 * scale,
+          damage: 2.2 * scale,
+          cooldown: 0.9,
+          range: 40,
+          speed: 42,
+          engageRange: 34,
+          x: SPAWN_DISTANCE + i * 8,
+          y: packY(i, 3),
+        }),
+      )
+    case 1: // pressure — denser rush
+      return Array.from({ length: Math.min(7, 5 + Math.floor(sector / 6)) }, (_, i) =>
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
-          family,
-          hull: 16 * scale,
-          damage: 2.6 * scale,
+          family: 'swarm',
+          hull: 15 * scale,
+          damage: 2.5 * scale,
           cooldown: 0.95,
           range: 42,
           speed: 38,
           engageRange: 36,
-          kite: false,
-          x: SPAWN_DISTANCE + i * 8,
+          x: SPAWN_DISTANCE + i * 7,
+          y: packY(i, 6),
+        }),
+      )
+    case 2: // elite — spitters behind screen
+      return [
+        ...Array.from({ length: 3 }, (_, i) =>
+          makeEnemyUnit({
+            name: `${name} Screen ${i + 1}`,
+            family: 'swarm',
+            hull: 14 * scale,
+            damage: 2.4 * scale,
+            cooldown: 1,
+            range: 40,
+            speed: 40,
+            engageRange: 35,
+            x: SPAWN_DISTANCE + i * 6,
+            y: packY(i, 3),
+          }),
+        ),
+        makeEnemyUnit({
+          name: `${name} Spitter`,
+          family: 'swarm',
+          hull: 22 * scale,
+          damage: 4.2 * scale,
+          cooldown: 1.3,
+          range: 95,
+          speed: 22,
+          engageRange: 90,
+          kite: true,
+          tags: ['splash'],
+          splash: 1,
+          x: SPAWN_DISTANCE + 35,
+          y: 0,
+        }),
+      ]
+    case 3: // mixed — swarm + armored wedge
+      return [
+        ...Array.from({ length: 4 }, (_, i) =>
+          makeEnemyUnit({
+            name: `${name} ${i + 1}`,
+            family: 'swarm',
+            hull: 14 * scale,
+            damage: 2.4 * scale,
+            cooldown: 0.95,
+            range: 42,
+            speed: 38,
+            engageRange: 36,
+            x: SPAWN_DISTANCE + i * 8,
+            y: packY(i, 4),
+          }),
+        ),
+        makeEnemyUnit({
+          name: `${name} Wedge`,
+          family: 'armored',
+          hull: 34 * scale,
+          armor: 2,
+          damage: 3.8 * scale,
+          cooldown: 1.35,
+          range: 58,
+          speed: 18,
+          engageRange: 52,
+          tags: ['kinetic'],
+          x: SPAWN_DISTANCE + 28,
+          y: 0,
+        }),
+      ]
+    case 4: // climax — max cloud + brute
+    default: {
+      const count = Math.min(8, 5 + Math.floor(sector / 5))
+      const units = Array.from({ length: count }, (_, i) =>
+        makeEnemyUnit({
+          name: `${name} ${i + 1}`,
+          family: 'swarm',
+          hull: 16 * scale,
+          damage: 2.7 * scale,
+          cooldown: 0.9,
+          range: 42,
+          speed: 40,
+          engageRange: 36,
+          x: SPAWN_DISTANCE + i * 7,
           y: packY(i, count),
         }),
       )
-      if (variant && sector >= 4) {
-        units.push(
-          makeEnemyUnit({
-            name: `${name} Brute`,
-            family: 'armored',
-            hull: 36 * scale,
-            armor: 2,
-            damage: 4 * scale,
-            cooldown: 1.4,
-            range: 60,
-            speed: 18,
-            engageRange: 55,
-            tags: ['kinetic'],
-            x: SPAWN_DISTANCE + 40,
-            y: 0,
-          }),
-        )
-      }
+      units.push(
+        makeEnemyUnit({
+          name: `${name} Brute`,
+          family: 'armored',
+          hull: 40 * scale,
+          armor: 3,
+          damage: 4.5 * scale,
+          cooldown: 1.4,
+          range: 60,
+          speed: 17,
+          engageRange: 55,
+          tags: ['kinetic'],
+          x: SPAWN_DISTANCE + 42,
+          y: 0,
+        }),
+      )
       return units
     }
-    case 'armored': {
+  }
+}
+
+function buildArmoredWave(
+  name: string,
+  scale: number,
+  pattern: 0 | 1 | 2 | 3 | 4,
+  sector: number,
+): CombatUnit[] {
+  switch (pattern) {
+    case 0:
+      return [
+        makeEnemyUnit({
+          name: `${name} Scout Plate`,
+          family: 'armored',
+          hull: 36 * scale,
+          armor: 2,
+          damage: 4 * scale,
+          cooldown: 1.3,
+          range: 70,
+          speed: 20,
+          engageRange: 65,
+          tags: ['kinetic'],
+          x: SPAWN_DISTANCE,
+          y: 0,
+        }),
+      ]
+    case 1: {
+      const count = Math.min(3, 2 + Math.floor(sector / 10))
+      return Array.from({ length: count }, (_, i) =>
+        makeEnemyUnit({
+          name: `${name} ${i + 1}`,
+          family: 'armored',
+          hull: 44 * scale,
+          armor: 3 + Math.floor(sector / 6),
+          damage: 5 * scale,
+          cooldown: 1.35,
+          range: 75,
+          speed: 16,
+          engageRange: 70,
+          tags: ['kinetic'],
+          x: SPAWN_DISTANCE + i * 14,
+          y: packY(i, count),
+        }),
+      )
+    }
+    case 2: // siege — slow mortar + escort plate
+      return [
+        makeEnemyUnit({
+          name: `${name} Siege`,
+          family: 'armored',
+          hull: 55 * scale,
+          armor: 4,
+          damage: 7 * scale,
+          cooldown: 1.8,
+          range: 110,
+          speed: 12,
+          engageRange: 100,
+          kite: true,
+          tags: ['kinetic', 'splash'],
+          splash: 1,
+          x: SPAWN_DISTANCE + 20,
+          y: 0,
+        }),
+        makeEnemyUnit({
+          name: `${name} Escort`,
+          family: 'armored',
+          hull: 32 * scale,
+          armor: 2,
+          damage: 4 * scale,
+          cooldown: 1.2,
+          range: 60,
+          speed: 20,
+          engageRange: 55,
+          tags: ['kinetic'],
+          x: SPAWN_DISTANCE,
+          y: -30,
+        }),
+      ]
+    case 3: // mixed — plates + ethereal spotter
+      return [
+        makeEnemyUnit({
+          name: `${name} 1`,
+          family: 'armored',
+          hull: 46 * scale,
+          armor: 3,
+          damage: 5 * scale,
+          cooldown: 1.35,
+          range: 75,
+          speed: 16,
+          engageRange: 70,
+          tags: ['kinetic'],
+          x: SPAWN_DISTANCE,
+          y: -20,
+        }),
+        makeEnemyUnit({
+          name: `${name} 2`,
+          family: 'armored',
+          hull: 46 * scale,
+          armor: 3,
+          damage: 5 * scale,
+          cooldown: 1.35,
+          range: 75,
+          speed: 16,
+          engageRange: 70,
+          tags: ['kinetic'],
+          x: SPAWN_DISTANCE,
+          y: 20,
+        }),
+        makeEnemyUnit({
+          name: `${name} Spotter`,
+          family: 'ethereal',
+          hull: 22 * scale,
+          shield: 12 * scale,
+          evasion: 0.12,
+          damage: 3.2 * scale,
+          cooldown: 1.1,
+          range: 115,
+          speed: 26,
+          engageRange: 100,
+          kite: true,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE + 30,
+          y: 0,
+        }),
+      ]
+    case 4:
+    default: {
       const count = Math.min(4, 2 + Math.floor(sector / 8))
       return Array.from({ length: count }, (_, i) =>
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
-          family,
-          hull: (variant ? 42 : 48) * scale,
-          armor: 3 + Math.floor(sector / 5) + (variant ? 1 : 0),
-          damage: (variant ? 5.5 : 5) * scale,
-          cooldown: 1.35,
-          range: 75,
-          speed: variant ? 18 : 16,
-          engageRange: 70,
+          family: 'armored',
+          hull: 50 * scale,
+          armor: 4 + Math.floor(sector / 5),
+          damage: 5.5 * scale,
+          cooldown: 1.3,
+          range: 78,
+          speed: 15,
+          engageRange: 72,
           tags: ['kinetic'],
           x: SPAWN_DISTANCE + i * 12,
           y: packY(i, count),
         }),
       )
     }
-    case 'ethereal': {
-      // Keep engage inside starter weapon reach (~120–125).
+  }
+}
+
+function buildEtherealWave(
+  name: string,
+  scale: number,
+  pattern: 0 | 1 | 2 | 3 | 4,
+  sector: number,
+): CombatUnit[] {
+  switch (pattern) {
+    case 0:
+      return [
+        makeEnemyUnit({
+          name: `${name} Wisp`,
+          family: 'ethereal',
+          hull: 22 * scale,
+          shield: 10 * scale,
+          evasion: 0.1,
+          damage: 3 * scale,
+          cooldown: 1.1,
+          range: 115,
+          speed: 26,
+          engageRange: 100,
+          kite: true,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE,
+          y: 0,
+        }),
+      ]
+    case 1: {
       const count = sector <= 3 ? 2 : 3
       return Array.from({ length: count }, (_, i) =>
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
-          family,
-          hull: 28 * scale,
-          shield: (variant ? 18 : 14) * scale,
-          evasion: variant ? 0.14 : 0.1,
-          damage: 3.6 * scale,
+          family: 'ethereal',
+          hull: 26 * scale,
+          shield: 14 * scale,
+          evasion: 0.12,
+          damage: 3.5 * scale,
           cooldown: 1.15,
           range: 120,
           speed: 24,
-          engageRange: variant ? 95 : 100,
+          engageRange: 98,
           kite: true,
           tags: ['energy'],
           x: SPAWN_DISTANCE + i * 10,
@@ -288,14 +575,127 @@ function buildPack(
         }),
       )
     }
-    case 'divine': {
+    case 2: // phase blades — closer cutters
+      return Array.from({ length: 3 }, (_, i) =>
+        makeEnemyUnit({
+          name: `${name} Blade ${i + 1}`,
+          family: 'ethereal',
+          hull: 24 * scale,
+          shield: 8 * scale,
+          evasion: 0.16,
+          damage: 4.2 * scale,
+          cooldown: 0.95,
+          range: 55,
+          speed: 32,
+          engageRange: 48,
+          tags: ['energy', 'pierce'],
+          x: SPAWN_DISTANCE + i * 8,
+          y: packY(i, 3),
+        }),
+      )
+    case 3: // mixed — wisps + swarm distractors
+      return [
+        makeEnemyUnit({
+          name: `${name} 1`,
+          family: 'ethereal',
+          hull: 28 * scale,
+          shield: 16 * scale,
+          evasion: 0.12,
+          damage: 3.6 * scale,
+          cooldown: 1.15,
+          range: 118,
+          speed: 24,
+          engageRange: 100,
+          kite: true,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE + 15,
+          y: -24,
+        }),
+        makeEnemyUnit({
+          name: `${name} 2`,
+          family: 'ethereal',
+          hull: 28 * scale,
+          shield: 16 * scale,
+          evasion: 0.12,
+          damage: 3.6 * scale,
+          cooldown: 1.15,
+          range: 118,
+          speed: 24,
+          engageRange: 100,
+          kite: true,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE + 15,
+          y: 24,
+        }),
+        makeEnemyUnit({
+          name: `${name} Distractor`,
+          family: 'swarm',
+          hull: 14 * scale,
+          damage: 2.5 * scale,
+          cooldown: 0.9,
+          range: 40,
+          speed: 40,
+          engageRange: 35,
+          x: SPAWN_DISTANCE,
+          y: 0,
+        }),
+      ]
+    case 4:
+    default:
+      return Array.from({ length: 3 }, (_, i) =>
+        makeEnemyUnit({
+          name: `${name} ${i + 1}`,
+          family: 'ethereal',
+          hull: 30 * scale,
+          shield: 18 * scale,
+          evasion: 0.14,
+          damage: 3.8 * scale,
+          cooldown: 1.1,
+          range: 120,
+          speed: 25,
+          engageRange: 95,
+          kite: true,
+          tags: ['energy', 'antiShield'],
+          x: SPAWN_DISTANCE + i * 10,
+          y: packY(i, 3),
+        }),
+      )
+  }
+}
+
+function buildDivineWave(
+  name: string,
+  scale: number,
+  pattern: 0 | 1 | 2 | 3 | 4,
+  _sector: number,
+): CombatUnit[] {
+  switch (pattern) {
+    case 0:
+      return [
+        makeEnemyUnit({
+          name: `${name} Speck`,
+          family: 'divine',
+          hull: 30 * scale,
+          shield: 8 * scale,
+          damage: 4 * scale,
+          cooldown: 1.2,
+          range: 110,
+          speed: 16,
+          engageRange: 100,
+          kite: true,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE,
+          y: 0,
+        }),
+      ]
+    case 1:
       return [
         makeEnemyUnit({
           name: `${name} Core`,
-          family,
-          hull: 40 * scale,
+          family: 'divine',
+          hull: 38 * scale,
           shield: 12 * scale,
-          damage: 5.5 * scale,
+          damage: 5 * scale,
           cooldown: 1.25,
           range: 115,
           speed: 14,
@@ -307,7 +707,89 @@ function buildPack(
         }),
         makeEnemyUnit({
           name: `${name} Attendant`,
-          family,
+          family: 'divine',
+          hull: 22 * scale,
+          evasion: 0.08,
+          damage: 3.5 * scale,
+          cooldown: 1,
+          range: 60,
+          speed: 28,
+          engageRange: 55,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE + 18,
+          y: -26,
+        }),
+      ]
+    case 2: // choir dive — three attendants, no core
+      return Array.from({ length: 3 }, (_, i) =>
+        makeEnemyUnit({
+          name: `${name} Diver ${i + 1}`,
+          family: 'divine',
+          hull: 26 * scale,
+          evasion: 0.1,
+          damage: 4 * scale,
+          cooldown: 0.95,
+          range: 50,
+          speed: 30,
+          engageRange: 45,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE + i * 10,
+          y: packY(i, 3),
+        }),
+      )
+    case 3: // mixed — core + armored votive
+      return [
+        makeEnemyUnit({
+          name: `${name} Core`,
+          family: 'divine',
+          hull: 40 * scale,
+          shield: 14 * scale,
+          damage: 5.2 * scale,
+          cooldown: 1.25,
+          range: 115,
+          speed: 14,
+          engageRange: 100,
+          kite: true,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE,
+          y: 0,
+        }),
+        makeEnemyUnit({
+          name: `${name} Votive`,
+          family: 'armored',
+          hull: 36 * scale,
+          armor: 3,
+          damage: 4 * scale,
+          cooldown: 1.3,
+          range: 65,
+          speed: 18,
+          engageRange: 60,
+          tags: ['kinetic'],
+          x: SPAWN_DISTANCE + 22,
+          y: 28,
+        }),
+      ]
+    case 4:
+    default:
+      return [
+        makeEnemyUnit({
+          name: `${name} Core`,
+          family: 'divine',
+          hull: 42 * scale,
+          shield: 14 * scale,
+          damage: 5.5 * scale,
+          cooldown: 1.2,
+          range: 115,
+          speed: 14,
+          engageRange: 100,
+          kite: true,
+          tags: ['energy'],
+          x: SPAWN_DISTANCE,
+          y: 0,
+        }),
+        makeEnemyUnit({
+          name: `${name} Attendant`,
+          family: 'divine',
           hull: 24 * scale,
           evasion: 0.08,
           damage: 3.8 * scale,
@@ -321,7 +803,7 @@ function buildPack(
         }),
         makeEnemyUnit({
           name: `${name} Attendant`,
-          family,
+          family: 'divine',
           hull: 24 * scale,
           evasion: 0.08,
           damage: 3.8 * scale,
@@ -332,19 +814,6 @@ function buildPack(
           tags: ['energy'],
           x: SPAWN_DISTANCE + 20,
           y: 28,
-        }),
-      ]
-    }
-    default:
-      return [
-        makeEnemyUnit({
-          name,
-          family: 'swarm',
-          hull: 40 * scale,
-          damage: 5 * scale,
-          range: 50,
-          speed: 30,
-          engageRange: 45,
         }),
       ]
   }
@@ -481,26 +950,30 @@ export interface SectorRosterEntry {
   summary: string
 }
 
-/** Unique enemy types present in a sector pack (for the sector intel panel). */
+/** Unique enemy types across all waves in a sector (for the sector intel panel). */
 export function sectorRoster(sector: number): SectorRosterEntry[] {
-  const encounter = enemyForSector(sector)
   const groups = new Map<string, SectorRosterEntry>()
-  for (const u of encounter.units) {
-    const key = `${u.family}:${u.name}`
-    const existing = groups.get(key)
-    if (existing) {
-      existing.count += 1
-      continue
+  for (let wave = 1; wave <= WAVES_PER_SECTOR; wave++) {
+    const encounter = enemyForSector(sector, wave)
+    for (const u of encounter.units) {
+      const key = `${u.family}:${u.name}`
+      const existing = groups.get(key)
+      if (existing) {
+        existing.count += 1
+        continue
+      }
+      groups.set(key, {
+        key,
+        name: u.name,
+        family: u.family as EnemyFamily,
+        shape: u.shape,
+        isBoss: u.isBoss,
+        count: 1,
+        summary: u.isBoss
+          ? familyBlurb(u.family as EnemyFamily, true)
+          : familyIntel(u.family as EnemyFamily),
+      })
     }
-    groups.set(key, {
-      key,
-      name: u.name,
-      family: u.family as EnemyFamily,
-      shape: u.shape,
-      isBoss: u.isBoss,
-      count: 1,
-      summary: u.isBoss ? familyBlurb(u.family as EnemyFamily, true) : familyIntel(u.family as EnemyFamily),
-    })
   }
   return [...groups.values()]
 }

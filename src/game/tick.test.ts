@@ -107,7 +107,8 @@ describe('advanceTicks / combat', () => {
     advanceTicks(next, 60)
     expect(next.combat.sector).toBeGreaterThan(1)
     expect(next.resources.scrap).toBeGreaterThan(0)
-    expect(next.resources.aiPoints).toBeGreaterThan(0)
+    // AI Points no longer drop from combat (achievements later)
+    expect(next.resources.aiPoints).toBe(0)
   })
 })
 
@@ -129,7 +130,8 @@ describe('offline catch-up', () => {
     expect(next.combat.sector).toBe(6)
     expect(report?.sectorsCleared ?? 0).toBe(0)
     expect(next.resources.scrap).toBeGreaterThan(state.resources.scrap)
-    expect(next.resources.aiPoints).toBeGreaterThan(state.resources.aiPoints)
+    // AI Points are not granted offline from combat fantasy anymore
+    expect(next.resources.aiPoints).toBe(state.resources.aiPoints)
   })
 
   it('caps applied offline time', () => {
@@ -150,6 +152,7 @@ describe('offline catch-up', () => {
 describe('purchases', () => {
   it('assigns workers to scrap field', () => {
     let state = createInitialState(0)
+    state.meta.highestSectorEver = 3
     state.base.workerDrones = 2
     state = assignWorker(state, 'scrap-field', 1)
     expect(state.base.assignments['scrap-field']).toBe(1)
@@ -159,6 +162,7 @@ describe('purchases', () => {
 
   it('blocks alloy foundry until alloy-smelting research', () => {
     let state = createInitialState(0)
+    state.meta.highestSectorEver = 5
     state.base.workerDrones = 2
     const blocked = assignWorker(state, 'alloy-foundry', 1)
     expect(blocked.base.assignments['alloy-foundry'] ?? 0).toBe(0)
@@ -170,6 +174,7 @@ describe('purchases', () => {
 
   it('blocks drone fabricator until drone-logistics research', () => {
     let state = createInitialState(0)
+    state.meta.highestSectorEver = 3
     state.base.workerDrones = 2
     const blocked = assignWorker(state, 'drone-fab', 1)
     expect(blocked.base.assignments['drone-fab'] ?? 0).toBe(0)
@@ -182,7 +187,7 @@ describe('purchases', () => {
   it('assigned workers produce scrap and data over time', () => {
     let state = createInitialState(0)
     state.combat.docked = true
-    state.meta.highestSectorEver = 3
+    state.meta.highestSectorEver = 5
     state.base.workerDrones = 3
     state = assignWorker(state, 'scrap-field', 2)
     state = assignWorker(state, 'sensor-net', 1)
@@ -195,6 +200,7 @@ describe('purchases', () => {
 
   it('reports industry resource rates per second', () => {
     let state = createInitialState(0)
+    state.meta.highestSectorEver = 3
     state.base.workerDrones = 2
     state = assignWorker(state, 'scrap-field', 1)
     state = assignWorker(state, 'power-grid', 1)
@@ -205,6 +211,7 @@ describe('purchases', () => {
 
   it('buys research and AI nodes', () => {
     let state = createInitialState(0)
+    state.meta.highestSectorEver = 8
     state.resources.data = 10
     state = buyResearch(state, 'basic-optics')
     expect(state.research.unlocked).toContain('basic-optics')

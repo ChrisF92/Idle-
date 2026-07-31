@@ -26,9 +26,14 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 
 - **Act 1** soft climax at sector **30** (6 boss milestones). Infinite push continues after.
 - Whole systems unlock by career sector clears; tabs stay visible with requirements.
+- Boss sectors: vanguard waves first, **boss only on wave 5**. Waves use varied packs.
+- Header resources appear only once their system is unlocked (Data/Research, AI Points/AI, etc.).
+- AI Points no longer drop from combat — achievements will grant them (stub catalog ready).
+- Guided onboarding spotlights the next control to tap.
 - Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
 - Combat drones are a separate gated pool (assignment later).
 - Prestige Matter / Challenge Points spend in permanent shops (or bank for a smaller bonus).
+- Distinct frames: Razor (2W/0D/1U glass-cannon) and Pathfinder (1W/0D/2U utility scout).
 
 
 ## Develop

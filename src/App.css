@@ -151,11 +151,53 @@
   align-items: center;
 }
 
-.upgrade-effects {
-  margin: 0.25rem 0 0;
-  padding-left: 1.1rem;
-  color: #c8e0d0;
-  font-size: 0.78rem;
+.guide-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.guide-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 9, 14, 0.55);
+}
+
+.guide-hole {
+  position: absolute;
+  border: 2px solid color-mix(in srgb, var(--accent) 80%, white);
+  box-shadow: 0 0 0 9999px rgba(6, 9, 14, 0.62);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.guide-tip {
+  position: absolute;
+  z-index: 2;
+  width: min(300px, calc(100vw - 24px));
+  pointer-events: auto;
+  background: var(--bg-panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.45rem;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.guide-tip h3 {
+  font-family: var(--font-brand);
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.guide-tip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .main {

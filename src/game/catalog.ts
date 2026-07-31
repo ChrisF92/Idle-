@@ -1,7 +1,7 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
-import type { Resources, WeaponTag } from './types'
-import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN } from './progression'
+import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, isSystemUnlocked } from './progression'
+import type { GameState, Resources, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
@@ -11,6 +11,8 @@ export interface StationDef {
   name: string
   description: string
   requiresResearch?: string
+  /** System that must be unlocked before drones can be assigned. */
+  requiresSystem?: 'base' | 'research' | 'ai' | 'prestige'
   /** Resource rates per assigned worker drone (per second). */
   rates: ResourceCost
   /** Scrap drained per assigned drone per second (Foundry-style). */
@@ -179,24 +181,28 @@ export const STATIONS: StationDef[] = [
     id: 'scrap-field',
     name: 'Scrap Field',
     description: 'Workers haul debris into usable scrap.',
+    requiresSystem: 'base',
     rates: { scrap: 0.45 },
   },
   {
     id: 'power-grid',
     name: 'Power Grid',
     description: 'Workers stabilize reactor feeds for energy.',
+    requiresSystem: 'base',
     rates: { energy: 0.18 },
   },
   {
     id: 'sensor-net',
     name: 'Sensor Net',
     description: 'Workers sift anomaly noise into research data.',
+    requiresSystem: 'research',
     rates: { data: 0.07 },
   },
   {
     id: 'alloy-foundry',
     name: 'Alloy Foundry',
     description: 'Workers convert scrap into alloys.',
+    requiresSystem: 'research',
     requiresResearch: 'alloy-smelting',
     rates: { alloys: 0.14 },
     upkeepScrapPerDrone: 0.18,
@@ -205,6 +211,7 @@ export const STATIONS: StationDef[] = [
     id: 'repair-bay',
     name: 'Repair Bay',
     description: 'Workers speed hangar hull/shield restoration while Docked.',
+    requiresSystem: 'base',
     rates: {},
     repairPerDrone: 1.2,
   },
@@ -212,6 +219,7 @@ export const STATIONS: StationDef[] = [
     id: 'drone-fab',
     name: 'Drone Fabricator',
     description: 'Workers accelerate manufacturing of new worker drones.',
+    requiresSystem: 'base',
     requiresResearch: 'drone-logistics',
     rates: {},
     manufactureBonusPerDrone: 0.35,
@@ -587,6 +595,28 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     requiresSectorEver: 6,
   },
   {
+    id: 'razor-frame',
+    name: 'Razor Frame',
+    weaponSlots: 2,
+    defenseSlots: 0,
+    utilitySlots: 1,
+    baseDamage: 14,
+    baseHull: 95,
+    unlockCost: { alloys: 35, scrap: 55, energy: 15 },
+    requiresSectorEver: 10,
+  },
+  {
+    id: 'pathfinder-frame',
+    name: 'Pathfinder Frame',
+    weaponSlots: 1,
+    defenseSlots: 0,
+    utilitySlots: 2,
+    baseDamage: 8,
+    baseHull: 110,
+    unlockCost: { alloys: 30, scrap: 50, data: 20 },
+    requiresSectorEver: 10,
+  },
+  {
     id: 'bastion-frame',
     name: 'Bastion Frame',
     weaponSlots: 1,
@@ -906,14 +936,14 @@ export function isAiNodePermanent(node: AiNodeDef): boolean {
   return node.kind !== 'doctrine'
 }
 
-export function isStationUnlocked(
-  state: { research: { unlocked: string[] } },
-  stationId: string,
-): boolean {
+export function isStationUnlocked(state: GameState, stationId: string): boolean {
   const def = getStation(stationId)
   if (!def) return false
-  if (!def.requiresResearch) return true
-  return state.research.unlocked.includes(def.requiresResearch)
+  if (def.requiresSystem && !isSystemUnlocked(state, def.requiresSystem)) return false
+  if (def.requiresResearch && !state.research.unlocked.includes(def.requiresResearch)) {
+    return false
+  }
+  return true
 }
 
 export function assignedWorkers(assignments: Record<string, number>): number {
