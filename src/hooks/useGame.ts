@@ -6,7 +6,6 @@ import {
   startCombat,
   resetGame,
   setCampaign,
-  resumeCampaign,
 } from '../game/tick'
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
@@ -32,7 +31,6 @@ type Action =
   | { type: 'tick'; now: number }
   | { type: 'engage' }
   | { type: 'set-campaign'; on: boolean }
-  | { type: 'resume-campaign' }
   | { type: 'upgrade-building'; buildingId: string }
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-essence'; upgradeId: string }
@@ -59,8 +57,6 @@ function reducer(state: GameState, action: Action): GameState {
       return startCombat(state)
     case 'set-campaign':
       return setCampaign(state, action.on)
-    case 'resume-campaign':
-      return resumeCampaign(state)
     case 'upgrade-building':
       return upgradeBuilding(state, action.buildingId)
     case 'buy-research':
@@ -130,7 +126,6 @@ export function useGame() {
     dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),
     setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
-    resumeCampaign: () => dispatch({ type: 'resume-campaign' }),
     upgradeBuilding: (buildingId: string) =>
       dispatch({ type: 'upgrade-building', buildingId }),
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),

@@ -1,6 +1,6 @@
-/** Game content catalogs — costs, unlocks, and placeholder effects. */
+/** Game content catalogs — costs, unlocks, and combat profiles. */
 
-import type { Resources } from './types'
+import type { Resources, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
@@ -70,7 +70,7 @@ export interface MatterShopDef {
   /** Multiplier on combat scrap rewards (0.25 = +25%). */
   scrapBonus?: number
   bonusDataPerClear?: number
-  /** Multiplier on post-loss repair delay (0.6 = 40% faster). */
+  /** Multiplier on repair time (0.6 = 40% faster hull restore). */
   repairMult?: number
 }
 
@@ -81,12 +81,31 @@ export interface ChallengeDef {
   restriction: string
   goalSector: number
   rewardChallengePoints: number
+  /** ITRTG-style repeat cap (5–100). */
+  maxClears: number
+  stackDamageBonus?: number
+  stackProductionBonus?: number
+  stackRepairBonus?: number
+  /** Optional lock: requires N clears of another challenge. */
+  requiresChallengeClears?: { challengeId: string; clears: number }
+  requiresPrestiges?: number
+}
+
+export interface ModuleWeaponDef {
+  name: string
+  damage: number
+  cooldown: number
+  tags: WeaponTag[]
+  splash?: number
+  dotDuration?: number
+  dotDamage?: number
 }
 
 export interface ShipFrameDef {
   id: string
   name: string
   slots: number
+  /** Intrinsic flagship weapon damage (cooldown 1s kinetic). */
   baseDamage: number
   baseHull: number
   unlockCost: ResourceCost
@@ -97,10 +116,17 @@ export interface ShipModuleDef {
   name: string
   role: 'weapon' | 'defense' | 'utility'
   description: string
+  /** Used for DPS estimates when no weapon profile is present. */
   damageBonus: number
   hullBonus: number
+  armorBonus?: number
+  shieldBonus?: number
+  evasionBonus?: number
   /** Multiplier on incoming damage (0.9 = take 10% less). */
   damageTakenMult: number
+  weapon?: ModuleWeaponDef
+  /** Combat escort drones spawned from this module. */
+  escorts?: number
   unlockCost: ResourceCost
 }
 
@@ -178,21 +204,21 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'auto-engage',
     name: 'Rapid Recovery',
-    description: 'Campaign repairs after a loss finish in half the time.',
+    description: 'Doubles out-of-fight hull / shield repair rate.',
     costAiPoints: 1,
     kind: 'automation',
   },
   {
     id: 'focus-fire',
     name: 'Focus Fire',
-    description: 'Doctrine: +12% combat damage.',
+    description: 'Doctrine: +12% weapon damage; AI prioritizes weakest targets.',
     costAiPoints: 2,
     kind: 'doctrine',
   },
   {
     id: 'boss-protocol',
     name: 'Boss Protocol',
-    description: 'Doctrine: +25% damage vs bosses.',
+    description: 'Doctrine: +25% damage vs boss units.',
     costAiPoints: 3,
     kind: 'doctrine',
   },
@@ -206,7 +232,7 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'tactical-retreat',
     name: 'Tactical Retreat',
-    description: 'Doctrine: disengage at 25% hull instead of destruction.',
+    description: 'Doctrine: disengage at 25% flagship hull instead of destruction.',
     costAiPoints: 2,
     kind: 'doctrine',
   },
@@ -328,7 +354,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'drydock-boost',
     name: 'Drydock Boost',
-    description: 'Permanent 40% faster repairs after losses.',
+    description: 'Permanent 40% faster out-of-fight hull repair.',
     costPm: 4,
     repairMult: 0.6,
   },
@@ -338,26 +364,33 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'no-ai',
     name: 'Silent Bridge',
-    description: 'Reach sector 5 with AI assists disabled.',
-    restriction: 'AI purchases and Auto Engage inactive',
+    description: 'Reach sector 5 with AI assists disabled. Repeatable.',
+    restriction: 'AI purchases and doctrines inactive',
     goalSector: 5,
     rewardChallengePoints: 1,
+    maxClears: 20,
+    stackDamageBonus: 0.01,
   },
   {
     id: 'thin-hull',
     name: 'Glass Frame',
-    description: 'Reach sector 5 with half hull.',
+    description: 'Reach sector 5 with half hull. Repeatable.',
     restriction: 'Player hull max ×0.5',
     goalSector: 5,
     rewardChallengePoints: 1,
+    maxClears: 15,
+    stackRepairBonus: 0.02,
   },
   {
     id: 'data-drought',
     name: 'Data Drought',
-    description: 'Reach sector 8 without Data gains from combat.',
+    description: 'Reach sector 8 without Data gains from combat. Repeatable.',
     restriction: 'Combat data drops disabled',
     goalSector: 8,
     rewardChallengePoints: 2,
+    maxClears: 10,
+    stackProductionBonus: 0.015,
+    requiresChallengeClears: { challengeId: 'no-ai', clears: 1 },
   },
 ]
 
@@ -366,7 +399,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     id: 'scout-frame',
     name: 'Scout Frame',
     slots: 2,
-    baseDamage: 8,
+    baseDamage: 10,
     baseHull: 100,
     unlockCost: {},
   },
@@ -374,7 +407,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     id: 'line-frame',
     name: 'Line Frame',
     slots: 3,
-    baseDamage: 7,
+    baseDamage: 9,
     baseHull: 140,
     unlockCost: { alloys: 25, scrap: 40 },
   },
@@ -385,19 +418,26 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'pulse-cannon',
     name: 'Pulse Cannon',
     role: 'weapon',
-    description: '+4 damage. Stronger vs Armored.',
+    description: 'Steady kinetic pulses. Stronger vs Armored.',
     damageBonus: 4,
     hullBonus: 0,
     damageTakenMult: 1,
+    weapon: {
+      name: 'Pulse',
+      damage: 14,
+      cooldown: 1,
+      tags: ['kinetic'],
+    },
     unlockCost: {},
   },
   {
     id: 'plate-layer',
     name: 'Plate Layer',
     role: 'defense',
-    description: '+35 hull. Stronger vs Swarm / Bosses.',
+    description: '+35 hull, +3 armor. Blunts Swarm / Boss chip.',
     damageBonus: 0,
     hullBonus: 35,
+    armorBonus: 3,
     damageTakenMult: 1,
     unlockCost: { scrap: 20, alloys: 8 },
   },
@@ -405,21 +445,83 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'vector-thruster',
     name: 'Vector Thruster',
     role: 'utility',
-    description: '−15% incoming. Stronger vs Ethereal / Divine.',
+    description: '+10% evasion, −10% incoming. Helps vs Ethereal / Divine.',
     damageBonus: 0,
     hullBonus: 0,
-    damageTakenMult: 0.85,
+    evasionBonus: 0.1,
+    damageTakenMult: 0.9,
     unlockCost: { scrap: 30, alloys: 12 },
   },
   {
     id: 'heavy-lance',
     name: 'Heavy Lance',
     role: 'weapon',
-    description: '+10 damage. Stronger vs Armored / Bosses.',
+    description: 'Slow pierce shot. Ignores half armor; strong vs Armored / Bosses.',
     damageBonus: 10,
     hullBonus: 0,
     damageTakenMult: 1,
+    weapon: {
+      name: 'Lance',
+      damage: 32,
+      cooldown: 2.2,
+      tags: ['kinetic', 'pierce'],
+    },
     unlockCost: { scrap: 50, alloys: 20 },
+  },
+  {
+    id: 'flak-array',
+    name: 'Flak Array',
+    role: 'weapon',
+    description: 'Splash bursts. Clears Swarm packs.',
+    damageBonus: 6,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    weapon: {
+      name: 'Flak',
+      damage: 9,
+      cooldown: 1.1,
+      tags: ['kinetic', 'splash'],
+      splash: 2,
+    },
+    unlockCost: { scrap: 45, alloys: 18 },
+  },
+  {
+    id: 'phase-beam',
+    name: 'Phase Beam',
+    role: 'weapon',
+    description: 'Energy beam. Burns shields; strong vs Ethereal / Divine.',
+    damageBonus: 7,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    weapon: {
+      name: 'Phase Beam',
+      damage: 16,
+      cooldown: 1.4,
+      tags: ['energy', 'antiShield'],
+    },
+    unlockCost: { scrap: 55, alloys: 22, data: 8 },
+  },
+  {
+    id: 'barrier-projector',
+    name: 'Barrier Projector',
+    role: 'defense',
+    description: '+50 shield capacity (repairs out of fight).',
+    damageBonus: 0,
+    hullBonus: 10,
+    shieldBonus: 50,
+    damageTakenMult: 1,
+    unlockCost: { scrap: 40, alloys: 16, energy: 20 },
+  },
+  {
+    id: 'drone-bay',
+    name: 'Drone Bay',
+    role: 'utility',
+    description: 'Deploys 2 escort drones into the fleet.',
+    damageBonus: 0,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    escorts: 2,
+    unlockCost: { scrap: 60, alloys: 25, energy: 15 },
   },
 ]
 
@@ -523,6 +625,7 @@ export function metaDamageMultiplier(
   challengePoints: number,
   shop: string[] = [],
   matterShop: string[] = [],
+  challengeClears: Record<string, number> = {},
 ): number {
   // Unspent PM/CP still help a little; spending unlocks stronger shop effects.
   let mult = 1 + prestigeMatter * 0.02 + challengePoints * 0.02
@@ -534,18 +637,21 @@ export function metaDamageMultiplier(
     const def = getMatterShopItem(id)
     if (def?.damageBonus) mult += def.damageBonus
   }
+  mult += challengeStackDamageBonus(challengeClears)
   return mult
 }
 
 export function metaProductionMultiplier(
   prestigeMatter: number,
   matterShop: string[] = [],
+  challengeClears: Record<string, number> = {},
 ): number {
   let mult = 1 + prestigeMatter * 0.02
   for (const id of matterShop) {
     const def = getMatterShopItem(id)
     if (def?.productionBonus) mult += def.productionBonus
   }
+  mult += challengeStackProductionBonus(challengeClears)
   return mult
 }
 
@@ -634,4 +740,59 @@ export function aiDoctrinesActive(
 ): boolean {
   if (state.prestige.activeChallengeId === 'no-ai') return false
   return state.ai.purchased.includes(nodeId)
+}
+
+export function challengeClearCount(
+  clears: Record<string, number> | undefined,
+  challengeId: string,
+): number {
+  return clears?.[challengeId] ?? 0
+}
+
+export function challengeStackDamageBonus(clears: Record<string, number> = {}): number {
+  let bonus = 0
+  for (const def of CHALLENGES) {
+    const n = challengeClearCount(clears, def.id)
+    if (n > 0 && def.stackDamageBonus) bonus += n * def.stackDamageBonus
+  }
+  return bonus
+}
+
+export function challengeStackProductionBonus(clears: Record<string, number> = {}): number {
+  let bonus = 0
+  for (const def of CHALLENGES) {
+    const n = challengeClearCount(clears, def.id)
+    if (n > 0 && def.stackProductionBonus) bonus += n * def.stackProductionBonus
+  }
+  return bonus
+}
+
+export function challengeStackRepairBonus(clears: Record<string, number> = {}): number {
+  let bonus = 0
+  for (const def of CHALLENGES) {
+    const n = challengeClearCount(clears, def.id)
+    if (n > 0 && def.stackRepairBonus) bonus += n * def.stackRepairBonus
+  }
+  return bonus
+}
+
+export function isChallengeUnlocked(
+  state: {
+    prestige: { challengeClears: Record<string, number>; prestigeCount: number }
+  },
+  challengeId: string,
+): boolean {
+  const def = getChallenge(challengeId)
+  if (!def) return false
+  if (def.requiresPrestiges && state.prestige.prestigeCount < def.requiresPrestiges) {
+    return false
+  }
+  if (def.requiresChallengeClears) {
+    const have = challengeClearCount(
+      state.prestige.challengeClears,
+      def.requiresChallengeClears.challengeId,
+    )
+    if (have < def.requiresChallengeClears.clears) return false
+  }
+  return true
 }

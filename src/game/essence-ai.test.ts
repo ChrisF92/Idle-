@@ -62,7 +62,8 @@ describe('AI doctrines', () => {
     state.resources.aiPoints = 2
     state = buyAiNode(state, 'scavenger')
     state = startCombat(state)
-    state.combat.enemyHull = 1
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    state.combat.enemyHull = 0
     const scrapBefore = state.resources.scrap
     advanceTicks(state, 1)
     expect(state.resources.scrap - scrapBefore).toBeGreaterThan(5)

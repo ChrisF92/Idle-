@@ -1,12 +1,18 @@
 import type { GameState } from '../../game/types'
-import { CHALLENGE_SHOP, CHALLENGES, MATTER_SHOP } from '../../game/catalog'
+import {
+  CHALLENGE_SHOP,
+  CHALLENGES,
+  MATTER_SHOP,
+  challengeClearCount,
+  isChallengeUnlocked,
+  prestigeMinSectorFor,
+} from '../../game/catalog'
 import { RESOURCE_LABELS } from '../../game/state'
 import {
   canEnterChallenge,
   canPrestige,
   prestigeGainFor,
 } from '../../game/actions'
-import { prestigeMinSectorFor } from '../../game/catalog'
 
 interface PrestigeTabProps {
   state: GameState
@@ -139,11 +145,23 @@ export function PrestigeTab({
       </ul>
 
       <h3>Challenges</h3>
+      <p className="muted">
+        Repeatable like ITRTG — each clear grants CP and a permanent stack bonus up to a cap.
+      </p>
       <ul className="def-list">
         {CHALLENGES.map((c) => {
-          const done = prestige.completedChallenges.includes(c.id)
+          const clears = challengeClearCount(prestige.challengeClears, c.id)
+          const capped = clears >= c.maxClears
+          const unlocked = isChallengeUnlocked(state, c.id)
           const isActive = prestige.activeChallengeId === c.id
           const canEnter = canEnterChallenge(state, c.id)
+          const stackBits = [
+            c.stackDamageBonus ? `+${(c.stackDamageBonus * 100).toFixed(1)}% dmg/clear` : null,
+            c.stackProductionBonus
+              ? `+${(c.stackProductionBonus * 100).toFixed(1)}% prod/clear`
+              : null,
+            c.stackRepairBonus ? `+${(c.stackRepairBonus * 100).toFixed(0)}% repair/clear` : null,
+          ].filter(Boolean)
           return (
             <li key={c.id}>
               <div>
@@ -151,18 +169,28 @@ export function PrestigeTab({
                 <p className="muted">{c.description}</p>
                 <p className="muted">
                   Restriction: {c.restriction}. Reward: {c.rewardChallengePoints} CP
+                  {stackBits.length ? ` · ${stackBits.join(', ')}` : ''}
                 </p>
+                {!unlocked ? (
+                  <p className="notice-warn">
+                    Locked
+                    {c.requiresChallengeClears
+                      ? ` — need ${c.requiresChallengeClears.clears}× ${c.requiresChallengeClears.challengeId}`
+                      : ''}
+                    {c.requiresPrestiges ? ` — need ${c.requiresPrestiges} prestiges` : ''}
+                  </p>
+                ) : null}
               </div>
               <div className="action-col">
                 <span className="badge">
-                  {isActive ? 'Active' : done ? 'Cleared' : 'Open'}
+                  {isActive ? 'Active' : capped ? 'Maxed' : `${clears}/${c.maxClears}`}
                 </span>
                 <button
                   type="button"
                   disabled={!canEnter}
                   onClick={() => onEnterChallenge(c.id)}
                 >
-                  {done ? 'Done' : isActive ? 'Running' : 'Enter'}
+                  {capped ? 'Maxed' : isActive ? 'Running' : 'Enter'}
                 </button>
               </div>
             </li>

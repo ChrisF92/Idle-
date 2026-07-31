@@ -43,11 +43,12 @@ Local Pages-shaped build: `npm run build:pages && npm run preview`
 
 ## Notes
 
-- Art is UI/text-first by design.
+- Art is UI/text-first with simple SVG fleet shapes in Combat.
 - Game logic should stay in `src/game/`; React is presentation + input.
 - Solo project: use **one feature per branch/PR** so slices stay reviewable.
-- Offline catch-up (up to 8h) runs on load; Auto Engage continues combat while away.
-- Combat uses entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
-- Essence buys permanent constructs; AI Points buy per-run doctrines (Focus Fire, Boss Protocol, Scavenger, Tactical Retreat).
-- Challenge Points can be spent in a permanent shop (or kept banked for a small damage bonus).
-- Combat uses **Campaign** mode (continuous push) and automatic boss phases.
+- Offline catch-up (up to 8h) runs on load: industry + sector-scaled rewards (no fight simulation).
+- Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with Advance/Hold pacing; hull persists and repairs over time.
+- Entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
+- Fitted loadouts persist through prestige; challenges are repeatable with stack bonuses (ITRTG-style).
+- Essence buys permanent constructs; AI Points buy per-run doctrines (Focus Fire, Boss Protocol, Scavenger, Tactical Retreat, Rapid Recovery).
+- Challenge Points / Prestige Matter can be spent in permanent shops (or banked for a smaller bonus).

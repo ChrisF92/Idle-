@@ -35,12 +35,15 @@ export function ShipyardTab({
     <section className="panel">
       <header className="panel-header">
         <h2>Shipyard</h2>
-        <p>Unlock frames and modules, then fit a loadout for entity combat.</p>
+        <p>
+          Unlock frames and modules, then fit a loadout. Weapons have cooldowns and tags; drones join
+          the fleet. Loadouts persist through prestige.
+        </p>
       </header>
 
       <div className="stat-row">
         <div>
-          <span className="muted">Damage / tick</span>
+          <span className="muted">Fleet DPS</span>
           <strong>{stats.damage.toFixed(1)}</strong>
         </div>
         <div>
@@ -48,8 +51,18 @@ export function ShipyardTab({
           <strong>{Math.round(stats.hullMax)}</strong>
         </div>
         <div>
-          <span className="muted">Incoming</span>
-          <strong>×{stats.damageTakenMult.toFixed(2)}</strong>
+          <span className="muted">Shield</span>
+          <strong>{Math.round(stats.shieldMax)}</strong>
+        </div>
+        <div>
+          <span className="muted">Armor / Eva</span>
+          <strong>
+            {stats.armor} / {(stats.evasion * 100).toFixed(0)}%
+          </strong>
+        </div>
+        <div>
+          <span className="muted">Drones</span>
+          <strong>{stats.escortCount}</strong>
         </div>
         <div>
           <span className="muted">Slots</span>

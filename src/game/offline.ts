@@ -1,7 +1,19 @@
 import type { GameState, Resources } from './types'
-import { RESOURCE_LABELS } from './state'
-import { advanceTicks, resourceDelta, snapshotResources, TICK_MS } from './tick'
-import { challengeShopOfflineMs } from './catalog'
+import { RESOURCE_LABELS, computeShipStats } from './state'
+import {
+  resourceDelta,
+  snapshotResources,
+  TICK_MS,
+} from './tick'
+import {
+  BUILDINGS,
+  challengeShopOfflineMs,
+  essenceProductionMultiplier,
+  matterShopScrapBonus,
+  metaProductionMultiplier,
+  researchEssenceMultiplier,
+} from './catalog'
+import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
@@ -37,9 +49,91 @@ function formatGains(gains: Partial<Resources>): string {
   return parts.length ? parts.join(', ') : 'no net resource gains'
 }
 
+function applyIndustryOnly(state: GameState, seconds: number): void {
+  const meta =
+    metaProductionMultiplier(
+      state.resources.prestigeMatter,
+      state.prestige.matterShop,
+      state.prestige.challengeClears,
+    ) * essenceProductionMultiplier(state.essence.purchased)
+
+  for (const building of BUILDINGS) {
+    const level = state.base.buildings[building.id] ?? 0
+    if (level <= 0) continue
+
+    if (building.upkeepScrapPerLevel) {
+      const upkeep = building.upkeepScrapPerLevel * level * seconds
+      const paid = Math.min(state.resources.scrap, upkeep)
+      state.resources.scrap -= paid
+      const efficiency = upkeep > 0 ? paid / upkeep : 1
+      for (const [resource, perLevel] of Object.entries(building.rates)) {
+        const key = resource as keyof Resources
+        state.resources[key] += (perLevel ?? 0) * level * seconds * efficiency * meta
+      }
+      continue
+    }
+
+    for (const [resource, perLevel] of Object.entries(building.rates)) {
+      const key = resource as keyof Resources
+      state.resources[key] += (perLevel ?? 0) * level * seconds * meta
+    }
+  }
+}
+
+/**
+ * Sector-based offline combat payout (no fight simulation).
+ * Scales with the sector you left on and offline duration.
+ */
+function applySectorOfflineRewards(state: GameState, seconds: number): void {
+  if (!state.combat.campaign && state.combat.playerHull >= state.combat.playerHullMax) {
+    // Holding at full repair — light salvage only
+  }
+  const sector = Math.max(1, state.combat.sector)
+  const hours = seconds / 3600
+  const scrapPerHour = (8 + sector * 3) * (1 + matterShopScrapBonus(state.prestige.matterShop))
+  const dataPerHour =
+    state.prestige.activeChallengeId === 'data-drought' ? 0 : 1.5 + sector * 0.35
+  const aiPerHour = 0.08 + sector * 0.02
+  const essencePerHour =
+    sector >= 5 ? (0.05 + Math.floor(sector / 5) * 0.04) * researchEssenceMultiplier(state.research.unlocked) : 0
+
+  // Holding farms a bit more scrap; Advance yields a bit more data/AI fantasy of push
+  const scrapMult = state.combat.campaign ? 1 : 1.25
+  const pushMult = state.combat.campaign ? 1.15 : 0.85
+
+  state.resources.scrap += scrapPerHour * hours * scrapMult
+  state.resources.data += dataPerHour * hours * pushMult
+  state.resources.aiPoints += aiPerHour * hours * pushMult
+  state.resources.essence += essencePerHour * hours
+}
+
+function applyOfflineRepair(state: GameState, seconds: number): void {
+  const stats = computeShipStats(state)
+  state.combat.playerHullMax = stats.hullMax
+  state.combat.playerShieldMax = stats.shieldMax
+  state.combat.playerHull = Math.min(
+    stats.hullMax,
+    state.combat.playerHull + repairRatePerSecond(state) * seconds,
+  )
+  state.combat.playerShield = Math.min(
+    stats.shieldMax,
+    state.combat.playerShield + shieldRepairRatePerSecond(state) * seconds,
+  )
+  // End any in-progress fight cleanly — offline does not simulate combat.
+  if (state.combat.inFight) {
+    state.combat.inFight = false
+    state.combat.playerUnits = []
+    state.combat.enemyUnits = []
+    state.combat.enemyHull = 0
+    state.combat.enemyHullMax = 0
+    state.combat.fx = []
+    state.combat.enemyName = 'None'
+  }
+}
+
 /**
  * Apply offline progress for time since lastTickAt.
- * Uses the same 1s simulation ticks as live play, capped by shop/offline rules.
+ * Industry + sector-scaled rewards; combat is NOT simulated tick-by-tick.
  */
 export function applyOfflineCatchUp(
   state: GameState,
@@ -54,36 +148,36 @@ export function applyOfflineCatchUp(
 
   const maxMs = challengeShopOfflineMs(state.prestige.shop ?? [])
   const appliedMs = Math.min(elapsedMs, maxMs)
-  const ticks = Math.floor(appliedMs / TICK_MS)
+  const seconds = appliedMs / 1000
   const capped = elapsedMs > maxMs
 
   const next = structuredClone(state)
   const beforeResources = snapshotResources(next.resources)
   const sectorsBefore = next.combat.sector
 
-  advanceTicks(next, ticks)
+  applyIndustryOnly(next, seconds)
+  applySectorOfflineRewards(next, seconds)
+  applyOfflineRepair(next, seconds)
   next.lastTickAt = now
 
   const gains = resourceDelta(beforeResources, next.resources)
   const sectorsAfter = next.combat.sector
-  const sectorsCleared = Math.max(0, sectorsAfter - sectorsBefore)
+  const sectorsCleared = 0
 
   if (elapsedMs < OFFLINE_REPORT_THRESHOLD_MS) {
     return { state: next, report: null }
   }
 
-  const auto = next.ai.purchased.includes('auto-engage')
-    ? 'Auto Engage ran while away.'
-    : 'Industry ran; combat only if a fight was already active.'
+  const mode = next.combat.campaign
+    ? 'Offline payout from your push sector (no fight sim).'
+    : 'Offline payout while Holding (no fight sim).'
 
   const summary = [
     `Welcome back. Away ${formatDuration(elapsedMs)}` +
       (capped ? ` (applied ${formatDuration(appliedMs)} max)` : '') +
       '.',
-    auto,
-    sectorsCleared > 0
-      ? `Cleared ${sectorsCleared} sector(s) → now sector ${sectorsAfter}.`
-      : `Still at sector ${sectorsAfter}.`,
+    mode,
+    `Still at sector ${sectorsAfter}.`,
     formatGains(gains) + '.',
   ].join(' ')
 
