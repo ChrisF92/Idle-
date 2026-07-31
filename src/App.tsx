@@ -43,6 +43,11 @@ export default function App() {
     }
   }, [guide, game.state, tab, ack])
 
+  useEffect(() => {
+    document.body.classList.toggle('guide-active', Boolean(guide))
+    return () => document.body.classList.remove('guide-active')
+  }, [guide])
+
   return (
     <div className="app">
       <header className="topbar">

@@ -7,23 +7,39 @@ interface GuideOverlayProps {
   onSkip: (stepId: string) => void
 }
 
+type Hole = { top: number; left: number; width: number; height: number }
+
 /**
  * Spotlight coach-mark: dims the UI, punches a hole around [data-guide=target],
- * and advances when the user clicks the highlighted control.
+ * scrolls the target into view, and advances when the user taps it.
  */
 export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
   const [rect, setRect] = useState<DOMRect | null>(null)
 
-  const measure = () => {
+  // Bring the highlighted control on-screen whenever the step changes.
+  useLayoutEffect(() => {
     const el = document.querySelector(`[data-guide="${step.target}"]`)
-    if (!el) {
-      setRect(null)
-      return
+    if (!(el instanceof HTMLElement)) return
+
+    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+    const measure = () => setRect(el.getBoundingClientRect())
+    const t1 = window.setTimeout(measure, 50)
+    const t2 = window.setTimeout(measure, 320)
+    return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
     }
-    setRect(el.getBoundingClientRect())
-  }
+  }, [step.target, step.id])
 
   useLayoutEffect(() => {
+    const measure = () => {
+      const el = document.querySelector(`[data-guide="${step.target}"]`)
+      if (!el) {
+        setRect(null)
+        return
+      }
+      setRect(el.getBoundingClientRect())
+    }
     measure()
     const id = window.setInterval(measure, 200)
     window.addEventListener('resize', measure)
@@ -40,7 +56,6 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       const el = document.querySelector(`[data-guide="${step.target}"]`)
       if (!el) return
       if (el === e.target || el.contains(e.target as Node)) {
-        // Let the click apply, then complete on next frame.
         window.setTimeout(() => onComplete(step.id), 0)
       }
     }
@@ -48,8 +63,8 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
     return () => document.removeEventListener('click', onClick, true)
   }, [step.id, step.target, onComplete])
 
-  const pad = 6
-  const hole = rect
+  const pad = 8
+  const hole: Hole | null = rect
     ? {
         top: Math.max(0, rect.top - pad),
         left: Math.max(0, rect.left - pad),
@@ -58,12 +73,10 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       }
     : null
 
-  const tipStyle = hole
-    ? {
-        top: Math.min(window.innerHeight - 140, hole.top + hole.height + 12),
-        left: Math.min(window.innerWidth - 300, Math.max(12, hole.left)),
-      }
-    : { top: 80, left: 16 }
+  const tipPlacement = placeTip(hole)
+  const targetOffscreen = rect
+    ? rect.bottom < 8 || rect.top > window.innerHeight - 8
+    : false
 
   return (
     <div className="guide-root" aria-live="polite">
@@ -80,10 +93,18 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       ) : (
         <div className="guide-dim" />
       )}
-      <div className="guide-tip" style={tipStyle} role="dialog" aria-label={step.title}>
+      <div
+        className={`guide-tip guide-tip-${tipPlacement.side}`}
+        style={tipPlacement.style}
+        role="dialog"
+        aria-label={step.title}
+      >
         <p className="combat-hud-kicker">Guide</p>
         <h3>{step.title}</h3>
         <p>{step.body}</p>
+        {targetOffscreen ? (
+          <p className="notice-warn">Scroll to the highlighted control.</p>
+        ) : null}
         <div className="guide-tip-actions">
           <button type="button" onClick={() => onSkip(step.id)}>
             Skip
@@ -93,10 +114,60 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
               Continue
             </button>
           ) : (
-            <span className="muted">Tap the highlighted control</span>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.querySelector(`[data-guide="${step.target}"]`)
+                if (el instanceof HTMLElement) {
+                  el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+                }
+              }}
+            >
+              Find control
+            </button>
           )}
         </div>
       </div>
     </div>
   )
+}
+
+function placeTip(hole: Hole | null): {
+  side: 'top' | 'bottom'
+  style: { top?: number; bottom?: number; left: number }
+} {
+  const tipMaxH = 170
+  const margin = 12
+  const left = 12
+
+  if (!hole) {
+    return { side: 'top', style: { top: 72, left } }
+  }
+
+  const holeMidY = hole.top + hole.height / 2
+  const preferTop = holeMidY > window.innerHeight * 0.45
+  const spaceAbove = hole.top - margin
+  const spaceBelow = window.innerHeight - (hole.top + hole.height) - margin
+
+  if (preferTop && spaceAbove >= 100) {
+    return {
+      side: 'top',
+      style: { top: Math.max(margin, Math.min(hole.top - tipMaxH - 8, 72)), left },
+    }
+  }
+
+  if (spaceBelow >= 100) {
+    return {
+      side: 'bottom',
+      style: {
+        top: Math.min(window.innerHeight - tipMaxH - margin, hole.top + hole.height + 10),
+        left,
+      },
+    }
+  }
+
+  if (preferTop) {
+    return { side: 'top', style: { top: margin, left } }
+  }
+  return { side: 'bottom', style: { bottom: margin, left } }
 }
