@@ -248,7 +248,7 @@ export const STATIONS: StationDef[] = [
   {
     id: 'repair-bay',
     name: 'Repair Bay',
-    description: 'Workers speed hangar hull/shield restoration while Docked.',
+    description: 'Workers speed hangar hull/shield restoration while Paused.',
     requiresSystem: 'base',
     rates: {},
     repairPerDrone: 1.2,
