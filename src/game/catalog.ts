@@ -61,11 +61,27 @@ export interface EssenceUpgradeDef {
   bonusDataPerClear?: number
 }
 
+export interface ShopRankGate {
+  shop: 'challenge' | 'matter'
+  id: string
+  rank: number
+}
+
+/** Soft meta gate: pass if ANY listed condition is met. */
+export interface ShopMetaAnyGate {
+  act1Cleared?: boolean
+  prestiges?: number
+  sectorEver?: number
+  anyChallengeClear?: boolean
+}
+
 export interface ChallengeShopDef {
   id: string
   name: string
   description: string
   costCp: number
+  /** Max purchase rank (default 1 = unique unlock). */
+  maxRank?: number
   damageBonus?: number
   /** Overrides default prestige sector requirement when owned. */
   prestigeMinSector?: number
@@ -76,9 +92,16 @@ export interface ChallengeShopDef {
   offlineHours?: number
   /** Extra effectiveness on role matchup bonuses (0.15 = +15%). */
   matchupBonus?: number
-  /** Permanent bonus worker drones granted once when purchased. */
+  /** Permanent bonus worker drones granted on each rank purchase. */
   bonusWorkerDrones?: number
   manufactureBonus?: number
+  requiresPrestiges?: number
+  requiresSectorEver?: number
+  requiresAct1?: boolean
+  requiresShopRank?: ShopRankGate
+  requiresMetaAny?: ShopMetaAnyGate
+  /** When purchased rank≥1, ensure this module is in unlockedModules. */
+  unlockModuleId?: string
 }
 
 export interface MatterShopDef {
@@ -86,6 +109,8 @@ export interface MatterShopDef {
   name: string
   description: string
   costPm: number
+  /** Max purchase rank (default 1). */
+  maxRank?: number
   damageBonus?: number
   productionBonus?: number
   hullBonus?: number
@@ -93,7 +118,10 @@ export interface MatterShopDef {
   /** Multiplier on combat scrap rewards (0.25 = +25%). */
   scrapBonus?: number
   bonusDataPerClear?: number
-  /** Multiplier on docked repair duration (0.6 = 40% faster). */
+  /**
+   * Marker for drydock repair speed item. Rank r grants speed
+   * `0.4 * (1 + 0.45*(r-1))`, applied as repairMult = 1/(1+speed).
+   */
   repairMult?: number
   bonusWorkerDrones?: number
   manufactureBonus?: number
@@ -114,6 +142,8 @@ export interface ChallengeDef {
   /** Optional lock: requires N clears of another challenge. */
   requiresChallengeClears?: { challengeId: string; clears: number }
   requiresPrestiges?: number
+  /** Career highest sector ever required. */
+  requiresSectorEver?: number
 }
 
 export interface ModuleWeaponDef {
@@ -166,6 +196,8 @@ export interface ShipModuleDef {
   escorts?: number
   unlockCost: ResourceCost
   requiresSectorEver?: number
+  /** Challenge shop schematic id required before scrap unlock (rank ≥ 1). */
+  requiresChallengeShop?: string
 }
 
 /** Re-export progression prestige gate for existing imports. */
@@ -421,8 +453,9 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'iron-will',
     name: 'Iron Will',
-    description: 'Permanent +8% combat damage (spent CP).',
+    description: 'Permanent +8% combat damage per rank (extra ranks +45% of base).',
     costCp: 1,
+    maxRank: 8,
     damageBonus: 0.08,
   },
   {
@@ -430,20 +463,23 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     name: 'Early Gate',
     description: 'Prestige / enter challenges from sector 6.',
     costCp: 1,
+    maxRank: 1,
     prestigeMinSector: 6,
   },
   {
     id: 'supply-cache',
     name: 'Supply Cache',
-    description: 'Each run starts with +40 scrap.',
+    description: 'Each run starts with +40 scrap per rank.',
     costCp: 1,
+    maxRank: 6,
     startingScrap: 40,
   },
   {
     id: 'doctrine-seed',
     name: 'Doctrine Seed',
-    description: 'Each run starts with +1 AI Point.',
+    description: 'Each run starts with +1 AI Point per rank.',
     costCp: 2,
+    maxRank: 5,
     startingAiPoints: 1,
   },
   {
@@ -451,87 +487,135 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     name: 'Deep Cache',
     description: 'Offline catch-up cap becomes 12 hours.',
     costCp: 2,
+    maxRank: 1,
     offlineHours: 12,
   },
   {
     id: 'role-drills',
     name: 'Role Drills',
-    description: '+20% effectiveness on role matchup bonuses.',
+    description: '+20% role matchup effectiveness per rank (extra ranks +45% of base).',
     costCp: 2,
+    maxRank: 5,
     matchupBonus: 0.2,
   },
   {
     id: 'hangar-rights',
     name: 'Hangar Rights',
-    description: 'Each run starts with +20 Salvage for module upgrades.',
+    description: 'Each run starts with +20 Salvage per rank.',
     costCp: 2,
+    maxRank: 5,
     startingSalvage: 20,
   },
   {
     id: 'drone-bay-rights',
     name: 'Drone Bay Rights',
-    description: 'Permanently gain +2 worker drones when purchased.',
+    description: 'Permanently gain +2 worker drones on each rank purchase.',
     costCp: 2,
+    maxRank: 5,
     bonusWorkerDrones: 2,
+  },
+  {
+    id: 'schematic-surge',
+    name: 'Schematic: Surge Cap',
+    description: 'Unlocks Surge Capacitor — unique schematic not found as loot.',
+    costCp: 3,
+    maxRank: 1,
+    requiresPrestiges: 1,
+    unlockModuleId: 'surge-capacitor',
+  },
+  {
+    id: 'schematic-mirror',
+    name: 'Schematic: Mirror Plate',
+    description: 'Unlocks Mirror Plate defense — unique schematic not found as loot.',
+    costCp: 3,
+    maxRank: 1,
+    requiresPrestiges: 1,
+    unlockModuleId: 'mirror-plate',
+  },
+  {
+    id: 'deep-vault',
+    name: 'Deep Vault',
+    description: 'Offline catch-up cap becomes 24 hours. Requires Deep Cache.',
+    costCp: 4,
+    maxRank: 1,
+    offlineHours: 24,
+    requiresShopRank: { shop: 'challenge', id: 'deep-cache', rank: 1 },
+    requiresMetaAny: { act1Cleared: true, prestiges: 3, sectorEver: 30 },
+  },
+  {
+    id: 'clearance-board',
+    name: 'Clearance Board',
+    description: 'Permanently +5 to every challenge’s effective max clears.',
+    costCp: 3,
+    maxRank: 1,
+    requiresMetaAny: { anyChallengeClear: true, prestiges: 2 },
   },
 ]
 
-/** Spend Prestige Matter for stronger specialized permanents (vs banked +2% dmg/prod). */
+/** Spend Prestige Matter for stronger specialized permanents (vs banked +1% dmg/prod). */
 export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'matter-blade',
     name: 'Matter Blade',
-    description: 'Permanent +15% combat damage (stronger than banking 3 PM).',
+    description: 'Permanent +15% combat damage (rankable; extra ranks +45% of base).',
     costPm: 3,
+    maxRank: 10,
     damageBonus: 0.15,
   },
   {
     id: 'matter-forge',
     name: 'Matter Forge',
-    description: 'Permanent +18% base production.',
+    description: 'Permanent +18% base production (rankable).',
     costPm: 3,
+    maxRank: 10,
     productionBonus: 0.18,
   },
   {
     id: 'matter-plating',
     name: 'Matter Plating',
-    description: 'Permanent +50 hull.',
+    description: 'Permanent +50 hull (rankable).',
     costPm: 4,
+    maxRank: 8,
     hullBonus: 50,
   },
   {
     id: 'salvage-rights',
     name: 'Salvage Rights',
-    description: 'Permanent +25% scrap from combat clears.',
+    description: 'Permanent +25% scrap from combat clears (rankable).',
     costPm: 3,
+    maxRank: 10,
     scrapBonus: 0.25,
   },
   {
     id: 'archive-spur',
     name: 'Archive Spur',
-    description: 'Permanent +2 Data on every sector clear.',
+    description: 'Permanent +2 Data on every sector clear (rankable).',
     costPm: 3,
+    maxRank: 10,
     bonusDataPerClear: 2,
   },
   {
     id: 'drydock-boost',
     name: 'Drydock Boost',
-    description: 'Permanent 40% faster hull / shield repair while Docked.',
+    description: 'Permanent faster hull / shield repair while Docked (rankable).',
     costPm: 4,
+    maxRank: 8,
     repairMult: 0.6,
   },
   {
     id: 'shield-bank',
     name: 'Shield Bank',
-    description: 'Permanent +40 shield capacity on the flagship.',
+    description: 'Permanent +40 shield capacity on the flagship (rankable).',
     costPm: 4,
+    maxRank: 8,
     shieldBonus: 40,
   },
   {
     id: 'drone-corps',
     name: 'Drone Corps Charter',
-    description: 'Permanently gain +3 worker drones and +25% manufacture speed.',
+    description: '+3 worker drones per rank and +25% manufacture speed (rankable).',
     costPm: 5,
+    maxRank: 6,
     bonusWorkerDrones: 3,
     manufactureBonus: 0.25,
   },
@@ -594,6 +678,41 @@ export const CHALLENGES: ChallengeDef[] = [
     maxClears: 12,
     stackRepairBonus: 0.015,
     requiresChallengeClears: { challengeId: 'no-utility', clears: 1 },
+  },
+  {
+    id: 'mono-pulse',
+    name: 'Mono Pulse',
+    description: 'Reach sector 7 with only the Pulse Cannon weapon module. Repeatable.',
+    restriction: 'Only Pulse Cannon weapon modules (Frame Battery ok)',
+    goalSector: 7,
+    rewardChallengePoints: 2,
+    maxClears: 12,
+    stackDamageBonus: 0.01,
+    requiresChallengeClears: { challengeId: 'short-range', clears: 1 },
+    requiresPrestiges: 2,
+  },
+  {
+    id: 'attrition',
+    name: 'Attrition',
+    description: 'Reach sector 6 with no post-fight hull/shield recovery. Repeatable.',
+    restriction: 'No 25% missing hull/shield recovery on fight win',
+    goalSector: 6,
+    rewardChallengePoints: 2,
+    maxClears: 12,
+    stackRepairBonus: 0.02,
+    requiresChallengeClears: { challengeId: 'thin-hull', clears: 1 },
+  },
+  {
+    id: 'long-haul',
+    name: 'Long Haul',
+    description: 'Reach sector 12. A longer push for production stack bonuses.',
+    restriction: 'None — endurance goal',
+    goalSector: 12,
+    rewardChallengePoints: 3,
+    maxClears: 8,
+    stackProductionBonus: 0.02,
+    requiresSectorEver: 25,
+    requiresPrestiges: 3,
   },
 ]
 
@@ -905,6 +1024,29 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     damageTakenMult: 1,
     unlockCost: { scrap: 40, alloys: 15 },
   },
+  {
+    id: 'surge-capacitor',
+    name: 'Surge Capacitor',
+    role: 'utility',
+    description: 'Schematic utility: −8% incoming damage, +15 hull. Not found as loot.',
+    damageBonus: 0,
+    hullBonus: 15,
+    damageTakenMult: 0.92,
+    unlockCost: {},
+    requiresChallengeShop: 'schematic-surge',
+  },
+  {
+    id: 'mirror-plate',
+    name: 'Mirror Plate',
+    role: 'defense',
+    description: 'Schematic plating: +35 hull, +4 armor. Not found as loot.',
+    damageBonus: 0,
+    hullBonus: 35,
+    armorBonus: 4,
+    damageTakenMult: 1,
+    unlockCost: {},
+    requiresChallengeShop: 'schematic-mirror',
+  },
 ]
 
 export function moduleLevel(
@@ -981,12 +1123,176 @@ export function idleWorkers(state: {
   return Math.max(0, state.base.workerDrones - assignedWorkers(state.base.assignments))
 }
 
+/** Rank owned for a shop id (0 if missing). */
+export function shopRank(ranks: Record<string, number> | undefined, id: string): number {
+  return Math.max(0, ranks?.[id] ?? 0)
+}
+
+/** Cost to buy the next rank (rank 0→1 = base cost). */
+export function nextShopCost(baseCost: number, currentRank: number): number {
+  return Math.ceil(baseCost * 2 ** Math.max(0, currentRank))
+}
+
+/** Diminishing stack: rank 1 = 1× base; each extra rank adds 45% of base. */
+export function matterShopEffectScale(rank: number): number {
+  if (rank <= 0) return 0
+  return 1 + 0.45 * (rank - 1)
+}
+
+export function shopMaxRank(def: { maxRank?: number }): number {
+  return def.maxRank ?? 1
+}
+
+function metaAnyGatePasses(
+  state: {
+    prestige: { prestigeCount: number; challengeClears: Record<string, number> }
+    meta: { act1Cleared: boolean; highestSectorEver: number }
+    combat?: { highestSector?: number }
+  },
+  gate: ShopMetaAnyGate,
+): boolean {
+  if (gate.act1Cleared && state.meta.act1Cleared) return true
+  if (gate.prestiges != null && state.prestige.prestigeCount >= gate.prestiges) return true
+  if (gate.sectorEver != null) {
+    const ever = Math.max(state.meta.highestSectorEver, state.combat?.highestSector ?? 0)
+    if (ever >= gate.sectorEver) return true
+  }
+  if (gate.anyChallengeClear) {
+    const clears = Object.values(state.prestige.challengeClears).some((n) => n > 0)
+    if (clears) return true
+  }
+  return false
+}
+
+export type ShopBuyCheck =
+  | { ok: true; cost: number; nextRank: number; maxRank: number }
+  | { ok: false; reason: string; cost?: number; nextRank?: number; maxRank?: number }
+
+function matterRankGateReason(
+  state: {
+    prestige: { prestigeCount: number }
+    meta: { act1Cleared: boolean; highestSectorEver: number }
+  },
+  nextRank: number,
+): string | null {
+  if (nextRank >= 7) {
+    if (!state.meta.act1Cleared && state.prestige.prestigeCount < 5) {
+      return 'Need Act 1 cleared or 5 prestiges for rank 7+'
+    }
+  }
+  if (nextRank >= 4) {
+    if (state.prestige.prestigeCount < 2 && state.meta.highestSectorEver < 20) {
+      return 'Need 2 prestiges or sector 20 career for rank 4+'
+    }
+  }
+  return null
+}
+
+export function canBuyMatterShop(
+  state: {
+    resources: { prestigeMatter: number }
+    prestige: { prestigeCount: number; matterShop: Record<string, number> }
+    meta: { act1Cleared: boolean; highestSectorEver: number }
+  },
+  itemId: string,
+): ShopBuyCheck {
+  const def = getMatterShopItem(itemId)
+  if (!def) return { ok: false, reason: 'Unknown item' }
+  const current = shopRank(state.prestige.matterShop, itemId)
+  const maxRank = shopMaxRank(def)
+  const nextRank = current + 1
+  const cost = nextShopCost(def.costPm, current)
+  if (current >= maxRank) {
+    return { ok: false, reason: 'Max rank', cost, nextRank, maxRank }
+  }
+  const gate = matterRankGateReason(state, nextRank)
+  if (gate) return { ok: false, reason: gate, cost, nextRank, maxRank }
+  if (state.resources.prestigeMatter < cost) {
+    return { ok: false, reason: `Need ${cost} PM`, cost, nextRank, maxRank }
+  }
+  return { ok: true, cost, nextRank, maxRank }
+}
+
+export function canBuyChallengeShop(
+  state: {
+    resources: { challengePoints: number }
+    prestige: {
+      prestigeCount: number
+      shop: Record<string, number>
+      matterShop: Record<string, number>
+      challengeClears: Record<string, number>
+    }
+    meta: { act1Cleared: boolean; highestSectorEver: number }
+    combat?: { highestSector?: number }
+  },
+  itemId: string,
+): ShopBuyCheck {
+  const def = getChallengeShopItem(itemId)
+  if (!def) return { ok: false, reason: 'Unknown item' }
+  const current = shopRank(state.prestige.shop, itemId)
+  const maxRank = shopMaxRank(def)
+  const nextRank = current + 1
+  const cost = nextShopCost(def.costCp, current)
+  if (current >= maxRank) {
+    return { ok: false, reason: 'Max rank', cost, nextRank, maxRank }
+  }
+  if (def.requiresPrestiges != null && state.prestige.prestigeCount < def.requiresPrestiges) {
+    return {
+      ok: false,
+      reason: `Need ${def.requiresPrestiges} prestige${def.requiresPrestiges === 1 ? '' : 's'}`,
+      cost,
+      nextRank,
+      maxRank,
+    }
+  }
+  if (def.requiresSectorEver != null) {
+    const ever = Math.max(state.meta.highestSectorEver, state.combat?.highestSector ?? 0)
+    if (ever < def.requiresSectorEver) {
+      return {
+        ok: false,
+        reason: `Need career sector ${def.requiresSectorEver}`,
+        cost,
+        nextRank,
+        maxRank,
+      }
+    }
+  }
+  if (def.requiresAct1 && !state.meta.act1Cleared) {
+    return { ok: false, reason: 'Need Act 1 cleared', cost, nextRank, maxRank }
+  }
+  if (def.requiresShopRank) {
+    const ranks =
+      def.requiresShopRank.shop === 'matter'
+        ? state.prestige.matterShop
+        : state.prestige.shop
+    if (shopRank(ranks, def.requiresShopRank.id) < def.requiresShopRank.rank) {
+      const need = getChallengeShopItem(def.requiresShopRank.id)?.name
+        ?? getMatterShopItem(def.requiresShopRank.id)?.name
+        ?? def.requiresShopRank.id
+      return {
+        ok: false,
+        reason: `Need ${need} rank ${def.requiresShopRank.rank}`,
+        cost,
+        nextRank,
+        maxRank,
+      }
+    }
+  }
+  if (def.requiresMetaAny && !metaAnyGatePasses(state, def.requiresMetaAny)) {
+    return { ok: false, reason: 'Meta requirements not met', cost, nextRank, maxRank }
+  }
+  if (state.resources.challengePoints < cost) {
+    return { ok: false, reason: `Need ${cost} CP`, cost, nextRank, maxRank }
+  }
+  return { ok: true, cost, nextRank, maxRank }
+}
+
 /** Total manufacture speed multiplier (1 = baseline). */
 export function workerManufactureSpeed(state: {
   base: { assignments: Record<string, number> }
   research: { unlocked: string[] }
   ai: { purchased: string[] }
-  prestige: { shop: string[]; matterShop: string[] }
+  prestige: { shop: Record<string, number>; matterShop: Record<string, number> }
 }): number {
   let speed = 1
   for (const id of state.research.unlocked) {
@@ -995,11 +1301,13 @@ export function workerManufactureSpeed(state: {
   for (const id of state.ai.purchased) {
     speed += getAiNode(id)?.manufactureBonus ?? 0
   }
-  for (const id of state.prestige.shop) {
-    speed += getChallengeShopItem(id)?.manufactureBonus ?? 0
+  for (const [id, rank] of Object.entries(state.prestige.shop)) {
+    const bonus = getChallengeShopItem(id)?.manufactureBonus ?? 0
+    if (bonus) speed += bonus * matterShopEffectScale(rank)
   }
-  for (const id of state.prestige.matterShop) {
-    speed += getMatterShopItem(id)?.manufactureBonus ?? 0
+  for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
+    const bonus = getMatterShopItem(id)?.manufactureBonus ?? 0
+    if (bonus) speed += bonus * matterShopEffectScale(rank)
   }
   const fab = state.base.assignments['drone-fab'] ?? 0
   const fabDef = getStation('drone-fab')
@@ -1205,19 +1513,19 @@ export function researchEssenceMultiplier(unlocked: string[]): number {
 export function metaDamageMultiplier(
   prestigeMatter: number,
   challengePoints: number,
-  shop: string[] = [],
-  matterShop: string[] = [],
+  shop: Record<string, number> = {},
+  matterShop: Record<string, number> = {},
   challengeClears: Record<string, number> = {},
 ): number {
   // Unspent PM/CP still help a little; spending unlocks stronger shop effects.
-  let mult = 1 + prestigeMatter * 0.02 + challengePoints * 0.02
-  for (const id of shop) {
+  let mult = 1 + prestigeMatter * 0.01 + challengePoints * 0.02
+  for (const [id, rank] of Object.entries(shop)) {
     const def = getChallengeShopItem(id)
-    if (def?.damageBonus) mult += def.damageBonus
+    if (def?.damageBonus) mult += def.damageBonus * matterShopEffectScale(rank)
   }
-  for (const id of matterShop) {
+  for (const [id, rank] of Object.entries(matterShop)) {
     const def = getMatterShopItem(id)
-    if (def?.damageBonus) mult += def.damageBonus
+    if (def?.damageBonus) mult += def.damageBonus * matterShopEffectScale(rank)
   }
   mult += challengeStackDamageBonus(challengeClears)
   return mult
@@ -1225,107 +1533,177 @@ export function metaDamageMultiplier(
 
 export function metaProductionMultiplier(
   prestigeMatter: number,
-  matterShop: string[] = [],
+  matterShop: Record<string, number> = {},
   challengeClears: Record<string, number> = {},
 ): number {
-  let mult = 1 + prestigeMatter * 0.02
-  for (const id of matterShop) {
+  let mult = 1 + prestigeMatter * 0.01
+  for (const [id, rank] of Object.entries(matterShop)) {
     const def = getMatterShopItem(id)
-    if (def?.productionBonus) mult += def.productionBonus
+    if (def?.productionBonus) mult += def.productionBonus * matterShopEffectScale(rank)
   }
   mult += challengeStackProductionBonus(challengeClears)
   return mult
 }
 
-export function matterShopHullBonus(matterShop: string[]): number {
+export function matterShopHullBonus(matterShop: Record<string, number>): number {
   let total = 0
-  for (const id of matterShop) {
-    total += getMatterShopItem(id)?.hullBonus ?? 0
+  for (const [id, rank] of Object.entries(matterShop)) {
+    const bonus = getMatterShopItem(id)?.hullBonus ?? 0
+    if (bonus) total += bonus * matterShopEffectScale(rank)
   }
   return total
 }
 
-export function matterShopShieldBonus(matterShop: string[]): number {
+export function matterShopShieldBonus(matterShop: Record<string, number>): number {
   let total = 0
-  for (const id of matterShop) {
-    total += getMatterShopItem(id)?.shieldBonus ?? 0
+  for (const [id, rank] of Object.entries(matterShop)) {
+    const bonus = getMatterShopItem(id)?.shieldBonus ?? 0
+    if (bonus) total += bonus * matterShopEffectScale(rank)
   }
   return total
 }
 
-export function matterShopScrapBonus(matterShop: string[]): number {
+export function matterShopScrapBonus(matterShop: Record<string, number>): number {
   let total = 0
-  for (const id of matterShop) {
-    total += getMatterShopItem(id)?.scrapBonus ?? 0
+  for (const [id, rank] of Object.entries(matterShop)) {
+    const bonus = getMatterShopItem(id)?.scrapBonus ?? 0
+    if (bonus) total += bonus * matterShopEffectScale(rank)
   }
   return total
 }
 
-export function matterShopDataPerClear(matterShop: string[]): number {
+export function matterShopDataPerClear(matterShop: Record<string, number>): number {
   let total = 0
-  for (const id of matterShop) {
-    total += getMatterShopItem(id)?.bonusDataPerClear ?? 0
+  for (const [id, rank] of Object.entries(matterShop)) {
+    const bonus = getMatterShopItem(id)?.bonusDataPerClear ?? 0
+    if (bonus) total += bonus * matterShopEffectScale(rank)
   }
   return total
 }
 
-export function matterShopRepairMult(matterShop: string[]): number {
+/** Repair duration multiplier from drydock ranks (lower = faster). */
+export function matterShopRepairMult(matterShop: Record<string, number>): number {
   let mult = 1
-  for (const id of matterShop) {
-    const r = getMatterShopItem(id)?.repairMult
-    if (r != null) mult *= r
+  for (const [id, rank] of Object.entries(matterShop)) {
+    const def = getMatterShopItem(id)
+    if (def?.repairMult == null || rank <= 0) continue
+    const speed = 0.4 * matterShopEffectScale(rank)
+    mult *= 1 / (1 + speed)
   }
   return mult
 }
 
-export function prestigeMinSectorFor(shop: string[]): number {
+export function prestigeMinSectorFor(shop: Record<string, number>): number {
   let min = PRESTIGE_MIN_SECTOR
-  for (const id of shop) {
+  for (const [id, rank] of Object.entries(shop)) {
+    if (rank < 1) continue
     const def = getChallengeShopItem(id)
     if (def?.prestigeMinSector) min = Math.min(min, def.prestigeMinSector)
   }
   return min
 }
 
-export function challengeShopStartingScrap(shop: string[]): number {
+export function challengeShopStartingScrap(shop: Record<string, number>): number {
   let total = 0
-  for (const id of shop) {
-    total += getChallengeShopItem(id)?.startingScrap ?? 0
+  for (const [id, rank] of Object.entries(shop)) {
+    const base = getChallengeShopItem(id)?.startingScrap ?? 0
+    if (base) total += base * rank
   }
   return total
 }
 
-export function challengeShopStartingAi(shop: string[]): number {
+export function challengeShopStartingAi(shop: Record<string, number>): number {
   let total = 0
-  for (const id of shop) {
-    total += getChallengeShopItem(id)?.startingAiPoints ?? 0
+  for (const [id, rank] of Object.entries(shop)) {
+    const base = getChallengeShopItem(id)?.startingAiPoints ?? 0
+    if (base) total += base * rank
   }
   return total
 }
 
-export function challengeShopStartingSalvage(shop: string[]): number {
+export function challengeShopStartingSalvage(shop: Record<string, number>): number {
   let total = 0
-  for (const id of shop) {
-    total += getChallengeShopItem(id)?.startingSalvage ?? 0
+  for (const [id, rank] of Object.entries(shop)) {
+    const base = getChallengeShopItem(id)?.startingSalvage ?? 0
+    if (base) total += base * rank
   }
   return total
 }
 
-export function challengeShopOfflineMs(shop: string[]): number {
+export function challengeShopOfflineMs(shop: Record<string, number>): number {
   let hours = 8
-  for (const id of shop) {
+  for (const [id, rank] of Object.entries(shop)) {
+    if (rank < 1) continue
     const h = getChallengeShopItem(id)?.offlineHours
     if (h) hours = Math.max(hours, h)
   }
   return hours * 60 * 60 * 1000
 }
 
-export function challengeShopMatchupBonus(shop: string[]): number {
+export function challengeShopMatchupBonus(shop: Record<string, number>): number {
   let bonus = 0
-  for (const id of shop) {
-    bonus += getChallengeShopItem(id)?.matchupBonus ?? 0
+  for (const [id, rank] of Object.entries(shop)) {
+    const base = getChallengeShopItem(id)?.matchupBonus ?? 0
+    if (base) bonus += base * matterShopEffectScale(rank)
   }
   return bonus
+}
+
+export function effectiveMaxClears(
+  def: ChallengeDef,
+  shopRanks: Record<string, number>,
+): number {
+  const bonus = shopRank(shopRanks, 'clearance-board') >= 1 ? 5 : 0
+  return def.maxClears + bonus
+}
+
+/** Short UI blurb for matter shop total effect at rank. */
+export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string {
+  if (rank <= 0) return 'Not owned'
+  const s = matterShopEffectScale(rank)
+  const bits: string[] = []
+  if (def.damageBonus) bits.push(`+${(def.damageBonus * s * 100).toFixed(1)}% dmg`)
+  if (def.productionBonus) bits.push(`+${(def.productionBonus * s * 100).toFixed(1)}% prod`)
+  if (def.hullBonus) bits.push(`+${(def.hullBonus * s).toFixed(0)} hull`)
+  if (def.shieldBonus) bits.push(`+${(def.shieldBonus * s).toFixed(0)} shield`)
+  if (def.scrapBonus) bits.push(`+${(def.scrapBonus * s * 100).toFixed(1)}% scrap`)
+  if (def.bonusDataPerClear) {
+    bits.push(`+${(def.bonusDataPerClear * s).toFixed(1)} data/clear`)
+  }
+  if (def.repairMult != null) {
+    const speed = 0.4 * s
+    bits.push(`+${(speed * 100).toFixed(0)}% repair speed`)
+  }
+  if (def.bonusWorkerDrones) {
+    bits.push(`+${def.bonusWorkerDrones * rank} workers (granted)`)
+  }
+  if (def.manufactureBonus) {
+    bits.push(`+${(def.manufactureBonus * s * 100).toFixed(1)}% manufacture`)
+  }
+  return bits.join(' · ') || 'Owned'
+}
+
+/** Short UI blurb for challenge shop total effect at rank. */
+export function challengeShopEffectBlurb(def: ChallengeShopDef, rank: number): string {
+  if (rank <= 0) return 'Not owned'
+  const s = matterShopEffectScale(rank)
+  const bits: string[] = []
+  if (def.damageBonus) bits.push(`+${(def.damageBonus * s * 100).toFixed(1)}% dmg`)
+  if (def.prestigeMinSector) bits.push(`prestige from sector ${def.prestigeMinSector}`)
+  if (def.startingScrap) bits.push(`+${def.startingScrap * rank} start scrap`)
+  if (def.startingAiPoints) bits.push(`+${def.startingAiPoints * rank} start AIP`)
+  if (def.startingSalvage) bits.push(`+${def.startingSalvage * rank} start salvage`)
+  if (def.offlineHours) bits.push(`${def.offlineHours}h offline cap`)
+  if (def.matchupBonus) bits.push(`+${(def.matchupBonus * s * 100).toFixed(0)}% matchup`)
+  if (def.bonusWorkerDrones) {
+    bits.push(`+${def.bonusWorkerDrones * rank} workers (granted)`)
+  }
+  if (def.unlockModuleId) {
+    const mod = getModule(def.unlockModuleId)
+    bits.push(`unlocks ${mod?.name ?? def.unlockModuleId}`)
+  }
+  if (def.id === 'clearance-board') bits.push('+5 max clears on all challenges')
+  return bits.join(' · ') || 'Owned'
 }
 
 /** AI combat doctrines are disabled during Silent Bridge. */
@@ -1349,6 +1727,13 @@ export function isModuleBlockedByChallenge(
   const mod = getModule(moduleId)
   if (!mod) return false
   if (activeChallengeId === 'no-utility' && mod.role === 'utility') return true
+  if (
+    activeChallengeId === 'mono-pulse' &&
+    mod.role === 'weapon' &&
+    moduleId !== 'pulse-cannon'
+  ) {
+    return true
+  }
   return false
 }
 
@@ -1398,20 +1783,32 @@ export function challengeStackRepairBonus(clears: Record<string, number> = {}): 
 export function isChallengeUnlocked(
   state: {
     prestige: { challengeClears: Record<string, number>; prestigeCount: number }
+    meta?: { highestSectorEver?: number }
+    combat?: { highestSector?: number }
   },
   challengeId: string,
 ): boolean {
   const def = getChallenge(challengeId)
   if (!def) return false
-  if (def.requiresPrestiges && state.prestige.prestigeCount < def.requiresPrestiges) {
-    return false
+  const gates: boolean[] = []
+  if (def.requiresPrestiges != null) {
+    gates.push(state.prestige.prestigeCount >= def.requiresPrestiges)
   }
   if (def.requiresChallengeClears) {
     const have = challengeClearCount(
       state.prestige.challengeClears,
       def.requiresChallengeClears.challengeId,
     )
-    if (have < def.requiresChallengeClears.clears) return false
+    gates.push(have >= def.requiresChallengeClears.clears)
   }
-  return true
+  if (def.requiresSectorEver != null) {
+    const ever = Math.max(
+      state.meta?.highestSectorEver ?? 0,
+      state.combat?.highestSector ?? 0,
+    )
+    gates.push(ever >= def.requiresSectorEver)
+  }
+  // No gates → unlocked; multiple gates are OR (e.g. Mono Pulse / Long Haul).
+  if (gates.length === 0) return true
+  return gates.some(Boolean)
 }

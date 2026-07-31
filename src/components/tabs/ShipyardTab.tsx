@@ -13,6 +13,7 @@ import {
   moduleLevel,
   moduleStatPreviews,
   moduleUpgradeCost,
+  shopRank,
   type ModuleRole,
   type ShipModuleDef,
 } from '../../game/catalog'
@@ -324,10 +325,14 @@ function ModuleCard({
   const fitted = state.shipyard.modules.includes(m.id)
   const level = moduleLevel(state.shipyard.moduleLevels, m.id)
   const upCost = moduleUpgradeCost(level)
-  const gated = (m.requiresSectorEver ?? 0) > ever
+  const schematicLocked =
+    !!m.requiresChallengeShop &&
+    shopRank(state.prestige.shop, m.requiresChallengeShop) < 1
+  const gated = !schematicLocked && (m.requiresSectorEver ?? 0) > ever
   const canUnlock =
     !unlocked &&
     !gated &&
+    !schematicLocked &&
     Object.entries(m.unlockCost).every(
       ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
     )
@@ -360,10 +365,14 @@ function ModuleCard({
       </p>
 
       {!unlocked ? (
-        gated ? (
+        schematicLocked ? (
+          <p className="notice-warn">Requires Challenge shop schematic.</p>
+        ) : gated ? (
           <p className="notice-warn">Clear sector {m.requiresSectorEver} to unlock.</p>
         ) : (
-          <p className="muted">Unlock: {costLabel(m.unlockCost)}</p>
+          <p className="muted">
+            Unlock: {Object.keys(m.unlockCost).length ? costLabel(m.unlockCost) : 'Free (schematic)'}
+          </p>
         )
       ) : (
         <p className="module-card-meta">

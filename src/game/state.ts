@@ -14,7 +14,7 @@ import {
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 13
+export const SAVE_VERSION = 14
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -96,8 +96,8 @@ export function createInitialState(now = Date.now()): GameState {
       prestigeCount: 0,
       activeChallengeId: null,
       challengeClears: {},
-      shop: [],
-      matterShop: [],
+      shop: {},
+      matterShop: {},
     },
     codex: {
       seenFamilies: [],

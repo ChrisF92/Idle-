@@ -3,10 +3,17 @@ import {
   CHALLENGE_SHOP,
   CHALLENGES,
   MATTER_SHOP,
+  canBuyChallengeShop,
+  canBuyMatterShop,
   challengeClearCount,
+  challengeShopEffectBlurb,
+  effectiveMaxClears,
   getChallenge,
   isChallengeUnlocked,
+  matterShopEffectBlurb,
   prestigeMinSectorFor,
+  shopMaxRank,
+  shopRank,
 } from '../../game/catalog'
 import { RESOURCE_LABELS } from '../../game/state'
 import {
@@ -46,7 +53,7 @@ export function PrestigeTab({
         <h2>Prestige & Challenges</h2>
         <p>
           Soft reset at sector {minSector}+. Prestige Matter and Challenge Points buy permanent
-          second-act power — shops usually beat banking for a focused path.
+          second-act power — shop ranks usually beat banking for a focused path.
         </p>
       </header>
 
@@ -70,8 +77,8 @@ export function PrestigeTab({
       </div>
 
       <p className="muted">
-        Banked PM: +2% damage & production each. Banked CP: +2% damage each. After your first
-        prestige, challenges and Matter shop define the climb.
+        Banked PM: +1% damage & production each. Banked CP: +2% damage each. After your first
+        prestige, challenges and Matter shop ranks define the climb. No respec.
       </p>
 
       {active ? (
@@ -104,25 +111,41 @@ export function PrestigeTab({
       )}
 
       <h3>Prestige Matter shop</h3>
-      <p className="muted">Permanent run-wide bonuses. Drydock Boost speeds hangar repair.</p>
+      <p className="muted">
+        Rankable permanents. Extra ranks add 45% of the base bonus (steeper PM cost each rank).
+      </p>
       <ul className="def-list">
         {MATTER_SHOP.map((item) => {
-          const owned = prestige.matterShop.includes(item.id)
-          const canBuy = !owned && resources.prestigeMatter >= item.costPm
+          const rank = shopRank(prestige.matterShop, item.id)
+          const maxRank = shopMaxRank(item)
+          const check = canBuyMatterShop(state, item.id)
+          const maxed = rank >= maxRank
+          const label = maxed
+            ? `Rank ${rank}/${maxRank}`
+            : `Rank ${rank}/${maxRank} · ${check.cost ?? '?'} PM`
           return (
             <li key={item.id}>
               <div>
                 <strong>{item.name}</strong>
                 <p className="muted">{item.description}</p>
+                <p className="muted">
+                  {rank > 0
+                    ? matterShopEffectBlurb(item, rank)
+                    : 'Not owned'}
+                  {!maxed && rank > 0
+                    ? ` → next ${matterShopEffectBlurb(item, rank + 1)}`
+                    : ''}
+                </p>
               </div>
               <div className="action-col">
-                <span className="badge">{owned ? 'Owned' : `${item.costPm} PM`}</span>
+                <span className="badge">{label}</span>
                 <button
                   type="button"
-                  disabled={!canBuy}
+                  disabled={!check.ok}
+                  title={!check.ok ? check.reason : undefined}
                   onClick={() => onBuyMatterShop(item.id)}
                 >
-                  {owned ? 'Owned' : 'Buy'}
+                  {maxed ? 'Maxed' : rank > 0 ? 'Upgrade' : 'Buy'}
                 </button>
               </div>
             </li>
@@ -131,21 +154,38 @@ export function PrestigeTab({
       </ul>
 
       <h3>Challenge Point shop</h3>
-      <p className="muted">QoL and start boosts earned from challenge clears.</p>
+      <p className="muted">
+        Unique unlocks and stackable run-kits. Schematics permanently unlock modules.
+      </p>
       <ul className="def-list">
         {CHALLENGE_SHOP.map((item) => {
-          const owned = prestige.shop.includes(item.id)
-          const canBuy = !owned && resources.challengePoints >= item.costCp
+          const rank = shopRank(prestige.shop, item.id)
+          const maxRank = shopMaxRank(item)
+          const check = canBuyChallengeShop(state, item.id)
+          const maxed = rank >= maxRank
+          const label = maxed
+            ? `Rank ${rank}/${maxRank}`
+            : `Rank ${rank}/${maxRank} · ${check.cost ?? '?'} CP`
           return (
             <li key={item.id}>
               <div>
                 <strong>{item.name}</strong>
                 <p className="muted">{item.description}</p>
+                <p className="muted">
+                  {rank > 0
+                    ? challengeShopEffectBlurb(item, rank)
+                    : 'Not owned'}
+                </p>
               </div>
               <div className="action-col">
-                <span className="badge">{owned ? 'Owned' : `${item.costCp} CP`}</span>
-                <button type="button" disabled={!canBuy} onClick={() => onBuyShop(item.id)}>
-                  {owned ? 'Owned' : 'Buy'}
+                <span className="badge">{label}</span>
+                <button
+                  type="button"
+                  disabled={!check.ok}
+                  title={!check.ok ? check.reason : undefined}
+                  onClick={() => onBuyShop(item.id)}
+                >
+                  {maxed ? 'Maxed' : rank > 0 ? 'Upgrade' : 'Buy'}
                 </button>
               </div>
             </li>
@@ -160,7 +200,8 @@ export function PrestigeTab({
       <ul className="def-list">
         {CHALLENGES.map((c) => {
           const clears = challengeClearCount(prestige.challengeClears, c.id)
-          const capped = clears >= c.maxClears
+          const maxClears = effectiveMaxClears(c, prestige.shop)
+          const capped = clears >= maxClears
           const unlocked = isChallengeUnlocked(state, c.id)
           const isActive = prestige.activeChallengeId === c.id
           const canEnter = canEnterChallenge(state, c.id)
@@ -178,6 +219,18 @@ export function PrestigeTab({
               ? `+${(c.stackRepairBonus * 100).toFixed(0)}% hangar repair/clear`
               : null,
           ].filter(Boolean)
+          const lockBits: string[] = []
+          if (req) lockBits.push(`${reqName} ${reqClears}/${req.clears}`)
+          if (c.requiresPrestiges) {
+            lockBits.push(
+              `${c.requiresPrestiges} prestige${c.requiresPrestiges === 1 ? '' : 's'} (${prestige.prestigeCount}/${c.requiresPrestiges})`,
+            )
+          }
+          if (c.requiresSectorEver) {
+            lockBits.push(
+              `career sector ${c.requiresSectorEver} (${Math.max(state.meta.highestSectorEver, combat.highestSector)}/${c.requiresSectorEver})`,
+            )
+          }
           return (
             <li key={c.id}>
               <div>
@@ -189,19 +242,13 @@ export function PrestigeTab({
                 </p>
                 {!unlocked ? (
                   <p className="notice-warn">
-                    Locked
-                    {req
-                      ? ` — ${reqName} ${reqClears}/${req.clears}`
-                      : ''}
-                    {c.requiresPrestiges
-                      ? ` — need ${c.requiresPrestiges} prestige${c.requiresPrestiges === 1 ? '' : 's'} (${prestige.prestigeCount}/${c.requiresPrestiges})`
-                      : ''}
+                    Locked — {lockBits.join(' or ') || 'requirements unmet'}
                   </p>
                 ) : null}
               </div>
               <div className="action-col">
                 <span className="badge">
-                  {isActive ? 'Active' : capped ? 'Maxed' : `${clears}/${c.maxClears}`}
+                  {isActive ? 'Active' : capped ? 'Maxed' : `${clears}/${maxClears}`}
                 </span>
                 <button
                   type="button"

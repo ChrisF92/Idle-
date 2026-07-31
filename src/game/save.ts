@@ -61,7 +61,11 @@ function migrateChallengeClears(
     completedChallenges?: string[]
   },
 ): Record<string, number> {
-  if (prestige.challengeClears && typeof prestige.challengeClears === 'object') {
+  if (
+    prestige.challengeClears &&
+    typeof prestige.challengeClears === 'object' &&
+    !Array.isArray(prestige.challengeClears)
+  ) {
     return { ...prestige.challengeClears }
   }
   const clears: Record<string, number> = {}
@@ -71,6 +75,27 @@ function migrateChallengeClears(
   return clears
 }
 
+/** Legacy string[] shop ownership → each id at rank 1. */
+function migrateShopRanks(raw: unknown): Record<string, number> {
+  if (!raw) return {}
+  if (Array.isArray(raw)) {
+    const ranks: Record<string, number> = {}
+    for (const id of raw) {
+      if (typeof id === 'string') ranks[id] = 1
+    }
+    return ranks
+  }
+  if (typeof raw === 'object') {
+    const ranks: Record<string, number> = {}
+    for (const [id, n] of Object.entries(raw as Record<string, unknown>)) {
+      const rank = Math.floor(Number(n))
+      if (rank > 0) ranks[id] = rank
+    }
+    return ranks
+  }
+  return {}
+}
+
 function withPrestigeDefaults(
   prestige: (GameState['prestige'] & { completedChallenges?: string[] }) | undefined,
 ): GameState['prestige'] {
@@ -78,8 +103,8 @@ function withPrestigeDefaults(
     prestigeCount: prestige?.prestigeCount ?? 0,
     activeChallengeId: prestige?.activeChallengeId ?? null,
     challengeClears: migrateChallengeClears(prestige ?? {}),
-    shop: prestige?.shop ?? [],
-    matterShop: prestige?.matterShop ?? [],
+    shop: migrateShopRanks(prestige?.shop),
+    matterShop: migrateShopRanks(prestige?.matterShop),
   }
 }
 
@@ -208,7 +233,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 9 ||
     parsed.version === 10 ||
     parsed.version === 11 ||
-    parsed.version === 12
+    parsed.version === 12 ||
+    parsed.version === 13
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {

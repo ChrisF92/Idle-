@@ -221,16 +221,18 @@ function onFightWon(state: GameState): void {
   const wasBoss = state.combat.isBoss
 
   persistFlagshipHull(state)
-  const missingHull = state.combat.playerHullMax - state.combat.playerHull
-  const missingShield = state.combat.playerShieldMax - state.combat.playerShield
-  state.combat.playerHull = Math.min(
-    state.combat.playerHullMax,
-    state.combat.playerHull + missingHull * 0.25,
-  )
-  state.combat.playerShield = Math.min(
-    state.combat.playerShieldMax,
-    state.combat.playerShield + missingShield * 0.25,
-  )
+  if (state.prestige.activeChallengeId !== 'attrition') {
+    const missingHull = state.combat.playerHullMax - state.combat.playerHull
+    const missingShield = state.combat.playerShieldMax - state.combat.playerShield
+    state.combat.playerHull = Math.min(
+      state.combat.playerHullMax,
+      state.combat.playerHull + missingHull * 0.25,
+    )
+    state.combat.playerShield = Math.min(
+      state.combat.playerShieldMax,
+      state.combat.playerShield + missingShield * 0.25,
+    )
+  }
   clearEnemy(state)
   state.combat.consecutiveLosses = 0
 

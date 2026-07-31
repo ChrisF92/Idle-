@@ -4,10 +4,13 @@ import {
   MAX_MODULE_LEVEL,
   RESEARCH,
   STATIONS,
+  canBuyChallengeShop,
+  canBuyMatterShop,
   challengeClearCount,
   challengeShopStartingAi,
   challengeShopStartingSalvage,
   challengeShopStartingScrap,
+  effectiveMaxClears,
   getAiNode,
   getChallenge,
   getChallengeShopItem,
@@ -26,6 +29,7 @@ import {
   moduleLevel,
   moduleUpgradeCost,
   prestigeMinSectorFor,
+  shopRank,
   trimModulesToFrame,
   type ResourceCost,
 } from './catalog'
@@ -182,27 +186,42 @@ export function buyEssenceUpgrade(state: GameState, upgradeId: string): GameStat
 export function buyChallengeShop(state: GameState, itemId: string): GameState {
   const def = getChallengeShopItem(itemId)
   if (!def) return state
-  if (state.prestige.shop.includes(itemId)) return state
-  if (state.resources.challengePoints < def.costCp) return state
+  const check = canBuyChallengeShop(state, itemId)
+  if (!check.ok) return state
 
   const next = structuredClone(state)
-  next.resources.challengePoints -= def.costCp
-  next.prestige.shop = [...next.prestige.shop, itemId]
+  next.resources.challengePoints -= check.cost
+  next.prestige.shop = {
+    ...next.prestige.shop,
+    [itemId]: check.nextRank,
+  }
   if (def.bonusWorkerDrones) {
     next.base.workerDrones += def.bonusWorkerDrones
   }
+  if (def.unlockModuleId && check.nextRank >= 1) {
+    if (!next.shipyard.unlockedModules.includes(def.unlockModuleId)) {
+      next.shipyard.unlockedModules = [
+        ...next.shipyard.unlockedModules,
+        def.unlockModuleId,
+      ]
+    }
+  }
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
 
 export function buyMatterShop(state: GameState, itemId: string): GameState {
   const def = getMatterShopItem(itemId)
   if (!def) return state
-  if (state.prestige.matterShop.includes(itemId)) return state
-  if (state.resources.prestigeMatter < def.costPm) return state
+  const check = canBuyMatterShop(state, itemId)
+  if (!check.ok) return state
 
   const next = structuredClone(state)
-  next.resources.prestigeMatter -= def.costPm
-  next.prestige.matterShop = [...next.prestige.matterShop, itemId]
+  next.resources.prestigeMatter -= check.cost
+  next.prestige.matterShop = {
+    ...next.prestige.matterShop,
+    [itemId]: check.nextRank,
+  }
   if (def.bonusWorkerDrones) {
     next.base.workerDrones += def.bonusWorkerDrones
   }
@@ -243,6 +262,12 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
   const def = getModule(moduleId)
   if (!def) return state
   if (state.shipyard.unlockedModules.includes(moduleId)) return state
+  if (def.requiresChallengeShop) {
+    if (shopRank(state.prestige.shop, def.requiresChallengeShop) < 1) return state
+    const next = structuredClone(state)
+    next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
+    return next
+  }
   if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
   if (!canAfford(state.resources, def.unlockCost)) return state
 
@@ -292,7 +317,7 @@ export function canEnterChallenge(state: GameState, challengeId: string): boolea
   if (!challenge) return false
   if (!isChallengeUnlocked(state, challengeId)) return false
   const clears = challengeClearCount(state.prestige.challengeClears, challengeId)
-  if (clears >= challenge.maxClears) return false
+  if (clears >= effectiveMaxClears(challenge, state.prestige.shop)) return false
   return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
 }
 
@@ -404,8 +429,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     prestigeCount: state.prestige.prestigeCount,
     challengeClears: { ...state.prestige.challengeClears },
     activeChallengeId: state.prestige.activeChallengeId,
-    shop: [...state.prestige.shop],
-    matterShop: [...state.prestige.matterShop],
+    shop: { ...state.prestige.shop },
+    matterShop: { ...state.prestige.matterShop },
     seenFamilies: [...(state.codex?.seenFamilies ?? [])],
     workerDrones: state.base.workerDrones,
     manufactureProgress: state.base.manufactureProgress,
@@ -534,11 +559,12 @@ export function tryCompleteChallenge(state: GameState): void {
   const cleared = state.combat.highestSector
   if (cleared < challenge.goalSector) return
 
+  const maxClears = effectiveMaxClears(challenge, state.prestige.shop)
   const prev = challengeClearCount(state.prestige.challengeClears, id)
-  if (prev >= challenge.maxClears) {
+  if (prev >= maxClears) {
     state.prestige.activeChallengeId = null
     state.combat.log = [
-      `Challenge ${challenge.name} already at max clears (${challenge.maxClears}).`,
+      `Challenge ${challenge.name} already at max clears (${maxClears}).`,
       ...state.combat.log,
     ]
     return
@@ -552,7 +578,7 @@ export function tryCompleteChallenge(state: GameState): void {
   state.prestige.activeChallengeId = null
   state.resources.challengePoints += challenge.rewardChallengePoints
   state.combat.log = [
-    `Challenge complete: ${challenge.name} (${nextClears}/${challenge.maxClears}). +${challenge.rewardChallengePoints} Challenge Points.`,
+    `Challenge complete: ${challenge.name} (${nextClears}/${maxClears}). +${challenge.rewardChallengePoints} Challenge Points.`,
     ...state.combat.log,
   ]
 }

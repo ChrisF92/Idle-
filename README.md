@@ -34,7 +34,8 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Boss telegraphs: titan slams wind up before firing; phase shifts flash a warn ring.
 - Hold Accountant shows estimated scrap/data/salvage per second while farming.
 - Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
-- Prestige Matter / Challenge Points spend in permanent shops (or bank for a smaller bonus).
+- Prestige Matter / Challenge Points spend in permanent **rankable** shops (banked PM is +1% dmg/prod each; ranks beat banking). No respec.
+- CP shop prefers unique unlocks (schematics → Surge Capacitor / Mirror Plate, Deep Vault 24h offline, Clearance Board +5 max clears) plus stackable run-kits.
 - Post-prestige re-push: returning runs start with +20 scrap / +12 data / +12 salvage; doctrine AIP is refunded; first S8 prestige yields 5 PM.
 - Distinct frames: Razor (2W/0D/1U glass-cannon) and Pathfinder (1W/0D/2U utility scout).
 
@@ -68,6 +69,6 @@ Local Pages-shaped build: `npm run build:pages && npm run preview`
 - Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with Advance/Hold pacing; hull persists and repairs over time.
 - Entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
 - Fitted loadouts persist through prestige; challenges are repeatable with stack bonuses (ITRTG-style).
-- Challenge pack: Silent Bridge, Glass Frame, Data Drought, **Bare Rig** (no utility), **Knife Fight** (range ≤55).
+- Challenge pack: Silent Bridge, Glass Frame, Data Drought, Bare Rig, Knife Fight, **Mono Pulse** (pulse-only weapons), **Attrition** (no fight-win heal), **Long Haul** (sector 12).
 - Essence buys permanent constructs; AI Points buy per-run doctrines (Focus Fire, Boss Protocol, Scavenger, Tactical Retreat, Rapid Recovery).
-- Challenge Points / Prestige Matter can be spent in permanent shops (or banked for a smaller bonus).
+- Challenge Points / Prestige Matter buy permanent shop ranks (or bank for a smaller bonus).

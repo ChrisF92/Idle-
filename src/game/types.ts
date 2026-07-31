@@ -242,10 +242,10 @@ export interface PrestigeState {
   activeChallengeId: string | null
   /** ITRTG-style repeatable clears per challenge id. */
   challengeClears: Record<string, number>
-  /** Permanent Challenge Point shop purchases. */
-  shop: string[]
-  /** Permanent Prestige Matter shop purchases. */
-  matterShop: string[]
+  /** Permanent Challenge Point shop ranks (id → rank). */
+  shop: Record<string, number>
+  /** Permanent Prestige Matter shop ranks (id → rank). */
+  matterShop: Record<string, number>
 }
 
 /** Encounter memory for the Codex — persists across prestige. */
