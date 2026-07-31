@@ -136,24 +136,12 @@
 
 .battlefield {
   width: 100%;
+  aspect-ratio: 640 / 220;
   height: auto;
   border: 1px solid var(--line);
   background: #121820;
   display: block;
-}
-
-.bf-shot {
-  opacity: 0.85;
-  animation: bf-fade 0.7s ease-out forwards;
-}
-
-@keyframes bf-fade {
-  from {
-    opacity: 0.95;
-  }
-  to {
-    opacity: 0;
-  }
+  border-radius: 2px;
 }
 
 .combat-grid {

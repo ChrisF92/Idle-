@@ -52,6 +52,7 @@ const FAMILY_SHAPE: Record<EnemyFamily, UnitShape> = {
 }
 
 let unitSeq = 0
+let fxGlobalSeq = 0
 function nextUnitId(prefix: string): string {
   unitSeq += 1
   return `${prefix}-${unitSeq}`
@@ -629,7 +630,6 @@ export function resolveCombatTick(
   const focusFire = aiDoctrinesActive(state, 'focus-fire')
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
   const fx: CombatFx[] = []
-  let fxSeq = 0
 
   const sides: Array<'player' | 'enemy'> = ['player', 'enemy']
   for (const side of sides) {
@@ -688,13 +688,13 @@ export function resolveCombatTick(
             target.dots.push({ dps: weapon.dotDamage, remaining: weapon.dotDuration })
           }
 
-          fxSeq += 1
+          fxGlobalSeq += 1
           fx.push({
-            id: `fx-${fxSeq}`,
+            id: `fx-${fxGlobalSeq}`,
             fromId: unit.id,
             toId: target.id,
             tag: weapon.tags[0] ?? 'kinetic',
-            ttl: 1,
+            ttl: 2,
           })
         }
 
@@ -705,7 +705,7 @@ export function resolveCombatTick(
 
   state.combat.fx = [...fx, ...state.combat.fx.map((f) => ({ ...f, ttl: f.ttl - 1 }))]
     .filter((f) => f.ttl > 0)
-    .slice(0, 24)
+    .slice(0, 48)
 
   maybeAdvanceBossPhase(state, pushLog)
   syncHullAggregates(state)
