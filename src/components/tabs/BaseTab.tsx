@@ -1,13 +1,8 @@
 import type { GameState, Resources } from '../../game/types'
 import {
-  COMBAT_DRONE_MANUFACTURE_SECONDS,
-  COMBAT_DRONES_UNLOCK_SECTOR,
-  COMBAT_ROLES,
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
-  idleCombatDrones,
   idleWorkers,
-  isCombatRoleUnlocked,
   isStationUnlocked,
   workerManufactureSpeed,
 } from '../../game/catalog'
@@ -17,8 +12,6 @@ interface BaseTabProps {
   state: GameState
   onAssign: (stationId: string, delta: number) => void
   onAutoBalance: () => void
-  onAssignCombat: (roleId: string, delta: number) => void
-  onAutoBalanceCombat: () => void
 }
 
 function rateLabel(rates: Partial<Record<keyof Resources, number>>): string {
@@ -28,23 +21,12 @@ function rateLabel(rates: Partial<Record<keyof Resources, number>>): string {
   return parts.join(', ')
 }
 
-export function BaseTab({
-  state,
-  onAssign,
-  onAutoBalance,
-  onAssignCombat,
-  onAutoBalanceCombat,
-}: BaseTabProps) {
+export function BaseTab({ state, onAssign, onAutoBalance }: BaseTabProps) {
   const idle = idleWorkers(state)
   const speed = workerManufactureSpeed(state)
   const secondsLeft =
     ((1 - state.base.manufactureProgress) * WORKER_MANUFACTURE_SECONDS) / speed
   const canAuto = state.ai.purchased.includes('auto-assign-workers')
-
-  const corpsUnlocked = state.meta.combatDronesUnlocked
-  const combatIdle = idleCombatDrones(state)
-  const combatSecondsLeft =
-    (1 - state.base.combatManufactureProgress) * COMBAT_DRONE_MANUFACTURE_SECONDS
 
   return (
     <section className="panel">
@@ -151,87 +133,6 @@ export function BaseTab({
           )
         })}
       </ul>
-
-      <h3>Combat Drones</h3>
-      {!corpsUnlocked ? (
-        <p className="muted">
-          Locked — clear sector {COMBAT_DRONES_UNLOCK_SECTOR} (separate pool from workers).
-        </p>
-      ) : (
-        <>
-          <p className="muted">
-            Separate corps from workers. Assign roles for the next fight; assignments reset on
-            prestige, pool size is permanent.
-          </p>
-          <div className="stat-row">
-            <div>
-              <span className="muted">Corps</span>
-              <strong>{state.base.combatDrones}</strong>
-            </div>
-            <div>
-              <span className="muted">Idle</span>
-              <strong>{combatIdle}</strong>
-            </div>
-            <div>
-              <span className="muted">Next drone</span>
-              <strong>{combatSecondsLeft.toFixed(0)}s</strong>
-            </div>
-          </div>
-          <div className="manufacture-bar" aria-label="Combat drone manufacture progress">
-            <div
-              className="manufacture-bar-fill"
-              style={{
-                width: `${Math.min(100, state.base.combatManufactureProgress * 100)}%`,
-              }}
-            />
-          </div>
-          <p>
-            <button type="button" onClick={onAutoBalanceCombat}>
-              Auto-Balance Roles
-            </button>
-          </p>
-          <ul className="def-list">
-            {COMBAT_ROLES.map((role) => {
-              const unlocked = isCombatRoleUnlocked(state, role.id)
-              const assigned = state.base.combatAssignments[role.id] ?? 0
-              return (
-                <li key={role.id}>
-                  <div>
-                    <strong>{role.name}</strong>
-                    <p className="muted">{role.description}</p>
-                    {!unlocked ? (
-                      <p className="muted">
-                        Requires career sector {role.requiresSectorEver ?? COMBAT_DRONES_UNLOCK_SECTOR}
-                      </p>
-                    ) : (
-                      <p className="muted">{role.effect}</p>
-                    )}
-                  </div>
-                  <div className="action-col">
-                    <span className="badge">{assigned} assigned</span>
-                    <div className="assign-row">
-                      <button
-                        type="button"
-                        disabled={!unlocked || assigned <= 0}
-                        onClick={() => onAssignCombat(role.id, -1)}
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!unlocked || combatIdle <= 0}
-                        onClick={() => onAssignCombat(role.id, 1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </>
-      )}
     </section>
   )
 }

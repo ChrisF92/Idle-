@@ -34,7 +34,6 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Boss telegraphs: titan slams wind up before firing; phase shifts flash a warn ring.
 - Hold Accountant shows estimated scrap/data/salvage per second while farming.
 - Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
-- Combat drones unlock at sector 15 as a separate permanent pool; assign Interceptor / Screen / Support roles in Base (Support @ career 20). Assignments reset on prestige.
 - Prestige Matter / Challenge Points spend in permanent shops (or bank for a smaller bonus).
 - Post-prestige re-push: returning runs start with +20 scrap / +12 data / +12 salvage; doctrine AIP is refunded; first S8 prestige yields 5 PM.
 - Distinct frames: Razor (2W/0D/1U glass-cannon) and Pathfinder (1W/0D/2U utility scout).

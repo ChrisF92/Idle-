@@ -145,11 +145,8 @@ function migrateBase(
 
   return {
     workerDrones: workers,
-    combatDrones: base.combatDrones ?? 0,
     assignments,
-    combatAssignments: { ...(base.combatAssignments ?? {}) },
     manufactureProgress: base.manufactureProgress ?? 0,
-    combatManufactureProgress: base.combatManufactureProgress ?? 0,
   }
 }
 
@@ -162,7 +159,6 @@ function withMetaDefaults(
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
     act1Cleared: meta?.act1Cleared ?? false,
     seenOnboarding: meta?.seenOnboarding ?? [],
-    combatDronesUnlocked: meta?.combatDronesUnlocked ?? false,
     aiUnlocked: meta?.aiUnlocked ?? completed.length > 0,
     completedAchievements: completed,
   }

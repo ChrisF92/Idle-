@@ -80,11 +80,8 @@ export function createInitialState(now = Date.now()): GameState {
     },
     base: {
       workerDrones: 0,
-      combatDrones: 0,
       assignments: {},
-      combatAssignments: {},
       manufactureProgress: 0,
-      combatManufactureProgress: 0,
     },
     research: {
       unlocked: [],
@@ -109,7 +106,6 @@ export function createInitialState(now = Date.now()): GameState {
       highestSectorEver: 0,
       act1Cleared: false,
       seenOnboarding: [],
-      combatDronesUnlocked: false,
       aiUnlocked: false,
       completedAchievements: [],
     },
@@ -176,14 +172,6 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   return weapons
 }
 
-/** Per-drone DPS contribution by combat role (before global damage mult). */
-function corpsRoleBaseDamage(roleId: string): number {
-  if (roleId === 'interceptor') return 9
-  if (roleId === 'screen') return 3
-  if (roleId === 'support') return 4
-  return 5
-}
-
 /** Derive combat stats from frame, modules, research, meta, essence, and challenges. */
 export function computeShipStats(state: GameState): ShipCombatStats {
   const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
@@ -195,7 +183,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   let armor = 0
   let shieldMax = matterShopShieldBonus(state.prestige.matterShop)
   let evasion = 0
-  let moduleEscortCount = 0
+  let escortCount = 0
 
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
@@ -208,22 +196,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
     armor += (mod.armorBonus ?? 0) * lvlMult
     shieldMax += (mod.shieldBonus ?? 0) * lvlMult
     evasion += (mod.evasionBonus ?? 0) * Math.min(1.4, lvlMult)
-    moduleEscortCount += mod.escorts ?? 0
-  }
-
-  // Combat drone corps (assigned roles) — additive to module escorts.
-  const gdm = globalDamageMultiplier(state)
-  let corpsCount = 0
-  let corpsDps = 0
-  for (const [roleId, n] of Object.entries(state.base.combatAssignments ?? {})) {
-    const count = Math.max(0, n)
-    if (count <= 0) continue
-    corpsCount += count
-    corpsDps += count * corpsRoleBaseDamage(roleId) * gdm
-    if (roleId === 'support') {
-      shieldMax += count * 10
-      damageTakenMult *= Math.pow(0.97, count)
-    }
+    escortCount += mod.escorts ?? 0
   }
 
   if (state.prestige.activeChallengeId === 'thin-hull') {
@@ -231,11 +204,10 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   }
 
   evasion = Math.min(0.45, evasion)
-  const escortCount = moduleEscortCount + corpsCount
 
   const weapons = buildFlagshipWeapons(state)
   let damage = weapons.reduce((sum, w) => sum + w.damage / Math.max(0.2, w.cooldown), 0)
-  damage += moduleEscortCount * (6 * gdm) + corpsDps
+  damage += escortCount * (6 * globalDamageMultiplier(state))
 
   return {
     damage,

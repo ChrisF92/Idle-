@@ -12,9 +12,7 @@ import {
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
   abandonChallenge,
-  assignCombatDrone,
   assignWorker,
-  autoBalanceCombatDrones,
   autoBalanceWorkers,
   buyAiNode,
   buyChallengeShop,
@@ -45,8 +43,6 @@ type Action =
   | { type: 'warp'; sector: number }
   | { type: 'assign-worker'; stationId: string; delta: number }
   | { type: 'auto-balance-workers' }
-  | { type: 'assign-combat'; roleId: string; delta: number }
-  | { type: 'auto-balance-combat' }
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-essence'; upgradeId: string }
   | { type: 'buy-challenge-shop'; itemId: string }
@@ -85,10 +81,6 @@ function reducer(state: GameState, action: Action): GameState {
       return assignWorker(state, action.stationId, action.delta)
     case 'auto-balance-workers':
       return autoBalanceWorkers(state)
-    case 'assign-combat':
-      return assignCombatDrone(state, action.roleId, action.delta)
-    case 'auto-balance-combat':
-      return autoBalanceCombatDrones(state)
     case 'buy-research':
       return buyResearch(state, action.researchId)
     case 'buy-essence':
@@ -171,9 +163,6 @@ export function useGame() {
     assignWorker: (stationId: string, delta: number) =>
       dispatch({ type: 'assign-worker', stationId, delta }),
     autoBalanceWorkers: () => dispatch({ type: 'auto-balance-workers' }),
-    assignCombatDrone: (roleId: string, delta: number) =>
-      dispatch({ type: 'assign-combat', roleId, delta }),
-    autoBalanceCombatDrones: () => dispatch({ type: 'auto-balance-combat' }),
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),
     buyEssenceUpgrade: (upgradeId: string) =>
       dispatch({ type: 'buy-essence', upgradeId }),

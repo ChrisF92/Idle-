@@ -6,9 +6,6 @@ import {
   TICK_MS,
 } from './tick'
 import {
-  COMBAT_DRONE_MANUFACTURE_SECONDS,
-  COMBAT_DRONES_UNLOCK_GRANT,
-  COMBAT_DRONES_UNLOCK_SECTOR,
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
   aiDoctrinesActive,
@@ -95,26 +92,6 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     while (state.base.manufactureProgress >= 1) {
       state.base.manufactureProgress -= 1
       state.base.workerDrones += 1
-    }
-  }
-
-  if (
-    !state.meta.combatDronesUnlocked &&
-    Math.max(state.meta.highestSectorEver, state.combat.highestSector) >=
-      COMBAT_DRONES_UNLOCK_SECTOR
-  ) {
-    state.meta.combatDronesUnlocked = true
-    state.base.combatDrones = Math.max(
-      state.base.combatDrones,
-      COMBAT_DRONES_UNLOCK_GRANT,
-    )
-  }
-
-  if (state.meta.combatDronesUnlocked) {
-    state.base.combatManufactureProgress += seconds / COMBAT_DRONE_MANUFACTURE_SECONDS
-    while (state.base.combatManufactureProgress >= 1) {
-      state.base.combatManufactureProgress -= 1
-      state.base.combatDrones += 1
     }
   }
 }

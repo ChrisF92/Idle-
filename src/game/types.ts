@@ -198,16 +198,10 @@ export interface CombatState {
 export interface BaseState {
   /** Permanent manufactured worker drones (kept across prestige). */
   workerDrones: number
-  /** Permanent combat drone pool (gated @ sector 15; kept across prestige). */
-  combatDrones: number
   /** stationId → assigned workers (resets on prestige). */
   assignments: Record<string, number>
-  /** roleId → assigned combat drones (resets on prestige). */
-  combatAssignments: Record<string, number>
   /** 0..1 progress toward the next manufactured worker drone. */
   manufactureProgress: number
-  /** 0..1 progress toward the next manufactured combat drone. */
-  combatManufactureProgress: number
   /** @deprecated migrated to worker drones + stations */
   buildings?: Record<string, number>
 }
@@ -220,8 +214,6 @@ export interface MetaState {
   act1Cleared: boolean
   /** Onboarding tip ids already shown. */
   seenOnboarding: string[]
-  /** Combat drone corps unlocked. */
-  combatDronesUnlocked: boolean
   /** AI Network unlocked (first achievement). */
   aiUnlocked: boolean
   /** Completed achievement ids (permanent). */
