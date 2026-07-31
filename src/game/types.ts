@@ -19,6 +19,16 @@ export type TabId =
   | 'prestige'
   | 'stats'
 
+export type UnitShape = 'triangle' | 'square' | 'circle' | 'hex' | 'diamond'
+
+export type WeaponTag =
+  | 'kinetic'
+  | 'energy'
+  | 'pierce'
+  | 'splash'
+  | 'dot'
+  | 'antiShield'
+
 export interface Resources {
   scrap: number
   alloys: number
@@ -37,28 +47,77 @@ export interface ShipLoadout {
   unlockedModules: string[]
 }
 
+export interface WeaponInstance {
+  id: string
+  name: string
+  damage: number
+  cooldown: number
+  cooldownLeft: number
+  tags: WeaponTag[]
+  /** Extra targets beyond the primary. */
+  splash: number
+  dotDuration: number
+  dotDamage: number
+}
+
+export interface DotInstance {
+  dps: number
+  remaining: number
+}
+
+export interface CombatUnit {
+  id: string
+  side: 'player' | 'enemy'
+  name: string
+  shape: UnitShape
+  family: string
+  hull: number
+  hullMax: number
+  shield: number
+  shieldMax: number
+  armor: number
+  evasion: number
+  damageTakenMult: number
+  weapons: WeaponInstance[]
+  isBoss: boolean
+  isFlagship: boolean
+  dots: DotInstance[]
+}
+
+export interface CombatFx {
+  id: string
+  fromId: string
+  toId: string
+  tag: string
+  ttl: number
+}
+
 export interface CombatState {
   sector: number
   highestSector: number
   inFight: boolean
-  /** Always-on sector push (USI-like). */
+  /**
+   * Advance mode (USI-like continuous push).
+   * When false, fleet Holds on the current sector (repairs; future farming).
+   */
   campaign: boolean
-  /** True after repeated losses — campaign waits for Resume. */
-  walled: boolean
-  /** Seconds before next auto-engage while campaign is on. */
-  repairTimer: number
   consecutiveLosses: number
-  /** Boss phase index 0–2. */
   bossPhase: number
+  /** Persisted flagship hull between fights (not fully restored on clear). */
   playerHull: number
   playerHullMax: number
+  playerShield: number
+  playerShieldMax: number
+  playerUnits: CombatUnit[]
+  enemyUnits: CombatUnit[]
   enemyName: string
   enemyFamily: string
   enemyTags: string[]
-  enemyDamage: number
   isBoss: boolean
+  /** Aggregated enemy hull for meters / legacy helpers. */
   enemyHull: number
   enemyHullMax: number
+  fx: CombatFx[]
   log: string[]
 }
 
@@ -82,7 +141,8 @@ export interface EssenceState {
 export interface PrestigeState {
   prestigeCount: number
   activeChallengeId: string | null
-  completedChallenges: string[]
+  /** ITRTG-style repeatable clears per challenge id. */
+  challengeClears: Record<string, number>
   /** Permanent Challenge Point shop purchases. */
   shop: string[]
   /** Permanent Prestige Matter shop purchases. */
@@ -102,8 +162,14 @@ export interface GameState {
   prestige: PrestigeState
 }
 
+/** Summary stats for UI / shipyard (derived from loadout + meta). */
 export interface ShipCombatStats {
+  /** Estimated fleet DPS (weapons / cooldowns). */
   damage: number
   hullMax: number
+  shieldMax: number
+  armor: number
+  evasion: number
   damageTakenMult: number
+  escortCount: number
 }

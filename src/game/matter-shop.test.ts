@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import { buyMatterShop, performPrestige } from './actions'
-import { repairDelaySeconds, enemyForSector } from './combat'
+import { enemyForSector, repairRatePerSecond } from './combat'
 import { matterShopScrapBonus, metaProductionMultiplier } from './catalog'
 import { tickGame, startCombat } from './tick'
 
@@ -43,13 +43,12 @@ describe('prestige matter shop', () => {
     expect(matterShopScrapBonus(state.prestige.matterShop)).toBe(0.25)
   })
 
-  it('drydock-boost shortens repair delay', () => {
+  it('drydock-boost increases repair rate', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 4
-    state.combat.consecutiveLosses = 1
-    const before = repairDelaySeconds(state)
+    const before = repairRatePerSecond(state)
     state = buyMatterShop(state, 'drydock-boost')
-    expect(repairDelaySeconds(state)).toBeLessThan(before)
+    expect(repairRatePerSecond(state)).toBeGreaterThan(before)
   })
 
   it('archive-spur grants extra data on clear', () => {
@@ -58,8 +57,8 @@ describe('prestige matter shop', () => {
     state = buyMatterShop(state, 'archive-spur')
     state.resources.data = 0
     state = startCombat(state)
-    // Overkill the enemy in one tick
-    state.combat.enemyHull = 1
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    state.combat.enemyHull = 0
     const enemy = enemyForSector(state.combat.sector)
     state = tickGame(state, 1000)
     expect(state.resources.data).toBe(enemy.dataReward + 2)

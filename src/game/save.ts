@@ -14,14 +14,16 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     ...combat,
     enemyFamily: combat.enemyFamily ?? '',
     enemyTags: combat.enemyTags ?? [],
-    enemyDamage: combat.enemyDamage ?? 0,
     isBoss: combat.isBoss ?? false,
     highestSector: Math.max(1, combat.highestSector ?? combat.sector ?? 1),
     campaign: combat.campaign ?? true,
-    walled: combat.walled ?? false,
-    repairTimer: combat.repairTimer ?? 0,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
+    playerShield: combat.playerShield ?? 0,
+    playerShieldMax: combat.playerShieldMax ?? 0,
+    playerUnits: combat.playerUnits ?? [],
+    enemyUnits: combat.enemyUnits ?? [],
+    fx: combat.fx ?? [],
   }
 }
 
@@ -31,11 +33,28 @@ function withEssenceDefaults(state: Partial<GameState>): GameState['essence'] {
   }
 }
 
-function withPrestigeDefaults(prestige: GameState['prestige'] | undefined): GameState['prestige'] {
+function migrateChallengeClears(
+  prestige: Partial<GameState['prestige']> & {
+    completedChallenges?: string[]
+  },
+): Record<string, number> {
+  if (prestige.challengeClears && typeof prestige.challengeClears === 'object') {
+    return { ...prestige.challengeClears }
+  }
+  const clears: Record<string, number> = {}
+  for (const id of prestige.completedChallenges ?? []) {
+    clears[id] = 1
+  }
+  return clears
+}
+
+function withPrestigeDefaults(
+  prestige: (GameState['prestige'] & { completedChallenges?: string[] }) | undefined,
+): GameState['prestige'] {
   return {
     prestigeCount: prestige?.prestigeCount ?? 0,
     activeChallengeId: prestige?.activeChallengeId ?? null,
-    completedChallenges: prestige?.completedChallenges ?? [],
+    challengeClears: migrateChallengeClears(prestige ?? {}),
     shop: prestige?.shop ?? [],
     matterShop: prestige?.matterShop ?? [],
   }
@@ -43,7 +62,11 @@ function withPrestigeDefaults(prestige: GameState['prestige'] | undefined): Game
 
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
-  const parsed = raw as Partial<GameState> & { version?: number }
+  const parsed = raw as Partial<GameState> & {
+    version?: number
+    prestige?: GameState['prestige'] & { completedChallenges?: string[] }
+  }
+
   if (parsed.version === SAVE_VERSION) {
     const state = parsed as GameState
     return {
@@ -54,47 +77,19 @@ function migrate(raw: unknown): GameState | null {
     }
   }
 
-  if (parsed.version === 1) {
-    const base = createInitialState()
-    const v1 = parsed as GameState
-    return {
-      ...base,
-      ...v1,
-      version: SAVE_VERSION,
-      shipyard: {
-        frameId: v1.shipyard?.frameId ?? 'scout-frame',
-        modules: v1.shipyard?.modules ?? ['pulse-cannon'],
-        unlockedFrames: [
-          'scout-frame',
-          ...(v1.shipyard?.frameId === 'line-frame' ? ['line-frame'] : []),
-        ],
-        unlockedModules: Array.from(
-          new Set(['pulse-cannon', ...(v1.shipyard?.modules ?? [])]),
-        ),
-      },
-      combat: withCombatDefaults({
-        ...base.combat,
-        ...v1.combat,
-        highestSector: Math.max(1, v1.combat?.sector ?? 1),
-      }),
-      resources: {
-        ...base.resources,
-        ...v1.resources,
-      },
-      prestige: withPrestigeDefaults(v1.prestige),
-      essence: withEssenceDefaults(v1),
-    }
-  }
-
   if (
+    parsed.version === 1 ||
     parsed.version === 2 ||
     parsed.version === 3 ||
     parsed.version === 4 ||
     parsed.version === 5 ||
-    parsed.version === 6
+    parsed.version === 6 ||
+    parsed.version === 7
   ) {
     const base = createInitialState()
-    const prev = parsed as GameState
+    const prev = parsed as GameState & {
+      prestige?: GameState['prestige'] & { completedChallenges?: string[] }
+    }
     return {
       ...base,
       ...prev,
@@ -102,12 +97,18 @@ function migrate(raw: unknown): GameState | null {
       combat: withCombatDefaults({
         ...base.combat,
         ...prev.combat,
+        playerUnits: [],
+        enemyUnits: [],
+        fx: [],
+        inFight: false,
       }),
       shipyard: {
         ...base.shipyard,
         ...prev.shipyard,
         unlockedFrames: prev.shipyard?.unlockedFrames ?? base.shipyard.unlockedFrames,
         unlockedModules: prev.shipyard?.unlockedModules ?? base.shipyard.unlockedModules,
+        modules: prev.shipyard?.modules ?? base.shipyard.modules,
+        frameId: prev.shipyard?.frameId ?? base.shipyard.frameId,
       },
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),

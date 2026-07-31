@@ -134,6 +134,28 @@
   gap: 0.2rem;
 }
 
+.battlefield {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  background: #121820;
+  display: block;
+}
+
+.bf-shot {
+  opacity: 0.85;
+  animation: bf-fade 0.7s ease-out forwards;
+}
+
+@keyframes bf-fade {
+  from {
+    opacity: 0.95;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 .combat-grid {
   display: grid;
   grid-template-columns: 1fr;

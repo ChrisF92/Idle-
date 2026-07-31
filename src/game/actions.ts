@@ -3,6 +3,7 @@ import {
   AI_NODES,
   RESEARCH,
   buildingUpgradeCost,
+  challengeClearCount,
   challengeShopStartingAi,
   challengeShopStartingScrap,
   getBuilding,
@@ -12,10 +13,11 @@ import {
   getFrame,
   getMatterShopItem,
   getModule,
+  isChallengeUnlocked,
   prestigeMinSectorFor,
   type ResourceCost,
 } from './catalog'
-import { computeShipStats, createInitialState } from './state'
+import { computeShipStats, createInitialState, syncPersistedHullCaps } from './state'
 
 function canAfford(resources: Resources, cost: ResourceCost): boolean {
   for (const [key, amount] of Object.entries(cost)) {
@@ -88,11 +90,7 @@ export function buyEssenceUpgrade(state: GameState, upgradeId: string): GameStat
   const next = structuredClone(state)
   next.resources.essence -= def.costEssence
   next.essence.purchased = [...next.essence.purchased, upgradeId]
-  if (!next.combat.inFight) {
-    const stats = computeShipStats(next)
-    next.combat.playerHullMax = stats.hullMax
-    next.combat.playerHull = stats.hullMax
-  }
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
 
@@ -117,11 +115,7 @@ export function buyMatterShop(state: GameState, itemId: string): GameState {
   const next = structuredClone(state)
   next.resources.prestigeMatter -= def.costPm
   next.prestige.matterShop = [...next.prestige.matterShop, itemId]
-  if (!next.combat.inFight) {
-    const stats = computeShipStats(next)
-    next.combat.playerHullMax = stats.hullMax
-    next.combat.playerHull = stats.hullMax
-  }
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
 
@@ -146,11 +140,7 @@ export function selectFrame(state: GameState, frameId: string): GameState {
   next.shipyard.frameId = frameId
   // Trim modules if new frame has fewer slots
   next.shipyard.modules = next.shipyard.modules.slice(0, frame.slots)
-  if (!next.combat.inFight) {
-    const stats = computeShipStats(next)
-    next.combat.playerHullMax = stats.hullMax
-    next.combat.playerHull = stats.hullMax
-  }
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
 
@@ -175,11 +165,7 @@ export function fitModule(state: GameState, moduleId: string): GameState {
 
   const next = structuredClone(state)
   next.shipyard.modules = [...next.shipyard.modules, moduleId]
-  if (!next.combat.inFight) {
-    const stats = computeShipStats(next)
-    next.combat.playerHullMax = stats.hullMax
-    next.combat.playerHull = stats.hullMax
-  }
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
 
@@ -187,11 +173,7 @@ export function unfitModule(state: GameState, moduleId: string): GameState {
   if (!state.shipyard.modules.includes(moduleId)) return state
   const next = structuredClone(state)
   next.shipyard.modules = next.shipyard.modules.filter((id) => id !== moduleId)
-  if (!next.combat.inFight) {
-    const stats = computeShipStats(next)
-    next.combat.playerHullMax = stats.hullMax
-    next.combat.playerHull = stats.hullMax
-  }
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
 
@@ -206,9 +188,42 @@ export function canPrestige(state: GameState): boolean {
 
 export function canEnterChallenge(state: GameState, challengeId: string): boolean {
   if (state.prestige.activeChallengeId) return false
-  if (state.prestige.completedChallenges.includes(challengeId)) return false
-  if (!getChallenge(challengeId)) return false
+  const challenge = getChallenge(challengeId)
+  if (!challenge) return false
+  if (!isChallengeUnlocked(state, challengeId)) return false
+  const clears = challengeClearCount(state.prestige.challengeClears, challengeId)
+  if (clears >= challenge.maxClears) return false
   return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
+}
+
+/** Persist fitted loadout; drop modules that conflict with an active challenge. */
+function persistLoadout(
+  unlockedFrames: string[],
+  unlockedModules: string[],
+  frameId: string,
+  modules: string[],
+  activeChallengeId: string | null,
+): GameState['shipyard'] {
+  const frame = unlockedFrames.includes(frameId) ? frameId : 'scout-frame'
+  const frameDef = getFrame(frame)
+  const slots = frameDef?.slots ?? 2
+  let fitted = modules.filter((id) => unlockedModules.includes(id)).slice(0, slots)
+
+  // Challenge-specific loadout conflicts (extend as challenges grow).
+  if (activeChallengeId === 'no-ai') {
+    // No module strip for Silent Bridge — AI is blocked separately.
+  }
+
+  if (fitted.length === 0 && unlockedModules.includes('pulse-cannon')) {
+    fitted = ['pulse-cannon']
+  }
+
+  return {
+    frameId: frame,
+    modules: fitted,
+    unlockedFrames,
+    unlockedModules,
+  }
 }
 
 function applyRunReset(state: GameState, now = Date.now()): void {
@@ -219,11 +234,10 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     essencePurchased: [...state.essence.purchased],
     unlockedFrames: [...state.shipyard.unlockedFrames],
     unlockedModules: [...state.shipyard.unlockedModules],
-    frameId: state.shipyard.unlockedFrames.includes(state.shipyard.frameId)
-      ? state.shipyard.frameId
-      : 'scout-frame',
+    frameId: state.shipyard.frameId,
+    modules: [...state.shipyard.modules],
     prestigeCount: state.prestige.prestigeCount,
-    completedChallenges: [...state.prestige.completedChallenges],
+    challengeClears: { ...state.prestige.challengeClears },
     activeChallengeId: state.prestige.activeChallengeId,
     shop: [...state.prestige.shop],
     matterShop: [...state.prestige.matterShop],
@@ -243,22 +257,17 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     scrap: fresh.resources.scrap + bonusScrap,
     aiPoints: fresh.resources.aiPoints + bonusAi,
   }
-  state.shipyard = {
-    frameId: kept.frameId,
-    modules: fresh.shipyard.modules.filter((id) => kept.unlockedModules.includes(id)),
-    unlockedFrames: kept.unlockedFrames,
-    unlockedModules: kept.unlockedModules,
-  }
-  if (
-    state.shipyard.modules.length === 0 &&
-    kept.unlockedModules.includes('pulse-cannon')
-  ) {
-    state.shipyard.modules = ['pulse-cannon']
-  }
+  state.shipyard = persistLoadout(
+    kept.unlockedFrames,
+    kept.unlockedModules,
+    kept.frameId,
+    kept.modules,
+    kept.activeChallengeId,
+  )
   state.combat = {
     ...fresh.combat,
     campaign: true,
-    log: [`Run reset. Prestige matter: ${kept.prestigeMatter}. Campaign re-armed.`],
+    log: [`Run reset. Prestige matter: ${kept.prestigeMatter}. Advance re-armed.`],
   }
   state.base = fresh.base
   state.research = fresh.research
@@ -267,7 +276,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.prestige = {
     prestigeCount: kept.prestigeCount,
     activeChallengeId: kept.activeChallengeId,
-    completedChallenges: kept.completedChallenges,
+    challengeClears: kept.challengeClears,
     shop: kept.shop,
     matterShop: kept.matterShop,
   }
@@ -275,6 +284,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerHull = stats.hullMax
+  state.combat.playerShieldMax = stats.shieldMax
+  state.combat.playerShield = stats.shieldMax
 }
 
 export function performPrestige(state: GameState, now = Date.now()): GameState {
@@ -334,11 +345,25 @@ export function tryCompleteChallenge(state: GameState): void {
   const cleared = state.combat.sector - 1
   if (cleared < challenge.goalSector) return
 
-  state.prestige.completedChallenges = [...state.prestige.completedChallenges, id]
+  const prev = challengeClearCount(state.prestige.challengeClears, id)
+  if (prev >= challenge.maxClears) {
+    state.prestige.activeChallengeId = null
+    state.combat.log = [
+      `Challenge ${challenge.name} already at max clears (${challenge.maxClears}).`,
+      ...state.combat.log,
+    ]
+    return
+  }
+
+  const nextClears = prev + 1
+  state.prestige.challengeClears = {
+    ...state.prestige.challengeClears,
+    [id]: nextClears,
+  }
   state.prestige.activeChallengeId = null
   state.resources.challengePoints += challenge.rewardChallengePoints
   state.combat.log = [
-    `Challenge complete: ${challenge.name}. +${challenge.rewardChallengePoints} Challenge Points.`,
+    `Challenge complete: ${challenge.name} (${nextClears}/${challenge.maxClears}). +${challenge.rewardChallengePoints} Challenge Points.`,
     ...state.combat.log,
   ]
 }

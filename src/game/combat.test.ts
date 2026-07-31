@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { startCombat } from './tick'
+import { startCombat, advanceTicks } from './tick'
 import {
   computeFightDamage,
   enemyForSector,
   isBossSector,
+  resolveCombatTick,
 } from './combat'
 import { fitModule, unlockModule } from './actions'
 
@@ -18,6 +19,8 @@ describe('enemy catalog', () => {
     expect(enemyForSector(5).isBoss).toBe(true)
     expect(enemyForSector(5).family).toBe('titan')
     expect(enemyForSector(5).essenceReward).toBeGreaterThan(0)
+    expect(enemyForSector(1).units.length).toBeGreaterThan(1)
+    expect(enemyForSector(5).units.some((u) => u.isBoss)).toBe(true)
   })
 })
 
@@ -35,7 +38,7 @@ describe('role matchups', () => {
     expect(withWeapon).toBeGreaterThan(bare)
   })
 
-  it('defense reduces swarm incoming damage', () => {
+  it('defense reduces swarm incoming damage estimate', () => {
     let state = createInitialState(0)
     state.combat.sector = 1
     state.resources.scrap = 999
@@ -61,9 +64,26 @@ describe('role matchups', () => {
     state.resources.scrap = 999
     state.resources.alloys = 999
     state = unlockModule(state, 'plate-layer')
-    // fit while in fight still changes compute (modules list)
     state.shipyard.modules = [...state.shipyard.modules, 'plate-layer']
     const platedIncoming = computeFightDamage(state).enemyDps
     expect(platedIncoming).toBeLessThan(nakedIncoming)
+  })
+})
+
+describe('fleet combat resolution', () => {
+  it('weapons fire and reduce enemy hull over ticks', () => {
+    let state = createInitialState(0)
+    state = startCombat(state)
+    const before = state.combat.enemyHull
+    resolveCombatTick(state, () => {})
+    expect(state.combat.enemyHull).toBeLessThan(before)
+  })
+
+  it('clears a sector with multi-unit packs', () => {
+    let state = createInitialState(0)
+    state = startCombat(state)
+    expect(state.combat.enemyUnits.length).toBeGreaterThan(1)
+    advanceTicks(state, 120)
+    expect(state.combat.sector).toBeGreaterThan(1)
   })
 })

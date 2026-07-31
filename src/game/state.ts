@@ -1,4 +1,4 @@
-import type { GameState, Resources, ShipCombatStats } from './types'
+import type { GameState, Resources, ShipCombatStats, WeaponInstance } from './types'
 import {
   aiDoctrinesActive,
   essenceDamageMultiplier,
@@ -10,7 +10,7 @@ import {
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 7
+export const SAVE_VERSION = 8
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -50,20 +50,22 @@ export function createInitialState(now = Date.now()): GameState {
       highestSector: 1,
       inFight: false,
       campaign: true,
-      walled: false,
-      repairTimer: 0,
       consecutiveLosses: 0,
       bossPhase: 0,
       playerHull: hullMax,
       playerHullMax: hullMax,
+      playerShield: 0,
+      playerShieldMax: 0,
+      playerUnits: [],
+      enemyUnits: [],
       enemyName: 'None',
       enemyFamily: '',
       enemyTags: [],
-      enemyDamage: 0,
       isBoss: false,
       enemyHull: 0,
       enemyHullMax: 0,
-      log: ['Systems online. Campaign armed — continuous push active.'],
+      fx: [],
+      log: ['Systems online. Advance armed — continuous push active.'],
     },
     base: {
       buildings: {
@@ -83,51 +85,117 @@ export function createInitialState(now = Date.now()): GameState {
     prestige: {
       prestigeCount: 0,
       activeChallengeId: null,
-      completedChallenges: [],
+      challengeClears: {},
       shop: [],
       matterShop: [],
     },
   }
 }
 
+export function globalDamageMultiplier(state: GameState): number {
+  let mult = researchDamageMultiplier(state.research.unlocked)
+  mult *= essenceDamageMultiplier(state.essence.purchased)
+  mult *= metaDamageMultiplier(
+    state.resources.prestigeMatter,
+    state.resources.challengePoints,
+    state.prestige.shop,
+    state.prestige.matterShop,
+    state.prestige.challengeClears,
+  )
+  if (aiDoctrinesActive(state, 'focus-fire')) mult *= 1.12
+  return mult
+}
+
+export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
+  const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
+  const mult = globalDamageMultiplier(state)
+  const weapons: WeaponInstance[] = [
+    {
+      id: 'frame-battery',
+      name: 'Frame Battery',
+      damage: frame.baseDamage * mult,
+      cooldown: 1,
+      cooldownLeft: 0,
+      tags: ['kinetic'],
+      splash: 0,
+      dotDuration: 0,
+      dotDamage: 0,
+    },
+  ]
+
+  for (const moduleId of state.shipyard.modules) {
+    const mod = getModule(moduleId)
+    if (!mod?.weapon) continue
+    weapons.push({
+      id: `${moduleId}-wpn`,
+      name: mod.weapon.name,
+      damage: mod.weapon.damage * mult,
+      cooldown: mod.weapon.cooldown,
+      cooldownLeft: 0,
+      tags: [...mod.weapon.tags],
+      splash: mod.weapon.splash ?? 0,
+      dotDuration: mod.weapon.dotDuration ?? 0,
+      dotDamage: (mod.weapon.dotDamage ?? 0) * mult,
+    })
+  }
+
+  return weapons
+}
+
 /** Derive combat stats from frame, modules, research, meta, essence, and challenges. */
 export function computeShipStats(state: GameState): ShipCombatStats {
   const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
-  let damage = frame.baseDamage
   let hullMax =
     frame.baseHull +
     essenceHullBonus(state.essence.purchased) +
     matterShopHullBonus(state.prestige.matterShop)
   let damageTakenMult = 1
+  let armor = 0
+  let shieldMax = 0
+  let evasion = 0
+  let escortCount = 0
 
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod) continue
-    damage += mod.damageBonus
     hullMax += mod.hullBonus
     damageTakenMult *= mod.damageTakenMult
-  }
-
-  damage *= researchDamageMultiplier(state.research.unlocked)
-  damage *= essenceDamageMultiplier(state.essence.purchased)
-  damage *= metaDamageMultiplier(
-    state.resources.prestigeMatter,
-    state.resources.challengePoints,
-    state.prestige.shop,
-    state.prestige.matterShop,
-  )
-
-  if (aiDoctrinesActive(state, 'focus-fire')) {
-    damage *= 1.12
+    armor += mod.armorBonus ?? 0
+    shieldMax += mod.shieldBonus ?? 0
+    evasion += mod.evasionBonus ?? 0
+    escortCount += mod.escorts ?? 0
   }
 
   if (state.prestige.activeChallengeId === 'thin-hull') {
     hullMax *= 0.5
   }
 
+  evasion = Math.min(0.45, evasion)
+
+  const weapons = buildFlagshipWeapons(state)
+  let damage = weapons.reduce((sum, w) => sum + w.damage / Math.max(0.2, w.cooldown), 0)
+  // Escort DPS estimate (gun drones)
+  damage += escortCount * (6 * globalDamageMultiplier(state))
+
   return {
     damage,
     hullMax,
+    shieldMax,
+    armor,
+    evasion,
     damageTakenMult,
+    escortCount,
+  }
+}
+
+/** Cap current hull/shield to new maxima without full healing. */
+export function syncPersistedHullCaps(state: GameState): void {
+  const stats = computeShipStats(state)
+  state.combat.playerHullMax = stats.hullMax
+  state.combat.playerShieldMax = stats.shieldMax
+  state.combat.playerHull = Math.min(state.combat.playerHull, stats.hullMax)
+  state.combat.playerShield = Math.min(state.combat.playerShield, stats.shieldMax)
+  if (state.combat.playerHull <= 0) {
+    state.combat.playerHull = Math.max(1, stats.hullMax * 0.1)
   }
 }
