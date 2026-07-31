@@ -175,7 +175,7 @@ export function PrestigeTab({
               ? `+${(c.stackProductionBonus * 100).toFixed(1)}% prod/clear`
               : null,
             c.stackRepairBonus
-              ? `+${(c.stackRepairBonus * 100).toFixed(0)}% docked repair/clear`
+              ? `+${(c.stackRepairBonus * 100).toFixed(0)}% hangar repair/clear`
               : null,
           ].filter(Boolean)
           return (

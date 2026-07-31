@@ -449,7 +449,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     docked: true,
     wave: 1,
     log: [
-      `Run reset. Prestige matter: ${kept.prestigeMatter}. Docked — choose your frame before Launch.`,
+      `Run reset. Prestige matter: ${kept.prestigeMatter}. Choose your frame, then Launch.`,
     ],
   }
   state.base = {

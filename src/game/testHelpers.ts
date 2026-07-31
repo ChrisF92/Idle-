@@ -13,6 +13,11 @@ export function clearCurrentWave(state: GameState): GameState {
   if (!s.combat.inFight) s = startCombat(s)
   wipeEnemies(s)
   advanceTicks(s, 1)
+  // Skip intermission without simulating field-repair time so hull tests stay honest.
+  if (!s.combat.inFight && !s.combat.docked && s.combat.intermissionLeft > 0) {
+    s.combat.intermissionLeft = 0
+    s = startCombat(s)
+  }
   return s
 }
 

@@ -69,7 +69,10 @@ describe('campaign combat', () => {
     expect(state.combat.sector).toBe(3)
     expect(state.combat.wave).toBe(1)
     expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
-    // Continuous loop re-engages immediately
+    expect(state.combat.inFight).toBe(false)
+    expect(state.combat.intermissionLeft).toBeGreaterThan(0)
+    // Re-engages after intermission
+    advanceTicks(state, 3)
     expect(state.combat.inFight).toBe(true)
   })
 
@@ -101,7 +104,7 @@ describe('campaign combat', () => {
     expect(state.combat.highestSector).toBe(0)
   })
 
-  it('Dock pauses auto-engage so modules can be fitted', () => {
+  it('Pause stops auto-engage so modules can be fitted', () => {
     let state = createInitialState(0)
     expect(state.combat.docked).toBe(true)
     state = setDocked(state, false)
@@ -128,7 +131,25 @@ describe('campaign combat', () => {
     expect(state.combat.playerUnits.some((u) => u.armor > 0)).toBe(true)
   })
 
-  it('repairs hull while Docked', () => {
+  it('allows module refit during intermission without Pausing', () => {
+    let state = createInitialState(0)
+    state = setDocked(state, false)
+    advanceTicks(state, 1)
+    expect(state.combat.inFight).toBe(true)
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    advanceTicks(state, 1)
+    expect(state.combat.inFight).toBe(false)
+    expect(state.combat.intermissionLeft).toBeGreaterThan(0)
+
+    state.resources.scrap = 999
+    state.resources.alloys = 999
+    state = unlockModule(state, 'plate-layer')
+    state = fitModule(state, 'plate-layer')
+    expect(state.shipyard.modules).toContain('plate-layer')
+    expect(state.combat.docked).toBe(false)
+  })
+
+  it('repairs hull while Paused', () => {
     let state = createInitialState(0)
     state = setDocked(state, true)
     state.combat.playerHull = 40
@@ -136,6 +157,36 @@ describe('campaign combat', () => {
     advanceTicks(state, 5)
     expect(state.combat.playerHull).toBeGreaterThan(40)
     expect(state.combat.playerHull).toBeLessThanOrEqual(130)
+    expect(state.combat.inFight).toBe(false)
+  })
+
+  it('Crisis Pause never auto-resumes; Field Repairs never auto-Launch', () => {
+    let state = createInitialState(0)
+    state.meta.highestSectorEver = 8
+    state.meta.aiUnlocked = true
+    state.resources.aiPoints = 10
+    state = buyAiNode(state, 'auto-dock-critical')
+    state = buyAiNode(state, 'auto-launch-ready')
+    expect(state.ai.purchased).toContain('auto-dock-critical')
+    expect(state.ai.purchased).toContain('auto-launch-ready')
+    state = setDocked(state, false)
+    advanceTicks(state, 1)
+    expect(state.combat.inFight).toBe(true)
+
+    // End fight with low hull so Crisis Pause can trip between fights.
+    const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
+    flag.hull = 10
+    flag.shield = 0
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    advanceTicks(state, 1)
+    expect(state.combat.inFight).toBe(false)
+    // One more step so Crisis Pause runs after the win tick.
+    advanceTicks(state, 0.1)
+    expect(state.combat.docked).toBe(true)
+
+    // Field Repairs must not undock / Launch for the player.
+    advanceTicks(state, 20)
+    expect(state.combat.docked).toBe(true)
     expect(state.combat.inFight).toBe(false)
   })
 

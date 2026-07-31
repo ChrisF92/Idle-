@@ -37,6 +37,9 @@ import {
   computeFightDamage,
 } from './combat'
 
+/** Brief window after each fight so Shipyard Fit/Unfit works without Pausing. */
+export const INTERMISSION_AFTER_FIGHT_S = 2.5
+
 /** Legacy alias — production/offline still speak in seconds; combat is continuous. */
 export const TICK_MS = 1000
 /** Max live catch-up seconds when the tab was backgrounded briefly. */
@@ -182,12 +185,17 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   state.combat.sector = Math.max(1, fromSector - 1)
   state.combat.wave = 1
   fullHealPlayer(state)
+  startIntermission(state)
 
   const label = tactical ? 'Tactical warp' : 'Ship destroyed — warping'
   pushLog(
     state,
     `${label} from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''} → sector ${state.combat.sector} W1 (hull restored).`,
   )
+}
+
+function startIntermission(state: GameState, seconds = INTERMISSION_AFTER_FIGHT_S): void {
+  state.combat.intermissionLeft = Math.max(state.combat.intermissionLeft, seconds)
 }
 
 function grantSectorClearRewards(state: GameState, clearedSector: number, wasBoss: boolean): void {
@@ -243,6 +251,7 @@ function onFightWon(state: GameState): void {
   )
   clearEnemy(state)
   state.combat.consecutiveLosses = 0
+  startIntermission(state)
 
   if (clearedWave < WAVES_PER_SECTOR) {
     state.combat.wave = clearedWave + 1
@@ -299,9 +308,19 @@ function tickCombat(state: GameState, dt: number): void {
   }
 }
 
-/** Hull / shield restore while Docked (hangar only). */
-function tickDockedRepair(state: GameState, dt: number): void {
-  if (!state.combat.docked || state.combat.inFight) return
+/**
+ * Repair while Paused (full rate) or between fights undocked (field rate).
+ * Field Repairs AI (`auto-launch-ready`) boosts undocked regen — it never auto-resumes.
+ */
+function fieldRepairMultiplier(state: GameState): number {
+  if (state.combat.docked) return 1
+  return aiDoctrinesActive(state, 'auto-launch-ready') ? 0.85 : 0.4
+}
+
+function tickOutOfCombatRepair(state: GameState, dt: number): void {
+  if (state.combat.inFight) return
+  const mult = fieldRepairMultiplier(state)
+  if (mult <= 0) return
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerShieldMax = stats.shieldMax
@@ -309,26 +328,28 @@ function tickDockedRepair(state: GameState, dt: number): void {
   if (state.combat.playerHull < stats.hullMax) {
     state.combat.playerHull = Math.min(
       stats.hullMax,
-      state.combat.playerHull + repairRatePerSecond(state) * dt,
+      state.combat.playerHull + repairRatePerSecond(state) * mult * dt,
     )
   }
   if (state.combat.playerShield < stats.shieldMax) {
     state.combat.playerShield = Math.min(
       stats.shieldMax,
-      state.combat.playerShield + shieldRepairRatePerSecond(state) * dt,
+      state.combat.playerShield + shieldRepairRatePerSecond(state) * mult * dt,
     )
   }
 }
 
-/** Both Advance and Hold auto-engage while undocked. */
+/** Advance / Hold auto-engage after intermission while not Paused. */
 function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight || state.combat.docked) return
+  if (state.combat.intermissionLeft > 0) return
   beginFight(state)
 }
 
 function maybeAiAutomation(state: GameState): void {
   if (state.prestige.activeChallengeId === 'no-ai') return
 
+  // Crisis Pause: one-shot pause at low hull. Never auto-resumes (Sortie removed).
   if (
     aiDoctrinesActive(state, 'auto-dock-critical') &&
     !state.combat.docked &&
@@ -337,24 +358,7 @@ function maybeAiAutomation(state: GameState): void {
     state.combat.playerHull / state.combat.playerHullMax < 0.35
   ) {
     state.combat.docked = true
-    pushLog(state, 'Crisis Dock — auto-docked at low hull.')
-    return
-  }
-
-  if (
-    aiDoctrinesActive(state, 'auto-launch-ready') &&
-    state.combat.docked &&
-    !state.combat.inFight &&
-    state.combat.playerHull >= state.combat.playerHullMax - 0.5 &&
-    state.combat.playerShield >= state.combat.playerShieldMax - 0.5
-  ) {
-    state.combat.docked = false
-    if (!state.shipyard.frameLocked) {
-      state.shipyard.frameLocked = true
-      pushLog(state, 'Sortie Protocol — auto-launched (frame locked).')
-    } else {
-      pushLog(state, 'Sortie Protocol — auto-launched.')
-    }
+    pushLog(state, 'Crisis Pause — paused at low hull. Resume when ready.')
   }
 }
 
@@ -417,8 +421,8 @@ export function setCampaign(state: GameState, on: boolean): GameState {
 }
 
 /**
- * Dock pauses auto-engage and aborts the current fight so the Shipyard can refit.
- * Launch clears docked and lets Advance/Hold resume fighting.
+ * Pause stops auto-engage (and aborts a fight) for extended Shipyard refit.
+ * Resume / Launch clears pause. First Launch also locks the frame for the run.
  */
 export function setDocked(state: GameState, docked: boolean): GameState {
   if (state.combat.docked === docked) return state
@@ -429,17 +433,19 @@ export function setDocked(state: GameState, docked: boolean): GameState {
       clearEnemy(next)
     }
     next.combat.docked = true
-    pushLog(next, 'Docked — refit in Shipyard and repair hull, then Launch.')
+    next.combat.intermissionLeft = 0
+    pushLog(next, 'Paused — refit in Shipyard, then Resume.')
   } else {
     next.combat.docked = false
+    next.combat.intermissionLeft = 0
     if (!next.shipyard.frameLocked) {
       next.shipyard.frameLocked = true
       pushLog(
         next,
-        'Launching — frame locked for this run. Modules can still be refit when Docked.',
+        'Launching — frame locked for this run. Modules can be refit between fights or while Paused.',
       )
     } else {
-      pushLog(next, 'Launching — returning to the sector.')
+      pushLog(next, 'Resumed — returning to the sector.')
     }
   }
   return next
@@ -484,7 +490,10 @@ export function advanceSeconds(state: GameState, seconds: number): void {
     if (state.combat.inFight) {
       tickCombat(state, dt)
     } else {
-      tickDockedRepair(state, dt)
+      if (state.combat.intermissionLeft > 0) {
+        state.combat.intermissionLeft = Math.max(0, state.combat.intermissionLeft - dt)
+      }
+      tickOutOfCombatRepair(state, dt)
       maybeAutoEngage(state)
     }
     left -= dt

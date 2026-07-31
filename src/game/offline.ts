@@ -7,6 +7,7 @@ import {
 } from './tick'
 import {
   STATIONS,
+  aiDoctrinesActive,
   challengeShopOfflineMs,
   essenceProductionMultiplier,
   isStationUnlocked,
@@ -31,7 +32,7 @@ export interface OfflineReport {
   sectorsBefore: number
   sectorsAfter: number
   sectorsCleared: number
-  /** Advance / Hold / Docked label for the welcome banner. */
+  /** Advance / Hold / Paused label for the welcome banner. */
   modeLabel: string
   gains: Partial<Resources>
   summary: string
@@ -122,7 +123,7 @@ function applySectorOfflineRewards(state: GameState, seconds: number): void {
   state.resources.essence += essencePerHour * hours
 }
 
-/** Offline does not simulate combat — clear an in-progress fight; repair if docked. */
+/** Offline does not simulate combat — clear an in-progress fight; apply field / pause repair. */
 function endOfflineFight(state: GameState, seconds: number): void {
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
@@ -137,14 +138,18 @@ function endOfflineFight(state: GameState, seconds: number): void {
     state.combat.fx = []
     state.combat.enemyName = 'None'
   }
-  if (!state.combat.docked) return
+  const mult = state.combat.docked
+    ? 1
+    : aiDoctrinesActive(state, 'auto-launch-ready')
+      ? 0.85
+      : 0.4
   state.combat.playerHull = Math.min(
     stats.hullMax,
-    state.combat.playerHull + repairRatePerSecond(state) * seconds,
+    state.combat.playerHull + repairRatePerSecond(state) * mult * seconds,
   )
   state.combat.playerShield = Math.min(
     stats.shieldMax,
-    state.combat.playerShield + shieldRepairRatePerSecond(state) * seconds,
+    state.combat.playerShield + shieldRepairRatePerSecond(state) * mult * seconds,
   )
 }
 
@@ -186,12 +191,12 @@ export function applyOfflineCatchUp(
   }
 
   const modeLabel = next.combat.docked
-    ? 'Docked'
+    ? 'Paused'
     : next.combat.campaign
       ? 'Advance'
       : 'Hold'
   const mode = next.combat.docked
-    ? 'Offline payout while Docked (industry + hangar repair, no fight sim).'
+    ? 'Offline payout while Paused (industry + hangar repair, no fight sim).'
     : next.combat.campaign
       ? 'Offline payout from your Advance sector (no fight sim).'
       : 'Offline payout while Holding / farming this sector (no fight sim).'

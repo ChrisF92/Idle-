@@ -275,15 +275,16 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'auto-engage',
     name: 'Rapid Recovery',
-    description: 'Doubles hull / shield repair rate while Docked.',
+    description: 'Doubles hull / shield repair rate while Paused and during intermission.',
     costAiPoints: 1,
     kind: 'automation',
     permanent: true,
   },
   {
     id: 'auto-dock-critical',
-    name: 'Crisis Dock',
-    description: 'Automatically Dock when flagship hull falls below 35% between fights.',
+    name: 'Crisis Pause',
+    description:
+      'Automatically Pause between fights when flagship hull falls below 35%. Resume when ready (never auto-resumes).',
     costAiPoints: 2,
     kind: 'automation',
     permanent: true,
@@ -291,8 +292,9 @@ export const AI_NODES: AiNodeDef[] = [
   },
   {
     id: 'auto-launch-ready',
-    name: 'Sortie Protocol',
-    description: 'Automatically Launch when Docked and hull/shield are full.',
+    name: 'Field Repairs',
+    description:
+      'Much faster hull / shield regen between fights while undocked (no auto-Launch).',
     costAiPoints: 2,
     kind: 'automation',
     permanent: true,
@@ -329,7 +331,7 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'batch-refit',
     name: 'Batch Refit',
-    description: 'Unlocks Unequip All in the Shipyard while Docked.',
+    description: 'Unlocks Unequip All in the Shipyard between fights or while Paused.',
     costAiPoints: 1,
     kind: 'qol',
     permanent: true,

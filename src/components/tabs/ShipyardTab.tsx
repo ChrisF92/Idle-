@@ -100,8 +100,8 @@ export function ShipyardTab({
       <header className="panel-header">
         <h2>Shipyard</h2>
         <p>
-          Choose a frame before your first Launch (locked until prestige / challenge). Dock anytime
-          to refit modules within that frame&apos;s W/D/U slots.
+          Choose a frame before your first Launch (locked until prestige / challenge). Refit
+          modules between fights, or Pause from Combat for a longer hangar stay.
         </p>
       </header>
 
@@ -115,13 +115,17 @@ export function ShipyardTab({
       ) : null}
 
       {state.combat.inFight ? (
-        <p className="notice-warn">In fight — Dock from the Combat tab to refit modules.</p>
+        <p className="notice-warn">In fight — Pause from the Combat tab to refit modules.</p>
       ) : state.combat.docked ? (
         <p className="notice">
-          Docked — {frameLocked ? 'frame locked · ' : 'pick a frame, then '}
-          fit modules while the hangar repairs hull.
+          Paused — {frameLocked ? 'frame locked · ' : 'pick a frame, then '}
+          fit modules while hull repairs.
         </p>
-      ) : null}
+      ) : (
+        <p className="notice">
+          Between fights — fit modules now, or Pause from Combat if you need more time.
+        </p>
+      )}
 
       {frameLocked ? (
         <p className="notice-warn">

@@ -110,7 +110,7 @@ export function DevTools({ onDevAction }: DevToolsProps) {
               +Workers
             </button>
             <button type="button" onClick={() => onDevAction({ type: 'dock-heal' })}>
-              Dock + heal
+              Pause + heal
             </button>
           </div>
           <div className="dev-tools-row">

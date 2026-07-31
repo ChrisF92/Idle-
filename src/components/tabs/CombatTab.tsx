@@ -37,6 +37,8 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
     combat.docked &&
     (combat.playerHull < combat.playerHullMax - 0.5 ||
       combat.playerShield < combat.playerShieldMax - 0.5)
+  const inIntermission =
+    !combat.docked && !combat.inFight && combat.intermissionLeft > 0
   const battlefieldMode: BattlefieldMode = combat.docked
     ? needsRepair
       ? 'repairing'
@@ -46,6 +48,11 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
       : combat.campaign
         ? 'ready'
         : 'holding'
+  const dockButtonLabel = !combat.docked
+    ? 'Pause'
+    : state.shipyard.frameLocked
+      ? 'Resume'
+      : 'Launch'
 
   const previewPlayer = useMemo(
     () => [
@@ -117,7 +124,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
     return Array.from({ length: max }, (_, i) => i + 1)
   }, [combat.highestSector])
 
-  const modeLabel = combat.docked ? 'DOCKED' : combat.campaign ? 'ADVANCE' : 'HOLD'
+  const modeLabel = combat.docked ? 'PAUSED' : combat.campaign ? 'ADVANCE' : 'HOLD'
   const bossCharging =
     combat.inFight &&
     combat.isBoss &&
@@ -136,7 +143,9 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           ? `BOSS P${combat.bossPhase + 1} · CHARGING`
           : `BOSS P${combat.bossPhase + 1}`
         : 'ENGAGED'
-      : 'STANDBY'
+      : inIntermission
+        ? 'INTERMISSION'
+        : 'STANDBY'
   const repairRate = combat.docked ? repairRatePerSecond(state) : 0
   const holdRates = useMemo(
     () =>
@@ -171,10 +180,12 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           <span className="combat-hud-kicker">Contact</span>
           <strong className="combat-hud-value combat-hud-contact">
             {combat.docked
-              ? 'Hangar bay'
+              ? 'Paused — Shipyard'
               : combat.inFight
                 ? combat.enemyName
-                : encounter.name}
+                : inIntermission
+                  ? 'Between fights'
+                  : encounter.name}
           </strong>
         </div>
         <button
@@ -215,17 +226,23 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
 
       {combat.docked ? (
         <p className="muted combat-dock-hint">
-          Docked — Shipyard open
+          Paused — Shipyard open for refit
           {needsRepair ? ` · repairing +${repairRate.toFixed(1)} hull/s` : ''}
           {!state.shipyard.frameLocked
             ? ' · choose your frame before Launch (locks until prestige/challenge)'
             : ''}
-          . Launch to resume {combat.campaign ? 'Advance' : 'Hold'}.
+          . {state.shipyard.frameLocked ? 'Resume' : 'Launch'} to continue{' '}
+          {combat.campaign ? 'Advance' : 'Hold'}.
+        </p>
+      ) : inIntermission ? (
+        <p className="muted combat-dock-hint">
+          Intermission — refit modules in the Shipyard, or Pause for a longer hangar stay.
+          Next fight in {combat.intermissionLeft.toFixed(1)}s.
         </p>
       ) : (
         <p className="muted combat-dock-hint">
-          Advance pushes sectors · Hold farms this sector · Dock pauses combat to refit modules
-          and repair.
+          Advance pushes sectors · Hold farms this sector · Pause only when you need a longer
+          module refit (auto-combat resumes between fights).
         </p>
       )}
 
@@ -259,7 +276,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
             onSetDocked(!combat.docked)
           }}
         >
-          {combat.docked ? 'Launch' : 'Dock'}
+          {dockButtonLabel}
         </button>
         <button
           type="button"
@@ -489,12 +506,12 @@ function LaunchConfirmModal({
         </header>
         <p>
           Launching locks <strong>{frameName}</strong> until the next prestige or
-          challenge. You can still Dock later to change modules.
+          challenge. Modules can still be refit between fights or while Paused.
         </p>
         <p className="muted">Launch anyway?</p>
         <div className="modal-actions">
           <button type="button" onClick={onClose}>
-            Stay Docked
+            Stay Paused
           </button>
           <button type="button" className="primary" onClick={onConfirm}>
             Launch

@@ -13,7 +13,7 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 
 | Tab | Purpose |
 |---|---|
-| Combat | Sector push (5 waves/sector), Advance / Hold / Dock |
+| Combat | Sector push (5 waves/sector), Advance / Hold / Pause (refit) |
 | Shipyard | Unlock/fit frames + modules (affects damage/hull) |
 | Base | Worker-drone stations (gated — clear sector 3) |
 | Research | Unlock tree + damage bonuses (gated — clear sector 5) |

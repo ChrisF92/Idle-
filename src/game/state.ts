@@ -59,6 +59,7 @@ export function createInitialState(now = Date.now()): GameState {
       wave: 1,
       inFight: false,
       docked: true,
+      intermissionLeft: 0,
       campaign: true,
       consecutiveLosses: 0,
       bossPhase: 0,
@@ -76,7 +77,7 @@ export function createInitialState(now = Date.now()): GameState {
       enemyHullMax: 0,
       projectiles: [],
       fx: [],
-      log: ['Systems online. Docked — choose a frame, then Launch.'],
+      log: ['Systems online. Choose a frame, then Launch.'],
     },
     base: {
       workerDrones: 0,

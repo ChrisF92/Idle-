@@ -60,7 +60,8 @@ export interface ShipLoadout {
   moduleLevels: Record<string, number>
   /**
    * After the first Launch of a run, the frame cannot be changed until
-   * prestige / challenge reset. Modules can still be refit while Docked.
+   * prestige / challenge reset. Modules can still be refit between fights
+   * or while Paused.
    */
   frameLocked: boolean
 }
@@ -158,14 +159,19 @@ export interface CombatState {
   wave: number
   inFight: boolean
   /**
-   * Docked at the hangar: auto-engage paused so the Shipyard can refit.
-   * Launch clears this and resumes Advance/Hold fighting.
+   * Player pause for extended refit / repair. Auto-engage is stopped until Resume.
+   * Not an AI lifestyle loop — Crisis Pause may set this, but never auto-resumes.
    */
   docked: boolean
   /**
+   * Brief post-fight window (seconds) before auto-engage so modules can be refit
+   * without Pausing. Counts down while undocked and out of combat.
+   */
+  intermissionLeft: number
+  /**
    * Advance mode: after a clear, push to the next sector.
    * Hold mode: farm the current sector repeatedly (same rewards, no sector++).
-   * Both modes keep auto-engaging while not docked.
+   * Both modes auto-engage after intermission while not Paused.
    */
   campaign: boolean
   consecutiveLosses: number

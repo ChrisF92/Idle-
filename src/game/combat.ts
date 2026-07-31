@@ -1234,7 +1234,7 @@ export function maybeAdvanceBossPhase(
   }
 }
 
-/** Hull points restored per second while Docked. */
+/** Hull points restored per second while Paused (full) or between fights (field rate). */
 export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
