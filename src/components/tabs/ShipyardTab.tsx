@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import type { GameState, Resources } from '../../game/types'
 import {
   MAX_MODULE_LEVEL,
@@ -10,11 +11,27 @@ import {
   getFrame,
   isModuleBlockedByChallenge,
   moduleLevel,
+  moduleStatPreviews,
   moduleUpgradeCost,
-  moduleUpgradeEffectLines,
+  type ModuleRole,
+  type ShipModuleDef,
 } from '../../game/catalog'
 import { careerHighestSector } from '../../game/progression'
 import { RESOURCE_LABELS, computeShipStats } from '../../game/state'
+
+type RoleFilter = 'all' | ModuleRole
+
+const ROLE_ORDER: ModuleRole[] = ['weapon', 'defense', 'utility']
+const ROLE_LABEL: Record<ModuleRole, string> = {
+  weapon: 'Weapons',
+  defense: 'Defense',
+  utility: 'Utility',
+}
+const ROLE_TAG: Record<ModuleRole, string> = {
+  weapon: 'W',
+  defense: 'D',
+  utility: 'U',
+}
 
 interface ShipyardTabProps {
   state: GameState
@@ -50,6 +67,7 @@ export function ShipyardTab({
   onUnequipAll,
   onUpgradeCheapest,
 }: ShipyardTabProps) {
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const frame = getFrame(state.shipyard.frameId)
   const stats = computeShipStats(state)
   const used = fittedRoleSlotCounts(state.shipyard.modules)
@@ -61,6 +79,21 @@ export function ShipyardTab({
   const canBatch = state.ai.purchased.includes('batch-refit')
   const canSalvageOpt = state.ai.purchased.includes('salvage-optimizer')
   const challengeId = state.prestige.activeChallengeId
+
+  const grouped = useMemo(() => {
+    const list =
+      roleFilter === 'all'
+        ? [...SHIP_MODULES].sort(
+            (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
+          )
+        : SHIP_MODULES.filter((m) => m.role === roleFilter)
+    const map = new Map<ModuleRole, ShipModuleDef[]>()
+    for (const role of ROLE_ORDER) map.set(role, [])
+    for (const m of list) map.get(m.role)?.push(m)
+    return ROLE_ORDER.map((role) => ({ role, modules: map.get(role) ?? [] })).filter(
+      (g) => g.modules.length > 0,
+    )
+  }, [roleFilter])
 
   return (
     <section className="panel">
@@ -161,7 +194,7 @@ export function ShipyardTab({
             )
           const canSelect = unlocked && !active && !frameLocked
           return (
-            <li key={f.id} data-guide={`frame-${f.id.replace("-frame", "")}`}>
+            <li key={f.id} data-guide={`frame-${f.id.replace('-frame', '')}`}>
               <div>
                 <strong>{f.name}</strong>
                 <p className="muted">
@@ -212,121 +245,188 @@ export function ShipyardTab({
         })}
       </ul>
 
-      <h3>Modules</h3>
-      <ul className="def-list">
-        {SHIP_MODULES.map((m) => {
-          const unlocked = state.shipyard.unlockedModules.includes(m.id)
-          const fitted = state.shipyard.modules.includes(m.id)
-          const level = moduleLevel(state.shipyard.moduleLevels, m.id)
-          const upCost = moduleUpgradeCost(level)
-          const gated = (m.requiresSectorEver ?? 0) > ever
-          const canUnlock =
-            !unlocked &&
-            !gated &&
-            Object.entries(m.unlockCost).every(
-              ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
-            )
-          const challengeBlocked = isModuleBlockedByChallenge(challengeId, m.id)
-          const roleOpen =
-            !!frame && canFitModuleOnFrame(frame, state.shipyard.modules, m.id)
-          const canFit =
-            unlocked && !fitted && roleOpen && canRefitModules && !challengeBlocked
-          const canUpgrade =
-            unlocked && level < MAX_MODULE_LEVEL && state.resources.salvage >= upCost
-          const effectiveRange =
-            m.weapon && challengeId === 'short-range'
-              ? Math.min(m.weapon.range, SHORT_RANGE_MAX)
-              : m.weapon?.range
-          const rangeNote = m.weapon
-            ? ` · range ${effectiveRange}${
-                challengeId === 'short-range' && m.weapon.range > SHORT_RANGE_MAX
-                  ? ` (capped from ${m.weapon.range})`
-                  : ''
-              }`
-            : ''
-          const roleTag =
-            m.role === 'weapon' ? 'W' : m.role === 'defense' ? 'D' : 'U'
-          const nextEffects =
-            unlocked && level < MAX_MODULE_LEVEL
-              ? moduleUpgradeEffectLines(m.id, level, level + 1)
-              : []
-          return (
-            <li key={m.id}>
-              <div>
-                <strong>
-                  {m.name}{' '}
-                  <span className="muted">[{roleTag}]</span>
-                </strong>
-                <p className="muted">
-                  {m.role} — {m.description}
-                  {rangeNote}
-                </p>
-                {unlocked ? (
-                  <>
-                    <p className="muted">
-                      Run upgrade Lv {level}/{MAX_MODULE_LEVEL}
-                      {level < MAX_MODULE_LEVEL ? ` · next ${upCost} Salvage` : ' · maxed'}
-                      {' · '}
-                      each level +12% module combat stats
-                    </p>
-                    {nextEffects.length > 0 ? (
-                      <ul className="upgrade-effects">
-                        {nextEffects.map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </>
-                ) : gated ? (
-                  <p className="notice-warn">Clear sector {m.requiresSectorEver} to unlock.</p>
-                ) : (
-                  <p className="muted">Unlock: {costLabel(m.unlockCost)}</p>
-                )}
-                {challengeBlocked ? (
-                  <p className="notice-warn">Blocked by active challenge.</p>
-                ) : null}
-                {unlocked && !fitted && frame && !roleOpen && !challengeBlocked ? (
-                  <p className="notice-warn">No free {m.role} slot on this frame.</p>
-                ) : null}
-              </div>
-              <div className="action-col">
-                <span className="badge">
-                  {fitted ? `Fitted L${level}` : unlocked ? `Owned L${level}` : 'Locked'}
-                </span>
-                {!unlocked ? (
-                  <button type="button" disabled={!canUnlock} onClick={() => onUnlockModule(m.id)}>
-                    Unlock
-                  </button>
-                ) : (
-                  <>
-                    {fitted ? (
-                      <button
-                        type="button"
-                        disabled={!canRefitModules}
-                        onClick={() => onUnfitModule(m.id)}
-                      >
-                        Unfit
-                      </button>
-                    ) : (
-                      <button type="button" disabled={!canFit} onClick={() => onFitModule(m.id)}>
-                        Fit
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="primary"
-                      disabled={!canUpgrade}
-                      onClick={() => onUpgradeModule(m.id)}
-                    >
-                      {level >= MAX_MODULE_LEVEL ? 'Max' : `Upgrade (${upCost})`}
-                    </button>
-                  </>
-                )}
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      <div className="module-section-header">
+        <h3>Modules</h3>
+        <div className="role-filters" role="group" aria-label="Filter modules by role">
+          {(
+            [
+              ['all', 'All'],
+              ['weapon', 'W'],
+              ['defense', 'D'],
+              ['utility', 'U'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={roleFilter === id ? 'role-filter active' : 'role-filter'}
+              aria-pressed={roleFilter === id}
+              onClick={() => setRoleFilter(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {grouped.map(({ role, modules }) => (
+        <div key={role} className="module-group">
+          {roleFilter === 'all' ? <h4 className="module-group-title">{ROLE_LABEL[role]}</h4> : null}
+          <ul className="module-list">
+            {modules.map((m) => (
+              <ModuleCard
+                key={m.id}
+                module={m}
+                state={state}
+                frame={frame}
+                ever={ever}
+                canRefitModules={canRefitModules}
+                challengeId={challengeId}
+                onUnlockModule={onUnlockModule}
+                onFitModule={onFitModule}
+                onUnfitModule={onUnfitModule}
+                onUpgradeModule={onUpgradeModule}
+              />
+            ))}
+          </ul>
+        </div>
+      ))}
     </section>
+  )
+}
+
+function ModuleCard({
+  module: m,
+  state,
+  frame,
+  ever,
+  canRefitModules,
+  challengeId,
+  onUnlockModule,
+  onFitModule,
+  onUnfitModule,
+  onUpgradeModule,
+}: {
+  module: ShipModuleDef
+  state: GameState
+  frame: ReturnType<typeof getFrame>
+  ever: number
+  canRefitModules: boolean
+  challengeId: string | null
+  onUnlockModule: (id: string) => void
+  onFitModule: (id: string) => void
+  onUnfitModule: (id: string) => void
+  onUpgradeModule: (id: string) => void
+}) {
+  const unlocked = state.shipyard.unlockedModules.includes(m.id)
+  const fitted = state.shipyard.modules.includes(m.id)
+  const level = moduleLevel(state.shipyard.moduleLevels, m.id)
+  const upCost = moduleUpgradeCost(level)
+  const gated = (m.requiresSectorEver ?? 0) > ever
+  const canUnlock =
+    !unlocked &&
+    !gated &&
+    Object.entries(m.unlockCost).every(
+      ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
+    )
+  const challengeBlocked = isModuleBlockedByChallenge(challengeId, m.id)
+  const roleOpen = !!frame && canFitModuleOnFrame(frame, state.shipyard.modules, m.id)
+  const canFit = unlocked && !fitted && roleOpen && canRefitModules && !challengeBlocked
+  const canUpgrade =
+    unlocked && level < MAX_MODULE_LEVEL && state.resources.salvage >= upCost
+  const showNext = unlocked && level < MAX_MODULE_LEVEL
+  const stats = unlocked ? moduleStatPreviews(m.id, level, showNext) : []
+  const status = fitted ? `Fitted · Lv ${level}` : unlocked ? `Owned · Lv ${level}` : 'Locked'
+  const rangeNote =
+    m.weapon && challengeId === 'short-range' && m.weapon.range > SHORT_RANGE_MAX
+      ? ` Range capped at ${SHORT_RANGE_MAX} (from ${m.weapon.range}) during Knife Fight.`
+      : ''
+
+  return (
+    <li className="module-card">
+      <div className="module-card-top">
+        <div className="module-card-title">
+          <strong>{m.name}</strong>
+          <span className="role-pill">{ROLE_TAG[m.role]}</span>
+        </div>
+        <span className="badge">{status}</span>
+      </div>
+
+      <p className="module-card-desc">
+        {m.description}
+        {rangeNote}
+      </p>
+
+      {!unlocked ? (
+        gated ? (
+          <p className="notice-warn">Clear sector {m.requiresSectorEver} to unlock.</p>
+        ) : (
+          <p className="muted">Unlock: {costLabel(m.unlockCost)}</p>
+        )
+      ) : (
+        <p className="module-card-meta">
+          Run upgrade {level}/{MAX_MODULE_LEVEL}
+          {level < MAX_MODULE_LEVEL ? ` · next ${upCost} Salvage` : ' · maxed'}
+          {' · '}+12% module stats / level
+        </p>
+      )}
+
+      {stats.length > 0 ? (
+        <div className="module-stat-grid">
+          {stats.map((s) => {
+            const displayCurrent =
+              s.label === 'Range' && challengeId === 'short-range'
+                ? String(Math.min(Number(s.current) || SHORT_RANGE_MAX, SHORT_RANGE_MAX))
+                : s.current
+            return (
+              <div key={s.label} className="module-stat">
+                <span className="muted">{s.label}</span>
+                <strong>{displayCurrent}</strong>
+                {s.next ? <span className="module-stat-next">→ {s.next}</span> : null}
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {challengeBlocked ? (
+        <p className="notice-warn">Blocked by active challenge.</p>
+      ) : null}
+      {unlocked && !fitted && frame && !roleOpen && !challengeBlocked ? (
+        <p className="notice-warn">No free {m.role} slot on this frame.</p>
+      ) : null}
+
+      <div className="module-card-actions">
+        {!unlocked ? (
+          <button type="button" disabled={!canUnlock} onClick={() => onUnlockModule(m.id)}>
+            Unlock
+          </button>
+        ) : (
+          <>
+            {fitted ? (
+              <button
+                type="button"
+                disabled={!canRefitModules}
+                onClick={() => onUnfitModule(m.id)}
+              >
+                Unfit
+              </button>
+            ) : (
+              <button type="button" disabled={!canFit} onClick={() => onFitModule(m.id)}>
+                Fit
+              </button>
+            )}
+            <button
+              type="button"
+              className="primary"
+              disabled={!canUpgrade}
+              onClick={() => onUpgradeModule(m.id)}
+            >
+              {level >= MAX_MODULE_LEVEL ? 'Maxed' : `Upgrade (${upCost})`}
+            </button>
+          </>
+        )}
+      </div>
+    </li>
   )
 }

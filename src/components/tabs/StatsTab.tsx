@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import type { GameState } from '../../game/types'
+import type { DevAction } from '../../game/dev'
 import { exportSave } from '../../game/save'
+import { DevTools } from '../DevTools'
 
 interface StatsTabProps {
   state: GameState
   onHardReset: () => void
   onImport: (code: string) => boolean
+  onDevAction: (action: DevAction) => void
 }
 
-export function StatsTab({ state, onHardReset, onImport }: StatsTabProps) {
+export function StatsTab({ state, onHardReset, onImport, onDevAction }: StatsTabProps) {
   const [importCode, setImportCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
 
@@ -18,6 +21,8 @@ export function StatsTab({ state, onHardReset, onImport }: StatsTabProps) {
         <h2>Stats & Save</h2>
         <p>Local save only for now. Export/import for phone ↔ PC transfers.</p>
       </header>
+
+      <DevTools onDevAction={onDevAction} />
 
       <div className="stat-row">
         <div>

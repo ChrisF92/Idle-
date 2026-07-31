@@ -31,6 +31,7 @@ import {
   upgradeModule,
 } from '../game/actions'
 import { acknowledgeOnboarding } from '../game/progression'
+import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
 
 type Action =
@@ -60,6 +61,7 @@ type Action =
   | { type: 'enter-challenge'; challengeId: string }
   | { type: 'abandon-challenge' }
   | { type: 'hard-reset' }
+  | { type: 'dev'; action: DevAction }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -116,6 +118,8 @@ function reducer(state: GameState, action: Action): GameState {
     case 'hard-reset':
       clearSave()
       return resetGame()
+    case 'dev':
+      return applyDevAction(state, action.action)
     default:
       return state
   }
@@ -181,6 +185,7 @@ export function useGame() {
       dispatch({ type: 'enter-challenge', challengeId }),
     abandonChallenge: () => dispatch({ type: 'abandon-challenge' }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
+    applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {
       const imported = importSave(code)
       if (!imported) return false
