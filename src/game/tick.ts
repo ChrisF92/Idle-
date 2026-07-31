@@ -1,5 +1,10 @@
 import type { GameState, Resources } from './types'
-import { computeShipStats, createInitialState, syncPersistedHullCaps } from './state'
+import {
+  computeShipStats,
+  createInitialState,
+  fullHealPlayer,
+  syncPersistedHullCaps,
+} from './state'
 import {
   BUILDINGS,
   aiDoctrinesActive,
@@ -54,7 +59,6 @@ function persistFlagshipHull(state: GameState): void {
     state.combat.playerHull = Math.max(0, flag.hull)
     state.combat.playerShield = Math.max(0, flag.shield)
   }
-  // Floor so the fleet can still repair after a wipe
   if (state.combat.playerHull <= 0) {
     state.combat.playerHull = Math.max(1, stats.hullMax * 0.08)
     state.combat.playerShield = 0
@@ -94,24 +98,19 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   }
 }
 
+/** Death / retreat: warp to previous sector start with full hull. */
 function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
-  persistFlagshipHull(state)
+  const fromSector = state.combat.sector
   clearEnemy(state)
   state.combat.consecutiveLosses += 1
+  state.combat.sector = Math.max(1, fromSector - 1)
+  fullHealPlayer(state)
 
-  if (tactical) {
-    pushLog(
-      state,
-      `Tactical retreat from sector ${state.combat.sector}${boss ? ' boss' : ''}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
-    )
-  } else {
-    pushLog(
-      state,
-      boss
-        ? `Boss pressure — retreated from sector ${state.combat.sector}. Repairing…`
-        : `Flagship critical — retreated from sector ${state.combat.sector}. Repairing…`,
-    )
-  }
+  const label = tactical ? 'Tactical warp' : 'Ship destroyed — warping'
+  pushLog(
+    state,
+    `${label} from sector ${fromSector}${boss ? ' boss' : ''} → sector ${state.combat.sector} (hull restored).`,
+  )
 }
 
 function onFightWon(state: GameState): void {
@@ -129,11 +128,13 @@ function onFightWon(state: GameState): void {
   const aiGain = enemy.aiReward
   const essenceGain =
     enemy.essenceReward * researchEssenceMultiplier(state.research.unlocked)
+  const salvageGain = enemy.salvageReward
 
   state.resources.scrap += scrapGain
   state.resources.data += dataGain
   state.resources.aiPoints += aiGain
   state.resources.essence += essenceGain
+  state.resources.salvage += salvageGain
 
   persistFlagshipHull(state)
   clearEnemy(state)
@@ -143,6 +144,7 @@ function onFightWon(state: GameState): void {
     `+${scrapGain.toFixed(1)} scrap`,
     dataBlocked ? 'data blocked' : `+${dataGain} data`,
     `+${aiGain} AI`,
+    `+${salvageGain} salvage`,
   ]
   if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
   pushLog(
@@ -185,7 +187,8 @@ function tickCombat(state: GameState): void {
 }
 
 function tickRepair(state: GameState): void {
-  if (state.combat.inFight) return
+  // Only while Holding — Advance fights constantly and death full-heals on warp.
+  if (state.combat.inFight || state.combat.campaign) return
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerShieldMax = stats.shieldMax
@@ -240,9 +243,6 @@ export function beginFight(state: GameState): void {
 
 export function startCombat(state: GameState): GameState {
   if (state.combat.inFight) return state
-  if (!canReengage(state) && state.combat.playerHull < state.combat.playerHullMax) {
-    return state
-  }
   const next = structuredClone(state)
   beginFight(next)
   return next
@@ -253,7 +253,7 @@ export function setCampaign(state: GameState, on: boolean): GameState {
   const next = structuredClone(state)
   next.combat.campaign = on
   if (!on) {
-    pushLog(next, 'Holding sector — repairing (future: farm drops here).')
+    pushLog(next, 'Holding sector — pause push (future: farm drops here).')
   } else {
     pushLog(next, 'Advance online — continuous sector push.')
   }

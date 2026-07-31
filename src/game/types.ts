@@ -9,6 +9,7 @@ export type ResourceId =
   | 'aiPoints'
   | 'prestigeMatter'
   | 'challengePoints'
+  | 'salvage'
 
 export type TabId =
   | 'combat'
@@ -38,6 +39,8 @@ export interface Resources {
   aiPoints: number
   prestigeMatter: number
   challengePoints: number
+  /** Run-only combat drop for module upgrades; resets on prestige. */
+  salvage: number
 }
 
 export interface ShipLoadout {
@@ -45,6 +48,8 @@ export interface ShipLoadout {
   modules: string[]
   unlockedFrames: string[]
   unlockedModules: string[]
+  /** Per-module run upgrade levels (reset on prestige). */
+  moduleLevels: Record<string, number>
 }
 
 export interface WeaponInstance {
@@ -53,6 +58,8 @@ export interface WeaponInstance {
   damage: number
   cooldown: number
   cooldownLeft: number
+  /** Max lane distance this weapon can fire. */
+  range: number
   tags: WeaponTag[]
   /** Extra targets beyond the primary. */
   splash: number
@@ -82,6 +89,19 @@ export interface CombatUnit {
   isBoss: boolean
   isFlagship: boolean
   dots: DotInstance[]
+  /**
+   * Lane distance from the player flagship (0 = at player).
+   * Enemies spawn far and close in; player flagship stays at 0.
+   */
+  x: number
+  /** Vertical offset from centerline (player flagship at 0). */
+  y: number
+  /** Units of lane distance moved per second. */
+  speed: number
+  /** Preferred firing distance (enemies close to this, some kite). */
+  engageRange: number
+  /** If true, back off when closer than engageRange. */
+  kite: boolean
 }
 
 export interface CombatFx {
@@ -98,7 +118,7 @@ export interface CombatState {
   inFight: boolean
   /**
    * Advance mode (USI-like continuous push).
-   * When false, fleet Holds on the current sector (repairs; future farming).
+   * When false, fleet Holds on the current sector (future farming).
    */
   campaign: boolean
   consecutiveLosses: number

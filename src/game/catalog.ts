@@ -95,11 +95,16 @@ export interface ModuleWeaponDef {
   name: string
   damage: number
   cooldown: number
+  /** Lane distance the weapon can reach. */
+  range: number
   tags: WeaponTag[]
   splash?: number
   dotDuration?: number
   dotDamage?: number
 }
+
+/** Max salvage upgrades per module in a run. */
+export const MAX_MODULE_LEVEL = 15
 
 export interface ShipFrameDef {
   id: string
@@ -418,7 +423,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'pulse-cannon',
     name: 'Pulse Cannon',
     role: 'weapon',
-    description: 'Steady kinetic pulses. Stronger vs Armored.',
+    description: 'Steady mid-range kinetic pulses. Stronger vs Armored.',
     damageBonus: 4,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -426,6 +431,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Pulse',
       damage: 14,
       cooldown: 1,
+      range: 95,
       tags: ['kinetic'],
     },
     unlockCost: {},
@@ -456,7 +462,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'heavy-lance',
     name: 'Heavy Lance',
     role: 'weapon',
-    description: 'Slow pierce shot. Ignores half armor; strong vs Armored / Bosses.',
+    description: 'Long-range pierce shot. Strong vs Armored / Bosses.',
     damageBonus: 10,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -464,6 +470,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Lance',
       damage: 32,
       cooldown: 2.2,
+      range: 140,
       tags: ['kinetic', 'pierce'],
     },
     unlockCost: { scrap: 50, alloys: 20 },
@@ -472,7 +479,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'flak-array',
     name: 'Flak Array',
     role: 'weapon',
-    description: 'Splash bursts. Clears Swarm packs.',
+    description: 'Short-range splash bursts. Clears Swarm packs.',
     damageBonus: 6,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -480,6 +487,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Flak',
       damage: 9,
       cooldown: 1.1,
+      range: 55,
       tags: ['kinetic', 'splash'],
       splash: 2,
     },
@@ -489,7 +497,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'phase-beam',
     name: 'Phase Beam',
     role: 'weapon',
-    description: 'Energy beam. Burns shields; strong vs Ethereal / Divine.',
+    description: 'Long energy beam. Burns shields; strong vs Ethereal / Divine.',
     damageBonus: 7,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -497,6 +505,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Phase Beam',
       damage: 16,
       cooldown: 1.4,
+      range: 125,
       tags: ['energy', 'antiShield'],
     },
     unlockCost: { scrap: 55, alloys: 22, data: 8 },
@@ -524,6 +533,23 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     unlockCost: { scrap: 60, alloys: 25, energy: 15 },
   },
 ]
+
+export function moduleLevel(
+  levels: Record<string, number> | undefined,
+  moduleId: string,
+): number {
+  return Math.max(0, levels?.[moduleId] ?? 0)
+}
+
+/** Salvage cost to raise a module from `level` → level+1. */
+export function moduleUpgradeCost(level: number): number {
+  return Math.ceil(6 * 1.55 ** Math.max(0, level))
+}
+
+/** Multiplier on module combat stats from run upgrades. */
+export function moduleLevelMultiplier(level: number): number {
+  return 1 + Math.max(0, level) * 0.12
+}
 
 export function getBuilding(id: string): BuildingDef | undefined {
   return BUILDINGS.find((b) => b.id === id)

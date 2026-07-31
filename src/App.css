@@ -51,7 +51,7 @@
 
 @media (min-width: 720px) {
   .resource-bar {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }
 
@@ -136,7 +136,7 @@
 
 .battlefield {
   width: 100%;
-  aspect-ratio: 640 / 240;
+  aspect-ratio: 640 / 260;
   height: auto;
   border: 1px solid var(--line);
   background: #0e141c;

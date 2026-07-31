@@ -7,10 +7,12 @@ import {
   getModule,
   matterShopHullBonus,
   metaDamageMultiplier,
+  moduleLevel,
+  moduleLevelMultiplier,
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 8
+export const SAVE_VERSION = 9
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -22,6 +24,7 @@ export const RESOURCE_LABELS: Record<keyof Resources, string> = {
   aiPoints: 'AI Points',
   prestigeMatter: 'Prestige Matter',
   challengePoints: 'Challenge Points',
+  salvage: 'Salvage',
 }
 
 export function createInitialState(now = Date.now()): GameState {
@@ -38,12 +41,14 @@ export function createInitialState(now = Date.now()): GameState {
       aiPoints: 0,
       prestigeMatter: 0,
       challengePoints: 0,
+      salvage: 0,
     },
     shipyard: {
       frameId: 'scout-frame',
       modules: ['pulse-cannon'],
       unlockedFrames: ['scout-frame'],
       unlockedModules: ['pulse-cannon'],
+      moduleLevels: {},
     },
     combat: {
       sector: 1,
@@ -65,7 +70,7 @@ export function createInitialState(now = Date.now()): GameState {
       enemyHull: 0,
       enemyHullMax: 0,
       fx: [],
-      log: ['Systems online. Advance armed — continuous push active.'],
+      log: ['Systems online. Continuous push armed.'],
     },
     base: {
       buildings: {
@@ -116,6 +121,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       damage: frame.baseDamage * mult,
       cooldown: 1,
       cooldownLeft: 0,
+      range: 90,
       tags: ['kinetic'],
       splash: 0,
       dotDuration: 0,
@@ -126,16 +132,18 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod?.weapon) continue
+    const lvlMult = moduleLevelMultiplier(moduleLevel(state.shipyard.moduleLevels, moduleId))
     weapons.push({
       id: `${moduleId}-wpn`,
       name: mod.weapon.name,
-      damage: mod.weapon.damage * mult,
+      damage: mod.weapon.damage * mult * lvlMult,
       cooldown: mod.weapon.cooldown,
       cooldownLeft: 0,
+      range: mod.weapon.range,
       tags: [...mod.weapon.tags],
       splash: mod.weapon.splash ?? 0,
       dotDuration: mod.weapon.dotDuration ?? 0,
-      dotDamage: (mod.weapon.dotDamage ?? 0) * mult,
+      dotDamage: (mod.weapon.dotDamage ?? 0) * mult * lvlMult,
     })
   }
 
@@ -158,11 +166,14 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod) continue
-    hullMax += mod.hullBonus
-    damageTakenMult *= mod.damageTakenMult
-    armor += mod.armorBonus ?? 0
-    shieldMax += mod.shieldBonus ?? 0
-    evasion += mod.evasionBonus ?? 0
+    const lvlMult = moduleLevelMultiplier(moduleLevel(state.shipyard.moduleLevels, moduleId))
+    hullMax += mod.hullBonus * lvlMult
+    // Soften incoming mult toward 1 as levels rise for defensive modules
+    const taken = mod.damageTakenMult
+    damageTakenMult *= taken < 1 ? 1 - (1 - taken) * Math.min(1.5, lvlMult) / 1.5 : taken
+    armor += (mod.armorBonus ?? 0) * lvlMult
+    shieldMax += (mod.shieldBonus ?? 0) * lvlMult
+    evasion += (mod.evasionBonus ?? 0) * Math.min(1.4, lvlMult)
     escortCount += mod.escorts ?? 0
   }
 
@@ -174,7 +185,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
 
   const weapons = buildFlagshipWeapons(state)
   let damage = weapons.reduce((sum, w) => sum + w.damage / Math.max(0.2, w.cooldown), 0)
-  // Escort DPS estimate (gun drones)
   damage += escortCount * (6 * globalDamageMultiplier(state))
 
   return {
@@ -198,4 +208,12 @@ export function syncPersistedHullCaps(state: GameState): void {
   if (state.combat.playerHull <= 0) {
     state.combat.playerHull = Math.max(1, stats.hullMax * 0.1)
   }
+}
+
+export function fullHealPlayer(state: GameState): void {
+  const stats = computeShipStats(state)
+  state.combat.playerHullMax = stats.hullMax
+  state.combat.playerShieldMax = stats.shieldMax
+  state.combat.playerHull = stats.hullMax
+  state.combat.playerShield = stats.shieldMax
 }

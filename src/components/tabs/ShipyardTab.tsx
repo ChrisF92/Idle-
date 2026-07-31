@@ -1,5 +1,11 @@
 import type { GameState, Resources } from '../../game/types'
-import { SHIP_FRAMES, SHIP_MODULES } from '../../game/catalog'
+import {
+  MAX_MODULE_LEVEL,
+  SHIP_FRAMES,
+  SHIP_MODULES,
+  moduleLevel,
+  moduleUpgradeCost,
+} from '../../game/catalog'
 import { RESOURCE_LABELS, computeShipStats } from '../../game/state'
 
 interface ShipyardTabProps {
@@ -9,6 +15,7 @@ interface ShipyardTabProps {
   onUnlockModule: (moduleId: string) => void
   onFitModule: (moduleId: string) => void
   onUnfitModule: (moduleId: string) => void
+  onUpgradeModule: (moduleId: string) => void
 }
 
 function costLabel(cost: Partial<Record<keyof Resources, number>>): string {
@@ -25,6 +32,7 @@ export function ShipyardTab({
   onUnlockModule,
   onFitModule,
   onUnfitModule,
+  onUpgradeModule,
 }: ShipyardTabProps) {
   const frame = SHIP_FRAMES.find((f) => f.id === state.shipyard.frameId)
   const stats = computeShipStats(state)
@@ -36,8 +44,8 @@ export function ShipyardTab({
       <header className="panel-header">
         <h2>Shipyard</h2>
         <p>
-          Unlock frames and modules, then fit a loadout. Weapons have cooldowns and tags; drones join
-          the fleet. Loadouts persist through prestige.
+          Fit modules for the run, then spend Salvage (from combat) to upgrade them. Salvage upgrades
+          reset on prestige; unlocks and loadout persist.
         </p>
       </header>
 
@@ -55,14 +63,8 @@ export function ShipyardTab({
           <strong>{Math.round(stats.shieldMax)}</strong>
         </div>
         <div>
-          <span className="muted">Armor / Eva</span>
-          <strong>
-            {stats.armor} / {(stats.evasion * 100).toFixed(0)}%
-          </strong>
-        </div>
-        <div>
-          <span className="muted">Drones</span>
-          <strong>{stats.escortCount}</strong>
+          <span className="muted">Salvage</span>
+          <strong>{state.resources.salvage.toFixed(0)}</strong>
         </div>
         <div>
           <span className="muted">Slots</span>
@@ -119,41 +121,66 @@ export function ShipyardTab({
         {SHIP_MODULES.map((m) => {
           const unlocked = state.shipyard.unlockedModules.includes(m.id)
           const fitted = state.shipyard.modules.includes(m.id)
+          const level = moduleLevel(state.shipyard.moduleLevels, m.id)
+          const upCost = moduleUpgradeCost(level)
           const canUnlock =
             !unlocked &&
             Object.entries(m.unlockCost).every(
               ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
             )
           const canFit = unlocked && !fitted && slotsUsed < slotsMax && !state.combat.inFight
+          const canUpgrade =
+            unlocked && level < MAX_MODULE_LEVEL && state.resources.salvage >= upCost
+          const rangeNote = m.weapon ? ` · range ${m.weapon.range}` : ''
           return (
             <li key={m.id}>
               <div>
                 <strong>{m.name}</strong>
                 <p className="muted">
                   {m.role} — {m.description}
+                  {rangeNote}
                 </p>
-                {!unlocked ? (
+                {unlocked ? (
+                  <p className="muted">
+                    Run upgrade Lv {level}/{MAX_MODULE_LEVEL}
+                    {level < MAX_MODULE_LEVEL ? ` · next ${upCost} Salvage` : ' · maxed'}
+                  </p>
+                ) : (
                   <p className="muted">Unlock: {costLabel(m.unlockCost)}</p>
-                ) : null}
+                )}
               </div>
               <div className="action-col">
-                <span className="badge">{fitted ? 'Fitted' : unlocked ? 'Owned' : 'Locked'}</span>
+                <span className="badge">
+                  {fitted ? `Fitted L${level}` : unlocked ? `Owned L${level}` : 'Locked'}
+                </span>
                 {!unlocked ? (
                   <button type="button" disabled={!canUnlock} onClick={() => onUnlockModule(m.id)}>
                     Unlock
                   </button>
-                ) : fitted ? (
-                  <button
-                    type="button"
-                    disabled={state.combat.inFight}
-                    onClick={() => onUnfitModule(m.id)}
-                  >
-                    Unfit
-                  </button>
                 ) : (
-                  <button type="button" disabled={!canFit} onClick={() => onFitModule(m.id)}>
-                    Fit
-                  </button>
+                  <>
+                    {fitted ? (
+                      <button
+                        type="button"
+                        disabled={state.combat.inFight}
+                        onClick={() => onUnfitModule(m.id)}
+                      >
+                        Unfit
+                      </button>
+                    ) : (
+                      <button type="button" disabled={!canFit} onClick={() => onFitModule(m.id)}>
+                        Fit
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={!canUpgrade}
+                      onClick={() => onUpgradeModule(m.id)}
+                    >
+                      {level >= MAX_MODULE_LEVEL ? 'Max' : `Upgrade (${upCost})`}
+                    </button>
+                  </>
                 )}
               </div>
             </li>

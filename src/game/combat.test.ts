@@ -71,11 +71,12 @@ describe('role matchups', () => {
 })
 
 describe('fleet combat resolution', () => {
-  it('weapons fire and reduce enemy hull over ticks', () => {
+  it('weapons fire and reduce enemy hull once enemies close into range', () => {
     let state = createInitialState(0)
     state = startCombat(state)
     const before = state.combat.enemyHull
-    resolveCombatTick(state, () => {})
+    // Swarms spawn far and must close before anyone can shoot
+    for (let i = 0; i < 6; i += 1) resolveCombatTick(state, () => {})
     expect(state.combat.enemyHull).toBeLessThan(before)
   })
 

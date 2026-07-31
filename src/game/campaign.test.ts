@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { advanceTicks, setCampaign, startCombat } from './tick'
-import { maybeAdvanceBossPhase, canReengage, REENGAGE_HULL_FRACTION } from './combat'
+import { maybeAdvanceBossPhase } from './combat'
 
 describe('campaign combat', () => {
   it('holds instead of auto-engaging when Advance is off', () => {
@@ -22,30 +22,37 @@ describe('campaign combat', () => {
     expect(state.combat.playerHull).toBeLessThanOrEqual(100)
   })
 
-  it('does not re-engage until hull recovers past threshold', () => {
+  it('warps to previous sector with full hull on death', () => {
     let state = createInitialState(0)
-    state.combat.campaign = true
-    state.combat.playerHull = state.combat.playerHullMax * (REENGAGE_HULL_FRACTION - 0.1)
-    expect(canReengage(state)).toBe(false)
+    state.combat.sector = 4
+    state = startCombat(state)
+    const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
+    flag.hull = 0
     advanceTicks(state, 1)
-    expect(state.combat.inFight).toBe(false)
+    expect(state.combat.sector).toBe(3)
+    expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
+    // Continuous advance re-engages immediately
+    expect(state.combat.inFight).toBe(true)
   })
 
   it('persists hull after a win (no full heal)', () => {
     let state = createInitialState(0)
     state = startCombat(state)
-    // Chip the flagship, then wipe enemies to force a win next tick
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
     flag.hull = flag.hullMax * 0.6
     for (const e of state.combat.enemyUnits) e.hull = 0
     advanceTicks(state, 1)
     expect(state.combat.sector).toBe(2)
-    // Advance may immediately re-engage; flagship should still be damaged
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
-    if (state.combat.inFight) {
-      const nextFlag = state.combat.playerUnits.find((u) => u.isFlagship)!
-      expect(nextFlag.hull).toBeLessThan(nextFlag.hullMax)
-    }
+  })
+
+  it('grants salvage on clear', () => {
+    let state = createInitialState(0)
+    state = startCombat(state)
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    const before = state.resources.salvage
+    advanceTicks(state, 1)
+    expect(state.resources.salvage).toBeGreaterThan(before)
   })
 
   it('advances boss phases automatically', () => {
@@ -74,6 +81,7 @@ describe('campaign combat', () => {
             damage: 10,
             cooldown: 1,
             cooldownLeft: 0,
+            range: 100,
             tags: ['kinetic'],
             splash: 0,
             dotDuration: 0,
@@ -83,6 +91,11 @@ describe('campaign combat', () => {
         isBoss: true,
         isFlagship: true,
         dots: [],
+        x: 100,
+        y: 0,
+        speed: 10,
+        engageRange: 90,
+        kite: true,
       },
     ]
     const logs: string[] = []

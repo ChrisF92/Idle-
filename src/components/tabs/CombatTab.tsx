@@ -36,11 +36,9 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
   const repairRate = repairRatePerSecond(state)
   const battlefieldMode: BattlefieldMode = combat.inFight
     ? 'fighting'
-    : combat.playerHull < combat.playerHullMax * 0.35
-      ? 'repairing'
-      : !combat.campaign
-        ? 'holding'
-        : 'ready'
+    : !combat.campaign
+      ? 'holding'
+      : 'ready'
 
   const previewPlayer = [
     {
@@ -60,6 +58,11 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
       isBoss: false,
       isFlagship: true,
       dots: [],
+      x: 0,
+      y: 0,
+      speed: 0,
+      engageRange: 0,
+      kite: false,
     },
     ...Array.from({ length: stats.escortCount }, (_, i) => ({
       id: `preview-escort-${i}`,
@@ -78,6 +81,11 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
       isBoss: false,
       isFlagship: false,
       dots: [],
+      x: 12,
+      y: i % 2 === 0 ? -24 : 24,
+      speed: 0,
+      engageRange: 0,
+      kite: false,
     })),
   ]
 
@@ -86,8 +94,9 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
       <header className="panel-header">
         <h2>Combat</h2>
         <p>
-          Advance pushes sector to sector. Hold to repair (and later farm). Loadout counters matter —
-          no mid-fight toggles.
+          Continuous push like USI. Enemies close to weapon range before firing. Death warps you to
+          the previous sector with full hull. Spend Salvage in the Shipyard to upgrade modules this
+          run.
         </p>
       </header>
 
@@ -122,9 +131,11 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
           />
           Advance (uncheck to Hold)
         </label>
-        {!combat.inFight && combat.playerHull < combat.playerHullMax ? (
+        {!combat.campaign && !combat.inFight && combat.playerHull < combat.playerHullMax ? (
           <span className="muted">Repair +{repairRate.toFixed(1)}/s</span>
-        ) : null}
+        ) : (
+          <span className="muted">Salvage {state.resources.salvage.toFixed(0)}</span>
+        )}
       </div>
 
       <p className="muted">{hint}</p>
@@ -200,7 +211,6 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
 function combatStatusLabel(combat: GameState['combat']): string {
   if (combat.inFight) return combat.isBoss ? `Boss P${combat.bossPhase + 1}` : 'In fight'
   if (!combat.campaign) return 'Holding'
-  if (combat.playerHull < combat.playerHullMax * 0.35) return 'Repairing'
   return 'Advancing'
 }
 

@@ -8,6 +8,7 @@ const PRIMARY: (keyof Resources)[] = [
   'data',
   'essence',
   'aiPoints',
+  'salvage',
 ]
 
 interface ResourceBarProps {

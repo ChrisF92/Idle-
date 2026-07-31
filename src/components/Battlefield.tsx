@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { CombatFx, CombatUnit, UnitShape, WeaponInstance } from '../game/types'
+import { SPAWN_DISTANCE } from '../game/combat'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready'
 
@@ -14,22 +15,21 @@ interface Actor {
   id: string
   side: 'player' | 'enemy'
   shape: UnitShape
-  name: string
   isBoss: boolean
   isFlagship: boolean
-  family: string
   hull: number
   hullMax: number
   shield: number
   shieldMax: number
-  baseX: number
-  baseY: number
+  /** Display position */
   x: number
   y: number
+  /** Target from sim lane coords */
+  targetX: number
+  targetY: number
   r: number
   bobPhase: number
   bobSpeed: number
-  driftAmp: number
   alive: boolean
   deathT: number
   hitFlash: number
@@ -81,7 +81,10 @@ interface Scene {
 }
 
 const VIEW_W = 640
-const VIEW_H = 240
+const VIEW_H = 260
+/** Player flagship sits on the left, vertically centered. */
+const PLAYER_SCREEN_X = 78
+const LANE_SCALE = (VIEW_W - PLAYER_SCREEN_X - 36) / SPAWN_DISTANCE
 
 function tagColor(tag: string): string {
   switch (tag) {
@@ -110,105 +113,27 @@ function primaryWeapon(weapons: WeaponInstance[]): {
   splash: number
 } {
   const w = weapons[0]
-  if (!w) return { every: 0.55, tag: 'kinetic', splash: 0 }
+  if (!w) return { every: 0.45, tag: 'kinetic', splash: 0 }
   return {
-    every: Math.max(0.28, Math.min(1.4, w.cooldown * 0.55)),
+    every: Math.max(0.22, Math.min(1.2, w.cooldown * 0.5)),
     tag: w.tags[0] ?? 'kinetic',
     splash: w.splash > 0 || w.tags.includes('splash') ? 2 : 0,
   }
 }
 
-function layoutSlot(
-  index: number,
-  side: 'player' | 'enemy',
-  isBig: boolean,
-): { x: number; y: number; r: number } {
-  const col = index % 3
-  const row = Math.floor(index / 3)
+function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
+  const isBig = unit.isBoss || unit.isFlagship
   const r = isBig ? 22 : 13
-  if (side === 'player') {
-    return {
-      x: 64 + col * 44 + (isBig ? 8 : 0),
-      y: 52 + row * 52 + (isBig ? 6 : 0),
-      r,
-    }
+  // Player flagship: fixed left, vertical center. Escorts keep their y.
+  // Enemies: x grows to the right with lane distance.
+  if (unit.side === 'player' && unit.isFlagship) {
+    return { x: PLAYER_SCREEN_X, y: VIEW_H / 2, r }
   }
   return {
-    x: VIEW_W - 64 - col * 44 - (isBig ? 8 : 0),
-    y: 52 + row * 52 + (isBig ? 6 : 0),
+    x: PLAYER_SCREEN_X + Math.max(0, unit.x) * LANE_SCALE,
+    y: VIEW_H / 2 + unit.y,
     r,
   }
-}
-
-function ensureActor(scene: Scene, unit: CombatUnit, index: number): Actor {
-  const existing = scene.actors.get(unit.id)
-  const isBig = unit.isBoss || unit.isFlagship
-  const slot = layoutSlot(index, unit.side, isBig)
-  const wpn = primaryWeapon(unit.weapons)
-
-  if (existing) {
-    existing.hull = unit.hull
-    existing.hullMax = unit.hullMax
-    existing.shield = unit.shield
-    existing.shieldMax = unit.shieldMax
-    existing.shape = unit.shape
-    existing.isBoss = unit.isBoss
-    existing.family = unit.family
-    existing.baseX = slot.x
-    existing.baseY = slot.y
-    existing.r = slot.r
-    if (unit.weapons.length > 0) {
-      existing.fireEvery = wpn.every
-      existing.weaponTag = wpn.tag
-      existing.splash = wpn.splash
-    }
-    if (unit.hull > 0 && !existing.alive) {
-      existing.alive = true
-      existing.deathT = 0
-      existing.enterT = 0.35
-      existing.x = slot.x + (unit.side === 'enemy' ? 48 : -48)
-      existing.y = slot.y
-    }
-    if (unit.hull <= 0 && existing.alive) {
-      existing.alive = false
-      existing.deathT = 1
-      burst(scene, existing.x, existing.y, sideFill(existing.side, existing.isBoss), 14)
-    }
-    return existing
-  }
-
-  const actor: Actor = {
-    id: unit.id,
-    side: unit.side,
-    shape: unit.shape,
-    name: unit.name,
-    isBoss: unit.isBoss,
-    isFlagship: unit.isFlagship,
-    family: unit.family,
-    hull: unit.hull,
-    hullMax: unit.hullMax,
-    shield: unit.shield,
-    shieldMax: unit.shieldMax,
-    baseX: slot.x,
-    baseY: slot.y,
-    x: slot.x + (unit.side === 'enemy' ? 56 : -56),
-    y: slot.y,
-    r: slot.r,
-    bobPhase: Math.random() * Math.PI * 2,
-    bobSpeed: 2.2 + Math.random() * 2.2,
-    driftAmp: (isBig ? 7 : 5) + Math.random() * 3,
-    alive: unit.hull > 0,
-    deathT: 0,
-    hitFlash: 0,
-    enterT: 0.4,
-    muzzle: 0,
-    fireAcc: Math.random() * wpn.every,
-    fireEvery: wpn.every,
-    weaponTag: wpn.tag,
-    splash: wpn.splash,
-  }
-  scene.actors.set(unit.id, actor)
-  return actor
 }
 
 function burst(scene: Scene, x: number, y: number, color: string, n: number): void {
@@ -228,6 +153,70 @@ function burst(scene: Scene, x: number, y: number, color: string, n: number): vo
   }
 }
 
+function ensureActor(scene: Scene, unit: CombatUnit): Actor {
+  const existing = scene.actors.get(unit.id)
+  const slot = laneToScreen(unit)
+  const wpn = primaryWeapon(unit.weapons)
+
+  if (existing) {
+    existing.hull = unit.hull
+    existing.hullMax = unit.hullMax
+    existing.shield = unit.shield
+    existing.shieldMax = unit.shieldMax
+    existing.shape = unit.shape
+    existing.isBoss = unit.isBoss
+    existing.targetX = slot.x
+    existing.targetY = slot.y
+    existing.r = slot.r
+    if (unit.weapons.length > 0) {
+      existing.fireEvery = wpn.every
+      existing.weaponTag = wpn.tag
+      existing.splash = wpn.splash
+    }
+    if (unit.hull > 0 && !existing.alive) {
+      existing.alive = true
+      existing.deathT = 0
+      existing.enterT = 0.3
+    }
+    if (unit.hull <= 0 && existing.alive) {
+      existing.alive = false
+      existing.deathT = 1
+      burst(scene, existing.x, existing.y, sideFill(existing.side, existing.isBoss), 14)
+    }
+    return existing
+  }
+
+  const actor: Actor = {
+    id: unit.id,
+    side: unit.side,
+    shape: unit.shape,
+    isBoss: unit.isBoss,
+    isFlagship: unit.isFlagship,
+    hull: unit.hull,
+    hullMax: unit.hullMax,
+    shield: unit.shield,
+    shieldMax: unit.shieldMax,
+    x: slot.x + (unit.side === 'enemy' ? 30 : 0),
+    y: slot.y,
+    targetX: slot.x,
+    targetY: slot.y,
+    r: slot.r,
+    bobPhase: Math.random() * Math.PI * 2,
+    bobSpeed: 2.4 + Math.random() * 2,
+    alive: unit.hull > 0,
+    deathT: 0,
+    hitFlash: 0,
+    enterT: 0.35,
+    muzzle: 0,
+    fireAcc: Math.random() * wpn.every,
+    fireEvery: wpn.every,
+    weaponTag: wpn.tag,
+    splash: wpn.splash,
+  }
+  scene.actors.set(unit.id, actor)
+  return actor
+}
+
 function spawnShot(
   scene: Scene,
   from: Actor,
@@ -237,12 +226,12 @@ function spawnShot(
 ): void {
   const count = 1 + splashExtra
   for (let i = 0; i < count; i += 1) {
-    const spread = splashExtra > 0 ? (i - (count - 1) / 2) * 0.22 : (Math.random() - 0.5) * 0.08
+    const spread = splashExtra > 0 ? (i - (count - 1) / 2) * 0.2 : (Math.random() - 0.5) * 0.06
     const dx = to.x - from.x
-    const dy = to.y - from.y + spread * 40
+    const dy = to.y - from.y
     const dist = Math.max(1, Math.hypot(dx, dy))
     const speed =
-      tag === 'pierce' ? 640 : tag === 'energy' || tag === 'antiShield' ? 520 : 480
+      tag === 'pierce' ? 680 : tag === 'energy' || tag === 'antiShield' ? 560 : 500
     const ang = Math.atan2(dy, dx) + spread
     const life = dist / speed
     scene.projSeq += 1
@@ -267,7 +256,8 @@ function pickFoe(scene: Scene, side: 'player' | 'enemy'): Actor | null {
   if (foes.length === 0) return null
   foes.sort((a, b) => {
     if (a.isBoss !== b.isBoss) return a.isBoss ? -1 : 1
-    return a.hull / a.hullMax - b.hull / b.hullMax
+    return Math.hypot(a.x - PLAYER_SCREEN_X, a.y - VIEW_H / 2) -
+      Math.hypot(b.x - PLAYER_SCREEN_X, b.y - VIEW_H / 2)
   })
   return foes[0] ?? null
 }
@@ -282,14 +272,14 @@ function syncScene(
   scene.mode = mode
   const livingIds = new Set<string>()
 
-  playerUnits.forEach((u, i) => {
+  for (const u of playerUnits) {
     livingIds.add(u.id)
-    ensureActor(scene, u, i)
-  })
-  enemyUnits.forEach((u, i) => {
+    ensureActor(scene, u)
+  }
+  for (const u of enemyUnits) {
     livingIds.add(u.id)
-    ensureActor(scene, u, i)
-  })
+    ensureActor(scene, u)
+  }
 
   for (const [id, actor] of scene.actors) {
     if (!livingIds.has(id) && actor.alive) {
@@ -299,7 +289,6 @@ function syncScene(
     }
   }
 
-  // Sim FX still spawn extras (keeps visual tied to real hits)
   for (const shot of fx) {
     if (scene.seenFx.has(shot.id)) continue
     scene.seenFx.add(shot.id)
@@ -311,9 +300,7 @@ function syncScene(
       to.hitFlash = 1
     }
   }
-  if (scene.seenFx.size > 240) {
-    scene.seenFx = new Set(fx.map((f) => f.id))
-  }
+  if (scene.seenFx.size > 240) scene.seenFx = new Set(fx.map((f) => f.id))
 
   for (const actor of scene.actors.values()) {
     const prev = scene.prevHull.get(actor.id)
@@ -340,9 +327,9 @@ function drawShape(
   ctx.lineWidth = 1.6
   ctx.beginPath()
   if (shape === 'triangle') {
-    ctx.moveTo(0, -r)
-    ctx.lineTo(r, r * 0.85)
-    ctx.lineTo(-r, r * 0.85)
+    ctx.moveTo(r, 0)
+    ctx.lineTo(-r * 0.85, -r)
+    ctx.lineTo(-r * 0.85, r)
     ctx.closePath()
   } else if (shape === 'square') {
     ctx.rect(-r * 0.85, -r * 0.85, r * 1.7, r * 1.7)
@@ -381,33 +368,30 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.fillRect(0, 0, scene.width, scene.height)
 
   let seed = scene.starSeed
-  const scroll = scene.scroll
-  for (let i = 0; i < 64; i += 1) {
+  for (let i = 0; i < 70; i += 1) {
     seed = (seed * 16807) % 2147483647
     const baseX = (seed % 1000) / 1000 * scene.width
     seed = (seed * 16807) % 2147483647
     const y = (seed % 1000) / 1000 * scene.height
-    const layer = i % 3 === 0 ? 1.6 : i % 3 === 1 ? 1 : 0.55
-    const x = (baseX - scroll * layer * 40 + scene.width * 8) % scene.width
+    const layer = i % 3 === 0 ? 1.8 : i % 3 === 1 ? 1 : 0.55
+    const x = (baseX - scene.scroll * layer * 48 + scene.width * 8) % scene.width
     const twinkle = 0.3 + 0.6 * (0.5 + 0.5 * Math.sin(scene.time * 3 + i))
     ctx.fillStyle = `rgba(230,238,248,${twinkle})`
-    const s = i % 9 === 0 ? 2.2 : 1
-    ctx.fillRect(x, y, s, s)
+    ctx.fillRect(x, y, i % 9 === 0 ? 2.2 : 1, i % 9 === 0 ? 2.2 : 1)
   }
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)'
-  ctx.setLineDash([5, 8])
+  // Vertical center guide near player
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'
   ctx.beginPath()
-  ctx.moveTo(scene.width / 2, 12)
-  ctx.lineTo(scene.width / 2, scene.height - 28)
+  ctx.moveTo(PLAYER_SCREEN_X, 16)
+  ctx.lineTo(PLAYER_SCREEN_X, scene.height - 28)
   ctx.stroke()
-  ctx.setLineDash([])
 }
 
 function stepScene(scene: Scene, dt: number): void {
   scene.time += dt
   const advancing = scene.mode === 'fighting' || scene.mode === 'ready'
-  scene.scroll += dt * (advancing ? 0.55 : scene.mode === 'repairing' ? 0.12 : 0.25)
+  scene.scroll += dt * (advancing ? 0.7 : scene.mode === 'repairing' ? 0.12 : 0.3)
 
   for (const actor of scene.actors.values()) {
     if (actor.enterT > 0) actor.enterT = Math.max(0, actor.enterT - dt)
@@ -420,28 +404,31 @@ function stepScene(scene: Scene, dt: number): void {
     }
 
     actor.bobPhase += actor.bobSpeed * dt
-    const bob = Math.sin(actor.bobPhase) * (actor.isBoss ? 5 : 3.4)
-    const drift =
-      Math.sin(scene.time * 1.1 + actor.bobPhase * 0.7) *
-      actor.driftAmp *
-      (actor.side === 'player' ? 1 : -1) *
-      (scene.mode === 'fighting' ? 1.35 : 0.7)
-    const targetX = actor.baseX + drift
-    const targetY = actor.baseY + bob
-    actor.x += (targetX - actor.x) * Math.min(1, dt * 7)
-    actor.y += (targetY - actor.y) * Math.min(1, dt * 7)
+    const bob =
+      actor.side === 'player' && actor.isFlagship
+        ? Math.sin(actor.bobPhase) * 2.2
+        : Math.sin(actor.bobPhase) * 3.2
 
-    // Presentation-only continuous fire while fighting
+    // Follow sim lane targets; flagship locked left + vertical center
+    const tx = actor.targetX
+    const ty = actor.targetY + bob
+    actor.x += (tx - actor.x) * Math.min(1, dt * 8)
+    actor.y += (ty - actor.y) * Math.min(1, dt * 8)
+
     if (scene.mode === 'fighting') {
       actor.fireAcc += dt
+      // Only fire visually if a foe is roughly in front / near engage
       if (actor.fireAcc >= actor.fireEvery) {
         actor.fireAcc -= actor.fireEvery
         const foe = pickFoe(scene, actor.side)
-        if (foe) spawnShot(scene, actor, foe, actor.weaponTag, actor.splash)
+        if (foe) {
+          const dist = Math.hypot(foe.x - actor.x, foe.y - actor.y)
+          // Presentation gate: don't shoot across the whole map endlessly
+          if (dist < VIEW_W * 0.85) spawnShot(scene, actor, foe, actor.weaponTag, actor.splash)
+        }
       }
     }
 
-    // Repair pulse particles on flagship
     if (scene.mode === 'repairing' && actor.isFlagship && actor.side === 'player') {
       if (Math.random() < dt * 8) {
         scene.particles.push({
@@ -464,7 +451,6 @@ function stepScene(scene: Scene, dt: number): void {
     p.life -= dt
     if (p.life <= 0) {
       burst(scene, p.x, p.y, tagColor(p.tag), p.tag === 'splash' ? 8 : 4)
-      // soft hit flash on nearest living foe
       let best: Actor | null = null
       let bestD = 40
       for (const a of scene.actors.values()) {
@@ -503,7 +489,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   for (const p of scene.projectiles) {
     const color = tagColor(p.tag)
     const ang = Math.atan2(p.vy, p.vx)
-    const tail = p.tag === 'pierce' ? 22 : p.tag === 'energy' || p.tag === 'antiShield' ? 18 : 14
+    const tail = p.tag === 'pierce' ? 22 : 14
     ctx.save()
     ctx.strokeStyle = color
     ctx.fillStyle = color
@@ -583,7 +569,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     scene.mode === 'fighting'
       ? 'ENGAGED'
       : scene.mode === 'repairing'
-        ? 'REPAIRING — hull recovering'
+        ? 'REPAIRING'
         : scene.mode === 'holding'
           ? 'HOLDING SECTOR'
           : 'STANDING BY'

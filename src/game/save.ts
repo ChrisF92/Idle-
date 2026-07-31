@@ -10,6 +10,22 @@ export function saveGame(state: GameState): void {
 }
 
 function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
+  const withUnitDefaults = <T extends GameState['combat']['playerUnits'][number]>(
+    units: T[] | undefined,
+  ): T[] =>
+    (units ?? []).map((u) => ({
+      ...u,
+      x: u.x ?? 0,
+      y: u.y ?? 0,
+      speed: u.speed ?? 0,
+      engageRange: u.engageRange ?? 0,
+      kite: u.kite ?? false,
+      weapons: (u.weapons ?? []).map((w) => ({
+        ...w,
+        range: w.range ?? 90,
+      })),
+    }))
+
   return {
     ...combat,
     enemyFamily: combat.enemyFamily ?? '',
@@ -21,8 +37,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     bossPhase: combat.bossPhase ?? 0,
     playerShield: combat.playerShield ?? 0,
     playerShieldMax: combat.playerShieldMax ?? 0,
-    playerUnits: combat.playerUnits ?? [],
-    enemyUnits: combat.enemyUnits ?? [],
+    playerUnits: withUnitDefaults(combat.playerUnits),
+    enemyUnits: withUnitDefaults(combat.enemyUnits),
     fx: combat.fx ?? [],
   }
 }
@@ -60,6 +76,32 @@ function withPrestigeDefaults(
   }
 }
 
+function withShipyardDefaults(
+  shipyard: GameState['shipyard'] | undefined,
+  base: GameState['shipyard'],
+): GameState['shipyard'] {
+  return {
+    ...base,
+    ...shipyard,
+    unlockedFrames: shipyard?.unlockedFrames ?? base.unlockedFrames,
+    unlockedModules: shipyard?.unlockedModules ?? base.unlockedModules,
+    modules: shipyard?.modules ?? base.modules,
+    frameId: shipyard?.frameId ?? base.frameId,
+    moduleLevels: shipyard?.moduleLevels ?? {},
+  }
+}
+
+function withResourcesDefaults(
+  resources: Partial<GameState['resources']> | undefined,
+  base: GameState['resources'],
+): GameState['resources'] {
+  return {
+    ...base,
+    ...resources,
+    salvage: resources?.salvage ?? 0,
+  }
+}
+
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
   const parsed = raw as Partial<GameState> & {
@@ -69,9 +111,12 @@ function migrate(raw: unknown): GameState | null {
 
   if (parsed.version === SAVE_VERSION) {
     const state = parsed as GameState
+    const base = createInitialState()
     return {
       ...state,
+      resources: withResourcesDefaults(state.resources, base.resources),
       combat: withCombatDefaults(state.combat),
+      shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
     }
@@ -84,7 +129,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 4 ||
     parsed.version === 5 ||
     parsed.version === 6 ||
-    parsed.version === 7
+    parsed.version === 7 ||
+    parsed.version === 8
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
@@ -94,6 +140,7 @@ function migrate(raw: unknown): GameState | null {
       ...base,
       ...prev,
       version: SAVE_VERSION,
+      resources: withResourcesDefaults(prev.resources, base.resources),
       combat: withCombatDefaults({
         ...base.combat,
         ...prev.combat,
@@ -102,14 +149,7 @@ function migrate(raw: unknown): GameState | null {
         fx: [],
         inFight: false,
       }),
-      shipyard: {
-        ...base.shipyard,
-        ...prev.shipyard,
-        unlockedFrames: prev.shipyard?.unlockedFrames ?? base.shipyard.unlockedFrames,
-        unlockedModules: prev.shipyard?.unlockedModules ?? base.shipyard.unlockedModules,
-        modules: prev.shipyard?.modules ?? base.shipyard.modules,
-        frameId: prev.shipyard?.frameId ?? base.shipyard.frameId,
-      },
+      shipyard: withShipyardDefaults(prev.shipyard, base.shipyard),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
     }

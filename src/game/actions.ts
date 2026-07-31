@@ -1,6 +1,7 @@
 import type { GameState, Resources } from './types'
 import {
   AI_NODES,
+  MAX_MODULE_LEVEL,
   RESEARCH,
   buildingUpgradeCost,
   challengeClearCount,
@@ -14,10 +15,18 @@ import {
   getMatterShopItem,
   getModule,
   isChallengeUnlocked,
+  moduleLevel,
+  moduleUpgradeCost,
   prestigeMinSectorFor,
   type ResourceCost,
 } from './catalog'
-import { computeShipStats, createInitialState, syncPersistedHullCaps } from './state'
+import {
+  buildFlagshipWeapons,
+  computeShipStats,
+  createInitialState,
+  syncPersistedHullCaps,
+} from './state'
+import { buildPlayerFleet } from './combat'
 
 function canAfford(resources: Resources, cost: ResourceCost): boolean {
   for (const [key, amount] of Object.entries(cost)) {
@@ -223,7 +232,59 @@ function persistLoadout(
     modules: fitted,
     unlockedFrames,
     unlockedModules,
+    moduleLevels: {},
   }
+}
+
+export function upgradeModule(state: GameState, moduleId: string): GameState {
+  if (!state.shipyard.unlockedModules.includes(moduleId)) return state
+  if (!getModule(moduleId)) return state
+  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+  if (level >= MAX_MODULE_LEVEL) return state
+  const cost = moduleUpgradeCost(level)
+  if (state.resources.salvage < cost) return state
+
+  const next = structuredClone(state)
+  next.resources.salvage -= cost
+  next.shipyard.moduleLevels = {
+    ...next.shipyard.moduleLevels,
+    [moduleId]: level + 1,
+  }
+  if (!next.combat.inFight) {
+    syncPersistedHullCaps(next)
+    return next
+  }
+
+  const prevUnits = next.combat.playerUnits
+  const rebuilt = buildPlayerFleet(next)
+  for (const unit of rebuilt) {
+    const prev = prevUnits.find((u) => u.id === unit.id)
+    if (prev && prev.hullMax > 0) {
+      unit.hull = Math.max(1, unit.hullMax * (prev.hull / prev.hullMax))
+      unit.shield =
+        unit.shieldMax > 0
+          ? unit.shieldMax * (prev.shield / Math.max(1, prev.shieldMax))
+          : 0
+    }
+  }
+  // Preserve weapon cooldown progress on the flagship where ids match
+  const prevFlag = prevUnits.find((u) => u.isFlagship)
+  const nextFlag = rebuilt.find((u) => u.isFlagship)
+  if (prevFlag && nextFlag) {
+    nextFlag.weapons = buildFlagshipWeapons(next).map((w) => {
+      const old = prevFlag.weapons.find((pw) => pw.id === w.id)
+      return old ? { ...w, cooldownLeft: old.cooldownLeft } : w
+    })
+  }
+  next.combat.playerUnits = rebuilt
+  const stats = computeShipStats(next)
+  next.combat.playerHullMax = stats.hullMax
+  next.combat.playerShieldMax = stats.shieldMax
+  if (nextFlag) {
+    next.combat.playerHull = nextFlag.hull
+    next.combat.playerShield = nextFlag.shield
+  }
+  return next
 }
 
 function applyRunReset(state: GameState, now = Date.now()): void {
@@ -256,6 +317,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     essence: kept.essence,
     scrap: fresh.resources.scrap + bonusScrap,
     aiPoints: fresh.resources.aiPoints + bonusAi,
+    salvage: 0,
   }
   state.shipyard = persistLoadout(
     kept.unlockedFrames,

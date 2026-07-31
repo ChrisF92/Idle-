@@ -52,6 +52,7 @@ export default function App() {
             onUnlockModule={game.unlockModule}
             onFitModule={game.fitModule}
             onUnfitModule={game.unfitModule}
+            onUpgradeModule={game.upgradeModule}
           />
         )}
         {tab === 'base' && <BaseTab state={game.state} onUpgrade={game.upgradeBuilding} />}

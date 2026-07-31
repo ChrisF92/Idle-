@@ -1,4 +1,4 @@
-/** Fleet combat: multi-unit packs, weapon cooldowns, bosses, repair. */
+/** Fleet combat: ranged approach, cooldowns, bosses, salvage drops. */
 
 import type {
   CombatFx,
@@ -29,6 +29,7 @@ export interface SectorEncounter {
   dataReward: number
   aiReward: number
   essenceReward: number
+  salvageReward: number
   blurb: string
   units: CombatUnit[]
 }
@@ -51,6 +52,9 @@ const FAMILY_SHAPE: Record<EnemyFamily, UnitShape> = {
   titan: 'hex',
 }
 
+/** Lane spawn distance ahead of the player. */
+export const SPAWN_DISTANCE = 180
+
 let unitSeq = 0
 let fxGlobalSeq = 0
 function nextUnitId(prefix: string): string {
@@ -67,6 +71,7 @@ function makeWeapon(
   name: string,
   damage: number,
   cooldown: number,
+  range: number,
   tags: WeaponTag[],
   splash = 0,
 ): WeaponInstance {
@@ -76,6 +81,7 @@ function makeWeapon(
     damage,
     cooldown,
     cooldownLeft: 0,
+    range,
     tags,
     splash,
     dotDuration: 0,
@@ -92,10 +98,16 @@ function makeEnemyUnit(opts: {
   evasion?: number
   damage: number
   cooldown?: number
+  range: number
+  speed: number
+  engageRange: number
+  kite?: boolean
   tags?: WeaponTag[]
   splash?: number
   isBoss?: boolean
   shape?: UnitShape
+  x?: number
+  y?: number
 }): CombatUnit {
   const family = opts.family
   return {
@@ -117,6 +129,7 @@ function makeEnemyUnit(opts: {
         `${opts.name} strike`,
         opts.damage,
         opts.cooldown ?? 1,
+        opts.range,
         opts.tags ?? ['kinetic'],
         opts.splash ?? 0,
       ),
@@ -124,7 +137,18 @@ function makeEnemyUnit(opts: {
     isBoss: opts.isBoss ?? false,
     isFlagship: opts.isBoss ?? false,
     dots: [],
+    x: opts.x ?? SPAWN_DISTANCE,
+    y: opts.y ?? 0,
+    speed: opts.speed,
+    engageRange: opts.engageRange,
+    kite: opts.kite ?? false,
   }
+}
+
+function packY(index: number, count: number): number {
+  if (count <= 1) return 0
+  const spread = Math.min(70, 18 * (count - 1))
+  return -spread / 2 + (spread / Math.max(1, count - 1)) * index
 }
 
 export function enemyForSector(sector: number): SectorEncounter {
@@ -151,6 +175,7 @@ export function enemyForSector(sector: number): SectorEncounter {
     dataReward: boss ? 4 + Math.floor(sector / 2) : 1 + Math.floor(sector / 3),
     aiReward: boss ? 1.5 : sector % 5 === 0 ? 1 : 0.15,
     essenceReward: boss ? 1 + Math.floor(sector / 10) : 0,
+    salvageReward: boss ? 8 + sector : 3 + Math.floor(sector * 0.8),
     blurb: familyBlurb(family, boss),
     units,
   }
@@ -168,7 +193,12 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           hull: 18 * scale,
           damage: 3.2 * scale,
           cooldown: 0.9,
-          splash: 0,
+          range: 42,
+          speed: 38,
+          engageRange: 36,
+          kite: false,
+          x: SPAWN_DISTANCE + i * 8,
+          y: packY(i, count),
         }),
       )
     }
@@ -182,7 +212,12 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           armor: 4 + Math.floor(sector / 5),
           damage: 6 * scale,
           cooldown: 1.3,
+          range: 75,
+          speed: 16,
+          engageRange: 70,
           tags: ['kinetic'],
+          x: SPAWN_DISTANCE + i * 12,
+          y: packY(i, count),
         }),
       )
     }
@@ -196,7 +231,13 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           evasion: 0.12,
           damage: 5 * scale,
           cooldown: 1.1,
+          range: 120,
+          speed: 24,
+          engageRange: 110,
+          kite: true,
           tags: ['energy'],
+          x: SPAWN_DISTANCE + i * 10,
+          y: packY(i, 3),
         }),
       )
     }
@@ -209,7 +250,13 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           shield: 15 * scale,
           damage: 7 * scale,
           cooldown: 1.2,
+          range: 115,
+          speed: 14,
+          engageRange: 105,
+          kite: true,
           tags: ['energy'],
+          x: SPAWN_DISTANCE,
+          y: 0,
         }),
         makeEnemyUnit({
           name: `${name} Attendant`,
@@ -218,7 +265,12 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           evasion: 0.08,
           damage: 4.5 * scale,
           cooldown: 1,
+          range: 60,
+          speed: 28,
+          engageRange: 55,
           tags: ['energy'],
+          x: SPAWN_DISTANCE + 20,
+          y: -28,
         }),
         makeEnemyUnit({
           name: `${name} Attendant`,
@@ -227,7 +279,12 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           evasion: 0.08,
           damage: 4.5 * scale,
           cooldown: 1,
+          range: 60,
+          speed: 28,
+          engageRange: 55,
           tags: ['energy'],
+          x: SPAWN_DISTANCE + 20,
+          y: 28,
         }),
       ]
     }
@@ -238,6 +295,9 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           family: 'swarm',
           hull: 40 * scale,
           damage: 5 * scale,
+          range: 50,
+          speed: 30,
+          engageRange: 45,
         }),
       ]
   }
@@ -253,9 +313,15 @@ function buildBossPack(sector: number, name: string): CombatUnit[] {
     shield: 40 * scale,
     damage: 11 * scale,
     cooldown: 1.1,
+    range: 130,
+    speed: 10,
+    engageRange: 115,
+    kite: true,
     tags: ['kinetic'],
     isBoss: true,
     shape: 'hex',
+    x: SPAWN_DISTANCE + 10,
+    y: 0,
   })
   const adds = [
     makeEnemyUnit({
@@ -264,6 +330,11 @@ function buildBossPack(sector: number, name: string): CombatUnit[] {
       hull: 30 * scale,
       damage: 4 * scale,
       cooldown: 1,
+      range: 40,
+      speed: 36,
+      engageRange: 35,
+      x: SPAWN_DISTANCE + 30,
+      y: -34,
     }),
     makeEnemyUnit({
       name: 'Thrall',
@@ -271,22 +342,27 @@ function buildBossPack(sector: number, name: string): CombatUnit[] {
       hull: 30 * scale,
       damage: 4 * scale,
       cooldown: 1,
+      range: 40,
+      speed: 36,
+      engageRange: 35,
+      x: SPAWN_DISTANCE + 30,
+      y: 34,
     }),
   ]
   return [titan, ...adds]
 }
 
 function familyBlurb(family: EnemyFamily, boss: boolean): string {
-  if (boss) return 'Boss: phases shift automatically. Defense + pierce help.'
+  if (boss) return 'Boss: closes carefully, phases shift. Defense + pierce help.'
   switch (family) {
     case 'swarm':
-      return 'Swarm pack: many light hulls. Flak / Defense help.'
+      return 'Swarm: rushes point-blank. Flak / Defense help.'
     case 'armored':
-      return 'Armored pack: thick plates. Pierce weapons help.'
+      return 'Armored: slow mid-range plates. Pierce weapons help.'
     case 'ethereal':
-      return 'Ethereal pack: shields + evasion. Energy / Utility help.'
+      return 'Ethereal: long-range kiting. Energy / Utility help.'
     case 'divine':
-      return 'Divine pack: mixed aura. Energy / Utility help.'
+      return 'Divine: core hangs back, attendants dive in.'
     case 'titan':
       return 'Titan-class entity.'
   }
@@ -313,6 +389,11 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
     isBoss: false,
     isFlagship: true,
     dots: [],
+    x: 0,
+    y: 0,
+    speed: 0,
+    engageRange: 0,
+    kite: false,
   }
 
   const escorts: CombatUnit[] = []
@@ -337,11 +418,23 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
         evasion: 0.05,
         damageTakenMult: 1,
         weapons: [
-          makeWeapon(`escort-wpn-${escortIndex}`, 'Drone Pulse', droneDmg, 1, ['kinetic']),
+          makeWeapon(
+            `escort-wpn-${escortIndex}`,
+            'Drone Pulse',
+            droneDmg,
+            1,
+            70,
+            ['kinetic'],
+          ),
         ],
         isBoss: false,
         isFlagship: false,
         dots: [],
+        x: 12 + (escortIndex % 2) * 10,
+        y: escortIndex % 2 === 0 ? -22 - escortIndex * 4 : 22 + escortIndex * 4,
+        speed: 0,
+        engageRange: 0,
+        kite: false,
       })
     }
   }
@@ -485,8 +578,10 @@ export function maybeAdvanceBossPhase(
     state.combat.enemyTags = ['armored', 'boss']
     boss.family = 'armored'
     boss.armor += 4
+    boss.engageRange = 80
+    boss.kite = false
     for (const w of boss.weapons) w.damage *= 1.15
-    pushLog(state, 'Boss phase 2 — shell hardens [armored].')
+    pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
   }
 
   if (state.combat.bossPhase < 2 && pct <= 1 / 3) {
@@ -496,20 +591,24 @@ export function maybeAdvanceBossPhase(
     boss.family = 'ethereal'
     boss.evasion = Math.min(0.35, boss.evasion + 0.1)
     boss.shield = Math.max(boss.shield, boss.shieldMax * 0.4)
-    for (const w of boss.weapons) w.damage *= 1.2
-    pushLog(state, 'Boss phase 3 — form frays [ethereal].')
+    boss.engageRange = 125
+    boss.kite = true
+    for (const w of boss.weapons) {
+      w.damage *= 1.2
+      w.range = Math.max(w.range, 130)
+    }
+    pushLog(state, 'Boss phase 3 — form frays [ethereal], kiting out.')
   }
 }
 
-/** Hull points restored per second while not in a fight. */
+/** Hull points restored per second while Holding (not used during continuous push). */
 export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
   const shopMult = matterShopRepairMult(state.prestige.matterShop)
-  // repairMult < 1 means faster
   rate /= Math.max(0.2, shopMult)
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
-  if (!state.combat.campaign) rate *= 1.5 // Holding repairs faster
+  if (!state.combat.campaign) rate *= 1.5
   return rate
 }
 
@@ -517,30 +616,58 @@ export function shieldRepairRatePerSecond(state: GameState): number {
   return repairRatePerSecond(state) * 0.8
 }
 
-/** Minimum flagship hull fraction before Advance re-engages. */
-export const REENGAGE_HULL_FRACTION = 0.35
+/** Continuous Advance always re-engages (death warps with full hull). */
+export function canReengage(_state: GameState): boolean {
+  return true
+}
 
-export function canReengage(state: GameState): boolean {
-  const max = Math.max(1, state.combat.playerHullMax)
-  return state.combat.playerHull / max >= REENGAGE_HULL_FRACTION
+export const REENGAGE_HULL_FRACTION = 0
+
+function laneDistance(a: CombatUnit, b: CombatUnit): number {
+  return Math.abs(a.x - b.x)
+}
+
+function moveUnits(state: GameState, dt: number): void {
+  // Player flagship stays at x=0, y=0. Escorts hold relative slots.
+  for (const unit of state.combat.playerUnits) {
+    if (!unit.isFlagship) continue
+    unit.x = 0
+    unit.y = 0
+  }
+
+  for (const unit of state.combat.enemyUnits) {
+    if (unit.hull <= 0) continue
+    const target = unit.engageRange
+    if (unit.x > target + 2) {
+      unit.x = Math.max(target, unit.x - unit.speed * dt)
+    } else if (unit.kite && unit.x < target - 6) {
+      unit.x = Math.min(target, unit.x + unit.speed * dt * 0.85)
+    }
+    // Slight vertical drift so packs don't stack perfectly
+    unit.y += Math.sin(unit.x * 0.04 + unit.y) * 0.15
+    unit.y = Math.max(-80, Math.min(80, unit.y))
+  }
 }
 
 function pickTarget(
-  attackersSide: 'player' | 'enemy',
+  attacker: CombatUnit,
   foes: CombatUnit[],
+  weapon: WeaponInstance,
   focusFire: boolean,
 ): CombatUnit | null {
-  const living = foes.filter((u) => u.hull > 0)
+  const living = foes.filter(
+    (u) => u.hull > 0 && laneDistance(attacker, u) <= weapon.range + 0.5,
+  )
   if (living.length === 0) return null
-  if (attackersSide === 'player' && focusFire) {
+  if (attacker.side === 'player' && focusFire) {
     living.sort((a, b) => {
       if (a.isBoss !== b.isBoss) return a.isBoss ? -1 : 1
       return a.hull / a.hullMax - b.hull / b.hullMax
     })
     return living[0] ?? null
   }
-  // Default: nearest threat = lowest hull remaining (keeps packs clearing)
-  living.sort((a, b) => a.hull - b.hull)
+  // Prefer nearest in lane
+  living.sort((a, b) => laneDistance(attacker, a) - laneDistance(attacker, b))
   return living[0] ?? null
 }
 
@@ -630,6 +757,9 @@ export function resolveCombatTick(
   const focusFire = aiDoctrinesActive(state, 'focus-fire')
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
   const fx: CombatFx[] = []
+  const dt = 1
+
+  moveUnits(state, dt)
 
   const sides: Array<'player' | 'enemy'> = ['player', 'enemy']
   for (const side of sides) {
@@ -639,7 +769,6 @@ export function resolveCombatTick(
     for (const unit of allies) {
       if (unit.hull <= 0) continue
 
-      // Tick DoTs
       for (const dot of unit.dots) {
         if (dot.remaining <= 0) continue
         unit.hull = Math.max(0, unit.hull - dot.dps)
@@ -648,17 +777,22 @@ export function resolveCombatTick(
       unit.dots = unit.dots.filter((d) => d.remaining > 0)
 
       for (const weapon of unit.weapons) {
-        weapon.cooldownLeft = Math.max(0, weapon.cooldownLeft - 1)
+        weapon.cooldownLeft = Math.max(0, weapon.cooldownLeft - dt)
         if (weapon.cooldownLeft > 0) continue
 
-        const primary = pickTarget(side, foes, focusFire && side === 'player')
+        const primary = pickTarget(unit, foes, weapon, focusFire && side === 'player')
         if (!primary) continue
 
         const targets: CombatUnit[] = [primary]
         if (weapon.splash > 0 || weapon.tags.includes('splash')) {
           const extras = foes
-            .filter((u) => u.hull > 0 && u.id !== primary.id)
-            .sort((a, b) => a.hull - b.hull)
+            .filter(
+              (u) =>
+                u.hull > 0 &&
+                u.id !== primary.id &&
+                laneDistance(unit, u) <= weapon.range + 0.5,
+            )
+            .sort((a, b) => laneDistance(unit, a) - laneDistance(unit, b))
             .slice(0, weapon.splash || 1)
           targets.push(...extras)
         }

@@ -23,6 +23,7 @@ import {
   unlockFrame,
   unlockModule,
   upgradeBuilding,
+  upgradeModule,
 } from '../game/actions'
 import { createInitialState } from '../game/state'
 
@@ -42,6 +43,7 @@ type Action =
   | { type: 'unlock-module'; moduleId: string }
   | { type: 'fit-module'; moduleId: string }
   | { type: 'unfit-module'; moduleId: string }
+  | { type: 'upgrade-module'; moduleId: string }
   | { type: 'prestige' }
   | { type: 'enter-challenge'; challengeId: string }
   | { type: 'abandon-challenge' }
@@ -79,6 +81,8 @@ function reducer(state: GameState, action: Action): GameState {
       return fitModule(state, action.moduleId)
     case 'unfit-module':
       return unfitModule(state, action.moduleId)
+    case 'upgrade-module':
+      return upgradeModule(state, action.moduleId)
     case 'prestige':
       return performPrestige(state)
     case 'enter-challenge':
@@ -140,6 +144,7 @@ export function useGame() {
     unlockModule: (moduleId: string) => dispatch({ type: 'unlock-module', moduleId }),
     fitModule: (moduleId: string) => dispatch({ type: 'fit-module', moduleId }),
     unfitModule: (moduleId: string) => dispatch({ type: 'unfit-module', moduleId }),
+    upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
     prestige: () => dispatch({ type: 'prestige' }),
     enterChallenge: (challengeId: string) =>
       dispatch({ type: 'enter-challenge', challengeId }),

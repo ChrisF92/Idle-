@@ -12,7 +12,9 @@ import {
   unlockFrame,
   unlockModule,
   upgradeBuilding,
+  upgradeModule,
 } from './actions'
+import { moduleLevel } from './catalog'
 
 describe('tickGame', () => {
   it('produces scrap from scrap yard over time', () => {
@@ -44,6 +46,8 @@ describe('tickGame', () => {
     let state = createInitialState(0)
     state.combat.campaign = false
     state = startCombat(state)
+    // Place a foe already in pulse range so the first full tick deals damage
+    for (const e of state.combat.enemyUnits) e.x = 50
     const hullBefore = state.combat.enemyHull
 
     state = tickGame(state, 250)
@@ -219,6 +223,11 @@ describe('prestige and challenges', () => {
         isBoss: false,
         isFlagship: false,
         dots: [],
+        x: 40,
+        y: 0,
+        speed: 0,
+        engageRange: 40,
+        kite: false,
       },
     ]
     state.combat.playerUnits = [
@@ -242,6 +251,7 @@ describe('prestige and challenges', () => {
             damage: 50,
             cooldown: 1,
             cooldownLeft: 0,
+            range: 120,
             tags: ['kinetic'],
             splash: 0,
             dotDuration: 0,
@@ -251,6 +261,11 @@ describe('prestige and challenges', () => {
         isBoss: false,
         isFlagship: true,
         dots: [],
+        x: 0,
+        y: 0,
+        speed: 0,
+        engageRange: 0,
+        kite: false,
       },
     ]
     state.combat.enemyHull = 1
@@ -266,6 +281,24 @@ describe('prestige and challenges', () => {
     state.combat.sector = 8
     state = enterChallenge(state, 'no-ai', 3000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')
+  })
+})
+
+describe('salvage module upgrades', () => {
+  it('upgrades a module with salvage and resets on prestige', () => {
+    let state = createInitialState(0)
+    state.resources.salvage = 100
+    const before = computeShipStats(state).damage
+    state = upgradeModule(state, 'pulse-cannon')
+    expect(moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')).toBe(1)
+    expect(computeShipStats(state).damage).toBeGreaterThan(before)
+    expect(state.resources.salvage).toBeLessThan(100)
+
+    state.combat.sector = 8
+    state = performPrestige(state, 1000)
+    expect(state.resources.salvage).toBe(0)
+    expect(moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')).toBe(0)
+    expect(state.shipyard.modules).toContain('pulse-cannon')
   })
 })
 
