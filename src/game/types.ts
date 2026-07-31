@@ -16,9 +16,17 @@ export type TabId =
   | 'shipyard'
   | 'base'
   | 'research'
+  | 'codex'
   | 'ai'
   | 'prestige'
   | 'stats'
+
+export type EnemyFamilyId =
+  | 'swarm'
+  | 'armored'
+  | 'ethereal'
+  | 'divine'
+  | 'titan'
 
 export type UnitShape = 'triangle' | 'square' | 'circle' | 'hex' | 'diamond'
 
@@ -192,6 +200,12 @@ export interface PrestigeState {
   matterShop: string[]
 }
 
+/** Encounter memory for the Codex — persists across prestige. */
+export interface CodexState {
+  /** Families observed in combat this career (meta). */
+  seenFamilies: EnemyFamilyId[]
+}
+
 export interface GameState {
   version: number
   lastTickAt: number
@@ -203,6 +217,7 @@ export interface GameState {
   ai: AiState
   essence: EssenceState
   prestige: PrestigeState
+  codex: CodexState
 }
 
 /** Summary stats for UI / shipyard (derived from loadout + meta). */

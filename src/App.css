@@ -285,6 +285,16 @@
   background: #0e141c;
 }
 
+.codex-unknown {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-family: var(--font-brand);
+  font-size: 1.4rem;
+}
+
 .warp-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));

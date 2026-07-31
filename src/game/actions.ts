@@ -302,6 +302,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     activeChallengeId: state.prestige.activeChallengeId,
     shop: [...state.prestige.shop],
     matterShop: [...state.prestige.matterShop],
+    seenFamilies: [...(state.codex?.seenFamilies ?? [])],
   }
 
   const fresh = createInitialState(now)
@@ -342,6 +343,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     shop: kept.shop,
     matterShop: kept.matterShop,
   }
+  state.codex = { seenFamilies: kept.seenFamilies }
 
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax

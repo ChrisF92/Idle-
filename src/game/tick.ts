@@ -19,6 +19,7 @@ import { tryCompleteChallenge } from './actions'
 import {
   buildPlayerFleet,
   enemyForSector,
+  revealCodexFamilies,
   simulateCombat,
   syncHullAggregates,
   totalEnemyHull,
@@ -213,6 +214,10 @@ export function beginFight(state: GameState): void {
   state.combat.projectiles = []
   state.combat.fx = []
   syncHullAggregates(state)
+  revealCodexFamilies(
+    state,
+    encounter.units.map((u) => u.family),
+  )
 
   const matchup = computeFightDamage(state)
   const note =

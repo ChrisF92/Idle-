@@ -104,6 +104,14 @@ function withResourcesDefaults(
   }
 }
 
+function withCodexDefaults(
+  codex: GameState['codex'] | undefined,
+): GameState['codex'] {
+  const allowed = new Set(['swarm', 'armored', 'ethereal', 'divine', 'titan'])
+  const seen = (codex?.seenFamilies ?? []).filter((f) => allowed.has(f))
+  return { seenFamilies: seen }
+}
+
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
   const parsed = raw as Partial<GameState> & {
@@ -121,6 +129,7 @@ function migrate(raw: unknown): GameState | null {
       shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
+      codex: withCodexDefaults(state.codex),
     }
   }
 
@@ -133,16 +142,20 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 6 ||
     parsed.version === 7 ||
     parsed.version === 8 ||
-    parsed.version === 9
+    parsed.version === 9 ||
+    parsed.version === 10
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
       prestige?: GameState['prestige'] & { completedChallenges?: string[] }
     }
     // v9 treated highestSector as frontier (often == current sector after a push).
-    // v10 treats it as max cleared — approximate as frontier - 1.
+    // v10+ treats it as max cleared — approximate older frontiers as frontier - 1.
     const oldHighest = prev.combat?.highestSector ?? prev.combat?.sector ?? 1
-    const clearedApprox = Math.max(0, oldHighest - 1)
+    const clearedApprox =
+      parsed.version === 10
+        ? Math.max(0, prev.combat?.highestSector ?? 0)
+        : Math.max(0, oldHighest - 1)
     return {
       ...base,
       ...prev,
@@ -160,6 +173,7 @@ function migrate(raw: unknown): GameState | null {
       shipyard: withShipyardDefaults(prev.shipyard, base.shipyard),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
+      codex: withCodexDefaults(prev.codex),
     }
   }
 

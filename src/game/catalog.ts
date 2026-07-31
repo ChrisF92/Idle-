@@ -172,6 +172,16 @@ export const BUILDINGS: BuildingDef[] = [
     rates: { alloys: 0.15 },
     upkeepScrapPerLevel: 0.2,
   },
+  {
+    id: 'workDroneHangar',
+    name: 'Work Drone Hangar',
+    description:
+      'Industrial work drones haul scrap and skim anomaly data. Separate from combat Drone Bay escorts.',
+    requiresResearch: 'drone-logistics',
+    baseCost: { scrap: 55, energy: 20, alloys: 12 },
+    costScale: 1.48,
+    rates: { scrap: 0.35, data: 0.05 },
+  },
 ]
 
 export const RESEARCH: ResearchDef[] = [
@@ -187,6 +197,18 @@ export const RESEARCH: ResearchDef[] = [
     name: 'Alloy Smelting',
     description: 'Unlocks the Foundry building.',
     costData: 25,
+  },
+  {
+    id: 'drone-logistics',
+    name: 'Drone Logistics',
+    description: 'Unlocks the Work Drone Hangar for industrial scrap and data.',
+    costData: 35,
+  },
+  {
+    id: 'tactical-codex',
+    name: 'Tactical Codex',
+    description: 'Unlocks the Codex: enemy family intel and soft counters.',
+    costData: 30,
   },
   {
     id: 'entity-anatomy',

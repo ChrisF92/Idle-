@@ -15,7 +15,13 @@ function costLabel(cost: Partial<Record<keyof Resources, number>>): string {
     .join(', ')
 }
 
-const BUILDING_ORDER = ['scrapYard', 'powerCell', 'sensorArray', 'foundry']
+const BUILDING_ORDER = [
+  'scrapYard',
+  'powerCell',
+  'sensorArray',
+  'foundry',
+  'workDroneHangar',
+]
 
 export function BaseTab({ state, onUpgrade }: BaseTabProps) {
   return (
@@ -61,7 +67,8 @@ export function BaseTab({ state, onUpgrade }: BaseTabProps) {
       </ul>
 
       <p className="placeholder">
-        Foundry converts scrap → alloys once Alloy Smelting is researched.
+        Foundry converts scrap → alloys once Alloy Smelting is researched. Work Drone Hangar
+        (Drone Logistics) adds industrial scrap and data — not combat escorts.
       </p>
     </section>
   )

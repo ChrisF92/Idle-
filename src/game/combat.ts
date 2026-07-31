@@ -390,6 +390,50 @@ export function familyIntel(family: EnemyFamily): string {
   }
 }
 
+/** Soft-counter guidance shown in the Codex once a family is unlocked. */
+export function softCounterForFamily(family: EnemyFamily): string {
+  switch (family) {
+    case 'swarm':
+      return 'Soft counter: Defense modules and Flak (splash) punish the rush.'
+    case 'armored':
+      return 'Soft counter: Weapon role and pierce / kinetic cut plates.'
+    case 'ethereal':
+      return 'Soft counter: Utility role and energy / anti-shield weapons.'
+    case 'divine':
+      return 'Soft counter: Utility / energy pressure; expect diving attendants.'
+    case 'titan':
+      return 'Soft counter: Defense on the flagship; pierce helps through phases.'
+  }
+}
+
+export const CODEX_FAMILIES: EnemyFamily[] = [
+  'swarm',
+  'armored',
+  'ethereal',
+  'divine',
+  'titan',
+]
+
+export function familyShape(family: EnemyFamily): UnitShape {
+  return FAMILY_SHAPE[family]
+}
+
+/** Record families from living (or listed) combat units into career Codex memory. */
+export function revealCodexFamilies(state: GameState, families: Iterable<string>): void {
+  if (!state.codex) state.codex = { seenFamilies: [] }
+  const seen = new Set(state.codex.seenFamilies)
+  let changed = false
+  for (const raw of families) {
+    if (!CODEX_FAMILIES.includes(raw as EnemyFamily)) continue
+    if (seen.has(raw as EnemyFamily)) continue
+    seen.add(raw as EnemyFamily)
+    changed = true
+  }
+  if (changed) {
+    state.codex.seenFamilies = CODEX_FAMILIES.filter((f) => seen.has(f))
+  }
+}
+
 export interface SectorRosterEntry {
   key: string
   name: string
@@ -637,6 +681,7 @@ export function maybeAdvanceBossPhase(
     boss.engageRange = 80
     boss.kite = false
     for (const w of boss.weapons) w.damage *= 1.15
+    revealCodexFamilies(state, ['armored'])
     pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
   }
 
@@ -653,6 +698,7 @@ export function maybeAdvanceBossPhase(
       w.damage *= 1.2
       w.range = Math.max(w.range, 130)
     }
+    revealCodexFamilies(state, ['ethereal'])
     pushLog(state, 'Boss phase 3 — form frays [ethereal], kiting out.')
   }
 }

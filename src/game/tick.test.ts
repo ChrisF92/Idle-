@@ -146,6 +146,36 @@ describe('purchases', () => {
     expect(unlocked.base.buildings.foundry).toBe(1)
   })
 
+  it('blocks work drone hangar until drone-logistics research', () => {
+    const state = createInitialState(0)
+    state.resources.scrap = 999
+    state.resources.energy = 999
+    state.resources.alloys = 999
+    const blocked = upgradeBuilding(state, 'workDroneHangar')
+    expect(blocked.base.buildings.workDroneHangar ?? 0).toBe(0)
+
+    state.research.unlocked = ['drone-logistics']
+    const unlocked = upgradeBuilding(state, 'workDroneHangar')
+    expect(unlocked.base.buildings.workDroneHangar).toBe(1)
+  })
+
+  it('work drones produce scrap and data over time', () => {
+    const state = createInitialState(0)
+    state.combat.campaign = false
+    state.combat.inFight = false
+    // Pause auto-engage by keeping campaign false but... both modes auto-engage.
+    // Production still runs during fights; seed hangar and compare against baseline.
+    state.base.buildings.workDroneHangar = 3
+    state.base.buildings.scrapYard = 0
+    state.base.buildings.powerCell = 0
+    state.base.buildings.sensorArray = 0
+    const scrapBefore = state.resources.scrap
+    const dataBefore = state.resources.data
+    advanceTicks(state, 10)
+    expect(state.resources.scrap).toBeGreaterThan(scrapBefore)
+    expect(state.resources.data).toBeGreaterThan(dataBefore)
+  })
+
   it('buys research and AI nodes', () => {
     let state = createInitialState(0)
     state.resources.data = 10

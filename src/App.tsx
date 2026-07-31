@@ -8,6 +8,7 @@ import { CombatTab } from './components/tabs/CombatTab'
 import { ShipyardTab } from './components/tabs/ShipyardTab'
 import { BaseTab } from './components/tabs/BaseTab'
 import { ResearchTab } from './components/tabs/ResearchTab'
+import { CodexTab } from './components/tabs/CodexTab'
 import { AiTab } from './components/tabs/AiTab'
 import { PrestigeTab } from './components/tabs/PrestigeTab'
 import { StatsTab } from './components/tabs/StatsTab'
@@ -63,6 +64,7 @@ export default function App() {
             onBuyEssence={game.buyEssenceUpgrade}
           />
         )}
+        {tab === 'codex' && <CodexTab state={game.state} />}
         {tab === 'ai' && <AiTab state={game.state} onBuy={game.buyAiNode} />}
         {tab === 'prestige' && (
           <PrestigeTab
