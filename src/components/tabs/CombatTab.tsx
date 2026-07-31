@@ -1,7 +1,8 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { GameState, UnitShape } from '../../game/types'
-import { computeShipStats } from '../../game/state'
+import { buildFlagshipWeapons, computeShipStats } from '../../game/state'
 import { getChallenge, getFrame } from '../../game/catalog'
+import { formatCompact, formatStat } from '../../game/format'
 import { WAVES_PER_SECTOR } from '../../game/progression'
 import {
   enemyForSector,
@@ -143,6 +144,10 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         : 'ENGAGED'
       : 'STANDBY'
   const repairRate = combat.docked ? repairRatePerSecond(state) : 0
+  const weaponReach = useMemo(() => {
+    const ranges = buildFlagshipWeapons(state).map((w) => w.range)
+    return ranges.length ? Math.max(...ranges) : 0
+  }, [state])
   const holdRates = useMemo(
     () =>
       !combat.docked && !combat.campaign && state.ai.purchased.includes('hold-accountant')
@@ -196,6 +201,45 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           Challenge: {challenge.name} — cleared {combat.highestSector}/{challenge.goalSector}
         </p>
       ) : null}
+
+      <div className="stat-row combat-stats-strip" aria-label="Fleet combat stats">
+        <div>
+          <span className="muted">Fleet DPS</span>
+          <strong>{formatStat(stats.damage, 1)}</strong>
+        </div>
+        <div>
+          <span className="muted">Hull</span>
+          <strong>
+            {formatCompact(combat.playerHull, 0)}/{formatCompact(combat.playerHullMax, 0)}
+          </strong>
+        </div>
+        <div>
+          <span className="muted">Shield</span>
+          <strong>
+            {formatCompact(combat.playerShield, 0)}/{formatCompact(combat.playerShieldMax, 0)}
+          </strong>
+        </div>
+        <div>
+          <span className="muted">Armor</span>
+          <strong>{formatStat(stats.armor, 1)}</strong>
+        </div>
+        <div>
+          <span className="muted">Evasion</span>
+          <strong>{formatCompact(stats.evasion * 100, 0)}%</strong>
+        </div>
+        <div>
+          <span className="muted">Incoming</span>
+          <strong>×{formatStat(stats.damageTakenMult, 2)}</strong>
+        </div>
+        <div>
+          <span className="muted">Escorts</span>
+          <strong>{stats.escortCount}</strong>
+        </div>
+        <div>
+          <span className="muted">Reach</span>
+          <strong>{formatCompact(weaponReach, 0)}</strong>
+        </div>
+      </div>
 
       {holdRates ? (
         <p className="muted combat-dock-hint">

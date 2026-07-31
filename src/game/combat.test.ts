@@ -5,6 +5,8 @@ import {
   computeFightDamage,
   enemyForSector,
   isBossSector,
+  PROJECTILE_SPEED,
+  projectileSpeedForTag,
   resolveCombatTick,
   simulateCombat,
 } from './combat'
@@ -118,9 +120,16 @@ describe('fleet combat resolution', () => {
     expect(state.combat.projectiles.length).toBeGreaterThan(0)
     expect(state.combat.enemyHull).toBe(before)
 
-    // Travel long enough for mid-lane kinetic (~240 u/s) to arrive
-    for (let i = 0; i < 30; i += 1) simulateCombat(state, 1 / 60, () => {})
+    // Travel long enough for mid-lane shots (PROJECTILE_SPEED) to arrive
+    const frames = Math.ceil((90 / PROJECTILE_SPEED) * 60) + 5
+    for (let i = 0; i < frames; i += 1) simulateCombat(state, 1 / 60, () => {})
     expect(state.combat.enemyHull).toBeLessThan(before)
+  })
+
+  it('uses one projectile speed for all weapon tags', () => {
+    expect(projectileSpeedForTag('kinetic')).toBe(PROJECTILE_SPEED)
+    expect(projectileSpeedForTag('pierce')).toBe(PROJECTILE_SPEED)
+    expect(projectileSpeedForTag('energy')).toBe(projectileSpeedForTag('splash'))
   })
 
   it('clears a sector with multi-unit packs', () => {

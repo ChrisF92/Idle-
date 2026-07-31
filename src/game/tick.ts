@@ -185,7 +185,7 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
   let scrapGain = enemy.scrapReward
   if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
-  if (state.shipyard.modules.includes('salvage-rig')) scrapGain *= 1.2
+  if (state.shipyard.modules.includes('salvage-rig')) scrapGain *= 1.25
   scrapGain *= 1 + matterShopScrapBonus(state.prestige.matterShop)
   const siphonData =
     essenceBonusDataPerClear(state.essence.purchased) +

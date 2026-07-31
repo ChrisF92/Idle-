@@ -150,6 +150,14 @@ export function ShipyardTab({
           <strong>{Math.round(stats.shieldMax)}</strong>
         </div>
         <div>
+          <span className="muted">Armor</span>
+          <strong>{stats.armor.toFixed(1)}</strong>
+        </div>
+        <div>
+          <span className="muted">Evasion</span>
+          <strong>{(stats.evasion * 100).toFixed(0)}%</strong>
+        </div>
+        <div>
           <span className="muted">Salvage</span>
           <strong>{state.resources.salvage.toFixed(0)}</strong>
         </div>

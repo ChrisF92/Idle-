@@ -61,19 +61,15 @@ const FAMILY_SHAPE: Record<EnemyFamily, UnitShape> = {
 /** Lane spawn distance ahead of the player. */
 export const SPAWN_DISTANCE = 180
 
-/** Lane-units / second — tuned so mid-range shots take a visible travel beat. */
-export function projectileSpeedForTag(tag: string): number {
-  switch (tag) {
-    case 'pierce':
-      return 300
-    case 'energy':
-    case 'antiShield':
-      return 260
-    case 'splash':
-      return 210
-    default:
-      return 240
-  }
+/**
+ * Lane-units / second for all normal projectiles (player + enemy).
+ * ~120 keeps close/mid engage travel ~0.2–0.4s; long kite shots stay readable.
+ */
+export const PROJECTILE_SPEED = 120
+
+/** @deprecated Use PROJECTILE_SPEED — tag variance removed; all normal shots share one speed. */
+export function projectileSpeedForTag(_tag: string): number {
+  return PROJECTILE_SPEED
 }
 
 let unitSeq = 0
@@ -1238,7 +1234,7 @@ export function maybeAdvanceBossPhase(
 export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
-  if (state.shipyard.modules.includes('nano-lathe')) rate *= 1.5
+  if (state.shipyard.modules.includes('nano-lathe')) rate *= 1.6
   const shopMult = matterShopRepairMult(state.prestige.matterShop)
   rate /= Math.max(0.2, shopMult)
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
@@ -1409,7 +1405,7 @@ function spawnProjectile(
     tags: [...weapon.tags],
     dotDuration: weapon.dotDuration,
     dotDamage: weapon.dotDamage,
-    speed: projectileSpeedForTag(tag),
+    speed: PROJECTILE_SPEED,
     attackerFamily: from.family,
   })
 }
@@ -1607,7 +1603,7 @@ export function estimateHoldClearRewards(state: GameState): {
   const clear = enemyForSector(sector, WAVES_PER_SECTOR)
   let scrap = clear.scrapReward
   if (aiDoctrinesActive(state, 'scavenger')) scrap *= 1.3
-  if (state.shipyard.modules.includes('salvage-rig')) scrap *= 1.2
+  if (state.shipyard.modules.includes('salvage-rig')) scrap *= 1.25
   scrap *= 1 + matterShopScrapBonus(state.prestige.matterShop)
 
   const dataBlocked = state.prestige.activeChallengeId === 'data-drought'

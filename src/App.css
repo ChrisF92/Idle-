@@ -326,6 +326,11 @@ body.guide-active {
   }
 }
 
+.combat-stats-strip {
+  padding: 0.35rem 0.1rem 0.15rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
 .combat-challenge {
   margin: 0;
 }

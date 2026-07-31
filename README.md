@@ -66,7 +66,7 @@ Local Pages-shaped build: `npm run build:pages && npm run preview`
 - Game logic should stay in `src/game/`; React is presentation + input.
 - Solo project: use **one feature per branch/PR** so slices stay reviewable.
 - Offline catch-up (up to 8h) runs on load: industry + sector-scaled rewards (no fight simulation).
-- Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with Advance/Hold pacing; hull persists and repairs over time.
+- Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with Advance/Hold pacing; hull persists and repairs over time. Combat tab shows fleet DPS/hull/shield/armor; module cards list Damage, RoF, Range.
 - Entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
 - Fitted loadouts persist through prestige; challenges are repeatable with stack bonuses (ITRTG-style).
 - Challenge pack: Silent Bridge, Glass Frame, Data Drought, Bare Rig, Knife Fight, **Mono Pulse** (pulse-only weapons), **Attrition** (no fight-win heal), **Long Haul** (sector 12).
