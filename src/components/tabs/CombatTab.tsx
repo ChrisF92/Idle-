@@ -18,7 +18,7 @@ interface CombatTabProps {
   onWarp: (sector: number) => void
 }
 
-type Overlay = 'none' | 'sector' | 'warp'
+type Overlay = 'none' | 'sector' | 'warp' | 'launch-confirm'
 
 export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatTabProps) {
   const { combat } = state
@@ -212,10 +212,8 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           aria-pressed={combat.docked}
           onClick={() => {
             if (combat.docked && !state.shipyard.frameLocked) {
-              const ok = window.confirm(
-                'Launch locks your frame until the next prestige or challenge. You can still Dock later to change modules. Launch anyway?',
-              )
-              if (!ok) return
+              setOverlay('launch-confirm')
+              return
             }
             onSetDocked(!combat.docked)
           }}
@@ -235,6 +233,17 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           Warp
         </button>
       </div>
+
+      {overlay === 'launch-confirm' ? (
+        <LaunchConfirmModal
+          frameName={frame?.name ?? 'current frame'}
+          onConfirm={() => {
+            setOverlay('none')
+            onSetDocked(false)
+          }}
+          onClose={() => setOverlay('none')}
+        />
+      ) : null}
 
       {overlay === 'sector' ? (
         <SectorInfoModal
@@ -397,6 +406,54 @@ function WarpModal({
               {sector === current ? ' · here' : ''}
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LaunchConfirmModal({
+  frameName,
+  onConfirm,
+  onClose,
+}: {
+  frameName: string
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const titleId = useId()
+  useEscapeClose(onClose)
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="modal-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="modal-header">
+          <div>
+            <p className="combat-hud-kicker">Hangar</p>
+            <h3 id={titleId}>Confirm Launch</h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close">
+            Close
+          </button>
+        </header>
+        <p>
+          Launching locks <strong>{frameName}</strong> until the next prestige or
+          challenge. You can still Dock later to change modules.
+        </p>
+        <p className="muted">Launch anyway?</p>
+        <div className="modal-actions">
+          <button type="button" onClick={onClose}>
+            Stay Docked
+          </button>
+          <button type="button" className="primary" onClick={onConfirm}>
+            Launch
+          </button>
         </div>
       </div>
     </div>
