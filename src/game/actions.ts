@@ -20,7 +20,9 @@ import {
   isChallengeUnlocked,
   isStationUnlocked,
   canFitModuleOnFrame,
+  filterModulesForChallenge,
   idleWorkers,
+  isModuleBlockedByChallenge,
   moduleLevel,
   moduleUpgradeCost,
   prestigeMinSectorFor,
@@ -227,7 +229,10 @@ export function selectFrame(state: GameState, frameId: string): GameState {
 
   const next = structuredClone(state)
   next.shipyard.frameId = frameId
-  next.shipyard.modules = trimModulesToFrame(next.shipyard.modules, frame)
+  next.shipyard.modules = filterModulesForChallenge(
+    trimModulesToFrame(next.shipyard.modules, frame),
+    next.prestige.activeChallengeId,
+  )
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
@@ -248,6 +253,9 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
 export function fitModule(state: GameState, moduleId: string): GameState {
   if (!state.shipyard.unlockedModules.includes(moduleId)) return state
   if (state.shipyard.modules.includes(moduleId)) return state
+  if (isModuleBlockedByChallenge(state.prestige.activeChallengeId, moduleId)) {
+    return state
+  }
   const frame = getFrame(state.shipyard.frameId)
   if (!frame) return state
   if (!canFitModuleOnFrame(frame, state.shipyard.modules, moduleId)) return state
@@ -295,14 +303,13 @@ function persistLoadout(
 ): GameState['shipyard'] {
   const frame = unlockedFrames.includes(frameId) ? frameId : 'scout-frame'
   const frameDef = getFrame(frame) ?? getFrame('scout-frame')!
-  let fitted = trimModulesToFrame(
-    modules.filter((id) => unlockedModules.includes(id)),
-    frameDef,
+  let fitted = filterModulesForChallenge(
+    trimModulesToFrame(
+      modules.filter((id) => unlockedModules.includes(id)),
+      frameDef,
+    ),
+    activeChallengeId,
   )
-
-  if (activeChallengeId === 'no-ai') {
-    // No module strip for Silent Bridge — AI is blocked separately.
-  }
 
   if (fitted.length === 0 && unlockedModules.includes('pulse-cannon')) {
     fitted = ['pulse-cannon']

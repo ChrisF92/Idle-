@@ -65,5 +65,6 @@ Local Pages-shaped build: `npm run build:pages && npm run preview`
 - Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with Advance/Hold pacing; hull persists and repairs over time.
 - Entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
 - Fitted loadouts persist through prestige; challenges are repeatable with stack bonuses (ITRTG-style).
+- Challenge pack: Silent Bridge, Glass Frame, Data Drought, **Bare Rig** (no utility), **Knife Fight** (range ≤55).
 - Essence buys permanent constructs; AI Points buy per-run doctrines (Focus Fire, Boss Protocol, Scavenger, Tactical Retreat, Rapid Recovery).
 - Challenge Points / Prestige Matter can be spent in permanent shops (or banked for a smaller bonus).

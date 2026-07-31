@@ -3,10 +3,12 @@ import {
   MAX_MODULE_LEVEL,
   SHIP_FRAMES,
   SHIP_MODULES,
+  SHORT_RANGE_MAX,
   canFitModuleOnFrame,
   fittedRoleSlotCounts,
   frameTotalSlots,
   getFrame,
+  isModuleBlockedByChallenge,
   moduleLevel,
   moduleUpgradeCost,
   moduleUpgradeEffectLines,
@@ -58,6 +60,7 @@ export function ShipyardTab({
   const ever = careerHighestSector(state)
   const canBatch = state.ai.purchased.includes('batch-refit')
   const canSalvageOpt = state.ai.purchased.includes('salvage-optimizer')
+  const challengeId = state.prestige.activeChallengeId
 
   return (
     <section className="panel">
@@ -68,6 +71,15 @@ export function ShipyardTab({
           to refit modules within that frame&apos;s W/D/U slots.
         </p>
       </header>
+
+      {challengeId === 'no-utility' ? (
+        <p className="notice-warn">Bare Rig: utility modules are unequipped and cannot be fitted.</p>
+      ) : null}
+      {challengeId === 'short-range' ? (
+        <p className="notice-warn">
+          Knife Fight: all weapon ranges capped at {SHORT_RANGE_MAX} (flak reach).
+        </p>
+      ) : null}
 
       {state.combat.inFight ? (
         <p className="notice-warn">In fight — Dock from the Combat tab to refit modules.</p>
@@ -214,12 +226,24 @@ export function ShipyardTab({
             Object.entries(m.unlockCost).every(
               ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
             )
+          const challengeBlocked = isModuleBlockedByChallenge(challengeId, m.id)
           const roleOpen =
             !!frame && canFitModuleOnFrame(frame, state.shipyard.modules, m.id)
-          const canFit = unlocked && !fitted && roleOpen && canRefitModules
+          const canFit =
+            unlocked && !fitted && roleOpen && canRefitModules && !challengeBlocked
           const canUpgrade =
             unlocked && level < MAX_MODULE_LEVEL && state.resources.salvage >= upCost
-          const rangeNote = m.weapon ? ` · range ${m.weapon.range}` : ''
+          const effectiveRange =
+            m.weapon && challengeId === 'short-range'
+              ? Math.min(m.weapon.range, SHORT_RANGE_MAX)
+              : m.weapon?.range
+          const rangeNote = m.weapon
+            ? ` · range ${effectiveRange}${
+                challengeId === 'short-range' && m.weapon.range > SHORT_RANGE_MAX
+                  ? ` (capped from ${m.weapon.range})`
+                  : ''
+              }`
+            : ''
           const roleTag =
             m.role === 'weapon' ? 'W' : m.role === 'defense' ? 'D' : 'U'
           const nextEffects =
@@ -258,7 +282,10 @@ export function ShipyardTab({
                 ) : (
                   <p className="muted">Unlock: {costLabel(m.unlockCost)}</p>
                 )}
-                {unlocked && !fitted && frame && !roleOpen ? (
+                {challengeBlocked ? (
+                  <p className="notice-warn">Blocked by active challenge.</p>
+                ) : null}
+                {unlocked && !fitted && frame && !roleOpen && !challengeBlocked ? (
                   <p className="notice-warn">No free {m.role} slot on this frame.</p>
                 ) : null}
               </div>
