@@ -747,17 +747,21 @@ function incomingDefenseMult(
   return mult
 }
 
-/** Resolve one second of fleet combat. Mutates state. */
-export function resolveCombatTick(
+/**
+ * Continuous combat step (real seconds, not ticks).
+ * Weapons only fire when a living target is inside weapon.range.
+ */
+export function simulateCombat(
   state: GameState,
+  dt: number,
   pushLog: (state: GameState, line: string) => void,
 ): void {
+  if (dt <= 0) return
   const roles = fittedRoles(state)
   const matchupScale = 1 + challengeShopMatchupBonus(state.prestige.shop)
   const focusFire = aiDoctrinesActive(state, 'focus-fire')
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
   const fx: CombatFx[] = []
-  const dt = 1
 
   moveUnits(state, dt)
 
@@ -771,8 +775,8 @@ export function resolveCombatTick(
 
       for (const dot of unit.dots) {
         if (dot.remaining <= 0) continue
-        unit.hull = Math.max(0, unit.hull - dot.dps)
-        dot.remaining -= 1
+        unit.hull = Math.max(0, unit.hull - dot.dps * dt)
+        dot.remaining -= dt
       }
       unit.dots = unit.dots.filter((d) => d.remaining > 0)
 
@@ -780,6 +784,7 @@ export function resolveCombatTick(
         weapon.cooldownLeft = Math.max(0, weapon.cooldownLeft - dt)
         if (weapon.cooldownLeft > 0) continue
 
+        // No target in range → stay ready (do not start cooldown / do not "ghost fire")
         const primary = pickTarget(unit, foes, weapon, focusFire && side === 'player')
         if (!primary) continue
 
@@ -797,9 +802,11 @@ export function resolveCombatTick(
           targets.push(...extras)
         }
 
+        let fired = false
         for (const target of targets) {
           if (target.hull <= 0) continue
           if (target.evasion > 0 && Math.random() < target.evasion) {
+            fired = true
             continue
           }
 
@@ -817,6 +824,7 @@ export function resolveCombatTick(
           }
 
           applyDamageToUnit(target, dmg, weapon.tags)
+          fired = true
 
           if (weapon.dotDuration > 0 && weapon.dotDamage > 0) {
             target.dots.push({ dps: weapon.dotDamage, remaining: weapon.dotDuration })
@@ -828,21 +836,29 @@ export function resolveCombatTick(
             fromId: unit.id,
             toId: target.id,
             tag: weapon.tags[0] ?? 'kinetic',
-            ttl: 2,
+            ttl: 0.45,
           })
         }
 
-        weapon.cooldownLeft = weapon.cooldown
+        if (fired) weapon.cooldownLeft = weapon.cooldown
       }
     }
   }
 
-  state.combat.fx = [...fx, ...state.combat.fx.map((f) => ({ ...f, ttl: f.ttl - 1 }))]
+  state.combat.fx = [...fx, ...state.combat.fx.map((f) => ({ ...f, ttl: f.ttl - dt }))]
     .filter((f) => f.ttl > 0)
-    .slice(0, 48)
+    .slice(0, 64)
 
   maybeAdvanceBossPhase(state, pushLog)
   syncHullAggregates(state)
+}
+
+/** @deprecated use simulateCombat — kept for tests that step one second. */
+export function resolveCombatTick(
+  state: GameState,
+  pushLog: (state: GameState, line: string) => void,
+): void {
+  simulateCombat(state, 1, pushLog)
 }
 
 export function totalEnemyHull(encounter: SectorEncounter): number {

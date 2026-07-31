@@ -28,8 +28,8 @@ describe('tickGame', () => {
     const start = createInitialState(0)
     start.combat.campaign = false
     const next = tickGame(start, 60_000)
-    // Live path only applies LIVE_TICK_CAP seconds
-    expect(next.lastTickAt - start.lastTickAt).toBe(5_000)
+    // Live path only applies LIVE_TICK_CAP seconds of sim, then jumps clock to now
+    expect(next.lastTickAt).toBe(60_000)
     const gained = next.resources.scrap - start.resources.scrap
     expect(gained).toBeGreaterThan(0)
     expect(gained).toBeLessThan(5)
@@ -42,21 +42,17 @@ describe('tickGame', () => {
     expect(state.combat.inFight).toBe(true)
   })
 
-  it('accumulates sub-second polls into combat ticks', () => {
+  it('advances combat with real elapsed time (not whole-second ticks)', () => {
     let state = createInitialState(0)
     state.combat.campaign = false
     state = startCombat(state)
-    // Place a foe already in pulse range so the first full tick deals damage
     for (const e of state.combat.enemyUnits) e.x = 50
     const hullBefore = state.combat.enemyHull
 
-    state = tickGame(state, 250)
-    state = tickGame(state, 500)
-    state = tickGame(state, 750)
-    expect(state.combat.enemyHull).toBe(hullBefore)
-
-    state = tickGame(state, 1000)
+    // A short real-time slice is enough to move/fire once in range
+    state = tickGame(state, 50)
     expect(state.combat.enemyHull).toBeLessThan(hullBefore)
+    expect(state.lastTickAt).toBe(50)
   })
 
   it('hull persists between chained fights under Advance', () => {

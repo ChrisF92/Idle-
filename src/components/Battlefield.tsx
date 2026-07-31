@@ -35,10 +35,7 @@ interface Actor {
   hitFlash: number
   enterT: number
   muzzle: number
-  fireAcc: number
-  fireEvery: number
   weaponTag: string
-  splash: number
 }
 
 interface Projectile {
@@ -107,18 +104,8 @@ function sideFill(side: 'player' | 'enemy', boss: boolean): string {
   return boss ? '#ff6b6b' : '#9eb4cc'
 }
 
-function primaryWeapon(weapons: WeaponInstance[]): {
-  every: number
-  tag: string
-  splash: number
-} {
-  const w = weapons[0]
-  if (!w) return { every: 0.45, tag: 'kinetic', splash: 0 }
-  return {
-    every: Math.max(0.22, Math.min(1.2, w.cooldown * 0.5)),
-    tag: w.tags[0] ?? 'kinetic',
-    splash: w.splash > 0 || w.tags.includes('splash') ? 2 : 0,
-  }
+function primaryWeaponTag(weapons: WeaponInstance[]): string {
+  return weapons[0]?.tags[0] ?? 'kinetic'
 }
 
 function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
@@ -156,7 +143,6 @@ function burst(scene: Scene, x: number, y: number, color: string, n: number): vo
 function ensureActor(scene: Scene, unit: CombatUnit): Actor {
   const existing = scene.actors.get(unit.id)
   const slot = laneToScreen(unit)
-  const wpn = primaryWeapon(unit.weapons)
 
   if (existing) {
     existing.hull = unit.hull
@@ -168,11 +154,7 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     existing.targetX = slot.x
     existing.targetY = slot.y
     existing.r = slot.r
-    if (unit.weapons.length > 0) {
-      existing.fireEvery = wpn.every
-      existing.weaponTag = wpn.tag
-      existing.splash = wpn.splash
-    }
+    existing.weaponTag = primaryWeaponTag(unit.weapons)
     if (unit.hull > 0 && !existing.alive) {
       existing.alive = true
       existing.deathT = 0
@@ -208,10 +190,7 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     hitFlash: 0,
     enterT: 0.35,
     muzzle: 0,
-    fireAcc: Math.random() * wpn.every,
-    fireEvery: wpn.every,
-    weaponTag: wpn.tag,
-    splash: wpn.splash,
+    weaponTag: primaryWeaponTag(unit.weapons),
   }
   scene.actors.set(unit.id, actor)
   return actor
@@ -249,17 +228,6 @@ function spawnShot(
     })
   }
   from.muzzle = 1
-}
-
-function pickFoe(scene: Scene, side: 'player' | 'enemy'): Actor | null {
-  const foes = [...scene.actors.values()].filter((a) => a.alive && a.side !== side)
-  if (foes.length === 0) return null
-  foes.sort((a, b) => {
-    if (a.isBoss !== b.isBoss) return a.isBoss ? -1 : 1
-    return Math.hypot(a.x - PLAYER_SCREEN_X, a.y - VIEW_H / 2) -
-      Math.hypot(b.x - PLAYER_SCREEN_X, b.y - VIEW_H / 2)
-  })
-  return foes[0] ?? null
 }
 
 function syncScene(
@@ -409,25 +377,12 @@ function stepScene(scene: Scene, dt: number): void {
         ? Math.sin(actor.bobPhase) * 2.2
         : Math.sin(actor.bobPhase) * 3.2
 
-    // Follow sim lane targets; flagship locked left + vertical center
+    // Follow sim lane targets; flagship locked left + vertical center.
+    // Projectiles only come from real combat FX (in-range shots) — no ghost fire.
     const tx = actor.targetX
     const ty = actor.targetY + bob
-    actor.x += (tx - actor.x) * Math.min(1, dt * 8)
-    actor.y += (ty - actor.y) * Math.min(1, dt * 8)
-
-    if (scene.mode === 'fighting') {
-      actor.fireAcc += dt
-      // Only fire visually if a foe is roughly in front / near engage
-      if (actor.fireAcc >= actor.fireEvery) {
-        actor.fireAcc -= actor.fireEvery
-        const foe = pickFoe(scene, actor.side)
-        if (foe) {
-          const dist = Math.hypot(foe.x - actor.x, foe.y - actor.y)
-          // Presentation gate: don't shoot across the whole map endlessly
-          if (dist < VIEW_W * 0.85) spawnShot(scene, actor, foe, actor.weaponTag, actor.splash)
-        }
-      }
-    }
+    actor.x += (tx - actor.x) * Math.min(1, dt * 10)
+    actor.y += (ty - actor.y) * Math.min(1, dt * 10)
 
     if (scene.mode === 'repairing' && actor.isFlagship && actor.side === 'player') {
       if (Math.random() < dt * 8) {

@@ -21,16 +21,21 @@ import {
   canReengage,
   enemyForSector,
   repairRatePerSecond,
-  resolveCombatTick,
+  simulateCombat,
   shieldRepairRatePerSecond,
   syncHullAggregates,
   totalEnemyHull,
   computeFightDamage,
 } from './combat'
 
+/** Legacy alias — production/offline still speak in seconds; combat is continuous. */
 export const TICK_MS = 1000
-/** Live interval catch-up — keep short; long absences use offline catch-up. */
+/** Max live catch-up seconds when the tab was backgrounded briefly. */
 export const LIVE_TICK_CAP = 5
+/** Integration step for continuous sim (seconds). */
+export const SIM_STEP_S = 1 / 30
+/** Skip tiny frame gaps. */
+export const MIN_FRAME_MS = 16
 
 function pushLog(state: GameState, line: string, max = 40): void {
   state.combat.log = [line, ...state.combat.log].slice(0, max)
@@ -159,10 +164,10 @@ function onFightWon(state: GameState): void {
   tryCompleteChallenge(state)
 }
 
-function tickCombat(state: GameState): void {
+function tickCombat(state: GameState, dt: number): void {
   if (!state.combat.inFight) return
 
-  resolveCombatTick(state, pushLog)
+  simulateCombat(state, dt, pushLog)
 
   const enemiesAlive = state.combat.enemyUnits.some((u) => u.hull > 0)
   const flag = state.combat.playerUnits.find((u) => u.isFlagship)
@@ -186,7 +191,7 @@ function tickCombat(state: GameState): void {
   }
 }
 
-function tickRepair(state: GameState): void {
+function tickRepair(state: GameState, dt: number): void {
   // Only while Holding — Advance fights constantly and death full-heals on warp.
   if (state.combat.inFight || state.combat.campaign) return
   const stats = computeShipStats(state)
@@ -196,13 +201,13 @@ function tickRepair(state: GameState): void {
   if (state.combat.playerHull < stats.hullMax) {
     state.combat.playerHull = Math.min(
       stats.hullMax,
-      state.combat.playerHull + repairRatePerSecond(state),
+      state.combat.playerHull + repairRatePerSecond(state) * dt,
     )
   }
   if (state.combat.playerShield < stats.shieldMax) {
     state.combat.playerShield = Math.min(
       stats.shieldMax,
-      state.combat.playerShield + shieldRepairRatePerSecond(state),
+      state.combat.playerShield + shieldRepairRatePerSecond(state) * dt,
     )
   }
 }
@@ -260,31 +265,43 @@ export function setCampaign(state: GameState, on: boolean): GameState {
   return next
 }
 
-/** Advance simulation by N one-second ticks (mutates). */
-export function advanceTicks(state: GameState, ticks: number): void {
-  for (let i = 0; i < ticks; i += 1) {
-    applyProduction(state, TICK_MS / 1000)
-    tickCombat(state)
-    tickRepair(state)
-    maybeCampaignEngage(state)
+/** Advance continuous simulation by `seconds` of game time (mutates). */
+export function advanceSeconds(state: GameState, seconds: number): void {
+  let left = Math.max(0, seconds)
+  while (left > 1e-6) {
+    const dt = Math.min(SIM_STEP_S, left)
+    applyProduction(state, dt)
+    if (state.combat.inFight) {
+      tickCombat(state, dt)
+    } else {
+      tickRepair(state, dt)
+      maybeCampaignEngage(state)
+    }
+    left -= dt
   }
 }
 
 /**
- * Live tick path used by the UI interval.
+ * @deprecated name kept for tests — advances N seconds of continuous sim.
+ */
+export function advanceTicks(state: GameState, ticks: number): void {
+  advanceSeconds(state, ticks)
+}
+
+/**
+ * Live path: combat + industry advance by real elapsed time (no 1s combat ticks).
  * Long absences should call applyOfflineCatchUp instead.
  */
 export function tickGame(state: GameState, now = Date.now()): GameState {
-  const elapsed = Math.max(0, now - state.lastTickAt)
-  const ticks = Math.min(LIVE_TICK_CAP, Math.floor(elapsed / TICK_MS))
-
-  if (ticks <= 0) {
+  const elapsedMs = Math.max(0, now - state.lastTickAt)
+  if (elapsedMs < MIN_FRAME_MS) {
     return state
   }
 
+  const appliedMs = Math.min(elapsedMs, LIVE_TICK_CAP * TICK_MS)
   const next = structuredClone(state)
-  advanceTicks(next, ticks)
-  next.lastTickAt = state.lastTickAt + ticks * TICK_MS
+  advanceSeconds(next, appliedMs / 1000)
+  next.lastTickAt = now
   return next
 }
 

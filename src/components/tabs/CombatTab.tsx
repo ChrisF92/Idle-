@@ -94,9 +94,9 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
       <header className="panel-header">
         <h2>Combat</h2>
         <p>
-          Continuous push like USI. Enemies close to weapon range before firing. Death warps you to
-          the previous sector with full hull. Spend Salvage in the Shipyard to upgrade modules this
-          run.
+          Real-time combat (not tick-based): ships only shoot when targets are in range. Death warps
+          you to the previous sector with full hull. Spend Salvage in the Shipyard to upgrade modules
+          this run.
         </p>
       </header>
 

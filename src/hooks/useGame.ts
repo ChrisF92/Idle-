@@ -114,9 +114,10 @@ export function useGame() {
   )
 
   useEffect(() => {
+    // Fast poll so continuous combat stays smooth; sim uses real elapsed dt.
     const id = window.setInterval(() => {
       dispatch({ type: 'tick', now: Date.now() })
-    }, 250)
+    }, 50)
     return () => window.clearInterval(id)
   }, [])
 
