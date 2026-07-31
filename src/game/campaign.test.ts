@@ -1,38 +1,84 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { advanceTicks, setCampaign, startCombat } from './tick'
+import { advanceTicks, setCampaign, startCombat, warpToSector } from './tick'
 import { maybeAdvanceBossPhase } from './combat'
 
 describe('campaign combat', () => {
-  it('holds instead of auto-engaging when Advance is off', () => {
+  it('Hold farms the same sector after a clear', () => {
     let state = createInitialState(0)
     state = setCampaign(state, false)
-    expect(state.combat.campaign).toBe(false)
-    advanceTicks(state, 2)
-    expect(state.combat.inFight).toBe(false)
+    state = startCombat(state)
+    expect(state.combat.sector).toBe(1)
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    const scrapBefore = state.resources.scrap
+    advanceTicks(state, 1)
+    expect(state.combat.sector).toBe(1)
+    expect(state.combat.highestSector).toBe(1)
+    expect(state.resources.scrap).toBeGreaterThan(scrapBefore)
+    // Hold keeps auto-engaging the same sector
+    expect(state.combat.inFight).toBe(true)
   })
 
-  it('repairs hull gradually while Holding', () => {
+  it('Advance pushes to the next sector after a clear', () => {
+    let state = createInitialState(0)
+    state = setCampaign(state, true)
+    state = startCombat(state)
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    advanceTicks(state, 1)
+    expect(state.combat.sector).toBe(2)
+    expect(state.combat.highestSector).toBe(1)
+  })
+
+  it('does not repair hull between fights', () => {
     let state = createInitialState(0)
     state = setCampaign(state, false)
-    state.combat.playerHull = 20
-    state.combat.playerHullMax = 100
-    advanceTicks(state, 5)
-    expect(state.combat.playerHull).toBeGreaterThan(20)
-    expect(state.combat.playerHull).toBeLessThanOrEqual(100)
+    state = startCombat(state)
+    const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
+    flag.hull = 40
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    advanceTicks(state, 1)
+    expect(state.combat.playerHull).toBe(40)
+    const nextFlag = state.combat.playerUnits.find((u) => u.isFlagship)
+    expect(nextFlag?.hull).toBe(40)
   })
 
   it('warps to previous sector with full hull on death', () => {
     let state = createInitialState(0)
     state.combat.sector = 4
+    state.combat.highestSector = 4
     state = startCombat(state)
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
     flag.hull = 0
     advanceTicks(state, 1)
     expect(state.combat.sector).toBe(3)
     expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
-    // Continuous advance re-engages immediately
+    // Continuous loop re-engages immediately
     expect(state.combat.inFight).toBe(true)
+  })
+
+  it('Warp jumps to a cleared sector and aborts the fight', () => {
+    let state = createInitialState(0)
+    state = startCombat(state)
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    advanceTicks(state, 1)
+    expect(state.combat.sector).toBe(2)
+    expect(state.combat.highestSector).toBe(1)
+
+    state = startCombat(state)
+    expect(state.combat.inFight).toBe(true)
+    state = warpToSector(state, 1)
+    expect(state.combat.sector).toBe(1)
+    expect(state.combat.inFight).toBe(false)
+    advanceTicks(state, 1)
+    expect(state.combat.inFight).toBe(true)
+    expect(state.combat.sector).toBe(1)
+  })
+
+  it('rejects Warp to uncleared sectors', () => {
+    let state = createInitialState(0)
+    state = warpToSector(state, 1)
+    expect(state.combat.sector).toBe(1)
+    expect(state.combat.highestSector).toBe(0)
   })
 
   it('persists hull after a win (no full heal)', () => {

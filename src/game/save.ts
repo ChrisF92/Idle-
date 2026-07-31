@@ -31,7 +31,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     enemyFamily: combat.enemyFamily ?? '',
     enemyTags: combat.enemyTags ?? [],
     isBoss: combat.isBoss ?? false,
-    highestSector: Math.max(1, combat.highestSector ?? combat.sector ?? 1),
+    // v10+: highestSector = max sector cleared (0 if none yet)
+    highestSector: Math.max(0, combat.highestSector ?? 0),
     campaign: combat.campaign ?? true,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
@@ -131,12 +132,17 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 5 ||
     parsed.version === 6 ||
     parsed.version === 7 ||
-    parsed.version === 8
+    parsed.version === 8 ||
+    parsed.version === 9
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
       prestige?: GameState['prestige'] & { completedChallenges?: string[] }
     }
+    // v9 treated highestSector as frontier (often == current sector after a push).
+    // v10 treats it as max cleared — approximate as frontier - 1.
+    const oldHighest = prev.combat?.highestSector ?? prev.combat?.sector ?? 1
+    const clearedApprox = Math.max(0, oldHighest - 1)
     return {
       ...base,
       ...prev,
@@ -145,6 +151,7 @@ function migrate(raw: unknown): GameState | null {
       combat: withCombatDefaults({
         ...base.combat,
         ...prev.combat,
+        highestSector: clearedApprox,
         playerUnits: [],
         enemyUnits: [],
         fx: [],

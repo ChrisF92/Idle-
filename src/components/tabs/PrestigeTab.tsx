@@ -77,7 +77,7 @@ export function PrestigeTab({
         <div className="notice-box">
           <p>
             Active challenge: <strong>{active.name}</strong> — reach sector {active.goalSector}{' '}
-            (cleared {Math.max(0, combat.sector - 1)}).
+            (cleared {combat.highestSector}).
           </p>
           <p className="muted">{active.restriction}</p>
           <button type="button" className="danger" onClick={onAbandonChallenge}>

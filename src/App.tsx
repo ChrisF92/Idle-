@@ -40,8 +40,8 @@ export default function App() {
         {tab === 'combat' && (
           <CombatTab
             state={game.state}
-            onEngage={game.engage}
-            onToggleCampaign={game.setCampaign}
+            onSetCampaign={game.setCampaign}
+            onWarp={game.warpToSector}
           />
         )}
         {tab === 'shipyard' && (

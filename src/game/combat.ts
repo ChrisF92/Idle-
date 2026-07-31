@@ -370,19 +370,58 @@ function buildBossPack(sector: number, name: string): CombatUnit[] {
 }
 
 function familyBlurb(family: EnemyFamily, boss: boolean): string {
-  if (boss) return 'Boss: closes carefully, phases shift. Defense + pierce help.'
+  if (boss) return 'Boss: closes carefully; weapon and stance shift across phases.'
+  return familyIntel(family)
+}
+
+/** Plain-language family description for sector intel (no loadout advice). */
+export function familyIntel(family: EnemyFamily): string {
   switch (family) {
     case 'swarm':
-      return 'Swarm: rushes point-blank. Flak / Defense help.'
+      return 'Fast packs that rush to point-blank range.'
     case 'armored':
-      return 'Armored: slow mid-range plates. Pierce weapons help.'
+      return 'Slow mid-range plates with heavy hull.'
     case 'ethereal':
-      return 'Ethereal: long-range kiting. Energy / Utility help.'
+      return 'Long-range kiters that keep their distance.'
     case 'divine':
-      return 'Divine: core hangs back, attendants dive in.'
+      return 'A distant core with diving attendants.'
     case 'titan':
-      return 'Titan-class entity.'
+      return 'Massive flag entity with shifting phases.'
   }
+}
+
+export interface SectorRosterEntry {
+  key: string
+  name: string
+  family: EnemyFamily
+  shape: UnitShape
+  isBoss: boolean
+  count: number
+  summary: string
+}
+
+/** Unique enemy types present in a sector pack (for the sector intel panel). */
+export function sectorRoster(sector: number): SectorRosterEntry[] {
+  const encounter = enemyForSector(sector)
+  const groups = new Map<string, SectorRosterEntry>()
+  for (const u of encounter.units) {
+    const key = `${u.family}:${u.name}`
+    const existing = groups.get(key)
+    if (existing) {
+      existing.count += 1
+      continue
+    }
+    groups.set(key, {
+      key,
+      name: u.name,
+      family: u.family as EnemyFamily,
+      shape: u.shape,
+      isBoss: u.isBoss,
+      count: 1,
+      summary: u.isBoss ? familyBlurb(u.family as EnemyFamily, true) : familyIntel(u.family as EnemyFamily),
+    })
+  }
+  return [...groups.values()]
 }
 
 export function buildPlayerFleet(state: GameState): CombatUnit[] {
@@ -618,14 +657,13 @@ export function maybeAdvanceBossPhase(
   }
 }
 
-/** Hull points restored per second while Holding (not used during continuous push). */
+/** @deprecated Hull repair is currently disabled in live combat. */
 export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
   const shopMult = matterShopRepairMult(state.prestige.matterShop)
   rate /= Math.max(0.2, shopMult)
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
-  if (!state.combat.campaign) rate *= 1.5
   return rate
 }
 

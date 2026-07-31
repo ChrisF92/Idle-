@@ -18,11 +18,8 @@ import {
 import { tryCompleteChallenge } from './actions'
 import {
   buildPlayerFleet,
-  canReengage,
   enemyForSector,
-  repairRatePerSecond,
   simulateCombat,
-  shieldRepairRatePerSecond,
   syncHullAggregates,
   totalEnemyHull,
   computeFightDamage,
@@ -157,11 +154,13 @@ function onFightWon(state: GameState): void {
     state,
     `${wasBoss ? 'Boss' : 'Sector'} ${clearedSector} cleared. ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
   )
-  state.combat.sector += 1
-  state.combat.highestSector = Math.max(
-    state.combat.highestSector,
-    state.combat.sector,
-  )
+
+  state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
+  if (state.combat.campaign) {
+    state.combat.sector = clearedSector + 1
+  } else {
+    state.combat.sector = clearedSector
+  }
   tryCompleteChallenge(state)
 }
 
@@ -192,31 +191,9 @@ function tickCombat(state: GameState, dt: number): void {
   }
 }
 
-function tickRepair(state: GameState, dt: number): void {
-  // Only while Holding — Advance fights constantly and death full-heals on warp.
-  if (state.combat.inFight || state.combat.campaign) return
-  const stats = computeShipStats(state)
-  state.combat.playerHullMax = stats.hullMax
-  state.combat.playerShieldMax = stats.shieldMax
-
-  if (state.combat.playerHull < stats.hullMax) {
-    state.combat.playerHull = Math.min(
-      stats.hullMax,
-      state.combat.playerHull + repairRatePerSecond(state) * dt,
-    )
-  }
-  if (state.combat.playerShield < stats.shieldMax) {
-    state.combat.playerShield = Math.min(
-      stats.shieldMax,
-      state.combat.playerShield + shieldRepairRatePerSecond(state) * dt,
-    )
-  }
-}
-
-function maybeCampaignEngage(state: GameState): void {
+/** Both Advance and Hold auto-engage; no out-of-fight hull repair. */
+function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight) return
-  if (!state.combat.campaign) return
-  if (!canReengage(state)) return
   beginFight(state)
 }
 
@@ -255,15 +232,35 @@ export function startCombat(state: GameState): GameState {
   return next
 }
 
-/** Advance = true, Hold = false. */
+/** Advance = true (push sectors), Hold = false (farm current sector). */
 export function setCampaign(state: GameState, on: boolean): GameState {
   const next = structuredClone(state)
   next.combat.campaign = on
   if (!on) {
-    pushLog(next, 'Holding sector — pause push (future: farm drops here).')
+    pushLog(next, 'Hold engaged — farming the current sector.')
   } else {
     pushLog(next, 'Advance online — continuous sector push.')
   }
+  return next
+}
+
+/**
+ * Warp to a sector cleared this prestige (1..highestSector).
+ * Aborts the current fight; next tick auto-engages at the destination.
+ */
+export function warpToSector(state: GameState, sector: number): GameState {
+  const max = state.combat.highestSector
+  if (!Number.isFinite(sector) || sector < 1 || sector > max) return state
+  const next = structuredClone(state)
+  const from = next.combat.sector
+  clearEnemy(next)
+  next.combat.sector = Math.floor(sector)
+  pushLog(
+    next,
+    from === next.combat.sector
+      ? `Warp reaffirm — sector ${next.combat.sector}.`
+      : `Warped ${from} → sector ${next.combat.sector}.`,
+  )
   return next
 }
 
@@ -276,8 +273,7 @@ export function advanceSeconds(state: GameState, seconds: number): void {
     if (state.combat.inFight) {
       tickCombat(state, dt)
     } else {
-      tickRepair(state, dt)
-      maybeCampaignEngage(state)
+      maybeAutoEngage(state)
     }
     left -= dt
   }

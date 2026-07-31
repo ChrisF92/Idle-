@@ -403,8 +403,8 @@ export function tryCompleteChallenge(state: GameState): void {
   if (!id) return
   const challenge = getChallenge(id)
   if (!challenge) return
-  // After clearing sector N, sector becomes N+1. Cleared count = sector - 1.
-  const cleared = state.combat.sector - 1
+  // highestSector tracks the max sector cleared this prestige (Advance or Hold).
+  const cleared = state.combat.highestSector
   if (cleared < challenge.goalSector) return
 
   const prev = challengeClearCount(state.prestige.challengeClears, id)

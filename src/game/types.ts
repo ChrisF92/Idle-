@@ -133,11 +133,13 @@ export interface CombatProjectile {
 
 export interface CombatState {
   sector: number
+  /** Highest sector cleared at least once this prestige (warp destinations: 1..highestSector). */
   highestSector: number
   inFight: boolean
   /**
-   * Advance mode (USI-like continuous push).
-   * When false, fleet Holds on the current sector (future farming).
+   * Advance mode: after a clear, push to the next sector.
+   * Hold mode: farm the current sector repeatedly (same rewards, no sector++).
+   * Both modes keep auto-engaging.
    */
   campaign: boolean
   consecutiveLosses: number

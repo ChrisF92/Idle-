@@ -12,7 +12,7 @@ import {
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 9
+export const SAVE_VERSION = 10
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -52,7 +52,7 @@ export function createInitialState(now = Date.now()): GameState {
     },
     combat: {
       sector: 1,
-      highestSector: 1,
+      highestSector: 0,
       inFight: false,
       campaign: true,
       consecutiveLosses: 0,

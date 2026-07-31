@@ -1,233 +1,436 @@
-import { useMemo } from 'react'
-import type { GameState } from '../../game/types'
+import { useEffect, useId, useMemo, useState } from 'react'
+import type { GameState, UnitShape } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { getChallenge, getFrame } from '../../game/catalog'
 import {
-  canReengage,
-  computeFightDamage,
   enemyForSector,
-  matchupHintForSector,
-  repairRatePerSecond,
+  sectorRoster,
   totalEnemyHull,
+  type EnemyFamily,
 } from '../../game/combat'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 
 interface CombatTabProps {
   state: GameState
-  onEngage: () => void
-  onToggleCampaign: (on: boolean) => void
+  onSetCampaign: (on: boolean) => void
+  onWarp: (sector: number) => void
 }
 
-export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps) {
+type Overlay = 'none' | 'sector' | 'warp'
+
+export function CombatTab({ state, onSetCampaign, onWarp }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
   const frame = getFrame(state.shipyard.frameId)
   const challenge = state.prestige.activeChallengeId
     ? getChallenge(state.prestige.activeChallengeId)
     : null
-  const upcoming = useMemo(() => enemyForSector(combat.sector), [combat.sector])
-  const fight = combat.inFight ? computeFightDamage(state) : null
-  const hint = matchupHintForSector(combat.sector, state.shipyard.modules)
-  const status = combatStatusLabel(combat)
-  const enemyHullMax = combat.inFight
-    ? Math.max(1, combat.enemyHullMax)
-    : Math.max(1, totalEnemyHull(upcoming))
-  const enemyHull = combat.inFight ? combat.enemyHull : enemyHullMax
-  const repairRate = repairRatePerSecond(state)
+  const encounter = useMemo(() => enemyForSector(combat.sector), [combat.sector])
+  const roster = useMemo(() => sectorRoster(combat.sector), [combat.sector])
+  const [overlay, setOverlay] = useState<Overlay>('none')
+
   const battlefieldMode: BattlefieldMode = combat.inFight
     ? 'fighting'
-    : !combat.campaign
-      ? 'holding'
-      : 'ready'
+    : combat.campaign
+      ? 'ready'
+      : 'holding'
 
-  const previewPlayer = [
-    {
-      id: 'preview-flag',
-      side: 'player' as const,
-      name: frame?.name ?? 'Flagship',
-      shape: 'triangle' as const,
-      family: 'player',
-      hull: combat.playerHull,
-      hullMax: combat.playerHullMax,
-      shield: combat.playerShield,
-      shieldMax: combat.playerShieldMax,
-      armor: stats.armor,
-      evasion: stats.evasion,
-      damageTakenMult: stats.damageTakenMult,
-      weapons: [],
-      isBoss: false,
-      isFlagship: true,
-      dots: [],
-      x: 0,
-      y: 0,
-      speed: 0,
-      engageRange: 0,
-      kite: false,
-    },
-    ...Array.from({ length: stats.escortCount }, (_, i) => ({
-      id: `preview-escort-${i}`,
-      side: 'player' as const,
-      name: `Drone ${i + 1}`,
-      shape: 'circle' as const,
-      family: 'escort',
-      hull: 1,
-      hullMax: 1,
-      shield: 0,
-      shieldMax: 0,
-      armor: 0,
-      evasion: 0,
-      damageTakenMult: 1,
-      weapons: [],
-      isBoss: false,
-      isFlagship: false,
-      dots: [],
-      x: 12,
-      y: i % 2 === 0 ? -24 : 24,
-      speed: 0,
-      engageRange: 0,
-      kite: false,
-    })),
-  ]
+  const previewPlayer = useMemo(
+    () => [
+      {
+        id: 'preview-flag',
+        side: 'player' as const,
+        name: frame?.name ?? 'Flagship',
+        shape: 'triangle' as const,
+        family: 'player',
+        hull: combat.playerHull,
+        hullMax: combat.playerHullMax,
+        shield: combat.playerShield,
+        shieldMax: combat.playerShieldMax,
+        armor: stats.armor,
+        evasion: stats.evasion,
+        damageTakenMult: stats.damageTakenMult,
+        weapons: [],
+        isBoss: false,
+        isFlagship: true,
+        dots: [],
+        x: 0,
+        y: 0,
+        speed: 0,
+        engageRange: 0,
+        kite: false,
+      },
+      ...Array.from({ length: stats.escortCount }, (_, i) => ({
+        id: `preview-escort-${i}`,
+        side: 'player' as const,
+        name: `Drone ${i + 1}`,
+        shape: 'circle' as const,
+        family: 'escort',
+        hull: 1,
+        hullMax: 1,
+        shield: 0,
+        shieldMax: 0,
+        armor: 0,
+        evasion: 0,
+        damageTakenMult: 1,
+        weapons: [],
+        isBoss: false,
+        isFlagship: false,
+        dots: [],
+        x: 12,
+        y: i % 2 === 0 ? -24 : 24,
+        speed: 0,
+        engageRange: 0,
+        kite: false,
+      })),
+    ],
+    [
+      frame?.name,
+      combat.playerHull,
+      combat.playerHullMax,
+      combat.playerShield,
+      combat.playerShieldMax,
+      stats.armor,
+      stats.evasion,
+      stats.damageTakenMult,
+      stats.escortCount,
+    ],
+  )
+
+  const warpTargets = useMemo(() => {
+    const max = combat.highestSector
+    if (max < 1) return [] as number[]
+    return Array.from({ length: max }, (_, i) => i + 1)
+  }, [combat.highestSector])
+
+  const modeLabel = combat.campaign ? 'ADVANCE' : 'HOLD'
+  const statusLabel = combat.inFight
+    ? combat.isBoss
+      ? `BOSS P${combat.bossPhase + 1}`
+      : 'ENGAGED'
+    : 'STANDBY'
 
   return (
-    <section className="panel">
-      <header className="panel-header">
-        <h2>Combat</h2>
-        <p>
-          Real-time combat (not tick-based): ships only shoot when targets are in range. Death warps
-          you to the previous sector with full hull. Spend Salvage in the Shipyard to upgrade modules
-          this run.
-        </p>
+    <section className="panel combat-hud">
+      <header className="combat-hud-bar">
+        <div className="combat-hud-readout">
+          <span className="combat-hud-kicker">Sector</span>
+          <strong className="combat-hud-value">{combat.sector}</strong>
+        </div>
+        <div className="combat-hud-readout">
+          <span className="combat-hud-kicker">Mode</span>
+          <strong className="combat-hud-value">{modeLabel}</strong>
+        </div>
+        <div className="combat-hud-readout">
+          <span className="combat-hud-kicker">Status</span>
+          <strong className="combat-hud-value">{statusLabel}</strong>
+        </div>
+        <div className="combat-hud-readout combat-hud-readout-wide">
+          <span className="combat-hud-kicker">Contact</span>
+          <strong className="combat-hud-value combat-hud-contact">
+            {combat.inFight ? combat.enemyName : encounter.name}
+          </strong>
+        </div>
+        <button
+          type="button"
+          className="combat-intel-btn"
+          onClick={() => setOverlay('sector')}
+        >
+          Sector info
+        </button>
       </header>
 
-      <div className="stat-row">
-        <div>
-          <span className="muted">Sector</span>
-          <strong>{combat.sector}</strong>
-        </div>
-        <div>
-          <span className="muted">Fleet DPS</span>
-          <strong>{(fight?.playerDps ?? stats.damage).toFixed(1)}</strong>
-        </div>
-        <div>
-          <span className="muted">Status</span>
-          <strong>{status}</strong>
-        </div>
-      </div>
-
       {challenge ? (
-        <p className="notice-warn">
-          Challenge: {challenge.name} — cleared {Math.max(0, combat.sector - 1)}/
-          {challenge.goalSector}
+        <p className="notice-warn combat-challenge">
+          Challenge: {challenge.name} — cleared {combat.highestSector}/{challenge.goalSector}
         </p>
       ) : null}
 
-      <div className="stat-row">
-        <label className="muted" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input
-            type="checkbox"
-            checked={combat.campaign}
-            onChange={(e) => onToggleCampaign(e.target.checked)}
-          />
-          Advance (uncheck to Hold)
-        </label>
-        {!combat.campaign && !combat.inFight && combat.playerHull < combat.playerHullMax ? (
-          <span className="muted">Repair +{repairRate.toFixed(1)}/s</span>
-        ) : (
-          <span className="muted">Salvage {state.resources.salvage.toFixed(0)}</span>
-        )}
-      </div>
-
-      <p className="muted">{hint}</p>
-
       <Battlefield
         playerUnits={combat.inFight ? combat.playerUnits : previewPlayer}
-        enemyUnits={combat.inFight ? combat.enemyUnits : upcoming.units}
+        enemyUnits={combat.inFight ? combat.enemyUnits : encounter.units}
         projectiles={combat.inFight ? combat.projectiles : []}
         fx={combat.fx}
         mode={battlefieldMode}
       />
 
-      <div className="combat-grid">
-        <div className="combat-side">
-          <h3>{frame?.name ?? 'Frame'}</h3>
-          <p className="muted">
-            {state.shipyard.modules.join(', ') || 'No modules'}
-            {stats.escortCount > 0 ? ` · ${stats.escortCount} drones` : ''}
-          </p>
-          <Meter label="Hull" value={combat.playerHull} max={combat.playerHullMax} />
-          {combat.playerShieldMax > 0 ? (
-            <Meter label="Shield" value={combat.playerShield} max={combat.playerShieldMax} />
-          ) : null}
-          <p className="muted">
-            Armor {stats.armor} · Eva {(stats.evasion * 100).toFixed(0)}%
-          </p>
-        </div>
-        <div className="combat-side">
-          <h3>{combat.inFight ? combat.enemyName : upcoming.name}</h3>
-          <p className="muted">
-            {combat.inFight
-              ? `${combat.enemyFamily}${combat.isBoss ? ` · boss P${combat.bossPhase + 1}` : ''} · ${fight?.enemyAlive ?? 0} left`
-              : `Next · ${upcoming.family}${upcoming.isBoss ? ' · boss' : ''} · ${upcoming.units.length} units`}
-          </p>
-          <Meter label="Hull" value={enemyHull} max={enemyHullMax} />
-          {!combat.inFight ? (
-            <p className="muted">{upcoming.blurb}</p>
-          ) : fight && fight.matchupNotes.length > 0 ? (
-            <p className="muted">{fight.matchupNotes.join(' · ')}</p>
-          ) : null}
-        </div>
+      <div className="combat-controls" role="group" aria-label="Fleet controls">
+        <button
+          type="button"
+          className={combat.campaign ? 'primary mode-active' : ''}
+          aria-pressed={combat.campaign}
+          onClick={() => onSetCampaign(true)}
+        >
+          Advance
+        </button>
+        <button
+          type="button"
+          className={!combat.campaign ? 'primary mode-active' : ''}
+          aria-pressed={!combat.campaign}
+          onClick={() => onSetCampaign(false)}
+        >
+          Hold
+        </button>
+        <button
+          type="button"
+          disabled={warpTargets.length === 0}
+          onClick={() => setOverlay('warp')}
+          title={
+            warpTargets.length === 0
+              ? 'Clear a sector this prestige to unlock Warp'
+              : 'Warp to a cleared sector'
+          }
+        >
+          Warp
+        </button>
       </div>
 
-      <button
-        type="button"
-        className="primary"
-        disabled={
-          combat.inFight ||
-          combat.campaign ||
-          (!canReengage(state) && combat.playerHull < combat.playerHullMax)
-        }
-        onClick={onEngage}
-      >
-        {combat.inFight
-          ? 'Engaged…'
-          : combat.campaign
-            ? 'Advancing…'
-            : !canReengage(state)
-              ? 'Repairing…'
-              : upcoming.isBoss
-                ? `Engage boss sector ${combat.sector}`
-                : `Engage sector ${combat.sector}`}
-      </button>
+      {overlay === 'sector' ? (
+        <SectorInfoModal
+          sector={combat.sector}
+          encounterName={encounter.name}
+          family={encounter.family}
+          isBoss={encounter.isBoss}
+          blurb={encounter.blurb}
+          roster={roster}
+          rewards={{
+            scrap: encounter.scrapReward,
+            data: encounter.dataReward,
+            ai: encounter.aiReward,
+            salvage: encounter.salvageReward,
+            essence: encounter.essenceReward,
+          }}
+          hullMax={totalEnemyHull(encounter)}
+          onClose={() => setOverlay('none')}
+        />
+      ) : null}
 
-      <div className="log" aria-label="Combat log">
-        {combat.log.map((line, i) => (
-          <p key={`${i}-${line.slice(0, 12)}`}>{line}</p>
-        ))}
-      </div>
+      {overlay === 'warp' ? (
+        <WarpModal
+          current={combat.sector}
+          targets={warpTargets}
+          onWarp={(sector) => {
+            onWarp(sector)
+            setOverlay('none')
+          }}
+          onClose={() => setOverlay('none')}
+        />
+      ) : null}
     </section>
   )
 }
 
-function combatStatusLabel(combat: GameState['combat']): string {
-  if (combat.inFight) return combat.isBoss ? `Boss P${combat.bossPhase + 1}` : 'In fight'
-  if (!combat.campaign) return 'Holding'
-  return 'Advancing'
-}
+function SectorInfoModal({
+  sector,
+  encounterName,
+  family,
+  isBoss,
+  blurb,
+  roster,
+  rewards,
+  hullMax,
+  onClose,
+}: {
+  sector: number
+  encounterName: string
+  family: EnemyFamily
+  isBoss: boolean
+  blurb: string
+  roster: ReturnType<typeof sectorRoster>
+  rewards: { scrap: number; data: number; ai: number; salvage: number; essence: number }
+  hullMax: number
+  onClose: () => void
+}) {
+  const titleId = useId()
+  useEscapeClose(onClose)
 
-function Meter({ label, value, max }: { label: string; value: number; max: number }) {
-  const pct = Math.max(0, Math.min(100, (value / Math.max(1, max)) * 100))
   return (
-    <div className="meter">
-      <div className="meter-label">
-        <span>{label}</span>
-        <span>
-          {Math.ceil(value)} / {Math.ceil(max)}
-        </span>
-      </div>
-      <div className="meter-track">
-        <div className="meter-fill" style={{ width: `${pct}%` }} />
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="modal-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="modal-header">
+          <div>
+            <p className="combat-hud-kicker">Sector {sector}</p>
+            <h3 id={titleId}>{encounterName}</h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close">
+            Close
+          </button>
+        </header>
+
+        <p className="muted">
+          {isBoss ? 'Boss sector' : 'Standard sector'} · {family} · pack hull{' '}
+          {Math.ceil(hullMax)}
+        </p>
+        <p>{blurb}</p>
+
+        <ul className="sector-roster">
+          {roster.map((entry) => (
+            <li key={entry.key} className="sector-roster-item">
+              <EnemyGlyph
+                id={entry.key}
+                family={entry.family}
+                shape={entry.shape}
+                boss={entry.isBoss}
+              />
+              <div>
+                <strong>
+                  {entry.name}
+                  {entry.count > 1 ? ` ×${entry.count}` : ''}
+                </strong>
+                <p className="muted">{entry.summary}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        <p className="muted">
+          Clear reward: {rewards.scrap} scrap · {rewards.data} data · {rewards.ai} AI ·{' '}
+          {rewards.salvage} salvage
+          {rewards.essence > 0 ? ` · ${rewards.essence} essence` : ''}
+        </p>
       </div>
     </div>
   )
+}
+
+function WarpModal({
+  current,
+  targets,
+  onWarp,
+  onClose,
+}: {
+  current: number
+  targets: number[]
+  onWarp: (sector: number) => void
+  onClose: () => void
+}) {
+  const titleId = useId()
+  useEscapeClose(onClose)
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="modal-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="modal-header">
+          <div>
+            <p className="combat-hud-kicker">Navigation</p>
+            <h3 id={titleId}>Warp</h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close">
+            Close
+          </button>
+        </header>
+        <p className="muted">
+          Jump to any sector cleared this prestige. Aborts the current fight.
+        </p>
+        <div className="warp-grid">
+          {targets.map((sector) => (
+            <button
+              key={sector}
+              type="button"
+              className={sector === current ? 'primary' : ''}
+              onClick={() => onWarp(sector)}
+            >
+              {sector}
+              {sector === current ? ' · here' : ''}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EnemyGlyph({
+  id,
+  family,
+  shape,
+  boss,
+}: {
+  id: string
+  family: EnemyFamily
+  shape: UnitShape
+  boss: boolean
+}) {
+  const fill = familyColor(family)
+  const gradId = `glyph-${id.replace(/[^a-zA-Z0-9_-]/g, '-')}`
+  return (
+    <svg
+      className="enemy-glyph"
+      viewBox="0 0 64 64"
+      width="56"
+      height="56"
+      aria-hidden="true"
+    >
+      <defs>
+        <radialGradient id={gradId} cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stopColor={fill} stopOpacity="0.95" />
+          <stop offset="100%" stopColor="#0e141c" stopOpacity="0.9" />
+        </radialGradient>
+      </defs>
+      <rect width="64" height="64" fill="#0e141c" />
+      <circle cx="32" cy="32" r="28" fill={`url(#${gradId})`} opacity="0.35" />
+      <g transform="translate(32 32)" fill={fill} stroke="#e7edf5" strokeWidth="1.5">
+        {shapePath(shape, boss ? 18 : 14)}
+      </g>
+    </svg>
+  )
+}
+
+function shapePath(shape: UnitShape, r: number) {
+  switch (shape) {
+    case 'triangle':
+      return (
+        <path d={`M ${r} 0 L ${-r * 0.85} ${-r} L ${-r * 0.85} ${r} Z`} />
+      )
+    case 'square':
+      return <rect x={-r * 0.85} y={-r * 0.85} width={r * 1.7} height={r * 1.7} />
+    case 'diamond':
+      return <path d={`M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`} />
+    case 'hex': {
+      const pts = Array.from({ length: 6 }, (_, i) => {
+        const a = (Math.PI / 3) * i - Math.PI / 6
+        return `${Math.cos(a) * r},${Math.sin(a) * r}`
+      }).join(' ')
+      return <polygon points={pts} />
+    }
+    default:
+      return <circle r={r} />
+  }
+}
+
+function familyColor(family: EnemyFamily): string {
+  switch (family) {
+    case 'swarm':
+      return '#9eb4cc'
+    case 'armored':
+      return '#c4a574'
+    case 'ethereal':
+      return '#7ec8ff'
+    case 'divine':
+      return '#e0c07a'
+    case 'titan':
+      return '#ff6b6b'
+  }
+}
+
+function useEscapeClose(onClose: () => void): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 }

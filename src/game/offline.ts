@@ -13,8 +13,6 @@ import {
   metaProductionMultiplier,
   researchEssenceMultiplier,
 } from './catalog'
-import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
-
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -85,9 +83,6 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
  * Scales with the sector you left on and offline duration.
  */
 function applySectorOfflineRewards(state: GameState, seconds: number): void {
-  if (!state.combat.campaign && state.combat.playerHull >= state.combat.playerHullMax) {
-    // Holding at full repair — light salvage only
-  }
   const sector = Math.max(1, state.combat.sector)
   const hours = seconds / 3600
   const scrapPerHour = (8 + sector * 3) * (1 + matterShopScrapBonus(state.prestige.matterShop))
@@ -107,29 +102,20 @@ function applySectorOfflineRewards(state: GameState, seconds: number): void {
   state.resources.essence += essencePerHour * hours
 }
 
-function applyOfflineRepair(state: GameState, seconds: number): void {
+/** Offline does not simulate combat or repair — just clear an in-progress fight. */
+function endOfflineFight(state: GameState): void {
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerShieldMax = stats.shieldMax
-  state.combat.playerHull = Math.min(
-    stats.hullMax,
-    state.combat.playerHull + repairRatePerSecond(state) * seconds,
-  )
-  state.combat.playerShield = Math.min(
-    stats.shieldMax,
-    state.combat.playerShield + shieldRepairRatePerSecond(state) * seconds,
-  )
-  // End any in-progress fight cleanly — offline does not simulate combat.
-  if (state.combat.inFight) {
-    state.combat.inFight = false
-    state.combat.playerUnits = []
-    state.combat.enemyUnits = []
-    state.combat.enemyHull = 0
-    state.combat.enemyHullMax = 0
-    state.combat.projectiles = []
-    state.combat.fx = []
-    state.combat.enemyName = 'None'
-  }
+  if (!state.combat.inFight) return
+  state.combat.inFight = false
+  state.combat.playerUnits = []
+  state.combat.enemyUnits = []
+  state.combat.enemyHull = 0
+  state.combat.enemyHullMax = 0
+  state.combat.projectiles = []
+  state.combat.fx = []
+  state.combat.enemyName = 'None'
 }
 
 /**
@@ -158,7 +144,7 @@ export function applyOfflineCatchUp(
 
   applyIndustryOnly(next, seconds)
   applySectorOfflineRewards(next, seconds)
-  applyOfflineRepair(next, seconds)
+  endOfflineFight(next)
   next.lastTickAt = now
 
   const gains = resourceDelta(beforeResources, next.resources)
