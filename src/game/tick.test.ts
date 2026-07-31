@@ -49,10 +49,15 @@ describe('tickGame', () => {
     for (const e of state.combat.enemyUnits) e.x = 50
     const hullBefore = state.combat.enemyHull
 
-    // A short real-time slice is enough to move/fire once in range
+    // Fire happens quickly; damage waits for projectile travel (~0.2s at mid-lane)
     state = tickGame(state, 50)
-    expect(state.combat.enemyHull).toBeLessThan(hullBefore)
+    expect(state.combat.projectiles.length).toBeGreaterThan(0)
+    expect(state.combat.enemyHull).toBe(hullBefore)
     expect(state.lastTickAt).toBe(50)
+
+    state = tickGame(state, 400)
+    expect(state.combat.enemyHull).toBeLessThan(hullBefore)
+    expect(state.lastTickAt).toBe(400)
   })
 
   it('hull persists between chained fights under Advance', () => {

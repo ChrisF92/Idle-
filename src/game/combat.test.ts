@@ -6,6 +6,7 @@ import {
   enemyForSector,
   isBossSector,
   resolveCombatTick,
+  simulateCombat,
 } from './combat'
 import { fitModule, unlockModule } from './actions'
 
@@ -77,6 +78,31 @@ describe('fleet combat resolution', () => {
     const before = state.combat.enemyHull
     // Swarms spawn far and must close before anyone can shoot
     for (let i = 0; i < 6; i += 1) resolveCombatTick(state, () => {})
+    expect(state.combat.enemyHull).toBeLessThan(before)
+  })
+
+  it('defers damage until projectiles impact', () => {
+    let state = createInitialState(0)
+    state = startCombat(state)
+    // Place foes at mid-lane so a shot must travel before impact
+    for (const u of state.combat.enemyUnits) {
+      u.x = 90
+      u.engageRange = 200
+    }
+    for (const u of state.combat.playerUnits) {
+      for (const w of u.weapons) {
+        w.range = 200
+        w.cooldownLeft = 0
+      }
+    }
+
+    const before = state.combat.enemyHull
+    simulateCombat(state, 1 / 60, () => {})
+    expect(state.combat.projectiles.length).toBeGreaterThan(0)
+    expect(state.combat.enemyHull).toBe(before)
+
+    // Travel long enough for mid-lane kinetic (~240 u/s) to arrive
+    for (let i = 0; i < 30; i += 1) simulateCombat(state, 1 / 60, () => {})
     expect(state.combat.enemyHull).toBeLessThan(before)
   })
 

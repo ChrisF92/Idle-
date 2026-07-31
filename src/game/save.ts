@@ -39,6 +39,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     playerShieldMax: combat.playerShieldMax ?? 0,
     playerUnits: withUnitDefaults(combat.playerUnits),
     enemyUnits: withUnitDefaults(combat.enemyUnits),
+    projectiles: combat.projectiles ?? [],
     fx: combat.fx ?? [],
   }
 }

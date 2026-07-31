@@ -143,6 +143,7 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
       <Battlefield
         playerUnits={combat.inFight ? combat.playerUnits : previewPlayer}
         enemyUnits={combat.inFight ? combat.enemyUnits : upcoming.units}
+        projectiles={combat.inFight ? combat.projectiles : []}
         fx={combat.fx}
         mode={battlefieldMode}
       />

@@ -69,6 +69,7 @@ export function createInitialState(now = Date.now()): GameState {
       isBoss: false,
       enemyHull: 0,
       enemyHullMax: 0,
+      projectiles: [],
       fx: [],
       log: ['Systems online. Continuous push armed.'],
     },

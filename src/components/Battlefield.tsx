@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react'
-import type { CombatFx, CombatUnit, UnitShape, WeaponInstance } from '../game/types'
+import type {
+  CombatFx,
+  CombatProjectile,
+  CombatUnit,
+  UnitShape,
+  WeaponInstance,
+} from '../game/types'
 import { SPAWN_DISTANCE } from '../game/combat'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready'
@@ -7,6 +13,7 @@ export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready'
 interface BattlefieldProps {
   playerUnits: CombatUnit[]
   enemyUnits: CombatUnit[]
+  projectiles: CombatProjectile[]
   fx: CombatFx[]
   mode: BattlefieldMode
 }
@@ -38,19 +45,6 @@ interface Actor {
   weaponTag: string
 }
 
-interface Projectile {
-  id: string
-  x: number
-  y: number
-  vx: number
-  vy: number
-  tag: string
-  life: number
-  maxLife: number
-  radius: number
-  fromSide: 'player' | 'enemy'
-}
-
 interface Particle {
   x: number
   y: number
@@ -62,11 +56,23 @@ interface Particle {
   size: number
 }
 
+interface VisualShot {
+  x: number
+  y: number
+  tag: string
+  fromSide: 'player' | 'enemy'
+  /** Screen-space heading for trail. */
+  hx: number
+  hy: number
+}
+
 interface Scene {
   actors: Map<string, Actor>
-  projectiles: Projectile[]
+  /** Screen-space copies of sim projectiles, keyed by id. */
+  projectiles: Map<string, VisualShot>
   particles: Particle[]
   seenFx: Set<string>
+  seenProj: Set<string>
   prevHull: Map<string, number>
   width: number
   height: number
@@ -74,7 +80,6 @@ interface Scene {
   mode: BattlefieldMode
   starSeed: number
   scroll: number
-  projSeq: number
 }
 
 const VIEW_W = 640
@@ -94,8 +99,17 @@ function tagColor(tag: string): string {
       return '#e0c07a'
     case 'dot':
       return '#8fd98f'
+    case 'miss':
+      return '#9aa3ad'
     default:
       return '#d8f0e0'
+  }
+}
+
+function lanePointToScreen(x: number, y: number): { x: number; y: number } {
+  return {
+    x: PLAYER_SCREEN_X + Math.max(0, x) * LANE_SCALE,
+    y: VIEW_H / 2 + y,
   }
 }
 
@@ -196,44 +210,11 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
   return actor
 }
 
-function spawnShot(
-  scene: Scene,
-  from: Actor,
-  to: Actor,
-  tag: string,
-  splashExtra = 0,
-): void {
-  const count = 1 + splashExtra
-  for (let i = 0; i < count; i += 1) {
-    const spread = splashExtra > 0 ? (i - (count - 1) / 2) * 0.2 : (Math.random() - 0.5) * 0.06
-    const dx = to.x - from.x
-    const dy = to.y - from.y
-    const dist = Math.max(1, Math.hypot(dx, dy))
-    const speed =
-      tag === 'pierce' ? 680 : tag === 'energy' || tag === 'antiShield' ? 560 : 500
-    const ang = Math.atan2(dy, dx) + spread
-    const life = dist / speed
-    scene.projSeq += 1
-    scene.projectiles.push({
-      id: `p-${scene.projSeq}`,
-      x: from.x,
-      y: from.y,
-      vx: Math.cos(ang) * speed,
-      vy: Math.sin(ang) * speed,
-      tag,
-      life,
-      maxLife: life,
-      radius: tag === 'pierce' ? 3.2 : splashExtra > 0 ? 2.2 : 2.8,
-      fromSide: from.side,
-    })
-  }
-  from.muzzle = 1
-}
-
 function syncScene(
   scene: Scene,
   playerUnits: CombatUnit[],
   enemyUnits: CombatUnit[],
+  projectiles: CombatProjectile[],
   fx: CombatFx[],
   mode: BattlefieldMode,
 ): void {
@@ -257,15 +238,51 @@ function syncScene(
     }
   }
 
+  // Mirror authoritative sim projectiles into screen space (damage is sim-only on impact)
+  const nextProj = new Map<string, VisualShot>()
+  for (const p of projectiles) {
+    const screen = lanePointToScreen(p.x, p.y)
+    const prev = scene.projectiles.get(p.id)
+    let hx = p.side === 'player' ? 1 : -1
+    let hy = 0
+    if (prev) {
+      const dx = screen.x - prev.x
+      const dy = screen.y - prev.y
+      if (Math.hypot(dx, dy) > 0.2) {
+        hx = dx
+        hy = dy
+      } else {
+        hx = prev.hx
+        hy = prev.hy
+      }
+    }
+    nextProj.set(p.id, {
+      x: screen.x,
+      y: screen.y,
+      tag: p.tag,
+      fromSide: p.side,
+      hx,
+      hy,
+    })
+    if (!scene.seenProj.has(p.id)) {
+      scene.seenProj.add(p.id)
+      const from = scene.actors.get(p.fromId)
+      if (from) from.muzzle = 1
+    }
+  }
+  scene.projectiles = nextProj
+  if (scene.seenProj.size > 300) {
+    scene.seenProj = new Set(projectiles.map((p) => p.id))
+  }
+
+  // Impact FX only (damage already applied in sim on hit)
   for (const shot of fx) {
     if (scene.seenFx.has(shot.id)) continue
     scene.seenFx.add(shot.id)
-    const from = scene.actors.get(shot.fromId)
     const to = scene.actors.get(shot.toId)
-    if (from && to) {
-      spawnShot(scene, from, to, shot.tag, shot.tag === 'splash' ? 2 : 0)
-      burst(scene, to.x, to.y, tagColor(shot.tag), 5)
-      to.hitFlash = 1
+    if (to) {
+      burst(scene, to.x, to.y, tagColor(shot.tag), shot.tag === 'miss' ? 3 : 7)
+      if (shot.tag !== 'miss') to.hitFlash = 1
     }
   }
   if (scene.seenFx.size > 240) scene.seenFx = new Set(fx.map((f) => f.id))
@@ -400,26 +417,7 @@ function stepScene(scene: Scene, dt: number): void {
     }
   }
 
-  for (const p of scene.projectiles) {
-    p.x += p.vx * dt
-    p.y += p.vy * dt
-    p.life -= dt
-    if (p.life <= 0) {
-      burst(scene, p.x, p.y, tagColor(p.tag), p.tag === 'splash' ? 8 : 4)
-      let best: Actor | null = null
-      let bestD = 40
-      for (const a of scene.actors.values()) {
-        if (!a.alive || a.side === p.fromSide) continue
-        const d = Math.hypot(a.x - p.x, a.y - p.y)
-        if (d < bestD) {
-          bestD = d
-          best = a
-        }
-      }
-      if (best) best.hitFlash = 1
-    }
-  }
-  scene.projectiles = scene.projectiles.filter((p) => p.life > 0)
+  // Projectiles are authoritative from the sim; positions refresh in syncScene.
 
   for (const part of scene.particles) {
     part.x += part.vx * dt
@@ -441,10 +439,11 @@ function stepScene(scene: Scene, dt: number): void {
 function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   drawBackground(ctx, scene)
 
-  for (const p of scene.projectiles) {
+  for (const p of scene.projectiles.values()) {
     const color = tagColor(p.tag)
-    const ang = Math.atan2(p.vy, p.vx)
+    const ang = Math.atan2(p.hy, p.hx)
     const tail = p.tag === 'pierce' ? 22 : 14
+    const radius = p.tag === 'splash' ? 3.2 : 2.4
     ctx.save()
     ctx.strokeStyle = color
     ctx.fillStyle = color
@@ -457,7 +456,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     ctx.lineTo(p.x - Math.cos(ang) * tail, p.y - Math.sin(ang) * tail)
     ctx.stroke()
     ctx.beginPath()
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
   }
@@ -534,13 +533,14 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
 export function Battlefield({
   playerUnits,
   enemyUnits,
+  projectiles,
   fx,
   mode,
 }: BattlefieldProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<Scene | null>(null)
-  const propsRef = useRef({ playerUnits, enemyUnits, fx, mode })
-  propsRef.current = { playerUnits, enemyUnits, fx, mode }
+  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, fx, mode })
+  propsRef.current = { playerUnits, enemyUnits, projectiles, fx, mode }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -550,9 +550,10 @@ export function Battlefield({
 
     const scene: Scene = {
       actors: new Map(),
-      projectiles: [],
+      projectiles: new Map(),
       particles: [],
       seenFx: new Set(),
+      seenProj: new Set(),
       prevHull: new Map(),
       width: VIEW_W,
       height: VIEW_H,
@@ -560,7 +561,6 @@ export function Battlefield({
       mode: 'ready',
       starSeed: 1234567,
       scroll: 0,
-      projSeq: 0,
     }
     sceneRef.current = scene
 
@@ -572,7 +572,7 @@ export function Battlefield({
       last = now
 
       const p = propsRef.current
-      syncScene(scene, p.playerUnits, p.enemyUnits, p.fx, p.mode)
+      syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.fx, p.mode)
       stepScene(scene, dt)
 
       const dpr = Math.min(2, window.devicePixelRatio || 1)
@@ -601,8 +601,9 @@ export function Battlefield({
     const scene = sceneRef.current
     if (!scene) return
     if (mode !== 'fighting') {
-      scene.projectiles = []
+      scene.projectiles = new Map()
       scene.seenFx.clear()
+      scene.seenProj.clear()
     }
   }, [mode])
 

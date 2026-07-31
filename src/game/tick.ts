@@ -52,6 +52,7 @@ function clearEnemy(state: GameState): void {
   state.combat.playerUnits = []
   state.combat.enemyHull = 0
   state.combat.enemyHullMax = 0
+  state.combat.projectiles = []
   state.combat.fx = []
 }
 
@@ -232,6 +233,7 @@ export function beginFight(state: GameState): void {
   state.combat.bossPhase = 0
   state.combat.enemyUnits = encounter.units.map((u) => structuredClone(u))
   state.combat.playerUnits = buildPlayerFleet(state)
+  state.combat.projectiles = []
   state.combat.fx = []
   syncHullAggregates(state)
 

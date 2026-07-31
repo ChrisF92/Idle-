@@ -112,6 +112,25 @@ export interface CombatFx {
   ttl: number
 }
 
+/** In-flight shot — damage applies on impact, not on fire. */
+export interface CombatProjectile {
+  id: string
+  fromId: string
+  toId: string
+  side: 'player' | 'enemy'
+  tag: string
+  /** Lane-space position. */
+  x: number
+  y: number
+  damage: number
+  tags: WeaponTag[]
+  dotDuration: number
+  dotDamage: number
+  /** Lane units per second. */
+  speed: number
+  attackerFamily: string
+}
+
 export interface CombatState {
   sector: number
   highestSector: number
@@ -137,6 +156,8 @@ export interface CombatState {
   /** Aggregated enemy hull for meters / legacy helpers. */
   enemyHull: number
   enemyHullMax: number
+  /** Live projectiles traveling toward targets. */
+  projectiles: CombatProjectile[]
   fx: CombatFx[]
   log: string[]
 }

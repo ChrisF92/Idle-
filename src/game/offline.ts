@@ -126,6 +126,7 @@ function applyOfflineRepair(state: GameState, seconds: number): void {
     state.combat.enemyUnits = []
     state.combat.enemyHull = 0
     state.combat.enemyHullMax = 0
+    state.combat.projectiles = []
     state.combat.fx = []
     state.combat.enemyName = 'None'
   }

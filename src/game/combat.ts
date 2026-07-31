@@ -2,6 +2,7 @@
 
 import type {
   CombatFx,
+  CombatProjectile,
   CombatUnit,
   GameState,
   UnitShape,
@@ -55,8 +56,24 @@ const FAMILY_SHAPE: Record<EnemyFamily, UnitShape> = {
 /** Lane spawn distance ahead of the player. */
 export const SPAWN_DISTANCE = 180
 
+/** Lane-units / second — tuned so mid-range shots take a visible travel beat. */
+export function projectileSpeedForTag(tag: string): number {
+  switch (tag) {
+    case 'pierce':
+      return 300
+    case 'energy':
+    case 'antiShield':
+      return 260
+    case 'splash':
+      return 210
+    default:
+      return 240
+  }
+}
+
 let unitSeq = 0
 let fxGlobalSeq = 0
+let projGlobalSeq = 0
 function nextUnitId(prefix: string): string {
   unitSeq += 1
   return `${prefix}-${unitSeq}`
@@ -747,9 +764,107 @@ function incomingDefenseMult(
   return mult
 }
 
+function findUnit(state: GameState, id: string): CombatUnit | undefined {
+  return (
+    state.combat.playerUnits.find((u) => u.id === id) ??
+    state.combat.enemyUnits.find((u) => u.id === id)
+  )
+}
+
+function spawnProjectile(
+  state: GameState,
+  from: CombatUnit,
+  to: CombatUnit,
+  damage: number,
+  weapon: WeaponInstance,
+): void {
+  const tag = weapon.tags[0] ?? 'kinetic'
+  projGlobalSeq += 1
+  state.combat.projectiles.push({
+    id: `proj-${projGlobalSeq}`,
+    fromId: from.id,
+    toId: to.id,
+    side: from.side,
+    tag,
+    x: from.x,
+    y: from.y,
+    damage,
+    tags: [...weapon.tags],
+    dotDuration: weapon.dotDuration,
+    dotDamage: weapon.dotDamage,
+    speed: projectileSpeedForTag(tag),
+    attackerFamily: from.family,
+  })
+}
+
+/** Advance in-flight shots; damage applies only on impact. */
+function updateProjectiles(
+  state: GameState,
+  dt: number,
+  roles: Record<'weapon' | 'defense' | 'utility', number>,
+  matchupScale: number,
+): CombatFx[] {
+  const hits: CombatFx[] = []
+  const kept: CombatProjectile[] = []
+
+  for (const shot of state.combat.projectiles) {
+    const target = findUnit(state, shot.toId)
+    if (!target || target.hull <= 0) {
+      // Target gone — dissipate
+      continue
+    }
+
+    const dx = target.x - shot.x
+    const dy = target.y - shot.y
+    const dist = Math.hypot(dx, dy)
+    const step = shot.speed * dt
+
+    if (dist <= Math.max(3, step)) {
+      // Impact
+      if (target.evasion > 0 && Math.random() < target.evasion) {
+        fxGlobalSeq += 1
+        hits.push({
+          id: `fx-${fxGlobalSeq}`,
+          fromId: shot.fromId,
+          toId: shot.toId,
+          tag: 'miss',
+          ttl: 0.2,
+        })
+        continue
+      }
+
+      let dmg = shot.damage
+      if (shot.side !== 'player') {
+        dmg *= incomingDefenseMult(target, shot.attackerFamily, roles, matchupScale)
+      }
+      applyDamageToUnit(target, dmg, shot.tags)
+      if (shot.dotDuration > 0 && shot.dotDamage > 0) {
+        target.dots.push({ dps: shot.dotDamage, remaining: shot.dotDuration })
+      }
+      fxGlobalSeq += 1
+      hits.push({
+        id: `fx-${fxGlobalSeq}`,
+        fromId: shot.fromId,
+        toId: shot.toId,
+        tag: shot.tag,
+        ttl: 0.25,
+      })
+      continue
+    }
+
+    shot.x += (dx / dist) * step
+    shot.y += (dy / dist) * step
+    kept.push(shot)
+  }
+
+  state.combat.projectiles = kept.slice(-80)
+  return hits
+}
+
 /**
  * Continuous combat step (real seconds, not ticks).
  * Weapons only fire when a living target is inside weapon.range.
+ * Damage is deferred until projectiles impact.
  */
 export function simulateCombat(
   state: GameState,
@@ -761,9 +876,11 @@ export function simulateCombat(
   const matchupScale = 1 + challengeShopMatchupBonus(state.prestige.shop)
   const focusFire = aiDoctrinesActive(state, 'focus-fire')
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
-  const fx: CombatFx[] = []
 
   moveUnits(state, dt)
+
+  // Resolve in-flight impacts first so hull updates before new targeting
+  const hitFx = updateProjectiles(state, dt, roles, matchupScale)
 
   const sides: Array<'player' | 'enemy'> = ['player', 'enemy']
   for (const side of sides) {
@@ -784,7 +901,6 @@ export function simulateCombat(
         weapon.cooldownLeft = Math.max(0, weapon.cooldownLeft - dt)
         if (weapon.cooldownLeft > 0) continue
 
-        // No target in range → stay ready (do not start cooldown / do not "ghost fire")
         const primary = pickTarget(unit, foes, weapon, focusFire && side === 'player')
         if (!primary) continue
 
@@ -805,10 +921,6 @@ export function simulateCombat(
         let fired = false
         for (const target of targets) {
           if (target.hull <= 0) continue
-          if (target.evasion > 0 && Math.random() < target.evasion) {
-            fired = true
-            continue
-          }
 
           let dmg = weapon.damage
           if (side === 'player') {
@@ -819,25 +931,11 @@ export function simulateCombat(
               matchupScale,
               bossProtocol,
             )
-          } else {
-            dmg *= incomingDefenseMult(target, unit.family, roles, matchupScale)
           }
+          // Enemy defense mult applied on impact (uses current roles)
 
-          applyDamageToUnit(target, dmg, weapon.tags)
+          spawnProjectile(state, unit, target, dmg, weapon)
           fired = true
-
-          if (weapon.dotDuration > 0 && weapon.dotDamage > 0) {
-            target.dots.push({ dps: weapon.dotDamage, remaining: weapon.dotDuration })
-          }
-
-          fxGlobalSeq += 1
-          fx.push({
-            id: `fx-${fxGlobalSeq}`,
-            fromId: unit.id,
-            toId: target.id,
-            tag: weapon.tags[0] ?? 'kinetic',
-            ttl: 0.45,
-          })
         }
 
         if (fired) weapon.cooldownLeft = weapon.cooldown
@@ -845,7 +943,7 @@ export function simulateCombat(
     }
   }
 
-  state.combat.fx = [...fx, ...state.combat.fx.map((f) => ({ ...f, ttl: f.ttl - dt }))]
+  state.combat.fx = [...hitFx, ...state.combat.fx.map((f) => ({ ...f, ttl: f.ttl - dt }))]
     .filter((f) => f.ttl > 0)
     .slice(0, 64)
 
