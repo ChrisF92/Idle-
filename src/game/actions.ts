@@ -277,7 +277,8 @@ export function unfitModule(state: GameState, moduleId: string): GameState {
 }
 
 export function prestigeGainFor(state: GameState): number {
-  return Math.max(1, Math.floor(state.combat.sector / 2) + state.prestige.prestigeCount)
+  // +1 softens the 5-wave re-push so first S8 prestige yields 5 PM (was 4).
+  return Math.max(1, Math.floor(state.combat.sector / 2) + state.prestige.prestigeCount + 1)
 }
 
 export function canPrestige(state: GameState): boolean {
@@ -382,12 +383,18 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     const def = getAiNode(id)
     return def ? isAiNodePermanent(def) : false
   })
+  /** Doctrines wipe on reset — refund their AIP so rebuys aren't a permanent tax. */
+  const doctrineRefund = state.ai.purchased.reduce((sum, id) => {
+    const def = getAiNode(id)
+    if (!def || isAiNodePermanent(def)) return sum
+    return sum + def.costAiPoints
+  }, 0)
 
   const kept = {
     prestigeMatter: state.resources.prestigeMatter,
     challengePoints: state.resources.challengePoints,
-    /** Achievement AI Points persist; shop bonus stacks on top. */
-    aiPoints: state.resources.aiPoints,
+    /** Achievement AI Points persist; doctrine spend is refunded; shop bonus stacks. */
+    aiPoints: state.resources.aiPoints + doctrineRefund,
     essence: state.resources.essence,
     essencePurchased: [...state.essence.purchased],
     unlockedFrames: [...state.shipyard.unlockedFrames],
@@ -411,6 +418,11 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const bonusScrap = challengeShopStartingScrap(kept.shop)
   const bonusAi = challengeShopStartingAi(kept.shop)
   const bonusSalvage = challengeShopStartingSalvage(kept.shop)
+  /** Soften first re-pushes after 5-wave Act 1 pacing. */
+  const returning = kept.prestigeCount > 0
+  const returnScrap = returning ? 20 : 0
+  const returnData = returning ? 12 : 0
+  const returnSalvage = returning ? 12 : 0
 
   state.version = fresh.version
   state.lastTickAt = now
@@ -419,9 +431,10 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     prestigeMatter: kept.prestigeMatter,
     challengePoints: kept.challengePoints,
     essence: kept.essence,
-    scrap: fresh.resources.scrap + bonusScrap,
+    scrap: fresh.resources.scrap + bonusScrap + returnScrap,
+    data: fresh.resources.data + returnData,
     aiPoints: kept.aiPoints + bonusAi,
-    salvage: bonusSalvage,
+    salvage: bonusSalvage + returnSalvage,
   }
   state.shipyard = persistLoadout(
     kept.unlockedFrames,

@@ -34,6 +34,7 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
 - Combat drones are a separate gated pool (assignment later).
 - Prestige Matter / Challenge Points spend in permanent shops (or bank for a smaller bonus).
+- Post-prestige re-push: returning runs start with +20 scrap / +12 data / +12 salvage; doctrine AIP is refunded; first S8 prestige yields 5 PM.
 - Distinct frames: Razor (2W/0D/1U glass-cannon) and Pathfinder (1W/0D/2U utility scout).
 
 

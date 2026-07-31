@@ -523,7 +523,9 @@ button.danger {
   flex: 0 0 auto;
 }
 
-.action-col button:disabled {
+.action-col button:disabled,
+.module-card-actions button:disabled,
+button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
