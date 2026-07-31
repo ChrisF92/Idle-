@@ -21,9 +21,12 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       speed: u.speed ?? 0,
       engageRange: u.engageRange ?? 0,
       kite: u.kite ?? false,
+      phaseWarnLeft: u.phaseWarnLeft ?? 0,
       weapons: (u.weapons ?? []).map((w) => ({
         ...w,
         range: w.range ?? 90,
+        telegraphDuration: w.telegraphDuration ?? 0,
+        telegraphLeft: w.telegraphLeft ?? 0,
       })),
     }))
 

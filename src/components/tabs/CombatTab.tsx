@@ -5,6 +5,7 @@ import { getChallenge, getFrame } from '../../game/catalog'
 import { WAVES_PER_SECTOR } from '../../game/progression'
 import {
   enemyForSector,
+  estimateHoldFarmRates,
   repairRatePerSecond,
   sectorRoster,
   totalEnemyHull,
@@ -70,6 +71,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         speed: 0,
         engageRange: 0,
         kite: false,
+        phaseWarnLeft: 0,
       },
       ...Array.from({ length: stats.escortCount }, (_, i) => ({
         id: `preview-escort-${i}`,
@@ -93,6 +95,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         speed: 0,
         engageRange: 0,
         kite: false,
+        phaseWarnLeft: 0,
       })),
     ],
     [
@@ -115,16 +118,33 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
   }, [combat.highestSector])
 
   const modeLabel = combat.docked ? 'DOCKED' : combat.campaign ? 'ADVANCE' : 'HOLD'
+  const bossCharging =
+    combat.inFight &&
+    combat.isBoss &&
+    combat.enemyUnits.some(
+      (u) =>
+        u.isBoss &&
+        (u.phaseWarnLeft > 0 || u.weapons.some((w) => w.telegraphLeft > 0)),
+    )
   const statusLabel = combat.docked
     ? needsRepair
       ? 'REPAIRING'
       : 'REFIT'
     : combat.inFight
       ? combat.isBoss
-        ? `BOSS P${combat.bossPhase + 1}`
+        ? bossCharging
+          ? `BOSS P${combat.bossPhase + 1} · CHARGING`
+          : `BOSS P${combat.bossPhase + 1}`
         : 'ENGAGED'
       : 'STANDBY'
   const repairRate = combat.docked ? repairRatePerSecond(state) : 0
+  const holdRates = useMemo(
+    () =>
+      !combat.docked && !combat.campaign && state.ai.purchased.includes('hold-accountant')
+        ? estimateHoldFarmRates(state)
+        : null,
+    [combat.docked, combat.campaign, combat.sector, state],
+  )
 
   return (
     <section className="panel combat-hud">
@@ -172,10 +192,12 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         </p>
       ) : null}
 
-      {!combat.docked && !combat.campaign && state.ai.purchased.includes('hold-accountant') ? (
+      {holdRates ? (
         <p className="muted combat-dock-hint">
-          Hold farm — full sector clear pays ~{encounter.scrapReward} scrap · {encounter.salvageReward}{' '}
-          salvage · {encounter.dataReward} data (after {WAVES_PER_SECTOR} waves).
+          Hold farm ~{holdRates.scrapPerSec.toFixed(2)} scrap/s ·{' '}
+          {holdRates.dataPerSec.toFixed(2)} data/s · {holdRates.salvagePerSec.toFixed(2)} salvage/s
+          {' '}(~{holdRates.clearSeconds.toFixed(0)}s / {WAVES_PER_SECTOR}-wave clear ·{' '}
+          {holdRates.scrapPerClear.toFixed(0)} scrap total).
         </p>
       ) : null}
 

@@ -30,7 +30,9 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Header resources appear only once their system is unlocked (Data/Research, AI Points/AI, etc.).
 - AI Points come from achievements (modal in the AI tab), not combat drops. Unspent AI Points persist across prestige.
 - Guided onboarding spotlights the next control to tap (Prestige tab @5, Prestige button @8, AI, Achievements).
-- Dev tools (Stats tab): available in local `npm run dev`, or append `?dev=1` on a deployed build.
+- Dev tools (Stats tab): toggle on anytime, or append `?dev=1` / `?dev=0`. Includes jump, boss force, achievements, guide skip.
+- Boss telegraphs: titan slams wind up before firing; phase shifts flash a warn ring.
+- Hold Accountant shows estimated scrap/data/salvage per second while farming.
 - Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
 - Combat drones are a separate gated pool (assignment later).
 - Prestige Matter / Challenge Points spend in permanent shops (or bank for a smaller bonus).

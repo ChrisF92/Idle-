@@ -10,8 +10,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'pwa-192.png', 'pwa-512.png'],
+      registerType: 'prompt',
+      includeAssets: [
+        'favicon.svg',
+        'pwa-192.png',
+        'pwa-512.png',
+        'pwa-512-maskable.png',
+        'apple-touch-icon.png',
+      ],
       manifest: {
         name: 'Cosmic Idle',
         short_name: 'Cosmic Idle',
@@ -30,17 +36,28 @@ export default defineConfig({
             src: 'pwa-192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: 'pwa-512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any',
           },
           {
-            src: 'pwa-512.png',
+            src: 'pwa-512-maskable.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
+          },
+        ],
+        shortcuts: [
+          {
+            name: 'Combat',
+            short_name: 'Combat',
+            description: 'Open Cosmic Idle',
+            url: './',
+            icons: [{ src: 'pwa-192.png', sizes: '192x192' }],
           },
         ],
       },

@@ -222,6 +222,8 @@ describe('campaign combat', () => {
             splash: 0,
             dotDuration: 0,
             dotDamage: 0,
+            telegraphDuration: 0.85,
+            telegraphLeft: 0,
           },
         ],
         isBoss: true,
@@ -232,6 +234,7 @@ describe('campaign combat', () => {
         speed: 10,
         engageRange: 90,
         kite: true,
+        phaseWarnLeft: 0,
       },
     ]
     const logs: string[] = []

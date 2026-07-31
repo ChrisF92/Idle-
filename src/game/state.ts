@@ -146,6 +146,8 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       splash: 0,
       dotDuration: 0,
       dotDamage: 0,
+      telegraphDuration: 0,
+      telegraphLeft: 0,
     },
   ]
 
@@ -164,6 +166,8 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       splash: mod.weapon.splash ?? 0,
       dotDuration: mod.weapon.dotDuration ?? 0,
       dotDamage: (mod.weapon.dotDamage ?? 0) * mult * lvlMult,
+      telegraphDuration: 0,
+      telegraphLeft: 0,
     })
   }
 

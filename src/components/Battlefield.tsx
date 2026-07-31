@@ -43,6 +43,10 @@ interface Actor {
   enterT: number
   muzzle: number
   weaponTag: string
+  /** 0..1 charge amount while telegraphing a slam. */
+  telegraph: number
+  /** 0..1 boss phase-shift warn pulse. */
+  phaseWarn: number
 }
 
 interface Particle {
@@ -169,6 +173,8 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     existing.targetY = slot.y
     existing.r = slot.r
     existing.weaponTag = primaryWeaponTag(unit.weapons)
+    existing.telegraph = telegraphAmount(unit)
+    existing.phaseWarn = unit.phaseWarnLeft > 0 ? Math.min(1, unit.phaseWarnLeft / 0.9) : 0
     if (unit.hull > 0 && !existing.alive) {
       existing.alive = true
       existing.deathT = 0
@@ -205,9 +211,20 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     enterT: 0.35,
     muzzle: 0,
     weaponTag: primaryWeaponTag(unit.weapons),
+    telegraph: telegraphAmount(unit),
+    phaseWarn: unit.phaseWarnLeft > 0 ? Math.min(1, unit.phaseWarnLeft / 0.9) : 0,
   }
   scene.actors.set(unit.id, actor)
   return actor
+}
+
+function telegraphAmount(unit: CombatUnit): number {
+  let best = 0
+  for (const w of unit.weapons) {
+    if (w.telegraphDuration <= 0 || w.telegraphLeft <= 0) continue
+    best = Math.max(best, 1 - w.telegraphLeft / w.telegraphDuration)
+  }
+  return best
 }
 
 function syncScene(
@@ -581,6 +598,27 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.fill()
     }
     ctx.restore()
+
+    if (actor.telegraph > 0 || actor.phaseWarn > 0) {
+      const pulse = actor.telegraph > 0 ? actor.telegraph : 1 - actor.phaseWarn
+      const color = actor.telegraph > 0 ? '#ff6b4a' : '#c9a0ff'
+      ctx.save()
+      ctx.translate(actor.x, actor.y)
+      ctx.strokeStyle = color
+      ctx.globalAlpha = 0.35 + pulse * 0.55
+      ctx.lineWidth = 2 + pulse * 2.5
+      ctx.shadowColor = color
+      ctx.shadowBlur = 10 + pulse * 14
+      ctx.beginPath()
+      ctx.arc(0, 0, actor.r + 6 + pulse * 10, 0, Math.PI * 2)
+      ctx.stroke()
+      if (actor.telegraph > 0) {
+        ctx.beginPath()
+        ctx.arc(0, 0, actor.r + 6 + pulse * 10, -Math.PI / 2, -Math.PI / 2 + pulse * Math.PI * 2)
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
 
     const barW = actor.r * 2.1
     const barX = actor.x - barW / 2

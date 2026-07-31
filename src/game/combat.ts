@@ -13,11 +13,14 @@ import {
   aiDoctrinesActive,
   challengeShopMatchupBonus,
   challengeStackRepairBonus,
+  essenceBonusDataPerClear,
   getModule,
+  matterShopDataPerClear,
   matterShopRepairMult,
+  matterShopScrapBonus,
   stationRepairBonus,
 } from './catalog'
-import { WAVES_PER_SECTOR } from './progression'
+import { WAVES_PER_SECTOR, isSystemUnlocked } from './progression'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
@@ -93,6 +96,7 @@ function makeWeapon(
   range: number,
   tags: WeaponTag[],
   splash = 0,
+  telegraphDuration = 0,
 ): WeaponInstance {
   return {
     id,
@@ -105,6 +109,8 @@ function makeWeapon(
     splash,
     dotDuration: 0,
     dotDamage: 0,
+    telegraphDuration,
+    telegraphLeft: 0,
   }
 }
 
@@ -123,6 +129,7 @@ function makeEnemyUnit(opts: {
   kite?: boolean
   tags?: WeaponTag[]
   splash?: number
+  telegraphDuration?: number
   isBoss?: boolean
   shape?: UnitShape
   x?: number
@@ -151,6 +158,7 @@ function makeEnemyUnit(opts: {
         opts.range,
         opts.tags ?? ['kinetic'],
         opts.splash ?? 0,
+        opts.telegraphDuration ?? 0,
       ),
     ],
     isBoss: opts.isBoss ?? false,
@@ -161,6 +169,7 @@ function makeEnemyUnit(opts: {
     speed: opts.speed,
     engageRange: opts.engageRange,
     kite: opts.kite ?? false,
+    phaseWarnLeft: 0,
   }
 }
 
@@ -827,8 +836,10 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
     hull: 130 * scale,
     armor: 2,
     shield: 20 * scale,
-    damage: 6.5 * scale,
-    cooldown: 1.2,
+    // Slower slam with a visible wind-up so players can react.
+    damage: 9 * scale,
+    cooldown: 2.4,
+    telegraphDuration: 0.85,
     range: 120,
     speed: 10,
     engageRange: 100,
@@ -1004,6 +1015,7 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
     speed: 0,
     engageRange: 0,
     kite: false,
+    phaseWarnLeft: 0,
   }
 
   const escorts: CombatUnit[] = []
@@ -1045,6 +1057,7 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
         speed: 0,
         engageRange: 0,
         kite: false,
+        phaseWarnLeft: 0,
       })
     }
   }
@@ -1190,7 +1203,12 @@ export function maybeAdvanceBossPhase(
     boss.armor += 4
     boss.engageRange = 80
     boss.kite = false
-    for (const w of boss.weapons) w.damage *= 1.15
+    boss.phaseWarnLeft = 0.9
+    for (const w of boss.weapons) {
+      w.damage *= 1.15
+      w.telegraphLeft = 0
+      w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
+    }
     revealCodexFamilies(state, ['armored'])
     pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
   }
@@ -1204,9 +1222,12 @@ export function maybeAdvanceBossPhase(
     boss.shield = Math.max(boss.shield, boss.shieldMax * 0.4)
     boss.engageRange = 125
     boss.kite = true
+    boss.phaseWarnLeft = 0.9
     for (const w of boss.weapons) {
       w.damage *= 1.2
       w.range = Math.max(w.range, 130)
+      w.telegraphLeft = 0
+      w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
     }
     revealCodexFamilies(state, ['ethereal'])
     pushLog(state, 'Boss phase 3 — form frays [ethereal], kiting out.')
@@ -1493,9 +1514,26 @@ export function simulateCombat(
       }
       unit.dots = unit.dots.filter((d) => d.remaining > 0)
 
+      if (unit.phaseWarnLeft > 0) {
+        unit.phaseWarnLeft = Math.max(0, unit.phaseWarnLeft - dt)
+      }
+
       for (const weapon of unit.weapons) {
         weapon.cooldownLeft = Math.max(0, weapon.cooldownLeft - dt)
-        if (weapon.cooldownLeft > 0) continue
+
+        // Finish an active telegraph → fire.
+        if (weapon.telegraphLeft > 0) {
+          weapon.telegraphLeft = Math.max(0, weapon.telegraphLeft - dt)
+          if (weapon.telegraphLeft > 0) continue
+        } else if (weapon.cooldownLeft > 0) {
+          continue
+        } else if (weapon.telegraphDuration > 0) {
+          // Begin wind-up instead of firing immediately.
+          const windupTarget = pickTarget(unit, foes, weapon, focusFire && side === 'player')
+          if (!windupTarget) continue
+          weapon.telegraphLeft = weapon.telegraphDuration
+          continue
+        }
 
         const primary = pickTarget(unit, foes, weapon, focusFire && side === 'player')
         if (!primary) continue
@@ -1557,4 +1595,62 @@ export function resolveCombatTick(
 
 export function totalEnemyHull(encounter: SectorEncounter): number {
   return encounter.units.reduce((s, u) => s + u.hullMax, 0)
+}
+
+/** Estimated Hold-farm payout for one full sector clear (all waves + drips). */
+export function estimateHoldClearRewards(state: GameState): {
+  scrap: number
+  data: number
+  salvage: number
+} {
+  const sector = state.combat.sector
+  const clear = enemyForSector(sector, WAVES_PER_SECTOR)
+  let scrap = clear.scrapReward
+  if (aiDoctrinesActive(state, 'scavenger')) scrap *= 1.3
+  if (state.shipyard.modules.includes('salvage-rig')) scrap *= 1.2
+  scrap *= 1 + matterShopScrapBonus(state.prestige.matterShop)
+
+  const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
+  const siphon =
+    essenceBonusDataPerClear(state.essence.purchased) +
+    matterShopDataPerClear(state.prestige.matterShop)
+  const data =
+    dataBlocked || !isSystemUnlocked(state, 'research') ? 0 : clear.dataReward + siphon
+  let salvage = clear.salvageReward
+
+  // Mid-wave drips for waves 1..(n-1)
+  for (let w = 1; w < WAVES_PER_SECTOR; w += 1) {
+    const drip = 1 + Math.floor(sector / 4)
+    scrap += drip
+    salvage += Math.max(1, Math.floor(drip / 2))
+  }
+
+  return { scrap, data, salvage }
+}
+
+/**
+ * Hold Accountant rates: clear rewards ÷ estimated clear time from fleet DPS vs wave hull.
+ */
+export function estimateHoldFarmRates(state: GameState): {
+  scrapPerSec: number
+  dataPerSec: number
+  salvagePerSec: number
+  scrapPerClear: number
+  clearSeconds: number
+} {
+  const rewards = estimateHoldClearRewards(state)
+  const dps = Math.max(1, computeShipStats(state).damage)
+  let hullTotal = 0
+  for (let w = 1; w <= WAVES_PER_SECTOR; w += 1) {
+    hullTotal += totalEnemyHull(enemyForSector(state.combat.sector, w))
+  }
+  // Floor keeps early sectors from reporting absurd r/s when packs die instantly.
+  const clearSeconds = Math.max(8, hullTotal / dps)
+  return {
+    scrapPerSec: rewards.scrap / clearSeconds,
+    dataPerSec: rewards.data / clearSeconds,
+    salvagePerSec: rewards.salvage / clearSeconds,
+    scrapPerClear: rewards.scrap,
+    clearSeconds,
+  }
 }

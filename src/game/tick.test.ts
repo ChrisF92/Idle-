@@ -305,6 +305,7 @@ describe('prestige and challenges', () => {
         speed: 0,
         engageRange: 40,
         kite: false,
+        phaseWarnLeft: 0,
       },
     ]
     state.combat.playerUnits = [
@@ -333,6 +334,8 @@ describe('prestige and challenges', () => {
             splash: 0,
             dotDuration: 0,
             dotDamage: 0,
+            telegraphDuration: 0,
+            telegraphLeft: 0,
           },
         ],
         isBoss: false,
@@ -343,6 +346,7 @@ describe('prestige and challenges', () => {
         speed: 0,
         engageRange: 0,
         kite: false,
+        phaseWarnLeft: 0,
       },
     ]
     state.combat.enemyHull = 1

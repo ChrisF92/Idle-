@@ -78,6 +78,10 @@ export interface WeaponInstance {
   splash: number
   dotDuration: number
   dotDamage: number
+  /** Wind-up before the shot (boss telegraphs). 0 = fire instantly. */
+  telegraphDuration: number
+  /** Remaining wind-up; fires when this hits 0 after charging. */
+  telegraphLeft: number
 }
 
 export interface DotInstance {
@@ -115,6 +119,8 @@ export interface CombatUnit {
   engageRange: number
   /** If true, back off when closer than engageRange. */
   kite: boolean
+  /** Brief phase-shift flash timer (boss telegraphs). */
+  phaseWarnLeft: number
 }
 
 export interface CombatFx {

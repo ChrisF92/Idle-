@@ -739,3 +739,16 @@ textarea {
 .dev-tools code {
   font-size: 0.8em;
 }
+
+.pwa-update-banner {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-panel));
+  padding: 0.7rem 0.85rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pwa-update-banner p {
+  margin: 0;
+  font-size: 0.9rem;
+}

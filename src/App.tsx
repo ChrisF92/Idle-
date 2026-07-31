@@ -15,6 +15,7 @@ import { CodexTab } from './components/tabs/CodexTab'
 import { AiTab } from './components/tabs/AiTab'
 import { PrestigeTab } from './components/tabs/PrestigeTab'
 import { StatsTab } from './components/tabs/StatsTab'
+import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import './App.css'
 
 export default function App() {
@@ -56,6 +57,8 @@ export default function App() {
           <p className="tagline">Working title — fleet vs entities</p>
         </div>
       </header>
+
+      <PwaUpdateBanner />
 
       {game.offlineReport ? (
         <OfflineBanner

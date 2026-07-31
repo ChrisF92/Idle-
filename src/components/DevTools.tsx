@@ -1,26 +1,57 @@
 import { useState } from 'react'
 import type { DevAction } from '../game/dev'
-import { isDevToolsEnabled } from '../game/dev'
+import { isDevToolsEnabled, setDevToolsEnabled } from '../game/dev'
 
 interface DevToolsProps {
   onDevAction: (action: DevAction) => void
 }
 
 export function DevTools({ onDevAction }: DevToolsProps) {
+  const [enabled, setEnabled] = useState(() => isDevToolsEnabled())
   const [sector, setSector] = useState('8')
   const [open, setOpen] = useState(true)
 
-  if (!isDevToolsEnabled()) return null
+  if (!enabled) {
+    return (
+      <div className="dev-tools">
+        <p className="muted">
+          Dev tools are off. Enable them for jump/sector cheats while testing (also via{' '}
+          <code>?dev=1</code>).
+        </p>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            setDevToolsEnabled(true)
+            setEnabled(true)
+          }}
+        >
+          Enable Dev Tools
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="dev-tools">
-      <button type="button" className="dev-tools-toggle" onClick={() => setOpen((v) => !v)}>
-        {open ? 'Hide Dev Tools' : 'Show Dev Tools'}
-      </button>
+      <div className="dev-tools-row">
+        <button type="button" className="dev-tools-toggle" onClick={() => setOpen((v) => !v)}>
+          {open ? 'Hide Dev Tools' : 'Show Dev Tools'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setDevToolsEnabled(false)
+            setEnabled(false)
+          }}
+        >
+          Disable
+        </button>
+      </div>
       {open ? (
         <div className="dev-tools-body">
           <p className="muted">
-            Local / <code>?dev=1</code> only. Use these to jump progression for testing.
+            Testing cheats — saved in this browser. Append <code>?dev=0</code> to turn off via URL.
           </p>
           <div className="dev-tools-row">
             <label>
@@ -39,6 +70,12 @@ export function DevTools({ onDevAction }: DevToolsProps) {
               }
             >
               Jump
+            </button>
+            <button type="button" onClick={() => onDevAction({ type: 'set-wave', wave: 5 })}>
+              Wave 5
+            </button>
+            <button type="button" onClick={() => onDevAction({ type: 'force-boss-wave' })}>
+              Force boss
             </button>
           </div>
           <div className="dev-tools-row">
@@ -66,6 +103,9 @@ export function DevTools({ onDevAction }: DevToolsProps) {
             <button type="button" onClick={() => onDevAction({ type: 'unlock-catalog' })}>
               Unlock catalog
             </button>
+            <button type="button" onClick={() => onDevAction({ type: 'grant-achievements' })}>
+              All achievements
+            </button>
             <button type="button" onClick={() => onDevAction({ type: 'fill-workers', count: 8 })}>
               +Workers
             </button>
@@ -80,17 +120,21 @@ export function DevTools({ onDevAction }: DevToolsProps) {
             >
               Prestige count = 1
             </button>
+            <button type="button" onClick={() => onDevAction({ type: 'skip-guides' })}>
+              Skip guides
+            </button>
             <button type="button" onClick={() => onDevAction({ type: 'clear-guides' })}>
               Reset guides
             </button>
             <button
               type="button"
+              className="primary"
               onClick={() => {
+                onDevAction({ type: 'skip-guides' })
                 onDevAction({ type: 'jump-sector', sector: 8 })
-                onDevAction({ type: 'clear-guides' })
                 onDevAction({
                   type: 'add-resources',
-                  amounts: { scrap: 200, salvage: 50, data: 40 },
+                  amounts: { scrap: 200, salvage: 50, data: 40, aiPoints: 5 },
                 })
               }}
             >
