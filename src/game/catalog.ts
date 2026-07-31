@@ -54,6 +54,8 @@ export interface ChallengeShopDef {
   prestigeMinSector?: number
   startingScrap?: number
   startingAiPoints?: number
+  /** Bonus salvage at the start of each run. */
+  startingSalvage?: number
   offlineHours?: number
   /** Extra effectiveness on role matchup bonuses (0.15 = +15%). */
   matchupBonus?: number
@@ -67,10 +69,11 @@ export interface MatterShopDef {
   damageBonus?: number
   productionBonus?: number
   hullBonus?: number
+  shieldBonus?: number
   /** Multiplier on combat scrap rewards (0.25 = +25%). */
   scrapBonus?: number
   bonusDataPerClear?: number
-  /** Multiplier on repair time (0.6 = 40% faster hull restore). */
+  /** Multiplier on docked repair duration (0.6 = 40% faster). */
   repairMult?: number
 }
 
@@ -232,7 +235,7 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'auto-engage',
     name: 'Rapid Recovery',
-    description: 'Doubles out-of-fight hull / shield repair rate.',
+    description: 'Doubles hull / shield repair rate while Docked.',
     costAiPoints: 1,
     kind: 'automation',
   },
@@ -340,6 +343,13 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     costCp: 2,
     matchupBonus: 0.2,
   },
+  {
+    id: 'hangar-rights',
+    name: 'Hangar Rights',
+    description: 'Each run starts with +20 Salvage for module upgrades.',
+    costCp: 2,
+    startingSalvage: 20,
+  },
 ]
 
 /** Spend Prestige Matter for stronger specialized permanents (vs banked +2% dmg/prod). */
@@ -382,9 +392,16 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'drydock-boost',
     name: 'Drydock Boost',
-    description: 'Permanent 40% faster out-of-fight hull repair.',
+    description: 'Permanent 40% faster hull / shield repair while Docked.',
     costPm: 4,
     repairMult: 0.6,
+  },
+  {
+    id: 'shield-bank',
+    name: 'Shield Bank',
+    description: 'Permanent +40 shield capacity on the flagship.',
+    costPm: 4,
+    shieldBonus: 40,
   },
 ]
 
@@ -402,12 +419,13 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'thin-hull',
     name: 'Glass Frame',
-    description: 'Reach sector 5 with half hull. Repeatable.',
+    description: 'Reach sector 5 with half hull. Stacks boost Docked repair.',
     restriction: 'Player hull max ×0.5',
     goalSector: 5,
     rewardChallengePoints: 1,
     maxClears: 15,
     stackRepairBonus: 0.02,
+    requiresPrestiges: 1,
   },
   {
     id: 'data-drought',
@@ -438,6 +456,14 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 9,
     baseHull: 140,
     unlockCost: { alloys: 25, scrap: 40 },
+  },
+  {
+    id: 'bastion-frame',
+    name: 'Bastion Frame',
+    slots: 4,
+    baseDamage: 8,
+    baseHull: 190,
+    unlockCost: { alloys: 60, scrap: 90, energy: 25 },
   },
 ]
 
@@ -537,7 +563,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'barrier-projector',
     name: 'Barrier Projector',
     role: 'defense',
-    description: '+50 shield capacity (repairs out of fight).',
+    description: '+50 shield capacity (restores while Docked).',
     damageBonus: 0,
     hullBonus: 10,
     shieldBonus: 50,
@@ -554,6 +580,84 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     damageTakenMult: 1,
     escorts: 2,
     unlockCost: { scrap: 60, alloys: 25, energy: 15 },
+  },
+  {
+    id: 'rail-driver',
+    name: 'Rail Driver',
+    role: 'weapon',
+    description: 'Ultra-long kinetic rails. Punishes kiters before they settle.',
+    damageBonus: 8,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    weapon: {
+      name: 'Rail',
+      damage: 22,
+      cooldown: 1.6,
+      range: 155,
+      tags: ['kinetic', 'pierce'],
+    },
+    unlockCost: { scrap: 70, alloys: 28, data: 6 },
+  },
+  {
+    id: 'ion-burst',
+    name: 'Ion Burst',
+    role: 'weapon',
+    description: 'Mid-range energy splash. Softens shields across a pack.',
+    damageBonus: 6,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    weapon: {
+      name: 'Ion Burst',
+      damage: 11,
+      cooldown: 1.25,
+      range: 95,
+      tags: ['energy', 'antiShield', 'splash'],
+      splash: 1,
+    },
+    unlockCost: { scrap: 65, alloys: 24, energy: 18 },
+  },
+  {
+    id: 'ablative-mesh',
+    name: 'Ablative Mesh',
+    role: 'defense',
+    description: '+25 hull, +2 armor, +20 shield. Soaks boss chip damage.',
+    damageBonus: 0,
+    hullBonus: 25,
+    armorBonus: 2,
+    shieldBonus: 20,
+    damageTakenMult: 1,
+    unlockCost: { scrap: 55, alloys: 22 },
+  },
+  {
+    id: 'grav-tether',
+    name: 'Grav Tether',
+    role: 'utility',
+    description: '−12% incoming and +6% evasion. Helps hold flak range vs kiters.',
+    damageBonus: 0,
+    hullBonus: 8,
+    evasionBonus: 0.06,
+    damageTakenMult: 0.88,
+    unlockCost: { scrap: 50, alloys: 20, energy: 12 },
+  },
+  {
+    id: 'nano-lathe',
+    name: 'Nano Lathe',
+    role: 'utility',
+    description: '+50% hull / shield repair rate while Docked.',
+    damageBonus: 0,
+    hullBonus: 5,
+    damageTakenMult: 1,
+    unlockCost: { scrap: 45, alloys: 18, data: 10 },
+  },
+  {
+    id: 'salvage-rig',
+    name: 'Salvage Rig',
+    role: 'utility',
+    description: '+20% scrap from sector clears this run.',
+    damageBonus: 2,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    unlockCost: { scrap: 40, alloys: 15 },
   },
 ]
 
@@ -712,6 +816,14 @@ export function matterShopHullBonus(matterShop: string[]): number {
   return total
 }
 
+export function matterShopShieldBonus(matterShop: string[]): number {
+  let total = 0
+  for (const id of matterShop) {
+    total += getMatterShopItem(id)?.shieldBonus ?? 0
+  }
+  return total
+}
+
 export function matterShopScrapBonus(matterShop: string[]): number {
   let total = 0
   for (const id of matterShop) {
@@ -758,6 +870,14 @@ export function challengeShopStartingAi(shop: string[]): number {
   let total = 0
   for (const id of shop) {
     total += getChallengeShopItem(id)?.startingAiPoints ?? 0
+  }
+  return total
+}
+
+export function challengeShopStartingSalvage(shop: string[]): number {
+  let total = 0
+  for (const id of shop) {
+    total += getChallengeShopItem(id)?.startingSalvage ?? 0
   }
   return total
 }

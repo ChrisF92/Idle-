@@ -13,6 +13,7 @@ import {
   metaProductionMultiplier,
   researchEssenceMultiplier,
 } from './catalog'
+import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -26,6 +27,8 @@ export interface OfflineReport {
   sectorsBefore: number
   sectorsAfter: number
   sectorsCleared: number
+  /** Advance / Hold / Docked label for the welcome banner. */
+  modeLabel: string
   gains: Partial<Resources>
   summary: string
 }
@@ -102,20 +105,30 @@ function applySectorOfflineRewards(state: GameState, seconds: number): void {
   state.resources.essence += essencePerHour * hours
 }
 
-/** Offline does not simulate combat or repair — just clear an in-progress fight. */
-function endOfflineFight(state: GameState): void {
+/** Offline does not simulate combat — clear an in-progress fight; repair if docked. */
+function endOfflineFight(state: GameState, seconds: number): void {
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerShieldMax = stats.shieldMax
-  if (!state.combat.inFight) return
-  state.combat.inFight = false
-  state.combat.playerUnits = []
-  state.combat.enemyUnits = []
-  state.combat.enemyHull = 0
-  state.combat.enemyHullMax = 0
-  state.combat.projectiles = []
-  state.combat.fx = []
-  state.combat.enemyName = 'None'
+  if (state.combat.inFight) {
+    state.combat.inFight = false
+    state.combat.playerUnits = []
+    state.combat.enemyUnits = []
+    state.combat.enemyHull = 0
+    state.combat.enemyHullMax = 0
+    state.combat.projectiles = []
+    state.combat.fx = []
+    state.combat.enemyName = 'None'
+  }
+  if (!state.combat.docked) return
+  state.combat.playerHull = Math.min(
+    stats.hullMax,
+    state.combat.playerHull + repairRatePerSecond(state) * seconds,
+  )
+  state.combat.playerShield = Math.min(
+    stats.shieldMax,
+    state.combat.playerShield + shieldRepairRatePerSecond(state) * seconds,
+  )
 }
 
 /**
@@ -144,7 +157,7 @@ export function applyOfflineCatchUp(
 
   applyIndustryOnly(next, seconds)
   applySectorOfflineRewards(next, seconds)
-  endOfflineFight(next)
+  endOfflineFight(next, seconds)
   next.lastTickAt = now
 
   const gains = resourceDelta(beforeResources, next.resources)
@@ -155,9 +168,16 @@ export function applyOfflineCatchUp(
     return { state: next, report: null }
   }
 
-  const mode = next.combat.campaign
-    ? 'Offline payout from your push sector (no fight sim).'
-    : 'Offline payout while Holding (no fight sim).'
+  const modeLabel = next.combat.docked
+    ? 'Docked'
+    : next.combat.campaign
+      ? 'Advance'
+      : 'Hold'
+  const mode = next.combat.docked
+    ? 'Offline payout while Docked (industry + hangar repair, no fight sim).'
+    : next.combat.campaign
+      ? 'Offline payout from your Advance sector (no fight sim).'
+      : 'Offline payout while Holding / farming this sector (no fight sim).'
 
   const summary = [
     `Welcome back. Away ${formatDuration(elapsedMs)}` +
@@ -179,6 +199,7 @@ export function applyOfflineCatchUp(
       sectorsBefore,
       sectorsAfter,
       sectorsCleared,
+      modeLabel,
       gains,
       summary,
     },

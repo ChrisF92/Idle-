@@ -6,6 +6,7 @@ import {
   buildingUpgradeCost,
   challengeClearCount,
   challengeShopStartingAi,
+  challengeShopStartingSalvage,
   challengeShopStartingScrap,
   getBuilding,
   getChallenge,
@@ -308,6 +309,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const fresh = createInitialState(now)
   const bonusScrap = challengeShopStartingScrap(kept.shop)
   const bonusAi = challengeShopStartingAi(kept.shop)
+  const bonusSalvage = challengeShopStartingSalvage(kept.shop)
 
   state.version = fresh.version
   state.lastTickAt = now
@@ -318,7 +320,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     essence: kept.essence,
     scrap: fresh.resources.scrap + bonusScrap,
     aiPoints: fresh.resources.aiPoints + bonusAi,
-    salvage: 0,
+    salvage: bonusSalvage,
   }
   state.shipyard = persistLoadout(
     kept.unlockedFrames,

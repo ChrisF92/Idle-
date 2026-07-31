@@ -4,6 +4,7 @@ import {
   CHALLENGES,
   MATTER_SHOP,
   challengeClearCount,
+  getChallenge,
   isChallengeUnlocked,
   prestigeMinSectorFor,
 } from '../../game/catalog'
@@ -44,8 +45,8 @@ export function PrestigeTab({
       <header className="panel-header">
         <h2>Prestige & Challenges</h2>
         <p>
-          Soft reset at sector {minSector}+. Spend Prestige Matter and Challenge Points on permanent
-          upgrades — or bank them for a smaller passive bonus.
+          Soft reset at sector {minSector}+. Prestige Matter and Challenge Points buy permanent
+          second-act power — shops usually beat banking for a focused path.
         </p>
       </header>
 
@@ -69,8 +70,8 @@ export function PrestigeTab({
       </div>
 
       <p className="muted">
-        Unspent Prestige Matter: +2% damage & production each. Unspent CP: +2% damage each. Shop
-        purchases are permanent and usually beat banking for a focused path.
+        Banked PM: +2% damage & production each. Banked CP: +2% damage each. After your first
+        prestige, challenges and Matter shop define the climb.
       </p>
 
       {active ? (
@@ -97,6 +98,7 @@ export function PrestigeTab({
       )}
 
       <h3>Prestige Matter shop</h3>
+      <p className="muted">Permanent run-wide bonuses. Drydock Boost speeds hangar repair.</p>
       <ul className="def-list">
         {MATTER_SHOP.map((item) => {
           const owned = prestige.matterShop.includes(item.id)
@@ -123,6 +125,7 @@ export function PrestigeTab({
       </ul>
 
       <h3>Challenge Point shop</h3>
+      <p className="muted">QoL and start boosts earned from challenge clears.</p>
       <ul className="def-list">
         {CHALLENGE_SHOP.map((item) => {
           const owned = prestige.shop.includes(item.id)
@@ -155,12 +158,19 @@ export function PrestigeTab({
           const unlocked = isChallengeUnlocked(state, c.id)
           const isActive = prestige.activeChallengeId === c.id
           const canEnter = canEnterChallenge(state, c.id)
+          const req = c.requiresChallengeClears
+          const reqClears = req
+            ? challengeClearCount(prestige.challengeClears, req.challengeId)
+            : 0
+          const reqName = req ? getChallenge(req.challengeId)?.name ?? req.challengeId : ''
           const stackBits = [
             c.stackDamageBonus ? `+${(c.stackDamageBonus * 100).toFixed(1)}% dmg/clear` : null,
             c.stackProductionBonus
               ? `+${(c.stackProductionBonus * 100).toFixed(1)}% prod/clear`
               : null,
-            c.stackRepairBonus ? `+${(c.stackRepairBonus * 100).toFixed(0)}% repair/clear` : null,
+            c.stackRepairBonus
+              ? `+${(c.stackRepairBonus * 100).toFixed(0)}% docked repair/clear`
+              : null,
           ].filter(Boolean)
           return (
             <li key={c.id}>
@@ -174,10 +184,12 @@ export function PrestigeTab({
                 {!unlocked ? (
                   <p className="notice-warn">
                     Locked
-                    {c.requiresChallengeClears
-                      ? ` — need ${c.requiresChallengeClears.clears}× ${c.requiresChallengeClears.challengeId}`
+                    {req
+                      ? ` — ${reqName} ${reqClears}/${req.clears}`
                       : ''}
-                    {c.requiresPrestiges ? ` — need ${c.requiresPrestiges} prestiges` : ''}
+                    {c.requiresPrestiges
+                      ? ` — need ${c.requiresPrestiges} prestige${c.requiresPrestiges === 1 ? '' : 's'} (${prestige.prestigeCount}/${c.requiresPrestiges})`
+                      : ''}
                   </p>
                 ) : null}
               </div>

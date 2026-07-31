@@ -200,10 +200,11 @@ export function enemyForSector(sector: number): SectorEncounter {
 
 function buildPack(sector: number, family: EnemyFamily, name: string): CombatUnit[] {
   const scale = 1 + (sector - 1) * 0.12
+  const variant = sector % 2 === 0
   switch (family) {
     case 'swarm': {
-      const count = Math.min(8, 4 + Math.floor(sector / 4))
-      return Array.from({ length: count }, (_, i) =>
+      const count = Math.min(8, 4 + Math.floor(sector / 4) + (variant ? 1 : 0))
+      const units = Array.from({ length: count }, (_, i) =>
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family,
@@ -218,6 +219,25 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           y: packY(i, count),
         }),
       )
+      if (variant && sector >= 4) {
+        units.push(
+          makeEnemyUnit({
+            name: `${name} Brute`,
+            family: 'armored',
+            hull: 36 * scale,
+            armor: 2,
+            damage: 4 * scale,
+            cooldown: 1.4,
+            range: 60,
+            speed: 18,
+            engageRange: 55,
+            tags: ['kinetic'],
+            x: SPAWN_DISTANCE + 40,
+            y: 0,
+          }),
+        )
+      }
+      return units
     }
     case 'armored': {
       const count = Math.min(4, 2 + Math.floor(sector / 8))
@@ -225,12 +245,12 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family,
-          hull: 48 * scale,
-          armor: 3 + Math.floor(sector / 5),
-          damage: 5 * scale,
+          hull: (variant ? 42 : 48) * scale,
+          armor: 3 + Math.floor(sector / 5) + (variant ? 1 : 0),
+          damage: (variant ? 5.5 : 5) * scale,
           cooldown: 1.35,
           range: 75,
-          speed: 16,
+          speed: variant ? 18 : 16,
           engageRange: 70,
           tags: ['kinetic'],
           x: SPAWN_DISTANCE + i * 12,
@@ -246,13 +266,13 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
           name: `${name} ${i + 1}`,
           family,
           hull: 28 * scale,
-          shield: 14 * scale,
-          evasion: 0.1,
+          shield: (variant ? 18 : 14) * scale,
+          evasion: variant ? 0.14 : 0.1,
           damage: 3.6 * scale,
           cooldown: 1.15,
           range: 120,
           speed: 24,
-          engageRange: 100,
+          engageRange: variant ? 95 : 100,
           kite: true,
           tags: ['energy'],
           x: SPAWN_DISTANCE + i * 10,
@@ -342,28 +362,33 @@ function buildBossPack(sector: number, name: string): CombatUnit[] {
     x: SPAWN_DISTANCE + 10,
     y: 0,
   })
+  const thrallFamily: EnemyFamily = sector % 10 === 0 ? 'armored' : 'swarm'
   const adds = [
     makeEnemyUnit({
-      name: 'Thrall',
-      family: 'swarm',
-      hull: 18 * scale,
+      name: thrallFamily === 'armored' ? 'Plate Thrall' : 'Thrall',
+      family: thrallFamily,
+      hull: (thrallFamily === 'armored' ? 26 : 18) * scale,
+      armor: thrallFamily === 'armored' ? 3 : 0,
       damage: 2.8 * scale,
       cooldown: 1,
-      range: 40,
-      speed: 36,
-      engageRange: 35,
+      range: thrallFamily === 'armored' ? 55 : 40,
+      speed: thrallFamily === 'armored' ? 20 : 36,
+      engageRange: thrallFamily === 'armored' ? 50 : 35,
+      tags: thrallFamily === 'armored' ? ['kinetic'] : ['kinetic'],
       x: SPAWN_DISTANCE + 30,
       y: -34,
     }),
     makeEnemyUnit({
-      name: 'Thrall',
-      family: 'swarm',
-      hull: 18 * scale,
+      name: thrallFamily === 'armored' ? 'Plate Thrall' : 'Thrall',
+      family: thrallFamily,
+      hull: (thrallFamily === 'armored' ? 26 : 18) * scale,
+      armor: thrallFamily === 'armored' ? 3 : 0,
       damage: 2.8 * scale,
       cooldown: 1,
-      range: 40,
-      speed: 36,
-      engageRange: 35,
+      range: thrallFamily === 'armored' ? 55 : 40,
+      speed: thrallFamily === 'armored' ? 20 : 36,
+      engageRange: thrallFamily === 'armored' ? 50 : 35,
+      tags: ['kinetic'],
       x: SPAWN_DISTANCE + 30,
       y: 34,
     }),
@@ -372,7 +397,9 @@ function buildBossPack(sector: number, name: string): CombatUnit[] {
 }
 
 function familyBlurb(family: EnemyFamily, boss: boolean): string {
-  if (boss) return 'Boss: closes carefully; weapon and stance shift across phases.'
+  if (boss) {
+    return 'Boss: three phases — kite titan, armored close, ethereal kite with shields.'
+  }
   return familyIntel(family)
 }
 
@@ -396,15 +423,15 @@ export function familyIntel(family: EnemyFamily): string {
 export function softCounterForFamily(family: EnemyFamily): string {
   switch (family) {
     case 'swarm':
-      return 'Soft counter: Defense modules and Flak (splash) punish the rush.'
+      return 'Soft counter: Defense modules and Flak / Ion splash punish the rush.'
     case 'armored':
-      return 'Soft counter: Weapon role and pierce / kinetic cut plates.'
+      return 'Soft counter: Weapon role and pierce (Lance / Rail) cut plates.'
     case 'ethereal':
-      return 'Soft counter: Utility role and energy / anti-shield weapons.'
+      return 'Soft counter: Utility, Grav Tether, energy / anti-shield, or Rail reach.'
     case 'divine':
       return 'Soft counter: Utility / energy pressure; expect diving attendants.'
     case 'titan':
-      return 'Soft counter: Defense on the flagship; pierce helps through phases.'
+      return 'Soft counter: Defense + Ablative Mesh; pierce helps through phases.'
   }
 }
 
@@ -705,10 +732,11 @@ export function maybeAdvanceBossPhase(
   }
 }
 
-/** @deprecated Hull repair is currently disabled in live combat. */
+/** Hull points restored per second while Docked. */
 export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
+  if (state.shipyard.modules.includes('nano-lathe')) rate *= 1.5
   const shopMult = matterShopRepairMult(state.prestige.matterShop)
   rate /= Math.max(0.2, shopMult)
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)

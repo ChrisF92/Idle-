@@ -400,11 +400,12 @@ function drawDockBay(ctx: CanvasRenderingContext2D, scene: Scene): void {
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  ctx.fillStyle = scene.mode === 'docked' ? '#101820' : '#0e141c'
+  const inHangar = scene.mode === 'docked' || scene.mode === 'repairing'
+  ctx.fillStyle = inHangar ? '#101820' : '#0e141c'
   ctx.fillRect(0, 0, scene.width, scene.height)
 
   const g = ctx.createLinearGradient(0, 0, scene.width, scene.height)
-  if (scene.mode === 'docked') {
+  if (inHangar) {
     g.addColorStop(0, 'rgba(48, 58, 70, 0.55)')
     g.addColorStop(0.45, 'rgba(22, 30, 40, 0.2)')
     g.addColorStop(1, 'rgba(60, 42, 28, 0.4)')
@@ -423,15 +424,15 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
     seed = (seed * 16807) % 2147483647
     const y = (seed % 1000) / 1000 * scene.height
     const layer = i % 3 === 0 ? 1.8 : i % 3 === 1 ? 1 : 0.55
-    const scrollMul = scene.mode === 'docked' ? 8 : 48
+    const scrollMul = inHangar ? 8 : 48
     const x = (baseX - scene.scroll * layer * scrollMul + scene.width * 8) % scene.width
     const twinkle = 0.3 + 0.6 * (0.5 + 0.5 * Math.sin(scene.time * 3 + i))
-    const alpha = scene.mode === 'docked' ? twinkle * 0.45 : twinkle
+    const alpha = inHangar ? twinkle * 0.45 : twinkle
     ctx.fillStyle = `rgba(230,238,248,${alpha})`
     ctx.fillRect(x, y, i % 9 === 0 ? 2.2 : 1, i % 9 === 0 ? 2.2 : 1)
   }
 
-  if (scene.mode === 'docked') {
+  if (inHangar) {
     drawDockBay(ctx, scene)
   } else {
     // Vertical center guide near player
@@ -446,15 +447,8 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
 function stepScene(scene: Scene, dt: number): void {
   scene.time += dt
   const advancing = scene.mode === 'fighting' || scene.mode === 'ready'
-  scene.scroll +=
-    dt *
-    (scene.mode === 'docked'
-      ? 0.08
-      : advancing
-        ? 0.7
-        : scene.mode === 'repairing'
-          ? 0.12
-          : 0.3)
+  const inHangar = scene.mode === 'docked' || scene.mode === 'repairing'
+  scene.scroll += dt * (inHangar ? 0.08 : advancing ? 0.7 : 0.3)
 
   for (const actor of scene.actors.values()) {
     if (actor.enterT > 0) actor.enterT = Math.max(0, actor.enterT - dt)
@@ -468,7 +462,7 @@ function stepScene(scene: Scene, dt: number): void {
 
     actor.bobPhase += actor.bobSpeed * dt
     const bobAmp =
-      scene.mode === 'docked'
+      inHangar
         ? 1.1
         : actor.side === 'player' && actor.isFlagship
           ? 2.2
@@ -497,7 +491,7 @@ function stepScene(scene: Scene, dt: number): void {
       }
     }
 
-    if (scene.mode === 'docked' && actor.isFlagship && actor.side === 'player') {
+    if (inHangar && actor.isFlagship && actor.side === 'player') {
       if (Math.random() < dt * 3) {
         scene.particles.push({
           x: actor.x - 18 + Math.random() * 8,
@@ -506,7 +500,7 @@ function stepScene(scene: Scene, dt: number): void {
           vy: (Math.random() - 0.5) * 12,
           life: 0.6,
           maxLife: 0.6,
-          color: '#7ec8ff',
+          color: scene.mode === 'repairing' ? '#7dffb0' : '#7ec8ff',
           size: 1.5,
         })
       }
@@ -618,10 +612,10 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   const label =
     scene.mode === 'fighting'
       ? 'ENGAGED'
-      : scene.mode === 'docked'
-        ? 'DOCKED — REFIT READY'
-        : scene.mode === 'repairing'
-          ? 'REPAIRING'
+      : scene.mode === 'repairing'
+        ? 'DOCKED — REPAIRING'
+        : scene.mode === 'docked'
+          ? 'DOCKED — REFIT READY'
           : scene.mode === 'holding'
             ? 'HOLDING SECTOR'
             : 'STANDING BY'
@@ -703,7 +697,7 @@ export function Battlefield({
       scene.seenFx.clear()
       scene.seenProj.clear()
     }
-    if (mode === 'docked') {
+    if (mode === 'docked' || mode === 'repairing') {
       // Drop enemy ghosts when entering the hangar.
       for (const [id, actor] of scene.actors) {
         if (actor.side === 'enemy') {

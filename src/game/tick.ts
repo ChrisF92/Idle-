@@ -19,7 +19,9 @@ import { tryCompleteChallenge } from './actions'
 import {
   buildPlayerFleet,
   enemyForSector,
+  repairRatePerSecond,
   revealCodexFamilies,
+  shieldRepairRatePerSecond,
   simulateCombat,
   syncHullAggregates,
   totalEnemyHull,
@@ -163,6 +165,7 @@ function onFightWon(state: GameState): void {
   const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
   let scrapGain = enemy.scrapReward
   if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
+  if (state.shipyard.modules.includes('salvage-rig')) scrapGain *= 1.2
   scrapGain *= 1 + matterShopScrapBonus(state.prestige.matterShop)
   const siphonData =
     essenceBonusDataPerClear(state.essence.purchased) +
@@ -243,7 +246,28 @@ function tickCombat(state: GameState, dt: number): void {
   }
 }
 
-/** Both Advance and Hold auto-engage while undocked; no out-of-fight hull repair. */
+/** Hull / shield restore while Docked (hangar only). */
+function tickDockedRepair(state: GameState, dt: number): void {
+  if (!state.combat.docked || state.combat.inFight) return
+  const stats = computeShipStats(state)
+  state.combat.playerHullMax = stats.hullMax
+  state.combat.playerShieldMax = stats.shieldMax
+
+  if (state.combat.playerHull < stats.hullMax) {
+    state.combat.playerHull = Math.min(
+      stats.hullMax,
+      state.combat.playerHull + repairRatePerSecond(state) * dt,
+    )
+  }
+  if (state.combat.playerShield < stats.shieldMax) {
+    state.combat.playerShield = Math.min(
+      stats.shieldMax,
+      state.combat.playerShield + shieldRepairRatePerSecond(state) * dt,
+    )
+  }
+}
+
+/** Both Advance and Hold auto-engage while undocked. */
 function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight || state.combat.docked) return
   beginFight(state)
@@ -314,7 +338,7 @@ export function setDocked(state: GameState, docked: boolean): GameState {
       clearEnemy(next)
     }
     next.combat.docked = true
-    pushLog(next, 'Docked — open the Shipyard to refit, then Launch.')
+    pushLog(next, 'Docked — refit in Shipyard and repair hull, then Launch.')
   } else {
     next.combat.docked = false
     pushLog(next, 'Launching — returning to the sector.')
@@ -354,6 +378,7 @@ export function advanceSeconds(state: GameState, seconds: number): void {
     if (state.combat.inFight) {
       tickCombat(state, dt)
     } else {
+      tickDockedRepair(state, dt)
       maybeAutoEngage(state)
     }
     left -= dt

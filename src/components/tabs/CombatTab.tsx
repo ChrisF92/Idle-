@@ -4,6 +4,7 @@ import { computeShipStats } from '../../game/state'
 import { getChallenge, getFrame } from '../../game/catalog'
 import {
   enemyForSector,
+  repairRatePerSecond,
   sectorRoster,
   totalEnemyHull,
   type EnemyFamily,
@@ -30,8 +31,14 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
   const roster = useMemo(() => sectorRoster(combat.sector), [combat.sector])
   const [overlay, setOverlay] = useState<Overlay>('none')
 
+  const needsRepair =
+    combat.docked &&
+    (combat.playerHull < combat.playerHullMax - 0.5 ||
+      combat.playerShield < combat.playerShieldMax - 0.5)
   const battlefieldMode: BattlefieldMode = combat.docked
-    ? 'docked'
+    ? needsRepair
+      ? 'repairing'
+      : 'docked'
     : combat.inFight
       ? 'fighting'
       : combat.campaign
@@ -108,12 +115,15 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
 
   const modeLabel = combat.docked ? 'DOCKED' : combat.campaign ? 'ADVANCE' : 'HOLD'
   const statusLabel = combat.docked
-    ? 'REFIT'
+    ? needsRepair
+      ? 'REPAIRING'
+      : 'REFIT'
     : combat.inFight
       ? combat.isBoss
         ? `BOSS P${combat.bossPhase + 1}`
         : 'ENGAGED'
       : 'STANDBY'
+  const repairRate = combat.docked ? repairRatePerSecond(state) : 0
 
   return (
     <section className="panel combat-hud">
@@ -165,10 +175,16 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
 
       {combat.docked ? (
         <p className="muted combat-dock-hint">
-          Docked — open Shipyard to fit modules, then Launch to resume{' '}
-          {combat.campaign ? 'Advance' : 'Hold'}.
+          Docked — Shipyard open
+          {needsRepair ? ` · repairing +${repairRate.toFixed(1)} hull/s` : ''}
+          . Launch to resume {combat.campaign ? 'Advance' : 'Hold'}.
         </p>
-      ) : null}
+      ) : (
+        <p className="muted combat-dock-hint">
+          Advance pushes sectors · Hold farms this sector · Dock pauses combat to refit and
+          repair.
+        </p>
+      )}
 
       <div className="combat-controls" role="group" aria-label="Fleet controls">
         <button

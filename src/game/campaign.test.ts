@@ -114,6 +114,17 @@ describe('campaign combat', () => {
     expect(state.combat.playerUnits.some((u) => u.armor > 0)).toBe(true)
   })
 
+  it('repairs hull while Docked', () => {
+    let state = createInitialState(0)
+    state = setDocked(state, true)
+    state.combat.playerHull = 40
+    state.combat.playerHullMax = 130
+    advanceTicks(state, 5)
+    expect(state.combat.playerHull).toBeGreaterThan(40)
+    expect(state.combat.playerHull).toBeLessThanOrEqual(130)
+    expect(state.combat.inFight).toBe(false)
+  })
+
   it('persists hull after a win (no full heal)', () => {
     let state = createInitialState(0)
     state = startCombat(state)

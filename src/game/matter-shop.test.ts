@@ -51,6 +51,14 @@ describe('prestige matter shop', () => {
     expect(repairRatePerSecond(state)).toBeGreaterThan(before)
   })
 
+  it('shield-bank adds permanent shield capacity', () => {
+    let state = createInitialState(0)
+    state.resources.prestigeMatter = 4
+    const before = computeShipStats(state).shieldMax
+    state = buyMatterShop(state, 'shield-bank')
+    expect(computeShipStats(state).shieldMax).toBe(before + 40)
+  })
+
   it('archive-spur grants extra data on clear', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 3

@@ -52,7 +52,7 @@ export function ShipyardTab({
       {state.combat.inFight ? (
         <p className="notice-warn">In fight — Dock from the Combat tab to refit the loadout.</p>
       ) : state.combat.docked ? (
-        <p className="notice">Docked — fit freely, then Launch from Combat.</p>
+        <p className="notice">Docked — fit freely while the hangar repairs hull, then Launch.</p>
       ) : null}
 
       <div className="stat-row">

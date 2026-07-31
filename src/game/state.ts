@@ -6,6 +6,7 @@ import {
   getFrame,
   getModule,
   matterShopHullBonus,
+  matterShopShieldBonus,
   metaDamageMultiplier,
   moduleLevel,
   moduleLevelMultiplier,
@@ -165,7 +166,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
     matterShopHullBonus(state.prestige.matterShop)
   let damageTakenMult = 1
   let armor = 0
-  let shieldMax = 0
+  let shieldMax = matterShopShieldBonus(state.prestige.matterShop)
   let evasion = 0
   let escortCount = 0
 

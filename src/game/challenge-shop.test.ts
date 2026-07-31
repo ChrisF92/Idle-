@@ -40,6 +40,15 @@ describe('challenge point shop', () => {
     expect(state.resources.aiPoints).toBeGreaterThanOrEqual(1)
   })
 
+  it('hangar-rights grants starting salvage after prestige', () => {
+    let state = createInitialState(0)
+    state.resources.challengePoints = 2
+    state = buyChallengeShop(state, 'hangar-rights')
+    state.combat.sector = 8
+    state = performPrestige(state, 5000)
+    expect(state.resources.salvage).toBeGreaterThanOrEqual(20)
+  })
+
   it('deep-cache extends offline cap', () => {
     let state = createInitialState(0)
     state.resources.challengePoints = 2
