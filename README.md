@@ -29,7 +29,8 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Boss sectors: vanguard waves first, **boss only on wave 5**. Waves use varied packs.
 - Header resources appear only once their system is unlocked (Data/Research, AI Points/AI, etc.).
 - AI Points no longer drop from combat — achievements will grant them (stub catalog ready).
-- Guided onboarding spotlights the next control to tap.
+- Guided onboarding spotlights the next control to tap (including Prestige tab @5 and Prestige button @8).
+- Dev tools (Stats tab): available in local `npm run dev`, or append `?dev=1` on a deployed build.
 - Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
 - Combat drones are a separate gated pool (assignment later).
 - Prestige Matter / Challenge Points spend in permanent shops (or bank for a smaller bonus).

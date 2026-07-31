@@ -120,6 +120,7 @@ export default function App() {
             state={game.state}
             onHardReset={game.hardReset}
             onImport={game.applyImportedSave}
+            onDevAction={game.applyDevAction}
           />
         )}
       </main>

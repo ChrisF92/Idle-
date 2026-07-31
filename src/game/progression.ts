@@ -278,6 +278,30 @@ export const GUIDE_STEPS: GuideStep[] = [
       !s.meta.seenOnboarding.includes('guide-research-tab'),
     completeWhen: (_s, tab) => tab === 'research',
   },
+  {
+    id: 'guide-prestige-tab',
+    title: 'Prestige unlocked',
+    body: 'Tap Prestige. Soft-reset becomes available from sector 8 for Prestige Matter.',
+    target: 'prestige-tab',
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'prestige') &&
+      !s.meta.seenOnboarding.includes('guide-prestige-tab'),
+    completeWhen: (_s, tab) => tab === 'prestige',
+  },
+  {
+    id: 'guide-prestige-ready',
+    title: 'Ready to Prestige',
+    body: 'You reached the prestige threshold. Tap Prestige to soft-reset and earn Prestige Matter. Challenges open after your first prestige.',
+    target: 'prestige-btn',
+    tab: 'prestige',
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'prestige') &&
+      s.combat.sector >= PRESTIGE_MIN_SECTOR &&
+      !s.prestige.activeChallengeId &&
+      s.prestige.prestigeCount === 0 &&
+      !s.meta.seenOnboarding.includes('guide-prestige-ready'),
+    completeWhen: (s) => s.prestige.prestigeCount > 0,
+  },
 ]
 
 export function activeGuideStep(state: GameState, tab: TabId): GuideStep | null {

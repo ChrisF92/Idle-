@@ -1,6 +1,7 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
 import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, isSystemUnlocked } from './progression'
+import { formatCompact, formatStat } from './format'
 import type { GameState, Resources, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
@@ -995,7 +996,86 @@ export function stationRepairBonus(state: {
   return bonus
 }
 
-/** Describe what one salvage level does for UI. */
+export interface ModuleStatPreview {
+  label: string
+  /** Current value at this run level. */
+  current: string
+  /** Next-level value, or null if maxed / N/A. */
+  next: string | null
+}
+
+/** Structured module stats for the Shipyard UI (2dp where needed). */
+export function moduleStatPreviews(
+  moduleId: string,
+  level: number,
+  showNext: boolean,
+): ModuleStatPreview[] {
+  const mod = getModule(moduleId)
+  if (!mod) return []
+  const a = moduleLevelMultiplier(level)
+  const b = moduleLevelMultiplier(level + 1)
+  const lines: ModuleStatPreview[] = []
+
+  if (mod.weapon) {
+    lines.push({
+      label: 'Damage',
+      current: formatStat(mod.weapon.damage * a, 2),
+      next: showNext ? formatStat(mod.weapon.damage * b, 2) : null,
+    })
+    lines.push({
+      label: 'Range',
+      current: formatCompact(mod.weapon.range, 0),
+      next: null,
+    })
+  }
+  if (mod.hullBonus) {
+    lines.push({
+      label: 'Hull',
+      current: `+${formatCompact(mod.hullBonus * a, 1)}`,
+      next: showNext ? `+${formatCompact(mod.hullBonus * b, 1)}` : null,
+    })
+  }
+  if (mod.armorBonus) {
+    lines.push({
+      label: 'Armor',
+      current: `+${formatStat(mod.armorBonus * a, 2)}`,
+      next: showNext ? `+${formatStat(mod.armorBonus * b, 2)}` : null,
+    })
+  }
+  if (mod.shieldBonus) {
+    lines.push({
+      label: 'Shield',
+      current: `+${formatCompact(mod.shieldBonus * a, 1)}`,
+      next: showNext ? `+${formatCompact(mod.shieldBonus * b, 1)}` : null,
+    })
+  }
+  if (mod.evasionBonus) {
+    lines.push({
+      label: 'Evasion',
+      current: `+${formatCompact(mod.evasionBonus * 100 * Math.min(1.4, a), 1)}%`,
+      next: showNext
+        ? `+${formatCompact(mod.evasionBonus * 100 * Math.min(1.4, b), 1)}%`
+        : null,
+    })
+  }
+  if (mod.damageTakenMult < 1) {
+    lines.push({
+      label: 'Incoming',
+      current: `×${formatStat(mod.damageTakenMult, 2)}`,
+      next: null,
+    })
+  }
+  if (mod.escorts) {
+    lines.push({
+      label: 'Escorts',
+      current: String(mod.escorts),
+      next: null,
+    })
+  }
+  return lines
+}
+
+/** @deprecated Prefer moduleStatPreviews for UI. */
 export function moduleUpgradeEffectLines(
   moduleId: string,
   fromLevel: number,
@@ -1006,28 +1086,34 @@ export function moduleUpgradeEffectLines(
   const a = moduleLevelMultiplier(fromLevel)
   const b = moduleLevelMultiplier(toLevel)
   const lines: string[] = []
-  const pct = ((b / a - 1) * 100).toFixed(0)
+  const pct = formatCompact(((b / a - 1) * 100), 0)
   if (mod.weapon) {
     lines.push(
-      `Weapon ${mod.weapon.damage * a} → ${(mod.weapon.damage * b).toFixed(1)} dmg (+${pct}%)`,
+      `Weapon ${formatStat(mod.weapon.damage * a, 2)} → ${formatStat(mod.weapon.damage * b, 2)} dmg (+${pct}%)`,
     )
   }
   if (mod.hullBonus) {
-    lines.push(`Hull +${(mod.hullBonus * a).toFixed(0)} → +${(mod.hullBonus * b).toFixed(0)}`)
+    lines.push(
+      `Hull +${formatCompact(mod.hullBonus * a, 1)} → +${formatCompact(mod.hullBonus * b, 1)}`,
+    )
   }
   if (mod.armorBonus) {
-    lines.push(`Armor +${(mod.armorBonus * a).toFixed(1)} → +${(mod.armorBonus * b).toFixed(1)}`)
+    lines.push(
+      `Armor +${formatStat(mod.armorBonus * a, 2)} → +${formatStat(mod.armorBonus * b, 2)}`,
+    )
   }
   if (mod.shieldBonus) {
-    lines.push(`Shield +${(mod.shieldBonus * a).toFixed(0)} → +${(mod.shieldBonus * b).toFixed(0)}`)
+    lines.push(
+      `Shield +${formatCompact(mod.shieldBonus * a, 1)} → +${formatCompact(mod.shieldBonus * b, 1)}`,
+    )
   }
   if (mod.evasionBonus) {
     lines.push(
-      `Evasion +${(mod.evasionBonus * 100 * Math.min(1.4, a)).toFixed(0)}% → +${(mod.evasionBonus * 100 * Math.min(1.4, b)).toFixed(0)}%`,
+      `Evasion +${formatCompact(mod.evasionBonus * 100 * Math.min(1.4, a), 1)}% → +${formatCompact(mod.evasionBonus * 100 * Math.min(1.4, b), 1)}%`,
     )
   }
   if (mod.damageTakenMult < 1) {
-    lines.push(`Damage taken ×${mod.damageTakenMult} (scales softer with levels)`)
+    lines.push(`Damage taken ×${formatStat(mod.damageTakenMult, 2)} (scales softer with levels)`)
   }
   if (mod.escorts) {
     lines.push(`Escorts ×${mod.escorts} (count unchanged; damage scales with fleet)`)

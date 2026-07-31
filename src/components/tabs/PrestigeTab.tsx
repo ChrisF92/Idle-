@@ -91,7 +91,13 @@ export function PrestigeTab({
             Next prestige yields <strong>+{gain}</strong> Prestige Matter
             {!prestigeReady ? ` (need sector ${minSector}+)` : ''}.
           </p>
-          <button type="button" className="primary" disabled={!prestigeReady} onClick={onPrestige}>
+          <button
+            type="button"
+            className="primary"
+            data-guide="prestige-btn"
+            disabled={!prestigeReady}
+            onClick={onPrestige}
+          >
             Prestige
           </button>
         </div>
