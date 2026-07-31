@@ -78,6 +78,7 @@ export function ShipyardTab({
   onUpgradeCheapest,
   onBuildModule,
 }: ShipyardTabProps) {
+  const [yardSub, setYardSub] = useState<'frames' | 'modules'>('frames')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const frame = getFrame(state.shipyard.frameId)
   const stats = computeShipStats(state)
@@ -194,7 +195,28 @@ export function ShipyardTab({
         </p>
       ) : null}
 
-      <h3>Frames</h3>
+      <div className="sub-tabs" role="tablist" aria-label="Shipyard sections">
+        <button
+          type="button"
+          role="tab"
+          className={yardSub === 'frames' ? 'sub-tab active' : 'sub-tab'}
+          aria-selected={yardSub === 'frames'}
+          onClick={() => setYardSub('frames')}
+        >
+          Frames
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={yardSub === 'modules' ? 'sub-tab active' : 'sub-tab'}
+          aria-selected={yardSub === 'modules'}
+          onClick={() => setYardSub('modules')}
+        >
+          Modules
+        </button>
+      </div>
+
+      {yardSub === 'frames' ? (
       <ul className="def-list">
         {SHIP_FRAMES.map((f) => {
           const unlocked = state.shipyard.unlockedFrames.includes(f.id)
@@ -258,9 +280,9 @@ export function ShipyardTab({
           )
         })}
       </ul>
-
+      ) : (
+      <>
       <div className="module-section-header">
-        <h3>Modules</h3>
         <div className="role-filters" role="group" aria-label="Filter modules by role">
           {(
             [
@@ -306,6 +328,8 @@ export function ShipyardTab({
           </ul>
         </div>
       ))}
+      </>
+      )}
     </section>
   )
 }

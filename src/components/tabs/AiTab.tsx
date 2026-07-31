@@ -10,6 +10,8 @@ import {
   isAchievementUnlocked,
 } from '../../game/progression'
 
+type AiSub = 'automation' | 'qol' | 'doctrines'
+
 interface AiTabProps {
   state: GameState
   onBuy: (nodeId: string) => void
@@ -17,11 +19,14 @@ interface AiTabProps {
 
 export function AiTab({ state, onBuy }: AiTabProps) {
   const [showAchievements, setShowAchievements] = useState(false)
+  const [sub, setSub] = useState<AiSub>('automation')
   const challengeBlocks = state.prestige.activeChallengeId === 'no-ai'
   const automation = AI_NODES.filter((n) => n.kind === 'automation')
   const qol = AI_NODES.filter((n) => n.kind === 'qol')
   const doctrines = AI_NODES.filter((n) => n.kind === 'doctrine')
   const completed = state.meta.completedAchievements.length
+  const nodes =
+    sub === 'automation' ? automation : sub === 'qol' ? qol : doctrines
 
   return (
     <section className="panel">
@@ -47,16 +52,42 @@ export function AiTab({ state, onBuy }: AiTabProps) {
         <p className="notice-warn">Silent Bridge challenge: AI purchases and doctrines blocked.</p>
       ) : null}
 
-      <h3>Automation & QoL</h3>
+      <div className="sub-tabs" role="tablist" aria-label="AI sections">
+        <button
+          type="button"
+          role="tab"
+          className={sub === 'automation' ? 'sub-tab active' : 'sub-tab'}
+          aria-selected={sub === 'automation'}
+          onClick={() => setSub('automation')}
+        >
+          Automation
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={sub === 'qol' ? 'sub-tab active' : 'sub-tab'}
+          aria-selected={sub === 'qol'}
+          onClick={() => setSub('qol')}
+        >
+          QoL
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={sub === 'doctrines' ? 'sub-tab active' : 'sub-tab'}
+          aria-selected={sub === 'doctrines'}
+          onClick={() => setSub('doctrines')}
+        >
+          Doctrines
+        </button>
+      </div>
+
       <NodeList
-        nodes={[...automation, ...qol]}
+        nodes={nodes}
         state={state}
         challengeBlocks={challengeBlocks}
         onBuy={onBuy}
       />
-
-      <h3>Doctrines</h3>
-      <NodeList nodes={doctrines} state={state} challengeBlocks={challengeBlocks} onBuy={onBuy} />
 
       {showAchievements ? (
         <AchievementsModal state={state} onClose={() => setShowAchievements(false)} />

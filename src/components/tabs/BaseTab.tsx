@@ -298,6 +298,7 @@ function FabModal({
   onInvestMastery: (moduleId: string) => void
 }) {
   const titleId = useId()
+  const [fabPane, setFabPane] = useState<'project' | 'parts'>('project')
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -318,103 +319,124 @@ function FabModal({
           </button>
         </header>
 
-        {!project ? (
-          <div className="assign-row">
-            <select
-              value={fabSelect}
-              onChange={(e) => setFabSelect(e.target.value)}
-              aria-label="Select blueprint to fabricate"
-            >
-              <option value="">Select blueprint…</option>
-              {incompleteBlueprints.map((b) => (
-                <option key={b.moduleId} value={b.moduleId}>
-                  {getModule(b.moduleId)?.name ?? b.moduleId}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="primary"
-              disabled={!fabSelect}
-              onClick={() => {
-                if (!fabSelect) return
-                onStartFab(fabSelect)
-                setFabSelect('')
-              }}
-            >
-              Start
-            </button>
-          </div>
-        ) : (
-          <div className="fab-project">
-            <p>
-              <strong>{getModule(project.moduleId)?.name ?? project.moduleId}</strong>
-              {recipeFilled ? (
-                <span className="muted">
-                  {' '}
-                  · {((project.progress ?? 0) * 100).toFixed(0)}%
-                  {fabEta != null ? ` · ~${fabEta.toFixed(0)}s` : ' · assign Fab Bay'}
-                </span>
-              ) : (
-                <span className="muted"> · waiting for parts</span>
-              )}
-            </p>
-            <div className="manufacture-bar" aria-label="Fabrication progress">
-              <div
-                className="manufacture-bar-fill"
-                style={{
-                  width: `${Math.min(100, (project.progress ?? 0) * 100)}%`,
-                }}
-              />
-            </div>
-            <ul className="def-list">
-              {PART_TYPES.map((pt) => {
-                const need = recipe?.[pt] ?? 0
-                const contributed = project.contributed[pt] ?? 0
-                const inv = state.parts[partId(project.moduleId, pt)] ?? 0
-                const room = Math.max(0, need - contributed)
-                return (
-                  <li key={pt}>
-                    <div>
-                      <strong>{pt.charAt(0).toUpperCase() + pt.slice(1)}</strong>
-                      <p className="muted">
-                        {contributed}/{need} · inv {inv}
-                      </p>
-                    </div>
-                    <div className="assign-row">
-                      <button
-                        type="button"
-                        className="assign-btn"
-                        disabled={contributed <= 0}
-                        onClick={() => onWithdrawFab(pt, 1)}
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        disabled={room <= 0 || inv <= 0}
-                        onClick={() => onDepositFab(pt, 1)}
-                      >
-                        Deposit
-                      </button>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-            <button type="button" onClick={onClearFab}>
-              Cancel Project
-            </button>
-          </div>
-        )}
+        <div className="sub-tabs" role="tablist" aria-label="Fabrication sections">
+          <button
+            type="button"
+            role="tab"
+            className={fabPane === 'project' ? 'sub-tab active' : 'sub-tab'}
+            aria-selected={fabPane === 'project'}
+            onClick={() => setFabPane('project')}
+          >
+            Project
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={fabPane === 'parts' ? 'sub-tab active' : 'sub-tab'}
+            aria-selected={fabPane === 'parts'}
+            onClick={() => setFabPane('parts')}
+          >
+            Parts
+          </button>
+        </div>
 
-        {incompleteBlueprints.length === 0 && !project ? (
-          <p className="muted">No incomplete blueprints.</p>
-        ) : null}
-
-        <h4>Parts inventory</h4>
-        {partRows.length === 0 ? (
-          <p className="muted">No parts yet.</p>
+        {fabPane === 'project' ? (
+          <>
+            {!project ? (
+              <div className="assign-row">
+                <select
+                  value={fabSelect}
+                  onChange={(e) => setFabSelect(e.target.value)}
+                  aria-label="Select blueprint to fabricate"
+                >
+                  <option value="">Select blueprint…</option>
+                  {incompleteBlueprints.map((b) => (
+                    <option key={b.moduleId} value={b.moduleId}>
+                      {getModule(b.moduleId)?.name ?? b.moduleId}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!fabSelect}
+                  onClick={() => {
+                    if (!fabSelect) return
+                    onStartFab(fabSelect)
+                    setFabSelect('')
+                  }}
+                >
+                  Start
+                </button>
+              </div>
+            ) : (
+              <div className="fab-project">
+                <p>
+                  <strong>{getModule(project.moduleId)?.name ?? project.moduleId}</strong>
+                  {recipeFilled ? (
+                    <span className="muted">
+                      {' '}
+                      · {((project.progress ?? 0) * 100).toFixed(0)}%
+                      {fabEta != null ? ` · ~${fabEta.toFixed(0)}s` : ' · assign Fab Bay'}
+                    </span>
+                  ) : (
+                    <span className="muted"> · waiting for parts</span>
+                  )}
+                </p>
+                <div className="manufacture-bar" aria-label="Fabrication progress">
+                  <div
+                    className="manufacture-bar-fill"
+                    style={{
+                      width: `${Math.min(100, (project.progress ?? 0) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <ul className="def-list">
+                  {PART_TYPES.map((pt) => {
+                    const need = recipe?.[pt] ?? 0
+                    const contributed = project.contributed[pt] ?? 0
+                    const inv = state.parts[partId(project.moduleId, pt)] ?? 0
+                    const room = Math.max(0, need - contributed)
+                    return (
+                      <li key={pt}>
+                        <div>
+                          <strong>{pt.charAt(0).toUpperCase() + pt.slice(1)}</strong>
+                          <p className="muted">
+                            {contributed}/{need} · inv {inv}
+                          </p>
+                        </div>
+                        <div className="assign-row">
+                          <button
+                            type="button"
+                            className="assign-btn"
+                            disabled={contributed <= 0}
+                            onClick={() => onWithdrawFab(pt, 1)}
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            disabled={room <= 0 || inv <= 0}
+                            onClick={() => onDepositFab(pt, 1)}
+                          >
+                            Deposit
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+                <button type="button" onClick={onClearFab}>
+                  Cancel Project
+                </button>
+              </div>
+            )}
+            {incompleteBlueprints.length === 0 && !project ? (
+              <p className="muted">No incomplete blueprints.</p>
+            ) : null}
+          </>
+        ) : partRows.length === 0 ? (
+          <p className="muted">No parts yet — rare drops from combat.</p>
         ) : (
           <ul className="def-list">
             {partRows.map((row) => {

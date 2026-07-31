@@ -119,6 +119,7 @@ export default function App() {
         {tab === 'research' && (
           <ResearchTab
             state={game.state}
+            guideTarget={guide?.target}
             onBuyResearch={game.buyResearch}
             onBuyEssence={game.buyEssenceUpgrade}
           />

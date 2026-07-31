@@ -26,6 +26,7 @@ import {
 import { challengesContentUnlocked } from '../../game/progression'
 
 type PrestigeSub = 'run' | 'challenges'
+type ChallengePane = 'shop' | 'runs'
 
 interface PrestigeTabProps {
   state: GameState
@@ -59,6 +60,7 @@ export function PrestigeTab({
     prestige.prestigeCount > 0 || resources.prestigeMatter > 0 || ascensions > 0
   const showChallenges = challengesContentUnlocked(state)
   const [sub, setSub] = useState<PrestigeSub>('run')
+  const [challengePane, setChallengePane] = useState<ChallengePane>('runs')
   const activeSub: PrestigeSub = showChallenges ? sub : 'run'
 
   useEffect(() => {
@@ -69,6 +71,10 @@ export function PrestigeTab({
       guideTarget === 'challenge-shop'
     ) {
       if (showChallenges) setSub('challenges')
+    }
+    if (guideTarget === 'challenge-shop') setChallengePane('shop')
+    if (guideTarget === 'challenges-section' || guideTarget === 'challenges-subtab') {
+      setChallengePane('runs')
     }
     if (
       guideTarget === 'matter-shop' ||
@@ -240,7 +246,30 @@ export function PrestigeTab({
             challenges are never required. Enter from sector {minSector}+.
           </p>
 
-          <h3 data-guide="challenge-shop">Challenge shop</h3>
+          <div className="sub-tabs" role="tablist" aria-label="Challenge sections">
+            <button
+              type="button"
+              role="tab"
+              data-guide="challenges-section"
+              className={challengePane === 'runs' ? 'sub-tab active' : 'sub-tab'}
+              aria-selected={challengePane === 'runs'}
+              onClick={() => setChallengePane('runs')}
+            >
+              Runs
+            </button>
+            <button
+              type="button"
+              role="tab"
+              data-guide="challenge-shop"
+              className={challengePane === 'shop' ? 'sub-tab active' : 'sub-tab'}
+              aria-selected={challengePane === 'shop'}
+              onClick={() => setChallengePane('shop')}
+            >
+              Shop
+            </button>
+          </div>
+
+          {challengePane === 'shop' ? (
           <ul className="shop-list">
             {CHALLENGE_SHOP.map((item) => {
               const rank = shopRank(prestige.shop, item.id)
@@ -275,8 +304,7 @@ export function PrestigeTab({
               )
             })}
           </ul>
-
-          <h3 data-guide="challenges-section">Challenges</h3>
+          ) : (
           <ul className="shop-list">
             {CHALLENGES.map((c) => {
               const clears = challengeClearCount(prestige.challengeClears, c.id)
@@ -356,6 +384,7 @@ export function PrestigeTab({
               )
             })}
           </ul>
+          )}
         </>
       )}
     </section>

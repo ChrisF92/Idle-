@@ -27,6 +27,7 @@ import {
 } from '../../game/signalCores'
 
 type CoreSubTab = 'attributes' | 'signal'
+type SignalPane = 'slots' | 'inventory'
 
 interface CoreTabProps {
   state: GameState
@@ -44,6 +45,7 @@ export function CoreTab({
   onMergeCores,
 }: CoreTabProps) {
   const [sub, setSub] = useState<CoreSubTab>('attributes')
+  const [signalPane, setSignalPane] = useState<SignalPane>('slots')
   const idle = idleWorkers(state)
   const unlocked = state.research.unlocked.includes('core-training')
   const coresOpen = signalCoresUnlocked(state)
@@ -196,143 +198,175 @@ export function CoreTab({
           ) : null}
           <p className="muted">Active: {formatSignalCoreBonuses(bonuses)}</p>
 
-          <div className="signal-slot-groups">
-            {SIGNAL_SLOT_TYPES.map((type) => {
-              const typeSlots = slots.filter((s) => s.type === type)
-              return (
-                <div key={type} className="signal-slot-group">
-                  <h4>{SIGNAL_SLOT_LABELS[type]}</h4>
-                  <ul className="def-list">
-                    {typeSlots.map((slot) => {
-                      const uid = equipped[slot.key]
-                      const inst = uid ? byUid.get(uid) : undefined
-                      const def = inst ? getSignalCoreDef(inst.defId) : undefined
-                      return (
-                        <li key={slot.key}>
-                          <div>
-                            {def && inst ? (
-                              <>
-                                <strong>
-                                  {def.name}{' '}
-                                  <span className="badge">R{inst.rank}</span>
-                                </strong>
-                                <p className="muted">
-                                  {signalCoreBaseBlurb(def, inst.rank)}
-                                </p>
-                                <p className="muted">
-                                  {signalCoreSlotBlurb(def, inst.rank)}
-                                </p>
-                              </>
-                            ) : (
-                              <strong>Empty</strong>
-                            )}
-                          </div>
-                          <div className="action-col">
-                            {inst ? (
-                              <button type="button" onClick={() => onUnequipCore(slot.key)}>
-                                Unequip
-                              </button>
-                            ) : equipPick &&
-                              canEquipSignalCore(state, equipPick, slot.key) ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onEquipCore(equipPick, slot.key)
-                                  setEquipPick(null)
-                                }}
-                              >
-                                Place
-                              </button>
-                            ) : (
-                              <span className="badge">Open</span>
-                            )}
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )
-            })}
+          <div className="sub-tabs" role="tablist" aria-label="Signal Core sections">
+            <button
+              type="button"
+              role="tab"
+              className={signalPane === 'slots' ? 'sub-tab active' : 'sub-tab'}
+              aria-selected={signalPane === 'slots'}
+              onClick={() => setSignalPane('slots')}
+            >
+              Slots
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={signalPane === 'inventory' ? 'sub-tab active' : 'sub-tab'}
+              aria-selected={signalPane === 'inventory'}
+              onClick={() => setSignalPane('inventory')}
+            >
+              Inventory
+            </button>
           </div>
 
-          {equipPick ? (
-            <p className="notice-warn">
-              Pick an open slot, or{' '}
-              <button type="button" onClick={() => setEquipPick(null)}>
-                cancel
-              </button>
-              .
-            </p>
-          ) : null}
-
-          <h4>Inventory</h4>
-          {inventory.length === 0 ? (
-            <p className="muted">No cores yet — drops from kills and clears.</p>
+          {signalPane === 'slots' ? (
+            <>
+              {equipPick ? (
+                <p className="notice-warn">
+                  Pick an open slot, or{' '}
+                  <button type="button" onClick={() => setEquipPick(null)}>
+                    cancel
+                  </button>
+                  .
+                </p>
+              ) : null}
+              <div className="signal-slot-groups">
+                {SIGNAL_SLOT_TYPES.map((type) => {
+                  const typeSlots = slots.filter((s) => s.type === type)
+                  return (
+                    <div key={type} className="signal-slot-group">
+                      <h4>{SIGNAL_SLOT_LABELS[type]}</h4>
+                      <ul className="def-list">
+                        {typeSlots.map((slot) => {
+                          const uid = equipped[slot.key]
+                          const inst = uid ? byUid.get(uid) : undefined
+                          const def = inst ? getSignalCoreDef(inst.defId) : undefined
+                          return (
+                            <li key={slot.key}>
+                              <div>
+                                {def && inst ? (
+                                  <>
+                                    <strong>
+                                      {def.name}{' '}
+                                      <span className="badge">R{inst.rank}</span>
+                                    </strong>
+                                    <p className="muted">
+                                      {signalCoreBaseBlurb(def, inst.rank)}
+                                    </p>
+                                    <p className="muted">
+                                      {signalCoreSlotBlurb(def, inst.rank)}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <strong>Empty</strong>
+                                )}
+                              </div>
+                              <div className="action-col">
+                                {inst ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => onUnequipCore(slot.key)}
+                                  >
+                                    Unequip
+                                  </button>
+                                ) : equipPick &&
+                                  canEquipSignalCore(state, equipPick, slot.key) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onEquipCore(equipPick, slot.key)
+                                      setEquipPick(null)
+                                    }}
+                                  >
+                                    Place
+                                  </button>
+                                ) : (
+                                  <span className="badge">Open</span>
+                                )}
+                              </div>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           ) : (
-            <ul className="def-list">
-              {inventory.map((inst) => {
-                const def = getSignalCoreDef(inst.defId)
-                if (!def) return null
-                const isEquipped = equippedUids.has(inst.uid)
-                const mergeCount = countMergeable(state, inst.defId, inst.rank)
-                const canMerge =
-                  !isEquipped &&
-                  inst.rank < SIGNAL_CORE_MAX_RANK &&
-                  mergeCount >= SIGNAL_CORE_MERGE_COUNT
-                const allowed = def.allowedSlots
-                  .map((t: SignalCoreSlotType) => SIGNAL_SLOT_LABELS[t])
-                  .join(', ')
-                return (
-                  <li key={inst.uid}>
-                    <div>
-                      <strong>
-                        {def.name}{' '}
-                        <span className="badge">
-                          {def.rarity} · R{inst.rank}
-                        </span>
-                        {isEquipped ? <span className="badge">Equipped</span> : null}
-                      </strong>
-                      <p className="muted">
-                        {signalCoreBaseBlurb(def, inst.rank)} · {allowed}
-                      </p>
-                    </div>
-                    <div className="action-col">
-                      {!isEquipped ? (
-                        <button
-                          type="button"
-                          disabled={equipBlocked}
-                          onClick={() => setEquipPick(inst.uid)}
-                        >
-                          Equip
-                        </button>
-                      ) : null}
-                      {canMerge ? (
-                        <button
-                          type="button"
-                          onClick={() => onMergeCores(inst.defId, inst.rank)}
-                        >
-                          Merge ×{SIGNAL_CORE_MERGE_COUNT}
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            <>
+              {inventory.length === 0 ? (
+                <p className="muted">No cores yet — drops from kills and clears.</p>
+              ) : (
+                <ul className="def-list">
+                  {inventory.map((inst) => {
+                    const def = getSignalCoreDef(inst.defId)
+                    if (!def) return null
+                    const isEquipped = equippedUids.has(inst.uid)
+                    const mergeCount = countMergeable(state, inst.defId, inst.rank)
+                    const canMerge =
+                      !isEquipped &&
+                      inst.rank < SIGNAL_CORE_MAX_RANK &&
+                      mergeCount >= SIGNAL_CORE_MERGE_COUNT
+                    const allowed = def.allowedSlots
+                      .map((t: SignalCoreSlotType) => SIGNAL_SLOT_LABELS[t])
+                      .join(', ')
+                    return (
+                      <li key={inst.uid}>
+                        <div>
+                          <strong>
+                            {def.name}{' '}
+                            <span className="badge">
+                              {def.rarity} · R{inst.rank}
+                            </span>
+                            {isEquipped ? (
+                              <span className="badge">Equipped</span>
+                            ) : null}
+                          </strong>
+                          <p className="muted">
+                            {signalCoreBaseBlurb(def, inst.rank)} · {allowed}
+                          </p>
+                        </div>
+                        <div className="action-col">
+                          {!isEquipped ? (
+                            <button
+                              type="button"
+                              disabled={equipBlocked}
+                              onClick={() => {
+                                setEquipPick(inst.uid)
+                                setSignalPane('slots')
+                              }}
+                            >
+                              Equip
+                            </button>
+                          ) : null}
+                          {canMerge ? (
+                            <button
+                              type="button"
+                              onClick={() => onMergeCores(inst.defId, inst.rank)}
+                            >
+                              Merge ×{SIGNAL_CORE_MERGE_COUNT}
+                            </button>
+                          ) : null}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+              {mergeGroups.length > 0 ? (
+                <p className="muted">
+                  Merge ready:{' '}
+                  {mergeGroups
+                    .map((g) => {
+                      const name = getSignalCoreDef(g.defId)?.name ?? g.defId
+                      return `${name} R${g.rank} (×${g.count})`
+                    })
+                    .join(', ')}
+                </p>
+              ) : null}
+            </>
           )}
-
-          {mergeGroups.length > 0 ? (
-            <p className="muted">
-              Merge ready:{' '}
-              {mergeGroups
-                .map((g) => {
-                  const name = getSignalCoreDef(g.defId)?.name ?? g.defId
-                  return `${name} R${g.rank} (×${g.count})`
-                })
-                .join(', ')}
-            </p>
-          ) : null}
         </>
       ) : null}
     </section>
