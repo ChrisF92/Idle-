@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import type { GameState, UnitShape } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { getChallenge, getFrame } from '../../game/catalog'
+import { WAVES_PER_SECTOR } from '../../game/progression'
 import {
   enemyForSector,
   repairRatePerSecond,
@@ -27,7 +28,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
   const challenge = state.prestige.activeChallengeId
     ? getChallenge(state.prestige.activeChallengeId)
     : null
-  const encounter = useMemo(() => enemyForSector(combat.sector), [combat.sector])
+  const encounter = useMemo(() => enemyForSector(combat.sector, combat.wave), [combat.sector, combat.wave])
   const roster = useMemo(() => sectorRoster(combat.sector), [combat.sector])
   const [overlay, setOverlay] = useState<Overlay>('none')
 
@@ -133,6 +134,12 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           <strong className="combat-hud-value">{combat.sector}</strong>
         </div>
         <div className="combat-hud-readout">
+          <span className="combat-hud-kicker">Wave</span>
+          <strong className="combat-hud-value">
+            {combat.wave}/{WAVES_PER_SECTOR}
+          </strong>
+        </div>
+        <div className="combat-hud-readout">
           <span className="combat-hud-kicker">Mode</span>
           <strong className="combat-hud-value">{modeLabel}</strong>
         </div>
@@ -163,6 +170,17 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         <p className="notice-warn combat-challenge">
           Challenge: {challenge.name} — cleared {combat.highestSector}/{challenge.goalSector}
         </p>
+      ) : null}
+
+      {!combat.docked && !combat.campaign && state.ai.purchased.includes('hold-accountant') ? (
+        <p className="muted combat-dock-hint">
+          Hold farm — full sector clear pays ~{encounter.scrapReward} scrap · {encounter.salvageReward}{' '}
+          salvage · {encounter.dataReward} data (after {WAVES_PER_SECTOR} waves).
+        </p>
+      ) : null}
+
+      {state.meta.act1Cleared ? (
+        <p className="notice">Act 1 complete — infinite push / prestige / challenges are the long game.</p>
       ) : null}
 
       <Battlefield
@@ -224,12 +242,16 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         </button>
         <button
           type="button"
-          disabled={warpTargets.length === 0}
+          disabled={
+            !state.ai.purchased.includes('warp-navigator') || warpTargets.length === 0
+          }
           onClick={() => setOverlay('warp')}
           title={
-            warpTargets.length === 0
-              ? 'Clear a sector this prestige to unlock Warp'
-              : 'Warp to a cleared sector'
+            !state.ai.purchased.includes('warp-navigator')
+              ? 'Buy Warp Navigator (AI) to unlock Warp'
+              : warpTargets.length === 0
+                ? 'Clear a sector this prestige to unlock Warp'
+                : 'Warp to a cleared sector'
           }
         >
           Warp

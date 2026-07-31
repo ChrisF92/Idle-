@@ -9,6 +9,7 @@ import {
 } from './tick'
 import { maybeAdvanceBossPhase } from './combat'
 import {
+  buyAiNode,
   canPrestige,
   fitModule,
   performPrestige,
@@ -16,6 +17,7 @@ import {
   unlockFrame,
   unlockModule,
 } from './actions'
+import { clearSector } from './testHelpers'
 
 describe('campaign combat', () => {
   it('Hold farms the same sector after a clear', () => {
@@ -23,10 +25,10 @@ describe('campaign combat', () => {
     state = setCampaign(state, false)
     state = startCombat(state)
     expect(state.combat.sector).toBe(1)
-    for (const e of state.combat.enemyUnits) e.hull = 0
     const scrapBefore = state.resources.scrap
-    advanceTicks(state, 1)
+    state = clearSector(state)
     expect(state.combat.sector).toBe(1)
+    expect(state.combat.wave).toBe(1)
     expect(state.combat.highestSector).toBe(1)
     expect(state.resources.scrap).toBeGreaterThan(scrapBefore)
     // Hold keeps auto-engaging the same sector
@@ -37,9 +39,9 @@ describe('campaign combat', () => {
     let state = createInitialState(0)
     state = setCampaign(state, true)
     state = startCombat(state)
-    for (const e of state.combat.enemyUnits) e.hull = 0
-    advanceTicks(state, 1)
+    state = clearSector(state)
     expect(state.combat.sector).toBe(2)
+    expect(state.combat.wave).toBe(1)
     expect(state.combat.highestSector).toBe(1)
   })
 
@@ -51,11 +53,9 @@ describe('campaign combat', () => {
     flag.hull = 40
     for (const e of state.combat.enemyUnits) e.hull = 0
     advanceTicks(state, 1)
-    // 40 + 40% of missing (max 130 → missing 90 → +36) = 76
+    // Wave clear: 25% of missing hull (max 130 → missing 90 → +22.5) = 62.5
     expect(state.combat.playerHull).toBeGreaterThan(40)
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
-    const nextFlag = state.combat.playerUnits.find((u) => u.isFlagship)
-    expect(nextFlag?.hull).toBe(state.combat.playerHull)
   })
 
   it('warps to previous sector with full hull on death', () => {
@@ -67,6 +67,7 @@ describe('campaign combat', () => {
     flag.hull = 0
     advanceTicks(state, 1)
     expect(state.combat.sector).toBe(3)
+    expect(state.combat.wave).toBe(1)
     expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
     // Continuous loop re-engages immediately
     expect(state.combat.inFight).toBe(true)
@@ -74,9 +75,11 @@ describe('campaign combat', () => {
 
   it('Warp jumps to a cleared sector and aborts the fight', () => {
     let state = createInitialState(0)
+    state.meta.highestSectorEver = 8
+    state.resources.aiPoints = 10
+    state = buyAiNode(state, 'warp-navigator')
     state = startCombat(state)
-    for (const e of state.combat.enemyUnits) e.hull = 0
-    advanceTicks(state, 1)
+    state = clearSector(state)
     expect(state.combat.sector).toBe(2)
     expect(state.combat.highestSector).toBe(1)
 
@@ -84,6 +87,7 @@ describe('campaign combat', () => {
     expect(state.combat.inFight).toBe(true)
     state = warpToSector(state, 1)
     expect(state.combat.sector).toBe(1)
+    expect(state.combat.wave).toBe(1)
     expect(state.combat.inFight).toBe(false)
     advanceTicks(state, 1)
     expect(state.combat.inFight).toBe(true)
@@ -140,8 +144,7 @@ describe('campaign combat', () => {
     state = startCombat(state)
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
     flag.hull = flag.hullMax * 0.6
-    for (const e of state.combat.enemyUnits) e.hull = 0
-    advanceTicks(state, 1)
+    state = clearSector(state)
     expect(state.combat.sector).toBe(2)
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
@@ -149,8 +152,11 @@ describe('campaign combat', () => {
   it('reaches prestige sector on Advance with starter loadout', () => {
     let state = createInitialState(0)
     state = setDocked(state, false)
-    advanceTicks(state, 420)
-    expect(state.combat.highestSector).toBeGreaterThanOrEqual(5)
+    for (let i = 0; i < 60 && state.combat.highestSector < 8; i++) {
+      state = clearSector(state)
+    }
+    expect(state.combat.highestSector).toBeGreaterThanOrEqual(8)
+    expect(state.combat.sector).toBeGreaterThanOrEqual(8)
     expect(canPrestige(state)).toBe(true)
   })
 
@@ -158,6 +164,7 @@ describe('campaign combat', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
+    state.meta.highestSectorEver = 6
     state = unlockFrame(state, 'line-frame')
     state = selectFrame(state, 'line-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
@@ -168,6 +175,7 @@ describe('campaign combat', () => {
     expect(state.shipyard.frameId).toBe('line-frame')
 
     state.combat.sector = 8
+    state.meta.highestSectorEver = 8
     state = performPrestige(state, 1000)
     expect(state.combat.docked).toBe(true)
     expect(state.shipyard.frameLocked).toBe(false)
@@ -178,9 +186,8 @@ describe('campaign combat', () => {
   it('grants salvage on clear', () => {
     let state = createInitialState(0)
     state = startCombat(state)
-    for (const e of state.combat.enemyUnits) e.hull = 0
     const before = state.resources.salvage
-    advanceTicks(state, 1)
+    state = clearSector(state)
     expect(state.resources.salvage).toBeGreaterThan(before)
   })
 

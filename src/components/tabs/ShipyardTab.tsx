@@ -9,7 +9,9 @@ import {
   getFrame,
   moduleLevel,
   moduleUpgradeCost,
+  moduleUpgradeEffectLines,
 } from '../../game/catalog'
+import { careerHighestSector } from '../../game/progression'
 import { RESOURCE_LABELS, computeShipStats } from '../../game/state'
 
 interface ShipyardTabProps {
@@ -20,6 +22,8 @@ interface ShipyardTabProps {
   onFitModule: (moduleId: string) => void
   onUnfitModule: (moduleId: string) => void
   onUpgradeModule: (moduleId: string) => void
+  onUnequipAll: () => void
+  onUpgradeCheapest: () => void
 }
 
 function costLabel(cost: Partial<Record<keyof Resources, number>>): string {
@@ -41,6 +45,8 @@ export function ShipyardTab({
   onFitModule,
   onUnfitModule,
   onUpgradeModule,
+  onUnequipAll,
+  onUpgradeCheapest,
 }: ShipyardTabProps) {
   const frame = getFrame(state.shipyard.frameId)
   const stats = computeShipStats(state)
@@ -49,6 +55,9 @@ export function ShipyardTab({
   const slotsMax = frame ? frameTotalSlots(frame) : 0
   const frameLocked = state.shipyard.frameLocked
   const canRefitModules = !state.combat.inFight
+  const ever = careerHighestSector(state)
+  const canBatch = state.ai.purchased.includes('batch-refit')
+  const canSalvageOpt = state.ai.purchased.includes('salvage-optimizer')
 
   return (
     <section className="panel">
@@ -111,13 +120,30 @@ export function ShipyardTab({
         </p>
       ) : null}
 
+      {(canBatch || canSalvageOpt) && canRefitModules ? (
+        <p className="assign-row">
+          {canBatch ? (
+            <button type="button" onClick={onUnequipAll}>
+              Unequip All
+            </button>
+          ) : null}
+          {canSalvageOpt ? (
+            <button type="button" className="primary" onClick={onUpgradeCheapest}>
+              Upgrade Cheapest
+            </button>
+          ) : null}
+        </p>
+      ) : null}
+
       <h3>Frames</h3>
       <ul className="def-list">
         {SHIP_FRAMES.map((f) => {
           const unlocked = state.shipyard.unlockedFrames.includes(f.id)
           const active = state.shipyard.frameId === f.id
+          const gated = (f.requiresSectorEver ?? 0) > ever
           const canUnlock =
             !unlocked &&
+            !gated &&
             Object.entries(f.unlockCost).every(
               ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
             )
@@ -131,12 +157,22 @@ export function ShipyardTab({
                   {f.baseHull} hull
                 </p>
                 {!unlocked ? (
-                  <p className="muted">Unlock: {costLabel(f.unlockCost)}</p>
+                  gated ? (
+                    <p className="notice-warn">Clear sector {f.requiresSectorEver} to unlock.</p>
+                  ) : (
+                    <p className="muted">Unlock: {costLabel(f.unlockCost)}</p>
+                  )
                 ) : null}
               </div>
               <div className="action-col">
                 <span className="badge">
-                  {active ? (frameLocked ? 'Active · Locked' : 'Active') : unlocked ? 'Owned' : 'Locked'}
+                  {active
+                    ? frameLocked
+                      ? 'Active · Locked'
+                      : 'Active'
+                    : unlocked
+                      ? 'Owned'
+                      : 'Locked'}
                 </span>
                 {!unlocked ? (
                   <button type="button" disabled={!canUnlock} onClick={() => onUnlockFrame(f.id)}>
@@ -171,8 +207,10 @@ export function ShipyardTab({
           const fitted = state.shipyard.modules.includes(m.id)
           const level = moduleLevel(state.shipyard.moduleLevels, m.id)
           const upCost = moduleUpgradeCost(level)
+          const gated = (m.requiresSectorEver ?? 0) > ever
           const canUnlock =
             !unlocked &&
+            !gated &&
             Object.entries(m.unlockCost).every(
               ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
             )
@@ -184,6 +222,10 @@ export function ShipyardTab({
           const rangeNote = m.weapon ? ` · range ${m.weapon.range}` : ''
           const roleTag =
             m.role === 'weapon' ? 'W' : m.role === 'defense' ? 'D' : 'U'
+          const nextEffects =
+            unlocked && level < MAX_MODULE_LEVEL
+              ? moduleUpgradeEffectLines(m.id, level, level + 1)
+              : []
           return (
             <li key={m.id}>
               <div>
@@ -196,10 +238,23 @@ export function ShipyardTab({
                   {rangeNote}
                 </p>
                 {unlocked ? (
-                  <p className="muted">
-                    Run upgrade Lv {level}/{MAX_MODULE_LEVEL}
-                    {level < MAX_MODULE_LEVEL ? ` · next ${upCost} Salvage` : ' · maxed'}
-                  </p>
+                  <>
+                    <p className="muted">
+                      Run upgrade Lv {level}/{MAX_MODULE_LEVEL}
+                      {level < MAX_MODULE_LEVEL ? ` · next ${upCost} Salvage` : ' · maxed'}
+                      {' · '}
+                      each level +12% module combat stats
+                    </p>
+                    {nextEffects.length > 0 ? (
+                      <ul className="upgrade-effects">
+                        {nextEffects.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </>
+                ) : gated ? (
+                  <p className="notice-warn">Clear sector {m.requiresSectorEver} to unlock.</p>
                 ) : (
                   <p className="muted">Unlock: {costLabel(m.unlockCost)}</p>
                 )}

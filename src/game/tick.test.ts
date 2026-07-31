@@ -10,6 +10,7 @@ import {
 import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
 import { exportSave, importSave } from './save'
 import {
+  assignWorker,
   buyAiNode,
   buyResearch,
   enterChallenge,
@@ -19,28 +20,35 @@ import {
   unfitModule,
   unlockFrame,
   unlockModule,
-  upgradeBuilding,
   upgradeModule,
 } from './actions'
 import { moduleLevel } from './catalog'
+import { WAVES_PER_SECTOR } from './progression'
 
 describe('tickGame', () => {
-  it('produces scrap from scrap yard over time', () => {
-    const start = createInitialState(0)
+  it('produces scrap from assigned worker stations over time', () => {
+    let start = createInitialState(0)
+    start.meta.highestSectorEver = 3
+    start.base.workerDrones = 2
+    start = assignWorker(start, 'scrap-field', 1)
+    start = assignWorker(start, 'power-grid', 1)
+    start.combat.docked = true
     const next = tickGame(start, 5000)
-    expect(next.resources.scrap).toBeGreaterThan(0)
+    expect(next.resources.scrap).toBeGreaterThan(start.resources.scrap)
     expect(next.resources.energy).toBeGreaterThan(start.resources.energy)
   })
 
   it('caps live catch-up to a few seconds', () => {
-    const start = createInitialState(0)
+    let start = createInitialState(0)
+    start.meta.highestSectorEver = 3
+    start.base.workerDrones = 2
+    start = assignWorker(start, 'scrap-field', 2)
     start.combat.campaign = false
+    start.combat.docked = true
     const next = tickGame(start, 60_000)
-    // Live path only applies LIVE_TICK_CAP seconds of sim, then jumps clock to now
     expect(next.lastTickAt).toBe(60_000)
     const gained = next.resources.scrap - start.resources.scrap
     expect(gained).toBeGreaterThan(0)
-    // Industry + at most a quick clear reward — far less than a full minute offline
     expect(gained).toBeLessThan(40)
   })
 
@@ -140,49 +148,44 @@ describe('offline catch-up', () => {
 })
 
 describe('purchases', () => {
-  it('upgrades scrap yard when affordable', () => {
-    const state = createInitialState(0)
-    state.resources.scrap = 100
-    const next = upgradeBuilding(state, 'scrapYard')
-    expect(next.base.buildings.scrapYard).toBe(2)
-    expect(next.resources.scrap).toBeLessThan(100)
+  it('assigns workers to scrap field', () => {
+    let state = createInitialState(0)
+    state.base.workerDrones = 2
+    state = assignWorker(state, 'scrap-field', 1)
+    expect(state.base.assignments['scrap-field']).toBe(1)
+    state = assignWorker(state, 'scrap-field', 1)
+    expect(state.base.assignments['scrap-field']).toBe(2)
   })
 
-  it('blocks foundry until alloy-smelting research', () => {
-    const state = createInitialState(0)
-    state.resources.scrap = 999
-    state.resources.energy = 999
-    const blocked = upgradeBuilding(state, 'foundry')
-    expect(blocked.base.buildings.foundry ?? 0).toBe(0)
+  it('blocks alloy foundry until alloy-smelting research', () => {
+    let state = createInitialState(0)
+    state.base.workerDrones = 2
+    const blocked = assignWorker(state, 'alloy-foundry', 1)
+    expect(blocked.base.assignments['alloy-foundry'] ?? 0).toBe(0)
 
     state.research.unlocked = ['alloy-smelting']
-    const unlocked = upgradeBuilding(state, 'foundry')
-    expect(unlocked.base.buildings.foundry).toBe(1)
+    state = assignWorker(state, 'alloy-foundry', 1)
+    expect(state.base.assignments['alloy-foundry']).toBe(1)
   })
 
-  it('blocks work drone hangar until drone-logistics research', () => {
-    const state = createInitialState(0)
-    state.resources.scrap = 999
-    state.resources.energy = 999
-    state.resources.alloys = 999
-    const blocked = upgradeBuilding(state, 'workDroneHangar')
-    expect(blocked.base.buildings.workDroneHangar ?? 0).toBe(0)
+  it('blocks drone fabricator until drone-logistics research', () => {
+    let state = createInitialState(0)
+    state.base.workerDrones = 2
+    const blocked = assignWorker(state, 'drone-fab', 1)
+    expect(blocked.base.assignments['drone-fab'] ?? 0).toBe(0)
 
     state.research.unlocked = ['drone-logistics']
-    const unlocked = upgradeBuilding(state, 'workDroneHangar')
-    expect(unlocked.base.buildings.workDroneHangar).toBe(1)
+    state = assignWorker(state, 'drone-fab', 1)
+    expect(state.base.assignments['drone-fab']).toBe(1)
   })
 
-  it('work drones produce scrap and data over time', () => {
-    const state = createInitialState(0)
-    state.combat.campaign = false
-    state.combat.inFight = false
-    // Pause auto-engage by keeping campaign false but... both modes auto-engage.
-    // Production still runs during fights; seed hangar and compare against baseline.
-    state.base.buildings.workDroneHangar = 3
-    state.base.buildings.scrapYard = 0
-    state.base.buildings.powerCell = 0
-    state.base.buildings.sensorArray = 0
+  it('assigned workers produce scrap and data over time', () => {
+    let state = createInitialState(0)
+    state.combat.docked = true
+    state.meta.highestSectorEver = 3
+    state.base.workerDrones = 3
+    state = assignWorker(state, 'scrap-field', 2)
+    state = assignWorker(state, 'sensor-net', 1)
     const scrapBefore = state.resources.scrap
     const dataBefore = state.resources.data
     advanceTicks(state, 10)
@@ -191,7 +194,10 @@ describe('purchases', () => {
   })
 
   it('reports industry resource rates per second', () => {
-    const state = createInitialState(0)
+    let state = createInitialState(0)
+    state.base.workerDrones = 2
+    state = assignWorker(state, 'scrap-field', 1)
+    state = assignWorker(state, 'power-grid', 1)
     const rates = computeResourceRates(state)
     expect(rates.scrap).toBeGreaterThan(0)
     expect(rates.energy).toBeGreaterThan(0)
@@ -227,6 +233,7 @@ describe('shipyard', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
+    state.meta.highestSectorEver = 6
     state = unlockFrame(state, 'line-frame')
     state = selectFrame(state, 'line-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
@@ -251,7 +258,8 @@ describe('prestige and challenges', () => {
     expect(state.shipyard.unlockedModules).toContain('plate-layer')
     expect(state.shipyard.modules).toContain('pulse-cannon')
     expect(state.shipyard.modules).toContain('plate-layer')
-    expect(state.base.buildings.scrapYard).toBe(1)
+    expect(state.base.workerDrones).toBeGreaterThanOrEqual(0)
+    expect(Object.keys(state.base.assignments)).toHaveLength(0)
   })
 
   it('enters and completes a repeatable challenge', () => {
@@ -261,7 +269,9 @@ describe('prestige and challenges', () => {
     expect(state.prestige.activeChallengeId).toBe('no-ai')
     expect(state.combat.sector).toBe(1)
 
-    state.combat.sector = 6
+    // Force final wave of goal sector so one wipe completes the challenge
+    state.combat.sector = 5
+    state.combat.wave = WAVES_PER_SECTOR
     state.combat.inFight = true
     state.combat.enemyUnits = [
       {

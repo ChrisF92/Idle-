@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import { buyAiNode, buyEssenceUpgrade, buyResearch, performPrestige } from './actions'
-import { startCombat, advanceTicks } from './tick'
+import { startCombat } from './tick'
 import { computeFightDamage } from './combat'
+import { clearSector } from './testHelpers'
 
 describe('essence upgrades', () => {
   it('buys permanent lattice and boosts damage', () => {
@@ -62,10 +63,8 @@ describe('AI doctrines', () => {
     state.resources.aiPoints = 2
     state = buyAiNode(state, 'scavenger')
     state = startCombat(state)
-    for (const e of state.combat.enemyUnits) e.hull = 0
-    state.combat.enemyHull = 0
     const scrapBefore = state.resources.scrap
-    advanceTicks(state, 1)
+    state = clearSector(state)
     expect(state.resources.scrap - scrapBefore).toBeGreaterThan(5)
   })
 })

@@ -6,16 +6,24 @@ import {
   syncPersistedHullCaps,
 } from './state'
 import {
-  BUILDINGS,
+  COMBAT_DRONES_UNLOCK_SECTOR,
+  STATIONS,
+  WORKER_MANUFACTURE_SECONDS,
   aiDoctrinesActive,
   essenceBonusDataPerClear,
   essenceProductionMultiplier,
+  isStationUnlocked,
   matterShopDataPerClear,
   matterShopScrapBonus,
   metaProductionMultiplier,
   researchEssenceMultiplier,
+  workerManufactureSpeed,
 } from './catalog'
 import { tryCompleteChallenge } from './actions'
+import {
+  WAVES_PER_SECTOR,
+  maybeGrantSystemUnlocks,
+} from './progression'
 import {
   buildPlayerFleet,
   enemyForSector,
@@ -84,28 +92,49 @@ function productionMeta(state: GameState): number {
 function applyProduction(state: GameState, dtSeconds: number): void {
   const meta = productionMeta(state)
 
-  for (const building of BUILDINGS) {
-    const level = state.base.buildings[building.id] ?? 0
-    if (level <= 0) continue
+  for (const station of STATIONS) {
+    if (!isStationUnlocked(state, station.id)) continue
+    const drones = state.base.assignments[station.id] ?? 0
+    if (drones <= 0) continue
 
-    if (building.upkeepScrapPerLevel) {
-      const upkeep = building.upkeepScrapPerLevel * level * dtSeconds
+    if (station.upkeepScrapPerDrone) {
+      const upkeep = station.upkeepScrapPerDrone * drones * dtSeconds
       const available = state.resources.scrap
       const paid = Math.min(available, upkeep)
       state.resources.scrap -= paid
       const efficiency = upkeep > 0 ? paid / upkeep : 1
-      for (const [resource, perLevel] of Object.entries(building.rates)) {
+      for (const [resource, perDrone] of Object.entries(station.rates)) {
         const key = resource as keyof GameState['resources']
         state.resources[key] +=
-          (perLevel ?? 0) * level * dtSeconds * efficiency * meta
+          (perDrone ?? 0) * drones * dtSeconds * efficiency * meta
       }
       continue
     }
 
-    for (const [resource, perLevel] of Object.entries(building.rates)) {
+    for (const [resource, perDrone] of Object.entries(station.rates)) {
       const key = resource as keyof GameState['resources']
-      state.resources[key] += (perLevel ?? 0) * level * dtSeconds * meta
+      state.resources[key] += (perDrone ?? 0) * drones * dtSeconds * meta
     }
+  }
+
+  // Worker manufacture (only once Base has been unlocked via career progress).
+  if (state.meta.highestSectorEver >= 3 || state.combat.highestSector >= 3) {
+    const speed = workerManufactureSpeed(state)
+    state.base.manufactureProgress += (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
+    while (state.base.manufactureProgress >= 1) {
+      state.base.manufactureProgress -= 1
+      state.base.workerDrones += 1
+      pushLog(state, `Worker drone manufactured. Corps size: ${state.base.workerDrones}.`)
+    }
+  }
+
+  if (
+    !state.meta.combatDronesUnlocked &&
+    Math.max(state.meta.highestSectorEver, state.combat.highestSector) >=
+      COMBAT_DRONES_UNLOCK_SECTOR
+  ) {
+    state.meta.combatDronesUnlocked = true
+    pushLog(state, 'Combat drone corps schematics unlocked (assignment comes later).')
   }
 }
 
@@ -117,51 +146,51 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
     rates[key] = (rates[key] ?? 0) + amount
   }
 
-  for (const building of BUILDINGS) {
-    const level = state.base.buildings[building.id] ?? 0
-    if (level <= 0) continue
+  for (const station of STATIONS) {
+    if (!isStationUnlocked(state, station.id)) continue
+    const drones = state.base.assignments[station.id] ?? 0
+    if (drones <= 0) continue
 
-    if (building.upkeepScrapPerLevel) {
-      const upkeep = building.upkeepScrapPerLevel * level
-      // UI assumes sustained upkeep while scrap stockpile exists.
+    if (station.upkeepScrapPerDrone) {
+      const upkeep = station.upkeepScrapPerDrone * drones
       const efficiency = state.resources.scrap > 0 || upkeep <= 0 ? 1 : 0
       add('scrap', -upkeep * efficiency)
-      for (const [resource, perLevel] of Object.entries(building.rates)) {
+      for (const [resource, perDrone] of Object.entries(station.rates)) {
         add(
           resource as keyof Resources,
-          (perLevel ?? 0) * level * efficiency * meta,
+          (perDrone ?? 0) * drones * efficiency * meta,
         )
       }
       continue
     }
 
-    for (const [resource, perLevel] of Object.entries(building.rates)) {
-      add(resource as keyof Resources, (perLevel ?? 0) * level * meta)
+    for (const [resource, perDrone] of Object.entries(station.rates)) {
+      add(resource as keyof Resources, (perDrone ?? 0) * drones * meta)
     }
   }
 
   return rates
 }
 
-/** Death / retreat: warp to previous sector start with full hull. */
+/** Death / retreat: warp to previous sector start with full hull; waves reset. */
 function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   const fromSector = state.combat.sector
+  const fromWave = state.combat.wave
   clearEnemy(state)
   state.combat.consecutiveLosses += 1
   state.combat.sector = Math.max(1, fromSector - 1)
+  state.combat.wave = 1
   fullHealPlayer(state)
 
   const label = tactical ? 'Tactical warp' : 'Ship destroyed — warping'
   pushLog(
     state,
-    `${label} from sector ${fromSector}${boss ? ' boss' : ''} → sector ${state.combat.sector} (hull restored).`,
+    `${label} from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''} → sector ${state.combat.sector} W1 (hull restored).`,
   )
 }
 
-function onFightWon(state: GameState): void {
-  const clearedSector = state.combat.sector
-  const wasBoss = state.combat.isBoss
-  const enemy = enemyForSector(clearedSector)
+function grantSectorClearRewards(state: GameState, clearedSector: number, wasBoss: boolean): void {
+  const enemy = enemyForSector(clearedSector, WAVES_PER_SECTOR)
   const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
   let scrapGain = enemy.scrapReward
   if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
@@ -182,22 +211,6 @@ function onFightWon(state: GameState): void {
   state.resources.essence += essenceGain
   state.resources.salvage += salvageGain
 
-  persistFlagshipHull(state)
-  // Modest clear heal — not out-of-fight repair — so Advance can push without
-  // arriving at bosses on fumes.
-  const missingHull = state.combat.playerHullMax - state.combat.playerHull
-  const missingShield = state.combat.playerShieldMax - state.combat.playerShield
-  state.combat.playerHull = Math.min(
-    state.combat.playerHullMax,
-    state.combat.playerHull + missingHull * 0.4,
-  )
-  state.combat.playerShield = Math.min(
-    state.combat.playerShieldMax,
-    state.combat.playerShield + missingShield * 0.4,
-  )
-  clearEnemy(state)
-  state.combat.consecutiveLosses = 0
-
   const parts = [
     `+${scrapGain.toFixed(1)} scrap`,
     dataBlocked ? 'data blocked' : `+${dataGain} data`,
@@ -207,14 +220,53 @@ function onFightWon(state: GameState): void {
   if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
   pushLog(
     state,
-    `${wasBoss ? 'Boss' : 'Sector'} ${clearedSector} cleared. ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
+    `${wasBoss ? 'Boss' : 'Sector'} ${clearedSector} cleared (${WAVES_PER_SECTOR} waves). ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
   )
+}
 
+function onFightWon(state: GameState): void {
+  const clearedSector = state.combat.sector
+  const clearedWave = state.combat.wave
+  const wasBoss = state.combat.isBoss
+
+  persistFlagshipHull(state)
+  const missingHull = state.combat.playerHullMax - state.combat.playerHull
+  const missingShield = state.combat.playerShieldMax - state.combat.playerShield
+  state.combat.playerHull = Math.min(
+    state.combat.playerHullMax,
+    state.combat.playerHull + missingHull * 0.25,
+  )
+  state.combat.playerShield = Math.min(
+    state.combat.playerShieldMax,
+    state.combat.playerShield + missingShield * 0.25,
+  )
+  clearEnemy(state)
+  state.combat.consecutiveLosses = 0
+
+  if (clearedWave < WAVES_PER_SECTOR) {
+    state.combat.wave = clearedWave + 1
+    // Small mid-sector scrap drip so long wave chains aren't pure dead air.
+    const drip = 1 + Math.floor(clearedSector / 4)
+    state.resources.scrap += drip
+    state.resources.salvage += Math.max(1, Math.floor(drip / 2))
+    pushLog(
+      state,
+      `Wave ${clearedWave}/${WAVES_PER_SECTOR} down in sector ${clearedSector}. +${drip} scrap. Next: W${state.combat.wave}.`,
+    )
+    return
+  }
+
+  grantSectorClearRewards(state, clearedSector, wasBoss)
   state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
+  maybeGrantSystemUnlocks(state)
+
   if (state.combat.campaign) {
     state.combat.sector = clearedSector + 1
+    state.combat.wave = 1
   } else {
+    // Hold: repeat the whole sector from wave 1.
     state.combat.sector = clearedSector
+    state.combat.wave = 1
   }
   tryCompleteChallenge(state)
 }
@@ -273,9 +325,46 @@ function maybeAutoEngage(state: GameState): void {
   beginFight(state)
 }
 
+function maybeAiAutomation(state: GameState): void {
+  if (state.prestige.activeChallengeId === 'no-ai') return
+
+  if (
+    aiDoctrinesActive(state, 'auto-dock-critical') &&
+    !state.combat.docked &&
+    !state.combat.inFight &&
+    state.combat.playerHullMax > 0 &&
+    state.combat.playerHull / state.combat.playerHullMax < 0.35
+  ) {
+    state.combat.docked = true
+    pushLog(state, 'Crisis Dock — auto-docked at low hull.')
+    return
+  }
+
+  if (
+    aiDoctrinesActive(state, 'auto-launch-ready') &&
+    state.combat.docked &&
+    !state.combat.inFight &&
+    state.combat.playerHull >= state.combat.playerHullMax - 0.5 &&
+    state.combat.playerShield >= state.combat.playerShieldMax - 0.5
+  ) {
+    state.combat.docked = false
+    if (!state.shipyard.frameLocked) {
+      state.shipyard.frameLocked = true
+      pushLog(state, 'Sortie Protocol — auto-launched (frame locked).')
+    } else {
+      pushLog(state, 'Sortie Protocol — auto-launched.')
+    }
+  }
+}
+
 export function beginFight(state: GameState): void {
   const sector = state.combat.sector
-  const encounter = enemyForSector(sector)
+  const wave = Math.min(
+    WAVES_PER_SECTOR,
+    Math.max(1, state.combat.wave || 1),
+  )
+  state.combat.wave = wave
+  const encounter = enemyForSector(sector, wave)
   syncPersistedHullCaps(state)
 
   state.combat.docked = false
@@ -303,7 +392,7 @@ export function beginFight(state: GameState): void {
       : ` ${encounter.blurb}`
   pushLog(
     state,
-    `Engaging ${encounter.name} in sector ${sector} [${encounter.family}] (${encounter.units.length} units).${note}`,
+    `Engaging ${encounter.name} — sector ${sector} wave ${wave}/${WAVES_PER_SECTOR} [${encounter.family}] (${encounter.units.length} units).${note}`,
   )
 }
 
@@ -360,6 +449,11 @@ export function setDocked(state: GameState, docked: boolean): GameState {
  * Aborts the current fight. If docked, stays docked for refit; otherwise auto-engages next tick.
  */
 export function warpToSector(state: GameState, sector: number): GameState {
+  if (!aiDoctrinesActive(state, 'warp-navigator') && state.combat.highestSector < 1) {
+    return state
+  }
+  // Warp requires the Warp Navigator AI unlock (QoL gate).
+  if (!state.ai.purchased.includes('warp-navigator')) return state
   const max = state.combat.highestSector
   if (!Number.isFinite(sector) || sector < 1 || sector > max) return state
   const next = structuredClone(state)
@@ -369,11 +463,12 @@ export function warpToSector(state: GameState, sector: number): GameState {
   }
   clearEnemy(next)
   next.combat.sector = Math.floor(sector)
+  next.combat.wave = 1
   pushLog(
     next,
     from === next.combat.sector
-      ? `Warp reaffirm — sector ${next.combat.sector}.`
-      : `Warped ${from} → sector ${next.combat.sector}.`,
+      ? `Warp reaffirm — sector ${next.combat.sector} W1.`
+      : `Warped ${from} → sector ${next.combat.sector} W1.`,
   )
   return next
 }
@@ -384,6 +479,7 @@ export function advanceSeconds(state: GameState, seconds: number): void {
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)
     applyProduction(state, dt)
+    maybeAiAutomation(state)
     if (state.combat.inFight) {
       tickCombat(state, dt)
     } else {

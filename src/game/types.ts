@@ -148,6 +148,8 @@ export interface CombatState {
   sector: number
   /** Highest sector cleared at least once this prestige (warp destinations: 1..highestSector). */
   highestSector: number
+  /** Current wave within the sector (1..WAVES_PER_SECTOR). */
+  wave: number
   inFight: boolean
   /**
    * Docked at the hangar: auto-engage paused so the Shipyard can refit.
@@ -182,8 +184,33 @@ export interface CombatState {
   log: string[]
 }
 
+/**
+ * Worker-drone industry: permanent drone counts, run assignments to stations.
+ * Legacy `buildings` may appear in old saves and is migrated away.
+ */
 export interface BaseState {
-  buildings: Record<string, number>
+  /** Permanent manufactured worker drones (kept across prestige). */
+  workerDrones: number
+  /** Permanent combat drone pool (gated; assignments come later). */
+  combatDrones: number
+  /** stationId → assigned workers (resets on prestige). */
+  assignments: Record<string, number>
+  /** 0..1 progress toward the next manufactured worker drone. */
+  manufactureProgress: number
+  /** @deprecated migrated to worker drones + stations */
+  buildings?: Record<string, number>
+}
+
+/** Career / meta progress that survives prestige. */
+export interface MetaState {
+  /** Max sector ever cleared across the career. */
+  highestSectorEver: number
+  /** Soft Act 1 climax reached (sector 30). */
+  act1Cleared: boolean
+  /** Onboarding tip ids already shown. */
+  seenOnboarding: string[]
+  /** Combat drone corps unlocked. */
+  combatDronesUnlocked: boolean
 }
 
 export interface ResearchState {
@@ -191,6 +218,10 @@ export interface ResearchState {
 }
 
 export interface AiState {
+  /**
+   * Purchased AI nodes. Doctrines are stripped on prestige;
+   * automation / QoL nodes persist (see catalog persist flags).
+   */
   purchased: string[]
 }
 
@@ -228,6 +259,7 @@ export interface GameState {
   essence: EssenceState
   prestige: PrestigeState
   codex: CodexState
+  meta: MetaState
 }
 
 /** Summary stats for UI / shipyard (derived from loadout + meta). */

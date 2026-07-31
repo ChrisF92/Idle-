@@ -6,12 +6,15 @@ import {
   TICK_MS,
 } from './tick'
 import {
-  BUILDINGS,
+  STATIONS,
   challengeShopOfflineMs,
   essenceProductionMultiplier,
+  isStationUnlocked,
   matterShopScrapBonus,
   metaProductionMultiplier,
   researchEssenceMultiplier,
+  workerManufactureSpeed,
+  WORKER_MANUFACTURE_SECONDS,
 } from './catalog'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 /** Default hard cap; Deep Cache shop extends this. */
@@ -58,25 +61,35 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       state.prestige.challengeClears,
     ) * essenceProductionMultiplier(state.essence.purchased)
 
-  for (const building of BUILDINGS) {
-    const level = state.base.buildings[building.id] ?? 0
-    if (level <= 0) continue
+  for (const station of STATIONS) {
+    if (!isStationUnlocked(state, station.id)) continue
+    const drones = state.base.assignments[station.id] ?? 0
+    if (drones <= 0) continue
 
-    if (building.upkeepScrapPerLevel) {
-      const upkeep = building.upkeepScrapPerLevel * level * seconds
+    if (station.upkeepScrapPerDrone) {
+      const upkeep = station.upkeepScrapPerDrone * drones * seconds
       const paid = Math.min(state.resources.scrap, upkeep)
       state.resources.scrap -= paid
       const efficiency = upkeep > 0 ? paid / upkeep : 1
-      for (const [resource, perLevel] of Object.entries(building.rates)) {
+      for (const [resource, perDrone] of Object.entries(station.rates)) {
         const key = resource as keyof Resources
-        state.resources[key] += (perLevel ?? 0) * level * seconds * efficiency * meta
+        state.resources[key] += (perDrone ?? 0) * drones * seconds * efficiency * meta
       }
       continue
     }
 
-    for (const [resource, perLevel] of Object.entries(building.rates)) {
+    for (const [resource, perDrone] of Object.entries(station.rates)) {
       const key = resource as keyof Resources
-      state.resources[key] += (perLevel ?? 0) * level * seconds * meta
+      state.resources[key] += (perDrone ?? 0) * drones * seconds * meta
+    }
+  }
+
+  if (state.meta.highestSectorEver >= 3 || state.combat.highestSector >= 3) {
+    const speed = workerManufactureSpeed(state)
+    state.base.manufactureProgress += (seconds * speed) / WORKER_MANUFACTURE_SECONDS
+    while (state.base.manufactureProgress >= 1) {
+      state.base.manufactureProgress -= 1
+      state.base.workerDrones += 1
     }
   }
 }

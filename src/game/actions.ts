@@ -3,20 +3,24 @@ import {
   AI_NODES,
   MAX_MODULE_LEVEL,
   RESEARCH,
-  buildingUpgradeCost,
+  STATIONS,
   challengeClearCount,
   challengeShopStartingAi,
   challengeShopStartingSalvage,
   challengeShopStartingScrap,
-  getBuilding,
+  getAiNode,
   getChallenge,
   getChallengeShopItem,
   getEssenceUpgrade,
   getFrame,
   getMatterShopItem,
   getModule,
+  getStation,
+  isAiNodePermanent,
   isChallengeUnlocked,
+  isStationUnlocked,
   canFitModuleOnFrame,
+  idleWorkers,
   moduleLevel,
   moduleUpgradeCost,
   prestigeMinSectorFor,
@@ -30,6 +34,7 @@ import {
   syncPersistedHullCaps,
 } from './state'
 import { buildPlayerFleet } from './combat'
+import { careerHighestSector } from './progression'
 
 function canAfford(resources: Resources, cost: ResourceCost): boolean {
   for (const [key, amount] of Object.entries(cost)) {
@@ -45,25 +50,88 @@ function pay(resources: Resources, cost: ResourceCost): void {
   }
 }
 
-export function isBuildingUnlocked(state: GameState, buildingId: string): boolean {
-  const def = getBuilding(buildingId)
-  if (!def) return false
-  if (!def.requiresResearch) return true
-  return state.research.unlocked.includes(def.requiresResearch)
+export function assignWorker(
+  state: GameState,
+  stationId: string,
+  delta: number,
+): GameState {
+  const def = getStation(stationId)
+  if (!def || !isStationUnlocked(state, stationId)) return state
+  if (delta === 0) return state
+
+  const current = state.base.assignments[stationId] ?? 0
+  if (delta > 0) {
+    if (idleWorkers(state) < delta) return state
+    const next = structuredClone(state)
+    next.base.assignments = {
+      ...next.base.assignments,
+      [stationId]: current + delta,
+    }
+    return next
+  }
+
+  const remove = Math.min(current, -delta)
+  if (remove <= 0) return state
+  const next = structuredClone(state)
+  const left = current - remove
+  const assignments = { ...next.base.assignments }
+  if (left <= 0) delete assignments[stationId]
+  else assignments[stationId] = left
+  next.base.assignments = assignments
+  return next
 }
 
-export function upgradeBuilding(state: GameState, buildingId: string): GameState {
-  const def = getBuilding(buildingId)
-  if (!def || !isBuildingUnlocked(state, buildingId)) return state
-
-  const level = state.base.buildings[buildingId] ?? 0
-  const cost = buildingUpgradeCost(def, level)
-  if (!canAfford(state.resources, cost)) return state
+/** Evenly spread all workers across unlocked stations (Labor Router). */
+export function autoBalanceWorkers(state: GameState): GameState {
+  if (!state.ai.purchased.includes('auto-assign-workers')) return state
+  if (state.prestige.activeChallengeId === 'no-ai') return state
+  const stations = STATIONS.filter((s) => isStationUnlocked(state, s.id))
+  if (stations.length === 0 || state.base.workerDrones <= 0) return state
 
   const next = structuredClone(state)
-  pay(next.resources, cost)
-  next.base.buildings[buildingId] = level + 1
+  const assignments: Record<string, number> = {}
+  const n = stations.length
+  const base = Math.floor(next.base.workerDrones / n)
+  let rem = next.base.workerDrones % n
+  for (const station of stations) {
+    const extra = rem > 0 ? 1 : 0
+    if (rem > 0) rem -= 1
+    const count = base + extra
+    if (count > 0) assignments[station.id] = count
+  }
+  next.base.assignments = assignments
   return next
+}
+
+export function unequipAllModules(state: GameState): GameState {
+  if (!state.ai.purchased.includes('batch-refit')) return state
+  if (state.combat.inFight) return state
+  const next = structuredClone(state)
+  next.shipyard.modules = []
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
+  return next
+}
+
+export function upgradeCheapestModule(state: GameState): GameState {
+  if (!state.ai.purchased.includes('salvage-optimizer')) return state
+  if (state.prestige.activeChallengeId === 'no-ai') return state
+
+  let bestId: string | null = null
+  let bestLevel = Infinity
+  let bestCost = Infinity
+  for (const id of state.shipyard.unlockedModules) {
+    const level = moduleLevel(state.shipyard.moduleLevels, id)
+    if (level >= MAX_MODULE_LEVEL) continue
+    const cost = moduleUpgradeCost(level)
+    if (cost > state.resources.salvage) continue
+    if (level < bestLevel || (level === bestLevel && cost < bestCost)) {
+      bestId = id
+      bestLevel = level
+      bestCost = cost
+    }
+  }
+  if (!bestId) return state
+  return upgradeModule(state, bestId)
 }
 
 export function buyResearch(state: GameState, researchId: string): GameState {
@@ -86,6 +154,7 @@ export function buyAiNode(state: GameState, nodeId: string): GameState {
   if (state.ai.purchased.includes(nodeId)) return state
   if (state.resources.aiPoints < def.costAiPoints) return state
   if (state.prestige.activeChallengeId === 'no-ai') return state
+  if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
 
   const next = structuredClone(state)
   next.resources.aiPoints -= def.costAiPoints
@@ -115,6 +184,9 @@ export function buyChallengeShop(state: GameState, itemId: string): GameState {
   const next = structuredClone(state)
   next.resources.challengePoints -= def.costCp
   next.prestige.shop = [...next.prestige.shop, itemId]
+  if (def.bonusWorkerDrones) {
+    next.base.workerDrones += def.bonusWorkerDrones
+  }
   return next
 }
 
@@ -127,6 +199,9 @@ export function buyMatterShop(state: GameState, itemId: string): GameState {
   const next = structuredClone(state)
   next.resources.prestigeMatter -= def.costPm
   next.prestige.matterShop = [...next.prestige.matterShop, itemId]
+  if (def.bonusWorkerDrones) {
+    next.base.workerDrones += def.bonusWorkerDrones
+  }
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
@@ -135,6 +210,7 @@ export function unlockFrame(state: GameState, frameId: string): GameState {
   const def = getFrame(frameId)
   if (!def) return state
   if (state.shipyard.unlockedFrames.includes(frameId)) return state
+  if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
   if (!canAfford(state.resources, def.unlockCost)) return state
 
   const next = structuredClone(state)
@@ -160,6 +236,7 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
   const def = getModule(moduleId)
   if (!def) return state
   if (state.shipyard.unlockedModules.includes(moduleId)) return state
+  if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
   if (!canAfford(state.resources, def.unlockCost)) return state
 
   const next = structuredClone(state)
@@ -223,7 +300,6 @@ function persistLoadout(
     frameDef,
   )
 
-  // Challenge-specific loadout conflicts (extend as challenges grow).
   if (activeChallengeId === 'no-ai') {
     // No module strip for Silent Bridge — AI is blocked separately.
   }
@@ -273,7 +349,6 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
           : 0
     }
   }
-  // Preserve weapon cooldown progress on the flagship where ids match
   const prevFlag = prevUnits.find((u) => u.isFlagship)
   const nextFlag = rebuilt.find((u) => u.isFlagship)
   if (prevFlag && nextFlag) {
@@ -294,6 +369,11 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
 }
 
 function applyRunReset(state: GameState, now = Date.now()): void {
+  const permanentAi = state.ai.purchased.filter((id) => {
+    const def = getAiNode(id)
+    return def ? isAiNodePermanent(def) : false
+  })
+
   const kept = {
     prestigeMatter: state.resources.prestigeMatter,
     challengePoints: state.resources.challengePoints,
@@ -309,6 +389,11 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     shop: [...state.prestige.shop],
     matterShop: [...state.prestige.matterShop],
     seenFamilies: [...(state.codex?.seenFamilies ?? [])],
+    workerDrones: state.base.workerDrones,
+    combatDrones: state.base.combatDrones,
+    manufactureProgress: state.base.manufactureProgress,
+    permanentAi,
+    meta: { ...state.meta },
   }
 
   const fresh = createInitialState(now)
@@ -338,13 +423,19 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     ...fresh.combat,
     campaign: true,
     docked: true,
+    wave: 1,
     log: [
       `Run reset. Prestige matter: ${kept.prestigeMatter}. Docked — choose your frame before Launch.`,
     ],
   }
-  state.base = fresh.base
+  state.base = {
+    workerDrones: kept.workerDrones,
+    combatDrones: kept.combatDrones,
+    assignments: {},
+    manufactureProgress: kept.manufactureProgress,
+  }
   state.research = fresh.research
-  state.ai = fresh.ai
+  state.ai = { purchased: kept.permanentAi }
   state.essence = { purchased: kept.essencePurchased }
   state.prestige = {
     prestigeCount: kept.prestigeCount,
@@ -354,6 +445,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     matterShop: kept.matterShop,
   }
   state.codex = { seenFamilies: kept.seenFamilies }
+  state.meta = kept.meta
 
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
@@ -415,7 +507,6 @@ export function tryCompleteChallenge(state: GameState): void {
   if (!id) return
   const challenge = getChallenge(id)
   if (!challenge) return
-  // highestSector tracks the max sector cleared this prestige (Advance or Hold).
   const cleared = state.combat.highestSector
   if (cleared < challenge.goalSector) return
 
@@ -440,4 +531,13 @@ export function tryCompleteChallenge(state: GameState): void {
     `Challenge complete: ${challenge.name} (${nextClears}/${challenge.maxClears}). +${challenge.rewardChallengePoints} Challenge Points.`,
     ...state.combat.log,
   ]
+}
+
+/** @deprecated buildings replaced by worker stations */
+export function upgradeBuilding(state: GameState, _buildingId: string): GameState {
+  return state
+}
+
+export function isBuildingUnlocked(_state: GameState, _buildingId: string): boolean {
+  return false
 }
