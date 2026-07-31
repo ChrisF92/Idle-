@@ -137,6 +137,7 @@ export default function App() {
         {tab === 'prestige' && (
           <PrestigeTab
             state={game.state}
+            guideTarget={guide?.target}
             onPrestige={game.prestige}
             onAscend={game.ascend}
             onEnterChallenge={game.enterChallenge}

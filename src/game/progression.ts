@@ -534,6 +534,23 @@ function guideSeen(state: GameState, id: string): boolean {
   return state.meta.seenOnboarding.includes(id)
 }
 
+/**
+ * Prestige sector threshold for challenge UI (mirrors Early Gate without catalog import).
+ */
+export function prestigeSectorThreshold(state: GameState): number {
+  return (state.prestige.shop['early-gate'] ?? 0) >= 1 ? 6 : PRESTIGE_MIN_SECTOR
+}
+
+/**
+ * Challenges + Challenge shop appear after the first prestige, once the player
+ * can prestige again (or while a challenge is already active).
+ */
+export function challengesContentUnlocked(state: GameState): boolean {
+  if (state.prestige.prestigeCount < 1) return false
+  if (state.prestige.activeChallengeId) return true
+  return state.combat.sector >= prestigeSectorThreshold(state)
+}
+
 /** Grant Base starter drones; update career flags; check achievements. */
 export function maybeGrantSystemUnlocks(state: GameState): void {
   const ever = careerHighestSector(state)
@@ -807,12 +824,25 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-challenges',
-    title: 'Challenges',
-    body: 'Enter a challenge for Challenge Points. The Challenge shop has Loot Protocols for part drops.',
-    target: 'challenges-section',
+    title: 'Challenges unlocked',
+    body: 'Tap Challenges. Optional restricted runs grant Challenge Points for the shop — you can keep prestigining normally instead.',
+    target: 'challenges-subtab',
     tab: 'prestige',
     availableWhen: (s) =>
-      s.prestige.prestigeCount >= 1 && !guideSeen(s, 'guide-challenges'),
+      challengesContentUnlocked(s) &&
+      !s.prestige.activeChallengeId &&
+      !guideSeen(s, 'guide-challenges'),
+  },
+  {
+    id: 'guide-challenge-shop',
+    title: 'Challenge shop',
+    body: 'Spend Challenge Points here. Loot Protocols permanently boost blueprint part drops. Challenges stay optional.',
+    target: 'challenge-shop',
+    tab: 'prestige',
+    availableWhen: (s) =>
+      challengesContentUnlocked(s) &&
+      guideSeen(s, 'guide-challenges') &&
+      !guideSeen(s, 'guide-challenge-shop'),
   },
   {
     id: 'guide-ascension',

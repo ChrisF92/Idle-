@@ -3,6 +3,7 @@ import { createInitialState } from './state'
 import {
   GUIDE_STEPS,
   activeGuideStep,
+  challengesContentUnlocked,
   isResourceVisible,
   isSystemUnlocked,
   visibleResourceIds,
@@ -60,6 +61,7 @@ describe('expanded onboarding catalog', () => {
       'guide-matter-shop',
       'guide-signal-cores',
       'guide-challenges',
+      'guide-challenge-shop',
       'guide-ascension',
     ]) {
       expect(ids.has(id)).toBe(true)
@@ -78,5 +80,36 @@ describe('expanded onboarding catalog', () => {
       'guide-assign-scrap',
     ]
     expect(activeGuideStep(state, 'base')?.id).toBe('guide-power-grid')
+  })
+
+  it('keeps challenges UI closed until prestige is available again', () => {
+    const state = createInitialState(0)
+    state.prestige.prestigeCount = 1
+    state.combat.sector = 1
+    expect(challengesContentUnlocked(state)).toBe(false)
+    state.combat.sector = 8
+    expect(challengesContentUnlocked(state)).toBe(true)
+    expect(GUIDE_STEPS.some((s) => s.id === 'guide-challenge-shop')).toBe(true)
+
+    state.meta.seenOnboarding = [
+      'guide-shipyard-tab',
+      'guide-frame-select',
+      'guide-launch',
+      'guide-base-tab',
+      'guide-assign-scrap',
+      'guide-power-grid',
+      'guide-research-tab',
+      'guide-sensor-net',
+      'guide-salvage',
+      'guide-essence',
+      'guide-ai-tab',
+      'guide-achievements',
+      'guide-prestige-tab',
+      'guide-prestige-ready',
+      'guide-matter-shop',
+      'guide-signal-cores',
+    ]
+    expect(activeGuideStep(state, 'prestige')?.id).toBe('guide-challenges')
+    expect(activeGuideStep(state, 'prestige')?.target).toBe('challenges-subtab')
   })
 })
