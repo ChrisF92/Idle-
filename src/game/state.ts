@@ -54,6 +54,7 @@ export function createInitialState(now = Date.now()): GameState {
       sector: 1,
       highestSector: 0,
       inFight: false,
+      docked: false,
       campaign: true,
       consecutiveLosses: 0,
       bossPhase: 0,

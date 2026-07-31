@@ -44,6 +44,7 @@ export default function App() {
           <CombatTab
             state={game.state}
             onSetCampaign={game.setCampaign}
+            onSetDocked={game.setDocked}
             onWarp={game.warpToSector}
           />
         )}

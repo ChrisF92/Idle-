@@ -243,9 +243,9 @@ function tickCombat(state: GameState, dt: number): void {
   }
 }
 
-/** Both Advance and Hold auto-engage; no out-of-fight hull repair. */
+/** Both Advance and Hold auto-engage while undocked; no out-of-fight hull repair. */
 function maybeAutoEngage(state: GameState): void {
-  if (state.combat.inFight) return
+  if (state.combat.inFight || state.combat.docked) return
   beginFight(state)
 }
 
@@ -254,6 +254,7 @@ export function beginFight(state: GameState): void {
   const encounter = enemyForSector(sector)
   syncPersistedHullCaps(state)
 
+  state.combat.docked = false
   state.combat.inFight = true
   state.combat.enemyName = encounter.name
   state.combat.enemyFamily = encounter.family
@@ -301,14 +302,38 @@ export function setCampaign(state: GameState, on: boolean): GameState {
 }
 
 /**
+ * Dock pauses auto-engage and aborts the current fight so the Shipyard can refit.
+ * Launch clears docked and lets Advance/Hold resume fighting.
+ */
+export function setDocked(state: GameState, docked: boolean): GameState {
+  if (state.combat.docked === docked) return state
+  const next = structuredClone(state)
+  if (docked) {
+    if (next.combat.inFight) {
+      persistFlagshipHull(next)
+      clearEnemy(next)
+    }
+    next.combat.docked = true
+    pushLog(next, 'Docked — open the Shipyard to refit, then Launch.')
+  } else {
+    next.combat.docked = false
+    pushLog(next, 'Launching — returning to the sector.')
+  }
+  return next
+}
+
+/**
  * Warp to a sector cleared this prestige (1..highestSector).
- * Aborts the current fight; next tick auto-engages at the destination.
+ * Aborts the current fight. If docked, stays docked for refit; otherwise auto-engages next tick.
  */
 export function warpToSector(state: GameState, sector: number): GameState {
   const max = state.combat.highestSector
   if (!Number.isFinite(sector) || sector < 1 || sector > max) return state
   const next = structuredClone(state)
   const from = next.combat.sector
+  if (next.combat.inFight) {
+    persistFlagshipHull(next)
+  }
   clearEnemy(next)
   next.combat.sector = Math.floor(sector)
   pushLog(

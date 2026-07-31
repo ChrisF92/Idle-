@@ -13,12 +13,13 @@ import { Battlefield, type BattlefieldMode } from '../Battlefield'
 interface CombatTabProps {
   state: GameState
   onSetCampaign: (on: boolean) => void
+  onSetDocked: (docked: boolean) => void
   onWarp: (sector: number) => void
 }
 
 type Overlay = 'none' | 'sector' | 'warp'
 
-export function CombatTab({ state, onSetCampaign, onWarp }: CombatTabProps) {
+export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
   const frame = getFrame(state.shipyard.frameId)
@@ -29,11 +30,13 @@ export function CombatTab({ state, onSetCampaign, onWarp }: CombatTabProps) {
   const roster = useMemo(() => sectorRoster(combat.sector), [combat.sector])
   const [overlay, setOverlay] = useState<Overlay>('none')
 
-  const battlefieldMode: BattlefieldMode = combat.inFight
-    ? 'fighting'
-    : combat.campaign
-      ? 'ready'
-      : 'holding'
+  const battlefieldMode: BattlefieldMode = combat.docked
+    ? 'docked'
+    : combat.inFight
+      ? 'fighting'
+      : combat.campaign
+        ? 'ready'
+        : 'holding'
 
   const previewPlayer = useMemo(
     () => [
@@ -103,12 +106,14 @@ export function CombatTab({ state, onSetCampaign, onWarp }: CombatTabProps) {
     return Array.from({ length: max }, (_, i) => i + 1)
   }, [combat.highestSector])
 
-  const modeLabel = combat.campaign ? 'ADVANCE' : 'HOLD'
-  const statusLabel = combat.inFight
-    ? combat.isBoss
-      ? `BOSS P${combat.bossPhase + 1}`
-      : 'ENGAGED'
-    : 'STANDBY'
+  const modeLabel = combat.docked ? 'DOCKED' : combat.campaign ? 'ADVANCE' : 'HOLD'
+  const statusLabel = combat.docked
+    ? 'REFIT'
+    : combat.inFight
+      ? combat.isBoss
+        ? `BOSS P${combat.bossPhase + 1}`
+        : 'ENGAGED'
+      : 'STANDBY'
 
   return (
     <section className="panel combat-hud">
@@ -128,7 +133,11 @@ export function CombatTab({ state, onSetCampaign, onWarp }: CombatTabProps) {
         <div className="combat-hud-readout combat-hud-readout-wide">
           <span className="combat-hud-kicker">Contact</span>
           <strong className="combat-hud-value combat-hud-contact">
-            {combat.inFight ? combat.enemyName : encounter.name}
+            {combat.docked
+              ? 'Hangar bay'
+              : combat.inFight
+                ? combat.enemyName
+                : encounter.name}
           </strong>
         </div>
         <button
@@ -148,16 +157,23 @@ export function CombatTab({ state, onSetCampaign, onWarp }: CombatTabProps) {
 
       <Battlefield
         playerUnits={combat.inFight ? combat.playerUnits : previewPlayer}
-        enemyUnits={combat.inFight ? combat.enemyUnits : encounter.units}
+        enemyUnits={combat.docked ? [] : combat.inFight ? combat.enemyUnits : encounter.units}
         projectiles={combat.inFight ? combat.projectiles : []}
         fx={combat.fx}
         mode={battlefieldMode}
       />
 
+      {combat.docked ? (
+        <p className="muted combat-dock-hint">
+          Docked — open Shipyard to fit modules, then Launch to resume{' '}
+          {combat.campaign ? 'Advance' : 'Hold'}.
+        </p>
+      ) : null}
+
       <div className="combat-controls" role="group" aria-label="Fleet controls">
         <button
           type="button"
-          className={combat.campaign ? 'primary mode-active' : ''}
+          className={combat.campaign && !combat.docked ? 'primary mode-active' : ''}
           aria-pressed={combat.campaign}
           onClick={() => onSetCampaign(true)}
         >
@@ -165,11 +181,19 @@ export function CombatTab({ state, onSetCampaign, onWarp }: CombatTabProps) {
         </button>
         <button
           type="button"
-          className={!combat.campaign ? 'primary mode-active' : ''}
+          className={!combat.campaign && !combat.docked ? 'primary mode-active' : ''}
           aria-pressed={!combat.campaign}
           onClick={() => onSetCampaign(false)}
         >
           Hold
+        </button>
+        <button
+          type="button"
+          className={combat.docked ? 'primary mode-active' : ''}
+          aria-pressed={combat.docked}
+          onClick={() => onSetDocked(!combat.docked)}
+        >
+          {combat.docked ? 'Launch' : 'Dock'}
         </button>
         <button
           type="button"

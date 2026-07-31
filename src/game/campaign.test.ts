@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { advanceTicks, setCampaign, startCombat, warpToSector } from './tick'
+import {
+  advanceTicks,
+  setCampaign,
+  setDocked,
+  startCombat,
+  warpToSector,
+} from './tick'
 import { maybeAdvanceBossPhase } from './combat'
-import { canPrestige } from './actions'
+import { canPrestige, fitModule, unlockModule } from './actions'
 
 describe('campaign combat', () => {
   it('Hold farms the same sector after a clear', () => {
@@ -82,6 +88,30 @@ describe('campaign combat', () => {
     state = warpToSector(state, 1)
     expect(state.combat.sector).toBe(1)
     expect(state.combat.highestSector).toBe(0)
+  })
+
+  it('Dock pauses auto-engage so modules can be fitted', () => {
+    let state = createInitialState(0)
+    advanceTicks(state, 1)
+    expect(state.combat.inFight).toBe(true)
+
+    state = setDocked(state, true)
+    expect(state.combat.docked).toBe(true)
+    expect(state.combat.inFight).toBe(false)
+    advanceTicks(state, 2)
+    expect(state.combat.inFight).toBe(false)
+
+    state.resources.scrap = 999
+    state.resources.alloys = 999
+    state = unlockModule(state, 'plate-layer')
+    state = fitModule(state, 'plate-layer')
+    expect(state.shipyard.modules).toContain('plate-layer')
+
+    state = setDocked(state, false)
+    advanceTicks(state, 1)
+    expect(state.combat.docked).toBe(false)
+    expect(state.combat.inFight).toBe(true)
+    expect(state.combat.playerUnits.some((u) => u.armor > 0)).toBe(true)
   })
 
   it('persists hull after a win (no full heal)', () => {

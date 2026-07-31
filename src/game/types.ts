@@ -145,9 +145,14 @@ export interface CombatState {
   highestSector: number
   inFight: boolean
   /**
+   * Docked at the hangar: auto-engage paused so the Shipyard can refit.
+   * Launch clears this and resumes Advance/Hold fighting.
+   */
+  docked: boolean
+  /**
    * Advance mode: after a clear, push to the next sector.
    * Hold mode: farm the current sector repeatedly (same rewards, no sector++).
-   * Both modes keep auto-engaging.
+   * Both modes keep auto-engaging while not docked.
    */
   campaign: boolean
   consecutiveLosses: number

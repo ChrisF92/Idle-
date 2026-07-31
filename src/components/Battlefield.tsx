@@ -8,7 +8,7 @@ import type {
 } from '../game/types'
 import { SPAWN_DISTANCE } from '../game/combat'
 
-export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready'
+export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
 interface BattlefieldProps {
   playerUnits: CombatUnit[]
@@ -341,14 +341,78 @@ function drawShape(
   ctx.restore()
 }
 
+function drawDockBay(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  const bayX = 18
+  const bayW = 150
+  const bayTop = 28
+  const bayBot = scene.height - 40
+
+  // Hangar shell
+  ctx.fillStyle = 'rgba(28, 36, 48, 0.92)'
+  ctx.fillRect(bayX, bayTop, bayW, bayBot - bayTop)
+  ctx.strokeStyle = 'rgba(212, 138, 58, 0.55)'
+  ctx.lineWidth = 2
+  ctx.strokeRect(bayX + 0.5, bayTop + 0.5, bayW - 1, bayBot - bayTop - 1)
+
+  // Roof ribs
+  ctx.strokeStyle = 'rgba(159, 176, 196, 0.25)'
+  ctx.lineWidth = 1
+  for (let i = 0; i < 5; i += 1) {
+    const y = bayTop + 18 + i * 18
+    ctx.beginPath()
+    ctx.moveTo(bayX + 10, y)
+    ctx.lineTo(bayX + bayW - 10, y)
+    ctx.stroke()
+  }
+
+  // Soft bay wash behind the ship
+  const wash = ctx.createRadialGradient(
+    PLAYER_SCREEN_X,
+    scene.height / 2,
+    8,
+    PLAYER_SCREEN_X,
+    scene.height / 2,
+    70,
+  )
+  wash.addColorStop(0, 'rgba(212, 138, 58, 0.28)')
+  wash.addColorStop(1, 'rgba(212, 138, 58, 0)')
+  ctx.fillStyle = wash
+  ctx.beginPath()
+  ctx.arc(PLAYER_SCREEN_X, scene.height / 2, 70, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Docking clamps
+  const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(scene.time * 2.2))
+  ctx.strokeStyle = `rgba(126, 200, 255, ${0.35 + pulse * 0.35})`
+  ctx.lineWidth = 2
+  const cy = scene.height / 2
+  ctx.beginPath()
+  ctx.moveTo(bayX + 14, cy - 36)
+  ctx.lineTo(PLAYER_SCREEN_X - 28, cy - 18)
+  ctx.moveTo(bayX + 14, cy + 36)
+  ctx.lineTo(PLAYER_SCREEN_X - 28, cy + 18)
+  ctx.stroke()
+
+  ctx.fillStyle = `rgba(232, 200, 140, ${0.5 + pulse * 0.35})`
+  ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText('HANGAR', bayX + 12, bayTop + 16)
+}
+
 function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  ctx.fillStyle = '#0e141c'
+  ctx.fillStyle = scene.mode === 'docked' ? '#101820' : '#0e141c'
   ctx.fillRect(0, 0, scene.width, scene.height)
 
   const g = ctx.createLinearGradient(0, 0, scene.width, scene.height)
-  g.addColorStop(0, 'rgba(36, 70, 96, 0.45)')
-  g.addColorStop(0.55, 'rgba(18, 28, 40, 0.15)')
-  g.addColorStop(1, 'rgba(80, 48, 36, 0.35)')
+  if (scene.mode === 'docked') {
+    g.addColorStop(0, 'rgba(48, 58, 70, 0.55)')
+    g.addColorStop(0.45, 'rgba(22, 30, 40, 0.2)')
+    g.addColorStop(1, 'rgba(60, 42, 28, 0.4)')
+  } else {
+    g.addColorStop(0, 'rgba(36, 70, 96, 0.45)')
+    g.addColorStop(0.55, 'rgba(18, 28, 40, 0.15)')
+    g.addColorStop(1, 'rgba(80, 48, 36, 0.35)')
+  }
   ctx.fillStyle = g
   ctx.fillRect(0, 0, scene.width, scene.height)
 
@@ -359,24 +423,38 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
     seed = (seed * 16807) % 2147483647
     const y = (seed % 1000) / 1000 * scene.height
     const layer = i % 3 === 0 ? 1.8 : i % 3 === 1 ? 1 : 0.55
-    const x = (baseX - scene.scroll * layer * 48 + scene.width * 8) % scene.width
+    const scrollMul = scene.mode === 'docked' ? 8 : 48
+    const x = (baseX - scene.scroll * layer * scrollMul + scene.width * 8) % scene.width
     const twinkle = 0.3 + 0.6 * (0.5 + 0.5 * Math.sin(scene.time * 3 + i))
-    ctx.fillStyle = `rgba(230,238,248,${twinkle})`
+    const alpha = scene.mode === 'docked' ? twinkle * 0.45 : twinkle
+    ctx.fillStyle = `rgba(230,238,248,${alpha})`
     ctx.fillRect(x, y, i % 9 === 0 ? 2.2 : 1, i % 9 === 0 ? 2.2 : 1)
   }
 
-  // Vertical center guide near player
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)'
-  ctx.beginPath()
-  ctx.moveTo(PLAYER_SCREEN_X, 16)
-  ctx.lineTo(PLAYER_SCREEN_X, scene.height - 28)
-  ctx.stroke()
+  if (scene.mode === 'docked') {
+    drawDockBay(ctx, scene)
+  } else {
+    // Vertical center guide near player
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+    ctx.beginPath()
+    ctx.moveTo(PLAYER_SCREEN_X, 16)
+    ctx.lineTo(PLAYER_SCREEN_X, scene.height - 28)
+    ctx.stroke()
+  }
 }
 
 function stepScene(scene: Scene, dt: number): void {
   scene.time += dt
   const advancing = scene.mode === 'fighting' || scene.mode === 'ready'
-  scene.scroll += dt * (advancing ? 0.7 : scene.mode === 'repairing' ? 0.12 : 0.3)
+  scene.scroll +=
+    dt *
+    (scene.mode === 'docked'
+      ? 0.08
+      : advancing
+        ? 0.7
+        : scene.mode === 'repairing'
+          ? 0.12
+          : 0.3)
 
   for (const actor of scene.actors.values()) {
     if (actor.enterT > 0) actor.enterT = Math.max(0, actor.enterT - dt)
@@ -389,10 +467,13 @@ function stepScene(scene: Scene, dt: number): void {
     }
 
     actor.bobPhase += actor.bobSpeed * dt
-    const bob =
-      actor.side === 'player' && actor.isFlagship
-        ? Math.sin(actor.bobPhase) * 2.2
-        : Math.sin(actor.bobPhase) * 3.2
+    const bobAmp =
+      scene.mode === 'docked'
+        ? 1.1
+        : actor.side === 'player' && actor.isFlagship
+          ? 2.2
+          : 3.2
+    const bob = Math.sin(actor.bobPhase) * bobAmp
 
     // Follow sim lane targets; flagship locked left + vertical center.
     // Projectiles only come from real combat FX (in-range shots) — no ghost fire.
@@ -412,6 +493,21 @@ function stepScene(scene: Scene, dt: number): void {
           maxLife: 0.5,
           color: '#7dffb0',
           size: 2,
+        })
+      }
+    }
+
+    if (scene.mode === 'docked' && actor.isFlagship && actor.side === 'player') {
+      if (Math.random() < dt * 3) {
+        scene.particles.push({
+          x: actor.x - 18 + Math.random() * 8,
+          y: actor.y + (Math.random() - 0.5) * 20,
+          vx: -10 - Math.random() * 16,
+          vy: (Math.random() - 0.5) * 12,
+          life: 0.6,
+          maxLife: 0.6,
+          color: '#7ec8ff',
+          size: 1.5,
         })
       }
     }
@@ -522,11 +618,13 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   const label =
     scene.mode === 'fighting'
       ? 'ENGAGED'
-      : scene.mode === 'repairing'
-        ? 'REPAIRING'
-        : scene.mode === 'holding'
-          ? 'HOLDING SECTOR'
-          : 'STANDING BY'
+      : scene.mode === 'docked'
+        ? 'DOCKED — REFIT READY'
+        : scene.mode === 'repairing'
+          ? 'REPAIRING'
+          : scene.mode === 'holding'
+            ? 'HOLDING SECTOR'
+            : 'STANDING BY'
   ctx.fillText(label, scene.width / 2, scene.height - 12)
 }
 
@@ -604,6 +702,15 @@ export function Battlefield({
       scene.projectiles = new Map()
       scene.seenFx.clear()
       scene.seenProj.clear()
+    }
+    if (mode === 'docked') {
+      // Drop enemy ghosts when entering the hangar.
+      for (const [id, actor] of scene.actors) {
+        if (actor.side === 'enemy') {
+          scene.actors.delete(id)
+          scene.prevHull.delete(id)
+        }
+      }
     }
   }, [mode])
 

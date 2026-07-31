@@ -6,6 +6,7 @@ import {
   startCombat,
   resetGame,
   setCampaign,
+  setDocked,
   warpToSector,
 } from '../game/tick'
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
@@ -33,6 +34,7 @@ type Action =
   | { type: 'tick'; now: number }
   | { type: 'engage' }
   | { type: 'set-campaign'; on: boolean }
+  | { type: 'set-docked'; docked: boolean }
   | { type: 'warp'; sector: number }
   | { type: 'upgrade-building'; buildingId: string }
   | { type: 'buy-research'; researchId: string }
@@ -61,6 +63,8 @@ function reducer(state: GameState, action: Action): GameState {
       return startCombat(state)
     case 'set-campaign':
       return setCampaign(state, action.on)
+    case 'set-docked':
+      return setDocked(state, action.docked)
     case 'warp':
       return warpToSector(state, action.sector)
     case 'upgrade-building':
@@ -135,6 +139,7 @@ export function useGame() {
     dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),
     setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
+    setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
     warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
     upgradeBuilding: (buildingId: string) =>
       dispatch({ type: 'upgrade-building', buildingId }),

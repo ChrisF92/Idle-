@@ -44,10 +44,16 @@ export function ShipyardTab({
       <header className="panel-header">
         <h2>Shipyard</h2>
         <p>
-          Fit modules for the run, then spend Salvage (from combat) to upgrade them. Salvage upgrades
-          reset on prestige; unlocks and loadout persist.
+          Dock from Combat to fit modules, then spend Salvage to upgrade them. Salvage upgrades reset
+          on prestige; unlocks and loadout persist.
         </p>
       </header>
+
+      {state.combat.inFight ? (
+        <p className="notice-warn">In fight — Dock from the Combat tab to refit the loadout.</p>
+      ) : state.combat.docked ? (
+        <p className="notice">Docked — fit freely, then Launch from Combat.</p>
+      ) : null}
 
       <div className="stat-row">
         <div>

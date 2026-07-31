@@ -34,6 +34,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     // v10+: highestSector = max sector cleared (0 if none yet)
     highestSector: Math.max(0, combat.highestSector ?? 0),
     campaign: combat.campaign ?? true,
+    docked: combat.docked ?? false,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
     playerShield: combat.playerShield ?? 0,
