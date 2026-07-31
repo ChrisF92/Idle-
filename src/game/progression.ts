@@ -1,6 +1,6 @@
-/** Act 1 spine, system gates, and onboarding tips. */
+/** Act 1 spine, system gates, resource visibility, and guided onboarding. */
 
-import type { GameState, TabId } from './types'
+import type { GameState, Resources, TabId } from './types'
 
 /** Waves fought to clear one sector (Advance or Hold). */
 export const WAVES_PER_SECTOR = 5
@@ -61,6 +61,47 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   },
 ]
 
+/** Future: AI Points come from achievements, not combat drops. */
+export interface AchievementDef {
+  id: string
+  name: string
+  description: string
+  rewardAiPoints: number
+  /** Career sector clear required (optional). */
+  requiresSectorEver?: number
+}
+
+export const ACHIEVEMENTS: AchievementDef[] = [
+  {
+    id: 'first-blood',
+    name: 'First Blood',
+    description: 'Clear sector 1.',
+    rewardAiPoints: 1,
+    requiresSectorEver: 1,
+  },
+  {
+    id: 'hangar-opened',
+    name: 'Hangar Opened',
+    description: 'Unlock the Base system.',
+    rewardAiPoints: 1,
+    requiresSectorEver: 3,
+  },
+  {
+    id: 'first-boss',
+    name: 'First Titan',
+    description: 'Clear a boss sector.',
+    rewardAiPoints: 2,
+    requiresSectorEver: 5,
+  },
+  {
+    id: 'neural-link',
+    name: 'Neural Link',
+    description: 'Unlock the AI Network.',
+    rewardAiPoints: 2,
+    requiresSectorEver: 8,
+  },
+]
+
 export function careerHighestSector(state: GameState): number {
   return Math.max(state.meta.highestSectorEver, state.combat.highestSector)
 }
@@ -94,6 +135,41 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   return parts.join(' · ') || null
 }
 
+/** Which header resources are visible for the current career progress. */
+export function isResourceVisible(state: GameState, id: keyof Resources): boolean {
+  switch (id) {
+    case 'scrap':
+    case 'alloys':
+    case 'energy':
+    case 'salvage':
+      return true
+    case 'data':
+      return isSystemUnlocked(state, 'research')
+    case 'essence':
+      return careerHighestSector(state) >= 5
+    case 'aiPoints':
+      return isSystemUnlocked(state, 'ai')
+    case 'prestigeMatter':
+    case 'challengePoints':
+      return isSystemUnlocked(state, 'prestige')
+    default:
+      return true
+  }
+}
+
+export function visibleResourceIds(state: GameState): (keyof Resources)[] {
+  const order: (keyof Resources)[] = [
+    'scrap',
+    'alloys',
+    'energy',
+    'data',
+    'essence',
+    'aiPoints',
+    'salvage',
+  ]
+  return order.filter((id) => isResourceVisible(state, id))
+}
+
 /** Grant Base starter drones the first time the system unlocks. */
 export function maybeGrantSystemUnlocks(state: GameState): void {
   const ever = careerHighestSector(state)
@@ -118,24 +194,98 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   }
 }
 
-export function pendingOnboardingTip(state: GameState): SystemUnlockDef | null {
-  for (const def of SYSTEM_UNLOCKS) {
-    if (!isSystemUnlocked(state, def.id)) continue
-    const tipId = `${def.id}-unlock`
-    if (state.meta.seenOnboarding.includes(tipId)) continue
-    return def
-  }
-  if (
-    state.shipyard.frameLocked === false &&
-    state.combat.docked &&
-    !state.meta.seenOnboarding.includes('launch-lock')
-  ) {
-    return {
-      id: 'base',
-      requiresSectorEver: 0,
-      label: 'Launch',
-      tip: 'Dock → pick a frame in Shipyard → Launch locks that frame for the run. Modules can still be refit while Docked.',
-    }
+/* ---------- Guided onboarding (spotlight + directed clicks) ---------- */
+
+export interface GuideStep {
+  id: string
+  title: string
+  body: string
+  /** Matches data-guide="…" on UI elements. */
+  target: string
+  /** Switch the player to this tab when the step becomes active. */
+  tab?: TabId
+  availableWhen: (state: GameState) => boolean
+  /** Optional: auto-complete when predicate becomes true. */
+  completeWhen?: (state: GameState, tab: TabId) => boolean
+}
+
+export const GUIDE_STEPS: GuideStep[] = [
+  {
+    id: 'guide-shipyard-tab',
+    title: 'Shipyard',
+    body: 'Tap Shipyard to review your frame and modules before Launch.',
+    target: 'shipyard-tab',
+    availableWhen: (s) =>
+      s.combat.docked &&
+      !s.shipyard.frameLocked &&
+      !s.meta.seenOnboarding.includes('guide-shipyard-tab'),
+    completeWhen: (_s, tab) => tab === 'shipyard',
+  },
+  {
+    id: 'guide-frame-select',
+    title: 'Your frame',
+    body: 'Scout Frame is fine for now. Tap it to continue, then you will Launch from Combat.',
+    target: 'frame-scout',
+    tab: 'shipyard',
+    availableWhen: (s) =>
+      s.meta.seenOnboarding.includes('guide-shipyard-tab') &&
+      !s.meta.seenOnboarding.includes('guide-frame-select') &&
+      s.combat.docked &&
+      !s.shipyard.frameLocked,
+  },
+  {
+    id: 'guide-launch',
+    title: 'Launch',
+    body: 'Tap Launch. This locks your frame for the run and starts Advance combat.',
+    target: 'launch-btn',
+    tab: 'combat',
+    availableWhen: (s) =>
+      s.meta.seenOnboarding.includes('guide-frame-select') &&
+      !s.meta.seenOnboarding.includes('guide-launch') &&
+      s.combat.docked &&
+      !s.shipyard.frameLocked,
+    completeWhen: (s) => s.shipyard.frameLocked || !s.combat.docked,
+  },
+  {
+    id: 'guide-base-tab',
+    title: 'Base unlocked',
+    body: 'Tap Base. Assign worker drones to stations to produce resources.',
+    target: 'base-tab',
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'base') && !s.meta.seenOnboarding.includes('guide-base-tab'),
+    completeWhen: (_s, tab) => tab === 'base',
+  },
+  {
+    id: 'guide-assign-scrap',
+    title: 'Assign workers',
+    body: 'Tap + on Scrap Field to assign an idle worker.',
+    target: 'station-scrap-field-plus',
+    tab: 'base',
+    availableWhen: (s) =>
+      s.meta.seenOnboarding.includes('guide-base-tab') &&
+      !s.meta.seenOnboarding.includes('guide-assign-scrap') &&
+      isSystemUnlocked(s, 'base') &&
+      s.base.workerDrones > 0,
+    completeWhen: (s) => (s.base.assignments['scrap-field'] ?? 0) > 0,
+  },
+  {
+    id: 'guide-research-tab',
+    title: 'Research unlocked',
+    body: 'Tap Research. Spend Data to unlock stations and combat bonuses.',
+    target: 'research-tab',
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'research') &&
+      !s.meta.seenOnboarding.includes('guide-research-tab'),
+    completeWhen: (_s, tab) => tab === 'research',
+  },
+]
+
+export function activeGuideStep(state: GameState, tab: TabId): GuideStep | null {
+  for (const step of GUIDE_STEPS) {
+    if (state.meta.seenOnboarding.includes(step.id)) continue
+    if (!step.availableWhen(state)) continue
+    if (step.completeWhen?.(state, tab)) continue
+    return step
   }
   return null
 }
@@ -147,7 +297,12 @@ export function acknowledgeOnboarding(state: GameState, tipId: string): GameStat
   return next
 }
 
-export function onboardingTipId(def: SystemUnlockDef): string {
+/** @deprecated tip-banner helpers — guided spotlight replaced these */
+export function pendingOnboardingTip(_state: GameState): null {
+  return null
+}
+
+export function onboardingTipId(def: { id: string; label?: string }): string {
   if (def.label === 'Launch') return 'launch-lock'
   return `${def.id}-unlock`
 }

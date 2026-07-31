@@ -1,18 +1,9 @@
-import type { Resources } from '../game/types'
+import type { GameState, Resources } from '../game/types'
 import { RESOURCE_LABELS } from '../game/state'
-
-const PRIMARY: (keyof Resources)[] = [
-  'scrap',
-  'alloys',
-  'energy',
-  'data',
-  'essence',
-  'aiPoints',
-  'salvage',
-]
+import { visibleResourceIds } from '../game/progression'
 
 interface ResourceBarProps {
-  resources: Resources
+  state: GameState
   rates?: Partial<Resources>
 }
 
@@ -30,16 +21,17 @@ function formatRate(n: number): string {
   return `${sign}${body}/s`
 }
 
-export function ResourceBar({ resources, rates = {} }: ResourceBarProps) {
+export function ResourceBar({ state, rates = {} }: ResourceBarProps) {
+  const ids = visibleResourceIds(state)
   return (
     <div className="resource-bar" aria-label="Resources">
-      {PRIMARY.map((id) => {
+      {ids.map((id) => {
         const rate = rates[id] ?? 0
         const showRate = Math.abs(rate) >= 0.005
         return (
           <div key={id} className="resource-chip">
             <span className="resource-label">{RESOURCE_LABELS[id]}</span>
-            <span className="resource-value">{format(resources[id])}</span>
+            <span className="resource-value">{format(state.resources[id])}</span>
             <span
               className={
                 showRate

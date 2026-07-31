@@ -16,6 +16,7 @@ import {
   workerManufactureSpeed,
   WORKER_MANUFACTURE_SECONDS,
 } from './catalog'
+import { isSystemUnlocked } from './progression'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
@@ -103,18 +104,21 @@ function applySectorOfflineRewards(state: GameState, seconds: number): void {
   const hours = seconds / 3600
   const scrapPerHour = (8 + sector * 3) * (1 + matterShopScrapBonus(state.prestige.matterShop))
   const dataPerHour =
-    state.prestige.activeChallengeId === 'data-drought' ? 0 : 1.5 + sector * 0.35
-  const aiPerHour = 0.08 + sector * 0.02
+    state.prestige.activeChallengeId === 'data-drought' ||
+    !isSystemUnlocked(state, 'research')
+      ? 0
+      : 1.5 + sector * 0.35
   const essencePerHour =
-    sector >= 5 ? (0.05 + Math.floor(sector / 5) * 0.04) * researchEssenceMultiplier(state.research.unlocked) : 0
+    sector >= 5
+      ? (0.05 + Math.floor(sector / 5) * 0.04) *
+        researchEssenceMultiplier(state.research.unlocked)
+      : 0
 
-  // Holding farms a bit more scrap; Advance yields a bit more data/AI fantasy of push
   const scrapMult = state.combat.campaign ? 1 : 1.25
   const pushMult = state.combat.campaign ? 1.15 : 0.85
 
   state.resources.scrap += scrapPerHour * hours * scrapMult
   state.resources.data += dataPerHour * hours * pushMult
-  state.resources.aiPoints += aiPerHour * hours * pushMult
   state.resources.essence += essencePerHour * hours
 }
 

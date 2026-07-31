@@ -2,14 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { computeResourceRates } from './game/tick'
-import {
-  isSystemUnlocked,
-  onboardingTipId,
-  pendingOnboardingTip,
-} from './game/progression'
+import { activeGuideStep, isSystemUnlocked } from './game/progression'
 import { ResourceBar } from './components/ResourceBar'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
+import { GuideOverlay } from './components/GuideOverlay'
 import { CombatTab } from './components/tabs/CombatTab'
 import { ShipyardTab } from './components/tabs/ShipyardTab'
 import { BaseTab } from './components/tabs/BaseTab'
@@ -24,13 +21,27 @@ export default function App() {
   const game = useGame()
   const [tab, setTab] = useState<TabId>('combat')
   const rates = useMemo(() => computeResourceRates(game.state), [game.state])
-  const tip = pendingOnboardingTip(game.state)
+  const guide = activeGuideStep(game.state, tab)
+  const ack = game.acknowledgeOnboarding
 
   useEffect(() => {
     if (!isSystemUnlocked(game.state, tab)) {
       setTab('combat')
     }
   }, [game.state, tab])
+
+  useEffect(() => {
+    if (guide?.tab && guide.tab !== tab && isSystemUnlocked(game.state, guide.tab)) {
+      setTab(guide.tab)
+    }
+  }, [guide?.id, guide?.tab, game.state, tab])
+
+  useEffect(() => {
+    if (!guide?.completeWhen) return
+    if (guide.completeWhen(game.state, tab)) {
+      ack(guide.id)
+    }
+  }, [guide, game.state, tab, ack])
 
   return (
     <div className="app">
@@ -48,22 +59,7 @@ export default function App() {
         />
       ) : null}
 
-      {tip ? (
-        <div className="onboarding-tip">
-          <div>
-            <p className="combat-hud-kicker">{tip.label}</p>
-            <p>{tip.tip}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => game.acknowledgeOnboarding(onboardingTipId(tip))}
-          >
-            Got it
-          </button>
-        </div>
-      ) : null}
-
-      <ResourceBar resources={game.state.resources} rates={rates} />
+      <ResourceBar state={game.state} rates={rates} />
       <TabNav active={tab} onChange={setTab} state={game.state} />
 
       <main className="main">
@@ -122,6 +118,10 @@ export default function App() {
           />
         )}
       </main>
+
+      {guide ? (
+        <GuideOverlay step={guide} onComplete={ack} onSkip={ack} />
+      ) : null}
     </div>
   )
 }

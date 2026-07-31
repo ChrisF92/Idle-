@@ -63,6 +63,7 @@ describe('prestige matter shop', () => {
   it('archive-spur grants extra data on clear', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 3
+    state.meta.highestSectorEver = 5
     state = buyMatterShop(state, 'archive-spur')
     state.resources.data = 0
     state = startCombat(state)

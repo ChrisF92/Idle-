@@ -149,7 +149,7 @@ export function ShipyardTab({
             )
           const canSelect = unlocked && !active && !frameLocked
           return (
-            <li key={f.id}>
+            <li key={f.id} data-guide={`frame-${f.id.replace("-frame", "")}`}>
               <div>
                 <strong>{f.name}</strong>
                 <p className="muted">

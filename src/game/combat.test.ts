@@ -17,11 +17,16 @@ describe('enemy catalog', () => {
     expect(enemyForSector(3).family).toBe('ethereal')
     expect(enemyForSector(4).family).toBe('divine')
     expect(isBossSector(5)).toBe(true)
-    expect(enemyForSector(5).isBoss).toBe(true)
-    expect(enemyForSector(5).family).toBe('titan')
-    expect(enemyForSector(5).essenceReward).toBeGreaterThan(0)
-    expect(enemyForSector(1).units.length).toBeGreaterThan(1)
-    expect(enemyForSector(5).units.some((u) => u.isBoss)).toBe(true)
+    expect(enemyForSector(5, 1).isBoss).toBe(false)
+    expect(enemyForSector(5, 5).isBoss).toBe(true)
+    expect(enemyForSector(5, 5).family).toBe('titan')
+    expect(enemyForSector(5, 5).essenceReward).toBeGreaterThan(0)
+    expect(enemyForSector(1, 1).units.length).toBeGreaterThan(0)
+    expect(enemyForSector(5, 5).units.some((u) => u.isBoss)).toBe(true)
+    // Waves in a sector are not identical
+    expect(enemyForSector(1, 1).units.map((u) => u.name).join()).not.toBe(
+      enemyForSector(1, 3).units.map((u) => u.name).join(),
+    )
   })
 })
 
@@ -58,6 +63,7 @@ describe('role matchups', () => {
   it('bosses punish missing defense', () => {
     let state = createInitialState(0)
     state.combat.sector = 5
+    state.combat.wave = 5
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
 

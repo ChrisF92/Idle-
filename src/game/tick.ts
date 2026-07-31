@@ -22,6 +22,7 @@ import {
 import { tryCompleteChallenge } from './actions'
 import {
   WAVES_PER_SECTOR,
+  isSystemUnlocked,
   maybeGrantSystemUnlocks,
 } from './progression'
 import {
@@ -199,22 +200,22 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   const siphonData =
     essenceBonusDataPerClear(state.essence.purchased) +
     matterShopDataPerClear(state.prestige.matterShop)
-  const dataGain = dataBlocked ? 0 : enemy.dataReward + siphonData
-  const aiGain = enemy.aiReward
-  const essenceGain =
-    enemy.essenceReward * researchEssenceMultiplier(state.research.unlocked)
+  const researchOpen = isSystemUnlocked(state, 'research')
+  const dataGain =
+    dataBlocked || !researchOpen ? 0 : enemy.dataReward + siphonData
+  const essenceGain = wasBoss
+    ? enemy.essenceReward * researchEssenceMultiplier(state.research.unlocked)
+    : 0
   const salvageGain = enemy.salvageReward
 
   state.resources.scrap += scrapGain
   state.resources.data += dataGain
-  state.resources.aiPoints += aiGain
   state.resources.essence += essenceGain
   state.resources.salvage += salvageGain
 
   const parts = [
     `+${scrapGain.toFixed(1)} scrap`,
-    dataBlocked ? 'data blocked' : `+${dataGain} data`,
-    `+${aiGain} AI`,
+    dataBlocked || !researchOpen ? 'data locked' : `+${dataGain} data`,
     `+${salvageGain} salvage`,
   ]
   if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
