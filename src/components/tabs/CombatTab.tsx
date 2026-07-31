@@ -10,7 +10,7 @@ import {
   repairRatePerSecond,
   totalEnemyHull,
 } from '../../game/combat'
-import { Battlefield } from '../Battlefield'
+import { Battlefield, type BattlefieldMode } from '../Battlefield'
 
 interface CombatTabProps {
   state: GameState
@@ -34,6 +34,13 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
     : Math.max(1, totalEnemyHull(upcoming))
   const enemyHull = combat.inFight ? combat.enemyHull : enemyHullMax
   const repairRate = repairRatePerSecond(state)
+  const battlefieldMode: BattlefieldMode = combat.inFight
+    ? 'fighting'
+    : combat.playerHull < combat.playerHullMax * 0.35
+      ? 'repairing'
+      : !combat.campaign
+        ? 'holding'
+        : 'ready'
 
   const previewPlayer = [
     {
@@ -126,7 +133,7 @@ export function CombatTab({ state, onEngage, onToggleCampaign }: CombatTabProps)
         playerUnits={combat.inFight ? combat.playerUnits : previewPlayer}
         enemyUnits={combat.inFight ? combat.enemyUnits : upcoming.units}
         fx={combat.fx}
-        inFight={combat.inFight}
+        mode={battlefieldMode}
       />
 
       <div className="combat-grid">

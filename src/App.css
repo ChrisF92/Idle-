@@ -136,10 +136,10 @@
 
 .battlefield {
   width: 100%;
-  aspect-ratio: 640 / 220;
+  aspect-ratio: 640 / 240;
   height: auto;
   border: 1px solid var(--line);
-  background: #121820;
+  background: #0e141c;
   display: block;
   border-radius: 2px;
 }
