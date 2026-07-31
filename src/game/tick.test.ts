@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
-import { advanceTicks, computeResourceRates, startCombat, tickGame } from './tick'
+import {
+  advanceTicks,
+  computeResourceRates,
+  setDocked,
+  startCombat,
+  tickGame,
+} from './tick'
 import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
 import { exportSave, importSave } from './save'
 import {
@@ -9,6 +15,8 @@ import {
   enterChallenge,
   fitModule,
   performPrestige,
+  selectFrame,
+  unfitModule,
   unlockFrame,
   unlockModule,
   upgradeBuilding,
@@ -36,10 +44,14 @@ describe('tickGame', () => {
     expect(gained).toBeLessThan(40)
   })
 
-  it('campaign auto-engages the next fight', () => {
+  it('campaign auto-engages after Launch', () => {
     let state = createInitialState(0)
     expect(state.combat.campaign).toBe(true)
+    expect(state.combat.docked).toBe(true)
     state = tickGame(state, 1000)
+    expect(state.combat.inFight).toBe(false)
+    state = setDocked(state, false)
+    state = tickGame(state, state.lastTickAt + 1000)
     expect(state.combat.inFight).toBe(true)
   })
 
@@ -64,6 +76,7 @@ describe('tickGame', () => {
   it('hull persists between chained fights under Advance', () => {
     let state = createInitialState(0)
     state.combat.campaign = true
+    state = setDocked(state, false)
     advanceTicks(state, 80)
     expect(state.combat.sector).toBeGreaterThan(1)
     // After some clears, either in a fight at partial hull or repairing — not always full
@@ -199,21 +212,27 @@ describe('purchases', () => {
 describe('shipyard', () => {
   it('unlocks and fits modules that increase damage', () => {
     let state = createInitialState(0)
-    const before = computeShipStats(state).damage
     state.resources.scrap = 999
     state.resources.alloys = 999
     state = unlockModule(state, 'heavy-lance')
+    // Scout has only 1 weapon slot — swap pulse for lance
+    state = unfitModule(state, 'pulse-cannon')
+    const bare = computeShipStats(state).damage
     state = fitModule(state, 'heavy-lance')
     expect(state.shipyard.modules).toContain('heavy-lance')
-    expect(computeShipStats(state).damage).toBeGreaterThan(before)
+    expect(computeShipStats(state).damage).toBeGreaterThan(bare)
   })
 
-  it('unlocks line frame', () => {
+  it('unlocks line frame with a utility slot', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
     state = unlockFrame(state, 'line-frame')
-    expect(state.shipyard.unlockedFrames).toContain('line-frame')
+    state = selectFrame(state, 'line-frame')
+    expect(state.shipyard.frameId).toBe('line-frame')
+    state = unlockModule(state, 'vector-thruster')
+    state = fitModule(state, 'vector-thruster')
+    expect(state.shipyard.modules).toContain('vector-thruster')
   })
 })
 

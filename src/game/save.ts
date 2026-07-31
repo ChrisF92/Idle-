@@ -91,6 +91,7 @@ function withShipyardDefaults(
     modules: shipyard?.modules ?? base.modules,
     frameId: shipyard?.frameId ?? base.frameId,
     moduleLevels: shipyard?.moduleLevels ?? {},
+    frameLocked: shipyard?.frameLocked ?? false,
   }
 }
 

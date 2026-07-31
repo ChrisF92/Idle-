@@ -58,6 +58,11 @@ export interface ShipLoadout {
   unlockedModules: string[]
   /** Per-module run upgrade levels (reset on prestige). */
   moduleLevels: Record<string, number>
+  /**
+   * After the first Launch of a run, the frame cannot be changed until
+   * prestige / challenge reset. Modules can still be refit while Docked.
+   */
+  frameLocked: boolean
 }
 
 export interface WeaponInstance {

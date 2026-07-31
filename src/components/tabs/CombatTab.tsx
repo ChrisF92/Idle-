@@ -177,12 +177,15 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         <p className="muted combat-dock-hint">
           Docked — Shipyard open
           {needsRepair ? ` · repairing +${repairRate.toFixed(1)} hull/s` : ''}
+          {!state.shipyard.frameLocked
+            ? ' · choose your frame before Launch (locks until prestige/challenge)'
+            : ''}
           . Launch to resume {combat.campaign ? 'Advance' : 'Hold'}.
         </p>
       ) : (
         <p className="muted combat-dock-hint">
-          Advance pushes sectors · Hold farms this sector · Dock pauses combat to refit and
-          repair.
+          Advance pushes sectors · Hold farms this sector · Dock pauses combat to refit modules
+          and repair.
         </p>
       )}
 
@@ -207,7 +210,15 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           type="button"
           className={combat.docked ? 'primary mode-active' : ''}
           aria-pressed={combat.docked}
-          onClick={() => onSetDocked(!combat.docked)}
+          onClick={() => {
+            if (combat.docked && !state.shipyard.frameLocked) {
+              const ok = window.confirm(
+                'Launch locks your frame until the next prestige or challenge. You can still Dock later to change modules. Launch anyway?',
+              )
+              if (!ok) return
+            }
+            onSetDocked(!combat.docked)
+          }}
         >
           {combat.docked ? 'Launch' : 'Dock'}
         </button>

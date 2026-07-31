@@ -16,9 +16,11 @@ import {
   getMatterShopItem,
   getModule,
   isChallengeUnlocked,
+  canFitModuleOnFrame,
   moduleLevel,
   moduleUpgradeCost,
   prestigeMinSectorFor,
+  trimModulesToFrame,
   type ResourceCost,
 } from './catalog'
 import {
@@ -143,13 +145,13 @@ export function unlockFrame(state: GameState, frameId: string): GameState {
 
 export function selectFrame(state: GameState, frameId: string): GameState {
   if (!state.shipyard.unlockedFrames.includes(frameId)) return state
+  if (state.shipyard.frameLocked) return state
   const frame = getFrame(frameId)
   if (!frame) return state
 
   const next = structuredClone(state)
   next.shipyard.frameId = frameId
-  // Trim modules if new frame has fewer slots
-  next.shipyard.modules = next.shipyard.modules.slice(0, frame.slots)
+  next.shipyard.modules = trimModulesToFrame(next.shipyard.modules, frame)
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
@@ -171,7 +173,7 @@ export function fitModule(state: GameState, moduleId: string): GameState {
   if (state.shipyard.modules.includes(moduleId)) return state
   const frame = getFrame(state.shipyard.frameId)
   if (!frame) return state
-  if (state.shipyard.modules.length >= frame.slots) return state
+  if (!canFitModuleOnFrame(frame, state.shipyard.modules, moduleId)) return state
 
   const next = structuredClone(state)
   next.shipyard.modules = [...next.shipyard.modules, moduleId]
@@ -215,9 +217,11 @@ function persistLoadout(
   activeChallengeId: string | null,
 ): GameState['shipyard'] {
   const frame = unlockedFrames.includes(frameId) ? frameId : 'scout-frame'
-  const frameDef = getFrame(frame)
-  const slots = frameDef?.slots ?? 2
-  let fitted = modules.filter((id) => unlockedModules.includes(id)).slice(0, slots)
+  const frameDef = getFrame(frame) ?? getFrame('scout-frame')!
+  let fitted = trimModulesToFrame(
+    modules.filter((id) => unlockedModules.includes(id)),
+    frameDef,
+  )
 
   // Challenge-specific loadout conflicts (extend as challenges grow).
   if (activeChallengeId === 'no-ai') {
@@ -234,6 +238,7 @@ function persistLoadout(
     unlockedFrames,
     unlockedModules,
     moduleLevels: {},
+    frameLocked: false,
   }
 }
 
@@ -332,7 +337,10 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.combat = {
     ...fresh.combat,
     campaign: true,
-    log: [`Run reset. Prestige matter: ${kept.prestigeMatter}. Advance re-armed.`],
+    docked: true,
+    log: [
+      `Run reset. Prestige matter: ${kept.prestigeMatter}. Docked — choose your frame before Launch.`,
+    ],
   }
   state.base = fresh.base
   state.research = fresh.research

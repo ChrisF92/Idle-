@@ -3,6 +3,10 @@ import {
   MAX_MODULE_LEVEL,
   SHIP_FRAMES,
   SHIP_MODULES,
+  canFitModuleOnFrame,
+  fittedRoleSlotCounts,
+  frameTotalSlots,
+  getFrame,
   moduleLevel,
   moduleUpgradeCost,
 } from '../../game/catalog'
@@ -25,6 +29,10 @@ function costLabel(cost: Partial<Record<keyof Resources, number>>): string {
   return parts.length ? parts.join(', ') : 'Free'
 }
 
+function slotLine(weapon: number, defense: number, utility: number): string {
+  return `${weapon}W / ${defense}D / ${utility}U`
+}
+
 export function ShipyardTab({
   state,
   onUnlockFrame,
@@ -34,26 +42,42 @@ export function ShipyardTab({
   onUnfitModule,
   onUpgradeModule,
 }: ShipyardTabProps) {
-  const frame = SHIP_FRAMES.find((f) => f.id === state.shipyard.frameId)
+  const frame = getFrame(state.shipyard.frameId)
   const stats = computeShipStats(state)
+  const used = fittedRoleSlotCounts(state.shipyard.modules)
   const slotsUsed = state.shipyard.modules.length
-  const slotsMax = frame?.slots ?? 0
+  const slotsMax = frame ? frameTotalSlots(frame) : 0
+  const frameLocked = state.shipyard.frameLocked
+  const canRefitModules = !state.combat.inFight
 
   return (
     <section className="panel">
       <header className="panel-header">
         <h2>Shipyard</h2>
         <p>
-          Dock from Combat to fit modules, then spend Salvage to upgrade them. Salvage upgrades reset
-          on prestige; unlocks and loadout persist.
+          Choose a frame before your first Launch (locked until prestige / challenge). Dock anytime
+          to refit modules within that frame&apos;s W/D/U slots.
         </p>
       </header>
 
       {state.combat.inFight ? (
-        <p className="notice-warn">In fight — Dock from the Combat tab to refit the loadout.</p>
+        <p className="notice-warn">In fight — Dock from the Combat tab to refit modules.</p>
       ) : state.combat.docked ? (
-        <p className="notice">Docked — fit freely while the hangar repairs hull, then Launch.</p>
+        <p className="notice">
+          Docked — {frameLocked ? 'frame locked · ' : 'pick a frame, then '}
+          fit modules while the hangar repairs hull.
+        </p>
       ) : null}
+
+      {frameLocked ? (
+        <p className="notice-warn">
+          Frame locked for this run. Prestige or enter a challenge to choose a different frame.
+        </p>
+      ) : (
+        <p className="muted">
+          Frame unlocked until Launch — changing frames may unequip modules that no longer fit.
+        </p>
+      )}
 
       <div className="stat-row">
         <div>
@@ -80,6 +104,13 @@ export function ShipyardTab({
         </div>
       </div>
 
+      {frame ? (
+        <p className="muted">
+          Fitted roles: {slotLine(used.weapon, used.defense, used.utility)} of{' '}
+          {slotLine(frame.weaponSlots, frame.defenseSlots, frame.utilitySlots)}
+        </p>
+      ) : null}
+
       <h3>Frames</h3>
       <ul className="def-list">
         {SHIP_FRAMES.map((f) => {
@@ -90,19 +121,23 @@ export function ShipyardTab({
             Object.entries(f.unlockCost).every(
               ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
             )
+          const canSelect = unlocked && !active && !frameLocked
           return (
             <li key={f.id}>
               <div>
                 <strong>{f.name}</strong>
                 <p className="muted">
-                  {f.slots} slots · {f.baseDamage} dmg · {f.baseHull} hull
+                  {slotLine(f.weaponSlots, f.defenseSlots, f.utilitySlots)} · {f.baseDamage} dmg ·{' '}
+                  {f.baseHull} hull
                 </p>
                 {!unlocked ? (
                   <p className="muted">Unlock: {costLabel(f.unlockCost)}</p>
                 ) : null}
               </div>
               <div className="action-col">
-                <span className="badge">{active ? 'Active' : unlocked ? 'Owned' : 'Locked'}</span>
+                <span className="badge">
+                  {active ? (frameLocked ? 'Active · Locked' : 'Active') : unlocked ? 'Owned' : 'Locked'}
+                </span>
                 {!unlocked ? (
                   <button type="button" disabled={!canUnlock} onClick={() => onUnlockFrame(f.id)}>
                     Unlock
@@ -110,10 +145,17 @@ export function ShipyardTab({
                 ) : (
                   <button
                     type="button"
-                    disabled={active || state.combat.inFight}
+                    disabled={!canSelect}
+                    title={
+                      frameLocked
+                        ? 'Frame locked until prestige / challenge'
+                        : active
+                          ? 'Already selected'
+                          : 'Select this frame'
+                    }
                     onClick={() => onSelectFrame(f.id)}
                   >
-                    {active ? 'Selected' : 'Select'}
+                    {active ? 'Selected' : frameLocked ? 'Locked' : 'Select'}
                   </button>
                 )}
               </div>
@@ -134,14 +176,21 @@ export function ShipyardTab({
             Object.entries(m.unlockCost).every(
               ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
             )
-          const canFit = unlocked && !fitted && slotsUsed < slotsMax && !state.combat.inFight
+          const roleOpen =
+            !!frame && canFitModuleOnFrame(frame, state.shipyard.modules, m.id)
+          const canFit = unlocked && !fitted && roleOpen && canRefitModules
           const canUpgrade =
             unlocked && level < MAX_MODULE_LEVEL && state.resources.salvage >= upCost
           const rangeNote = m.weapon ? ` · range ${m.weapon.range}` : ''
+          const roleTag =
+            m.role === 'weapon' ? 'W' : m.role === 'defense' ? 'D' : 'U'
           return (
             <li key={m.id}>
               <div>
-                <strong>{m.name}</strong>
+                <strong>
+                  {m.name}{' '}
+                  <span className="muted">[{roleTag}]</span>
+                </strong>
                 <p className="muted">
                   {m.role} — {m.description}
                   {rangeNote}
@@ -154,6 +203,9 @@ export function ShipyardTab({
                 ) : (
                   <p className="muted">Unlock: {costLabel(m.unlockCost)}</p>
                 )}
+                {unlocked && !fitted && frame && !roleOpen ? (
+                  <p className="notice-warn">No free {m.role} slot on this frame.</p>
+                ) : null}
               </div>
               <div className="action-col">
                 <span className="badge">
@@ -168,7 +220,7 @@ export function ShipyardTab({
                     {fitted ? (
                       <button
                         type="button"
-                        disabled={state.combat.inFight}
+                        disabled={!canRefitModules}
                         onClick={() => onUnfitModule(m.id)}
                       >
                         Unfit

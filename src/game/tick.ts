@@ -279,6 +279,7 @@ export function beginFight(state: GameState): void {
   syncPersistedHullCaps(state)
 
   state.combat.docked = false
+  state.shipyard.frameLocked = true
   state.combat.inFight = true
   state.combat.enemyName = encounter.name
   state.combat.enemyFamily = encounter.family
@@ -341,7 +342,15 @@ export function setDocked(state: GameState, docked: boolean): GameState {
     pushLog(next, 'Docked — refit in Shipyard and repair hull, then Launch.')
   } else {
     next.combat.docked = false
-    pushLog(next, 'Launching — returning to the sector.')
+    if (!next.shipyard.frameLocked) {
+      next.shipyard.frameLocked = true
+      pushLog(
+        next,
+        'Launching — frame locked for this run. Modules can still be refit when Docked.',
+      )
+    } else {
+      pushLog(next, 'Launching — returning to the sector.')
+    }
   }
   return next
 }

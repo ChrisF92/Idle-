@@ -109,10 +109,15 @@ export interface ModuleWeaponDef {
 /** Max salvage upgrades per module in a run. */
 export const MAX_MODULE_LEVEL = 15
 
+export type ModuleRole = 'weapon' | 'defense' | 'utility'
+
 export interface ShipFrameDef {
   id: string
   name: string
-  slots: number
+  /** Attack / weapon module capacity. */
+  weaponSlots: number
+  defenseSlots: number
+  utilitySlots: number
   /** Intrinsic flagship weapon damage (cooldown 1s kinetic). */
   baseDamage: number
   baseHull: number
@@ -122,7 +127,7 @@ export interface ShipFrameDef {
 export interface ShipModuleDef {
   id: string
   name: string
-  role: 'weapon' | 'defense' | 'utility'
+  role: ModuleRole
   description: string
   /** Used for DPS estimates when no weapon profile is present. */
   damageBonus: number
@@ -444,7 +449,9 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
   {
     id: 'scout-frame',
     name: 'Scout Frame',
-    slots: 2,
+    weaponSlots: 1,
+    defenseSlots: 1,
+    utilitySlots: 0,
     baseDamage: 12,
     baseHull: 130,
     unlockCost: {},
@@ -452,7 +459,9 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
   {
     id: 'line-frame',
     name: 'Line Frame',
-    slots: 3,
+    weaponSlots: 1,
+    defenseSlots: 1,
+    utilitySlots: 1,
     baseDamage: 9,
     baseHull: 140,
     unlockCost: { alloys: 25, scrap: 40 },
@@ -460,12 +469,73 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
   {
     id: 'bastion-frame',
     name: 'Bastion Frame',
-    slots: 4,
+    weaponSlots: 1,
+    defenseSlots: 2,
+    utilitySlots: 1,
     baseDamage: 8,
     baseHull: 190,
     unlockCost: { alloys: 60, scrap: 90, energy: 25 },
   },
 ]
+
+export function frameTotalSlots(frame: ShipFrameDef): number {
+  return frame.weaponSlots + frame.defenseSlots + frame.utilitySlots
+}
+
+export function frameRoleCap(frame: ShipFrameDef, role: ModuleRole): number {
+  if (role === 'weapon') return frame.weaponSlots
+  if (role === 'defense') return frame.defenseSlots
+  return frame.utilitySlots
+}
+
+/** Count fitted modules by role. */
+export function fittedRoleSlotCounts(
+  moduleIds: string[],
+): Record<ModuleRole, number> {
+  const counts: Record<ModuleRole, number> = {
+    weapon: 0,
+    defense: 0,
+    utility: 0,
+  }
+  for (const id of moduleIds) {
+    const role = getModule(id)?.role
+    if (role) counts[role] += 1
+  }
+  return counts
+}
+
+/** Keep modules that fit the frame's role caps (preserves order). */
+export function trimModulesToFrame(
+  moduleIds: string[],
+  frame: ShipFrameDef,
+): string[] {
+  const kept: string[] = []
+  const used: Record<ModuleRole, number> = {
+    weapon: 0,
+    defense: 0,
+    utility: 0,
+  }
+  for (const id of moduleIds) {
+    const role = getModule(id)?.role
+    if (!role) continue
+    if (used[role] >= frameRoleCap(frame, role)) continue
+    used[role] += 1
+    kept.push(id)
+  }
+  return kept
+}
+
+export function canFitModuleOnFrame(
+  frame: ShipFrameDef,
+  fittedModuleIds: string[],
+  moduleId: string,
+): boolean {
+  const mod = getModule(moduleId)
+  if (!mod) return false
+  if (fittedModuleIds.includes(moduleId)) return false
+  const used = fittedRoleSlotCounts(fittedModuleIds)
+  return used[mod.role] < frameRoleCap(frame, mod.role)
+}
 
 export const SHIP_MODULES: ShipModuleDef[] = [
   {

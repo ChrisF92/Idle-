@@ -8,7 +8,14 @@ import {
   warpToSector,
 } from './tick'
 import { maybeAdvanceBossPhase } from './combat'
-import { canPrestige, fitModule, unlockModule } from './actions'
+import {
+  canPrestige,
+  fitModule,
+  performPrestige,
+  selectFrame,
+  unlockFrame,
+  unlockModule,
+} from './actions'
 
 describe('campaign combat', () => {
   it('Hold farms the same sector after a clear', () => {
@@ -92,8 +99,11 @@ describe('campaign combat', () => {
 
   it('Dock pauses auto-engage so modules can be fitted', () => {
     let state = createInitialState(0)
+    expect(state.combat.docked).toBe(true)
+    state = setDocked(state, false)
     advanceTicks(state, 1)
     expect(state.combat.inFight).toBe(true)
+    expect(state.shipyard.frameLocked).toBe(true)
 
     state = setDocked(state, true)
     expect(state.combat.docked).toBe(true)
@@ -137,10 +147,32 @@ describe('campaign combat', () => {
   })
 
   it('reaches prestige sector on Advance with starter loadout', () => {
-    const state = createInitialState(0)
+    let state = createInitialState(0)
+    state = setDocked(state, false)
     advanceTicks(state, 420)
     expect(state.combat.highestSector).toBeGreaterThanOrEqual(5)
     expect(canPrestige(state)).toBe(true)
+  })
+
+  it('locks frame after Launch and blocks select until prestige', () => {
+    let state = createInitialState(0)
+    state.resources.scrap = 999
+    state.resources.alloys = 999
+    state = unlockFrame(state, 'line-frame')
+    state = selectFrame(state, 'line-frame')
+    expect(state.shipyard.frameId).toBe('line-frame')
+
+    state = setDocked(state, false)
+    expect(state.shipyard.frameLocked).toBe(true)
+    state = selectFrame(state, 'scout-frame')
+    expect(state.shipyard.frameId).toBe('line-frame')
+
+    state.combat.sector = 8
+    state = performPrestige(state, 1000)
+    expect(state.combat.docked).toBe(true)
+    expect(state.shipyard.frameLocked).toBe(false)
+    state = selectFrame(state, 'scout-frame')
+    expect(state.shipyard.frameId).toBe('scout-frame')
   })
 
   it('grants salvage on clear', () => {
