@@ -3,6 +3,7 @@ import {
   AI_NODES,
   MAX_MODULE_LEVEL,
   RESEARCH,
+  COMBAT_ROLES,
   STATIONS,
   challengeClearCount,
   challengeShopStartingAi,
@@ -11,13 +12,16 @@ import {
   getAiNode,
   getChallenge,
   getChallengeShopItem,
+  getCombatRole,
   getEssenceUpgrade,
   getFrame,
   getMatterShopItem,
   getModule,
   getStation,
+  idleCombatDrones,
   isAiNodePermanent,
   isChallengeUnlocked,
+  isCombatRoleUnlocked,
   isStationUnlocked,
   canFitModuleOnFrame,
   filterModulesForChallenge,
@@ -102,6 +106,62 @@ export function autoBalanceWorkers(state: GameState): GameState {
     if (count > 0) assignments[station.id] = count
   }
   next.base.assignments = assignments
+  return next
+}
+
+/** Assign combat drones to a role (Interceptor / Screen / Support). */
+export function assignCombatDrone(
+  state: GameState,
+  roleId: string,
+  delta: number,
+): GameState {
+  const def = getCombatRole(roleId)
+  if (!def || !isCombatRoleUnlocked(state, roleId)) return state
+  if (delta === 0) return state
+
+  const current = state.base.combatAssignments[roleId] ?? 0
+  if (delta > 0) {
+    if (idleCombatDrones(state) < delta) return state
+    const next = structuredClone(state)
+    next.base.combatAssignments = {
+      ...next.base.combatAssignments,
+      [roleId]: current + delta,
+    }
+    if (!next.combat.inFight) syncPersistedHullCaps(next)
+    return next
+  }
+
+  const remove = Math.min(current, -delta)
+  if (remove <= 0) return state
+  const next = structuredClone(state)
+  const left = current - remove
+  const assignments = { ...next.base.combatAssignments }
+  if (left <= 0) delete assignments[roleId]
+  else assignments[roleId] = left
+  next.base.combatAssignments = assignments
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
+  return next
+}
+
+/** Evenly spread combat drones across unlocked roles. */
+export function autoBalanceCombatDrones(state: GameState): GameState {
+  if (!state.meta.combatDronesUnlocked) return state
+  const roles = COMBAT_ROLES.filter((r) => isCombatRoleUnlocked(state, r.id))
+  if (roles.length === 0 || state.base.combatDrones <= 0) return state
+
+  const next = structuredClone(state)
+  const assignments: Record<string, number> = {}
+  const n = roles.length
+  const base = Math.floor(next.base.combatDrones / n)
+  let rem = next.base.combatDrones % n
+  for (const role of roles) {
+    const extra = rem > 0 ? 1 : 0
+    if (rem > 0) rem -= 1
+    const count = base + extra
+    if (count > 0) assignments[role.id] = count
+  }
+  next.base.combatAssignments = assignments
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
 
@@ -410,6 +470,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     workerDrones: state.base.workerDrones,
     combatDrones: state.base.combatDrones,
     manufactureProgress: state.base.manufactureProgress,
+    combatManufactureProgress: state.base.combatManufactureProgress,
     permanentAi,
     meta: { ...state.meta },
   }
@@ -456,7 +517,9 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     workerDrones: kept.workerDrones,
     combatDrones: kept.combatDrones,
     assignments: {},
+    combatAssignments: {},
     manufactureProgress: kept.manufactureProgress,
+    combatManufactureProgress: kept.combatManufactureProgress,
   }
   state.research = fresh.research
   state.ai = { purchased: kept.permanentAi }

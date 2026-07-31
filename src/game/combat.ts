@@ -1062,7 +1062,109 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
     }
   }
 
+  // Combat drone corps — role-tuned escorts. Cap visible units; scale power for overflow.
+  const MAX_VISIBLE_PER_ROLE = 4
+  const gdm = globalDamageMultiplier(state)
+  for (const [roleId, assignedRaw] of Object.entries(state.base.combatAssignments ?? {})) {
+    const assigned = Math.max(0, Math.floor(assignedRaw))
+    if (assigned <= 0) continue
+    const visible = Math.min(assigned, MAX_VISIBLE_PER_ROLE)
+    const scale = assigned / visible
+    for (let i = 0; i < visible; i += 1) {
+      escortIndex += 1
+      const profile = corpsRoleProfile(roleId, stats.hullMax, gdm, scale)
+      escorts.push({
+        id: `corps-${roleId}-${i + 1}`,
+        side: 'player',
+        name: profile.name,
+        shape: profile.shape,
+        family: 'escort',
+        hull: profile.hull,
+        hullMax: profile.hull,
+        shield: 0,
+        shieldMax: 0,
+        armor: profile.armor,
+        evasion: profile.evasion,
+        damageTakenMult: 1,
+        weapons: [
+          makeWeapon(
+            `corps-wpn-${escortIndex}`,
+            profile.weaponName,
+            profile.damage,
+            1,
+            profile.range,
+            profile.tags,
+          ),
+        ],
+        isBoss: false,
+        isFlagship: false,
+        dots: [],
+        x: 14 + (escortIndex % 3) * 8,
+        y: escortIndex % 2 === 0 ? -26 - escortIndex * 3 : 26 + escortIndex * 3,
+        speed: 0,
+        engageRange: 0,
+        kite: false,
+        phaseWarnLeft: 0,
+      })
+    }
+  }
+
   return [flagship, ...escorts]
+}
+
+function corpsRoleProfile(
+  roleId: string,
+  flagshipHull: number,
+  gdm: number,
+  scale: number,
+): {
+  name: string
+  shape: UnitShape
+  hull: number
+  armor: number
+  evasion: number
+  damage: number
+  range: number
+  weaponName: string
+  tags: WeaponTag[]
+} {
+  if (roleId === 'screen') {
+    return {
+      name: 'Screen Drone',
+      shape: 'hex',
+      hull: (55 + flagshipHull * 0.08) * scale,
+      armor: 2 * scale,
+      evasion: 0.02,
+      damage: 3 * gdm * scale,
+      range: 55,
+      weaponName: 'Screen Burst',
+      tags: ['kinetic'],
+    }
+  }
+  if (roleId === 'support') {
+    return {
+      name: 'Support Drone',
+      shape: 'diamond',
+      hull: (22 + flagshipHull * 0.04) * scale,
+      armor: 0,
+      evasion: 0.06,
+      damage: 4 * gdm * scale,
+      range: 80,
+      weaponName: 'Lattice Beam',
+      tags: ['energy'],
+    }
+  }
+  return {
+    name: 'Interceptor',
+    shape: 'circle',
+    hull: (18 + flagshipHull * 0.03) * scale,
+    armor: 0,
+    evasion: 0.12,
+    damage: 9 * gdm * scale,
+    range: 75,
+    weaponName: 'Interceptor Spike',
+    tags: ['kinetic'],
+  }
 }
 
 export interface FightSummary {

@@ -176,6 +176,43 @@ export const WORKER_MANUFACTURE_SECONDS = 90
 
 /** Combat drone corps unlocks after this career clear. */
 export const COMBAT_DRONES_UNLOCK_SECTOR = 15
+/** Slower than workers — corps drones are a mid-game force multiplier. */
+export const COMBAT_DRONE_MANUFACTURE_SECONDS = 240
+/** Starter grant when the corps unlocks. */
+export const COMBAT_DRONES_UNLOCK_GRANT = 2
+
+/** Combat drone role — assign pool drones here (mirrors worker stations). */
+export interface CombatRoleDef {
+  id: string
+  name: string
+  description: string
+  /** Short combat effect line for the Base UI. */
+  effect: string
+  /** Career sector clear required beyond the corps unlock. */
+  requiresSectorEver?: number
+}
+
+export const COMBAT_ROLES: CombatRoleDef[] = [
+  {
+    id: 'interceptor',
+    name: 'Interceptor Wing',
+    description: 'Fast attack drones that dive the enemy line.',
+    effect: 'Glass-cannon escort (high DPS, thin hull)',
+  },
+  {
+    id: 'screen',
+    name: 'Screen Line',
+    description: 'Ablative hull drones that soak fire ahead of the flagship.',
+    effect: 'Tank escort (high hull / armor, low DPS)',
+  },
+  {
+    id: 'support',
+    name: 'Support Lattice',
+    description: 'Softens incoming fire on the flagship and adds light covering fire.',
+    effect: '+flagship shield / less damage taken + light escort',
+    requiresSectorEver: 20,
+  },
+]
 
 export const STATIONS: StationDef[] = [
   {
@@ -982,6 +1019,32 @@ export function idleWorkers(state: {
   base: { workerDrones: number; assignments: Record<string, number> }
 }): number {
   return Math.max(0, state.base.workerDrones - assignedWorkers(state.base.assignments))
+}
+
+export function getCombatRole(id: string): CombatRoleDef | undefined {
+  return COMBAT_ROLES.find((r) => r.id === id)
+}
+
+export function isCombatRoleUnlocked(state: GameState, roleId: string): boolean {
+  if (!state.meta.combatDronesUnlocked) return false
+  const def = getCombatRole(roleId)
+  if (!def) return false
+  const ever = Math.max(state.meta.highestSectorEver, state.combat.highestSector)
+  if ((def.requiresSectorEver ?? 0) > ever) return false
+  return true
+}
+
+export function assignedCombatDrones(assignments: Record<string, number>): number {
+  return Object.values(assignments).reduce((sum, n) => sum + Math.max(0, n), 0)
+}
+
+export function idleCombatDrones(state: {
+  base: { combatDrones: number; combatAssignments: Record<string, number> }
+}): number {
+  return Math.max(
+    0,
+    state.base.combatDrones - assignedCombatDrones(state.base.combatAssignments),
+  )
 }
 
 /** Total manufacture speed multiplier (1 = baseline). */

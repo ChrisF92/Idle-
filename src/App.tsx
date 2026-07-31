@@ -97,6 +97,8 @@ export default function App() {
             state={game.state}
             onAssign={game.assignWorker}
             onAutoBalance={game.autoBalanceWorkers}
+            onAssignCombat={game.assignCombatDrone}
+            onAutoBalanceCombat={game.autoBalanceCombatDrones}
           />
         )}
         {tab === 'research' && (

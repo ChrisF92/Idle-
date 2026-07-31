@@ -50,6 +50,7 @@ export type DevAction =
   | { type: 'clear-guides' }
   | { type: 'set-prestige-count'; count: number }
   | { type: 'fill-workers'; count: number }
+  | { type: 'fill-combat-drones'; count: number }
   | { type: 'dock-heal' }
   | { type: 'force-boss-wave' }
   | { type: 'grant-achievements' }
@@ -134,6 +135,15 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 3)
       maybeGrantSystemUnlocks(next)
       next.combat.log = [`[dev] Worker drones ≥ ${n}.`, ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'fill-combat-drones': {
+      const n = Math.max(0, Math.floor(action.count))
+      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 20)
+      next.meta.combatDronesUnlocked = true
+      next.base.combatDrones = Math.max(next.base.combatDrones, n)
+      maybeGrantSystemUnlocks(next)
+      next.combat.log = [`[dev] Combat drones ≥ ${n}.`, ...next.combat.log].slice(0, 40)
       break
     }
     case 'dock-heal': {

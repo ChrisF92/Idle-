@@ -6,7 +6,9 @@ import {
   syncPersistedHullCaps,
 } from './state'
 import {
+  COMBAT_DRONES_UNLOCK_GRANT,
   COMBAT_DRONES_UNLOCK_SECTOR,
+  COMBAT_DRONE_MANUFACTURE_SECONDS,
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
   aiDoctrinesActive,
@@ -135,7 +137,27 @@ function applyProduction(state: GameState, dtSeconds: number): void {
       COMBAT_DRONES_UNLOCK_SECTOR
   ) {
     state.meta.combatDronesUnlocked = true
-    pushLog(state, 'Combat drone corps schematics unlocked (assignment comes later).')
+    state.base.combatDrones = Math.max(
+      state.base.combatDrones,
+      COMBAT_DRONES_UNLOCK_GRANT,
+    )
+    pushLog(
+      state,
+      `Combat drone corps online (+${COMBAT_DRONES_UNLOCK_GRANT} drones). Assign roles in Base.`,
+    )
+  }
+
+  if (state.meta.combatDronesUnlocked) {
+    state.base.combatManufactureProgress +=
+      dtSeconds / COMBAT_DRONE_MANUFACTURE_SECONDS
+    while (state.base.combatManufactureProgress >= 1) {
+      state.base.combatManufactureProgress -= 1
+      state.base.combatDrones += 1
+      pushLog(
+        state,
+        `Combat drone manufactured. Corps size: ${state.base.combatDrones}.`,
+      )
+    }
   }
 }
 

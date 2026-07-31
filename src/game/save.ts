@@ -147,7 +147,9 @@ function migrateBase(
     workerDrones: workers,
     combatDrones: base.combatDrones ?? 0,
     assignments,
+    combatAssignments: { ...(base.combatAssignments ?? {}) },
     manufactureProgress: base.manufactureProgress ?? 0,
+    combatManufactureProgress: base.combatManufactureProgress ?? 0,
   }
 }
 

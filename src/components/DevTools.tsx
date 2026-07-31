@@ -109,6 +109,12 @@ export function DevTools({ onDevAction }: DevToolsProps) {
             <button type="button" onClick={() => onDevAction({ type: 'fill-workers', count: 8 })}>
               +Workers
             </button>
+            <button
+              type="button"
+              onClick={() => onDevAction({ type: 'fill-combat-drones', count: 6 })}
+            >
+              +Combat drones
+            </button>
             <button type="button" onClick={() => onDevAction({ type: 'dock-heal' })}>
               Pause + heal
             </button>
