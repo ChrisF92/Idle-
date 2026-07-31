@@ -18,7 +18,7 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 | Base | Worker-drone stations (gated — clear sector 3) |
 | Research | Unlock tree + damage bonuses (gated — clear sector 5) |
 | Codex | Soft counters (gated — research Tactical Codex) |
-| AI | Permanent automation/QoL + per-run doctrines (gated — clear sector 8) |
+| AI | Achievements → AI Points; permanent automation/QoL + per-run doctrines (unlocks with First Blood) |
 | Prestige | Soft reset at sector 8+ + challenge runs (tab from sector 5) |
 | Stats | Save management |
 
@@ -28,8 +28,8 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Whole systems unlock by career sector clears; tabs stay visible with requirements.
 - Boss sectors: vanguard waves first, **boss only on wave 5**. Waves use varied packs.
 - Header resources appear only once their system is unlocked (Data/Research, AI Points/AI, etc.).
-- AI Points no longer drop from combat — achievements will grant them (stub catalog ready).
-- Guided onboarding spotlights the next control to tap.
+- AI Points come from achievements (modal in the AI tab), not combat drops. Unspent AI Points persist across prestige.
+- Guided onboarding spotlights the next control to tap (including Prestige, AI, and Achievements).
 - Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
 - Combat drones are a separate gated pool (assignment later).
 - Prestige Matter / Challenge Points spend in permanent shops (or bank for a smaller bonus).

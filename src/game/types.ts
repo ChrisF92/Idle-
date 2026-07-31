@@ -211,6 +211,10 @@ export interface MetaState {
   seenOnboarding: string[]
   /** Combat drone corps unlocked. */
   combatDronesUnlocked: boolean
+  /** AI Network unlocked (first achievement). */
+  aiUnlocked: boolean
+  /** Completed achievement ids (permanent). */
+  completedAchievements: string[]
 }
 
 export interface ResearchState {

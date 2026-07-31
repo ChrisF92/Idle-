@@ -107,8 +107,10 @@ describe('advanceTicks / combat', () => {
     advanceTicks(next, 60)
     expect(next.combat.sector).toBeGreaterThan(1)
     expect(next.resources.scrap).toBeGreaterThan(0)
-    // AI Points no longer drop from combat (achievements later)
-    expect(next.resources.aiPoints).toBe(0)
+    // AI Points come from First Blood achievement on sector 1 clear, not combat drops
+    expect(next.meta.completedAchievements).toContain('first-blood')
+    expect(next.resources.aiPoints).toBe(1)
+    expect(next.meta.aiUnlocked).toBe(true)
   })
 })
 

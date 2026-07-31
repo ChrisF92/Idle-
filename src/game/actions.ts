@@ -34,7 +34,7 @@ import {
   syncPersistedHullCaps,
 } from './state'
 import { buildPlayerFleet } from './combat'
-import { careerHighestSector } from './progression'
+import { careerHighestSector, tryCompleteAchievements } from './progression'
 
 function canAfford(resources: Resources, cost: ResourceCost): boolean {
   for (const [key, amount] of Object.entries(cost)) {
@@ -145,6 +145,7 @@ export function buyResearch(state: GameState, researchId: string): GameState {
   next.resources.data -= def.costData
   next.resources.essence -= def.costEssence ?? 0
   next.research.unlocked = [...next.research.unlocked, researchId]
+  tryCompleteAchievements(next)
   return next
 }
 
@@ -159,6 +160,7 @@ export function buyAiNode(state: GameState, nodeId: string): GameState {
   const next = structuredClone(state)
   next.resources.aiPoints -= def.costAiPoints
   next.ai.purchased = [...next.ai.purchased, nodeId]
+  tryCompleteAchievements(next)
   return next
 }
 
@@ -377,6 +379,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const kept = {
     prestigeMatter: state.resources.prestigeMatter,
     challengePoints: state.resources.challengePoints,
+    /** Achievement AI Points persist; shop bonus stacks on top. */
+    aiPoints: state.resources.aiPoints,
     essence: state.resources.essence,
     essencePurchased: [...state.essence.purchased],
     unlockedFrames: [...state.shipyard.unlockedFrames],
@@ -409,7 +413,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     challengePoints: kept.challengePoints,
     essence: kept.essence,
     scrap: fresh.resources.scrap + bonusScrap,
-    aiPoints: fresh.resources.aiPoints + bonusAi,
+    aiPoints: kept.aiPoints + bonusAi,
     salvage: bonusSalvage,
   }
   state.shipyard = persistLoadout(
@@ -462,6 +466,7 @@ export function performPrestige(state: GameState, now = Date.now()): GameState {
   next.prestige.prestigeCount += 1
   next.prestige.activeChallengeId = null
   applyRunReset(next, now)
+  tryCompleteAchievements(next)
   next.combat.log = [
     `Prestiged for +${gain} Prestige Matter.`,
     ...next.combat.log,
@@ -484,6 +489,7 @@ export function enterChallenge(
   next.prestige.prestigeCount += 1
   next.prestige.activeChallengeId = challengeId
   applyRunReset(next, now)
+  tryCompleteAchievements(next)
   next.combat.log = [
     `Entered challenge: ${challenge.name} (+${gain} Prestige Matter). Goal: sector ${challenge.goalSector}.`,
     ...next.combat.log,

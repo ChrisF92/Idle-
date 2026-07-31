@@ -152,11 +152,14 @@ function withMetaDefaults(
   meta: GameState['meta'] | undefined,
   highestSector: number,
 ): GameState['meta'] {
+  const completed = meta?.completedAchievements ?? []
   return {
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
     act1Cleared: meta?.act1Cleared ?? false,
     seenOnboarding: meta?.seenOnboarding ?? [],
     combatDronesUnlocked: meta?.combatDronesUnlocked ?? false,
+    aiUnlocked: meta?.aiUnlocked ?? completed.length > 0,
+    completedAchievements: completed,
   }
 }
 
@@ -203,7 +206,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 8 ||
     parsed.version === 9 ||
     parsed.version === 10 ||
-    parsed.version === 11
+    parsed.version === 11 ||
+    parsed.version === 12
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
