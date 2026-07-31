@@ -14,8 +14,8 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 | Tab | Purpose |
 |---|---|
 | Combat | Sector push (5 waves/sector), Advance / Hold / Pause (refit) |
-| Shipyard | Unlock/fit frames + modules (affects damage/hull) |
-| Base | Worker-drone stations (gated — clear sector 3) |
+| Shipyard | Unlock/fit frames + modules (affects damage/hull); farmable modules appear after a blueprint fragment drop |
+| Base | Worker-drone stations + Fabrication Bay (gated — clear sector 3; research Module Fabrication) |
 | Research | Unlock tree + damage bonuses (gated — clear sector 5) |
 | Codex | Soft counters (gated — research Tactical Codex) |
 | AI | Achievements → AI Points; permanent automation/QoL + per-run doctrines (unlocks with First Blood) |
@@ -38,6 +38,7 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - CP shop prefers unique unlocks (schematics → Surge Capacitor / Mirror Plate, Deep Vault 24h offline, Clearance Board +5 max clears) plus stackable run-kits.
 - Post-prestige re-push: returning runs start with +20 scrap / +12 data / +12 salvage; doctrine AIP is refunded; first S8 prestige yields 5 PM.
 - Distinct frames: Razor (2W/0D/1U glass-cannon) and Pathfinder (1W/0D/2U utility scout).
+- **Blueprint farming:** enemies drop casing/core/lens parts; Fabrication Bay workers assemble discovered blueprints into permanent module unlocks. Dupes sell for scrap or invest into permanent module mastery (cap 10). Starter kit is Pulse Cannon (free) + Plate Layer (scrap); CP schematics remain shop-only.
 
 
 ## Develop

@@ -6,15 +6,17 @@ import {
   essenceHullBonus,
   getFrame,
   getModule,
+  masteryBonus,
   matterShopHullBonus,
   matterShopShieldBonus,
   metaDamageMultiplier,
   moduleLevel,
   moduleLevelMultiplier,
+  moduleMasteryRank,
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 14
+export const SAVE_VERSION = 15
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -82,6 +84,7 @@ export function createInitialState(now = Date.now()): GameState {
       workerDrones: 0,
       assignments: {},
       manufactureProgress: 0,
+      fabProject: null,
     },
     research: {
       unlocked: [],
@@ -108,7 +111,10 @@ export function createInitialState(now = Date.now()): GameState {
       seenOnboarding: [],
       aiUnlocked: false,
       completedAchievements: [],
+      discoveredModules: [],
+      moduleMastery: {},
     },
+    parts: {},
   }
 }
 
@@ -152,7 +158,9 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod?.weapon) continue
-    const lvlMult = moduleLevelMultiplier(moduleLevel(state.shipyard.moduleLevels, moduleId))
+    const lvlMult =
+      moduleLevelMultiplier(moduleLevel(state.shipyard.moduleLevels, moduleId)) *
+      masteryBonus(moduleMasteryRank(state, moduleId))
     weapons.push({
       id: `${moduleId}-wpn`,
       name: mod.weapon.name,
@@ -188,7 +196,9 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod) continue
-    const lvlMult = moduleLevelMultiplier(moduleLevel(state.shipyard.moduleLevels, moduleId))
+    const lvlMult =
+      moduleLevelMultiplier(moduleLevel(state.shipyard.moduleLevels, moduleId)) *
+      masteryBonus(moduleMasteryRank(state, moduleId))
     hullMax += mod.hullBonus * lvlMult
     // Soften incoming mult toward 1 as levels rise for defensive modules
     const taken = mod.damageTakenMult

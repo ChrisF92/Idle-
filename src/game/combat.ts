@@ -5,6 +5,7 @@ import type {
   CombatProjectile,
   CombatUnit,
   GameState,
+  PartType,
   UnitShape,
   WeaponInstance,
   WeaponTag,
@@ -14,10 +15,13 @@ import {
   challengeShopMatchupBonus,
   challengeStackRepairBonus,
   essenceBonusDataPerClear,
+  getEnemyDropTable,
   getModule,
   matterShopDataPerClear,
   matterShopRepairMult,
   matterShopScrapBonus,
+  partId,
+  pickWeightedDropEntry,
   stationRepairBonus,
 } from './catalog'
 import { WAVES_PER_SECTOR, isSystemUnlocked } from './progression'
@@ -1329,6 +1333,79 @@ function matchupMultiplier(
   return mult
 }
 
+export interface PartDropResult {
+  partId: string
+  moduleId: string
+  partType: PartType
+  discovered: boolean
+}
+
+/**
+ * Roll blueprint part drops for a slain enemy.
+ * Mutates parts inventory + discoveredModules; appends combat log on discovery.
+ * Pure-ish helper for tests (inject rng).
+ */
+export function rollEnemyPartDrop(
+  state: GameState,
+  unit: Pick<CombatUnit, 'family' | 'isBoss' | 'name'>,
+  rng: () => number = Math.random,
+): PartDropResult[] {
+  const table = getEnemyDropTable(unit.family)
+  if (!table) return []
+
+  let chance = table.chance
+  let rolls = 1
+  if (unit.isBoss) {
+    chance = Math.min(1, chance * (table.bossChanceMult ?? 2))
+    rolls = table.bossRolls ?? 2
+  }
+
+  const results: PartDropResult[] = []
+  for (let i = 0; i < rolls; i++) {
+    if (rng() > chance) continue
+    const entry = pickWeightedDropEntry(unit.family, state.combat.sector, rng)
+    if (!entry) continue
+    const id = partId(entry.moduleId, entry.partType)
+    state.parts = {
+      ...state.parts,
+      [id]: (state.parts[id] ?? 0) + 1,
+    }
+    let discovered = false
+    if (!state.meta.discoveredModules.includes(entry.moduleId)) {
+      state.meta.discoveredModules = [
+        ...state.meta.discoveredModules,
+        entry.moduleId,
+      ]
+      discovered = true
+      const modName = getModule(entry.moduleId)?.name ?? entry.moduleId
+      const partLabel =
+        entry.partType.charAt(0).toUpperCase() + entry.partType.slice(1)
+      state.combat.log = [
+        `Blueprint fragment recovered: ${modName} ${partLabel}`,
+        ...state.combat.log,
+      ].slice(0, 40)
+    }
+    results.push({
+      partId: id,
+      moduleId: entry.moduleId,
+      partType: entry.partType,
+      discovered,
+    })
+  }
+  return results
+}
+
+function tryLootEnemyKill(
+  state: GameState,
+  unit: CombatUnit,
+  prevHull: number,
+): void {
+  if (unit.side !== 'enemy') return
+  if (prevHull > 0 && unit.hull <= 0) {
+    rollEnemyPartDrop(state, unit)
+  }
+}
+
 function applyDamageToUnit(
   target: CombatUnit,
   rawDamage: number,
@@ -1450,7 +1527,9 @@ function updateProjectiles(
       if (shot.side !== 'player') {
         dmg *= incomingDefenseMult(target, shot.attackerFamily, roles, matchupScale)
       }
+      const prevHull = target.hull
       applyDamageToUnit(target, dmg, shot.tags)
+      tryLootEnemyKill(state, target, prevHull)
       if (shot.dotDuration > 0 && shot.dotDamage > 0) {
         target.dots.push({ dps: shot.dotDamage, remaining: shot.dotDuration })
       }
@@ -1503,12 +1582,15 @@ export function simulateCombat(
     for (const unit of allies) {
       if (unit.hull <= 0) continue
 
+      const prevHull = unit.hull
       for (const dot of unit.dots) {
         if (dot.remaining <= 0) continue
         unit.hull = Math.max(0, unit.hull - dot.dps * dt)
         dot.remaining -= dt
       }
       unit.dots = unit.dots.filter((d) => d.remaining > 0)
+      tryLootEnemyKill(state, unit, prevHull)
+      if (unit.hull <= 0) continue
 
       if (unit.phaseWarnLeft > 0) {
         unit.phaseWarnLeft = Math.max(0, unit.phaseWarnLeft - dt)

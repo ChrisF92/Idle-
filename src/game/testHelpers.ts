@@ -7,6 +7,18 @@ function wipeEnemies(state: GameState): void {
   state.combat.enemyHull = 0
 }
 
+/** Bypass scrap/fab gates — for tests that need a module already unlocked. */
+export function forceUnlockModule(state: GameState, moduleId: string): GameState {
+  const next = structuredClone(state)
+  if (!next.shipyard.unlockedModules.includes(moduleId)) {
+    next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
+  }
+  if (!next.meta.discoveredModules.includes(moduleId)) {
+    next.meta.discoveredModules = [...next.meta.discoveredModules, moduleId]
+  }
+  return next
+}
+
 /** Resolve the current wave (mutates via advanceTicks). */
 export function clearCurrentWave(state: GameState): GameState {
   let s = state

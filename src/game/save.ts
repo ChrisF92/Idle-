@@ -147,7 +147,13 @@ function migrateBase(
   base: GameState['base'] | undefined,
   fallback: GameState['base'],
 ): GameState['base'] {
-  if (!base) return { ...fallback, assignments: { ...fallback.assignments } }
+  if (!base) {
+    return {
+      ...fallback,
+      assignments: { ...fallback.assignments },
+      fabProject: null,
+    }
+  }
 
   // Legacy building levels → approximate worker drones + scrap/power assignments.
   const buildings = base.buildings
@@ -168,10 +174,23 @@ function migrateBase(
     if (hangar > 0) assignments['drone-fab'] = (assignments['drone-fab'] ?? 0) + hangar
   }
 
+  const fab = base.fabProject
+  const fabProject =
+    fab &&
+    typeof fab.moduleId === 'string' &&
+    fab.moduleId.length > 0
+      ? {
+          moduleId: fab.moduleId,
+          contributed: { ...(fab.contributed ?? {}) },
+          progress: Math.max(0, Math.min(1, fab.progress ?? 0)),
+        }
+      : null
+
   return {
     workerDrones: workers,
     assignments,
     manufactureProgress: base.manufactureProgress ?? 0,
+    fabProject,
   }
 }
 
@@ -186,7 +205,21 @@ function withMetaDefaults(
     seenOnboarding: meta?.seenOnboarding ?? [],
     aiUnlocked: meta?.aiUnlocked ?? completed.length > 0,
     completedAchievements: completed,
+    discoveredModules: [...(meta?.discoveredModules ?? [])],
+    moduleMastery: { ...(meta?.moduleMastery ?? {}) },
   }
+}
+
+function withPartsDefaults(
+  parts: GameState['parts'] | undefined,
+): GameState['parts'] {
+  if (!parts || typeof parts !== 'object' || Array.isArray(parts)) return {}
+  const out: Record<string, number> = {}
+  for (const [id, n] of Object.entries(parts)) {
+    const qty = Math.floor(Number(n))
+    if (qty > 0) out[id] = qty
+  }
+  return out
 }
 
 function withAiDefaults(ai: GameState['ai'] | undefined): GameState['ai'] {
@@ -218,6 +251,7 @@ function migrate(raw: unknown): GameState | null {
       codex: withCodexDefaults(state.codex),
       ai: withAiDefaults(state.ai),
       meta: withMetaDefaults(state.meta, combat.highestSector),
+      parts: withPartsDefaults(state.parts),
     }
   }
 
@@ -234,7 +268,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 10 ||
     parsed.version === 11 ||
     parsed.version === 12 ||
-    parsed.version === 13
+    parsed.version === 13 ||
+    parsed.version === 14
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
@@ -242,7 +277,9 @@ function migrate(raw: unknown): GameState | null {
     }
     const oldHighest = prev.combat?.highestSector ?? prev.combat?.sector ?? 1
     const clearedApprox =
-      parsed.version === 10 || parsed.version === 11
+      parsed.version === 10 ||
+      parsed.version === 11 ||
+      parsed.version === 14
         ? Math.max(0, prev.combat?.highestSector ?? 0)
         : Math.max(0, oldHighest - 1)
     const combat = withCombatDefaults({
@@ -274,6 +311,7 @@ function migrate(raw: unknown): GameState | null {
       codex: withCodexDefaults(prev.codex),
       ai,
       meta: withMetaDefaults(prev.meta, clearedApprox),
+      parts: withPartsDefaults(prev.parts),
     }
   }
 

@@ -1,17 +1,23 @@
-import type { GameState, Resources } from './types'
+import type { GameState, PartType, Resources } from './types'
 import {
   AI_NODES,
+  MASTERY_PARTS_COST,
   MAX_MODULE_LEVEL,
+  MAX_MODULE_MASTERY,
+  PART_TYPES,
   RESEARCH,
   STATIONS,
   canBuyChallengeShop,
   canBuyMatterShop,
+  canDepositPart,
   challengeClearCount,
   challengeShopStartingAi,
   challengeShopStartingSalvage,
   challengeShopStartingScrap,
+  countModuleParts,
   effectiveMaxClears,
   getAiNode,
+  getBlueprint,
   getChallenge,
   getChallengeShopItem,
   getEssenceUpgrade,
@@ -21,13 +27,19 @@ import {
   getStation,
   isAiNodePermanent,
   isChallengeUnlocked,
+  isFarmableModule,
   isStationUnlocked,
   canFitModuleOnFrame,
   filterModulesForChallenge,
   idleWorkers,
+  isBlueprintComplete,
   isModuleBlockedByChallenge,
   moduleLevel,
+  moduleMasteryRank,
   moduleUpgradeCost,
+  parsePartId,
+  partId,
+  partSellScrap,
   prestigeMinSectorFor,
   shopRank,
   trimModulesToFrame,
@@ -262,6 +274,8 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
   const def = getModule(moduleId)
   if (!def) return state
   if (state.shipyard.unlockedModules.includes(moduleId)) return state
+  // Farmable modules unlock only via Fabrication Bay (or already unlocked).
+  if (isFarmableModule(moduleId)) return state
   if (def.requiresChallengeShop) {
     if (shopRank(state.prestige.shop, def.requiresChallengeShop) < 1) return state
     const next = structuredClone(state)
@@ -274,6 +288,149 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
   const next = structuredClone(state)
   pay(next.resources, def.unlockCost)
   next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
+  return next
+}
+
+export function startFabProject(state: GameState, moduleId: string): GameState {
+  if (!isFarmableModule(moduleId)) return state
+  if (!getBlueprint(moduleId)) return state
+  if (!state.meta.discoveredModules.includes(moduleId)) return state
+  if (state.shipyard.unlockedModules.includes(moduleId)) return state
+  if (!isStationUnlocked(state, 'fab-bay')) return state
+  if (state.base.fabProject?.moduleId === moduleId) return state
+
+  const next = structuredClone(state)
+  // Cancel prior project — return contributed parts to inventory.
+  if (next.base.fabProject) {
+    refundFabContributed(next)
+  }
+  next.base.fabProject = {
+    moduleId,
+    contributed: {},
+    progress: 0,
+  }
+  return next
+}
+
+export function clearFabProject(state: GameState): GameState {
+  if (!state.base.fabProject) return state
+  const next = structuredClone(state)
+  refundFabContributed(next)
+  next.base.fabProject = null
+  return next
+}
+
+function refundFabContributed(state: GameState): void {
+  const project = state.base.fabProject
+  if (!project) return
+  for (const pt of PART_TYPES) {
+    const n = project.contributed[pt] ?? 0
+    if (n <= 0) continue
+    const id = partId(project.moduleId, pt)
+    state.parts[id] = (state.parts[id] ?? 0) + n
+  }
+}
+
+export function depositFabPart(
+  state: GameState,
+  partType: PartType,
+  qty = 1,
+): GameState {
+  if (!canDepositPart(state, partType, qty)) return state
+  const project = state.base.fabProject!
+  const recipe = getBlueprint(project.moduleId)!
+  const need = recipe[partType]
+  const have = project.contributed[partType] ?? 0
+  const room = need - have
+  const invKey = partId(project.moduleId, partType)
+  const inv = state.parts[invKey] ?? 0
+  const move = Math.min(qty, room, inv)
+  if (move <= 0) return state
+
+  const next = structuredClone(state)
+  next.parts[invKey] = inv - move
+  if (next.parts[invKey] <= 0) delete next.parts[invKey]
+  const proj = next.base.fabProject!
+  proj.contributed = {
+    ...proj.contributed,
+    [partType]: have + move,
+  }
+  // Incomplete recipe cannot craft; clear any stale progress.
+  if (!isBlueprintComplete(proj.contributed, recipe)) {
+    proj.progress = 0
+  }
+  return next
+}
+
+export function withdrawFabPart(
+  state: GameState,
+  partType: PartType,
+  qty = 1,
+): GameState {
+  const project = state.base.fabProject
+  if (!project || qty <= 0) return state
+  const have = project.contributed[partType] ?? 0
+  const move = Math.min(qty, have)
+  if (move <= 0) return state
+
+  const next = structuredClone(state)
+  const proj = next.base.fabProject!
+  const left = have - move
+  const contributed = { ...proj.contributed }
+  if (left <= 0) delete contributed[partType]
+  else contributed[partType] = left
+  proj.contributed = contributed
+  proj.progress = 0
+  const invKey = partId(proj.moduleId, partType)
+  next.parts[invKey] = (next.parts[invKey] ?? 0) + move
+  return next
+}
+
+export function sellPart(state: GameState, partIdStr: string, qty = 1): GameState {
+  if (qty <= 0) return state
+  const parsed = parsePartId(partIdStr)
+  if (!parsed) return state
+  const have = state.parts[partIdStr] ?? 0
+  const sell = Math.min(qty, have)
+  if (sell <= 0) return state
+  const scrapEach = partSellScrap(partIdStr)
+  if (scrapEach <= 0) return state
+
+  const next = structuredClone(state)
+  const left = have - sell
+  if (left <= 0) delete next.parts[partIdStr]
+  else next.parts[partIdStr] = left
+  next.resources.scrap += scrapEach * sell
+  return next
+}
+
+export function investPartMastery(state: GameState, moduleId: string): GameState {
+  if (!state.shipyard.unlockedModules.includes(moduleId)) return state
+  if (!getModule(moduleId)) return state
+  const rank = moduleMasteryRank(state, moduleId)
+  if (rank >= MAX_MODULE_MASTERY) return state
+  if (countModuleParts(state, moduleId) < MASTERY_PARTS_COST) return state
+
+  const next = structuredClone(state)
+  let need = MASTERY_PARTS_COST
+  // Consume any parts of this module (prefer casing → core → lens).
+  for (const pt of PART_TYPES) {
+    if (need <= 0) break
+    const id = partId(moduleId, pt)
+    const have = next.parts[id] ?? 0
+    const take = Math.min(have, need)
+    if (take <= 0) continue
+    const left = have - take
+    if (left <= 0) delete next.parts[id]
+    else next.parts[id] = left
+    need -= take
+  }
+  if (need > 0) return state
+  next.meta.moduleMastery = {
+    ...next.meta.moduleMastery,
+    [moduleId]: rank + 1,
+  }
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
 
@@ -435,7 +592,12 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     workerDrones: state.base.workerDrones,
     manufactureProgress: state.base.manufactureProgress,
     permanentAi,
-    meta: { ...state.meta },
+    meta: {
+      ...state.meta,
+      discoveredModules: [...(state.meta.discoveredModules ?? [])],
+      moduleMastery: { ...(state.meta.moduleMastery ?? {}) },
+    },
+    parts: { ...(state.parts ?? {}) },
   }
 
   const fresh = createInitialState(now)
@@ -480,6 +642,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     workerDrones: kept.workerDrones,
     assignments: {},
     manufactureProgress: kept.manufactureProgress,
+    fabProject: null,
   }
   state.research = fresh.research
   state.ai = { purchased: kept.permanentAi }
@@ -493,6 +656,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   }
   state.codex = { seenFamilies: kept.seenFamilies }
   state.meta = kept.meta
+  state.parts = kept.parts
 
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax

@@ -8,6 +8,7 @@ import {
 import {
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
+  advanceFabProject,
   aiDoctrinesActive,
   challengeShopOfflineMs,
   essenceProductionMultiplier,
@@ -94,6 +95,10 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       state.base.workerDrones += 1
     }
   }
+
+  advanceFabProject(state, seconds, (line) => {
+    state.combat.log = [line, ...state.combat.log].slice(0, 40)
+  })
 }
 
 /**

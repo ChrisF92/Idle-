@@ -2,15 +2,22 @@ import { useMemo, useState } from 'react'
 import type { GameState, Resources } from '../../game/types'
 import {
   MAX_MODULE_LEVEL,
+  MAX_MODULE_MASTERY,
+  PART_TYPES,
   SHIP_FRAMES,
-  SHIP_MODULES,
   SHORT_RANGE_MAX,
+  blueprintProgress,
   canFitModuleOnFrame,
   fittedRoleSlotCounts,
   frameTotalSlots,
+  getBlueprint,
   getFrame,
+  getVisibleModules,
+  isFarmableModule,
   isModuleBlockedByChallenge,
+  isStarterUnlockModule,
   moduleLevel,
+  moduleMasteryRank,
   moduleStatPreviews,
   moduleUpgradeCost,
   shopRank,
@@ -82,19 +89,20 @@ export function ShipyardTab({
   const challengeId = state.prestige.activeChallengeId
 
   const grouped = useMemo(() => {
+    const visible = getVisibleModules(state)
     const list =
       roleFilter === 'all'
-        ? [...SHIP_MODULES].sort(
+        ? [...visible].sort(
             (a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role),
           )
-        : SHIP_MODULES.filter((m) => m.role === roleFilter)
+        : visible.filter((m) => m.role === roleFilter)
     const map = new Map<ModuleRole, ShipModuleDef[]>()
     for (const role of ROLE_ORDER) map.set(role, [])
     for (const m of list) map.get(m.role)?.push(m)
     return ROLE_ORDER.map((role) => ({ role, modules: map.get(role) ?? [] })).filter(
       (g) => g.modules.length > 0,
     )
-  }, [roleFilter])
+  }, [roleFilter, state])
 
   return (
     <section className="panel">
@@ -102,7 +110,8 @@ export function ShipyardTab({
         <h2>Shipyard</h2>
         <p>
           Choose a frame before your first Launch (locked until prestige / challenge). Pause from
-          Combat to refit modules (resets the sector to W1).
+          Combat to refit modules (resets the sector to W1). Farmable modules appear after you
+          recover a blueprint fragment.
         </p>
       </header>
 
@@ -332,15 +341,24 @@ function ModuleCard({
   const unlocked = state.shipyard.unlockedModules.includes(m.id)
   const fitted = state.shipyard.modules.includes(m.id)
   const level = moduleLevel(state.shipyard.moduleLevels, m.id)
+  const mastery = moduleMasteryRank(state, m.id)
   const upCost = moduleUpgradeCost(level)
+  const farmable = isFarmableModule(m.id)
+  const blueprint = getBlueprint(m.id)
+  const progress = farmable && !unlocked ? blueprintProgress(state, m.id) : null
   const schematicLocked =
     !!m.requiresChallengeShop &&
     shopRank(state.prestige.shop, m.requiresChallengeShop) < 1
-  const gated = !schematicLocked && (m.requiresSectorEver ?? 0) > ever
-  const canUnlock =
+  const gated =
+    !schematicLocked &&
+    !farmable &&
+    (m.requiresSectorEver ?? 0) > ever
+  const canScrapUnlock =
     !unlocked &&
+    !farmable &&
     !gated &&
     !schematicLocked &&
+    (isStarterUnlockModule(m.id) || Object.keys(m.unlockCost).length > 0) &&
     Object.entries(m.unlockCost).every(
       ([k, v]) => state.resources[k as keyof Resources] >= (v ?? 0),
     )
@@ -350,8 +368,14 @@ function ModuleCard({
   const canUpgrade =
     unlocked && level < MAX_MODULE_LEVEL && state.resources.salvage >= upCost
   const showNext = unlocked && level < MAX_MODULE_LEVEL
-  const stats = unlocked ? moduleStatPreviews(m.id, level, showNext) : []
-  const status = fitted ? `Fitted · Lv ${level}` : unlocked ? `Owned · Lv ${level}` : 'Locked'
+  const stats = unlocked ? moduleStatPreviews(m.id, level, showNext, mastery) : []
+  const status = fitted
+    ? `Fitted · Lv ${level}`
+    : unlocked
+      ? `Owned · Lv ${level}`
+      : farmable
+        ? 'Blueprint'
+        : 'Locked'
   const rangeNote =
     m.weapon && challengeId === 'short-range' && m.weapon.range > SHORT_RANGE_MAX
       ? ` Range capped at ${SHORT_RANGE_MAX} (from ${m.weapon.range}) during Knife Fight.`
@@ -373,7 +397,14 @@ function ModuleCard({
       </p>
 
       {!unlocked ? (
-        schematicLocked ? (
+        farmable && blueprint && progress ? (
+          <>
+            <p className="muted">
+              Blueprint · parts {PART_TYPES.map((pt) => `${progress.owned[pt]}/${progress.need[pt]} ${pt}`).join(' · ')}
+            </p>
+            <p className="notice">Fabricate in Base</p>
+          </>
+        ) : schematicLocked ? (
           <p className="notice-warn">Requires Challenge shop schematic.</p>
         ) : gated ? (
           <p className="notice-warn">Clear sector {m.requiresSectorEver} to unlock.</p>
@@ -387,6 +418,7 @@ function ModuleCard({
           Run upgrade {level}/{MAX_MODULE_LEVEL}
           {level < MAX_MODULE_LEVEL ? ` · next ${upCost} Salvage` : ' · maxed'}
           {' · '}+12% module stats / level
+          {' · '}Mastery {mastery}/{MAX_MODULE_MASTERY} (+{(mastery * 4).toFixed(0)}%)
         </p>
       )}
 
@@ -417,9 +449,15 @@ function ModuleCard({
 
       <div className="module-card-actions">
         {!unlocked ? (
-          <button type="button" disabled={!canUnlock} onClick={() => onUnlockModule(m.id)}>
-            Unlock
-          </button>
+          farmable ? null : (
+            <button
+              type="button"
+              disabled={!canScrapUnlock}
+              onClick={() => onUnlockModule(m.id)}
+            >
+              Unlock
+            </button>
+          )
         ) : (
           <>
             {fitted ? (

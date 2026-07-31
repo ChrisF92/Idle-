@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import type { GameState } from '../game/types'
+import type { GameState, PartType } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import {
   tickGame,
@@ -19,16 +19,22 @@ import {
   buyEssenceUpgrade,
   buyMatterShop,
   buyResearch,
+  clearFabProject,
+  depositFabPart,
   enterChallenge,
   fitModule,
+  investPartMastery,
   performPrestige,
   selectFrame,
+  sellPart,
+  startFabProject,
   unfitModule,
   unequipAllModules,
   unlockFrame,
   unlockModule,
   upgradeCheapestModule,
   upgradeModule,
+  withdrawFabPart,
 } from '../game/actions'
 import { acknowledgeOnboarding } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -43,6 +49,12 @@ type Action =
   | { type: 'warp'; sector: number }
   | { type: 'assign-worker'; stationId: string; delta: number }
   | { type: 'auto-balance-workers' }
+  | { type: 'start-fab'; moduleId: string }
+  | { type: 'clear-fab' }
+  | { type: 'deposit-fab'; partType: PartType; qty?: number }
+  | { type: 'withdraw-fab'; partType: PartType; qty?: number }
+  | { type: 'sell-part'; partId: string; qty?: number }
+  | { type: 'invest-mastery'; moduleId: string }
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-essence'; upgradeId: string }
   | { type: 'buy-challenge-shop'; itemId: string }
@@ -81,6 +93,18 @@ function reducer(state: GameState, action: Action): GameState {
       return assignWorker(state, action.stationId, action.delta)
     case 'auto-balance-workers':
       return autoBalanceWorkers(state)
+    case 'start-fab':
+      return startFabProject(state, action.moduleId)
+    case 'clear-fab':
+      return clearFabProject(state)
+    case 'deposit-fab':
+      return depositFabPart(state, action.partType, action.qty ?? 1)
+    case 'withdraw-fab':
+      return withdrawFabPart(state, action.partType, action.qty ?? 1)
+    case 'sell-part':
+      return sellPart(state, action.partId, action.qty ?? 1)
+    case 'invest-mastery':
+      return investPartMastery(state, action.moduleId)
     case 'buy-research':
       return buyResearch(state, action.researchId)
     case 'buy-essence':
@@ -163,6 +187,16 @@ export function useGame() {
     assignWorker: (stationId: string, delta: number) =>
       dispatch({ type: 'assign-worker', stationId, delta }),
     autoBalanceWorkers: () => dispatch({ type: 'auto-balance-workers' }),
+    startFabProject: (moduleId: string) => dispatch({ type: 'start-fab', moduleId }),
+    clearFabProject: () => dispatch({ type: 'clear-fab' }),
+    depositFabPart: (partType: PartType, qty?: number) =>
+      dispatch({ type: 'deposit-fab', partType, qty }),
+    withdrawFabPart: (partType: PartType, qty?: number) =>
+      dispatch({ type: 'withdraw-fab', partType, qty }),
+    sellPart: (partId: string, qty?: number) =>
+      dispatch({ type: 'sell-part', partId, qty }),
+    investPartMastery: (moduleId: string) =>
+      dispatch({ type: 'invest-mastery', moduleId }),
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),
     buyEssenceUpgrade: (upgradeId: string) =>
       dispatch({ type: 'buy-essence', upgradeId }),

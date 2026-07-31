@@ -8,6 +8,7 @@ import {
 import {
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
+  advanceFabProject,
   aiDoctrinesActive,
   essenceBonusDataPerClear,
   essenceProductionMultiplier,
@@ -127,6 +128,8 @@ function applyProduction(state: GameState, dtSeconds: number): void {
       pushLog(state, `Worker drone manufactured. Corps size: ${state.base.workerDrones}.`)
     }
   }
+
+  advanceFabProject(state, dtSeconds, (line) => pushLog(state, line))
 }
 
 /** Net industry rates (units / second). Combat drops are not included. */

@@ -23,6 +23,7 @@ import {
   upgradeModule,
 } from './actions'
 import { moduleLevel } from './catalog'
+import { forceUnlockModule } from './testHelpers'
 import { WAVES_PER_SECTOR } from './progression'
 
 describe('tickGame', () => {
@@ -229,7 +230,7 @@ describe('shipyard', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
-    state = unlockModule(state, 'heavy-lance')
+    state = forceUnlockModule(state, 'heavy-lance')
     // Scout has only 1 weapon slot — swap pulse for lance
     state = unfitModule(state, 'pulse-cannon')
     const bare = computeShipStats(state).damage
@@ -246,7 +247,7 @@ describe('shipyard', () => {
     state = unlockFrame(state, 'line-frame')
     state = selectFrame(state, 'line-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
-    state = unlockModule(state, 'vector-thruster')
+    state = forceUnlockModule(state, 'vector-thruster')
     state = fitModule(state, 'vector-thruster')
     expect(state.shipyard.modules).toContain('vector-thruster')
   })

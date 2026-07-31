@@ -97,6 +97,12 @@ export default function App() {
             state={game.state}
             onAssign={game.assignWorker}
             onAutoBalance={game.autoBalanceWorkers}
+            onStartFab={game.startFabProject}
+            onClearFab={game.clearFabProject}
+            onDepositFab={game.depositFabPart}
+            onWithdrawFab={game.withdrawFabPart}
+            onSellPart={game.sellPart}
+            onInvestMastery={game.investPartMastery}
           />
         )}
         {tab === 'research' && (

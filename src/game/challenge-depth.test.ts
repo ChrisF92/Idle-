@@ -4,7 +4,6 @@ import {
   enterChallenge,
   fitModule,
   unfitModule,
-  unlockModule,
   canEnterChallenge,
 } from './actions'
 import {
@@ -13,6 +12,7 @@ import {
   isModuleBlockedByChallenge,
 } from './catalog'
 import { advanceTicks, setCampaign, startCombat } from './tick'
+import { forceUnlockModule } from './testHelpers'
 
 describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
   it('defines the three new challenges', () => {
@@ -57,8 +57,8 @@ describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
     state.meta.highestSectorEver = 10
     state.resources.scrap = 999
     state.resources.alloys = 999
-    state = unlockModule(state, 'heavy-lance')
-    state = unlockModule(state, 'flak-array')
+    state = forceUnlockModule(state, 'heavy-lance')
+    state = forceUnlockModule(state, 'flak-array')
     // Scout has 1W — swap pulse for lance before enter.
     state = unfitModule(state, 'pulse-cannon')
     state = fitModule(state, 'heavy-lance')

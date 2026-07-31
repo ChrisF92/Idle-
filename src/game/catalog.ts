@@ -2,7 +2,7 @@
 
 import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, isSystemUnlocked } from './progression'
 import { formatCompact, formatStat } from './format'
-import type { GameState, Resources, WeaponTag } from './types'
+import type { GameState, PartType, Resources, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
@@ -254,6 +254,14 @@ export const STATIONS: StationDef[] = [
     rates: {},
     manufactureBonusPerDrone: 0.35,
   },
+  {
+    id: 'fab-bay',
+    name: 'Fabrication Bay',
+    description: 'Workers assemble deposited blueprint parts into modules.',
+    requiresSystem: 'base',
+    requiresResearch: 'module-fab',
+    rates: {},
+  },
 ]
 
 export const RESEARCH: ResearchDef[] = [
@@ -268,6 +276,12 @@ export const RESEARCH: ResearchDef[] = [
     id: 'alloy-smelting',
     name: 'Alloy Smelting',
     description: 'Unlocks the Alloy Foundry station.',
+    costData: 25,
+  },
+  {
+    id: 'module-fab',
+    name: 'Module Fabrication',
+    description: 'Unlocks the Fabrication Bay — assemble blueprint parts into modules.',
     costData: 25,
   },
   {
@@ -1066,6 +1080,358 @@ export function moduleLevelMultiplier(level: number): number {
   return 1 + Math.max(0, level) * 0.12
 }
 
+// ── Blueprint / Fabrication Bay ─────────────────────────────────────────────
+
+export type { PartType }
+
+export const PART_TYPES: PartType[] = ['casing', 'core', 'lens']
+
+/** Seconds for one fab-bay worker to finish a filled recipe. */
+export const FAB_SECONDS = 90
+
+export const MAX_MODULE_MASTERY = 10
+
+/** Parts consumed per mastery rank (any part types of that module). */
+export const MASTERY_PARTS_COST = 3
+
+const STARTER_UNLOCK_MODULES = new Set(['pulse-cannon', 'plate-layer'])
+const SCHEMATIC_MODULES = new Set(['surge-capacitor', 'mirror-plate'])
+
+export interface BlueprintRecipe {
+  moduleId: string
+  casing: number
+  core: number
+  lens: number
+}
+
+export interface EnemyPartDropEntry {
+  moduleId: string
+  partType: PartType
+  weight: number
+}
+
+export interface EnemyPartDropTable {
+  family: string
+  entries: EnemyPartDropEntry[]
+  /** Base chance per kill (0..1). */
+  chance: number
+  bossChanceMult?: number
+  bossRolls?: number
+}
+
+export function partId(moduleId: string, partType: PartType): string {
+  return `${moduleId}:${partType}`
+}
+
+export function parsePartId(
+  id: string,
+): { moduleId: string; partType: PartType } | null {
+  const idx = id.lastIndexOf(':')
+  if (idx <= 0) return null
+  const moduleId = id.slice(0, idx)
+  const partType = id.slice(idx + 1) as PartType
+  if (!PART_TYPES.includes(partType)) return null
+  if (!getModule(moduleId)) return null
+  return { moduleId, partType }
+}
+
+/** Farmable blueprint recipes (not starter scrap unlocks, not CP schematics). */
+export const BLUEPRINTS: BlueprintRecipe[] = [
+  { moduleId: 'flak-array', casing: 2, core: 1, lens: 1 },
+  { moduleId: 'vector-thruster', casing: 2, core: 1, lens: 1 },
+  { moduleId: 'heavy-lance', casing: 2, core: 2, lens: 1 },
+  { moduleId: 'phase-beam', casing: 2, core: 2, lens: 1 },
+  { moduleId: 'barrier-projector', casing: 3, core: 2, lens: 1 },
+  { moduleId: 'drone-bay', casing: 2, core: 2, lens: 1 },
+  { moduleId: 'rail-driver', casing: 3, core: 2, lens: 2 },
+  { moduleId: 'ion-burst', casing: 3, core: 2, lens: 2 },
+  { moduleId: 'ablative-mesh', casing: 3, core: 2, lens: 2 },
+  { moduleId: 'grav-tether', casing: 3, core: 2, lens: 2 },
+  { moduleId: 'nano-lathe', casing: 3, core: 2, lens: 2 },
+  { moduleId: 'salvage-rig', casing: 3, core: 2, lens: 2 },
+]
+
+export function getBlueprint(moduleId: string): BlueprintRecipe | undefined {
+  return BLUEPRINTS.find((b) => b.moduleId === moduleId)
+}
+
+export function isFarmableModule(moduleId: string): boolean {
+  return getBlueprint(moduleId) != null
+}
+
+export function isStarterUnlockModule(moduleId: string): boolean {
+  return STARTER_UNLOCK_MODULES.has(moduleId)
+}
+
+export function isSchematicModule(moduleId: string): boolean {
+  return SCHEMATIC_MODULES.has(moduleId) || !!getModule(moduleId)?.requiresChallengeShop
+}
+
+export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
+  {
+    family: 'swarm',
+    chance: 0.14,
+    bossChanceMult: 2.2,
+    bossRolls: 2,
+    entries: [
+      { moduleId: 'flak-array', partType: 'casing', weight: 4 },
+      { moduleId: 'flak-array', partType: 'core', weight: 2 },
+      { moduleId: 'flak-array', partType: 'lens', weight: 1 },
+      { moduleId: 'salvage-rig', partType: 'casing', weight: 2 },
+      { moduleId: 'salvage-rig', partType: 'core', weight: 1 },
+      { moduleId: 'drone-bay', partType: 'casing', weight: 1 },
+    ],
+  },
+  {
+    family: 'armored',
+    chance: 0.14,
+    bossChanceMult: 2.2,
+    bossRolls: 2,
+    entries: [
+      { moduleId: 'heavy-lance', partType: 'casing', weight: 3 },
+      { moduleId: 'heavy-lance', partType: 'core', weight: 2 },
+      { moduleId: 'heavy-lance', partType: 'lens', weight: 1 },
+      { moduleId: 'ablative-mesh', partType: 'casing', weight: 2 },
+      { moduleId: 'ablative-mesh', partType: 'core', weight: 2 },
+      { moduleId: 'ablative-mesh', partType: 'lens', weight: 1 },
+    ],
+  },
+  {
+    family: 'ethereal',
+    chance: 0.13,
+    bossChanceMult: 2.3,
+    bossRolls: 2,
+    entries: [
+      { moduleId: 'phase-beam', partType: 'casing', weight: 2 },
+      { moduleId: 'phase-beam', partType: 'core', weight: 2 },
+      { moduleId: 'phase-beam', partType: 'lens', weight: 2 },
+      { moduleId: 'vector-thruster', partType: 'casing', weight: 3 },
+      { moduleId: 'vector-thruster', partType: 'core', weight: 2 },
+      { moduleId: 'vector-thruster', partType: 'lens', weight: 1 },
+    ],
+  },
+  {
+    family: 'divine',
+    chance: 0.12,
+    bossChanceMult: 2.4,
+    bossRolls: 2,
+    entries: [
+      { moduleId: 'ion-burst', partType: 'casing', weight: 2 },
+      { moduleId: 'ion-burst', partType: 'core', weight: 2 },
+      { moduleId: 'ion-burst', partType: 'lens', weight: 2 },
+      { moduleId: 'grav-tether', partType: 'casing', weight: 2 },
+      { moduleId: 'grav-tether', partType: 'core', weight: 2 },
+      { moduleId: 'grav-tether', partType: 'lens', weight: 1 },
+    ],
+  },
+  {
+    family: 'titan',
+    chance: 0.35,
+    bossChanceMult: 1.4,
+    bossRolls: 2,
+    entries: [
+      { moduleId: 'rail-driver', partType: 'casing', weight: 3 },
+      { moduleId: 'rail-driver', partType: 'core', weight: 2 },
+      { moduleId: 'rail-driver', partType: 'lens', weight: 2 },
+      { moduleId: 'nano-lathe', partType: 'casing', weight: 2 },
+      { moduleId: 'nano-lathe', partType: 'core', weight: 2 },
+      { moduleId: 'nano-lathe', partType: 'lens', weight: 2 },
+      { moduleId: 'barrier-projector', partType: 'casing', weight: 2 },
+      { moduleId: 'barrier-projector', partType: 'core', weight: 2 },
+      { moduleId: 'barrier-projector', partType: 'lens', weight: 1 },
+    ],
+  },
+]
+
+/** Extra late-module weights unlocked at higher sectors. */
+function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
+  const extras: EnemyPartDropEntry[] = []
+  if (sector >= 8) {
+    extras.push(
+      { moduleId: 'barrier-projector', partType: 'casing', weight: 1 },
+      { moduleId: 'drone-bay', partType: 'core', weight: 1 },
+      { moduleId: 'salvage-rig', partType: 'lens', weight: 1 },
+    )
+  }
+  if (sector >= 12) {
+    extras.push(
+      { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
+      { moduleId: 'ion-burst', partType: 'core', weight: 1 },
+      { moduleId: 'ablative-mesh', partType: 'lens', weight: 1 },
+    )
+  }
+  if (sector >= 18) {
+    extras.push(
+      { moduleId: 'grav-tether', partType: 'core', weight: 1 },
+      { moduleId: 'nano-lathe', partType: 'lens', weight: 1 },
+      { moduleId: 'rail-driver', partType: 'lens', weight: 1 },
+    )
+  }
+  return extras
+}
+
+export function getEnemyDropTable(family: string): EnemyPartDropTable | undefined {
+  return ENEMY_PART_DROPS.find((t) => t.family === family)
+}
+
+/** Weighted pick among drop entries (+ sector extras). Pure helper for tests. */
+export function pickWeightedDropEntry(
+  family: string,
+  sector: number,
+  rng: () => number = Math.random,
+): EnemyPartDropEntry | null {
+  const table = getEnemyDropTable(family)
+  if (!table) return null
+  const entries = [...table.entries, ...sectorBonusDropEntries(sector)]
+  const total = entries.reduce((s, e) => s + e.weight, 0)
+  if (total <= 0) return null
+  let roll = rng() * total
+  for (const entry of entries) {
+    roll -= entry.weight
+    if (roll <= 0) return entry
+  }
+  return entries[entries.length - 1] ?? null
+}
+
+export function isBlueprintComplete(
+  contributed: Partial<Record<PartType, number>> | undefined,
+  recipe: BlueprintRecipe,
+): boolean {
+  return (
+    (contributed?.casing ?? 0) >= recipe.casing &&
+    (contributed?.core ?? 0) >= recipe.core &&
+    (contributed?.lens ?? 0) >= recipe.lens
+  )
+}
+
+/** Inventory + project contributed vs recipe needs. */
+export function blueprintProgress(
+  state: GameState,
+  moduleId: string,
+): { owned: Record<PartType, number>; need: Record<PartType, number>; complete: boolean } | null {
+  const recipe = getBlueprint(moduleId)
+  if (!recipe) return null
+  const owned: Record<PartType, number> = { casing: 0, core: 0, lens: 0 }
+  for (const pt of PART_TYPES) {
+    owned[pt] = state.parts[partId(moduleId, pt)] ?? 0
+  }
+  const project = state.base.fabProject
+  if (project?.moduleId === moduleId) {
+    for (const pt of PART_TYPES) {
+      owned[pt] += project.contributed[pt] ?? 0
+    }
+  }
+  const need: Record<PartType, number> = {
+    casing: recipe.casing,
+    core: recipe.core,
+    lens: recipe.lens,
+  }
+  return {
+    owned,
+    need,
+    complete: isBlueprintComplete(owned, recipe),
+  }
+}
+
+export function canDepositPart(
+  state: GameState,
+  partType: PartType,
+  qty = 1,
+): boolean {
+  const project = state.base.fabProject
+  if (!project || qty <= 0) return false
+  const recipe = getBlueprint(project.moduleId)
+  if (!recipe) return false
+  const need = recipe[partType]
+  const have = project.contributed[partType] ?? 0
+  const room = need - have
+  if (room <= 0) return false
+  const inv = state.parts[partId(project.moduleId, partType)] ?? 0
+  return inv >= Math.min(qty, room)
+}
+
+export function partSellScrap(partIdStr: string): number {
+  const parsed = parsePartId(partIdStr)
+  if (!parsed) return 0
+  if (parsed.partType === 'casing') return 4
+  if (parsed.partType === 'core') return 6
+  return 8
+}
+
+export function masteryBonus(rank: number): number {
+  return 1 + 0.04 * Math.min(MAX_MODULE_MASTERY, Math.max(0, rank))
+}
+
+export function moduleMasteryRank(
+  state: { meta: { moduleMastery?: Record<string, number> } },
+  moduleId: string,
+): number {
+  return Math.max(0, state.meta.moduleMastery?.[moduleId] ?? 0)
+}
+
+/** Count of any parts for a module in account inventory. */
+export function countModuleParts(state: GameState, moduleId: string): number {
+  let n = 0
+  for (const pt of PART_TYPES) {
+    n += state.parts[partId(moduleId, pt)] ?? 0
+  }
+  return n
+}
+
+export function isModuleVisible(state: GameState, moduleId: string): boolean {
+  if (isStarterUnlockModule(moduleId)) return true
+  if (state.shipyard.unlockedModules.includes(moduleId)) return true
+  if (state.meta.discoveredModules.includes(moduleId)) return true
+  const mod = getModule(moduleId)
+  if (mod?.requiresChallengeShop) {
+    return shopRank(state.prestige.shop, mod.requiresChallengeShop) >= 1
+  }
+  return false
+}
+
+export function getVisibleModules(state: GameState): ShipModuleDef[] {
+  return SHIP_MODULES.filter((m) => isModuleVisible(state, m.id))
+}
+
+/**
+ * Advance Fabrication Bay craft when recipe is filled and workers are assigned.
+ * Mutates state. Returns true if a module was completed this call.
+ */
+export function advanceFabProject(
+  state: GameState,
+  dtSeconds: number,
+  log?: (line: string) => void,
+): boolean {
+  if (dtSeconds <= 0) return false
+  if (!isStationUnlocked(state, 'fab-bay')) return false
+  const workers = state.base.assignments['fab-bay'] ?? 0
+  const project = state.base.fabProject
+  if (workers <= 0 || !project) return false
+  const recipe = getBlueprint(project.moduleId)
+  if (!recipe || !isBlueprintComplete(project.contributed, recipe)) return false
+
+  project.progress += (workers * dtSeconds) / FAB_SECONDS
+  if (project.progress < 1) return false
+
+  const mod = getModule(project.moduleId)
+  const name = mod?.name ?? project.moduleId
+  if (!state.shipyard.unlockedModules.includes(project.moduleId)) {
+    state.shipyard.unlockedModules = [
+      ...state.shipyard.unlockedModules,
+      project.moduleId,
+    ]
+  }
+  if (!state.meta.discoveredModules.includes(project.moduleId)) {
+    state.meta.discoveredModules = [
+      ...state.meta.discoveredModules,
+      project.moduleId,
+    ]
+  }
+  state.base.fabProject = null
+  log?.(`Fabrication complete: ${name} unlocked permanently.`)
+  return true
+}
+
 export function getStation(id: string): StationDef | undefined {
   return STATIONS.find((s) => s.id === id)
 }
@@ -1341,11 +1707,13 @@ export function moduleStatPreviews(
   moduleId: string,
   level: number,
   showNext: boolean,
+  masteryRank = 0,
 ): ModuleStatPreview[] {
   const mod = getModule(moduleId)
   if (!mod) return []
-  const a = moduleLevelMultiplier(level)
-  const b = moduleLevelMultiplier(level + 1)
+  const mastery = masteryBonus(masteryRank)
+  const a = moduleLevelMultiplier(level) * mastery
+  const b = moduleLevelMultiplier(level + 1) * mastery
   const lines: ModuleStatPreview[] = []
 
   if (mod.weapon) {

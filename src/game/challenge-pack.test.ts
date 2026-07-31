@@ -14,6 +14,7 @@ import {
   isChallengeUnlocked,
   isModuleBlockedByChallenge,
 } from './catalog'
+import { forceUnlockModule } from './testHelpers'
 
 describe('challenge pack: Bare Rig + Knife Fight', () => {
   it('defines Bare Rig and Knife Fight with unlock chain', () => {
@@ -50,7 +51,7 @@ describe('challenge pack: Bare Rig + Knife Fight', () => {
     // Scout has 0U — use Line Frame for a utility slot.
     state = unlockFrame(state, 'line-frame')
     state = selectFrame(state, 'line-frame')
-    state = unlockModule(state, 'vector-thruster')
+    state = forceUnlockModule(state, 'vector-thruster')
     state = unlockModule(state, 'plate-layer')
     state = fitModule(state, 'vector-thruster')
     state = fitModule(state, 'plate-layer')
@@ -75,8 +76,8 @@ describe('challenge pack: Bare Rig + Knife Fight', () => {
     state.meta.highestSectorEver = 10
     state.resources.scrap = 999
     state.resources.alloys = 999
-    state = unlockModule(state, 'heavy-lance')
-    state = unlockModule(state, 'flak-array')
+    state = forceUnlockModule(state, 'heavy-lance')
+    state = forceUnlockModule(state, 'flak-array')
 
     expect(canEnterChallenge(state, 'short-range')).toBe(true)
     state = enterChallenge(state, 'short-range', 2000)

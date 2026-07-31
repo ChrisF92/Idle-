@@ -30,6 +30,9 @@ export type EnemyFamilyId =
 
 export type UnitShape = 'triangle' | 'square' | 'circle' | 'hex' | 'diamond'
 
+/** Blueprint part kinds. PartId = `${moduleId}:${PartType}`. */
+export type PartType = 'casing' | 'core' | 'lens'
+
 export type WeaponTag =
   | 'kinetic'
   | 'energy'
@@ -195,6 +198,13 @@ export interface CombatState {
  * Worker-drone industry: permanent drone counts, run assignments to stations.
  * Legacy `buildings` may appear in old saves and is migrated away.
  */
+export interface FabProject {
+  moduleId: string
+  contributed: Partial<Record<PartType, number>>
+  /** 0..1 craft progress after recipe is filled. */
+  progress: number
+}
+
 export interface BaseState {
   /** Permanent manufactured worker drones (kept across prestige). */
   workerDrones: number
@@ -202,6 +212,8 @@ export interface BaseState {
   assignments: Record<string, number>
   /** 0..1 progress toward the next manufactured worker drone. */
   manufactureProgress: number
+  /** Active Fabrication Bay project (cleared on prestige). */
+  fabProject: FabProject | null
   /** @deprecated migrated to worker drones + stations */
   buildings?: Record<string, number>
 }
@@ -218,6 +230,10 @@ export interface MetaState {
   aiUnlocked: boolean
   /** Completed achievement ids (permanent). */
   completedAchievements: string[]
+  /** Modules with at least one blueprint fragment recovered (permanent). */
+  discoveredModules: string[]
+  /** Permanent mastery ranks from investing excess parts (cap 10). */
+  moduleMastery: Record<string, number>
 }
 
 export interface ResearchState {
@@ -267,6 +283,11 @@ export interface GameState {
   prestige: PrestigeState
   codex: CodexState
   meta: MetaState
+  /**
+   * Account-permanent blueprint parts inventory (PartId → qty).
+   * Persists across prestige / challenge resets.
+   */
+  parts: Record<string, number>
 }
 
 /** Summary stats for UI / shipyard (derived from loadout + meta). */

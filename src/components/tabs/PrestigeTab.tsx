@@ -53,7 +53,8 @@ export function PrestigeTab({
         <h2>Prestige & Challenges</h2>
         <p>
           Soft reset at sector {minSector}+. Prestige Matter and Challenge Points buy permanent
-          second-act power — shop ranks usually beat banking for a focused path.
+          second-act power — shop ranks usually beat banking for a focused path. Blueprint parts,
+          discoveries, fabricated modules, and mastery ranks survive prestige.
         </p>
       </header>
 
