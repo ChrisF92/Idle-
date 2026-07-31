@@ -41,7 +41,7 @@ describe('module stat previews', () => {
 })
 
 describe('prestige onboarding', () => {
-  it('offers Prestige tab guide when the system unlocks', () => {
+  it('offers Prestige tab guide when earlier systems are coached', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 5
     state.meta.seenOnboarding = [
@@ -50,7 +50,13 @@ describe('prestige onboarding', () => {
       'guide-launch',
       'guide-base-tab',
       'guide-assign-scrap',
+      'guide-power-grid',
       'guide-research-tab',
+      'guide-sensor-net',
+      'guide-salvage',
+      'guide-essence',
+      'guide-ai-tab',
+      'guide-achievements',
     ]
     expect(activeGuideStep(state, 'combat')?.id).toBe('guide-prestige-tab')
   })
@@ -65,7 +71,13 @@ describe('prestige onboarding', () => {
       'guide-launch',
       'guide-base-tab',
       'guide-assign-scrap',
+      'guide-power-grid',
       'guide-research-tab',
+      'guide-sensor-net',
+      'guide-salvage',
+      'guide-essence',
+      'guide-ai-tab',
+      'guide-achievements',
       'guide-prestige-tab',
     ]
     expect(activeGuideStep(state, 'prestige')?.id).toBe('guide-prestige-ready')

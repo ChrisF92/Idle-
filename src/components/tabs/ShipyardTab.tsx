@@ -160,7 +160,7 @@ export function ShipyardTab({
           <span className="muted">Evasion</span>
           <strong>{(stats.evasion * 100).toFixed(0)}%</strong>
         </div>
-        <div>
+        <div data-guide="salvage-stat">
           <span className="muted">Salvage</span>
           <strong>{state.resources.salvage.toFixed(0)}</strong>
         </div>

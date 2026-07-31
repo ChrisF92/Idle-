@@ -58,27 +58,38 @@ export function ResearchTab({ state, onBuyResearch, onBuyEssence }: ResearchTabP
         })}
       </ul>
 
-      <h3>Essence constructs</h3>
-      <ul className="def-list">
-        {ESSENCE_UPGRADES.map((u) => {
-          const owned = state.essence.purchased.includes(u.id)
-          const canBuy = !owned && state.resources.essence >= u.costEssence
-          return (
-            <li key={u.id}>
-              <div>
-                <strong>{u.name}</strong>
-                <p className="muted">{u.description}</p>
-              </div>
-              <div className="action-col">
-                <span className="badge">{owned ? 'Bound' : `${u.costEssence} Essence`}</span>
-                <button type="button" disabled={!canBuy} onClick={() => onBuyEssence(u.id)}>
-                  {owned ? 'Owned' : 'Bind'}
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      {state.resources.essence > 0 ||
+      Math.max(state.meta.highestSectorEver, state.combat.highestSector) >= 5 ? (
+        <>
+          <h3 data-guide="essence-constructs">Essence constructs</h3>
+          <ul className="def-list">
+            {ESSENCE_UPGRADES.map((u) => {
+              const owned = state.essence.purchased.includes(u.id)
+              const canBuy = !owned && state.resources.essence >= u.costEssence
+              return (
+                <li key={u.id}>
+                  <div>
+                    <strong>{u.name}</strong>
+                    <p className="muted">{u.description}</p>
+                  </div>
+                  <div className="action-col">
+                    <span className="badge">
+                      {owned ? 'Bound' : `${u.costEssence} Essence`}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!canBuy}
+                      onClick={() => onBuyEssence(u.id)}
+                    >
+                      {owned ? 'Owned' : 'Bind'}
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      ) : null}
     </section>
   )
 }

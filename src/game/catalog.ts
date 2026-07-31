@@ -122,6 +122,8 @@ export interface ChallengeShopDef {
   /** Permanent bonus worker drones granted on each rank purchase. */
   bonusWorkerDrones?: number
   manufactureBonus?: number
+  /** Additive blueprint part drop chance (0.15 = +15% at rank 1). */
+  dropBonus?: number
   requiresPrestiges?: number
   requiresSectorEver?: number
   requiresAct1?: boolean
@@ -154,6 +156,8 @@ export interface MatterShopDef {
   manufactureBonus?: number
   /** Additive Core training speed bonus per rank scale (0.12 = +12% at rank 1). */
   trainingBonus?: number
+  /** Additive blueprint part drop chance (0.1 = +10% at rank 1). */
+  dropBonus?: number
 }
 
 export interface ChallengeDef {
@@ -762,6 +766,16 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     maxRank: 1,
     requiresMetaAny: { anyChallengeClear: true, prestiges: 2 },
   },
+  {
+    id: 'loot-protocols',
+    name: 'Loot Protocols',
+    description:
+      'Permanent +15% blueprint part drop chance per rank (extra ranks +45% of base).',
+    costCp: 2,
+    maxRank: 6,
+    dropBonus: 0.15,
+    requiresPrestiges: 1,
+  },
 ]
 
 /** Spend Prestige Matter for stronger specialized permanents (vs banked +0.5% dmg/prod). */
@@ -837,6 +851,15 @@ export const MATTER_SHOP: MatterShopDef[] = [
     costPm: 4,
     maxRank: 25,
     trainingBonus: 0.12,
+  },
+  {
+    id: 'fragment-magnet',
+    name: 'Fragment Magnet',
+    description:
+      'Permanent +10% blueprint part drop chance per rank (deep ranks; extra ranks +45% of base).',
+    costPm: 4,
+    maxRank: 25,
+    dropBonus: 0.1,
   },
 ]
 
@@ -1385,10 +1408,11 @@ export function isSchematicModule(moduleId: string): boolean {
   return SCHEMATIC_MODULES.has(moduleId) || !!getModule(moduleId)?.requiresChallengeShop
 }
 
+/** Base part drop chances — intentionally sparse; buff via Logistics / shops / cores. */
 export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   {
     family: 'swarm',
-    chance: 0.07,
+    chance: 0.028,
     bossChanceMult: 2.2,
     bossRolls: 2,
     entries: [
@@ -1402,7 +1426,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
   {
     family: 'armored',
-    chance: 0.07,
+    chance: 0.028,
     bossChanceMult: 2.2,
     bossRolls: 2,
     entries: [
@@ -1416,7 +1440,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
   {
     family: 'ethereal',
-    chance: 0.065,
+    chance: 0.026,
     bossChanceMult: 2.3,
     bossRolls: 2,
     entries: [
@@ -1430,7 +1454,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
   {
     family: 'divine',
-    chance: 0.06,
+    chance: 0.024,
     bossChanceMult: 2.4,
     bossRolls: 2,
     entries: [
@@ -1444,7 +1468,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
   {
     family: 'titan',
-    chance: 0.18,
+    chance: 0.072,
     bossChanceMult: 1.4,
     bossRolls: 2,
     entries: [
@@ -2216,6 +2240,26 @@ export function matterShopScrapBonus(matterShop: Record<string, number>): number
   return total
 }
 
+/** Additive blueprint part drop chance from Matter shop ranks. */
+export function matterShopDropBonus(matterShop: Record<string, number>): number {
+  let total = 0
+  for (const [id, rank] of Object.entries(matterShop)) {
+    const bonus = getMatterShopItem(id)?.dropBonus ?? 0
+    if (bonus) total += bonus * matterShopEffectScale(rank)
+  }
+  return total
+}
+
+/** Additive blueprint part drop chance from Challenge shop ranks. */
+export function challengeShopDropBonus(shop: Record<string, number>): number {
+  let total = 0
+  for (const [id, rank] of Object.entries(shop)) {
+    const bonus = getChallengeShopItem(id)?.dropBonus ?? 0
+    if (bonus) total += bonus * matterShopEffectScale(rank)
+  }
+  return total
+}
+
 export function matterShopDataPerClear(matterShop: Record<string, number>): number {
   let total = 0
   for (const [id, rank] of Object.entries(matterShop)) {
@@ -2327,6 +2371,7 @@ export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string 
   if (def.trainingBonus) {
     bits.push(`+${(def.trainingBonus * s * 100).toFixed(1)}% Core training`)
   }
+  if (def.dropBonus) bits.push(`+${(def.dropBonus * s * 100).toFixed(1)}% part drops`)
   return bits.join(' · ') || 'Owned'
 }
 
@@ -2345,6 +2390,7 @@ export function challengeShopEffectBlurb(def: ChallengeShopDef, rank: number): s
   if (def.bonusWorkerDrones) {
     bits.push(`+${def.bonusWorkerDrones * rank} workers (granted)`)
   }
+  if (def.dropBonus) bits.push(`+${(def.dropBonus * s * 100).toFixed(1)}% part drops`)
   if (def.unlockModuleId) {
     const mod = getModule(def.unlockModuleId)
     bits.push(`unlocks ${mod?.name ?? def.unlockModuleId}`)

@@ -47,6 +47,7 @@ export function CoreTab({
   const idle = idleWorkers(state)
   const unlocked = state.research.unlocked.includes('core-training')
   const coresOpen = signalCoresUnlocked(state)
+  const activeSub: CoreSubTab = coresOpen ? sub : 'attributes'
   const slots = listSignalSlots(state)
   const inventory = state.signalCores?.inventory ?? []
   const equipped = state.signalCores?.equipped ?? {}
@@ -85,24 +86,27 @@ export function CoreTab({
         <button
           type="button"
           role="tab"
-          className={sub === 'attributes' ? 'sub-tab active' : 'sub-tab'}
-          aria-selected={sub === 'attributes'}
+          className={activeSub === 'attributes' ? 'sub-tab active' : 'sub-tab'}
+          aria-selected={activeSub === 'attributes'}
           onClick={() => setSub('attributes')}
         >
           Attributes
         </button>
-        <button
-          type="button"
-          role="tab"
-          className={sub === 'signal' ? 'sub-tab active' : 'sub-tab'}
-          aria-selected={sub === 'signal'}
-          onClick={() => setSub('signal')}
-        >
-          Signal Cores
-        </button>
+        {coresOpen ? (
+          <button
+            type="button"
+            role="tab"
+            data-guide="signal-cores-subtab"
+            className={activeSub === 'signal' ? 'sub-tab active' : 'sub-tab'}
+            aria-selected={activeSub === 'signal'}
+            onClick={() => setSub('signal')}
+          >
+            Signal Cores
+          </button>
+        ) : null}
       </div>
 
-      {sub === 'attributes' ? (
+      {activeSub === 'attributes' ? (
         !unlocked ? (
           <p className="muted">Requires research: Core Training.</p>
         ) : (
@@ -167,6 +171,7 @@ export function CoreTab({
                         <button
                           type="button"
                           className="assign-btn"
+                          data-guide={`core-train-${attrId}-plus`}
                           disabled={!stationOpen || idle <= 0}
                           onClick={() => onAssign(stationId, 1)}
                         >
@@ -180,13 +185,7 @@ export function CoreTab({
             </ul>
           </>
         )
-      ) : !coresOpen ? (
-        <div className="notice-box">
-          <p>
-            Signal Cores locked. Prestige once or clear sector 10 to recover and equip cores.
-          </p>
-        </div>
-      ) : (
+      ) : coresOpen ? (
         <>
           <p className="muted">
             Merge 3 identical (max R{SIGNAL_CORE_MAX_RANK}).{' '}
@@ -335,7 +334,7 @@ export function CoreTab({
             </p>
           ) : null}
         </>
-      )}
+      ) : null}
     </section>
   )
 }

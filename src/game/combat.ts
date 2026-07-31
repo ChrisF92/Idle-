@@ -12,12 +12,14 @@ import type {
 } from './types'
 import {
   aiDoctrinesActive,
+  challengeShopDropBonus,
   challengeShopMatchupBonus,
   challengeStackRepairBonus,
   essenceBonusDataPerClear,
   getEnemyDropTable,
   getModule,
   matterShopDataPerClear,
+  matterShopDropBonus,
   matterShopRepairMult,
   matterShopScrapBonus,
   partId,
@@ -1367,7 +1369,10 @@ export function rollEnemyPartDrop(
   let chance =
     table.chance *
     logisticsDropMult(state) *
-    (1 + computeSignalCoreBonuses(state).drop)
+    (1 + computeSignalCoreBonuses(state).drop) *
+    (1 +
+      matterShopDropBonus(state.prestige.matterShop) +
+      challengeShopDropBonus(state.prestige.shop))
   let rolls = 1
   if (unit.isBoss) {
     chance = Math.min(1, chance * (table.bossChanceMult ?? 2))

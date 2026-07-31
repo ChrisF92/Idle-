@@ -83,7 +83,13 @@ describe('achievements and AI unlock', () => {
       'guide-launch',
       'guide-base-tab',
       'guide-assign-scrap',
+      'guide-power-grid',
       'guide-research-tab',
+      'guide-sensor-net',
+      'guide-salvage',
+      'guide-essence',
+      'guide-ai-tab',
+      'guide-achievements',
     ]
     expect(activeGuideStep(prestigeState, 'combat')?.id).toBe('guide-prestige-tab')
 
@@ -94,6 +100,13 @@ describe('achievements and AI unlock', () => {
       'guide-shipyard-tab',
       'guide-frame-select',
       'guide-launch',
+      'guide-base-tab',
+      'guide-assign-scrap',
+      'guide-power-grid',
+      'guide-research-tab',
+      'guide-sensor-net',
+      'guide-salvage',
+      'guide-essence',
     ]
     expect(activeGuideStep(aiState, 'combat')?.id).toBe('guide-ai-tab')
 

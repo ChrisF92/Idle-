@@ -48,6 +48,13 @@ export function PrestigeTab({
   const ascendReady = canAscend(state)
   const ascensions = meta.ascensionCount ?? 0
   const minSector = prestigeMinSectorFor(prestige.shop)
+  const showMatterShop =
+    prestige.prestigeCount > 0 || resources.prestigeMatter > 0 || ascensions > 0
+  const showChallenges = prestige.prestigeCount >= 1
+  const showChallengeShop =
+    showChallenges ||
+    resources.challengePoints > 0 ||
+    Object.values(prestige.challengeClears).some((n) => n > 0)
   const active = prestige.activeChallengeId
     ? CHALLENGES.find((c) => c.id === prestige.activeChallengeId)
     : null
@@ -117,6 +124,7 @@ export function PrestigeTab({
               </p>
               <button
                 type="button"
+                data-guide="ascend-btn"
                 disabled={!ascendReady}
                 title={!ascendReady ? 'Need sector 30+ after Act 1' : undefined}
                 onClick={onAscend}
@@ -128,7 +136,8 @@ export function PrestigeTab({
         </div>
       )}
 
-      <h3>Matter shop</h3>
+      {showMatterShop ? <h3 data-guide="matter-shop">Matter shop</h3> : null}
+      {showMatterShop ? (
       <ul className="shop-list">
         {MATTER_SHOP.map((item) => {
           const rank = shopRank(prestige.matterShop, item.id)
@@ -165,8 +174,10 @@ export function PrestigeTab({
           )
         })}
       </ul>
+      ) : null}
 
-      <h3>Challenge shop</h3>
+      {showChallengeShop ? <h3 data-guide="challenge-shop">Challenge shop</h3> : null}
+      {showChallengeShop ? (
       <ul className="shop-list">
         {CHALLENGE_SHOP.map((item) => {
           const rank = shopRank(prestige.shop, item.id)
@@ -203,8 +214,10 @@ export function PrestigeTab({
           )
         })}
       </ul>
+      ) : null}
 
-      <h3>Challenges</h3>
+      {showChallenges ? <h3 data-guide="challenges-section">Challenges</h3> : null}
+      {showChallenges ? (
       <ul className="shop-list">
         {CHALLENGES.map((c) => {
           const clears = challengeClearCount(prestige.challengeClears, c.id)
@@ -266,6 +279,7 @@ export function PrestigeTab({
           )
         })}
       </ul>
+      ) : null}
     </section>
   )
 }

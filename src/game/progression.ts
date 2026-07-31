@@ -481,19 +481,35 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
 export function isResourceVisible(state: GameState, id: keyof Resources): boolean {
   switch (id) {
     case 'scrap':
-    case 'alloys':
-    case 'energy':
-    case 'salvage':
       return true
+    case 'alloys':
+      // Needed for early module unlocks; always show once Base exists, else if spent/gained.
+      return (
+        isSystemUnlocked(state, 'base') ||
+        state.resources.alloys !== 5 ||
+        state.research.unlocked.includes('alloy-smelting')
+      )
+    case 'energy':
+      return isSystemUnlocked(state, 'base') || state.resources.energy !== 10
+    case 'salvage':
+      return state.resources.salvage > 0 || careerHighestSector(state) >= 1
     case 'data':
       return isSystemUnlocked(state, 'research')
     case 'essence':
-      return careerHighestSector(state) >= 5
+      return state.resources.essence > 0 || careerHighestSector(state) >= 5
     case 'aiPoints':
       return isSystemUnlocked(state, 'ai')
     case 'prestigeMatter':
+      return (
+        state.prestige.prestigeCount > 0 ||
+        state.resources.prestigeMatter > 0 ||
+        (state.meta.ascensionCount ?? 0) > 0
+      )
     case 'challengePoints':
-      return isSystemUnlocked(state, 'prestige')
+      return (
+        state.resources.challengePoints > 0 ||
+        Object.values(state.prestige.challengeClears).some((n) => n > 0)
+      )
     default:
       return true
   }
@@ -506,10 +522,16 @@ export function visibleResourceIds(state: GameState): (keyof Resources)[] {
     'energy',
     'data',
     'essence',
-    'aiPoints',
     'salvage',
+    'aiPoints',
+    'prestigeMatter',
+    'challengePoints',
   ]
   return order.filter((id) => isResourceVisible(state, id))
+}
+
+function guideSeen(state: GameState, id: string): boolean {
+  return state.meta.seenOnboarding.includes(id)
 }
 
 /** Grant Base starter drones; update career flags; check achievements. */
@@ -560,9 +582,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     body: 'Tap Shipyard to review your frame and modules before Launch.',
     target: 'shipyard-tab',
     availableWhen: (s) =>
-      s.combat.docked &&
-      !s.shipyard.frameLocked &&
-      !s.meta.seenOnboarding.includes('guide-shipyard-tab'),
+      s.combat.docked && !s.shipyard.frameLocked && !guideSeen(s, 'guide-shipyard-tab'),
     completeWhen: (_s, tab) => tab === 'shipyard',
   },
   {
@@ -572,8 +592,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     target: 'frame-scout',
     tab: 'shipyard',
     availableWhen: (s) =>
-      s.meta.seenOnboarding.includes('guide-shipyard-tab') &&
-      !s.meta.seenOnboarding.includes('guide-frame-select') &&
+      guideSeen(s, 'guide-shipyard-tab') &&
+      !guideSeen(s, 'guide-frame-select') &&
       s.combat.docked &&
       !s.shipyard.frameLocked,
   },
@@ -584,8 +604,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     target: 'launch-btn',
     tab: 'combat',
     availableWhen: (s) =>
-      s.meta.seenOnboarding.includes('guide-frame-select') &&
-      !s.meta.seenOnboarding.includes('guide-launch') &&
+      guideSeen(s, 'guide-frame-select') &&
+      !guideSeen(s, 'guide-launch') &&
       s.combat.docked &&
       !s.shipyard.frameLocked,
     completeWhen: (s) => s.shipyard.frameLocked || !s.combat.docked,
@@ -595,76 +615,212 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Base unlocked',
     body: 'Tap Base. Assign worker drones to stations to produce resources.',
     target: 'base-tab',
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'base') && !s.meta.seenOnboarding.includes('guide-base-tab'),
+    availableWhen: (s) => isSystemUnlocked(s, 'base') && !guideSeen(s, 'guide-base-tab'),
     completeWhen: (_s, tab) => tab === 'base',
   },
   {
     id: 'guide-assign-scrap',
     title: 'Assign workers',
-    body: 'Tap + on Scrap Field to assign an idle worker.',
+    body: 'Tap + on Scrap Field to assign an idle worker. Scrap is your basic industry income.',
     target: 'station-scrap-field-plus',
     tab: 'base',
     availableWhen: (s) =>
-      s.meta.seenOnboarding.includes('guide-base-tab') &&
-      !s.meta.seenOnboarding.includes('guide-assign-scrap') &&
+      guideSeen(s, 'guide-base-tab') &&
+      !guideSeen(s, 'guide-assign-scrap') &&
       isSystemUnlocked(s, 'base') &&
       s.base.workerDrones > 0,
     completeWhen: (s) => (s.base.assignments['scrap-field'] ?? 0) > 0,
   },
   {
+    id: 'guide-power-grid',
+    title: 'Energy',
+    body: 'Assign a worker to Power Grid. Energy appears in the header and pays for advanced modules.',
+    target: 'station-power-grid-plus',
+    tab: 'base',
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-assign-scrap') &&
+      !guideSeen(s, 'guide-power-grid') &&
+      isSystemUnlocked(s, 'base'),
+    completeWhen: (s) => (s.base.assignments['power-grid'] ?? 0) > 0,
+  },
+  {
     id: 'guide-research-tab',
     title: 'Research unlocked',
-    body: 'Tap Research. Spend Data to unlock stations and combat bonuses.',
+    body: 'Tap Research. Data now shows in the header — spend it on projects that open new stations.',
     target: 'research-tab',
     availableWhen: (s) =>
-      isSystemUnlocked(s, 'research') &&
-      !s.meta.seenOnboarding.includes('guide-research-tab'),
+      isSystemUnlocked(s, 'research') && !guideSeen(s, 'guide-research-tab'),
     completeWhen: (_s, tab) => tab === 'research',
   },
   {
-    id: 'guide-prestige-tab',
-    title: 'Prestige unlocked',
-    body: 'Tap Prestige. Soft-reset becomes available from sector 8 for Prestige Matter and challenges.',
-    target: 'prestige-tab',
+    id: 'guide-sensor-net',
+    title: 'Farm Data',
+    body: 'Assign workers to Sensor Net on Base to earn Data for more research.',
+    target: 'station-sensor-net-plus',
+    tab: 'base',
     availableWhen: (s) =>
-      isSystemUnlocked(s, 'prestige') &&
-      !s.meta.seenOnboarding.includes('guide-prestige-tab'),
-    completeWhen: (_s, tab) => tab === 'prestige',
+      guideSeen(s, 'guide-research-tab') &&
+      !guideSeen(s, 'guide-sensor-net') &&
+      isSystemUnlocked(s, 'research'),
+    completeWhen: (s) => (s.base.assignments['sensor-net'] ?? 0) > 0,
   },
   {
-    id: 'guide-prestige-ready',
-    title: 'Ready to Prestige',
-    body: 'You reached the prestige threshold. Tap Prestige to soft-reset and earn Prestige Matter. Challenges open after your first prestige.',
-    target: 'prestige-btn',
-    tab: 'prestige',
+    id: 'guide-alloy-foundry',
+    title: 'Alloys',
+    body: 'Alloy Foundry converts scrap into Alloys for module unlocks. Assign a worker when you can afford the upkeep.',
+    target: 'station-alloy-foundry-plus',
+    tab: 'base',
     availableWhen: (s) =>
-      isSystemUnlocked(s, 'prestige') &&
-      s.combat.sector >= PRESTIGE_MIN_SECTOR &&
-      !s.prestige.activeChallengeId &&
-      s.prestige.prestigeCount === 0 &&
-      !s.meta.seenOnboarding.includes('guide-prestige-ready'),
-    completeWhen: (s) => s.prestige.prestigeCount > 0,
+      s.research.unlocked.includes('alloy-smelting') &&
+      !guideSeen(s, 'guide-alloy-foundry'),
+    completeWhen: (s) => (s.base.assignments['alloy-foundry'] ?? 0) > 0,
+  },
+  {
+    id: 'guide-salvage',
+    title: 'Salvage',
+    body: 'Combat drops Salvage. Spend it in Shipyard to upgrade owned modules.',
+    target: 'salvage-stat',
+    tab: 'shipyard',
+    availableWhen: (s) =>
+      (s.resources.salvage > 0 || careerHighestSector(s) >= 1) &&
+      !guideSeen(s, 'guide-salvage'),
+  },
+  {
+    id: 'guide-part-drop',
+    title: 'Blueprint fragments',
+    body: 'Enemies rarely drop module parts. Collect casings, cores, and lenses — then assemble them in the Fab Bay.',
+    target: 'combat-tab',
+    availableWhen: (s) =>
+      (s.meta.discoveredModules?.length ?? 0) > 0 && !guideSeen(s, 'guide-part-drop'),
+    completeWhen: (_s, tab) => tab === 'combat',
+  },
+  {
+    id: 'guide-module-fab',
+    title: 'Fabrication Bay',
+    body: 'Tap Fabrication on Base. Deposit parts and assign Fab Bay workers to craft permanent modules.',
+    target: 'fab-bay-btn',
+    tab: 'base',
+    availableWhen: (s) =>
+      s.research.unlocked.includes('module-fab') && !guideSeen(s, 'guide-module-fab'),
+  },
+  {
+    id: 'guide-essence',
+    title: 'Essence',
+    body: 'Bosses drop Essence. Bind permanent constructs at the bottom of Research.',
+    target: 'essence-constructs',
+    tab: 'research',
+    availableWhen: (s) =>
+      (s.resources.essence > 0 || careerHighestSector(s) >= 5) &&
+      !guideSeen(s, 'guide-essence'),
+  },
+  {
+    id: 'guide-codex-tab',
+    title: 'Codex',
+    body: 'Tap Codex. It remembers enemy families and soft counters for your loadout.',
+    target: 'codex-tab',
+    availableWhen: (s) => isSystemUnlocked(s, 'codex') && !guideSeen(s, 'guide-codex-tab'),
+    completeWhen: (_s, tab) => tab === 'codex',
+  },
+  {
+    id: 'guide-core-tab',
+    title: 'Core training',
+    body: 'Tap Core. Assign workers to training stations to raise attributes that wipe on prestige.',
+    target: 'core-tab',
+    availableWhen: (s) => isSystemUnlocked(s, 'core') && !guideSeen(s, 'guide-core-tab'),
+    completeWhen: (_s, tab) => tab === 'core',
+  },
+  {
+    id: 'guide-train-logistics',
+    title: 'Logistics',
+    body: 'Train Logistics — it speeds industry, Fab Bay, and blueprint part drops.',
+    target: 'core-train-logistics-plus',
+    tab: 'core',
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-core-tab') &&
+      s.research.unlocked.includes('core-training') &&
+      !guideSeen(s, 'guide-train-logistics'),
+    completeWhen: (s) => (s.base.assignments['train-logistics'] ?? 0) > 0,
   },
   {
     id: 'guide-ai-tab',
     title: 'AI Network unlocked',
-    body: 'Tap AI. Achievements grant AI Points for automation and doctrines.',
+    body: 'Tap AI. Achievements grant AI Points for automation, combat speed, and doctrines.',
     target: 'ai-tab',
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'ai') && !s.meta.seenOnboarding.includes('guide-ai-tab'),
+    availableWhen: (s) => isSystemUnlocked(s, 'ai') && !guideSeen(s, 'guide-ai-tab'),
     completeWhen: (_s, tab) => tab === 'ai',
   },
   {
     id: 'guide-achievements',
     title: 'Achievements',
-    body: 'Tap Achievements to review progress and AI Point rewards.',
+    body: 'Tap Achievements to review one-offs and repeatable grinds that fund the AI Network.',
     target: 'achievements-btn',
     tab: 'ai',
     availableWhen: (s) =>
       isSystemUnlocked(s, 'ai') &&
-      s.meta.seenOnboarding.includes('guide-ai-tab') &&
-      !s.meta.seenOnboarding.includes('guide-achievements'),
+      guideSeen(s, 'guide-ai-tab') &&
+      !guideSeen(s, 'guide-achievements'),
+  },
+  {
+    id: 'guide-prestige-tab',
+    title: 'Prestige unlocked',
+    body: 'Tap Prestige. Soft-reset from sector 8 for Prestige Matter. Challenges open after your first prestige.',
+    target: 'prestige-tab',
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'prestige') && !guideSeen(s, 'guide-prestige-tab'),
+    completeWhen: (_s, tab) => tab === 'prestige',
+  },
+  {
+    id: 'guide-prestige-ready',
+    title: 'Ready to Prestige',
+    body: 'You reached the prestige threshold. Tap Prestige to soft-reset and earn Prestige Matter.',
+    target: 'prestige-btn',
+    tab: 'prestige',
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'prestige') &&
+      guideSeen(s, 'guide-prestige-tab') &&
+      s.combat.sector >= PRESTIGE_MIN_SECTOR &&
+      !s.prestige.activeChallengeId &&
+      s.prestige.prestigeCount === 0 &&
+      !guideSeen(s, 'guide-prestige-ready'),
+    completeWhen: (s) => s.prestige.prestigeCount > 0,
+  },
+  {
+    id: 'guide-matter-shop',
+    title: 'Matter shop',
+    body: 'Spend Prestige Matter on permanent ranks. Fragment Magnet boosts scarce blueprint part drops.',
+    target: 'matter-shop',
+    tab: 'prestige',
+    availableWhen: (s) =>
+      (s.prestige.prestigeCount > 0 || s.resources.prestigeMatter > 0) &&
+      !guideSeen(s, 'guide-matter-shop'),
+  },
+  {
+    id: 'guide-signal-cores',
+    title: 'Signal Cores',
+    body: 'Signal Cores drop in combat after prestige (or career sector 10). Equip them on the Core tab.',
+    target: 'signal-cores-subtab',
+    tab: 'core',
+    availableWhen: (s) =>
+      (s.prestige.prestigeCount >= 1 || careerHighestSector(s) >= 10) &&
+      isSystemUnlocked(s, 'core') &&
+      !guideSeen(s, 'guide-signal-cores'),
+  },
+  {
+    id: 'guide-challenges',
+    title: 'Challenges',
+    body: 'Enter a challenge for Challenge Points. The Challenge shop has Loot Protocols for part drops.',
+    target: 'challenges-section',
+    tab: 'prestige',
+    availableWhen: (s) =>
+      s.prestige.prestigeCount >= 1 && !guideSeen(s, 'guide-challenges'),
+  },
+  {
+    id: 'guide-ascension',
+    title: 'Ascension',
+    body: 'After Act 1, Ascend at sector 30+ to permanently boost future Prestige Matter gains and unlock deep shop ranks.',
+    target: 'ascend-btn',
+    tab: 'prestige',
+    availableWhen: (s) => s.meta.act1Cleared && !guideSeen(s, 'guide-ascension'),
   },
 ]
 

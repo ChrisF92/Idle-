@@ -166,19 +166,23 @@ export function BaseTab({
           </button>
         ) : null}
         {fabUnlocked ? (
-          <button type="button" className="primary" onClick={() => setFabOpen(true)}>
+          <button
+            type="button"
+            className="primary"
+            data-guide="fab-bay-btn"
+            onClick={() => setFabOpen(true)}
+          >
             Fabrication
             {project ? ' · Active' : ''}
           </button>
-        ) : (
-          <span className="muted">Research Module Fabrication for the Fab Bay.</span>
-        )}
+        ) : null}
       </div>
 
       <h3>Stations</h3>
       <ul className="def-list">
-        {STATIONS.filter((s) => s.kind !== 'training').map((station) => {
-          const unlocked = isStationUnlocked(state, station.id)
+        {STATIONS.filter(
+          (s) => s.kind !== 'training' && isStationUnlocked(state, s.id),
+        ).map((station) => {
           const assigned = state.base.assignments[station.id] ?? 0
           const extras: string[] = []
           if (station.repairPerDrone) {
@@ -187,7 +191,7 @@ export function BaseTab({
           if (station.manufactureBonusPerDrone) {
             extras.push(`+${(station.manufactureBonusPerDrone * 100).toFixed(0)}% drone speed each`)
           }
-          const upkeep = unlocked ? stationUpkeepScrapPerDrone(state, station) : 0
+          const upkeep = stationUpkeepScrapPerDrone(state, station)
           if (upkeep > 0) {
             extras.push(`${upkeep.toFixed(2)} scrap/s upkeep each`)
           }
@@ -195,20 +199,10 @@ export function BaseTab({
             <li key={station.id}>
               <div>
                 <strong>{station.name}</strong>
-                {!unlocked ? (
-                  <p className="muted">
-                    {station.requiresResearch
-                      ? `Needs ${station.requiresResearch}`
-                      : station.requiresSystem
-                        ? `Needs ${station.requiresSystem}`
-                        : 'Locked'}
-                  </p>
-                ) : (
-                  <p className="muted">
-                    {rateLabel(station.rates) || 'Special'}
-                    {extras.length ? ` · ${extras.join(' · ')}` : ''}
-                  </p>
-                )}
+                <p className="muted">
+                  {rateLabel(station.rates) || 'Special'}
+                  {extras.length ? ` · ${extras.join(' · ')}` : ''}
+                </p>
               </div>
               <div className="action-col">
                 <span className="badge">{assigned}</span>
@@ -216,7 +210,7 @@ export function BaseTab({
                   <button
                     type="button"
                     className="assign-btn"
-                    disabled={!unlocked || assigned <= 0}
+                    disabled={assigned <= 0}
                     onClick={() => onAssign(station.id, -1)}
                   >
                     −
@@ -225,7 +219,7 @@ export function BaseTab({
                     type="button"
                     className="assign-btn"
                     data-guide={`station-${station.id}-plus`}
-                    disabled={!unlocked || idle <= 0}
+                    disabled={idle <= 0}
                     onClick={() => onAssign(station.id, 1)}
                   >
                     +
