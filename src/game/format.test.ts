@@ -20,13 +20,13 @@ describe('formatStat', () => {
 describe('module stat previews', () => {
   it('formats weapon damage to 2dp for upgrades', () => {
     const lines = moduleUpgradeEffectLines('pulse-cannon', 3, 4)
-    expect(lines[0]).toMatch(/25\.84/)
-    expect(lines[0]).not.toMatch(/25\.839999/)
+    expect(lines[0]).toMatch(/23\.56/)
+    expect(lines[0]).not.toMatch(/23\.559999/)
     expect(lines.some((l) => /RoF/.test(l))).toBe(true)
 
     const preview = moduleStatPreviews('pulse-cannon', 3, true)
     const dmg = preview.find((p) => p.label === 'Damage')
-    expect(dmg?.current).toBe('25.84')
+    expect(dmg?.current).toBe('23.56')
     expect(dmg?.next).toMatch(/^\d+\.\d{2}$/)
     expect(Number(dmg?.next)).toBeGreaterThan(Number(dmg?.current))
 

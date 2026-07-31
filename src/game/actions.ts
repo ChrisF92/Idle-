@@ -627,9 +627,9 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const bonusSalvage = challengeShopStartingSalvage(kept.shop)
   /** Soften first re-pushes after 5-wave Act 1 pacing. */
   const returning = kept.prestigeCount > 0
-  const returnScrap = returning ? 20 : 0
-  const returnData = returning ? 12 : 0
-  const returnSalvage = returning ? 12 : 0
+  const returnScrap = returning ? 10 : 0
+  const returnData = returning ? 5 : 0
+  const returnSalvage = returning ? 6 : 0
 
   state.version = fresh.version
   state.lastTickAt = now

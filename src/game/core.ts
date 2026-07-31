@@ -64,11 +64,11 @@ export function coreEffectMultiplier(rank: number): number {
 }
 
 export function secondsForNextRank(rank: number): number {
-  return 45 * Math.pow(1.15, Math.max(0, rank))
+  return 55 * Math.pow(1.15, Math.max(0, rank))
 }
 
 export function ballisticsDamageMult(rank: number): number {
-  return 1 + 0.75 * coreEffectMultiplier(rank)
+  return 1 + 0.45 * coreEffectMultiplier(rank)
 }
 
 export function platingHullMult(rank: number): number {
@@ -96,16 +96,16 @@ export function sensorsMatchupBonus(rank: number): number {
 }
 
 export function logisticsProdMult(rank: number): number {
-  return 1 + 0.55 * coreEffectMultiplier(rank)
+  return 1 + 0.35 * coreEffectMultiplier(rank)
 }
 
 export function logisticsFabMult(state: { core: CoreState }): number {
-  return 1 + 0.65 * coreEffectMultiplier(state.core.ranks.logistics)
+  return 1 + 0.5 * coreEffectMultiplier(state.core.ranks.logistics)
 }
 
-/** Part-drop chance multiplier; capped at 1.75×. */
+/** Part-drop chance multiplier; capped at 1.5×. */
 export function logisticsDropMult(state: { core: CoreState }): number {
-  return Math.min(1.75, 1 + 0.6 * coreEffectMultiplier(state.core.ranks.logistics))
+  return Math.min(1.5, 1 + 0.45 * coreEffectMultiplier(state.core.ranks.logistics))
 }
 
 /** Logistics also accelerates all Core training (fewer workers needed at high rank). */
@@ -180,6 +180,6 @@ export function coreAttrBonusSummary(attrId: CoreAttrId, rank: number): string {
     case 'sensors':
       return `+${(sensorsEvasionBonus(rank) * 100).toFixed(1)}% evasion · +${(sensorsMatchupBonus(rank) * 100).toFixed(1)}% matchup`
     case 'logistics':
-      return `+${((logisticsProdMult(rank) - 1) * 100).toFixed(1)}% prod · +${((1 + 0.65 * m - 1) * 100).toFixed(1)}% fab · +${((Math.min(1.75, 1 + 0.6 * m) - 1) * 100).toFixed(1)}% drops`
+      return `+${((logisticsProdMult(rank) - 1) * 100).toFixed(1)}% prod · +${((1 + 0.5 * m - 1) * 100).toFixed(1)}% fab · +${((Math.min(1.5, 1 + 0.45 * m) - 1) * 100).toFixed(1)}% drops`
   }
 }

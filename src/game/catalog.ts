@@ -169,7 +169,7 @@ export interface ModuleWeaponDef {
 }
 
 /** Max salvage upgrades per module in a run. */
-export const MAX_MODULE_LEVEL = 15
+export const MAX_MODULE_LEVEL = 12
 
 export type ModuleRole = 'weapon' | 'defense' | 'utility'
 
@@ -330,9 +330,9 @@ export const RESEARCH: ResearchDef[] = [
   {
     id: 'basic-optics',
     name: 'Basic Optics',
-    description: 'Sharper target acquisition. +25% combat damage.',
-    costData: 10,
-    damageBonus: 0.25,
+    description: 'Sharper target acquisition. +12% combat damage.',
+    costData: 20,
+    damageBonus: 0.12,
   },
   {
     id: 'alloy-smelting',
@@ -344,20 +344,20 @@ export const RESEARCH: ResearchDef[] = [
     id: 'module-fab',
     name: 'Module Fabrication',
     description: 'Unlocks the Fabrication Bay — assemble blueprint parts into modules.',
-    costData: 25,
+    costData: 70,
   },
   {
     id: 'core-training',
     name: 'Core Training',
     description: 'Unlocks the Core tab and five training stations for permanent-run attributes.',
-    costData: 30,
+    costData: 80,
   },
   {
     id: 'drone-logistics',
     name: 'Drone Logistics',
-    description: 'Unlocks the Drone Fabricator station and +40% manufacture speed.',
+    description: 'Unlocks the Drone Fabricator station and +25% manufacture speed.',
     costData: 35,
-    manufactureBonus: 0.4,
+    manufactureBonus: 0.25,
   },
   {
     id: 'tactical-codex',
@@ -368,16 +368,16 @@ export const RESEARCH: ResearchDef[] = [
   {
     id: 'core-drills',
     name: 'Core Drills',
-    description: '+50% Core attribute training speed.',
-    costData: 55,
-    trainingBonus: 0.5,
+    description: '+35% Core attribute training speed.',
+    costData: 70,
+    trainingBonus: 0.35,
   },
   {
     id: 'entity-anatomy',
     name: 'Entity Anatomy',
-    description: 'Study remains. +50% combat damage.',
-    costData: 60,
-    damageBonus: 0.5,
+    description: 'Study remains. +18% combat damage.',
+    costData: 90,
+    damageBonus: 0.18,
   },
   {
     id: 'boss-harvester',
@@ -486,7 +486,7 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'focus-fire',
     name: 'Focus Fire',
-    description: 'Doctrine: +12% weapon damage; AI prioritizes weakest targets.',
+    description: 'Doctrine: +6% weapon damage; AI prioritizes weakest targets.',
     costAiPoints: 2,
     kind: 'doctrine',
     permanent: false,
@@ -521,9 +521,9 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'essence-lattice',
     name: 'Essence Lattice',
-    description: 'Permanent +10% combat damage.',
+    description: 'Permanent +5% combat damage.',
     costEssence: 2,
-    damageBonus: 0.1,
+    damageBonus: 0.05,
   },
   {
     id: 'resonant-plates',
@@ -542,9 +542,9 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'catalyst-feed',
     name: 'Catalyst Feed',
-    description: 'Permanent +15% base production.',
+    description: 'Permanent +8% base production.',
     costEssence: 3,
-    productionBonus: 0.15,
+    productionBonus: 0.08,
   },
 ]
 
@@ -552,10 +552,11 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'iron-will',
     name: 'Iron Will',
-    description: 'Permanent +8% combat damage per rank (extra ranks +45% of base).',
+    description:
+      'Permanent +6% role matchup effectiveness per rank (extra ranks +45% of base). Not a raw damage clone.',
     costCp: 1,
-    maxRank: 8,
-    damageBonus: 0.08,
+    maxRank: 6,
+    matchupBonus: 0.06,
   },
   {
     id: 'early-gate',
@@ -568,10 +569,10 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'supply-cache',
     name: 'Supply Cache',
-    description: 'Each run starts with +40 scrap per rank.',
+    description: 'Each run starts with +20 scrap per rank.',
     costCp: 1,
-    maxRank: 6,
-    startingScrap: 40,
+    maxRank: 4,
+    startingScrap: 20,
   },
   {
     id: 'doctrine-seed',
@@ -600,10 +601,10 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'hangar-rights',
     name: 'Hangar Rights',
-    description: 'Each run starts with +20 Salvage per rank.',
+    description: 'Each run starts with +10 Salvage per rank.',
     costCp: 2,
     maxRank: 5,
-    startingSalvage: 20,
+    startingSalvage: 10,
   },
   {
     id: 'drone-bay-rights',
@@ -651,23 +652,23 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   },
 ]
 
-/** Spend Prestige Matter for stronger specialized permanents (vs banked +1% dmg/prod). */
+/** Spend Prestige Matter for stronger specialized permanents (vs banked +0.5% dmg/prod). */
 export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'matter-blade',
     name: 'Matter Blade',
-    description: 'Permanent +15% combat damage (rankable; extra ranks +45% of base).',
+    description: 'Permanent +8% combat damage (rankable; extra ranks +45% of base).',
     costPm: 3,
-    maxRank: 10,
-    damageBonus: 0.15,
+    maxRank: 8,
+    damageBonus: 0.08,
   },
   {
     id: 'matter-forge',
     name: 'Matter Forge',
-    description: 'Permanent +18% base production (rankable).',
+    description: 'Permanent +12% base production (rankable).',
     costPm: 3,
-    maxRank: 10,
-    productionBonus: 0.18,
+    maxRank: 8,
+    productionBonus: 0.12,
   },
   {
     id: 'matter-plating',
@@ -740,7 +741,7 @@ export const CHALLENGES: ChallengeDef[] = [
     goalSector: 5,
     rewardChallengePoints: 1,
     maxClears: 20,
-    stackDamageBonus: 0.01,
+    stackDamageBonus: 0.005,
   },
   {
     id: 'thin-hull',
@@ -750,7 +751,7 @@ export const CHALLENGES: ChallengeDef[] = [
     goalSector: 5,
     rewardChallengePoints: 1,
     maxClears: 15,
-    stackRepairBonus: 0.02,
+    stackRepairBonus: 0.015,
     requiresPrestiges: 1,
   },
   {
@@ -761,7 +762,7 @@ export const CHALLENGES: ChallengeDef[] = [
     goalSector: 8,
     rewardChallengePoints: 2,
     maxClears: 10,
-    stackProductionBonus: 0.015,
+    stackProductionBonus: 0.008,
     requiresChallengeClears: { challengeId: 'no-ai', clears: 1 },
   },
   {
@@ -772,7 +773,7 @@ export const CHALLENGES: ChallengeDef[] = [
     goalSector: 6,
     rewardChallengePoints: 1,
     maxClears: 15,
-    stackDamageBonus: 0.012,
+    stackDamageBonus: 0.006,
     requiresPrestiges: 1,
   },
   {
@@ -794,7 +795,7 @@ export const CHALLENGES: ChallengeDef[] = [
     goalSector: 7,
     rewardChallengePoints: 2,
     maxClears: 12,
-    stackDamageBonus: 0.01,
+    stackDamageBonus: 0.005,
     requiresChallengeClears: { challengeId: 'short-range', clears: 1 },
     requiresPrestiges: 2,
   },
@@ -806,7 +807,7 @@ export const CHALLENGES: ChallengeDef[] = [
     goalSector: 6,
     rewardChallengePoints: 2,
     maxClears: 12,
-    stackRepairBonus: 0.02,
+    stackRepairBonus: 0.015,
     requiresChallengeClears: { challengeId: 'thin-hull', clears: 1 },
   },
   {
@@ -817,7 +818,7 @@ export const CHALLENGES: ChallengeDef[] = [
     goalSector: 12,
     rewardChallengePoints: 3,
     maxClears: 8,
-    stackProductionBonus: 0.02,
+    stackProductionBonus: 0.01,
     requiresSectorEver: 25,
     requiresPrestiges: 3,
   },
@@ -830,7 +831,7 @@ export const CHALLENGES: ChallengeDef[] = [
     goalSector: 30,
     rewardChallengePoints: 4,
     maxClears: 5,
-    stackProductionBonus: 0.02,
+    stackProductionBonus: 0.01,
     requiresSectorEver: 25,
     requiresPrestiges: 3,
   },
@@ -1183,7 +1184,7 @@ export function moduleUpgradeCost(level: number): number {
 
 /** Multiplier on module combat stats from run upgrades. */
 export function moduleLevelMultiplier(level: number): number {
-  return 1 + Math.max(0, level) * 0.12
+  return 1 + Math.max(0, level) * 0.08
 }
 
 // ── Blueprint / Fabrication Bay ─────────────────────────────────────────────
@@ -1193,7 +1194,7 @@ export type { PartType }
 export const PART_TYPES: PartType[] = ['casing', 'core', 'lens']
 
 /** Seconds for one fab-bay worker to finish a filled recipe. */
-export const FAB_SECONDS = 90
+export const FAB_SECONDS = 120
 
 export const MAX_MODULE_MASTERY = 10
 
@@ -1243,8 +1244,8 @@ export function parsePartId(
 
 /** Farmable blueprint recipes (not starter scrap unlocks, not CP schematics). */
 export const BLUEPRINTS: BlueprintRecipe[] = [
-  { moduleId: 'flak-array', casing: 2, core: 1, lens: 1 },
-  { moduleId: 'vector-thruster', casing: 2, core: 1, lens: 1 },
+  { moduleId: 'flak-array', casing: 3, core: 2, lens: 1 },
+  { moduleId: 'vector-thruster', casing: 3, core: 2, lens: 1 },
   { moduleId: 'heavy-lance', casing: 2, core: 2, lens: 1 },
   { moduleId: 'phase-beam', casing: 2, core: 2, lens: 1 },
   { moduleId: 'barrier-projector', casing: 3, core: 2, lens: 1 },
@@ -1276,7 +1277,7 @@ export function isSchematicModule(moduleId: string): boolean {
 export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   {
     family: 'swarm',
-    chance: 0.14,
+    chance: 0.07,
     bossChanceMult: 2.2,
     bossRolls: 2,
     entries: [
@@ -1290,7 +1291,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
   {
     family: 'armored',
-    chance: 0.14,
+    chance: 0.07,
     bossChanceMult: 2.2,
     bossRolls: 2,
     entries: [
@@ -1304,7 +1305,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
   {
     family: 'ethereal',
-    chance: 0.13,
+    chance: 0.065,
     bossChanceMult: 2.3,
     bossRolls: 2,
     entries: [
@@ -1318,7 +1319,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
   {
     family: 'divine',
-    chance: 0.12,
+    chance: 0.06,
     bossChanceMult: 2.4,
     bossRolls: 2,
     entries: [
@@ -1332,7 +1333,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
   {
     family: 'titan',
-    chance: 0.35,
+    chance: 0.18,
     bossChanceMult: 1.4,
     bossRolls: 2,
     entries: [
@@ -1465,7 +1466,7 @@ export function partSellScrap(partIdStr: string): number {
 }
 
 export function masteryBonus(rank: number): number {
-  return 1 + 0.04 * Math.min(MAX_MODULE_MASTERY, Math.max(0, rank))
+  return 1 + 0.025 * Math.min(MAX_MODULE_MASTERY, Math.max(0, rank))
 }
 
 export function moduleMasteryRank(
@@ -2002,7 +2003,7 @@ export function metaDamageMultiplier(
   challengeClears: Record<string, number> = {},
 ): number {
   // Unspent PM/CP still help a little; spending unlocks stronger shop effects.
-  let mult = 1 + prestigeMatter * 0.01 + challengePoints * 0.02
+  let mult = 1 + prestigeMatter * 0.005 + challengePoints * 0.01
   for (const [id, rank] of Object.entries(shop)) {
     const def = getChallengeShopItem(id)
     if (def?.damageBonus) mult += def.damageBonus * matterShopEffectScale(rank)
@@ -2020,7 +2021,7 @@ export function metaProductionMultiplier(
   matterShop: Record<string, number> = {},
   challengeClears: Record<string, number> = {},
 ): number {
-  let mult = 1 + prestigeMatter * 0.01
+  let mult = 1 + prestigeMatter * 0.005
   for (const [id, rank] of Object.entries(matterShop)) {
     const def = getMatterShopItem(id)
     if (def?.productionBonus) mult += def.productionBonus * matterShopEffectScale(rank)

@@ -65,8 +65,8 @@ describe('blueprints and fabrication', () => {
 
     state.meta.discoveredModules = ['flak-array']
     state.parts = {
-      [partId('flak-array', 'casing')]: 2,
-      [partId('flak-array', 'core')]: 1,
+      [partId('flak-array', 'casing')]: 3,
+      [partId('flak-array', 'core')]: 2,
       [partId('flak-array', 'lens')]: 1,
     }
     state.base.workerDrones = 2
@@ -76,8 +76,8 @@ describe('blueprints and fabrication', () => {
     for (const pt of ['casing', 'core', 'lens'] as const) {
       state = depositFabPart(state, pt, 10)
     }
-    expect(state.base.fabProject?.contributed.casing).toBe(2)
-    expect(state.base.fabProject?.contributed.core).toBe(1)
+    expect(state.base.fabProject?.contributed.casing).toBe(3)
+    expect(state.base.fabProject?.contributed.core).toBe(2)
     expect(state.base.fabProject?.contributed.lens).toBe(1)
 
     state = assignWorker(state, 'fab-bay', 1)
@@ -136,7 +136,7 @@ describe('blueprints and fabrication', () => {
 
     state = investPartMastery(state, 'flak-array')
     expect(moduleMasteryRank(state, 'flak-array')).toBe(1)
-    expect(masteryBonus(1)).toBeCloseTo(1.04)
+    expect(masteryBonus(1)).toBeCloseTo(1.025)
     expect(computeShipStats(state).damage).toBeGreaterThan(before)
   })
 

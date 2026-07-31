@@ -9,6 +9,7 @@ import {
 import { applyOfflineCatchUp } from './offline'
 import {
   canBuyChallengeShop,
+  challengeShopMatchupBonus,
   challengeShopOfflineMs,
   effectiveMaxClears,
   getChallenge,
@@ -17,14 +18,20 @@ import {
 } from './catalog'
 
 describe('challenge point shop', () => {
-  it('spends CP on iron-will and boosts damage', () => {
+  it('spends CP on iron-will and boosts matchup (not raw damage)', () => {
     let state = createInitialState(0)
     state.resources.challengePoints = 1
-    const before = computeShipStats(state).damage
+    const beforeMatchup = challengeShopMatchupBonus(state.prestige.shop)
+    const bankedDmg = computeShipStats(state).damage
     state = buyChallengeShop(state, 'iron-will')
     expect(shopRank(state.prestige.shop, 'iron-will')).toBe(1)
     expect(state.resources.challengePoints).toBe(0)
-    expect(computeShipStats(state).damage).toBeGreaterThan(before)
+    expect(challengeShopMatchupBonus(state.prestige.shop)).toBeCloseTo(beforeMatchup + 0.06)
+    // Matchup sink: spending banked CP into Iron Will must not raise raw damage.
+    expect(computeShipStats(state).damage).toBeLessThan(bankedDmg)
+    expect(computeShipStats(state).damage).toBe(
+      computeShipStats(createInitialState(0)).damage,
+    )
   })
 
   it('early-gate lowers prestige sector requirement', () => {
@@ -44,7 +51,7 @@ describe('challenge point shop', () => {
     state = buyChallengeShop(state, 'doctrine-seed')
     state.combat.sector = 8
     state = performPrestige(state, 5000)
-    expect(state.resources.scrap).toBeGreaterThanOrEqual(65) // 25 base + 40
+    expect(state.resources.scrap).toBeGreaterThanOrEqual(55) // 25 base + 10 return + 20 cache
     expect(state.resources.aiPoints).toBeGreaterThanOrEqual(1)
   })
 
@@ -54,7 +61,7 @@ describe('challenge point shop', () => {
     state = buyChallengeShop(state, 'hangar-rights')
     state.combat.sector = 8
     state = performPrestige(state, 5000)
-    expect(state.resources.salvage).toBeGreaterThanOrEqual(20)
+    expect(state.resources.salvage).toBeGreaterThanOrEqual(16) // 10 hangar + 6 return
   })
 
   it('deep-cache extends offline cap', () => {
@@ -84,7 +91,7 @@ describe('challenge point shop', () => {
     expect(shopRank(state.prestige.shop, 'supply-cache')).toBe(2)
     state.combat.sector = 8
     state = performPrestige(state, 5000)
-    expect(state.resources.scrap).toBeGreaterThanOrEqual(105) // 25 + 20 return + 80
+    expect(state.resources.scrap).toBeGreaterThanOrEqual(75) // 25 + 10 return + 40 cache
   })
 
   it('schematic-surge unlocks surge-capacitor module', () => {

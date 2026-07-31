@@ -55,7 +55,7 @@ describe('core attributes', () => {
     state.core.ranks.logistics = 25
     expect(logisticsFabMult(state)).toBeGreaterThan(1)
     expect(logisticsDropMult(state)).toBeGreaterThan(1)
-    expect(logisticsDropMult(state)).toBeLessThanOrEqual(1.75)
+    expect(logisticsDropMult(state)).toBeLessThanOrEqual(1.5)
   })
 
   it('diminishing returns: rank 50 effect < 50 × rank 1 effect', () => {

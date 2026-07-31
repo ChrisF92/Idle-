@@ -417,8 +417,8 @@ function ModuleCard({
         <p className="module-card-meta">
           Run upgrade {level}/{MAX_MODULE_LEVEL}
           {level < MAX_MODULE_LEVEL ? ` · next ${upCost} Salvage` : ' · maxed'}
-          {' · '}+12% module stats / level
-          {' · '}Mastery {mastery}/{MAX_MODULE_MASTERY} (+{(mastery * 4).toFixed(0)}%)
+          {' · '}+8% module stats / level
+          {' · '}Mastery {mastery}/{MAX_MODULE_MASTERY} (+{(mastery * 2.5).toFixed(1)}%)
         </p>
       )}
 

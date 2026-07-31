@@ -34,9 +34,9 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Boss telegraphs: titan slams wind up before firing; phase shifts flash a warn ring.
 - Hold Accountant shows estimated scrap/data/salvage per second while farming.
 - Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
-- Prestige Matter / Challenge Points spend in permanent **rankable** shops (banked PM is +1% dmg/prod each; ranks beat banking). No respec.
+- Prestige Matter / Challenge Points spend in permanent **rankable** shops (banked PM is +0.5% dmg/prod each; banked CP +1% dmg; ranks beat banking). No respec.
 - CP shop prefers unique unlocks (schematics → Surge Capacitor / Mirror Plate, Deep Vault 24h offline, Clearance Board +5 max clears) plus stackable run-kits.
-- Post-prestige re-push: returning runs start with +20 scrap / +12 data / +12 salvage; doctrine AIP is refunded; first S8 prestige yields 5 PM.
+- Post-prestige re-push: returning runs start with +10 scrap / +5 data / +6 salvage; doctrine AIP is refunded; first S8 prestige yields 5 PM.
 - Distinct frames: Razor (2W/0D/1U glass-cannon) and Pathfinder (1W/0D/2U utility scout).
 - **Blueprint farming:** enemies drop casing/core/lens parts; Fabrication Bay workers assemble discovered blueprints into permanent module unlocks. Dupes sell for scrap or invest into permanent module mastery (cap 10). Starter kit is Pulse Cannon (free) + Plate Layer (scrap); CP schematics remain shop-only.
 - **Signal Cores:** typed Assault/Ward/Signal slots under Core; merge 3 identical ranks; wipe on prestige until **Null Signal** (sector 30, no cores equipped) unlocks permanent carryover.

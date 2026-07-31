@@ -143,10 +143,11 @@ export function globalDamageMultiplier(state: GameState): number {
     state.prestige.matterShop,
     state.prestige.challengeClears,
   )
-  if (aiDoctrinesActive(state, 'focus-fire')) mult *= 1.12
+  if (aiDoctrinesActive(state, 'focus-fire')) mult *= 1.06
   mult *= ballisticsDamageMult(state.core?.ranks.ballistics ?? 0)
   const coreDmg = computeSignalCoreBonuses(state).damage
-  if (coreDmg) mult *= 1 + coreDmg
+  // Signal damage is a softer half-weight layer (not a full multiply stack).
+  if (coreDmg) mult *= 1 + coreDmg * 0.5
   return mult
 }
 

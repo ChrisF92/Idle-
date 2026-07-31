@@ -215,7 +215,7 @@ describe('purchases', () => {
   it('buys research and AI nodes', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8
-    state.resources.data = 10
+    state.resources.data = 20
     state = buyResearch(state, 'basic-optics')
     expect(state.research.unlocked).toContain('basic-optics')
 
@@ -379,7 +379,7 @@ describe('salvage module upgrades', () => {
     state.combat.sector = 8
     state = performPrestige(state, 1000)
     // Returning runs start with a small salvage kit for early module levels.
-    expect(state.resources.salvage).toBe(12)
+    expect(state.resources.salvage).toBe(6)
     expect(moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')).toBe(0)
     expect(state.shipyard.modules).toContain('pulse-cannon')
   })

@@ -112,8 +112,8 @@ describe('prestige matter shop', () => {
     state = buyMatterShop(state, 'matter-blade')
     expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(2)
     expect(state.resources.prestigeMatter).toBe(0)
-    // 15% * 1.45 = 21.75% from shop; banked 0
-    const mult = 1 + 0.15 * 1.45
+    // 8% * 1.45 = 11.6% from shop; banked 0
+    const mult = 1 + 0.08 * 1.45
     expect(computeShipStats(state).damage).toBeGreaterThan(
       computeShipStats({
         ...createInitialState(0),

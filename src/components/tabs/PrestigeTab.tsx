@@ -78,7 +78,7 @@ export function PrestigeTab({
       </div>
 
       <p className="muted">
-        Banked PM: +1% damage & production each. Banked CP: +2% damage each. After your first
+        Banked PM: +0.5% damage & production each. Banked CP: +1% damage each. After your first
         prestige, challenges and Matter shop ranks define the climb. No respec.
       </p>
 

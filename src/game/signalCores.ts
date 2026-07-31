@@ -21,10 +21,10 @@ export const SIGNAL_SLOT_LABELS: Record<SignalCoreSlotType, string> = {
 export const SIGNAL_CORE_MAX_RANK = 5
 export const SIGNAL_CORE_MERGE_COUNT = 3
 
-/** Rank scales passive magnitudes: rank 1 = 1×, rank 5 = 2×. */
+/** Rank scales passive magnitudes: rank 1 = 1×, rank 5 = 1.8×. */
 export function signalCoreRankMult(rank: number): number {
   const r = Math.max(1, Math.min(SIGNAL_CORE_MAX_RANK, Math.floor(rank)))
-  return 1 + 0.25 * (r - 1)
+  return 1 + 0.2 * (r - 1)
 }
 
 export function createEmptySignalCoresState(): SignalCoresState {
@@ -38,8 +38,8 @@ export const SIGNAL_CORE_DEFS: SignalCoreDef[] = [
     description: 'Hardened resonance for kinetic batteries.',
     rarity: 'common',
     allowedSlots: ['assault'],
-    basePassive: { damage: 0.05 },
-    slotBonus: { assault: { damage: 0.04 } },
+    basePassive: { damage: 0.025 },
+    slotBonus: { assault: { damage: 0.02 } },
   },
   {
     id: 'ablative-echo',
@@ -77,7 +77,7 @@ export const SIGNAL_CORE_DEFS: SignalCoreDef[] = [
     description: 'Tunes batteries to punch through armor bands.',
     rarity: 'rare',
     allowedSlots: ['assault'],
-    basePassive: { damage: 0.04, matchup: 0.08 },
+    basePassive: { damage: 0.02, matchup: 0.08 },
     slotBonus: { assault: { matchup: 0.06 } },
   },
   {
@@ -106,7 +106,7 @@ export const SIGNAL_CORE_DEFS: SignalCoreDef[] = [
     allowedSlots: ['assault', 'signal'],
     basePassive: { evasion: 0.03 },
     slotBonus: {
-      assault: { damage: 0.03 },
+      assault: { damage: 0.015 },
       signal: { matchup: 0.05 },
     },
   },
@@ -128,9 +128,9 @@ export const SIGNAL_CORE_DEFS: SignalCoreDef[] = [
     description: 'Amplifies every battery cycle with a harsh overtone.',
     rarity: 'epic',
     allowedSlots: ['assault', 'ward', 'signal'],
-    basePassive: { damage: 0.06 },
+    basePassive: { damage: 0.03 },
     slotBonus: {
-      assault: { damage: 0.05 },
+      assault: { damage: 0.025 },
       ward: { hull: 0.04 },
       signal: { scrap: 0.06 },
     },
@@ -153,7 +153,7 @@ export const SIGNAL_CORE_DEFS: SignalCoreDef[] = [
     basePassive: { armor: 5, evasion: 0.02 },
     slotBonus: {
       ward: { hull: 0.07, armor: 4 },
-      assault: { damage: 0.03 },
+      assault: { damage: 0.015 },
     },
   },
 ]
@@ -497,18 +497,18 @@ export function grantSignalCoreDrop(
   let defId: string | null = null
 
   if (source === 'kill') {
-    // ~4% common on kill
-    if (rng() > 0.04) return null
+    // ~1.5% common on kill
+    if (rng() > 0.015) return null
     const family = opts.family ?? 'swarm'
     const table = FAMILY_COMMON_WEIGHTS[family] ?? FAMILY_COMMON_WEIGHTS.swarm!
     defId = pickWeighted(table, rng) ?? pickFromList(COMMON_IDS, rng)
   } else if (source === 'sector') {
-    // ~18% common/rare on sector clear
-    if (rng() > 0.18) return null
+    // ~8% common/rare on sector clear
+    if (rng() > 0.08) return null
     defId = rng() < 0.75 ? pickFromList(COMMON_IDS, rng) : pickFromList(RARE_IDS, rng)
   } else {
-    // Boss clear: ~45% rare/epic (biased rare)
-    if (rng() > 0.45) return null
+    // Boss clear: ~25% rare/epic (biased rare)
+    if (rng() > 0.25) return null
     defId = rng() < 0.7 ? pickFromList(RARE_IDS, rng) : pickFromList(EPIC_IDS, rng)
   }
 
