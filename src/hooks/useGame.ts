@@ -25,6 +25,7 @@ import {
   fitModule,
   investPartMastery,
   launchFabProject,
+  performAscension,
   performPrestige,
   selectFrame,
   sellPart,
@@ -75,6 +76,7 @@ type Action =
   | { type: 'upgrade-cheapest' }
   | { type: 'ack-onboarding'; tipId: string }
   | { type: 'prestige' }
+  | { type: 'ascend' }
   | { type: 'enter-challenge'; challengeId: string }
   | { type: 'abandon-challenge' }
   | { type: 'equip-core'; uid: string; slotKey: string }
@@ -145,6 +147,8 @@ function reducer(state: GameState, action: Action): GameState {
       return acknowledgeOnboarding(state, action.tipId)
     case 'prestige':
       return performPrestige(state)
+    case 'ascend':
+      return performAscension(state)
     case 'enter-challenge':
       return enterChallenge(state, action.challengeId)
     case 'abandon-challenge':
@@ -232,6 +236,7 @@ export function useGame() {
     acknowledgeOnboarding: (tipId: string) =>
       dispatch({ type: 'ack-onboarding', tipId }),
     prestige: () => dispatch({ type: 'prestige' }),
+    ascend: () => dispatch({ type: 'ascend' }),
     enterChallenge: (challengeId: string) =>
       dispatch({ type: 'enter-challenge', challengeId }),
     abandonChallenge: () => dispatch({ type: 'abandon-challenge' }),

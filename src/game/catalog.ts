@@ -52,10 +52,21 @@ export interface AiNodeDef {
   permanent?: boolean
   /** Career sector clear required before this node can be bought. */
   requiresSectorEver?: number
+  /** Must own this AI node first. */
+  requiresAiNode?: string
   /** Extra manufacture speed while owned (permanent AI). */
   manufactureBonus?: number
   /** Additive Core training speed bonus (0.4 = +40%). */
   trainingBonus?: number
+  /** Additive station production bonus (0.4 = +40%). Non-combat. */
+  productionBonus?: number
+  /** Additive Fabrication Bay craft speed (0.5 = +50%). Non-combat. */
+  fabBonus?: number
+  /**
+   * Combat sim speed multiplier while owned.
+   * Highest owned value wins; never applied to industry / fab / training.
+   */
+  combatSpeedMult?: number
 }
 
 export interface EssenceUpgradeDef {
@@ -521,6 +532,101 @@ export const AI_NODES: AiNodeDef[] = [
     kind: 'doctrine',
     permanent: false,
   },
+  // --- Combat speed (combat dt only) ---
+  {
+    id: 'combat-chrono-1',
+    name: 'Combat Chrono I',
+    description: 'Combat runs at 1.5× speed. Industry, fab, and training stay at 1×.',
+    costAiPoints: 5,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 15,
+    combatSpeedMult: 1.5,
+  },
+  {
+    id: 'combat-chrono-2',
+    name: 'Combat Chrono II',
+    description: 'Combat runs at 2× speed. Requires Chrono I.',
+    costAiPoints: 8,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 20,
+    requiresAiNode: 'combat-chrono-1',
+    combatSpeedMult: 2,
+  },
+  {
+    id: 'combat-chrono-3',
+    name: 'Combat Chrono III',
+    description: 'Combat runs at 3× speed. Requires Chrono II.',
+    costAiPoints: 12,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 25,
+    requiresAiNode: 'combat-chrono-2',
+    combatSpeedMult: 3,
+  },
+  // --- Non-combat speed ---
+  {
+    id: 'chrono-industry',
+    name: 'Industrial Chrono',
+    description: '+40% station production rates (scrap / alloys / energy). Not combat.',
+    costAiPoints: 6,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 18,
+    productionBonus: 0.4,
+  },
+  {
+    id: 'chrono-fab',
+    name: 'Fabrication Chrono',
+    description: '+50% Fabrication Bay craft speed.',
+    costAiPoints: 6,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 18,
+    fabBonus: 0.5,
+  },
+  // --- Deep automation (USI-style) ---
+  {
+    id: 'auto-salvage-loop',
+    name: 'Salvage Loop',
+    description:
+      'Automatically spends salvage on Upgrade Cheapest whenever you can afford it. Requires Salvage Optimizer.',
+    costAiPoints: 6,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 16,
+    requiresAiNode: 'salvage-optimizer',
+  },
+  {
+    id: 'neural-router',
+    name: 'Neural Router',
+    description:
+      'Idle workers auto-assign to the lowest Core training stations.',
+    costAiPoints: 8,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 18,
+  },
+  {
+    id: 'auto-fab-bay',
+    name: 'Auto Fabricator',
+    description:
+      'Automatically starts Fab Bay projects for the most complete discovered blueprint and deposits parts.',
+    costAiPoints: 10,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 20,
+  },
+  {
+    id: 'auto-merge-signal',
+    name: 'Signal Collider',
+    description: 'Automatically merges unequipped Signal Cores when three matching ranks exist.',
+    costAiPoints: 12,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 22,
+  },
 ]
 
 export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
@@ -663,73 +769,73 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'matter-blade',
     name: 'Matter Blade',
-    description: 'Permanent +8% combat damage (rankable; extra ranks +45% of base).',
+    description: 'Permanent +8% combat damage (deep ranks; extra ranks +45% of base).',
     costPm: 3,
-    maxRank: 8,
+    maxRank: 25,
     damageBonus: 0.08,
   },
   {
     id: 'matter-forge',
     name: 'Matter Forge',
-    description: 'Permanent +12% base production (rankable).',
+    description: 'Permanent +12% base production (deep ranks).',
     costPm: 3,
-    maxRank: 8,
+    maxRank: 25,
     productionBonus: 0.12,
   },
   {
     id: 'matter-plating',
     name: 'Matter Plating',
-    description: 'Permanent +50 hull (rankable).',
+    description: 'Permanent +50 hull (deep ranks).',
     costPm: 4,
-    maxRank: 8,
+    maxRank: 25,
     hullBonus: 50,
   },
   {
     id: 'salvage-rights',
     name: 'Salvage Rights',
-    description: 'Permanent +25% scrap from combat clears (rankable).',
+    description: 'Permanent +25% scrap from combat clears (deep ranks).',
     costPm: 3,
-    maxRank: 10,
+    maxRank: 30,
     scrapBonus: 0.25,
   },
   {
     id: 'archive-spur',
     name: 'Archive Spur',
-    description: 'Permanent +2 Data on every sector clear (rankable).',
+    description: 'Permanent +2 Data on every sector clear (deep ranks).',
     costPm: 3,
-    maxRank: 10,
+    maxRank: 30,
     bonusDataPerClear: 2,
   },
   {
     id: 'drydock-boost',
     name: 'Drydock Boost',
-    description: 'Permanent faster hull / shield repair while Paused (rankable).',
+    description: 'Permanent faster hull / shield repair while Paused (deep ranks).',
     costPm: 4,
-    maxRank: 8,
+    maxRank: 25,
     repairMult: 0.6,
   },
   {
     id: 'shield-bank',
     name: 'Shield Bank',
-    description: 'Permanent +40 shield capacity on the flagship (rankable).',
+    description: 'Permanent +40 shield capacity on the flagship (deep ranks).',
     costPm: 4,
-    maxRank: 8,
+    maxRank: 25,
     shieldBonus: 40,
   },
   {
     id: 'drone-corps',
     name: 'Drone Corps Charter',
-    description: '+3 worker drones per rank (rankable).',
+    description: '+3 worker drones per rank (deep ranks).',
     costPm: 5,
-    maxRank: 6,
+    maxRank: 20,
     bonusWorkerDrones: 3,
   },
   {
     id: 'synapse-lattice',
     name: 'Synapse Lattice',
-    description: '+12% Core training speed per rank (rankable; extra ranks +45% of base).',
+    description: '+12% Core training speed per rank (deep ranks; extra ranks +45% of base).',
     costPm: 4,
-    maxRank: 8,
+    maxRank: 25,
     trainingBonus: 0.12,
   },
 ]
@@ -1542,6 +1648,7 @@ export function advanceFabProject(
     ]
   }
   state.base.fabProject = null
+  state.meta.lifetimeFabCrafts = (state.meta.lifetimeFabCrafts ?? 0) + 1
   log?.(`Fabrication complete: ${name} unlocked permanently.`)
   return true
 }
@@ -1651,10 +1758,22 @@ export type ShopBuyCheck =
 function matterRankGateReason(
   state: {
     prestige: { prestigeCount: number }
-    meta: { act1Cleared: boolean; highestSectorEver: number }
+    meta: { act1Cleared: boolean; highestSectorEver: number; ascensionCount?: number }
   },
   nextRank: number,
 ): string | null {
+  const ascensions = state.meta.ascensionCount ?? 0
+  if (nextRank >= 20) {
+    if (ascensions < 2) return 'Need 2 Ascensions for rank 20+'
+  }
+  if (nextRank >= 15) {
+    if (ascensions < 1) return 'Need 1 Ascension for rank 15+'
+  }
+  if (nextRank >= 10) {
+    if (!state.meta.act1Cleared && ascensions < 1 && state.prestige.prestigeCount < 8) {
+      return 'Need Act 1, 1 Ascension, or 8 prestiges for rank 10+'
+    }
+  }
   if (nextRank >= 7) {
     if (!state.meta.act1Cleared && state.prestige.prestigeCount < 5) {
       return 'Need Act 1 cleared or 5 prestiges for rank 7+'
@@ -1672,7 +1791,7 @@ export function canBuyMatterShop(
   state: {
     resources: { prestigeMatter: number }
     prestige: { prestigeCount: number; matterShop: Record<string, number> }
-    meta: { act1Cleared: boolean; highestSectorEver: number }
+    meta: { act1Cleared: boolean; highestSectorEver: number; ascensionCount?: number }
   },
   itemId: string,
 ): ShopBuyCheck {
@@ -2244,6 +2363,46 @@ export function aiDoctrinesActive(
 ): boolean {
   if (state.prestige.activeChallengeId === 'no-ai') return false
   return state.ai.purchased.includes(nodeId)
+}
+
+/** Highest owned combat-speed multiplier (1 = real-time). Combat path only. */
+export function combatSpeedMultiplier(state: {
+  prestige: { activeChallengeId: string | null }
+  ai: { purchased: string[] }
+}): number {
+  if (state.prestige.activeChallengeId === 'no-ai') return 1
+  let best = 1
+  for (const id of state.ai.purchased) {
+    const m = getAiNode(id)?.combatSpeedMult
+    if (m != null && m > best) best = m
+  }
+  return best
+}
+
+/** Additive station production from AI (non-combat). */
+export function aiProductionBonus(state: {
+  prestige: { activeChallengeId: string | null }
+  ai: { purchased: string[] }
+}): number {
+  if (state.prestige.activeChallengeId === 'no-ai') return 0
+  let bonus = 0
+  for (const id of state.ai.purchased) {
+    bonus += getAiNode(id)?.productionBonus ?? 0
+  }
+  return bonus
+}
+
+/** Additive Fab Bay craft speed from AI (non-combat). */
+export function aiFabBonus(state: {
+  prestige: { activeChallengeId: string | null }
+  ai: { purchased: string[] }
+}): number {
+  if (state.prestige.activeChallengeId === 'no-ai') return 0
+  let bonus = 0
+  for (const id of state.ai.purchased) {
+    bonus += getAiNode(id)?.fabBonus ?? 0
+  }
+  return bonus
 }
 
 /** True when an active challenge forbids fitting this module. */

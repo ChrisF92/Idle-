@@ -9,6 +9,7 @@ import type {
   SignalCoreSlotType,
   SignalCorePassive,
 } from './types'
+import { tryCompleteAchievements } from './progression'
 
 export const SIGNAL_SLOT_TYPES: SignalCoreSlotType[] = ['assault', 'ward', 'signal']
 
@@ -352,6 +353,8 @@ export function mergeSignalCores(
   const consume = new Set(matches.slice(0, SIGNAL_CORE_MERGE_COUNT).map((c) => c.uid))
   sc.inventory = sc.inventory.filter((c) => !consume.has(c.uid))
   sc.inventory.push(makeSignalCoreInstance(defId, rank + 1))
+  next.meta.lifetimeCoreMerges = (next.meta.lifetimeCoreMerges ?? 0) + 1
+  tryCompleteAchievements(next)
   return next
 }
 

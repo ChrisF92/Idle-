@@ -1,8 +1,11 @@
 import { useId, useState } from 'react'
 import type { GameState } from '../../game/types'
-import { AI_NODES, isAiNodePermanent } from '../../game/catalog'
+import { AI_NODES, getAiNode, isAiNodePermanent } from '../../game/catalog'
 import {
   ACHIEVEMENTS,
+  achievementCompletions,
+  achievementNextThreshold,
+  achievementProgressValue,
   careerHighestSector,
   isAchievementUnlocked,
 } from '../../game/progression'
@@ -24,7 +27,7 @@ export function AiTab({ state, onBuy }: AiTabProps) {
     <section className="panel">
       <header className="panel-header">
         <h2>AI Network</h2>
-        <p>Spend AI Points on automation and doctrines.</p>
+        <p>Spend AI Points on automation, combat speed, and doctrines.</p>
       </header>
 
       <div className="ai-toolbar">
@@ -89,19 +92,37 @@ function AchievementsModal({
           </button>
         </header>
         <p className="muted">
-          Each unlock grants AI Points once. Progress is permanent across prestige.
+          One-offs grant AI once. Repeatables keep paying as you grind — the long AIP sink for
+          combat Chrono and deep automation.
         </p>
         <ul className="def-list">
           {ACHIEVEMENTS.map((def) => {
             const done = isAchievementUnlocked(state, def.id)
+            const tiers = achievementCompletions(state, def.id)
+            const next = achievementNextThreshold(state, def)
+            const progress = achievementProgressValue(state, def.condition)
             return (
               <li key={def.id}>
                 <div>
                   <strong>{def.name}</strong>
                   <p className="muted">{def.description}</p>
+                  {def.repeatable ? (
+                    <p className="muted">
+                      Progress {progress}/{next}
+                      {tiers > 0 ? ` · claimed ×${tiers}` : ''}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="action-col">
-                  <span className="badge">{done ? 'Done' : `+${def.rewardAiPoints} AI`}</span>
+                  <span className="badge">
+                    {def.repeatable
+                      ? done
+                        ? `×${tiers} · +${def.rewardAiPoints}`
+                        : `+${def.rewardAiPoints} AI`
+                      : done
+                        ? 'Done'
+                        : `+${def.rewardAiPoints} AI`}
+                  </span>
                 </div>
               </li>
             )
@@ -134,10 +155,16 @@ function NodeList({
       {nodes.map((node) => {
         const owned = state.ai.purchased.includes(node.id)
         const gated = (node.requiresSectorEver ?? 0) > ever
+        const prereqMissing =
+          !!node.requiresAiNode && !state.ai.purchased.includes(node.requiresAiNode)
+        const prereqName = node.requiresAiNode
+          ? getAiNode(node.requiresAiNode)?.name ?? node.requiresAiNode
+          : null
         const canBuy =
           !owned &&
           !challengeBlocks &&
           !gated &&
+          !prereqMissing &&
           state.resources.aiPoints >= node.costAiPoints
         const permanent = isAiNodePermanent(node)
         return (
@@ -147,13 +174,15 @@ function NodeList({
               <p className="muted">{node.description}</p>
               {gated ? (
                 <p className="notice-warn">Clear sector {node.requiresSectorEver}.</p>
+              ) : prereqMissing ? (
+                <p className="notice-warn">Requires {prereqName}.</p>
               ) : (
                 <p className="muted">{permanent ? 'Permanent' : 'Per run'}</p>
               )}
             </div>
             <div className="action-col">
               <span className="badge">
-                {owned ? 'Active' : gated ? 'Gated' : `${node.costAiPoints} AI`}
+                {owned ? 'Active' : gated || prereqMissing ? 'Gated' : `${node.costAiPoints} AI`}
               </span>
               <button type="button" disabled={!canBuy} onClick={() => onBuy(node.id)}>
                 {owned ? 'Owned' : 'Buy'}

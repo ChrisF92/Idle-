@@ -52,7 +52,11 @@ import {
   syncPersistedHullCaps,
 } from './state'
 import { buildPlayerFleet } from './combat'
-import { careerHighestSector, tryCompleteAchievements } from './progression'
+import {
+  ACT1_FINAL_SECTOR,
+  careerHighestSector,
+  tryCompleteAchievements,
+} from './progression'
 import {
   createEmptySignalCoresState,
   unequipAllSignalCores,
@@ -187,6 +191,9 @@ export function buyAiNode(state: GameState, nodeId: string): GameState {
   if (state.resources.aiPoints < def.costAiPoints) return state
   if (state.prestige.activeChallengeId === 'no-ai') return state
   if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
+  if (def.requiresAiNode && !state.ai.purchased.includes(def.requiresAiNode)) {
+    return state
+  }
 
   const next = structuredClone(state)
   next.resources.aiPoints -= def.costAiPoints
@@ -490,12 +497,24 @@ export function unfitModule(state: GameState, moduleId: string): GameState {
 
 export function prestigeGainFor(state: GameState): number {
   // +1 softens the 5-wave re-push so first S8 prestige yields 5 PM (was 4).
-  return Math.max(1, Math.floor(state.combat.sector / 2) + state.prestige.prestigeCount + 1)
+  const base = Math.max(
+    1,
+    Math.floor(state.combat.sector / 2) + state.prestige.prestigeCount + 1,
+  )
+  const ascensions = state.meta.ascensionCount ?? 0
+  return Math.max(1, Math.floor(base * (1 + 0.35 * ascensions)))
 }
 
 export function canPrestige(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return false
   return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
+}
+
+/** Ascension unlocks after Act 1; soft-resets the run and boosts future PM gains. */
+export function canAscend(state: GameState): boolean {
+  if (state.prestige.activeChallengeId) return false
+  if (!state.meta.act1Cleared) return false
+  return state.combat.sector >= ACT1_FINAL_SECTOR
 }
 
 export function canEnterChallenge(state: GameState, challengeId: string): boolean {
@@ -624,6 +643,12 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     permanentAi,
     meta: {
       ...state.meta,
+      ascensionCount: state.meta.ascensionCount ?? 0,
+      achievementCompletions: { ...(state.meta.achievementCompletions ?? {}) },
+      lifetimeSectorClears: state.meta.lifetimeSectorClears ?? 0,
+      lifetimeFabCrafts: state.meta.lifetimeFabCrafts ?? 0,
+      lifetimeCoreMerges: state.meta.lifetimeCoreMerges ?? 0,
+      lifetimeWaveClears: state.meta.lifetimeWaveClears ?? 0,
       discoveredModules: [...(state.meta.discoveredModules ?? [])],
       moduleMastery: { ...(state.meta.moduleMastery ?? {}) },
       signalCoresCarryOver: state.meta.signalCoresCarryOver ?? false,
@@ -721,6 +746,26 @@ export function performPrestige(state: GameState, now = Date.now()): GameState {
   return next
 }
 
+export function performAscension(state: GameState, now = Date.now()): GameState {
+  if (!canAscend(state)) return state
+  const next = structuredClone(state)
+  const gain = Math.max(1, Math.floor(prestigeGainFor(next) * 0.5))
+  next.resources.prestigeMatter += gain
+  next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
+  next.prestige.activeChallengeId = null
+  applyRunReset(next, now)
+  tryCompleteAchievements(next)
+  next.combat.log = [
+    `Ascended (×${next.meta.ascensionCount}). +${gain} PM. Future prestige gains +${(
+      0.35 *
+      next.meta.ascensionCount *
+      100
+    ).toFixed(0)}%.`,
+    ...next.combat.log,
+  ]
+  return next
+}
+
 export function enterChallenge(
   state: GameState,
   challengeId: string,
@@ -791,6 +836,7 @@ export function tryCompleteChallenge(state: GameState): void {
       ...state.combat.log,
     ]
   }
+  tryCompleteAchievements(state)
   state.combat.log = [
     `Challenge complete: ${challenge.name} (${nextClears}/${maxClears}). +${challenge.rewardChallengePoints} Challenge Points.`,
     ...state.combat.log,

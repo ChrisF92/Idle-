@@ -10,6 +10,8 @@ import {
   WORKER_MANUFACTURE_SECONDS,
   advanceFabProject,
   aiDoctrinesActive,
+  aiFabBonus,
+  aiProductionBonus,
   challengeShopOfflineMs,
   essenceOfflineEssenceMultiplier,
   essenceProductionMultiplier,
@@ -73,6 +75,7 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     ) *
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
+    (1 + aiProductionBonus(state)) *
     (1 + computeSignalCoreBonuses(state).production)
 
   for (const station of STATIONS) {
@@ -114,7 +117,9 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     (line) => {
       state.combat.log = [line, ...state.combat.log].slice(0, 40)
     },
-    logisticsFabMult(state) * (1 + computeSignalCoreBonuses(state).fab),
+    logisticsFabMult(state) *
+      (1 + computeSignalCoreBonuses(state).fab) *
+      (1 + aiFabBonus(state)),
   )
   tickCoreTraining(state, seconds)
 }

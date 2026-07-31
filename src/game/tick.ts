@@ -10,6 +10,9 @@ import {
   WORKER_MANUFACTURE_SECONDS,
   advanceFabProject,
   aiDoctrinesActive,
+  aiFabBonus,
+  aiProductionBonus,
+  combatSpeedMultiplier,
   essenceBonusDataPerClear,
   essenceBossEssenceMultiplier,
   essenceProductionMultiplier,
@@ -21,6 +24,7 @@ import {
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
 } from './catalog'
+import { tickAutomation } from './automation'
 import {
   logisticsFabMult,
   logisticsProdMult,
@@ -32,6 +36,7 @@ import {
   WAVES_PER_SECTOR,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
+  tryCompleteAchievements,
 } from './progression'
 import {
   buildPlayerFleet,
@@ -97,6 +102,7 @@ function productionMeta(state: GameState): number {
     ) *
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
+    (1 + aiProductionBonus(state)) *
     (1 + computeSignalCoreBonuses(state).production)
   )
 }
@@ -145,7 +151,9 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     state,
     dtSeconds,
     (line) => pushLog(state, line),
-    logisticsFabMult(state) * (1 + computeSignalCoreBonuses(state).fab),
+    logisticsFabMult(state) *
+      (1 + computeSignalCoreBonuses(state).fab) *
+      (1 + aiFabBonus(state)),
   )
   tickCoreTraining(state, dtSeconds)
 }
@@ -250,6 +258,7 @@ function onFightWon(state: GameState): void {
   const clearedSector = state.combat.sector
   const clearedWave = state.combat.wave
   const wasBoss = state.combat.isBoss
+  state.meta.lifetimeWaveClears = (state.meta.lifetimeWaveClears ?? 0) + 1
 
   persistFlagshipHull(state)
   if (state.prestige.activeChallengeId !== 'attrition') {
@@ -282,6 +291,7 @@ function onFightWon(state: GameState): void {
 
   grantSectorClearRewards(state, clearedSector, wasBoss)
   state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
+  state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
   maybeGrantSystemUnlocks(state)
 
   if (state.combat.campaign) {
@@ -491,17 +501,22 @@ export function warpToSector(state: GameState, sector: number): GameState {
 /** Advance continuous simulation by `seconds` of game time (mutates). */
 export function advanceSeconds(state: GameState, seconds: number): void {
   let left = Math.max(0, seconds)
+  const combatSpeed = combatSpeedMultiplier(state)
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)
+    // Industry / fab / training always use real dt.
     applyProduction(state, dt)
     if (state.combat.inFight) {
-      tickCombat(state, dt)
+      // Combat Chrono only accelerates the fight sim.
+      tickCombat(state, dt * combatSpeed)
     } else {
       tickOutOfCombatRepair(state, dt)
       maybeAutoEngage(state)
     }
     left -= dt
   }
+  tickAutomation(state)
+  tryCompleteAchievements(state)
 }
 
 /**

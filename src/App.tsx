@@ -138,6 +138,7 @@ export default function App() {
           <PrestigeTab
             state={game.state}
             onPrestige={game.prestige}
+            onAscend={game.ascend}
             onEnterChallenge={game.enterChallenge}
             onAbandonChallenge={game.abandonChallenge}
             onBuyShop={game.buyChallengeShop}

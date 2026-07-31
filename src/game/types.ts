@@ -295,12 +295,24 @@ export interface MetaState {
   highestSectorEver: number
   /** Soft Act 1 climax reached (sector 30). */
   act1Cleared: boolean
+  /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
+  ascensionCount: number
   /** Onboarding tip ids already shown. */
   seenOnboarding: string[]
   /** AI Network unlocked (first achievement). */
   aiUnlocked: boolean
-  /** Completed achievement ids (permanent). */
+  /** Completed achievement ids (permanent; repeatables mark once on first tier). */
   completedAchievements: string[]
+  /** Repeatable achievement completion counts (id → tiers claimed). */
+  achievementCompletions: Record<string, number>
+  /** Lifetime sector clears (for repeatable achievements). */
+  lifetimeSectorClears: number
+  /** Lifetime Fabrication Bay crafts. */
+  lifetimeFabCrafts: number
+  /** Lifetime Signal Core merges. */
+  lifetimeCoreMerges: number
+  /** Lifetime waves cleared (any wave victory). */
+  lifetimeWaveClears: number
   /** Modules with at least one blueprint fragment recovered (permanent). */
   discoveredModules: string[]
   /** Permanent mastery ranks from investing excess parts (cap 10). */

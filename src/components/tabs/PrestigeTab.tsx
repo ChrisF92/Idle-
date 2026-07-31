@@ -17,6 +17,7 @@ import {
 } from '../../game/catalog'
 import { RESOURCE_LABELS } from '../../game/state'
 import {
+  canAscend,
   canEnterChallenge,
   canPrestige,
   prestigeGainFor,
@@ -25,6 +26,7 @@ import {
 interface PrestigeTabProps {
   state: GameState
   onPrestige: () => void
+  onAscend: () => void
   onEnterChallenge: (challengeId: string) => void
   onAbandonChallenge: () => void
   onBuyShop: (itemId: string) => void
@@ -34,14 +36,17 @@ interface PrestigeTabProps {
 export function PrestigeTab({
   state,
   onPrestige,
+  onAscend,
   onEnterChallenge,
   onAbandonChallenge,
   onBuyShop,
   onBuyMatterShop,
 }: PrestigeTabProps) {
-  const { prestige, resources, combat } = state
+  const { prestige, resources, combat, meta } = state
   const gain = prestigeGainFor(state)
   const prestigeReady = canPrestige(state)
+  const ascendReady = canAscend(state)
+  const ascensions = meta.ascensionCount ?? 0
   const minSector = prestigeMinSectorFor(prestige.shop)
   const active = prestige.activeChallengeId
     ? CHALLENGES.find((c) => c.id === prestige.activeChallengeId)
@@ -51,13 +56,17 @@ export function PrestigeTab({
     <section className="panel">
       <header className="panel-header">
         <h2>Prestige</h2>
-        <p>Soft reset for Matter & Challenge Points. Shops are permanent.</p>
+        <p>Soft reset for Matter & Challenge Points. Shops are permanent. Deep ranks + Ascension keep the sink endless.</p>
       </header>
 
       <div className="stat-row">
         <div>
           <span className="muted">Prestiges</span>
           <strong>{prestige.prestigeCount}</strong>
+        </div>
+        <div>
+          <span className="muted">Ascensions</span>
+          <strong>{ascensions}</strong>
         </div>
         <div>
           <span className="muted">{RESOURCE_LABELS.prestigeMatter}</span>
@@ -88,6 +97,7 @@ export function PrestigeTab({
         <div className="stack">
           <p className="muted">
             Next: <strong>+{gain}</strong> PM
+            {ascensions > 0 ? ` · Ascension +${(ascensions * 35).toFixed(0)}%` : ''}
             {!prestigeReady ? ` · need sector ${minSector}+` : ''}
           </p>
           <button
@@ -99,6 +109,22 @@ export function PrestigeTab({
           >
             Prestige
           </button>
+          {meta.act1Cleared ? (
+            <>
+              <p className="muted">
+                Ascension soft-resets the run and permanently boosts future PM gains
+                (+35% each). Unlocks deep Matter shop ranks. Need sector 30+.
+              </p>
+              <button
+                type="button"
+                disabled={!ascendReady}
+                title={!ascendReady ? 'Need sector 30+ after Act 1' : undefined}
+                onClick={onAscend}
+              >
+                Ascend
+              </button>
+            </>
+          ) : null}
         </div>
       )}
 

@@ -211,12 +211,29 @@ function withMetaDefaults(
   highestSector: number,
 ): GameState['meta'] {
   const completed = meta?.completedAchievements ?? []
+  const completions: Record<string, number> = {}
+  if (meta?.achievementCompletions && typeof meta.achievementCompletions === 'object') {
+    for (const [id, n] of Object.entries(meta.achievementCompletions)) {
+      const v = Math.floor(Number(n))
+      if (v > 0) completions[id] = v
+    }
+  }
+  // Backfill one-off completions for older saves.
+  for (const id of completed) {
+    if (completions[id] == null) completions[id] = 1
+  }
   return {
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
     act1Cleared: meta?.act1Cleared ?? false,
+    ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
     aiUnlocked: meta?.aiUnlocked ?? completed.length > 0,
     completedAchievements: completed,
+    achievementCompletions: completions,
+    lifetimeSectorClears: Math.max(0, Math.floor(Number(meta?.lifetimeSectorClears ?? 0))),
+    lifetimeFabCrafts: Math.max(0, Math.floor(Number(meta?.lifetimeFabCrafts ?? 0))),
+    lifetimeCoreMerges: Math.max(0, Math.floor(Number(meta?.lifetimeCoreMerges ?? 0))),
+    lifetimeWaveClears: Math.max(0, Math.floor(Number(meta?.lifetimeWaveClears ?? 0))),
     discoveredModules: [...(meta?.discoveredModules ?? [])],
     moduleMastery: { ...(meta?.moduleMastery ?? {}) },
     signalCoresCarryOver: meta?.signalCoresCarryOver ?? false,
@@ -334,7 +351,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 13 ||
     parsed.version === 14 ||
     parsed.version === 15 ||
-    parsed.version === 16
+    parsed.version === 16 ||
+    parsed.version === 17
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
@@ -346,7 +364,8 @@ function migrate(raw: unknown): GameState | null {
       parsed.version === 11 ||
       parsed.version === 14 ||
       parsed.version === 15 ||
-      parsed.version === 16
+      parsed.version === 16 ||
+      parsed.version === 17
         ? Math.max(0, prev.combat?.highestSector ?? 0)
         : Math.max(0, oldHighest - 1)
     const combat = withCombatDefaults({

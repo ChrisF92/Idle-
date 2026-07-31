@@ -28,7 +28,7 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 
-export const SAVE_VERSION = 17
+export const SAVE_VERSION = 18
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -120,9 +120,15 @@ export function createInitialState(now = Date.now()): GameState {
     meta: {
       highestSectorEver: 0,
       act1Cleared: false,
+      ascensionCount: 0,
       seenOnboarding: [],
       aiUnlocked: false,
       completedAchievements: [],
+      achievementCompletions: {},
+      lifetimeSectorClears: 0,
+      lifetimeFabCrafts: 0,
+      lifetimeCoreMerges: 0,
+      lifetimeWaveClears: 0,
       discoveredModules: [],
       moduleMastery: {},
       signalCoresCarryOver: false,
