@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialState } from './state'
+import { buildFlagshipWeapons, createInitialState } from './state'
 import { startCombat, advanceTicks } from './tick'
 import {
   computeFightDamage,
@@ -68,6 +68,17 @@ describe('role matchups', () => {
     state.shipyard.modules = [...state.shipyard.modules, 'plate-layer']
     const platedIncoming = computeFightDamage(state).enemyDps
     expect(platedIncoming).toBeLessThan(nakedIncoming)
+  })
+})
+
+describe('starter reach', () => {
+  it('starter weapons can hit sector 3 ethereal engage range', () => {
+    const state = createInitialState(0)
+    const maxRange = Math.max(...buildFlagshipWeapons(state).map((w) => w.range))
+    const ethereal = enemyForSector(3)
+    const maxEngage = Math.max(...ethereal.units.map((u) => u.engageRange))
+    expect(ethereal.family).toBe('ethereal')
+    expect(maxRange).toBeGreaterThanOrEqual(maxEngage)
   })
 })
 

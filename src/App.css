@@ -75,6 +75,20 @@
   font-size: 0.95rem;
 }
 
+.resource-rate {
+  color: var(--ok);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+}
+
+.resource-rate-neg {
+  color: var(--danger);
+}
+
+.resource-rate-idle {
+  color: var(--muted);
+}
+
 .tab-nav {
   display: flex;
   gap: 0.35rem;

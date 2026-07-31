@@ -28,7 +28,7 @@ export const RESOURCE_LABELS: Record<keyof Resources, string> = {
 }
 
 export function createInitialState(now = Date.now()): GameState {
-  const hullMax = 100
+  const hullMax = getFrame('scout-frame')?.baseHull ?? 130
   return {
     version: SAVE_VERSION,
     lastTickAt: now,
@@ -125,7 +125,8 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       damage: frame.baseDamage * mult,
       cooldown: 1,
       cooldownLeft: 0,
-      range: 90,
+      // Must reach early kite packs (Ethereal ~110, Divine core ~105).
+      range: 120,
       tags: ['kinetic'],
       splash: 0,
       dotDuration: 0,

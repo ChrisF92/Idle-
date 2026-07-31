@@ -207,9 +207,9 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family,
-          hull: 18 * scale,
-          damage: 3.2 * scale,
-          cooldown: 0.9,
+          hull: 16 * scale,
+          damage: 2.6 * scale,
+          cooldown: 0.95,
           range: 42,
           speed: 38,
           engageRange: 36,
@@ -225,10 +225,10 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family,
-          hull: 55 * scale,
-          armor: 4 + Math.floor(sector / 5),
-          damage: 6 * scale,
-          cooldown: 1.3,
+          hull: 48 * scale,
+          armor: 3 + Math.floor(sector / 5),
+          damage: 5 * scale,
+          cooldown: 1.35,
           range: 75,
           speed: 16,
           engageRange: 70,
@@ -239,22 +239,24 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
       )
     }
     case 'ethereal': {
-      return Array.from({ length: 3 }, (_, i) =>
+      // Keep engage inside starter weapon reach (~120–125).
+      const count = sector <= 3 ? 2 : 3
+      return Array.from({ length: count }, (_, i) =>
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family,
-          hull: 32 * scale,
-          shield: 20 * scale,
-          evasion: 0.12,
-          damage: 5 * scale,
-          cooldown: 1.1,
+          hull: 28 * scale,
+          shield: 14 * scale,
+          evasion: 0.1,
+          damage: 3.6 * scale,
+          cooldown: 1.15,
           range: 120,
           speed: 24,
-          engageRange: 110,
+          engageRange: 100,
           kite: true,
           tags: ['energy'],
           x: SPAWN_DISTANCE + i * 10,
-          y: packY(i, 3),
+          y: packY(i, count),
         }),
       )
     }
@@ -263,13 +265,13 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
         makeEnemyUnit({
           name: `${name} Core`,
           family,
-          hull: 45 * scale,
-          shield: 15 * scale,
-          damage: 7 * scale,
-          cooldown: 1.2,
+          hull: 40 * scale,
+          shield: 12 * scale,
+          damage: 5.5 * scale,
+          cooldown: 1.25,
           range: 115,
           speed: 14,
-          engageRange: 105,
+          engageRange: 100,
           kite: true,
           tags: ['energy'],
           x: SPAWN_DISTANCE,
@@ -278,9 +280,9 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
         makeEnemyUnit({
           name: `${name} Attendant`,
           family,
-          hull: 28 * scale,
+          hull: 24 * scale,
           evasion: 0.08,
-          damage: 4.5 * scale,
+          damage: 3.8 * scale,
           cooldown: 1,
           range: 60,
           speed: 28,
@@ -292,9 +294,9 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
         makeEnemyUnit({
           name: `${name} Attendant`,
           family,
-          hull: 28 * scale,
+          hull: 24 * scale,
           evasion: 0.08,
-          damage: 4.5 * scale,
+          damage: 3.8 * scale,
           cooldown: 1,
           range: 60,
           speed: 28,
@@ -321,18 +323,18 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
 }
 
 function buildBossPack(sector: number, name: string): CombatUnit[] {
-  const scale = 1 + (sector - 1) * 0.14
+  const scale = 1 + (sector - 1) * 0.1
   const titan = makeEnemyUnit({
     name: `${name} (Boss)`,
     family: 'titan',
-    hull: 220 * scale,
-    armor: 3,
-    shield: 40 * scale,
-    damage: 11 * scale,
-    cooldown: 1.1,
-    range: 130,
+    hull: 130 * scale,
+    armor: 2,
+    shield: 20 * scale,
+    damage: 6.5 * scale,
+    cooldown: 1.2,
+    range: 120,
     speed: 10,
-    engageRange: 115,
+    engageRange: 100,
     kite: true,
     tags: ['kinetic'],
     isBoss: true,
@@ -344,8 +346,8 @@ function buildBossPack(sector: number, name: string): CombatUnit[] {
     makeEnemyUnit({
       name: 'Thrall',
       family: 'swarm',
-      hull: 30 * scale,
-      damage: 4 * scale,
+      hull: 18 * scale,
+      damage: 2.8 * scale,
       cooldown: 1,
       range: 40,
       speed: 36,
@@ -356,8 +358,8 @@ function buildBossPack(sector: number, name: string): CombatUnit[] {
     makeEnemyUnit({
       name: 'Thrall',
       family: 'swarm',
-      hull: 30 * scale,
-      damage: 4 * scale,
+      hull: 18 * scale,
+      damage: 2.8 * scale,
       cooldown: 1,
       range: 40,
       speed: 36,

@@ -69,13 +69,18 @@ function persistFlagshipHull(state: GameState): void {
   }
 }
 
-function applyProduction(state: GameState, dtSeconds: number): void {
-  const meta =
+function productionMeta(state: GameState): number {
+  return (
     metaProductionMultiplier(
       state.resources.prestigeMatter,
       state.prestige.matterShop,
       state.prestige.challengeClears,
     ) * essenceProductionMultiplier(state.essence.purchased)
+  )
+}
+
+function applyProduction(state: GameState, dtSeconds: number): void {
+  const meta = productionMeta(state)
 
   for (const building of BUILDINGS) {
     const level = state.base.buildings[building.id] ?? 0
@@ -100,6 +105,40 @@ function applyProduction(state: GameState, dtSeconds: number): void {
       state.resources[key] += (perLevel ?? 0) * level * dtSeconds * meta
     }
   }
+}
+
+/** Net industry rates (units / second). Combat drops are not included. */
+export function computeResourceRates(state: GameState): Partial<Resources> {
+  const meta = productionMeta(state)
+  const rates: Partial<Resources> = {}
+  const add = (key: keyof Resources, amount: number) => {
+    rates[key] = (rates[key] ?? 0) + amount
+  }
+
+  for (const building of BUILDINGS) {
+    const level = state.base.buildings[building.id] ?? 0
+    if (level <= 0) continue
+
+    if (building.upkeepScrapPerLevel) {
+      const upkeep = building.upkeepScrapPerLevel * level
+      // UI assumes sustained upkeep while scrap stockpile exists.
+      const efficiency = state.resources.scrap > 0 || upkeep <= 0 ? 1 : 0
+      add('scrap', -upkeep * efficiency)
+      for (const [resource, perLevel] of Object.entries(building.rates)) {
+        add(
+          resource as keyof Resources,
+          (perLevel ?? 0) * level * efficiency * meta,
+        )
+      }
+      continue
+    }
+
+    for (const [resource, perLevel] of Object.entries(building.rates)) {
+      add(resource as keyof Resources, (perLevel ?? 0) * level * meta)
+    }
+  }
+
+  return rates
 }
 
 /** Death / retreat: warp to previous sector start with full hull. */
@@ -141,6 +180,18 @@ function onFightWon(state: GameState): void {
   state.resources.salvage += salvageGain
 
   persistFlagshipHull(state)
+  // Modest clear heal — not out-of-fight repair — so Advance can push without
+  // arriving at bosses on fumes.
+  const missingHull = state.combat.playerHullMax - state.combat.playerHull
+  const missingShield = state.combat.playerShieldMax - state.combat.playerShield
+  state.combat.playerHull = Math.min(
+    state.combat.playerHullMax,
+    state.combat.playerHull + missingHull * 0.4,
+  )
+  state.combat.playerShield = Math.min(
+    state.combat.playerShieldMax,
+    state.combat.playerShield + missingShield * 0.4,
+  )
   clearEnemy(state)
   state.combat.consecutiveLosses = 0
 

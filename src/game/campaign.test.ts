@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { advanceTicks, setCampaign, startCombat, warpToSector } from './tick'
 import { maybeAdvanceBossPhase } from './combat'
+import { canPrestige } from './actions'
 
 describe('campaign combat', () => {
   it('Hold farms the same sector after a clear', () => {
@@ -29,7 +30,7 @@ describe('campaign combat', () => {
     expect(state.combat.highestSector).toBe(1)
   })
 
-  it('does not repair hull between fights', () => {
+  it('applies only a partial clear heal (no full repair)', () => {
     let state = createInitialState(0)
     state = setCampaign(state, false)
     state = startCombat(state)
@@ -37,9 +38,11 @@ describe('campaign combat', () => {
     flag.hull = 40
     for (const e of state.combat.enemyUnits) e.hull = 0
     advanceTicks(state, 1)
-    expect(state.combat.playerHull).toBe(40)
+    // 40 + 40% of missing (max 130 → missing 90 → +36) = 76
+    expect(state.combat.playerHull).toBeGreaterThan(40)
+    expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
     const nextFlag = state.combat.playerUnits.find((u) => u.isFlagship)
-    expect(nextFlag?.hull).toBe(40)
+    expect(nextFlag?.hull).toBe(state.combat.playerHull)
   })
 
   it('warps to previous sector with full hull on death', () => {
@@ -90,6 +93,13 @@ describe('campaign combat', () => {
     advanceTicks(state, 1)
     expect(state.combat.sector).toBe(2)
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
+  })
+
+  it('reaches prestige sector on Advance with starter loadout', () => {
+    const state = createInitialState(0)
+    advanceTicks(state, 420)
+    expect(state.combat.highestSector).toBeGreaterThanOrEqual(5)
+    expect(canPrestige(state)).toBe(true)
   })
 
   it('grants salvage on clear', () => {

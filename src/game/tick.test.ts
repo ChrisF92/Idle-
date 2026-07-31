@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
-import { advanceTicks, startCombat, tickGame } from './tick'
+import { advanceTicks, computeResourceRates, startCombat, tickGame } from './tick'
 import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
 import { exportSave, importSave } from './save'
 import {
@@ -32,7 +32,8 @@ describe('tickGame', () => {
     expect(next.lastTickAt).toBe(60_000)
     const gained = next.resources.scrap - start.resources.scrap
     expect(gained).toBeGreaterThan(0)
-    expect(gained).toBeLessThan(5)
+    // Industry + at most a quick clear reward — far less than a full minute offline
+    expect(gained).toBeLessThan(40)
   })
 
   it('campaign auto-engages the next fight', () => {
@@ -174,6 +175,13 @@ describe('purchases', () => {
     advanceTicks(state, 10)
     expect(state.resources.scrap).toBeGreaterThan(scrapBefore)
     expect(state.resources.data).toBeGreaterThan(dataBefore)
+  })
+
+  it('reports industry resource rates per second', () => {
+    const state = createInitialState(0)
+    const rates = computeResourceRates(state)
+    expect(rates.scrap).toBeGreaterThan(0)
+    expect(rates.energy).toBeGreaterThan(0)
   })
 
   it('buys research and AI nodes', () => {

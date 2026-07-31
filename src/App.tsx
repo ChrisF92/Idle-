@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
+import { computeResourceRates } from './game/tick'
 import { ResourceBar } from './components/ResourceBar'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -17,6 +18,7 @@ import './App.css'
 export default function App() {
   const game = useGame()
   const [tab, setTab] = useState<TabId>('combat')
+  const rates = useMemo(() => computeResourceRates(game.state), [game.state])
 
   return (
     <div className="app">
@@ -34,7 +36,7 @@ export default function App() {
         />
       ) : null}
 
-      <ResourceBar resources={game.state.resources} />
+      <ResourceBar resources={game.state.resources} rates={rates} />
       <TabNav active={tab} onChange={setTab} />
 
       <main className="main">

@@ -135,7 +135,8 @@ export interface ShipModuleDef {
   unlockCost: ResourceCost
 }
 
-export const PRESTIGE_MIN_SECTOR = 8
+/** First prestige is meant to be reachable on a starter loadout with light upgrades. */
+export const PRESTIGE_MIN_SECTOR = 6
 
 export const BUILDINGS: BuildingDef[] = [
   {
@@ -307,9 +308,9 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'early-gate',
     name: 'Early Gate',
-    description: 'Prestige / enter challenges from sector 6.',
+    description: 'Prestige / enter challenges from sector 5.',
     costCp: 1,
-    prestigeMinSector: 6,
+    prestigeMinSector: 5,
   },
   {
     id: 'supply-cache',
@@ -426,8 +427,8 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     id: 'scout-frame',
     name: 'Scout Frame',
     slots: 2,
-    baseDamage: 10,
-    baseHull: 100,
+    baseDamage: 12,
+    baseHull: 130,
     unlockCost: {},
   },
   {
@@ -445,15 +446,15 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'pulse-cannon',
     name: 'Pulse Cannon',
     role: 'weapon',
-    description: 'Steady mid-range kinetic pulses. Stronger vs Armored.',
+    description: 'Steady kinetic pulses with enough reach for early kite packs.',
     damageBonus: 4,
     hullBonus: 0,
     damageTakenMult: 1,
     weapon: {
       name: 'Pulse',
-      damage: 14,
+      damage: 18,
       cooldown: 1,
-      range: 95,
+      range: 125,
       tags: ['kinetic'],
     },
     unlockCost: {},
@@ -462,12 +463,12 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'plate-layer',
     name: 'Plate Layer',
     role: 'defense',
-    description: '+35 hull, +3 armor. Blunts Swarm / Boss chip.',
+    description: '+40 hull, +3 armor. Blunts Swarm / Boss chip.',
     damageBonus: 0,
-    hullBonus: 35,
+    hullBonus: 40,
     armorBonus: 3,
     damageTakenMult: 1,
-    unlockCost: { scrap: 20, alloys: 8 },
+    unlockCost: { scrap: 15, alloys: 5 },
   },
   {
     id: 'vector-thruster',
