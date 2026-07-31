@@ -50,12 +50,8 @@ export function PrestigeTab({
   return (
     <section className="panel">
       <header className="panel-header">
-        <h2>Prestige & Challenges</h2>
-        <p>
-          Soft reset at sector {minSector}+. Prestige Matter and Challenge Points buy permanent
-          second-act power — shop ranks usually beat banking for a focused path. Blueprint parts,
-          discoveries, fabricated modules, and mastery ranks survive prestige.
-        </p>
+        <h2>Prestige</h2>
+        <p>Soft reset for Matter & Challenge Points. Shops are permanent.</p>
       </header>
 
       <div className="stat-row">
@@ -72,32 +68,27 @@ export function PrestigeTab({
           <strong>{resources.challengePoints.toFixed(0)}</strong>
         </div>
         <div>
-          <span className="muted">Current sector</span>
+          <span className="muted">Sector</span>
           <strong>{combat.sector}</strong>
         </div>
       </div>
 
-      <p className="muted">
-        Banked PM: +0.5% damage & production each. Banked CP: +1% damage each. After your first
-        prestige, challenges and Matter shop ranks define the climb. No respec.
-      </p>
-
       {active ? (
         <div className="notice-box">
           <p>
-            Active challenge: <strong>{active.name}</strong> — reach sector {active.goalSector}{' '}
-            (cleared {combat.highestSector}).
+            <strong>{active.name}</strong> — sector {active.goalSector} (cleared{' '}
+            {combat.highestSector})
           </p>
           <p className="muted">{active.restriction}</p>
           <button type="button" className="danger" onClick={onAbandonChallenge}>
-            Abandon challenge
+            Abandon
           </button>
         </div>
       ) : (
         <div className="stack">
           <p className="muted">
-            Next prestige yields <strong>+{gain}</strong> Prestige Matter
-            {!prestigeReady ? ` (need sector ${minSector}+)` : ''}.
+            Next: <strong>+{gain}</strong> PM
+            {!prestigeReady ? ` · need sector ${minSector}+` : ''}
           </p>
           <button
             type="button"
@@ -111,35 +102,30 @@ export function PrestigeTab({
         </div>
       )}
 
-      <h3>Prestige Matter shop</h3>
-      <p className="muted">
-        Rankable permanents. Extra ranks add 45% of the base bonus (steeper PM cost each rank).
-      </p>
-      <ul className="def-list">
+      <h3>Matter shop</h3>
+      <ul className="shop-list">
         {MATTER_SHOP.map((item) => {
           const rank = shopRank(prestige.matterShop, item.id)
           const maxRank = shopMaxRank(item)
           const check = canBuyMatterShop(state, item.id)
           const maxed = rank >= maxRank
-          const label = maxed
-            ? `Rank ${rank}/${maxRank}`
-            : `Rank ${rank}/${maxRank} · ${check.cost ?? '?'} PM`
+          const effect =
+            rank > 0
+              ? matterShopEffectBlurb(item, rank)
+              : item.description
           return (
-            <li key={item.id}>
-              <div>
+            <li key={item.id} className="shop-row">
+              <div className="shop-row-main">
                 <strong>{item.name}</strong>
-                <p className="muted">{item.description}</p>
-                <p className="muted">
-                  {rank > 0
-                    ? matterShopEffectBlurb(item, rank)
-                    : 'Not owned'}
-                  {!maxed && rank > 0
-                    ? ` → next ${matterShopEffectBlurb(item, rank + 1)}`
-                    : ''}
-                </p>
+                <span className="badge">
+                  {rank}/{maxRank}
+                </span>
+                <span className="muted shop-row-effect">{effect}</span>
               </div>
-              <div className="action-col">
-                <span className="badge">{label}</span>
+              <div className="shop-row-actions">
+                {!maxed ? (
+                  <span className="badge">{check.cost ?? '?'} PM</span>
+                ) : null}
                 <button
                   type="button"
                   disabled={!check.ok}
@@ -154,32 +140,30 @@ export function PrestigeTab({
         })}
       </ul>
 
-      <h3>Challenge Point shop</h3>
-      <p className="muted">
-        Unique unlocks and stackable run-kits. Schematics permanently unlock modules.
-      </p>
-      <ul className="def-list">
+      <h3>Challenge shop</h3>
+      <ul className="shop-list">
         {CHALLENGE_SHOP.map((item) => {
           const rank = shopRank(prestige.shop, item.id)
           const maxRank = shopMaxRank(item)
           const check = canBuyChallengeShop(state, item.id)
           const maxed = rank >= maxRank
-          const label = maxed
-            ? `Rank ${rank}/${maxRank}`
-            : `Rank ${rank}/${maxRank} · ${check.cost ?? '?'} CP`
+          const effect =
+            rank > 0
+              ? challengeShopEffectBlurb(item, rank)
+              : item.description
           return (
-            <li key={item.id}>
-              <div>
+            <li key={item.id} className="shop-row">
+              <div className="shop-row-main">
                 <strong>{item.name}</strong>
-                <p className="muted">{item.description}</p>
-                <p className="muted">
-                  {rank > 0
-                    ? challengeShopEffectBlurb(item, rank)
-                    : 'Not owned'}
-                </p>
+                <span className="badge">
+                  {rank}/{maxRank}
+                </span>
+                <span className="muted shop-row-effect">{effect}</span>
               </div>
-              <div className="action-col">
-                <span className="badge">{label}</span>
+              <div className="shop-row-actions">
+                {!maxed ? (
+                  <span className="badge">{check.cost ?? '?'} CP</span>
+                ) : null}
                 <button
                   type="button"
                   disabled={!check.ok}
@@ -195,10 +179,7 @@ export function PrestigeTab({
       </ul>
 
       <h3>Challenges</h3>
-      <p className="muted">
-        Repeatable like ITRTG — each clear grants CP and a permanent stack bonus up to a cap.
-      </p>
-      <ul className="def-list">
+      <ul className="shop-list">
         {CHALLENGES.map((c) => {
           const clears = challengeClearCount(prestige.challengeClears, c.id)
           const maxClears = effectiveMaxClears(c, prestige.shop)
@@ -212,42 +193,38 @@ export function PrestigeTab({
             : 0
           const reqName = req ? getChallenge(req.challengeId)?.name ?? req.challengeId : ''
           const stackBits = [
-            c.stackDamageBonus ? `+${(c.stackDamageBonus * 100).toFixed(1)}% dmg/clear` : null,
+            c.stackDamageBonus ? `+${(c.stackDamageBonus * 100).toFixed(1)}% dmg` : null,
             c.stackProductionBonus
-              ? `+${(c.stackProductionBonus * 100).toFixed(1)}% prod/clear`
+              ? `+${(c.stackProductionBonus * 100).toFixed(1)}% prod`
               : null,
             c.stackRepairBonus
-              ? `+${(c.stackRepairBonus * 100).toFixed(0)}% hangar repair/clear`
+              ? `+${(c.stackRepairBonus * 100).toFixed(0)}% repair`
               : null,
           ].filter(Boolean)
           const lockBits: string[] = []
           if (req) lockBits.push(`${reqName} ${reqClears}/${req.clears}`)
           if (c.requiresPrestiges) {
-            lockBits.push(
-              `${c.requiresPrestiges} prestige${c.requiresPrestiges === 1 ? '' : 's'} (${prestige.prestigeCount}/${c.requiresPrestiges})`,
-            )
+            lockBits.push(`${c.requiresPrestiges} prestige`)
           }
           if (c.requiresSectorEver) {
-            lockBits.push(
-              `career sector ${c.requiresSectorEver} (${Math.max(state.meta.highestSectorEver, combat.highestSector)}/${c.requiresSectorEver})`,
-            )
+            lockBits.push(`career S${c.requiresSectorEver}`)
           }
           return (
-            <li key={c.id}>
-              <div>
+            <li key={c.id} className="shop-row">
+              <div className="shop-row-main">
                 <strong>{c.name}</strong>
-                <p className="muted">{c.description}</p>
-                <p className="muted">
-                  Restriction: {c.restriction}. Reward: {c.rewardChallengePoints} CP
-                  {stackBits.length ? ` · ${stackBits.join(', ')}` : ''}
-                </p>
+                <span className="badge">S{c.goalSector}</span>
+                <span className="muted shop-row-effect">
+                  {c.restriction}
+                  {stackBits.length ? ` · ${stackBits.join(', ')}/clear` : ''}
+                  {' · '}
+                  {c.rewardChallengePoints} CP
+                </span>
                 {!unlocked ? (
-                  <p className="notice-warn">
-                    Locked — {lockBits.join(' or ') || 'requirements unmet'}
-                  </p>
+                  <span className="notice-warn">Locked — {lockBits.join(' / ')}</span>
                 ) : null}
               </div>
-              <div className="action-col">
+              <div className="shop-row-actions">
                 <span className="badge">
                   {isActive ? 'Active' : capped ? 'Maxed' : `${clears}/${maxClears}`}
                 </span>

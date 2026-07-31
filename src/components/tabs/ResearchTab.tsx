@@ -12,7 +12,7 @@ export function ResearchTab({ state, onBuyResearch, onBuyEssence }: ResearchTabP
     <section className="panel">
       <header className="panel-header">
         <h2>Research</h2>
-        <p>Spend Data (and sometimes Essence) to unlock systems and bonuses.</p>
+        <p>Spend Data to unlock systems. Essence binds permanent constructs.</p>
       </header>
 
       <div className="stat-row">
@@ -59,9 +59,6 @@ export function ResearchTab({ state, onBuyResearch, onBuyEssence }: ResearchTabP
       </ul>
 
       <h3>Essence constructs</h3>
-      <p className="muted">
-        Permanent upgrades from boss Essence. Kept across prestige.
-      </p>
       <ul className="def-list">
         {ESSENCE_UPGRADES.map((u) => {
           const owned = state.essence.purchased.includes(u.id)

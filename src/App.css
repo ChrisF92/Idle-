@@ -151,6 +151,78 @@
   align-items: center;
 }
 
+.assign-btn {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.sub-tabs {
+  display: flex;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.15rem;
+}
+
+.sub-tab {
+  flex: 1 1 auto;
+  min-height: 2.5rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-bottom: none;
+  padding: 0.55rem 0.75rem;
+}
+
+.sub-tab.active {
+  color: var(--text);
+  background: var(--bg-elevated);
+  border-color: var(--line);
+}
+
+.shop-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.shop-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  align-items: center;
+  border: 1px solid var(--line);
+  padding: 0.55rem 0.65rem;
+}
+
+.shop-row-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.shop-row-effect {
+  flex: 1 1 100%;
+  font-size: 0.8rem;
+}
+
+.shop-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.fab-modal {
+  width: min(560px, 100%);
+}
+
 .guide-root {
   position: fixed;
   inset: 0;
@@ -473,6 +545,7 @@ button {
   color: var(--text);
   border: 1px solid var(--line);
   padding: 0.6rem 0.85rem;
+  min-height: 2.5rem;
 }
 
 button.primary {
@@ -686,6 +759,17 @@ textarea {
   margin: 0;
   font-size: 0.78rem;
   color: var(--muted);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.module-card-meta p {
+  margin: 0;
+}
+
+.module-card-meta strong {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .module-stat-grid {

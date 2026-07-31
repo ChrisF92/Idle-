@@ -51,6 +51,8 @@ interface ShipyardTabProps {
   onUpgradeModule: (moduleId: string) => void
   onUnequipAll: () => void
   onUpgradeCheapest: () => void
+  /** Switch to Base and launch fab for this blueprint module. */
+  onBuildModule: (moduleId: string) => void
 }
 
 function costLabel(cost: Partial<Record<keyof Resources, number>>): string {
@@ -74,6 +76,7 @@ export function ShipyardTab({
   onUpgradeModule,
   onUnequipAll,
   onUpgradeCheapest,
+  onBuildModule,
 }: ShipyardTabProps) {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const frame = getFrame(state.shipyard.frameId)
@@ -89,7 +92,17 @@ export function ShipyardTab({
   const challengeId = state.prestige.activeChallengeId
 
   const grouped = useMemo(() => {
-    const visible = getVisibleModules(state)
+    const visible = getVisibleModules(state).filter((m) => {
+      const unlocked = state.shipyard.unlockedModules.includes(m.id)
+      if (unlocked) return true
+      if (state.meta.discoveredModules.includes(m.id)) return true
+      if (isStarterUnlockModule(m.id)) return true
+      if (m.requiresChallengeShop && shopRank(state.prestige.shop, m.requiresChallengeShop) >= 1) {
+        return true
+      }
+      // Hide locked / undiscovered sector-gated modules.
+      return false
+    })
     const list =
       roleFilter === 'all'
         ? [...visible].sort(
@@ -108,41 +121,22 @@ export function ShipyardTab({
     <section className="panel">
       <header className="panel-header">
         <h2>Shipyard</h2>
-        <p>
-          Choose a frame before your first Launch (locked until prestige / challenge). Pause from
-          Combat to refit modules (resets the sector to W1). Farmable modules appear after you
-          recover a blueprint fragment.
-        </p>
+        <p>Frames and modules. Pause combat to refit.</p>
       </header>
 
       {challengeId === 'no-utility' ? (
-        <p className="notice-warn">Bare Rig: utility modules are unequipped and cannot be fitted.</p>
+        <p className="notice-warn">Bare Rig: utilities blocked.</p>
       ) : null}
       {challengeId === 'short-range' ? (
-        <p className="notice-warn">
-          Knife Fight: all weapon ranges capped at {SHORT_RANGE_MAX} (flak reach).
-        </p>
+        <p className="notice-warn">Knife Fight: range capped at {SHORT_RANGE_MAX}.</p>
       ) : null}
 
       {state.combat.docked ? (
         <p className="notice">
-          Paused — sector W1 · {frameLocked ? 'frame locked · ' : 'pick a frame, then '}
-          fit modules while hull repairs.
+          Paused — {frameLocked ? 'frame locked · ' : ''}refit while repairing.
         </p>
       ) : (
-        <p className="notice-warn">
-          In combat — Pause from the Combat tab to refit (resets this sector to W1).
-        </p>
-      )}
-
-      {frameLocked ? (
-        <p className="notice-warn">
-          Frame locked for this run. Prestige or enter a challenge to choose a different frame.
-        </p>
-      ) : (
-        <p className="muted">
-          Frame unlocked until Launch — changing frames may unequip modules that no longer fit.
-        </p>
+        <p className="notice-warn">In combat — Pause to refit (resets to W1).</p>
       )}
 
       <div className="stat-row">
@@ -306,6 +300,7 @@ export function ShipyardTab({
                 onFitModule={onFitModule}
                 onUnfitModule={onUnfitModule}
                 onUpgradeModule={onUpgradeModule}
+                onBuildModule={onBuildModule}
               />
             ))}
           </ul>
@@ -326,6 +321,7 @@ function ModuleCard({
   onFitModule,
   onUnfitModule,
   onUpgradeModule,
+  onBuildModule,
 }: {
   module: ShipModuleDef
   state: GameState
@@ -337,6 +333,7 @@ function ModuleCard({
   onFitModule: (id: string) => void
   onUnfitModule: (id: string) => void
   onUpgradeModule: (id: string) => void
+  onBuildModule: (id: string) => void
 }) {
   const unlocked = state.shipyard.unlockedModules.includes(m.id)
   const fitted = state.shipyard.modules.includes(m.id)
@@ -369,6 +366,7 @@ function ModuleCard({
     unlocked && level < MAX_MODULE_LEVEL && state.resources.salvage >= upCost
   const showNext = unlocked && level < MAX_MODULE_LEVEL
   const stats = unlocked ? moduleStatPreviews(m.id, level, showNext, mastery) : []
+  const partsReady = !!progress?.complete
   const status = fitted
     ? `Fitted · Lv ${level}`
     : unlocked
@@ -378,7 +376,7 @@ function ModuleCard({
         : 'Locked'
   const rangeNote =
     m.weapon && challengeId === 'short-range' && m.weapon.range > SHORT_RANGE_MAX
-      ? ` Range capped at ${SHORT_RANGE_MAX} (from ${m.weapon.range}) during Knife Fight.`
+      ? ` Range ≤${SHORT_RANGE_MAX}.`
       : ''
 
   return (
@@ -398,28 +396,30 @@ function ModuleCard({
 
       {!unlocked ? (
         farmable && blueprint && progress ? (
-          <>
-            <p className="muted">
-              Blueprint · parts {PART_TYPES.map((pt) => `${progress.owned[pt]}/${progress.need[pt]} ${pt}`).join(' · ')}
-            </p>
-            <p className="notice">Fabricate in Base</p>
-          </>
+          <p className="muted">
+            Parts {PART_TYPES.map((pt) => `${progress.owned[pt]}/${progress.need[pt]} ${pt}`).join(' · ')}
+          </p>
         ) : schematicLocked ? (
-          <p className="notice-warn">Requires Challenge shop schematic.</p>
+          <p className="notice-warn">Needs Challenge schematic.</p>
         ) : gated ? (
-          <p className="notice-warn">Clear sector {m.requiresSectorEver} to unlock.</p>
+          <p className="notice-warn">Clear sector {m.requiresSectorEver}.</p>
         ) : (
           <p className="muted">
-            Unlock: {Object.keys(m.unlockCost).length ? costLabel(m.unlockCost) : 'Free (schematic)'}
+            Unlock: {Object.keys(m.unlockCost).length ? costLabel(m.unlockCost) : 'Free'}
           </p>
         )
       ) : (
-        <p className="module-card-meta">
-          Run upgrade {level}/{MAX_MODULE_LEVEL}
-          {level < MAX_MODULE_LEVEL ? ` · next ${upCost} Salvage` : ' · maxed'}
-          {' · '}+8% module stats / level
-          {' · '}Mastery {mastery}/{MAX_MODULE_MASTERY} (+{(mastery * 2.5).toFixed(1)}%)
-        </p>
+        <div className="module-card-meta">
+          <p>
+            <strong>Run level (Salvage)</strong> {level}/{MAX_MODULE_LEVEL}
+            {level < MAX_MODULE_LEVEL ? ` · next ${upCost}` : ' · maxed'}
+          </p>
+          <p>
+            <strong>Mastery (permanent parts)</strong> {mastery}/{MAX_MODULE_MASTERY}
+            {mastery > 0 ? ` · +${(mastery * 2.5).toFixed(1)}%` : ''}
+            {' · '}invest in Base → Fabrication
+          </p>
+        </div>
       )}
 
       {stats.length > 0 ? (
@@ -441,15 +441,25 @@ function ModuleCard({
       ) : null}
 
       {challengeBlocked ? (
-        <p className="notice-warn">Blocked by active challenge.</p>
+        <p className="notice-warn">Blocked by challenge.</p>
       ) : null}
       {unlocked && !fitted && frame && !roleOpen && !challengeBlocked ? (
-        <p className="notice-warn">No free {m.role} slot on this frame.</p>
+        <p className="notice-warn">No free {m.role} slot.</p>
       ) : null}
 
       <div className="module-card-actions">
         {!unlocked ? (
-          farmable ? null : (
+          farmable ? (
+            partsReady ? (
+              <button
+                type="button"
+                className="primary"
+                onClick={() => onBuildModule(m.id)}
+              >
+                Build
+              </button>
+            ) : null
+          ) : (
             <button
               type="button"
               disabled={!canScrapUnlock}
@@ -478,8 +488,11 @@ function ModuleCard({
               className="primary"
               disabled={!canUpgrade}
               onClick={() => onUpgradeModule(m.id)}
+              title="Run level — spends Salvage (resets on prestige)"
             >
-              {level >= MAX_MODULE_LEVEL ? 'Maxed' : `Upgrade (${upCost})`}
+              {level >= MAX_MODULE_LEVEL
+                ? 'Salvage maxed'
+                : `Salvage upgrade (${upCost})`}
             </button>
           </>
         )}

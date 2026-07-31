@@ -11,11 +11,13 @@ import {
   advanceFabProject,
   aiDoctrinesActive,
   challengeShopOfflineMs,
+  essenceOfflineEssenceMultiplier,
   essenceProductionMultiplier,
   isStationUnlocked,
   matterShopScrapBonus,
   metaProductionMultiplier,
   researchEssenceMultiplier,
+  stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
 } from './catalog'
 import {
@@ -78,8 +80,9 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     const drones = state.base.assignments[station.id] ?? 0
     if (drones <= 0) continue
 
-    if (station.upkeepScrapPerDrone) {
-      const upkeep = station.upkeepScrapPerDrone * drones * seconds
+    const upkeepPer = stationUpkeepScrapPerDrone(state, station)
+    if (upkeepPer > 0) {
+      const upkeep = upkeepPer * drones * seconds
       const paid = Math.min(state.resources.scrap, upkeep)
       state.resources.scrap -= paid
       const efficiency = upkeep > 0 ? paid / upkeep : 1
@@ -135,7 +138,8 @@ function applySectorOfflineRewards(state: GameState, seconds: number): void {
   const essencePerHour =
     sector >= 5
       ? (0.05 + Math.floor(sector / 5) * 0.04) *
-        researchEssenceMultiplier(state.research.unlocked)
+        researchEssenceMultiplier(state.research.unlocked) *
+        essenceOfflineEssenceMultiplier(state.essence.purchased)
       : 0
 
   const scrapMult = state.combat.campaign ? 1 : 1.25

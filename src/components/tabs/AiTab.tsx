@@ -24,10 +24,7 @@ export function AiTab({ state, onBuy }: AiTabProps) {
     <section className="panel">
       <header className="panel-header">
         <h2>AI Network</h2>
-        <p>
-          Achievements grant AI Points. Spend them on permanent automation / QoL
-          and per-run combat doctrines. Silent Bridge disables purchases.
-        </p>
+        <p>Spend AI Points on automation and doctrines.</p>
       </header>
 
       <div className="ai-toolbar">
@@ -47,13 +44,15 @@ export function AiTab({ state, onBuy }: AiTabProps) {
         <p className="notice-warn">Silent Bridge challenge: AI purchases and doctrines blocked.</p>
       ) : null}
 
-      <h3>Automation</h3>
-      <NodeList nodes={automation} state={state} challengeBlocks={challengeBlocks} onBuy={onBuy} />
+      <h3>Automation & QoL</h3>
+      <NodeList
+        nodes={[...automation, ...qol]}
+        state={state}
+        challengeBlocks={challengeBlocks}
+        onBuy={onBuy}
+      />
 
-      <h3>Quality of Life</h3>
-      <NodeList nodes={qol} state={state} challengeBlocks={challengeBlocks} onBuy={onBuy} />
-
-      <h3>Doctrines (per run)</h3>
+      <h3>Doctrines</h3>
       <NodeList nodes={doctrines} state={state} challengeBlocks={challengeBlocks} onBuy={onBuy} />
 
       {showAchievements ? (
@@ -147,11 +146,10 @@ function NodeList({
               <strong>{node.name}</strong>
               <p className="muted">{node.description}</p>
               {gated ? (
-                <p className="notice-warn">
-                  Clear sector {node.requiresSectorEver} to unlock this node.
-                </p>
-              ) : null}
-              <p className="muted">{permanent ? 'Permanent' : 'Resets on prestige'}</p>
+                <p className="notice-warn">Clear sector {node.requiresSectorEver}.</p>
+              ) : (
+                <p className="muted">{permanent ? 'Permanent' : 'Per run'}</p>
+              )}
             </div>
             <div className="action-col">
               <span className="badge">

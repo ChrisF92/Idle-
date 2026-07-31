@@ -15,10 +15,10 @@ import { advanceTicks, setCampaign, startCombat } from './tick'
 import { forceUnlockModule } from './testHelpers'
 
 describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
-  it('defines the three new challenges', () => {
-    expect(getChallenge('mono-pulse')?.goalSector).toBe(7)
-    expect(getChallenge('attrition')?.goalSector).toBe(6)
-    expect(getChallenge('long-haul')?.goalSector).toBe(12)
+  it('defines the three new challenges at goal sector 30', () => {
+    expect(getChallenge('mono-pulse')?.goalSector).toBe(30)
+    expect(getChallenge('attrition')?.goalSector).toBe(30)
+    expect(getChallenge('long-haul')?.goalSector).toBe(30)
   })
 
   it('unlocks Mono Pulse via short-range clear OR 2 prestiges', () => {

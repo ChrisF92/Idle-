@@ -24,6 +24,7 @@ import {
   enterChallenge,
   fitModule,
   investPartMastery,
+  launchFabProject,
   performPrestige,
   selectFrame,
   sellPart,
@@ -53,6 +54,7 @@ type Action =
   | { type: 'assign-worker'; stationId: string; delta: number }
   | { type: 'auto-balance-workers' }
   | { type: 'start-fab'; moduleId: string }
+  | { type: 'launch-fab'; moduleId: string }
   | { type: 'clear-fab' }
   | { type: 'deposit-fab'; partType: PartType; qty?: number }
   | { type: 'withdraw-fab'; partType: PartType; qty?: number }
@@ -101,6 +103,8 @@ function reducer(state: GameState, action: Action): GameState {
       return autoBalanceWorkers(state)
     case 'start-fab':
       return startFabProject(state, action.moduleId)
+    case 'launch-fab':
+      return launchFabProject(state, action.moduleId)
     case 'clear-fab':
       return clearFabProject(state)
     case 'deposit-fab':
@@ -200,6 +204,7 @@ export function useGame() {
       dispatch({ type: 'assign-worker', stationId, delta }),
     autoBalanceWorkers: () => dispatch({ type: 'auto-balance-workers' }),
     startFabProject: (moduleId: string) => dispatch({ type: 'start-fab', moduleId }),
+    launchFabProject: (moduleId: string) => dispatch({ type: 'launch-fab', moduleId }),
     clearFabProject: () => dispatch({ type: 'clear-fab' }),
     depositFabPart: (partType: PartType, qty?: number) =>
       dispatch({ type: 'deposit-fab', partType, qty }),

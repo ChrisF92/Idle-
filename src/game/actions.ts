@@ -325,6 +325,23 @@ export function startFabProject(state: GameState, moduleId: string): GameState {
   return next
 }
 
+/** Start a fab project and auto-deposit all available inventory parts. */
+export function launchFabProject(state: GameState, moduleId: string): GameState {
+  let next = startFabProject(state, moduleId)
+  if (!next.base.fabProject || next.base.fabProject.moduleId !== moduleId) {
+    // Already on this project — still top up deposits.
+    if (state.base.fabProject?.moduleId === moduleId) {
+      next = state
+    } else {
+      return next
+    }
+  }
+  for (const pt of PART_TYPES) {
+    next = depositFabPart(next, pt, 9999)
+  }
+  return next
+}
+
 export function clearFabProject(state: GameState): GameState {
   if (!state.base.fabProject) return state
   const next = structuredClone(state)

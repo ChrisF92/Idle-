@@ -280,7 +280,7 @@ describe('prestige and challenges', () => {
     expect(state.combat.sector).toBe(1)
 
     // Force final wave of goal sector so one wipe completes the challenge
-    state.combat.sector = 5
+    state.combat.sector = 30
     state.combat.wave = WAVES_PER_SECTOR
     state.combat.inFight = true
     state.combat.enemyUnits = [

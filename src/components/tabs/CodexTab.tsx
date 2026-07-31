@@ -20,9 +20,7 @@ export function CodexTab({ state }: CodexTabProps) {
     <section className="panel">
       <header className="panel-header">
         <h2>Codex</h2>
-        <p>
-          Enemy family intel and soft counters. Entries unlock as you encounter them in combat.
-        </p>
+        <p>Enemy intel and soft counters.</p>
       </header>
 
       {!unlocked ? (

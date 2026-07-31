@@ -13,9 +13,10 @@ import {
   grantSignalCoreDrop,
   makeSignalCoreInstance,
   mergeSignalCores,
+  signalCoresUnlocked,
   unequipAllSignalCores,
 } from './signalCores'
-import { getChallenge, isChallengeUnlocked } from './catalog'
+import { CHALLENGES, getChallenge, isChallengeUnlocked } from './catalog'
 
 describe('Signal Cores', () => {
   it('equip in allowed slot applies bonus; wrong slot rejected', () => {
@@ -115,8 +116,25 @@ describe('Signal Cores', () => {
     expect(state.resources.challengePoints).toBeGreaterThanOrEqual(4)
   })
 
-  it('drop helper adds to inventory', () => {
+  it('gates drops until prestige or career sector 10', () => {
+    const locked = createInitialState(0)
+    expect(signalCoresUnlocked(locked)).toBe(false)
+    expect(
+      grantSignalCoreDrop(locked, 'kill', { family: 'swarm', rng: () => 0 }),
+    ).toBeNull()
+    expect(locked.signalCores.inventory).toHaveLength(0)
+
+    locked.meta.highestSectorEver = 10
+    expect(signalCoresUnlocked(locked)).toBe(true)
+
+    const viaPrestige = createInitialState(0)
+    viaPrestige.prestige.prestigeCount = 1
+    expect(signalCoresUnlocked(viaPrestige)).toBe(true)
+  })
+
+  it('drop helper adds to inventory when unlocked', () => {
     const state = createInitialState(0)
+    state.prestige.prestigeCount = 1
     const drop = grantSignalCoreDrop(state, 'kill', {
       family: 'swarm',
       rng: () => 0, // always succeed + first weighted pick
@@ -132,5 +150,11 @@ describe('Signal Cores', () => {
 
     unequipAllSignalCores(state)
     expect(Object.keys(state.signalCores.equipped)).toHaveLength(0)
+  })
+
+  it('all challenges target sector 30', () => {
+    for (const c of CHALLENGES) {
+      expect(c.goalSector).toBe(30)
+    }
   })
 })

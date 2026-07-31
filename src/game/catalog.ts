@@ -63,10 +63,18 @@ export interface EssenceUpgradeDef {
   name: string
   description: string
   costEssence: number
+  /** @deprecated Unused — essence no longer grants flat combat damage. */
   damageBonus?: number
   hullBonus?: number
+  /** @deprecated Unused — essence no longer grants flat production. */
   productionBonus?: number
   bonusDataPerClear?: number
+  /** Additive boss essence gain (0.5 = +50%). */
+  bossEssenceBonus?: number
+  /** Additive offline essence gain (0.5 = +50%). */
+  offlineEssenceBonus?: number
+  /** Fraction of Alloy Foundry scrap upkeep removed (0.25 = −25%). */
+  alloyUpkeepReduction?: number
 }
 
 export interface ShopRankGate {
@@ -330,9 +338,8 @@ export const RESEARCH: ResearchDef[] = [
   {
     id: 'basic-optics',
     name: 'Basic Optics',
-    description: 'Sharper target acquisition. +12% combat damage.',
+    description: 'Improves sensor calibration. Prerequisite for later research.',
     costData: 20,
-    damageBonus: 0.12,
   },
   {
     id: 'alloy-smelting',
@@ -355,9 +362,8 @@ export const RESEARCH: ResearchDef[] = [
   {
     id: 'drone-logistics',
     name: 'Drone Logistics',
-    description: 'Unlocks the Drone Fabricator station and +25% manufacture speed.',
+    description: 'Unlocks the Drone Fabricator station.',
     costData: 35,
-    manufactureBonus: 0.25,
   },
   {
     id: 'tactical-codex',
@@ -375,9 +381,9 @@ export const RESEARCH: ResearchDef[] = [
   {
     id: 'entity-anatomy',
     name: 'Entity Anatomy',
-    description: 'Study remains. +18% combat damage.',
+    description: 'Deep autopsy protocols. +25% Essence from bosses. Required for advanced study.',
     costData: 90,
-    damageBonus: 0.18,
+    essenceBonus: 0.25,
   },
   {
     id: 'boss-harvester',
@@ -521,9 +527,9 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'essence-lattice',
     name: 'Essence Lattice',
-    description: 'Permanent +5% combat damage.',
+    description: 'Permanent +50% Essence from bosses.',
     costEssence: 2,
-    damageBonus: 0.05,
+    bossEssenceBonus: 0.5,
   },
   {
     id: 'resonant-plates',
@@ -542,9 +548,9 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'catalyst-feed',
     name: 'Catalyst Feed',
-    description: 'Permanent +8% base production.',
+    description: 'Permanent −25% Alloy Foundry scrap upkeep.',
     costEssence: 3,
-    productionBonus: 0.08,
+    alloyUpkeepReduction: 0.25,
   },
 ]
 
@@ -713,11 +719,10 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'drone-corps',
     name: 'Drone Corps Charter',
-    description: '+3 worker drones per rank and +25% manufacture speed (rankable).',
+    description: '+3 worker drones per rank (rankable).',
     costPm: 5,
     maxRank: 6,
     bonusWorkerDrones: 3,
-    manufactureBonus: 0.25,
   },
   {
     id: 'synapse-lattice',
@@ -736,9 +741,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'no-ai',
     name: 'Silent Bridge',
-    description: 'Reach sector 5 with AI assists disabled. Repeatable.',
+    description: 'Reach sector 30 with AI assists disabled. Repeatable.',
     restriction: 'AI purchases and doctrines inactive',
-    goalSector: 5,
+    goalSector: 30,
     rewardChallengePoints: 1,
     maxClears: 20,
     stackDamageBonus: 0.005,
@@ -746,9 +751,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'thin-hull',
     name: 'Glass Frame',
-    description: 'Reach sector 5 with half hull. Stacks boost Paused repair.',
+    description: 'Reach sector 30 with half hull. Stacks boost Paused repair.',
     restriction: 'Player hull max ×0.5',
-    goalSector: 5,
+    goalSector: 30,
     rewardChallengePoints: 1,
     maxClears: 15,
     stackRepairBonus: 0.015,
@@ -757,9 +762,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'data-drought',
     name: 'Data Drought',
-    description: 'Reach sector 8 without Data gains from combat. Repeatable.',
+    description: 'Reach sector 30 without Data gains from combat. Repeatable.',
     restriction: 'Combat data drops disabled',
-    goalSector: 8,
+    goalSector: 30,
     rewardChallengePoints: 2,
     maxClears: 10,
     stackProductionBonus: 0.008,
@@ -768,9 +773,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'no-utility',
     name: 'Bare Rig',
-    description: 'Reach sector 6 without utility modules. Repeatable.',
+    description: 'Reach sector 30 without utility modules. Repeatable.',
     restriction: 'Utility modules unequipped and blocked',
-    goalSector: 6,
+    goalSector: 30,
     rewardChallengePoints: 1,
     maxClears: 15,
     stackDamageBonus: 0.006,
@@ -779,9 +784,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'short-range',
     name: 'Knife Fight',
-    description: 'Reach sector 6 with all weapons capped to flak range. Repeatable.',
+    description: 'Reach sector 30 with all weapons capped to flak range. Repeatable.',
     restriction: `Weapon range capped at ${SHORT_RANGE_MAX}`,
-    goalSector: 6,
+    goalSector: 30,
     rewardChallengePoints: 2,
     maxClears: 12,
     stackRepairBonus: 0.015,
@@ -790,9 +795,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'mono-pulse',
     name: 'Mono Pulse',
-    description: 'Reach sector 7 with only the Pulse Cannon weapon module. Repeatable.',
+    description: 'Reach sector 30 with only the Pulse Cannon weapon module. Repeatable.',
     restriction: 'Only Pulse Cannon weapon modules (Frame Battery ok)',
-    goalSector: 7,
+    goalSector: 30,
     rewardChallengePoints: 2,
     maxClears: 12,
     stackDamageBonus: 0.005,
@@ -802,9 +807,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'attrition',
     name: 'Attrition',
-    description: 'Reach sector 6 with no post-fight hull/shield recovery. Repeatable.',
+    description: 'Reach sector 30 with no post-fight hull/shield recovery. Repeatable.',
     restriction: 'No 25% missing hull/shield recovery on fight win',
-    goalSector: 6,
+    goalSector: 30,
     rewardChallengePoints: 2,
     maxClears: 12,
     stackRepairBonus: 0.015,
@@ -813,9 +818,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'long-haul',
     name: 'Long Haul',
-    description: 'Reach sector 12. A longer push for production stack bonuses.',
+    description: 'Reach sector 30. A longer push for production stack bonuses.',
     restriction: 'None — endurance goal',
-    goalSector: 12,
+    goalSector: 30,
     rewardChallengePoints: 3,
     maxClears: 8,
     stackProductionBonus: 0.01,
@@ -1950,13 +1955,9 @@ export function researchDamageMultiplier(unlocked: string[]): number {
   return bonus
 }
 
-export function essenceDamageMultiplier(purchased: string[]): number {
-  let bonus = 1
-  for (const id of purchased) {
-    const def = getEssenceUpgrade(id)
-    if (def?.damageBonus) bonus += def.damageBonus
-  }
-  return bonus
+/** Essence no longer grants flat combat damage — always 1. */
+export function essenceDamageMultiplier(_purchased: string[]): number {
+  return 1
 }
 
 export function essenceHullBonus(purchased: string[]): number {
@@ -1968,13 +1969,9 @@ export function essenceHullBonus(purchased: string[]): number {
   return hull
 }
 
-export function essenceProductionMultiplier(purchased: string[]): number {
-  let bonus = 1
-  for (const id of purchased) {
-    const def = getEssenceUpgrade(id)
-    if (def?.productionBonus) bonus += def.productionBonus
-  }
-  return bonus
+/** Essence no longer grants flat production — always 1. */
+export function essenceProductionMultiplier(_purchased: string[]): number {
+  return 1
 }
 
 export function essenceBonusDataPerClear(purchased: string[]): number {
@@ -1984,6 +1981,49 @@ export function essenceBonusDataPerClear(purchased: string[]): number {
     if (def?.bonusDataPerClear) total += def.bonusDataPerClear
   }
   return total
+}
+
+/** Boss essence multiplier from essence constructs (1 = baseline). */
+export function essenceBossEssenceMultiplier(purchased: string[]): number {
+  let bonus = 1
+  for (const id of purchased) {
+    const def = getEssenceUpgrade(id)
+    if (def?.bossEssenceBonus) bonus += def.bossEssenceBonus
+  }
+  return bonus
+}
+
+/** Offline essence multiplier from essence constructs (1 = baseline). */
+export function essenceOfflineEssenceMultiplier(purchased: string[]): number {
+  let bonus = 1
+  for (const id of purchased) {
+    const def = getEssenceUpgrade(id)
+    if (def?.offlineEssenceBonus) bonus += def.offlineEssenceBonus
+  }
+  return bonus
+}
+
+/** Multiplier on Alloy Foundry scrap upkeep (1 = full upkeep). */
+export function essenceAlloyUpkeepMult(purchased: string[]): number {
+  let reduction = 0
+  for (const id of purchased) {
+    const def = getEssenceUpgrade(id)
+    if (def?.alloyUpkeepReduction) reduction += def.alloyUpkeepReduction
+  }
+  return Math.max(0.05, 1 - reduction)
+}
+
+/** Effective scrap upkeep per drone for a station after essence modifiers. */
+export function stationUpkeepScrapPerDrone(
+  state: { essence: { purchased: string[] } },
+  station: StationDef,
+): number {
+  const base = station.upkeepScrapPerDrone ?? 0
+  if (base <= 0) return 0
+  if (station.id === 'alloy-foundry') {
+    return base * essenceAlloyUpkeepMult(state.essence.purchased)
+  }
+  return base
 }
 
 export function researchEssenceMultiplier(unlocked: string[]): number {

@@ -3,16 +3,33 @@ import { createInitialState, computeShipStats } from './state'
 import { buyAiNode, buyEssenceUpgrade, buyResearch, performPrestige } from './actions'
 import { startCombat } from './tick'
 import { computeFightDamage } from './combat'
+import {
+  essenceBossEssenceMultiplier,
+  essenceDamageMultiplier,
+  essenceProductionMultiplier,
+  essenceAlloyUpkeepMult,
+} from './catalog'
 import { clearSector } from './testHelpers'
 
 describe('essence upgrades', () => {
-  it('buys permanent lattice and boosts damage', () => {
+  it('lattice boosts boss essence, not combat damage', () => {
     let state = createInitialState(0)
-    const before = computeShipStats(state).damage
+    const beforeDmg = computeShipStats(state).damage
     state.resources.essence = 2
     state = buyEssenceUpgrade(state, 'essence-lattice')
     expect(state.essence.purchased).toContain('essence-lattice')
-    expect(computeShipStats(state).damage).toBeGreaterThan(before)
+    expect(computeShipStats(state).damage).toBe(beforeDmg)
+    expect(essenceDamageMultiplier(state.essence.purchased)).toBe(1)
+    expect(essenceBossEssenceMultiplier(state.essence.purchased)).toBeGreaterThan(1)
+  })
+
+  it('catalyst reduces alloy upkeep, not production', () => {
+    let state = createInitialState(0)
+    state.resources.essence = 3
+    state = buyEssenceUpgrade(state, 'catalyst-feed')
+    expect(state.essence.purchased).toContain('catalyst-feed')
+    expect(essenceProductionMultiplier(state.essence.purchased)).toBe(1)
+    expect(essenceAlloyUpkeepMult(state.essence.purchased)).toBeLessThan(1)
   })
 
   it('keeps essence upgrades across prestige', () => {

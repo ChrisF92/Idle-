@@ -5,7 +5,7 @@ import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-07-31n'
+export const APP_BUILD = '2026-07-31o'
 
 interface StatsTabProps {
   state: GameState
@@ -48,7 +48,7 @@ export function StatsTab({ state, onHardReset, onImport, onDevAction }: StatsTab
     <section className="panel">
       <header className="panel-header">
         <h2>Stats & Save</h2>
-        <p>Local save only for now. Export/import for phone ↔ PC transfers.</p>
+        <p>Local save · export/import for transfers.</p>
       </header>
 
       <div className="stat-row">

@@ -11,12 +11,14 @@ import {
   advanceFabProject,
   aiDoctrinesActive,
   essenceBonusDataPerClear,
+  essenceBossEssenceMultiplier,
   essenceProductionMultiplier,
   isStationUnlocked,
   matterShopDataPerClear,
   matterShopScrapBonus,
   metaProductionMultiplier,
   researchEssenceMultiplier,
+  stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
 } from './catalog'
 import {
@@ -107,8 +109,9 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     const drones = state.base.assignments[station.id] ?? 0
     if (drones <= 0) continue
 
-    if (station.upkeepScrapPerDrone) {
-      const upkeep = station.upkeepScrapPerDrone * drones * dtSeconds
+    const upkeepPer = stationUpkeepScrapPerDrone(state, station)
+    if (upkeepPer > 0) {
+      const upkeep = upkeepPer * drones * dtSeconds
       const available = state.resources.scrap
       const paid = Math.min(available, upkeep)
       state.resources.scrap -= paid
@@ -160,8 +163,9 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
     const drones = state.base.assignments[station.id] ?? 0
     if (drones <= 0) continue
 
-    if (station.upkeepScrapPerDrone) {
-      const upkeep = station.upkeepScrapPerDrone * drones
+    const upkeepPer = stationUpkeepScrapPerDrone(state, station)
+    if (upkeepPer > 0) {
+      const upkeep = upkeepPer * drones
       const efficiency = state.resources.scrap > 0 || upkeep <= 0 ? 1 : 0
       add('scrap', -upkeep * efficiency)
       for (const [resource, perDrone] of Object.entries(station.rates)) {
@@ -213,7 +217,9 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   const dataGain =
     dataBlocked || !researchOpen ? 0 : enemy.dataReward + siphonData
   const essenceGain = wasBoss
-    ? enemy.essenceReward * researchEssenceMultiplier(state.research.unlocked)
+    ? enemy.essenceReward *
+      researchEssenceMultiplier(state.research.unlocked) *
+      essenceBossEssenceMultiplier(state.essence.purchased)
     : 0
   const salvageGain = enemy.salvageReward
 

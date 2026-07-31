@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { GameState, PartType, Resources } from '../../game/types'
 import {
   BLUEPRINTS,
@@ -17,6 +17,7 @@ import {
   parsePartId,
   partId,
   partSellScrap,
+  stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
 } from '../../game/catalog'
 import { logisticsFabMult } from '../../game/core'
@@ -25,9 +26,12 @@ import { RESOURCE_LABELS } from '../../game/state'
 
 interface BaseTabProps {
   state: GameState
+  fabLaunchModuleId: string | null
+  onFabLaunchConsumed: () => void
   onAssign: (stationId: string, delta: number) => void
   onAutoBalance: () => void
   onStartFab: (moduleId: string) => void
+  onLaunchFab: (moduleId: string) => void
   onClearFab: () => void
   onDepositFab: (partType: PartType, qty?: number) => void
   onWithdrawFab: (partType: PartType, qty?: number) => void
@@ -44,9 +48,12 @@ function rateLabel(rates: Partial<Record<keyof Resources, number>>): string {
 
 export function BaseTab({
   state,
+  fabLaunchModuleId,
+  onFabLaunchConsumed,
   onAssign,
   onAutoBalance,
   onStartFab,
+  onLaunchFab,
   onClearFab,
   onDepositFab,
   onWithdrawFab,
@@ -60,7 +67,17 @@ export function BaseTab({
   const canAuto = state.ai.purchased.includes('auto-assign-workers')
   const fabUnlocked = isStationUnlocked(state, 'fab-bay')
   const project = state.base.fabProject
+  const [fabOpen, setFabOpen] = useState(false)
   const [fabSelect, setFabSelect] = useState('')
+
+  useEffect(() => {
+    if (!fabLaunchModuleId) return
+    setFabOpen(true)
+    onLaunchFab(fabLaunchModuleId)
+    onFabLaunchConsumed()
+    // Only react to a new launch id from Shipyard → Base.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [fabLaunchModuleId])
 
   const incompleteBlueprints = useMemo(
     () =>
@@ -113,10 +130,7 @@ export function BaseTab({
     <section className="panel">
       <header className="panel-header">
         <h2>Base</h2>
-        <p>
-          Manufacture worker drones, then assign them to named stations. Assignments reset on
-          prestige; drone count is permanent. Blueprint parts and fabricated modules persist.
-        </p>
+        <p>Manufacture drones and assign them to stations.</p>
       </header>
 
       <div className="stat-row">
@@ -145,15 +159,21 @@ export function BaseTab({
         />
       </div>
 
-      {canAuto ? (
-        <p>
+      <div className="assign-row">
+        {canAuto ? (
           <button type="button" className="primary" onClick={onAutoBalance}>
-            Auto-Balance Workers
+            Auto-Balance
           </button>
-        </p>
-      ) : (
-        <p className="muted">Buy Labor Router (AI) to auto-balance assignments.</p>
-      )}
+        ) : null}
+        {fabUnlocked ? (
+          <button type="button" className="primary" onClick={() => setFabOpen(true)}>
+            Fabrication
+            {project ? ' · Active' : ''}
+          </button>
+        ) : (
+          <span className="muted">Research Module Fabrication for the Fab Bay.</span>
+        )}
+      </div>
 
       <h3>Stations</h3>
       <ul className="def-list">
@@ -162,39 +182,40 @@ export function BaseTab({
           const assigned = state.base.assignments[station.id] ?? 0
           const extras: string[] = []
           if (station.repairPerDrone) {
-            extras.push(`+${station.repairPerDrone} hull/s repair each`)
+            extras.push(`+${station.repairPerDrone} hull/s each`)
           }
           if (station.manufactureBonusPerDrone) {
-            extras.push(`+${(station.manufactureBonusPerDrone * 100).toFixed(0)}% fab speed each`)
+            extras.push(`+${(station.manufactureBonusPerDrone * 100).toFixed(0)}% drone speed each`)
           }
-          if (station.upkeepScrapPerDrone) {
-            extras.push(`${station.upkeepScrapPerDrone} scrap/s upkeep each`)
+          const upkeep = unlocked ? stationUpkeepScrapPerDrone(state, station) : 0
+          if (upkeep > 0) {
+            extras.push(`${upkeep.toFixed(2)} scrap/s upkeep each`)
           }
           return (
             <li key={station.id}>
               <div>
                 <strong>{station.name}</strong>
-                <p className="muted">{station.description}</p>
                 {!unlocked ? (
                   <p className="muted">
-                    {station.requiresSystem && !station.requiresResearch
-                      ? `Requires ${station.requiresSystem} system`
-                      : station.requiresResearch
-                        ? `Requires research: ${station.requiresResearch}`
+                    {station.requiresResearch
+                      ? `Needs ${station.requiresResearch}`
+                      : station.requiresSystem
+                        ? `Needs ${station.requiresSystem}`
                         : 'Locked'}
                   </p>
                 ) : (
                   <p className="muted">
-                    {rateLabel(station.rates) || 'Special duty'}
+                    {rateLabel(station.rates) || 'Special'}
                     {extras.length ? ` · ${extras.join(' · ')}` : ''}
                   </p>
                 )}
               </div>
               <div className="action-col">
-                <span className="badge">{assigned} assigned</span>
+                <span className="badge">{assigned}</span>
                 <div className="assign-row">
                   <button
                     type="button"
+                    className="assign-btn"
                     disabled={!unlocked || assigned <= 0}
                     onClick={() => onAssign(station.id, -1)}
                   >
@@ -202,6 +223,7 @@ export function BaseTab({
                   </button>
                   <button
                     type="button"
+                    className="assign-btn"
                     data-guide={`station-${station.id}-plus`}
                     disabled={!unlocked || idle <= 0}
                     onClick={() => onAssign(station.id, 1)}
@@ -215,164 +237,239 @@ export function BaseTab({
         })}
       </ul>
 
-      {fabUnlocked ? (
-        <>
-          <h3>Fabrication</h3>
-          <p className="muted">
-            Deposit casing / core / lens into an active project, then assign workers to the
-            Fabrication Bay ({FAB_SECONDS}s at 1 worker when the recipe is filled).
-          </p>
-
-          {!project ? (
-            <p className="assign-row">
-              <select
-                value={fabSelect}
-                onChange={(e) => setFabSelect(e.target.value)}
-                aria-label="Select blueprint to fabricate"
-              >
-                <option value="">Select discovered blueprint…</option>
-                {incompleteBlueprints.map((b) => (
-                  <option key={b.moduleId} value={b.moduleId}>
-                    {getModule(b.moduleId)?.name ?? b.moduleId}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="primary"
-                disabled={!fabSelect}
-                onClick={() => {
-                  if (!fabSelect) return
-                  onStartFab(fabSelect)
-                  setFabSelect('')
-                }}
-              >
-                Start Project
-              </button>
-            </p>
-          ) : (
-            <div className="fab-project">
-              <p>
-                <strong>{getModule(project.moduleId)?.name ?? project.moduleId}</strong>
-                {recipeFilled ? (
-                  <span className="muted">
-                    {' '}
-                    · crafting {((project.progress ?? 0) * 100).toFixed(0)}%
-                    {fabEta != null ? ` · ~${fabEta.toFixed(0)}s` : ' · assign workers'}
-                  </span>
-                ) : (
-                  <span className="muted"> · waiting for parts</span>
-                )}
-              </p>
-              <div className="manufacture-bar" aria-label="Fabrication progress">
-                <div
-                  className="manufacture-bar-fill"
-                  style={{
-                    width: `${Math.min(100, (project.progress ?? 0) * 100)}%`,
-                  }}
-                />
-              </div>
-              <ul className="def-list">
-                {PART_TYPES.map((pt) => {
-                  const need = recipe?.[pt] ?? 0
-                  const contributed = project.contributed[pt] ?? 0
-                  const inv = state.parts[partId(project.moduleId, pt)] ?? 0
-                  const room = Math.max(0, need - contributed)
-                  return (
-                    <li key={pt}>
-                      <div>
-                        <strong>
-                          {pt.charAt(0).toUpperCase() + pt.slice(1)}
-                        </strong>
-                        <p className="muted">
-                          Project {contributed}/{need} · Inventory {inv}
-                        </p>
-                      </div>
-                      <div className="assign-row">
-                        <button
-                          type="button"
-                          disabled={contributed <= 0}
-                          onClick={() => onWithdrawFab(pt, 1)}
-                        >
-                          −
-                        </button>
-                        <button
-                          type="button"
-                          disabled={room <= 0 || inv <= 0}
-                          onClick={() => onDepositFab(pt, 1)}
-                        >
-                          Deposit
-                        </button>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-              <p>
-                <button type="button" onClick={onClearFab}>
-                  Cancel Project
-                </button>
-              </p>
-            </div>
-          )}
-
-          {incompleteBlueprints.length === 0 && !project ? (
-            <p className="muted">
-              No incomplete blueprints. Recover fragments from combat kills, then fabricate here.
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <p className="muted">
-          Research Module Fabrication to unlock the Fabrication Bay for blueprint assembly.
-        </p>
-      )}
-
-      <h3>Parts</h3>
-      {partRows.length === 0 ? (
-        <p className="muted">No blueprint parts yet — kill enemies to recover fragments.</p>
-      ) : (
-        <ul className="def-list">
-          {partRows.map((row) => {
-            const mastery = moduleMasteryRank(state, row.moduleId)
-            const partsOwned = countModuleParts(state, row.moduleId)
-            const canInvest =
-              row.unlocked &&
-              mastery < MAX_MODULE_MASTERY &&
-              partsOwned >= MASTERY_PARTS_COST
-            return (
-              <li key={row.partId}>
-                <div>
-                  <strong>
-                    {row.moduleName} {row.partType}
-                  </strong>
-                  <p className="muted">
-                    ×{row.qty} · sell {partSellScrap(row.partId)} scrap each
-                    {row.unlocked
-                      ? ` · mastery ${mastery}/${MAX_MODULE_MASTERY} (${MASTERY_PARTS_COST} parts/rank)`
-                      : ''}
-                  </p>
-                </div>
-                <div className="assign-row">
-                  <button type="button" onClick={() => onSellPart(row.partId, 1)}>
-                    Sell
-                  </button>
-                  {row.unlocked ? (
-                    <button
-                      type="button"
-                      className="primary"
-                      disabled={!canInvest}
-                      onClick={() => onInvestMastery(row.moduleId)}
-                    >
-                      Invest Mastery
-                    </button>
-                  ) : null}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      {fabOpen && fabUnlocked ? (
+        <FabModal
+          state={state}
+          fabSelect={fabSelect}
+          setFabSelect={setFabSelect}
+          incompleteBlueprints={incompleteBlueprints}
+          project={project}
+          recipe={recipe}
+          recipeFilled={recipeFilled}
+          fabEta={fabEta}
+          partRows={partRows}
+          onClose={() => setFabOpen(false)}
+          onStartFab={onStartFab}
+          onClearFab={onClearFab}
+          onDepositFab={onDepositFab}
+          onWithdrawFab={onWithdrawFab}
+          onSellPart={onSellPart}
+          onInvestMastery={onInvestMastery}
+        />
+      ) : null}
     </section>
+  )
+}
+
+function FabModal({
+  state,
+  fabSelect,
+  setFabSelect,
+  incompleteBlueprints,
+  project,
+  recipe,
+  recipeFilled,
+  fabEta,
+  partRows,
+  onClose,
+  onStartFab,
+  onClearFab,
+  onDepositFab,
+  onWithdrawFab,
+  onSellPart,
+  onInvestMastery,
+}: {
+  state: GameState
+  fabSelect: string
+  setFabSelect: (v: string) => void
+  incompleteBlueprints: { moduleId: string }[]
+  project: GameState['base']['fabProject']
+  recipe: ReturnType<typeof getBlueprint>
+  recipeFilled: boolean
+  fabEta: number | null
+  partRows: {
+    partId: string
+    moduleId: string
+    partType: PartType
+    qty: number
+    moduleName: string
+    unlocked: boolean
+  }[]
+  onClose: () => void
+  onStartFab: (moduleId: string) => void
+  onClearFab: () => void
+  onDepositFab: (partType: PartType, qty?: number) => void
+  onWithdrawFab: (partType: PartType, qty?: number) => void
+  onSellPart: (partId: string, qty?: number) => void
+  onInvestMastery: (moduleId: string) => void
+}) {
+  const titleId = useId()
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="modal-sheet fab-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="modal-header">
+          <div>
+            <h3 id={titleId}>Fabrication</h3>
+            <p className="muted">Assemble blueprint parts · {FAB_SECONDS}s at 1 worker</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close">
+            Close
+          </button>
+        </header>
+
+        {!project ? (
+          <div className="assign-row">
+            <select
+              value={fabSelect}
+              onChange={(e) => setFabSelect(e.target.value)}
+              aria-label="Select blueprint to fabricate"
+            >
+              <option value="">Select blueprint…</option>
+              {incompleteBlueprints.map((b) => (
+                <option key={b.moduleId} value={b.moduleId}>
+                  {getModule(b.moduleId)?.name ?? b.moduleId}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="primary"
+              disabled={!fabSelect}
+              onClick={() => {
+                if (!fabSelect) return
+                onStartFab(fabSelect)
+                setFabSelect('')
+              }}
+            >
+              Start
+            </button>
+          </div>
+        ) : (
+          <div className="fab-project">
+            <p>
+              <strong>{getModule(project.moduleId)?.name ?? project.moduleId}</strong>
+              {recipeFilled ? (
+                <span className="muted">
+                  {' '}
+                  · {((project.progress ?? 0) * 100).toFixed(0)}%
+                  {fabEta != null ? ` · ~${fabEta.toFixed(0)}s` : ' · assign Fab Bay'}
+                </span>
+              ) : (
+                <span className="muted"> · waiting for parts</span>
+              )}
+            </p>
+            <div className="manufacture-bar" aria-label="Fabrication progress">
+              <div
+                className="manufacture-bar-fill"
+                style={{
+                  width: `${Math.min(100, (project.progress ?? 0) * 100)}%`,
+                }}
+              />
+            </div>
+            <ul className="def-list">
+              {PART_TYPES.map((pt) => {
+                const need = recipe?.[pt] ?? 0
+                const contributed = project.contributed[pt] ?? 0
+                const inv = state.parts[partId(project.moduleId, pt)] ?? 0
+                const room = Math.max(0, need - contributed)
+                return (
+                  <li key={pt}>
+                    <div>
+                      <strong>{pt.charAt(0).toUpperCase() + pt.slice(1)}</strong>
+                      <p className="muted">
+                        {contributed}/{need} · inv {inv}
+                      </p>
+                    </div>
+                    <div className="assign-row">
+                      <button
+                        type="button"
+                        className="assign-btn"
+                        disabled={contributed <= 0}
+                        onClick={() => onWithdrawFab(pt, 1)}
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        disabled={room <= 0 || inv <= 0}
+                        onClick={() => onDepositFab(pt, 1)}
+                      >
+                        Deposit
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+            <button type="button" onClick={onClearFab}>
+              Cancel Project
+            </button>
+          </div>
+        )}
+
+        {incompleteBlueprints.length === 0 && !project ? (
+          <p className="muted">No incomplete blueprints.</p>
+        ) : null}
+
+        <h4>Parts inventory</h4>
+        {partRows.length === 0 ? (
+          <p className="muted">No parts yet.</p>
+        ) : (
+          <ul className="def-list">
+            {partRows.map((row) => {
+              const mastery = moduleMasteryRank(state, row.moduleId)
+              const partsOwned = countModuleParts(state, row.moduleId)
+              const canInvest =
+                row.unlocked &&
+                mastery < MAX_MODULE_MASTERY &&
+                partsOwned >= MASTERY_PARTS_COST
+              return (
+                <li key={row.partId}>
+                  <div>
+                    <strong>
+                      {row.moduleName} {row.partType}
+                    </strong>
+                    <p className="muted">
+                      ×{row.qty} · sell {partSellScrap(row.partId)} scrap
+                      {row.unlocked
+                        ? ` · Mastery ${mastery}/${MAX_MODULE_MASTERY}`
+                        : ''}
+                    </p>
+                  </div>
+                  <div className="assign-row">
+                    <button type="button" onClick={() => onSellPart(row.partId, 1)}>
+                      Sell
+                    </button>
+                    {row.unlocked ? (
+                      <button
+                        type="button"
+                        className="primary"
+                        disabled={!canInvest}
+                        onClick={() => onInvestMastery(row.moduleId)}
+                      >
+                        Invest Mastery
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        <div className="modal-actions">
+          <button type="button" className="primary" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

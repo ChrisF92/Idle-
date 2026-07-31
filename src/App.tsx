@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { computeResourceRates } from './game/tick'
@@ -22,9 +22,15 @@ import './App.css'
 export default function App() {
   const game = useGame()
   const [tab, setTab] = useState<TabId>('combat')
+  const [fabLaunchModuleId, setFabLaunchModuleId] = useState<string | null>(null)
   const rates = useMemo(() => computeResourceRates(game.state), [game.state])
   const guide = activeGuideStep(game.state, tab)
   const ack = game.acknowledgeOnboarding
+  const onFabLaunchConsumed = useCallback(() => setFabLaunchModuleId(null), [])
+  const onBuildModule = useCallback((moduleId: string) => {
+    setFabLaunchModuleId(moduleId)
+    setTab('base')
+  }, [])
 
   useEffect(() => {
     if (!isSystemUnlocked(game.state, tab)) {
@@ -91,14 +97,18 @@ export default function App() {
             onUpgradeModule={game.upgradeModule}
             onUnequipAll={game.unequipAll}
             onUpgradeCheapest={game.upgradeCheapest}
+            onBuildModule={onBuildModule}
           />
         )}
         {tab === 'base' && (
           <BaseTab
             state={game.state}
+            fabLaunchModuleId={fabLaunchModuleId}
+            onFabLaunchConsumed={onFabLaunchConsumed}
             onAssign={game.assignWorker}
             onAutoBalance={game.autoBalanceWorkers}
             onStartFab={game.startFabProject}
+            onLaunchFab={game.launchFabProject}
             onClearFab={game.clearFabProject}
             onDepositFab={game.depositFabPart}
             onWithdrawFab={game.withdrawFabPart}

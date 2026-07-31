@@ -484,6 +484,14 @@ export interface SignalCoreDropResult {
   uid: string
 }
 
+/** Signal Cores unlock after first prestige or career sector 10. */
+export function signalCoresUnlocked(state: GameState): boolean {
+  return (
+    (state.prestige?.prestigeCount ?? 0) >= 1 ||
+    (state.meta?.highestSectorEver ?? 0) >= 10
+  )
+}
+
 /**
  * Roll a Signal Core drop into inventory.
  * Mutates state. Separate from blueprint part rolls.
@@ -493,6 +501,7 @@ export function grantSignalCoreDrop(
   source: SignalCoreDropSource,
   opts: { family?: string; rng?: () => number } = {},
 ): SignalCoreDropResult | null {
+  if (!signalCoresUnlocked(state)) return null
   const rng = opts.rng ?? Math.random
   let defId: string | null = null
 
