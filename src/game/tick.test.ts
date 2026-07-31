@@ -274,6 +274,7 @@ describe('prestige and challenges', () => {
 
   it('enters and completes a repeatable challenge', () => {
     let state = createInitialState(0)
+    state.meta.act1Cleared = true
     state.combat.sector = 8
     state = enterChallenge(state, 'no-ai', 2000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')

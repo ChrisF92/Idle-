@@ -519,6 +519,9 @@ export function canAscend(state: GameState): boolean {
 
 export function canEnterChallenge(state: GameState, challengeId: string): boolean {
   if (state.prestige.activeChallengeId) return false
+  if (!state.meta.act1Cleared && careerHighestSector(state) < ACT1_FINAL_SECTOR) {
+    return false
+  }
   const challenge = getChallenge(challengeId)
   if (!challenge) return false
   if (!isChallengeUnlocked(state, challengeId)) return false

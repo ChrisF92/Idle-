@@ -82,12 +82,12 @@ describe('expanded onboarding catalog', () => {
     expect(activeGuideStep(state, 'base')?.id).toBe('guide-power-grid')
   })
 
-  it('keeps challenges UI closed until prestige is available again', () => {
+  it('keeps challenges UI closed until Act 1 (sector 30) is cleared', () => {
     const state = createInitialState(0)
-    state.prestige.prestigeCount = 1
-    state.combat.sector = 1
-    expect(challengesContentUnlocked(state)).toBe(false)
+    state.prestige.prestigeCount = 3
     state.combat.sector = 8
+    expect(challengesContentUnlocked(state)).toBe(false)
+    state.meta.act1Cleared = true
     expect(challengesContentUnlocked(state)).toBe(true)
     expect(GUIDE_STEPS.some((s) => s.id === 'guide-challenge-shop')).toBe(true)
 
@@ -108,6 +108,7 @@ describe('expanded onboarding catalog', () => {
       'guide-prestige-ready',
       'guide-matter-shop',
       'guide-signal-cores',
+      'guide-ascension',
     ]
     expect(activeGuideStep(state, 'prestige')?.id).toBe('guide-challenges')
     expect(activeGuideStep(state, 'prestige')?.target).toBe('challenges-subtab')

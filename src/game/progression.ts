@@ -535,20 +535,12 @@ function guideSeen(state: GameState, id: string): boolean {
 }
 
 /**
- * Prestige sector threshold for challenge UI (mirrors Early Gate without catalog import).
- */
-export function prestigeSectorThreshold(state: GameState): number {
-  return (state.prestige.shop['early-gate'] ?? 0) >= 1 ? 6 : PRESTIGE_MIN_SECTOR
-}
-
-/**
- * Challenges + Challenge shop appear after the first prestige, once the player
- * can prestige again (or while a challenge is already active).
+ * Challenges + Challenge shop unlock after the first Act 1 clear (sector 30).
+ * Stay visible while a challenge is already running so Abandon remains available.
  */
 export function challengesContentUnlocked(state: GameState): boolean {
-  if (state.prestige.prestigeCount < 1) return false
   if (state.prestige.activeChallengeId) return true
-  return state.combat.sector >= prestigeSectorThreshold(state)
+  return state.meta.act1Cleared || careerHighestSector(state) >= ACT1_FINAL_SECTOR
 }
 
 /** Grant Base starter drones; update career flags; check achievements. */
@@ -825,7 +817,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-challenges',
     title: 'Challenges unlocked',
-    body: 'Tap Challenges. Optional restricted runs grant Challenge Points for the shop — you can keep prestigining normally instead.',
+    body: 'Act 1 complete — tap Challenges. Optional restricted runs grant Challenge Points. Prestige stays available; challenges are never required.',
     target: 'challenges-subtab',
     tab: 'prestige',
     availableWhen: (s) =>

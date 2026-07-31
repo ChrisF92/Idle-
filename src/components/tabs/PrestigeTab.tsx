@@ -242,8 +242,8 @@ export function PrestigeTab({
       ) : (
         <>
           <p className="muted">
-            Optional restricted runs for Challenge Points. Prestige normally anytime —
-            challenges are never required. Enter from sector {minSector}+.
+            Unlocked after clearing sector 30 (Act 1). Optional runs for Challenge Points —
+            never required. Enter from sector {minSector}+.
           </p>
 
           <div className="sub-tabs" role="tablist" aria-label="Challenge sections">

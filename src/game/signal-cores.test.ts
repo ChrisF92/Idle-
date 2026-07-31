@@ -93,6 +93,7 @@ describe('Signal Cores', () => {
 
     let state = createInitialState(0)
     state.prestige.prestigeCount = 3
+    state.meta.act1Cleared = true
     state.combat.sector = 8
     state.meta.highestSectorEver = 25
     const core = makeSignalCoreInstance('kinetic-shard', 1)
