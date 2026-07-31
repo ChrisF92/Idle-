@@ -8,8 +8,9 @@ export function PwaUpdateBanner() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
-      // Periodic check so long-lived installs pick up Pages deploys.
       if (!registration) return
+      // Check immediately, then hourly — installed phones otherwise stick on old shells.
+      void registration.update()
       window.setInterval(() => {
         void registration.update()
       }, 60 * 60 * 1000)

@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { GameState } from '../../game/types'
 import type { DevAction } from '../../game/dev'
 import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
+
+/** Bump when shipping UI that players must refresh to see (PWA cache). */
+export const APP_BUILD = '2026-07-31d'
 
 interface StatsTabProps {
   state: GameState
@@ -11,9 +14,35 @@ interface StatsTabProps {
   onDevAction: (action: DevAction) => void
 }
 
+async function forceReloadApp(): Promise<void> {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(regs.map((r) => r.unregister()))
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k)))
+    }
+  } catch {
+    // Still reload even if cleanup fails.
+  }
+  const url = new URL(window.location.href)
+  url.searchParams.set('v', APP_BUILD)
+  window.location.replace(url.toString())
+}
+
 export function StatsTab({ state, onHardReset, onImport, onDevAction }: StatsTabProps) {
   const [importCode, setImportCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Nudge waiting service workers when the player opens Stats.
+    if (!('serviceWorker' in navigator)) return
+    void navigator.serviceWorker.getRegistration().then((reg) => {
+      void reg?.update()
+    })
+  }, [])
 
   return (
     <section className="panel">
@@ -22,9 +51,11 @@ export function StatsTab({ state, onHardReset, onImport, onDevAction }: StatsTab
         <p>Local save only for now. Export/import for phone ↔ PC transfers.</p>
       </header>
 
-      <DevTools onDevAction={onDevAction} />
-
       <div className="stat-row">
+        <div>
+          <span className="muted">App build</span>
+          <strong>{APP_BUILD}</strong>
+        </div>
         <div>
           <span className="muted">Save version</span>
           <strong>{state.version}</strong>
@@ -38,6 +69,18 @@ export function StatsTab({ state, onHardReset, onImport, onDevAction }: StatsTab
           <strong>{state.prestige.prestigeCount}</strong>
         </div>
       </div>
+
+      <p className="muted">
+        If Stats looks outdated (no Dev Tools box below), tap <strong>Reload latest build</strong> —
+        installed PWAs can keep an old cache.
+      </p>
+      <p className="assign-row">
+        <button type="button" className="primary" onClick={() => void forceReloadApp()}>
+          Reload latest build
+        </button>
+      </p>
+
+      <DevTools onDevAction={onDevAction} />
 
       <p className="muted">
         Progressive Web App: after deploy to GitHub Pages (HTTPS), Android Chrome can Install /
