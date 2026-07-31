@@ -37,8 +37,6 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
     combat.docked &&
     (combat.playerHull < combat.playerHullMax - 0.5 ||
       combat.playerShield < combat.playerShieldMax - 0.5)
-  const inIntermission =
-    !combat.docked && !combat.inFight && combat.intermissionLeft > 0
   const battlefieldMode: BattlefieldMode = combat.docked
     ? needsRepair
       ? 'repairing'
@@ -143,9 +141,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           ? `BOSS P${combat.bossPhase + 1} · CHARGING`
           : `BOSS P${combat.bossPhase + 1}`
         : 'ENGAGED'
-      : inIntermission
-        ? 'INTERMISSION'
-        : 'STANDBY'
+      : 'STANDBY'
   const repairRate = combat.docked ? repairRatePerSecond(state) : 0
   const holdRates = useMemo(
     () =>
@@ -183,9 +179,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
               ? 'Paused — Shipyard'
               : combat.inFight
                 ? combat.enemyName
-                : inIntermission
-                  ? 'Between fights'
-                  : encounter.name}
+                : encounter.name}
           </strong>
         </div>
         <button
@@ -226,7 +220,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
 
       {combat.docked ? (
         <p className="muted combat-dock-hint">
-          Paused — Shipyard open for refit
+          Paused — sector {combat.sector} W1 · Shipyard open for refit
           {needsRepair ? ` · repairing +${repairRate.toFixed(1)} hull/s` : ''}
           {!state.shipyard.frameLocked
             ? ' · choose your frame before Launch (locks until prestige/challenge)'
@@ -234,15 +228,10 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           . {state.shipyard.frameLocked ? 'Resume' : 'Launch'} to continue{' '}
           {combat.campaign ? 'Advance' : 'Hold'}.
         </p>
-      ) : inIntermission ? (
-        <p className="muted combat-dock-hint">
-          Intermission — refit modules in the Shipyard, or Pause for a longer hangar stay.
-          Next fight in {combat.intermissionLeft.toFixed(1)}s.
-        </p>
       ) : (
         <p className="muted combat-dock-hint">
-          Advance pushes sectors · Hold farms this sector · Pause only when you need a longer
-          module refit (auto-combat resumes between fights).
+          Advance pushes sectors · Hold farms this sector · Pause aborts the fight and resets
+          this sector to W1 for module refit.
         </p>
       )}
 
@@ -506,7 +495,7 @@ function LaunchConfirmModal({
         </header>
         <p>
           Launching locks <strong>{frameName}</strong> until the next prestige or
-          challenge. Modules can still be refit between fights or while Paused.
+          challenge. Pause anytime later to refit modules (resets the sector to W1).
         </p>
         <p className="muted">Launch anyway?</p>
         <div className="modal-actions">

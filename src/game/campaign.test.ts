@@ -69,10 +69,7 @@ describe('campaign combat', () => {
     expect(state.combat.sector).toBe(3)
     expect(state.combat.wave).toBe(1)
     expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
-    expect(state.combat.inFight).toBe(false)
-    expect(state.combat.intermissionLeft).toBeGreaterThan(0)
-    // Re-engages after intermission
-    advanceTicks(state, 3)
+    // Continuous loop re-engages immediately
     expect(state.combat.inFight).toBe(true)
   })
 
@@ -104,7 +101,7 @@ describe('campaign combat', () => {
     expect(state.combat.highestSector).toBe(0)
   })
 
-  it('Pause stops auto-engage so modules can be fitted', () => {
+  it('Pause stops auto-engage, resets sector to W1, and allows refit', () => {
     let state = createInitialState(0)
     expect(state.combat.docked).toBe(true)
     state = setDocked(state, false)
@@ -112,11 +109,18 @@ describe('campaign combat', () => {
     expect(state.combat.inFight).toBe(true)
     expect(state.shipyard.frameLocked).toBe(true)
 
+    // Progress into the sector, then Pause should rewind to W1.
+    for (const e of state.combat.enemyUnits) e.hull = 0
+    advanceTicks(state, 1)
+    expect(state.combat.wave).toBeGreaterThan(1)
+
     state = setDocked(state, true)
     expect(state.combat.docked).toBe(true)
     expect(state.combat.inFight).toBe(false)
+    expect(state.combat.wave).toBe(1)
     advanceTicks(state, 2)
     expect(state.combat.inFight).toBe(false)
+    expect(state.combat.wave).toBe(1)
 
     state.resources.scrap = 999
     state.resources.alloys = 999
@@ -128,25 +132,20 @@ describe('campaign combat', () => {
     advanceTicks(state, 1)
     expect(state.combat.docked).toBe(false)
     expect(state.combat.inFight).toBe(true)
+    expect(state.combat.wave).toBe(1)
     expect(state.combat.playerUnits.some((u) => u.armor > 0)).toBe(true)
   })
 
-  it('allows module refit during intermission without Pausing', () => {
+  it('chains waves with no intermission', () => {
     let state = createInitialState(0)
     state = setDocked(state, false)
     advanceTicks(state, 1)
     expect(state.combat.inFight).toBe(true)
+    expect(state.combat.wave).toBe(1)
     for (const e of state.combat.enemyUnits) e.hull = 0
     advanceTicks(state, 1)
-    expect(state.combat.inFight).toBe(false)
-    expect(state.combat.intermissionLeft).toBeGreaterThan(0)
-
-    state.resources.scrap = 999
-    state.resources.alloys = 999
-    state = unlockModule(state, 'plate-layer')
-    state = fitModule(state, 'plate-layer')
-    expect(state.shipyard.modules).toContain('plate-layer')
-    expect(state.combat.docked).toBe(false)
+    expect(state.combat.inFight).toBe(true)
+    expect(state.combat.wave).toBe(2)
   })
 
   it('repairs hull while Paused', () => {
@@ -160,7 +159,7 @@ describe('campaign combat', () => {
     expect(state.combat.inFight).toBe(false)
   })
 
-  it('Crisis Pause never auto-resumes; Field Repairs never auto-Launch', () => {
+  it('AI never Pauses or Resumes combat', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8
     state.meta.aiUnlocked = true
@@ -173,18 +172,17 @@ describe('campaign combat', () => {
     advanceTicks(state, 1)
     expect(state.combat.inFight).toBe(true)
 
-    // End fight with low hull so Crisis Pause can trip between fights.
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
     flag.hull = 10
     flag.shield = 0
     for (const e of state.combat.enemyUnits) e.hull = 0
-    advanceTicks(state, 1)
-    expect(state.combat.inFight).toBe(false)
-    // One more step so Crisis Pause runs after the win tick.
-    advanceTicks(state, 0.1)
-    expect(state.combat.docked).toBe(true)
+    advanceTicks(state, 2)
+    // Still fighting / auto-engaging — AI must not force Pause.
+    expect(state.combat.docked).toBe(false)
+    expect(state.combat.inFight).toBe(true)
 
-    // Field Repairs must not undock / Launch for the player.
+    // Manual Pause stays paused; Field Repairs must not Resume.
+    state = setDocked(state, true)
     advanceTicks(state, 20)
     expect(state.combat.docked).toBe(true)
     expect(state.combat.inFight).toBe(false)

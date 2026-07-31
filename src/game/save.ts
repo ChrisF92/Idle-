@@ -39,7 +39,6 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     wave: Math.max(1, combat.wave ?? 1),
     campaign: combat.campaign ?? true,
     docked: combat.docked ?? false,
-    intermissionLeft: Math.max(0, combat.intermissionLeft ?? 0),
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
     playerShield: combat.playerShield ?? 0,

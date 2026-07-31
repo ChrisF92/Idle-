@@ -138,11 +138,19 @@ function endOfflineFight(state: GameState, seconds: number): void {
     state.combat.fx = []
     state.combat.enemyName = 'None'
   }
-  const mult = state.combat.docked
+  let mult = state.combat.docked
     ? 1
     : aiDoctrinesActive(state, 'auto-launch-ready')
       ? 0.85
       : 0.4
+  if (
+    !state.combat.docked &&
+    aiDoctrinesActive(state, 'auto-dock-critical') &&
+    stats.hullMax > 0 &&
+    state.combat.playerHull / stats.hullMax < 0.35
+  ) {
+    mult = Math.max(mult, 0.95)
+  }
   state.combat.playerHull = Math.min(
     stats.hullMax,
     state.combat.playerHull + repairRatePerSecond(state) * mult * seconds,

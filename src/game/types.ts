@@ -159,19 +159,14 @@ export interface CombatState {
   wave: number
   inFight: boolean
   /**
-   * Player pause for extended refit / repair. Auto-engage is stopped until Resume.
-   * Not an AI lifestyle loop — Crisis Pause may set this, but never auto-resumes.
+   * Player pause for Shipyard refit / repair. Auto-engage stops until Resume.
+   * Pausing resets the current sector to wave 1. AI never toggles this.
    */
   docked: boolean
   /**
-   * Brief post-fight window (seconds) before auto-engage so modules can be refit
-   * without Pausing. Counts down while undocked and out of combat.
-   */
-  intermissionLeft: number
-  /**
    * Advance mode: after a clear, push to the next sector.
    * Hold mode: farm the current sector repeatedly (same rewards, no sector++).
-   * Both modes auto-engage after intermission while not Paused.
+   * Both modes auto-engage while not Paused.
    */
   campaign: boolean
   consecutiveLosses: number

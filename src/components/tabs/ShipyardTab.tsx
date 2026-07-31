@@ -74,8 +74,8 @@ export function ShipyardTab({
   const slotsUsed = state.shipyard.modules.length
   const slotsMax = frame ? frameTotalSlots(frame) : 0
   const frameLocked = state.shipyard.frameLocked
-  const canRefitModules = !state.combat.inFight
   const ever = careerHighestSector(state)
+  const canRefitModules = state.combat.docked
   const canBatch = state.ai.purchased.includes('batch-refit')
   const canSalvageOpt = state.ai.purchased.includes('salvage-optimizer')
   const challengeId = state.prestige.activeChallengeId
@@ -100,8 +100,8 @@ export function ShipyardTab({
       <header className="panel-header">
         <h2>Shipyard</h2>
         <p>
-          Choose a frame before your first Launch (locked until prestige / challenge). Refit
-          modules between fights, or Pause from Combat for a longer hangar stay.
+          Choose a frame before your first Launch (locked until prestige / challenge). Pause from
+          Combat to refit modules (resets the sector to W1).
         </p>
       </header>
 
@@ -114,16 +114,14 @@ export function ShipyardTab({
         </p>
       ) : null}
 
-      {state.combat.inFight ? (
-        <p className="notice-warn">In fight — Pause from the Combat tab to refit modules.</p>
-      ) : state.combat.docked ? (
+      {state.combat.docked ? (
         <p className="notice">
-          Paused — {frameLocked ? 'frame locked · ' : 'pick a frame, then '}
+          Paused — sector W1 · {frameLocked ? 'frame locked · ' : 'pick a frame, then '}
           fit modules while hull repairs.
         </p>
       ) : (
-        <p className="notice">
-          Between fights — fit modules now, or Pause from Combat if you need more time.
+        <p className="notice-warn">
+          In combat — Pause from the Combat tab to refit (resets this sector to W1).
         </p>
       )}
 

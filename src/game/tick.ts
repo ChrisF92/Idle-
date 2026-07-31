@@ -37,9 +37,6 @@ import {
   computeFightDamage,
 } from './combat'
 
-/** Brief window after each fight so Shipyard Fit/Unfit works without Pausing. */
-export const INTERMISSION_AFTER_FIGHT_S = 2.5
-
 /** Legacy alias — production/offline still speak in seconds; combat is continuous. */
 export const TICK_MS = 1000
 /** Max live catch-up seconds when the tab was backgrounded briefly. */
@@ -185,17 +182,12 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   state.combat.sector = Math.max(1, fromSector - 1)
   state.combat.wave = 1
   fullHealPlayer(state)
-  startIntermission(state)
 
   const label = tactical ? 'Tactical warp' : 'Ship destroyed — warping'
   pushLog(
     state,
     `${label} from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''} → sector ${state.combat.sector} W1 (hull restored).`,
   )
-}
-
-function startIntermission(state: GameState, seconds = INTERMISSION_AFTER_FIGHT_S): void {
-  state.combat.intermissionLeft = Math.max(state.combat.intermissionLeft, seconds)
 }
 
 function grantSectorClearRewards(state: GameState, clearedSector: number, wasBoss: boolean): void {
@@ -251,7 +243,6 @@ function onFightWon(state: GameState): void {
   )
   clearEnemy(state)
   state.combat.consecutiveLosses = 0
-  startIntermission(state)
 
   if (clearedWave < WAVES_PER_SECTOR) {
     state.combat.wave = clearedWave + 1
@@ -309,12 +300,20 @@ function tickCombat(state: GameState, dt: number): void {
 }
 
 /**
- * Repair while Paused (full rate) or between fights undocked (field rate).
- * Field Repairs AI (`auto-launch-ready`) boosts undocked regen — it never auto-resumes.
+ * Repair while Paused (full rate) or out of combat undocked (field rate).
+ * AI never pauses / resumes combat — only repair multipliers.
  */
 function fieldRepairMultiplier(state: GameState): number {
   if (state.combat.docked) return 1
-  return aiDoctrinesActive(state, 'auto-launch-ready') ? 0.85 : 0.4
+  let mult = aiDoctrinesActive(state, 'auto-launch-ready') ? 0.85 : 0.4
+  if (
+    aiDoctrinesActive(state, 'auto-dock-critical') &&
+    state.combat.playerHullMax > 0 &&
+    state.combat.playerHull / state.combat.playerHullMax < 0.35
+  ) {
+    mult = Math.max(mult, 0.95)
+  }
+  return mult
 }
 
 function tickOutOfCombatRepair(state: GameState, dt: number): void {
@@ -339,27 +338,10 @@ function tickOutOfCombatRepair(state: GameState, dt: number): void {
   }
 }
 
-/** Advance / Hold auto-engage after intermission while not Paused. */
+/** Advance / Hold auto-engage while not Paused. AI never toggles this. */
 function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight || state.combat.docked) return
-  if (state.combat.intermissionLeft > 0) return
   beginFight(state)
-}
-
-function maybeAiAutomation(state: GameState): void {
-  if (state.prestige.activeChallengeId === 'no-ai') return
-
-  // Crisis Pause: one-shot pause at low hull. Never auto-resumes (Sortie removed).
-  if (
-    aiDoctrinesActive(state, 'auto-dock-critical') &&
-    !state.combat.docked &&
-    !state.combat.inFight &&
-    state.combat.playerHullMax > 0 &&
-    state.combat.playerHull / state.combat.playerHullMax < 0.35
-  ) {
-    state.combat.docked = true
-    pushLog(state, 'Crisis Pause — paused at low hull. Resume when ready.')
-  }
 }
 
 export function beginFight(state: GameState): void {
@@ -421,8 +403,9 @@ export function setCampaign(state: GameState, on: boolean): GameState {
 }
 
 /**
- * Pause stops auto-engage (and aborts a fight) for extended Shipyard refit.
- * Resume / Launch clears pause. First Launch also locks the frame for the run.
+ * Pause stops auto-engage, aborts the fight, and resets to wave 1 of this sector
+ * so the Shipyard can refit. Resume / Launch clears pause. First Launch locks the frame.
+ * AI never calls this.
  */
 export function setDocked(state: GameState, docked: boolean): GameState {
   if (state.combat.docked === docked) return state
@@ -433,19 +416,21 @@ export function setDocked(state: GameState, docked: boolean): GameState {
       clearEnemy(next)
     }
     next.combat.docked = true
-    next.combat.intermissionLeft = 0
-    pushLog(next, 'Paused — refit in Shipyard, then Resume.')
+    next.combat.wave = 1
+    pushLog(
+      next,
+      `Paused — sector ${next.combat.sector} reset to W1. Refit in Shipyard, then Resume.`,
+    )
   } else {
     next.combat.docked = false
-    next.combat.intermissionLeft = 0
     if (!next.shipyard.frameLocked) {
       next.shipyard.frameLocked = true
       pushLog(
         next,
-        'Launching — frame locked for this run. Modules can be refit between fights or while Paused.',
+        'Launching — frame locked for this run. Pause anytime to refit (resets the sector to W1).',
       )
     } else {
-      pushLog(next, 'Resumed — returning to the sector.')
+      pushLog(next, `Resumed — returning to sector ${next.combat.sector} W1.`)
     }
   }
   return next
@@ -486,13 +471,9 @@ export function advanceSeconds(state: GameState, seconds: number): void {
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)
     applyProduction(state, dt)
-    maybeAiAutomation(state)
     if (state.combat.inFight) {
       tickCombat(state, dt)
     } else {
-      if (state.combat.intermissionLeft > 0) {
-        state.combat.intermissionLeft = Math.max(0, state.combat.intermissionLeft - dt)
-      }
       tickOutOfCombatRepair(state, dt)
       maybeAutoEngage(state)
     }
