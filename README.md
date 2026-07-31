@@ -13,13 +13,23 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 
 | Tab | Purpose |
 |---|---|
-| Combat | Sector push, tick combat, entity enemies |
+| Combat | Sector push (5 waves/sector), Advance / Hold / Dock |
 | Shipyard | Unlock/fit frames + modules (affects damage/hull) |
-| Base | Idle industry upgrades |
-| Research | Unlock tree + damage bonuses |
-| AI | AI Points / Auto Engage |
-| Prestige | Soft reset at sector 8+ + challenge runs |
+| Base | Worker-drone stations (gated — clear sector 3) |
+| Research | Unlock tree + damage bonuses (gated — clear sector 5) |
+| Codex | Soft counters (gated — research Tactical Codex) |
+| AI | Permanent automation/QoL + per-run doctrines (gated — clear sector 8) |
+| Prestige | Soft reset at sector 8+ + challenge runs (tab from sector 5) |
 | Stats | Save management |
+
+## Progression notes
+
+- **Act 1** soft climax at sector **30** (6 boss milestones). Infinite push continues after.
+- Whole systems unlock by career sector clears; tabs stay visible with requirements.
+- Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige.
+- Combat drones are a separate gated pool (assignment later).
+- Prestige Matter / Challenge Points spend in permanent shops (or bank for a smaller bonus).
+
 
 ## Develop
 

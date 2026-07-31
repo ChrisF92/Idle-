@@ -12,6 +12,8 @@ import {
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
   abandonChallenge,
+  assignWorker,
+  autoBalanceWorkers,
   buyAiNode,
   buyChallengeShop,
   buyEssenceUpgrade,
@@ -22,11 +24,13 @@ import {
   performPrestige,
   selectFrame,
   unfitModule,
+  unequipAllModules,
   unlockFrame,
   unlockModule,
-  upgradeBuilding,
+  upgradeCheapestModule,
   upgradeModule,
 } from '../game/actions'
+import { acknowledgeOnboarding } from '../game/progression'
 import { createInitialState } from '../game/state'
 
 type Action =
@@ -36,7 +40,8 @@ type Action =
   | { type: 'set-campaign'; on: boolean }
   | { type: 'set-docked'; docked: boolean }
   | { type: 'warp'; sector: number }
-  | { type: 'upgrade-building'; buildingId: string }
+  | { type: 'assign-worker'; stationId: string; delta: number }
+  | { type: 'auto-balance-workers' }
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-essence'; upgradeId: string }
   | { type: 'buy-challenge-shop'; itemId: string }
@@ -48,6 +53,9 @@ type Action =
   | { type: 'fit-module'; moduleId: string }
   | { type: 'unfit-module'; moduleId: string }
   | { type: 'upgrade-module'; moduleId: string }
+  | { type: 'unequip-all' }
+  | { type: 'upgrade-cheapest' }
+  | { type: 'ack-onboarding'; tipId: string }
   | { type: 'prestige' }
   | { type: 'enter-challenge'; challengeId: string }
   | { type: 'abandon-challenge' }
@@ -67,8 +75,10 @@ function reducer(state: GameState, action: Action): GameState {
       return setDocked(state, action.docked)
     case 'warp':
       return warpToSector(state, action.sector)
-    case 'upgrade-building':
-      return upgradeBuilding(state, action.buildingId)
+    case 'assign-worker':
+      return assignWorker(state, action.stationId, action.delta)
+    case 'auto-balance-workers':
+      return autoBalanceWorkers(state)
     case 'buy-research':
       return buyResearch(state, action.researchId)
     case 'buy-essence':
@@ -91,6 +101,12 @@ function reducer(state: GameState, action: Action): GameState {
       return unfitModule(state, action.moduleId)
     case 'upgrade-module':
       return upgradeModule(state, action.moduleId)
+    case 'unequip-all':
+      return unequipAllModules(state)
+    case 'upgrade-cheapest':
+      return upgradeCheapestModule(state)
+    case 'ack-onboarding':
+      return acknowledgeOnboarding(state, action.tipId)
     case 'prestige':
       return performPrestige(state)
     case 'enter-challenge':
@@ -122,7 +138,6 @@ export function useGame() {
   )
 
   useEffect(() => {
-    // Fast poll so continuous combat stays smooth; sim uses real elapsed dt.
     const id = window.setInterval(() => {
       dispatch({ type: 'tick', now: Date.now() })
     }, 50)
@@ -141,8 +156,9 @@ export function useGame() {
     setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
     setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
     warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
-    upgradeBuilding: (buildingId: string) =>
-      dispatch({ type: 'upgrade-building', buildingId }),
+    assignWorker: (stationId: string, delta: number) =>
+      dispatch({ type: 'assign-worker', stationId, delta }),
+    autoBalanceWorkers: () => dispatch({ type: 'auto-balance-workers' }),
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),
     buyEssenceUpgrade: (upgradeId: string) =>
       dispatch({ type: 'buy-essence', upgradeId }),
@@ -156,6 +172,10 @@ export function useGame() {
     fitModule: (moduleId: string) => dispatch({ type: 'fit-module', moduleId }),
     unfitModule: (moduleId: string) => dispatch({ type: 'unfit-module', moduleId }),
     upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
+    unequipAll: () => dispatch({ type: 'unequip-all' }),
+    upgradeCheapest: () => dispatch({ type: 'upgrade-cheapest' }),
+    acknowledgeOnboarding: (tipId: string) =>
+      dispatch({ type: 'ack-onboarding', tipId }),
     prestige: () => dispatch({ type: 'prestige' }),
     enterChallenge: (challengeId: string) =>
       dispatch({ type: 'enter-challenge', challengeId }),

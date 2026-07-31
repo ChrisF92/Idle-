@@ -1,4 +1,6 @@
 import type { TabId } from '../game/types'
+import type { GameState } from '../game/types'
+import { isSystemUnlocked, systemUnlockRequirement } from '../game/progression'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'combat', label: 'Combat' },
@@ -14,21 +16,31 @@ const TABS: { id: TabId; label: string }[] = [
 interface TabNavProps {
   active: TabId
   onChange: (tab: TabId) => void
+  state: GameState
 }
 
-export function TabNav({ active, onChange }: TabNavProps) {
+export function TabNav({ active, onChange, state }: TabNavProps) {
   return (
     <nav className="tab-nav" aria-label="Game systems">
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className={active === tab.id ? 'tab active' : 'tab'}
-          onClick={() => onChange(tab.id)}
-        >
-          {tab.label}
-        </button>
-      ))}
+      {TABS.map((tab) => {
+        const unlocked = isSystemUnlocked(state, tab.id)
+        const req = systemUnlockRequirement(tab.id)
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            className={
+              active === tab.id ? 'tab active' : unlocked ? 'tab' : 'tab tab-locked'
+            }
+            disabled={!unlocked}
+            title={unlocked ? tab.label : (req ?? 'Locked')}
+            onClick={() => unlocked && onChange(tab.id)}
+          >
+            {tab.label}
+            {!unlocked ? <span className="tab-lock-hint"> · locked</span> : null}
+          </button>
+        )
+      })}
     </nav>
   )
 }

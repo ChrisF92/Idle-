@@ -13,7 +13,7 @@ import {
   researchDamageMultiplier,
 } from './catalog'
 
-export const SAVE_VERSION = 11
+export const SAVE_VERSION = 12
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -55,6 +55,7 @@ export function createInitialState(now = Date.now()): GameState {
     combat: {
       sector: 1,
       highestSector: 0,
+      wave: 1,
       inFight: false,
       docked: true,
       campaign: true,
@@ -74,13 +75,13 @@ export function createInitialState(now = Date.now()): GameState {
       enemyHullMax: 0,
       projectiles: [],
       fx: [],
-      log: ['Systems online. Continuous push armed.'],
+      log: ['Systems online. Docked — choose a frame, then Launch.'],
     },
     base: {
-      buildings: {
-        scrapYard: 1,
-        powerCell: 1,
-      },
+      workerDrones: 0,
+      combatDrones: 0,
+      assignments: {},
+      manufactureProgress: 0,
     },
     research: {
       unlocked: [],
@@ -100,6 +101,12 @@ export function createInitialState(now = Date.now()): GameState {
     },
     codex: {
       seenFamilies: [],
+    },
+    meta: {
+      highestSectorEver: 0,
+      act1Cleared: false,
+      seenOnboarding: [],
+      combatDronesUnlocked: false,
     },
   }
 }

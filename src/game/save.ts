@@ -1,5 +1,6 @@
 import type { GameState } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
+import { AI_NODES, isAiNodePermanent } from './catalog'
 
 export function saveGame(state: GameState): void {
   try {
@@ -31,8 +32,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     enemyFamily: combat.enemyFamily ?? '',
     enemyTags: combat.enemyTags ?? [],
     isBoss: combat.isBoss ?? false,
-    // v10+: highestSector = max sector cleared (0 if none yet)
     highestSector: Math.max(0, combat.highestSector ?? 0),
+    wave: Math.max(1, combat.wave ?? 1),
     campaign: combat.campaign ?? true,
     docked: combat.docked ?? false,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
@@ -114,6 +115,58 @@ function withCodexDefaults(
   return { seenFamilies: seen }
 }
 
+function migrateBase(
+  base: GameState['base'] | undefined,
+  fallback: GameState['base'],
+): GameState['base'] {
+  if (!base) return { ...fallback, assignments: { ...fallback.assignments } }
+
+  // Legacy building levels → approximate worker drones + scrap/power assignments.
+  const buildings = base.buildings
+  let workers = base.workerDrones ?? 0
+  const assignments: Record<string, number> = { ...(base.assignments ?? {}) }
+
+  if (buildings && workers <= 0) {
+    const scrap = buildings.scrapYard ?? 0
+    const power = buildings.powerCell ?? 0
+    const sensor = buildings.sensorArray ?? 0
+    const foundry = buildings.foundry ?? 0
+    const hangar = buildings.workDroneHangar ?? 0
+    workers = Math.max(2, scrap + power + sensor + foundry + hangar)
+    if (scrap > 0) assignments['scrap-field'] = (assignments['scrap-field'] ?? 0) + scrap
+    if (power > 0) assignments['power-grid'] = (assignments['power-grid'] ?? 0) + power
+    if (sensor > 0) assignments['sensor-net'] = (assignments['sensor-net'] ?? 0) + sensor
+    if (foundry > 0) assignments['alloy-foundry'] = (assignments['alloy-foundry'] ?? 0) + foundry
+    if (hangar > 0) assignments['drone-fab'] = (assignments['drone-fab'] ?? 0) + hangar
+  }
+
+  return {
+    workerDrones: workers,
+    combatDrones: base.combatDrones ?? 0,
+    assignments,
+    manufactureProgress: base.manufactureProgress ?? 0,
+  }
+}
+
+function withMetaDefaults(
+  meta: GameState['meta'] | undefined,
+  highestSector: number,
+): GameState['meta'] {
+  return {
+    highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
+    act1Cleared: meta?.act1Cleared ?? false,
+    seenOnboarding: meta?.seenOnboarding ?? [],
+    combatDronesUnlocked: meta?.combatDronesUnlocked ?? false,
+  }
+}
+
+function withAiDefaults(ai: GameState['ai'] | undefined): GameState['ai'] {
+  const purchased = ai?.purchased ?? []
+  // Drop unknown ids; keep both permanent and doctrines as stored.
+  const known = new Set(AI_NODES.map((n) => n.id))
+  return { purchased: purchased.filter((id) => known.has(id)) }
+}
+
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
   const parsed = raw as Partial<GameState> & {
@@ -124,14 +177,18 @@ function migrate(raw: unknown): GameState | null {
   if (parsed.version === SAVE_VERSION) {
     const state = parsed as GameState
     const base = createInitialState()
+    const combat = withCombatDefaults(state.combat)
     return {
       ...state,
       resources: withResourcesDefaults(state.resources, base.resources),
-      combat: withCombatDefaults(state.combat),
+      combat,
       shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
+      base: migrateBase(state.base, base.base),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
       codex: withCodexDefaults(state.codex),
+      ai: withAiDefaults(state.ai),
+      meta: withMetaDefaults(state.meta, combat.highestSector),
     }
   }
 
@@ -145,37 +202,47 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 7 ||
     parsed.version === 8 ||
     parsed.version === 9 ||
-    parsed.version === 10
+    parsed.version === 10 ||
+    parsed.version === 11
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
       prestige?: GameState['prestige'] & { completedChallenges?: string[] }
     }
-    // v9 treated highestSector as frontier (often == current sector after a push).
-    // v10+ treats it as max cleared — approximate older frontiers as frontier - 1.
     const oldHighest = prev.combat?.highestSector ?? prev.combat?.sector ?? 1
     const clearedApprox =
-      parsed.version === 10
+      parsed.version === 10 || parsed.version === 11
         ? Math.max(0, prev.combat?.highestSector ?? 0)
         : Math.max(0, oldHighest - 1)
+    const combat = withCombatDefaults({
+      ...base.combat,
+      ...prev.combat,
+      highestSector: clearedApprox,
+      wave: 1,
+      playerUnits: [],
+      enemyUnits: [],
+      fx: [],
+      inFight: false,
+    })
+    const ai = withAiDefaults(prev.ai)
+    // Older saves treated all AI as run-scoped; keep permanents after migrate.
+    ai.purchased = ai.purchased.filter((id) => {
+      const def = AI_NODES.find((n) => n.id === id)
+      return def ? isAiNodePermanent(def) || def.kind === 'doctrine' : false
+    })
     return {
       ...base,
       ...prev,
       version: SAVE_VERSION,
       resources: withResourcesDefaults(prev.resources, base.resources),
-      combat: withCombatDefaults({
-        ...base.combat,
-        ...prev.combat,
-        highestSector: clearedApprox,
-        playerUnits: [],
-        enemyUnits: [],
-        fx: [],
-        inFight: false,
-      }),
+      combat,
       shipyard: withShipyardDefaults(prev.shipyard, base.shipyard),
+      base: migrateBase(prev.base, base.base),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
       codex: withCodexDefaults(prev.codex),
+      ai,
+      meta: withMetaDefaults(prev.meta, clearedApprox),
     }
   }
 

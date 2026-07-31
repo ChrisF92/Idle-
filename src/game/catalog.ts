@@ -1,18 +1,24 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
 import type { Resources, WeaponTag } from './types'
+import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN } from './progression'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
-export interface BuildingDef {
+/** Named production stations — worker drones are assigned here (ITRTG-style). */
+export interface StationDef {
   id: string
   name: string
   description: string
   requiresResearch?: string
-  baseCost: ResourceCost
-  costScale: number
+  /** Resource rates per assigned worker drone (per second). */
   rates: ResourceCost
-  upkeepScrapPerLevel?: number
+  /** Scrap drained per assigned drone per second (Foundry-style). */
+  upkeepScrapPerDrone?: number
+  /** Extra docked hull repair per second per drone. */
+  repairPerDrone?: number
+  /** Multiplier added to worker manufacture speed per drone (0.25 = +25%). */
+  manufactureBonusPerDrone?: number
 }
 
 export interface ResearchDef {
@@ -23,6 +29,8 @@ export interface ResearchDef {
   costEssence?: number
   damageBonus?: number
   essenceBonus?: number
+  /** Multiplier on worker drone manufacture speed. */
+  manufactureBonus?: number
 }
 
 export interface AiNodeDef {
@@ -31,6 +39,12 @@ export interface AiNodeDef {
   description: string
   costAiPoints: number
   kind: 'automation' | 'doctrine' | 'qol'
+  /** If true (default for automation/qol), kept across prestige. */
+  permanent?: boolean
+  /** Career sector clear required before this node can be bought. */
+  requiresSectorEver?: number
+  /** Extra manufacture speed while owned (permanent AI). */
+  manufactureBonus?: number
 }
 
 export interface EssenceUpgradeDef {
@@ -59,6 +73,9 @@ export interface ChallengeShopDef {
   offlineHours?: number
   /** Extra effectiveness on role matchup bonuses (0.15 = +15%). */
   matchupBonus?: number
+  /** Permanent bonus worker drones granted once when purchased. */
+  bonusWorkerDrones?: number
+  manufactureBonus?: number
 }
 
 export interface MatterShopDef {
@@ -75,6 +92,8 @@ export interface MatterShopDef {
   bonusDataPerClear?: number
   /** Multiplier on docked repair duration (0.6 = 40% faster). */
   repairMult?: number
+  bonusWorkerDrones?: number
+  manufactureBonus?: number
 }
 
 export interface ChallengeDef {
@@ -122,6 +141,8 @@ export interface ShipFrameDef {
   baseDamage: number
   baseHull: number
   unlockCost: ResourceCost
+  /** Career sector clear required to purchase. */
+  requiresSectorEver?: number
 }
 
 export interface ShipModuleDef {
@@ -141,55 +162,59 @@ export interface ShipModuleDef {
   /** Combat escort drones spawned from this module. */
   escorts?: number
   unlockCost: ResourceCost
+  requiresSectorEver?: number
 }
 
-/** First prestige is meant to be reachable on a starter loadout with light upgrades. */
-export const PRESTIGE_MIN_SECTOR = 6
+/** Re-export progression prestige gate for existing imports. */
+export const PRESTIGE_MIN_SECTOR = PROGRESSION_PRESTIGE_MIN
 
-export const BUILDINGS: BuildingDef[] = [
+/** Base seconds to manufacture one worker drone at 1.0 speed. */
+export const WORKER_MANUFACTURE_SECONDS = 90
+
+/** Combat drone corps unlocks after this career clear. */
+export const COMBAT_DRONES_UNLOCK_SECTOR = 15
+
+export const STATIONS: StationDef[] = [
   {
-    id: 'scrapYard',
-    name: 'Scrap Yard',
-    description: 'Passive scrap from debris fields.',
-    baseCost: { scrap: 15 },
-    costScale: 1.4,
-    rates: { scrap: 0.5 },
+    id: 'scrap-field',
+    name: 'Scrap Field',
+    description: 'Workers haul debris into usable scrap.',
+    rates: { scrap: 0.45 },
   },
   {
-    id: 'powerCell',
-    name: 'Power Cell',
-    description: 'Generates energy for operations.',
-    baseCost: { scrap: 20, energy: 5 },
-    costScale: 1.45,
-    rates: { energy: 0.2 },
+    id: 'power-grid',
+    name: 'Power Grid',
+    description: 'Workers stabilize reactor feeds for energy.',
+    rates: { energy: 0.18 },
   },
   {
-    id: 'sensorArray',
-    name: 'Sensor Array',
-    description: 'Collects research data from anomaly noise.',
-    baseCost: { scrap: 30, energy: 10 },
-    costScale: 1.5,
-    rates: { data: 0.08 },
+    id: 'sensor-net',
+    name: 'Sensor Net',
+    description: 'Workers sift anomaly noise into research data.',
+    rates: { data: 0.07 },
   },
   {
-    id: 'foundry',
-    name: 'Foundry',
-    description: 'Burns scrap into alloys.',
+    id: 'alloy-foundry',
+    name: 'Alloy Foundry',
+    description: 'Workers convert scrap into alloys.',
     requiresResearch: 'alloy-smelting',
-    baseCost: { scrap: 40, energy: 15 },
-    costScale: 1.5,
-    rates: { alloys: 0.15 },
-    upkeepScrapPerLevel: 0.2,
+    rates: { alloys: 0.14 },
+    upkeepScrapPerDrone: 0.18,
   },
   {
-    id: 'workDroneHangar',
-    name: 'Work Drone Hangar',
-    description:
-      'Industrial work drones haul scrap and skim anomaly data. Separate from combat Drone Bay escorts.',
+    id: 'repair-bay',
+    name: 'Repair Bay',
+    description: 'Workers speed hangar hull/shield restoration while Docked.',
+    rates: {},
+    repairPerDrone: 1.2,
+  },
+  {
+    id: 'drone-fab',
+    name: 'Drone Fabricator',
+    description: 'Workers accelerate manufacturing of new worker drones.',
     requiresResearch: 'drone-logistics',
-    baseCost: { scrap: 55, energy: 20, alloys: 12 },
-    costScale: 1.48,
-    rates: { scrap: 0.35, data: 0.05 },
+    rates: {},
+    manufactureBonusPerDrone: 0.35,
   },
 ]
 
@@ -204,14 +229,15 @@ export const RESEARCH: ResearchDef[] = [
   {
     id: 'alloy-smelting',
     name: 'Alloy Smelting',
-    description: 'Unlocks the Foundry building.',
+    description: 'Unlocks the Alloy Foundry station.',
     costData: 25,
   },
   {
     id: 'drone-logistics',
     name: 'Drone Logistics',
-    description: 'Unlocks the Work Drone Hangar for industrial scrap and data.',
+    description: 'Unlocks the Drone Fabricator station and +40% manufacture speed.',
     costData: 35,
+    manufactureBonus: 0.4,
   },
   {
     id: 'tactical-codex',
@@ -243,6 +269,80 @@ export const AI_NODES: AiNodeDef[] = [
     description: 'Doubles hull / shield repair rate while Docked.',
     costAiPoints: 1,
     kind: 'automation',
+    permanent: true,
+  },
+  {
+    id: 'auto-dock-critical',
+    name: 'Crisis Dock',
+    description: 'Automatically Dock when flagship hull falls below 35% between fights.',
+    costAiPoints: 2,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 8,
+  },
+  {
+    id: 'auto-launch-ready',
+    name: 'Sortie Protocol',
+    description: 'Automatically Launch when Docked and hull/shield are full.',
+    costAiPoints: 2,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 8,
+  },
+  {
+    id: 'auto-assign-workers',
+    name: 'Labor Router',
+    description: 'Unlocks Auto-Balance: evenly assign idle workers across unlocked stations.',
+    costAiPoints: 3,
+    kind: 'qol',
+    permanent: true,
+    requiresSectorEver: 10,
+  },
+  {
+    id: 'fabricator-overclock',
+    name: 'Fabricator Overclock',
+    description: '+50% worker drone manufacture speed.',
+    costAiPoints: 3,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 10,
+    manufactureBonus: 0.5,
+  },
+  {
+    id: 'salvage-optimizer',
+    name: 'Salvage Optimizer',
+    description: 'Unlocks Upgrade Cheapest: spend salvage on the lowest-level owned module.',
+    costAiPoints: 2,
+    kind: 'qol',
+    permanent: true,
+    requiresSectorEver: 8,
+  },
+  {
+    id: 'batch-refit',
+    name: 'Batch Refit',
+    description: 'Unlocks Unequip All in the Shipyard while Docked.',
+    costAiPoints: 1,
+    kind: 'qol',
+    permanent: true,
+    requiresSectorEver: 8,
+  },
+  {
+    id: 'hold-accountant',
+    name: 'Hold Accountant',
+    description: 'Shows estimated clear rewards while farming on Hold.',
+    costAiPoints: 1,
+    kind: 'qol',
+    permanent: true,
+    requiresSectorEver: 8,
+  },
+  {
+    id: 'warp-navigator',
+    name: 'Warp Navigator',
+    description: 'Unlocks the Warp button once any sector has been cleared.',
+    costAiPoints: 2,
+    kind: 'qol',
+    permanent: true,
+    requiresSectorEver: 8,
   },
   {
     id: 'focus-fire',
@@ -250,6 +350,7 @@ export const AI_NODES: AiNodeDef[] = [
     description: 'Doctrine: +12% weapon damage; AI prioritizes weakest targets.',
     costAiPoints: 2,
     kind: 'doctrine',
+    permanent: false,
   },
   {
     id: 'boss-protocol',
@@ -257,6 +358,7 @@ export const AI_NODES: AiNodeDef[] = [
     description: 'Doctrine: +25% damage vs boss units.',
     costAiPoints: 3,
     kind: 'doctrine',
+    permanent: false,
   },
   {
     id: 'scavenger',
@@ -264,6 +366,7 @@ export const AI_NODES: AiNodeDef[] = [
     description: 'Doctrine: +30% scrap from combat clears.',
     costAiPoints: 2,
     kind: 'doctrine',
+    permanent: false,
   },
   {
     id: 'tactical-retreat',
@@ -271,6 +374,7 @@ export const AI_NODES: AiNodeDef[] = [
     description: 'Doctrine: disengage at 25% flagship hull instead of destruction.',
     costAiPoints: 2,
     kind: 'doctrine',
+    permanent: false,
   },
 ]
 
@@ -316,9 +420,9 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'early-gate',
     name: 'Early Gate',
-    description: 'Prestige / enter challenges from sector 5.',
+    description: 'Prestige / enter challenges from sector 6.',
     costCp: 1,
-    prestigeMinSector: 5,
+    prestigeMinSector: 6,
   },
   {
     id: 'supply-cache',
@@ -354,6 +458,13 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     description: 'Each run starts with +20 Salvage for module upgrades.',
     costCp: 2,
     startingSalvage: 20,
+  },
+  {
+    id: 'drone-bay-rights',
+    name: 'Drone Bay Rights',
+    description: 'Permanently gain +2 worker drones when purchased.',
+    costCp: 2,
+    bonusWorkerDrones: 2,
   },
 ]
 
@@ -407,6 +518,14 @@ export const MATTER_SHOP: MatterShopDef[] = [
     description: 'Permanent +40 shield capacity on the flagship.',
     costPm: 4,
     shieldBonus: 40,
+  },
+  {
+    id: 'drone-corps',
+    name: 'Drone Corps Charter',
+    description: 'Permanently gain +3 worker drones and +25% manufacture speed.',
+    costPm: 5,
+    bonusWorkerDrones: 3,
+    manufactureBonus: 0.25,
   },
 ]
 
@@ -465,6 +584,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 9,
     baseHull: 140,
     unlockCost: { alloys: 25, scrap: 40 },
+    requiresSectorEver: 6,
   },
   {
     id: 'bastion-frame',
@@ -475,6 +595,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 8,
     baseHull: 190,
     unlockCost: { alloys: 60, scrap: 90, energy: 25 },
+    requiresSectorEver: 12,
   },
 ]
 
@@ -748,8 +869,8 @@ export function moduleLevelMultiplier(level: number): number {
   return 1 + Math.max(0, level) * 0.12
 }
 
-export function getBuilding(id: string): BuildingDef | undefined {
-  return BUILDINGS.find((b) => b.id === id)
+export function getStation(id: string): StationDef | undefined {
+  return STATIONS.find((s) => s.id === id)
 }
 
 export function getFrame(id: string): ShipFrameDef | undefined {
@@ -780,13 +901,111 @@ export function getAiNode(id: string): AiNodeDef | undefined {
   return AI_NODES.find((n) => n.id === id)
 }
 
-export function buildingUpgradeCost(building: BuildingDef, currentLevel: number): ResourceCost {
-  const factor = building.costScale ** currentLevel
-  const cost: ResourceCost = {}
-  for (const [key, amount] of Object.entries(building.baseCost)) {
-    cost[key as keyof Resources] = Math.ceil((amount ?? 0) * factor)
+export function isAiNodePermanent(node: AiNodeDef): boolean {
+  if (node.permanent != null) return node.permanent
+  return node.kind !== 'doctrine'
+}
+
+export function isStationUnlocked(
+  state: { research: { unlocked: string[] } },
+  stationId: string,
+): boolean {
+  const def = getStation(stationId)
+  if (!def) return false
+  if (!def.requiresResearch) return true
+  return state.research.unlocked.includes(def.requiresResearch)
+}
+
+export function assignedWorkers(assignments: Record<string, number>): number {
+  return Object.values(assignments).reduce((sum, n) => sum + Math.max(0, n), 0)
+}
+
+export function idleWorkers(state: {
+  base: { workerDrones: number; assignments: Record<string, number> }
+}): number {
+  return Math.max(0, state.base.workerDrones - assignedWorkers(state.base.assignments))
+}
+
+/** Total manufacture speed multiplier (1 = baseline). */
+export function workerManufactureSpeed(state: {
+  base: { assignments: Record<string, number> }
+  research: { unlocked: string[] }
+  ai: { purchased: string[] }
+  prestige: { shop: string[]; matterShop: string[] }
+}): number {
+  let speed = 1
+  for (const id of state.research.unlocked) {
+    speed += RESEARCH.find((r) => r.id === id)?.manufactureBonus ?? 0
   }
-  return cost
+  for (const id of state.ai.purchased) {
+    speed += getAiNode(id)?.manufactureBonus ?? 0
+  }
+  for (const id of state.prestige.shop) {
+    speed += getChallengeShopItem(id)?.manufactureBonus ?? 0
+  }
+  for (const id of state.prestige.matterShop) {
+    speed += getMatterShopItem(id)?.manufactureBonus ?? 0
+  }
+  const fab = state.base.assignments['drone-fab'] ?? 0
+  const fabDef = getStation('drone-fab')
+  if (fab > 0 && fabDef?.manufactureBonusPerDrone) {
+    speed += fab * fabDef.manufactureBonusPerDrone
+  }
+  return Math.max(0.05, speed)
+}
+
+export function stationRepairBonus(state: {
+  base: { assignments: Record<string, number> }
+}): number {
+  let bonus = 0
+  for (const station of STATIONS) {
+    const n = state.base.assignments[station.id] ?? 0
+    if (n > 0 && station.repairPerDrone) bonus += n * station.repairPerDrone
+  }
+  return bonus
+}
+
+/** Describe what one salvage level does for UI. */
+export function moduleUpgradeEffectLines(
+  moduleId: string,
+  fromLevel: number,
+  toLevel: number,
+): string[] {
+  const mod = getModule(moduleId)
+  if (!mod) return []
+  const a = moduleLevelMultiplier(fromLevel)
+  const b = moduleLevelMultiplier(toLevel)
+  const lines: string[] = []
+  const pct = ((b / a - 1) * 100).toFixed(0)
+  if (mod.weapon) {
+    lines.push(
+      `Weapon ${mod.weapon.damage * a} → ${(mod.weapon.damage * b).toFixed(1)} dmg (+${pct}%)`,
+    )
+  }
+  if (mod.hullBonus) {
+    lines.push(`Hull +${(mod.hullBonus * a).toFixed(0)} → +${(mod.hullBonus * b).toFixed(0)}`)
+  }
+  if (mod.armorBonus) {
+    lines.push(`Armor +${(mod.armorBonus * a).toFixed(1)} → +${(mod.armorBonus * b).toFixed(1)}`)
+  }
+  if (mod.shieldBonus) {
+    lines.push(`Shield +${(mod.shieldBonus * a).toFixed(0)} → +${(mod.shieldBonus * b).toFixed(0)}`)
+  }
+  if (mod.evasionBonus) {
+    lines.push(
+      `Evasion +${(mod.evasionBonus * 100 * Math.min(1.4, a)).toFixed(0)}% → +${(mod.evasionBonus * 100 * Math.min(1.4, b)).toFixed(0)}%`,
+    )
+  }
+  if (mod.damageTakenMult < 1) {
+    lines.push(`Damage taken ×${mod.damageTakenMult} (scales softer with levels)`)
+  }
+  if (mod.escorts) {
+    lines.push(`Escorts ×${mod.escorts} (count unchanged; damage scales with fleet)`)
+  }
+  if (lines.length === 0) {
+    lines.push(`Module combat contribution +${pct}% (Lv ${fromLevel} → ${toLevel})`)
+  }
+  return lines
 }
 
 export function researchDamageMultiplier(unlocked: string[]): number {

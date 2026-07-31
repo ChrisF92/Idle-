@@ -1,7 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { computeResourceRates } from './game/tick'
+import {
+  isSystemUnlocked,
+  onboardingTipId,
+  pendingOnboardingTip,
+} from './game/progression'
 import { ResourceBar } from './components/ResourceBar'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -19,6 +24,13 @@ export default function App() {
   const game = useGame()
   const [tab, setTab] = useState<TabId>('combat')
   const rates = useMemo(() => computeResourceRates(game.state), [game.state])
+  const tip = pendingOnboardingTip(game.state)
+
+  useEffect(() => {
+    if (!isSystemUnlocked(game.state, tab)) {
+      setTab('combat')
+    }
+  }, [game.state, tab])
 
   return (
     <div className="app">
@@ -36,8 +48,23 @@ export default function App() {
         />
       ) : null}
 
+      {tip ? (
+        <div className="onboarding-tip">
+          <div>
+            <p className="combat-hud-kicker">{tip.label}</p>
+            <p>{tip.tip}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => game.acknowledgeOnboarding(onboardingTipId(tip))}
+          >
+            Got it
+          </button>
+        </div>
+      ) : null}
+
       <ResourceBar resources={game.state.resources} rates={rates} />
-      <TabNav active={tab} onChange={setTab} />
+      <TabNav active={tab} onChange={setTab} state={game.state} />
 
       <main className="main">
         {tab === 'combat' && (
@@ -57,9 +84,17 @@ export default function App() {
             onFitModule={game.fitModule}
             onUnfitModule={game.unfitModule}
             onUpgradeModule={game.upgradeModule}
+            onUnequipAll={game.unequipAll}
+            onUpgradeCheapest={game.upgradeCheapest}
           />
         )}
-        {tab === 'base' && <BaseTab state={game.state} onUpgrade={game.upgradeBuilding} />}
+        {tab === 'base' && (
+          <BaseTab
+            state={game.state}
+            onAssign={game.assignWorker}
+            onAutoBalance={game.autoBalanceWorkers}
+          />
+        )}
         {tab === 'research' && (
           <ResearchTab
             state={game.state}

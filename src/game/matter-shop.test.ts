@@ -3,7 +3,8 @@ import { createInitialState, computeShipStats } from './state'
 import { buyMatterShop, performPrestige } from './actions'
 import { enemyForSector, repairRatePerSecond } from './combat'
 import { matterShopScrapBonus, metaProductionMultiplier } from './catalog'
-import { tickGame, startCombat } from './tick'
+import { startCombat } from './tick'
+import { clearSector } from './testHelpers'
 
 describe('prestige matter shop', () => {
   it('spends PM on matter-blade and boosts damage more than banking', () => {
@@ -65,10 +66,8 @@ describe('prestige matter shop', () => {
     state = buyMatterShop(state, 'archive-spur')
     state.resources.data = 0
     state = startCombat(state)
-    for (const e of state.combat.enemyUnits) e.hull = 0
-    state.combat.enemyHull = 0
-    const enemy = enemyForSector(state.combat.sector)
-    state = tickGame(state, 1000)
+    const enemy = enemyForSector(state.combat.sector, 5)
+    state = clearSector(state)
     expect(state.resources.data).toBe(enemy.dataReward + 2)
   })
 

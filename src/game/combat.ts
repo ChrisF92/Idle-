@@ -15,6 +15,7 @@ import {
   challengeStackRepairBonus,
   getModule,
   matterShopRepairMult,
+  stationRepairBonus,
 } from './catalog'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
 
@@ -168,7 +169,7 @@ function packY(index: number, count: number): number {
   return -spread / 2 + (spread / Math.max(1, count - 1)) * index
 }
 
-export function enemyForSector(sector: number): SectorEncounter {
+export function enemyForSector(sector: number, wave = 1): SectorEncounter {
   const boss = isBossSector(sector)
   const family: EnemyFamily = boss
     ? 'titan'
@@ -178,13 +179,15 @@ export function enemyForSector(sector: number): SectorEncounter {
     names[(Math.floor((sector - 1) / FAMILY_ROTATION.length)) % names.length] ??
     'Unknown Entity'
 
+  const waveScale = 1 + Math.max(0, wave - 1) * 0.1
   const units = boss
-    ? buildBossPack(sector, name)
-    : buildPack(sector, family, name)
+    ? buildBossPack(sector, name, waveScale)
+    : buildPack(sector, family, name, waveScale)
 
+  const waveLabel = `W${wave}`
   return {
-    id: `${family}-${sector}`,
-    name: boss ? `${name} (Boss)` : `${name} pack`,
+    id: `${family}-${sector}-w${wave}`,
+    name: boss ? `${name} (Boss ${waveLabel})` : `${name} pack (${waveLabel})`,
     family,
     tags: boss ? [family, 'boss'] : [family],
     isBoss: boss,
@@ -198,8 +201,13 @@ export function enemyForSector(sector: number): SectorEncounter {
   }
 }
 
-function buildPack(sector: number, family: EnemyFamily, name: string): CombatUnit[] {
-  const scale = 1 + (sector - 1) * 0.12
+function buildPack(
+  sector: number,
+  family: EnemyFamily,
+  name: string,
+  waveScale = 1,
+): CombatUnit[] {
+  const scale = (1 + (sector - 1) * 0.12) * waveScale
   const variant = sector % 2 === 0
   switch (family) {
     case 'swarm': {
@@ -342,8 +350,8 @@ function buildPack(sector: number, family: EnemyFamily, name: string): CombatUni
   }
 }
 
-function buildBossPack(sector: number, name: string): CombatUnit[] {
-  const scale = 1 + (sector - 1) * 0.1
+function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[] {
+  const scale = (1 + (sector - 1) * 0.1) * waveScale
   const titan = makeEnemyUnit({
     name: `${name} (Boss)`,
     family: 'titan',
@@ -740,6 +748,7 @@ export function repairRatePerSecond(state: GameState): number {
   const shopMult = matterShopRepairMult(state.prestige.matterShop)
   rate /= Math.max(0.2, shopMult)
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
+  rate += stationRepairBonus(state)
   return rate
 }
 
