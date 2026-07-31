@@ -35,6 +35,9 @@ import {
   upgradeCheapestModule,
   upgradeModule,
   withdrawFabPart,
+  equipSignalCore,
+  unequipSignalCore,
+  mergeSignalCores,
 } from '../game/actions'
 import { acknowledgeOnboarding } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -72,6 +75,9 @@ type Action =
   | { type: 'prestige' }
   | { type: 'enter-challenge'; challengeId: string }
   | { type: 'abandon-challenge' }
+  | { type: 'equip-core'; uid: string; slotKey: string }
+  | { type: 'unequip-core'; slotKey: string }
+  | { type: 'merge-cores'; defId: string; rank: number }
   | { type: 'hard-reset' }
   | { type: 'dev'; action: DevAction }
 
@@ -139,6 +145,12 @@ function reducer(state: GameState, action: Action): GameState {
       return enterChallenge(state, action.challengeId)
     case 'abandon-challenge':
       return abandonChallenge(state)
+    case 'equip-core':
+      return equipSignalCore(state, action.uid, action.slotKey)
+    case 'unequip-core':
+      return unequipSignalCore(state, action.slotKey)
+    case 'merge-cores':
+      return mergeSignalCores(state, action.defId, action.rank)
     case 'hard-reset':
       clearSave()
       return resetGame()
@@ -218,6 +230,12 @@ export function useGame() {
     enterChallenge: (challengeId: string) =>
       dispatch({ type: 'enter-challenge', challengeId }),
     abandonChallenge: () => dispatch({ type: 'abandon-challenge' }),
+    equipSignalCore: (uid: string, slotKey: string) =>
+      dispatch({ type: 'equip-core', uid, slotKey }),
+    unequipSignalCore: (slotKey: string) =>
+      dispatch({ type: 'unequip-core', slotKey }),
+    mergeSignalCores: (defId: string, rank: number) =>
+      dispatch({ type: 'merge-cores', defId, rank }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {

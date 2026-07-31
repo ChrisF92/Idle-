@@ -821,6 +821,19 @@ export const CHALLENGES: ChallengeDef[] = [
     requiresSectorEver: 25,
     requiresPrestiges: 3,
   },
+  {
+    id: 'null-signal',
+    name: 'Null Signal',
+    description:
+      'Reach sector 30 with no Signal Cores equipped. First clear stabilizes the Signal bank across prestige.',
+    restriction: 'Signal Cores unequipped and cannot be equipped',
+    goalSector: 30,
+    rewardChallengePoints: 4,
+    maxClears: 5,
+    stackProductionBonus: 0.02,
+    requiresSectorEver: 25,
+    requiresPrestiges: 3,
+  },
 ]
 
 export const SHIP_FRAMES: ShipFrameDef[] = [

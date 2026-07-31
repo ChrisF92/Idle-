@@ -36,6 +36,62 @@ export interface CoreState {
   progress: Record<CoreAttrId, number>
 }
 
+/** Typed equipment slots for Signal Cores (USI-inspired). */
+export type SignalCoreSlotType = 'assault' | 'ward' | 'signal'
+
+export type SignalCoreRarity = 'common' | 'rare' | 'epic'
+
+/** Additive passives — percents as fractions (0.05 = +5%), flat for armor/shield. */
+export interface SignalCorePassive {
+  damage?: number
+  hull?: number
+  armor?: number
+  shield?: number
+  scrap?: number
+  production?: number
+  fab?: number
+  drop?: number
+  matchup?: number
+  evasion?: number
+}
+
+export interface SignalCoreDef {
+  id: string
+  name: string
+  description: string
+  rarity: SignalCoreRarity
+  allowedSlots: SignalCoreSlotType[]
+  basePassive: SignalCorePassive
+  slotBonus: Partial<Record<SignalCoreSlotType, SignalCorePassive>>
+}
+
+export interface SignalCoreInstance {
+  uid: string
+  defId: string
+  /** 1..5 */
+  rank: number
+}
+
+export interface SignalCoresState {
+  inventory: SignalCoreInstance[]
+  /** slotKey → uid; slotKey like `assault-0`, `ward-1` */
+  equipped: Record<string, string>
+}
+
+/** Aggregated equipped Signal Core bonuses. */
+export interface SignalCoreBonuses {
+  damage: number
+  hull: number
+  armor: number
+  shield: number
+  scrap: number
+  production: number
+  fab: number
+  drop: number
+  matchup: number
+  evasion: number
+}
+
 export type EnemyFamilyId =
   | 'swarm'
   | 'armored'
@@ -249,6 +305,11 @@ export interface MetaState {
   discoveredModules: string[]
   /** Permanent mastery ranks from investing excess parts (cap 10). */
   moduleMastery: Record<string, number>
+  /**
+   * After first Null Signal clear, Signal Cores inventory + equipped
+   * persist through prestige / challenge resets.
+   */
+  signalCoresCarryOver: boolean
 }
 
 export interface ResearchState {
@@ -300,6 +361,11 @@ export interface GameState {
   meta: MetaState
   /** Run-scoped Core attribute ranks / training progress (wiped on prestige). */
   core: CoreState
+  /**
+   * Signal Cores inventory + equipped slots.
+   * Wiped on prestige unless meta.signalCoresCarryOver.
+   */
+  signalCores: SignalCoresState
   /**
    * Account-permanent blueprint parts inventory (PartId → qty).
    * Persists across prestige / challenge resets.

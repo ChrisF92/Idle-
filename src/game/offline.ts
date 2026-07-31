@@ -23,6 +23,7 @@ import {
   logisticsProdMult,
   tickCoreTraining,
 } from './core'
+import { computeSignalCoreBonuses } from './signalCores'
 import { isSystemUnlocked } from './progression'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 /** Default hard cap; Deep Cache shop extends this. */
@@ -69,7 +70,8 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       state.prestige.challengeClears,
     ) *
     essenceProductionMultiplier(state.essence.purchased) *
-    logisticsProdMult(state.core?.ranks.logistics ?? 0)
+    logisticsProdMult(state.core?.ranks.logistics ?? 0) *
+    (1 + computeSignalCoreBonuses(state).production)
 
   for (const station of STATIONS) {
     if (!isStationUnlocked(state, station.id)) continue
@@ -109,7 +111,7 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     (line) => {
       state.combat.log = [line, ...state.combat.log].slice(0, 40)
     },
-    logisticsFabMult(state),
+    logisticsFabMult(state) * (1 + computeSignalCoreBonuses(state).fab),
   )
   tickCoreTraining(state, seconds)
 }
@@ -121,7 +123,10 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
 function applySectorOfflineRewards(state: GameState, seconds: number): void {
   const sector = Math.max(1, state.combat.sector)
   const hours = seconds / 3600
-  const scrapPerHour = (8 + sector * 3) * (1 + matterShopScrapBonus(state.prestige.matterShop))
+  const scrapPerHour =
+    (8 + sector * 3) *
+    (1 + matterShopScrapBonus(state.prestige.matterShop)) *
+    (1 + computeSignalCoreBonuses(state).scrap)
   const dataPerHour =
     state.prestige.activeChallengeId === 'data-drought' ||
     !isSystemUnlocked(state, 'research')

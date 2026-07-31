@@ -53,6 +53,17 @@ import {
 } from './state'
 import { buildPlayerFleet } from './combat'
 import { careerHighestSector, tryCompleteAchievements } from './progression'
+import {
+  createEmptySignalCoresState,
+  unequipAllSignalCores,
+} from './signalCores'
+
+export {
+  equipSignalCore,
+  unequipSignalCore,
+  mergeSignalCores,
+  canEquipSignalCore,
+} from './signalCores'
 
 function canAfford(resources: Resources, cost: ResourceCost): boolean {
   for (const [key, amount] of Object.entries(cost)) {
@@ -598,8 +609,16 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       ...state.meta,
       discoveredModules: [...(state.meta.discoveredModules ?? [])],
       moduleMastery: { ...(state.meta.moduleMastery ?? {}) },
+      signalCoresCarryOver: state.meta.signalCoresCarryOver ?? false,
     },
     parts: { ...(state.parts ?? {}) },
+    signalCores:
+      state.meta.signalCoresCarryOver
+        ? {
+            inventory: structuredClone(state.signalCores?.inventory ?? []),
+            equipped: { ...(state.signalCores?.equipped ?? {}) },
+          }
+        : createEmptySignalCoresState(),
   }
 
   const fresh = createInitialState(now)
@@ -659,6 +678,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.codex = { seenFamilies: kept.seenFamilies }
   state.meta = kept.meta
   state.core = fresh.core
+  state.signalCores = kept.signalCores
   state.parts = kept.parts
 
   const stats = computeShipStats(state)
@@ -699,6 +719,9 @@ export function enterChallenge(
   next.prestige.prestigeCount += 1
   next.prestige.activeChallengeId = challengeId
   applyRunReset(next, now)
+  if (challengeId === 'null-signal') {
+    unequipAllSignalCores(next)
+  }
   tryCompleteAchievements(next)
   next.combat.log = [
     `Entered challenge: ${challenge.name} (+${gain} Prestige Matter). Goal: sector ${challenge.goalSector}.`,
@@ -744,6 +767,13 @@ export function tryCompleteChallenge(state: GameState): void {
   }
   state.prestige.activeChallengeId = null
   state.resources.challengePoints += challenge.rewardChallengePoints
+  if (id === 'null-signal' && prev === 0) {
+    state.meta.signalCoresCarryOver = true
+    state.combat.log = [
+      'Signal bank stabilized — Signal Cores now persist across prestige.',
+      ...state.combat.log,
+    ]
+  }
   state.combat.log = [
     `Challenge complete: ${challenge.name} (${nextClears}/${maxClears}). +${challenge.rewardChallengePoints} Challenge Points.`,
     ...state.combat.log,

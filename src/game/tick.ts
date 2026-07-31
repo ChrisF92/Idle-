@@ -24,6 +24,7 @@ import {
   logisticsProdMult,
   tickCoreTraining,
 } from './core'
+import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { tryCompleteChallenge } from './actions'
 import {
   WAVES_PER_SECTOR,
@@ -93,7 +94,8 @@ function productionMeta(state: GameState): number {
       state.prestige.challengeClears,
     ) *
     essenceProductionMultiplier(state.essence.purchased) *
-    logisticsProdMult(state.core?.ranks.logistics ?? 0)
+    logisticsProdMult(state.core?.ranks.logistics ?? 0) *
+    (1 + computeSignalCoreBonuses(state).production)
   )
 }
 
@@ -140,7 +142,7 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     state,
     dtSeconds,
     (line) => pushLog(state, line),
-    logisticsFabMult(state),
+    logisticsFabMult(state) * (1 + computeSignalCoreBonuses(state).fab),
   )
   tickCoreTraining(state, dtSeconds)
 }
@@ -203,6 +205,7 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
   if (state.shipyard.modules.includes('salvage-rig')) scrapGain *= 1.25
   scrapGain *= 1 + matterShopScrapBonus(state.prestige.matterShop)
+  scrapGain *= 1 + computeSignalCoreBonuses(state).scrap
   const siphonData =
     essenceBonusDataPerClear(state.essence.purchased) +
     matterShopDataPerClear(state.prestige.matterShop)
@@ -218,6 +221,12 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   state.resources.data += dataGain
   state.resources.essence += essenceGain
   state.resources.salvage += salvageGain
+
+  if (wasBoss) {
+    grantSignalCoreDrop(state, 'boss')
+  } else {
+    grantSignalCoreDrop(state, 'sector')
+  }
 
   const parts = [
     `+${scrapGain.toFixed(1)} scrap`,

@@ -114,7 +114,13 @@ export default function App() {
           />
         )}
         {tab === 'core' && (
-          <CoreTab state={game.state} onAssign={game.assignWorker} />
+          <CoreTab
+            state={game.state}
+            onAssign={game.assignWorker}
+            onEquipCore={game.equipSignalCore}
+            onUnequipCore={game.unequipSignalCore}
+            onMergeCores={game.mergeSignalCores}
+          />
         )}
         {tab === 'codex' && <CodexTab state={game.state} />}
         {tab === 'ai' && <AiTab state={game.state} onBuy={game.buyAiNode} />}

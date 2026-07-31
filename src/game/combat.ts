@@ -31,6 +31,7 @@ import {
   reactorsRepairMult,
   sensorsMatchupBonus,
 } from './core'
+import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -1087,7 +1088,8 @@ export function computeFightDamage(state: GameState): FightSummary {
   const matchupScale =
     1 +
     challengeShopMatchupBonus(state.prestige.shop) +
-    sensorsMatchupBonus(state.core?.ranks.sensors ?? 0)
+    sensorsMatchupBonus(state.core?.ranks.sensors ?? 0) +
+    computeSignalCoreBonuses(state).matchup
 
   let playerDps = stats.damage
   let incomingMult = stats.damageTakenMult
@@ -1362,7 +1364,10 @@ export function rollEnemyPartDrop(
   const table = getEnemyDropTable(unit.family)
   if (!table) return []
 
-  let chance = table.chance * logisticsDropMult(state)
+  let chance =
+    table.chance *
+    logisticsDropMult(state) *
+    (1 + computeSignalCoreBonuses(state).drop)
   let rolls = 1
   if (unit.isBoss) {
     chance = Math.min(1, chance * (table.bossChanceMult ?? 2))
@@ -1414,6 +1419,7 @@ function tryLootEnemyKill(
   if (unit.side !== 'enemy') return
   if (prevHull > 0 && unit.hull <= 0) {
     rollEnemyPartDrop(state, unit)
+    grantSignalCoreDrop(state, 'kill', { family: unit.family })
   }
 }
 
@@ -1579,7 +1585,8 @@ export function simulateCombat(
   const matchupScale =
     1 +
     challengeShopMatchupBonus(state.prestige.shop) +
-    sensorsMatchupBonus(state.core?.ranks.sensors ?? 0)
+    sensorsMatchupBonus(state.core?.ranks.sensors ?? 0) +
+    computeSignalCoreBonuses(state).matchup
   const focusFire = aiDoctrinesActive(state, 'focus-fire')
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
 

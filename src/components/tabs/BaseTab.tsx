@@ -20,6 +20,7 @@ import {
   workerManufactureSpeed,
 } from '../../game/catalog'
 import { logisticsFabMult } from '../../game/core'
+import { computeSignalCoreBonuses } from '../../game/signalCores'
 import { RESOURCE_LABELS } from '../../game/state'
 
 interface BaseTabProps {
@@ -102,7 +103,7 @@ export function BaseTab({
   const recipeFilled =
     !!recipe &&
     PART_TYPES.every((pt) => (project?.contributed[pt] ?? 0) >= (recipe?.[pt] ?? 0))
-  const fabSpeed = logisticsFabMult(state)
+  const fabSpeed = logisticsFabMult(state) * (1 + computeSignalCoreBonuses(state).fab)
   const fabEta =
     recipeFilled && fabWorkers > 0
       ? ((1 - (project?.progress ?? 0)) * FAB_SECONDS) / (fabWorkers * fabSpeed)

@@ -1,7 +1,18 @@
-import type { CoreAttrId, CoreState, GameState } from './types'
+import type {
+  CoreAttrId,
+  CoreState,
+  GameState,
+  SignalCoreInstance,
+  SignalCoresState,
+} from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
 import { AI_NODES, isAiNodePermanent } from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
+import {
+  SIGNAL_CORE_MAX_RANK,
+  createEmptySignalCoresState,
+  getSignalCoreDef,
+} from './signalCores'
 
 export function saveGame(state: GameState): void {
   try {
@@ -208,7 +219,42 @@ function withMetaDefaults(
     completedAchievements: completed,
     discoveredModules: [...(meta?.discoveredModules ?? [])],
     moduleMastery: { ...(meta?.moduleMastery ?? {}) },
+    signalCoresCarryOver: meta?.signalCoresCarryOver ?? false,
   }
+}
+
+function withSignalCoresDefaults(
+  raw: GameState['signalCores'] | undefined,
+): SignalCoresState {
+  const empty = createEmptySignalCoresState()
+  if (!raw || typeof raw !== 'object') return empty
+  const inventory: SignalCoreInstance[] = []
+  const seen = new Set<string>()
+  for (const item of raw.inventory ?? []) {
+    if (!item || typeof item !== 'object') continue
+    const uid = typeof item.uid === 'string' ? item.uid : ''
+    const defId = typeof item.defId === 'string' ? item.defId : ''
+    if (!uid || !defId || seen.has(uid) || !getSignalCoreDef(defId)) continue
+    const rank = Math.floor(Number(item.rank ?? 1))
+    seen.add(uid)
+    inventory.push({
+      uid,
+      defId,
+      rank: Number.isFinite(rank)
+        ? Math.max(1, Math.min(SIGNAL_CORE_MAX_RANK, rank))
+        : 1,
+    })
+  }
+  const uidSet = new Set(inventory.map((c) => c.uid))
+  const equipped: Record<string, string> = {}
+  if (raw.equipped && typeof raw.equipped === 'object') {
+    for (const [slot, uid] of Object.entries(raw.equipped)) {
+      if (typeof uid === 'string' && uidSet.has(uid) && /^(assault|ward|signal)-\d+$/.test(slot)) {
+        equipped[slot] = uid
+      }
+    }
+  }
+  return { inventory, equipped }
 }
 
 function withPartsDefaults(
@@ -267,6 +313,7 @@ function migrate(raw: unknown): GameState | null {
       ai: withAiDefaults(state.ai),
       meta: withMetaDefaults(state.meta, combat.highestSector),
       core: withCoreDefaults(state.core),
+      signalCores: withSignalCoresDefaults(state.signalCores),
       parts: withPartsDefaults(state.parts),
     }
   }
@@ -286,7 +333,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 12 ||
     parsed.version === 13 ||
     parsed.version === 14 ||
-    parsed.version === 15
+    parsed.version === 15 ||
+    parsed.version === 16
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
@@ -297,7 +345,8 @@ function migrate(raw: unknown): GameState | null {
       parsed.version === 10 ||
       parsed.version === 11 ||
       parsed.version === 14 ||
-      parsed.version === 15
+      parsed.version === 15 ||
+      parsed.version === 16
         ? Math.max(0, prev.combat?.highestSector ?? 0)
         : Math.max(0, oldHighest - 1)
     const combat = withCombatDefaults({
@@ -330,6 +379,7 @@ function migrate(raw: unknown): GameState | null {
       ai,
       meta: withMetaDefaults(prev.meta, clearedApprox),
       core: withCoreDefaults(prev.core),
+      signalCores: withSignalCoresDefaults(prev.signalCores),
       parts: withPartsDefaults(prev.parts),
     }
   }

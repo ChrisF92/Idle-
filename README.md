@@ -39,6 +39,7 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Post-prestige re-push: returning runs start with +20 scrap / +12 data / +12 salvage; doctrine AIP is refunded; first S8 prestige yields 5 PM.
 - Distinct frames: Razor (2W/0D/1U glass-cannon) and Pathfinder (1W/0D/2U utility scout).
 - **Blueprint farming:** enemies drop casing/core/lens parts; Fabrication Bay workers assemble discovered blueprints into permanent module unlocks. Dupes sell for scrap or invest into permanent module mastery (cap 10). Starter kit is Pulse Cannon (free) + Plate Layer (scrap); CP schematics remain shop-only.
+- **Signal Cores:** typed Assault/Ward/Signal slots under Core; merge 3 identical ranks; wipe on prestige until **Null Signal** (sector 30, no cores equipped) unlocks permanent carryover.
 
 
 ## Develop
@@ -70,6 +71,6 @@ Local Pages-shaped build: `npm run build:pages && npm run preview`
 - Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with Advance/Hold pacing; hull persists and repairs over time. Combat tab shows fleet DPS/hull/shield/armor; module cards list Damage, RoF, Range.
 - Entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
 - Fitted loadouts persist through prestige; challenges are repeatable with stack bonuses (ITRTG-style).
-- Challenge pack: Silent Bridge, Glass Frame, Data Drought, Bare Rig, Knife Fight, **Mono Pulse** (pulse-only weapons), **Attrition** (no fight-win heal), **Long Haul** (sector 12).
+- Challenge pack: Silent Bridge, Glass Frame, Data Drought, Bare Rig, Knife Fight, **Mono Pulse** (pulse-only weapons), **Attrition** (no fight-win heal), **Long Haul** (sector 12), **Null Signal** (sector 30, no Signal Cores).
 - Essence buys permanent constructs; AI Points buy per-run doctrines (Focus Fire, Boss Protocol, Scavenger, Tactical Retreat, Rapid Recovery).
 - Challenge Points / Prestige Matter buy permanent shop ranks (or bank for a smaller bonus).

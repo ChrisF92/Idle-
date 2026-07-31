@@ -23,8 +23,12 @@ import {
   reactorsShieldBonus,
   sensorsEvasionBonus,
 } from './core'
+import {
+  computeSignalCoreBonuses,
+  createEmptySignalCoresState,
+} from './signalCores'
 
-export const SAVE_VERSION = 16
+export const SAVE_VERSION = 17
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -121,8 +125,10 @@ export function createInitialState(now = Date.now()): GameState {
       completedAchievements: [],
       discoveredModules: [],
       moduleMastery: {},
+      signalCoresCarryOver: false,
     },
     core: createEmptyCoreState(),
+    signalCores: createEmptySignalCoresState(),
     parts: {},
   }
 }
@@ -139,6 +145,8 @@ export function globalDamageMultiplier(state: GameState): number {
   )
   if (aiDoctrinesActive(state, 'focus-fire')) mult *= 1.12
   mult *= ballisticsDamageMult(state.core?.ranks.ballistics ?? 0)
+  const coreDmg = computeSignalCoreBonuses(state).damage
+  if (coreDmg) mult *= 1 + coreDmg
   return mult
 }
 
@@ -230,6 +238,12 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   armor += platingArmorBonus(platingRank)
   shieldMax += reactorsShieldBonus(reactorsRank)
   evasion += sensorsEvasionBonus(sensorsRank)
+
+  const signalBonuses = computeSignalCoreBonuses(state)
+  if (signalBonuses.hull) hullMax *= 1 + signalBonuses.hull
+  armor += signalBonuses.armor
+  shieldMax += signalBonuses.shield
+  evasion += signalBonuses.evasion
 
   evasion = Math.min(0.45, evasion)
 
