@@ -1,5 +1,6 @@
 import type { GameState, Resources, ShipCombatStats, WeaponInstance } from './types'
 import {
+  SHORT_RANGE_MAX,
   aiDoctrinesActive,
   essenceDamageMultiplier,
   essenceHullBonus,
@@ -130,6 +131,8 @@ export function globalDamageMultiplier(state: GameState): number {
 export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
   const mult = globalDamageMultiplier(state)
+  const shortRange = state.prestige.activeChallengeId === 'short-range'
+  const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
   const weapons: WeaponInstance[] = [
     {
       id: 'frame-battery',
@@ -138,7 +141,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       cooldown: 1,
       cooldownLeft: 0,
       // Must reach early kite packs (Ethereal ~110, Divine core ~105).
-      range: 120,
+      range: capRange(120),
       tags: ['kinetic'],
       splash: 0,
       dotDuration: 0,
@@ -156,7 +159,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       damage: mod.weapon.damage * mult * lvlMult,
       cooldown: mod.weapon.cooldown,
       cooldownLeft: 0,
-      range: mod.weapon.range,
+      range: capRange(mod.weapon.range),
       tags: [...mod.weapon.tags],
       splash: mod.weapon.splash ?? 0,
       dotDuration: mod.weapon.dotDuration ?? 0,

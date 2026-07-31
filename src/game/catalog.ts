@@ -537,6 +537,9 @@ export const MATTER_SHOP: MatterShopDef[] = [
   },
 ]
 
+/** Knife Fight caps every flagship weapon (including Frame Battery) to flak reach. */
+export const SHORT_RANGE_MAX = 55
+
 export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'no-ai',
@@ -569,6 +572,28 @@ export const CHALLENGES: ChallengeDef[] = [
     maxClears: 10,
     stackProductionBonus: 0.015,
     requiresChallengeClears: { challengeId: 'no-ai', clears: 1 },
+  },
+  {
+    id: 'no-utility',
+    name: 'Bare Rig',
+    description: 'Reach sector 6 without utility modules. Repeatable.',
+    restriction: 'Utility modules unequipped and blocked',
+    goalSector: 6,
+    rewardChallengePoints: 1,
+    maxClears: 15,
+    stackDamageBonus: 0.012,
+    requiresPrestiges: 1,
+  },
+  {
+    id: 'short-range',
+    name: 'Knife Fight',
+    description: 'Reach sector 6 with all weapons capped to flak range. Repeatable.',
+    restriction: `Weapon range capped at ${SHORT_RANGE_MAX}`,
+    goalSector: 6,
+    rewardChallengePoints: 2,
+    maxClears: 12,
+    stackRepairBonus: 0.015,
+    requiresChallengeClears: { challengeId: 'no-utility', clears: 1 },
   },
 ]
 
@@ -1228,6 +1253,27 @@ export function aiDoctrinesActive(
 ): boolean {
   if (state.prestige.activeChallengeId === 'no-ai') return false
   return state.ai.purchased.includes(nodeId)
+}
+
+/** True when an active challenge forbids fitting this module. */
+export function isModuleBlockedByChallenge(
+  activeChallengeId: string | null,
+  moduleId: string,
+): boolean {
+  if (!activeChallengeId) return false
+  const mod = getModule(moduleId)
+  if (!mod) return false
+  if (activeChallengeId === 'no-utility' && mod.role === 'utility') return true
+  return false
+}
+
+/** Drop modules forbidden by the active challenge (Bare Rig strips utilities). */
+export function filterModulesForChallenge(
+  moduleIds: string[],
+  activeChallengeId: string | null,
+): string[] {
+  if (!activeChallengeId) return moduleIds
+  return moduleIds.filter((id) => !isModuleBlockedByChallenge(activeChallengeId, id))
 }
 
 export function challengeClearCount(
