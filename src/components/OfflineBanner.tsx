@@ -33,7 +33,9 @@ export function OfflineBanner({ report, onDismiss }: OfflineBannerProps) {
           {report.capped ? ` · applied ${formatDuration(report.appliedMs)} (cap)` : ''}
           {' · '}
           {report.modeLabel} · sector {report.sectorsAfter}
-          {' · no fight sim'}
+          {report.combatClears > 0
+            ? ` · ~${report.combatClears.toFixed(1)} combat clears`
+            : ''}
         </p>
         {gainLines.length > 0 ? (
           <p className="offline-gains">{gainLines.join(' · ')}</p>

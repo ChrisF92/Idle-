@@ -119,23 +119,42 @@ describe('advanceTicks / combat', () => {
 describe('offline catch-up', () => {
   it('applies industry gains after a long absence', () => {
     const state = createInitialState(0)
+    state.meta.highestSectorEver = 4
+    state.base.workerDrones = 4
+    state.base.assignments['scrap-field'] = 4
+    const before = state.resources.scrap
     const { state: next, report } = applyOfflineCatchUp(state, 5 * 60 * 1000)
-    expect(next.resources.scrap).toBeGreaterThan(state.resources.scrap)
+    expect(next.resources.scrap).toBeGreaterThan(before)
     expect(report).not.toBeNull()
     expect(report!.gains.scrap ?? 0).toBeGreaterThan(0)
     expect(next.lastTickAt).toBe(5 * 60 * 1000)
   })
 
-  it('grants sector-scaled offline rewards without advancing sectors', () => {
-    const state = createInitialState(0)
+  it('grants combat clear rewards while undocked without advancing sectors', () => {
+    const state = equipPostTutorialLoadout(createInitialState(0))
     state.combat.sector = 6
     state.combat.campaign = true
+    state.combat.docked = false
+    const beforeScrap = state.resources.scrap
+    const beforeSalvage = state.resources.salvage
     const { state: next, report } = applyOfflineCatchUp(state, 3 * 60 * 1000)
     expect(next.combat.sector).toBe(6)
     expect(report?.sectorsCleared ?? 0).toBe(0)
-    expect(next.resources.scrap).toBeGreaterThan(state.resources.scrap)
-    // AI Points are not granted offline from combat fantasy anymore
+    expect(report?.combatClears ?? 0).toBeGreaterThan(0)
+    expect(next.resources.scrap).toBeGreaterThan(beforeScrap)
+    expect(next.resources.salvage).toBeGreaterThan(beforeSalvage)
+    // AI Points are not granted offline from combat
     expect(next.resources.aiPoints).toBe(state.resources.aiPoints)
+  })
+
+  it('skips combat rewards while Paused (docked)', () => {
+    const state = equipPostTutorialLoadout(createInitialState(0))
+    state.combat.sector = 6
+    state.combat.docked = true
+    const beforeSalvage = state.resources.salvage
+    const { state: next, report } = applyOfflineCatchUp(state, 3 * 60 * 1000)
+    expect(report?.combatClears ?? 0).toBe(0)
+    expect(next.resources.salvage).toBe(beforeSalvage)
   })
 
   it('caps applied offline time', () => {

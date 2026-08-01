@@ -13,14 +13,13 @@ import {
   aiFabBonus,
   aiProductionBonus,
   challengeShopOfflineMs,
+  combatSpeedMultiplier,
   droneCap,
   essenceOfflineEssenceMultiplier,
   essenceProductionMultiplier,
   isStationUnlocked,
-  matterShopScrapBonus,
   metaProductionMultiplier,
   prestigeMomentumProductionBonus,
-  researchEssenceMultiplier,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
@@ -31,13 +30,42 @@ import {
   tickCoreTraining,
 } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
-import { isSystemUnlocked } from './progression'
-import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
+import {
+  estimateHoldClearRewards,
+  estimateHoldFarmRates,
+  repairRatePerSecond,
+  shieldRepairRatePerSecond,
+} from './combat'
+
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
 /** Only show a welcome-back report if away at least this long. */
 export const OFFLINE_REPORT_THRESHOLD_MS = 30 * 1000
+
+/**
+ * Offline combat pays this fraction of theoretical Hold-farm rates.
+ * Below 1 so AFK farming stays valuable without matching live Chrono sessions.
+ */
+export const OFFLINE_COMBAT_EFFICIENCY = 0.3
+
+/**
+ * Soft floor on estimated clear time for offline combat payouts.
+ * Stops early-sector melt (live 8s floor) from printing absurd AFK scrap/salvage.
+ */
+export const OFFLINE_MIN_CLEAR_SECONDS = 150
+
+/**
+ * Hard cap on offline combat clears per hour after efficiency.
+ * Keeps early Hold farms from outpacing intentional Act 1 pacing.
+ */
+export const OFFLINE_MAX_CLEARS_PER_HOUR = 2
+
+/**
+ * Extra multiplier on boss essence from offline combat clears.
+ * Essence upgrades are cheap (2–3); full clear-rate essence would trivialise them.
+ */
+export const OFFLINE_ESSENCE_FACTOR = 0.35
 
 export interface OfflineReport {
   elapsedMs: number
@@ -46,6 +74,8 @@ export interface OfflineReport {
   sectorsBefore: number
   sectorsAfter: number
   sectorsCleared: number
+  /** Fractional sector clears granted from offline combat farming. */
+  combatClears: number
   /** Advance / Hold / Paused label for the welcome banner. */
   modeLabel: string
   gains: Partial<Resources>
@@ -151,34 +181,37 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
 }
 
 /**
- * Sector-based offline combat payout (no fight simulation).
- * Scales with the sector you left on and offline duration.
+ * Award combat clear rewards while offline (no tick-by-tick fight sim).
+ * Uses Hold-farm clear payouts × estimated clears from fleet DPS.
+ * Paused (docked) earns no combat payout — hangar time is industry + repair only.
+ * Sector / wave progress stays frozen; part drops and Signal Cores stay live-only.
  */
-function applySectorOfflineRewards(state: GameState, seconds: number): void {
-  const sector = Math.max(1, state.combat.sector)
-  const hours = seconds / 3600
-  const scrapPerHour =
-    (8 + sector * 3) *
-    (1 + matterShopScrapBonus(state.prestige.matterShop)) *
-    (1 + computeSignalCoreBonuses(state).scrap)
-  const dataPerHour =
-    state.prestige.activeChallengeId === 'data-drought' ||
-    !isSystemUnlocked(state, 'research')
-      ? 0
-      : 1.5 + sector * 0.35
-  const essencePerHour =
-    sector >= 5
-      ? (0.05 + Math.floor(sector / 5) * 0.04) *
-        researchEssenceMultiplier(state.research.unlocked) *
-        essenceOfflineEssenceMultiplier(state.essence.purchased)
-      : 0
+function applyCombatOfflineRewards(state: GameState, seconds: number): number {
+  if (state.combat.docked || seconds <= 0) return 0
 
-  const scrapMult = state.combat.campaign ? 1 : 1.25
-  const pushMult = state.combat.campaign ? 1.15 : 0.85
+  const rewards = estimateHoldClearRewards(state)
+  const { clearSeconds: liveClearSeconds } = estimateHoldFarmRates(state)
+  const chrono = combatSpeedMultiplier(state)
+  const clearSeconds = Math.max(
+    OFFLINE_MIN_CLEAR_SECONDS,
+    liveClearSeconds / Math.max(1, chrono),
+  )
+  const rawClearsPerHour =
+    (3600 / clearSeconds) * OFFLINE_COMBAT_EFFICIENCY
+  const clearsPerHour = Math.min(rawClearsPerHour, OFFLINE_MAX_CLEARS_PER_HOUR)
+  const clears = (seconds / 3600) * clearsPerHour
+  if (clears <= 0) return 0
 
-  state.resources.scrap += scrapPerHour * hours * scrapMult
-  state.resources.data += dataPerHour * hours * pushMult
-  state.resources.essence += essencePerHour * hours
+  const essenceMult =
+    essenceOfflineEssenceMultiplier(state.essence.purchased) *
+    OFFLINE_ESSENCE_FACTOR
+
+  state.resources.scrap += rewards.scrap * clears
+  state.resources.data += rewards.data * clears
+  state.resources.salvage += rewards.salvage * clears
+  state.resources.essence += rewards.essence * clears * essenceMult
+
+  return clears
 }
 
 /** Offline does not simulate combat — clear an in-progress fight; apply field / pause repair. */
@@ -223,7 +256,7 @@ function endOfflineFight(state: GameState, seconds: number): void {
 
 /**
  * Apply offline progress for time since lastTickAt.
- * Industry + sector-scaled rewards; combat is NOT simulated tick-by-tick.
+ * Industry + combat clear rewards (rate-based; combat is NOT simulated tick-by-tick).
  */
 export function applyOfflineCatchUp(
   state: GameState,
@@ -246,7 +279,7 @@ export function applyOfflineCatchUp(
   const sectorsBefore = next.combat.sector
 
   applyIndustryOnly(next, seconds)
-  applySectorOfflineRewards(next, seconds)
+  const combatClears = applyCombatOfflineRewards(next, seconds)
   endOfflineFight(next, seconds)
   next.lastTickAt = now
 
@@ -264,10 +297,10 @@ export function applyOfflineCatchUp(
       ? 'Advance'
       : 'Hold'
   const mode = next.combat.docked
-    ? 'Offline payout while Paused (industry + hangar repair, no fight sim).'
+    ? 'Offline payout while Paused (industry + hangar repair).'
     : next.combat.campaign
-      ? 'Offline payout from your Advance sector (no fight sim).'
-      : 'Offline payout while Holding / farming this sector (no fight sim).'
+      ? `Offline combat rewards from your Advance sector (~${combatClears.toFixed(1)} clears, no fight sim).`
+      : `Offline combat rewards while Holding / farming this sector (~${combatClears.toFixed(1)} clears, no fight sim).`
 
   const summary = [
     `Welcome back. Away ${formatDuration(elapsedMs)}` +
@@ -289,6 +322,7 @@ export function applyOfflineCatchUp(
       sectorsBefore,
       sectorsAfter,
       sectorsCleared,
+      combatClears,
       modeLabel,
       gains,
       summary,
