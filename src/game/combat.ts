@@ -16,6 +16,7 @@ import {
   challengeShopMatchupBonus,
   challengeStackRepairBonus,
   essenceBonusDataPerClear,
+  essenceBossEssenceMultiplier,
   getEnemyDropTable,
   getModule,
   isStationUnlocked,
@@ -25,6 +26,7 @@ import {
   matterShopScrapBonus,
   partId,
   pickWeightedDropEntry,
+  researchEssenceMultiplier,
   stationRepairBonus,
 } from './catalog'
 import { WAVES_PER_SECTOR, isSystemUnlocked } from './progression'
@@ -1768,6 +1770,7 @@ export function estimateHoldClearRewards(state: GameState): {
   scrap: number
   data: number
   salvage: number
+  essence: number
 } {
   const sector = state.combat.sector
   const clear = enemyForSector(sector, WAVES_PER_SECTOR)
@@ -1775,6 +1778,7 @@ export function estimateHoldClearRewards(state: GameState): {
   if (aiDoctrinesActive(state, 'scavenger')) scrap *= 1.3
   if (state.shipyard.modules.includes('salvage-rig')) scrap *= 1.25
   scrap *= 1 + matterShopScrapBonus(state.prestige.matterShop)
+  scrap *= 1 + computeSignalCoreBonuses(state).scrap
 
   const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
   const siphon =
@@ -1791,7 +1795,13 @@ export function estimateHoldClearRewards(state: GameState): {
     salvage += 1 + Math.floor(sector / 3)
   }
 
-  return { scrap, data, salvage }
+  const essence = clear.isBoss
+    ? clear.essenceReward *
+      researchEssenceMultiplier(state.research.unlocked) *
+      essenceBossEssenceMultiplier(state.essence.purchased)
+    : 0
+
+  return { scrap, data, salvage, essence }
 }
 
 /**
@@ -1801,6 +1811,7 @@ export function estimateHoldFarmRates(state: GameState): {
   scrapPerSec: number
   dataPerSec: number
   salvagePerSec: number
+  essencePerSec: number
   scrapPerClear: number
   clearSeconds: number
 } {
@@ -1816,6 +1827,7 @@ export function estimateHoldFarmRates(state: GameState): {
     scrapPerSec: rewards.scrap / clearSeconds,
     dataPerSec: rewards.data / clearSeconds,
     salvagePerSec: rewards.salvage / clearSeconds,
+    essencePerSec: rewards.essence / clearSeconds,
     scrapPerClear: rewards.scrap,
     clearSeconds,
   }

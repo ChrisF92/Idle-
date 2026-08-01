@@ -81,7 +81,7 @@ Each open PR gets a live preview on the same GitHub Pages site:
 - Art is UI/text-first with simple SVG fleet shapes in Combat.
 - Game logic should stay in `src/game/`; React is presentation + input.
 - Solo project: use **one feature per branch/PR** so slices stay reviewable.
-- Offline catch-up (up to 8h) runs on load: industry + sector-scaled rewards (no fight simulation).
+- Offline catch-up (up to 8h) runs on load: industry + combat clear rewards while undocked (Hold-farm scrap/data/salvage/essence at reduced efficiency, clear-time floor, and clears/hour cap; no tick-by-tick fight sim; sector stays frozen; part/Signal Core drops stay live-only). Paused earns industry + hangar repair only.
 - Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with Advance/Hold pacing; hull persists and repairs over time. Combat tab shows fleet DPS/hull/shield/armor; module cards list Damage, RoF, Range.
 - Entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors drop Essence.
 - Fitted loadouts persist through prestige; challenges are repeatable with stack bonuses (ITRTG-style).
