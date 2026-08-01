@@ -595,6 +595,11 @@ export interface GuideStep {
   availableWhen: (state: GameState) => boolean
   /** Optional: auto-complete when predicate becomes true. */
   completeWhen?: (state: GameState, tab: TabId) => boolean
+  /**
+   * Required lessons hide Skip and block clicks outside the spotlight
+   * until completeWhen (or the highlighted control) finishes the step.
+   */
+  required?: boolean
 }
 
 export const GUIDE_STEPS: GuideStep[] = [
@@ -633,6 +638,130 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (s) => s.shipyard.frameLocked || !s.combat.docked,
   },
   {
+    id: 'guide-after-death',
+    title: 'Emergency dock',
+    body: 'Your first hull breach docks you for repairs. Open Shipyard — you have enough scrap to buy Plate Layer.',
+    target: 'shipyard-tab',
+    required: true,
+    availableWhen: (s) =>
+      (s.meta.starterCombatLesson ?? 0) === 1 &&
+      !s.shipyard.unlockedModules.includes('plate-layer') &&
+      !guideSeen(s, 'guide-after-death'),
+    completeWhen: (_s, tab) => tab === 'shipyard',
+  },
+  {
+    id: 'guide-modules-tab',
+    title: 'Modules',
+    body: 'Switch to Modules to unlock and fit defenses.',
+    target: 'shipyard-modules-tab',
+    tab: 'shipyard',
+    required: true,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-after-death') &&
+      (s.meta.starterCombatLesson ?? 0) === 1 &&
+      !s.shipyard.unlockedModules.includes('plate-layer') &&
+      !guideSeen(s, 'guide-modules-tab'),
+  },
+  {
+    id: 'guide-unlock-plate',
+    title: 'Plate Layer',
+    body: 'Unlock Plate Layer. Extra hull and armor are the difference between a short flight and a real push.',
+    target: 'unlock-plate-layer',
+    tab: 'shipyard',
+    required: true,
+    availableWhen: (s) =>
+      (s.meta.starterCombatLesson ?? 0) === 1 &&
+      !s.shipyard.unlockedModules.includes('plate-layer') &&
+      guideSeen(s, 'guide-modules-tab') &&
+      !guideSeen(s, 'guide-unlock-plate'),
+    completeWhen: (s) => s.shipyard.unlockedModules.includes('plate-layer'),
+  },
+  {
+    id: 'guide-fit-plate',
+    title: 'Fit Plate',
+    body: 'Fit Plate Layer into your empty defense slot.',
+    target: 'fit-plate-layer',
+    tab: 'shipyard',
+    required: true,
+    availableWhen: (s) =>
+      (s.meta.starterCombatLesson ?? 0) === 1 &&
+      s.shipyard.unlockedModules.includes('plate-layer') &&
+      !s.shipyard.modules.includes('plate-layer') &&
+      !guideSeen(s, 'guide-fit-plate'),
+    completeWhen: (s) => s.shipyard.modules.includes('plate-layer'),
+  },
+  {
+    id: 'guide-relaunch-plated',
+    title: 'Launch again',
+    body: 'Plate is fitted. Launch and test the new armor — combat will still push you hard.',
+    target: 'launch-btn',
+    tab: 'combat',
+    required: true,
+    availableWhen: (s) =>
+      (s.meta.starterCombatLesson ?? 0) === 1 &&
+      s.shipyard.modules.includes('plate-layer') &&
+      s.combat.docked &&
+      !guideSeen(s, 'guide-relaunch-plated'),
+    completeWhen: (s) => !s.combat.docked || (s.meta.starterCombatLesson ?? 0) >= 2,
+  },
+  {
+    id: 'guide-salvage-lesson',
+    title: 'Salvage recovered',
+    body: 'The wreck left Salvage. Open Shipyard and upgrade both fitted modules before you Resume.',
+    target: 'shipyard-tab',
+    required: true,
+    availableWhen: (s) =>
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 ||
+        (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1) &&
+      !guideSeen(s, 'guide-salvage-lesson'),
+    completeWhen: (_s, tab) => tab === 'shipyard',
+  },
+  {
+    id: 'guide-upgrade-pulse',
+    title: 'Upgrade Pulse',
+    body: 'Spend Salvage to raise Pulse Cannon one run level. This resets on prestige — cheap power now.',
+    target: 'upgrade-pulse-cannon',
+    tab: 'shipyard',
+    required: true,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-salvage-lesson') &&
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 &&
+      !guideSeen(s, 'guide-upgrade-pulse'),
+    completeWhen: (s) => (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1,
+  },
+  {
+    id: 'guide-upgrade-plate',
+    title: 'Upgrade Plate',
+    body: 'Upgrade Plate Layer next. Both modules should be Salvage-ranked before you return to combat.',
+    target: 'upgrade-plate-layer',
+    tab: 'shipyard',
+    required: true,
+    availableWhen: (s) =>
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
+      (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1 &&
+      !guideSeen(s, 'guide-upgrade-plate'),
+    completeWhen: (s) => (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1,
+  },
+  {
+    id: 'guide-relaunch-upgraded',
+    title: 'Resume push',
+    body: 'Loadout upgraded. Resume combat — Base unlocks after you clear sector 4.',
+    target: 'launch-btn',
+    tab: 'combat',
+    required: true,
+    availableWhen: (s) =>
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
+      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
+      s.combat.docked &&
+      !guideSeen(s, 'guide-relaunch-upgraded') &&
+      !isSystemUnlocked(s, 'base'),
+    completeWhen: (s) => !s.combat.docked || isSystemUnlocked(s, 'base'),
+  },
+  {
     id: 'guide-base-tab',
     title: 'Base unlocked',
     body: 'Tap Base. Assign worker drones to stations to produce resources.',
@@ -643,7 +772,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-assign-scrap',
     title: 'Assign workers',
-    body: 'Tap + on Scrap Field to assign an idle worker. Scrap is your basic industry income.',
+    body: 'Tap + on Scrap Field to assign an idle worker. Fill toward black-bar — extra bodies past BB do nothing.',
     target: 'station-scrap-field-plus',
     tab: 'base',
     availableWhen: (s) =>
@@ -652,6 +781,18 @@ export const GUIDE_STEPS: GuideStep[] = [
       isSystemUnlocked(s, 'base') &&
       s.base.workerDrones > 0,
     completeWhen: (s) => (s.base.assignments['scrap-field'] ?? 0) > 0,
+  },
+  {
+    id: 'guide-drone-cap',
+    title: 'Corps capacity',
+    body: 'Manufacture stops at your drone cap. Raise it with Drone Logistics, Expanded Hangar (AI), and Drone Corps (Prestige Matter).',
+    target: 'drone-cap-stat',
+    tab: 'base',
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-assign-scrap') &&
+      isSystemUnlocked(s, 'base') &&
+      s.base.workerDrones >= 4 &&
+      !guideSeen(s, 'guide-drone-cap'),
   },
   {
     id: 'guide-power-grid',
@@ -700,17 +841,18 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-salvage',
     title: 'Salvage',
-    body: 'Combat drops Salvage. Spend it in Shipyard to upgrade owned modules.',
+    body: 'Combat keeps dropping Salvage. Spend it in Shipyard anytime to raise run levels on owned modules.',
     target: 'salvage-stat',
     tab: 'shipyard',
     availableWhen: (s) =>
+      guideSeen(s, 'guide-upgrade-plate') &&
       (s.resources.salvage > 0 || careerHighestSector(s) >= 1) &&
       !guideSeen(s, 'guide-salvage'),
   },
   {
     id: 'guide-part-drop',
-    title: 'Blueprint fragments',
-    body: 'Enemies rarely drop module parts. Collect casings, cores, and lenses — then assemble them in the Fab Bay.',
+    title: 'First blueprint fragment',
+    body: 'The Foundry is online — enemies can now drop module parts. This fragment unlocks a blueprint in Shipyard; gather casings, cores, and lenses for the Fab Bay.',
     target: 'combat-tab',
     availableWhen: (s) =>
       (s.meta.discoveredModules?.length ?? 0) > 0 && !guideSeen(s, 'guide-part-drop'),
@@ -864,6 +1006,15 @@ export const STARTER_GUIDE_IDS = [
   'guide-shipyard-tab',
   'guide-frame-select',
   'guide-launch',
+  'guide-after-death',
+  'guide-modules-tab',
+  'guide-unlock-plate',
+  'guide-fit-plate',
+  'guide-relaunch-plated',
+  'guide-salvage-lesson',
+  'guide-upgrade-pulse',
+  'guide-upgrade-plate',
+  'guide-relaunch-upgraded',
 ] as const
 
 function markGuideSeen(seen: string[], id: string): boolean {
@@ -885,6 +1036,10 @@ export function retirePostResetOnboarding(state: GameState): void {
   if (prestiged || ascended) {
     for (const id of STARTER_GUIDE_IDS) {
       if (markGuideSeen(seen, id)) changed = true
+    }
+    if ((state.meta.starterCombatLesson ?? 0) < 2) {
+      state.meta.starterCombatLesson = 2
+      changed = true
     }
   }
 

@@ -13,12 +13,15 @@ import {
   aiFabBonus,
   aiProductionBonus,
   challengeShopOfflineMs,
+  droneCap,
   essenceOfflineEssenceMultiplier,
   essenceProductionMultiplier,
   isStationUnlocked,
   matterShopScrapBonus,
   metaProductionMultiplier,
+  prestigeMomentumProductionBonus,
   researchEssenceMultiplier,
+  stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
 } from './catalog'
@@ -73,6 +76,11 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       state.prestige.matterShop,
       state.prestige.challengeClears,
     ) *
+    (1 +
+      prestigeMomentumProductionBonus(
+        state.prestige.prestigeCount,
+        state.meta.ascensionCount ?? 0,
+      )) *
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
     (1 + aiProductionBonus(state)) *
@@ -80,34 +88,52 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
 
   for (const station of STATIONS) {
     if (!isStationUnlocked(state, station.id)) continue
-    const drones = state.base.assignments[station.id] ?? 0
-    if (drones <= 0) continue
+    const assigned = state.base.assignments[station.id] ?? 0
+    if (assigned <= 0) continue
+    const effective = stationEffectiveDrones(state, station.id)
 
     const upkeepPer = stationUpkeepScrapPerDrone(state, station)
     if (upkeepPer > 0) {
-      const upkeep = upkeepPer * drones * seconds
+      const upkeep = upkeepPer * assigned * seconds
       const paid = Math.min(state.resources.scrap, upkeep)
       state.resources.scrap -= paid
       const efficiency = upkeep > 0 ? paid / upkeep : 1
       for (const [resource, perDrone] of Object.entries(station.rates)) {
         const key = resource as keyof Resources
-        state.resources[key] += (perDrone ?? 0) * drones * seconds * efficiency * meta
+        state.resources[key] +=
+          (perDrone ?? 0) * effective * seconds * efficiency * meta
       }
       continue
     }
 
     for (const [resource, perDrone] of Object.entries(station.rates)) {
       const key = resource as keyof Resources
-      state.resources[key] += (perDrone ?? 0) * drones * seconds * meta
+      state.resources[key] += (perDrone ?? 0) * effective * seconds * meta
     }
   }
 
-  if (state.meta.highestSectorEver >= 3 || state.combat.highestSector >= 3) {
-    const speed = workerManufactureSpeed(state)
-    state.base.manufactureProgress += (seconds * speed) / WORKER_MANUFACTURE_SECONDS
-    while (state.base.manufactureProgress >= 1) {
-      state.base.manufactureProgress -= 1
-      state.base.workerDrones += 1
+  // Match live Base unlock (sector 4); stop at corps capacity.
+  if (state.meta.highestSectorEver >= 4 || state.combat.highestSector >= 4) {
+    const cap = droneCap(state)
+    if (state.base.workerDrones < cap) {
+      const speed = workerManufactureSpeed(state)
+      state.base.manufactureProgress +=
+        (seconds * speed) / WORKER_MANUFACTURE_SECONDS
+      while (
+        state.base.manufactureProgress >= 1 &&
+        state.base.workerDrones < cap
+      ) {
+        state.base.manufactureProgress -= 1
+        state.base.workerDrones += 1
+        state.meta.lifetimeDronesBuilt =
+          (state.meta.lifetimeDronesBuilt ?? 0) + 1
+      }
+      if (state.base.workerDrones >= cap) {
+        state.base.manufactureProgress = Math.min(
+          state.base.manufactureProgress,
+          0.999,
+        )
+      }
     }
   }
 

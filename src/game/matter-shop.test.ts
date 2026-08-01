@@ -4,6 +4,7 @@ import { buyMatterShop, performPrestige } from './actions'
 import { enemyForSector, repairRatePerSecond } from './combat'
 import {
   canBuyMatterShop,
+  droneCap,
   matterShopEffectScale,
   matterShopScrapBonus,
   metaProductionMultiplier,
@@ -159,14 +160,16 @@ describe('prestige matter shop', () => {
     expect(shopRank(again!.prestige.matterShop, 'matter-blade')).toBe(1)
   })
 
-  it('drone-corps grants workers again on each rank', () => {
+  it('drone-corps raises corps capacity each rank', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 15
     state.prestige.prestigeCount = 2
+    const before = droneCap(state)
     state = buyMatterShop(state, 'drone-corps')
-    expect(state.base.workerDrones).toBe(3)
+    expect(droneCap(state)).toBe(before + 5)
+    expect(state.base.workerDrones).toBe(0)
     state = buyMatterShop(state, 'drone-corps')
-    expect(state.base.workerDrones).toBe(6)
+    expect(droneCap(state)).toBe(before + 10)
     expect(shopRank(state.prestige.matterShop, 'drone-corps')).toBe(2)
   })
 })

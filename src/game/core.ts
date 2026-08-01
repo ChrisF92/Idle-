@@ -6,6 +6,7 @@ import {
   isStationUnlocked,
   matterShopEffectScale,
   RESEARCH,
+  stationEffectiveDrones,
 } from './catalog'
 import type { CoreAttrId, CoreState, GameState } from './types'
 
@@ -136,7 +137,8 @@ export function trainingEfficiency(state: {
 export function coreTrainingSpeed(state: GameState, attrId: CoreAttrId): number {
   const stationId = CORE_TRAIN_STATION[attrId]
   if (!isStationUnlocked(state, stationId)) return 0
-  const workers = state.base.assignments[stationId] ?? 0
+  // Training stations are uncapped — drone power still multiplies throughput.
+  const workers = stationEffectiveDrones(state, stationId)
   if (workers <= 0) return 0
   return (
     workers *

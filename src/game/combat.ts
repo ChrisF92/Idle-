@@ -18,6 +18,7 @@ import {
   essenceBonusDataPerClear,
   getEnemyDropTable,
   getModule,
+  isStationUnlocked,
   matterShopDataPerClear,
   matterShopDropBonus,
   matterShopRepairMult,
@@ -1411,6 +1412,7 @@ export interface PartDropResult {
 
 /**
  * Roll blueprint part drops for a slain enemy.
+ * Parts stay offline until Alloy Foundry is unlocked (alloy-smelting + Research).
  * Mutates parts inventory + discoveredModules; appends combat log on discovery.
  * Pure-ish helper for tests (inject rng).
  */
@@ -1419,6 +1421,9 @@ export function rollEnemyPartDrop(
   unit: Pick<CombatUnit, 'family' | 'isBoss' | 'name'>,
   rng: () => number = Math.random,
 ): PartDropResult[] {
+  // Keep early scrap sinks (frames / Plate) meaningful — no free part→scrap before Foundry.
+  if (!isStationUnlocked(state, 'alloy-foundry')) return []
+
   const table = getEnemyDropTable(unit.family)
   if (!table) return []
 

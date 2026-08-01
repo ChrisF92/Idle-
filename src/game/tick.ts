@@ -10,10 +10,10 @@ import {
   WORKER_MANUFACTURE_SECONDS,
   advanceFabProject,
   aiDoctrinesActive,
-  aiDroneEfficiencyMult,
   aiFabBonus,
   aiProductionBonus,
   combatSpeedMultiplier,
+  droneCap,
   essenceBonusDataPerClear,
   essenceBossEssenceMultiplier,
   essenceProductionMultiplier,
@@ -21,8 +21,10 @@ import {
   matterShopDataPerClear,
   matterShopScrapBonus,
   metaProductionMultiplier,
+  moduleLevel,
   prestigeMomentumProductionBonus,
   researchEssenceMultiplier,
+  stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
 } from './catalog'
@@ -96,6 +98,7 @@ function persistFlagshipHull(state: GameState): void {
 }
 
 function productionMeta(state: GameState): number {
+  // Post-BB multipliers only — drone power handles saturation separately.
   return (
     metaProductionMultiplier(
       state.resources.prestigeMatter,
@@ -110,7 +113,6 @@ function productionMeta(state: GameState): number {
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
     (1 + aiProductionBonus(state)) *
-    aiDroneEfficiencyMult(state) *
     (1 + computeSignalCoreBonuses(state).production)
   )
 }
@@ -120,12 +122,15 @@ function applyProduction(state: GameState, dtSeconds: number): void {
 
   for (const station of STATIONS) {
     if (!isStationUnlocked(state, station.id)) continue
-    const drones = state.base.assignments[station.id] ?? 0
-    if (drones <= 0) continue
+    const assigned = state.base.assignments[station.id] ?? 0
+    if (assigned <= 0) continue
+    const effective = stationEffectiveDrones(state, station.id)
+    if (effective <= 0) continue
 
     const upkeepPer = stationUpkeepScrapPerDrone(state, station)
     if (upkeepPer > 0) {
-      const upkeep = upkeepPer * drones * dtSeconds
+      // Upkeep tracks bodies; output tracks saturated effective drones.
+      const upkeep = upkeepPer * assigned * dtSeconds
       const available = state.resources.scrap
       const paid = Math.min(available, upkeep)
       state.resources.scrap -= paid
@@ -133,25 +138,43 @@ function applyProduction(state: GameState, dtSeconds: number): void {
       for (const [resource, perDrone] of Object.entries(station.rates)) {
         const key = resource as keyof GameState['resources']
         state.resources[key] +=
-          (perDrone ?? 0) * drones * dtSeconds * efficiency * meta
+          (perDrone ?? 0) * effective * dtSeconds * efficiency * meta
       }
       continue
     }
 
     for (const [resource, perDrone] of Object.entries(station.rates)) {
       const key = resource as keyof GameState['resources']
-      state.resources[key] += (perDrone ?? 0) * drones * dtSeconds * meta
+      state.resources[key] += (perDrone ?? 0) * effective * dtSeconds * meta
     }
   }
 
   // Worker manufacture (only once Base has been unlocked via career progress).
   if (state.meta.highestSectorEver >= 4 || state.combat.highestSector >= 4) {
-    const speed = workerManufactureSpeed(state)
-    state.base.manufactureProgress += (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
-    while (state.base.manufactureProgress >= 1) {
-      state.base.manufactureProgress -= 1
-      state.base.workerDrones += 1
-      pushLog(state, `Worker drone manufactured. Corps size: ${state.base.workerDrones}.`)
+    const cap = droneCap(state)
+    if (state.base.workerDrones < cap) {
+      const speed = workerManufactureSpeed(state)
+      state.base.manufactureProgress +=
+        (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
+      while (
+        state.base.manufactureProgress >= 1 &&
+        state.base.workerDrones < cap
+      ) {
+        state.base.manufactureProgress -= 1
+        state.base.workerDrones += 1
+        state.meta.lifetimeDronesBuilt =
+          (state.meta.lifetimeDronesBuilt ?? 0) + 1
+        pushLog(
+          state,
+          `Worker drone manufactured. Corps size: ${state.base.workerDrones}/${cap}.`,
+        )
+      }
+      if (state.base.workerDrones >= cap) {
+        state.base.manufactureProgress = Math.min(
+          state.base.manufactureProgress,
+          0.999,
+        )
+      }
     }
   }
 
@@ -176,29 +199,111 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
 
   for (const station of STATIONS) {
     if (!isStationUnlocked(state, station.id)) continue
-    const drones = state.base.assignments[station.id] ?? 0
-    if (drones <= 0) continue
+    const assigned = state.base.assignments[station.id] ?? 0
+    if (assigned <= 0) continue
+    const effective = stationEffectiveDrones(state, station.id)
 
     const upkeepPer = stationUpkeepScrapPerDrone(state, station)
     if (upkeepPer > 0) {
-      const upkeep = upkeepPer * drones
+      const upkeep = upkeepPer * assigned
       const efficiency = state.resources.scrap > 0 || upkeep <= 0 ? 1 : 0
       add('scrap', -upkeep * efficiency)
       for (const [resource, perDrone] of Object.entries(station.rates)) {
         add(
           resource as keyof Resources,
-          (perDrone ?? 0) * drones * efficiency * meta,
+          (perDrone ?? 0) * effective * efficiency * meta,
         )
       }
       continue
     }
 
     for (const [resource, perDrone] of Object.entries(station.rates)) {
-      add(resource as keyof Resources, (perDrone ?? 0) * drones * meta)
+      add(resource as keyof Resources, (perDrone ?? 0) * effective * meta)
     }
   }
 
   return rates
+}
+
+/** Seconds in fight before the fresh-career scripted hull breach fires. */
+export const STARTER_DEATH_DELAY_S = 1.6
+/** Scrap floor after the first tutorial death (covers Plate Layer unlock). */
+export const STARTER_PLATE_SCRAP_FLOOR = 35
+/** Salvage granted on the second tutorial death (covers Pulse + Plate L1). */
+export const STARTER_SALVAGE_GRANT = 24
+/** Run-level target the salvage lesson requires before Resume. */
+export const STARTER_UPGRADE_LEVEL = 1
+
+/** Fresh career still running the death → Plate → salvage combat lesson. */
+export function isStarterCombatTutorial(state: GameState): boolean {
+  if (state.prestige.prestigeCount > 0) return false
+  if ((state.meta.ascensionCount ?? 0) > 0) return false
+  return (state.meta.starterCombatLesson ?? 0) < 2
+}
+
+/**
+ * Pending scripted death index (0 or 1), or null if normal combat.
+ * Only runs after the Launch guide so unit tests / prestige skips stay clean.
+ * Lesson 1 (second death) waits until Plate Layer is fitted.
+ */
+export function pendingStarterDeathLesson(state: GameState): 0 | 1 | null {
+  if (!isStarterCombatTutorial(state)) return null
+  const seen = state.meta.seenOnboarding ?? []
+  if (!seen.includes('guide-launch')) return null
+  const lesson = state.meta.starterCombatLesson ?? 0
+  if (lesson === 0) return 0
+  if (lesson === 1 && state.shipyard.modules.includes('plate-layer')) return 1
+  return null
+}
+
+/** Block Resume / Launch until the current docked lesson is finished. */
+export function starterRefitGate(
+  state: GameState,
+): 'plate' | 'upgrades' | null {
+  if (state.prestige.prestigeCount > 0) return null
+  if ((state.meta.ascensionCount ?? 0) > 0) return null
+  const lesson = state.meta.starterCombatLesson ?? 0
+  if (lesson === 1 && !state.shipyard.modules.includes('plate-layer')) {
+    return 'plate'
+  }
+  if (lesson === 2) {
+    const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
+    const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
+    if (pulse < STARTER_UPGRADE_LEVEL || plate < STARTER_UPGRADE_LEVEL) {
+      return 'upgrades'
+    }
+  }
+  return null
+}
+
+function applyStarterCombatDeath(state: GameState, lesson: 0 | 1): void {
+  const fromSector = state.combat.sector
+  const fromWave = state.combat.wave
+  clearEnemy(state)
+  state.combat.consecutiveLosses += 1
+  state.combat.sector = Math.max(1, fromSector)
+  state.combat.wave = 1
+  state.combat.docked = true
+  state.combat.fightElapsed = 0
+  fullHealPlayer(state)
+
+  if (lesson === 0) {
+    state.resources.scrap = Math.max(state.resources.scrap, STARTER_PLATE_SCRAP_FLOOR)
+    state.resources.alloys = Math.max(state.resources.alloys, 5)
+    state.meta.starterCombatLesson = 1
+    pushLog(
+      state,
+      'Hull breached — emergency dock. Buy Plate Layer in the Shipyard before launching again.',
+    )
+    return
+  }
+
+  state.resources.salvage += STARTER_SALVAGE_GRANT
+  state.meta.starterCombatLesson = 2
+  pushLog(
+    state,
+    `Wreck salvage recovered (+${STARTER_SALVAGE_GRANT}). Upgrade Pulse Cannon and Plate Layer before Resume.`,
+  )
 }
 
 /** Death / retreat: warp to previous sector start with full hull; waves reset. */
@@ -316,6 +421,17 @@ function onFightWon(state: GameState): void {
 function tickCombat(state: GameState, dt: number): void {
   if (!state.combat.inFight) return
 
+  const starterLesson = pendingStarterDeathLesson(state)
+  if (starterLesson !== null) {
+    // Scripted first fights: show combat briefly, then force a docking death.
+    state.combat.fightElapsed = (state.combat.fightElapsed ?? 0) + dt
+    simulateCombat(state, dt, pushLog)
+    if (state.combat.fightElapsed >= STARTER_DEATH_DELAY_S) {
+      applyStarterCombatDeath(state, starterLesson)
+    }
+    return
+  }
+
   simulateCombat(state, dt, pushLog)
 
   const enemiesAlive = state.combat.enemyUnits.some((u) => u.hull > 0)
@@ -382,6 +498,10 @@ function tickOutOfCombatRepair(state: GameState, dt: number): void {
 /** Advance / Hold auto-engage while not Paused. AI never toggles this. */
 function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight || state.combat.docked) return
+  if (starterRefitGate(state)) {
+    state.combat.docked = true
+    return
+  }
   beginFight(state)
 }
 
@@ -396,6 +516,7 @@ export function beginFight(state: GameState): void {
   syncPersistedHullCaps(state)
 
   state.combat.docked = false
+  state.combat.fightElapsed = 0
   state.shipyard.frameLocked = true
   state.combat.inFight = true
   state.combat.enemyName = encounter.name
@@ -426,6 +547,7 @@ export function beginFight(state: GameState): void {
 
 export function startCombat(state: GameState): GameState {
   if (state.combat.inFight) return state
+  if (starterRefitGate(state)) return state
   const next = structuredClone(state)
   beginFight(next)
   return next
@@ -463,6 +585,15 @@ export function setDocked(state: GameState, docked: boolean): GameState {
       `Paused — sector ${next.combat.sector} reset to W1. Refit in Shipyard, then Resume.`,
     )
   } else {
+    const gate = starterRefitGate(next)
+    if (gate === 'plate') {
+      pushLog(next, 'Unlock and fit Plate Layer before launching again.')
+      return state
+    }
+    if (gate === 'upgrades') {
+      pushLog(next, 'Upgrade Pulse Cannon and Plate Layer with Salvage before Resume.')
+      return state
+    }
     next.combat.docked = false
     if (!next.shipyard.frameLocked) {
       next.shipyard.frameLocked = true
