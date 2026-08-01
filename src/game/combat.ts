@@ -245,12 +245,13 @@ export function enemySectorScale(sector: number): number {
 }
 
 /**
- * Enemy damage scale — much flatter than hull. Early waves chip; late sectors
- * are long because of HP walls, not Scout deletions.
+ * Enemy damage scale — flatter than hull, but early S1–2 hit hard enough that
+ * a naked Scout (and a freshly plated one) die naturally for onboarding beats.
+ * Late length still comes mostly from HP walls.
  */
 export function enemyDamageScale(sector: number): number {
   const s = Math.max(1, sector)
-  return 0.72 * Math.pow(1.055, s - 1)
+  return 0.95 * Math.pow(1.055, s - 1)
 }
 
 /**

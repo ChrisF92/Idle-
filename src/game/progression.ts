@@ -639,8 +639,8 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-after-death',
-    title: 'Emergency dock',
-    body: 'Your first hull breach docks you for repairs. Open Shipyard — you have enough scrap to buy Plate Layer.',
+    title: 'Docked for repairs',
+    body: 'That fight ended with a hull breach — you are docked. Open Shipyard and buy Plate Layer with your scrap.',
     target: 'shipyard-tab',
     required: true,
     availableWhen: (s) =>
@@ -693,7 +693,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-relaunch-plated',
     title: 'Launch again',
-    body: 'Plate is fitted. Launch and test the new armor — combat will still push you hard.',
+    body: 'Plate is fitted. Launch and push again — the next breach will teach you Salvage upgrades.',
     target: 'launch-btn',
     tab: 'combat',
     required: true,

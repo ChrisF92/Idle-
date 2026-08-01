@@ -225,12 +225,13 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
   return rates
 }
 
-/** Seconds in fight before the fresh-career scripted hull breach fires. */
-export const STARTER_DEATH_DELAY_S = 1.6
 /** Scrap floor after the first tutorial death (covers Plate Layer unlock). */
 export const STARTER_PLATE_SCRAP_FLOOR = 35
-/** Salvage granted on the second tutorial death (covers Pulse + Plate L1). */
-export const STARTER_SALVAGE_GRANT = 24
+/**
+ * Salvage granted on the second tutorial death — enough for several module
+ * ranks toward the Base unlock push (plus combat salvage drips).
+ */
+export const STARTER_SALVAGE_GRANT = 40
 /** Run-level target the salvage lesson requires before Resume. */
 export const STARTER_UPGRADE_LEVEL = 1
 
@@ -242,18 +243,36 @@ export function isStarterCombatTutorial(state: GameState): boolean {
 }
 
 /**
- * Pending scripted death index (0 or 1), or null if normal combat.
- * Only runs after the Launch guide so unit tests / prestige skips stay clean.
- * Lesson 1 (second death) waits until Plate Layer is fitted.
+ * Which starter lesson a *natural* fight loss should advance (dock + grants).
+ * Lesson 1 waits until Plate Layer is fitted. No timed/scripted deaths.
+ * Gated to early sectors so later natural deaths use normal warp.
  */
-export function pendingStarterDeathLesson(state: GameState): 0 | 1 | null {
+export function starterDeathLessonOnLoss(state: GameState): 0 | 1 | null {
   if (!isStarterCombatTutorial(state)) return null
-  const seen = state.meta.seenOnboarding ?? []
-  if (!seen.includes('guide-launch')) return null
   const lesson = state.meta.starterCombatLesson ?? 0
-  if (lesson === 0) return 0
-  if (lesson === 1 && state.shipyard.modules.includes('plate-layer')) return 1
+  const sector = state.combat.sector
+  if (lesson === 0 && sector <= 2) return 0
+  if (
+    lesson === 1 &&
+    state.shipyard.modules.includes('plate-layer') &&
+    sector <= 3
+  ) {
+    return 1
+  }
   return null
+}
+
+/**
+ * Extra enemy weapon damage while awaiting the post-Plate tutorial death.
+ * Keeps the second natural death close after relaunch without scripting it.
+ */
+export function starterCombatPressureMult(state: GameState): number {
+  if (!isStarterCombatTutorial(state)) return 1
+  const lesson = state.meta.starterCombatLesson ?? 0
+  if (lesson === 1 && state.shipyard.modules.includes('plate-layer')) {
+    return state.combat.sector <= 2 ? 1.55 : 1.25
+  }
+  return 1
 }
 
 /** Block Resume / Launch until the current docked lesson is finished. */
@@ -292,7 +311,7 @@ function applyStarterCombatDeath(state: GameState, lesson: 0 | 1): void {
     state.meta.starterCombatLesson = 1
     pushLog(
       state,
-      'Hull breached — emergency dock. Buy Plate Layer in the Shipyard before launching again.',
+      'Hull breached — docking for repairs. Buy Plate Layer in the Shipyard before launching again.',
     )
     return
   }
@@ -307,6 +326,12 @@ function applyStarterCombatDeath(state: GameState, lesson: 0 | 1): void {
 
 /** Death / retreat: warp to previous sector start with full hull; waves reset. */
 function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
+  const lesson = starterDeathLessonOnLoss(state)
+  if (lesson !== null) {
+    applyStarterCombatDeath(state, lesson)
+    return
+  }
+
   const fromSector = state.combat.sector
   const fromWave = state.combat.wave
   clearEnemy(state)
@@ -409,17 +434,7 @@ function onFightWon(state: GameState): void {
 function tickCombat(state: GameState, dt: number): void {
   if (!state.combat.inFight) return
 
-  const starterLesson = pendingStarterDeathLesson(state)
-  if (starterLesson !== null) {
-    // Scripted first fights: show combat briefly, then force a docking death.
-    state.combat.fightElapsed = (state.combat.fightElapsed ?? 0) + dt
-    simulateCombat(state, dt, pushLog)
-    if (state.combat.fightElapsed >= STARTER_DEATH_DELAY_S) {
-      applyStarterCombatDeath(state, starterLesson)
-    }
-    return
-  }
-
+  state.combat.fightElapsed = (state.combat.fightElapsed ?? 0) + dt
   simulateCombat(state, dt, pushLog)
 
   const enemiesAlive = state.combat.enemyUnits.some((u) => u.hull > 0)
@@ -515,6 +530,14 @@ export function beginFight(state: GameState): void {
   state.combat.isBoss = encounter.isBoss
   state.combat.bossPhase = 0
   state.combat.enemyUnits = encounter.units.map((u) => structuredClone(u))
+  const pressure = starterCombatPressureMult(state)
+  if (pressure !== 1) {
+    for (const unit of state.combat.enemyUnits) {
+      for (const weapon of unit.weapons) {
+        weapon.damage *= pressure
+      }
+    }
+  }
   state.combat.playerUnits = buildPlayerFleet(state)
   state.combat.projectiles = []
   state.combat.fx = []
