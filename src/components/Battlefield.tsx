@@ -59,6 +59,27 @@ interface Particle {
   maxLife: number
   color: string
   size: number
+  /** Optional drag multiplier per frame (default 0.9). */
+  drag?: number
+}
+
+interface ScreenFlash {
+  r: number
+  g: number
+  b: number
+  life: number
+  maxLife: number
+  strength: number
+}
+
+interface RingFx {
+  x: number
+  y: number
+  life: number
+  maxLife: number
+  color: string
+  maxR: number
+  lineW: number
 }
 
 type ShotShape = 'slug' | 'lance' | 'bolt' | 'orb' | 'missile' | 'spark' | 'flak'
@@ -90,9 +111,16 @@ interface Scene {
   /** Screen-space copies of sim projectiles, keyed by id. */
   projectiles: Map<string, VisualShot>
   particles: Particle[]
+  flashes: ScreenFlash[]
+  rings: RingFx[]
+  shake: number
   seenFx: Set<string>
   seenProj: Set<string>
   prevHull: Map<string, number>
+  prevShield: Map<string, number>
+  prevPhaseWarn: Map<string, number>
+  knownBossIds: Set<string>
+  prevMode: BattlefieldMode | null
   width: number
   height: number
   time: number
@@ -347,21 +375,100 @@ function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
   }
 }
 
-function burst(scene: Scene, x: number, y: number, color: string, n: number): void {
+function burst(
+  scene: Scene,
+  x: number,
+  y: number,
+  color: string,
+  n: number,
+  opts?: { speed?: number; life?: number; size?: number; drag?: number },
+): void {
+  const speedMul = opts?.speed ?? 1
+  const lifeMul = opts?.life ?? 1
+  const sizeMul = opts?.size ?? 1
   for (let i = 0; i < n; i += 1) {
     const a = Math.random() * Math.PI * 2
-    const sp = 50 + Math.random() * 160
+    const sp = (50 + Math.random() * 160) * speedMul
+    const life = (0.2 + Math.random() * 0.4) * lifeMul
     scene.particles.push({
       x,
       y,
       vx: Math.cos(a) * sp,
       vy: Math.sin(a) * sp,
-      life: 0.2 + Math.random() * 0.4,
-      maxLife: 0.5,
+      life,
+      maxLife: Math.max(0.35, life),
       color,
-      size: 1.5 + Math.random() * 3,
+      size: (1.5 + Math.random() * 3) * sizeMul,
+      drag: opts?.drag,
     })
   }
+}
+
+function flash(
+  scene: Scene,
+  r: number,
+  g: number,
+  b: number,
+  strength: number,
+  duration = 0.35,
+): void {
+  scene.flashes.push({ r, g, b, life: duration, maxLife: duration, strength })
+}
+
+function ring(
+  scene: Scene,
+  x: number,
+  y: number,
+  color: string,
+  maxR: number,
+  duration = 0.45,
+  lineW = 2.5,
+): void {
+  scene.rings.push({ x, y, life: duration, maxLife: duration, color, maxR, lineW })
+}
+
+function addShake(scene: Scene, amount: number): void {
+  scene.shake = Math.min(14, scene.shake + amount)
+}
+
+/** Layered death / impact pop — debris + shockwave. */
+function explode(
+  scene: Scene,
+  x: number,
+  y: number,
+  color: string,
+  power: 'small' | 'medium' | 'large' | 'boss',
+): void {
+  if (power === 'small') {
+    burst(scene, x, y, color, 10, { speed: 0.9 })
+    ring(scene, x, y, color, 28, 0.28, 1.6)
+    return
+  }
+  if (power === 'medium') {
+    burst(scene, x, y, color, 18, { speed: 1.15, size: 1.15 })
+    burst(scene, x, y, '#fff4d8', 6, { speed: 0.55, life: 0.7, size: 0.8 })
+    ring(scene, x, y, color, 48, 0.4, 2)
+    addShake(scene, 2.2)
+    return
+  }
+  if (power === 'large') {
+    burst(scene, x, y, color, 28, { speed: 1.35, size: 1.35, life: 1.15 })
+    burst(scene, x, y, '#ffe8c0', 12, { speed: 0.7, life: 0.9 })
+    burst(scene, x, y, '#ff6b4a', 10, { speed: 1.6, life: 0.7, size: 1.1 })
+    ring(scene, x, y, color, 90, 0.55, 3)
+    ring(scene, x, y, '#ffe8c0', 48, 0.32, 1.8)
+    flash(scene, 255, 120, 80, 0.42, 0.45)
+    addShake(scene, 6)
+    return
+  }
+  // Boss wipe
+  burst(scene, x, y, color, 40, { speed: 1.5, size: 1.5, life: 1.25 })
+  burst(scene, x, y, '#ff8a7a', 18, { speed: 1.8, life: 0.85 })
+  burst(scene, x, y, '#fff0d0', 14, { speed: 0.65, life: 1.1, size: 1.2 })
+  ring(scene, x, y, '#ff6b6b', 140, 0.7, 3.5)
+  ring(scene, x, y, '#e0c07a', 70, 0.4, 2.2)
+  flash(scene, 255, 90, 70, 0.55, 0.55)
+  addShake(scene, 9)
 }
 
 function ensureActor(scene: Scene, unit: CombatUnit): Actor {
@@ -389,11 +496,34 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     if (unit.hull <= 0 && existing.alive) {
       existing.alive = false
       existing.deathT = 1
-      burst(scene, existing.x, existing.y, sideFill(existing.side, existing.isBoss), 14)
+      const power =
+        existing.isBoss
+          ? 'boss'
+          : existing.isFlagship
+            ? 'large'
+            : existing.side === 'player'
+              ? 'medium'
+              : 'small'
+      explode(scene, existing.x, existing.y, sideFill(existing.side, existing.isBoss), power)
+      // Wave / pack wipe — last enemy down gets a cool victory wash.
+      if (existing.side === 'enemy' && !existing.isBoss) {
+        // Count other living enemies still tracked this frame.
+        let others = 0
+        for (const a of scene.actors.values()) {
+          if (a.id !== existing.id && a.side === 'enemy' && a.alive) others += 1
+        }
+        if (others === 0) {
+          flash(scene, 224, 192, 122, 0.22, 0.38)
+          ring(scene, existing.x, existing.y, '#e0c07a', 80, 0.45, 2.2)
+        }
+      } else if (existing.isBoss) {
+        flash(scene, 224, 192, 122, 0.35, 0.55)
+      }
     }
     return existing
   }
 
+  const isBossSpawn = unit.isBoss && !scene.knownBossIds.has(unit.id)
   const actor: Actor = {
     id: unit.id,
     side: unit.side,
@@ -404,7 +534,7 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     hullMax: unit.hullMax,
     shield: unit.shield,
     shieldMax: unit.shieldMax,
-    x: slot.x + (unit.side === 'enemy' ? 30 : 0),
+    x: slot.x + (unit.side === 'enemy' ? (isBossSpawn ? 56 : 30) : 0),
     y: slot.y,
     targetX: slot.x,
     targetY: slot.y,
@@ -414,13 +544,25 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     alive: unit.hull > 0,
     deathT: 0,
     hitFlash: 0,
-    enterT: 0.35,
+    enterT: isBossSpawn ? 0.7 : 0.35,
     muzzle: 0,
     weaponTag: primaryWeaponTag(unit.weapons),
     telegraph: telegraphAmount(unit),
     phaseWarn: unit.phaseWarnLeft > 0 ? Math.min(1, unit.phaseWarnLeft / 0.9) : 0,
   }
   scene.actors.set(unit.id, actor)
+
+  if (isBossSpawn) {
+    scene.knownBossIds.add(unit.id)
+    // Titan arrival — hex shockwave + crimson wash.
+    burst(scene, actor.x, actor.y, '#ff6b6b', 26, { speed: 1.2, size: 1.4, life: 1.1 })
+    burst(scene, actor.x, actor.y, '#e0c07a', 12, { speed: 0.6, life: 0.9 })
+    ring(scene, actor.x, actor.y, '#ff6b6b', 120, 0.65, 3.2)
+    ring(scene, actor.x, actor.y, '#e0c07a', 60, 0.4, 2)
+    flash(scene, 255, 80, 70, 0.48, 0.5)
+    addShake(scene, 5.5)
+  }
+
   return actor
 }
 
@@ -433,6 +575,54 @@ function telegraphAmount(unit: CombatUnit): number {
   return best
 }
 
+function isHangarMode(mode: BattlefieldMode): boolean {
+  return mode === 'docked' || mode === 'repairing'
+}
+
+function onModeTransition(scene: Scene, prev: BattlefieldMode | null, next: BattlefieldMode): void {
+  if (prev == null) return
+  const wasHangar = isHangarMode(prev)
+  const nowHangar = isHangarMode(next)
+
+  // Enter hangar — clamp latch + bay wash.
+  if (!wasHangar && nowHangar) {
+    const cx = PLAYER_SCREEN_X
+    const cy = scene.height / 2
+    burst(scene, cx - 20, cy - 18, '#7ec8ff', 14, { speed: 0.85, life: 0.9 })
+    burst(scene, cx - 20, cy + 18, '#7ec8ff', 14, { speed: 0.85, life: 0.9 })
+    burst(scene, cx, cy, '#e8c88c', 18, { speed: 0.55, life: 1.05, size: 1.2 })
+    ring(scene, cx, cy, '#7ec8ff', 70, 0.5, 2.2)
+    flash(scene, 126, 200, 255, 0.28, 0.4)
+    addShake(scene, 2.5)
+  }
+
+  // Launch from hangar — thruster kick.
+  if (wasHangar && !nowHangar) {
+    const cx = PLAYER_SCREEN_X
+    const cy = scene.height / 2
+    for (let i = 0; i < 22; i += 1) {
+      scene.particles.push({
+        x: cx - 10,
+        y: cy + (Math.random() - 0.5) * 28,
+        vx: -80 - Math.random() * 140,
+        vy: (Math.random() - 0.5) * 60,
+        life: 0.35 + Math.random() * 0.35,
+        maxLife: 0.7,
+        color: Math.random() > 0.45 ? '#7ec8ff' : '#e0b06a',
+        size: 1.8 + Math.random() * 2.4,
+        drag: 0.86,
+      })
+    }
+    ring(scene, cx, cy, '#e0b06a', 55, 0.35, 2)
+    flash(scene, 224, 176, 106, 0.22, 0.28)
+  }
+
+  // Engage — subtle green go-pulse (also fires between waves).
+  if (prev !== 'fighting' && next === 'fighting') {
+    flash(scene, 125, 255, 176, 0.14, 0.22)
+  }
+}
+
 function syncScene(
   scene: Scene,
   playerUnits: CombatUnit[],
@@ -441,6 +631,10 @@ function syncScene(
   fx: CombatFx[],
   mode: BattlefieldMode,
 ): void {
+  if (scene.prevMode !== mode) {
+    onModeTransition(scene, scene.prevMode, mode)
+    scene.prevMode = mode
+  }
   scene.mode = mode
   const livingIds = new Set<string>()
 
@@ -453,11 +647,12 @@ function syncScene(
     ensureActor(scene, u)
   }
 
+  // Actors that vanish from the sim while still "alive" are soft-despawned
+  // (wave clear / preview swap / dock). Real kills go through hull<=0 above.
   for (const [id, actor] of scene.actors) {
     if (!livingIds.has(id) && actor.alive) {
       actor.alive = false
-      actor.deathT = 1
-      burst(scene, actor.x, actor.y, sideFill(actor.side, actor.isBoss), 12)
+      actor.deathT = 0.28
     }
   }
 
@@ -493,6 +688,22 @@ function syncScene(
       scene.seenProj.add(p.id)
       const from = scene.actors.get(p.fromId)
       if (from) from.muzzle = 1
+    } else if (prev && (p.tags.includes('splash') || p.attackerFamily === 'titan')) {
+      // Sparse exhaust sparkles behind heavier rounds.
+      if (Math.random() < 0.35) {
+        const style = shotStyle(nextProj.get(p.id)!)
+        scene.particles.push({
+          x: screen.x - Math.sign(hx || 1) * 4,
+          y: screen.y + (Math.random() - 0.5) * 3,
+          vx: -hx * 20 + (Math.random() - 0.5) * 16,
+          vy: -hy * 20 + (Math.random() - 0.5) * 16,
+          life: 0.12 + Math.random() * 0.12,
+          maxLife: 0.24,
+          color: style.color,
+          size: 1 + Math.random() * 1.4,
+          drag: 0.85,
+        })
+      }
     }
   }
   scene.projectiles = nextProj
@@ -514,11 +725,41 @@ function syncScene(
 
   for (const actor of scene.actors.values()) {
     const prev = scene.prevHull.get(actor.id)
-    if (prev != null && actor.hull < prev) {
+    if (prev != null && actor.hull < prev && actor.alive) {
       actor.hitFlash = 1
-      burst(scene, actor.x, actor.y, tagColor('kinetic'), actor.hull <= 0 ? 14 : 6)
+      burst(scene, actor.x, actor.y, tagColor('kinetic'), 6)
     }
     scene.prevHull.set(actor.id, actor.hull)
+
+    // Shield break — cyan shatter when a live shield drops to empty.
+    const prevShield = scene.prevShield.get(actor.id)
+    if (
+      prevShield != null &&
+      prevShield > 0 &&
+      actor.shield <= 0 &&
+      actor.shieldMax > 0 &&
+      actor.alive
+    ) {
+      burst(scene, actor.x, actor.y, '#7ec8ff', 16, { speed: 1.25, size: 1.1, life: 0.85 })
+      burst(scene, actor.x, actor.y, '#e8f7ff', 8, { speed: 0.7, life: 0.6 })
+      ring(scene, actor.x, actor.y, '#7ec8ff', actor.r * 3.2, 0.35, 2)
+      if (actor.isFlagship || actor.isBoss) {
+        flash(scene, 126, 200, 255, 0.2, 0.28)
+        addShake(scene, 1.8)
+      }
+    }
+    scene.prevShield.set(actor.id, actor.shield)
+
+    // Boss phase-shift rising edge.
+    const prevWarn = scene.prevPhaseWarn.get(actor.id) ?? 0
+    if (actor.phaseWarn > 0.15 && prevWarn < 0.05 && actor.isBoss) {
+      burst(scene, actor.x, actor.y, '#7ec8ff', 22, { speed: 1.1, size: 1.25, life: 1 })
+      burst(scene, actor.x, actor.y, '#e0c07a', 10, { speed: 0.7, life: 0.8 })
+      ring(scene, actor.x, actor.y, '#7ec8ff', 100, 0.55, 2.8)
+      flash(scene, 126, 200, 255, 0.35, 0.42)
+      addShake(scene, 3.5)
+    }
+    scene.prevPhaseWarn.set(actor.id, actor.phaseWarn)
   }
 }
 
@@ -660,6 +901,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
     ctx.fillRect(0, 0, scene.width, scene.height)
   }
 
+  const fighting = scene.mode === 'fighting'
   let seed = scene.starSeed
   for (let i = 0; i < 110; i += 1) {
     seed = (seed * 16807) % 2147483647
@@ -667,12 +909,17 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
     seed = (seed * 16807) % 2147483647
     const y = (seed % 1000) / 1000 * scene.height
     const layer = i % 3 === 0 ? 1.8 : i % 3 === 1 ? 1 : 0.55
-    const scrollMul = inHangar ? 8 : 48
+    const scrollMul = inHangar ? 8 : fighting ? 72 : 48
     const x = (baseX - scene.scroll * layer * scrollMul + scene.width * 8) % scene.width
     const twinkle = 0.3 + 0.6 * (0.5 + 0.5 * Math.sin(scene.time * 3 + i))
     const alpha = inHangar ? twinkle * 0.45 : twinkle
     ctx.fillStyle = `rgba(230,238,248,${alpha})`
-    ctx.fillRect(x, y, i % 9 === 0 ? 2.2 : 1, i % 9 === 0 ? 2.2 : 1)
+    // Streakier stars while fighting for a sense of speed.
+    if (fighting && i % 5 === 0) {
+      ctx.fillRect(x, y, 3.5 + layer, i % 9 === 0 ? 1.6 : 1)
+    } else {
+      ctx.fillRect(x, y, i % 9 === 0 ? 2.2 : 1, i % 9 === 0 ? 2.2 : 1)
+    }
   }
 
   if (inHangar) {
@@ -693,6 +940,10 @@ function stepScene(scene: Scene, dt: number): void {
   const inHangar = scene.mode === 'docked' || scene.mode === 'repairing'
   scene.scroll += dt * (inHangar ? 0.08 : advancing ? 0.7 : 0.3)
 
+  if (scene.shake > 0) {
+    scene.shake = Math.max(0, scene.shake - dt * 18)
+  }
+
   for (const actor of scene.actors.values()) {
     if (actor.enterT > 0) actor.enterT = Math.max(0, actor.enterT - dt)
     if (actor.hitFlash > 0) actor.hitFlash = Math.max(0, actor.hitFlash - dt * 4)
@@ -700,6 +951,17 @@ function stepScene(scene: Scene, dt: number): void {
 
     if (!actor.alive) {
       if (actor.deathT > 0) actor.deathT = Math.max(0, actor.deathT - dt * 1.8)
+      // Extra debris while a big unit is dying.
+      if (actor.deathT > 0.2 && (actor.isBoss || actor.isFlagship) && Math.random() < dt * 18) {
+        burst(
+          scene,
+          actor.x + (Math.random() - 0.5) * 12,
+          actor.y + (Math.random() - 0.5) * 12,
+          sideFill(actor.side, actor.isBoss),
+          2,
+          { speed: 0.8, life: 0.7 },
+        )
+      }
       continue
     }
 
@@ -748,6 +1010,28 @@ function stepScene(scene: Scene, dt: number): void {
         })
       }
     }
+
+    // Combat thruster wash — subtle motion while fighting / holding.
+    if (
+      !inHangar &&
+      actor.side === 'player' &&
+      actor.isFlagship &&
+      (scene.mode === 'fighting' || scene.mode === 'holding' || scene.mode === 'ready')
+    ) {
+      if (Math.random() < dt * 14) {
+        scene.particles.push({
+          x: actor.x - actor.r * 0.85,
+          y: actor.y + (Math.random() - 0.5) * 10,
+          vx: -40 - Math.random() * 50,
+          vy: (Math.random() - 0.5) * 24,
+          life: 0.22 + Math.random() * 0.18,
+          maxLife: 0.4,
+          color: scene.mode === 'fighting' ? '#e0b06a' : '#7ec8ff',
+          size: 1.2 + Math.random() * 1.6,
+          drag: 0.88,
+        })
+      }
+    }
   }
 
   // Projectiles are authoritative from the sim; positions refresh in syncScene.
@@ -755,16 +1039,27 @@ function stepScene(scene: Scene, dt: number): void {
   for (const part of scene.particles) {
     part.x += part.vx * dt
     part.y += part.vy * dt
-    part.vx *= 0.9
-    part.vy *= 0.9
+    const drag = part.drag ?? 0.9
+    // Frame-rate independent-ish damping toward the old 0.9 @ ~60fps feel.
+    const damp = Math.pow(drag, dt * 60)
+    part.vx *= damp
+    part.vy *= damp
     part.life -= dt
   }
   scene.particles = scene.particles.filter((p) => p.life > 0)
+
+  for (const f of scene.flashes) f.life -= dt
+  scene.flashes = scene.flashes.filter((f) => f.life > 0)
+
+  for (const r of scene.rings) r.life -= dt
+  scene.rings = scene.rings.filter((r) => r.life > 0)
 
   for (const [id, actor] of scene.actors) {
     if (!actor.alive && actor.deathT <= 0) {
       scene.actors.delete(id)
       scene.prevHull.delete(id)
+      scene.prevShield.delete(id)
+      scene.prevPhaseWarn.delete(id)
     }
   }
 }
@@ -914,14 +1209,16 @@ function drawPlayerChips(ctx: CanvasRenderingContext2D, scene: Scene): void {
   }
   if (!flag) return
 
+  const showShield = flag.shieldMax > 0
   const pad = 10
   const w = 132
-  const h = 44
+  const h = showShield ? 44 : 28
   const x = pad
   const y = scene.height - h - pad
   const hullPct = Math.max(0, Math.min(1, flag.hull / Math.max(1, flag.hullMax)))
-  const shieldPct =
-    flag.shieldMax > 0 ? Math.max(0, Math.min(1, flag.shield / flag.shieldMax)) : 0
+  const shieldPct = showShield
+    ? Math.max(0, Math.min(1, flag.shield / flag.shieldMax))
+    : 0
 
   ctx.save()
   ctx.fillStyle = 'rgba(12, 18, 26, 0.82)'
@@ -949,30 +1246,78 @@ function drawPlayerChips(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.fillStyle = '#e0b06a'
   ctx.fillRect(x + 8, y + 18, (w - 16) * hullPct, 4)
 
-  ctx.textAlign = 'left'
-  ctx.fillStyle = 'rgba(139, 151, 168, 0.95)'
-  ctx.fillText('SHIELD', x + 8, y + 34)
-  ctx.fillStyle = '#7ec8ff'
-  ctx.textAlign = 'right'
-  ctx.fillText(
-    flag.shieldMax > 0
-      ? `${formatChip(flag.shield)}/${formatChip(flag.shieldMax)}`
-      : '—',
-    x + w - 8,
-    y + 34,
-  )
-
-  ctx.fillStyle = '#0d1117'
-  ctx.fillRect(x + 8, y + 38, w - 16, 3)
-  if (flag.shieldMax > 0) {
+  if (showShield) {
+    ctx.textAlign = 'left'
+    ctx.fillStyle = 'rgba(139, 151, 168, 0.95)'
+    ctx.fillText('SHIELD', x + 8, y + 34)
     ctx.fillStyle = '#7ec8ff'
-    ctx.fillRect(x + 8, y + 38, (w - 16) * shieldPct, 3)
+    ctx.textAlign = 'right'
+    ctx.fillText(
+      `${formatChip(flag.shield)}/${formatChip(flag.shieldMax)}`,
+      x + w - 8,
+      y + 34,
+    )
+
+    ctx.fillStyle = '#0d1117'
+    ctx.fillRect(x + 8, y + 38, w - 16, 3)
+    if (shieldPct > 0) {
+      ctx.fillStyle = '#7ec8ff'
+      ctx.fillRect(x + 8, y + 38, (w - 16) * shieldPct, 3)
+    }
   }
   ctx.restore()
 }
 
+function drawRings(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  for (const r of scene.rings) {
+    const t = 1 - r.life / r.maxLife
+    const radius = Math.max(2, r.maxR * t)
+    const alpha = Math.max(0, r.life / r.maxLife) * 0.85
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.strokeStyle = r.color
+    ctx.lineWidth = r.lineW * (1 - t * 0.45)
+    ctx.shadowColor = r.color
+    ctx.shadowBlur = 8
+    ctx.beginPath()
+    ctx.arc(r.x, r.y, radius, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  }
+}
+
+function drawFlashes(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  for (const f of scene.flashes) {
+    const t = Math.max(0, f.life / f.maxLife)
+    const a = f.strength * t * t
+    if (a <= 0.01) continue
+    ctx.fillStyle = `rgba(${f.r},${f.g},${f.b},${a})`
+    ctx.fillRect(0, 0, scene.width, scene.height)
+    // Soft vignette edge so flashes feel like a camera hit, not a flat wash.
+    const vig = ctx.createRadialGradient(
+      scene.width / 2,
+      scene.height / 2,
+      scene.height * 0.15,
+      scene.width / 2,
+      scene.height / 2,
+      scene.height * 0.72,
+    )
+    vig.addColorStop(0, `rgba(${f.r},${f.g},${f.b},0)`)
+    vig.addColorStop(1, `rgba(${f.r},${f.g},${f.b},${a * 0.55})`)
+    ctx.fillStyle = vig
+    ctx.fillRect(0, 0, scene.width, scene.height)
+  }
+}
+
 function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  ctx.save()
+  if (scene.shake > 0.05) {
+    const mag = scene.shake
+    ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag)
+  }
+
   drawBackground(ctx, scene)
+  drawRings(ctx, scene)
 
   for (const p of scene.projectiles.values()) {
     drawProjectile(ctx, p)
@@ -983,9 +1328,27 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     const dying = !actor.alive
     const alpha = dying ? Math.max(0, actor.deathT) : 1
     if (alpha <= 0) continue
-    const scale = dying ? 0.35 + actor.deathT * 0.65 : 1 - actor.enterT * 0.3
+    const enterScale = actor.isBoss ? 0.45 : 0.3
+    const scale = dying
+      ? 0.35 + actor.deathT * 0.65
+      : 1 - actor.enterT * enterScale
     const fill = sideFill(actor.side, actor.isBoss)
     const stroke = actor.side === 'player' ? '#ffe8c7' : '#d0dce8'
+
+    // Active shield bubble (only when the unit actually has shield remaining).
+    if (actor.alive && actor.shieldMax > 0 && actor.shield > 0) {
+      const pct = actor.shield / actor.shieldMax
+      const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(scene.time * 3.2 + actor.bobPhase))
+      ctx.save()
+      ctx.translate(actor.x, actor.y)
+      ctx.strokeStyle = '#7ec8ff'
+      ctx.globalAlpha = (0.18 + pct * 0.28) * pulse * alpha
+      ctx.lineWidth = 1.4 + pct
+      ctx.beginPath()
+      ctx.arc(0, 0, actor.r + 5 + pct * 2, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.restore()
+    }
 
     ctx.save()
     ctx.translate(actor.x, actor.y)
@@ -996,6 +1359,9 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     } else if (scene.mode === 'repairing' && actor.isFlagship && actor.side === 'player') {
       ctx.shadowColor = '#7dffb0'
       ctx.shadowBlur = 10 + Math.sin(scene.time * 6) * 6
+    } else if (actor.isBoss && actor.enterT > 0) {
+      ctx.shadowColor = '#ff6b6b'
+      ctx.shadowBlur = 18 * (actor.enterT / 0.7)
     }
     if (actor.shape === 'triangle' && actor.side === 'enemy') ctx.scale(-1, 1)
     drawShape(ctx, actor.shape, actor.r, fill, stroke, alpha)
@@ -1058,6 +1424,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   }
   ctx.globalAlpha = 1
 
+  drawFlashes(ctx, scene)
   drawPlayerChips(ctx, scene)
 
   // Hangar-only labels — flight mode is shown by the control strip.
@@ -1071,6 +1438,8 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       22,
     )
   }
+
+  ctx.restore()
 }
 
 export function Battlefield({
@@ -1095,9 +1464,16 @@ export function Battlefield({
       actors: new Map(),
       projectiles: new Map(),
       particles: [],
+      flashes: [],
+      rings: [],
+      shake: 0,
       seenFx: new Set(),
       seenProj: new Set(),
       prevHull: new Map(),
+      prevShield: new Map(),
+      prevPhaseWarn: new Map(),
+      knownBossIds: new Set(),
+      prevMode: null,
       width: VIEW_W,
       height: VIEW_H,
       time: 0,
@@ -1154,8 +1530,11 @@ export function Battlefield({
         if (actor.side === 'enemy') {
           scene.actors.delete(id)
           scene.prevHull.delete(id)
+          scene.prevShield.delete(id)
+          scene.prevPhaseWarn.delete(id)
         }
       }
+      scene.knownBossIds.clear()
     }
   }, [mode])
 
