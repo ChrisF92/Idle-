@@ -212,6 +212,20 @@ describe('purchases', () => {
     expect(rates.energy).toBeGreaterThan(0)
   })
 
+  it('lets Alloy Foundry upkeep pull scrap net negative', () => {
+    let state = createInitialState(0)
+    state.meta.highestSectorEver = 8
+    state.research.unlocked = [...state.research.unlocked, 'alloy-smelting']
+    state.base.workerDrones = 6
+    state.resources.scrap = 500
+    state = assignWorker(state, 'scrap-field', 1)
+    for (let i = 0; i < 5; i += 1) state = assignWorker(state, 'alloy-foundry', 1)
+    const rates = computeResourceRates(state)
+    // 1×0.45 scrap − 5×0.18 foundry upkeep = −0.45/s
+    expect(rates.scrap).toBeCloseTo(-0.45, 5)
+    expect(rates.alloys).toBeGreaterThan(0)
+  })
+
   it('buys research and AI nodes', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8

@@ -23,6 +23,7 @@ import {
 import { logisticsFabMult } from '../../game/core'
 import { computeSignalCoreBonuses } from '../../game/signalCores'
 import { RESOURCE_LABELS } from '../../game/state'
+import { computeResourceRates } from '../../game/tick'
 
 interface BaseTabProps {
   state: GameState
@@ -42,7 +43,10 @@ interface BaseTabProps {
 function rateLabel(rates: Partial<Record<keyof Resources, number>>): string {
   const parts = Object.entries(rates)
     .filter(([, v]) => (v ?? 0) > 0)
-    .map(([k, v]) => `${v}/${RESOURCE_LABELS[k as keyof Resources].toLowerCase()}s`)
+    .map(([k, v]) => {
+      const label = RESOURCE_LABELS[k as keyof Resources].toLowerCase()
+      return `${v} ${label}/s each`
+    })
   return parts.join(', ')
 }
 
@@ -126,6 +130,14 @@ export function BaseTab({
       ? ((1 - (project?.progress ?? 0)) * FAB_SECONDS) / (fabWorkers * fabSpeed)
       : null
 
+  const industryRates = useMemo(() => computeResourceRates(state), [state])
+  const scrapNet = industryRates.scrap ?? 0
+  const alloyUpkeepDrones = state.base.assignments['alloy-foundry'] ?? 0
+  const scrapDrainHint =
+    scrapNet < -0.005 && alloyUpkeepDrones > 0
+      ? `Scrap is net −${Math.abs(scrapNet).toFixed(2)}/s — Alloy Foundry upkeep is outrunning Scrap Field. Add scrap workers or pull foundry drones.`
+      : null
+
   return (
     <section className="panel">
       <header className="panel-header">
@@ -151,6 +163,8 @@ export function BaseTab({
           <strong>×{speed.toFixed(2)}</strong>
         </div>
       </div>
+
+      {scrapDrainHint ? <p className="notice-warn">{scrapDrainHint}</p> : null}
 
       <div className="manufacture-bar" aria-label="Manufacture progress">
         <div
@@ -193,7 +207,10 @@ export function BaseTab({
           }
           const upkeep = stationUpkeepScrapPerDrone(state, station)
           if (upkeep > 0) {
-            extras.push(`${upkeep.toFixed(2)} scrap/s upkeep each`)
+            extras.push(`−${upkeep.toFixed(2)} scrap/s each`)
+            if (assigned > 0) {
+              extras.push(`−${(upkeep * assigned).toFixed(2)} scrap/s total`)
+            }
           }
           return (
             <li key={station.id}>
