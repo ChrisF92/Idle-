@@ -588,33 +588,36 @@ function onModeTransition(scene: Scene, prev: BattlefieldMode | null, next: Batt
   if (!wasHangar && nowHangar) {
     const cx = PLAYER_SCREEN_X
     const cy = scene.height / 2
-    burst(scene, cx - 20, cy - 18, '#7ec8ff', 14, { speed: 0.85, life: 0.9 })
-    burst(scene, cx - 20, cy + 18, '#7ec8ff', 14, { speed: 0.85, life: 0.9 })
-    burst(scene, cx, cy, '#e8c88c', 18, { speed: 0.55, life: 1.05, size: 1.2 })
-    ring(scene, cx, cy, '#7ec8ff', 70, 0.5, 2.2)
-    flash(scene, 126, 200, 255, 0.28, 0.4)
-    addShake(scene, 2.5)
+    burst(scene, cx - 22, cy - 22, '#7ec8ff', 22, { speed: 1.05, life: 1.15, size: 1.25 })
+    burst(scene, cx - 22, cy + 22, '#7ec8ff', 22, { speed: 1.05, life: 1.15, size: 1.25 })
+    burst(scene, cx, cy, '#e8c88c', 28, { speed: 0.7, life: 1.2, size: 1.45 })
+    burst(scene, cx - 8, cy, '#ffffff', 8, { speed: 0.4, life: 0.7, size: 0.9 })
+    ring(scene, cx, cy, '#7ec8ff', 95, 0.65, 3)
+    ring(scene, cx, cy, '#e8c88c', 50, 0.4, 2)
+    flash(scene, 126, 200, 255, 0.4, 0.55)
+    addShake(scene, 3.5)
   }
 
   // Launch from hangar — thruster kick.
   if (wasHangar && !nowHangar) {
     const cx = PLAYER_SCREEN_X
     const cy = scene.height / 2
-    for (let i = 0; i < 22; i += 1) {
+    for (let i = 0; i < 34; i += 1) {
       scene.particles.push({
         x: cx - 10,
-        y: cy + (Math.random() - 0.5) * 28,
-        vx: -80 - Math.random() * 140,
-        vy: (Math.random() - 0.5) * 60,
-        life: 0.35 + Math.random() * 0.35,
-        maxLife: 0.7,
+        y: cy + (Math.random() - 0.5) * 32,
+        vx: -100 - Math.random() * 180,
+        vy: (Math.random() - 0.5) * 80,
+        life: 0.4 + Math.random() * 0.4,
+        maxLife: 0.8,
         color: Math.random() > 0.45 ? '#7ec8ff' : '#e0b06a',
-        size: 1.8 + Math.random() * 2.4,
+        size: 2 + Math.random() * 2.8,
         drag: 0.86,
       })
     }
-    ring(scene, cx, cy, '#e0b06a', 55, 0.35, 2)
-    flash(scene, 224, 176, 106, 0.22, 0.28)
+    ring(scene, cx, cy, '#e0b06a', 75, 0.45, 2.6)
+    flash(scene, 224, 176, 106, 0.32, 0.38)
+    addShake(scene, 2.2)
   }
 
   // Engage — subtle green go-pulse (also fires between waves).
