@@ -55,12 +55,24 @@ npm run preview
 
 ### Phone install (PWA)
 
-1. Merge the PR stack to `main`, then in the repo: **Settings → Pages → Source: GitHub Actions**.
-2. After `Deploy GitHub Pages` succeeds, open **https://chrisf92.github.io/Idle-/**
-3. Android Chrome → **Install app** / **Add to Home screen**.
-4. Saves are per-browser origin — use Stats → export/import between devices.
+1. In the repo: **Settings → Pages → Source: Deploy from a branch** → branch **`gh-pages`** / folder **`/(root)`**.
+2. **Settings → Actions → General → Workflow permissions** → **Read and write** (needed so Actions can push `gh-pages` and PR previews).
+3. After `Deploy GitHub Pages` succeeds on `main`, open **https://chrisf92.github.io/Idle-/**
+4. Android Chrome → **Install app** / **Add to Home screen**.
+5. Saves are per-browser origin — use Stats → export/import between devices.
 
 Local Pages-shaped build: `npm run build:pages && npm run preview`
+
+### PR preview deploys (no external account)
+
+Each open PR gets a live preview on the same GitHub Pages site:
+
+`https://chrisf92.github.io/Idle-/pr-preview/pr-<number>/`
+
+- Workflow: `.github/workflows/preview-pages.yml` (comments the URL on the PR).
+- Production stays at `/Idle-/`; previews live under `/Idle-/pr-preview/`.
+- Closing a PR removes its preview folder.
+- **Same origin as production** — `localStorage` is shared. Export a save or use a private window / different browser profile when playtesting a branch.
 
 ## Notes
 
