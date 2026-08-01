@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { GameState, UnitShape } from '../../game/types'
-import { buildFlagshipWeapons, computeShipStats } from '../../game/state'
+import { computeShipStats } from '../../game/state'
 import { getChallenge, getFrame } from '../../game/catalog'
 import { formatCompact, formatStat } from '../../game/format'
 import { WAVES_PER_SECTOR } from '../../game/progression'
@@ -123,41 +123,23 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
     return Array.from({ length: max }, (_, i) => i + 1)
   }, [combat.highestSector])
 
-  const modeLabel = combat.docked ? 'PAUSED' : combat.campaign ? 'ADVANCE' : 'HOLD'
-  const bossCharging =
-    combat.inFight &&
-    combat.isBoss &&
-    combat.enemyUnits.some(
-      (u) =>
-        u.isBoss &&
-        (u.phaseWarnLeft > 0 || u.weapons.some((w) => w.telegraphLeft > 0)),
-    )
-  const statusLabel = combat.docked
-    ? needsRepair
-      ? 'REPAIRING'
-      : 'REFIT'
-    : combat.inFight
-      ? combat.isBoss
-        ? bossCharging
-          ? `BOSS P${combat.bossPhase + 1} · CHARGING`
-          : `BOSS P${combat.bossPhase + 1}`
-        : 'ENGAGED'
-      : 'STANDBY'
   const repairRate = combat.docked ? repairRatePerSecond(state) : 0
-  const weaponReach = useMemo(() => {
-    const ranges = buildFlagshipWeapons(state).map((w) => w.range)
-    return ranges.length ? Math.max(...ranges) : 0
-  }, [state])
   const holdRates = useMemo(
     () =>
       !combat.docked && !combat.campaign && state.ai.purchased.includes('hold-accountant')
         ? estimateHoldFarmRates(state)
         : null,
-    [combat.docked, combat.campaign, combat.sector, state],
+    [combat.docked, combat.campaign, state],
   )
 
+  const contactLabel = combat.docked
+    ? 'Paused — Shipyard'
+    : combat.inFight
+      ? combat.enemyName
+      : encounter.name
+
   return (
-    <section className="panel combat-hud">
+    <section className="panel combat-hud combat-bridge">
       <header className="combat-hud-bar">
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">Sector</span>
@@ -169,23 +151,9 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
             {combat.wave}/{WAVES_PER_SECTOR}
           </strong>
         </div>
-        <div className="combat-hud-readout">
-          <span className="combat-hud-kicker">Mode</span>
-          <strong className="combat-hud-value">{modeLabel}</strong>
-        </div>
-        <div className="combat-hud-readout">
-          <span className="combat-hud-kicker">Status</span>
-          <strong className="combat-hud-value">{statusLabel}</strong>
-        </div>
         <div className="combat-hud-readout combat-hud-readout-wide">
           <span className="combat-hud-kicker">Contact</span>
-          <strong className="combat-hud-value combat-hud-contact">
-            {combat.docked
-              ? 'Paused — Shipyard'
-              : combat.inFight
-                ? combat.enemyName
-                : encounter.name}
-          </strong>
+          <strong className="combat-hud-value combat-hud-contact">{contactLabel}</strong>
         </div>
         <button
           type="button"
@@ -202,58 +170,6 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         </p>
       ) : null}
 
-      <div className="stat-row combat-stats-strip" aria-label="Fleet combat stats">
-        <div>
-          <span className="muted">Fleet DPS</span>
-          <strong>{formatStat(stats.damage, 1)}</strong>
-        </div>
-        <div>
-          <span className="muted">Hull</span>
-          <strong>
-            {formatCompact(combat.playerHull, 0)}/{formatCompact(combat.playerHullMax, 0)}
-          </strong>
-        </div>
-        <div>
-          <span className="muted">Shield</span>
-          <strong>
-            {formatCompact(combat.playerShield, 0)}/{formatCompact(combat.playerShieldMax, 0)}
-          </strong>
-        </div>
-        <div>
-          <span className="muted">Armor</span>
-          <strong>{formatStat(stats.armor, 1)}</strong>
-        </div>
-        <div>
-          <span className="muted">Evasion</span>
-          <strong>{formatCompact(stats.evasion * 100, 0)}%</strong>
-        </div>
-        <div>
-          <span className="muted">Incoming</span>
-          <strong>×{formatStat(stats.damageTakenMult, 2)}</strong>
-        </div>
-        <div>
-          <span className="muted">Escorts</span>
-          <strong>{stats.escortCount}</strong>
-        </div>
-        <div>
-          <span className="muted">Reach</span>
-          <strong>{formatCompact(weaponReach, 0)}</strong>
-        </div>
-      </div>
-
-      {holdRates ? (
-        <p className="muted combat-dock-hint">
-          Hold farm ~{holdRates.scrapPerSec.toFixed(2)} scrap/s ·{' '}
-          {holdRates.dataPerSec.toFixed(2)} data/s · {holdRates.salvagePerSec.toFixed(2)} salvage/s
-          {' '}(~{holdRates.clearSeconds.toFixed(0)}s / {WAVES_PER_SECTOR}-wave clear ·{' '}
-          {holdRates.scrapPerClear.toFixed(0)} scrap total).
-        </p>
-      ) : null}
-
-      {state.meta.act1Cleared ? (
-        <p className="notice">Act 1 complete — infinite push / prestige / challenges are the long game.</p>
-      ) : null}
-
       <Battlefield
         playerUnits={combat.inFight ? combat.playerUnits : previewPlayer}
         enemyUnits={combat.docked ? [] : combat.inFight ? combat.enemyUnits : encounter.units}
@@ -261,23 +177,6 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         fx={combat.fx}
         mode={battlefieldMode}
       />
-
-      {combat.docked ? (
-        <p className="muted combat-dock-hint">
-          Paused — sector {combat.sector} W1 · Shipyard open for refit
-          {needsRepair ? ` · repairing +${repairRate.toFixed(1)} hull/s` : ''}
-          {!state.shipyard.frameLocked
-            ? ' · choose your frame before Launch (locks until prestige/challenge)'
-            : ''}
-          . {state.shipyard.frameLocked ? 'Resume' : 'Launch'} to continue{' '}
-          {combat.campaign ? 'Advance' : 'Hold'}.
-        </p>
-      ) : (
-        <p className="muted combat-dock-hint">
-          Advance pushes sectors · Hold farms this sector · Pause aborts the fight and resets
-          this sector to W1 for module refit.
-        </p>
-      )}
 
       <div className="combat-controls" role="group" aria-label="Fleet controls">
         <button
@@ -328,6 +227,36 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
           Warp
         </button>
       </div>
+
+      {combat.docked ? (
+        <p className="muted combat-dock-hint">
+          Paused — sector {combat.sector} W1 · Shipyard open for refit
+          {needsRepair ? ` · repairing +${repairRate.toFixed(1)} hull/s` : ''}
+          {!state.shipyard.frameLocked
+            ? ' · choose your frame before Launch (locks until prestige/challenge)'
+            : ''}
+          . {state.shipyard.frameLocked ? 'Resume' : 'Launch'} to continue{' '}
+          {combat.campaign ? 'Advance' : 'Hold'}.
+        </p>
+      ) : (
+        <p className="muted combat-dock-hint">
+          Advance pushes sectors · Hold farms this sector · Pause aborts the fight and resets
+          this sector to W1 for module refit.
+        </p>
+      )}
+
+      {holdRates ? (
+        <p className="muted combat-dock-hint">
+          Hold farm ~{holdRates.scrapPerSec.toFixed(2)} scrap/s ·{' '}
+          {holdRates.dataPerSec.toFixed(2)} data/s · {holdRates.salvagePerSec.toFixed(2)} salvage/s
+          {' '}(~{holdRates.clearSeconds.toFixed(0)}s / {WAVES_PER_SECTOR}-wave clear ·{' '}
+          {holdRates.scrapPerClear.toFixed(0)} scrap total).
+        </p>
+      ) : null}
+
+      {state.meta.act1Cleared ? (
+        <p className="notice">Act 1 complete — infinite push / prestige / challenges are the long game.</p>
+      ) : null}
 
       {overlay === 'launch-confirm' ? (
         <LaunchConfirmModal
@@ -433,12 +362,27 @@ function SectorInfoModal({
                 shape={entry.shape}
                 boss={entry.isBoss}
               />
-              <div>
+              <div className="sector-roster-body">
                 <strong>
                   {entry.name}
                   {entry.count > 1 ? ` ×${entry.count}` : ''}
                 </strong>
                 <p className="muted">{entry.summary}</p>
+                <p className="sector-roster-stats">
+                  Hull {formatCompact(entry.hull, 0)}
+                  {entry.shield > 0 ? ` · Shield ${formatCompact(entry.shield, 0)}` : ''}
+                  {entry.armor > 0 ? ` · Armor ${formatStat(entry.armor, 1)}` : ''}
+                  {entry.evasion > 0
+                    ? ` · Eva ${formatCompact(entry.evasion * 100, 0)}%`
+                    : ''}
+                </p>
+                <p className="sector-roster-stats">
+                  DPS ~{formatStat(entry.dps, 1)} · Spd {formatCompact(entry.speed, 0)} ·
+                  Reach {formatCompact(entry.range, 0)}
+                  {entry.weaponTags.length > 0
+                    ? ` · ${entry.weaponTags.join(' / ')}`
+                    : ''}
+                </p>
               </div>
             </li>
           ))}

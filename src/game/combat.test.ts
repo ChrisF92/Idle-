@@ -8,6 +8,7 @@ import {
   PROJECTILE_SPEED,
   projectileSpeedForTag,
   resolveCombatTick,
+  sectorRoster,
   simulateCombat,
 } from './combat'
 import { fitModule, unlockModule } from './actions'
@@ -76,6 +77,21 @@ describe('role matchups', () => {
     state.shipyard.modules = [...state.shipyard.modules, 'plate-layer']
     const platedIncoming = computeFightDamage(state).enemyDps
     expect(platedIncoming).toBeLessThan(nakedIncoming)
+  })
+})
+
+describe('sector roster intel', () => {
+  it('lists unique enemies with combat stats for sector info', () => {
+    const roster = sectorRoster(1)
+    expect(roster.length).toBeGreaterThan(0)
+    for (const entry of roster) {
+      expect(entry.hull).toBeGreaterThan(0)
+      expect(entry.dps).toBeGreaterThan(0)
+      expect(entry.speed).toBeGreaterThan(0)
+      expect(entry.range).toBeGreaterThan(0)
+      expect(entry.weaponTags.length).toBeGreaterThan(0)
+      expect(entry.summary.length).toBeGreaterThan(0)
+    }
   })
 })
 

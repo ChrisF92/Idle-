@@ -967,6 +967,32 @@ export interface SectorRosterEntry {
   isBoss: boolean
   count: number
   summary: string
+  hull: number
+  shield: number
+  armor: number
+  evasion: number
+  dps: number
+  speed: number
+  range: number
+  weaponTags: WeaponTag[]
+}
+
+function rosterStatsFromUnit(u: CombatUnit): Pick<
+  SectorRosterEntry,
+  'hull' | 'shield' | 'armor' | 'evasion' | 'dps' | 'speed' | 'range' | 'weaponTags'
+> {
+  const weapon = u.weapons[0]
+  const cooldown = Math.max(0.05, weapon?.cooldown ?? 1)
+  return {
+    hull: u.hullMax,
+    shield: u.shieldMax,
+    armor: u.armor,
+    evasion: u.evasion,
+    dps: (weapon?.damage ?? 0) / cooldown,
+    speed: u.speed,
+    range: weapon?.range ?? 0,
+    weaponTags: [...(weapon?.tags ?? [])],
+  }
 }
 
 /** Unique enemy types across all waves in a sector (for the sector intel panel). */
@@ -979,6 +1005,10 @@ export function sectorRoster(sector: number): SectorRosterEntry[] {
       const existing = groups.get(key)
       if (existing) {
         existing.count += 1
+        // Keep the strongest sighting for intel numbers.
+        if (u.hullMax > existing.hull) {
+          Object.assign(existing, rosterStatsFromUnit(u))
+        }
         continue
       }
       groups.set(key, {
@@ -991,6 +1021,7 @@ export function sectorRoster(sector: number): SectorRosterEntry[] {
         summary: u.isBoss
           ? familyBlurb(u.family as EnemyFamily, true)
           : familyIntel(u.family as EnemyFamily),
+        ...rosterStatsFromUnit(u),
       })
     }
   }
