@@ -278,7 +278,6 @@ export function starterRefitGate(
 
 function applyStarterCombatDeath(state: GameState, lesson: 0 | 1): void {
   const fromSector = state.combat.sector
-  const fromWave = state.combat.wave
   clearEnemy(state)
   state.combat.consecutiveLosses += 1
   state.combat.sector = Math.max(1, fromSector)
