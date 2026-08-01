@@ -11,7 +11,7 @@ import {
   isChallengeUnlocked,
   isModuleBlockedByChallenge,
 } from './catalog'
-import { advanceTicks, setCampaign, startCombat } from './tick'
+import { advanceTicks, setDocked } from './tick'
 import { forceUnlockModule } from './testHelpers'
 
 describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
@@ -88,7 +88,7 @@ describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
     expect(computeShipStats(state).damage).toBeGreaterThan(0)
   })
 
-  it('Attrition skips 25% missing hull recovery on fight win', () => {
+  it('Attrition blocks Pause / field repair', () => {
     let state = createInitialState(0)
     state.prestige.prestigeCount = 1
     state.meta.act1Cleared = true
@@ -97,16 +97,13 @@ describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
     state.meta.highestSectorEver = 8
     state = enterChallenge(state, 'attrition', 2000)
     expect(state.prestige.activeChallengeId).toBe('attrition')
+    expect(getChallenge('attrition')?.restriction).toMatch(/repair/i)
 
-    state = setCampaign(state, false)
-    state = startCombat(state)
-    const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
-    flag.hull = 40
-    for (const e of state.combat.enemyUnits) e.hull = 0
-    advanceTicks(state, 1)
-    // No 25% missing-hull heal (~62.5); only tiny field repair after the fight ends.
-    expect(state.combat.playerHull).toBeGreaterThanOrEqual(40)
-    expect(state.combat.playerHull).toBeLessThan(45)
+    state = setDocked(state, true)
+    state.combat.playerHull = 40
+    state.combat.playerHullMax = 130
+    advanceTicks(state, 5)
+    expect(state.combat.playerHull).toBe(40)
   })
 })
 

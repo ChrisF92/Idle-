@@ -373,19 +373,8 @@ function onFightWon(state: GameState): void {
   const wasBoss = state.combat.isBoss
   state.meta.lifetimeWaveClears = (state.meta.lifetimeWaveClears ?? 0) + 1
 
+  // Hull / shield persist between waves — no mid-sector recovery.
   persistFlagshipHull(state)
-  if (state.prestige.activeChallengeId !== 'attrition') {
-    const missingHull = state.combat.playerHullMax - state.combat.playerHull
-    const missingShield = state.combat.playerShieldMax - state.combat.playerShield
-    state.combat.playerHull = Math.min(
-      state.combat.playerHullMax,
-      state.combat.playerHull + missingHull * 0.25,
-    )
-    state.combat.playerShield = Math.min(
-      state.combat.playerShieldMax,
-      state.combat.playerShield + missingShield * 0.25,
-    )
-  }
   clearEnemy(state)
   state.combat.consecutiveLosses = 0
 
@@ -459,8 +448,10 @@ function tickCombat(state: GameState, dt: number): void {
 /**
  * Repair while Paused (full rate) or out of combat undocked (field rate).
  * AI never pauses / resumes combat — only repair multipliers.
+ * Attrition challenge blocks all hangar / field repair.
  */
 function fieldRepairMultiplier(state: GameState): number {
+  if (state.prestige.activeChallengeId === 'attrition') return 0
   if (state.combat.docked) return 1
   let mult = aiDoctrinesActive(state, 'auto-launch-ready') ? 0.85 : 0.4
   if (

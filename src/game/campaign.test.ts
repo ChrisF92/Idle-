@@ -45,7 +45,7 @@ describe('campaign combat', () => {
     expect(state.combat.highestSector).toBe(1)
   })
 
-  it('applies only a partial clear heal (no full repair)', () => {
+  it('persists hull between waves with no mid-sector heal', () => {
     let state = createInitialState(0)
     state = setCampaign(state, false)
     state = startCombat(state)
@@ -53,8 +53,9 @@ describe('campaign combat', () => {
     flag.hull = 40
     for (const e of state.combat.enemyUnits) e.hull = 0
     advanceTicks(state, 1)
-    // Wave clear: 25% of missing hull (no full repair).
-    expect(state.combat.playerHull).toBeGreaterThan(40)
+    // Wave clear: hull persists (tiny field repair may tick after clearEnemy).
+    expect(state.combat.playerHull).toBeGreaterThanOrEqual(40)
+    expect(state.combat.playerHull).toBeLessThan(45)
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
 

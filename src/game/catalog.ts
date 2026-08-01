@@ -1042,8 +1042,9 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'attrition',
     name: 'Attrition',
-    description: 'Reach sector 30 with no post-fight hull/shield recovery. Repeatable.',
-    restriction: 'No 25% missing hull/shield recovery on fight win',
+    description:
+      'Reach sector 30 with no hangar or field repair — hull only recovers on death warp. Repeatable.',
+    restriction: 'No Pause / field hull or shield repair',
     goalSector: 30,
     rewardChallengePoints: 2,
     maxClears: 12,
