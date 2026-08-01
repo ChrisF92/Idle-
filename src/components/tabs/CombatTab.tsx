@@ -129,7 +129,7 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
       !combat.docked && !combat.campaign && state.ai.purchased.includes('hold-accountant')
         ? estimateHoldFarmRates(state)
         : null,
-    [combat.docked, combat.campaign, combat.sector, state],
+    [combat.docked, combat.campaign, state],
   )
 
   const contactLabel = combat.docked
