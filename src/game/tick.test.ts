@@ -23,7 +23,7 @@ import {
   upgradeModule,
 } from './actions'
 import { moduleLevel } from './catalog'
-import { forceUnlockModule } from './testHelpers'
+import { equipPostTutorialLoadout, forceUnlockModule } from './testHelpers'
 import { WAVES_PER_SECTOR } from './progression'
 
 describe('tickGame', () => {
@@ -84,6 +84,7 @@ describe('tickGame', () => {
 
   it('hull persists between chained fights under Advance', () => {
     let state = createInitialState(0)
+    state = equipPostTutorialLoadout(state)
     state.combat.campaign = true
     state = setDocked(state, false)
     advanceTicks(state, 120)
@@ -100,7 +101,7 @@ describe('tickGame', () => {
 
 describe('advanceTicks / combat', () => {
   it('resolves a fight and advances sector', () => {
-    let state = createInitialState(0)
+    let state = equipPostTutorialLoadout(createInitialState(0))
     state = startCombat(state)
     expect(state.combat.inFight).toBe(true)
 

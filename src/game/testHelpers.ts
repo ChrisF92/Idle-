@@ -19,6 +19,24 @@ export function forceUnlockModule(state: GameState, moduleId: string): GameState
   return next
 }
 
+/**
+ * Post-tutorial Act 1 opener: Plate + salvage L1 on Pulse/Plate.
+ * Needed once mid-wave hull recovery was removed — naked Scout death-loops S1.
+ */
+export function equipPostTutorialLoadout(state: GameState): GameState {
+  let next = forceUnlockModule(state, 'plate-layer')
+  if (!next.shipyard.modules.includes('plate-layer')) {
+    next.shipyard.modules = [...next.shipyard.modules, 'plate-layer']
+  }
+  next.shipyard.moduleLevels = {
+    ...next.shipyard.moduleLevels,
+    'pulse-cannon': Math.max(1, next.shipyard.moduleLevels['pulse-cannon'] ?? 0),
+    'plate-layer': Math.max(1, next.shipyard.moduleLevels['plate-layer'] ?? 0),
+  }
+  next.meta.starterCombatLesson = 2
+  return next
+}
+
 /** Resolve the current wave (mutates via advanceTicks). */
 export function clearCurrentWave(state: GameState): GameState {
   let s = state

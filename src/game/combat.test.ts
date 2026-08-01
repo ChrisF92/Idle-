@@ -12,6 +12,7 @@ import {
   simulateCombat,
 } from './combat'
 import { fitModule, unlockModule } from './actions'
+import { equipPostTutorialLoadout } from './testHelpers'
 
 describe('enemy catalog', () => {
   it('rotates families and marks bosses every 5 sectors', () => {
@@ -149,7 +150,7 @@ describe('fleet combat resolution', () => {
   })
 
   it('clears a sector with multi-unit packs', () => {
-    let state = createInitialState(0)
+    let state = equipPostTutorialLoadout(createInitialState(0))
     state = startCombat(state)
     expect(state.combat.enemyUnits.length).toBeGreaterThan(1)
     advanceTicks(state, 120)

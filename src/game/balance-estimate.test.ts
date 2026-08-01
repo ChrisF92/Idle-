@@ -17,6 +17,7 @@ import {
   prestigeMomentumProductionBonus,
 } from './catalog'
 import { advanceSeconds, setDocked } from './tick'
+import { equipPostTutorialLoadout } from './testHelpers'
 import type { GameState } from './types'
 
 function sectorClearSeconds(state: GameState, sector: number): number {
@@ -177,8 +178,8 @@ describe('balance estimates (ITRTG Baal-scale Act 1)', () => {
     expect(rePrestige).toBeLessThan(firstPrestige * 0.8)
   })
 
-  it('starter can clear sector 1 without death-looping', () => {
-    let state = createInitialState(0)
+  it('post-tutorial starter clears sector 1 without death-looping', () => {
+    let state = equipPostTutorialLoadout(createInitialState(0))
     state = setDocked(state, false)
     advanceSeconds(state, 120)
     expect(state.combat.highestSector).toBeGreaterThanOrEqual(1)

@@ -196,6 +196,8 @@ function endOfflineFight(state: GameState, seconds: number): void {
     state.combat.fx = []
     state.combat.enemyName = 'None'
   }
+  if (state.prestige.activeChallengeId === 'attrition') return
+
   let mult = state.combat.docked
     ? 1
     : aiDoctrinesActive(state, 'auto-launch-ready')
