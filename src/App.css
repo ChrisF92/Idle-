@@ -322,49 +322,44 @@ body.guide-active {
 
 .battlefield {
   width: 100%;
-  aspect-ratio: 640 / 260;
+  max-width: 420px;
+  margin-inline: auto;
+  aspect-ratio: 360 / 480;
+  max-height: min(58dvh, 520px);
   height: auto;
-  border: 1px solid var(--line);
-  background: #0e141c;
+  border: 1px solid color-mix(in srgb, var(--accent-2) 40%, var(--line));
+  background:
+    radial-gradient(80% 55% at 70% 25%, rgba(79, 143, 154, 0.16), transparent 70%),
+    #0c121a;
   display: block;
   border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(14, 20, 28, 0.65);
 }
 
-.combat-hud {
-  gap: 0.75rem;
+.combat-hud,
+.combat-bridge {
+  gap: 0.65rem;
 }
 
 .combat-hud-bar {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem 0.75rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 0.65rem;
   align-items: end;
-  padding: 0.15rem 0.1rem 0.35rem;
+  padding: 0.1rem 0.05rem 0.3rem;
   border-bottom: 1px solid color-mix(in srgb, var(--accent-2) 35%, var(--line));
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent);
 }
 
-@media (min-width: 640px) {
-  .combat-hud-bar {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
-  }
-}
-
 .combat-hud-readout {
   display: grid;
-  gap: 0.15rem;
+  gap: 0.12rem;
   min-width: 0;
 }
 
 .combat-hud-readout-wide {
   grid-column: 1 / -1;
-}
-
-@media (min-width: 640px) {
-  .combat-hud-readout-wide {
-    grid-column: auto;
-  }
 }
 
 .combat-hud-kicker {
@@ -381,26 +376,16 @@ body.guide-active {
 }
 
 .combat-hud-contact {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .combat-intel-btn {
+  grid-column: 1 / -1;
   justify-self: stretch;
   align-self: end;
-}
-
-@media (min-width: 640px) {
-  .combat-intel-btn {
-    justify-self: end;
-  }
-}
-
-.combat-stats-strip {
-  padding: 0.35rem 0.1rem 0.15rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
 
 .combat-challenge {
@@ -425,6 +410,19 @@ body.guide-active {
 
 .combat-controls button.mode-active {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.sector-roster-body {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sector-roster-stats {
+  margin: 0;
+  color: color-mix(in srgb, var(--text) 82%, var(--accent-2));
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .modal-backdrop {
@@ -489,7 +487,7 @@ body.guide-active {
   display: grid;
   grid-template-columns: 56px 1fr;
   gap: 0.75rem;
-  align-items: center;
+  align-items: start;
   border: 1px solid var(--line);
   padding: 0.55rem;
   background: color-mix(in srgb, var(--bg-elevated) 80%, black);
