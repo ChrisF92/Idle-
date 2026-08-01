@@ -230,6 +230,13 @@
   pointer-events: none;
 }
 
+.guide-block {
+  position: absolute;
+  background: rgba(6, 9, 14, 0.55);
+  pointer-events: auto;
+  z-index: 1;
+}
+
 .guide-dim {
   position: absolute;
   inset: 0;
@@ -243,7 +250,11 @@
   box-shadow: 0 0 0 9999px rgba(6, 9, 14, 0.55);
   border-radius: 4px;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
+}
+
+.guide-root-required .guide-hole {
+  box-shadow: none;
 }
 
 .guide-tip {

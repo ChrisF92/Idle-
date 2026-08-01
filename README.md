@@ -35,7 +35,7 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Dev tools (Stats tab): toggle on anytime, or append `?dev=1` / `?dev=0`. Includes jump, boss force, achievements, guide skip.
 - Boss telegraphs: titan slams wind up before firing; phase shifts flash a warn ring.
 - Hold Accountant shows estimated scrap/data/salvage per second while farming.
-- Worker drones are manufactured permanently and assigned to named stations; assignments reset on prestige. Labor Router unlocks presets / Fill / Clear; Labor Loop + drone efficiency AI reduce babysitting.
+- Worker drones are manufactured permanently up to a **corps capacity** (raise via research / AI / PM / lifetime built). Stations **black-bar** at a fixed effective-drone slot count — drone power (AI Swarm/Hive, PM Drone Acuity) lets fewer bodies saturate. Training stays uncapped as overflow. Assignments reset on prestige; Labor Router fills to BB then dumps leftovers to Core training.
 - Prestige Matter / Challenge Points spend in permanent **rankable** shops (banked PM is +0.6% dmg/prod each; banked CP +1% dmg; ranks beat banking). No respec.
 - CP shop prefers unique unlocks (schematics → Surge Capacitor / Mirror Plate, Deep Vault 24h offline, Clearance Board +5 max clears) plus stackable run-kits.
 - Post-prestige re-push: returning kits scale with prestige/ascension count (USI-style); doctrine AIP is refunded; first S8 prestige yields 5 PM. Prestige/ascension momentum also grants soft damage & production.

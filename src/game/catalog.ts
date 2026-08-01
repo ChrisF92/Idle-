@@ -22,6 +22,11 @@ export interface StationDef {
   repairPerDrone?: number
   /** Multiplier added to worker manufacture speed per drone (0.25 = +25%). */
   manufactureBonusPerDrone?: number
+  /**
+   * Effective-drone slots to black-bar this station.
+   * 0 / omitted = uncapped (Core training overflow sink).
+   */
+  baseSlots?: number
   /** Production stations show in Base; training stations only on Core tab. */
   kind?: 'production' | 'training' | 'special'
   /** Core attribute trained by this station (training kind). */
@@ -40,6 +45,10 @@ export interface ResearchDef {
   manufactureBonus?: number
   /** Additive Core training speed bonus (0.5 = +50%). */
   trainingBonus?: number
+  /** Flat permanent bonus to worker drone corps capacity. */
+  droneCapBonus?: number
+  /** Additive drone power (0.1 = +10%). */
+  dronePowerBonus?: number
 }
 
 export interface AiNodeDef {
@@ -61,10 +70,12 @@ export interface AiNodeDef {
   /** Additive station production bonus (0.4 = +40%). Non-combat. */
   productionBonus?: number
   /**
-   * Multiplier on effective drones for station output (1.35 = each drone
-   * produces like 1.35). Reduces how many drones you need to babysit.
+   * Multiplier on drone power for station saturation (1.35 = each drone
+   * counts as 1.35 toward black-bar). Highest owned wins.
    */
   droneEfficiencyMult?: number
+  /** Flat permanent bonus to worker drone corps capacity. */
+  droneCapBonus?: number
   /** Additive Fabrication Bay craft speed (0.5 = +50%). Non-combat. */
   fabBonus?: number
   /**
@@ -124,8 +135,12 @@ export interface ChallengeShopDef {
   offlineHours?: number
   /** Extra effectiveness on role matchup bonuses (0.15 = +15%). */
   matchupBonus?: number
-  /** Permanent bonus worker drones granted on each rank purchase. */
+  /** @deprecated Prefer droneCapBonus — instant grants ignored under corps cap. */
   bonusWorkerDrones?: number
+  /** Flat corps capacity per rank (summed; not diminishing-scaled). */
+  droneCapBonus?: number
+  /** Additive drone power per rank scale (0.15 = +15% at rank 1). */
+  dronePowerBonus?: number
   manufactureBonus?: number
   /** Additive blueprint part drop chance (0.15 = +15% at rank 1). */
   dropBonus?: number
@@ -157,7 +172,12 @@ export interface MatterShopDef {
    * `0.4 * (1 + 0.45*(r-1))`, applied as repairMult = 1/(1+speed).
    */
   repairMult?: number
+  /** @deprecated Prefer droneCapBonus. */
   bonusWorkerDrones?: number
+  /** Flat corps capacity per rank (summed; not diminishing-scaled). */
+  droneCapBonus?: number
+  /** Additive drone power per rank scale (0.2 = +20% at rank 1). */
+  dronePowerBonus?: number
   manufactureBonus?: number
   /** Additive Core training speed bonus per rank scale (0.12 = +12% at rank 1). */
   trainingBonus?: number
@@ -255,6 +275,13 @@ export const PRESTIGE_MIN_SECTOR = PROGRESSION_PRESTIGE_MIN
 /** Base seconds to manufacture one worker drone at 1.0 speed. */
 export const WORKER_MANUFACTURE_SECONDS = 90
 
+/** Fresh-career worker drone corps capacity before bonuses. */
+export const BASE_DRONE_CAP = 10
+/** Lifetime drones built per +1 permanent corps capacity. */
+export const LIFETIME_DRONES_PER_CAP = 20
+/** Soft ceiling on lifetime-built capacity raises. */
+export const LIFETIME_DRONE_CAP_MAX = 50
+
 export const STATIONS: StationDef[] = [
   {
     id: 'scrap-field',
@@ -262,6 +289,7 @@ export const STATIONS: StationDef[] = [
     description: 'Workers haul debris into usable scrap.',
     requiresSystem: 'base',
     rates: { scrap: 0.4 },
+    baseSlots: 20,
   },
   {
     id: 'power-grid',
@@ -269,6 +297,7 @@ export const STATIONS: StationDef[] = [
     description: 'Workers stabilize reactor feeds for energy.',
     requiresSystem: 'base',
     rates: { energy: 0.16 },
+    baseSlots: 16,
   },
   {
     id: 'sensor-net',
@@ -276,6 +305,7 @@ export const STATIONS: StationDef[] = [
     description: 'Workers sift anomaly noise into research data.',
     requiresSystem: 'research',
     rates: { data: 0.045 },
+    baseSlots: 16,
   },
   {
     id: 'alloy-foundry',
@@ -285,6 +315,7 @@ export const STATIONS: StationDef[] = [
     requiresResearch: 'alloy-smelting',
     rates: { alloys: 0.12 },
     upkeepScrapPerDrone: 0.16,
+    baseSlots: 12,
   },
   {
     id: 'repair-bay',
@@ -293,6 +324,7 @@ export const STATIONS: StationDef[] = [
     requiresSystem: 'base',
     rates: {},
     repairPerDrone: 1.2,
+    baseSlots: 16,
   },
   {
     id: 'drone-fab',
@@ -302,6 +334,7 @@ export const STATIONS: StationDef[] = [
     requiresResearch: 'drone-logistics',
     rates: {},
     manufactureBonusPerDrone: 0.35,
+    baseSlots: 10,
   },
   {
     id: 'fab-bay',
@@ -311,6 +344,7 @@ export const STATIONS: StationDef[] = [
     requiresResearch: 'module-fab',
     rates: {},
     kind: 'special',
+    baseSlots: 40,
   },
   {
     id: 'train-ballistics',
@@ -394,8 +428,9 @@ export const RESEARCH: ResearchDef[] = [
   {
     id: 'drone-logistics',
     name: 'Drone Logistics',
-    description: 'Unlocks the Drone Fabricator station. Permanent.',
+    description: 'Unlocks the Drone Fabricator and raises corps capacity by +5. Permanent.',
     costData: 55,
+    droneCapBonus: 5,
   },
   {
     id: 'tactical-codex',
@@ -479,9 +514,20 @@ export const AI_NODES: AiNodeDef[] = [
     requiresAiNode: 'auto-assign-workers',
   },
   {
+    id: 'drone-hangar',
+    name: 'Expanded Hangar',
+    description: '+8 worker drone corps capacity.',
+    costAiPoints: 3,
+    kind: 'qol',
+    permanent: true,
+    requiresSectorEver: 8,
+    droneCapBonus: 8,
+  },
+  {
     id: 'drone-efficiency-1',
     name: 'Swarm Optics',
-    description: 'Each assigned drone produces +35% station output (fewer drones needed).',
+    description:
+      '+35% drone power — each worker counts for more toward station black-bar (fewer bodies needed).',
     costAiPoints: 4,
     kind: 'automation',
     permanent: true,
@@ -491,7 +537,7 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'drone-efficiency-2',
     name: 'Hive Lattice',
-    description: 'Each assigned drone produces +65% station output. Requires Swarm Optics.',
+    description: '+65% drone power toward station black-bar. Requires Swarm Optics.',
     costAiPoints: 8,
     kind: 'automation',
     permanent: true,
@@ -502,7 +548,7 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'fabricator-overclock',
     name: 'Fabricator Overclock',
-    description: '+50% worker drone manufacture speed.',
+    description: '+50% worker drone manufacture speed (still stops at corps capacity).',
     costAiPoints: 3,
     kind: 'automation',
     permanent: true,
@@ -776,10 +822,10 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'drone-bay-rights',
     name: 'Drone Bay Rights',
-    description: 'Permanently gain +2 worker drones on each rank purchase.',
+    description: '+3 worker drone corps capacity per rank.',
     costCp: 2,
-    maxRank: 5,
-    bonusWorkerDrones: 2,
+    maxRank: 8,
+    droneCapBonus: 3,
   },
   {
     id: 'schematic-surge',
@@ -890,10 +936,19 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'drone-corps',
     name: 'Drone Corps Charter',
-    description: '+3 worker drones per rank (deep ranks).',
+    description: '+5 worker drone corps capacity per rank (deep ranks).',
     costPm: 5,
     maxRank: 20,
-    bonusWorkerDrones: 3,
+    droneCapBonus: 5,
+  },
+  {
+    id: 'drone-acuity',
+    name: 'Drone Acuity',
+    description:
+      '+20% drone power per rank (extra ranks +45% of base). Black-bar stations with fewer bodies.',
+    costPm: 4,
+    maxRank: 25,
+    dronePowerBonus: 0.2,
   },
   {
     id: 'synapse-lattice',
@@ -1701,6 +1756,121 @@ export function getVisibleModules(state: GameState): ShipModuleDef[] {
   return SHIP_MODULES.filter((m) => isModuleVisible(state, m.id))
 }
 
+/** Minimal shape for drone power / cap / saturation helpers. */
+export type DroneEconomyState = {
+  base: { assignments: Record<string, number>; workerDrones?: number }
+  research: { unlocked: string[] }
+  ai: { purchased: string[] }
+  prestige: {
+    activeChallengeId: string | null
+    shop: Record<string, number>
+    matterShop: Record<string, number>
+  }
+  meta?: { lifetimeDronesBuilt?: number }
+}
+
+/** Black-bar slot count (0 = uncapped linear scaling). */
+export function stationBaseSlots(station: StationDef): number {
+  return Math.max(0, station.baseSlots ?? 0)
+}
+
+/**
+ * Drone power: how much each assigned body counts toward station saturation.
+ * Early ≈ 1 (need many bodies to BB); late a single strong drone can BB.
+ */
+export function dronePower(state: DroneEconomyState): number {
+  let power = aiDroneEfficiencyMult(state)
+  for (const id of state.research.unlocked) {
+    power += RESEARCH.find((r) => r.id === id)?.dronePowerBonus ?? 0
+  }
+  for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
+    const bonus = getMatterShopItem(id)?.dronePowerBonus ?? 0
+    if (bonus) power += bonus * matterShopEffectScale(rank)
+  }
+  for (const [id, rank] of Object.entries(state.prestige.shop)) {
+    const bonus = getChallengeShopItem(id)?.dronePowerBonus ?? 0
+    if (bonus) power += bonus * matterShopEffectScale(rank)
+  }
+  return Math.max(0.05, power)
+}
+
+/** Max worker drones the corps may hold (manufacture stops at cap). */
+export function droneCap(state: DroneEconomyState): number {
+  let cap = BASE_DRONE_CAP
+  for (const id of state.research.unlocked) {
+    cap += RESEARCH.find((r) => r.id === id)?.droneCapBonus ?? 0
+  }
+  if (!challengeBlocksAi(state)) {
+    for (const id of state.ai.purchased) {
+      cap += getAiNode(id)?.droneCapBonus ?? 0
+    }
+  }
+  for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
+    const bonus = getMatterShopItem(id)?.droneCapBonus ?? 0
+    if (bonus) cap += bonus * Math.max(0, rank)
+  }
+  for (const [id, rank] of Object.entries(state.prestige.shop)) {
+    const bonus = getChallengeShopItem(id)?.droneCapBonus ?? 0
+    if (bonus) cap += bonus * Math.max(0, rank)
+  }
+  const lifetime = Math.max(0, Math.floor(state.meta?.lifetimeDronesBuilt ?? 0))
+  cap += Math.min(
+    LIFETIME_DRONE_CAP_MAX,
+    Math.floor(lifetime / LIFETIME_DRONES_PER_CAP),
+  )
+  return Math.max(1, Math.floor(cap))
+}
+
+/** Assigned bodies × power, hard-capped at station black-bar slots when set. */
+export function stationEffectiveDrones(
+  state: DroneEconomyState,
+  stationId: string,
+): number {
+  const station = getStation(stationId)
+  if (!station) return 0
+  const assigned = Math.max(0, state.base.assignments[stationId] ?? 0)
+  if (assigned <= 0) return 0
+  const effective = assigned * dronePower(state)
+  const slots = stationBaseSlots(station)
+  if (slots <= 0) return effective
+  return Math.min(effective, slots)
+}
+
+/** 0–1 fill toward black-bar (1 = saturated). Uncapped stations report 0. */
+export function stationThroughput(
+  state: DroneEconomyState,
+  stationId: string,
+): number {
+  const station = getStation(stationId)
+  if (!station) return 0
+  const slots = stationBaseSlots(station)
+  if (slots <= 0) return 0
+  const assigned = Math.max(0, state.base.assignments[stationId] ?? 0)
+  return Math.min(1, (assigned * dronePower(state)) / slots)
+}
+
+/** Bodies needed to black-bar at current drone power (1 if uncapped). */
+export function stationBlackBarNeed(
+  state: DroneEconomyState,
+  stationId: string,
+): number {
+  const station = getStation(stationId)
+  if (!station) return 1
+  const slots = stationBaseSlots(station)
+  if (slots <= 0) return Number.POSITIVE_INFINITY
+  return Math.max(1, Math.ceil(slots / dronePower(state) - 1e-9))
+}
+
+export function isStationBlackBarred(
+  state: DroneEconomyState,
+  stationId: string,
+): boolean {
+  const station = getStation(stationId)
+  if (!station) return false
+  if (stationBaseSlots(station) <= 0) return false
+  return stationThroughput(state, stationId) >= 1 - 1e-9
+}
+
 /**
  * Advance Fabrication Bay craft when recipe is filled and workers are assigned.
  * Mutates state. Returns true if a module was completed this call.
@@ -1714,7 +1884,7 @@ export function advanceFabProject(
 ): boolean {
   if (dtSeconds <= 0) return false
   if (!isStationUnlocked(state, 'fab-bay')) return false
-  const workers = state.base.assignments['fab-bay'] ?? 0
+  const workers = stationEffectiveDrones(state, 'fab-bay')
   const project = state.base.fabProject
   if (workers <= 0 || !project) return false
   const recipe = getBlueprint(project.moduleId)
@@ -1977,12 +2147,7 @@ export function canBuyChallengeShop(
 }
 
 /** Total manufacture speed multiplier (1 = baseline). */
-export function workerManufactureSpeed(state: {
-  base: { assignments: Record<string, number> }
-  research: { unlocked: string[] }
-  ai: { purchased: string[] }
-  prestige: { shop: Record<string, number>; matterShop: Record<string, number> }
-}): number {
+export function workerManufactureSpeed(state: DroneEconomyState): number {
   let speed = 1
   for (const id of state.research.unlocked) {
     speed += RESEARCH.find((r) => r.id === id)?.manufactureBonus ?? 0
@@ -1998,7 +2163,7 @@ export function workerManufactureSpeed(state: {
     const bonus = getMatterShopItem(id)?.manufactureBonus ?? 0
     if (bonus) speed += bonus * matterShopEffectScale(rank)
   }
-  const fab = state.base.assignments['drone-fab'] ?? 0
+  const fab = stationEffectiveDrones(state, 'drone-fab')
   const fabDef = getStation('drone-fab')
   if (fab > 0 && fabDef?.manufactureBonusPerDrone) {
     speed += fab * fabDef.manufactureBonusPerDrone
@@ -2006,13 +2171,12 @@ export function workerManufactureSpeed(state: {
   return Math.max(0.05, speed)
 }
 
-export function stationRepairBonus(state: {
-  base: { assignments: Record<string, number> }
-}): number {
+export function stationRepairBonus(state: DroneEconomyState): number {
   let bonus = 0
   for (const station of STATIONS) {
-    const n = state.base.assignments[station.id] ?? 0
-    if (n > 0 && station.repairPerDrone) bonus += n * station.repairPerDrone
+    if (!station.repairPerDrone) continue
+    const n = stationEffectiveDrones(state, station.id)
+    if (n > 0) bonus += n * station.repairPerDrone
   }
   return bonus
 }
@@ -2450,8 +2614,9 @@ export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string 
     const speed = 0.4 * s
     bits.push(`+${(speed * 100).toFixed(0)}% repair speed`)
   }
-  if (def.bonusWorkerDrones) {
-    bits.push(`+${def.bonusWorkerDrones * rank} workers (granted)`)
+  if (def.droneCapBonus) bits.push(`+${def.droneCapBonus * rank} drone cap`)
+  if (def.dronePowerBonus) {
+    bits.push(`+${(def.dronePowerBonus * s * 100).toFixed(1)}% drone power`)
   }
   if (def.manufactureBonus) {
     bits.push(`+${(def.manufactureBonus * s * 100).toFixed(1)}% manufacture`)
@@ -2475,8 +2640,9 @@ export function challengeShopEffectBlurb(def: ChallengeShopDef, rank: number): s
   if (def.startingSalvage) bits.push(`+${def.startingSalvage * rank} start salvage`)
   if (def.offlineHours) bits.push(`${def.offlineHours}h offline cap`)
   if (def.matchupBonus) bits.push(`+${(def.matchupBonus * s * 100).toFixed(0)}% matchup`)
-  if (def.bonusWorkerDrones) {
-    bits.push(`+${def.bonusWorkerDrones * rank} workers (granted)`)
+  if (def.droneCapBonus) bits.push(`+${def.droneCapBonus * rank} drone cap`)
+  if (def.dronePowerBonus) {
+    bits.push(`+${(def.dronePowerBonus * s * 100).toFixed(1)}% drone power`)
   }
   if (def.dropBonus) bits.push(`+${(def.dropBonus * s * 100).toFixed(1)}% part drops`)
   if (def.unlockModuleId) {
@@ -2666,7 +2832,10 @@ export function isChallengeUnlocked(
   return gates.some(Boolean)
 }
 
-/** Combined drone efficiency mult from AI (highest owned wins). */
+/**
+ * AI drone power mult (highest owned wins).
+ * Feeds dronePower() saturation — not a post-BB output multiplier.
+ */
 export function aiDroneEfficiencyMult(state: {
   prestige: { activeChallengeId: string | null }
   ai: { purchased: string[] }

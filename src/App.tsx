@@ -59,7 +59,11 @@ export default function App() {
 
   useEffect(() => {
     document.body.classList.toggle('guide-active', Boolean(guide))
-    return () => document.body.classList.remove('guide-active')
+    document.body.classList.toggle('guide-required', Boolean(guide?.required))
+    return () => {
+      document.body.classList.remove('guide-active')
+      document.body.classList.remove('guide-required')
+    }
   }, [guide])
 
   return (
@@ -95,6 +99,7 @@ export default function App() {
         {tab === 'shipyard' && (
           <ShipyardTab
             state={game.state}
+            guideTarget={guide?.target}
             onUnlockFrame={game.unlockFrame}
             onSelectFrame={game.selectFrame}
             onUnlockModule={game.unlockModule}

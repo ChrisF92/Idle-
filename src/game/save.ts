@@ -53,6 +53,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     docked: combat.docked ?? false,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
+    fightElapsed: Math.max(0, Number(combat.fightElapsed ?? 0) || 0),
     playerShield: combat.playerShield ?? 0,
     playerShieldMax: combat.playerShieldMax ?? 0,
     playerUnits: withUnitDefaults(combat.playerUnits),
@@ -245,9 +246,16 @@ function withMetaDefaults(
     lifetimeFabCrafts: Math.max(0, Math.floor(Number(meta?.lifetimeFabCrafts ?? 0))),
     lifetimeCoreMerges: Math.max(0, Math.floor(Number(meta?.lifetimeCoreMerges ?? 0))),
     lifetimeWaveClears: Math.max(0, Math.floor(Number(meta?.lifetimeWaveClears ?? 0))),
+    lifetimeDronesBuilt: Math.max(0, Math.floor(Number(meta?.lifetimeDronesBuilt ?? 0))),
     discoveredModules: [...(meta?.discoveredModules ?? [])],
     moduleMastery: { ...(meta?.moduleMastery ?? {}) },
     signalCoresCarryOver: meta?.signalCoresCarryOver ?? false,
+    // Progressed careers skip the starter death → Plate → salvage lesson.
+    starterCombatLesson: (() => {
+      const raw = Math.floor(Number(meta?.starterCombatLesson))
+      if (Number.isFinite(raw) && raw >= 0) return Math.min(2, raw)
+      return (meta?.highestSectorEver ?? 0) > 0 || highestSector > 0 ? 2 : 0
+    })(),
   }
 }
 
@@ -382,7 +390,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 15 ||
     parsed.version === 16 ||
     parsed.version === 17 ||
-    parsed.version === 18
+    parsed.version === 18 ||
+    parsed.version === 19
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
@@ -396,7 +405,8 @@ function migrate(raw: unknown): GameState | null {
       parsed.version === 15 ||
       parsed.version === 16 ||
       parsed.version === 17 ||
-      parsed.version === 18
+      parsed.version === 18 ||
+      parsed.version === 19
         ? Math.max(0, prev.combat?.highestSector ?? 0)
         : Math.max(0, oldHighest - 1)
     const combat = withCombatDefaults({

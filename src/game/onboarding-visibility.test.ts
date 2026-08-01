@@ -48,6 +48,10 @@ describe('expanded onboarding catalog', () => {
   it('covers fab, core, signal, shops, challenges, ascension', () => {
     const ids = new Set(GUIDE_STEPS.map((s) => s.id))
     for (const id of [
+      'guide-after-death',
+      'guide-unlock-plate',
+      'guide-upgrade-pulse',
+      'guide-drone-cap',
       'guide-power-grid',
       'guide-sensor-net',
       'guide-alloy-foundry',

@@ -29,7 +29,7 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 
-export const SAVE_VERSION = 19
+export const SAVE_VERSION = 20
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -77,6 +77,7 @@ export function createInitialState(now = Date.now()): GameState {
       campaign: true,
       consecutiveLosses: 0,
       bossPhase: 0,
+      fightElapsed: 0,
       playerHull: hullMax,
       playerHullMax: hullMax,
       playerShield: 0,
@@ -132,9 +133,11 @@ export function createInitialState(now = Date.now()): GameState {
       lifetimeFabCrafts: 0,
       lifetimeCoreMerges: 0,
       lifetimeWaveClears: 0,
+      lifetimeDronesBuilt: 0,
       discoveredModules: [],
       moduleMastery: {},
       signalCoresCarryOver: false,
+      starterCombatLesson: 0,
     },
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),

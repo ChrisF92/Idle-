@@ -42,6 +42,8 @@ import {
   partSellScrap,
   prestigeMinSectorFor,
   shopRank,
+  stationBlackBarNeed,
+  stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   trimModulesToFrame,
   type ResourceCost,
@@ -132,21 +134,63 @@ function setLaborAssignments(
   return next
 }
 
-/** Evenly spread all workers across unlocked industry stations. */
+/** Fill each industry station to black-bar; dump overflow to Core training. */
 function assignBalanced(state: GameState): Record<string, number> {
   const stations = laborStations(state)
   const assignments: Record<string, number> = {}
   if (stations.length === 0 || state.base.workerDrones <= 0) return assignments
-  const n = stations.length
-  const base = Math.floor(state.base.workerDrones / n)
-  let rem = state.base.workerDrones % n
-  for (const station of stations) {
-    const extra = rem > 0 ? 1 : 0
-    if (rem > 0) rem -= 1
-    const count = base + extra
-    if (count > 0) assignments[station.id] = count
+
+  let remaining = state.base.workerDrones
+  const needs = stations
+    .map((s) => ({ id: s.id, bb: stationBlackBarNeed(state, s.id) }))
+    .filter((r) => Number.isFinite(r.bb))
+    .sort((a, b) => a.bb - b.bb || a.id.localeCompare(b.id))
+
+  for (const row of needs) {
+    if (remaining <= 0) break
+    const n = Math.min(remaining, row.bb)
+    if (n > 0) {
+      assignments[row.id] = n
+      remaining -= n
+    }
+  }
+
+  if (remaining > 0) {
+    dumpOverflowDrones(state, assignments, remaining)
   }
   return assignments
+}
+
+/** Prefer uncapped Core training; otherwise overcap Scrap Field. */
+function dumpOverflowDrones(
+  state: GameState,
+  assignments: Record<string, number>,
+  count: number,
+): void {
+  let left = count
+  const training = STATIONS.filter(
+    (s) => s.kind === 'training' && isStationUnlocked(state, s.id),
+  )
+  if (training.length > 0) {
+    const each = Math.floor(left / training.length)
+    for (const s of training) {
+      if (each > 0) {
+        assignments[s.id] = (assignments[s.id] ?? 0) + each
+        left -= each
+      }
+    }
+    for (const s of training) {
+      if (left <= 0) break
+      assignments[s.id] = (assignments[s.id] ?? 0) + 1
+      left -= 1
+    }
+  }
+  if (left > 0) {
+    const dump = isStationUnlocked(state, 'scrap-field')
+      ? 'scrap-field'
+      : laborStations(state)[0]?.id
+    if (dump) assignments[dump] = (assignments[dump] ?? 0) + left
+  }
 }
 
 /**
@@ -194,27 +238,28 @@ function assignByProfile(
     return 1
   }
 
-  const weights = stations.map((s) => ({ id: s.id, w: weightFor(s.id) }))
-  const totalW = weights.reduce((sum, x) => sum + x.w, 0)
+  // Black-bar aware: fill stations up to BB by weight priority, then overflow.
+  const wants = stations
+    .map((s) => ({
+      id: s.id,
+      w: weightFor(s.id),
+      bb: stationBlackBarNeed(state, s.id),
+    }))
+    .filter((r) => Number.isFinite(r.bb))
+    .sort((a, b) => b.w - a.w || a.id.localeCompare(b.id))
+
   let remaining = state.base.workerDrones
-
-  // First pass: floor shares.
-  const floors: { id: string; n: number; frac: number }[] = []
-  for (const { id, w } of weights) {
-    const exact = (state.base.workerDrones * w) / totalW
-    const n = Math.floor(exact)
-    floors.push({ id, n, frac: exact - n })
-    remaining -= n
-  }
-  floors.sort((a, b) => b.frac - a.frac)
-  for (const row of floors) {
+  for (const row of wants) {
     if (remaining <= 0) break
-    row.n += 1
-    remaining -= 1
+    const n = Math.min(remaining, row.bb)
+    if (n > 0) {
+      assignments[row.id] = n
+      remaining -= n
+    }
   }
 
-  for (const row of floors) {
-    if (row.n > 0) assignments[row.id] = row.n
+  if (remaining > 0) {
+    dumpOverflowDrones(state, assignments, remaining)
   }
 
   // Foundry-safe: pull from foundry into scrap until scrap income ≥ upkeep.
@@ -226,10 +271,23 @@ function assignByProfile(
     const upkeepPer = foundryDef
       ? stationUpkeepScrapPerDrone(state, foundryDef)
       : 0.16
-    while (
-      foundryDrones > 0 &&
-      scrapDrones * scrapRate + 1e-9 < foundryDrones * upkeepPer
-    ) {
+    // Compare saturated scrap income vs body-based foundry upkeep.
+    const probe = {
+      ...state,
+      base: {
+        ...state.base,
+        assignments: {
+          ...assignments,
+          'scrap-field': scrapDrones,
+          'alloy-foundry': foundryDrones,
+        },
+      },
+    }
+    while (foundryDrones > 0) {
+      probe.base.assignments['scrap-field'] = scrapDrones
+      probe.base.assignments['alloy-foundry'] = foundryDrones
+      const scrapEff = stationEffectiveDrones(probe, 'scrap-field')
+      if (scrapEff * scrapRate + 1e-9 >= foundryDrones * upkeepPer) break
       foundryDrones -= 1
       scrapDrones += 1
     }
@@ -286,13 +344,20 @@ export function clearWorkerAssignments(
   return next
 }
 
-/** Dump all idle workers onto one station (Labor Router). */
+/**
+ * Fill toward black-bar first; if already BB (or uncapped), dump remaining idle.
+ */
 export function fillStationWorkers(state: GameState, stationId: string): GameState {
   if (!state.ai.purchased.includes('auto-assign-workers')) return state
   if (state.prestige.activeChallengeId === 'no-ai') return state
   if (!isStationUnlocked(state, stationId)) return state
   const idle = idleWorkers(state)
   if (idle <= 0) return state
+  const assigned = state.base.assignments[stationId] ?? 0
+  const bb = stationBlackBarNeed(state, stationId)
+  if (Number.isFinite(bb) && assigned < bb) {
+    return assignWorker(state, stationId, Math.min(idle, bb - assigned))
+  }
   return assignWorker(state, stationId, idle)
 }
 
@@ -393,9 +458,7 @@ export function buyChallengeShop(state: GameState, itemId: string): GameState {
     ...next.prestige.shop,
     [itemId]: check.nextRank,
   }
-  if (def.bonusWorkerDrones) {
-    next.base.workerDrones += def.bonusWorkerDrones
-  }
+  // Cap / power shop ranks are derived — no instant drone grants.
   if (def.unlockModuleId && check.nextRank >= 1) {
     if (!next.shipyard.unlockedModules.includes(def.unlockModuleId)) {
       next.shipyard.unlockedModules = [
@@ -420,9 +483,7 @@ export function buyMatterShop(state: GameState, itemId: string): GameState {
     ...next.prestige.matterShop,
     [itemId]: check.nextRank,
   }
-  if (def.bonusWorkerDrones) {
-    next.base.workerDrones += def.bonusWorkerDrones
-  }
+  // Cap / power shop ranks are derived — no instant drone grants.
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }

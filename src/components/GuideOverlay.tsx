@@ -12,9 +12,11 @@ type Hole = { top: number; left: number; width: number; height: number }
 /**
  * Spotlight coach-mark: dims the UI, punches a hole around [data-guide=target],
  * scrolls the target into view, and advances when the user taps it.
+ * Required steps hide Skip and block clicks outside the hole.
  */
 export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const required = Boolean(step.required)
 
   // Bring the highlighted control on-screen whenever the step changes.
   useLayoutEffect(() => {
@@ -56,12 +58,14 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       const el = document.querySelector(`[data-guide="${step.target}"]`)
       if (!el) return
       if (el === e.target || el.contains(e.target as Node)) {
+        // Required steps with completeWhen advance via App state polls only.
+        if (required && step.completeWhen) return
         window.setTimeout(() => onComplete(step.id), 0)
       }
     }
     document.addEventListener('click', onClick, true)
     return () => document.removeEventListener('click', onClick, true)
-  }, [step.id, step.target, onComplete])
+  }, [step.id, step.target, step.completeWhen, required, onComplete])
 
   const pad = 8
   const hole: Hole | null = rect
@@ -79,7 +83,45 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
     : false
 
   return (
-    <div className="guide-root" aria-live="polite">
+    <div
+      className={`guide-root${required ? ' guide-root-required' : ''}`}
+      aria-live="polite"
+    >
+      {required && hole ? (
+        <>
+          <div
+            className="guide-block"
+            style={{ top: 0, left: 0, right: 0, height: hole.top }}
+          />
+          <div
+            className="guide-block"
+            style={{
+              top: hole.top,
+              left: 0,
+              width: hole.left,
+              height: hole.height,
+            }}
+          />
+          <div
+            className="guide-block"
+            style={{
+              top: hole.top,
+              left: hole.left + hole.width,
+              right: 0,
+              height: hole.height,
+            }}
+          />
+          <div
+            className="guide-block"
+            style={{
+              top: hole.top + hole.height,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          />
+        </>
+      ) : null}
       {hole ? (
         <div
           className="guide-hole"
@@ -106,11 +148,20 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
           <p className="notice-warn">Scroll to the highlighted control.</p>
         ) : null}
         <div className="guide-tip-actions">
-          <button type="button" onClick={() => onSkip(step.id)}>
-            Skip
-          </button>
+          {!required ? (
+            <button type="button" onClick={() => onSkip(step.id)}>
+              Skip
+            </button>
+          ) : (
+            <span className="muted">Required</span>
+          )}
           {!hole ? (
-            <button type="button" className="primary" onClick={() => onComplete(step.id)}>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => onComplete(step.id)}
+              disabled={required && Boolean(step.completeWhen)}
+            >
               Continue
             </button>
           ) : (

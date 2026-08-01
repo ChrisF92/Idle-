@@ -245,6 +245,8 @@ export interface CombatState {
   campaign: boolean
   consecutiveLosses: number
   bossPhase: number
+  /** Seconds elapsed in the current fight (reset on beginFight). */
+  fightElapsed: number
   /** Persisted flagship hull between fights (not fully restored on clear). */
   playerHull: number
   playerHullMax: number
@@ -323,6 +325,8 @@ export interface MetaState {
   lifetimeCoreMerges: number
   /** Lifetime waves cleared (any wave victory). */
   lifetimeWaveClears: number
+  /** Lifetime worker drones manufactured (raises corps capacity softly). */
+  lifetimeDronesBuilt: number
   /** Modules with at least one blueprint fragment recovered (permanent). */
   discoveredModules: string[]
   /** Permanent mastery ranks from investing excess parts (cap 10). */
@@ -332,6 +336,13 @@ export interface MetaState {
    * persist through prestige / challenge resets.
    */
   signalCoresCarryOver: boolean
+  /**
+   * Fresh-career combat tutorial:
+   * 0 = awaiting first scripted death → dock + Plate lesson
+   * 1 = Plate fitted, awaiting second death → salvage upgrades
+   * 2 = tutorial complete
+   */
+  starterCombatLesson: number
 }
 
 export interface ResearchState {

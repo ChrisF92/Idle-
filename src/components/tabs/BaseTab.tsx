@@ -8,16 +8,21 @@ import {
   PART_TYPES,
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
-  aiDroneEfficiencyMult,
   countModuleParts,
+  droneCap,
+  dronePower,
   getBlueprint,
   getModule,
   idleWorkers,
+  isStationBlackBarred,
   isStationUnlocked,
   moduleMasteryRank,
   parsePartId,
   partId,
   partSellScrap,
+  stationBlackBarNeed,
+  stationEffectiveDrones,
+  stationThroughput,
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
 } from '../../game/catalog'
@@ -80,11 +85,14 @@ export function BaseTab({
 }: BaseTabProps) {
   const idle = idleWorkers(state)
   const speed = workerManufactureSpeed(state)
-  const secondsLeft =
-    ((1 - state.base.manufactureProgress) * WORKER_MANUFACTURE_SECONDS) / speed
+  const cap = droneCap(state)
+  const power = dronePower(state)
+  const atCap = state.base.workerDrones >= cap
+  const secondsLeft = atCap
+    ? 0
+    : ((1 - state.base.manufactureProgress) * WORKER_MANUFACTURE_SECONDS) / speed
   const canAuto = state.ai.purchased.includes('auto-assign-workers')
   const laborLoop = state.ai.purchased.includes('labor-loop')
-  const droneEff = aiDroneEfficiencyMult(state)
   const activeProfile = state.meta.laborProfile ?? 'balanced'
   const fabUnlocked = isStationUnlocked(state, 'fab-bay')
   const project = state.base.fabProject
@@ -163,17 +171,23 @@ export function BaseTab({
       </header>
 
       <div className="stat-row">
-        <div>
+        <div data-guide="drone-cap-stat">
           <span className="muted">Workers</span>
-          <strong>{state.base.workerDrones}</strong>
+          <strong>
+            {state.base.workerDrones}/{cap}
+          </strong>
         </div>
         <div>
           <span className="muted">Idle</span>
           <strong>{idle}</strong>
         </div>
         <div>
-          <span className="muted">Next drone</span>
-          <strong>{secondsLeft.toFixed(0)}s</strong>
+          <span className="muted">Drone power</span>
+          <strong>×{power.toFixed(2)}</strong>
+        </div>
+        <div>
+          <span className="muted">{atCap ? 'Corps cap' : 'Next drone'}</span>
+          <strong>{atCap ? 'Full' : `${secondsLeft.toFixed(0)}s`}</strong>
         </div>
         <div>
           <span className="muted">Fab speed</span>
@@ -181,12 +195,21 @@ export function BaseTab({
         </div>
       </div>
 
+      {atCap ? (
+        <p className="notice">
+          Corps at capacity — raise cap via Research, AI (Expanded Hangar), or Prestige Matter
+          (Drone Corps).
+        </p>
+      ) : null}
       {scrapDrainHint ? <p className="notice-warn">{scrapDrainHint}</p> : null}
 
       <div className="manufacture-bar" aria-label="Manufacture progress">
         <div
           className="manufacture-bar-fill"
-          style={{ width: `${Math.min(100, state.base.manufactureProgress * 100)}%` }}
+          style={{
+            width: `${atCap ? 100 : Math.min(100, state.base.manufactureProgress * 100)}%`,
+            opacity: atCap ? 0.45 : 1,
+          }}
         />
       </div>
 
@@ -211,8 +234,8 @@ export function BaseTab({
             </button>
           </div>
           <p className="muted">
-            Labor Router{laborLoop ? ' + Loop' : ''}
-            {droneEff > 1 ? ` · drone efficiency ×${droneEff.toFixed(2)}` : ''}
+            Labor Router{laborLoop ? ' + Loop' : ''} · fills to black-bar, overflow → Core
+            training
           </p>
         </div>
       ) : null}
@@ -237,7 +260,21 @@ export function BaseTab({
           (s) => s.kind !== 'training' && isStationUnlocked(state, s.id),
         ).map((station) => {
           const assigned = state.base.assignments[station.id] ?? 0
+          const bbNeed = stationBlackBarNeed(state, station.id)
+          const effective = stationEffectiveDrones(state, station.id)
+          const fill = stationThroughput(state, station.id)
+          const barred = isStationBlackBarred(state, station.id)
           const extras: string[] = []
+          if (Number.isFinite(bbNeed)) {
+            extras.push(
+              barred
+                ? `BB ${assigned}/${bbNeed}`
+                : `BB ${assigned}/${bbNeed} (${(fill * 100).toFixed(0)}%)`,
+            )
+            if (assigned > 0) {
+              extras.push(`eff ${effective.toFixed(1)}`)
+            }
+          }
           if (station.repairPerDrone) {
             extras.push(`+${station.repairPerDrone} hull/s each`)
           }
@@ -259,9 +296,21 @@ export function BaseTab({
                   {rateLabel(station.rates) || 'Special'}
                   {extras.length ? ` · ${extras.join(' · ')}` : ''}
                 </p>
+                {Number.isFinite(bbNeed) ? (
+                  <div
+                    className="manufacture-bar"
+                    aria-label={`${station.name} black-bar`}
+                    style={{ marginTop: '0.35rem', height: 4 }}
+                  >
+                    <div
+                      className="manufacture-bar-fill"
+                      style={{ width: `${Math.min(100, fill * 100)}%` }}
+                    />
+                  </div>
+                ) : null}
               </div>
               <div className="action-col">
-                <span className="badge">{assigned}</span>
+                <span className="badge">{barred ? `${assigned} BB` : assigned}</span>
                 <div className="assign-row">
                   <button
                     type="button"

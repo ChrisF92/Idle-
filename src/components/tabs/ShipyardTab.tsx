@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { GameState, Resources } from '../../game/types'
 import {
   MAX_MODULE_LEVEL,
@@ -43,6 +43,8 @@ const ROLE_TAG: Record<ModuleRole, string> = {
 
 interface ShipyardTabProps {
   state: GameState
+  /** Active guide target — switches to Modules when spotlighting module actions. */
+  guideTarget?: string | null
   onUnlockFrame: (frameId: string) => void
   onSelectFrame: (frameId: string) => void
   onUnlockModule: (moduleId: string) => void
@@ -68,6 +70,7 @@ function slotLine(weapon: number, defense: number, utility: number): string {
 
 export function ShipyardTab({
   state,
+  guideTarget = null,
   onUnlockFrame,
   onSelectFrame,
   onUnlockModule,
@@ -91,6 +94,19 @@ export function ShipyardTab({
   const canBatch = state.ai.purchased.includes('batch-refit')
   const canSalvageOpt = state.ai.purchased.includes('salvage-optimizer')
   const challengeId = state.prestige.activeChallengeId
+
+  useEffect(() => {
+    if (!guideTarget) return
+    if (
+      guideTarget === 'shipyard-modules-tab' ||
+      guideTarget.startsWith('unlock-') ||
+      guideTarget.startsWith('fit-') ||
+      guideTarget.startsWith('upgrade-')
+    ) {
+      setYardSub('modules')
+      setRoleFilter('all')
+    }
+  }, [guideTarget])
 
   const grouped = useMemo(() => {
     const visible = getVisibleModules(state).filter((m) => {
@@ -210,6 +226,7 @@ export function ShipyardTab({
           role="tab"
           className={yardSub === 'modules' ? 'sub-tab active' : 'sub-tab'}
           aria-selected={yardSub === 'modules'}
+          data-guide="shipyard-modules-tab"
           onClick={() => setYardSub('modules')}
         >
           Modules
@@ -486,6 +503,7 @@ function ModuleCard({
           ) : (
             <button
               type="button"
+              data-guide={`unlock-${m.id}`}
               disabled={!canScrapUnlock}
               onClick={() => onUnlockModule(m.id)}
             >
@@ -503,13 +521,19 @@ function ModuleCard({
                 Unfit
               </button>
             ) : (
-              <button type="button" disabled={!canFit} onClick={() => onFitModule(m.id)}>
+              <button
+                type="button"
+                data-guide={`fit-${m.id}`}
+                disabled={!canFit}
+                onClick={() => onFitModule(m.id)}
+              >
                 Fit
               </button>
             )}
             <button
               type="button"
               className="primary"
+              data-guide={`upgrade-${m.id}`}
               disabled={!canUpgrade}
               onClick={() => onUpgradeModule(m.id)}
               title="Run level — spends Salvage (resets on prestige)"
