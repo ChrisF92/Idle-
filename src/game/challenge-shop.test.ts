@@ -36,11 +36,11 @@ describe('challenge point shop', () => {
 
   it('early-gate lowers prestige sector requirement', () => {
     let state = createInitialState(0)
-    expect(prestigeMinSectorFor({})).toBe(8)
+    expect(prestigeMinSectorFor({})).toBe(10)
     state.resources.challengePoints = 1
     state = buyChallengeShop(state, 'early-gate')
-    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(6)
-    state.combat.sector = 6
+    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(8)
+    state.combat.sector = 8
     expect(canPrestige(state)).toBe(true)
   })
 
@@ -49,9 +49,10 @@ describe('challenge point shop', () => {
     state.resources.challengePoints = 3
     state = buyChallengeShop(state, 'supply-cache')
     state = buyChallengeShop(state, 'doctrine-seed')
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 5000)
-    expect(state.resources.scrap).toBeGreaterThanOrEqual(55) // 25 base + 10 return + 20 cache
+    // 25 base + scaled return kit + 20 cache
+    expect(state.resources.scrap).toBeGreaterThanOrEqual(55)
     expect(state.resources.aiPoints).toBeGreaterThanOrEqual(1)
   })
 
@@ -59,9 +60,10 @@ describe('challenge point shop', () => {
     let state = createInitialState(0)
     state.resources.challengePoints = 2
     state = buyChallengeShop(state, 'hangar-rights')
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 5000)
-    expect(state.resources.salvage).toBeGreaterThanOrEqual(16) // 10 hangar + 6 return
+    // 10 hangar + scaled return salvage
+    expect(state.resources.salvage).toBeGreaterThanOrEqual(16)
   })
 
   it('deep-cache extends offline cap', () => {
@@ -78,7 +80,7 @@ describe('challenge point shop', () => {
     let state = createInitialState(0)
     state.resources.challengePoints = 1
     state = buyChallengeShop(state, 'iron-will')
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 8000)
     expect(shopRank(state.prestige.shop, 'iron-will')).toBe(1)
   })
@@ -89,7 +91,7 @@ describe('challenge point shop', () => {
     state = buyChallengeShop(state, 'supply-cache')
     state = buyChallengeShop(state, 'supply-cache')
     expect(shopRank(state.prestige.shop, 'supply-cache')).toBe(2)
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 5000)
     expect(state.resources.scrap).toBeGreaterThanOrEqual(75) // 25 + 10 return + 40 cache
   })

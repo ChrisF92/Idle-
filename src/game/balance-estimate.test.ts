@@ -1,32 +1,34 @@
 /**
  * Theoretical run-time estimates (combat DPS vs wave hull).
- * These are active-play floors assuming Advance with no deaths / refit downtime.
- * Real runs run longer (research, industry, deaths, Pause repairs).
+ *
+ * ITRTG mapping:
+ * - First prestige (S10) ≈ first Hyperion soft-reset (~1h real with overhead)
+ * - First Act 1 / S30 ≈ first Tyrant Overlord Baal (tutorial end, ~1–2 weeks)
+ *
+ * Length = many prestiges into a steep late hull wall. Permanents (research,
+ * shops, momentum, chrono) make each re-push faster — not empty repetition.
  */
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import { enemyForSector, totalEnemyHull } from './combat'
-import { WAVES_PER_SECTOR } from './progression'
+import { PRESTIGE_MIN_SECTOR, WAVES_PER_SECTOR } from './progression'
 import {
   prestigeMomentumDamageBonus,
   prestigeMomentumProductionBonus,
 } from './catalog'
+import { advanceSeconds, setDocked } from './tick'
+import type { GameState } from './types'
 
-function sectorClearSeconds(state: ReturnType<typeof createInitialState>, sector: number): number {
+function sectorClearSeconds(state: GameState, sector: number): number {
   const dps = Math.max(1, computeShipStats(state).damage)
   let hull = 0
   for (let w = 1; w <= WAVES_PER_SECTOR; w += 1) {
     hull += totalEnemyHull(enemyForSector(sector, w))
   }
-  // Floor matches Hold Accountant; Advance can be a bit faster with focus fire.
   return Math.max(8, hull / dps)
 }
 
-function pushSeconds(
-  state: ReturnType<typeof createInitialState>,
-  fromSector: number,
-  toSectorInclusive: number,
-): number {
+function pushSeconds(state: GameState, fromSector: number, toSectorInclusive: number): number {
   let total = 0
   for (let s = fromSector; s <= toSectorInclusive; s += 1) {
     total += sectorClearSeconds(state, s)
@@ -34,75 +36,152 @@ function pushSeconds(
   return total
 }
 
-function formatMinutes(seconds: number): string {
-  return `${(seconds / 60).toFixed(1)} min`
+/** Soft wall: sectors slower than this are farm/prestige territory. */
+const SECTOR_WALL_SECONDS = 10 * 60
+
+function maxComfortableSector(state: GameState): number {
+  let best = 1
+  for (let s = 1; s <= 30; s += 1) {
+    if (sectorClearSeconds(state, s) > SECTOR_WALL_SECONDS) break
+    best = s
+  }
+  return best
 }
 
-describe('balance estimates (USI-style acceleration)', () => {
+function formatDuration(seconds: number): string {
+  if (seconds >= 86400) return `${(seconds / 86400).toFixed(1)} d`
+  if (seconds >= 3600) return `${(seconds / 3600).toFixed(1)} h`
+  return `${(seconds / 60).toFixed(0)} min`
+}
+
+function buildCareerState(prestiges: number): GameState {
+  const state = createInitialState(0)
+  state.prestige.prestigeCount = prestiges
+  state.resources.prestigeMatter = Math.max(0, prestiges * 7)
+  state.prestige.matterShop = {
+    'matter-blade': Math.min(16, Math.floor(prestiges * 0.5)),
+    'matter-forge': Math.min(14, Math.floor(prestiges * 0.4)),
+    'matter-plating': Math.min(12, Math.floor(prestiges * 0.35)),
+  }
+  state.shipyard.moduleLevels = {
+    'pulse-cannon': Math.min(16, Math.floor(prestiges * 0.55) + 1),
+  }
+  if (prestiges >= 1) {
+    state.shipyard.unlockedModules = ['pulse-cannon', 'plate-layer']
+    state.shipyard.modules = ['pulse-cannon', 'plate-layer']
+  }
+  if (prestiges >= 3) {
+    state.shipyard.unlockedModules = ['pulse-cannon', 'plate-layer', 'flak-array']
+    state.research.unlocked = [
+      'basic-optics',
+      'alloy-smelting',
+      'tactical-codex',
+      'drone-logistics',
+    ]
+  }
+  if (prestiges >= 6) {
+    state.research.unlocked.push('module-fab', 'core-training')
+    state.ai.purchased = ['combat-chrono-1', 'drone-efficiency-1', 'auto-assign-workers']
+  }
+  if (prestiges >= 12) {
+    state.ai.purchased = [
+      'combat-chrono-1',
+      'combat-chrono-2',
+      'drone-efficiency-1',
+      'drone-efficiency-2',
+      'chrono-industry',
+      'auto-assign-workers',
+      'labor-loop',
+    ]
+  }
+  if (prestiges >= 18) {
+    state.ai.purchased.push('combat-chrono-3')
+  }
+  return state
+}
+
+function combatChrono(state: GameState): number {
+  if (state.ai.purchased.includes('combat-chrono-3')) return 3
+  if (state.ai.purchased.includes('combat-chrono-2')) return 2
+  if (state.ai.purchased.includes('combat-chrono-1')) return 1.5
+  return 1
+}
+
+/**
+ * Career model: each prestige, push only to the comfortable wall, then reset.
+ * Matches “stuck → prestige → slightly farther” rather than free ceiling bumps.
+ */
+function estimateCareerToAct1(): { combatSeconds: number; prestiges: number } {
+  let combat = 0
+  let prestiges = 0
+  let reached = 0
+
+  while (reached < 30 && prestiges < 50) {
+    const state = buildCareerState(prestiges)
+    const chrono = combatChrono(state)
+    const comfort = maxComfortableSector(state)
+    // Players still bang on the wall a bit past comfort.
+    const pushTo = Math.min(30, Math.max(PRESTIGE_MIN_SECTOR, comfort + 2))
+    combat += pushSeconds(state, 1, pushTo) / chrono
+    reached = pushTo
+    if (reached >= 30) break
+    prestiges += 1
+  }
+
+  return { combatSeconds: combat, prestiges }
+}
+
+describe('balance estimates (ITRTG Baal-scale Act 1)', () => {
   it('documents theoretical combat push times', () => {
     const fresh = createInitialState(0)
-    const firstPrestige = pushSeconds(fresh, 1, 8)
-    const firstAct1Leg = pushSeconds(fresh, 1, 30)
+    const firstPrestige = pushSeconds(fresh, 1, PRESTIGE_MIN_SECTOR)
+    const naiveAct1 = pushSeconds(fresh, 1, 30)
+    const career = estimateCareerToAct1()
 
-    const afterPrestige = createInitialState(0)
-    afterPrestige.prestige.prestigeCount = 3
-    afterPrestige.resources.prestigeMatter = 20
-    afterPrestige.prestige.matterShop = { 'matter-blade': 3, 'matter-forge': 2 }
-    afterPrestige.shipyard.moduleLevels = { 'pulse-cannon': 4 }
-    afterPrestige.shipyard.unlockedModules = [
-      'pulse-cannon',
-      'plate-layer',
-      'flak-array',
-    ]
-    afterPrestige.shipyard.modules = ['pulse-cannon', 'plate-layer']
-    const rePrestige = pushSeconds(afterPrestige, 1, 8)
+    const afterPrestige = buildCareerState(3)
+    const rePrestige = pushSeconds(afterPrestige, 1, PRESTIGE_MIN_SECTOR) / combatChrono(afterPrestige)
 
-    const afterAscension = createInitialState(0)
-    afterAscension.prestige.prestigeCount = 8
-    afterAscension.meta.ascensionCount = 1
-    afterAscension.resources.prestigeMatter = 60
-    afterAscension.prestige.matterShop = {
-      'matter-blade': 8,
-      'matter-forge': 6,
-      'matter-plating': 4,
-    }
-    afterAscension.shipyard.moduleLevels = { 'pulse-cannon': 8, 'heavy-lance': 5 }
-    afterAscension.shipyard.unlockedModules = [
-      'pulse-cannon',
-      'plate-layer',
-      'flak-array',
-      'heavy-lance',
-    ]
-    afterAscension.shipyard.modules = ['pulse-cannon', 'plate-layer']
-    afterAscension.ai.purchased = ['combat-chrono-2']
-    const chrono = 2
-    const ascendedPrestige = pushSeconds(afterAscension, 1, 8) / chrono
+    // Casual calendar: ~1.5–3h engagement/day → weeks from multi-day combat floors.
+    const engageLow = career.combatSeconds * 1.7
+    const engageHigh = career.combatSeconds * 3.0
+    const calendarDaysLow = engageLow / (2.5 * 3600)
+    const calendarDaysHigh = engageHigh / (1.5 * 3600)
 
     // eslint-disable-next-line no-console -- intentional balance report
     console.log(
       [
-        '=== Cosmic Idle balance estimates (combat-only floor) ===',
-        `First run → S8 prestige:     ${formatMinutes(firstPrestige)} (${firstPrestige.toFixed(0)}s)`,
-        `First run → S30 Act 1:       ${formatMinutes(firstAct1Leg)} (${firstAct1Leg.toFixed(0)}s)`,
-        `Prestige #3 → S8 re-push:    ${formatMinutes(rePrestige)} (${rePrestige.toFixed(0)}s)`,
-        `Post-Ascension → S8 @2×:     ${formatMinutes(ascendedPrestige)} (${ascendedPrestige.toFixed(0)}s)`,
-        `Momentum dmg @3P/0A:         +${(prestigeMomentumDamageBonus(3, 0) * 100).toFixed(1)}%`,
-        `Momentum dmg @8P/1A:         +${(prestigeMomentumDamageBonus(8, 1) * 100).toFixed(1)}%`,
-        `Momentum prod @3P/0A:        +${(prestigeMomentumProductionBonus(3, 0) * 100).toFixed(1)}%`,
-        'Real play adds research/industry/death downtime (~1.5–3× these floors).',
+        '=== Cosmic Idle balance estimates ===',
+        `Waves/sector: ${WAVES_PER_SECTOR} · Prestige min: S${PRESTIGE_MIN_SECTOR}`,
+        `First → S${PRESTIGE_MIN_SECTOR} (Hyperion-like): ${formatDuration(firstPrestige)} combat`,
+        `Naive fresh → S30: ${formatDuration(naiveAct1)} combat (wall)`,
+        `Career → first S30 (Baal-like): ${formatDuration(career.combatSeconds)} combat across ~${career.prestiges} prestiges`,
+        `  Engagement: ${formatDuration(engageLow)} – ${formatDuration(engageHigh)}`,
+        `  Casual calendar (~1.5–2.5h/day): ~${calendarDaysLow.toFixed(0)}–${calendarDaysHigh.toFixed(0)} days`,
+        `Prestige #3 → S${PRESTIGE_MIN_SECTOR}: ${formatDuration(rePrestige)}`,
+        `Momentum @3P: +${(prestigeMomentumDamageBonus(3, 0) * 100).toFixed(0)}% dmg / +${(prestigeMomentumProductionBonus(3, 0) * 100).toFixed(0)}% prod`,
       ].join('\n'),
     )
 
-    // Combat-only floor is a few minutes; real play (industry/research/deaths) is longer.
-    expect(firstPrestige).toBeGreaterThan(60)
-    expect(firstPrestige).toBeLessThan(45 * 60)
+    expect(firstPrestige).toBeGreaterThan(10 * 60)
+    expect(firstPrestige).toBeLessThan(70 * 60)
 
-    // Returning runs must be meaningfully faster (USI snowball).
-    expect(rePrestige).toBeLessThan(firstPrestige * 0.75)
-    expect(ascendedPrestige).toBeLessThan(rePrestige * 0.85)
+    // Fresh Act 1 without prestige is a wall (hours of combat floor).
+    expect(naiveAct1).toBeGreaterThan(4 * 60 * 60)
 
-    // Full Act 1 single-leg combat floor stays under ~3h theoretical;
-    // real careers split across prestiges.
-    expect(firstAct1Leg).toBeLessThan(4 * 60 * 60)
+    // Baal-scale: many prestiges; calendar lands near 1–2 weeks casual.
+    expect(career.prestiges).toBeGreaterThanOrEqual(12)
+    expect(career.combatSeconds).toBeGreaterThan(8 * 60 * 60)
+    expect(calendarDaysHigh).toBeGreaterThanOrEqual(7)
+    expect(calendarDaysLow).toBeLessThanOrEqual(21)
+
+    expect(rePrestige).toBeLessThan(firstPrestige * 0.8)
+  })
+
+  it('starter can clear sector 1 without death-looping', () => {
+    let state = createInitialState(0)
+    state = setDocked(state, false)
+    advanceSeconds(state, 120)
+    expect(state.combat.highestSector).toBeGreaterThanOrEqual(1)
+    expect(state.combat.consecutiveLosses).toBe(0)
   })
 })

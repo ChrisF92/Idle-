@@ -13,9 +13,9 @@ import { advanceSeconds } from './tick'
 describe('core attributes', () => {
   it('assigns workers to train-ballistics and time increases rank', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 8
     state.combat.highestSector = 5
-    state.resources.data = 100
+    state.resources.data = 150
     state = buyResearch(state, 'core-training')
     state.base.workerDrones = 4
     state = assignWorker(state, 'train-ballistics', 4)
@@ -26,17 +26,20 @@ describe('core attributes', () => {
     expect(state.core.ranks.ballistics).toBeGreaterThanOrEqual(1)
   })
 
-  it('prestige clears core ranks completely', () => {
+  it('prestige clears core ranks completely but keeps research', () => {
     let state = createInitialState(0)
+    state.meta.highestSectorEver = 8
+    state.resources.data = 150
+    state = buyResearch(state, 'core-training')
     state.core.ranks.ballistics = 12
     state.core.ranks.logistics = 5
     state.core.progress.ballistics = 0.4
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
     expect(state.core.ranks.ballistics).toBe(0)
     expect(state.core.ranks.logistics).toBe(0)
     expect(state.core.progress.ballistics).toBe(0)
-    expect(state.research.unlocked).not.toContain('core-training')
+    expect(state.research.unlocked).toContain('core-training')
   })
 
   it('ballistics increases computed damage', () => {

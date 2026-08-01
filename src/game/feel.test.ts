@@ -13,7 +13,7 @@ describe('boss telegraphs', () => {
   it('boss weapons wind up before firing', () => {
     let state = createInitialState(0)
     state.combat.sector = 5
-    state.combat.wave = 5
+    state.combat.wave = 7
     state.combat.docked = false
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
@@ -46,7 +46,7 @@ describe('boss telegraphs', () => {
     const state = createInitialState(0)
     state.combat.isBoss = true
     state.combat.bossPhase = 0
-    state.combat.enemyUnits = enemyForSector(5, 5).units
+    state.combat.enemyUnits = enemyForSector(5, 7).units
     const boss = state.combat.enemyUnits.find((u) => u.isBoss)!
     boss.hull = boss.hullMax * 0.5
     maybeAdvanceBossPhase(state, () => undefined)

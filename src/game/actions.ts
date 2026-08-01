@@ -219,13 +219,13 @@ function assignByProfile(
 
   // Foundry-safe: pull from foundry into scrap until scrap income ≥ upkeep.
   if (profile === 'foundry-safe') {
-    const scrapRate = getStation('scrap-field')?.rates.scrap ?? 0.45
+    const scrapRate = getStation('scrap-field')?.rates.scrap ?? 0.4
     let scrapDrones = assignments['scrap-field'] ?? 0
     let foundryDrones = assignments['alloy-foundry'] ?? 0
     const foundryDef = getStation('alloy-foundry')
     const upkeepPer = foundryDef
       ? stationUpkeepScrapPerDrone(state, foundryDef)
-      : 0.18
+      : 0.16
     while (
       foundryDrones > 0 &&
       scrapDrones * scrapRate + 1e-9 < foundryDrones * upkeepPer
@@ -662,7 +662,7 @@ export function unfitModule(state: GameState, moduleId: string): GameState {
 }
 
 export function prestigeGainFor(state: GameState): number {
-  // +1 softens the 5-wave re-push so first S8 prestige yields 5 PM (was 4).
+  // +1 softens the re-push so first S10 prestige yields 6 PM.
   const base = Math.max(
     1,
     Math.floor(state.combat.sector / 2) + state.prestige.prestigeCount + 1,
@@ -815,6 +815,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     workerDrones: state.base.workerDrones,
     manufactureProgress: state.base.manufactureProgress,
     permanentAi,
+    /** Research is permanent — rebuying the tree every prestige was redundant. */
+    researchUnlocked: [...state.research.unlocked],
     meta: {
       ...state.meta,
       ascensionCount: state.meta.ascensionCount ?? 0,
@@ -846,13 +848,14 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const bonusSalvage = challengeShopStartingSalvage(kept.shop)
   /**
    * USI-style acceleration: returning kits grow with prestige count so each
-   * re-push starts faster (research / salvage / industry kick sooner).
+   * re-push starts faster (salvage / industry kick sooner). Data kit is smaller
+   * now that research persists.
    */
   const returning = kept.prestigeCount > 0 || (kept.meta.ascensionCount ?? 0) > 0
   const pc = kept.prestigeCount
   const ac = kept.meta.ascensionCount ?? 0
   const returnScrap = returning ? 10 + Math.min(50, pc * 6 + ac * 8) : 0
-  const returnData = returning ? 5 + Math.min(35, pc * 4 + ac * 5) : 0
+  const returnData = returning ? Math.min(12, 2 + pc + ac * 2) : 0
   const returnSalvage = returning ? 6 + Math.min(30, pc * 3 + ac * 4) : 0
 
   state.version = fresh.version
@@ -889,10 +892,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     manufactureProgress: kept.manufactureProgress,
     fabProject: null,
   }
-  // Codex unlock is permanent — restore research access without re-buying.
-  state.research = {
-    unlocked: kept.meta.codexUnlocked ? ['tactical-codex'] : [],
-  }
+  state.research = { unlocked: kept.researchUnlocked }
   state.ai = { purchased: kept.permanentAi }
   state.essence = { purchased: kept.essencePurchased }
   state.prestige = {

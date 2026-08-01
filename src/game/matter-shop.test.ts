@@ -71,7 +71,7 @@ describe('prestige matter shop', () => {
   it('archive-spur grants extra data on clear', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 3
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 6
     state = buyMatterShop(state, 'archive-spur')
     state.resources.data = 0
     state = startCombat(state)
@@ -84,7 +84,7 @@ describe('prestige matter shop', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 3
     state = buyMatterShop(state, 'matter-blade')
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 8000)
     expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(1)
   })

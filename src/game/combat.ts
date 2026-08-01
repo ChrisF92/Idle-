@@ -200,7 +200,7 @@ export function enemyForSector(sector: number, wave = 1): SectorEncounter {
     names[(Math.floor((sector - 1) / FAMILY_ROTATION.length) + wave - 1) % names.length] ??
     'Unknown Entity'
 
-  const waveScale = 1 + Math.max(0, wave - 1) * 0.08
+  const waveScale = 1 + Math.max(0, wave - 1) * 0.1
   const units = bossWave
     ? buildBossPack(sector, name, waveScale)
     : buildWavePack(sector, family, name, wave, waveScale)
@@ -234,7 +234,26 @@ function bossPreludeFamily(sector: number, wave: number): EnemyFamily {
 }
 
 /**
- * Wave-aware packs so W1–W5 are not identical.
+ * Enemy hull scale vs sector.
+ * Steep late curve so first Act 1 (S30) is an ITRTG-“first Baal” career
+ * (~1–2 weeks with idle), while S1 stays clearable.
+ */
+export function enemySectorScale(sector: number): number {
+  const s = Math.max(1, sector)
+  return 1.55 * Math.pow(1.142, s - 1)
+}
+
+/**
+ * Enemy damage scale — much flatter than hull. Early waves chip; late sectors
+ * are long because of HP walls, not Scout deletions.
+ */
+export function enemyDamageScale(sector: number): number {
+  const s = Math.max(1, sector)
+  return 0.72 * Math.pow(1.055, s - 1)
+}
+
+/**
+ * Wave-aware packs. Patterns cycle across the sector's waves.
  * Wave patterns: skirmish → pressure → elite → mixed → climax.
  */
 function buildWavePack(
@@ -245,25 +264,27 @@ function buildWavePack(
   waveScale: number,
 ): CombatUnit[] {
   const pattern = ((wave - 1) % 5) as 0 | 1 | 2 | 3 | 4
-  const scale = (1 + (sector - 1) * 0.12) * waveScale
+  const hullScale = enemySectorScale(sector) * waveScale
+  const dmgScale = enemyDamageScale(sector) * waveScale
 
   switch (family) {
     case 'swarm':
-      return buildSwarmWave(name, scale, pattern, sector)
+      return buildSwarmWave(name, hullScale, dmgScale, pattern, sector)
     case 'armored':
-      return buildArmoredWave(name, scale, pattern, sector)
+      return buildArmoredWave(name, hullScale, dmgScale, pattern, sector)
     case 'ethereal':
-      return buildEtherealWave(name, scale, pattern, sector)
+      return buildEtherealWave(name, hullScale, dmgScale, pattern, sector)
     case 'divine':
-      return buildDivineWave(name, scale, pattern, sector)
+      return buildDivineWave(name, hullScale, dmgScale, pattern, sector)
     default:
-      return buildSwarmWave(name, scale, pattern, sector)
+      return buildSwarmWave(name, hullScale, dmgScale, pattern, sector)
   }
 }
 
 function buildSwarmWave(
   name: string,
-  scale: number,
+  hullScale: number,
+  dmgScale: number,
   pattern: 0 | 1 | 2 | 3 | 4,
   sector: number,
 ): CombatUnit[] {
@@ -273,8 +294,8 @@ function buildSwarmWave(
         makeEnemyUnit({
           name: `${name} Mite ${i + 1}`,
           family: 'swarm',
-          hull: 12 * scale,
-          damage: 2.2 * scale,
+          hull: 12 * hullScale,
+          damage: 2.2 * dmgScale,
           cooldown: 0.9,
           range: 40,
           speed: 42,
@@ -288,8 +309,8 @@ function buildSwarmWave(
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family: 'swarm',
-          hull: 15 * scale,
-          damage: 2.5 * scale,
+          hull: 15 * hullScale,
+          damage: 2.5 * dmgScale,
           cooldown: 0.95,
           range: 42,
           speed: 38,
@@ -304,8 +325,8 @@ function buildSwarmWave(
           makeEnemyUnit({
             name: `${name} Screen ${i + 1}`,
             family: 'swarm',
-            hull: 14 * scale,
-            damage: 2.4 * scale,
+            hull: 14 * hullScale,
+            damage: 2.4 * dmgScale,
             cooldown: 1,
             range: 40,
             speed: 40,
@@ -317,8 +338,8 @@ function buildSwarmWave(
         makeEnemyUnit({
           name: `${name} Spitter`,
           family: 'swarm',
-          hull: 22 * scale,
-          damage: 4.2 * scale,
+          hull: 22 * hullScale,
+          damage: 4.2 * dmgScale,
           cooldown: 1.3,
           range: 95,
           speed: 22,
@@ -336,8 +357,8 @@ function buildSwarmWave(
           makeEnemyUnit({
             name: `${name} ${i + 1}`,
             family: 'swarm',
-            hull: 14 * scale,
-            damage: 2.4 * scale,
+            hull: 14 * hullScale,
+            damage: 2.4 * dmgScale,
             cooldown: 0.95,
             range: 42,
             speed: 38,
@@ -349,9 +370,9 @@ function buildSwarmWave(
         makeEnemyUnit({
           name: `${name} Wedge`,
           family: 'armored',
-          hull: 34 * scale,
+          hull: 34 * hullScale,
           armor: 2,
-          damage: 3.8 * scale,
+          damage: 3.8 * dmgScale,
           cooldown: 1.35,
           range: 58,
           speed: 18,
@@ -368,8 +389,8 @@ function buildSwarmWave(
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family: 'swarm',
-          hull: 16 * scale,
-          damage: 2.7 * scale,
+          hull: 16 * hullScale,
+          damage: 2.7 * dmgScale,
           cooldown: 0.9,
           range: 42,
           speed: 40,
@@ -382,9 +403,9 @@ function buildSwarmWave(
         makeEnemyUnit({
           name: `${name} Brute`,
           family: 'armored',
-          hull: 40 * scale,
+          hull: 40 * hullScale,
           armor: 3,
-          damage: 4.5 * scale,
+          damage: 4.5 * dmgScale,
           cooldown: 1.4,
           range: 60,
           speed: 17,
@@ -401,7 +422,8 @@ function buildSwarmWave(
 
 function buildArmoredWave(
   name: string,
-  scale: number,
+  hullScale: number,
+  dmgScale: number,
   pattern: 0 | 1 | 2 | 3 | 4,
   sector: number,
 ): CombatUnit[] {
@@ -411,9 +433,9 @@ function buildArmoredWave(
         makeEnemyUnit({
           name: `${name} Scout Plate`,
           family: 'armored',
-          hull: 36 * scale,
+          hull: 36 * hullScale,
           armor: 2,
-          damage: 4 * scale,
+          damage: 4 * dmgScale,
           cooldown: 1.3,
           range: 70,
           speed: 20,
@@ -429,9 +451,9 @@ function buildArmoredWave(
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family: 'armored',
-          hull: 44 * scale,
+          hull: 44 * hullScale,
           armor: 3 + Math.floor(sector / 6),
-          damage: 5 * scale,
+          damage: 5 * dmgScale,
           cooldown: 1.35,
           range: 75,
           speed: 16,
@@ -447,9 +469,9 @@ function buildArmoredWave(
         makeEnemyUnit({
           name: `${name} Siege`,
           family: 'armored',
-          hull: 55 * scale,
+          hull: 55 * hullScale,
           armor: 4,
-          damage: 7 * scale,
+          damage: 7 * dmgScale,
           cooldown: 1.8,
           range: 110,
           speed: 12,
@@ -463,9 +485,9 @@ function buildArmoredWave(
         makeEnemyUnit({
           name: `${name} Escort`,
           family: 'armored',
-          hull: 32 * scale,
+          hull: 32 * hullScale,
           armor: 2,
-          damage: 4 * scale,
+          damage: 4 * dmgScale,
           cooldown: 1.2,
           range: 60,
           speed: 20,
@@ -480,9 +502,9 @@ function buildArmoredWave(
         makeEnemyUnit({
           name: `${name} 1`,
           family: 'armored',
-          hull: 46 * scale,
+          hull: 46 * hullScale,
           armor: 3,
-          damage: 5 * scale,
+          damage: 5 * dmgScale,
           cooldown: 1.35,
           range: 75,
           speed: 16,
@@ -494,9 +516,9 @@ function buildArmoredWave(
         makeEnemyUnit({
           name: `${name} 2`,
           family: 'armored',
-          hull: 46 * scale,
+          hull: 46 * hullScale,
           armor: 3,
-          damage: 5 * scale,
+          damage: 5 * dmgScale,
           cooldown: 1.35,
           range: 75,
           speed: 16,
@@ -508,10 +530,10 @@ function buildArmoredWave(
         makeEnemyUnit({
           name: `${name} Spotter`,
           family: 'ethereal',
-          hull: 22 * scale,
-          shield: 12 * scale,
+          hull: 22 * hullScale,
+          shield: 12 * hullScale,
           evasion: 0.12,
-          damage: 3.2 * scale,
+          damage: 3.2 * dmgScale,
           cooldown: 1.1,
           range: 115,
           speed: 26,
@@ -529,9 +551,9 @@ function buildArmoredWave(
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family: 'armored',
-          hull: 50 * scale,
+          hull: 50 * hullScale,
           armor: 4 + Math.floor(sector / 5),
-          damage: 5.5 * scale,
+          damage: 5.5 * dmgScale,
           cooldown: 1.3,
           range: 78,
           speed: 15,
@@ -547,7 +569,8 @@ function buildArmoredWave(
 
 function buildEtherealWave(
   name: string,
-  scale: number,
+  hullScale: number,
+  dmgScale: number,
   pattern: 0 | 1 | 2 | 3 | 4,
   sector: number,
 ): CombatUnit[] {
@@ -557,10 +580,10 @@ function buildEtherealWave(
         makeEnemyUnit({
           name: `${name} Wisp`,
           family: 'ethereal',
-          hull: 22 * scale,
-          shield: 10 * scale,
+          hull: 22 * hullScale,
+          shield: 10 * hullScale,
           evasion: 0.1,
-          damage: 3 * scale,
+          damage: 3 * dmgScale,
           cooldown: 1.1,
           range: 115,
           speed: 26,
@@ -577,10 +600,10 @@ function buildEtherealWave(
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family: 'ethereal',
-          hull: 26 * scale,
-          shield: 14 * scale,
+          hull: 26 * hullScale,
+          shield: 14 * hullScale,
           evasion: 0.12,
-          damage: 3.5 * scale,
+          damage: 3.5 * dmgScale,
           cooldown: 1.15,
           range: 120,
           speed: 24,
@@ -597,10 +620,10 @@ function buildEtherealWave(
         makeEnemyUnit({
           name: `${name} Blade ${i + 1}`,
           family: 'ethereal',
-          hull: 24 * scale,
-          shield: 8 * scale,
+          hull: 24 * hullScale,
+          shield: 8 * hullScale,
           evasion: 0.16,
-          damage: 4.2 * scale,
+          damage: 4.2 * dmgScale,
           cooldown: 0.95,
           range: 55,
           speed: 32,
@@ -615,10 +638,10 @@ function buildEtherealWave(
         makeEnemyUnit({
           name: `${name} 1`,
           family: 'ethereal',
-          hull: 28 * scale,
-          shield: 16 * scale,
+          hull: 28 * hullScale,
+          shield: 16 * hullScale,
           evasion: 0.12,
-          damage: 3.6 * scale,
+          damage: 3.6 * dmgScale,
           cooldown: 1.15,
           range: 118,
           speed: 24,
@@ -631,10 +654,10 @@ function buildEtherealWave(
         makeEnemyUnit({
           name: `${name} 2`,
           family: 'ethereal',
-          hull: 28 * scale,
-          shield: 16 * scale,
+          hull: 28 * hullScale,
+          shield: 16 * hullScale,
           evasion: 0.12,
-          damage: 3.6 * scale,
+          damage: 3.6 * dmgScale,
           cooldown: 1.15,
           range: 118,
           speed: 24,
@@ -647,8 +670,8 @@ function buildEtherealWave(
         makeEnemyUnit({
           name: `${name} Distractor`,
           family: 'swarm',
-          hull: 14 * scale,
-          damage: 2.5 * scale,
+          hull: 14 * hullScale,
+          damage: 2.5 * dmgScale,
           cooldown: 0.9,
           range: 40,
           speed: 40,
@@ -663,10 +686,10 @@ function buildEtherealWave(
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family: 'ethereal',
-          hull: 30 * scale,
-          shield: 18 * scale,
+          hull: 30 * hullScale,
+          shield: 18 * hullScale,
           evasion: 0.14,
-          damage: 3.8 * scale,
+          damage: 3.8 * dmgScale,
           cooldown: 1.1,
           range: 120,
           speed: 25,
@@ -682,7 +705,8 @@ function buildEtherealWave(
 
 function buildDivineWave(
   name: string,
-  scale: number,
+  hullScale: number,
+  dmgScale: number,
   pattern: 0 | 1 | 2 | 3 | 4,
   _sector: number,
 ): CombatUnit[] {
@@ -692,9 +716,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Speck`,
           family: 'divine',
-          hull: 30 * scale,
-          shield: 8 * scale,
-          damage: 4 * scale,
+          hull: 30 * hullScale,
+          shield: 8 * hullScale,
+          damage: 4 * dmgScale,
           cooldown: 1.2,
           range: 110,
           speed: 16,
@@ -710,9 +734,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Core`,
           family: 'divine',
-          hull: 38 * scale,
-          shield: 12 * scale,
-          damage: 5 * scale,
+          hull: 38 * hullScale,
+          shield: 12 * hullScale,
+          damage: 5 * dmgScale,
           cooldown: 1.25,
           range: 115,
           speed: 14,
@@ -725,9 +749,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Attendant`,
           family: 'divine',
-          hull: 22 * scale,
+          hull: 22 * hullScale,
           evasion: 0.08,
-          damage: 3.5 * scale,
+          damage: 3.5 * dmgScale,
           cooldown: 1,
           range: 60,
           speed: 28,
@@ -742,9 +766,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Diver ${i + 1}`,
           family: 'divine',
-          hull: 26 * scale,
+          hull: 26 * hullScale,
           evasion: 0.1,
-          damage: 4 * scale,
+          damage: 4 * dmgScale,
           cooldown: 0.95,
           range: 50,
           speed: 30,
@@ -759,9 +783,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Core`,
           family: 'divine',
-          hull: 40 * scale,
-          shield: 14 * scale,
-          damage: 5.2 * scale,
+          hull: 40 * hullScale,
+          shield: 14 * hullScale,
+          damage: 5.2 * dmgScale,
           cooldown: 1.25,
           range: 115,
           speed: 14,
@@ -774,9 +798,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Votive`,
           family: 'armored',
-          hull: 36 * scale,
+          hull: 36 * hullScale,
           armor: 3,
-          damage: 4 * scale,
+          damage: 4 * dmgScale,
           cooldown: 1.3,
           range: 65,
           speed: 18,
@@ -792,9 +816,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Core`,
           family: 'divine',
-          hull: 42 * scale,
-          shield: 14 * scale,
-          damage: 5.5 * scale,
+          hull: 42 * hullScale,
+          shield: 14 * hullScale,
+          damage: 5.5 * dmgScale,
           cooldown: 1.2,
           range: 115,
           speed: 14,
@@ -807,9 +831,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Attendant`,
           family: 'divine',
-          hull: 24 * scale,
+          hull: 24 * hullScale,
           evasion: 0.08,
-          damage: 3.8 * scale,
+          damage: 3.8 * dmgScale,
           cooldown: 1,
           range: 60,
           speed: 28,
@@ -821,9 +845,9 @@ function buildDivineWave(
         makeEnemyUnit({
           name: `${name} Attendant`,
           family: 'divine',
-          hull: 24 * scale,
+          hull: 24 * hullScale,
           evasion: 0.08,
-          damage: 3.8 * scale,
+          damage: 3.8 * dmgScale,
           cooldown: 1,
           range: 60,
           speed: 28,
@@ -837,15 +861,16 @@ function buildDivineWave(
 }
 
 function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[] {
-  const scale = (1 + (sector - 1) * 0.1) * waveScale
+  const hullScale = enemySectorScale(sector) * 0.95 * waveScale
+  const dmgScale = enemyDamageScale(sector) * waveScale
   const titan = makeEnemyUnit({
     name: `${name} (Boss)`,
     family: 'titan',
-    hull: 130 * scale,
+    hull: 150 * hullScale,
     armor: 2,
-    shield: 20 * scale,
+    shield: 20 * hullScale,
     // Slower slam with a visible wind-up so players can react.
-    damage: 9 * scale,
+    damage: 9 * dmgScale,
     cooldown: 2.4,
     telegraphDuration: 0.85,
     range: 120,
@@ -863,9 +888,9 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
     makeEnemyUnit({
       name: thrallFamily === 'armored' ? 'Plate Thrall' : 'Thrall',
       family: thrallFamily,
-      hull: (thrallFamily === 'armored' ? 26 : 18) * scale,
+      hull: (thrallFamily === 'armored' ? 26 : 18) * hullScale,
       armor: thrallFamily === 'armored' ? 3 : 0,
-      damage: 2.8 * scale,
+      damage: 2.8 * dmgScale,
       cooldown: 1,
       range: thrallFamily === 'armored' ? 55 : 40,
       speed: thrallFamily === 'armored' ? 20 : 36,
@@ -877,9 +902,9 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
     makeEnemyUnit({
       name: thrallFamily === 'armored' ? 'Plate Thrall' : 'Thrall',
       family: thrallFamily,
-      hull: (thrallFamily === 'armored' ? 26 : 18) * scale,
+      hull: (thrallFamily === 'armored' ? 26 : 18) * hullScale,
       armor: thrallFamily === 'armored' ? 3 : 0,
-      damage: 2.8 * scale,
+      damage: 2.8 * dmgScale,
       cooldown: 1,
       range: thrallFamily === 'armored' ? 55 : 40,
       speed: thrallFamily === 'armored' ? 20 : 36,

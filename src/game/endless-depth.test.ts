@@ -60,7 +60,7 @@ describe('deep matter shop + ascension', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
     state.meta.ascensionCount = 2
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 2000)
     expect(state.meta.ascensionCount).toBe(2)
   })

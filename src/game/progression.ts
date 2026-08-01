@@ -3,13 +3,16 @@
 import type { GameState, Resources, TabId } from './types'
 
 /** Waves fought to clear one sector (Advance or Hold). */
-export const WAVES_PER_SECTOR = 5
+export const WAVES_PER_SECTOR = 7
 
-/** Soft campaign climax — first Act 1 clear beat. */
+/** Soft campaign climax — first Act 1 clear beat (ITRTG “first Baal” analogue). */
 export const ACT1_FINAL_SECTOR = 30
 
-/** Prestige becomes available around mid–Act 1 once waves slow the climb. */
-export const PRESTIGE_MIN_SECTOR = 8
+/**
+ * Prestige becomes available mid–Act 1.
+ * Maps nearer ITRTG’s first Hyperion soft-reset (~1h real), not first Baal.
+ */
+export const PRESTIGE_MIN_SECTOR = 10
 
 export type SystemId = Exclude<TabId, 'combat' | 'shipyard' | 'stats'>
 
@@ -31,26 +34,26 @@ export interface SystemUnlockDef {
 export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'base',
-    requiresSectorEver: 3,
+    requiresSectorEver: 4,
     label: 'Base',
     tip: 'Worker drones manufacture over time. Assign them to named stations for production.',
   },
   {
     id: 'research',
-    requiresSectorEver: 5,
+    requiresSectorEver: 6,
     label: 'Research',
-    tip: 'Spend Data on research. Alloy Smelting unlocks the Foundry station.',
+    tip: 'Spend Data on research (permanent). Alloy Smelting unlocks the Foundry station.',
   },
   {
     id: 'codex',
-    requiresSectorEver: 5,
+    requiresSectorEver: 6,
     requiresResearch: 'tactical-codex',
     label: 'Codex',
     tip: 'Enemy families remember soft counters. Fit modules to match the sector. Unlock once — permanent.',
   },
   {
     id: 'core',
-    requiresSectorEver: 5,
+    requiresSectorEver: 8,
     requiresResearch: 'core-training',
     label: 'Core',
     tip: 'Assign workers to training stations to raise Core attributes. Ranks wipe on prestige.',
@@ -63,9 +66,9 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   },
   {
     id: 'prestige',
-    requiresSectorEver: 5,
+    requiresSectorEver: 8,
     label: 'Prestige',
-    tip: 'Soft-reset from sector 8+ for Prestige Matter. Challenges open after Act 1 (sector 30).',
+    tip: 'Soft-reset from sector 10+ for Prestige Matter. Challenges open after Act 1 (sector 30).',
   },
 ]
 
@@ -110,9 +113,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'hangar-opened',
     name: 'Hangar Opened',
-    description: 'Clear sector 3 and unlock Base.',
+    description: 'Clear sector 4 and unlock Base.',
     rewardAiPoints: 1,
-    condition: { type: 'sector-ever', sector: 3 },
+    condition: { type: 'sector-ever', sector: 4 },
   },
   {
     id: 'first-boss',
@@ -450,7 +453,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     return state.meta.aiUnlocked || state.meta.completedAchievements.length > 0
   }
   if (systemId === 'codex') {
-    if (careerHighestSector(state) < 5) return false
+    if (careerHighestSector(state) < 6) return false
     return (
       state.meta.codexUnlocked === true ||
       state.research.unlocked.includes('tactical-codex')
@@ -473,7 +476,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return 'Complete First Blood (clear sector 1)'
   }
   if (systemId === 'codex') {
-    return 'Clear sector 5 · Research tactical-codex (once)'
+    return 'Clear sector 6 · Research tactical-codex (once)'
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return null
@@ -561,7 +564,7 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   }
 
   if (
-    ever >= 3 &&
+    ever >= 4 &&
     !state.meta.seenOnboarding.includes('base-unlock') &&
     state.base.workerDrones < 2
   ) {
@@ -782,7 +785,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-prestige-tab',
     title: 'Prestige unlocked',
-    body: 'Tap Prestige. Soft-reset from sector 8 for Prestige Matter. Challenges open after clearing Act 1 (sector 30).',
+    body: 'Tap Prestige. Soft-reset from sector 10 for Prestige Matter. Challenges open after clearing Act 1 (sector 30).',
     target: 'prestige-tab',
     availableWhen: (s) =>
       isSystemUnlocked(s, 'prestige') && !guideSeen(s, 'guide-prestige-tab'),

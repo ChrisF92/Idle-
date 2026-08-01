@@ -56,7 +56,7 @@ describe('Signal Cores', () => {
     const b = makeSignalCoreInstance('kinetic-shard', 1)
     state.signalCores.inventory = [a, b]
     state.signalCores.equipped = { 'ward-0': a.uid }
-    state.combat.sector = 8
+    state.combat.sector = 10
     state.meta.highestSectorEver = 8
 
     state = performPrestige(state, 1000)
@@ -68,7 +68,7 @@ describe('Signal Cores', () => {
     kept.signalCores.inventory = [c]
     kept.signalCores.equipped = { 'signal-0': c.uid }
     kept.meta.signalCoresCarryOver = true
-    kept.combat.sector = 8
+    kept.combat.sector = 10
     kept.meta.highestSectorEver = 8
     kept = performPrestige(kept, 2000)
     expect(kept.signalCores.inventory).toHaveLength(1)

@@ -36,7 +36,7 @@ describe('essence upgrades', () => {
     let state = createInitialState(0)
     state.resources.essence = 5
     state = buyEssenceUpgrade(state, 'essence-lattice')
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
     expect(state.essence.purchased).toContain('essence-lattice')
     expect(state.resources.essence).toBeGreaterThanOrEqual(0)
@@ -69,7 +69,7 @@ describe('AI doctrines', () => {
     state.resources.aiPoints = 3
     state = buyAiNode(state, 'boss-protocol')
     state.combat.sector = 5
-    state.combat.wave = 5
+    state.combat.wave = 7
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
     const notes = computeFightDamage(state).matchupNotes.join(' ')

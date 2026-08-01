@@ -19,7 +19,7 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 | Research | Unlock tree + damage bonuses (gated — clear sector 5) |
 | Codex | Soft counters (gated — research Tactical Codex **once**; permanent) |
 | AI | Achievements → AI Points; permanent automation/QoL + per-run doctrines (unlocks with First Blood) |
-| Prestige | Soft reset at sector 8+; Ascension + Ascension-entry challenges after Act 1 |
+| Prestige | Soft reset at sector 10+; Ascension + Ascension-entry challenges after Act 1 |
 | Stats | Save management |
 
 ## Progression notes
@@ -29,7 +29,9 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - Boss sectors: vanguard waves first, **boss only on wave 5**. Waves use varied packs.
 - Header resources appear only once their system is unlocked (Data/Research, AI Points/AI, etc.).
 - AI Points come from achievements (modal in the AI tab), not combat drops. Unspent AI Points persist across prestige.
+- Research unlocks are **permanent** across prestige / ascension (Core attribute ranks still wipe).
 - Guided onboarding spotlights the next control to tap; starter dock/launch tips retire after the first prestige, and ascension clears the full guide catalog.
+- Act 1 pacing maps to ITRTG: first prestige ≈ first Hyperion (~1h session); first sector 30 ≈ first Baal (~1–2 week tutorial career across many prestiges). Research is permanent; enemy hull scales steeply while damage stays flatter so length comes from walls, not death loops.
 - Dev tools (Stats tab): toggle on anytime, or append `?dev=1` / `?dev=0`. Includes jump, boss force, achievements, guide skip.
 - Boss telegraphs: titan slams wind up before firing; phase shifts flash a warn ring.
 - Hold Accountant shows estimated scrap/data/salvage per second while farming.

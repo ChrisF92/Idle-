@@ -183,7 +183,7 @@ export function PrestigeTab({
                 <>
                   <p className="muted">
                     Ascension soft-resets the run and permanently boosts future PM gains
-                    (+35% each). Unlocks deep Matter shop ranks and Ascension-entry
+                    (+40% each). Unlocks deep Matter shop ranks and Ascension-entry
                     challenges. Need sector 30+.
                   </p>
                   <button
@@ -244,8 +244,8 @@ export function PrestigeTab({
         <>
           <p className="muted">
             Unlocked after clearing sector 30 (Act 1). Prestige-entry runs need sector{' '}
-            {minSector}+; Ascension-entry runs (Long Haul, Null Signal, Hollow Choir) start
-            from sector 30 and consume an Ascension.
+            {minSector}+ (default 10); Ascension-entry runs (Long Haul, Null Signal, Hollow
+            Choir) start from sector 30 and consume an Ascension.
           </p>
 
           <div className="sub-tabs" role="tablist" aria-label="Challenge sections">

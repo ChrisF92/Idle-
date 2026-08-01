@@ -9,20 +9,20 @@ import {
 } from './actions'
 
 describe('post-prestige re-push balance', () => {
-  it('grants 5 PM on first sector-8 prestige', () => {
+  it('grants 6 PM on first sector-10 prestige', () => {
     const state = createInitialState(0)
-    state.combat.sector = 8
-    expect(prestigeGainFor(state)).toBe(5)
+    state.combat.sector = 10
+    expect(prestigeGainFor(state)).toBe(6)
   })
 
   it('starts returning runs with scrap, data, and salvage kits', () => {
     let state = createInitialState(0)
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
     expect(state.prestige.prestigeCount).toBe(1)
     // 25 starter + 10 base return + 6×prestigeCount
     expect(state.resources.scrap).toBe(41)
-    expect(state.resources.data).toBe(9) // 5 + 4×1
+    expect(state.resources.data).toBe(3) // scaled return kit
     expect(state.resources.salvage).toBe(9) // 6 + 3×1
   })
 
@@ -36,7 +36,7 @@ describe('post-prestige re-push balance', () => {
     expect(state.ai.purchased).toContain('focus-fire')
     expect(state.resources.aiPoints).toBe(0)
 
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
     expect(state.ai.purchased).not.toContain('focus-fire')
     // Refund 2 + Soft Reset achievement (+2)
@@ -45,12 +45,12 @@ describe('post-prestige re-push balance', () => {
 
   it('can buy Basic Optics with farmed data and one module level from return salvage', () => {
     let state = createInitialState(0)
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 2000)
 
     // Optics costs 20 Data; return kit grants a head start but still needs a short farm.
-    expect(state.resources.data).toBe(9)
-    state.resources.data = 20
+    expect(state.resources.data).toBe(3)
+    state.resources.data = 40
     state = buyResearch(state, 'basic-optics')
     expect(state.research.unlocked).toContain('basic-optics')
 

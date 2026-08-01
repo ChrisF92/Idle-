@@ -57,9 +57,9 @@ describe('blueprints and fabrication', () => {
 
   it('deposit + workers completes fab → unlocks permanent', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 6
     state.combat.highestSector = 5
-    state.resources.data = 100
+    state.resources.data = 150
     state = buyResearch(state, 'module-fab')
     expect(state.research.unlocked).toContain('module-fab')
 
@@ -92,7 +92,7 @@ describe('blueprints and fabrication', () => {
 
   it('prestige keeps unlock + parts + discovery; clears fab project', () => {
     let state = createInitialState(0)
-    state.combat.sector = 8
+    state.combat.sector = 10
     state.meta.discoveredModules = ['flak-array', 'heavy-lance']
     state.meta.moduleMastery = { 'flak-array': 2 }
     state.parts = { [partId('flak-array', 'casing')]: 5 }

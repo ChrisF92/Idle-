@@ -145,7 +145,7 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   }
 
   // Worker manufacture (only once Base has been unlocked via career progress).
-  if (state.meta.highestSectorEver >= 3 || state.combat.highestSector >= 3) {
+  if (state.meta.highestSectorEver >= 4 || state.combat.highestSector >= 4) {
     const speed = workerManufactureSpeed(state)
     state.base.manufactureProgress += (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
     while (state.base.manufactureProgress >= 1) {

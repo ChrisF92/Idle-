@@ -62,7 +62,7 @@ describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
     let state = createInitialState(0)
     state.prestige.prestigeCount = 2
     state.meta.act1Cleared = true
-    state.combat.sector = 8
+    state.combat.sector = 10
     state.meta.highestSectorEver = 10
     state.resources.scrap = 999
     state.resources.alloys = 999
@@ -93,7 +93,7 @@ describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
     state.prestige.prestigeCount = 1
     state.meta.act1Cleared = true
     state.prestige.challengeClears = { 'thin-hull': 1 }
-    state.combat.sector = 8
+    state.combat.sector = 10
     state.meta.highestSectorEver = 8
     state = enterChallenge(state, 'attrition', 2000)
     expect(state.prestige.activeChallengeId).toBe('attrition')

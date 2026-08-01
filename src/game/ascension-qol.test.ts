@@ -31,7 +31,7 @@ import { advanceSeconds, computeResourceRates } from './tick'
 describe('onboarding survives soft resets', () => {
   it('retires starter guides after prestige', () => {
     let state = createInitialState(0)
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
     for (const id of STARTER_GUIDE_IDS) {
       expect(state.meta.seenOnboarding).toContain(id)
@@ -93,7 +93,7 @@ describe('labor router QoL', () => {
     const scrap = state.base.assignments['scrap-field'] ?? 0
     const foundry = state.base.assignments['alloy-foundry'] ?? 0
     // Scrap income should cover foundry upkeep at base rates.
-    expect(scrap * 0.45 + 1e-9).toBeGreaterThanOrEqual(foundry * 0.18)
+    expect(scrap * 0.4 + 1e-9).toBeGreaterThanOrEqual(foundry * 0.16)
   })
 
   it('supports fill, clear, and labor loop node', () => {
@@ -131,7 +131,7 @@ describe('ascension-entry challenges', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
     state.meta.highestSectorEver = 30
-    state.combat.sector = 8
+    state.combat.sector = 10
     expect(isChallengeUnlocked(state, 'long-haul')).toBe(true)
     expect(canEnterChallenge(state, 'long-haul')).toBe(false)
 
@@ -165,15 +165,19 @@ describe('ascension-entry challenges', () => {
   })
 })
 
-describe('codex permanence + research restore', () => {
-  it('restores tactical-codex research after prestige when unlocked', () => {
+describe('permanent research', () => {
+  it('keeps researched unlocks (including Codex) across prestige', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 5
-    state.resources.data = 30
+    state.meta.highestSectorEver = 6
+    state.resources.data = 200
     state = buyResearch(state, 'tactical-codex')
-    state.combat.sector = 8
+    state = buyResearch(state, 'basic-optics')
+    state = buyResearch(state, 'alloy-smelting')
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
-    expect(state.research.unlocked).toEqual(['tactical-codex'])
+    expect(state.research.unlocked).toEqual(
+      expect.arrayContaining(['tactical-codex', 'basic-optics', 'alloy-smelting']),
+    )
     expect(isSystemUnlocked(state, 'codex')).toBe(true)
   })
 })

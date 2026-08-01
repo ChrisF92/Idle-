@@ -29,7 +29,7 @@ import { WAVES_PER_SECTOR } from './progression'
 describe('tickGame', () => {
   it('produces scrap from assigned worker stations over time', () => {
     let start = createInitialState(0)
-    start.meta.highestSectorEver = 3
+    start.meta.highestSectorEver = 4
     start.base.workerDrones = 2
     start = assignWorker(start, 'scrap-field', 1)
     start = assignWorker(start, 'power-grid', 1)
@@ -41,7 +41,7 @@ describe('tickGame', () => {
 
   it('caps live catch-up to a few seconds', () => {
     let start = createInitialState(0)
-    start.meta.highestSectorEver = 3
+    start.meta.highestSectorEver = 4
     start.base.workerDrones = 2
     start = assignWorker(start, 'scrap-field', 2)
     start.combat.campaign = false
@@ -86,8 +86,8 @@ describe('tickGame', () => {
     let state = createInitialState(0)
     state.combat.campaign = true
     state = setDocked(state, false)
-    advanceTicks(state, 80)
-    expect(state.combat.sector).toBeGreaterThan(1)
+    advanceTicks(state, 120)
+    expect(state.combat.highestSector).toBeGreaterThanOrEqual(1)
     // After some clears, either in a fight at partial hull or repairing — not always full
     if (state.combat.inFight) {
       const flag = state.combat.playerUnits.find((u) => u.isFlagship)
@@ -105,7 +105,7 @@ describe('advanceTicks / combat', () => {
     expect(state.combat.inFight).toBe(true)
 
     const next = structuredClone(state)
-    advanceTicks(next, 60)
+    advanceTicks(next, 120)
     expect(next.combat.sector).toBeGreaterThan(1)
     expect(next.resources.scrap).toBeGreaterThan(0)
     // AI Points come from First Blood achievement on sector 1 clear, not combat drops
@@ -155,7 +155,7 @@ describe('offline catch-up', () => {
 describe('purchases', () => {
   it('assigns workers to scrap field', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 3
+    state.meta.highestSectorEver = 4
     state.base.workerDrones = 2
     state = assignWorker(state, 'scrap-field', 1)
     expect(state.base.assignments['scrap-field']).toBe(1)
@@ -165,7 +165,7 @@ describe('purchases', () => {
 
   it('blocks alloy foundry until alloy-smelting research', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 6
     state.base.workerDrones = 2
     const blocked = assignWorker(state, 'alloy-foundry', 1)
     expect(blocked.base.assignments['alloy-foundry'] ?? 0).toBe(0)
@@ -177,7 +177,7 @@ describe('purchases', () => {
 
   it('blocks drone fabricator until drone-logistics research', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 3
+    state.meta.highestSectorEver = 4
     state.base.workerDrones = 2
     const blocked = assignWorker(state, 'drone-fab', 1)
     expect(blocked.base.assignments['drone-fab'] ?? 0).toBe(0)
@@ -190,7 +190,7 @@ describe('purchases', () => {
   it('assigned workers produce scrap and data over time', () => {
     let state = createInitialState(0)
     state.combat.docked = true
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 6
     state.base.workerDrones = 3
     state = assignWorker(state, 'scrap-field', 2)
     state = assignWorker(state, 'sensor-net', 1)
@@ -203,7 +203,7 @@ describe('purchases', () => {
 
   it('reports industry resource rates per second', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 3
+    state.meta.highestSectorEver = 4
     state.base.workerDrones = 2
     state = assignWorker(state, 'scrap-field', 1)
     state = assignWorker(state, 'power-grid', 1)
@@ -221,15 +221,15 @@ describe('purchases', () => {
     state = assignWorker(state, 'scrap-field', 1)
     for (let i = 0; i < 5; i += 1) state = assignWorker(state, 'alloy-foundry', 1)
     const rates = computeResourceRates(state)
-    // 1×0.45 scrap − 5×0.18 foundry upkeep = −0.45/s
-    expect(rates.scrap).toBeCloseTo(-0.45, 5)
+    // 1×0.4 scrap − 5×0.16 foundry upkeep = −0.4/s
+    expect(rates.scrap).toBeCloseTo(-0.4, 5)
     expect(rates.alloys).toBeGreaterThan(0)
   })
 
   it('buys research and AI nodes', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8
-    state.resources.data = 20
+    state.resources.data = 40
     state = buyResearch(state, 'basic-optics')
     expect(state.research.unlocked).toContain('basic-optics')
 
@@ -257,7 +257,7 @@ describe('shipyard', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
-    state.meta.highestSectorEver = 6
+    state.meta.highestSectorEver = 8
     state = unlockFrame(state, 'line-frame')
     state = selectFrame(state, 'line-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
@@ -270,7 +270,7 @@ describe('shipyard', () => {
 describe('prestige and challenges', () => {
   it('prestiges at sector threshold and keeps fitted loadout', () => {
     let state = createInitialState(0)
-    state.combat.sector = 8
+    state.combat.sector = 10
     state.resources.scrap = 999
     state.resources.alloys = 999
     state = unlockModule(state, 'plate-layer')
@@ -289,7 +289,7 @@ describe('prestige and challenges', () => {
   it('enters and completes a repeatable challenge', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = enterChallenge(state, 'no-ai', 2000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')
     expect(state.combat.sector).toBe(1)
@@ -375,7 +375,7 @@ describe('prestige and challenges', () => {
     expect(state.resources.challengePoints).toBeGreaterThan(0)
 
     // Repeatable — can enter again after reaching sector gate
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = enterChallenge(state, 'no-ai', 3000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')
   })
@@ -391,7 +391,7 @@ describe('salvage module upgrades', () => {
     expect(computeShipStats(state).damage).toBeGreaterThan(before)
     expect(state.resources.salvage).toBeLessThan(100)
 
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
     // Returning runs start with a salvage kit for early module levels.
     expect(state.resources.salvage).toBe(9)

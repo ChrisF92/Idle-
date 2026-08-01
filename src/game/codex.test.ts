@@ -17,20 +17,20 @@ describe('codex', () => {
     let state = createInitialState(0)
     state = startCombat(state)
     expect(state.codex.seenFamilies).toContain('swarm')
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
     expect(state.codex.seenFamilies).toContain('swarm')
   })
 
   it('unlocks Codex permanently after researching once', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 5
-    state.resources.data = 30
+    state.meta.highestSectorEver = 6
+    state.resources.data = 50
     state = buyResearch(state, 'tactical-codex')
     expect(state.meta.codexUnlocked).toBe(true)
     expect(isSystemUnlocked(state, 'codex')).toBe(true)
 
-    state.combat.sector = 8
+    state.combat.sector = 10
     state = performPrestige(state, 1000)
     expect(state.meta.codexUnlocked).toBe(true)
     expect(state.research.unlocked).toContain('tactical-codex')
@@ -46,7 +46,7 @@ describe('codex', () => {
 
   it('tactical-codex research is purchasable', () => {
     let state = createInitialState(0)
-    state.resources.data = 30
+    state.resources.data = 50
     state = buyResearch(state, 'tactical-codex')
     expect(state.research.unlocked).toContain('tactical-codex')
   })
