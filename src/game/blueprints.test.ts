@@ -41,6 +41,9 @@ describe('blueprints and fabrication', () => {
 
   it('drop on kill discovers module and adds part', () => {
     let state = createInitialState(0)
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
+    state.research.unlocked = [...state.research.unlocked, 'alloy-smelting']
     const results = rollEnemyPartDrop(
       state,
       { family: 'swarm', isBoss: false, name: 'Drone' },
@@ -65,9 +68,9 @@ describe('blueprints and fabrication', () => {
 
     state.meta.discoveredModules = ['flak-array']
     state.parts = {
-      [partId('flak-array', 'casing')]: 3,
-      [partId('flak-array', 'core')]: 2,
-      [partId('flak-array', 'lens')]: 1,
+      [partId('flak-array', 'casing')]: 5,
+      [partId('flak-array', 'core')]: 3,
+      [partId('flak-array', 'lens')]: 2,
     }
     state.base.workerDrones = 2
     state = startFabProject(state, 'flak-array')
@@ -76,9 +79,9 @@ describe('blueprints and fabrication', () => {
     for (const pt of ['casing', 'core', 'lens'] as const) {
       state = depositFabPart(state, pt, 10)
     }
-    expect(state.base.fabProject?.contributed.casing).toBe(3)
-    expect(state.base.fabProject?.contributed.core).toBe(2)
-    expect(state.base.fabProject?.contributed.lens).toBe(1)
+    expect(state.base.fabProject?.contributed.casing).toBe(5)
+    expect(state.base.fabProject?.contributed.core).toBe(3)
+    expect(state.base.fabProject?.contributed.lens).toBe(2)
 
     state = assignWorker(state, 'fab-bay', 1)
     advanceSeconds(state, FAB_SECONDS + 0.1)

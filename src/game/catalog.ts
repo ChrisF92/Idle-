@@ -1056,7 +1056,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     utilitySlots: 1,
     baseDamage: 8,
     baseHull: 195,
-    unlockCost: { alloys: 25, scrap: 40 },
+    unlockCost: { alloys: 40, scrap: 85 },
     requiresSectorEver: 8,
   },
   {
@@ -1067,7 +1067,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     utilitySlots: 1,
     baseDamage: 11,
     baseHull: 100,
-    unlockCost: { alloys: 35, scrap: 55, energy: 15 },
+    unlockCost: { alloys: 55, scrap: 120, energy: 20 },
     requiresSectorEver: 12,
   },
   {
@@ -1078,7 +1078,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     utilitySlots: 2,
     baseDamage: 6,
     baseHull: 120,
-    unlockCost: { alloys: 30, scrap: 50, data: 20 },
+    unlockCost: { alloys: 50, scrap: 110, data: 25 },
     requiresSectorEver: 12,
   },
   {
@@ -1089,7 +1089,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     utilitySlots: 1,
     baseDamage: 6,
     baseHull: 210,
-    unlockCost: { alloys: 60, scrap: 90, energy: 25 },
+    unlockCost: { alloys: 95, scrap: 180, energy: 35 },
     requiresSectorEver: 14,
   },
 ]
@@ -1180,7 +1180,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     hullBonus: 50,
     armorBonus: 4,
     damageTakenMult: 1,
-    unlockCost: { scrap: 15, alloys: 5 },
+    unlockCost: { scrap: 30, alloys: 5 },
   },
   {
     id: 'vector-thruster',
@@ -1444,18 +1444,18 @@ export function parsePartId(
 
 /** Farmable blueprint recipes (not starter scrap unlocks, not CP schematics). */
 export const BLUEPRINTS: BlueprintRecipe[] = [
-  { moduleId: 'flak-array', casing: 3, core: 2, lens: 1 },
-  { moduleId: 'vector-thruster', casing: 3, core: 2, lens: 1 },
-  { moduleId: 'heavy-lance', casing: 2, core: 2, lens: 1 },
-  { moduleId: 'phase-beam', casing: 2, core: 2, lens: 1 },
-  { moduleId: 'barrier-projector', casing: 3, core: 2, lens: 1 },
-  { moduleId: 'drone-bay', casing: 2, core: 2, lens: 1 },
-  { moduleId: 'rail-driver', casing: 3, core: 2, lens: 2 },
-  { moduleId: 'ion-burst', casing: 3, core: 2, lens: 2 },
-  { moduleId: 'ablative-mesh', casing: 3, core: 2, lens: 2 },
-  { moduleId: 'grav-tether', casing: 3, core: 2, lens: 2 },
-  { moduleId: 'nano-lathe', casing: 3, core: 2, lens: 2 },
-  { moduleId: 'salvage-rig', casing: 3, core: 2, lens: 2 },
+  { moduleId: 'flak-array', casing: 5, core: 3, lens: 2 },
+  { moduleId: 'vector-thruster', casing: 5, core: 3, lens: 2 },
+  { moduleId: 'heavy-lance', casing: 4, core: 3, lens: 2 },
+  { moduleId: 'phase-beam', casing: 4, core: 3, lens: 2 },
+  { moduleId: 'barrier-projector', casing: 5, core: 3, lens: 2 },
+  { moduleId: 'drone-bay', casing: 4, core: 3, lens: 2 },
+  { moduleId: 'rail-driver', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'ion-burst', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'ablative-mesh', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'grav-tether', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'nano-lathe', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'salvage-rig', casing: 5, core: 4, lens: 3 },
 ]
 
 export function getBlueprint(moduleId: string): BlueprintRecipe | undefined {

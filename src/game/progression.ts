@@ -710,7 +710,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-part-drop',
     title: 'Blueprint fragments',
-    body: 'Enemies rarely drop module parts. Collect casings, cores, and lenses — then assemble them in the Fab Bay.',
+    body: 'With the Foundry online, enemies rarely drop module parts. Collect casings, cores, and lenses — then assemble them in the Fab Bay.',
     target: 'combat-tab',
     availableWhen: (s) =>
       (s.meta.discoveredModules?.length ?? 0) > 0 && !guideSeen(s, 'guide-part-drop'),
