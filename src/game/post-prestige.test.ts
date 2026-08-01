@@ -7,6 +7,7 @@ import {
   prestigeGainFor,
   upgradeModule,
 } from './actions'
+import { moduleUpgradeCost } from './catalog'
 
 describe('post-prestige re-push balance', () => {
   it('grants 6 PM on first sector-10 prestige', () => {
@@ -55,9 +56,10 @@ describe('post-prestige re-push balance', () => {
     expect(state.research.unlocked).toContain('basic-optics')
 
     const before = computeShipStats(state).damage
+    const upgradeCost = moduleUpgradeCost(0)
     state = upgradeModule(state, 'pulse-cannon')
     expect(state.shipyard.moduleLevels['pulse-cannon']).toBe(1)
     expect(computeShipStats(state).damage).toBeGreaterThan(before)
-    expect(state.resources.salvage).toBe(3) // 9 return - 6 upgrade
+    expect(state.resources.salvage).toBe(9 - upgradeCost)
   })
 })

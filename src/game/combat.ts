@@ -222,7 +222,7 @@ export function enemyForSector(sector: number, wave = 1): SectorEncounter {
     // AI Points come from achievements later — never from combat drops.
     aiReward: 0,
     essenceReward: bossWave ? 1 + Math.floor(sector / 10) : 0,
-    salvageReward: bossSector ? 8 + sector : 3 + Math.floor(sector * 0.8),
+    salvageReward: bossSector ? 12 + sector * 2 : 6 + sector,
     blurb: familyBlurb(family, bossWave),
     units,
   }
@@ -1788,7 +1788,7 @@ export function estimateHoldClearRewards(state: GameState): {
   for (let w = 1; w < WAVES_PER_SECTOR; w += 1) {
     const drip = 1 + Math.floor(sector / 4)
     scrap += drip
-    salvage += Math.max(1, Math.floor(drip / 2))
+    salvage += 1 + Math.floor(sector / 3)
   }
 
   return { scrap, data, salvage }

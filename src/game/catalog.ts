@@ -1433,9 +1433,12 @@ export function moduleLevel(
   return Math.max(0, levels?.[moduleId] ?? 0)
 }
 
-/** Salvage cost to raise a module from `level` → level+1. */
+/**
+ * Salvage cost to raise a module from `level` → level+1.
+ * Early ranks stay cheap so S1–4 can push on combat salvage; later ranks steepen.
+ */
 export function moduleUpgradeCost(level: number): number {
-  return Math.ceil(6 * 1.55 ** Math.max(0, level))
+  return Math.ceil(4 * 1.5 ** Math.max(0, level))
 }
 
 /** Multiplier on module combat stats from run upgrades. */

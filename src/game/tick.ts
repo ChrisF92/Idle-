@@ -404,13 +404,14 @@ function onFightWon(state: GameState): void {
 
   if (clearedWave < WAVES_PER_SECTOR) {
     state.combat.wave = clearedWave + 1
-    // Small mid-sector scrap drip so long wave chains aren't pure dead air.
+    // Mid-sector scrap + salvage so long wave chains fund early module ranks.
     const drip = 1 + Math.floor(clearedSector / 4)
+    const salvageDrip = 1 + Math.floor(clearedSector / 3)
     state.resources.scrap += drip
-    state.resources.salvage += Math.max(1, Math.floor(drip / 2))
+    state.resources.salvage += salvageDrip
     pushLog(
       state,
-      `Wave ${clearedWave}/${WAVES_PER_SECTOR} down in sector ${clearedSector}. +${drip} scrap. Next: W${state.combat.wave}.`,
+      `Wave ${clearedWave}/${WAVES_PER_SECTOR} down in sector ${clearedSector}. +${drip} scrap, +${salvageDrip} salvage. Next: W${state.combat.wave}.`,
     )
     return
   }
