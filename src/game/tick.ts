@@ -10,6 +10,7 @@ import {
   WORKER_MANUFACTURE_SECONDS,
   advanceFabProject,
   aiDoctrinesActive,
+  aiDroneEfficiencyMult,
   aiFabBonus,
   aiProductionBonus,
   combatSpeedMultiplier,
@@ -20,6 +21,7 @@ import {
   matterShopDataPerClear,
   matterShopScrapBonus,
   metaProductionMultiplier,
+  prestigeMomentumProductionBonus,
   researchEssenceMultiplier,
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
@@ -100,9 +102,15 @@ function productionMeta(state: GameState): number {
       state.prestige.matterShop,
       state.prestige.challengeClears,
     ) *
+    (1 +
+      prestigeMomentumProductionBonus(
+        state.prestige.prestigeCount,
+        state.meta.ascensionCount ?? 0,
+      )) *
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
     (1 + aiProductionBonus(state)) *
+    aiDroneEfficiencyMult(state) *
     (1 + computeSignalCoreBonuses(state).production)
   )
 }

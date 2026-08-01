@@ -60,6 +60,11 @@ export interface AiNodeDef {
   trainingBonus?: number
   /** Additive station production bonus (0.4 = +40%). Non-combat. */
   productionBonus?: number
+  /**
+   * Multiplier on effective drones for station output (1.35 = each drone
+   * produces like 1.35). Reduces how many drones you need to babysit.
+   */
+  droneEfficiencyMult?: number
   /** Additive Fabrication Bay craft speed (0.5 = +50%). Non-combat. */
   fabBonus?: number
   /**
@@ -177,6 +182,17 @@ export interface ChallengeDef {
   requiresPrestiges?: number
   /** Career highest sector ever required. */
   requiresSectorEver?: number
+  /**
+   * Career ascensions required to unlock (AND with other non-OR gates when set
+   * alone; combined with OR group when other OR gates exist — see isChallengeUnlocked).
+   */
+  requiresAscensions?: number
+  /**
+   * How the challenge is entered. Ascension-entry challenges are only startable
+   * when Ascension is available (sector 30+) and consume an Ascension rather than
+   * a Prestige (ITRTG double-rebirth style).
+   */
+  entryCost?: 'prestige' | 'ascension'
 }
 
 export interface ModuleWeaponDef {
@@ -383,7 +399,8 @@ export const RESEARCH: ResearchDef[] = [
   {
     id: 'tactical-codex',
     name: 'Tactical Codex',
-    description: 'Unlocks the Codex: enemy family intel and soft counters.',
+    description:
+      'Unlocks the Codex permanently: enemy family intel and soft counters (survives prestige / ascension).',
     costData: 30,
   },
   {
@@ -442,11 +459,44 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'auto-assign-workers',
     name: 'Labor Router',
-    description: 'Unlocks Auto-Balance: evenly assign idle workers across unlocked stations.',
-    costAiPoints: 3,
+    description:
+      'Industry presets (Balanced / Scrap / Data / Foundry-Safe), Fill, Clear, and +5 assign buttons.',
+    costAiPoints: 2,
     kind: 'qol',
     permanent: true,
+    requiresSectorEver: 6,
+  },
+  {
+    id: 'labor-loop',
+    name: 'Labor Loop',
+    description:
+      'Continuously re-applies your Labor Router profile when drones finish manufacturing or sit idle.',
+    costAiPoints: 4,
+    kind: 'automation',
+    permanent: true,
     requiresSectorEver: 10,
+    requiresAiNode: 'auto-assign-workers',
+  },
+  {
+    id: 'drone-efficiency-1',
+    name: 'Swarm Optics',
+    description: 'Each assigned drone produces +35% station output (fewer drones needed).',
+    costAiPoints: 4,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 12,
+    droneEfficiencyMult: 1.35,
+  },
+  {
+    id: 'drone-efficiency-2',
+    name: 'Hive Lattice',
+    description: 'Each assigned drone produces +65% station output. Requires Swarm Optics.',
+    costAiPoints: 8,
+    kind: 'automation',
+    permanent: true,
+    requiresSectorEver: 18,
+    requiresAiNode: 'drone-efficiency-1',
+    droneEfficiencyMult: 1.65,
   },
   {
     id: 'fabricator-overclock',
@@ -947,27 +997,42 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'long-haul',
     name: 'Long Haul',
-    description: 'Reach sector 30. A longer push for production stack bonuses.',
-    restriction: 'None — endurance goal',
+    description:
+      'Ascension challenge: reach sector 30. Entering costs an Ascension (not a Prestige).',
+    restriction: 'None — endurance goal · starts via Ascension',
     goalSector: 30,
     rewardChallengePoints: 3,
     maxClears: 8,
-    stackProductionBonus: 0.01,
-    requiresSectorEver: 25,
-    requiresPrestiges: 3,
+    stackProductionBonus: 0.012,
+    requiresAscensions: 0,
+    entryCost: 'ascension',
   },
   {
     id: 'null-signal',
     name: 'Null Signal',
     description:
-      'Reach sector 30 with no Signal Cores equipped. First clear stabilizes the Signal bank across prestige.',
-    restriction: 'Signal Cores unequipped and cannot be equipped',
+      'Ascension challenge: reach sector 30 with no Signal Cores. First clear stabilizes the Signal bank.',
+    restriction: 'Signal Cores unequipped and cannot be equipped · starts via Ascension',
     goalSector: 30,
     rewardChallengePoints: 4,
     maxClears: 5,
-    stackProductionBonus: 0.01,
-    requiresSectorEver: 25,
-    requiresPrestiges: 3,
+    stackProductionBonus: 0.012,
+    requiresAscensions: 0,
+    entryCost: 'ascension',
+  },
+  {
+    id: 'hollow-choir',
+    name: 'Hollow Choir',
+    description:
+      'Ascension challenge: reach sector 30 with AI assists disabled and half hull. Requires 1 prior Ascension.',
+    restriction: 'AI inactive · hull ×0.5 · starts via Ascension',
+    goalSector: 30,
+    rewardChallengePoints: 5,
+    maxClears: 6,
+    stackDamageBonus: 0.008,
+    stackRepairBonus: 0.02,
+    requiresAscensions: 1,
+    entryCost: 'ascension',
   },
 ]
 
@@ -2186,7 +2251,7 @@ export function metaDamageMultiplier(
   challengeClears: Record<string, number> = {},
 ): number {
   // Unspent PM/CP still help a little; spending unlocks stronger shop effects.
-  let mult = 1 + prestigeMatter * 0.005 + challengePoints * 0.01
+  let mult = 1 + prestigeMatter * 0.006 + challengePoints * 0.01
   for (const [id, rank] of Object.entries(shop)) {
     const def = getChallengeShopItem(id)
     if (def?.damageBonus) mult += def.damageBonus * matterShopEffectScale(rank)
@@ -2204,13 +2269,35 @@ export function metaProductionMultiplier(
   matterShop: Record<string, number> = {},
   challengeClears: Record<string, number> = {},
 ): number {
-  let mult = 1 + prestigeMatter * 0.005
+  let mult = 1 + prestigeMatter * 0.006
   for (const [id, rank] of Object.entries(matterShop)) {
     const def = getMatterShopItem(id)
     if (def?.productionBonus) mult += def.productionBonus * matterShopEffectScale(rank)
   }
   mult += challengeStackProductionBonus(challengeClears)
   return mult
+}
+
+/**
+ * Soft USI-style run acceleration from career prestiges / ascensions.
+ * Caps keep late-game from exploding; shops remain the main sink.
+ */
+export function prestigeMomentumDamageBonus(
+  prestigeCount: number,
+  ascensionCount: number,
+): number {
+  const fromPrestige = Math.min(0.4, Math.max(0, prestigeCount) * 0.025)
+  const fromAscension = Math.min(0.5, Math.max(0, ascensionCount) * 0.08)
+  return fromPrestige + fromAscension
+}
+
+export function prestigeMomentumProductionBonus(
+  prestigeCount: number,
+  ascensionCount: number,
+): number {
+  const fromPrestige = Math.min(0.35, Math.max(0, prestigeCount) * 0.02)
+  const fromAscension = Math.min(0.4, Math.max(0, ascensionCount) * 0.06)
+  return fromPrestige + fromAscension
 }
 
 export function matterShopHullBonus(matterShop: Record<string, number>): number {
@@ -2399,7 +2486,23 @@ export function challengeShopEffectBlurb(def: ChallengeShopDef, rank: number): s
   return bits.join(' · ') || 'Owned'
 }
 
-/** AI combat doctrines are disabled during Silent Bridge. */
+/** Silent Bridge / Hollow Choir — AI purchases and doctrines inactive. */
+export function challengeBlocksAi(state: {
+  prestige: { activeChallengeId: string | null }
+}): boolean {
+  const id = state.prestige.activeChallengeId
+  return id === 'no-ai' || id === 'hollow-choir'
+}
+
+/** Glass Frame / Hollow Choir — player hull max ×0.5. */
+export function challengeThinHull(state: {
+  prestige: { activeChallengeId: string | null }
+}): boolean {
+  const id = state.prestige.activeChallengeId
+  return id === 'thin-hull' || id === 'hollow-choir'
+}
+
+/** AI combat doctrines are disabled during Silent Bridge / Hollow Choir. */
 export function aiDoctrinesActive(
   state: {
     prestige: { activeChallengeId: string | null }
@@ -2407,7 +2510,7 @@ export function aiDoctrinesActive(
   },
   nodeId: string,
 ): boolean {
-  if (state.prestige.activeChallengeId === 'no-ai') return false
+  if (challengeBlocksAi(state)) return false
   return state.ai.purchased.includes(nodeId)
 }
 
@@ -2416,7 +2519,7 @@ export function combatSpeedMultiplier(state: {
   prestige: { activeChallengeId: string | null }
   ai: { purchased: string[] }
 }): number {
-  if (state.prestige.activeChallengeId === 'no-ai') return 1
+  if (challengeBlocksAi(state)) return 1
   let best = 1
   for (const id of state.ai.purchased) {
     const m = getAiNode(id)?.combatSpeedMult
@@ -2430,7 +2533,7 @@ export function aiProductionBonus(state: {
   prestige: { activeChallengeId: string | null }
   ai: { purchased: string[] }
 }): number {
-  if (state.prestige.activeChallengeId === 'no-ai') return 0
+  if (challengeBlocksAi(state)) return 0
   let bonus = 0
   for (const id of state.ai.purchased) {
     bonus += getAiNode(id)?.productionBonus ?? 0
@@ -2443,7 +2546,7 @@ export function aiFabBonus(state: {
   prestige: { activeChallengeId: string | null }
   ai: { purchased: string[] }
 }): number {
-  if (state.prestige.activeChallengeId === 'no-ai') return 0
+  if (challengeBlocksAi(state)) return 0
   let bonus = 0
   for (const id of state.ai.purchased) {
     bonus += getAiNode(id)?.fabBonus ?? 0
@@ -2516,13 +2619,26 @@ export function challengeStackRepairBonus(clears: Record<string, number> = {}): 
 export function isChallengeUnlocked(
   state: {
     prestige: { challengeClears: Record<string, number>; prestigeCount: number }
-    meta?: { highestSectorEver?: number }
+    meta?: { highestSectorEver?: number; act1Cleared?: boolean; ascensionCount?: number }
     combat?: { highestSector?: number }
   },
   challengeId: string,
 ): boolean {
   const def = getChallenge(challengeId)
   if (!def) return false
+
+  // Ascension-entry challenges only appear once Act 1 is cleared (ascension available).
+  if (def.entryCost === 'ascension') {
+    const act1 =
+      state.meta?.act1Cleared === true ||
+      Math.max(state.meta?.highestSectorEver ?? 0, state.combat?.highestSector ?? 0) >= 30
+    if (!act1) return false
+    if ((state.meta?.ascensionCount ?? 0) < (def.requiresAscensions ?? 0)) {
+      return false
+    }
+    return true
+  }
+
   const gates: boolean[] = []
   if (def.requiresPrestiges != null) {
     gates.push(state.prestige.prestigeCount >= def.requiresPrestiges)
@@ -2541,7 +2657,24 @@ export function isChallengeUnlocked(
     )
     gates.push(ever >= def.requiresSectorEver)
   }
-  // No gates → unlocked; multiple gates are OR (e.g. Mono Pulse / Long Haul).
+  if (def.requiresAscensions != null) {
+    gates.push((state.meta?.ascensionCount ?? 0) >= def.requiresAscensions)
+  }
+  // No gates → unlocked; multiple gates are OR (e.g. Mono Pulse).
   if (gates.length === 0) return true
   return gates.some(Boolean)
+}
+
+/** Combined drone efficiency mult from AI (highest owned wins). */
+export function aiDroneEfficiencyMult(state: {
+  prestige: { activeChallengeId: string | null }
+  ai: { purchased: string[] }
+}): number {
+  if (challengeBlocksAi(state)) return 1
+  let best = 1
+  for (const id of state.ai.purchased) {
+    const m = getAiNode(id)?.droneEfficiencyMult
+    if (m != null && m > best) best = m
+  }
+  return best
 }

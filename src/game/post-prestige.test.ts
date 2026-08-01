@@ -20,9 +20,10 @@ describe('post-prestige re-push balance', () => {
     state.combat.sector = 8
     state = performPrestige(state, 1000)
     expect(state.prestige.prestigeCount).toBe(1)
-    expect(state.resources.scrap).toBe(35) // 25 starter + 10 return
-    expect(state.resources.data).toBe(5)
-    expect(state.resources.salvage).toBe(6)
+    // 25 starter + 10 base return + 6×prestigeCount
+    expect(state.resources.scrap).toBe(41)
+    expect(state.resources.data).toBe(9) // 5 + 4×1
+    expect(state.resources.salvage).toBe(9) // 6 + 3×1
   })
 
   it('refunds doctrine AI Points on prestige', () => {
@@ -47,8 +48,8 @@ describe('post-prestige re-push balance', () => {
     state.combat.sector = 8
     state = performPrestige(state, 2000)
 
-    // Optics costs 20 Data; return kit only grants 5 — need a short data farm.
-    expect(state.resources.data).toBe(5)
+    // Optics costs 20 Data; return kit grants a head start but still needs a short farm.
+    expect(state.resources.data).toBe(9)
     state.resources.data = 20
     state = buyResearch(state, 'basic-optics')
     expect(state.research.unlocked).toContain('basic-optics')
@@ -57,6 +58,6 @@ describe('post-prestige re-push balance', () => {
     state = upgradeModule(state, 'pulse-cannon')
     expect(state.shipyard.moduleLevels['pulse-cannon']).toBe(1)
     expect(computeShipStats(state).damage).toBeGreaterThan(before)
-    expect(state.resources.salvage).toBe(0) // 6 return - 6 upgrade
+    expect(state.resources.salvage).toBe(3) // 9 return - 6 upgrade
   })
 })

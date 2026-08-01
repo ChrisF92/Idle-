@@ -13,6 +13,7 @@ import {
   moduleLevel,
   moduleLevelMultiplier,
   moduleMasteryRank,
+  prestigeMomentumDamageBonus,
   researchDamageMultiplier,
 } from './catalog'
 import {
@@ -28,7 +29,7 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 
-export const SAVE_VERSION = 18
+export const SAVE_VERSION = 19
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -123,6 +124,8 @@ export function createInitialState(now = Date.now()): GameState {
       ascensionCount: 0,
       seenOnboarding: [],
       aiUnlocked: false,
+      codexUnlocked: false,
+      laborProfile: 'balanced',
       completedAchievements: [],
       achievementCompletions: {},
       lifetimeSectorClears: 0,
@@ -142,6 +145,12 @@ export function createInitialState(now = Date.now()): GameState {
 export function globalDamageMultiplier(state: GameState): number {
   let mult = researchDamageMultiplier(state.research.unlocked)
   mult *= essenceDamageMultiplier(state.essence.purchased)
+  mult *=
+    1 +
+    prestigeMomentumDamageBonus(
+      state.prestige.prestigeCount,
+      state.meta.ascensionCount ?? 0,
+    )
   mult *= metaDamageMultiplier(
     state.resources.prestigeMatter,
     state.resources.challengePoints,
@@ -234,7 +243,10 @@ export function computeShipStats(state: GameState): ShipCombatStats {
     escortCount += mod.escorts ?? 0
   }
 
-  if (state.prestige.activeChallengeId === 'thin-hull') {
+  if (
+    state.prestige.activeChallengeId === 'thin-hull' ||
+    state.prestige.activeChallengeId === 'hollow-choir'
+  ) {
     hullMax *= 0.5
   }
 

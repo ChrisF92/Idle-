@@ -7,10 +7,12 @@ import {
   STATIONS,
   aiDoctrinesActive,
   blueprintProgress,
+  challengeBlocksAi,
   idleWorkers,
   isStationUnlocked,
 } from './catalog'
 import {
+  autoBalanceWorkers,
   depositFabPart,
   launchFabProject,
   upgradeCheapestModule,
@@ -143,9 +145,23 @@ export function autoSalvageUpgrades(state: GameState): void {
   }
 }
 
+/** Re-apply Labor Router when drones sit idle (Labor Loop). */
+export function autoLaborLoop(state: GameState): void {
+  if (!aiDoctrinesActive(state, 'labor-loop')) return
+  if (!state.ai.purchased.includes('auto-assign-workers')) return
+  const idle = idleWorkers(state)
+  if (idle <= 0) return
+  // Only reshuffle when there is meaningful idle capacity (new drones / recall).
+  if (idle < Math.max(1, Math.floor(state.base.workerDrones * 0.15))) return
+  const next = autoBalanceWorkers(state)
+  if (next === state) return
+  adopt(state, next)
+}
+
 /** Run all owned automation passives once per sim batch. */
 export function tickAutomation(state: GameState): void {
-  if (state.prestige.activeChallengeId === 'no-ai') return
+  if (challengeBlocksAi(state)) return
+  autoLaborLoop(state)
   autoMergeSignalCores(state)
   autoFabBay(state)
   autoCoreTrain(state)

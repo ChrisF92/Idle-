@@ -86,23 +86,25 @@ describe('Signal Cores', () => {
     const locked = createInitialState(0)
     expect(isChallengeUnlocked(locked, 'null-signal')).toBe(false)
     locked.meta.highestSectorEver = 25
+    expect(isChallengeUnlocked(locked, 'null-signal')).toBe(false)
+    locked.meta.act1Cleared = true
     expect(isChallengeUnlocked(locked, 'null-signal')).toBe(true)
-    const viaPrestige = createInitialState(0)
-    viaPrestige.prestige.prestigeCount = 3
-    expect(isChallengeUnlocked(viaPrestige, 'null-signal')).toBe(true)
+    expect(getChallenge('null-signal')?.entryCost).toBe('ascension')
 
     let state = createInitialState(0)
     state.prestige.prestigeCount = 3
     state.meta.act1Cleared = true
-    state.combat.sector = 8
-    state.meta.highestSectorEver = 25
+    state.combat.sector = 30
+    state.meta.highestSectorEver = 30
     const core = makeSignalCoreInstance('kinetic-shard', 1)
     state.signalCores.inventory = [core]
     state.signalCores.equipped = { 'assault-0': core.uid }
     state.meta.signalCoresCarryOver = true
 
+    const beforeAscensions = state.meta.ascensionCount
     state = enterChallenge(state, 'null-signal', 3000)
     expect(state.prestige.activeChallengeId).toBe('null-signal')
+    expect(state.meta.ascensionCount).toBe(beforeAscensions + 1)
     expect(Object.keys(state.signalCores.equipped)).toHaveLength(0)
     expect(state.signalCores.inventory).toHaveLength(1)
     expect(canEquipSignalCore(state, core.uid, 'assault-0')).toBe(false)

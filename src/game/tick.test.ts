@@ -393,8 +393,8 @@ describe('salvage module upgrades', () => {
 
     state.combat.sector = 8
     state = performPrestige(state, 1000)
-    // Returning runs start with a small salvage kit for early module levels.
-    expect(state.resources.salvage).toBe(6)
+    // Returning runs start with a salvage kit for early module levels.
+    expect(state.resources.salvage).toBe(9)
     expect(moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')).toBe(0)
     expect(state.shipyard.modules).toContain('pulse-cannon')
   })

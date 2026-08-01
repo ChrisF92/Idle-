@@ -1,4 +1,4 @@
-import type { GameState, PartType, Resources } from './types'
+import type { GameState, LaborProfile, PartType, Resources } from './types'
 import {
   AI_NODES,
   MASTERY_PARTS_COST,
@@ -42,6 +42,7 @@ import {
   partSellScrap,
   prestigeMinSectorFor,
   shopRank,
+  stationUpkeepScrapPerDrone,
   trimModulesToFrame,
   type ResourceCost,
 } from './catalog'
@@ -55,6 +56,7 @@ import { buildPlayerFleet } from './combat'
 import {
   ACT1_FINAL_SECTOR,
   careerHighestSector,
+  retirePostResetOnboarding,
   tryCompleteAchievements,
 } from './progression'
 import {
@@ -114,28 +116,184 @@ export function assignWorker(
   return next
 }
 
-/** Evenly spread all workers across unlocked stations (Labor Router). */
-export function autoBalanceWorkers(state: GameState): GameState {
-  if (!state.ai.purchased.includes('auto-assign-workers')) return state
-  if (state.prestige.activeChallengeId === 'no-ai') return state
-  const stations = STATIONS.filter(
+/** Industry stations Labor Router can assign (excludes Core training). */
+function laborStations(state: GameState) {
+  return STATIONS.filter(
     (s) => s.kind !== 'training' && isStationUnlocked(state, s.id),
   )
-  if (stations.length === 0 || state.base.workerDrones <= 0) return state
+}
 
+function setLaborAssignments(
+  state: GameState,
+  assignments: Record<string, number>,
+): GameState {
   const next = structuredClone(state)
+  next.base.assignments = assignments
+  return next
+}
+
+/** Evenly spread all workers across unlocked industry stations. */
+function assignBalanced(state: GameState): Record<string, number> {
+  const stations = laborStations(state)
   const assignments: Record<string, number> = {}
+  if (stations.length === 0 || state.base.workerDrones <= 0) return assignments
   const n = stations.length
-  const base = Math.floor(next.base.workerDrones / n)
-  let rem = next.base.workerDrones % n
+  const base = Math.floor(state.base.workerDrones / n)
+  let rem = state.base.workerDrones % n
   for (const station of stations) {
     const extra = rem > 0 ? 1 : 0
     if (rem > 0) rem -= 1
     const count = base + extra
     if (count > 0) assignments[station.id] = count
   }
-  next.base.assignments = assignments
+  return assignments
+}
+
+/**
+ * Weighted industry profiles (USI-style presets).
+ * Weights are relative shares of the worker pool.
+ */
+function assignByProfile(
+  state: GameState,
+  profile: LaborProfile,
+): Record<string, number> {
+  if (profile === 'balanced') return assignBalanced(state)
+
+  const stations = laborStations(state)
+  const assignments: Record<string, number> = {}
+  if (stations.length === 0 || state.base.workerDrones <= 0) return assignments
+
+  const weightFor = (id: string): number => {
+    if (profile === 'scrap') {
+      if (id === 'scrap-field') return 5
+      if (id === 'power-grid') return 2
+      if (id === 'sensor-net') return 2
+      if (id === 'drone-fab') return 2
+      if (id === 'alloy-foundry') return 1
+      if (id === 'repair-bay') return 1
+      if (id === 'fab-bay') return 1
+      return 1
+    }
+    if (profile === 'data') {
+      if (id === 'sensor-net') return 5
+      if (id === 'scrap-field') return 3
+      if (id === 'power-grid') return 2
+      if (id === 'drone-fab') return 2
+      if (id === 'alloy-foundry') return 1
+      if (id === 'fab-bay') return 1
+      return 1
+    }
+    // foundry-safe: keep scrap drones covering alloy upkeep, then balance.
+    if (id === 'scrap-field') return 4
+    if (id === 'alloy-foundry') return 2
+    if (id === 'power-grid') return 2
+    if (id === 'sensor-net') return 2
+    if (id === 'drone-fab') return 2
+    if (id === 'fab-bay') return 1
+    if (id === 'repair-bay') return 1
+    return 1
+  }
+
+  const weights = stations.map((s) => ({ id: s.id, w: weightFor(s.id) }))
+  const totalW = weights.reduce((sum, x) => sum + x.w, 0)
+  let remaining = state.base.workerDrones
+
+  // First pass: floor shares.
+  const floors: { id: string; n: number; frac: number }[] = []
+  for (const { id, w } of weights) {
+    const exact = (state.base.workerDrones * w) / totalW
+    const n = Math.floor(exact)
+    floors.push({ id, n, frac: exact - n })
+    remaining -= n
+  }
+  floors.sort((a, b) => b.frac - a.frac)
+  for (const row of floors) {
+    if (remaining <= 0) break
+    row.n += 1
+    remaining -= 1
+  }
+
+  for (const row of floors) {
+    if (row.n > 0) assignments[row.id] = row.n
+  }
+
+  // Foundry-safe: pull from foundry into scrap until scrap income ≥ upkeep.
+  if (profile === 'foundry-safe') {
+    const scrapRate = getStation('scrap-field')?.rates.scrap ?? 0.45
+    let scrapDrones = assignments['scrap-field'] ?? 0
+    let foundryDrones = assignments['alloy-foundry'] ?? 0
+    const foundryDef = getStation('alloy-foundry')
+    const upkeepPer = foundryDef
+      ? stationUpkeepScrapPerDrone(state, foundryDef)
+      : 0.18
+    while (
+      foundryDrones > 0 &&
+      scrapDrones * scrapRate + 1e-9 < foundryDrones * upkeepPer
+    ) {
+      foundryDrones -= 1
+      scrapDrones += 1
+    }
+    if (scrapDrones > 0) assignments['scrap-field'] = scrapDrones
+    else delete assignments['scrap-field']
+    if (foundryDrones > 0) assignments['alloy-foundry'] = foundryDrones
+    else delete assignments['alloy-foundry']
+  }
+
+  return assignments
+}
+
+/** Apply Labor Router with the saved (or provided) profile. */
+export function autoBalanceWorkers(
+  state: GameState,
+  profile?: LaborProfile,
+): GameState {
+  if (!state.ai.purchased.includes('auto-assign-workers')) return state
+  if (state.prestige.activeChallengeId === 'no-ai') return state
+  const stations = laborStations(state)
+  if (stations.length === 0 || state.base.workerDrones <= 0) return state
+
+  const chosen = profile ?? state.meta.laborProfile ?? 'balanced'
+  const next = setLaborAssignments(state, assignByProfile(state, chosen))
+  next.meta.laborProfile = chosen
   return next
+}
+
+export function setLaborProfile(state: GameState, profile: LaborProfile): GameState {
+  if (!state.ai.purchased.includes('auto-assign-workers')) return state
+  const next = structuredClone(state)
+  next.meta.laborProfile = profile
+  return next
+}
+
+/** Recall all industry (+ optional training) workers to the idle pool. */
+export function clearWorkerAssignments(
+  state: GameState,
+  opts?: { includeTraining?: boolean },
+): GameState {
+  if (!state.ai.purchased.includes('auto-assign-workers')) return state
+  if (state.prestige.activeChallengeId === 'no-ai') return state
+  const next = structuredClone(state)
+  if (opts?.includeTraining) {
+    next.base.assignments = {}
+    return next
+  }
+  const kept: Record<string, number> = {}
+  for (const [id, n] of Object.entries(next.base.assignments)) {
+    const station = getStation(id)
+    if (station?.kind === 'training' && n > 0) kept[id] = n
+  }
+  next.base.assignments = kept
+  return next
+}
+
+/** Dump all idle workers onto one station (Labor Router). */
+export function fillStationWorkers(state: GameState, stationId: string): GameState {
+  if (!state.ai.purchased.includes('auto-assign-workers')) return state
+  if (state.prestige.activeChallengeId === 'no-ai') return state
+  if (!isStationUnlocked(state, stationId)) return state
+  const idle = idleWorkers(state)
+  if (idle <= 0) return state
+  return assignWorker(state, stationId, idle)
 }
 
 export function unequipAllModules(state: GameState): GameState {
@@ -180,6 +338,9 @@ export function buyResearch(state: GameState, researchId: string): GameState {
   next.resources.data -= def.costData
   next.resources.essence -= def.costEssence ?? 0
   next.research.unlocked = [...next.research.unlocked, researchId]
+  if (researchId === 'tactical-codex') {
+    next.meta.codexUnlocked = true
+  }
   tryCompleteAchievements(next)
   return next
 }
@@ -189,7 +350,12 @@ export function buyAiNode(state: GameState, nodeId: string): GameState {
   if (!def) return state
   if (state.ai.purchased.includes(nodeId)) return state
   if (state.resources.aiPoints < def.costAiPoints) return state
-  if (state.prestige.activeChallengeId === 'no-ai') return state
+  if (
+    state.prestige.activeChallengeId === 'no-ai' ||
+    state.prestige.activeChallengeId === 'hollow-choir'
+  ) {
+    return state
+  }
   if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
   if (def.requiresAiNode && !state.ai.purchased.includes(def.requiresAiNode)) {
     return state
@@ -502,7 +668,8 @@ export function prestigeGainFor(state: GameState): number {
     Math.floor(state.combat.sector / 2) + state.prestige.prestigeCount + 1,
   )
   const ascensions = state.meta.ascensionCount ?? 0
-  return Math.max(1, Math.floor(base * (1 + 0.35 * ascensions)))
+  // Ascension is the long-term PM accelerator (USI-style snowball).
+  return Math.max(1, Math.floor(base * (1 + 0.4 * ascensions)))
 }
 
 export function canPrestige(state: GameState): boolean {
@@ -527,6 +694,10 @@ export function canEnterChallenge(state: GameState, challengeId: string): boolea
   if (!isChallengeUnlocked(state, challengeId)) return false
   const clears = challengeClearCount(state.prestige.challengeClears, challengeId)
   if (clears >= effectiveMaxClears(challenge, state.prestige.shop)) return false
+  // Ascension-entry challenges (ITRTG double-rebirth style) start from S30+.
+  if (challenge.entryCost === 'ascension') {
+    return canAscend(state)
+  }
   return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
 }
 
@@ -647,6 +818,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     meta: {
       ...state.meta,
       ascensionCount: state.meta.ascensionCount ?? 0,
+      codexUnlocked: state.meta.codexUnlocked === true,
+      laborProfile: state.meta.laborProfile ?? 'balanced',
       achievementCompletions: { ...(state.meta.achievementCompletions ?? {}) },
       lifetimeSectorClears: state.meta.lifetimeSectorClears ?? 0,
       lifetimeFabCrafts: state.meta.lifetimeFabCrafts ?? 0,
@@ -655,6 +828,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       discoveredModules: [...(state.meta.discoveredModules ?? [])],
       moduleMastery: { ...(state.meta.moduleMastery ?? {}) },
       signalCoresCarryOver: state.meta.signalCoresCarryOver ?? false,
+      seenOnboarding: [...(state.meta.seenOnboarding ?? [])],
     },
     parts: { ...(state.parts ?? {}) },
     signalCores:
@@ -670,11 +844,16 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const bonusScrap = challengeShopStartingScrap(kept.shop)
   const bonusAi = challengeShopStartingAi(kept.shop)
   const bonusSalvage = challengeShopStartingSalvage(kept.shop)
-  /** Soften first re-pushes after 5-wave Act 1 pacing. */
-  const returning = kept.prestigeCount > 0
-  const returnScrap = returning ? 10 : 0
-  const returnData = returning ? 5 : 0
-  const returnSalvage = returning ? 6 : 0
+  /**
+   * USI-style acceleration: returning kits grow with prestige count so each
+   * re-push starts faster (research / salvage / industry kick sooner).
+   */
+  const returning = kept.prestigeCount > 0 || (kept.meta.ascensionCount ?? 0) > 0
+  const pc = kept.prestigeCount
+  const ac = kept.meta.ascensionCount ?? 0
+  const returnScrap = returning ? 10 + Math.min(50, pc * 6 + ac * 8) : 0
+  const returnData = returning ? 5 + Math.min(35, pc * 4 + ac * 5) : 0
+  const returnSalvage = returning ? 6 + Math.min(30, pc * 3 + ac * 4) : 0
 
   state.version = fresh.version
   state.lastTickAt = now
@@ -710,7 +889,10 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     manufactureProgress: kept.manufactureProgress,
     fabProject: null,
   }
-  state.research = fresh.research
+  // Codex unlock is permanent — restore research access without re-buying.
+  state.research = {
+    unlocked: kept.meta.codexUnlocked ? ['tactical-codex'] : [],
+  }
   state.ai = { purchased: kept.permanentAi }
   state.essence = { purchased: kept.essencePurchased }
   state.prestige = {
@@ -725,6 +907,19 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.core = fresh.core
   state.signalCores = kept.signalCores
   state.parts = kept.parts
+
+  retirePostResetOnboarding(state)
+
+  // Re-apply Labor Loop immediately so returning runs aren't stuck idle.
+  if (
+    kept.permanentAi.includes('labor-loop') &&
+    kept.permanentAi.includes('auto-assign-workers') &&
+    state.prestige.activeChallengeId !== 'no-ai'
+  ) {
+    const assigned = autoBalanceWorkers(state)
+    state.base.assignments = assigned.base.assignments
+    state.meta.laborProfile = assigned.meta.laborProfile
+  }
 
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
@@ -760,7 +955,7 @@ export function performAscension(state: GameState, now = Date.now()): GameState 
   tryCompleteAchievements(next)
   next.combat.log = [
     `Ascended (×${next.meta.ascensionCount}). +${gain} PM. Future prestige gains +${(
-      0.35 *
+      0.4 *
       next.meta.ascensionCount *
       100
     ).toFixed(0)}%.`,
@@ -779,17 +974,29 @@ export function enterChallenge(
   if (!challenge) return state
 
   const next = structuredClone(state)
-  const gain = prestigeGainFor(next)
-  next.resources.prestigeMatter += gain
-  next.prestige.prestigeCount += 1
+  const ascendEntry = challenge.entryCost === 'ascension'
+  let gain: number
+  if (ascendEntry) {
+    // ITRTG-style: starting the challenge IS the ascension.
+    gain = Math.max(1, Math.floor(prestigeGainFor(next) * 0.5))
+    next.resources.prestigeMatter += gain
+    next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
+  } else {
+    gain = prestigeGainFor(next)
+    next.resources.prestigeMatter += gain
+    next.prestige.prestigeCount += 1
+  }
   next.prestige.activeChallengeId = challengeId
   applyRunReset(next, now)
   if (challengeId === 'null-signal') {
     unequipAllSignalCores(next)
   }
   tryCompleteAchievements(next)
+  const entryLabel = ascendEntry
+    ? `Ascension ×${next.meta.ascensionCount}`
+    : 'Prestige'
   next.combat.log = [
-    `Entered challenge: ${challenge.name} (+${gain} Prestige Matter). Goal: sector ${challenge.goalSector}.`,
+    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Prestige Matter). Goal: sector ${challenge.goalSector}.`,
     ...next.combat.log,
   ]
   return next

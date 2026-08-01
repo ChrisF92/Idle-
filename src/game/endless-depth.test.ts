@@ -173,7 +173,7 @@ describe('save migrate v18', () => {
     const code = btoa(unescape(encodeURIComponent(JSON.stringify(raw))))
     const migrated = importSave(code)
     expect(migrated).not.toBeNull()
-    expect(migrated!.version).toBe(18)
+    expect(migrated!.version).toBe(19)
     expect(migrated!.meta.ascensionCount).toBe(0)
     expect(migrated!.meta.achievementCompletions['first-blood']).toBe(1)
     expect(importSave(exportSave(migrated!))!.meta.lifetimeSectorClears).toBe(0)

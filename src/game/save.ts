@@ -222,12 +222,23 @@ function withMetaDefaults(
   for (const id of completed) {
     if (completions[id] == null) completions[id] = 1
   }
+  const laborRaw = meta?.laborProfile
+  const laborProfile =
+    laborRaw === 'scrap' ||
+    laborRaw === 'data' ||
+    laborRaw === 'foundry-safe' ||
+    laborRaw === 'balanced'
+      ? laborRaw
+      : 'balanced'
+
   return {
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
     act1Cleared: meta?.act1Cleared ?? false,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
     aiUnlocked: meta?.aiUnlocked ?? completed.length > 0,
+    codexUnlocked: meta?.codexUnlocked === true,
+    laborProfile,
     completedAchievements: completed,
     achievementCompletions: completions,
     lifetimeSectorClears: Math.max(0, Math.floor(Number(meta?.lifetimeSectorClears ?? 0))),
@@ -307,6 +318,18 @@ function withAiDefaults(ai: GameState['ai'] | undefined): GameState['ai'] {
   return { purchased: purchased.filter((id) => known.has(id)) }
 }
 
+function backfillCodexUnlocked(
+  meta: GameState['meta'],
+  research: GameState['research'] | undefined,
+  codex: GameState['codex'] | undefined,
+): GameState['meta'] {
+  if (meta.codexUnlocked) return meta
+  const researched = research?.unlocked?.includes('tactical-codex') ?? false
+  const hadIntel = (codex?.seenFamilies?.length ?? 0) > 0 && researched
+  if (!researched && !hadIntel) return meta
+  return { ...meta, codexUnlocked: true }
+}
+
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
   const parsed = raw as Partial<GameState> & {
@@ -318,6 +341,12 @@ function migrate(raw: unknown): GameState | null {
     const state = parsed as GameState
     const base = createInitialState()
     const combat = withCombatDefaults(state.combat)
+    const codex = withCodexDefaults(state.codex)
+    const meta = backfillCodexUnlocked(
+      withMetaDefaults(state.meta, combat.highestSector),
+      state.research,
+      codex,
+    )
     return {
       ...state,
       resources: withResourcesDefaults(state.resources, base.resources),
@@ -326,9 +355,9 @@ function migrate(raw: unknown): GameState | null {
       base: migrateBase(state.base, base.base),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
-      codex: withCodexDefaults(state.codex),
+      codex,
       ai: withAiDefaults(state.ai),
-      meta: withMetaDefaults(state.meta, combat.highestSector),
+      meta,
       core: withCoreDefaults(state.core),
       signalCores: withSignalCoresDefaults(state.signalCores),
       parts: withPartsDefaults(state.parts),
@@ -352,7 +381,8 @@ function migrate(raw: unknown): GameState | null {
     parsed.version === 14 ||
     parsed.version === 15 ||
     parsed.version === 16 ||
-    parsed.version === 17
+    parsed.version === 17 ||
+    parsed.version === 18
   ) {
     const base = createInitialState()
     const prev = parsed as GameState & {
@@ -365,7 +395,8 @@ function migrate(raw: unknown): GameState | null {
       parsed.version === 14 ||
       parsed.version === 15 ||
       parsed.version === 16 ||
-      parsed.version === 17
+      parsed.version === 17 ||
+      parsed.version === 18
         ? Math.max(0, prev.combat?.highestSector ?? 0)
         : Math.max(0, oldHighest - 1)
     const combat = withCombatDefaults({
@@ -384,6 +415,12 @@ function migrate(raw: unknown): GameState | null {
       const def = AI_NODES.find((n) => n.id === id)
       return def ? isAiNodePermanent(def) || def.kind === 'doctrine' : false
     })
+    const codex = withCodexDefaults(prev.codex)
+    const meta = backfillCodexUnlocked(
+      withMetaDefaults(prev.meta, clearedApprox),
+      prev.research,
+      codex,
+    )
     return {
       ...base,
       ...prev,
@@ -394,9 +431,9 @@ function migrate(raw: unknown): GameState | null {
       base: migrateBase(prev.base, base.base),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
-      codex: withCodexDefaults(prev.codex),
+      codex,
       ai,
-      meta: withMetaDefaults(prev.meta, clearedApprox),
+      meta,
       core: withCoreDefaults(prev.core),
       signalCores: withSignalCoresDefaults(prev.signalCores),
       parts: withPartsDefaults(prev.parts),
