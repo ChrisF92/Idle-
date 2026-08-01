@@ -14,7 +14,7 @@ describe('resource visibility gates', () => {
     const state = createInitialState(0)
     expect(isResourceVisible(state, 'data')).toBe(false)
     expect(visibleResourceIds(state)).not.toContain('data')
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 6
     expect(isSystemUnlocked(state, 'research')).toBe(true)
     expect(isResourceVisible(state, 'data')).toBe(true)
   })
@@ -23,7 +23,7 @@ describe('resource visibility gates', () => {
     const state = createInitialState(0)
     expect(isResourceVisible(state, 'energy')).toBe(false)
     expect(isResourceVisible(state, 'salvage')).toBe(false)
-    state.meta.highestSectorEver = 3
+    state.meta.highestSectorEver = 4
     expect(isResourceVisible(state, 'energy')).toBe(true)
     state.combat.highestSector = 1
     expect(isResourceVisible(state, 'salvage')).toBe(true)
@@ -31,7 +31,7 @@ describe('resource visibility gates', () => {
 
   it('hides PM/CP until earned', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 6
     expect(isResourceVisible(state, 'prestigeMatter')).toBe(false)
     expect(isResourceVisible(state, 'challengePoints')).toBe(false)
     state.resources.prestigeMatter = 1
@@ -70,7 +70,7 @@ describe('expanded onboarding catalog', () => {
 
   it('offers power-grid after scrap assign', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 3
+    state.meta.highestSectorEver = 4
     state.base.workerDrones = 2
     state.meta.seenOnboarding = [
       'guide-shipyard-tab',
@@ -85,7 +85,7 @@ describe('expanded onboarding catalog', () => {
   it('keeps challenges UI closed until Act 1 (sector 30) is cleared', () => {
     const state = createInitialState(0)
     state.prestige.prestigeCount = 3
-    state.combat.sector = 8
+    state.combat.sector = 10
     expect(challengesContentUnlocked(state)).toBe(false)
     state.meta.act1Cleared = true
     expect(challengesContentUnlocked(state)).toBe(true)

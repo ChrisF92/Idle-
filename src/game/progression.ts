@@ -3,13 +3,16 @@
 import type { GameState, Resources, TabId } from './types'
 
 /** Waves fought to clear one sector (Advance or Hold). */
-export const WAVES_PER_SECTOR = 5
+export const WAVES_PER_SECTOR = 7
 
-/** Soft campaign climax — first Act 1 clear beat. */
+/** Soft campaign climax — first Act 1 clear beat (ITRTG “first Baal” analogue). */
 export const ACT1_FINAL_SECTOR = 30
 
-/** Prestige becomes available around mid–Act 1 once waves slow the climb. */
-export const PRESTIGE_MIN_SECTOR = 8
+/**
+ * Prestige becomes available mid–Act 1.
+ * Maps nearer ITRTG’s first Hyperion soft-reset (~1h real), not first Baal.
+ */
+export const PRESTIGE_MIN_SECTOR = 10
 
 export type SystemId = Exclude<TabId, 'combat' | 'shipyard' | 'stats'>
 
@@ -31,26 +34,26 @@ export interface SystemUnlockDef {
 export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'base',
-    requiresSectorEver: 3,
+    requiresSectorEver: 4,
     label: 'Base',
     tip: 'Worker drones manufacture over time. Assign them to named stations for production.',
   },
   {
     id: 'research',
-    requiresSectorEver: 5,
+    requiresSectorEver: 6,
     label: 'Research',
-    tip: 'Spend Data on research. Alloy Smelting unlocks the Foundry station.',
+    tip: 'Spend Data on research (permanent). Alloy Smelting unlocks the Foundry station.',
   },
   {
     id: 'codex',
-    requiresSectorEver: 5,
+    requiresSectorEver: 6,
     requiresResearch: 'tactical-codex',
     label: 'Codex',
-    tip: 'Enemy families remember soft counters. Fit modules to match the sector.',
+    tip: 'Enemy families remember soft counters. Fit modules to match the sector. Unlock once — permanent.',
   },
   {
     id: 'core',
-    requiresSectorEver: 5,
+    requiresSectorEver: 8,
     requiresResearch: 'core-training',
     label: 'Core',
     tip: 'Assign workers to training stations to raise Core attributes. Ranks wipe on prestige.',
@@ -63,9 +66,9 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   },
   {
     id: 'prestige',
-    requiresSectorEver: 5,
+    requiresSectorEver: 8,
     label: 'Prestige',
-    tip: 'Soft-reset from sector 8+ for Prestige Matter. Challenges open after your first prestige.',
+    tip: 'Soft-reset from sector 10+ for Prestige Matter. Challenges open after Act 1 (sector 30).',
   },
 ]
 
@@ -110,9 +113,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'hangar-opened',
     name: 'Hangar Opened',
-    description: 'Clear sector 3 and unlock Base.',
+    description: 'Clear sector 4 and unlock Base.',
     rewardAiPoints: 1,
-    condition: { type: 'sector-ever', sector: 3 },
+    condition: { type: 'sector-ever', sector: 4 },
   },
   {
     id: 'first-boss',
@@ -449,6 +452,13 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'ai') {
     return state.meta.aiUnlocked || state.meta.completedAchievements.length > 0
   }
+  if (systemId === 'codex') {
+    if (careerHighestSector(state) < 6) return false
+    return (
+      state.meta.codexUnlocked === true ||
+      state.research.unlocked.includes('tactical-codex')
+    )
+  }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return true
   if (careerHighestSector(state) < def.requiresSectorEver) return false
@@ -464,6 +474,9 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   }
   if (systemId === 'ai') {
     return 'Complete First Blood (clear sector 1)'
+  }
+  if (systemId === 'codex') {
+    return 'Clear sector 6 · Research tactical-codex (once)'
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return null
@@ -551,7 +564,7 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   }
 
   if (
-    ever >= 3 &&
+    ever >= 4 &&
     !state.meta.seenOnboarding.includes('base-unlock') &&
     state.base.workerDrones < 2
   ) {
@@ -772,7 +785,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-prestige-tab',
     title: 'Prestige unlocked',
-    body: 'Tap Prestige. Soft-reset from sector 8 for Prestige Matter. Challenges open after your first prestige.',
+    body: 'Tap Prestige. Soft-reset from sector 10 for Prestige Matter. Challenges open after clearing Act 1 (sector 30).',
     target: 'prestige-tab',
     availableWhen: (s) =>
       isSystemUnlocked(s, 'prestige') && !guideSeen(s, 'guide-prestige-tab'),
@@ -839,12 +852,75 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-ascension',
     title: 'Ascension',
-    body: 'After Act 1, Ascend at sector 30+ to permanently boost future Prestige Matter gains and unlock deep shop ranks.',
+    body: 'After Act 1, Ascend at sector 30+ to boost Prestige Matter gains, unlock deep shop ranks, and open Ascension-entry challenges.',
     target: 'ascend-btn',
     tab: 'prestige',
     availableWhen: (s) => s.meta.act1Cleared && !guideSeen(s, 'guide-ascension'),
   },
 ]
+
+/** Dock/launch tips that must not reappear after the first soft reset. */
+export const STARTER_GUIDE_IDS = [
+  'guide-shipyard-tab',
+  'guide-frame-select',
+  'guide-launch',
+] as const
+
+function markGuideSeen(seen: string[], id: string): boolean {
+  if (seen.includes(id)) return false
+  seen.push(id)
+  return true
+}
+
+/**
+ * After prestige / ascension, retire starter dock/launch tips.
+ * Ascended careers skip the full onboarding catalog — they already cleared Act 1.
+ */
+export function retirePostResetOnboarding(state: GameState): void {
+  const seen = [...(state.meta.seenOnboarding ?? [])]
+  let changed = false
+  const prestiged = state.prestige.prestigeCount > 0
+  const ascended = (state.meta.ascensionCount ?? 0) > 0
+
+  if (prestiged || ascended) {
+    for (const id of STARTER_GUIDE_IDS) {
+      if (markGuideSeen(seen, id)) changed = true
+    }
+  }
+
+  if (ascended) {
+    for (const step of GUIDE_STEPS) {
+      if (markGuideSeen(seen, step.id)) changed = true
+    }
+  }
+
+  if (changed) state.meta.seenOnboarding = seen
+}
+
+/**
+ * Acknowledge guide steps whose completeWhen already holds so they do not
+ * resurface after a run reset (docked again, empty assignments, etc.).
+ */
+export function syncCompletedGuides(state: GameState, tab: TabId): GameState {
+  const seen = [...(state.meta.seenOnboarding ?? [])]
+  let changed = false
+  for (const step of GUIDE_STEPS) {
+    if (seen.includes(step.id)) continue
+    // Evaluate availability as if this step is still unseen.
+    const probe: GameState = {
+      ...state,
+      meta: { ...state.meta, seenOnboarding: seen },
+    }
+    if (!step.availableWhen(probe)) continue
+    if (!step.completeWhen?.(state, tab)) continue
+    seen.push(step.id)
+    changed = true
+  }
+  if (!changed) return state
+  const next = structuredClone(state)
+  next.meta.seenOnboarding = seen
+  return next
+}
 
 export function activeGuideStep(state: GameState, tab: TabId): GuideStep | null {
   for (const step of GUIDE_STEPS) {

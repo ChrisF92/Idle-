@@ -20,7 +20,9 @@ interface AiTabProps {
 export function AiTab({ state, onBuy }: AiTabProps) {
   const [showAchievements, setShowAchievements] = useState(false)
   const [sub, setSub] = useState<AiSub>('automation')
-  const challengeBlocks = state.prestige.activeChallengeId === 'no-ai'
+  const challengeBlocks =
+    state.prestige.activeChallengeId === 'no-ai' ||
+    state.prestige.activeChallengeId === 'hollow-choir'
   const automation = AI_NODES.filter((n) => n.kind === 'automation')
   const qol = AI_NODES.filter((n) => n.kind === 'qol')
   const doctrines = AI_NODES.filter((n) => n.kind === 'doctrine')
@@ -49,7 +51,9 @@ export function AiTab({ state, onBuy }: AiTabProps) {
         </button>
       </div>
       {challengeBlocks ? (
-        <p className="notice-warn">Silent Bridge challenge: AI purchases and doctrines blocked.</p>
+        <p className="notice-warn">
+          Challenge active: AI purchases and doctrines blocked.
+        </p>
       ) : null}
 
       <div className="sub-tabs" role="tablist" aria-label="AI sections">

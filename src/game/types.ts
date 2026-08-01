@@ -289,6 +289,9 @@ export interface BaseState {
   buildings?: Record<string, number>
 }
 
+/** Preferred industry auto-assign profile (Labor Router / Labor Loop). */
+export type LaborProfile = 'balanced' | 'scrap' | 'data' | 'foundry-safe'
+
 /** Career / meta progress that survives prestige. */
 export interface MetaState {
   /** Max sector ever cleared across the career. */
@@ -301,6 +304,13 @@ export interface MetaState {
   seenOnboarding: string[]
   /** AI Network unlocked (first achievement). */
   aiUnlocked: boolean
+  /**
+   * Codex permanently unlocked once Tactical Codex is researched.
+   * Survives prestige / ascension (research itself still wipes).
+   */
+  codexUnlocked: boolean
+  /** Preferred Labor Router profile for auto-assign buttons / Labor Loop. */
+  laborProfile: LaborProfile
   /** Completed achievement ids (permanent; repeatables mark once on first tier). */
   completedAchievements: string[]
   /** Repeatable achievement completion counts (id → tiers claimed). */

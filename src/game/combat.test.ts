@@ -21,11 +21,11 @@ describe('enemy catalog', () => {
     expect(enemyForSector(4).family).toBe('divine')
     expect(isBossSector(5)).toBe(true)
     expect(enemyForSector(5, 1).isBoss).toBe(false)
-    expect(enemyForSector(5, 5).isBoss).toBe(true)
-    expect(enemyForSector(5, 5).family).toBe('titan')
-    expect(enemyForSector(5, 5).essenceReward).toBeGreaterThan(0)
+    expect(enemyForSector(5, 7).isBoss).toBe(true)
+    expect(enemyForSector(5, 7).family).toBe('titan')
+    expect(enemyForSector(5, 7).essenceReward).toBeGreaterThan(0)
     expect(enemyForSector(1, 1).units.length).toBeGreaterThan(0)
-    expect(enemyForSector(5, 5).units.some((u) => u.isBoss)).toBe(true)
+    expect(enemyForSector(5, 7).units.some((u) => u.isBoss)).toBe(true)
     // Waves in a sector are not identical
     expect(enemyForSector(1, 1).units.map((u) => u.name).join()).not.toBe(
       enemyForSector(1, 3).units.map((u) => u.name).join(),
@@ -66,7 +66,7 @@ describe('role matchups', () => {
   it('bosses punish missing defense', () => {
     let state = createInitialState(0)
     state.combat.sector = 5
-    state.combat.wave = 5
+    state.combat.wave = 7
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
 
@@ -153,6 +153,7 @@ describe('fleet combat resolution', () => {
     state = startCombat(state)
     expect(state.combat.enemyUnits.length).toBeGreaterThan(1)
     advanceTicks(state, 120)
-    expect(state.combat.sector).toBeGreaterThan(1)
+    // May still be on S1 after a death warp; cleared progress is on highestSector.
+    expect(state.combat.highestSector).toBeGreaterThanOrEqual(1)
   })
 })

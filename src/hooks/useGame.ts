@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import type { GameState, PartType } from '../game/types'
+import type { GameState, LaborProfile, PartType } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import {
   tickGame,
@@ -20,8 +20,10 @@ import {
   buyMatterShop,
   buyResearch,
   clearFabProject,
+  clearWorkerAssignments,
   depositFabPart,
   enterChallenge,
+  fillStationWorkers,
   fitModule,
   investPartMastery,
   launchFabProject,
@@ -29,6 +31,7 @@ import {
   performPrestige,
   selectFrame,
   sellPart,
+  setLaborProfile,
   startFabProject,
   unfitModule,
   unequipAllModules,
@@ -41,7 +44,7 @@ import {
   unequipSignalCore,
   mergeSignalCores,
 } from '../game/actions'
-import { acknowledgeOnboarding } from '../game/progression'
+import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
 
@@ -53,7 +56,11 @@ type Action =
   | { type: 'set-docked'; docked: boolean }
   | { type: 'warp'; sector: number }
   | { type: 'assign-worker'; stationId: string; delta: number }
-  | { type: 'auto-balance-workers' }
+  | { type: 'auto-balance-workers'; profile?: LaborProfile }
+  | { type: 'set-labor-profile'; profile: LaborProfile }
+  | { type: 'clear-worker-assignments' }
+  | { type: 'fill-station'; stationId: string }
+  | { type: 'sync-guides'; tab: import('../game/types').TabId }
   | { type: 'start-fab'; moduleId: string }
   | { type: 'launch-fab'; moduleId: string }
   | { type: 'clear-fab' }
@@ -102,7 +109,15 @@ function reducer(state: GameState, action: Action): GameState {
     case 'assign-worker':
       return assignWorker(state, action.stationId, action.delta)
     case 'auto-balance-workers':
-      return autoBalanceWorkers(state)
+      return autoBalanceWorkers(state, action.profile)
+    case 'set-labor-profile':
+      return setLaborProfile(state, action.profile)
+    case 'clear-worker-assignments':
+      return clearWorkerAssignments(state)
+    case 'fill-station':
+      return fillStationWorkers(state, action.stationId)
+    case 'sync-guides':
+      return syncCompletedGuides(state, action.tab)
     case 'start-fab':
       return startFabProject(state, action.moduleId)
     case 'launch-fab':
@@ -206,7 +221,15 @@ export function useGame() {
     warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
     assignWorker: (stationId: string, delta: number) =>
       dispatch({ type: 'assign-worker', stationId, delta }),
-    autoBalanceWorkers: () => dispatch({ type: 'auto-balance-workers' }),
+    autoBalanceWorkers: (profile?: LaborProfile) =>
+      dispatch({ type: 'auto-balance-workers', profile }),
+    setLaborProfile: (profile: LaborProfile) =>
+      dispatch({ type: 'set-labor-profile', profile }),
+    clearWorkerAssignments: () => dispatch({ type: 'clear-worker-assignments' }),
+    fillStationWorkers: (stationId: string) =>
+      dispatch({ type: 'fill-station', stationId }),
+    syncCompletedGuides: (tab: import('../game/types').TabId) =>
+      dispatch({ type: 'sync-guides', tab }),
     startFabProject: (moduleId: string) => dispatch({ type: 'start-fab', moduleId }),
     launchFabProject: (moduleId: string) => dispatch({ type: 'launch-fab', moduleId }),
     clearFabProject: () => dispatch({ type: 'clear-fab' }),

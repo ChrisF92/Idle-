@@ -167,7 +167,7 @@ export function PrestigeTab({
             <div className="stack">
               <p className="muted">
                 Next: <strong>+{gain}</strong> PM
-                {ascensions > 0 ? ` · Ascension +${(ascensions * 35).toFixed(0)}%` : ''}
+                {ascensions > 0 ? ` · Ascension +${(ascensions * 40).toFixed(0)}%` : ''}
                 {!prestigeReady ? ` · need sector ${minSector}+` : ''}
               </p>
               <button
@@ -183,7 +183,8 @@ export function PrestigeTab({
                 <>
                   <p className="muted">
                     Ascension soft-resets the run and permanently boosts future PM gains
-                    (+35% each). Unlocks deep Matter shop ranks. Need sector 30+.
+                    (+40% each). Unlocks deep Matter shop ranks and Ascension-entry
+                    challenges. Need sector 30+.
                   </p>
                   <button
                     type="button"
@@ -242,8 +243,9 @@ export function PrestigeTab({
       ) : (
         <>
           <p className="muted">
-            Unlocked after clearing sector 30 (Act 1). Optional runs for Challenge Points —
-            never required. Enter from sector {minSector}+.
+            Unlocked after clearing sector 30 (Act 1). Prestige-entry runs need sector{' '}
+            {minSector}+ (default 10); Ascension-entry runs (Long Haul, Null Signal, Hollow
+            Choir) start from sector 30 and consume an Ascension.
           </p>
 
           <div className="sub-tabs" role="tablist" aria-label="Challenge sections">
@@ -331,6 +333,7 @@ export function PrestigeTab({
                   ? `+${(c.stackRepairBonus * 100).toFixed(0)}% repair`
                   : null,
               ].filter(Boolean)
+              const ascendEntry = c.entryCost === 'ascension'
               const lockBits: string[] = []
               if (req) lockBits.push(`${reqName} ${reqClears}/${req.clears}`)
               if (c.requiresPrestiges) {
@@ -339,6 +342,12 @@ export function PrestigeTab({
               if (c.requiresSectorEver) {
                 lockBits.push(`career S${c.requiresSectorEver}`)
               }
+              if (ascendEntry) {
+                lockBits.push('Act 1 / Ascension available')
+                if ((c.requiresAscensions ?? 0) > 0) {
+                  lockBits.push(`${c.requiresAscensions} Ascension`)
+                }
+              }
               const enterTitle = !canEnter
                 ? !unlocked
                   ? `Locked — ${lockBits.join(' / ') || 'requirements'}`
@@ -346,15 +355,18 @@ export function PrestigeTab({
                     ? 'Max clears'
                     : active
                       ? 'Finish or abandon the active challenge'
-                      : combat.sector < minSector
-                        ? `Need sector ${minSector}+`
-                        : 'Cannot enter'
+                      : ascendEntry
+                        ? 'Need sector 30+ to Ascend into this challenge'
+                        : combat.sector < minSector
+                          ? `Need sector ${minSector}+`
+                          : 'Cannot enter'
                 : undefined
               return (
                 <li key={c.id} className="shop-row">
                   <div className="shop-row-main">
                     <strong>{c.name}</strong>
                     <span className="badge">goal S{c.goalSector}</span>
+                    {ascendEntry ? <span className="badge">Ascension</span> : null}
                     <span className="muted shop-row-effect">
                       {c.restriction}
                       {stackBits.length ? ` · ${stackBits.join(', ')}/clear` : ''}
@@ -377,7 +389,13 @@ export function PrestigeTab({
                       title={enterTitle}
                       onClick={() => onEnterChallenge(c.id)}
                     >
-                      {capped ? 'Maxed' : isActive ? 'Running' : 'Enter'}
+                      {capped
+                        ? 'Maxed'
+                        : isActive
+                          ? 'Running'
+                          : ascendEntry
+                            ? 'Ascend in'
+                            : 'Enter'}
                     </button>
                   </div>
                 </li>

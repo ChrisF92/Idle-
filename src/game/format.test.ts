@@ -20,18 +20,19 @@ describe('formatStat', () => {
 describe('module stat previews', () => {
   it('formats weapon damage to 2dp for upgrades', () => {
     const lines = moduleUpgradeEffectLines('pulse-cannon', 3, 4)
-    expect(lines[0]).toMatch(/23\.56/)
-    expect(lines[0]).not.toMatch(/23\.559999/)
+    // 14 × 1.24 → 14 × 1.32
+    expect(lines[0]).toMatch(/17\.36/)
+    expect(lines[0]).not.toMatch(/17\.359999/)
     expect(lines.some((l) => /RoF/.test(l))).toBe(true)
 
     const preview = moduleStatPreviews('pulse-cannon', 3, true)
     const dmg = preview.find((p) => p.label === 'Damage')
-    expect(dmg?.current).toBe('23.56')
+    expect(dmg?.current).toBe('17.36')
     expect(dmg?.next).toMatch(/^\d+\.\d{2}$/)
     expect(Number(dmg?.next)).toBeGreaterThan(Number(dmg?.current))
 
     const rof = preview.find((p) => p.label === 'RoF')
-    expect(rof?.current).toBe('1.00/s')
+    expect(rof?.current).toBe('0.95/s')
     expect(rof?.next).toBeNull()
 
     const labels = preview.map((p) => p.label)
@@ -43,7 +44,7 @@ describe('module stat previews', () => {
 describe('prestige onboarding', () => {
   it('offers Prestige tab guide when earlier systems are coached', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 8
     state.meta.seenOnboarding = [
       'guide-shipyard-tab',
       'guide-frame-select',
@@ -61,7 +62,7 @@ describe('prestige onboarding', () => {
     expect(activeGuideStep(state, 'combat')?.id).toBe('guide-prestige-tab')
   })
 
-  it('offers Prestige button guide at sector 8 before first prestige', () => {
+  it('offers Prestige button guide at prestige threshold before first prestige', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 8
     state.combat.sector = PRESTIGE_MIN_SECTOR

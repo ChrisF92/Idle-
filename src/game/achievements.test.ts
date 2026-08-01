@@ -40,7 +40,7 @@ describe('achievements and AI unlock', () => {
   it('grants Archive Seed when research is purchased', () => {
     let state = createInitialState(0)
     state.combat.highestSector = 5
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 8
     tryCompleteAchievements(state)
     const before = state.resources.aiPoints
     state.resources.data = 50
@@ -63,7 +63,7 @@ describe('achievements and AI unlock', () => {
     let state = createInitialState(0)
     state.combat.highestSector = 8
     state.meta.highestSectorEver = 8
-    state.combat.sector = 8
+    state.combat.sector = 10
     maybeGrantSystemUnlocks(state)
     state.resources.aiPoints = 4
     state = performPrestige(state, 1000)
@@ -76,7 +76,7 @@ describe('achievements and AI unlock', () => {
 
   it('offers prestige and AI guide steps when those systems unlock', () => {
     const prestigeState = createInitialState(0)
-    prestigeState.meta.highestSectorEver = 5
+    prestigeState.meta.highestSectorEver = 8
     prestigeState.meta.seenOnboarding = [
       'guide-shipyard-tab',
       'guide-frame-select',

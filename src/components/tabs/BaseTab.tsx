@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import type { GameState, PartType, Resources } from '../../game/types'
+import type { GameState, LaborProfile, PartType, Resources } from '../../game/types'
 import {
   BLUEPRINTS,
   FAB_SECONDS,
@@ -8,6 +8,7 @@ import {
   PART_TYPES,
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
+  aiDroneEfficiencyMult,
   countModuleParts,
   getBlueprint,
   getModule,
@@ -25,12 +26,22 @@ import { computeSignalCoreBonuses } from '../../game/signalCores'
 import { RESOURCE_LABELS } from '../../game/state'
 import { computeResourceRates } from '../../game/tick'
 
+const LABOR_PROFILES: { id: LaborProfile; label: string }[] = [
+  { id: 'balanced', label: 'Balanced' },
+  { id: 'scrap', label: 'Scrap' },
+  { id: 'data', label: 'Data' },
+  { id: 'foundry-safe', label: 'Foundry-Safe' },
+]
+
 interface BaseTabProps {
   state: GameState
   fabLaunchModuleId: string | null
   onFabLaunchConsumed: () => void
   onAssign: (stationId: string, delta: number) => void
-  onAutoBalance: () => void
+  onAutoBalance: (profile?: LaborProfile) => void
+  onSetLaborProfile: (profile: LaborProfile) => void
+  onClearAssignments: () => void
+  onFillStation: (stationId: string) => void
   onStartFab: (moduleId: string) => void
   onLaunchFab: (moduleId: string) => void
   onClearFab: () => void
@@ -56,6 +67,9 @@ export function BaseTab({
   onFabLaunchConsumed,
   onAssign,
   onAutoBalance,
+  onSetLaborProfile,
+  onClearAssignments,
+  onFillStation,
   onStartFab,
   onLaunchFab,
   onClearFab,
@@ -69,6 +83,9 @@ export function BaseTab({
   const secondsLeft =
     ((1 - state.base.manufactureProgress) * WORKER_MANUFACTURE_SECONDS) / speed
   const canAuto = state.ai.purchased.includes('auto-assign-workers')
+  const laborLoop = state.ai.purchased.includes('labor-loop')
+  const droneEff = aiDroneEfficiencyMult(state)
+  const activeProfile = state.meta.laborProfile ?? 'balanced'
   const fabUnlocked = isStationUnlocked(state, 'fab-bay')
   const project = state.base.fabProject
   const [fabOpen, setFabOpen] = useState(false)
@@ -173,12 +190,34 @@ export function BaseTab({
         />
       </div>
 
+      {canAuto ? (
+        <div className="stack" style={{ marginBottom: '0.75rem' }}>
+          <div className="assign-row">
+            {LABOR_PROFILES.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={activeProfile === p.id ? 'primary' : undefined}
+                onClick={() => {
+                  onSetLaborProfile(p.id)
+                  onAutoBalance(p.id)
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+            <button type="button" onClick={onClearAssignments}>
+              Clear
+            </button>
+          </div>
+          <p className="muted">
+            Labor Router{laborLoop ? ' + Loop' : ''}
+            {droneEff > 1 ? ` · drone efficiency ×${droneEff.toFixed(2)}` : ''}
+          </p>
+        </div>
+      ) : null}
+
       <div className="assign-row">
-        {canAuto ? (
-          <button type="button" className="primary" onClick={onAutoBalance}>
-            Auto-Balance
-          </button>
-        ) : null}
         {fabUnlocked ? (
           <button
             type="button"
@@ -232,6 +271,16 @@ export function BaseTab({
                   >
                     −
                   </button>
+                  {canAuto ? (
+                    <button
+                      type="button"
+                      className="assign-btn"
+                      disabled={assigned < 5}
+                      onClick={() => onAssign(station.id, -5)}
+                    >
+                      −5
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="assign-btn"
@@ -241,6 +290,26 @@ export function BaseTab({
                   >
                     +
                   </button>
+                  {canAuto ? (
+                    <>
+                      <button
+                        type="button"
+                        className="assign-btn"
+                        disabled={idle < 5}
+                        onClick={() => onAssign(station.id, 5)}
+                      >
+                        +5
+                      </button>
+                      <button
+                        type="button"
+                        className="assign-btn"
+                        disabled={idle <= 0}
+                        onClick={() => onFillStation(station.id)}
+                      >
+                        Fill
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             </li>

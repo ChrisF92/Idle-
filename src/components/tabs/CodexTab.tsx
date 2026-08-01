@@ -12,7 +12,9 @@ interface CodexTabProps {
 }
 
 export function CodexTab({ state }: CodexTabProps) {
-  const unlocked = state.research.unlocked.includes('tactical-codex')
+  const unlocked =
+    state.meta.codexUnlocked === true ||
+    state.research.unlocked.includes('tactical-codex')
   const seen = new Set(state.codex.seenFamilies)
   const revealed = CODEX_FAMILIES.filter((f) => seen.has(f)).length
 
@@ -20,13 +22,14 @@ export function CodexTab({ state }: CodexTabProps) {
     <section className="panel">
       <header className="panel-header">
         <h2>Codex</h2>
-        <p>Enemy intel and soft counters.</p>
+        <p>Enemy intel and soft counters. Unlock once — permanent.</p>
       </header>
 
       {!unlocked ? (
         <div className="notice-box">
           <p>
-            Codex offline. Research <strong>Tactical Codex</strong> to decrypt encounter memory.
+            Codex offline. Research <strong>Tactical Codex</strong> once to decrypt encounter
+            memory permanently.
           </p>
           <p className="muted">
             Families already seen this career: {revealed}/{CODEX_FAMILIES.length}

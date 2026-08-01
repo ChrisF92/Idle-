@@ -45,6 +45,12 @@ export default function App() {
   }, [guide?.id, guide?.tab, game.state, tab])
 
   useEffect(() => {
+    game.syncCompletedGuides(tab)
+    // Sync completed-but-unacked guides so run resets don't re-spotlight them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional tab/state sync
+  }, [tab, game.state.meta.seenOnboarding.length, game.state.combat.docked])
+
+  useEffect(() => {
     if (!guide?.completeWhen) return
     if (guide.completeWhen(game.state, tab)) {
       ack(guide.id)
@@ -107,6 +113,9 @@ export default function App() {
             onFabLaunchConsumed={onFabLaunchConsumed}
             onAssign={game.assignWorker}
             onAutoBalance={game.autoBalanceWorkers}
+            onSetLaborProfile={game.setLaborProfile}
+            onClearAssignments={game.clearWorkerAssignments}
+            onFillStation={game.fillStationWorkers}
             onStartFab={game.startFabProject}
             onLaunchFab={game.launchFabProject}
             onClearFab={game.clearFabProject}

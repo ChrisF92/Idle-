@@ -53,7 +53,7 @@ describe('campaign combat', () => {
     flag.hull = 40
     for (const e of state.combat.enemyUnits) e.hull = 0
     advanceTicks(state, 1)
-    // Wave clear: 25% of missing hull (max 130 → missing 90 → +22.5) = 62.5
+    // Wave clear: 25% of missing hull (no full repair).
     expect(state.combat.playerHull).toBeGreaterThan(40)
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
@@ -201,11 +201,11 @@ describe('campaign combat', () => {
   it('reaches prestige sector on Advance with starter loadout', () => {
     let state = createInitialState(0)
     state = setDocked(state, false)
-    for (let i = 0; i < 60 && state.combat.highestSector < 8; i++) {
+    for (let i = 0; i < 80 && state.combat.highestSector < 10; i++) {
       state = clearSector(state)
     }
-    expect(state.combat.highestSector).toBeGreaterThanOrEqual(8)
-    expect(state.combat.sector).toBeGreaterThanOrEqual(8)
+    expect(state.combat.highestSector).toBeGreaterThanOrEqual(10)
+    expect(state.combat.sector).toBeGreaterThanOrEqual(10)
     expect(canPrestige(state)).toBe(true)
   })
 
@@ -213,7 +213,7 @@ describe('campaign combat', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
-    state.meta.highestSectorEver = 6
+    state.meta.highestSectorEver = 8
     state = unlockFrame(state, 'line-frame')
     state = selectFrame(state, 'line-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
@@ -223,8 +223,8 @@ describe('campaign combat', () => {
     state = selectFrame(state, 'scout-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
 
-    state.combat.sector = 8
-    state.meta.highestSectorEver = 8
+    state.combat.sector = 10
+    state.meta.highestSectorEver = 10
     state = performPrestige(state, 1000)
     expect(state.combat.docked).toBe(true)
     expect(state.shipyard.frameLocked).toBe(false)

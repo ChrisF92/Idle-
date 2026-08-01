@@ -39,22 +39,30 @@ describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
     expect(isChallengeUnlocked(state, 'attrition')).toBe(true)
   })
 
-  it('unlocks Long Haul via sector 25 career OR 3 prestiges', () => {
+  it('unlocks Long Haul when Act 1 / Ascension is available', () => {
     const a = createInitialState(0)
     expect(isChallengeUnlocked(a, 'long-haul')).toBe(false)
     a.meta.highestSectorEver = 25
+    expect(isChallengeUnlocked(a, 'long-haul')).toBe(false)
+    a.meta.act1Cleared = true
     expect(isChallengeUnlocked(a, 'long-haul')).toBe(true)
+    expect(getChallenge('long-haul')?.entryCost).toBe('ascension')
+  })
 
-    const b = createInitialState(0)
-    b.prestige.prestigeCount = 3
-    expect(isChallengeUnlocked(b, 'long-haul')).toBe(true)
+  it('unlocks Hollow Choir after 1 Ascension', () => {
+    const state = createInitialState(0)
+    state.meta.act1Cleared = true
+    expect(isChallengeUnlocked(state, 'hollow-choir')).toBe(false)
+    state.meta.ascensionCount = 1
+    expect(isChallengeUnlocked(state, 'hollow-choir')).toBe(true)
+    expect(getChallenge('hollow-choir')?.entryCost).toBe('ascension')
   })
 
   it('strips non-pulse weapons on Mono Pulse enter and blocks refit', () => {
     let state = createInitialState(0)
     state.prestige.prestigeCount = 2
     state.meta.act1Cleared = true
-    state.combat.sector = 8
+    state.combat.sector = 10
     state.meta.highestSectorEver = 10
     state.resources.scrap = 999
     state.resources.alloys = 999
@@ -85,7 +93,7 @@ describe('challenge depth: Mono Pulse, Attrition, Long Haul', () => {
     state.prestige.prestigeCount = 1
     state.meta.act1Cleared = true
     state.prestige.challengeClears = { 'thin-hull': 1 }
-    state.combat.sector = 8
+    state.combat.sector = 10
     state.meta.highestSectorEver = 8
     state = enterChallenge(state, 'attrition', 2000)
     expect(state.prestige.activeChallengeId).toBe('attrition')
