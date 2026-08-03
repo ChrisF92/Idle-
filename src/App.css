@@ -409,10 +409,56 @@ body.guide-active {
   gap: 0.5rem;
 }
 
+.combat-controls-sticky {
+  position: sticky;
+  bottom: 0.35rem;
+  z-index: 5;
+  padding: 0.45rem 0.15rem;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg) 40%, transparent),
+      color-mix(in srgb, var(--bg) 92%, transparent) 35%,
+      var(--bg)
+    );
+}
+
 @media (min-width: 640px) {
   .combat-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.combat-live-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 0.75rem;
+  padding: 0.35rem 0.1rem;
+  border-top: 1px solid color-mix(in srgb, var(--accent-2) 28%, var(--line));
+  font-size: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .combat-live-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+}
+
+.combat-badge {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  color: var(--accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.combat-badge-threat {
+  border-color: color-mix(in srgb, #e07a5a 55%, var(--line));
+  color: #e07a5a;
 }
 
 .combat-dock-hint {

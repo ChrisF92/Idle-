@@ -1,57 +1,71 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import type { GameState, UnitShape } from '../../game/types'
+import type { ExpeditionRunSummary, GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { getChallenge, getFrame } from '../../game/catalog'
-import { formatCompact, formatStat } from '../../game/format'
-import { WAVES_PER_SECTOR } from '../../game/progression'
+import { formatCompact } from '../../game/format'
 import {
-  enemyForSector,
-  estimateHoldFarmRates,
-  repairRatePerSecond,
-  sectorRoster,
-  totalEnemyHull,
-  type EnemyFamily,
-} from '../../game/combat'
+  canExtractOrPrestige,
+  formatPrestigeMatter,
+  PRESTIGE_UNLOCK_WAVE,
+} from '../../game/prestigeMatter'
+import { computeFightDamage } from '../../game/combat'
+import {
+  encounterForWave,
+  escortOrbitPosition,
+  familyIntel,
+  softCounterForFamily,
+} from '../../game/waves'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 
 interface CombatTabProps {
   state: GameState
-  onSetCampaign: (on: boolean) => void
   onSetDocked: (docked: boolean) => void
-  onWarp: (sector: number) => void
+  onExtract: () => void
 }
 
-type Overlay = 'none' | 'sector' | 'warp' | 'launch-confirm'
+type Overlay = 'none' | 'wave' | 'launch-confirm' | 'extract-confirm'
 
-export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatTabProps) {
+export function CombatTab({ state, onSetDocked, onExtract }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
   const frame = getFrame(state.shipyard.frameId)
   const challenge = state.prestige.activeChallengeId
     ? getChallenge(state.prestige.activeChallengeId)
     : null
-  const encounter = useMemo(() => enemyForSector(combat.sector, combat.wave), [combat.sector, combat.wave])
-  const roster = useMemo(() => sectorRoster(combat.sector), [combat.sector])
+  const encounter = useMemo(
+    () => encounterForWave('sector-1', combat.wave),
+    [combat.wave],
+  )
+  const fightSummary = useMemo(() => computeFightDamage(state), [state])
   const [overlay, setOverlay] = useState<Overlay>('none')
+  const [runSummary, setRunSummary] = useState<ExpeditionRunSummary | null>(null)
 
-  const needsRepair =
-    combat.docked &&
-    (combat.playerHull < combat.playerHullMax - 0.5 ||
-      combat.playerShield < combat.playerShieldMax - 0.5)
-  const battlefieldMode: BattlefieldMode = combat.docked
-    ? needsRepair
-      ? 'repairing'
-      : 'docked'
-    : combat.inFight
-      ? 'fighting'
-      : combat.campaign
-        ? 'ready'
-        : 'holding'
+  useEffect(() => {
+    if (combat.lastRunSummary) {
+      setRunSummary(combat.lastRunSummary)
+    }
+  }, [combat.lastRunSummary])
+
+  const careerBest = Math.max(state.meta.highestWaveEver ?? 0, combat.bestWaveThisRun)
+  const extractUnlocked = canExtractOrPrestige(careerBest)
+  const extractHasProgress =
+    combat.bestWaveThisRun > 0 || combat.wave > 1 || combat.inFight
+  const showExtract = extractUnlocked && extractHasProgress
+
   const dockButtonLabel = !combat.docked
     ? 'Pause'
     : state.shipyard.frameLocked
       ? 'Resume'
       : 'Launch'
+
+  const battlefieldMode: BattlefieldMode =
+    combat.docked && combat.inFight
+      ? 'holding' // paused mid-fight — keep units, no hangar wash
+      : combat.docked
+        ? 'docked'
+        : combat.inFight
+          ? 'fighting'
+          : 'ready'
 
   const previewPlayer = useMemo(
     () => [
@@ -79,30 +93,33 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         kite: false,
         phaseWarnLeft: 0,
       },
-      ...Array.from({ length: stats.escortCount }, (_, i) => ({
-        id: `preview-escort-${i}`,
-        side: 'player' as const,
-        name: `Drone ${i + 1}`,
-        shape: 'circle' as const,
-        family: 'escort',
-        hull: 1,
-        hullMax: 1,
-        shield: 0,
-        shieldMax: 0,
-        armor: 0,
-        evasion: 0,
-        damageTakenMult: 1,
-        weapons: [],
-        isBoss: false,
-        isFlagship: false,
-        dots: [],
-        x: 12,
-        y: i % 2 === 0 ? -24 : 24,
-        speed: 0,
-        engageRange: 0,
-        kite: false,
-        phaseWarnLeft: 0,
-      })),
+      ...Array.from({ length: stats.escortCount }, (_, i) => {
+        const slot = escortOrbitPosition(i)
+        return {
+          id: `preview-escort-${i}`,
+          side: 'player' as const,
+          name: `Drone ${i + 1}`,
+          shape: 'circle' as const,
+          family: 'escort',
+          hull: 1,
+          hullMax: 1,
+          shield: 0,
+          shieldMax: 0,
+          armor: 0,
+          evasion: 0,
+          damageTakenMult: 1,
+          weapons: [],
+          isBoss: false,
+          isFlagship: false,
+          dots: [],
+          x: slot.x,
+          y: slot.y,
+          speed: 0,
+          engageRange: 0,
+          kite: false,
+          phaseWarnLeft: 0,
+        }
+      }),
     ],
     [
       frame?.name,
@@ -117,39 +134,43 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
     ],
   )
 
-  const warpTargets = useMemo(() => {
-    const max = combat.highestSector
-    if (max < 1) return [] as number[]
-    return Array.from({ length: max }, (_, i) => i + 1)
-  }, [combat.highestSector])
-
-  const repairRate = combat.docked ? repairRatePerSecond(state) : 0
-  const holdRates = useMemo(
-    () =>
-      !combat.docked && !combat.campaign && state.ai.purchased.includes('hold-accountant')
-        ? estimateHoldFarmRates(state)
-        : null,
-    [combat.docked, combat.campaign, state],
-  )
-
   const contactLabel = combat.docked
-    ? 'Paused — Shipyard'
+    ? combat.inFight
+      ? `Paused — ${combat.enemyName}`
+      : 'Paused — Hangar'
     : combat.inFight
       ? combat.enemyName
       : encounter.name
+
+  const pushActive = !combat.docked && combat.mode === 'push'
+  const isEndless = combat.wave > 100
+
+  const playerUnits = combat.inFight ? combat.playerUnits : previewPlayer
+  const enemyUnits =
+    combat.docked && !combat.inFight
+      ? []
+      : combat.inFight
+        ? combat.enemyUnits
+        : encounter.units
 
   return (
     <section className="panel combat-hud combat-bridge">
       <header className="combat-hud-bar">
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">Sector</span>
-          <strong className="combat-hud-value">{combat.sector}</strong>
+          <strong className="combat-hud-value">1 · The Frontier</strong>
         </div>
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">Wave</span>
           <strong className="combat-hud-value">
-            {combat.wave}/{WAVES_PER_SECTOR}
+            {combat.wave}
+            {isEndless ? (
+              <span className="combat-badge combat-badge-threat"> Endless</span>
+            ) : null}
           </strong>
+          <span className="muted" style={{ fontSize: '0.72rem' }}>
+            Best {combat.bestWaveThisRun} · Career {state.meta.highestWaveEver ?? 0}
+          </span>
         </div>
         <div className="combat-hud-readout combat-hud-readout-wide">
           <span className="combat-hud-kicker">Contact</span>
@@ -158,9 +179,9 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         <button
           type="button"
           className="combat-intel-btn"
-          onClick={() => setOverlay('sector')}
+          onClick={() => setOverlay('wave')}
         >
-          Sector info
+          Wave preview
         </button>
       </header>
 
@@ -171,29 +192,48 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
       ) : null}
 
       <Battlefield
-        playerUnits={combat.inFight ? combat.playerUnits : previewPlayer}
-        enemyUnits={combat.docked ? [] : combat.inFight ? combat.enemyUnits : encounter.units}
+        playerUnits={playerUnits}
+        enemyUnits={enemyUnits}
         projectiles={combat.inFight ? combat.projectiles : []}
         fx={combat.fx}
         mode={battlefieldMode}
       />
 
-      <div className="combat-controls" role="group" aria-label="Fleet controls">
+      <div className="combat-live-strip" aria-label="Expedition readouts">
+        <span>
+          <span className="combat-hud-kicker">Salvage</span>{' '}
+          <strong>{formatCompact(state.resources.salvage, 0)}</strong>
+        </span>
+        <span>
+          <span className="combat-hud-kicker">PM on Extract</span>{' '}
+          <strong>{formatPrestigeMatter(combat.estimatedPrestigeMatter)}</strong>
+        </span>
+        <span>
+          <span className="combat-hud-kicker">DPS</span>{' '}
+          <strong>{formatCompact(fightSummary.playerDps, 1)}</strong>
+        </span>
+        <span>
+          <span className="combat-hud-kicker">Best</span>{' '}
+          <strong>{combat.bestWaveThisRun}</strong>
+        </span>
+      </div>
+
+      <div className="combat-controls combat-controls-sticky" role="group" aria-label="Fleet controls">
         <button
           type="button"
-          className={combat.campaign && !combat.docked ? 'primary mode-active' : ''}
-          aria-pressed={combat.campaign}
-          onClick={() => onSetCampaign(true)}
+          className={pushActive ? 'primary mode-active' : ''}
+          aria-pressed={pushActive}
+          onClick={() => {
+            if (combat.docked) {
+              if (!state.shipyard.frameLocked) {
+                setOverlay('launch-confirm')
+                return
+              }
+              onSetDocked(false)
+            }
+          }}
         >
-          Advance
-        </button>
-        <button
-          type="button"
-          className={!combat.campaign && !combat.docked ? 'primary mode-active' : ''}
-          aria-pressed={!combat.campaign}
-          onClick={() => onSetCampaign(false)}
-        >
-          Hold
+          Push
         </button>
         <button
           type="button"
@@ -210,52 +250,36 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         >
           {dockButtonLabel}
         </button>
-        <button
-          type="button"
-          disabled={
-            !state.ai.purchased.includes('warp-navigator') || warpTargets.length === 0
-          }
-          onClick={() => setOverlay('warp')}
-          title={
-            !state.ai.purchased.includes('warp-navigator')
-              ? 'Buy Warp Navigator (AI) to unlock Warp'
-              : warpTargets.length === 0
-                ? 'Clear a sector this prestige to unlock Warp'
-                : 'Warp to a cleared sector'
-          }
-        >
-          Warp
-        </button>
+        {showExtract ? (
+          <button
+            type="button"
+            onClick={() => setOverlay('extract-confirm')}
+            title="Extract and bank Prestige Matter"
+          >
+            Extract
+          </button>
+        ) : null}
       </div>
 
       {combat.docked ? (
         <p className="muted combat-dock-hint">
-          Paused — sector {combat.sector} W1 · Shipyard open for refit
-          {needsRepair ? ` · repairing +${repairRate.toFixed(1)} hull/s` : ''}
-          {!state.shipyard.frameLocked
-            ? ' · choose your frame before Launch (locks until prestige/challenge)'
-            : ''}
-          . {state.shipyard.frameLocked ? 'Resume' : 'Launch'} to continue{' '}
-          {combat.campaign ? 'Advance' : 'Hold'}.
+          {combat.inFight
+            ? `Paused at wave ${combat.wave} — simulation frozen. Resume or Push to continue.`
+            : state.shipyard.frameLocked
+              ? `Paused at wave ${combat.wave}. Resume or Push to continue the Expedition.`
+              : 'Hangar open — choose your frame, then Launch (locks until Extract).'}
         </p>
       ) : (
         <p className="muted combat-dock-hint">
-          Advance pushes sectors · Hold farms this sector · Pause aborts the fight and resets
-          this sector to W1 for module refit.
+          Push advances Sector 1 waves. Pause freezes the fight without repair or refit.
+          {extractUnlocked
+            ? ' Extract banks Prestige Matter (+5%) and resets the Expedition.'
+            : ` Extract unlocks at career wave ${PRESTIGE_UNLOCK_WAVE}.`}
         </p>
       )}
 
-      {holdRates ? (
-        <p className="muted combat-dock-hint">
-          Hold farm ~{holdRates.scrapPerSec.toFixed(2)} scrap/s ·{' '}
-          {holdRates.dataPerSec.toFixed(2)} data/s · {holdRates.salvagePerSec.toFixed(2)} salvage/s
-          {' '}(~{holdRates.clearSeconds.toFixed(0)}s / {WAVES_PER_SECTOR}-wave clear ·{' '}
-          {holdRates.scrapPerClear.toFixed(0)} scrap total).
-        </p>
-      ) : null}
-
       {state.meta.act1Cleared ? (
-        <p className="notice">Act 1 complete — infinite push / prestige / challenges are the long game.</p>
+        <p className="notice">Act 1 complete — Endless waves and Prestige are the long game.</p>
       ) : null}
 
       {overlay === 'launch-confirm' ? (
@@ -269,60 +293,44 @@ export function CombatTab({ state, onSetCampaign, onSetDocked, onWarp }: CombatT
         />
       ) : null}
 
-      {overlay === 'sector' ? (
-        <SectorInfoModal
-          sector={combat.sector}
-          encounterName={encounter.name}
-          family={encounter.family}
-          isBoss={encounter.isBoss}
-          blurb={encounter.blurb}
-          roster={roster}
-          rewards={{
-            scrap: encounter.scrapReward,
-            data: encounter.dataReward,
-            ai: encounter.aiReward,
-            salvage: encounter.salvageReward,
-            essence: encounter.essenceReward,
-          }}
-          hullMax={totalEnemyHull(encounter)}
+      {overlay === 'wave' ? (
+        <WavePreviewModal
+          wave={combat.wave}
+          encounter={encounter}
           onClose={() => setOverlay('none')}
         />
       ) : null}
 
-      {overlay === 'warp' ? (
-        <WarpModal
-          current={combat.sector}
-          targets={warpTargets}
-          onWarp={(sector) => {
-            onWarp(sector)
+      {overlay === 'extract-confirm' ? (
+        <ExtractConfirmModal
+          wave={combat.wave}
+          bestWave={combat.bestWaveThisRun}
+          estimatedPm={combat.estimatedPrestigeMatter}
+          onConfirm={() => {
             setOverlay('none')
+            onExtract()
           }}
           onClose={() => setOverlay('none')}
+        />
+      ) : null}
+
+      {runSummary ? (
+        <RunSummaryModal
+          summary={runSummary}
+          onContinue={() => setRunSummary(null)}
         />
       ) : null}
     </section>
   )
 }
 
-function SectorInfoModal({
-  sector,
-  encounterName,
-  family,
-  isBoss,
-  blurb,
-  roster,
-  rewards,
-  hullMax,
+function WavePreviewModal({
+  wave,
+  encounter,
   onClose,
 }: {
-  sector: number
-  encounterName: string
-  family: EnemyFamily
-  isBoss: boolean
-  blurb: string
-  roster: ReturnType<typeof sectorRoster>
-  rewards: { scrap: number; data: number; ai: number; salvage: number; essence: number }
-  hullMax: number
+  wave: number
+  encounter: ReturnType<typeof encounterForWave>
   onClose: () => void
 }) {
   const titleId = useId()
@@ -339,8 +347,8 @@ function SectorInfoModal({
       >
         <header className="modal-header">
           <div>
-            <p className="combat-hud-kicker">Sector {sector}</p>
-            <h3 id={titleId}>{encounterName}</h3>
+            <p className="combat-hud-kicker">Wave {wave}</p>
+            <h3 id={titleId}>{encounter.name}</h3>
           </div>
           <button type="button" onClick={onClose} aria-label="Close">
             Close
@@ -348,65 +356,36 @@ function SectorInfoModal({
         </header>
 
         <p className="muted">
-          {isBoss ? 'Boss sector' : 'Standard sector'} · {family} · pack hull{' '}
-          {Math.ceil(hullMax)}
+          {encounter.isBoss ? 'Boss wave' : encounter.tags.includes('elite') ? 'Elite wave' : 'Standard wave'}
+          {' · '}
+          {encounter.family}
+          {' · '}
+          {encounter.units.length} contact{encounter.units.length === 1 ? '' : 's'}
         </p>
-        <p>{blurb}</p>
-
-        <ul className="sector-roster">
-          {roster.map((entry) => (
-            <li key={entry.key} className="sector-roster-item">
-              <EnemyGlyph
-                id={entry.key}
-                family={entry.family}
-                shape={entry.shape}
-                boss={entry.isBoss}
-              />
-              <div className="sector-roster-body">
-                <strong>
-                  {entry.name}
-                  {entry.count > 1 ? ` ×${entry.count}` : ''}
-                </strong>
-                <p className="muted">{entry.summary}</p>
-                <p className="sector-roster-stats">
-                  Hull {formatCompact(entry.hull, 0)}
-                  {entry.shield > 0 ? ` · Shield ${formatCompact(entry.shield, 0)}` : ''}
-                  {entry.armor > 0 ? ` · Armor ${formatStat(entry.armor, 1)}` : ''}
-                  {entry.evasion > 0
-                    ? ` · Eva ${formatCompact(entry.evasion * 100, 0)}%`
-                    : ''}
-                </p>
-                <p className="sector-roster-stats">
-                  DPS ~{formatStat(entry.dps, 1)} · Spd {formatCompact(entry.speed, 0)} ·
-                  Reach {formatCompact(entry.range, 0)}
-                  {entry.weaponTags.length > 0
-                    ? ` · ${entry.weaponTags.join(' / ')}`
-                    : ''}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-
+        <p>{encounter.blurb}</p>
+        <p className="muted">{familyIntel(encounter.family)}</p>
+        <p className="muted">Soft counter: {softCounterForFamily(encounter.family)}</p>
         <p className="muted">
-          Clear reward: {rewards.scrap} scrap · {rewards.data} data · {rewards.ai} AI ·{' '}
-          {rewards.salvage} salvage
-          {rewards.essence > 0 ? ` · ${rewards.essence} essence` : ''}
+          Clear reward: {encounter.scrapReward} scrap · {encounter.salvageReward} salvage
+          {encounter.dataReward > 0 ? ` · ${encounter.dataReward} data` : ''}
+          {encounter.essenceReward > 0 ? ` · ${encounter.essenceReward} essence` : ''}
         </p>
       </div>
     </div>
   )
 }
 
-function WarpModal({
-  current,
-  targets,
-  onWarp,
+function ExtractConfirmModal({
+  wave,
+  bestWave,
+  estimatedPm,
+  onConfirm,
   onClose,
 }: {
-  current: number
-  targets: number[]
-  onWarp: (sector: number) => void
+  wave: number
+  bestWave: number
+  estimatedPm: number
+  onConfirm: () => void
   onClose: () => void
 }) {
   const titleId = useId()
@@ -423,28 +402,91 @@ function WarpModal({
       >
         <header className="modal-header">
           <div>
-            <p className="combat-hud-kicker">Navigation</p>
-            <h3 id={titleId}>Warp</h3>
+            <p className="combat-hud-kicker">Expedition</p>
+            <h3 id={titleId}>Extract Expedition?</h3>
           </div>
           <button type="button" onClick={onClose} aria-label="Close">
             Close
           </button>
         </header>
-        <p className="muted">
-          Jump to any sector cleared this prestige. Aborts the current fight.
+        <p>
+          Current wave <strong>{wave}</strong> · Best this run <strong>{bestWave}</strong>
         </p>
-        <div className="warp-grid">
-          {targets.map((sector) => (
-            <button
-              key={sector}
-              type="button"
-              className={sector === current ? 'primary' : ''}
-              onClick={() => onWarp(sector)}
-            >
-              {sector}
-              {sector === current ? ' · here' : ''}
-            </button>
-          ))}
+        <p>
+          Prestige Matter with +5%:{' '}
+          <strong>{formatPrestigeMatter(estimatedPm)}</strong>
+        </p>
+        <p className="muted">
+          Extraction ends the run, banks PM, and resets modules for the next Expedition.
+        </p>
+        <div className="modal-actions">
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="primary" onClick={onConfirm}>
+            Extract
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RunSummaryModal({
+  summary,
+  onContinue,
+}: {
+  summary: ExpeditionRunSummary
+  onContinue: () => void
+}) {
+  const titleId = useId()
+  useEscapeClose(onContinue)
+
+  const outcome = summary.extracted
+    ? 'Extracted'
+    : summary.defeated
+      ? 'Defeated'
+      : 'Ended'
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onContinue}>
+      <div
+        className="modal-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="modal-header">
+          <div>
+            <p className="combat-hud-kicker">Run complete</p>
+            <h3 id={titleId}>{outcome}</h3>
+          </div>
+          <button type="button" onClick={onContinue} aria-label="Close">
+            Close
+          </button>
+        </header>
+        <p>
+          Best wave <strong>{summary.bestWave}</strong>
+          {summary.waveReached !== summary.bestWave
+            ? ` · Reached ${summary.waveReached}`
+            : ''}
+        </p>
+        <p>
+          Prestige Matter awarded:{' '}
+          <strong>{formatPrestigeMatter(summary.awardedPm)}</strong>
+        </p>
+        <p className="muted">
+          Salvage {formatCompact(summary.salvageEarned, 0)} · Scrap{' '}
+          {formatCompact(summary.scrapEarned, 0)}
+          {summary.durationSec > 0
+            ? ` · ${Math.round(summary.durationSec)}s`
+            : ''}
+        </p>
+        <div className="modal-actions">
+          <button type="button" className="primary" onClick={onContinue}>
+            Continue
+          </button>
         </div>
       </div>
     </div>
@@ -482,8 +524,8 @@ function LaunchConfirmModal({
           </button>
         </header>
         <p>
-          Launching locks <strong>{frameName}</strong> until the next prestige or
-          challenge. Pause anytime later to refit modules (resets the sector to W1).
+          Launching locks <strong>{frameName}</strong> until Extract or Defeat.
+          Pause anytime later freezes the fight without unlocking refit.
         </p>
         <p className="muted">Launch anyway?</p>
         <div className="modal-actions">
@@ -497,79 +539,6 @@ function LaunchConfirmModal({
       </div>
     </div>
   )
-}
-
-function EnemyGlyph({
-  id,
-  family,
-  shape,
-  boss,
-}: {
-  id: string
-  family: EnemyFamily
-  shape: UnitShape
-  boss: boolean
-}) {
-  const fill = familyColor(family)
-  const gradId = `glyph-${id.replace(/[^a-zA-Z0-9_-]/g, '-')}`
-  return (
-    <svg
-      className="enemy-glyph"
-      viewBox="0 0 64 64"
-      width="56"
-      height="56"
-      aria-hidden="true"
-    >
-      <defs>
-        <radialGradient id={gradId} cx="35%" cy="30%" r="70%">
-          <stop offset="0%" stopColor={fill} stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#0e141c" stopOpacity="0.9" />
-        </radialGradient>
-      </defs>
-      <rect width="64" height="64" fill="#0e141c" />
-      <circle cx="32" cy="32" r="28" fill={`url(#${gradId})`} opacity="0.35" />
-      <g transform="translate(32 32)" fill={fill} stroke="#e7edf5" strokeWidth="1.5">
-        {shapePath(shape, boss ? 18 : 14)}
-      </g>
-    </svg>
-  )
-}
-
-function shapePath(shape: UnitShape, r: number) {
-  switch (shape) {
-    case 'triangle':
-      return (
-        <path d={`M ${r} 0 L ${-r * 0.85} ${-r} L ${-r * 0.85} ${r} Z`} />
-      )
-    case 'square':
-      return <rect x={-r * 0.85} y={-r * 0.85} width={r * 1.7} height={r * 1.7} />
-    case 'diamond':
-      return <path d={`M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`} />
-    case 'hex': {
-      const pts = Array.from({ length: 6 }, (_, i) => {
-        const a = (Math.PI / 3) * i - Math.PI / 6
-        return `${Math.cos(a) * r},${Math.sin(a) * r}`
-      }).join(' ')
-      return <polygon points={pts} />
-    }
-    default:
-      return <circle r={r} />
-  }
-}
-
-function familyColor(family: EnemyFamily): string {
-  switch (family) {
-    case 'swarm':
-      return '#9eb4cc'
-    case 'armored':
-      return '#c4a574'
-    case 'ethereal':
-      return '#7ec8ff'
-    case 'divine':
-      return '#e0c07a'
-    case 'titan':
-      return '#ff6b6b'
-  }
 }
 
 function useEscapeClose(onClose: () => void): void {

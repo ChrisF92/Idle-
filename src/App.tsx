@@ -91,9 +91,8 @@ export default function App() {
         {tab === 'combat' && (
           <CombatTab
             state={game.state}
-            onSetCampaign={game.setCampaign}
             onSetDocked={game.setDocked}
-            onWarp={game.warpToSector}
+            onExtract={game.extractExpedition}
           />
         )}
         {tab === 'shipyard' && (
