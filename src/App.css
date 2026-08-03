@@ -908,3 +908,96 @@ textarea {
   margin: 0;
   font-size: 0.9rem;
 }
+
+/* Phase 2 — Expedition Salvage store */
+.run-panel-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.upgrade-store {
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--accent-2) 30%, var(--line));
+  padding-top: 0.45rem;
+}
+
+.upgrade-store-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.upgrade-bulk,
+.upgrade-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.upgrade-bulk button,
+.upgrade-filters button {
+  padding: 0.28rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.upgrade-cards {
+  display: grid;
+  gap: 0.45rem;
+  max-height: min(36dvh, 320px);
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.upgrade-card {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-panel) 92%, #000);
+  padding: 0.55rem 0.65rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.upgrade-card-affordable {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.upgrade-card-capped {
+  opacity: 0.72;
+}
+
+.upgrade-card-top,
+.upgrade-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upgrade-card-effect {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.upgrade-locked {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.upgrade-locked ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.run-summary-panel {
+  border: 1px solid var(--line);
+  padding: 0.65rem 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.run-summary-panel p {
+  margin: 0;
+}

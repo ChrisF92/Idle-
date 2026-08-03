@@ -64,6 +64,14 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     runSalvageEarned: Math.max(0, Number(combat.runSalvageEarned ?? 0) || 0),
     runScrapEarned: Math.max(0, Number(combat.runScrapEarned ?? 0) || 0),
     estimatedPrestigeMatter: Math.max(0, Number(combat.estimatedPrestigeMatter ?? 0) || 0),
+    upgrades:
+      combat.upgrades && typeof combat.upgrades === 'object' && !Array.isArray(combat.upgrades)
+        ? Object.fromEntries(
+            Object.entries(combat.upgrades)
+              .map(([id, n]) => [id, Math.max(0, Math.floor(Number(n) || 0))] as const)
+              .filter(([, n]) => n > 0),
+          )
+        : {},
     lastRunSummary: combat.lastRunSummary ?? null,
     playerShield: combat.playerShield ?? 0,
     playerShieldMax: combat.playerShieldMax ?? 0,

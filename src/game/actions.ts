@@ -69,6 +69,14 @@ import {
   prestigeMatterForRun,
   roundPrestigeMatter,
 } from './prestigeMatter'
+import {
+  type BulkBuyMode,
+  getExpeditionUpgrade,
+  isUpgradeUnlocked,
+  resolveBuyCount,
+  upgradeCostForRanks,
+  upgradeRank,
+} from './expeditionUpgrades'
 
 export {
   equipSignalCore,
@@ -822,6 +830,40 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
     ...next.shipyard.moduleLevels,
     [moduleId]: level + 1,
   }
+  return refreshFleetAfterUpgrade(next)
+}
+
+/**
+ * Buy temporary Expedition ship-system upgrade ranks with Salvage.
+ * Supports Buy 1 / Buy 10 / Max.
+ */
+export function buyExpeditionUpgrade(
+  state: GameState,
+  upgradeId: string,
+  mode: BulkBuyMode = 1,
+): GameState {
+  const def = getExpeditionUpgrade(upgradeId)
+  if (!def) return state
+  if (!isUpgradeUnlocked(state, def)) return state
+
+  const fromRank = upgradeRank(state.combat.upgrades, upgradeId)
+  const count = resolveBuyCount(def, fromRank, state.resources.salvage, mode)
+  if (count <= 0) return state
+
+  const cost = upgradeCostForRanks(def, fromRank, count)
+  if (cost > state.resources.salvage) return state
+
+  const next = structuredClone(state)
+  next.resources.salvage -= cost
+  next.combat.upgrades = {
+    ...next.combat.upgrades,
+    [upgradeId]: fromRank + count,
+  }
+  return refreshFleetAfterUpgrade(next)
+}
+
+/** Apply live fleet rebuild after a mid-run Salvage purchase. */
+function refreshFleetAfterUpgrade(next: GameState): GameState {
   if (!next.combat.inFight) {
     syncPersistedHullCaps(next)
     return next

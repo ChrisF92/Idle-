@@ -58,6 +58,7 @@ import {
   sensorsMatchupBonus,
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
+import { computeExpeditionUpgradeBonuses } from './expeditionUpgrades'
 
 /* ── Re-exports (arena / waves) ─────────────────────────────────────── */
 
@@ -678,6 +679,13 @@ function tryLootEnemyKill(
   if (prevHull > 0 && unit.hull <= 0) {
     rollEnemyPartDrop(state, unit)
     grantSignalCoreDrop(state, 'kill', { family: unit.family })
+    const run = computeExpeditionUpgradeBonuses(state.combat.upgrades)
+    // Base scrap of salvage per kill scales with upgrade ranks (0 until purchased).
+    const salvageGain = run.salvagePerKill
+    if (salvageGain > 0) {
+      state.resources.salvage += salvageGain
+      state.combat.runSalvageEarned += salvageGain
+    }
   }
 }
 
@@ -798,7 +806,13 @@ function updateProjectiles(
       }
 
       let dmg = shot.damage
-      if (shot.side !== 'player') {
+      if (shot.side === 'player') {
+        const run = computeExpeditionUpgradeBonuses(state.combat.upgrades)
+        if (target.isBoss) dmg *= run.bossDamageMult
+        if (run.critChance > 0 && Math.random() < run.critChance) {
+          dmg *= run.critDamageMult
+        }
+      } else {
         dmg *= incomingDefenseMult(target, shot.attackerFamily, roles, matchupScale)
       }
       const prevHull = target.hull

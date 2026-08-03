@@ -84,6 +84,7 @@ function resetExpeditionProgress(state: GameState): void {
   state.combat.runScrapEarned = 0
   state.combat.expeditionStartedAt = 0
   state.combat.estimatedPrestigeMatter = 0
+  state.combat.upgrades = {}
   state.resources.salvage = 0
   state.shipyard.moduleLevels = {}
   state.shipyard.frameLocked = false

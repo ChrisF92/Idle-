@@ -278,6 +278,8 @@ export interface CombatState {
   runScrapEarned: number
   /** Estimated PM if Extracting now (includes +5% bonus). */
   estimatedPrestigeMatter: number
+  /** Temporary ship-system upgrade ranks (Salvage store; reset on Extract/Defeat). */
+  upgrades: Record<string, number>
   /** Last completed run summary (Extract or Defeat). */
   lastRunSummary: ExpeditionRunSummary | null
   /** Persisted flagship hull between fights (not fully restored on clear). */
