@@ -40,7 +40,6 @@ import {
   parsePartId,
   partId,
   partSellScrap,
-  prestigeMinSectorFor,
   shopRank,
   stationBlackBarNeed,
   stationEffectiveDrones,

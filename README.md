@@ -13,35 +13,25 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 
 | Tab | Purpose |
 |---|---|
-| Combat | Sector push (5 waves/sector), Advance / Hold / Pause (refit) |
-| Shipyard | Unlock/fit frames + modules (affects damage/hull); farmable modules appear after a blueprint fragment drop |
-| Base | Worker-drone stations + Fabrication Bay (gated — clear sector 3; research Module Fabrication) |
-| Research | Unlock tree + damage bonuses (gated — clear sector 5) |
+| Combat | Sector 1 Expedition (100 waves + Endless), Push / Pause / Extract |
+| Shipyard | Unlock/fit frames + modules (locked for the Expedition after Launch) |
+| Base | Worker-drone stations + Fabrication Bay (gated — career progress) |
+| Research | Unlock tree + damage bonuses (gated) |
 | Codex | Soft counters (gated — research Tactical Codex **once**; permanent) |
-| AI | Achievements → AI Points; permanent automation/QoL + per-run doctrines (unlocks with First Blood) |
-| Prestige | Soft reset at sector 10+; Ascension + Ascension-entry challenges after Act 1 |
+| AI | Achievements → AI Points; permanent automation/QoL + doctrines |
+| Prestige | Soft reset after career wave 20+; Ascension after wave 100 |
 | Stats | Save management |
 
-## Progression notes
+## Progression notes (Phase 1 Expedition)
 
-- **Act 1** soft climax at sector **30** (6 boss milestones). Infinite push continues after.
-- Whole systems unlock by career sector clears; tabs stay visible with requirements.
-- Boss sectors: vanguard waves first, **boss only on wave 5**. Waves use varied packs.
-- Header resources appear only once their system is unlocked (Data/Research, AI Points/AI, etc.).
-- AI Points come from achievements (modal in the AI tab), not combat drops. Unspent AI Points persist across prestige.
-- Research unlocks are **permanent** across prestige / ascension (Core attribute ranks still wipe).
-- Guided onboarding spotlights the next control to tap; starter dock/launch tips retire after the first prestige, and ascension clears the full guide catalog.
-- Act 1 pacing maps to ITRTG: first prestige ≈ first Hyperion (~1h session); first sector 30 ≈ first Baal (~1–2 week tutorial career across many prestiges). Research is permanent; enemy hull scales steeply while damage stays flatter so length comes from walls, not death loops.
-- Dev tools (Stats tab): toggle on anytime, or append `?dev=1` / `?dev=0`. Includes jump, boss force, achievements, guide skip.
-- Boss telegraphs: titan slams wind up before firing; phase shifts flash a warn ring.
-- Hold Accountant shows estimated scrap/data/salvage per second while farming.
-- Worker drones are manufactured permanently up to a **corps capacity** (raise via research / AI / PM / lifetime built). Stations **black-bar** at a fixed effective-drone slot count — drone power (AI Swarm/Hive, PM Drone Acuity) lets fewer bodies saturate. Training stays uncapped as overflow. Assignments reset on prestige; Labor Router fills to BB then dumps leftovers to Core training.
-- Prestige Matter / Challenge Points spend in permanent **rankable** shops (banked PM is +0.6% dmg/prod each; banked CP +1% dmg; ranks beat banking). No respec.
-- CP shop prefers unique unlocks (schematics → Surge Capacitor / Mirror Plate, Deep Vault 24h offline, Clearance Board +5 max clears) plus stackable run-kits.
-- Post-prestige re-push: returning kits scale with prestige/ascension count (USI-style); doctrine AIP is refunded; first S8 prestige yields 5 PM. Prestige/ascension momentum also grants soft damage & production.
-- Distinct frames: Razor (2W/0D/1U glass-cannon) and Pathfinder (1W/0D/2U utility scout).
-- **Blueprint farming:** after Alloy Foundry unlocks, enemies drop casing/core/lens parts; Fabrication Bay workers assemble discovered blueprints into permanent module unlocks. Dupes sell for scrap or invest into permanent module mastery (cap 10). Starter kit is Pulse Cannon (free) + Plate Layer (scrap); CP schematics remain shop-only.
-- **Signal Cores:** typed Assault/Ward/Signal slots under Core; merge 3 identical ranks; wipe on prestige until **Null Signal** (sector 30, no cores equipped) unlocks permanent carryover.
+- **Sector 1** is a continuous **100-wave Expedition** with orbital-defence combat (flagship at centre).
+- **Push** advances waves; **Pause** freezes simulation (no free repair / no mid-run refit).
+- **Extract** (career wave 20+) ends the run for base PM + 5%; **Defeat** awards base PM only.
+- Wave 100 is the Sector Entity climax; the run can continue into Endless (101+).
+- Procedural deterministic packs for Phase 1; authored milestone waves come later.
+- Save format **v21** — older saves reset cleanly (no migration).
+- Prestige Matter uses a piecewise-linear milestone curve (wave 20 / 50 / 100 landmarks).
+- Remaining permanent systems (Base, Research, AI, challenges, etc.) still exist; Forward Base / Directives / Patrol arrive in later phases.
 
 
 ## Develop
