@@ -112,8 +112,10 @@ describe('starter combat tutorial (natural deaths)', () => {
     advanceSeconds(state, 0.2)
     killFlagship(state)
     advanceSeconds(state, 0.05)
+    // After prestige, tutorial skip means death Defeats the expedition and docks.
     expect(state.meta.starterCombatLesson).toBe(0)
-    expect(state.combat.docked).toBe(false)
-    expect(state.combat.inFight).toBe(true)
+    expect(state.combat.docked).toBe(true)
+    expect(state.combat.inFight).toBe(false)
   })
 })
+

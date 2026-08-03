@@ -40,7 +40,9 @@ describe('challenge point shop', () => {
     state.resources.challengePoints = 1
     state = buyChallengeShop(state, 'early-gate')
     expect(prestigeMinSectorFor(state.prestige.shop)).toBe(8)
-    state.combat.sector = 8
+    // Prestige itself is wave-gated (career wave 20+).
+    state.meta.highestWaveEver = 20
+    state.combat.bestWaveThisRun = 20
     expect(canPrestige(state)).toBe(true)
   })
 
@@ -49,7 +51,8 @@ describe('challenge point shop', () => {
     state.resources.challengePoints = 3
     state = buyChallengeShop(state, 'supply-cache')
     state = buyChallengeShop(state, 'doctrine-seed')
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 5000)
     // 25 base + scaled return kit + 20 cache
     expect(state.resources.scrap).toBeGreaterThanOrEqual(55)
@@ -60,7 +63,8 @@ describe('challenge point shop', () => {
     let state = createInitialState(0)
     state.resources.challengePoints = 2
     state = buyChallengeShop(state, 'hangar-rights')
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 5000)
     // 10 hangar + scaled return salvage
     expect(state.resources.salvage).toBeGreaterThanOrEqual(16)
@@ -80,7 +84,8 @@ describe('challenge point shop', () => {
     let state = createInitialState(0)
     state.resources.challengePoints = 1
     state = buyChallengeShop(state, 'iron-will')
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 8000)
     expect(shopRank(state.prestige.shop, 'iron-will')).toBe(1)
   })
@@ -91,7 +96,8 @@ describe('challenge point shop', () => {
     state = buyChallengeShop(state, 'supply-cache')
     state = buyChallengeShop(state, 'supply-cache')
     expect(shopRank(state.prestige.shop, 'supply-cache')).toBe(2)
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 5000)
     expect(state.resources.scrap).toBeGreaterThanOrEqual(75) // 25 + 10 return + 40 cache
   })

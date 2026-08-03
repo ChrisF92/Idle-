@@ -34,8 +34,10 @@ describe('core attributes', () => {
     state.core.ranks.ballistics = 12
     state.core.ranks.logistics = 5
     state.core.progress.ballistics = 0.4
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 1000)
+
     expect(state.core.ranks.ballistics).toBe(0)
     expect(state.core.ranks.logistics).toBe(0)
     expect(state.core.progress.ballistics).toBe(0)

@@ -44,15 +44,15 @@ describe('deep matter shop + ascension', () => {
   it('ascension boosts future prestige matter gains', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
-    state.combat.sector = 30
+    state.meta.highestWaveEver = 100
+    state.combat.bestWaveThisRun = 100
     state.combat.highestSector = 30
     state.meta.highestSectorEver = 30
     expect(canAscend(state)).toBe(true)
     const before = prestigeGainFor(state)
     state = performAscension(state, 1000)
     expect(state.meta.ascensionCount).toBe(1)
-    expect(state.combat.sector).toBe(1)
-    state.combat.sector = 30
+    expect(state.combat.wave).toBe(1)
     expect(prestigeGainFor(state)).toBeGreaterThan(before)
   })
 
@@ -60,7 +60,8 @@ describe('deep matter shop + ascension', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
     state.meta.ascensionCount = 2
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 2000)
     expect(state.meta.ascensionCount).toBe(2)
   })
@@ -157,7 +158,7 @@ describe('automation AI', () => {
 })
 
 describe('save migrate v18', () => {
-  it('migrates v17 meta fields', () => {
+  it('rejects pre-v21 saves (clean career reset)', () => {
     const legacy = createInitialState(0)
     const raw = {
       ...legacy,
@@ -168,15 +169,17 @@ describe('save migrate v18', () => {
         ascensionCount: undefined,
       },
     }
-    // Force version 17 shape
     ;(raw as { version: number }).version = 17
     const code = btoa(unescape(encodeURIComponent(JSON.stringify(raw))))
-    const migrated = importSave(code)
-    expect(migrated).not.toBeNull()
-    expect(migrated!.version).toBe(20)
-    expect(migrated!.meta.ascensionCount).toBe(0)
-    expect(migrated!.meta.achievementCompletions['first-blood']).toBe(1)
-    expect(importSave(exportSave(migrated!))!.meta.lifetimeSectorClears).toBe(0)
+    expect(importSave(code)).toBeNull()
+
+    // Current version still round-trips
+    const current = createInitialState(0)
+    current.meta.completedAchievements = ['first-blood']
+    const again = importSave(exportSave(current))
+    expect(again).not.toBeNull()
+    expect(again!.version).toBe(21)
+    expect(again!.meta.ascensionCount).toBe(0)
   })
 })
 
