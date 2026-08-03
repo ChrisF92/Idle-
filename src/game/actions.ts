@@ -65,6 +65,11 @@ import {
   createEmptySignalCoresState,
   unequipAllSignalCores,
 } from './signalCores'
+import {
+  canExtractOrPrestige,
+  prestigeMatterForRun,
+  roundPrestigeMatter,
+} from './prestigeMatter'
 
 export {
   equipSignalCore,
@@ -699,6 +704,7 @@ export function investPartMastery(state: GameState, moduleId: string): GameState
 }
 
 export function fitModule(state: GameState, moduleId: string): GameState {
+  if (state.shipyard.frameLocked) return state
   if (!state.shipyard.unlockedModules.includes(moduleId)) return state
   if (state.shipyard.modules.includes(moduleId)) return state
   if (isModuleBlockedByChallenge(state.prestige.activeChallengeId, moduleId)) {
@@ -716,6 +722,7 @@ export function fitModule(state: GameState, moduleId: string): GameState {
 
 export function unfitModule(state: GameState, moduleId: string): GameState {
   if (!state.shipyard.modules.includes(moduleId)) return state
+  if (state.shipyard.frameLocked) return state
   const next = structuredClone(state)
   next.shipyard.modules = next.shipyard.modules.filter((id) => id !== moduleId)
   if (!next.combat.inFight) syncPersistedHullCaps(next)
@@ -723,26 +730,34 @@ export function unfitModule(state: GameState, moduleId: string): GameState {
 }
 
 export function prestigeGainFor(state: GameState): number {
-  // +1 softens the re-push so first S10 prestige yields 6 PM.
-  const base = Math.max(
-    1,
-    Math.floor(state.combat.sector / 2) + state.prestige.prestigeCount + 1,
+  const best = Math.max(
+    state.combat.bestWaveThisRun,
+    state.meta.highestWaveEver ?? 0,
+    state.combat.wave > 1 ? state.combat.wave - 1 : 0,
   )
+  const base = prestigeMatterForRun({
+    bestWave: Math.max(best, state.combat.bestWaveThisRun),
+    checkpointWave: state.combat.checkpointWave,
+  })
   const ascensions = state.meta.ascensionCount ?? 0
-  // Ascension is the long-term PM accelerator (USI-style snowball).
-  return Math.max(1, Math.floor(base * (1 + 0.4 * ascensions)))
+  const withAscension = base * (1 + 0.4 * ascensions)
+  return roundPrestigeMatter(Math.max(0, withAscension))
 }
 
 export function canPrestige(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return false
-  return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
+  const career = Math.max(
+    state.meta.highestWaveEver ?? 0,
+    state.combat.bestWaveThisRun,
+  )
+  return canExtractOrPrestige(career)
 }
 
-/** Ascension unlocks after Act 1; soft-resets the run and boosts future PM gains. */
+/** Ascension unlocks after the first wave-100 clear. */
 export function canAscend(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return false
   if (!state.meta.act1Cleared) return false
-  return state.combat.sector >= ACT1_FINAL_SECTOR
+  return (state.meta.highestWaveEver ?? 0) >= 100
 }
 
 export function canEnterChallenge(state: GameState, challengeId: string): boolean {
@@ -755,11 +770,11 @@ export function canEnterChallenge(state: GameState, challengeId: string): boolea
   if (!isChallengeUnlocked(state, challengeId)) return false
   const clears = challengeClearCount(state.prestige.challengeClears, challengeId)
   if (clears >= effectiveMaxClears(challenge, state.prestige.shop)) return false
-  // Ascension-entry challenges (ITRTG double-rebirth style) start from S30+.
+  // Prestige-entry challenges unlock once the career can Prestige / Extract.
   if (challenge.entryCost === 'ascension') {
     return canAscend(state)
   }
-  return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
+  return canPrestige(state)
 }
 
 /** Persist fitted loadout; drop modules that conflict with an active challenge. */

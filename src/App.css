@@ -333,14 +333,14 @@ body.guide-active {
 
 .battlefield {
   width: 100%;
-  max-width: 420px;
+  max-width: 520px;
   margin-inline: auto;
-  aspect-ratio: 360 / 480;
-  max-height: min(58dvh, 520px);
+  aspect-ratio: 1 / 1;
+  max-height: min(52dvh, 520px);
   height: auto;
   border: 1px solid color-mix(in srgb, var(--accent-2) 40%, var(--line));
   background:
-    radial-gradient(80% 55% at 70% 25%, rgba(79, 143, 154, 0.16), transparent 70%),
+    radial-gradient(60% 60% at 50% 50%, rgba(79, 143, 154, 0.14), transparent 70%),
     #0c121a;
   display: block;
   border-radius: 2px;

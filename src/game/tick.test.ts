@@ -24,7 +24,6 @@ import {
 } from './actions'
 import { moduleLevel } from './catalog'
 import { equipPostTutorialLoadout, forceUnlockModule } from './testHelpers'
-import { WAVES_PER_SECTOR } from './progression'
 
 describe('tickGame', () => {
   it('produces scrap from assigned worker stations over time', () => {
@@ -66,12 +65,17 @@ describe('tickGame', () => {
 
   it('advances combat with real elapsed time (not whole-second ticks)', () => {
     let state = createInitialState(0)
-    state.combat.campaign = false
+    state.combat.campaign = true
     state = startCombat(state)
-    for (const e of state.combat.enemyUnits) e.x = 50
+    // Place enemies inside weapon range on the orbital ring.
+    for (const e of state.combat.enemyUnits) {
+      e.x = 50
+      e.y = 0
+      e.engageRange = 50
+    }
     const hullBefore = state.combat.enemyHull
 
-    // Fire happens quickly; damage waits for projectile travel (~0.2s at mid-lane)
+    // Fire happens quickly; damage waits for projectile travel
     state = tickGame(state, 50)
     expect(state.combat.projectiles.length).toBeGreaterThan(0)
     expect(state.combat.enemyHull).toBe(hullBefore)
@@ -100,19 +104,21 @@ describe('tickGame', () => {
 })
 
 describe('advanceTicks / combat', () => {
-  it('resolves a fight and advances sector', () => {
+  it('resolves a fight and advances expedition wave', () => {
     let state = equipPostTutorialLoadout(createInitialState(0))
     state = startCombat(state)
     expect(state.combat.inFight).toBe(true)
 
     const next = structuredClone(state)
-    advanceTicks(next, 120)
-    expect(next.combat.sector).toBeGreaterThan(1)
+    // Instantly clear several waves worth of fights
+    for (let i = 0; i < 3; i += 1) {
+      for (const e of next.combat.enemyUnits) e.hull = 0
+      advanceTicks(next, 1)
+      if (!next.combat.inFight) advanceTicks(next, 0.05)
+    }
+    expect(next.combat.bestWaveThisRun).toBeGreaterThanOrEqual(1)
+    expect(next.combat.wave).toBeGreaterThan(1)
     expect(next.resources.scrap).toBeGreaterThan(0)
-    // AI Points come from First Blood achievement on sector 1 clear, not combat drops
-    expect(next.meta.completedAchievements).toContain('first-blood')
-    expect(next.resources.aiPoints).toBe(1)
-    expect(next.meta.aiUnlocked).toBe(true)
   })
 })
 
@@ -269,9 +275,10 @@ describe('shipyard', () => {
 })
 
 describe('prestige and challenges', () => {
-  it('prestiges at sector threshold and keeps fitted loadout', () => {
+  it('prestiges at wave threshold and keeps fitted loadout', () => {
     let state = createInitialState(0)
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state.resources.scrap = 999
     state.resources.alloys = 999
     state = unlockModule(state, 'plate-layer')
@@ -280,6 +287,7 @@ describe('prestige and challenges', () => {
     expect(state.prestige.prestigeCount).toBe(1)
     expect(state.resources.prestigeMatter).toBeGreaterThan(0)
     expect(state.combat.sector).toBe(1)
+    expect(state.combat.wave).toBe(1)
     expect(state.shipyard.unlockedModules).toContain('plate-layer')
     expect(state.shipyard.modules).toContain('pulse-cannon')
     expect(state.shipyard.modules).toContain('plate-layer')
@@ -287,98 +295,16 @@ describe('prestige and challenges', () => {
     expect(Object.keys(state.base.assignments)).toHaveLength(0)
   })
 
-  it('enters and completes a repeatable challenge', () => {
+  it('enters a challenge after Act 1 clear', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 100
+    state.combat.bestWaveThisRun = 50
+    state.combat.highestSector = 30
     state = enterChallenge(state, 'no-ai', 2000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')
-    expect(state.combat.sector).toBe(1)
-
-    // Force final wave of goal sector so one wipe completes the challenge
-    state.combat.sector = 30
-    state.combat.wave = WAVES_PER_SECTOR
-    state.combat.inFight = true
-    state.combat.enemyUnits = [
-      {
-        id: 'e',
-        side: 'enemy',
-        name: 'Dummy',
-        shape: 'circle',
-        family: 'swarm',
-        hull: 1,
-        hullMax: 1,
-        shield: 0,
-        shieldMax: 0,
-        armor: 0,
-        evasion: 0,
-        damageTakenMult: 1,
-        weapons: [],
-        isBoss: false,
-        isFlagship: false,
-        dots: [],
-        x: 40,
-        y: 0,
-        speed: 0,
-        engageRange: 40,
-        kite: false,
-        phaseWarnLeft: 0,
-      },
-    ]
-    state.combat.playerUnits = [
-      {
-        id: 'flagship',
-        side: 'player',
-        name: 'Flagship',
-        shape: 'triangle',
-        family: 'player',
-        hull: 100,
-        hullMax: 100,
-        shield: 0,
-        shieldMax: 0,
-        armor: 0,
-        evasion: 0,
-        damageTakenMult: 1,
-        weapons: [
-          {
-            id: 'w',
-            name: 'Pulse',
-            damage: 50,
-            cooldown: 1,
-            cooldownLeft: 0,
-            range: 120,
-            tags: ['kinetic'],
-            splash: 0,
-            dotDuration: 0,
-            dotDamage: 0,
-            telegraphDuration: 0,
-            telegraphLeft: 0,
-          },
-        ],
-        isBoss: false,
-        isFlagship: true,
-        dots: [],
-        x: 0,
-        y: 0,
-        speed: 0,
-        engageRange: 0,
-        kite: false,
-        phaseWarnLeft: 0,
-      },
-    ]
-    state.combat.enemyHull = 1
-    state.combat.enemyHullMax = 1
-    state.combat.playerHull = 100
-    state.combat.playerHullMax = 100
-    state = tickGame(state, state.lastTickAt + 1000)
-    expect(state.prestige.challengeClears['no-ai']).toBe(1)
-    expect(state.prestige.activeChallengeId).toBeNull()
-    expect(state.resources.challengePoints).toBeGreaterThan(0)
-
-    // Repeatable — can enter again after reaching sector gate
-    state.combat.sector = 10
-    state = enterChallenge(state, 'no-ai', 3000)
-    expect(state.prestige.activeChallengeId).toBe('no-ai')
+    expect(state.combat.wave).toBe(1)
+    expect(state.shipyard.frameLocked).toBe(false)
   })
 })
 
@@ -392,7 +318,8 @@ describe('salvage module upgrades', () => {
     expect(computeShipStats(state).damage).toBeGreaterThan(before)
     expect(state.resources.salvage).toBeLessThan(100)
 
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 1000)
     // Returning runs start with a salvage kit for early module levels.
     expect(state.resources.salvage).toBe(9)

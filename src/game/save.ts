@@ -6,7 +6,7 @@ import type {
   SignalCoresState,
 } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { AI_NODES, isAiNodePermanent } from './catalog'
+import { AI_NODES } from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
 import {
   SIGNAL_CORE_MAX_RANK,
@@ -42,18 +42,29 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       })),
     }))
 
+  const mode = combat.mode === 'paused' || combat.mode === 'push' ? combat.mode : combat.docked ? 'paused' : 'push'
+
   return {
     ...combat,
+    sector: Math.max(1, combat.sector ?? 1),
     enemyFamily: combat.enemyFamily ?? '',
     enemyTags: combat.enemyTags ?? [],
     isBoss: combat.isBoss ?? false,
     highestSector: Math.max(0, combat.highestSector ?? 0),
     wave: Math.max(1, combat.wave ?? 1),
-    campaign: combat.campaign ?? true,
-    docked: combat.docked ?? false,
+    bestWaveThisRun: Math.max(0, combat.bestWaveThisRun ?? 0),
+    checkpointWave: Math.max(1, combat.checkpointWave ?? 1),
+    mode,
+    campaign: combat.campaign ?? mode === 'push',
+    docked: combat.docked ?? mode === 'paused',
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
     fightElapsed: Math.max(0, Number(combat.fightElapsed ?? 0) || 0),
+    expeditionStartedAt: Math.max(0, Number(combat.expeditionStartedAt ?? 0) || 0),
+    runSalvageEarned: Math.max(0, Number(combat.runSalvageEarned ?? 0) || 0),
+    runScrapEarned: Math.max(0, Number(combat.runScrapEarned ?? 0) || 0),
+    estimatedPrestigeMatter: Math.max(0, Number(combat.estimatedPrestigeMatter ?? 0) || 0),
+    lastRunSummary: combat.lastRunSummary ?? null,
     playerShield: combat.playerShield ?? 0,
     playerShieldMax: combat.playerShieldMax ?? 0,
     playerUnits: withUnitDefaults(combat.playerUnits),
@@ -339,119 +350,41 @@ function backfillCodexUnlocked(
   return { ...meta, codexUnlocked: true }
 }
 
+/**
+ * Phase 1 Expedition save format (v21).
+ * Older saves are intentionally rejected — clean career reset.
+ */
 function migrate(raw: unknown): GameState | null {
   if (!raw || typeof raw !== 'object') return null
-  const parsed = raw as Partial<GameState> & {
-    version?: number
-    prestige?: GameState['prestige'] & { completedChallenges?: string[] }
-  }
+  const parsed = raw as Partial<GameState> & { version?: number }
 
-  if (parsed.version === SAVE_VERSION) {
-    const state = parsed as GameState
-    const base = createInitialState()
-    const combat = withCombatDefaults(state.combat)
-    const codex = withCodexDefaults(state.codex)
-    const meta = backfillCodexUnlocked(
-      withMetaDefaults(state.meta, combat.highestSector),
-      state.research,
-      codex,
-    )
-    return {
-      ...state,
-      resources: withResourcesDefaults(state.resources, base.resources),
-      combat,
-      shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
-      base: migrateBase(state.base, base.base),
-      essence: withEssenceDefaults(state),
-      prestige: withPrestigeDefaults(state.prestige),
-      codex,
-      ai: withAiDefaults(state.ai),
-      meta,
-      core: withCoreDefaults(state.core),
-      signalCores: withSignalCoresDefaults(state.signalCores),
-      parts: withPartsDefaults(state.parts),
-    }
-  }
+  if (parsed.version !== SAVE_VERSION) return null
 
-  if (
-    parsed.version === 1 ||
-    parsed.version === 2 ||
-    parsed.version === 3 ||
-    parsed.version === 4 ||
-    parsed.version === 5 ||
-    parsed.version === 6 ||
-    parsed.version === 7 ||
-    parsed.version === 8 ||
-    parsed.version === 9 ||
-    parsed.version === 10 ||
-    parsed.version === 11 ||
-    parsed.version === 12 ||
-    parsed.version === 13 ||
-    parsed.version === 14 ||
-    parsed.version === 15 ||
-    parsed.version === 16 ||
-    parsed.version === 17 ||
-    parsed.version === 18 ||
-    parsed.version === 19
-  ) {
-    const base = createInitialState()
-    const prev = parsed as GameState & {
-      prestige?: GameState['prestige'] & { completedChallenges?: string[] }
-    }
-    const oldHighest = prev.combat?.highestSector ?? prev.combat?.sector ?? 1
-    const clearedApprox =
-      parsed.version === 10 ||
-      parsed.version === 11 ||
-      parsed.version === 14 ||
-      parsed.version === 15 ||
-      parsed.version === 16 ||
-      parsed.version === 17 ||
-      parsed.version === 18 ||
-      parsed.version === 19
-        ? Math.max(0, prev.combat?.highestSector ?? 0)
-        : Math.max(0, oldHighest - 1)
-    const combat = withCombatDefaults({
-      ...base.combat,
-      ...prev.combat,
-      highestSector: clearedApprox,
-      wave: 1,
-      playerUnits: [],
-      enemyUnits: [],
-      fx: [],
-      inFight: false,
-    })
-    const ai = withAiDefaults(prev.ai)
-    // Older saves treated all AI as run-scoped; keep permanents after migrate.
-    ai.purchased = ai.purchased.filter((id) => {
-      const def = AI_NODES.find((n) => n.id === id)
-      return def ? isAiNodePermanent(def) || def.kind === 'doctrine' : false
-    })
-    const codex = withCodexDefaults(prev.codex)
-    const meta = backfillCodexUnlocked(
-      withMetaDefaults(prev.meta, clearedApprox),
-      prev.research,
-      codex,
-    )
-    return {
-      ...base,
-      ...prev,
-      version: SAVE_VERSION,
-      resources: withResourcesDefaults(prev.resources, base.resources),
-      combat,
-      shipyard: withShipyardDefaults(prev.shipyard, base.shipyard),
-      base: migrateBase(prev.base, base.base),
-      essence: withEssenceDefaults(prev),
-      prestige: withPrestigeDefaults(prev.prestige),
-      codex,
-      ai,
-      meta,
-      core: withCoreDefaults(prev.core),
-      signalCores: withSignalCoresDefaults(prev.signalCores),
-      parts: withPartsDefaults(prev.parts),
-    }
+  const state = parsed as GameState
+  const base = createInitialState()
+  const combat = withCombatDefaults(state.combat)
+  const codex = withCodexDefaults(state.codex)
+  const meta = backfillCodexUnlocked(
+    withMetaDefaults(state.meta, combat.highestSector),
+    state.research,
+    codex,
+  )
+  return {
+    ...state,
+    version: SAVE_VERSION,
+    resources: withResourcesDefaults(state.resources, base.resources),
+    combat,
+    shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
+    base: migrateBase(state.base, base.base),
+    essence: withEssenceDefaults(state),
+    prestige: withPrestigeDefaults(state.prestige),
+    codex,
+    ai: withAiDefaults(state.ai),
+    meta,
+    core: withCoreDefaults(state.core),
+    signalCores: withSignalCoresDefaults(state.signalCores),
+    parts: withPartsDefaults(state.parts),
   }
-
-  return null
 }
 
 export function loadGame(): GameState | null {

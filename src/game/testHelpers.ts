@@ -1,5 +1,4 @@
 import type { GameState } from './types'
-import { WAVES_PER_SECTOR } from './progression'
 import { advanceTicks, startCombat } from './tick'
 
 function wipeEnemies(state: GameState): void {
@@ -46,11 +45,15 @@ export function clearCurrentWave(state: GameState): GameState {
   return s
 }
 
-/** Clear a full sector (all waves). Hold stays; Advance pushes. */
-export function clearSector(state: GameState, waves = WAVES_PER_SECTOR): GameState {
+/** Clear N expedition waves (default 7 for legacy test compatibility). */
+export function clearSector(state: GameState, waves = 7): GameState {
   let s = state
   for (let i = 0; i < waves; i++) {
     s = clearCurrentWave(s)
   }
   return s
 }
+
+/** Alias — clear a run of expedition waves. */
+export const clearWaves = clearSector
+

@@ -7,7 +7,7 @@ import type {
   WeaponInstance,
   WeaponTag,
 } from '../game/types'
-import { SPAWN_DISTANCE } from '../game/combat'
+import { SPAWN_RADIUS } from '../game/arena'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -129,14 +129,32 @@ interface Scene {
   scroll: number
 }
 
-/** Portrait logical canvas — phone-first, left→right lane combat. */
-const VIEW_W = 360
-const VIEW_H = 480
-/** Player flagship sits on the left, vertically centered. */
-const PLAYER_SCREEN_X = 56
-const LANE_SCALE = (VIEW_W - PLAYER_SCREEN_X - 28) / SPAWN_DISTANCE
-/** Vertical spread from sim y (±~70) into the taller portrait frame. */
-const Y_SCALE = 1.35
+/** Portrait square-ish orbital arena — flagship at centre. */
+const VIEW_W = 420
+const VIEW_H = 420
+/** Arena centre on screen. */
+const CX = VIEW_W / 2
+const CY = VIEW_H / 2
+/** Map sim spawn ring onto ~88% of the half-canvas. */
+const ARENA_SCALE = (Math.min(VIEW_W, VIEW_H) * 0.44) / SPAWN_RADIUS
+/** @deprecated lane alias — kept for dock silhouette helpers. */
+const PLAYER_SCREEN_X = CX
+
+function simToScreen(x: number, y: number): { x: number; y: number } {
+  return {
+    x: CX + x * ARENA_SCALE,
+    y: CY + y * ARENA_SCALE,
+  }
+}
+
+function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
+  const r = unit.isFlagship ? 16 : unit.isBoss ? 22 : unit.side === 'player' ? 8 : 10
+  if (unit.isFlagship) {
+    return { x: CX, y: CY, r }
+  }
+  const pos = simToScreen(unit.x, unit.y)
+  return { x: pos.x, y: pos.y, r: unit.isBoss ? Math.min(28, 14 + unit.hullMax / 80) : r }
+}
 
 function tagColor(tag: string): string {
   switch (tag) {
@@ -345,10 +363,7 @@ function shotStyle(p: VisualShot): ShotStyle {
 }
 
 function lanePointToScreen(x: number, y: number): { x: number; y: number } {
-  return {
-    x: PLAYER_SCREEN_X + Math.max(0, x) * LANE_SCALE,
-    y: VIEW_H / 2 + y * Y_SCALE,
-  }
+  return simToScreen(x, y)
 }
 
 function sideFill(side: 'player' | 'enemy', boss: boolean): string {
@@ -358,21 +373,6 @@ function sideFill(side: 'player' | 'enemy', boss: boolean): string {
 
 function primaryWeaponTag(weapons: WeaponInstance[]): string {
   return weapons[0]?.tags[0] ?? 'kinetic'
-}
-
-function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
-  const isBig = unit.isBoss || unit.isFlagship
-  const r = isBig ? 20 : 12
-  // Player flagship: fixed left, vertical center. Escorts keep their y.
-  // Enemies: x grows to the right with lane distance.
-  if (unit.side === 'player' && unit.isFlagship) {
-    return { x: PLAYER_SCREEN_X, y: VIEW_H / 2, r }
-  }
-  return {
-    x: PLAYER_SCREEN_X + Math.max(0, unit.x) * LANE_SCALE,
-    y: VIEW_H / 2 + unit.y * Y_SCALE,
-    r,
-  }
 }
 
 function burst(
@@ -887,6 +887,23 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
   }
   ctx.fillStyle = g
   ctx.fillRect(0, 0, scene.width, scene.height)
+
+  // Orbital engagement rings (subtle)
+  if (!inHangar) {
+    ctx.save()
+    ctx.strokeStyle = 'rgba(126, 200, 255, 0.08)'
+    ctx.lineWidth = 1
+    for (const frac of [0.28, 0.55, 0.88]) {
+      ctx.beginPath()
+      ctx.arc(CX, CY, SPAWN_RADIUS * ARENA_SCALE * frac, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+    ctx.strokeStyle = 'rgba(212, 138, 58, 0.12)'
+    ctx.beginPath()
+    ctx.arc(CX, CY, SPAWN_RADIUS * ARENA_SCALE, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  }
 
   // Soft vertical nebula bands for portrait depth
   if (!inHangar) {
