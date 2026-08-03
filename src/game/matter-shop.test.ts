@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats, SAVE_VERSION } from './state'
 import { buyMatterShop, performPrestige } from './actions'
-import { enemyForSector, repairRatePerSecond } from './combat'
+import { encounterForWave, repairRatePerSecond } from './combat'
+
 import {
   canBuyMatterShop,
   droneCap,
@@ -12,8 +13,9 @@ import {
   shopRank,
 } from './catalog'
 import { startCombat } from './tick'
-import { clearSector } from './testHelpers'
+import { clearCurrentWave } from './testHelpers'
 import { exportSave, importSave } from './save'
+
 
 describe('prestige matter shop', () => {
   it('spends PM on matter-blade and boosts damage more than banking', () => {
@@ -76,8 +78,8 @@ describe('prestige matter shop', () => {
     state = buyMatterShop(state, 'archive-spur')
     state.resources.data = 0
     state = startCombat(state)
-    const enemy = enemyForSector(state.combat.sector, 5)
-    state = clearSector(state)
+    const enemy = encounterForWave('sector-1', state.combat.wave)
+    state = clearCurrentWave(state)
     expect(state.resources.data).toBe(enemy.dataReward + 2)
   })
 
@@ -85,7 +87,8 @@ describe('prestige matter shop', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 3
     state = buyMatterShop(state, 'matter-blade')
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 8000)
     expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(1)
   })
@@ -136,9 +139,9 @@ describe('prestige matter shop', () => {
     expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(true)
   })
 
-  it('migrates legacy matterShop string[] via import', () => {
+  it('rejects legacy matterShop string[] saves (pre-v21)', () => {
     const legacy = createInitialState(0)
-    // Simulate v13 array save
+    // Simulate v13 array save — old versions are rejected
     const raw = {
       ...legacy,
       version: 13,
@@ -150,14 +153,17 @@ describe('prestige matter shop', () => {
     }
     const code = btoa(unescape(encodeURIComponent(JSON.stringify(raw))))
     const migrated = importSave(code)
-    expect(migrated).not.toBeNull()
-    expect(migrated!.version).toBe(SAVE_VERSION)
-    expect(shopRank(migrated!.prestige.matterShop, 'matter-blade')).toBe(1)
-    expect(shopRank(migrated!.prestige.matterShop, 'matter-forge')).toBe(1)
-    expect(shopRank(migrated!.prestige.shop, 'iron-will')).toBe(1)
-    // Round-trip export keeps records
-    const again = importSave(exportSave(migrated!))
+    expect(migrated).toBeNull()
+    // Current-version saves still round-trip
+    const current = createInitialState(0)
+    current.prestige.matterShop = { 'matter-blade': 1, 'matter-forge': 1 }
+    current.prestige.shop = { 'iron-will': 1 }
+    const again = importSave(exportSave(current))
+    expect(again).not.toBeNull()
+    expect(again!.version).toBe(SAVE_VERSION)
     expect(shopRank(again!.prestige.matterShop, 'matter-blade')).toBe(1)
+    expect(shopRank(again!.prestige.matterShop, 'matter-forge')).toBe(1)
+    expect(shopRank(again!.prestige.shop, 'iron-will')).toBe(1)
   })
 
   it('drone-corps raises corps capacity each rank', () => {

@@ -17,7 +17,8 @@ describe('codex', () => {
     let state = createInitialState(0)
     state = startCombat(state)
     expect(state.codex.seenFamilies).toContain('swarm')
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 1000)
     expect(state.codex.seenFamilies).toContain('swarm')
   })
@@ -30,14 +31,16 @@ describe('codex', () => {
     expect(state.meta.codexUnlocked).toBe(true)
     expect(isSystemUnlocked(state, 'codex')).toBe(true)
 
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state = performPrestige(state, 1000)
     expect(state.meta.codexUnlocked).toBe(true)
     expect(state.research.unlocked).toContain('tactical-codex')
     expect(isSystemUnlocked(state, 'codex')).toBe(true)
 
     state.meta.act1Cleared = true
-    state.combat.sector = 30
+    state.meta.highestWaveEver = 100
+    state.combat.bestWaveThisRun = 100
     state.meta.highestSectorEver = 30
     state = performAscension(state, 2000)
     expect(state.meta.codexUnlocked).toBe(true)
@@ -54,7 +57,7 @@ describe('codex', () => {
   it('soft counters describe each family', () => {
     expect(softCounterForFamily('swarm').toLowerCase()).toContain('flak')
     expect(softCounterForFamily('armored').toLowerCase()).toContain('pierce')
-    expect(softCounterForFamily('titan').toLowerCase()).toContain('defense')
+    expect(softCounterForFamily('titan').toLowerCase()).toContain('balanced')
   })
 
   it('revealCodexFamilies ignores unknown ids', () => {

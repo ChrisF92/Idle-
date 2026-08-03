@@ -37,14 +37,13 @@ import {
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { tryCompleteChallenge } from './actions'
 import {
-  WAVES_PER_SECTOR,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
 } from './progression'
 import {
   buildPlayerFleet,
-  enemyForSector,
+  encounterForWave,
   repairRatePerSecond,
   revealCodexFamilies,
   shieldRepairRatePerSecond,
@@ -53,6 +52,10 @@ import {
   totalEnemyHull,
   computeFightDamage,
 } from './combat'
+import {
+  defeatExpedition,
+  refreshEstimatedPrestigeMatter,
+} from './expedition'
 
 /** Legacy alias — production/offline still speak in seconds; combat is continuous. */
 export const TICK_MS = 1000
@@ -324,7 +327,7 @@ function applyStarterCombatDeath(state: GameState, lesson: 0 | 1): void {
   )
 }
 
-/** Death / retreat: warp to previous sector start with full hull; waves reset. */
+/** Death ends the Expedition and awards base PM (no Extraction bonus). */
 function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   const lesson = starterDeathLessonOnLoss(state)
   if (lesson !== null) {
@@ -332,23 +335,39 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
     return
   }
 
-  const fromSector = state.combat.sector
   const fromWave = state.combat.wave
-  clearEnemy(state)
-  state.combat.consecutiveLosses += 1
-  state.combat.sector = Math.max(1, fromSector - 1)
-  state.combat.wave = 1
-  fullHealPlayer(state)
-
-  const label = tactical ? 'Tactical warp' : 'Ship destroyed — warping'
+  const label = tactical ? 'Tactical Extract' : 'Flagship destroyed'
   pushLog(
     state,
-    `${label} from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''} → sector ${state.combat.sector} W1 (hull restored).`,
+    `${label} at wave ${fromWave}${boss ? ' (boss)' : ''}.`,
+  )
+  // Mutate via defeatExpedition clone merge — copy fields back.
+  const ended = defeatExpedition(state)
+  Object.assign(state, ended)
+}
+
+/**
+ * Phase 1 interim between-wave recovery (stand-in for Repair Dock).
+ * Pause itself never repairs.
+ */
+function betweenWaveRepair(state: GameState): void {
+  const stats = computeShipStats(state)
+  state.combat.playerHullMax = stats.hullMax
+  state.combat.playerShieldMax = stats.shieldMax
+  const hullGain = stats.hullMax * 0.08
+  const shieldGain = stats.shieldMax * 0.2
+  state.combat.playerHull = Math.min(
+    stats.hullMax,
+    state.combat.playerHull + hullGain,
+  )
+  state.combat.playerShield = Math.min(
+    stats.shieldMax,
+    state.combat.playerShield + shieldGain,
   )
 }
 
-function grantSectorClearRewards(state: GameState, clearedSector: number, wasBoss: boolean): void {
-  const enemy = enemyForSector(clearedSector, WAVES_PER_SECTOR)
+function grantWaveClearRewards(state: GameState, wave: number, wasBoss: boolean): void {
+  const enemy = encounterForWave('sector-1', wave)
   const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
   let scrapGain = enemy.scrapReward
   if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
@@ -365,18 +384,20 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
     ? enemy.essenceReward *
       researchEssenceMultiplier(state.research.unlocked) *
       essenceBossEssenceMultiplier(state.essence.purchased)
-    : 0
+    : enemy.essenceReward > 0
+      ? enemy.essenceReward
+      : 0
   const salvageGain = enemy.salvageReward
 
   state.resources.scrap += scrapGain
   state.resources.data += dataGain
   state.resources.essence += essenceGain
   state.resources.salvage += salvageGain
+  state.combat.runScrapEarned += scrapGain
+  state.combat.runSalvageEarned += salvageGain
 
   if (wasBoss) {
     grantSignalCoreDrop(state, 'boss')
-  } else {
-    grantSignalCoreDrop(state, 'sector')
   }
 
   const parts = [
@@ -387,49 +408,43 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
   pushLog(
     state,
-    `${wasBoss ? 'Boss' : 'Sector'} ${clearedSector} cleared (${WAVES_PER_SECTOR} waves). ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
+    `Wave ${wave} cleared${wasBoss ? ' (boss)' : ''}. ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
   )
 }
 
 function onFightWon(state: GameState): void {
-  const clearedSector = state.combat.sector
   const clearedWave = state.combat.wave
   const wasBoss = state.combat.isBoss
   state.meta.lifetimeWaveClears = (state.meta.lifetimeWaveClears ?? 0) + 1
 
-  // Hull / shield persist between waves — no mid-sector recovery.
   persistFlagshipHull(state)
   clearEnemy(state)
   state.combat.consecutiveLosses = 0
+  state.combat.bestWaveThisRun = Math.max(state.combat.bestWaveThisRun, clearedWave)
+  state.meta.highestWaveEver = Math.max(
+    state.meta.highestWaveEver ?? 0,
+    clearedWave,
+  )
 
-  if (clearedWave < WAVES_PER_SECTOR) {
-    state.combat.wave = clearedWave + 1
-    // Mid-sector scrap + salvage so long wave chains fund early module ranks.
-    const drip = 1 + Math.floor(clearedSector / 4)
-    const salvageDrip = 1 + Math.floor(clearedSector / 3)
-    state.resources.scrap += drip
-    state.resources.salvage += salvageDrip
-    pushLog(
-      state,
-      `Wave ${clearedWave}/${WAVES_PER_SECTOR} down in sector ${clearedSector}. +${drip} scrap, +${salvageDrip} salvage. Next: W${state.combat.wave}.`,
-    )
-    return
+  // Career unlock bridge (~wave 100 ≈ old sector 30).
+  const sectorBridge = Math.max(1, Math.ceil(clearedWave * 0.3))
+  state.combat.highestSector = Math.max(state.combat.highestSector, sectorBridge)
+  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver, sectorBridge)
+  if (clearedWave >= 100) {
+    state.meta.act1Cleared = true
+    state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
   }
 
-  grantSectorClearRewards(state, clearedSector, wasBoss)
-  state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
-  state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
+  grantWaveClearRewards(state, clearedWave, wasBoss)
+  betweenWaveRepair(state)
   maybeGrantSystemUnlocks(state)
-
-  if (state.combat.campaign) {
-    state.combat.sector = clearedSector + 1
-    state.combat.wave = 1
-  } else {
-    // Hold: repeat the whole sector from wave 1.
-    state.combat.sector = clearedSector
-    state.combat.wave = 1
-  }
   tryCompleteChallenge(state)
+
+  // Continuous Push — advance to the next wave (Endless after 100).
+  state.combat.wave = clearedWave + 1
+  state.combat.mode = 'push'
+  state.combat.campaign = true
+  refreshEstimatedPrestigeMatter(state)
 }
 
 function tickCombat(state: GameState, dt: number): void {
@@ -461,20 +476,19 @@ function tickCombat(state: GameState, dt: number): void {
 }
 
 /**
- * Repair while Paused (full rate) or out of combat undocked (field rate).
- * AI never pauses / resumes combat — only repair multipliers.
- * Attrition challenge blocks all hangar / field repair.
+ * Repair only between waves while Pushing (field rate), never while Paused.
+ * Attrition challenge blocks field repair.
  */
 function fieldRepairMultiplier(state: GameState): number {
   if (state.prestige.activeChallengeId === 'attrition') return 0
-  if (state.combat.docked) return 1
-  let mult = aiDoctrinesActive(state, 'auto-launch-ready') ? 0.85 : 0.4
+  if (state.combat.docked || state.combat.mode === 'paused') return 0
+  let mult = aiDoctrinesActive(state, 'auto-launch-ready') ? 0.35 : 0.15
   if (
     aiDoctrinesActive(state, 'auto-dock-critical') &&
     state.combat.playerHullMax > 0 &&
     state.combat.playerHull / state.combat.playerHullMax < 0.35
   ) {
-    mult = Math.max(mult, 0.95)
+    mult = Math.max(mult, 0.4)
   }
   return mult
 }
@@ -512,16 +526,19 @@ function maybeAutoEngage(state: GameState): void {
 }
 
 export function beginFight(state: GameState): void {
-  const sector = state.combat.sector
-  const wave = Math.min(
-    WAVES_PER_SECTOR,
-    Math.max(1, state.combat.wave || 1),
-  )
+  state.combat.sector = 1
+  const wave = Math.max(1, state.combat.wave || 1)
   state.combat.wave = wave
-  const encounter = enemyForSector(sector, wave)
+  const encounter = encounterForWave('sector-1', wave)
   syncPersistedHullCaps(state)
 
+  if (!state.combat.expeditionStartedAt) {
+    state.combat.expeditionStartedAt = Date.now()
+  }
+
   state.combat.docked = false
+  state.combat.mode = 'push'
+  state.combat.campaign = true
   state.combat.fightElapsed = 0
   state.shipyard.frameLocked = true
   state.combat.inFight = true
@@ -547,15 +564,17 @@ export function beginFight(state: GameState): void {
     state,
     encounter.units.map((u) => u.family),
   )
+  refreshEstimatedPrestigeMatter(state)
 
   const matchup = computeFightDamage(state)
   const note =
     matchup.matchupNotes.length > 0
       ? ` ${matchup.matchupNotes.join('; ')}.`
       : ` ${encounter.blurb}`
+  const endless = wave > 100 ? ' · Endless' : ''
   pushLog(
     state,
-    `Engaging ${encounter.name} — sector ${sector} wave ${wave}/${WAVES_PER_SECTOR} [${encounter.family}] (${encounter.units.length} units).${note}`,
+    `Engaging ${encounter.name} — Sector 1 wave ${wave}${endless} [${encounter.family}] (${encounter.units.length} units).${note}`,
   )
 }
 
@@ -567,36 +586,36 @@ export function startCombat(state: GameState): GameState {
   return next
 }
 
-/** Advance = true (push sectors), Hold = false (farm current sector). */
+/** Push mode (Hold/Patrol arrives in a later phase). */
 export function setCampaign(state: GameState, on: boolean): GameState {
   const next = structuredClone(state)
   next.combat.campaign = on
+  next.combat.mode = on ? 'push' : 'push'
   if (!on) {
-    pushLog(next, 'Hold engaged — farming the current sector.')
+    pushLog(next, 'Patrol unlocks in a later phase — staying on Push.')
+    next.combat.campaign = true
+    next.combat.mode = 'push'
   } else {
-    pushLog(next, 'Advance online — continuous sector push.')
+    pushLog(next, 'Push online — advancing Expedition waves.')
   }
   return next
 }
 
 /**
- * Pause stops auto-engage, aborts the fight, and resets to wave 1 of this sector
- * so the Shipyard can refit. Resume / Launch clears pause. First Launch locks the frame.
- * AI never calls this.
+ * Pause stops simulation without repairing, resetting the wave, or unlocking refit.
+ * Resume / Launch clears pause. First Launch locks the frame and modules.
  */
 export function setDocked(state: GameState, docked: boolean): GameState {
   if (state.combat.docked === docked) return state
   const next = structuredClone(state)
   if (docked) {
-    if (next.combat.inFight) {
-      persistFlagshipHull(next)
-      clearEnemy(next)
-    }
+    // Pause mid-fight: freeze simulation, keep wave progress and hull.
     next.combat.docked = true
-    next.combat.wave = 1
+    next.combat.mode = 'paused'
+    // Keep inFight units visible but simulation stops via docked check.
     pushLog(
       next,
-      `Paused — sector ${next.combat.sector} reset to W1. Refit in Shipyard, then Resume.`,
+      `Paused at wave ${next.combat.wave}. Simulation frozen — no repair or refit.`,
     )
   } else {
     const gate = starterRefitGate(next)
@@ -609,14 +628,19 @@ export function setDocked(state: GameState, docked: boolean): GameState {
       return state
     }
     next.combat.docked = false
+    next.combat.mode = 'push'
+    next.combat.campaign = true
     if (!next.shipyard.frameLocked) {
       next.shipyard.frameLocked = true
+      if (!next.combat.expeditionStartedAt) {
+        next.combat.expeditionStartedAt = Date.now()
+      }
       pushLog(
         next,
-        'Launching — frame locked for this run. Pause anytime to refit (resets the sector to W1).',
+        'Launching Sector 1 — frame and modules locked for this Expedition.',
       )
     } else {
-      pushLog(next, `Resumed — returning to sector ${next.combat.sector} W1.`)
+      pushLog(next, `Resumed — continuing wave ${next.combat.wave}.`)
     }
   }
   return next
@@ -659,8 +683,9 @@ export function advanceSeconds(state: GameState, seconds: number): void {
     const dt = Math.min(SIM_STEP_S, left)
     // Industry / fab / training always use real dt.
     applyProduction(state, dt)
-    if (state.combat.inFight) {
-      // Combat Chrono only accelerates the fight sim.
+    if (state.combat.docked || state.combat.mode === 'paused') {
+      // Paused: freeze Expedition timers and combat; industry still runs.
+    } else if (state.combat.inFight) {
       tickCombat(state, dt * combatSpeed)
     } else {
       tickOutOfCombatRepair(state, dt)

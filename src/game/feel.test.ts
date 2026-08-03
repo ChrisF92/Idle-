@@ -12,8 +12,7 @@ import { buyAiNode } from './actions'
 describe('boss telegraphs', () => {
   it('boss weapons wind up before firing', () => {
     let state = createInitialState(0)
-    state.combat.sector = 5
-    state.combat.wave = 7
+    state.combat.wave = 100
     state.combat.docked = false
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
@@ -27,7 +26,8 @@ describe('boss telegraphs', () => {
     for (const u of state.combat.playerUnits) {
       for (const w of u.weapons) w.cooldownLeft = 99
     }
-    boss!.x = 90
+    boss!.x = 50
+    boss!.y = 0
     weapon.cooldownLeft = 0
     weapon.telegraphLeft = 0
     state.combat.projectiles = []
@@ -46,7 +46,7 @@ describe('boss telegraphs', () => {
     const state = createInitialState(0)
     state.combat.isBoss = true
     state.combat.bossPhase = 0
-    state.combat.enemyUnits = enemyForSector(5, 7).units
+    state.combat.enemyUnits = enemyForSector(1, 100).units
     const boss = state.combat.enemyUnits.find((u) => u.isBoss)!
     boss.hull = boss.hullMax * 0.5
     maybeAdvanceBossPhase(state, () => undefined)
@@ -54,6 +54,7 @@ describe('boss telegraphs', () => {
     expect(boss.phaseWarnLeft).toBeGreaterThan(0)
   })
 })
+
 
 describe('Hold farm rates', () => {
   it('reports positive scrap/s with Hold Accountant', () => {

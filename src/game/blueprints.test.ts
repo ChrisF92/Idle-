@@ -95,7 +95,8 @@ describe('blueprints and fabrication', () => {
 
   it('prestige keeps unlock + parts + discovery; clears fab project', () => {
     let state = createInitialState(0)
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     state.meta.discoveredModules = ['flak-array', 'heavy-lance']
     state.meta.moduleMastery = { 'flak-array': 2 }
     state.parts = { [partId('flak-array', 'casing')]: 5 }
@@ -109,6 +110,7 @@ describe('blueprints and fabrication', () => {
     state.base.workerDrones = 1
 
     state = performPrestige(state, 5000)
+
 
     expect(state.shipyard.unlockedModules).toContain('flak-array')
     expect(state.meta.discoveredModules).toEqual(

@@ -29,7 +29,8 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 
-export const SAVE_VERSION = 20
+/** Phase 1 Expedition / orbital arena — clean save reset, no legacy migration. */
+export const SAVE_VERSION = 21
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -72,12 +73,20 @@ export function createInitialState(now = Date.now()): GameState {
       sector: 1,
       highestSector: 0,
       wave: 1,
+      bestWaveThisRun: 0,
+      checkpointWave: 1,
+      mode: 'push',
       inFight: false,
       docked: true,
       campaign: true,
       consecutiveLosses: 0,
       bossPhase: 0,
       fightElapsed: 0,
+      expeditionStartedAt: 0,
+      runSalvageEarned: 0,
+      runScrapEarned: 0,
+      estimatedPrestigeMatter: 0,
+      lastRunSummary: null,
       playerHull: hullMax,
       playerHullMax: hullMax,
       playerShield: 0,
@@ -92,7 +101,7 @@ export function createInitialState(now = Date.now()): GameState {
       enemyHullMax: 0,
       projectiles: [],
       fx: [],
-      log: ['Systems online. Choose a frame, then Launch.'],
+      log: ['Systems online. Fit a loadout, then Launch Sector 1.'],
     },
     base: {
       workerDrones: 0,
@@ -121,6 +130,7 @@ export function createInitialState(now = Date.now()): GameState {
     },
     meta: {
       highestSectorEver: 0,
+      highestWaveEver: 0,
       act1Cleared: false,
       ascensionCount: 0,
       seenOnboarding: [],

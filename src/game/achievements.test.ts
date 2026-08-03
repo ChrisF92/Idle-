@@ -63,7 +63,8 @@ describe('achievements and AI unlock', () => {
     let state = createInitialState(0)
     state.combat.highestSector = 8
     state.meta.highestSectorEver = 8
-    state.combat.sector = 10
+    state.meta.highestWaveEver = 50
+    state.combat.bestWaveThisRun = 50
     maybeGrantSystemUnlocks(state)
     state.resources.aiPoints = 4
     state = performPrestige(state, 1000)
@@ -73,6 +74,7 @@ describe('achievements and AI unlock', () => {
     // 4 kept + Soft Reset reward (2)
     expect(state.resources.aiPoints).toBe(6)
   })
+
 
   it('offers prestige and AI guide steps when those systems unlock', () => {
     const prestigeState = createInitialState(0)

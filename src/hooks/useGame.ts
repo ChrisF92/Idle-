@@ -9,6 +9,7 @@ import {
   setDocked,
   warpToSector,
 } from '../game/tick'
+import { extractExpedition } from '../game/expedition'
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
   abandonChallenge,
@@ -55,6 +56,7 @@ type Action =
   | { type: 'set-campaign'; on: boolean }
   | { type: 'set-docked'; docked: boolean }
   | { type: 'warp'; sector: number }
+  | { type: 'extract' }
   | { type: 'assign-worker'; stationId: string; delta: number }
   | { type: 'auto-balance-workers'; profile?: LaborProfile }
   | { type: 'set-labor-profile'; profile: LaborProfile }
@@ -106,6 +108,8 @@ function reducer(state: GameState, action: Action): GameState {
       return setDocked(state, action.docked)
     case 'warp':
       return warpToSector(state, action.sector)
+    case 'extract':
+      return extractExpedition(state)
     case 'assign-worker':
       return assignWorker(state, action.stationId, action.delta)
     case 'auto-balance-workers':
@@ -219,6 +223,7 @@ export function useGame() {
     setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
     setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
     warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
+    extractExpedition: () => dispatch({ type: 'extract' }),
     assignWorker: (stationId: string, delta: number) =>
       dispatch({ type: 'assign-worker', stationId, delta }),
     autoBalanceWorkers: (profile?: LaborProfile) =>

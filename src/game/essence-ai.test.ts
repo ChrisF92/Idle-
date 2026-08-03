@@ -68,13 +68,13 @@ describe('AI doctrines', () => {
     let state = createInitialState(0)
     state.resources.aiPoints = 3
     state = buyAiNode(state, 'boss-protocol')
-    state.combat.sector = 5
-    state.combat.wave = 7
+    state.combat.wave = 100
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
     const notes = computeFightDamage(state).matchupNotes.join(' ')
     expect(notes).toContain('Boss Protocol')
   })
+
 
   it('scavenger increases scrap rewards', () => {
     let state = createInitialState(0)

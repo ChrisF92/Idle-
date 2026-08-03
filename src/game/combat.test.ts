@@ -3,8 +3,9 @@ import { buildFlagshipWeapons, createInitialState } from './state'
 import { startCombat, advanceTicks } from './tick'
 import {
   computeFightDamage,
+  encounterForWave,
   enemyForSector,
-  isBossSector,
+  isBossWave,
   PROJECTILE_SPEED,
   projectileSpeedForTag,
   resolveCombatTick,
@@ -15,19 +16,19 @@ import { fitModule, unlockModule } from './actions'
 import { equipPostTutorialLoadout } from './testHelpers'
 
 describe('enemy catalog', () => {
-  it('rotates families and marks bosses every 5 sectors', () => {
-    expect(enemyForSector(1).family).toBe('swarm')
-    expect(enemyForSector(2).family).toBe('armored')
-    expect(enemyForSector(3).family).toBe('ethereal')
-    expect(enemyForSector(4).family).toBe('divine')
-    expect(isBossSector(5)).toBe(true)
-    expect(enemyForSector(5, 1).isBoss).toBe(false)
-    expect(enemyForSector(5, 7).isBoss).toBe(true)
-    expect(enemyForSector(5, 7).family).toBe('titan')
-    expect(enemyForSector(5, 7).essenceReward).toBeGreaterThan(0)
+  it('uses wave bands for families and bosses at wave 100', () => {
+    expect(encounterForWave('sector-1', 1).family).toBe('swarm')
+    expect(encounterForWave('sector-1', 19).family).toBe('swarm')
+    expect(encounterForWave('sector-1', 26).family).toBe('armored')
+    expect(encounterForWave('sector-1', 49).family).toBe('ethereal')
+    expect(isBossWave(100)).toBe(true)
+    expect(encounterForWave('sector-1', 50).isBoss).toBe(false)
+    expect(encounterForWave('sector-1', 100).isBoss).toBe(true)
+    expect(encounterForWave('sector-1', 100).family).toBe('titan')
+    expect(encounterForWave('sector-1', 100).essenceReward).toBeGreaterThan(0)
     expect(enemyForSector(1, 1).units.length).toBeGreaterThan(0)
-    expect(enemyForSector(5, 7).units.some((u) => u.isBoss)).toBe(true)
-    // Waves in a sector are not identical
+    expect(encounterForWave('sector-1', 100).units.some((u) => u.isBoss)).toBe(true)
+    // Distinct waves are not identical packs
     expect(enemyForSector(1, 1).units.map((u) => u.name).join()).not.toBe(
       enemyForSector(1, 3).units.map((u) => u.name).join(),
     )
@@ -37,7 +38,7 @@ describe('enemy catalog', () => {
 describe('role matchups', () => {
   it('weapons deal more to armored enemies', () => {
     let state = createInitialState(0)
-    state.combat.sector = 2
+    state.combat.wave = 26
     state = startCombat(state)
     expect(state.combat.enemyFamily).toBe('armored')
 
@@ -66,8 +67,7 @@ describe('role matchups', () => {
 
   it('bosses punish missing defense', () => {
     let state = createInitialState(0)
-    state.combat.sector = 5
-    state.combat.wave = 7
+    state.combat.wave = 100
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
 
@@ -97,10 +97,10 @@ describe('sector roster intel', () => {
 })
 
 describe('starter reach', () => {
-  it('starter weapons can hit sector 3 ethereal engage range', () => {
+  it('starter weapons can hit ethereal engage range', () => {
     const state = createInitialState(0)
     const maxRange = Math.max(...buildFlagshipWeapons(state).map((w) => w.range))
-    const ethereal = enemyForSector(3)
+    const ethereal = encounterForWave('sector-1', 49)
     const maxEngage = Math.max(...ethereal.units.map((u) => u.engageRange))
     expect(ethereal.family).toBe('ethereal')
     expect(maxRange).toBeGreaterThanOrEqual(maxEngage)
@@ -120,9 +120,10 @@ describe('fleet combat resolution', () => {
   it('defers damage until projectiles impact', () => {
     let state = createInitialState(0)
     state = startCombat(state)
-    // Place foes at mid-lane so a shot must travel before impact
+    // Place foes on-axis so a shot must travel before impact
     for (const u of state.combat.enemyUnits) {
-      u.x = 90
+      u.x = 50
+      u.y = 0
       u.engageRange = 200
     }
     for (const u of state.combat.playerUnits) {
@@ -138,7 +139,7 @@ describe('fleet combat resolution', () => {
     expect(state.combat.enemyHull).toBe(before)
 
     // Travel long enough for mid-lane shots (PROJECTILE_SPEED) to arrive
-    const frames = Math.ceil((90 / PROJECTILE_SPEED) * 60) + 5
+    const frames = Math.ceil((50 / PROJECTILE_SPEED) * 60) + 5
     for (let i = 0; i < frames; i += 1) simulateCombat(state, 1 / 60, () => {})
     expect(state.combat.enemyHull).toBeLessThan(before)
   })
@@ -154,7 +155,7 @@ describe('fleet combat resolution', () => {
     state = startCombat(state)
     expect(state.combat.enemyUnits.length).toBeGreaterThan(1)
     advanceTicks(state, 120)
-    // May still be on S1 after a death warp; cleared progress is on highestSector.
+    // May still be on wave 1 after a defeat dock; cleared progress is on highestSector/wave.
     expect(state.combat.highestSector).toBeGreaterThanOrEqual(1)
   })
 })
