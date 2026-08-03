@@ -56,6 +56,7 @@ import {
   defeatExpedition,
   refreshEstimatedPrestigeMatter,
 } from './expedition'
+import { computeExpeditionUpgradeBonuses } from './expeditionUpgrades'
 
 /** Legacy alias — production/offline still speak in seconds; combat is continuous. */
 export const TICK_MS = 1000
@@ -387,7 +388,12 @@ function grantWaveClearRewards(state: GameState, wave: number, wasBoss: boolean)
     : enemy.essenceReward > 0
       ? enemy.essenceReward
       : 0
-  const salvageGain = enemy.salvageReward
+  const runBonuses = computeExpeditionUpgradeBonuses(state.combat.upgrades)
+  let salvageGain = enemy.salvageReward * runBonuses.salvageWaveMult
+  if (wasBoss || enemy.tags.includes('elite')) {
+    salvageGain *= runBonuses.eliteSalvageMult
+  }
+
 
   state.resources.scrap += scrapGain
   state.resources.data += dataGain

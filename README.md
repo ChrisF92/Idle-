@@ -29,9 +29,11 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 - **Extract** (career wave 20+) ends the run for base PM + 5%; **Defeat** awards base PM only.
 - Wave 100 is the Sector Entity climax; the run can continue into Endless (101+).
 - Procedural deterministic packs for Phase 1; authored milestone waves come later.
-- Save format **v21** — older saves reset cleanly (no migration).
+- Save format **v22** (Phase 2 store) — older saves reset cleanly (no migration).
+- **Salvage store** on the Combat tab: temporary Offence/Defence/Economy/Utility ranks + fitted-module ranks; cleared on Extract/Defeat.
 - Prestige Matter uses a piecewise-linear milestone curve (wave 20 / 50 / 100 landmarks).
 - Remaining permanent systems (Base, Research, AI, challenges, etc.) still exist; Forward Base / Directives / Patrol arrive in later phases.
+- Implementation phase checklist: [`docs/phases.md`](docs/phases.md).
 
 
 ## Develop

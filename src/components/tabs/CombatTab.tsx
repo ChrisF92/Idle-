@@ -16,16 +16,26 @@ import {
   softCounterForFamily,
 } from '../../game/waves'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
+import { UpgradeStorePanel } from '../UpgradeStorePanel'
 
 interface CombatTabProps {
   state: GameState
   onSetDocked: (docked: boolean) => void
   onExtract: () => void
+  onBuyUpgrade: (upgradeId: string, mode: 1 | 10 | 'max') => void
+  onUpgradeModule: (moduleId: string) => void
 }
 
 type Overlay = 'none' | 'wave' | 'launch-confirm' | 'extract-confirm'
+type RunPanel = 'upgrades' | 'run'
 
-export function CombatTab({ state, onSetDocked, onExtract }: CombatTabProps) {
+export function CombatTab({
+  state,
+  onSetDocked,
+  onExtract,
+  onBuyUpgrade,
+  onUpgradeModule,
+}: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
   const frame = getFrame(state.shipyard.frameId)
@@ -39,6 +49,7 @@ export function CombatTab({ state, onSetDocked, onExtract }: CombatTabProps) {
   const fightSummary = useMemo(() => computeFightDamage(state), [state])
   const [overlay, setOverlay] = useState<Overlay>('none')
   const [runSummary, setRunSummary] = useState<ExpeditionRunSummary | null>(null)
+  const [runPanel, setRunPanel] = useState<RunPanel>('upgrades')
 
   useEffect(() => {
     if (combat.lastRunSummary) {
@@ -217,6 +228,47 @@ export function CombatTab({ state, onSetDocked, onExtract }: CombatTabProps) {
           <strong>{combat.bestWaveThisRun}</strong>
         </span>
       </div>
+
+      <div className="run-panel-tabs" role="tablist" aria-label="Run panels">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={runPanel === 'upgrades'}
+          className={runPanel === 'upgrades' ? 'primary mode-active' : ''}
+          onClick={() => setRunPanel('upgrades')}
+        >
+          Upgrades
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={runPanel === 'run'}
+          className={runPanel === 'run' ? 'primary mode-active' : ''}
+          onClick={() => setRunPanel('run')}
+        >
+          Run
+        </button>
+      </div>
+
+      {runPanel === 'upgrades' ? (
+        <UpgradeStorePanel
+          state={state}
+          onBuyUpgrade={onBuyUpgrade}
+          onUpgradeModule={onUpgradeModule}
+        />
+      ) : (
+        <div className="run-summary-panel muted">
+          <p>
+            Wave {combat.wave} · Best this run {combat.bestWaveThisRun} · Career{' '}
+            {state.meta.highestWaveEver}
+          </p>
+          <p>
+            Salvage earned {formatCompact(combat.runSalvageEarned, 1)} · Scrap earned{' '}
+            {formatCompact(combat.runScrapEarned, 1)}
+          </p>
+          <p>Estimated Extract PM: {formatPrestigeMatter(combat.estimatedPrestigeMatter)}</p>
+        </div>
+      )}
 
       <div className="combat-controls combat-controls-sticky" role="group" aria-label="Fleet controls">
         <button

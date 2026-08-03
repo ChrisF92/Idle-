@@ -40,6 +40,7 @@ import {
   unlockModule,
   upgradeCheapestModule,
   upgradeModule,
+  buyExpeditionUpgrade,
   withdrawFabPart,
   equipSignalCore,
   unequipSignalCore,
@@ -81,6 +82,7 @@ type Action =
   | { type: 'fit-module'; moduleId: string }
   | { type: 'unfit-module'; moduleId: string }
   | { type: 'upgrade-module'; moduleId: string }
+  | { type: 'buy-expedition-upgrade'; upgradeId: string; mode?: 1 | 10 | 'max' }
   | { type: 'unequip-all' }
   | { type: 'upgrade-cheapest' }
   | { type: 'ack-onboarding'; tipId: string }
@@ -158,6 +160,8 @@ function reducer(state: GameState, action: Action): GameState {
       return unfitModule(state, action.moduleId)
     case 'upgrade-module':
       return upgradeModule(state, action.moduleId)
+    case 'buy-expedition-upgrade':
+      return buyExpeditionUpgrade(state, action.upgradeId, action.mode ?? 1)
     case 'unequip-all':
       return unequipAllModules(state)
     case 'upgrade-cheapest':
@@ -259,6 +263,8 @@ export function useGame() {
     fitModule: (moduleId: string) => dispatch({ type: 'fit-module', moduleId }),
     unfitModule: (moduleId: string) => dispatch({ type: 'unfit-module', moduleId }),
     upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
+    buyExpeditionUpgrade: (upgradeId: string, mode: 1 | 10 | 'max' = 1) =>
+      dispatch({ type: 'buy-expedition-upgrade', upgradeId, mode }),
     unequipAll: () => dispatch({ type: 'unequip-all' }),
     upgradeCheapest: () => dispatch({ type: 'upgrade-cheapest' }),
     acknowledgeOnboarding: (tipId: string) =>
