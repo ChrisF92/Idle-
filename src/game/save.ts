@@ -234,6 +234,7 @@ function withMetaDefaults(
 
   return {
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
+    highestWaveEver: Math.max(0, Math.floor(Number(meta?.highestWaveEver ?? 0))),
     act1Cleared: meta?.act1Cleared ?? false,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],

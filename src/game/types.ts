@@ -133,9 +133,8 @@ export interface ShipLoadout {
   /** Per-module run upgrade levels (reset on prestige). */
   moduleLevels: Record<string, number>
   /**
-   * After the first Launch of a run, the frame cannot be changed until
-   * prestige / challenge reset. Modules can still be refit between fights
-   * or while Paused.
+   * After the first Launch of a run, the frame and fitted modules are locked
+   * until Extraction, Defeat, Prestige, or Ascension.
    */
   frameLocked: boolean
 }
@@ -146,7 +145,7 @@ export interface WeaponInstance {
   damage: number
   cooldown: number
   cooldownLeft: number
-  /** Max lane distance this weapon can fire. */
+  /** Max arena distance this weapon can fire. */
   range: number
   tags: WeaponTag[]
   /** Extra targets beyond the primary. */
@@ -157,6 +156,22 @@ export interface WeaponInstance {
   telegraphDuration: number
   /** Remaining wind-up; fires when this hits 0 after charging. */
   telegraphLeft: number
+}
+
+/** Expedition combat mode (Patrol arrives in a later phase). */
+export type ExpeditionMode = 'push' | 'paused'
+
+/** Summary shown after Extract or Defeat. */
+export interface ExpeditionRunSummary {
+  bestWave: number
+  waveReached: number
+  basePm: number
+  awardedPm: number
+  extracted: boolean
+  salvageEarned: number
+  scrapEarned: number
+  durationSec: number
+  defeated: boolean
 }
 
 export interface DotInstance {
@@ -182,15 +197,15 @@ export interface CombatUnit {
   isFlagship: boolean
   dots: DotInstance[]
   /**
-   * Lane distance from the player flagship (0 = at player).
-   * Enemies spawn far and close in; player flagship stays at 0.
+   * Arena cartesian X (flagship at origin). Enemies spawn on the perimeter
+   * and close inward; escorts orbit near the core.
    */
   x: number
-  /** Vertical offset from centerline (player flagship at 0). */
+  /** Arena cartesian Y (flagship at origin). */
   y: number
-  /** Units of lane distance moved per second. */
+  /** Arena units moved per second (radial approach / orbit). */
   speed: number
-  /** Preferred firing distance (enemies close to this, some kite). */
+  /** Preferred firing radius from the flagship. */
   engageRange: number
   /** If true, back off when closer than engageRange. */
   kite: boolean
@@ -213,40 +228,58 @@ export interface CombatProjectile {
   toId: string
   side: 'player' | 'enemy'
   tag: string
-  /** Lane-space position. */
+  /** Arena-space position. */
   x: number
   y: number
   damage: number
   tags: WeaponTag[]
   dotDuration: number
   dotDamage: number
-  /** Lane units per second. */
+  /** Arena units per second. */
   speed: number
   attackerFamily: string
 }
 
 export interface CombatState {
+  /** Active Sector id number (Sector 1 for the first campaign). */
   sector: number
-  /** Highest sector cleared at least once this prestige (warp destinations: 1..highestSector). */
+  /**
+   * Legacy bridge: highest sector-equivalent cleared this prestige.
+   * Derived from wave progress during Phase 1.
+   */
   highestSector: number
-  /** Current wave within the sector (1..WAVES_PER_SECTOR). */
+  /** Current Expedition wave (1–100 authored; 101+ Endless). */
   wave: number
+  /** Highest wave fully cleared this Expedition. */
+  bestWaveThisRun: number
+  /** Checkpoint start wave (1 = from beginning). */
+  checkpointWave: number
+  /** Push vs paused (Patrol arrives later). */
+  mode: ExpeditionMode
   inFight: boolean
   /**
-   * Player pause for Shipyard refit / repair. Auto-engage stops until Resume.
-   * Pausing resets the current sector to wave 1. AI never toggles this.
+   * Pre-launch / paused hangar. While true, combat simulation stops.
+   * Pause does not repair, reset the wave, or unlock refit.
    */
   docked: boolean
   /**
-   * Advance mode: after a clear, push to the next sector.
-   * Hold mode: farm the current sector repeatedly (same rewards, no sector++).
-   * Both modes auto-engage while not Paused.
+   * @deprecated Use mode === 'push'. Kept true while pushing for older UI paths.
    */
   campaign: boolean
   consecutiveLosses: number
   bossPhase: number
   /** Seconds elapsed in the current fight (reset on beginFight). */
   fightElapsed: number
+  /** Wall-clock start of the current Expedition (0 if not launched). */
+  expeditionStartedAt: number
+  /** Salvage earned this Expedition (for run summary). */
+  runSalvageEarned: number
+  /** Scrap earned this Expedition (for run summary). */
+  runScrapEarned: number
+  /** Estimated PM if Extracting now (includes +5% bonus). */
+  estimatedPrestigeMatter: number
+  /** Last completed run summary (Extract or Defeat). */
+  lastRunSummary: ExpeditionRunSummary | null
   /** Persisted flagship hull between fights (not fully restored on clear). */
   playerHull: number
   playerHullMax: number
@@ -296,9 +329,11 @@ export type LaborProfile = 'balanced' | 'scrap' | 'data' | 'foundry-safe'
 
 /** Career / meta progress that survives prestige. */
 export interface MetaState {
-  /** Max sector ever cleared across the career. */
+  /** Max sector-equivalent ever cleared (legacy unlock bridge). */
   highestSectorEver: number
-  /** Soft Act 1 climax reached (sector 30). */
+  /** Max Expedition wave ever reached (career). */
+  highestWaveEver: number
+  /** Soft Act 1 climax — first wave-100 clear. */
   act1Cleared: boolean
   /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
   ascensionCount: number
