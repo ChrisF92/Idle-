@@ -302,6 +302,7 @@ const HIVE_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation'
 function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResearchState {
   const empty = createEmptyHiveResearchState()
   if (!raw || typeof raw !== 'object') return empty
+  const focus = raw.focus
   empty.focus =
     focus === 'energy' || focus === 'observation' || focus === 'material' ? focus : 'material'
   for (const id of HIVE_BRANCHES) {

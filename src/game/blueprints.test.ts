@@ -41,8 +41,8 @@ describe('blueprints and fabrication', () => {
 
   it('drop on kill discovers module and adds part', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
+    state.meta.highestSectorEver = 7
+    state.combat.highestSector = 7
     state.research.unlocked = [...state.research.unlocked, 'alloy-smelting']
     const results = rollEnemyPartDrop(
       state,
