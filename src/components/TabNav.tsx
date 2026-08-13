@@ -5,7 +5,7 @@ import { isSystemUnlocked } from '../game/progression'
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'dock', label: 'Dock', icon: '⌂' },
   { id: 'combat', label: 'Sortie', icon: '▲' },
-  { id: 'cores', label: 'Cores', icon: '◆' },
+  { id: 'network', label: 'Network', icon: '◈' },
   { id: 'foundry', label: 'Foundry', icon: '▣' },
   { id: 'stats', label: 'More', icon: '☰' },
 ]

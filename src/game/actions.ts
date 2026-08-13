@@ -49,6 +49,7 @@ import {
   type ResourceCost,
 } from './catalog'
 import { milestonesFor, pendingMilestone } from './milestones'
+import { createEmptyNetworkState, isNetworkBarId, isNetworkBarUnlocked } from './network'
 import {
   buildFlagshipWeapons,
   computeShipStats,
@@ -93,8 +94,13 @@ export function assignWorker(
   stationId: string,
   delta: number,
 ): GameState {
-  const def = getStation(stationId)
-  if (!def || !isStationUnlocked(state, stationId)) return state
+  const networkBar = isNetworkBarId(stationId)
+  if (networkBar) {
+    if (!isNetworkBarUnlocked(state, stationId)) return state
+  } else {
+    const def = getStation(stationId)
+    if (!def || !isStationUnlocked(state, stationId)) return state
+  }
   if (delta === 0) return state
 
   const current = state.base.assignments[stationId] ?? 0
@@ -970,6 +976,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.codex = { seenFamilies: kept.seenFamilies }
   state.meta = kept.meta
   state.core = fresh.core
+  state.network = createEmptyNetworkState()
   state.signalCores = kept.signalCores
   state.parts = kept.parts
 

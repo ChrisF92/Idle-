@@ -11,7 +11,7 @@ export function FoundryTab({ state }: FoundryTabProps) {
     <section className="panel screen-panel">
       <header className="panel-header">
         <h2>Foundry</h2>
-        <p>Synth analogue — recipes and drone smelters. Unlocks with sector 2.</p>
+        <p>Synth analogue — recipes and drone smelters. Loom on the Network feeds this later.</p>
       </header>
       {open ? (
         <p className="notice-box">

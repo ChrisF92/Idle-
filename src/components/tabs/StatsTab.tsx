@@ -5,7 +5,7 @@ import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-13d'
+export const APP_BUILD = '2026-08-13e'
 
 interface StatsTabProps {
   state: GameState

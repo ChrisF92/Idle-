@@ -20,7 +20,7 @@ export const PRESTIGE_MIN_SECTOR = 4
 
 export type SystemId = Exclude<
   TabId,
-  'dock' | 'combat' | 'cores' | 'foundry' | 'shipyard' | 'stats'
+  'dock' | 'combat' | 'cores' | 'network' | 'foundry' | 'shipyard' | 'stats'
 >
 
 export interface SystemUnlockDef {
@@ -456,11 +456,14 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (
     systemId === 'dock' ||
     systemId === 'combat' ||
-    systemId === 'cores' ||
+    systemId === 'network' ||
     systemId === 'shipyard' ||
     systemId === 'stats'
   ) {
     return true
+  }
+  if (systemId === 'cores') {
+    return false
   }
   if (systemId === 'foundry') {
     return careerHighestSector(state) >= 2
@@ -583,14 +586,6 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
 
   if (ever >= 4 && !state.shipyard.unlockedFrames.includes('line-frame')) {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'line-frame']
-  }
-
-  if (
-    ever >= 4 &&
-    !state.meta.seenOnboarding.includes('base-unlock') &&
-    state.base.workerDrones < 2
-  ) {
-    state.base.workerDrones = Math.max(state.base.workerDrones, 2)
   }
 
   if (ever >= ACT1_FINAL_SECTOR && !state.meta.act1Cleared) {
@@ -806,15 +801,15 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-drone-cap',
-    title: 'Corps capacity',
-    body: 'Manufacture stops at your drone cap. Raise it with Drone Logistics, Expanded Hangar (AI), and Drone Corps (Prestige Matter).',
-    target: 'drone-cap-stat',
-    tab: 'base',
+    title: 'Drone Network',
+    body: 'Tap Network. Assign idle drones to Strike (damage) and Ward (shield). They fill bars over time — they do not fight.',
+    target: 'network-tab',
     availableWhen: (s) =>
-      guideSeen(s, 'guide-assign-scrap') &&
-      isSystemUnlocked(s, 'base') &&
-      s.base.workerDrones >= 4 &&
-      !guideSeen(s, 'guide-drone-cap'),
+      s.base.workerDrones > 0 &&
+      !guideSeen(s, 'guide-drone-cap') &&
+      (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) === 0,
+    completeWhen: (s) =>
+      (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) > 0,
   },
   {
     id: 'guide-power-grid',

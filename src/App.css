@@ -455,11 +455,45 @@
 .sortie-sheet {
   flex: 0 1 32%;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  padding: 0.4rem 0.65rem;
+  padding: 0.35rem 0.65rem 0.4rem;
   border-top: 1px solid var(--line);
+}
+
+.sheet-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  margin-bottom: 0.35rem;
+}
+
+.sheet-tab {
+  flex: 1;
+  min-height: 2rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+
+.sheet-tab.active {
+  color: var(--accent);
+  border-color: var(--line);
+  background: var(--bg-elevated);
+}
+
+.sortie-sheet .core-sheet,
+.sortie-sheet .network-sheet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sortie-actions {
@@ -513,6 +547,81 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.35rem;
+}
+
+.network-sheet {
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+}
+
+.network-corps {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.network-manufacture {
+  flex: 0 0 auto;
+  margin: 0 0.75rem;
+}
+
+.network-row {
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  padding: 0.5rem 0.6rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.network-row.locked {
+  opacity: 0.55;
+}
+
+.network-row-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+
+.network-row-stats {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.network-fill {
+  height: 0.4rem;
+  background: #0f1319;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.network-fill > span {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--accent) 75%, #4a8);
+}
+
+.network-assign {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.network-assign button {
+  min-width: 2.2rem;
+  min-height: 2.2rem;
+  padding: 0;
+}
+
+.network-sheet-compact .network-row {
+  padding: 0.4rem 0.5rem;
+}
+
+.network-sheet-compact .network-assign button {
+  min-width: 2rem;
+  min-height: 2rem;
 }
 
 .hangar-backdrop {

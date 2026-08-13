@@ -8,7 +8,7 @@ import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
 import { DockTab } from './components/tabs/DockTab'
 import { CombatTab } from './components/tabs/CombatTab'
-import { CoresTab } from './components/tabs/CoresTab'
+import { NetworkTab } from './components/tabs/NetworkTab'
 import { FoundryTab } from './components/tabs/FoundryTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
@@ -82,14 +82,11 @@ export default function App() {
             }}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
+            onAssign={game.assignWorker}
           />
         )}
-        {tab === 'cores' && (
-          <CoresTab
-            state={game.state}
-            onUpgrade={game.upgradeModule}
-            onPickMilestone={game.pickCoreMilestone}
-          />
+        {tab === 'network' && (
+          <NetworkTab state={game.state} onAssign={game.assignWorker} />
         )}
         {tab === 'foundry' && <FoundryTab state={game.state} />}
         {tab === 'stats' && (

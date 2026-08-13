@@ -1,5 +1,6 @@
 import type { GameState, Resources } from './types'
 import {
+  buildFlagshipWeapons,
   computeShipStats,
   createInitialState,
   fullHealPlayer,
@@ -35,6 +36,12 @@ import {
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { tryCompleteChallenge } from './actions'
+import {
+  networkDataRate,
+  networkManufactureMult,
+  networkScrapRate,
+  tickNetwork,
+} from './network'
 import {
   wavesForSector,
   isSystemUnlocked,
@@ -116,6 +123,32 @@ function productionMeta(state: GameState): number {
   )
 }
 
+function applyNetworkCombatRefresh(state: GameState): void {
+  const stats = computeShipStats(state)
+  state.combat.playerHullMax = stats.hullMax
+  state.combat.playerShieldMax = stats.shieldMax
+  if (!state.combat.inFight) {
+    state.combat.playerHull = Math.min(state.combat.playerHull, stats.hullMax)
+    state.combat.playerShield = Math.min(state.combat.playerShield, stats.shieldMax)
+    return
+  }
+  const flag = state.combat.playerUnits.find((u) => u.isFlagship)
+  if (!flag) return
+  const nextWeapons = buildFlagshipWeapons(state)
+  flag.weapons = nextWeapons.map((w) => {
+    const old = flag.weapons.find((pw) => pw.id === w.id)
+    return old
+      ? { ...w, cooldownLeft: old.cooldownLeft, telegraphLeft: old.telegraphLeft }
+      : w
+  })
+  flag.hullMax = stats.hullMax
+  flag.shieldMax = stats.shieldMax
+  flag.hull = Math.min(flag.hull, flag.hullMax)
+  flag.shield = Math.min(flag.shield, flag.shieldMax)
+  state.combat.playerHull = flag.hull
+  state.combat.playerShield = flag.shield
+}
+
 function applyProduction(state: GameState, dtSeconds: number): void {
   const meta = productionMeta(state)
 
@@ -148,32 +181,33 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     }
   }
 
-  // Worker manufacture (only once Base has been unlocked via career progress).
-  if (state.meta.highestSectorEver >= 4 || state.combat.highestSector >= 4) {
-    const cap = droneCap(state)
-    if (state.base.workerDrones < cap) {
-      const speed = workerManufactureSpeed(state)
-      state.base.manufactureProgress +=
-        (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
-      while (
-        state.base.manufactureProgress >= 1 &&
-        state.base.workerDrones < cap
-      ) {
-        state.base.manufactureProgress -= 1
-        state.base.workerDrones += 1
-        state.meta.lifetimeDronesBuilt =
-          (state.meta.lifetimeDronesBuilt ?? 0) + 1
-        pushLog(
-          state,
-          `Worker drone manufactured. Corps size: ${state.base.workerDrones}/${cap}.`,
-        )
-      }
-      if (state.base.workerDrones >= cap) {
-        state.base.manufactureProgress = Math.min(
-          state.base.manufactureProgress,
-          0.999,
-        )
-      }
+  if (tickNetwork(state, dtSeconds)) {
+    applyNetworkCombatRefresh(state)
+  }
+
+  const cap = droneCap(state)
+  if (state.base.workerDrones < cap) {
+    const speed = workerManufactureSpeed(state) * networkManufactureMult(state)
+    state.base.manufactureProgress +=
+      (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
+    while (
+      state.base.manufactureProgress >= 1 &&
+      state.base.workerDrones < cap
+    ) {
+      state.base.manufactureProgress -= 1
+      state.base.workerDrones += 1
+      state.meta.lifetimeDronesBuilt =
+        (state.meta.lifetimeDronesBuilt ?? 0) + 1
+      pushLog(
+        state,
+        `Drone manufactured. Corps: ${state.base.workerDrones}/${cap}.`,
+      )
+    }
+    if (state.base.workerDrones >= cap) {
+      state.base.manufactureProgress = Math.min(
+        state.base.manufactureProgress,
+        0.999,
+      )
     }
   }
 
@@ -183,7 +217,8 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     (line) => pushLog(state, line),
     logisticsFabMult(state) *
       (1 + computeSignalCoreBonuses(state).fab) *
-      (1 + aiFabBonus(state)),
+      (1 + aiFabBonus(state)) *
+      networkManufactureMult(state),
   )
   tickCoreTraining(state, dtSeconds)
 }
@@ -220,6 +255,9 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
       add(resource as keyof Resources, (perDrone ?? 0) * effective * meta)
     }
   }
+
+  add('scrap', networkScrapRate(state))
+  add('data', networkDataRate(state))
 
   return rates
 }

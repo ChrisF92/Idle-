@@ -38,6 +38,7 @@ import {
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { fittedRegenBonus } from './milestones'
+import { networkSalvageMult } from './network'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -1514,7 +1515,8 @@ export function rollEnemyPartDrop(
 
 export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void {
   if (unit.side !== 'enemy') return
-  state.resources.salvage += salvageFromKill(state.combat.sector, unit.isBoss)
+  state.resources.salvage +=
+    salvageFromKill(state.combat.sector, unit.isBoss) * networkSalvageMult(state)
   rollEnemyPartDrop(state, unit)
   grantSignalCoreDrop(state, 'kill', { family: unit.family })
 }

@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { wavesForSector } from '../../game/sectors'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
+import { NetworkSheet } from '../NetworkSheet'
 
 interface CombatTabProps {
   state: GameState
@@ -11,6 +12,7 @@ interface CombatTabProps {
   onLaunch: () => void
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
+  onAssign: (barId: string, delta: number) => void
 }
 
 export function CombatTab({
@@ -19,11 +21,13 @@ export function CombatTab({
   onLaunch,
   onUpgrade,
   onPickMilestone,
+  onAssign,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
   const waves = wavesForSector(combat.sector)
   const live = !combat.docked
+  const [sheet, setSheet] = useState<'cores' | 'network'>('cores')
 
   const previewPlayer = useMemo(
     () => [
@@ -111,12 +115,32 @@ export function CombatTab({
       </div>
 
       <div className="sortie-sheet">
-        <CoreSheet
-          state={state}
-          compact
-          onUpgrade={onUpgrade}
-          onPickMilestone={onPickMilestone}
-        />
+        <div className="sheet-tabs">
+          <button
+            type="button"
+            className={sheet === 'cores' ? 'sheet-tab active' : 'sheet-tab'}
+            onClick={() => setSheet('cores')}
+          >
+            Cores
+          </button>
+          <button
+            type="button"
+            className={sheet === 'network' ? 'sheet-tab active' : 'sheet-tab'}
+            onClick={() => setSheet('network')}
+          >
+            Network
+          </button>
+        </div>
+        {sheet === 'cores' ? (
+          <CoreSheet
+            state={state}
+            compact
+            onUpgrade={onUpgrade}
+            onPickMilestone={onPickMilestone}
+          />
+        ) : (
+          <NetworkSheet state={state} compact onAssign={onAssign} />
+        )}
       </div>
 
       <div className="sortie-actions">

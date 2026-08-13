@@ -36,8 +36,14 @@ import {
   fittedShieldMilestoneMult,
   milestoneModsFor,
 } from './milestones'
+import {
+  createEmptyNetworkState,
+  NETWORK_STARTING_DRONES,
+  networkStrikeMult,
+  networkWardMult,
+} from './network'
 
-export const SAVE_VERSION = 23
+export const SAVE_VERSION = 24
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -105,11 +111,12 @@ export function createInitialState(now = Date.now()): GameState {
       lastSortie: { outcome: null, sector: 1, wave: 1, note: '' },
     },
     base: {
-      workerDrones: 0,
+      workerDrones: NETWORK_STARTING_DRONES,
       assignments: {},
       manufactureProgress: 0,
       fabProject: null,
     },
+    network: createEmptyNetworkState(),
     research: {
       unlocked: [],
     },
@@ -182,6 +189,7 @@ export function globalDamageMultiplier(state: GameState): number {
   const coreDmg = computeSignalCoreBonuses(state).damage
   // Signal damage is a softer half-weight layer (not a full multiply stack).
   if (coreDmg) mult *= 1 + coreDmg * 0.5
+  mult *= networkStrikeMult(state)
   return mult
 }
 
@@ -303,6 +311,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax += signalBonuses.shield
   evasion += signalBonuses.evasion
   shieldMax *= fittedShieldMilestoneMult(state)
+  shieldMax *= networkWardMult(state)
 
   evasion = Math.min(0.45, evasion)
 

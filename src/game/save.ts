@@ -2,6 +2,8 @@ import type {
   CoreAttrId,
   CoreState,
   GameState,
+  NetworkBarId,
+  NetworkState,
   SignalCoreInstance,
   SignalCoresState,
 } from './types'
@@ -13,6 +15,7 @@ import {
   createEmptySignalCoresState,
   getSignalCoreDef,
 } from './signalCores'
+import { createEmptyNetworkState } from './network'
 
 export function saveGame(state: GameState): void {
   try {
@@ -214,6 +217,21 @@ function migrateBase(
   }
 }
 
+const NETWORK_BAR_IDS: NetworkBarId[] = ['strike', 'ward', 'yield', 'loom', 'archive']
+
+function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
+  const empty = createEmptyNetworkState()
+  if (!network?.bars) return empty
+  for (const id of NETWORK_BAR_IDS) {
+    const rec = network.bars[id]
+    empty.bars[id] = {
+      progress: Math.max(0, rec?.progress ?? 0),
+      levels: Math.max(0, Math.floor(rec?.levels ?? 0)),
+    }
+  }
+  return empty
+}
+
 function withMetaDefaults(
   meta: GameState['meta'] | undefined,
   highestSector: number,
@@ -368,6 +386,7 @@ function migrate(raw: unknown): GameState | null {
       combat,
       shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
       base: migrateBase(state.base, base.base),
+      network: withNetworkDefaults(state.network),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
       codex,

@@ -14,6 +14,7 @@ import {
 import { startCombat } from './tick'
 import { clearSector } from './testHelpers'
 import { exportSave, importSave } from './save'
+import { NETWORK_STARTING_DRONES } from './network'
 
 describe('prestige matter shop', () => {
   it('spends PM on matter-blade and boosts damage more than banking', () => {
@@ -164,7 +165,7 @@ describe('prestige matter shop', () => {
     const before = droneCap(state)
     state = buyMatterShop(state, 'drone-corps')
     expect(droneCap(state)).toBe(before + 5)
-    expect(state.base.workerDrones).toBe(0)
+    expect(state.base.workerDrones).toBe(NETWORK_STARTING_DRONES)
     state = buyMatterShop(state, 'drone-corps')
     expect(droneCap(state)).toBe(before + 10)
     expect(shopRank(state.prestige.matterShop, 'drone-corps')).toBe(2)

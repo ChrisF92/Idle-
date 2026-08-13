@@ -11,10 +11,24 @@ export type ResourceId =
   | 'challengePoints'
   | 'salvage'
 
+export type NetworkBarId = 'strike' | 'ward' | 'yield' | 'loom' | 'archive'
+
+export interface NetworkBarState {
+  /** 0..1 fill toward the next level. */
+  progress: number
+  levels: number
+}
+
+/** USI Compute analogue — bar levels wipe on Rebuild; drones persist. */
+export interface NetworkState {
+  bars: Record<NetworkBarId, NetworkBarState>
+}
+
 export type TabId =
   | 'dock'
   | 'combat'
   | 'cores'
+  | 'network'
   | 'foundry'
   | 'shipyard'
   | 'base'
@@ -408,6 +422,8 @@ export interface GameState {
   shipyard: ShipLoadout
   combat: CombatState
   base: BaseState
+  /** Drone Network bars (Strike / Ward / …). Wiped on Rebuild. */
+  network: NetworkState
   research: ResearchState
   ai: AiState
   essence: EssenceState
