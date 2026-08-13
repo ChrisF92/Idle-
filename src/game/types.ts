@@ -12,7 +12,9 @@ export type ResourceId =
   | 'salvage'
 
 export type TabId =
+  | 'dock'
   | 'combat'
+  | 'cores'
   | 'shipyard'
   | 'base'
   | 'research'
@@ -265,6 +267,13 @@ export interface CombatState {
   projectiles: CombatProjectile[]
   fx: CombatFx[]
   log: string[]
+  /** Set on Extract / Defeat for the Dock summary. */
+  lastSortie: {
+    outcome: 'extract' | 'defeat' | null
+    sector: number
+    wave: number
+    note: string
+  }
 }
 
 /**

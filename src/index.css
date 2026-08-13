@@ -2,14 +2,14 @@
 
 :root {
   color-scheme: dark;
-  --bg: #12161c;
-  --bg-elevated: #1a212b;
-  --bg-panel: #171d26;
-  --line: #2c3644;
+  --bg: #12100e;
+  --bg-elevated: #1c1814;
+  --bg-panel: #191510;
+  --line: #3a3228;
   --text: #e7edf5;
   --muted: #8b97a8;
-  --accent: #d48a3a;
-  --accent-2: #4f8f9a;
+  --accent: #e08a3a;
+  --accent-2: #3d8f88;
   --danger: #c45c5c;
   --ok: #6a9a6d;
   --font-ui: 'IBM Plex Mono', ui-monospace, monospace;

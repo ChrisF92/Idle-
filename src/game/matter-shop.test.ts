@@ -136,12 +136,10 @@ describe('prestige matter shop', () => {
     expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(true)
   })
 
-  it('migrates legacy matterShop string[] via import', () => {
+  it('loads array-shaped shops on a current-version save', () => {
     const legacy = createInitialState(0)
-    // Simulate v13 array save
     const raw = {
       ...legacy,
-      version: 13,
       prestige: {
         ...legacy.prestige,
         shop: ['iron-will'],
@@ -155,7 +153,6 @@ describe('prestige matter shop', () => {
     expect(shopRank(migrated!.prestige.matterShop, 'matter-blade')).toBe(1)
     expect(shopRank(migrated!.prestige.matterShop, 'matter-forge')).toBe(1)
     expect(shopRank(migrated!.prestige.shop, 'iron-will')).toBe(1)
-    // Round-trip export keeps records
     const again = importSave(exportSave(migrated!))
     expect(shopRank(again!.prestige.matterShop, 'matter-blade')).toBe(1)
   })

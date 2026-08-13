@@ -19,14 +19,12 @@ describe('resource visibility gates', () => {
     expect(isResourceVisible(state, 'data')).toBe(true)
   })
 
-  it('hides energy until Base, salvage until first clear', () => {
+  it('hides energy until Base; salvage is always on (Cores)', () => {
     const state = createInitialState(0)
     expect(isResourceVisible(state, 'energy')).toBe(false)
-    expect(isResourceVisible(state, 'salvage')).toBe(false)
+    expect(isResourceVisible(state, 'salvage')).toBe(true)
     state.meta.highestSectorEver = 4
     expect(isResourceVisible(state, 'energy')).toBe(true)
-    state.combat.highestSector = 1
-    expect(isResourceVisible(state, 'salvage')).toBe(true)
   })
 
   it('hides PM/CP until earned', () => {
@@ -82,6 +80,9 @@ describe('expanded onboarding catalog', () => {
       'guide-launch',
       'guide-base-tab',
       'guide-assign-scrap',
+      'guide-salvage-lesson',
+      'guide-upgrade-pulse',
+      'guide-upgrade-plate',
     ]
     expect(activeGuideStep(state, 'base')?.id).toBe('guide-power-grid')
   })
@@ -105,6 +106,9 @@ describe('expanded onboarding catalog', () => {
       'guide-research-tab',
       'guide-sensor-net',
       'guide-salvage',
+      'guide-salvage-lesson',
+      'guide-upgrade-pulse',
+      'guide-upgrade-plate',
       'guide-essence',
       'guide-ai-tab',
       'guide-achievements',

@@ -2,7 +2,7 @@
 
 Working title for a space idle game: fleet combat against alien / godlike entities, with industry, research, an AI Points network, prestige, and ITRTG-style challenges.
 
-**Direction change (not on `main` yet):** see [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md) — Hiveworks: USI-style ship + cores, player-launched sector sorties (waves inside each sector), drone network instead of compute, hub vs run UI. Depth and run length follow USI. No towers.
+**Hiveworks rewrite (in progress):** player-launched sorties, USI-style ship + cores, sectors as short wave gauntlets. Combat sim keeps running after Launch while you browse the Dock. See [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md).
 
 ## Stack
 
@@ -13,16 +13,16 @@ Working title for a space idle game: fleet combat against alien / godlike entiti
 
 ## Systems (tabs)
 
+Phase 1 shell (this branch):
+
 | Tab | Purpose |
 |---|---|
-| Combat | Sector push (5 waves/sector), Advance / Hold / Pause (refit) |
-| Shipyard | Unlock/fit frames + modules (affects damage/hull); farmable modules appear after a blueprint fragment drop |
-| Base | Worker-drone stations + Fabrication Bay (gated — clear sector 3; research Module Fabrication) |
-| Research | Unlock tree + damage bonuses (gated — clear sector 5) |
-| Codex | Soft counters (gated — research Tactical Codex **once**; permanent) |
-| AI | Achievements → AI Points; permanent automation/QoL + per-run doctrines (unlocks with First Blood) |
-| Prestige | Soft reset at sector 10+; Ascension + Ascension-entry challenges after Act 1 |
-| Stats | Save management |
+| Dock | Home. Launch / Extract. Combat keeps simulating while you stay here if a sortie is live. |
+| Sortie | USI-style battlefield (ship at the bottom, waves incoming). |
+| Cores | Pulse (Weapon) + Plate (Ward). Salvage levels persist until Rebuild. |
+| Stats | Save / export / dev tools |
+
+Later tabs (Foundry, Reliquary, Research, …) follow USI sector unlocks — see the plan. Old Cosmic Idle tabs are hidden, not deleted.
 
 ## Progression notes
 

@@ -43,6 +43,28 @@
   margin-top: 0.2rem;
 }
 
+.combat-chip {
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-panel));
+  color: var(--text);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  max-width: 16rem;
+}
+
+.sortie-live-card,
+.core-card {
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  padding: 0.75rem 0.85rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.core-card h3 {
+  font-size: 1rem;
+}
+
 .resource-bar {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

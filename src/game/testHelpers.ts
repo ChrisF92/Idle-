@@ -1,5 +1,5 @@
 import type { GameState } from './types'
-import { WAVES_PER_SECTOR } from './progression'
+import { wavesForSector } from './sectors'
 import { advanceTicks, startCombat } from './tick'
 
 function wipeEnemies(state: GameState): void {
@@ -19,10 +19,7 @@ export function forceUnlockModule(state: GameState, moduleId: string): GameState
   return next
 }
 
-/**
- * Post-tutorial Act 1 opener: Plate + salvage L1 on Pulse/Plate.
- * Needed once mid-wave hull recovery was removed — naked Scout death-loops S1.
- */
+/** Fitted Pulse + Plate at salvage L1. */
 export function equipPostTutorialLoadout(state: GameState): GameState {
   let next = forceUnlockModule(state, 'plate-layer')
   if (!next.shipyard.modules.includes('plate-layer')) {
@@ -46,9 +43,10 @@ export function clearCurrentWave(state: GameState): GameState {
   return s
 }
 
-/** Clear a full sector (all waves). Hold stays; Advance pushes. */
-export function clearSector(state: GameState, waves = WAVES_PER_SECTOR): GameState {
+/** Clear the current sector's full gauntlet (trash + boss). */
+export function clearSector(state: GameState): GameState {
   let s = state
+  const waves = wavesForSector(s.combat.sector)
   for (let i = 0; i < waves; i++) {
     s = clearCurrentWave(s)
   }

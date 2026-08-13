@@ -129,14 +129,15 @@ interface Scene {
   scroll: number
 }
 
-/** Portrait logical canvas — phone-first, left→right lane combat. */
+/** Portrait logical canvas — phone-first, USI-style bottom ship / incoming waves. */
 const VIEW_W = 360
 const VIEW_H = 480
-/** Player flagship sits on the left, vertically centered. */
-const PLAYER_SCREEN_X = 56
-const LANE_SCALE = (VIEW_W - PLAYER_SCREEN_X - 28) / SPAWN_DISTANCE
-/** Vertical spread from sim y (±~70) into the taller portrait frame. */
-const Y_SCALE = 1.35
+/** Player flagship sits bottom-center. Enemies close in from the far side (top). */
+const PLAYER_SCREEN_X = VIEW_W / 2
+const PLAYER_SCREEN_Y = VIEW_H - 72
+const LANE_SCALE = (PLAYER_SCREEN_Y - 36) / SPAWN_DISTANCE
+/** Lateral spread from sim y (±~70). */
+const Y_SCALE = 1.1
 
 function tagColor(tag: string): string {
   switch (tag) {
@@ -346,8 +347,8 @@ function shotStyle(p: VisualShot): ShotStyle {
 
 function lanePointToScreen(x: number, y: number): { x: number; y: number } {
   return {
-    x: PLAYER_SCREEN_X + Math.max(0, x) * LANE_SCALE,
-    y: VIEW_H / 2 + y * Y_SCALE,
+    x: PLAYER_SCREEN_X + y * Y_SCALE,
+    y: PLAYER_SCREEN_Y - Math.max(0, x) * LANE_SCALE,
   }
 }
 
@@ -366,11 +367,11 @@ function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
   // Player flagship: fixed left, vertical center. Escorts keep their y.
   // Enemies: x grows to the right with lane distance.
   if (unit.side === 'player' && unit.isFlagship) {
-    return { x: PLAYER_SCREEN_X, y: VIEW_H / 2, r }
+    return { x: PLAYER_SCREEN_X, y: PLAYER_SCREEN_Y, r }
   }
   return {
-    x: PLAYER_SCREEN_X + Math.max(0, unit.x) * LANE_SCALE,
-    y: VIEW_H / 2 + unit.y * Y_SCALE,
+    x: PLAYER_SCREEN_X + unit.y * Y_SCALE,
+    y: PLAYER_SCREEN_Y - Math.max(0, unit.x) * LANE_SCALE,
     r,
   }
 }
@@ -534,8 +535,8 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     hullMax: unit.hullMax,
     shield: unit.shield,
     shieldMax: unit.shieldMax,
-    x: slot.x + (unit.side === 'enemy' ? (isBossSpawn ? 56 : 30) : 0),
-    y: slot.y,
+    x: slot.x,
+    y: slot.y - (unit.side === 'enemy' ? (isBossSpawn ? 56 : 30) : 0),
     targetX: slot.x,
     targetY: slot.y,
     r: slot.r,
@@ -587,7 +588,7 @@ function onModeTransition(scene: Scene, prev: BattlefieldMode | null, next: Batt
   // Enter hangar — clamp latch + bay wash.
   if (!wasHangar && nowHangar) {
     const cx = PLAYER_SCREEN_X
-    const cy = scene.height / 2
+    const cy = PLAYER_SCREEN_Y
     burst(scene, cx - 22, cy - 22, '#7ec8ff', 22, { speed: 1.05, life: 1.15, size: 1.25 })
     burst(scene, cx - 22, cy + 22, '#7ec8ff', 22, { speed: 1.05, life: 1.15, size: 1.25 })
     burst(scene, cx, cy, '#e8c88c', 28, { speed: 0.7, life: 1.2, size: 1.45 })
@@ -601,13 +602,13 @@ function onModeTransition(scene: Scene, prev: BattlefieldMode | null, next: Batt
   // Launch from hangar — thruster kick.
   if (wasHangar && !nowHangar) {
     const cx = PLAYER_SCREEN_X
-    const cy = scene.height / 2
+    const cy = PLAYER_SCREEN_Y
     for (let i = 0; i < 34; i += 1) {
       scene.particles.push({
         x: cx - 10,
         y: cy + (Math.random() - 0.5) * 32,
-        vx: -100 - Math.random() * 180,
-        vy: (Math.random() - 0.5) * 80,
+        vx: (Math.random() - 0.5) * 80,
+        vy: 100 + Math.random() * 180,
         life: 0.4 + Math.random() * 0.4,
         maxLife: 0.8,
         color: Math.random() > 0.45 ? '#7ec8ff' : '#e0b06a',
@@ -664,8 +665,8 @@ function syncScene(
   for (const p of projectiles) {
     const screen = lanePointToScreen(p.x, p.y)
     const prev = scene.projectiles.get(p.id)
-    let hx = p.side === 'player' ? 1 : -1
-    let hy = 0
+    let hx = 0
+    let hy = p.side === 'player' ? -1 : 1
     if (prev) {
       const dx = screen.x - prev.x
       const dy = screen.y - prev.y
@@ -838,24 +839,24 @@ function drawDockBay(ctx: CanvasRenderingContext2D, scene: Scene): void {
   // Soft bay wash behind the ship
   const wash = ctx.createRadialGradient(
     PLAYER_SCREEN_X,
-    scene.height / 2,
+    PLAYER_SCREEN_Y,
     8,
     PLAYER_SCREEN_X,
-    scene.height / 2,
+    PLAYER_SCREEN_Y,
     70,
   )
   wash.addColorStop(0, 'rgba(212, 138, 58, 0.28)')
   wash.addColorStop(1, 'rgba(212, 138, 58, 0)')
   ctx.fillStyle = wash
   ctx.beginPath()
-  ctx.arc(PLAYER_SCREEN_X, scene.height / 2, 70, 0, Math.PI * 2)
+  ctx.arc(PLAYER_SCREEN_X, PLAYER_SCREEN_Y, 70, 0, Math.PI * 2)
   ctx.fill()
 
   // Docking clamps
   const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(scene.time * 2.2))
   ctx.strokeStyle = `rgba(126, 200, 255, ${0.35 + pulse * 0.35})`
   ctx.lineWidth = 2
-  const cy = scene.height / 2
+  const cy = PLAYER_SCREEN_Y
   ctx.beginPath()
   ctx.moveTo(bayX + 14, cy - 36)
   ctx.lineTo(PLAYER_SCREEN_X - 28, cy - 18)

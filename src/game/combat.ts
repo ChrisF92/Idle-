@@ -27,7 +27,8 @@ import {
   pickWeightedDropEntry,
   stationRepairBonus,
 } from './catalog'
-import { WAVES_PER_SECTOR, isSystemUnlocked } from './progression'
+import { isSystemUnlocked } from './progression'
+import { isSectorBossWave, wavesForSector } from './sectors'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
 import {
   logisticsDropMult,
@@ -189,13 +190,10 @@ function packY(index: number, count: number): number {
 }
 
 export function enemyForSector(sector: number, wave = 1): SectorEncounter {
-  const bossSector = isBossSector(sector)
-  const bossWave = bossSector && wave >= WAVES_PER_SECTOR
+  const bossWave = isSectorBossWave(sector, wave)
   const family: EnemyFamily = bossWave
     ? 'titan'
-    : bossSector
-      ? bossPreludeFamily(sector, wave)
-      : (FAMILY_ROTATION[(sector - 1) % FAMILY_ROTATION.length] ?? 'swarm')
+    : (FAMILY_ROTATION[(sector - 1) % FAMILY_ROTATION.length] ?? 'swarm')
   const names = NAMES[family]
   const name =
     names[(Math.floor((sector - 1) / FAMILY_ROTATION.length) + wave - 1) % names.length] ??
@@ -209,29 +207,19 @@ export function enemyForSector(sector: number, wave = 1): SectorEncounter {
   const waveLabel = `W${wave}`
   return {
     id: `${family}-${sector}-w${wave}`,
-    name: bossWave
-      ? `${name} (Boss)`
-      : bossSector
-        ? `${name} vanguard (${waveLabel})`
-        : `${name} pack (${waveLabel})`,
+    name: bossWave ? `${name} (Boss)` : `${name} pack (${waveLabel})`,
     family,
     tags: bossWave ? [family, 'boss'] : [family],
     isBoss: bossWave,
-    scrapReward: bossSector ? 20 + sector * 4 : 5 + sector * 2,
-    dataReward: bossSector ? 4 + Math.floor(sector / 2) : 1 + Math.floor(sector / 3),
+    scrapReward: bossWave ? 20 + sector * 4 : 5 + sector * 2,
+    dataReward: bossWave ? 4 + Math.floor(sector / 2) : 1 + Math.floor(sector / 3),
     // AI Points come from achievements later — never from combat drops.
     aiReward: 0,
     essenceReward: bossWave ? 1 + Math.floor(sector / 10) : 0,
-    salvageReward: bossSector ? 12 + sector * 2 : 6 + sector,
+    salvageReward: bossWave ? 12 + sector * 2 : 6 + sector,
     blurb: familyBlurb(family, bossWave),
     units,
   }
-}
-
-/** Prelude waves on boss sectors cycle supporting families before the titan. */
-function bossPreludeFamily(sector: number, wave: number): EnemyFamily {
-  const pool: EnemyFamily[] = ['swarm', 'armored', 'ethereal', 'divine']
-  return pool[(sector + wave) % pool.length] ?? 'swarm'
 }
 
 /**
@@ -1025,7 +1013,7 @@ function rosterStatsFromUnit(u: CombatUnit): Pick<
 /** Unique enemy types across all waves in a sector (for the sector intel panel). */
 export function sectorRoster(sector: number): SectorRosterEntry[] {
   const groups = new Map<string, SectorRosterEntry>()
-  for (let wave = 1; wave <= WAVES_PER_SECTOR; wave++) {
+  for (let wave = 1; wave <= wavesForSector(sector); wave++) {
     const encounter = enemyForSector(sector, wave)
     for (const u of encounter.units) {
       const key = `${u.family}:${u.name}`
@@ -1770,7 +1758,7 @@ export function estimateHoldClearRewards(state: GameState): {
   salvage: number
 } {
   const sector = state.combat.sector
-  const clear = enemyForSector(sector, WAVES_PER_SECTOR)
+  const clear = enemyForSector(sector, wavesForSector(sector))
   let scrap = clear.scrapReward
   if (aiDoctrinesActive(state, 'scavenger')) scrap *= 1.3
   if (state.shipyard.modules.includes('salvage-rig')) scrap *= 1.25
@@ -1785,7 +1773,7 @@ export function estimateHoldClearRewards(state: GameState): {
   let salvage = clear.salvageReward
 
   // Mid-wave drips for waves 1..(n-1)
-  for (let w = 1; w < WAVES_PER_SECTOR; w += 1) {
+  for (let w = 1; w < wavesForSector(sector); w += 1) {
     const drip = 1 + Math.floor(sector / 4)
     scrap += drip
     salvage += 1 + Math.floor(sector / 3)
@@ -1807,7 +1795,7 @@ export function estimateHoldFarmRates(state: GameState): {
   const rewards = estimateHoldClearRewards(state)
   const dps = Math.max(1, computeShipStats(state).damage)
   let hullTotal = 0
-  for (let w = 1; w <= WAVES_PER_SECTOR; w += 1) {
+  for (let w = 1; w <= wavesForSector(state.combat.sector); w += 1) {
     hullTotal += totalEnemyHull(enemyForSector(state.combat.sector, w))
   }
   // Floor keeps early sectors from reporting absurd r/s when packs die instantly.

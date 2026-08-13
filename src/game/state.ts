@@ -29,7 +29,7 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 
-export const SAVE_VERSION = 20
+export const SAVE_VERSION = 21
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -51,8 +51,8 @@ export function createInitialState(now = Date.now()): GameState {
     lastTickAt: now,
     resources: {
       scrap: 25,
-      alloys: 5,
-      energy: 10,
+      alloys: 0,
+      energy: 0,
       data: 0,
       essence: 0,
       aiPoints: 0,
@@ -62,9 +62,9 @@ export function createInitialState(now = Date.now()): GameState {
     },
     shipyard: {
       frameId: 'scout-frame',
-      modules: ['pulse-cannon'],
+      modules: ['pulse-cannon', 'plate-layer'],
       unlockedFrames: ['scout-frame'],
-      unlockedModules: ['pulse-cannon'],
+      unlockedModules: ['pulse-cannon', 'plate-layer'],
       moduleLevels: {},
       frameLocked: false,
     },
@@ -92,7 +92,8 @@ export function createInitialState(now = Date.now()): GameState {
       enemyHullMax: 0,
       projectiles: [],
       fx: [],
-      log: ['Systems online. Choose a frame, then Launch.'],
+      log: ['Hiveworks dock online. Launch a sortie when ready.'],
+      lastSortie: { outcome: null, sector: 1, wave: 1, note: '' },
     },
     base: {
       workerDrones: 0,
@@ -137,7 +138,7 @@ export function createInitialState(now = Date.now()): GameState {
       discoveredModules: [],
       moduleMastery: {},
       signalCoresCarryOver: false,
-      starterCombatLesson: 0,
+      starterCombatLesson: 2,
     },
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),

@@ -11,11 +11,9 @@ import { maybeAdvanceBossPhase } from './combat'
 import {
   buyAiNode,
   canPrestige,
-  fitModule,
   performPrestige,
   selectFrame,
   unlockFrame,
-  unlockModule,
 } from './actions'
 import { clearSector } from './testHelpers'
 
@@ -59,7 +57,7 @@ describe('campaign combat', () => {
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
 
-  it('warps to previous sector with full hull on death', () => {
+  it('defeat knocks back to wave 1 of this sector and returns to Dock', () => {
     let state = createInitialState(0)
     state.combat.sector = 4
     state.combat.highestSector = 4
@@ -67,11 +65,12 @@ describe('campaign combat', () => {
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
     flag.hull = 0
     advanceTicks(state, 1)
-    expect(state.combat.sector).toBe(3)
+    expect(state.combat.sector).toBe(4)
     expect(state.combat.wave).toBe(1)
+    expect(state.combat.docked).toBe(true)
+    expect(state.combat.inFight).toBe(false)
     expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
-    // Continuous loop re-engages immediately
-    expect(state.combat.inFight).toBe(true)
+    expect(state.combat.lastSortie.outcome).toBe('defeat')
   })
 
   it('Warp jumps to a cleared sector and aborts the fight', () => {
@@ -102,7 +101,7 @@ describe('campaign combat', () => {
     expect(state.combat.highestSector).toBe(0)
   })
 
-  it('Pause stops auto-engage, resets sector to W1, and allows refit', () => {
+  it('Extract freezes combat and keeps wave progress', () => {
     let state = createInitialState(0)
     expect(state.combat.docked).toBe(true)
     state = setDocked(state, false)
@@ -110,31 +109,23 @@ describe('campaign combat', () => {
     expect(state.combat.inFight).toBe(true)
     expect(state.shipyard.frameLocked).toBe(true)
 
-    // Progress into the sector, then Pause should rewind to W1.
     for (const e of state.combat.enemyUnits) e.hull = 0
     advanceTicks(state, 1)
     expect(state.combat.wave).toBeGreaterThan(1)
+    const wave = state.combat.wave
 
     state = setDocked(state, true)
     expect(state.combat.docked).toBe(true)
     expect(state.combat.inFight).toBe(false)
-    expect(state.combat.wave).toBe(1)
+    expect(state.combat.wave).toBe(wave)
     advanceTicks(state, 2)
     expect(state.combat.inFight).toBe(false)
-    expect(state.combat.wave).toBe(1)
-
-    state.resources.scrap = 999
-    state.resources.alloys = 999
-    state = unlockModule(state, 'plate-layer')
-    state = fitModule(state, 'plate-layer')
-    expect(state.shipyard.modules).toContain('plate-layer')
 
     state = setDocked(state, false)
     advanceTicks(state, 1)
     expect(state.combat.docked).toBe(false)
     expect(state.combat.inFight).toBe(true)
-    expect(state.combat.wave).toBe(1)
-    expect(state.combat.playerUnits.some((u) => u.armor > 0)).toBe(true)
+    expect(state.combat.wave).toBe(wave)
   })
 
   it('chains waves with no intermission', () => {

@@ -60,6 +60,12 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     enemyUnits: withUnitDefaults(combat.enemyUnits),
     projectiles: combat.projectiles ?? [],
     fx: combat.fx ?? [],
+    lastSortie: combat.lastSortie ?? {
+      outcome: null,
+      sector: combat.sector ?? 1,
+      wave: combat.wave ?? 1,
+      note: '',
+    },
   }
 }
 
@@ -457,7 +463,12 @@ export function loadGame(): GameState | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
-    return migrate(JSON.parse(raw))
+    const parsed = JSON.parse(raw) as { version?: number }
+    if (parsed.version !== SAVE_VERSION) {
+      localStorage.removeItem(SAVE_KEY)
+      return null
+    }
+    return migrate(parsed)
   } catch {
     return null
   }
@@ -474,7 +485,9 @@ export function exportSave(state: GameState): string {
 export function importSave(code: string): GameState | null {
   try {
     const json = decodeURIComponent(escape(atob(code.trim())))
-    return migrate(JSON.parse(json))
+    const parsed = JSON.parse(json) as { version?: number }
+    if (parsed.version !== SAVE_VERSION) return null
+    return migrate(parsed)
   } catch {
     return null
   }

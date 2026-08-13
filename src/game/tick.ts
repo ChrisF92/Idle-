@@ -21,7 +21,6 @@ import {
   matterShopDataPerClear,
   matterShopScrapBonus,
   metaProductionMultiplier,
-  moduleLevel,
   prestigeMomentumProductionBonus,
   researchEssenceMultiplier,
   stationEffectiveDrones,
@@ -37,7 +36,7 @@ import {
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { tryCompleteChallenge } from './actions'
 import {
-  WAVES_PER_SECTOR,
+  wavesForSector,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
@@ -277,78 +276,36 @@ export function starterCombatPressureMult(state: GameState): number {
 
 /** Block Resume / Launch until the current docked lesson is finished. */
 export function starterRefitGate(
-  state: GameState,
+  _state: GameState,
 ): 'plate' | 'upgrades' | null {
-  if (state.prestige.prestigeCount > 0) return null
-  if ((state.meta.ascensionCount ?? 0) > 0) return null
-  const lesson = state.meta.starterCombatLesson ?? 0
-  if (lesson === 1 && !state.shipyard.modules.includes('plate-layer')) {
-    return 'plate'
-  }
-  if (lesson === 2) {
-    const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
-    const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
-    if (pulse < STARTER_UPGRADE_LEVEL || plate < STARTER_UPGRADE_LEVEL) {
-      return 'upgrades'
-    }
-  }
   return null
 }
 
-function applyStarterCombatDeath(state: GameState, lesson: 0 | 1): void {
+/** Death: knockback to this sector's first wave, return to Hub. Ship (cores/salvage) stays. */
+function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   const fromSector = state.combat.sector
+  const fromWave = state.combat.wave
+  persistFlagshipHull(state)
   clearEnemy(state)
   state.combat.consecutiveLosses += 1
   state.combat.sector = Math.max(1, fromSector)
   state.combat.wave = 1
   state.combat.docked = true
-  state.combat.fightElapsed = 0
   fullHealPlayer(state)
-
-  if (lesson === 0) {
-    state.resources.scrap = Math.max(state.resources.scrap, STARTER_PLATE_SCRAP_FLOOR)
-    state.resources.alloys = Math.max(state.resources.alloys, 5)
-    state.meta.starterCombatLesson = 1
-    pushLog(
-      state,
-      'Hull breached — docking for repairs. Buy Plate Layer in the Shipyard before launching again.',
-    )
-    return
+  const note = tactical
+    ? `Tactical extract from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}.`
+    : `Hull lost in sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}. Knocked back to W1.`
+  state.combat.lastSortie = {
+    outcome: 'defeat',
+    sector: fromSector,
+    wave: fromWave,
+    note,
   }
-
-  state.resources.salvage += STARTER_SALVAGE_GRANT
-  state.meta.starterCombatLesson = 2
-  pushLog(
-    state,
-    `Wreck salvage recovered (+${STARTER_SALVAGE_GRANT}). Upgrade Pulse Cannon and Plate Layer before Resume.`,
-  )
-}
-
-/** Death / retreat: warp to previous sector start with full hull; waves reset. */
-function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
-  const lesson = starterDeathLessonOnLoss(state)
-  if (lesson !== null) {
-    applyStarterCombatDeath(state, lesson)
-    return
-  }
-
-  const fromSector = state.combat.sector
-  const fromWave = state.combat.wave
-  clearEnemy(state)
-  state.combat.consecutiveLosses += 1
-  state.combat.sector = Math.max(1, fromSector - 1)
-  state.combat.wave = 1
-  fullHealPlayer(state)
-
-  const label = tactical ? 'Tactical warp' : 'Ship destroyed — warping'
-  pushLog(
-    state,
-    `${label} from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''} → sector ${state.combat.sector} W1 (hull restored).`,
-  )
+  pushLog(state, `${note} Returned to dock.`)
 }
 
 function grantSectorClearRewards(state: GameState, clearedSector: number, wasBoss: boolean): void {
-  const enemy = enemyForSector(clearedSector, WAVES_PER_SECTOR)
+  const enemy = enemyForSector(clearedSector, wavesForSector(clearedSector))
   const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
   let scrapGain = enemy.scrapReward
   if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
@@ -387,7 +344,7 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
   pushLog(
     state,
-    `${wasBoss ? 'Boss' : 'Sector'} ${clearedSector} cleared (${WAVES_PER_SECTOR} waves). ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
+    `${wasBoss ? 'Boss' : 'Sector'} ${clearedSector} cleared (${wavesForSector(clearedSector)} waves). ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
   )
 }
 
@@ -402,7 +359,7 @@ function onFightWon(state: GameState): void {
   clearEnemy(state)
   state.combat.consecutiveLosses = 0
 
-  if (clearedWave < WAVES_PER_SECTOR) {
+  if (clearedWave < wavesForSector(clearedSector)) {
     state.combat.wave = clearedWave + 1
     // Mid-sector scrap + salvage so long wave chains fund early module ranks.
     const drip = 1 + Math.floor(clearedSector / 4)
@@ -411,7 +368,7 @@ function onFightWon(state: GameState): void {
     state.resources.salvage += salvageDrip
     pushLog(
       state,
-      `Wave ${clearedWave}/${WAVES_PER_SECTOR} down in sector ${clearedSector}. +${drip} scrap, +${salvageDrip} salvage. Next: W${state.combat.wave}.`,
+      `Wave ${clearedWave}/${wavesForSector(clearedSector)} down in sector ${clearedSector}. +${drip} scrap, +${salvageDrip} salvage. Next: W${state.combat.wave}.`,
     )
     return
   }
@@ -514,7 +471,7 @@ function maybeAutoEngage(state: GameState): void {
 export function beginFight(state: GameState): void {
   const sector = state.combat.sector
   const wave = Math.min(
-    WAVES_PER_SECTOR,
+    wavesForSector(sector),
     Math.max(1, state.combat.wave || 1),
   )
   state.combat.wave = wave
@@ -555,7 +512,7 @@ export function beginFight(state: GameState): void {
       : ` ${encounter.blurb}`
   pushLog(
     state,
-    `Engaging ${encounter.name} — sector ${sector} wave ${wave}/${WAVES_PER_SECTOR} [${encounter.family}] (${encounter.units.length} units).${note}`,
+    `Engaging ${encounter.name} — sector ${sector} wave ${wave}/${wavesForSector(sector)} [${encounter.family}] (${encounter.units.length} units).${note}`,
   )
 }
 
@@ -580,9 +537,8 @@ export function setCampaign(state: GameState, on: boolean): GameState {
 }
 
 /**
- * Pause stops auto-engage, aborts the fight, and resets to wave 1 of this sector
- * so the Shipyard can refit. Resume / Launch clears pause. First Launch locks the frame.
- * AI never calls this.
+ * Extract / Pause: freeze combat sim (kill-fed systems stop). Keep sector/wave.
+ * Launch / Resume: combat sim runs even while the Hub UI is open.
  */
 export function setDocked(state: GameState, docked: boolean): GameState {
   if (state.combat.docked === docked) return state
@@ -593,31 +549,22 @@ export function setDocked(state: GameState, docked: boolean): GameState {
       clearEnemy(next)
     }
     next.combat.docked = true
-    next.combat.wave = 1
-    pushLog(
-      next,
-      `Paused — sector ${next.combat.sector} reset to W1. Refit in Shipyard, then Resume.`,
-    )
+    next.combat.lastSortie = {
+      outcome: 'extract',
+      sector: next.combat.sector,
+      wave: next.combat.wave,
+      note: `Extracted at sector ${next.combat.sector} wave ${next.combat.wave}. Cores and Salvage kept.`,
+    }
+    pushLog(next, next.combat.lastSortie.note)
   } else {
-    const gate = starterRefitGate(next)
-    if (gate === 'plate') {
-      pushLog(next, 'Unlock and fit Plate Layer before launching again.')
-      return state
-    }
-    if (gate === 'upgrades') {
-      pushLog(next, 'Upgrade Pulse Cannon and Plate Layer with Salvage before Resume.')
-      return state
-    }
     next.combat.docked = false
     if (!next.shipyard.frameLocked) {
       next.shipyard.frameLocked = true
-      pushLog(
-        next,
-        'Launching — frame locked for this run. Pause anytime to refit (resets the sector to W1).',
-      )
-    } else {
-      pushLog(next, `Resumed — returning to sector ${next.combat.sector} W1.`)
     }
+    pushLog(
+      next,
+      `Sortie launched — sector ${next.combat.sector} W${next.combat.wave}. Combat keeps running if you open the Dock.`,
+    )
   }
   return next
 }

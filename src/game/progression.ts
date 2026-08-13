@@ -2,8 +2,12 @@
 
 import type { GameState, Resources, TabId } from './types'
 
-/** Waves fought to clear one sector (Advance or Hold). */
-export const WAVES_PER_SECTOR = 7
+export {
+  WAVES_PER_SECTOR,
+  isSectorBossWave,
+  trashWavesForSector,
+  wavesForSector,
+} from './sectors'
 
 /** Soft campaign climax — first Act 1 clear beat (ITRTG “first Baal” analogue). */
 export const ACT1_FINAL_SECTOR = 30
@@ -14,7 +18,7 @@ export const ACT1_FINAL_SECTOR = 30
  */
 export const PRESTIGE_MIN_SECTOR = 10
 
-export type SystemId = Exclude<TabId, 'combat' | 'shipyard' | 'stats'>
+export type SystemId = Exclude<TabId, 'dock' | 'combat' | 'cores' | 'shipyard' | 'stats'>
 
 export interface SystemUnlockDef {
   id: SystemId
@@ -446,7 +450,13 @@ export function tryCompleteAchievements(state: GameState): string[] {
 }
 
 export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
-  if (systemId === 'combat' || systemId === 'shipyard' || systemId === 'stats') {
+  if (
+    systemId === 'dock' ||
+    systemId === 'combat' ||
+    systemId === 'cores' ||
+    systemId === 'shipyard' ||
+    systemId === 'stats'
+  ) {
     return true
   }
   if (systemId === 'ai') {
@@ -496,16 +506,15 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
     case 'scrap':
       return true
     case 'alloys':
-      // Needed for early module unlocks; always show once Base exists, else if spent/gained.
       return (
         isSystemUnlocked(state, 'base') ||
-        state.resources.alloys !== 5 ||
+        state.resources.alloys > 0 ||
         state.research.unlocked.includes('alloy-smelting')
       )
     case 'energy':
-      return isSystemUnlocked(state, 'base') || state.resources.energy !== 10
+      return isSystemUnlocked(state, 'base') || state.resources.energy > 0
     case 'salvage':
-      return state.resources.salvage > 0 || careerHighestSector(state) >= 1
+      return true
     case 'data':
       return isSystemUnlocked(state, 'research')
     case 'essence':
@@ -530,12 +539,12 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
 
 export function visibleResourceIds(state: GameState): (keyof Resources)[] {
   const order: (keyof Resources)[] = [
+    'salvage',
     'scrap',
     'alloys',
     'energy',
     'data',
     'essence',
-    'salvage',
     'aiPoints',
     'prestigeMatter',
     'challengePoints',

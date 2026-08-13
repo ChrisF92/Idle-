@@ -87,6 +87,9 @@ describe('achievements and AI unlock', () => {
       'guide-research-tab',
       'guide-sensor-net',
       'guide-salvage',
+      'guide-salvage-lesson',
+      'guide-upgrade-pulse',
+      'guide-upgrade-plate',
       'guide-essence',
       'guide-ai-tab',
       'guide-achievements',
@@ -106,6 +109,9 @@ describe('achievements and AI unlock', () => {
       'guide-research-tab',
       'guide-sensor-net',
       'guide-salvage',
+      'guide-salvage-lesson',
+      'guide-upgrade-pulse',
+      'guide-upgrade-plate',
       'guide-essence',
     ]
     expect(activeGuideStep(aiState, 'combat')?.id).toBe('guide-ai-tab')

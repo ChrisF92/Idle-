@@ -146,9 +146,13 @@ This is the layout change. It is the whole game’s skeleton.
               HUB + run summary
 ```
 
-**Launch** is a loadout confirm: hull, fitted Cores, modules, **starting sector** (USI’s prestige start-sector dropdown — 1 by default, up to highest cleared). After launch, Cores lock for that sortie. Rebuild is still how you *change which* Cores are fitted.
+**Launch** starts the combat **sim**. Kill-fed systems (Salvage, later Research / Reliquary / Furnace / Specialists) keep ticking even if you are looking at the Dock or Cores — same as USI, minus the permanent battlefield pane. A live **combat chip** in the header jumps back to the Sortie view.
 
-**Extract** after a **sector boss** (a sector boundary), not after every trash wave. Ship, Salvage, and Core levels **stay** — you went back to the Hub, you did not prestige. **Defeat** if hull hits 0: knockback (lose the in-progress sector), return to Hub, ship still intact. **Rebuild** is the USI prestige wipe.
+**Extract** freezes the sim (true pause). Use it to Rebuild, swap later, or go idle without dying. Extract does **not** wipe Cores or Salvage.
+
+**Defeat** knocks the current sector back to wave 1 and returns you to the Dock. Ship loadout stays.
+
+This is the hybrid: player still *initialises* a run; systems that need kills do not stall because you opened Foundry.
 
 Idle systems (drone bars, foundry crafts, research, furnace) **do not pause** while you are in a sortie, except when the player hits Pause (freezes the sortie only).
 

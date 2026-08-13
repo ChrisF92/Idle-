@@ -22,7 +22,7 @@ import {
   achievementCompletions,
 } from './progression'
 import { advanceSeconds, startCombat } from './tick'
-import { importSave, exportSave } from './save'
+import { importSave } from './save'
 import { mergeSignalCores } from './signalCores'
 import type { SignalCoreInstance } from './types'
 
@@ -157,7 +157,7 @@ describe('automation AI', () => {
 })
 
 describe('save migrate v18', () => {
-  it('migrates v17 meta fields', () => {
+  it('rejects pre-v21 saves (Hiveworks clean reset)', () => {
     const legacy = createInitialState(0)
     const raw = {
       ...legacy,
@@ -168,15 +168,9 @@ describe('save migrate v18', () => {
         ascensionCount: undefined,
       },
     }
-    // Force version 17 shape
     ;(raw as { version: number }).version = 17
     const code = btoa(unescape(encodeURIComponent(JSON.stringify(raw))))
-    const migrated = importSave(code)
-    expect(migrated).not.toBeNull()
-    expect(migrated!.version).toBe(20)
-    expect(migrated!.meta.ascensionCount).toBe(0)
-    expect(migrated!.meta.achievementCompletions['first-blood']).toBe(1)
-    expect(importSave(exportSave(migrated!))!.meta.lifetimeSectorClears).toBe(0)
+    expect(importSave(code)).toBeNull()
   })
 })
 

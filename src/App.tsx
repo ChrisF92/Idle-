@@ -2,77 +2,51 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { computeResourceRates } from './game/tick'
-import { activeGuideStep, isSystemUnlocked } from './game/progression'
+import { isSystemUnlocked } from './game/progression'
+import { wavesForSector } from './game/sectors'
 import { ResourceBar } from './components/ResourceBar'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
-import { GuideOverlay } from './components/GuideOverlay'
+import { DockTab } from './components/tabs/DockTab'
 import { CombatTab } from './components/tabs/CombatTab'
-import { ShipyardTab } from './components/tabs/ShipyardTab'
-import { BaseTab } from './components/tabs/BaseTab'
-import { ResearchTab } from './components/tabs/ResearchTab'
-import { CodexTab } from './components/tabs/CodexTab'
-import { AiTab } from './components/tabs/AiTab'
-import { PrestigeTab } from './components/tabs/PrestigeTab'
-import { CoreTab } from './components/tabs/CoreTab'
+import { CoresTab } from './components/tabs/CoresTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import './App.css'
 
 export default function App() {
   const game = useGame()
-  const [tab, setTab] = useState<TabId>('combat')
-  const [fabLaunchModuleId, setFabLaunchModuleId] = useState<string | null>(null)
+  const [tab, setTab] = useState<TabId>('dock')
   const rates = useMemo(() => computeResourceRates(game.state), [game.state])
-  const guide = activeGuideStep(game.state, tab)
-  const ack = game.acknowledgeOnboarding
-  const onFabLaunchConsumed = useCallback(() => setFabLaunchModuleId(null), [])
-  const onBuildModule = useCallback((moduleId: string) => {
-    setFabLaunchModuleId(moduleId)
-    setTab('base')
-  }, [])
+  const live = !game.state.combat.docked
+  const waves = wavesForSector(game.state.combat.sector)
+
+  const go = useCallback(
+    (next: TabId) => {
+      if (isSystemUnlocked(game.state, next)) setTab(next)
+    },
+    [game.state],
+  )
 
   useEffect(() => {
     if (!isSystemUnlocked(game.state, tab)) {
-      setTab('combat')
+      setTab('dock')
     }
   }, [game.state, tab])
-
-  useEffect(() => {
-    if (guide?.tab && guide.tab !== tab && isSystemUnlocked(game.state, guide.tab)) {
-      setTab(guide.tab)
-    }
-  }, [guide?.id, guide?.tab, game.state, tab])
-
-  useEffect(() => {
-    game.syncCompletedGuides(tab)
-    // Sync completed-but-unacked guides so run resets don't re-spotlight them.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional tab/state sync
-  }, [tab, game.state.meta.seenOnboarding.length, game.state.combat.docked])
-
-  useEffect(() => {
-    if (!guide?.completeWhen) return
-    if (guide.completeWhen(game.state, tab)) {
-      ack(guide.id)
-    }
-  }, [guide, game.state, tab, ack])
-
-  useEffect(() => {
-    document.body.classList.toggle('guide-active', Boolean(guide))
-    document.body.classList.toggle('guide-required', Boolean(guide?.required))
-    return () => {
-      document.body.classList.remove('guide-active')
-      document.body.classList.remove('guide-required')
-    }
-  }, [guide])
 
   return (
     <div className="app">
       <header className="topbar">
         <div>
-          <p className="brand">Cosmic Idle</p>
-          <p className="tagline">Working title — fleet vs entities</p>
+          <p className="brand">Hiveworks</p>
+          <p className="tagline">Foundry idle — USI combat, player-launched sorties</p>
         </div>
+        {live ? (
+          <button type="button" className="combat-chip" onClick={() => go('combat')}>
+            Live S{game.state.combat.sector} W{game.state.combat.wave}/{waves} · hull{' '}
+            {Math.ceil(game.state.combat.playerHull)}
+          </button>
+        ) : null}
       </header>
 
       <PwaUpdateBanner />
@@ -85,81 +59,33 @@ export default function App() {
       ) : null}
 
       <ResourceBar state={game.state} rates={rates} />
-      <TabNav active={tab} onChange={setTab} state={game.state} />
+      <TabNav active={tab} onChange={go} state={game.state} />
 
       <main className="main">
+        {tab === 'dock' && (
+          <DockTab
+            state={game.state}
+            onLaunch={() => {
+              game.setDocked(false)
+              go('combat')
+            }}
+            onOpenSortie={() => go('combat')}
+          />
+        )}
         {tab === 'combat' && (
           <CombatTab
             state={game.state}
-            onSetCampaign={game.setCampaign}
-            onSetDocked={game.setDocked}
-            onWarp={game.warpToSector}
+            onExtract={() => {
+              game.setDocked(true)
+              go('dock')
+            }}
+            onLaunch={() => {
+              game.setDocked(false)
+            }}
           />
         )}
-        {tab === 'shipyard' && (
-          <ShipyardTab
-            state={game.state}
-            guideTarget={guide?.target}
-            onUnlockFrame={game.unlockFrame}
-            onSelectFrame={game.selectFrame}
-            onUnlockModule={game.unlockModule}
-            onFitModule={game.fitModule}
-            onUnfitModule={game.unfitModule}
-            onUpgradeModule={game.upgradeModule}
-            onUnequipAll={game.unequipAll}
-            onUpgradeCheapest={game.upgradeCheapest}
-            onBuildModule={onBuildModule}
-          />
-        )}
-        {tab === 'base' && (
-          <BaseTab
-            state={game.state}
-            fabLaunchModuleId={fabLaunchModuleId}
-            onFabLaunchConsumed={onFabLaunchConsumed}
-            onAssign={game.assignWorker}
-            onAutoBalance={game.autoBalanceWorkers}
-            onSetLaborProfile={game.setLaborProfile}
-            onClearAssignments={game.clearWorkerAssignments}
-            onFillStation={game.fillStationWorkers}
-            onStartFab={game.startFabProject}
-            onLaunchFab={game.launchFabProject}
-            onClearFab={game.clearFabProject}
-            onDepositFab={game.depositFabPart}
-            onWithdrawFab={game.withdrawFabPart}
-            onSellPart={game.sellPart}
-            onInvestMastery={game.investPartMastery}
-          />
-        )}
-        {tab === 'research' && (
-          <ResearchTab
-            state={game.state}
-            guideTarget={guide?.target}
-            onBuyResearch={game.buyResearch}
-            onBuyEssence={game.buyEssenceUpgrade}
-          />
-        )}
-        {tab === 'core' && (
-          <CoreTab
-            state={game.state}
-            onAssign={game.assignWorker}
-            onEquipCore={game.equipSignalCore}
-            onUnequipCore={game.unequipSignalCore}
-            onMergeCores={game.mergeSignalCores}
-          />
-        )}
-        {tab === 'codex' && <CodexTab state={game.state} />}
-        {tab === 'ai' && <AiTab state={game.state} onBuy={game.buyAiNode} />}
-        {tab === 'prestige' && (
-          <PrestigeTab
-            state={game.state}
-            guideTarget={guide?.target}
-            onPrestige={game.prestige}
-            onAscend={game.ascend}
-            onEnterChallenge={game.enterChallenge}
-            onAbandonChallenge={game.abandonChallenge}
-            onBuyShop={game.buyChallengeShop}
-            onBuyMatterShop={game.buyMatterShop}
-          />
+        {tab === 'cores' && (
+          <CoresTab state={game.state} onUpgrade={game.upgradeModule} />
         )}
         {tab === 'stats' && (
           <StatsTab
@@ -170,10 +96,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {guide ? (
-        <GuideOverlay step={guide} onComplete={ack} onSkip={ack} />
-      ) : null}
     </div>
   )
 }
