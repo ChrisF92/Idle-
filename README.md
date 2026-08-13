@@ -2,7 +2,7 @@
 
 Working title for a space idle game: fleet combat against alien / godlike entities, with industry, research, an AI Points network, prestige, and ITRTG-style challenges.
 
-**Direction change (not on `main` yet):** see [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md) — USI-inspired rewrite (Hiveworks): player-launched wave-TD sorties, drone network instead of compute, hub vs run UI. Plan only until accepted.
+**Direction change (not on `main` yet):** see [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md) — Hiveworks: USI-style ship + cores, player-launched sector sorties (waves inside each sector), drone network instead of compute, hub vs run UI. Depth and run length follow USI. No towers.
 
 ## Stack
 

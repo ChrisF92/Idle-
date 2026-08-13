@@ -1,26 +1,49 @@
 # Hiveworks — USI-inspired rewrite plan
 
-Working title: **Hiveworks** ( Cosmic Idle stays as the repo/PWA name until we lock a title ).
+Working title: **Hiveworks** (package/PWA name stays `cosmic-idle` until a rename pass).
 
-This is a design plan only. No gameplay rewrite until this document is accepted.
+**Status:** accepted 2026-08-13. Defaults locked, then amended: USI combat + cores, no towers, **USI depth and run length**, sectors kept as the career ladder with waves inside each sector.
 
 ---
 
 ## 1. North star
 
-Clone the *shape* of [Unnamed Space Idle](https://spaceidle.game-vault.net/wiki/Gameplay): unfolding idle systems, salvage-leveled hardpoints, prestige-as-loadout-swap, and a long ladder of systems that each change how you play.
+Clone the *shape* of [Unnamed Space Idle](https://spaceidle.game-vault.net/wiki/Gameplay): unfolding idle systems, salvage-leveled **Cores** (weapon / shield / utility), prestige-as-loadout-swap, and a long ladder of systems that each change how you play.
 
 Do **not** clone USI’s always-on sector crawl or its UI.
 
-Three non-negotiables from you:
+Non-negotiables:
 
 1. **Story** — last. Wire hooks now; write it with onboarding.
 2. **Player starts a run.** Hub when docked. Combat is a sortie, not a permanent background view.
-3. **Wave tower-defense**, not USI’s distance/sector push. Theme and names change. Mechanics can shift (drones instead of Compute Power).
+3. **USI combat + cores vs waves**, not a distance bar and not tower defense. Theme and names change. Idle mechanics can shift (drones instead of Compute Power).
+4. **Equipping stays USI.** You fit Cores on the ship, level them with Salvage during a sortie, and Rebuild to swap the loadout. No placed structures, no turret-building.
+5. **Depth and run length stay USI.** Same systems, same sector unlock numbers, same career walls (Crew at 51, Task List at 72, Capital at 75). We do not shrink that into a 100-wave tutorial.
 
 ---
 
-## 2. Repo strategy — keep history, rewrite content
+## 2. Locked decisions
+
+| Decision | Lock |
+|---|---|
+| Theme / title | **Hiveworks** — orbital foundry, industrial amber / oxidised teal |
+| Combat | **USI-style:** player ship at the bottom, waves spawn from the far side and close in. Auto-firing Cores. Shields then hull |
+| Equipping | **USI Cores:** Weapon / Shield / Utility slots, Salvage levels, milestone nodes, Rebuild to swap |
+| Towers | **None.** No placeable tiles, no orbiting turret drones, no “defend the dock with guns” fantasy |
+| Geometry | USI battlefield (bottom ship, incoming waves). Not an orbital TD arena |
+| Depth | **USI’s unlock table.** Foundry 2, Reliquary 3, Furnace 5, Research 7, Protocols 18, Echo Runs 22, Specialists 51, Task List 72, Capital 75, Reinforce 80 |
+| Run length | **USI’s.** First sitting clears early sectors and unfolds Synth→Research; first Rebuild when you want to swap Cores (often ~4–12); Crew/Capital are week-scale walls, not one-run climaxes |
+| Ship power scope | **Prestige-scoped, like USI.** Salvage and Core levels persist across Extract / Defeat. They wipe on **Rebuild** (and Protocol start). Extract is leaving the battlefield, not cashing out a roguelike run |
+| Sectors → waves | **Keep sectors.** Each sector is a short wave gauntlet + boss. See §8 |
+| Clickables | Auto-collect; no clicker layer |
+| Repo | Keep history + stack; start from `main`; do not merge expedition PRs 28–31 |
+| Story | Last, as Foundry logs + onboarding |
+| Saves | Hard version bump, no Cosmic Idle migration |
+| Target | Phone PWA, portrait |
+
+---
+
+## 3. Repo strategy — keep history, rewrite content
 
 **Do not wipe the repo. Do not merge the open expedition PRs.**
 
@@ -32,49 +55,54 @@ Three non-negotiables from you:
 | **Do not merge** PRs 29–31 (expeditions / salvage store / forward base) | Half a different Cosmic Idle redesign; would fight this one |
 | **Do not merge** PR 28 (offline combat rewards) | Built for the old sector campaign |
 | Start the rewrite from **`main`** | Cleanest base |
-| Steal *ideas* from the expedition work, not the branches | Hub/run split, 100-wave sortie, orbital arena, in-run salvage shop |
+| Steal *ideas* from the expedition work, not the branches | Hub/run split, in-run salvage spend on Cores |
 
-Open draft PRs should be closed as superseded once this plan is accepted. Old Cosmic Idle systems (ITRTG challenges, AI doctrines, Core training tab, 7-wave sectors) are retired, not migrated.
+Open draft PRs 28–31 should be closed as superseded. Old Cosmic Idle systems (ITRTG challenges, AI doctrines, Core training tab, 7-wave sectors) are retired, not migrated.
 
 Saves: **hard version bump, no migration.** First rewrite build wipes `localStorage`. Call that out in the UI once.
 
 ---
 
-## 3. What USI actually is (so we copy the right parts)
+## 4. What USI actually is (so we copy the right parts)
 
 USI’s loop is: combat is always running → Salvage levels Cores → idle systems multiply that → prestige to swap Cores and cash Base bonuses.
 
-| USI system | Role | When it unlocks (approx.) |
+We keep the combat *feel* and the Core loadout. We change the *session*: you launch a sortie of waves, then return to a Hub.
+
+| USI system | Role | Unlocks |
 |---|---|---|
-| Battlefield / sectors | Always-on combat; distance bar; bosses at sector end | Start |
+| Battlefield / sectors | Always-on combat; distance bar; boss at sector end | Start |
 | Core Equipment | Weapons / shields / utility, Salvage-leveled, milestone nodes | Start |
 | Compute | Idle bars; Compute Power allocated; damage + shields | Start |
-| Synth | Craft materials → equippable modules; Synth Points permanent | Sector 2 |
-| V-Device | Shard loadout / links | Mid |
-| Reactor | Void Matter → Void Power → system boosts | Mid |
-| Research | 3 parallel branches fed by kills; one focused | Mid |
-| Bases | Building grid; bonuses apply **on prestige** | Prestige |
-| Challenges | Restricted runs that buff a system | After first systems |
-| Warp Drive | Short gauntlets → skill tree | Later |
-| Crew / Mastery | Print + level specialists; mastery points | Sector 51 |
-| Task List / Capital | End of “normal” phase | Late |
+| Synth | Craft materials → equippable modules; Synth Points permanent | **Sector 2** |
+| V-Device | Shard loadout / links | **Sector 3** |
+| Prestige ships | Frigate, then Cruiser / Heavy Cruiser / … | **4 / 8 / 24 / 41 / 75** |
+| Reactor | Void Matter → Void Power → system boosts | **Sector 5** |
+| Research | 3 parallel branches fed by kills; one focused | **Sector 7** |
+| Bases | Building grid; bonuses apply **on prestige** | First prestige; upgrades 14 / 27 / 40 / 55 |
+| Challenges | Restricted runs that buff a system | **Sector 18** |
+| Warp Drive | Short gauntlets → skill tree | **Sector 22** |
+| Crew / Mastery | Print + level specialists; mastery points | **Sector 51** |
+| Task List | Gate into capital phase | **Sector 72** |
+| Capital / Fighters | Second combat scale | **Sector 75** (tasks done) |
+| Reinforce | Second prestige layer | **Sector 80** |
 
 USI’s UI problem: the battlefield never goes away. Systems fight a strip of combat for space. On a phone that is worse.
 
-USI’s design win: systems *unfold*. You are not given ten tabs on minute one. Prestige is how you change the ship, not a generic multiplier dump.
+USI’s design win: systems *unfold*. Prestige is how you change the ship, not a generic multiplier dump. Cores are the ship.
 
 ---
 
-## 4. Theme (proposed — please confirm)
+## 5. Theme
 
-**Hiveworks.** You are the surviving process of an orbital foundry. The crew is gone. The drone corps is what is left. Something in the dark (the Choir, keep the name or not) keeps sending hulls at the dock.
+**Hiveworks.** You are the surviving process of an orbital foundry. The crew is gone. The drone corps is what is left — they run the idle Network, not the guns. Something in the dark (the Choir) keeps sending hulls at you. You launch the foundry’s remaining ship, fight a wave sortie, and Rebuild it between runs.
 
 Why this theme:
 
 - Drones-as-Compute is native, not a sticker on “CPU bars”.
 - Industrial amber / slag teal / soot, not USI’s navy-blue cockpit and not Cosmic Idle’s god-entity chrome.
 - Story writes itself later: logs, failed crew, the Foundry waking up, the Choir answering.
-- TD fantasy is “defend the dock”, not “fly through sectors”.
+- Combat fantasy is **USI’s:** your equipped ship vs incoming waves — not “hold a lane with structures”.
 
 Palette sketch (implementation later):
 
@@ -88,7 +116,7 @@ Enemy families stay useful (Swarm / Armored / Ethereal / Divine / Titan) under n
 
 ---
 
-## 5. The loop: Hub vs Sortie
+## 6. The loop: Hub vs Sortie
 
 This is the layout change. It is the whole game’s skeleton.
 
@@ -104,11 +132,11 @@ This is the layout change. It is the whole game’s skeleton.
                  │
                  ▼
 ┌─────────────────────────────────────────┐
-│  SORTIE  (in run)                       │
-│  Arena + hardpoints + in-run shop.      │
-│  Waves until Extract or Defeat.         │
-│  Hub systems still tick in the          │
-│  background (true idle).                │
+│  SORTIE  (in combat)                    │
+│  USI battlefield + Cores + Salvage.     │
+│  Auto-push sectors until Extract        │
+│  (after a boss) or Defeat (knockback).  │
+│  Hub systems still tick.                │
 └─────────────────────────────────────────┘
                  │
                  ▼
@@ -118,17 +146,17 @@ This is the layout change. It is the whole game’s skeleton.
               HUB + run summary
 ```
 
-**Launch** is a loadout confirm: hull, hardpoints, modules, drone deployment cap. After launch, frame/hardpoints lock for that sortie (USI prestige-lock, but per-run instead of per-prestige).
+**Launch** is a loadout confirm: hull, fitted Cores, modules, **starting sector** (USI’s prestige start-sector dropdown — 1 by default, up to highest cleared). After launch, Cores lock for that sortie. Rebuild is still how you *change which* Cores are fitted.
 
-**Extract** after a wave clear. **Defeat** if the dock’s hull hits 0. Both return to Hub with a summary.
+**Extract** after a **sector boss** (a sector boundary), not after every trash wave. Ship, Salvage, and Core levels **stay** — you went back to the Hub, you did not prestige. **Defeat** if hull hits 0: knockback (lose the in-progress sector), return to Hub, ship still intact. **Rebuild** is the USI prestige wipe.
 
-Idle systems (drone bars, foundry crafts, research, furnace) **do not pause** while you are in a sortie, except when the player hits Pause (freezes the sortie only). That keeps the idle fantasy without USI’s always-visible battlefield.
+Idle systems (drone bars, foundry crafts, research, furnace) **do not pause** while you are in a sortie, except when the player hits Pause (freezes the sortie only).
 
 Offline catch-up: Hub systems always. Sortie combat only if an automation node is owned (late). Early game: you come back to a finished/failed run or a paused dock, plus industry report.
 
 ---
 
-## 6. UI layout (phone-first)
+## 7. UI layout (phone-first)
 
 USI: battlefield is a permanent pane. We will not do that.
 
@@ -136,84 +164,151 @@ USI: battlefield is a permanent pane. We will not do that.
 
 - Top: brand + resources that exist yet (unfold; don’t show Research/Choir-ash until those systems exist).
 - Body: one system page at a time.
-- Bottom tab bar, **context-sensitive**:
-  - Always: Dock, Foundry (once unlocked), Research, Prestige, Stats
-  - Unfolded later: Reliquary, Furnace, Grid, Codex
-- Dock page is the “home”: last run summary, launch button, hull/hardpoint preview. **No live combat.**
+- Bottom tab bar, **context-sensitive**, gated like USI:
+  - Always: Dock, Stats
+  - Sector 2: Foundry
+  - Sector 3: Reliquary
+  - Sector 5: Furnace
+  - Sector 7: Research
+  - First Rebuild: Yard
+  - Sector 4+: Rebuild (Prestige)
+  - Later: Protocols, Echo, Specialists, Codex
+- Dock page is the “home”: last run summary, launch button, ship + Core preview. **No live combat.**
 
 ### Sortie
 
-- Top: wave, hull/shield, salvage, pause / extract
-- Centre: canvas arena (majority of the screen)
-- Bottom sheet: **Hardpoints | Shop | Drones** (three panels, not nine tabs)
+- Top: **sector**, wave-in-sector, hull/shield, salvage, pause / extract
+- Centre: canvas battlefield (majority of the screen) — USI composition: ship low, enemies incoming
+- Bottom sheet: **Cores | Shop | Drones** (Network peek; Drones are idle, not combat units)
 - Hub tabs are hidden or collapsed to a single “Station” peek so we don’t put Research next to a live fight
 
-This is the improved layout. Combat is a mode, not a tab you live in.
+Combat is a mode, not a tab you live in.
 
 ---
 
-## 7. Combat — wave tower defense
+## 8. Combat — USI ship vs waves
 
-Keep Cosmic Idle’s **orbital arena** idea (flagship/dock at centre, enemies spawn on the rim and close in). It already plays as TD, it is readable on a phone, and it is not USI’s top-spawn distance bar.
+Stay true to USI’s combat and equipping. Replace only the **distance bar** (and engine speed) with a fixed wave gauntlet per sector. Keep **sectors** as the named map.
 
-### Sortie structure
+### Battlefield
 
-- Waves **1–100**, then Endless 101+
-- Mix of trash / elite / commander / boss waves (bosses on 10 / 25 / 50 / 75 / 100)
-- Wave 100 is Act 1’s soft climax (USI “first real wall”, ITRTG “first Baal”)
-- First prestige around wave **20–30** of a later run, not wave 100 — prestige must exist as a tool, not a credit roll
+- **Your ship** is the only player combatant. It sits toward the bottom of the canvas, like USI.
+- Enemies spawn in waves from the far side and close in. They shoot / ram; they drain **Shields**, then **Hull**.
+- Equipped **Cores** auto-fire. You do not place, aim, or path anything.
+- Kill the wave → next wave in this sector → sector boss → next sector.
+- If hull hits 0 → Defeat. After a sector boss you may Extract.
 
-### Player side
+This is USI’s fight with the engine-speed meter removed. It is **not** tower defense.
 
-- **Dock (core):** the thing that dies = run over. Not a flying fleet.
-- **Hardpoints:** 1 weapon + 1 shield at start; utility and extra weapons unfold. Salvage-leveled during the sortie (USI Cores).
-- **Drones (combat):** a few escort/turret drones orbit the dock. Count and jobs come from the Drone Network, not from placing Minecraft towers. Still TD: they hold range rings and fire; you don’t path-build.
+### Sectors → waves (the translation)
 
-Placeable tiles (classic Bloons/Kingdom Rush grids) are **out** for Act 1. They fight the idle fantasy and the phone canvas. If we ever add them, they belong in a later “Yard” system, not the first combat model.
+USI does **not** have a fixed wave count. A sector is a **distance range**; waves spawn every ~12s while you travel; engine speed decides how many packs you see before the boss. Later sectors are longer so that speed still matters.
+
+We are deleting engine speed (it only exists to feed that meter). Mapping “1 sector = N× distance in waves” would make sector 22 ten times longer than sector 1 and blow up run length.
+
+**Lock:**
+
+1. **Sector number is the career key.** Unlocks, A/B routes, Warp locations, starting-sector, and player language stay “Sector 22”, not “Wave 110”.
+2. **Each sector is a gauntlet:** trash/mixed waves, then a **boss**. Clear the boss = clear the sector = USI “defeated the sector boss”.
+3. **Wave count is short and stable**, not scaled to USI distance:
+   - Sector 1: **2 waves + boss** (USI’s tiny 1–10 tutorial)
+   - Sectors 2–8: **3 waves + boss**
+   - Sectors 9+: **4 waves + boss**
+   - Elite **B/C** routes (from 9, like USI): same count, harder / different packs
+4. **Difficulty scales, length does not.** Later sectors hit harder and mix USI-style enemy types (skirmishers, shield, sniper, juggernaut, armored…). They do not become 15-wave maps.
+5. **A sortie is a sector push.** Launch at a starting sector, auto-advance sector after sector, until Extract (after a boss) or Defeat. That is USI’s continuous push, with a door on each end.
+6. **Career waves** (achievements, stats) = waves actually fought. **Gates** always read sector clears.
+
+Why 3–4 + boss: a first sitting that reaches Research (sector 7) is ~25 fights — minutes to a short session once Cores are leveled, same ballpark as crawling USI 1→7 with a young engine. A sitting that walls at ~18–22 is ~80–100 fights across one or more sorties, not a single authored 100-wave map. Crew at 51 is still a long career, as in USI.
+
+### Run length (inline with USI)
+
+| Moment | Hiveworks | USI analogue |
+|---|---|---|
+| First death | Can happen in sector 1–2 if you greed | Knockback in an early sector |
+| First sitting | Unfold Foundry → Reliquary → Furnace → Research (sectors 2–7) | Same opening hours |
+| First Rebuild | When you want another Core / Frigate (sector 4+) or you wall ~8–12 | Prestige to swap cores / first ship |
+| Challenges | Sector 18 | Sector 18 |
+| Echo Runs | Sector 22 | Warp Drive |
+| Specialists | Sector 51 | Crew |
+| Task List | Sector 72 | Task List |
+| Capital | Sector 75 | Capital / fighters |
+| Reinforce | Sector 80 | Reinforce |
+
+No “wave 100 is Act 1 climax”. The climax of the *standard* phase is Task List → Capital, same as USI.
+
+### Equipping (USI Cores)
+
+Same model as USI Core Equipment:
+
+| Slot | Role |
+|---|---|
+| **Weapon** | Damage, tags, fire rate, range. Counters enemy families |
+| **Shield** | Max shield, regen, resistances |
+| **Utility** | Unfolds later: salvage, engine-less QoL, special effects |
+
+During a sortie, **Salvage** (from kills) buys Core levels. Milestones on a Core offer a 2-pick node (USI Core nodes). Levels and unspent Salvage **persist until Rebuild**, including across Extract / Defeat. Which Cores are *fitted* also persists until Rebuild — that is the hangar swap.
+
+Modules (Foundry / Synth) are a separate layer: equip in Hub, snapshot at Launch, like USI Synth modules.
+
+Starter loadout: 1 weapon Core + 1 shield Core. Extra weapon / utility slots unfold.
 
 ### Pacing
 
 - Push is automatic between waves after Launch (idle).
 - Pause freezes the sortie (no free repair).
-- Extract is manual after a clear.
-- No Hold-farm of a single USI-style sector. Farming is “stay in the sortie” or “extract and relaunch”.
+- Extract is offered after a **sector boss**.
+- Farming a sector: Launch with that sector as start (once unlocked as a start point), Extract after its boss, relaunch — USI’s “start at sector N” rather than Hold-mode.
 
 ### Families / matchups
 
-Keep role counters (kinetic vs armored, energy vs shields, etc.). Codex records them. That is one of the current game’s better ideas and USI’s too (cores vs enemy types).
+Keep role counters (kinetic vs armored, energy vs shields, etc.). Codex records them. That is USI (cores vs enemy types) and worth keeping.
+
+### What combat is not
+
+- Placeable towers or tiles
+- Orbiting turret drones / combat escorts as a second army
+- A central “dock” that you defend with structures (the Hub dock is where you *launch from*)
+- Lane-holding TD, Bloons, Kingdom Rush, or “orbital defence grid”
+
+Drones exist only as the **idle Network** (Compute reskin). They do not appear on the battlefield.
 
 ---
 
-## 8. System map — USI → Hiveworks
+## 9. System map — USI → Hiveworks
 
-Rename hard. Keep the *job* of each system. Cut anything that needs USI’s always-on combat to make sense.
+Rename hard. Keep the *job* and the **unlock sector**. Combat and Cores stay close to USI; the session (Hub vs Sortie) and Compute (drones) do not.
 
-| USI | Hiveworks | Act 1? | Notes |
+| USI | Hiveworks | Unlock | Notes |
 |---|---|---|---|
-| Battlefield / sectors | **Sortie** | Yes | Player-launched wave TD |
-| Salvage | **Salvage** | Yes | In-run only; resets on extract/defeat |
-| Cores | **Hardpoints** | Yes | Weapon / Ward / Utility. Salvage levels + milestone nodes |
-| Compute Power + bars | **Drone Network** | Yes | Drones allocated to bars (Damage, Ward, Yield, Fabrication, …). Bars fill idle. Drone *count* is the resource, not an abstract CPU number |
-| Synth | **Foundry** | Yes | Recipes → materials → modules. Foundry Points = permanent. Modules equip in Hub, snapshot at Launch |
-| V-Device / shards | **Reliquary** | Mid Act 1 | Current Signal Cores, renamed. Merge 3. Slot bonuses |
-| Reactor / Void Matter | **Furnace** | Mid Act 1 | Choir-ash → Heat → spend on timed boosts (damage, drone speed, foundry, research) |
-| Research (3 branches) | **Research** | Yes | Material / Energy / Observation. Fed by kills + a Hub trickle. Focus one branch |
-| Bases (grid) | **Yard Grid** | After first prestige | Buildings produce Yard goods; bonuses **apply on prestige** (this is USI’s best prestige trick — keep it) |
-| Challenges | **Protocols** | After first prestige | Restricted sorties that buff one system |
-| Warp Drive | **Echo Runs** | Act 2 | Short authored 10–15 wave gauntlets → skill tree. Natural fit for TD |
-| Crew | **Specialists** | Act 2 | Print / rank / mastery. Too much for Act 1 |
-| Energy Voids / click scrap | **Flare** | Optional, late | Auto-collect by default. No mandatory clicking on a phone |
-| Prestige | **Rebuild** | Yes | Swap hardpoints, activate Yard bonuses, reset sortie-scoped stuff |
-| AI modules | **Process** | Sparse | Automation / QoL only. No combat doctrines tab. Unlock via achievements (keep that — it is cleaner than USI’s AI shop) |
-| Engine speed / distance | *Deleted* | — | That meter is the sector system |
+| Battlefield / sectors | **Sortie** (sectors, wave gauntlets) | 1 | Player-launched; USI ship combat; no distance bar |
+| Salvage | **Salvage** | 1 | Spend on Core levels; persists until Rebuild |
+| Cores | **Cores** | 1 | Weapon / Shield / Utility. Same equipping as USI |
+| Compute | **Drone Network** | 1 | Drones allocated to *idle* bars. Not combat units |
+| Synth | **Foundry** | **2** | Recipes → modules. Foundry Points permanent. Snapshot at Launch |
+| V-Device | **Reliquary** | **3** | Shards in colour slots (red/orange at 3, then 6 / 19 / 32) |
+| Frigate / ships | **Hulls** | **4 / 8 / 24 / 41 / 75** | Rebuild to swap hull + Cores |
+| Reactor | **Furnace** | **5** | Choir-ash → Heat → system boosts |
+| Research | **Research** | **7** | Material / Energy / Observation. Focus one branch |
+| Bases | **Yard Grid** | First Rebuild; upgrades **14 / 27 / 40 / 55** | Bonuses **apply on Rebuild** |
+| Challenges | **Protocols** | **18** | Restricted sorties that buff one system |
+| Warp Drive | **Echo Runs** | **22** | Short authored gauntlets → skill tree |
+| Crew | **Specialists** | **51** | Print / rank / mastery |
+| Task List | **Task List** | **72** | Gate into Capital |
+| Capital / Fighters | **Capital** | **75** | Second combat scale (still the ship, not towers) |
+| Reinforce | **Reinforce** | **80** | Second prestige layer |
+| Energy Voids / click scrap | **Flare** | with Furnace | Auto-collect |
+| Prestige | **Rebuild** | from sector **4** (Frigate) | Swap Cores/hull, arm Yard |
+| AI modules | **Process** | sparse / achievements | Automation / QoL |
+| Engine speed / distance | *Deleted* | — | Replaced by fixed waves per sector |
 
-### Drone Network (Compute reskin — the one you called out)
+### Drone Network (Compute reskin)
 
 USI Compute: allocate Compute Power into bars; filled bars grant levels → damage/shields.
 
-Hiveworks: you **build drones** (slow, permanent, capacity-capped — we already have this). You **assign** them to Network bars:
+Hiveworks: you **build drones** (slow, permanent, capacity-capped). You **assign** them to Network bars:
 
-- **Strike** — sortie damage
+- **Strike** — sortie damage (buffs the ship, drones do not shoot)
 - **Ward** — max shield / armour
 - **Yield** — salvage + scrap
 - **Loom** — Foundry speed
@@ -221,153 +316,141 @@ Hiveworks: you **build drones** (slow, permanent, capacity-capped — we already
 
 Bars still fill over time (the idle toy). Extra drones on a bar fill it faster. Later bars boost earlier ones (USI’s Cap+ idea) without using the word Compute.
 
-Combat drones on the arena are a *separate* small cap derived from the Network, not a second army to micro.
+Drones never spawn on the battlefield.
 
-### Hardpoints (Cores)
+### Cores
 
-At Rebuild (prestige) you pick the next sortie’s weapon/ward/utility. During a sortie, Salvage buys levels. Milestones on a hardpoint offer a 2-pick node (USI Core nodes). Levels wipe on Extract/Defeat; the *choice of which hardpoints exist* persists until Rebuild.
+At Rebuild you pick the next prestige’s hull / weapon / shield / utility. During combat, Salvage buys Core levels. Milestones offer a 2-pick node. Levels wipe on **Rebuild** only (plus Protocol runs). Extract / Defeat do not touch the loadout.
 
-That gives USI’s “I prestige to swap guns” without forcing combat to run while you shop.
+That is USI’s “I prestige to swap guns”, without combat running while you shop.
 
 ### Foundry (Synth)
 
-Keep it simpler than USI’s full recipe encyclopedia for Act 1:
+Keep it simpler than USI’s full recipe encyclopedia **at first**, then grow toward USI depth as sectors unlock recipes:
 
-- 1 slot at start, 2nd slot as a Foundry Point unlock
-- Short recipe chain (scrap → plate → lens → module)
+- 1 slot at start of Foundry (sector 2), extra slots as Foundry Point unlocks (USI Synth Unlock)
+- Recipe chain unfolds with sectors, not a toy three-step forever
 - Recipe XP is permanent
 - Equipped modules are Hub loadout, frozen at Launch
 
 ### Yard Grid (Bases)
 
-Unlocks at first Rebuild. Small grid (3×3, then 4×4). Buildings for Yard-only goods. Spending those goods, and the production bonus, **arms on the next Rebuild** — so prestige has a reason besides swapping guns.
+Unlocks at first Rebuild. Small grid (3×3, then 4×4). Buildings for Yard-only goods. Spending those goods, and the production bonus, **arms on the next Rebuild**.
 
 Do **not** reuse the current worker-station list as the Yard. Stations become the Drone Network; the Yard is a prestige-layer puzzle.
 
 ### What we drop from Cosmic Idle
 
 - 7-wave sectors, Advance/Hold, warp-to-sector
-- Core training tab (attributes fold into Drone Network / Hardpoints)
+- Core *training* tab (attributes fold into Drone Network / Cores)
 - AI doctrines (Focus Fire, Boss Protocol, …)
-- ITRTG-style challenge pack as currently written (Silent Bridge, Glass Frame, …) — rewrite as Protocols later
-- Prestige Matter / Challenge Point *banked percent* shops as the main meta. Rebuild currency should buy **unlocks and ranks**, not a grey “+0.6% per banked”
-- Endless Cosmic Idle content gates (Ascension as a named second layer can wait; one prestige layer + Yard is enough for Act 1)
+- ITRTG-style challenge pack as currently written — rewrite as Protocols later
+- Prestige Matter / Challenge Point *banked percent* shops as the main meta. Rebuild currency buys **unlocks and ranks**
+- Named Cosmic Idle Ascension as a separate flavour — use **Reinforce** at 80, like USI
+- Fleet escorts as the player combat identity (the ship + Cores is the identity)
 
 ---
 
-## 9. Other changes I recommend
+## 10. Other changes I recommend
 
-These are not in your list. They are the difference between “USI with a coat of paint” and a game that is nicer to play.
+1. **Unfold, don’t dump tabs.** Follow USI’s sector gates: Dock + Cores + Drones at start; Foundry at 2; Reliquary at 3; Furnace at 5; Research at 7; Yard on first Rebuild; Protocols at 18; Echo Runs at 22; Specialists at 51.
 
-1. **Unfold, don’t dump tabs.** First 10 minutes: Dock, one weapon, Salvage, Drone Network with two bars. Foundry at first commander. Research after first boss. Yard after first Rebuild. Reliquary / Furnace later. USI does this well; Cosmic Idle currently shows too much chrome too soon.
+2. **No clicker chores on mobile.** Flares auto-collect.
 
-2. **No clicker chores on mobile.** Flares auto-collect. If we ever add a tap bonus, it is extra, not required.
+3. **Prestige layers match USI.** Rebuild (cores/hull/Yard) from sector 4; Reinforce at 80. No extra homemade layer.
 
-3. **One prestige layer for Act 1.** USI’s Crew/Warp/Capital explosion is why veterans have 20 systems. We stop at Sortie + Hardpoints + Drones + Foundry + Research + Yard + Rebuild. Reliquary and Furnace if they earn their slot.
+4. **Run summary is the dopamine.** Extract/Defeat shows sectors cleared, salvage spent, Core milestones, research gained, drone bar levels.
 
-4. **Run summary is the dopamine.** Extract/Defeat always shows waves reached, salvage spent, hardpoint milestones, research gained, drone bar levels. USI never celebrates a “run” because there isn’t one.
+5. **Rebuild is a hangar, not a reset button.** Full-screen loadout: pick hull / weapon / shield / utility, start sector, see Yard bonuses that will arm, confirm.
 
-5. **Rebuild is a hangar, not a reset button.** Full-screen loadout: pick weapon / ward / utility, see Yard bonuses that will arm, confirm. This is USI Prestige’s best screen.
+6. **Phone portrait is the target.** Canvas battlefield ~40–50% of sortie height; Core/shop sheet below.
 
-6. **Phone portrait is the target.** Canvas arena ~40–50% of sortie height; shop is a sheet, not a second page of tiny buttons.
+7. **Story as logs, not cutscenes.** Each system unlock + each sector boss can drop a Foundry log. Written last.
 
-7. **Story as logs, not cutscenes.** Each system unlock + each boss drops a Foundry log. Written last, with onboarding spotlights.
+8. **Keep achievements → Process points.** Cleaner than USI’s AI module shop.
 
-8. **Keep achievements → Process points.** Cleaner than USI’s AI module shop, and we already have the pattern.
+9. **Clean save, always.** This rewrite is a new game.
 
-9. **Clean save, always.** This rewrite is a new game. No migration from Cosmic Idle.
-
-10. **Do not clone USI’s late game.** Echo Runs + Specialists are Act 2 on purpose. If Act 1 is good, we have earned them.
+10. **Do clone USI’s late game — on USI’s schedule.** Echo Runs, Specialists, Task List, Capital, Reinforce are not “Act 2 maybe”. They land at 22 / 51 / 72 / 75 / 80. Content volume can be thinner than USI’s wiki, but the *doors* stay.
 
 ---
 
-## 10. Act 1 content cut
+## 11. Content cut (implementation order, not a smaller game)
 
-**In v1 (playable spine):**
+Ship the **doors** on USI’s schedule. Thin the *amount of stuff behind a door* if we have to; do not delay Crew to a homemade Act 2.
 
-- Hub + Launch + orbital wave TD 1–100 + Endless stub
-- Hardpoints (weapon + ward; utility later in Act 1)
-- In-run Salvage shop (offence / defence / yield)
-- Drone Network (build + assign to bars)
-- Foundry (short recipe chain + 1–2 module slots)
-- Research (3 branches, focus one)
-- Rebuild (prestige) + Yard Grid (small)
-- Achievements → Process (automation/QoL)
-- Guided onboarding (mechanical; flavour text later)
-- PWA, save/export, offline Hub catch-up
-- Dev tools
+**Phase-1 playable spine (sectors 1–8):**
 
-**Explicitly later:**
+- Hub + Launch (start-sector) + Extract after boss + Defeat
+- USI-style ship combat, Cores (weapon + shield), Salvage levels
+- Drone Network (two bars)
+- Foundry at 2, Reliquary at 3, Furnace at 5, Research at 7, Hull Frigate at 4, Cruiser at 8
+- Rebuild hangar once Frigate exists
+- PWA, save/export, offline Hub catch-up, dev tools, mechanical onboarding
 
-- Story / logs
-- Reliquary, Furnace
-- Protocols (challenges)
-- Echo Runs, Specialists
-- Placeable towers
-- Authored boss scripts beyond telegraphs
-- Second prestige layer
+**Then, still in the main career (not a sequel):**
+
+- Yard Grid on first Rebuild; base upgrades at 14 / 27 / 40 / 55
+- Utility Cores, extra weapon slots, Core milestone nodes
+- Protocols at 18
+- Echo Runs at 22
+- Specialists at 51
+- Task List 72 → Capital 75 → Reinforce 80
+- A/B sector routes from 9
+- Story logs last
+
+**Never:**
+
+- Placeable towers, combat drones on the field, orbital TD arena
+- Engine-speed distance bar
+- Cosmic Idle’s ITRTG challenge pack / AI doctrines / Core training tab
 
 ---
 
-## 11. Implementation phases
+## 12. Implementation phases
 
 Each phase is one branch / one PR off the previous, from `main`. Saves bump when the model changes. Tests + build required.
 
 | Phase | Deliverable |
 |---|---|
-| **0** | This plan (this PR). No gameplay change |
-| **1** | Skeleton strip: Hub Dock + Launch/Extract/Defeat, orbital waves 1–20, one weapon hardpoint, salvage on kill, clean save. Combat tab is a *mode*, not the home screen |
-| **2** | Hardpoints + in-run Salvage shop (offence/defence/yield). Rebuild as loadout swap |
-| **3** | Drone Network (bars + assignment + corps cap) |
-| **4** | Foundry recipes / modules |
-| **5** | Research branches |
-| **6** | Yard Grid + Rebuild bonuses |
-| **7** | Waves 21–100, bosses, Endless stub, Process automation, onboarding |
-| **8** | Visual theme pass (Hiveworks palette, dock art, enemy shapes) |
-| **9** | Story logs + onboarding flavour (last) |
+| **0** | This plan (this PR) |
+| **1** | Hub + Launch / Extract / Defeat; sectors 1–5 as wave gauntlets (2–3 + boss); ship + starter Cores; Salvage on kill; clean save. Combat is a *mode* |
+| **2** | Core milestones + in-run Salvage spend; Rebuild hangar; Frigate (4); Foundry (2) stub if not already in |
+| **3** | Drone Network (full bars + assignment + corps cap) |
+| **4** | Foundry depth (recipes / modules / points) |
+| **5** | Reliquary (3) + Furnace (5) + Research (7) |
+| **6** | Yard Grid + Rebuild bonuses; Cruiser (8); A/B routes from 9; sectors through ~18 |
+| **7** | Protocols (18) + Echo Runs (22) + Process automation + onboarding polish |
+| **8** | Sectors through 51: Specialists; visual theme pass |
+| **9** | Task List / Capital / Reinforce doors; story logs |
 
-Phase 1 should be playable on the phone: launch a run, die, extract, relaunch. If that loop is not fun, we stop and fix it before adding idle systems.
+Phase 1 should be playable on the phone: launch, clear a sector boss, die, extract, relaunch. If that loop is not fun, we stop and fix it before adding idle systems.
 
-Estimated invasiveness: this is a content/systems rewrite, not a new engine. `src/game/combat.ts`, `tick.ts`, `catalog.ts`, `progression.ts`, and every tab will be replaced in slices. `Battlefield.tsx`, save, PWA, and the tick loop stay.
+Invasiveness: content/systems rewrite, not a new engine. `src/game/combat.ts`, `tick.ts`, `catalog.ts`, `progression.ts`, and every tab will be replaced in slices. Canvas, save, PWA, and the tick loop stay. Battlefield composition becomes USI-like (ship low, waves incoming).
 
 ---
 
-## 12. Mapping from existing code (what we reuse)
+## 13. Mapping from existing code (what we reuse)
 
 Reuse as libraries, not as the product:
 
 - `src/game/combat.ts` projectile / hull / telegraph / family matchup math
-- `src/components/Battlefield.tsx` canvas + VFX (retarget to radial dock)
+- `src/components/Battlefield.tsx` canvas + VFX (retarget to USI-style ship-at-bottom)
 - `src/game/save.ts` / export-import / PWA
 - `src/components/GuideOverlay.tsx` spotlight machine
 - `src/game/offline.ts` catch-up pattern (Hub-only at first)
 - Drone corps cap / black-bar idea → Drone Network saturation
 - Signal Cores merge rules → Reliquary (later)
+- Shipyard frames/modules as a starting point for Core + Foundry module data, rewritten
 
-Do not reuse: sector campaign, Core tab, AI doctrines, current research list, current prestige shops, expedition PR code (copy ideas, rewrite).
-
----
-
-## 13. Open questions
-
-Please answer these. Defaults are in **bold** if you just want to say “ship it”.
-
-1. **Theme / title.** Hiveworks + industrial foundry, or stay generic space-navy, or a third aesthetic you have in mind?
-2. **Combat geometry.** **Orbital dock (centre)** vs bottom-lane TD vs USI-style top spawn? I strongly prefer orbital.
-3. **Towers.** **Orbiting/auto hardpoints + combat drones** vs player-placed tiles each run?
-4. **How close to USI.** **Act 1 cut in §10** vs you want Synth-depth / Void / Crew earlier?
-5. **Run length.** First death in minutes; first Rebuild in a sitting; wave 100 as a multi-session wall. Sound right?
-6. **Flares / clickables.** **Auto-collect, no clicker layer** vs you like USI voids?
-7. **Working title lock.** Hiveworks / keep Cosmic Idle / you pick?
-
-Not asking (locked unless you override): keep the stack; start from `main`; abandon expedition PRs; wave TD; Hub vs Sortie; drones as Compute; story last; phone PWA; clean saves.
+Do not reuse: sector campaign, Core training tab, AI doctrines, current research list, current prestige shops, expedition PR code (copy ideas, rewrite), fleet-escort combat as the player identity.
 
 ---
 
-## 14. What happens after approval
+## 14. Next
 
 1. Close draft PRs 28–31 as superseded.
-2. Phase 1 branch from `main`: Hub + Launch + short orbital sortie.
+2. Phase 1 branch from `main`: Hub + Launch + sectors 1–5 as wave gauntlets (ship + starter Cores).
 3. Playable preview on GH Pages as usual.
 
-Until then, `main` stays the current Cosmic Idle sector game.
+`main` stays the current Cosmic Idle sector game until Phase 1 lands.
