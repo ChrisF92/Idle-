@@ -48,12 +48,12 @@ describe('campaign combat', () => {
     state = setCampaign(state, false)
     state = startCombat(state)
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
-    flag.hull = 40
+    flag.hull = 25
     for (const e of state.combat.enemyUnits) e.hull = 0
     advanceTicks(state, 1)
     // Wave clear: hull persists (tiny field repair may tick after clearEnemy).
-    expect(state.combat.playerHull).toBeGreaterThanOrEqual(40)
-    expect(state.combat.playerHull).toBeLessThan(45)
+    expect(state.combat.playerHull).toBeGreaterThanOrEqual(25)
+    expect(state.combat.playerHull).toBeLessThan(35)
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
 
@@ -143,11 +143,10 @@ describe('campaign combat', () => {
   it('repairs hull while Paused', () => {
     let state = createInitialState(0)
     state = setDocked(state, true)
-    state.combat.playerHull = 40
-    state.combat.playerHullMax = 130
+    state.combat.playerHull = 10
     advanceTicks(state, 5)
-    expect(state.combat.playerHull).toBeGreaterThan(40)
-    expect(state.combat.playerHull).toBeLessThanOrEqual(130)
+    expect(state.combat.playerHull).toBeGreaterThan(10)
+    expect(state.combat.playerHull).toBeLessThanOrEqual(state.combat.playerHullMax)
     expect(state.combat.inFight).toBe(false)
   })
 

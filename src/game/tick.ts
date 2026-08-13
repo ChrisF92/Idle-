@@ -323,12 +323,11 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
       researchEssenceMultiplier(state.research.unlocked) *
       essenceBossEssenceMultiplier(state.essence.purchased)
     : 0
-  const salvageGain = enemy.salvageReward
 
   state.resources.scrap += scrapGain
   state.resources.data += dataGain
   state.resources.essence += essenceGain
-  state.resources.salvage += salvageGain
+  // Salvage is granted per kill during the fight (USI), not as a wave lump.
 
   if (wasBoss) {
     grantSignalCoreDrop(state, 'boss')
@@ -339,7 +338,6 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   const parts = [
     `+${scrapGain.toFixed(1)} scrap`,
     dataBlocked || !researchOpen ? 'data locked' : `+${dataGain} data`,
-    `+${salvageGain} salvage`,
   ]
   if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
   pushLog(
@@ -363,12 +361,10 @@ function onFightWon(state: GameState): void {
     state.combat.wave = clearedWave + 1
     // Mid-sector scrap + salvage so long wave chains fund early module ranks.
     const drip = 1 + Math.floor(clearedSector / 4)
-    const salvageDrip = 1 + Math.floor(clearedSector / 3)
     state.resources.scrap += drip
-    state.resources.salvage += salvageDrip
     pushLog(
       state,
-      `Wave ${clearedWave}/${wavesForSector(clearedSector)} down in sector ${clearedSector}. +${drip} scrap, +${salvageDrip} salvage. Next: W${state.combat.wave}.`,
+      `Wave ${clearedWave}/${wavesForSector(clearedSector)} down in sector ${clearedSector}. +${drip} scrap. Next: W${state.combat.wave}.`,
     )
     return
   }

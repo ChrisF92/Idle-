@@ -11,7 +11,9 @@ import {
   matterShopShieldBonus,
   metaDamageMultiplier,
   moduleLevel,
+  moduleLeveledBonus,
   moduleLevelMultiplier,
+  moduleWeaponDamage,
   moduleMasteryRank,
   prestigeMomentumDamageBonus,
   researchDamageMultiplier,
@@ -29,7 +31,7 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 
-export const SAVE_VERSION = 21
+export const SAVE_VERSION = 22
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -45,8 +47,8 @@ export const RESOURCE_LABELS: Record<keyof Resources, string> = {
 }
 
 export function createInitialState(now = Date.now()): GameState {
-  const hullMax = getFrame('scout-frame')?.baseHull ?? 130
-  return {
+  const hullMax = getFrame('scout-frame')?.baseHull ?? 40
+  const state: GameState = {
     version: SAVE_VERSION,
     lastTickAt: now,
     resources: {
@@ -144,6 +146,12 @@ export function createInitialState(now = Date.now()): GameState {
     signalCores: createEmptySignalCoresState(),
     parts: {},
   }
+  const stats = computeShipStats(state)
+  state.combat.playerHull = stats.hullMax
+  state.combat.playerHullMax = stats.hullMax
+  state.combat.playerShield = stats.shieldMax
+  state.combat.playerShieldMax = stats.shieldMax
+  return state
 }
 
 export function globalDamageMultiplier(state: GameState): number {
@@ -175,8 +183,9 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   const mult = globalDamageMultiplier(state)
   const shortRange = state.prestige.activeChallengeId === 'short-range'
   const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
-  const weapons: WeaponInstance[] = [
-    {
+  const weapons: WeaponInstance[] = []
+  if (frame.baseDamage > 0) {
+    weapons.push({
       id: 'frame-battery',
       name: 'Frame Battery',
       damage: frame.baseDamage * mult,
@@ -190,28 +199,36 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       dotDamage: 0,
       telegraphDuration: 0,
       telegraphLeft: 0,
-    },
-  ]
+      hullDamage: 1,
+      shieldDamage: 0.6,
+      armorDamage: 1,
+    })
+  }
 
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod?.weapon) continue
-    const lvlMult =
-      moduleLevelMultiplier(moduleLevel(state.shipyard.moduleLevels, moduleId)) *
-      masteryBonus(moduleMasteryRank(state, moduleId))
+    const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+    const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
+    const profile = {
+      hullDamage: mod.weapon.hullDamage,
+      shieldDamage: mod.weapon.shieldDamage,
+      armorDamage: mod.weapon.armorDamage,
+    }
     weapons.push({
       id: `${moduleId}-wpn`,
       name: mod.weapon.name,
-      damage: mod.weapon.damage * mult * lvlMult,
+      damage: moduleWeaponDamage(mod, level, mastery) * mult,
       cooldown: mod.weapon.cooldown,
       cooldownLeft: 0,
       range: capRange(mod.weapon.range),
       tags: [...mod.weapon.tags],
       splash: mod.weapon.splash ?? 0,
       dotDuration: mod.weapon.dotDuration ?? 0,
-      dotDamage: (mod.weapon.dotDamage ?? 0) * mult * lvlMult,
+      dotDamage: (mod.weapon.dotDamage ?? 0) * mult * mastery,
       telegraphDuration: 0,
       telegraphLeft: 0,
+      ...profile,
     })
   }
 
@@ -234,16 +251,21 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod) continue
-    const lvlMult =
-      moduleLevelMultiplier(moduleLevel(state.shipyard.moduleLevels, moduleId)) *
-      masteryBonus(moduleMasteryRank(state, moduleId))
-    hullMax += mod.hullBonus * lvlMult
+    const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+    const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
+    const pctMult = moduleLevelMultiplier(level) * mastery
+    hullMax += moduleLeveledBonus(mod.hullBonus, mod.hullBonusPerLevel, level, mastery)
     // Soften incoming mult toward 1 as levels rise for defensive modules
     const taken = mod.damageTakenMult
-    damageTakenMult *= taken < 1 ? 1 - (1 - taken) * Math.min(1.5, lvlMult) / 1.5 : taken
-    armor += (mod.armorBonus ?? 0) * lvlMult
-    shieldMax += (mod.shieldBonus ?? 0) * lvlMult
-    evasion += (mod.evasionBonus ?? 0) * Math.min(1.4, lvlMult)
+    damageTakenMult *= taken < 1 ? 1 - (1 - taken) * Math.min(1.5, pctMult) / 1.5 : taken
+    armor += moduleLeveledBonus(mod.armorBonus ?? 0, mod.armorBonusPerLevel, level, mastery)
+    shieldMax += moduleLeveledBonus(
+      mod.shieldBonus ?? 0,
+      mod.shieldBonusPerLevel,
+      level,
+      mastery,
+    )
+    evasion += (mod.evasionBonus ?? 0) * Math.min(1.4, pctMult)
     escortCount += mod.escorts ?? 0
   }
 

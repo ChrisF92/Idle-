@@ -217,7 +217,10 @@ export interface ChallengeDef {
 
 export interface ModuleWeaponDef {
   name: string
+  /** USI-style base damage at Core level 0. */
   damage: number
+  /** Flat damage added per Salvage level (USI Laser Cannon: +5). */
+  damagePerLevel?: number
   cooldown: number
   /** Lane distance the weapon can reach. */
   range: number
@@ -225,10 +228,17 @@ export interface ModuleWeaponDef {
   splash?: number
   dotDuration?: number
   dotDamage?: number
+  /** USI hull / shield / armor damage multipliers. */
+  hullDamage?: number
+  shieldDamage?: number
+  armorDamage?: number
 }
 
-/** Max salvage upgrades per module in a run. */
-export const MAX_MODULE_LEVEL = 12
+/**
+ * Max Salvage levels per Core in a run.
+ * USI T1 cores routinely go past 70–110 before a T2 swap; 12 was a Cosmic Idle cap.
+ */
+export const MAX_MODULE_LEVEL = 110
 
 export type ModuleRole = 'weapon' | 'defense' | 'utility'
 
@@ -239,7 +249,10 @@ export interface ShipFrameDef {
   weaponSlots: number
   defenseSlots: number
   utilitySlots: number
-  /** Intrinsic flagship weapon damage (cooldown 1s kinetic). */
+  /**
+   * Intrinsic flagship weapon damage. USI ships fire only equipped Cores —
+   * starter hulls use 0 (no free frame battery).
+   */
   baseDamage: number
   baseHull: number
   unlockCost: ResourceCost
@@ -255,14 +268,28 @@ export interface ShipModuleDef {
   /** Used for DPS estimates when no weapon profile is present. */
   damageBonus: number
   hullBonus: number
+  /** Flat hull added per Salvage level. Omit to keep the old 8%/level curve. */
+  hullBonusPerLevel?: number
   armorBonus?: number
+  armorBonusPerLevel?: number
   shieldBonus?: number
+  /** Flat shield added per Salvage level (USI Continuous Generator: +5). */
+  shieldBonusPerLevel?: number
+  /**
+   * In-combat shield regen as a fraction of max shields per second
+   * (USI Continuous Generator: 0.05).
+   */
+  shieldRegen?: number
   evasionBonus?: number
   /** Multiplier on incoming damage (0.9 = take 10% less). */
   damageTakenMult: number
   weapon?: ModuleWeaponDef
   /** Combat escort drones spawned from this module. */
   escorts?: number
+  /** USI Core salvage cost for level 0 → 1 (weapons 3, shields 6). */
+  upgradeBaseCost?: number
+  /** USI Core cost scaling per level (weapons 1.21, shields 1.2). */
+  upgradeCostScaling?: number
   unlockCost: ResourceCost
   requiresSectorEver?: number
   /** Challenge shop schematic id required before scrap unlock (rank ≥ 1). */
@@ -1100,8 +1127,8 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     weaponSlots: 1,
     defenseSlots: 1,
     utilitySlots: 0,
-    baseDamage: 10,
-    baseHull: 175,
+    baseDamage: 0,
+    baseHull: 40,
     unlockCost: {},
   },
   {
@@ -1110,8 +1137,8 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     weaponSlots: 1,
     defenseSlots: 1,
     utilitySlots: 1,
-    baseDamage: 8,
-    baseHull: 195,
+    baseDamage: 0,
+    baseHull: 48,
     unlockCost: { alloys: 40, scrap: 85 },
     requiresSectorEver: 8,
   },
@@ -1121,8 +1148,8 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     weaponSlots: 2,
     defenseSlots: 0,
     utilitySlots: 1,
-    baseDamage: 11,
-    baseHull: 100,
+    baseDamage: 0,
+    baseHull: 24,
     unlockCost: { alloys: 55, scrap: 120, energy: 20 },
     requiresSectorEver: 12,
   },
@@ -1132,8 +1159,8 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     weaponSlots: 1,
     defenseSlots: 0,
     utilitySlots: 2,
-    baseDamage: 6,
-    baseHull: 120,
+    baseDamage: 0,
+    baseHull: 28,
     unlockCost: { alloys: 50, scrap: 110, data: 25 },
     requiresSectorEver: 12,
   },
@@ -1143,8 +1170,8 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     weaponSlots: 1,
     defenseSlots: 2,
     utilitySlots: 1,
-    baseDamage: 6,
-    baseHull: 210,
+    baseDamage: 0,
+    baseHull: 52,
     unlockCost: { alloys: 95, scrap: 180, energy: 35 },
     requiresSectorEver: 14,
   },
@@ -1214,16 +1241,23 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'pulse-cannon',
     name: 'Pulse Cannon',
     role: 'weapon',
-    description: 'Reliable mid-range kinetic baseline. Contests early kite packs.',
+    description:
+      'Starter weapon Core — USI Laser Cannon numbers: 10 dmg, +5/level, 0.5/s, energy vs armour 0.25×.',
     damageBonus: 3,
     hullBonus: 0,
     damageTakenMult: 1,
+    upgradeBaseCost: 3,
+    upgradeCostScaling: 1.21,
     weapon: {
       name: 'Pulse',
-      damage: 14,
-      cooldown: 1.05,
-      range: 125,
-      tags: ['kinetic'],
+      damage: 10,
+      damagePerLevel: 5,
+      cooldown: 2,
+      range: 180,
+      tags: ['energy'],
+      hullDamage: 1,
+      shieldDamage: 1,
+      armorDamage: 0.25,
     },
     unlockCost: {},
   },
@@ -1231,12 +1265,17 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'plate-layer',
     name: 'Plate Layer',
     role: 'defense',
-    description: '+50 hull, +4 armor. Raw plating vs Swarm / Boss chip.',
+    description:
+      'Starter shield Core — USI Continuous Generator: 30 max shield, +5/level, 5%/s regen.',
     damageBonus: 0,
-    hullBonus: 50,
-    armorBonus: 4,
+    hullBonus: 0,
+    shieldBonus: 30,
+    shieldBonusPerLevel: 5,
+    shieldRegen: 0.05,
     damageTakenMult: 1,
-    unlockCost: { scrap: 30, alloys: 5 },
+    upgradeBaseCost: 6,
+    upgradeCostScaling: 1.2,
+    unlockCost: {},
   },
   {
     id: 'vector-thruster',
@@ -1434,16 +1473,59 @@ export function moduleLevel(
 }
 
 /**
- * Salvage cost to raise a module from `level` → level+1.
- * Early ranks stay cheap so S1–4 can push on combat salvage; later ranks steepen.
+ * Salvage cost to raise a Core from `level` → level+1.
+ * USI: weapons 3 × 1.21^n, shields 6 × 1.2^n.
  */
-export function moduleUpgradeCost(level: number): number {
-  return Math.ceil(4 * 1.5 ** Math.max(0, level))
+export function moduleUpgradeCost(level: number, moduleId?: string): number {
+  const n = Math.max(0, level)
+  const mod = moduleId ? getModule(moduleId) : undefined
+  const base =
+    mod?.upgradeBaseCost ?? (mod?.role === 'defense' ? 6 : 3)
+  const scaling =
+    mod?.upgradeCostScaling ?? (mod?.role === 'defense' ? 1.2 : 1.21)
+  return Math.ceil(base * scaling ** n)
 }
 
-/** Multiplier on module combat stats from run upgrades. */
+/**
+ * Percent curve for stats that are not USI-flat (evasion, incoming).
+ * Damage / shield / hull use `moduleLeveledBonus` instead.
+ */
 export function moduleLevelMultiplier(level: number): number {
   return 1 + Math.max(0, level) * 0.08
+}
+
+/** USI-style flat stat: `base + perLevel * level`. Falls back to 8%/level when perLevel is omitted. */
+export function moduleLeveledBonus(
+  base: number,
+  perLevel: number | undefined,
+  level: number,
+  mastery = 1,
+): number {
+  if (!base && !perLevel) return 0
+  const n = Math.max(0, level)
+  const value =
+    perLevel != null ? base + perLevel * n : base * moduleLevelMultiplier(n)
+  return value * mastery
+}
+
+export function moduleWeaponDamage(
+  mod: ShipModuleDef,
+  level: number,
+  mastery = 1,
+): number {
+  if (!mod.weapon) return 0
+  const per = mod.weapon.damagePerLevel ?? mod.weapon.damage * 0.5
+  return moduleLeveledBonus(mod.weapon.damage, per, level, mastery)
+}
+
+/** Highest in-combat shield regen fraction among fitted Cores. */
+export function fittedShieldRegenFraction(moduleIds: string[]): number {
+  let best = 0
+  for (const id of moduleIds) {
+    const regen = getModule(id)?.shieldRegen ?? 0
+    if (regen > best) best = regen
+  }
+  return best
 }
 
 // ── Blueprint / Fabrication Bay ─────────────────────────────────────────────
@@ -2203,15 +2285,15 @@ export function moduleStatPreviews(
   const mod = getModule(moduleId)
   if (!mod) return []
   const mastery = masteryBonus(masteryRank)
-  const a = moduleLevelMultiplier(level) * mastery
-  const b = moduleLevelMultiplier(level + 1) * mastery
   const lines: ModuleStatPreview[] = []
 
   if (mod.weapon) {
+    const dmg = moduleWeaponDamage(mod, level, mastery)
+    const dmgNext = moduleWeaponDamage(mod, level + 1, mastery)
     lines.push({
       label: 'Damage',
-      current: formatStat(mod.weapon.damage * a, 2),
-      next: showNext ? formatStat(mod.weapon.damage * b, 2) : null,
+      current: formatStat(dmg, 2),
+      next: showNext ? formatStat(dmgNext, 2) : null,
     })
     const rof = 1 / Math.max(0.01, mod.weapon.cooldown)
     lines.push({
@@ -2226,26 +2308,61 @@ export function moduleStatPreviews(
     })
   }
   if (mod.hullBonus) {
+    const hull = moduleLeveledBonus(mod.hullBonus, mod.hullBonusPerLevel, level, mastery)
+    const hullNext = moduleLeveledBonus(
+      mod.hullBonus,
+      mod.hullBonusPerLevel,
+      level + 1,
+      mastery,
+    )
     lines.push({
       label: 'Hull',
-      current: `+${formatCompact(mod.hullBonus * a, 1)}`,
-      next: showNext ? `+${formatCompact(mod.hullBonus * b, 1)}` : null,
+      current: `+${formatCompact(hull, 1)}`,
+      next: showNext ? `+${formatCompact(hullNext, 1)}` : null,
     })
   }
   if (mod.armorBonus) {
+    const armor = moduleLeveledBonus(mod.armorBonus, mod.armorBonusPerLevel, level, mastery)
+    const armorNext = moduleLeveledBonus(
+      mod.armorBonus,
+      mod.armorBonusPerLevel,
+      level + 1,
+      mastery,
+    )
     lines.push({
       label: 'Armor',
-      current: `+${formatStat(mod.armorBonus * a, 2)}`,
-      next: showNext ? `+${formatStat(mod.armorBonus * b, 2)}` : null,
+      current: `+${formatStat(armor, 2)}`,
+      next: showNext ? `+${formatStat(armorNext, 2)}` : null,
     })
   }
   if (mod.shieldBonus) {
+    const shield = moduleLeveledBonus(
+      mod.shieldBonus,
+      mod.shieldBonusPerLevel,
+      level,
+      mastery,
+    )
+    const shieldNext = moduleLeveledBonus(
+      mod.shieldBonus,
+      mod.shieldBonusPerLevel,
+      level + 1,
+      mastery,
+    )
     lines.push({
       label: 'Shield',
-      current: `+${formatCompact(mod.shieldBonus * a, 1)}`,
-      next: showNext ? `+${formatCompact(mod.shieldBonus * b, 1)}` : null,
+      current: `+${formatCompact(shield, 1)}`,
+      next: showNext ? `+${formatCompact(shieldNext, 1)}` : null,
     })
   }
+  if (mod.shieldRegen) {
+    lines.push({
+      label: 'Regen',
+      current: `${formatStat(mod.shieldRegen * 100, 0)}%/s`,
+      next: null,
+    })
+  }
+  const a = moduleLevelMultiplier(level) * mastery
+  const b = moduleLevelMultiplier(level + 1) * mastery
   if (mod.evasionBonus) {
     lines.push({
       label: 'Evasion',
@@ -2280,32 +2397,33 @@ export function moduleUpgradeEffectLines(
 ): string[] {
   const mod = getModule(moduleId)
   if (!mod) return []
-  const a = moduleLevelMultiplier(fromLevel)
-  const b = moduleLevelMultiplier(toLevel)
   const lines: string[] = []
-  const pct = formatCompact(((b / a - 1) * 100), 0)
   if (mod.weapon) {
+    const from = moduleWeaponDamage(mod, fromLevel)
+    const to = moduleWeaponDamage(mod, toLevel)
     lines.push(
-      `Weapon ${formatStat(mod.weapon.damage * a, 2)} → ${formatStat(mod.weapon.damage * b, 2)} dmg (+${pct}%)`,
+      `Weapon ${formatStat(from, 2)} → ${formatStat(to, 2)} dmg (+${formatCompact(to - from, 1)})`,
     )
     const rof = 1 / Math.max(0.01, mod.weapon.cooldown)
     lines.push(`RoF ${formatStat(rof, 2)}/s (unchanged with level)`)
   }
   if (mod.hullBonus) {
     lines.push(
-      `Hull +${formatCompact(mod.hullBonus * a, 1)} → +${formatCompact(mod.hullBonus * b, 1)}`,
+      `Hull +${formatCompact(moduleLeveledBonus(mod.hullBonus, mod.hullBonusPerLevel, fromLevel), 1)} → +${formatCompact(moduleLeveledBonus(mod.hullBonus, mod.hullBonusPerLevel, toLevel), 1)}`,
     )
   }
   if (mod.armorBonus) {
     lines.push(
-      `Armor +${formatStat(mod.armorBonus * a, 2)} → +${formatStat(mod.armorBonus * b, 2)}`,
+      `Armor +${formatStat(moduleLeveledBonus(mod.armorBonus, mod.armorBonusPerLevel, fromLevel), 2)} → +${formatStat(moduleLeveledBonus(mod.armorBonus, mod.armorBonusPerLevel, toLevel), 2)}`,
     )
   }
   if (mod.shieldBonus) {
     lines.push(
-      `Shield +${formatCompact(mod.shieldBonus * a, 1)} → +${formatCompact(mod.shieldBonus * b, 1)}`,
+      `Shield +${formatCompact(moduleLeveledBonus(mod.shieldBonus, mod.shieldBonusPerLevel, fromLevel), 1)} → +${formatCompact(moduleLeveledBonus(mod.shieldBonus, mod.shieldBonusPerLevel, toLevel), 1)}`,
     )
   }
+  const a = moduleLevelMultiplier(fromLevel)
+  const b = moduleLevelMultiplier(toLevel)
   if (mod.evasionBonus) {
     lines.push(
       `Evasion +${formatCompact(mod.evasionBonus * 100 * Math.min(1.4, a), 1)}% → +${formatCompact(mod.evasionBonus * 100 * Math.min(1.4, b), 1)}%`,
@@ -2318,7 +2436,7 @@ export function moduleUpgradeEffectLines(
     lines.push(`Escorts ×${mod.escorts} (count unchanged; damage scales with fleet)`)
   }
   if (lines.length === 0) {
-    lines.push(`Module combat contribution +${pct}% (Lv ${fromLevel} → ${toLevel})`)
+    lines.push(`Module combat contribution (Lv ${fromLevel} → ${toLevel})`)
   }
   return lines
 }

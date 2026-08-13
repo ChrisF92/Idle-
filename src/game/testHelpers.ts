@@ -1,9 +1,15 @@
 import type { GameState } from './types'
 import { wavesForSector } from './sectors'
+import { grantEnemyKillRewards } from './combat'
 import { advanceTicks, startCombat } from './tick'
 
 function wipeEnemies(state: GameState): void {
-  for (const e of state.combat.enemyUnits) e.hull = 0
+  for (const e of state.combat.enemyUnits) {
+    if (e.hull > 0) {
+      grantEnemyKillRewards(state, e)
+      e.hull = 0
+    }
+  }
   state.combat.enemyHull = 0
 }
 

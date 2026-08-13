@@ -56,7 +56,7 @@ describe('post-prestige re-push balance', () => {
     expect(state.research.unlocked).toContain('basic-optics')
 
     const before = computeShipStats(state).damage
-    const upgradeCost = moduleUpgradeCost(0)
+    const upgradeCost = moduleUpgradeCost(0, 'pulse-cannon')
     state = upgradeModule(state, 'pulse-cannon')
     expect(state.shipyard.moduleLevels['pulse-cannon']).toBe(1)
     expect(computeShipStats(state).damage).toBeGreaterThan(before)

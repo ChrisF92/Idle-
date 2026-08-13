@@ -599,14 +599,14 @@ function onModeTransition(scene: Scene, prev: BattlefieldMode | null, next: Batt
     addShake(scene, 3.5)
   }
 
-  // Launch from hangar — thruster kick.
+  // Launch from hangar — thruster kick from the rear (down).
   if (wasHangar && !nowHangar) {
     const cx = PLAYER_SCREEN_X
     const cy = PLAYER_SCREEN_Y
     for (let i = 0; i < 34; i += 1) {
       scene.particles.push({
-        x: cx - 10,
-        y: cy + (Math.random() - 0.5) * 32,
+        x: cx + (Math.random() - 0.5) * 32,
+        y: cy + 10,
         vx: (Math.random() - 0.5) * 80,
         vy: 100 + Math.random() * 180,
         life: 0.4 + Math.random() * 0.4,
@@ -1003,10 +1003,10 @@ function stepScene(scene: Scene, dt: number): void {
     if (inHangar && actor.isFlagship && actor.side === 'player') {
       if (Math.random() < dt * 3) {
         scene.particles.push({
-          x: actor.x - 18 + Math.random() * 8,
-          y: actor.y + (Math.random() - 0.5) * 20,
-          vx: -10 - Math.random() * 16,
-          vy: (Math.random() - 0.5) * 12,
+          x: actor.x + (Math.random() - 0.5) * 20,
+          y: actor.y + 18 - Math.random() * 8,
+          vx: (Math.random() - 0.5) * 12,
+          vy: 10 + Math.random() * 16,
           life: 0.6,
           maxLife: 0.6,
           color: scene.mode === 'repairing' ? '#7dffb0' : '#7ec8ff',
@@ -1015,7 +1015,7 @@ function stepScene(scene: Scene, dt: number): void {
       }
     }
 
-    // Combat thruster wash — subtle motion while fighting / holding.
+    // Combat thruster wash — rear of the ship (down, opposite the nose).
     if (
       !inHangar &&
       actor.side === 'player' &&
@@ -1024,10 +1024,10 @@ function stepScene(scene: Scene, dt: number): void {
     ) {
       if (Math.random() < dt * 14) {
         scene.particles.push({
-          x: actor.x - actor.r * 0.85,
-          y: actor.y + (Math.random() - 0.5) * 10,
-          vx: -40 - Math.random() * 50,
-          vy: (Math.random() - 0.5) * 24,
+          x: actor.x + (Math.random() - 0.5) * 10,
+          y: actor.y + actor.r * 0.85,
+          vx: (Math.random() - 0.5) * 24,
+          vy: 40 + Math.random() * 50,
           life: 0.22 + Math.random() * 0.18,
           maxLife: 0.4,
           color: scene.mode === 'fighting' ? '#e0b06a' : '#7ec8ff',
@@ -1367,14 +1367,18 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.shadowColor = '#ff6b6b'
       ctx.shadowBlur = 18 * (actor.enterT / 0.7)
     }
-    if (actor.shape === 'triangle' && actor.side === 'enemy') ctx.scale(-1, 1)
+    // Triangle nose is +X in local space. Rotate so the player faces incoming
+    // waves (up) and enemies face the ship (down).
+    if (actor.shape === 'triangle') {
+      ctx.rotate(actor.side === 'player' ? -Math.PI / 2 : Math.PI / 2)
+    }
     drawShape(ctx, actor.shape, actor.r, fill, stroke, alpha)
 
     if (actor.muzzle > 0) {
       ctx.globalAlpha = actor.muzzle
       ctx.fillStyle = tagColor(actor.weaponTag)
       ctx.beginPath()
-      ctx.arc(actor.side === 'player' ? actor.r : -actor.r, 0, 4 + actor.muzzle * 3, 0, Math.PI * 2)
+      ctx.arc(actor.r, 0, 4 + actor.muzzle * 3, 0, Math.PI * 2)
       ctx.fill()
     }
     ctx.restore()

@@ -23,6 +23,7 @@ import {
   matterShopDropBonus,
   matterShopRepairMult,
   matterShopScrapBonus,
+  fittedShieldRegenFraction,
   partId,
   pickWeightedDropEntry,
   stationRepairBonus,
@@ -76,10 +77,16 @@ const FAMILY_SHAPE: Record<EnemyFamily, UnitShape> = {
 export const SPAWN_DISTANCE = 180
 
 /**
- * Lane-units / second for all normal projectiles (player + enemy).
- * ~120 keeps close/mid engage travel ~0.2–0.4s; long kite shots stay readable.
+ * USI Laser Cannon: range 600, projectile speed 700.
+ * Map USI space-units onto this lane (spawn 180 ≈ laser max range).
  */
-export const PROJECTILE_SPEED = 120
+export const USI_SPACE_TO_LANE = SPAWN_DISTANCE / 600
+
+/**
+ * Lane-units / second for all normal projectiles (player + enemy).
+ * 700 USI × (180/600) = 210, so max-range travel stays ~0.86s.
+ */
+export const PROJECTILE_SPEED = 700 * USI_SPACE_TO_LANE
 
 /** @deprecated Use PROJECTILE_SPEED — tag variance removed; all normal shots share one speed. */
 export function projectileSpeedForTag(_tag: string): number {
@@ -96,6 +103,44 @@ function nextUnitId(prefix: string): string {
 
 export function isBossSector(sector: number): boolean {
   return sector > 0 && sector % 5 === 0
+}
+
+/**
+ * USI: salvage drops on every kill; amount scales with sector
+ * (hover the sector bar). S1 trash = 1 so the first Laser level (cost 3)
+ * lands after the opening pack.
+ */
+export function salvageFromKill(sector: number, isBoss: boolean): number {
+  const base = Math.max(1, Math.floor(sector))
+  return isBoss ? base * 5 : base
+}
+
+export interface WeaponDamageProfile {
+  hullDamage: number
+  shieldDamage: number
+  armorDamage: number
+}
+
+/** USI Laser: hull 1 / shield 1 / armour 0.25. Kinetic Cannon: shield 0.6 / armour 1. */
+export function weaponDamageProfile(tags: WeaponTag[], weapon?: WeaponInstance): WeaponDamageProfile {
+  if (
+    weapon?.hullDamage != null ||
+    weapon?.shieldDamage != null ||
+    weapon?.armorDamage != null
+  ) {
+    return {
+      hullDamage: weapon.hullDamage ?? 1,
+      shieldDamage: weapon.shieldDamage ?? 1,
+      armorDamage: weapon.armorDamage ?? 0.25,
+    }
+  }
+  const kinetic = tags.includes('kinetic') && !tags.includes('energy')
+  const pierce = tags.includes('pierce')
+  return {
+    hullDamage: 1,
+    shieldDamage: kinetic ? 0.6 : 1,
+    armorDamage: kinetic || pierce ? 1 : 0.25,
+  }
 }
 
 function makeWeapon(
@@ -216,7 +261,8 @@ export function enemyForSector(sector: number, wave = 1): SectorEncounter {
     // AI Points come from achievements later — never from combat drops.
     aiReward: 0,
     essenceReward: bossWave ? 1 + Math.floor(sector / 10) : 0,
-    salvageReward: bossWave ? 12 + sector * 2 : 6 + sector,
+    // Salvage is granted per kill (USI). Wave-clear field kept for intel only.
+    salvageReward: salvageFromKill(sector, bossWave),
     blurb: familyBlurb(family, bossWave),
     units,
   }
@@ -224,8 +270,8 @@ export function enemyForSector(sector: number, wave = 1): SectorEncounter {
 
 /**
  * Enemy hull scale vs sector.
- * Steep late curve so first Act 1 (S30) is an ITRTG-“first Baal” career
- * (~1–2 weeks with idle), while S1 stays clearable.
+ * Player Cores use USI Laser Cannon DPS (~5 at L0). This curve keeps S1
+ * 2-shot-able by that laser while later sectors still steepen.
  */
 export function enemySectorScale(sector: number): number {
   const s = Math.max(1, sector)
@@ -233,13 +279,12 @@ export function enemySectorScale(sector: number): number {
 }
 
 /**
- * Enemy damage scale — flatter than hull, but early S1–2 hit hard enough that
- * a naked Scout (and a freshly plated one) die naturally for onboarding beats.
- * Late length still comes mostly from HP walls.
+ * Enemy damage scale — flatter than hull. Tuned so a 30-shield Continuous
+ * Generator analogue holds S1 packs the way USI's starter shield does.
  */
 export function enemyDamageScale(sector: number): number {
   const s = Math.max(1, sector)
-  return 0.95 * Math.pow(1.055, s - 1)
+  return 0.5 * Math.pow(1.055, s - 1)
 }
 
 /**
@@ -295,7 +340,7 @@ function buildSwarmWave(
         }),
       )
     case 1: // pressure — denser rush
-      return Array.from({ length: Math.min(7, 5 + Math.floor(sector / 6)) }, (_, i) =>
+      return Array.from({ length: Math.min(6, 3 + Math.floor(sector / 8)) }, (_, i) =>
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family: 'swarm',
@@ -374,7 +419,7 @@ function buildSwarmWave(
       ]
     case 4: // climax — max cloud + brute
     default: {
-      const count = Math.min(8, 5 + Math.floor(sector / 5))
+      const count = Math.min(6, 3 + Math.floor(sector / 6))
       const units = Array.from({ length: count }, (_, i) =>
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
@@ -1466,6 +1511,13 @@ export function rollEnemyPartDrop(
   return results
 }
 
+export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void {
+  if (unit.side !== 'enemy') return
+  state.resources.salvage += salvageFromKill(state.combat.sector, unit.isBoss)
+  rollEnemyPartDrop(state, unit)
+  grantSignalCoreDrop(state, 'kill', { family: unit.family })
+}
+
 function tryLootEnemyKill(
   state: GameState,
   unit: CombatUnit,
@@ -1473,8 +1525,7 @@ function tryLootEnemyKill(
 ): void {
   if (unit.side !== 'enemy') return
   if (prevHull > 0 && unit.hull <= 0) {
-    rollEnemyPartDrop(state, unit)
-    grantSignalCoreDrop(state, 'kill', { family: unit.family })
+    grantEnemyKillRewards(state, unit)
   }
 }
 
@@ -1482,26 +1533,33 @@ function applyDamageToUnit(
   target: CombatUnit,
   rawDamage: number,
   tags: WeaponTag[],
+  profile?: WeaponDamageProfile,
 ): number {
-  let dmg = rawDamage * target.damageTakenMult
+  const vs = profile ?? weaponDamageProfile(tags)
+  let remaining = rawDamage * target.damageTakenMult
 
   if (tags.includes('antiShield') && target.shield > 0) {
-    dmg *= 1.5
+    remaining *= 1.5
   }
-
-  let armor = target.armor
-  if (tags.includes('pierce')) armor *= 0.5
-  dmg = Math.max(1, dmg - armor)
 
   let dealt = 0
-  if (target.shield > 0) {
-    const toShield = Math.min(target.shield, dmg)
+  if (target.shield > 0 && remaining > 0) {
+    const shieldHit = remaining * vs.shieldDamage
+    const toShield = Math.min(target.shield, shieldHit)
     target.shield -= toShield
-    dmg -= toShield
     dealt += toShield
+    remaining -= vs.shieldDamage > 0 ? toShield / vs.shieldDamage : remaining
   }
-  if (dmg > 0) {
-    const toHull = Math.min(target.hull, dmg)
+
+  if (remaining > 0 && target.hull > 0) {
+    const armored = target.family === 'armored'
+    let hullHit = remaining * (armored ? vs.armorDamage : vs.hullDamage)
+    let armor = target.armor
+    if (tags.includes('pierce')) armor *= 0.5
+    // USI armour HP already uses the 0.25× multiplier; don't also subtract.
+    if (armored && vs.armorDamage < 1) armor = 0
+    hullHit = Math.max(1, hullHit - armor)
+    const toHull = Math.min(target.hull, hullHit)
     target.hull -= toHull
     dealt += toHull
   }
@@ -1556,6 +1614,7 @@ function spawnProjectile(
     dotDamage: weapon.dotDamage,
     speed: PROJECTILE_SPEED,
     attackerFamily: from.family,
+    ...weaponDamageProfile(weapon.tags, weapon),
   })
 }
 
@@ -1600,7 +1659,11 @@ function updateProjectiles(
         dmg *= incomingDefenseMult(target, shot.attackerFamily, roles, matchupScale)
       }
       const prevHull = target.hull
-      applyDamageToUnit(target, dmg, shot.tags)
+      applyDamageToUnit(target, dmg, shot.tags, {
+        hullDamage: shot.hullDamage ?? 1,
+        shieldDamage: shot.shieldDamage ?? 1,
+        armorDamage: shot.armorDamage ?? 0.25,
+      })
       tryLootEnemyKill(state, target, prevHull)
       if (shot.dotDuration > 0 && shot.dotDamage > 0) {
         target.dots.push({ dps: shot.dotDamage, remaining: shot.dotDuration })
@@ -1646,6 +1709,14 @@ export function simulateCombat(
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
 
   moveUnits(state, dt)
+
+  const regenFrac = fittedShieldRegenFraction(state.shipyard.modules)
+  if (regenFrac > 0) {
+    for (const unit of state.combat.playerUnits) {
+      if (unit.hull <= 0 || unit.shieldMax <= 0) continue
+      unit.shield = Math.min(unit.shieldMax, unit.shield + unit.shieldMax * regenFrac * dt)
+    }
+  }
 
   // Resolve in-flight impacts first so hull updates before new targeting
   const hitFx = updateProjectiles(state, dt, roles, matchupScale)
@@ -1770,13 +1841,17 @@ export function estimateHoldClearRewards(state: GameState): {
     matterShopDataPerClear(state.prestige.matterShop)
   const data =
     dataBlocked || !isSystemUnlocked(state, 'research') ? 0 : clear.dataReward + siphon
-  let salvage = clear.salvageReward
+  let salvage = 0
+  for (let w = 1; w <= wavesForSector(sector); w += 1) {
+    const wave = enemyForSector(sector, w)
+    for (const unit of wave.units) {
+      salvage += salvageFromKill(sector, unit.isBoss)
+    }
+  }
 
-  // Mid-wave drips for waves 1..(n-1)
+  // Mid-wave scrap drips for waves 1..(n-1)
   for (let w = 1; w < wavesForSector(sector); w += 1) {
-    const drip = 1 + Math.floor(sector / 4)
-    scrap += drip
-    salvage += 1 + Math.floor(sector / 3)
+    scrap += 1 + Math.floor(sector / 4)
   }
 
   return { scrap, data, salvage }

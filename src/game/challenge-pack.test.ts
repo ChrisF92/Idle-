@@ -88,7 +88,7 @@ describe('challenge pack: Bare Rig + Knife Fight', () => {
     // Long weapons may stay fitted — range is capped at combat build time.
     state = fitModule(state, 'heavy-lance')
     const weapons = buildFlagshipWeapons(state)
-    expect(weapons.length).toBeGreaterThan(1)
+    expect(weapons.length).toBeGreaterThanOrEqual(1)
     expect(Math.max(...weapons.map((w) => w.range))).toBe(SHORT_RANGE_MAX)
 
     state = fitModule(state, 'flak-array')

@@ -380,7 +380,7 @@ export function upgradeCheapestModule(state: GameState): GameState {
   for (const id of state.shipyard.unlockedModules) {
     const level = moduleLevel(state.shipyard.moduleLevels, id)
     if (level >= MAX_MODULE_LEVEL) continue
-    const cost = moduleUpgradeCost(level)
+    const cost = moduleUpgradeCost(level, id)
     if (cost > state.resources.salvage) continue
     if (level < bestLevel || (level === bestLevel && cost < bestCost)) {
       bestId = id
@@ -799,7 +799,7 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
   if (!getModule(moduleId)) return state
   const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
   if (level >= MAX_MODULE_LEVEL) return state
-  const cost = moduleUpgradeCost(level)
+  const cost = moduleUpgradeCost(level, moduleId)
   if (state.resources.salvage < cost) return state
 
   const next = structuredClone(state)

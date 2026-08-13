@@ -380,7 +380,7 @@ function ModuleCard({
   const fitted = state.shipyard.modules.includes(m.id)
   const level = moduleLevel(state.shipyard.moduleLevels, m.id)
   const mastery = moduleMasteryRank(state, m.id)
-  const upCost = moduleUpgradeCost(level)
+  const upCost = moduleUpgradeCost(level, m.id)
   const farmable = isFarmableModule(m.id)
   const blueprint = getBlueprint(m.id)
   const progress = farmable && !unlocked ? blueprintProgress(state, m.id) : null

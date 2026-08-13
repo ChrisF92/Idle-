@@ -159,6 +159,10 @@ export interface WeaponInstance {
   telegraphDuration: number
   /** Remaining wind-up; fires when this hits 0 after charging. */
   telegraphLeft: number
+  /** USI damage vs hull / shield / armour HP types. */
+  hullDamage?: number
+  shieldDamage?: number
+  armorDamage?: number
 }
 
 export interface DotInstance {
@@ -225,6 +229,9 @@ export interface CombatProjectile {
   /** Lane units per second. */
   speed: number
   attackerFamily: string
+  hullDamage?: number
+  shieldDamage?: number
+  armorDamage?: number
 }
 
 export interface CombatState {

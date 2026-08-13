@@ -30,14 +30,14 @@ export function CoresTab({ state, onUpgrade }: CoresTabProps) {
         </p>
       </header>
       <p className="muted">
-        Ship DPS {formatCompact(stats.damage)} · Hull {formatCompact(stats.hullMax)} · Armour{' '}
-        {formatCompact(stats.armor)}
+        Ship DPS {formatCompact(stats.damage)} · Hull {formatCompact(stats.hullMax)} · Shield{' '}
+        {formatCompact(stats.shieldMax)}
       </p>
       <div className="stack">
         {STARTER_CORES.map((core) => {
           const def = getModule(core.id)
           const level = moduleLevel(state.shipyard.moduleLevels, core.id)
-          const cost = moduleUpgradeCost(level)
+          const cost = moduleUpgradeCost(level, core.id)
           const maxed = level >= MAX_MODULE_LEVEL
           const can = !maxed && state.resources.salvage >= cost
           return (
