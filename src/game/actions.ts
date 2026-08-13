@@ -77,6 +77,11 @@ import {
   upgradeCostForRanks,
   upgradeRank,
 } from './expeditionUpgrades'
+import {
+  assignBuildingDrone,
+  startBuildingWork,
+  type ForwardBuildingId,
+} from './forwardBase'
 
 export {
   equipSignalCore,
@@ -860,6 +865,21 @@ export function buyExpeditionUpgrade(
     [upgradeId]: fromRank + count,
   }
   return refreshFleetAfterUpgrade(next)
+}
+
+export function constructOrUpgradeBuilding(
+  state: GameState,
+  buildingId: ForwardBuildingId,
+): GameState {
+  return startBuildingWork(state, buildingId)
+}
+
+export function assignForwardDrone(
+  state: GameState,
+  buildingId: ForwardBuildingId,
+  delta: number,
+): GameState {
+  return assignBuildingDrone(state, buildingId, delta)
 }
 
 /** Apply live fleet rebuild after a mid-run Salvage purchase. */

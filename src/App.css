@@ -916,6 +916,25 @@ textarea {
   gap: 0.4rem;
 }
 
+.run-panel-tabs-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.forward-base-panel {
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--accent-2) 30%, var(--line));
+  padding-top: 0.45rem;
+}
+
+.forward-drone-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
 .upgrade-store {
   display: grid;
   gap: 0.55rem;

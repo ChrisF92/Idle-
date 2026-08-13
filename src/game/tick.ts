@@ -57,6 +57,10 @@ import {
   refreshEstimatedPrestigeMatter,
 } from './expedition'
 import { computeExpeditionUpgradeBonuses } from './expeditionUpgrades'
+import {
+  computeForwardBaseBonuses,
+  tickForwardBaseTimers,
+} from './forwardBase'
 
 /** Legacy alias — production/offline still speak in seconds; combat is continuous. */
 export const TICK_MS = 1000
@@ -348,15 +352,15 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
 }
 
 /**
- * Phase 1 interim between-wave recovery (stand-in for Repair Dock).
- * Pause itself never repairs.
+ * Between-wave recovery. Repair Dock improves this; Pause never repairs.
  */
 function betweenWaveRepair(state: GameState): void {
   const stats = computeShipStats(state)
+  const base = computeForwardBaseBonuses(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerShieldMax = stats.shieldMax
-  const hullGain = stats.hullMax * 0.08
-  const shieldGain = stats.shieldMax * 0.2
+  const hullGain = stats.hullMax * base.betweenWaveHullFrac
+  const shieldGain = stats.shieldMax * base.betweenWaveShieldFrac
   state.combat.playerHull = Math.min(
     stats.hullMax,
     state.combat.playerHull + hullGain,
@@ -389,7 +393,9 @@ function grantWaveClearRewards(state: GameState, wave: number, wasBoss: boolean)
       ? enemy.essenceReward
       : 0
   const runBonuses = computeExpeditionUpgradeBonuses(state.combat.upgrades)
-  let salvageGain = enemy.salvageReward * runBonuses.salvageWaveMult
+  const baseBonuses = computeForwardBaseBonuses(state)
+  let salvageGain =
+    enemy.salvageReward * runBonuses.salvageWaveMult * baseBonuses.salvageWaveMult
   if (wasBoss || enemy.tags.includes('elite')) {
     salvageGain *= runBonuses.eliteSalvageMult
   }
@@ -693,8 +699,10 @@ export function advanceSeconds(state: GameState, seconds: number): void {
       // Paused: freeze Expedition timers and combat; industry still runs.
     } else if (state.combat.inFight) {
       tickCombat(state, dt * combatSpeed)
+      tickForwardBaseTimers(state, dt * combatSpeed)
     } else {
       tickOutOfCombatRepair(state, dt)
+      tickForwardBaseTimers(state, dt)
       maybeAutoEngage(state)
     }
     left -= dt

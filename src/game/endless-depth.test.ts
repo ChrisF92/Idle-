@@ -178,7 +178,7 @@ describe('save migrate v18', () => {
     current.meta.completedAchievements = ['first-blood']
     const again = importSave(exportSave(current))
     expect(again).not.toBeNull()
-    expect(again!.version).toBe(22)
+    expect(again!.version).toBe(23)
     expect(again!.meta.ascensionCount).toBe(0)
   })
 })

@@ -17,6 +17,8 @@ import {
 } from '../../game/waves'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { UpgradeStorePanel } from '../UpgradeStorePanel'
+import { ForwardBasePanel } from '../ForwardBasePanel'
+import type { ForwardBuildingId } from '../../game/forwardBase'
 
 interface CombatTabProps {
   state: GameState
@@ -24,10 +26,12 @@ interface CombatTabProps {
   onExtract: () => void
   onBuyUpgrade: (upgradeId: string, mode: 1 | 10 | 'max') => void
   onUpgradeModule: (moduleId: string) => void
+  onConstructBuilding: (buildingId: ForwardBuildingId) => void
+  onAssignForwardDrone: (buildingId: ForwardBuildingId, delta: number) => void
 }
 
 type Overlay = 'none' | 'wave' | 'launch-confirm' | 'extract-confirm'
-type RunPanel = 'upgrades' | 'run'
+type RunPanel = 'upgrades' | 'base' | 'run'
 
 export function CombatTab({
   state,
@@ -35,6 +39,8 @@ export function CombatTab({
   onExtract,
   onBuyUpgrade,
   onUpgradeModule,
+  onConstructBuilding,
+  onAssignForwardDrone,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -229,7 +235,7 @@ export function CombatTab({
         </span>
       </div>
 
-      <div className="run-panel-tabs" role="tablist" aria-label="Run panels">
+      <div className="run-panel-tabs run-panel-tabs-3" role="tablist" aria-label="Run panels">
         <button
           type="button"
           role="tab"
@@ -238,6 +244,15 @@ export function CombatTab({
           onClick={() => setRunPanel('upgrades')}
         >
           Upgrades
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={runPanel === 'base'}
+          className={runPanel === 'base' ? 'primary mode-active' : ''}
+          onClick={() => setRunPanel('base')}
+        >
+          Base
         </button>
         <button
           type="button"
@@ -255,6 +270,12 @@ export function CombatTab({
           state={state}
           onBuyUpgrade={onBuyUpgrade}
           onUpgradeModule={onUpgradeModule}
+        />
+      ) : runPanel === 'base' ? (
+        <ForwardBasePanel
+          state={state}
+          onConstruct={onConstructBuilding}
+          onAssign={onAssignForwardDrone}
         />
       ) : (
         <div className="run-summary-panel muted">

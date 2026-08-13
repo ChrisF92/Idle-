@@ -41,11 +41,14 @@ import {
   upgradeCheapestModule,
   upgradeModule,
   buyExpeditionUpgrade,
+  constructOrUpgradeBuilding,
+  assignForwardDrone,
   withdrawFabPart,
   equipSignalCore,
   unequipSignalCore,
   mergeSignalCores,
 } from '../game/actions'
+import type { ForwardBuildingId } from '../game/forwardBase'
 import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
@@ -83,6 +86,8 @@ type Action =
   | { type: 'unfit-module'; moduleId: string }
   | { type: 'upgrade-module'; moduleId: string }
   | { type: 'buy-expedition-upgrade'; upgradeId: string; mode?: 1 | 10 | 'max' }
+  | { type: 'construct-forward-building'; buildingId: ForwardBuildingId }
+  | { type: 'assign-forward-drone'; buildingId: ForwardBuildingId; delta: number }
   | { type: 'unequip-all' }
   | { type: 'upgrade-cheapest' }
   | { type: 'ack-onboarding'; tipId: string }
@@ -162,6 +167,10 @@ function reducer(state: GameState, action: Action): GameState {
       return upgradeModule(state, action.moduleId)
     case 'buy-expedition-upgrade':
       return buyExpeditionUpgrade(state, action.upgradeId, action.mode ?? 1)
+    case 'construct-forward-building':
+      return constructOrUpgradeBuilding(state, action.buildingId)
+    case 'assign-forward-drone':
+      return assignForwardDrone(state, action.buildingId, action.delta)
     case 'unequip-all':
       return unequipAllModules(state)
     case 'upgrade-cheapest':
@@ -265,6 +274,10 @@ export function useGame() {
     upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
     buyExpeditionUpgrade: (upgradeId: string, mode: 1 | 10 | 'max' = 1) =>
       dispatch({ type: 'buy-expedition-upgrade', upgradeId, mode }),
+    constructOrUpgradeBuilding: (buildingId: ForwardBuildingId) =>
+      dispatch({ type: 'construct-forward-building', buildingId }),
+    assignForwardDrone: (buildingId: ForwardBuildingId, delta: number) =>
+      dispatch({ type: 'assign-forward-drone', buildingId, delta }),
     unequipAll: () => dispatch({ type: 'unequip-all' }),
     upgradeCheapest: () => dispatch({ type: 'upgrade-cheapest' }),
     acknowledgeOnboarding: (tipId: string) =>

@@ -95,6 +95,8 @@ export default function App() {
             onExtract={game.extractExpedition}
             onBuyUpgrade={game.buyExpeditionUpgrade}
             onUpgradeModule={game.upgradeModule}
+            onConstructBuilding={game.constructOrUpgradeBuilding}
+            onAssignForwardDrone={game.assignForwardDrone}
           />
         )}
         {tab === 'shipyard' && (

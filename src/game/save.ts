@@ -13,6 +13,8 @@ import {
   createEmptySignalCoresState,
   getSignalCoreDef,
 } from './signalCores'
+import { createEmptyForwardBaseState, FORWARD_BUILDINGS } from './forwardBase'
+import type { ForwardBaseState, ForwardBuildingId } from './types'
 
 export function saveGame(state: GameState): void {
   try {
@@ -20,6 +22,26 @@ export function saveGame(state: GameState): void {
   } catch {
     // Quota / private mode — ignore for skeleton
   }
+}
+
+function withForwardBaseDefaults(raw: GameState['combat']['forwardBase'] | undefined): ForwardBaseState {
+  const base = createEmptyForwardBaseState()
+  if (!raw?.buildings || typeof raw.buildings !== 'object') return base
+  for (const def of FORWARD_BUILDINGS) {
+    const b = raw.buildings[def.id as ForwardBuildingId]
+    if (!b) continue
+    base.buildings[def.id] = {
+      level: Math.max(0, Math.min(def.maxLevel, Math.floor(Number(b.level) || 0))),
+      assignedDrones: Math.max(0, Math.floor(Number(b.assignedDrones) || 0)),
+      timerRemaining:
+        b.timerRemaining != null && Number(b.timerRemaining) > 0
+          ? Number(b.timerRemaining)
+          : undefined,
+      timerKind:
+        b.timerKind === 'construct' || b.timerKind === 'upgrade' ? b.timerKind : undefined,
+    }
+  }
+  return base
 }
 
 function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
@@ -72,6 +94,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
               .filter(([, n]) => n > 0),
           )
         : {},
+    forwardBase: withForwardBaseDefaults(combat.forwardBase),
     lastRunSummary: combat.lastRunSummary ?? null,
     playerShield: combat.playerShield ?? 0,
     playerShieldMax: combat.playerShieldMax ?? 0,

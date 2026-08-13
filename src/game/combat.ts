@@ -59,6 +59,7 @@ import {
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { computeExpeditionUpgradeBonuses } from './expeditionUpgrades'
+import { computeForwardBaseBonuses } from './forwardBase'
 
 /* ── Re-exports (arena / waves) ─────────────────────────────────────── */
 
@@ -259,7 +260,12 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
 
   const escorts: CombatUnit[] = []
   let escortIndex = 0
-  const droneDmg = 6 * globalDamageMultiplier(state)
+  const run = computeExpeditionUpgradeBonuses(state.combat.upgrades)
+  const base = computeForwardBaseBonuses(state)
+  const storeDmg = (run.damageMult - 1) * base.offenceRankScale
+  const escortDmgMult = (1 + storeDmg) * base.gunneryDamageMult
+  const droneDmg = 6 * globalDamageMultiplier(state) * escortDmgMult
+  const fireRate = (1 + (run.fireRateMult - 1) * base.offenceRankScale) * base.gunneryFireRateMult
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     const n = mod?.escorts ?? 0
@@ -284,8 +290,8 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
             `escort-wpn-${escortIndex}`,
             'Drone Pulse',
             droneDmg,
-            1,
-            70,
+            Math.max(0.2, 1 / fireRate),
+            70 * run.rangeMult,
             ['kinetic'],
           ),
         ],
@@ -680,8 +686,8 @@ function tryLootEnemyKill(
     rollEnemyPartDrop(state, unit)
     grantSignalCoreDrop(state, 'kill', { family: unit.family })
     const run = computeExpeditionUpgradeBonuses(state.combat.upgrades)
-    // Base scrap of salvage per kill scales with upgrade ranks (0 until purchased).
-    const salvageGain = run.salvagePerKill
+    const base = computeForwardBaseBonuses(state)
+    const salvageGain = run.salvagePerKill + base.salvageKillFlat
     if (salvageGain > 0) {
       state.resources.salvage += salvageGain
       state.combat.runSalvageEarned += salvageGain

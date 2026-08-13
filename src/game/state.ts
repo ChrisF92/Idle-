@@ -29,9 +29,10 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 import { computeExpeditionUpgradeBonuses } from './expeditionUpgrades'
+import { computeForwardBaseBonuses, createEmptyForwardBaseState } from './forwardBase'
 
-/** Phase 2 in-run Salvage store — clean bump from Phase 1 v21. */
-export const SAVE_VERSION = 22
+/** Phase 3 Forward Base — clean bump from Phase 2 v22. */
+export const SAVE_VERSION = 23
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -88,6 +89,7 @@ export function createInitialState(now = Date.now()): GameState {
       runScrapEarned: 0,
       estimatedPrestigeMatter: 0,
       upgrades: {},
+      forwardBase: createEmptyForwardBaseState(),
       lastRunSummary: null,
       playerHull: hullMax,
       playerHullMax: hullMax,
@@ -185,12 +187,18 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
   const mult = globalDamageMultiplier(state)
   const run = computeExpeditionUpgradeBonuses(state.combat.upgrades)
+  const base = computeForwardBaseBonuses(state)
+  // Store offence ranks are scaled by Gunnery; Gunnery also adds baseline power.
+  const damageFromStore = (run.damageMult - 1) * base.offenceRankScale
+  const fireFromStore = (run.fireRateMult - 1) * base.offenceRankScale
+  const damageMult = (1 + damageFromStore) * base.gunneryDamageMult
+  const fireRateMult = (1 + fireFromStore) * base.gunneryFireRateMult
   const shortRange = state.prestige.activeChallengeId === 'short-range'
   const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
   const applyFireRate = (cooldown: number) =>
-    Math.max(0.15, cooldown / Math.max(0.2, run.fireRateMult))
+    Math.max(0.15, cooldown / Math.max(0.2, fireRateMult))
   const applyRange = (range: number) => capRange(range * run.rangeMult)
-  const applyDamage = (damage: number) => damage * mult * run.damageMult
+  const applyDamage = (damage: number) => damage * mult * damageMult
 
   const weapons: WeaponInstance[] = [
     {
@@ -225,7 +233,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       tags: [...mod.weapon.tags],
       splash: mod.weapon.splash ?? 0,
       dotDuration: mod.weapon.dotDuration ?? 0,
-      dotDamage: (mod.weapon.dotDamage ?? 0) * mult * run.damageMult * lvlMult,
+      dotDamage: (mod.weapon.dotDamage ?? 0) * mult * damageMult * lvlMult,
       telegraphDuration: 0,
       telegraphLeft: 0,
     })
@@ -285,17 +293,21 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   evasion += signalBonuses.evasion
 
   const run = computeExpeditionUpgradeBonuses(state.combat.upgrades)
+  const base = computeForwardBaseBonuses(state)
   const shieldRanks = Math.max(0, Math.floor(state.combat.upgrades?.['max-shield'] ?? 0))
   hullMax *= run.hullMult
-  shieldMax = shieldMax * run.shieldMult + 2 * shieldRanks
-  armor += run.armorFlat
+  shieldMax = (shieldMax * run.shieldMult + 2 * shieldRanks) * base.shieldMult
+  armor += run.armorFlat + base.armorFlat
   evasion += run.evasionFlat
+  damageTakenMult *= base.damageTakenMult
 
   evasion = Math.min(0.45, evasion)
 
   const weapons = buildFlagshipWeapons(state)
   let damage = weapons.reduce((sum, w) => sum + w.damage / Math.max(0.2, w.cooldown), 0)
-  damage += escortCount * (6 * globalDamageMultiplier(state) * run.damageMult)
+  const storeDmg = (run.damageMult - 1) * base.offenceRankScale
+  const escortDmgMult = (1 + storeDmg) * base.gunneryDamageMult
+  damage += escortCount * (6 * globalDamageMultiplier(state) * escortDmgMult)
 
   return {
     damage,

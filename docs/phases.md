@@ -33,7 +33,7 @@ Shipped on Phase 1 branch / PR.
 
 ---
 
-## Phase 2 — In-run store 🚧
+## Phase 2 — In-run store ✅
 
 **Branch:** `cursor/phase2-in-run-store-706b` (from Phase 1)
 
@@ -85,22 +85,27 @@ Career-gated in Phase 2:
 
 ---
 
-## Phase 3 — Forward Base
+## Phase 3 — Forward Base ✅
 
-**Branches from Phase 2**
+**Branch:** `cursor/phase3-forward-base-706b` (from Phase 2)
 
 ### Scope
 
 - Worker deployment capacity (corps-derived; Home Base output unaffected)
-- Buildings: Gunnery Matrix, Salvage Relay, Shield Foundry, Repair Dock (minimum set; add Reactor / Sensor / Drone Bay / Fabricator as capacity allows)
-- Building panel + drone assignment
+- Buildings: Gunnery Matrix, Salvage Relay, Shield Foundry, Repair Dock
+- Building panel + drone assignment (Combat tab → Base)
 - Short construction / upgrade timers (freeze while Paused)
-- Building effects distinct from store (e.g. Gunnery scales offensive ranks)
+- Building effects distinct from store (Gunnery scales offensive ranks; Relay Salvage; Foundry defence; Repair Dock between-wave recovery)
+- Save bump to **v23**
 
 ### Out of scope
 
 - Building evolutions (Phase 5/6 gate)
-- Full eight-building endgame set if time-boxed — land core four first
+- Full eight-building endgame set (Reactor / Sensor / Drone Bay / Fabricator later)
+
+### Status
+
+Shipped on Phase 3 branch / PR.
 
 ---
 

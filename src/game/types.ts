@@ -174,6 +174,24 @@ export interface ExpeditionRunSummary {
   defeated: boolean
 }
 
+/** Temporary Forward Base building during an Expedition. */
+export interface ForwardBuildingState {
+  level: number
+  assignedDrones: number
+  timerRemaining?: number
+  timerKind?: 'construct' | 'upgrade'
+}
+
+export type ForwardBuildingId =
+  | 'gunnery-matrix'
+  | 'salvage-relay'
+  | 'shield-foundry'
+  | 'repair-dock'
+
+export interface ForwardBaseState {
+  buildings: Record<ForwardBuildingId, ForwardBuildingState>
+}
+
 export interface DotInstance {
   dps: number
   remaining: number
@@ -280,6 +298,8 @@ export interface CombatState {
   estimatedPrestigeMatter: number
   /** Temporary ship-system upgrade ranks (Salvage store; reset on Extract/Defeat). */
   upgrades: Record<string, number>
+  /** Temporary Forward Base buildings + drone assignments. */
+  forwardBase: ForwardBaseState
   /** Last completed run summary (Extract or Defeat). */
   lastRunSummary: ExpeditionRunSummary | null
   /** Persisted flagship hull between fights (not fully restored on clear). */

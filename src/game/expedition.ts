@@ -11,6 +11,7 @@ import {
   prestigeMatterForRun,
   roundPrestigeMatter,
 } from './prestigeMatter'
+import { createEmptyForwardBaseState } from './forwardBase'
 
 export type { ExpeditionRunSummary }
 
@@ -85,6 +86,7 @@ function resetExpeditionProgress(state: GameState): void {
   state.combat.expeditionStartedAt = 0
   state.combat.estimatedPrestigeMatter = 0
   state.combat.upgrades = {}
+  state.combat.forwardBase = createEmptyForwardBaseState()
   state.resources.salvage = 0
   state.shipyard.moduleLevels = {}
   state.shipyard.frameLocked = false

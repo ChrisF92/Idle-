@@ -15,9 +15,9 @@ import { basePrestigeMatterForWave } from './prestigeMatter'
 import { arenaDistance } from './arena'
 
 describe('Phase 1 Expedition', () => {
-  it('uses save version 22', () => {
+  it('uses save version 23', () => {
     expect(createInitialState().version).toBe(SAVE_VERSION)
-    expect(SAVE_VERSION).toBe(22)
+    expect(SAVE_VERSION).toBe(23)
   })
 
   it('launches into radial combat with perimeter spawns', () => {

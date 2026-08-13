@@ -13,8 +13,8 @@ import {
 } from './expeditionUpgrades'
 
 describe('expedition upgrades', () => {
-  it('uses save version 22', () => {
-    expect(SAVE_VERSION).toBe(22)
+  it('uses save version 23', () => {
+    expect(SAVE_VERSION).toBe(23)
     expect(createInitialState().combat.upgrades).toEqual({})
   })
 
