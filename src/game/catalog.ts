@@ -801,10 +801,10 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'early-gate',
     name: 'Early Gate',
-    description: 'Prestige / enter challenges from sector 8.',
+    description: 'Rebuild / enter challenges from sector 2.',
     costCp: 1,
     maxRank: 1,
-    prestigeMinSector: 8,
+    prestigeMinSector: 2,
   },
   {
     id: 'supply-cache',
@@ -1133,14 +1133,14 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
   },
   {
     id: 'line-frame',
-    name: 'Line Frame',
-    weaponSlots: 1,
+    name: 'Frigate Hull',
+    weaponSlots: 2,
     defenseSlots: 1,
     utilitySlots: 1,
     baseDamage: 0,
     baseHull: 48,
-    unlockCost: { alloys: 40, scrap: 85 },
-    requiresSectorEver: 8,
+    unlockCost: {},
+    requiresSectorEver: 4,
   },
   {
     id: 'razor-frame',

@@ -16,9 +16,12 @@ export const ACT1_FINAL_SECTOR = 30
  * Prestige becomes available mid–Act 1.
  * Maps nearer ITRTG’s first Hyperion soft-reset (~1h real), not first Baal.
  */
-export const PRESTIGE_MIN_SECTOR = 10
+export const PRESTIGE_MIN_SECTOR = 4
 
-export type SystemId = Exclude<TabId, 'dock' | 'combat' | 'cores' | 'shipyard' | 'stats'>
+export type SystemId = Exclude<
+  TabId,
+  'dock' | 'combat' | 'cores' | 'foundry' | 'shipyard' | 'stats'
+>
 
 export interface SystemUnlockDef {
   id: SystemId
@@ -72,7 +75,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'prestige',
     requiresSectorEver: 8,
     label: 'Prestige',
-    tip: 'Soft-reset from sector 10+ for Prestige Matter. Challenges open after Act 1 (sector 30).',
+    tip: 'Rebuild from sector 4 to swap hull and Cores. Challenges open after Act 1 (sector 30).',
   },
 ]
 
@@ -459,6 +462,9 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   ) {
     return true
   }
+  if (systemId === 'foundry') {
+    return careerHighestSector(state) >= 2
+  }
   if (systemId === 'ai') {
     return state.meta.aiUnlocked || state.meta.completedAchievements.length > 0
   }
@@ -482,6 +488,9 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   if (systemId === 'combat' || systemId === 'shipyard' || systemId === 'stats') {
     return null
   }
+  if (systemId === 'foundry') {
+    return 'Clear sector 2'
+  }
   if (systemId === 'ai') {
     return 'Complete First Blood (clear sector 1)'
   }
@@ -504,7 +513,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
 export function isResourceVisible(state: GameState, id: keyof Resources): boolean {
   switch (id) {
     case 'scrap':
-      return true
+      return isSystemUnlocked(state, 'foundry')
     case 'alloys':
       return (
         isSystemUnlocked(state, 'base') ||
@@ -570,6 +579,10 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   const ever = careerHighestSector(state)
   if (ever > state.meta.highestSectorEver) {
     state.meta.highestSectorEver = ever
+  }
+
+  if (ever >= 4 && !state.shipyard.unlockedFrames.includes('line-frame')) {
+    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'line-frame']
   }
 
   if (

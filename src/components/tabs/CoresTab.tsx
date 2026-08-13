@@ -1,67 +1,27 @@
 import type { GameState } from '../../game/types'
-import {
-  MAX_MODULE_LEVEL,
-  getModule,
-  moduleLevel,
-  moduleUpgradeCost,
-} from '../../game/catalog'
 import { computeShipStats } from '../../game/state'
 import { formatCompact } from '../../game/format'
-
-const STARTER_CORES = [
-  { id: 'pulse-cannon', slot: 'Weapon' },
-  { id: 'plate-layer', slot: 'Ward' },
-] as const
+import { CoreSheet } from '../CoreSheet'
 
 interface CoresTabProps {
   state: GameState
   onUpgrade: (moduleId: string) => void
+  onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
 }
 
-export function CoresTab({ state, onUpgrade }: CoresTabProps) {
+export function CoresTab({ state, onUpgrade, onPickMilestone }: CoresTabProps) {
   const stats = computeShipStats(state)
   return (
-    <section className="panel">
+    <section className="panel screen-panel">
       <header className="panel-header">
         <h2>Cores</h2>
         <p>
-          USI-style loadout. Spend Salvage to level fitted Cores. Levels persist until Rebuild.
-          Swap which Cores are fitted later via Rebuild.
+          {formatCompact(stats.damage)} DPS · {formatCompact(stats.hullMax)} hull ·{' '}
+          {formatCompact(stats.shieldMax)} shield
         </p>
       </header>
-      <p className="muted">
-        Ship DPS {formatCompact(stats.damage)} · Hull {formatCompact(stats.hullMax)} · Shield{' '}
-        {formatCompact(stats.shieldMax)}
-      </p>
-      <div className="stack">
-        {STARTER_CORES.map((core) => {
-          const def = getModule(core.id)
-          const level = moduleLevel(state.shipyard.moduleLevels, core.id)
-          const cost = moduleUpgradeCost(level, core.id)
-          const maxed = level >= MAX_MODULE_LEVEL
-          const can = !maxed && state.resources.salvage >= cost
-          return (
-            <article key={core.id} className="core-card">
-              <header>
-                <span className="muted">{core.slot}</span>
-                <h3>{def?.name ?? core.id}</h3>
-              </header>
-              <p>{def?.description}</p>
-              <p>
-                Rank {level}
-                {maxed ? ' (max)' : ` · next ${cost} Salvage`}
-              </p>
-              <button
-                type="button"
-                className="primary"
-                disabled={!can}
-                onClick={() => onUpgrade(core.id)}
-              >
-                {maxed ? 'Maxed' : `Level up (${cost} Salvage)`}
-              </button>
-            </article>
-          )
-        })}
+      <div className="panel-scroll">
+        <CoreSheet state={state} onUpgrade={onUpgrade} onPickMilestone={onPickMilestone} />
       </div>
     </section>
   )

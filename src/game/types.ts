@@ -15,6 +15,7 @@ export type TabId =
   | 'dock'
   | 'combat'
   | 'cores'
+  | 'foundry'
   | 'shipyard'
   | 'base'
   | 'research'
@@ -134,6 +135,11 @@ export interface ShipLoadout {
   unlockedModules: string[]
   /** Per-module run upgrade levels (reset on prestige). */
   moduleLevels: Record<string, number>
+  /**
+   * USI Core milestone picks: moduleId → milestoneId → choiceId.
+   * Wipes on Rebuild with Core levels.
+   */
+  corePicks: Record<string, Record<string, string>>
   /**
    * After the first Launch of a run, the frame cannot be changed until
    * prestige / challenge reset. Modules can still be refit between fights

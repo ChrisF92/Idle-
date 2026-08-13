@@ -2,11 +2,12 @@ import type { TabId } from '../game/types'
 import type { GameState } from '../game/types'
 import { isSystemUnlocked } from '../game/progression'
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'dock', label: 'Dock' },
-  { id: 'combat', label: 'Sortie' },
-  { id: 'cores', label: 'Cores' },
-  { id: 'stats', label: 'Stats' },
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'dock', label: 'Dock', icon: '⌂' },
+  { id: 'combat', label: 'Sortie', icon: '▲' },
+  { id: 'cores', label: 'Cores', icon: '◆' },
+  { id: 'foundry', label: 'Foundry', icon: '▣' },
+  { id: 'stats', label: 'More', icon: '☰' },
 ]
 
 interface TabNavProps {
@@ -17,19 +18,24 @@ interface TabNavProps {
 
 export function TabNav({ active, onChange, state }: TabNavProps) {
   return (
-    <nav className="tab-nav" aria-label="Game systems">
+    <nav className="bottom-nav" aria-label="Game systems">
       {TABS.map((tab) => {
-        if (!isSystemUnlocked(state, tab.id)) return null
+        const unlocked = isSystemUnlocked(state, tab.id)
+        if (tab.id === 'foundry' && !unlocked) return null
         return (
           <button
             key={tab.id}
             type="button"
             data-guide={`${tab.id}-tab`}
-            className={active === tab.id ? 'tab active' : 'tab'}
+            className={active === tab.id ? 'nav-item active' : 'nav-item'}
+            disabled={!unlocked}
             title={tab.label}
-            onClick={() => onChange(tab.id)}
+            onClick={() => unlocked && onChange(tab.id)}
           >
-            {tab.label}
+            <span className="nav-icon" aria-hidden>
+              {tab.icon}
+            </span>
+            <span className="nav-label">{tab.label}</span>
           </button>
         )
       })}

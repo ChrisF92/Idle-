@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
-import { computeResourceRates } from './game/tick'
 import { isSystemUnlocked } from './game/progression'
 import { wavesForSector } from './game/sectors'
 import { ResourceBar } from './components/ResourceBar'
@@ -10,14 +9,16 @@ import { OfflineBanner } from './components/OfflineBanner'
 import { DockTab } from './components/tabs/DockTab'
 import { CombatTab } from './components/tabs/CombatTab'
 import { CoresTab } from './components/tabs/CoresTab'
+import { FoundryTab } from './components/tabs/FoundryTab'
 import { StatsTab } from './components/tabs/StatsTab'
+import { RebuildHangar } from './components/RebuildHangar'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import './App.css'
 
 export default function App() {
   const game = useGame()
   const [tab, setTab] = useState<TabId>('dock')
-  const rates = useMemo(() => computeResourceRates(game.state), [game.state])
+  const [hangarOpen, setHangarOpen] = useState(false)
   const live = !game.state.combat.docked
   const waves = wavesForSector(game.state.combat.sector)
 
@@ -36,15 +37,13 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="chrome-top">
       <header className="topbar">
-        <div>
-          <p className="brand">Hiveworks</p>
-          <p className="tagline">Foundry idle — USI combat, player-launched sorties</p>
-        </div>
+        <p className="brand">Hiveworks</p>
+        <ResourceBar state={game.state} />
         {live ? (
           <button type="button" className="combat-chip" onClick={() => go('combat')}>
-            Live S{game.state.combat.sector} W{game.state.combat.wave}/{waves} · hull{' '}
-            {Math.ceil(game.state.combat.playerHull)}
+            Live {game.state.combat.wave}/{waves}
           </button>
         ) : null}
       </header>
@@ -57,9 +56,7 @@ export default function App() {
           onDismiss={game.dismissOfflineReport}
         />
       ) : null}
-
-      <ResourceBar state={game.state} rates={rates} />
-      <TabNav active={tab} onChange={go} state={game.state} />
+      </div>
 
       <main className="main">
         {tab === 'dock' && (
@@ -70,6 +67,7 @@ export default function App() {
               go('combat')
             }}
             onOpenSortie={() => go('combat')}
+            onRebuild={() => setHangarOpen(true)}
           />
         )}
         {tab === 'combat' && (
@@ -82,20 +80,42 @@ export default function App() {
             onLaunch={() => {
               game.setDocked(false)
             }}
+            onUpgrade={game.upgradeModule}
+            onPickMilestone={game.pickCoreMilestone}
           />
         )}
         {tab === 'cores' && (
-          <CoresTab state={game.state} onUpgrade={game.upgradeModule} />
+          <CoresTab
+            state={game.state}
+            onUpgrade={game.upgradeModule}
+            onPickMilestone={game.pickCoreMilestone}
+          />
         )}
+        {tab === 'foundry' && <FoundryTab state={game.state} />}
         {tab === 'stats' && (
           <StatsTab
             state={game.state}
             onHardReset={game.hardReset}
             onImport={game.applyImportedSave}
             onDevAction={game.applyDevAction}
+            onRebuild={() => setHangarOpen(true)}
           />
         )}
       </main>
+
+      <TabNav active={tab} onChange={go} state={game.state} />
+
+      {hangarOpen ? (
+        <RebuildHangar
+          state={game.state}
+          onClose={() => setHangarOpen(false)}
+          onConfirm={(hangar) => {
+            game.performRebuild(hangar)
+            setHangarOpen(false)
+            go('dock')
+          }}
+        />
+      ) : null}
     </div>
   )
 }

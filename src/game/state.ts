@@ -30,8 +30,14 @@ import {
   computeSignalCoreBonuses,
   createEmptySignalCoresState,
 } from './signalCores'
+import {
+  applyMilestoneToWeapon,
+  corePicksFor,
+  fittedShieldMilestoneMult,
+  milestoneModsFor,
+} from './milestones'
 
-export const SAVE_VERSION = 22
+export const SAVE_VERSION = 23
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -68,6 +74,7 @@ export function createInitialState(now = Date.now()): GameState {
       unlockedFrames: ['scout-frame'],
       unlockedModules: ['pulse-cannon', 'plate-layer'],
       moduleLevels: {},
+      corePicks: {},
       frameLocked: false,
     },
     combat: {
@@ -215,7 +222,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       shieldDamage: mod.weapon.shieldDamage,
       armorDamage: mod.weapon.armorDamage,
     }
-    weapons.push({
+    const built: WeaponInstance = {
       id: `${moduleId}-wpn`,
       name: mod.weapon.name,
       damage: moduleWeaponDamage(mod, level, mastery) * mult,
@@ -229,7 +236,13 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       telegraphDuration: 0,
       telegraphLeft: 0,
       ...profile,
-    })
+    }
+    const withNodes = applyMilestoneToWeapon(
+      built,
+      milestoneModsFor(moduleId, corePicksFor(state, moduleId)),
+    )
+    withNodes.range = capRange(withNodes.range)
+    weapons.push(withNodes)
   }
 
   return weapons
@@ -289,6 +302,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   armor += signalBonuses.armor
   shieldMax += signalBonuses.shield
   evasion += signalBonuses.evasion
+  shieldMax *= fittedShieldMilestoneMult(state)
 
   evasion = Math.min(0.45, evasion)
 

@@ -5,13 +5,14 @@ import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-13a'
+export const APP_BUILD = '2026-08-13d'
 
 interface StatsTabProps {
   state: GameState
   onHardReset: () => void
   onImport: (code: string) => boolean
   onDevAction: (action: DevAction) => void
+  onRebuild?: () => void
 }
 
 async function forceReloadApp(): Promise<void> {
@@ -32,7 +33,7 @@ async function forceReloadApp(): Promise<void> {
   window.location.replace(url.toString())
 }
 
-export function StatsTab({ state, onHardReset, onImport, onDevAction }: StatsTabProps) {
+export function StatsTab({ state, onHardReset, onImport, onDevAction, onRebuild }: StatsTabProps) {
   const [importCode, setImportCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
 
@@ -45,11 +46,19 @@ export function StatsTab({ state, onHardReset, onImport, onDevAction }: StatsTab
   }, [])
 
   return (
-    <section className="panel">
+    <section className="panel screen-panel">
       <header className="panel-header">
-        <h2>Stats & Save</h2>
-        <p>Local save · export/import for transfers.</p>
+        <h2>More</h2>
+        <p>Save, rebuild, build {APP_BUILD}.</p>
       </header>
+      <div className="panel-scroll">
+      {onRebuild ? (
+        <p className="assign-row">
+          <button type="button" className="primary" onClick={onRebuild}>
+            Rebuild hangar
+          </button>
+        </p>
+      ) : null}
 
       <div className="stat-row">
         <div>
@@ -133,6 +142,7 @@ export function StatsTab({ state, onHardReset, onImport, onDevAction }: StatsTab
       </div>
 
       {message ? <p className="notice">{message}</p> : null}
+      </div>
     </section>
   )
 }

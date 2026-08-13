@@ -36,11 +36,11 @@ describe('challenge point shop', () => {
 
   it('early-gate lowers prestige sector requirement', () => {
     let state = createInitialState(0)
-    expect(prestigeMinSectorFor({})).toBe(10)
+    expect(prestigeMinSectorFor({})).toBe(4)
     state.resources.challengePoints = 1
     state = buyChallengeShop(state, 'early-gate')
-    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(8)
-    state.combat.sector = 8
+    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(2)
+    state.combat.sector = 2
     expect(canPrestige(state)).toBe(true)
   })
 

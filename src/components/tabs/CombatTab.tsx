@@ -3,14 +3,23 @@ import type { GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { wavesForSector } from '../../game/sectors'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
+import { CoreSheet } from '../CoreSheet'
 
 interface CombatTabProps {
   state: GameState
   onExtract: () => void
   onLaunch: () => void
+  onUpgrade: (moduleId: string) => void
+  onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
 }
 
-export function CombatTab({ state, onExtract, onLaunch }: CombatTabProps) {
+export function CombatTab({
+  state,
+  onExtract,
+  onLaunch,
+  onUpgrade,
+  onPickMilestone,
+}: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
   const waves = wavesForSector(combat.sector)
@@ -65,16 +74,24 @@ export function CombatTab({ state, onExtract, onLaunch }: CombatTabProps) {
   const playerUnits = combat.inFight && combat.playerUnits.length > 0 ? combat.playerUnits : previewPlayer
 
   return (
-    <section className="panel combat-hud combat-bridge">
+    <section className="sortie-screen">
       <header className="combat-hud-bar">
         <div className="combat-hud-readout">
-          <span className="combat-hud-kicker">Sector</span>
-          <strong className="combat-hud-value">{combat.sector}</strong>
+          <span className="combat-hud-kicker">S{combat.sector}</span>
+          <strong className="combat-hud-value">
+            W{combat.wave}/{waves}
+          </strong>
         </div>
         <div className="combat-hud-readout">
-          <span className="combat-hud-kicker">Wave</span>
+          <span className="combat-hud-kicker">Hull</span>
           <strong className="combat-hud-value">
-            {combat.wave}/{waves}
+            {Math.ceil(combat.playerHull)}/{Math.ceil(stats.hullMax)}
+          </strong>
+        </div>
+        <div className="combat-hud-readout">
+          <span className="combat-hud-kicker">Shield</span>
+          <strong className="combat-hud-value">
+            {Math.ceil(combat.playerShield)}/{Math.ceil(stats.shieldMax)}
           </strong>
         </div>
         <div className="combat-hud-readout">
@@ -83,32 +100,36 @@ export function CombatTab({ state, onExtract, onLaunch }: CombatTabProps) {
         </div>
       </header>
 
-      <Battlefield
-        playerUnits={playerUnits}
-        enemyUnits={combat.docked ? [] : combat.enemyUnits}
-        projectiles={combat.docked ? [] : combat.projectiles}
-        fx={combat.fx}
-        mode={battlefieldMode}
-      />
+      <div className="sortie-canvas">
+        <Battlefield
+          playerUnits={playerUnits}
+          enemyUnits={combat.docked ? [] : combat.enemyUnits}
+          projectiles={combat.docked ? [] : combat.projectiles}
+          fx={combat.fx}
+          mode={battlefieldMode}
+        />
+      </div>
 
-      <p className="assign-row">
+      <div className="sortie-sheet">
+        <CoreSheet
+          state={state}
+          compact
+          onUpgrade={onUpgrade}
+          onPickMilestone={onPickMilestone}
+        />
+      </div>
+
+      <div className="sortie-actions">
         {live ? (
           <button type="button" onClick={onExtract}>
-            Extract to Dock
+            Extract
           </button>
         ) : (
           <button type="button" className="primary" onClick={onLaunch}>
-            Launch / Resume
+            Launch
           </button>
         )}
-      </p>
-      <p className="muted">
-        {live
-          ? combat.inFight
-            ? `${combat.enemyName} — shields then hull. Extract freezes combat; Cores stay.`
-            : 'Pushing to the next wave…'
-          : 'Extracted. Kill-fed systems pause until you launch again.'}
-      </p>
+      </div>
     </section>
   )
 }

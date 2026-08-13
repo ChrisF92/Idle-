@@ -37,6 +37,7 @@ import {
   sensorsMatchupBonus,
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
+import { fittedRegenBonus } from './milestones'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -1710,7 +1711,8 @@ export function simulateCombat(
 
   moveUnits(state, dt)
 
-  const regenFrac = fittedShieldRegenFraction(state.shipyard.modules)
+  const regenFrac =
+    fittedShieldRegenFraction(state.shipyard.modules) + fittedRegenBonus(state)
   if (regenFrac > 0) {
     for (const unit of state.combat.playerUnits) {
       if (unit.hull <= 0 || unit.shieldMax <= 0) continue

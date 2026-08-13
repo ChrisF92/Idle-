@@ -1504,14 +1504,20 @@ export function Battlefield({
 
       const dpr = Math.min(2, window.devicePixelRatio || 1)
       const cssW = canvas.clientWidth || VIEW_W
+      const cssH = canvas.clientHeight || VIEW_H
       const needW = Math.floor(cssW * dpr)
-      const needH = Math.floor(((cssW * VIEW_H) / VIEW_W) * dpr)
+      const needH = Math.floor(cssH * dpr)
       if (canvas.width !== needW || canvas.height !== needH) {
         canvas.width = needW
         canvas.height = needH
       }
-      const scale = cssW / VIEW_W
-      ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0)
+      const scale = Math.min(cssW / VIEW_W, cssH / VIEW_H)
+      const ox = (cssW - VIEW_W * scale) / 2
+      const oy = (cssH - VIEW_H * scale) / 2
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.fillStyle = '#0c121a'
+      ctx.fillRect(0, 0, cssW, cssH)
+      ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy)
       drawScene(ctx, scene)
 
       raf = requestAnimationFrame(frame)

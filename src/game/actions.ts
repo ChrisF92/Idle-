@@ -48,6 +48,7 @@ import {
   trimModulesToFrame,
   type ResourceCost,
 } from './catalog'
+import { milestonesFor, pendingMilestone } from './milestones'
 import {
   buildFlagshipWeapons,
   computeShipStats,
@@ -380,6 +381,7 @@ export function upgradeCheapestModule(state: GameState): GameState {
   for (const id of state.shipyard.unlockedModules) {
     const level = moduleLevel(state.shipyard.moduleLevels, id)
     if (level >= MAX_MODULE_LEVEL) continue
+    if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
     const cost = moduleUpgradeCost(level, id)
     if (cost > state.resources.salvage) continue
     if (level < bestLevel || (level === bestLevel && cost < bestCost)) {
@@ -790,6 +792,7 @@ function persistLoadout(
     unlockedFrames,
     unlockedModules,
     moduleLevels: {},
+    corePicks: {},
     frameLocked: false,
   }
 }
@@ -799,6 +802,7 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
   if (!getModule(moduleId)) return state
   const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
   if (level >= MAX_MODULE_LEVEL) return state
+  if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return state
   const cost = moduleUpgradeCost(level, moduleId)
   if (state.resources.salvage < cost) return state
 
@@ -989,9 +993,70 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.combat.playerShield = stats.shieldMax
 }
 
-export function performPrestige(state: GameState, now = Date.now()): GameState {
-  if (!canPrestige(state)) return state
+export function pickCoreMilestone(
+  state: GameState,
+  moduleId: string,
+  milestoneId: string,
+  choiceId: string,
+): GameState {
+  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+  const ms = milestonesFor(moduleId).find((m) => m.id === milestoneId)
+  if (!ms || level < ms.level) return state
+  if (!ms.choices.some((c) => c.id === choiceId)) return state
   const next = structuredClone(state)
+  next.shipyard.corePicks = {
+    ...next.shipyard.corePicks,
+    [moduleId]: {
+      ...(next.shipyard.corePicks[moduleId] ?? {}),
+      [milestoneId]: choiceId,
+    },
+  }
+  if (!next.combat.inFight) {
+    syncPersistedHullCaps(next)
+    return next
+  }
+  const rebuilt = buildPlayerFleet(next)
+  const prevUnits = next.combat.playerUnits
+  for (const unit of rebuilt) {
+    const prev = prevUnits.find((u) => u.id === unit.id)
+    if (prev && prev.hullMax > 0) {
+      unit.hull = Math.max(1, unit.hullMax * (prev.hull / prev.hullMax))
+      unit.shield =
+        unit.shieldMax > 0
+          ? unit.shieldMax * (prev.shield / Math.max(1, prev.shieldMax))
+          : 0
+    }
+  }
+  next.combat.playerUnits = rebuilt
+  const stats = computeShipStats(next)
+  next.combat.playerHullMax = stats.hullMax
+  next.combat.playerShieldMax = stats.shieldMax
+  const flag = rebuilt.find((u) => u.isFlagship)
+  if (flag) {
+    next.combat.playerHull = flag.hull
+    next.combat.playerShield = flag.shield
+  }
+  return next
+}
+
+export function performRebuild(
+  state: GameState,
+  hangar: { frameId: string; modules: string[] },
+  now = Date.now(),
+): GameState {
+  if (!canPrestige(state)) return state
+  const frame = getFrame(hangar.frameId)
+  if (!frame) return state
+  if (!state.shipyard.unlockedFrames.includes(hangar.frameId)) return state
+  if (frame.requiresSectorEver && careerHighestSector(state) < frame.requiresSectorEver) {
+    return state
+  }
+  const next = structuredClone(state)
+  next.shipyard.frameId = hangar.frameId
+  next.shipyard.modules = trimModulesToFrame(
+    hangar.modules.filter((id) => next.shipyard.unlockedModules.includes(id)),
+    frame,
+  )
   const gain = prestigeGainFor(next)
   next.resources.prestigeMatter += gain
   next.prestige.prestigeCount += 1
@@ -999,10 +1064,19 @@ export function performPrestige(state: GameState, now = Date.now()): GameState {
   applyRunReset(next, now)
   tryCompleteAchievements(next)
   next.combat.log = [
-    `Prestiged for +${gain} Prestige Matter.`,
+    `Rebuilt for +${gain} Prestige Matter. Hull ${getFrame(next.shipyard.frameId)?.name ?? hangar.frameId}.`,
     ...next.combat.log,
   ]
   return next
+}
+
+/** Soft-reset keeping the current hull + fitted Cores (hangar uses performRebuild). */
+export function performPrestige(state: GameState, now = Date.now()): GameState {
+  return performRebuild(
+    state,
+    { frameId: state.shipyard.frameId, modules: state.shipyard.modules },
+    now,
+  )
 }
 
 export function performAscension(state: GameState, now = Date.now()): GameState {

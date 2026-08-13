@@ -29,6 +29,8 @@ import {
   launchFabProject,
   performAscension,
   performPrestige,
+  performRebuild,
+  pickCoreMilestone,
   selectFrame,
   sellPart,
   setLaborProfile,
@@ -79,6 +81,13 @@ type Action =
   | { type: 'fit-module'; moduleId: string }
   | { type: 'unfit-module'; moduleId: string }
   | { type: 'upgrade-module'; moduleId: string }
+  | {
+      type: 'pick-milestone'
+      moduleId: string
+      milestoneId: string
+      choiceId: string
+    }
+  | { type: 'rebuild'; hangar: { frameId: string; modules: string[] } }
   | { type: 'unequip-all' }
   | { type: 'upgrade-cheapest' }
   | { type: 'ack-onboarding'; tipId: string }
@@ -154,6 +163,10 @@ function reducer(state: GameState, action: Action): GameState {
       return unfitModule(state, action.moduleId)
     case 'upgrade-module':
       return upgradeModule(state, action.moduleId)
+    case 'pick-milestone':
+      return pickCoreMilestone(state, action.moduleId, action.milestoneId, action.choiceId)
+    case 'rebuild':
+      return performRebuild(state, action.hangar)
     case 'unequip-all':
       return unequipAllModules(state)
     case 'upgrade-cheapest':
@@ -254,6 +267,10 @@ export function useGame() {
     fitModule: (moduleId: string) => dispatch({ type: 'fit-module', moduleId }),
     unfitModule: (moduleId: string) => dispatch({ type: 'unfit-module', moduleId }),
     upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
+    pickCoreMilestone: (moduleId: string, milestoneId: string, choiceId: string) =>
+      dispatch({ type: 'pick-milestone', moduleId, milestoneId, choiceId }),
+    performRebuild: (hangar: { frameId: string; modules: string[] }) =>
+      dispatch({ type: 'rebuild', hangar }),
     unequipAll: () => dispatch({ type: 'unequip-all' }),
     upgradeCheapest: () => dispatch({ type: 'upgrade-cheapest' }),
     acknowledgeOnboarding: (tipId: string) =>
