@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCompact, formatStat } from './format'
+import { formatCompact, formatLargeNumber, formatStat, setActiveNumberNotation } from './format'
 import { moduleStatPreviews, moduleUpgradeEffectLines } from './catalog'
 import { activeGuideStep, PRESTIGE_MIN_SECTOR } from './progression'
 import { createInitialState } from './state'
@@ -14,6 +14,28 @@ describe('formatStat', () => {
   it('compacts whole numbers', () => {
     expect(formatCompact(40, 1)).toBe('40')
     expect(formatCompact(3.4, 1)).toBe('3.4')
+  })
+})
+
+describe('large number notation', () => {
+  it('leaves values under 1000 alone', () => {
+    setActiveNumberNotation('engineering')
+    expect(formatCompact(999)).toBe('999')
+    expect(formatStat(26.6, 2)).toBe('26.60')
+  })
+
+  it('uses engineering exponents in steps of 3', () => {
+    setActiveNumberNotation('engineering')
+    expect(formatLargeNumber(1000, 'engineering')).toBe('1e3')
+    expect(formatLargeNumber(12345, 'engineering')).toBe('12.3e3')
+    expect(formatLargeNumber(1_500_000, 'engineering')).toBe('1.5e6')
+  })
+
+  it('uses scientific mantissa in [1, 10)', () => {
+    setActiveNumberNotation('scientific')
+    expect(formatLargeNumber(1000, 'scientific')).toBe('1e3')
+    expect(formatLargeNumber(12345, 'scientific')).toBe('1.23e4')
+    expect(formatLargeNumber(1_500_000, 'scientific')).toBe('1.5e6')
   })
 })
 

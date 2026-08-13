@@ -3,6 +3,7 @@ import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { isSystemUnlocked } from './game/progression'
 import { wavesForSector } from './game/sectors'
+import { setActiveNumberNotation } from './game/format'
 import { ResourceBar } from './components/ResourceBar'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -34,6 +35,10 @@ export default function App() {
       setTab('dock')
     }
   }, [game.state, tab])
+
+  useEffect(() => {
+    setActiveNumberNotation(game.state.meta.numberNotation ?? 'engineering')
+  }, [game.state.meta.numberNotation])
 
   return (
     <div className="app">
@@ -88,7 +93,15 @@ export default function App() {
         {tab === 'network' && (
           <NetworkTab state={game.state} onAssign={game.assignWorker} />
         )}
-        {tab === 'foundry' && <FoundryTab state={game.state} />}
+        {tab === 'foundry' && (
+          <FoundryTab
+            state={game.state}
+            onSetSlot={game.setFoundrySlot}
+            onBuyUpgrade={game.buyFoundryUpgrade}
+            onEquip={game.equipFoundryModule}
+            onUnequip={game.unequipFoundryModule}
+          />
+        )}
         {tab === 'stats' && (
           <StatsTab
             state={game.state}
@@ -96,6 +109,7 @@ export default function App() {
             onImport={game.applyImportedSave}
             onDevAction={game.applyDevAction}
             onRebuild={() => setHangarOpen(true)}
+            onNotation={game.setNumberNotation}
           />
         )}
       </main>

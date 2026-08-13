@@ -33,6 +33,8 @@ import {
 import { computeSignalCoreBonuses } from './signalCores'
 import { isSystemUnlocked } from './progression'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
+import { networkManufactureMult, tickNetwork } from './network'
+import { tickFoundry } from './foundry'
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -112,28 +114,28 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     }
   }
 
-  // Match live Base unlock (sector 4); stop at corps capacity.
-  if (state.meta.highestSectorEver >= 4 || state.combat.highestSector >= 4) {
-    const cap = droneCap(state)
-    if (state.base.workerDrones < cap) {
-      const speed = workerManufactureSpeed(state)
-      state.base.manufactureProgress +=
-        (seconds * speed) / WORKER_MANUFACTURE_SECONDS
-      while (
-        state.base.manufactureProgress >= 1 &&
-        state.base.workerDrones < cap
-      ) {
-        state.base.manufactureProgress -= 1
-        state.base.workerDrones += 1
-        state.meta.lifetimeDronesBuilt =
-          (state.meta.lifetimeDronesBuilt ?? 0) + 1
-      }
-      if (state.base.workerDrones >= cap) {
-        state.base.manufactureProgress = Math.min(
-          state.base.manufactureProgress,
-          0.999,
-        )
-      }
+  tickNetwork(state, seconds)
+  tickFoundry(state, seconds)
+
+  const cap = droneCap(state)
+  if (state.base.workerDrones < cap) {
+    const speed = workerManufactureSpeed(state) * networkManufactureMult(state)
+    state.base.manufactureProgress +=
+      (seconds * speed) / WORKER_MANUFACTURE_SECONDS
+    while (
+      state.base.manufactureProgress >= 1 &&
+      state.base.workerDrones < cap
+    ) {
+      state.base.manufactureProgress -= 1
+      state.base.workerDrones += 1
+      state.meta.lifetimeDronesBuilt =
+        (state.meta.lifetimeDronesBuilt ?? 0) + 1
+    }
+    if (state.base.workerDrones >= cap) {
+      state.base.manufactureProgress = Math.min(
+        state.base.manufactureProgress,
+        0.999,
+      )
     }
   }
 
@@ -145,7 +147,8 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     },
     logisticsFabMult(state) *
       (1 + computeSignalCoreBonuses(state).fab) *
-      (1 + aiFabBonus(state)),
+      (1 + aiFabBonus(state)) *
+      networkManufactureMult(state),
   )
   tickCoreTraining(state, seconds)
 }

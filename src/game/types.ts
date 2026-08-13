@@ -24,6 +24,28 @@ export interface NetworkState {
   bars: Record<NetworkBarId, NetworkBarState>
 }
 
+export type FoundryRecipeId = 'slag-ingot' | 'filament' | 'hardened-plate' | 'relay'
+
+export interface FoundrySlot {
+  recipeId: FoundryRecipeId | null
+  /** 0..1 toward the current craft. */
+  progress: number
+  /** True once this cycle's costs have been paid. */
+  paid: boolean
+}
+
+export interface FoundryState {
+  recipeLevels: Record<string, number>
+  /** Crafts toward the next recipe level. */
+  recipeXp: Record<string, number>
+  materials: Record<string, number>
+  infinite: string[]
+  points: number
+  upgrades: Record<string, number>
+  slots: FoundrySlot[]
+  equipped: string[]
+}
+
 export type TabId =
   | 'dock'
   | 'combat'
@@ -379,6 +401,8 @@ export interface MetaState {
    * 2 = tutorial complete
    */
   starterCombatLesson: number
+  /** HUD numbers ≥ 1000: engineering (12.3e3) or scientific (1.23e4). */
+  numberNotation: 'engineering' | 'scientific'
 }
 
 export interface ResearchState {
@@ -424,6 +448,8 @@ export interface GameState {
   base: BaseState
   /** Drone Network bars (Strike / Ward / …). Wiped on Rebuild. */
   network: NetworkState
+  /** Foundry recipes / smelters. Recipe XP and points persist; equipped modules wipe on Rebuild. */
+  foundry: FoundryState
   research: ResearchState
   ai: AiState
   essence: EssenceState

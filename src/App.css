@@ -619,9 +619,16 @@
   padding: 0.4rem 0.5rem;
 }
 
-.network-sheet-compact .network-assign button {
-  min-width: 2rem;
-  min-height: 2rem;
+.foundry-heading {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.notation-tabs {
+  margin-top: 0.25rem;
 }
 
 .hangar-backdrop {

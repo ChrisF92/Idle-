@@ -8,6 +8,7 @@ import type {
   WeaponTag,
 } from '../game/types'
 import { SPAWN_DISTANCE } from '../game/combat'
+import { formatNumber } from '../game/format'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -1195,12 +1196,7 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: VisualShot): void {
 }
 
 function formatChip(n: number): string {
-  if (!Number.isFinite(n)) return '0'
-  const abs = Math.abs(n)
-  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (abs >= 10_000) return `${(n / 1000).toFixed(1)}k`
-  if (abs >= 1000) return `${(n / 1000).toFixed(2)}k`
-  return `${Math.round(n)}`
+  return formatNumber(n)
 }
 
 function drawPlayerChips(ctx: CanvasRenderingContext2D, scene: Scene): void {

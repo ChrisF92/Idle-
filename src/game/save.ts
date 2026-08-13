@@ -16,6 +16,7 @@ import {
   getSignalCoreDef,
 } from './signalCores'
 import { createEmptyNetworkState } from './network'
+import { createEmptyFoundryState } from './foundry'
 
 export function saveGame(state: GameState): void {
   try {
@@ -232,6 +233,28 @@ function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
   return empty
 }
 
+function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['foundry'] {
+  const empty = createEmptyFoundryState()
+  if (!raw || typeof raw !== 'object') return empty
+  const slots = Array.isArray(raw.slots)
+    ? raw.slots.map((s) => ({
+        recipeId: s?.recipeId ?? null,
+        progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
+        paid: s?.paid === true,
+      }))
+    : empty.slots
+  return {
+    recipeLevels: { ...(raw.recipeLevels ?? {}) },
+    recipeXp: { ...(raw.recipeXp ?? {}) },
+    materials: { ...(raw.materials ?? {}) },
+    infinite: [...(raw.infinite ?? [])],
+    points: Math.max(0, Math.floor(Number(raw.points ?? 0) || 0)),
+    upgrades: { ...(raw.upgrades ?? {}) },
+    slots: slots.length > 0 ? slots : empty.slots,
+    equipped: [...(raw.equipped ?? [])],
+  }
+}
+
 function withMetaDefaults(
   meta: GameState['meta'] | undefined,
   highestSector: number,
@@ -281,6 +304,8 @@ function withMetaDefaults(
       if (Number.isFinite(raw) && raw >= 0) return Math.min(2, raw)
       return (meta?.highestSectorEver ?? 0) > 0 || highestSector > 0 ? 2 : 0
     })(),
+    numberNotation:
+      meta?.numberNotation === 'scientific' ? 'scientific' : 'engineering',
   }
 }
 
@@ -387,6 +412,7 @@ function migrate(raw: unknown): GameState | null {
       shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
       base: migrateBase(state.base, base.base),
       network: withNetworkDefaults(state.network),
+      foundry: withFoundryDefaults(state.foundry),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
       codex,

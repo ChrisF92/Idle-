@@ -51,6 +51,13 @@ import {
 import { milestonesFor, pendingMilestone } from './milestones'
 import { createEmptyNetworkState, isNetworkBarId, isNetworkBarUnlocked } from './network'
 import {
+  buyFoundryUpgrade,
+  equipFoundryModule,
+  persistFoundryOnRebuild,
+  setFoundrySlot,
+  unequipFoundryModule,
+} from './foundry'
+import {
   buildFlagshipWeapons,
   computeShipStats,
   createInitialState,
@@ -74,6 +81,24 @@ export {
   mergeSignalCores,
   canEquipSignalCore,
 } from './signalCores'
+
+export {
+  buyFoundryUpgrade,
+  equipFoundryModule,
+  setFoundrySlot,
+  unequipFoundryModule,
+}
+
+export function setNumberNotation(
+  state: GameState,
+  mode: 'engineering' | 'scientific',
+): GameState {
+  if (mode !== 'engineering' && mode !== 'scientific') return state
+  if (state.meta.numberNotation === mode) return state
+  const next = structuredClone(state)
+  next.meta.numberNotation = mode
+  return next
+}
 
 function canAfford(resources: Resources, cost: ResourceCost): boolean {
   for (const [key, amount] of Object.entries(cost)) {
@@ -977,6 +1002,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.meta = kept.meta
   state.core = fresh.core
   state.network = createEmptyNetworkState()
+  state.foundry = persistFoundryOnRebuild(state.foundry)
   state.signalCores = kept.signalCores
   state.parts = kept.parts
 

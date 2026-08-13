@@ -42,8 +42,14 @@ import {
   networkStrikeMult,
   networkWardMult,
 } from './network'
+import {
+  createEmptyFoundryState,
+  foundryDamageMult,
+  foundryShieldFlat,
+  foundryShieldMult,
+} from './foundry'
 
-export const SAVE_VERSION = 24
+export const SAVE_VERSION = 25
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -117,6 +123,7 @@ export function createInitialState(now = Date.now()): GameState {
       fabProject: null,
     },
     network: createEmptyNetworkState(),
+    foundry: createEmptyFoundryState(),
     research: {
       unlocked: [],
     },
@@ -155,6 +162,7 @@ export function createInitialState(now = Date.now()): GameState {
       moduleMastery: {},
       signalCoresCarryOver: false,
       starterCombatLesson: 2,
+      numberNotation: 'engineering',
     },
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),
@@ -190,6 +198,7 @@ export function globalDamageMultiplier(state: GameState): number {
   // Signal damage is a softer half-weight layer (not a full multiply stack).
   if (coreDmg) mult *= 1 + coreDmg * 0.5
   mult *= networkStrikeMult(state)
+  mult *= foundryDamageMult(state)
   return mult
 }
 
@@ -312,6 +321,8 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   evasion += signalBonuses.evasion
   shieldMax *= fittedShieldMilestoneMult(state)
   shieldMax *= networkWardMult(state)
+  shieldMax *= foundryShieldMult(state)
+  shieldMax += foundryShieldFlat(state)
 
   evasion = Math.min(0.45, evasion)
 

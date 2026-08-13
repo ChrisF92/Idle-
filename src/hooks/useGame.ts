@@ -33,10 +33,13 @@ import {
   pickCoreMilestone,
   selectFrame,
   sellPart,
+  setFoundrySlot,
   setLaborProfile,
+  setNumberNotation,
   startFabProject,
   unfitModule,
   unequipAllModules,
+  unequipFoundryModule,
   unlockFrame,
   unlockModule,
   upgradeCheapestModule,
@@ -45,6 +48,8 @@ import {
   equipSignalCore,
   unequipSignalCore,
   mergeSignalCores,
+  buyFoundryUpgrade,
+  equipFoundryModule,
 } from '../game/actions'
 import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -100,6 +105,11 @@ type Action =
   | { type: 'merge-cores'; defId: string; rank: number }
   | { type: 'hard-reset' }
   | { type: 'dev'; action: DevAction }
+  | { type: 'foundry-slot'; slotIndex: number; recipeId: string | null }
+  | { type: 'foundry-upgrade'; upgradeId: string }
+  | { type: 'foundry-equip'; moduleId: string }
+  | { type: 'foundry-unequip'; moduleId: string }
+  | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -192,6 +202,16 @@ function reducer(state: GameState, action: Action): GameState {
       return resetGame()
     case 'dev':
       return applyDevAction(state, action.action)
+    case 'foundry-slot':
+      return setFoundrySlot(state, action.slotIndex, action.recipeId as import('../game/types').FoundryRecipeId | null)
+    case 'foundry-upgrade':
+      return buyFoundryUpgrade(state, action.upgradeId)
+    case 'foundry-equip':
+      return equipFoundryModule(state, action.moduleId)
+    case 'foundry-unequip':
+      return unequipFoundryModule(state, action.moduleId)
+    case 'number-notation':
+      return setNumberNotation(state, action.mode)
     default:
       return state
   }
@@ -286,6 +306,16 @@ export function useGame() {
       dispatch({ type: 'unequip-core', slotKey }),
     mergeSignalCores: (defId: string, rank: number) =>
       dispatch({ type: 'merge-cores', defId, rank }),
+    setFoundrySlot: (slotIndex: number, recipeId: string | null) =>
+      dispatch({ type: 'foundry-slot', slotIndex, recipeId }),
+    buyFoundryUpgrade: (upgradeId: string) =>
+      dispatch({ type: 'foundry-upgrade', upgradeId }),
+    equipFoundryModule: (moduleId: string) =>
+      dispatch({ type: 'foundry-equip', moduleId }),
+    unequipFoundryModule: (moduleId: string) =>
+      dispatch({ type: 'foundry-unequip', moduleId }),
+    setNumberNotation: (mode: 'engineering' | 'scientific') =>
+      dispatch({ type: 'number-notation', mode }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {

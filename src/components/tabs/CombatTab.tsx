@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { wavesForSector } from '../../game/sectors'
+import { formatCompact } from '../../game/format'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
 import { NetworkSheet } from '../NetworkSheet'
@@ -89,18 +90,18 @@ export function CombatTab({
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">Hull</span>
           <strong className="combat-hud-value">
-            {Math.ceil(combat.playerHull)}/{Math.ceil(stats.hullMax)}
+            {formatCompact(Math.ceil(combat.playerHull))}/{formatCompact(Math.ceil(stats.hullMax))}
           </strong>
         </div>
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">Shield</span>
           <strong className="combat-hud-value">
-            {Math.ceil(combat.playerShield)}/{Math.ceil(stats.shieldMax)}
+            {formatCompact(Math.ceil(combat.playerShield))}/{formatCompact(Math.ceil(stats.shieldMax))}
           </strong>
         </div>
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">Salvage</span>
-          <strong className="combat-hud-value">{Math.floor(state.resources.salvage)}</strong>
+          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
         </div>
       </header>
 

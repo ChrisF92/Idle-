@@ -18,7 +18,7 @@ import { salvageFromKill } from './combat'
 describe('phase 4: drone network', () => {
   it('starts with a corps and Network unlocked; Cores is not a hub tab', () => {
     const s = createInitialState(0)
-    expect(SAVE_VERSION).toBe(24)
+    expect(SAVE_VERSION).toBe(25)
     expect(s.base.workerDrones).toBe(NETWORK_STARTING_DRONES)
     expect(droneCap(s)).toBe(10)
     expect(idleWorkers(s)).toBe(NETWORK_STARTING_DRONES)

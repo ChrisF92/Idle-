@@ -42,6 +42,7 @@ import {
   networkScrapRate,
   tickNetwork,
 } from './network'
+import { tickFoundry } from './foundry'
 import {
   wavesForSector,
   isSystemUnlocked,
@@ -184,6 +185,7 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   if (tickNetwork(state, dtSeconds)) {
     applyNetworkCombatRefresh(state)
   }
+  tickFoundry(state, dtSeconds)
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {

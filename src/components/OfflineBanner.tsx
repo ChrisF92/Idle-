@@ -1,6 +1,7 @@
 import type { OfflineReport } from '../game/offline'
 import { RESOURCE_LABELS } from '../game/state'
 import type { Resources } from '../game/types'
+import { formatCompact } from '../game/format'
 
 interface OfflineBannerProps {
   report: OfflineReport
@@ -21,7 +22,7 @@ export function OfflineBanner({ report, onDismiss }: OfflineBannerProps) {
     .filter(([, v]) => (v ?? 0) > 0.05)
     .map(
       ([k, v]) =>
-        `+${(v ?? 0).toFixed(1)} ${RESOURCE_LABELS[k as keyof Resources]}`,
+        `+${formatCompact(v ?? 0)} ${RESOURCE_LABELS[k as keyof Resources]}`,
     )
 
   return (

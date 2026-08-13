@@ -3,9 +3,10 @@ import type { GameState } from '../../game/types'
 import type { DevAction } from '../../game/dev'
 import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
+import type { NumberNotation } from '../../game/format'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-13e'
+export const APP_BUILD = '2026-08-13f'
 
 interface StatsTabProps {
   state: GameState
@@ -13,6 +14,7 @@ interface StatsTabProps {
   onImport: (code: string) => boolean
   onDevAction: (action: DevAction) => void
   onRebuild?: () => void
+  onNotation?: (mode: NumberNotation) => void
 }
 
 async function forceReloadApp(): Promise<void> {
@@ -33,7 +35,7 @@ async function forceReloadApp(): Promise<void> {
   window.location.replace(url.toString())
 }
 
-export function StatsTab({ state, onHardReset, onImport, onDevAction, onRebuild }: StatsTabProps) {
+export function StatsTab({ state, onHardReset, onImport, onDevAction, onRebuild, onNotation }: StatsTabProps) {
   const [importCode, setImportCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
 
@@ -52,6 +54,31 @@ export function StatsTab({ state, onHardReset, onImport, onDevAction, onRebuild 
         <p>Save, rebuild, build {APP_BUILD}.</p>
       </header>
       <div className="panel-scroll">
+      {onNotation ? (
+        <div>
+          <p className="muted">Numbers over 999</p>
+          <div className="sheet-tabs notation-tabs">
+            <button
+              type="button"
+              className={state.meta.numberNotation !== 'scientific' ? 'sheet-tab active' : 'sheet-tab'}
+              onClick={() => onNotation('engineering')}
+            >
+              Engineering
+            </button>
+            <button
+              type="button"
+              className={state.meta.numberNotation === 'scientific' ? 'sheet-tab active' : 'sheet-tab'}
+              onClick={() => onNotation('scientific')}
+            >
+              Scientific
+            </button>
+          </div>
+          <p className="muted">
+            {state.meta.numberNotation === 'scientific' ? '1.23e4' : '12.3e3'}
+          </p>
+        </div>
+      ) : null}
+
       {onRebuild ? (
         <p className="assign-row">
           <button type="button" className="primary" onClick={onRebuild}>
