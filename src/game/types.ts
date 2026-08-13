@@ -10,6 +10,8 @@ export type ResourceId =
   | 'prestigeMatter'
   | 'challengePoints'
   | 'salvage'
+  | 'choirAsh'
+  | 'heat'
 
 export type NetworkBarId = 'strike' | 'ward' | 'yield' | 'loom' | 'archive'
 
@@ -46,12 +48,39 @@ export interface FoundryState {
   equipped: string[]
 }
 
+export type ReliquaryColor = 'red' | 'orange' | 'pink' | 'blue' | 'green'
+
+/** USI V-Device analogue — colour slots, shards persist across Rebuild. */
+export interface ReliquaryState {
+  owned: Record<string, number>
+  slots: Partial<Record<ReliquaryColor, string | null>>
+}
+
+export type FurnaceTrackId = 'attack' | 'defense' | 'lab' | 'workshop'
+
+/** USI Reactor analogue — ranks persist; ash/heat live on resources. */
+export interface FurnaceState {
+  ranks: Record<FurnaceTrackId, number>
+}
+
+export type HiveResearchBranch = 'material' | 'energy' | 'observation'
+
+/** USI Research analogue — kill-fed branches; persist across Rebuild. */
+export interface HiveResearchState {
+  focus: HiveResearchBranch
+  xp: Record<HiveResearchBranch, number>
+  /** Completed nodes per branch (0..node count). */
+  completed: Record<HiveResearchBranch, number>
+}
+
 export type TabId =
   | 'dock'
   | 'combat'
   | 'cores'
   | 'network'
   | 'foundry'
+  | 'reliquary'
+  | 'furnace'
   | 'shipyard'
   | 'base'
   | 'research'
@@ -162,6 +191,10 @@ export interface Resources {
   challengePoints: number
   /** Run-only combat drop for module upgrades; resets on prestige. */
   salvage: number
+  /** Furnace feed — persists across Rebuild. Auto-collected from kills. */
+  choirAsh: number
+  /** Spent on Furnace ranks — persists across Rebuild. */
+  heat: number
 }
 
 export interface ShipLoadout {
@@ -450,6 +483,12 @@ export interface GameState {
   network: NetworkState
   /** Foundry recipes / smelters. Recipe XP and points persist; equipped modules wipe on Rebuild. */
   foundry: FoundryState
+  /** Shard slots (Reliquary). Inventory + fitted shards persist across Rebuild. */
+  reliquary: ReliquaryState
+  /** Furnace ranks. Persist across Rebuild. */
+  furnace: FurnaceState
+  /** Kill-fed Material / Energy / Observation. Persist across Rebuild. */
+  hiveResearch: HiveResearchState
   research: ResearchState
   ai: AiState
   essence: EssenceState

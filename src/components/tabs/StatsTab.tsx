@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react'
-import type { GameState } from '../../game/types'
+import type { GameState, TabId } from '../../game/types'
 import type { DevAction } from '../../game/dev'
 import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
 import type { NumberNotation } from '../../game/format'
+import {
+  careerHighestSector,
+  isSystemUnlocked,
+  systemUnlockRequirement,
+} from '../../game/progression'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-13f'
+export const APP_BUILD = '2026-08-13g'
+
+const STATIONS: { id: TabId; name: string; blurb: string }[] = [
+  { id: 'reliquary', name: 'Reliquary', blurb: 'Shards in colour slots. Red / orange at 3; pink at 6.' },
+  { id: 'furnace', name: 'Furnace', blurb: 'Choir-ash → Heat → always-on ranks.' },
+  { id: 'research', name: 'Research', blurb: 'Material / Energy / Observation. Focus one.' },
+]
 
 interface StatsTabProps {
   state: GameState
@@ -15,6 +26,7 @@ interface StatsTabProps {
   onDevAction: (action: DevAction) => void
   onRebuild?: () => void
   onNotation?: (mode: NumberNotation) => void
+  onOpenStation?: (tab: TabId) => void
 }
 
 async function forceReloadApp(): Promise<void> {
@@ -35,7 +47,15 @@ async function forceReloadApp(): Promise<void> {
   window.location.replace(url.toString())
 }
 
-export function StatsTab({ state, onHardReset, onImport, onDevAction, onRebuild, onNotation }: StatsTabProps) {
+export function StatsTab({
+  state,
+  onHardReset,
+  onImport,
+  onDevAction,
+  onRebuild,
+  onNotation,
+  onOpenStation,
+}: StatsTabProps) {
   const [importCode, setImportCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
 
@@ -51,9 +71,42 @@ export function StatsTab({ state, onHardReset, onImport, onDevAction, onRebuild,
     <section className="panel screen-panel">
       <header className="panel-header">
         <h2>More</h2>
-        <p>Save, rebuild, build {APP_BUILD}.</p>
+        <p>Stations, save, rebuild, build {APP_BUILD}.</p>
       </header>
       <div className="panel-scroll">
+      {onOpenStation ? (
+        <div>
+          <h3 className="foundry-heading">Stations</h3>
+          {STATIONS.map((station) => {
+            const unlocked = isSystemUnlocked(state, station.id)
+            const need = systemUnlockRequirement(station.id)
+            return (
+              <article
+                key={station.id}
+                className={unlocked ? 'network-row' : 'network-row locked'}
+              >
+                <div className="network-row-main">
+                  <strong>{station.name}</strong>
+                  <span className="muted">
+                    {unlocked ? 'Open' : need ?? `Sector ${careerHighestSector(state)}`}
+                  </span>
+                </div>
+                <p className="network-row-stats">{station.blurb}</p>
+                <button
+                  type="button"
+                  className="primary"
+                  data-guide={`station-${station.id}`}
+                  disabled={!unlocked}
+                  onClick={() => unlocked && onOpenStation(station.id)}
+                >
+                  {unlocked ? 'Open' : need ?? 'Locked'}
+                </button>
+              </article>
+            )
+          })}
+        </div>
+      ) : null}
+
       {onNotation ? (
         <div>
           <p className="muted">Numbers over 999</p>

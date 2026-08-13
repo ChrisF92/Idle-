@@ -1,0 +1,78 @@
+import type { GameState } from '../../game/types'
+import { isSystemUnlocked } from '../../game/progression'
+import {
+  ASH_PER_HEAT,
+  FURNACE_TRACKS,
+  canBuyFurnaceRank,
+  furnaceRank,
+  furnaceRankCost,
+} from '../../game/furnace'
+import { formatCompact } from '../../game/format'
+import type { FurnaceTrackId } from '../../game/types'
+
+interface FurnaceTabProps {
+  state: GameState
+  onBack: () => void
+  onConvert: () => void
+  onBuyRank: (id: FurnaceTrackId) => void
+}
+
+export function FurnaceTab({ state, onBack, onConvert, onBuyRank }: FurnaceTabProps) {
+  const open = isSystemUnlocked(state, 'furnace')
+  const ash = state.resources.choirAsh ?? 0
+  const heat = state.resources.heat ?? 0
+  const batches = Math.floor(ash / ASH_PER_HEAT)
+
+  return (
+    <section className="panel screen-panel">
+      <header className="panel-header">
+        <p className="assign-row">
+          <button type="button" onClick={onBack}>
+            More
+          </button>
+        </p>
+        <h2>Furnace</h2>
+        <p>
+          {open
+            ? `${formatCompact(ash, 1)} ash · ${formatCompact(heat, 1)} Heat`
+            : 'Clear sector 5 to light the Furnace.'}
+        </p>
+      </header>
+      {!open ? (
+        <p className="muted">Kills drop Choir-ash automatically — no clicker.</p>
+      ) : (
+        <div className="panel-scroll">
+          <p className="muted">{ASH_PER_HEAT} ash banks 1 Heat. Flares collect themselves.</p>
+          <p className="assign-row">
+            <button type="button" className="primary" disabled={batches <= 0} onClick={onConvert}>
+              Bank {formatCompact(batches)} Heat
+            </button>
+          </p>
+          <h3 className="foundry-heading">Ranks</h3>
+          {FURNACE_TRACKS.map((track) => {
+            const rank = furnaceRank(state, track.id)
+            const cost = furnaceRankCost(rank)
+            const can = canBuyFurnaceRank(state, track.id)
+            return (
+              <article key={track.id} className="network-row">
+                <div className="network-row-main">
+                  <strong>{track.name}</strong>
+                  <span className="muted">Lv {rank}</span>
+                </div>
+                <p className="network-row-stats">{track.blurb}</p>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!can.ok}
+                  onClick={() => onBuyRank(track.id)}
+                >
+                  {can.ok ? `${cost} Heat` : can.reason}
+                </button>
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}

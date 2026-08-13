@@ -166,7 +166,7 @@ describe('purchases', () => {
 
   it('blocks alloy foundry until alloy-smelting research', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 6
+    state.meta.highestSectorEver = 7
     state.base.workerDrones = 2
     const blocked = assignWorker(state, 'alloy-foundry', 1)
     expect(blocked.base.assignments['alloy-foundry'] ?? 0).toBe(0)
@@ -191,7 +191,7 @@ describe('purchases', () => {
   it('assigned workers produce scrap and data over time', () => {
     let state = createInitialState(0)
     state.combat.docked = true
-    state.meta.highestSectorEver = 6
+    state.meta.highestSectorEver = 7
     state.base.workerDrones = 3
     state = assignWorker(state, 'scrap-field', 2)
     state = assignWorker(state, 'sensor-net', 1)

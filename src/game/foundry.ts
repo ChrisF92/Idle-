@@ -2,6 +2,9 @@
 
 import type { FoundryRecipeId, FoundrySlot, FoundryState, GameState } from './types'
 import { networkManufactureMult } from './network'
+import { reliquaryFoundrySpeedMult } from './reliquary'
+import { furnaceFoundrySpeedMult } from './furnace'
+import { hiveResearchFoundrySpeedMult } from './hiveResearch'
 
 export interface FoundryCost {
   salvage?: number
@@ -219,7 +222,13 @@ export function foundrySlotCount(state: GameState): number {
 export function foundryCraftSpeed(state: GameState): number {
   const rank = state.foundry?.upgrades['fp-speed'] ?? 0
   const bonus = (getFoundryUpgrade('fp-speed')?.speedBonus ?? 0) * rank
-  return (1 + bonus) * networkManufactureMult(state)
+  return (
+    (1 + bonus) *
+    networkManufactureMult(state) *
+    reliquaryFoundrySpeedMult(state) *
+    furnaceFoundrySpeedMult(state) *
+    hiveResearchFoundrySpeedMult(state)
+  )
 }
 
 export function foundryCraftTime(state: GameState, id: FoundryRecipeId): number {

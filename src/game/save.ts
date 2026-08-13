@@ -1,9 +1,15 @@
 import type {
   CoreAttrId,
   CoreState,
+  FurnaceState,
+  FurnaceTrackId,
   GameState,
+  HiveResearchBranch,
+  HiveResearchState,
   NetworkBarId,
   NetworkState,
+  ReliquaryColor,
+  ReliquaryState,
   SignalCoreInstance,
   SignalCoresState,
 } from './types'
@@ -17,6 +23,9 @@ import {
 } from './signalCores'
 import { createEmptyNetworkState } from './network'
 import { createEmptyFoundryState } from './foundry'
+import { createEmptyReliquaryState } from './reliquary'
+import { createEmptyFurnaceState } from './furnace'
+import { createEmptyHiveResearchState } from './hiveResearch'
 
 export function saveGame(state: GameState): void {
   try {
@@ -156,6 +165,8 @@ function withResourcesDefaults(
     ...base,
     ...resources,
     salvage: resources?.salvage ?? 0,
+    choirAsh: resources?.choirAsh ?? 0,
+    heat: resources?.heat ?? 0,
   }
 }
 
@@ -253,6 +264,51 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
     slots: slots.length > 0 ? slots : empty.slots,
     equipped: [...(raw.equipped ?? [])],
   }
+}
+
+const RELIQUARY_COLORS: ReliquaryColor[] = ['red', 'orange', 'pink', 'blue', 'green']
+
+function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState {
+  const empty = createEmptyReliquaryState()
+  if (!raw || typeof raw !== 'object') return empty
+  const owned: Record<string, number> = {}
+  if (raw.owned && typeof raw.owned === 'object') {
+    for (const [id, n] of Object.entries(raw.owned)) {
+      const v = Math.floor(Number(n))
+      if (v > 0) owned[id] = v
+    }
+  }
+  const slots: ReliquaryState['slots'] = {}
+  for (const color of RELIQUARY_COLORS) {
+    const id = raw.slots?.[color]
+    slots[color] = typeof id === 'string' && id.length > 0 ? id : null
+  }
+  return { owned, slots }
+}
+
+const FURNACE_TRACK_IDS: FurnaceTrackId[] = ['attack', 'defense', 'lab', 'workshop']
+
+function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
+  const empty = createEmptyFurnaceState()
+  if (!raw || typeof raw !== 'object') return empty
+  for (const id of FURNACE_TRACK_IDS) {
+    empty.ranks[id] = Math.max(0, Math.floor(Number(raw.ranks?.[id] ?? 0) || 0))
+  }
+  return empty
+}
+
+const HIVE_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation']
+
+function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResearchState {
+  const empty = createEmptyHiveResearchState()
+  if (!raw || typeof raw !== 'object') return empty
+  empty.focus =
+    focus === 'energy' || focus === 'observation' || focus === 'material' ? focus : 'material'
+  for (const id of HIVE_BRANCHES) {
+    empty.xp[id] = Math.max(0, Number(raw.xp?.[id] ?? 0) || 0)
+    empty.completed[id] = Math.max(0, Math.floor(Number(raw.completed?.[id] ?? 0) || 0))
+  }
+  return empty
 }
 
 function withMetaDefaults(
@@ -413,6 +469,9 @@ function migrate(raw: unknown): GameState | null {
       base: migrateBase(state.base, base.base),
       network: withNetworkDefaults(state.network),
       foundry: withFoundryDefaults(state.foundry),
+      reliquary: withReliquaryDefaults(state.reliquary),
+      furnace: withFurnaceDefaults(state.furnace),
+      hiveResearch: withHiveResearchDefaults(state.hiveResearch),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
       codex,
@@ -491,6 +550,11 @@ function migrate(raw: unknown): GameState | null {
       combat,
       shipyard: withShipyardDefaults(prev.shipyard, base.shipyard),
       base: migrateBase(prev.base, base.base),
+      network: withNetworkDefaults(prev.network),
+      foundry: withFoundryDefaults(prev.foundry),
+      reliquary: withReliquaryDefaults(prev.reliquary),
+      furnace: withFurnaceDefaults(prev.furnace),
+      hiveResearch: withHiveResearchDefaults(prev.hiveResearch),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
       codex,

@@ -11,6 +11,9 @@ import { DockTab } from './components/tabs/DockTab'
 import { CombatTab } from './components/tabs/CombatTab'
 import { NetworkTab } from './components/tabs/NetworkTab'
 import { FoundryTab } from './components/tabs/FoundryTab'
+import { ReliquaryTab } from './components/tabs/ReliquaryTab'
+import { FurnaceTab } from './components/tabs/FurnaceTab'
+import { ResearchTab } from './components/tabs/ResearchTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
@@ -32,7 +35,8 @@ export default function App() {
 
   useEffect(() => {
     if (!isSystemUnlocked(game.state, tab)) {
-      setTab('dock')
+      const station = tab === 'reliquary' || tab === 'furnace' || tab === 'research'
+      setTab(station ? 'stats' : 'dock')
     }
   }, [game.state, tab])
 
@@ -102,6 +106,29 @@ export default function App() {
             onUnequip={game.unequipFoundryModule}
           />
         )}
+        {tab === 'reliquary' && (
+          <ReliquaryTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onInsert={game.insertShard}
+            onRemove={game.removeShard}
+          />
+        )}
+        {tab === 'furnace' && (
+          <FurnaceTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onConvert={game.convertAshToHeat}
+            onBuyRank={game.buyFurnaceRank}
+          />
+        )}
+        {tab === 'research' && (
+          <ResearchTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onFocus={game.setResearchFocus}
+          />
+        )}
         {tab === 'stats' && (
           <StatsTab
             state={game.state}
@@ -110,6 +137,7 @@ export default function App() {
             onDevAction={game.applyDevAction}
             onRebuild={() => setHangarOpen(true)}
             onNotation={game.setNumberNotation}
+            onOpenStation={go}
           />
         )}
       </main>

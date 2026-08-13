@@ -50,6 +50,11 @@ import {
   mergeSignalCores,
   buyFoundryUpgrade,
   equipFoundryModule,
+  insertShard,
+  removeShard,
+  convertAshToHeat,
+  buyFurnaceRank,
+  setResearchFocus,
 } from '../game/actions'
 import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -110,6 +115,11 @@ type Action =
   | { type: 'foundry-equip'; moduleId: string }
   | { type: 'foundry-unequip'; moduleId: string }
   | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
+  | { type: 'reliquary-insert'; shardId: string }
+  | { type: 'reliquary-remove'; color: import('../game/types').ReliquaryColor }
+  | { type: 'furnace-convert' }
+  | { type: 'furnace-rank'; trackId: import('../game/types').FurnaceTrackId }
+  | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -212,6 +222,16 @@ function reducer(state: GameState, action: Action): GameState {
       return unequipFoundryModule(state, action.moduleId)
     case 'number-notation':
       return setNumberNotation(state, action.mode)
+    case 'reliquary-insert':
+      return insertShard(state, action.shardId)
+    case 'reliquary-remove':
+      return removeShard(state, action.color)
+    case 'furnace-convert':
+      return convertAshToHeat(state)
+    case 'furnace-rank':
+      return buyFurnaceRank(state, action.trackId)
+    case 'research-focus':
+      return setResearchFocus(state, action.branch)
     default:
       return state
   }
@@ -316,6 +336,14 @@ export function useGame() {
       dispatch({ type: 'foundry-unequip', moduleId }),
     setNumberNotation: (mode: 'engineering' | 'scientific') =>
       dispatch({ type: 'number-notation', mode }),
+    insertShard: (shardId: string) => dispatch({ type: 'reliquary-insert', shardId }),
+    removeShard: (color: import('../game/types').ReliquaryColor) =>
+      dispatch({ type: 'reliquary-remove', color }),
+    convertAshToHeat: () => dispatch({ type: 'furnace-convert' }),
+    buyFurnaceRank: (trackId: import('../game/types').FurnaceTrackId) =>
+      dispatch({ type: 'furnace-rank', trackId }),
+    setResearchFocus: (branch: import('../game/types').HiveResearchBranch) =>
+      dispatch({ type: 'research-focus', branch }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {

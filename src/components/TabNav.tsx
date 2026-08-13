@@ -17,17 +17,20 @@ interface TabNavProps {
 }
 
 export function TabNav({ active, onChange, state }: TabNavProps) {
+  const moreActive =
+    active === 'stats' || active === 'reliquary' || active === 'furnace' || active === 'research'
   return (
     <nav className="bottom-nav" aria-label="Game systems">
       {TABS.map((tab) => {
         const unlocked = isSystemUnlocked(state, tab.id)
         if (tab.id === 'foundry' && !unlocked) return null
+        const isActive = tab.id === 'stats' ? moreActive : active === tab.id
         return (
           <button
             key={tab.id}
             type="button"
             data-guide={`${tab.id}-tab`}
-            className={active === tab.id ? 'nav-item active' : 'nav-item'}
+            className={isActive ? 'nav-item active' : 'nav-item'}
             disabled={!unlocked}
             title={tab.label}
             onClick={() => unlocked && onChange(tab.id)}

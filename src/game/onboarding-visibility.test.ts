@@ -14,7 +14,7 @@ describe('resource visibility gates', () => {
     const state = createInitialState(0)
     expect(isResourceVisible(state, 'data')).toBe(false)
     expect(visibleResourceIds(state)).not.toContain('data')
-    state.meta.highestSectorEver = 6
+    state.meta.highestSectorEver = 7
     expect(isSystemUnlocked(state, 'research')).toBe(true)
     expect(isResourceVisible(state, 'data')).toBe(true)
   })

@@ -631,6 +631,43 @@
   margin-top: 0.25rem;
 }
 
+.station-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.station-actions button {
+  flex: 1 1 auto;
+}
+
+.station-node-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.slot-red {
+  border-color: color-mix(in srgb, #c45c5c 55%, var(--line));
+}
+
+.slot-orange {
+  border-color: color-mix(in srgb, #e08a3a 55%, var(--line));
+}
+
+.slot-pink {
+  border-color: color-mix(in srgb, #c45c9a 55%, var(--line));
+}
+
+.slot-blue {
+  border-color: color-mix(in srgb, #3d8f88 55%, var(--line));
+}
+
+.slot-green {
+  border-color: color-mix(in srgb, #6a9a4a 55%, var(--line));
+}
+
 .hangar-backdrop {
   padding: 0;
   place-items: stretch;

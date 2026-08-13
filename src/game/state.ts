@@ -48,8 +48,15 @@ import {
   foundryShieldFlat,
   foundryShieldMult,
 } from './foundry'
+import { createEmptyReliquaryState, reliquaryDamageMult, reliquaryShieldMult } from './reliquary'
+import { createEmptyFurnaceState, furnaceDamageMult, furnaceShieldMult } from './furnace'
+import {
+  createEmptyHiveResearchState,
+  hiveResearchDamageMult,
+  hiveResearchShieldMult,
+} from './hiveResearch'
 
-export const SAVE_VERSION = 25
+export const SAVE_VERSION = 26
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -62,6 +69,8 @@ export const RESOURCE_LABELS: Record<keyof Resources, string> = {
   prestigeMatter: 'Prestige Matter',
   challengePoints: 'Challenge Points',
   salvage: 'Salvage',
+  choirAsh: 'Choir-ash',
+  heat: 'Heat',
 }
 
 export function createInitialState(now = Date.now()): GameState {
@@ -79,6 +88,8 @@ export function createInitialState(now = Date.now()): GameState {
       prestigeMatter: 0,
       challengePoints: 0,
       salvage: 0,
+      choirAsh: 0,
+      heat: 0,
     },
     shipyard: {
       frameId: 'scout-frame',
@@ -124,6 +135,9 @@ export function createInitialState(now = Date.now()): GameState {
     },
     network: createEmptyNetworkState(),
     foundry: createEmptyFoundryState(),
+    reliquary: createEmptyReliquaryState(),
+    furnace: createEmptyFurnaceState(),
+    hiveResearch: createEmptyHiveResearchState(),
     research: {
       unlocked: [],
     },
@@ -199,6 +213,9 @@ export function globalDamageMultiplier(state: GameState): number {
   if (coreDmg) mult *= 1 + coreDmg * 0.5
   mult *= networkStrikeMult(state)
   mult *= foundryDamageMult(state)
+  mult *= reliquaryDamageMult(state)
+  mult *= furnaceDamageMult(state)
+  mult *= hiveResearchDamageMult(state)
   return mult
 }
 
@@ -323,6 +340,9 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= networkWardMult(state)
   shieldMax *= foundryShieldMult(state)
   shieldMax += foundryShieldFlat(state)
+  shieldMax *= reliquaryShieldMult(state)
+  shieldMax *= furnaceShieldMult(state)
+  shieldMax *= hiveResearchShieldMult(state)
 
   evasion = Math.min(0.45, evasion)
 

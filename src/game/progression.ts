@@ -46,10 +46,22 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Worker drones manufacture over time. Assign them to named stations for production.',
   },
   {
+    id: 'reliquary',
+    requiresSectorEver: 3,
+    label: 'Reliquary',
+    tip: 'Fit shards into colour slots. Red and orange at 3; pink at 6.',
+  },
+  {
+    id: 'furnace',
+    requiresSectorEver: 5,
+    label: 'Furnace',
+    tip: 'Choir-ash from kills becomes Heat. Spend Heat on always-on system ranks.',
+  },
+  {
     id: 'research',
-    requiresSectorEver: 6,
+    requiresSectorEver: 7,
     label: 'Research',
-    tip: 'Spend Data on research (permanent). Alloy Smelting unlocks the Foundry station.',
+    tip: 'Three kill-fed branches. Focus one — the others still run, just slower.',
   },
   {
     id: 'codex',
@@ -527,6 +539,9 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
       return isSystemUnlocked(state, 'base') || state.resources.energy > 0
     case 'salvage':
       return true
+    case 'choirAsh':
+    case 'heat':
+      return isSystemUnlocked(state, 'furnace') || state.resources[id] > 0
     case 'data':
       return isSystemUnlocked(state, 'research')
     case 'essence':
@@ -552,6 +567,8 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
 export function visibleResourceIds(state: GameState): (keyof Resources)[] {
   const order: (keyof Resources)[] = [
     'salvage',
+    'choirAsh',
+    'heat',
     'scrap',
     'alloys',
     'energy',
@@ -824,10 +841,29 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (s) => (s.base.assignments['power-grid'] ?? 0) > 0,
   },
   {
+    id: 'guide-reliquary',
+    title: 'Reliquary',
+    body: 'Open More and tap Reliquary. Kills drop shards — fit one per colour slot. Extra copies fill resonance.',
+    target: 'station-reliquary',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'reliquary') && !guideSeen(s, 'guide-reliquary'),
+    completeWhen: (_s, tab) => tab === 'reliquary',
+  },
+  {
+    id: 'guide-furnace',
+    title: 'Furnace',
+    body: 'Open More and tap Furnace. Choir-ash collects itself. Bank it into Heat, then buy Attack / Defense / Lab / Workshop.',
+    target: 'station-furnace',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'furnace') && !guideSeen(s, 'guide-furnace'),
+    completeWhen: (_s, tab) => tab === 'furnace',
+  },
+  {
     id: 'guide-research-tab',
     title: 'Research unlocked',
-    body: 'Tap Research. Data now shows in the header — spend it on projects that open new stations.',
-    target: 'research-tab',
+    body: 'Open More and tap Research. Kills feed Material, Energy, and Observation — focus one for a large bonus.',
+    target: 'station-research',
+    tab: 'stats',
     availableWhen: (s) =>
       isSystemUnlocked(s, 'research') && !guideSeen(s, 'guide-research-tab'),
     completeWhen: (_s, tab) => tab === 'research',

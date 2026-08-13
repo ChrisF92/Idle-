@@ -39,6 +39,9 @@ import {
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { fittedRegenBonus } from './milestones'
 import { networkSalvageMult } from './network'
+import { grantReliquaryKillLoot, reliquarySalvageMult } from './reliquary'
+import { grantFurnaceKillLoot } from './furnace'
+import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -1515,10 +1518,14 @@ export function rollEnemyPartDrop(
 
 export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void {
   if (unit.side !== 'enemy') return
-  state.resources.salvage +=
-    salvageFromKill(state.combat.sector, unit.isBoss) * networkSalvageMult(state)
+  const salvageMult =
+    networkSalvageMult(state) * reliquarySalvageMult(state) * hiveResearchSalvageMult(state)
+  state.resources.salvage += salvageFromKill(state.combat.sector, unit.isBoss) * salvageMult
   rollEnemyPartDrop(state, unit)
   grantSignalCoreDrop(state, 'kill', { family: unit.family })
+  grantReliquaryKillLoot(state, unit.isBoss, Math.random, hiveResearchShardDropBonus(state))
+  grantFurnaceKillLoot(state, unit.isBoss)
+  grantHiveResearchKillXp(state, unit.isBoss)
 }
 
 function tryLootEnemyKill(

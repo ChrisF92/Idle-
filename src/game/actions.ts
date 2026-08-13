@@ -57,6 +57,9 @@ import {
   setFoundrySlot,
   unequipFoundryModule,
 } from './foundry'
+import { insertShard, removeShard } from './reliquary'
+import { buyFurnaceRank, convertAshToHeat as convertAshToHeatRaw } from './furnace'
+import { hiveResearchHeatFromAshMult, setResearchFocus } from './hiveResearch'
 import {
   buildFlagshipWeapons,
   computeShipStats,
@@ -87,6 +90,12 @@ export {
   equipFoundryModule,
   setFoundrySlot,
   unequipFoundryModule,
+}
+
+export { insertShard, removeShard, buyFurnaceRank, setResearchFocus }
+
+export function convertAshToHeat(state: GameState): GameState {
+  return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state))
 }
 
 export function setNumberNotation(
@@ -929,6 +938,17 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       seenOnboarding: [...(state.meta.seenOnboarding ?? [])],
     },
     parts: { ...(state.parts ?? {}) },
+    choirAsh: state.resources.choirAsh ?? 0,
+    heat: state.resources.heat ?? 0,
+    reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {} }),
+    furnace: structuredClone(state.furnace ?? { ranks: { attack: 0, defense: 0, lab: 0, workshop: 0 } }),
+    hiveResearch: structuredClone(
+      state.hiveResearch ?? {
+        focus: 'material',
+        xp: { material: 0, energy: 0, observation: 0 },
+        completed: { material: 0, energy: 0, observation: 0 },
+      },
+    ),
     signalCores:
       state.meta.signalCoresCarryOver
         ? {
@@ -965,6 +985,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     data: fresh.resources.data + returnData,
     aiPoints: kept.aiPoints + bonusAi,
     salvage: bonusSalvage + returnSalvage,
+    choirAsh: kept.choirAsh,
+    heat: kept.heat,
   }
   state.shipyard = persistLoadout(
     kept.unlockedFrames,
@@ -1003,6 +1025,9 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.core = fresh.core
   state.network = createEmptyNetworkState()
   state.foundry = persistFoundryOnRebuild(state.foundry)
+  state.reliquary = kept.reliquary
+  state.furnace = kept.furnace
+  state.hiveResearch = kept.hiveResearch
   state.signalCores = kept.signalCores
   state.parts = kept.parts
 

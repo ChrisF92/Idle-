@@ -2,6 +2,8 @@
 
 import type { GameState, NetworkBarId, NetworkState } from './types'
 import { dronePower } from './catalog'
+import { reliquaryNetworkMult } from './reliquary'
+import { hiveResearchDataMult, hiveResearchNetworkMult } from './hiveResearch'
 
 function careerEver(state: GameState): number {
   return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
@@ -95,7 +97,13 @@ export function networkFillRate(state: GameState, id: NetworkBarId): number {
   const assigned = Math.max(0, state.base.assignments[id] ?? 0)
   if (assigned <= 0) return 0
   const cost = networkFillCost(networkLevels(state, id))
-  const raw = (assigned * dronePower(state) * networkChainBoost(state, id)) / cost
+  const raw =
+    (assigned *
+      dronePower(state) *
+      networkChainBoost(state, id) *
+      reliquaryNetworkMult(state) *
+      hiveResearchNetworkMult(state)) /
+    cost
   return Math.min(NETWORK_FILL_CAP_PER_SEC, Math.max(0, raw))
 }
 
@@ -134,7 +142,7 @@ export function networkDataRate(state: GameState): number {
   if (!isNetworkBarUnlocked(state, 'archive')) return 0
   const L = networkLevels(state, 'archive')
   if (L <= 0) return 0
-  return 0.025 * Math.pow(L, 0.7)
+  return 0.025 * Math.pow(L, 0.7) * hiveResearchDataMult(state)
 }
 
 export function networkEffectLabel(state: GameState, id: NetworkBarId): string {
