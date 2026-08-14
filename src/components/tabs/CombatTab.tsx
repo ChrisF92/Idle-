@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { normalizeRoute } from '../../game/sectors'
@@ -7,7 +7,6 @@ import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
-import { NetworkSheet } from '../NetworkSheet'
 
 interface CombatTabProps {
   state: GameState
@@ -15,7 +14,6 @@ interface CombatTabProps {
   onLaunch: () => void
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
-  onAssign: (barId: string, delta: number) => void
 }
 
 export function CombatTab({
@@ -24,7 +22,6 @@ export function CombatTab({
   onLaunch,
   onUpgrade,
   onPickMilestone,
-  onAssign,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -33,7 +30,6 @@ export function CombatTab({
   const live = !combat.docked
   const protocol = activeProtocol(state)
   const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
-  const [sheet, setSheet] = useState<'cores' | 'network'>('cores')
 
   const previewPlayer = useMemo(
     () => [
@@ -134,32 +130,13 @@ export function CombatTab({
       </div>
 
       <div className="sortie-sheet">
-        <div className="sheet-tabs">
-          <button
-            type="button"
-            className={sheet === 'cores' ? 'sheet-tab active' : 'sheet-tab'}
-            onClick={() => setSheet('cores')}
-          >
-            Cores
-          </button>
-          <button
-            type="button"
-            className={sheet === 'network' ? 'sheet-tab active' : 'sheet-tab'}
-            onClick={() => setSheet('network')}
-          >
-            Network
-          </button>
-        </div>
-        {sheet === 'cores' ? (
-          <CoreSheet
-            state={state}
-            compact
-            onUpgrade={onUpgrade}
-            onPickMilestone={onPickMilestone}
-          />
-        ) : (
-          <NetworkSheet state={state} compact onAssign={onAssign} />
-        )}
+        <p className="sortie-sheet-kicker">Cores · Salvage ranks these. Drones live on Network.</p>
+        <CoreSheet
+          state={state}
+          compact
+          onUpgrade={onUpgrade}
+          onPickMilestone={onPickMilestone}
+        />
       </div>
 
       <div className="sortie-actions">

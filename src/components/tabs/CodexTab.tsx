@@ -73,7 +73,7 @@ export function CodexTab({ state, onBack }: CodexTabProps) {
           </ul>
 
           <h3 className="foundry-heading">Hull roles</h3>
-          <p className="muted">USI stand-off classes. Silhouettes on the lane match these names.</p>
+          <p className="muted">Stand-off classes. Silhouettes on the lane match these names.</p>
           {CODEX_ROLES.map((role) => (
             <article key={role} className="network-row">
               <div className="network-row-main">

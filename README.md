@@ -18,10 +18,10 @@ Bottom nav:
 | Tab | Purpose |
 |---|---|
 | Dock | Home. Launch / Extract / Rebuild hangar. Combat keeps simulating while you stay here if a sortie is live. |
-| Sortie | USI-style battlefield (ship at the bottom, waves incoming). Cores (Pulse + Plate) and Network sheets sit under the field. |
+| Sortie | USI-style battlefield (ship at the bottom, waves incoming). Cores (Pulse + Plate) sit under the field. Drones stay on Network. |
 | Network | Assign drones to Strike / Ward (and later bars). They fill over time — they never appear on the battlefield. |
 | Foundry | Recipes, smelters, Foundry Points, fitted bits. Unlocks at sector 2. |
-| More | Stations, save / export, notation, rebuild, build stamp. |
+| More | Hangar stations (open / coming up / later), save / export, notation, rebuild, build stamp. |
 
 Stations under **More** unfold on sector doors (Reliquary 3, Furnace 5, Codex 6, Research 7, Yard and Slag Bank on first Rebuild, Protocols 18, Echo 22, Specialists 51, Task List 72, Capital 75, Reinforce 80). Process opens after First Blood (clear sector 1).
 
@@ -31,6 +31,7 @@ Stations under **More** unfold on sector doors (Reliquary 3, Furnace 5, Codex 6,
 - Whole systems unlock by career sector clears; locked stations stay listed with requirements.
 - Boss sectors: vanguard waves first, **boss only on wave 5**. Waves use varied packs (fighters, skirmishers, snipers, juggernauts).
 - Header resources appear only once their system is unlocked or the resource is earned (Rebuild Matter after a Rebuild).
+- An **info** button next to the Hiveworks title explains the screen you are on.
 - Process points come from achievements (Process station), not combat drops. Unspent points persist across Rebuild.
 - Hive Research (Material / Energy / Observation) is **permanent** across Rebuild / Reinforce.
 - Guided onboarding spotlights the next live control; starter dock/launch/salvage tips retire after the first Rebuild, and Reinforce clears the full guide catalog.

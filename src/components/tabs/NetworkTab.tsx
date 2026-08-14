@@ -15,6 +15,7 @@ interface NetworkTabProps {
 
 export function NetworkTab({ state, onAssign }: NetworkTabProps) {
   const cap = droneCap(state)
+  const idle = idleWorkers(state)
   const atCap = state.base.workerDrones >= cap
   const speed = workerManufactureSpeed(state) * networkManufactureMult(state)
   const eta =
@@ -27,7 +28,8 @@ export function NetworkTab({ state, onAssign }: NetworkTabProps) {
       <header className="panel-header">
         <h2>Network</h2>
         <p>
-          {state.base.workerDrones}/{cap} drones · {idleWorkers(state)} idle
+          Drones fill bars — they never fly on Sortie. {state.base.workerDrones}/{cap}
+          {idle ? ` · ${idle} idle` : ''}
           {atCap ? ' · cap' : eta != null ? ` · next ${Math.ceil(eta)}s` : ''}
         </p>
       </header>

@@ -29,6 +29,7 @@ import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
 import { SortieReport } from './components/SortieReport'
 import { GuideOverlay } from './components/GuideOverlay'
+import { ScreenHelp } from './components/ScreenHelp'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import './App.css'
 
@@ -109,7 +110,10 @@ export default function App() {
     <div className="app">
       <div className="chrome-top">
       <header className="topbar">
-        <p className="brand">Hiveworks</p>
+        <div className="brand-cluster">
+          <p className="brand">Hiveworks</p>
+          <ScreenHelp screen={tab} />
+        </div>
         <ResourceBar state={game.state} />
         {live ? (
           <button type="button" className="combat-chip" onClick={() => go('combat')}>
@@ -154,7 +158,6 @@ export default function App() {
             }}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
-            onAssign={game.assignWorker}
           />
         )}
         {tab === 'network' && (

@@ -67,12 +67,66 @@
   color: #c8e0d0;
 }
 
+.brand-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
 .brand {
   font-family: var(--font-brand);
   font-size: 0.95rem;
   letter-spacing: 0.08em;
   color: var(--accent);
   flex: 0 0 auto;
+  margin: 0;
+}
+
+.screen-help-btn {
+  flex: 0 0 auto;
+  width: 1.55rem;
+  height: 1.55rem;
+  min-height: 0;
+  padding: 0;
+  border-radius: 999px;
+  font-family: var(--font-brand);
+  font-size: 0.78rem;
+  font-style: italic;
+  line-height: 1;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-panel));
+}
+
+.screen-help-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(8, 11, 16, 0.72);
+  display: grid;
+  place-items: end center;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+.screen-help-card {
+  width: min(420px, 100%);
+  background: var(--bg-panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  padding: 0.9rem 1rem 1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.screen-help-card h3 {
+  font-family: var(--font-brand);
+  margin: 0;
+}
+
+.screen-help-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .tagline {
@@ -496,6 +550,15 @@
   overscroll-behavior: contain;
   padding: 0.35rem 0.65rem 0.4rem;
   border-top: 1px solid var(--line);
+}
+
+.sortie-sheet-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  flex: 0 0 auto;
 }
 
 .sheet-tabs {
@@ -1344,5 +1407,28 @@ textarea {
   overflow: hidden;
   border: none;
   padding: 0.75rem 0.8rem;
+}
+
+.more-fold {
+  margin-top: 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  padding: 0.45rem 0.55rem;
+}
+
+.more-fold summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.25rem 0;
+}
+
+.more-fold .network-row,
+.more-fold .stat-row,
+.more-fold .stack,
+.more-fold .assign-row {
+  margin-top: 0.45rem;
 }
 

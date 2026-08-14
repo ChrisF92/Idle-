@@ -36,7 +36,7 @@ export function ProtocolsTab({ state, onBack, onEnter, onAbandon }: ProtocolsTab
         </p>
       </header>
       {!open ? (
-        <p className="muted">USI Challenges analogue. Cores and Salvage wipe when a Protocol starts.</p>
+        <p className="muted">Restricted sortie. Cores and Salvage wipe when a Protocol starts.</p>
       ) : (
         <div className="panel-scroll">
           {active ? (

@@ -53,6 +53,7 @@ export function DockTab({
           {routeB ? combat.route === 'B' ? 'B' : 'A' : ''}
         </p>
         <h2>Dock</h2>
+        <p className="muted">Launch to rank Cores. Assign drones on Network.</p>
       </header>
 
       <div className="stat-row dock-stats">

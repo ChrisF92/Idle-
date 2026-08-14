@@ -46,7 +46,7 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm }: YardTabPr
         </p>
       </header>
       {!open ? (
-        <p className="muted">USI Bases analogue. Buildings run while docked. Spend Ingots to queue the next run.</p>
+        <p className="muted">Buildings run while docked. Spend Ingots to queue the next Rebuild.</p>
       ) : (
         <div className="panel-scroll">
           <p className="muted">

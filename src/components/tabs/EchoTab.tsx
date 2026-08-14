@@ -43,7 +43,7 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabPro
         </p>
       </header>
       {!open ? (
-        <p className="muted">USI Warp Drive analogue. Cores stay. Three waves, then a Titan echo.</p>
+        <p className="muted">Short gauntlet. Cores stay. Three waves, then a Titan echo.</p>
       ) : (
         <div className="panel-scroll">
           {active ? (
