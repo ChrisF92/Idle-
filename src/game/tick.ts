@@ -101,6 +101,7 @@ function clearEnemy(state: GameState): void {
   state.combat.enemyHull = 0
   state.combat.enemyHullMax = 0
   state.combat.projectiles = []
+  state.combat.beams = []
   state.combat.fx = []
 }
 
@@ -581,6 +582,7 @@ export function beginFight(state: GameState): void {
   }
   state.combat.playerUnits = buildPlayerFleet(state)
   state.combat.projectiles = []
+  state.combat.beams = []
   state.combat.fx = []
   syncHullAggregates(state)
   revealCodexFamilies(

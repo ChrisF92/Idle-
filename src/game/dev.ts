@@ -145,6 +145,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.combat.enemyUnits = []
       next.combat.playerUnits = []
       next.combat.projectiles = []
+      next.combat.beams = []
       next.combat.fx = []
       syncPersistedHullCaps(next)
       next.combat.playerHull = next.combat.playerHullMax
@@ -164,6 +165,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.combat.enemyUnits = []
       next.combat.playerUnits = []
       next.combat.projectiles = []
+      next.combat.beams = []
       next.combat.fx = []
       const enc = enemyForSector(sector, wave)
       next.combat.log = [

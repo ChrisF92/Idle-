@@ -1,6 +1,7 @@
 /** Fleet combat: ranged approach, cooldowns, bosses, salvage drops. */
 
 import type {
+  CombatBeam,
   CombatFx,
   CombatProjectile,
   CombatUnit,
@@ -8,6 +9,7 @@ import type {
   GameState,
   PartType,
   UnitShape,
+  WeaponDelivery,
   WeaponInstance,
   WeaponTag,
 } from './types'
@@ -109,14 +111,26 @@ export const USI_SPACE_TO_LANE = SPAWN_DISTANCE / 600
  */
 export const PROJECTILE_SPEED = 700 * USI_SPACE_TO_LANE
 
+/** Sniper charge lasers — USI Charge Laser is a fast bolt after the wind-up. */
+export const CHARGE_LASER_SPEED = PROJECTILE_SPEED * 1.5
+
+/** Connected Phase Beam dwell. Total weapon damage is spread across this window. */
+export const BEAM_DURATION = 0.42
+
 /** @deprecated Use PROJECTILE_SPEED — tag variance removed; all normal shots share one speed. */
 export function projectileSpeedForTag(_tag: string): number {
+  return PROJECTILE_SPEED
+}
+
+export function projectileSpeedForDelivery(delivery?: WeaponDelivery): number {
+  if (delivery === 'charge') return CHARGE_LASER_SPEED
   return PROJECTILE_SPEED
 }
 
 let unitSeq = 0
 let fxGlobalSeq = 0
 let projGlobalSeq = 0
+let beamGlobalSeq = 0
 function nextUnitId(prefix: string): string {
   unitSeq += 1
   return `${prefix}-${unitSeq}`
@@ -178,6 +192,7 @@ function makeWeapon(
   tags: WeaponTag[],
   splash = 0,
   telegraphDuration = 0,
+  delivery?: WeaponDelivery,
 ): WeaponInstance {
   return {
     id,
@@ -192,6 +207,7 @@ function makeWeapon(
     dotDamage: 0,
     telegraphDuration,
     telegraphLeft: 0,
+    delivery,
   }
 }
 
@@ -219,6 +235,8 @@ function makeEnemyUnit(opts: {
 }): CombatUnit {
   const family = opts.family
   const role = opts.role ?? (opts.isBoss ? 'boss' : undefined)
+  const delivery: WeaponDelivery | undefined =
+    opts.role === 'sniper' ? 'charge' : undefined
   return {
     id: nextUnitId(`e-${family}`),
     side: 'enemy',
@@ -243,6 +261,7 @@ function makeEnemyUnit(opts: {
         opts.tags ?? ['kinetic'],
         opts.splash ?? 0,
         opts.telegraphDuration ?? 0,
+        delivery,
       ),
     ],
     isBoss: opts.isBoss ?? false,
@@ -1746,10 +1765,79 @@ function spawnProjectile(
     tags: [...weapon.tags],
     dotDuration: weapon.dotDuration,
     dotDamage: weapon.dotDamage,
-    speed: PROJECTILE_SPEED,
+    speed: projectileSpeedForDelivery(weapon.delivery),
     attackerFamily: from.family,
+    delivery: weapon.delivery,
+    originX: from.x,
+    originY: from.y,
     ...weaponDamageProfile(weapon.tags, weapon),
   })
+}
+
+function spawnBeam(
+  state: GameState,
+  from: CombatUnit,
+  to: CombatUnit,
+  damage: number,
+  weapon: WeaponInstance,
+): void {
+  const profile = weaponDamageProfile(weapon.tags, weapon)
+  beamGlobalSeq += 1
+  if (!state.combat.beams) state.combat.beams = []
+  state.combat.beams.push({
+    id: `beam-${beamGlobalSeq}`,
+    fromId: from.id,
+    toId: to.id,
+    side: from.side,
+    tag: weapon.tags[0] ?? 'energy',
+    tags: [...weapon.tags],
+    remaining: BEAM_DURATION,
+    duration: BEAM_DURATION,
+    damage,
+    attackerFamily: from.family,
+    ...profile,
+  })
+}
+
+function tickBeams(
+  state: GameState,
+  dt: number,
+  roles: Record<'weapon' | 'defense' | 'utility', number>,
+  matchupScale: number,
+): CombatFx[] {
+  const hits: CombatFx[] = []
+  if (!state.combat.beams?.length) return hits
+  const kept: CombatBeam[] = []
+  for (const beam of state.combat.beams) {
+    const from = findUnit(state, beam.fromId)
+    const target = findUnit(state, beam.toId)
+    if (!from || from.hull <= 0 || !target || target.hull <= 0) continue
+    const slice = Math.min(dt, beam.remaining)
+    if (slice <= 0) continue
+    let dmg = beam.damage * (slice / beam.duration)
+    if (beam.side !== 'player') {
+      dmg *= incomingDefenseMult(target, beam.attackerFamily, roles, matchupScale)
+    }
+    const prevHull = target.hull
+    applyDamageToUnit(target, dmg, beam.tags, {
+      hullDamage: beam.hullDamage ?? 1,
+      shieldDamage: beam.shieldDamage ?? 1,
+      armorDamage: beam.armorDamage ?? 0.25,
+    })
+    tryLootEnemyKill(state, target, prevHull)
+    fxGlobalSeq += 1
+    hits.push({
+      id: `fx-${fxGlobalSeq}`,
+      fromId: beam.fromId,
+      toId: beam.toId,
+      tag: beam.tag,
+      ttl: 0.12,
+    })
+    beam.remaining -= slice
+    if (beam.remaining > 1e-4 && target.hull > 0) kept.push(beam)
+  }
+  state.combat.beams = kept.slice(-24)
+  return hits
 }
 
 /** Advance in-flight shots; damage applies only on impact. */
@@ -1856,7 +1944,10 @@ export function simulateCombat(
   }
 
   // Resolve in-flight impacts first so hull updates before new targeting
-  const hitFx = updateProjectiles(state, dt, roles, matchupScale)
+  const hitFx = [
+    ...updateProjectiles(state, dt, roles, matchupScale),
+    ...tickBeams(state, dt, roles, matchupScale),
+  ]
 
   const sides: Array<'player' | 'enemy'> = ['player', 'enemy']
   for (const side of sides) {
@@ -1892,6 +1983,13 @@ export function simulateCombat(
         // Finish an active telegraph → fire.
         if (weapon.telegraphLeft > 0) {
           weapon.telegraphLeft = Math.max(0, weapon.telegraphLeft - dt)
+          if (weapon.telegraphToId) {
+            const locked = findUnit(state, weapon.telegraphToId)
+            if (!locked || locked.hull <= 0) {
+              const next = pickTarget(unit, foes, weapon, focusFire && side === 'player')
+              weapon.telegraphToId = next?.id
+            }
+          }
           if (weapon.telegraphLeft > 0) continue
         } else if (weapon.cooldownLeft > 0) {
           continue
@@ -1900,10 +1998,17 @@ export function simulateCombat(
           const windupTarget = pickTarget(unit, foes, weapon, focusFire && side === 'player')
           if (!windupTarget) continue
           weapon.telegraphLeft = weapon.telegraphDuration
+          weapon.telegraphToId = windupTarget.id
           continue
         }
 
-        const primary = pickTarget(unit, foes, weapon, focusFire && side === 'player')
+        const locked =
+          weapon.telegraphToId ? findUnit(state, weapon.telegraphToId) : undefined
+        weapon.telegraphToId = undefined
+        const primary =
+          locked && locked.hull > 0 && laneDistance(unit, locked) <= weapon.range + 0.5
+            ? locked
+            : pickTarget(unit, foes, weapon, focusFire && side === 'player')
         if (!primary) continue
 
         const targets: CombatUnit[] = [primary]
@@ -1936,7 +2041,11 @@ export function simulateCombat(
           }
           // Enemy defense mult applied on impact (uses current roles)
 
-          spawnProjectile(state, unit, target, dmg, weapon)
+          if (weapon.delivery === 'beam') {
+            spawnBeam(state, unit, target, dmg, weapon)
+          } else {
+            spawnProjectile(state, unit, target, dmg, weapon)
+          }
           fired = true
         }
 

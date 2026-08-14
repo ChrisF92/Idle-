@@ -199,6 +199,7 @@ function endOfflineFight(state: GameState, seconds: number): void {
     state.combat.enemyHull = 0
     state.combat.enemyHullMax = 0
     state.combat.projectiles = []
+    state.combat.beams = []
     state.combat.fx = []
     state.combat.enemyName = 'None'
   }

@@ -95,6 +95,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
         range: w.range ?? 90,
         telegraphDuration: w.telegraphDuration ?? 0,
         telegraphLeft: w.telegraphLeft ?? 0,
+        delivery: w.delivery,
       })),
     }))
 
@@ -115,7 +116,12 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     playerShieldMax: combat.playerShieldMax ?? 0,
     playerUnits: withUnitDefaults(combat.playerUnits),
     enemyUnits: withUnitDefaults(combat.enemyUnits),
-    projectiles: combat.projectiles ?? [],
+    projectiles: (combat.projectiles ?? []).map((p) => ({
+      ...p,
+      originX: p.originX ?? p.x,
+      originY: p.originY ?? p.y,
+    })),
+    beams: combat.beams ?? [],
     fx: combat.fx ?? [],
     lastSortie: withLastSortieDefaults(combat.lastSortie, combat.sector ?? 1, combat.wave ?? 1),
     sortieMark: combat.sortieMark ?? null,

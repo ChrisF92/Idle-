@@ -120,6 +120,7 @@ export function CombatTab({
           playerUnits={playerUnits}
           enemyUnits={combat.docked ? [] : combat.enemyUnits}
           projectiles={combat.docked ? [] : combat.projectiles}
+          beams={combat.docked ? [] : combat.beams ?? []}
           fx={combat.fx}
           mode={battlefieldMode}
         />

@@ -277,6 +277,9 @@ export type WeaponTag =
   | 'dot'
   | 'antiShield'
 
+/** How a Core or enemy gun delivers its hit. Bolts travel; beams connect; charge winds up then bolts. */
+export type WeaponDelivery = 'bolt' | 'beam' | 'charge'
+
 export interface Resources {
   scrap: number
   alloys: number
@@ -327,10 +330,14 @@ export interface WeaponInstance {
   splash: number
   dotDuration: number
   dotDamage: number
-  /** Wind-up before the shot (boss telegraphs). 0 = fire instantly. */
+  /** Wind-up before the shot (boss telegraphs / sniper charge lasers). 0 = fire instantly. */
   telegraphDuration: number
   /** Remaining wind-up; fires when this hits 0 after charging. */
   telegraphLeft: number
+  /** Unit id the current telegraph is locking. */
+  telegraphToId?: string
+  /** Bolt (default), connected beam, or charge-then-bolt. */
+  delivery?: WeaponDelivery
   /** USI damage vs hull / shield / armour HP types. */
   hullDamage?: number
   shieldDamage?: number
@@ -408,6 +415,28 @@ export interface CombatProjectile {
   hullDamage?: number
   shieldDamage?: number
   armorDamage?: number
+  delivery?: WeaponDelivery
+  /** Lane spawn point — visual traces draw from here. Optional on old saves. */
+  originX?: number
+  originY?: number
+}
+
+/** Connected beam — damage ticks while the line is up (USI Beam Laser). */
+export interface CombatBeam {
+  id: string
+  fromId: string
+  toId: string
+  side: 'player' | 'enemy'
+  tag: string
+  tags: WeaponTag[]
+  remaining: number
+  duration: number
+  /** Total damage budget for the full connect. */
+  damage: number
+  attackerFamily: string
+  hullDamage?: number
+  shieldDamage?: number
+  armorDamage?: number
 }
 
 export interface CombatState {
@@ -450,6 +479,8 @@ export interface CombatState {
   enemyHullMax: number
   /** Live projectiles traveling toward targets. */
   projectiles: CombatProjectile[]
+  /** Connected beams (Phase Beam / beam fighters). */
+  beams: CombatBeam[]
   fx: CombatFx[]
   log: string[]
   /** Set on Extract / Defeat for the Dock summary. */

@@ -131,6 +131,7 @@ export function createInitialState(now = Date.now()): GameState {
       enemyHull: 0,
       enemyHullMax: 0,
       projectiles: [],
+      beams: [],
       fx: [],
       log: ['Hiveworks dock online. Launch a sortie when ready.'],
       lastSortie: emptyLastSortie(),
@@ -262,6 +263,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       hullDamage: 1,
       shieldDamage: 0.6,
       armorDamage: 1,
+      delivery: 'bolt',
     })
   }
 
@@ -288,6 +290,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       dotDamage: (mod.weapon.dotDamage ?? 0) * mult * mastery,
       telegraphDuration: 0,
       telegraphLeft: 0,
+      delivery: mod.weapon.delivery,
       ...profile,
     }
     const withNodes = applyMilestoneToWeapon(

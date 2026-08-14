@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react'
 import type {
+  CombatBeam,
   CombatFx,
   CombatProjectile,
   CombatUnit,
   UnitShape,
+  WeaponDelivery,
   WeaponInstance,
   WeaponTag,
 } from '../game/types'
@@ -16,6 +18,7 @@ interface BattlefieldProps {
   playerUnits: CombatUnit[]
   enemyUnits: CombatUnit[]
   projectiles: CombatProjectile[]
+  beams: CombatBeam[]
   fx: CombatFx[]
   mode: BattlefieldMode
 }
@@ -45,10 +48,16 @@ interface Actor {
   enterT: number
   muzzle: number
   weaponTag: string
-  /** 0..1 charge amount while telegraphing a slam. */
+  /** 0..1 charge amount while telegraphing a slam or charge laser. */
   telegraph: number
   /** 0..1 boss phase-shift warn pulse. */
   phaseWarn: number
+  /** True while winding a sniper charge laser (not a titan slam). */
+  chargeLaser: boolean
+  /** Locked telegraph target, if any. */
+  telegraphToId?: string
+  telegraphToX: number | null
+  telegraphToY: number | null
 }
 
 interface Particle {
@@ -105,18 +114,47 @@ interface VisualShot {
   /** Screen-space heading for trail. */
   hx: number
   hy: number
+  /** Screen-space spawn point for energy / charge traces. */
+  ox: number
+  oy: number
+  delivery?: WeaponDelivery
+}
+
+interface VisualBeam {
+  id: string
+  fromId: string
+  toId: string
+  tag: string
+  side: 'player' | 'enemy'
+  remaining: number
+  duration: number
+}
+
+interface TraceLinger {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  color: string
+  core: string
+  life: number
+  maxLife: number
+  width: number
 }
 
 interface Scene {
   actors: Map<string, Actor>
   /** Screen-space copies of sim projectiles, keyed by id. */
   projectiles: Map<string, VisualShot>
+  beams: VisualBeam[]
+  traces: TraceLinger[]
   particles: Particle[]
   flashes: ScreenFlash[]
   rings: RingFx[]
   shake: number
   seenFx: Set<string>
   seenProj: Set<string>
+  seenBeam: Set<string>
   prevHull: Map<string, number>
   prevShield: Map<string, number>
   prevPhaseWarn: Map<string, number>
@@ -179,6 +217,18 @@ function familyShotColor(family: string): string {
 
 function shotStyle(p: VisualShot): ShotStyle {
   const tags = new Set<string>([p.tag, ...p.tags])
+
+  if (p.delivery === 'charge') {
+    return {
+      shape: 'lance',
+      color: p.fromSide === 'player' ? '#e08a3a' : '#7ec8ff',
+      core: '#ffffff',
+      length: 34,
+      width: 2.8,
+      radius: 2.6,
+      glow: 16,
+    }
+  }
 
   if (p.fromSide === 'player') {
     if (tags.has('pierce')) {
@@ -270,7 +320,7 @@ function shotStyle(p: VisualShot): ShotStyle {
       glow: 8,
     }
   }
-    if (tags.has('energy') || tags.has('antiShield')) {
+  if (tags.has('energy') || tags.has('antiShield')) {
     return {
       shape: 'bolt',
       color: familyShotColor(p.attackerFamily),
@@ -506,6 +556,8 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     existing.r = slot.r
     existing.weaponTag = primaryWeaponTag(unit.weapons)
     existing.telegraph = telegraphAmount(unit)
+    existing.chargeLaser = isChargeTelegraph(unit)
+    existing.telegraphToId = telegraphTargetId(unit)
     existing.phaseWarn = unit.phaseWarnLeft > 0 ? Math.min(1, unit.phaseWarnLeft / 0.9) : 0
     if (unit.hull > 0 && !existing.alive) {
       existing.alive = true
@@ -567,6 +619,10 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     muzzle: 0,
     weaponTag: primaryWeaponTag(unit.weapons),
     telegraph: telegraphAmount(unit),
+    chargeLaser: isChargeTelegraph(unit),
+    telegraphToId: telegraphTargetId(unit),
+    telegraphToX: null,
+    telegraphToY: null,
     phaseWarn: unit.phaseWarnLeft > 0 ? Math.min(1, unit.phaseWarnLeft / 0.9) : 0,
   }
   scene.actors.set(unit.id, actor)
@@ -592,6 +648,30 @@ function telegraphAmount(unit: CombatUnit): number {
     best = Math.max(best, 1 - w.telegraphLeft / w.telegraphDuration)
   }
   return best
+}
+
+function telegraphTargetId(unit: CombatUnit): string | undefined {
+  for (const w of unit.weapons) {
+    if (w.telegraphLeft > 0 && w.telegraphToId) return w.telegraphToId
+  }
+  return undefined
+}
+
+function isChargeTelegraph(unit: CombatUnit): boolean {
+  return unit.weapons.some((w) => w.telegraphLeft > 0 && w.delivery === 'charge')
+}
+
+function shouldDrawTrace(p: VisualShot): boolean {
+  if (p.delivery === 'charge' || p.delivery === 'beam') return true
+  if (p.tag === 'energy' || p.tag === 'antiShield') return true
+  return p.tags.includes('energy') || p.tags.includes('antiShield')
+}
+
+function beamColor(tag: string, side: 'player' | 'enemy'): { glow: string; core: string } {
+  if (side === 'player') {
+    return { glow: tagColor(tag), core: '#ffe8c8' }
+  }
+  return { glow: '#7ec8ff', core: '#e8f7ff' }
 }
 
 function isHangarMode(mode: BattlefieldMode): boolean {
@@ -650,6 +730,7 @@ function syncScene(
   playerUnits: CombatUnit[],
   enemyUnits: CombatUnit[],
   projectiles: CombatProjectile[],
+  beams: CombatBeam[],
   fx: CombatFx[],
   mode: BattlefieldMode,
 ): void {
@@ -678,10 +759,40 @@ function syncScene(
     }
   }
 
+  for (const actor of scene.actors.values()) {
+    if (!actor.telegraphToId) {
+      actor.telegraphToX = null
+      actor.telegraphToY = null
+      continue
+    }
+    const locked = scene.actors.get(actor.telegraphToId)
+    if (locked) {
+      actor.telegraphToX = locked.x
+      actor.telegraphToY = locked.y
+    }
+  }
+
   // Mirror authoritative sim projectiles into screen space (damage is sim-only on impact)
   const nextProj = new Map<string, VisualShot>()
+  const liveIds = new Set(projectiles.map((p) => p.id))
+  for (const [id, prev] of scene.projectiles) {
+    if (liveIds.has(id) || !shouldDrawTrace(prev)) continue
+    const style = shotStyle(prev)
+    scene.traces.push({
+      x1: prev.ox,
+      y1: prev.oy,
+      x2: prev.x,
+      y2: prev.y,
+      color: style.color,
+      core: style.core,
+      life: 0.2,
+      maxLife: 0.2,
+      width: style.width * 0.85,
+    })
+  }
   for (const p of projectiles) {
     const screen = lanePointToScreen(p.x, p.y)
+    const origin = lanePointToScreen(p.originX ?? p.x, p.originY ?? p.y)
     const prev = scene.projectiles.get(p.id)
     let hx = 0
     let hy = p.side === 'player' ? -1 : 1
@@ -705,6 +816,9 @@ function syncScene(
       attackerFamily: p.attackerFamily,
       hx,
       hy,
+      ox: prev?.ox ?? origin.x,
+      oy: prev?.oy ?? origin.y,
+      delivery: p.delivery,
     })
     if (!scene.seenProj.has(p.id)) {
       scene.seenProj.add(p.id)
@@ -718,7 +832,7 @@ function syncScene(
           life: 0.28,
           size: from.isBoss ? 1.2 : 0.75,
         })
-        if (from.isBoss || p.side === 'player') {
+        if (from.isBoss || p.side === 'player' || p.delivery === 'charge') {
           ring(scene, from.x, noseY, style.color, from.isBoss ? 28 : 16, 0.18, 1.4)
         }
       }
@@ -744,6 +858,53 @@ function syncScene(
   scene.projectiles = nextProj
   if (scene.seenProj.size > 300) {
     scene.seenProj = new Set(projectiles.map((p) => p.id))
+  }
+
+  const nextBeams: VisualBeam[] = []
+  const liveBeamIds = new Set(beams.map((b) => b.id))
+  for (const prev of scene.beams) {
+    if (liveBeamIds.has(prev.id)) continue
+    const from = scene.actors.get(prev.fromId)
+    const to = scene.actors.get(prev.toId)
+    if (!from || !to) continue
+    const palette = beamColor(prev.tag, prev.side)
+    scene.traces.push({
+      x1: from.x,
+      y1: from.y,
+      x2: to.x,
+      y2: to.y,
+      color: palette.glow,
+      core: palette.core,
+      life: 0.16,
+      maxLife: 0.16,
+      width: 2.4,
+    })
+  }
+  for (const b of beams) {
+    nextBeams.push({
+      id: b.id,
+      fromId: b.fromId,
+      toId: b.toId,
+      tag: b.tag,
+      side: b.side,
+      remaining: b.remaining,
+      duration: b.duration,
+    })
+    if (!scene.seenBeam.has(b.id)) {
+      scene.seenBeam.add(b.id)
+      const from = scene.actors.get(b.fromId)
+      if (from) {
+        from.muzzle = 1
+        const palette = beamColor(b.tag, b.side)
+        const noseY = from.side === 'player' ? from.y - from.r : from.y + from.r
+        burst(scene, from.x, noseY, palette.core, 8, { speed: 0.4, life: 0.3, size: 0.9 })
+        ring(scene, from.x, noseY, palette.glow, 18, 0.2, 1.5)
+      }
+    }
+  }
+  scene.beams = nextBeams
+  if (scene.seenBeam.size > 120) {
+    scene.seenBeam = new Set(beams.map((b) => b.id))
   }
 
   // Impact FX only (damage already applied in sim on hit)
@@ -1098,6 +1259,9 @@ function stepScene(scene: Scene, dt: number): void {
   for (const r of scene.rings) r.life -= dt
   scene.rings = scene.rings.filter((r) => r.life > 0)
 
+  for (const t of scene.traces) t.life -= dt
+  scene.traces = scene.traces.filter((t) => t.life > 0)
+
   for (const [id, actor] of scene.actors) {
     if (!actor.alive && actor.deathT <= 0) {
       scene.actors.delete(id)
@@ -1325,6 +1489,115 @@ function drawRings(ctx: CanvasRenderingContext2D, scene: Scene): void {
   }
 }
 
+function drawLineGlow(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: string,
+  core: string,
+  width: number,
+  alpha: number,
+): void {
+  ctx.save()
+  ctx.lineCap = 'round'
+  ctx.globalAlpha = alpha * 0.45
+  ctx.strokeStyle = color
+  ctx.shadowColor = color
+  ctx.shadowBlur = 14
+  ctx.lineWidth = width * 3.2
+  ctx.beginPath()
+  ctx.moveTo(x1, y1)
+  ctx.lineTo(x2, y2)
+  ctx.stroke()
+  ctx.globalAlpha = alpha
+  ctx.shadowBlur = 6
+  ctx.strokeStyle = color
+  ctx.lineWidth = width * 1.35
+  ctx.beginPath()
+  ctx.moveTo(x1, y1)
+  ctx.lineTo(x2, y2)
+  ctx.stroke()
+  ctx.strokeStyle = core
+  ctx.lineWidth = Math.max(1, width * 0.45)
+  ctx.shadowBlur = 0
+  ctx.beginPath()
+  ctx.moveTo(x1, y1)
+  ctx.lineTo(x2, y2)
+  ctx.stroke()
+  ctx.restore()
+}
+
+function drawTraces(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  for (const t of scene.traces) {
+    const a = Math.max(0, t.life / t.maxLife)
+    drawLineGlow(ctx, t.x1, t.y1, t.x2, t.y2, t.color, t.core, t.width, a * 0.7)
+  }
+  for (const p of scene.projectiles.values()) {
+    if (!shouldDrawTrace(p)) continue
+    const style = shotStyle(p)
+    const dist = Math.hypot(p.x - p.ox, p.y - p.oy)
+    if (dist < 8) continue
+    const alpha = p.delivery === 'charge' ? 0.85 : 0.55
+    drawLineGlow(ctx, p.ox, p.oy, p.x, p.y, style.color, style.core, style.width * 0.7, alpha)
+  }
+}
+
+function drawLiveBeams(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  for (const beam of scene.beams) {
+    const from = scene.actors.get(beam.fromId)
+    const to = scene.actors.get(beam.toId)
+    if (!from || !to) continue
+    const palette = beamColor(beam.tag, beam.side)
+    const dwell = beam.duration > 0 ? beam.remaining / beam.duration : 1
+    const flicker = 0.72 + 0.28 * Math.sin(scene.time * 52 + from.bobPhase)
+    const alpha = (0.5 + 0.45 * dwell) * flicker
+    const width = beam.side === 'player' ? 3.4 : 2.6
+    drawLineGlow(ctx, from.x, from.y, to.x, to.y, palette.glow, palette.core, width, alpha)
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.fillStyle = palette.core
+    ctx.shadowColor = palette.glow
+    ctx.shadowBlur = 16
+    ctx.beginPath()
+    ctx.arc(to.x, to.y, 5 + dwell * 4, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
+function drawChargeLasers(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  for (const actor of scene.actors.values()) {
+    if (!actor.alive || actor.telegraph <= 0 || !actor.chargeLaser) continue
+    if (actor.telegraphToX == null || actor.telegraphToY == null) continue
+    const x2 = actor.telegraphToX
+    const y2 = actor.telegraphToY
+    const fill = actor.telegraph
+    const color = '#7ec8ff'
+    const core = '#ffffff'
+    // Faint lock line the whole way, then a growing hot core.
+    drawLineGlow(ctx, actor.x, actor.y, x2, y2, color, core, 1.4, 0.22 + fill * 0.18)
+    const hx = actor.x + (x2 - actor.x) * fill
+    const hy = actor.y + (y2 - actor.y) * fill
+    drawLineGlow(ctx, actor.x, actor.y, hx, hy, color, core, 2.2 + fill * 1.6, 0.45 + fill * 0.5)
+    ctx.save()
+    ctx.globalAlpha = 0.35 + fill * 0.55
+    ctx.fillStyle = core
+    ctx.shadowColor = color
+    ctx.shadowBlur = 12 + fill * 16
+    ctx.beginPath()
+    ctx.arc(x2, y2, 3 + fill * 7, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1.4 + fill * 1.6
+    ctx.beginPath()
+    ctx.arc(x2, y2, 8 + fill * 10, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  }
+}
+
 function drawFlashes(ctx: CanvasRenderingContext2D, scene: Scene): void {
   for (const f of scene.flashes) {
     const t = Math.max(0, f.life / f.maxLife)
@@ -1357,6 +1630,9 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
 
   drawBackground(ctx, scene)
   drawRings(ctx, scene)
+  drawTraces(ctx, scene)
+  drawLiveBeams(ctx, scene)
+  drawChargeLasers(ctx, scene)
 
   for (const p of scene.projectiles.values()) {
     drawProjectile(ctx, p)
@@ -1417,9 +1693,9 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     }
     ctx.restore()
 
-    if (actor.telegraph > 0 || actor.phaseWarn > 0) {
+    if ((actor.telegraph > 0 && !actor.chargeLaser) || (actor.phaseWarn > 0 && actor.telegraph <= 0)) {
       const pulse = actor.telegraph > 0 ? actor.telegraph : 1 - actor.phaseWarn
-      // Telegraph = amber-red charge; phase warn = cool cyan (no purple).
+      // Telegraph = amber-red slam charge; phase warn = cool cyan (no purple).
       const color = actor.telegraph > 0 ? '#ff6b4a' : '#7ec8ff'
       ctx.save()
       ctx.translate(actor.x, actor.y)
@@ -1488,13 +1764,14 @@ export function Battlefield({
   playerUnits,
   enemyUnits,
   projectiles,
+  beams,
   fx,
   mode,
 }: BattlefieldProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<Scene | null>(null)
-  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, fx, mode })
-  propsRef.current = { playerUnits, enemyUnits, projectiles, fx, mode }
+  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, beams, fx, mode })
+  propsRef.current = { playerUnits, enemyUnits, projectiles, beams, fx, mode }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1505,12 +1782,15 @@ export function Battlefield({
     const scene: Scene = {
       actors: new Map(),
       projectiles: new Map(),
+      beams: [],
+      traces: [],
       particles: [],
       flashes: [],
       rings: [],
       shake: 0,
       seenFx: new Set(),
       seenProj: new Set(),
+      seenBeam: new Set(),
       prevHull: new Map(),
       prevShield: new Map(),
       prevPhaseWarn: new Map(),
@@ -1533,7 +1813,7 @@ export function Battlefield({
       last = now
 
       const p = propsRef.current
-      syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.fx, p.mode)
+      syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.beams, p.fx, p.mode)
       stepScene(scene, dt)
 
       const dpr = Math.min(2, window.devicePixelRatio || 1)
@@ -1569,8 +1849,11 @@ export function Battlefield({
     if (!scene) return
     if (mode !== 'fighting') {
       scene.projectiles = new Map()
+      scene.beams = []
+      scene.traces = []
       scene.seenFx.clear()
       scene.seenProj.clear()
+      scene.seenBeam.clear()
     }
     if (mode === 'docked' || mode === 'repairing') {
       // Drop enemy ghosts when entering the hangar.

@@ -2,7 +2,7 @@
 
 import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, isSystemUnlocked } from './progression'
 import { formatCompact, formatStat } from './format'
-import type { CoreAttrId, GameState, PartType, Resources, WeaponTag } from './types'
+import type { CoreAttrId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
@@ -232,6 +232,8 @@ export interface ModuleWeaponDef {
   hullDamage?: number
   shieldDamage?: number
   armorDamage?: number
+  /** Connected beam vs travelling bolt. Charge lasers use telegraph + bolt. */
+  delivery?: WeaponDelivery
 }
 
 /**
@@ -1373,7 +1375,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'phase-beam',
     name: 'Phase Beam',
     role: 'weapon',
-    description: 'Energy anti-shield beam. Competitive vs Ethereal / Divine.',
+    description: 'Connected energy anti-shield beam. Competitive vs Ethereal / Divine.',
     damageBonus: 7,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1383,6 +1385,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       cooldown: 1.4,
       range: 130,
       tags: ['energy', 'antiShield'],
+      delivery: 'beam',
     },
     unlockCost: { scrap: 55, alloys: 22, data: 8 },
   },
