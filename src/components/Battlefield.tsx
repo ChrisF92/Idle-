@@ -230,10 +230,10 @@ function shotStyle(p: VisualShot): ShotStyle {
         shape: 'bolt',
         color: '#e08a3a',
         core: '#ffe8c8',
-        length: 18,
-        width: 2.2,
-        radius: 2.4,
-        glow: 11,
+        length: 28,
+        width: 3.2,
+        radius: 3.2,
+        glow: 18,
       }
     }
     return {
@@ -270,15 +270,15 @@ function shotStyle(p: VisualShot): ShotStyle {
       glow: 8,
     }
   }
-  if (tags.has('energy') || tags.has('antiShield')) {
+    if (tags.has('energy') || tags.has('antiShield')) {
     return {
       shape: 'bolt',
       color: familyShotColor(p.attackerFamily),
       core: '#e8f4ff',
-      length: 16,
-      width: 2,
-      radius: 2.2,
-      glow: 10,
+      length: 22,
+      width: 2.6,
+      radius: 2.8,
+      glow: 14,
     }
   }
 
@@ -288,20 +288,20 @@ function shotStyle(p: VisualShot): ShotStyle {
         shape: 'spark',
         color: '#9eb4cc',
         core: '#e8eef5',
-        length: 9,
-        width: 1.6,
-        radius: 1.8,
-        glow: 5,
+        length: 12,
+        width: 2,
+        radius: 2.2,
+        glow: 8,
       }
     case 'armored':
       return {
         shape: 'slug',
         color: '#c4a574',
         core: '#ffe8c0',
-        length: 11,
-        width: 3,
-        radius: 3,
-        glow: 6,
+        length: 16,
+        width: 3.6,
+        radius: 3.6,
+        glow: 9,
       }
     case 'ethereal':
       return {
@@ -328,10 +328,10 @@ function shotStyle(p: VisualShot): ShotStyle {
         shape: 'orb',
         color: '#ff8a7a',
         core: '#ffe0d8',
-        length: 14,
-        width: 2.6,
-        radius: 4,
-        glow: 14,
+        length: 22,
+        width: 3.4,
+        radius: 5.5,
+        glow: 20,
       }
     default:
       return {
@@ -363,10 +363,7 @@ function primaryWeaponTag(weapons: WeaponInstance[]): string {
 }
 
 function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
-  const isBig = unit.isBoss || unit.isFlagship
-  const r = isBig ? 20 : 12
-  // Player flagship: fixed left, vertical center. Escorts keep their y.
-  // Enemies: x grows to the right with lane distance.
+  const r = unitRadius(unit)
   if (unit.side === 'player' && unit.isFlagship) {
     return { x: PLAYER_SCREEN_X, y: PLAYER_SCREEN_Y, r }
   }
@@ -374,6 +371,26 @@ function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
     x: PLAYER_SCREEN_X + unit.y * Y_SCALE,
     y: PLAYER_SCREEN_Y - Math.max(0, unit.x) * LANE_SCALE,
     r,
+  }
+}
+
+/** Skirmishers are tiny; juggernauts and bosses fill the lane. */
+function unitRadius(unit: CombatUnit): number {
+  if (unit.isFlagship) return 20
+  if (unit.isBoss || unit.role === 'boss') return 22
+  switch (unit.role) {
+    case 'skirmisher':
+      return 8
+    case 'fighter':
+      return 11
+    case 'sniper':
+      return 10
+    case 'shield':
+      return 13
+    case 'juggernaut':
+      return 18
+    default:
+      return unit.hullMax > 50 ? 16 : 12
   }
 }
 
@@ -692,21 +709,34 @@ function syncScene(
     if (!scene.seenProj.has(p.id)) {
       scene.seenProj.add(p.id)
       const from = scene.actors.get(p.fromId)
-      if (from) from.muzzle = 1
-    } else if (prev && (p.tags.includes('splash') || p.attackerFamily === 'titan')) {
-      // Sparse exhaust sparkles behind heavier rounds.
-      if (Math.random() < 0.35) {
+      if (from) {
+        from.muzzle = 1
         const style = shotStyle(nextProj.get(p.id)!)
+        const noseY = from.side === 'player' ? from.y - from.r : from.y + from.r
+        burst(scene, from.x, noseY, style.core, from.isBoss ? 10 : 6, {
+          speed: 0.45,
+          life: 0.28,
+          size: from.isBoss ? 1.2 : 0.75,
+        })
+        if (from.isBoss || p.side === 'player') {
+          ring(scene, from.x, noseY, style.color, from.isBoss ? 28 : 16, 0.18, 1.4)
+        }
+      }
+    } else if (prev) {
+      // Exhaust sparkles behind live rounds.
+      if (Math.random() < (p.side === 'player' || p.attackerFamily === 'titan' ? 0.55 : 0.28)) {
+        const style = shotStyle(nextProj.get(p.id)!)
+        const mag = Math.hypot(hx, hy) || 1
         scene.particles.push({
-          x: screen.x - Math.sign(hx || 1) * 4,
-          y: screen.y + (Math.random() - 0.5) * 3,
-          vx: -hx * 20 + (Math.random() - 0.5) * 16,
-          vy: -hy * 20 + (Math.random() - 0.5) * 16,
-          life: 0.12 + Math.random() * 0.12,
+          x: screen.x - (hx / mag) * 6,
+          y: screen.y - (hy / mag) * 6,
+          vx: -hx * 18 + (Math.random() - 0.5) * 20,
+          vy: -hy * 18 + (Math.random() - 0.5) * 20,
+          life: 0.1 + Math.random() * 0.14,
           maxLife: 0.24,
           color: style.color,
-          size: 1 + Math.random() * 1.4,
-          drag: 0.85,
+          size: 1.2 + Math.random() * 1.6,
+          drag: 0.82,
         })
       }
     }
@@ -722,8 +752,16 @@ function syncScene(
     scene.seenFx.add(shot.id)
     const to = scene.actors.get(shot.toId)
     if (to) {
-      burst(scene, to.x, to.y, tagColor(shot.tag), shot.tag === 'miss' ? 3 : 7)
-      if (shot.tag !== 'miss') to.hitFlash = 1
+      const color = tagColor(shot.tag)
+      burst(scene, to.x, to.y, color, shot.tag === 'miss' ? 4 : 12, {
+        speed: shot.tag === 'miss' ? 0.5 : 1.15,
+        size: shot.tag === 'miss' ? 0.7 : 1.1,
+      })
+      if (shot.tag !== 'miss') {
+        to.hitFlash = 1
+        ring(scene, to.x, to.y, color, to.isBoss || to.isFlagship ? 36 : 22, 0.22, 1.6)
+        if (to.isFlagship || to.isBoss) addShake(scene, to.isBoss ? 2.4 : 1.4)
+      }
     }
   }
   if (scene.seenFx.size > 240) scene.seenFx = new Set(fx.map((f) => f.id))
@@ -908,20 +946,23 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
 
   const fighting = scene.mode === 'fighting'
   let seed = scene.starSeed
-  for (let i = 0; i < 110; i += 1) {
+  for (let i = 0; i < 120; i += 1) {
     seed = (seed * 16807) % 2147483647
-    const baseX = (seed % 1000) / 1000 * scene.width
+    const x = (seed % 1000) / 1000 * scene.width
     seed = (seed * 16807) % 2147483647
-    const y = (seed % 1000) / 1000 * scene.height
+    const baseY = (seed % 1000) / 1000 * scene.height
     const layer = i % 3 === 0 ? 1.8 : i % 3 === 1 ? 1 : 0.55
-    const scrollMul = inHangar ? 8 : fighting ? 72 : 48
-    const x = (baseX - scene.scroll * layer * scrollMul + scene.width * 8) % scene.width
+    // Ship flies up the sector; stars drift toward the hull (down the canvas).
+    const scrollMul = inHangar ? 10 : fighting ? 90 : 42
+    const y =
+      (((baseY + scene.scroll * layer * scrollMul) % scene.height) + scene.height) %
+      scene.height
     const twinkle = 0.3 + 0.6 * (0.5 + 0.5 * Math.sin(scene.time * 3 + i))
     const alpha = inHangar ? twinkle * 0.45 : twinkle
     ctx.fillStyle = `rgba(230,238,248,${alpha})`
-    // Streakier stars while fighting for a sense of speed.
-    if (fighting && i % 5 === 0) {
-      ctx.fillRect(x, y, 3.5 + layer, i % 9 === 0 ? 1.6 : 1)
+    if (fighting && i % 4 === 0) {
+      const streak = 5 + layer * 5
+      ctx.fillRect(x, y - streak, i % 9 === 0 ? 1.6 : 1, streak)
     } else {
       ctx.fillRect(x, y, i % 9 === 0 ? 2.2 : 1, i % 9 === 0 ? 2.2 : 1)
     }
@@ -979,8 +1020,6 @@ function stepScene(scene: Scene, dt: number): void {
           : 3.2
     const bob = Math.sin(actor.bobPhase) * bobAmp
 
-    // Follow sim lane targets; flagship locked left + vertical center.
-    // Projectiles only come from real combat FX (in-range shots) — no ghost fire.
     const tx = actor.targetX
     const ty = actor.targetY + bob
     actor.x += (tx - actor.x) * Math.min(1, dt * 10)
@@ -1363,18 +1402,17 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.shadowColor = '#ff6b6b'
       ctx.shadowBlur = 18 * (actor.enterT / 0.7)
     }
-    // Triangle nose is +X in local space. Rotate so the player faces incoming
-    // waves (up) and enemies face the ship (down).
-    if (actor.shape === 'triangle') {
-      ctx.rotate(actor.side === 'player' ? -Math.PI / 2 : Math.PI / 2)
-    }
+    // Face the incoming lane: player nose up, enemies nose down.
+    ctx.rotate(actor.side === 'player' ? -Math.PI / 2 : Math.PI / 2)
     drawShape(ctx, actor.shape, actor.r, fill, stroke, alpha)
 
     if (actor.muzzle > 0) {
       ctx.globalAlpha = actor.muzzle
       ctx.fillStyle = tagColor(actor.weaponTag)
+      ctx.shadowColor = tagColor(actor.weaponTag)
+      ctx.shadowBlur = 14 * actor.muzzle
       ctx.beginPath()
-      ctx.arc(actor.r, 0, 4 + actor.muzzle * 3, 0, Math.PI * 2)
+      ctx.arc(actor.r, 0, 5 + actor.muzzle * 5, 0, Math.PI * 2)
       ctx.fill()
     }
     ctx.restore()

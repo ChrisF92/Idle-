@@ -263,6 +263,9 @@ export type EnemyFamilyId =
 
 export type UnitShape = 'triangle' | 'square' | 'circle' | 'hex' | 'diamond'
 
+/** USI hull classes — stand-off, speed, and silhouette. */
+export type EnemyRole = 'fighter' | 'skirmisher' | 'sniper' | 'juggernaut' | 'shield' | 'boss'
+
 /** Blueprint part kinds. PartId = `${moduleId}:${PartType}`. */
 export type PartType = 'casing' | 'core' | 'lens'
 
@@ -356,6 +359,8 @@ export interface CombatUnit {
   isBoss: boolean
   isFlagship: boolean
   dots: DotInstance[]
+  /** USI-style class. Optional on player units and old saves. */
+  role?: EnemyRole
   /**
    * Lane distance from the player flagship (0 = at player).
    * Enemies spawn far and close in; player flagship stays at 0.
