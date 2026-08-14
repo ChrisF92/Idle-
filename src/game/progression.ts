@@ -1022,16 +1022,6 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (_s, tab) => tab === 'reinforce',
   },
   {
-    id: 'guide-logs',
-    title: 'Foundry Logs',
-    body: 'Open More and tap Foundry Logs. Short notes as doors open. Story stays a log book.',
-    target: 'station-logs',
-    tab: 'stats',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace') && !guideSeen(s, 'guide-logs'),
-    completeWhen: (_s, tab) => tab === 'logs',
-  },
-  {
     id: 'guide-sensor-net',
     title: 'Farm Data',
     body: 'Assign workers to Sensor Net on Base to earn Data for more research.',
@@ -1217,6 +1207,18 @@ export const GUIDE_STEPS: GuideStep[] = [
     target: 'ascend-btn',
     tab: 'prestige',
     availableWhen: (s) => s.meta.act1Cleared && !guideSeen(s, 'guide-ascension'),
+  },
+  {
+    id: 'guide-logs',
+    title: 'Foundry Logs',
+    body: 'Open More and tap Foundry Logs. Short notes as doors open. Story stays a log book.',
+    target: 'station-logs',
+    tab: 'stats',
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace') &&
+      (s.prestige.prestigeCount ?? 0) >= 1 &&
+      !guideSeen(s, 'guide-logs'),
+    completeWhen: (_s, tab) => tab === 'logs',
   },
 ]
 
