@@ -55,8 +55,9 @@ import {
   hiveResearchDamageMult,
   hiveResearchShieldMult,
 } from './hiveResearch'
+import { createEmptyYardState, yardDamageMult, yardShieldMult } from './yard'
 
-export const SAVE_VERSION = 26
+export const SAVE_VERSION = 27
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -107,6 +108,7 @@ export function createInitialState(now = Date.now()): GameState {
       inFight: false,
       docked: true,
       campaign: true,
+      route: 'A',
       consecutiveLosses: 0,
       bossPhase: 0,
       fightElapsed: 0,
@@ -138,6 +140,7 @@ export function createInitialState(now = Date.now()): GameState {
     reliquary: createEmptyReliquaryState(),
     furnace: createEmptyFurnaceState(),
     hiveResearch: createEmptyHiveResearchState(),
+    yard: createEmptyYardState(),
     research: {
       unlocked: [],
     },
@@ -216,6 +219,7 @@ export function globalDamageMultiplier(state: GameState): number {
   mult *= reliquaryDamageMult(state)
   mult *= furnaceDamageMult(state)
   mult *= hiveResearchDamageMult(state)
+  mult *= yardDamageMult(state)
   return mult
 }
 
@@ -343,6 +347,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= reliquaryShieldMult(state)
   shieldMax *= furnaceShieldMult(state)
   shieldMax *= hiveResearchShieldMult(state)
+  shieldMax *= yardShieldMult(state)
 
   evasion = Math.min(0.45, evasion)
 

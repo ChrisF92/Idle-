@@ -29,7 +29,8 @@ import {
   stationRepairBonus,
 } from './catalog'
 import { isSystemUnlocked } from './progression'
-import { isSectorBossWave, wavesForSector } from './sectors'
+import { isSectorBossWave, wavesForSector, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
+import type { SectorRoute } from './types'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
 import {
   logisticsDropMult,
@@ -42,6 +43,7 @@ import { networkSalvageMult } from './network'
 import { grantReliquaryKillLoot, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot } from './furnace'
 import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
+import { yardSalvageMult } from './yard'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -61,6 +63,7 @@ export interface SectorEncounter {
 }
 
 const FAMILY_ROTATION: EnemyFamily[] = ['swarm', 'armored', 'ethereal', 'divine']
+const FAMILY_ROTATION_B: EnemyFamily[] = ['armored', 'ethereal', 'divine', 'armored']
 
 const NAMES: Record<EnemyFamily, string[]> = {
   swarm: ['Void Mite', 'Ashen Drifter', 'Needle Cloud'],
@@ -115,9 +118,14 @@ export function isBossSector(sector: number): boolean {
  * (hover the sector bar). S1 trash = 1 so the first Laser level (cost 3)
  * lands after the opening pack.
  */
-export function salvageFromKill(sector: number, isBoss: boolean): number {
+export function salvageFromKill(
+  sector: number,
+  isBoss: boolean,
+  route: SectorRoute | string = 'A',
+): number {
   const base = Math.max(1, Math.floor(sector))
-  return isBoss ? base * 5 : base
+  const raw = isBoss ? base * 5 : base
+  return Math.max(1, Math.floor(raw * routeSalvageMult(normalizeRoute(route))))
 }
 
 export interface WeaponDamageProfile {
@@ -239,24 +247,31 @@ function packY(index: number, count: number): number {
   return -spread / 2 + (spread / Math.max(1, count - 1)) * index
 }
 
-export function enemyForSector(sector: number, wave = 1): SectorEncounter {
+export function enemyForSector(
+  sector: number,
+  wave = 1,
+  route: SectorRoute | string = 'A',
+): SectorEncounter {
+  const side = normalizeRoute(route)
   const bossWave = isSectorBossWave(sector, wave)
+  const rotation = side === 'B' ? FAMILY_ROTATION_B : FAMILY_ROTATION
   const family: EnemyFamily = bossWave
     ? 'titan'
-    : (FAMILY_ROTATION[(sector - 1) % FAMILY_ROTATION.length] ?? 'swarm')
+    : (rotation[(sector - 1) % rotation.length] ?? 'swarm')
   const names = NAMES[family]
   const name =
     names[(Math.floor((sector - 1) / FAMILY_ROTATION.length) + wave - 1) % names.length] ??
     'Unknown Entity'
 
-  const waveScale = 1 + Math.max(0, wave - 1) * 0.1
+  const waveScale = (1 + Math.max(0, wave - 1) * 0.1) * routeDangerMult(side)
   const units = bossWave
     ? buildBossPack(sector, name, waveScale)
     : buildWavePack(sector, family, name, wave, waveScale)
 
   const waveLabel = `W${wave}`
+  const routeTag = side === 'B' ? 'B' : 'A'
   return {
-    id: `${family}-${sector}-w${wave}`,
+    id: `${family}-${sector}${routeTag}-w${wave}`,
     name: bossWave ? `${name} (Boss)` : `${name} pack (${waveLabel})`,
     family,
     tags: bossWave ? [family, 'boss'] : [family],
@@ -267,7 +282,7 @@ export function enemyForSector(sector: number, wave = 1): SectorEncounter {
     aiReward: 0,
     essenceReward: bossWave ? 1 + Math.floor(sector / 10) : 0,
     // Salvage is granted per kill (USI). Wave-clear field kept for intel only.
-    salvageReward: salvageFromKill(sector, bossWave),
+    salvageReward: salvageFromKill(sector, bossWave, side),
     blurb: familyBlurb(family, bossWave),
     units,
   }
@@ -1519,8 +1534,12 @@ export function rollEnemyPartDrop(
 export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void {
   if (unit.side !== 'enemy') return
   const salvageMult =
-    networkSalvageMult(state) * reliquarySalvageMult(state) * hiveResearchSalvageMult(state)
-  state.resources.salvage += salvageFromKill(state.combat.sector, unit.isBoss) * salvageMult
+    networkSalvageMult(state) *
+    reliquarySalvageMult(state) *
+    hiveResearchSalvageMult(state) *
+    yardSalvageMult(state)
+  state.resources.salvage +=
+    salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route) * salvageMult
   rollEnemyPartDrop(state, unit)
   grantSignalCoreDrop(state, 'kill', { family: unit.family })
   grantReliquaryKillLoot(state, unit.isBoss, Math.random, hiveResearchShardDropBonus(state))

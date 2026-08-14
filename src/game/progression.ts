@@ -58,6 +58,12 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Choir-ash from kills becomes Heat. Spend Heat on always-on system ranks.',
   },
   {
+    id: 'yard',
+    requiresSectorEver: 0,
+    label: 'Yard Grid',
+    tip: 'Place buildings. Spend Ingots on arms that apply on the next Rebuild.',
+  },
+  {
     id: 'research',
     requiresSectorEver: 7,
     label: 'Research',
@@ -480,6 +486,9 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'foundry') {
     return careerHighestSector(state) >= 2
   }
+  if (systemId === 'yard') {
+    return (state.prestige.prestigeCount ?? 0) >= 1
+  }
   if (systemId === 'ai') {
     return state.meta.aiUnlocked || state.meta.completedAchievements.length > 0
   }
@@ -505,6 +514,9 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   }
   if (systemId === 'foundry') {
     return 'Clear sector 2'
+  }
+  if (systemId === 'yard') {
+    return 'Rebuild once'
   }
   if (systemId === 'ai') {
     return 'Complete First Blood (clear sector 1)'
@@ -603,6 +615,9 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
 
   if (ever >= 4 && !state.shipyard.unlockedFrames.includes('line-frame')) {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'line-frame']
+  }
+  if (ever >= 8 && !state.shipyard.unlockedFrames.includes('cruiser-frame')) {
+    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'cruiser-frame']
   }
 
   if (ever >= ACT1_FINAL_SECTOR && !state.meta.act1Cleared) {
@@ -867,6 +882,15 @@ export const GUIDE_STEPS: GuideStep[] = [
     availableWhen: (s) =>
       isSystemUnlocked(s, 'research') && !guideSeen(s, 'guide-research-tab'),
     completeWhen: (_s, tab) => tab === 'research',
+  },
+  {
+    id: 'guide-yard',
+    title: 'Yard Grid',
+    body: 'Open More and tap Yard. Buildings make Ore, Flux, and Ingots even while you are docked. Spend Ingots on arms — they apply on the next Rebuild.',
+    target: 'station-yard',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'yard') && !guideSeen(s, 'guide-yard'),
+    completeWhen: (_s, tab) => tab === 'yard',
   },
   {
     id: 'guide-sensor-net',

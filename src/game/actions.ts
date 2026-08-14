@@ -61,6 +61,19 @@ import { insertShard, removeShard } from './reliquary'
 import { buyFurnaceRank, convertAshToHeat as convertAshToHeatRaw } from './furnace'
 import { hiveResearchHeatFromAshMult, setResearchFocus } from './hiveResearch'
 import {
+  armYardOnRebuild,
+  buyYardArm,
+  clearYardBuilding,
+  createEmptyYardState,
+  placeYardBuilding,
+} from './yard'
+import {
+  isRouteBUnlocked,
+  maxLaunchSector,
+  normalizeRoute,
+} from './sectors'
+import type { SectorRoute } from './types'
+import {
   buildFlagshipWeapons,
   computeShipStats,
   createInitialState,
@@ -94,6 +107,12 @@ export {
 
 export { insertShard, removeShard, buyFurnaceRank, setResearchFocus }
 
+export {
+  placeYardBuilding,
+  clearYardBuilding,
+  buyYardArm,
+}
+
 export function convertAshToHeat(state: GameState): GameState {
   return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state))
 }
@@ -106,6 +125,27 @@ export function setNumberNotation(
   if (state.meta.numberNotation === mode) return state
   const next = structuredClone(state)
   next.meta.numberNotation = mode
+  return next
+}
+
+export function setLaunchSector(state: GameState, sector: number): GameState {
+  if (!state.combat.docked) return state
+  const max = maxLaunchSector(careerHighestSector(state))
+  const nextSector = Math.max(1, Math.min(max, Math.floor(sector)))
+  if (nextSector === state.combat.sector && state.combat.wave === 1) return state
+  const next = structuredClone(state)
+  next.combat.sector = nextSector
+  next.combat.wave = 1
+  return next
+}
+
+export function setSectorRoute(state: GameState, route: SectorRoute): GameState {
+  if (!state.combat.docked) return state
+  const normalized = normalizeRoute(route)
+  if (normalized === 'B' && !isRouteBUnlocked(careerHighestSector(state))) return state
+  if (state.combat.route === normalized) return state
+  const next = structuredClone(state)
+  next.combat.route = normalized
   return next
 }
 
@@ -949,6 +989,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
         completed: { material: 0, energy: 0, observation: 0 },
       },
     ),
+    yard: structuredClone(state.yard ?? createEmptyYardState()),
     signalCores:
       state.meta.signalCoresCarryOver
         ? {
@@ -1028,6 +1069,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.reliquary = kept.reliquary
   state.furnace = kept.furnace
   state.hiveResearch = kept.hiveResearch
+  state.yard = armYardOnRebuild(kept.yard)
   state.signalCores = kept.signalCores
   state.parts = kept.parts
 

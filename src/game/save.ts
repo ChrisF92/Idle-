@@ -12,6 +12,10 @@ import type {
   ReliquaryState,
   SignalCoreInstance,
   SignalCoresState,
+  YardArmId,
+  YardBuildingId,
+  YardGoodId,
+  YardState,
 } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
 import { AI_NODES, isAiNodePermanent } from './catalog'
@@ -26,6 +30,8 @@ import { createEmptyFoundryState } from './foundry'
 import { createEmptyReliquaryState } from './reliquary'
 import { createEmptyFurnaceState } from './furnace'
 import { createEmptyHiveResearchState } from './hiveResearch'
+import { createEmptyYardState } from './yard'
+import { normalizeRoute } from './sectors'
 
 export function saveGame(state: GameState): void {
   try {
@@ -63,6 +69,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     highestSector: Math.max(0, combat.highestSector ?? 0),
     wave: Math.max(1, combat.wave ?? 1),
     campaign: combat.campaign ?? true,
+    route: normalizeRoute(combat.route),
     docked: combat.docked ?? false,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
@@ -312,6 +319,39 @@ function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResea
   return empty
 }
 
+const YARD_GOODS: YardGoodId[] = ['ore', 'flux', 'ingot']
+const YARD_ARMS: YardArmId[] = ['damage', 'shield', 'salvage', 'network']
+const YARD_BUILDINGS: YardBuildingId[] = ['slag-heap', 'flux-still', 'ingot-press']
+
+function withYardDefaults(raw: YardState | undefined): YardState {
+  const empty = createEmptyYardState()
+  if (!raw || typeof raw !== 'object') return empty
+  const cells = Array.isArray(raw.cells)
+    ? raw.cells.map((c) => {
+        const id = c?.buildingId
+        return {
+          buildingId: id && YARD_BUILDINGS.includes(id) ? id : null,
+        }
+      })
+    : empty.cells
+  const goods = { ...empty.goods }
+  for (const id of YARD_GOODS) {
+    goods[id] = Math.max(0, Number(raw.goods?.[id] ?? empty.goods[id]) || 0)
+  }
+  const pending = { ...empty.pending }
+  const armed = { ...empty.armed }
+  for (const id of YARD_ARMS) {
+    pending[id] = Math.max(0, Math.floor(Number(raw.pending?.[id] ?? 0) || 0))
+    armed[id] = Math.max(0, Math.floor(Number(raw.armed?.[id] ?? 0) || 0))
+  }
+  return {
+    cells: cells.length > 0 ? cells : empty.cells,
+    goods,
+    pending,
+    armed,
+  }
+}
+
 function withMetaDefaults(
   meta: GameState['meta'] | undefined,
   highestSector: number,
@@ -473,6 +513,7 @@ function migrate(raw: unknown): GameState | null {
       reliquary: withReliquaryDefaults(state.reliquary),
       furnace: withFurnaceDefaults(state.furnace),
       hiveResearch: withHiveResearchDefaults(state.hiveResearch),
+      yard: withYardDefaults(state.yard),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
       codex,
@@ -556,6 +597,7 @@ function migrate(raw: unknown): GameState | null {
       reliquary: withReliquaryDefaults(prev.reliquary),
       furnace: withFurnaceDefaults(prev.furnace),
       hiveResearch: withHiveResearchDefaults(prev.hiveResearch),
+      yard: withYardDefaults(prev.yard),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
       codex,

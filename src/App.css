@@ -668,6 +668,31 @@
   border-color: color-mix(in srgb, #6a9a4a 55%, var(--line));
 }
 
+.yard-grid {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0.6rem;
+}
+
+.yard-cell {
+  min-height: 3.2rem;
+  padding: 0.3rem;
+  font-size: 0.68rem;
+  line-height: 1.15;
+  white-space: pre-line;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--line);
+}
+
+.yard-cell.filled {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+
+.dock-launch-row {
+  justify-content: center;
+}
+
 .hangar-backdrop {
   padding: 0;
   place-items: stretch;

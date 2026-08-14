@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
-import { wavesForSector } from '../../game/sectors'
+import { wavesForSector, normalizeRoute } from '../../game/sectors'
 import { formatCompact } from '../../game/format'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
@@ -82,7 +82,10 @@ export function CombatTab({
     <section className="sortie-screen">
       <header className="combat-hud-bar">
         <div className="combat-hud-readout">
-          <span className="combat-hud-kicker">S{combat.sector}</span>
+          <span className="combat-hud-kicker">
+            S{combat.sector}
+            {normalizeRoute(combat.route) === 'B' ? 'B' : ''}
+          </span>
           <strong className="combat-hud-value">
             W{combat.wave}/{waves}
           </strong>

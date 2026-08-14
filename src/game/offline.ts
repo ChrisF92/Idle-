@@ -35,6 +35,7 @@ import { isSystemUnlocked } from './progression'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { networkManufactureMult, tickNetwork } from './network'
 import { tickFoundry } from './foundry'
+import { tickYard } from './yard'
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -116,6 +117,7 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
 
   tickNetwork(state, seconds)
   tickFoundry(state, seconds)
+  tickYard(state, seconds)
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {

@@ -105,6 +105,8 @@ describe('expanded onboarding catalog', () => {
       'guide-base-tab',
       'guide-assign-scrap',
       'guide-power-grid',
+      'guide-reliquary',
+      'guide-furnace',
       'guide-research-tab',
       'guide-sensor-net',
       'guide-salvage',
@@ -119,6 +121,7 @@ describe('expanded onboarding catalog', () => {
       'guide-matter-shop',
       'guide-signal-cores',
       'guide-ascension',
+      'guide-yard',
     ]
     expect(activeGuideStep(state, 'prestige')?.id).toBe('guide-challenges')
     expect(activeGuideStep(state, 'prestige')?.target).toBe('challenges-subtab')

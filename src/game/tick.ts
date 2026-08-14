@@ -43,6 +43,7 @@ import {
   tickNetwork,
 } from './network'
 import { tickFoundry } from './foundry'
+import { tickYard } from './yard'
 import {
   wavesForSector,
   isSystemUnlocked,
@@ -186,6 +187,7 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     applyNetworkCombatRefresh(state)
   }
   tickFoundry(state, dtSeconds)
+  tickYard(state, dtSeconds)
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {
@@ -511,7 +513,7 @@ export function beginFight(state: GameState): void {
     Math.max(1, state.combat.wave || 1),
   )
   state.combat.wave = wave
-  const encounter = enemyForSector(sector, wave)
+  const encounter = enemyForSector(sector, wave, state.combat.route)
   syncPersistedHullCaps(state)
 
   state.combat.docked = false

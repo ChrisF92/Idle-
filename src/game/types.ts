@@ -73,6 +73,24 @@ export interface HiveResearchState {
   completed: Record<HiveResearchBranch, number>
 }
 
+export type SectorRoute = 'A' | 'B'
+
+export type YardGoodId = 'ore' | 'flux' | 'ingot'
+export type YardBuildingId = 'slag-heap' | 'flux-still' | 'ingot-press'
+export type YardArmId = 'damage' | 'shield' | 'salvage' | 'network'
+
+export interface YardCell {
+  buildingId: YardBuildingId | null
+}
+
+/** USI Bases analogue — grid persists; pending arms on the next Rebuild. */
+export interface YardState {
+  cells: YardCell[]
+  goods: Record<YardGoodId, number>
+  pending: Record<YardArmId, number>
+  armed: Record<YardArmId, number>
+}
+
 export type TabId =
   | 'dock'
   | 'combat'
@@ -81,6 +99,7 @@ export type TabId =
   | 'foundry'
   | 'reliquary'
   | 'furnace'
+  | 'yard'
   | 'shipyard'
   | 'base'
   | 'research'
@@ -327,6 +346,8 @@ export interface CombatState {
    * Both modes auto-engage while not Paused.
    */
   campaign: boolean
+  /** A/B sector route from 9. Sticky for the sortie; change while docked. */
+  route: SectorRoute
   consecutiveLosses: number
   bossPhase: number
   /** Seconds elapsed in the current fight (reset on beginFight). */
@@ -489,6 +510,8 @@ export interface GameState {
   furnace: FurnaceState
   /** Kill-fed Material / Energy / Observation. Persist across Rebuild. */
   hiveResearch: HiveResearchState
+  /** Yard Grid (USI Bases). Buildings persist; pending arms on next Rebuild. */
+  yard: YardState
   research: ResearchState
   ai: AiState
   essence: EssenceState

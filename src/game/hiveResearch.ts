@@ -3,6 +3,7 @@
 import type { GameState, HiveResearchBranch, HiveResearchState } from './types'
 import { careerHighestSector } from './progression'
 import { reliquaryResearchXpMult } from './reliquary'
+import { normalizeRoute, routeResearchMult } from './sectors'
 
 export const HIVE_RESEARCH_UNLOCK_SECTOR = 7
 /** USI default is 9×; 4× keeps early numbers retunable. */
@@ -168,7 +169,8 @@ export function hiveResearchHeatFromAshMult(state: GameState): number {
 export function killResearchXp(state: GameState, isBoss: boolean): number {
   if (careerHighestSector(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return 0
   const sector = Math.max(1, state.combat.sector)
-  return (1 + 0.12 * (sector - 1)) * (isBoss ? 2.5 : 1)
+  const route = routeResearchMult(normalizeRoute(state.combat.route))
+  return (1 + 0.12 * (sector - 1)) * (isBoss ? 2.5 : 1) * route
 }
 
 function tryCompleteNodes(state: GameState, branch: HiveResearchBranch): void {

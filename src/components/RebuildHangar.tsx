@@ -10,6 +10,8 @@ import {
   trimModulesToFrame,
 } from '../game/catalog'
 import { canPrestige, prestigeGainFor } from '../game/actions'
+import { yardPendingSummary } from '../game/yard'
+import { isSystemUnlocked } from '../game/progression'
 
 interface RebuildHangarProps {
   state: GameState
@@ -69,7 +71,10 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
         <header className="modal-header">
           <div>
             <h3 id="rebuild-title">Rebuild hangar</h3>
-            <p className="muted">Swap hull and Cores. Levels and unspent Salvage wipe. +{gain} PM.</p>
+            <p className="muted">
+              Swap hull and Cores. Levels and unspent Salvage wipe. +{gain} PM.
+              {isSystemUnlocked(state, 'yard') ? ` Yard: ${yardPendingSummary(state)}.` : ''}
+            </p>
           </div>
           <button type="button" onClick={onClose}>
             Close

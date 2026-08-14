@@ -55,6 +55,11 @@ import {
   convertAshToHeat,
   buyFurnaceRank,
   setResearchFocus,
+  setLaunchSector,
+  setSectorRoute,
+  placeYardBuilding,
+  clearYardBuilding,
+  buyYardArm,
 } from '../game/actions'
 import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -120,6 +125,11 @@ type Action =
   | { type: 'furnace-convert' }
   | { type: 'furnace-rank'; trackId: import('../game/types').FurnaceTrackId }
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
+  | { type: 'launch-sector'; sector: number }
+  | { type: 'sector-route'; route: import('../game/types').SectorRoute }
+  | { type: 'yard-place'; index: number; buildingId: import('../game/types').YardBuildingId }
+  | { type: 'yard-clear'; index: number }
+  | { type: 'yard-arm'; armId: import('../game/types').YardArmId }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -232,6 +242,16 @@ function reducer(state: GameState, action: Action): GameState {
       return buyFurnaceRank(state, action.trackId)
     case 'research-focus':
       return setResearchFocus(state, action.branch)
+    case 'launch-sector':
+      return setLaunchSector(state, action.sector)
+    case 'sector-route':
+      return setSectorRoute(state, action.route)
+    case 'yard-place':
+      return placeYardBuilding(state, action.index, action.buildingId)
+    case 'yard-clear':
+      return clearYardBuilding(state, action.index)
+    case 'yard-arm':
+      return buyYardArm(state, action.armId)
     default:
       return state
   }
@@ -344,6 +364,16 @@ export function useGame() {
       dispatch({ type: 'furnace-rank', trackId }),
     setResearchFocus: (branch: import('../game/types').HiveResearchBranch) =>
       dispatch({ type: 'research-focus', branch }),
+    setLaunchSector: (sector: number) => dispatch({ type: 'launch-sector', sector }),
+    setSectorRoute: (route: import('../game/types').SectorRoute) =>
+      dispatch({ type: 'sector-route', route }),
+    placeYardBuilding: (
+      index: number,
+      buildingId: import('../game/types').YardBuildingId,
+    ) => dispatch({ type: 'yard-place', index, buildingId }),
+    clearYardBuilding: (index: number) => dispatch({ type: 'yard-clear', index }),
+    buyYardArm: (armId: import('../game/types').YardArmId) =>
+      dispatch({ type: 'yard-arm', armId }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {

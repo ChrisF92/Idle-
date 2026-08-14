@@ -1,18 +1,33 @@
 import type { GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
-import { wavesForSector } from '../../game/sectors'
 import { canPrestige } from '../../game/actions'
 import { prestigeMinSectorFor } from '../../game/catalog'
 import { formatCompact } from '../../game/format'
+import { careerHighestSector } from '../../game/progression'
+import {
+  isRouteBUnlocked,
+  maxLaunchSector,
+  normalizeRoute,
+  wavesForSector,
+} from '../../game/sectors'
 
 interface DockTabProps {
   state: GameState
   onLaunch: () => void
   onOpenSortie: () => void
   onRebuild: () => void
+  onSetSector?: (sector: number) => void
+  onSetRoute?: (route: 'A' | 'B') => void
 }
 
-export function DockTab({ state, onLaunch, onOpenSortie, onRebuild }: DockTabProps) {
+export function DockTab({
+  state,
+  onLaunch,
+  onOpenSortie,
+  onRebuild,
+  onSetSector,
+  onSetRoute,
+}: DockTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
   const live = !combat.docked
@@ -20,11 +35,18 @@ export function DockTab({ state, onLaunch, onOpenSortie, onRebuild }: DockTabPro
   const summary = combat.lastSortie
   const rebuildReady = canPrestige(state)
   const rebuildMin = prestigeMinSectorFor(state.prestige.shop)
+  const cleared = careerHighestSector(state)
+  const maxStart = maxLaunchSector(cleared)
+  const routeB = isRouteBUnlocked(cleared)
+  const route = normalizeRoute(combat.route)
 
   return (
     <section className="panel screen-panel dock-screen">
       <header className="dock-hero">
-        <p className="hud-chip-label">Sector {combat.sector}</p>
+        <p className="hud-chip-label">
+          Sector {combat.sector}
+          {routeB ? combat.route === 'B' ? 'B' : 'A' : ''}
+        </p>
         <h2>Dock</h2>
       </header>
 
@@ -56,6 +78,45 @@ export function DockTab({ state, onLaunch, onOpenSortie, onRebuild }: DockTabPro
           Launch sortie
         </button>
       )}
+
+      {!live && onSetSector && maxStart > 1 ? (
+        <p className="assign-row dock-launch-row">
+          <button
+            type="button"
+            disabled={combat.sector <= 1}
+            onClick={() => onSetSector(combat.sector - 1)}
+          >
+            −
+          </button>
+          <span className="muted">Start S{combat.sector}</span>
+          <button
+            type="button"
+            disabled={combat.sector >= maxStart}
+            onClick={() => onSetSector(combat.sector + 1)}
+          >
+            +
+          </button>
+        </p>
+      ) : null}
+
+      {!live && onSetRoute && routeB ? (
+        <div className="sheet-tabs notation-tabs">
+          <button
+            type="button"
+            className={route !== 'B' ? 'sheet-tab active' : 'sheet-tab'}
+            onClick={() => onSetRoute('A')}
+          >
+            Route A
+          </button>
+          <button
+            type="button"
+            className={route === 'B' ? 'sheet-tab active' : 'sheet-tab'}
+            onClick={() => onSetRoute('B')}
+          >
+            Route B
+          </button>
+        </div>
+      ) : null}
 
       <button type="button" className="dock-rebuild" disabled={!rebuildReady} onClick={onRebuild}>
         {rebuildReady ? 'Rebuild hangar' : `Rebuild · sector ${rebuildMin}`}

@@ -18,7 +18,11 @@ interface TabNavProps {
 
 export function TabNav({ active, onChange, state }: TabNavProps) {
   const moreActive =
-    active === 'stats' || active === 'reliquary' || active === 'furnace' || active === 'research'
+    active === 'stats' ||
+    active === 'reliquary' ||
+    active === 'furnace' ||
+    active === 'research' ||
+    active === 'yard'
   return (
     <nav className="bottom-nav" aria-label="Game systems">
       {TABS.map((tab) => {

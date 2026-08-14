@@ -14,6 +14,7 @@ import { FoundryTab } from './components/tabs/FoundryTab'
 import { ReliquaryTab } from './components/tabs/ReliquaryTab'
 import { FurnaceTab } from './components/tabs/FurnaceTab'
 import { ResearchTab } from './components/tabs/ResearchTab'
+import { YardTab } from './components/tabs/YardTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
@@ -35,7 +36,8 @@ export default function App() {
 
   useEffect(() => {
     if (!isSystemUnlocked(game.state, tab)) {
-      const station = tab === 'reliquary' || tab === 'furnace' || tab === 'research'
+      const station =
+        tab === 'reliquary' || tab === 'furnace' || tab === 'research' || tab === 'yard'
       setTab(station ? 'stats' : 'dock')
     }
   }, [game.state, tab])
@@ -77,6 +79,8 @@ export default function App() {
             }}
             onOpenSortie={() => go('combat')}
             onRebuild={() => setHangarOpen(true)}
+            onSetSector={game.setLaunchSector}
+            onSetRoute={game.setSectorRoute}
           />
         )}
         {tab === 'combat' && (
@@ -127,6 +131,15 @@ export default function App() {
             state={game.state}
             onBack={() => go('stats')}
             onFocus={game.setResearchFocus}
+          />
+        )}
+        {tab === 'yard' && (
+          <YardTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onPlace={game.placeYardBuilding}
+            onClear={game.clearYardBuilding}
+            onBuyArm={game.buyYardArm}
           />
         )}
         {tab === 'stats' && (

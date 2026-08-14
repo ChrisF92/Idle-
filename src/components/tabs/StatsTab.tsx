@@ -11,12 +11,13 @@ import {
 } from '../../game/progression'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-13g'
+export const APP_BUILD = '2026-08-14a'
 
 const STATIONS: { id: TabId; name: string; blurb: string }[] = [
   { id: 'reliquary', name: 'Reliquary', blurb: 'Shards in colour slots. Red / orange at 3; pink at 6.' },
   { id: 'furnace', name: 'Furnace', blurb: 'Choir-ash → Heat → always-on ranks.' },
   { id: 'research', name: 'Research', blurb: 'Material / Energy / Observation. Focus one.' },
+  { id: 'yard', name: 'Yard Grid', blurb: 'Buildings → Ingots. Arms apply on the next Rebuild.' },
 ]
 
 interface StatsTabProps {

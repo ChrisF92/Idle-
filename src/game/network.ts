@@ -4,6 +4,7 @@ import type { GameState, NetworkBarId, NetworkState } from './types'
 import { dronePower } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDataMult, hiveResearchNetworkMult } from './hiveResearch'
+import { yardNetworkMult } from './yard'
 
 function careerEver(state: GameState): number {
   return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
@@ -102,7 +103,8 @@ export function networkFillRate(state: GameState, id: NetworkBarId): number {
       dronePower(state) *
       networkChainBoost(state, id) *
       reliquaryNetworkMult(state) *
-      hiveResearchNetworkMult(state)) /
+      hiveResearchNetworkMult(state) *
+      yardNetworkMult(state)) /
     cost
   return Math.min(NETWORK_FILL_CAP_PER_SEC, Math.max(0, raw))
 }
