@@ -23,8 +23,8 @@ export default defineConfig({
         short_name: 'Cosmic Idle',
         description:
           'Space idle with entity combat, AI doctrines, Essence constructs, and challenges.',
-        theme_color: '#1a1f2a',
-        background_color: '#12161c',
+        theme_color: '#12100e',
+        background_color: '#12100e',
         display: 'standalone',
         orientation: 'any',
         start_url: './',

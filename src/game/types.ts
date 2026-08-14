@@ -115,6 +115,13 @@ export interface ProcessState {
   purchased: string[]
 }
 
+export type SpecialistId = 'gunner' | 'warden' | 'scavenger'
+
+/** USI Crew analogue — print / rank; persist across Rebuild. */
+export interface SpecialistState {
+  ranks: Record<SpecialistId, number>
+}
+
 export type TabId =
   | 'dock'
   | 'combat'
@@ -127,6 +134,7 @@ export type TabId =
   | 'protocols'
   | 'echo'
   | 'process'
+  | 'specialists'
   | 'shipyard'
   | 'base'
   | 'research'
@@ -545,6 +553,8 @@ export interface GameState {
   echo: EchoState
   /** Process automation nodes. Persist across Rebuild. */
   process: ProcessState
+  /** Specialists (USI Crew). Ranks persist across Rebuild. */
+  specialists: SpecialistState
   research: ResearchState
   ai: AiState
   essence: EssenceState

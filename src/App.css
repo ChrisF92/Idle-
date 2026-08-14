@@ -777,8 +777,8 @@
   border: none;
   border-radius: 0;
   background:
-    radial-gradient(80% 55% at 70% 25%, rgba(79, 143, 154, 0.16), transparent 70%),
-    #0c121a;
+    radial-gradient(80% 55% at 70% 25%, rgba(61, 143, 136, 0.16), transparent 70%),
+    #120e0c;
   display: block;
 }
 

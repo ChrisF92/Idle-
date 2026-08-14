@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Orbitron:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Chakra+Petch:wght@600;700&display=swap');
 
 :root {
   color-scheme: dark;
@@ -13,13 +13,13 @@
   --danger: #c45c5c;
   --ok: #6a9a6d;
   --font-ui: 'IBM Plex Mono', ui-monospace, monospace;
-  --font-brand: 'Orbitron', sans-serif;
+  --font-brand: 'Chakra Petch', sans-serif;
   font-family: var(--font-ui);
   line-height: 1.45;
   font-weight: 400;
   color: var(--text);
   background:
-    radial-gradient(1200px 600px at 10% -10%, #243041 0%, transparent 55%),
+    radial-gradient(1200px 600px at 10% -10%, #3a2a18 0%, transparent 55%),
     radial-gradient(900px 500px at 100% 0%, #2a2218 0%, transparent 50%),
     var(--bg);
   font-synthesis: none;

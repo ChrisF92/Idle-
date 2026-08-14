@@ -18,6 +18,7 @@ import { YardTab } from './components/tabs/YardTab'
 import { ProtocolsTab } from './components/tabs/ProtocolsTab'
 import { EchoTab } from './components/tabs/EchoTab'
 import { ProcessTab } from './components/tabs/ProcessTab'
+import { SpecialistsTab } from './components/tabs/SpecialistsTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
@@ -46,7 +47,8 @@ export default function App() {
         tab === 'yard' ||
         tab === 'protocols' ||
         tab === 'echo' ||
-        tab === 'process'
+        tab === 'process' ||
+        tab === 'specialists'
       setTab(station ? 'stats' : 'dock')
     }
   }, [game.state, tab])
@@ -173,6 +175,13 @@ export default function App() {
             state={game.state}
             onBack={() => go('stats')}
             onBuy={game.buyProcessNode}
+          />
+        )}
+        {tab === 'specialists' && (
+          <SpecialistsTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onRank={game.rankSpecialist}
           />
         )}
         {tab === 'stats' && (

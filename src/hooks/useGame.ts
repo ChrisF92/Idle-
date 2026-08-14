@@ -66,6 +66,7 @@ import {
   abandonEcho,
   buyEchoNode,
   buyProcessNode,
+  rankSpecialist,
 } from '../game/actions'
 import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -142,6 +143,7 @@ type Action =
   | { type: 'abandon-echo' }
   | { type: 'buy-echo'; nodeId: string }
   | { type: 'buy-process'; nodeId: string }
+  | { type: 'rank-specialist'; specialistId: import('../game/types').SpecialistId }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -276,6 +278,8 @@ function reducer(state: GameState, action: Action): GameState {
       return buyEchoNode(state, action.nodeId)
     case 'buy-process':
       return buyProcessNode(state, action.nodeId)
+    case 'rank-specialist':
+      return rankSpecialist(state, action.specialistId)
     default:
       return state
   }
@@ -405,6 +409,8 @@ export function useGame() {
     abandonEcho: () => dispatch({ type: 'abandon-echo' }),
     buyEchoNode: (nodeId: string) => dispatch({ type: 'buy-echo', nodeId }),
     buyProcessNode: (nodeId: string) => dispatch({ type: 'buy-process', nodeId }),
+    rankSpecialist: (specialistId: import('../game/types').SpecialistId) =>
+      dispatch({ type: 'rank-specialist', specialistId }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {

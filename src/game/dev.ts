@@ -1,14 +1,18 @@
 /** Lightweight cheats for local / ?dev=1 testing. Never required for normal play. */
 
-import type { GameState, Resources } from './types'
-import { AI_NODES, RESEARCH, SHIP_FRAMES, SHIP_MODULES } from './catalog'
+import type { GameState, Resources, YardGoodId } from './types'
+import { AI_NODES, MAX_MODULE_LEVEL, RESEARCH, SHIP_FRAMES, SHIP_MODULES } from './catalog'
 import {
   ACHIEVEMENTS,
+  GUIDE_STEPS,
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
 } from './progression'
 import { syncPersistedHullCaps } from './state'
 import { enemyForSector } from './combat'
+import { wavesForRun } from './echo'
+import { wavesForSector } from './sectors'
+import { ensureYardGrid } from './yard'
 
 export const DEV_FLAG_KEY = 'cosmic-idle-dev'
 
@@ -46,6 +50,7 @@ export function setDevToolsEnabled(on: boolean): void {
 export type DevAction =
   | { type: 'jump-sector'; sector: number }
   | { type: 'add-resources'; amounts: Partial<Resources> }
+  | { type: 'add-yard-goods'; amounts: Partial<Record<YardGoodId, number>> }
   | { type: 'unlock-catalog' }
   | { type: 'clear-guides' }
   | { type: 'set-prestige-count'; count: number }
@@ -55,6 +60,7 @@ export type DevAction =
   | { type: 'grant-achievements' }
   | { type: 'skip-guides' }
   | { type: 'set-wave'; wave: number }
+  | { type: 'set-module-levels'; levels: Record<string, number> }
 
 export function applyDevAction(state: GameState, action: DevAction): GameState {
   const next = structuredClone(state)
@@ -79,6 +85,15 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.combat.log = ['[dev] Resources granted.', ...next.combat.log].slice(0, 40)
       break
     }
+    case 'add-yard-goods': {
+      ensureYardGrid(next)
+      for (const [key, amount] of Object.entries(action.amounts)) {
+        const k = key as YardGoodId
+        next.yard.goods[k] = (next.yard.goods[k] ?? 0) + (amount ?? 0)
+      }
+      next.combat.log = ['[dev] Yard goods granted.', ...next.combat.log].slice(0, 40)
+      break
+    }
     case 'unlock-catalog': {
       next.shipyard.unlockedFrames = SHIP_FRAMES.map((f) => f.id)
       next.shipyard.unlockedModules = SHIP_MODULES.map((m) => m.id)
@@ -89,11 +104,11 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
           ...AI_NODES.filter((n) => n.permanent).map((n) => n.id),
         ]),
       ]
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 30)
-      next.combat.highestSector = Math.max(next.combat.highestSector, 30)
+      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 51)
+      next.combat.highestSector = Math.max(next.combat.highestSector, 51)
       maybeGrantSystemUnlocks(next)
       tryCompleteAchievements(next)
-      next.combat.log = ['[dev] Catalog unlocked.', ...next.combat.log].slice(0, 40)
+      next.combat.log = ['[dev] Catalog unlocked through sector 51.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'clear-guides': {
@@ -102,20 +117,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'skip-guides': {
-      // Mark every known guide id as seen so spotlights stop.
-      const ids = [
-        'guide-shipyard-tab',
-        'guide-frame-select',
-        'guide-launch',
-        'guide-base-tab',
-        'guide-assign-scrap',
-        'guide-research-tab',
-        'guide-prestige-tab',
-        'guide-prestige-ready',
-        'guide-ai-tab',
-        'guide-achievements',
-        'base-unlock',
-      ]
+      const ids = GUIDE_STEPS.map((s) => s.id)
       next.meta.seenOnboarding = [...new Set([...next.meta.seenOnboarding, ...ids])]
       next.combat.log = ['[dev] Guides skipped.', ...next.combat.log].slice(0, 40)
       break
@@ -150,10 +152,10 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'force-boss-wave': {
-      // Jump to a boss sector final wave and undock so combat can engage.
-      const sector = Math.max(5, Math.ceil(next.combat.sector / 5) * 5)
+      const sector = Math.max(1, next.combat.sector)
+      const wave = wavesForSector(sector)
       next.combat.sector = sector
-      next.combat.wave = 5
+      next.combat.wave = wave
       next.combat.highestSector = Math.max(next.combat.highestSector, sector - 1)
       next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, sector - 1)
       next.combat.docked = false
@@ -162,22 +164,21 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.combat.playerUnits = []
       next.combat.projectiles = []
       next.combat.fx = []
-      const enc = enemyForSector(sector, 5)
+      const enc = enemyForSector(sector, wave)
       next.combat.log = [
-        `[dev] Forced boss setup — sector ${sector} W5 (${enc.name}).`,
+        `[dev] Forced boss setup — sector ${sector} W${wave} (${enc.name}).`,
         ...next.combat.log,
       ].slice(0, 40)
       maybeGrantSystemUnlocks(next)
       break
     }
     case 'grant-achievements': {
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 30)
-      next.combat.highestSector = Math.max(next.combat.highestSector, 30)
+      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 51)
+      next.combat.highestSector = Math.max(next.combat.highestSector, 51)
       next.research.unlocked = [...new Set([...next.research.unlocked, 'basic-optics'])]
       if (next.prestige.prestigeCount < 1) next.prestige.prestigeCount = 1
       next.ai.purchased = [...new Set([...next.ai.purchased, 'auto-engage'])]
       tryCompleteAchievements(next)
-      // Force-complete any still locked (e.g. act1 already flagged).
       for (const def of ACHIEVEMENTS) {
         if (!next.meta.completedAchievements.includes(def.id)) {
           next.meta.completedAchievements = [...next.meta.completedAchievements, def.id]
@@ -190,13 +191,24 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'set-wave': {
-      next.combat.wave = Math.max(1, Math.min(5, Math.floor(action.wave)))
+      const max = wavesForRun(next)
+      next.combat.wave = Math.max(1, Math.min(max, Math.floor(action.wave)))
       next.combat.inFight = false
       next.combat.enemyUnits = []
       next.combat.log = [`[dev] Wave set to ${next.combat.wave}.`, ...next.combat.log].slice(
         0,
         40,
       )
+      break
+    }
+    case 'set-module-levels': {
+      const nextLevels = { ...next.shipyard.moduleLevels }
+      for (const [id, level] of Object.entries(action.levels)) {
+        nextLevels[id] = Math.max(0, Math.min(MAX_MODULE_LEVEL, Math.floor(level)))
+      }
+      next.shipyard.moduleLevels = nextLevels
+      syncPersistedHullCaps(next)
+      next.combat.log = ['[dev] Core levels set.', ...next.combat.log].slice(0, 40)
       break
     }
     default:

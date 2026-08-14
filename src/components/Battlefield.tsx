@@ -144,9 +144,9 @@ function tagColor(tag: string): string {
   switch (tag) {
     case 'energy':
     case 'antiShield':
-      return '#7ec8ff'
+      return '#e08a3a'
     case 'pierce':
-      return '#9ec8ff'
+      return '#5ec4b8'
     case 'splash':
       return '#e0c07a'
     case 'dot':
@@ -184,8 +184,8 @@ function shotStyle(p: VisualShot): ShotStyle {
     if (tags.has('pierce')) {
       return {
         shape: 'lance',
-        color: '#9ec8ff',
-        core: '#eef6ff',
+        color: '#5ec4b8',
+        core: '#e8fff8',
         length: 30,
         width: 2.4,
         radius: 2.2,
@@ -195,8 +195,8 @@ function shotStyle(p: VisualShot): ShotStyle {
     if (tags.has('splash') && (tags.has('antiShield') || tags.has('energy'))) {
       return {
         shape: 'orb',
-        color: '#7ec8ff',
-        core: '#d8f0ff',
+        color: '#e08a3a',
+        core: '#ffe8c8',
         length: 12,
         width: 2,
         radius: 3.6,
@@ -228,8 +228,8 @@ function shotStyle(p: VisualShot): ShotStyle {
     if (tags.has('antiShield') || tags.has('energy')) {
       return {
         shape: 'bolt',
-        color: '#7ec8ff',
-        core: '#e8f7ff',
+        color: '#e08a3a',
+        core: '#ffe8c8',
         length: 18,
         width: 2.2,
         radius: 2.4,
@@ -590,11 +590,11 @@ function onModeTransition(scene: Scene, prev: BattlefieldMode | null, next: Batt
   if (!wasHangar && nowHangar) {
     const cx = PLAYER_SCREEN_X
     const cy = PLAYER_SCREEN_Y
-    burst(scene, cx - 22, cy - 22, '#7ec8ff', 22, { speed: 1.05, life: 1.15, size: 1.25 })
-    burst(scene, cx - 22, cy + 22, '#7ec8ff', 22, { speed: 1.05, life: 1.15, size: 1.25 })
+    burst(scene, cx - 22, cy - 22, '#3d8f88', 22, { speed: 1.05, life: 1.15, size: 1.25 })
+    burst(scene, cx - 22, cy + 22, '#3d8f88', 22, { speed: 1.05, life: 1.15, size: 1.25 })
     burst(scene, cx, cy, '#e8c88c', 28, { speed: 0.7, life: 1.2, size: 1.45 })
     burst(scene, cx - 8, cy, '#ffffff', 8, { speed: 0.4, life: 0.7, size: 0.9 })
-    ring(scene, cx, cy, '#7ec8ff', 95, 0.65, 3)
+    ring(scene, cx, cy, '#3d8f88', 95, 0.65, 3)
     ring(scene, cx, cy, '#e8c88c', 50, 0.4, 2)
     flash(scene, 126, 200, 255, 0.4, 0.55)
     addShake(scene, 3.5)
@@ -612,7 +612,7 @@ function onModeTransition(scene: Scene, prev: BattlefieldMode | null, next: Batt
         vy: 100 + Math.random() * 180,
         life: 0.4 + Math.random() * 0.4,
         maxLife: 0.8,
-        color: Math.random() > 0.45 ? '#7ec8ff' : '#e0b06a',
+        color: Math.random() > 0.45 ? '#3d8f88' : '#e0b06a',
         size: 2 + Math.random() * 2.8,
         drag: 0.86,
       })
@@ -855,7 +855,7 @@ function drawDockBay(ctx: CanvasRenderingContext2D, scene: Scene): void {
 
   // Docking clamps
   const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(scene.time * 2.2))
-  ctx.strokeStyle = `rgba(126, 200, 255, ${0.35 + pulse * 0.35})`
+  ctx.strokeStyle = `rgba(61, 143, 136, ${0.35 + pulse * 0.35})`
   ctx.lineWidth = 2
   const cy = PLAYER_SCREEN_Y
   ctx.beginPath()
@@ -873,18 +873,18 @@ function drawDockBay(ctx: CanvasRenderingContext2D, scene: Scene): void {
 
 function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
   const inHangar = scene.mode === 'docked' || scene.mode === 'repairing'
-  ctx.fillStyle = inHangar ? '#101820' : '#0c121a'
+  ctx.fillStyle = inHangar ? '#16110e' : '#120e0c'
   ctx.fillRect(0, 0, scene.width, scene.height)
 
   const g = ctx.createLinearGradient(0, 0, scene.width * 0.2, scene.height)
   if (inHangar) {
-    g.addColorStop(0, 'rgba(48, 58, 70, 0.55)')
-    g.addColorStop(0.45, 'rgba(22, 30, 40, 0.2)')
-    g.addColorStop(1, 'rgba(60, 42, 28, 0.4)')
+    g.addColorStop(0, 'rgba(58, 42, 28, 0.55)')
+    g.addColorStop(0.45, 'rgba(28, 22, 16, 0.2)')
+    g.addColorStop(1, 'rgba(70, 44, 28, 0.4)')
   } else {
-    g.addColorStop(0, 'rgba(28, 58, 78, 0.5)')
-    g.addColorStop(0.4, 'rgba(16, 26, 38, 0.18)')
-    g.addColorStop(0.72, 'rgba(36, 48, 58, 0.22)')
+    g.addColorStop(0, 'rgba(58, 42, 24, 0.45)')
+    g.addColorStop(0.4, 'rgba(22, 16, 12, 0.18)')
+    g.addColorStop(0.72, 'rgba(48, 36, 28, 0.22)')
     g.addColorStop(1, 'rgba(70, 44, 28, 0.32)')
   }
   ctx.fillStyle = g
@@ -1250,7 +1250,7 @@ function drawPlayerChips(ctx: CanvasRenderingContext2D, scene: Scene): void {
     ctx.textAlign = 'left'
     ctx.fillStyle = 'rgba(139, 151, 168, 0.95)'
     ctx.fillText('SHIELD', x + 8, y + 34)
-    ctx.fillStyle = '#7ec8ff'
+    ctx.fillStyle = '#5ec4b8'
     ctx.textAlign = 'right'
     ctx.fillText(
       `${formatChip(flag.shield)}/${formatChip(flag.shieldMax)}`,
@@ -1261,7 +1261,7 @@ function drawPlayerChips(ctx: CanvasRenderingContext2D, scene: Scene): void {
     ctx.fillStyle = '#0d1117'
     ctx.fillRect(x + 8, y + 38, w - 16, 3)
     if (shieldPct > 0) {
-      ctx.fillStyle = '#7ec8ff'
+      ctx.fillStyle = '#5ec4b8'
       ctx.fillRect(x + 8, y + 38, (w - 16) * shieldPct, 3)
     }
   }
@@ -1511,7 +1511,7 @@ export function Battlefield({
       const ox = (cssW - VIEW_W * scale) / 2
       const oy = (cssH - VIEW_H * scale) / 2
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.fillStyle = '#0c121a'
+      ctx.fillStyle = '#120e0c'
       ctx.fillRect(0, 0, cssW, cssH)
       ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy)
       drawScene(ctx, scene)

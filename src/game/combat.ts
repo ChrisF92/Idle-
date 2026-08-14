@@ -45,6 +45,7 @@ import { grantFurnaceKillLoot } from './furnace'
 import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
 import { yardSalvageMult } from './yard'
 import { echoSalvageMult } from './echo'
+import { specialistSalvageMult } from './specialists'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -269,6 +270,13 @@ export function enemyForSector(
   const units = bossWave
     ? buildBossPack(sector, name, waveScale)
     : buildWavePack(sector, family, name, wave, waveScale)
+  const reach = Math.min(48, (Math.max(1, sector) - 1) * 2.8)
+  for (const unit of units) {
+    unit.engageRange += reach
+    for (const weapon of unit.weapons) {
+      weapon.range += reach
+    }
+  }
 
   const waveLabel = `W${wave}`
   const routeTag = side === 'B' ? 'B' : 'A'
@@ -292,21 +300,22 @@ export function enemyForSector(
 
 /**
  * Enemy hull scale vs sector.
- * Player Cores use USI Laser Cannon DPS (~5 at L0). This curve keeps S1
- * 2-shot-able by that laser while later sectors still steepen.
+ * S1 mites stay 2-shot by L0 Pulse (12 × 1.55 = 18.6 HP vs 10 dmg).
+ * Later sectors thicken so Pulse dumps cannot delete a pack during the close —
+ * they have to live long enough to fire, which is what makes Plate matter.
  */
 export function enemySectorScale(sector: number): number {
   const s = Math.max(1, sector)
-  return 1.55 * Math.pow(1.142, s - 1)
+  return 1.55 * Math.pow(1.235, s - 1)
 }
 
 /**
- * Enemy damage scale — flatter than hull. Tuned so a 30-shield Continuous
- * Generator analogue holds S1 packs the way USI's starter shield does.
+ * Enemy damage scale. S1 still holds on 30 shield + 5%/s regen.
+ * S8+ punishes ignoring Plate; S15 packs that get shots off will drop L0 shield.
  */
 export function enemyDamageScale(sector: number): number {
   const s = Math.max(1, sector)
-  return 0.5 * Math.pow(1.055, s - 1)
+  return 0.72 * Math.pow(1.11, s - 1)
 }
 
 /**
@@ -1540,7 +1549,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     reliquarySalvageMult(state) *
     hiveResearchSalvageMult(state) *
     yardSalvageMult(state) *
-    echoSalvageMult(state)
+    echoSalvageMult(state) *
+    specialistSalvageMult(state)
   state.resources.salvage +=
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route) * salvageMult
   rollEnemyPartDrop(state, unit)

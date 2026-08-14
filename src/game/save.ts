@@ -15,6 +15,8 @@ import type {
   ReliquaryState,
   SignalCoreInstance,
   SignalCoresState,
+  SpecialistId,
+  SpecialistState,
   YardArmId,
   YardBuildingId,
   YardGoodId,
@@ -37,6 +39,7 @@ import { createEmptyYardState } from './yard'
 import { createEmptyProtocolState } from './protocols'
 import { createEmptyEchoState } from './echo'
 import { createEmptyProcessState } from './process'
+import { createEmptySpecialistState } from './specialists'
 import { normalizeRoute } from './sectors'
 
 export function saveGame(state: GameState): void {
@@ -403,6 +406,17 @@ function withProcessDefaults(raw: ProcessState | undefined): ProcessState {
   return { purchased }
 }
 
+const SPECIALIST_IDS: SpecialistId[] = ['gunner', 'warden', 'scavenger']
+
+function withSpecialistDefaults(raw: SpecialistState | undefined): SpecialistState {
+  const empty = createEmptySpecialistState()
+  if (!raw || typeof raw !== 'object') return empty
+  for (const id of SPECIALIST_IDS) {
+    empty.ranks[id] = Math.max(0, Math.floor(Number(raw.ranks?.[id] ?? 0) || 0))
+  }
+  return empty
+}
+
 function withMetaDefaults(
   meta: GameState['meta'] | undefined,
   highestSector: number,
@@ -568,6 +582,7 @@ function migrate(raw: unknown): GameState | null {
       protocols: withProtocolDefaults(state.protocols),
       echo: withEchoDefaults(state.echo),
       process: withProcessDefaults(state.process),
+      specialists: withSpecialistDefaults(state.specialists),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
       codex,
@@ -655,6 +670,7 @@ function migrate(raw: unknown): GameState | null {
       protocols: withProtocolDefaults(prev.protocols),
       echo: withEchoDefaults(prev.echo),
       process: withProcessDefaults(prev.process),
+      specialists: withSpecialistDefaults(prev.specialists),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
       codex,

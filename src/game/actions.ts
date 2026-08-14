@@ -82,6 +82,7 @@ import {
   getEchoRun,
 } from './echo'
 import { canBuyProcessNode, createEmptyProcessState, getProcessNode } from './process'
+import { createEmptySpecialistState, rankSpecialist } from './specialists'
 import {
   isRouteBUnlocked,
   maxLaunchSector,
@@ -1029,6 +1030,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     process: {
       purchased: [...(state.process?.purchased ?? [])],
     },
+    specialists: structuredClone(state.specialists ?? createEmptySpecialistState()),
     signalCores:
       state.meta.signalCoresCarryOver
         ? {
@@ -1112,6 +1114,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.protocols = kept.protocols
   state.echo = kept.echo
   state.process = kept.process
+  state.specialists = kept.specialists
   state.signalCores = kept.signalCores
   state.parts = kept.parts
 
@@ -1405,6 +1408,8 @@ export function buyEchoNode(state: GameState, nodeId: string): GameState {
   next.echo.tree = [...next.echo.tree, nodeId]
   return next
 }
+
+export { rankSpecialist }
 
 export function buyProcessNode(state: GameState, nodeId: string): GameState {
   if (!canBuyProcessNode(state, nodeId).ok) return state

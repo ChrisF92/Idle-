@@ -25,7 +25,8 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
     active === 'yard' ||
     active === 'protocols' ||
     active === 'echo' ||
-    active === 'process'
+    active === 'process' ||
+    active === 'specialists'
   return (
     <nav className="bottom-nav" aria-label="Game systems">
       {TABS.map((tab) => {

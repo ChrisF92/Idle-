@@ -13,6 +13,8 @@ import { careerHighestSector } from './progression'
 export const YARD_START_SIZE = 3
 export const YARD_EXPAND_SECTOR = 14
 export const YARD_EXPANDED_SIZE = 4
+export const YARD_EXPAND_SECTOR_2 = 27
+export const YARD_MAX_SIZE = 5
 export const YARD_ARM_MAX = 20
 export const YARD_STARTER_ORE = 8
 
@@ -99,7 +101,10 @@ export function isYardUnlocked(state: GameState): boolean {
 }
 
 export function yardGridSize(state: GameState): number {
-  return careerHighestSector(state) >= YARD_EXPAND_SECTOR ? YARD_EXPANDED_SIZE : YARD_START_SIZE
+  const ever = careerHighestSector(state)
+  if (ever >= YARD_EXPAND_SECTOR_2) return YARD_MAX_SIZE
+  if (ever >= YARD_EXPAND_SECTOR) return YARD_EXPANDED_SIZE
+  return YARD_START_SIZE
 }
 
 export function ensureYardGrid(state: GameState): void {

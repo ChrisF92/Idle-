@@ -82,6 +82,12 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Achievements grant Process points. Spend them on automation and QoL.',
   },
   {
+    id: 'specialists',
+    requiresSectorEver: 51,
+    label: 'Specialists',
+    tip: 'Print Gunner, Warden, and Scavenger. Ranks persist across Rebuild.',
+  },
+  {
     id: 'research',
     requiresSectorEver: 7,
     label: 'Research',
@@ -637,6 +643,12 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   if (ever >= 8 && !state.shipyard.unlockedFrames.includes('cruiser-frame')) {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'cruiser-frame']
   }
+  if (ever >= 24 && !state.shipyard.unlockedFrames.includes('heavy-cruiser-frame')) {
+    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'heavy-cruiser-frame']
+  }
+  if (ever >= 41 && !state.shipyard.unlockedFrames.includes('battlecruiser-frame')) {
+    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'battlecruiser-frame']
+  }
 
   if (ever >= ACT1_FINAL_SECTOR && !state.meta.act1Cleared) {
     state.meta.act1Cleared = true
@@ -928,6 +940,15 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'stats',
     availableWhen: (s) => isSystemUnlocked(s, 'echo') && !guideSeen(s, 'guide-echo'),
     completeWhen: (_s, tab) => tab === 'echo',
+  },
+  {
+    id: 'guide-specialists',
+    title: 'Specialists',
+    body: 'Open More and tap Specialists. Print Gunner, Warden, and Scavenger — ranks persist across Rebuild.',
+    target: 'station-specialists',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'specialists') && !guideSeen(s, 'guide-specialists'),
+    completeWhen: (_s, tab) => tab === 'specialists',
   },
   {
     id: 'guide-sensor-net',
