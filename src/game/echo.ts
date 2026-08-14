@@ -29,6 +29,8 @@ export interface EchoTreeDef {
   salvage?: number
   network?: number
   researchXp?: number
+  foundrySpeed?: number
+  ash?: number
 }
 
 export const ECHO_RUNS: EchoRunDef[] = [
@@ -67,6 +69,24 @@ export const ECHO_RUNS: EchoRunDef[] = [
     reward: 5,
     requiresId: 'veil',
   },
+  {
+    id: 'delta',
+    name: 'Delta Stack',
+    blurb: 'A second chimney. Sector 32 power.',
+    sectorPower: 32,
+    danger: 1.95,
+    reward: 6,
+    requiresId: 'stack',
+  },
+  {
+    id: 'fenix',
+    name: 'Fenix Rift',
+    blurb: 'The tear that learned to burn. Sector 37 power.',
+    sectorPower: 37,
+    danger: 2.1,
+    reward: 8,
+    requiresId: 'delta',
+  },
 ]
 
 export const ECHO_TREE: EchoTreeDef[] = [
@@ -104,6 +124,39 @@ export const ECHO_TREE: EchoTreeDef[] = [
     cost: 4,
     requiresId: 'echo-loom',
     shield: 0.06,
+  },
+  {
+    id: 'echo-smelt',
+    name: 'Smelt Echo',
+    blurb: 'Foundry craft speed.',
+    cost: 5,
+    requiresId: 'echo-lab',
+    foundrySpeed: 0.08,
+  },
+  {
+    id: 'echo-ash',
+    name: 'Ash Echo',
+    blurb: 'Choir-ash from kills.',
+    cost: 5,
+    requiresId: 'echo-hold',
+    ash: 0.1,
+  },
+  {
+    id: 'echo-keel',
+    name: 'Keel Echo',
+    blurb: 'Sortie damage.',
+    cost: 6,
+    requiresId: 'echo-bulk',
+    damage: 0.08,
+  },
+  {
+    id: 'echo-warp',
+    name: 'Warp Echo',
+    blurb: 'Foundry speed and salvage.',
+    cost: 8,
+    requiresId: 'echo-smelt',
+    foundrySpeed: 0.1,
+    salvage: 0.06,
   },
 ]
 
@@ -149,7 +202,10 @@ export function echoIsBossWave(state: GameState, wave: number): boolean {
   return wave >= ECHO_WAVES
 }
 
-export function echoTreeSum(state: GameState, key: 'damage' | 'shield' | 'salvage' | 'network' | 'researchXp'): number {
+export function echoTreeSum(
+  state: GameState,
+  key: 'damage' | 'shield' | 'salvage' | 'network' | 'researchXp' | 'foundrySpeed' | 'ash',
+): number {
   let n = 0
   for (const id of state.echo?.tree ?? []) {
     const def = getEchoNode(id)
@@ -176,6 +232,14 @@ export function echoNetworkMult(state: GameState): number {
 
 export function echoResearchXpMult(state: GameState): number {
   return 1 + echoTreeSum(state, 'researchXp')
+}
+
+export function echoFoundrySpeedMult(state: GameState): number {
+  return 1 + echoTreeSum(state, 'foundrySpeed')
+}
+
+export function echoAshMult(state: GameState): number {
+  return 1 + echoTreeSum(state, 'ash')
 }
 
 export function canEnterEcho(

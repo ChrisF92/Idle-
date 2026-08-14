@@ -23,6 +23,7 @@ import { TasksTab } from './components/tabs/TasksTab'
 import { CapitalTab } from './components/tabs/CapitalTab'
 import { ReinforceTab } from './components/tabs/ReinforceTab'
 import { LogsTab } from './components/tabs/LogsTab'
+import { CodexTab } from './components/tabs/CodexTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
@@ -56,7 +57,8 @@ export default function App() {
         tab === 'tasks' ||
         tab === 'capital' ||
         tab === 'reinforce' ||
-        tab === 'logs'
+        tab === 'logs' ||
+        tab === 'codex'
       setTab(station ? 'stats' : 'dock')
     }
   }, [game.state, tab])
@@ -208,6 +210,7 @@ export default function App() {
           />
         )}
         {tab === 'logs' && <LogsTab state={game.state} onBack={() => go('stats')} />}
+        {tab === 'codex' && <CodexTab state={game.state} onBack={() => go('stats')} />}
         {tab === 'stats' && (
           <StatsTab
             state={game.state}

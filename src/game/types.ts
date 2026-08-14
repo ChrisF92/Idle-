@@ -33,6 +33,10 @@ export type FoundryRecipeId =
   | 'relay'
   | 'choir-flux'
   | 'keel-strip'
+  | 'focus-lens'
+  | 'void-slag'
+  | 'control-mesh'
+  | 'warp-thread'
 
 export interface FoundrySlot {
   recipeId: FoundryRecipeId | null

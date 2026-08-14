@@ -1107,6 +1107,32 @@ export function softCounterForFamily(family: EnemyFamily): string {
   }
 }
 
+export const CODEX_ROLES: EnemyRole[] = [
+  'fighter',
+  'skirmisher',
+  'sniper',
+  'juggernaut',
+  'shield',
+  'boss',
+]
+
+export function roleIntel(role: EnemyRole): string {
+  switch (role) {
+    case 'fighter':
+      return 'Medium stand-off. Stops a short distance out and trades shots.'
+    case 'skirmisher':
+      return 'Faster and closer. Full dive from sector 4; early packs keep a milder range.'
+    case 'sniper':
+      return 'Kites far back. Winds a charge laser, then a fast bolt.'
+    case 'juggernaut':
+      return 'Slow mid-range plate. Fat silhouette, heavy hull.'
+    case 'shield':
+      return 'Approaches with a shield layer. The first hit does not spill into hull.'
+    case 'boss':
+      return 'Kiting titan. Ring telegraph, then a kinetic slam orb — not a charge laser.'
+  }
+}
+
 export const CODEX_FAMILIES: EnemyFamily[] = [
   'swarm',
   'armored',

@@ -10,6 +10,8 @@ import {
   foundryRecipeLevel,
   foundryUpgradeCost,
   formatFoundryCost,
+  foundryRecipeGateLine,
+  FOUNDRY_MODULE_SLOTS,
   isFoundryInfinite,
   isFoundryModuleUnlocked,
   isFoundryRecipeUnlocked,
@@ -101,7 +103,7 @@ export function FoundryTab({
                     ? inf
                       ? 'Passive stock'
                       : `${formatFoundryCost(cost)} · ${formatCompact(time, 1)}s · ${xp}/${need} · stock ${formatCompact(Number.isFinite(stock) ? stock : 0)}`
-                    : recipe.blurb}
+                    : recipe.blurb + ' · ' + foundryRecipeGateLine(recipe)}
                 </p>
                 {unlocked && !inf ? (
                   <button
@@ -147,7 +149,7 @@ export function FoundryTab({
           })}
 
           <h3 className="foundry-heading">Fit</h3>
-          <p className="muted">One fitted bit. Swap only while docked.</p>
+          <p className="muted">{FOUNDRY_MODULE_SLOTS} fitted bits. Swap only while docked.</p>
           {FOUNDRY_MODULES.map((mod) => {
             const unlocked = isFoundryModuleUnlocked(state, mod.id)
             const fitted = foundry.equipped.includes(mod.id)

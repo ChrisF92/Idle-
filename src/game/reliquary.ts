@@ -9,6 +9,8 @@ export interface ShardDef {
   name: string
   color: ReliquaryColor
   blurb: string
+  /** Extra career gate beyond the colour slot. */
+  requiresSectorEver?: number
   damage?: number
   salvage?: number
   shield?: number
@@ -109,6 +111,48 @@ export const SHARDS: ShardDef[] = [
     color: 'green',
     blurb: 'Marks wrecks for the Hold.',
     salvage: 0.08,
+  },
+  {
+    id: 'overdraw-chip',
+    name: 'Overdraw Chip',
+    color: 'red',
+    blurb: 'Late damage lattice. Sector 12.',
+    requiresSectorEver: 12,
+    damage: 0.1,
+  },
+  {
+    id: 'yield-chip',
+    name: 'Yield Chip',
+    color: 'orange',
+    blurb: 'Heavier wreck marks. Sector 8.',
+    requiresSectorEver: 8,
+    salvage: 0.12,
+  },
+  {
+    id: 'archive-chip',
+    name: 'Archive Chip',
+    color: 'pink',
+    blurb: 'Observation notes. Sector 14.',
+    requiresSectorEver: 14,
+    researchXp: 0.08,
+  },
+  {
+    id: 'warp-chip',
+    name: 'Warp Chip',
+    color: 'blue',
+    blurb: 'Echo-side Foundry pull. Sector 22.',
+    requiresSectorEver: 22,
+    foundrySpeed: 0.1,
+    salvage: 0.05,
+  },
+  {
+    id: 'reactor-chip',
+    name: 'Reactor Chip',
+    color: 'green',
+    blurb: 'Choir-ash and a little damage. Sector 32.',
+    requiresSectorEver: 32,
+    ash: 0.15,
+    damage: 0.04,
   },
 ]
 
@@ -228,7 +272,24 @@ export function reliquaryAshMult(state: GameState): number {
 }
 
 export function unlockedShardPool(state: GameState): ShardDef[] {
-  return SHARDS.filter((s) => isReliquarySlotUnlocked(state, s.color))
+  const ever = careerHighestSector(state)
+  return SHARDS.filter((s) => {
+    if (!isReliquarySlotUnlocked(state, s.color)) return false
+    if ((s.requiresSectorEver ?? 0) > ever) return false
+    return true
+  })
+}
+
+export function shardEffectBlurb(def: ShardDef): string {
+  const bits: string[] = []
+  if (def.damage) bits.push(`+${Math.round(def.damage * 100)}% damage`)
+  if (def.shield) bits.push(`+${Math.round(def.shield * 100)}% shield`)
+  if (def.salvage) bits.push(`+${Math.round(def.salvage * 100)}% salvage`)
+  if (def.networkFill) bits.push(`+${Math.round(def.networkFill * 100)}% network`)
+  if (def.foundrySpeed) bits.push(`+${Math.round(def.foundrySpeed * 100)}% foundry`)
+  if (def.researchXp) bits.push(`+${Math.round(def.researchXp * 100)}% research XP`)
+  if (def.ash) bits.push(`+${Math.round(def.ash * 100)}% ash`)
+  return bits.join(' · ')
 }
 
 export function reliquaryDropChance(
@@ -271,6 +332,7 @@ export function insertShard(state: GameState, shardId: string): GameState {
   const def = getShard(shardId)
   if (!def) return state
   if (!isReliquarySlotUnlocked(state, def.color)) return state
+  if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
   if (shardOwned(state, shardId) < 1) return state
   const next = structuredClone(state)
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()

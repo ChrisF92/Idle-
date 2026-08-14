@@ -45,16 +45,17 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(FOUNDRY_LOGS.length).toBeGreaterThan(12)
   })
 
-  it('opens Choir Flux at 8 and a third smelter slot', () => {
+  it('opens Choir Flux at 8 and a fourth smelter slot', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 8
     s.combat.highestSector = 8
     expect(isFoundryRecipeUnlocked(s, 'choir-flux')).toBe(true)
     expect(isFoundryRecipeUnlocked(s, 'keel-strip')).toBe(false)
-    expect(FOUNDRY_MAX_SLOTS).toBe(3)
+    expect(FOUNDRY_MAX_SLOTS).toBe(4)
     s.foundry.upgrades['fp-slot'] = 1
     s.foundry.upgrades['fp-slot-2'] = 1
-    expect(foundrySlotCount(s)).toBe(3)
+    s.foundry.upgrades['fp-slot-3'] = 1
+    expect(foundrySlotCount(s)).toBe(4)
   })
 
   it('keeps Yield Link off the battlefield', () => {

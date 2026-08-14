@@ -10,6 +10,7 @@ import {
   shardEffectScale,
   shardOwned,
   shardResonance,
+  shardEffectBlurb,
 } from '../../game/reliquary'
 import { formatCompact } from '../../game/format'
 
@@ -67,7 +68,7 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
                 {unlocked && fittedDef ? (
                   <>
                     <p className="network-row-stats">
-                      {fittedDef.blurb} · ×{formatCompact(scale, 2)}
+                      {fittedDef.blurb} · {shardEffectBlurb(fittedDef)} · ×{formatCompact(scale, 2)}
                     </p>
                     <div className="network-fill" aria-hidden>
                       <span style={{ width: `${Math.round(res * 100)}%` }} />
@@ -85,15 +86,20 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
                     {candidates.map((shard) => {
                       const owned = shardOwned(state, shard.id)
                       const isFit = fitted === shard.id
+                      const gated =
+                        (shard.requiresSectorEver ?? 0) > 0 &&
+                        (shard.requiresSectorEver ?? 0) >
+                          Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
                       return (
                         <button
                           key={shard.id}
                           type="button"
                           className={isFit ? 'primary' : undefined}
-                          disabled={owned < 1 || isFit}
+                          disabled={owned < 1 || isFit || gated}
                           onClick={() => onInsert(shard.id)}
                         >
-                          {shard.name} ({formatCompact(owned)})
+                          {shard.name}
+                          {gated ? ` S${shard.requiresSectorEver}` : ` (${formatCompact(owned)})`}
                         </button>
                       )
                     })}
@@ -101,6 +107,24 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
                 ) : (
                   <p className="network-row-stats">{slot.name} slot later.</p>
                 )}
+              </article>
+            )
+          })}
+          <h3 className="foundry-heading">Shard glossary</h3>
+          {SHARDS.map((shard) => {
+            const gated = (shard.requiresSectorEver ?? 0) > Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
+            return (
+              <article key={shard.id} className={gated ? 'network-row locked' : 'network-row'}>
+                <div className="network-row-main">
+                  <strong>{shard.name}</strong>
+                  <span className="muted">
+                    {shard.color}
+                    {shard.requiresSectorEver ? ` · S${shard.requiresSectorEver}` : ''}
+                  </span>
+                </div>
+                <p className="network-row-stats">
+                  {shard.blurb} · {shardEffectBlurb(shard)}
+                </p>
               </article>
             )
           })}

@@ -121,9 +121,8 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'codex',
     requiresSectorEver: 6,
-    requiresResearch: 'tactical-codex',
     label: 'Codex',
-    tip: 'Enemy families remember soft counters. Fit modules to match the sector. Unlock once — permanent.',
+    tip: 'Enemy families and hull roles. Soft counters for the loadout. Opens at sector 6.',
   },
   {
     id: 'core',
@@ -548,11 +547,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     return state.meta.aiUnlocked || state.meta.completedAchievements.length > 0
   }
   if (systemId === 'codex') {
-    if (careerHighestSector(state) < 6) return false
-    return (
-      state.meta.codexUnlocked === true ||
-      state.research.unlocked.includes('tactical-codex')
-    )
+    return careerHighestSector(state) >= 6
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return true
@@ -583,7 +578,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return 'Complete First Blood (clear sector 1)'
   }
   if (systemId === 'codex') {
-    return 'Clear sector 6 · Research tactical-codex (once)'
+    return 'Clear sector 6'
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return null
@@ -672,6 +667,10 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   const ever = careerHighestSector(state)
   if (ever > state.meta.highestSectorEver) {
     state.meta.highestSectorEver = ever
+  }
+
+  if (ever >= 6 && !state.meta.codexUnlocked) {
+    state.meta.codexUnlocked = true
   }
 
   if (ever >= 4 && !state.shipyard.unlockedFrames.includes('line-frame')) {
@@ -1086,8 +1085,9 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-codex-tab',
     title: 'Codex',
-    body: 'Tap Codex. It remembers enemy families and soft counters for your loadout.',
-    target: 'codex-tab',
+    body: 'Open More and tap Codex. It remembers enemy families, hull roles, and soft counters.',
+    target: 'station-codex',
+    tab: 'stats',
     availableWhen: (s) => isSystemUnlocked(s, 'codex') && !guideSeen(s, 'guide-codex-tab'),
     completeWhen: (_s, tab) => tab === 'codex',
   },

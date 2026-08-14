@@ -6,6 +6,7 @@ import { reliquaryFoundrySpeedMult } from './reliquary'
 import { furnaceFoundrySpeedMult } from './furnace'
 import { hiveResearchFoundrySpeedMult } from './hiveResearch'
 import { protocolBonusMult, protocolMutes } from './protocols'
+import { echoFoundrySpeedMult } from './echo'
 
 export interface FoundryCost {
   salvage?: number
@@ -48,7 +49,8 @@ export interface FoundryModuleDef {
 }
 
 export const FOUNDRY_STARTING_SLOTS = 1
-export const FOUNDRY_MAX_SLOTS = 3
+export const FOUNDRY_MAX_SLOTS = 4
+export const FOUNDRY_MODULE_SLOTS = 2
 
 export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   {
@@ -80,6 +82,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     costs: { materials: { 'slag-ingot': 4 } },
     requiresSectorEver: 2,
     requiresRecipeLevel: { recipeId: 'slag-ingot', level: 8 },
+    unlocksRecipe: { recipeId: 'void-slag', atLevel: 8 },
   },
   {
     id: 'relay',
@@ -90,6 +93,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     costs: { materials: { filament: 3 } },
     requiresSectorEver: 2,
     requiresRecipeLevel: { recipeId: 'filament', level: 4 },
+    unlocksRecipe: { recipeId: 'focus-lens', atLevel: 6 },
   },
   {
     id: 'choir-flux',
@@ -110,6 +114,48 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     costs: { materials: { 'choir-flux': 3 } },
     requiresSectorEver: 8,
     requiresRecipeLevel: { recipeId: 'choir-flux', level: 4 },
+    unlocksRecipe: { recipeId: 'warp-thread', atLevel: 4 },
+  },
+  {
+    id: 'focus-lens',
+    name: 'Focus Lens',
+    blurb: 'Ground relay glass. Feeds Focus Array.',
+    maxLevel: 20,
+    craftTime: 14,
+    costs: { materials: { relay: 3 } },
+    requiresSectorEver: 12,
+    requiresRecipeLevel: { recipeId: 'relay', level: 6 },
+    unlocksRecipe: { recipeId: 'control-mesh', atLevel: 4 },
+  },
+  {
+    id: 'void-slag',
+    name: 'Void Slag',
+    blurb: 'Re-smelted plate. Feeds Void Liner.',
+    maxLevel: 20,
+    craftTime: 16,
+    costs: { materials: { 'hardened-plate': 3 } },
+    requiresSectorEver: 14,
+    requiresRecipeLevel: { recipeId: 'hardened-plate', level: 8 },
+  },
+  {
+    id: 'control-mesh',
+    name: 'Control Mesh',
+    blurb: 'Woven lenses. Feeds Mesh Brace.',
+    maxLevel: 20,
+    craftTime: 18,
+    costs: { materials: { 'focus-lens': 3 } },
+    requiresSectorEver: 19,
+    requiresRecipeLevel: { recipeId: 'focus-lens', level: 4 },
+  },
+  {
+    id: 'warp-thread',
+    name: 'Warp Thread',
+    blurb: 'Keel fibre for Echo-side crafts. Feeds Warp Keel.',
+    maxLevel: 20,
+    craftTime: 20,
+    costs: { materials: { 'keel-strip': 3, 'choir-flux': 2 } },
+    requiresSectorEver: 22,
+    requiresRecipeLevel: { recipeId: 'keel-strip', level: 4 },
   },
 ]
 
@@ -154,6 +200,14 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     maxRank: 1,
     extraSlots: 1,
   },
+  {
+    id: 'fp-slot-3',
+    name: 'Fourth Smelter',
+    blurb: 'One extra Foundry slot — USI Synth cap.',
+    baseCost: 32,
+    maxRank: 1,
+    extraSlots: 1,
+  },
 ]
 
 export const FOUNDRY_MODULES: FoundryModuleDef[] = [
@@ -181,6 +235,40 @@ export const FOUNDRY_MODULES: FoundryModuleDef[] = [
     requiresRecipeLevel: { recipeId: 'keel-strip', level: 1 },
     shieldFlat: 20,
     damageMult: 1.06,
+  },
+  {
+    id: 'focus-array',
+    name: 'Focus Array',
+    blurb: '×1.08 sortie damage',
+    cost: { 'focus-lens': 5 },
+    requiresRecipeLevel: { recipeId: 'focus-lens', level: 1 },
+    damageMult: 1.08,
+  },
+  {
+    id: 'void-liner',
+    name: 'Void Liner',
+    blurb: '+28 max shield',
+    cost: { 'void-slag': 5 },
+    requiresRecipeLevel: { recipeId: 'void-slag', level: 1 },
+    shieldFlat: 28,
+  },
+  {
+    id: 'mesh-brace',
+    name: 'Mesh Brace',
+    blurb: '+16 max shield · ×1.08 damage',
+    cost: { 'control-mesh': 4 },
+    requiresRecipeLevel: { recipeId: 'control-mesh', level: 1 },
+    shieldFlat: 16,
+    damageMult: 1.08,
+  },
+  {
+    id: 'warp-keel',
+    name: 'Warp Keel',
+    blurb: '+24 max shield · ×1.10 damage',
+    cost: { 'warp-thread': 4 },
+    requiresRecipeLevel: { recipeId: 'warp-thread', level: 1 },
+    shieldFlat: 24,
+    damageMult: 1.1,
   },
 ]
 
@@ -265,6 +353,7 @@ export function foundryCraftSpeed(state: GameState): number {
     reliquaryFoundrySpeedMult(state) *
     furnaceFoundrySpeedMult(state) *
     hiveResearchFoundrySpeedMult(state) *
+    echoFoundrySpeedMult(state) *
     protocolBonusMult(state, 'foundry')
   )
 }
@@ -495,8 +584,7 @@ export function equipFoundryModule(state: GameState, moduleId: string): GameStat
     if (!n || isFoundryInfinite(next, id)) continue
     next.foundry.materials[id] = Math.max(0, (next.foundry.materials[id] ?? 0) - n)
   }
-  // One module slot for this phase.
-  if (next.foundry.equipped.length >= 1) {
+  if (next.foundry.equipped.length >= FOUNDRY_MODULE_SLOTS) {
     const prev = getFoundryModule(next.foundry.equipped[0]!)
     if (prev) {
       for (const [id, n] of Object.entries(prev.cost)) {
@@ -504,9 +592,9 @@ export function equipFoundryModule(state: GameState, moduleId: string): GameStat
         next.foundry.materials[id] = (next.foundry.materials[id] ?? 0) + n
       }
     }
-    next.foundry.equipped = [moduleId]
+    next.foundry.equipped = [...next.foundry.equipped.slice(1), moduleId]
   } else {
-    next.foundry.equipped = [moduleId]
+    next.foundry.equipped = [...next.foundry.equipped, moduleId]
   }
   return next
 }
@@ -535,6 +623,24 @@ export function formatFoundryCost(cost: FoundryCost): string {
     bits.push(`${n} ${name}`)
   }
   return bits.join(' · ') || 'free'
+}
+
+/** Locked-recipe encyclopedia line: sector, parent level, what it unlocks. */
+export function foundryRecipeGateLine(recipe: FoundryRecipeDef): string {
+  const bits = [`S${recipe.requiresSectorEver}`]
+  if (recipe.requiresRecipeLevel) {
+    const parent = getFoundryRecipe(recipe.requiresRecipeLevel.recipeId)?.name ?? recipe.requiresRecipeLevel.recipeId
+    bits.push(`${parent} Lv ${recipe.requiresRecipeLevel.level}`)
+  }
+  if (recipe.unlocksRecipe) {
+    const child = getFoundryRecipe(recipe.unlocksRecipe.recipeId)?.name ?? recipe.unlocksRecipe.recipeId
+    bits.push(`unlocks ${child} at Lv ${recipe.unlocksRecipe.atLevel}`)
+  }
+  const feeds = FOUNDRY_MODULES.filter((m) => m.requiresRecipeLevel.recipeId === recipe.id).map(
+    (m) => m.name,
+  )
+  if (feeds.length > 0) bits.push(`feeds ${feeds.join(', ')}`)
+  return bits.join(' · ')
 }
 
 export function persistFoundryOnRebuild(foundry: FoundryState): FoundryState {

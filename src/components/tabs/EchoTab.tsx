@@ -9,6 +9,7 @@ import {
   echoClears,
   echoHasNode,
   getEchoRun,
+  getEchoNode,
 } from '../../game/echo'
 import { formatCompact } from '../../game/format'
 
@@ -62,6 +63,7 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabPro
             const check = canEnterEcho(state, run.id)
             const clears = echoClears(state, run.id)
             const running = activeId === run.id
+            const need = run.requiresId ? getEchoRun(run.requiresId)?.name : null
             return (
               <article key={run.id} className="network-row">
                 <div className="network-row-main">
@@ -70,7 +72,10 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabPro
                     {clears > 0 ? `×${clears}` : 'New'} · +{run.reward}
                   </span>
                 </div>
-                <p className="network-row-stats">{run.blurb}</p>
+                <p className="network-row-stats">
+                  {run.blurb} · S{run.sectorPower} power · ×{run.danger} packs
+                  {need ? ` · after ${need}` : ''}
+                </p>
                 <button
                   type="button"
                   className="primary"
@@ -86,13 +91,17 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabPro
           {ECHO_TREE.map((node) => {
             const owned = echoHasNode(state, node.id)
             const check = canBuyEchoNode(state, node.id)
+            const need = node.requiresId ? getEchoNode(node.requiresId)?.name : null
             return (
               <article key={node.id} className={owned ? 'network-row' : 'network-row'}>
                 <div className="network-row-main">
                   <strong>{node.name}</strong>
                   <span className="muted">{owned ? 'Owned' : `${node.cost} Echo`}</span>
                 </div>
-                <p className="network-row-stats">{node.blurb}</p>
+                <p className="network-row-stats">
+                  {node.blurb}
+                  {need ? ` · after ${need}` : ''}
+                </p>
                 <button
                   type="button"
                   className="primary"

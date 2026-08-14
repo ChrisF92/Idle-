@@ -30,7 +30,8 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
     active === 'tasks' ||
     active === 'capital' ||
     active === 'reinforce' ||
-    active === 'logs'
+    active === 'logs' ||
+    active === 'codex'
   return (
     <nav className="bottom-nav" aria-label="Game systems">
       {TABS.map((tab) => {

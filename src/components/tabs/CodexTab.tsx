@@ -1,46 +1,49 @@
-import type { GameState, UnitShape } from '../../game/types'
+import type { EnemyRole, GameState, UnitShape } from '../../game/types'
+import { isSystemUnlocked } from '../../game/progression'
 import {
   CODEX_FAMILIES,
+  CODEX_ROLES,
   familyIntel,
   familyShape,
+  roleIntel,
   softCounterForFamily,
   type EnemyFamily,
 } from '../../game/combat'
 
 interface CodexTabProps {
   state: GameState
+  onBack: () => void
 }
 
-export function CodexTab({ state }: CodexTabProps) {
-  const unlocked =
-    state.meta.codexUnlocked === true ||
-    state.research.unlocked.includes('tactical-codex')
+export function CodexTab({ state, onBack }: CodexTabProps) {
+  const open = isSystemUnlocked(state, 'codex')
   const seen = new Set(state.codex.seenFamilies)
   const revealed = CODEX_FAMILIES.filter((f) => seen.has(f)).length
 
   return (
-    <section className="panel">
+    <section className="panel screen-panel">
       <header className="panel-header">
+        <p className="assign-row">
+          <button type="button" onClick={onBack}>
+            More
+          </button>
+        </p>
         <h2>Codex</h2>
-        <p>Enemy intel and soft counters. Unlock once — permanent.</p>
+        <p>
+          {open
+            ? `Families ${revealed}/${CODEX_FAMILIES.length} · hull roles always listed`
+            : 'Clear sector 6 to decrypt encounter memory.'}
+        </p>
       </header>
 
-      {!unlocked ? (
-        <div className="notice-box">
-          <p>
-            Codex offline. Research <strong>Tactical Codex</strong> once to decrypt encounter
-            memory permanently.
-          </p>
-          <p className="muted">
-            Families already seen this career: {revealed}/{CODEX_FAMILIES.length}
-            {revealed > 0 ? ' (waiting for decryption).' : '.'}
-          </p>
-        </div>
+      {!open ? (
+        <p className="muted">
+          Families already seen this career: {revealed}/{CODEX_FAMILIES.length}
+          {revealed > 0 ? ' (waiting for sector 6).' : '.'}
+        </p>
       ) : (
-        <>
-          <p className="muted">
-            Decrypted {revealed}/{CODEX_FAMILIES.length} families. Fight new packs to fill gaps.
-          </p>
+        <div className="panel-scroll">
+          <h3 className="foundry-heading">Families</h3>
           <ul className="sector-roster">
             {CODEX_FAMILIES.map((family) => {
               const known = seen.has(family)
@@ -68,7 +71,18 @@ export function CodexTab({ state }: CodexTabProps) {
               )
             })}
           </ul>
-        </>
+
+          <h3 className="foundry-heading">Hull roles</h3>
+          <p className="muted">USI stand-off classes. Silhouettes on the lane match these names.</p>
+          {CODEX_ROLES.map((role) => (
+            <article key={role} className="network-row">
+              <div className="network-row-main">
+                <strong>{titleCase(role)}</strong>
+              </div>
+              <p className="network-row-stats">{roleIntel(role)}</p>
+            </article>
+          ))}
+        </div>
       )}
     </section>
   )
@@ -136,6 +150,6 @@ function familyColor(family: EnemyFamily): string {
   }
 }
 
-function titleCase(family: EnemyFamily): string {
-  return family.charAt(0).toUpperCase() + family.slice(1)
+function titleCase(value: EnemyFamily | EnemyRole): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }

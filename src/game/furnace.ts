@@ -4,6 +4,7 @@ import type { FurnaceState, FurnaceTrackId, GameState } from './types'
 import { careerHighestSector } from './progression'
 import { reliquaryAshMult } from './reliquary'
 import { protocolBonusMult, protocolMutes } from './protocols'
+import { echoAshMult } from './echo'
 
 export const FURNACE_UNLOCK_SECTOR = 5
 export const ASH_PER_HEAT = 10
@@ -48,7 +49,7 @@ export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
   if (careerHighestSector(state) < FURNACE_UNLOCK_SECTOR) return 0
   const sector = Math.max(1, state.combat.sector)
   const base = (0.5 + 0.1 * sector) * (isBoss ? 4 : 1)
-  return base * reliquaryAshMult(state)
+  return base * reliquaryAshMult(state) * echoAshMult(state)
 }
 
 export function grantFurnaceKillLoot(state: GameState, isBoss: boolean): number {
