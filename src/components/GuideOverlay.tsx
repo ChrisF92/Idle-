@@ -141,7 +141,7 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
         role="dialog"
         aria-label={step.title}
       >
-        <p className="combat-hud-kicker">Guide</p>
+        <p className="combat-hud-kicker">Guide · paused</p>
         <h3>{step.title}</h3>
         {guideBodyLines(step).map((line) => (
           <p key={line}>{line}</p>

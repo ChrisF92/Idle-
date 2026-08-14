@@ -766,8 +766,14 @@ export function advanceTicks(state: GameState, ticks: number): void {
 /**
  * Live path: combat + industry advance by real elapsed time (no 1s combat ticks).
  * Long absences should call applyOfflineCatchUp instead.
+ * `paused` holds the clock (onboarding overlay) so unpause does not dump catch-up.
  */
-export function tickGame(state: GameState, now = Date.now()): GameState {
+export function tickGame(state: GameState, now = Date.now(), paused = false): GameState {
+  if (paused) {
+    if (state.lastTickAt === now) return state
+    return { ...state, lastTickAt: now }
+  }
+
   const elapsedMs = Math.max(0, now - state.lastTickAt)
   if (elapsedMs < MIN_FRAME_MS) {
     return state

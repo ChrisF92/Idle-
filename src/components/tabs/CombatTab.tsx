@@ -14,6 +14,7 @@ interface CombatTabProps {
   onLaunch: () => void
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
+  paused?: boolean
 }
 
 export function CombatTab({
@@ -22,6 +23,7 @@ export function CombatTab({
   onLaunch,
   onUpgrade,
   onPickMilestone,
+  paused = false,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -119,6 +121,7 @@ export function CombatTab({
           beams={combat.docked && !dying ? [] : combat.beams ?? []}
           fx={combat.fx}
           mode={battlefieldMode}
+          paused={paused}
         />
         {dying ? (
           <p className="sortie-defeat-banner" role="status">

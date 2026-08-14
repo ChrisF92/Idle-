@@ -53,6 +53,32 @@ describe('tickGame', () => {
     expect(gained).toBeLessThan(40)
   })
 
+  it('holds combat and industry while paused, then resumes without catch-up', () => {
+    let fight = createInitialState(0)
+    fight = startCombat(fight)
+    for (const e of fight.combat.enemyUnits) e.x = 50
+    const held = tickGame(fight, 400, true)
+    expect(held.combat.projectiles.length).toBe(0)
+    expect(held.lastTickAt).toBe(400)
+
+    const resumedFight = tickGame(held, 450, false)
+    expect(resumedFight.combat.projectiles.length).toBeGreaterThan(0)
+
+    let dock = createInitialState(0)
+    dock.meta.highestSectorEver = 4
+    dock.base.workerDrones = 2
+    dock = assignWorker(dock, 'scrap-field', 2)
+    dock.combat.docked = true
+    const pausedDock = tickGame(dock, 5000, true)
+    expect(pausedDock.resources.scrap).toBe(dock.resources.scrap)
+    expect(pausedDock.lastTickAt).toBe(5000)
+
+    const resumedDock = tickGame(pausedDock, 6000, false)
+    const gained = resumedDock.resources.scrap - pausedDock.resources.scrap
+    expect(gained).toBeGreaterThan(0)
+    expect(gained).toBeLessThan(8)
+  })
+
   it('campaign auto-engages after Launch', () => {
     let state = createInitialState(0)
     expect(state.combat.campaign).toBe(true)

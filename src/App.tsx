@@ -46,6 +46,7 @@ export default function App() {
   const waves = wavesForSector(game.state.combat.sector)
   const guide =
     dying || reportOpen ? null : activeGuideStep(game.state, tab, heldGuideId)
+  game.simPausedRef.current = Boolean(guide)
 
   const go = useCallback(
     (next: TabId) => {
@@ -165,6 +166,7 @@ export default function App() {
             }}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
+            paused={Boolean(guide)}
           />
         )}
         {tab === 'network' && (

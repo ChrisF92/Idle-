@@ -77,7 +77,7 @@ import { createInitialState } from '../game/state'
 
 type Action =
   | { type: 'replace'; state: GameState }
-  | { type: 'tick'; now: number }
+  | { type: 'tick'; now: number; paused?: boolean }
   | { type: 'engage' }
   | { type: 'set-campaign'; on: boolean }
   | { type: 'set-docked'; docked: boolean }
@@ -157,7 +157,7 @@ function reducer(state: GameState, action: Action): GameState {
     case 'replace':
       return action.state
     case 'tick':
-      return tickGame(state, action.now)
+      return tickGame(state, action.now, action.paused)
     case 'engage':
       return startCombat(state)
     case 'set-campaign':
@@ -315,10 +315,11 @@ export function useGame() {
   const [offlineReport, setOfflineReport] = useState<OfflineReport | null>(
     initial.current.report,
   )
+  const simPausedRef = useRef(false)
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      dispatch({ type: 'tick', now: Date.now() })
+      dispatch({ type: 'tick', now: Date.now(), paused: simPausedRef.current })
     }, 50)
     return () => window.clearInterval(id)
   }, [])
@@ -329,6 +330,7 @@ export function useGame() {
 
   return {
     state,
+    simPausedRef,
     offlineReport,
     dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),

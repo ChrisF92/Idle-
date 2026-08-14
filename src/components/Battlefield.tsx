@@ -21,6 +21,8 @@ interface BattlefieldProps {
   beams: CombatBeam[]
   fx: CombatFx[]
   mode: BattlefieldMode
+  /** Freeze interpolation / starfield while a coach-mark is up. */
+  paused?: boolean
 }
 
 interface Actor {
@@ -1680,11 +1682,12 @@ export function Battlefield({
   beams,
   fx,
   mode,
+  paused = false,
 }: BattlefieldProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<Scene | null>(null)
-  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, beams, fx, mode })
-  propsRef.current = { playerUnits, enemyUnits, projectiles, beams, fx, mode }
+  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, beams, fx, mode, paused })
+  propsRef.current = { playerUnits, enemyUnits, projectiles, beams, fx, mode, paused }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1722,10 +1725,10 @@ export function Battlefield({
     let last = performance.now()
 
     const frame = (now: number) => {
-      const dt = Math.min(0.05, Math.max(0, (now - last) / 1000))
+      const p = propsRef.current
+      const dt = p.paused ? 0 : Math.min(0.05, Math.max(0, (now - last) / 1000))
       last = now
 
-      const p = propsRef.current
       syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.beams, p.fx, p.mode)
       stepScene(scene, dt)
 
