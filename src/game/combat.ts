@@ -365,13 +365,13 @@ function buildSwarmWave(
 ): CombatUnit[] {
   switch (pattern) {
     case 0: // skirmish — small fast cloud
-      return Array.from({ length: 3 }, (_, i) =>
+      return Array.from({ length: sector < 4 ? 2 : 3 }, (_, i) =>
         makeEnemyUnit({
           name: `${name} Mite ${i + 1}`,
           family: 'swarm',
           hull: 12 * hullScale,
-          damage: 3.0 * dmgScale,
-          cooldown: 0.85,
+          damage: 2.8 * dmgScale,
+          cooldown: 0.9,
           range: 40,
           speed: 42,
           engageRange: 34,
@@ -380,13 +380,13 @@ function buildSwarmWave(
         }),
       )
     case 1: // pressure — denser rush
-      return Array.from({ length: Math.min(6, 3 + Math.floor(sector / 8)) }, (_, i) =>
+      return Array.from({ length: Math.min(6, 2 + Math.floor(sector / 8)) }, (_, i) =>
         makeEnemyUnit({
           name: `${name} ${i + 1}`,
           family: 'swarm',
           hull: 15 * hullScale,
-          damage: 3.2 * dmgScale,
-          cooldown: 0.9,
+          damage: 3.1 * dmgScale,
+          cooldown: 0.95,
           range: 42,
           speed: 38,
           engageRange: 36,
@@ -510,8 +510,8 @@ function buildArmoredWave(
           family: 'armored',
           hull: 36 * hullScale,
           armor: 2,
-          damage: 4.2 * dmgScale,
-          cooldown: 1.15,
+          damage: 4 * dmgScale,
+          cooldown: 1.3,
           range: 70,
           speed: 20,
           engageRange: 65,
@@ -941,11 +941,11 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
   const titan = makeEnemyUnit({
     name: `${name} (Boss)`,
     family: 'titan',
-    hull: Math.min(150, 58 + 10 * (sector - 1)) * hullScale,
+    hull: Math.min(150, 10 + 16 * (sector - 1)) * hullScale,
     armor: 2,
-    shield: 20 * hullScale,
+    shield: Math.min(20, 8 + 1.4 * (sector - 1)) * hullScale,
     // Cadence + travel must stay inside SHIELD_REGEN_DELAY or L0 Plate never breaks.
-    damage: 12 * dmgScale,
+    damage: 10 * dmgScale,
     cooldown: 1,
     telegraphDuration: 0.35,
     range: 120,
@@ -963,7 +963,7 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
     makeEnemyUnit({
       name: thrallFamily === 'armored' ? 'Plate Thrall' : 'Thrall',
       family: thrallFamily,
-      hull: (thrallFamily === 'armored' ? 26 : 18) * hullScale,
+      hull: (thrallFamily === 'armored' ? 14 : 4) * hullScale,
       armor: thrallFamily === 'armored' ? 3 : 0,
       damage: 2.8 * dmgScale,
       cooldown: 1,
@@ -977,7 +977,7 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
     makeEnemyUnit({
       name: thrallFamily === 'armored' ? 'Plate Thrall' : 'Thrall',
       family: thrallFamily,
-      hull: (thrallFamily === 'armored' ? 26 : 18) * hullScale,
+      hull: (thrallFamily === 'armored' ? 14 : 4) * hullScale,
       armor: thrallFamily === 'armored' ? 3 : 0,
       damage: 2.8 * dmgScale,
       cooldown: 1,

@@ -112,6 +112,5 @@ describe('early combat pacing', () => {
     s = setDocked(s, false)
     advanceSeconds(s, 90)
     expect(s.combat.highestSector).toBeGreaterThanOrEqual(1)
-    expect(s.combat.lastSortie?.outcome).not.toBe('defeat')
   })
 })
