@@ -84,6 +84,7 @@ describe('prestige onboarding', () => {
       'guide-upgrade-pulse',
       'guide-upgrade-plate',
       'guide-essence',
+      'guide-codex-tab',
       'guide-ai-tab',
       'guide-achievements',
     ]
@@ -111,6 +112,7 @@ describe('prestige onboarding', () => {
       'guide-upgrade-pulse',
       'guide-upgrade-plate',
       'guide-essence',
+      'guide-codex-tab',
       'guide-ai-tab',
       'guide-achievements',
       'guide-prestige-tab',

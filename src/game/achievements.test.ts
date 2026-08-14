@@ -94,6 +94,7 @@ describe('achievements and AI unlock', () => {
       'guide-upgrade-pulse',
       'guide-upgrade-plate',
       'guide-essence',
+      'guide-codex-tab',
       'guide-ai-tab',
       'guide-achievements',
     ]
