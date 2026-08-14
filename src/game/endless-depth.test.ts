@@ -36,7 +36,7 @@ describe('deep matter shop + ascension', () => {
     state.prestige.prestigeCount = 5
     state.meta.highestSectorEver = 30
     expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(false)
-    expect(canBuyMatterShop(state, 'matter-blade').reason).toMatch(/Ascension/)
+    expect(canBuyMatterShop(state, 'matter-blade').reason).toMatch(/Reinforce/)
     state.meta.ascensionCount = 1
     expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(true)
   })
