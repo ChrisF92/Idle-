@@ -10,6 +10,8 @@ import {
   normalizeRoute,
   wavesForSector,
 } from '../../game/sectors'
+import { getEchoRun } from '../../game/echo'
+import { activeProtocol } from '../../game/protocols'
 
 interface DockTabProps {
   state: GameState
@@ -39,6 +41,9 @@ export function DockTab({
   const maxStart = maxLaunchSector(cleared)
   const routeB = isRouteBUnlocked(cleared)
   const route = normalizeRoute(combat.route)
+  const protocol = activeProtocol(state)
+  const echoRun = state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
+  const specialRun = Boolean(protocol || echoRun)
 
   return (
     <section className="panel screen-panel dock-screen">
@@ -75,11 +80,11 @@ export function DockTab({
         </button>
       ) : (
         <button type="button" className="primary dock-cta" data-guide="launch" onClick={onLaunch}>
-          Launch sortie
+          {echoRun ? `Launch ${echoRun.name}` : protocol ? `Launch ${protocol.name}` : 'Launch sortie'}
         </button>
       )}
 
-      {!live && onSetSector && maxStart > 1 ? (
+      {!live && onSetSector && maxStart > 1 && !specialRun ? (
         <p className="assign-row dock-launch-row">
           <button
             type="button"
@@ -99,7 +104,7 @@ export function DockTab({
         </p>
       ) : null}
 
-      {!live && onSetRoute && routeB ? (
+      {!live && onSetRoute && routeB && !specialRun ? (
         <div className="sheet-tabs notation-tabs">
           <button
             type="button"

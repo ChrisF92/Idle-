@@ -2,6 +2,7 @@
 
 import type { GameState, ReliquaryColor, ReliquaryState } from './types'
 import { careerHighestSector } from './progression'
+import { protocolBonusMult, protocolMutes } from './protocols'
 
 export interface ShardDef {
   id: string
@@ -165,12 +166,14 @@ function emptyBonuses(): ReliquaryBonuses {
 export function reliquaryBonuses(state: GameState): ReliquaryBonuses {
   const out = emptyBonuses()
   if (!state.reliquary) return out
+  if (protocolMutes(state, 'reliquary')) return out
+  const power = protocolBonusMult(state, 'reliquary')
   for (const slot of RELIQUARY_SLOTS) {
     const id = fittedShardId(state, slot.color)
     if (!id) continue
     const def = getShard(id)
     if (!def) continue
-    const scale = shardEffectScale(state, id)
+    const scale = shardEffectScale(state, id) * power
     out.damage += (def.damage ?? 0) * scale
     out.salvage += (def.salvage ?? 0) * scale
     out.shield += (def.shield ?? 0) * scale

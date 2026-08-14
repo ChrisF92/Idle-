@@ -68,6 +68,21 @@ import {
   placeYardBuilding,
 } from './yard'
 import {
+  canEnterProtocol,
+  createEmptyProtocolState,
+  getProtocol,
+  wipeProtocolLoadout,
+} from './protocols'
+import {
+  canBuyEchoNode,
+  canEnterEcho,
+  createEmptyEchoState,
+  failEcho,
+  getEchoNode,
+  getEchoRun,
+} from './echo'
+import { canBuyProcessNode, createEmptyProcessState, getProcessNode } from './process'
+import {
   isRouteBUnlocked,
   maxLaunchSector,
   normalizeRoute,
@@ -130,6 +145,7 @@ export function setNumberNotation(
 
 export function setLaunchSector(state: GameState, sector: number): GameState {
   if (!state.combat.docked) return state
+  if (state.protocols?.activeId || state.echo?.activeId) return state
   const max = maxLaunchSector(careerHighestSector(state))
   const nextSector = Math.max(1, Math.min(max, Math.floor(sector)))
   if (nextSector === state.combat.sector && state.combat.wave === 1) return state
@@ -451,8 +467,14 @@ export function unequipAllModules(state: GameState): GameState {
   return next
 }
 
-export function upgradeCheapestModule(state: GameState): GameState {
-  if (!state.ai.purchased.includes('salvage-optimizer')) return state
+export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean }): GameState {
+  if (
+    !opts?.force &&
+    !state.ai.purchased.includes('salvage-optimizer') &&
+    !(state.process?.purchased ?? []).includes('auto-salvage')
+  ) {
+    return state
+  }
   if (state.prestige.activeChallengeId === 'no-ai') return state
 
   let bestId: string | null = null
@@ -990,6 +1012,23 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       },
     ),
     yard: structuredClone(state.yard ?? createEmptyYardState()),
+    protocols: {
+      activeId: null,
+      ranks: { ...(state.protocols?.ranks ?? {}) },
+    },
+    echo: {
+      ...createEmptyEchoState(),
+      ...(state.echo ?? {}),
+      activeId: null,
+      resumeSector: 1,
+      resumeWave: 1,
+      points: state.echo?.points ?? 0,
+      tree: [...(state.echo?.tree ?? [])],
+      clears: { ...(state.echo?.clears ?? {}) },
+    },
+    process: {
+      purchased: [...(state.process?.purchased ?? [])],
+    },
     signalCores:
       state.meta.signalCoresCarryOver
         ? {
@@ -1070,6 +1109,9 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.furnace = kept.furnace
   state.hiveResearch = kept.hiveResearch
   state.yard = armYardOnRebuild(kept.yard)
+  state.protocols = kept.protocols
+  state.echo = kept.echo
+  state.process = kept.process
   state.signalCores = kept.signalCores
   state.parts = kept.parts
 
@@ -1286,6 +1328,94 @@ export function tryCompleteChallenge(state: GameState): void {
     `Challenge complete: ${challenge.name} (${nextClears}/${maxClears}). +${challenge.rewardChallengePoints} Challenge Points.`,
     ...state.combat.log,
   ]
+}
+
+export function enterProtocol(state: GameState, protocolId: string): GameState {
+  if (!canEnterProtocol(state, protocolId).ok) return state
+  const def = getProtocol(protocolId)
+  if (!def) return state
+  const next = structuredClone(state)
+  if (!next.protocols) next.protocols = createEmptyProtocolState()
+  next.protocols.activeId = protocolId
+  wipeProtocolLoadout(next)
+  next.network = createEmptyNetworkState()
+  next.combat.sector = 1
+  next.combat.wave = 1
+  next.combat.highestSector = 0
+  next.combat.docked = true
+  next.combat.inFight = false
+  next.combat.playerUnits = []
+  next.combat.enemyUnits = []
+  const stats = computeShipStats(next)
+  next.combat.playerHullMax = stats.hullMax
+  next.combat.playerHull = stats.hullMax
+  next.combat.playerShieldMax = stats.shieldMax
+  next.combat.playerShield = stats.shieldMax
+  next.combat.log = [
+    `Protocol ${def.name}. Goal: clear sector ${def.goalSector}. Cores and Salvage wiped.`,
+    ...next.combat.log,
+  ]
+  return next
+}
+
+export function abandonProtocol(state: GameState): GameState {
+  const def = getProtocol(state.protocols?.activeId ?? '')
+  if (!state.protocols?.activeId) return state
+  const next = structuredClone(state)
+  next.protocols.activeId = null
+  wipeProtocolLoadout(next)
+  next.network = createEmptyNetworkState()
+  next.combat.docked = true
+  next.combat.inFight = false
+  next.combat.log = [`Abandoned ${def?.name ?? 'Protocol'}.`, ...next.combat.log]
+  return next
+}
+
+export function enterEcho(state: GameState, echoId: string): GameState {
+  if (!canEnterEcho(state, echoId).ok) return state
+  const def = getEchoRun(echoId)
+  if (!def) return state
+  const next = structuredClone(state)
+  if (!next.echo) next.echo = createEmptyEchoState()
+  next.echo.activeId = echoId
+  next.echo.resumeSector = next.combat.sector
+  next.echo.resumeWave = next.combat.wave
+  next.echo.resumeRoute = next.combat.route
+  next.combat.wave = 1
+  next.combat.docked = true
+  next.combat.inFight = false
+  next.combat.log = [`Echo queued: ${def.name}. Launch to enter the gauntlet.`, ...next.combat.log]
+  return next
+}
+
+export function abandonEcho(state: GameState): GameState {
+  if (!state.echo?.activeId) return state
+  const next = structuredClone(state)
+  failEcho(next, 'Abandoned.')
+  return next
+}
+
+export function buyEchoNode(state: GameState, nodeId: string): GameState {
+  if (!canBuyEchoNode(state, nodeId).ok) return state
+  const def = getEchoNode(nodeId)
+  if (!def) return state
+  const next = structuredClone(state)
+  if (!next.echo) next.echo = createEmptyEchoState()
+  next.echo.points -= def.cost
+  next.echo.tree = [...next.echo.tree, nodeId]
+  return next
+}
+
+export function buyProcessNode(state: GameState, nodeId: string): GameState {
+  if (!canBuyProcessNode(state, nodeId).ok) return state
+  const def = getProcessNode(nodeId)
+  if (!def) return state
+  const next = structuredClone(state)
+  if (!next.process) next.process = createEmptyProcessState()
+  next.resources.aiPoints -= def.cost
+  next.process.purchased = [...next.process.purchased, nodeId]
+  tryCompleteAchievements(next)
+  return next
 }
 
 /** @deprecated buildings replaced by worker stations */

@@ -15,6 +15,9 @@ import { ReliquaryTab } from './components/tabs/ReliquaryTab'
 import { FurnaceTab } from './components/tabs/FurnaceTab'
 import { ResearchTab } from './components/tabs/ResearchTab'
 import { YardTab } from './components/tabs/YardTab'
+import { ProtocolsTab } from './components/tabs/ProtocolsTab'
+import { EchoTab } from './components/tabs/EchoTab'
+import { ProcessTab } from './components/tabs/ProcessTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
@@ -37,7 +40,13 @@ export default function App() {
   useEffect(() => {
     if (!isSystemUnlocked(game.state, tab)) {
       const station =
-        tab === 'reliquary' || tab === 'furnace' || tab === 'research' || tab === 'yard'
+        tab === 'reliquary' ||
+        tab === 'furnace' ||
+        tab === 'research' ||
+        tab === 'yard' ||
+        tab === 'protocols' ||
+        tab === 'echo' ||
+        tab === 'process'
       setTab(station ? 'stats' : 'dock')
     }
   }, [game.state, tab])
@@ -140,6 +149,30 @@ export default function App() {
             onPlace={game.placeYardBuilding}
             onClear={game.clearYardBuilding}
             onBuyArm={game.buyYardArm}
+          />
+        )}
+        {tab === 'protocols' && (
+          <ProtocolsTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onEnter={game.enterProtocol}
+            onAbandon={game.abandonProtocol}
+          />
+        )}
+        {tab === 'echo' && (
+          <EchoTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onEnter={game.enterEcho}
+            onAbandon={game.abandonEcho}
+            onBuy={game.buyEchoNode}
+          />
+        )}
+        {tab === 'process' && (
+          <ProcessTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onBuy={game.buyProcessNode}
           />
         )}
         {tab === 'stats' && (

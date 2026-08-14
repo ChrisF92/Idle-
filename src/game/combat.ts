@@ -44,6 +44,7 @@ import { grantReliquaryKillLoot, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot } from './furnace'
 import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
 import { yardSalvageMult } from './yard'
+import { echoSalvageMult } from './echo'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -251,6 +252,7 @@ export function enemyForSector(
   sector: number,
   wave = 1,
   route: SectorRoute | string = 'A',
+  extraDanger = 1,
 ): SectorEncounter {
   const side = normalizeRoute(route)
   const bossWave = isSectorBossWave(sector, wave)
@@ -263,7 +265,7 @@ export function enemyForSector(
     names[(Math.floor((sector - 1) / FAMILY_ROTATION.length) + wave - 1) % names.length] ??
     'Unknown Entity'
 
-  const waveScale = (1 + Math.max(0, wave - 1) * 0.1) * routeDangerMult(side)
+  const waveScale = (1 + Math.max(0, wave - 1) * 0.1) * routeDangerMult(side) * extraDanger
   const units = bossWave
     ? buildBossPack(sector, name, waveScale)
     : buildWavePack(sector, family, name, wave, waveScale)
@@ -1537,7 +1539,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     networkSalvageMult(state) *
     reliquarySalvageMult(state) *
     hiveResearchSalvageMult(state) *
-    yardSalvageMult(state)
+    yardSalvageMult(state) *
+    echoSalvageMult(state)
   state.resources.salvage +=
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route) * salvageMult
   rollEnemyPartDrop(state, unit)

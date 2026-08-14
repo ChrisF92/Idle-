@@ -64,6 +64,24 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Place buildings. Spend Ingots on arms that apply on the next Rebuild.',
   },
   {
+    id: 'protocols',
+    requiresSectorEver: 18,
+    label: 'Protocols',
+    tip: 'Restricted sorties. Clear the goal sector to rank the muted system.',
+  },
+  {
+    id: 'echo',
+    requiresSectorEver: 22,
+    label: 'Echo Runs',
+    tip: 'Short authored gauntlets. Echo points buy a small skill tree.',
+  },
+  {
+    id: 'process',
+    requiresSectorEver: 0,
+    label: 'Process',
+    tip: 'Achievements grant Process points. Spend them on automation and QoL.',
+  },
+  {
     id: 'research',
     requiresSectorEver: 7,
     label: 'Research',
@@ -441,7 +459,7 @@ function grantAchievementTier(state: GameState, def: AchievementDef): void {
   const tier = state.meta.achievementCompletions[def.id]
   const label = def.repeatable ? `${def.name} ×${tier}` : def.name
   state.combat.log = [
-    `Achievement: ${label} (+${def.rewardAiPoints} AI).`,
+    `Achievement: ${label} (+${def.rewardAiPoints} Process).`,
     ...state.combat.log,
   ].slice(0, 40)
 }
@@ -489,7 +507,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'yard') {
     return (state.prestige.prestigeCount ?? 0) >= 1
   }
-  if (systemId === 'ai') {
+  if (systemId === 'ai' || systemId === 'process') {
     return state.meta.aiUnlocked || state.meta.completedAchievements.length > 0
   }
   if (systemId === 'codex') {
@@ -518,7 +536,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   if (systemId === 'yard') {
     return 'Rebuild once'
   }
-  if (systemId === 'ai') {
+  if (systemId === 'ai' || systemId === 'process') {
     return 'Complete First Blood (clear sector 1)'
   }
   if (systemId === 'codex') {
@@ -559,7 +577,7 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
     case 'essence':
       return state.resources.essence > 0 || careerHighestSector(state) >= 5
     case 'aiPoints':
-      return isSystemUnlocked(state, 'ai')
+      return isSystemUnlocked(state, 'process') || isSystemUnlocked(state, 'ai')
     case 'prestigeMatter':
       return (
         state.prestige.prestigeCount > 0 ||
@@ -654,33 +672,34 @@ export interface GuideStep {
 export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-shipyard-tab',
-    title: 'Shipyard',
-    body: 'Tap Shipyard to review your frame and modules before Launch.',
-    target: 'shipyard-tab',
+    title: 'Dock',
+    body: 'This is the hangar. Hull and Cores live here. Launch starts a sortie of waves.',
+    target: 'dock-tab',
+    tab: 'dock',
     availableWhen: (s) =>
       s.combat.docked && !s.shipyard.frameLocked && !guideSeen(s, 'guide-shipyard-tab'),
-    completeWhen: (_s, tab) => tab === 'shipyard',
   },
   {
     id: 'guide-frame-select',
-    title: 'Your frame',
-    body: 'Scout Frame is fine for now. Tap it to continue, then you will Launch from Combat.',
-    target: 'frame-scout',
-    tab: 'shipyard',
+    title: 'Your hull',
+    body: 'Scout Hull is fitted. Salvage levels Cores during a sortie. Rebuild later to swap.',
+    target: 'dock-tab',
+    tab: 'dock',
     availableWhen: (s) =>
       guideSeen(s, 'guide-shipyard-tab') &&
       !guideSeen(s, 'guide-frame-select') &&
       s.combat.docked &&
       !s.shipyard.frameLocked,
+    completeWhen: () => true,
   },
   {
     id: 'guide-launch',
     title: 'Launch',
-    body: 'Tap Launch. This locks your frame for the run and starts Advance combat.',
-    target: 'launch-btn',
-    tab: 'combat',
+    body: 'Tap Launch sortie. Combat keeps running even if you open Dock, Network, or Foundry.',
+    target: 'launch',
+    tab: 'dock',
     availableWhen: (s) =>
-      guideSeen(s, 'guide-frame-select') &&
+      guideSeen(s, 'guide-shipyard-tab') &&
       !guideSeen(s, 'guide-launch') &&
       s.combat.docked &&
       !s.shipyard.frameLocked,
@@ -893,6 +912,24 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (_s, tab) => tab === 'yard',
   },
   {
+    id: 'guide-protocols',
+    title: 'Protocols',
+    body: 'Open More and tap Protocols. Restricted sorties rank one muted system. Cores wipe on start.',
+    target: 'station-protocols',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'protocols') && !guideSeen(s, 'guide-protocols'),
+    completeWhen: (_s, tab) => tab === 'protocols',
+  },
+  {
+    id: 'guide-echo',
+    title: 'Echo Runs',
+    body: 'Open More and tap Echo. Short gauntlets grant Echo points for a skill tree. Cores stay.',
+    target: 'station-echo',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'echo') && !guideSeen(s, 'guide-echo'),
+    completeWhen: (_s, tab) => tab === 'echo',
+  },
+  {
     id: 'guide-sensor-net',
     title: 'Farm Data',
     body: 'Assign workers to Sensor Net on Base to earn Data for more research.',
@@ -984,22 +1021,24 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-ai-tab',
-    title: 'AI Network unlocked',
-    body: 'Tap AI. Achievements grant AI Points for automation, combat speed, and doctrines.',
-    target: 'ai-tab',
-    availableWhen: (s) => isSystemUnlocked(s, 'ai') && !guideSeen(s, 'guide-ai-tab'),
-    completeWhen: (_s, tab) => tab === 'ai',
+    title: 'Process',
+    body: 'Open More and tap Process. Achievements grant Process points for automation.',
+    target: 'station-process',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'process') && !guideSeen(s, 'guide-ai-tab'),
+    completeWhen: (_s, tab) => tab === 'process',
   },
   {
     id: 'guide-achievements',
     title: 'Achievements',
-    body: 'Tap Achievements to review one-offs and repeatable grinds that fund the AI Network.',
-    target: 'achievements-btn',
-    tab: 'ai',
+    body: 'Process lists one-off and repeatable achievements. They fund automation nodes.',
+    target: 'station-process',
+    tab: 'stats',
     availableWhen: (s) =>
-      isSystemUnlocked(s, 'ai') &&
+      isSystemUnlocked(s, 'process') &&
       guideSeen(s, 'guide-ai-tab') &&
       !guideSeen(s, 'guide-achievements'),
+    completeWhen: (_s, tab) => tab === 'process',
   },
   {
     id: 'guide-prestige-tab',
@@ -1048,14 +1087,15 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-challenges',
-    title: 'Challenges unlocked',
-    body: 'Act 1 complete — tap Challenges. Optional restricted runs grant Challenge Points. Prestige stays available; challenges are never required.',
-    target: 'challenges-subtab',
-    tab: 'prestige',
+    title: 'Protocols unlocked',
+    body: 'Sector 18 — open More and tap Protocols. Restricted sorties buff one system. Optional.',
+    target: 'station-protocols',
+    tab: 'stats',
     availableWhen: (s) =>
-      challengesContentUnlocked(s) &&
-      !s.prestige.activeChallengeId &&
+      isSystemUnlocked(s, 'protocols') &&
+      !s.protocols?.activeId &&
       !guideSeen(s, 'guide-challenges'),
+    completeWhen: (_s, tab) => tab === 'protocols' || guideSeen(_s, 'guide-protocols'),
   },
   {
     id: 'guide-challenge-shop',

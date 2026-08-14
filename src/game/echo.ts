@@ -1,0 +1,243 @@
+/** Echo Runs — USI Warp Drive analogue. Short gauntlets into a skill tree. */
+
+import type { GameState, EchoState, SectorRoute } from './types'
+import { careerHighestSector } from './progression'
+import { wavesForSector } from './sectors'
+
+export const ECHO_UNLOCK_SECTOR = 22
+export const ECHO_WAVES = 3
+
+export interface EchoRunDef {
+  id: string
+  name: string
+  blurb: string
+  sectorPower: number
+  danger: number
+  reward: number
+  requiresId?: string
+}
+
+export interface EchoTreeDef {
+  id: string
+  name: string
+  blurb: string
+  cost: number
+  requiresId?: string
+  damage?: number
+  shield?: number
+  salvage?: number
+  network?: number
+  researchXp?: number
+}
+
+export const ECHO_RUNS: EchoRunDef[] = [
+  {
+    id: 'rift',
+    name: 'Choir Rift',
+    blurb: 'A thin tear. Two packs, then a Titan echo.',
+    sectorPower: 22,
+    danger: 1.35,
+    reward: 2,
+  },
+  {
+    id: 'keel',
+    name: 'Broken Keel',
+    blurb: 'A hull that never docked. Harder packs.',
+    sectorPower: 24,
+    danger: 1.5,
+    reward: 3,
+    requiresId: 'rift',
+  },
+  {
+    id: 'veil',
+    name: 'Ash Veil',
+    blurb: 'The Furnace remembers this one.',
+    sectorPower: 26,
+    danger: 1.65,
+    reward: 4,
+    requiresId: 'keel',
+  },
+]
+
+export const ECHO_TREE: EchoTreeDef[] = [
+  { id: 'echo-strike', name: 'Strike Echo', blurb: 'Sortie damage.', cost: 2, damage: 0.04 },
+  { id: 'echo-ward', name: 'Ward Echo', blurb: 'Max shield.', cost: 2, shield: 0.04 },
+  { id: 'echo-yield', name: 'Yield Echo', blurb: 'Salvage from kills.', cost: 2, salvage: 0.06 },
+  {
+    id: 'echo-loom',
+    name: 'Loom Echo',
+    blurb: 'Network fill.',
+    cost: 3,
+    requiresId: 'echo-strike',
+    network: 0.05,
+  },
+  {
+    id: 'echo-lab',
+    name: 'Lab Echo',
+    blurb: 'Research XP from kills.',
+    cost: 3,
+    requiresId: 'echo-ward',
+    researchXp: 0.08,
+  },
+]
+
+export function createEmptyEchoState(): EchoState {
+  return {
+    activeId: null,
+    resumeSector: 1,
+    resumeWave: 1,
+    resumeRoute: 'A',
+    points: 0,
+    tree: [],
+    clears: {},
+  }
+}
+
+export function getEchoRun(id: string): EchoRunDef | undefined {
+  return ECHO_RUNS.find((r) => r.id === id)
+}
+
+export function getEchoNode(id: string): EchoTreeDef | undefined {
+  return ECHO_TREE.find((n) => n.id === id)
+}
+
+export function echoUnlocked(state: GameState): boolean {
+  return careerHighestSector(state) >= ECHO_UNLOCK_SECTOR
+}
+
+export function echoClears(state: GameState, id: string): number {
+  return Math.max(0, Math.floor(state.echo?.clears[id] ?? 0))
+}
+
+export function echoHasNode(state: GameState, id: string): boolean {
+  return (state.echo?.tree ?? []).includes(id)
+}
+
+export function wavesForRun(state: GameState): number {
+  if (state.echo?.activeId) return ECHO_WAVES
+  return wavesForSector(state.combat.sector)
+}
+
+export function echoIsBossWave(state: GameState, wave: number): boolean {
+  if (!state.echo?.activeId) return false
+  return wave >= ECHO_WAVES
+}
+
+export function echoTreeSum(state: GameState, key: 'damage' | 'shield' | 'salvage' | 'network' | 'researchXp'): number {
+  let n = 0
+  for (const id of state.echo?.tree ?? []) {
+    const def = getEchoNode(id)
+    if (def) n += def[key] ?? 0
+  }
+  return n
+}
+
+export function echoDamageMult(state: GameState): number {
+  return 1 + echoTreeSum(state, 'damage')
+}
+
+export function echoShieldMult(state: GameState): number {
+  return 1 + echoTreeSum(state, 'shield')
+}
+
+export function echoSalvageMult(state: GameState): number {
+  return 1 + echoTreeSum(state, 'salvage')
+}
+
+export function echoNetworkMult(state: GameState): number {
+  return 1 + echoTreeSum(state, 'network')
+}
+
+export function echoResearchXpMult(state: GameState): number {
+  return 1 + echoTreeSum(state, 'researchXp')
+}
+
+export function canEnterEcho(
+  state: GameState,
+  id: string,
+): { ok: boolean; reason?: string } {
+  if (!state.combat.docked || state.combat.inFight) {
+    return { ok: false, reason: 'Dock first' }
+  }
+  if (state.protocols?.activeId) return { ok: false, reason: 'Finish the Protocol first' }
+  if (state.echo?.activeId) return { ok: false, reason: 'Already in an Echo' }
+  if (!echoUnlocked(state)) {
+    return { ok: false, reason: `Clear sector ${ECHO_UNLOCK_SECTOR}` }
+  }
+  const def = getEchoRun(id)
+  if (!def) return { ok: false, reason: 'Unknown Echo' }
+  if (def.requiresId && echoClears(state, def.requiresId) < 1) {
+    const need = getEchoRun(def.requiresId)?.name ?? def.requiresId
+    return { ok: false, reason: `Clear ${need} first` }
+  }
+  return { ok: true }
+}
+
+export function canBuyEchoNode(
+  state: GameState,
+  id: string,
+): { ok: boolean; reason?: string } {
+  if (!echoUnlocked(state)) {
+    return { ok: false, reason: `Clear sector ${ECHO_UNLOCK_SECTOR}` }
+  }
+  const def = getEchoNode(id)
+  if (!def) return { ok: false, reason: 'Unknown node' }
+  if (echoHasNode(state, id)) return { ok: false, reason: 'Owned' }
+  if (def.requiresId && !echoHasNode(state, def.requiresId)) {
+    return { ok: false, reason: 'Need prior node' }
+  }
+  if ((state.echo?.points ?? 0) < def.cost) return { ok: false, reason: `Need ${def.cost} Echo` }
+  return { ok: true }
+}
+
+export function restoreEchoResume(state: GameState): void {
+  const echo = state.echo
+  if (!echo) return
+  state.combat.sector = Math.max(1, echo.resumeSector || 1)
+  state.combat.wave = Math.max(1, echo.resumeWave || 1)
+  state.combat.route = (echo.resumeRoute === 'B' ? 'B' : 'A') as SectorRoute
+}
+
+export function tryCompleteEcho(state: GameState): boolean {
+  const id = state.echo?.activeId
+  if (!id) return false
+  const def = getEchoRun(id)
+  if (!def) {
+    state.echo.activeId = null
+    return true
+  }
+  if (!state.echo) state.echo = createEmptyEchoState()
+  state.echo.clears = { ...state.echo.clears, [id]: echoClears(state, id) + 1 }
+  state.echo.points = (state.echo.points ?? 0) + def.reward
+  state.echo.activeId = null
+  restoreEchoResume(state)
+  state.combat.docked = true
+  state.combat.inFight = false
+  state.combat.wave = 1
+  state.combat.lastSortie = {
+    outcome: 'extract',
+    sector: state.combat.sector,
+    wave: 1,
+    note: `${def.name} complete. +${def.reward} Echo.`,
+  }
+  state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
+  return true
+}
+
+export function failEcho(state: GameState, reason: string): void {
+  const id = state.echo?.activeId
+  if (!id) return
+  const name = getEchoRun(id)?.name ?? 'Echo'
+  restoreEchoResume(state)
+  state.echo.activeId = null
+  state.combat.docked = true
+  state.combat.inFight = false
+  state.combat.wave = 1
+  state.combat.lastSortie = {
+    outcome: 'defeat',
+    sector: state.combat.sector,
+    wave: 1,
+    note: `${name} failed. ${reason}`,
+  }
+  state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
+}

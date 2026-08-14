@@ -24,6 +24,8 @@ import {
   countMergeable,
   mergeSignalCores,
 } from './signalCores'
+import { hasProcess } from './process'
+import { NETWORK_BARS, isNetworkBarUnlocked } from './network'
 
 function adopt(state: GameState, next: GameState): void {
   if (next === state) return
@@ -135,14 +137,51 @@ export function autoCoreTrain(state: GameState): void {
 
 /** Spend salvage on the cheapest module upgrades while affordable. */
 export function autoSalvageUpgrades(state: GameState): void {
-  if (!aiDoctrinesActive(state, 'auto-salvage-loop')) return
+  if (!aiDoctrinesActive(state, 'auto-salvage-loop') && !hasProcess(state, 'auto-salvage')) return
+  if (hasProcess(state, 'auto-salvage') && state.combat.docked) {
+    if (!aiDoctrinesActive(state, 'auto-salvage-loop')) return
+  }
   let guard = 0
   while (guard++ < 20) {
-    const next = upgradeCheapestModule(state)
+    const next = upgradeCheapestModule(state, { force: hasProcess(state, 'auto-salvage') })
     if (next === state) break
     if (next.resources.salvage >= state.resources.salvage) break
     adopt(state, next)
   }
+}
+
+function autoNetworkBalance(state: GameState): void {
+  if (!hasProcess(state, 'network-balance')) return
+  let idle = idleWorkers(state)
+  if (idle <= 0) return
+  const bars = NETWORK_BARS.filter((b) => isNetworkBarUnlocked(state, b.id))
+  if (bars.length === 0) return
+  const assignments = { ...state.base.assignments }
+  while (idle > 0) {
+    let best = bars[0]!
+    let bestAssigned = Infinity
+    for (const bar of bars) {
+      const n = assignments[bar.id] ?? 0
+      if (n < bestAssigned) {
+        bestAssigned = n
+        best = bar
+      }
+    }
+    assignments[best.id] = (assignments[best.id] ?? 0) + 1
+    idle -= 1
+  }
+  state.base.assignments = assignments
+}
+
+/** Run all owned automation passives once per sim batch. */
+export function tickAutomation(state: GameState): void {
+  if (challengeBlocksAi(state)) return
+  autoLaborLoop(state)
+  autoMergeSignalCores(state)
+  autoFabBay(state)
+  autoCoreTrain(state)
+  autoSalvageUpgrades(state)
+  autoNetworkBalance(state)
 }
 
 /** Re-apply Labor Router when drones sit idle (Labor Loop). */
@@ -156,14 +195,4 @@ export function autoLaborLoop(state: GameState): void {
   const next = autoBalanceWorkers(state)
   if (next === state) return
   adopt(state, next)
-}
-
-/** Run all owned automation passives once per sim batch. */
-export function tickAutomation(state: GameState): void {
-  if (challengeBlocksAi(state)) return
-  autoLaborLoop(state)
-  autoMergeSignalCores(state)
-  autoFabBay(state)
-  autoCoreTrain(state)
-  autoSalvageUpgrades(state)
 }

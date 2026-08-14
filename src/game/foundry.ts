@@ -5,6 +5,7 @@ import { networkManufactureMult } from './network'
 import { reliquaryFoundrySpeedMult } from './reliquary'
 import { furnaceFoundrySpeedMult } from './furnace'
 import { hiveResearchFoundrySpeedMult } from './hiveResearch'
+import { protocolBonusMult, protocolMutes } from './protocols'
 
 export interface FoundryCost {
   salvage?: number
@@ -220,14 +221,15 @@ export function foundrySlotCount(state: GameState): number {
 }
 
 export function foundryCraftSpeed(state: GameState): number {
-  const rank = state.foundry?.upgrades['fp-speed'] ?? 0
+  const rank = protocolMutes(state, 'foundry') ? 0 : state.foundry?.upgrades['fp-speed'] ?? 0
   const bonus = (getFoundryUpgrade('fp-speed')?.speedBonus ?? 0) * rank
   return (
     (1 + bonus) *
     networkManufactureMult(state) *
     reliquaryFoundrySpeedMult(state) *
     furnaceFoundrySpeedMult(state) *
-    hiveResearchFoundrySpeedMult(state)
+    hiveResearchFoundrySpeedMult(state) *
+    protocolBonusMult(state, 'foundry')
   )
 }
 
@@ -360,6 +362,7 @@ function ensureSlotCount(state: GameState): void {
 }
 
 export function foundryDamageMult(state: GameState): number {
+  if (protocolMutes(state, 'foundry')) return 1
   const rank = state.foundry?.upgrades['fp-damage'] ?? 0
   let mult = 1 + (getFoundryUpgrade('fp-damage')?.damageBonus ?? 0) * rank
   for (const id of state.foundry?.equipped ?? []) {
@@ -370,11 +373,13 @@ export function foundryDamageMult(state: GameState): number {
 }
 
 export function foundryShieldMult(state: GameState): number {
+  if (protocolMutes(state, 'foundry')) return 1
   const rank = state.foundry?.upgrades['fp-shield'] ?? 0
   return 1 + (getFoundryUpgrade('fp-shield')?.shieldBonus ?? 0) * rank
 }
 
 export function foundryShieldFlat(state: GameState): number {
+  if (protocolMutes(state, 'foundry')) return 0
   let flat = 0
   for (const id of state.foundry?.equipped ?? []) {
     flat += getFoundryModule(id)?.shieldFlat ?? 0

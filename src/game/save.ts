@@ -1,6 +1,7 @@
 import type {
   CoreAttrId,
   CoreState,
+  EchoState,
   FurnaceState,
   FurnaceTrackId,
   GameState,
@@ -8,6 +9,8 @@ import type {
   HiveResearchState,
   NetworkBarId,
   NetworkState,
+  ProcessState,
+  ProtocolState,
   ReliquaryColor,
   ReliquaryState,
   SignalCoreInstance,
@@ -31,6 +34,9 @@ import { createEmptyReliquaryState } from './reliquary'
 import { createEmptyFurnaceState } from './furnace'
 import { createEmptyHiveResearchState } from './hiveResearch'
 import { createEmptyYardState } from './yard'
+import { createEmptyProtocolState } from './protocols'
+import { createEmptyEchoState } from './echo'
+import { createEmptyProcessState } from './process'
 import { normalizeRoute } from './sectors'
 
 export function saveGame(state: GameState): void {
@@ -352,6 +358,51 @@ function withYardDefaults(raw: YardState | undefined): YardState {
   }
 }
 
+function withProtocolDefaults(raw: ProtocolState | undefined): ProtocolState {
+  const empty = createEmptyProtocolState()
+  if (!raw || typeof raw !== 'object') return empty
+  const ranks: Record<string, number> = {}
+  if (raw.ranks && typeof raw.ranks === 'object') {
+    for (const [id, n] of Object.entries(raw.ranks)) {
+      const v = Math.max(0, Math.floor(Number(n) || 0))
+      if (v > 0) ranks[id] = v
+    }
+  }
+  const active = typeof raw.activeId === 'string' ? raw.activeId : null
+  return { activeId: active, ranks }
+}
+
+function withEchoDefaults(raw: EchoState | undefined): EchoState {
+  const empty = createEmptyEchoState()
+  if (!raw || typeof raw !== 'object') return empty
+  const tree = Array.isArray(raw.tree) ? raw.tree.filter((id) => typeof id === 'string') : []
+  const clears: Record<string, number> = {}
+  if (raw.clears && typeof raw.clears === 'object') {
+    for (const [id, n] of Object.entries(raw.clears)) {
+      const v = Math.max(0, Math.floor(Number(n) || 0))
+      if (v > 0) clears[id] = v
+    }
+  }
+  return {
+    activeId: typeof raw.activeId === 'string' ? raw.activeId : null,
+    resumeSector: Math.max(1, Math.floor(Number(raw.resumeSector) || 1)),
+    resumeWave: Math.max(1, Math.floor(Number(raw.resumeWave) || 1)),
+    resumeRoute: raw.resumeRoute === 'B' ? 'B' : 'A',
+    points: Math.max(0, Math.floor(Number(raw.points) || 0)),
+    tree,
+    clears,
+  }
+}
+
+function withProcessDefaults(raw: ProcessState | undefined): ProcessState {
+  const empty = createEmptyProcessState()
+  if (!raw || typeof raw !== 'object') return empty
+  const purchased = Array.isArray(raw.purchased)
+    ? raw.purchased.filter((id) => typeof id === 'string')
+    : []
+  return { purchased }
+}
+
 function withMetaDefaults(
   meta: GameState['meta'] | undefined,
   highestSector: number,
@@ -514,6 +565,9 @@ function migrate(raw: unknown): GameState | null {
       furnace: withFurnaceDefaults(state.furnace),
       hiveResearch: withHiveResearchDefaults(state.hiveResearch),
       yard: withYardDefaults(state.yard),
+      protocols: withProtocolDefaults(state.protocols),
+      echo: withEchoDefaults(state.echo),
+      process: withProcessDefaults(state.process),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
       codex,
@@ -598,6 +652,9 @@ function migrate(raw: unknown): GameState | null {
       furnace: withFurnaceDefaults(prev.furnace),
       hiveResearch: withHiveResearchDefaults(prev.hiveResearch),
       yard: withYardDefaults(prev.yard),
+      protocols: withProtocolDefaults(prev.protocols),
+      echo: withEchoDefaults(prev.echo),
+      process: withProcessDefaults(prev.process),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
       codex,

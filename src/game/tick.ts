@@ -45,6 +45,15 @@ import {
 import { tickFoundry } from './foundry'
 import { tickYard } from './yard'
 import {
+  ECHO_WAVES,
+  failEcho,
+  getEchoRun,
+  tryCompleteEcho,
+  wavesForRun,
+} from './echo'
+import { tryCompleteProtocol } from './protocols'
+import { hasProcess } from './process'
+import {
   wavesForSector,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
@@ -330,6 +339,11 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   persistFlagshipHull(state)
   clearEnemy(state)
   state.combat.consecutiveLosses += 1
+  if (state.echo?.activeId) {
+    failEcho(state, tactical ? 'Extracted early.' : 'Hull lost.')
+    fullHealPlayer(state)
+    return
+  }
   state.combat.sector = Math.max(1, fromSector)
   state.combat.wave = 1
   state.combat.docked = true
@@ -399,6 +413,18 @@ function onFightWon(state: GameState): void {
   clearEnemy(state)
   state.combat.consecutiveLosses = 0
 
+  const echoId = state.echo?.activeId
+  if (echoId) {
+    const total = wavesForRun(state)
+    if (clearedWave < total) {
+      state.combat.wave = clearedWave + 1
+      pushLog(state, `Echo wave ${clearedWave}/${total} down. Next: W${state.combat.wave}.`)
+      return
+    }
+    tryCompleteEcho(state)
+    return
+  }
+
   if (clearedWave < wavesForSector(clearedSector)) {
     state.combat.wave = clearedWave + 1
     // Mid-sector scrap + salvage so long wave chains fund early module ranks.
@@ -425,6 +451,23 @@ function onFightWon(state: GameState): void {
     state.combat.wave = 1
   }
   tryCompleteChallenge(state)
+  tryCompleteProtocol(state)
+  if (
+    !state.combat.docked &&
+    hasProcess(state, 'auto-extract') &&
+    wasBoss &&
+    state.combat.playerHullMax > 0 &&
+    state.combat.playerHull / state.combat.playerHullMax < 0.35
+  ) {
+    state.combat.docked = true
+    state.combat.lastSortie = {
+      outcome: 'extract',
+      sector: state.combat.sector,
+      wave: state.combat.wave,
+      note: `Safe Extract after sector ${clearedSector} boss (hull low).`,
+    }
+    pushLog(state, state.combat.lastSortie.note)
+  }
 }
 
 function tickCombat(state: GameState, dt: number): void {
@@ -507,13 +550,18 @@ function maybeAutoEngage(state: GameState): void {
 }
 
 export function beginFight(state: GameState): void {
-  const sector = state.combat.sector
-  const wave = Math.min(
-    wavesForSector(sector),
-    Math.max(1, state.combat.wave || 1),
-  )
+  const echoRun = state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
+  const totalWaves = wavesForRun(state)
+  const wave = Math.min(totalWaves, Math.max(1, state.combat.wave || 1))
   state.combat.wave = wave
-  const encounter = enemyForSector(sector, wave, state.combat.route)
+  const encounter = echoRun
+    ? enemyForSector(
+        echoRun.sectorPower,
+        wave >= ECHO_WAVES ? wavesForSector(echoRun.sectorPower) : wave,
+        'A',
+        echoRun.danger,
+      )
+    : enemyForSector(state.combat.sector, wave, state.combat.route)
   syncPersistedHullCaps(state)
 
   state.combat.docked = false
@@ -550,7 +598,9 @@ export function beginFight(state: GameState): void {
       : ` ${encounter.blurb}`
   pushLog(
     state,
-    `Engaging ${encounter.name} — sector ${sector} wave ${wave}/${wavesForSector(sector)} [${encounter.family}] (${encounter.units.length} units).${note}`,
+    echoRun
+      ? `Echo ${echoRun.name} — wave ${wave}/${totalWaves} [${encounter.family}] (${encounter.units.length} units).${note}`
+      : `Engaging ${encounter.name} — sector ${state.combat.sector} wave ${wave}/${totalWaves} [${encounter.family}] (${encounter.units.length} units).${note}`,
   )
 }
 
@@ -585,6 +635,10 @@ export function setDocked(state: GameState, docked: boolean): GameState {
     if (next.combat.inFight) {
       persistFlagshipHull(next)
       clearEnemy(next)
+    }
+    if (next.echo?.activeId) {
+      failEcho(next, 'Extracted early.')
+      return next
     }
     next.combat.docked = true
     next.combat.lastSortie = {

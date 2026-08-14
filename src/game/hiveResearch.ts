@@ -3,7 +3,9 @@
 import type { GameState, HiveResearchBranch, HiveResearchState } from './types'
 import { careerHighestSector } from './progression'
 import { reliquaryResearchXpMult } from './reliquary'
+import { furnaceResearchXpMult } from './furnace'
 import { normalizeRoute, routeResearchMult } from './sectors'
+import { echoResearchXpMult } from './echo'
 
 export const HIVE_RESEARCH_UNLOCK_SECTOR = 7
 /** USI default is 9×; 4× keeps early numbers retunable. */
@@ -190,9 +192,7 @@ export function grantHiveResearchKillXp(state: GameState, isBoss: boolean): numb
   if (base <= 0) return 0
   if (!state.hiveResearch) state.hiveResearch = createEmptyHiveResearchState()
   const focus = state.hiveResearch.focus
-  const labRank = Math.max(0, state.furnace?.ranks.lab ?? 0)
-  const lab =
-    (1 + labRank * 0.05) * reliquaryResearchXpMult(state) * hiveResearchXpMult(state)
+  const lab = furnaceResearchXpMult(state) * reliquaryResearchXpMult(state) * hiveResearchXpMult(state) * echoResearchXpMult(state)
   let granted = 0
   for (const branch of HIVE_RESEARCH_BRANCHES) {
     const focusMult = branch.id === focus ? HIVE_RESEARCH_FOCUS_MULT : 1

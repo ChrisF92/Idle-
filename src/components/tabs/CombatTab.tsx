@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import type { GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
-import { wavesForSector, normalizeRoute } from '../../game/sectors'
+import { normalizeRoute } from '../../game/sectors'
+import { wavesForRun, getEchoRun } from '../../game/echo'
+import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
@@ -26,8 +28,10 @@ export function CombatTab({
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
-  const waves = wavesForSector(combat.sector)
+  const waves = wavesForRun(state)
   const live = !combat.docked
+  const protocol = activeProtocol(state)
+  const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const [sheet, setSheet] = useState<'cores' | 'network'>('cores')
 
   const previewPlayer = useMemo(
@@ -83,8 +87,11 @@ export function CombatTab({
       <header className="combat-hud-bar">
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">
-            S{combat.sector}
-            {normalizeRoute(combat.route) === 'B' ? 'B' : ''}
+            {echoRun
+              ? echoRun.name
+              : protocol
+                ? `P${protocol.goalSector}`
+                : `S${combat.sector}${normalizeRoute(combat.route) === 'B' ? 'B' : ''}`}
           </span>
           <strong className="combat-hud-value">
             W{combat.wave}/{waves}

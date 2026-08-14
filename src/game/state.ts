@@ -56,8 +56,11 @@ import {
   hiveResearchShieldMult,
 } from './hiveResearch'
 import { createEmptyYardState, yardDamageMult, yardShieldMult } from './yard'
+import { createEmptyProtocolState } from './protocols'
+import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
+import { createEmptyProcessState } from './process'
 
-export const SAVE_VERSION = 27
+export const SAVE_VERSION = 28
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -66,7 +69,7 @@ export const RESOURCE_LABELS: Record<keyof Resources, string> = {
   energy: 'Energy',
   data: 'Data',
   essence: 'Essence',
-  aiPoints: 'AI Points',
+  aiPoints: 'Process',
   prestigeMatter: 'Prestige Matter',
   challengePoints: 'Challenge Points',
   salvage: 'Salvage',
@@ -141,6 +144,9 @@ export function createInitialState(now = Date.now()): GameState {
     furnace: createEmptyFurnaceState(),
     hiveResearch: createEmptyHiveResearchState(),
     yard: createEmptyYardState(),
+    protocols: createEmptyProtocolState(),
+    echo: createEmptyEchoState(),
+    process: createEmptyProcessState(),
     research: {
       unlocked: [],
     },
@@ -220,6 +226,7 @@ export function globalDamageMultiplier(state: GameState): number {
   mult *= furnaceDamageMult(state)
   mult *= hiveResearchDamageMult(state)
   mult *= yardDamageMult(state)
+  mult *= echoDamageMult(state)
   return mult
 }
 
@@ -348,6 +355,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= furnaceShieldMult(state)
   shieldMax *= hiveResearchShieldMult(state)
   shieldMax *= yardShieldMult(state)
+  shieldMax *= echoShieldMult(state)
 
   evasion = Math.min(0.45, evasion)
 

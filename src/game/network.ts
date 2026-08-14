@@ -5,6 +5,8 @@ import { dronePower } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDataMult, hiveResearchNetworkMult } from './hiveResearch'
 import { yardNetworkMult } from './yard'
+import { protocolBonusMult, protocolMutes } from './protocols'
+import { echoNetworkMult } from './echo'
 
 function careerEver(state: GameState): number {
   return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
@@ -104,7 +106,9 @@ export function networkFillRate(state: GameState, id: NetworkBarId): number {
       networkChainBoost(state, id) *
       reliquaryNetworkMult(state) *
       hiveResearchNetworkMult(state) *
-      yardNetworkMult(state)) /
+      yardNetworkMult(state) *
+      protocolBonusMult(state, 'network') *
+      echoNetworkMult(state)) /
     cost
   return Math.min(NETWORK_FILL_CAP_PER_SEC, Math.max(0, raw))
 }
@@ -116,24 +120,29 @@ function computeBonus(levels: number, k: number): number {
 }
 
 export function networkStrikeMult(state: GameState): number {
+  if (protocolMutes(state, 'network')) return 1
   return computeBonus(networkLevels(state, 'strike'), 0.08)
 }
 
 export function networkWardMult(state: GameState): number {
+  if (protocolMutes(state, 'network')) return 1
   return computeBonus(networkLevels(state, 'ward'), 0.08)
 }
 
 export function networkSalvageMult(state: GameState): number {
+  if (protocolMutes(state, 'network')) return 1
   if (!isNetworkBarUnlocked(state, 'yield')) return 1
   return computeBonus(networkLevels(state, 'yield'), 0.05)
 }
 
 export function networkManufactureMult(state: GameState): number {
+  if (protocolMutes(state, 'network')) return 1
   if (!isNetworkBarUnlocked(state, 'loom')) return 1
   return computeBonus(networkLevels(state, 'loom'), 0.04)
 }
 
 export function networkScrapRate(state: GameState): number {
+  if (protocolMutes(state, 'network')) return 0
   if (!isNetworkBarUnlocked(state, 'yield')) return 0
   const L = networkLevels(state, 'yield')
   if (L <= 0) return 0
@@ -141,6 +150,7 @@ export function networkScrapRate(state: GameState): number {
 }
 
 export function networkDataRate(state: GameState): number {
+  if (protocolMutes(state, 'network')) return 0
   if (!isNetworkBarUnlocked(state, 'archive')) return 0
   const L = networkLevels(state, 'archive')
   if (L <= 0) return 0

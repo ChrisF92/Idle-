@@ -31,11 +31,12 @@ import {
   tickCoreTraining,
 } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
-import { isSystemUnlocked } from './progression'
+import { isSystemUnlocked, maybeGrantSystemUnlocks } from './progression'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { networkManufactureMult, tickNetwork } from './network'
 import { tickFoundry } from './foundry'
 import { tickYard } from './yard'
+import { hasProcess } from './process'
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -252,12 +253,21 @@ export function applyOfflineCatchUp(
 
   applyIndustryOnly(next, seconds)
   applySectorOfflineRewards(next, seconds)
+  if (!next.combat.docked && hasProcess(next, 'offline-sortie')) {
+    const pushes = Math.min(4, Math.floor(seconds / 600))
+    if (pushes > 0) {
+      next.combat.sector += pushes
+      next.combat.highestSector = Math.max(next.combat.highestSector, next.combat.sector - 1)
+      next.combat.wave = 1
+      maybeGrantSystemUnlocks(next)
+    }
+  }
   endOfflineFight(next, seconds)
   next.lastTickAt = now
 
   const gains = resourceDelta(beforeResources, next.resources)
   const sectorsAfter = next.combat.sector
-  const sectorsCleared = 0
+  const sectorsCleared = Math.max(0, sectorsAfter - sectorsBefore)
 
   if (elapsedMs < OFFLINE_REPORT_THRESHOLD_MS) {
     return { state: next, report: null }

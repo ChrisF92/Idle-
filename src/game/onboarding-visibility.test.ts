@@ -65,6 +65,8 @@ describe('expanded onboarding catalog', () => {
       'guide-challenges',
       'guide-challenge-shop',
       'guide-ascension',
+      'guide-protocols',
+      'guide-echo',
     ]) {
       expect(ids.has(id)).toBe(true)
     }
@@ -88,14 +90,19 @@ describe('expanded onboarding catalog', () => {
     expect(activeGuideStep(state, 'base')?.id).toBe('guide-power-grid')
   })
 
-  it('keeps challenges UI closed until Act 1 (sector 30) is cleared', () => {
+  it('opens Protocols at sector 18 and Echo at 22', () => {
     const state = createInitialState(0)
     state.prestige.prestigeCount = 3
     state.combat.sector = 10
     expect(challengesContentUnlocked(state)).toBe(false)
+    expect(isSystemUnlocked(state, 'protocols')).toBe(false)
+    expect(isSystemUnlocked(state, 'echo')).toBe(false)
     state.meta.act1Cleared = true
     expect(challengesContentUnlocked(state)).toBe(true)
-    expect(GUIDE_STEPS.some((s) => s.id === 'guide-challenge-shop')).toBe(true)
+
+    state.meta.highestSectorEver = 18
+    expect(isSystemUnlocked(state, 'protocols')).toBe(true)
+    expect(GUIDE_STEPS.some((s) => s.id === 'guide-protocols')).toBe(true)
 
     state.meta.seenOnboarding = [
       'guide-shipyard-tab',
@@ -123,7 +130,12 @@ describe('expanded onboarding catalog', () => {
       'guide-ascension',
       'guide-yard',
     ]
-    expect(activeGuideStep(state, 'prestige')?.id).toBe('guide-challenges')
-    expect(activeGuideStep(state, 'prestige')?.target).toBe('challenges-subtab')
+    expect(activeGuideStep(state, 'stats')?.id).toBe('guide-protocols')
+    expect(activeGuideStep(state, 'stats')?.target).toBe('station-protocols')
+
+    state.meta.highestSectorEver = 22
+    state.meta.seenOnboarding = [...state.meta.seenOnboarding, 'guide-protocols', 'guide-challenges']
+    expect(isSystemUnlocked(state, 'echo')).toBe(true)
+    expect(activeGuideStep(state, 'stats')?.id).toBe('guide-echo')
   })
 })

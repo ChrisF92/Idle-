@@ -91,6 +91,30 @@ export interface YardState {
   armed: Record<YardArmId, number>
 }
 
+export type ProtocolMute = 'network' | 'foundry' | 'reliquary' | 'furnace'
+
+/** USI Challenges analogue — restricted sorties that rank a muted system. */
+export interface ProtocolState {
+  activeId: string | null
+  ranks: Record<string, number>
+}
+
+/** USI Warp Drive analogue — short gauntlets into a skill tree. */
+export interface EchoState {
+  activeId: string | null
+  resumeSector: number
+  resumeWave: number
+  resumeRoute: SectorRoute
+  points: number
+  tree: string[]
+  clears: Record<string, number>
+}
+
+/** Achievements → Process points → automation / QoL. */
+export interface ProcessState {
+  purchased: string[]
+}
+
 export type TabId =
   | 'dock'
   | 'combat'
@@ -100,6 +124,9 @@ export type TabId =
   | 'reliquary'
   | 'furnace'
   | 'yard'
+  | 'protocols'
+  | 'echo'
+  | 'process'
   | 'shipyard'
   | 'base'
   | 'research'
@@ -512,6 +539,12 @@ export interface GameState {
   hiveResearch: HiveResearchState
   /** Yard Grid (USI Bases). Buildings persist; pending arms on next Rebuild. */
   yard: YardState
+  /** Protocols (USI Challenges). Ranks persist; active run is Rebuild-cleared. */
+  protocols: ProtocolState
+  /** Echo Runs (USI Warp Drive). Tree + points persist. */
+  echo: EchoState
+  /** Process automation nodes. Persist across Rebuild. */
+  process: ProcessState
   research: ResearchState
   ai: AiState
   essence: EssenceState

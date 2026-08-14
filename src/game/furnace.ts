@@ -3,6 +3,7 @@
 import type { FurnaceState, FurnaceTrackId, GameState } from './types'
 import { careerHighestSector } from './progression'
 import { reliquaryAshMult } from './reliquary'
+import { protocolBonusMult, protocolMutes } from './protocols'
 
 export const FURNACE_UNLOCK_SECTOR = 5
 export const ASH_PER_HEAT = 10
@@ -95,21 +96,25 @@ export function buyFurnaceRank(state: GameState, id: FurnaceTrackId): GameState 
 }
 
 export function furnaceDamageMult(state: GameState): number {
+  if (protocolMutes(state, 'furnace')) return 1
   const def = getFurnaceTrack('attack')
-  return 1 + furnaceRank(state, 'attack') * (def?.damage ?? 0)
+  return (1 + furnaceRank(state, 'attack') * (def?.damage ?? 0)) * protocolBonusMult(state, 'furnace')
 }
 
 export function furnaceShieldMult(state: GameState): number {
+  if (protocolMutes(state, 'furnace')) return 1
   const def = getFurnaceTrack('defense')
-  return 1 + furnaceRank(state, 'defense') * (def?.shield ?? 0)
+  return (1 + furnaceRank(state, 'defense') * (def?.shield ?? 0)) * protocolBonusMult(state, 'furnace')
 }
 
 export function furnaceResearchXpMult(state: GameState): number {
+  if (protocolMutes(state, 'furnace')) return 1
   const def = getFurnaceTrack('lab')
-  return 1 + furnaceRank(state, 'lab') * (def?.researchXp ?? 0)
+  return (1 + furnaceRank(state, 'lab') * (def?.researchXp ?? 0)) * protocolBonusMult(state, 'furnace')
 }
 
 export function furnaceFoundrySpeedMult(state: GameState): number {
+  if (protocolMutes(state, 'furnace')) return 1
   const def = getFurnaceTrack('workshop')
-  return 1 + furnaceRank(state, 'workshop') * (def?.foundrySpeed ?? 0)
+  return (1 + furnaceRank(state, 'workshop') * (def?.foundrySpeed ?? 0)) * protocolBonusMult(state, 'furnace')
 }

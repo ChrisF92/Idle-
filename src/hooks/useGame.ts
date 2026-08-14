@@ -60,6 +60,12 @@ import {
   placeYardBuilding,
   clearYardBuilding,
   buyYardArm,
+  enterProtocol,
+  abandonProtocol,
+  enterEcho,
+  abandonEcho,
+  buyEchoNode,
+  buyProcessNode,
 } from '../game/actions'
 import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -130,6 +136,12 @@ type Action =
   | { type: 'yard-place'; index: number; buildingId: import('../game/types').YardBuildingId }
   | { type: 'yard-clear'; index: number }
   | { type: 'yard-arm'; armId: import('../game/types').YardArmId }
+  | { type: 'enter-protocol'; protocolId: string }
+  | { type: 'abandon-protocol' }
+  | { type: 'enter-echo'; echoId: string }
+  | { type: 'abandon-echo' }
+  | { type: 'buy-echo'; nodeId: string }
+  | { type: 'buy-process'; nodeId: string }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -252,6 +264,18 @@ function reducer(state: GameState, action: Action): GameState {
       return clearYardBuilding(state, action.index)
     case 'yard-arm':
       return buyYardArm(state, action.armId)
+    case 'enter-protocol':
+      return enterProtocol(state, action.protocolId)
+    case 'abandon-protocol':
+      return abandonProtocol(state)
+    case 'enter-echo':
+      return enterEcho(state, action.echoId)
+    case 'abandon-echo':
+      return abandonEcho(state)
+    case 'buy-echo':
+      return buyEchoNode(state, action.nodeId)
+    case 'buy-process':
+      return buyProcessNode(state, action.nodeId)
     default:
       return state
   }
@@ -374,6 +398,13 @@ export function useGame() {
     clearYardBuilding: (index: number) => dispatch({ type: 'yard-clear', index }),
     buyYardArm: (armId: import('../game/types').YardArmId) =>
       dispatch({ type: 'yard-arm', armId }),
+    enterProtocol: (protocolId: string) =>
+      dispatch({ type: 'enter-protocol', protocolId }),
+    abandonProtocol: () => dispatch({ type: 'abandon-protocol' }),
+    enterEcho: (echoId: string) => dispatch({ type: 'enter-echo', echoId }),
+    abandonEcho: () => dispatch({ type: 'abandon-echo' }),
+    buyEchoNode: (nodeId: string) => dispatch({ type: 'buy-echo', nodeId }),
+    buyProcessNode: (nodeId: string) => dispatch({ type: 'buy-process', nodeId }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {
