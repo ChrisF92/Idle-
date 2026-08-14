@@ -56,11 +56,9 @@ describe('onboarding survives soft resets', () => {
 
   it('syncCompletedGuides acks steps whose completeWhen already holds', () => {
     let state = createInitialState(0)
-    state.combat.docked = true
-    state.shipyard.frameLocked = false
-    // completeWhen for shipyard tab is tab === 'shipyard'
-    state = syncCompletedGuides(state, 'shipyard')
-    expect(state.meta.seenOnboarding).toContain('guide-shipyard-tab')
+    state.meta.highestSectorEver = 3
+    state = syncCompletedGuides(state, 'reliquary')
+    expect(state.meta.seenOnboarding).toContain('guide-reliquary')
   })
 
   it('retirePostResetOnboarding is idempotent', () => {
