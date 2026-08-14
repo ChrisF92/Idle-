@@ -331,6 +331,8 @@ export interface CombatUnit {
   kite: boolean
   /** Brief phase-shift flash timer (boss telegraphs). */
   phaseWarnLeft: number
+  /** Seconds until in-combat shield regen resumes after a hit. */
+  regenDelay?: number
 }
 
 export interface CombatFx {

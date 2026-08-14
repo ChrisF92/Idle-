@@ -240,6 +240,7 @@ function makeEnemyUnit(opts: {
     engageRange: opts.engageRange,
     kite: opts.kite ?? false,
     phaseWarnLeft: 0,
+    regenDelay: 0,
   }
 }
 
@@ -310,13 +311,16 @@ export function enemySectorScale(sector: number): number {
 }
 
 /**
- * Enemy damage scale. S1 still holds on 30 shield + 5%/s regen.
- * S8+ punishes ignoring Plate; S15 packs that get shots off will drop L0 shield.
+ * Enemy damage scale. S1 still holds on 30 shield if packs only chip.
+ * S8 without Plate levels should fail a full sector; S15 is a wall.
  */
 export function enemyDamageScale(sector: number): number {
   const s = Math.max(1, sector)
-  return 0.72 * Math.pow(1.11, s - 1)
+  return 0.75 * Math.pow(1.28, s - 1)
 }
+
+/** After a hit, in-combat Plate regen pauses so burst packs can actually break L0 shield. */
+export const SHIELD_REGEN_DELAY = 1.2
 
 /**
  * Wave-aware packs. Patterns cycle across the sector's waves.
@@ -361,7 +365,7 @@ function buildSwarmWave(
           name: `${name} Mite ${i + 1}`,
           family: 'swarm',
           hull: 12 * hullScale,
-          damage: 2.2 * dmgScale,
+          damage: 2.8 * dmgScale,
           cooldown: 0.9,
           range: 40,
           speed: 42,
@@ -376,7 +380,7 @@ function buildSwarmWave(
           name: `${name} ${i + 1}`,
           family: 'swarm',
           hull: 15 * hullScale,
-          damage: 2.5 * dmgScale,
+          damage: 3.1 * dmgScale,
           cooldown: 0.95,
           range: 42,
           speed: 38,
@@ -392,7 +396,7 @@ function buildSwarmWave(
             name: `${name} Screen ${i + 1}`,
             family: 'swarm',
             hull: 14 * hullScale,
-            damage: 2.4 * dmgScale,
+            damage: 3.0 * dmgScale,
             cooldown: 1,
             range: 40,
             speed: 40,
@@ -424,7 +428,7 @@ function buildSwarmWave(
             name: `${name} ${i + 1}`,
             family: 'swarm',
             hull: 14 * hullScale,
-            damage: 2.4 * dmgScale,
+            damage: 3.0 * dmgScale,
             cooldown: 0.95,
             range: 42,
             speed: 38,
@@ -456,7 +460,7 @@ function buildSwarmWave(
           name: `${name} ${i + 1}`,
           family: 'swarm',
           hull: 16 * hullScale,
-          damage: 2.7 * dmgScale,
+          damage: 3.2 * dmgScale,
           cooldown: 0.9,
           range: 42,
           speed: 40,
@@ -1146,6 +1150,7 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
     engageRange: 0,
     kite: false,
     phaseWarnLeft: 0,
+    regenDelay: 0,
   }
 
   const escorts: CombatUnit[] = []
@@ -1188,6 +1193,7 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
         engageRange: 0,
         kite: false,
         phaseWarnLeft: 0,
+        regenDelay: 0,
       })
     }
   }
@@ -1587,10 +1593,13 @@ function applyDamageToUnit(
   let dealt = 0
   if (target.shield > 0 && remaining > 0) {
     const shieldHit = remaining * vs.shieldDamage
-    const toShield = Math.min(target.shield, shieldHit)
+    const toShield = Math.min(target.shield, Math.max(0, shieldHit))
     target.shield -= toShield
     dealt += toShield
-    remaining -= vs.shieldDamage > 0 ? toShield / vs.shieldDamage : remaining
+    target.regenDelay = Math.max(target.regenDelay ?? 0, SHIELD_REGEN_DELAY)
+    // Shield layer absorbs the whole hit. Leftover does not spill into hull
+    // until a later projectile finds the shield already empty.
+    return dealt
   }
 
   if (remaining > 0 && target.hull > 0) {
@@ -1604,8 +1613,19 @@ function applyDamageToUnit(
     const toHull = Math.min(target.hull, hullHit)
     target.hull -= toHull
     dealt += toHull
+    target.regenDelay = Math.max(target.regenDelay ?? 0, SHIELD_REGEN_DELAY)
   }
   return dealt
+}
+
+/** Test helper — same rules as live projectile impact. */
+export function dealCombatDamage(
+  target: CombatUnit,
+  rawDamage: number,
+  tags: WeaponTag[] = ['energy'],
+  profile?: WeaponDamageProfile,
+): number {
+  return applyDamageToUnit(target, rawDamage, tags, profile)
 }
 
 function incomingDefenseMult(
@@ -1754,11 +1774,13 @@ export function simulateCombat(
 
   const regenFrac =
     fittedShieldRegenFraction(state.shipyard.modules) + fittedRegenBonus(state)
-  if (regenFrac > 0) {
-    for (const unit of state.combat.playerUnits) {
-      if (unit.hull <= 0 || unit.shieldMax <= 0) continue
-      unit.shield = Math.min(unit.shieldMax, unit.shield + unit.shieldMax * regenFrac * dt)
+  for (const unit of state.combat.playerUnits) {
+    if ((unit.regenDelay ?? 0) > 0) {
+      unit.regenDelay = Math.max(0, (unit.regenDelay ?? 0) - dt)
     }
+    if (regenFrac <= 0 || (unit.regenDelay ?? 0) > 0) continue
+    if (unit.hull <= 0 || unit.shieldMax <= 0) continue
+    unit.shield = Math.min(unit.shieldMax, unit.shield + unit.shieldMax * regenFrac * dt)
   }
 
   // Resolve in-flight impacts first so hull updates before new targeting
@@ -1775,7 +1797,13 @@ export function simulateCombat(
       const prevHull = unit.hull
       for (const dot of unit.dots) {
         if (dot.remaining <= 0) continue
-        unit.hull = Math.max(0, unit.hull - dot.dps * dt)
+        const tick = dot.dps * dt
+        if (unit.shield > 0) {
+          unit.shield = Math.max(0, unit.shield - tick)
+          unit.regenDelay = Math.max(unit.regenDelay ?? 0, SHIELD_REGEN_DELAY)
+        } else {
+          unit.hull = Math.max(0, unit.hull - tick)
+        }
         dot.remaining -= dt
       }
       unit.dots = unit.dots.filter((d) => d.remaining > 0)

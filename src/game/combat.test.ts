@@ -3,6 +3,7 @@ import { buildFlagshipWeapons, createInitialState } from './state'
 import { startCombat, advanceTicks } from './tick'
 import {
   computeFightDamage,
+  dealCombatDamage,
   enemyForSector,
   isBossSector,
   PROJECTILE_SPEED,
@@ -13,6 +14,7 @@ import {
 } from './combat'
 import { fitModule, unlockModule } from './actions'
 import { equipPostTutorialLoadout } from './testHelpers'
+import type { CombatUnit } from './types'
 
 describe('enemy catalog', () => {
   it('rotates families and marks bosses every 5 sectors', () => {
@@ -156,5 +158,61 @@ describe('fleet combat resolution', () => {
     advanceTicks(state, 120)
     // May still be on S1 after a death warp; cleared progress is on highestSector.
     expect(state.combat.highestSector).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('shield layers', () => {
+  function dummy(partial: Partial<CombatUnit> = {}): CombatUnit {
+    return {
+      id: 't',
+      side: 'enemy',
+      name: 'Dummy',
+      shape: 'circle',
+      family: 'ethereal',
+      hull: 50,
+      hullMax: 50,
+      shield: 20,
+      shieldMax: 20,
+      armor: 0,
+      evasion: 0,
+      damageTakenMult: 1,
+      weapons: [],
+      isBoss: false,
+      isFlagship: false,
+      dots: [],
+      x: 0,
+      y: 0,
+      speed: 0,
+      engageRange: 0,
+      kite: false,
+      phaseWarnLeft: 0,
+      regenDelay: 0,
+      ...partial,
+    }
+  }
+
+  it('does not spill leftover damage into hull on the shield-break hit', () => {
+    const u = dummy()
+    dealCombatDamage(u, 200, ['energy'])
+    expect(u.shield).toBe(0)
+    expect(u.hull).toBe(50)
+    dealCombatDamage(u, 200, ['energy'])
+    expect(u.hull).toBe(0)
+  })
+
+  it('lets a later hit damage hull once the shield is already empty', () => {
+    const u = dummy({ shield: 0, shieldMax: 20, hull: 40, hullMax: 40 })
+    dealCombatDamage(u, 15, ['energy'])
+    expect(u.hull).toBe(25)
+  })
+
+  it('stops Pulse from deleting a shielded ethereal in one shot', () => {
+    const pack = enemyForSector(3, 1)
+    const shielded = pack.units.find((u) => u.shieldMax > 0)
+    expect(shielded).toBeTruthy()
+    const hullBefore = shielded!.hull
+    dealCombatDamage(shielded!, 200, ['energy'])
+    expect(shielded!.shield).toBe(0)
+    expect(shielded!.hull).toBe(hullBefore)
   })
 })

@@ -101,6 +101,20 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     expect(s.combat.playerHull).toBeGreaterThan(0)
   })
 
+  it('weapon-only Pulse dump dies at S8 with L0 Plate', () => {
+    let s = createInitialState(0)
+    s.combat.sector = 8
+    s.combat.wave = 1
+    s.combat.highestSector = 7
+    s.meta.highestSectorEver = 7
+    s.shipyard.moduleLevels = { 'pulse-cannon': 20, 'plate-layer': 0 }
+    expect(computeShipStats(s).shieldMax).toBe(30)
+    s = setDocked(s, false)
+    advanceSeconds(s, 45)
+    expect(s.combat.docked).toBe(true)
+    expect(s.combat.lastSortie?.outcome).toBe('defeat')
+  })
+
   it('weapon-only Pulse dump dies at S15 with L0 Plate', () => {
     let s = createInitialState(0)
     s.combat.sector = 15

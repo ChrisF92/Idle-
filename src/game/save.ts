@@ -62,6 +62,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       engageRange: u.engageRange ?? 0,
       kite: u.kite ?? false,
       phaseWarnLeft: u.phaseWarnLeft ?? 0,
+      regenDelay: u.regenDelay ?? 0,
       weapons: (u.weapons ?? []).map((w) => ({
         ...w,
         range: w.range ?? 90,

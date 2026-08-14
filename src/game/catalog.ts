@@ -1299,7 +1299,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Plate Layer',
     role: 'defense',
     description:
-      'Starter shield Core — USI Continuous Generator: 30 max shield, +5/level, 5%/s regen.',
+      'Starter shield Core — USI Continuous Generator: 30 max shield, +5/level, 5%/s regen. Regen pauses briefly after a hit.',
     damageBonus: 0,
     hullBonus: 0,
     shieldBonus: 30,
