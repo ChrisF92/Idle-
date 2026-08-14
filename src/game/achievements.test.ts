@@ -78,18 +78,13 @@ describe('achievements and AI unlock', () => {
 
   it('offers prestige and AI guide steps when those systems unlock', () => {
     const prestigeState = createInitialState(0)
-    prestigeState.meta.highestSectorEver = 8
+    prestigeState.meta.highestSectorEver = 4
+    prestigeState.combat.sector = 4
     prestigeState.meta.seenOnboarding = [
       ...STARTER_GUIDE_IDS,
       ...NETWORK_GUIDE_IDS,
       'guide-foundry',
       'guide-reliquary',
-      'guide-furnace',
-      'guide-research-tab',
-      'guide-salvage',
-      'guide-codex-tab',
-      'guide-ai-tab',
-      'guide-achievements',
     ]
     expect(activeGuideStep(prestigeState, 'combat')?.id).toBe('guide-prestige-tab')
 

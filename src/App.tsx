@@ -51,7 +51,7 @@ export default function App() {
   const live = !game.state.combat.docked || dying
   const waves = wavesForSector(game.state.combat.sector)
   const guide =
-    dying || reportOpen ? null : activeGuideStep(game.state, tab, heldGuideId)
+    dying || reportOpen ? null : activeGuideStep(game.state, tab, heldGuideId, { hangarOpen })
   game.simPausedRef.current = Boolean(guide) || simulatorOpen
 
   const go = useCallback(

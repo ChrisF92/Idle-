@@ -215,6 +215,75 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(state, 'codex')?.id).not.toBe('guide-research-tab')
   })
 
+  it('walks first Rebuild when the hangar comes available', () => {
+    let state = createInitialState(0)
+    state.combat.sector = 4
+    state.meta.highestSectorEver = 4
+    state.combat.highestSector = 4
+    state.meta.seenOnboarding = [
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
+      'guide-foundry',
+      'guide-foundry-smelt',
+      'guide-foundry-keep',
+      'guide-reliquary',
+      'guide-reliquary-slots',
+      'guide-reliquary-resonance',
+    ]
+    expect(activeGuideStep(state, 'stats')?.id).toBe('guide-prestige-tab')
+    expect(activeGuideStep(state, 'stats')?.group).toBe('rebuild')
+
+    state = acknowledgeOnboarding(state, 'guide-prestige-tab')
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-prestige-ready')
+    expect(activeGuideStep(state, 'dock')?.required).toBe(true)
+    expect(activeGuideStep(state, 'dock', null, { hangarOpen: true })?.id).toBe(
+      'guide-prestige-ready',
+    )
+
+    state = acknowledgeOnboarding(state, 'guide-prestige-ready')
+    expect(activeGuideStep(state, 'dock')).toBeNull()
+    expect(activeGuideStep(state, 'dock', null, { hangarOpen: true })?.id).toBe(
+      'guide-prestige-hangar',
+    )
+
+    state = acknowledgeOnboarding(state, 'guide-prestige-hangar')
+    expect(activeGuideStep(state, 'dock', null, { hangarOpen: true })?.id).toBe(
+      'guide-prestige-confirm',
+    )
+    expect(activeGuideStep(state, 'dock', null, { hangarOpen: true })?.required).toBe(true)
+  })
+
+  it('Skip on Rebuild door dismisses the hangar walkthrough', () => {
+    let state = createInitialState(0)
+    state.combat.sector = 4
+    state.meta.highestSectorEver = 4
+    state.meta.seenOnboarding = [
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
+      'guide-foundry',
+      'guide-foundry-smelt',
+      'guide-foundry-keep',
+      'guide-reliquary',
+      'guide-reliquary-slots',
+      'guide-reliquary-resonance',
+    ]
+    expect(activeGuideStep(state, 'stats')?.id).toBe('guide-prestige-tab')
+    state = skipOnboarding(state, 'guide-prestige-tab')
+    expect(state.meta.seenOnboarding).toEqual(
+      expect.arrayContaining([
+        'guide-prestige-tab',
+        'guide-prestige-ready',
+        'guide-prestige-hangar',
+        'guide-prestige-confirm',
+      ]),
+    )
+    expect(activeGuideStep(state, 'dock')?.group).not.toBe('rebuild')
+  })
+
   it('Skip on a door dismisses the whole system tour', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 3

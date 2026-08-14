@@ -73,6 +73,8 @@ describe('Hiveworks onboarding catalog', () => {
       'guide-logs',
       'guide-prestige-tab',
       'guide-prestige-ready',
+      'guide-prestige-hangar',
+      'guide-prestige-confirm',
     ]) {
       expect(ids.has(id)).toBe(true)
     }

@@ -84,7 +84,7 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
         </header>
 
         <div className="hangar-body">
-          <h4>Hull</h4>
+          <h4 data-guide="hangar-hull">Hull</h4>
           <div className="hangar-picks">
             {available.map((f) => (
               <button
@@ -138,6 +138,7 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
           <button
             type="button"
             className="primary"
+            data-guide="hangar-confirm"
             disabled={!ready}
             onClick={() => onConfirm({ frameId, modules })}
           >
