@@ -68,6 +68,10 @@ describe('expanded onboarding catalog', () => {
       'guide-protocols',
       'guide-echo',
       'guide-specialists',
+      'guide-tasks',
+      'guide-capital',
+      'guide-reinforce',
+      'guide-logs',
     ]) {
       expect(ids.has(id)).toBe(true)
     }

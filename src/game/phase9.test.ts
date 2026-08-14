@@ -15,14 +15,14 @@ import {
   specialistRank,
   specialistShieldMult,
 } from './specialists'
-import { yardGridSize, YARD_EXPAND_SECTOR_2, YARD_MAX_SIZE } from './yard'
+import { yardGridSize, YARD_EXPAND_SECTOR_2 } from './yard'
 import { wavesForSector } from './sectors'
 import { advanceSeconds, setDocked } from './tick'
 import { enemySectorScale } from './combat'
 
 describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('bumps save and keeps Specialists locked until 51', () => {
-    expect(SAVE_VERSION).toBe(29)
+    expect(SAVE_VERSION).toBe(30)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR - 1
@@ -57,7 +57,7 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     s.meta.highestSectorEver = YARD_EXPAND_SECTOR_2 - 1
     expect(yardGridSize(s)).toBe(4)
     s.meta.highestSectorEver = YARD_EXPAND_SECTOR_2
-    expect(yardGridSize(s)).toBe(YARD_MAX_SIZE)
+    expect(yardGridSize(s)).toBe(5)
   })
 
   it('ranks Specialists for damage / shield and persists across Rebuild', () => {

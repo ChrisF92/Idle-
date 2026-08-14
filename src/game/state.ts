@@ -60,8 +60,9 @@ import { createEmptyProtocolState } from './protocols'
 import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
 import { createEmptyProcessState } from './process'
 import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult } from './specialists'
+import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
 
-export const SAVE_VERSION = 29
+export const SAVE_VERSION = 30
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -149,6 +150,7 @@ export function createInitialState(now = Date.now()): GameState {
     echo: createEmptyEchoState(),
     process: createEmptyProcessState(),
     specialists: createEmptySpecialistState(),
+    capital: createEmptyCapitalState(),
     research: {
       unlocked: [],
     },
@@ -230,6 +232,7 @@ export function globalDamageMultiplier(state: GameState): number {
   mult *= yardDamageMult(state)
   mult *= echoDamageMult(state)
   mult *= specialistDamageMult(state)
+  mult *= capitalDamageMult(state)
   return mult
 }
 
@@ -360,6 +363,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= yardShieldMult(state)
   shieldMax *= echoShieldMult(state)
   shieldMax *= specialistShieldMult(state)
+  shieldMax *= capitalShieldMult(state)
 
   evasion = Math.min(0.45, evasion)
 

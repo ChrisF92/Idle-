@@ -46,6 +46,7 @@ import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDrop
 import { yardSalvageMult } from './yard'
 import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
+import { capitalSalvageMult } from './capital'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -1556,7 +1557,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     hiveResearchSalvageMult(state) *
     yardSalvageMult(state) *
     echoSalvageMult(state) *
-    specialistSalvageMult(state)
+    specialistSalvageMult(state) *
+    capitalSalvageMult(state)
   state.resources.salvage +=
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route) * salvageMult
   rollEnemyPartDrop(state, unit)

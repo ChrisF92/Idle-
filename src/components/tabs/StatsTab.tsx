@@ -11,7 +11,7 @@ import {
 } from '../../game/progression'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-14d'
+export const APP_BUILD = '2026-08-14e'
 
 const STATIONS: { id: TabId; name: string; blurb: string }[] = [
   { id: 'reliquary', name: 'Reliquary', blurb: 'Shards in colour slots. Red / orange at 3; pink at 6.' },
@@ -22,6 +22,10 @@ const STATIONS: { id: TabId; name: string; blurb: string }[] = [
   { id: 'echo', name: 'Echo Runs', blurb: 'Short gauntlets → Echo tree. Sector 22.' },
   { id: 'process', name: 'Process', blurb: 'Achievements → automation nodes.' },
   { id: 'specialists', name: 'Specialists', blurb: 'Gunner / Warden / Scavenger. Persist on Rebuild. Sector 51.' },
+  { id: 'tasks', name: 'Task List', blurb: 'Checklist gate into Capital. Sector 72.' },
+  { id: 'capital', name: 'Capital', blurb: 'Second combat scale on the ship. Sector 75 + Task List.' },
+  { id: 'reinforce', name: 'Reinforce', blurb: 'Second prestige. Keeps the foundry. Sector 80.' },
+  { id: 'logs', name: 'Foundry Logs', blurb: 'Short industrial notes as doors open.' },
 ]
 
 interface StatsTabProps {

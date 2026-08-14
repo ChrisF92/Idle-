@@ -83,6 +83,8 @@ import {
 } from './echo'
 import { canBuyProcessNode, createEmptyProcessState, getProcessNode } from './process'
 import { createEmptySpecialistState, rankSpecialist } from './specialists'
+import { createEmptyCapitalState, rankCapital } from './capital'
+import { canReinforce, REINFORCE_UNLOCK_SECTOR } from './reinforce'
 import {
   isRouteBUnlocked,
   maxLaunchSector,
@@ -1031,6 +1033,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       purchased: [...(state.process?.purchased ?? [])],
     },
     specialists: structuredClone(state.specialists ?? createEmptySpecialistState()),
+    capital: structuredClone(state.capital ?? createEmptyCapitalState()),
     signalCores:
       state.meta.signalCoresCarryOver
         ? {
@@ -1115,6 +1118,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.echo = kept.echo
   state.process = kept.process
   state.specialists = kept.specialists
+  state.capital = kept.capital
   state.signalCores = kept.signalCores
   state.parts = kept.parts
 
@@ -1409,7 +1413,23 @@ export function buyEchoNode(state: GameState, nodeId: string): GameState {
   return next
 }
 
-export { rankSpecialist }
+export { rankSpecialist, rankCapital }
+
+export function performReinforce(state: GameState, now = Date.now()): GameState {
+  if (!canReinforce(state).ok) return state
+  const next = structuredClone(state)
+  const gain = Math.max(1, Math.floor(prestigeGainFor(next) * 0.5))
+  next.resources.prestigeMatter += gain
+  next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
+  next.prestige.activeChallengeId = null
+  applyRunReset(next, now)
+  tryCompleteAchievements(next)
+  next.combat.log = [
+    `Reinforced (×${next.meta.ascensionCount}). +${gain} PM. Future Rebuild kits grow. Need sector ${REINFORCE_UNLOCK_SECTOR} career.`,
+    ...next.combat.log,
+  ]
+  return next
+}
 
 export function buyProcessNode(state: GameState, nodeId: string): GameState {
   if (!canBuyProcessNode(state, nodeId).ok) return state

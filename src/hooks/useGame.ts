@@ -67,6 +67,8 @@ import {
   buyEchoNode,
   buyProcessNode,
   rankSpecialist,
+  rankCapital,
+  performReinforce,
 } from '../game/actions'
 import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -144,6 +146,8 @@ type Action =
   | { type: 'buy-echo'; nodeId: string }
   | { type: 'buy-process'; nodeId: string }
   | { type: 'rank-specialist'; specialistId: import('../game/types').SpecialistId }
+  | { type: 'rank-capital'; capitalId: import('../game/types').CapitalId }
+  | { type: 'reinforce' }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -280,6 +284,10 @@ function reducer(state: GameState, action: Action): GameState {
       return buyProcessNode(state, action.nodeId)
     case 'rank-specialist':
       return rankSpecialist(state, action.specialistId)
+    case 'rank-capital':
+      return rankCapital(state, action.capitalId)
+    case 'reinforce':
+      return performReinforce(state)
     default:
       return state
   }
@@ -411,6 +419,9 @@ export function useGame() {
     buyProcessNode: (nodeId: string) => dispatch({ type: 'buy-process', nodeId }),
     rankSpecialist: (specialistId: import('../game/types').SpecialistId) =>
       dispatch({ type: 'rank-specialist', specialistId }),
+    rankCapital: (capitalId: import('../game/types').CapitalId) =>
+      dispatch({ type: 'rank-capital', capitalId }),
+    performReinforce: () => dispatch({ type: 'reinforce' }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {

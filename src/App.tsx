@@ -19,6 +19,10 @@ import { ProtocolsTab } from './components/tabs/ProtocolsTab'
 import { EchoTab } from './components/tabs/EchoTab'
 import { ProcessTab } from './components/tabs/ProcessTab'
 import { SpecialistsTab } from './components/tabs/SpecialistsTab'
+import { TasksTab } from './components/tabs/TasksTab'
+import { CapitalTab } from './components/tabs/CapitalTab'
+import { ReinforceTab } from './components/tabs/ReinforceTab'
+import { LogsTab } from './components/tabs/LogsTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
@@ -48,7 +52,11 @@ export default function App() {
         tab === 'protocols' ||
         tab === 'echo' ||
         tab === 'process' ||
-        tab === 'specialists'
+        tab === 'specialists' ||
+        tab === 'tasks' ||
+        tab === 'capital' ||
+        tab === 'reinforce' ||
+        tab === 'logs'
       setTab(station ? 'stats' : 'dock')
     }
   }, [game.state, tab])
@@ -184,6 +192,22 @@ export default function App() {
             onRank={game.rankSpecialist}
           />
         )}
+        {tab === 'tasks' && <TasksTab state={game.state} onBack={() => go('stats')} />}
+        {tab === 'capital' && (
+          <CapitalTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onRank={game.rankCapital}
+          />
+        )}
+        {tab === 'reinforce' && (
+          <ReinforceTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onReinforce={game.performReinforce}
+          />
+        )}
+        {tab === 'logs' && <LogsTab state={game.state} onBack={() => go('stats')} />}
         {tab === 'stats' && (
           <StatsTab
             state={game.state}

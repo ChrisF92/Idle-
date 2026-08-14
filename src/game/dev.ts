@@ -10,7 +10,7 @@ import {
 } from './progression'
 import { syncPersistedHullCaps } from './state'
 import { enemyForSector } from './combat'
-import { wavesForRun } from './echo'
+import { wavesForRun, createEmptyEchoState } from './echo'
 import { wavesForSector } from './sectors'
 import { ensureYardGrid } from './yard'
 
@@ -61,6 +61,7 @@ export type DevAction =
   | { type: 'skip-guides' }
   | { type: 'set-wave'; wave: number }
   | { type: 'set-module-levels'; levels: Record<string, number> }
+  | { type: 'seed-late-game' }
 
 export function applyDevAction(state: GameState, action: DevAction): GameState {
   const next = structuredClone(state)
@@ -104,11 +105,11 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
           ...AI_NODES.filter((n) => n.permanent).map((n) => n.id),
         ]),
       ]
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 51)
-      next.combat.highestSector = Math.max(next.combat.highestSector, 51)
+      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 80)
+      next.combat.highestSector = Math.max(next.combat.highestSector, 80)
       maybeGrantSystemUnlocks(next)
       tryCompleteAchievements(next)
-      next.combat.log = ['[dev] Catalog unlocked through sector 51.', ...next.combat.log].slice(0, 40)
+      next.combat.log = ['[dev] Catalog unlocked through sector 80.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'clear-guides': {
@@ -173,8 +174,8 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'grant-achievements': {
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 51)
-      next.combat.highestSector = Math.max(next.combat.highestSector, 51)
+      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 80)
+      next.combat.highestSector = Math.max(next.combat.highestSector, 80)
       next.research.unlocked = [...new Set([...next.research.unlocked, 'basic-optics'])]
       if (next.prestige.prestigeCount < 1) next.prestige.prestigeCount = 1
       next.ai.purchased = [...new Set([...next.ai.purchased, 'auto-engage'])]
@@ -209,6 +210,22 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.shipyard.moduleLevels = nextLevels
       syncPersistedHullCaps(next)
       next.combat.log = ['[dev] Core levels set.', ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'seed-late-game': {
+      if (next.prestige.prestigeCount < 1) next.prestige.prestigeCount = 1
+      next.resources.heat = Math.max(next.resources.heat ?? 0, 20)
+      next.resources.salvage = Math.max(next.resources.salvage ?? 0, 400)
+      if (!next.specialists) next.specialists = { ranks: { gunner: 0, warden: 0, scavenger: 0 } }
+      next.specialists.ranks.gunner = Math.max(next.specialists.ranks.gunner ?? 0, 1)
+      if (!next.echo) next.echo = createEmptyEchoState()
+      next.echo.clears = { ...next.echo.clears, rift: Math.max(next.echo.clears.rift ?? 0, 1) }
+      if (!next.protocols) next.protocols = { activeId: null, ranks: {} }
+      next.protocols.ranks = { ...next.protocols.ranks, 'mute-network': Math.max(next.protocols.ranks['mute-network'] ?? 0, 1) }
+      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 75)
+      next.combat.highestSector = Math.max(next.combat.highestSector, 75)
+      maybeGrantSystemUnlocks(next)
+      next.combat.log = ['[dev] Late-game Task List seeded.', ...next.combat.log].slice(0, 40)
       break
     }
     default:

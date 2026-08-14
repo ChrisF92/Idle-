@@ -1,4 +1,6 @@
 import type {
+  CapitalId,
+  CapitalState,
   CoreAttrId,
   CoreState,
   EchoState,
@@ -40,6 +42,7 @@ import { createEmptyProtocolState } from './protocols'
 import { createEmptyEchoState } from './echo'
 import { createEmptyProcessState } from './process'
 import { createEmptySpecialistState } from './specialists'
+import { createEmptyCapitalState } from './capital'
 import { normalizeRoute } from './sectors'
 
 export function saveGame(state: GameState): void {
@@ -418,6 +421,17 @@ function withSpecialistDefaults(raw: SpecialistState | undefined): SpecialistSta
   return empty
 }
 
+const CAPITAL_IDS: CapitalId[] = ['broadside', 'bulkhead', 'hold']
+
+function withCapitalDefaults(raw: CapitalState | undefined): CapitalState {
+  const empty = createEmptyCapitalState()
+  if (!raw || typeof raw !== 'object') return empty
+  for (const id of CAPITAL_IDS) {
+    empty.ranks[id] = Math.max(0, Math.floor(Number(raw.ranks?.[id] ?? 0) || 0))
+  }
+  return empty
+}
+
 function withMetaDefaults(
   meta: GameState['meta'] | undefined,
   highestSector: number,
@@ -584,6 +598,7 @@ function migrate(raw: unknown): GameState | null {
       echo: withEchoDefaults(state.echo),
       process: withProcessDefaults(state.process),
       specialists: withSpecialistDefaults(state.specialists),
+      capital: withCapitalDefaults(state.capital),
       essence: withEssenceDefaults(state),
       prestige: withPrestigeDefaults(state.prestige),
       codex,
@@ -672,6 +687,7 @@ function migrate(raw: unknown): GameState | null {
       echo: withEchoDefaults(prev.echo),
       process: withProcessDefaults(prev.process),
       specialists: withSpecialistDefaults(prev.specialists),
+      capital: withCapitalDefaults(prev.capital),
       essence: withEssenceDefaults(prev),
       prestige: withPrestigeDefaults(prev.prestige),
       codex,

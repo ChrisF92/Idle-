@@ -1,6 +1,7 @@
 /** Act 1 spine, system gates, achievements, and guided onboarding. */
 
 import type { GameState, Resources, TabId } from './types'
+import { taskListComplete } from './tasks'
 
 export {
   WAVES_PER_SECTOR,
@@ -86,6 +87,30 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     requiresSectorEver: 51,
     label: 'Specialists',
     tip: 'Print Gunner, Warden, and Scavenger. Ranks persist across Rebuild.',
+  },
+  {
+    id: 'tasks',
+    requiresSectorEver: 72,
+    label: 'Task List',
+    tip: 'Finish the checklist. Capital does not open on a sector number alone.',
+  },
+  {
+    id: 'capital',
+    requiresSectorEver: 75,
+    label: 'Capital',
+    tip: 'Second combat scale on the ship. Broadside / Bulkhead / Hold. Task List first.',
+  },
+  {
+    id: 'reinforce',
+    requiresSectorEver: 80,
+    label: 'Reinforce',
+    tip: 'Second prestige layer. Keeps the foundry. Starts the lane again.',
+  },
+  {
+    id: 'logs',
+    requiresSectorEver: 0,
+    label: 'Foundry Logs',
+    tip: 'Short industrial notes as doors open.',
   },
   {
     id: 'research',
@@ -513,6 +538,12 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'yard') {
     return (state.prestige.prestigeCount ?? 0) >= 1
   }
+  if (systemId === 'capital') {
+    return careerHighestSector(state) >= 75 && taskListComplete(state)
+  }
+  if (systemId === 'logs') {
+    return true
+  }
   if (systemId === 'ai' || systemId === 'process') {
     return state.meta.aiUnlocked || state.meta.completedAchievements.length > 0
   }
@@ -541,6 +572,12 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   }
   if (systemId === 'yard') {
     return 'Rebuild once'
+  }
+  if (systemId === 'capital') {
+    return 'Clear sector 75 · finish the Task List'
+  }
+  if (systemId === 'logs') {
+    return null
   }
   if (systemId === 'ai' || systemId === 'process') {
     return 'Complete First Blood (clear sector 1)'
@@ -648,6 +685,13 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   }
   if (ever >= 41 && !state.shipyard.unlockedFrames.includes('battlecruiser-frame')) {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'battlecruiser-frame']
+  }
+  if (
+    ever >= 75 &&
+    taskListComplete(state) &&
+    !state.shipyard.unlockedFrames.includes('capital-frame')
+  ) {
+    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'capital-frame']
   }
 
   if (ever >= ACT1_FINAL_SECTOR && !state.meta.act1Cleared) {
@@ -949,6 +993,43 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'stats',
     availableWhen: (s) => isSystemUnlocked(s, 'specialists') && !guideSeen(s, 'guide-specialists'),
     completeWhen: (_s, tab) => tab === 'specialists',
+  },
+  {
+    id: 'guide-tasks',
+    title: 'Task List',
+    body: 'Open More and tap Task List. Finish the checklist — Capital waits on the work, not just the sector.',
+    target: 'station-tasks',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'tasks') && !guideSeen(s, 'guide-tasks'),
+    completeWhen: (_s, tab) => tab === 'tasks',
+  },
+  {
+    id: 'guide-capital',
+    title: 'Capital',
+    body: 'Open More and tap Capital. Broadside, Bulkhead, and Hold scale the ship. No fighters on the field.',
+    target: 'station-capital',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'capital') && !guideSeen(s, 'guide-capital'),
+    completeWhen: (_s, tab) => tab === 'capital',
+  },
+  {
+    id: 'guide-reinforce',
+    title: 'Reinforce',
+    body: 'Open More and tap Reinforce. Second prestige — keeps the foundry, starts the lane again.',
+    target: 'station-reinforce',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'reinforce') && !guideSeen(s, 'guide-reinforce'),
+    completeWhen: (_s, tab) => tab === 'reinforce',
+  },
+  {
+    id: 'guide-logs',
+    title: 'Foundry Logs',
+    body: 'Open More and tap Foundry Logs. Short notes as doors open. Story stays a log book.',
+    target: 'station-logs',
+    tab: 'stats',
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace') && !guideSeen(s, 'guide-logs'),
+    completeWhen: (_s, tab) => tab === 'logs',
   },
   {
     id: 'guide-sensor-net',

@@ -122,6 +122,13 @@ export interface SpecialistState {
   ranks: Record<SpecialistId, number>
 }
 
+export type CapitalId = 'broadside' | 'bulkhead' | 'hold'
+
+/** USI Capital analogue — second combat scale on the ship. Persist across Rebuild. */
+export interface CapitalState {
+  ranks: Record<CapitalId, number>
+}
+
 export type TabId =
   | 'dock'
   | 'combat'
@@ -135,6 +142,10 @@ export type TabId =
   | 'echo'
   | 'process'
   | 'specialists'
+  | 'tasks'
+  | 'capital'
+  | 'reinforce'
+  | 'logs'
   | 'shipyard'
   | 'base'
   | 'research'
@@ -557,6 +568,8 @@ export interface GameState {
   process: ProcessState
   /** Specialists (USI Crew). Ranks persist across Rebuild. */
   specialists: SpecialistState
+  /** Capital ranks (USI Capital). Persist across Rebuild. */
+  capital: CapitalState
   research: ResearchState
   ai: AiState
   essence: EssenceState

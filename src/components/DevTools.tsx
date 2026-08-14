@@ -104,7 +104,7 @@ export function DevTools({ onDevAction }: DevToolsProps) {
             >
               Jump
             </button>
-            {[8, 18, 22, 51].map((n) => (
+            {[8, 18, 22, 51, 72, 75, 80].map((n) => (
               <button
                 key={n}
                 type="button"
@@ -193,6 +193,36 @@ export function DevTools({ onDevAction }: DevToolsProps) {
             </button>
             <button type="button" className="primary" onClick={() => prepDoor(onDevAction, 51)}>
               Test Specialists @ 51
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                prepDoor(onDevAction, 72)
+                onDevAction({ type: 'seed-late-game' })
+              }}
+            >
+              Test Task List @ 72
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                prepDoor(onDevAction, 75)
+                onDevAction({ type: 'seed-late-game' })
+              }}
+            >
+              Test Capital @ 75
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                prepDoor(onDevAction, 80)
+                onDevAction({ type: 'seed-late-game' })
+              }}
+            >
+              Test Reinforce @ 80
             </button>
           </div>
         </div>

@@ -1176,6 +1176,17 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     requiresSectorEver: 41,
   },
   {
+    id: 'capital-frame',
+    name: 'Capital Hull',
+    weaponSlots: 4,
+    defenseSlots: 3,
+    utilitySlots: 1,
+    baseDamage: 0,
+    baseHull: 160,
+    unlockCost: {},
+    requiresSectorEver: 75,
+  },
+  {
     id: 'razor-frame',
     name: 'Razor Frame',
     weaponSlots: 2,
