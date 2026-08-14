@@ -40,10 +40,12 @@ export default function App() {
   const [reportOpen, setReportOpen] = useState(false)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
+  const [heldGuideId, setHeldGuideId] = useState<string | null>(null)
   const dying = (game.state.combat.defeatLeft ?? 0) > 0
   const live = !game.state.combat.docked || dying
   const waves = wavesForSector(game.state.combat.sector)
-  const guide = dying || reportOpen ? null : activeGuideStep(game.state, tab)
+  const guide =
+    dying || reportOpen ? null : activeGuideStep(game.state, tab, heldGuideId)
 
   const go = useCallback(
     (next: TabId) => {
@@ -82,6 +84,10 @@ export default function App() {
   }, [tab, game])
 
   useEffect(() => {
+    setHeldGuideId(guide?.id ?? null)
+  }, [guide?.id])
+
+  useEffect(() => {
     if (dying) setTab('combat')
   }, [dying])
 
@@ -101,6 +107,7 @@ export default function App() {
 
   useEffect(() => {
     if (!guide?.tab || dying) return
+    if (!game.state.combat.docked) return
     if (guide.id === lastGuideId.current) return
     lastGuideId.current = guide.id
     if (isSystemUnlocked(game.state, guide.tab)) setTab(guide.tab)

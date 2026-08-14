@@ -155,16 +155,10 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
           ) : (
             <span className="muted">Required</span>
           )}
-          {!hole ? (
-            <button
-              type="button"
-              className="primary"
-              onClick={() => onComplete(step.id)}
-              disabled={required && Boolean(step.completeWhen)}
-            >
-              Continue
-            </button>
-          ) : (
+          <button type="button" className="primary" onClick={() => onComplete(step.id)}>
+            Continue
+          </button>
+          {hole ? (
             <button
               type="button"
               onClick={() => {
@@ -174,9 +168,9 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
                 }
               }}
             >
-              Find control
+              Find
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

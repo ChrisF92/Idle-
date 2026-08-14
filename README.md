@@ -34,7 +34,7 @@ Stations under **More** unfold on sector doors (Reliquary 3, Furnace 5, Codex 6,
 - An **info** button next to the Hiveworks title explains the screen you are on.
 - Process points come from achievements (Process station), not combat drops. Unspent points persist across Rebuild.
 - Hive Research (Material / Energy / Observation) is **permanent** across Rebuild / Reinforce.
-- Guided onboarding spotlights the next live control; starter dock/launch/salvage tips retire after the first Rebuild, and Reinforce clears the full guide catalog.
+- Guided onboarding waits until you are docked, keeps the current tip until Continue / Skip, and retires starter dock/launch/salvage tips after the first Rebuild. Reinforce clears the full catalog.
 - Research is permanent; enemy hull scales steeply while damage stays flatter so length comes from walls, not death loops.
 - Dev tools (More tab): toggle on anytime, or append `?dev=1` / `?dev=0`. Includes jump, boss force, achievements, guide skip.
 - Boss telegraphs: titan slams wind up before firing; snipers charge a lock laser; phase shifts flash a warn ring.

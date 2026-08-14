@@ -8,7 +8,7 @@ import { isSystemUnlocked, systemUnlockRequirement } from '../../game/progressio
 import { moreStationBuckets, type MoreStationDef } from '../../game/moreStations'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-14n'
+export const APP_BUILD = '2026-08-14o'
 
 interface StatsTabProps {
   state: GameState

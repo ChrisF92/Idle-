@@ -730,7 +730,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-shipyard-tab',
     title: 'Dock',
-    body: 'This is the hangar. Hull and Cores live here. Launch starts a sortie of waves.',
+    body: 'Home. Scout Hull is fitted. Launch a sortie — Salvage ranks Cores during the fight. Rebuild later to swap the hull.',
     target: 'dock-tab',
     tab: 'dock',
     availableWhen: (s) =>
@@ -765,16 +765,15 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-salvage-lesson',
     title: 'Salvage recovered',
-    body: 'The wreck left Salvage. Open Sortie and raise Pulse and Plate one level on the Cores sheet.',
+    body: 'The wreck left Salvage. Open Sortie and raise Pulse and Plate on the Cores sheet.',
     target: 'combat-tab',
-    required: true,
     availableWhen: (s) =>
+      s.combat.docked &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       s.resources.salvage > 0 &&
       ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 ||
         (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1) &&
       !guideSeen(s, 'guide-salvage-lesson'),
-    completeWhen: (_s, tab) => tab === 'combat',
   },
   {
     id: 'guide-upgrade-pulse',
@@ -784,6 +783,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'combat',
     required: true,
     availableWhen: (s) =>
+      s.combat.docked &&
       guideSeen(s, 'guide-salvage-lesson') &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 &&
@@ -798,6 +798,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'combat',
     required: true,
     availableWhen: (s) =>
+      s.combat.docked &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1 &&
@@ -825,6 +826,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     body: 'Tap Network. Assign idle drones to Strike (damage) and Ward (shield). They fill bars over time — they do not fight.',
     target: 'network-tab',
     availableWhen: (s) =>
+      s.combat.docked &&
       s.base.workerDrones > 0 &&
       !guideSeen(s, 'guide-drone-cap') &&
       (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) === 0,
@@ -1109,12 +1111,41 @@ export function syncCompletedGuides(state: GameState, tab: TabId): GameState {
   return next
 }
 
-export function activeGuideStep(state: GameState, tab: TabId): GuideStep | null {
+/** True while a sortie is live — new coach-marks wait until Dock. */
+export function guideQueueQuiet(state: GameState): boolean {
+  return !state.combat.docked || (state.combat.defeatLeft ?? 0) > 0
+}
+
+function guideStepReady(
+  state: GameState,
+  tab: TabId,
+  step: GuideStep,
+): boolean {
+  if (guideSeen(state, step.id)) return false
+  if (!step.availableWhen(state)) return false
+  if (step.completeWhen?.(state, tab)) return false
+  return true
+}
+
+/**
+ * Next coach-mark. `heldId` keeps the visible step until it completes so a
+ * new unlock (first Salvage, Foundry, Reliquary, …) cannot steal Continue.
+ * Fresh steps wait until the ship is docked.
+ */
+export function activeGuideStep(
+  state: GameState,
+  tab: TabId,
+  heldId?: string | null,
+): GuideStep | null {
+  if (heldId) {
+    const held = GUIDE_STEPS.find((step) => step.id === heldId)
+    if (held && guideStepReady(state, tab, held)) {
+      if (!guideQueueQuiet(state) || held.tab === 'combat') return held
+    }
+  }
+  if (guideQueueQuiet(state)) return null
   for (const step of GUIDE_STEPS) {
-    if (state.meta.seenOnboarding.includes(step.id)) continue
-    if (!step.availableWhen(state)) continue
-    if (step.completeWhen?.(state, tab)) continue
-    return step
+    if (guideStepReady(state, tab, step)) return step
   }
   return null
 }
