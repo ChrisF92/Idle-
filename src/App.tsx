@@ -15,6 +15,7 @@ import { ReliquaryTab } from './components/tabs/ReliquaryTab'
 import { FurnaceTab } from './components/tabs/FurnaceTab'
 import { ResearchTab } from './components/tabs/ResearchTab'
 import { YardTab } from './components/tabs/YardTab'
+import { SlagTab } from './components/tabs/SlagTab'
 import { ProtocolsTab } from './components/tabs/ProtocolsTab'
 import { EchoTab } from './components/tabs/EchoTab'
 import { ProcessTab } from './components/tabs/ProcessTab'
@@ -57,6 +58,7 @@ export default function App() {
         tab === 'furnace' ||
         tab === 'research' ||
         tab === 'yard' ||
+        tab === 'slag' ||
         tab === 'protocols' ||
         tab === 'echo' ||
         tab === 'process' ||
@@ -197,6 +199,13 @@ export default function App() {
             onPlace={game.placeYardBuilding}
             onClear={game.clearYardBuilding}
             onBuyArm={game.buyYardArm}
+          />
+        )}
+        {tab === 'slag' && (
+          <SlagTab
+            state={game.state}
+            onBack={() => go('stats')}
+            onBuy={game.buyMatterShop}
           />
         )}
         {tab === 'protocols' && (

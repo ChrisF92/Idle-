@@ -81,6 +81,12 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
     unlock: (s) => (s.prestige.prestigeCount ?? 0) >= 1,
   },
   {
+    id: 'slag',
+    title: 'Slag Bank',
+    body: 'Rebuild Matter sits in the header and banks a trickle. The Slag Bank spends it on hangar ranks — edge, forge, plate. Ranks beat banking.',
+    unlock: (s) => (s.prestige.prestigeCount ?? 0) >= 1,
+  },
+  {
     id: 'boss-14',
     title: 'Four by four',
     body: 'Yard grows at 14. The press wants more floor. The Choir does not care about your floor plan.',

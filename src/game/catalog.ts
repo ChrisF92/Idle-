@@ -906,11 +906,11 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   },
 ]
 
-/** Spend Prestige Matter for stronger specialized permanents (vs banked +0.5% dmg/prod). */
+/** Spend Rebuild Matter for stronger specialized permanents (vs banked +0.5% dmg/prod). */
 export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'matter-blade',
-    name: 'Matter Blade',
+    name: 'Slag Edge',
     description: 'Permanent +8% combat damage (deep ranks; extra ranks +45% of base).',
     costPm: 3,
     maxRank: 25,
@@ -918,7 +918,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
   },
   {
     id: 'matter-forge',
-    name: 'Matter Forge',
+    name: 'Slag Forge',
     description: 'Permanent +12% base production (deep ranks).',
     costPm: 3,
     maxRank: 25,
@@ -926,7 +926,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
   },
   {
     id: 'matter-plating',
-    name: 'Matter Plating',
+    name: 'Slag Plate',
     description: 'Permanent +50 hull (deep ranks).',
     costPm: 4,
     maxRank: 25,
@@ -2159,24 +2159,24 @@ function matterRankGateReason(
 ): string | null {
   const ascensions = state.meta.ascensionCount ?? 0
   if (nextRank >= 20) {
-    if (ascensions < 2) return 'Need 2 Ascensions for rank 20+'
+    if (ascensions < 2) return 'Need 2 Reinforces for rank 20+'
   }
   if (nextRank >= 15) {
-    if (ascensions < 1) return 'Need 1 Ascension for rank 15+'
+    if (ascensions < 1) return 'Need 1 Reinforce for rank 15+'
   }
   if (nextRank >= 10) {
     if (!state.meta.act1Cleared && ascensions < 1 && state.prestige.prestigeCount < 8) {
-      return 'Need Act 1, 1 Ascension, or 8 prestiges for rank 10+'
+      return 'Need Act 1, 1 Reinforce, or 8 Rebuilds for rank 10+'
     }
   }
   if (nextRank >= 7) {
     if (!state.meta.act1Cleared && state.prestige.prestigeCount < 5) {
-      return 'Need Act 1 cleared or 5 prestiges for rank 7+'
+      return 'Need Act 1 cleared or 5 Rebuilds for rank 7+'
     }
   }
   if (nextRank >= 4) {
     if (state.prestige.prestigeCount < 2 && state.meta.highestSectorEver < 20) {
-      return 'Need 2 prestiges or sector 20 career for rank 4+'
+      return 'Need 2 Rebuilds or sector 20 career for rank 4+'
     }
   }
   return null
@@ -2202,7 +2202,7 @@ export function canBuyMatterShop(
   const gate = matterRankGateReason(state, nextRank)
   if (gate) return { ok: false, reason: gate, cost, nextRank, maxRank }
   if (state.resources.prestigeMatter < cost) {
-    return { ok: false, reason: `Need ${cost} PM`, cost, nextRank, maxRank }
+    return { ok: false, reason: `Need ${cost} Rebuild Matter`, cost, nextRank, maxRank }
   }
   return { ok: true, cost, nextRank, maxRank }
 }

@@ -61,6 +61,12 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Place buildings. Spend Ingots on arms that apply on the next Rebuild.',
   },
   {
+    id: 'slag',
+    requiresSectorEver: 0,
+    label: 'Slag Bank',
+    tip: 'Spend Rebuild Matter on permanent hangar ranks. Ranks beat banking.',
+  },
+  {
     id: 'protocols',
     requiresSectorEver: 18,
     label: 'Protocols',
@@ -530,7 +536,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'foundry') {
     return careerHighestSector(state) >= 2
   }
-  if (systemId === 'yard') {
+  if (systemId === 'yard' || systemId === 'slag') {
     return (state.prestige.prestigeCount ?? 0) >= 1
   }
   if (systemId === 'capital') {
@@ -561,7 +567,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   if (systemId === 'foundry') {
     return 'Clear sector 2'
   }
-  if (systemId === 'yard') {
+  if (systemId === 'yard' || systemId === 'slag') {
     return 'Rebuild once'
   }
   if (systemId === 'capital') {
@@ -869,6 +875,15 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'stats',
     availableWhen: (s) => isSystemUnlocked(s, 'yard') && !guideSeen(s, 'guide-yard'),
     completeWhen: (_s, tab) => tab === 'yard',
+  },
+  {
+    id: 'guide-slag',
+    title: 'Slag Bank',
+    body: 'Open More and tap Slag Bank. Rebuild Matter buys permanent hangar ranks — better than leaving it in the header.',
+    target: 'station-slag',
+    tab: 'stats',
+    availableWhen: (s) => isSystemUnlocked(s, 'slag') && !guideSeen(s, 'guide-slag'),
+    completeWhen: (_s, tab) => tab === 'slag',
   },
   {
     id: 'guide-protocols',

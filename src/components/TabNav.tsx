@@ -23,6 +23,7 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
     active === 'furnace' ||
     active === 'research' ||
     active === 'yard' ||
+    active === 'slag' ||
     active === 'protocols' ||
     active === 'echo' ||
     active === 'process' ||

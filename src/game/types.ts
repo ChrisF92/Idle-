@@ -171,6 +171,7 @@ export type TabId =
   | 'reliquary'
   | 'furnace'
   | 'yard'
+  | 'slag'
   | 'protocols'
   | 'echo'
   | 'process'
@@ -601,7 +602,7 @@ export interface PrestigeState {
   challengeClears: Record<string, number>
   /** Permanent Challenge Point shop ranks (id → rank). */
   shop: Record<string, number>
-  /** Permanent Prestige Matter shop ranks (id → rank). */
+  /** Permanent Rebuild Matter shop ranks (id → rank). */
   matterShop: Record<string, number>
 }
 

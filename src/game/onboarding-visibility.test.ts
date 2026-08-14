@@ -125,6 +125,7 @@ describe('Hiveworks onboarding catalog', () => {
       'guide-prestige-tab',
       'guide-prestige-ready',
       'guide-yard',
+      'guide-slag',
     ]
     expect(activeGuideStep(state, 'stats')?.id).toBe('guide-protocols')
     expect(activeGuideStep(state, 'stats')?.target).toBe('station-protocols')

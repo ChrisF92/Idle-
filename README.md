@@ -23,7 +23,7 @@ Bottom nav:
 | Foundry | Recipes, smelters, Foundry Points, fitted bits. Unlocks at sector 2. |
 | More | Stations, save / export, notation, rebuild, build stamp. |
 
-Stations under **More** unfold on sector doors (Reliquary 3, Furnace 5, Codex 6, Research 7, Yard on first Rebuild, Protocols 18, Echo 22, Specialists 51, Task List 72, Capital 75, Reinforce 80). Process opens after First Blood (clear sector 1).
+Stations under **More** unfold on sector doors (Reliquary 3, Furnace 5, Codex 6, Research 7, Yard and Slag Bank on first Rebuild, Protocols 18, Echo 22, Specialists 51, Task List 72, Capital 75, Reinforce 80). Process opens after First Blood (clear sector 1).
 
 ## Progression notes
 

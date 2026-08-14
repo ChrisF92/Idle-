@@ -11,7 +11,7 @@ import {
 } from '../../game/progression'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-14l'
+export const APP_BUILD = '2026-08-14m'
 
 const STATIONS: { id: TabId; name: string; blurb: string }[] = [
   { id: 'reliquary', name: 'Reliquary', blurb: 'Shards in colour slots. Red / orange at 3; pink at 6.' },
@@ -19,6 +19,7 @@ const STATIONS: { id: TabId; name: string; blurb: string }[] = [
   { id: 'research', name: 'Research', blurb: 'Material / Energy / Observation. Focus one.' },
   { id: 'codex', name: 'Codex', blurb: 'Families, hull roles, soft counters. Sector 6.' },
   { id: 'yard', name: 'Yard Grid', blurb: 'Buildings → Ingots. Arms apply on the next Rebuild.' },
+  { id: 'slag', name: 'Slag Bank', blurb: 'Spend Rebuild Matter on hangar ranks. First Rebuild.' },
   { id: 'protocols', name: 'Protocols', blurb: 'Restricted sorties. Rank the muted system.' },
   { id: 'echo', name: 'Echo Runs', blurb: 'Short gauntlets → Echo tree. Sector 22.' },
   { id: 'process', name: 'Process', blurb: 'Achievements → automation nodes.' },

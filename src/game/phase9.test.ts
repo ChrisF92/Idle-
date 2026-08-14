@@ -134,7 +134,13 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     let s = createInitialState(0)
     s = applyDevAction(s, { type: 'skip-guides' })
     expect(s.meta.seenOnboarding).toEqual(
-      expect.arrayContaining(['guide-specialists', 'guide-protocols', 'guide-echo', 'guide-yard']),
+      expect.arrayContaining([
+        'guide-specialists',
+        'guide-protocols',
+        'guide-echo',
+        'guide-yard',
+        'guide-slag',
+      ]),
     )
 
     s.combat.sector = 9
