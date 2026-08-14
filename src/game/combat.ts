@@ -312,16 +312,20 @@ export function enemySectorScale(sector: number): number {
 }
 
 /**
- * Enemy damage scale. S1 still holds on 30 shield if packs only chip.
+ * Enemy damage scale. S1 packs must chip L0 Plate; the first boss must
+ * land shots inside the regen delay so hull actually sees damage.
  * S8 without Plate levels should fail a full sector; S15 is a wall.
  */
 export function enemyDamageScale(sector: number): number {
   const s = Math.max(1, sector)
-  return 0.75 * Math.pow(1.28, s - 1)
+  return 0.9 * Math.pow(1.28, s - 1)
 }
 
-/** After a hit, in-combat Plate regen pauses so burst packs can actually break L0 shield. */
-export const SHIELD_REGEN_DELAY = 1.2
+/**
+ * After a hit, in-combat Plate regen pauses. Must cover a boss slam
+ * (cooldown + telegraph + travel) or slow titans never break L0 shield.
+ */
+export const SHIELD_REGEN_DELAY = 2
 
 /**
  * Wave-aware packs. Patterns cycle across the sector's waves.
@@ -366,8 +370,8 @@ function buildSwarmWave(
           name: `${name} Mite ${i + 1}`,
           family: 'swarm',
           hull: 12 * hullScale,
-          damage: 2.8 * dmgScale,
-          cooldown: 0.9,
+          damage: 3.0 * dmgScale,
+          cooldown: 0.85,
           range: 40,
           speed: 42,
           engageRange: 34,
@@ -381,8 +385,8 @@ function buildSwarmWave(
           name: `${name} ${i + 1}`,
           family: 'swarm',
           hull: 15 * hullScale,
-          damage: 3.1 * dmgScale,
-          cooldown: 0.95,
+          damage: 3.2 * dmgScale,
+          cooldown: 0.9,
           range: 42,
           speed: 38,
           engageRange: 36,
@@ -506,8 +510,8 @@ function buildArmoredWave(
           family: 'armored',
           hull: 36 * hullScale,
           armor: 2,
-          damage: 4 * dmgScale,
-          cooldown: 1.3,
+          damage: 4.2 * dmgScale,
+          cooldown: 1.15,
           range: 70,
           speed: 20,
           engageRange: 65,
@@ -937,13 +941,13 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
   const titan = makeEnemyUnit({
     name: `${name} (Boss)`,
     family: 'titan',
-    hull: 150 * hullScale,
+    hull: Math.min(150, 58 + 10 * (sector - 1)) * hullScale,
     armor: 2,
     shield: 20 * hullScale,
-    // Slower slam with a visible wind-up so players can react.
-    damage: 9 * dmgScale,
-    cooldown: 2.4,
-    telegraphDuration: 0.85,
+    // Cadence + travel must stay inside SHIELD_REGEN_DELAY or L0 Plate never breaks.
+    damage: 12 * dmgScale,
+    cooldown: 1,
+    telegraphDuration: 0.35,
     range: 120,
     speed: 10,
     engageRange: 100,
