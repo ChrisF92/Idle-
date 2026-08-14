@@ -76,6 +76,10 @@ export function networkLevels(state: GameState, id: NetworkBarId): number {
   return Math.max(0, state.network?.bars[id]?.levels ?? 0)
 }
 
+export function networkTotalLevels(state: GameState): number {
+  return NETWORK_BARS.reduce((n, bar) => n + networkLevels(state, bar.id), 0)
+}
+
 export function networkProgress(state: GameState, id: NetworkBarId): number {
   const p = state.network?.bars[id]?.progress ?? 0
   return Math.max(0, Math.min(0.999, p))

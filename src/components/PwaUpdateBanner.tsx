@@ -26,7 +26,7 @@ export function PwaUpdateBanner() {
 
   return (
     <div className="pwa-update-banner" role="status">
-      <p>A new Cosmic Idle build is ready.</p>
+      <p>A new Hiveworks build is ready.</p>
       <div className="dev-tools-row">
         <button
           type="button"

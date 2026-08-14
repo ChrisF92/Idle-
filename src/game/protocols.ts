@@ -2,6 +2,7 @@
 
 import type { GameState, ProtocolMute, ProtocolState } from './types'
 import { careerHighestSector } from './progression'
+import { closeSortie } from './sortieSummary'
 
 export const PROTOCOL_UNLOCK_SECTOR = 18
 export const PROTOCOL_MAX_RANK = 8
@@ -125,11 +126,6 @@ export function tryCompleteProtocol(state: GameState): void {
   state.protocols.ranks = { ...state.protocols.ranks, [def.id]: prev + 1 }
   state.protocols.activeId = null
   state.combat.docked = true
-  state.combat.lastSortie = {
-    outcome: 'extract',
-    sector: state.combat.sector,
-    wave: state.combat.wave,
-    note: `${def.name} complete (${prev + 1}/${PROTOCOL_MAX_RANK}).`,
-  }
+  closeSortie(state, 'extract', `${def.name} complete (${prev + 1}/${PROTOCOL_MAX_RANK}).`)
   state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
 }

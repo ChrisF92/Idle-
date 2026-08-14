@@ -1549,6 +1549,14 @@ export function rollEnemyPartDrop(
   return results
 }
 
+function fittedSalvageKillMult(state: GameState): number {
+  let add = 0
+  for (const id of state.shipyard.modules) {
+    add += getModule(id)?.salvageKillBonus ?? 0
+  }
+  return 1 + add
+}
+
 export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void {
   if (unit.side !== 'enemy') return
   const salvageMult =
@@ -1558,7 +1566,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     yardSalvageMult(state) *
     echoSalvageMult(state) *
     specialistSalvageMult(state) *
-    capitalSalvageMult(state)
+    capitalSalvageMult(state) *
+    fittedSalvageKillMult(state)
   state.resources.salvage +=
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route) * salvageMult
   rollEnemyPartDrop(state, unit)

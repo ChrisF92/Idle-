@@ -22,7 +22,7 @@ import { enemySectorScale } from './combat'
 
 describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('bumps save and keeps Specialists locked until 51', () => {
-    expect(SAVE_VERSION).toBe(30)
+    expect(SAVE_VERSION).toBe(31)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR - 1

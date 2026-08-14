@@ -19,7 +19,7 @@ import { advanceSeconds } from './tick'
 describe('phase 5: foundry + notation', () => {
   it('opens Foundry at sector 2 with one smelter', () => {
     const fresh = createInitialState(0)
-    expect(SAVE_VERSION).toBe(30)
+    expect(SAVE_VERSION).toBe(31)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(fresh.foundry.slots).toHaveLength(1)
     expect(fresh.meta.numberNotation).toBe('engineering')

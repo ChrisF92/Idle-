@@ -1,8 +1,8 @@
-# Cosmic Idle
+# Hiveworks
 
-Working title for a space idle game: fleet combat against alien / godlike entities, with industry, research, an AI Points network, prestige, and ITRTG-style challenges.
+Orbital foundry idle: player-launched sorties, USI-style ship + Cores, sectors as short wave gauntlets. Combat sim keeps running after Launch while you browse the Dock. See [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md).
 
-**Hiveworks rewrite (in progress):** player-launched sorties, USI-style ship + cores, sectors as short wave gauntlets. Combat sim keeps running after Launch while you browse the Dock. See [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md).
+Working package name was `cosmic-idle`; the PWA title is **Hiveworks**.
 
 ## Stack
 
@@ -22,7 +22,7 @@ Phase 1 shell (this branch):
 | Cores | Pulse (Weapon) + Plate (Ward). Salvage levels persist until Rebuild. |
 | Stats | Save / export / dev tools |
 
-Later tabs (Foundry, Reliquary, Research, …) follow USI sector unlocks — see the plan. Old Cosmic Idle tabs are hidden, not deleted.
+Later tabs live under **More** and unfold on USI sector doors (Foundry 2, Reliquary 3, Furnace 5, Research 7, Yard on first Rebuild, Protocols 18, Echo 22, Specialists 51, Task List 72, Capital 75, Reinforce 80). Old Cosmic Idle tabs stay in code, hidden.
 
 ## Progression notes
 

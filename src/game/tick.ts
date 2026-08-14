@@ -54,6 +54,11 @@ import {
 import { tryCompleteProtocol } from './protocols'
 import { hasProcess } from './process'
 import {
+  captureSortieMark,
+  closeSortie,
+  noteSectorClear,
+} from './sortieSummary'
+import {
   wavesForSector,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
@@ -351,12 +356,7 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   const note = tactical
     ? `Tactical extract from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}.`
     : `Hull lost in sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}. Knocked back to W1.`
-  state.combat.lastSortie = {
-    outcome: 'defeat',
-    sector: fromSector,
-    wave: fromWave,
-    note,
-  }
+  closeSortie(state, 'defeat', note, { sector: fromSector, wave: fromWave })
   pushLog(state, `${note} Returned to dock.`)
 }
 
@@ -440,6 +440,7 @@ function onFightWon(state: GameState): void {
   grantSectorClearRewards(state, clearedSector, wasBoss)
   state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
   state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
+  noteSectorClear(state)
   maybeGrantSystemUnlocks(state)
 
   if (state.combat.campaign) {
@@ -460,12 +461,7 @@ function onFightWon(state: GameState): void {
     state.combat.playerHull / state.combat.playerHullMax < 0.35
   ) {
     state.combat.docked = true
-    state.combat.lastSortie = {
-      outcome: 'extract',
-      sector: state.combat.sector,
-      wave: state.combat.wave,
-      note: `Safe Extract after sector ${clearedSector} boss (hull low).`,
-    }
+    closeSortie(state, 'extract', `Safe Extract after sector ${clearedSector} boss (hull low).`)
     pushLog(state, state.combat.lastSortie.note)
   }
 }
@@ -565,6 +561,7 @@ export function beginFight(state: GameState): void {
   syncPersistedHullCaps(state)
 
   state.combat.docked = false
+  if (!state.combat.sortieMark) state.combat.sortieMark = captureSortieMark(state)
   state.combat.fightElapsed = 0
   state.shipyard.frameLocked = true
   state.combat.inFight = true
@@ -641,15 +638,11 @@ export function setDocked(state: GameState, docked: boolean): GameState {
       return next
     }
     next.combat.docked = true
-    next.combat.lastSortie = {
-      outcome: 'extract',
-      sector: next.combat.sector,
-      wave: next.combat.wave,
-      note: `Extracted at sector ${next.combat.sector} wave ${next.combat.wave}. Cores and Salvage kept.`,
-    }
+    closeSortie(next, 'extract', `Extracted at sector ${next.combat.sector} wave ${next.combat.wave}. Cores and Salvage kept.`)
     pushLog(next, next.combat.lastSortie.note)
   } else {
     next.combat.docked = false
+    if (!next.combat.sortieMark) next.combat.sortieMark = captureSortieMark(next)
     if (!next.shipyard.frameLocked) {
       next.shipyard.frameLocked = true
     }

@@ -26,7 +26,13 @@ export interface NetworkState {
   bars: Record<NetworkBarId, NetworkBarState>
 }
 
-export type FoundryRecipeId = 'slag-ingot' | 'filament' | 'hardened-plate' | 'relay'
+export type FoundryRecipeId =
+  | 'slag-ingot'
+  | 'filament'
+  | 'hardened-plate'
+  | 'relay'
+  | 'choir-flux'
+  | 'keel-strip'
 
 export interface FoundrySlot {
   recipeId: FoundryRecipeId | null
@@ -65,6 +71,29 @@ export interface FurnaceState {
 
 export type HiveResearchBranch = 'material' | 'energy' | 'observation'
 
+/** Snapshot taken at Launch; closed into lastSortie on Extract / Defeat. */
+export interface SortieMark {
+  salvage: number
+  salvageSpent: number
+  sectorsCleared: number
+  corePicks: number
+  researchXp: number
+  networkLevels: number
+}
+
+export interface SortieSummary {
+  outcome: 'extract' | 'defeat' | null
+  sector: number
+  wave: number
+  note: string
+  sectorsCleared: number
+  salvageGained: number
+  salvageSpent: number
+  milestones: number
+  researchXp: number
+  networkLevels: number
+}
+
 /** USI Research analogue — kill-fed branches; persist across Rebuild. */
 export interface HiveResearchState {
   focus: HiveResearchBranch
@@ -76,7 +105,7 @@ export interface HiveResearchState {
 export type SectorRoute = 'A' | 'B'
 
 export type YardGoodId = 'ore' | 'flux' | 'ingot'
-export type YardBuildingId = 'slag-heap' | 'flux-still' | 'ingot-press'
+export type YardBuildingId = 'slag-heap' | 'flux-still' | 'ingot-press' | 'choir-sieve'
 export type YardArmId = 'damage' | 'shield' | 'salvage' | 'network'
 
 export interface YardCell {
@@ -419,12 +448,9 @@ export interface CombatState {
   fx: CombatFx[]
   log: string[]
   /** Set on Extract / Defeat for the Dock summary. */
-  lastSortie: {
-    outcome: 'extract' | 'defeat' | null
-    sector: number
-    wave: number
-    note: string
-  }
+  lastSortie: SortieSummary
+  /** Live sortie snapshot. Null while docked. */
+  sortieMark: SortieMark | null
 }
 
 /**

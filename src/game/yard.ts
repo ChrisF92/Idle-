@@ -68,6 +68,14 @@ export const YARD_BUILDINGS: YardBuildingDef[] = [
     rate: 0.05,
     cost: { ore: 12, flux: 8 },
   },
+  {
+    id: 'choir-sieve',
+    name: 'Choir Sieve',
+    blurb: 'Sifts extra Flux from wreck vapour.',
+    produces: 'flux',
+    rate: 0.08,
+    cost: { ore: 28, flux: 6 },
+  },
 ]
 
 export const YARD_ARMS: YardArmDef[] = [

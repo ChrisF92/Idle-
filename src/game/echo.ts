@@ -3,6 +3,7 @@
 import type { GameState, EchoState, SectorRoute } from './types'
 import { careerHighestSector } from './progression'
 import { wavesForSector } from './sectors'
+import { closeSortie } from './sortieSummary'
 
 export const ECHO_UNLOCK_SECTOR = 22
 export const ECHO_WAVES = 3
@@ -57,6 +58,15 @@ export const ECHO_RUNS: EchoRunDef[] = [
     reward: 4,
     requiresId: 'keel',
   },
+  {
+    id: 'stack',
+    name: 'Silent Stack',
+    blurb: 'A chimney that still draws. Sector 30 power.',
+    sectorPower: 30,
+    danger: 1.8,
+    reward: 5,
+    requiresId: 'veil',
+  },
 ]
 
 export const ECHO_TREE: EchoTreeDef[] = [
@@ -78,6 +88,22 @@ export const ECHO_TREE: EchoTreeDef[] = [
     cost: 3,
     requiresId: 'echo-ward',
     researchXp: 0.08,
+  },
+  {
+    id: 'echo-hold',
+    name: 'Hold Echo',
+    blurb: 'Salvage from kills.',
+    cost: 4,
+    requiresId: 'echo-yield',
+    salvage: 0.08,
+  },
+  {
+    id: 'echo-bulk',
+    name: 'Bulk Echo',
+    blurb: 'Max shield.',
+    cost: 4,
+    requiresId: 'echo-loom',
+    shield: 0.06,
   },
 ]
 
@@ -214,12 +240,7 @@ export function tryCompleteEcho(state: GameState): boolean {
   state.combat.docked = true
   state.combat.inFight = false
   state.combat.wave = 1
-  state.combat.lastSortie = {
-    outcome: 'extract',
-    sector: state.combat.sector,
-    wave: 1,
-    note: `${def.name} complete. +${def.reward} Echo.`,
-  }
+  closeSortie(state, 'extract', `${def.name} complete. +${def.reward} Echo.`)
   state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
   return true
 }
@@ -233,11 +254,6 @@ export function failEcho(state: GameState, reason: string): void {
   state.combat.docked = true
   state.combat.inFight = false
   state.combat.wave = 1
-  state.combat.lastSortie = {
-    outcome: 'defeat',
-    sector: state.combat.sector,
-    wave: 1,
-    note: `${name} failed. ${reason}`,
-  }
+  closeSortie(state, 'defeat', `${name} failed. ${reason}`)
   state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
 }

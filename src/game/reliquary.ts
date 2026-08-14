@@ -96,6 +96,20 @@ export const SHARDS: ShardDef[] = [
     blurb: 'Draws extra ash. Later sector.',
     ash: 0.12,
   },
+  {
+    id: 'loom-chip',
+    name: 'Loom Chip',
+    color: 'blue',
+    blurb: 'Foundry crafts run faster.',
+    foundrySpeed: 0.08,
+  },
+  {
+    id: 'hold-chip',
+    name: 'Hold Chip',
+    color: 'green',
+    blurb: 'Marks wrecks for the Hold.',
+    salvage: 0.08,
+  },
 ]
 
 export function createEmptyReliquaryState(): ReliquaryState {

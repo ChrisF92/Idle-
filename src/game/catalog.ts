@@ -284,8 +284,10 @@ export interface ShipModuleDef {
   /** Multiplier on incoming damage (0.9 = take 10% less). */
   damageTakenMult: number
   weapon?: ModuleWeaponDef
-  /** Combat escort drones spawned from this module. */
+  /** Combat escort drones spawned from this module. Retired — Hiveworks keeps guns on the ship. */
   escorts?: number
+  /** Extra salvage from kills while fitted (utility Cores). */
+  salvageKillBonus?: number
   /** USI Core salvage cost for level 0 → 1 (weapons 3, shields 6). */
   upgradeBaseCost?: number
   /** USI Core cost scaling per level (weapons 1.21, shields 1.2). */
@@ -1397,13 +1399,13 @@ export const SHIP_MODULES: ShipModuleDef[] = [
   },
   {
     id: 'drone-bay',
-    name: 'Drone Bay',
+    name: 'Yield Link',
     role: 'utility',
-    description: 'Deploys 3 escort drones into the fleet — worth a utility slot.',
+    description: '+12% salvage from kills. Drones stay on the Network — nothing extra on the field.',
     damageBonus: 0,
     hullBonus: 0,
     damageTakenMult: 1,
-    escorts: 3,
+    salvageKillBonus: 0.12,
     unlockCost: { scrap: 60, alloys: 25, energy: 15 },
   },
   {
@@ -2420,6 +2422,13 @@ export function moduleStatPreviews(
     lines.push({
       label: 'Incoming',
       current: `×${formatStat(mod.damageTakenMult, 2)}`,
+      next: null,
+    })
+  }
+  if (mod.salvageKillBonus) {
+    lines.push({
+      label: 'Kill salvage',
+      current: `+${Math.round(mod.salvageKillBonus * 100)}%`,
       next: null,
     })
   }

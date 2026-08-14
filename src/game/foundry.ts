@@ -48,7 +48,7 @@ export interface FoundryModuleDef {
 }
 
 export const FOUNDRY_STARTING_SLOTS = 1
-export const FOUNDRY_MAX_SLOTS = 2
+export const FOUNDRY_MAX_SLOTS = 3
 
 export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   {
@@ -91,6 +91,26 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     requiresSectorEver: 2,
     requiresRecipeLevel: { recipeId: 'filament', level: 4 },
   },
+  {
+    id: 'choir-flux',
+    name: 'Choir Flux',
+    blurb: 'Condensed wreck vapour. Feeds Keel Strip.',
+    maxLevel: 20,
+    craftTime: 14,
+    costs: { salvage: 22, scrap: 8 },
+    requiresSectorEver: 8,
+    unlocksRecipe: { recipeId: 'keel-strip', atLevel: 4 },
+  },
+  {
+    id: 'keel-strip',
+    name: 'Keel Strip',
+    blurb: 'Pressed flux for a heavier frame.',
+    maxLevel: 20,
+    craftTime: 16,
+    costs: { materials: { 'choir-flux': 3 } },
+    requiresSectorEver: 8,
+    requiresRecipeLevel: { recipeId: 'choir-flux', level: 4 },
+  },
 ]
 
 export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
@@ -126,6 +146,14 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     maxRank: 1,
     extraSlots: 1,
   },
+  {
+    id: 'fp-slot-2',
+    name: 'Third Smelter',
+    blurb: 'One extra Foundry slot',
+    baseCost: 18,
+    maxRank: 1,
+    extraSlots: 1,
+  },
 ]
 
 export const FOUNDRY_MODULES: FoundryModuleDef[] = [
@@ -144,6 +172,15 @@ export const FOUNDRY_MODULES: FoundryModuleDef[] = [
     cost: { relay: 5 },
     requiresRecipeLevel: { recipeId: 'relay', level: 1 },
     damageMult: 1.1,
+  },
+  {
+    id: 'keel-brace',
+    name: 'Keel Brace',
+    blurb: '+20 max shield · ×1.06 damage',
+    cost: { 'keel-strip': 4 },
+    requiresRecipeLevel: { recipeId: 'keel-strip', level: 1 },
+    shieldFlat: 20,
+    damageMult: 1.06,
   },
 ]
 
@@ -211,13 +248,12 @@ export function foundryTimeMult(level: number): number {
 }
 
 export function foundrySlotCount(state: GameState): number {
-  const extra = Math.min(
-    FOUNDRY_MAX_SLOTS - FOUNDRY_STARTING_SLOTS,
-    getFoundryUpgrade('fp-slot')?.extraSlots
-      ? Math.min(1, state.foundry?.upgrades['fp-slot'] ?? 0)
-      : 0,
-  )
-  return FOUNDRY_STARTING_SLOTS + extra
+  let extra = 0
+  for (const def of FOUNDRY_UPGRADES) {
+    if (!def.extraSlots) continue
+    extra += (state.foundry?.upgrades[def.id] ?? 0) * def.extraSlots
+  }
+  return Math.min(FOUNDRY_MAX_SLOTS, FOUNDRY_STARTING_SLOTS + extra)
 }
 
 export function foundryCraftSpeed(state: GameState): number {

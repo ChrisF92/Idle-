@@ -13,6 +13,7 @@ import {
 } from './catalog'
 import {
   autoBalanceWorkers,
+  convertAshToHeat,
   depositFabPart,
   launchFabProject,
   upgradeCheapestModule,
@@ -173,6 +174,11 @@ function autoNetworkBalance(state: GameState): void {
   state.base.assignments = assignments
 }
 
+function autoBankAsh(state: GameState): void {
+  if (!hasProcess(state, 'auto-bank')) return
+  adopt(state, convertAshToHeat(state))
+}
+
 /** Run all owned automation passives once per sim batch. */
 export function tickAutomation(state: GameState): void {
   if (challengeBlocksAi(state)) return
@@ -182,6 +188,7 @@ export function tickAutomation(state: GameState): void {
   autoCoreTrain(state)
   autoSalvageUpgrades(state)
   autoNetworkBalance(state)
+  autoBankAsh(state)
 }
 
 /** Re-apply Labor Router when drones sit idle (Labor Loop). */

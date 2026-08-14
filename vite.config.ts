@@ -19,10 +19,10 @@ export default defineConfig({
         'apple-touch-icon.png',
       ],
       manifest: {
-        name: 'Cosmic Idle',
-        short_name: 'Cosmic Idle',
+        name: 'Hiveworks',
+        short_name: 'Hiveworks',
         description:
-          'Space idle with entity combat, AI doctrines, Essence constructs, and challenges.',
+          'Orbital foundry idle. USI-style ship combat, player-launched sorties, industrial systems.',
         theme_color: '#12100e',
         background_color: '#12100e',
         display: 'standalone',
@@ -53,9 +53,9 @@ export default defineConfig({
         ],
         shortcuts: [
           {
-            name: 'Combat',
-            short_name: 'Combat',
-            description: 'Open Cosmic Idle',
+            name: 'Dock',
+            short_name: 'Dock',
+            description: 'Open Hiveworks',
             url: './',
             icons: [{ src: 'pwa-192.png', sizes: '192x192' }],
           },

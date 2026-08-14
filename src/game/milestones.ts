@@ -55,6 +55,14 @@ export const CORE_MILESTONES: Record<string, CoreMilestoneDef[]> = {
         { id: 'ward-flare', name: 'Ward Flare', blurb: 'Shield dmg ×1.25', shieldDamage: 1.25 },
       ],
     },
+    {
+      id: 'pulse-50',
+      level: 50,
+      choices: [
+        { id: 'foundry-arc', name: 'Foundry Arc', blurb: 'Damage ×1.18', damageMult: 1.18 },
+        { id: 'long-feed', name: 'Long Feed', blurb: '+18 range', rangeAdd: 18 },
+      ],
+    },
   ],
   'plate-layer': [
     {
@@ -79,6 +87,34 @@ export const CORE_MILESTONES: Record<string, CoreMilestoneDef[]> = {
       choices: [
         { id: 'bastion', name: 'Bastion Field', blurb: 'Max shield ×1.25', shieldMult: 1.25 },
         { id: 'surge', name: 'Surge Regen', blurb: '+4%/s regen', regenAdd: 0.04 },
+      ],
+    },
+    {
+      id: 'plate-40',
+      level: 40,
+      choices: [
+        { id: 'double-skin', name: 'Double Skin', blurb: 'Max shield ×1.20', shieldMult: 1.2 },
+        { id: 'mesh-lock', name: 'Mesh Lock', blurb: '+3%/s regen', regenAdd: 0.03 },
+      ],
+    },
+  ],
+  'heavy-lance': [
+    {
+      id: 'lance-10',
+      level: 10,
+      choices: [
+        { id: 'keel-shot', name: 'Keel Shot', blurb: 'Damage ×1.18', damageMult: 1.18 },
+        { id: 'slow-pierce', name: 'Slow Pierce', blurb: 'Armour dmg 0.55', armorDamage: 0.55 },
+      ],
+    },
+  ],
+  'salvage-rig': [
+    {
+      id: 'rig-10',
+      level: 10,
+      choices: [
+        { id: 'yield-mesh', name: 'Yield Mesh', blurb: 'Max shield ×1.08', shieldMult: 1.08 },
+        { id: 'hold-scoop', name: 'Hold Scoop', blurb: '+2%/s regen', regenAdd: 0.02 },
       ],
     },
   ],

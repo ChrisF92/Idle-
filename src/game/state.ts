@@ -61,8 +61,9 @@ import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
 import { createEmptyProcessState } from './process'
 import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult } from './specialists'
 import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
+import { emptyLastSortie } from './sortieSummary'
 
-export const SAVE_VERSION = 30
+export const SAVE_VERSION = 31
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -132,7 +133,8 @@ export function createInitialState(now = Date.now()): GameState {
       projectiles: [],
       fx: [],
       log: ['Hiveworks dock online. Launch a sortie when ready.'],
-      lastSortie: { outcome: null, sector: 1, wave: 1, note: '' },
+      lastSortie: emptyLastSortie(),
+      sortieMark: null,
     },
     base: {
       workerDrones: NETWORK_STARTING_DRONES,

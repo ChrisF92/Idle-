@@ -10,7 +10,7 @@ import { echoResearchXpMult } from './echo'
 export const HIVE_RESEARCH_UNLOCK_SECTOR = 7
 /** USI default is 9×; 4× keeps early numbers retunable. */
 export const HIVE_RESEARCH_FOCUS_MULT = 4
-export const HIVE_RESEARCH_NODES_PER_BRANCH = 5
+export const HIVE_RESEARCH_NODES_PER_BRANCH = 6
 
 export interface HiveResearchNodeDef {
   name: string
@@ -43,6 +43,7 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Ingot Yield', blurb: 'Still more salvage.', salvage: 0.08 },
     { name: 'Filament Draw', blurb: 'Foundry again.', foundrySpeed: 0.06 },
     { name: 'Stockpile', blurb: 'Salvage ceiling for the sitting.', salvage: 0.12 },
+    { name: 'Keel Stock', blurb: 'Late salvage from wrecks.', salvage: 0.1 },
   ],
   energy: [
     { name: 'Charge Lattice', blurb: 'Sortie damage.', damage: 0.06 },
@@ -50,6 +51,7 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Ash Kindling', blurb: 'More Heat from Choir-ash.', heatFromAsh: 0.2 },
     { name: 'Ward Current', blurb: 'Max shield.', shield: 0.06 },
     { name: 'Overdraw', blurb: 'Peak damage.', damage: 0.1 },
+    { name: 'Plate Current', blurb: 'Late max shield.', shield: 0.08 },
   ],
   observation: [
     { name: 'Corps Sync', blurb: 'Network bars fill faster.', networkFill: 0.08 },
@@ -57,6 +59,7 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Shard Sight', blurb: 'Reliquary drop chance.', shardDrop: 0.04 },
     { name: 'Field Notes', blurb: 'All research XP.', researchXp: 0.08 },
     { name: 'Deep Watch', blurb: 'Network fill again.', networkFill: 0.1 },
+    { name: 'Log Keep', blurb: 'All research XP.', researchXp: 0.1 },
   ],
 }
 
@@ -79,6 +82,17 @@ export function hiveResearchCompleted(state: GameState, branch: HiveResearchBran
 
 export function hiveResearchXp(state: GameState, branch: HiveResearchBranch): number {
   return Math.max(0, state.hiveResearch?.xp[branch] ?? 0)
+}
+
+/** XP on hand plus the cost of already-bought nodes — for run summaries. */
+export function hiveResearchBanked(state: GameState): number {
+  let total = 0
+  for (const branch of HIVE_RESEARCH_BRANCHES) {
+    total += hiveResearchXp(state, branch.id)
+    const done = hiveResearchCompleted(state, branch.id)
+    for (let i = 0; i < done; i++) total += hiveResearchNodeCost(i)
+  }
+  return total
 }
 
 interface HiveBonuses {

@@ -37,6 +37,13 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 5,
     requiresId: 'auto-extract',
   },
+  {
+    id: 'auto-bank',
+    name: 'Ash Bank',
+    blurb: 'Choir-ash banks into Heat on its own.',
+    cost: 3,
+    requiresId: 'network-balance',
+  },
 ]
 
 export function createEmptyProcessState(): ProcessState {

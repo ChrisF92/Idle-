@@ -85,6 +85,7 @@ import { canBuyProcessNode, createEmptyProcessState, getProcessNode } from './pr
 import { createEmptySpecialistState, rankSpecialist } from './specialists'
 import { createEmptyCapitalState, rankCapital } from './capital'
 import { canReinforce, REINFORCE_UNLOCK_SECTOR } from './reinforce'
+import { noteSalvageSpend } from './sortieSummary'
 import {
   isRouteBUnlocked,
   maxLaunchSector,
@@ -913,6 +914,7 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
 
   const next = structuredClone(state)
   next.resources.salvage -= cost
+  noteSalvageSpend(next, cost)
   next.shipyard.moduleLevels = {
     ...next.shipyard.moduleLevels,
     [moduleId]: level + 1,

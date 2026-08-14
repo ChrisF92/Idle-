@@ -17,6 +17,7 @@ import type {
   ReliquaryState,
   SignalCoreInstance,
   SignalCoresState,
+  SortieSummary,
   SpecialistId,
   SpecialistState,
   YardArmId,
@@ -43,6 +44,7 @@ import { createEmptyEchoState } from './echo'
 import { createEmptyProcessState } from './process'
 import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
+import { emptyLastSortie } from './sortieSummary'
 import { normalizeRoute } from './sectors'
 
 export function saveGame(state: GameState): void {
@@ -50,6 +52,28 @@ export function saveGame(state: GameState): void {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state))
   } catch {
     // Quota / private mode — ignore for skeleton
+  }
+}
+
+function withLastSortieDefaults(
+  raw: SortieSummary | undefined,
+  sector: number,
+  wave: number,
+): SortieSummary {
+  const empty = emptyLastSortie(sector, wave)
+  if (!raw || typeof raw !== 'object') return empty
+  const outcome = raw.outcome === 'extract' || raw.outcome === 'defeat' ? raw.outcome : null
+  return {
+    outcome,
+    sector: Math.max(1, Math.floor(Number(raw.sector ?? sector) || sector)),
+    wave: Math.max(1, Math.floor(Number(raw.wave ?? wave) || wave)),
+    note: typeof raw.note === 'string' ? raw.note : '',
+    sectorsCleared: Math.max(0, Math.floor(Number(raw.sectorsCleared ?? 0) || 0)),
+    salvageGained: Math.max(0, Math.floor(Number(raw.salvageGained ?? 0) || 0)),
+    salvageSpent: Math.max(0, Math.floor(Number(raw.salvageSpent ?? 0) || 0)),
+    milestones: Math.max(0, Math.floor(Number(raw.milestones ?? 0) || 0)),
+    researchXp: Math.max(0, Math.floor(Number(raw.researchXp ?? 0) || 0)),
+    networkLevels: Math.max(0, Math.floor(Number(raw.networkLevels ?? 0) || 0)),
   }
 }
 
@@ -93,12 +117,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     enemyUnits: withUnitDefaults(combat.enemyUnits),
     projectiles: combat.projectiles ?? [],
     fx: combat.fx ?? [],
-    lastSortie: combat.lastSortie ?? {
-      outcome: null,
-      sector: combat.sector ?? 1,
-      wave: combat.wave ?? 1,
-      note: '',
-    },
+    lastSortie: withLastSortieDefaults(combat.lastSortie, combat.sector ?? 1, combat.wave ?? 1),
+    sortieMark: combat.sortieMark ?? null,
   }
 }
 
@@ -334,7 +354,7 @@ function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResea
 
 const YARD_GOODS: YardGoodId[] = ['ore', 'flux', 'ingot']
 const YARD_ARMS: YardArmId[] = ['damage', 'shield', 'salvage', 'network']
-const YARD_BUILDINGS: YardBuildingId[] = ['slag-heap', 'flux-still', 'ingot-press']
+const YARD_BUILDINGS: YardBuildingId[] = ['slag-heap', 'flux-still', 'ingot-press', 'choir-sieve']
 
 function withYardDefaults(raw: YardState | undefined): YardState {
   const empty = createEmptyYardState()

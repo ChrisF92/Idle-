@@ -127,11 +127,45 @@ export function DockTab({
         {rebuildReady ? 'Rebuild hangar' : `Rebuild · sector ${rebuildMin}`}
       </button>
 
-      <p className="muted dock-last">
-        {summary.outcome
-          ? `Last: ${summary.outcome === 'defeat' ? 'Defeat' : 'Extract'} S${summary.sector} W${summary.wave}`
-          : 'No sortie yet'}
-      </p>
+      {summary.outcome ? (
+        <div className="dock-summary">
+          <p className="dock-summary-title">
+            {summary.outcome === 'defeat' ? 'Defeat' : 'Extract'} · S{summary.sector} W
+            {summary.wave}
+          </p>
+          <div className="stat-row dock-stats">
+            <div>
+              <span className="muted">Sectors</span>
+              <strong>{summary.sectorsCleared}</strong>
+            </div>
+            <div>
+              <span className="muted">Salvage</span>
+              <strong>+{formatCompact(summary.salvageGained)}</strong>
+            </div>
+            <div>
+              <span className="muted">Spent</span>
+              <strong>{formatCompact(summary.salvageSpent)}</strong>
+            </div>
+          </div>
+          <div className="stat-row dock-stats">
+            <div>
+              <span className="muted">Milestones</span>
+              <strong>{summary.milestones}</strong>
+            </div>
+            <div>
+              <span className="muted">Research</span>
+              <strong>+{formatCompact(summary.researchXp)}</strong>
+            </div>
+            <div>
+              <span className="muted">Network</span>
+              <strong>+{summary.networkLevels}</strong>
+            </div>
+          </div>
+          {summary.note ? <p className="muted dock-last">{summary.note}</p> : null}
+        </div>
+      ) : (
+        <p className="muted dock-last">No sortie yet</p>
+      )}
     </section>
   )
 }
