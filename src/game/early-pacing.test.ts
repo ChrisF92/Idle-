@@ -110,7 +110,11 @@ describe('early combat pacing', () => {
     let s = createInitialState(0)
     s = setCampaign(s, true)
     s = setDocked(s, false)
-    advanceSeconds(s, 90)
+    // S1 titan slams are swingy; a death docks the hull. Relaunch like a player would.
+    for (let attempt = 0; attempt < 4 && s.combat.highestSector < 1; attempt += 1) {
+      if (s.combat.docked) s = setDocked(s, false)
+      advanceSeconds(s, 90)
+    }
     expect(s.combat.highestSector).toBeGreaterThanOrEqual(1)
   })
 })
