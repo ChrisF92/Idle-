@@ -4,11 +4,9 @@ import type { DevAction } from '../../game/dev'
 import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
 import type { NumberNotation } from '../../game/format'
+import { APP_BUILD } from '../../buildMeta'
 import { isSystemUnlocked, systemUnlockRequirement } from '../../game/progression'
 import { moreStationBuckets, type MoreStationDef } from '../../game/moreStations'
-
-/** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-14s'
 
 interface StatsTabProps {
   state: GameState
@@ -18,6 +16,7 @@ interface StatsTabProps {
   onRebuild?: () => void
   onNotation?: (mode: NumberNotation) => void
   onOpenStation?: (tab: TabId) => void
+  onOpenSimulator?: () => void
 }
 
 async function forceReloadApp(): Promise<void> {
@@ -77,6 +76,7 @@ export function StatsTab({
   onRebuild,
   onNotation,
   onOpenStation,
+  onOpenSimulator,
 }: StatsTabProps) {
   const [importCode, setImportCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -213,7 +213,7 @@ export function StatsTab({
           </button>
         </p>
 
-        <DevTools onDevAction={onDevAction} />
+        <DevTools onDevAction={onDevAction} onOpenSimulator={onOpenSimulator} />
 
         <p className="muted">
           Progressive Web App: after deploy to GitHub Pages (HTTPS), Android Chrome can Install /

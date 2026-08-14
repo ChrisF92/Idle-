@@ -4,6 +4,7 @@ import { isDevToolsEnabled, setDevToolsEnabled } from '../game/dev'
 
 interface DevToolsProps {
   onDevAction: (action: DevAction) => void
+  onOpenSimulator?: () => void
 }
 
 const HIVE_RESOURCES: DevAction = {
@@ -39,7 +40,7 @@ function prepDoor(onDevAction: (action: DevAction) => void, sector: number): voi
   onDevAction({ type: 'dock-heal' })
 }
 
-export function DevTools({ onDevAction }: DevToolsProps) {
+export function DevTools({ onDevAction, onOpenSimulator }: DevToolsProps) {
   const [enabled, setEnabled] = useState(() => isDevToolsEnabled())
   const [sector, setSector] = useState('8')
   const [open, setOpen] = useState(true)
@@ -86,6 +87,13 @@ export function DevTools({ onDevAction }: DevToolsProps) {
           <p className="muted">
             Hiveworks cheats — saved in this browser. Append <code>?dev=0</code> to turn off via URL.
           </p>
+          {onOpenSimulator ? (
+            <p className="assign-row">
+              <button type="button" className="primary" onClick={onOpenSimulator}>
+                Balance Simulator
+              </button>
+            </p>
+          ) : null}
           <div className="dev-tools-row">
             <label>
               Sector{' '}

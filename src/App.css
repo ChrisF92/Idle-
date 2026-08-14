@@ -1502,3 +1502,72 @@ textarea {
   margin-top: 0.45rem;
 }
 
+.sim-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--bg) 92%, black);
+  padding: env(safe-area-inset-top, 0px) 0.5rem env(safe-area-inset-bottom, 0.5rem);
+}
+
+.sim-panel {
+  max-width: 480px;
+  margin: 0 auto;
+  height: 100%;
+}
+
+.sim-presets,
+.sim-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sim-presets button,
+.sim-actions button {
+  min-height: 2.6rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.sim-field {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.55rem 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.sim-field select,
+.sim-field input {
+  min-height: 2.6rem;
+  font-size: 1rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  background: #0f1319;
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.55rem;
+  width: 100%;
+}
+
+.sim-progress,
+.sim-results {
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  padding: 0.7rem 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.75rem 0;
+}
+
+.sim-pre {
+  white-space: pre-wrap;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: 0.4rem 0 0;
+  overflow-x: auto;
+}
+
+
