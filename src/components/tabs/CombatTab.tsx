@@ -93,27 +93,25 @@ export function CombatTab({
             W{combat.wave}/{waves}
           </strong>
         </div>
-        <div className="combat-hud-readout">
+        <div className="combat-hud-readout" data-guide="sortie-hull">
           <span className="combat-hud-kicker">Hull</span>
           <strong className="combat-hud-value">
             {formatCompact(Math.ceil(combat.playerHull))}/{formatCompact(Math.ceil(stats.hullMax))}
           </strong>
         </div>
-        <div className="combat-hud-readout">
+        <div className="combat-hud-readout" data-guide="sortie-shield">
           <span className="combat-hud-kicker">Shield</span>
           <strong className="combat-hud-value">
             {formatCompact(Math.ceil(combat.playerShield))}/{formatCompact(Math.ceil(stats.shieldMax))}
           </strong>
         </div>
-        <div className="combat-hud-readout">
-          <span className="combat-hud-kicker" data-guide="salvage-stat">
-            Salvage
-          </span>
+        <div className="combat-hud-readout" data-guide="salvage-stat">
+          <span className="combat-hud-kicker">Salvage</span>
           <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
         </div>
       </header>
 
-      <div className="sortie-canvas">
+      <div className="sortie-canvas" data-guide="sortie-canvas">
         <Battlefield
           playerUnits={playerUnits}
           enemyUnits={enemyUnits}
@@ -129,7 +127,7 @@ export function CombatTab({
         ) : null}
       </div>
 
-      <div className="sortie-sheet">
+      <div className="sortie-sheet" data-guide="cores-sheet">
         <p className="sortie-sheet-kicker">
           Cores · tap a name for the full sheet. Salvage ranks these. Drones live on Network.
         </p>

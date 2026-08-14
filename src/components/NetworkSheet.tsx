@@ -44,7 +44,7 @@ export function NetworkSheet({
 
   return (
     <div className={compact ? 'network-sheet network-sheet-compact' : 'network-sheet'}>
-      <p className="network-corps">
+      <p className="network-corps" data-guide="network-corps">
         <InspectName
           name={`Corps ${state.base.workerDrones}/${cap}`}
           card={inspectNetworkOverview(state)}

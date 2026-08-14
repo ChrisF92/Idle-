@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
+import { NetworkTab } from '../components/tabs/NetworkTab'
 import { ScreenHelp } from '../components/ScreenHelp'
 import { StatsTab } from '../components/tabs/StatsTab'
 import { createInitialState } from './state'
@@ -26,6 +27,24 @@ describe('shell UX', () => {
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
     expect(screen.getByText(/Salvage ranks these/i)).toBeTruthy()
     expect(screen.getByText(/Drones live on Network/i)).toBeTruthy()
+    expect(document.querySelector('[data-guide="sortie-canvas"]')).toBeTruthy()
+    expect(document.querySelector('[data-guide="sortie-hull"]')).toBeTruthy()
+    expect(document.querySelector('[data-guide="cores-sheet"]')).toBeTruthy()
+    expect(document.querySelector('[data-guide="core-pulse-cannon"]')).toBeTruthy()
+  })
+
+  it('spotlights Network manufacture, corps, and Links', () => {
+    render(
+      <NetworkTab
+        state={createInitialState(0)}
+        onAssign={() => undefined}
+        onBuyLink={() => undefined}
+      />,
+    )
+    expect(document.querySelector('[data-guide="network-manufacture"]')).toBeTruthy()
+    expect(document.querySelector('[data-guide="network-corps"]')).toBeTruthy()
+    expect(document.querySelector('[data-guide="network-strike"]')).toBeTruthy()
+    expect(document.querySelector('[data-guide="network-links"]')).toBeTruthy()
   })
 
   it('opens per-screen help from the info button', () => {

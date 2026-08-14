@@ -761,8 +761,14 @@ function stepLessonScreen(step: GuideStep): TabId | undefined {
   return step.screen ?? step.tab
 }
 
+/** Battlefield lessons may run during a live sortie, even on other screens. */
+export function isLiveSortieLesson(step: GuideStep): boolean {
+  return step.group === 'sortie'
+}
+
 /** True if this lesson is allowed to interrupt the current tab. */
 export function stepAllowedOnTab(step: GuideStep, tab: TabId): boolean {
+  if (isLiveSortieLesson(step)) return true
   const home = stepLessonScreen(step)
   if (TOUR_PARK_TABS.has(tab)) {
     if (home === tab) return true
@@ -813,10 +819,82 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (s) => s.shipyard.frameLocked || !s.combat.docked,
   },
   {
+    id: 'guide-sortie-field',
+    title: 'The lane',
+    body: [
+      'Your hull sits at the bottom. Waves close in from the far side.',
+      'This screen is the fight. Cores and Salvage sit under the field.',
+    ],
+    target: 'sortie-canvas',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'sortie',
+    availableWhen: (s) =>
+      !s.combat.docked &&
+      (s.combat.defeatLeft ?? 0) <= 0 &&
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      !guideSeen(s, 'guide-sortie-field'),
+  },
+  {
+    id: 'guide-sortie-guns',
+    title: 'Guns fire themselves',
+    body: [
+      'You do not tap to shoot. Pulse Cannon fires on its own.',
+      'Spend Salvage on Cores under the field to hit harder and hold Shield.',
+    ],
+    target: 'sortie-canvas',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'sortie',
+    availableWhen: (s) =>
+      !s.combat.docked &&
+      (s.combat.defeatLeft ?? 0) <= 0 &&
+      guideSeen(s, 'guide-sortie-field') &&
+      !guideSeen(s, 'guide-sortie-guns'),
+  },
+  {
+    id: 'guide-sortie-hull',
+    title: 'Shield, then Hull',
+    body: [
+      'Incoming fire eats Shield first, then Hull.',
+      'Extract to keep the run. Hull lost docks you — you relaunch from Dock.',
+    ],
+    target: 'sortie-hull',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'sortie',
+    availableWhen: (s) =>
+      !s.combat.docked &&
+      (s.combat.defeatLeft ?? 0) <= 0 &&
+      guideSeen(s, 'guide-sortie-guns') &&
+      !guideSeen(s, 'guide-sortie-hull'),
+  },
+  {
+    id: 'guide-sortie-salvage',
+    title: 'Wrecks drop Salvage',
+    body: [
+      'Kills add Salvage here. Spend it on Pulse (gun) and Plate (shield) on the Cores sheet below.',
+      'You can rank Cores during the fight. Extract keeps those levels.',
+    ],
+    target: 'salvage-stat',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'sortie',
+    availableWhen: (s) =>
+      !s.combat.docked &&
+      (s.combat.defeatLeft ?? 0) <= 0 &&
+      guideSeen(s, 'guide-sortie-hull') &&
+      !guideSeen(s, 'guide-sortie-salvage'),
+  },
+  {
     id: 'guide-salvage-lesson',
     title: 'Salvage recovered',
-    body: 'The wreck left Salvage. Open Sortie and raise Pulse and Plate on the Cores sheet.',
+    body: [
+      'Open Sortie. Salvage ranks Cores under the field — Pulse is the gun, Plate is the shield.',
+      'Tap a Core name later for every stat and the next Salvage cost.',
+    ],
     target: 'combat-tab',
+    group: 'cores',
     availableWhen: (s) =>
       s.combat.docked &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
@@ -826,15 +904,34 @@ export const GUIDE_STEPS: GuideStep[] = [
       !guideSeen(s, 'guide-salvage-lesson'),
   },
   {
+    id: 'guide-cores-sheet',
+    title: 'Cores',
+    body: [
+      'Pulse Cannon is the gun. Plate Layer is the shield. Salvage buys run levels on both.',
+      'Rank them here, even mid-fight. Drones do not live on this sheet — they live on Network.',
+    ],
+    target: 'cores-sheet',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'cores',
+    availableWhen: (s) =>
+      s.combat.docked &&
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      guideSeen(s, 'guide-salvage-lesson') &&
+      !guideSeen(s, 'guide-cores-sheet'),
+  },
+  {
     id: 'guide-upgrade-pulse',
     title: 'Upgrade Pulse',
     body: 'Spend Salvage to raise Pulse Cannon one run level. Levels wipe on Rebuild — cheap power now.',
     target: 'upgrade-pulse-cannon',
     tab: 'combat',
+    screen: 'combat',
+    group: 'cores',
     required: true,
     availableWhen: (s) =>
       s.combat.docked &&
-      guideSeen(s, 'guide-salvage-lesson') &&
+      guideSeen(s, 'guide-cores-sheet') &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 &&
       !guideSeen(s, 'guide-upgrade-pulse'),
@@ -846,6 +943,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     body: 'Upgrade Plate Layer next. Both Cores should be Salvage-ranked before you launch again.',
     target: 'upgrade-plate-layer',
     tab: 'combat',
+    screen: 'combat',
+    group: 'cores',
     required: true,
     availableWhen: (s) =>
       s.combat.docked &&
@@ -856,26 +955,48 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (s) => (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1,
   },
   {
-    id: 'guide-relaunch-upgraded',
-    title: 'Resume push',
-    body: 'Cores ranked. Launch again — Network drones fill Strike and Ward while you fly.',
-    target: 'launch',
-    tab: 'dock',
-    required: true,
+    id: 'guide-cores-inspect',
+    title: 'Tap a Core name',
+    body: [
+      'Tap Pulse Cannon or Plate Layer for live stats, the next Salvage cost, and milestone nodes.',
+      'The one-line preview is the short version. The sheet is the full picture.',
+    ],
+    target: 'core-pulse-cannon',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'cores',
     availableWhen: (s) =>
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
-      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
-      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
       s.combat.docked &&
-      !guideSeen(s, 'guide-relaunch-upgraded'),
-    completeWhen: (s) => !s.combat.docked,
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      guideSeen(s, 'guide-cores-sheet') &&
+      ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 ||
+        guideSeen(s, 'guide-upgrade-pulse')) &&
+      ((s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 ||
+        guideSeen(s, 'guide-upgrade-plate')) &&
+      !guideSeen(s, 'guide-cores-inspect'),
+  },
+  {
+    id: 'guide-cores-persist',
+    title: 'What Extract keeps',
+    body: [
+      'Extract keeps Core levels and Salvage. Hull lost still keeps them — you just dock and relaunch.',
+      'Rebuild wipes Salvage and Core levels so you can swap the hull. That is later, from Dock.',
+    ],
+    target: 'cores-sheet',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'cores',
+    availableWhen: (s) =>
+      s.combat.docked &&
+      guideSeen(s, 'guide-cores-inspect') &&
+      !guideSeen(s, 'guide-cores-persist'),
   },
   {
     id: 'guide-drone-cap',
     title: 'Drone Network',
     body: [
-      'Tap Network. Drones never fly on Sortie — they fill bars on this screen.',
-      'Assign idle hulls to Strike (damage) and Ward (shield). Split the corps.',
+      'Tap Network. Drones never fly on Sortie — they manufacture and fill bars on that screen.',
+      'The corps is already growing. Assign them before the next launch.',
     ],
     target: 'network-tab',
     screen: 'network',
@@ -883,10 +1004,58 @@ export const GUIDE_STEPS: GuideStep[] = [
     availableWhen: (s) =>
       s.combat.docked &&
       s.base.workerDrones > 0 &&
-      !guideSeen(s, 'guide-drone-cap') &&
+      !guideSeen(s, 'guide-drone-cap'),
+    completeWhen: (_s, tab) => tab === 'network',
+  },
+  {
+    id: 'guide-network-make',
+    title: 'The corps grows',
+    body: [
+      'This bar prints hulls up to the corps cap. Idle drones wait here until you assign them.',
+      'Corps racks (under Links) raise that cap. Manufacture keeps running while you fly or sit docked.',
+    ],
+    target: 'network-manufacture',
+    tab: 'network',
+    screen: 'network',
+    group: 'network',
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-drone-cap') && !guideSeen(s, 'guide-network-make'),
+  },
+  {
+    id: 'guide-network-assign',
+    title: 'Assign Strike and Ward',
+    body: [
+      'Idle hulls do nothing until you tap +. Strike raises sortie damage. Ward raises the shield ceiling.',
+      'Split the corps. − returns a hull to idle. Drones never appear on the battlefield.',
+    ],
+    target: 'network-strike',
+    tab: 'network',
+    screen: 'network',
+    group: 'network',
+    required: true,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-network-make') &&
+      !guideSeen(s, 'guide-network-assign') &&
       (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) === 0,
     completeWhen: (s) =>
       (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) > 0,
+  },
+  {
+    id: 'guide-network-sortie',
+    title: 'Never on Sortie',
+    body: [
+      'The corps line is the pool: total hulls, cap, and idle. Sortie never shows these drones.',
+      'They only fill bars on this screen. Combat is the hull you launched.',
+    ],
+    target: 'network-corps',
+    tab: 'network',
+    screen: 'network',
+    group: 'network',
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-network-make') &&
+      (guideSeen(s, 'guide-network-assign') ||
+        (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) > 0) &&
+      !guideSeen(s, 'guide-network-sortie'),
   },
   {
     id: 'guide-network-bars',
@@ -901,7 +1070,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     screen: 'network',
     group: 'network',
     availableWhen: (s) =>
-      guideSeen(s, 'guide-drone-cap') &&
+      guideSeen(s, 'guide-network-sortie') &&
       !guideSeen(s, 'guide-network-bars') &&
       ((s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) > 0 ||
         s.base.workerDrones > 0),
@@ -920,6 +1089,21 @@ export const GUIDE_STEPS: GuideStep[] = [
     group: 'network',
     availableWhen: (s) =>
       guideSeen(s, 'guide-network-bars') && !guideSeen(s, 'guide-network-links'),
+  },
+  {
+    id: 'guide-relaunch-upgraded',
+    title: 'Resume push',
+    body: 'Cores ranked and the Network is running. Launch again — bars fill while you fly.',
+    target: 'launch',
+    tab: 'dock',
+    required: true,
+    availableWhen: (s) =>
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
+      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
+      s.combat.docked &&
+      !guideSeen(s, 'guide-relaunch-upgraded'),
+    completeWhen: (s) => !s.combat.docked,
   },
   {
     id: 'guide-foundry',
@@ -1447,15 +1631,32 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (_s, tab) => tab === 'logs',
   },
 ]
-/** Dock/launch tips that must not reappear after the first soft reset. */
+/** Dock/launch/sortie/cores tips that must not reappear after the first soft reset. */
 export const STARTER_GUIDE_IDS = [
   'guide-shipyard-tab',
   'guide-frame-select',
   'guide-launch',
+  'guide-sortie-field',
+  'guide-sortie-guns',
+  'guide-sortie-hull',
+  'guide-sortie-salvage',
   'guide-salvage-lesson',
+  'guide-cores-sheet',
   'guide-upgrade-pulse',
   'guide-upgrade-plate',
+  'guide-cores-inspect',
+  'guide-cores-persist',
   'guide-relaunch-upgraded',
+] as const
+
+/** In-screen Network lessons after the door. Replay if a career never opened Network. */
+export const NETWORK_GUIDE_IDS = [
+  'guide-drone-cap',
+  'guide-network-make',
+  'guide-network-assign',
+  'guide-network-sortie',
+  'guide-network-bars',
+  'guide-network-links',
 ] as const
 
 function markGuideSeen(seen: string[], id: string): boolean {
@@ -1518,7 +1719,7 @@ export function syncCompletedGuides(state: GameState, tab: TabId): GameState {
   return next
 }
 
-/** True while a sortie is live — new coach-marks wait until Dock. */
+/** True while a sortie is live — station doors wait until Dock. Battlefield lessons may still start. */
 export function guideQueueQuiet(state: GameState): boolean {
   return !state.combat.docked || (state.combat.defeatLeft ?? 0) > 0
 }
@@ -1537,8 +1738,9 @@ function guideStepReady(
 /**
  * Next coach-mark. `heldId` keeps the visible step until it completes so a
  * new unlock (first Salvage, Foundry, Reliquary, …) cannot steal Continue.
- * Fresh steps wait until the ship is docked. A parked system screen only
- * shows that system's tour — the next door waits until More or Dock.
+ * Fresh station doors wait until the ship is docked. Battlefield lessons
+ * (`group: 'sortie'`) may start during a live fight. A parked system screen
+ * only shows that system's tour — the next door waits until More or Dock.
  */
 export function activeGuideStep(
   state: GameState,
@@ -1552,10 +1754,22 @@ export function activeGuideStep(
       guideStepReady(state, tab, held) &&
       stepAllowedOnTab(held, tab)
     ) {
-      if (!guideQueueQuiet(state) || held.tab === 'combat') return held
+      if (
+        !guideQueueQuiet(state) ||
+        isLiveSortieLesson(held) ||
+        held.tab === 'combat'
+      ) {
+        return held
+      }
     }
   }
-  if (guideQueueQuiet(state)) return null
+  if (guideQueueQuiet(state)) {
+    for (const step of GUIDE_STEPS) {
+      if (!isLiveSortieLesson(step)) continue
+      if (guideStepReady(state, tab, step) && stepAllowedOnTab(step, tab)) return step
+    }
+    return null
+  }
   for (const step of GUIDE_STEPS) {
     if (guideStepReady(state, tab, step) && stepAllowedOnTab(step, tab)) return step
   }

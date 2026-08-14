@@ -107,7 +107,7 @@ export default function App() {
 
   useEffect(() => {
     if (!guide?.tab || dying) return
-    if (!game.state.combat.docked) return
+    if (!game.state.combat.docked && guide.tab !== 'combat') return
     if (guide.id === lastGuideId.current) return
     lastGuideId.current = guide.id
     if (isSystemUnlocked(game.state, guide.tab)) setTab(guide.tab)

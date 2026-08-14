@@ -39,7 +39,7 @@ export function NetworkTab({ state, onAssign, onBuyLink }: NetworkTabProps) {
           {atCap ? ' · cap' : eta != null ? ` · next drone ${Math.ceil(eta)}s` : ''}
         </p>
       </header>
-      <div className="manufacture-bar network-manufacture" aria-hidden>
+      <div className="manufacture-bar network-manufacture" data-guide="network-manufacture" aria-hidden>
         <div
           className="manufacture-bar-fill"
           style={{ width: `${Math.round((atCap ? 1 : state.base.manufactureProgress) * 100)}%` }}

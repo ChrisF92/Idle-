@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { formatCompact, formatLargeNumber, formatStat, setActiveNumberNotation } from './format'
 import { moduleStatPreviews, moduleUpgradeEffectLines } from './catalog'
-import { activeGuideStep, PRESTIGE_MIN_SECTOR } from './progression'
+import { activeGuideStep, NETWORK_GUIDE_IDS, PRESTIGE_MIN_SECTOR, STARTER_GUIDE_IDS } from './progression'
 import { createInitialState } from './state'
 import { applyDevAction } from './dev'
 
@@ -68,18 +68,13 @@ describe('rebuild onboarding', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 8
     state.meta.seenOnboarding = [
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-drone-cap',
+      ...STARTER_GUIDE_IDS,
+      ...NETWORK_GUIDE_IDS,
       'guide-foundry',
       'guide-reliquary',
       'guide-furnace',
       'guide-research-tab',
       'guide-salvage',
-      'guide-salvage-lesson',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
       'guide-codex-tab',
       'guide-ai-tab',
       'guide-achievements',
@@ -92,18 +87,13 @@ describe('rebuild onboarding', () => {
     state.meta.highestSectorEver = 8
     state.combat.sector = PRESTIGE_MIN_SECTOR
     state.meta.seenOnboarding = [
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-drone-cap',
+      ...STARTER_GUIDE_IDS,
+      ...NETWORK_GUIDE_IDS,
       'guide-foundry',
       'guide-reliquary',
       'guide-furnace',
       'guide-research-tab',
       'guide-salvage',
-      'guide-salvage-lesson',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
       'guide-codex-tab',
       'guide-ai-tab',
       'guide-achievements',

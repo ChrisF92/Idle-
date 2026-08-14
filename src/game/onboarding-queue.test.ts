@@ -3,13 +3,34 @@ import { createInitialState } from './state'
 import { setDocked } from './tick'
 import {
   GUIDE_STEPS,
+  NETWORK_GUIDE_IDS,
+  STARTER_GUIDE_IDS,
   activeGuideStep,
   acknowledgeOnboarding,
+  guideBodyLines,
   guideQueueQuiet,
   skipOnboarding,
 } from './progression'
 
-function afterLaunch(seen: string[] = ['guide-shipyard-tab', 'guide-frame-select', 'guide-launch']) {
+const AFTER_LAUNCH = ['guide-shipyard-tab', 'guide-frame-select', 'guide-launch']
+
+const SORTIE_TOUR = [
+  'guide-sortie-field',
+  'guide-sortie-guns',
+  'guide-sortie-hull',
+  'guide-sortie-salvage',
+]
+
+const CORES_TOUR = [
+  'guide-salvage-lesson',
+  'guide-cores-sheet',
+  'guide-upgrade-pulse',
+  'guide-upgrade-plate',
+  'guide-cores-inspect',
+  'guide-cores-persist',
+]
+
+function afterLaunch(seen: string[] = AFTER_LAUNCH) {
   let state = createInitialState(0)
   state.meta.seenOnboarding = seen
   state = setDocked(state, false)
@@ -17,18 +38,30 @@ function afterLaunch(seen: string[] = ['guide-shipyard-tab', 'guide-frame-select
 }
 
 describe('onboarding queue', () => {
-  it('does not start a new coach-mark during a live sortie', () => {
+  it('walks the battlefield during a live sortie and still blocks Foundry', () => {
     const live = afterLaunch()
     live.resources.salvage = 8
+    live.meta.highestSectorEver = 2
+    live.combat.highestSector = 2
     expect(guideQueueQuiet(live)).toBe(true)
-    expect(activeGuideStep(live, 'combat')).toBeNull()
-    expect(activeGuideStep(live, 'dock')).toBeNull()
-    expect(activeGuideStep(live, 'network')).toBeNull()
+    expect(activeGuideStep(live, 'combat')?.id).toBe('guide-sortie-field')
+    expect(activeGuideStep(live, 'combat')?.group).toBe('sortie')
+    expect(activeGuideStep(live, 'dock')?.id).toBe('guide-sortie-field')
+    expect(activeGuideStep(live, 'network')?.id).toBe('guide-sortie-field')
+
+    let walked = live
+    for (const id of SORTIE_TOUR) {
+      expect(activeGuideStep(walked, 'combat')?.id).toBe(id)
+      walked = acknowledgeOnboarding(walked, id)
+    }
+    expect(activeGuideStep(walked, 'combat')).toBeNull()
+    expect(activeGuideStep(walked, 'dock')).toBeNull()
+    expect(activeGuideStep(walked, 'foundry')).toBeNull()
   })
 
   it('keeps the visible tip when first Salvage arrives', () => {
     const state = createInitialState(0)
-    state.meta.seenOnboarding = ['guide-shipyard-tab', 'guide-frame-select', 'guide-launch']
+    state.meta.seenOnboarding = AFTER_LAUNCH
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-drone-cap')
 
     state.resources.salvage = 8
@@ -36,33 +69,81 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-salvage-lesson')
   })
 
-  it('offers the salvage lesson after Extract, then Core ranks', () => {
+  it('offers Salvage, Cores, then Network after Extract — before relaunch', () => {
     let state = afterLaunch()
     state.resources.salvage = 8
-    expect(activeGuideStep(state, 'combat')).toBeNull()
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-sortie-field')
 
     state = setDocked(state, true)
     expect(guideQueueQuiet(state)).toBe(false)
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-salvage-lesson')
     expect(activeGuideStep(state, 'dock')?.required).toBeFalsy()
+    expect(activeGuideStep(state, 'dock')?.group).toBe('cores')
 
     state = acknowledgeOnboarding(state, 'guide-salvage-lesson')
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-cores-sheet')
+
+    state = acknowledgeOnboarding(state, 'guide-cores-sheet')
     expect(activeGuideStep(state, 'combat')?.id).toBe('guide-upgrade-pulse')
+    expect(activeGuideStep(state, 'combat')?.required).toBe(true)
+
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state = acknowledgeOnboarding(state, 'guide-upgrade-pulse')
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-upgrade-plate')
+
+    state.shipyard.moduleLevels['plate-layer'] = 1
+    state = acknowledgeOnboarding(state, 'guide-upgrade-plate')
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-cores-inspect')
+
+    state = acknowledgeOnboarding(state, 'guide-cores-inspect')
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-cores-persist')
+
+    state = acknowledgeOnboarding(state, 'guide-cores-persist')
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-drone-cap')
+    expect(activeGuideStep(state, 'dock')?.id).not.toBe('guide-relaunch-upgraded')
+  })
+
+  it('walks manufacture, assign, and Links on Network', () => {
+    let state = createInitialState(0)
+    state.meta.seenOnboarding = [...AFTER_LAUNCH, ...SORTIE_TOUR, ...CORES_TOUR]
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.shipyard.moduleLevels['plate-layer'] = 1
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-drone-cap')
+
+    state = acknowledgeOnboarding(state, 'guide-drone-cap')
+    expect(activeGuideStep(state, 'network')?.id).toBe('guide-network-make')
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-relaunch-upgraded')
+
+    state = acknowledgeOnboarding(state, 'guide-network-make')
+    expect(activeGuideStep(state, 'network')?.id).toBe('guide-network-assign')
+    expect(activeGuideStep(state, 'network')?.required).toBe(true)
+
+    state.base.assignments.strike = 1
+    state = acknowledgeOnboarding(state, 'guide-network-assign')
+    expect(activeGuideStep(state, 'network')?.id).toBe('guide-network-sortie')
+
+    state = acknowledgeOnboarding(state, 'guide-network-sortie')
+    expect(activeGuideStep(state, 'network')?.id).toBe('guide-network-bars')
+
+    state = acknowledgeOnboarding(state, 'guide-network-bars')
+    expect(activeGuideStep(state, 'network')?.id).toBe('guide-network-links')
+
+    state = acknowledgeOnboarding(state, 'guide-network-links')
+    expect(activeGuideStep(state, 'network')).toBeNull()
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-relaunch-upgraded')
   })
 
   it('queues Foundry until the ship is docked', () => {
     const live = afterLaunch([
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-drone-cap',
-      'guide-salvage-lesson',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
     ])
     live.meta.highestSectorEver = 2
     live.combat.highestSector = 2
-    expect(activeGuideStep(live, 'dock')).toBeNull()
+    expect(activeGuideStep(live, 'dock')?.id).not.toBe('guide-foundry')
+    expect(activeGuideStep(live, 'foundry')).toBeNull()
 
     const docked = setDocked(live, true)
     expect(activeGuideStep(docked, 'dock')?.id).toBe('guide-foundry')
@@ -71,15 +152,10 @@ describe('onboarding queue', () => {
   it('does not stack Furnace or Codex while Reliquary is open', () => {
     let state = createInitialState(0)
     state.meta.seenOnboarding = [
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-drone-cap',
-      'guide-network-bars',
-      'guide-network-links',
-      'guide-salvage-lesson',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
       'guide-foundry',
       'guide-foundry-smelt',
       'guide-foundry-keep',
@@ -106,15 +182,10 @@ describe('onboarding queue', () => {
     state.meta.highestSectorEver = 6
     state.combat.highestSector = 6
     state.meta.seenOnboarding = [
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-drone-cap',
-      'guide-network-bars',
-      'guide-network-links',
-      'guide-salvage-lesson',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
       'guide-foundry',
       'guide-foundry-smelt',
       'guide-foundry-keep',
@@ -148,15 +219,10 @@ describe('onboarding queue', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 3
     state.meta.seenOnboarding = [
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-drone-cap',
-      'guide-network-bars',
-      'guide-network-links',
-      'guide-salvage-lesson',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
       'guide-foundry',
       'guide-foundry-smelt',
       'guide-foundry-keep',
@@ -172,5 +238,34 @@ describe('onboarding queue', () => {
     )
     expect(activeGuideStep(state, 'reliquary')).toBeNull()
     expect(GUIDE_STEPS.filter((s) => s.group === 'reliquary').length).toBe(3)
+  })
+
+  it('Skip on the Network door dismisses manufacture and Links', () => {
+    let state = createInitialState(0)
+    state.meta.seenOnboarding = [...AFTER_LAUNCH, ...SORTIE_TOUR, ...CORES_TOUR]
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-drone-cap')
+    state = skipOnboarding(state, 'guide-drone-cap')
+    expect(state.meta.seenOnboarding).toEqual(expect.arrayContaining([...NETWORK_GUIDE_IDS]))
+    expect(activeGuideStep(state, 'network')).toBeNull()
+  })
+
+  it('keeps player-facing guide copy free of designer jargon', () => {
+    const blob = GUIDE_STEPS.flatMap((step) => [step.title, ...guideBodyLines(step)]).join('\n')
+    expect(blob).not.toMatch(/USI|ITRTG|analogue|black-bar/i)
+  })
+
+  it('retires the new starter battlefield and Cores ids on Rebuild', () => {
+    for (const id of [
+      ...SORTIE_TOUR,
+      'guide-cores-sheet',
+      'guide-cores-inspect',
+      'guide-cores-persist',
+    ]) {
+      expect(STARTER_GUIDE_IDS).toContain(id)
+    }
+    expect(GUIDE_STEPS.filter((s) => s.group === 'sortie').map((s) => s.id)).toEqual(SORTIE_TOUR)
+    expect(GUIDE_STEPS.filter((s) => s.group === 'network').map((s) => s.id)).toEqual([
+      ...NETWORK_GUIDE_IDS,
+    ])
   })
 })

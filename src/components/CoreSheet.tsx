@@ -46,7 +46,7 @@ export function CoreSheet({
           .join(' · ')
 
         return (
-          <article key={moduleId} className="core-row">
+          <article key={moduleId} className="core-row" data-guide={`core-${moduleId}`}>
             <div className="core-row-main">
               <span className="muted">{SLOT_LABEL[def.role] ?? def.role}</span>
               <InspectName name={def.name} card={inspectCore(state, moduleId)} />

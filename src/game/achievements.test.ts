@@ -3,6 +3,8 @@ import { createInitialState } from './state'
 import { buyAiNode, buyResearch, performPrestige } from './actions'
 import {
   ACHIEVEMENTS,
+  NETWORK_GUIDE_IDS,
+  STARTER_GUIDE_IDS,
   activeGuideStep,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
@@ -78,18 +80,13 @@ describe('achievements and AI unlock', () => {
     const prestigeState = createInitialState(0)
     prestigeState.meta.highestSectorEver = 8
     prestigeState.meta.seenOnboarding = [
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-drone-cap',
+      ...STARTER_GUIDE_IDS,
+      ...NETWORK_GUIDE_IDS,
       'guide-foundry',
       'guide-reliquary',
       'guide-furnace',
       'guide-research-tab',
       'guide-salvage',
-      'guide-salvage-lesson',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
       'guide-codex-tab',
       'guide-ai-tab',
       'guide-achievements',
@@ -100,18 +97,13 @@ describe('achievements and AI unlock', () => {
     aiState.meta.aiUnlocked = true
     aiState.meta.completedAchievements = ['first-blood']
     aiState.meta.seenOnboarding = [
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-drone-cap',
+      ...STARTER_GUIDE_IDS,
+      ...NETWORK_GUIDE_IDS,
       'guide-foundry',
       'guide-reliquary',
       'guide-furnace',
       'guide-research-tab',
       'guide-salvage',
-      'guide-salvage-lesson',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
     ]
     expect(activeGuideStep(aiState, 'combat')?.id).toBe('guide-ai-tab')
 

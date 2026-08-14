@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import {
   GUIDE_STEPS,
+  NETWORK_GUIDE_IDS,
+  STARTER_GUIDE_IDS,
   activeGuideStep,
   challengesContentUnlocked,
   isResourceVisible,
@@ -42,23 +44,17 @@ describe('resource visibility gates', () => {
   })
 })
 
-const EARLY_SEEN = [
-  'guide-shipyard-tab',
-  'guide-frame-select',
-  'guide-launch',
-  'guide-drone-cap',
-  'guide-salvage-lesson',
-  'guide-upgrade-pulse',
-  'guide-upgrade-plate',
-  'guide-foundry',
-]
+const EARLY_SEEN = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS, 'guide-foundry']
 
 describe('Hiveworks onboarding catalog', () => {
   it('covers live Dock, Network, Foundry, and More doors', () => {
     const ids = new Set(GUIDE_STEPS.map((s) => s.id))
     for (const id of [
       'guide-launch',
+      'guide-sortie-field',
+      'guide-cores-sheet',
       'guide-drone-cap',
+      'guide-network-make',
       'guide-foundry',
       'guide-foundry-smelt',
       'guide-reliquary',
