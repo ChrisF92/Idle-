@@ -424,6 +424,7 @@ export function spendRebuildMatter(state: GameState, ctx: StrategyContext): Game
     const after = buyMatterShop(next, bestId)
     if (after === next) break
     ctx.recordMeaningful(`Slag Bank ${getMatterShopItem(bestId)?.name ?? bestId}`)
+    ctx.attachRebuildPurchase(getMatterShopItem(bestId)?.name ?? bestId)
     next = after
   }
   return next
@@ -469,6 +470,13 @@ export function maybeUnlockAndFit(state: GameState, ctx: StrategyContext): GameS
 
 export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: boolean; reasons: string[] } {
   if (!canPrestige(state)) return { yes: false, reasons: [] }
+  if (
+    ctx.lastRebuildActive != null &&
+    ctx.activeSeconds - ctx.lastRebuildActive < ctx.config.rebuild.stallSeconds &&
+    state.combat.consecutiveLosses < ctx.config.rebuild.consecutiveLosses
+  ) {
+    return { yes: false, reasons: [] }
+  }
   const reasons: string[] = []
   const cfg = ctx.config.rebuild
   const gain = prestigeGainFor(state)
@@ -496,7 +504,7 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   const yes =
     reasons.length >= 1 &&
     gain >= 1 &&
-    (ctx.secondsSinceHighestSectorGain >= Math.min(cfg.stallSeconds, 240) ||
+    (ctx.secondsSinceHighestSectorGain >= cfg.stallSeconds ||
       state.combat.consecutiveLosses >= cfg.consecutiveLosses)
   return { yes, reasons }
 }

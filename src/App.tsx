@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { activeGuideStep, isSystemUnlocked } from './game/progression'
@@ -31,8 +31,12 @@ import { SortieReport } from './components/SortieReport'
 import { GuideOverlay } from './components/GuideOverlay'
 import { ScreenHelp } from './components/ScreenHelp'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
-import { BalanceSimulator } from './components/BalanceSimulator'
 import './App.css'
+
+const BalanceSimulator = lazy(async () => {
+  const mod = await import('./components/BalanceSimulator')
+  return { default: mod.BalanceSimulator }
+})
 
 export default function App() {
   const game = useGame()
@@ -309,7 +313,11 @@ export default function App() {
         />
       ) : null}
 
-      {simulatorOpen ? <BalanceSimulator onClose={() => setSimulatorOpen(false)} /> : null}
+      {simulatorOpen ? (
+        <Suspense fallback={null}>
+          <BalanceSimulator onClose={() => setSimulatorOpen(false)} />
+        </Suspense>
+      ) : null}
 
       {guide ? (
         <GuideOverlay

@@ -293,6 +293,7 @@ export interface StrategyContext {
   recordMeaningful: (label: string) => void
   recordCorePurchase: (row: CorePurchaseRecord) => void
   recordRebuild: (row: Omit<RebuildRecord, 'repushSeconds' | 'repushRatio' | 'newHighestAfter' | 'permanentPurchases'> & { permanentPurchases?: string[] }) => void
+  attachRebuildPurchase: (label: string) => void
   noteLimitation: (system: string, note: string) => void
 }
 

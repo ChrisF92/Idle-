@@ -46,6 +46,7 @@ export interface MetricsState {
   seenUnlocks: Set<string>
   hiveNodesSeen: number
   networkIdleHint: boolean
+  idleAcc: number
 }
 
 function emptySector(sector: number, active: number): SectorRecord {
@@ -93,6 +94,7 @@ export function createMetrics(state: GameState): MetricsState {
     seenUnlocks: new Set(),
     hiveNodesSeen: hiveNodes(state),
     networkIdleHint: false,
+    idleAcc: 0,
   }
 }
 
@@ -148,7 +150,12 @@ export function observeState(
   }
   const row = metrics.sectors.get(sector)!
   if (!state.combat.campaign) row.holdSeconds += dt
-  if (idleWorkers(state) > 0 && state.base.workerDrones > 0) metrics.networkIdleHint = true
+  if (idleWorkers(state) > 0 && state.base.workerDrones > 0) {
+    metrics.idleAcc += dt
+    if (metrics.idleAcc > 60) metrics.networkIdleHint = true
+  } else {
+    metrics.idleAcc = 0
+  }
   const salvageGain = state.resources.salvage - prev.resources.salvage
   if (salvageGain > 0) row.salvageEarned += salvageGain
 
@@ -278,6 +285,8 @@ export function recordRebuildRow(metrics: MetricsState, row: RebuildRecord): voi
   metrics.rebuildLog.push(row)
   metrics.lastRebuildActive = row.activeSeconds
   metrics.previousHighestAtRebuild = row.highestSector
+  metrics.lastHighest = 0
+  metrics.lastHighestAt = row.activeSeconds
   metrics.pendingRepush = {
     rebuildIndex: row.index,
     target: row.highestSector,

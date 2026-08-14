@@ -175,9 +175,20 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     record: (event) => {
       if (config.logging === 'detailed') metrics.detailedLog.push(`${activeSeconds.toFixed(1)}s  ${event}`)
     },
-    recordMeaningful: (label) => noteMeaningful(metrics, label, activeSeconds),
+    recordMeaningful: (label) => {
+      noteMeaningful(metrics, label, activeSeconds)
+      if (label === 'Launch') {
+        addMilestone(metrics, 'first-launch', 'First Launch', activeSeconds, calendarSeconds)
+      }
+    },
     recordCorePurchase: (row: CorePurchaseRecord) => {
       metrics.corePurchases.push(row)
+      if (row.moduleId === 'pulse-cannon' && row.levelAfter === 1) {
+        addMilestone(metrics, 'first-pulse-upgrade', 'First Pulse upgrade', activeSeconds, calendarSeconds)
+      }
+      if (row.moduleId === 'plate-layer' && row.levelAfter === 1) {
+        addMilestone(metrics, 'first-plate-upgrade', 'First Plate upgrade', activeSeconds, calendarSeconds)
+      }
       if (config.logging !== 'summary') {
         metrics.detailedLog.push(
           `${activeSeconds.toFixed(1)}s  ${row.name} L${row.levelAfter}  -${row.cost} salvage`,
@@ -193,7 +204,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
         newHighestAfter: null,
       }
       recordRebuildRow(metrics, full)
-      firstRebuildAt = activeSeconds
+      if (firstRebuildAt == null) firstRebuildAt = activeSeconds
       addMilestone(
         metrics,
         row.index === 1 ? 'first-rebuild' : `rebuild-${row.index}`,
@@ -201,6 +212,10 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
         activeSeconds,
         calendarSeconds,
       )
+    },
+    attachRebuildPurchase: (label) => {
+      const last = metrics.rebuildLog[metrics.rebuildLog.length - 1]
+      if (last && !last.permanentPurchases.includes(label)) last.permanentPurchases.push(label)
     },
     noteLimitation: (system, note) => {
       if (!limitations.some((l) => l.system === system && l.note === note)) {
