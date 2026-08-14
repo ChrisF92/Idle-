@@ -73,7 +73,7 @@ describe('hub vs sortie', () => {
     s = startCombat(s)
     for (const u of s.combat.playerUnits) u.hull = 0
     s.combat.playerHull = 0
-    s = tickGame(s, s.lastTickAt + 200)
+    s = tickGame(s, s.lastTickAt + 2000)
     expect(s.combat.docked).toBe(true)
     expect(s.combat.sector).toBe(1)
     expect(s.combat.wave).toBe(1)

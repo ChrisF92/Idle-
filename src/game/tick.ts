@@ -89,20 +89,28 @@ function pushLog(state: GameState, line: string, max = 40): void {
   state.combat.log = [line, ...state.combat.log].slice(0, max)
 }
 
-function clearEnemy(state: GameState): void {
-  state.combat.inFight = false
+function clearShots(state: GameState): void {
+  state.combat.projectiles = []
+  state.combat.beams = []
+  state.combat.fx = []
+}
+
+function clearEnemiesOnly(state: GameState): void {
   state.combat.enemyName = 'None'
   state.combat.enemyFamily = ''
   state.combat.enemyTags = []
   state.combat.isBoss = false
   state.combat.bossPhase = 0
   state.combat.enemyUnits = []
-  state.combat.playerUnits = []
   state.combat.enemyHull = 0
   state.combat.enemyHullMax = 0
-  state.combat.projectiles = []
-  state.combat.beams = []
-  state.combat.fx = []
+  clearShots(state)
+}
+
+function clearEnemy(state: GameState): void {
+  state.combat.inFight = false
+  clearEnemiesOnly(state)
+  state.combat.playerUnits = []
 }
 
 function persistFlagshipHull(state: GameState): void {
@@ -338,11 +346,34 @@ export function starterRefitGate(
   return null
 }
 
+/** Hull-loss beat on Sortie before Dock + run report. */
+export const DEFEAT_SEQUENCE_S = 1.2
+
+function startDefeatSequence(state: GameState, tactical: boolean): void {
+  if ((state.combat.defeatLeft ?? 0) > 0) return
+  const flag = state.combat.playerUnits.find((u) => u.isFlagship)
+  if (flag) flag.hull = 0
+  state.combat.playerHull = 0
+  state.combat.playerShield = 0
+  state.combat.defeatLeft = DEFEAT_SEQUENCE_S
+  state.combat.defeatTactical = tactical
+  pushLog(state, tactical ? 'Tactical extract — pulling out.' : 'Hull lost — systems failing.')
+}
+
+function tickDefeatSequence(state: GameState, dt: number): boolean {
+  if ((state.combat.defeatLeft ?? 0) <= 0) return false
+  state.combat.defeatLeft = Math.max(0, state.combat.defeatLeft - dt)
+  if (state.combat.defeatLeft > 0) return true
+  onFightLost(state, state.combat.defeatTactical, state.combat.isBoss)
+  return true
+}
+
 /** Death: knockback to this sector's first wave, return to Hub. Ship (cores/salvage) stays. */
 function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   const fromSector = state.combat.sector
   const fromWave = state.combat.wave
-  persistFlagshipHull(state)
+  state.combat.defeatLeft = 0
+  state.combat.defeatTactical = false
   clearEnemy(state)
   state.combat.consecutiveLosses += 1
   if (state.echo?.activeId) {
@@ -403,6 +434,15 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   )
 }
 
+function continueSortie(state: GameState): void {
+  if (state.combat.docked) {
+    state.combat.inFight = false
+    state.combat.playerUnits = []
+    return
+  }
+  beginFight(state, true)
+}
+
 function onFightWon(state: GameState): void {
   const clearedSector = state.combat.sector
   const clearedWave = state.combat.wave
@@ -411,7 +451,7 @@ function onFightWon(state: GameState): void {
 
   // Hull / shield persist between waves — no mid-sector recovery.
   persistFlagshipHull(state)
-  clearEnemy(state)
+  clearEnemiesOnly(state)
   state.combat.consecutiveLosses = 0
 
   const echoId = state.echo?.activeId
@@ -420,9 +460,11 @@ function onFightWon(state: GameState): void {
     if (clearedWave < total) {
       state.combat.wave = clearedWave + 1
       pushLog(state, `Echo wave ${clearedWave}/${total} down. Next: W${state.combat.wave}.`)
+      continueSortie(state)
       return
     }
     tryCompleteEcho(state)
+    state.combat.playerUnits = []
     return
   }
 
@@ -435,6 +477,7 @@ function onFightWon(state: GameState): void {
       state,
       `Wave ${clearedWave}/${wavesForSector(clearedSector)} down in sector ${clearedSector}. +${drip} scrap. Next: W${state.combat.wave}.`,
     )
+    continueSortie(state)
     return
   }
 
@@ -465,9 +508,11 @@ function onFightWon(state: GameState): void {
     closeSortie(state, 'extract', `Safe Extract after sector ${clearedSector} boss (hull low).`)
     pushLog(state, state.combat.lastSortie.note)
   }
+  continueSortie(state)
 }
 
 function tickCombat(state: GameState, dt: number): void {
+  if (tickDefeatSequence(state, dt)) return
   if (!state.combat.inFight) return
 
   state.combat.fightElapsed = (state.combat.fightElapsed ?? 0) + dt
@@ -488,10 +533,9 @@ function tickCombat(state: GameState, dt: number): void {
     : 0
 
   if (flagHull <= retreatThreshold) {
-    const boss = state.combat.isBoss
     const tactical =
       aiDoctrinesActive(state, 'tactical-retreat') && retreatThreshold > 0
-    onFightLost(state, tactical, boss)
+    startDefeatSequence(state, tactical)
   }
 }
 
@@ -546,7 +590,7 @@ function maybeAutoEngage(state: GameState): void {
   beginFight(state)
 }
 
-export function beginFight(state: GameState): void {
+export function beginFight(state: GameState, keepFleet = false): void {
   const echoRun = state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const totalWaves = wavesForRun(state)
   const wave = Math.min(totalWaves, Math.max(1, state.combat.wave || 1))
@@ -562,6 +606,8 @@ export function beginFight(state: GameState): void {
   syncPersistedHullCaps(state)
 
   state.combat.docked = false
+  state.combat.defeatLeft = 0
+  state.combat.defeatTactical = false
   if (!state.combat.sortieMark) state.combat.sortieMark = captureSortieMark(state)
   state.combat.fightElapsed = 0
   state.shipyard.frameLocked = true
@@ -580,10 +626,12 @@ export function beginFight(state: GameState): void {
       }
     }
   }
-  state.combat.playerUnits = buildPlayerFleet(state)
-  state.combat.projectiles = []
-  state.combat.beams = []
-  state.combat.fx = []
+  if (!keepFleet || state.combat.playerUnits.length === 0) {
+    state.combat.playerUnits = buildPlayerFleet(state)
+  } else {
+    applyNetworkCombatRefresh(state)
+  }
+  clearShots(state)
   syncHullAggregates(state)
   revealCodexFamilies(
     state,
@@ -631,6 +679,8 @@ export function setDocked(state: GameState, docked: boolean): GameState {
   if (state.combat.docked === docked) return state
   const next = structuredClone(state)
   if (docked) {
+    next.combat.defeatLeft = 0
+    next.combat.defeatTactical = false
     if (next.combat.inFight) {
       persistFlagshipHull(next)
       clearEnemy(next)

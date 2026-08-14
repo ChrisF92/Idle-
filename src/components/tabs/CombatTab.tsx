@@ -29,6 +29,7 @@ export function CombatTab({
   const { combat } = state
   const stats = computeShipStats(state)
   const waves = wavesForRun(state)
+  const dying = (combat.defeatLeft ?? 0) > 0
   const live = !combat.docked
   const protocol = activeProtocol(state)
   const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
@@ -74,13 +75,12 @@ export function CombatTab({
     ],
   )
 
-  const battlefieldMode: BattlefieldMode = combat.docked
-    ? 'docked'
-    : combat.inFight
-      ? 'fighting'
-      : 'ready'
+  const battlefieldMode: BattlefieldMode =
+    combat.inFight || dying ? 'fighting' : 'ready'
 
-  const playerUnits = combat.inFight && combat.playerUnits.length > 0 ? combat.playerUnits : previewPlayer
+  const playerUnits =
+    combat.playerUnits.length > 0 ? combat.playerUnits : previewPlayer
+  const enemyUnits = combat.docked && !dying ? [] : combat.enemyUnits
 
   return (
     <section className="sortie-screen">
@@ -120,12 +120,17 @@ export function CombatTab({
       <div className="sortie-canvas">
         <Battlefield
           playerUnits={playerUnits}
-          enemyUnits={combat.docked ? [] : combat.enemyUnits}
-          projectiles={combat.docked ? [] : combat.projectiles}
-          beams={combat.docked ? [] : combat.beams ?? []}
+          enemyUnits={enemyUnits}
+          projectiles={combat.docked && !dying ? [] : combat.projectiles}
+          beams={combat.docked && !dying ? [] : combat.beams ?? []}
           fx={combat.fx}
           mode={battlefieldMode}
         />
+        {dying ? (
+          <p className="sortie-defeat-banner" role="status">
+            Hull lost
+          </p>
+        ) : null}
       </div>
 
       <div className="sortie-sheet">
@@ -158,7 +163,11 @@ export function CombatTab({
       </div>
 
       <div className="sortie-actions">
-        {live ? (
+        {dying ? (
+          <button type="button" disabled>
+            Hull lost
+          </button>
+        ) : live ? (
           <button type="button" onClick={onExtract}>
             Extract
           </button>

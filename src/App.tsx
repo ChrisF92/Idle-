@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
-import { isSystemUnlocked } from './game/progression'
+import { activeGuideStep, isSystemUnlocked } from './game/progression'
 import { wavesForSector } from './game/sectors'
 import { setActiveNumberNotation } from './game/format'
 import { ResourceBar } from './components/ResourceBar'
@@ -26,6 +26,8 @@ import { LogsTab } from './components/tabs/LogsTab'
 import { CodexTab } from './components/tabs/CodexTab'
 import { StatsTab } from './components/tabs/StatsTab'
 import { RebuildHangar } from './components/RebuildHangar'
+import { SortieReport } from './components/SortieReport'
+import { GuideOverlay } from './components/GuideOverlay'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import './App.css'
 
@@ -33,8 +35,13 @@ export default function App() {
   const game = useGame()
   const [tab, setTab] = useState<TabId>('dock')
   const [hangarOpen, setHangarOpen] = useState(false)
-  const live = !game.state.combat.docked
+  const [reportOpen, setReportOpen] = useState(false)
+  const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
+  const lastGuideId = useRef<string | null>(null)
+  const dying = (game.state.combat.defeatLeft ?? 0) > 0
+  const live = !game.state.combat.docked || dying
   const waves = wavesForSector(game.state.combat.sector)
+  const guide = dying || reportOpen ? null : activeGuideStep(game.state, tab)
 
   const go = useCallback(
     (next: TabId) => {
@@ -66,6 +73,35 @@ export default function App() {
   useEffect(() => {
     setActiveNumberNotation(game.state.meta.numberNotation ?? 'engineering')
   }, [game.state.meta.numberNotation])
+
+  useEffect(() => {
+    game.syncCompletedGuides(tab)
+  }, [tab, game])
+
+  useEffect(() => {
+    if (dying) setTab('combat')
+  }, [dying])
+
+  useEffect(() => {
+    const out = game.state.combat.lastSortie.outcome
+    if (
+      out === 'defeat' &&
+      seenOutcome.current !== 'defeat' &&
+      game.state.combat.docked &&
+      !dying
+    ) {
+      setReportOpen(true)
+      setTab('dock')
+    }
+    seenOutcome.current = out
+  }, [game.state.combat.lastSortie, game.state.combat.docked, dying])
+
+  useEffect(() => {
+    if (!guide?.tab || dying) return
+    if (guide.id === lastGuideId.current) return
+    lastGuideId.current = guide.id
+    if (isSystemUnlocked(game.state, guide.tab)) setTab(guide.tab)
+  }, [guide, dying, game.state])
 
   return (
     <div className="app">
@@ -235,6 +271,21 @@ export default function App() {
             setHangarOpen(false)
             go('dock')
           }}
+        />
+      ) : null}
+
+      {reportOpen && game.state.combat.lastSortie.outcome ? (
+        <SortieReport
+          summary={game.state.combat.lastSortie}
+          onClose={() => setReportOpen(false)}
+        />
+      ) : null}
+
+      {guide ? (
+        <GuideOverlay
+          step={guide}
+          onComplete={game.acknowledgeOnboarding}
+          onSkip={game.acknowledgeOnboarding}
         />
       ) : null}
     </div>

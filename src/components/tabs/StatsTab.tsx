@@ -11,7 +11,7 @@ import {
 } from '../../game/progression'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-14k'
+export const APP_BUILD = '2026-08-14l'
 
 const STATIONS: { id: TabId; name: string; blurb: string }[] = [
   { id: 'reliquary', name: 'Reliquary', blurb: 'Shards in colour slots. Red / orange at 3; pink at 6.' },

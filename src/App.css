@@ -464,6 +464,27 @@
   flex: 1 1 46%;
   min-height: 0;
   display: flex;
+  position: relative;
+}
+
+.sortie-defeat-banner {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
+  background: rgba(18, 14, 12, 0.82);
+  color: var(--accent);
+  font-family: var(--font-brand);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.sortie-report-backdrop {
+  z-index: 70;
 }
 
 .sortie-sheet {

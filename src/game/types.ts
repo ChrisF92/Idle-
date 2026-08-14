@@ -491,6 +491,10 @@ export interface CombatState {
   lastSortie: SortieSummary
   /** Live sortie snapshot. Null while docked. */
   sortieMark: SortieMark | null
+  /** Seconds left in the hull-loss beat before Dock. 0 = none. */
+  defeatLeft: number
+  /** True when the pending beat is a tactical extract, not a hull kill. */
+  defeatTactical: boolean
 }
 
 /**

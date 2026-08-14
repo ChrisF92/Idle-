@@ -64,7 +64,7 @@ describe('campaign combat', () => {
     state = startCombat(state)
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
     flag.hull = 0
-    advanceTicks(state, 1)
+    advanceTicks(state, 2)
     expect(state.combat.sector).toBe(4)
     expect(state.combat.wave).toBe(1)
     expect(state.combat.docked).toBe(true)

@@ -674,8 +674,8 @@ function beamColor(tag: string, side: 'player' | 'enemy'): { glow: string; core:
   return { glow: '#7ec8ff', core: '#e8f7ff' }
 }
 
-function isHangarMode(mode: BattlefieldMode): boolean {
-  return mode === 'docked' || mode === 'repairing'
+function isHangarMode(_mode: BattlefieldMode): boolean {
+  return false
 }
 
 function onModeTransition(scene: Scene, prev: BattlefieldMode | null, next: BattlefieldMode): void {
@@ -1011,99 +1011,30 @@ function drawShape(
   ctx.restore()
 }
 
-function drawDockBay(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  const bayX = 12
-  const bayW = 118
-  const bayTop = 56
-  const bayBot = scene.height - 72
-
-  // Hangar shell
-  ctx.fillStyle = 'rgba(28, 36, 48, 0.92)'
-  ctx.fillRect(bayX, bayTop, bayW, bayBot - bayTop)
-  ctx.strokeStyle = 'rgba(212, 138, 58, 0.55)'
-  ctx.lineWidth = 2
-  ctx.strokeRect(bayX + 0.5, bayTop + 0.5, bayW - 1, bayBot - bayTop - 1)
-
-  // Roof ribs
-  ctx.strokeStyle = 'rgba(159, 176, 196, 0.25)'
-  ctx.lineWidth = 1
-  for (let i = 0; i < 8; i += 1) {
-    const y = bayTop + 18 + i * 22
-    if (y >= bayBot - 12) break
-    ctx.beginPath()
-    ctx.moveTo(bayX + 10, y)
-    ctx.lineTo(bayX + bayW - 10, y)
-    ctx.stroke()
-  }
-
-  // Soft bay wash behind the ship
-  const wash = ctx.createRadialGradient(
-    PLAYER_SCREEN_X,
-    PLAYER_SCREEN_Y,
-    8,
-    PLAYER_SCREEN_X,
-    PLAYER_SCREEN_Y,
-    70,
-  )
-  wash.addColorStop(0, 'rgba(212, 138, 58, 0.28)')
-  wash.addColorStop(1, 'rgba(212, 138, 58, 0)')
-  ctx.fillStyle = wash
-  ctx.beginPath()
-  ctx.arc(PLAYER_SCREEN_X, PLAYER_SCREEN_Y, 70, 0, Math.PI * 2)
-  ctx.fill()
-
-  // Docking clamps
-  const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(scene.time * 2.2))
-  ctx.strokeStyle = `rgba(61, 143, 136, ${0.35 + pulse * 0.35})`
-  ctx.lineWidth = 2
-  const cy = PLAYER_SCREEN_Y
-  ctx.beginPath()
-  ctx.moveTo(bayX + 14, cy - 36)
-  ctx.lineTo(PLAYER_SCREEN_X - 28, cy - 18)
-  ctx.moveTo(bayX + 14, cy + 36)
-  ctx.lineTo(PLAYER_SCREEN_X - 28, cy + 18)
-  ctx.stroke()
-
-  ctx.fillStyle = `rgba(232, 200, 140, ${0.5 + pulse * 0.35})`
-  ctx.font = '600 11px "IBM Plex Mono", ui-monospace, monospace'
-  ctx.textAlign = 'left'
-  ctx.fillText('HANGAR', bayX + 12, bayTop + 16)
-}
-
 function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  const inHangar = scene.mode === 'docked' || scene.mode === 'repairing'
-  ctx.fillStyle = inHangar ? '#16110e' : '#120e0c'
+  ctx.fillStyle = '#120e0c'
   ctx.fillRect(0, 0, scene.width, scene.height)
 
   const g = ctx.createLinearGradient(0, 0, scene.width * 0.2, scene.height)
-  if (inHangar) {
-    g.addColorStop(0, 'rgba(58, 42, 28, 0.55)')
-    g.addColorStop(0.45, 'rgba(28, 22, 16, 0.2)')
-    g.addColorStop(1, 'rgba(70, 44, 28, 0.4)')
-  } else {
-    g.addColorStop(0, 'rgba(58, 42, 24, 0.45)')
-    g.addColorStop(0.4, 'rgba(22, 16, 12, 0.18)')
-    g.addColorStop(0.72, 'rgba(48, 36, 28, 0.22)')
-    g.addColorStop(1, 'rgba(70, 44, 28, 0.32)')
-  }
+  g.addColorStop(0, 'rgba(58, 42, 24, 0.45)')
+  g.addColorStop(0.4, 'rgba(22, 16, 12, 0.18)')
+  g.addColorStop(0.72, 'rgba(48, 36, 28, 0.22)')
+  g.addColorStop(1, 'rgba(70, 44, 28, 0.32)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, scene.width, scene.height)
 
-  // Soft vertical nebula bands for portrait depth
-  if (!inHangar) {
-    const band = ctx.createRadialGradient(
-      scene.width * 0.72,
-      scene.height * 0.28,
-      10,
-      scene.width * 0.72,
-      scene.height * 0.28,
-      scene.height * 0.42,
-    )
-    band.addColorStop(0, 'rgba(79, 143, 154, 0.14)')
-    band.addColorStop(1, 'rgba(79, 143, 154, 0)')
-    ctx.fillStyle = band
-    ctx.fillRect(0, 0, scene.width, scene.height)
-  }
+  const band = ctx.createRadialGradient(
+    scene.width * 0.72,
+    scene.height * 0.28,
+    10,
+    scene.width * 0.72,
+    scene.height * 0.28,
+    scene.height * 0.42,
+  )
+  band.addColorStop(0, 'rgba(79, 143, 154, 0.14)')
+  band.addColorStop(1, 'rgba(79, 143, 154, 0)')
+  ctx.fillStyle = band
+  ctx.fillRect(0, 0, scene.width, scene.height)
 
   const fighting = scene.mode === 'fighting'
   let seed = scene.starSeed
@@ -1114,13 +1045,12 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
     const baseY = (seed % 1000) / 1000 * scene.height
     const layer = i % 3 === 0 ? 1.8 : i % 3 === 1 ? 1 : 0.55
     // Ship flies up the sector; stars drift toward the hull (down the canvas).
-    const scrollMul = inHangar ? 10 : fighting ? 90 : 42
+    const scrollMul = fighting ? 90 : 42
     const y =
       (((baseY + scene.scroll * layer * scrollMul) % scene.height) + scene.height) %
       scene.height
     const twinkle = 0.3 + 0.6 * (0.5 + 0.5 * Math.sin(scene.time * 3 + i))
-    const alpha = inHangar ? twinkle * 0.45 : twinkle
-    ctx.fillStyle = `rgba(230,238,248,${alpha})`
+    ctx.fillStyle = `rgba(230,238,248,${twinkle})`
     if (fighting && i % 4 === 0) {
       const streak = 5 + layer * 5
       ctx.fillRect(x, y - streak, i % 9 === 0 ? 1.6 : 1, streak)
@@ -1129,23 +1059,18 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
     }
   }
 
-  if (inHangar) {
-    drawDockBay(ctx, scene)
-  } else {
-    // Vertical center guide near player
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)'
-    ctx.beginPath()
-    ctx.moveTo(PLAYER_SCREEN_X, 28)
-    ctx.lineTo(PLAYER_SCREEN_X, scene.height - 64)
-    ctx.stroke()
-  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)'
+  ctx.beginPath()
+  ctx.moveTo(PLAYER_SCREEN_X, 28)
+  ctx.lineTo(PLAYER_SCREEN_X, scene.height - 64)
+  ctx.stroke()
 }
 
 function stepScene(scene: Scene, dt: number): void {
   scene.time += dt
   const advancing = scene.mode === 'fighting' || scene.mode === 'ready'
-  const inHangar = scene.mode === 'docked' || scene.mode === 'repairing'
-  scene.scroll += dt * (inHangar ? 0.08 : advancing ? 0.7 : 0.3)
+  const inHangar = false
+  scene.scroll += dt * (advancing ? 0.7 : 0.3)
 
   if (scene.shake > 0) {
     scene.shake = Math.max(0, scene.shake - dt * 18)
@@ -1744,18 +1669,6 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
 
   drawFlashes(ctx, scene)
   drawPlayerChips(ctx, scene)
-
-  // Hangar-only labels — flight mode is shown by the control strip.
-  if (scene.mode === 'repairing' || scene.mode === 'docked') {
-    ctx.fillStyle = 'rgba(210, 220, 230, 0.7)'
-    ctx.font = '600 11px "IBM Plex Mono", ui-monospace, monospace'
-    ctx.textAlign = 'center'
-    ctx.fillText(
-      scene.mode === 'repairing' ? 'PAUSED — REPAIRING' : 'PAUSED — REFIT READY',
-      scene.width / 2,
-      22,
-    )
-  }
 
   ctx.restore()
 }

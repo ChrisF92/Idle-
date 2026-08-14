@@ -125,6 +125,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     fx: combat.fx ?? [],
     lastSortie: withLastSortieDefaults(combat.lastSortie, combat.sector ?? 1, combat.wave ?? 1),
     sortieMark: combat.sortieMark ?? null,
+    defeatLeft: Math.max(0, Number(combat.defeatLeft ?? 0) || 0),
+    defeatTactical: Boolean(combat.defeatTactical),
   }
 }
 

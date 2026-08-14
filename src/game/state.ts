@@ -136,6 +136,8 @@ export function createInitialState(now = Date.now()): GameState {
       log: ['Hiveworks dock online. Launch a sortie when ready.'],
       lastSortie: emptyLastSortie(),
       sortieMark: null,
+      defeatLeft: 0,
+      defeatTactical: false,
     },
     base: {
       workerDrones: NETWORK_STARTING_DRONES,

@@ -764,6 +764,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     required: true,
     availableWhen: (s) =>
       (s.meta.starterCombatLesson ?? 0) === 2 &&
+      s.resources.salvage > 0 &&
       ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 ||
         (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1) &&
       !guideSeen(s, 'guide-salvage-lesson'),
