@@ -308,7 +308,7 @@ export default function App() {
         <GuideOverlay
           step={guide}
           onComplete={game.acknowledgeOnboarding}
-          onSkip={game.acknowledgeOnboarding}
+          onSkip={game.skipOnboarding}
         />
       ) : null}
     </div>

@@ -116,7 +116,7 @@ describe('achievements and AI unlock', () => {
     expect(activeGuideStep(aiState, 'combat')?.id).toBe('guide-ai-tab')
 
     aiState.meta.seenOnboarding = [...aiState.meta.seenOnboarding, 'guide-ai-tab']
-    expect(activeGuideStep(aiState, 'ai')?.id).toBe('guide-achievements')
+    expect(activeGuideStep(aiState, 'process')?.id).toBe('guide-achievements')
   })
 
   it('lists a stable achievement catalog with AI rewards', () => {

@@ -40,7 +40,9 @@ export function ProcessTab({ state, onBack, onBuy }: ProcessTabProps) {
         <p className="muted">Achievements grant Process points. Spend them on QoL nodes.</p>
       ) : (
         <div className="panel-scroll">
-          <h3 className="foundry-heading">Nodes</h3>
+          <h3 className="foundry-heading" data-guide="process-nodes">
+            Nodes
+          </h3>
           {PROCESS_NODES.map((node) => {
             const owned = hasProcess(state, node.id)
             const check = canBuyProcessNode(state, node.id)

@@ -44,7 +44,9 @@ export function SlagTab({ state, onBack, onBuy }: SlagTabProps) {
           <p className="muted">
             Unspent {label} still banks a small damage and production bonus. Ranks beat banking.
           </p>
-          <h3 className="foundry-heading">Ranks</h3>
+          <h3 className="foundry-heading" data-guide="slag-ranks">
+            Ranks
+          </h3>
           {MATTER_SHOP.map((item) => {
             const rank = shopRank(state.prestige.matterShop, item.id)
             const can = canBuyMatterShop(state, item.id)

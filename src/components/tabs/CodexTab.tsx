@@ -43,7 +43,9 @@ export function CodexTab({ state, onBack }: CodexTabProps) {
         </p>
       ) : (
         <div className="panel-scroll">
-          <h3 className="foundry-heading">Families</h3>
+          <h3 className="foundry-heading" data-guide="codex-families">
+            Families
+          </h3>
           <ul className="sector-roster">
             {CODEX_FAMILIES.map((family) => {
               const known = seen.has(family)
@@ -72,7 +74,9 @@ export function CodexTab({ state, onBack }: CodexTabProps) {
             })}
           </ul>
 
-          <h3 className="foundry-heading">Hull roles</h3>
+          <h3 className="foundry-heading" data-guide="codex-roles">
+            Hull roles
+          </h3>
           <p className="muted">Stand-off classes. Silhouettes on the lane match these names.</p>
           {CODEX_ROLES.map((role) => (
             <article key={role} className="network-row">

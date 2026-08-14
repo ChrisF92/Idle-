@@ -30,7 +30,7 @@ export function TasksTab({ state, onBack }: TasksTabProps) {
       {!open ? (
         <p className="muted">Capital does not open on a sector number alone.</p>
       ) : (
-        <div className="panel-scroll">
+        <div className="panel-scroll" data-guide="tasks-list">
           {TASKS.map((task) => {
             const ok = task.done(state)
             return (

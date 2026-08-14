@@ -48,11 +48,13 @@ export function FurnaceTab({ state, onBack, onConvert, onBuyRank }: FurnaceTabPr
         <div className="panel-scroll">
           <p className="muted">{ASH_PER_HEAT} ash banks 1 Heat. Flares collect themselves.</p>
           <p className="assign-row">
-            <button type="button" className="primary" disabled={batches <= 0} onClick={onConvert}>
+            <button type="button" className="primary" disabled={batches <= 0} onClick={onConvert} data-guide="furnace-bank">
               Bank {formatCompact(batches)} Heat
             </button>
           </p>
-          <h3 className="foundry-heading">Ranks</h3>
+          <h3 className="foundry-heading" data-guide="furnace-ranks">
+            Ranks
+          </h3>
           {FURNACE_TRACKS.map((track) => {
             const rank = furnaceRank(state, track.id)
             const cost = furnaceRankCost(rank)

@@ -38,7 +38,7 @@ export function ProtocolsTab({ state, onBack, onEnter, onAbandon }: ProtocolsTab
       {!open ? (
         <p className="muted">Restricted sortie. Cores and Salvage wipe when a Protocol starts.</p>
       ) : (
-        <div className="panel-scroll">
+        <div className="panel-scroll" data-guide="protocols-list">
           {active ? (
             <article className="network-row">
               <div className="network-row-main">

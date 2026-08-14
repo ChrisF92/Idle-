@@ -48,7 +48,11 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
             const fill = next ? Math.min(1, xp / Math.max(1, need)) : 1
             const focused = focus === branch.id
             return (
-              <article key={branch.id} className="network-row">
+              <article
+                key={branch.id}
+                className="network-row"
+                data-guide={branch.id === 'material' ? 'research-focus' : undefined}
+              >
                 <div className="network-row-main">
                   <strong>{branch.name}</strong>
                   <span className="muted">

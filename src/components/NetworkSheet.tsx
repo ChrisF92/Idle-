@@ -63,7 +63,7 @@ export function NetworkSheet({
         const rate = networkFillRate(state, bar.id)
 
         return (
-          <article key={bar.id} className={open ? 'network-row' : 'network-row locked'}>
+          <article key={bar.id} className={open ? 'network-row' : 'network-row locked'} data-guide={`network-${bar.id}`}>
             <div className="network-row-main">
               <InspectName name={bar.name} card={inspectNetworkBar(state, bar.id)} />
               <span className="muted">{open ? `Lv ${levels}` : `Sector ${bar.requiresSectorEver}`}</span>
@@ -95,7 +95,9 @@ export function NetworkSheet({
       })}
       {onBuyLink ? (
         <>
-          <h3 className="foundry-heading">Links</h3>
+          <h3 className="foundry-heading" data-guide="network-links">
+            Links
+          </h3>
           {NETWORK_LINKS.map((linkDef) => {
             const rank = networkLinkRank(state, linkDef.id)
             const can = canBuyNetworkLink(state, linkDef.id)

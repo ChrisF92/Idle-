@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
-import type { GuideStep } from '../game/progression'
+import { guideBodyLines, type GuideStep } from '../game/progression'
 
 interface GuideOverlayProps {
   step: GuideStep
@@ -143,7 +143,9 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       >
         <p className="combat-hud-kicker">Guide</p>
         <h3>{step.title}</h3>
-        <p>{step.body}</p>
+        {guideBodyLines(step).map((line) => (
+          <p key={line}>{line}</p>
+        ))}
         {targetOffscreen ? (
           <p className="notice-warn">Scroll to the highlighted control.</p>
         ) : null}
@@ -181,7 +183,7 @@ function placeTip(hole: Hole | null): {
   side: 'top' | 'bottom'
   style: { top?: number; bottom?: number; left: number }
 } {
-  const tipMaxH = 170
+  const tipMaxH = 280
   const margin = 12
   const left = 12
 

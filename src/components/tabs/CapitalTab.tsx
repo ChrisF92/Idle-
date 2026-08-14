@@ -30,7 +30,7 @@ export function CapitalTab({ state, onBack, onRank }: CapitalTabProps) {
             More
           </button>
         </p>
-        <h2>Capital</h2>
+        <h2 data-guide="capital-tracks">Capital</h2>
         <p>
           {open
             ? `${formatCompact(salvage, 1)} Salvage · ${formatCompact(heat, 1)} Heat`

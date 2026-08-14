@@ -32,7 +32,7 @@ export function SpecialistsTab({ state, onBack, onRank }: SpecialistsTabProps) {
             More
           </button>
         </p>
-        <h2>Specialists</h2>
+        <h2 data-guide="specialists-list">Specialists</h2>
         <p>
           {open
             ? `${formatCompact(salvage, 1)} Salvage · ${formatCompact(heat, 1)} Heat · Mastery ${mastery}`

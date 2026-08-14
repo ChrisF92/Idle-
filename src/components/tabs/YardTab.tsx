@@ -54,7 +54,7 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm }: YardTabPr
             {YARD_GOOD_LABELS.flux} {formatCompact(yardGood(state, 'flux'), 1)} ·{' '}
             {YARD_GOOD_LABELS.ingot} {formatCompact(yardGood(state, 'ingot'), 1)}
           </p>
-          <div className="yard-grid" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
+          <div className="yard-grid" data-guide="yard-grid" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
             {Array.from({ length: size * size }, (_, i) => {
               const cell = cells[i]
               const def = cell?.buildingId ? getYardBuilding(cell.buildingId) : undefined

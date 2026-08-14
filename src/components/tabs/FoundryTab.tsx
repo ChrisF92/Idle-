@@ -58,7 +58,9 @@ export function FoundryTab({
         <p className="muted">Recipes, Foundry Points, and fitted bits land here.</p>
       ) : (
         <div className="panel-scroll">
-          <h3 className="foundry-heading">Smelters</h3>
+          <h3 className="foundry-heading" data-guide="foundry-smelters">
+            Smelters
+          </h3>
           {foundry.slots.map((slot, i) => (
             <article key={i} className="network-row">
               <div className="network-row-main">
@@ -89,7 +91,9 @@ export function FoundryTab({
             </article>
           ))}
 
-          <h3 className="foundry-heading">Recipes</h3>
+          <h3 className="foundry-heading" data-guide="foundry-recipes">
+            Recipes
+          </h3>
           {FOUNDRY_RECIPES.map((recipe) => {
             const unlocked = isFoundryRecipeUnlocked(state, recipe.id)
             const inf = isFoundryInfinite(state, recipe.id)

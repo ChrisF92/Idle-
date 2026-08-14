@@ -45,6 +45,7 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
         <p className="muted">Shards drop from kills once this door is open.</p>
       ) : (
         <div className="panel-scroll">
+          <div data-guide="reliquary-slots">
           {RELIQUARY_SLOTS.map((slot) => {
             const unlocked = isReliquarySlotUnlocked(state, slot.color)
             const fitted = fittedShardId(state, slot.color)
@@ -112,7 +113,10 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
               </article>
             )
           })}
-          <h3 className="foundry-heading">Shard glossary</h3>
+          </div>
+          <h3 className="foundry-heading" data-guide="reliquary-copies">
+            Shard glossary
+          </h3>
           {SHARDS.map((shard) => {
             const gated = (shard.requiresSectorEver ?? 0) > Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
             return (

@@ -71,7 +71,7 @@ import {
   rankCapital,
   performReinforce,
 } from '../game/actions'
-import { acknowledgeOnboarding, syncCompletedGuides } from '../game/progression'
+import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides } from '../game/progression'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
 
@@ -117,6 +117,7 @@ type Action =
   | { type: 'unequip-all' }
   | { type: 'upgrade-cheapest' }
   | { type: 'ack-onboarding'; tipId: string }
+  | { type: 'skip-onboarding'; tipId: string }
   | { type: 'prestige' }
   | { type: 'ascend' }
   | { type: 'enter-challenge'; challengeId: string }
@@ -225,6 +226,8 @@ function reducer(state: GameState, action: Action): GameState {
       return upgradeCheapestModule(state)
     case 'ack-onboarding':
       return acknowledgeOnboarding(state, action.tipId)
+    case 'skip-onboarding':
+      return skipOnboarding(state, action.tipId)
     case 'prestige':
       return performPrestige(state)
     case 'ascend':
@@ -377,6 +380,7 @@ export function useGame() {
     upgradeCheapest: () => dispatch({ type: 'upgrade-cheapest' }),
     acknowledgeOnboarding: (tipId: string) =>
       dispatch({ type: 'ack-onboarding', tipId }),
+    skipOnboarding: (tipId: string) => dispatch({ type: 'skip-onboarding', tipId }),
     prestige: () => dispatch({ type: 'prestige' }),
     ascend: () => dispatch({ type: 'ascend' }),
     enterChallenge: (challengeId: string) =>

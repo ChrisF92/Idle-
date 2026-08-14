@@ -87,7 +87,9 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabPro
               </article>
             )
           })}
-          <h3 className="foundry-heading">Tree</h3>
+          <h3 className="foundry-heading" data-guide="echo-tree">
+            Tree
+          </h3>
           {ECHO_TREE.map((node) => {
             const owned = echoHasNode(state, node.id)
             const check = canBuyEchoNode(state, node.id)
