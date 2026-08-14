@@ -70,6 +70,7 @@ export function CoreSheet({
               <button
                 type="button"
                 className="primary"
+                data-guide={`upgrade-${moduleId}`}
                 disabled={!can}
                 onClick={() => onUpgrade(moduleId)}
               >

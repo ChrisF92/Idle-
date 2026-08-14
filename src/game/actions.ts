@@ -1215,7 +1215,7 @@ export function performRebuild(
   applyRunReset(next, now)
   tryCompleteAchievements(next)
   next.combat.log = [
-    `Rebuilt for +${gain} Prestige Matter. Hull ${getFrame(next.shipyard.frameId)?.name ?? hangar.frameId}.`,
+    `Rebuilt for +${gain} Rebuild Matter. Hull ${getFrame(next.shipyard.frameId)?.name ?? hangar.frameId}.`,
     ...next.combat.log,
   ]
   return next
@@ -1282,7 +1282,7 @@ export function enterChallenge(
     ? `Ascension ×${next.meta.ascensionCount}`
     : 'Prestige'
   next.combat.log = [
-    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Prestige Matter). Goal: sector ${challenge.goalSector}.`,
+    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: sector ${challenge.goalSector}.`,
     ...next.combat.log,
   ]
   return next
@@ -1334,7 +1334,7 @@ export function tryCompleteChallenge(state: GameState): void {
   }
   tryCompleteAchievements(state)
   state.combat.log = [
-    `Challenge complete: ${challenge.name} (${nextClears}/${maxClears}). +${challenge.rewardChallengePoints} Challenge Points.`,
+    `Challenge complete: ${challenge.name} (${nextClears}/${maxClears}). +${challenge.rewardChallengePoints} Challenge Marks.`,
     ...state.combat.log,
   ]
 }

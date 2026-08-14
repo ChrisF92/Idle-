@@ -110,7 +110,9 @@ export function CombatTab({
           </strong>
         </div>
         <div className="combat-hud-readout">
-          <span className="combat-hud-kicker">Salvage</span>
+          <span className="combat-hud-kicker" data-guide="salvage-stat">
+            Salvage
+          </span>
           <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
         </div>
       </header>
@@ -161,7 +163,7 @@ export function CombatTab({
             Extract
           </button>
         ) : (
-          <button type="button" className="primary" onClick={onLaunch}>
+          <button type="button" className="primary" data-guide="launch" onClick={onLaunch}>
             Launch
           </button>
         )}

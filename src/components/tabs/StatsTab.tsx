@@ -11,7 +11,7 @@ import {
 } from '../../game/progression'
 
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-08-14j'
+export const APP_BUILD = '2026-08-14k'
 
 const STATIONS: { id: TabId; name: string; blurb: string }[] = [
   { id: 'reliquary', name: 'Reliquary', blurb: 'Shards in colour slots. Red / orange at 3; pink at 6.' },
@@ -144,7 +144,7 @@ export function StatsTab({
 
       {onRebuild ? (
         <p className="assign-row">
-          <button type="button" className="primary" onClick={onRebuild}>
+          <button type="button" className="primary" data-guide="rebuild-btn" onClick={onRebuild}>
             Rebuild hangar
           </button>
         </p>
@@ -164,7 +164,7 @@ export function StatsTab({
           <strong>{state.combat.sector}</strong>
         </div>
         <div>
-          <span className="muted">Prestiges</span>
+          <span className="muted">Rebuilds</span>
           <strong>{state.prestige.prestigeCount}</strong>
         </div>
       </div>

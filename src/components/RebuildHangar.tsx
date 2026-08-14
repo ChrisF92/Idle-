@@ -12,6 +12,7 @@ import {
 import { canPrestige, prestigeGainFor } from '../game/actions'
 import { yardPendingSummary } from '../game/yard'
 import { isSystemUnlocked } from '../game/progression'
+import { RESOURCE_LABELS } from '../game/state'
 
 interface RebuildHangarProps {
   state: GameState
@@ -72,7 +73,8 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
           <div>
             <h3 id="rebuild-title">Rebuild hangar</h3>
             <p className="muted">
-              Swap hull and Cores. Levels and unspent Salvage wipe. +{gain} PM.
+              Swap hull and Cores. Levels and unspent Salvage wipe. +{gain}{' '}
+              {RESOURCE_LABELS.prestigeMatter}.
               {isSystemUnlocked(state, 'yard') ? ` Yard: ${yardPendingSummary(state)}.` : ''}
             </p>
           </div>

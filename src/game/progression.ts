@@ -10,13 +10,10 @@ export {
   wavesForSector,
 } from './sectors'
 
-/** Soft campaign climax — first Act 1 clear beat (ITRTG “first Baal” analogue). */
+/** Soft campaign climax — first Act 1 clear beat (sector 30). */
 export const ACT1_FINAL_SECTOR = 30
 
-/**
- * Prestige becomes available mid–Act 1.
- * Maps nearer ITRTG’s first Hyperion soft-reset (~1h real), not first Baal.
- */
+/** Rebuild hangar becomes available mid–Act 1 (sector 4). */
 export const PRESTIGE_MIN_SECTOR = 4
 
 export type SystemId = Exclude<
@@ -35,9 +32,8 @@ export interface SystemUnlockDef {
 }
 
 /**
- * Whole systems unlock by career progress. Tabs stay visible with requirements.
- * Combat, Shipyard, and Stats are always available.
- * AI unlocks when the first achievement is completed.
+ * Whole systems unlock by career progress. Locked More stations stay listed with requirements.
+ * Dock, Sortie, Network, and More are always available. Process unlocks on First Blood.
  */
 export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
@@ -134,14 +130,14 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'ai',
     requiresSectorEver: 0,
-    label: 'AI',
-    tip: 'Achievements grant AI Points. Spend them on automation, QoL, and doctrines.',
+    label: 'Process',
+    tip: 'Achievements grant Process points. Spend them on automation and QoL.',
   },
   {
     id: 'prestige',
     requiresSectorEver: 8,
-    label: 'Prestige',
-    tip: 'Rebuild from sector 4 to swap hull and Cores. Challenges open after Act 1 (sector 30).',
+    label: 'Rebuild',
+    tip: 'Rebuild from sector 4 to swap hull and Cores. Protocols open after Act 1 (sector 30).',
   },
 ]
 
@@ -179,14 +175,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'first-blood',
     name: 'First Blood',
-    description: 'Clear sector 1. Unlocks the AI Network.',
+    description: 'Clear sector 1. Unlocks Process.',
     rewardAiPoints: 1,
     condition: { type: 'sector-ever', sector: 1 },
   },
   {
     id: 'hangar-opened',
     name: 'Hangar Opened',
-    description: 'Clear sector 4 and unlock Base.',
+    description: 'Clear sector 4.',
     rewardAiPoints: 1,
     condition: { type: 'sector-ever', sector: 4 },
   },
@@ -207,14 +203,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'neural-link',
     name: 'Neural Link',
-    description: 'Purchase any AI automation, QoL, or doctrine.',
+    description: 'Purchase any Process node.',
     rewardAiPoints: 1,
     condition: { type: 'ai-purchase-count', min: 1 },
   },
   {
     id: 'first-prestige',
     name: 'Soft Reset',
-    description: 'Prestige for the first time.',
+    description: 'Rebuild hangar for the first time.',
     rewardAiPoints: 2,
     condition: { type: 'prestige-count', min: 1 },
   },
@@ -263,14 +259,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'prestiges-5',
     name: 'Reset Rhythm',
-    description: 'Prestige 5 times.',
+    description: 'Rebuild hangar 5 times.',
     rewardAiPoints: 3,
     condition: { type: 'prestige-count', min: 5 },
   },
   {
     id: 'prestiges-10',
     name: 'Matter Engine',
-    description: 'Prestige 10 times.',
+    description: 'Rebuild hangar 10 times.',
     rewardAiPoints: 4,
     condition: { type: 'prestige-count', min: 10 },
   },
@@ -351,8 +347,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'prestige-grind',
-    name: 'Prestige Loop',
-    description: 'Every 3 prestiges. Repeatable.',
+    name: 'Rebuild Loop',
+    description: 'Every 3 Rebuilds. Repeatable.',
     rewardAiPoints: 2,
     condition: { type: 'prestige-count', min: 3 },
     repeatable: true,
@@ -761,91 +757,24 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (s) => s.shipyard.frameLocked || !s.combat.docked,
   },
   {
-    id: 'guide-after-death',
-    title: 'Docked for repairs',
-    body: 'That fight ended with a hull breach — you are docked. Open Shipyard and buy Plate Layer with your scrap.',
-    target: 'shipyard-tab',
-    required: true,
-    availableWhen: (s) =>
-      (s.meta.starterCombatLesson ?? 0) === 1 &&
-      !s.shipyard.unlockedModules.includes('plate-layer') &&
-      !guideSeen(s, 'guide-after-death'),
-    completeWhen: (_s, tab) => tab === 'shipyard',
-  },
-  {
-    id: 'guide-modules-tab',
-    title: 'Modules',
-    body: 'Switch to Modules to unlock and fit defenses.',
-    target: 'shipyard-modules-tab',
-    tab: 'shipyard',
-    required: true,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-after-death') &&
-      (s.meta.starterCombatLesson ?? 0) === 1 &&
-      !s.shipyard.unlockedModules.includes('plate-layer') &&
-      !guideSeen(s, 'guide-modules-tab'),
-  },
-  {
-    id: 'guide-unlock-plate',
-    title: 'Plate Layer',
-    body: 'Unlock Plate Layer. Extra hull and armor are the difference between a short flight and a real push.',
-    target: 'unlock-plate-layer',
-    tab: 'shipyard',
-    required: true,
-    availableWhen: (s) =>
-      (s.meta.starterCombatLesson ?? 0) === 1 &&
-      !s.shipyard.unlockedModules.includes('plate-layer') &&
-      guideSeen(s, 'guide-modules-tab') &&
-      !guideSeen(s, 'guide-unlock-plate'),
-    completeWhen: (s) => s.shipyard.unlockedModules.includes('plate-layer'),
-  },
-  {
-    id: 'guide-fit-plate',
-    title: 'Fit Plate',
-    body: 'Fit Plate Layer into your empty defense slot.',
-    target: 'fit-plate-layer',
-    tab: 'shipyard',
-    required: true,
-    availableWhen: (s) =>
-      (s.meta.starterCombatLesson ?? 0) === 1 &&
-      s.shipyard.unlockedModules.includes('plate-layer') &&
-      !s.shipyard.modules.includes('plate-layer') &&
-      !guideSeen(s, 'guide-fit-plate'),
-    completeWhen: (s) => s.shipyard.modules.includes('plate-layer'),
-  },
-  {
-    id: 'guide-relaunch-plated',
-    title: 'Launch again',
-    body: 'Plate is fitted. Launch and push again — the next breach will teach you Salvage upgrades.',
-    target: 'launch-btn',
-    tab: 'combat',
-    required: true,
-    availableWhen: (s) =>
-      (s.meta.starterCombatLesson ?? 0) === 1 &&
-      s.shipyard.modules.includes('plate-layer') &&
-      s.combat.docked &&
-      !guideSeen(s, 'guide-relaunch-plated'),
-    completeWhen: (s) => !s.combat.docked || (s.meta.starterCombatLesson ?? 0) >= 2,
-  },
-  {
     id: 'guide-salvage-lesson',
     title: 'Salvage recovered',
-    body: 'The wreck left Salvage. Open Shipyard and upgrade both fitted modules before you Resume.',
-    target: 'shipyard-tab',
+    body: 'The wreck left Salvage. Open Sortie and raise Pulse and Plate one level on the Cores sheet.',
+    target: 'combat-tab',
     required: true,
     availableWhen: (s) =>
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 ||
         (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1) &&
       !guideSeen(s, 'guide-salvage-lesson'),
-    completeWhen: (_s, tab) => tab === 'shipyard',
+    completeWhen: (_s, tab) => tab === 'combat',
   },
   {
     id: 'guide-upgrade-pulse',
     title: 'Upgrade Pulse',
-    body: 'Spend Salvage to raise Pulse Cannon one run level. This resets on prestige — cheap power now.',
+    body: 'Spend Salvage to raise Pulse Cannon one run level. Levels wipe on Rebuild — cheap power now.',
     target: 'upgrade-pulse-cannon',
-    tab: 'shipyard',
+    tab: 'combat',
     required: true,
     availableWhen: (s) =>
       guideSeen(s, 'guide-salvage-lesson') &&
@@ -857,9 +786,9 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-upgrade-plate',
     title: 'Upgrade Plate',
-    body: 'Upgrade Plate Layer next. Both modules should be Salvage-ranked before you return to combat.',
+    body: 'Upgrade Plate Layer next. Both Cores should be Salvage-ranked before you launch again.',
     target: 'upgrade-plate-layer',
-    tab: 'shipyard',
+    tab: 'combat',
     required: true,
     availableWhen: (s) =>
       (s.meta.starterCombatLesson ?? 0) === 2 &&
@@ -871,39 +800,17 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-relaunch-upgraded',
     title: 'Resume push',
-    body: 'Loadout upgraded. Resume combat — Base unlocks after you clear sector 4.',
-    target: 'launch-btn',
-    tab: 'combat',
+    body: 'Cores ranked. Launch again — Network drones fill Strike and Ward while you fly.',
+    target: 'launch',
+    tab: 'dock',
     required: true,
     availableWhen: (s) =>
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
       s.combat.docked &&
-      !guideSeen(s, 'guide-relaunch-upgraded') &&
-      !isSystemUnlocked(s, 'base'),
-    completeWhen: (s) => !s.combat.docked || isSystemUnlocked(s, 'base'),
-  },
-  {
-    id: 'guide-base-tab',
-    title: 'Base unlocked',
-    body: 'Tap Base. Assign worker drones to stations to produce resources.',
-    target: 'base-tab',
-    availableWhen: (s) => isSystemUnlocked(s, 'base') && !guideSeen(s, 'guide-base-tab'),
-    completeWhen: (_s, tab) => tab === 'base',
-  },
-  {
-    id: 'guide-assign-scrap',
-    title: 'Assign workers',
-    body: 'Tap + on Scrap Field to assign an idle worker. Fill toward black-bar — extra bodies past BB do nothing.',
-    target: 'station-scrap-field-plus',
-    tab: 'base',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-base-tab') &&
-      !guideSeen(s, 'guide-assign-scrap') &&
-      isSystemUnlocked(s, 'base') &&
-      s.base.workerDrones > 0,
-    completeWhen: (s) => (s.base.assignments['scrap-field'] ?? 0) > 0,
+      !guideSeen(s, 'guide-relaunch-upgraded'),
+    completeWhen: (s) => !s.combat.docked,
   },
   {
     id: 'guide-drone-cap',
@@ -918,16 +825,12 @@ export const GUIDE_STEPS: GuideStep[] = [
       (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) > 0,
   },
   {
-    id: 'guide-power-grid',
-    title: 'Energy',
-    body: 'Assign a worker to Power Grid. Energy appears in the header and pays for advanced modules.',
-    target: 'station-power-grid-plus',
-    tab: 'base',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-assign-scrap') &&
-      !guideSeen(s, 'guide-power-grid') &&
-      isSystemUnlocked(s, 'base'),
-    completeWhen: (s) => (s.base.assignments['power-grid'] ?? 0) > 0,
+    id: 'guide-foundry',
+    title: 'Foundry',
+    body: 'Tap Foundry. Queue a recipe — smelters run while you sortie.',
+    target: 'foundry-tab',
+    availableWhen: (s) => isSystemUnlocked(s, 'foundry') && !guideSeen(s, 'guide-foundry'),
+    completeWhen: (_s, tab) => tab === 'foundry',
   },
   {
     id: 'guide-reliquary',
@@ -1014,41 +917,18 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-reinforce',
     title: 'Reinforce',
-    body: 'Open More and tap Reinforce. Second prestige — keeps the foundry, starts the lane again.',
+    body: 'Open More and tap Reinforce. Second Rebuild — keeps the foundry, starts the lane again.',
     target: 'station-reinforce',
     tab: 'stats',
     availableWhen: (s) => isSystemUnlocked(s, 'reinforce') && !guideSeen(s, 'guide-reinforce'),
     completeWhen: (_s, tab) => tab === 'reinforce',
   },
   {
-    id: 'guide-sensor-net',
-    title: 'Farm Data',
-    body: 'Assign workers to Sensor Net on Base to earn Data for more research.',
-    target: 'station-sensor-net-plus',
-    tab: 'base',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-research-tab') &&
-      !guideSeen(s, 'guide-sensor-net') &&
-      isSystemUnlocked(s, 'research'),
-    completeWhen: (s) => (s.base.assignments['sensor-net'] ?? 0) > 0,
-  },
-  {
-    id: 'guide-alloy-foundry',
-    title: 'Alloys',
-    body: 'Alloy Foundry converts scrap into Alloys for module unlocks. Assign a worker when you can afford the upkeep.',
-    target: 'station-alloy-foundry-plus',
-    tab: 'base',
-    availableWhen: (s) =>
-      s.research.unlocked.includes('alloy-smelting') &&
-      !guideSeen(s, 'guide-alloy-foundry'),
-    completeWhen: (s) => (s.base.assignments['alloy-foundry'] ?? 0) > 0,
-  },
-  {
     id: 'guide-salvage',
     title: 'Salvage',
-    body: 'Combat keeps dropping Salvage. Spend it in Shipyard anytime to raise run levels on owned modules.',
+    body: 'Sorties keep dropping Salvage. Spend it on the Cores sheet anytime to raise run levels.',
     target: 'salvage-stat',
-    tab: 'shipyard',
+    tab: 'combat',
     availableWhen: (s) =>
       guideSeen(s, 'guide-upgrade-plate') &&
       (s.resources.salvage > 0 || careerHighestSector(s) >= 1) &&
@@ -1056,31 +936,12 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-part-drop',
-    title: 'First blueprint fragment',
-    body: 'The Foundry is online — enemies can now drop module parts. This fragment unlocks a blueprint in Shipyard; gather casings, cores, and lenses for the Fab Bay.',
-    target: 'combat-tab',
+    title: 'Foundry stock',
+    body: 'The Foundry is online. Open Foundry and queue a recipe — enemies drop materials for the smelters.',
+    target: 'foundry-tab',
     availableWhen: (s) =>
       (s.meta.discoveredModules?.length ?? 0) > 0 && !guideSeen(s, 'guide-part-drop'),
-    completeWhen: (_s, tab) => tab === 'combat',
-  },
-  {
-    id: 'guide-module-fab',
-    title: 'Fabrication Bay',
-    body: 'Tap Fabrication on Base. Deposit parts and assign Fab Bay workers to craft permanent modules.',
-    target: 'fab-bay-btn',
-    tab: 'base',
-    availableWhen: (s) =>
-      s.research.unlocked.includes('module-fab') && !guideSeen(s, 'guide-module-fab'),
-  },
-  {
-    id: 'guide-essence',
-    title: 'Essence',
-    body: 'Bosses drop Essence. Bind permanent constructs at the bottom of Research.',
-    target: 'essence-constructs',
-    tab: 'research',
-    availableWhen: (s) =>
-      (s.resources.essence > 0 || careerHighestSector(s) >= 5) &&
-      !guideSeen(s, 'guide-essence'),
+    completeWhen: (_s, tab) => tab === 'foundry',
   },
   {
     id: 'guide-codex-tab',
@@ -1090,26 +951,6 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'stats',
     availableWhen: (s) => isSystemUnlocked(s, 'codex') && !guideSeen(s, 'guide-codex-tab'),
     completeWhen: (_s, tab) => tab === 'codex',
-  },
-  {
-    id: 'guide-core-tab',
-    title: 'Core training',
-    body: 'Tap Core. Assign workers to training stations to raise attributes that wipe on prestige.',
-    target: 'core-tab',
-    availableWhen: (s) => isSystemUnlocked(s, 'core') && !guideSeen(s, 'guide-core-tab'),
-    completeWhen: (_s, tab) => tab === 'core',
-  },
-  {
-    id: 'guide-train-logistics',
-    title: 'Logistics',
-    body: 'Train Logistics — it speeds industry, Fab Bay, and blueprint part drops.',
-    target: 'core-train-logistics-plus',
-    tab: 'core',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-core-tab') &&
-      s.research.unlocked.includes('core-training') &&
-      !guideSeen(s, 'guide-train-logistics'),
-    completeWhen: (s) => (s.base.assignments['train-logistics'] ?? 0) > 0,
   },
   {
     id: 'guide-ai-tab',
@@ -1134,19 +975,18 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-prestige-tab',
-    title: 'Prestige unlocked',
-    body: 'Tap Prestige. Soft-reset from sector 10 for Prestige Matter. Challenges open after clearing Act 1 (sector 30).',
-    target: 'prestige-tab',
+    title: 'Rebuild unlocked',
+    body: 'Open Dock. Rebuild hangar from sector 4 to swap hull and Cores for Rebuild Matter.',
+    target: 'dock-tab',
     availableWhen: (s) =>
       isSystemUnlocked(s, 'prestige') && !guideSeen(s, 'guide-prestige-tab'),
-    completeWhen: (_s, tab) => tab === 'prestige',
   },
   {
     id: 'guide-prestige-ready',
-    title: 'Ready to Prestige',
-    body: 'You reached the prestige threshold. Tap Prestige to soft-reset and earn Prestige Matter.',
-    target: 'prestige-btn',
-    tab: 'prestige',
+    title: 'Ready to Rebuild',
+    body: 'You reached the Rebuild threshold. Tap Rebuild hangar to soft-reset and earn Rebuild Matter.',
+    target: 'rebuild-btn',
+    tab: 'dock',
     availableWhen: (s) =>
       isSystemUnlocked(s, 'prestige') &&
       guideSeen(s, 'guide-prestige-tab') &&
@@ -1155,27 +995,6 @@ export const GUIDE_STEPS: GuideStep[] = [
       s.prestige.prestigeCount === 0 &&
       !guideSeen(s, 'guide-prestige-ready'),
     completeWhen: (s) => s.prestige.prestigeCount > 0,
-  },
-  {
-    id: 'guide-matter-shop',
-    title: 'Matter shop',
-    body: 'Spend Prestige Matter on permanent ranks. Fragment Magnet boosts scarce blueprint part drops.',
-    target: 'matter-shop',
-    tab: 'prestige',
-    availableWhen: (s) =>
-      (s.prestige.prestigeCount > 0 || s.resources.prestigeMatter > 0) &&
-      !guideSeen(s, 'guide-matter-shop'),
-  },
-  {
-    id: 'guide-signal-cores',
-    title: 'Signal Cores',
-    body: 'Signal Cores drop in combat after prestige (or career sector 10). Equip them on the Core tab.',
-    target: 'signal-cores-subtab',
-    tab: 'core',
-    availableWhen: (s) =>
-      (s.prestige.prestigeCount >= 1 || careerHighestSector(s) >= 10) &&
-      isSystemUnlocked(s, 'core') &&
-      !guideSeen(s, 'guide-signal-cores'),
   },
   {
     id: 'guide-challenges',
@@ -1188,25 +1007,6 @@ export const GUIDE_STEPS: GuideStep[] = [
       !s.protocols?.activeId &&
       !guideSeen(s, 'guide-challenges'),
     completeWhen: (_s, tab) => tab === 'protocols' || guideSeen(_s, 'guide-protocols'),
-  },
-  {
-    id: 'guide-challenge-shop',
-    title: 'Challenge shop',
-    body: 'Spend Challenge Points here. Loot Protocols permanently boost blueprint part drops. Challenges stay optional.',
-    target: 'challenge-shop',
-    tab: 'prestige',
-    availableWhen: (s) =>
-      challengesContentUnlocked(s) &&
-      guideSeen(s, 'guide-challenges') &&
-      !guideSeen(s, 'guide-challenge-shop'),
-  },
-  {
-    id: 'guide-ascension',
-    title: 'Ascension',
-    body: 'After Act 1, Ascend at sector 30+ to boost Prestige Matter gains, unlock deep shop ranks, and open Ascension-entry challenges.',
-    target: 'ascend-btn',
-    tab: 'prestige',
-    availableWhen: (s) => s.meta.act1Cleared && !guideSeen(s, 'guide-ascension'),
   },
   {
     id: 'guide-logs',
@@ -1227,11 +1027,6 @@ export const STARTER_GUIDE_IDS = [
   'guide-shipyard-tab',
   'guide-frame-select',
   'guide-launch',
-  'guide-after-death',
-  'guide-modules-tab',
-  'guide-unlock-plate',
-  'guide-fit-plate',
-  'guide-relaunch-plated',
   'guide-salvage-lesson',
   'guide-upgrade-pulse',
   'guide-upgrade-plate',
@@ -1245,8 +1040,8 @@ function markGuideSeen(seen: string[], id: string): boolean {
 }
 
 /**
- * After prestige / ascension, retire starter dock/launch tips.
- * Ascended careers skip the full onboarding catalog — they already cleared Act 1.
+ * After Rebuild / Reinforce, retire starter dock/launch tips.
+ * Reinforced careers skip the full onboarding catalog — they already cleared Act 1.
  */
 export function retirePostResetOnboarding(state: GameState): void {
   const seen = [...(state.meta.seenOnboarding ?? [])]

@@ -123,7 +123,13 @@ export function DockTab({
         </div>
       ) : null}
 
-      <button type="button" className="dock-rebuild" disabled={!rebuildReady} onClick={onRebuild}>
+      <button
+        type="button"
+        className="dock-rebuild"
+        data-guide="rebuild-btn"
+        disabled={!rebuildReady}
+        onClick={onRebuild}
+      >
         {rebuildReady ? 'Rebuild hangar' : `Rebuild · sector ${rebuildMin}`}
       </button>
 

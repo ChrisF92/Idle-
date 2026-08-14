@@ -63,8 +63,8 @@ describe('module stat previews', () => {
   })
 })
 
-describe('prestige onboarding', () => {
-  it('offers Prestige tab guide when earlier systems are coached', () => {
+describe('rebuild onboarding', () => {
+  it('offers Rebuild dock guide when earlier systems are coached', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 8
     state.meta.seenOnboarding = [
@@ -72,18 +72,14 @@ describe('prestige onboarding', () => {
       'guide-frame-select',
       'guide-launch',
       'guide-drone-cap',
-      'guide-base-tab',
-      'guide-assign-scrap',
-      'guide-power-grid',
+      'guide-foundry',
       'guide-reliquary',
       'guide-furnace',
       'guide-research-tab',
-      'guide-sensor-net',
       'guide-salvage',
       'guide-salvage-lesson',
       'guide-upgrade-pulse',
       'guide-upgrade-plate',
-      'guide-essence',
       'guide-codex-tab',
       'guide-ai-tab',
       'guide-achievements',
@@ -91,7 +87,7 @@ describe('prestige onboarding', () => {
     expect(activeGuideStep(state, 'combat')?.id).toBe('guide-prestige-tab')
   })
 
-  it('offers Prestige button guide at prestige threshold before first prestige', () => {
+  it('offers Rebuild button guide at the threshold before first Rebuild', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 8
     state.combat.sector = PRESTIGE_MIN_SECTOR
@@ -100,25 +96,21 @@ describe('prestige onboarding', () => {
       'guide-frame-select',
       'guide-launch',
       'guide-drone-cap',
-      'guide-base-tab',
-      'guide-assign-scrap',
-      'guide-power-grid',
+      'guide-foundry',
       'guide-reliquary',
       'guide-furnace',
       'guide-research-tab',
-      'guide-sensor-net',
       'guide-salvage',
       'guide-salvage-lesson',
       'guide-upgrade-pulse',
       'guide-upgrade-plate',
-      'guide-essence',
       'guide-codex-tab',
       'guide-ai-tab',
       'guide-achievements',
       'guide-prestige-tab',
     ]
-    expect(activeGuideStep(state, 'prestige')?.id).toBe('guide-prestige-ready')
-    expect(activeGuideStep(state, 'prestige')?.target).toBe('prestige-btn')
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-prestige-ready')
+    expect(activeGuideStep(state, 'dock')?.target).toBe('rebuild-btn')
   })
 })
 
