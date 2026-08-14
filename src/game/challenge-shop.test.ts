@@ -93,7 +93,7 @@ describe('challenge point shop', () => {
     expect(shopRank(state.prestige.shop, 'supply-cache')).toBe(2)
     state.combat.sector = 10
     state = performPrestige(state, 5000)
-    expect(state.resources.scrap).toBeGreaterThanOrEqual(75) // 25 + 10 return + 40 cache
+    expect(state.resources.scrap).toBeGreaterThanOrEqual(75) // 25 starter + return kit + 40 cache
   })
 
   it('schematic-surge unlocks surge-capacitor module', () => {

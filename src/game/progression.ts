@@ -141,7 +141,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   },
   {
     id: 'prestige',
-    requiresSectorEver: 8,
+    requiresSectorEver: 4,
     label: 'Rebuild',
     tip: 'Rebuild from sector 4 to swap hull and Cores. Protocols open after Act 1 (sector 30).',
   },
@@ -653,6 +653,13 @@ export function visibleResourceIds(state: GameState): (keyof Resources)[] {
 
 function guideSeen(state: GameState, id: string): boolean {
   return state.meta.seenOnboarding.includes(id)
+}
+
+/** Dock Rebuild button is live and this career has never Rebuilt. */
+export function firstRebuildAvailable(state: GameState): boolean {
+  if ((state.prestige.prestigeCount ?? 0) > 0) return false
+  if (state.prestige.activeChallengeId) return false
+  return state.combat.sector >= PRESTIGE_MIN_SECTOR
 }
 
 /**
@@ -1189,6 +1196,66 @@ export const GUIDE_STEPS: GuideStep[] = [
       guideSeen(s, 'guide-reliquary-slots') && !guideSeen(s, 'guide-reliquary-resonance'),
   },
   {
+    id: 'guide-prestige-tab',
+    title: 'Rebuild is ready',
+    body: [
+      'Open Dock. You reached sector 4 — Rebuild hangar can swap hull and Cores for Rebuild Matter.',
+      'Extract keeps this loadout. Rebuild is the swap, not a game-over.',
+    ],
+    target: 'dock-tab',
+    tab: 'dock',
+    group: 'rebuild',
+    availableWhen: (s) => firstRebuildAvailable(s) && !guideSeen(s, 'guide-prestige-tab'),
+    completeWhen: (_s, tab) => tab === 'dock',
+  },
+  {
+    id: 'guide-prestige-ready',
+    title: 'Open the hangar',
+    body: [
+      'Tap Rebuild hangar. Salvage and Core levels wipe on confirm. Network, Foundry recipes, Reliquary shards, and Furnace ranks stay.',
+    ],
+    target: 'rebuild-btn',
+    tab: 'dock',
+    group: 'rebuild',
+    required: true,
+    availableWhen: (s) =>
+      firstRebuildAvailable(s) &&
+      guideSeen(s, 'guide-prestige-tab') &&
+      !guideSeen(s, 'guide-prestige-ready'),
+  },
+  {
+    id: 'guide-prestige-hangar',
+    title: 'Pick the next hull',
+    body: [
+      'Scout is fine. Frigate unlocks when you clear sector 4 — extra weapon slot.',
+      'This is how you change guns. Confirming wipes unspent Salvage and Core ranks so the new kit starts clean.',
+    ],
+    target: 'hangar-hull',
+    tab: 'dock',
+    group: 'rebuild',
+    availableWhen: (s) =>
+      firstRebuildAvailable(s) &&
+      guideSeen(s, 'guide-prestige-ready') &&
+      !guideSeen(s, 'guide-prestige-hangar'),
+    completeWhen: (s) => s.prestige.prestigeCount > 0,
+  },
+  {
+    id: 'guide-prestige-confirm',
+    title: 'Confirm Rebuild',
+    body: [
+      'Tap Confirm Rebuild. You earn Rebuild Matter. Yard Grid and Slag Bank open on the other side.',
+    ],
+    target: 'hangar-confirm',
+    tab: 'dock',
+    group: 'rebuild',
+    required: true,
+    availableWhen: (s) =>
+      firstRebuildAvailable(s) &&
+      guideSeen(s, 'guide-prestige-hangar') &&
+      !guideSeen(s, 'guide-prestige-confirm'),
+    completeWhen: (s) => s.prestige.prestigeCount > 0,
+  },
+  {
     id: 'guide-furnace',
     title: 'Furnace',
     body: [
@@ -1570,35 +1637,6 @@ export const GUIDE_STEPS: GuideStep[] = [
       !guideSeen(s, 'guide-achievements'),
   },
   {
-    id: 'guide-prestige-tab',
-    title: 'Rebuild unlocked',
-    body: [
-      'Open Dock. Rebuild hangar from sector 4 to swap hull and Cores for Rebuild Matter.',
-      'Extract keeps this loadout. Rebuild is the swap, not a game-over.',
-    ],
-    target: 'dock-tab',
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'prestige') && !guideSeen(s, 'guide-prestige-tab'),
-  },
-  {
-    id: 'guide-prestige-ready',
-    title: 'Ready to Rebuild',
-    body: [
-      'You reached the Rebuild threshold. Tap Rebuild hangar to soft-reset and earn Rebuild Matter.',
-      'Salvage and Core levels wipe. Network Links, Furnace ranks, Reliquary shards, and Foundry recipes stay.',
-    ],
-    target: 'rebuild-btn',
-    tab: 'dock',
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'prestige') &&
-      guideSeen(s, 'guide-prestige-tab') &&
-      s.combat.sector >= PRESTIGE_MIN_SECTOR &&
-      !s.prestige.activeChallengeId &&
-      s.prestige.prestigeCount === 0 &&
-      !guideSeen(s, 'guide-prestige-ready'),
-    completeWhen: (s) => s.prestige.prestigeCount > 0,
-  },
-  {
     id: 'guide-challenges',
     title: 'Protocols unlocked',
     body: [
@@ -1659,6 +1697,14 @@ export const NETWORK_GUIDE_IDS = [
   'guide-network-links',
 ] as const
 
+/** First-Rebuild hangar walkthrough. Skip dismisses the whole group. */
+export const REBUILD_GUIDE_IDS = [
+  'guide-prestige-tab',
+  'guide-prestige-ready',
+  'guide-prestige-hangar',
+  'guide-prestige-confirm',
+] as const
+
 function markGuideSeen(seen: string[], id: string): boolean {
   if (seen.includes(id)) return false
   seen.push(id)
@@ -1677,6 +1723,9 @@ export function retirePostResetOnboarding(state: GameState): void {
 
   if (prestiged || ascended) {
     for (const id of STARTER_GUIDE_IDS) {
+      if (markGuideSeen(seen, id)) changed = true
+    }
+    for (const id of REBUILD_GUIDE_IDS) {
       if (markGuideSeen(seen, id)) changed = true
     }
     if ((state.meta.starterCombatLesson ?? 0) < 2) {
@@ -1719,6 +1768,11 @@ export function syncCompletedGuides(state: GameState, tab: TabId): GameState {
   return next
 }
 
+/** Hangar-sheet lessons wait until Rebuild hangar is actually open. */
+export function isHangarGuideStep(step: GuideStep): boolean {
+  return step.group === 'rebuild' && step.target.startsWith('hangar-')
+}
+
 /** True while a sortie is live — station doors wait until Dock. Battlefield lessons may still start. */
 export function guideQueueQuiet(state: GameState): boolean {
   return !state.combat.docked || (state.combat.defeatLeft ?? 0) > 0
@@ -1746,32 +1800,44 @@ export function activeGuideStep(
   state: GameState,
   tab: TabId,
   heldId?: string | null,
+  ui?: { hangarOpen?: boolean },
 ): GuideStep | null {
+  const hangarOpen = Boolean(ui?.hangarOpen)
+  const eligible = (step: GuideStep): boolean =>
+    guideStepReady(state, tab, step) && stepAllowedOnTab(step, tab)
+  const pick = (step: GuideStep): GuideStep | 'wait' | null => {
+    if (!eligible(step)) return null
+    if (isHangarGuideStep(step) && !hangarOpen) return 'wait'
+    return step
+  }
   if (heldId) {
     const held = GUIDE_STEPS.find((step) => step.id === heldId)
-    if (
-      held &&
-      guideStepReady(state, tab, held) &&
-      stepAllowedOnTab(held, tab)
-    ) {
+    if (held) {
+      const picked = pick(held)
+      if (picked === 'wait') return null
       if (
-        !guideQueueQuiet(state) ||
-        isLiveSortieLesson(held) ||
-        held.tab === 'combat'
+        picked &&
+        (!guideQueueQuiet(state) ||
+          isLiveSortieLesson(held) ||
+          held.tab === 'combat')
       ) {
-        return held
+        return picked
       }
     }
   }
   if (guideQueueQuiet(state)) {
     for (const step of GUIDE_STEPS) {
       if (!isLiveSortieLesson(step)) continue
-      if (guideStepReady(state, tab, step) && stepAllowedOnTab(step, tab)) return step
+      const picked = pick(step)
+      if (picked === 'wait') return null
+      if (picked) return picked
     }
     return null
   }
   for (const step of GUIDE_STEPS) {
-    if (guideStepReady(state, tab, step) && stepAllowedOnTab(step, tab)) return step
+    const picked = pick(step)
+    if (picked === 'wait') return null
+    if (picked) return picked
   }
   return null
 }

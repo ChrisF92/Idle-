@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { activeGuideStep, isSystemUnlocked } from './game/progression'
@@ -33,11 +33,17 @@ import { ScreenHelp } from './components/ScreenHelp'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import './App.css'
 
+const BalanceSimulator = lazy(async () => {
+  const mod = await import('./components/BalanceSimulator')
+  return { default: mod.BalanceSimulator }
+})
+
 export default function App() {
   const game = useGame()
   const [tab, setTab] = useState<TabId>('dock')
   const [hangarOpen, setHangarOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [simulatorOpen, setSimulatorOpen] = useState(false)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
   const [heldGuideId, setHeldGuideId] = useState<string | null>(null)
@@ -45,8 +51,8 @@ export default function App() {
   const live = !game.state.combat.docked || dying
   const waves = wavesForSector(game.state.combat.sector)
   const guide =
-    dying || reportOpen ? null : activeGuideStep(game.state, tab, heldGuideId)
-  game.simPausedRef.current = Boolean(guide)
+    dying || reportOpen ? null : activeGuideStep(game.state, tab, heldGuideId, { hangarOpen })
+  game.simPausedRef.current = Boolean(guide) || simulatorOpen
 
   const go = useCallback(
     (next: TabId) => {
@@ -281,6 +287,7 @@ export default function App() {
             onRebuild={() => setHangarOpen(true)}
             onNotation={game.setNumberNotation}
             onOpenStation={go}
+            onOpenSimulator={() => setSimulatorOpen(true)}
           />
         )}
       </main>
@@ -304,6 +311,12 @@ export default function App() {
           summary={game.state.combat.lastSortie}
           onClose={() => setReportOpen(false)}
         />
+      ) : null}
+
+      {simulatorOpen ? (
+        <Suspense fallback={null}>
+          <BalanceSimulator onClose={() => setSimulatorOpen(false)} />
+        </Suspense>
       ) : null}
 
       {guide ? (

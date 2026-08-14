@@ -64,43 +64,33 @@ describe('module stat previews', () => {
 })
 
 describe('rebuild onboarding', () => {
-  it('offers Rebuild dock guide when earlier systems are coached', () => {
+  it('offers Rebuild dock guide when it becomes available at sector 4', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 8
-    state.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-foundry',
-      'guide-reliquary',
-      'guide-furnace',
-      'guide-research-tab',
-      'guide-salvage',
-      'guide-codex-tab',
-      'guide-ai-tab',
-      'guide-achievements',
-    ]
-    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-prestige-tab')
-  })
-
-  it('offers Rebuild button guide at the threshold before first Rebuild', () => {
-    const state = createInitialState(0)
-    state.meta.highestSectorEver = 8
+    state.meta.highestSectorEver = 4
     state.combat.sector = PRESTIGE_MIN_SECTOR
     state.meta.seenOnboarding = [
       ...STARTER_GUIDE_IDS,
       ...NETWORK_GUIDE_IDS,
       'guide-foundry',
       'guide-reliquary',
-      'guide-furnace',
-      'guide-research-tab',
-      'guide-salvage',
-      'guide-codex-tab',
-      'guide-ai-tab',
-      'guide-achievements',
+    ]
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-prestige-tab')
+  })
+
+  it('offers Rebuild button guide at the threshold before first Rebuild', () => {
+    const state = createInitialState(0)
+    state.meta.highestSectorEver = 4
+    state.combat.sector = PRESTIGE_MIN_SECTOR
+    state.meta.seenOnboarding = [
+      ...STARTER_GUIDE_IDS,
+      ...NETWORK_GUIDE_IDS,
+      'guide-foundry',
+      'guide-reliquary',
       'guide-prestige-tab',
     ]
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-prestige-ready')
     expect(activeGuideStep(state, 'dock')?.target).toBe('rebuild-btn')
+    expect(activeGuideStep(state, 'dock')?.required).toBe(true)
   })
 })
 
