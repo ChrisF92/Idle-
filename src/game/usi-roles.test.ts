@@ -15,6 +15,10 @@ describe('USI enemy roles', () => {
     expect(Math.max(...skirmishers.map((u) => u.speed))).toBeGreaterThan(
       Math.max(...fighters.map((u) => u.speed)),
     )
+    const later = enemyForSector(9, 2).units
+    expect(Math.max(...later.map((u) => u.speed))).toBeGreaterThan(
+      Math.max(...skirmishers.map((u) => u.speed)),
+    )
   })
 
   it('S2 armored opens as a slow mid-range juggernaut', () => {
