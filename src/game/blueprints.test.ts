@@ -43,7 +43,7 @@ describe('blueprints and fabrication', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 7
     state.combat.highestSector = 7
-    state.research.unlocked = [...state.research.unlocked, 'alloy-smelting']
+    state.combat.sector = 7
     const results = rollEnemyPartDrop(
       state,
       { family: 'swarm', isBoss: false, name: 'Drone' },

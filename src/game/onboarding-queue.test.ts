@@ -69,7 +69,7 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-salvage-lesson')
   })
 
-  it('offers Salvage, Cores, then Network after Extract — before relaunch', () => {
+  it('offers Salvage, Cores, then Network after docking — before relaunch', () => {
     let state = afterLaunch()
     state.resources.salvage = 8
     expect(activeGuideStep(state, 'combat')?.id).toBe('guide-sortie-field')

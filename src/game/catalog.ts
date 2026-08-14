@@ -1,6 +1,6 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
-import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, isSystemUnlocked } from './progression'
+import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, careerHighestSector, isSystemUnlocked } from './progression'
 import { formatCompact, formatStat } from './format'
 import type { CoreAttrId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
@@ -234,6 +234,8 @@ export interface ModuleWeaponDef {
   armorDamage?: number
   /** Connected beam vs travelling bolt. Charge lasers use telegraph + bolt. */
   delivery?: WeaponDelivery
+  /** Wind-up before the shot (player Charge Prism / enemy snipers). */
+  telegraphDuration?: number
 }
 
 /**
@@ -1340,6 +1342,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     evasionBonus: 0.12,
     damageTakenMult: 0.88,
     unlockCost: { scrap: 30, alloys: 12 },
+    requiresSectorEver: 3,
   },
   {
     id: 'heavy-lance',
@@ -1358,6 +1361,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       tags: ['kinetic', 'pierce'],
     },
     unlockCost: { scrap: 50, alloys: 20 },
+    requiresSectorEver: 2,
   },
   {
     id: 'flak-array',
@@ -1377,6 +1381,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       splash: 2,
     },
     unlockCost: { scrap: 45, alloys: 18 },
+    requiresSectorEver: 2,
   },
   {
     id: 'phase-beam',
@@ -1396,6 +1401,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       delivery: 'beam',
     },
     unlockCost: { scrap: 55, alloys: 22, data: 8 },
+    requiresSectorEver: 3,
   },
   {
     id: 'barrier-projector',
@@ -1408,6 +1414,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     shieldBonus: 60,
     damageTakenMult: 1,
     unlockCost: { scrap: 40, alloys: 16, energy: 20 },
+    requiresSectorEver: 5,
   },
   {
     id: 'drone-bay',
@@ -1420,6 +1427,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     damageTakenMult: 1,
     salvageKillBonus: 0.12,
     unlockCost: { scrap: 60, alloys: 25, energy: 15 },
+    requiresSectorEver: 4,
   },
   {
     id: 'rail-driver',
@@ -1438,6 +1446,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       tags: ['kinetic', 'pierce'],
     },
     unlockCost: { scrap: 70, alloys: 28, data: 6 },
+    requiresSectorEver: 8,
   },
   {
     id: 'ion-burst',
@@ -1457,6 +1466,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       splash: 1,
     },
     unlockCost: { scrap: 65, alloys: 24, energy: 18 },
+    requiresSectorEver: 6,
   },
   {
     id: 'ablative-mesh',
@@ -1470,6 +1480,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     shieldBonus: 25,
     damageTakenMult: 1,
     unlockCost: { scrap: 55, alloys: 22 },
+    requiresSectorEver: 7,
   },
   {
     id: 'grav-tether',
@@ -1482,6 +1493,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     evasionBonus: 0.08,
     damageTakenMult: 0.85,
     unlockCost: { scrap: 50, alloys: 20, energy: 12 },
+    requiresSectorEver: 9,
   },
   {
     id: 'nano-lathe',
@@ -1493,6 +1505,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     hullBonus: 10,
     damageTakenMult: 1,
     unlockCost: { scrap: 45, alloys: 18, data: 10 },
+    requiresSectorEver: 10,
   },
   {
     id: 'salvage-rig',
@@ -1504,6 +1517,176 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     hullBonus: 0,
     damageTakenMult: 1,
     unlockCost: { scrap: 40, alloys: 15 },
+    requiresSectorEver: 4,
+  },
+  {
+    id: 'charge-prism',
+    name: 'Charge Prism',
+    role: 'weapon',
+    description:
+      'A wound energy shot. Long wind-up, then a fast bolt. Punishes shields and hulls that hang back.',
+    damageBonus: 9,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    upgradeBaseCost: 4,
+    upgradeCostScaling: 1.22,
+    weapon: {
+      name: 'Charge Prism',
+      damage: 28,
+      damagePerLevel: 8,
+      cooldown: 2.6,
+      range: 175,
+      tags: ['energy'],
+      hullDamage: 1,
+      shieldDamage: 1.35,
+      armorDamage: 0.3,
+      delivery: 'charge',
+      telegraphDuration: 0.55,
+    },
+    unlockCost: {},
+    requiresSectorEver: 4,
+  },
+  {
+    id: 'swarm-rack',
+    name: 'Swarm Rack',
+    role: 'weapon',
+    description:
+      'A rack of slag-tipped missiles. Slow cycle, wide splash. Built to shred packs that bunch up.',
+    damageBonus: 7,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    upgradeBaseCost: 4,
+    upgradeCostScaling: 1.21,
+    weapon: {
+      name: 'Swarm Rack',
+      damage: 16,
+      damagePerLevel: 5,
+      cooldown: 1.9,
+      range: 130,
+      tags: ['kinetic', 'splash'],
+      splash: 2,
+      hullDamage: 1.1,
+      shieldDamage: 0.7,
+      armorDamage: 0.85,
+    },
+    unlockCost: {},
+    requiresSectorEver: 6,
+  },
+  {
+    id: 'arc-lash',
+    name: 'Arc Lash',
+    role: 'weapon',
+    description:
+      'A short energy whip that jumps. Fast, mid-range, strips overlapping shields in a pack.',
+    damageBonus: 6,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    upgradeBaseCost: 3,
+    upgradeCostScaling: 1.21,
+    weapon: {
+      name: 'Arc Lash',
+      damage: 11,
+      damagePerLevel: 4,
+      cooldown: 1.05,
+      range: 105,
+      tags: ['energy', 'antiShield', 'splash'],
+      splash: 2,
+      hullDamage: 0.85,
+      shieldDamage: 1.4,
+      armorDamage: 0.35,
+    },
+    unlockCost: {},
+    requiresSectorEver: 9,
+  },
+  {
+    id: 'slag-spit',
+    name: 'Slag Spit',
+    role: 'weapon',
+    description:
+      'A close slag thrower. The splash is small; the burn stays on the hull. Strong against plated packs that close in.',
+    damageBonus: 5,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    upgradeBaseCost: 4,
+    upgradeCostScaling: 1.2,
+    weapon: {
+      name: 'Slag Spit',
+      damage: 9,
+      damagePerLevel: 3.5,
+      cooldown: 1.1,
+      range: 68,
+      tags: ['kinetic', 'dot'],
+      splash: 1,
+      dotDuration: 3,
+      dotDamage: 4,
+      hullDamage: 1.15,
+      shieldDamage: 0.55,
+      armorDamage: 1.1,
+    },
+    unlockCost: {},
+    requiresSectorEver: 12,
+  },
+  {
+    id: 'lattice-ward',
+    name: 'Lattice Ward',
+    role: 'defense',
+    description:
+      'A thin lattice that refills fast. Lower ceiling than Plate; higher regen. Built to outlast chip, not slams.',
+    damageBonus: 0,
+    hullBonus: 0,
+    shieldBonus: 22,
+    shieldBonusPerLevel: 4,
+    shieldRegen: 0.09,
+    damageTakenMult: 1,
+    upgradeBaseCost: 6,
+    upgradeCostScaling: 1.2,
+    unlockCost: {},
+    requiresSectorEver: 5,
+  },
+  {
+    id: 'keel-baffle',
+    name: 'Keel Baffle',
+    role: 'defense',
+    description:
+      'Armour baffles on the keel. Hull and plate first, a modest shield bank second. Soaks bosses that punch through wards.',
+    damageBonus: 0,
+    hullBonus: 28,
+    hullBonusPerLevel: 4,
+    armorBonus: 4,
+    armorBonusPerLevel: 0.4,
+    shieldBonus: 16,
+    shieldBonusPerLevel: 2,
+    damageTakenMult: 1,
+    upgradeBaseCost: 7,
+    upgradeCostScaling: 1.2,
+    unlockCost: {},
+    requiresSectorEver: 11,
+  },
+  {
+    id: 'sensor-whisker',
+    name: 'Sensor Whisker',
+    role: 'utility',
+    description:
+      'A thin sensor mast. Harder to lock, and incoming shots miss more often. Helps keep short guns on twitchy hulls.',
+    damageBonus: 0,
+    hullBonus: 0,
+    evasionBonus: 0.14,
+    damageTakenMult: 0.94,
+    unlockCost: {},
+    requiresSectorEver: 8,
+  },
+  {
+    id: 'choir-tap',
+    name: 'Choir Tap',
+    role: 'utility',
+    description:
+      'A wreck tap tuned to Choir hulls. Each kill pays more Salvage than Yield Link. Print it, then farm.',
+    damageBonus: 0,
+    hullBonus: 0,
+    damageTakenMult: 1,
+    salvageKillBonus: 0.2,
+    unlockCost: {},
+    requiresSectorEver: 14,
   },
   {
     id: 'surge-capacitor',
@@ -1658,12 +1841,20 @@ export const BLUEPRINTS: BlueprintRecipe[] = [
   { moduleId: 'phase-beam', casing: 4, core: 3, lens: 2 },
   { moduleId: 'barrier-projector', casing: 5, core: 3, lens: 2 },
   { moduleId: 'drone-bay', casing: 4, core: 3, lens: 2 },
+  { moduleId: 'charge-prism', casing: 5, core: 4, lens: 2 },
+  { moduleId: 'lattice-ward', casing: 5, core: 3, lens: 3 },
   { moduleId: 'rail-driver', casing: 5, core: 4, lens: 3 },
   { moduleId: 'ion-burst', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'swarm-rack', casing: 5, core: 4, lens: 3 },
   { moduleId: 'ablative-mesh', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'sensor-whisker', casing: 4, core: 3, lens: 4 },
   { moduleId: 'grav-tether', casing: 5, core: 4, lens: 3 },
   { moduleId: 'nano-lathe', casing: 5, core: 4, lens: 3 },
   { moduleId: 'salvage-rig', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'keel-baffle', casing: 6, core: 5, lens: 3 },
+  { moduleId: 'arc-lash', casing: 5, core: 5, lens: 4 },
+  { moduleId: 'slag-spit', casing: 6, core: 5, lens: 4 },
+  { moduleId: 'choir-tap', casing: 6, core: 5, lens: 5 },
 ]
 
 export function getBlueprint(moduleId: string): BlueprintRecipe | undefined {
@@ -1696,6 +1887,10 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
       { moduleId: 'salvage-rig', partType: 'casing', weight: 2 },
       { moduleId: 'salvage-rig', partType: 'core', weight: 1 },
       { moduleId: 'drone-bay', partType: 'casing', weight: 1 },
+      { moduleId: 'swarm-rack', partType: 'casing', weight: 3 },
+      { moduleId: 'swarm-rack', partType: 'core', weight: 2 },
+      { moduleId: 'swarm-rack', partType: 'lens', weight: 1 },
+      { moduleId: 'choir-tap', partType: 'casing', weight: 1 },
     ],
   },
   {
@@ -1710,6 +1905,11 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
       { moduleId: 'ablative-mesh', partType: 'casing', weight: 2 },
       { moduleId: 'ablative-mesh', partType: 'core', weight: 2 },
       { moduleId: 'ablative-mesh', partType: 'lens', weight: 1 },
+      { moduleId: 'keel-baffle', partType: 'casing', weight: 2 },
+      { moduleId: 'keel-baffle', partType: 'core', weight: 2 },
+      { moduleId: 'slag-spit', partType: 'casing', weight: 2 },
+      { moduleId: 'slag-spit', partType: 'core', weight: 1 },
+      { moduleId: 'slag-spit', partType: 'lens', weight: 1 },
     ],
   },
   {
@@ -1724,6 +1924,12 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
       { moduleId: 'vector-thruster', partType: 'casing', weight: 3 },
       { moduleId: 'vector-thruster', partType: 'core', weight: 2 },
       { moduleId: 'vector-thruster', partType: 'lens', weight: 1 },
+      { moduleId: 'charge-prism', partType: 'casing', weight: 3 },
+      { moduleId: 'charge-prism', partType: 'core', weight: 2 },
+      { moduleId: 'charge-prism', partType: 'lens', weight: 2 },
+      { moduleId: 'lattice-ward', partType: 'casing', weight: 2 },
+      { moduleId: 'lattice-ward', partType: 'core', weight: 2 },
+      { moduleId: 'lattice-ward', partType: 'lens', weight: 2 },
     ],
   },
   {
@@ -1738,6 +1944,11 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
       { moduleId: 'grav-tether', partType: 'casing', weight: 2 },
       { moduleId: 'grav-tether', partType: 'core', weight: 2 },
       { moduleId: 'grav-tether', partType: 'lens', weight: 1 },
+      { moduleId: 'arc-lash', partType: 'casing', weight: 3 },
+      { moduleId: 'arc-lash', partType: 'core', weight: 2 },
+      { moduleId: 'arc-lash', partType: 'lens', weight: 2 },
+      { moduleId: 'sensor-whisker', partType: 'lens', weight: 2 },
+      { moduleId: 'sensor-whisker', partType: 'core', weight: 1 },
     ],
   },
   {
@@ -1755,6 +1966,9 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
       { moduleId: 'barrier-projector', partType: 'casing', weight: 2 },
       { moduleId: 'barrier-projector', partType: 'core', weight: 2 },
       { moduleId: 'barrier-projector', partType: 'lens', weight: 1 },
+      { moduleId: 'keel-baffle', partType: 'lens', weight: 2 },
+      { moduleId: 'choir-tap', partType: 'core', weight: 2 },
+      { moduleId: 'choir-tap', partType: 'lens', weight: 2 },
     ],
   },
 ]
@@ -1767,6 +1981,7 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'barrier-projector', partType: 'casing', weight: 1 },
       { moduleId: 'drone-bay', partType: 'core', weight: 1 },
       { moduleId: 'salvage-rig', partType: 'lens', weight: 1 },
+      { moduleId: 'sensor-whisker', partType: 'casing', weight: 1 },
     )
   }
   if (sector >= 12) {
@@ -1774,6 +1989,7 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
       { moduleId: 'ion-burst', partType: 'core', weight: 1 },
       { moduleId: 'ablative-mesh', partType: 'lens', weight: 1 },
+      { moduleId: 'keel-baffle', partType: 'core', weight: 1 },
     )
   }
   if (sector >= 18) {
@@ -1781,9 +1997,36 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'grav-tether', partType: 'core', weight: 1 },
       { moduleId: 'nano-lathe', partType: 'lens', weight: 1 },
       { moduleId: 'rail-driver', partType: 'lens', weight: 1 },
+      { moduleId: 'choir-tap', partType: 'lens', weight: 1 },
     )
   }
   return extras
+}
+
+export function modulePrintSector(moduleId: string): number {
+  return Math.max(0, getModule(moduleId)?.requiresSectorEver ?? 0)
+}
+
+/** Career has reached the sector that unlocks this Core print. */
+export function isCorePrintUnlocked(state: GameState, moduleId: string): boolean {
+  const need = modulePrintSector(moduleId)
+  return careerHighestSector(state) >= need || (state.combat?.sector ?? 1) >= need
+}
+
+/** Current fight can drop this Core's parts (print unlocked and fighting at/past its sector). */
+export function canDropModulePart(state: GameState, moduleId: string): boolean {
+  if (!isFarmableModule(moduleId)) return false
+  const need = modulePrintSector(moduleId)
+  return isCorePrintUnlocked(state, moduleId) && (state.combat?.sector ?? 1) >= need
+}
+
+export function listFarmableCores(state: GameState): ShipModuleDef[] {
+  if (!isSystemUnlocked(state, 'foundry')) return []
+  return BLUEPRINTS.map((b) => getModule(b.moduleId)).filter((m): m is ShipModuleDef => {
+    if (!m) return false
+    if (state.shipyard.unlockedModules.includes(m.id)) return true
+    return isCorePrintUnlocked(state, m.id)
+  })
 }
 
 export function getEnemyDropTable(family: string): EnemyPartDropTable | undefined {
@@ -1798,7 +2041,9 @@ export function pickWeightedDropEntry(
 ): EnemyPartDropEntry | null {
   const table = getEnemyDropTable(family)
   if (!table) return null
-  const entries = [...table.entries, ...sectorBonusDropEntries(sector)]
+  const entries = [...table.entries, ...sectorBonusDropEntries(sector)].filter(
+    (e) => modulePrintSector(e.moduleId) <= sector,
+  )
   const total = entries.reduce((s, e) => s + e.weight, 0)
   if (total <= 0) return null
   let roll = rng() * total
@@ -1901,6 +2146,9 @@ export function isModuleVisible(state: GameState, moduleId: string): boolean {
   const mod = getModule(moduleId)
   if (mod?.requiresChallengeShop) {
     return shopRank(state.prestige.shop, mod.requiresChallengeShop) >= 1
+  }
+  if (isFarmableModule(moduleId) && isSystemUnlocked(state, 'foundry')) {
+    return isCorePrintUnlocked(state, moduleId)
   }
   return false
 }

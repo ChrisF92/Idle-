@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import type { GameState } from '../../game/types'
+import type { CombatPushMode, GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
-import { normalizeRoute } from '../../game/sectors'
+import { COMBAT_PUSH_MODES, normalizePushMode, normalizeRoute, pushModeLabel } from '../../game/sectors'
 import { wavesForRun, getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
@@ -10,8 +10,8 @@ import { CoreSheet } from '../CoreSheet'
 
 interface CombatTabProps {
   state: GameState
-  onExtract: () => void
   onLaunch: () => void
+  onSetPushMode: (mode: CombatPushMode) => void
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
@@ -19,8 +19,8 @@ interface CombatTabProps {
 
 export function CombatTab({
   state,
-  onExtract,
   onLaunch,
+  onSetPushMode,
   onUpgrade,
   onPickMilestone,
   paused = false,
@@ -32,6 +32,7 @@ export function CombatTab({
   const live = !combat.docked
   const protocol = activeProtocol(state)
   const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
+  const pushMode = normalizePushMode(combat.pushMode, combat.campaign)
 
   const previewPlayer = useMemo(
     () => [
@@ -148,9 +149,18 @@ export function CombatTab({
             Hull lost
           </button>
         ) : live ? (
-          <button type="button" onClick={onExtract}>
-            Extract
-          </button>
+          <div className="sheet-tabs sortie-push-tabs" data-guide="sortie-push">
+            {COMBAT_PUSH_MODES.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={pushMode === mode ? 'sheet-tab active' : 'sheet-tab'}
+                onClick={() => onSetPushMode(mode)}
+              >
+                {pushModeLabel(mode)}
+              </button>
+            ))}
+          </div>
         ) : (
           <button type="button" className="primary" data-guide="launch" onClick={onLaunch}>
             Launch

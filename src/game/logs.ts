@@ -39,6 +39,12 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
     unlock: (s) => career(s) >= 2,
   },
   {
+    id: 'core-prints',
+    title: 'Prints',
+    body: 'Wrecks leave Core fragments. Hold a sector to farm them. Assemble the print in the Foundry, then Rebuild to fit the new gun.',
+    unlock: (s) => career(s) >= 2,
+  },
+  {
     id: 'reliquary',
     title: 'Colour slots',
     body: 'Shards remember the Choir. Fit one per colour. Extra copies hum until the slot sings. Red and orange first; pink waits at 6.',
@@ -47,7 +53,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'frigate',
     title: 'Frigate rack',
-    body: 'A second frame on the rail. Rebuild is a hangar swap, not a funeral. Cores wipe. The foundry does not.',
+    body: 'A second frame on the rail. Rebuild is a hangar swap, not a funeral. Cores wipe. The foundry does not. Charge Prism prints wait in the smelter once you have the fragments.',
     unlock: (s) => career(s) >= 4,
   },
   {
@@ -137,7 +143,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'process',
     title: 'The process',
-    body: 'Achievements fund automation. Auto-Salvage. Bar Balance. Safe Extract. Ghost Sortie. The crew would have named this the night shift.',
+    body: 'Achievements fund automation. Auto-Salvage. Bar Balance. Safe Hold. Ghost Sortie. The crew would have named this the night shift.',
     unlock: (s) => (s.meta.completedAchievements?.length ?? 0) > 0 || s.meta.aiUnlocked,
   },
   {

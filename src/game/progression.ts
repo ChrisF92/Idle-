@@ -864,7 +864,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Shield, then Hull',
     body: [
       'Incoming fire eats Shield first, then Hull.',
-      'Extract to keep the run. Hull lost docks you — you relaunch from Dock.',
+      'Advance keeps pushing sectors. Hold sector or Hold wave to farm. Hull lost docks you — you relaunch from Dock.',
     ],
     target: 'sortie-hull',
     tab: 'combat',
@@ -881,7 +881,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Wrecks drop Salvage',
     body: [
       'Kills add Salvage here. Spend it on Pulse (gun) and Plate (shield) on the Cores sheet below.',
-      'You can rank Cores during the fight. Extract keeps those levels.',
+      'You can rank Cores during the fight. Levels stay until Rebuild.',
     ],
     target: 'salvage-stat',
     tab: 'combat',
@@ -984,9 +984,9 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-cores-persist',
-    title: 'What Extract keeps',
+    title: 'What the loadout keeps',
     body: [
-      'Extract keeps Core levels and Salvage. Hull lost still keeps them — you just dock and relaunch.',
+      'Core levels and Salvage stay after hull loss — you just dock and relaunch.',
       'Rebuild wipes Salvage and Core levels so you can swap the hull. That is later, from Dock.',
     ],
     target: 'cores-sheet',
@@ -1200,7 +1200,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Rebuild is ready',
     body: [
       'Open Dock. You reached sector 4 — Rebuild hangar can swap hull and Cores for Rebuild Matter.',
-      'Extract keeps this loadout. Rebuild is the swap, not a game-over.',
+      'The live loadout stays until you Rebuild. Rebuild is the swap, not a game-over.',
     ],
     target: 'dock-tab',
     tab: 'dock',
@@ -1541,7 +1541,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Salvage',
     body: [
       'Sorties keep dropping Salvage. Spend it on the Cores sheet anytime to raise run levels.',
-      'Extract keeps those levels. Rebuild wipes them so you can swap the loadout. Tap a Core name for every stat.',
+      'Hull lost keeps those levels. Rebuild wipes them so you can swap the loadout. Tap a Core name for every stat.',
     ],
     target: 'salvage-stat',
     tab: 'combat',

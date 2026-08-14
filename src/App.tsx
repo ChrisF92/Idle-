@@ -163,13 +163,10 @@ export default function App() {
         {tab === 'combat' && (
           <CombatTab
             state={game.state}
-            onExtract={() => {
-              game.setDocked(true)
-              go('dock')
-            }}
             onLaunch={() => {
               game.setDocked(false)
             }}
+            onSetPushMode={game.setPushMode}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
             paused={Boolean(guide)}
@@ -189,6 +186,7 @@ export default function App() {
             onBuyUpgrade={game.buyFoundryUpgrade}
             onEquip={game.equipFoundryModule}
             onUnequip={game.unequipFoundryModule}
+            onAssemble={game.assembleBlueprint}
           />
         )}
         {tab === 'reliquary' && (

@@ -53,7 +53,7 @@ export function DockTab({
           {routeB ? combat.route === 'B' ? 'B' : 'A' : ''}
         </p>
         <h2>Dock</h2>
-        <p className="muted">Launch to rank Cores. Assign drones on Network.</p>
+        <p className="muted">Launch to rank Cores. Combat stays live until hull loss. Hold or Advance from Sortie.</p>
       </header>
 
       <div className="stat-row dock-stats">
@@ -137,7 +137,7 @@ export function DockTab({
       {summary.outcome ? (
         <div className="dock-summary">
           <p className="dock-summary-title">
-            {summary.outcome === 'defeat' ? 'Defeat' : 'Extract'} · S{summary.sector} W
+            {summary.outcome === 'defeat' ? 'Defeat' : 'Run'} · S{summary.sector} W
             {summary.wave}
           </p>
           <div className="stat-row dock-stats">

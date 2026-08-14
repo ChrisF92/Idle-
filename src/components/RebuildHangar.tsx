@@ -41,6 +41,11 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
       SHIP_MODULES.filter((m) => m.role === 'defense' && state.shipyard.unlockedModules.includes(m.id)),
     [state.shipyard.unlockedModules],
   )
+  const utilities = useMemo(
+    () =>
+      SHIP_MODULES.filter((m) => m.role === 'utility' && state.shipyard.unlockedModules.includes(m.id)),
+    [state.shipyard.unlockedModules],
+  )
 
   function toggle(id: string) {
     const def = getModule(id)
@@ -128,6 +133,24 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
                 {m.name}
               </button>
             ))}
+          </div>
+
+          <h4>Utility</h4>
+          <div className="hangar-picks">
+            {utilities.length === 0 ? (
+              <p className="muted">Print a utility Core in the Foundry, then Rebuild to fit it.</p>
+            ) : (
+              utilities.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={modules.includes(m.id) ? 'primary' : undefined}
+                  onClick={() => toggle(m.id)}
+                >
+                  {m.name}
+                </button>
+              ))
+            )}
           </div>
         </div>
 

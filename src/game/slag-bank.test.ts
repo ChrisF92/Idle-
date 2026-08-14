@@ -7,7 +7,7 @@ import { GUIDE_STEPS, isSystemUnlocked } from './progression'
 
 describe('Slag Bank', () => {
   it('keeps save version 31', () => {
-    expect(SAVE_VERSION).toBe(31)
+    expect(SAVE_VERSION).toBe(32)
   })
 
   it('unlocks with the first Rebuild, same door as Yard', () => {

@@ -25,8 +25,8 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'auto-extract',
-    name: 'Safe Extract',
-    blurb: 'After a sector boss, Extract if hull is under 35%.',
+    name: 'Safe Hold',
+    blurb: 'After a sector boss, Hold this sector if hull is under 35%.',
     cost: 3,
     requiresId: 'auto-salvage',
   },

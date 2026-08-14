@@ -572,7 +572,7 @@ h2 .inspect-name {
 }
 
 .sortie-canvas {
-  flex: 1 1 46%;
+  flex: 1 1 54%;
   min-height: 0;
   display: flex;
   position: relative;
@@ -655,6 +655,11 @@ h2 .inspect-name {
   flex: 0 0 auto;
   display: grid;
   padding: 0.4rem 0.65rem 0.5rem;
+}
+
+.sortie-push-tabs {
+  width: 100%;
+  margin: 0;
 }
 
 .sortie-actions button {

@@ -24,27 +24,24 @@ describe('sector gauntlets', () => {
 })
 
 describe('hub vs sortie', () => {
-  it('starts extracted at the dock', () => {
+  it('starts docked at the hangar', () => {
     const s = createInitialState(0)
     expect(s.version).toBe(SAVE_VERSION)
     expect(s.combat.docked).toBe(true)
     expect(s.combat.inFight).toBe(false)
+    expect(s.combat.pushMode).toBe('advance')
     expect(s.shipyard.modules).toContain('pulse-cannon')
     expect(s.shipyard.modules).toContain('plate-layer')
   })
 
-  it('launch starts combat; extract freezes without resetting the wave', () => {
+  it('launch starts combat and keeps the wave while live', () => {
     let s = createInitialState(0)
     s = setDocked(s, false)
     expect(s.combat.docked).toBe(false)
     s = startCombat(s)
     expect(s.combat.inFight).toBe(true)
     expect(s.combat.wave).toBe(1)
-    s = setDocked(s, true)
-    expect(s.combat.docked).toBe(true)
-    expect(s.combat.inFight).toBe(false)
-    expect(s.combat.wave).toBe(1)
-    expect(s.combat.lastSortie.outcome).toBe('extract')
+    expect(s.combat.pushMode).toBe('advance')
   })
 
   it('keeps ticking combat while undocked (hub can stay open)', () => {
@@ -80,7 +77,7 @@ describe('hub vs sortie', () => {
     expect(s.combat.lastSortie.outcome).toBe('defeat')
   })
 
-  it('salvage core levels persist across extract', () => {
+  it('salvage core levels persist across a live sortie', () => {
     let s = createInitialState(0)
     s.shipyard.moduleLevels['pulse-cannon'] = 3
     s.resources.salvage = 40

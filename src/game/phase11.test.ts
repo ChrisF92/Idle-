@@ -14,10 +14,10 @@ import { YARD_BUILDINGS } from './yard'
 
 describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
   it('bumps save to 31', () => {
-    expect(SAVE_VERSION).toBe(31)
+    expect(SAVE_VERSION).toBe(32)
   })
 
-  it('records Extract salvage, spend, and sectors on the Dock summary', () => {
+  it('records Defeat salvage, spend, and sectors on the Dock summary', () => {
     let s = createInitialState(0)
     s.resources.salvage = 40
     s = setDocked(s, false)
@@ -25,12 +25,16 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     const spent = 40 - s.resources.salvage
     expect(spent).toBeGreaterThan(0)
     s = clearSector(s)
-    s = setDocked(s, true)
-    expect(s.combat.lastSortie.outcome).toBe('extract')
+    const flag = s.combat.playerUnits.find((u) => u.isFlagship)
+    if (flag) flag.hull = 0
+    s.combat.playerHull = 0
+    advanceSeconds(s, 2)
+    expect(s.combat.lastSortie.outcome).toBe('defeat')
     expect(s.combat.lastSortie.sectorsCleared).toBeGreaterThanOrEqual(1)
     expect(s.combat.lastSortie.salvageSpent).toBe(spent)
     expect(s.combat.lastSortie.salvageGained).toBeGreaterThan(0)
     expect(s.combat.sortieMark).toBeNull()
+    expect(s.combat.docked).toBe(true)
   })
 
   it('unlocks story logs with doors and the first wreck', () => {

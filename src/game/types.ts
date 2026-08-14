@@ -115,6 +115,9 @@ export interface HiveResearchState {
 
 export type SectorRoute = 'A' | 'B'
 
+/** Sortie push: Advance sectors, Hold the whole sector, or Hold this wave. */
+export type CombatPushMode = 'advance' | 'hold-sector' | 'hold-wave'
+
 export type YardGoodId = 'ore' | 'flux' | 'ingot'
 export type YardBuildingId = 'slag-heap' | 'flux-still' | 'ingot-press' | 'choir-sieve'
 export type YardArmId = 'damage' | 'shield' | 'salvage' | 'network'
@@ -463,6 +466,11 @@ export interface CombatState {
    * Pausing resets the current sector to wave 1. AI never toggles this.
    */
   docked: boolean
+  /**
+   * Advance / Hold-sector / Hold-wave. Combat stays live until hull loss.
+   * `campaign` stays in sync: true iff pushMode === 'advance'.
+   */
+  pushMode: CombatPushMode
   /**
    * Advance mode: after a clear, push to the next sector.
    * Hold mode: farm the current sector repeatedly (same rewards, no sector++).

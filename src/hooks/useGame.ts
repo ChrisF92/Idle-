@@ -1,11 +1,12 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import type { GameState, LaborProfile, PartType } from '../game/types'
+import type { GameState, LaborProfile, PartType, CombatPushMode } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import {
   tickGame,
   startCombat,
   resetGame,
   setCampaign,
+  setPushMode,
   setDocked,
   warpToSector,
 } from '../game/tick'
@@ -35,6 +36,7 @@ import {
   selectFrame,
   sellPart,
   setFoundrySlot,
+  assembleBlueprint,
   setLaborProfile,
   setNumberNotation,
   startFabProject,
@@ -80,6 +82,7 @@ type Action =
   | { type: 'tick'; now: number; paused?: boolean }
   | { type: 'engage' }
   | { type: 'set-campaign'; on: boolean }
+  | { type: 'set-push-mode'; mode: CombatPushMode }
   | { type: 'set-docked'; docked: boolean }
   | { type: 'warp'; sector: number }
   | { type: 'assign-worker'; stationId: string; delta: number }
@@ -131,6 +134,7 @@ type Action =
   | { type: 'foundry-upgrade'; upgradeId: string }
   | { type: 'foundry-equip'; moduleId: string }
   | { type: 'foundry-unequip'; moduleId: string }
+  | { type: 'assemble-blueprint'; moduleId: string }
   | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
   | { type: 'reliquary-insert'; shardId: string }
   | { type: 'reliquary-remove'; color: import('../game/types').ReliquaryColor }
@@ -162,6 +166,8 @@ function reducer(state: GameState, action: Action): GameState {
       return startCombat(state)
     case 'set-campaign':
       return setCampaign(state, action.on)
+    case 'set-push-mode':
+      return setPushMode(state, action.mode)
     case 'set-docked':
       return setDocked(state, action.docked)
     case 'warp':
@@ -255,6 +261,8 @@ function reducer(state: GameState, action: Action): GameState {
       return equipFoundryModule(state, action.moduleId)
     case 'foundry-unequip':
       return unequipFoundryModule(state, action.moduleId)
+    case 'assemble-blueprint':
+      return assembleBlueprint(state, action.moduleId)
     case 'number-notation':
       return setNumberNotation(state, action.mode)
     case 'reliquary-insert':
@@ -335,6 +343,7 @@ export function useGame() {
     dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),
     setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
+    setPushMode: (mode: CombatPushMode) => dispatch({ type: 'set-push-mode', mode }),
     setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
     warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
     assignWorker: (stationId: string, delta: number) =>
@@ -402,6 +411,8 @@ export function useGame() {
       dispatch({ type: 'foundry-equip', moduleId }),
     unequipFoundryModule: (moduleId: string) =>
       dispatch({ type: 'foundry-unequip', moduleId }),
+    assembleBlueprint: (moduleId: string) =>
+      dispatch({ type: 'assemble-blueprint', moduleId }),
     setNumberNotation: (mode: 'engineering' | 'scientific') =>
       dispatch({ type: 'number-notation', mode }),
     insertShard: (shardId: string) => dispatch({ type: 'reliquary-insert', shardId }),

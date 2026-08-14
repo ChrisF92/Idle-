@@ -18,6 +18,7 @@ import {
   effectiveMaxClears,
   getAiNode,
   getBlueprint,
+  blueprintProgress,
   getChallenge,
   getChallengeShopItem,
   getEssenceUpgrade,
@@ -33,9 +34,11 @@ import {
   filterModulesForChallenge,
   idleWorkers,
   isBlueprintComplete,
+  isCorePrintUnlocked,
   isModuleBlockedByChallenge,
   moduleLevel,
   moduleMasteryRank,
+  modulePrintSector,
   moduleUpgradeCost,
   parsePartId,
   partId,
@@ -109,6 +112,7 @@ import { buildPlayerFleet } from './combat'
 import {
   ACT1_FINAL_SECTOR,
   careerHighestSector,
+  isSystemUnlocked,
   retirePostResetOnboarding,
   tryCompleteAchievements,
 } from './progression'
@@ -668,6 +672,54 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
   return next
 }
 
+export function canAssembleBlueprint(
+  state: GameState,
+  moduleId: string,
+): { ok: boolean; reason?: string } {
+  if (!isFarmableModule(moduleId)) return { ok: false, reason: 'Not a Core print' }
+  if (!isSystemUnlocked(state, 'foundry')) return { ok: false, reason: 'Foundry closed' }
+  if (state.shipyard.unlockedModules.includes(moduleId)) return { ok: false, reason: 'Already printed' }
+  if (!isCorePrintUnlocked(state, moduleId)) {
+    return { ok: false, reason: `Clear sector ${modulePrintSector(moduleId)}` }
+  }
+  const recipe = getBlueprint(moduleId)
+  if (!recipe) return { ok: false, reason: 'Unknown print' }
+  const progress = blueprintProgress(state, moduleId)
+  if (!progress?.complete) return { ok: false, reason: 'Need more fragments' }
+  return { ok: true }
+}
+
+/** Consume farmed fragments and unlock the Core permanently. Farming is the time sink. */
+export function assembleBlueprint(state: GameState, moduleId: string): GameState {
+  const check = canAssembleBlueprint(state, moduleId)
+  if (!check.ok) return state
+  const recipe = getBlueprint(moduleId)
+  if (!recipe) return state
+  const next = structuredClone(state)
+  for (const pt of PART_TYPES) {
+    const need = recipe[pt]
+    const id = partId(moduleId, pt)
+    const have = next.parts[id] ?? 0
+    if (have < need) return state
+    next.parts[id] = have - need
+    if (next.parts[id] <= 0) delete next.parts[id]
+  }
+  if (!next.shipyard.unlockedModules.includes(moduleId)) {
+    next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
+  }
+  if (!next.meta.discoveredModules.includes(moduleId)) {
+    next.meta.discoveredModules = [...next.meta.discoveredModules, moduleId]
+  }
+  next.meta.lifetimeFabCrafts = (next.meta.lifetimeFabCrafts ?? 0) + 1
+  const name = getModule(moduleId)?.name ?? moduleId
+  next.combat.log = [`Core printed: ${name}. Fit it on the next Rebuild.`, ...next.combat.log].slice(
+    0,
+    40,
+  )
+  tryCompleteAchievements(next)
+  return next
+}
+
 export function startFabProject(state: GameState, moduleId: string): GameState {
   if (!isFarmableModule(moduleId)) return state
   if (!getBlueprint(moduleId)) return state
@@ -1108,6 +1160,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.combat = {
     ...fresh.combat,
     campaign: true,
+    pushMode: 'advance',
     docked: true,
     wave: 1,
     log: [

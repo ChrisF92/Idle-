@@ -1,6 +1,22 @@
 /** Sector length as a short wave gauntlet + boss. Replaces USI’s distance bar. */
 
-import type { SectorRoute } from './types'
+import type { CombatPushMode, SectorRoute } from './types'
+
+export const COMBAT_PUSH_MODES: CombatPushMode[] = ['advance', 'hold-sector', 'hold-wave']
+
+export function normalizePushMode(
+  raw: string | undefined | null,
+  campaign?: boolean,
+): CombatPushMode {
+  if (raw === 'advance' || raw === 'hold-sector' || raw === 'hold-wave') return raw
+  return campaign === false ? 'hold-sector' : 'advance'
+}
+
+export function pushModeLabel(mode: CombatPushMode): string {
+  if (mode === 'hold-wave') return 'Hold wave'
+  if (mode === 'hold-sector') return 'Hold sector'
+  return 'Advance'
+}
 
 /** Trash/mixed waves before the sector boss. */
 export function trashWavesForSector(sector: number): number {

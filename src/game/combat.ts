@@ -21,7 +21,6 @@ import {
   essenceBonusDataPerClear,
   getEnemyDropTable,
   getModule,
-  isStationUnlocked,
   matterShopDataPerClear,
   matterShopDropBonus,
   matterShopRepairMult,
@@ -279,7 +278,7 @@ function makeEnemyUnit(opts: {
 
 function packY(index: number, count: number): number {
   if (count <= 1) return 0
-  const spread = Math.min(70, 18 * (count - 1))
+  const spread = Math.min(110, 28 * (count - 1))
   return -spread / 2 + (spread / Math.max(1, count - 1)) * index
 }
 
@@ -1648,8 +1647,8 @@ export function rollEnemyPartDrop(
   unit: Pick<CombatUnit, 'family' | 'isBoss' | 'name'>,
   rng: () => number = Math.random,
 ): PartDropResult[] {
-  // Keep early scrap sinks (frames / Plate) meaningful — no free part→scrap before Foundry.
-  if (!isStationUnlocked(state, 'alloy-foundry')) return []
+  // Keep early scrap sinks meaningful — no Core prints until the Foundry door.
+  if (!isSystemUnlocked(state, 'foundry')) return []
 
   const table = getEnemyDropTable(unit.family)
   if (!table) return []

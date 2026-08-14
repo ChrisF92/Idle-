@@ -266,7 +266,7 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   const body = [def.description]
   if (def.weapon) body.push(deliveryLine(def.weapon.delivery))
   body.push(
-    'Spend Salvage during a sortie to level this Core. Extract keeps the levels. Rebuild wipes them so you can swap the loadout.',
+    'Spend Salvage during a sortie to level this Core. Levels persist until Rebuild, including across hull loss. Rebuild wipes them so you can swap the loadout.',
   )
   if (milestones.length > 0) {
     body.push('Every ten levels you pick one of two nodes. Those picks wipe with the Core on Rebuild.')

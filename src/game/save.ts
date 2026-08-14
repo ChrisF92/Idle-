@@ -45,7 +45,7 @@ import { createEmptyProcessState } from './process'
 import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
-import { normalizeRoute } from './sectors'
+import { normalizePushMode, normalizeRoute } from './sectors'
 
 export function saveGame(state: GameState): void {
   try {
@@ -106,7 +106,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     isBoss: combat.isBoss ?? false,
     highestSector: Math.max(0, combat.highestSector ?? 0),
     wave: Math.max(1, combat.wave ?? 1),
-    campaign: combat.campaign ?? true,
+    campaign: normalizePushMode(combat.pushMode, combat.campaign ?? true) === 'advance',
+    pushMode: normalizePushMode(combat.pushMode, combat.campaign ?? true),
     route: normalizeRoute(combat.route),
     docked: combat.docked ?? false,
     consecutiveLosses: combat.consecutiveLosses ?? 0,

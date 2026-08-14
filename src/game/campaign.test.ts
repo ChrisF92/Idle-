@@ -4,6 +4,7 @@ import {
   advanceTicks,
   setCampaign,
   setDocked,
+  setPushMode,
   startCombat,
   warpToSector,
 } from './tick'
@@ -15,7 +16,7 @@ import {
   selectFrame,
   unlockFrame,
 } from './actions'
-import { clearSector } from './testHelpers'
+import { clearCurrentWave, clearSector } from './testHelpers'
 
 describe('campaign combat', () => {
   it('Hold farms the same sector after a clear', () => {
@@ -101,31 +102,33 @@ describe('campaign combat', () => {
     expect(state.combat.highestSector).toBe(0)
   })
 
-  it('Extract freezes combat and keeps wave progress', () => {
+  it('Hold wave repeats the same wave after a clear', () => {
+    let state = createInitialState(0)
+    state = setPushMode(state, 'hold-wave')
+    state = startCombat(state)
+    expect(state.combat.sector).toBe(1)
+    expect(state.combat.wave).toBe(1)
+    const scrapBefore = state.resources.scrap
+    state = clearCurrentWave(state)
+    expect(state.combat.sector).toBe(1)
+    expect(state.combat.wave).toBe(1)
+    expect(state.combat.highestSector).toBe(0)
+    expect(state.resources.scrap).toBeGreaterThan(scrapBefore)
+    expect(state.combat.inFight).toBe(true)
+  })
+
+  it('Launch stays live until hull loss — docking is not an Extract door', () => {
     let state = createInitialState(0)
     expect(state.combat.docked).toBe(true)
+    expect(state.combat.pushMode).toBe('advance')
     state = setDocked(state, false)
     advanceTicks(state, 1)
     expect(state.combat.inFight).toBe(true)
-    expect(state.shipyard.frameLocked).toBe(true)
-
-    for (const e of state.combat.enemyUnits) e.hull = 0
-    advanceTicks(state, 1)
-    expect(state.combat.wave).toBeGreaterThan(1)
-    const wave = state.combat.wave
-
-    state = setDocked(state, true)
-    expect(state.combat.docked).toBe(true)
-    expect(state.combat.inFight).toBe(false)
-    expect(state.combat.wave).toBe(wave)
-    advanceTicks(state, 2)
-    expect(state.combat.inFight).toBe(false)
-
-    state = setDocked(state, false)
-    advanceTicks(state, 1)
     expect(state.combat.docked).toBe(false)
-    expect(state.combat.inFight).toBe(true)
-    expect(state.combat.wave).toBe(wave)
+    const wave = state.combat.wave
+    advanceTicks(state, 2)
+    expect(state.combat.docked).toBe(false)
+    expect(state.combat.wave).toBeGreaterThanOrEqual(wave)
   })
 
   it('chains waves with no intermission', () => {

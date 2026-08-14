@@ -172,13 +172,13 @@ interface Scene {
 
 /** Portrait logical canvas — phone-first, USI-style bottom ship / incoming waves. */
 const VIEW_W = 360
-const VIEW_H = 480
+const VIEW_H = 520
 /** Player flagship sits bottom-center. Enemies close in from the far side (top). */
 const PLAYER_SCREEN_X = VIEW_W / 2
-const PLAYER_SCREEN_Y = VIEW_H - 72
-const LANE_SCALE = (PLAYER_SCREEN_Y - 36) / SPAWN_DISTANCE
-/** Lateral spread from sim y (±~70). */
-const Y_SCALE = 1.1
+const PLAYER_SCREEN_Y = VIEW_H - 64
+const LANE_SCALE = (PLAYER_SCREEN_Y - 28) / SPAWN_DISTANCE
+/** Lateral spread from sim y (±~110). */
+const Y_SCALE = 1.45
 
 function tagColor(tag: string): string {
   switch (tag) {
@@ -1066,6 +1066,29 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.moveTo(PLAYER_SCREEN_X, 28)
   ctx.lineTo(PLAYER_SCREEN_X, scene.height - 64)
   ctx.stroke()
+
+  // Foundry clamp plate under the hull — industrial floor, not empty stars.
+  const dockY = PLAYER_SCREEN_Y + 18
+  const plate = ctx.createRadialGradient(PLAYER_SCREEN_X, dockY, 8, PLAYER_SCREEN_X, dockY, 92)
+  plate.addColorStop(0, 'rgba(224, 138, 58, 0.22)')
+  plate.addColorStop(0.45, 'rgba(61, 143, 136, 0.08)')
+  plate.addColorStop(1, 'rgba(18, 14, 12, 0)')
+  ctx.fillStyle = plate
+  ctx.beginPath()
+  ctx.ellipse(PLAYER_SCREEN_X, dockY, 86, 22, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(224, 138, 58, 0.28)'
+  ctx.lineWidth = 1.2
+  ctx.beginPath()
+  ctx.ellipse(PLAYER_SCREEN_X, dockY, 70, 16, 0, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.strokeStyle = 'rgba(224, 138, 58, 0.45)'
+  ctx.beginPath()
+  ctx.moveTo(PLAYER_SCREEN_X - 38, dockY)
+  ctx.lineTo(PLAYER_SCREEN_X - 22, dockY + 10)
+  ctx.moveTo(PLAYER_SCREEN_X + 38, dockY)
+  ctx.lineTo(PLAYER_SCREEN_X + 22, dockY + 10)
+  ctx.stroke()
 }
 
 function stepScene(scene: Scene, dt: number): void {
@@ -1741,7 +1764,7 @@ export function Battlefield({
         canvas.width = needW
         canvas.height = needH
       }
-      const scale = Math.min(cssW / VIEW_W, cssH / VIEW_H)
+      const scale = Math.max(cssW / VIEW_W, cssH / VIEW_H)
       const ox = (cssW - VIEW_W * scale) / 2
       const oy = (cssH - VIEW_H * scale) / 2
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
