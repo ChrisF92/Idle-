@@ -1073,15 +1073,16 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const bonusSalvage = challengeShopStartingSalvage(kept.shop)
   /**
    * USI-style acceleration: returning kits grow with prestige count so each
-   * re-push starts faster (salvage / industry kick sooner). Data kit is smaller
-   * now that research persists.
+   * re-push starts faster (salvage / industry kick sooner). First Rebuild
+   * salvage covers Pulse L1 + Plate L1 + a second Plate so the Scout is not
+   * salvage-starved on the recover. Data kit is smaller now that research persists.
    */
   const returning = kept.prestigeCount > 0 || (kept.meta.ascensionCount ?? 0) > 0
   const pc = kept.prestigeCount
   const ac = kept.meta.ascensionCount ?? 0
-  const returnScrap = returning ? 10 + Math.min(50, pc * 6 + ac * 8) : 0
-  const returnData = returning ? Math.min(12, 2 + pc + ac * 2) : 0
-  const returnSalvage = returning ? 6 + Math.min(30, pc * 3 + ac * 4) : 0
+  const returnScrap = returning ? 16 + Math.min(56, pc * 8 + ac * 10) : 0
+  const returnData = returning ? Math.min(14, 3 + pc + ac * 2) : 0
+  const returnSalvage = returning ? 14 + Math.min(40, pc * 5 + ac * 6) : 0
 
   state.version = fresh.version
   state.lastTickAt = now

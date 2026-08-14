@@ -3,13 +3,17 @@ import type { TargetResult } from './types'
 import { formatSimDuration } from './format'
 
 /**
- * Targets taken from existing design intent in balance-estimate.test.ts,
- * progression constants, and comments — not invented curves.
+ * Targets taken from USI career doors (docs/usi-reskin-plan.md) and
+ * existing design intent in balance-estimate.test.ts.
  *
- * balance-estimate.test.ts:
+ * USI analogue: first sitting unfolds Foundry→Research (S2–7); first
+ * Rebuild when swapping Cores (~S4–12); Challenges 18; Warp/Echo 22;
+ * first real slowdown around S20–23. Act 1 in Hiveworks is sector 30.
+ *
+ * balance-estimate.test.ts still pins theoretical floors:
  * - First push to prestige min (S4) combat time: 2–70 minutes
  * - Fresh → S30 without Rebuild is expected to wall
- * - Career to S30: ≥6 Rebuilds, ≥2h combat, casual calendar 3–21 days
+ * - Career to S30: several Rebuilds, hours of combat, casual calendar days
  */
 export interface BalanceTarget {
   id: string

@@ -333,24 +333,73 @@ export function enemyForSector(
 }
 
 /**
+ * Piecewise enemy scaling aligned with USI career doors.
+ *
+ * S1–S8 keep the original exponents so the tutorial still teaches Plate
+ * (S1 chips L0 shield; S8 without Plate levels fails a full sector).
+ * S9–S18 grow slower so S11/S15 are bumps, not 50–200× death cliffs —
+ * USI's first real slowdown is the Challenges/Warp band (~18–23).
+ * S19+ steepens again toward that band. S15 hull stays ≥10× S1.
+ */
+export const ENEMY_EARLY_SECTOR = 8
+export const ENEMY_MID_SECTOR = 18
+
+const ENEMY_HULL_BASE = 1.55
+const ENEMY_HULL_EARLY = 1.235
+const ENEMY_HULL_MID = 1.18
+const ENEMY_HULL_LATE = 1.22
+
+const ENEMY_DMG_BASE = 0.9
+const ENEMY_DMG_EARLY = 1.28
+const ENEMY_DMG_MID = 1.155
+const ENEMY_DMG_LATE = 1.245
+
+function piecewiseSectorScale(
+  sector: number,
+  base: number,
+  earlyGrowth: number,
+  midGrowth: number,
+  lateGrowth: number,
+): number {
+  const s = Math.max(1, sector)
+  const atEarlyCap = base * Math.pow(earlyGrowth, ENEMY_EARLY_SECTOR - 1)
+  if (s <= ENEMY_EARLY_SECTOR) return base * Math.pow(earlyGrowth, s - 1)
+  const atMidCap = atEarlyCap * Math.pow(midGrowth, ENEMY_MID_SECTOR - ENEMY_EARLY_SECTOR)
+  if (s <= ENEMY_MID_SECTOR) return atEarlyCap * Math.pow(midGrowth, s - ENEMY_EARLY_SECTOR)
+  return atMidCap * Math.pow(lateGrowth, s - ENEMY_MID_SECTOR)
+}
+
+/**
  * Enemy hull scale vs sector.
  * S1 mites stay 2-shot by L0 Pulse (12 × 1.55 = 18.6 HP vs 10 dmg).
  * Later sectors thicken so Pulse dumps cannot delete a pack during the close —
  * they have to live long enough to fire, which is what makes Plate matter.
  */
 export function enemySectorScale(sector: number): number {
-  const s = Math.max(1, sector)
-  return 1.55 * Math.pow(1.235, s - 1)
+  return piecewiseSectorScale(
+    sector,
+    ENEMY_HULL_BASE,
+    ENEMY_HULL_EARLY,
+    ENEMY_HULL_MID,
+    ENEMY_HULL_LATE,
+  )
 }
 
 /**
  * Enemy damage scale. S1 packs must chip L0 Plate; the first boss must
  * land shots inside the regen delay so hull actually sees damage.
- * S8 without Plate levels should fail a full sector; S15 is a wall.
+ * S8 without Plate levels should fail a full sector. After that, damage
+ * no longer outruns hull (the old 1.28 vs 1.235 curve), so TTK grows
+ * instead of bricking the run at S11/S15.
  */
 export function enemyDamageScale(sector: number): number {
-  const s = Math.max(1, sector)
-  return 0.9 * Math.pow(1.28, s - 1)
+  return piecewiseSectorScale(
+    sector,
+    ENEMY_DMG_BASE,
+    ENEMY_DMG_EARLY,
+    ENEMY_DMG_MID,
+    ENEMY_DMG_LATE,
+  )
 }
 
 /**

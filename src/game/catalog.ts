@@ -2198,8 +2198,8 @@ function matterRankGateReason(
     }
   }
   if (nextRank >= 4) {
-    if (state.prestige.prestigeCount < 2 && state.meta.highestSectorEver < 20) {
-      return 'Need 2 Rebuilds or sector 20 career for rank 4+'
+    if (state.prestige.prestigeCount < 1 && state.meta.highestSectorEver < 12) {
+      return 'Need 1 Rebuild or sector 12 career for rank 4+'
     }
   }
   return null
@@ -2646,13 +2646,14 @@ export function metaProductionMultiplier(
 
 /**
  * Soft USI-style run acceleration from career prestiges / ascensions.
+ * Each Rebuild should feel like a USI core-swap recover, not a dead zone.
  * Caps keep late-game from exploding; shops remain the main sink.
  */
 export function prestigeMomentumDamageBonus(
   prestigeCount: number,
   ascensionCount: number,
 ): number {
-  const fromPrestige = Math.min(0.4, Math.max(0, prestigeCount) * 0.025)
+  const fromPrestige = Math.min(0.5, Math.max(0, prestigeCount) * 0.04)
   const fromAscension = Math.min(0.5, Math.max(0, ascensionCount) * 0.08)
   return fromPrestige + fromAscension
 }
@@ -2661,7 +2662,7 @@ export function prestigeMomentumProductionBonus(
   prestigeCount: number,
   ascensionCount: number,
 ): number {
-  const fromPrestige = Math.min(0.35, Math.max(0, prestigeCount) * 0.02)
+  const fromPrestige = Math.min(0.42, Math.max(0, prestigeCount) * 0.03)
   const fromAscension = Math.min(0.4, Math.max(0, ascensionCount) * 0.06)
   return fromPrestige + fromAscension
 }

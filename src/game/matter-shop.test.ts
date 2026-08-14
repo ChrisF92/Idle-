@@ -124,16 +124,16 @@ describe('prestige matter shop', () => {
     )
   })
 
-  it('gates rank 4+ without prestige/sector progress', () => {
+  it('gates rank 4+ without a Rebuild or sector 12 career', () => {
     let state = createInitialState(0)
     state.prestige.matterShop = { 'matter-blade': 3 }
     state.resources.prestigeMatter = 100
-    state.prestige.prestigeCount = 1
+    state.prestige.prestigeCount = 0
     state.meta.highestSectorEver = 10
     const check = canBuyMatterShop(state, 'matter-blade')
     expect(check.ok).toBe(false)
     expect(check.reason).toMatch(/rank 4/)
-    state.prestige.prestigeCount = 2
+    state.prestige.prestigeCount = 1
     expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(true)
   })
 
