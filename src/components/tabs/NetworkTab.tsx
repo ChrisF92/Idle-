@@ -1,19 +1,22 @@
-import type { GameState } from '../../game/types'
+import type { GameState, NetworkLinkId } from '../../game/types'
 import {
   droneCap,
+  dronePower,
   idleWorkers,
   WORKER_MANUFACTURE_SECONDS,
   workerManufactureSpeed,
 } from '../../game/catalog'
-import { networkManufactureMult } from '../../game/network'
+import { networkLinkPower, networkManufactureMult } from '../../game/network'
+import { formatCompact } from '../../game/format'
 import { NetworkSheet } from '../NetworkSheet'
 
 interface NetworkTabProps {
   state: GameState
   onAssign: (barId: string, delta: number) => void
+  onBuyLink: (id: NetworkLinkId) => void
 }
 
-export function NetworkTab({ state, onAssign }: NetworkTabProps) {
+export function NetworkTab({ state, onAssign, onBuyLink }: NetworkTabProps) {
   const cap = droneCap(state)
   const idle = idleWorkers(state)
   const atCap = state.base.workerDrones >= cap
@@ -22,15 +25,18 @@ export function NetworkTab({ state, onAssign }: NetworkTabProps) {
     atCap || speed <= 0
       ? null
       : ((1 - state.base.manufactureProgress) * WORKER_MANUFACTURE_SECONDS) / speed
+  const link = networkLinkPower(state)
+  const efficiency = dronePower(state)
 
   return (
     <section className="panel screen-panel">
       <header className="panel-header">
         <h2>Network</h2>
         <p>
-          Drones fill bars — they never fly on Sortie. {state.base.workerDrones}/{cap}
+          Link power {formatCompact(link, 2)} · efficiency ×{efficiency.toFixed(2)}. Corps{' '}
+          {state.base.workerDrones}/{cap}
           {idle ? ` · ${idle} idle` : ''}
-          {atCap ? ' · cap' : eta != null ? ` · next ${Math.ceil(eta)}s` : ''}
+          {atCap ? ' · cap' : eta != null ? ` · next drone ${Math.ceil(eta)}s` : ''}
         </p>
       </header>
       <div className="manufacture-bar network-manufacture" aria-hidden>
@@ -40,7 +46,7 @@ export function NetworkTab({ state, onAssign }: NetworkTabProps) {
         />
       </div>
       <div className="panel-scroll">
-        <NetworkSheet state={state} onAssign={onAssign} />
+        <NetworkSheet state={state} onAssign={onAssign} onBuyLink={onBuyLink} />
       </div>
     </section>
   )

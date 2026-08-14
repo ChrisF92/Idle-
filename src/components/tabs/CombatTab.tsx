@@ -130,7 +130,9 @@ export function CombatTab({
       </div>
 
       <div className="sortie-sheet">
-        <p className="sortie-sheet-kicker">Cores · Salvage ranks these. Drones live on Network.</p>
+        <p className="sortie-sheet-kicker">
+          Cores · tap a name for the full sheet. Salvage ranks these. Drones live on Network.
+        </p>
         <CoreSheet
           state={state}
           compact

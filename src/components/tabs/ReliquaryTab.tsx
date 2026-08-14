@@ -13,6 +13,8 @@ import {
   shardEffectBlurb,
 } from '../../game/reliquary'
 import { formatCompact } from '../../game/format'
+import { inspectReliquarySlot, inspectShard } from '../../game/inspect'
+import { InspectName } from '../InspectName'
 
 interface ReliquaryTabProps {
   state: GameState
@@ -56,7 +58,7 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
                 className={unlocked ? `network-row slot-${slot.color}` : 'network-row locked'}
               >
                 <div className="network-row-main">
-                  <strong>{slot.name}</strong>
+                  <InspectName name={slot.name} card={inspectReliquarySlot(state, slot.color)} />
                   <span className="muted">
                     {unlocked
                       ? fittedDef
@@ -116,7 +118,7 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
             return (
               <article key={shard.id} className={gated ? 'network-row locked' : 'network-row'}>
                 <div className="network-row-main">
-                  <strong>{shard.name}</strong>
+                  <InspectName name={shard.name} card={inspectShard(state, shard.id)} />
                   <span className="muted">
                     {shard.color}
                     {shard.requiresSectorEver ? ` · S${shard.requiresSectorEver}` : ''}

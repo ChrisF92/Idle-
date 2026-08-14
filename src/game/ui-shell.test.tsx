@@ -24,7 +24,7 @@ describe('shell UX', () => {
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
-    expect(screen.getByText(/Cores · Salvage ranks these/i)).toBeTruthy()
+    expect(screen.getByText(/Salvage ranks these/i)).toBeTruthy()
     expect(screen.getByText(/Drones live on Network/i)).toBeTruthy()
   })
 

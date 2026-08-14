@@ -72,7 +72,7 @@ export const SHARDS: ShardDef[] = [
   },
   {
     id: 'compute-chip',
-    name: 'Compute Chip',
+    name: 'Link Chip',
     color: 'pink',
     blurb: 'Network bars fill faster.',
     networkFill: 0.1,
@@ -285,7 +285,7 @@ export function shardEffectBlurb(def: ShardDef): string {
   if (def.damage) bits.push(`+${Math.round(def.damage * 100)}% damage`)
   if (def.shield) bits.push(`+${Math.round(def.shield * 100)}% shield`)
   if (def.salvage) bits.push(`+${Math.round(def.salvage * 100)}% salvage`)
-  if (def.networkFill) bits.push(`+${Math.round(def.networkFill * 100)}% network`)
+  if (def.networkFill) bits.push(`+${Math.round(def.networkFill * 100)}% Network fill`)
   if (def.foundrySpeed) bits.push(`+${Math.round(def.foundrySpeed * 100)}% foundry`)
   if (def.researchXp) bits.push(`+${Math.round(def.researchXp * 100)}% research XP`)
   if (def.ash) bits.push(`+${Math.round(def.ash * 100)}% ash`)

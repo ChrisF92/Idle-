@@ -312,6 +312,10 @@ export const BASE_DRONE_CAP = 10
 export const LIFETIME_DRONES_PER_CAP = 20
 /** Soft ceiling on lifetime-built capacity raises. */
 export const LIFETIME_DRONE_CAP_MAX = 50
+/** Corps racks Link: +1 drone cap per rank. */
+export const NETWORK_RACK_CAP_PER_RANK = 1
+/** Drone acuity Link: +8% efficiency per rank. */
+export const NETWORK_ACUITY_PER_RANK = 0.08
 
 export const STATIONS: StationDef[] = [
   {
@@ -1290,7 +1294,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Pulse Cannon',
     role: 'weapon',
     description:
-      'Starter weapon Core — USI Laser Cannon numbers: 10 dmg, +5/level, 0.5/s, energy vs armour 0.25×.',
+      'Starter weapon. Energy bolts with long reach. Weak against armour. Salvage levels raise the damage of every shot.',
     damageBonus: 3,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1314,7 +1318,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Plate Layer',
     role: 'defense',
     description:
-      'Starter shield Core — USI Continuous Generator: 30 max shield, +5/level, 5%/s regen. Regen pauses briefly after a hit.',
+      'Starter shield. Raises the shield ceiling and regenerates in the fight. Regeneration pauses briefly after a hit. Salvage levels thicken the bank.',
     damageBonus: 0,
     hullBonus: 0,
     shieldBonus: 30,
@@ -1329,7 +1333,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'vector-thruster',
     name: 'Vector Thruster',
     role: 'utility',
-    description: '+12% evasion, −12% incoming. Helps vs Ethereal / Divine.',
+    description:
+      'Steering jets. Harder to hit, and each incoming shot hurts less. Helps against twitchy, hard-to-lock hulls.',
     damageBonus: 0,
     hullBonus: 0,
     evasionBonus: 0.12,
@@ -1340,7 +1345,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'heavy-lance',
     name: 'Heavy Lance',
     role: 'weapon',
-    description: 'High-alpha pierce lance. Strong vs Armored / Bosses; slower sustained DPS.',
+    description:
+      'Heavy pierce lance. Hits hard and slowly. Strong against plated hulls and bosses; weaker at clearing packs.',
     damageBonus: 10,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1357,7 +1363,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'flak-array',
     name: 'Flak Array',
     role: 'weapon',
-    description: 'Highest pack-clear DPS — short-range splash (reach 55).',
+    description:
+      'Short-range splash. Best at shredding packs that close in. Weak if the fight stays at long range.',
     damageBonus: 6,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1375,7 +1382,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'phase-beam',
     name: 'Phase Beam',
     role: 'weapon',
-    description: 'Connected energy anti-shield beam. Competitive vs Ethereal / Divine.',
+    description:
+      'A held energy beam that strips shields. Strong against glowing, hard-to-lock hulls once they enter range.',
     damageBonus: 7,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1393,7 +1401,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'barrier-projector',
     name: 'Barrier Projector',
     role: 'defense',
-    description: '+60 shield capacity, +12 hull (shields restore while Paused).',
+    description:
+      'A second shield envelope plus a little hull. The bank regenerates in the fight and while you sit docked.',
     damageBonus: 0,
     hullBonus: 12,
     shieldBonus: 60,
@@ -1404,7 +1413,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'drone-bay',
     name: 'Yield Link',
     role: 'utility',
-    description: '+12% salvage from kills. Drones stay on the Network — nothing extra on the field.',
+    description:
+      'Marks wrecks so each kill pays more Salvage. Drones stay on the Network — nothing extra flies on Sortie.',
     damageBonus: 0,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1415,7 +1425,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'rail-driver',
     name: 'Rail Driver',
     role: 'weapon',
-    description: 'Longest-range pierce rails. Punishes kiters; slightly under pulse DPS.',
+    description:
+      'Longest-range pierce rails. Punishes hulls that hang back. Slightly slower than Pulse at close range.',
     damageBonus: 8,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1432,7 +1443,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'ion-burst',
     name: 'Ion Burst',
     role: 'weapon',
-    description: 'Mid-range energy splash between flak and phase. Softens pack shields.',
+    description:
+      'Mid-range energy splash. Softens pack shields between Flak’s short burst and Phase Beam’s long hold.',
     damageBonus: 6,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1450,7 +1462,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'ablative-mesh',
     name: 'Ablative Mesh',
     role: 'defense',
-    description: '+30 hull, +3 armor, +25 shield. Hybrid soak for boss chip.',
+    description:
+      'Hybrid plating: hull, armour, and a modest shield bank. Built to soak boss chip rather than dodge it.',
     damageBonus: 0,
     hullBonus: 30,
     armorBonus: 3,
@@ -1462,7 +1475,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'grav-tether',
     name: 'Grav Tether',
     role: 'utility',
-    description: '−15% incoming and +8% evasion. Helps hold flak range vs kiters.',
+    description:
+      'A gravity snare. You take less from each shot and dodge more. Helps hold short-range guns on hulls that hang back.',
     damageBonus: 0,
     hullBonus: 10,
     evasionBonus: 0.08,
@@ -1473,7 +1487,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'nano-lathe',
     name: 'Nano Lathe',
     role: 'utility',
-    description: '+60% hull / shield repair rate while Paused. Small hull pad.',
+    description:
+      'Dockside repair lathe. Hull and shield restore faster while you sit out of the fight. Small hull pad.',
     damageBonus: 0,
     hullBonus: 10,
     damageTakenMult: 1,
@@ -1483,7 +1498,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'salvage-rig',
     name: 'Salvage Rig',
     role: 'utility',
-    description: '+25% scrap from sector clears this run.',
+    description:
+      'A wreck claw. Sector clears this run pay more scrap. Comes off when you Rebuild.',
     damageBonus: 2,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1493,7 +1509,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'surge-capacitor',
     name: 'Surge Capacitor',
     role: 'utility',
-    description: 'Schematic utility: −10% incoming damage, +20 hull. Not found as loot.',
+    description:
+      'Printed schematic. You take less from each shot and gain hull. Not found as wreck loot — buy the print, then fit it.',
     damageBonus: 0,
     hullBonus: 20,
     damageTakenMult: 0.9,
@@ -1504,7 +1521,8 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     id: 'mirror-plate',
     name: 'Mirror Plate',
     role: 'defense',
-    description: 'Schematic plating: +40 hull, +5 armor. Not found as loot.',
+    description:
+      'Printed schematic plating. Extra hull and armour. Not found as wreck loot — buy the print, then fit it.',
     damageBonus: 0,
     hullBonus: 40,
     armorBonus: 5,
@@ -1902,6 +1920,7 @@ export type DroneEconomyState = {
     matterShop: Record<string, number>
   }
   meta?: { lifetimeDronesBuilt?: number }
+  network?: { links?: { racks?: number; acuity?: number } }
 }
 
 /** Black-bar slot count (0 = uncapped linear scaling). */
@@ -1926,6 +1945,8 @@ export function dronePower(state: DroneEconomyState): number {
     const bonus = getChallengeShopItem(id)?.dronePowerBonus ?? 0
     if (bonus) power += bonus * matterShopEffectScale(rank)
   }
+  const acuity = Math.max(0, Math.floor(state.network?.links?.acuity ?? 0))
+  power += NETWORK_ACUITY_PER_RANK * acuity
   return Math.max(0.05, power)
 }
 
@@ -1953,6 +1974,8 @@ export function droneCap(state: DroneEconomyState): number {
     LIFETIME_DRONE_CAP_MAX,
     Math.floor(lifetime / LIFETIME_DRONES_PER_CAP),
   )
+  const racks = Math.max(0, Math.floor(state.network?.links?.racks ?? 0))
+  cap += NETWORK_RACK_CAP_PER_RANK * racks
   return Math.max(1, Math.floor(cap))
 }
 

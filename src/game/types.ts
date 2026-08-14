@@ -21,10 +21,17 @@ export interface NetworkBarState {
   levels: number
 }
 
-/** USI Compute analogue — bar levels wipe on Rebuild; drones persist. */
+/** USI Compute analogue — bar levels wipe on Rebuild; drones and Link ranks persist. */
 export interface NetworkState {
   bars: Record<NetworkBarId, NetworkBarState>
+  /**
+   * Permanent Link ranks (USI compute upgrades).
+   * racks = corps cap, acuity = drone efficiency, cycle = fill speed.
+   */
+  links: Record<NetworkLinkId, number>
 }
+
+export type NetworkLinkId = 'racks' | 'acuity' | 'cycle'
 
 export type FoundryRecipeId =
   | 'slag-ingot'

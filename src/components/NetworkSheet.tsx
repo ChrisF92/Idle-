@@ -1,30 +1,59 @@
-import type { GameState, NetworkBarId } from '../game/types'
+import type { GameState, NetworkBarId, NetworkLinkId } from '../game/types'
 import {
   NETWORK_BARS,
+  NETWORK_LINKS,
+  canBuyNetworkLink,
   isNetworkBarUnlocked,
+  networkCycleMult,
   networkEffectLabel,
   networkFillRate,
   networkLevels,
+  networkLinkCost,
+  networkLinkEffectLabel,
+  networkLinkPower,
+  networkLinkRank,
   networkProgress,
 } from '../game/network'
-import { droneCap, idleWorkers } from '../game/catalog'
+import { droneCap, dronePower, idleWorkers } from '../game/catalog'
 import { formatCompact } from '../game/format'
+import {
+  inspectNetworkBar,
+  inspectNetworkLink,
+  inspectNetworkOverview,
+} from '../game/inspect'
+import { InspectName } from './InspectName'
 
 interface NetworkSheetProps {
   state: GameState
   onAssign: (barId: string, delta: number) => void
+  onBuyLink?: (id: NetworkLinkId) => void
   compact?: boolean
 }
 
-export function NetworkSheet({ state, onAssign, compact = false }: NetworkSheetProps) {
+export function NetworkSheet({
+  state,
+  onAssign,
+  onBuyLink,
+  compact = false,
+}: NetworkSheetProps) {
   const idle = idleWorkers(state)
   const cap = droneCap(state)
+  const power = dronePower(state)
+  const link = networkLinkPower(state)
+  const cycle = networkCycleMult(state)
 
   return (
     <div className={compact ? 'network-sheet network-sheet-compact' : 'network-sheet'}>
       <p className="network-corps">
-        Corps {state.base.workerDrones}/{cap}
+        <InspectName
+          name={`Corps ${state.base.workerDrones}/${cap}`}
+          card={inspectNetworkOverview(state)}
+        />
         <span className="muted"> · {idle} idle</span>
+      </p>
+      <p className="network-row-stats">
+        Link power {formatCompact(link, 2)} · efficiency ×{power.toFixed(2)} · cycle ×
+        {cycle.toFixed(2)}
       </p>
       {NETWORK_BARS.map((bar) => {
         const open = isNetworkBarUnlocked(state, bar.id)
@@ -36,7 +65,7 @@ export function NetworkSheet({ state, onAssign, compact = false }: NetworkSheetP
         return (
           <article key={bar.id} className={open ? 'network-row' : 'network-row locked'}>
             <div className="network-row-main">
-              <strong>{bar.name}</strong>
+              <InspectName name={bar.name} card={inspectNetworkBar(state, bar.id)} />
               <span className="muted">{open ? `Lv ${levels}` : `Sector ${bar.requiresSectorEver}`}</span>
             </div>
             {open ? (
@@ -64,9 +93,48 @@ export function NetworkSheet({ state, onAssign, compact = false }: NetworkSheetP
           </article>
         )
       })}
+      {onBuyLink ? (
+        <>
+          <h3 className="foundry-heading">Links</h3>
+          {NETWORK_LINKS.map((linkDef) => {
+            const rank = networkLinkRank(state, linkDef.id)
+            const can = canBuyNetworkLink(state, linkDef.id)
+            const cost = networkLinkCost(state, linkDef.id)
+            const costLabel =
+              cost == null
+                ? ''
+                : `${cost.amount} ${cost.resource === 'heat' ? 'Heat' : 'scrap'}`
+            return (
+              <article
+                key={linkDef.id}
+                className={can.ok || rank > 0 ? 'network-row' : 'network-row locked'}
+              >
+                <div className="network-row-main">
+                  <InspectName name={linkDef.name} card={inspectNetworkLink(state, linkDef.id)} />
+                  <span className="muted">
+                    {rank}/{linkDef.maxRank}
+                  </span>
+                </div>
+                <p className="network-row-stats">
+                  {networkLinkEffectLabel(state, linkDef.id)}
+                  {linkDef.blurb ? ` · ${linkDef.blurb}` : ''}
+                </p>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!can.ok}
+                  onClick={() => onBuyLink(linkDef.id)}
+                >
+                  {rank >= linkDef.maxRank ? 'Maxed' : can.ok ? costLabel : can.reason}
+                </button>
+              </article>
+            )
+          })}
+        </>
+      ) : null}
       {!compact ? (
         <p className="muted">
-          Drones fill bars. Bars buff the ship — they never appear on the battlefield.
+          Tap a name for the full sheet. Drones fill bars — they never appear on the battlefield.
           {idle > 0 ? ` ${formatCompact(idle)} idle.` : ''}
         </p>
       ) : null}

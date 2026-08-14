@@ -18,6 +18,7 @@ import {
   buyChallengeShop,
   buyEssenceUpgrade,
   buyMatterShop,
+  buyNetworkLink,
   buyResearch,
   clearFabProject,
   clearWorkerAssignments,
@@ -82,6 +83,7 @@ type Action =
   | { type: 'set-docked'; docked: boolean }
   | { type: 'warp'; sector: number }
   | { type: 'assign-worker'; stationId: string; delta: number }
+  | { type: 'buy-network-link'; linkId: import('../game/types').NetworkLinkId }
   | { type: 'auto-balance-workers'; profile?: LaborProfile }
   | { type: 'set-labor-profile'; profile: LaborProfile }
   | { type: 'clear-worker-assignments' }
@@ -165,6 +167,8 @@ function reducer(state: GameState, action: Action): GameState {
       return warpToSector(state, action.sector)
     case 'assign-worker':
       return assignWorker(state, action.stationId, action.delta)
+    case 'buy-network-link':
+      return buyNetworkLink(state, action.linkId)
     case 'auto-balance-workers':
       return autoBalanceWorkers(state, action.profile)
     case 'set-labor-profile':
@@ -330,6 +334,8 @@ export function useGame() {
     warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
     assignWorker: (stationId: string, delta: number) =>
       dispatch({ type: 'assign-worker', stationId, delta }),
+    buyNetworkLink: (linkId: import('../game/types').NetworkLinkId) =>
+      dispatch({ type: 'buy-network-link', linkId }),
     autoBalanceWorkers: (profile?: LaborProfile) =>
       dispatch({ type: 'auto-balance-workers', profile }),
     setLaborProfile: (profile: LaborProfile) =>

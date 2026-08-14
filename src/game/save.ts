@@ -281,13 +281,20 @@ const NETWORK_BAR_IDS: NetworkBarId[] = ['strike', 'ward', 'yield', 'loom', 'arc
 
 function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
   const empty = createEmptyNetworkState()
-  if (!network?.bars) return empty
-  for (const id of NETWORK_BAR_IDS) {
-    const rec = network.bars[id]
-    empty.bars[id] = {
-      progress: Math.max(0, rec?.progress ?? 0),
-      levels: Math.max(0, Math.floor(rec?.levels ?? 0)),
+  if (!network) return empty
+  if (network.bars) {
+    for (const id of NETWORK_BAR_IDS) {
+      const rec = network.bars[id]
+      empty.bars[id] = {
+        progress: Math.max(0, rec?.progress ?? 0),
+        levels: Math.max(0, Math.floor(rec?.levels ?? 0)),
+      }
     }
+  }
+  empty.links = {
+    racks: Math.max(0, Math.floor(network.links?.racks ?? 0)),
+    acuity: Math.max(0, Math.floor(network.links?.acuity ?? 0)),
+    cycle: Math.max(0, Math.floor(network.links?.cycle ?? 0)),
   }
   return empty
 }

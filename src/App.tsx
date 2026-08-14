@@ -168,7 +168,11 @@ export default function App() {
           />
         )}
         {tab === 'network' && (
-          <NetworkTab state={game.state} onAssign={game.assignWorker} />
+          <NetworkTab
+            state={game.state}
+            onAssign={game.assignWorker}
+            onBuyLink={game.buyNetworkLink}
+          />
         )}
         {tab === 'foundry' && (
           <FoundryTab

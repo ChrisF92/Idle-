@@ -14,6 +14,7 @@ export interface FurnaceTrackDef {
   id: FurnaceTrackId
   name: string
   blurb: string
+  detail: string[]
   damage?: number
   shield?: number
   researchXp?: number
@@ -21,10 +22,48 @@ export interface FurnaceTrackDef {
 }
 
 export const FURNACE_TRACKS: FurnaceTrackDef[] = [
-  { id: 'attack', name: 'Attack', blurb: 'Sortie damage', damage: 0.02 },
-  { id: 'defense', name: 'Defense', blurb: 'Max shield', shield: 0.02 },
-  { id: 'lab', name: 'Lab', blurb: 'Research XP from kills', researchXp: 0.05 },
-  { id: 'workshop', name: 'Workshop', blurb: 'Foundry craft speed', foundrySpeed: 0.04 },
+  {
+    id: 'attack',
+    name: 'Attack',
+    blurb: 'Sortie damage',
+    damage: 0.02,
+    detail: [
+      'Attack ranks raise the damage of every Core on the ship. Each rank is always on.',
+      'Choir-ash drops from kills after you clear sector 5. Bank ash into Heat, then spend Heat here.',
+      'Ranks persist when you Rebuild. Heat and leftover ash persist too.',
+    ],
+  },
+  {
+    id: 'defense',
+    name: 'Defense',
+    blurb: 'Max shield',
+    shield: 0.02,
+    detail: [
+      'Defense ranks raise the flagship’s shield ceiling. Regeneration still comes from the fitted shield Core.',
+      'Spend Heat here. Ranks persist when you Rebuild.',
+    ],
+  },
+  {
+    id: 'lab',
+    name: 'Lab',
+    blurb: 'Research XP from kills',
+    researchXp: 0.05,
+    detail: [
+      'Lab ranks speed how fast Research notes fill from kills. Focus still matters; Lab just writes faster.',
+      'Opens with Research at sector 7 in practice, but you can buy the rank as soon as the Furnace is lit.',
+      'Ranks persist when you Rebuild.',
+    ],
+  },
+  {
+    id: 'workshop',
+    name: 'Workshop',
+    blurb: 'Foundry craft speed',
+    foundrySpeed: 0.04,
+    detail: [
+      'Workshop ranks speed every smelter. Recipe levels still persist on their own.',
+      'Spend Heat here. Ranks persist when you Rebuild.',
+    ],
+  },
 ]
 
 export function createEmptyFurnaceState(): FurnaceState {

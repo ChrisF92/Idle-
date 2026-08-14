@@ -203,7 +203,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
   {
     id: 'fp-slot-3',
     name: 'Fourth Smelter',
-    blurb: 'One extra Foundry slot — USI Synth cap.',
+    blurb: 'One extra Foundry slot. Four smelters is the cap.',
     baseCost: 32,
     maxRank: 1,
     extraSlots: 1,

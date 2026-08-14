@@ -42,6 +42,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Sortie',
     body: [
       'The ship sits at the bottom. Waves come down the lane. Spend Salvage on Cores under the field.',
+      'Tap a Core name for every stat, the next Salvage cost, and milestone nodes. Extract keeps those levels. Rebuild wipes them so you can swap the loadout.',
       'Drones belong on the Network tab — they never appear here and they never shoot.',
     ],
   },
@@ -49,28 +50,29 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Network',
     body: [
       'Assign drones to bars. Strike raises damage. Ward raises shields. Later bars unlock as you push sectors.',
-      'Drones fill over time. They are not ships. They never fly on Sortie.',
+      'Link power is assigned drones times efficiency. Corps racks hang more hulls. Drone acuity makes each hull count for more. Cycle speed turns the clock up — those three spend scrap at first, then Heat after the Furnace.',
+      'Tap a bar or Link name for live numbers. Bar levels reset on Rebuild. The corps and Link ranks stay. Drones never fly on Sortie.',
     ],
   },
   foundry: {
     title: 'Foundry',
     body: [
-      'Smelt salvage into materials, then into bits you can fit. Recipe levels persist when you Rebuild.',
-      'Opens after you clear sector 2.',
+      'Smelt salvage into materials, then into bits you can fit. Recipe levels, stock, and Foundry Points persist when you Rebuild. Fitted bits come off.',
+      'Opens after you clear sector 2. Tap a recipe name for cost, time, and what it unlocks.',
     ],
   },
   reliquary: {
     title: 'Reliquary',
     body: [
-      'Fit one shard per colour. Extra copies charge the same slot.',
-      'Red and orange open at sector 3. Pink waits until 6. Green opens later.',
+      'Fit one shard per colour. Extra copies of the fitted shard charge resonance and raise the same bonus.',
+      'Red and orange open at sector 3. Pink waits until 6. Green opens later. Tap a chip name for owned copies and the live effect. Shards persist when you Rebuild.',
     ],
   },
   furnace: {
     title: 'Furnace',
     body: [
-      'Kills drop Choir-ash on their own. Bank ash into Heat, then buy always-on ranks.',
-      'Opens at sector 5. Flares collect themselves — do not tap looking for scraps.',
+      'Kills drop Choir-ash on their own. Bank ash into Heat, then buy always-on ranks: Attack, Defense, Lab, and Workshop.',
+      'Opens at sector 5. Heat also buys Network Links after the Furnace is lit. Flares collect themselves — do not tap looking for scraps. Tap a rank name for the live bonus.',
     ],
   },
   research: {

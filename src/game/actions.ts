@@ -1,4 +1,4 @@
-import type { GameState, LaborProfile, PartType, Resources } from './types'
+import type { GameState, LaborProfile, NetworkLinkId, PartType, Resources } from './types'
 import {
   AI_NODES,
   MASTERY_PARTS_COST,
@@ -49,7 +49,14 @@ import {
   type ResourceCost,
 } from './catalog'
 import { milestonesFor, pendingMilestone } from './milestones'
-import { createEmptyNetworkState, isNetworkBarId, isNetworkBarUnlocked } from './network'
+import {
+  canBuyNetworkLink,
+  createEmptyNetworkState,
+  isNetworkBarId,
+  isNetworkBarUnlocked,
+  networkLinkRank,
+  wipeNetworkBars,
+} from './network'
 import {
   buyFoundryUpgrade,
   equipFoundryModule,
@@ -216,6 +223,21 @@ export function assignWorker(
   if (left <= 0) delete assignments[stationId]
   else assignments[stationId] = left
   next.base.assignments = assignments
+  return next
+}
+
+export function buyNetworkLink(state: GameState, id: NetworkLinkId): GameState {
+  const check = canBuyNetworkLink(state, id)
+  if (!check.ok) return state
+  const next = structuredClone(state)
+  if (!next.network) next.network = createEmptyNetworkState()
+  if (!next.network.links) next.network.links = { racks: 0, acuity: 0, cycle: 0 }
+  if (check.cost.resource === 'heat') {
+    next.resources.heat = (next.resources.heat ?? 0) - check.cost.amount
+  } else {
+    next.resources.scrap -= check.cost.amount
+  }
+  next.network.links[id] = networkLinkRank(next, id) + 1
   return next
 }
 
@@ -1110,7 +1132,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.codex = { seenFamilies: kept.seenFamilies }
   state.meta = kept.meta
   state.core = fresh.core
-  state.network = createEmptyNetworkState()
+  state.network = wipeNetworkBars(state.network)
   state.foundry = persistFoundryOnRebuild(state.foundry)
   state.reliquary = kept.reliquary
   state.furnace = kept.furnace
@@ -1347,7 +1369,7 @@ export function enterProtocol(state: GameState, protocolId: string): GameState {
   if (!next.protocols) next.protocols = createEmptyProtocolState()
   next.protocols.activeId = protocolId
   wipeProtocolLoadout(next)
-  next.network = createEmptyNetworkState()
+  next.network = wipeNetworkBars(next.network)
   next.combat.sector = 1
   next.combat.wave = 1
   next.combat.highestSector = 0
@@ -1373,7 +1395,7 @@ export function abandonProtocol(state: GameState): GameState {
   const next = structuredClone(state)
   next.protocols.activeId = null
   wipeProtocolLoadout(next)
-  next.network = createEmptyNetworkState()
+  next.network = wipeNetworkBars(next.network)
   next.combat.docked = true
   next.combat.inFight = false
   next.combat.log = [`Abandoned ${def?.name ?? 'Protocol'}.`, ...next.combat.log]

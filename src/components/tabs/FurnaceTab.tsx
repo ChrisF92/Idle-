@@ -9,6 +9,8 @@ import {
 } from '../../game/furnace'
 import { formatCompact } from '../../game/format'
 import type { FurnaceTrackId } from '../../game/types'
+import { inspectFurnaceOverview, inspectFurnaceTrack } from '../../game/inspect'
+import { InspectName } from '../InspectName'
 
 interface FurnaceTabProps {
   state: GameState
@@ -31,10 +33,12 @@ export function FurnaceTab({ state, onBack, onConvert, onBuyRank }: FurnaceTabPr
             More
           </button>
         </p>
-        <h2>Furnace</h2>
+        <h2>
+          <InspectName name="Furnace" card={inspectFurnaceOverview(state)} />
+        </h2>
         <p>
           {open
-            ? `${formatCompact(ash, 1)} ash · ${formatCompact(heat, 1)} Heat`
+            ? `${formatCompact(ash, 1)} ash · ${formatCompact(heat, 1)} Heat · ${ASH_PER_HEAT} ash banks 1 Heat`
             : 'Clear sector 5 to light the Furnace.'}
         </p>
       </header>
@@ -56,7 +60,7 @@ export function FurnaceTab({ state, onBack, onConvert, onBuyRank }: FurnaceTabPr
             return (
               <article key={track.id} className="network-row">
                 <div className="network-row-main">
-                  <strong>{track.name}</strong>
+                  <InspectName name={track.name} card={inspectFurnaceTrack(state, track.id)} />
                   <span className="muted">Lv {rank}</span>
                 </div>
                 <p className="network-row-stats">{track.blurb}</p>

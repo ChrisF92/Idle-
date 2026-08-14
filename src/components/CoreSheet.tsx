@@ -8,6 +8,8 @@ import {
 } from '../game/catalog'
 import { pendingMilestone } from '../game/milestones'
 import { formatCompact } from '../game/format'
+import { inspectCore } from '../game/inspect'
+import { InspectName } from './InspectName'
 
 const SLOT_LABEL: Record<string, string> = {
   weapon: 'Weapon',
@@ -40,7 +42,6 @@ export function CoreSheet({
         const pending = pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])
         const stats = moduleStatPreviews(moduleId, level, !maxed)
         const headline = stats
-          .filter((s) => s.label === 'Damage' || s.label === 'Shield' || s.label === 'RoF')
           .map((s) => `${s.label} ${s.current}${s.next ? `→${s.next}` : ''}`)
           .join(' · ')
 
@@ -48,7 +49,7 @@ export function CoreSheet({
           <article key={moduleId} className="core-row">
             <div className="core-row-main">
               <span className="muted">{SLOT_LABEL[def.role] ?? def.role}</span>
-              <strong>{def.name}</strong>
+              <InspectName name={def.name} card={inspectCore(state, moduleId)} />
               <span className="core-row-lv">Lv {level}</span>
             </div>
             {headline ? <p className="core-row-stats">{headline}</p> : null}

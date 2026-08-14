@@ -19,6 +19,12 @@ import {
   craftsForNextLevel,
 } from '../../game/foundry'
 import { formatCompact } from '../../game/format'
+import {
+  inspectFoundryModule,
+  inspectFoundryRecipe,
+  inspectFoundryUpgrade,
+} from '../../game/inspect'
+import { InspectName } from '../InspectName'
 
 interface FoundryTabProps {
   state: GameState
@@ -58,9 +64,14 @@ export function FoundryTab({
               <div className="network-row-main">
                 <strong>Slot {i + 1}</strong>
                 <span className="muted">
-                  {slot.recipeId
-                    ? FOUNDRY_RECIPES.find((r) => r.id === slot.recipeId)?.name
-                    : 'Idle'}
+                  {slot.recipeId ? (
+                    <InspectName
+                      name={FOUNDRY_RECIPES.find((r) => r.id === slot.recipeId)?.name ?? 'Queued'}
+                      card={inspectFoundryRecipe(state, slot.recipeId)}
+                    />
+                  ) : (
+                    'Idle'
+                  )}
                 </span>
               </div>
               {slot.recipeId ? (
@@ -93,7 +104,7 @@ export function FoundryTab({
             return (
               <article key={recipe.id} className={unlocked ? 'network-row' : 'network-row locked'}>
                 <div className="network-row-main">
-                  <strong>{recipe.name}</strong>
+                  <InspectName name={recipe.name} card={inspectFoundryRecipe(state, recipe.id)} />
                   <span className="muted">
                     {inf ? 'Infinite' : unlocked ? `Lv ${level}` : 'Locked'}
                   </span>
@@ -130,7 +141,7 @@ export function FoundryTab({
             return (
               <article key={up.id} className="network-row">
                 <div className="network-row-main">
-                  <strong>{up.name}</strong>
+                  <InspectName name={up.name} card={inspectFoundryUpgrade(state, up.id)} />
                   <span className="muted">
                     {rank}/{up.maxRank}
                   </span>
@@ -159,7 +170,7 @@ export function FoundryTab({
             return (
               <article key={mod.id} className={unlocked ? 'network-row' : 'network-row locked'}>
                 <div className="network-row-main">
-                  <strong>{mod.name}</strong>
+                  <InspectName name={mod.name} card={inspectFoundryModule(state, mod.id)} />
                   <span className="muted">{fitted ? 'Fitted' : unlocked ? 'Ready' : 'Locked'}</span>
                 </div>
                 <p className="network-row-stats">

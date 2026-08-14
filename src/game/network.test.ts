@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats, SAVE_VERSION } from './state'
-import { assignWorker, performRebuild } from './actions'
+import { assignWorker, buyNetworkLink, performRebuild } from './actions'
 import {
   NETWORK_STARTING_DRONES,
+  canBuyNetworkLink,
   isNetworkBarUnlocked,
+  networkCycleMult,
   networkFillRate,
   networkLevels,
+  networkLinkPower,
+  networkLinkRank,
   networkSalvageMult,
   networkStrikeMult,
   networkWardMult,
 } from './network'
-import { droneCap, idleWorkers } from './catalog'
+import { droneCap, dronePower, idleWorkers } from './catalog'
 import { isSystemUnlocked } from './progression'
 import { advanceSeconds } from './tick'
 import { salvageFromKill } from './combat'
@@ -120,5 +124,65 @@ describe('phase 4: drone network', () => {
     expect(s.base.assignments.strike ?? 0).toBe(0)
     expect(s.base.workerDrones).toBe(corps)
     expect(networkStrikeMult(s)).toBe(1)
+  })
+
+  it('buys Corps racks with scrap, then Heat after the Furnace', () => {
+    let s = createInitialState(0)
+    expect(canBuyNetworkLink(s, 'racks').ok).toBe(false)
+    s.resources.scrap = 40
+    expect(canBuyNetworkLink(s, 'racks').ok).toBe(true)
+    expect(canBuyNetworkLink(s, 'acuity').ok).toBe(false)
+    expect(canBuyNetworkLink(s, 'cycle').reason).toMatch(/Furnace/)
+
+    s = buyNetworkLink(s, 'racks')
+    expect(networkLinkRank(s, 'racks')).toBe(1)
+    expect(droneCap(s)).toBe(11)
+    expect(s.resources.scrap).toBe(0)
+
+    s.meta.highestSectorEver = 5
+    s.combat.highestSector = 5
+    s.resources.heat = 20
+    s = buyNetworkLink(s, 'racks')
+    expect(networkLinkRank(s, 'racks')).toBe(2)
+    expect(droneCap(s)).toBe(12)
+    expect(s.resources.heat).toBeLessThan(20)
+  })
+
+  it('acuity raises efficiency and cycle speed raises fill rate; Rebuild keeps Links', () => {
+    let s = createInitialState(0)
+    s.meta.highestSectorEver = 5
+    s.combat.highestSector = 5
+    s.combat.sector = 5
+    s.resources.heat = 80
+    s = assignWorker(s, 'strike', 2)
+    const rate0 = networkFillRate(s, 'strike')
+    const power0 = dronePower(s)
+    const link0 = networkLinkPower(s)
+
+    s = buyNetworkLink(s, 'acuity')
+    expect(networkLinkRank(s, 'acuity')).toBe(1)
+    expect(dronePower(s)).toBeGreaterThan(power0)
+    expect(networkLinkPower(s)).toBeGreaterThan(link0)
+    expect(networkFillRate(s, 'strike')).toBeGreaterThan(rate0)
+
+    const afterAcuity = networkFillRate(s, 'strike')
+    expect(networkCycleMult(s)).toBe(1)
+    s = buyNetworkLink(s, 'cycle')
+    expect(networkCycleMult(s)).toBeCloseTo(1.12, 5)
+    expect(networkFillRate(s, 'strike')).toBeGreaterThan(afterAcuity)
+
+    s.network.bars.strike.levels = 6
+    const racks = networkLinkRank(s, 'racks')
+    const acuity = networkLinkRank(s, 'acuity')
+    const cycle = networkLinkRank(s, 'cycle')
+    s = performRebuild(s, {
+      frameId: 'scout-frame',
+      modules: ['pulse-cannon', 'plate-layer'],
+    })
+    expect(s.network.bars.strike.levels).toBe(0)
+    expect(networkLinkRank(s, 'racks')).toBe(racks)
+    expect(networkLinkRank(s, 'acuity')).toBe(acuity)
+    expect(networkLinkRank(s, 'cycle')).toBe(cycle)
+    expect(droneCap(s)).toBe(10 + racks)
   })
 })
