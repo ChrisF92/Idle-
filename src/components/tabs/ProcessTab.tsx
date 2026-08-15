@@ -5,6 +5,7 @@ import {
   isSystemUnlocked,
 } from '../../game/progression'
 import {
+  PROCESS_CATEGORIES,
   PROCESS_NODES,
   canBuyProcessNode,
   hasProcess,
@@ -40,32 +41,46 @@ export function ProcessTab({ state, onBack, onBuy }: ProcessTabProps) {
         <p className="muted">Achievements grant Process points. Spend them on QoL nodes.</p>
       ) : (
         <div className="panel-scroll">
-          <h3 className="foundry-heading" data-guide="process-nodes">
-            Nodes
-          </h3>
-          {PROCESS_NODES.map((node) => {
-            const owned = hasProcess(state, node.id)
-            const check = canBuyProcessNode(state, node.id)
+          <p className="muted">
+            Nodes are expensive on purpose. Buy a few that match this sitting — later acts add more.
+          </p>
+          {PROCESS_CATEGORIES.map((cat) => {
+            const nodes = PROCESS_NODES.filter((n) => n.category === cat.id)
+            if (nodes.length === 0) return null
             return (
-              <article key={node.id} className="network-row">
-                <div className="network-row-main">
-                  <strong>{node.name}</strong>
-                  <span className="muted">{owned ? 'Owned' : `${node.cost} Process`}</span>
-                </div>
-                <p className="network-row-stats">{node.blurb}</p>
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={owned || !check.ok}
-                  onClick={() => onBuy(node.id)}
+              <div key={cat.id}>
+                <h3
+                  className="foundry-heading"
+                  data-guide={cat.id === 'combat' ? 'process-nodes' : undefined}
                 >
-                  {owned ? 'Owned' : check.ok ? 'Buy' : check.reason}
-                </button>
-              </article>
+                  {cat.name}
+                </h3>
+                {nodes.map((node) => {
+                  const owned = hasProcess(state, node.id)
+                  const check = canBuyProcessNode(state, node.id)
+                  return (
+                    <article key={node.id} className="network-row">
+                      <div className="network-row-main">
+                        <strong>{node.name}</strong>
+                        <span className="muted">{owned ? 'Owned' : `${node.cost} Process`}</span>
+                      </div>
+                      <p className="network-row-stats">{node.blurb}</p>
+                      <button
+                        type="button"
+                        className="primary"
+                        disabled={owned || !check.ok}
+                        onClick={() => onBuy(node.id)}
+                      >
+                        {owned ? 'Owned' : check.ok ? 'Buy' : check.reason}
+                      </button>
+                    </article>
+                  )
+                })}
+              </div>
             )
           })}
           <h3 className="foundry-heading">Achievements</h3>
-          {ACHIEVEMENTS.filter((a) => !a.repeatable).slice(0, 8).map((a) => (
+          {ACHIEVEMENTS.filter((a) => !a.repeatable).slice(0, 12).map((a) => (
             <article key={a.id} className="network-row">
               <div className="network-row-main">
                 <strong>{a.name}</strong>

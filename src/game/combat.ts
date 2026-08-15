@@ -43,7 +43,8 @@ import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { fittedRegenBonus } from './milestones'
 import { networkSalvageMult } from './network'
 import { grantReliquaryKillLoot, reliquarySalvageMult } from './reliquary'
-import { grantFurnaceKillLoot } from './furnace'
+import { grantFurnaceKillLoot, furnaceSalvageMult } from './furnace'
+import { foundrySalvageMult } from './foundry'
 import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
 import { yardSalvageMult } from './yard'
 import { echoSalvageMult } from './echo'
@@ -1717,6 +1718,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     networkSalvageMult(state) *
     reliquarySalvageMult(state) *
     hiveResearchSalvageMult(state) *
+    foundrySalvageMult(state) *
+    furnaceSalvageMult(state) *
     yardSalvageMult(state) *
     echoSalvageMult(state) *
     specialistSalvageMult(state) *

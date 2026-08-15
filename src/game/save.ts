@@ -342,7 +342,7 @@ function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState 
   return { owned, slots }
 }
 
-const FURNACE_TRACK_IDS: FurnaceTrackId[] = ['attack', 'defense', 'lab', 'workshop']
+const FURNACE_TRACK_IDS: FurnaceTrackId[] = ['attack', 'defense', 'lab', 'workshop', 'hold']
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
   const empty = createEmptyFurnaceState()

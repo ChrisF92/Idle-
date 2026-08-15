@@ -186,10 +186,17 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     condition: { type: 'sector-ever', sector: 1 },
   },
   {
+    id: 'chip-drawer',
+    name: 'Chip Drawer',
+    description: 'Clear sector 3. Reliquary is open.',
+    rewardAiPoints: 2,
+    condition: { type: 'sector-ever', sector: 3 },
+  },
+  {
     id: 'hangar-opened',
     name: 'Hangar Opened',
     description: 'Clear sector 4.',
-    rewardAiPoints: 1,
+    rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 4 },
   },
   {
@@ -198,6 +205,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     description: 'Clear sector 5 (first boss sector).',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 5 },
+  },
+  {
+    id: 'archive-open',
+    name: 'Archive Open',
+    description: 'Clear sector 7. Research is open.',
+    rewardAiPoints: 2,
+    condition: { type: 'sector-ever', sector: 7 },
   },
   {
     id: 'first-research',
@@ -434,7 +448,7 @@ export function achievementProgressValue(
     case 'prestige-count':
       return state.prestige.prestigeCount
     case 'ai-purchase-count':
-      return state.ai.purchased.length
+      return state.ai.purchased.length + (state.process?.purchased.length ?? 0)
     case 'act1-cleared':
       return state.meta.act1Cleared || careerHighestSector(state) >= ACT1_FINAL_SECTOR
         ? 1
@@ -830,7 +844,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'The lane',
     body: [
       'Your hull sits at the bottom. Waves close in from the far side.',
-      'This screen is the fight. Cores and Salvage sit under the field.',
+      'This screen is the fight. HUD sits on the field. Cores is a button under it.',
     ],
     target: 'sortie-canvas',
     tab: 'combat',
@@ -847,7 +861,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Guns fire themselves',
     body: [
       'You do not tap to shoot. Pulse Cannon fires on its own.',
-      'Spend Salvage on Cores under the field to hit harder and hold Shield.',
+      'Open Cores and spend Salvage on Pulse and Plate to hit harder and hold Shield.',
     ],
     target: 'sortie-canvas',
     tab: 'combat',
@@ -880,7 +894,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-sortie-salvage',
     title: 'Wrecks drop Salvage',
     body: [
-      'Kills add Salvage here. Spend it on Pulse (gun) and Plate (shield) on the Cores sheet below.',
+      'Kills add Salvage here. Spend it on Pulse (gun) and Plate (shield) in Cores.',
       'You can rank Cores during the fight. Levels stay until Rebuild.',
     ],
     target: 'salvage-stat',
@@ -897,7 +911,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-salvage-lesson',
     title: 'Salvage recovered',
     body: [
-      'Open Sortie. Salvage ranks Cores under the field — Pulse is the gun, Plate is the shield.',
+      'Open Sortie. Salvage ranks Cores — tap Cores, then Pulse (gun) and Plate (shield).',
       'Tap a Core name later for every stat and the next Salvage cost.',
     ],
     target: 'combat-tab',
@@ -1540,7 +1554,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-salvage',
     title: 'Salvage',
     body: [
-      'Sorties keep dropping Salvage. Spend it on the Cores sheet anytime to raise run levels.',
+      'Sorties keep dropping Salvage. Open Cores anytime to raise run levels.',
       'Hull lost keeps those levels. Rebuild wipes them so you can swap the loadout. Tap a Core name for every stat.',
     ],
     target: 'salvage-stat',

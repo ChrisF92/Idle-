@@ -19,7 +19,7 @@ import { beginFight } from './tick'
 
 describe('phase 8: Protocols, Echo, Process', () => {
   it('bumps save and keeps Protocols / Echo locked until 18 / 22', () => {
-    expect(SAVE_VERSION).toBe(32)
+    expect(SAVE_VERSION).toBe(33)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'protocols')).toBe(false)
     expect(isSystemUnlocked(fresh, 'echo')).toBe(false)
@@ -107,7 +107,9 @@ describe('phase 8: Protocols, Echo, Process', () => {
   it('Process Ghost Sortie pushes sectors while launched offline', () => {
     let s = createInitialState(0)
     s.meta.aiUnlocked = true
-    s.resources.aiPoints = 20
+    s.meta.highestSectorEver = 4
+    s.combat.highestSector = 4
+    s.resources.aiPoints = 40
     s.combat.docked = true
     s = buyProcessNode(s, 'auto-salvage')
     s = buyProcessNode(s, 'auto-extract')

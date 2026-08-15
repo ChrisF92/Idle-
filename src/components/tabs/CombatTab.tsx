@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { CombatPushMode, GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { COMBAT_PUSH_MODES, normalizePushMode, normalizeRoute, pushModeLabel } from '../../game/sectors'
 import { wavesForRun, getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
+import { activeGuideStep } from '../../game/progression'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
 
@@ -15,6 +16,17 @@ interface CombatTabProps {
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
+}
+
+function coresGuideActive(state: GameState): boolean {
+  const step = activeGuideStep(state, 'combat')
+  if (!step) return false
+  const target = step.target
+  return (
+    target === 'cores-sheet' ||
+    target.startsWith('core-') ||
+    target.startsWith('upgrade-')
+  )
 }
 
 export function CombatTab({
@@ -33,6 +45,23 @@ export function CombatTab({
   const protocol = activeProtocol(state)
   const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const pushMode = normalizePushMode(combat.pushMode, combat.campaign)
+  const titleId = useId()
+  const forceCores = coresGuideActive(state)
+  const [coresOpen, setCoresOpen] = useState(false)
+  const sheetOpen = coresOpen || forceCores
+
+  useEffect(() => {
+    if (forceCores) setCoresOpen(true)
+  }, [forceCores])
+
+  useEffect(() => {
+    if (!sheetOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !forceCores) setCoresOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sheetOpen, forceCores])
 
   const previewPlayer = useMemo(
     () => [
@@ -81,39 +110,11 @@ export function CombatTab({
     combat.playerUnits.length > 0 ? combat.playerUnits : previewPlayer
   const enemyUnits = combat.docked && !dying ? [] : combat.enemyUnits
 
+  const hullPct = Math.max(0, Math.min(1, combat.playerHull / Math.max(1, stats.hullMax)))
+  const shieldPct = Math.max(0, Math.min(1, combat.playerShield / Math.max(1, stats.shieldMax)))
+
   return (
     <section className="sortie-screen">
-      <header className="combat-hud-bar">
-        <div className="combat-hud-readout">
-          <span className="combat-hud-kicker">
-            {echoRun
-              ? echoRun.name
-              : protocol
-                ? `P${protocol.goalSector}`
-                : `S${combat.sector}${normalizeRoute(combat.route) === 'B' ? 'B' : ''}`}
-          </span>
-          <strong className="combat-hud-value">
-            W{combat.wave}/{waves}
-          </strong>
-        </div>
-        <div className="combat-hud-readout" data-guide="sortie-hull">
-          <span className="combat-hud-kicker">Hull</span>
-          <strong className="combat-hud-value">
-            {formatCompact(Math.ceil(combat.playerHull))}/{formatCompact(Math.ceil(stats.hullMax))}
-          </strong>
-        </div>
-        <div className="combat-hud-readout" data-guide="sortie-shield">
-          <span className="combat-hud-kicker">Shield</span>
-          <strong className="combat-hud-value">
-            {formatCompact(Math.ceil(combat.playerShield))}/{formatCompact(Math.ceil(stats.shieldMax))}
-          </strong>
-        </div>
-        <div className="combat-hud-readout" data-guide="salvage-stat">
-          <span className="combat-hud-kicker">Salvage</span>
-          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
-        </div>
-      </header>
-
       <div className="sortie-canvas" data-guide="sortie-canvas">
         <Battlefield
           playerUnits={playerUnits}
@@ -124,23 +125,47 @@ export function CombatTab({
           mode={battlefieldMode}
           paused={paused}
         />
+        <header className="combat-hud-bar sortie-hud">
+          <div className="combat-hud-readout">
+            <span className="combat-hud-kicker">
+              {echoRun
+                ? echoRun.name
+                : protocol
+                  ? `P${protocol.goalSector}`
+                  : `S${combat.sector}${normalizeRoute(combat.route) === 'B' ? 'B' : ''}`}
+            </span>
+            <strong className="combat-hud-value">
+              W{combat.wave}/{waves}
+            </strong>
+          </div>
+          <div className="combat-hud-readout" data-guide="sortie-hull">
+            <span className="combat-hud-kicker">Hull</span>
+            <strong className="combat-hud-value">
+              {formatCompact(Math.ceil(combat.playerHull))}/{formatCompact(Math.ceil(stats.hullMax))}
+            </strong>
+            <span className="sortie-hud-meter" aria-hidden>
+              <span className="sortie-hud-meter-fill hull" style={{ width: `${Math.round(hullPct * 100)}%` }} />
+            </span>
+          </div>
+          <div className="combat-hud-readout" data-guide="sortie-shield">
+            <span className="combat-hud-kicker">Shield</span>
+            <strong className="combat-hud-value">
+              {formatCompact(Math.ceil(combat.playerShield))}/{formatCompact(Math.ceil(stats.shieldMax))}
+            </strong>
+            <span className="sortie-hud-meter" aria-hidden>
+              <span className="sortie-hud-meter-fill shield" style={{ width: `${Math.round(shieldPct * 100)}%` }} />
+            </span>
+          </div>
+          <div className="combat-hud-readout" data-guide="salvage-stat">
+            <span className="combat-hud-kicker">Salvage</span>
+            <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
+          </div>
+        </header>
         {dying ? (
           <p className="sortie-defeat-banner" role="status">
             Hull lost
           </p>
         ) : null}
-      </div>
-
-      <div className="sortie-sheet" data-guide="cores-sheet">
-        <p className="sortie-sheet-kicker">
-          Cores · tap a name for the full sheet. Salvage ranks these. Drones live on Network.
-        </p>
-        <CoreSheet
-          state={state}
-          compact
-          onUpgrade={onUpgrade}
-          onPickMilestone={onPickMilestone}
-        />
       </div>
 
       <div className="sortie-actions">
@@ -166,7 +191,55 @@ export function CombatTab({
             Launch
           </button>
         )}
+        <button
+          type="button"
+          className={sheetOpen ? 'primary sortie-cores-btn' : 'sortie-cores-btn'}
+          data-guide={sheetOpen ? undefined : 'cores-sheet'}
+          aria-expanded={sheetOpen}
+          onClick={() => setCoresOpen((open) => !open)}
+        >
+          Cores
+        </button>
       </div>
+
+      {sheetOpen ? (
+        <div
+          className="screen-help-backdrop cores-modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            if (!forceCores) setCoresOpen(false)
+          }}
+        >
+          <div
+            className="screen-help-card cores-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            data-guide="cores-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="combat-hud-kicker">Cores</p>
+            <h3 id={titleId}>Cores</h3>
+            <p className="sortie-sheet-kicker">
+              Tap a name for the full sheet. Salvage ranks these. Drones live on Network.
+            </p>
+            <CoreSheet
+              state={state}
+              compact
+              onUpgrade={onUpgrade}
+              onPickMilestone={onPickMilestone}
+            />
+            <button
+              type="button"
+              className="primary"
+              disabled={forceCores}
+              onClick={() => setCoresOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }

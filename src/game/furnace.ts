@@ -19,6 +19,7 @@ export interface FurnaceTrackDef {
   shield?: number
   researchXp?: number
   foundrySpeed?: number
+  salvage?: number
 }
 
 export const FURNACE_TRACKS: FurnaceTrackDef[] = [
@@ -64,11 +65,22 @@ export const FURNACE_TRACKS: FurnaceTrackDef[] = [
       'Spend Heat here. Ranks persist when you Rebuild.',
     ],
   },
+  {
+    id: 'hold',
+    name: 'Hold',
+    blurb: 'Salvage from wrecks',
+    salvage: 0.025,
+    detail: [
+      'Hold ranks mark wrecks for a heavier Salvage take. Always on, like the other Furnace ranks.',
+      'This is the extra Act 1 choice: push damage, tank, research, craft speed, or income.',
+      'Ranks persist when you Rebuild.',
+    ],
+  },
 ]
 
 export function createEmptyFurnaceState(): FurnaceState {
   return {
-    ranks: { attack: 0, defense: 0, lab: 0, workshop: 0 },
+    ranks: { attack: 0, defense: 0, lab: 0, workshop: 0, hold: 0 },
   }
 }
 
@@ -157,4 +169,10 @@ export function furnaceFoundrySpeedMult(state: GameState): number {
   if (protocolMutes(state, 'furnace')) return 1
   const def = getFurnaceTrack('workshop')
   return (1 + furnaceRank(state, 'workshop') * (def?.foundrySpeed ?? 0)) * protocolBonusMult(state, 'furnace')
+}
+
+export function furnaceSalvageMult(state: GameState): number {
+  if (protocolMutes(state, 'furnace')) return 1
+  const def = getFurnaceTrack('hold')
+  return (1 + furnaceRank(state, 'hold') * (def?.salvage ?? 0)) * protocolBonusMult(state, 'furnace')
 }

@@ -14,7 +14,7 @@ import { YARD_BUILDINGS } from './yard'
 
 describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
   it('bumps save to 31', () => {
-    expect(SAVE_VERSION).toBe(32)
+    expect(SAVE_VERSION).toBe(33)
   })
 
   it('records Defeat salvage, spend, and sectors on the Dock summary', () => {
@@ -71,12 +71,14 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
 
   it('adds Ash Bank, Silent Stack, extra shards, Yard sieve, and research nodes', () => {
     expect(PROCESS_NODES.some((n) => n.id === 'auto-bank')).toBe(true)
+    expect(PROCESS_NODES.some((n) => n.id === 'smart-smelt')).toBe(true)
+    expect(PROCESS_NODES.some((n) => n.id === 'combat-tempo')).toBe(true)
     expect(getEchoRun('stack')?.requiresId).toBe('veil')
     expect(getEchoNode('echo-hold')?.requiresId).toBe('echo-yield')
     expect(SHARDS.some((s) => s.id === 'loom-chip')).toBe(true)
     expect(YARD_BUILDINGS.some((b) => b.id === 'choir-sieve')).toBe(true)
-    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(6)
-    expect(HIVE_RESEARCH_NODES.material).toHaveLength(6)
+    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(8)
+    expect(HIVE_RESEARCH_NODES.material).toHaveLength(8)
   })
 
   it('Ash Bank converts Choir-ash without a tap', () => {

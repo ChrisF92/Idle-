@@ -25,12 +25,14 @@ describe('shell UX', () => {
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
-    expect(screen.getByText(/Salvage ranks these/i)).toBeTruthy()
-    expect(screen.getByText(/Drones live on Network/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cores' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Launch' })).toBeTruthy()
     expect(document.querySelector('[data-guide="sortie-canvas"]')).toBeTruthy()
     expect(document.querySelector('[data-guide="sortie-hull"]')).toBeTruthy()
     expect(document.querySelector('[data-guide="cores-sheet"]')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cores' }))
+    expect(screen.getByText(/Salvage ranks these/i)).toBeTruthy()
+    expect(screen.getByText(/Drones live on Network/i)).toBeTruthy()
     expect(document.querySelector('[data-guide="core-pulse-cannon"]')).toBeTruthy()
   })
 

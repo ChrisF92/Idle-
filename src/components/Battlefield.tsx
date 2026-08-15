@@ -175,7 +175,7 @@ const VIEW_W = 360
 const VIEW_H = 520
 /** Player flagship sits bottom-center. Enemies close in from the far side (top). */
 const PLAYER_SCREEN_X = VIEW_W / 2
-const PLAYER_SCREEN_Y = VIEW_H - 64
+const PLAYER_SCREEN_Y = VIEW_H - 96
 const LANE_SCALE = (PLAYER_SCREEN_Y - 28) / SPAWN_DISTANCE
 /** Lateral spread from sim y (±~110). */
 const Y_SCALE = 1.45

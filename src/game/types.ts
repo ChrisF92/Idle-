@@ -44,6 +44,8 @@ export type FoundryRecipeId =
   | 'void-slag'
   | 'control-mesh'
   | 'warp-thread'
+  | 'brace-pin'
+  | 'slag-glass'
 
 export interface FoundrySlot {
   recipeId: FoundryRecipeId | null
@@ -73,7 +75,7 @@ export interface ReliquaryState {
   slots: Partial<Record<ReliquaryColor, string | null>>
 }
 
-export type FurnaceTrackId = 'attack' | 'defense' | 'lab' | 'workshop'
+export type FurnaceTrackId = 'attack' | 'defense' | 'lab' | 'workshop' | 'hold'
 
 /** USI Reactor analogue — ranks persist; ash/heat live on resources. */
 export interface FurnaceState {

@@ -358,7 +358,7 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   if (!isSystemUnlocked(state, 'furnace') && careerHighestSector(state) < 5) return state
   let next = convertAshToHeat(state)
   if (next !== state) ctx.record('ash-to-heat')
-  const order = ['attack', 'defense', 'workshop', 'lab'] as const
+  const order = ['attack', 'defense', 'workshop', 'lab', 'hold'] as const
   for (const id of order) {
     if (!canBuyFurnaceRank(next, id).ok) continue
     const after = buyFurnaceRank(next, id)

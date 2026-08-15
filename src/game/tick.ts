@@ -53,7 +53,7 @@ import {
   wavesForRun,
 } from './echo'
 import { tryCompleteProtocol } from './protocols'
-import { hasProcess } from './process'
+import { hasProcess, processCombatSpeedMult } from './process'
 import {
   captureSortieMark,
   closeSortie,
@@ -780,7 +780,7 @@ export function warpToSector(state: GameState, sector: number): GameState {
 /** Advance continuous simulation by `seconds` of game time (mutates). */
 export function advanceSeconds(state: GameState, seconds: number): void {
   let left = Math.max(0, seconds)
-  const combatSpeed = combatSpeedMultiplier(state)
+  const combatSpeed = Math.max(combatSpeedMultiplier(state), processCombatSpeedMult(state))
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)
     // Industry / fab / training always use real dt.

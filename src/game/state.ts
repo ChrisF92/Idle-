@@ -63,7 +63,7 @@ import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult 
 import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 
-export const SAVE_VERSION = 32
+export const SAVE_VERSION = 33
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {

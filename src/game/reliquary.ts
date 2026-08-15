@@ -49,6 +49,15 @@ export const SHARDS: ShardDef[] = [
     damage: 0.08,
   },
   {
+    id: 'keel-chip',
+    name: 'Keel Chip',
+    color: 'red',
+    blurb: 'Damage with a little plate. Sector 6.',
+    requiresSectorEver: 6,
+    damage: 0.06,
+    shield: 0.04,
+  },
+  {
     id: 'pulse-chip',
     name: 'Pulse Chip',
     color: 'red',
@@ -64,6 +73,15 @@ export const SHARDS: ShardDef[] = [
     salvage: 0.1,
   },
   {
+    id: 'cycle-chip',
+    name: 'Cycle Chip',
+    color: 'orange',
+    blurb: 'Keeps bars turning. Sector 5.',
+    requiresSectorEver: 5,
+    salvage: 0.06,
+    networkFill: 0.06,
+  },
+  {
     id: 'plate-chip',
     name: 'Plate Chip',
     color: 'orange',
@@ -76,6 +94,14 @@ export const SHARDS: ShardDef[] = [
     color: 'pink',
     blurb: 'Network bars fill faster.',
     networkFill: 0.1,
+  },
+  {
+    id: 'spark-chip',
+    name: 'Spark Chip',
+    color: 'pink',
+    blurb: 'A little extra bite. Sector 8.',
+    requiresSectorEver: 8,
+    damage: 0.07,
   },
   {
     id: 'ward-chip',
@@ -119,6 +145,15 @@ export const SHARDS: ShardDef[] = [
     blurb: 'Late damage lattice. Sector 12.',
     requiresSectorEver: 12,
     damage: 0.1,
+  },
+  {
+    id: 'assay-chip',
+    name: 'Assay Chip',
+    color: 'red',
+    blurb: 'Foundry pull with a bite. Sector 10.',
+    requiresSectorEver: 10,
+    damage: 0.05,
+    foundrySpeed: 0.06,
   },
   {
     id: 'yield-chip',
@@ -278,6 +313,19 @@ export function unlockedShardPool(state: GameState): ShardDef[] {
     if ((s.requiresSectorEver ?? 0) > ever) return false
     return true
   })
+}
+
+/** Rough combat/idle value for Process Shard Seat. */
+export function shardAutoScore(def: ShardDef): number {
+  return (
+    (def.damage ?? 0) * 1.25 +
+    (def.shield ?? 0) +
+    (def.salvage ?? 0) +
+    (def.networkFill ?? 0) * 0.55 +
+    (def.foundrySpeed ?? 0) * 0.5 +
+    (def.researchXp ?? 0) * 0.5 +
+    (def.ash ?? 0) * 0.4
+  )
 }
 
 export function shardEffectBlurb(def: ShardDef): string {

@@ -286,7 +286,7 @@ export function inspectFurnaceTrack(state: GameState, id: FurnaceTrackId): Inspe
   const cost = furnaceRankCost(rank)
   const can = canBuyFurnaceRank(state, id)
   const per =
-    def.damage ?? def.shield ?? def.researchXp ?? def.foundrySpeed ?? 0
+    def.damage ?? def.shield ?? def.researchXp ?? def.foundrySpeed ?? def.salvage ?? 0
   const now = per * rank
   const next = per * Math.min(FURNACE_MAX_RANK, rank + 1)
   const unit = def.damage
@@ -295,7 +295,9 @@ export function inspectFurnaceTrack(state: GameState, id: FurnaceTrackId): Inspe
       ? 'shield'
       : def.researchXp
         ? 'Research XP'
-        : 'craft speed'
+        : def.salvage
+          ? 'salvage'
+          : 'craft speed'
   const stats: InspectStat[] = [
     { label: 'Rank', value: `${rank}/${FURNACE_MAX_RANK}` },
     { label: 'Now', value: `+${pct(now)} ${unit}` },
@@ -338,7 +340,7 @@ export function inspectFurnaceOverview(state: GameState): InspectCard {
     ],
     body: [
       'Kills drop Choir-ash on their own after sector 5. Bank ash into Heat, then buy always-on ranks.',
-      'Attack and Defense buff the ship. Lab writes Research faster. Workshop speeds the Foundry.',
+      'Attack and Defense buff the ship. Lab writes Research faster. Workshop speeds the Foundry. Hold marks wrecks for Salvage.',
       'Ranks, Heat, and leftover ash persist when you Rebuild. Flares collect themselves — do not tap looking for scraps.',
     ],
   }

@@ -36,8 +36,11 @@ import {
   isBlueprintComplete,
   isCorePrintUnlocked,
   isModuleBlockedByChallenge,
+  masteryBonus,
   moduleLevel,
+  moduleLeveledBonus,
   moduleMasteryRank,
+  moduleWeaponDamage,
   modulePrintSector,
   moduleUpgradeCost,
   parsePartId,
@@ -523,6 +526,64 @@ export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean
     }
   }
   if (!bestId) return state
+  return upgradeModule(state, bestId)
+}
+
+function moduleUpgradeGain(state: GameState, moduleId: string, level: number): number {
+  const def = getModule(moduleId)
+  if (!def) return 0
+  const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
+  let gain = 0
+  if (def.weapon) {
+    gain +=
+      (moduleWeaponDamage(def, level + 1, mastery) - moduleWeaponDamage(def, level, mastery)) * 1.2
+  }
+  if (def.hullBonus || def.hullBonusPerLevel) {
+    gain +=
+      moduleLeveledBonus(def.hullBonus ?? 0, def.hullBonusPerLevel, level + 1, mastery) -
+      moduleLeveledBonus(def.hullBonus ?? 0, def.hullBonusPerLevel, level, mastery)
+  }
+  if (def.shieldBonus || def.shieldBonusPerLevel) {
+    gain +=
+      (moduleLeveledBonus(def.shieldBonus ?? 0, def.shieldBonusPerLevel, level + 1, mastery) -
+        moduleLeveledBonus(def.shieldBonus ?? 0, def.shieldBonusPerLevel, level, mastery)) *
+      0.9
+  }
+  if (gain <= 0) {
+    if (def.role === 'weapon') return 3
+    if (def.role === 'defense') return 2.4
+    return 1.4
+  }
+  return gain
+}
+
+/** Spend salvage on the fitted Core with the best stat-gain per salvage. */
+export function upgradeBestValueModule(state: GameState, opts?: { force?: boolean }): GameState {
+  if (
+    !opts?.force &&
+    !(state.process?.purchased ?? []).includes('smart-core')
+  ) {
+    return state
+  }
+  if (state.prestige.activeChallengeId === 'no-ai') return state
+
+  const pool =
+    state.shipyard.modules.length > 0 ? state.shipyard.modules : state.shipyard.unlockedModules
+  let bestId: string | null = null
+  let bestScore = 0
+  for (const id of pool) {
+    const level = moduleLevel(state.shipyard.moduleLevels, id)
+    if (level >= MAX_MODULE_LEVEL) continue
+    if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
+    const cost = moduleUpgradeCost(level, id)
+    if (cost <= 0 || cost > state.resources.salvage) continue
+    const score = moduleUpgradeGain(state, id, level) / cost
+    if (score > bestScore) {
+      bestId = id
+      bestScore = score
+    }
+  }
+  if (!bestId) return upgradeCheapestModule(state, { force: true })
   return upgradeModule(state, bestId)
 }
 
@@ -1082,7 +1143,9 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     choirAsh: state.resources.choirAsh ?? 0,
     heat: state.resources.heat ?? 0,
     reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {} }),
-    furnace: structuredClone(state.furnace ?? { ranks: { attack: 0, defense: 0, lab: 0, workshop: 0 } }),
+    furnace: structuredClone(
+      state.furnace ?? { ranks: { attack: 0, defense: 0, lab: 0, workshop: 0, hold: 0 } },
+    ),
     hiveResearch: structuredClone(
       state.hiveResearch ?? {
         focus: 'material',
