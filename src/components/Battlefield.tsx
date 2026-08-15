@@ -10,7 +10,7 @@ import type {
   WeaponTag,
 } from '../game/types'
 import { SPAWN_DISTANCE } from '../game/combat'
-import { formatNumber } from '../game/format'
+import { formatCompact } from '../game/format'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -144,6 +144,17 @@ interface TraceLinger {
   width: number
 }
 
+interface DamagePopup {
+  x: number
+  y: number
+  vy: number
+  life: number
+  maxLife: number
+  text: string
+  color: string
+  fromPlayer: boolean
+}
+
 interface Scene {
   actors: Map<string, Actor>
   /** Screen-space copies of sim projectiles, keyed by id. */
@@ -153,6 +164,7 @@ interface Scene {
   particles: Particle[]
   flashes: ScreenFlash[]
   rings: RingFx[]
+  popups: DamagePopup[]
   shake: number
   seenFx: Set<string>
   seenProj: Set<string>
@@ -171,14 +183,14 @@ interface Scene {
 }
 
 /** Portrait logical canvas — phone-first, USI-style bottom ship / incoming waves. */
-const VIEW_W = 360
-const VIEW_H = 520
+const VIEW_W = 400
+const VIEW_H = 640
 /** Player flagship sits bottom-center. Enemies close in from the far side (top). */
 const PLAYER_SCREEN_X = VIEW_W / 2
-const PLAYER_SCREEN_Y = VIEW_H - 96
-const LANE_SCALE = (PLAYER_SCREEN_Y - 28) / SPAWN_DISTANCE
+const PLAYER_SCREEN_Y = VIEW_H - 108
+const LANE_SCALE = (PLAYER_SCREEN_Y - 36) / SPAWN_DISTANCE
 /** Lateral spread from sim y (±~110). */
-const Y_SCALE = 1.45
+const Y_SCALE = 1.2
 
 function tagColor(tag: string): string {
   switch (tag) {
@@ -428,21 +440,21 @@ function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
 
 /** Skirmishers are tiny; juggernauts and bosses fill the lane. */
 function unitRadius(unit: CombatUnit): number {
-  if (unit.isFlagship) return 20
-  if (unit.isBoss || unit.role === 'boss') return 22
+  if (unit.isFlagship) return 16
+  if (unit.isBoss || unit.role === 'boss') return 18
   switch (unit.role) {
     case 'skirmisher':
-      return 8
+      return 7
     case 'fighter':
-      return 11
+      return 9
     case 'sniper':
-      return 10
+      return 8
     case 'shield':
-      return 13
+      return 11
     case 'juggernaut':
-      return 18
+      return 15
     default:
-      return unit.hullMax > 50 ? 16 : 12
+      return unit.hullMax > 50 ? 13 : 10
   }
 }
 
@@ -925,6 +937,7 @@ function syncScene(
         ring(scene, to.x, to.y, color, to.isBoss || to.isFlagship ? 36 : 22, 0.22, 1.6)
         if (to.isFlagship || to.isBoss) addShake(scene, to.isBoss ? 2.4 : 1.4)
       }
+      spawnDamagePopup(scene, shot, to)
     }
   }
   if (scene.seenFx.size > 240) scene.seenFx = new Set(fx.map((f) => f.id))
@@ -1209,6 +1222,13 @@ function stepScene(scene: Scene, dt: number): void {
   for (const r of scene.rings) r.life -= dt
   scene.rings = scene.rings.filter((r) => r.life > 0)
 
+  for (const p of scene.popups) {
+    p.y += p.vy * dt
+    p.vy *= Math.pow(0.94, dt * 60)
+    p.life -= dt
+  }
+  scene.popups = scene.popups.filter((p) => p.life > 0)
+
   for (const t of scene.traces) t.life -= dt
   scene.traces = scene.traces.filter((t) => t.life > 0)
 
@@ -1348,75 +1368,51 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: VisualShot): void {
   ctx.restore()
 }
 
-function formatChip(n: number): string {
-  return formatNumber(n)
+function formatPopupDamage(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0'
+  if (n < 10) return formatCompact(n, 1)
+  return formatCompact(n, 0)
 }
 
-function drawPlayerChips(ctx: CanvasRenderingContext2D, scene: Scene): void {
-  let flag: Actor | null = null
-  for (const actor of scene.actors.values()) {
-    if (actor.side === 'player' && actor.isFlagship && actor.alive) {
-      flag = actor
-      break
-    }
-  }
-  if (!flag) return
+function popupColor(shot: CombatFx, fromPlayer: boolean): string {
+  if (shot.hit === 'miss' || shot.tag === 'miss') return '#9aa3ad'
+  if (shot.hit === 'shield') return '#7ec8ff'
+  return fromPlayer ? '#ffe8c7' : '#ff8a7a'
+}
 
-  const showShield = flag.shieldMax > 0
-  const pad = 10
-  const w = 132
-  const h = showShield ? 44 : 28
-  const x = pad
-  const y = scene.height - h - pad
-  const hullPct = Math.max(0, Math.min(1, flag.hull / Math.max(1, flag.hullMax)))
-  const shieldPct = showShield
-    ? Math.max(0, Math.min(1, flag.shield / flag.shieldMax))
-    : 0
+function spawnDamagePopup(scene: Scene, shot: CombatFx, to: Actor): void {
+  const from = scene.actors.get(shot.fromId)
+  const fromPlayer = from?.side === 'player'
+  const miss = shot.hit === 'miss' || shot.tag === 'miss'
+  const amount = shot.amount ?? 0
+  if (!miss && amount < 0.05) return
+  scene.popups.push({
+    x: to.x + (Math.random() - 0.5) * 18,
+    y: to.y - to.r - 6,
+    vy: miss ? -28 : -52,
+    life: miss ? 0.55 : 0.7,
+    maxLife: miss ? 0.55 : 0.7,
+    text: miss ? 'miss' : formatPopupDamage(amount),
+    color: popupColor(shot, Boolean(fromPlayer)),
+    fromPlayer: Boolean(fromPlayer),
+  })
+  if (scene.popups.length > 40) scene.popups.splice(0, scene.popups.length - 40)
+}
 
+function drawDamagePopups(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.save()
-  ctx.fillStyle = 'rgba(12, 18, 26, 0.82)'
-  ctx.strokeStyle = 'rgba(79, 143, 154, 0.45)'
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.rect(x + 0.5, y + 0.5, w - 1, h - 1)
-  ctx.fill()
-  ctx.stroke()
-
-  ctx.font = '600 9px "IBM Plex Mono", ui-monospace, monospace'
-  ctx.textAlign = 'left'
-  ctx.fillStyle = 'rgba(139, 151, 168, 0.95)'
-  ctx.fillText('HULL', x + 8, y + 14)
-  ctx.fillStyle = '#e0b06a'
-  ctx.textAlign = 'right'
-  ctx.fillText(
-    `${formatChip(flag.hull)}/${formatChip(flag.hullMax)}`,
-    x + w - 8,
-    y + 14,
-  )
-
-  ctx.fillStyle = '#0d1117'
-  ctx.fillRect(x + 8, y + 18, w - 16, 4)
-  ctx.fillStyle = '#e0b06a'
-  ctx.fillRect(x + 8, y + 18, (w - 16) * hullPct, 4)
-
-  if (showShield) {
-    ctx.textAlign = 'left'
-    ctx.fillStyle = 'rgba(139, 151, 168, 0.95)'
-    ctx.fillText('SHIELD', x + 8, y + 34)
-    ctx.fillStyle = '#5ec4b8'
-    ctx.textAlign = 'right'
-    ctx.fillText(
-      `${formatChip(flag.shield)}/${formatChip(flag.shieldMax)}`,
-      x + w - 8,
-      y + 34,
-    )
-
-    ctx.fillStyle = '#0d1117'
-    ctx.fillRect(x + 8, y + 38, w - 16, 3)
-    if (shieldPct > 0) {
-      ctx.fillStyle = '#5ec4b8'
-      ctx.fillRect(x + 8, y + 38, (w - 16) * shieldPct, 3)
-    }
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (const p of scene.popups) {
+    const t = Math.max(0, p.life / p.maxLife)
+    ctx.globalAlpha = Math.min(1, t * 1.4) * 0.95
+    ctx.fillStyle = p.color
+    ctx.shadowColor = p.color
+    ctx.shadowBlur = p.fromPlayer ? 8 : 5
+    ctx.font = p.fromPlayer
+      ? '700 13px "IBM Plex Mono", ui-monospace, monospace'
+      : '600 12px "IBM Plex Mono", ui-monospace, monospace'
+    ctx.fillText(p.text, p.x, p.y)
   }
   ctx.restore()
 }
@@ -1665,8 +1661,8 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.restore()
     }
 
-    // Compact bars on units; flagship uses the chip panel instead.
-    if (!(actor.side === 'player' && actor.isFlagship)) {
+    // Compact hull / shield pips under every ship, including the flagship.
+    {
       const barW = actor.r * 2.1
       const barX = actor.x - barW / 2
       const barY = actor.y + actor.r + 5
@@ -1693,7 +1689,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.globalAlpha = 1
 
   drawFlashes(ctx, scene)
-  drawPlayerChips(ctx, scene)
+  drawDamagePopups(ctx, scene)
 
   ctx.restore()
 }
@@ -1726,6 +1722,7 @@ export function Battlefield({
       particles: [],
       flashes: [],
       rings: [],
+      popups: [],
       shake: 0,
       seenFx: new Set(),
       seenProj: new Set(),

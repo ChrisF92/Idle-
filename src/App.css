@@ -578,43 +578,6 @@ h2 .inspect-name {
   position: relative;
 }
 
-.sortie-hud {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 2;
-  pointer-events: none;
-  border-bottom: 0;
-  background: linear-gradient(180deg, rgba(12, 10, 9, 0.88) 0%, rgba(12, 10, 9, 0.35) 70%, transparent 100%);
-  padding: 0.4rem 0.65rem 0.85rem;
-}
-
-.sortie-hud .combat-hud-readout {
-  pointer-events: auto;
-}
-
-.sortie-hud-meter {
-  display: block;
-  height: 3px;
-  margin-top: 0.12rem;
-  background: color-mix(in srgb, var(--line) 80%, transparent);
-  overflow: hidden;
-}
-
-.sortie-hud-meter-fill {
-  display: block;
-  height: 100%;
-}
-
-.sortie-hud-meter-fill.hull {
-  background: color-mix(in srgb, var(--accent) 80%, #fff);
-}
-
-.sortie-hud-meter-fill.shield {
-  background: color-mix(in srgb, var(--accent-2) 85%, #9fd);
-}
-
 .sortie-defeat-banner {
   position: absolute;
   left: 50%;

@@ -410,6 +410,9 @@ export interface CombatFx {
   toId: string
   tag: string
   ttl: number
+  /** Damage shown as a floating number. Omitted on misses / old saves. */
+  amount?: number
+  hit?: 'hull' | 'shield' | 'miss'
 }
 
 /** In-flight shot — damage applies on impact, not on fire. */
@@ -454,6 +457,10 @@ export interface CombatBeam {
   hullDamage?: number
   shieldDamage?: number
   armorDamage?: number
+  /** Visual-only: accumulated beam damage waiting for a popup. */
+  popupAcc?: number
+  /** Visual-only: time since the last beam popup. */
+  popupT?: number
 }
 
 export interface CombatState {

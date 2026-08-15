@@ -41,7 +41,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   combat: {
     title: 'Sortie',
     body: [
-      'The ship sits at the bottom. Waves come down the lane. HUD on the field is sector, hull, shield, and Salvage.',
+      'The ship sits at the bottom. Waves come down the lane. The header is sector, hull, shield, and Salvage.',
       'Tap Cores for Pulse, Plate, and the rest. Salvage ranks them even mid-fight. Advance pushes sectors. Hold sector repeats the gauntlet. Hold wave farms this pack. Rebuild wipes Core levels so you can swap the loadout.',
       'Drones belong on the Network tab — they never appear here and they never shoot.',
     ],

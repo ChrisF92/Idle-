@@ -844,7 +844,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'The lane',
     body: [
       'Your hull sits at the bottom. Waves close in from the far side.',
-      'This screen is the fight. HUD sits on the field. Cores is a button under it.',
+      'This screen is the fight. Hull and Shield live in the header. Cores is a button under the field.',
     ],
     target: 'sortie-canvas',
     tab: 'combat',

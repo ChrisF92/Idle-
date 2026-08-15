@@ -110,11 +110,39 @@ export function CombatTab({
     combat.playerUnits.length > 0 ? combat.playerUnits : previewPlayer
   const enemyUnits = combat.docked && !dying ? [] : combat.enemyUnits
 
-  const hullPct = Math.max(0, Math.min(1, combat.playerHull / Math.max(1, stats.hullMax)))
-  const shieldPct = Math.max(0, Math.min(1, combat.playerShield / Math.max(1, stats.shieldMax)))
-
   return (
     <section className="sortie-screen">
+      <header className="combat-hud-bar">
+        <div className="combat-hud-readout">
+          <span className="combat-hud-kicker">
+            {echoRun
+              ? echoRun.name
+              : protocol
+                ? `P${protocol.goalSector}`
+                : `S${combat.sector}${normalizeRoute(combat.route) === 'B' ? 'B' : ''}`}
+          </span>
+          <strong className="combat-hud-value">
+            W{combat.wave}/{waves}
+          </strong>
+        </div>
+        <div className="combat-hud-readout" data-guide="sortie-hull">
+          <span className="combat-hud-kicker">Hull</span>
+          <strong className="combat-hud-value">
+            {formatCompact(Math.ceil(combat.playerHull))}/{formatCompact(Math.ceil(stats.hullMax))}
+          </strong>
+        </div>
+        <div className="combat-hud-readout" data-guide="sortie-shield">
+          <span className="combat-hud-kicker">Shield</span>
+          <strong className="combat-hud-value">
+            {formatCompact(Math.ceil(combat.playerShield))}/{formatCompact(Math.ceil(stats.shieldMax))}
+          </strong>
+        </div>
+        <div className="combat-hud-readout" data-guide="salvage-stat">
+          <span className="combat-hud-kicker">Salvage</span>
+          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
+        </div>
+      </header>
+
       <div className="sortie-canvas" data-guide="sortie-canvas">
         <Battlefield
           playerUnits={playerUnits}
@@ -125,42 +153,6 @@ export function CombatTab({
           mode={battlefieldMode}
           paused={paused}
         />
-        <header className="combat-hud-bar sortie-hud">
-          <div className="combat-hud-readout">
-            <span className="combat-hud-kicker">
-              {echoRun
-                ? echoRun.name
-                : protocol
-                  ? `P${protocol.goalSector}`
-                  : `S${combat.sector}${normalizeRoute(combat.route) === 'B' ? 'B' : ''}`}
-            </span>
-            <strong className="combat-hud-value">
-              W{combat.wave}/{waves}
-            </strong>
-          </div>
-          <div className="combat-hud-readout" data-guide="sortie-hull">
-            <span className="combat-hud-kicker">Hull</span>
-            <strong className="combat-hud-value">
-              {formatCompact(Math.ceil(combat.playerHull))}/{formatCompact(Math.ceil(stats.hullMax))}
-            </strong>
-            <span className="sortie-hud-meter" aria-hidden>
-              <span className="sortie-hud-meter-fill hull" style={{ width: `${Math.round(hullPct * 100)}%` }} />
-            </span>
-          </div>
-          <div className="combat-hud-readout" data-guide="sortie-shield">
-            <span className="combat-hud-kicker">Shield</span>
-            <strong className="combat-hud-value">
-              {formatCompact(Math.ceil(combat.playerShield))}/{formatCompact(Math.ceil(stats.shieldMax))}
-            </strong>
-            <span className="sortie-hud-meter" aria-hidden>
-              <span className="sortie-hud-meter-fill shield" style={{ width: `${Math.round(shieldPct * 100)}%` }} />
-            </span>
-          </div>
-          <div className="combat-hud-readout" data-guide="salvage-stat">
-            <span className="combat-hud-kicker">Salvage</span>
-            <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
-          </div>
-        </header>
         {dying ? (
           <p className="sortie-defeat-banner" role="status">
             Hull lost
