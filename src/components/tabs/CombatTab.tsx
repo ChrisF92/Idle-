@@ -5,7 +5,7 @@ import { COMBAT_PUSH_MODES, normalizePushMode, normalizeRoute, pushModeLabel } f
 import { wavesForRun, getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
-import { activeGuideStep, hasHullLostOnce } from '../../game/progression'
+import { activeGuideStep, hasHullLostOnce, isCoresGuideTarget, type GuideStep } from '../../game/progression'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
 
@@ -16,17 +16,13 @@ interface CombatTabProps {
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
+  guide?: GuideStep | null
 }
 
-function coresGuideActive(state: GameState): boolean {
-  const step = activeGuideStep(state, 'combat')
+function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {
+  const step = guide ?? activeGuideStep(state, 'combat')
   if (!step) return false
-  const target = step.target
-  return (
-    target === 'cores-sheet' ||
-    target.startsWith('core-') ||
-    target.startsWith('upgrade-')
-  )
+  return isCoresGuideTarget(step)
 }
 
 export function CombatTab({
@@ -36,6 +32,7 @@ export function CombatTab({
   onUpgrade,
   onPickMilestone,
   paused = false,
+  guide = null,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -46,7 +43,7 @@ export function CombatTab({
   const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const pushMode = normalizePushMode(combat.pushMode, combat.campaign)
   const titleId = useId()
-  const forceCores = coresGuideActive(state)
+  const forceCores = coresGuideActive(state, guide)
   const salvageOpen = hasHullLostOnce(state)
   const [coresOpen, setCoresOpen] = useState(false)
   const sheetOpen = salvageOpen && (coresOpen || forceCores)
@@ -54,6 +51,10 @@ export function CombatTab({
   useEffect(() => {
     if (forceCores) setCoresOpen(true)
   }, [forceCores])
+
+  useEffect(() => {
+    if (guide && !isCoresGuideTarget(guide)) setCoresOpen(false)
+  }, [guide])
 
   useEffect(() => {
     if (!sheetOpen) return

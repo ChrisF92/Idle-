@@ -771,10 +771,41 @@ export interface GuideStep {
    * until completeWhen (or the highlighted control) finishes the step.
    */
   required?: boolean
+  /**
+   * Player must tap the highlighted control. Continue is hidden.
+   * Default: true for tab/station/launch/upgrade/completeWhen steps.
+   */
+  tap?: boolean
 }
 
 export function guideBodyLines(step: GuideStep): string[] {
   return Array.isArray(step.body) ? step.body : [step.body]
+}
+
+const TAP_TARGETS = new Set([
+  'launch',
+  'cores-sheet',
+  'rebuild-btn',
+  'hangar-confirm',
+  'furnace-bank',
+  'reinforce-go',
+])
+
+/** True when the player must tap the spotlight instead of Continue. */
+export function guideStepNeedsTap(step: GuideStep): boolean {
+  if (typeof step.tap === 'boolean') return step.tap
+  if (step.completeWhen) return true
+  const t = step.target
+  if (t.endsWith('-tab') || t.startsWith('station-')) return true
+  if (t.startsWith('upgrade-') || t.startsWith('core-')) return true
+  return TAP_TARGETS.has(t)
+}
+
+/** Cores modal should stay open for these spotlight targets. */
+export function isCoresGuideTarget(step: GuideStep): boolean {
+  const t = step.target
+  if (t.startsWith('core-') || t.startsWith('upgrade-')) return true
+  return t === 'cores-sheet' && step.id !== 'guide-cores-sheet'
 }
 
 /** More / Foundry / Network screens that must finish their own tour first. */
@@ -829,6 +860,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     body: 'Home. Scout Hull is fitted. Launch a sortie — stay on this fight until hull loss. Salvage and Network open after you dock.',
     target: 'dock-tab',
     tab: 'dock',
+    tap: false,
     availableWhen: (s) =>
       s.combat.docked && !s.shipyard.frameLocked && !guideSeen(s, 'guide-shipyard-tab'),
   },
@@ -838,6 +870,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     body: 'Scout Hull is fitted. After hull loss, Salvage ranks Cores. Rebuild later to swap the hull.',
     target: 'dock-tab',
     tab: 'dock',
+    tap: false,
     availableWhen: (s) =>
       guideSeen(s, 'guide-shipyard-tab') &&
       !guideSeen(s, 'guide-frame-select') &&
@@ -1021,6 +1054,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     screen: 'combat',
     group: 'cores',
     required: true,
+    tap: false,
     availableWhen: (s) =>
       s.combat.docked &&
       hasHullLostOnce(s) &&

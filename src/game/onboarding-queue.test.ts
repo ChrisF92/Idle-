@@ -10,7 +10,9 @@ import {
   acknowledgeOnboarding,
   guideBodyLines,
   guideQueueQuiet,
+  guideStepNeedsTap,
   hasHullLostOnce,
+  isCoresGuideTarget,
   skipOnboarding,
 } from './progression'
 
@@ -355,5 +357,23 @@ describe('onboarding queue', () => {
     expect(GUIDE_STEPS.filter((s) => s.group === 'network').map((s) => s.id)).toEqual([
       ...NETWORK_GUIDE_IDS,
     ])
+  })
+
+  it('hides Continue on tap-the-control steps and keeps it on look-only tips', () => {
+    const byId = Object.fromEntries(GUIDE_STEPS.map((s) => [s.id, s]))
+    expect(guideStepNeedsTap(byId['guide-launch']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-salvage-lesson']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-cores-sheet']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-upgrade-pulse']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-drone-cap']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-network-assign']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-sortie-field']!)).toBe(false)
+    expect(guideStepNeedsTap(byId['guide-sortie-hull']!)).toBe(false)
+    expect(guideStepNeedsTap(byId['guide-cores-persist']!)).toBe(false)
+    expect(guideStepNeedsTap(byId['guide-network-make']!)).toBe(false)
+    expect(isCoresGuideTarget(byId['guide-cores-sheet']!)).toBe(false)
+    expect(isCoresGuideTarget(byId['guide-upgrade-pulse']!)).toBe(true)
+    expect(isCoresGuideTarget(byId['guide-cores-persist']!)).toBe(true)
+    expect(isCoresGuideTarget(byId['guide-drone-cap']!)).toBe(false)
   })
 })

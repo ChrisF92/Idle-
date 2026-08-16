@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
-import { guideBodyLines, type GuideStep } from '../game/progression'
+import { guideBodyLines, guideStepNeedsTap, type GuideStep } from '../game/progression'
 
 interface GuideOverlayProps {
   step: GuideStep
@@ -35,6 +35,7 @@ function scrollTargetIntoView(el: HTMLElement) {
 export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
   const [rect, setRect] = useState<DOMRect | null>(null)
   const required = Boolean(step.required)
+  const needsTap = guideStepNeedsTap(step)
 
   useEffect(() => {
     const html = document.documentElement
@@ -98,14 +99,14 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       const el = document.querySelector(`[data-guide="${step.target}"]`)
       if (!el) return
       if (el === e.target || el.contains(e.target as Node)) {
-        // Required steps with completeWhen advance via App state polls only.
-        if (required && step.completeWhen) return
+        // completeWhen steps advance when the action lands in game state.
+        if (step.completeWhen) return
         window.setTimeout(() => onComplete(step.id), 0)
       }
     }
     document.addEventListener('click', onClick, true)
     return () => document.removeEventListener('click', onClick, true)
-  }, [step.id, step.target, step.completeWhen, required, onComplete])
+  }, [step.id, step.target, step.completeWhen, onComplete])
 
   const pad = 8
   const hole: Hole | null = rect
@@ -180,25 +181,37 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
         role="dialog"
         aria-label={step.title}
       >
-        <p className="combat-hud-kicker">Guide · paused</p>
+        <p className="combat-hud-kicker">
+          {needsTap ? 'Guide · tap the highlight' : 'Guide · paused'}
+        </p>
         <h3>{step.title}</h3>
         <div className="guide-tip-body">
           {guideBodyLines(step).map((line) => (
             <p key={line}>{line}</p>
           ))}
         </div>
-        <div className="guide-tip-actions">
-          {!required ? (
-            <button type="button" onClick={() => onSkip(step.id)}>
-              Skip
+        {needsTap || !required ? (
+          <div className="guide-tip-actions">
+            {!required ? (
+              <button type="button" onClick={() => onSkip(step.id)}>
+                Skip
+              </button>
+            ) : (
+              <span className="muted">Tap the highlighted control</span>
+            )}
+            {!needsTap ? (
+              <button type="button" className="primary" onClick={() => onComplete(step.id)}>
+                Continue
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="guide-tip-actions">
+            <button type="button" className="primary" onClick={() => onComplete(step.id)}>
+              Continue
             </button>
-          ) : (
-            <span className="muted">Required</span>
-          )}
-          <button type="button" className="primary" onClick={() => onComplete(step.id)}>
-            Continue
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

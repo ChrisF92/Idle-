@@ -5,8 +5,10 @@ import { NetworkTab } from '../components/tabs/NetworkTab'
 import { ScreenHelp } from '../components/ScreenHelp'
 import { StatsTab } from '../components/tabs/StatsTab'
 import { TabNav } from '../components/TabNav'
+import { GuideOverlay } from '../components/GuideOverlay'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
+import { acknowledgeOnboarding, activeGuideStep, GUIDE_STEPS } from './progression'
 
 afterEach(cleanup)
 
@@ -105,6 +107,71 @@ describe('shell UX', () => {
     )
     expect(screen.getByRole('button', { name: /Network/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /More/ })).toBeTruthy()
+  })
+
+  it('closes the Cores modal when Network onboarding needs the tab bar', () => {
+    const persist = markHullLost(createInitialState(0))
+    persist.combat.docked = true
+    persist.resources.salvage = 8
+    persist.shipyard.moduleLevels['pulse-cannon'] = 1
+    persist.shipyard.moduleLevels['plate-layer'] = 1
+    persist.meta.seenOnboarding = [
+      'guide-shipyard-tab',
+      'guide-frame-select',
+      'guide-launch',
+      'guide-sortie-field',
+      'guide-sortie-guns',
+      'guide-sortie-hull',
+      'guide-salvage-lesson',
+      'guide-cores-sheet',
+      'guide-upgrade-pulse',
+      'guide-upgrade-plate',
+      'guide-cores-inspect',
+    ]
+    const persistStep = activeGuideStep(persist, 'combat')
+    expect(persistStep?.id).toBe('guide-cores-persist')
+
+    const { rerender } = render(
+      <CombatTab
+        state={persist}
+        onLaunch={() => undefined}
+        onSetPushMode={() => undefined}
+        onUpgrade={() => undefined}
+        onPickMilestone={() => undefined}
+        guide={persistStep}
+      />,
+    )
+    expect(screen.getByRole('dialog', { name: 'Cores' })).toBeTruthy()
+
+    const next = acknowledgeOnboarding(persist, 'guide-cores-persist')
+    const networkStep = activeGuideStep(next, 'combat')
+    expect(networkStep?.id).toBe('guide-drone-cap')
+    rerender(
+      <CombatTab
+        state={next}
+        onLaunch={() => undefined}
+        onSetPushMode={() => undefined}
+        onUpgrade={() => undefined}
+        onPickMilestone={() => undefined}
+        guide={networkStep}
+      />,
+    )
+    expect(screen.queryByRole('dialog', { name: 'Cores' })).toBeNull()
+  })
+
+  it('shows Continue only on look-only onboarding tips', () => {
+    const tap = GUIDE_STEPS.find((s) => s.id === 'guide-drone-cap')
+    const look = GUIDE_STEPS.find((s) => s.id === 'guide-sortie-field')
+    expect(tap && look).toBeTruthy()
+    const { rerender } = render(
+      <GuideOverlay step={tap!} onComplete={() => undefined} onSkip={() => undefined} />,
+    )
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
+    expect(screen.getByText(/Tap the highlighted control/i)).toBeTruthy()
+    rerender(
+      <GuideOverlay step={look!} onComplete={() => undefined} onSkip={() => undefined} />,
+    )
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy()
   })
 
   it('spotlights Network manufacture, corps, and Links', () => {

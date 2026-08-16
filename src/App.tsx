@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
-import { activeGuideStep, isHubTabOpen } from './game/progression'
+import { activeGuideStep, isHangarGuideStep, isHubTabOpen } from './game/progression'
 import { wavesForSector } from './game/sectors'
 import { setActiveNumberNotation } from './game/format'
 import { ResourceBar } from './components/ResourceBar'
@@ -115,6 +115,11 @@ export default function App() {
   }, [game.state.combat.lastSortie, game.state.combat.docked, dying])
 
   useEffect(() => {
+    if (!guide || !hangarOpen) return
+    if (!isHangarGuideStep(guide)) setHangarOpen(false)
+  }, [guide, hangarOpen])
+
+  useEffect(() => {
     if (!guide?.tab || dying) return
     if (!game.state.combat.docked && guide.tab !== 'combat') return
     if (guide.id === lastGuideId.current) return
@@ -172,6 +177,7 @@ export default function App() {
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
             paused={Boolean(guide)}
+            guide={guide}
           />
         )}
         {tab === 'network' && (
