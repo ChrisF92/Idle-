@@ -12,10 +12,29 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Hiveworks" />
     <title>Hiveworks</title>
-    <script type="module" crossorigin src="/Idle-/assets/index-DzKreRMe.js"></script>
-    <link rel="stylesheet" crossorigin href="/Idle-/assets/index-Deuounqw.css">
+    <script type="module" crossorigin src="/Idle-/assets/index-D-Co07rp.js"></script>
+    <link rel="stylesheet" crossorigin href="/Idle-/assets/index-DKLisoJE.css">
   <link rel="manifest" href="/Idle-/manifest.webmanifest"></head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        if (!('serviceWorker' in navigator)) return
+        if (location.pathname.indexOf('/pr-preview/') === -1) return
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          var hijack = regs.some(function (r) {
+            return r.scope.indexOf('/pr-preview/') === -1
+          })
+          if (!hijack) return
+          return Promise.all(regs.map(function (r) { return r.unregister() })).then(function () {
+            return 'caches' in window ? caches.keys() : []
+          }).then(function (keys) {
+            return Promise.all(keys.map(function (k) { return caches.delete(k) }))
+          }).then(function () {
+            location.reload()
+          })
+        })
+      })()
+    </script>
   </body>
 </html>
