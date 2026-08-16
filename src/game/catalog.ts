@@ -1736,6 +1736,24 @@ export function moduleUpgradeCost(level: number, moduleId?: string): number {
   return Math.ceil(base * scaling ** n)
 }
 
+/** Pulse L1 + Plate L1 — the first-death Cores tour spends this much Salvage. */
+export const STARTER_CORE_IDS = ['pulse-cannon', 'plate-layer'] as const
+
+export function salvageToRankStarterCores(
+  state: Pick<GameState, 'shipyard'>,
+  minLevel = 1,
+): number {
+  let need = 0
+  for (const id of STARTER_CORE_IDS) {
+    let level = moduleLevel(state.shipyard.moduleLevels, id)
+    while (level < minLevel) {
+      need += moduleUpgradeCost(level, id)
+      level += 1
+    }
+  }
+  return need
+}
+
 /**
  * Percent curve for stats that are not USI-flat (evasion, incoming).
  * Damage / shield / hull use `moduleLeveledBonus` instead.

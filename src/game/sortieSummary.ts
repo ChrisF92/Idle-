@@ -1,6 +1,7 @@
 /** Dock run summary — snapshot at Launch, close on Extract / Defeat. */
 
 import type { GameState, HiveResearchBranch, SortieMark, SortieSummary } from './types'
+import { salvageToRankStarterCores } from './catalog'
 import { retireLiveSortieGuides } from './progression'
 
 const RESEARCH_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation']
@@ -74,8 +75,20 @@ export function closeSortie(
   at?: { sector: number; wave: number },
 ): void {
   const mark = state.combat.sortieMark
-  const salvageNow = state.resources.salvage ?? 0
   const spent = mark?.salvageSpent ?? 0
+  if (outcome === 'defeat') {
+    // First hull loss hides Cores until dock. Bank enough wreck for Pulse L1
+    // and Plate L1 so the required tour cannot soft-lock on an unaffordable tap.
+    if (!state.meta.hullLostOnce) {
+      const need = salvageToRankStarterCores(state)
+      if ((state.resources.salvage ?? 0) < need) {
+        state.resources.salvage = need
+      }
+    }
+    state.meta.hullLostOnce = true
+    retireLiveSortieGuides(state)
+  }
+  const salvageNow = state.resources.salvage ?? 0
   const gained = mark ? Math.max(0, salvageNow + spent - mark.salvage) : 0
   state.combat.lastSortie = {
     outcome,
@@ -88,10 +101,6 @@ export function closeSortie(
     milestones: Math.max(0, countCorePicks(state) - (mark?.corePicks ?? 0)),
     researchXp: Math.max(0, Math.floor(researchBanked(state) - (mark?.researchXp ?? 0))),
     networkLevels: Math.max(0, networkLevelsSum(state) - (mark?.networkLevels ?? 0)),
-  }
-  if (outcome === 'defeat') {
-    state.meta.hullLostOnce = true
-    retireLiveSortieGuides(state)
   }
   state.combat.sortieMark = null
 }
