@@ -1755,6 +1755,20 @@ export function salvageToRankStarterCores(
 }
 
 /**
+ * Bank wreck so the required Pulse/Plate taps are never unaffordable.
+ * Heals saves already stuck mid-tour (Pulse bought, Plate still locked).
+ */
+export function ensureStarterCoresTourSalvage(state: GameState): GameState {
+  const need = salvageToRankStarterCores(state)
+  if (need <= 0) return state
+  if ((state.resources.salvage ?? 0) >= need) return state
+  return {
+    ...state,
+    resources: { ...state.resources, salvage: need },
+  }
+}
+
+/**
  * Percent curve for stats that are not USI-flat (evasion, incoming).
  * Damage / shield / hull use `moduleLeveledBonus` instead.
  */

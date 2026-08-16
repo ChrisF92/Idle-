@@ -1,7 +1,7 @@
 /** Dock run summary — snapshot at Launch, close on Extract / Defeat. */
 
 import type { GameState, HiveResearchBranch, SortieMark, SortieSummary } from './types'
-import { salvageToRankStarterCores } from './catalog'
+import { ensureStarterCoresTourSalvage } from './catalog'
 import { retireLiveSortieGuides } from './progression'
 
 const RESEARCH_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation']
@@ -77,16 +77,10 @@ export function closeSortie(
   const mark = state.combat.sortieMark
   const spent = mark?.salvageSpent ?? 0
   if (outcome === 'defeat') {
-    // First hull loss hides Cores until dock. Bank enough wreck for Pulse L1
-    // and Plate L1 so the required tour cannot soft-lock on an unaffordable tap.
-    if (!state.meta.hullLostOnce) {
-      const need = salvageToRankStarterCores(state)
-      if ((state.resources.salvage ?? 0) < need) {
-        state.resources.salvage = need
-      }
-    }
     state.meta.hullLostOnce = true
     retireLiveSortieGuides(state)
+    const topped = ensureStarterCoresTourSalvage(state)
+    state.resources.salvage = topped.resources.salvage
   }
   const salvageNow = state.resources.salvage ?? 0
   const gained = mark ? Math.max(0, salvageNow + spent - mark.salvage) : 0

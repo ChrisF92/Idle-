@@ -93,6 +93,12 @@ export default function App() {
     game.syncCompletedGuides(tab)
   }, [tab, game])
 
+  useEffect(() => {
+    if (guide?.id === 'guide-upgrade-pulse' || guide?.id === 'guide-upgrade-plate') {
+      game.ensureStarterCoresSalvage()
+    }
+  }, [guide?.id, game])
+
   const hubStamp = contentKeys(game.state, tab).join('|')
   useEffect(() => {
     game.markHubSeen(tab)

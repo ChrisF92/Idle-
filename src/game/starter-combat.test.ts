@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { advanceSeconds, setDocked, starterRefitGate } from './tick'
 import { upgradeModule } from './actions'
-import { moduleUpgradeCost, salvageToRankStarterCores } from './catalog'
+import { moduleUpgradeCost, salvageToRankStarterCores, ensureStarterCoresTourSalvage } from './catalog'
 import { closeSortie } from './sortieSummary'
 
 describe('Hiveworks starter (tutorial retired)', () => {
@@ -43,9 +43,22 @@ describe('Hiveworks starter (tutorial retired)', () => {
     expect(state.resources.salvage).toBe(0)
   })
 
-  it('does not top up Salvage again on a later hull loss', () => {
+  it('tops up Salvage when Pulse is ranked but Plate is still unaffordable', () => {
+    let state = createInitialState(0)
+    state.meta.hullLostOnce = true
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.resources.salvage = 3
+    state = ensureStarterCoresTourSalvage(state)
+    expect(state.resources.salvage).toBe(6)
+    state = upgradeModule(state, 'plate-layer')
+    expect(state.shipyard.moduleLevels['plate-layer']).toBe(1)
+  })
+
+  it('does not top up Salvage after both starter Cores are ranked', () => {
     const state = createInitialState(0)
     state.meta.hullLostOnce = true
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.shipyard.moduleLevels['plate-layer'] = 1
     state.resources.salvage = 2
     closeSortie(state, 'defeat', 'Hull lost.')
     expect(state.resources.salvage).toBe(2)
