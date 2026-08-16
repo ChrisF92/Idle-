@@ -149,8 +149,6 @@ export default function App() {
         ) : null}
       </header>
 
-      <PwaUpdateBanner />
-
       {game.offlineReport ? (
         <OfflineBanner
           report={game.offlineReport}
@@ -339,6 +337,7 @@ export default function App() {
           onSkip={game.skipOnboarding}
         />
       ) : null}
+      <PwaUpdateBanner escapeHatch={Boolean(guide?.required)} />
     </div>
   )
 }

@@ -15,6 +15,25 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        if (!('serviceWorker' in navigator)) return
+        if (location.pathname.indexOf('/pr-preview/') === -1) return
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          var hijack = regs.some(function (r) {
+            return r.scope.indexOf('/pr-preview/') === -1
+          })
+          if (!hijack) return
+          return Promise.all(regs.map(function (r) { return r.unregister() })).then(function () {
+            return 'caches' in window ? caches.keys() : []
+          }).then(function (keys) {
+            return Promise.all(keys.map(function (k) { return caches.delete(k) }))
+          }).then(function () {
+            location.reload()
+          })
+        })
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

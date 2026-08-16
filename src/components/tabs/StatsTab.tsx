@@ -5,6 +5,7 @@ import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
 import type { NumberNotation } from '../../game/format'
 import { APP_BUILD } from '../../buildMeta'
+import { forceReloadApp } from '../../pwaReload'
 import { isSystemUnlocked, systemUnlockRequirement } from '../../game/progression'
 import { attentionAria, moreStationAttention } from '../../game/hubAttention'
 import { moreStationBuckets, type MoreStationDef } from '../../game/moreStations'
@@ -19,24 +20,6 @@ interface StatsTabProps {
   onNotation?: (mode: NumberNotation) => void
   onOpenStation?: (tab: TabId) => void
   onOpenSimulator?: () => void
-}
-
-async function forceReloadApp(): Promise<void> {
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(regs.map((r) => r.unregister()))
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys()
-      await Promise.all(keys.map((k) => caches.delete(k)))
-    }
-  } catch {
-    // Still reload even if cleanup fails.
-  }
-  const url = new URL(window.location.href)
-  url.searchParams.set('v', APP_BUILD)
-  window.location.replace(url.toString())
 }
 
 function StationRow({

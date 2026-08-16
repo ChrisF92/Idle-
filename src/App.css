@@ -1547,11 +1547,18 @@ textarea {
 }
 
 .pwa-update-banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, calc(100vw - 1rem));
+  top: calc(0.35rem + env(safe-area-inset-top, 0px));
+  z-index: 90;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
   background: color-mix(in srgb, var(--accent) 12%, var(--bg-panel));
   padding: 0.7rem 0.85rem;
   display: grid;
   gap: 0.45rem;
+  pointer-events: auto;
 }
 
 .pwa-update-banner p {

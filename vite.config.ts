@@ -4,13 +4,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 /** Set `PAGES_BASE=/Idle-/` for GitHub Pages project site builds. */
 const base = process.env.PAGES_BASE || '/'
+const previewBuild = base.includes('/pr-preview/')
 
 export default defineConfig({
   base,
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: [
         'favicon.svg',
         'pwa-192.png',
@@ -64,6 +65,12 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: 'index.html',
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+        // Production SW scope is /Idle-/ and would otherwise serve the
+        // production shell for PR preview URLs under /Idle-/pr-preview/.
+        ...(previewBuild ? {} : { navigateFallbackDenylist: [/\/pr-preview\//] }),
       },
       devOptions: {
         enabled: false,
