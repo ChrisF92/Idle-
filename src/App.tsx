@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
 import { activeGuideStep, isHangarGuideStep, isHubTabOpen } from './game/progression'
+import { contentKeys } from './game/hubAttention'
 import { wavesForSector } from './game/sectors'
 import { setActiveNumberNotation } from './game/format'
 import { ResourceBar } from './components/ResourceBar'
@@ -92,6 +93,11 @@ export default function App() {
     game.syncCompletedGuides(tab)
   }, [tab, game])
 
+  const hubStamp = contentKeys(game.state, tab).join('|')
+  useEffect(() => {
+    game.markHubSeen(tab)
+  }, [tab, hubStamp, game])
+
   useEffect(() => {
     setHeldGuideId(guide?.id ?? null)
   }, [guide?.id])
@@ -176,6 +182,7 @@ export default function App() {
             onSetPushMode={game.setPushMode}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
+            onMarkCoresSeen={() => game.markHubSeen('cores')}
             paused={Boolean(guide)}
             guide={guide}
           />

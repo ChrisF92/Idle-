@@ -14,6 +14,8 @@ import {
   hasHullLostOnce,
   isCoresGuideTarget,
   skipOnboarding,
+  syncCompletedGuides,
+  retireLiveSortieGuides,
 } from './progression'
 
 const AFTER_LAUNCH = ['guide-shipyard-tab', 'guide-frame-select', 'guide-launch']
@@ -375,5 +377,51 @@ describe('onboarding queue', () => {
     expect(isCoresGuideTarget(byId['guide-upgrade-pulse']!)).toBe(true)
     expect(isCoresGuideTarget(byId['guide-cores-persist']!)).toBe(true)
     expect(isCoresGuideTarget(byId['guide-drone-cap']!)).toBe(false)
+  })
+
+  it('offers Foundry before relaunch once sector 2 is cleared', () => {
+    const state = afterFirstDeath([
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
+    ])
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.shipyard.moduleLevels['plate-layer'] = 1
+    state.meta.highestSectorEver = 2
+    state.combat.highestSector = 2
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-foundry')
+    expect(activeGuideStep(state, 'dock')?.required).toBe(true)
+  })
+
+  it('marks relaunch seen after launch so a later hull loss does not replay it', () => {
+    let state = afterFirstDeath([
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
+    ])
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.shipyard.moduleLevels['plate-layer'] = 1
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-relaunch-upgraded')
+
+    state = setDocked(state, false)
+    state = syncCompletedGuides(state, 'combat')
+    expect(state.meta.seenOnboarding).toContain('guide-relaunch-upgraded')
+
+    state = setDocked(state, true)
+    state = markHullLost(state)
+    expect(activeGuideStep(state, 'dock')?.id).not.toBe('guide-relaunch-upgraded')
+  })
+
+  it('retires the live Sortie tour on hull loss so it does not replay', () => {
+    let state = afterLaunch()
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-sortie-field')
+    retireLiveSortieGuides(state)
+    expect(activeGuideStep(state, 'combat')).toBeNull()
+    state = setDocked(state, true)
+    state = markHullLost(state)
+    state = setDocked(state, false)
+    expect(activeGuideStep(state, 'combat')?.group).not.toBe('sortie')
   })
 })

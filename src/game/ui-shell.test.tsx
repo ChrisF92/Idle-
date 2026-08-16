@@ -29,7 +29,7 @@ describe('shell UX', () => {
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Cores' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Cores/ })).toBeNull()
     expect(screen.queryByText('Salvage')).toBeNull()
     expect(screen.getByRole('button', { name: 'Launch' })).toBeTruthy()
     expect(document.querySelector('[data-guide="sortie-canvas"]')).toBeTruthy()
@@ -48,10 +48,10 @@ describe('shell UX', () => {
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Cores' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Cores/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Launch' })).toBeTruthy()
     expect(document.querySelector('[data-guide="cores-sheet"]')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Cores' }))
+    fireEvent.click(screen.getByRole('button', { name: /Cores/ }))
     expect(screen.getByText(/Salvage ranks these/i)).toBeTruthy()
     expect(screen.getByText(/Drones live on Network/i)).toBeTruthy()
     expect(document.querySelector('[data-guide="core-pulse-cannon"]')).toBeTruthy()
@@ -68,7 +68,7 @@ describe('shell UX', () => {
         onPickMilestone={() => undefined}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Cores' }))
+    fireEvent.click(screen.getByRole('button', { name: /Cores/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Inspect Pulse Cannon' }))
     const dialog = screen.getByRole('dialog', { name: 'Pulse Cannon' })
     expect(dialog).toBeTruthy()
@@ -107,6 +107,12 @@ describe('shell UX', () => {
     )
     expect(screen.getByRole('button', { name: /Network/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /More/ })).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: /Network/ }).querySelector('.attention-pip-spend'),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: /Sortie/ }).querySelector('.attention-pip-fresh'),
+    ).toBeTruthy()
   })
 
   it('closes the Cores modal when Network onboarding needs the tab bar', () => {

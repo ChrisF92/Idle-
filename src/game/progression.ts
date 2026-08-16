@@ -1167,22 +1167,6 @@ export const GUIDE_STEPS: GuideStep[] = [
       guideSeen(s, 'guide-network-bars') && !guideSeen(s, 'guide-network-links'),
   },
   {
-    id: 'guide-relaunch-upgraded',
-    title: 'Resume push',
-    body: 'Cores ranked and the Network is running. Launch again — bars fill while you fly.',
-    target: 'launch',
-    tab: 'dock',
-    required: true,
-    availableWhen: (s) =>
-      hasHullLostOnce(s) &&
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
-      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
-      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
-      s.combat.docked &&
-      !guideSeen(s, 'guide-relaunch-upgraded'),
-    completeWhen: (s) => !s.combat.docked,
-  },
-  {
     id: 'guide-foundry',
     title: 'Foundry',
     body: [
@@ -1192,6 +1176,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     target: 'foundry-tab',
     screen: 'foundry',
     group: 'foundry',
+    required: true,
     availableWhen: (s) => isSystemUnlocked(s, 'foundry') && !guideSeen(s, 'guide-foundry'),
     completeWhen: (_s, tab) => tab === 'foundry',
   },
@@ -1221,6 +1206,22 @@ export const GUIDE_STEPS: GuideStep[] = [
     group: 'foundry',
     availableWhen: (s) =>
       guideSeen(s, 'guide-foundry-smelt') && !guideSeen(s, 'guide-foundry-keep'),
+  },
+  {
+    id: 'guide-relaunch-upgraded',
+    title: 'Resume push',
+    body: 'Cores ranked and the Network is running. Launch again — bars fill while you fly.',
+    target: 'launch',
+    tab: 'dock',
+    required: true,
+    availableWhen: (s) =>
+      hasHullLostOnce(s) &&
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
+      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
+      s.combat.docked &&
+      !guideSeen(s, 'guide-relaunch-upgraded'),
+    completeWhen: (s) => !s.combat.docked,
   },
   {
     id: 'guide-reliquary',
@@ -1826,13 +1827,17 @@ export function syncCompletedGuides(state: GameState, tab: TabId): GameState {
   let changed = false
   for (const step of GUIDE_STEPS) {
     if (seen.includes(step.id)) continue
-    // Evaluate availability as if this step is still unseen.
+    if (!step.completeWhen?.(state, tab)) continue
     const probe: GameState = {
       ...state,
       meta: { ...state.meta, seenOnboarding: seen },
     }
-    if (!step.availableWhen(probe)) continue
-    if (!step.completeWhen?.(state, tab)) continue
+    const dockedProbe: GameState = {
+      ...probe,
+      combat: { ...probe.combat, docked: true, defeatLeft: 0 },
+    }
+    // Launch/relaunch are available while docked and complete once flying.
+    if (!step.availableWhen(probe) && !step.availableWhen(dockedProbe)) continue
     seen.push(step.id)
     changed = true
   }
@@ -1921,6 +1926,19 @@ export function acknowledgeOnboarding(state: GameState, tipId: string): GameStat
   const next = structuredClone(state)
   next.meta.seenOnboarding = [...next.meta.seenOnboarding, tipId]
   return next
+}
+
+/** First hull loss finishes the live-lane tour so it does not replay on the next sortie. */
+export function retireLiveSortieGuides(state: GameState): void {
+  const seen = [...(state.meta.seenOnboarding ?? [])]
+  let changed = false
+  for (const step of GUIDE_STEPS) {
+    if (step.group !== 'sortie') continue
+    if (seen.includes(step.id)) continue
+    seen.push(step.id)
+    changed = true
+  }
+  if (changed) state.meta.seenOnboarding = seen
 }
 
 /** Skip dismisses this step and every other unseen step in its group. */

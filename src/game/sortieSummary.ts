@@ -1,6 +1,7 @@
 /** Dock run summary — snapshot at Launch, close on Extract / Defeat. */
 
 import type { GameState, HiveResearchBranch, SortieMark, SortieSummary } from './types'
+import { retireLiveSortieGuides } from './progression'
 
 const RESEARCH_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation']
 
@@ -88,6 +89,9 @@ export function closeSortie(
     researchXp: Math.max(0, Math.floor(researchBanked(state) - (mark?.researchXp ?? 0))),
     networkLevels: Math.max(0, networkLevelsSum(state) - (mark?.networkLevels ?? 0)),
   }
-  if (outcome === 'defeat') state.meta.hullLostOnce = true
+  if (outcome === 'defeat') {
+    state.meta.hullLostOnce = true
+    retireLiveSortieGuides(state)
+  }
   state.combat.sortieMark = null
 }

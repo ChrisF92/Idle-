@@ -559,6 +559,11 @@ export interface MetaState {
   ascensionCount: number
   /** Onboarding tip ids already shown. */
   seenOnboarding: string[]
+  /**
+   * Content keys the player has already opened (systems, Network bars,
+   * Foundry recipes). Missing on old saves — hydrated as a legacy sentinel.
+   */
+  seenContent: string[]
   /** AI Network unlocked (first achievement). */
   aiUnlocked: boolean
   /**

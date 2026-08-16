@@ -181,6 +181,7 @@ export function createInitialState(now = Date.now()): GameState {
       act1Cleared: false,
       ascensionCount: 0,
       seenOnboarding: [],
+      seenContent: [],
       aiUnlocked: false,
       codexUnlocked: false,
       laborProfile: 'balanced',

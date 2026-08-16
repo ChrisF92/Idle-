@@ -74,6 +74,7 @@ import {
   performReinforce,
 } from '../game/actions'
 import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides } from '../game/progression'
+import { markHubSeen } from '../game/hubAttention'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
 
@@ -92,6 +93,7 @@ type Action =
   | { type: 'clear-worker-assignments' }
   | { type: 'fill-station'; stationId: string }
   | { type: 'sync-guides'; tab: import('../game/types').TabId }
+  | { type: 'mark-hub-seen'; scope: import('../game/types').TabId }
   | { type: 'start-fab'; moduleId: string }
   | { type: 'launch-fab'; moduleId: string }
   | { type: 'clear-fab' }
@@ -186,6 +188,8 @@ function reducer(state: GameState, action: Action): GameState {
       return fillStationWorkers(state, action.stationId)
     case 'sync-guides':
       return syncCompletedGuides(state, action.tab)
+    case 'mark-hub-seen':
+      return markHubSeen(state, action.scope)
     case 'start-fab':
       return startFabProject(state, action.moduleId)
     case 'launch-fab':
@@ -359,6 +363,8 @@ export function useGame() {
       dispatch({ type: 'fill-station', stationId }),
     syncCompletedGuides: (tab: import('../game/types').TabId) =>
       dispatch({ type: 'sync-guides', tab }),
+    markHubSeen: (scope: import('../game/types').TabId) =>
+      dispatch({ type: 'mark-hub-seen', scope }),
     startFabProject: (moduleId: string) => dispatch({ type: 'start-fab', moduleId }),
     launchFabProject: (moduleId: string) => dispatch({ type: 'launch-fab', moduleId }),
     clearFabProject: () => dispatch({ type: 'clear-fab' }),

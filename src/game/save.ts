@@ -498,6 +498,7 @@ function withMetaDefaults(
     act1Cleared: meta?.act1Cleared ?? false,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
+    seenContent: Array.isArray(meta?.seenContent) ? [...meta.seenContent] : ['legacy'],
     aiUnlocked: meta?.aiUnlocked ?? completed.length > 0,
     codexUnlocked: meta?.codexUnlocked === true,
     laborProfile,

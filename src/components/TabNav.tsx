@@ -1,6 +1,8 @@
 import type { TabId } from '../game/types'
 import type { GameState } from '../game/types'
 import { isHubTabOpen } from '../game/progression'
+import { attentionAria, tabAttention } from '../game/hubAttention'
+import { AttentionPips } from './AttentionPips'
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'dock', label: 'Dock', icon: '⌂' },
@@ -41,6 +43,7 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
           return null
         }
         const isActive = tab.id === 'stats' ? moreActive : active === tab.id
+        const flags = tabAttention(state, tab.id)
         return (
           <button
             key={tab.id}
@@ -48,13 +51,15 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
             data-guide={`${tab.id}-tab`}
             className={isActive ? 'nav-item active' : 'nav-item'}
             disabled={!unlocked}
-            title={tab.label}
+            title={attentionAria(tab.label, flags)}
+            aria-label={attentionAria(tab.label, flags)}
             onClick={() => unlocked && onChange(tab.id)}
           >
             <span className="nav-icon" aria-hidden>
               {tab.icon}
             </span>
             <span className="nav-label">{tab.label}</span>
+            <AttentionPips spend={flags.spend} fresh={flags.fresh} />
           </button>
         )
       })}

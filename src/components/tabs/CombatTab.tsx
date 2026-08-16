@@ -6,6 +6,8 @@ import { wavesForRun, getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
 import { activeGuideStep, hasHullLostOnce, isCoresGuideTarget, type GuideStep } from '../../game/progression'
+import { attentionAria, coresAttention } from '../../game/hubAttention'
+import { AttentionPips } from '../AttentionPips'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
 
@@ -17,6 +19,7 @@ interface CombatTabProps {
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
   guide?: GuideStep | null
+  onMarkCoresSeen?: () => void
 }
 
 function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {
@@ -33,6 +36,7 @@ export function CombatTab({
   onPickMilestone,
   paused = false,
   guide = null,
+  onMarkCoresSeen,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -47,10 +51,15 @@ export function CombatTab({
   const salvageOpen = hasHullLostOnce(state)
   const [coresOpen, setCoresOpen] = useState(false)
   const sheetOpen = salvageOpen && (coresOpen || forceCores)
+  const coresFlags = coresAttention(state)
 
   useEffect(() => {
     if (forceCores) setCoresOpen(true)
   }, [forceCores])
+
+  useEffect(() => {
+    if (sheetOpen) onMarkCoresSeen?.()
+  }, [sheetOpen, onMarkCoresSeen])
 
   useEffect(() => {
     if (guide && !isCoresGuideTarget(guide)) setCoresOpen(false)
@@ -193,9 +202,11 @@ export function CombatTab({
             className={sheetOpen ? 'primary sortie-cores-btn' : 'sortie-cores-btn'}
             data-guide={sheetOpen ? undefined : 'cores-sheet'}
             aria-expanded={sheetOpen}
+            aria-label={attentionAria('Cores', coresFlags)}
             onClick={() => setCoresOpen((open) => !open)}
           >
             Cores
+            <AttentionPips spend={coresFlags.spend} fresh={coresFlags.fresh} />
           </button>
         ) : null}
       </div>

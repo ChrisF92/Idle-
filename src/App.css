@@ -244,6 +244,7 @@ h2 .inspect-name {
   border: none;
   color: var(--muted);
   padding: 0.25rem 0.2rem;
+  position: relative;
 }
 
 .nav-item.active {
@@ -259,6 +260,39 @@ h2 .inspect-name {
   font-size: 0.62rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.attention-pips {
+  position: absolute;
+  top: 0.18rem;
+  right: 0.28rem;
+  display: flex;
+  align-items: center;
+  gap: 0.12rem;
+  pointer-events: none;
+}
+
+.attention-pips-inline {
+  position: static;
+  display: inline-flex;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.attention-pip-spend {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0.28rem color-mix(in srgb, var(--accent) 75%, transparent);
+}
+
+.attention-pip-fresh {
+  width: 0.34rem;
+  height: 0.34rem;
+  background: var(--accent-2);
+  transform: rotate(45deg);
+  box-shadow: 0 0 0.28rem color-mix(in srgb, var(--accent-2) 75%, transparent);
 }
 
 .resource-chip {
@@ -695,6 +729,7 @@ h2 .inspect-name {
   flex: 0 0 auto;
   min-width: 4.6rem;
   width: auto;
+  position: relative;
 }
 
 .cores-modal-backdrop {
