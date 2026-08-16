@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
-import { activeGuideStep, isSystemUnlocked } from './game/progression'
+import { activeGuideStep, isHubTabOpen } from './game/progression'
 import { wavesForSector } from './game/sectors'
 import { setActiveNumberNotation } from './game/format'
 import { ResourceBar } from './components/ResourceBar'
@@ -56,13 +56,13 @@ export default function App() {
 
   const go = useCallback(
     (next: TabId) => {
-      if (isSystemUnlocked(game.state, next)) setTab(next)
+      if (isHubTabOpen(game.state, next)) setTab(next)
     },
     [game.state],
   )
 
   useEffect(() => {
-    if (!isSystemUnlocked(game.state, tab)) {
+    if (!isHubTabOpen(game.state, tab)) {
       const station =
         tab === 'reliquary' ||
         tab === 'furnace' ||
@@ -78,7 +78,9 @@ export default function App() {
         tab === 'reinforce' ||
         tab === 'logs' ||
         tab === 'codex'
-      setTab(station ? 'stats' : 'dock')
+      if (station && isHubTabOpen(game.state, 'stats')) setTab('stats')
+      else if (isHubTabOpen(game.state, 'dock')) setTab('dock')
+      else setTab('combat')
     }
   }, [game.state, tab])
 
@@ -117,11 +119,11 @@ export default function App() {
     if (!game.state.combat.docked && guide.tab !== 'combat') return
     if (guide.id === lastGuideId.current) return
     lastGuideId.current = guide.id
-    if (isSystemUnlocked(game.state, guide.tab)) setTab(guide.tab)
+    if (isHubTabOpen(game.state, guide.tab)) setTab(guide.tab)
   }, [guide, dying, game.state])
 
   return (
-    <div className="app">
+    <div className={guide ? 'app app-guide-lock' : 'app'}>
       <div className="chrome-top">
       <header className="topbar">
         <div className="brand-cluster">

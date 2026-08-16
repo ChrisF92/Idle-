@@ -88,5 +88,6 @@ export function closeSortie(
     researchXp: Math.max(0, Math.floor(researchBanked(state) - (mark?.researchXp ?? 0))),
     networkLevels: Math.max(0, networkLevelsSum(state) - (mark?.networkLevels ?? 0)),
   }
+  if (outcome === 'defeat') state.meta.hullLostOnce = true
   state.combat.sortieMark = null
 }

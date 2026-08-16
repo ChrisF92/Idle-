@@ -195,6 +195,7 @@ export function createInitialState(now = Date.now()): GameState {
       moduleMastery: {},
       signalCoresCarryOver: false,
       starterCombatLesson: 2,
+      hullLostOnce: false,
       numberNotation: 'engineering',
     },
     core: createEmptyCoreState(),

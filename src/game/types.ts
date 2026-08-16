@@ -598,6 +598,11 @@ export interface MetaState {
    * 2 = tutorial complete
    */
   starterCombatLesson: number
+  /**
+   * First hull-loss dock. Salvage HUD, Cores spend, Network, and More stay
+   * hidden until this is true so the opening fight can finish the Sortie tour.
+   */
+  hullLostOnce: boolean
   /** HUD numbers ≥ 1000: engineering (12.3e3) or scientific (1.23e4). */
   numberNotation: 'engineering' | 'scientific'
 }

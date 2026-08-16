@@ -160,6 +160,10 @@ h2 .inspect-name {
   overflow: auto;
 }
 
+.inspect-backdrop {
+  z-index: 80;
+}
+
 .inspect-stats {
   display: grid;
   gap: 0.16rem;
@@ -436,6 +440,8 @@ h2 .inspect-name {
   position: absolute;
   background: rgba(6, 9, 14, 0.55);
   pointer-events: auto;
+  touch-action: none;
+  overscroll-behavior: none;
   z-index: 1;
 }
 
@@ -463,13 +469,14 @@ h2 .inspect-name {
   position: absolute;
   z-index: 2;
   width: min(320px, calc(100vw - 24px));
-  max-height: min(52vh, 320px);
-  overflow: auto;
+  max-height: min(46vh, 280px);
+  overflow: hidden;
   pointer-events: auto;
   background: var(--bg-panel);
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
   padding: 0.75rem 0.85rem;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.4rem;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
 }
@@ -484,12 +491,27 @@ h2 .inspect-name {
   margin: 0;
 }
 
+.guide-tip-body {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 0.35rem;
+}
+
 .guide-tip-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.45rem;
   align-items: center;
   justify-content: space-between;
+  flex: 0 0 auto;
+}
+
+.app-guide-lock .panel-scroll,
+.app-guide-lock .cores-modal-card .core-sheet,
+.app-guide-lock .hud-chips,
+.app-guide-lock .offline-banner {
+  overscroll-behavior: none;
 }
 
 .main {

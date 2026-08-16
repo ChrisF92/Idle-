@@ -6,6 +6,8 @@ import {
   STARTER_GUIDE_IDS,
   activeGuideStep,
   challengesContentUnlocked,
+  hasHullLostOnce,
+  isHubTabOpen,
   isResourceVisible,
   isSystemUnlocked,
   visibleResourceIds,
@@ -21,12 +23,33 @@ describe('resource visibility gates', () => {
     expect(isResourceVisible(state, 'data')).toBe(true)
   })
 
-  it('hides energy until Base; salvage is always on (Cores)', () => {
+  it('hides energy until Base; salvage waits for first hull loss', () => {
     const state = createInitialState(0)
     expect(isResourceVisible(state, 'energy')).toBe(false)
+    expect(isResourceVisible(state, 'salvage')).toBe(false)
+    expect(isSystemUnlocked(state, 'network')).toBe(false)
+    expect(isSystemUnlocked(state, 'stats')).toBe(false)
+    state.meta.hullLostOnce = true
     expect(isResourceVisible(state, 'salvage')).toBe(true)
+    expect(isSystemUnlocked(state, 'network')).toBe(true)
+    expect(isSystemUnlocked(state, 'stats')).toBe(true)
     state.meta.highestSectorEver = 4
     expect(isResourceVisible(state, 'energy')).toBe(true)
+  })
+
+  it('keeps the first live sortie on Sortie until hull loss', () => {
+    const state = createInitialState(0)
+    expect(isHubTabOpen(state, 'dock')).toBe(true)
+    expect(isHubTabOpen(state, 'combat')).toBe(true)
+    expect(isHubTabOpen(state, 'network')).toBe(false)
+    state.combat.docked = false
+    expect(isHubTabOpen(state, 'dock')).toBe(false)
+    expect(isHubTabOpen(state, 'combat')).toBe(true)
+    expect(isHubTabOpen(state, 'stats')).toBe(false)
+    state.meta.hullLostOnce = true
+    expect(hasHullLostOnce(state)).toBe(true)
+    expect(isHubTabOpen(state, 'dock')).toBe(true)
+    expect(isHubTabOpen(state, 'network')).toBe(true)
   })
 
   it('hides PM/CP until earned', () => {

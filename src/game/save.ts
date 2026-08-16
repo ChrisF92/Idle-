@@ -517,6 +517,18 @@ function withMetaDefaults(
       if (Number.isFinite(raw) && raw >= 0) return Math.min(2, raw)
       return (meta?.highestSectorEver ?? 0) > 0 || highestSector > 0 ? 2 : 0
     })(),
+    // Progressed careers already left the first-fight lock.
+    hullLostOnce:
+      meta?.hullLostOnce === true ||
+      (meta?.highestSectorEver ?? 0) > 0 ||
+      highestSector > 0 ||
+      (meta?.ascensionCount ?? 0) > 0 ||
+      (meta?.seenOnboarding ?? []).some(
+        (id) =>
+          id === 'guide-salvage-lesson' ||
+          id === 'guide-drone-cap' ||
+          id === 'guide-cores-sheet',
+      ),
     numberNotation:
       meta?.numberNotation === 'scientific' ? 'scientific' : 'engineering',
   }

@@ -5,7 +5,7 @@ import { COMBAT_PUSH_MODES, normalizePushMode, normalizeRoute, pushModeLabel } f
 import { wavesForRun, getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
-import { activeGuideStep } from '../../game/progression'
+import { activeGuideStep, hasHullLostOnce } from '../../game/progression'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
 
@@ -47,8 +47,9 @@ export function CombatTab({
   const pushMode = normalizePushMode(combat.pushMode, combat.campaign)
   const titleId = useId()
   const forceCores = coresGuideActive(state)
+  const salvageOpen = hasHullLostOnce(state)
   const [coresOpen, setCoresOpen] = useState(false)
-  const sheetOpen = coresOpen || forceCores
+  const sheetOpen = salvageOpen && (coresOpen || forceCores)
 
   useEffect(() => {
     if (forceCores) setCoresOpen(true)
@@ -137,10 +138,12 @@ export function CombatTab({
             {formatCompact(Math.ceil(combat.playerShield))}/{formatCompact(Math.ceil(stats.shieldMax))}
           </strong>
         </div>
-        <div className="combat-hud-readout" data-guide="salvage-stat">
-          <span className="combat-hud-kicker">Salvage</span>
-          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
-        </div>
+        {salvageOpen ? (
+          <div className="combat-hud-readout" data-guide="salvage-stat">
+            <span className="combat-hud-kicker">Salvage</span>
+            <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
+          </div>
+        ) : null}
       </header>
 
       <div className="sortie-canvas" data-guide="sortie-canvas">
@@ -183,15 +186,17 @@ export function CombatTab({
             Launch
           </button>
         )}
-        <button
-          type="button"
-          className={sheetOpen ? 'primary sortie-cores-btn' : 'sortie-cores-btn'}
-          data-guide={sheetOpen ? undefined : 'cores-sheet'}
-          aria-expanded={sheetOpen}
-          onClick={() => setCoresOpen((open) => !open)}
-        >
-          Cores
-        </button>
+        {salvageOpen ? (
+          <button
+            type="button"
+            className={sheetOpen ? 'primary sortie-cores-btn' : 'sortie-cores-btn'}
+            data-guide={sheetOpen ? undefined : 'cores-sheet'}
+            aria-expanded={sheetOpen}
+            onClick={() => setCoresOpen((open) => !open)}
+          >
+            Cores
+          </button>
+        ) : null}
       </div>
 
       {sheetOpen ? (

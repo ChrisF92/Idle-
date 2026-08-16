@@ -118,7 +118,10 @@ export function FoundryTab({
             return (
               <article key={recipe.id} className={unlocked ? 'network-row' : 'network-row locked'}>
                 <div className="network-row-main">
-                  <InspectName name={recipe.name} card={inspectFoundryRecipe(state, recipe.id)} />
+                  <InspectName
+                    name={recipe.name}
+                    card={unlocked ? inspectFoundryRecipe(state, recipe.id) : null}
+                  />
                   <span className="muted">
                     {inf ? 'Infinite' : unlocked ? `Lv ${level}` : 'Locked'}
                   </span>
@@ -229,7 +232,10 @@ export function FoundryTab({
             return (
               <article key={mod.id} className={unlocked ? 'network-row' : 'network-row locked'}>
                 <div className="network-row-main">
-                  <InspectName name={mod.name} card={inspectFoundryModule(state, mod.id)} />
+                  <InspectName
+                    name={mod.name}
+                    card={unlocked ? inspectFoundryModule(state, mod.id) : null}
+                  />
                   <span className="muted">{fitted ? 'Fitted' : unlocked ? 'Ready' : 'Locked'}</span>
                 </div>
                 <p className="network-row-stats">

@@ -1,4 +1,5 @@
 import { useEffect, useId } from 'react'
+import { createPortal } from 'react-dom'
 import type { InspectCard } from '../game/inspect'
 
 interface InspectModalProps {
@@ -17,8 +18,8 @@ export function InspectModal({ card, onClose }: InspectModalProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
-    <div className="screen-help-backdrop" role="presentation" onClick={onClose}>
+  return createPortal(
+    <div className="screen-help-backdrop inspect-backdrop" role="presentation" onClick={onClose}>
       <div
         className="screen-help-card inspect-card"
         role="dialog"
@@ -45,6 +46,7 @@ export function InspectModal({ card, onClose }: InspectModalProps) {
           Got it
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

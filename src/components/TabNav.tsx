@@ -1,6 +1,6 @@
 import type { TabId } from '../game/types'
 import type { GameState } from '../game/types'
-import { isSystemUnlocked } from '../game/progression'
+import { isHubTabOpen } from '../game/progression'
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'dock', label: 'Dock', icon: '⌂' },
@@ -36,8 +36,10 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
   return (
     <nav className="bottom-nav" aria-label="Game systems">
       {TABS.map((tab) => {
-        const unlocked = isSystemUnlocked(state, tab.id)
-        if (tab.id === 'foundry' && !unlocked) return null
+        const unlocked = isHubTabOpen(state, tab.id)
+        if ((tab.id === 'foundry' || tab.id === 'network' || tab.id === 'stats' || tab.id === 'dock') && !unlocked) {
+          return null
+        }
         const isActive = tab.id === 'stats' ? moreActive : active === tab.id
         return (
           <button

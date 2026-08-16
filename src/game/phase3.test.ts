@@ -77,7 +77,7 @@ describe('phase 3: milestones, rebuild, foundry', () => {
   it('opens Foundry at sector 2 and hides scrap until then', () => {
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
-    expect(visibleResourceIds(fresh)).toEqual(['salvage'])
+    expect(visibleResourceIds(fresh)).toEqual([])
 
     let s = createInitialState(0)
     s = setDocked(s, false)
@@ -85,8 +85,9 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     s = clearSector(s)
     expect(s.combat.highestSector).toBeGreaterThanOrEqual(2)
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
-    expect(visibleResourceIds(s)).toContain('salvage')
     expect(visibleResourceIds(s)).toContain('scrap')
+    s.meta.hullLostOnce = true
+    expect(visibleResourceIds(s)).toContain('salvage')
   })
 
   it('still spends salvage on in-run Core levels', () => {
