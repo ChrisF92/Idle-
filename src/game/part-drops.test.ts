@@ -14,7 +14,7 @@ import type { GameState } from './types'
 function withFoundry(state: GameState): GameState {
   state.meta.highestSectorEver = 7
   state.combat.highestSector = 7
-  state.research.unlocked = [...state.research.unlocked, 'alloy-smelting']
+  state.combat.sector = 7
   return state
 }
 
@@ -30,7 +30,7 @@ describe('blueprint part drop rates', () => {
     expect(byFamily.titan).toBeLessThanOrEqual(0.08)
   })
 
-  it('blocks part drops until Alloy Foundry is unlocked', () => {
+  it('blocks part drops until Foundry is open', () => {
     const locked = createInitialState(0)
     const hits = rollEnemyPartDrop(
       locked,

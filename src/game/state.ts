@@ -63,7 +63,7 @@ import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult 
 import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 
-export const SAVE_VERSION = 31
+export const SAVE_VERSION = 33
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -113,6 +113,7 @@ export function createInitialState(now = Date.now()): GameState {
       wave: 1,
       inFight: false,
       docked: true,
+      pushMode: 'advance',
       campaign: true,
       route: 'A',
       consecutiveLosses: 0,
@@ -180,6 +181,7 @@ export function createInitialState(now = Date.now()): GameState {
       act1Cleared: false,
       ascensionCount: 0,
       seenOnboarding: [],
+      seenContent: [],
       aiUnlocked: false,
       codexUnlocked: false,
       laborProfile: 'balanced',
@@ -194,6 +196,7 @@ export function createInitialState(now = Date.now()): GameState {
       moduleMastery: {},
       signalCoresCarryOver: false,
       starterCombatLesson: 2,
+      hullLostOnce: false,
       numberNotation: 'engineering',
     },
     core: createEmptyCoreState(),
@@ -290,7 +293,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       splash: mod.weapon.splash ?? 0,
       dotDuration: mod.weapon.dotDuration ?? 0,
       dotDamage: (mod.weapon.dotDamage ?? 0) * mult * mastery,
-      telegraphDuration: 0,
+      telegraphDuration: mod.weapon.telegraphDuration ?? 0,
       telegraphLeft: 0,
       delivery: mod.weapon.delivery,
       ...profile,

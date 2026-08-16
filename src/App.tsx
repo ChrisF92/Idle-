@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
-import { activeGuideStep, isSystemUnlocked } from './game/progression'
+import { activeGuideStep, isHangarGuideStep, isHubTabOpen } from './game/progression'
+import { contentKeys } from './game/hubAttention'
 import { wavesForSector } from './game/sectors'
 import { setActiveNumberNotation } from './game/format'
 import { ResourceBar } from './components/ResourceBar'
@@ -56,13 +57,13 @@ export default function App() {
 
   const go = useCallback(
     (next: TabId) => {
-      if (isSystemUnlocked(game.state, next)) setTab(next)
+      if (isHubTabOpen(game.state, next)) setTab(next)
     },
     [game.state],
   )
 
   useEffect(() => {
-    if (!isSystemUnlocked(game.state, tab)) {
+    if (!isHubTabOpen(game.state, tab)) {
       const station =
         tab === 'reliquary' ||
         tab === 'furnace' ||
@@ -78,7 +79,9 @@ export default function App() {
         tab === 'reinforce' ||
         tab === 'logs' ||
         tab === 'codex'
-      setTab(station ? 'stats' : 'dock')
+      if (station && isHubTabOpen(game.state, 'stats')) setTab('stats')
+      else if (isHubTabOpen(game.state, 'dock')) setTab('dock')
+      else setTab('combat')
     }
   }, [game.state, tab])
 
@@ -89,6 +92,17 @@ export default function App() {
   useEffect(() => {
     game.syncCompletedGuides(tab)
   }, [tab, game])
+
+  useEffect(() => {
+    if (guide?.id === 'guide-upgrade-pulse' || guide?.id === 'guide-upgrade-plate') {
+      game.ensureStarterCoresSalvage()
+    }
+  }, [guide?.id, game])
+
+  const hubStamp = contentKeys(game.state, tab).join('|')
+  useEffect(() => {
+    game.markHubSeen(tab)
+  }, [tab, hubStamp, game])
 
   useEffect(() => {
     setHeldGuideId(guide?.id ?? null)
@@ -113,15 +127,20 @@ export default function App() {
   }, [game.state.combat.lastSortie, game.state.combat.docked, dying])
 
   useEffect(() => {
+    if (!guide || !hangarOpen) return
+    if (!isHangarGuideStep(guide)) setHangarOpen(false)
+  }, [guide, hangarOpen])
+
+  useEffect(() => {
     if (!guide?.tab || dying) return
     if (!game.state.combat.docked && guide.tab !== 'combat') return
     if (guide.id === lastGuideId.current) return
     lastGuideId.current = guide.id
-    if (isSystemUnlocked(game.state, guide.tab)) setTab(guide.tab)
+    if (isHubTabOpen(game.state, guide.tab)) setTab(guide.tab)
   }, [guide, dying, game.state])
 
   return (
-    <div className="app">
+    <div className={guide ? 'app app-guide-lock' : 'app'}>
       <div className="chrome-top">
       <header className="topbar">
         <div className="brand-cluster">
@@ -135,8 +154,6 @@ export default function App() {
           </button>
         ) : null}
       </header>
-
-      <PwaUpdateBanner />
 
       {game.offlineReport ? (
         <OfflineBanner
@@ -163,16 +180,15 @@ export default function App() {
         {tab === 'combat' && (
           <CombatTab
             state={game.state}
-            onExtract={() => {
-              game.setDocked(true)
-              go('dock')
-            }}
             onLaunch={() => {
               game.setDocked(false)
             }}
+            onSetPushMode={game.setPushMode}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
+            onMarkCoresSeen={() => game.markHubSeen('cores')}
             paused={Boolean(guide)}
+            guide={guide}
           />
         )}
         {tab === 'network' && (
@@ -189,6 +205,7 @@ export default function App() {
             onBuyUpgrade={game.buyFoundryUpgrade}
             onEquip={game.equipFoundryModule}
             onUnequip={game.unequipFoundryModule}
+            onAssemble={game.assembleBlueprint}
           />
         )}
         {tab === 'reliquary' && (
@@ -326,6 +343,7 @@ export default function App() {
           onSkip={game.skipOnboarding}
         />
       ) : null}
+      <PwaUpdateBanner escapeHatch={Boolean(guide?.required)} />
     </div>
   )
 }

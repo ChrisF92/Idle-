@@ -5,8 +5,11 @@ import { exportSave } from '../../game/save'
 import { DevTools } from '../DevTools'
 import type { NumberNotation } from '../../game/format'
 import { APP_BUILD } from '../../buildMeta'
+import { forceReloadApp } from '../../pwaReload'
 import { isSystemUnlocked, systemUnlockRequirement } from '../../game/progression'
+import { attentionAria, moreStationAttention } from '../../game/hubAttention'
 import { moreStationBuckets, type MoreStationDef } from '../../game/moreStations'
+import { AttentionPips } from '../AttentionPips'
 
 interface StatsTabProps {
   state: GameState
@@ -17,24 +20,6 @@ interface StatsTabProps {
   onNotation?: (mode: NumberNotation) => void
   onOpenStation?: (tab: TabId) => void
   onOpenSimulator?: () => void
-}
-
-async function forceReloadApp(): Promise<void> {
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(regs.map((r) => r.unregister()))
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys()
-      await Promise.all(keys.map((k) => caches.delete(k)))
-    }
-  } catch {
-    // Still reload even if cleanup fails.
-  }
-  const url = new URL(window.location.href)
-  url.searchParams.set('v', APP_BUILD)
-  window.location.replace(url.toString())
 }
 
 function StationRow({
@@ -48,10 +33,14 @@ function StationRow({
 }) {
   const unlocked = isSystemUnlocked(state, station.id)
   const need = systemUnlockRequirement(station.id)
+  const flags = moreStationAttention(state, station.id)
   return (
     <article className={unlocked ? 'network-row' : 'network-row locked'}>
       <div className="network-row-main">
-        <strong>{station.name}</strong>
+        <strong>
+          {station.name}
+          <AttentionPips spend={flags.spend} fresh={flags.fresh} layout="inline" />
+        </strong>
         <span className="muted">{unlocked ? 'Open' : need ?? 'Locked'}</span>
       </div>
       <p className="network-row-stats">{station.blurb}</p>
@@ -60,6 +49,7 @@ function StationRow({
         className="primary"
         data-guide={`station-${station.id}`}
         disabled={!unlocked}
+        aria-label={attentionAria(unlocked ? `Open ${station.name}` : need ?? 'Locked', flags)}
         onClick={() => unlocked && onOpen(station.id)}
       >
         {unlocked ? 'Open' : need ?? 'Locked'}

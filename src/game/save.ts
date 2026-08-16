@@ -45,7 +45,7 @@ import { createEmptyProcessState } from './process'
 import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
-import { normalizeRoute } from './sectors'
+import { normalizePushMode, normalizeRoute } from './sectors'
 
 export function saveGame(state: GameState): void {
   try {
@@ -106,7 +106,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     isBoss: combat.isBoss ?? false,
     highestSector: Math.max(0, combat.highestSector ?? 0),
     wave: Math.max(1, combat.wave ?? 1),
-    campaign: combat.campaign ?? true,
+    campaign: normalizePushMode(combat.pushMode, combat.campaign ?? true) === 'advance',
+    pushMode: normalizePushMode(combat.pushMode, combat.campaign ?? true),
     route: normalizeRoute(combat.route),
     docked: combat.docked ?? false,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
@@ -341,7 +342,7 @@ function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState 
   return { owned, slots }
 }
 
-const FURNACE_TRACK_IDS: FurnaceTrackId[] = ['attack', 'defense', 'lab', 'workshop']
+const FURNACE_TRACK_IDS: FurnaceTrackId[] = ['attack', 'defense', 'lab', 'workshop', 'hold']
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
   const empty = createEmptyFurnaceState()
@@ -497,6 +498,7 @@ function withMetaDefaults(
     act1Cleared: meta?.act1Cleared ?? false,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
+    seenContent: Array.isArray(meta?.seenContent) ? [...meta.seenContent] : ['legacy'],
     aiUnlocked: meta?.aiUnlocked ?? completed.length > 0,
     codexUnlocked: meta?.codexUnlocked === true,
     laborProfile,
@@ -516,6 +518,18 @@ function withMetaDefaults(
       if (Number.isFinite(raw) && raw >= 0) return Math.min(2, raw)
       return (meta?.highestSectorEver ?? 0) > 0 || highestSector > 0 ? 2 : 0
     })(),
+    // Progressed careers already left the first-fight lock.
+    hullLostOnce:
+      meta?.hullLostOnce === true ||
+      (meta?.highestSectorEver ?? 0) > 0 ||
+      highestSector > 0 ||
+      (meta?.ascensionCount ?? 0) > 0 ||
+      (meta?.seenOnboarding ?? []).some(
+        (id) =>
+          id === 'guide-salvage-lesson' ||
+          id === 'guide-drone-cap' ||
+          id === 'guide-cores-sheet',
+      ),
     numberNotation:
       meta?.numberNotation === 'scientific' ? 'scientific' : 'engineering',
   }

@@ -44,6 +44,8 @@ export type FoundryRecipeId =
   | 'void-slag'
   | 'control-mesh'
   | 'warp-thread'
+  | 'brace-pin'
+  | 'slag-glass'
 
 export interface FoundrySlot {
   recipeId: FoundryRecipeId | null
@@ -73,7 +75,7 @@ export interface ReliquaryState {
   slots: Partial<Record<ReliquaryColor, string | null>>
 }
 
-export type FurnaceTrackId = 'attack' | 'defense' | 'lab' | 'workshop'
+export type FurnaceTrackId = 'attack' | 'defense' | 'lab' | 'workshop' | 'hold'
 
 /** USI Reactor analogue — ranks persist; ash/heat live on resources. */
 export interface FurnaceState {
@@ -114,6 +116,9 @@ export interface HiveResearchState {
 }
 
 export type SectorRoute = 'A' | 'B'
+
+/** Sortie push: Advance sectors, Hold the whole sector, or Hold this wave. */
+export type CombatPushMode = 'advance' | 'hold-sector' | 'hold-wave'
 
 export type YardGoodId = 'ore' | 'flux' | 'ingot'
 export type YardBuildingId = 'slag-heap' | 'flux-still' | 'ingot-press' | 'choir-sieve'
@@ -405,6 +410,9 @@ export interface CombatFx {
   toId: string
   tag: string
   ttl: number
+  /** Damage shown as a floating number. Omitted on misses / old saves. */
+  amount?: number
+  hit?: 'hull' | 'shield' | 'miss'
 }
 
 /** In-flight shot — damage applies on impact, not on fire. */
@@ -449,6 +457,10 @@ export interface CombatBeam {
   hullDamage?: number
   shieldDamage?: number
   armorDamage?: number
+  /** Visual-only: accumulated beam damage waiting for a popup. */
+  popupAcc?: number
+  /** Visual-only: time since the last beam popup. */
+  popupT?: number
 }
 
 export interface CombatState {
@@ -463,6 +475,11 @@ export interface CombatState {
    * Pausing resets the current sector to wave 1. AI never toggles this.
    */
   docked: boolean
+  /**
+   * Advance / Hold-sector / Hold-wave. Combat stays live until hull loss.
+   * `campaign` stays in sync: true iff pushMode === 'advance'.
+   */
+  pushMode: CombatPushMode
   /**
    * Advance mode: after a clear, push to the next sector.
    * Hold mode: farm the current sector repeatedly (same rewards, no sector++).
@@ -542,6 +559,11 @@ export interface MetaState {
   ascensionCount: number
   /** Onboarding tip ids already shown. */
   seenOnboarding: string[]
+  /**
+   * Content keys the player has already opened (systems, Network bars,
+   * Foundry recipes). Missing on old saves — hydrated as a legacy sentinel.
+   */
+  seenContent: string[]
   /** AI Network unlocked (first achievement). */
   aiUnlocked: boolean
   /**
@@ -581,6 +603,11 @@ export interface MetaState {
    * 2 = tutorial complete
    */
   starterCombatLesson: number
+  /**
+   * First hull-loss dock. Salvage HUD, Cores spend, Network, and More stay
+   * hidden until this is true so the opening fight can finish the Sortie tour.
+   */
+  hullLostOnce: boolean
   /** HUD numbers ≥ 1000: engineering (12.3e3) or scientific (1.23e4). */
   numberNotation: 'engineering' | 'scientific'
 }

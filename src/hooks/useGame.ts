@@ -1,11 +1,12 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import type { GameState, LaborProfile, PartType } from '../game/types'
+import type { GameState, LaborProfile, PartType, CombatPushMode } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import {
   tickGame,
   startCombat,
   resetGame,
   setCampaign,
+  setPushMode,
   setDocked,
   warpToSector,
 } from '../game/tick'
@@ -35,6 +36,7 @@ import {
   selectFrame,
   sellPart,
   setFoundrySlot,
+  assembleBlueprint,
   setLaborProfile,
   setNumberNotation,
   startFabProject,
@@ -72,6 +74,8 @@ import {
   performReinforce,
 } from '../game/actions'
 import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides } from '../game/progression'
+import { markHubSeen } from '../game/hubAttention'
+import { ensureStarterCoresTourSalvage } from '../game/catalog'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
 
@@ -80,6 +84,7 @@ type Action =
   | { type: 'tick'; now: number; paused?: boolean }
   | { type: 'engage' }
   | { type: 'set-campaign'; on: boolean }
+  | { type: 'set-push-mode'; mode: CombatPushMode }
   | { type: 'set-docked'; docked: boolean }
   | { type: 'warp'; sector: number }
   | { type: 'assign-worker'; stationId: string; delta: number }
@@ -89,6 +94,8 @@ type Action =
   | { type: 'clear-worker-assignments' }
   | { type: 'fill-station'; stationId: string }
   | { type: 'sync-guides'; tab: import('../game/types').TabId }
+  | { type: 'ensure-starter-cores-salvage' }
+  | { type: 'mark-hub-seen'; scope: import('../game/types').TabId }
   | { type: 'start-fab'; moduleId: string }
   | { type: 'launch-fab'; moduleId: string }
   | { type: 'clear-fab' }
@@ -131,6 +138,7 @@ type Action =
   | { type: 'foundry-upgrade'; upgradeId: string }
   | { type: 'foundry-equip'; moduleId: string }
   | { type: 'foundry-unequip'; moduleId: string }
+  | { type: 'assemble-blueprint'; moduleId: string }
   | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
   | { type: 'reliquary-insert'; shardId: string }
   | { type: 'reliquary-remove'; color: import('../game/types').ReliquaryColor }
@@ -162,6 +170,8 @@ function reducer(state: GameState, action: Action): GameState {
       return startCombat(state)
     case 'set-campaign':
       return setCampaign(state, action.on)
+    case 'set-push-mode':
+      return setPushMode(state, action.mode)
     case 'set-docked':
       return setDocked(state, action.docked)
     case 'warp':
@@ -180,6 +190,10 @@ function reducer(state: GameState, action: Action): GameState {
       return fillStationWorkers(state, action.stationId)
     case 'sync-guides':
       return syncCompletedGuides(state, action.tab)
+    case 'ensure-starter-cores-salvage':
+      return ensureStarterCoresTourSalvage(state)
+    case 'mark-hub-seen':
+      return markHubSeen(state, action.scope)
     case 'start-fab':
       return startFabProject(state, action.moduleId)
     case 'launch-fab':
@@ -255,6 +269,8 @@ function reducer(state: GameState, action: Action): GameState {
       return equipFoundryModule(state, action.moduleId)
     case 'foundry-unequip':
       return unequipFoundryModule(state, action.moduleId)
+    case 'assemble-blueprint':
+      return assembleBlueprint(state, action.moduleId)
     case 'number-notation':
       return setNumberNotation(state, action.mode)
     case 'reliquary-insert':
@@ -335,6 +351,7 @@ export function useGame() {
     dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),
     setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
+    setPushMode: (mode: CombatPushMode) => dispatch({ type: 'set-push-mode', mode }),
     setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
     warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
     assignWorker: (stationId: string, delta: number) =>
@@ -350,6 +367,9 @@ export function useGame() {
       dispatch({ type: 'fill-station', stationId }),
     syncCompletedGuides: (tab: import('../game/types').TabId) =>
       dispatch({ type: 'sync-guides', tab }),
+    ensureStarterCoresSalvage: () => dispatch({ type: 'ensure-starter-cores-salvage' }),
+    markHubSeen: (scope: import('../game/types').TabId) =>
+      dispatch({ type: 'mark-hub-seen', scope }),
     startFabProject: (moduleId: string) => dispatch({ type: 'start-fab', moduleId }),
     launchFabProject: (moduleId: string) => dispatch({ type: 'launch-fab', moduleId }),
     clearFabProject: () => dispatch({ type: 'clear-fab' }),
@@ -402,6 +422,8 @@ export function useGame() {
       dispatch({ type: 'foundry-equip', moduleId }),
     unequipFoundryModule: (moduleId: string) =>
       dispatch({ type: 'foundry-unequip', moduleId }),
+    assembleBlueprint: (moduleId: string) =>
+      dispatch({ type: 'assemble-blueprint', moduleId }),
     setNumberNotation: (mode: 'engineering' | 'scientific') =>
       dispatch({ type: 'number-notation', mode }),
     insertShard: (shardId: string) => dispatch({ type: 'reliquary-insert', shardId }),

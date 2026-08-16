@@ -36,6 +36,7 @@ export interface FoundryUpgradeDef {
   damageBonus?: number
   shieldBonus?: number
   speedBonus?: number
+  salvageBonus?: number
 }
 
 export interface FoundryModuleDef {
@@ -157,6 +158,26 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     requiresSectorEver: 22,
     requiresRecipeLevel: { recipeId: 'keel-strip', level: 4 },
   },
+  {
+    id: 'brace-pin',
+    name: 'Brace Pin',
+    blurb: 'Pinned ingot and wire. Feeds Pin Brace.',
+    maxLevel: 20,
+    craftTime: 11,
+    costs: { materials: { 'slag-ingot': 2, filament: 2 } },
+    requiresSectorEver: 6,
+    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
+  },
+  {
+    id: 'slag-glass',
+    name: 'Slag Glass',
+    blurb: 'Drawn relay glass. Feeds Glass Sight.',
+    maxLevel: 20,
+    craftTime: 13,
+    costs: { materials: { filament: 2, relay: 2 } },
+    requiresSectorEver: 10,
+    requiresRecipeLevel: { recipeId: 'relay', level: 4 },
+  },
 ]
 
 export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
@@ -207,6 +228,14 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 32,
     maxRank: 1,
     extraSlots: 1,
+  },
+  {
+    id: 'fp-salvage',
+    name: 'Foundry Hold',
+    blurb: '+3% salvage per rank',
+    baseCost: 3,
+    maxRank: 10,
+    salvageBonus: 0.03,
   },
 ]
 
@@ -269,6 +298,23 @@ export const FOUNDRY_MODULES: FoundryModuleDef[] = [
     requiresRecipeLevel: { recipeId: 'warp-thread', level: 1 },
     shieldFlat: 24,
     damageMult: 1.1,
+  },
+  {
+    id: 'pin-brace',
+    name: 'Pin Brace',
+    blurb: '+10 max shield · ×1.04 damage',
+    cost: { 'brace-pin': 5 },
+    requiresRecipeLevel: { recipeId: 'brace-pin', level: 1 },
+    shieldFlat: 10,
+    damageMult: 1.04,
+  },
+  {
+    id: 'glass-sight',
+    name: 'Glass Sight',
+    blurb: '×1.07 sortie damage',
+    cost: { 'slag-glass': 5 },
+    requiresRecipeLevel: { recipeId: 'slag-glass', level: 1 },
+    damageMult: 1.07,
   },
 ]
 
@@ -510,6 +556,12 @@ export function foundryShieldFlat(state: GameState): number {
     flat += getFoundryModule(id)?.shieldFlat ?? 0
   }
   return flat
+}
+
+export function foundrySalvageMult(state: GameState): number {
+  if (protocolMutes(state, 'foundry')) return 1
+  const rank = state.foundry?.upgrades['fp-salvage'] ?? 0
+  return 1 + (getFoundryUpgrade('fp-salvage')?.salvageBonus ?? 0) * rank
 }
 
 export function foundryUpgradeCost(state: GameState, id: string): number {

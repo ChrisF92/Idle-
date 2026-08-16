@@ -17,10 +17,10 @@ Bottom nav:
 
 | Tab | Purpose |
 |---|---|
-| Dock | Home. Launch / Extract / Rebuild hangar. Combat keeps simulating while you stay here if a sortie is live. |
-| Sortie | USI-style battlefield (ship at the bottom, waves incoming). Cores (Pulse + Plate) sit under the field. Drones stay on Network. |
+| Dock | Home. Launch / Rebuild hangar. Combat keeps simulating while you stay here if a sortie is live. |
+| Sortie | USI-style battlefield (ship at the bottom, waves incoming). Advance / Hold sector / Hold wave. Cores sit under the field. |
 | Network | Assign drones to Strike / Ward (and later bars). They fill over time — they never appear on the battlefield. |
-| Foundry | Recipes, smelters, Foundry Points, fitted bits. Unlocks at sector 2. |
+| Foundry | Recipes, smelters, Core prints, Foundry Points, fitted bits. Unlocks at sector 2. |
 | More | Hangar stations (open / coming up / later), save / export, notation, rebuild, build stamp. |
 
 Stations under **More** unfold on sector doors (Reliquary 3, Furnace 5, Codex 6, Research 7, Yard and Slag Bank on first Rebuild, Protocols 18, Echo 22, Specialists 51, Task List 72, Capital 75, Reinforce 80). Process opens after First Blood (clear sector 1).
@@ -79,7 +79,8 @@ Each open PR gets a live preview on the same GitHub Pages site:
 - Game logic should stay in `src/game/`; React is presentation + input.
 - Solo project: use **one feature per branch/PR** so slices stay reviewable.
 - Offline catch-up (up to 8h) runs on load: industry + sector-scaled rewards (no fight simulation).
-- Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with hull that persists and repairs over time. Sortie HUD shows hull/shield/salvage; Core cards list Damage, RoF, Range.
+- Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with hull that persists and repairs over time. Sortie HUD shows hull/shield/salvage; Core cards list Damage, RoF, Range. Advance / Hold sector / Hold wave replace Extract.
+- Extra Cores unlock as Foundry prints at sector doors; farm fragments on Hold, Assemble, then fit on Rebuild.
 - Entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors.
 - Fitted Cores persist through Rebuild; Protocols and Echo runs are optional restricted sorties.
 - Essence still exists in the sim; Hive Research is the live spend. Yard arms apply on the next Rebuild.

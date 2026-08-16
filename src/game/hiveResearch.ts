@@ -10,7 +10,7 @@ import { echoResearchXpMult } from './echo'
 export const HIVE_RESEARCH_UNLOCK_SECTOR = 7
 /** USI default is 9×; 4× keeps early numbers retunable. */
 export const HIVE_RESEARCH_FOCUS_MULT = 4
-export const HIVE_RESEARCH_NODES_PER_BRANCH = 6
+export const HIVE_RESEARCH_NODES_PER_BRANCH = 8
 
 export interface HiveResearchNodeDef {
   name: string
@@ -44,6 +44,8 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Filament Draw', blurb: 'Foundry again.', foundrySpeed: 0.06 },
     { name: 'Stockpile', blurb: 'Salvage ceiling for the sitting.', salvage: 0.12 },
     { name: 'Keel Stock', blurb: 'Late salvage from wrecks.', salvage: 0.1 },
+    { name: 'Slag Temper', blurb: 'Foundry crafts run faster.', foundrySpeed: 0.08 },
+    { name: 'Hold Assay', blurb: 'Salvage from every wreck.', salvage: 0.1 },
   ],
   energy: [
     { name: 'Charge Lattice', blurb: 'Sortie damage.', damage: 0.06 },
@@ -52,6 +54,8 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Ward Current', blurb: 'Max shield.', shield: 0.06 },
     { name: 'Overdraw', blurb: 'Peak damage.', damage: 0.1 },
     { name: 'Plate Current', blurb: 'Late max shield.', shield: 0.08 },
+    { name: 'Heat Channel', blurb: 'Ash banks hotter.', heatFromAsh: 0.15 },
+    { name: 'Brace Current', blurb: 'Late max shield.', shield: 0.08 },
   ],
   observation: [
     { name: 'Corps Sync', blurb: 'Network bars fill faster.', networkFill: 0.08 },
@@ -60,6 +64,8 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Field Notes', blurb: 'All research XP.', researchXp: 0.08 },
     { name: 'Deep Watch', blurb: 'Network fill again.', networkFill: 0.1 },
     { name: 'Log Keep', blurb: 'All research XP.', researchXp: 0.1 },
+    { name: 'Chip Sweep', blurb: 'Reliquary drop chance.', shardDrop: 0.05 },
+    { name: 'Bar Sync', blurb: 'Network bars fill faster.', networkFill: 0.08 },
   ],
 }
 

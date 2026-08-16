@@ -108,6 +108,36 @@ export const CORE_MILESTONES: Record<string, CoreMilestoneDef[]> = {
       ],
     },
   ],
+  'charge-prism': [
+    {
+      id: 'prism-10',
+      level: 10,
+      choices: [
+        { id: 'hot-glass', name: 'Hot Glass', blurb: 'Damage ×1.18', damageMult: 1.18 },
+        { id: 'quick-wind', name: 'Quick Wind', blurb: 'RoF ×1.12', cooldownMult: 1 / 1.12 },
+      ],
+    },
+  ],
+  'swarm-rack': [
+    {
+      id: 'rack-10',
+      level: 10,
+      choices: [
+        { id: 'wide-volley', name: 'Wide Volley', blurb: 'Damage ×1.12', damageMult: 1.12 },
+        { id: 'fast-rack', name: 'Fast Rack', blurb: 'RoF ×1.15', cooldownMult: 1 / 1.15 },
+      ],
+    },
+  ],
+  'lattice-ward': [
+    {
+      id: 'lattice-10',
+      level: 10,
+      choices: [
+        { id: 'mesh-bank', name: 'Mesh Bank', blurb: 'Max shield ×1.18', shieldMult: 1.18 },
+        { id: 'mesh-flow', name: 'Mesh Flow', blurb: '+3%/s regen', regenAdd: 0.03 },
+      ],
+    },
+  ],
   'salvage-rig': [
     {
       id: 'rig-10',

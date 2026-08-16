@@ -13,9 +13,9 @@ export function SortieReport({ summary, onClose }: SortieReportProps) {
       <div className="modal-sheet sortie-report-sheet">
         <header className="modal-header">
           <div>
-            <p className="combat-hud-kicker">{defeat ? 'Hull lost' : 'Extract'}</p>
+            <p className="combat-hud-kicker">{defeat ? 'Hull lost' : 'Run complete'}</p>
             <h3 id="sortie-report-title">
-              {defeat ? 'Defeat' : 'Extract'} · S{summary.sector} W{summary.wave}
+              {defeat ? 'Defeat' : 'Complete'} · S{summary.sector} W{summary.wave}
             </h3>
           </div>
           <button type="button" onClick={onClose}>

@@ -160,6 +160,10 @@ h2 .inspect-name {
   overflow: auto;
 }
 
+.inspect-backdrop {
+  z-index: 80;
+}
+
 .inspect-stats {
   display: grid;
   gap: 0.16rem;
@@ -240,6 +244,7 @@ h2 .inspect-name {
   border: none;
   color: var(--muted);
   padding: 0.25rem 0.2rem;
+  position: relative;
 }
 
 .nav-item.active {
@@ -255,6 +260,39 @@ h2 .inspect-name {
   font-size: 0.62rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.attention-pips {
+  position: absolute;
+  top: 0.18rem;
+  right: 0.28rem;
+  display: flex;
+  align-items: center;
+  gap: 0.12rem;
+  pointer-events: none;
+}
+
+.attention-pips-inline {
+  position: static;
+  display: inline-flex;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.attention-pip-spend {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0.28rem color-mix(in srgb, var(--accent) 75%, transparent);
+}
+
+.attention-pip-fresh {
+  width: 0.34rem;
+  height: 0.34rem;
+  background: var(--accent-2);
+  transform: rotate(45deg);
+  box-shadow: 0 0 0.28rem color-mix(in srgb, var(--accent-2) 75%, transparent);
 }
 
 .resource-chip {
@@ -436,6 +474,8 @@ h2 .inspect-name {
   position: absolute;
   background: rgba(6, 9, 14, 0.55);
   pointer-events: auto;
+  touch-action: none;
+  overscroll-behavior: none;
   z-index: 1;
 }
 
@@ -463,13 +503,14 @@ h2 .inspect-name {
   position: absolute;
   z-index: 2;
   width: min(320px, calc(100vw - 24px));
-  max-height: min(52vh, 320px);
-  overflow: auto;
+  max-height: min(46vh, 280px);
+  overflow: hidden;
   pointer-events: auto;
   background: var(--bg-panel);
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
   padding: 0.75rem 0.85rem;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.4rem;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
 }
@@ -484,12 +525,27 @@ h2 .inspect-name {
   margin: 0;
 }
 
+.guide-tip-body {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 0.35rem;
+}
+
 .guide-tip-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.45rem;
   align-items: center;
   justify-content: space-between;
+  flex: 0 0 auto;
+}
+
+.app-guide-lock .panel-scroll,
+.app-guide-lock .cores-modal-card .core-sheet,
+.app-guide-lock .hud-chips,
+.app-guide-lock .offline-banner {
+  overscroll-behavior: none;
 }
 
 .main {
@@ -572,7 +628,7 @@ h2 .inspect-name {
 }
 
 .sortie-canvas {
-  flex: 1 1 46%;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   position: relative;
@@ -653,12 +709,50 @@ h2 .inspect-name {
 
 .sortie-actions {
   flex: 0 0 auto;
-  display: grid;
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
   padding: 0.4rem 0.65rem 0.5rem;
 }
 
+.sortie-push-tabs {
+  flex: 1;
+  width: auto;
+  margin: 0;
+}
+
+.sortie-actions > button {
+  flex: 1;
+}
+
+.sortie-actions > .sortie-cores-btn {
+  flex: 0 0 auto;
+  min-width: 4.6rem;
+  width: auto;
+  position: relative;
+}
+
+.cores-modal-backdrop {
+  z-index: 55;
+  place-items: end center;
+}
+
+.cores-modal-card {
+  max-height: min(82vh, 720px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cores-modal-card .core-sheet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .sortie-actions button {
-  width: 100%;
+  width: auto;
 }
 
 .core-sheet {
@@ -1453,11 +1547,18 @@ textarea {
 }
 
 .pwa-update-banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, calc(100vw - 1rem));
+  top: calc(0.35rem + env(safe-area-inset-top, 0px));
+  z-index: 90;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
   background: color-mix(in srgb, var(--accent) 12%, var(--bg-panel));
   padding: 0.7rem 0.85rem;
   display: grid;
   gap: 0.45rem;
+  pointer-events: auto;
 }
 
 .pwa-update-banner p {

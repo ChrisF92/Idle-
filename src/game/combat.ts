@@ -21,7 +21,6 @@ import {
   essenceBonusDataPerClear,
   getEnemyDropTable,
   getModule,
-  isStationUnlocked,
   matterShopDataPerClear,
   matterShopDropBonus,
   matterShopRepairMult,
@@ -44,7 +43,8 @@ import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { fittedRegenBonus } from './milestones'
 import { networkSalvageMult } from './network'
 import { grantReliquaryKillLoot, reliquarySalvageMult } from './reliquary'
-import { grantFurnaceKillLoot } from './furnace'
+import { grantFurnaceKillLoot, furnaceSalvageMult } from './furnace'
+import { foundrySalvageMult } from './foundry'
 import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
 import { yardSalvageMult } from './yard'
 import { echoSalvageMult } from './echo'
@@ -279,7 +279,7 @@ function makeEnemyUnit(opts: {
 
 function packY(index: number, count: number): number {
   if (count <= 1) return 0
-  const spread = Math.min(70, 18 * (count - 1))
+  const spread = Math.min(110, 28 * (count - 1))
   return -spread / 2 + (spread / Math.max(1, count - 1)) * index
 }
 
@@ -1648,8 +1648,8 @@ export function rollEnemyPartDrop(
   unit: Pick<CombatUnit, 'family' | 'isBoss' | 'name'>,
   rng: () => number = Math.random,
 ): PartDropResult[] {
-  // Keep early scrap sinks (frames / Plate) meaningful — no free part→scrap before Foundry.
-  if (!isStationUnlocked(state, 'alloy-foundry')) return []
+  // Keep early scrap sinks meaningful — no Core prints until the Foundry door.
+  if (!isSystemUnlocked(state, 'foundry')) return []
 
   const table = getEnemyDropTable(unit.family)
   if (!table) return []
@@ -1718,6 +1718,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     networkSalvageMult(state) *
     reliquarySalvageMult(state) *
     hiveResearchSalvageMult(state) *
+    foundrySalvageMult(state) *
+    furnaceSalvageMult(state) *
     yardSalvageMult(state) *
     echoSalvageMult(state) *
     specialistSalvageMult(state) *
@@ -1812,6 +1814,32 @@ function incomingDefenseMult(
   return mult
 }
 
+function hitLayer(shieldBefore: number, hullBefore: number, target: CombatUnit): 'hull' | 'shield' {
+  if (shieldBefore > 0 && target.shield < shieldBefore - 1e-6 && target.hull >= hullBefore - 1e-6) {
+    return 'shield'
+  }
+  return 'hull'
+}
+
+function pushHitFx(
+  hits: CombatFx[],
+  fromId: string,
+  toId: string,
+  tag: string,
+  opts: { amount?: number; hit?: CombatFx['hit']; ttl: number },
+): void {
+  fxGlobalSeq += 1
+  hits.push({
+    id: `fx-${fxGlobalSeq}`,
+    fromId,
+    toId,
+    tag,
+    ttl: opts.ttl,
+    amount: opts.amount,
+    hit: opts.hit,
+  })
+}
+
 function findUnit(state: GameState, id: string): CombatUnit | undefined {
   return (
     state.combat.playerUnits.find((u) => u.id === id) ??
@@ -1894,20 +1922,25 @@ function tickBeams(
       dmg *= incomingDefenseMult(target, beam.attackerFamily, roles, matchupScale)
     }
     const prevHull = target.hull
-    applyDamageToUnit(target, dmg, beam.tags, {
+    const shieldBefore = target.shield
+    const dealt = applyDamageToUnit(target, dmg, beam.tags, {
       hullDamage: beam.hullDamage ?? 1,
       shieldDamage: beam.shieldDamage ?? 1,
       armorDamage: beam.armorDamage ?? 0.25,
     })
     tryLootEnemyKill(state, target, prevHull)
-    fxGlobalSeq += 1
-    hits.push({
-      id: `fx-${fxGlobalSeq}`,
-      fromId: beam.fromId,
-      toId: beam.toId,
-      tag: beam.tag,
-      ttl: 0.12,
-    })
+    beam.popupAcc = (beam.popupAcc ?? 0) + dealt
+    beam.popupT = (beam.popupT ?? 0) + slice
+    const beamDone = beam.remaining - slice <= 1e-4 || target.hull <= 0
+    if ((beam.popupT >= 0.16 || beamDone) && (beam.popupAcc ?? 0) >= 0.4) {
+      pushHitFx(hits, beam.fromId, beam.toId, beam.tag, {
+        amount: beam.popupAcc,
+        hit: hitLayer(shieldBefore, prevHull, target),
+        ttl: 0.35,
+      })
+      beam.popupAcc = 0
+      beam.popupT = 0
+    }
     beam.remaining -= slice
     if (beam.remaining > 1e-4 && target.hull > 0) kept.push(beam)
   }
@@ -1940,14 +1973,7 @@ function updateProjectiles(
     if (dist <= Math.max(3, step)) {
       // Impact
       if (target.evasion > 0 && Math.random() < target.evasion) {
-        fxGlobalSeq += 1
-        hits.push({
-          id: `fx-${fxGlobalSeq}`,
-          fromId: shot.fromId,
-          toId: shot.toId,
-          tag: 'miss',
-          ttl: 0.2,
-        })
+        pushHitFx(hits, shot.fromId, shot.toId, 'miss', { hit: 'miss', ttl: 0.35 })
         continue
       }
 
@@ -1956,7 +1982,8 @@ function updateProjectiles(
         dmg *= incomingDefenseMult(target, shot.attackerFamily, roles, matchupScale)
       }
       const prevHull = target.hull
-      applyDamageToUnit(target, dmg, shot.tags, {
+      const shieldBefore = target.shield
+      const dealt = applyDamageToUnit(target, dmg, shot.tags, {
         hullDamage: shot.hullDamage ?? 1,
         shieldDamage: shot.shieldDamage ?? 1,
         armorDamage: shot.armorDamage ?? 0.25,
@@ -1965,13 +1992,10 @@ function updateProjectiles(
       if (shot.dotDuration > 0 && shot.dotDamage > 0) {
         target.dots.push({ dps: shot.dotDamage, remaining: shot.dotDuration })
       }
-      fxGlobalSeq += 1
-      hits.push({
-        id: `fx-${fxGlobalSeq}`,
-        fromId: shot.fromId,
-        toId: shot.toId,
-        tag: shot.tag,
-        ttl: 0.25,
+      pushHitFx(hits, shot.fromId, shot.toId, shot.tag, {
+        amount: dealt,
+        hit: hitLayer(shieldBefore, prevHull, target),
+        ttl: 0.55,
       })
       continue
     }
@@ -2131,7 +2155,7 @@ export function simulateCombat(
 
   state.combat.fx = [...hitFx, ...state.combat.fx.map((f) => ({ ...f, ttl: f.ttl - dt }))]
     .filter((f) => f.ttl > 0)
-    .slice(0, 64)
+    .slice(0, 96)
 
   maybeAdvanceBossPhase(state, pushLog)
   syncHullAggregates(state)

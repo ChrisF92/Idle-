@@ -20,12 +20,14 @@ import { advanceSeconds } from './tick'
 import { salvageFromKill } from './combat'
 
 describe('phase 4: drone network', () => {
-  it('starts with a corps and Network unlocked; Cores is not a hub tab', () => {
+  it('starts with a corps; Network tab waits for first hull loss', () => {
     const s = createInitialState(0)
-    expect(SAVE_VERSION).toBe(31)
+    expect(SAVE_VERSION).toBe(33)
     expect(s.base.workerDrones).toBe(NETWORK_STARTING_DRONES)
     expect(droneCap(s)).toBe(10)
     expect(idleWorkers(s)).toBe(NETWORK_STARTING_DRONES)
+    expect(isSystemUnlocked(s, 'network')).toBe(false)
+    s.meta.hullLostOnce = true
     expect(isSystemUnlocked(s, 'network')).toBe(true)
     expect(isSystemUnlocked(s, 'cores')).toBe(false)
     expect(isNetworkBarUnlocked(s, 'strike')).toBe(true)

@@ -33,7 +33,8 @@ export interface SystemUnlockDef {
 
 /**
  * Whole systems unlock by career progress. Locked More stations stay listed with requirements.
- * Dock, Sortie, Network, and More are always available. Process unlocks on First Blood.
+ * Dock and Sortie are always available. Salvage, Network, and More wait for the first hull loss.
+ * Process unlocks on First Blood.
  */
 export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
@@ -186,10 +187,17 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     condition: { type: 'sector-ever', sector: 1 },
   },
   {
+    id: 'chip-drawer',
+    name: 'Chip Drawer',
+    description: 'Clear sector 3. Reliquary is open.',
+    rewardAiPoints: 2,
+    condition: { type: 'sector-ever', sector: 3 },
+  },
+  {
     id: 'hangar-opened',
     name: 'Hangar Opened',
     description: 'Clear sector 4.',
-    rewardAiPoints: 1,
+    rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 4 },
   },
   {
@@ -198,6 +206,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     description: 'Clear sector 5 (first boss sector).',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 5 },
+  },
+  {
+    id: 'archive-open',
+    name: 'Archive Open',
+    description: 'Clear sector 7. Research is open.',
+    rewardAiPoints: 2,
+    condition: { type: 'sector-ever', sector: 7 },
   },
   {
     id: 'first-research',
@@ -434,7 +449,7 @@ export function achievementProgressValue(
     case 'prestige-count':
       return state.prestige.prestigeCount
     case 'ai-purchase-count':
-      return state.ai.purchased.length
+      return state.ai.purchased.length + (state.process?.purchased.length ?? 0)
     case 'act1-cleared':
       return state.meta.act1Cleared || careerHighestSector(state) >= ACT1_FINAL_SECTOR
         ? 1
@@ -520,15 +535,30 @@ export function tryCompleteAchievements(state: GameState): string[] {
   return newly
 }
 
-export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
+/** First hull-loss dock — Salvage, Cores spend, Network, and More wait for this. */
+export function hasHullLostOnce(state: GameState): boolean {
+  return state.meta.hullLostOnce === true || state.combat.lastSortie?.outcome === 'defeat'
+}
+
+/** Hub tabs the player may open. First live sortie stays on Sortie until hull loss. */
+export function isHubTabOpen(state: GameState, systemId: TabId): boolean {
   if (
-    systemId === 'dock' ||
-    systemId === 'combat' ||
-    systemId === 'network' ||
-    systemId === 'shipyard' ||
-    systemId === 'stats'
+    !hasHullLostOnce(state) &&
+    !state.combat.docked &&
+    (state.combat.defeatLeft ?? 0) <= 0 &&
+    systemId !== 'combat'
   ) {
+    return false
+  }
+  return isSystemUnlocked(state, systemId)
+}
+
+export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
+  if (systemId === 'dock' || systemId === 'combat' || systemId === 'shipyard') {
     return true
+  }
+  if (systemId === 'network' || systemId === 'stats') {
+    return hasHullLostOnce(state)
   }
   if (systemId === 'cores') {
     return false
@@ -561,8 +591,11 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
 }
 
 export function systemUnlockRequirement(systemId: TabId): string | null {
-  if (systemId === 'combat' || systemId === 'shipyard' || systemId === 'stats') {
+  if (systemId === 'combat' || systemId === 'shipyard') {
     return null
+  }
+  if (systemId === 'network' || systemId === 'stats') {
+    return 'Dock after hull loss'
   }
   if (systemId === 'foundry') {
     return 'Clear sector 2'
@@ -608,7 +641,7 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
     case 'energy':
       return isSystemUnlocked(state, 'base') || state.resources.energy > 0
     case 'salvage':
-      return true
+      return hasHullLostOnce(state)
     case 'choirAsh':
     case 'heat':
       return isSystemUnlocked(state, 'furnace') || state.resources[id] > 0
@@ -738,10 +771,41 @@ export interface GuideStep {
    * until completeWhen (or the highlighted control) finishes the step.
    */
   required?: boolean
+  /**
+   * Player must tap the highlighted control. Continue is hidden.
+   * Default: true for tab/station/launch/upgrade/completeWhen steps.
+   */
+  tap?: boolean
 }
 
 export function guideBodyLines(step: GuideStep): string[] {
   return Array.isArray(step.body) ? step.body : [step.body]
+}
+
+const TAP_TARGETS = new Set([
+  'launch',
+  'cores-sheet',
+  'rebuild-btn',
+  'hangar-confirm',
+  'furnace-bank',
+  'reinforce-go',
+])
+
+/** True when the player must tap the spotlight instead of Continue. */
+export function guideStepNeedsTap(step: GuideStep): boolean {
+  if (typeof step.tap === 'boolean') return step.tap
+  if (step.completeWhen) return true
+  const t = step.target
+  if (t.endsWith('-tab') || t.startsWith('station-')) return true
+  if (t.startsWith('upgrade-') || t.startsWith('core-')) return true
+  return TAP_TARGETS.has(t)
+}
+
+/** Cores modal should stay open for these spotlight targets. */
+export function isCoresGuideTarget(step: GuideStep): boolean {
+  const t = step.target
+  if (t.startsWith('core-') || t.startsWith('upgrade-')) return true
+  return t === 'cores-sheet' && step.id !== 'guide-cores-sheet'
 }
 
 /** More / Foundry / Network screens that must finish their own tour first. */
@@ -793,18 +857,20 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-shipyard-tab',
     title: 'Dock',
-    body: 'Home. Scout Hull is fitted. Launch a sortie — Salvage ranks Cores during the fight. Rebuild later to swap the hull.',
+    body: 'Home. Scout Hull is fitted. Launch a sortie — stay on this fight until hull loss. Salvage and Network open after you dock.',
     target: 'dock-tab',
     tab: 'dock',
+    tap: false,
     availableWhen: (s) =>
       s.combat.docked && !s.shipyard.frameLocked && !guideSeen(s, 'guide-shipyard-tab'),
   },
   {
     id: 'guide-frame-select',
     title: 'Your hull',
-    body: 'Scout Hull is fitted. Salvage levels Cores during a sortie. Rebuild later to swap.',
+    body: 'Scout Hull is fitted. After hull loss, Salvage ranks Cores. Rebuild later to swap the hull.',
     target: 'dock-tab',
     tab: 'dock',
+    tap: false,
     availableWhen: (s) =>
       guideSeen(s, 'guide-shipyard-tab') &&
       !guideSeen(s, 'guide-frame-select') &&
@@ -815,7 +881,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-launch',
     title: 'Launch',
-    body: 'Tap Launch sortie. Combat keeps running even if you open Dock, Network, or Foundry.',
+    body: 'Tap Launch sortie. Stay on Sortie until hull loss — Salvage and Network unlock after you dock.',
     target: 'launch',
     tab: 'dock',
     availableWhen: (s) =>
@@ -830,12 +896,13 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'The lane',
     body: [
       'Your hull sits at the bottom. Waves close in from the far side.',
-      'This screen is the fight. Cores and Salvage sit under the field.',
+      'This screen is the fight. Hull and Shield live in the header. Cores is a button under the field.',
     ],
     target: 'sortie-canvas',
     tab: 'combat',
     screen: 'combat',
     group: 'sortie',
+    required: true,
     availableWhen: (s) =>
       !s.combat.docked &&
       (s.combat.defeatLeft ?? 0) <= 0 &&
@@ -847,12 +914,13 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Guns fire themselves',
     body: [
       'You do not tap to shoot. Pulse Cannon fires on its own.',
-      'Spend Salvage on Cores under the field to hit harder and hold Shield.',
+      'Watch the lane. After hull loss you will spend Salvage on Pulse and Plate.',
     ],
     target: 'sortie-canvas',
     tab: 'combat',
     screen: 'combat',
     group: 'sortie',
+    required: true,
     availableWhen: (s) =>
       !s.combat.docked &&
       (s.combat.defeatLeft ?? 0) <= 0 &&
@@ -864,12 +932,13 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Shield, then Hull',
     body: [
       'Incoming fire eats Shield first, then Hull.',
-      'Extract to keep the run. Hull lost docks you — you relaunch from Dock.',
+      'Advance keeps pushing sectors. Hold sector or Hold wave to farm. Hull lost docks you — Salvage and Network open after that.',
     ],
     target: 'sortie-hull',
     tab: 'combat',
     screen: 'combat',
     group: 'sortie',
+    required: true,
     availableWhen: (s) =>
       !s.combat.docked &&
       (s.combat.defeatLeft ?? 0) <= 0 &&
@@ -877,33 +946,18 @@ export const GUIDE_STEPS: GuideStep[] = [
       !guideSeen(s, 'guide-sortie-hull'),
   },
   {
-    id: 'guide-sortie-salvage',
-    title: 'Wrecks drop Salvage',
-    body: [
-      'Kills add Salvage here. Spend it on Pulse (gun) and Plate (shield) on the Cores sheet below.',
-      'You can rank Cores during the fight. Extract keeps those levels.',
-    ],
-    target: 'salvage-stat',
-    tab: 'combat',
-    screen: 'combat',
-    group: 'sortie',
-    availableWhen: (s) =>
-      !s.combat.docked &&
-      (s.combat.defeatLeft ?? 0) <= 0 &&
-      guideSeen(s, 'guide-sortie-hull') &&
-      !guideSeen(s, 'guide-sortie-salvage'),
-  },
-  {
     id: 'guide-salvage-lesson',
     title: 'Salvage recovered',
     body: [
-      'Open Sortie. Salvage ranks Cores under the field — Pulse is the gun, Plate is the shield.',
+      'Open Sortie. Salvage ranks Cores — tap Cores, then Pulse (gun) and Plate (shield).',
       'Tap a Core name later for every stat and the next Salvage cost.',
     ],
     target: 'combat-tab',
     group: 'cores',
+    required: true,
     availableWhen: (s) =>
       s.combat.docked &&
+      hasHullLostOnce(s) &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       s.resources.salvage > 0 &&
       ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 ||
@@ -921,8 +975,10 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'combat',
     screen: 'combat',
     group: 'cores',
+    required: true,
     availableWhen: (s) =>
       s.combat.docked &&
+      hasHullLostOnce(s) &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       guideSeen(s, 'guide-salvage-lesson') &&
       !guideSeen(s, 'guide-cores-sheet'),
@@ -938,6 +994,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     required: true,
     availableWhen: (s) =>
       s.combat.docked &&
+      hasHullLostOnce(s) &&
       guideSeen(s, 'guide-cores-sheet') &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 &&
@@ -955,6 +1012,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     required: true,
     availableWhen: (s) =>
       s.combat.docked &&
+      hasHullLostOnce(s) &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1 &&
@@ -972,8 +1030,10 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'combat',
     screen: 'combat',
     group: 'cores',
+    required: true,
     availableWhen: (s) =>
       s.combat.docked &&
+      hasHullLostOnce(s) &&
       (s.meta.starterCombatLesson ?? 0) === 2 &&
       guideSeen(s, 'guide-cores-sheet') &&
       ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 ||
@@ -984,17 +1044,20 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-cores-persist',
-    title: 'What Extract keeps',
+    title: 'What the loadout keeps',
     body: [
-      'Extract keeps Core levels and Salvage. Hull lost still keeps them — you just dock and relaunch.',
+      'Core levels and Salvage stay after hull loss — you just dock and relaunch.',
       'Rebuild wipes Salvage and Core levels so you can swap the hull. That is later, from Dock.',
     ],
     target: 'cores-sheet',
     tab: 'combat',
     screen: 'combat',
     group: 'cores',
+    required: true,
+    tap: false,
     availableWhen: (s) =>
       s.combat.docked &&
+      hasHullLostOnce(s) &&
       guideSeen(s, 'guide-cores-inspect') &&
       !guideSeen(s, 'guide-cores-persist'),
   },
@@ -1008,8 +1071,10 @@ export const GUIDE_STEPS: GuideStep[] = [
     target: 'network-tab',
     screen: 'network',
     group: 'network',
+    required: true,
     availableWhen: (s) =>
       s.combat.docked &&
+      hasHullLostOnce(s) &&
       s.base.workerDrones > 0 &&
       !guideSeen(s, 'guide-drone-cap'),
     completeWhen: (_s, tab) => tab === 'network',
@@ -1025,6 +1090,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'network',
     screen: 'network',
     group: 'network',
+    required: true,
     availableWhen: (s) =>
       guideSeen(s, 'guide-drone-cap') && !guideSeen(s, 'guide-network-make'),
   },
@@ -1058,6 +1124,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'network',
     screen: 'network',
     group: 'network',
+    required: true,
     availableWhen: (s) =>
       guideSeen(s, 'guide-network-make') &&
       (guideSeen(s, 'guide-network-assign') ||
@@ -1076,6 +1143,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'network',
     screen: 'network',
     group: 'network',
+    required: true,
     availableWhen: (s) =>
       guideSeen(s, 'guide-network-sortie') &&
       !guideSeen(s, 'guide-network-bars') &&
@@ -1094,23 +1162,9 @@ export const GUIDE_STEPS: GuideStep[] = [
     tab: 'network',
     screen: 'network',
     group: 'network',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-network-bars') && !guideSeen(s, 'guide-network-links'),
-  },
-  {
-    id: 'guide-relaunch-upgraded',
-    title: 'Resume push',
-    body: 'Cores ranked and the Network is running. Launch again — bars fill while you fly.',
-    target: 'launch',
-    tab: 'dock',
     required: true,
     availableWhen: (s) =>
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
-      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
-      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
-      s.combat.docked &&
-      !guideSeen(s, 'guide-relaunch-upgraded'),
-    completeWhen: (s) => !s.combat.docked,
+      guideSeen(s, 'guide-network-bars') && !guideSeen(s, 'guide-network-links'),
   },
   {
     id: 'guide-foundry',
@@ -1122,6 +1176,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     target: 'foundry-tab',
     screen: 'foundry',
     group: 'foundry',
+    required: true,
     availableWhen: (s) => isSystemUnlocked(s, 'foundry') && !guideSeen(s, 'guide-foundry'),
     completeWhen: (_s, tab) => tab === 'foundry',
   },
@@ -1151,6 +1206,22 @@ export const GUIDE_STEPS: GuideStep[] = [
     group: 'foundry',
     availableWhen: (s) =>
       guideSeen(s, 'guide-foundry-smelt') && !guideSeen(s, 'guide-foundry-keep'),
+  },
+  {
+    id: 'guide-relaunch-upgraded',
+    title: 'Resume push',
+    body: 'Cores ranked and the Network is running. Launch again — bars fill while you fly.',
+    target: 'launch',
+    tab: 'dock',
+    required: true,
+    availableWhen: (s) =>
+      hasHullLostOnce(s) &&
+      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
+      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
+      s.combat.docked &&
+      !guideSeen(s, 'guide-relaunch-upgraded'),
+    completeWhen: (s) => !s.combat.docked,
   },
   {
     id: 'guide-reliquary',
@@ -1200,7 +1271,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Rebuild is ready',
     body: [
       'Open Dock. You reached sector 4 — Rebuild hangar can swap hull and Cores for Rebuild Matter.',
-      'Extract keeps this loadout. Rebuild is the swap, not a game-over.',
+      'The live loadout stays until you Rebuild. Rebuild is the swap, not a game-over.',
     ],
     target: 'dock-tab',
     tab: 'dock',
@@ -1540,8 +1611,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-salvage',
     title: 'Salvage',
     body: [
-      'Sorties keep dropping Salvage. Spend it on the Cores sheet anytime to raise run levels.',
-      'Extract keeps those levels. Rebuild wipes them so you can swap the loadout. Tap a Core name for every stat.',
+      'Sorties keep dropping Salvage. Open Cores anytime to raise run levels.',
+      'Hull lost keeps those levels. Rebuild wipes them so you can swap the loadout. Tap a Core name for every stat.',
     ],
     target: 'salvage-stat',
     tab: 'combat',
@@ -1732,6 +1803,10 @@ export function retirePostResetOnboarding(state: GameState): void {
       state.meta.starterCombatLesson = 2
       changed = true
     }
+    if (!state.meta.hullLostOnce) {
+      state.meta.hullLostOnce = true
+      changed = true
+    }
   }
 
   if (ascended) {
@@ -1752,13 +1827,17 @@ export function syncCompletedGuides(state: GameState, tab: TabId): GameState {
   let changed = false
   for (const step of GUIDE_STEPS) {
     if (seen.includes(step.id)) continue
-    // Evaluate availability as if this step is still unseen.
+    if (!step.completeWhen?.(state, tab)) continue
     const probe: GameState = {
       ...state,
       meta: { ...state.meta, seenOnboarding: seen },
     }
-    if (!step.availableWhen(probe)) continue
-    if (!step.completeWhen?.(state, tab)) continue
+    const dockedProbe: GameState = {
+      ...probe,
+      combat: { ...probe.combat, docked: true, defeatLeft: 0 },
+    }
+    // Launch/relaunch are available while docked and complete once flying.
+    if (!step.availableWhen(probe) && !step.availableWhen(dockedProbe)) continue
     seen.push(step.id)
     changed = true
   }
@@ -1847,6 +1926,19 @@ export function acknowledgeOnboarding(state: GameState, tipId: string): GameStat
   const next = structuredClone(state)
   next.meta.seenOnboarding = [...next.meta.seenOnboarding, tipId]
   return next
+}
+
+/** First hull loss finishes the live-lane tour so it does not replay on the next sortie. */
+export function retireLiveSortieGuides(state: GameState): void {
+  const seen = [...(state.meta.seenOnboarding ?? [])]
+  let changed = false
+  for (const step of GUIDE_STEPS) {
+    if (step.group !== 'sortie') continue
+    if (seen.includes(step.id)) continue
+    seen.push(step.id)
+    changed = true
+  }
+  if (changed) state.meta.seenOnboarding = seen
 }
 
 /** Skip dismisses this step and every other unseen step in its group. */

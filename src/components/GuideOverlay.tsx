@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
-import { guideBodyLines, type GuideStep } from '../game/progression'
+import { guideBodyLines, guideStepNeedsTap, type GuideStep } from '../game/progression'
 
 interface GuideOverlayProps {
   step: GuideStep
@@ -9,22 +9,65 @@ interface GuideOverlayProps {
 
 type Hole = { top: number; left: number; width: number; height: number }
 
+const SCROLL_PARENT_RE = /(auto|scroll|overlay)/
+
+function scrollTargetIntoView(el: HTMLElement) {
+  let parent: HTMLElement | null = el.parentElement
+  while (parent && parent !== document.body) {
+    const style = window.getComputedStyle(parent)
+    const canScroll =
+      SCROLL_PARENT_RE.test(style.overflowY) && parent.scrollHeight > parent.clientHeight + 1
+    if (canScroll) {
+      const pRect = parent.getBoundingClientRect()
+      const eRect = el.getBoundingClientRect()
+      const offset = eRect.top - pRect.top - (parent.clientHeight / 2 - eRect.height / 2)
+      parent.scrollTop += offset
+    }
+    parent = parent.parentElement
+  }
+}
+
 /**
  * Spotlight coach-mark: dims the UI, punches a hole around [data-guide=target],
- * scrolls the target into view, and advances when the user taps it.
- * Required steps hide Skip and block clicks outside the hole.
+ * scrolls the nearest overflow parent so the target is on-screen, and advances
+ * when the user taps it. Required steps hide Skip. Background scroll is locked.
  */
 export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
   const [rect, setRect] = useState<DOMRect | null>(null)
   const required = Boolean(step.required)
+  const needsTap = guideStepNeedsTap(step)
+
+  useEffect(() => {
+    const html = document.documentElement
+    const prevHtml = html.style.overflow
+    const prevBody = document.body.style.overflow
+    html.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    const block = (e: Event) => {
+      const node = e.target
+      if (node instanceof Element && node.closest('.guide-tip')) return
+      e.preventDefault()
+    }
+    document.addEventListener('wheel', block, { capture: true, passive: false })
+    document.addEventListener('touchmove', block, { capture: true, passive: false })
+    return () => {
+      html.style.overflow = prevHtml
+      document.body.style.overflow = prevBody
+      document.removeEventListener('wheel', block, true)
+      document.removeEventListener('touchmove', block, true)
+    }
+  }, [])
 
   // Bring the highlighted control on-screen whenever the step changes.
   useLayoutEffect(() => {
     const el = document.querySelector(`[data-guide="${step.target}"]`)
     if (!(el instanceof HTMLElement)) return
 
-    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
-    const measure = () => setRect(el.getBoundingClientRect())
+    scrollTargetIntoView(el)
+    const measure = () => {
+      scrollTargetIntoView(el)
+      setRect(el.getBoundingClientRect())
+    }
     const t1 = window.setTimeout(measure, 50)
     const t2 = window.setTimeout(measure, 320)
     return () => {
@@ -45,11 +88,9 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
     measure()
     const id = window.setInterval(measure, 200)
     window.addEventListener('resize', measure)
-    window.addEventListener('scroll', measure, true)
     return () => {
       window.clearInterval(id)
       window.removeEventListener('resize', measure)
-      window.removeEventListener('scroll', measure, true)
     }
   }, [step.target, step.id])
 
@@ -58,14 +99,14 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       const el = document.querySelector(`[data-guide="${step.target}"]`)
       if (!el) return
       if (el === e.target || el.contains(e.target as Node)) {
-        // Required steps with completeWhen advance via App state polls only.
-        if (required && step.completeWhen) return
+        // completeWhen steps advance when the action lands in game state.
+        if (step.completeWhen) return
         window.setTimeout(() => onComplete(step.id), 0)
       }
     }
     document.addEventListener('click', onClick, true)
     return () => document.removeEventListener('click', onClick, true)
-  }, [step.id, step.target, step.completeWhen, required, onComplete])
+  }, [step.id, step.target, step.completeWhen, onComplete])
 
   const pad = 8
   const hole: Hole | null = rect
@@ -78,16 +119,13 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
     : null
 
   const tipPlacement = placeTip(hole)
-  const targetOffscreen = rect
-    ? rect.bottom < 8 || rect.top > window.innerHeight - 8
-    : false
 
   return (
     <div
       className={`guide-root${required ? ' guide-root-required' : ''}`}
       aria-live="polite"
     >
-      {required && hole ? (
+      {hole ? (
         <>
           <div
             className="guide-block"
@@ -121,7 +159,9 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
             }}
           />
         </>
-      ) : null}
+      ) : (
+        <div className="guide-block" style={{ inset: 0 }} />
+      )}
       {hole ? (
         <div
           className="guide-hole"
@@ -141,39 +181,37 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
         role="dialog"
         aria-label={step.title}
       >
-        <p className="combat-hud-kicker">Guide · paused</p>
+        <p className="combat-hud-kicker">
+          {needsTap ? 'Guide · tap the highlight' : 'Guide · paused'}
+        </p>
         <h3>{step.title}</h3>
-        {guideBodyLines(step).map((line) => (
-          <p key={line}>{line}</p>
-        ))}
-        {targetOffscreen ? (
-          <p className="notice-warn">Scroll to the highlighted control.</p>
-        ) : null}
-        <div className="guide-tip-actions">
-          {!required ? (
-            <button type="button" onClick={() => onSkip(step.id)}>
-              Skip
-            </button>
-          ) : (
-            <span className="muted">Required</span>
-          )}
-          <button type="button" className="primary" onClick={() => onComplete(step.id)}>
-            Continue
-          </button>
-          {hole ? (
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.querySelector(`[data-guide="${step.target}"]`)
-                if (el instanceof HTMLElement) {
-                  el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-                }
-              }}
-            >
-              Find
-            </button>
-          ) : null}
+        <div className="guide-tip-body">
+          {guideBodyLines(step).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
         </div>
+        {needsTap || !required ? (
+          <div className="guide-tip-actions">
+            {!required ? (
+              <button type="button" onClick={() => onSkip(step.id)}>
+                Skip
+              </button>
+            ) : (
+              <span className="muted">Tap the highlighted control</span>
+            )}
+            {!needsTap ? (
+              <button type="button" className="primary" onClick={() => onComplete(step.id)}>
+                Continue
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="guide-tip-actions">
+            <button type="button" className="primary" onClick={() => onComplete(step.id)}>
+              Continue
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -183,7 +221,7 @@ function placeTip(hole: Hole | null): {
   side: 'top' | 'bottom'
   style: { top?: number; bottom?: number; left: number }
 } {
-  const tipMaxH = 280
+  const tipMaxH = 240
   const margin = 12
   const left = 12
 

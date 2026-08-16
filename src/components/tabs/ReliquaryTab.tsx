@@ -59,7 +59,10 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
                 className={unlocked ? `network-row slot-${slot.color}` : 'network-row locked'}
               >
                 <div className="network-row-main">
-                  <InspectName name={slot.name} card={inspectReliquarySlot(state, slot.color)} />
+                  <InspectName
+                    name={slot.name}
+                    card={unlocked ? inspectReliquarySlot(state, slot.color) : null}
+                  />
                   <span className="muted">
                     {unlocked
                       ? fittedDef
@@ -122,7 +125,10 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
             return (
               <article key={shard.id} className={gated ? 'network-row locked' : 'network-row'}>
                 <div className="network-row-main">
-                  <InspectName name={shard.name} card={inspectShard(state, shard.id)} />
+                  <InspectName
+                    name={shard.name}
+                    card={gated ? null : inspectShard(state, shard.id)}
+                  />
                   <span className="muted">
                     {shard.color}
                     {shard.requiresSectorEver ? ` · S${shard.requiresSectorEver}` : ''}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { setDocked } from './tick'
+import { markHullLost } from './testHelpers'
 import {
   GUIDE_STEPS,
   NETWORK_GUIDE_IDS,
@@ -9,17 +10,17 @@ import {
   acknowledgeOnboarding,
   guideBodyLines,
   guideQueueQuiet,
+  guideStepNeedsTap,
+  hasHullLostOnce,
+  isCoresGuideTarget,
   skipOnboarding,
+  syncCompletedGuides,
+  retireLiveSortieGuides,
 } from './progression'
 
 const AFTER_LAUNCH = ['guide-shipyard-tab', 'guide-frame-select', 'guide-launch']
 
-const SORTIE_TOUR = [
-  'guide-sortie-field',
-  'guide-sortie-guns',
-  'guide-sortie-hull',
-  'guide-sortie-salvage',
-]
+const SORTIE_TOUR = ['guide-sortie-field', 'guide-sortie-guns', 'guide-sortie-hull']
 
 const CORES_TOUR = [
   'guide-salvage-lesson',
@@ -35,6 +36,12 @@ function afterLaunch(seen: string[] = AFTER_LAUNCH) {
   state.meta.seenOnboarding = seen
   state = setDocked(state, false)
   return state
+}
+
+function afterFirstDeath(seen: string[] = AFTER_LAUNCH) {
+  let state = afterLaunch(seen)
+  state = setDocked(state, true)
+  return markHullLost(state)
 }
 
 describe('onboarding queue', () => {
@@ -57,10 +64,24 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(walked, 'combat')).toBeNull()
     expect(activeGuideStep(walked, 'dock')).toBeNull()
     expect(activeGuideStep(walked, 'foundry')).toBeNull()
+    expect(hasHullLostOnce(walked)).toBe(false)
+  })
+
+  it('does not offer Salvage or Network until the first hull loss', () => {
+    const state = createInitialState(0)
+    state.meta.seenOnboarding = AFTER_LAUNCH
+    expect(activeGuideStep(state, 'dock')).toBeNull()
+    expect(hasHullLostOnce(state)).toBe(false)
+
+    state.resources.salvage = 8
+    expect(activeGuideStep(state, 'dock')).toBeNull()
+
+    const dead = markHullLost(state)
+    expect(activeGuideStep(dead, 'dock')?.id).toBe('guide-salvage-lesson')
   })
 
   it('keeps the visible tip when first Salvage arrives', () => {
-    const state = createInitialState(0)
+    const state = markHullLost(createInitialState(0))
     state.meta.seenOnboarding = AFTER_LAUNCH
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-drone-cap')
 
@@ -69,15 +90,16 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-salvage-lesson')
   })
 
-  it('offers Salvage, Cores, then Network after Extract — before relaunch', () => {
+  it('offers Salvage, Cores, then Network after docking — before relaunch', () => {
     let state = afterLaunch()
     state.resources.salvage = 8
     expect(activeGuideStep(state, 'combat')?.id).toBe('guide-sortie-field')
 
-    state = setDocked(state, true)
+    state = afterFirstDeath()
+    state.resources.salvage = 8
     expect(guideQueueQuiet(state)).toBe(false)
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-salvage-lesson')
-    expect(activeGuideStep(state, 'dock')?.required).toBeFalsy()
+    expect(activeGuideStep(state, 'dock')?.required).toBe(true)
     expect(activeGuideStep(state, 'dock')?.group).toBe('cores')
 
     state = acknowledgeOnboarding(state, 'guide-salvage-lesson')
@@ -104,7 +126,7 @@ describe('onboarding queue', () => {
   })
 
   it('walks manufacture, assign, and Links on Network', () => {
-    let state = createInitialState(0)
+    let state = markHullLost(createInitialState(0))
     state.meta.seenOnboarding = [...AFTER_LAUNCH, ...SORTIE_TOUR, ...CORES_TOUR]
     state.shipyard.moduleLevels['pulse-cannon'] = 1
     state.shipyard.moduleLevels['plate-layer'] = 1
@@ -310,7 +332,7 @@ describe('onboarding queue', () => {
   })
 
   it('Skip on the Network door dismisses manufacture and Links', () => {
-    let state = createInitialState(0)
+    let state = markHullLost(createInitialState(0))
     state.meta.seenOnboarding = [...AFTER_LAUNCH, ...SORTIE_TOUR, ...CORES_TOUR]
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-drone-cap')
     state = skipOnboarding(state, 'guide-drone-cap')
@@ -333,8 +355,73 @@ describe('onboarding queue', () => {
       expect(STARTER_GUIDE_IDS).toContain(id)
     }
     expect(GUIDE_STEPS.filter((s) => s.group === 'sortie').map((s) => s.id)).toEqual(SORTIE_TOUR)
+    expect(STARTER_GUIDE_IDS).toContain('guide-sortie-salvage')
     expect(GUIDE_STEPS.filter((s) => s.group === 'network').map((s) => s.id)).toEqual([
       ...NETWORK_GUIDE_IDS,
     ])
+  })
+
+  it('hides Continue on tap-the-control steps and keeps it on look-only tips', () => {
+    const byId = Object.fromEntries(GUIDE_STEPS.map((s) => [s.id, s]))
+    expect(guideStepNeedsTap(byId['guide-launch']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-salvage-lesson']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-cores-sheet']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-upgrade-pulse']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-drone-cap']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-network-assign']!)).toBe(true)
+    expect(guideStepNeedsTap(byId['guide-sortie-field']!)).toBe(false)
+    expect(guideStepNeedsTap(byId['guide-sortie-hull']!)).toBe(false)
+    expect(guideStepNeedsTap(byId['guide-cores-persist']!)).toBe(false)
+    expect(guideStepNeedsTap(byId['guide-network-make']!)).toBe(false)
+    expect(isCoresGuideTarget(byId['guide-cores-sheet']!)).toBe(false)
+    expect(isCoresGuideTarget(byId['guide-upgrade-pulse']!)).toBe(true)
+    expect(isCoresGuideTarget(byId['guide-cores-persist']!)).toBe(true)
+    expect(isCoresGuideTarget(byId['guide-drone-cap']!)).toBe(false)
+  })
+
+  it('offers Foundry before relaunch once sector 2 is cleared', () => {
+    const state = afterFirstDeath([
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
+    ])
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.shipyard.moduleLevels['plate-layer'] = 1
+    state.meta.highestSectorEver = 2
+    state.combat.highestSector = 2
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-foundry')
+    expect(activeGuideStep(state, 'dock')?.required).toBe(true)
+  })
+
+  it('marks relaunch seen after launch so a later hull loss does not replay it', () => {
+    let state = afterFirstDeath([
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      ...CORES_TOUR,
+    ])
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.shipyard.moduleLevels['plate-layer'] = 1
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-relaunch-upgraded')
+
+    state = setDocked(state, false)
+    state = syncCompletedGuides(state, 'combat')
+    expect(state.meta.seenOnboarding).toContain('guide-relaunch-upgraded')
+
+    state = setDocked(state, true)
+    state = markHullLost(state)
+    expect(activeGuideStep(state, 'dock')?.id).not.toBe('guide-relaunch-upgraded')
+  })
+
+  it('retires the live Sortie tour on hull loss so it does not replay', () => {
+    let state = afterLaunch()
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-sortie-field')
+    retireLiveSortieGuides(state)
+    expect(activeGuideStep(state, 'combat')).toBeNull()
+    state = setDocked(state, true)
+    state = markHullLost(state)
+    state = setDocked(state, false)
+    expect(activeGuideStep(state, 'combat')?.group).not.toBe('sortie')
   })
 })

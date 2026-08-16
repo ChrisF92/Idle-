@@ -1,6 +1,8 @@
 /** Dock run summary — snapshot at Launch, close on Extract / Defeat. */
 
 import type { GameState, HiveResearchBranch, SortieMark, SortieSummary } from './types'
+import { ensureStarterCoresTourSalvage } from './catalog'
+import { retireLiveSortieGuides } from './progression'
 
 const RESEARCH_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation']
 
@@ -73,8 +75,14 @@ export function closeSortie(
   at?: { sector: number; wave: number },
 ): void {
   const mark = state.combat.sortieMark
-  const salvageNow = state.resources.salvage ?? 0
   const spent = mark?.salvageSpent ?? 0
+  if (outcome === 'defeat') {
+    state.meta.hullLostOnce = true
+    retireLiveSortieGuides(state)
+    const topped = ensureStarterCoresTourSalvage(state)
+    state.resources.salvage = topped.resources.salvage
+  }
+  const salvageNow = state.resources.salvage ?? 0
   const gained = mark ? Math.max(0, salvageNow + spent - mark.salvage) : 0
   state.combat.lastSortie = {
     outcome,

@@ -65,7 +65,7 @@ export function NetworkSheet({
         return (
           <article key={bar.id} className={open ? 'network-row' : 'network-row locked'} data-guide={`network-${bar.id}`}>
             <div className="network-row-main">
-              <InspectName name={bar.name} card={inspectNetworkBar(state, bar.id)} />
+              <InspectName name={bar.name} card={open ? inspectNetworkBar(state, bar.id) : null} />
               <span className="muted">{open ? `Lv ${levels}` : `Sector ${bar.requiresSectorEver}`}</span>
             </div>
             {open ? (

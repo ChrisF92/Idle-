@@ -36,7 +36,7 @@ import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { networkManufactureMult, tickNetwork } from './network'
 import { tickFoundry } from './foundry'
 import { tickYard } from './yard'
-import { hasProcess } from './process'
+import { hasProcess, processOfflineBonusMs } from './process'
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -243,7 +243,7 @@ export function applyOfflineCatchUp(
     return { state: next, report: null }
   }
 
-  const maxMs = challengeShopOfflineMs(state.prestige.shop ?? [])
+  const maxMs = challengeShopOfflineMs(state.prestige.shop ?? []) + processOfflineBonusMs(state)
   const appliedMs = Math.min(elapsedMs, maxMs)
   const seconds = appliedMs / 1000
   const capped = elapsedMs > maxMs

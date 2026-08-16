@@ -1,4 +1,5 @@
-import type { GameState, Resources } from './types'
+import type { CombatPushMode, GameState, Resources } from './types'
+import { normalizePushMode, pushModeLabel } from './sectors'
 import {
   buildFlagshipWeapons,
   computeShipStats,
@@ -52,7 +53,7 @@ import {
   wavesForRun,
 } from './echo'
 import { tryCompleteProtocol } from './protocols'
-import { hasProcess } from './process'
+import { hasProcess, processCombatSpeedMult } from './process'
 import {
   captureSortieMark,
   closeSortie,
@@ -468,6 +469,32 @@ function onFightWon(state: GameState): void {
     return
   }
 
+  const pushMode = normalizePushMode(state.combat.pushMode, state.combat.campaign)
+  state.combat.pushMode = pushMode
+  state.combat.campaign = pushMode === 'advance'
+
+  if (pushMode === 'hold-wave') {
+    const drip = 1 + Math.floor(clearedSector / 4)
+    state.resources.scrap += drip
+    if (wasBoss) {
+      grantSectorClearRewards(state, clearedSector, wasBoss)
+      state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
+      state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
+      noteSectorClear(state)
+      maybeGrantSystemUnlocks(state)
+      tryCompleteChallenge(state)
+      tryCompleteProtocol(state)
+    }
+    pushLog(
+      state,
+      wasBoss
+        ? `Boss farm in sector ${clearedSector}. Holding wave ${clearedWave}. +${drip} scrap.`
+        : `Wave ${clearedWave} farmed in sector ${clearedSector}. Holding. +${drip} scrap.`,
+    )
+    continueSortie(state)
+    return
+  }
+
   if (clearedWave < wavesForSector(clearedSector)) {
     state.combat.wave = clearedWave + 1
     // Mid-sector scrap + salvage so long wave chains fund early module ranks.
@@ -487,11 +514,11 @@ function onFightWon(state: GameState): void {
   noteSectorClear(state)
   maybeGrantSystemUnlocks(state)
 
-  if (state.combat.campaign) {
+  if (pushMode === 'advance') {
     state.combat.sector = clearedSector + 1
     state.combat.wave = 1
   } else {
-    // Hold: repeat the whole sector from wave 1.
+    // Hold sector: repeat the whole sector from wave 1.
     state.combat.sector = clearedSector
     state.combat.wave = 1
   }
@@ -504,9 +531,8 @@ function onFightWon(state: GameState): void {
     state.combat.playerHullMax > 0 &&
     state.combat.playerHull / state.combat.playerHullMax < 0.35
   ) {
-    state.combat.docked = true
-    closeSortie(state, 'extract', `Safe Extract after sector ${clearedSector} boss (hull low).`)
-    pushLog(state, state.combat.lastSortie.note)
+    applyPushMode(state, 'hold-sector')
+    pushLog(state, `Safe Hold — hull low after sector ${clearedSector} boss. Farming this sector.`)
   }
   continueSortie(state)
 }
@@ -659,14 +685,30 @@ export function startCombat(state: GameState): GameState {
   return next
 }
 
+function applyPushMode(state: GameState, mode: CombatPushMode): void {
+  const next = normalizePushMode(mode, mode === 'advance')
+  state.combat.pushMode = next
+  state.combat.campaign = next === 'advance'
+}
+
 /** Advance = true (push sectors), Hold = false (farm current sector). */
 export function setCampaign(state: GameState, on: boolean): GameState {
+  return setPushMode(state, on ? 'advance' : 'hold-sector')
+}
+
+export function setPushMode(state: GameState, mode: CombatPushMode): GameState {
+  const nextMode = normalizePushMode(mode, mode === 'advance')
+  if (
+    normalizePushMode(state.combat.pushMode, state.combat.campaign) === nextMode
+  ) {
+    return state
+  }
   const next = structuredClone(state)
-  next.combat.campaign = on
-  if (!on) {
-    pushLog(next, 'Hold engaged — farming the current sector.')
-  } else {
+  applyPushMode(next, nextMode)
+  if (nextMode === 'advance') {
     pushLog(next, 'Advance online — continuous sector push.')
+  } else {
+    pushLog(next, `${pushModeLabel(nextMode)} engaged — farming.`)
   }
   return next
 }
@@ -738,7 +780,7 @@ export function warpToSector(state: GameState, sector: number): GameState {
 /** Advance continuous simulation by `seconds` of game time (mutates). */
 export function advanceSeconds(state: GameState, seconds: number): void {
   let left = Math.max(0, seconds)
-  const combatSpeed = combatSpeedMultiplier(state)
+  const combatSpeed = Math.max(combatSpeedMultiplier(state), processCombatSpeedMult(state))
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)
     // Industry / fab / training always use real dt.

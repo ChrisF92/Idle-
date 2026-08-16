@@ -35,14 +35,14 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Home. Launch a sortie from here. Combat keeps running if you stay on Dock after Launch.',
-      'Extract returns you without wiping Cores. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
+      'Hull lost docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
     ],
   },
   combat: {
     title: 'Sortie',
     body: [
-      'The ship sits at the bottom. Waves come down the lane. Spend Salvage on Cores under the field.',
-      'Tap a Core name for every stat, the next Salvage cost, and milestone nodes. Extract keeps those levels. Rebuild wipes them so you can swap the loadout.',
+      'The ship sits at the bottom. Waves come down the lane. The header is sector, hull, and shield.',
+      'After hull loss, Salvage and Cores open. Salvage ranks Pulse and Plate even mid-fight. Advance pushes sectors. Hold sector repeats the gauntlet. Hold wave farms this pack. Rebuild wipes Core levels so you can swap the loadout.',
       'Drones belong on the Network tab — they never appear here and they never shoot.',
     ],
   },
@@ -58,7 +58,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Foundry',
     body: [
       'Smelt salvage into materials, then into bits you can fit. Recipe levels, stock, and Foundry Points persist when you Rebuild. Fitted bits come off.',
-      'Opens after you clear sector 2. Tap a recipe name for cost, time, and what it unlocks.',
+      'Core prints unlock when you reach a sector. Hold that sector to farm fragments, then Assemble here. Fit printed Cores on the next Rebuild.',
     ],
   },
   reliquary: {
@@ -71,7 +71,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   furnace: {
     title: 'Furnace',
     body: [
-      'Kills drop Choir-ash on their own. Bank ash into Heat, then buy always-on ranks: Attack, Defense, Lab, and Workshop.',
+      'Kills drop Choir-ash on their own. Bank ash into Heat, then buy always-on ranks: Attack, Defense, Lab, Workshop, and Hold.',
       'Opens at sector 5. Heat also buys Network Links after the Furnace is lit. Flares collect themselves — do not tap looking for scraps. Tap a rank name for the live bonus.',
     ],
   },
@@ -113,8 +113,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   process: {
     title: 'Process',
     body: [
-      'Achievements grant Process points. Spend them on automation and quality-of-life.',
-      'Opens after First Blood (clear sector 1). Points persist across Rebuild.',
+      'Achievements grant Process points. Spend them on automation and quality-of-life. Nodes are expensive — buy a few that match this sitting.',
+      'Opens after First Blood (clear sector 1). Act 1 covers Sortie, Network, Foundry, Reliquary, Research, and Furnace. Points persist across Rebuild.',
     ],
   },
   specialists: {

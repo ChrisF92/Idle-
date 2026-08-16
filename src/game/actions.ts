@@ -18,6 +18,7 @@ import {
   effectiveMaxClears,
   getAiNode,
   getBlueprint,
+  blueprintProgress,
   getChallenge,
   getChallengeShopItem,
   getEssenceUpgrade,
@@ -33,9 +34,14 @@ import {
   filterModulesForChallenge,
   idleWorkers,
   isBlueprintComplete,
+  isCorePrintUnlocked,
   isModuleBlockedByChallenge,
+  masteryBonus,
   moduleLevel,
+  moduleLeveledBonus,
   moduleMasteryRank,
+  moduleWeaponDamage,
+  modulePrintSector,
   moduleUpgradeCost,
   parsePartId,
   partId,
@@ -109,6 +115,7 @@ import { buildPlayerFleet } from './combat'
 import {
   ACT1_FINAL_SECTOR,
   careerHighestSector,
+  isSystemUnlocked,
   retirePostResetOnboarding,
   tryCompleteAchievements,
 } from './progression'
@@ -522,6 +529,64 @@ export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean
   return upgradeModule(state, bestId)
 }
 
+function moduleUpgradeGain(state: GameState, moduleId: string, level: number): number {
+  const def = getModule(moduleId)
+  if (!def) return 0
+  const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
+  let gain = 0
+  if (def.weapon) {
+    gain +=
+      (moduleWeaponDamage(def, level + 1, mastery) - moduleWeaponDamage(def, level, mastery)) * 1.2
+  }
+  if (def.hullBonus || def.hullBonusPerLevel) {
+    gain +=
+      moduleLeveledBonus(def.hullBonus ?? 0, def.hullBonusPerLevel, level + 1, mastery) -
+      moduleLeveledBonus(def.hullBonus ?? 0, def.hullBonusPerLevel, level, mastery)
+  }
+  if (def.shieldBonus || def.shieldBonusPerLevel) {
+    gain +=
+      (moduleLeveledBonus(def.shieldBonus ?? 0, def.shieldBonusPerLevel, level + 1, mastery) -
+        moduleLeveledBonus(def.shieldBonus ?? 0, def.shieldBonusPerLevel, level, mastery)) *
+      0.9
+  }
+  if (gain <= 0) {
+    if (def.role === 'weapon') return 3
+    if (def.role === 'defense') return 2.4
+    return 1.4
+  }
+  return gain
+}
+
+/** Spend salvage on the fitted Core with the best stat-gain per salvage. */
+export function upgradeBestValueModule(state: GameState, opts?: { force?: boolean }): GameState {
+  if (
+    !opts?.force &&
+    !(state.process?.purchased ?? []).includes('smart-core')
+  ) {
+    return state
+  }
+  if (state.prestige.activeChallengeId === 'no-ai') return state
+
+  const pool =
+    state.shipyard.modules.length > 0 ? state.shipyard.modules : state.shipyard.unlockedModules
+  let bestId: string | null = null
+  let bestScore = 0
+  for (const id of pool) {
+    const level = moduleLevel(state.shipyard.moduleLevels, id)
+    if (level >= MAX_MODULE_LEVEL) continue
+    if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
+    const cost = moduleUpgradeCost(level, id)
+    if (cost <= 0 || cost > state.resources.salvage) continue
+    const score = moduleUpgradeGain(state, id, level) / cost
+    if (score > bestScore) {
+      bestId = id
+      bestScore = score
+    }
+  }
+  if (!bestId) return upgradeCheapestModule(state, { force: true })
+  return upgradeModule(state, bestId)
+}
+
 export function buyResearch(state: GameState, researchId: string): GameState {
   const def = RESEARCH.find((r) => r.id === researchId)
   if (!def) return state
@@ -665,6 +730,54 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
   const next = structuredClone(state)
   pay(next.resources, def.unlockCost)
   next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
+  return next
+}
+
+export function canAssembleBlueprint(
+  state: GameState,
+  moduleId: string,
+): { ok: boolean; reason?: string } {
+  if (!isFarmableModule(moduleId)) return { ok: false, reason: 'Not a Core print' }
+  if (!isSystemUnlocked(state, 'foundry')) return { ok: false, reason: 'Foundry closed' }
+  if (state.shipyard.unlockedModules.includes(moduleId)) return { ok: false, reason: 'Already printed' }
+  if (!isCorePrintUnlocked(state, moduleId)) {
+    return { ok: false, reason: `Clear sector ${modulePrintSector(moduleId)}` }
+  }
+  const recipe = getBlueprint(moduleId)
+  if (!recipe) return { ok: false, reason: 'Unknown print' }
+  const progress = blueprintProgress(state, moduleId)
+  if (!progress?.complete) return { ok: false, reason: 'Need more fragments' }
+  return { ok: true }
+}
+
+/** Consume farmed fragments and unlock the Core permanently. Farming is the time sink. */
+export function assembleBlueprint(state: GameState, moduleId: string): GameState {
+  const check = canAssembleBlueprint(state, moduleId)
+  if (!check.ok) return state
+  const recipe = getBlueprint(moduleId)
+  if (!recipe) return state
+  const next = structuredClone(state)
+  for (const pt of PART_TYPES) {
+    const need = recipe[pt]
+    const id = partId(moduleId, pt)
+    const have = next.parts[id] ?? 0
+    if (have < need) return state
+    next.parts[id] = have - need
+    if (next.parts[id] <= 0) delete next.parts[id]
+  }
+  if (!next.shipyard.unlockedModules.includes(moduleId)) {
+    next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
+  }
+  if (!next.meta.discoveredModules.includes(moduleId)) {
+    next.meta.discoveredModules = [...next.meta.discoveredModules, moduleId]
+  }
+  next.meta.lifetimeFabCrafts = (next.meta.lifetimeFabCrafts ?? 0) + 1
+  const name = getModule(moduleId)?.name ?? moduleId
+  next.combat.log = [`Core printed: ${name}. Fit it on the next Rebuild.`, ...next.combat.log].slice(
+    0,
+    40,
+  )
+  tryCompleteAchievements(next)
   return next
 }
 
@@ -1030,7 +1143,9 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     choirAsh: state.resources.choirAsh ?? 0,
     heat: state.resources.heat ?? 0,
     reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {} }),
-    furnace: structuredClone(state.furnace ?? { ranks: { attack: 0, defense: 0, lab: 0, workshop: 0 } }),
+    furnace: structuredClone(
+      state.furnace ?? { ranks: { attack: 0, defense: 0, lab: 0, workshop: 0, hold: 0 } },
+    ),
     hiveResearch: structuredClone(
       state.hiveResearch ?? {
         focus: 'material',
@@ -1108,6 +1223,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.combat = {
     ...fresh.combat,
     campaign: true,
+    pushMode: 'advance',
     docked: true,
     wave: 1,
     log: [

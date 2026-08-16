@@ -20,7 +20,7 @@ function seedTasks(s: ReturnType<typeof createInitialState>) {
 
 describe('phase 10: Task List, Capital, Reinforce, logs', () => {
   it('bumps save and keeps Task List / Capital / Reinforce on USI doors', () => {
-    expect(SAVE_VERSION).toBe(31)
+    expect(SAVE_VERSION).toBe(33)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'tasks')).toBe(false)
     expect(isSystemUnlocked(fresh, 'capital')).toBe(false)

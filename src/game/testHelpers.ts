@@ -40,6 +40,14 @@ export function equipPostTutorialLoadout(state: GameState): GameState {
   return next
 }
 
+/** First hull-loss dock — Salvage / Network / More unlock. */
+export function markHullLost(state: GameState): GameState {
+  const next = structuredClone(state)
+  next.meta.hullLostOnce = true
+  next.combat.lastSortie = { ...next.combat.lastSortie, outcome: 'defeat' }
+  return next
+}
+
 /** Resolve the current wave (mutates via advanceTicks). */
 export function clearCurrentWave(state: GameState): GameState {
   let s = state

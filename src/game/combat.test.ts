@@ -215,4 +215,35 @@ describe('shield layers', () => {
     expect(shielded!.shield).toBe(0)
     expect(shielded!.hull).toBe(hullBefore)
   })
+
+  it('emits a damage number when a projectile hits', () => {
+    let state = createInitialState(0)
+    state.combat.docked = false
+    state = startCombat(state)
+    const player = state.combat.playerUnits.find((u) => u.isFlagship)!
+    const enemy = state.combat.enemyUnits[0]!
+    enemy.x = 8
+    enemy.y = 0
+    state.combat.projectiles = [
+      {
+        id: 'hit-test',
+        fromId: player.id,
+        toId: enemy.id,
+        side: 'player',
+        tag: 'energy',
+        x: enemy.x,
+        y: enemy.y,
+        damage: 12,
+        tags: ['energy'],
+        dotDuration: 0,
+        dotDamage: 0,
+        speed: 400,
+        attackerFamily: 'player',
+      },
+    ]
+    simulateCombat(state, 0.05, () => undefined)
+    const hit = state.combat.fx.find((f) => f.toId === enemy.id && (f.amount ?? 0) > 0)
+    expect(hit).toBeTruthy()
+    expect(hit!.hit === 'hull' || hit!.hit === 'shield').toBe(true)
+  })
 })

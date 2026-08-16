@@ -20,6 +20,14 @@ import {
 } from '../../game/foundry'
 import { formatCompact } from '../../game/format'
 import {
+  blueprintProgress,
+  getBlueprint,
+  listFarmableCores,
+  modulePrintSector,
+  PART_TYPES,
+} from '../../game/catalog'
+import { canAssembleBlueprint } from '../../game/actions'
+import {
   inspectFoundryModule,
   inspectFoundryRecipe,
   inspectFoundryUpgrade,
@@ -32,6 +40,7 @@ interface FoundryTabProps {
   onBuyUpgrade: (upgradeId: string) => void
   onEquip: (moduleId: string) => void
   onUnequip: (moduleId: string) => void
+  onAssemble: (moduleId: string) => void
 }
 
 export function FoundryTab({
@@ -40,6 +49,7 @@ export function FoundryTab({
   onBuyUpgrade,
   onEquip,
   onUnequip,
+  onAssemble,
 }: FoundryTabProps) {
   const open = isSystemUnlocked(state, 'foundry')
   const foundry = state.foundry
@@ -108,7 +118,10 @@ export function FoundryTab({
             return (
               <article key={recipe.id} className={unlocked ? 'network-row' : 'network-row locked'}>
                 <div className="network-row-main">
-                  <InspectName name={recipe.name} card={inspectFoundryRecipe(state, recipe.id)} />
+                  <InspectName
+                    name={recipe.name}
+                    card={unlocked ? inspectFoundryRecipe(state, recipe.id) : null}
+                  />
                   <span className="muted">
                     {inf ? 'Infinite' : unlocked ? `Lv ${level}` : 'Locked'}
                   </span>
@@ -163,6 +176,51 @@ export function FoundryTab({
             )
           })}
 
+          <h3 className="foundry-heading" data-guide="foundry-prints">
+            Core prints
+          </h3>
+          <p className="muted">
+            Reach a sector to unlock a print. Hold that sector (or deeper) to farm fragments, then
+            assemble here.
+          </p>
+          {listFarmableCores(state).map((mod) => {
+            const recipe = getBlueprint(mod.id)
+            const progress = blueprintProgress(state, mod.id)
+            const printed = state.shipyard.unlockedModules.includes(mod.id)
+            const check = canAssembleBlueprint(state, mod.id)
+            const need = modulePrintSector(mod.id)
+            const partsLine = recipe
+              ? PART_TYPES.map((pt) => {
+                  const have = progress?.owned[pt] ?? 0
+                  const want = recipe[pt]
+                  return `${pt[0]!.toUpperCase()}${pt.slice(1)} ${have}/${want}`
+                }).join(' · ')
+              : ''
+            return (
+              <article key={mod.id} className={printed || check.ok ? 'network-row' : 'network-row locked'}>
+                <div className="network-row-main">
+                  <strong>{mod.name}</strong>
+                  <span className="muted">
+                    {printed ? 'Printed' : `S${need} · ${mod.role === 'defense' ? 'Shield' : mod.role === 'utility' ? 'Utility' : 'Weapon'}`}
+                  </span>
+                </div>
+                <p className="network-row-stats">
+                  {printed ? 'Fit this Core on the next Rebuild.' : partsLine || mod.description}
+                </p>
+                {!printed ? (
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={!check.ok}
+                    onClick={() => onAssemble(mod.id)}
+                  >
+                    {check.ok ? 'Assemble' : check.reason ?? 'Farm wrecks'}
+                  </button>
+                ) : null}
+              </article>
+            )
+          })}
+
           <h3 className="foundry-heading">Fit</h3>
           <p className="muted">{FOUNDRY_MODULE_SLOTS} fitted bits. Swap only while docked.</p>
           {FOUNDRY_MODULES.map((mod) => {
@@ -174,7 +232,10 @@ export function FoundryTab({
             return (
               <article key={mod.id} className={unlocked ? 'network-row' : 'network-row locked'}>
                 <div className="network-row-main">
-                  <InspectName name={mod.name} card={inspectFoundryModule(state, mod.id)} />
+                  <InspectName
+                    name={mod.name}
+                    card={unlocked ? inspectFoundryModule(state, mod.id) : null}
+                  />
                   <span className="muted">{fitted ? 'Fitted' : unlocked ? 'Ready' : 'Locked'}</span>
                 </div>
                 <p className="network-row-stats">
