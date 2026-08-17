@@ -401,7 +401,9 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     furnace: {
       heatEarned: metrics.heatEarned,
       heatSpent: metrics.heatSpent,
-      ranks: { ...(state.furnace?.ranks ?? {}) },
+      upgrades: { ...(state.furnace?.upgrades ?? {}) },
+      wanted: { ...(state.furnace?.wanted ?? {}) },
+      active: { ...(state.furnace?.active ?? {}) },
     },
     economy: economyBuckets(state, metrics),
     rebuildLog: metrics.rebuildLog,

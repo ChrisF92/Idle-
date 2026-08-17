@@ -12,7 +12,7 @@ import { yardNetworkMult } from './yard'
 import { protocolBonusMult, protocolMutes } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
-import { FURNACE_UNLOCK_SECTOR } from './furnace'
+import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 
 function careerEver(state: GameState): number {
   return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
@@ -300,7 +300,8 @@ export function networkFillRate(state: GameState, id: NetworkBarId): number {
       yardNetworkMult(state) *
       protocolBonusMult(state, 'network') *
       echoNetworkMult(state) *
-      processNetworkSpeedMult(state)) /
+      processNetworkSpeedMult(state) *
+      furnaceNetworkMult(state)) /
     cost
   return Math.min(NETWORK_FILL_CAP_PER_SEC, Math.max(0, raw))
 }

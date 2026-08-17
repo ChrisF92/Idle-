@@ -1,5 +1,6 @@
 import type {
   FoundryRecipeId,
+  FurnaceChannelId,
   GameState,
   HiveResearchBranch,
   ProcessCorePriority,
@@ -27,6 +28,7 @@ import {
   processExtraPresetSlots,
 } from '../../game/process'
 import { FOUNDRY_RECIPES } from '../../game/foundry'
+import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
 import { formatCompact } from '../../game/format'
 import { SheetTabs } from '../SheetTabs'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
@@ -470,7 +472,13 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'furnace-reserve' || nodeId === 'furnace-auto' || nodeId === 'auto-bank') {
+  if (
+    nodeId === 'furnace-reserve' ||
+    nodeId === 'furnace-auto' ||
+    nodeId === 'auto-bank' ||
+    nodeId === 'furnace-presets' ||
+    nodeId === 'furnace-channels'
+  ) {
     return (
       <div className="process-config-block">
         <label className="process-config">
@@ -488,7 +496,17 @@ function NodeConfig({
               checked={cfg.furnace.manager}
               onChange={(e) => patch((c) => { c.furnace.manager = e.target.checked })}
             />
-            Manager (current ranks)
+            Manager on
+          </label>
+        ) : null}
+        {hasProcess(state, 'furnace-channels') ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.furnace.autoChannel}
+              onChange={(e) => patch((c) => { c.furnace.autoChannel = e.target.checked })}
+            />
+            Auto Channel levels
           </label>
         ) : null}
         {hasProcess(state, 'furnace-reserve') ? (
@@ -502,7 +520,35 @@ function NodeConfig({
             />
           </label>
         ) : null}
-        <p className="muted">Furnace 2.0 will consume these hooks for channels and presets.</p>
+        <p className="muted">Priority is starve order — first stays lit longest.</p>
+        {furnacePriority(state).map((id, index) => {
+          const name = FURNACE_CHANNELS.find((ch) => ch.id === id)?.name ?? id
+          return (
+            <p key={id} className="assign-row">
+              <span className="muted">
+                {index + 1}. {name}
+              </span>
+              <button
+                type="button"
+                disabled={index <= 0}
+                onClick={() =>
+                  patch((c) => {
+                    const next = [...furnacePriority(state)]
+                    const swap = next[index - 1]
+                    next[index - 1] = next[index]!
+                    next[index] = swap!
+                    c.furnace.priority = next as FurnaceChannelId[]
+                  })
+                }
+              >
+                Priority up
+              </button>
+            </p>
+          )
+        })}
+        <p className="muted">
+          Reserve is the floor. Auto Channel may raise or drop levels, then recover when the tank is healthy.
+        </p>
       </div>
     )
   }

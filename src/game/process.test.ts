@@ -18,6 +18,7 @@ import {
   processSalvageMult,
   processShieldMult,
 } from './process'
+import { furnaceGenerationPerSec, furnaceIdleGenPerSec } from './furnace'
 import {
   NETWORK_GUIDE_IDS,
   STARTER_GUIDE_IDS,
@@ -55,11 +56,14 @@ describe('Process 2.0 ledger', () => {
     expect(processShieldMult(s)).toBeCloseTo(1.1)
   })
 
-  it('exposes Furnace 2.0 output as a hook without applying it to current Heat', () => {
+  it('applies Accumulation Heat Ledger to Furnace generation without changing stored Heat', () => {
     const s = createInitialState(0)
+    s.meta.highestSectorEver = 5
     s.process.earned = 150
     expect(processFurnaceHooks(s).outputMult).toBeCloseTo(1.15)
     expect(s.resources.heat ?? 0).toBe(0)
+    expect(furnaceIdleGenPerSec(s)).toBeCloseTo(0.02 * 1.15)
+    expect(furnaceGenerationPerSec(s)).toBeGreaterThan(0.02)
   })
 })
 

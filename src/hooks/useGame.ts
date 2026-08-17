@@ -56,7 +56,10 @@ import {
   insertShard,
   removeShard,
   convertAshToHeat,
-  buyFurnaceRank,
+  buyFurnaceUpgrade,
+  setFurnaceChannel,
+  setFurnacePriority,
+  applyFurnacePreset,
   setResearchFocus,
   setLaunchSector,
   setSectorRoute,
@@ -150,7 +153,10 @@ type Action =
   | { type: 'reliquary-insert'; shardId: string }
   | { type: 'reliquary-remove'; color: import('../game/types').ReliquaryColor }
   | { type: 'furnace-convert' }
-  | { type: 'furnace-rank'; trackId: import('../game/types').FurnaceTrackId }
+  | { type: 'furnace-upgrade'; upgradeId: import('../game/types').FurnaceUpgradeId }
+  | { type: 'furnace-channel'; channelId: import('../game/types').FurnaceChannelId; level: number }
+  | { type: 'furnace-priority'; priority: import('../game/types').FurnaceChannelId[] }
+  | { type: 'furnace-preset'; preset: import('../game/types').FurnacePresetId }
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
   | { type: 'launch-sector'; sector: number }
   | { type: 'sector-route'; route: import('../game/types').SectorRoute }
@@ -293,8 +299,14 @@ function reducer(state: GameState, action: Action): GameState {
       return removeShard(state, action.color)
     case 'furnace-convert':
       return convertAshToHeat(state)
-    case 'furnace-rank':
-      return buyFurnaceRank(state, action.trackId)
+    case 'furnace-upgrade':
+      return buyFurnaceUpgrade(state, action.upgradeId)
+    case 'furnace-channel':
+      return setFurnaceChannel(state, action.channelId, action.level)
+    case 'furnace-priority':
+      return setFurnacePriority(state, action.priority)
+    case 'furnace-preset':
+      return applyFurnacePreset(state, action.preset)
     case 'research-focus':
       return setResearchFocus(state, action.branch)
     case 'launch-sector':
@@ -458,8 +470,14 @@ export function useGame() {
     removeShard: (color: import('../game/types').ReliquaryColor) =>
       dispatch({ type: 'reliquary-remove', color }),
     convertAshToHeat: () => dispatch({ type: 'furnace-convert' }),
-    buyFurnaceRank: (trackId: import('../game/types').FurnaceTrackId) =>
-      dispatch({ type: 'furnace-rank', trackId }),
+    buyFurnaceUpgrade: (upgradeId: import('../game/types').FurnaceUpgradeId) =>
+      dispatch({ type: 'furnace-upgrade', upgradeId }),
+    setFurnaceChannel: (channelId: import('../game/types').FurnaceChannelId, level: number) =>
+      dispatch({ type: 'furnace-channel', channelId, level }),
+    setFurnacePriority: (priority: import('../game/types').FurnaceChannelId[]) =>
+      dispatch({ type: 'furnace-priority', priority }),
+    applyFurnacePreset: (preset: import('../game/types').FurnacePresetId) =>
+      dispatch({ type: 'furnace-preset', preset }),
     setResearchFocus: (branch: import('../game/types').HiveResearchBranch) =>
       dispatch({ type: 'research-focus', branch }),
     setLaunchSector: (sector: number) => dispatch({ type: 'launch-sector', sector }),

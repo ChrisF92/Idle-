@@ -2,7 +2,9 @@
 
 import type {
   FoundryRecipeId,
+  FurnaceChannelId,
   FurnaceTrackId,
+  FurnaceUpgradeId,
   GameState,
   NetworkBarId,
   NetworkLinkId,
@@ -40,12 +42,21 @@ import {
 } from './network'
 import {
   ASH_PER_HEAT,
-  FURNACE_MAX_RANK,
-  FURNACE_TRACKS,
-  canBuyFurnaceRank,
-  furnaceRank,
-  furnaceRankCost,
-  getFurnaceTrack,
+  FURNACE_CHANNELS,
+  FURNACE_UPGRADES,
+  canBuyFurnaceUpgrade,
+  furnaceActiveLevel,
+  furnaceCapacity,
+  furnaceChannelHeatCost,
+  furnaceConsumptionPerSec,
+  furnaceGenerationPerSec,
+  furnaceLevelDef,
+  furnaceNetPerSec,
+  furnaceUpgradeCost,
+  furnaceUpgradeRank,
+  getFurnaceChannel,
+  getFurnaceUpgrade,
+  LEGACY_TRACK_TO_CHANNEL,
 } from './furnace'
 import {
   FOUNDRY_MODULE_SLOTS,
@@ -279,69 +290,77 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   }
 }
 
-export function inspectFurnaceTrack(state: GameState, id: FurnaceTrackId): InspectCard | null {
-  const def = getFurnaceTrack(id)
+export function inspectFurnaceChannel(state: GameState, id: FurnaceChannelId): InspectCard | null {
+  const def = getFurnaceChannel(id)
   if (!def) return null
-  const rank = furnaceRank(state, id)
-  const cost = furnaceRankCost(rank)
-  const can = canBuyFurnaceRank(state, id)
-  const per =
-    def.damage ?? def.shield ?? def.researchXp ?? def.foundrySpeed ?? def.salvage ?? 0
-  const now = per * rank
-  const next = per * Math.min(FURNACE_MAX_RANK, rank + 1)
-  const unit = def.damage
-    ? 'damage'
-    : def.shield
-      ? 'shield'
-      : def.researchXp
-        ? 'Research XP'
-        : def.salvage
-          ? 'salvage'
-          : 'craft speed'
+  const level = furnaceActiveLevel(state, id)
+  const live = furnaceLevelDef(id, level)
   const stats: InspectStat[] = [
-    { label: 'Rank', value: `${rank}/${FURNACE_MAX_RANK}` },
-    { label: 'Now', value: `+${pct(now)} ${unit}` },
+    { label: 'Level', value: level > 0 ? String(level) : 'Off' },
+    { label: 'Bonus', value: live ? `×${live.mult.toFixed(2)} ${def.stat}` : 'Dark' },
+    { label: 'Heat/s', value: formatCompact(furnaceChannelHeatCost(state, id, Math.max(level, 1)), 2) },
   ]
-  if (rank < FURNACE_MAX_RANK) {
-    stats.push({ label: 'Next rank', value: `+${pct(next)} ${unit}` })
-    stats.push({
-      label: 'Cost',
-      value: can.ok ? `${cost} Heat` : (can.reason ?? `${cost} Heat`),
-    })
-  }
-  stats.push(
-    { label: 'Choir-ash', value: formatCompact(state.resources.choirAsh ?? 0, 1) },
-    { label: 'Heat', value: formatCompact(state.resources.heat ?? 0, 1) },
-    { label: 'Bank', value: `${ASH_PER_HEAT} ash → 1 Heat` },
-  )
   return {
     title: def.name,
-    kicker: 'Furnace rank',
+    kicker: 'Furnace channel',
     stats,
     body: [...def.detail],
   }
 }
 
+export function inspectFurnaceUpgrade(state: GameState, id: FurnaceUpgradeId): InspectCard | null {
+  const def = getFurnaceUpgrade(id)
+  if (!def) return null
+  const rank = furnaceUpgradeRank(state, id)
+  const can = canBuyFurnaceUpgrade(state, id)
+  const cost = furnaceUpgradeCost(state, id)
+  const stats: InspectStat[] = [
+    { label: 'Rank', value: `${rank}/${def.maxRank}` },
+  ]
+  if (rank < def.maxRank) {
+    stats.push({
+      label: 'Cost',
+      value: can.ok ? `${cost} Heat` : (can.reason ?? `${cost} Heat`),
+    })
+  }
+  return {
+    title: def.name,
+    kicker: 'Furnace upgrade',
+    stats,
+    body: [def.blurb, 'Upgrades persist when you Rebuild. Heat in the tank does not, unless Ember Lock is ranked.'],
+  }
+}
+
+export function inspectFurnaceTrack(state: GameState, id: FurnaceTrackId): InspectCard | null {
+  return inspectFurnaceChannel(state, LEGACY_TRACK_TO_CHANNEL[id])
+}
+
 export function inspectFurnaceOverview(state: GameState): InspectCard {
   const ash = state.resources.choirAsh ?? 0
   const heat = state.resources.heat ?? 0
-  const batches = Math.floor(ash / ASH_PER_HEAT)
+  const cap = furnaceCapacity(state)
+  const gen = furnaceGenerationPerSec(state)
+  const use = furnaceConsumptionPerSec(state)
+  const net = furnaceNetPerSec(state)
   return {
     title: 'Furnace',
     kicker: 'Heat',
     stats: [
+      { label: 'Heat', value: `${formatCompact(heat, 1)} / ${formatCompact(cap, 1)}` },
+      { label: 'Generating', value: `${formatCompact(gen, 2)}/s` },
+      { label: 'Consuming', value: `${formatCompact(use, 2)}/s` },
+      { label: 'Net', value: `${formatCompact(net, 2)}/s` },
       { label: 'Choir-ash', value: formatCompact(ash, 1) },
-      { label: 'Heat', value: formatCompact(heat, 1) },
-      { label: 'Ready to bank', value: batches > 0 ? `${batches} Heat` : 'Need more ash' },
-      ...FURNACE_TRACKS.map((track) => ({
-        label: track.name,
-        value: `Lv ${furnaceRank(state, track.id)}`,
+      { label: 'Bank', value: `${ASH_PER_HEAT} ash → 1 Heat at Kindling 0` },
+      ...FURNACE_CHANNELS.map((ch) => ({
+        label: ch.name,
+        value: furnaceActiveLevel(state, ch.id) > 0 ? `Lv ${furnaceActiveLevel(state, ch.id)}` : 'Off',
       })),
     ],
     body: [
-      'Kills drop Choir-ash on their own after sector 5. Bank ash into Heat, then buy always-on ranks.',
-      'Attack and Defense buff the ship. Lab writes Research faster. Workshop speeds the Foundry. Hold marks wrecks for Salvage.',
-      'Ranks, Heat, and leftover ash persist when you Rebuild. Flares collect themselves — do not tap looking for scraps.',
+      'Kills drop Choir-ash on their own after sector 5. Ash feeds Heat. Light channels for temporary boosts.',
+      'You cannot power every channel at once. Stronger levels cost several times the Heat.',
+      'Upgrades persist when you Rebuild. Heat in the tank resets unless Ember Lock is ranked. Network Links still spend stored Heat.',
     ],
   }
 }
@@ -538,6 +557,7 @@ export function inspectCopyCorpus(state: GameState): string[] {
   for (const link of NETWORK_LINKS) push(inspectNetworkLink(state, link.id))
   for (const id of state.shipyard.modules) push(inspectCore(state, id))
   push(inspectFurnaceOverview(state))
-  for (const track of FURNACE_TRACKS) push(inspectFurnaceTrack(state, track.id))
+  for (const ch of FURNACE_CHANNELS) push(inspectFurnaceChannel(state, ch.id))
+  for (const up of FURNACE_UPGRADES) push(inspectFurnaceUpgrade(state, up.id))
   return lines
 }

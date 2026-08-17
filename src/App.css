@@ -1783,4 +1783,34 @@ textarea {
   padding: 0.3rem 0.45rem;
 }
 
+.furnace-ledger {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin: 0.55rem 0 0.7rem;
+}
+
+.furnace-ledger p {
+  margin: 0;
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  padding: 0.55rem 0.65rem;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.furnace-ledger strong {
+  font-size: 1.05rem;
+}
+
+.furnace-net.is-drain strong,
+.furnace-starve {
+  color: color-mix(in srgb, var(--danger, #e07a5f) 80%, var(--text));
+}
+
+.furnace-starve {
+  margin: 0.35rem 0;
+  font-size: 0.85rem;
+}
+
 

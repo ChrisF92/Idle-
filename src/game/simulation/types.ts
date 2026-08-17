@@ -240,7 +240,9 @@ export interface SimulationRunReport {
   furnace: {
     heatEarned: number
     heatSpent: number
-    ranks: Record<string, number>
+    upgrades: Record<string, number>
+    wanted: Record<string, number>
+    active: Record<string, number>
   }
   economy: EconomyBucket[]
   rebuildLog: RebuildRecord[]

@@ -74,7 +74,15 @@ import {
   unequipFoundryModule,
 } from './foundry'
 import { insertShard, removeShard } from './reliquary'
-import { buyFurnaceRank, convertAshToHeat as convertAshToHeatRaw } from './furnace'
+import {
+  applyFurnacePreset,
+  buyFurnaceUpgrade,
+  convertAshToHeat as convertAshToHeatRaw,
+  createEmptyFurnaceState,
+  furnaceRestartHeat,
+  setFurnaceChannel,
+  setFurnacePriority,
+} from './furnace'
 import { hiveResearchHeatFromAshMult, setResearchFocus } from './hiveResearch'
 import {
   armYardOnRebuild,
@@ -151,7 +159,8 @@ export {
   unequipFoundryModule,
 }
 
-export { insertShard, removeShard, buyFurnaceRank, setResearchFocus }
+export { insertShard, removeShard, setResearchFocus }
+export { buyFurnaceUpgrade, setFurnaceChannel, setFurnacePriority, applyFurnacePreset }
 
 export {
   placeYardBuilding,
@@ -1156,9 +1165,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     choirAsh: state.resources.choirAsh ?? 0,
     heat: state.resources.heat ?? 0,
     reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {} }),
-    furnace: structuredClone(
-      state.furnace ?? { ranks: { attack: 0, defense: 0, lab: 0, workshop: 0, hold: 0 } },
-    ),
+    furnace: structuredClone(state.furnace ?? createEmptyFurnaceState()),
     hiveResearch: structuredClone(
       state.hiveResearch ?? {
         focus: 'material',
@@ -1222,7 +1229,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     aiPoints: kept.aiPoints + bonusAi,
     salvage: bonusSalvage + returnSalvage,
     choirAsh: kept.choirAsh,
-    heat: kept.heat,
+    heat: furnaceRestartHeat({ ...state, furnace: kept.furnace } as GameState, kept.heat),
   }
   state.shipyard = persistLoadout(
     kept.unlockedFrames,

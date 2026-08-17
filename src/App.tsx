@@ -316,7 +316,10 @@ export default function App() {
             state={game.state}
             onBack={() => go('stats')}
             onConvert={game.convertAshToHeat}
-            onBuyRank={game.buyFurnaceRank}
+            onSetChannel={game.setFurnaceChannel}
+            onSetPriority={game.setFurnacePriority}
+            onBuyUpgrade={game.buyFurnaceUpgrade}
+            onPreset={game.applyFurnacePreset}
           />
         )}
         {tab === 'research' && (

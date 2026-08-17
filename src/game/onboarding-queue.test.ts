@@ -6,6 +6,7 @@ import {
   GUIDE_STEPS,
   NETWORK_GUIDE_IDS,
   STARTER_GUIDE_IDS,
+  FURNACE_V2_GUIDE_IDS,
   activeGuideStep,
   acknowledgeOnboarding,
   guideBodyLines,
@@ -217,12 +218,14 @@ describe('onboarding queue', () => {
     ]
     expect(activeGuideStep(state, 'stats')?.id).toBe('guide-furnace')
     state = acknowledgeOnboarding(state, 'guide-furnace')
-    expect(activeGuideStep(state, 'furnace')?.id).toBe('guide-furnace-bank')
-    state = acknowledgeOnboarding(state, 'guide-furnace-bank')
-    expect(activeGuideStep(state, 'furnace')?.id).toBe('guide-furnace-ranks')
-    state = acknowledgeOnboarding(state, 'guide-furnace-ranks')
+    expect(activeGuideStep(state, 'furnace')?.id).toBe('guide-furnace-v2-ash')
+    for (const id of FURNACE_V2_GUIDE_IDS) {
+      expect(activeGuideStep(state, 'furnace')?.id).toBe(id)
+      state = acknowledgeOnboarding(state, id)
+    }
     expect(activeGuideStep(state, 'furnace')).toBeNull()
     expect(activeGuideStep(state, 'stats')?.group).not.toBe('furnace')
+    expect(activeGuideStep(state, 'stats')?.group).not.toBe('furnace-v2')
 
     state.meta.seenOnboarding = [
       ...state.meta.seenOnboarding,

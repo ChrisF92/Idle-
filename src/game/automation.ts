@@ -61,15 +61,10 @@ import {
   HIVE_RESEARCH_BRANCHES,
   HIVE_RESEARCH_NODES,
   hiveResearchCompleted,
+  hiveResearchHeatFromAshMult,
   setResearchFocus,
 } from './hiveResearch'
-import {
-  FURNACE_TRACKS,
-  buyFurnaceRank,
-  canBuyFurnaceRank,
-  furnaceRank,
-  furnaceRankCost,
-} from './furnace'
+import { runFurnaceManager } from './furnace'
 function adopt(state: GameState, next: GameState): void {
   if (next === state) return
   state.resources = next.resources
@@ -392,26 +387,9 @@ function autoResearchFocus(state: GameState): void {
   adopt(state, setResearchFocus(state, nextFocus))
 }
 
-function autoFurnaceRanks(state: GameState): void {
-  if (!hasProcess(state, 'furnace-auto')) return
-  if (!processConfig(state).furnace.manager) return
-  let guard = 0
-  while (guard++ < 8) {
-    let bestId: (typeof FURNACE_TRACKS)[number]['id'] | null = null
-    let bestCost = Infinity
-    for (const track of FURNACE_TRACKS) {
-      if (!canBuyFurnaceRank(state, track.id).ok) continue
-      const cost = furnaceRankCost(furnaceRank(state, track.id))
-      if (cost < bestCost) {
-        bestCost = cost
-        bestId = track.id
-      }
-    }
-    if (!bestId) break
-    const next = buyFurnaceRank(state, bestId)
-    if (next === state) break
-    adopt(state, next)
-  }
+function autoFurnaceManager(state: GameState): void {
+  const next = runFurnaceManager(state, hiveResearchHeatFromAshMult(state))
+  if (next !== state) adopt(state, next)
 }
 
 function autoYardArms(state: GameState): void {
@@ -463,7 +441,7 @@ export function tickAutomation(state: GameState): void {
   autoPrintAssemble(state)
   autoSeatShards(state)
   autoResearchFocus(state)
-  autoFurnaceRanks(state)
+  autoFurnaceManager(state)
   autoYardArms(state)
   autoProtocolEchoRepeat(state)
 }

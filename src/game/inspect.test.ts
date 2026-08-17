@@ -24,7 +24,8 @@ describe('inspect sheets', () => {
     s.resources.heat = 8
     s.meta.highestSectorEver = 5
     s.combat.highestSector = 5
-    s.furnace.ranks.attack = 2
+    s.furnace.wanted.weapons = 1
+    s.furnace.active.weapons = 1
 
     const overview = inspectNetworkOverview(s)
     expect(overview.stats.some((row) => row.label === 'Link power')).toBe(true)
@@ -45,8 +46,8 @@ describe('inspect sheets', () => {
     expect(core?.body.join(' ')).not.toMatch(JARGON)
 
     const attack = inspectFurnaceTrack(s, 'attack')
-    expect(attack?.stats.find((row) => row.label === 'Now')?.value).toMatch(/4%/)
-    expect(attack?.stats.find((row) => row.label === 'Heat')?.value).toBeTruthy()
+    expect(attack?.stats.find((row) => row.label === 'Bonus')?.value).toMatch(/1\.18/)
+    expect(attack?.stats.find((row) => row.label === 'Heat/s')?.value).toBeTruthy()
   })
 
   it('keeps inspect copy free of designer jargon', () => {

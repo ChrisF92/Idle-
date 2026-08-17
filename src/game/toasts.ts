@@ -84,7 +84,7 @@ const STATION_TOAST: Partial<
   furnace: {
     category: 'SYSTEM ONLINE',
     title: 'Furnace unlocked',
-    body: 'Choir-ash converts to Heat.',
+    body: 'Choir-ash feeds Heat. Light channels for the job you want powered.',
     label: 'OPEN FURNACE',
   },
   research: {

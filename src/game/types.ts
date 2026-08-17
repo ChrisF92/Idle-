@@ -75,11 +75,39 @@ export interface ReliquaryState {
   slots: Partial<Record<ReliquaryColor, string | null>>
 }
 
+/** Legacy rank tracks — kept so old saves can migrate into Furnace 2.0. */
 export type FurnaceTrackId = 'attack' | 'defense' | 'lab' | 'workshop' | 'hold'
 
-/** USI Reactor analogue — ranks persist; ash/heat live on resources. */
+export type FurnaceChannelId =
+  | 'weapons'
+  | 'shielding'
+  | 'network'
+  | 'foundry'
+  | 'research'
+  | 'recovery'
+
+export type FurnaceUpgradeId =
+  | 'hearth'
+  | 'cistern'
+  | 'flue'
+  | 'bellows'
+  | 'taps'
+  | 'kindling'
+  | 'ember'
+
+export type FurnacePresetId = 'push' | 'farm' | 'industry' | 'research'
+
+/** Furnace 2.0 — live Heat tank + active channels. Upgrades persist; Heat resets on Rebuild unless Ember. */
 export interface FurnaceState {
+  /** True after Furnace 2.0 hydrate. Old saves omit this and still carry `ranks`. */
+  v2?: boolean
   ranks: Record<FurnaceTrackId, number>
+  wanted: Record<FurnaceChannelId, number>
+  active: Record<FurnaceChannelId, number>
+  priority: FurnaceChannelId[]
+  upgrades: Record<FurnaceUpgradeId, number>
+  /** Player-facing starve line, or empty. */
+  starveNote: string
 }
 
 export type HiveResearchBranch = 'material' | 'energy' | 'observation'
@@ -220,6 +248,7 @@ export interface ProcessConfig {
     manager: boolean
     autoChannel: boolean
     reserveHeat: number
+    priority: FurnaceChannelId[]
   }
   research: {
     autoResearch: boolean
@@ -750,7 +779,7 @@ export interface GameState {
   foundry: FoundryState
   /** Shard slots (Reliquary). Inventory + fitted shards persist across Rebuild. */
   reliquary: ReliquaryState
-  /** Furnace ranks. Persist across Rebuild. */
+  /** Furnace 2.0 — upgrades and wanted channels persist; Heat resets unless Ember Lock. */
   furnace: FurnaceState
   /** Kill-fed Material / Energy / Observation. Persist across Rebuild. */
   hiveResearch: HiveResearchState

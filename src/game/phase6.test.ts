@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { computeShipStats, createInitialState, SAVE_VERSION } from './state'
 import {
-  buyFurnaceRank,
   convertAshToHeat,
   insertShard,
   performRebuild,
+  setFurnaceChannel,
   setResearchFocus,
 } from './actions'
 import { grantEnemyKillRewards } from './combat'
@@ -111,7 +111,7 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     expect(grantReliquaryKillLoot(s, false, () => 0.99)).toBeNull()
   })
 
-  it('banks Choir-ash into Heat and Attack ranks raise DPS', () => {
+  it('banks Choir-ash into Heat and Weapons channels raise DPS', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 5
     s.combat.sector = 5
@@ -126,10 +126,9 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     expect(s.resources.heat).toBe(4)
 
     const before = computeShipStats(s).damage
-    s.resources.heat = 20
-    s = buyFurnaceRank(s, 'attack')
-    expect(s.furnace.ranks.attack).toBe(1)
-    expect(furnaceDamageMult(s)).toBeCloseTo(1.02)
+    s = setFurnaceChannel(s, 'weapons', 1)
+    expect(s.furnace.active.weapons).toBe(1)
+    expect(furnaceDamageMult(s)).toBeCloseTo(1.18)
     expect(computeShipStats(s).damage).toBeGreaterThan(before)
   })
 
@@ -154,15 +153,16 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     expect(hiveResearchDamageMult(s)).toBeGreaterThan(1)
   })
 
-  it('Workshop ranks speed the Foundry', () => {
+  it('Foundry channel speeds the Foundry', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 5
     const before = foundryCraftSpeed(s)
-    s.furnace.ranks.workshop = 2
+    s.furnace.wanted.foundry = 2
+    s.furnace.active.foundry = 2
     expect(foundryCraftSpeed(s)).toBeGreaterThan(before)
   })
 
-  it('Rebuild keeps shards, Heat, ranks, and research; wipes salvage', () => {
+  it('Rebuild keeps shards, ash, Furnace upgrades, and research; wipes salvage and Heat', () => {
     let s = createInitialState(0)
     s.combat.sector = 7
     s.meta.highestSectorEver = 7
@@ -170,7 +170,8 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     s = insertShardDirect(s, 'battle-chip')
     s.resources.choirAsh = 12
     s.resources.heat = 8
-    s.furnace.ranks.attack = 2
+    s.furnace.upgrades.hearth = 2
+    s.furnace.wanted.weapons = 2
     s.hiveResearch.completed.material = 2
     s.hiveResearch.xp.material = 20
     s.resources.salvage = 50
@@ -178,9 +179,10 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.reliquary.owned['battle-chip']).toBe(3)
     expect(s.reliquary.slots.red).toBe('battle-chip')
-    expect(s.resources.heat).toBe(8)
+    expect(s.resources.heat).toBe(0)
     expect(s.resources.choirAsh).toBe(12)
-    expect(s.furnace.ranks.attack).toBe(2)
+    expect(s.furnace.upgrades.hearth).toBe(2)
+    expect(s.furnace.wanted.weapons).toBe(2)
     expect(s.hiveResearch.completed.material).toBe(2)
     expect(s.hiveResearch.xp.material).toBe(20)
     expect(s.resources.salvage).toBeLessThan(50)

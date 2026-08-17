@@ -53,7 +53,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'furnace',
     requiresSectorEver: 5,
     label: 'Furnace',
-    tip: 'Choir-ash from kills becomes Heat. Spend Heat on always-on system ranks.',
+    tip: 'Choir-ash feeds a live Heat tank. Light Furnace Channels for temporary system boosts.',
   },
   {
     id: 'yard',
@@ -387,7 +387,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'furnace-lit',
     name: 'Heat Lit',
-    description: 'Buy any Furnace rank.',
+    description: 'Light a Furnace Channel or buy a Furnace upgrade.',
     rewardAiPoints: 2,
     condition: { type: 'furnace-rank-sum', min: 1 },
   },
@@ -566,7 +566,10 @@ export function achievementProgressValue(
     case 'foundry-recipe-level':
       return state.foundry?.recipeLevels?.[condition.recipeId] ?? 0
     case 'furnace-rank-sum':
-      return Object.values(state.furnace?.ranks ?? {}).reduce((a, b) => a + b, 0)
+      return (
+        Object.values(state.furnace?.upgrades ?? {}).reduce((a, b) => a + b, 0) +
+        Object.values(state.furnace?.wanted ?? {}).reduce((a, b) => a + b, 0)
+      )
     case 'reliquary-fitted':
       return Object.values(state.reliquary?.slots ?? {}).filter(Boolean).length
     case 'hive-research-nodes':
@@ -898,6 +901,7 @@ const TAP_TARGETS = new Set([
   'rebuild-btn',
   'hangar-confirm',
   'furnace-bank',
+  'furnace-channel-weapons',
   'reinforce-go',
 ])
 
@@ -1393,7 +1397,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-prestige-ready',
     title: 'Open the hangar',
     body: [
-      'Tap Rebuild hangar. Salvage and Core levels wipe on confirm. Network, Foundry recipes, Reliquary shards, and Furnace ranks stay.',
+      'Tap Rebuild hangar. Salvage and Core levels wipe on confirm. Network, Foundry recipes, Reliquary shards, and Furnace upgrades stay. Heat in the tank resets unless Ember Lock is ranked.',
     ],
     target: 'rebuild-btn',
     tab: 'dock',
@@ -1450,32 +1454,231 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (_s, tab) => tab === 'furnace',
   },
   {
-    id: 'guide-furnace-bank',
-    title: 'Bank Heat',
+    id: 'guide-furnace-v2-ash',
+    title: 'Ash feeds the fire',
     body: [
-      'Ten Choir-ash banks one Heat. Tap Bank when you have a batch.',
-      'Heat and leftover ash persist when you Rebuild. Spend Heat — do not sit on a pile of ash.',
+      'Choir-ash is fuel, not a score. Kills drop it on their own after sector 5.',
+      'The Furnace burns ash into Heat. You are not buying a permanent +2% shop anymore.',
+    ],
+    target: 'furnace-ash',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'furnace') &&
+      !guideSeen(s, 'guide-furnace-v2-ash') &&
+      (guideSeen(s, 'guide-furnace') ||
+        (s.meta.seenOnboarding ?? []).includes('guide-furnace-ranks') ||
+        (s.meta.seenOnboarding ?? []).includes('guide-furnace-bank')),
+  },
+  {
+    id: 'guide-furnace-v2-heat',
+    title: 'Heat is live',
+    body: [
+      'Heat generates while ash remains and a small Hearth trickle always runs.',
+      'Bank dumps ash into the tank now. Auto Feed later does that tap for you.',
+    ],
+    target: 'furnace-heat',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-ash') && !guideSeen(s, 'guide-furnace-v2-heat'),
+  },
+  {
+    id: 'guide-furnace-v2-cap',
+    title: 'Capacity',
+    body: [
+      'The tank has a ceiling. Extra generation is wasted once Heat is full — ash stops burning so you do not throw fuel away.',
+      'Cistern upgrades raise the ceiling. Network Links still spend stored Heat as a lump.',
+    ],
+    target: 'furnace-cap',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-heat') && !guideSeen(s, 'guide-furnace-v2-cap'),
+  },
+  {
+    id: 'guide-furnace-v2-rate',
+    title: 'Heat per second',
+    body: [
+      'GENERATING is ash feed plus Hearth. CONSUMING is every lit channel. NET is the difference.',
+      'Positive NET fills the tank. Negative NET drains it. Read NET before you light a second fire.',
+    ],
+    target: 'furnace-net',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-cap') && !guideSeen(s, 'guide-furnace-v2-rate'),
+  },
+  {
+    id: 'guide-furnace-v2-channel',
+    title: 'Furnace Channels',
+    body: [
+      'A channel is a temporary system boost you choose to power: Weapons, Shielding, Network, Foundry, Research, Recovery.',
+      'The question is what you want to power right now — not which permanent rank to buy.',
+    ],
+    target: 'furnace-channels',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-rate') && !guideSeen(s, 'guide-furnace-v2-channel'),
+  },
+  {
+    id: 'guide-furnace-v2-consume',
+    title: 'Channels spend Heat',
+    body: [
+      'Every lit channel consumes Heat every second. If NET is negative, the tank drains.',
+      'When the tank hits your reserve (or empty), the lowest-priority channel drops a level. That is starvation — it is shown, not a silent shutdown.',
+    ],
+    target: 'furnace-channels',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-channel') && !guideSeen(s, 'guide-furnace-v2-consume'),
+  },
+  {
+    id: 'guide-furnace-v2-levels',
+    title: 'Stronger costs more',
+    body: [
+      'Weapons I is a modest damage boost. Weapons II and III cost several times the Heat.',
+      'Do not light III because the number looks bigger. Light what the tank can hold.',
+    ],
+    target: 'furnace-channels',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-consume') && !guideSeen(s, 'guide-furnace-v2-levels'),
+  },
+  {
+    id: 'guide-furnace-v2-limit',
+    title: 'Not everything at once',
+    body: [
+      'Early Furnace lights one channel. Extra Taps, a Rebuild, and Process Accumulation raise that cap.',
+      'You will not power Weapons, Shielding, and Foundry together on day one. Pick the job.',
+    ],
+    target: 'furnace-slots',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-levels') && !guideSeen(s, 'guide-furnace-v2-limit'),
+  },
+  {
+    id: 'guide-furnace-v2-bank',
+    title: 'Fund Heat',
+    body: [
+      'Tap Bank if you have a pile of ash. That fills the tank now so a channel has something to burn.',
+      'If Heat is already in the tank, this step lets go.',
     ],
     target: 'furnace-bank',
     tab: 'furnace',
     screen: 'furnace',
-    group: 'furnace',
-    availableWhen: (s) => guideSeen(s, 'guide-furnace') && !guideSeen(s, 'guide-furnace-bank'),
+    group: 'furnace-v2',
+    required: true,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-limit') && !guideSeen(s, 'guide-furnace-v2-bank'),
+    completeWhen: (s) => (s.resources.heat ?? 0) > 0,
   },
   {
-    id: 'guide-furnace-ranks',
-    title: 'Always-on ranks',
+    id: 'guide-furnace-v2-activate',
+    title: 'Light Weapons I',
     body: [
-      'Attack raises sortie damage. Defense raises the shield ceiling. Lab writes Research faster. Workshop speeds the Foundry.',
-      'Each rank is permanent. Heat also buys Network Links — racks, acuity, and cycle — on the Network tab.',
-      'Tap a rank name for the live bonus. This tour is done; the next door waits until you leave.',
+      'Tap Weapons I. Damage rises while the channel is lit and Heat starts to drain.',
+      'You can darken it later. One channel is the whole early puzzle.',
     ],
-    target: 'furnace-ranks',
+    target: 'furnace-channel-weapons',
     tab: 'furnace',
     screen: 'furnace',
-    group: 'furnace',
+    group: 'furnace-v2',
+    required: true,
     availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-bank') && !guideSeen(s, 'guide-furnace-ranks'),
+      guideSeen(s, 'guide-furnace-v2-bank') && !guideSeen(s, 'guide-furnace-v2-activate'),
+    completeWhen: (s) => Object.values(s.furnace?.wanted ?? {}).some((n) => n > 0),
+  },
+  {
+    id: 'guide-furnace-v2-net',
+    title: 'Read NET',
+    body: [
+      'GENERATING minus CONSUMING is NET. If it is red, the tank is shrinking.',
+      'That is the Furnace. Come back when you want a second channel, a preset, or the Manager.',
+    ],
+    target: 'furnace-net',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-furnace-v2-activate') && !guideSeen(s, 'guide-furnace-v2-net'),
+  },
+  {
+    id: 'guide-furnace-v2-second',
+    title: 'Second channel',
+    body: [
+      'You can light two channels at once now. Priority decides which one starves last.',
+      'NET still rules. Two Level I fires are cheaper than one Level III.',
+    ],
+    target: 'furnace-slots',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-second',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'furnace') &&
+      guideSeen(s, 'guide-furnace-v2-net') &&
+      !guideSeen(s, 'guide-furnace-v2-second') &&
+      (s.furnace?.upgrades?.taps ?? 0) + (s.prestige?.prestigeCount ?? 0) + ((s.process?.earned ?? 0) >= 150 ? 1 : 0) >= 1,
+  },
+  {
+    id: 'guide-furnace-presets',
+    title: 'Furnace presets',
+    body: [
+      'Push, Farm, Industry, and Research are starting mixes. They do not invent a hidden best fire.',
+      'You can still set channels by hand. Presets only write the wanted lights.',
+    ],
+    target: 'furnace-presets',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-presets',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.process?.purchased.includes('furnace-presets')) && !guideSeen(s, 'guide-furnace-presets'),
+  },
+  {
+    id: 'guide-furnace-manager',
+    title: 'Furnace Manager',
+    body: [
+      'The manager keeps your wanted channels lit while Heat lasts. It will not spend below the reserve you set.',
+      'Priority is the starve order. Auto Channel may raise or drop levels to stay sustainable, then recover when the tank is healthy.',
+    ],
+    target: 'furnace-manager',
+    tab: 'furnace',
+    screen: 'furnace',
+    group: 'furnace-manager',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.process?.purchased.includes('furnace-auto')) && !guideSeen(s, 'guide-furnace-manager'),
   },
   {
     id: 'guide-research-tab',
@@ -2061,6 +2264,21 @@ export const REBUILD_GUIDE_IDS = [
   'guide-prestige-ready',
   'guide-prestige-hangar',
   'guide-prestige-confirm',
+] as const
+
+/** Furnace 2.0 tour after the door. Skip on the first step dismisses the group. */
+export const FURNACE_V2_GUIDE_IDS = [
+  'guide-furnace-v2-ash',
+  'guide-furnace-v2-heat',
+  'guide-furnace-v2-cap',
+  'guide-furnace-v2-rate',
+  'guide-furnace-v2-channel',
+  'guide-furnace-v2-consume',
+  'guide-furnace-v2-levels',
+  'guide-furnace-v2-limit',
+  'guide-furnace-v2-bank',
+  'guide-furnace-v2-activate',
+  'guide-furnace-v2-net',
 ] as const
 
 function markGuideSeen(seen: string[], id: string): boolean {

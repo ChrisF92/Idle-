@@ -5,7 +5,6 @@ import type {
   CoreState,
   EchoState,
   FurnaceState,
-  FurnaceTrackId,
   GameState,
   HiveResearchBranch,
   HiveResearchState,
@@ -36,7 +35,7 @@ import {
 import { createEmptyNetworkState } from './network'
 import { createEmptyFoundryState } from './foundry'
 import { createEmptyReliquaryState } from './reliquary'
-import { createEmptyFurnaceState } from './furnace'
+import { finalizeFurnaceMigration, hydrateFurnaceState } from './furnace'
 import { createEmptyHiveResearchState } from './hiveResearch'
 import { createEmptyYardState } from './yard'
 import { createEmptyProtocolState } from './protocols'
@@ -342,15 +341,8 @@ function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState 
   return { owned, slots }
 }
 
-const FURNACE_TRACK_IDS: FurnaceTrackId[] = ['attack', 'defense', 'lab', 'workshop', 'hold']
-
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
-  const empty = createEmptyFurnaceState()
-  if (!raw || typeof raw !== 'object') return empty
-  for (const id of FURNACE_TRACK_IDS) {
-    empty.ranks[id] = Math.max(0, Math.floor(Number(raw.ranks?.[id] ?? 0) || 0))
-  }
-  return empty
+  return hydrateFurnaceState(raw)
 }
 
 const HIVE_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation']
@@ -653,6 +645,7 @@ function migrate(raw: unknown): GameState | null {
       parts: withPartsDefaults(state.parts),
     }
     finalizeProcessMigration(hydrated)
+    finalizeFurnaceMigration(hydrated)
     return hydrated
   }
 
@@ -744,6 +737,7 @@ function migrate(raw: unknown): GameState | null {
       parts: withPartsDefaults(prev.parts),
     }
     finalizeProcessMigration(hydrated)
+    finalizeFurnaceMigration(hydrated)
     return hydrated
   }
 

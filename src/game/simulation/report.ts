@@ -223,7 +223,7 @@ export function formatFullReport(report: SimulationReport): string {
     )
   }
   extra.push('', 'FOUNDRY', `Points ${run.foundry.points}`, `Recipes ${JSON.stringify(run.foundry.recipeLevels)}`, `Equipped ${run.foundry.equipped.join(', ') || 'none'}`)
-  extra.push('', 'FURNACE', `Heat earned ${run.furnace.heatEarned.toFixed(1)} spent ${run.furnace.heatSpent.toFixed(1)}`, `Ranks ${JSON.stringify(run.furnace.ranks)}`)
+  extra.push('', 'FURNACE', `Heat earned ${run.furnace.heatEarned.toFixed(1)} spent ${run.furnace.heatSpent.toFixed(1)}`, `Upgrades ${JSON.stringify(run.furnace.upgrades)}`, `Channels ${JSON.stringify(run.furnace.active)}`)
   if (run.detailedLog.length > 0) {
     extra.push('', 'DETAILED LOG')
     extra.push(...run.detailedLog.slice(-200))

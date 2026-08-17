@@ -3,7 +3,6 @@
 import type { GameState, NetworkBarId, FoundryRecipeId } from '../types'
 import {
   buyFoundryUpgrade,
-  buyFurnaceRank,
   buyMatterShop,
   buyNetworkLink,
   buyProcessNode,
@@ -52,9 +51,14 @@ import {
   isFoundryRecipeUnlocked,
 } from '../foundry'
 import {
-  FURNACE_TRACKS,
-  canBuyFurnaceRank,
-  furnaceRank,
+  FURNACE_UPGRADES,
+  buyFurnaceUpgrade,
+  canBuyFurnaceUpgrade,
+  canSetFurnaceChannel,
+  furnaceActiveLevel,
+  furnaceChannelSlots,
+  furnaceUpgradeRank,
+  setFurnaceChannel,
 } from '../furnace'
 import { PROCESS_NODES, canBuyProcessNode, hasProcess } from '../process'
 import { SHARDS, shardOwned, fittedShardId, isReliquarySlotUnlocked } from '../reliquary'
@@ -358,13 +362,36 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   if (!isSystemUnlocked(state, 'furnace') && careerHighestSector(state) < 5) return state
   let next = convertAshToHeat(state)
   if (next !== state) ctx.record('ash-to-heat')
-  const order = ['attack', 'defense', 'workshop', 'lab', 'hold'] as const
+  const slots = furnaceChannelSlots(next)
+  const order: Array<Parameters<typeof setFurnaceChannel>[1]> = [
+    'weapons',
+    'shielding',
+    'foundry',
+    'recovery',
+    'network',
+    'research',
+  ]
+  let lit = 0
   for (const id of order) {
-    if (!canBuyFurnaceRank(next, id).ok) continue
-    const after = buyFurnaceRank(next, id)
+    if (furnaceActiveLevel(next, id) > 0) lit += 1
+  }
+  for (const id of order) {
+    if (furnaceActiveLevel(next, id) > 0) continue
+    if (lit >= slots) break
+    if (!canSetFurnaceChannel(next, id, 1).ok) continue
+    const after = setFurnaceChannel(next, id, 1)
     if (after !== next) {
-      const def = FURNACE_TRACKS.find((t) => t.id === id)
-      ctx.recordMeaningful(`Furnace ${def?.name ?? id} ${furnaceRank(after, id)}`)
+      ctx.recordMeaningful(`Furnace ${id} I`)
+      next = after
+      lit += 1
+      break
+    }
+  }
+  for (const up of FURNACE_UPGRADES) {
+    if (!canBuyFurnaceUpgrade(next, up.id).ok) continue
+    const after = buyFurnaceUpgrade(next, up.id)
+    if (after !== next) {
+      ctx.recordMeaningful(`Furnace ${up.name} ${furnaceUpgradeRank(after, up.id)}`)
       next = after
       break
     }

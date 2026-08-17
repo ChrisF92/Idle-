@@ -83,7 +83,7 @@ describe('Hiveworks onboarding catalog', () => {
       'guide-reliquary',
       'guide-reliquary-slots',
       'guide-furnace',
-      'guide-furnace-bank',
+      'guide-furnace-v2-ash',
       'guide-codex-tab',
       'guide-codex-families',
       'guide-challenges',

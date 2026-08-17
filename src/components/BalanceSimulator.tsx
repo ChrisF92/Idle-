@@ -438,7 +438,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                 [
                   'furnace',
                   'Furnace',
-                  `Heat +${run0.furnace.heatEarned.toFixed(1)} / -${run0.furnace.heatSpent.toFixed(1)}\n${JSON.stringify(run0.furnace.ranks)}`,
+                  `Heat +${run0.furnace.heatEarned.toFixed(1)} / -${run0.furnace.heatSpent.toFixed(1)}\n${JSON.stringify(run0.furnace.active)}`,
                 ],
                 [
                   'economy',

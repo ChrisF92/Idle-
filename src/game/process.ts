@@ -2,6 +2,7 @@
 
 import type {
   FoundryRecipeId,
+  FurnaceChannelId,
   GameState,
   HiveResearchBranch,
   NetworkBarId,
@@ -331,7 +332,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Auto Feed',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Choir-ash banks into Heat on its own. Furnace 2.0 will reuse this feed hook.',
+    blurb: 'Choir-ash banks into Heat on its own whenever the tank has room.',
     cost: 6,
     requiresSystem: 'furnace',
   },
@@ -340,7 +341,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Presets',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Named Heat mixes. Stored now; Furnace 2.0 spends them.',
+    blurb: 'Push, Farm, Industry, or Research. One tap sets which channels you want lit.',
     cost: 10,
     requiresId: 'auto-bank',
     requiresSystem: 'furnace',
@@ -350,7 +351,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Reserve',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Hold a Heat reserve the manager must not spend. Hook for Furnace 2.0.',
+    blurb: 'Hold a Heat reserve the manager must not drain.',
     cost: 8,
     requiresId: 'furnace-presets',
     requiresSystem: 'furnace',
@@ -360,7 +361,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Channels',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Allow automatic channel adjustment once Furnace 2.0 is live. You still set the targets.',
+    blurb: 'Let the manager raise and lower channel levels to keep Heat sustainable. You still set priority.',
     cost: 12,
     requiresId: 'furnace-presets',
     requiresSystem: 'furnace',
@@ -370,7 +371,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Manager',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Buy the cheapest current Furnace rank. Later Heat routing waits for Furnace 2.0.',
+    blurb: 'Keep configured channels lit while Heat lasts. Respects reserve, priority, and Auto Channel.',
     cost: 16,
     requiresId: 'auto-bank',
     requiresSystem: 'furnace',
@@ -515,7 +516,7 @@ export type ProcessAccumEffect =
   | { type: 'foundrySpeed'; mult: number }
   | { type: 'researchSpeed'; mult: number }
   | { type: 'offlineHours'; hours: number }
-  | { type: 'furnaceOutput'; mult: number; pending: true }
+  | { type: 'furnaceOutput'; mult: number }
   | { type: 'presetSlot'; extra: number }
   | { type: 'industrySpeed'; mult: number }
 
@@ -575,8 +576,8 @@ export const PROCESS_ACCUMULATION: ProcessAccumulationDef[] = [
     id: 'acc-furnace-150',
     atEarned: 150,
     name: 'Heat Ledger',
-    blurb: '×1.15 Furnace output once Furnace 2.0 is live.',
-    effect: { type: 'furnaceOutput', mult: 1.15, pending: true },
+    blurb: '×1.15 Furnace Heat generation.',
+    effect: { type: 'furnaceOutput', mult: 1.15 },
   },
   {
     id: 'acc-salvage-200',
@@ -641,6 +642,7 @@ export function createEmptyProcessConfig(): ProcessConfig {
       manager: true,
       autoChannel: false,
       reserveHeat: 0,
+      priority: ['weapons', 'shielding', 'recovery', 'foundry', 'network', 'research'],
     },
     research: {
       autoResearch: true,
@@ -725,7 +727,9 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
       return Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
     case 'furnace':
       return (
-        Object.values(state.furnace?.ranks ?? {}).some((n) => n > 0) || (state.resources.heat ?? 0) > 0
+        Object.values(state.furnace?.upgrades ?? {}).some((n) => n > 0) ||
+        Object.values(state.furnace?.active ?? {}).some((n) => n > 0) ||
+        (state.resources.heat ?? 0) > 0
       )
     case 'yard':
       return (state.yard?.cells ?? []).some((c) => Boolean(c.buildingId))
@@ -928,6 +932,16 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
       manager: furnace.manager !== false,
       autoChannel: furnace.autoChannel === true,
       reserveHeat: Math.max(0, num(furnace.reserveHeat, 0)),
+      priority: Array.isArray(furnace.priority)
+        ? furnace.priority.filter((id): id is FurnaceChannelId =>
+            id === 'weapons' ||
+            id === 'shielding' ||
+            id === 'network' ||
+            id === 'foundry' ||
+            id === 'research' ||
+            id === 'recovery',
+          )
+        : [...empty.furnace.priority],
     },
     research: {
       autoResearch: research.autoResearch !== false,
@@ -1093,7 +1107,7 @@ export interface ProcessFurnaceHooks {
   outputMult: number
 }
 
-/** Hooks Furnace 2.0 can consume without duplicating current Heat logic. */
+/** Live Heat generation, reserve, and Process automation the Furnace consumes. */
 export function processFurnaceHooks(state: GameState): ProcessFurnaceHooks {
   const cfg = processConfig(state)
   return {

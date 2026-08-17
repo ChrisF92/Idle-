@@ -71,8 +71,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   furnace: {
     title: 'Furnace',
     body: [
-      'Kills drop Choir-ash on their own. Bank ash into Heat, then buy always-on ranks: Attack, Defense, Lab, Workshop, and Hold.',
-      'Opens at sector 5. Heat also buys Network Links after the Furnace is lit. Flares collect themselves — do not tap looking for scraps. Tap a rank name for the live bonus.',
+      'Kills drop Choir-ash on their own. Ash feeds a live Heat tank. Light Furnace Channels for temporary boosts — Weapons, Shielding, Network, Foundry, Research, Recovery.',
+      'Opens at sector 5. You cannot power every channel at once. Stronger levels cost several times the Heat. Heat also buys Network Links. Upgrades persist on Rebuild; the tank resets unless Ember Lock is ranked.',
     ],
   },
   research: {

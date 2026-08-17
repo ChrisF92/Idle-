@@ -11,7 +11,7 @@ export interface MoreStationDef {
 
 export const MORE_STATIONS: MoreStationDef[] = [
   { id: 'reliquary', name: 'Reliquary', blurb: 'Shards in colour slots.' },
-  { id: 'furnace', name: 'Furnace', blurb: 'Choir-ash → Heat → ranks.' },
+  { id: 'furnace', name: 'Furnace', blurb: 'Choir-ash → Heat → channels.' },
   { id: 'research', name: 'Research', blurb: 'Material / Energy / Observation.' },
   { id: 'codex', name: 'Codex', blurb: 'Families and hull roles.' },
   { id: 'yard', name: 'Yard Grid', blurb: 'Buildings. Arms apply on the next Rebuild.' },
