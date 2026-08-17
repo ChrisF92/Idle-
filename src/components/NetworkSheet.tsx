@@ -22,12 +22,64 @@ import {
   inspectNetworkOverview,
 } from '../game/inspect'
 import { InspectName } from './InspectName'
+import { markLocalOk, useJustBecame } from '../hooks/useJustBecame'
 
 interface NetworkSheetProps {
   state: GameState
   onAssign: (barId: string, delta: number) => void
   onBuyLink?: (id: NetworkLinkId) => void
   compact?: boolean
+  idleHighlight?: boolean
+}
+
+function LinkRow({
+  state,
+  linkDef,
+  onBuyLink,
+}: {
+  state: GameState
+  linkDef: (typeof NETWORK_LINKS)[number]
+  onBuyLink: (id: NetworkLinkId) => void
+}) {
+  const rank = networkLinkRank(state, linkDef.id)
+  const can = canBuyNetworkLink(state, linkDef.id)
+  const justReady = useJustBecame(can.ok)
+  const cost = networkLinkCost(state, linkDef.id)
+  const costLabel =
+    cost == null ? '' : `${cost.amount} ${cost.resource === 'heat' ? 'Heat' : 'scrap'}`
+  const rowClass = [
+    'network-row',
+    can.ok ? 'is-affordable' : rank > 0 ? 'is-active' : 'locked',
+    justReady ? 'just-ready' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return (
+    <article className={rowClass}>
+      <div className="network-row-main">
+        <InspectName name={linkDef.name} card={inspectNetworkLink(state, linkDef.id)} />
+        <span className="muted">
+          {rank}/{linkDef.maxRank}
+        </span>
+      </div>
+      <p className="network-row-stats">
+        {networkLinkEffectLabel(state, linkDef.id)}
+        {linkDef.blurb ? ` · ${linkDef.blurb}` : ''}
+      </p>
+      <button
+        type="button"
+        className="primary"
+        disabled={!can.ok}
+        onClick={(e) => {
+          markLocalOk(e.currentTarget)
+          onBuyLink(linkDef.id)
+        }}
+      >
+        {rank >= linkDef.maxRank ? 'Maxed' : can.ok ? costLabel : can.reason}
+      </button>
+    </article>
+  )
 }
 
 export function NetworkSheet({
@@ -35,6 +87,7 @@ export function NetworkSheet({
   onAssign,
   onBuyLink,
   compact = false,
+  idleHighlight = false,
 }: NetworkSheetProps) {
   const idle = idleWorkers(state)
   const cap = droneCap(state)
@@ -44,12 +97,14 @@ export function NetworkSheet({
 
   return (
     <div className={compact ? 'network-sheet network-sheet-compact' : 'network-sheet'}>
-      <p className="network-corps" data-guide="network-corps">
+      <p className={`network-corps${idleHighlight ? ' just-ready' : ''}`} data-guide="network-corps">
         <InspectName
           name={`Corps ${state.base.workerDrones}/${cap}`}
           card={inspectNetworkOverview(state)}
         />
-        <span className="muted"> · {idle} idle</span>
+        <span className={idle > 0 ? 'status-tag live' : 'muted'}>
+          {idle > 0 ? ` ${idle} idle` : ' · none idle'}
+        </span>
       </p>
       <p className="network-row-stats">
         Link power {formatCompact(link, 2)} · efficiency ×{power.toFixed(2)} · cycle ×
@@ -61,9 +116,19 @@ export function NetworkSheet({
         const levels = networkLevels(state, bar.id as NetworkBarId)
         const fill = networkProgress(state, bar.id)
         const rate = networkFillRate(state, bar.id)
+        const rowClass = open
+          ? assigned > 0
+            ? 'network-row is-active'
+            : 'network-row is-idle'
+          : 'network-row locked'
 
         return (
-          <article key={bar.id} className={open ? 'network-row' : 'network-row locked'} data-guide={`network-${bar.id}`}>
+          <article
+            key={bar.id}
+            className={rowClass}
+            data-guide={`network-${bar.id}`}
+            data-focus={`network-${bar.id}`}
+          >
             <div className="network-row-main">
               <InspectName name={bar.name} card={open ? inspectNetworkBar(state, bar.id) : null} />
               <span className="muted">{open ? `Lv ${levels}` : `Sector ${bar.requiresSectorEver}`}</span>
@@ -74,15 +139,22 @@ export function NetworkSheet({
                   {networkEffectLabel(state, bar.id)}
                   {rate > 0 ? ` · ${rate.toFixed(2)}/s` : ''}
                 </p>
-                <div className="network-fill" aria-hidden>
-                  <span style={{ width: `${Math.round(fill * 100)}%` }} />
+                <div className={assigned > 0 ? 'network-fill is-active' : 'network-fill'} aria-hidden>
+                  <span style={{ transform: `scaleX(${fill})` }} />
                 </div>
-                <div className="network-assign">
+                <div className={`network-assign${idle > 0 ? ' has-idle-drones' : ''}`}>
                   <button type="button" disabled={assigned <= 0} onClick={() => onAssign(bar.id, -1)}>
                     −
                   </button>
                   <strong>{assigned}</strong>
-                  <button type="button" disabled={idle <= 0} onClick={() => onAssign(bar.id, 1)}>
+                  <button
+                    type="button"
+                    disabled={idle <= 0}
+                    onClick={(e) => {
+                      markLocalOk(e.currentTarget)
+                      onAssign(bar.id, 1)
+                    }}
+                  >
                     +
                   </button>
                 </div>
@@ -98,40 +170,9 @@ export function NetworkSheet({
           <h3 className="foundry-heading" data-guide="network-links">
             Links
           </h3>
-          {NETWORK_LINKS.map((linkDef) => {
-            const rank = networkLinkRank(state, linkDef.id)
-            const can = canBuyNetworkLink(state, linkDef.id)
-            const cost = networkLinkCost(state, linkDef.id)
-            const costLabel =
-              cost == null
-                ? ''
-                : `${cost.amount} ${cost.resource === 'heat' ? 'Heat' : 'scrap'}`
-            return (
-              <article
-                key={linkDef.id}
-                className={can.ok || rank > 0 ? 'network-row' : 'network-row locked'}
-              >
-                <div className="network-row-main">
-                  <InspectName name={linkDef.name} card={inspectNetworkLink(state, linkDef.id)} />
-                  <span className="muted">
-                    {rank}/{linkDef.maxRank}
-                  </span>
-                </div>
-                <p className="network-row-stats">
-                  {networkLinkEffectLabel(state, linkDef.id)}
-                  {linkDef.blurb ? ` · ${linkDef.blurb}` : ''}
-                </p>
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={!can.ok}
-                  onClick={() => onBuyLink(linkDef.id)}
-                >
-                  {rank >= linkDef.maxRank ? 'Maxed' : can.ok ? costLabel : can.reason}
-                </button>
-              </article>
-            )
-          })}
+          {NETWORK_LINKS.map((linkDef) => (
+            <LinkRow key={linkDef.id} state={state} linkDef={linkDef} onBuyLink={onBuyLink} />
+          ))}
         </>
       ) : null}
       {!compact ? (

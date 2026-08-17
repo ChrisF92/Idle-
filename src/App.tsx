@@ -5,6 +5,19 @@ import { activeGuideStep, isHangarGuideStep, isHubTabOpen } from './game/progres
 import { contentKeys } from './game/hubAttention'
 import { wavesForSector } from './game/sectors'
 import { setActiveNumberNotation } from './game/format'
+import {
+  captureToastSnapshot,
+  diffToasts,
+  dismissToast,
+  enqueueToasts,
+  expireToasts,
+  snapshotsEqual,
+  TOAST_TTL_MS,
+  type QueuedToast,
+  type ToastNav,
+  type ToastSnapshot,
+} from './game/toasts'
+import { prefersReducedMotion } from './hooks/usePrefersReducedMotion'
 import { ResourceBar } from './components/ResourceBar'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -32,7 +45,9 @@ import { SortieReport } from './components/SortieReport'
 import { GuideOverlay } from './components/GuideOverlay'
 import { ScreenHelp } from './components/ScreenHelp'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
+import { ToastStack } from './components/ToastStack'
 import './App.css'
+import './polish.css'
 
 const BalanceSimulator = lazy(async () => {
   const mod = await import('./components/BalanceSimulator')
@@ -45,6 +60,10 @@ export default function App() {
   const [hangarOpen, setHangarOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
+  const [toasts, setToasts] = useState<QueuedToast[]>([])
+  const [focusTarget, setFocusTarget] = useState<string | null>(null)
+  const [coresRequest, setCoresRequest] = useState<{ key: number; moduleId?: string } | null>(null)
+  const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
   const [heldGuideId, setHeldGuideId] = useState<string | null>(null)
@@ -58,6 +77,25 @@ export default function App() {
   const go = useCallback(
     (next: TabId) => {
       if (isHubTabOpen(game.state, next)) setTab(next)
+    },
+    [game.state],
+  )
+
+  const applyToastNav = useCallback(
+    (nav: ToastNav) => {
+      if (nav.kind === 'rebuild') {
+        setHangarOpen(true)
+        return
+      }
+      if (nav.kind === 'cores') {
+        if (isHubTabOpen(game.state, 'combat')) setTab('combat')
+        setCoresRequest({ key: Date.now(), moduleId: nav.moduleId })
+        return
+      }
+      if (isHubTabOpen(game.state, nav.tab)) {
+        setTab(nav.tab)
+        if (nav.focus) setFocusTarget(nav.focus)
+      }
     },
     [game.state],
   )
@@ -139,6 +177,43 @@ export default function App() {
     if (isHubTabOpen(game.state, guide.tab)) setTab(guide.tab)
   }, [guide, dying, game.state])
 
+  useEffect(() => {
+    const snap = captureToastSnapshot(game.state)
+    const prev = toastBaseline.current
+    if (!prev) {
+      toastBaseline.current = snap
+      return
+    }
+    if (snapshotsEqual(prev, snap)) return
+    const incoming = diffToasts(prev, snap, game.state)
+    toastBaseline.current = snap
+    if (incoming.length === 0) return
+    setToasts((q) => enqueueToasts(q, incoming, Date.now()))
+  }, [game.state])
+
+  const toastSuppressed = Boolean(guide) || hangarOpen || reportOpen
+
+  useEffect(() => {
+    if (toasts.length === 0 || toastSuppressed) return
+    const id = window.setInterval(() => {
+      setToasts((q) => expireToasts(q, Date.now(), TOAST_TTL_MS))
+    }, 400)
+    return () => window.clearInterval(id)
+  }, [toasts.length, toastSuppressed])
+
+  useEffect(() => {
+    if (!focusTarget) return
+    const run = () => {
+      const el = document.querySelector(`[data-focus="${CSS.escape(focusTarget)}"]`)
+      el?.scrollIntoView({
+        block: 'center',
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      })
+    }
+    const t = window.setTimeout(run, 60)
+    return () => window.clearTimeout(t)
+  }, [tab, focusTarget])
+
   return (
     <div className={guide ? 'app app-guide-lock' : 'app'}>
       <div className="chrome-top">
@@ -150,6 +225,7 @@ export default function App() {
         <ResourceBar state={game.state} />
         {live ? (
           <button type="button" className="combat-chip" onClick={() => go('combat')}>
+            <span className="live-pip" aria-hidden />
             Live {game.state.combat.wave}/{waves}
           </button>
         ) : null}
@@ -189,6 +265,7 @@ export default function App() {
             onMarkCoresSeen={() => game.markHubSeen('cores')}
             paused={Boolean(guide)}
             guide={guide}
+            coresRequest={coresRequest}
           />
         )}
         {tab === 'network' && (
@@ -343,6 +420,12 @@ export default function App() {
           onSkip={game.skipOnboarding}
         />
       ) : null}
+      <ToastStack
+        toasts={toasts}
+        suppressed={toastSuppressed}
+        onDismiss={(id) => setToasts((q) => dismissToast(q, id))}
+        onAction={applyToastNav}
+      />
       <PwaUpdateBanner escapeHatch={Boolean(guide?.required)} />
     </div>
   )

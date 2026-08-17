@@ -33,6 +33,7 @@ import {
   inspectFoundryUpgrade,
 } from '../../game/inspect'
 import { InspectName } from '../InspectName'
+import { markLocalOk, useJustBecame } from '../../hooks/useJustBecame'
 
 interface FoundryTabProps {
   state: GameState
@@ -41,6 +42,105 @@ interface FoundryTabProps {
   onEquip: (moduleId: string) => void
   onUnequip: (moduleId: string) => void
   onAssemble: (moduleId: string) => void
+}
+
+function RankRow({
+  state,
+  up,
+  onBuyUpgrade,
+}: {
+  state: GameState
+  up: (typeof FOUNDRY_UPGRADES)[number]
+  onBuyUpgrade: (upgradeId: string) => void
+}) {
+  const rank = state.foundry.upgrades[up.id] ?? 0
+  const can = canBuyFoundryUpgrade(state, up.id)
+  const justReady = useJustBecame(can.ok)
+  const cost = foundryUpgradeCost(state, up.id)
+  return (
+    <article
+      className={`network-row${can.ok ? ' is-affordable' : ''}${justReady ? ' just-ready' : ''}`}
+    >
+      <div className="network-row-main">
+        <InspectName name={up.name} card={inspectFoundryUpgrade(state, up.id)} />
+        <span className="muted">
+          {rank}/{up.maxRank}
+        </span>
+      </div>
+      <p className="network-row-stats">{up.blurb}</p>
+      <button
+        type="button"
+        className="primary"
+        disabled={!can.ok}
+        onClick={(e) => {
+          markLocalOk(e.currentTarget)
+          onBuyUpgrade(up.id)
+        }}
+      >
+        {rank >= up.maxRank ? 'Maxed' : `Buy · ${cost} FP`}
+      </button>
+    </article>
+  )
+}
+
+function PrintRow({
+  state,
+  mod,
+  onAssemble,
+}: {
+  state: GameState
+  mod: ReturnType<typeof listFarmableCores>[number]
+  onAssemble: (moduleId: string) => void
+}) {
+  const recipe = getBlueprint(mod.id)
+  const progress = blueprintProgress(state, mod.id)
+  const printed = state.shipyard.unlockedModules.includes(mod.id)
+  const check = canAssembleBlueprint(state, mod.id)
+  const justReady = useJustBecame(check.ok && !printed)
+  const need = modulePrintSector(mod.id)
+  const partsLine = recipe
+    ? PART_TYPES.map((pt) => {
+        const have = progress?.owned[pt] ?? 0
+        const want = recipe[pt]
+        return `${pt[0]!.toUpperCase()}${pt.slice(1)} ${have}/${want}`
+      }).join(' · ')
+    : ''
+  const rowClass = printed
+    ? 'network-row is-printed'
+    : check.ok
+      ? `network-row is-complete is-ready${justReady ? ' just-ready' : ''}`
+      : 'network-row locked'
+
+  return (
+    <article className={rowClass} data-focus={`print-${mod.id}`}>
+      <div className="network-row-main">
+        <strong>{mod.name}</strong>
+        <span className={printed || check.ok ? 'status-tag ok' : 'muted'}>
+          {printed
+            ? 'Printed'
+            : check.ok
+              ? 'Ready'
+              : `S${need} · ${mod.role === 'defense' ? 'Shield' : mod.role === 'utility' ? 'Utility' : 'Weapon'}`}
+        </span>
+      </div>
+      <p className="network-row-stats">
+        {printed ? 'Fit this Core on the next Rebuild.' : partsLine || mod.description}
+      </p>
+      {!printed ? (
+        <button
+          type="button"
+          className="primary"
+          disabled={!check.ok}
+          onClick={(e) => {
+            markLocalOk(e.currentTarget)
+            onAssemble(mod.id)
+          }}
+        >
+          {check.ok ? 'Assemble' : check.reason ?? 'Farm wrecks'}
+        </button>
+      ) : null}
+    </article>
+  )
 }
 
 export function FoundryTab({
@@ -65,17 +165,20 @@ export function FoundryTab({
         </p>
       </header>
       {!open ? (
-        <p className="muted">Recipes, Foundry Points, and fitted bits land here.</p>
+        <p className="muted empty-state">Recipes, Foundry Points, and fitted bits land here.</p>
       ) : (
         <div className="panel-scroll">
           <h3 className="foundry-heading" data-guide="foundry-smelters">
             Smelters
           </h3>
           {foundry.slots.map((slot, i) => (
-            <article key={i} className="network-row">
+            <article
+              key={i}
+              className={slot.recipeId ? 'network-row is-active smelter-active' : 'network-row is-idle'}
+            >
               <div className="network-row-main">
                 <strong>Slot {i + 1}</strong>
-                <span className="muted">
+                <span className={slot.recipeId ? 'status-tag live' : 'status-tag'}>
                   {slot.recipeId ? (
                     <InspectName
                       name={FOUNDRY_RECIPES.find((r) => r.id === slot.recipeId)?.name ?? 'Queued'}
@@ -88,8 +191,8 @@ export function FoundryTab({
               </div>
               {slot.recipeId ? (
                 <>
-                  <div className="network-fill" aria-hidden>
-                    <span style={{ width: `${Math.round(slot.progress * 100)}%` }} />
+                  <div className="network-fill is-active" aria-hidden>
+                    <span style={{ transform: `scaleX(${slot.progress})` }} />
                   </div>
                   <button type="button" onClick={() => onSetSlot(i, null)}>
                     Stop
@@ -116,7 +219,16 @@ export function FoundryTab({
             const assigned = foundry.slots.findIndex((s) => s.recipeId === recipe.id)
             const idleSlot = foundry.slots.findIndex((s) => !s.recipeId)
             return (
-              <article key={recipe.id} className={unlocked ? 'network-row' : 'network-row locked'}>
+              <article
+                key={recipe.id}
+                className={
+                  unlocked
+                    ? assigned >= 0
+                      ? 'network-row is-active'
+                      : 'network-row is-ready'
+                    : 'network-row locked'
+                }
+              >
                 <div className="network-row-main">
                   <InspectName
                     name={recipe.name}
@@ -138,7 +250,8 @@ export function FoundryTab({
                     type="button"
                     className="primary"
                     disabled={idleSlot < 0 && assigned < 0}
-                    onClick={() => {
+                    onClick={(e) => {
+                      markLocalOk(e.currentTarget)
                       if (assigned >= 0) onSetSlot(assigned, null)
                       else if (idleSlot >= 0) onSetSlot(idleSlot, recipe.id)
                     }}
@@ -151,30 +264,9 @@ export function FoundryTab({
           })}
 
           <h3 className="foundry-heading">Ranks</h3>
-          {FOUNDRY_UPGRADES.map((up) => {
-            const rank = foundry.upgrades[up.id] ?? 0
-            const can = canBuyFoundryUpgrade(state, up.id)
-            const cost = foundryUpgradeCost(state, up.id)
-            return (
-              <article key={up.id} className="network-row">
-                <div className="network-row-main">
-                  <InspectName name={up.name} card={inspectFoundryUpgrade(state, up.id)} />
-                  <span className="muted">
-                    {rank}/{up.maxRank}
-                  </span>
-                </div>
-                <p className="network-row-stats">{up.blurb}</p>
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={!can.ok}
-                  onClick={() => onBuyUpgrade(up.id)}
-                >
-                  {rank >= up.maxRank ? 'Maxed' : `Buy · ${cost} FP`}
-                </button>
-              </article>
-            )
-          })}
+          {FOUNDRY_UPGRADES.map((up) => (
+            <RankRow key={up.id} state={state} up={up} onBuyUpgrade={onBuyUpgrade} />
+          ))}
 
           <h3 className="foundry-heading" data-guide="foundry-prints">
             Core prints
@@ -183,43 +275,9 @@ export function FoundryTab({
             Reach a sector to unlock a print. Hold that sector (or deeper) to farm fragments, then
             assemble here.
           </p>
-          {listFarmableCores(state).map((mod) => {
-            const recipe = getBlueprint(mod.id)
-            const progress = blueprintProgress(state, mod.id)
-            const printed = state.shipyard.unlockedModules.includes(mod.id)
-            const check = canAssembleBlueprint(state, mod.id)
-            const need = modulePrintSector(mod.id)
-            const partsLine = recipe
-              ? PART_TYPES.map((pt) => {
-                  const have = progress?.owned[pt] ?? 0
-                  const want = recipe[pt]
-                  return `${pt[0]!.toUpperCase()}${pt.slice(1)} ${have}/${want}`
-                }).join(' · ')
-              : ''
-            return (
-              <article key={mod.id} className={printed || check.ok ? 'network-row' : 'network-row locked'}>
-                <div className="network-row-main">
-                  <strong>{mod.name}</strong>
-                  <span className="muted">
-                    {printed ? 'Printed' : `S${need} · ${mod.role === 'defense' ? 'Shield' : mod.role === 'utility' ? 'Utility' : 'Weapon'}`}
-                  </span>
-                </div>
-                <p className="network-row-stats">
-                  {printed ? 'Fit this Core on the next Rebuild.' : partsLine || mod.description}
-                </p>
-                {!printed ? (
-                  <button
-                    type="button"
-                    className="primary"
-                    disabled={!check.ok}
-                    onClick={() => onAssemble(mod.id)}
-                  >
-                    {check.ok ? 'Assemble' : check.reason ?? 'Farm wrecks'}
-                  </button>
-                ) : null}
-              </article>
-            )
-          })}
+          {listFarmableCores(state).map((mod) => (
+            <PrintRow key={mod.id} state={state} mod={mod} onAssemble={onAssemble} />
+          ))}
 
           <h3 className="foundry-heading">Fit</h3>
           <p className="muted">{FOUNDRY_MODULE_SLOTS} fitted bits. Swap only while docked.</p>
@@ -230,13 +288,20 @@ export function FoundryTab({
               .map(([id, n]) => `${n} ${FOUNDRY_RECIPES.find((r) => r.id === id)?.name ?? id}`)
               .join(' · ')
             return (
-              <article key={mod.id} className={unlocked ? 'network-row' : 'network-row locked'}>
+              <article
+                key={mod.id}
+                className={
+                  unlocked ? (fitted ? 'network-row is-fitted' : 'network-row is-ready') : 'network-row locked'
+                }
+              >
                 <div className="network-row-main">
                   <InspectName
                     name={mod.name}
                     card={unlocked ? inspectFoundryModule(state, mod.id) : null}
                   />
-                  <span className="muted">{fitted ? 'Fitted' : unlocked ? 'Ready' : 'Locked'}</span>
+                  <span className={fitted ? 'status-tag teal' : unlocked ? 'status-tag ok' : 'muted'}>
+                    {fitted ? 'Fitted' : unlocked ? 'Ready' : 'Locked'}
+                  </span>
                 </div>
                 <p className="network-row-stats">
                   {mod.blurb}
@@ -247,7 +312,10 @@ export function FoundryTab({
                     type="button"
                     className={fitted ? undefined : 'primary'}
                     disabled={!state.combat.docked}
-                    onClick={() => (fitted ? onUnequip(mod.id) : onEquip(mod.id))}
+                    onClick={(e) => {
+                      markLocalOk(e.currentTarget)
+                      fitted ? onUnequip(mod.id) : onEquip(mod.id)
+                    }}
                   >
                     {fitted ? 'Unequip' : 'Equip'}
                   </button>

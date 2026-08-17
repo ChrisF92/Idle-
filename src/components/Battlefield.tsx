@@ -60,6 +60,15 @@ interface Actor {
   telegraphToId?: string
   telegraphToX: number | null
   telegraphToY: number | null
+  displayHull: number
+  displayShield: number
+  trailHull: number
+  trailShield: number
+  trailT: number
+  recoil: number
+  shieldHit: number
+  hullHit: number
+  deathStage: number
 }
 
 interface Particle {
@@ -153,6 +162,10 @@ interface DamagePopup {
   text: string
   color: string
   fromPlayer: boolean
+  toId: string
+  hit: 'hull' | 'shield' | 'miss'
+  amount: number
+  major: boolean
 }
 
 interface Scene {
@@ -180,6 +193,8 @@ interface Scene {
   mode: BattlefieldMode
   starSeed: number
   scroll: number
+  reducedMotion: boolean
+  critVignette: number
 }
 
 /** Portrait logical canvas — phone-first, USI-style bottom ship / incoming waves. */
@@ -511,6 +526,7 @@ function ring(
 }
 
 function addShake(scene: Scene, amount: number): void {
+  if (scene.reducedMotion) return
   scene.shake = Math.min(14, scene.shake + amount)
 }
 
@@ -544,14 +560,12 @@ function explode(
     addShake(scene, 6)
     return
   }
-  // Boss wipe
-  burst(scene, x, y, color, 40, { speed: 1.5, size: 1.5, life: 1.25 })
-  burst(scene, x, y, '#ff8a7a', 18, { speed: 1.8, life: 0.85 })
-  burst(scene, x, y, '#fff0d0', 14, { speed: 0.65, life: 1.1, size: 1.2 })
-  ring(scene, x, y, '#ff6b6b', 140, 0.7, 3.5)
-  ring(scene, x, y, '#e0c07a', 70, 0.4, 2.2)
-  flash(scene, 255, 90, 70, 0.55, 0.55)
-  addShake(scene, 9)
+  // Boss wipe — stage 1 only; later stages fire from deathT.
+  burst(scene, x, y, color, 22, { speed: 1.15, size: 1.25, life: 0.9 })
+  burst(scene, x, y, '#fff0d0', 10, { speed: 0.55, life: 0.8, size: 1.05 })
+  ring(scene, x, y, '#ff6b6b', 70, 0.4, 2.6)
+  flash(scene, 255, 90, 70, 0.32, 0.32)
+  addShake(scene, 5)
 }
 
 function ensureActor(scene: Scene, unit: CombatUnit): Actor {
@@ -573,6 +587,8 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     existing.chargeLaser = isChargeTelegraph(unit)
     existing.telegraphToId = telegraphTargetId(unit)
     existing.phaseWarn = unit.phaseWarnLeft > 0 ? Math.min(1, unit.phaseWarnLeft / 0.9) : 0
+    if (unit.hull < existing.trailHull - 0.05) existing.trailT = 0.34
+    if (unit.shield < existing.trailShield - 0.05) existing.trailT = Math.max(existing.trailT, 0.28)
     if (unit.hull > 0 && !existing.alive) {
       existing.alive = true
       existing.deathT = 0
@@ -580,7 +596,6 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     }
     if (unit.hull <= 0 && existing.alive) {
       existing.alive = false
-      existing.deathT = 1
       const power =
         existing.isBoss
           ? 'boss'
@@ -589,6 +604,8 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
             : existing.side === 'player'
               ? 'medium'
               : 'small'
+      existing.deathT = existing.isBoss ? 1.7 : existing.isFlagship ? 1 : power === 'small' ? 0.42 : 0.7
+      existing.deathStage = existing.isBoss ? 1 : 0
       explode(scene, existing.x, existing.y, sideFill(existing.side, existing.isBoss), power)
       // Wave / pack wipe — last enemy down gets a cool victory wash.
       if (existing.side === 'enemy' && !existing.isBoss) {
@@ -602,7 +619,7 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
           ring(scene, existing.x, existing.y, '#e0c07a', 80, 0.45, 2.2)
         }
       } else if (existing.isBoss) {
-        flash(scene, 224, 192, 122, 0.35, 0.55)
+        flash(scene, 224, 192, 122, 0.22, 0.4)
       }
     }
     return existing
@@ -638,6 +655,15 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     telegraphToX: null,
     telegraphToY: null,
     phaseWarn: unit.phaseWarnLeft > 0 ? Math.min(1, unit.phaseWarnLeft / 0.9) : 0,
+    displayHull: unit.hull,
+    displayShield: unit.shield,
+    trailHull: unit.hull,
+    trailShield: unit.shield,
+    trailT: 0,
+    recoil: 0,
+    shieldHit: 0,
+    hullHit: 0,
+    deathStage: 0,
   }
   scene.actors.set(unit.id, actor)
 
@@ -686,6 +712,62 @@ function beamColor(tag: string, side: 'player' | 'enemy'): { glow: string; core:
     return { glow: tagColor(tag), core: '#ffe8c8' }
   }
   return { glow: '#7ec8ff', core: '#e8f7ff' }
+}
+
+function hullFragments(scene: Scene, x: number, y: number, n: number): void {
+  for (let i = 0; i < n; i += 1) {
+    const a = Math.random() * Math.PI * 2
+    const sp = 40 + Math.random() * 90
+    scene.particles.push({
+      x,
+      y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp + 20,
+      life: 0.28 + Math.random() * 0.28,
+      maxLife: 0.56,
+      color: Math.random() > 0.5 ? '#c47a3a' : '#8a5a38',
+      size: 1.6 + Math.random() * 2.2,
+      drag: 0.86,
+    })
+  }
+}
+
+function applyHitFx(scene: Scene, shot: CombatFx, to: Actor): void {
+  const miss = shot.hit === 'miss' || shot.tag === 'miss'
+  const amount = shot.amount ?? 0
+  if (miss) {
+    burst(scene, to.x, to.y, '#9aa3ad', 4, { speed: 0.5, size: 0.7, life: 0.28 })
+    spawnDamagePopup(scene, shot, to)
+    return
+  }
+
+  const shieldHit = shot.hit === 'shield'
+  if (shieldHit) {
+    burst(scene, to.x, to.y, '#7ec8ff', 8, { speed: 0.85, size: 0.85, life: 0.45, drag: 0.88 })
+    burst(scene, to.x, to.y, '#e8f7ff', 4, { speed: 0.45, size: 0.6, life: 0.32 })
+    ring(scene, to.x, to.y, '#7ec8ff', to.r * 2.6 + (to.isBoss || to.isFlagship ? 10 : 4), 0.28, 1.8)
+    to.shieldHit = 1
+    to.hitFlash = 0.55
+  } else {
+    burst(scene, to.x, to.y, '#ffe8c0', 3, { speed: 0.35, size: 0.7, life: 0.22 })
+    burst(scene, to.x, to.y, '#e08a3a', 7, { speed: 1.05, size: 0.95, life: 0.4 })
+    hullFragments(scene, to.x, to.y, to.isBoss || to.isFlagship ? 5 : 3)
+    ring(scene, to.x, to.y, '#e08a3a', to.isBoss || to.isFlagship ? 28 : 16, 0.18, 1.3)
+    to.hullHit = 1
+    to.hitFlash = 1
+    to.recoil = Math.min(1, to.recoil + (to.isFlagship ? 0.72 : to.isBoss ? 0.45 : 0.28))
+  }
+
+  const meaningful = amount >= 8 || (to.isFlagship && !shieldHit && amount >= 3)
+  if (to.isFlagship && !shieldHit) addShake(scene, amount >= 10 ? 2.2 : 1.35)
+  else if (to.isFlagship && shieldHit && amount >= 14) addShake(scene, 0.7)
+  else if (to.isBoss && meaningful) addShake(scene, 1.15)
+
+  spawnDamagePopup(scene, shot, to)
+}
+
+function capParticles(scene: Scene, max = 160): void {
+  if (scene.particles.length > max) scene.particles.splice(0, scene.particles.length - max)
 }
 
 function isHangarMode(_mode: BattlefieldMode): boolean {
@@ -926,21 +1008,10 @@ function syncScene(
     if (scene.seenFx.has(shot.id)) continue
     scene.seenFx.add(shot.id)
     const to = scene.actors.get(shot.toId)
-    if (to) {
-      const color = tagColor(shot.tag)
-      burst(scene, to.x, to.y, color, shot.tag === 'miss' ? 4 : 12, {
-        speed: shot.tag === 'miss' ? 0.5 : 1.15,
-        size: shot.tag === 'miss' ? 0.7 : 1.1,
-      })
-      if (shot.tag !== 'miss') {
-        to.hitFlash = 1
-        ring(scene, to.x, to.y, color, to.isBoss || to.isFlagship ? 36 : 22, 0.22, 1.6)
-        if (to.isFlagship || to.isBoss) addShake(scene, to.isBoss ? 2.4 : 1.4)
-      }
-      spawnDamagePopup(scene, shot, to)
-    }
+    if (to) applyHitFx(scene, shot, to)
   }
   if (scene.seenFx.size > 240) scene.seenFx = new Set(fx.map((f) => f.id))
+  capParticles(scene)
 
   for (const actor of scene.actors.values()) {
     const prev = scene.prevHull.get(actor.id)
@@ -1051,6 +1122,15 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.fillStyle = band
   ctx.fillRect(0, 0, scene.width, scene.height)
 
+  const nebulaX = scene.width * 0.28 + Math.sin(scene.scroll * 0.35) * 22
+  const nebulaY = scene.height * 0.22 + Math.cos(scene.scroll * 0.22) * 16
+  const neb = ctx.createRadialGradient(nebulaX, nebulaY, 8, nebulaX, nebulaY, scene.height * 0.34)
+  neb.addColorStop(0, 'rgba(48, 36, 28, 0.22)')
+  neb.addColorStop(0.55, 'rgba(61, 143, 136, 0.07)')
+  neb.addColorStop(1, 'rgba(18, 14, 12, 0)')
+  ctx.fillStyle = neb
+  ctx.fillRect(0, 0, scene.width, scene.height)
+
   const fighting = scene.mode === 'fighting'
   let seed = scene.starSeed
   for (let i = 0; i < 120; i += 1) {
@@ -1073,6 +1153,33 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.fillRect(x, y, i % 9 === 0 ? 2.2 : 1, i % 9 === 0 ? 2.2 : 1)
     }
   }
+
+  let dustSeed = scene.starSeed ^ 0x9e3779b9
+  for (let i = 0; i < 18; i += 1) {
+    dustSeed = (dustSeed * 16807) % 2147483647
+    const x = ((dustSeed % 1000) / 1000) * scene.width
+    dustSeed = (dustSeed * 16807) % 2147483647
+    const baseY = ((dustSeed % 1000) / 1000) * scene.height
+    const y =
+      (((baseY + scene.scroll * 28) % scene.height) + scene.height) % scene.height
+    ctx.fillStyle = `rgba(196, 176, 148, ${0.08 + (i % 5) * 0.02})`
+    ctx.fillRect(x, y, i % 3 === 0 ? 2 : 1, i % 3 === 0 ? 2 : 1)
+  }
+
+  let debrisSeed = scene.starSeed ^ 0x85ebca6b
+  for (let i = 0; i < 7; i += 1) {
+    debrisSeed = (debrisSeed * 16807) % 2147483647
+    const x = ((debrisSeed % 1000) / 1000) * scene.width
+    debrisSeed = (debrisSeed * 16807) % 2147483647
+    const baseY = ((debrisSeed % 1000) / 1000) * scene.height
+    const y =
+      (((baseY + scene.scroll * 16) % scene.height) + scene.height) % scene.height
+    ctx.globalAlpha = 0.12
+    ctx.strokeStyle = '#6a5a48'
+    ctx.lineWidth = 1
+    ctx.strokeRect(x, y, 5 + (i % 3) * 3, 2)
+  }
+  ctx.globalAlpha = 1
 
   ctx.strokeStyle = 'rgba(255,255,255,0.05)'
   ctx.beginPath()
@@ -1118,9 +1225,37 @@ function stepScene(scene: Scene, dt: number): void {
     if (actor.enterT > 0) actor.enterT = Math.max(0, actor.enterT - dt)
     if (actor.hitFlash > 0) actor.hitFlash = Math.max(0, actor.hitFlash - dt * 4)
     if (actor.muzzle > 0) actor.muzzle = Math.max(0, actor.muzzle - dt * 5)
+    if (actor.recoil > 0) actor.recoil = Math.max(0, actor.recoil - dt * 7)
+    if (actor.shieldHit > 0) actor.shieldHit = Math.max(0, actor.shieldHit - dt * 5)
+    if (actor.hullHit > 0) actor.hullHit = Math.max(0, actor.hullHit - dt * 6)
+
+    const follow = 1 - Math.exp(-dt * 9)
+    actor.displayHull += (actor.hull - actor.displayHull) * follow
+    actor.displayShield += (actor.shield - actor.displayShield) * follow
+    if (actor.trailT > 0) actor.trailT = Math.max(0, actor.trailT - dt)
+    const trailFollow = actor.trailT > 0 ? 0 : 1 - Math.exp(-dt * 3.2)
+    actor.trailHull += (actor.hull - actor.trailHull) * trailFollow
+    actor.trailShield += (actor.shield - actor.trailShield) * trailFollow
+    if (actor.hull >= actor.trailHull) actor.trailHull = actor.hull
+    if (actor.shield >= actor.trailShield) actor.trailShield = actor.shield
 
     if (!actor.alive) {
-      if (actor.deathT > 0) actor.deathT = Math.max(0, actor.deathT - dt * 1.8)
+      const deathRate = actor.isBoss ? 0.72 : actor.isFlagship ? 1.35 : 3.4
+      if (actor.deathT > 0) actor.deathT = Math.max(0, actor.deathT - dt * deathRate)
+      if (actor.isBoss && actor.deathStage === 1 && actor.deathT < 1.15) {
+        actor.deathStage = 2
+        burst(scene, actor.x, actor.y, '#ff8a7a', 16, { speed: 1.5, life: 0.8, size: 1.2 })
+        hullFragments(scene, actor.x, actor.y, 10)
+        ring(scene, actor.x, actor.y, '#e0c07a', 120, 0.55, 3)
+        addShake(scene, 3.2)
+      }
+      if (actor.isBoss && actor.deathStage === 2 && actor.deathT < 0.48) {
+        actor.deathStage = 3
+        burst(scene, actor.x, actor.y, '#fff0d0', 18, { speed: 0.7, life: 0.7, size: 1.3 })
+        ring(scene, actor.x, actor.y, '#ff6b6b', 150, 0.45, 3.4)
+        flash(scene, 255, 120, 80, 0.42, 0.38)
+        addShake(scene, 4)
+      }
       // Extra debris while a big unit is dying.
       if (actor.deathT > 0.2 && (actor.isBoss || actor.isFlagship) && Math.random() < dt * 18) {
         burst(
@@ -1215,6 +1350,16 @@ function stepScene(scene: Scene, dt: number): void {
     part.life -= dt
   }
   scene.particles = scene.particles.filter((p) => p.life > 0)
+  capParticles(scene)
+
+  let crit = 0
+  for (const actor of scene.actors.values()) {
+    if (actor.side === 'player' && actor.isFlagship && actor.hullMax > 0) {
+      const pct = actor.hull / actor.hullMax
+      if (pct <= 0.28) crit = Math.max(crit, pct <= 0.15 ? 0.55 : 0.32)
+    }
+  }
+  scene.critVignette += (crit - scene.critVignette) * Math.min(1, dt * 4)
 
   for (const f of scene.flashes) f.life -= dt
   scene.flashes = scene.flashes.filter((f) => f.life > 0)
@@ -1386,17 +1531,36 @@ function spawnDamagePopup(scene: Scene, shot: CombatFx, to: Actor): void {
   const miss = shot.hit === 'miss' || shot.tag === 'miss'
   const amount = shot.amount ?? 0
   if (!miss && amount < 0.05) return
+  const hit: 'hull' | 'shield' | 'miss' = miss ? 'miss' : shot.hit === 'shield' ? 'shield' : 'hull'
+  if (!miss) {
+    const existing = scene.popups.find(
+      (p) => p.toId === to.id && p.hit === hit && p.fromPlayer === Boolean(fromPlayer) && p.life > 0.28,
+    )
+    if (existing) {
+      existing.amount += amount
+      existing.text = formatPopupDamage(existing.amount)
+      existing.life = Math.min(existing.maxLife, existing.life + 0.16)
+      existing.y = to.y - to.r - 6
+      existing.major = existing.major || existing.amount >= Math.max(14, to.hullMax * 0.12)
+      return
+    }
+  }
+  const major = !miss && amount >= Math.max(14, to.hullMax * 0.12)
   scene.popups.push({
-    x: to.x + (Math.random() - 0.5) * 18,
+    x: to.x + (Math.random() - 0.5) * 14,
     y: to.y - to.r - 6,
-    vy: miss ? -28 : -52,
-    life: miss ? 0.55 : 0.7,
-    maxLife: miss ? 0.55 : 0.7,
+    vy: miss ? -28 : major ? -62 : -52,
+    life: miss ? 0.5 : major ? 0.82 : 0.7,
+    maxLife: miss ? 0.5 : major ? 0.82 : 0.7,
     text: miss ? 'miss' : formatPopupDamage(amount),
     color: popupColor(shot, Boolean(fromPlayer)),
     fromPlayer: Boolean(fromPlayer),
+    toId: to.id,
+    hit,
+    amount: miss ? 0 : amount,
+    major,
   })
-  if (scene.popups.length > 40) scene.popups.splice(0, scene.popups.length - 40)
+  if (scene.popups.length > 28) scene.popups.splice(0, scene.popups.length - 28)
 }
 
 function drawDamagePopups(ctx: CanvasRenderingContext2D, scene: Scene): void {
@@ -1409,9 +1573,11 @@ function drawDamagePopups(ctx: CanvasRenderingContext2D, scene: Scene): void {
     ctx.fillStyle = p.color
     ctx.shadowColor = p.color
     ctx.shadowBlur = p.fromPlayer ? 8 : 5
-    ctx.font = p.fromPlayer
-      ? '700 13px "IBM Plex Mono", ui-monospace, monospace'
-      : '600 12px "IBM Plex Mono", ui-monospace, monospace'
+    ctx.font = p.major
+      ? '700 15px "IBM Plex Mono", ui-monospace, monospace'
+      : p.fromPlayer
+        ? '700 13px "IBM Plex Mono", ui-monospace, monospace'
+        : '600 12px "IBM Plex Mono", ui-monospace, monospace'
     ctx.fillText(p.text, p.x, p.y)
   }
   ctx.restore()
@@ -1586,6 +1752,9 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
 
   const actors = [...scene.actors.values()].sort((a, b) => a.y - b.y)
   for (const actor of actors) {
+    const recoil = actor.recoil * (actor.side === 'player' ? 5 : -4)
+    const ax = actor.x
+    const ay = actor.y + recoil
     const dying = !actor.alive
     const alpha = dying ? Math.max(0, actor.deathT) : 1
     if (alpha <= 0) continue
@@ -1600,20 +1769,23 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     if (actor.alive && actor.shieldMax > 0 && actor.shield > 0) {
       const pct = actor.shield / actor.shieldMax
       const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(scene.time * 3.2 + actor.bobPhase))
+      const hitExpand = actor.shieldHit * 7
       ctx.save()
-      ctx.translate(actor.x, actor.y)
+      ctx.translate(ax, ay)
       ctx.strokeStyle = '#7ec8ff'
       ctx.globalAlpha = (0.18 + pct * 0.28) * pulse * alpha
-      ctx.lineWidth = 1.4 + pct
+      ctx.lineWidth = 1.4 + pct + actor.shieldHit
+      ctx.shadowColor = '#7ec8ff'
+      ctx.shadowBlur = 6 + actor.shieldHit * 10
       ctx.beginPath()
-      ctx.arc(0, 0, actor.r + 5 + pct * 2, 0, Math.PI * 2)
+      ctx.arc(0, 0, actor.r + 5 + pct * 2 + hitExpand, 0, Math.PI * 2)
       ctx.stroke()
       ctx.restore()
     }
 
     ctx.save()
-    ctx.translate(actor.x, actor.y)
-    ctx.scale(scale, scale)
+    ctx.translate(ax, ay)
+    ctx.scale(scale * (1 + actor.hullHit * 0.06), scale * (1 - actor.hullHit * 0.04))
     if (actor.hitFlash > 0) {
       ctx.shadowColor = '#ffffff'
       ctx.shadowBlur = 16 * actor.hitFlash
@@ -1644,7 +1816,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       // Telegraph = amber-red slam charge; phase warn = cool cyan (no purple).
       const color = actor.telegraph > 0 ? '#ff6b4a' : '#7ec8ff'
       ctx.save()
-      ctx.translate(actor.x, actor.y)
+      ctx.translate(ax, ay)
       ctx.strokeStyle = color
       ctx.globalAlpha = 0.35 + pulse * 0.55
       ctx.lineWidth = 2 + pulse * 2.5
@@ -1664,16 +1836,32 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     // Compact hull / shield pips under every ship, including the flagship.
     {
       const barW = actor.r * 2.1
-      const barX = actor.x - barW / 2
-      const barY = actor.y + actor.r + 5
+      const barX = ax - barW / 2
+      const barY = ay + actor.r + 5
+      const hullMax = Math.max(1, actor.hullMax)
+      const shown = Math.max(0, actor.displayHull / hullMax)
+      const trail = Math.max(shown, actor.trailHull / hullMax)
       ctx.globalAlpha = alpha * 0.95
       ctx.fillStyle = '#0d1117'
       ctx.fillRect(barX, barY, barW, 3.5)
+      if (trail > shown + 0.01) {
+        ctx.fillStyle = actor.side === 'player' ? '#6a4030' : '#5a2424'
+        ctx.fillRect(barX, barY, barW * trail, 3.5)
+      }
       ctx.fillStyle = actor.side === 'player' ? '#e0b06a' : '#e07070'
-      ctx.fillRect(barX, barY, barW * Math.max(0, actor.hull / Math.max(1, actor.hullMax)), 3.5)
-      if (actor.shieldMax > 0 && actor.shield > 0) {
-        ctx.fillStyle = '#7ec8ff'
-        ctx.fillRect(barX, barY - 3.5, barW * (actor.shield / actor.shieldMax), 2.5)
+      ctx.fillRect(barX, barY, barW * shown, 3.5)
+      if (actor.shieldMax > 0) {
+        const sMax = Math.max(1, actor.shieldMax)
+        const sShown = Math.max(0, actor.displayShield / sMax)
+        const sTrail = Math.max(sShown, actor.trailShield / sMax)
+        if (sTrail > 0.01) {
+          ctx.fillStyle = '#1a3344'
+          ctx.fillRect(barX, barY - 3.5, barW * sTrail, 2.5)
+        }
+        if (sShown > 0) {
+          ctx.fillStyle = '#7ec8ff'
+          ctx.fillRect(barX, barY - 3.5, barW * sShown, 2.5)
+        }
       }
       ctx.globalAlpha = 1
     }
@@ -1689,6 +1877,21 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.globalAlpha = 1
 
   drawFlashes(ctx, scene)
+  if (scene.critVignette > 0.02) {
+    const a = scene.critVignette * (0.7 + 0.3 * Math.sin(scene.time * 2.1))
+    const vig = ctx.createRadialGradient(
+      scene.width / 2,
+      scene.height / 2,
+      scene.height * 0.22,
+      scene.width / 2,
+      scene.height / 2,
+      scene.height * 0.78,
+    )
+    vig.addColorStop(0, 'rgba(196, 92, 92, 0)')
+    vig.addColorStop(1, `rgba(140, 40, 36, ${a})`)
+    ctx.fillStyle = vig
+    ctx.fillRect(0, 0, scene.width, scene.height)
+  }
   drawDamagePopups(ctx, scene)
 
   ctx.restore()
@@ -1738,6 +1941,11 @@ export function Battlefield({
       mode: 'ready',
       starSeed: 1234567,
       scroll: 0,
+      reducedMotion:
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      critVignette: 0,
     }
     sceneRef.current = scene
 

@@ -6,6 +6,7 @@ import { ScreenHelp } from '../components/ScreenHelp'
 import { StatsTab } from '../components/tabs/StatsTab'
 import { TabNav } from '../components/TabNav'
 import { GuideOverlay } from '../components/GuideOverlay'
+import { ToastStack } from '../components/ToastStack'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
 import { acknowledgeOnboarding, activeGuideStep, GUIDE_STEPS } from './progression'
@@ -199,6 +200,29 @@ describe('shell UX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sortie info' }))
     expect(screen.getByRole('dialog', { name: 'Sortie' })).toBeTruthy()
     expect(screen.getByText(/Drones belong on the Network tab/i)).toBeTruthy()
+  })
+
+  it('renders actionable toasts without covering as a modal', () => {
+    render(
+      <ToastStack
+        toasts={[
+          {
+            id: 'sys:research',
+            key: 1,
+            createdAt: 0,
+            category: 'SYSTEM ONLINE',
+            title: 'Research unlocked',
+            body: 'Permanent Hive Research is now available.',
+            action: { label: 'OPEN RESEARCH', nav: { kind: 'tab', tab: 'research' } },
+          },
+        ]}
+        onDismiss={() => undefined}
+        onAction={() => undefined}
+      />,
+    )
+    expect(screen.getByText('Research unlocked')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /OPEN RESEARCH/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy()
   })
 
   it('lists Coming up stations and folds later systems on More', () => {

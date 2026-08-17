@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import type { GameState, NetworkLinkId } from '../../game/types'
 import {
   droneCap,
@@ -9,6 +10,7 @@ import {
 import { networkLinkPower, networkManufactureMult } from '../../game/network'
 import { formatCompact } from '../../game/format'
 import { NetworkSheet } from '../NetworkSheet'
+import { useJustBecame } from '../../hooks/useJustBecame'
 
 interface NetworkTabProps {
   state: GameState
@@ -27,6 +29,21 @@ export function NetworkTab({ state, onAssign, onBuyLink }: NetworkTabProps) {
       : ((1 - state.base.manufactureProgress) * WORKER_MANUFACTURE_SECONDS) / speed
   const link = networkLinkPower(state)
   const efficiency = dronePower(state)
+  const fill = atCap ? 1 : state.base.manufactureProgress
+  const drones = state.base.workerDrones
+  const prevDrones = useRef(drones)
+  const [justMade, setJustMade] = useState(false)
+  const idleFlash = useJustBecame(idle > 0)
+
+  useEffect(() => {
+    if (drones > prevDrones.current) {
+      setJustMade(true)
+      const t = window.setTimeout(() => setJustMade(false), 560)
+      prevDrones.current = drones
+      return () => window.clearTimeout(t)
+    }
+    prevDrones.current = drones
+  }, [drones])
 
   return (
     <section className="panel screen-panel">
@@ -39,14 +56,20 @@ export function NetworkTab({ state, onAssign, onBuyLink }: NetworkTabProps) {
           {atCap ? ' · cap' : eta != null ? ` · next drone ${Math.ceil(eta)}s` : ''}
         </p>
       </header>
-      <div className="manufacture-bar network-manufacture" data-guide="network-manufacture" aria-hidden>
-        <div
-          className="manufacture-bar-fill"
-          style={{ width: `${Math.round((atCap ? 1 : state.base.manufactureProgress) * 100)}%` }}
-        />
+      <div
+        className={`manufacture-bar network-manufacture${atCap ? ' is-capped' : ''}${justMade ? ' just-complete' : ''}`}
+        data-guide="network-manufacture"
+        aria-hidden
+      >
+        <div className="manufacture-bar-fill" style={{ transform: `scaleX(${fill})` }} />
       </div>
       <div className="panel-scroll">
-        <NetworkSheet state={state} onAssign={onAssign} onBuyLink={onBuyLink} />
+        <NetworkSheet
+          state={state}
+          onAssign={onAssign}
+          onBuyLink={onBuyLink}
+          idleHighlight={idleFlash}
+        />
       </div>
     </section>
   )

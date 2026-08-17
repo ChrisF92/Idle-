@@ -381,6 +381,7 @@ h2 .inspect-name {
 
 .manufacture-bar-fill {
   height: 100%;
+  width: 100%;
   background: color-mix(in srgb, var(--accent) 70%, #4a8);
 }
 
@@ -849,6 +850,7 @@ h2 .inspect-name {
 .network-fill > span {
   display: block;
   height: 100%;
+  width: 100%;
   background: color-mix(in srgb, var(--accent) 75%, #4a8);
 }
 

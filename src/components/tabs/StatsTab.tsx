@@ -35,7 +35,10 @@ function StationRow({
   const need = systemUnlockRequirement(station.id)
   const flags = moreStationAttention(state, station.id)
   return (
-    <article className={unlocked ? 'network-row' : 'network-row locked'}>
+    <article
+      className={unlocked ? (flags.spend ? 'network-row is-affordable' : 'network-row is-ready') : 'network-row locked'}
+      data-focus={`station-${station.id}`}
+    >
       <div className="network-row-main">
         <strong>
           {station.name}

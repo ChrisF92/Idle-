@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { CombatPushMode, GameState } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { COMBAT_PUSH_MODES, normalizePushMode, normalizeRoute, pushModeLabel } from '../../game/sectors'
@@ -10,6 +10,7 @@ import { attentionAria, coresAttention } from '../../game/hubAttention'
 import { AttentionPips } from '../AttentionPips'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
+import { markLocalOk } from '../../hooks/useJustBecame'
 
 interface CombatTabProps {
   state: GameState
@@ -20,6 +21,7 @@ interface CombatTabProps {
   paused?: boolean
   guide?: GuideStep | null
   onMarkCoresSeen?: () => void
+  coresRequest?: { key: number; moduleId?: string } | null
 }
 
 function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {
@@ -37,6 +39,7 @@ export function CombatTab({
   paused = false,
   guide = null,
   onMarkCoresSeen,
+  coresRequest = null,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -52,6 +55,18 @@ export function CombatTab({
   const [coresOpen, setCoresOpen] = useState(false)
   const sheetOpen = salvageOpen && (coresOpen || forceCores)
   const coresFlags = coresAttention(state)
+  const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
+  const shieldPct = stats.shieldMax > 0 ? combat.playerShield / stats.shieldMax : 0
+  const hullBand = hullPct <= 0.28 ? 'critical' : hullPct <= 0.55 ? 'damaged' : 'healthy'
+  const [banner, setBanner] = useState<{ text: string; kind: 'wave' | 'boss' | 'sector' } | null>(
+    null,
+  )
+  const bannerRef = useRef({
+    wave: combat.wave,
+    sector: combat.sector,
+    boss: combat.isBoss,
+    primed: false,
+  })
 
   useEffect(() => {
     if (forceCores) setCoresOpen(true)
@@ -64,6 +79,59 @@ export function CombatTab({
   useEffect(() => {
     if (guide && !isCoresGuideTarget(guide)) setCoresOpen(false)
   }, [guide])
+
+  useEffect(() => {
+    if (!coresRequest) return
+    setCoresOpen(true)
+  }, [coresRequest?.key])
+
+  useEffect(() => {
+    if (!sheetOpen || !coresRequest?.moduleId) return
+    const el = document.querySelector(`[data-guide="core-${CSS.escape(coresRequest.moduleId)}"]`)
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [sheetOpen, coresRequest])
+
+  useEffect(() => {
+    if (combat.docked && !dying) {
+      bannerRef.current = {
+        wave: combat.wave,
+        sector: combat.sector,
+        boss: combat.isBoss,
+        primed: false,
+      }
+      setBanner(null)
+      return
+    }
+    const prev = bannerRef.current
+    if (!prev.primed) {
+      bannerRef.current = {
+        wave: combat.wave,
+        sector: combat.sector,
+        boss: combat.isBoss,
+        primed: true,
+      }
+      return
+    }
+    if (combat.sector > prev.sector) {
+      setBanner({ text: `SECTOR ${prev.sector} CLEARED`, kind: 'sector' })
+    } else if (combat.isBoss && !prev.boss) {
+      setBanner({ text: 'BOSS WAVE', kind: 'boss' })
+    } else if (combat.wave !== prev.wave) {
+      setBanner({ text: `WAVE ${combat.wave}`, kind: 'wave' })
+    }
+    bannerRef.current = {
+      wave: combat.wave,
+      sector: combat.sector,
+      boss: combat.isBoss,
+      primed: true,
+    }
+  }, [combat.wave, combat.sector, combat.isBoss, combat.docked, dying])
+
+  useEffect(() => {
+    if (!banner) return
+    const t = window.setTimeout(() => setBanner(null), 1700)
+    return () => window.clearTimeout(t)
+  }, [banner])
 
   useEffect(() => {
     if (!sheetOpen) return
@@ -122,7 +190,7 @@ export function CombatTab({
   const enemyUnits = combat.docked && !dying ? [] : combat.enemyUnits
 
   return (
-    <section className="sortie-screen">
+    <section className={hullBand === 'critical' ? 'sortie-screen is-critical' : 'sortie-screen'}>
       <header className="combat-hud-bar">
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">
@@ -136,17 +204,26 @@ export function CombatTab({
             W{combat.wave}/{waves}
           </strong>
         </div>
-        <div className="combat-hud-readout" data-guide="sortie-hull">
+        <div
+          className={`combat-hud-readout${hullBand === 'healthy' ? '' : ` is-${hullBand}`}`}
+          data-guide="sortie-hull"
+        >
           <span className="combat-hud-kicker">Hull</span>
           <strong className="combat-hud-value">
             {formatCompact(Math.ceil(combat.playerHull))}/{formatCompact(Math.ceil(stats.hullMax))}
           </strong>
+          <span className="hud-underline hull" aria-hidden>
+            <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, hullPct))})` }} />
+          </span>
         </div>
         <div className="combat-hud-readout" data-guide="sortie-shield">
           <span className="combat-hud-kicker">Shield</span>
           <strong className="combat-hud-value">
             {formatCompact(Math.ceil(combat.playerShield))}/{formatCompact(Math.ceil(stats.shieldMax))}
           </strong>
+          <span className="hud-underline shield" aria-hidden>
+            <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, shieldPct))})` }} />
+          </span>
         </div>
         {salvageOpen ? (
           <div className="combat-hud-readout" data-guide="salvage-stat">
@@ -166,6 +243,14 @@ export function CombatTab({
           mode={battlefieldMode}
           paused={paused}
         />
+        {banner ? (
+          <p className={`combat-banner is-${banner.kind}`} role="status">
+            <span className="combat-banner-kicker">
+              {banner.kind === 'boss' ? 'CONTACT' : banner.kind === 'sector' ? 'CLEAR' : 'WAVE'}
+            </span>
+            <strong className="combat-banner-title">{banner.text}</strong>
+          </p>
+        ) : null}
         {dying ? (
           <p className="sortie-defeat-banner" role="status">
             Hull lost
@@ -192,7 +277,15 @@ export function CombatTab({
             ))}
           </div>
         ) : (
-          <button type="button" className="primary" data-guide="launch" onClick={onLaunch}>
+          <button
+            type="button"
+            className="primary"
+            data-guide="launch"
+            onClick={(e) => {
+              markLocalOk(e.currentTarget)
+              onLaunch()
+            }}
+          >
             Launch
           </button>
         )}

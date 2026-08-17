@@ -12,6 +12,7 @@ import {
 } from '../../game/sectors'
 import { getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
+import { markLocalOk } from '../../hooks/useJustBecame'
 
 interface DockTabProps {
   state: GameState
@@ -20,6 +21,11 @@ interface DockTabProps {
   onRebuild: () => void
   onSetSector?: (sector: number) => void
   onSetRoute?: (route: 'A' | 'B') => void
+}
+
+function meterScale(current: number, max: number): number {
+  if (max <= 0) return 0
+  return Math.max(0, Math.min(1, current / max))
 }
 
 export function DockTab({
@@ -44,16 +50,25 @@ export function DockTab({
   const protocol = activeProtocol(state)
   const echoRun = state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const specialRun = Boolean(protocol || echoRun)
+  const dockMode = live ? 'is-live' : rebuildReady ? 'is-rebuild' : 'is-ready'
+  const hullPct = meterScale(combat.playerHull, stats.hullMax)
+  const shieldPct = meterScale(combat.playerShield, stats.shieldMax)
 
   return (
-    <section className="panel screen-panel dock-screen">
+    <section className={`panel screen-panel dock-screen ${dockMode}`}>
       <header className="dock-hero">
         <p className="hud-chip-label">
           Sector {combat.sector}
-          {routeB ? combat.route === 'B' ? 'B' : 'A' : ''}
+          {routeB ? (combat.route === 'B' ? 'B' : 'A') : ''}
         </p>
         <h2>Dock</h2>
-        <p className="muted">Launch to rank Cores. Combat stays live until hull loss. Hold or Advance from Sortie.</p>
+        <p className="muted">
+          {live
+            ? 'Sortie live. Hold or Advance from the battlefield.'
+            : rebuildReady
+              ? 'Hull is docked. Rebuild hangar is ready.'
+              : 'Launch to rank Cores. Combat stays live until hull loss.'}
+        </p>
       </header>
 
       <div className="stat-row dock-stats">
@@ -62,12 +77,18 @@ export function DockTab({
           <strong>
             {Math.ceil(combat.playerHull)}/{Math.ceil(stats.hullMax)}
           </strong>
+          <span className="dock-stat-meter hull" aria-hidden>
+            <span style={{ transform: `scaleX(${hullPct})` }} />
+          </span>
         </div>
         <div>
           <span className="muted">Shield</span>
           <strong>
             {Math.ceil(combat.playerShield)}/{Math.ceil(stats.shieldMax)}
           </strong>
+          <span className="dock-stat-meter shield" aria-hidden>
+            <span style={{ transform: `scaleX(${shieldPct})` }} />
+          </span>
         </div>
         <div>
           <span className="muted">DPS</span>
@@ -77,10 +98,19 @@ export function DockTab({
 
       {live ? (
         <button type="button" className="primary dock-cta" onClick={onOpenSortie}>
+          <span className="live-pip" aria-hidden />
           Battlefield · S{combat.sector} W{combat.wave}/{waves}
         </button>
       ) : (
-        <button type="button" className="primary dock-cta" data-guide="launch" onClick={onLaunch}>
+        <button
+          type="button"
+          className="primary dock-cta"
+          data-guide="launch"
+          onClick={(e) => {
+            markLocalOk(e.currentTarget)
+            onLaunch()
+          }}
+        >
           {echoRun ? `Launch ${echoRun.name}` : protocol ? `Launch ${protocol.name}` : 'Launch sortie'}
         </button>
       )}
@@ -129,7 +159,10 @@ export function DockTab({
         className="dock-rebuild"
         data-guide="rebuild-btn"
         disabled={!rebuildReady}
-        onClick={onRebuild}
+        onClick={(e) => {
+          markLocalOk(e.currentTarget)
+          onRebuild()
+        }}
       >
         {rebuildReady ? 'Rebuild hangar' : `Rebuild · sector ${rebuildMin}`}
       </button>
@@ -171,7 +204,7 @@ export function DockTab({
           {summary.note ? <p className="muted dock-last">{summary.note}</p> : null}
         </div>
       ) : (
-        <p className="muted dock-last">No sortie yet</p>
+        <p className="muted dock-last dock-empty">No sortie yet</p>
       )}
     </section>
   )
