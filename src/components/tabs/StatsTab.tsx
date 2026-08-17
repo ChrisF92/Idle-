@@ -149,6 +149,7 @@ export function StatsTab({
         </div>
       ) : null}
 
+      {pane === 'settings' ? (
         <div className="stack">
         {onNotation ? (
           <div>

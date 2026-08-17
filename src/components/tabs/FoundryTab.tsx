@@ -58,7 +58,7 @@ interface FoundryTabProps {
   requestedPane?: FoundryPane | null
 }
 
-export function foundryPaneFromHints(
+function foundryPaneFromHints(
   guideTarget?: string | null,
   focusTarget?: string | null,
   requestedPane?: FoundryPane | null,
