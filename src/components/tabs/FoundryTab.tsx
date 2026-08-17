@@ -314,7 +314,8 @@ export function FoundryTab({
                     disabled={!state.combat.docked}
                     onClick={(e) => {
                       markLocalOk(e.currentTarget)
-                      fitted ? onUnequip(mod.id) : onEquip(mod.id)
+                      if (fitted) onUnequip(mod.id)
+                      else onEquip(mod.id)
                     }}
                   >
                     {fitted ? 'Unequip' : 'Equip'}

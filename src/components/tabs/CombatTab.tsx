@@ -83,7 +83,7 @@ export function CombatTab({
   useEffect(() => {
     if (!coresRequest) return
     setCoresOpen(true)
-  }, [coresRequest?.key])
+  }, [coresRequest])
 
   useEffect(() => {
     if (!sheetOpen || !coresRequest?.moduleId) return

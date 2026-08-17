@@ -61,6 +61,8 @@ describe('session toasts', () => {
     expect(toasts.some((t) => t.id === 'sys:rebuild')).toBe(true)
     expect(toasts.find((t) => t.id === 'sys:rebuild')?.action?.nav).toEqual({ kind: 'rebuild' })
   })
+
+  it('toasts a completed Core Print as assemblable', () => {
     const state = markHullLost(createInitialState(0))
     state.meta.highestSectorEver = 8
     state.combat.highestSector = 8
