@@ -6,7 +6,13 @@ import {
   canBuyNetworkLink,
   isNetworkBarUnlocked,
   networkCycleMult,
+  networkDiagnostics,
+  networkExponent,
+  networkFillCap,
+  networkFillCost,
   networkFillRate,
+  networkFormulaHooks,
+  networkLevelEffectiveness,
   networkLevels,
   networkLinkPower,
   networkLinkRank,
@@ -18,6 +24,7 @@ import { droneCap, dronePower, idleWorkers } from './catalog'
 import { isSystemUnlocked } from './progression'
 import { advanceSeconds } from './tick'
 import { salvageFromKill } from './combat'
+import { exportSave, importSave } from './save'
 
 describe('phase 4: drone network', () => {
   it('starts with a corps; Network tab waits for first hull loss', () => {
@@ -188,3 +195,138 @@ describe('phase 4: drone network', () => {
     expect(droneCap(s)).toBe(10 + racks)
   })
 })
+
+describe('Network layers', () => {
+  function sector(n: number) {
+    const s = createInitialState(0)
+    s.meta.highestSectorEver = n
+    s.combat.highestSector = n
+    s.meta.hullLostOnce = true
+    return s
+  }
+
+  it('unlocks Relays and Lattices on career sector, not as extra damage shops', () => {
+    const early = sector(7)
+    expect(isNetworkBarUnlocked(early, 'strike-relay')).toBe(false)
+    expect(isNetworkBarUnlocked(early, 'ward-relay')).toBe(false)
+
+    const s8 = sector(8)
+    expect(isNetworkBarUnlocked(s8, 'strike-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(s8, 'ward-relay')).toBe(false)
+    expect(isNetworkBarUnlocked(s8, 'yield-relay')).toBe(false)
+
+    expect(isNetworkBarUnlocked(sector(9), 'ward-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(12), 'yield-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(13), 'loom-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(16), 'archive-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(19), 'strike-lattice')).toBe(false)
+    expect(isNetworkBarUnlocked(sector(20), 'strike-lattice')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(22), 'ward-lattice')).toBe(true)
+  })
+
+  it('Strike Relay raises Strike fill, level strength, and fill cap', () => {
+    const plain = sector(8)
+    plain.network.bars.strike.levels = 12
+    const relayed = sector(8)
+    relayed.network.bars.strike.levels = 12
+    relayed.network.bars['strike-relay'].levels = 16
+
+    expect(networkFillCap(relayed, 'strike')).toBeGreaterThan(networkFillCap(plain, 'strike'))
+    expect(networkFillCost(relayed, 'strike')).toBeLessThan(networkFillCost(plain, 'strike'))
+    expect(networkStrikeMult(relayed)).toBeGreaterThan(networkStrikeMult(plain))
+    expect(networkLevelEffectiveness(relayed, 'strike')).toBeGreaterThan(1)
+
+    const assigned = assignWorker(relayed, 'strike', 4)
+    const assignedPlain = assignWorker(plain, 'strike', 4)
+    expect(networkFillRate(assigned, 'strike')).toBeGreaterThan(networkFillRate(assignedPlain, 'strike'))
+  })
+
+  it('Strike Lattice improves Relay strength and Strike exponent, not a flat damage shop', () => {
+    const relayOnly = sector(20)
+    relayOnly.network.bars.strike.levels = 20
+    relayOnly.network.bars['strike-relay'].levels = 16
+
+    const latticed = sector(20)
+    latticed.network.bars.strike.levels = 20
+    latticed.network.bars['strike-relay'].levels = 16
+    latticed.network.bars['strike-lattice'].levels = 9
+
+    expect(networkLevelEffectiveness(latticed, 'strike')).toBeGreaterThan(
+      networkLevelEffectiveness(relayOnly, 'strike'),
+    )
+    expect(networkExponent(latticed, 'strike')).toBeGreaterThan(networkExponent(relayOnly, 'strike'))
+    expect(networkStrikeMult(latticed)).toBeGreaterThan(networkStrikeMult(relayOnly))
+
+    const relayAssigned = assignWorker(latticed, 'strike-relay', 3)
+    const relayPlain = assignWorker(relayOnly, 'strike-relay', 3)
+    expect(networkFillRate(relayAssigned, 'strike-relay')).toBeGreaterThan(
+      networkFillRate(relayPlain, 'strike-relay'),
+    )
+  })
+
+  it('assigns drones onto Relays and fills them offline', () => {
+    let s = sector(8)
+    s = assignWorker(s, 'strike-relay', 3)
+    expect(s.base.assignments['strike-relay']).toBe(3)
+    advanceSeconds(s, 40)
+    expect(networkLevels(s, 'strike-relay')).toBeGreaterThan(0)
+  })
+
+  it('Rebuild wipes Relay levels and assignments, keeps Links and the corps', () => {
+    let s = sector(8)
+    s.combat.sector = 8
+    s.resources.heat = 40
+    s = buyNetworkLink(s, 'racks')
+    s = assignWorker(s, 'strike-relay', 3)
+    advanceSeconds(s, 40)
+    expect(networkLevels(s, 'strike-relay')).toBeGreaterThan(0)
+    const corps = s.base.workerDrones
+    const racks = networkLinkRank(s, 'racks')
+
+    s = performRebuild(s, {
+      frameId: 'scout-frame',
+      modules: ['pulse-cannon', 'plate-layer'],
+    })
+    expect(s.network.bars['strike-relay'].levels).toBe(0)
+    expect(s.network.bars.strike.levels).toBe(0)
+    expect(s.base.assignments['strike-relay'] ?? 0).toBe(0)
+    expect(s.base.workerDrones).toBe(corps)
+    expect(networkLinkRank(s, 'racks')).toBe(racks)
+  })
+
+  it('hydrates missing Relay keys on old Network saves', () => {
+    const s = sector(8)
+    s.network.bars.strike.levels = 7
+    const parsed = JSON.parse(decodeURIComponent(escape(atob(exportSave(s))))) as {
+      network: { bars: Record<string, { progress: number; levels: number }> }
+    }
+    delete parsed.network.bars['strike-relay']
+    delete parsed.network.bars['ward-lattice']
+    const imported = importSave(btoa(unescape(encodeURIComponent(JSON.stringify(parsed)))))
+    expect(imported).toBeTruthy()
+    expect(imported!.network.bars.strike.levels).toBe(7)
+    expect(imported!.network.bars['strike-relay']).toEqual({ progress: 0, levels: 0 })
+    expect(imported!.network.bars['ward-lattice']).toEqual({ progress: 0, levels: 0 })
+    expect(imported!.network.bars['archive-relay'].levels).toBe(0)
+  })
+
+  it('exposes identity Protocol formula hooks and diagnostics', () => {
+    let s = sector(8)
+    s = assignWorker(s, 'strike', 2)
+    const hooks = networkFormulaHooks(s)
+    expect(hooks).toEqual({
+      fillGrowthMult: 1,
+      droneEfficiencyMult: 1,
+      relayEffectivenessMult: 1,
+      exponentAdd: 0,
+      fillCapMult: 1,
+    })
+    const diag = networkDiagnostics(s)
+    expect(diag.drones).toBe(s.base.workerDrones)
+    expect(diag.assigned).toBe(2)
+    expect(diag.levels.strike).toBeGreaterThanOrEqual(0)
+    expect(diag.fillRates.strike).toBeGreaterThan(0)
+    expect(diag.multipliers.strike).toBeGreaterThanOrEqual(1)
+  })
+})
+

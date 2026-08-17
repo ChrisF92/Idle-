@@ -49,9 +49,9 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   network: {
     title: 'Network',
     body: [
-      'Assign drones to bars. Strike raises damage. Ward raises shields. Later bars unlock as you push sectors. Links sit on their own pane.',
-      'Link power is assigned drones times efficiency. Corps racks hang more hulls. Drone acuity makes each hull count for more. Cycle speed turns the clock up — those three spend scrap at first, then Heat after the Furnace.',
-      'Tap a bar or Link name for live numbers. Bar levels reset on Rebuild. The corps and Link ranks stay. Drones never fly on Sortie.',
+      'Drones are a finite workforce. Assign them to bars. Strike is damage, Ward is shields, Yield is salvage, Loom is manufacture, Archive is Research data. Reassign when the job changes. Idle drones do nothing. Close is good enough.',
+      'Later Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop. Links (racks, acuity, cycle) persist on Rebuild. Bar levels reset.',
+      'Tap a bar name for live numbers. Drones never fly on Sortie.',
     ],
   },
   foundry: {

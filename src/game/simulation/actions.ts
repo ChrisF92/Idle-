@@ -1,6 +1,6 @@
 /** Apply legal gameplay actions. Strategies choose; this module never cheats. */
 
-import type { GameState, NetworkBarId, FoundryRecipeId } from '../types'
+import type { GameState, FoundryRecipeId } from '../types'
 import {
   buyFoundryUpgrade,
   buyMatterShop,
@@ -220,12 +220,19 @@ export function spendSalvageOnCores(
   return next
 }
 
-const NETWORK_WEIGHTS: Record<NetworkBarId, number> = {
+const NETWORK_WEIGHTS: Record<string, number> = {
   strike: 4,
+  'strike-relay': 2,
+  'strike-lattice': 1,
   ward: 3,
+  'ward-relay': 2,
+  'ward-lattice': 1,
   yield: 2,
+  'yield-relay': 1,
   loom: 2,
+  'loom-relay': 1,
   archive: 1,
+  'archive-relay': 1,
 }
 
 export function rebalanceNetwork(state: GameState, ctx: StrategyContext): GameState {

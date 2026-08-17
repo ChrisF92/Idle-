@@ -75,6 +75,7 @@ import {
   setProcessConfig,
   buyMaxCores,
   optimiseNetwork,
+  applyNetworkPreset,
   buyMaxFoundryUpgrades,
   buyMaxYardArms,
   saveYardLayout,
@@ -172,6 +173,7 @@ type Action =
   | { type: 'process-config'; config: import('../game/types').ProcessConfig }
   | { type: 'process-core-buy-max' }
   | { type: 'process-network-optimise' }
+  | { type: 'process-network-preset'; preset: import('../game/types').ProcessNetworkPreset }
   | { type: 'process-foundry-buy-max' }
   | { type: 'process-yard-buy-max' }
   | { type: 'process-save-yard-layout'; name?: string }
@@ -337,6 +339,8 @@ function reducer(state: GameState, action: Action): GameState {
       return buyMaxCores(state)
     case 'process-network-optimise':
       return optimiseNetwork(state)
+    case 'process-network-preset':
+      return applyNetworkPreset(state, action.preset)
     case 'process-foundry-buy-max':
       return buyMaxFoundryUpgrades(state)
     case 'process-yard-buy-max':
@@ -501,6 +505,8 @@ export function useGame() {
       dispatch({ type: 'process-config', config }),
     buyMaxCores: () => dispatch({ type: 'process-core-buy-max' }),
     optimiseNetwork: () => dispatch({ type: 'process-network-optimise' }),
+    applyNetworkPreset: (preset: import('../game/types').ProcessNetworkPreset) =>
+      dispatch({ type: 'process-network-preset', preset }),
     buyMaxFoundryUpgrades: () => dispatch({ type: 'process-foundry-buy-max' }),
     buyMaxYardArms: () => dispatch({ type: 'process-yard-buy-max' }),
     saveYardLayout: (name?: string) => dispatch({ type: 'process-save-yard-layout', name }),

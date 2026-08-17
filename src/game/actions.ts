@@ -1,4 +1,4 @@
-import type { GameState, LaborProfile, NetworkLinkId, PartType, Resources } from './types'
+import type { GameState, LaborProfile, NetworkLinkId, PartType, ProcessNetworkPreset, Resources } from './types'
 import {
   AI_NODES,
   MASTERY_PARTS_COST,
@@ -1747,6 +1747,15 @@ export function optimiseNetwork(state: GameState): GameState {
     if ((assigned[id] ?? 0) > 0) next.base.assignments[id] = assigned[id]!
   }
   return next
+}
+
+export function applyNetworkPreset(state: GameState, preset: ProcessNetworkPreset): GameState {
+  if (!hasProcess(state, 'network-presets')) return state
+  const next = setProcessConfig(state, {
+    ...processConfig(state),
+    network: { ...processConfig(state).network, preset },
+  })
+  return optimiseNetwork(next)
 }
 
 export function pickFoundryUpgradeId(state: GameState): string | null {

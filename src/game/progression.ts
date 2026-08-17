@@ -1179,8 +1179,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-drone-cap',
     title: 'Drone Network',
     body: [
-      'Tap Network. Drones never fly on Sortie — they manufacture and fill bars on that screen.',
-      'The corps is already growing. Assign them before the next launch.',
+      'Tap Network. Drones are a finite workforce — they manufacture and fill bars. They never fly on Sortie.',
+      'The corps is already growing. Idle drones are unused potential. Assign them before the next launch.',
     ],
     target: 'network-tab',
     screen: 'network',
@@ -1197,8 +1197,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-network-make',
     title: 'The corps grows',
     body: [
-      'This bar prints hulls up to the corps cap. Idle drones wait here until you assign them.',
-      'Corps racks (under Links) raise that cap. Manufacture keeps running while you fly or sit docked.',
+      'This bar prints hulls up to the corps cap. Idle drones wait here until you assign them — they do nothing until they have a bar.',
+      'You can reassign any time. You do not need a perfect mix. Corps racks (under Links) raise the cap.',
     ],
     target: 'network-manufacture',
     tab: 'network',
@@ -1213,7 +1213,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Assign Strike and Ward',
     body: [
       'Idle hulls do nothing until you tap +. Strike raises sortie damage. Ward raises the shield ceiling.',
-      'Split the corps. − returns a hull to idle. Drones never appear on the battlefield.',
+      'Different bars help different jobs. Split the corps. − returns a hull to idle. Close is good enough.',
     ],
     target: 'network-strike',
     tab: 'network',
@@ -1250,7 +1250,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     title: 'Bars, not ships',
     body: [
       'Each assigned drone fills its bar. A completed cycle raises that bar’s level.',
-      'Strike multiplies sortie damage. Ward raises the shield ceiling. Later bars — Yield, Loom, Archive — open as you push sectors.',
+      'Strike is damage. Ward is shields. Yield is salvage. Loom is manufacture. Archive is Research data. Shift the corps when the job changes.',
       'Tap a bar name for live numbers. Levels reset on Rebuild. The corps stays.',
     ],
     target: 'network-strike',
@@ -1279,6 +1279,90 @@ export const GUIDE_STEPS: GuideStep[] = [
     required: true,
     availableWhen: (s) =>
       guideSeen(s, 'guide-network-bars') && !guideSeen(s, 'guide-network-links'),
+  },
+  {
+    id: 'guide-network-relay',
+    title: 'Strike Relay',
+    body: [
+      'You are now improving the infrastructure behind Strike — not buying another damage shop.',
+      'Strike Relay raises Strike fill speed, how hard each Strike level hits, and Strike’s fill cap. Overflow drones belong here when Strike is capped.',
+    ],
+    target: 'network-strike-relay',
+    tab: 'network',
+    screen: 'network',
+    group: 'network-relay',
+    tap: false,
+    availableWhen: (s) =>
+      careerHighestSector(s) >= 8 &&
+      hasHullLostOnce(s) &&
+      guideSeen(s, 'guide-network-links') &&
+      !guideSeen(s, 'guide-network-relay'),
+  },
+  {
+    id: 'guide-network-relay-parent',
+    title: 'The original bar',
+    body: [
+      'This is still Strike. The Relay does not replace it. Drones on Strike fill Strike. Drones on the Relay make those Strike drones worth more.',
+      'Read fill speed and fill cap on the row. That is the whole trick.',
+    ],
+    target: 'network-strike',
+    tab: 'network',
+    screen: 'network',
+    group: 'network-relay',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-network-relay') && !guideSeen(s, 'guide-network-relay-parent'),
+  },
+  {
+    id: 'guide-network-lattice',
+    title: 'Strike Lattice',
+    body: [
+      'Lattice improves the Relay that improves Strike. Higher-order Network.',
+      'It raises Relay strength, Strike’s scaling exponent, and how much each Strike drone counts.',
+    ],
+    target: 'network-strike-lattice',
+    tab: 'network',
+    screen: 'network',
+    group: 'network-lattice',
+    tap: false,
+    availableWhen: (s) =>
+      careerHighestSector(s) >= 20 &&
+      hasHullLostOnce(s) &&
+      guideSeen(s, 'guide-network-links') &&
+      !guideSeen(s, 'guide-network-lattice'),
+  },
+  {
+    id: 'guide-network-presets',
+    title: 'Network presets',
+    body: [
+      'Push, Defence, Farm, Industry, Research, Balanced. One tap writes visible weights and redistributes the corps.',
+      'There is no hidden best mix. You can still assign by hand.',
+    ],
+    target: 'network-presets',
+    tab: 'network',
+    screen: 'network',
+    group: 'network-presets',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.process?.purchased.includes('network-presets')) && !guideSeen(s, 'guide-network-presets'),
+  },
+  {
+    id: 'guide-network-auto',
+    title: 'Network Auto Optimise',
+    body: [
+      'When a new drone finishes, Auto Optimise redistributes the corps using your preset. It does not invent a secret mix.',
+      'Turn it off and pick the preset under Process → Network. Sortie Bias (if owned) leans the same preset while you fly.',
+    ],
+    target: 'process-config',
+    tab: 'process',
+    screen: 'process',
+    group: 'network-auto',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.process?.purchased.includes('network-balance')) &&
+      !guideSeen(s, 'guide-network-auto') &&
+      guideSeen(s, 'guide-process-v2-buy'),
   },
   {
     id: 'guide-foundry',
@@ -2142,7 +2226,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-process-network',
     title: 'Network helper',
     body: [
-      'Network Optimise is a manual tap. It applies the mix you chose — Push, Farm, Industry, Research, Balanced, or custom ratios.',
+      'Network Optimise is a manual tap. It applies the mix you chose — Push, Defence, Farm, Industry, Research, Balanced, or custom ratios.',
       'Auto Optimise comes later. It will not invent a hidden best allocation.',
     ],
     target: 'network-optimise-btn',
@@ -2256,6 +2340,11 @@ export const NETWORK_GUIDE_IDS = [
   'guide-network-sortie',
   'guide-network-bars',
   'guide-network-links',
+] as const
+
+export const NETWORK_RELAY_GUIDE_IDS = [
+  'guide-network-relay',
+  'guide-network-relay-parent',
 ] as const
 
 /** First-Rebuild hangar walkthrough. Skip dismisses the whole group. */

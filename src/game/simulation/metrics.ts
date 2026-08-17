@@ -1,7 +1,7 @@
-import type { GameState, NetworkBarId, ResourceId } from '../types'
+import type { GameState, ResourceId } from '../types'
 import { RESOURCE_LABELS } from '../state'
-import { droneCap, idleWorkers, moduleLevel } from '../catalog'
-import { NETWORK_BARS, networkLevels } from '../network'
+import { idleWorkers, moduleLevel } from '../catalog'
+import { networkDiagnostics } from '../network'
 import { isSystemUnlocked } from '../progression'
 import type {
   CorePurchaseRecord,
@@ -317,15 +317,18 @@ export function coreSpending(purchases: CorePurchaseRecord[]): CoreSpendingSumma
 }
 
 export function networkSnapshot(state: GameState): NetworkSnapshot {
-  const levels = {} as Record<NetworkBarId, number>
-  for (const bar of NETWORK_BARS) levels[bar.id] = networkLevels(state, bar.id)
+  const diag = networkDiagnostics(state)
   return {
-    drones: state.base.workerDrones,
-    cap: droneCap(state),
-    idle: idleWorkers(state),
+    drones: diag.drones,
+    cap: diag.cap,
+    idle: diag.idle,
+    assigned: diag.assigned,
     assignments: { ...state.base.assignments },
-    levels,
+    levels: diag.levels,
     links: { ...(state.network?.links ?? {}) },
+    fillRates: diag.fillRates,
+    fillCaps: diag.fillCaps,
+    multipliers: diag.multipliers,
   }
 }
 

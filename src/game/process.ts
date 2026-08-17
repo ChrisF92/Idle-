@@ -14,6 +14,7 @@ import type {
   TabId,
   YardArmId,
 } from './types'
+import { NETWORK_BAR_IDS } from './types'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { AI_NODES } from './catalog'
 
@@ -66,21 +67,71 @@ export const PROCESS_CATEGORIES: { id: ProcessCategory; name: string }[] = [
   { id: 'qol', name: 'QoL' },
 ]
 
-export const NETWORK_BAR_IDS: NetworkBarId[] = ['strike', 'ward', 'yield', 'loom', 'archive']
+export { NETWORK_BAR_IDS }
 
 export const NETWORK_PRESETS: Record<
   Exclude<ProcessNetworkPreset, 'custom'>,
   Partial<Record<NetworkBarId, number>>
 > = {
-  push: { strike: 5, ward: 3, yield: 1, loom: 1, archive: 0 },
-  farm: { yield: 4, ward: 2, strike: 2, loom: 1, archive: 1 },
-  industry: { loom: 4, yield: 2, strike: 1, ward: 1, archive: 1 },
-  research: { archive: 4, loom: 2, yield: 1, strike: 1, ward: 1 },
-  balanced: { strike: 1, ward: 1, yield: 1, loom: 1, archive: 1 },
+  push: {
+    strike: 5,
+    'strike-relay': 3,
+    'strike-lattice': 2,
+    ward: 2,
+    yield: 1,
+    loom: 1,
+  },
+  defence: {
+    ward: 5,
+    'ward-relay': 3,
+    'ward-lattice': 2,
+    strike: 2,
+    yield: 1,
+    loom: 1,
+  },
+  farm: {
+    yield: 5,
+    'yield-relay': 3,
+    ward: 2,
+    strike: 2,
+    loom: 1,
+    archive: 1,
+  },
+  industry: {
+    loom: 5,
+    'loom-relay': 3,
+    yield: 2,
+    strike: 1,
+    ward: 1,
+    archive: 1,
+  },
+  research: {
+    archive: 5,
+    'archive-relay': 3,
+    loom: 2,
+    yield: 1,
+    strike: 1,
+    ward: 1,
+  },
+  balanced: {
+    strike: 2,
+    ward: 2,
+    yield: 2,
+    loom: 2,
+    archive: 1,
+    'strike-relay': 1,
+    'ward-relay': 1,
+    'yield-relay': 1,
+    'loom-relay': 1,
+    'archive-relay': 1,
+    'strike-lattice': 1,
+    'ward-lattice': 1,
+  },
 }
 
 export const NETWORK_PRESET_LABELS: Record<ProcessNetworkPreset, string> = {
   push: 'Push',
+  defence: 'Defence',
   farm: 'Farm',
   industry: 'Industry',
   research: 'Research',
@@ -173,7 +224,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Network Presets',
     category: 'network',
     kind: 'automation',
-    blurb: 'Push, Farm, Industry, Research, or Balanced. No hidden “best” mix.',
+    blurb: 'Push, Defence, Farm, Industry, Research, or Balanced. Weights are visible. No hidden mix.',
     cost: 8,
     requiresId: 'network-optimise',
   },
@@ -191,7 +242,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Network Auto Optimise',
     category: 'network',
     kind: 'automation',
-    blurb: 'Idle drones refill the bars using your preset or custom ratios.',
+    blurb: 'Idle drones refill bars using your preset. Relays get weight once they open. Config lives on this Process node.',
     cost: 10,
     requiresId: 'network-presets',
   },
@@ -903,6 +954,13 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
         yield: Math.max(0, num(netRatios.yield, 1)),
         loom: Math.max(0, num(netRatios.loom, 1)),
         archive: Math.max(0, num(netRatios.archive, 1)),
+        'strike-relay': Math.max(0, num(netRatios['strike-relay'], 0)),
+        'ward-relay': Math.max(0, num(netRatios['ward-relay'], 0)),
+        'yield-relay': Math.max(0, num(netRatios['yield-relay'], 0)),
+        'loom-relay': Math.max(0, num(netRatios['loom-relay'], 0)),
+        'archive-relay': Math.max(0, num(netRatios['archive-relay'], 0)),
+        'strike-lattice': Math.max(0, num(netRatios['strike-lattice'], 0)),
+        'ward-lattice': Math.max(0, num(netRatios['ward-lattice'], 0)),
       },
     },
     foundry: {
@@ -1124,15 +1182,32 @@ export function networkAllocationWeights(state: GameState): Record<NetworkBarId,
   const cfg = processConfig(state)
   const preset = cfg.network.preset
   const source =
-    preset === 'custom' || hasProcess(state, 'network-ratios')
+    preset === 'custom'
       ? cfg.network.ratios
       : NETWORK_PRESETS[preset] ?? NETWORK_PRESETS.balanced
-  const weights = {
-    strike: Math.max(0, source.strike ?? 0),
-    ward: Math.max(0, source.ward ?? 0),
-    yield: Math.max(0, source.yield ?? 0),
-    loom: Math.max(0, source.loom ?? 0),
-    archive: Math.max(0, source.archive ?? 0),
+  const weights = {} as Record<NetworkBarId, number>
+  for (const id of NETWORK_BAR_IDS) {
+    weights[id] = Math.max(0, source[id] ?? 0)
+  }
+  if (hasProcess(state, 'network-tune') && !state.combat.docked) {
+    if (preset === 'defence') {
+      weights.ward *= 1.35
+      weights['ward-relay'] *= 1.2
+      weights['ward-lattice'] *= 1.15
+    } else if (preset === 'farm') {
+      weights.yield *= 1.35
+      weights['yield-relay'] *= 1.2
+    } else if (preset === 'industry') {
+      weights.loom *= 1.35
+      weights['loom-relay'] *= 1.2
+    } else if (preset === 'research') {
+      weights.archive *= 1.35
+      weights['archive-relay'] *= 1.2
+    } else {
+      weights.strike *= 1.35
+      weights['strike-relay'] *= 1.2
+      weights['strike-lattice'] *= 1.15
+    }
   }
   return weights
 }

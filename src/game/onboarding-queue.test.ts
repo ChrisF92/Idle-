@@ -156,6 +156,61 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-relaunch-upgraded')
   })
 
+  it('pauses for Strike Relay after the first Network tour once sector 8 is cleared', () => {
+    const state = markHullLost(createInitialState(0))
+    state.meta.seenOnboarding = [...AFTER_LAUNCH, ...SORTIE_TOUR, ...CORES_TOUR, ...NETWORK_GUIDE_IDS]
+    state.meta.highestSectorEver = 8
+    state.combat.highestSector = 8
+    expect(activeGuideStep(state, 'network')?.id).toBe('guide-network-relay')
+    expect(activeGuideStep(state, 'network')?.required).toBeFalsy()
+    expect(activeGuideStep(state, 'network')?.target).toBe('network-strike-relay')
+  })
+
+  it('skipping the Relay tour dismisses the parent-bar step', () => {
+    const state = markHullLost(createInitialState(0))
+    state.meta.seenOnboarding = [...AFTER_LAUNCH, ...SORTIE_TOUR, ...CORES_TOUR, ...NETWORK_GUIDE_IDS]
+    state.meta.highestSectorEver = 8
+    const skipped = skipOnboarding(state, 'guide-network-relay')
+    expect(skipped.meta.seenOnboarding).toEqual(
+      expect.arrayContaining(['guide-network-relay', 'guide-network-relay-parent']),
+    )
+    expect(activeGuideStep(skipped, 'network')?.id).not.toBe('guide-network-relay')
+  })
+
+  it('offers Network presets and Auto Optimise as later contextual tours', () => {
+    const presets = markHullLost(createInitialState(0))
+    presets.meta.seenOnboarding = [
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...CORES_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      'guide-network-relay',
+      'guide-network-relay-parent',
+    ]
+    presets.process.purchased = ['network-presets']
+    expect(activeGuideStep(presets, 'network')?.id).toBe('guide-network-presets')
+
+    const auto = markHullLost(createInitialState(0))
+    auto.meta.aiUnlocked = true
+    auto.meta.seenOnboarding = [
+      ...AFTER_LAUNCH,
+      ...SORTIE_TOUR,
+      ...CORES_TOUR,
+      ...NETWORK_GUIDE_IDS,
+      'guide-process-v2-what',
+      'guide-process-v2-earn',
+      'guide-process-v2-ledger',
+      'guide-process-v2-automation',
+      'guide-process-v2-qol',
+      'guide-process-v2-accumulation',
+      'guide-process-v2-understand',
+      'guide-process-v2-buy',
+    ]
+    auto.process.purchased = ['network-balance']
+    expect(activeGuideStep(auto, 'process')?.id).toBe('guide-network-auto')
+    expect(activeGuideStep(auto, 'process')?.target).toBe('process-config')
+  })
+
   it('queues Foundry until the ship is docked', () => {
     const live = afterLaunch([
       ...AFTER_LAUNCH,

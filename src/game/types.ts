@@ -13,7 +13,22 @@ export type ResourceId =
   | 'choirAsh'
   | 'heat'
 
-export type NetworkBarId = 'strike' | 'ward' | 'yield' | 'loom' | 'archive'
+export const NETWORK_BAR_IDS = [
+  'strike',
+  'ward',
+  'yield',
+  'loom',
+  'archive',
+  'strike-relay',
+  'ward-relay',
+  'yield-relay',
+  'loom-relay',
+  'archive-relay',
+  'strike-lattice',
+  'ward-lattice',
+] as const
+
+export type NetworkBarId = (typeof NETWORK_BAR_IDS)[number]
 
 export interface NetworkBarState {
   /** 0..1 fill toward the next level. */
@@ -194,6 +209,7 @@ export type ProcessCorePriority =
 
 export type ProcessNetworkPreset =
   | 'push'
+  | 'defence'
   | 'farm'
   | 'industry'
   | 'research'

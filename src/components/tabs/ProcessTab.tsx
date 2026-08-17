@@ -29,6 +29,7 @@ import {
 } from '../../game/process'
 import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
+import { NETWORK_BARS } from '../../game/network'
 import { formatCompact } from '../../game/format'
 import { SheetTabs } from '../SheetTabs'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
@@ -208,19 +209,36 @@ function NodeConfig({
     )
   }
   if (nodeId === 'network-ratios') {
-    const bars = ['strike', 'ward', 'yield', 'loom', 'archive'] as const
     return (
       <div className="process-config-block" data-guide="process-config">
-        {bars.map((id) => (
-          <label key={id} className="process-config">
-            {id}
+        <p className="muted">Primary</p>
+        {NETWORK_BARS.filter((bar) => bar.layer === 'primary').map((bar) => (
+          <label key={bar.id} className="process-config">
+            {bar.name}
             <input
               type="number"
               min={0}
-              value={cfg.network.ratios[id] ?? 0}
+              value={cfg.network.ratios[bar.id] ?? 0}
               onChange={(e) =>
                 patch((c) => {
-                  c.network.ratios[id] = Math.max(0, Number(e.target.value) || 0)
+                  c.network.ratios[bar.id] = Math.max(0, Number(e.target.value) || 0)
+                  c.network.preset = 'custom'
+                })
+              }
+            />
+          </label>
+        ))}
+        <p className="muted">Infrastructure</p>
+        {NETWORK_BARS.filter((bar) => bar.layer !== 'primary').map((bar) => (
+          <label key={bar.id} className="process-config">
+            {bar.name}
+            <input
+              type="number"
+              min={0}
+              value={cfg.network.ratios[bar.id] ?? 0}
+              onChange={(e) =>
+                patch((c) => {
+                  c.network.ratios[bar.id] = Math.max(0, Number(e.target.value) || 0)
                   c.network.preset = 'custom'
                 })
               }

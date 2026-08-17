@@ -31,6 +31,7 @@ import {
   networkAssigned,
   networkCycleMult,
   networkEffectLabel,
+  networkFillCap,
   networkFillRate,
   networkLevels,
   networkLinkCost,
@@ -38,6 +39,8 @@ import {
   networkLinkPower,
   networkLinkRank,
   networkProgress,
+  networkRelayBonusLabel,
+  networkRelayId,
   networkSecondsToLevel,
 } from './network'
 import {
@@ -147,10 +150,10 @@ export function inspectNetworkOverview(state: GameState): InspectCard {
       { label: 'Cycle speed', value: `×${networkCycleMult(state).toFixed(2)}` },
     ],
     body: [
-      'Drones fill bars. Bars buff the ship. Drones never fly on Sortie and they never shoot.',
-      'Link power is assigned drones times efficiency. More Link power fills every assigned bar faster.',
-      'Corps racks raise how many hulls you may hang. Drone acuity makes each hull count for more. Cycle speed turns the clock up.',
-      'Bar levels reset on Rebuild. The corps and Link ranks stay.',
+      'Drones are a finite workforce. Assign them to bars. Idle drones do nothing.',
+      'Different bars help different jobs. You can reassign any time. You do not need a perfect mix.',
+      'Later Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop.',
+      'Bar levels reset on Rebuild. The corps and Link ranks stay. Drones never fly on Sortie.',
     ],
   }
 }
@@ -172,14 +175,29 @@ export function inspectNetworkBar(state: GameState, id: NetworkBarId): InspectCa
       { label: 'Assigned', value: String(assigned) },
       { label: 'Cycle', value: `${Math.round(fill * 100)}%` },
       { label: 'Fill rate', value: rate > 0 ? `${rate.toFixed(2)}/s` : 'Idle' },
+      { label: 'Fill cap', value: `${networkFillCap(state, id).toFixed(1)}/s` },
       { label: 'Next level', value: formatEta(eta) },
       { label: 'Now', value: networkEffectLabel(state, id) },
       { label: 'Link power', value: formatCompact(networkLinkPower(state), 2) },
     )
+    if (def.layer === 'primary') {
+      const relayId = networkRelayId(id)
+      if (relayId && isNetworkBarUnlocked(state, relayId)) {
+        stats.push({
+          label: getNetworkBar(relayId)?.name ?? 'Relay',
+          value: `L${networkLevels(state, relayId)} · ${networkRelayBonusLabel(state, id)}`,
+        })
+      }
+    } else if (def.parent) {
+      stats.push({
+        label: 'Improves',
+        value: def.improves ?? getNetworkBar(def.parent)?.name ?? def.parent,
+      })
+    }
   }
   return {
     title: def.name,
-    kicker: 'Network bar',
+    kicker: def.layer === 'primary' ? 'Network bar' : 'Network infrastructure',
     stats,
     body: [...def.detail],
   }

@@ -1,18 +1,27 @@
 import type { GameState, NetworkBarId, NetworkLinkId } from '../game/types'
 import {
-  NETWORK_BARS,
   NETWORK_LINKS,
   canBuyNetworkLink,
+  getNetworkBar,
   isNetworkBarUnlocked,
+  networkBarCapped,
   networkCycleMult,
   networkEffectLabel,
+  networkFillCap,
   networkFillRate,
+  networkInfraBars,
+  networkInfraSectionVisible,
+  networkInfraVisible,
   networkLevels,
   networkLinkCost,
   networkLinkEffectLabel,
   networkLinkPower,
   networkLinkRank,
+  networkPrimaryBars,
   networkProgress,
+  networkRelayBonusLabel,
+  networkRelayId,
+  type NetworkBarDef,
 } from '../game/network'
 import { droneCap, dronePower, idleWorkers } from '../game/catalog'
 import { formatCompact } from '../game/format'
@@ -83,6 +92,105 @@ function LinkRow({
   )
 }
 
+function BarRow({
+  state,
+  bar,
+  idle,
+  onAssign,
+}: {
+  state: GameState
+  bar: NetworkBarDef
+  idle: number
+  onAssign: (barId: string, delta: number) => void
+}) {
+  const open = isNetworkBarUnlocked(state, bar.id)
+  const assigned = state.base.assignments[bar.id] ?? 0
+  const levels = networkLevels(state, bar.id)
+  const fill = networkProgress(state, bar.id)
+  const rate = networkFillRate(state, bar.id)
+  const cap = networkFillCap(state, bar.id)
+  const capped = networkBarCapped(state, bar.id)
+  const infra = bar.layer !== 'primary'
+  const rowClass = [
+    'network-row',
+    infra ? 'is-infra' : '',
+    open ? (assigned > 0 ? 'is-active' : 'is-idle') : 'locked',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return (
+    <article
+      className={rowClass}
+      data-guide={`network-${bar.id}`}
+      data-focus={`network-${bar.id}`}
+    >
+      <div className="network-row-main">
+        <InspectName name={bar.name} card={open ? inspectNetworkBar(state, bar.id) : null} />
+        <span className="muted">{open ? `Lv ${levels}` : `Sector ${bar.requiresSectorEver}`}</span>
+      </div>
+      {open ? (
+        <>
+          <p className="network-row-stats">
+            {networkEffectLabel(state, bar.id)}
+            {rate > 0 ? ` · ${rate.toFixed(2)}/s` : ''}
+            {capped ? ` · cap ${cap.toFixed(1)}/s` : ''}
+          </p>
+          {!infra ? <PrimaryRelayNote state={state} barId={bar.id} /> : null}
+          {infra && bar.improves ? (
+            <details className="network-explain">
+              <summary>What this changes</summary>
+              <p>{bar.improves}.</p>
+              <p>{bar.detail[0]}</p>
+            </details>
+          ) : null}
+          {capped ? (
+            <p className="muted">
+              {bar.layer === 'primary'
+                ? 'At fill cap. Extra drones here do little — assign the Relay.'
+                : bar.layer === 'relay'
+                  ? 'At fill cap. Extra drones here do little — assign the Lattice if it is open.'
+                  : 'At fill cap. Extra drones here do little — spread the corps.'}
+            </p>
+          ) : null}
+          <div className={assigned > 0 ? 'network-fill is-active' : 'network-fill'} aria-hidden>
+            <span style={{ transform: `scaleX(${fill})` }} />
+          </div>
+          <div className={`network-assign${idle > 0 ? ' has-idle-drones' : ''}`}>
+            <button type="button" disabled={assigned <= 0} onClick={() => onAssign(bar.id, -1)}>
+              −
+            </button>
+            <strong>{assigned}</strong>
+            <button
+              type="button"
+              disabled={idle <= 0}
+              onClick={(e) => {
+                markLocalOk(e.currentTarget)
+                onAssign(bar.id, 1)
+              }}
+            >
+              +
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="muted">{infra && bar.improves ? `${bar.blurb} · ${bar.improves}` : bar.blurb}</p>
+      )}
+    </article>
+  )
+}
+
+function PrimaryRelayNote({ state, barId }: { state: GameState; barId: NetworkBarId }) {
+  const relayId = networkRelayId(barId)
+  if (!relayId || !isNetworkBarUnlocked(state, relayId)) return null
+  const relay = getNetworkBar(relayId)
+  return (
+    <p className="muted">
+      {relay?.name ?? 'Relay'} L{networkLevels(state, relayId)} · {networkRelayBonusLabel(state, barId)}
+    </p>
+  )
+}
+
 export function NetworkSheet({
   state,
   onAssign,
@@ -114,61 +222,23 @@ export function NetworkSheet({
         Link power {formatCompact(link, 2)} · efficiency ×{power.toFixed(2)} · cycle ×
         {cycle.toFixed(2)}
       </p>
-      {NETWORK_BARS.map((bar) => {
-        const open = isNetworkBarUnlocked(state, bar.id)
-        const assigned = state.base.assignments[bar.id] ?? 0
-        const levels = networkLevels(state, bar.id as NetworkBarId)
-        const fill = networkProgress(state, bar.id)
-        const rate = networkFillRate(state, bar.id)
-        const rowClass = open
-          ? assigned > 0
-            ? 'network-row is-active'
-            : 'network-row is-idle'
-          : 'network-row locked'
-
-        return (
-          <article
-            key={bar.id}
-            className={rowClass}
-            data-guide={`network-${bar.id}`}
-            data-focus={`network-${bar.id}`}
-          >
-            <div className="network-row-main">
-              <InspectName name={bar.name} card={open ? inspectNetworkBar(state, bar.id) : null} />
-              <span className="muted">{open ? `Lv ${levels}` : `Sector ${bar.requiresSectorEver}`}</span>
-            </div>
-            {open ? (
-              <>
-                <p className="network-row-stats">
-                  {networkEffectLabel(state, bar.id)}
-                  {rate > 0 ? ` · ${rate.toFixed(2)}/s` : ''}
-                </p>
-                <div className={assigned > 0 ? 'network-fill is-active' : 'network-fill'} aria-hidden>
-                  <span style={{ transform: `scaleX(${fill})` }} />
-                </div>
-                <div className={`network-assign${idle > 0 ? ' has-idle-drones' : ''}`}>
-                  <button type="button" disabled={assigned <= 0} onClick={() => onAssign(bar.id, -1)}>
-                    −
-                  </button>
-                  <strong>{assigned}</strong>
-                  <button
-                    type="button"
-                    disabled={idle <= 0}
-                    onClick={(e) => {
-                      markLocalOk(e.currentTarget)
-                      onAssign(bar.id, 1)
-                    }}
-                  >
-                    +
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="muted">{bar.blurb}</p>
-            )}
-          </article>
-        )
-      })}
+      <h3 className="foundry-heading">Bars</h3>
+      {networkPrimaryBars().map((bar) => (
+        <BarRow key={bar.id} state={state} bar={bar} idle={idle} onAssign={onAssign} />
+      ))}
+      {networkInfraSectionVisible(state) ? (
+        <>
+          <h3 className="foundry-heading" data-guide="network-infra">
+            Infrastructure
+          </h3>
+          <p className="muted">Relays improve the bar behind them. They are not a second damage shop.</p>
+          {networkInfraBars()
+            .filter((bar) => networkInfraVisible(state, bar))
+            .map((bar) => (
+              <BarRow key={bar.id} state={state} bar={bar} idle={idle} onAssign={onAssign} />
+            ))}
+        </>
+      ) : null}
       {!compact ? (
         <p className="muted">
           Tap a name for the full sheet. Drones fill bars — they never appear on the battlefield.

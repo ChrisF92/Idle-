@@ -140,9 +140,18 @@ export interface NetworkSnapshot {
   drones: number
   cap: number
   idle: number
+  assigned: number
   assignments: Record<string, number>
   levels: Record<NetworkBarId, number>
   links: Record<string, number>
+  fillRates: Partial<Record<NetworkBarId, number>>
+  fillCaps: Partial<Record<NetworkBarId, number>>
+  multipliers: {
+    strike: number
+    ward: number
+    salvage: number
+    manufacture: number
+  }
 }
 
 export interface RebuildRecord {

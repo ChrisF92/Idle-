@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import {
+  applyNetworkPreset,
   buyProcessNode,
   performPrestige,
   setProcessConfig,
+  optimiseNetwork,
 } from './actions'
 import {
   canBuyProcessNode,
@@ -27,6 +29,8 @@ import {
   tryCompleteAchievements,
 } from './progression'
 import { exportSave, importSave } from './save'
+import { tickAutomation } from './automation'
+import { idleWorkers } from './catalog'
 
 describe('Process 2.0 ledger', () => {
   it('keeps Earned when Available is spent', () => {
@@ -193,5 +197,57 @@ describe('Process 2.0 onboarding', () => {
       'guide-process-v2-understand',
     ]
     expect(activeGuideStep(s, 'process')?.id).not.toBe('guide-process-v2-buy')
+  })
+})
+
+describe('Process 2.0 Network presets and optimiser', () => {
+  it('Optimise is deterministic and honour Push vs Defence vs Farm', () => {
+    const ready = () => {
+      let s = createInitialState(0)
+      s.meta.hullLostOnce = true
+      s.meta.highestSectorEver = 8
+      s.combat.highestSector = 8
+      s.base.workerDrones = 10
+      s.process.purchased = ['network-optimise', 'network-presets']
+      return s
+    }
+
+    let push = ready()
+    push = setProcessConfig(push, {
+      ...processConfig(push),
+      network: { ...processConfig(push).network, preset: 'push' },
+    })
+    push = optimiseNetwork(push)
+    const pushAgain = optimiseNetwork(push)
+    expect(push.base.assignments).toEqual(pushAgain.base.assignments)
+    expect(push.base.assignments.strike ?? 0).toBeGreaterThan(push.base.assignments.ward ?? 0)
+    expect(push.base.assignments['strike-relay'] ?? 0).toBeGreaterThan(0)
+
+    let defence = ready()
+    defence = applyNetworkPreset(defence, 'defence')
+    expect(defence.base.assignments.ward ?? 0).toBeGreaterThan(defence.base.assignments.strike ?? 0)
+
+    let farm = ready()
+    farm.meta.highestSectorEver = 12
+    farm.combat.highestSector = 12
+    farm = applyNetworkPreset(farm, 'farm')
+    expect(farm.base.assignments.yield ?? 0).toBeGreaterThan(farm.base.assignments.strike ?? 0)
+  })
+
+  it('Auto Optimise redistributes idle drones using the current preset', () => {
+    let s = createInitialState(0)
+    s.meta.hullLostOnce = true
+    s.meta.highestSectorEver = 8
+    s.combat.highestSector = 8
+    s.base.workerDrones = 10
+    s.base.assignments.strike = 4
+    s.process.purchased = ['network-optimise', 'network-presets', 'network-balance']
+    s = setProcessConfig(s, {
+      ...processConfig(s),
+      network: { ...processConfig(s).network, enabled: true, preset: 'defence' },
+    })
+    tickAutomation(s)
+    expect(s.base.assignments.ward ?? 0).toBeGreaterThan(s.base.assignments.strike ?? 0)
+    expect(idleWorkers(s)).toBe(0)
   })
 })

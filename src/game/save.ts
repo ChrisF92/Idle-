@@ -8,7 +8,6 @@ import type {
   GameState,
   HiveResearchBranch,
   HiveResearchState,
-  NetworkBarId,
   NetworkState,
   ProcessState,
   ProtocolState,
@@ -24,6 +23,7 @@ import type {
   YardGoodId,
   YardState,
 } from './types'
+import { NETWORK_BAR_IDS } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
 import { AI_NODES, isAiNodePermanent } from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
@@ -276,8 +276,6 @@ function migrateBase(
     fabProject,
   }
 }
-
-const NETWORK_BAR_IDS: NetworkBarId[] = ['strike', 'ward', 'yield', 'loom', 'archive']
 
 function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
   const empty = createEmptyNetworkState()

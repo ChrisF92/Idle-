@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { GameState, NetworkLinkId } from '../../game/types'
+import type { GameState, NetworkLinkId, ProcessNetworkPreset } from '../../game/types'
 import {
   droneCap,
   dronePower,
@@ -13,7 +13,7 @@ import { NetworkSheet } from '../NetworkSheet'
 import { SheetTabs } from '../SheetTabs'
 import { useJustBecame } from '../../hooks/useJustBecame'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
-import { hasProcess } from '../../game/process'
+import { hasProcess, NETWORK_PRESET_LABELS, processConfig } from '../../game/process'
 
 type NetworkPane = 'bars' | 'links'
 
@@ -27,10 +27,11 @@ interface NetworkTabProps {
   onAssign: (barId: string, delta: number) => void
   onBuyLink: (id: NetworkLinkId) => void
   onOptimise?: () => void
+  onPreset?: (preset: ProcessNetworkPreset) => void
   guideTarget?: string | null
 }
 
-export function NetworkTab({ state, onAssign, onBuyLink, onOptimise, guideTarget = null }: NetworkTabProps) {
+export function NetworkTab({ state, onAssign, onBuyLink, onOptimise, onPreset, guideTarget = null }: NetworkTabProps) {
   const cap = droneCap(state)
   const idle = idleWorkers(state)
   const atCap = state.base.workerDrones >= cap
@@ -79,10 +80,34 @@ export function NetworkTab({ state, onAssign, onBuyLink, onOptimise, guideTarget
       </div>
       <SheetTabs value={pane} onChange={setPane} options={NETWORK_PANES} label="Network panes" />
       {onOptimise && hasProcess(state, 'network-optimise') ? (
-        <p className="assign-row">
-          <button type="button" className="primary" data-guide="network-optimise-btn" onClick={onOptimise}>
+        <p className="assign-row" data-guide="network-optimise-btn">
+          <button type="button" className="primary" onClick={onOptimise}>
             Optimise
           </button>
+        </p>
+      ) : null}
+      {onPreset && hasProcess(state, 'network-presets') ? (
+        <div className="process-config-block" data-guide="network-presets">
+          <p className="muted">Presets write visible weights, then Optimise applies them to the corps.</p>
+          <p className="assign-row">
+            {(Object.keys(NETWORK_PRESET_LABELS) as ProcessNetworkPreset[])
+              .filter((id) => id !== 'custom')
+              .map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={processConfig(state).network.preset === id ? 'primary' : undefined}
+                  onClick={() => onPreset(id)}
+                >
+                  {NETWORK_PRESET_LABELS[id]}
+                </button>
+              ))}
+          </p>
+        </div>
+      ) : null}
+      {hasProcess(state, 'network-balance') ? (
+        <p className="muted" data-guide="network-auto">
+          Auto Optimise is {processConfig(state).network.enabled ? 'on' : 'off'}. Config lives under Process → Network.
         </p>
       ) : null}
       <div className="panel-scroll">

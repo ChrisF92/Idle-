@@ -285,6 +285,7 @@ export default function App() {
             onAssign={game.assignWorker}
             onBuyLink={game.buyNetworkLink}
             onOptimise={game.optimiseNetwork}
+            onPreset={game.applyNetworkPreset}
             guideTarget={guide?.target}
           />
         )}

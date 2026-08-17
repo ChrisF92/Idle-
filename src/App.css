@@ -835,6 +835,24 @@ h2 .inspect-name {
   opacity: 0.55;
 }
 
+.network-row.is-infra {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
+}
+
+.network-explain {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.network-explain summary {
+  cursor: pointer;
+}
+
+.network-explain p {
+  margin: 0.25rem 0 0;
+}
+
 .network-row-main {
   display: flex;
   justify-content: space-between;
