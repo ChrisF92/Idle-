@@ -276,6 +276,7 @@ export default function App() {
               setFoundryPane('smelt')
               go('foundry')
             }}
+            onBuyMaxCores={game.buyMaxCores}
           />
         )}
         {tab === 'network' && (
@@ -283,6 +284,7 @@ export default function App() {
             state={game.state}
             onAssign={game.assignWorker}
             onBuyLink={game.buyNetworkLink}
+            onOptimise={game.optimiseNetwork}
             guideTarget={guide?.target}
           />
         )}
@@ -294,6 +296,7 @@ export default function App() {
             onEquip={game.equipFoundryModule}
             onUnequip={game.unequipFoundryModule}
             onAssemble={game.assembleBlueprint}
+            onBuyMax={game.buyMaxFoundryUpgrades}
             guideTarget={guide?.target}
             focusTarget={focusTarget}
             requestedPane={foundryPane}
@@ -330,6 +333,9 @@ export default function App() {
             onPlace={game.placeYardBuilding}
             onClear={game.clearYardBuilding}
             onBuyArm={game.buyYardArm}
+            onBuyMax={game.buyMaxYardArms}
+            onSaveLayout={game.saveYardLayout}
+            onLoadLayout={game.loadYardLayout}
             guideTarget={guide?.target}
           />
         )}
@@ -363,6 +369,7 @@ export default function App() {
             state={game.state}
             onBack={() => go('stats')}
             onBuy={game.buyProcessNode}
+            onConfig={game.setProcessConfig}
             guideTarget={guide?.target}
           />
         )}

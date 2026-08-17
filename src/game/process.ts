@@ -1,16 +1,44 @@
-/** Process — achievement-funded automation / QoL (USI AI modules, Act 1 only). */
+/** Process 2.0 — account-wide automation, QoL, and lifetime accumulation. */
 
-import type { GameState, ProcessState, TabId } from './types'
+import type {
+  FoundryRecipeId,
+  GameState,
+  HiveResearchBranch,
+  NetworkBarId,
+  ProcessConfig,
+  ProcessCorePriority,
+  ProcessFoundryUpgradePriority,
+  ProcessNetworkPreset,
+  ProcessState,
+  TabId,
+  YardArmId,
+} from './types'
 import { careerHighestSector, isSystemUnlocked } from './progression'
+import { AI_NODES } from './catalog'
+
+export type ProcessKind = 'automation' | 'qol'
 
 export type ProcessCategory =
-  | 'combat'
+  | 'cores'
   | 'network'
   | 'foundry'
   | 'reliquary'
   | 'research'
   | 'furnace'
+  | 'sortie'
+  | 'yard'
   | 'qol'
+
+export type ProcessMastery =
+  | 'cores'
+  | 'network'
+  | 'foundry'
+  | 'reliquary'
+  | 'research'
+  | 'furnace'
+  | 'yard'
+  | 'protocols'
+  | 'echo'
 
 export interface ProcessNodeDef {
   id: string
@@ -18,92 +46,232 @@ export interface ProcessNodeDef {
   blurb: string
   cost: number
   category: ProcessCategory
+  kind: ProcessKind
   requiresId?: string
   requiresSectorEver?: number
   requiresSystem?: TabId
+  requiresMastery?: ProcessMastery
 }
 
 export const PROCESS_CATEGORIES: { id: ProcessCategory; name: string }[] = [
-  { id: 'combat', name: 'Sortie' },
+  { id: 'cores', name: 'Cores' },
   { id: 'network', name: 'Network' },
   { id: 'foundry', name: 'Foundry' },
   { id: 'reliquary', name: 'Reliquary' },
   { id: 'research', name: 'Research' },
   { id: 'furnace', name: 'Furnace' },
+  { id: 'sortie', name: 'Sortie' },
+  { id: 'yard', name: 'Yard' },
   { id: 'qol', name: 'QoL' },
 ]
 
+export const NETWORK_BAR_IDS: NetworkBarId[] = ['strike', 'ward', 'yield', 'loom', 'archive']
+
+export const NETWORK_PRESETS: Record<
+  Exclude<ProcessNetworkPreset, 'custom'>,
+  Partial<Record<NetworkBarId, number>>
+> = {
+  push: { strike: 5, ward: 3, yield: 1, loom: 1, archive: 0 },
+  farm: { yield: 4, ward: 2, strike: 2, loom: 1, archive: 1 },
+  industry: { loom: 4, yield: 2, strike: 1, ward: 1, archive: 1 },
+  research: { archive: 4, loom: 2, yield: 1, strike: 1, ward: 1 },
+  balanced: { strike: 1, ward: 1, yield: 1, loom: 1, archive: 1 },
+}
+
+export const NETWORK_PRESET_LABELS: Record<ProcessNetworkPreset, string> = {
+  push: 'Push',
+  farm: 'Farm',
+  industry: 'Industry',
+  research: 'Research',
+  balanced: 'Balanced',
+  custom: 'Custom',
+}
+
+export const CORE_PRIORITY_LABELS: Record<ProcessCorePriority, string> = {
+  cheapest: 'Cheapest',
+  weapon: 'Weapon',
+  shield: 'Shield',
+  utility: 'Utility',
+  balanced: 'Balanced',
+  custom: 'Custom ratios',
+  value: 'Best value',
+}
+
 /**
- * Act 1 tree only — no Echo/Warp, Specialists, Capital, or Reinforce autos.
- * Costs are high vs achievement Process so you pick a few, not the whole board.
+ * Act 1 Process tree. Helper → configuration → full automation.
+ * Costs are reachable from mastery achievements, not mutually exclusive.
  */
 export const PROCESS_NODES: ProcessNodeDef[] = [
   {
-    id: 'auto-salvage',
-    name: 'Auto-Salvage',
-    category: 'combat',
-    blurb: 'Spend Salvage on the cheapest fitted Core while a sortie is live.',
-    cost: 6,
+    id: 'core-buy-max',
+    name: 'Core Buy Max',
+    category: 'cores',
+    kind: 'automation',
+    blurb: 'Adds a Buy Max control on Cores. Spends Salvage according to your current priority.',
+    cost: 4,
+    requiresMastery: 'cores',
   },
   {
-    id: 'auto-extract',
-    name: 'Safe Hold',
-    category: 'combat',
-    blurb: 'After a sector boss, Hold this sector if hull is under 35%.',
+    id: 'core-priority',
+    name: 'Core Upgrade Priority',
+    category: 'cores',
+    kind: 'automation',
+    blurb: 'Choose cheapest, weapon, shield, utility, or balanced before anything auto-spends.',
     cost: 8,
-    requiresId: 'auto-salvage',
-    requiresSectorEver: 2,
+    requiresId: 'core-buy-max',
+  },
+  {
+    id: 'core-ratios',
+    name: 'Core Target Ratios',
+    category: 'cores',
+    kind: 'automation',
+    blurb: 'Set weapon / shield / utility level ratios. Auto spend follows the mix you wrote.',
+    cost: 12,
+    requiresId: 'core-priority',
+  },
+  {
+    id: 'core-presets',
+    name: 'Core Spending Presets',
+    category: 'cores',
+    kind: 'automation',
+    blurb: 'Save named Core spending mixes and swap them from Process.',
+    cost: 10,
+    requiresId: 'core-priority',
+  },
+  {
+    id: 'auto-salvage',
+    name: 'Core Auto Upgrade',
+    category: 'cores',
+    kind: 'automation',
+    blurb: 'While a sortie is live, spend Salvage on Cores using your priority. Toggleable.',
+    cost: 8,
+    requiresId: 'core-buy-max',
+    requiresMastery: 'cores',
   },
   {
     id: 'smart-core',
-    name: 'Smart Core',
-    category: 'combat',
-    blurb: 'Auto-Salvage spends on the Core that gains the most per Salvage, not the cheapest.',
-    cost: 18,
+    name: 'Core Value Spend',
+    category: 'cores',
+    kind: 'automation',
+    blurb: 'Unlocks Best value as a Core priority — most stat per Salvage, still your choice.',
+    cost: 12,
     requiresId: 'auto-salvage',
     requiresSectorEver: 6,
   },
   {
-    id: 'offline-sortie',
-    name: 'Ghost Sortie',
-    category: 'combat',
-    blurb: 'While launched, offline time pushes sectors (no fight sim).',
-    cost: 16,
-    requiresId: 'auto-extract',
-    requiresSectorEver: 4,
+    id: 'network-optimise',
+    name: 'Network Optimise',
+    category: 'network',
+    kind: 'automation',
+    blurb: 'One tap redistributes idle and Network drones to the current allocation.',
+    cost: 4,
+    requiresMastery: 'network',
+  },
+  {
+    id: 'network-presets',
+    name: 'Network Presets',
+    category: 'network',
+    kind: 'automation',
+    blurb: 'Push, Farm, Industry, Research, or Balanced. No hidden “best” mix.',
+    cost: 8,
+    requiresId: 'network-optimise',
+  },
+  {
+    id: 'network-ratios',
+    name: 'Network Ratios',
+    category: 'network',
+    kind: 'automation',
+    blurb: 'Write your own bar weights. Optimise and Auto Optimise both honour them.',
+    cost: 12,
+    requiresId: 'network-presets',
   },
   {
     id: 'network-balance',
-    name: 'Bar Balance',
+    name: 'Network Auto Optimise',
     category: 'network',
-    blurb: 'Idle drones fill the emptiest Network bars.',
-    cost: 6,
+    kind: 'automation',
+    blurb: 'Idle drones refill the bars using your preset or custom ratios.',
+    cost: 10,
+    requiresId: 'network-presets',
   },
   {
     id: 'network-tune',
-    name: 'Bar Tune',
+    name: 'Network Sortie Bias',
     category: 'network',
-    blurb: 'Idle drones prefer Strike/Ward while you Advance, Yield while you Hold.',
-    cost: 16,
+    kind: 'automation',
+    blurb: 'Optional overlay: while flying, lean Push toward Strike/Ward and Farm toward Yield.',
+    cost: 8,
     requiresId: 'network-balance',
     requiresSectorEver: 7,
+  },
+  {
+    id: 'foundry-buy-max',
+    name: 'Foundry Buy Max',
+    category: 'foundry',
+    kind: 'automation',
+    blurb: 'Spend Foundry Points on ranks in one tap, using your upgrade priority.',
+    cost: 4,
+    requiresSystem: 'foundry',
+    requiresMastery: 'foundry',
+  },
+  {
+    id: 'foundry-repeat',
+    name: 'Repeat Recipe',
+    category: 'foundry',
+    kind: 'automation',
+    blurb: 'Empty smelters refill the recipe you pin. You pick the recipe.',
+    cost: 6,
+    requiresId: 'foundry-buy-max',
+    requiresSystem: 'foundry',
   },
   {
     id: 'smart-smelt',
     name: 'Smart Smelt',
     category: 'foundry',
-    blurb: 'Empty smelters queue themselves. Will not starve the next Pulse rank.',
-    cost: 20,
+    kind: 'automation',
+    blurb: 'Empty smelters queue unfinished recipes. Will not starve the next Pulse rank.',
+    cost: 10,
     requiresSystem: 'foundry',
     requiresSectorEver: 3,
   },
   {
-    id: 'foundry-auto',
-    name: 'Foundry Auto',
+    id: 'foundry-queue',
+    name: 'Production Queue',
     category: 'foundry',
-    blurb: 'Spend Foundry Points on the cheapest open Foundry rank.',
-    cost: 18,
+    kind: 'automation',
+    blurb: 'Line up recipes. Smelters pull from the queue before Smart Smelt.',
+    cost: 12,
     requiresId: 'smart-smelt',
+    requiresSystem: 'foundry',
+  },
+  {
+    id: 'foundry-prereqs',
+    name: 'Foundry Prerequisites',
+    category: 'foundry',
+    kind: 'automation',
+    blurb: 'Toward a pinned target, craft missing materials first. You still choose the target.',
+    cost: 15,
+    requiresId: 'foundry-queue',
+    requiresSystem: 'foundry',
+  },
+  {
+    id: 'foundry-priority',
+    name: 'Foundry Upgrade Priority',
+    category: 'foundry',
+    kind: 'automation',
+    blurb: 'Cheapest, speed, slots, or output. Buy Max and Auto Buy both use this.',
+    cost: 10,
+    requiresId: 'foundry-buy-max',
+    requiresSystem: 'foundry',
+  },
+  {
+    id: 'foundry-auto',
+    name: 'Foundry Auto Buy',
+    category: 'foundry',
+    kind: 'automation',
+    blurb: 'Spend Foundry Points on ranks automatically using your priority.',
+    cost: 16,
+    requiresId: 'foundry-priority',
     requiresSystem: 'foundry',
     requiresSectorEver: 6,
   },
@@ -111,56 +279,219 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     id: 'print-assemble',
     name: 'Print Press',
     category: 'foundry',
+    kind: 'automation',
     blurb: 'Assemble a Core print as soon as every fragment is in stock.',
-    cost: 16,
+    cost: 8,
     requiresId: 'smart-smelt',
     requiresSystem: 'foundry',
     requiresSectorEver: 4,
   },
   {
     id: 'auto-relic',
-    name: 'Shard Seat',
+    name: 'Reliquary Auto Equip',
     category: 'reliquary',
-    blurb: 'Empty Reliquary colours seat the strongest owned shard. Swaps only for a clear upgrade.',
-    cost: 18,
+    kind: 'automation',
+    blurb: 'Empty colour slots seat a shard. Never scraps. Swaps only if you allow it.',
+    cost: 8,
     requiresSystem: 'reliquary',
-    requiresSectorEver: 3,
+    requiresMastery: 'reliquary',
   },
   {
-    id: 'research-focus',
-    name: 'Archive Steer',
-    category: 'research',
-    blurb: 'Research focus follows the branch furthest from its next node.',
-    cost: 16,
-    requiresSystem: 'research',
-    requiresSectorEver: 7,
+    id: 'reliquary-keep',
+    name: 'Reliquary Keep Rules',
+    category: 'reliquary',
+    kind: 'automation',
+    blurb: 'Keep all, keep best, or upgrade-only. Auto Equip will not dump a fitted shard by default.',
+    cost: 10,
+    requiresId: 'auto-relic',
+    requiresSystem: 'reliquary',
+  },
+  {
+    id: 'reliquary-quality',
+    name: 'Reliquary Quality Gate',
+    category: 'reliquary',
+    kind: 'automation',
+    blurb: 'Minimum score before Auto Equip will seat or swap a shard.',
+    cost: 8,
+    requiresId: 'reliquary-keep',
+    requiresSystem: 'reliquary',
+  },
+  {
+    id: 'reliquary-merge',
+    name: 'Reliquary Auto Merge',
+    category: 'reliquary',
+    kind: 'automation',
+    blurb: 'Fold spare Signal Cores only after you enable it. Off by default so nothing valuable disappears.',
+    cost: 12,
+    requiresId: 'reliquary-keep',
+    requiresSystem: 'reliquary',
   },
   {
     id: 'auto-bank',
-    name: 'Ash Bank',
+    name: 'Furnace Auto Feed',
     category: 'furnace',
-    blurb: 'Choir-ash banks into Heat on its own.',
-    cost: 10,
-    requiresId: 'network-balance',
+    kind: 'automation',
+    blurb: 'Choir-ash banks into Heat on its own. Furnace 2.0 will reuse this feed hook.',
+    cost: 6,
     requiresSystem: 'furnace',
-    requiresSectorEver: 5,
+  },
+  {
+    id: 'furnace-presets',
+    name: 'Furnace Presets',
+    category: 'furnace',
+    kind: 'automation',
+    blurb: 'Named Heat mixes. Stored now; Furnace 2.0 spends them.',
+    cost: 10,
+    requiresId: 'auto-bank',
+    requiresSystem: 'furnace',
+  },
+  {
+    id: 'furnace-reserve',
+    name: 'Furnace Reserve',
+    category: 'furnace',
+    kind: 'automation',
+    blurb: 'Hold a Heat reserve the manager must not spend. Hook for Furnace 2.0.',
+    cost: 8,
+    requiresId: 'furnace-presets',
+    requiresSystem: 'furnace',
+  },
+  {
+    id: 'furnace-channels',
+    name: 'Furnace Channels',
+    category: 'furnace',
+    kind: 'automation',
+    blurb: 'Allow automatic channel adjustment once Furnace 2.0 is live. You still set the targets.',
+    cost: 12,
+    requiresId: 'furnace-presets',
+    requiresSystem: 'furnace',
   },
   {
     id: 'furnace-auto',
-    name: 'Heat Spend',
+    name: 'Furnace Manager',
     category: 'furnace',
-    blurb: 'Buy the cheapest Furnace rank whenever Heat allows.',
-    cost: 20,
+    kind: 'automation',
+    blurb: 'Buy the cheapest current Furnace rank. Later Heat routing waits for Furnace 2.0.',
+    cost: 16,
     requiresId: 'auto-bank',
     requiresSystem: 'furnace',
     requiresSectorEver: 8,
   },
   {
+    id: 'research-queue',
+    name: 'Research Queue',
+    category: 'research',
+    kind: 'automation',
+    blurb: 'Line up which branch to focus next. Completions wait for your queue unless Auto is on.',
+    cost: 5,
+    requiresSystem: 'research',
+    requiresMastery: 'research',
+  },
+  {
+    id: 'research-priorities',
+    name: 'Research Branch Priority',
+    category: 'research',
+    kind: 'automation',
+    blurb: 'Order Material, Energy, and Observation. Auto Research follows this list.',
+    cost: 10,
+    requiresId: 'research-queue',
+    requiresSystem: 'research',
+  },
+  {
+    id: 'research-focus',
+    name: 'Auto Research',
+    category: 'research',
+    kind: 'automation',
+    blurb: 'Advance focus along your queue and priorities. Never picks a hidden “best” branch.',
+    cost: 12,
+    requiresId: 'research-priorities',
+    requiresSystem: 'research',
+    requiresSectorEver: 7,
+  },
+  {
+    id: 'auto-extract',
+    name: 'Safe Hold',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'After a sector boss, Hold this sector if hull is under your threshold (default 35%).',
+    cost: 6,
+    requiresSectorEver: 2,
+  },
+  {
+    id: 'sortie-relaunch',
+    name: 'Sortie Relaunch',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'When docked with full hull, launch again. Toggleable. Does not choose Advance vs Hold.',
+    cost: 10,
+    requiresId: 'auto-extract',
+  },
+  {
+    id: 'offline-sortie',
+    name: 'Ghost Sortie',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'While launched, offline time pushes sectors (no fight sim).',
+    cost: 14,
+    requiresId: 'auto-extract',
+    requiresSectorEver: 4,
+  },
+  {
+    id: 'protocol-repeat',
+    name: 'Protocol Repeat',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'After a Protocol clear, re-enter the same Protocol if you left Repeat on.',
+    cost: 8,
+    requiresSystem: 'protocols',
+    requiresMastery: 'protocols',
+  },
+  {
+    id: 'echo-repeat',
+    name: 'Echo Repeat',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'After an Echo clear, run the same gauntlet again if Repeat is on.',
+    cost: 10,
+    requiresSystem: 'echo',
+    requiresMastery: 'echo',
+  },
+  {
+    id: 'yard-buy-max',
+    name: 'Yard Buy Max',
+    category: 'yard',
+    kind: 'automation',
+    blurb: 'Spend Ingots on selected Yard arms in one tap.',
+    cost: 4,
+    requiresSystem: 'yard',
+    requiresMastery: 'yard',
+  },
+  {
+    id: 'yard-layouts',
+    name: 'Yard Layouts',
+    category: 'yard',
+    kind: 'automation',
+    blurb: 'Save and restore Yard grids. Extra slots come from Accumulation.',
+    cost: 10,
+    requiresId: 'yard-buy-max',
+    requiresSystem: 'yard',
+  },
+  {
+    id: 'yard-auto',
+    name: 'Yard Auto Arms',
+    category: 'yard',
+    kind: 'automation',
+    blurb: 'Automatically buy the Yard arms you selected. Buildings stay under your hand.',
+    cost: 14,
+    requiresId: 'yard-layouts',
+    requiresSystem: 'yard',
+  },
+  {
     id: 'deep-cache',
     name: 'Deep Cache',
     category: 'qol',
-    blurb: '+4 hours on the offline cap.',
-    cost: 22,
+    kind: 'qol',
+    blurb: '+4 hours on the offline cap, on top of Accumulation bonuses.',
+    cost: 12,
     requiresId: 'offline-sortie',
     requiresSectorEver: 8,
   },
@@ -168,15 +499,186 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     id: 'combat-tempo',
     name: 'Combat Tempo',
     category: 'qol',
+    kind: 'qol',
     blurb: 'Combat sim runs at ×1.5. Industry still uses real time.',
-    cost: 24,
+    cost: 15,
     requiresId: 'auto-salvage',
     requiresSectorEver: 10,
   },
 ]
 
+export type ProcessAccumEffect =
+  | { type: 'salvage'; mult: number }
+  | { type: 'networkSpeed'; mult: number }
+  | { type: 'damage'; mult: number }
+  | { type: 'shield'; mult: number }
+  | { type: 'foundrySpeed'; mult: number }
+  | { type: 'researchSpeed'; mult: number }
+  | { type: 'offlineHours'; hours: number }
+  | { type: 'furnaceOutput'; mult: number; pending: true }
+  | { type: 'presetSlot'; extra: number }
+  | { type: 'industrySpeed'; mult: number }
+
+export interface ProcessAccumulationDef {
+  id: string
+  atEarned: number
+  name: string
+  blurb: string
+  effect: ProcessAccumEffect
+}
+
+/** Lifetime Process Earned milestones. Data-driven — append to extend. */
+export const PROCESS_ACCUMULATION: ProcessAccumulationDef[] = [
+  {
+    id: 'acc-salvage-10',
+    atEarned: 10,
+    name: 'Scrap Memory',
+    blurb: '×1.10 Salvage from wrecks.',
+    effect: { type: 'salvage', mult: 1.1 },
+  },
+  {
+    id: 'acc-network-20',
+    atEarned: 20,
+    name: 'Corps Cadence',
+    blurb: '×1.10 Network fill speed.',
+    effect: { type: 'networkSpeed', mult: 1.1 },
+  },
+  {
+    id: 'acc-combat-35',
+    atEarned: 35,
+    name: 'Hardened Pattern',
+    blurb: '×1.10 Damage and Shield.',
+    effect: { type: 'damage', mult: 1.1 },
+  },
+  {
+    id: 'acc-foundry-50',
+    atEarned: 50,
+    name: 'Kiln Memory',
+    blurb: '×1.10 Foundry craft speed.',
+    effect: { type: 'foundrySpeed', mult: 1.1 },
+  },
+  {
+    id: 'acc-research-75',
+    atEarned: 75,
+    name: 'Archive Habit',
+    blurb: '×1.15 Research speed.',
+    effect: { type: 'researchSpeed', mult: 1.15 },
+  },
+  {
+    id: 'acc-offline-100',
+    atEarned: 100,
+    name: 'Long Watch',
+    blurb: '+2 hours offline capacity.',
+    effect: { type: 'offlineHours', hours: 2 },
+  },
+  {
+    id: 'acc-furnace-150',
+    atEarned: 150,
+    name: 'Heat Ledger',
+    blurb: '×1.15 Furnace output once Furnace 2.0 is live.',
+    effect: { type: 'furnaceOutput', mult: 1.15, pending: true },
+  },
+  {
+    id: 'acc-salvage-200',
+    atEarned: 200,
+    name: 'Wreck Census',
+    blurb: '×1.15 Salvage from wrecks.',
+    effect: { type: 'salvage', mult: 1.15 },
+  },
+  {
+    id: 'acc-combat-300',
+    atEarned: 300,
+    name: 'Battle Ledger',
+    blurb: '×1.15 Damage and Shield.',
+    effect: { type: 'damage', mult: 1.15 },
+  },
+  {
+    id: 'acc-preset-400',
+    atEarned: 400,
+    name: 'Extra Rack',
+    blurb: '+1 saved preset / layout slot.',
+    effect: { type: 'presetSlot', extra: 1 },
+  },
+  {
+    id: 'acc-industry-500',
+    atEarned: 500,
+    name: 'Shop Floor',
+    blurb: '×1.10 Foundry, Network, Yard, and drone manufacture speed.',
+    effect: { type: 'industrySpeed', mult: 1.1 },
+  },
+]
+
+export function createEmptyProcessConfig(): ProcessConfig {
+  return {
+    core: {
+      enabled: true,
+      priority: 'cheapest',
+      ratios: { weapon: 2, shield: 2, utility: 1 },
+      presets: [],
+      activePreset: 0,
+    },
+    network: {
+      enabled: true,
+      preset: 'balanced',
+      ratios: { ...NETWORK_PRESETS.balanced },
+    },
+    foundry: {
+      autoBuy: true,
+      repeatRecipe: null,
+      queue: [],
+      targetRecipe: null,
+      upgradePriority: 'cheapest',
+    },
+    reliquary: {
+      autoMerge: false,
+      autoEquip: true,
+      keepMode: 'keep-all',
+      minScore: 0,
+    },
+    furnace: {
+      autoFeed: true,
+      preset: null,
+      manager: true,
+      autoChannel: false,
+      reserveHeat: 0,
+    },
+    research: {
+      autoResearch: true,
+      queue: [],
+      branchPriority: ['material', 'energy', 'observation'],
+    },
+    yard: {
+      autoUpgrade: true,
+      selectedArms: ['damage', 'shield', 'salvage', 'network'],
+      layouts: [],
+      activeLayout: 0,
+    },
+    sortie: {
+      autoExtract: true,
+      extractHullPct: 0.35,
+      autoRelaunch: true,
+      protocolRepeat: false,
+      echoRepeat: false,
+      lastProtocolId: null,
+      lastEchoId: null,
+    },
+  }
+}
+
 export function createEmptyProcessState(): ProcessState {
-  return { purchased: [] }
+  return { purchased: [], earned: 0, config: createEmptyProcessConfig() }
+}
+
+export function processAvailable(state: GameState): number {
+  return Math.max(0, state.resources.aiPoints)
+}
+
+export function processEarned(state: GameState): number {
+  return Math.max(0, state.process?.earned ?? 0)
+}
+
+export function processConfig(state: GameState): ProcessConfig {
+  return state.process?.config ?? createEmptyProcessConfig()
 }
 
 export function getProcessNode(id: string): ProcessNodeDef | undefined {
@@ -187,12 +689,51 @@ export function hasProcess(state: GameState, id: string): boolean {
   return (state.process?.purchased ?? []).includes(id)
 }
 
-export function processCombatSpeedMult(state: GameState): number {
-  return hasProcess(state, 'combat-tempo') ? 1.5 : 1
+export function grantProcessPrereqs(purchased: string[]): string[] {
+  const owned = new Set(purchased)
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const node of PROCESS_NODES) {
+      if (!owned.has(node.id) || !node.requiresId || owned.has(node.requiresId)) continue
+      owned.add(node.requiresId)
+      changed = true
+    }
+  }
+  return PROCESS_NODES.map((n) => n.id).filter((id) => owned.has(id)).concat(
+    [...owned].filter((id) => !PROCESS_NODES.some((n) => n.id === id)),
+  )
 }
 
-export function processOfflineBonusMs(state: GameState): number {
-  return hasProcess(state, 'deep-cache') ? 4 * 60 * 60 * 1000 : 0
+export function hasProcessMastery(state: GameState, kind: ProcessMastery): boolean {
+  switch (kind) {
+    case 'cores':
+      return Object.values(state.shipyard.moduleLevels ?? {}).some((n) => n > 0)
+    case 'network': {
+      const assigned = NETWORK_BAR_IDS.some((id) => (state.base.assignments[id] ?? 0) > 0)
+      const leveled = Object.values(state.network?.bars ?? {}).some((b) => (b?.levels ?? 0) > 0)
+      return assigned || leveled
+    }
+    case 'foundry':
+      return Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0)
+    case 'reliquary':
+      return (
+        Object.values(state.reliquary?.owned ?? {}).some((n) => n > 0) ||
+        Object.values(state.reliquary?.slots ?? {}).some(Boolean)
+      )
+    case 'research':
+      return Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
+    case 'furnace':
+      return (
+        Object.values(state.furnace?.ranks ?? {}).some((n) => n > 0) || (state.resources.heat ?? 0) > 0
+      )
+    case 'yard':
+      return (state.yard?.cells ?? []).some((c) => Boolean(c.buildingId))
+    case 'protocols':
+      return Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
+    case 'echo':
+      return Object.values(state.echo?.clears ?? {}).some((n) => n > 0)
+  }
 }
 
 function systemLockReason(system: TabId): string {
@@ -205,8 +746,37 @@ function systemLockReason(system: TabId): string {
       return 'Furnace dark'
     case 'research':
       return 'Research closed'
+    case 'yard':
+      return 'Yard closed'
+    case 'protocols':
+      return 'Protocols closed'
+    case 'echo':
+      return 'Echo closed'
     default:
       return 'Locked'
+  }
+}
+
+function masteryLockReason(kind: ProcessMastery): string {
+  switch (kind) {
+    case 'cores':
+      return 'Rank a Core first'
+    case 'network':
+      return 'Assign drones first'
+    case 'foundry':
+      return 'Finish a craft first'
+    case 'reliquary':
+      return 'Handle a shard first'
+    case 'research':
+      return 'Complete a research node first'
+    case 'furnace':
+      return 'Bank Heat first'
+    case 'yard':
+      return 'Place a building first'
+    case 'protocols':
+      return 'Clear a Protocol first'
+    case 'echo':
+      return 'Clear an Echo first'
   }
 }
 
@@ -227,8 +797,336 @@ export function canBuyProcessNode(
   if (def.requiresSectorEver && careerHighestSector(state) < def.requiresSectorEver) {
     return { ok: false, reason: `Clear sector ${def.requiresSectorEver}` }
   }
+  if (def.requiresMastery && !hasProcessMastery(state, def.requiresMastery)) {
+    return { ok: false, reason: masteryLockReason(def.requiresMastery) }
+  }
   if (state.resources.aiPoints < def.cost) {
     return { ok: false, reason: `Need ${def.cost} Process` }
   }
   return { ok: true }
+}
+
+export function firstAffordableProcessNode(state: GameState): ProcessNodeDef | null {
+  for (const node of PROCESS_NODES) {
+    if (canBuyProcessNode(state, node.id).ok) return node
+  }
+  return null
+}
+
+export function grantProcessPoints(state: GameState, amount: number): void {
+  const n = Math.max(0, Math.floor(amount))
+  if (n <= 0) return
+  if (!state.process) state.process = createEmptyProcessState()
+  state.resources.aiPoints += n
+  state.process.earned = (state.process.earned ?? 0) + n
+}
+
+export function reconstructProcessEarned(state: GameState): number {
+  const available = Math.max(0, state.resources.aiPoints)
+  let spent = 0
+  for (const id of state.process?.purchased ?? []) {
+    spent += getProcessNode(id)?.cost ?? 0
+  }
+  for (const id of state.ai?.purchased ?? []) {
+    spent += AI_NODES.find((n) => n.id === id)?.costAiPoints ?? 0
+  }
+  return available + spent
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function num(value: unknown, fallback: number): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+export function mergeProcessConfig(raw: unknown): ProcessConfig {
+  const empty = createEmptyProcessConfig()
+  if (!isRecord(raw)) return empty
+  const core = isRecord(raw.core) ? raw.core : {}
+  const network = isRecord(raw.network) ? raw.network : {}
+  const foundry = isRecord(raw.foundry) ? raw.foundry : {}
+  const reliquary = isRecord(raw.reliquary) ? raw.reliquary : {}
+  const furnace = isRecord(raw.furnace) ? raw.furnace : {}
+  const research = isRecord(raw.research) ? raw.research : {}
+  const yard = isRecord(raw.yard) ? raw.yard : {}
+  const sortie = isRecord(raw.sortie) ? raw.sortie : {}
+  const ratios = isRecord(core.ratios) ? core.ratios : {}
+  const netRatios = isRecord(network.ratios) ? network.ratios : {}
+  const corePriority = typeof core.priority === 'string' ? core.priority : empty.core.priority
+  const netPreset = typeof network.preset === 'string' ? network.preset : empty.network.preset
+  const foundryPriority =
+    typeof foundry.upgradePriority === 'string' ? foundry.upgradePriority : empty.foundry.upgradePriority
+  const keepMode = typeof reliquary.keepMode === 'string' ? reliquary.keepMode : empty.reliquary.keepMode
+  return {
+    core: {
+      enabled: core.enabled !== false,
+      priority: (CORE_PRIORITY_LABELS[corePriority as ProcessCorePriority]
+        ? corePriority
+        : empty.core.priority) as ProcessCorePriority,
+      ratios: {
+        weapon: Math.max(0, num(ratios.weapon, empty.core.ratios.weapon)),
+        shield: Math.max(0, num(ratios.shield, empty.core.ratios.shield)),
+        utility: Math.max(0, num(ratios.utility, empty.core.ratios.utility)),
+      },
+      presets: Array.isArray(core.presets)
+        ? core.presets
+            .filter(isRecord)
+            .map((p) => ({
+              name: typeof p.name === 'string' ? p.name : 'Preset',
+              priority: (typeof p.priority === 'string' && CORE_PRIORITY_LABELS[p.priority as ProcessCorePriority]
+                ? p.priority
+                : 'cheapest') as ProcessCorePriority,
+              ratios: {
+                weapon: Math.max(0, num(isRecord(p.ratios) ? p.ratios.weapon : 2, 2)),
+                shield: Math.max(0, num(isRecord(p.ratios) ? p.ratios.shield : 2, 2)),
+                utility: Math.max(0, num(isRecord(p.ratios) ? p.ratios.utility : 1, 1)),
+              },
+            }))
+        : [],
+      activePreset: Math.max(0, Math.floor(num(core.activePreset, 0))),
+    },
+    network: {
+      enabled: network.enabled !== false,
+      preset: (NETWORK_PRESET_LABELS[netPreset as ProcessNetworkPreset]
+        ? netPreset
+        : empty.network.preset) as ProcessNetworkPreset,
+      ratios: {
+        strike: Math.max(0, num(netRatios.strike, 1)),
+        ward: Math.max(0, num(netRatios.ward, 1)),
+        yield: Math.max(0, num(netRatios.yield, 1)),
+        loom: Math.max(0, num(netRatios.loom, 1)),
+        archive: Math.max(0, num(netRatios.archive, 1)),
+      },
+    },
+    foundry: {
+      autoBuy: foundry.autoBuy !== false,
+      repeatRecipe: typeof foundry.repeatRecipe === 'string' ? (foundry.repeatRecipe as FoundryRecipeId) : null,
+      queue: Array.isArray(foundry.queue)
+        ? foundry.queue.filter((id): id is FoundryRecipeId => typeof id === 'string')
+        : [],
+      targetRecipe: typeof foundry.targetRecipe === 'string' ? (foundry.targetRecipe as FoundryRecipeId) : null,
+      upgradePriority: (
+        ['cheapest', 'speed', 'slots', 'output'].includes(foundryPriority)
+          ? foundryPriority
+          : empty.foundry.upgradePriority
+      ) as ProcessFoundryUpgradePriority,
+    },
+    reliquary: {
+      autoMerge: reliquary.autoMerge === true,
+      autoEquip: reliquary.autoEquip !== false,
+      keepMode: (
+        ['keep-all', 'keep-best', 'upgrade-only'].includes(keepMode) ? keepMode : 'keep-all'
+      ) as ProcessConfig['reliquary']['keepMode'],
+      minScore: Math.max(0, num(reliquary.minScore, 0)),
+    },
+    furnace: {
+      autoFeed: furnace.autoFeed !== false,
+      preset: typeof furnace.preset === 'string' ? furnace.preset : null,
+      manager: furnace.manager !== false,
+      autoChannel: furnace.autoChannel === true,
+      reserveHeat: Math.max(0, num(furnace.reserveHeat, 0)),
+    },
+    research: {
+      autoResearch: research.autoResearch !== false,
+      queue: Array.isArray(research.queue)
+        ? research.queue.filter((id): id is HiveResearchBranch =>
+            id === 'material' || id === 'energy' || id === 'observation',
+          )
+        : [],
+      branchPriority: Array.isArray(research.branchPriority)
+        ? research.branchPriority.filter((id): id is HiveResearchBranch =>
+            id === 'material' || id === 'energy' || id === 'observation',
+          )
+        : [...empty.research.branchPriority],
+    },
+    yard: {
+      autoUpgrade: yard.autoUpgrade !== false,
+      selectedArms: Array.isArray(yard.selectedArms)
+        ? yard.selectedArms.filter((id): id is YardArmId =>
+            id === 'damage' || id === 'shield' || id === 'salvage' || id === 'network',
+          )
+        : [...empty.yard.selectedArms],
+      layouts: Array.isArray(yard.layouts)
+        ? yard.layouts
+            .filter(isRecord)
+            .map((layout) => ({
+              name: typeof layout.name === 'string' ? layout.name : 'Layout',
+              cells: Array.isArray(layout.cells)
+                ? layout.cells.map((cell) => ({
+                    buildingId:
+                      isRecord(cell) && typeof cell.buildingId === 'string'
+                        ? (cell.buildingId as ProcessConfig['yard']['layouts'][number]['cells'][number]['buildingId'])
+                        : null,
+                  }))
+                : [],
+            }))
+        : [],
+      activeLayout: Math.max(0, Math.floor(num(yard.activeLayout, 0))),
+    },
+    sortie: {
+      autoExtract: sortie.autoExtract !== false,
+      extractHullPct: Math.min(0.9, Math.max(0.05, num(sortie.extractHullPct, 0.35))),
+      autoRelaunch: sortie.autoRelaunch !== false,
+      protocolRepeat: sortie.protocolRepeat === true,
+      echoRepeat: sortie.echoRepeat === true,
+      lastProtocolId: typeof sortie.lastProtocolId === 'string' ? sortie.lastProtocolId : null,
+      lastEchoId: typeof sortie.lastEchoId === 'string' ? sortie.lastEchoId : null,
+    },
+  }
+}
+
+export function hydrateProcessState(raw: ProcessState | undefined): ProcessState {
+  const empty = createEmptyProcessState()
+  if (!raw || typeof raw !== 'object') return empty
+  const purchased = Array.isArray(raw.purchased)
+    ? raw.purchased.filter((id) => typeof id === 'string')
+    : []
+  return {
+    purchased: grantProcessPrereqs(purchased),
+    earned: Math.max(0, Math.floor(Number(raw.earned) || 0)),
+    config: mergeProcessConfig(raw.config),
+  }
+}
+
+export function finalizeProcessMigration(state: GameState): void {
+  const hydrated = hydrateProcessState(state.process)
+  const reconstructed = reconstructProcessEarned({ ...state, process: hydrated })
+  state.process = {
+    ...hydrated,
+    earned: Math.max(hydrated.earned, reconstructed),
+  }
+}
+
+export type ProcessAccumStatus = 'achieved' | 'next' | 'future'
+
+export function processAccumulationStatus(
+  earned: number,
+  def: ProcessAccumulationDef,
+  all = PROCESS_ACCUMULATION,
+): ProcessAccumStatus {
+  if (earned >= def.atEarned) return 'achieved'
+  const next = all.find((row) => earned < row.atEarned)
+  return next?.id === def.id ? 'next' : 'future'
+}
+
+export function processAccumMult(
+  state: GameState,
+  type: ProcessAccumEffect['type'],
+): number {
+  const earned = processEarned(state)
+  let mult = 1
+  for (const row of PROCESS_ACCUMULATION) {
+    if (earned < row.atEarned) continue
+    if (row.effect.type === type && 'mult' in row.effect) mult *= row.effect.mult
+    if (type === 'damage' && row.effect.type === 'damage') {
+      /* damage rows also cover shield via processShieldMult */
+    }
+  }
+  return mult
+}
+
+export function processSalvageMult(state: GameState): number {
+  return processAccumMult(state, 'salvage')
+}
+
+export function processDamageMult(state: GameState): number {
+  return processAccumMult(state, 'damage')
+}
+
+export function processShieldMult(state: GameState): number {
+  return processAccumMult(state, 'damage')
+}
+
+export function processNetworkSpeedMult(state: GameState): number {
+  return processAccumMult(state, 'networkSpeed') * processAccumMult(state, 'industrySpeed')
+}
+
+export function processFoundrySpeedMult(state: GameState): number {
+  return processAccumMult(state, 'foundrySpeed') * processAccumMult(state, 'industrySpeed')
+}
+
+export function processResearchSpeedMult(state: GameState): number {
+  return processAccumMult(state, 'researchSpeed')
+}
+
+export function processIndustrySpeedMult(state: GameState): number {
+  return processAccumMult(state, 'industrySpeed')
+}
+
+export function processOfflineBonusMs(state: GameState): number {
+  let hours = hasProcess(state, 'deep-cache') ? 4 : 0
+  const earned = processEarned(state)
+  for (const row of PROCESS_ACCUMULATION) {
+    if (earned < row.atEarned) continue
+    if (row.effect.type === 'offlineHours') hours += row.effect.hours
+  }
+  return hours * 60 * 60 * 1000
+}
+
+export function processCombatSpeedMult(state: GameState): number {
+  return hasProcess(state, 'combat-tempo') ? 1.5 : 1
+}
+
+export function processExtraPresetSlots(state: GameState): number {
+  const earned = processEarned(state)
+  let extra = 0
+  for (const row of PROCESS_ACCUMULATION) {
+    if (earned < row.atEarned) continue
+    if (row.effect.type === 'presetSlot') extra += row.effect.extra
+  }
+  return extra
+}
+
+export function processFurnaceOutputMult(state: GameState): number {
+  return processAccumMult(state, 'furnaceOutput')
+}
+
+export interface ProcessFurnaceHooks {
+  autoFeed: boolean
+  presetsUnlocked: boolean
+  managerUnlocked: boolean
+  autoChannel: boolean
+  reserveHeat: number
+  outputMult: number
+}
+
+/** Hooks Furnace 2.0 can consume without duplicating current Heat logic. */
+export function processFurnaceHooks(state: GameState): ProcessFurnaceHooks {
+  const cfg = processConfig(state)
+  return {
+    autoFeed: hasProcess(state, 'auto-bank') && cfg.furnace.autoFeed,
+    presetsUnlocked: hasProcess(state, 'furnace-presets'),
+    managerUnlocked: hasProcess(state, 'furnace-auto') && cfg.furnace.manager,
+    autoChannel: hasProcess(state, 'furnace-channels') && cfg.furnace.autoChannel,
+    reserveHeat: hasProcess(state, 'furnace-reserve') ? cfg.furnace.reserveHeat : 0,
+    outputMult: processFurnaceOutputMult(state),
+  }
+}
+
+export function networkAllocationWeights(state: GameState): Record<NetworkBarId, number> {
+  const cfg = processConfig(state)
+  const preset = cfg.network.preset
+  const source =
+    preset === 'custom' || hasProcess(state, 'network-ratios')
+      ? cfg.network.ratios
+      : NETWORK_PRESETS[preset] ?? NETWORK_PRESETS.balanced
+  const weights = {
+    strike: Math.max(0, source.strike ?? 0),
+    ward: Math.max(0, source.ward ?? 0),
+    yield: Math.max(0, source.yield ?? 0),
+    loom: Math.max(0, source.loom ?? 0),
+    archive: Math.max(0, source.archive ?? 0),
+  }
+  return weights
+}
+
+export function corePresetCap(state: GameState): number {
+  return 1 + (hasProcess(state, 'core-presets') ? 2 : 0) + processExtraPresetSlots(state)
+}
+
+export function yardLayoutCap(state: GameState): number {
+  return (hasProcess(state, 'yard-layouts') ? 2 : 0) + processExtraPresetSlots(state)
 }

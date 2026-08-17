@@ -41,10 +41,10 @@ function enemy(): CombatUnit {
 }
 
 describe('Act 1 Process depth', () => {
-  it('keeps Act 1 nodes expensive and skips late-game autos', () => {
+  it('keeps Act 1 Process on helpers and skips late-game autos', () => {
     expect(PROCESS_NODES.length).toBeGreaterThanOrEqual(14)
-    expect(PROCESS_NODES.every((n) => n.cost >= 6)).toBe(true)
-    expect(PROCESS_NODES.find((n) => n.id === 'auto-salvage')?.cost).toBe(6)
+    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')?.cost).toBe(4)
+    expect(PROCESS_NODES.find((n) => n.id === 'auto-salvage')?.cost).toBe(8)
     expect(PROCESS_NODES.some((n) => /warp|crew|capital|reinforce/i.test(n.id))).toBe(false)
     expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(8)
   })
@@ -70,9 +70,9 @@ describe('Act 1 Process depth', () => {
     furnace.meta.highestSectorEver = 8
     furnace.combat.highestSector = 8
     furnace.resources.aiPoints = 80
-    furnace.process.purchased = ['network-balance']
+    furnace.process.purchased = []
     expect(canBuyProcessNode(furnace, 'furnace-auto').ok).toBe(false)
-    furnace.process.purchased = ['network-balance', 'auto-bank']
+    furnace.process.purchased = ['auto-bank']
     expect(canBuyProcessNode(furnace, 'furnace-auto').ok).toBe(true)
   })
 
@@ -159,9 +159,10 @@ describe('Act 1 Process depth', () => {
     let s = createInitialState(0)
     s.meta.aiUnlocked = true
     s.meta.highestSectorEver = 1
+    s.shipyard.moduleLevels['pulse-cannon'] = 1
     s.resources.aiPoints = 6
-    s = buyProcessNode(s, 'auto-salvage')
-    expect(hasProcess(s, 'auto-salvage')).toBe(true)
+    s = buyProcessNode(s, 'core-buy-max')
+    expect(hasProcess(s, 'core-buy-max')).toBe(true)
     expect(s.meta.completedAchievements).toContain('neural-link')
   })
 

@@ -186,6 +186,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
         if (!next.meta.completedAchievements.includes(def.id)) {
           next.meta.completedAchievements = [...next.meta.completedAchievements, def.id]
           next.resources.aiPoints += def.rewardAiPoints
+          if (next.process) next.process.earned = (next.process.earned ?? 0) + def.rewardAiPoints
         }
       }
       next.meta.aiUnlocked = true

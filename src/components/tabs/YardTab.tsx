@@ -17,6 +17,7 @@ import {
 import { formatCompact } from '../../game/format'
 import { SheetTabs } from '../SheetTabs'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
+import { hasProcess, processConfig, yardLayoutCap } from '../../game/process'
 
 type YardPane = 'grid' | 'place' | 'arms'
 
@@ -32,10 +33,23 @@ interface YardTabProps {
   onPlace: (index: number, buildingId: YardBuildingId) => void
   onClear: (index: number) => void
   onBuyArm: (id: YardArmId) => void
+  onBuyMax?: () => void
+  onSaveLayout?: (name?: string) => void
+  onLoadLayout?: (index: number) => void
   guideTarget?: string | null
 }
 
-export function YardTab({ state, onBack, onPlace, onClear, onBuyArm, guideTarget = null }: YardTabProps) {
+export function YardTab({
+  state,
+  onBack,
+  onPlace,
+  onClear,
+  onBuyArm,
+  onBuyMax,
+  onSaveLayout,
+  onLoadLayout,
+  guideTarget = null,
+}: YardTabProps) {
   const open = isSystemUnlocked(state, 'yard')
   const size = yardGridSize(state)
   const cells = [...(state.yard?.cells ?? [])]
@@ -87,6 +101,13 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm, guideTarget
           {size < 4 ? (
             <p className="muted">Grid expands at sector {YARD_EXPAND_SECTOR}.</p>
           ) : null}
+          {onSaveLayout && hasProcess(state, 'yard-layouts') ? (
+            <YardLayouts
+              state={state}
+              onSaveLayout={onSaveLayout}
+              onLoadLayout={onLoadLayout}
+            />
+          ) : null}
             </>
           ) : null}
 
@@ -131,6 +152,13 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm, guideTarget
             <>
           <h3 className="foundry-heading">Next Rebuild</h3>
           <p className="muted">{yardPendingSummary(state)}</p>
+          {onBuyMax && hasProcess(state, 'yard-buy-max') ? (
+            <p className="assign-row">
+              <button type="button" className="primary" onClick={onBuyMax}>
+                Buy Max
+              </button>
+            </p>
+          ) : null}
           {YARD_ARMS.map((arm) => {
             const can = canBuyYardArm(state, arm.id)
             const cost = yardArmCost(state, arm.id)
@@ -160,5 +188,43 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm, guideTarget
         </>
       )}
     </section>
+  )
+}
+
+function YardLayouts({
+  state,
+  onSaveLayout,
+  onLoadLayout,
+}: {
+  state: GameState
+  onSaveLayout: (name?: string) => void
+  onLoadLayout?: (index: number) => void
+}) {
+  const layouts = processConfig(state).yard.layouts
+  const cap = yardLayoutCap(state)
+  const active = processConfig(state).yard.activeLayout
+  return (
+    <div className="process-config-block">
+      <p className="assign-row">
+        <button type="button" className="primary" onClick={() => onSaveLayout(`Layout ${layouts.length + 1}`)}>
+          Save layout
+        </button>
+      </p>
+      <p className="muted">
+        {layouts.length}/{cap} saved. Extra slots come from Accumulation.
+      </p>
+      {layouts.map((layout, i) => (
+        <p key={`${layout.name}-${i}`} className="assign-row">
+          <button
+            type="button"
+            className={i === active ? 'primary' : undefined}
+            disabled={!onLoadLayout}
+            onClick={() => onLoadLayout?.(i)}
+          >
+            {layout.name || `Layout ${i + 1}`}
+          </button>
+        </p>
+      ))}
+    </div>
   )
 }

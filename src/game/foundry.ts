@@ -7,6 +7,7 @@ import { furnaceFoundrySpeedMult } from './furnace'
 import { hiveResearchFoundrySpeedMult } from './hiveResearch'
 import { protocolBonusMult, protocolMutes } from './protocols'
 import { echoFoundrySpeedMult } from './echo'
+import { processFoundrySpeedMult } from './process'
 
 export interface FoundryCost {
   salvage?: number
@@ -400,7 +401,8 @@ export function foundryCraftSpeed(state: GameState): number {
     furnaceFoundrySpeedMult(state) *
     hiveResearchFoundrySpeedMult(state) *
     echoFoundrySpeedMult(state) *
-    protocolBonusMult(state, 'foundry')
+    protocolBonusMult(state, 'foundry') *
+    processFoundrySpeedMult(state)
   )
 }
 

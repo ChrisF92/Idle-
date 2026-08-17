@@ -13,6 +13,7 @@ import { NetworkSheet } from '../NetworkSheet'
 import { SheetTabs } from '../SheetTabs'
 import { useJustBecame } from '../../hooks/useJustBecame'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
+import { hasProcess } from '../../game/process'
 
 type NetworkPane = 'bars' | 'links'
 
@@ -25,10 +26,11 @@ interface NetworkTabProps {
   state: GameState
   onAssign: (barId: string, delta: number) => void
   onBuyLink: (id: NetworkLinkId) => void
+  onOptimise?: () => void
   guideTarget?: string | null
 }
 
-export function NetworkTab({ state, onAssign, onBuyLink, guideTarget = null }: NetworkTabProps) {
+export function NetworkTab({ state, onAssign, onBuyLink, onOptimise, guideTarget = null }: NetworkTabProps) {
   const cap = droneCap(state)
   const idle = idleWorkers(state)
   const atCap = state.base.workerDrones >= cap
@@ -76,6 +78,13 @@ export function NetworkTab({ state, onAssign, onBuyLink, guideTarget = null }: N
         <div className="manufacture-bar-fill" style={{ transform: `scaleX(${fill})` }} />
       </div>
       <SheetTabs value={pane} onChange={setPane} options={NETWORK_PANES} label="Network panes" />
+      {onOptimise && hasProcess(state, 'network-optimise') ? (
+        <p className="assign-row">
+          <button type="button" className="primary" data-guide="network-optimise-btn" onClick={onOptimise}>
+            Optimise
+          </button>
+        </p>
+      ) : null}
       <div className="panel-scroll">
         <NetworkSheet
           state={state}

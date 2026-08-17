@@ -11,7 +11,7 @@ import { AttentionPips } from '../AttentionPips'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
 import { FOUNDRY_RECIPES } from '../../game/foundry'
-import { markLocalOk } from '../../hooks/useJustBecame'
+import { hasProcess } from '../../game/process'
 
 interface CombatTabProps {
   state: GameState
@@ -24,6 +24,7 @@ interface CombatTabProps {
   onMarkCoresSeen?: () => void
   coresRequest?: { key: number; moduleId?: string } | null
   onOpenFoundry?: () => void
+  onBuyMaxCores?: () => void
 }
 
 function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {
@@ -77,6 +78,7 @@ export function CombatTab({
   onMarkCoresSeen,
   coresRequest = null,
   onOpenFoundry,
+  onBuyMaxCores,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -368,6 +370,7 @@ export function CombatTab({
               compact
               onUpgrade={onUpgrade}
               onPickMilestone={onPickMilestone}
+              onBuyMax={hasProcess(state, 'core-buy-max') ? onBuyMaxCores : undefined}
             />
             <button
               type="button"

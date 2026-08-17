@@ -53,7 +53,7 @@ import {
   wavesForRun,
 } from './echo'
 import { tryCompleteProtocol } from './protocols'
-import { hasProcess, processCombatSpeedMult } from './process'
+import { hasProcess, processCombatSpeedMult, processConfig, processIndustrySpeedMult } from './process'
 import {
   captureSortieMark,
   closeSortie,
@@ -215,7 +215,8 @@ function applyProduction(state: GameState, dtSeconds: number): void {
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {
-    const speed = workerManufactureSpeed(state) * networkManufactureMult(state)
+    const speed =
+      workerManufactureSpeed(state) * networkManufactureMult(state) * processIndustrySpeedMult(state)
     state.base.manufactureProgress +=
       (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
     while (
@@ -527,9 +528,10 @@ function onFightWon(state: GameState): void {
   if (
     !state.combat.docked &&
     hasProcess(state, 'auto-extract') &&
+    processConfig(state).sortie.autoExtract &&
     wasBoss &&
     state.combat.playerHullMax > 0 &&
-    state.combat.playerHull / state.combat.playerHullMax < 0.35
+    state.combat.playerHull / state.combat.playerHullMax < processConfig(state).sortie.extractHullPct
   ) {
     applyPushMode(state, 'hold-sector')
     pushLog(state, `Safe Hold — hull low after sector ${clearedSector} boss. Farming this sector.`)
@@ -795,7 +797,22 @@ export function advanceSeconds(state: GameState, seconds: number): void {
     left -= dt
   }
   tickAutomation(state)
+  maybeProcessRelaunch(state)
   tryCompleteAchievements(state)
+}
+
+function maybeProcessRelaunch(state: GameState): void {
+  if (!hasProcess(state, 'sortie-relaunch')) return
+  if (!processConfig(state).sortie.autoRelaunch) return
+  if (!state.combat.docked) return
+  if ((state.combat.defeatLeft ?? 0) > 0) return
+  if (state.protocols?.activeId || state.echo?.activeId) return
+  if (starterRefitGate(state)) return
+  if (state.combat.playerHullMax <= 0) return
+  if (state.combat.playerHull + 0.5 < state.combat.playerHullMax) return
+  state.combat.docked = false
+  if (!state.combat.sortieMark) state.combat.sortieMark = captureSortieMark(state)
+  if (!state.shipyard.frameLocked) state.shipyard.frameLocked = true
 }
 
 /**

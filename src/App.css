@@ -1721,4 +1721,66 @@ textarea {
   overflow-x: auto;
 }
 
+.process-ledger {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin: 0.55rem 0 0.7rem;
+}
+
+.process-ledger p {
+  margin: 0;
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  padding: 0.55rem 0.65rem;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.process-ledger strong {
+  font-size: 1.15rem;
+}
+
+.process-node.is-owned {
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+}
+
+.process-node.is-affordable {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+
+.process-accum.is-achieved {
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+}
+
+.process-accum.is-next {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+
+.process-config-block {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.process-config {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+}
+
+.process-config input[type='number'],
+.process-config input:not([type='checkbox']),
+.process-config select {
+  min-height: 2.2rem;
+  min-width: 4.5rem;
+  background: #0f1319;
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 0.3rem 0.45rem;
+}
+
 

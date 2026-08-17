@@ -83,7 +83,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'process',
     requiresSectorEver: 0,
     label: 'Process',
-    tip: 'Achievements grant Process points. Spend them on automation and QoL.',
+    tip: 'Achievements grant Process points. Spend them on automation, QoL, and lifetime Accumulation.',
   },
   {
     id: 'specialists',
@@ -138,7 +138,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'ai',
     requiresSectorEver: 0,
     label: 'Process',
-    tip: 'Achievements grant Process points. Spend them on automation and QoL.',
+    tip: 'Achievements grant Process points. Spend them on automation, QoL, and lifetime Accumulation.',
   },
   {
     id: 'prestige',
@@ -162,6 +162,15 @@ export type AchievementCondition =
   | { type: 'lifetime-waves'; min: number }
   | { type: 'lifetime-fab-crafts'; min: number }
   | { type: 'lifetime-core-merges'; min: number }
+  | { type: 'module-level-sum'; min: number }
+  | { type: 'network-level-sum'; min: number }
+  | { type: 'foundry-recipe-level'; recipeId: string; min: number }
+  | { type: 'furnace-rank-sum'; min: number }
+  | { type: 'reliquary-fitted'; min: number }
+  | { type: 'hive-research-nodes'; min: number }
+  | { type: 'protocol-rank-sum'; min: number }
+  | { type: 'echo-clear-sum'; min: number }
+  | { type: 'yard-building-count'; min: number }
 
 export interface AchievementDef {
   id: string
@@ -183,7 +192,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     id: 'first-blood',
     name: 'First Blood',
     description: 'Clear sector 1. Unlocks Process.',
-    rewardAiPoints: 1,
+    rewardAiPoints: 4,
     condition: { type: 'sector-ever', sector: 1 },
   },
   {
@@ -347,24 +356,94 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     rewardAiPoints: 2,
     condition: { type: 'lifetime-core-merges', min: 1 },
   },
+  {
+    id: 'core-hands',
+    name: 'Hands On Cores',
+    description: 'Rank Cores to a combined 2 run levels.',
+    rewardAiPoints: 2,
+    condition: { type: 'module-level-sum', min: 2 },
+  },
+  {
+    id: 'network-cycle',
+    name: 'First Cycle',
+    description: 'Reach 4 total Network bar levels.',
+    rewardAiPoints: 2,
+    condition: { type: 'network-level-sum', min: 4 },
+  },
+  {
+    id: 'foundry-stock',
+    name: 'Stock Plate',
+    description: 'Raise Slag Ingot to rank 4.',
+    rewardAiPoints: 2,
+    condition: { type: 'foundry-recipe-level', recipeId: 'slag-ingot', min: 4 },
+  },
+  {
+    id: 'foundry-plate',
+    name: 'Plate Line',
+    description: 'Raise Slag Ingot to rank 8.',
+    rewardAiPoints: 3,
+    condition: { type: 'foundry-recipe-level', recipeId: 'slag-ingot', min: 8 },
+  },
+  {
+    id: 'furnace-lit',
+    name: 'Heat Lit',
+    description: 'Buy any Furnace rank.',
+    rewardAiPoints: 2,
+    condition: { type: 'furnace-rank-sum', min: 1 },
+  },
+  {
+    id: 'shard-seat',
+    name: 'Shard Seated',
+    description: 'Fit a Reliquary shard.',
+    rewardAiPoints: 2,
+    condition: { type: 'reliquary-fitted', min: 1 },
+  },
+  {
+    id: 'archive-three',
+    name: 'Archive Habit',
+    description: 'Complete 3 Research nodes.',
+    rewardAiPoints: 3,
+    condition: { type: 'hive-research-nodes', min: 3 },
+  },
+  {
+    id: 'protocol-clear',
+    name: 'Protocol Cleared',
+    description: 'Complete any Protocol.',
+    rewardAiPoints: 3,
+    condition: { type: 'protocol-rank-sum', min: 1 },
+  },
+  {
+    id: 'echo-clear',
+    name: 'Echo Mapped',
+    description: 'Complete an Echo run.',
+    rewardAiPoints: 3,
+    condition: { type: 'echo-clear-sum', min: 1 },
+  },
+  {
+    id: 'yard-plot',
+    name: 'Yard Plot',
+    description: 'Place a Yard building.',
+    rewardAiPoints: 2,
+    condition: { type: 'yard-building-count', min: 1 },
+  },
   // --- Repeatables (long AIP sink) ---
   {
     id: 'sector-grind',
     name: 'Sector Patrol',
-    description: 'Every 25 lifetime sector clears. Repeatable.',
-    rewardAiPoints: 2,
-    condition: { type: 'lifetime-sectors', min: 25 },
+    description: 'Every 50 lifetime sector clears. Repeatable.',
+    rewardAiPoints: 1,
+    condition: { type: 'lifetime-sectors', min: 50 },
     repeatable: true,
-    repeatStep: 25,
+    repeatStep: 50,
   },
   {
     id: 'wave-grind',
     name: 'Wave Battery',
-    description: 'Every 100 lifetime wave clears. Repeatable.',
-    rewardAiPoints: 2,
-    condition: { type: 'lifetime-waves', min: 100 },
+    description: 'Every 200 lifetime wave clears. Repeatable.',
+    rewardAiPoints: 1,
+    condition: { type: 'lifetime-waves', min: 200 },
     repeatable: true,
-    repeatStep: 100,
+    repeatStep: 200,
   },
   {
     id: 'prestige-grind',
@@ -378,20 +457,20 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'fab-grind',
     name: 'Assembly Line',
-    description: 'Every 3 Fabrication Bay crafts. Repeatable.',
-    rewardAiPoints: 2,
-    condition: { type: 'lifetime-fab-crafts', min: 3 },
+    description: 'Every 5 Fabrication Bay crafts. Repeatable.',
+    rewardAiPoints: 1,
+    condition: { type: 'lifetime-fab-crafts', min: 5 },
     repeatable: true,
-    repeatStep: 3,
+    repeatStep: 5,
   },
   {
     id: 'merge-grind',
     name: 'Collider Duty',
-    description: 'Every 5 Signal Core merges. Repeatable.',
-    rewardAiPoints: 2,
-    condition: { type: 'lifetime-core-merges', min: 5 },
+    description: 'Every 8 Signal Core merges. Repeatable.',
+    rewardAiPoints: 1,
+    condition: { type: 'lifetime-core-merges', min: 8 },
     repeatable: true,
-    repeatStep: 5,
+    repeatStep: 8,
   },
   {
     id: 'challenge-grind',
@@ -433,6 +512,16 @@ export function achievementBaseThreshold(condition: AchievementCondition): numbe
     case 'lifetime-waves':
     case 'lifetime-fab-crafts':
     case 'lifetime-core-merges':
+    case 'module-level-sum':
+    case 'network-level-sum':
+    case 'furnace-rank-sum':
+    case 'reliquary-fitted':
+    case 'hive-research-nodes':
+    case 'protocol-rank-sum':
+    case 'echo-clear-sum':
+    case 'yard-building-count':
+      return condition.min
+    case 'foundry-recipe-level':
       return condition.min
   }
 }
@@ -470,6 +559,24 @@ export function achievementProgressValue(
       return state.meta.lifetimeFabCrafts ?? 0
     case 'lifetime-core-merges':
       return state.meta.lifetimeCoreMerges ?? 0
+    case 'module-level-sum':
+      return Object.values(state.shipyard.moduleLevels ?? {}).reduce((a, b) => a + b, 0)
+    case 'network-level-sum':
+      return Object.values(state.network?.bars ?? {}).reduce((a, b) => a + (b?.levels ?? 0), 0)
+    case 'foundry-recipe-level':
+      return state.foundry?.recipeLevels?.[condition.recipeId] ?? 0
+    case 'furnace-rank-sum':
+      return Object.values(state.furnace?.ranks ?? {}).reduce((a, b) => a + b, 0)
+    case 'reliquary-fitted':
+      return Object.values(state.reliquary?.slots ?? {}).filter(Boolean).length
+    case 'hive-research-nodes':
+      return Object.values(state.hiveResearch?.completed ?? {}).reduce((a, b) => a + b, 0)
+    case 'protocol-rank-sum':
+      return Object.values(state.protocols?.ranks ?? {}).reduce((a, b) => a + b, 0)
+    case 'echo-clear-sum':
+      return Object.values(state.echo?.clears ?? {}).reduce((a, b) => a + b, 0)
+    case 'yard-building-count':
+      return (state.yard?.cells ?? []).filter((c) => c.buildingId).length
   }
 }
 
@@ -502,6 +609,9 @@ function grantAchievementTier(state: GameState, def: AchievementDef): void {
     state.meta.completedAchievements = [...state.meta.completedAchievements, def.id]
   }
   state.resources.aiPoints += def.rewardAiPoints
+  if (state.process) {
+    state.process.earned = (state.process.earned ?? 0) + def.rewardAiPoints
+  }
   if (!state.meta.aiUnlocked) state.meta.aiUnlocked = true
   const tier = state.meta.achievementCompletions[def.id]
   const label = def.repeatable ? `${def.name} ×${tier}` : def.name
@@ -1682,8 +1792,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-ai-tab',
     title: 'Process',
     body: [
-      'Open More and tap Process. Achievements grant Process points.',
-      'Spend them on automation and quality-of-life. Opens after First Blood (clear sector 1).',
+      'Open More and tap Process. The hangar is learning the chores you already know how to do.',
+      'Achievements grant Process points. Opens after First Blood (clear sector 1).',
     ],
     target: 'station-process',
     tab: 'stats',
@@ -1692,20 +1802,197 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (_s, tab) => tab === 'process',
   },
   {
-    id: 'guide-achievements',
-    title: 'Points and nodes',
+    id: 'guide-process-v2-what',
+    title: 'What Process is',
     body: [
-      'The top list is what you buy. The bottom list is how you earn points.',
-      'One-off achievements pay once. Repeatable ones sit further down. Points persist across Rebuild.',
+      'Process is the account learning your jobs. It is not a scarce one-off build pick.',
+      'Over time you can own most of the board. Automation copies work you have already done by hand.',
     ],
-    target: 'process-nodes',
+    target: 'process-available',
     tab: 'process',
     screen: 'process',
-    group: 'process',
+    group: 'process-v2',
+    tap: false,
     availableWhen: (s) =>
       isSystemUnlocked(s, 'process') &&
-      guideSeen(s, 'guide-ai-tab') &&
-      !guideSeen(s, 'guide-achievements'),
+      !guideSeen(s, 'guide-process-v2-what') &&
+      (guideSeen(s, 'guide-ai-tab') ||
+        (s.process?.purchased.length ?? 0) > 0 ||
+        (s.meta.completedAchievements ?? []).includes('first-blood')),
+  },
+  {
+    id: 'guide-process-v2-earn',
+    title: 'How points arrive',
+    body: [
+      'Process Points come from mastery: sector records, Cores, Network, Foundry, Research, Rebuilds, and unusual firsts.',
+      'Repeating a solved loop is a poor farm. The Log pane lists what still pays.',
+    ],
+    target: 'process-earned',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'process') &&
+      guideSeen(s, 'guide-process-v2-what') &&
+      !guideSeen(s, 'guide-process-v2-earn'),
+  },
+  {
+    id: 'guide-process-v2-ledger',
+    title: 'Available vs Earned',
+    body: [
+      'Process Available is what you can spend right now.',
+      'Process Earned is lifetime points. It never drops when you buy a node.',
+    ],
+    target: 'process-earned',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-process-v2-earn') && !guideSeen(s, 'guide-process-v2-ledger'),
+  },
+  {
+    id: 'guide-process-v2-automation',
+    title: 'Automation',
+    body: [
+      'Automation nodes add helpers, then settings, then full loops.',
+      'They expose controls. They should not silently pick a build for you.',
+    ],
+    target: 'process-automation',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-process-v2-ledger') && !guideSeen(s, 'guide-process-v2-automation'),
+  },
+  {
+    id: 'guide-process-v2-qol',
+    title: 'QoL',
+    body: [
+      'QoL nodes make the sitting kinder: longer offline, faster combat sim, and similar comforts.',
+      'They are not the same as Automation. Buy them when the sitting needs them.',
+    ],
+    target: 'process-qol',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-process-v2-automation') && !guideSeen(s, 'guide-process-v2-qol'),
+  },
+  {
+    id: 'guide-process-v2-accumulation',
+    title: 'Accumulation',
+    body: [
+      'Lifetime Process Earned unlocks permanent account milestones: Salvage, Network speed, offline cap, and more.',
+      'Spending points does not slow Accumulation. Only Earned counts.',
+    ],
+    target: 'process-accumulation',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-process-v2-qol') && !guideSeen(s, 'guide-process-v2-accumulation'),
+  },
+  {
+    id: 'guide-process-v2-understand',
+    title: 'Learn it first',
+    body: [
+      'Unlock automation after you understand the underlying system.',
+      'Cores Buy Max waits until you have ranked a Core. Network Optimise waits until you have assigned drones.',
+    ],
+    target: 'process-automation',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-process-v2-accumulation') && !guideSeen(s, 'guide-process-v2-understand'),
+  },
+  {
+    id: 'guide-process-v2-buy',
+    title: 'First purchase',
+    body: [
+      'Buy a cheap helper that matches work you already do. Core Buy Max or Network Optimise if you can afford them.',
+      'Spending Available does not reduce Earned.',
+    ],
+    target: 'process-first-buy',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-process-v2-understand') && !guideSeen(s, 'guide-process-v2-buy'),
+    completeWhen: (s) => (s.process?.purchased.length ?? 0) > 0,
+  },
+  {
+    id: 'guide-process-network',
+    title: 'Network helper',
+    body: [
+      'Network Optimise is a manual tap. It applies the mix you chose — Push, Farm, Industry, Research, Balanced, or custom ratios.',
+      'Auto Optimise comes later. It will not invent a hidden best allocation.',
+    ],
+    target: 'network-optimise-btn',
+    tab: 'network',
+    screen: 'network',
+    group: 'process-network',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'process') &&
+      isSystemUnlocked(s, 'network') &&
+      !guideSeen(s, 'guide-process-network') &&
+      guideSeen(s, 'guide-process-v2-buy') &&
+      !s.process?.purchased.includes('network-balance') &&
+      (s.process?.purchased.includes('network-optimise') ||
+        (s.resources.aiPoints >= 4 &&
+          Object.values(s.shipyard.moduleLevels ?? {}).some((n) => n > 0))),
+  },
+  {
+    id: 'guide-process-queue',
+    title: 'Queues',
+    body: [
+      'A queue is an ordered list you write. Smelters or Research pull the next item you lined up.',
+      'Turn Auto on only after the queue shows the work you want repeated.',
+    ],
+    target: 'process-foundry-queue',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-queue',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'foundry') &&
+      !guideSeen(s, 'guide-process-queue') &&
+      (s.process?.purchased.includes('foundry-queue') || s.process?.purchased.includes('research-queue')) &&
+      !s.process?.purchased.includes('foundry-auto') &&
+      !s.process?.purchased.includes('research-focus'),
+  },
+  {
+    id: 'guide-process-config',
+    title: 'Priorities live here',
+    body: [
+      'Configurable automation is useless if you cannot see the knobs.',
+      'Core priorities, Network presets, and keep/scrap rules sit on the Process node after you buy them.',
+    ],
+    target: 'process-config',
+    tab: 'process',
+    screen: 'process',
+    group: 'process-config',
+    tap: false,
+    availableWhen: (s) =>
+      !guideSeen(s, 'guide-process-config') &&
+      (s.process?.purchased.includes('core-priority') ||
+        s.process?.purchased.includes('network-presets') ||
+        s.process?.purchased.includes('reliquary-keep')),
   },
   {
     id: 'guide-challenges',

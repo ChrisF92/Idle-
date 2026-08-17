@@ -26,7 +26,8 @@ describe('achievements and AI unlock', () => {
     expect(state.meta.aiUnlocked).toBe(true)
     expect(isSystemUnlocked(state, 'ai')).toBe(true)
     expect(state.meta.completedAchievements).toContain('first-blood')
-    expect(state.resources.aiPoints).toBe(1)
+    expect(state.resources.aiPoints).toBe(4)
+    expect(state.process.earned).toBe(4)
   })
 
   it('does not re-grant an already completed achievement', () => {
@@ -103,7 +104,7 @@ describe('achievements and AI unlock', () => {
     expect(activeGuideStep(aiState, 'combat')?.id).toBe('guide-ai-tab')
 
     aiState.meta.seenOnboarding = [...aiState.meta.seenOnboarding, 'guide-ai-tab']
-    expect(activeGuideStep(aiState, 'process')?.id).toBe('guide-achievements')
+    expect(activeGuideStep(aiState, 'process')?.id).toBe('guide-process-v2-what')
   })
 
   it('lists a stable achievement catalog with AI rewards', () => {

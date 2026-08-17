@@ -9,6 +9,7 @@ import type {
   YardState,
 } from './types'
 import { careerHighestSector } from './progression'
+import { processIndustrySpeedMult } from './process'
 
 export const YARD_START_SIZE = 3
 export const YARD_EXPAND_SECTOR = 14
@@ -237,7 +238,7 @@ export function tickYard(state: GameState, dtSeconds: number): void {
     if (!cell.buildingId) continue
     const def = getYardBuilding(cell.buildingId)
     if (!def) continue
-    state.yard.goods[def.produces] = yardGood(state, def.produces) + def.rate * dtSeconds
+    state.yard.goods[def.produces] = yardGood(state, def.produces) + def.rate * dtSeconds * processIndustrySpeedMult(state)
   }
 }
 

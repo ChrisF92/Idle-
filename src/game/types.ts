@@ -155,9 +155,100 @@ export interface EchoState {
   clears: Record<string, number>
 }
 
-/** Achievements → Process points → automation / QoL. */
+export type ProcessCorePriority =
+  | 'cheapest'
+  | 'weapon'
+  | 'shield'
+  | 'utility'
+  | 'balanced'
+  | 'custom'
+  | 'value'
+
+export type ProcessNetworkPreset =
+  | 'push'
+  | 'farm'
+  | 'industry'
+  | 'research'
+  | 'balanced'
+  | 'custom'
+
+export type ProcessFoundryUpgradePriority = 'cheapest' | 'speed' | 'slots' | 'output'
+
+export type ProcessReliquaryKeepMode = 'keep-all' | 'keep-best' | 'upgrade-only'
+
+export interface ProcessCorePreset {
+  name: string
+  priority: ProcessCorePriority
+  ratios: { weapon: number; shield: number; utility: number }
+}
+
+export interface ProcessYardLayout {
+  name: string
+  cells: YardCell[]
+}
+
+/** Player-facing automation settings. Persist across Rebuild. */
+export interface ProcessConfig {
+  core: {
+    enabled: boolean
+    priority: ProcessCorePriority
+    ratios: { weapon: number; shield: number; utility: number }
+    presets: ProcessCorePreset[]
+    activePreset: number
+  }
+  network: {
+    enabled: boolean
+    preset: ProcessNetworkPreset
+    ratios: Partial<Record<NetworkBarId, number>>
+  }
+  foundry: {
+    autoBuy: boolean
+    repeatRecipe: FoundryRecipeId | null
+    queue: FoundryRecipeId[]
+    targetRecipe: FoundryRecipeId | null
+    upgradePriority: ProcessFoundryUpgradePriority
+  }
+  reliquary: {
+    autoMerge: boolean
+    autoEquip: boolean
+    keepMode: ProcessReliquaryKeepMode
+    minScore: number
+  }
+  furnace: {
+    autoFeed: boolean
+    preset: string | null
+    manager: boolean
+    autoChannel: boolean
+    reserveHeat: number
+  }
+  research: {
+    autoResearch: boolean
+    queue: HiveResearchBranch[]
+    branchPriority: HiveResearchBranch[]
+  }
+  yard: {
+    autoUpgrade: boolean
+    selectedArms: YardArmId[]
+    layouts: ProcessYardLayout[]
+    activeLayout: number
+  }
+  sortie: {
+    autoExtract: boolean
+    extractHullPct: number
+    autoRelaunch: boolean
+    protocolRepeat: boolean
+    echoRepeat: boolean
+    lastProtocolId: string | null
+    lastEchoId: string | null
+  }
+}
+
+/** Achievements → Process points → automation / QoL / accumulation. */
 export interface ProcessState {
   purchased: string[]
+  /** Lifetime Process Points earned. Never decreases when spent. */
+  earned: number
+  config: ProcessConfig
 }
 
 export type SpecialistId = 'gunner' | 'warden' | 'scavenger'

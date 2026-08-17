@@ -87,7 +87,6 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     s.combat.highestSector = 5
     s.resources.aiPoints = 20
     s.meta.aiUnlocked = true
-    s = buyProcessNode(s, 'network-balance')
     s = buyProcessNode(s, 'auto-bank')
     s.resources.choirAsh = 25
     const before = s.resources.heat ?? 0

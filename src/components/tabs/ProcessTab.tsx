@@ -1,23 +1,42 @@
-import type { GameState } from '../../game/types'
+import type {
+  FoundryRecipeId,
+  GameState,
+  HiveResearchBranch,
+  ProcessCorePriority,
+  ProcessNetworkPreset,
+  YardArmId,
+} from '../../game/types'
 import {
   ACHIEVEMENTS,
   isAchievementUnlocked,
   isSystemUnlocked,
 } from '../../game/progression'
 import {
+  CORE_PRIORITY_LABELS,
+  NETWORK_PRESET_LABELS,
+  PROCESS_ACCUMULATION,
   PROCESS_CATEGORIES,
   PROCESS_NODES,
   canBuyProcessNode,
+  firstAffordableProcessNode,
   hasProcess,
+  processAccumulationStatus,
+  processAvailable,
+  processConfig,
+  processEarned,
+  processExtraPresetSlots,
 } from '../../game/process'
+import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { formatCompact } from '../../game/format'
 import { SheetTabs } from '../SheetTabs'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
 
-type ProcessPane = 'nodes' | 'log'
+type ProcessPane = 'automation' | 'qol' | 'accumulation' | 'log'
 
 const PROCESS_PANES: { id: ProcessPane; label: string }[] = [
-  { id: 'nodes', label: 'Nodes' },
+  { id: 'automation', label: 'Automation' },
+  { id: 'qol', label: 'QoL' },
+  { id: 'accumulation', label: 'Accumulation' },
   { id: 'log', label: 'Log' },
 ]
 
@@ -25,14 +44,533 @@ interface ProcessTabProps {
   state: GameState
   onBack: () => void
   onBuy: (id: string) => void
+  onConfig?: (config: GameState['process']['config']) => void
   guideTarget?: string | null
 }
 
-export function ProcessTab({ state, onBack, onBuy, guideTarget = null }: ProcessTabProps) {
+function nodeStatus(
+  state: GameState,
+  id: string,
+): 'owned' | 'affordable' | 'locked' {
+  if (hasProcess(state, id)) return 'owned'
+  return canBuyProcessNode(state, id).ok ? 'affordable' : 'locked'
+}
+
+function NodeCard({
+  state,
+  nodeId,
+  onBuy,
+  onConfig,
+  highlight,
+}: {
+  state: GameState
+  nodeId: string
+  onBuy: (id: string) => void
+  onConfig?: (config: GameState['process']['config']) => void
+  highlight?: boolean
+}) {
+  const node = PROCESS_NODES.find((n) => n.id === nodeId)
+  if (!node) return null
+  const owned = hasProcess(state, node.id)
+  const check = canBuyProcessNode(state, node.id)
+  const status = nodeStatus(state, node.id)
+  const prior = node.requiresId ? PROCESS_NODES.find((n) => n.id === node.requiresId) : undefined
+  return (
+    <article
+      className={`network-row process-node is-${status}${highlight ? ' is-guide' : ''}`}
+      data-guide={highlight ? 'process-first-buy' : undefined}
+    >
+      <div className="network-row-main">
+        <strong>{node.name}</strong>
+        <span className="muted">
+          {owned ? 'Purchased' : check.ok ? `${node.cost} Process · affordable` : `${node.cost} Process`}
+        </span>
+      </div>
+      <p className="network-row-stats">{node.blurb}</p>
+      {!owned && prior && !hasProcess(state, prior.id) ? (
+        <p className="muted">Need {prior.name}</p>
+      ) : null}
+      <button
+        type="button"
+        className="primary"
+        disabled={owned || !check.ok}
+        onClick={() => onBuy(node.id)}
+      >
+        {owned ? 'Purchased' : check.ok ? 'Buy' : check.reason}
+      </button>
+      {owned && onConfig ? <NodeConfig state={state} nodeId={node.id} onConfig={onConfig} /> : null}
+    </article>
+  )
+}
+
+function NodeConfig({
+  state,
+  nodeId,
+  onConfig,
+}: {
+  state: GameState
+  nodeId: string
+  onConfig: (config: GameState['process']['config']) => void
+}) {
+  const cfg = processConfig(state)
+  const patch = (mutate: (next: GameState['process']['config']) => void) => {
+    const next = structuredClone(cfg)
+    mutate(next)
+    onConfig(next)
+  }
+
+  if (nodeId === 'auto-salvage') {
+    return (
+      <label className="process-config" data-guide="process-config">
+        <input
+          type="checkbox"
+          checked={cfg.core.enabled}
+          onChange={(e) => patch((c) => { c.core.enabled = e.target.checked })}
+        />
+        Auto Upgrade on
+      </label>
+    )
+  }
+  if (nodeId === 'core-priority') {
+    const options = (Object.keys(CORE_PRIORITY_LABELS) as ProcessCorePriority[]).filter(
+      (id) => id !== 'value' || hasProcess(state, 'smart-core'),
+    ).filter((id) => id !== 'custom' || hasProcess(state, 'core-ratios'))
+    return (
+      <label className="process-config" data-guide="process-config">
+        Priority
+        <select
+          value={cfg.core.priority}
+          onChange={(e) => patch((c) => { c.core.priority = e.target.value as ProcessCorePriority })}
+        >
+          {options.map((id) => (
+            <option key={id} value={id}>
+              {CORE_PRIORITY_LABELS[id]}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+  if (nodeId === 'core-ratios') {
+    const row = (key: 'weapon' | 'shield' | 'utility', label: string) => (
+      <label key={key} className="process-config">
+        {label}
+        <input
+          type="number"
+          min={0}
+          value={cfg.core.ratios[key]}
+          onChange={(e) =>
+            patch((c) => {
+              c.core.ratios[key] = Math.max(0, Number(e.target.value) || 0)
+              c.core.priority = 'custom'
+            })
+          }
+        />
+      </label>
+    )
+    return (
+      <div className="process-config-block" data-guide="process-config">
+        {row('weapon', 'Weapon')}
+        {row('shield', 'Shield')}
+        {row('utility', 'Utility')}
+      </div>
+    )
+  }
+  if (nodeId === 'network-presets' || nodeId === 'network-balance') {
+    return (
+      <div className="process-config-block" data-guide="process-config">
+        <label className="process-config">
+          <input
+            type="checkbox"
+            checked={cfg.network.enabled}
+            onChange={(e) => patch((c) => { c.network.enabled = e.target.checked })}
+          />
+          Auto Optimise on
+        </label>
+        <label className="process-config">
+          Preset
+          <select
+            value={cfg.network.preset}
+            onChange={(e) => patch((c) => { c.network.preset = e.target.value as ProcessNetworkPreset })}
+          >
+            {(Object.keys(NETWORK_PRESET_LABELS) as ProcessNetworkPreset[])
+              .filter((id) => id !== 'custom' || hasProcess(state, 'network-ratios'))
+              .map((id) => (
+                <option key={id} value={id}>
+                  {NETWORK_PRESET_LABELS[id]}
+                </option>
+              ))}
+          </select>
+        </label>
+      </div>
+    )
+  }
+  if (nodeId === 'network-ratios') {
+    const bars = ['strike', 'ward', 'yield', 'loom', 'archive'] as const
+    return (
+      <div className="process-config-block" data-guide="process-config">
+        {bars.map((id) => (
+          <label key={id} className="process-config">
+            {id}
+            <input
+              type="number"
+              min={0}
+              value={cfg.network.ratios[id] ?? 0}
+              onChange={(e) =>
+                patch((c) => {
+                  c.network.ratios[id] = Math.max(0, Number(e.target.value) || 0)
+                  c.network.preset = 'custom'
+                })
+              }
+            />
+          </label>
+        ))}
+      </div>
+    )
+  }
+  if (nodeId === 'foundry-repeat') {
+    return (
+      <label className="process-config">
+        Repeat
+        <select
+          value={cfg.foundry.repeatRecipe ?? ''}
+          onChange={(e) =>
+            patch((c) => {
+              c.foundry.repeatRecipe = (e.target.value || null) as FoundryRecipeId | null
+            })
+          }
+        >
+          <option value="">None</option>
+          {FOUNDRY_RECIPES.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+  if (nodeId === 'foundry-queue') {
+    return (
+      <div className="process-config-block" data-guide="process-foundry-queue">
+        <p className="muted">Queue (comma recipe ids)</p>
+        <input
+          value={cfg.foundry.queue.join(',')}
+          onChange={(e) =>
+            patch((c) => {
+              c.foundry.queue = e.target.value
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean) as FoundryRecipeId[]
+            })
+          }
+        />
+      </div>
+    )
+  }
+  if (nodeId === 'foundry-prereqs') {
+    return (
+      <label className="process-config">
+        Target
+        <select
+          value={cfg.foundry.targetRecipe ?? ''}
+          onChange={(e) =>
+            patch((c) => {
+              c.foundry.targetRecipe = (e.target.value || null) as FoundryRecipeId | null
+            })
+          }
+        >
+          <option value="">None</option>
+          {FOUNDRY_RECIPES.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+  if (nodeId === 'foundry-priority' || nodeId === 'foundry-auto') {
+    return (
+      <div className="process-config-block">
+        {nodeId === 'foundry-auto' ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.foundry.autoBuy}
+              onChange={(e) => patch((c) => { c.foundry.autoBuy = e.target.checked })}
+            />
+            Auto Buy on
+          </label>
+        ) : null}
+        <label className="process-config">
+          Rank priority
+          <select
+            value={cfg.foundry.upgradePriority}
+            onChange={(e) =>
+              patch((c) => {
+                c.foundry.upgradePriority = e.target.value as typeof c.foundry.upgradePriority
+              })
+            }
+          >
+            <option value="cheapest">Cheapest</option>
+            <option value="speed">Speed</option>
+            <option value="slots">Slots</option>
+            <option value="output">Output</option>
+          </select>
+        </label>
+      </div>
+    )
+  }
+  if (nodeId === 'auto-relic' || nodeId === 'reliquary-keep' || nodeId === 'reliquary-quality' || nodeId === 'reliquary-merge') {
+    return (
+      <div className="process-config-block" data-guide="process-config">
+        <label className="process-config">
+          <input
+            type="checkbox"
+            checked={cfg.reliquary.autoEquip}
+            onChange={(e) => patch((c) => { c.reliquary.autoEquip = e.target.checked })}
+          />
+          Auto Equip
+        </label>
+        {hasProcess(state, 'reliquary-keep') ? (
+          <label className="process-config">
+            Keep
+            <select
+              value={cfg.reliquary.keepMode}
+              onChange={(e) =>
+                patch((c) => {
+                  c.reliquary.keepMode = e.target.value as typeof c.reliquary.keepMode
+                })
+              }
+            >
+              <option value="keep-all">Keep fitted</option>
+              <option value="keep-best">Keep best</option>
+              <option value="upgrade-only">Upgrade only</option>
+            </select>
+          </label>
+        ) : null}
+        {hasProcess(state, 'reliquary-quality') ? (
+          <label className="process-config">
+            Min score
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              value={cfg.reliquary.minScore}
+              onChange={(e) => patch((c) => { c.reliquary.minScore = Math.max(0, Number(e.target.value) || 0) })}
+            />
+          </label>
+        ) : null}
+        {hasProcess(state, 'reliquary-merge') ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.reliquary.autoMerge}
+              onChange={(e) => patch((c) => { c.reliquary.autoMerge = e.target.checked })}
+            />
+            Auto Merge Signal Cores
+          </label>
+        ) : null}
+      </div>
+    )
+  }
+  if (nodeId === 'auto-extract' || nodeId === 'sortie-relaunch') {
+    return (
+      <div className="process-config-block">
+        <label className="process-config">
+          <input
+            type="checkbox"
+            checked={cfg.sortie.autoExtract}
+            onChange={(e) => patch((c) => { c.sortie.autoExtract = e.target.checked })}
+          />
+          Safe Hold
+        </label>
+        <label className="process-config">
+          Hull %
+          <input
+            type="number"
+            min={5}
+            max={90}
+            value={Math.round(cfg.sortie.extractHullPct * 100)}
+            onChange={(e) =>
+              patch((c) => {
+                c.sortie.extractHullPct = Math.min(0.9, Math.max(0.05, (Number(e.target.value) || 35) / 100))
+              })
+            }
+          />
+        </label>
+        {hasProcess(state, 'sortie-relaunch') ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.sortie.autoRelaunch}
+              onChange={(e) => patch((c) => { c.sortie.autoRelaunch = e.target.checked })}
+            />
+            Auto relaunch
+          </label>
+        ) : null}
+      </div>
+    )
+  }
+  if (nodeId === 'protocol-repeat' || nodeId === 'echo-repeat') {
+    return (
+      <div className="process-config-block">
+        {hasProcess(state, 'protocol-repeat') ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.sortie.protocolRepeat}
+              onChange={(e) => patch((c) => { c.sortie.protocolRepeat = e.target.checked })}
+            />
+            Repeat last Protocol
+          </label>
+        ) : null}
+        {hasProcess(state, 'echo-repeat') ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.sortie.echoRepeat}
+              onChange={(e) => patch((c) => { c.sortie.echoRepeat = e.target.checked })}
+            />
+            Repeat last Echo
+          </label>
+        ) : null}
+      </div>
+    )
+  }
+  if (nodeId === 'research-queue' || nodeId === 'research-priorities' || nodeId === 'research-focus') {
+    const branches: HiveResearchBranch[] = ['material', 'energy', 'observation']
+    return (
+      <div className="process-config-block">
+        {hasProcess(state, 'research-focus') ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.research.autoResearch}
+              onChange={(e) => patch((c) => { c.research.autoResearch = e.target.checked })}
+            />
+            Auto Research
+          </label>
+        ) : null}
+        <label className="process-config">
+          Priority order
+          <input
+            value={cfg.research.branchPriority.join(',')}
+            onChange={(e) =>
+              patch((c) => {
+                c.research.branchPriority = e.target.value
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter((id): id is HiveResearchBranch => branches.includes(id as HiveResearchBranch))
+              })
+            }
+          />
+        </label>
+      </div>
+    )
+  }
+  if (nodeId === 'furnace-reserve' || nodeId === 'furnace-auto' || nodeId === 'auto-bank') {
+    return (
+      <div className="process-config-block">
+        <label className="process-config">
+          <input
+            type="checkbox"
+            checked={cfg.furnace.autoFeed}
+            onChange={(e) => patch((c) => { c.furnace.autoFeed = e.target.checked })}
+          />
+          Auto feed
+        </label>
+        {hasProcess(state, 'furnace-auto') ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.furnace.manager}
+              onChange={(e) => patch((c) => { c.furnace.manager = e.target.checked })}
+            />
+            Manager (current ranks)
+          </label>
+        ) : null}
+        {hasProcess(state, 'furnace-reserve') ? (
+          <label className="process-config">
+            Reserve Heat
+            <input
+              type="number"
+              min={0}
+              value={cfg.furnace.reserveHeat}
+              onChange={(e) => patch((c) => { c.furnace.reserveHeat = Math.max(0, Number(e.target.value) || 0) })}
+            />
+          </label>
+        ) : null}
+        <p className="muted">Furnace 2.0 will consume these hooks for channels and presets.</p>
+      </div>
+    )
+  }
+  if (nodeId === 'yard-buy-max' || nodeId === 'yard-auto' || nodeId === 'yard-layouts') {
+    const arms: YardArmId[] = ['damage', 'shield', 'salvage', 'network']
+    return (
+      <div className="process-config-block">
+        {hasProcess(state, 'yard-auto') ? (
+          <label className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.yard.autoUpgrade}
+              onChange={(e) => patch((c) => { c.yard.autoUpgrade = e.target.checked })}
+            />
+            Auto Arms
+          </label>
+        ) : null}
+        <p className="muted">Buy Max spends Ingots on the arms you tick.</p>
+        {arms.map((id) => (
+          <label key={id} className="process-config">
+            <input
+              type="checkbox"
+              checked={cfg.yard.selectedArms.includes(id)}
+              onChange={(e) =>
+                patch((c) => {
+                  const next = new Set(c.yard.selectedArms)
+                  if (e.target.checked) next.add(id)
+                  else next.delete(id)
+                  c.yard.selectedArms = arms.filter((arm) => next.has(arm))
+                })
+              }
+            />
+            {id}
+          </label>
+        ))}
+        {hasProcess(state, 'yard-layouts') ? (
+          <p className="muted">Extra layout slots from Accumulation: {processExtraPresetSlots(state)}</p>
+        ) : null}
+      </div>
+    )
+  }
+  return null
+}
+
+export function ProcessTab({
+  state,
+  onBack,
+  onBuy,
+  onConfig,
+  guideTarget = null,
+}: ProcessTabProps) {
   const open = isSystemUnlocked(state, 'process')
-  const points = state.resources.aiPoints
-  const hint = guideTarget === 'process-nodes' ? 'nodes' : null
-  const [pane, setPane] = useSyncedPane<ProcessPane>('nodes', hint)
+  const available = processAvailable(state)
+  const earned = processEarned(state)
+  const hint =
+    guideTarget === 'process-qol'
+      ? 'qol'
+      : guideTarget === 'process-accumulation'
+        ? 'accumulation'
+        : guideTarget === 'process-automation' ||
+            guideTarget === 'process-first-buy' ||
+            guideTarget === 'process-foundry-queue' ||
+            guideTarget === 'process-config' ||
+            guideTarget === 'process-nodes'
+          ? 'automation'
+          : null
+  const [pane, setPane] = useSyncedPane<ProcessPane>('automation', hint)
+  const firstBuy = firstAffordableProcessNode(state)
 
   return (
     <section className="panel screen-panel">
@@ -45,73 +583,111 @@ export function ProcessTab({ state, onBack, onBuy, guideTarget = null }: Process
         <h2>Process</h2>
         <p>
           {open
-            ? `${formatCompact(points, 1)} Process · achievements fund automation`
+            ? 'The hangar learns chores you have already demonstrated.'
             : 'Clear sector 1 to wake Process.'}
         </p>
       </header>
       {!open ? (
-        <p className="muted">Achievements grant Process points. Spend them on QoL nodes.</p>
+        <p className="muted">Achievements grant Process points. Spend them on automation, QoL, and Accumulation.</p>
       ) : (
         <>
+          <div className="process-ledger">
+            <p data-guide="process-available">
+              <span className="muted">Process Available</span>
+              <strong>{formatCompact(available, 1)}</strong>
+            </p>
+            <p data-guide="process-earned">
+              <span className="muted">Process Earned</span>
+              <strong>{formatCompact(earned, 1)}</strong>
+            </p>
+          </div>
           <SheetTabs value={pane} onChange={setPane} options={PROCESS_PANES} label="Process panes" />
           <div className="panel-scroll">
-          {pane === 'nodes' ? (
-            <>
-          <p className="muted">
-            Nodes are expensive on purpose. Buy a few that match this sitting — later acts add more.
-          </p>
-          {PROCESS_CATEGORIES.map((cat) => {
-            const nodes = PROCESS_NODES.filter((n) => n.category === cat.id)
-            if (nodes.length === 0) return null
-            return (
-              <div key={cat.id}>
-                <h3
-                  className="foundry-heading"
-                  data-guide={cat.id === 'combat' ? 'process-nodes' : undefined}
-                >
-                  {cat.name}
-                </h3>
-                {nodes.map((node) => {
-                  const owned = hasProcess(state, node.id)
-                  const check = canBuyProcessNode(state, node.id)
+            {pane === 'automation' ? (
+              <>
+                <p className="muted" data-guide="process-automation">
+                  Helper, then settings, then full loops. Buy after you understand the system. Spending Available does
+                  not reduce Earned.
+                </p>
+                {PROCESS_CATEGORIES.filter((c) => c.id !== 'qol').map((cat) => {
+                  const nodes = PROCESS_NODES.filter((n) => n.category === cat.id && n.kind === 'automation')
+                  if (nodes.length === 0) return null
                   return (
-                    <article key={node.id} className="network-row">
+                    <div key={cat.id}>
+                      <h3 className="foundry-heading">{cat.name}</h3>
+                      {nodes.map((node) => (
+                        <NodeCard
+                          key={node.id}
+                          state={state}
+                          nodeId={node.id}
+                          onBuy={onBuy}
+                          onConfig={onConfig}
+                          highlight={firstBuy?.id === node.id}
+                        />
+                      ))}
+                    </div>
+                  )
+                })}
+              </>
+            ) : null}
+            {pane === 'qol' ? (
+              <>
+                <p className="muted" data-guide="process-qol">
+                  Comfort for the sitting. Not the same as Automation.
+                </p>
+                {PROCESS_NODES.filter((n) => n.kind === 'qol').map((node) => (
+                  <NodeCard key={node.id} state={state} nodeId={node.id} onBuy={onBuy} onConfig={onConfig} />
+                ))}
+              </>
+            ) : null}
+            {pane === 'accumulation' ? (
+              <>
+                <p className="muted" data-guide="process-accumulation">
+                  Permanent account milestones from lifetime Process Earned. Spending does not undo these.
+                </p>
+                {PROCESS_ACCUMULATION.map((row) => {
+                  const status = processAccumulationStatus(earned, row)
+                  return (
+                    <article key={row.id} className={`network-row process-accum is-${status}`}>
                       <div className="network-row-main">
-                        <strong>{node.name}</strong>
-                        <span className="muted">{owned ? 'Owned' : `${node.cost} Process`}</span>
+                        <strong>{row.name}</strong>
+                        <span className="muted">
+                          {status === 'achieved' ? 'Achieved' : status === 'next' ? 'Next' : 'Future'} · {row.atEarned}{' '}
+                          Earned
+                        </span>
                       </div>
-                      <p className="network-row-stats">{node.blurb}</p>
-                      <button
-                        type="button"
-                        className="primary"
-                        disabled={owned || !check.ok}
-                        onClick={() => onBuy(node.id)}
-                      >
-                        {owned ? 'Owned' : check.ok ? 'Buy' : check.reason}
-                      </button>
+                      <p className="network-row-stats">{row.blurb}</p>
                     </article>
                   )
                 })}
-              </div>
-            )
-          })}
-            </>
-          ) : (
-            <>
-          <h3 className="foundry-heading">Achievements</h3>
-          {ACHIEVEMENTS.filter((a) => !a.repeatable).slice(0, 12).map((a) => (
-            <article key={a.id} className="network-row">
-              <div className="network-row-main">
-                <strong>{a.name}</strong>
-                <span className="muted">
-                  {isAchievementUnlocked(state, a.id) ? 'Done' : `+${a.rewardAiPoints}`}
-                </span>
-              </div>
-              <p className="network-row-stats">{a.description}</p>
-            </article>
-          ))}
-            </>
-          )}
+              </>
+            ) : null}
+            {pane === 'log' ? (
+              <>
+                <h3 className="foundry-heading">Achievements</h3>
+                {ACHIEVEMENTS.filter((a) => !a.repeatable).map((a) => (
+                  <article key={a.id} className="network-row">
+                    <div className="network-row-main">
+                      <strong>{a.name}</strong>
+                      <span className="muted">
+                        {isAchievementUnlocked(state, a.id) ? 'Done' : `+${a.rewardAiPoints}`}
+                      </span>
+                    </div>
+                    <p className="network-row-stats">{a.description}</p>
+                  </article>
+                ))}
+                <h3 className="foundry-heading">Repeatable</h3>
+                {ACHIEVEMENTS.filter((a) => a.repeatable).map((a) => (
+                  <article key={a.id} className="network-row">
+                    <div className="network-row-main">
+                      <strong>{a.name}</strong>
+                      <span className="muted">+{a.rewardAiPoints}</span>
+                    </div>
+                    <p className="network-row-stats">{a.description}</p>
+                  </article>
+                ))}
+              </>
+            ) : null}
           </div>
         </>
       )}

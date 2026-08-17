@@ -23,6 +23,7 @@ interface CoreSheetProps {
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   compact?: boolean
+  onBuyMax?: () => void
 }
 
 function CoreRow({
@@ -98,9 +99,17 @@ export function CoreSheet({
   onUpgrade,
   onPickMilestone,
   compact = false,
+  onBuyMax,
 }: CoreSheetProps) {
   return (
     <div className={compact ? 'core-sheet core-sheet-compact' : 'core-sheet'}>
+      {onBuyMax ? (
+        <p className="assign-row">
+          <button type="button" className="primary" data-guide="core-buy-max" onClick={onBuyMax}>
+            Buy Max
+          </button>
+        </p>
+      ) : null}
       {state.shipyard.modules.map((moduleId) => (
         <CoreRow
           key={moduleId}

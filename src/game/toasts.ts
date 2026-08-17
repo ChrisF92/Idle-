@@ -114,7 +114,7 @@ const STATION_TOAST: Partial<
   process: {
     category: 'SYSTEM ONLINE',
     title: 'Process unlocked',
-    body: 'Achievements now grant Process points.',
+    body: 'The hangar can learn chores you already know. Achievements fund Process.',
     label: 'OPEN PROCESS',
   },
   specialists: {

@@ -113,8 +113,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   process: {
     title: 'Process',
     body: [
-      'Achievements grant Process points. Spend them on automation and quality-of-life. Nodes are expensive — buy a few that match this sitting. The achievement log is on its own pane.',
-      'Opens after First Blood (clear sector 1). Act 1 covers Sortie, Network, Foundry, Reliquary, Research, and Furnace. Points persist across Rebuild.',
+      'Process Available is spendable. Process Earned is lifetime and never drops when you buy.',
+      'Automation copies chores you already understand. QoL eases the sitting. Accumulation unlocks from lifetime Earned. Opens after First Blood (clear sector 1).',
     ],
   },
   specialists: {

@@ -58,7 +58,7 @@ import {
 import { createEmptyYardState, yardDamageMult, yardShieldMult } from './yard'
 import { createEmptyProtocolState } from './protocols'
 import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
-import { createEmptyProcessState } from './process'
+import { createEmptyProcessState, processDamageMult, processShieldMult } from './process'
 import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult } from './specialists'
 import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
 import { emptyLastSortie } from './sortieSummary'
@@ -228,6 +228,7 @@ export function globalDamageMultiplier(state: GameState): number {
     state.prestige.challengeClears,
   )
   if (aiDoctrinesActive(state, 'focus-fire')) mult *= 1.06
+  mult *= processDamageMult(state)
   mult *= ballisticsDamageMult(state.core?.ranks.ballistics ?? 0)
   const coreDmg = computeSignalCoreBonuses(state).damage
   // Signal damage is a softer half-weight layer (not a full multiply stack).
@@ -374,6 +375,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= echoShieldMult(state)
   shieldMax *= specialistShieldMult(state)
   shieldMax *= capitalShieldMult(state)
+  shieldMax *= processShieldMult(state)
 
   evasion = Math.min(0.45, evasion)
 

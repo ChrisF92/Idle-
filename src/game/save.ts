@@ -41,7 +41,7 @@ import { createEmptyHiveResearchState } from './hiveResearch'
 import { createEmptyYardState } from './yard'
 import { createEmptyProtocolState } from './protocols'
 import { createEmptyEchoState } from './echo'
-import { createEmptyProcessState } from './process'
+import { createEmptyProcessState, finalizeProcessMigration, hydrateProcessState } from './process'
 import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
@@ -438,12 +438,7 @@ function withEchoDefaults(raw: EchoState | undefined): EchoState {
 }
 
 function withProcessDefaults(raw: ProcessState | undefined): ProcessState {
-  const empty = createEmptyProcessState()
-  if (!raw || typeof raw !== 'object') return empty
-  const purchased = Array.isArray(raw.purchased)
-    ? raw.purchased.filter((id) => typeof id === 'string')
-    : []
-  return { purchased }
+  return hydrateProcessState(raw) ?? createEmptyProcessState()
 }
 
 const SPECIALIST_IDS: SpecialistId[] = ['gunner', 'warden', 'scavenger']
@@ -631,7 +626,7 @@ function migrate(raw: unknown): GameState | null {
       state.research,
       codex,
     )
-    return {
+    const hydrated: GameState = {
       ...state,
       resources: withResourcesDefaults(state.resources, base.resources),
       combat,
@@ -657,6 +652,8 @@ function migrate(raw: unknown): GameState | null {
       signalCores: withSignalCoresDefaults(state.signalCores),
       parts: withPartsDefaults(state.parts),
     }
+    finalizeProcessMigration(hydrated)
+    return hydrated
   }
 
   if (
@@ -718,7 +715,7 @@ function migrate(raw: unknown): GameState | null {
       prev.research,
       codex,
     )
-    return {
+    const hydrated: GameState = {
       ...base,
       ...prev,
       version: SAVE_VERSION,
@@ -746,6 +743,8 @@ function migrate(raw: unknown): GameState | null {
       signalCores: withSignalCoresDefaults(prev.signalCores),
       parts: withPartsDefaults(prev.parts),
     }
+    finalizeProcessMigration(hydrated)
+    return hydrated
   }
 
   return null

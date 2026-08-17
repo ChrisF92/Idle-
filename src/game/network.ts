@@ -11,6 +11,7 @@ import { hiveResearchDataMult, hiveResearchNetworkMult } from './hiveResearch'
 import { yardNetworkMult } from './yard'
 import { protocolBonusMult, protocolMutes } from './protocols'
 import { echoNetworkMult } from './echo'
+import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR } from './furnace'
 
 function careerEver(state: GameState): number {
@@ -298,7 +299,8 @@ export function networkFillRate(state: GameState, id: NetworkBarId): number {
       hiveResearchNetworkMult(state) *
       yardNetworkMult(state) *
       protocolBonusMult(state, 'network') *
-      echoNetworkMult(state)) /
+      echoNetworkMult(state) *
+      processNetworkSpeedMult(state)) /
     cost
   return Math.min(NETWORK_FILL_CAP_PER_SEC, Math.max(0, raw))
 }

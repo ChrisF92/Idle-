@@ -111,7 +111,6 @@ describe('phase 8: Protocols, Echo, Process', () => {
     s.combat.highestSector = 4
     s.resources.aiPoints = 40
     s.combat.docked = true
-    s = buyProcessNode(s, 'auto-salvage')
     s = buyProcessNode(s, 'auto-extract')
     s = buyProcessNode(s, 'offline-sortie')
     expect(hasProcess(s, 'offline-sortie')).toBe(true)

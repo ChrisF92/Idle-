@@ -16,10 +16,16 @@ import {
 import {
   assembleBlueprint,
   autoBalanceWorkers,
+  buyMaxYardArms,
   canAssembleBlueprint,
   convertAshToHeat,
   depositFabPart,
+  enterEcho,
+  enterProtocol,
   launchFabProject,
+  optimiseNetwork,
+  pickFoundryUpgradeId,
+  pickProcessCoreUpgrade,
   upgradeBestValueModule,
   upgradeCheapestModule,
 } from './actions'
@@ -30,17 +36,13 @@ import {
   countMergeable,
   mergeSignalCores,
 } from './signalCores'
-import { hasProcess } from './process'
-import { NETWORK_BARS, isNetworkBarUnlocked } from './network'
-import { normalizePushMode } from './sectors'
+import { hasProcess, processConfig } from './process'
 import {
   FOUNDRY_RECIPES,
-  FOUNDRY_UPGRADES,
   buyFoundryUpgrade,
-  canBuyFoundryUpgrade,
+  foundryMaterialCount,
   foundryRecipeLevel,
   foundrySlotCount,
-  foundryUpgradeCost,
   isFoundryInfinite,
   isFoundryRecipeUnlocked,
   setFoundrySlot,
@@ -59,8 +61,6 @@ import {
   HIVE_RESEARCH_BRANCHES,
   HIVE_RESEARCH_NODES,
   hiveResearchCompleted,
-  hiveResearchNodeCost,
-  hiveResearchXp,
   setResearchFocus,
 } from './hiveResearch'
 import {
@@ -95,7 +95,8 @@ function adopt(state: GameState, next: GameState): void {
 
 /** Auto-merge unequipped Signal Cores while triples remain. */
 export function autoMergeSignalCores(state: GameState): void {
-  if (!aiDoctrinesActive(state, 'auto-merge-signal')) return
+  const processMerge = hasProcess(state, 'reliquary-merge') && processConfig(state).reliquary.autoMerge
+  if (!aiDoctrinesActive(state, 'auto-merge-signal') && !processMerge) return
   let guard = 0
   while (guard++ < 40) {
     let merged = false
@@ -185,67 +186,36 @@ export function autoCoreTrain(state: GameState): void {
 
 /** Spend salvage on Core upgrades while affordable. */
 export function autoSalvageUpgrades(state: GameState): void {
-  const processSalvage = hasProcess(state, 'auto-salvage') || hasProcess(state, 'smart-core')
+  const cfg = processConfig(state)
+  const processSalvage = hasProcess(state, 'auto-salvage') && cfg.core.enabled
   if (!aiDoctrinesActive(state, 'auto-salvage-loop') && !processSalvage) return
   if (processSalvage && state.combat.docked) {
     if (!aiDoctrinesActive(state, 'auto-salvage-loop')) return
   }
-  const smart = hasProcess(state, 'smart-core')
   let guard = 0
   while (guard++ < 20) {
-    const next = smart
-      ? upgradeBestValueModule(state, { force: true })
-      : upgradeCheapestModule(state, { force: processSalvage })
+    const next = processSalvage
+      ? pickProcessCoreUpgrade(state, { force: true })
+      : hasProcess(state, 'smart-core')
+        ? upgradeBestValueModule(state, { force: true })
+        : upgradeCheapestModule(state, { force: true })
     if (next === state) break
     if (next.resources.salvage >= state.resources.salvage) break
     adopt(state, next)
   }
 }
 
-function barPriority(state: GameState): NetworkBarId[] {
-  if (!hasProcess(state, 'network-tune')) {
-    return NETWORK_BARS.filter((b) => isNetworkBarUnlocked(state, b.id)).map((b) => b.id)
-  }
-  const live = !state.combat.docked
-  const push = normalizePushMode(state.combat.pushMode, state.combat.campaign)
-  const order: NetworkBarId[] =
-    live && push === 'hold-wave'
-      ? ['yield', 'strike', 'ward', 'loom', 'archive']
-      : live && push === 'hold-sector'
-        ? ['yield', 'ward', 'strike', 'loom', 'archive']
-        : live
-          ? ['strike', 'ward', 'yield', 'loom', 'archive']
-          : ['loom', 'yield', 'strike', 'ward', 'archive']
-  return order.filter((id) => isNetworkBarUnlocked(state, id))
-}
-
 function autoNetworkBalance(state: GameState): void {
   if (!hasProcess(state, 'network-balance') && !hasProcess(state, 'network-tune')) return
-  let idle = idleWorkers(state)
-  if (idle <= 0) return
-  const bars = barPriority(state)
-  if (bars.length === 0) return
-  const assignments = { ...state.base.assignments }
-  while (idle > 0) {
-    let best = bars[0]!
-    let bestScore = Infinity
-    for (const id of bars) {
-      const n = assignments[id] ?? 0
-      const rank = bars.indexOf(id)
-      const score = n * 100 + rank
-      if (score < bestScore) {
-        bestScore = score
-        best = id
-      }
-    }
-    assignments[best] = (assignments[best] ?? 0) + 1
-    idle -= 1
-  }
-  state.base.assignments = assignments
+  if (!processConfig(state).network.enabled) return
+  if (idleWorkers(state) <= 0) return
+  const next = optimiseNetwork(state)
+  if (next !== state) adopt(state, next)
 }
 
 function autoBankAsh(state: GameState): void {
   if (!hasProcess(state, 'auto-bank')) return
+  if (!processConfig(state).furnace.autoFeed) return
   adopt(state, convertAshToHeat(state))
 }
 
@@ -281,8 +251,55 @@ function pickSmartSmeltRecipe(state: GameState, busy: Set<string>): FoundryRecip
   return best
 }
 
+function pickFoundryPrereqRecipe(state: GameState, target: FoundryRecipeId): FoundryRecipeId | null {
+  const def = FOUNDRY_RECIPES.find((r) => r.id === target)
+  if (!def) return null
+  if (def.requiresRecipeLevel) {
+    const have = foundryRecipeLevel(state, def.requiresRecipeLevel.recipeId)
+    if (have < def.requiresRecipeLevel.level) {
+      return pickFoundryPrereqRecipe(state, def.requiresRecipeLevel.recipeId) ?? def.requiresRecipeLevel.recipeId
+    }
+  }
+  if (def.costs.materials) {
+    for (const [mat, need] of Object.entries(def.costs.materials)) {
+      if (foundryMaterialCount(state, mat) < (need ?? 0)) {
+        return pickFoundryPrereqRecipe(state, mat as FoundryRecipeId) ?? (mat as FoundryRecipeId)
+      }
+    }
+  }
+  if (!isFoundryRecipeUnlocked(state, target) || isFoundryInfinite(state, target)) return null
+  return target
+}
+
+function nextFoundryRecipe(state: GameState, busy: Set<string>): FoundryRecipeId | null {
+  const cfg = processConfig(state)
+  if (hasProcess(state, 'foundry-queue')) {
+    for (const id of cfg.foundry.queue) {
+      if (busy.has(id) && foundrySlotCount(state) < 3) continue
+      if (!isFoundryRecipeUnlocked(state, id) || isFoundryInfinite(state, id)) continue
+      return id
+    }
+  }
+  if (hasProcess(state, 'foundry-repeat') && cfg.foundry.repeatRecipe) {
+    const id = cfg.foundry.repeatRecipe
+    if (isFoundryRecipeUnlocked(state, id) && !isFoundryInfinite(state, id)) return id
+  }
+  if (hasProcess(state, 'foundry-prereqs') && cfg.foundry.targetRecipe) {
+    const id = pickFoundryPrereqRecipe(state, cfg.foundry.targetRecipe)
+    if (id) return id
+  }
+  if (hasProcess(state, 'smart-smelt')) return pickSmartSmeltRecipe(state, busy)
+  return null
+}
+
 function autoSmartSmelt(state: GameState): void {
-  if (!hasProcess(state, 'smart-smelt')) return
+  if (
+    !hasProcess(state, 'smart-smelt') &&
+    !hasProcess(state, 'foundry-repeat') &&
+    !hasProcess(state, 'foundry-queue')
+  ) {
+    return
+  }
   const slots = foundrySlotCount(state)
   const busy = new Set(
     (state.foundry?.slots ?? []).map((s) => s.recipeId).filter((id): id is FoundryRecipeId => Boolean(id)),
@@ -290,7 +307,7 @@ function autoSmartSmelt(state: GameState): void {
   for (let i = 0; i < slots; i++) {
     const current = state.foundry?.slots[i]?.recipeId ?? null
     if (current) continue
-    const recipe = pickSmartSmeltRecipe(state, busy)
+    const recipe = nextFoundryRecipe(state, busy)
     if (!recipe) break
     const next = setFoundrySlot(state, i, recipe)
     if (next === state) continue
@@ -301,18 +318,10 @@ function autoSmartSmelt(state: GameState): void {
 
 function autoFoundryUpgrades(state: GameState): void {
   if (!hasProcess(state, 'foundry-auto')) return
+  if (!processConfig(state).foundry.autoBuy) return
   let guard = 0
   while (guard++ < 8) {
-    let bestId: string | null = null
-    let bestCost = Infinity
-    for (const up of FOUNDRY_UPGRADES) {
-      if (!canBuyFoundryUpgrade(state, up.id).ok) continue
-      const cost = foundryUpgradeCost(state, up.id)
-      if (cost < bestCost) {
-        bestCost = cost
-        bestId = up.id
-      }
-    }
+    const bestId = pickFoundryUpgradeId(state)
     if (!bestId) break
     const next = buyFoundryUpgrade(state, bestId)
     if (next === state) break
@@ -332,17 +341,23 @@ function autoPrintAssemble(state: GameState): void {
 
 function autoSeatShards(state: GameState): void {
   if (!hasProcess(state, 'auto-relic')) return
+  const cfg = processConfig(state)
+  if (!cfg.reliquary.autoEquip) return
+  const keep = hasProcess(state, 'reliquary-keep') ? cfg.reliquary.keepMode : 'keep-all'
+  const minScore = hasProcess(state, 'reliquary-quality') ? cfg.reliquary.minScore : 0
   for (const slot of RELIQUARY_SLOTS) {
     if (!isReliquarySlotUnlocked(state, slot.color)) continue
     const fitted = fittedShardId(state, slot.color)
     const fittedDef = fitted ? getShard(fitted) : undefined
     const fittedScore = fittedDef ? shardAutoScore(fittedDef) : 0
+    if (fitted && keep === 'keep-all') continue
     let bestId: string | null = null
-    let bestScore = fitted ? fittedScore * 1.05 : 0
+    let bestScore = fitted ? fittedScore * (keep === 'upgrade-only' ? 1.15 : 1.05) : 0
     for (const def of SHARDS) {
       if (def.color !== slot.color) continue
       if (shardOwned(state, def.id) < 1) continue
       const score = shardAutoScore(def) + Math.min(0.04, shardOwned(state, def.id) * 0.002)
+      if (score < minScore) continue
       if (score > bestScore) {
         bestScore = score
         bestId = def.id
@@ -356,30 +371,30 @@ function autoSeatShards(state: GameState): void {
 }
 
 function autoResearchFocus(state: GameState): void {
-  if (!hasProcess(state, 'research-focus')) return
+  if (!hasProcess(state, 'research-focus') && !hasProcess(state, 'research-queue')) return
   if (!state.hiveResearch) return
-  let best = state.hiveResearch.focus
-  let bestScore = Infinity
-  let any = false
-  for (const branch of HIVE_RESEARCH_BRANCHES) {
-    const nodes = HIVE_RESEARCH_NODES[branch.id]
-    const done = hiveResearchCompleted(state, branch.id)
-    if (done >= nodes.length) continue
-    any = true
-    const need = hiveResearchNodeCost(done)
-    const fill = hiveResearchXp(state, branch.id) / Math.max(1, need)
-    const score = done * 10 - fill
-    if (score < bestScore) {
-      bestScore = score
-      best = branch.id
-    }
+  const cfg = processConfig(state)
+  if (hasProcess(state, 'research-focus') && !cfg.research.autoResearch) return
+  const incomplete = (id: (typeof HIVE_RESEARCH_BRANCHES)[number]['id']) =>
+    hiveResearchCompleted(state, id) < HIVE_RESEARCH_NODES[id].length
+  let nextFocus = state.hiveResearch.focus
+  if (hasProcess(state, 'research-queue') && cfg.research.queue.length > 0) {
+    const queued = cfg.research.queue.find(incomplete)
+    if (queued) nextFocus = queued
+  } else if (hasProcess(state, 'research-priorities') && cfg.research.branchPriority.length > 0) {
+    const ranked = cfg.research.branchPriority.find(incomplete)
+    if (ranked) nextFocus = ranked
+  } else if (hasProcess(state, 'research-focus')) {
+    const ranked = cfg.research.branchPriority.find(incomplete)
+    if (ranked) nextFocus = ranked
   }
-  if (!any || best === state.hiveResearch.focus) return
-  adopt(state, setResearchFocus(state, best))
+  if (nextFocus === state.hiveResearch.focus) return
+  adopt(state, setResearchFocus(state, nextFocus))
 }
 
 function autoFurnaceRanks(state: GameState): void {
   if (!hasProcess(state, 'furnace-auto')) return
+  if (!processConfig(state).furnace.manager) return
   let guard = 0
   while (guard++ < 8) {
     let bestId: (typeof FURNACE_TRACKS)[number]['id'] | null = null
@@ -399,6 +414,40 @@ function autoFurnaceRanks(state: GameState): void {
   }
 }
 
+function autoYardArms(state: GameState): void {
+  if (!hasProcess(state, 'yard-auto')) return
+  if (!processConfig(state).yard.autoUpgrade) return
+  const next = buyMaxYardArms(state)
+  if (next !== state) adopt(state, next)
+}
+
+function autoProtocolEchoRepeat(state: GameState): void {
+  const cfg = processConfig(state)
+  if (
+    hasProcess(state, 'protocol-repeat') &&
+    cfg.sortie.protocolRepeat &&
+    state.combat.docked &&
+    !state.protocols?.activeId &&
+    cfg.sortie.lastProtocolId
+  ) {
+    const next = enterProtocol(state, cfg.sortie.lastProtocolId)
+    if (next !== state) {
+      adopt(state, next)
+      return
+    }
+  }
+  if (
+    hasProcess(state, 'echo-repeat') &&
+    cfg.sortie.echoRepeat &&
+    state.combat.docked &&
+    !state.echo?.activeId &&
+    cfg.sortie.lastEchoId
+  ) {
+    const next = enterEcho(state, cfg.sortie.lastEchoId)
+    if (next !== state) adopt(state, next)
+  }
+}
+
 /** Run all owned automation passives once per sim batch. */
 export function tickAutomation(state: GameState): void {
   if (challengeBlocksAi(state)) return
@@ -415,6 +464,8 @@ export function tickAutomation(state: GameState): void {
   autoSeatShards(state)
   autoResearchFocus(state)
   autoFurnaceRanks(state)
+  autoYardArms(state)
+  autoProtocolEchoRepeat(state)
 }
 
 /** Re-apply Labor Router when drones sit idle (Labor Loop). */

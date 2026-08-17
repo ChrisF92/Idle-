@@ -69,6 +69,13 @@ import {
   abandonEcho,
   buyEchoNode,
   buyProcessNode,
+  setProcessConfig,
+  buyMaxCores,
+  optimiseNetwork,
+  buyMaxFoundryUpgrades,
+  buyMaxYardArms,
+  saveYardLayout,
+  loadYardLayout,
   rankSpecialist,
   rankCapital,
   performReinforce,
@@ -156,6 +163,13 @@ type Action =
   | { type: 'abandon-echo' }
   | { type: 'buy-echo'; nodeId: string }
   | { type: 'buy-process'; nodeId: string }
+  | { type: 'process-config'; config: import('../game/types').ProcessConfig }
+  | { type: 'process-core-buy-max' }
+  | { type: 'process-network-optimise' }
+  | { type: 'process-foundry-buy-max' }
+  | { type: 'process-yard-buy-max' }
+  | { type: 'process-save-yard-layout'; name?: string }
+  | { type: 'process-load-yard-layout'; index: number }
   | { type: 'rank-specialist'; specialistId: import('../game/types').SpecialistId }
   | { type: 'rank-capital'; capitalId: import('../game/types').CapitalId }
   | { type: 'reinforce' }
@@ -305,6 +319,20 @@ function reducer(state: GameState, action: Action): GameState {
       return buyEchoNode(state, action.nodeId)
     case 'buy-process':
       return buyProcessNode(state, action.nodeId)
+    case 'process-config':
+      return setProcessConfig(state, action.config)
+    case 'process-core-buy-max':
+      return buyMaxCores(state)
+    case 'process-network-optimise':
+      return optimiseNetwork(state)
+    case 'process-foundry-buy-max':
+      return buyMaxFoundryUpgrades(state)
+    case 'process-yard-buy-max':
+      return buyMaxYardArms(state)
+    case 'process-save-yard-layout':
+      return saveYardLayout(state, action.name)
+    case 'process-load-yard-layout':
+      return loadYardLayout(state, action.index)
     case 'rank-specialist':
       return rankSpecialist(state, action.specialistId)
     case 'rank-capital':
@@ -451,6 +479,14 @@ export function useGame() {
     abandonEcho: () => dispatch({ type: 'abandon-echo' }),
     buyEchoNode: (nodeId: string) => dispatch({ type: 'buy-echo', nodeId }),
     buyProcessNode: (nodeId: string) => dispatch({ type: 'buy-process', nodeId }),
+    setProcessConfig: (config: import('../game/types').ProcessConfig) =>
+      dispatch({ type: 'process-config', config }),
+    buyMaxCores: () => dispatch({ type: 'process-core-buy-max' }),
+    optimiseNetwork: () => dispatch({ type: 'process-network-optimise' }),
+    buyMaxFoundryUpgrades: () => dispatch({ type: 'process-foundry-buy-max' }),
+    buyMaxYardArms: () => dispatch({ type: 'process-yard-buy-max' }),
+    saveYardLayout: (name?: string) => dispatch({ type: 'process-save-yard-layout', name }),
+    loadYardLayout: (index: number) => dispatch({ type: 'process-load-yard-layout', index }),
     rankSpecialist: (specialistId: import('../game/types').SpecialistId) =>
       dispatch({ type: 'rank-specialist', specialistId }),
     rankCapital: (capitalId: import('../game/types').CapitalId) =>

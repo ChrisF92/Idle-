@@ -50,6 +50,7 @@ import { yardSalvageMult } from './yard'
 import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
+import { processSalvageMult } from './process'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -1724,7 +1725,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     echoSalvageMult(state) *
     specialistSalvageMult(state) *
     capitalSalvageMult(state) *
-    fittedSalvageKillMult(state)
+    fittedSalvageKillMult(state) *
+    processSalvageMult(state)
   state.resources.salvage +=
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route) * salvageMult
   rollEnemyPartDrop(state, unit)

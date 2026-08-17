@@ -36,7 +36,7 @@ import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { networkManufactureMult, tickNetwork } from './network'
 import { tickFoundry } from './foundry'
 import { tickYard } from './yard'
-import { hasProcess, processOfflineBonusMs } from './process'
+import { hasProcess, processIndustrySpeedMult, processOfflineBonusMs } from './process'
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -122,7 +122,8 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {
-    const speed = workerManufactureSpeed(state) * networkManufactureMult(state)
+    const speed =
+      workerManufactureSpeed(state) * networkManufactureMult(state) * processIndustrySpeedMult(state)
     state.base.manufactureProgress +=
       (seconds * speed) / WORKER_MANUFACTURE_SECONDS
     while (

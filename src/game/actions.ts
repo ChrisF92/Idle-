@@ -65,7 +65,10 @@ import {
 } from './network'
 import {
   buyFoundryUpgrade,
+  canBuyFoundryUpgrade,
   equipFoundryModule,
+  FOUNDRY_UPGRADES,
+  foundryUpgradeCost,
   persistFoundryOnRebuild,
   setFoundrySlot,
   unequipFoundryModule,
@@ -94,7 +97,17 @@ import {
   getEchoNode,
   getEchoRun,
 } from './echo'
-import { canBuyProcessNode, createEmptyProcessState, getProcessNode } from './process'
+import {
+  canBuyProcessNode,
+  createEmptyProcessState,
+  getProcessNode,
+  hasProcess,
+  mergeProcessConfig,
+  networkAllocationWeights,
+  processConfig,
+  yardLayoutCap,
+  NETWORK_BAR_IDS,
+} from './process'
 import { createEmptySpecialistState, rankSpecialist } from './specialists'
 import { createEmptyCapitalState, rankCapital } from './capital'
 import { canReinforce, REINFORCE_UNLOCK_SECTOR } from './reinforce'
@@ -1168,9 +1181,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       tree: [...(state.echo?.tree ?? [])],
       clears: { ...(state.echo?.clears ?? {}) },
     },
-    process: {
-      purchased: [...(state.process?.purchased ?? [])],
-    },
+    process: structuredClone(state.process ?? createEmptyProcessState()),
     specialists: structuredClone(state.specialists ?? createEmptySpecialistState()),
     capital: structuredClone(state.capital ?? createEmptyCapitalState()),
     signalCores:
@@ -1258,6 +1269,10 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.protocols = kept.protocols
   state.echo = kept.echo
   state.process = kept.process
+  if (bonusAi > 0) {
+    if (!state.process) state.process = createEmptyProcessState()
+    state.process.earned = (state.process.earned ?? 0) + bonusAi
+  }
   state.specialists = kept.specialists
   state.capital = kept.capital
   state.signalCores = kept.signalCores
@@ -1485,6 +1500,8 @@ export function enterProtocol(state: GameState, protocolId: string): GameState {
   const next = structuredClone(state)
   if (!next.protocols) next.protocols = createEmptyProtocolState()
   next.protocols.activeId = protocolId
+  if (!next.process) next.process = createEmptyProcessState()
+  next.process.config.sortie.lastProtocolId = protocolId
   wipeProtocolLoadout(next)
   next.network = wipeNetworkBars(next.network)
   next.combat.sector = 1
@@ -1511,6 +1528,8 @@ export function abandonProtocol(state: GameState): GameState {
   if (!state.protocols?.activeId) return state
   const next = structuredClone(state)
   next.protocols.activeId = null
+  if (!next.process) next.process = createEmptyProcessState()
+  next.process.config.sortie.lastProtocolId = null
   wipeProtocolLoadout(next)
   next.network = wipeNetworkBars(next.network)
   next.combat.docked = true
@@ -1526,6 +1545,8 @@ export function enterEcho(state: GameState, echoId: string): GameState {
   const next = structuredClone(state)
   if (!next.echo) next.echo = createEmptyEchoState()
   next.echo.activeId = echoId
+  if (!next.process) next.process = createEmptyProcessState()
+  next.process.config.sortie.lastEchoId = echoId
   next.echo.resumeSector = next.combat.sector
   next.echo.resumeWave = next.combat.wave
   next.echo.resumeRoute = next.combat.route
@@ -1539,6 +1560,8 @@ export function enterEcho(state: GameState, echoId: string): GameState {
 export function abandonEcho(state: GameState): GameState {
   if (!state.echo?.activeId) return state
   const next = structuredClone(state)
+  if (!next.process) next.process = createEmptyProcessState()
+  next.process.config.sortie.lastEchoId = null
   failEcho(next, 'Abandoned.')
   return next
 }
@@ -1581,6 +1604,224 @@ export function buyProcessNode(state: GameState, nodeId: string): GameState {
   next.resources.aiPoints -= def.cost
   next.process.purchased = [...next.process.purchased, nodeId]
   tryCompleteAchievements(next)
+  return next
+}
+
+export function setProcessConfig(state: GameState, config: GameState['process']['config']): GameState {
+  const next = structuredClone(state)
+  if (!next.process) next.process = createEmptyProcessState()
+  next.process.config = mergeProcessConfig(config)
+  return next
+}
+
+export function pickProcessCoreUpgrade(
+  state: GameState,
+  opts?: { force?: boolean },
+): GameState {
+  const cfg = processConfig(state)
+  const priority = hasProcess(state, 'core-priority')
+    ? cfg.core.priority
+    : hasProcess(state, 'smart-core')
+      ? 'value'
+      : 'cheapest'
+  if (priority === 'value') return upgradeBestValueModule(state, { force: true })
+  if (priority === 'cheapest') return upgradeCheapestModule(state, { force: true })
+
+  const pool =
+    state.shipyard.modules.length > 0 ? state.shipyard.modules : state.shipyard.unlockedModules
+  const levels = { weapon: 0, shield: 0, utility: 0 }
+  for (const id of pool) {
+    const role = getModule(id)?.role
+    if (role === 'weapon') levels.weapon += moduleLevel(state.shipyard.moduleLevels, id)
+    else if (role === 'defense') levels.shield += moduleLevel(state.shipyard.moduleLevels, id)
+    else if (role === 'utility') levels.utility += moduleLevel(state.shipyard.moduleLevels, id)
+  }
+  const ratios = cfg.core.ratios
+  const want =
+    priority === 'weapon'
+      ? 'weapon'
+      : priority === 'shield'
+        ? 'defense'
+        : priority === 'utility'
+          ? 'utility'
+          : null
+
+  let bestId: string | null = null
+  let bestScore = -Infinity
+  for (const id of pool) {
+    const def = getModule(id)
+    if (!def) continue
+    const level = moduleLevel(state.shipyard.moduleLevels, id)
+    if (level >= MAX_MODULE_LEVEL) continue
+    if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
+    const cost = moduleUpgradeCost(level, id)
+    if (cost <= 0 || cost > state.resources.salvage) continue
+    let score = -cost
+    if (want) {
+      score += def.role === want ? 1000 : 0
+    } else if (priority === 'balanced' || priority === 'custom') {
+      const current =
+        def.role === 'weapon' ? levels.weapon : def.role === 'defense' ? levels.shield : levels.utility
+      const target =
+        def.role === 'weapon'
+          ? Math.max(0.01, ratios.weapon)
+          : def.role === 'defense'
+            ? Math.max(0.01, ratios.shield)
+            : Math.max(0.01, ratios.utility)
+      const total = Math.max(1, levels.weapon + levels.shield + levels.utility)
+      const share = current / total
+      const wantShare = target / Math.max(0.01, ratios.weapon + ratios.shield + ratios.utility)
+      score = wantShare - share
+    }
+    if (score > bestScore) {
+      bestScore = score
+      bestId = id
+    }
+  }
+  if (!bestId) return opts?.force ? upgradeCheapestModule(state, { force: true }) : state
+  return upgradeModule(state, bestId)
+}
+
+export function buyMaxCores(state: GameState): GameState {
+  if (!hasProcess(state, 'core-buy-max')) return state
+  if (state.prestige.activeChallengeId === 'no-ai') return state
+  let next = state
+  let guard = 0
+  while (guard++ < 40) {
+    const after = pickProcessCoreUpgrade(next, { force: true })
+    if (after === next) break
+    if (after.resources.salvage >= next.resources.salvage) break
+    next = after
+  }
+  return next
+}
+
+export function optimiseNetwork(state: GameState): GameState {
+  if (!hasProcess(state, 'network-optimise') && !hasProcess(state, 'network-balance')) return state
+  const next = structuredClone(state)
+  const weights = networkAllocationWeights(next)
+  let pool = 0
+  for (const id of NETWORK_BAR_IDS) {
+    pool += next.base.assignments[id] ?? 0
+    delete next.base.assignments[id]
+  }
+  pool += Math.max(0, idleWorkers(next))
+  if (pool <= 0) return state
+  const usable = NETWORK_BAR_IDS.filter((id) => isNetworkBarUnlocked(next, id))
+  if (usable.length === 0) return state
+  const totalWeight = usable.reduce((sum, id) => sum + Math.max(0, weights[id] ?? 0), 0)
+  if (totalWeight <= 0) {
+    const each = Math.floor(pool / usable.length)
+    let rest = pool - each * usable.length
+    for (const id of usable) {
+      const n = each + (rest > 0 ? 1 : 0)
+      if (n > 0) next.base.assignments[id] = n
+      if (rest > 0) rest -= 1
+    }
+    return next
+  }
+  const assigned: Record<string, number> = {}
+  let used = 0
+  for (const id of usable) {
+    const n = Math.floor((pool * Math.max(0, weights[id] ?? 0)) / totalWeight)
+    assigned[id] = n
+    used += n
+  }
+  let rest = pool - used
+  const order = [...usable].sort((a, b) => (weights[b] ?? 0) - (weights[a] ?? 0))
+  let i = 0
+  while (rest > 0 && order.length > 0) {
+    const id = order[i % order.length]!
+    assigned[id] = (assigned[id] ?? 0) + 1
+    rest -= 1
+    i += 1
+  }
+  for (const id of usable) {
+    if ((assigned[id] ?? 0) > 0) next.base.assignments[id] = assigned[id]!
+  }
+  return next
+}
+
+export function pickFoundryUpgradeId(state: GameState): string | null {
+  const cfg = processConfig(state)
+  const priority = hasProcess(state, 'foundry-priority') ? cfg.foundry.upgradePriority : 'cheapest'
+  let bestId: string | null = null
+  let bestScore = -Infinity
+  for (const up of FOUNDRY_UPGRADES) {
+    if (!canBuyFoundryUpgrade(state, up.id).ok) continue
+    const cost = foundryUpgradeCost(state, up.id)
+    let score = -cost
+    if (priority === 'speed') score = (up.speedBonus ?? 0) * 1000 - cost
+    else if (priority === 'slots') score = (up.extraSlots ?? 0) * 1000 - cost
+    else if (priority === 'output') score = ((up.damageBonus ?? 0) + (up.shieldBonus ?? 0) + (up.salvageBonus ?? 0)) * 1000 - cost
+    if (score > bestScore) {
+      bestScore = score
+      bestId = up.id
+    }
+  }
+  return bestId
+}
+
+export function buyMaxFoundryUpgrades(state: GameState): GameState {
+  if (!hasProcess(state, 'foundry-buy-max') && !hasProcess(state, 'foundry-auto')) return state
+  let next = state
+  let guard = 0
+  while (guard++ < 12) {
+    const id = pickFoundryUpgradeId(next)
+    if (!id) break
+    const after = buyFoundryUpgrade(next, id)
+    if (after === next) break
+    next = after
+  }
+  return next
+}
+
+export function buyMaxYardArms(state: GameState): GameState {
+  if (!hasProcess(state, 'yard-buy-max') && !hasProcess(state, 'yard-auto')) return state
+  const selected = processConfig(state).yard.selectedArms
+  const arms = selected.length > 0 ? selected : (['damage', 'shield', 'salvage', 'network'] as const)
+  let next = state
+  let guard = 0
+  while (guard++ < 20) {
+    let bought = false
+    for (const id of arms) {
+      const after = buyYardArm(next, id)
+      if (after !== next) {
+        next = after
+        bought = true
+        break
+      }
+    }
+    if (!bought) break
+  }
+  return next
+}
+
+export function saveYardLayout(state: GameState, name = 'Layout'): GameState {
+  if (!hasProcess(state, 'yard-layouts')) return state
+  const next = structuredClone(state)
+  if (!next.process) next.process = createEmptyProcessState()
+  const layouts = [...next.process.config.yard.layouts]
+  const cap = yardLayoutCap(next)
+  const snapshot = {
+    name,
+    cells: (next.yard?.cells ?? []).map((c) => ({ buildingId: c.buildingId })),
+  }
+  if (layouts.length >= cap) layouts[layouts.length - 1] = snapshot
+  else layouts.push(snapshot)
+  next.process.config.yard.layouts = layouts
+  next.process.config.yard.activeLayout = layouts.length - 1
+  return next
+}
+
+export function loadYardLayout(state: GameState, index: number): GameState {
+  if (!hasProcess(state, 'yard-layouts')) return state
+  const layout = processConfig(state).yard.layouts[index]
+  if (!layout) return state
+  const next = structuredClone(state)
+  if (!next.yard) next.yard = createEmptyYardState()
+  next.yard.cells = layout.cells.map((c) => ({ buildingId: c.buildingId }))
+  next.process.config.yard.activeLayout = index
   return next
 }
 

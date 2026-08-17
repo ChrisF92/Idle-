@@ -16,7 +16,7 @@ export const MORE_STATIONS: MoreStationDef[] = [
   { id: 'codex', name: 'Codex', blurb: 'Families and hull roles.' },
   { id: 'yard', name: 'Yard Grid', blurb: 'Buildings. Arms apply on the next Rebuild.' },
   { id: 'slag', name: 'Slag Bank', blurb: 'Spend Rebuild Matter on hangar ranks.' },
-  { id: 'process', name: 'Process', blurb: 'Achievements → automation.' },
+  { id: 'process', name: 'Process', blurb: 'Automation, QoL, and lifetime Accumulation.' },
   { id: 'protocols', name: 'Protocols', blurb: 'Restricted sorties.' },
   { id: 'echo', name: 'Echo Runs', blurb: 'Short gauntlets → Echo tree.' },
   { id: 'specialists', name: 'Specialists', blurb: 'Gunner / Warden / Scavenger.' },

@@ -36,6 +36,7 @@ import { InspectName } from '../InspectName'
 import { SheetTabs } from '../SheetTabs'
 import { markLocalOk, useJustBecame } from '../../hooks/useJustBecame'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
+import { hasProcess } from '../../game/process'
 
 export type FoundryPane = 'smelt' | 'ranks' | 'prints' | 'fit'
 
@@ -53,6 +54,7 @@ interface FoundryTabProps {
   onEquip: (moduleId: string) => void
   onUnequip: (moduleId: string) => void
   onAssemble: (moduleId: string) => void
+  onBuyMax?: () => void
   guideTarget?: string | null
   focusTarget?: string | null
   requestedPane?: FoundryPane | null
@@ -176,6 +178,7 @@ export function FoundryTab({
   onEquip,
   onUnequip,
   onAssemble,
+  onBuyMax,
   guideTarget = null,
   focusTarget = null,
   requestedPane = null,
@@ -303,6 +306,13 @@ export function FoundryTab({
           {pane === 'ranks' ? (
             <>
               <h3 className="foundry-heading">Ranks</h3>
+              {onBuyMax && hasProcess(state, 'foundry-buy-max') ? (
+                <p className="assign-row">
+                  <button type="button" className="primary" onClick={onBuyMax}>
+                    Buy Max
+                  </button>
+                </p>
+              ) : null}
               {FOUNDRY_UPGRADES.map((up) => (
                 <RankRow key={up.id} state={state} up={up} onBuyUpgrade={onBuyUpgrade} />
               ))}
