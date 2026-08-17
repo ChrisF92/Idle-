@@ -1351,7 +1351,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-network-auto',
     title: 'Network Auto Optimise',
     body: [
-      'When a new drone finishes, Auto Optimise redistributes the corps using your preset. It does not invent a secret mix.',
+      'When a new drone finishes, Auto Optimise redistributes the corps from your preset. It does not invent a secret mix.',
       'Turn it off and pick the preset under Process → Network. Sortie Bias (if owned) leans the same preset while you fly.',
     ],
     target: 'process-config',

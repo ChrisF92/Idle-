@@ -1707,12 +1707,11 @@ export function optimiseNetwork(state: GameState): GameState {
   if (!hasProcess(state, 'network-optimise') && !hasProcess(state, 'network-balance')) return state
   const next = structuredClone(state)
   const weights = networkAllocationWeights(next)
-  let pool = 0
+  let pool = idleWorkers(next)
   for (const id of NETWORK_BAR_IDS) {
     pool += next.base.assignments[id] ?? 0
     delete next.base.assignments[id]
   }
-  pool += Math.max(0, idleWorkers(next))
   if (pool <= 0) return state
   const usable = NETWORK_BAR_IDS.filter((id) => isNetworkBarUnlocked(next, id))
   if (usable.length === 0) return state
