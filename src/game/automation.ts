@@ -1,6 +1,6 @@
 /** Passive-loop helpers for expensive AI / Process automation nodes (mutate in place). */
 
-import type { FoundryRecipeId, GameState, NetworkBarId } from './types'
+import type { FoundryRecipeId, GameState } from './types'
 import {
   BLUEPRINTS,
   PART_TYPES,

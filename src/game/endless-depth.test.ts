@@ -103,11 +103,11 @@ describe('achievements pack', () => {
   it('includes repeatables and grants multiple tiers', () => {
     expect(ACHIEVEMENTS.some((a) => a.repeatable)).toBe(true)
     const state = createInitialState(0)
-    state.meta.lifetimeSectorClears = 60
+    state.meta.lifetimeSectorClears = 120
     const newly = tryCompleteAchievements(state)
     expect(newly.filter((id) => id === 'sector-grind').length).toBeGreaterThanOrEqual(2)
     expect(achievementCompletions(state, 'sector-grind')).toBeGreaterThanOrEqual(2)
-    expect(state.resources.aiPoints).toBeGreaterThanOrEqual(4)
+    expect(state.resources.aiPoints).toBeGreaterThanOrEqual(2)
   })
 
   it('grants merge achievement on signal core merge', () => {

@@ -68,6 +68,7 @@ describe('hub attention', () => {
   it('badges Process spend and Furnace ash without treating More as the station visit', () => {
     let state = markHullLost(createInitialState(0))
     state.meta.aiUnlocked = true
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
     state.resources.aiPoints = 20
     expect(moreStationAttention(state, 'process').spend).toBe(true)
     expect(tabAttention(state, 'stats').spend).toBe(true)

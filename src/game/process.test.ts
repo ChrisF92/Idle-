@@ -31,6 +31,7 @@ describe('Process 2.0 ledger', () => {
   it('keeps Earned when Available is spent', () => {
     let s = createInitialState(0)
     s.meta.aiUnlocked = true
+    s.meta.completedAchievements = ['neural-link']
     s.shipyard.moduleLevels['pulse-cannon'] = 1
     s.resources.aiPoints = 10
     s.process.earned = 10

@@ -11,6 +11,7 @@ import { AttentionPips } from '../AttentionPips'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
 import { FOUNDRY_RECIPES } from '../../game/foundry'
+import { markLocalOk } from '../../hooks/useJustBecame'
 import { hasProcess } from '../../game/process'
 
 interface CombatTabProps {
