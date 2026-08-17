@@ -253,7 +253,7 @@ export function FoundryTab({
             const cost = scaledFoundryCost(state, recipe.id)
             const time = foundryCraftTime(state, recipe.id)
             const xp = foundry.recipeXp[recipe.id] ?? 0
-            const need = craftsForNextLevel(level)
+            const need = craftsForNextLevel(level, state)
             const assigned = foundry.slots.findIndex((s) => s.recipeId === recipe.id)
             const idleSlot = foundry.slots.findIndex((s) => !s.recipeId)
             return (

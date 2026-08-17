@@ -1848,8 +1848,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-protocols',
     title: 'Protocols',
     body: [
-      'Open More and tap Protocols. Optional restricted sorties — one system is muted.',
-      'Clear the goal sector to rank what you starved. Cores and Salvage wipe when a Protocol starts.',
+      'Open More and tap Protocols. Optional restricted sorties — one system is muted for the run.',
+      'Clear the goal sector. Completions change how that system scales forever. Cores and Salvage wipe when a Protocol starts.',
     ],
     target: 'station-protocols',
     tab: 'stats',
@@ -1859,17 +1859,133 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-protocols-run',
-    title: 'How a Protocol works',
+    title: 'What a Protocol is',
     body: [
-      'Pick one card. The muted system sits idle until you clear the goal.',
-      'Ranks persist. You can abandon from this screen. Not required until the Task List asks.',
+      'A Protocol is a short restricted career. One system sits idle. The rest of the hangar still works.',
+      'It is optional until the Task List asks. Skip is always available.',
     ],
     target: 'protocols-list',
     tab: 'protocols',
     screen: 'protocols',
     group: 'protocols',
+    required: true,
+    tap: false,
     availableWhen: (s) =>
       guideSeen(s, 'guide-protocols') && !guideSeen(s, 'guide-protocols-run'),
+  },
+  {
+    id: 'guide-protocol-restrict',
+    title: 'The restriction',
+    body: [
+      'Each card mutes one system for this run. Network, Foundry, Furnace, shards, guns, shields, or Salvage — read the line before you start.',
+      'The rest of the ship still works. The mute is the lesson.',
+    ],
+    target: 'protocol-mute-network',
+    tab: 'protocols',
+    screen: 'protocols',
+    group: 'protocols-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'protocols') &&
+      (guideSeen(s, 'guide-protocols') || guideSeen(s, 'guide-protocols-run')) &&
+      !guideSeen(s, 'guide-protocol-restrict'),
+  },
+  {
+    id: 'guide-protocol-persist',
+    title: 'What stays, what wipes',
+    body: [
+      'Start wipes Cores and Salvage, and Network bar levels. The lane restarts at sector 1.',
+      'Protocol ranks persist, and so do Foundry stock, Furnace upgrades, shards, and Research. Abandon ends the run with no rank.',
+    ],
+    target: 'protocols-list',
+    tab: 'protocols',
+    screen: 'protocols',
+    group: 'protocols-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-protocol-restrict') && !guideSeen(s, 'guide-protocol-persist'),
+  },
+  {
+    id: 'guide-protocol-start',
+    title: 'How to begin and end',
+    body: [
+      'Tap Start on a card when you mean to enter. This walkthrough will not launch one for you.',
+      'Abandon on the active card ends it. Rewards are permanent formula changes — they apply at every level of that system, even when the number looks small.',
+    ],
+    target: 'protocol-mute-network',
+    tab: 'protocols',
+    screen: 'protocols',
+    group: 'protocols-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-protocol-persist') && !guideSeen(s, 'guide-protocol-start'),
+  },
+  {
+    id: 'guide-protocol-first',
+    title: 'Read Mute Network first',
+    body: [
+      'Restriction: drone bars grant nothing. Reward: Network levels scale harder — not a flat damage shop.',
+      'This does not simply add 5%. It improves how Network scales at every level. Start only when you are ready.',
+    ],
+    target: 'protocol-mute-network',
+    tab: 'protocols',
+    screen: 'protocols',
+    group: 'protocols-v2',
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-protocol-start') && !guideSeen(s, 'guide-protocol-first'),
+  },
+  {
+    id: 'guide-protocol-formula',
+    title: 'Formula rewards',
+    body: [
+      'Protocol prizes bend growth, exponents, drain, and cost curves. A tiny exponent still compounds across every Network level you own.',
+      'Tap a Protocol name for the next prize and everything you already earned.',
+    ],
+    target: 'protocols-list',
+    tab: 'protocols',
+    screen: 'protocols',
+    group: 'protocols-v2',
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-protocol-first') && !guideSeen(s, 'guide-protocol-formula'),
+  },
+  {
+    id: 'guide-protocol-repeat',
+    title: 'Repeat clears',
+    body: [
+      'Each extra clear still pays, with a harder goal. Later ranks ease growth further or unlock a milestone such as stronger Relays.',
+      'Process can restart a Protocol you have already cleared by hand. It will not skip the first lesson.',
+    ],
+    target: 'protocols-list',
+    tab: 'protocols',
+    screen: 'protocols',
+    group: 'protocol-repeat',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'protocols') &&
+      Object.values(s.protocols?.ranks ?? {}).some((n) => (n ?? 0) > 0) &&
+      !guideSeen(s, 'guide-protocol-repeat'),
+  },
+  {
+    id: 'guide-protocol-auto',
+    title: 'Protocol auto restart',
+    body: [
+      'Auto restart re-enters the Protocol you picked, after a clear, if Repeat is on.',
+      'Config lives under Process → Protocol Repeat. First clear is still by hand.',
+    ],
+    target: 'process-protocol-repeat',
+    tab: 'process',
+    screen: 'process',
+    group: 'protocol-auto',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.process?.purchased.includes('protocol-repeat')) &&
+      !guideSeen(s, 'guide-protocol-auto') &&
+      guideSeen(s, 'guide-process-v2-buy'),
   },
   {
     id: 'guide-echo',
@@ -2285,7 +2401,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-challenges',
     title: 'Protocols unlocked',
     body: [
-      'Sector 18 — open More and tap Protocols. Restricted sorties buff one system. Optional.',
+      'Sector 18 — open More and tap Protocols. Restricted sorties that change how a system scales. Optional.',
     ],
     target: 'station-protocols',
     tab: 'stats',
@@ -2345,6 +2461,14 @@ export const NETWORK_GUIDE_IDS = [
 export const NETWORK_RELAY_GUIDE_IDS = [
   'guide-network-relay',
   'guide-network-relay-parent',
+] as const
+
+export const PROTOCOL_V2_GUIDE_IDS = [
+  'guide-protocol-restrict',
+  'guide-protocol-persist',
+  'guide-protocol-start',
+  'guide-protocol-first',
+  'guide-protocol-formula',
 ] as const
 
 /** First-Rebuild hangar walkthrough. Skip dismisses the whole group. */

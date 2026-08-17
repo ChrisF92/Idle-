@@ -37,6 +37,7 @@ import {
   mergeSignalCores,
 } from './signalCores'
 import { hasProcess, processConfig } from './process'
+import { protocolCoreScalingAdd } from './protocols'
 import {
   FOUNDRY_RECIPES,
   buyFoundryUpgrade,
@@ -219,6 +220,7 @@ function pickSmartSmeltRecipe(state: GameState, busy: Set<string>): FoundryRecip
   const pulseCost = moduleUpgradeCost(
     moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon'),
     'pulse-cannon',
+    protocolCoreScalingAdd(state, 'weapon'),
   )
   const starve = salvage < pulseCost * 2.5
   let best: FoundryRecipeId | null = null
@@ -401,14 +403,15 @@ function autoYardArms(state: GameState): void {
 
 function autoProtocolEchoRepeat(state: GameState): void {
   const cfg = processConfig(state)
+  const protocolId = cfg.sortie.protocolId || cfg.sortie.lastProtocolId
   if (
     hasProcess(state, 'protocol-repeat') &&
     cfg.sortie.protocolRepeat &&
     state.combat.docked &&
     !state.protocols?.activeId &&
-    cfg.sortie.lastProtocolId
+    protocolId
   ) {
-    const next = enterProtocol(state, cfg.sortie.lastProtocolId)
+    const next = enterProtocol(state, protocolId, { automated: true })
     if (next !== state) {
       adopt(state, next)
       return

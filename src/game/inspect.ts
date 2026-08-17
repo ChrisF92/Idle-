@@ -44,6 +44,18 @@ import {
   networkSecondsToLevel,
 } from './network'
 import {
+  PROTOCOL_MAX_RANK,
+  PROTOCOLS,
+  getProtocol,
+  protocolBestSector,
+  protocolCoreScalingAdd,
+  protocolCumulativeLine,
+  protocolGoalSector,
+  protocolNextRewards,
+  protocolRank,
+  protocolRewardLine,
+} from './protocols'
+import {
   ASH_PER_HEAT,
   FURNACE_CHANNELS,
   FURNACE_UPGRADES,
@@ -245,7 +257,7 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
   const mastery = moduleMasteryRank(state, moduleId)
   const maxed = level >= MAX_MODULE_LEVEL
-  const cost = moduleUpgradeCost(level, moduleId)
+  const cost = moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, def.role))
   const previews = moduleStatPreviews(moduleId, level, !maxed, mastery)
   const picks = state.shipyard.corePicks?.[moduleId]
   const pending = pendingMilestone(moduleId, level, picks)
@@ -393,7 +405,7 @@ export function inspectFoundryRecipe(state: GameState, id: FoundryRecipeId): Ins
   const cost = scaledFoundryCost(state, id)
   const time = foundryCraftTime(state, id)
   const xp = state.foundry.recipeXp[id] ?? 0
-  const need = craftsForNextLevel(level)
+  const need = craftsForNextLevel(level, state)
   const stats: InspectStat[] = [
     {
       label: 'Status',
@@ -563,6 +575,30 @@ export function inspectReliquarySlot(state: GameState, color: ReliquaryColor): I
   }
 }
 
+export function inspectProtocol(state: GameState, id: string): InspectCard | null {
+  const def = getProtocol(id)
+  if (!def) return null
+  const rank = protocolRank(state, id)
+  const goal = protocolGoalSector(state, id)
+  const best = protocolBestSector(state, id)
+  return {
+    title: def.name,
+    kicker: 'Protocol',
+    stats: [
+      { label: 'Clears', value: `${rank}/${PROTOCOL_MAX_RANK}` },
+      { label: 'Goal', value: `Sector ${goal}` },
+      { label: 'Best', value: best > 0 ? `Sector ${best}` : '—' },
+      { label: 'Next', value: protocolRewardLine(protocolNextRewards(state, id)) },
+    ],
+    body: [
+      def.restriction,
+      'Cores and Salvage wipe when you start. Ranks and these formula changes persist on Rebuild.',
+      rank > 0 ? protocolCumulativeLine(state, id) : def.blurb,
+      'A small exponent or growth change applies at every level — it is not a flat shop.',
+    ],
+  }
+}
+
 /** Every live inspect string, for jargon tests. */
 export function inspectCopyCorpus(state: GameState): string[] {
   const lines: string[] = []
@@ -577,5 +613,6 @@ export function inspectCopyCorpus(state: GameState): string[] {
   push(inspectFurnaceOverview(state))
   for (const ch of FURNACE_CHANNELS) push(inspectFurnaceChannel(state, ch.id))
   for (const up of FURNACE_UPGRADES) push(inspectFurnaceUpgrade(state, up.id))
+  for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
   return lines
 }

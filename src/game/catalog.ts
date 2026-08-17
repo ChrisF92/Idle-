@@ -1726,13 +1726,15 @@ export function moduleLevel(
  * Salvage cost to raise a Core from `level` → level+1.
  * USI: weapons 3 × 1.21^n, shields 6 × 1.2^n.
  */
-export function moduleUpgradeCost(level: number, moduleId?: string): number {
+export function moduleUpgradeCost(level: number, moduleId?: string, scalingAdd = 0): number {
   const n = Math.max(0, level)
   const mod = moduleId ? getModule(moduleId) : undefined
   const base =
     mod?.upgradeBaseCost ?? (mod?.role === 'defense' ? 6 : 3)
-  const scaling =
-    mod?.upgradeCostScaling ?? (mod?.role === 'defense' ? 1.2 : 1.21)
+  const scaling = Math.max(
+    1.05,
+    (mod?.upgradeCostScaling ?? (mod?.role === 'defense' ? 1.2 : 1.21)) + scalingAdd,
+  )
   return Math.ceil(base * scaling ** n)
 }
 

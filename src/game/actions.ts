@@ -95,6 +95,10 @@ import {
   canEnterProtocol,
   createEmptyProtocolState,
   getProtocol,
+  noteProtocolProgress,
+  protocolCoreScalingAdd,
+  protocolGoalSector,
+  protocolModifiers,
   wipeProtocolLoadout,
 } from './protocols'
 import {
@@ -539,7 +543,7 @@ export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean
     const level = moduleLevel(state.shipyard.moduleLevels, id)
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
-    const cost = moduleUpgradeCost(level, id)
+    const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
     if (cost > state.resources.salvage) continue
     if (level < bestLevel || (level === bestLevel && cost < bestCost)) {
       bestId = id
@@ -597,7 +601,7 @@ export function upgradeBestValueModule(state: GameState, opts?: { force?: boolea
     const level = moduleLevel(state.shipyard.moduleLevels, id)
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
-    const cost = moduleUpgradeCost(level, id)
+    const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
     if (cost <= 0 || cost > state.resources.salvage) continue
     const score = moduleUpgradeGain(state, id, level) / cost
     if (score > bestScore) {
@@ -995,7 +999,8 @@ export function prestigeGainFor(state: GameState): number {
   )
   const ascensions = state.meta.ascensionCount ?? 0
   // Ascension is the long-term PM accelerator (USI-style snowball).
-  return Math.max(1, Math.floor(base * (1 + 0.4 * ascensions)))
+  const raw = Math.max(1, Math.floor(base * (1 + 0.4 * ascensions)))
+  return Math.max(1, Math.floor(raw * protocolModifiers(state).rebuildMatterMult))
 }
 
 export function canPrestige(state: GameState): boolean {
@@ -1066,7 +1071,7 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
   const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
   if (level >= MAX_MODULE_LEVEL) return state
   if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return state
-  const cost = moduleUpgradeCost(level, moduleId)
+  const cost = moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, getModule(moduleId)?.role))
   if (state.resources.salvage < cost) return state
 
   const next = structuredClone(state)
@@ -1177,6 +1182,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     protocols: {
       activeId: null,
       ranks: { ...(state.protocols?.ranks ?? {}) },
+      bestSector: { ...(state.protocols?.bestSector ?? {}) },
     },
     echo: {
       ...createEmptyEchoState(),
@@ -1500,8 +1506,8 @@ export function tryCompleteChallenge(state: GameState): void {
   ]
 }
 
-export function enterProtocol(state: GameState, protocolId: string): GameState {
-  if (!canEnterProtocol(state, protocolId).ok) return state
+export function enterProtocol(state: GameState, protocolId: string, opts?: { automated?: boolean }): GameState {
+  if (!canEnterProtocol(state, protocolId, opts).ok) return state
   const def = getProtocol(protocolId)
   if (!def) return state
   const next = structuredClone(state)
@@ -1523,8 +1529,9 @@ export function enterProtocol(state: GameState, protocolId: string): GameState {
   next.combat.playerHull = stats.hullMax
   next.combat.playerShieldMax = stats.shieldMax
   next.combat.playerShield = stats.shieldMax
+  const goal = protocolGoalSector(next, protocolId)
   next.combat.log = [
-    `Protocol ${def.name}. Goal: clear sector ${def.goalSector}. Cores and Salvage wiped.`,
+    `Protocol ${def.name}. Goal: clear sector ${goal}. Cores and Salvage wiped. ${def.restriction}`,
     ...next.combat.log,
   ]
   return next
@@ -1534,6 +1541,7 @@ export function abandonProtocol(state: GameState): GameState {
   const def = getProtocol(state.protocols?.activeId ?? '')
   if (!state.protocols?.activeId) return state
   const next = structuredClone(state)
+  noteProtocolProgress(next)
   next.protocols.activeId = null
   if (!next.process) next.process = createEmptyProcessState()
   next.process.config.sortie.lastProtocolId = null
@@ -1661,7 +1669,7 @@ export function pickProcessCoreUpgrade(
     const level = moduleLevel(state.shipyard.moduleLevels, id)
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
-    const cost = moduleUpgradeCost(level, id)
+    const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
     if (cost <= 0 || cost > state.resources.salvage) continue
     let score = -cost
     if (want) {

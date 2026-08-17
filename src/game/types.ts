@@ -179,12 +179,21 @@ export interface YardState {
   armed: Record<YardArmId, number>
 }
 
-export type ProtocolMute = 'network' | 'foundry' | 'reliquary' | 'furnace'
+export type ProtocolMute =
+  | 'network'
+  | 'foundry'
+  | 'reliquary'
+  | 'furnace'
+  | 'weapons'
+  | 'shields'
+  | 'salvage'
 
-/** USI Challenges analogue — restricted sorties that rank a muted system. */
+/** Restricted sorties that rank a muted system. Ranks persist; the run loadout does not. */
 export interface ProtocolState {
   activeId: string | null
   ranks: Record<string, number>
+  /** Best sector reached inside each Protocol, including abandoned runs. */
+  bestSector: Record<string, number>
 }
 
 /** USI Warp Drive analogue — short gauntlets into a skill tree. */
@@ -285,6 +294,7 @@ export interface ProcessConfig {
     echoRepeat: boolean
     lastProtocolId: string | null
     lastEchoId: string | null
+    protocolId: string | null
   }
 }
 

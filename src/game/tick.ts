@@ -54,7 +54,7 @@ import {
   tryCompleteEcho,
   wavesForRun,
 } from './echo'
-import { tryCompleteProtocol } from './protocols'
+import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, processCombatSpeedMult, processConfig, processIndustrySpeedMult } from './process'
 import {
   captureSortieMark,
@@ -484,6 +484,7 @@ function onFightWon(state: GameState): void {
     if (wasBoss) {
       grantSectorClearRewards(state, clearedSector, wasBoss)
       state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
+      noteProtocolProgress(state)
       state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
       noteSectorClear(state)
       maybeGrantSystemUnlocks(state)
@@ -515,6 +516,7 @@ function onFightWon(state: GameState): void {
 
   grantSectorClearRewards(state, clearedSector, wasBoss)
   state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
+  noteProtocolProgress(state)
   state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
   noteSectorClear(state)
   maybeGrantSystemUnlocks(state)

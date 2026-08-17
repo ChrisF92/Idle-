@@ -5,6 +5,7 @@ import {
   listFarmableCores,
   moduleLevel,
   moduleUpgradeCost,
+  getModule,
 } from './catalog'
 import {
   FOUNDRY_MODULES,
@@ -18,6 +19,7 @@ import { ASH_PER_HEAT } from './furnace'
 import { MORE_STATIONS } from './moreStations'
 import { pendingMilestone } from './milestones'
 import { NETWORK_BARS, NETWORK_LINKS, canBuyNetworkLink, isNetworkBarUnlocked } from './network'
+import { protocolCoreScalingAdd } from './protocols'
 import { PROCESS_NODES, canBuyProcessNode } from './process'
 import { hasHullLostOnce, isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
@@ -116,7 +118,7 @@ function coresSpend(state: GameState): boolean {
   for (const moduleId of state.shipyard.modules) {
     const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
     if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return true
-    if (level < MAX_MODULE_LEVEL && moduleUpgradeCost(level, moduleId) <= salvage) return true
+    if (level < MAX_MODULE_LEVEL && moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, getModule(moduleId)?.role)) <= salvage) return true
   }
   return false
 }

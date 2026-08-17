@@ -30,6 +30,7 @@ import {
 import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
 import { NETWORK_BARS } from '../../game/network'
+import { PROTOCOLS, protocolRank } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
 import { SheetTabs } from '../SheetTabs'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
@@ -433,9 +434,9 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'protocol-repeat' || nodeId === 'echo-repeat') {
+  if (nodeId === 'protocol-repeat' || nodeId === 'protocol-presets' || nodeId === 'echo-repeat') {
     return (
-      <div className="process-config-block">
+      <div className="process-config-block" data-guide="process-protocol-repeat">
         {hasProcess(state, 'protocol-repeat') ? (
           <label className="process-config">
             <input
@@ -443,7 +444,24 @@ function NodeConfig({
               checked={cfg.sortie.protocolRepeat}
               onChange={(e) => patch((c) => { c.sortie.protocolRepeat = e.target.checked })}
             />
-            Repeat last Protocol
+            Auto restart Protocol
+          </label>
+        ) : null}
+        {hasProcess(state, 'protocol-presets') || hasProcess(state, 'protocol-repeat') ? (
+          <label className="process-config">
+            Protocol
+            <select
+              value={cfg.sortie.protocolId ?? cfg.sortie.lastProtocolId ?? ''}
+              onChange={(e) => patch((c) => { c.sortie.protocolId = e.target.value || null })}
+            >
+              <option value="">Last started</option>
+              {PROTOCOLS.map((p) => (
+                <option key={p.id} value={p.id} disabled={protocolRank(state, p.id) < 1}>
+                  {p.name}
+                  {protocolRank(state, p.id) < 1 ? ' · clear by hand first' : ''}
+                </option>
+              ))}
+            </select>
           </label>
         ) : null}
         {hasProcess(state, 'echo-repeat') ? (

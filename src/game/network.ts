@@ -12,7 +12,7 @@ import {
 import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDataMult, hiveResearchNetworkMult } from './hiveResearch'
 import { yardNetworkMult } from './yard'
-import { protocolBonusMult, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
@@ -430,12 +430,13 @@ export interface NetworkFormulaHooks {
   fillCapMult: number
 }
 
-export function networkFormulaHooks(_state: GameState): NetworkFormulaHooks {
+export function networkFormulaHooks(state: GameState): NetworkFormulaHooks {
+  const mods = protocolModifiers(state)
   return {
-    fillGrowthMult: 1,
-    droneEfficiencyMult: 1,
-    relayEffectivenessMult: 1,
-    exponentAdd: 0,
+    fillGrowthMult: mods.networkFillGrowthMult,
+    droneEfficiencyMult: 1 + mods.networkDroneEffAdd,
+    relayEffectivenessMult: 1 + mods.networkRelayAdd,
+    exponentAdd: mods.networkExponentAdd,
     fillCapMult: 1,
   }
 }
@@ -471,7 +472,8 @@ export function networkLevelEffectiveness(state: GameState, parent: NetworkBarId
 export function networkExponent(state: GameState, parent: NetworkBarId): number {
   const hooks = networkFormulaHooks(state)
   const lattice = Math.sqrt(networkLatticeLevels(state, parent))
-  return 0.5 + 0.02 * lattice + hooks.exponentAdd
+  const ward = parent === 'ward' ? protocolModifiers(state).networkWardExponentAdd : 0
+  return 0.5 + 0.02 * lattice + hooks.exponentAdd + ward
 }
 
 export function networkFillCost(state: GameState, id: NetworkBarId): number {
@@ -571,6 +573,7 @@ export function networkStrikeMult(state: GameState): number {
 }
 
 export function networkWardMult(state: GameState): number {
+  if (protocolMutes(state, 'shields')) return 1
   return primaryBonus(state, 'ward', 0.08)
 }
 
@@ -595,7 +598,10 @@ export function networkScrapRate(state: GameState): number {
   if (!isNetworkBarUnlocked(state, 'yield')) return 0
   const L = networkLevels(state, 'yield')
   if (L <= 0) return 0
-  const exp = 0.7 + 0.04 * Math.sqrt(networkRelayLevels(state, 'yield'))
+  const exp =
+    0.7 +
+    0.04 * Math.sqrt(networkRelayLevels(state, 'yield')) +
+    protocolModifiers(state).yieldScrapExpAdd
   return 0.12 * Math.pow(L, exp)
 }
 

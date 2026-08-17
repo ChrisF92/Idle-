@@ -51,6 +51,7 @@ import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
 import { processSalvageMult } from './process'
+import { protocolModifiers, protocolMutes } from './protocols'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -150,9 +151,11 @@ export function salvageFromKill(
   sector: number,
   isBoss: boolean,
   route: SectorRoute | string = 'A',
+  state?: GameState,
 ): number {
-  const base = Math.max(1, Math.floor(sector))
-  const raw = isBoss ? base * 5 : base
+  if (state && protocolMutes(state, 'salvage')) return 0
+  const exp = 1 + (state ? protocolModifiers(state).salvageSectorExpAdd : 0)
+  const raw = (isBoss ? 5 : 1) * Math.pow(Math.max(1, sector), exp)
   return Math.max(1, Math.floor(raw * routeSalvageMult(normalizeRoute(route))))
 }
 
@@ -1728,7 +1731,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     fittedSalvageKillMult(state) *
     processSalvageMult(state)
   state.resources.salvage +=
-    salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route) * salvageMult
+    salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route, state) * salvageMult
   rollEnemyPartDrop(state, unit)
   grantSignalCoreDrop(state, 'kill', { family: unit.family })
   grantReliquaryKillLoot(state, unit.isBoss, Math.random, hiveResearchShardDropBonus(state))
@@ -2198,7 +2201,7 @@ export function estimateHoldClearRewards(state: GameState): {
   for (let w = 1; w <= wavesForSector(sector); w += 1) {
     const wave = enemyForSector(sector, w)
     for (const unit of wave.units) {
-      salvage += salvageFromKill(sector, unit.isBoss)
+      salvage += salvageFromKill(sector, unit.isBoss, state.combat.route, state)
     }
   }
 

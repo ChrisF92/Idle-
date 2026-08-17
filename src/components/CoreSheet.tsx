@@ -9,6 +9,7 @@ import {
 import { pendingMilestone } from '../game/milestones'
 import { formatCompact } from '../game/format'
 import { inspectCore } from '../game/inspect'
+import { protocolCoreScalingAdd } from '../game/protocols'
 import { InspectName } from './InspectName'
 import { markLocalOk, useJustBecame } from '../hooks/useJustBecame'
 
@@ -39,7 +40,7 @@ function CoreRow({
 }) {
   const def = getModule(moduleId)
   const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
-  const cost = moduleUpgradeCost(level, moduleId)
+  const cost = moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, def?.role))
   const maxed = level >= MAX_MODULE_LEVEL
   const can = Boolean(def) && !maxed && state.resources.salvage >= cost
   const pending = pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])

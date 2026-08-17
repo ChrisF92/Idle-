@@ -5,7 +5,7 @@ import { networkManufactureMult } from './network'
 import { reliquaryFoundrySpeedMult } from './reliquary'
 import { furnaceFoundrySpeedMult } from './furnace'
 import { hiveResearchFoundrySpeedMult } from './hiveResearch'
-import { protocolBonusMult, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoFoundrySpeedMult } from './echo'
 import { processFoundrySpeedMult } from './process'
 
@@ -370,12 +370,14 @@ export function isFoundryRecipeUnlocked(state: GameState, id: FoundryRecipeId): 
   return true
 }
 
-export function craftsForNextLevel(level: number): number {
-  return Math.max(2, 2 + Math.floor(level * 1.15))
+export function craftsForNextLevel(level: number, state?: GameState): number {
+  const growth = 1.15 * (state ? protocolModifiers(state).foundryXpNeedMult : 1)
+  return Math.max(2, 2 + Math.floor(level * growth))
 }
 
-export function foundryCostMult(level: number): number {
-  return Math.max(0.25, 1 - 0.03 * Math.max(0, level))
+export function foundryCostMult(level: number, state?: GameState): number {
+  const bend = 0.03 * (state ? 1 / Math.max(0.5, protocolModifiers(state).foundryCostGrowthMult) : 1)
+  return Math.max(0.25, 1 - bend * Math.max(0, level))
 }
 
 export function foundryTimeMult(level: number): number {
@@ -415,7 +417,7 @@ export function foundryCraftTime(state: GameState, id: FoundryRecipeId): number 
 export function scaledFoundryCost(state: GameState, id: FoundryRecipeId): FoundryCost {
   const def = getFoundryRecipe(id)
   if (!def) return {}
-  const m = foundryCostMult(foundryRecipeLevel(state, id))
+  const m = foundryCostMult(foundryRecipeLevel(state, id), state)
   const costs: FoundryCost = {}
   if (def.costs.salvage) costs.salvage = Math.max(1, Math.ceil(def.costs.salvage * m))
   if (def.costs.scrap) costs.scrap = Math.max(1, Math.ceil(def.costs.scrap * m))
@@ -462,7 +464,7 @@ function grantCraft(state: GameState, id: FoundryRecipeId): void {
     markInfinite(state, id)
     return
   }
-  const need = craftsForNextLevel(level)
+  const need = craftsForNextLevel(level, state)
   const xp = (state.foundry.recipeXp[id] ?? 0) + 1
   if (xp >= need) {
     state.foundry.recipeXp[id] = 0

@@ -99,8 +99,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   protocols: {
     title: 'Protocols',
     body: [
-      'Restricted sorties. One system is muted. Clear the goal sector to rank what you starved.',
-      'Cores and Salvage wipe when a Protocol starts. Optional until the Task List.',
+      'Restricted sorties. One system is muted. Clear the goal sector. Completions change how that system scales — exponents, fill growth, Heat drain, recipe XP — not a flat shop.',
+      'Cores and Salvage wipe when a Protocol starts. Ranks persist. Optional until the Task List. Repeat clears still pay, with a harder goal.',
     ],
   },
   echo: {

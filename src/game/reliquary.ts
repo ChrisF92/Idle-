@@ -2,7 +2,7 @@
 
 import type { GameState, ReliquaryColor, ReliquaryState } from './types'
 import { careerHighestSector } from './progression'
-import { protocolBonusMult, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 
 export interface ShardDef {
   id: string
@@ -226,12 +226,14 @@ export function shardResonance(state: GameState, id: string): number {
   return Math.min(1, extra / RELIQUARY_RESONANCE_NEED)
 }
 
-/** Inserted shards work at base; resonance doubles them at 100%. */
+/** Inserted shards work at base; resonance doubles them at 100%. Extra copies fill faster if Protocols bend the curve. */
 export function shardEffectScale(state: GameState, id: string): number {
   if (!getShard(id)) return 0
   const def = getShard(id)!
   if (fittedShardId(state, def.color) !== id) return 0
-  return 1 + shardResonance(state, id)
+  const resonance = shardResonance(state, id)
+  const exp = Math.max(0.45, 1 + protocolModifiers(state).reliquaryResonanceExpAdd)
+  return 1 + Math.pow(resonance, exp)
 }
 
 interface ReliquaryBonuses {

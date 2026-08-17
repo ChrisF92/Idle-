@@ -7,6 +7,7 @@ import { furnaceResearchXpMult } from './furnace'
 import { normalizeRoute, routeResearchMult } from './sectors'
 import { echoResearchXpMult } from './echo'
 import { processResearchSpeedMult } from './process'
+import { protocolModifiers } from './protocols'
 
 export const HIVE_RESEARCH_UNLOCK_SECTOR = 7
 /** USI default is 9×; 4× keeps early numbers retunable. */
@@ -78,8 +79,9 @@ export function createEmptyHiveResearchState(): HiveResearchState {
   }
 }
 
-export function hiveResearchNodeCost(index: number): number {
-  return Math.floor(50 * Math.pow(2, Math.max(0, index)))
+export function hiveResearchNodeCost(index: number, state?: GameState): number {
+  const mult = state ? protocolModifiers(state).researchCostMult : 1
+  return Math.max(1, Math.floor(50 * Math.pow(2, Math.max(0, index)) * mult))
 }
 
 export function hiveResearchCompleted(state: GameState, branch: HiveResearchBranch): number {
@@ -97,7 +99,7 @@ export function hiveResearchBanked(state: GameState): number {
   for (const branch of HIVE_RESEARCH_BRANCHES) {
     total += hiveResearchXp(state, branch.id)
     const done = hiveResearchCompleted(state, branch.id)
-    for (let i = 0; i < done; i++) total += hiveResearchNodeCost(i)
+    for (let i = 0; i < done; i++) total += hiveResearchNodeCost(i, state)
   }
   return total
 }
@@ -201,7 +203,7 @@ function tryCompleteNodes(state: GameState, branch: HiveResearchBranch): void {
   const nodes = HIVE_RESEARCH_NODES[branch]
   while (hiveResearchCompleted(state, branch) < nodes.length) {
     const idx = hiveResearchCompleted(state, branch)
-    const need = hiveResearchNodeCost(idx)
+    const need = hiveResearchNodeCost(idx, state)
     if ((state.hiveResearch.xp[branch] ?? 0) < need) break
     state.hiveResearch.xp[branch] = (state.hiveResearch.xp[branch] ?? 0) - need
     state.hiveResearch.completed[branch] = idx + 1

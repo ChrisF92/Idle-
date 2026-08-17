@@ -492,10 +492,20 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Protocol Repeat',
     category: 'sortie',
     kind: 'automation',
-    blurb: 'After a Protocol clear, re-enter the same Protocol if you left Repeat on.',
+    blurb: 'After you clear a Protocol by hand, re-enter the selected Protocol if Repeat is on. It will not skip the first clear.',
     cost: 8,
     requiresSystem: 'protocols',
     requiresMastery: 'protocols',
+  },
+  {
+    id: 'protocol-presets',
+    name: 'Protocol Presets',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'Pick which Protocol Repeat restarts. Weights stay visible. First clear is still by hand.',
+    cost: 6,
+    requiresId: 'protocol-repeat',
+    requiresSystem: 'protocols',
   },
   {
     id: 'echo-repeat',
@@ -714,6 +724,7 @@ export function createEmptyProcessConfig(): ProcessConfig {
       echoRepeat: false,
       lastProtocolId: null,
       lastEchoId: null,
+      protocolId: null,
     },
   }
 }
@@ -1046,6 +1057,7 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
       echoRepeat: sortie.echoRepeat === true,
       lastProtocolId: typeof sortie.lastProtocolId === 'string' ? sortie.lastProtocolId : null,
       lastEchoId: typeof sortie.lastEchoId === 'string' ? sortie.lastEchoId : null,
+      protocolId: typeof sortie.protocolId === 'string' ? sortie.protocolId : null,
     },
   }
 }

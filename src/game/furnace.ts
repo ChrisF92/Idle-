@@ -10,7 +10,7 @@ import type {
 } from './types'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { reliquaryAshMult } from './reliquary'
-import { protocolBonusMult, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoAshMult } from './echo'
 import { mergeProcessConfig, processConfig, processFurnaceHooks } from './process'
 
@@ -309,7 +309,7 @@ export function furnaceLevelDef(id: FurnaceChannelId, level: number): FurnaceCha
 export function furnaceChannelHeatCost(state: GameState, id: FurnaceChannelId, level = furnaceActiveLevel(state, id)): number {
   const def = furnaceLevelDef(id, level)
   if (!def) return 0
-  return def.heat * furnaceFlueMult(state)
+  return def.heat * furnaceFlueMult(state) * protocolModifiers(state).furnaceDrainMult
 }
 
 export function furnaceConsumptionFor(
@@ -362,7 +362,7 @@ function channelBonusMult(state: GameState, id: FurnaceChannelId): number {
   const def = furnaceLevelDef(id, level)
   if (!def) return 1
   const extra = def.mult - 1
-  return (1 + extra * furnaceBellowsMult(state)) * protocolBonusMult(state, 'furnace')
+  return (1 + extra * furnaceBellowsMult(state) * (1 + protocolModifiers(state).furnaceEfficiencyAdd)) * protocolBonusMult(state, 'furnace')
 }
 
 export function furnaceDamageMult(state: GameState): number {

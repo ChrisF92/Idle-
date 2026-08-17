@@ -401,8 +401,16 @@ function withProtocolDefaults(raw: ProtocolState | undefined): ProtocolState {
       if (v > 0) ranks[id] = v
     }
   }
+  const bestSector: Record<string, number> = {}
+  const rawBest = (raw as ProtocolState).bestSector
+  if (rawBest && typeof rawBest === 'object') {
+    for (const [id, n] of Object.entries(rawBest)) {
+      const v = Math.max(0, Math.floor(Number(n) || 0))
+      if (v > 0) bestSector[id] = v
+    }
+  }
   const active = typeof raw.activeId === 'string' ? raw.activeId : null
-  return { activeId: active, ranks }
+  return { activeId: active, ranks, bestSector }
 }
 
 function withEchoDefaults(raw: EchoState | undefined): EchoState {

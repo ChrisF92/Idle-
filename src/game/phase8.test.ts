@@ -127,11 +127,13 @@ describe('phase 8: Protocols, Echo, Process', () => {
     s.combat.sector = 4
     s.meta.highestSectorEver = 22
     s.protocols.ranks['mute-network'] = 2
+    s.protocols.bestSector['mute-network'] = 9
     s.echo.points = 4
     s.echo.tree = ['echo-strike']
     s.process.purchased = ['auto-salvage']
     s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(protocolRank(s, 'mute-network')).toBe(2)
+    expect(s.protocols.bestSector['mute-network']).toBe(9)
     expect(s.echo.tree).toContain('echo-strike')
     expect(hasProcess(s, 'auto-salvage')).toBe(true)
     expect(s.protocols.activeId).toBeNull()

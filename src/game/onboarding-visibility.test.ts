@@ -88,6 +88,8 @@ describe('Hiveworks onboarding catalog', () => {
       'guide-codex-families',
       'guide-challenges',
       'guide-protocols',
+      'guide-protocol-restrict',
+      'guide-protocol-formula',
       'guide-echo',
       'guide-specialists',
       'guide-tasks',

@@ -56,7 +56,7 @@ import {
   hiveResearchShieldMult,
 } from './hiveResearch'
 import { createEmptyYardState, yardDamageMult, yardShieldMult } from './yard'
-import { createEmptyProtocolState } from './protocols'
+import { createEmptyProtocolState, protocolMutes } from './protocols'
 import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
 import { createEmptyProcessState, processDamageMult, processShieldMult } from './process'
 import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult } from './specialists'
@@ -251,11 +251,13 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   const shortRange = state.prestige.activeChallengeId === 'short-range'
   const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
   const weapons: WeaponInstance[] = []
-  if (frame.baseDamage > 0) {
+  const muteGuns = protocolMutes(state, 'weapons')
+  const batteryDamage = frame.baseDamage > 0 ? frame.baseDamage : muteGuns ? 5 : 0
+  if (batteryDamage > 0) {
     weapons.push({
       id: 'frame-battery',
       name: 'Frame Battery',
-      damage: frame.baseDamage * mult,
+      damage: batteryDamage * mult,
       cooldown: 1,
       cooldownLeft: 0,
       // Must reach early kite packs (Ethereal ~110, Divine core ~105).
@@ -276,6 +278,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod?.weapon) continue
+    if (muteGuns && mod.role === 'weapon') continue
     const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
     const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
     const profile = {
@@ -326,6 +329,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   for (const moduleId of state.shipyard.modules) {
     const mod = getModule(moduleId)
     if (!mod) continue
+    if (protocolMutes(state, 'shields') && mod.role === 'defense') continue
     const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
     const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
     const pctMult = moduleLevelMultiplier(level) * mastery
@@ -376,6 +380,8 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= specialistShieldMult(state)
   shieldMax *= capitalShieldMult(state)
   shieldMax *= processShieldMult(state)
+
+  if (protocolMutes(state, 'shields')) shieldMax = 0
 
   evasion = Math.min(0.45, evasion)
 

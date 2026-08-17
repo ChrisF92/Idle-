@@ -44,7 +44,7 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
             const nodes = HIVE_RESEARCH_NODES[branch.id]
             const xp = hiveResearchXp(state, branch.id)
             const next = nodes[done]
-            const need = next ? hiveResearchNodeCost(done) : 0
+            const need = next ? hiveResearchNodeCost(done, state) : 0
             const fill = next ? Math.min(1, xp / Math.max(1, need)) : 1
             const focused = focus === branch.id
             return (
