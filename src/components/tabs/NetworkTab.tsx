@@ -10,15 +10,25 @@ import {
 import { networkLinkPower, networkManufactureMult } from '../../game/network'
 import { formatCompact } from '../../game/format'
 import { NetworkSheet } from '../NetworkSheet'
+import { SheetTabs } from '../SheetTabs'
 import { useJustBecame } from '../../hooks/useJustBecame'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
+
+type NetworkPane = 'bars' | 'links'
+
+const NETWORK_PANES: { id: NetworkPane; label: string; guide?: string }[] = [
+  { id: 'bars', label: 'Bars' },
+  { id: 'links', label: 'Links', guide: 'network-links' },
+]
 
 interface NetworkTabProps {
   state: GameState
   onAssign: (barId: string, delta: number) => void
   onBuyLink: (id: NetworkLinkId) => void
+  guideTarget?: string | null
 }
 
-export function NetworkTab({ state, onAssign, onBuyLink }: NetworkTabProps) {
+export function NetworkTab({ state, onAssign, onBuyLink, guideTarget = null }: NetworkTabProps) {
   const cap = droneCap(state)
   const idle = idleWorkers(state)
   const atCap = state.base.workerDrones >= cap
@@ -34,6 +44,8 @@ export function NetworkTab({ state, onAssign, onBuyLink }: NetworkTabProps) {
   const prevDrones = useRef(drones)
   const [justMade, setJustMade] = useState(false)
   const idleFlash = useJustBecame(idle > 0)
+  const hint = guideTarget === 'network-links' ? 'links' : guideTarget?.startsWith('network-') ? 'bars' : null
+  const [pane, setPane] = useSyncedPane<NetworkPane>('bars', hint)
 
   useEffect(() => {
     if (drones > prevDrones.current) {
@@ -63,12 +75,14 @@ export function NetworkTab({ state, onAssign, onBuyLink }: NetworkTabProps) {
       >
         <div className="manufacture-bar-fill" style={{ transform: `scaleX(${fill})` }} />
       </div>
+      <SheetTabs value={pane} onChange={setPane} options={NETWORK_PANES} label="Network panes" />
       <div className="panel-scroll">
         <NetworkSheet
           state={state}
           onAssign={onAssign}
           onBuyLink={onBuyLink}
           idleHighlight={idleFlash}
+          pane={pane}
         />
       </div>
     </section>

@@ -33,7 +33,18 @@ import {
   inspectFoundryUpgrade,
 } from '../../game/inspect'
 import { InspectName } from '../InspectName'
+import { SheetTabs } from '../SheetTabs'
 import { markLocalOk, useJustBecame } from '../../hooks/useJustBecame'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
+
+export type FoundryPane = 'smelt' | 'ranks' | 'prints' | 'fit'
+
+const FOUNDRY_PANES: { id: FoundryPane; label: string }[] = [
+  { id: 'smelt', label: 'Smelt' },
+  { id: 'ranks', label: 'Ranks' },
+  { id: 'prints', label: 'Prints' },
+  { id: 'fit', label: 'Fit' },
+]
 
 interface FoundryTabProps {
   state: GameState
@@ -42,6 +53,21 @@ interface FoundryTabProps {
   onEquip: (moduleId: string) => void
   onUnequip: (moduleId: string) => void
   onAssemble: (moduleId: string) => void
+  guideTarget?: string | null
+  focusTarget?: string | null
+  requestedPane?: FoundryPane | null
+}
+
+export function foundryPaneFromHints(
+  guideTarget?: string | null,
+  focusTarget?: string | null,
+  requestedPane?: FoundryPane | null,
+): FoundryPane | null {
+  if (requestedPane) return requestedPane
+  if (focusTarget?.startsWith('print-')) return 'prints'
+  if (guideTarget === 'foundry-prints') return 'prints'
+  if (guideTarget === 'foundry-smelters' || guideTarget === 'foundry-recipes') return 'smelt'
+  return null
 }
 
 function RankRow({
@@ -150,9 +176,14 @@ export function FoundryTab({
   onEquip,
   onUnequip,
   onAssemble,
+  guideTarget = null,
+  focusTarget = null,
+  requestedPane = null,
 }: FoundryTabProps) {
   const open = isSystemUnlocked(state, 'foundry')
   const foundry = state.foundry
+  const hint = foundryPaneFromHints(guideTarget, focusTarget, requestedPane)
+  const [pane, setPane] = useSyncedPane<FoundryPane>('smelt', hint)
 
   return (
     <section className="panel screen-panel">
@@ -167,7 +198,11 @@ export function FoundryTab({
       {!open ? (
         <p className="muted empty-state">Recipes, Foundry Points, and fitted bits land here.</p>
       ) : (
-        <div className="panel-scroll">
+        <>
+          <SheetTabs value={pane} onChange={setPane} options={FOUNDRY_PANES} label="Foundry panes" />
+          <div className="panel-scroll">
+          {pane === 'smelt' ? (
+            <>
           <h3 className="foundry-heading" data-guide="foundry-smelters">
             Smelters
           </h3>
@@ -262,69 +297,84 @@ export function FoundryTab({
               </article>
             )
           })}
+            </>
+          ) : null}
 
-          <h3 className="foundry-heading">Ranks</h3>
-          {FOUNDRY_UPGRADES.map((up) => (
-            <RankRow key={up.id} state={state} up={up} onBuyUpgrade={onBuyUpgrade} />
-          ))}
+          {pane === 'ranks' ? (
+            <>
+              <h3 className="foundry-heading">Ranks</h3>
+              {FOUNDRY_UPGRADES.map((up) => (
+                <RankRow key={up.id} state={state} up={up} onBuyUpgrade={onBuyUpgrade} />
+              ))}
+            </>
+          ) : null}
 
-          <h3 className="foundry-heading" data-guide="foundry-prints">
-            Core prints
-          </h3>
-          <p className="muted">
-            Reach a sector to unlock a print. Hold that sector (or deeper) to farm fragments, then
-            assemble here.
-          </p>
-          {listFarmableCores(state).map((mod) => (
-            <PrintRow key={mod.id} state={state} mod={mod} onAssemble={onAssemble} />
-          ))}
+          {pane === 'prints' ? (
+            <>
+              <h3 className="foundry-heading" data-guide="foundry-prints">
+                Core prints
+              </h3>
+              <p className="muted">
+                Reach a sector to unlock a print. Hold that sector (or deeper) to farm fragments, then
+                assemble here.
+              </p>
+              {listFarmableCores(state).map((mod) => (
+                <PrintRow key={mod.id} state={state} mod={mod} onAssemble={onAssemble} />
+              ))}
+            </>
+          ) : null}
 
-          <h3 className="foundry-heading">Fit</h3>
-          <p className="muted">{FOUNDRY_MODULE_SLOTS} fitted bits. Swap only while docked.</p>
-          {FOUNDRY_MODULES.map((mod) => {
-            const unlocked = isFoundryModuleUnlocked(state, mod.id)
-            const fitted = foundry.equipped.includes(mod.id)
-            const costBits = Object.entries(mod.cost)
-              .map(([id, n]) => `${n} ${FOUNDRY_RECIPES.find((r) => r.id === id)?.name ?? id}`)
-              .join(' · ')
-            return (
-              <article
-                key={mod.id}
-                className={
-                  unlocked ? (fitted ? 'network-row is-fitted' : 'network-row is-ready') : 'network-row locked'
-                }
-              >
-                <div className="network-row-main">
-                  <InspectName
-                    name={mod.name}
-                    card={unlocked ? inspectFoundryModule(state, mod.id) : null}
-                  />
-                  <span className={fitted ? 'status-tag teal' : unlocked ? 'status-tag ok' : 'muted'}>
-                    {fitted ? 'Fitted' : unlocked ? 'Ready' : 'Locked'}
-                  </span>
-                </div>
-                <p className="network-row-stats">
-                  {mod.blurb}
-                  {unlocked ? ` · ${costBits}` : ''}
-                </p>
-                {unlocked ? (
-                  <button
-                    type="button"
-                    className={fitted ? undefined : 'primary'}
-                    disabled={!state.combat.docked}
-                    onClick={(e) => {
-                      markLocalOk(e.currentTarget)
-                      if (fitted) onUnequip(mod.id)
-                      else onEquip(mod.id)
-                    }}
+          {pane === 'fit' ? (
+            <>
+              <h3 className="foundry-heading">Fit</h3>
+              <p className="muted">{FOUNDRY_MODULE_SLOTS} fitted bits. Swap only while docked.</p>
+              {FOUNDRY_MODULES.map((mod) => {
+                const unlocked = isFoundryModuleUnlocked(state, mod.id)
+                const fitted = foundry.equipped.includes(mod.id)
+                const costBits = Object.entries(mod.cost)
+                  .map(([id, n]) => `${n} ${FOUNDRY_RECIPES.find((r) => r.id === id)?.name ?? id}`)
+                  .join(' · ')
+                return (
+                  <article
+                    key={mod.id}
+                    className={
+                      unlocked ? (fitted ? 'network-row is-fitted' : 'network-row is-ready') : 'network-row locked'
+                    }
                   >
-                    {fitted ? 'Unequip' : 'Equip'}
-                  </button>
-                ) : null}
-              </article>
-            )
-          })}
-        </div>
+                    <div className="network-row-main">
+                      <InspectName
+                        name={mod.name}
+                        card={unlocked ? inspectFoundryModule(state, mod.id) : null}
+                      />
+                      <span className={fitted ? 'status-tag teal' : unlocked ? 'status-tag ok' : 'muted'}>
+                        {fitted ? 'Fitted' : unlocked ? 'Ready' : 'Locked'}
+                      </span>
+                    </div>
+                    <p className="network-row-stats">
+                      {mod.blurb}
+                      {unlocked ? ` · ${costBits}` : ''}
+                    </p>
+                    {unlocked ? (
+                      <button
+                        type="button"
+                        className={fitted ? undefined : 'primary'}
+                        disabled={!state.combat.docked}
+                        onClick={(e) => {
+                          markLocalOk(e.currentTarget)
+                          if (fitted) onUnequip(mod.id)
+                          else onEquip(mod.id)
+                        }}
+                      >
+                        {fitted ? 'Unequip' : 'Equip'}
+                      </button>
+                    ) : null}
+                  </article>
+                )
+              })}
+            </>
+          ) : null}
+          </div>
+        </>
       )}
     </section>
   )

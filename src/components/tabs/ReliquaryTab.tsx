@@ -15,16 +15,28 @@ import {
 import { formatCompact } from '../../game/format'
 import { inspectReliquarySlot, inspectShard } from '../../game/inspect'
 import { InspectName } from '../InspectName'
+import { SheetTabs } from '../SheetTabs'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
+
+type ReliquaryPane = 'slots' | 'index'
+
+const RELIQUARY_PANES: { id: ReliquaryPane; label: string; guide?: string }[] = [
+  { id: 'slots', label: 'Slots' },
+  { id: 'index', label: 'Index', guide: 'reliquary-copies' },
+]
 
 interface ReliquaryTabProps {
   state: GameState
   onBack: () => void
   onInsert: (shardId: string) => void
   onRemove: (color: ReliquaryColor) => void
+  guideTarget?: string | null
 }
 
-export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTabProps) {
+export function ReliquaryTab({ state, onBack, onInsert, onRemove, guideTarget = null }: ReliquaryTabProps) {
   const open = isSystemUnlocked(state, 'reliquary')
+  const hint = guideTarget === 'reliquary-copies' ? 'index' : guideTarget === 'reliquary-slots' ? 'slots' : null
+  const [pane, setPane] = useSyncedPane<ReliquaryPane>('slots', hint)
 
   return (
     <section className="panel screen-panel">
@@ -44,8 +56,14 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
       {!open ? (
         <p className="muted">Shards drop from kills once this door is open.</p>
       ) : (
-        <div className="panel-scroll">
-          <div data-guide="reliquary-slots">
+        <>
+          <SheetTabs value={pane} onChange={setPane} options={RELIQUARY_PANES} label="Reliquary panes" />
+          <div className="panel-scroll">
+          {pane === 'slots' ? (
+            <>
+          <h3 className="foundry-heading" data-guide="reliquary-slots">
+            Slots
+          </h3>
           {RELIQUARY_SLOTS.map((slot) => {
             const unlocked = isReliquarySlotUnlocked(state, slot.color)
             const fitted = fittedShardId(state, slot.color)
@@ -116,7 +134,9 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
               </article>
             )
           })}
-          </div>
+            </>
+          ) : (
+            <>
           <h3 className="foundry-heading" data-guide="reliquary-copies">
             Shard glossary
           </h3>
@@ -140,7 +160,10 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove }: ReliquaryTab
               </article>
             )
           })}
-        </div>
+            </>
+          )}
+          </div>
+        </>
       )}
     </section>
   )

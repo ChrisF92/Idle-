@@ -49,7 +49,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   network: {
     title: 'Network',
     body: [
-      'Assign drones to bars. Strike raises damage. Ward raises shields. Later bars unlock as you push sectors.',
+      'Assign drones to bars. Strike raises damage. Ward raises shields. Later bars unlock as you push sectors. Links sit on their own pane.',
       'Link power is assigned drones times efficiency. Corps racks hang more hulls. Drone acuity makes each hull count for more. Cycle speed turns the clock up — those three spend scrap at first, then Heat after the Furnace.',
       'Tap a bar or Link name for live numbers. Bar levels reset on Rebuild. The corps and Link ranks stay. Drones never fly on Sortie.',
     ],
@@ -58,7 +58,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Foundry',
     body: [
       'Smelt salvage into materials, then into bits you can fit. Recipe levels, stock, and Foundry Points persist when you Rebuild. Fitted bits come off.',
-      'Core prints unlock when you reach a sector. Hold that sector to farm fragments, then Assemble here. Fit printed Cores on the next Rebuild.',
+      'Smelt, ranks, prints, and fit sit on their own panes. Core prints unlock when you reach a sector. Hold that sector to farm fragments, then Assemble here.',
     ],
   },
   reliquary: {
@@ -106,14 +106,14 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   echo: {
     title: 'Echo Runs',
     body: [
-      'Short gauntlets. The ship keeps its Cores. Echo points buy a tree that persists.',
+      'Short gauntlets. The ship keeps its Cores. Echo points buy a tree that persists — gauntlets and tree sit on their own panes.',
       'Opens at sector 22. Launch the run from Dock.',
     ],
   },
   process: {
     title: 'Process',
     body: [
-      'Achievements grant Process points. Spend them on automation and quality-of-life. Nodes are expensive — buy a few that match this sitting.',
+      'Achievements grant Process points. Spend them on automation and quality-of-life. Nodes are expensive — buy a few that match this sitting. The achievement log is on its own pane.',
       'Opens after First Blood (clear sector 1). Act 1 covers Sortie, Network, Foundry, Reliquary, Research, and Furnace. Points persist across Rebuild.',
     ],
   },
@@ -163,7 +163,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'More',
     body: [
       'Extra systems live here so the bottom bar stays five tabs: Dock, Sortie, Network, Foundry, More.',
-      'Open stations are ready. Coming up is the next door. Save and settings sit at the bottom.',
+      'Open stations are ready. Coming up is the next door. Save and settings live on the Settings pane.',
     ],
   },
 }

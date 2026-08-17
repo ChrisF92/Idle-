@@ -24,7 +24,7 @@ import { OfflineBanner } from './components/OfflineBanner'
 import { DockTab } from './components/tabs/DockTab'
 import { CombatTab } from './components/tabs/CombatTab'
 import { NetworkTab } from './components/tabs/NetworkTab'
-import { FoundryTab } from './components/tabs/FoundryTab'
+import { FoundryTab, type FoundryPane } from './components/tabs/FoundryTab'
 import { ReliquaryTab } from './components/tabs/ReliquaryTab'
 import { FurnaceTab } from './components/tabs/FurnaceTab'
 import { ResearchTab } from './components/tabs/ResearchTab'
@@ -63,6 +63,7 @@ export default function App() {
   const [toasts, setToasts] = useState<QueuedToast[]>([])
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
   const [coresRequest, setCoresRequest] = useState<{ key: number; moduleId?: string } | null>(null)
+  const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
   const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
@@ -95,6 +96,7 @@ export default function App() {
       if (isHubTabOpen(game.state, nav.tab)) {
         setTab(nav.tab)
         if (nav.focus) setFocusTarget(nav.focus)
+        if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
       }
     },
     [game.state],
@@ -145,6 +147,10 @@ export default function App() {
   useEffect(() => {
     setHeldGuideId(guide?.id ?? null)
   }, [guide?.id])
+
+  useEffect(() => {
+    if (tab !== 'foundry') setFoundryPane(null)
+  }, [tab])
 
   useEffect(() => {
     if (dying) setTab('combat')
@@ -266,6 +272,10 @@ export default function App() {
             paused={Boolean(guide)}
             guide={guide}
             coresRequest={coresRequest}
+            onOpenFoundry={() => {
+              setFoundryPane('smelt')
+              go('foundry')
+            }}
           />
         )}
         {tab === 'network' && (
@@ -273,6 +283,7 @@ export default function App() {
             state={game.state}
             onAssign={game.assignWorker}
             onBuyLink={game.buyNetworkLink}
+            guideTarget={guide?.target}
           />
         )}
         {tab === 'foundry' && (
@@ -283,6 +294,9 @@ export default function App() {
             onEquip={game.equipFoundryModule}
             onUnequip={game.unequipFoundryModule}
             onAssemble={game.assembleBlueprint}
+            guideTarget={guide?.target}
+            focusTarget={focusTarget}
+            requestedPane={foundryPane}
           />
         )}
         {tab === 'reliquary' && (
@@ -291,6 +305,7 @@ export default function App() {
             onBack={() => go('stats')}
             onInsert={game.insertShard}
             onRemove={game.removeShard}
+            guideTarget={guide?.target}
           />
         )}
         {tab === 'furnace' && (
@@ -315,6 +330,7 @@ export default function App() {
             onPlace={game.placeYardBuilding}
             onClear={game.clearYardBuilding}
             onBuyArm={game.buyYardArm}
+            guideTarget={guide?.target}
           />
         )}
         {tab === 'slag' && (
@@ -339,6 +355,7 @@ export default function App() {
             onEnter={game.enterEcho}
             onAbandon={game.abandonEcho}
             onBuy={game.buyEchoNode}
+            guideTarget={guide?.target}
           />
         )}
         {tab === 'process' && (
@@ -346,6 +363,7 @@ export default function App() {
             state={game.state}
             onBack={() => go('stats')}
             onBuy={game.buyProcessNode}
+            guideTarget={guide?.target}
           />
         )}
         {tab === 'specialists' && (
@@ -371,7 +389,9 @@ export default function App() {
           />
         )}
         {tab === 'logs' && <LogsTab state={game.state} onBack={() => go('stats')} />}
-        {tab === 'codex' && <CodexTab state={game.state} onBack={() => go('stats')} />}
+        {tab === 'codex' && (
+          <CodexTab state={game.state} onBack={() => go('stats')} guideTarget={guide?.target} />
+        )}
         {tab === 'stats' && (
           <StatsTab
             state={game.state}
@@ -382,6 +402,7 @@ export default function App() {
             onNotation={game.setNumberNotation}
             onOpenStation={go}
             onOpenSimulator={() => setSimulatorOpen(true)}
+            guideTarget={guide?.target}
           />
         )}
       </main>

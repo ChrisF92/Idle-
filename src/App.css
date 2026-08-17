@@ -682,6 +682,14 @@ h2 .inspect-name {
   margin-bottom: 0.35rem;
 }
 
+.pane-tabs {
+  margin: 0 0 0.45rem;
+}
+
+.pane-tabs .sheet-tab {
+  min-height: 2.15rem;
+}
+
 .sheet-tab {
   flex: 1;
   min-height: 2rem;
@@ -1076,6 +1084,46 @@ h2 .inspect-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.craft-strip {
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  top: 0.35rem;
+  z-index: 3;
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.28rem 0.4rem 0.32rem;
+  text-align: left;
+  background: color-mix(in srgb, var(--bg-inset) 82%, black);
+  border: 1px solid color-mix(in srgb, var(--accent-2) 40%, var(--line));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.craft-strip .combat-hud-kicker {
+  margin: 0;
+}
+
+.craft-chip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(3.2rem, 38%);
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.craft-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+
+.craft-chip .network-fill {
+  margin: 0;
+  height: 0.28rem;
 }
 
 .combat-intel-btn {

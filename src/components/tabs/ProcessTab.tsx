@@ -11,16 +11,28 @@ import {
   hasProcess,
 } from '../../game/process'
 import { formatCompact } from '../../game/format'
+import { SheetTabs } from '../SheetTabs'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
+
+type ProcessPane = 'nodes' | 'log'
+
+const PROCESS_PANES: { id: ProcessPane; label: string }[] = [
+  { id: 'nodes', label: 'Nodes' },
+  { id: 'log', label: 'Log' },
+]
 
 interface ProcessTabProps {
   state: GameState
   onBack: () => void
   onBuy: (id: string) => void
+  guideTarget?: string | null
 }
 
-export function ProcessTab({ state, onBack, onBuy }: ProcessTabProps) {
+export function ProcessTab({ state, onBack, onBuy, guideTarget = null }: ProcessTabProps) {
   const open = isSystemUnlocked(state, 'process')
   const points = state.resources.aiPoints
+  const hint = guideTarget === 'process-nodes' ? 'nodes' : null
+  const [pane, setPane] = useSyncedPane<ProcessPane>('nodes', hint)
 
   return (
     <section className="panel screen-panel">
@@ -40,7 +52,11 @@ export function ProcessTab({ state, onBack, onBuy }: ProcessTabProps) {
       {!open ? (
         <p className="muted">Achievements grant Process points. Spend them on QoL nodes.</p>
       ) : (
-        <div className="panel-scroll">
+        <>
+          <SheetTabs value={pane} onChange={setPane} options={PROCESS_PANES} label="Process panes" />
+          <div className="panel-scroll">
+          {pane === 'nodes' ? (
+            <>
           <p className="muted">
             Nodes are expensive on purpose. Buy a few that match this sitting — later acts add more.
           </p>
@@ -79,6 +95,9 @@ export function ProcessTab({ state, onBack, onBuy }: ProcessTabProps) {
               </div>
             )
           })}
+            </>
+          ) : (
+            <>
           <h3 className="foundry-heading">Achievements</h3>
           {ACHIEVEMENTS.filter((a) => !a.repeatable).slice(0, 12).map((a) => (
             <article key={a.id} className="network-row">
@@ -91,7 +110,10 @@ export function ProcessTab({ state, onBack, onBuy }: ProcessTabProps) {
               <p className="network-row-stats">{a.description}</p>
             </article>
           ))}
-        </div>
+            </>
+          )}
+          </div>
+        </>
       )}
     </section>
   )

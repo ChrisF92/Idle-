@@ -9,16 +9,28 @@ import {
   softCounterForFamily,
   type EnemyFamily,
 } from '../../game/combat'
+import { SheetTabs } from '../SheetTabs'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
+
+type CodexPane = 'families' | 'roles'
+
+const CODEX_PANES: { id: CodexPane; label: string; guide?: string }[] = [
+  { id: 'families', label: 'Families', guide: 'codex-families' },
+  { id: 'roles', label: 'Roles', guide: 'codex-roles' },
+]
 
 interface CodexTabProps {
   state: GameState
   onBack: () => void
+  guideTarget?: string | null
 }
 
-export function CodexTab({ state, onBack }: CodexTabProps) {
+export function CodexTab({ state, onBack, guideTarget = null }: CodexTabProps) {
   const open = isSystemUnlocked(state, 'codex')
   const seen = new Set(state.codex.seenFamilies)
   const revealed = CODEX_FAMILIES.filter((f) => seen.has(f)).length
+  const hint = guideTarget === 'codex-roles' ? 'roles' : guideTarget === 'codex-families' ? 'families' : null
+  const [pane, setPane] = useSyncedPane<CodexPane>('families', hint)
 
   return (
     <section className="panel screen-panel">
@@ -42,7 +54,11 @@ export function CodexTab({ state, onBack }: CodexTabProps) {
           {revealed > 0 ? ' (waiting for sector 6).' : '.'}
         </p>
       ) : (
-        <div className="panel-scroll">
+        <>
+          <SheetTabs value={pane} onChange={setPane} options={CODEX_PANES} label="Codex panes" />
+          <div className="panel-scroll">
+          {pane === 'families' ? (
+            <>
           <h3 className="foundry-heading" data-guide="codex-families">
             Families
           </h3>
@@ -73,7 +89,9 @@ export function CodexTab({ state, onBack }: CodexTabProps) {
               )
             })}
           </ul>
-
+            </>
+          ) : (
+            <>
           <h3 className="foundry-heading" data-guide="codex-roles">
             Hull roles
           </h3>
@@ -86,7 +104,10 @@ export function CodexTab({ state, onBack }: CodexTabProps) {
               <p className="network-row-stats">{roleIntel(role)}</p>
             </article>
           ))}
-        </div>
+            </>
+          )}
+          </div>
+        </>
       )}
     </section>
   )

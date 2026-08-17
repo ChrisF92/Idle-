@@ -30,6 +30,7 @@ interface NetworkSheetProps {
   onBuyLink?: (id: NetworkLinkId) => void
   compact?: boolean
   idleHighlight?: boolean
+  pane?: 'bars' | 'links'
 }
 
 function LinkRow({
@@ -88,6 +89,7 @@ export function NetworkSheet({
   onBuyLink,
   compact = false,
   idleHighlight = false,
+  pane = 'bars',
 }: NetworkSheetProps) {
   const idle = idleWorkers(state)
   const cap = droneCap(state)
@@ -97,6 +99,8 @@ export function NetworkSheet({
 
   return (
     <div className={compact ? 'network-sheet network-sheet-compact' : 'network-sheet'}>
+      {pane === 'bars' ? (
+        <>
       <p className={`network-corps${idleHighlight ? ' just-ready' : ''}`} data-guide="network-corps">
         <InspectName
           name={`Corps ${state.base.workerDrones}/${cap}`}
@@ -165,7 +169,15 @@ export function NetworkSheet({
           </article>
         )
       })}
-      {onBuyLink ? (
+      {!compact ? (
+        <p className="muted">
+          Tap a name for the full sheet. Drones fill bars — they never appear on the battlefield.
+          {idle > 0 ? ` ${formatCompact(idle)} idle.` : ''}
+        </p>
+      ) : null}
+        </>
+      ) : null}
+      {pane === 'links' && onBuyLink ? (
         <>
           <h3 className="foundry-heading" data-guide="network-links">
             Links
@@ -174,12 +186,6 @@ export function NetworkSheet({
             <LinkRow key={linkDef.id} state={state} linkDef={linkDef} onBuyLink={onBuyLink} />
           ))}
         </>
-      ) : null}
-      {!compact ? (
-        <p className="muted">
-          Tap a name for the full sheet. Drones fill bars — they never appear on the battlefield.
-          {idle > 0 ? ` ${formatCompact(idle)} idle.` : ''}
-        </p>
       ) : null}
     </div>
   )

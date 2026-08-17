@@ -12,6 +12,15 @@ import {
   getEchoNode,
 } from '../../game/echo'
 import { formatCompact } from '../../game/format'
+import { SheetTabs } from '../SheetTabs'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
+
+type EchoPane = 'gauntlets' | 'tree'
+
+const ECHO_PANES: { id: EchoPane; label: string; guide?: string }[] = [
+  { id: 'gauntlets', label: 'Gauntlets' },
+  { id: 'tree', label: 'Tree', guide: 'echo-tree' },
+]
 
 interface EchoTabProps {
   state: GameState
@@ -19,13 +28,16 @@ interface EchoTabProps {
   onEnter: (id: string) => void
   onAbandon: () => void
   onBuy: (id: string) => void
+  guideTarget?: string | null
 }
 
-export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabProps) {
+export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy, guideTarget = null }: EchoTabProps) {
   const open = isSystemUnlocked(state, 'echo')
   const activeId = state.echo?.activeId ?? null
   const active = activeId ? getEchoRun(activeId) : undefined
   const points = state.echo?.points ?? 0
+  const hint = guideTarget === 'echo-tree' ? 'tree' : null
+  const [pane, setPane] = useSyncedPane<EchoPane>('gauntlets', hint)
 
   return (
     <section className="panel screen-panel">
@@ -45,7 +57,11 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabPro
       {!open ? (
         <p className="muted">Short gauntlet. Cores stay. Three waves, then a Titan echo.</p>
       ) : (
-        <div className="panel-scroll">
+        <>
+          <SheetTabs value={pane} onChange={setPane} options={ECHO_PANES} label="Echo panes" />
+          <div className="panel-scroll">
+          {pane === 'gauntlets' ? (
+            <>
           {active ? (
             <article className="network-row">
               <div className="network-row-main">
@@ -87,6 +103,9 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabPro
               </article>
             )
           })}
+            </>
+          ) : (
+            <>
           <h3 className="foundry-heading" data-guide="echo-tree">
             Tree
           </h3>
@@ -115,7 +134,10 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy }: EchoTabPro
               </article>
             )
           })}
-        </div>
+            </>
+          )}
+          </div>
+        </>
       )}
     </section>
   )

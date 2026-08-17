@@ -15,6 +15,16 @@ import {
   yardPendingSummary,
 } from '../../game/yard'
 import { formatCompact } from '../../game/format'
+import { SheetTabs } from '../SheetTabs'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
+
+type YardPane = 'grid' | 'place' | 'arms'
+
+const YARD_PANES: { id: YardPane; label: string }[] = [
+  { id: 'grid', label: 'Grid' },
+  { id: 'place', label: 'Place' },
+  { id: 'arms', label: 'Arms' },
+]
 
 interface YardTabProps {
   state: GameState
@@ -22,13 +32,16 @@ interface YardTabProps {
   onPlace: (index: number, buildingId: YardBuildingId) => void
   onClear: (index: number) => void
   onBuyArm: (id: YardArmId) => void
+  guideTarget?: string | null
 }
 
-export function YardTab({ state, onBack, onPlace, onClear, onBuyArm }: YardTabProps) {
+export function YardTab({ state, onBack, onPlace, onClear, onBuyArm, guideTarget = null }: YardTabProps) {
   const open = isSystemUnlocked(state, 'yard')
   const size = yardGridSize(state)
   const cells = [...(state.yard?.cells ?? [])]
   while (cells.length < size * size) cells.push({ buildingId: null })
+  const hint = guideTarget === 'yard-grid' ? 'grid' : null
+  const [pane, setPane] = useSyncedPane<YardPane>('grid', hint)
 
   return (
     <section className="panel screen-panel">
@@ -41,19 +54,18 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm }: YardTabPr
         <h2>Yard Grid</h2>
         <p>
           {open
-            ? `${size}×${size} · arms apply on Rebuild`
+            ? `${size}×${size} · ${YARD_GOOD_LABELS.ore} ${formatCompact(yardGood(state, 'ore'), 1)} · ${YARD_GOOD_LABELS.flux} ${formatCompact(yardGood(state, 'flux'), 1)} · ${YARD_GOOD_LABELS.ingot} ${formatCompact(yardGood(state, 'ingot'), 1)}`
             : 'Rebuild once to open the Yard.'}
         </p>
       </header>
       {!open ? (
         <p className="muted">Buildings run while docked. Spend Ingots to queue the next Rebuild.</p>
       ) : (
-        <div className="panel-scroll">
-          <p className="muted">
-            {YARD_GOOD_LABELS.ore} {formatCompact(yardGood(state, 'ore'), 1)} ·{' '}
-            {YARD_GOOD_LABELS.flux} {formatCompact(yardGood(state, 'flux'), 1)} ·{' '}
-            {YARD_GOOD_LABELS.ingot} {formatCompact(yardGood(state, 'ingot'), 1)}
-          </p>
+        <>
+          <SheetTabs value={pane} onChange={setPane} options={YARD_PANES} label="Yard panes" />
+          <div className="panel-scroll">
+          {pane === 'grid' ? (
+            <>
           <div className="yard-grid" data-guide="yard-grid" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
             {Array.from({ length: size * size }, (_, i) => {
               const cell = cells[i]
@@ -75,7 +87,11 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm }: YardTabPr
           {size < 4 ? (
             <p className="muted">Grid expands at sector {YARD_EXPAND_SECTOR}.</p>
           ) : null}
+            </>
+          ) : null}
 
+          {pane === 'place' ? (
+            <>
           <h3 className="foundry-heading">Place</h3>
           {YARD_BUILDINGS.map((b) => {
             const cost = Object.entries(b.cost)
@@ -108,7 +124,11 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm }: YardTabPr
               </article>
             )
           })}
+            </>
+          ) : null}
 
+          {pane === 'arms' ? (
+            <>
           <h3 className="foundry-heading">Next Rebuild</h3>
           <p className="muted">{yardPendingSummary(state)}</p>
           {YARD_ARMS.map((arm) => {
@@ -134,7 +154,10 @@ export function YardTab({ state, onBack, onPlace, onClear, onBuyArm }: YardTabPr
               </article>
             )
           })}
-        </div>
+            </>
+          ) : null}
+          </div>
+        </>
       )}
     </section>
   )

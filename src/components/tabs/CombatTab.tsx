@@ -5,11 +5,12 @@ import { COMBAT_PUSH_MODES, normalizePushMode, normalizeRoute, pushModeLabel } f
 import { wavesForRun, getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
-import { activeGuideStep, hasHullLostOnce, isCoresGuideTarget, type GuideStep } from '../../game/progression'
+import { activeGuideStep, hasHullLostOnce, isCoresGuideTarget, isSystemUnlocked, type GuideStep } from '../../game/progression'
 import { attentionAria, coresAttention } from '../../game/hubAttention'
 import { AttentionPips } from '../AttentionPips'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
+import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { markLocalOk } from '../../hooks/useJustBecame'
 
 interface CombatTabProps {
@@ -22,12 +23,47 @@ interface CombatTabProps {
   guide?: GuideStep | null
   onMarkCoresSeen?: () => void
   coresRequest?: { key: number; moduleId?: string } | null
+  onOpenFoundry?: () => void
 }
 
 function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {
   const step = guide ?? activeGuideStep(state, 'combat')
   if (!step) return false
   return isCoresGuideTarget(step)
+}
+
+function CraftStrip({ state, onOpen }: { state: GameState; onOpen: () => void }) {
+  if (!isSystemUnlocked(state, 'foundry')) return null
+  const running = state.foundry.slots.flatMap((slot, index) => {
+    if (!slot.recipeId) return []
+    return [
+      {
+        index,
+        progress: slot.progress,
+        name: FOUNDRY_RECIPES.find((r) => r.id === slot.recipeId)?.name ?? 'Queued',
+      },
+    ]
+  })
+  if (running.length === 0) return null
+  const label = running.map((job) => job.name).join(', ')
+  return (
+    <button
+      type="button"
+      className="craft-strip"
+      onClick={onOpen}
+      aria-label={`Foundry smelting ${label}. Open Foundry.`}
+    >
+      <span className="combat-hud-kicker">Foundry</span>
+      {running.map((job) => (
+        <span key={job.index} className="craft-chip">
+          <span className="craft-chip-name">{job.name}</span>
+          <span className="network-fill is-active" aria-hidden>
+            <span style={{ transform: `scaleX(${job.progress})` }} />
+          </span>
+        </span>
+      ))}
+    </button>
+  )
 }
 
 export function CombatTab({
@@ -40,6 +76,7 @@ export function CombatTab({
   guide = null,
   onMarkCoresSeen,
   coresRequest = null,
+  onOpenFoundry,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -234,6 +271,7 @@ export function CombatTab({
       </header>
 
       <div className="sortie-canvas" data-guide="sortie-canvas">
+        {onOpenFoundry ? <CraftStrip state={state} onOpen={onOpenFoundry} /> : null}
         <Battlefield
           playerUnits={playerUnits}
           enemyUnits={enemyUnits}

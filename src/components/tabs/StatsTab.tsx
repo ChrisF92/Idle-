@@ -10,6 +10,15 @@ import { isSystemUnlocked, systemUnlockRequirement } from '../../game/progressio
 import { attentionAria, moreStationAttention } from '../../game/hubAttention'
 import { moreStationBuckets, type MoreStationDef } from '../../game/moreStations'
 import { AttentionPips } from '../AttentionPips'
+import { SheetTabs } from '../SheetTabs'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
+
+type MorePane = 'stations' | 'settings'
+
+const MORE_PANES: { id: MorePane; label: string }[] = [
+  { id: 'stations', label: 'Stations' },
+  { id: 'settings', label: 'Settings' },
+]
 
 interface StatsTabProps {
   state: GameState
@@ -20,6 +29,7 @@ interface StatsTabProps {
   onNotation?: (mode: NumberNotation) => void
   onOpenStation?: (tab: TabId) => void
   onOpenSimulator?: () => void
+  guideTarget?: string | null
 }
 
 function StationRow({
@@ -70,10 +80,14 @@ export function StatsTab({
   onNotation,
   onOpenStation,
   onOpenSimulator,
+  guideTarget = null,
 }: StatsTabProps) {
   const [importCode, setImportCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const buckets = moreStationBuckets(state)
+  const hint =
+    guideTarget === 'rebuild-btn' || guideTarget === 'station-logs' ? 'settings' : guideTarget?.startsWith('station-') ? 'stations' : null
+  const [pane, setPane] = useSyncedPane<MorePane>('stations', hint)
 
   useEffect(() => {
     // Nudge waiting service workers when the player opens Stats.
@@ -87,10 +101,11 @@ export function StatsTab({
     <section className="panel screen-panel">
       <header className="panel-header">
         <h2>More</h2>
-        <p>Hangar stations. Save and settings at the bottom.</p>
+        <p>Hangar stations. Save and settings on their own pane.</p>
       </header>
+      <SheetTabs value={pane} onChange={setPane} options={MORE_PANES} label="More panes" />
       <div className="panel-scroll">
-      {onOpenStation ? (
+      {pane === 'stations' && onOpenStation ? (
         <div>
           {buckets.open.length > 0 ? (
             <>
@@ -134,8 +149,7 @@ export function StatsTab({
         </div>
       ) : null}
 
-      <details className="more-fold">
-        <summary>Save & settings</summary>
+        <div className="stack">
         {onNotation ? (
           <div>
             <p className="muted">Numbers over 999</p>
@@ -257,7 +271,8 @@ export function StatsTab({
             Hard reset
           </button>
         </div>
-      </details>
+        </div>
+      ) : null}
 
       {message ? <p className="notice">{message}</p> : null}
       </div>
