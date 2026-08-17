@@ -87,6 +87,8 @@ function adopt(state: GameState, next: GameState): void {
   state.furnace = next.furnace
   state.process = next.process
   state.network = next.network
+  state.protocols = next.protocols
+  state.echo = next.echo
 }
 
 /** Auto-merge unequipped Signal Cores while triples remain. */

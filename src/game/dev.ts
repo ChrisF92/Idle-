@@ -11,6 +11,7 @@ import {
 import { syncPersistedHullCaps } from './state'
 import { enemyForSector } from './combat'
 import { wavesForRun, createEmptyEchoState } from './echo'
+import { createEmptyProtocolState } from './protocols'
 import { wavesForSector } from './sectors'
 import { ensureYardGrid } from './yard'
 
@@ -223,7 +224,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.specialists.ranks.gunner = Math.max(next.specialists.ranks.gunner ?? 0, 1)
       if (!next.echo) next.echo = createEmptyEchoState()
       next.echo.clears = { ...next.echo.clears, rift: Math.max(next.echo.clears.rift ?? 0, 1) }
-      if (!next.protocols) next.protocols = { activeId: null, ranks: {} }
+      if (!next.protocols) next.protocols = createEmptyProtocolState()
       next.protocols.ranks = { ...next.protocols.ranks, 'mute-network': Math.max(next.protocols.ranks['mute-network'] ?? 0, 1) }
       next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 75)
       next.combat.highestSector = Math.max(next.combat.highestSector, 75)
