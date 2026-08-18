@@ -20,6 +20,7 @@ import {
   foundryMasteryGateReduce,
   foundryXpMult,
 } from './foundryBonuses'
+import { noteSystemAction, recordPlaytest } from './playtest'
 
 export {
   foundryAshHeatMult,
@@ -801,6 +802,12 @@ function grantCraft(state: GameState, id: FoundryRecipeId): void {
     const nextLevel = level + 1
     state.foundry.recipeLevels[id] = nextLevel
     state.foundry.points += nextLevel >= 16 ? 2 : 1
+    recordPlaytest(state, 'foundry_craft', {
+      n: def.name,
+      v: nextLevel,
+      firstKey: `foundry_craft:${id}:${nextLevel}`,
+    })
+    noteSystemAction(state, 'foundry')
     if (nextLevel >= solved) markInfinite(state, id)
   } else {
     state.foundry.recipeXp[id] = xp
@@ -951,6 +958,7 @@ export function setFoundrySlot(
   slot.recipeId = recipeId
   slot.progress = 0
   slot.paid = false
+  if (recipeId) noteSystemAction(next, 'foundry')
   return next
 }
 
@@ -997,6 +1005,11 @@ export function equipFoundryModule(state: GameState, moduleId: string): GameStat
   } else {
     next.foundry.equipped = [...next.foundry.equipped, moduleId]
   }
+  recordPlaytest(next, 'foundry_fitted', {
+    n: def.name,
+    firstKey: 'foundry_fitted',
+  })
+  noteSystemAction(next, 'foundry')
   return next
 }
 

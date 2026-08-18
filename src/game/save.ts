@@ -46,6 +46,8 @@ import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { normalizePushMode, normalizeRoute } from './sectors'
 import { migrateOnboardingState } from './playerGuidance'
+import { hydratePlaytest, noteSessionStart } from './playtest'
+import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
 
 export function saveGame(state: GameState): void {
   try {
@@ -74,6 +76,7 @@ function withLastSortieDefaults(
     milestones: Math.max(0, Math.floor(Number(raw.milestones ?? 0) || 0)),
     researchXp: Math.max(0, Math.floor(Number(raw.researchXp ?? 0) || 0)),
     networkLevels: Math.max(0, Math.floor(Number(raw.networkLevels ?? 0) || 0)),
+    stats: hydrateSortieRunStats(raw.stats),
   }
 }
 
@@ -126,7 +129,17 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     fx: combat.fx ?? [],
     fragmentNotice: null,
     lastSortie: withLastSortieDefaults(combat.lastSortie, combat.sector ?? 1, combat.wave ?? 1),
-    sortieMark: combat.sortieMark ?? null,
+    sortieMark: combat.sortieMark
+      ? {
+          salvage: Math.max(0, Number(combat.sortieMark.salvage ?? 0) || 0),
+          salvageSpent: Math.max(0, Number(combat.sortieMark.salvageSpent ?? 0) || 0),
+          sectorsCleared: Math.max(0, Math.floor(Number(combat.sortieMark.sectorsCleared ?? 0) || 0)),
+          corePicks: Math.max(0, Math.floor(Number(combat.sortieMark.corePicks ?? 0) || 0)),
+          researchXp: Math.max(0, Number(combat.sortieMark.researchXp ?? 0) || 0),
+          networkLevels: Math.max(0, Math.floor(Number(combat.sortieMark.networkLevels ?? 0) || 0)),
+          stats: hydrateSortieRunStats(combat.sortieMark.stats) ?? emptySortieRunStats(),
+        }
+      : null,
     defeatLeft: Math.max(0, Number(combat.defeatLeft ?? 0) || 0),
     defeatTactical: Boolean(combat.defeatTactical),
   }
@@ -655,6 +668,7 @@ function migrate(raw: unknown): GameState | null {
       core: withCoreDefaults(state.core),
       signalCores: withSignalCoresDefaults(state.signalCores),
       parts: withPartsDefaults(state.parts),
+      playtest: hydratePlaytest(state.playtest),
     }
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
@@ -748,6 +762,7 @@ function migrate(raw: unknown): GameState | null {
       core: withCoreDefaults(prev.core),
       signalCores: withSignalCoresDefaults(prev.signalCores),
       parts: withPartsDefaults(prev.parts),
+      playtest: hydratePlaytest(prev.playtest),
     }
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
@@ -774,7 +789,14 @@ export function loadGame(): GameState | null {
 }
 
 export function loadOrCreateGame(now = Date.now()): GameState {
-  return loadGame() ?? createInitialState(now)
+  const loaded = loadGame()
+  if (loaded) {
+    noteSessionStart(loaded, now)
+    return loaded
+  }
+  const fresh = createInitialState(now)
+  noteSessionStart(fresh, now)
+  return fresh
 }
 
 export function exportSave(state: GameState): string {

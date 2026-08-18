@@ -23,6 +23,7 @@ import { protocolCoreScalingAdd } from './protocols'
 import { PROCESS_NODES, canBuyProcessNode } from './process'
 import { hasHullLostOnce, isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
+import { noteSystemOpen } from './playtest'
 
 export type AttentionFlags = { spend: boolean; fresh: boolean }
 
@@ -92,17 +93,21 @@ export function markHubSeen(state: GameState, scope: HubAttentionScope): GameSta
   const keys = contentKeys(state, scope)
   if (keys.length === 0) return state
   const seen = seenSet(state)
+  const opened: string[] = []
   let changed = false
   for (const key of keys) {
     if (seen.has(key)) continue
     seen.add(key)
     changed = true
+    if (key.startsWith('sys:')) opened.push(key.slice(4))
   }
   if (!changed) return state
-  return {
+  const next: GameState = {
     ...state,
     meta: { ...state.meta, seenContent: [...seen] },
   }
+  for (const system of opened) noteSystemOpen(next, system)
+  return next
 }
 
 function hasUnseen(state: GameState, keys: string[]): boolean {

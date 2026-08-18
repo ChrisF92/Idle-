@@ -10,6 +10,7 @@ import type {
 } from './types'
 import { careerHighestSector } from './progression'
 import { processIndustrySpeedMult } from './process'
+import { noteSystemAction } from './playtest'
 
 export const YARD_START_SIZE = 3
 export const YARD_EXPAND_SECTOR = 14
@@ -172,6 +173,7 @@ export function placeYardBuilding(
   if (!canPayGoods(next, def.cost)) return state
   payGoods(next, def.cost)
   cell.buildingId = buildingId
+  noteSystemAction(next, 'yard')
   return next
 }
 

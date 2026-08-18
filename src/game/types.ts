@@ -135,6 +135,30 @@ export interface FurnaceState {
 
 export type HiveResearchBranch = 'material' | 'energy' | 'observation'
 
+/** Lightweight run counters — accumulated, never a per-frame history. */
+export interface SortieRunStats {
+  damageDealt: number
+  damageTaken: number
+  shieldAbsorbed: number
+  shieldBreaks: number
+  enemyCountMax: number
+  enemyCountSum: number
+  enemyCountSamples: number
+  /** Seconds on the last (or current) encounter. */
+  finalFightTime: number
+  finalEnemyHp: number
+  finalEnemyHpMax: number
+  playerHp: number
+  playerHpMax: number
+  /** Incoming damage attributed to a living attacker role. */
+  takenByRole: Partial<Record<EnemyRole, number>>
+  lastEnemyName: string
+  lastEnemyFamily: string
+  lastEnemyRole: string
+  lastIsBoss: boolean
+  kills: number
+}
+
 /** Snapshot taken at Launch; closed into lastSortie on Extract / Defeat. */
 export interface SortieMark {
   salvage: number
@@ -143,6 +167,7 @@ export interface SortieMark {
   corePicks: number
   researchXp: number
   networkLevels: number
+  stats: SortieRunStats
 }
 
 export interface SortieSummary {
@@ -156,6 +181,74 @@ export interface SortieSummary {
   milestones: number
   researchXp: number
   networkLevels: number
+  stats: SortieRunStats
+}
+
+/** Compact local playtest event. `t` is career playtime in milliseconds. */
+export type PlaytestEventKind =
+  | 'session_start'
+  | 'session_end'
+  | 'first_launch'
+  | 'first_kill'
+  | 'first_defeat'
+  | 'highest_sector'
+  | 'hold'
+  | 'route'
+  | 'rebuild'
+  | 'reinforce'
+  | 'protocol_start'
+  | 'protocol_end'
+  | 'protocol_clear'
+  | 'echo_start'
+  | 'echo_end'
+  | 'echo_clear'
+  | 'core_buy'
+  | 'core_assembled'
+  | 'core_fitted'
+  | 'print_changed'
+  | 'foundry_craft'
+  | 'foundry_fitted'
+  | 'research_break'
+  | 'process_buy'
+  | 'specialist'
+  | 'capital'
+  | 'system_open'
+  | 'system_action'
+
+export interface PlaytestEvent {
+  t: number
+  k: PlaytestEventKind
+  /** Display name or id. */
+  n?: string
+  /** Compact extra (rank, sector, on/off, route). */
+  v?: string | number | boolean
+}
+
+/** Local-only playtest log. Persists with the save; never sent off-device. */
+export interface PlaytestState {
+  v: 1
+  /** Wall clock when this career started logging. */
+  startedAt: number
+  /** Accumulated live playtime (ms). */
+  playtimeMs: number
+  /** Wall clock of the current session. */
+  sessionAt: number
+  /** Playtime at the current session start. */
+  sessionPlaytimeMs: number
+  /** First-event keys → playtimeMs. */
+  firsts: Record<string, number>
+  /** Highest sector recorded in this log. */
+  sectorAt: number
+  sectorAtPlaytime: number
+  events: PlaytestEvent[]
+  /** Unique non-starter Core names assembled. */
+  cores: string[]
+  /** Protocol id → attempts / clears. */
+  protocols: Record<string, { a: number; c: number }>
+  /** Echo id → attempts / clears. */
+  echos: Record<string, { a: number; c: number }>
+  /** Network bar id → drone-seconds. */
+  drones: Record<string, number>
 }
 
 /** USI Research analogue — kill-fed branches; persist across Rebuild. */
@@ -604,6 +697,8 @@ export interface CombatProjectile {
   /** Lane spawn point — visual traces draw from here. Optional on old saves. */
   originX?: number
   originY?: number
+  /** Attacker class at fire time. Optional on old saves. */
+  attackerRole?: EnemyRole
 }
 
 /** Connected beam — damage ticks while the line is up (USI Beam Laser). */
@@ -626,6 +721,8 @@ export interface CombatBeam {
   popupAcc?: number
   /** Visual-only: time since the last beam popup. */
   popupT?: number
+  /** Attacker class at fire time. Optional on old saves. */
+  attackerRole?: EnemyRole
 }
 
 export interface CombatState {
@@ -860,6 +957,8 @@ export interface GameState {
    * Persists across prestige / challenge resets.
    */
   parts: Record<string, number>
+  /** Local playtest event log. Missing on old saves — hydrated empty. */
+  playtest: PlaytestState
 }
 
 /** Summary stats for UI / shipyard (derived from loadout + meta). */

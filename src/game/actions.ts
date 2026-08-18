@@ -52,6 +52,7 @@ import {
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   trimModulesToFrame,
+  STARTER_CORE_IDS,
   type ResourceCost,
 } from './catalog'
 import { milestonesFor, pendingMilestone } from './milestones'
@@ -129,6 +130,13 @@ import { createEmptySpecialistState, rankSpecialist } from './specialists'
 import { createEmptyCapitalState, rankCapital } from './capital'
 import { canReinforce, REINFORCE_UNLOCK_SECTOR } from './reinforce'
 import { noteSalvageSpend } from './sortieSummary'
+import {
+  noteAssembledCore,
+  noteAttempt,
+  noteSystemAction,
+  recordPlaytest,
+  stampFirst,
+} from './playtest'
 import {
   isRouteBUnlocked,
   maxLaunchSector,
@@ -211,6 +219,7 @@ export function setSectorRoute(state: GameState, route: SectorRoute): GameState 
   if (state.combat.route === normalized) return state
   const next = structuredClone(state)
   next.combat.route = normalized
+  recordPlaytest(next, 'route', { n: normalized })
   return next
 }
 
@@ -250,6 +259,7 @@ export function assignWorker(
       ...next.base.assignments,
       [stationId]: current + delta,
     }
+    if (networkBar) noteSystemAction(next, 'network')
     return next
   }
 
@@ -276,6 +286,7 @@ export function buyNetworkLink(state: GameState, id: NetworkLinkId): GameState {
     next.resources.scrap -= check.cost.amount
   }
   next.network.links[id] = networkLinkRank(next, id) + 1
+  noteSystemAction(next, 'network')
   return next
 }
 
@@ -836,6 +847,10 @@ export function assembleBlueprint(state: GameState, moduleId: string): GameState
       40,
     )
   }
+  if (!(STARTER_CORE_IDS as readonly string[]).includes(moduleId)) {
+    noteAssembledCore(next, name)
+  }
+  noteSystemAction(next, 'foundry')
   tryCompleteAchievements(next)
   return next
 }
@@ -844,12 +859,17 @@ export function setTrackedPrint(state: GameState, moduleId: string | null): Game
   if (moduleId) {
     if (!isFarmableModule(moduleId) || !isCorePrintUnlocked(state, moduleId)) return state
   }
-  const next = moduleId && state.foundry.trackedPrintId === moduleId ? null : moduleId
-  if ((state.foundry.trackedPrintId ?? null) === (next ?? null)) return state
-  return {
+  const nextId = moduleId && state.foundry.trackedPrintId === moduleId ? null : moduleId
+  if ((state.foundry.trackedPrintId ?? null) === (nextId ?? null)) return state
+  const next = {
     ...state,
-    foundry: { ...state.foundry, trackedPrintId: next },
+    foundry: { ...state.foundry, trackedPrintId: nextId },
   }
+  recordPlaytest(next, 'print_changed', {
+    n: nextId ? (getModule(nextId)?.name ?? nextId) : 'cleared',
+  })
+  noteSystemAction(next, 'foundry')
+  return next
 }
 
 export function startFabProject(state: GameState, moduleId: string): GameState {
@@ -870,6 +890,8 @@ export function startFabProject(state: GameState, moduleId: string): GameState {
     contributed: {},
     progress: 0,
   }
+  recordPlaytest(next, 'print_changed', { n: getModule(moduleId)?.name ?? moduleId })
+  noteSystemAction(next, 'foundry')
   return next
 }
 
@@ -1024,6 +1046,11 @@ export function fitModule(state: GameState, moduleId: string): GameState {
 
   const next = structuredClone(state)
   next.shipyard.modules = [...next.shipyard.modules, moduleId]
+  recordPlaytest(next, 'core_fitted', {
+    n: getModule(moduleId)?.name ?? moduleId,
+    firstKey: `core_fitted:${moduleId}`,
+  })
+  noteSystemAction(next, 'cores')
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
@@ -1128,6 +1155,12 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
     ...next.shipyard.moduleLevels,
     [moduleId]: level + 1,
   }
+  recordPlaytest(next, 'core_buy', {
+    n: getModule(moduleId)?.name ?? moduleId,
+    v: level + 1,
+    firstKey: `core_buy:${moduleId}`,
+  })
+  noteSystemAction(next, 'cores')
   if (!next.combat.inFight) {
     syncPersistedHullCaps(next)
     return next
@@ -1434,6 +1467,8 @@ export function performRebuild(
     `Rebuilt for +${gain} Rebuild Matter. Hull ${getFrame(next.shipyard.frameId)?.name ?? hangar.frameId}.`,
     ...next.combat.log,
   ]
+  recordPlaytest(next, 'rebuild', { v: next.prestige.prestigeCount })
+  stampFirst(next, 'rebuild')
   return next
 }
 
@@ -1583,6 +1618,7 @@ export function enterProtocol(state: GameState, protocolId: string, opts?: { aut
     `Protocol ${def.name}. Goal: clear sector ${goal}. Cores and Salvage wiped. ${def.restriction}`,
     ...next.combat.log,
   ]
+  noteAttempt(next, 'protocol', protocolId, 'start', def.name)
   return next
 }
 
@@ -1599,6 +1635,7 @@ export function abandonProtocol(state: GameState): GameState {
   next.combat.docked = true
   next.combat.inFight = false
   next.combat.log = [`Abandoned ${def?.name ?? 'Protocol'}.`, ...next.combat.log]
+  noteAttempt(next, 'protocol', def?.id ?? 'protocol', 'end', def?.name)
   return next
 }
 
@@ -1618,6 +1655,7 @@ export function enterEcho(state: GameState, echoId: string): GameState {
   next.combat.docked = true
   next.combat.inFight = false
   next.combat.log = [`Echo queued: ${def.name}. Launch to enter the gauntlet.`, ...next.combat.log]
+  noteAttempt(next, 'echo', echoId, 'start', def.name)
   return next
 }
 
@@ -1656,6 +1694,7 @@ export function performReinforce(state: GameState, now = Date.now()): GameState 
     `Reinforced (×${next.meta.ascensionCount}). +${gain} PM. Future Rebuild kits grow. Need sector ${REINFORCE_UNLOCK_SECTOR} career.`,
     ...next.combat.log,
   ]
+  recordPlaytest(next, 'reinforce', { v: next.meta.ascensionCount })
   return next
 }
 
@@ -1667,6 +1706,8 @@ export function buyProcessNode(state: GameState, nodeId: string): GameState {
   if (!next.process) next.process = createEmptyProcessState()
   next.resources.aiPoints -= def.cost
   next.process.purchased = [...next.process.purchased, nodeId]
+  recordPlaytest(next, 'process_buy', { n: def.name })
+  noteSystemAction(next, 'process')
   tryCompleteAchievements(next)
   return next
 }

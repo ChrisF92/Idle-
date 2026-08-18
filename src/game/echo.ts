@@ -4,6 +4,7 @@ import type { GameState, EchoState, SectorRoute } from './types'
 import { careerHighestSector } from './progression'
 import { wavesForSector } from './sectors'
 import { closeSortie } from './sortieSummary'
+import { noteAttempt } from './playtest'
 
 export const ECHO_UNLOCK_SECTOR = 22
 export const ECHO_WAVES = 3
@@ -305,6 +306,7 @@ export function tryCompleteEcho(state: GameState): boolean {
   state.combat.inFight = false
   state.combat.wave = 1
   closeSortie(state, 'extract', `${def.name} complete. +${def.reward} Echo.`)
+  noteAttempt(state, 'echo', id, 'clear', def.name)
   state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
   return true
 }
@@ -319,5 +321,6 @@ export function failEcho(state: GameState, reason: string): void {
   state.combat.inFight = false
   state.combat.wave = 1
   closeSortie(state, 'defeat', `${name} failed. ${reason}`)
+  noteAttempt(state, 'echo', id, 'end', name)
   state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
 }

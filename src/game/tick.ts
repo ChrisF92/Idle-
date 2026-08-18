@@ -63,6 +63,13 @@ import {
   noteSectorClear,
 } from './sortieSummary'
 import {
+  addPlaytime,
+  noteHighestSector,
+  recordPlaytest,
+  sampleDroneAllocation,
+} from './playtest'
+import { sampleSortieEnemies, snapshotSortieEncounter } from './sortieTelemetry'
+import {
   wavesForSector,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
@@ -358,6 +365,7 @@ export const DEFEAT_SEQUENCE_S = 1.2
 
 function startDefeatSequence(state: GameState, tactical: boolean): void {
   if ((state.combat.defeatLeft ?? 0) > 0) return
+  snapshotSortieEncounter(state)
   const flag = state.combat.playerUnits.find((u) => u.isFlagship)
   if (flag) flag.hull = 0
   state.combat.playerHull = 0
@@ -484,7 +492,11 @@ function onFightWon(state: GameState): void {
     state.resources.scrap += drip
     if (wasBoss) {
       grantSectorClearRewards(state, clearedSector, wasBoss)
+      const prevHighest = state.combat.highestSector
       state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
+      if (state.combat.highestSector > prevHighest) {
+        noteHighestSector(state, state.combat.highestSector)
+      }
       noteProtocolProgress(state)
       state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
       noteSectorClear(state)
@@ -516,7 +528,9 @@ function onFightWon(state: GameState): void {
   }
 
   grantSectorClearRewards(state, clearedSector, wasBoss)
+  const prevHighest = state.combat.highestSector
   state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
+  if (state.combat.highestSector > prevHighest) noteHighestSector(state, state.combat.highestSector)
   noteProtocolProgress(state)
   state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
   noteSectorClear(state)
@@ -668,6 +682,7 @@ export function beginFight(state: GameState, keepFleet = false): void {
   }
   clearShots(state)
   syncHullAggregates(state)
+  sampleSortieEnemies(state)
   revealCodexFamilies(
     state,
     encounter.units.map((u) => u.family),
@@ -714,6 +729,10 @@ export function setPushMode(state: GameState, mode: CombatPushMode): GameState {
   }
   const next = structuredClone(state)
   applyPushMode(next, nextMode)
+  recordPlaytest(next, 'hold', {
+    n: nextMode,
+    v: nextMode !== 'advance',
+  })
   if (nextMode === 'advance') {
     pushLog(next, 'Advance online — continuous sector push.')
   } else {
@@ -733,6 +752,7 @@ export function setDocked(state: GameState, docked: boolean): GameState {
     next.combat.defeatLeft = 0
     next.combat.defeatTactical = false
     if (next.combat.inFight) {
+      snapshotSortieEncounter(next)
       persistFlagshipHull(next)
       clearEnemy(next)
     }
@@ -746,6 +766,7 @@ export function setDocked(state: GameState, docked: boolean): GameState {
   } else {
     next.combat.docked = false
     if (!next.combat.sortieMark) next.combat.sortieMark = captureSortieMark(next)
+    recordPlaytest(next, 'first_launch', { firstKey: 'launch' })
     if (!next.shipyard.frameLocked) {
       next.shipyard.frameLocked = true
     }
@@ -819,6 +840,7 @@ function maybeProcessRelaunch(state: GameState): void {
   if (state.combat.playerHull + 0.5 < state.combat.playerHullMax) return
   state.combat.docked = false
   if (!state.combat.sortieMark) state.combat.sortieMark = captureSortieMark(state)
+  recordPlaytest(state, 'first_launch', { firstKey: 'launch' })
   if (!state.shipyard.frameLocked) state.shipyard.frameLocked = true
 }
 
@@ -847,6 +869,8 @@ export function tickGame(state: GameState, now = Date.now(), paused = false): Ga
 
   const appliedMs = Math.min(elapsedMs, LIVE_TICK_CAP * TICK_MS)
   const next = structuredClone(state)
+  addPlaytime(next, appliedMs)
+  sampleDroneAllocation(next, appliedMs / 1000)
   advanceSeconds(next, appliedMs / 1000)
   next.lastTickAt = now
   return next
