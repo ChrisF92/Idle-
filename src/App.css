@@ -660,8 +660,14 @@ h2 .inspect-name {
 }
 
 .dock-screen {
-  justify-content: center;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0;
+}
+
+.dock-screen .panel-scroll {
+  padding: 0.75rem 0.8rem 1rem;
+  align-content: start;
 }
 
 .dock-hero h2 {
@@ -1147,6 +1153,16 @@ h2 .inspect-name {
 .stat-row > div {
   display: grid;
   gap: 0.2rem;
+}
+
+.dock-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.dock-stats > div {
+  min-width: 0;
 }
 
 .battlefield {

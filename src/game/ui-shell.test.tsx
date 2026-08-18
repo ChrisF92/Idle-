@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
+import { DockTab } from '../components/tabs/DockTab'
 import { FoundryTab } from '../components/tabs/FoundryTab'
 import { NetworkTab } from '../components/tabs/NetworkTab'
 import { ScreenHelp } from '../components/ScreenHelp'
@@ -57,6 +58,70 @@ describe('shell UX', () => {
     fireEvent.click(screen.getByRole('button', { name: /Cores/ }))
     expect(screen.getByText(/Salvage ranks these/i)).toBeTruthy()
     expect(document.querySelector('[data-guide="core-pulse-cannon"]')).toBeTruthy()
+  })
+
+  it('does not auto-open Cores when opening Sortie during a live run', () => {
+    const state = markHullLost(createInitialState(0))
+    state.combat.docked = false
+    let handled = 0
+    render(
+      <CombatTab
+        state={state}
+        onLaunch={() => undefined}
+        onSetPushMode={() => undefined}
+        onUpgrade={() => undefined}
+        onPickMilestone={() => undefined}
+        coresRequest={{ key: 1, moduleId: 'pulse-cannon' }}
+        onCoresRequestHandled={() => {
+          handled += 1
+        }}
+      />,
+    )
+    expect(screen.queryByRole('dialog', { name: 'Cores' })).toBeNull()
+    expect(handled).toBe(1)
+  })
+
+  it('opens Cores once from an Upgrade Cores request while docked', () => {
+    const state = markHullLost(createInitialState(0))
+    render(
+      <CombatTab
+        state={state}
+        onLaunch={() => undefined}
+        onSetPushMode={() => undefined}
+        onUpgrade={() => undefined}
+        onPickMilestone={() => undefined}
+        coresRequest={{ key: 1, moduleId: 'pulse-cannon' }}
+      />,
+    )
+    expect(screen.getByRole('dialog', { name: 'Cores' })).toBeTruthy()
+  })
+
+  it('keeps Dock defeat stats in three columns and the last-run note on screen', () => {
+    const state = markHullLost(createInitialState(0))
+    state.combat.lastSortie = {
+      ...state.combat.lastSortie,
+      outcome: 'defeat',
+      sector: 2,
+      wave: 2,
+      note: 'Hull lost in sector 2 wave 2. Knocked back',
+      salvageGained: 4,
+      salvageSpent: 6,
+      networkLevels: 7,
+    }
+    render(
+      <DockTab
+        state={state}
+        onLaunch={() => undefined}
+        onOpenSortie={() => undefined}
+        onRebuild={() => undefined}
+      />,
+    )
+    const summary = document.querySelector('.dock-summary')
+    expect(summary).toBeTruthy()
+    expect(summary?.querySelectorAll('.dock-stats')).toHaveLength(2)
+    expect(summary?.querySelectorAll('.dock-stats > div')).toHaveLength(6)
+    expect(screen.getByText(/Hull lost in sector 2 wave 2/)).toBeTruthy()
+    expect(document.querySelector('.dock-screen .panel-scroll')).toBeTruthy()
   })
 
   it('layers inspect cards on document.body above other sheets', () => {

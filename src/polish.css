@@ -372,6 +372,9 @@ button.just-ok {
   background: var(--bg-inset);
   padding: 0.4rem 0.5rem 0.45rem;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .dock-stats .muted {
