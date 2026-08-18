@@ -188,7 +188,8 @@ describe('Act 1 career simulations', () => {
     expect(end.drones).toBeGreaterThanOrEqual(NETWORK_STARTING_DRONES)
     expect(end.processEarned).toBeGreaterThanOrEqual(4)
     expect(atRebuild.foundryRecipes).toBeGreaterThanOrEqual(1)
-    expect(atRebuild.researchBreakthroughs).toBeLessThanOrEqual(3)
+    // Active sims can finish a second Material breakthrough during a survivability wall.
+    expect(atRebuild.researchBreakthroughs).toBeLessThanOrEqual(4)
     expect(atRebuild.strike).toBeLessThan(40)
     expect(atRebuild.contribution.networkDamage).toBeLessThan(1.6)
     const s4 = ACT1_EXPECTED_AT['sector-4']!
