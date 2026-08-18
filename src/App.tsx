@@ -113,6 +113,8 @@ export default function App() {
     [game.state],
   )
 
+  const clearCoresRequest = useCallback(() => setCoresRequest(null), [])
+
   useEffect(() => {
     if (!isHubTabOpen(game.state, tab)) {
       const station =
@@ -271,6 +273,7 @@ export default function App() {
             paused={pauseSim}
             guide={guide}
             coresRequest={coresRequest}
+            onCoresRequestHandled={clearCoresRequest}
             onOpenFoundry={() => {
               setFoundryPane('smelt')
               go('foundry')

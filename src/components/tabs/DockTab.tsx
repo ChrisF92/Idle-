@@ -56,6 +56,7 @@ export function DockTab({
 
   return (
     <section className={`panel screen-panel dock-screen ${dockMode}`}>
+      <div className="panel-scroll">
       <header className="dock-hero">
         <p className="hud-chip-label">
           Sector {combat.sector}
@@ -208,6 +209,7 @@ export function DockTab({
       ) : (
         <p className="muted dock-last dock-empty">No sortie yet</p>
       )}
+      </div>
     </section>
   )
 }

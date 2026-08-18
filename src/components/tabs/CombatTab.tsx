@@ -24,6 +24,7 @@ interface CombatTabProps {
   guide?: GuideStep | null
   onMarkCoresSeen?: () => void
   coresRequest?: { key: number; moduleId?: string } | null
+  onCoresRequestHandled?: () => void
   onOpenFoundry?: () => void
   onBuyMaxCores?: () => void
 }
@@ -78,6 +79,7 @@ export function CombatTab({
   guide = null,
   onMarkCoresSeen,
   coresRequest = null,
+  onCoresRequestHandled,
   onOpenFoundry,
   onBuyMaxCores,
 }: CombatTabProps) {
@@ -90,7 +92,7 @@ export function CombatTab({
   const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const pushMode = normalizePushMode(combat.pushMode, combat.campaign)
   const titleId = useId()
-  const forceCores = coresGuideActive(state, guide)
+  const forceCores = coresGuideActive(state, guide) && (!live || dying)
   const salvageOpen = hasHullLostOnce(state)
   const [coresOpen, setCoresOpen] = useState(false)
   const sheetOpen = salvageOpen && (coresOpen || forceCores)
@@ -107,6 +109,7 @@ export function CombatTab({
     boss: combat.isBoss,
     primed: false,
   })
+  const focusCoreId = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (forceCores) setCoresOpen(true)
@@ -122,14 +125,22 @@ export function CombatTab({
 
   useEffect(() => {
     if (!coresRequest) return
-    setCoresOpen(true)
-  }, [coresRequest])
+    focusCoreId.current = coresRequest.moduleId
+    if (!live || dying) setCoresOpen(true)
+    onCoresRequestHandled?.()
+  }, [coresRequest, live, dying, onCoresRequestHandled])
 
   useEffect(() => {
-    if (!sheetOpen || !coresRequest?.moduleId) return
-    const el = document.querySelector(`[data-guide="core-${CSS.escape(coresRequest.moduleId)}"]`)
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [sheetOpen, coresRequest])
+    if (!sheetOpen) return
+    const moduleId = focusCoreId.current
+    if (!moduleId) return
+    const id = moduleId.replace(/[^a-z0-9-]/gi, '')
+    const el = document.querySelector(`[data-guide="core-${id}"]`)
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+    focusCoreId.current = undefined
+  }, [sheetOpen])
 
   useEffect(() => {
     if (combat.docked && !dying) {
