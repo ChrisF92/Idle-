@@ -98,7 +98,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     craftTime: 6,
     costs: { salvage: 10 },
     requiresSectorEver: 2,
-    unlocksRecipe: { recipeId: 'hardened-plate', atLevel: 8 },
+    unlocksRecipe: { recipeId: 'hardened-plate', atLevel: 4 },
   },
   {
     id: 'filament',
@@ -128,7 +128,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     craftTime: 12,
     costs: { materials: { 'slag-ingot': 4 } },
     requiresSectorEver: 2,
-    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 8 },
+    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
     unlocksRecipe: { recipeId: 'void-slag', atLevel: 8 },
   },
   {
@@ -434,7 +434,7 @@ export const FOUNDRY_MODULES: FoundryModuleDef[] = [
     id: 'slag-liner',
     name: 'Slag Liner',
     blurb: '+12 max shield',
-    cost: { 'hardened-plate': 5 },
+    cost: { 'hardened-plate': 3 },
     requiresRecipeLevel: { recipeId: 'hardened-plate', level: 1 },
     shieldFlat: 12,
   },
@@ -442,7 +442,7 @@ export const FOUNDRY_MODULES: FoundryModuleDef[] = [
     id: 'relay-coil',
     name: 'Relay Coil',
     blurb: '×1.10 sortie damage',
-    cost: { relay: 5 },
+    cost: { relay: 3 },
     requiresRecipeLevel: { recipeId: 'relay', level: 1 },
     damageMult: 1.1,
   },
@@ -569,6 +569,7 @@ export function createEmptyFoundryState(): FoundryState {
     upgrades: {},
     slots: [emptySlot()],
     equipped: [],
+    trackedPrintId: null,
   }
 }
 
@@ -966,6 +967,13 @@ export function isFoundryModuleUnlocked(state: GameState, id: string): boolean {
   return foundryRecipeLevel(state, def.requiresRecipeLevel.recipeId) >= def.requiresRecipeLevel.level
 }
 
+export function isFoundryModuleAffordable(state: GameState, id: string): boolean {
+  const def = getFoundryModule(id)
+  if (!def || !isFoundryModuleUnlocked(state, id)) return false
+  if (state.foundry.equipped.includes(id)) return false
+  return canPayModule(state, def.cost)
+}
+
 export function equipFoundryModule(state: GameState, moduleId: string): GameState {
   if (!state.combat.docked) return state
   const def = getFoundryModule(moduleId)
@@ -1074,5 +1082,6 @@ export function persistFoundryOnRebuild(foundry: FoundryState): FoundryState {
       paid: false,
     })),
     equipped: [],
+    trackedPrintId: foundry.trackedPrintId ?? null,
   }
 }

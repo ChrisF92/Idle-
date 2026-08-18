@@ -86,6 +86,8 @@ export interface FoundryState {
   upgrades: Record<string, number>
   slots: FoundrySlot[]
   equipped: string[]
+  /** Single Core print the player is currently farming. Persists across Rebuild. */
+  trackedPrintId: string | null
 }
 
 export type ReliquaryColor = 'red' | 'orange' | 'pink' | 'blue' | 'green'
@@ -438,6 +440,17 @@ export type EnemyRole = 'fighter' | 'skirmisher' | 'sniper' | 'juggernaut' | 'sh
 /** Blueprint part kinds. PartId = `${moduleId}:${PartType}`. */
 export type PartType = 'casing' | 'core' | 'lens'
 
+export interface FragmentNotice {
+  moduleId: string
+  partType: PartType
+  name: string
+  partHave: number
+  partNeed: number
+  totalHave: number
+  totalNeed: number
+  seq: number
+}
+
 export type WeaponTag =
   | 'kinetic'
   | 'energy'
@@ -664,6 +677,8 @@ export interface CombatState {
   beams: CombatBeam[]
   fx: CombatFx[]
   log: string[]
+  /** Latest Core fragment pickup. Session-only; stripped on load. */
+  fragmentNotice: FragmentNotice | null
   /** Set on Extract / Defeat for the Dock summary. */
   lastSortie: SortieSummary
   /** Live sortie snapshot. Null while docked. */

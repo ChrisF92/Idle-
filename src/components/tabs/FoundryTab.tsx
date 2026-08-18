@@ -24,13 +24,17 @@ import {
 } from '../../game/foundry'
 import { formatCompact } from '../../game/format'
 import {
+  blueprintFragmentTotals,
   blueprintProgress,
+  formatPrintSourceLine,
   getBlueprint,
   listFarmableCores,
   modulePrintSector,
   PART_TYPES,
 } from '../../game/catalog'
 import { canAssembleBlueprint } from '../../game/actions'
+import { sectorCanDropPrint } from '../../game/combat'
+import { normalizePushMode } from '../../game/sectors'
 import {
   inspectFoundryModule,
   inspectFoundryRecipe,
@@ -58,6 +62,7 @@ interface FoundryTabProps {
   onEquip: (moduleId: string) => void
   onUnequip: (moduleId: string) => void
   onAssemble: (moduleId: string) => void
+  onTrack?: (moduleId: string | null) => void
   onBuyMax?: () => void
   guideTarget?: string | null
   focusTarget?: string | null
@@ -70,7 +75,8 @@ function foundryPaneFromHints(
   requestedPane?: FoundryPane | null,
 ): FoundryPane | null {
   if (requestedPane) return requestedPane
-  if (focusTarget?.startsWith('print-')) return 'prints'
+  if (focusTarget?.startsWith('print-') || focusTarget === 'foundry-prints') return 'prints'
+  if (focusTarget === 'foundry-fit' || focusTarget?.startsWith('fit-')) return 'fit'
   if (guideTarget === 'foundry-prints') return 'prints'
   if (guideTarget === 'foundry-ranks') return 'ranks'
   if (
@@ -127,10 +133,12 @@ function PrintRow({
   state,
   mod,
   onAssemble,
+  onTrack,
 }: {
   state: GameState
   mod: ReturnType<typeof listFarmableCores>[number]
   onAssemble: (moduleId: string) => void
+  onTrack?: (moduleId: string | null) => void
 }) {
   const recipe = getBlueprint(mod.id)
   const progress = blueprintProgress(state, mod.id)
@@ -138,6 +146,8 @@ function PrintRow({
   const check = canAssembleBlueprint(state, mod.id)
   const justReady = useJustBecame(check.ok && !printed)
   const need = modulePrintSector(mod.id)
+  const tracked = state.foundry.trackedPrintId === mod.id
+  const totals = blueprintFragmentTotals(progress?.owned, progress?.need)
   const partsLine = recipe
     ? PART_TYPES.map((pt) => {
         const have = progress?.owned[pt] ?? 0
@@ -153,41 +163,76 @@ function PrintRow({
   const masteryLine = recipe?.requiresRecipeLevel
     ? `${FOUNDRY_RECIPES.find((r) => r.id === recipe.requiresRecipeLevel?.recipeId)?.name ?? recipe.requiresRecipeLevel.recipeId} Lv ${recipe.requiresRecipeLevel.level}`
     : ''
+  const sourceLine = printed ? '' : formatPrintSourceLine(mod.id)
+  const holding = normalizePushMode(state.combat.pushMode, state.combat.campaign) !== 'advance'
+  const familyMismatch =
+    !printed &&
+    tracked &&
+    holding &&
+    !sectorCanDropPrint(state.combat.sector, mod.id, state.combat.route)
   const rowClass = printed
     ? 'network-row is-printed'
-    : check.ok
-      ? `network-row is-complete is-ready${justReady ? ' just-ready' : ''}`
-      : 'network-row locked'
+    : tracked
+      ? `network-row is-tracked${check.ok ? ' is-complete is-ready' : ''}${justReady ? ' just-ready' : ''}`
+      : check.ok
+        ? `network-row is-complete is-ready${justReady ? ' just-ready' : ''}`
+        : 'network-row locked'
 
   return (
     <article className={rowClass} data-focus={`print-${mod.id}`}>
       <div className="network-row-main">
         <strong>{mod.name}</strong>
-        <span className={printed || check.ok ? 'status-tag ok' : 'muted'}>
+        <span className={printed || check.ok || tracked ? 'status-tag ok' : 'muted'}>
           {printed
             ? 'Printed'
             : check.ok
-              ? 'Ready'
-              : `S${need} · ${mod.role === 'defense' ? 'Shield' : mod.role === 'utility' ? 'Utility' : 'Weapon'}`}
+              ? 'Ready to Assemble'
+              : tracked
+                ? 'Tracked'
+                : `S${need} · ${mod.role === 'defense' ? 'Shield' : mod.role === 'utility' ? 'Utility' : 'Weapon'}`}
         </span>
       </div>
       <p className="network-row-stats">
         {printed
           ? 'Fit this Core on the next Rebuild.'
-          : [partsLine, foundryLine, masteryLine].filter(Boolean).join(' · ') || mod.description}
+          : `Fragments ${totals.have} / ${totals.need}`}
       </p>
       {!printed ? (
-        <button
-          type="button"
-          className="primary"
-          disabled={!check.ok}
-          onClick={(e) => {
-            markLocalOk(e.currentTarget)
-            onAssemble(mod.id)
-          }}
-        >
-          {check.ok ? 'Assemble' : check.reason ?? 'Farm wrecks'}
-        </button>
+        <p className="network-row-stats print-parts">{partsLine}</p>
+      ) : null}
+      {!printed && (sourceLine || foundryLine || masteryLine) ? (
+        <p className="network-row-stats">
+          {[sourceLine, foundryLine, masteryLine].filter(Boolean).join(' · ')}
+        </p>
+      ) : null}
+      {familyMismatch ? (
+        <p className="network-row-stats print-warn">
+          {mod.name} fragments do not drop from this enemy family.
+        </p>
+      ) : null}
+      {!printed ? (
+        <p className="print-row-actions">
+          {onTrack ? (
+            <button
+              type="button"
+              className={tracked ? 'primary' : undefined}
+              onClick={() => onTrack(tracked ? null : mod.id)}
+            >
+              {tracked ? 'Tracked' : 'Track'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="primary"
+            disabled={!check.ok}
+            onClick={(e) => {
+              markLocalOk(e.currentTarget)
+              onAssemble(mod.id)
+            }}
+          >
+            {check.ok ? 'Assemble' : check.reason ?? 'Farm wrecks'}
+          </button>
+        </p>
       ) : null}
     </article>
   )
@@ -200,6 +245,7 @@ export function FoundryTab({
   onEquip,
   onUnequip,
   onAssemble,
+  onTrack,
   onBuyMax,
   guideTarget = null,
   focusTarget = null,
@@ -362,11 +408,17 @@ export function FoundryTab({
                 Core prints
               </h3>
               <p className="muted">
-                Reach a sector to unlock a print. Hold that sector (or deeper) to farm fragments, then
-                assemble here.
+                Track one print. Advance finds fragments as you push. Hold that Core&apos;s family to
+                farm it on purpose.
               </p>
               {listFarmableCores(state).map((mod) => (
-                <PrintRow key={mod.id} state={state} mod={mod} onAssemble={onAssemble} />
+                <PrintRow
+                  key={mod.id}
+                  state={state}
+                  mod={mod}
+                  onAssemble={onAssemble}
+                  onTrack={onTrack}
+                />
               ))}
             </>
           ) : null}

@@ -41,7 +41,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'core-prints',
     title: 'Prints',
-    body: 'Wrecks leave Core fragments. Hold a sector to farm them. Assemble the print in the Foundry, then Rebuild to fit the new gun.',
+    body: 'Wrecks leave Core fragments. Track a print, then Hold that family to farm it. Assemble in the Foundry, then Rebuild to fit the new gun.',
     unlock: (s) => career(s) >= 2,
   },
   {

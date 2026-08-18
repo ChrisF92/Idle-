@@ -124,6 +124,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     })),
     beams: combat.beams ?? [],
     fx: combat.fx ?? [],
+    fragmentNotice: null,
     lastSortie: withLastSortieDefaults(combat.lastSortie, combat.sector ?? 1, combat.wave ?? 1),
     sortieMark: combat.sortieMark ?? null,
     defeatLeft: Math.max(0, Number(combat.defeatLeft ?? 0) || 0),
@@ -317,6 +318,10 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
     upgrades: { ...(raw.upgrades ?? {}) },
     slots: slots.length > 0 ? slots : empty.slots,
     equipped: [...(raw.equipped ?? [])],
+    trackedPrintId:
+      typeof raw.trackedPrintId === 'string' && raw.trackedPrintId.length > 0
+        ? raw.trackedPrintId
+        : null,
   }
 }
 

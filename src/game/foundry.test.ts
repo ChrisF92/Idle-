@@ -45,11 +45,13 @@ describe('phase 5: foundry + notation', () => {
     expect(s.foundry.points).toBeGreaterThanOrEqual(1)
   })
 
-  it('unlocks Hardened Plate after Slag Ingot hits level 8', () => {
+  it('unlocks Hardened Plate after Slag Ingot hits level 4', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 2
     s.combat.highestSector = 2
-    s.foundry.recipeLevels['slag-ingot'] = 8
+    s.foundry.recipeLevels['slag-ingot'] = 3
+    expect(isFoundryRecipeUnlocked(s, 'hardened-plate')).toBe(false)
+    s.foundry.recipeLevels['slag-ingot'] = 4
     expect(isFoundryRecipeUnlocked(s, 'hardened-plate')).toBe(true)
   })
 

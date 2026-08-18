@@ -354,6 +354,7 @@ describe('shell UX', () => {
         onEquip={() => undefined}
         onUnequip={() => undefined}
         onAssemble={() => undefined}
+        onTrack={() => undefined}
       />,
     )
     expect(screen.getByRole('tab', { name: 'Smelt' })).toBeTruthy()
@@ -362,6 +363,7 @@ describe('shell UX', () => {
     expect(screen.queryByText('Core prints')).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'Prints' }))
     expect(screen.getByText('Core prints')).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Track' }).length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('tab', { name: 'Fit' }))
     expect(screen.getByText(/fitted bits/i)).toBeTruthy()
   })
@@ -378,6 +380,7 @@ describe('shell UX', () => {
         onEquip={() => undefined}
         onUnequip={() => undefined}
         onAssemble={() => undefined}
+        onTrack={() => undefined}
         focusTarget="print-pulse-cannon"
       />,
     )

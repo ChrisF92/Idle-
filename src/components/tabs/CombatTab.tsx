@@ -26,6 +26,7 @@ interface CombatTabProps {
   coresRequest?: { key: number; moduleId?: string } | null
   onCoresRequestHandled?: () => void
   onOpenFoundry?: () => void
+  onOpenPrints?: () => void
   onBuyMaxCores?: () => void
 }
 
@@ -69,6 +70,46 @@ function CraftStrip({ state, onOpen }: { state: GameState; onOpen: () => void })
   )
 }
 
+function FragmentChip({ state, onOpen }: { state: GameState; onOpen?: () => void }) {
+  const notice = state.combat.fragmentNotice
+  const [chip, setChip] = useState(notice)
+  useEffect(() => {
+    if (!notice) return
+    setChip(notice)
+    const t = window.setTimeout(() => setChip(null), 2200)
+    return () => window.clearTimeout(t)
+  }, [notice])
+  if (!chip) return null
+  const partLabel = chip.partType.charAt(0).toUpperCase() + chip.partType.slice(1)
+  const body = (
+    <>
+      <span className="combat-hud-kicker">Fragment</span>
+      <strong className="fragment-chip-title">{chip.name}</strong>
+      <span className="fragment-chip-line">
+        {partLabel} {Math.min(chip.partHave, chip.partNeed)}/{chip.partNeed}
+        <span className="muted"> · {chip.totalHave}/{chip.totalNeed}</span>
+      </span>
+    </>
+  )
+  if (!onOpen) {
+    return (
+      <div className="fragment-chip" role="status">
+        {body}
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      className="fragment-chip"
+      onClick={onOpen}
+      aria-label={`${chip.name} fragment. Open prints.`}
+    >
+      {body}
+    </button>
+  )
+}
+
 export function CombatTab({
   state,
   onLaunch,
@@ -81,6 +122,7 @@ export function CombatTab({
   coresRequest = null,
   onCoresRequestHandled,
   onOpenFoundry,
+  onOpenPrints,
   onBuyMaxCores,
 }: CombatTabProps) {
   const { combat } = state
@@ -286,6 +328,7 @@ export function CombatTab({
 
       <div className="sortie-canvas" data-guide="sortie-canvas">
         {onOpenFoundry ? <CraftStrip state={state} onOpen={onOpenFoundry} /> : null}
+        <FragmentChip state={state} onOpen={onOpenPrints} />
         <Battlefield
           playerUnits={playerUnits}
           enemyUnits={enemyUnits}

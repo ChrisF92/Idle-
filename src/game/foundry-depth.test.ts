@@ -226,11 +226,12 @@ describe('Foundry depth: Foundry Point ranks', () => {
 
   it('Yield Press adds output; Pattern Memory opens gates sooner', () => {
     const s = atFoundry(6)
-    s.foundry.recipeLevels['slag-ingot'] = 5
+    s.foundry.recipeLevels['slag-ingot'] = 3
     expect(isFoundryRecipeUnlocked(s, 'hardened-plate')).toBe(false)
     s.foundry.upgrades['fp-mastery'] = 3
-    expect(foundryRecipeGateNeed(s, 8)).toBe(5)
+    expect(foundryRecipeGateNeed(s, 4)).toBe(1)
     expect(isFoundryRecipeUnlocked(s, 'hardened-plate')).toBe(true)
+    s.foundry.recipeLevels['slag-ingot'] = 5
     s.foundry.upgrades['fp-output'] = 1
     expect(foundryCraftOutput(s, 'slag-ingot')).toBe(2)
   })
@@ -304,6 +305,24 @@ describe('Foundry depth: Foundry Point ranks', () => {
 })
 
 describe('Foundry depth: modules and Core prints', () => {
+  it('opens the first fitted bits after the first Slag / Filament mastery', () => {
+    expect(getFoundryRecipe('slag-ingot')?.unlocksRecipe).toEqual({
+      recipeId: 'hardened-plate',
+      atLevel: 4,
+    })
+    expect(getFoundryRecipe('hardened-plate')?.requiresRecipeLevel).toEqual({
+      recipeId: 'slag-ingot',
+      level: 4,
+    })
+    const liner = FOUNDRY_MODULES.find((m) => m.id === 'slag-liner')!
+    const coil = FOUNDRY_MODULES.find((m) => m.id === 'relay-coil')!
+    expect(liner.cost['hardened-plate']).toBe(3)
+    expect(coil.cost.relay).toBe(3)
+    let crafts = 0
+    for (let level = 0; level < 4; level++) crafts += craftsForNextLevel(level)
+    expect(crafts).toBeLessThanOrEqual(16)
+  })
+
   it('prints later bits from the new chain recipes', () => {
     expect(FOUNDRY_MODULES.some((m) => m.id === 'temper-sleeve')).toBe(true)
     expect(FOUNDRY_MODULES.some((m) => m.id === 'hearth-plate')).toBe(true)
@@ -413,10 +432,12 @@ describe('Foundry depth: Rebuild, save, onboarding', () => {
     s.foundry.recipeLevels['coil-stack'] = 3
     s.foundry.upgrades['fp-queue'] = 1
     s.foundry.infinite = ['filament']
+    s.foundry.trackedPrintId = 'heavy-lance'
     const loaded = importSave(exportSave(s))
     expect(loaded?.foundry.recipeLevels['coil-stack']).toBe(3)
     expect(loaded?.foundry.upgrades['fp-queue']).toBe(1)
     expect(loaded?.foundry.infinite).toContain('filament')
+    expect(loaded?.foundry.trackedPrintId).toBe('heavy-lance')
     expect(foundryQueueCap(loaded!)).toBe(6)
   })
 

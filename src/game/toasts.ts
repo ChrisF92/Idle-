@@ -11,7 +11,7 @@ import {
   isSystemUnlocked,
 } from './progression'
 import { isRouteBUnlocked } from './sectors'
-import { foundryMaterialCount, foundryRecipeLevel } from './foundry'
+import { foundryMaterialCount, foundryRecipeLevel, FOUNDRY_MODULES, isFoundryModuleAffordable } from './foundry'
 import { processCoreHintReady } from './playerGuidance'
 import type { GameState, TabId } from './types'
 
@@ -51,6 +51,9 @@ export interface ToastSnapshot {
   achievements: string[]
   foundrySlag: number
   foundrySlagLevel: number
+  foundryFitReady: boolean
+  assembledPrints: string[]
+  trackedPrintId: string | null
   processCoreHint: boolean
   protocolRankSum: number
 }
@@ -175,6 +178,9 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
   }
   if (a.act1Cleared !== b.act1Cleared) return false
   if (a.foundrySlag !== b.foundrySlag || a.foundrySlagLevel !== b.foundrySlagLevel) return false
+  if (a.foundryFitReady !== b.foundryFitReady) return false
+  if (a.trackedPrintId !== b.trackedPrintId) return false
+  if (a.assembledPrints.length !== b.assembledPrints.length) return false
   if (a.processCoreHint !== b.processCoreHint || a.protocolRankSum !== b.protocolRankSum) return false
   if (a.networkBars.length !== b.networkBars.length) return false
   if (a.farmablePrints.length !== b.farmablePrints.length) return false
@@ -189,6 +195,7 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
     same(a.networkBars, b.networkBars) &&
     same(a.farmablePrints, b.farmablePrints) &&
     same(a.completePrints, b.completePrints) &&
+    same(a.assembledPrints, b.assembledPrints) &&
     same(a.pendingMilestones, b.pendingMilestones) &&
     same(a.achievements, b.achievements)
   )
@@ -212,6 +219,13 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     achievements: [...(state.meta.completedAchievements ?? [])],
     foundrySlag: foundryMaterialCount(state, 'slag-ingot'),
     foundrySlagLevel: foundryRecipeLevel(state, 'slag-ingot'),
+    foundryFitReady:
+      (state.foundry.equipped?.length ?? 0) === 0 &&
+      FOUNDRY_MODULES.some((mod) => isFoundryModuleAffordable(state, mod.id)),
+    assembledPrints: listFarmableCores(state)
+      .filter((print) => state.shipyard.unlockedModules.includes(print.id))
+      .map((print) => print.id),
+    trackedPrintId: state.foundry.trackedPrintId ?? null,
     processCoreHint: processCoreHintReady(state),
     protocolRankSum: Object.values(state.protocols?.ranks ?? {}).reduce((n, v) => n + v, 0),
   }
@@ -328,18 +342,49 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: Gam
     })
   }
 
+  const firstPrintReady = prev.completePrints.length === 0
   for (const printId of next.completePrints) {
     if (prev.completePrints.includes(printId)) continue
     const mod = getModule(printId)
     if (!mod) continue
+    if (firstPrintReady) {
+      push({
+        id: `assemble:${printId}`,
+        category: 'CORE PRINT COMPLETE',
+        title: `${mod.name} is ready to assemble.`,
+        body: 'Open Prints to lock it in.',
+        action: {
+          label: 'OPEN PRINTS',
+          nav: { kind: 'tab', tab: 'foundry', focus: `print-${printId}` },
+        },
+      })
+    } else {
+      push({
+        id: `assemble:${printId}`,
+        category: 'FOUNDRY',
+        title: 'Blueprint complete',
+        body: `${mod.name} is ready to assemble.`,
+        action: {
+          label: 'ASSEMBLE',
+          nav: { kind: 'tab', tab: 'foundry', focus: `print-${printId}` },
+        },
+      })
+    }
+  }
+
+  for (const printId of next.assembledPrints) {
+    if (prev.assembledPrints.includes(printId)) continue
+    if (prev.trackedPrintId !== printId) continue
+    const mod = getModule(printId)
+    if (!mod) continue
     push({
-      id: `assemble:${printId}`,
+      id: `tracked-assembled:${printId}`,
       category: 'FOUNDRY',
-      title: 'Blueprint complete',
-      body: `${mod.name} is ready to assemble.`,
+      title: `${mod.name} assembled`,
+      body: 'Choose another tracked print.',
       action: {
-        label: 'ASSEMBLE',
-        nav: { kind: 'tab', tab: 'foundry', focus: `print-${printId}` },
+        label: 'OPEN PRINTS',
+        nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-prints' },
       },
     })
   }
@@ -389,6 +434,19 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: Gam
         .slice(0, 3)
         .join(' · '),
       action: { label: 'OPEN PROCESS', nav: { kind: 'tab', tab: 'process' } },
+    })
+  }
+
+  if (next.foundryFitReady && !prev.foundryFitReady) {
+    push({
+      id: 'foundry:module-ready',
+      category: 'MODULE READY',
+      title: 'You can now build your first ship module.',
+      body: 'Fit it in the Foundry while docked.',
+      action: {
+        label: 'OPEN FOUNDRY',
+        nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-fit' },
+      },
     })
   }
 
