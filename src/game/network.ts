@@ -54,11 +54,13 @@ export interface NetworkLinkDef {
 }
 
 /** Seconds of 1-drone work for a primary bar's first fill. */
-export const NETWORK_FILL_COST = 9
+export const NETWORK_FILL_COST = 12
 /** Soft growth so later fills take longer without dead-zoning. */
-export const NETWORK_FILL_COST_GROWTH = 0.048
-/** Per-bar fill cap before Relays raise it. Extra drones on a capped bar waste work. */
-export const NETWORK_FILL_CAP_PER_SEC = 4
+export const NETWORK_FILL_COST_GROWTH = 0.18
+/** Per-bar fill cap (levels / s) before Relays raise it. Extra drones on a capped bar waste work. */
+export const NETWORK_FILL_CAP_PER_SEC = 0.085
+/** Docked / offline crawl so a closed app is not a full Strike shift. */
+export const NETWORK_DOCKED_FILL_MULT = 0.012
 /** Starting corps size — enough to split Strike / Ward. */
 export const NETWORK_STARTING_DRONES = 4
 export const NETWORK_CYCLE_PER_RANK = 0.12
@@ -461,7 +463,7 @@ function infraStrength(state: GameState, parent: NetworkBarId): number {
   const hooks = networkFormulaHooks(state)
   const relay = Math.sqrt(networkRelayLevels(state, parent))
   const lattice = Math.sqrt(networkLatticeLevels(state, parent))
-  return (1 + 0.05 * relay * (1 + 0.12 * lattice)) * hooks.relayEffectivenessMult
+  return (1 + 0.12 * relay * (1 + 0.12 * lattice)) * hooks.relayEffectivenessMult
 }
 
 export function networkLevelEffectiveness(state: GameState, parent: NetworkBarId): number {
@@ -493,9 +495,9 @@ export function networkFillCap(state: GameState, id: NetworkBarId): number {
   const hooks = networkFormulaHooks(state)
   let cap = NETWORK_FILL_CAP_PER_SEC
   if (def?.layer === 'relay') {
-    cap = 3 * (1 + 0.04 * Math.sqrt(networkLatticeLevels(state, parentOf(id))))
+    cap = 0.07 * (1 + 0.04 * Math.sqrt(networkLatticeLevels(state, parentOf(id))))
   }
-  if (def?.layer === 'lattice') cap = 2.5
+  if (def?.layer === 'lattice') cap = 0.055
   if (def?.layer === 'primary') cap *= infraStrength(state, id)
   return cap * hooks.fillCapMult
 }
@@ -526,6 +528,7 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
         ? 1 + 0.04 * lattice
         : 1
   const droneBoost = def?.layer === 'primary' ? 1 + 0.02 * lattice : 1
+  const activity = state.combat.docked ? NETWORK_DOCKED_FILL_MULT : 1
   return (
     (assigned *
       dronePower(state) *
@@ -542,7 +545,8 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       echoNetworkMult(state) *
       processNetworkSpeedMult(state) *
       furnaceNetworkMult(state) *
-      foundryNetworkFillMult(state)) /
+      foundryNetworkFillMult(state) *
+      activity) /
     cost
   )
 }

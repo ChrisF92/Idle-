@@ -50,7 +50,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Network',
     body: [
       'Drones are a finite workforce. Assign them to bars. Strike is damage, Ward is shields, Yield is salvage, Loom is manufacture, Archive is Research data. Reassign when the job changes. Idle drones do nothing. Close is good enough.',
-      'Each completed cycle takes longer than the last, so early levels land quickly and later ones ask for more corps. Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop. Links persist on Rebuild. Bar levels reset.',
+      'Each completed cycle takes longer than the last, so early levels land quickly and later ones ask for more corps. Bars crawl while docked — Launch to actually cycle them. Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop. Links persist on Rebuild. Bar levels reset.',
       'Tap a bar name for live numbers. Drones never fly on Sortie.',
     ],
   },

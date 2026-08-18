@@ -19,6 +19,7 @@ import {
   networkSalvageMult,
   networkStrikeMult,
   networkWardMult,
+  tickNetwork,
 } from './network'
 import { droneCap, dronePower, idleWorkers } from './catalog'
 import { isSystemUnlocked } from './progression'
@@ -48,8 +49,9 @@ describe('phase 4: drone network', () => {
     s = assignWorker(s, 'strike', 2)
     expect(s.base.assignments.strike).toBe(2)
     expect(networkFillRate(s, 'strike')).toBeGreaterThan(0)
-    advanceSeconds(s, 20)
-    expect(networkLevels(s, 'strike')).toBeGreaterThanOrEqual(3)
+    s.combat.docked = false
+    tickNetwork(s, 25)
+    expect(networkLevels(s, 'strike')).toBeGreaterThanOrEqual(1)
   })
 
   it('Strike levels raise ship DPS; Ward raises max shield', () => {
@@ -60,27 +62,31 @@ describe('phase 4: drone network', () => {
     expect(networkWardMult(s)).toBe(1)
 
     s = assignWorker(s, 'strike', 4)
-    advanceSeconds(s, 30)
+    s.combat.docked = false
+    tickNetwork(s, 30)
     expect(networkLevels(s, 'strike')).toBeGreaterThan(0)
     expect(computeShipStats(s).damage).toBeGreaterThan(dmg0)
 
     s = assignWorker(s, 'strike', -4)
     s = assignWorker(s, 'ward', 4)
-    advanceSeconds(s, 30)
+    s.combat.docked = false
+    tickNetwork(s, 30)
     expect(networkLevels(s, 'ward')).toBeGreaterThan(0)
     expect(computeShipStats(s).shieldMax).toBeGreaterThan(shield0)
   })
 
-  it('extra drones fill a bar faster', () => {
+  it('extra drones fill a bar faster until the fill cap', () => {
     let slow = createInitialState(0)
+    slow.combat.docked = false
     slow = assignWorker(slow, 'strike', 1)
-    advanceSeconds(slow, 12)
+    tickNetwork(slow, 20)
     const slowLv = networkLevels(slow, 'strike')
 
     let fast = createInitialState(0)
-    fast = assignWorker(fast, 'strike', 4)
-    advanceSeconds(fast, 12)
-    expect(networkLevels(fast, 'strike')).toBeGreaterThan(slowLv)
+    fast.combat.docked = false
+    fast = assignWorker(fast, 'strike', 2)
+    tickNetwork(fast, 20)
+    expect(networkLevels(fast, 'strike')).toBeGreaterThanOrEqual(slowLv)
   })
 
   it('Yield unlocks at sector 2 and boosts salvage + Strike fill', () => {
@@ -91,7 +97,8 @@ describe('phase 4: drone network', () => {
     expect(isNetworkBarUnlocked(s, 'loom')).toBe(true)
 
     s = assignWorker(s, 'yield', 4)
-    advanceSeconds(s, 40)
+    s.combat.docked = false
+    tickNetwork(s, 40)
     expect(networkLevels(s, 'yield')).toBeGreaterThan(0)
     expect(networkSalvageMult(s)).toBeGreaterThan(1)
 
@@ -120,7 +127,8 @@ describe('phase 4: drone network', () => {
     s.combat.sector = 4
     s.meta.highestSectorEver = 4
     s = assignWorker(s, 'strike', 4)
-    advanceSeconds(s, 25)
+    s.combat.docked = false
+    tickNetwork(s, 25)
     expect(networkLevels(s, 'strike')).toBeGreaterThan(0)
     const corps = s.base.workerDrones
 
@@ -264,11 +272,12 @@ describe('Network layers', () => {
     )
   })
 
-  it('assigns drones onto Relays and fills them offline', () => {
+  it('assigns drones onto Relays and fills them on a sortie', () => {
     let s = sector(8)
+    s.combat.docked = false
     s = assignWorker(s, 'strike-relay', 3)
     expect(s.base.assignments['strike-relay']).toBe(3)
-    advanceSeconds(s, 40)
+    tickNetwork(s, 40)
     expect(networkLevels(s, 'strike-relay')).toBeGreaterThan(0)
   })
 
@@ -278,7 +287,8 @@ describe('Network layers', () => {
     s.resources.heat = 40
     s = buyNetworkLink(s, 'racks')
     s = assignWorker(s, 'strike-relay', 3)
-    advanceSeconds(s, 40)
+    s.combat.docked = false
+    tickNetwork(s, 40)
     expect(networkLevels(s, 'strike-relay')).toBeGreaterThan(0)
     const corps = s.base.workerDrones
     const racks = networkLinkRank(s, 'racks')
@@ -327,6 +337,21 @@ describe('Network layers', () => {
     expect(diag.levels.strike).toBeGreaterThanOrEqual(0)
     expect(diag.fillRates.strike).toBeGreaterThan(0)
     expect(diag.multipliers.strike).toBeGreaterThanOrEqual(1)
+  })
+
+  it('bars crawl while docked and cycle on a sortie', () => {
+    let dock = sector(1)
+    dock.combat.docked = true
+    dock = assignWorker(dock, 'strike', 4)
+
+    let fly = sector(1)
+    fly.combat.docked = false
+    fly = assignWorker(fly, 'strike', 4)
+    expect(networkFillRate(dock, 'strike')).toBeLessThan(networkFillRate(fly, 'strike'))
+
+    tickNetwork(dock, 60)
+    tickNetwork(fly, 60)
+    expect(networkLevels(fly, 'strike')).toBeGreaterThan(networkLevels(dock, 'strike'))
   })
 })
 

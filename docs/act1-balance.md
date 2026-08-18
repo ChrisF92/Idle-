@@ -29,7 +29,7 @@ Windows are **active play**, not calendar time. Casual sessions stretch the same
 | Research unlock | 8 min | 40 min | Career door S7 |
 | First Research breakthrough | 16 min | 90 min | After the desk is understood |
 | Sector 10 | 18 min | 90 min | Often around or just after first Rebuild |
-| **First Rebuild taken** | **8 min** | **45 min** | After the loop is understood, before stagnation |
+| **First Rebuild taken** | **8 min** | **50 min** | After the loop is understood, before stagnation |
 | Protocols | 50 min | 6 h | Career door S18 |
 | Echo | 80 min | 10 h | Career door S22 |
 | Sector 30 (Act 1) | 3 h | 16 h | Next major boundary |
@@ -116,16 +116,17 @@ Buy Max and Auto Salvage **leave `foundrySalvageReserve` Salvage** (one Slag Ing
 
 ```
 fillCost = fillBase × (1 + growth × L^1.08)
-primary fillBase = 9
-growth            = 0.048
-fill cap          = 4 /s before Relays
+primary fillBase = 12
+growth            = 0.18
+fill cap          = 0.085 levels/s before Relays
+docked fill       = ×0.012
 starting drones   = 4
 bonus             = 1 + k × ((8L + 1)^exp − 1)
 Strike k = 0.065   Ward k = 0.07   Yield k = 0.05
 exp = 0.5 + 0.02√lattice + hooks
 ```
 
-Early levels land quickly. Later fills take longer, which is why extra drones, Relays, and Links are breakthroughs rather than a second flat shop. Bar levels reset on Rebuild; drones and Link ranks stay.
+Early levels land in seconds on a sortie. Later fills take much longer, which is why extra drones, Relays (fill cap + cheaper later fills), and Links are breakthroughs rather than a second flat shop. **Docked bars crawl** so a closed app is not a full Strike shift. Bar levels reset on Rebuild; drones and Link ranks stay.
 
 ### Furnace
 

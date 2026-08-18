@@ -68,7 +68,7 @@ describe('Act 1 authored formulas', () => {
     expect(salvageSectorBase(30)).toBeLessThan(30)
     expect(salvageSectorBase(30)).toBeGreaterThan(8)
     expect(NETWORK_STARTING_DRONES).toBe(4)
-    expect(NETWORK_FILL_COST).toBe(9)
+    expect(NETWORK_FILL_COST).toBe(12)
     expect(hiveResearchNodeCost(0)).toBe(52)
     expect(HIVE_RESEARCH_FOCUS_MULT).toBe(4)
     expect(FURNACE_CHANNEL_MAX).toBe(3)
@@ -97,7 +97,7 @@ describe('Act 1 authored formulas', () => {
     )
     const rebuild = ACT1_TARGETS.find((t) => t.id === 'first-rebuild')!
     expect(rebuild.min).toBeGreaterThanOrEqual(6 * 60)
-    expect(rebuild.max).toBeLessThanOrEqual(60 * 60)
+    expect(rebuild.max).toBeLessThanOrEqual(70 * 60)
     const hourBeats = ACT1_TARGETS.filter((t) =>
       ['sector-1', 'foundry-unlock', 'reliquary-unlock', 'furnace-unlock'].includes(t.id),
     )

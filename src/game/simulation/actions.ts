@@ -47,7 +47,6 @@ import {
   FOUNDRY_RECIPES,
   FOUNDRY_UPGRADES,
   canBuyFoundryUpgrade,
-  foundryRecipeLevel,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
   foundrySalvageReserve,

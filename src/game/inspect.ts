@@ -183,7 +183,7 @@ export function inspectNetworkOverview(state: GameState): InspectCard {
     ],
     body: [
       'Drones are a finite workforce. Assign them to bars. Idle drones do nothing.',
-      'Each completed cycle takes longer than the last. Extra drones, Relays, and Links shorten that wait. Drones past the fill cap waste work.',
+      'Each completed cycle takes longer than the last. Extra drones, Relays, and Links shorten that wait. Drones past the fill cap waste work. Bars crawl while docked — Launch to cycle them in earnest.',
       'Later Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop.',
       'Bar levels reset on Rebuild. The corps and Link ranks stay. Drones never fly on Sortie.',
     ],
