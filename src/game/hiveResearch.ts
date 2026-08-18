@@ -141,7 +141,7 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Chip Sweep', blurb: 'Wrecks drop shards a little more often.', kind: 'incremental', shardDrop: 0.02 },
     {
       name: 'Queue Hall',
-      blurb: 'Research Queue holds three more branches. Active Protocols feed the desk a little faster.',
+      blurb: 'Research Queue holds three more branches. Active Protocols grant a little extra Research XP.',
       kind: 'breakthrough',
       researchQueueSlots: 3,
       protocolXp: 0.15,
@@ -423,7 +423,7 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.droneEfficiency) return 'Assigned drones fill Network bars harder.'
   if (node.offFocusAdd) return 'Unfocused branches crawl faster.'
   if (node.unlockReliquary) return 'Opens the blue Reliquary slot.'
-  if (node.researchQueueSlots) return 'Deeper Research Queue. Protocols feed the desk.'
+  if (node.researchQueueSlots) return 'Deeper Research Queue. Active Protocols grant extra Research XP.'
   const bits: string[] = []
   if (node.salvage) bits.push(`+${Math.round(node.salvage * 100)}% salvage`)
   if (node.foundrySpeed) bits.push(`+${Math.round(node.foundrySpeed * 100)}% craft speed`)

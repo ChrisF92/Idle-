@@ -50,12 +50,12 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy, guideTarget 
         <h2>Echo Runs</h2>
         <p>
           {open
-            ? `${formatCompact(points)} Echo · short gauntlets, then the tree`
+            ? `${formatCompact(points)} Echo · short challenge runs`
             : `Clear sector ${ECHO_UNLOCK_SECTOR} to open Echo Runs.`}
         </p>
       </header>
       {!open ? (
-        <p className="muted">Short gauntlet. Cores stay. Three waves, then a Titan echo.</p>
+        <p className="muted">Short challenge runs that earn permanent Echo upgrades.</p>
       ) : (
         <>
           <SheetTabs value={pane} onChange={setPane} options={ECHO_PANES} label="Echo panes" />

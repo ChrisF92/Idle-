@@ -67,7 +67,9 @@ export function DockTab({
             ? 'Sortie live. Hold or Advance from the battlefield.'
             : rebuildReady
               ? 'Hull is docked. Rebuild hangar is ready.'
-              : 'Launch to rank Cores. Combat stays live until hull loss.'}
+              : !summary.outcome
+                ? 'Your Scout is ready. Launch a sortie and see how far it gets.'
+                : 'Spend Salvage on Cores, then launch again.'}
         </p>
       </header>
 
@@ -111,7 +113,7 @@ export function DockTab({
             onLaunch()
           }}
         >
-          {echoRun ? `Launch ${echoRun.name}` : protocol ? `Launch ${protocol.name}` : 'Launch sortie'}
+          {echoRun ? `Launch ${echoRun.name}` : protocol ? `Launch ${protocol.name}` : 'Launch Sortie'}
         </button>
       )}
 

@@ -29,7 +29,7 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(true)
-    expect(GUIDE_STEPS.some((s) => s.id === 'guide-specialists')).toBe(true)
+    expect(GUIDE_STEPS.some((s) => s.id === 'guide-specialists')).toBe(false)
   })
 
   it('unlocks Heavy Cruiser at 24 and Battlecruiser at 41', () => {
@@ -135,11 +135,11 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     s = applyDevAction(s, { type: 'skip-guides' })
     expect(s.meta.seenOnboarding).toEqual(
       expect.arrayContaining([
-        'guide-specialists',
-        'guide-protocols',
-        'guide-echo',
-        'guide-yard',
-        'guide-slag',
+        'guide-launch',
+        'guide-network-strike',
+        'guide-foundry-recipe',
+        'guide-furnace-light',
+        'guide-research-focus',
       ]),
     )
 

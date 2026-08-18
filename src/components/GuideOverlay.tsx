@@ -1,5 +1,11 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
-import { guideBodyLines, guideStepNeedsTap, type GuideStep } from '../game/progression'
+import {
+  guideBodyLines,
+  guideKind,
+  guidePausesSimulation,
+  guideStepNeedsTap,
+  type GuideStep,
+} from '../game/progression'
 
 interface GuideOverlayProps {
   step: GuideStep
@@ -28,16 +34,19 @@ function scrollTargetIntoView(el: HTMLElement) {
 }
 
 /**
- * Spotlight coach-mark: dims the UI, punches a hole around [data-guide=target],
- * scrolls the nearest overflow parent so the target is on-screen, and advances
- * when the user taps it. Required steps hide Skip. Background scroll is locked.
+ * Coach-mark overlay. Hints never lock the UI. Actions spotlight a control.
+ * Critical steps pause and lock — reserved for irreversible decisions.
  */
 export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
   const [rect, setRect] = useState<DOMRect | null>(null)
   const required = Boolean(step.required)
   const needsTap = guideStepNeedsTap(step)
+  const kind = guideKind(step)
+  const pause = guidePausesSimulation(step)
+  const lockUi = kind === 'critical'
 
   useEffect(() => {
+    if (!lockUi) return
     const html = document.documentElement
     const prevHtml = html.style.overflow
     const prevBody = document.body.style.overflow
@@ -56,9 +65,8 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       document.removeEventListener('wheel', block, true)
       document.removeEventListener('touchmove', block, true)
     }
-  }, [])
+  }, [lockUi, step.id])
 
-  // Bring the highlighted control on-screen whenever the step changes.
   useLayoutEffect(() => {
     const el = document.querySelector(`[data-guide="${step.target}"]`)
     if (!(el instanceof HTMLElement)) return
@@ -99,7 +107,6 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       const el = document.querySelector(`[data-guide="${step.target}"]`)
       if (!el) return
       if (el === e.target || el.contains(e.target as Node)) {
-        // completeWhen steps advance when the action lands in game state.
         if (step.completeWhen) return
         window.setTimeout(() => onComplete(step.id), 0)
       }
@@ -118,14 +125,23 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
       }
     : null
 
-  const tipPlacement = placeTip(hole)
+  const tipPlacement = placeTip(hole, kind)
+
+  const kicker =
+    kind === 'critical' && pause
+      ? 'Paused'
+      : needsTap
+        ? 'Tap the highlight'
+        : kind === 'hint'
+          ? 'Hint'
+          : 'Guide'
 
   return (
     <div
-      className={`guide-root${required ? ' guide-root-required' : ''}`}
+      className={`guide-root guide-root-${kind}${required ? ' guide-root-required' : ''}`}
       aria-live="polite"
     >
-      {hole ? (
+      {kind !== 'hint' && hole ? (
         <>
           <div
             className="guide-block"
@@ -159,9 +175,7 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
             }}
           />
         </>
-      ) : (
-        <div className="guide-block" style={{ inset: 0 }} />
-      )}
+      ) : null}
       {hole ? (
         <div
           className="guide-hole"
@@ -172,61 +186,54 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
             height: hole.height,
           }}
         />
-      ) : (
+      ) : kind !== 'hint' ? (
         <div className="guide-dim" />
-      )}
+      ) : null}
       <div
-        className={`guide-tip guide-tip-${tipPlacement.side}`}
+        className={`guide-tip guide-tip-${kind} guide-tip-${tipPlacement.side}`}
         style={tipPlacement.style}
         role="dialog"
         aria-label={step.title}
       >
-        <p className="combat-hud-kicker">
-          {needsTap ? 'Guide · tap the highlight' : 'Guide · paused'}
-        </p>
+        <p className="combat-hud-kicker">{kicker}</p>
         <h3>{step.title}</h3>
         <div className="guide-tip-body">
           {guideBodyLines(step).map((line) => (
             <p key={line}>{line}</p>
           ))}
         </div>
-        {needsTap || !required ? (
-          <div className="guide-tip-actions">
-            {!required ? (
-              <button type="button" onClick={() => onSkip(step.id)}>
-                Skip
-              </button>
-            ) : (
-              <span className="muted">Tap the highlighted control</span>
-            )}
-            {!needsTap ? (
-              <button type="button" className="primary" onClick={() => onComplete(step.id)}>
-                Continue
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <div className="guide-tip-actions">
-            <button type="button" className="primary" onClick={() => onComplete(step.id)}>
-              Continue
+        <div className="guide-tip-actions">
+          {!required ? (
+            <button type="button" onClick={() => onSkip(step.id)}>
+              Skip
             </button>
-          </div>
-        )}
+          ) : needsTap ? (
+            <span className="muted">Tap the highlighted control</span>
+          ) : null}
+          {!needsTap ? (
+            <button type="button" className="primary" onClick={() => onComplete(step.id)}>
+              {kind === 'critical' ? 'Continue' : 'Got it'}
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   )
 }
 
-function placeTip(hole: Hole | null): {
+function placeTip(
+  hole: Hole | null,
+  kind: string,
+): {
   side: 'top' | 'bottom'
   style: { top?: number; bottom?: number; left: number }
 } {
-  const tipMaxH = 240
+  const tipMaxH = kind === 'hint' ? 160 : 220
   const margin = 12
   const left = 12
 
   if (!hole) {
-    return { side: 'top', style: { top: 72, left } }
+    return { side: 'bottom', style: { bottom: 88, left } }
   }
 
   const holeMidY = hole.top + hole.height / 2
@@ -234,14 +241,14 @@ function placeTip(hole: Hole | null): {
   const spaceAbove = hole.top - margin
   const spaceBelow = window.innerHeight - (hole.top + hole.height) - margin
 
-  if (preferTop && spaceAbove >= 100) {
+  if (preferTop && spaceAbove >= 80) {
     return {
       side: 'top',
       style: { top: Math.max(margin, Math.min(hole.top - tipMaxH - 8, 72)), left },
     }
   }
 
-  if (spaceBelow >= 100) {
+  if (spaceBelow >= 80) {
     return {
       side: 'bottom',
       style: {
@@ -254,5 +261,5 @@ function placeTip(hole: Hole | null): {
   if (preferTop) {
     return { side: 'top', style: { top: margin, left } }
   }
-  return { side: 'bottom', style: { bottom: margin, left } }
+  return { side: 'bottom', style: { bottom: 72, left } }
 }

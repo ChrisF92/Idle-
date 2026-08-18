@@ -39,7 +39,7 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
 
     fresh.meta.highestSectorEver = REINFORCE_UNLOCK_SECTOR
     expect(isSystemUnlocked(fresh, 'reinforce')).toBe(true)
-    expect(GUIDE_STEPS.some((s) => s.id === 'guide-tasks')).toBe(true)
+    expect(GUIDE_STEPS.some((s) => s.id === 'guide-tasks')).toBe(false)
   })
 
   it('unlocks Capital Hull at 75 only after the Task List is done', () => {

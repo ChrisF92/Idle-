@@ -191,6 +191,9 @@ export function DevTools({ onDevAction, onOpenSimulator }: DevToolsProps) {
             <button type="button" onClick={() => onDevAction({ type: 'clear-guides' })}>
               Reset guides
             </button>
+            <button type="button" onClick={() => onDevAction({ type: 'reset-onboarding' })}>
+              Replay first-run
+            </button>
           </div>
           <div className="dev-tools-row">
             <button type="button" className="primary" onClick={() => prepDoor(onDevAction, 18)}>

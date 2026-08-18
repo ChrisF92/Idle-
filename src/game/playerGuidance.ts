@@ -1,0 +1,208 @@
+/** Contextual player guidance helpers — next-step hints, reset lists, save migration. */
+
+import { idleWorkers, moduleLevel } from './catalog'
+import { furnaceUpgradeRank } from './furnace'
+import { foundryMaterialCount, foundryRecipeLevel } from './foundry'
+import { prestigeGainFor } from './actions'
+import { isSystemUnlocked } from './progression'
+import type { GameState } from './types'
+
+export interface ConsequenceLists {
+  gain: string[]
+  keep: string[]
+  reset: string[]
+  change: string[]
+}
+
+const LEGACY_TOUR_MARKERS = [
+  'guide-drone-cap',
+  'guide-network-make',
+  'guide-foundry-what',
+  'guide-furnace-v2-ash',
+  'guide-research-xp',
+  'guide-process-v2-what',
+  'guide-protocol-restrict',
+  'guide-reliquary-slots',
+  'guide-prestige-hangar',
+] as const
+
+const LEGACY_TO_CURRENT: Record<string, string> = {
+  'guide-shipyard-tab': 'guide-launch',
+  'guide-frame-select': 'guide-launch',
+  'guide-sortie-field': 'guide-sortie-fire',
+  'guide-sortie-guns': 'guide-sortie-fire',
+  'guide-sortie-hull': 'guide-sortie-fire',
+  'guide-sortie-salvage': 'guide-salvage-first',
+  'guide-salvage-lesson': 'guide-upgrade-pulse',
+  'guide-cores-sheet': 'guide-upgrade-pulse',
+  'guide-cores-inspect': 'guide-cores-persist',
+  'guide-relaunch-upgraded': 'guide-relaunch',
+  'guide-drone-cap': 'guide-network-strike',
+  'guide-network-make': 'guide-network-strike',
+  'guide-network-assign': 'guide-network-strike',
+  'guide-foundry': 'guide-foundry-recipe',
+  'guide-foundry-smelt': 'guide-foundry-recipe',
+  'guide-foundry-what': 'guide-foundry-recipe',
+  'guide-furnace': 'guide-furnace-light',
+  'guide-furnace-v2-ash': 'guide-furnace-light',
+  'guide-furnace-v2-activate': 'guide-furnace-light',
+  'guide-research-tab': 'guide-research-focus',
+  'guide-research-xp': 'guide-research-focus',
+  'guide-research-focus-how': 'guide-research-focus',
+}
+
+/** First-run overlay ids. Established careers skip these on load. */
+export const BEGINNER_GUIDE_IDS = [
+  'guide-launch',
+  'guide-sortie-fire',
+  'guide-salvage-first',
+  'guide-upgrade-pulse',
+  'guide-upgrade-plate',
+  'guide-cores-persist',
+  'guide-relaunch',
+  'guide-network-strike',
+  'guide-network-ward',
+  'guide-foundry-recipe',
+  'guide-foundry-mastery',
+  'guide-furnace-light',
+  'guide-research-focus',
+] as const
+
+export function isEstablishedCareer(state: GameState): boolean {
+  if ((state.prestige.prestigeCount ?? 0) > 0) return true
+  if ((state.meta.ascensionCount ?? 0) > 0) return true
+  if ((state.meta.highestSectorEver ?? 0) >= 5) return true
+  const seen = state.meta.seenOnboarding ?? []
+  if (seen.length >= 15) return true
+  if (seen.some((id) => (LEGACY_TOUR_MARKERS as readonly string[]).includes(id))) return true
+  const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
+  const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
+  return pulse + plate >= 4
+}
+
+export function migrateOnboardingState(state: GameState): void {
+  const seen = new Set(state.meta.seenOnboarding ?? [])
+  for (const [legacy, current] of Object.entries(LEGACY_TO_CURRENT)) {
+    if (seen.has(legacy)) seen.add(current)
+  }
+  if (!isEstablishedCareer(state)) {
+    state.meta.seenOnboarding = [...seen]
+    return
+  }
+  for (const id of BEGINNER_GUIDE_IDS) seen.add(id)
+  if ((state.base.assignments.strike ?? 0) > 0) {
+    seen.add('guide-network-strike')
+    seen.add('guide-network-ward')
+  }
+  if (foundryRecipeLevel(state, 'slag-ingot') > 0 || foundryMaterialCount(state, 'slag-ingot') > 0) {
+    seen.add('guide-foundry-recipe')
+    seen.add('guide-foundry-mastery')
+  }
+  if (Object.values(state.furnace?.wanted ?? {}).some((lv) => lv > 0)) {
+    seen.add('guide-furnace-light')
+  }
+  const hive = state.hiveResearch
+  if (hive && (hive.xp.material > 0 || hive.xp.energy > 0 || hive.xp.observation > 0)) {
+    seen.add('guide-research-focus')
+  }
+  state.meta.seenOnboarding = [...seen]
+}
+
+export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
+  const gain = [`+${prestigeGainFor(state)} Rebuild Matter`]
+  const keep: string[] = [
+    'Manufactured drones and drone capacity',
+    'Network Links',
+  ]
+  const reset = ['Salvage', 'Core levels', 'Network bar levels', 'Current sortie']
+  const change = ['Hull', 'Core loadout']
+
+  if (isSystemUnlocked(state, 'foundry')) {
+    keep.push('Foundry recipes, stock, and Foundry Points')
+    reset.push('Fitted Foundry bits')
+  }
+  if (isSystemUnlocked(state, 'reliquary')) keep.push('Shards')
+  if (isSystemUnlocked(state, 'research')) keep.push('Research')
+  if (isSystemUnlocked(state, 'furnace')) {
+    keep.push('Furnace upgrades')
+    if (furnaceUpgradeRank(state, 'ember') > 0) {
+      reset.push('Heat (Ember Lock keeps a fraction)')
+    } else {
+      reset.push('Heat')
+    }
+  }
+  if (isSystemUnlocked(state, 'process')) keep.push('Process')
+  if (isSystemUnlocked(state, 'yard')) keep.push('Yard')
+  if (isSystemUnlocked(state, 'echo')) keep.push('Echo upgrades')
+  if (isSystemUnlocked(state, 'protocols')) keep.push('Protocol ranks')
+  if (isSystemUnlocked(state, 'specialists')) keep.push('Specialists')
+  if (isSystemUnlocked(state, 'capital')) keep.push('Capital')
+
+  return { gain, keep, reset, change }
+}
+
+export function reinforceConsequenceLists(state: GameState): ConsequenceLists {
+  const lists = rebuildConsequenceLists(state)
+  const gain = [
+    `+${Math.max(1, Math.floor(prestigeGainFor(state) * 0.5))} Rebuild Matter`,
+    'Future Rebuild kits grow',
+  ]
+  return {
+    gain,
+    keep: lists.keep,
+    reset: lists.reset,
+    change: lists.change,
+  }
+}
+
+export function protocolStartLists(def: { reward: string }): ConsequenceLists {
+  return {
+    gain: [def.reward],
+    keep: ['Foundry', 'Shards', 'Research', 'Process', 'Protocol ranks'],
+    reset: ['Salvage', 'Core levels', 'Network bar levels', 'Current sortie'],
+    change: [],
+  }
+}
+
+export function isFirstDefeatReport(state: GameState): boolean {
+  if (isEstablishedCareer(state)) return false
+  if ((state.prestige.prestigeCount ?? 0) > 0) return false
+  const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
+  const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
+  return pulse < 1 && plate < 1
+}
+
+export function sortieNextHints(state: GameState): string[] {
+  if (isFirstDefeatReport(state)) return []
+  const items: string[] = []
+  const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
+  const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
+  const idle = idleWorkers(state)
+
+  if (isSystemUnlocked(state, 'network') && idle > 0) {
+    items.push(`${idle} drone${idle === 1 ? '' : 's'} idle — assign on Network`)
+  }
+  if (plate < pulse) items.push('Upgrade Plate')
+  else if (pulse <= plate) items.push('Upgrade Pulse')
+  if (isSystemUnlocked(state, 'network') && (state.base.assignments.ward ?? 0) === 0) {
+    items.push('Assign drones to Ward')
+  }
+  if (isSystemUnlocked(state, 'furnace') && (state.furnace?.wanted.shielding ?? 0) <= 0) {
+    items.push('Light a Shielding Furnace channel')
+  }
+  if (isSystemUnlocked(state, 'foundry')) {
+    const slag = foundryRecipeLevel(state, 'slag-ingot')
+    const queued = state.foundry.slots.some((s) => s.recipeId === 'slag-ingot')
+    if (slag < 2 && !queued) items.push('Start a Foundry craft')
+  }
+  return items.slice(0, 3)
+}
+
+export function processCoreHintReady(state: GameState): boolean {
+  if (!isSystemUnlocked(state, 'process')) return false
+  const purchased = state.process?.purchased ?? []
+  if (purchased.includes('core-buy-max') || purchased.includes('auto-salvage')) return false
+  const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
+  const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
+  return pulse + plate >= 6
+}

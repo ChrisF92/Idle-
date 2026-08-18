@@ -496,8 +496,57 @@ h2 .inspect-name {
   z-index: 2;
 }
 
-.guide-root-required .guide-hole {
+.guide-root-hint .guide-block,
+.guide-root-action .guide-block {
+  pointer-events: none;
+  background: transparent;
+}
+
+.guide-root-hint .guide-hole {
   box-shadow: none;
+  border-width: 2px;
+}
+
+.guide-root-action .guide-hole {
+  box-shadow: 0 0 0 9999px rgba(6, 9, 14, 0.35);
+}
+
+.guide-root-critical .guide-block {
+  pointer-events: auto;
+}
+
+.guide-tip-hint {
+  max-height: min(34vh, 200px);
+}
+
+.consequence-lists {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.5rem 0 0.85rem;
+}
+
+.consequence-lists h4 {
+  margin: 0 0 0.2rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.consequence-lists ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.sortie-next {
+  margin: 0.4rem 0 0.7rem;
+}
+
+.sortie-next ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
 }
 
 .guide-tip {

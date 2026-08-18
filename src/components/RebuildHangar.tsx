@@ -10,10 +10,11 @@ import {
   trimModulesToFrame,
 } from '../game/catalog'
 import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
-import { canPrestige, prestigeGainFor } from '../game/actions'
+import { canPrestige } from '../game/actions'
 import { yardPendingSummary } from '../game/yard'
 import { isSystemUnlocked } from '../game/progression'
-import { RESOURCE_LABELS } from '../game/state'
+import { rebuildConsequenceLists } from '../game/playerGuidance'
+import { ConsequencePanel } from './ConsequencePanel'
 
 interface RebuildHangarProps {
   state: GameState
@@ -31,8 +32,8 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
   )
 
   const ready = canPrestige(state)
-  const gain = prestigeGainFor(state)
   const rebuildMin = prestigeMinSectorFor(state.prestige.shop)
+  const lists = rebuildConsequenceLists(state)
 
   const weapons = useMemo(
     () => SHIP_MODULES.filter((m) => m.role === 'weapon' && state.shipyard.unlockedModules.includes(m.id)),
@@ -78,12 +79,8 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
       <div className="hangar-sheet">
         <header className="modal-header">
           <div>
-            <h3 id="rebuild-title">Rebuild hangar</h3>
-            <p className="muted">
-              Swap hull and Cores. Levels and unspent Salvage wipe. +{gain}{' '}
-              {RESOURCE_LABELS.prestigeMatter}.
-              {isSystemUnlocked(state, 'yard') ? ` Yard: ${yardPendingSummary(state)}.` : ''}
-            </p>
+            <h3 id="rebuild-title">Rebuild</h3>
+            <p className="muted">Swap hull and Cores. Permanent systems stay.</p>
           </div>
           <button type="button" onClick={onClose}>
             Close
@@ -91,6 +88,11 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
         </header>
 
         <div className="hangar-body">
+          <ConsequencePanel lists={lists} />
+          {isSystemUnlocked(state, 'yard') ? (
+            <p className="muted">Yard: {yardPendingSummary(state)}.</p>
+          ) : null}
+
           <h4 data-guide="hangar-hull">Hull</h4>
           <div className="hangar-picks">
             {available.map((f) => (
@@ -167,7 +169,7 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
             disabled={!ready}
             onClick={() => onConfirm({ frameId, modules })}
           >
-            {ready ? `Confirm Rebuild` : `Reach sector ${rebuildMin}`}
+            {ready ? `Rebuild` : `Reach sector ${rebuildMin}`}
           </button>
         </div>
       </div>

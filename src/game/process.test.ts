@@ -25,7 +25,6 @@ import {
   NETWORK_GUIDE_IDS,
   STARTER_GUIDE_IDS,
   activeGuideStep,
-  skipOnboarding,
   tryCompleteAchievements,
 } from './progression'
 import { exportSave, importSave } from './save'
@@ -149,57 +148,14 @@ describe('Process 2.0 mastery and achievements', () => {
 })
 
 describe('Process 2.0 onboarding', () => {
-  function processReady() {
+  it('does not force a Process tree tour on unlock', () => {
     const s = createInitialState(0)
     s.meta.aiUnlocked = true
     s.meta.completedAchievements = ['first-blood']
-    s.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-foundry',
-      'guide-reliquary',
-      'guide-furnace',
-      'guide-research-tab',
-      'guide-salvage',
-      'guide-ai-tab',
-    ]
-    return s
-  }
-
-  it('opens the Process 2.0 tour after the Process door', () => {
-    const s = processReady()
-    expect(activeGuideStep(s, 'process')?.id).toBe('guide-process-v2-what')
-  })
-
-  it('still offers the 2.0 tour on saves that saw the old Process guides', () => {
-    const s = processReady()
-    s.meta.seenOnboarding = [...s.meta.seenOnboarding, 'guide-achievements']
-    expect(activeGuideStep(s, 'process')?.id).toBe('guide-process-v2-what')
-  })
-
-  it('Skip on What Process is dismisses the whole 2.0 group', () => {
-    const skipped = skipOnboarding(processReady(), 'guide-process-v2-what')
-    expect(activeGuideStep(skipped, 'process')).toBeNull()
-    expect(skipped.meta.seenOnboarding).toContain('guide-process-v2-buy')
-  })
-
-  it('does not stick on First purchase if a node is already owned', () => {
-    const s = processReady()
-    s.process.purchased = ['core-buy-max']
-    s.meta.seenOnboarding = [
-      ...s.meta.seenOnboarding,
-      'guide-process-v2-what',
-      'guide-process-v2-earn',
-      'guide-process-v2-ledger',
-      'guide-process-v2-automation',
-      'guide-process-v2-qol',
-      'guide-process-v2-accumulation',
-      'guide-process-v2-understand',
-    ]
-    expect(activeGuideStep(s, 'process')?.id).not.toBe('guide-process-v2-buy')
+    s.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
+    expect(activeGuideStep(s, 'process')).toBeNull()
   })
 })
-
 describe('Process 2.0 Network presets and optimiser', () => {
   it('Optimise is deterministic and honour Push vs Defence vs Farm', () => {
     const ready = () => {

@@ -716,12 +716,12 @@ export function ProcessTab({
         <h2>Process</h2>
         <p>
           {open
-            ? 'The hangar learns chores you have already demonstrated.'
+            ? 'Spend Process Points on automation and quality-of-life upgrades.'
             : 'Clear sector 1 to wake Process.'}
         </p>
       </header>
       {!open ? (
-        <p className="muted">Achievements grant Process points. Spend them on automation, QoL, and Accumulation.</p>
+        <p className="muted">Achievements grant Process Points. Spend them on automation.</p>
       ) : (
         <>
           <div className="process-ledger">

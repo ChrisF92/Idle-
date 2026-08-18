@@ -173,19 +173,20 @@ export function inspectNetworkOverview(state: GameState): InspectCard {
   const idle = Math.max(0, state.base.workerDrones - networkAssigned(state))
   return {
     title: 'Drone Network',
-    kicker: 'Corps',
+    kicker: 'Drones',
     stats: [
-      { label: 'Corps', value: `${state.base.workerDrones}/${cap}` },
+      { label: 'Drones', value: `${state.base.workerDrones}/${cap}` },
       { label: 'Idle', value: String(idle) },
+      { label: 'Assigned', value: String(networkAssigned(state)) },
       { label: 'Link power', value: formatCompact(networkLinkPower(state), 2) },
       { label: 'Efficiency', value: `×${dronePower(state).toFixed(2)}` },
       { label: 'Cycle speed', value: `×${networkCycleMult(state).toFixed(2)}` },
     ],
     body: [
-      'Drones are a finite workforce. Assign them to bars. Idle drones do nothing.',
-      'Each completed cycle takes longer than the last. Extra drones, Relays, and Links shorten that wait. Drones past the fill cap waste work. Bars crawl while docked — Launch to cycle them in earnest.',
-      'Later Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop.',
-      'Bar levels reset on Rebuild. The corps and Link ranks stay. Drones never fly on Sortie.',
+      'Assign idle drones to bars. Idle drones do nothing.',
+      'Each completed cycle takes longer than the last. Extra drones, Relays, and Links shorten that wait. Drones past the fill cap waste work. Bars crawl while docked.',
+      'Relays improve fill speed, level strength, and fill cap for the bar behind them.',
+      'Bar levels reset on Rebuild. Drones and Link ranks stay. Drones never fly on Sortie.',
     ],
   }
 }
@@ -255,7 +256,7 @@ export function inspectNetworkLink(state: GameState, id: NetworkLinkId): Inspect
     stats.push({ label: 'Next', value: can.reason })
   }
   if (id === 'racks') {
-    stats.push({ label: 'Corps cap', value: String(droneCap(state)) })
+    stats.push({ label: 'Drone capacity', value: String(droneCap(state)) })
   }
   if (id === 'acuity') {
     stats.push({ label: 'Efficiency', value: `×${dronePower(state).toFixed(2)}` })
@@ -681,9 +682,9 @@ export function inspectProtocol(state: GameState, id: string): InspectCard | nul
     ],
     body: [
       def.restriction,
-      'Cores and Salvage wipe when you start. Ranks and these formula changes persist on Rebuild.',
+      'Starting this Protocol resets Salvage, Core levels, and the current sortie. Ranks persist on Rebuild.',
       rank > 0 ? protocolCumulativeLine(state, id) : def.blurb,
-      'A small exponent or growth change applies at every level — it is not a flat shop.',
+      'Repeat clears still pay at every level, with diminishing returns. Later ranks raise the goal.',
     ],
   }
 }

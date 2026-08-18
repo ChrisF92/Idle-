@@ -16,13 +16,13 @@ export const MORE_STATIONS: MoreStationDef[] = [
   { id: 'codex', name: 'Codex', blurb: 'Families and hull roles.' },
   { id: 'yard', name: 'Yard Grid', blurb: 'Buildings. Arms apply on the next Rebuild.' },
   { id: 'slag', name: 'Slag Bank', blurb: 'Spend Rebuild Matter on hangar ranks.' },
-  { id: 'process', name: 'Process', blurb: 'Automation, QoL, and lifetime Accumulation.' },
-  { id: 'protocols', name: 'Protocols', blurb: 'Restricted sorties.' },
-  { id: 'echo', name: 'Echo Runs', blurb: 'Short gauntlets → Echo tree.' },
-  { id: 'specialists', name: 'Specialists', blurb: 'Gunner / Warden / Scavenger.' },
-  { id: 'tasks', name: 'Task List', blurb: 'Checklist into Capital.' },
-  { id: 'capital', name: 'Capital', blurb: 'Second combat scale on the ship.' },
-  { id: 'reinforce', name: 'Reinforce', blurb: 'Second prestige. Keeps the foundry.' },
+  { id: 'process', name: 'Process', blurb: 'Spend Process Points on automation.' },
+  { id: 'protocols', name: 'Protocols', blurb: 'Restricted sorties for permanent scaling.' },
+  { id: 'echo', name: 'Echo Runs', blurb: 'Short challenge runs. Echo upgrades persist.' },
+  { id: 'specialists', name: 'Specialists', blurb: 'Rank specialists for ship bonuses.' },
+  { id: 'tasks', name: 'Task List', blurb: 'Clear objectives for Capital.' },
+  { id: 'capital', name: 'Capital', blurb: 'Upgrade Broadside, Bulkhead, and Hold.' },
+  { id: 'reinforce', name: 'Reinforce', blurb: 'A later reset. Permanent systems stay.' },
 ]
 
 /** Locked doors this many sectors ahead still show as Coming up. */

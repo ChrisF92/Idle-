@@ -40,7 +40,7 @@ export function ResearchTab({ state, onBack, onFocus, guideTarget = null }: Rese
         <h2>Research</h2>
         <p>
           {open
-            ? `Focus ${HIVE_RESEARCH_FOCUS_MULT}× on one branch. Kills still feed the other two.`
+            ? `Focus ${HIVE_RESEARCH_FOCUS_MULT}× on one branch. The others still run.`
             : 'Clear sector 7 to open Research.'}
         </p>
       </header>
@@ -49,8 +49,7 @@ export function ResearchTab({ state, onBack, onFocus, guideTarget = null }: Rese
       ) : (
         <div className="panel-scroll">
           <p className="muted" data-guide="research-branches">
-            Material grows the Foundry. Energy powers Furnace and Network. Observation opens Reliquary and the
-            desk. Breakthroughs unlock mechanics — look a few discoveries ahead.
+            Material grows the Foundry. Energy powers Furnace and Network. Observation opens Reliquary slots.
           </p>
           {HIVE_RESEARCH_BRANCHES.map((branch) => {
             const done = hiveResearchCompleted(state, branch.id)
@@ -69,7 +68,7 @@ export function ResearchTab({ state, onBack, onFocus, guideTarget = null }: Rese
                 className={`network-row${nextIsBt ? ' research-row-breakthrough' : ''}${
                   highlightBt && nextIsBt ? ' is-ready' : ''
                 }`}
-                data-guide={branch.id === 'material' ? 'research-focus' : undefined}
+                  data-guide={!focused ? 'research-focus' : undefined}
               >
                 <div className="network-row-main">
                   <InspectName name={branch.name} card={inspectResearchBranch(state, branch.id)} />

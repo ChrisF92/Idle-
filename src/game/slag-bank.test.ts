@@ -39,13 +39,11 @@ describe('Slag Bank', () => {
     expect(canBuyMatterShop(s, 'matter-blade').reason).toMatch(/Rebuild Matter/)
   })
 
-  it('uses Hiveworks rank names and a More-station guide', () => {
+  it('uses Hiveworks rank names without a forced More-station tour', () => {
     expect(getMatterShopItem('matter-blade')?.name).toBe('Slag Edge')
     expect(getMatterShopItem('matter-forge')?.name).toBe('Slag Forge')
     expect(getMatterShopItem('matter-plating')?.name).toBe('Slag Plate')
     expect(MATTER_SHOP.length).toBeGreaterThan(8)
-    expect(GUIDE_STEPS.some((step) => step.id === 'guide-slag' && step.target === 'station-slag')).toBe(
-      true,
-    )
+    expect(GUIDE_STEPS.some((step) => step.id === 'guide-slag')).toBe(false)
   })
 })

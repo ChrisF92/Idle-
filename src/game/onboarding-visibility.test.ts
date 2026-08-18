@@ -67,106 +67,50 @@ describe('resource visibility gates', () => {
   })
 })
 
-const EARLY_SEEN = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS, 'guide-foundry']
-
 describe('Hiveworks onboarding catalog', () => {
-  it('covers live Dock, Network, Foundry, and More doors', () => {
+  it('keeps a short action catalog and drops door-dragging tours', () => {
     const ids = new Set(GUIDE_STEPS.map((s) => s.id))
     for (const id of [
       'guide-launch',
-      'guide-sortie-field',
-      'guide-cores-sheet',
-      'guide-drone-cap',
-      'guide-network-make',
-      'guide-foundry',
-      'guide-foundry-smelt',
-      'guide-foundry-what',
-      'guide-reliquary',
-      'guide-reliquary-slots',
-      'guide-furnace',
-      'guide-furnace-v2-ash',
-      'guide-research-tab',
-      'guide-research-xp',
-      'guide-research-bt-exist',
-      'guide-research-bt-near',
-      'guide-research-queue',
-      'guide-research-auto',
-      'guide-codex-tab',
-      'guide-codex-families',
-      'guide-challenges',
-      'guide-protocols',
-      'guide-protocol-restrict',
-      'guide-protocol-formula',
-      'guide-echo',
-      'guide-specialists',
-      'guide-tasks',
-      'guide-capital',
-      'guide-reinforce',
-      'guide-logs',
-      'guide-prestige-tab',
-      'guide-prestige-ready',
-      'guide-prestige-hangar',
-      'guide-prestige-confirm',
+      'guide-sortie-fire',
+      'guide-salvage-first',
+      'guide-upgrade-pulse',
+      'guide-network-strike',
+      'guide-foundry-recipe',
+      'guide-furnace-light',
+      'guide-research-focus',
     ]) {
       expect(ids.has(id)).toBe(true)
     }
     for (const id of [
+      'guide-sortie-field',
+      'guide-drone-cap',
+      'guide-foundry-what',
+      'guide-reliquary',
+      'guide-furnace-v2-ash',
+      'guide-research-xp',
+      'guide-protocols',
+      'guide-echo',
+      'guide-process-v2-what',
+      'guide-prestige-tab',
       'guide-core-tab',
-      'guide-train-logistics',
-      'guide-matter-shop',
-      'guide-signal-cores',
-      'guide-challenge-shop',
-      'guide-ascension',
-      'guide-base-tab',
-      'guide-unlock-plate',
     ]) {
       expect(ids.has(id)).toBe(false)
     }
   })
 
-  it('offers Reliquary after early dock and Network lessons', () => {
+  it('does not auto-open Reliquary, Protocols, or Echo from More', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 4
-    state.base.workerDrones = 2
-    state.base.assignments['strike'] = 1
-    state.meta.seenOnboarding = EARLY_SEEN
-    expect(activeGuideStep(state, 'stats')?.id).toBe('guide-reliquary')
-  })
-
-  it('opens Protocols at sector 18 and Echo at 22', () => {
-    const state = createInitialState(0)
+    state.meta.highestSectorEver = 22
     state.prestige.prestigeCount = 3
-    state.combat.sector = 10
+    state.base.assignments.strike = 1
+    state.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
+    expect(isSystemUnlocked(state, 'reliquary')).toBe(true)
+    expect(isSystemUnlocked(state, 'protocols')).toBe(true)
+    expect(isSystemUnlocked(state, 'echo')).toBe(true)
+    expect(activeGuideStep(state, 'stats')).toBeNull()
     expect(challengesContentUnlocked(state)).toBe(false)
-    expect(isSystemUnlocked(state, 'protocols')).toBe(false)
-    expect(isSystemUnlocked(state, 'echo')).toBe(false)
     state.meta.act1Cleared = true
     expect(challengesContentUnlocked(state)).toBe(true)
-
-    state.meta.highestSectorEver = 18
-    expect(isSystemUnlocked(state, 'protocols')).toBe(true)
-    expect(GUIDE_STEPS.some((s) => s.id === 'guide-protocols')).toBe(true)
-
-    state.meta.seenOnboarding = [
-      ...EARLY_SEEN,
-      'guide-reliquary',
-      'guide-furnace',
-      'guide-research-tab',
-      'guide-salvage',
-      'guide-codex-tab',
-      'guide-ai-tab',
-      'guide-achievements',
-      'guide-prestige-tab',
-      'guide-prestige-ready',
-      'guide-yard',
-      'guide-slag',
-    ]
-    expect(activeGuideStep(state, 'stats')?.id).toBe('guide-protocols')
-    expect(activeGuideStep(state, 'stats')?.target).toBe('station-protocols')
-
-    state.meta.highestSectorEver = 22
-    state.meta.seenOnboarding = [...state.meta.seenOnboarding, 'guide-protocols', 'guide-challenges']
-    expect(isSystemUnlocked(state, 'echo')).toBe(true)
-    expect(activeGuideStep(state, 'stats')?.id).toBe('guide-echo')
   })
 })

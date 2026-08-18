@@ -28,7 +28,7 @@ export function TasksTab({ state, onBack }: TasksTabProps) {
         </p>
       </header>
       {!open ? (
-        <p className="muted">Capital does not open on a sector number alone.</p>
+        <p className="muted">A checklist. Finish it to open Capital.</p>
       ) : (
         <div className="panel-scroll" data-guide="tasks-list">
           {TASKS.map((task) => {

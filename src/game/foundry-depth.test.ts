@@ -53,17 +53,6 @@ import { createInitialState, SAVE_VERSION } from './state'
 import { advanceSeconds } from './tick'
 import type { GameState } from './types'
 
-const PROCESS_V2_GUIDE_IDS = [
-  'guide-process-v2-what',
-  'guide-process-v2-earn',
-  'guide-process-v2-ledger',
-  'guide-process-v2-automation',
-  'guide-process-v2-qol',
-  'guide-process-v2-accumulation',
-  'guide-process-v2-understand',
-  'guide-process-v2-buy',
-] as const
-
 const JARGON = /USI|ITRTG|analogue|black-bar/i
 
 function atFoundry(sector = 2): GameState {
@@ -431,91 +420,22 @@ describe('Foundry depth: Rebuild, save, onboarding', () => {
     expect(foundryQueueCap(loaded!)).toBe(6)
   })
 
-  it('gives existing Foundry saves the v2 floor tour, and Skip dismisses that group', () => {
+  it('teaches Foundry with a single Slag Ingot action', () => {
     const s = atFoundry()
-    s.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-foundry',
-      'guide-foundry-smelt',
-      'guide-foundry-keep',
-    ]
-    expect(activeGuideStep(s, 'foundry')?.id).toBe('guide-foundry-what')
-    const skipped = skipOnboarding(s, 'guide-foundry-what')
+    s.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
+    expect(activeGuideStep(s, 'foundry')?.id).toBe('guide-foundry-recipe')
+    const skipped = skipOnboarding(s, 'guide-foundry-recipe')
     for (const id of FOUNDRY_V2_GUIDE_IDS) {
       expect(skipped.meta.seenOnboarding).toContain(id)
     }
     expect(activeGuideStep(skipped, 'foundry')).toBeNull()
   })
 
-  it('does not let Skip of the old Foundry door retire the v2 tour', () => {
-    const s = atFoundry()
-    s.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
-    const skipped = skipOnboarding(s, 'guide-foundry')
-    expect(skipped.meta.seenOnboarding).toEqual(
-      expect.arrayContaining(['guide-foundry', 'guide-foundry-smelt', 'guide-foundry-keep']),
-    )
-    expect(skipped.meta.seenOnboarding).not.toContain('guide-foundry-what')
-    expect(activeGuideStep(skipped, 'foundry')?.id).toBe('guide-foundry-what')
-  })
-
-  it('pauses for mastery, precursor chains, solved stock, and Process queues', () => {
+  it('does not tour mastery milestones, chains, or Process queues', () => {
     const ids = new Set(GUIDE_STEPS.map((g) => g.id))
-    for (const id of [
-      'guide-foundry-what',
-      'guide-foundry-slots',
-      'guide-foundry-progress',
-      'guide-foundry-mastery-why',
-      'guide-foundry-points',
-      'guide-foundry-milestone',
-      'guide-foundry-chain',
-      'guide-foundry-solved',
-      'guide-foundry-queue',
-    ]) {
-      expect(ids.has(id)).toBe(true)
+    for (const id of ['guide-foundry-what', 'guide-foundry-chain', 'guide-foundry-solved', 'guide-foundry-queue']) {
+      expect(ids.has(id)).toBe(false)
     }
-
-    const mile = atFoundry()
-    mile.foundry.recipeLevels['slag-ingot'] = 4
-    mile.meta.seenOnboarding = [...FOUNDRY_V2_GUIDE_IDS, 'guide-foundry', 'guide-foundry-smelt', 'guide-foundry-keep']
-    expect(activeGuideStep(mile, 'foundry')?.id).toBe('guide-foundry-milestone')
-
-    const chain = atFoundry(5)
-    chain.foundry.recipeLevels['slag-ingot'] = 4
-    chain.meta.seenOnboarding = [
-      ...FOUNDRY_V2_GUIDE_IDS,
-      'guide-foundry',
-      'guide-foundry-smelt',
-      'guide-foundry-keep',
-      'guide-foundry-milestone',
-    ]
-    expect(activeGuideStep(chain, 'foundry')?.id).toBe('guide-foundry-chain')
-    expect(guideBodyLines(GUIDE_STEPS.find((g) => g.id === 'guide-foundry-chain')!)[0]).toBe(
-      'Advanced components require precursor materials.',
-    )
-
-    const solved = atFoundry()
-    solved.foundry.infinite = ['slag-ingot']
-    solved.meta.seenOnboarding = [
-      ...FOUNDRY_V2_GUIDE_IDS,
-      'guide-foundry',
-      'guide-foundry-smelt',
-      'guide-foundry-keep',
-      'guide-foundry-milestone',
-      'guide-foundry-chain',
-    ]
-    expect(activeGuideStep(solved, 'foundry')?.id).toBe('guide-foundry-solved')
-
-    const queue = atFoundry(3)
-    queue.process.purchased = ['foundry-queue']
-    queue.meta.seenOnboarding = [
-      ...FOUNDRY_V2_GUIDE_IDS,
-      'guide-foundry',
-      'guide-foundry-smelt',
-      'guide-foundry-keep',
-      ...PROCESS_V2_GUIDE_IDS,
-    ]
-    expect(activeGuideStep(queue, 'process')?.id).toBe('guide-foundry-queue')
   })
 
   it('keeps Foundry inspect and guide copy free of designer jargon', () => {

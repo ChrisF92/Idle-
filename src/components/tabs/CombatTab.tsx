@@ -327,7 +327,7 @@ export function CombatTab({
               onLaunch()
             }}
           >
-            Launch
+            Launch Sortie
           </button>
         )}
         {salvageOpen ? (
@@ -363,9 +363,7 @@ export function CombatTab({
           >
             <p className="combat-hud-kicker">Cores</p>
             <h3 id={titleId}>Cores</h3>
-            <p className="sortie-sheet-kicker">
-              Tap a name for the full sheet. Salvage ranks these. Drones live on Network.
-            </p>
+            <p className="sortie-sheet-kicker">Salvage ranks these Cores. They stay after hull loss.</p>
             <CoreSheet
               state={state}
               compact

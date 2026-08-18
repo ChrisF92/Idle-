@@ -41,19 +41,19 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'base',
     requiresSectorEver: 4,
     label: 'Base',
-    tip: 'Worker drones manufacture over time. Assign them to named stations for production.',
+    tip: 'Assign drones to production stations.',
   },
   {
     id: 'reliquary',
     requiresSectorEver: 3,
     label: 'Reliquary',
-    tip: 'Fit shards into colour slots. Red and orange at 3; pink at 6.',
+    tip: 'Fit shards for permanent bonuses.',
   },
   {
     id: 'furnace',
     requiresSectorEver: 5,
     label: 'Furnace',
-    tip: 'Choir-ash feeds a live Heat tank. Light Furnace Channels for temporary system boosts.',
+    tip: 'Spend Heat on temporary ship boosts.',
   },
   {
     id: 'yard',
@@ -65,7 +65,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'slag',
     requiresSectorEver: 0,
     label: 'Slag Bank',
-    tip: 'Spend Rebuild Matter on permanent hangar ranks. Ranks beat banking.',
+    tip: 'Spend Rebuild Matter on permanent hangar ranks.',
   },
   {
     id: 'protocols',
@@ -77,37 +77,37 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'echo',
     requiresSectorEver: 22,
     label: 'Echo Runs',
-    tip: 'Short authored gauntlets. Echo points buy a small skill tree.',
+    tip: 'Short challenge runs that earn permanent Echo upgrades.',
   },
   {
     id: 'process',
     requiresSectorEver: 0,
     label: 'Process',
-    tip: 'Achievements grant Process points. Spend them on automation, QoL, and lifetime Accumulation.',
+    tip: 'Spend Process Points on automation and quality-of-life upgrades.'
   },
   {
     id: 'specialists',
     requiresSectorEver: 51,
     label: 'Specialists',
-    tip: 'Print Gunner, Warden, and Scavenger. Ranks persist across Rebuild.',
+    tip: 'Rank specialists for permanent ship bonuses.',
   },
   {
     id: 'tasks',
     requiresSectorEver: 72,
     label: 'Task List',
-    tip: 'Finish the checklist. Capital does not open on a sector number alone.',
+    tip: 'Finish the checklist to open Capital.',
   },
   {
     id: 'capital',
     requiresSectorEver: 75,
     label: 'Capital',
-    tip: 'Second combat scale on the ship. Broadside / Bulkhead / Hold. Task List first.',
+    tip: 'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
   },
   {
     id: 'reinforce',
     requiresSectorEver: 80,
     label: 'Reinforce',
-    tip: 'Second prestige layer. Keeps the foundry. Starts the lane again.',
+    tip: 'A later reset. Permanent systems stay.',
   },
   {
     id: 'logs',
@@ -119,13 +119,13 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'research',
     requiresSectorEver: 7,
     label: 'Research',
-    tip: 'Three kill-fed branches. Focus one — the others still run, just slower.',
+    tip: 'Focus a branch to research it faster.',
   },
   {
     id: 'codex',
     requiresSectorEver: 6,
     label: 'Codex',
-    tip: 'Enemy families and hull roles. Soft counters for the loadout. Opens at sector 6.',
+    tip: 'Optional reference for enemy families and hull roles.',
   },
   {
     id: 'core',
@@ -138,13 +138,13 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'ai',
     requiresSectorEver: 0,
     label: 'Process',
-    tip: 'Achievements grant Process points. Spend them on automation, QoL, and lifetime Accumulation.',
+    tip: 'Spend Process Points on automation and quality-of-life upgrades.'
   },
   {
     id: 'prestige',
     requiresSectorEver: 4,
     label: 'Rebuild',
-    tip: 'Rebuild from sector 4 to swap hull and Cores. Protocols open after Act 1 (sector 30).',
+    tip: 'Rebuild to swap hull and Cores. Permanent systems stay.',
   },
 ]
 
@@ -861,34 +861,53 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
 
 /* ---------- Guided onboarding (spotlight + directed clicks) ---------- */
 
+export type GuideKind = 'hint' | 'action' | 'critical'
+
 export interface GuideStep {
   id: string
   title: string
   body: string | string[]
   /** Matches data-guide="…" on UI elements. */
   target: string
-  /** Switch the player to this tab when the step becomes active. */
+  /** Home tab for this lesson. Never auto-switched unless autoTab is set. */
   tab?: TabId
-  /**
-   * Screen this lesson belongs to. While the player is parked on a system
-   * screen, only that screen's lessons may show — the next door waits.
-   */
+  /** Screen this lesson belongs to. Lessons only show on their home screen. */
   screen?: TabId
   /** Skip dismisses every unseen step that shares this group. */
   group?: string
+  /**
+   * hint — overlay, sim continues, no input lock.
+   * action — spotlight, sim continues, optional required tap.
+   * critical — pause + lock. Reserved for irreversible decisions.
+   */
+  kind?: GuideKind
+  /** Override kind-based pause. Critical pauses unless this is false. */
+  pause?: boolean
+  /** Rare. Prefer toast OPEN / player navigation. */
+  autoTab?: boolean
   availableWhen: (state: GameState) => boolean
   /** Optional: auto-complete when predicate becomes true. */
   completeWhen?: (state: GameState, tab: TabId) => boolean
-  /**
-   * Required lessons hide Skip and block clicks outside the spotlight
-   * until completeWhen (or the highlighted control) finishes the step.
-   */
+  /** Required lessons hide Skip. */
   required?: boolean
-  /**
-   * Player must tap the highlighted control. Continue is hidden.
-   * Default: true for tab/station/launch/upgrade/completeWhen steps.
-   */
+  /** Player must tap the highlighted control. Continue is hidden. */
   tap?: boolean
+}
+
+export function guideKind(step: GuideStep): GuideKind {
+  return step.kind ?? 'hint'
+}
+
+/** Idle sim should keep running for hints and guided actions. */
+export function guidePausesSimulation(step: GuideStep | null | undefined): boolean {
+  if (!step) return false
+  if (step.pause === false) return false
+  if (step.pause === true) return true
+  return guideKind(step) === 'critical'
+}
+
+export function guideAutoTabs(step: GuideStep | null | undefined): boolean {
+  return Boolean(step?.autoTab)
 }
 
 export function guideBodyLines(step: GuideStep): string[] {
@@ -897,12 +916,13 @@ export function guideBodyLines(step: GuideStep): string[] {
 
 const TAP_TARGETS = new Set([
   'launch',
-  'cores-sheet',
-  'rebuild-btn',
-  'hangar-confirm',
-  'furnace-bank',
+  'upgrade-pulse-cannon',
+  'upgrade-plate-layer',
+  'network-strike-plus',
+  'network-ward-plus',
+  'foundry-recipe-slag-ingot',
   'furnace-channel-weapons',
-  'reinforce-go',
+  'research-focus',
 ])
 
 /** True when the player must tap the spotlight instead of Continue. */
@@ -922,26 +942,6 @@ export function isCoresGuideTarget(step: GuideStep): boolean {
   return t === 'cores-sheet' && step.id !== 'guide-cores-sheet'
 }
 
-/** More / Foundry / Network screens that must finish their own tour first. */
-const TOUR_PARK_TABS: ReadonlySet<TabId> = new Set([
-  'network',
-  'foundry',
-  'reliquary',
-  'furnace',
-  'research',
-  'codex',
-  'yard',
-  'slag',
-  'protocols',
-  'echo',
-  'process',
-  'specialists',
-  'tasks',
-  'capital',
-  'reinforce',
-  'logs',
-])
-
 function stepLessonScreen(step: GuideStep): TabId | undefined {
   return step.screen ?? step.tab
 }
@@ -951,1876 +951,257 @@ export function isLiveSortieLesson(step: GuideStep): boolean {
   return step.group === 'sortie'
 }
 
-/** True if this lesson is allowed to interrupt the current tab. */
+/** Lessons stay on their home screen. Live sortie hints may overlay any tab. */
 export function stepAllowedOnTab(step: GuideStep, tab: TabId): boolean {
   if (isLiveSortieLesson(step)) return true
   const home = stepLessonScreen(step)
-  if (TOUR_PARK_TABS.has(tab)) {
-    if (home === tab) return true
-    if (step.target === `${tab}-tab` || step.target === `station-${tab}`) return true
-    return false
-  }
-  // Dock / More / Sortie: door openers only. In-screen lessons wait until that screen.
-  if (home && TOUR_PARK_TABS.has(home) && home !== tab) {
-    return step.target === `${home}-tab` || step.target === `station-${home}`
-  }
-  return true
+  if (!home) return true
+  if (home === tab) return true
+  if (step.target === 'launch' && (tab === 'dock' || tab === 'combat')) return true
+  return false
 }
 
 export const GUIDE_STEPS: GuideStep[] = [
   {
-    id: 'guide-shipyard-tab',
-    title: 'Dock',
-    body: 'Home. Scout Hull is fitted. Launch a sortie — stay on this fight until hull loss. Salvage and Network open after you dock.',
-    target: 'dock-tab',
-    tab: 'dock',
-    tap: false,
-    availableWhen: (s) =>
-      s.combat.docked && !s.shipyard.frameLocked && !guideSeen(s, 'guide-shipyard-tab'),
-  },
-  {
-    id: 'guide-frame-select',
-    title: 'Your hull',
-    body: 'Scout Hull is fitted. After hull loss, Salvage ranks Cores. Rebuild later to swap the hull.',
-    target: 'dock-tab',
-    tab: 'dock',
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-shipyard-tab') &&
-      !guideSeen(s, 'guide-frame-select') &&
-      s.combat.docked &&
-      !s.shipyard.frameLocked,
-    completeWhen: () => true,
-  },
-  {
     id: 'guide-launch',
-    title: 'Launch',
-    body: 'Tap Launch sortie. Stay on Sortie until hull loss — Salvage and Network unlock after you dock.',
+    kind: 'hint',
+    title: 'Scout ready',
+    body: 'Your Scout is ready. Launch a sortie and see how far it gets.',
     target: 'launch',
     tab: 'dock',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-shipyard-tab') &&
-      !guideSeen(s, 'guide-launch') &&
-      s.combat.docked &&
-      !s.shipyard.frameLocked,
-    completeWhen: (s) => s.shipyard.frameLocked || !s.combat.docked,
+    group: 'starter',
+    tap: true,
+    availableWhen: (s) => s.combat.docked && !s.meta.hullLostOnce && !guideSeen(s, 'guide-launch'),
+    completeWhen: (s) => !s.combat.docked || Boolean(s.shipyard.frameLocked),
   },
   {
-    id: 'guide-sortie-field',
-    title: 'The lane',
-    body: [
-      'Your hull sits at the bottom. Waves close in from the far side.',
-      'This screen is the fight. Hull and Shield live in the header. Cores is a button under the field.',
-    ],
+    id: 'guide-sortie-fire',
+    kind: 'hint',
+    title: 'Weapons live',
+    body: 'Weapons fire automatically.',
     target: 'sortie-canvas',
     tab: 'combat',
     screen: 'combat',
     group: 'sortie',
-    required: true,
+    tap: false,
     availableWhen: (s) =>
       !s.combat.docked &&
       (s.combat.defeatLeft ?? 0) <= 0 &&
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
-      !guideSeen(s, 'guide-sortie-field'),
+      (s.resources.salvage ?? 0) <= 0 &&
+      !s.meta.hullLostOnce &&
+      !guideSeen(s, 'guide-sortie-fire'),
+    completeWhen: (s) => (s.resources.salvage ?? 0) > 0 || Boolean(s.meta.hullLostOnce),
   },
   {
-    id: 'guide-sortie-guns',
-    title: 'Guns fire themselves',
-    body: [
-      'You do not tap to shoot. Pulse Cannon fires on its own.',
-      'Watch the lane. After hull loss you will spend Salvage on Pulse and Plate.',
-    ],
-    target: 'sortie-canvas',
-    tab: 'combat',
-    screen: 'combat',
-    group: 'sortie',
-    required: true,
-    availableWhen: (s) =>
-      !s.combat.docked &&
-      (s.combat.defeatLeft ?? 0) <= 0 &&
-      guideSeen(s, 'guide-sortie-field') &&
-      !guideSeen(s, 'guide-sortie-guns'),
-  },
-  {
-    id: 'guide-sortie-hull',
-    title: 'Shield, then Hull',
-    body: [
-      'Incoming fire eats Shield first, then Hull.',
-      'Advance keeps pushing sectors. Hold sector or Hold wave to farm. Hull lost docks you — Salvage and Network open after that.',
-    ],
-    target: 'sortie-hull',
-    tab: 'combat',
-    screen: 'combat',
-    group: 'sortie',
-    required: true,
-    availableWhen: (s) =>
-      !s.combat.docked &&
-      (s.combat.defeatLeft ?? 0) <= 0 &&
-      guideSeen(s, 'guide-sortie-guns') &&
-      !guideSeen(s, 'guide-sortie-hull'),
-  },
-  {
-    id: 'guide-salvage-lesson',
+    id: 'guide-salvage-first',
+    kind: 'hint',
     title: 'Salvage recovered',
-    body: [
-      'Open Sortie. Salvage ranks Cores — tap Cores, then Pulse (gun) and Plate (shield).',
-      'Tap a Core name later for every stat and the next Salvage cost.',
-    ],
-    target: 'combat-tab',
-    group: 'cores',
-    required: true,
-    availableWhen: (s) =>
-      s.combat.docked &&
-      hasHullLostOnce(s) &&
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
-      s.resources.salvage > 0 &&
-      ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 ||
-        (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1) &&
-      !guideSeen(s, 'guide-salvage-lesson'),
-  },
-  {
-    id: 'guide-cores-sheet',
-    title: 'Cores',
-    body: [
-      'Pulse Cannon is the gun. Plate Layer is the shield. Salvage buys run levels on both.',
-      'Rank them here, even mid-fight. Drones do not live on this sheet — they live on Network.',
-    ],
-    target: 'cores-sheet',
+    body: 'Spend Salvage to strengthen this run.',
+    target: 'sortie-canvas',
     tab: 'combat',
     screen: 'combat',
-    group: 'cores',
-    required: true,
+    group: 'sortie',
+    tap: false,
     availableWhen: (s) =>
-      s.combat.docked &&
-      hasHullLostOnce(s) &&
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
-      guideSeen(s, 'guide-salvage-lesson') &&
-      !guideSeen(s, 'guide-cores-sheet'),
+      !s.combat.docked &&
+      (s.combat.defeatLeft ?? 0) <= 0 &&
+      (s.resources.salvage ?? 0) > 0 &&
+      !s.meta.hullLostOnce &&
+      !guideSeen(s, 'guide-salvage-first'),
+    completeWhen: (s) => Boolean(s.meta.hullLostOnce) || (s.combat.wave ?? 1) >= 2,
   },
   {
     id: 'guide-upgrade-pulse',
-    title: 'Upgrade Pulse',
-    body: 'Spend Salvage to raise Pulse Cannon one run level. Levels wipe on Rebuild — cheap power now.',
+    kind: 'action',
+    title: 'Pulse Cannon',
+    body: 'Increase weapon damage.',
     target: 'upgrade-pulse-cannon',
     tab: 'combat',
     screen: 'combat',
     group: 'cores',
     required: true,
+    tap: true,
     availableWhen: (s) =>
-      s.combat.docked &&
       hasHullLostOnce(s) &&
-      guideSeen(s, 'guide-cores-sheet') &&
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      s.combat.docked &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 &&
       !guideSeen(s, 'guide-upgrade-pulse'),
     completeWhen: (s) => (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1,
   },
   {
     id: 'guide-upgrade-plate',
-    title: 'Upgrade Plate',
-    body: 'Upgrade Plate Layer next. Both Cores should be Salvage-ranked before you launch again.',
+    kind: 'action',
+    title: 'Plate',
+    body: 'Increase shielding.',
     target: 'upgrade-plate-layer',
     tab: 'combat',
     screen: 'combat',
     group: 'cores',
     required: true,
+    tap: true,
     availableWhen: (s) =>
-      s.combat.docked &&
       hasHullLostOnce(s) &&
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
+      s.combat.docked &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1 &&
       !guideSeen(s, 'guide-upgrade-plate'),
     completeWhen: (s) => (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1,
   },
   {
-    id: 'guide-cores-inspect',
-    title: 'Tap a Core name',
-    body: [
-      'Tap Pulse Cannon or Plate Layer for live stats, the next Salvage cost, and milestone nodes.',
-      'The one-line preview is the short version. The sheet is the full picture.',
-    ],
-    target: 'core-pulse-cannon',
-    tab: 'combat',
-    screen: 'combat',
-    group: 'cores',
-    required: true,
-    availableWhen: (s) =>
-      s.combat.docked &&
-      hasHullLostOnce(s) &&
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
-      guideSeen(s, 'guide-cores-sheet') &&
-      ((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 ||
-        guideSeen(s, 'guide-upgrade-pulse')) &&
-      ((s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 ||
-        guideSeen(s, 'guide-upgrade-plate')) &&
-      !guideSeen(s, 'guide-cores-inspect'),
-  },
-  {
     id: 'guide-cores-persist',
-    title: 'What the loadout keeps',
-    body: [
-      'Core levels and Salvage stay after hull loss — you just dock and relaunch.',
-      'Rebuild wipes Salvage and Core levels so you can swap the hull. That is later, from Dock.',
-    ],
+    kind: 'hint',
+    title: 'Cores stay',
+    body: 'Core upgrades stay after hull loss.',
     target: 'cores-sheet',
     tab: 'combat',
     screen: 'combat',
     group: 'cores',
-    required: true,
     tap: false,
     availableWhen: (s) =>
-      s.combat.docked &&
       hasHullLostOnce(s) &&
-      guideSeen(s, 'guide-cores-inspect') &&
+      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
+      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
+      s.combat.docked &&
       !guideSeen(s, 'guide-cores-persist'),
   },
   {
-    id: 'guide-drone-cap',
-    title: 'Drone Network',
-    body: [
-      'Tap Network. Drones are a finite workforce — they manufacture and fill bars. They never fly on Sortie.',
-      'The corps is already growing. Idle drones are unused potential. Assign them before the next launch.',
-    ],
-    target: 'network-tab',
-    screen: 'network',
-    group: 'network',
-    required: true,
+    id: 'guide-relaunch',
+    kind: 'action',
+    title: 'Launch again',
+    body: 'Launch another sortie. You should get further.',
+    target: 'launch',
+    tab: 'dock',
+    group: 'starter',
+    tap: true,
     availableWhen: (s) =>
+      hasHullLostOnce(s) &&
+      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       s.combat.docked &&
+      !guideSeen(s, 'guide-relaunch'),
+    completeWhen: (s) => !s.combat.docked,
+  },
+  {
+    id: 'guide-network-strike',
+    kind: 'action',
+    title: 'Assign Strike',
+    body: 'Assign a drone to Strike.',
+    target: 'network-strike-plus',
+    tab: 'network',
+    screen: 'network',
+    group: 'network',
+    tap: true,
+    availableWhen: (s) =>
       hasHullLostOnce(s) &&
-      s.base.workerDrones > 0 &&
-      !guideSeen(s, 'guide-drone-cap'),
-    completeWhen: (_s, tab) => tab === 'network',
+      (s.base.assignments.strike ?? 0) < 1 &&
+      !guideSeen(s, 'guide-network-strike'),
+    completeWhen: (s) => (s.base.assignments.strike ?? 0) >= 1,
   },
   {
-    id: 'guide-network-make',
-    title: 'The corps grows',
-    body: [
-      'This bar prints hulls up to the corps cap. Idle drones wait here until you assign them — they do nothing until they have a bar.',
-      'You can reassign any time. You do not need a perfect mix. Corps racks (under Links) raise the cap.',
-    ],
-    target: 'network-manufacture',
+    id: 'guide-network-ward',
+    kind: 'hint',
+    title: 'Ward',
+    body: 'Try Ward to improve your shields.',
+    target: 'network-ward-plus',
     tab: 'network',
     screen: 'network',
     group: 'network',
-    required: true,
+    tap: true,
     availableWhen: (s) =>
-      guideSeen(s, 'guide-drone-cap') && !guideSeen(s, 'guide-network-make'),
+      (s.base.assignments.strike ?? 0) >= 1 &&
+      (s.base.assignments.ward ?? 0) < 1 &&
+      !guideSeen(s, 'guide-network-ward'),
+    completeWhen: (s) => (s.base.assignments.ward ?? 0) >= 1,
   },
   {
-    id: 'guide-network-assign',
-    title: 'Assign Strike and Ward',
-    body: [
-      'Idle hulls do nothing until you tap +. Strike raises sortie damage. Ward raises the shield ceiling.',
-      'Different bars help different jobs. Split the corps. − returns a hull to idle. Close is good enough.',
-    ],
-    target: 'network-strike',
-    tab: 'network',
-    screen: 'network',
-    group: 'network',
-    required: true,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-network-make') &&
-      !guideSeen(s, 'guide-network-assign') &&
-      (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) === 0,
-    completeWhen: (s) =>
-      (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) > 0,
-  },
-  {
-    id: 'guide-network-sortie',
-    title: 'Never on Sortie',
-    body: [
-      'The corps line is the pool: total hulls, cap, and idle. Sortie never shows these drones.',
-      'They only fill bars on this screen. Combat is the hull you launched.',
-    ],
-    target: 'network-corps',
-    tab: 'network',
-    screen: 'network',
-    group: 'network',
-    required: true,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-network-make') &&
-      (guideSeen(s, 'guide-network-assign') ||
-        (s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) > 0) &&
-      !guideSeen(s, 'guide-network-sortie'),
-  },
-  {
-    id: 'guide-network-bars',
-    title: 'Bars, not ships',
-    body: [
-      'Each assigned drone fills its bar. A completed cycle raises that bar’s level.',
-      'Strike is damage. Ward is shields. Yield is salvage. Loom is manufacture. Archive is Research data. Shift the corps when the job changes.',
-      'Tap a bar name for live numbers. Levels reset on Rebuild. The corps stays.',
-    ],
-    target: 'network-strike',
-    tab: 'network',
-    screen: 'network',
-    group: 'network',
-    required: true,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-network-sortie') &&
-      !guideSeen(s, 'guide-network-bars') &&
-      ((s.base.assignments['strike'] ?? 0) + (s.base.assignments['ward'] ?? 0) > 0 ||
-        s.base.workerDrones > 0),
-  },
-  {
-    id: 'guide-network-links',
-    title: 'Link power',
-    body: [
-      'Link power is assigned drones times efficiency. More Link power fills every bar faster.',
-      'Corps racks hang extra hulls. Drone acuity makes each hull count for more. Cycle speed turns the clock up.',
-      'Racks cost scrap until the Furnace; then Heat. Acuity and cycle wait for sector 5. Those ranks persist on Rebuild.',
-    ],
-    target: 'network-links',
-    tab: 'network',
-    screen: 'network',
-    group: 'network',
-    required: true,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-network-bars') && !guideSeen(s, 'guide-network-links'),
-  },
-  {
-    id: 'guide-network-relay',
-    title: 'Strike Relay',
-    body: [
-      'You are now improving the infrastructure behind Strike — not buying another damage shop.',
-      'Strike Relay raises Strike fill speed, how hard each Strike level hits, and Strike’s fill cap. Overflow drones belong here when Strike is capped.',
-    ],
-    target: 'network-strike-relay',
-    tab: 'network',
-    screen: 'network',
-    group: 'network-relay',
-    tap: false,
-    availableWhen: (s) =>
-      careerHighestSector(s) >= 8 &&
-      hasHullLostOnce(s) &&
-      guideSeen(s, 'guide-network-links') &&
-      !guideSeen(s, 'guide-network-relay'),
-  },
-  {
-    id: 'guide-network-relay-parent',
-    title: 'The original bar',
-    body: [
-      'This is still Strike. The Relay does not replace it. Drones on Strike fill Strike. Drones on the Relay make those Strike drones worth more.',
-      'Read fill speed and fill cap on the row. That is the whole trick.',
-    ],
-    target: 'network-strike',
-    tab: 'network',
-    screen: 'network',
-    group: 'network-relay',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-network-relay') && !guideSeen(s, 'guide-network-relay-parent'),
-  },
-  {
-    id: 'guide-network-lattice',
-    title: 'Strike Lattice',
-    body: [
-      'Lattice improves the Relay that improves Strike. Higher-order Network.',
-      'It raises Relay strength, Strike’s scaling exponent, and how much each Strike drone counts.',
-    ],
-    target: 'network-strike-lattice',
-    tab: 'network',
-    screen: 'network',
-    group: 'network-lattice',
-    tap: false,
-    availableWhen: (s) =>
-      careerHighestSector(s) >= 20 &&
-      hasHullLostOnce(s) &&
-      guideSeen(s, 'guide-network-links') &&
-      !guideSeen(s, 'guide-network-lattice'),
-  },
-  {
-    id: 'guide-network-presets',
-    title: 'Network presets',
-    body: [
-      'Push, Defence, Farm, Industry, Research, Balanced. One tap writes visible weights and redistributes the corps.',
-      'There is no hidden best mix. You can still assign by hand.',
-    ],
-    target: 'network-presets',
-    tab: 'network',
-    screen: 'network',
-    group: 'network-presets',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.process?.purchased.includes('network-presets')) && !guideSeen(s, 'guide-network-presets'),
-  },
-  {
-    id: 'guide-network-auto',
-    title: 'Network Auto Optimise',
-    body: [
-      'When a new drone finishes, Auto Optimise redistributes the corps from your preset. It does not invent a secret mix.',
-      'Turn it off and pick the preset under Process → Network. Sortie Bias (if owned) leans the same preset while you fly.',
-    ],
-    target: 'process-config',
-    tab: 'process',
-    screen: 'process',
-    group: 'network-auto',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.process?.purchased.includes('network-balance')) &&
-      !guideSeen(s, 'guide-network-auto') &&
-      guideSeen(s, 'guide-process-v2-buy'),
-  },
-  {
-    id: 'guide-foundry',
-    title: 'Foundry',
-    body: [
-      'Tap Foundry. The shop floor turns Salvage and scrap into stock, then into later materials and bits you can fit.',
-      'You care because fitted bits and extra smelters are how later walls break — not by waiting on the same Core rank.',
-      'First move: start Slag Ingot (Salvage) or Filament (scrap). Keep one smelter running. This walkthrough will pause here so you can learn the floor.',
-    ],
-    target: 'foundry-tab',
-    screen: 'foundry',
-    group: 'foundry',
-    required: true,
-    availableWhen: (s) => isSystemUnlocked(s, 'foundry') && !guideSeen(s, 'guide-foundry'),
-    completeWhen: (_s, tab) => tab === 'foundry',
-  },
-  {
-    id: 'guide-foundry-smelt',
-    title: 'First craft',
-    body: [
-      'Tap Slag Ingot. Salvage is the input. The smelter bar is craft progress. Stock is the output.',
-      'This walkthrough will not start the craft for you.',
-    ],
+    id: 'guide-foundry-recipe',
+    kind: 'action',
+    title: 'Smelt',
+    body: 'Choose Slag Ingot.',
     target: 'foundry-recipe-slag-ingot',
     tab: 'foundry',
     screen: 'foundry',
     group: 'foundry',
-    required: true,
-    availableWhen: (s) => guideSeen(s, 'guide-foundry') && !guideSeen(s, 'guide-foundry-smelt'),
-    completeWhen: (s) => (s.foundry?.slots ?? []).some((slot) => slot.recipeId != null),
+    tap: true,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'foundry') &&
+      !(s.foundry?.slots ?? []).some((slot) => slot.recipeId) &&
+      (s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) < 1 &&
+      !guideSeen(s, 'guide-foundry-recipe'),
+    completeWhen: (s) =>
+      (s.foundry?.slots ?? []).some((slot) => slot.recipeId === 'slag-ingot') ||
+      (s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) >= 1,
   },
   {
-    id: 'guide-foundry-keep',
-    title: 'What Rebuild keeps',
-    body: [
-      'Recipe levels, stock, and Foundry Points persist when you Rebuild. Fitted bits come off so you can print them again.',
-      'Keep smelting old recipes — mastery is how the floor gets faster, cheaper, and finally solved.',
-    ],
-    target: 'foundry-recipes',
+    id: 'guide-foundry-mastery',
+    kind: 'hint',
+    title: 'Recipe level increased',
+    body: 'Repeated crafting makes this recipe faster.',
+    target: 'foundry-recipe-slag-ingot',
     tab: 'foundry',
     screen: 'foundry',
     group: 'foundry',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-foundry-smelt') && !guideSeen(s, 'guide-foundry-keep'),
-  },
-  {
-    id: 'guide-foundry-what',
-    title: 'What the floor makes',
-    body: [
-      'Early recipes spend Salvage or scrap. Later recipes spend those materials. Stock sits in the Foundry until you spend it on bits, prints, or the next recipe.',
-      'One smelter to start. Extra smelters are Foundry Point ranks.',
-    ],
-    target: 'foundry-recipes',
-    tab: 'foundry',
-    screen: 'foundry',
-    group: 'foundry-v2',
     tap: false,
     availableWhen: (s) =>
       isSystemUnlocked(s, 'foundry') &&
-      (guideSeen(s, 'guide-foundry') || guideSeen(s, 'guide-foundry-smelt')) &&
-      !guideSeen(s, 'guide-foundry-what'),
+      (s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) >= 1 &&
+      !guideSeen(s, 'guide-foundry-mastery'),
   },
   {
-    id: 'guide-foundry-slots',
-    title: 'Smelter slots',
-    body: [
-      'Each slot runs one recipe. Idle slots do nothing. Queue a recipe, then leave it to fill.',
-      'Second, third, and fourth smelters are Foundry Point ranks — later recipes need them.',
-    ],
-    target: 'foundry-smelters',
-    tab: 'foundry',
-    screen: 'foundry',
-    group: 'foundry-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-foundry-what') && !guideSeen(s, 'guide-foundry-slots'),
-  },
-  {
-    id: 'guide-foundry-progress',
-    title: 'Craft progress',
-    body: [
-      'The bar is one craft. When it fills, you gain stock and recipe XP toward mastery.',
-      'Speed ranks and recipe mastery both shorten that bar.',
-    ],
-    target: 'foundry-smelters',
-    tab: 'foundry',
-    screen: 'foundry',
-    group: 'foundry-v2',
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-foundry-slots') && !guideSeen(s, 'guide-foundry-progress'),
-  },
-  {
-    id: 'guide-foundry-mastery-why',
-    title: 'Recipe mastery',
-    body: [
-      'Repeating an old recipe still matters. Mastery ranks change how that recipe smelts — speed, extra output, cheaper costs, then a solved floor.',
-      'Tap a recipe name for the next mastery rank.',
-    ],
-    target: 'foundry-recipes',
-    tab: 'foundry',
-    screen: 'foundry',
-    group: 'foundry-v2',
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-foundry-progress') && !guideSeen(s, 'guide-foundry-mastery-why'),
-  },
-  {
-    id: 'guide-foundry-points',
-    title: 'Foundry Points',
-    body: [
-      'Finishing crafts and hitting mastery ranks pay Foundry Points. Spend them on smelters, output, and shop-floor ranks — not only sortie bonuses.',
-      'Ranks persist when you Rebuild.',
-    ],
-    target: 'foundry-ranks',
-    tab: 'foundry',
-    screen: 'foundry',
-    group: 'foundry-v2',
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-foundry-mastery-why') && !guideSeen(s, 'guide-foundry-points'),
-  },
-  {
-    id: 'guide-foundry-milestone',
-    title: 'Mastery milestone',
-    body: [
-      'This recipe just hit a mastery rank. That is not a flat shop bonus — the craft itself changed.',
-      'Later ranks add extra output, cheaper costs, and more Foundry Points. The last rank solves the material.',
-    ],
-    target: 'foundry-recipes',
-    tab: 'foundry',
-    screen: 'foundry',
-    group: 'foundry-milestone',
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'foundry') &&
-      Object.values(s.foundry?.recipeLevels ?? {}).some((n) => (n ?? 0) >= 4) &&
-      !guideSeen(s, 'guide-foundry-milestone'),
-  },
-  {
-    id: 'guide-foundry-chain',
-    title: 'Precursor materials',
-    body: [
-      'Advanced components require precursor materials.',
-      'The line under a recipe is the chain. Make the inputs first, or let Process craft them once you own Prerequisites.',
-    ],
-    target: 'foundry-chain',
-    tab: 'foundry',
-    screen: 'foundry',
-    group: 'foundry-chain',
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'foundry') &&
-      (((s.foundry?.recipeLevels['slag-ingot'] ?? 0) >= 8) ||
-        ((s.foundry?.recipeLevels['slag-ingot'] ?? 0) >= 4 &&
-          Math.max(s.meta.highestSectorEver ?? 0, s.combat.highestSector ?? 0) >= 5)) &&
-      !guideSeen(s, 'guide-foundry-chain'),
-  },
-  {
-    id: 'guide-foundry-solved',
-    title: 'Solved material',
-    body: [
-      'This recipe is industrialised. The floor supplies it. You do not need to queue it or watch the bar.',
-      'That only happens after substantial mastery. Automation helped on the way here.',
-    ],
-    target: 'foundry-recipes',
-    tab: 'foundry',
-    screen: 'foundry',
-    group: 'foundry-solved',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.foundry?.infinite?.length) && !guideSeen(s, 'guide-foundry-solved'),
-  },
-  {
-    id: 'guide-foundry-queue',
-    title: 'Foundry queue',
-    body: [
-      'Production Queue lines up recipes. Smelters pull from this list before Smart Smelt.',
-      'Queue Rack (a Foundry Point rank) adds more slots. You still choose the order.',
-    ],
-    target: 'process-foundry-queue',
-    tab: 'process',
-    screen: 'process',
-    group: 'foundry-queue',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.process?.purchased.includes('foundry-queue')) &&
-      !guideSeen(s, 'guide-foundry-queue') &&
-      guideSeen(s, 'guide-process-v2-buy'),
-  },
-  {
-    id: 'guide-relaunch-upgraded',
-    title: 'Resume push',
-    body: 'Cores ranked and the Network is running. Launch again — bars fill while you fly.',
-    target: 'launch',
-    tab: 'dock',
-    required: true,
-    availableWhen: (s) =>
-      hasHullLostOnce(s) &&
-      (s.meta.starterCombatLesson ?? 0) === 2 &&
-      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
-      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
-      s.combat.docked &&
-      !guideSeen(s, 'guide-relaunch-upgraded'),
-    completeWhen: (s) => !s.combat.docked,
-  },
-  {
-    id: 'guide-reliquary',
-    title: 'Reliquary',
-    body: [
-      'A new station on More. Open Reliquary.',
-      'Kills drop shards. Fit them here — they are not guns on the field. Extra copies of the fitted shard raise the same bonus.',
-      'First move: fit a Red or Orange shard if you have one. Remove is free.',
-    ],
-    target: 'station-reliquary',
-    tab: 'stats',
-    group: 'reliquary',
-    required: true,
-    availableWhen: (s) => isSystemUnlocked(s, 'reliquary') && !guideSeen(s, 'guide-reliquary'),
-    completeWhen: (_s, tab) => tab === 'reliquary',
-  },
-  {
-    id: 'guide-reliquary-slots',
-    title: 'One shard per colour',
-    body: [
-      'Red and orange open first. Pink, blue, and green wait on later sectors.',
-      'Fit one shard in each colour. Tap a slot name for owned copies and the live bonus.',
-      'Remove is free. Swap whenever you are docked.',
-    ],
-    target: 'reliquary-slots',
-    tab: 'reliquary',
-    screen: 'reliquary',
-    group: 'reliquary',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-reliquary') && !guideSeen(s, 'guide-reliquary-slots'),
-  },
-  {
-    id: 'guide-reliquary-resonance',
-    title: 'Resonance',
-    body: [
-      'Extra copies of the fitted shard charge resonance and raise the same bonus. Duplicates are not wasted.',
-      'Shards persist when you Rebuild. They keep dropping from kills after this door is open.',
-      'Stay and look around. The next station will wait until you go back to More or Dock.',
-    ],
-    target: 'reliquary-copies',
-    tab: 'reliquary',
-    screen: 'reliquary',
-    group: 'reliquary',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-reliquary-slots') && !guideSeen(s, 'guide-reliquary-resonance'),
-  },
-  {
-    id: 'guide-prestige-tab',
-    title: 'Rebuild is ready',
-    body: [
-      'Open Dock. You reached sector 4 — Rebuild hangar can swap hull and Cores for Rebuild Matter.',
-      'Rebuild is the hangar swap after you understand the loop, not a game-over. Matter buys hangar ranks that persist.',
-      'First move: open the hangar and read the Matter you would earn. Confirm when the push stalls, not on every sector.',
-    ],
-    target: 'dock-tab',
-    tab: 'dock',
-    group: 'rebuild',
-    required: true,
-    availableWhen: (s) => firstRebuildAvailable(s) && !guideSeen(s, 'guide-prestige-tab'),
-    completeWhen: (_s, tab) => tab === 'dock',
-  },
-  {
-    id: 'guide-prestige-ready',
-    title: 'Open the hangar',
-    body: [
-      'Tap Rebuild hangar. Salvage and Core levels wipe on confirm. Network, Foundry recipes, Reliquary shards, and Furnace upgrades stay. Heat in the tank resets unless Ember Lock is ranked.',
-    ],
-    target: 'rebuild-btn',
-    tab: 'dock',
-    group: 'rebuild',
-    required: true,
-    availableWhen: (s) =>
-      firstRebuildAvailable(s) &&
-      guideSeen(s, 'guide-prestige-tab') &&
-      !guideSeen(s, 'guide-prestige-ready'),
-  },
-  {
-    id: 'guide-prestige-hangar',
-    title: 'Pick the next hull',
-    body: [
-      'Scout is fine. Frigate unlocks when you clear sector 4 — extra weapon slot.',
-      'This is how you change guns. Confirming wipes unspent Salvage and Core ranks so the new kit starts clean.',
-    ],
-    target: 'hangar-hull',
-    tab: 'dock',
-    group: 'rebuild',
-    availableWhen: (s) =>
-      firstRebuildAvailable(s) &&
-      guideSeen(s, 'guide-prestige-ready') &&
-      !guideSeen(s, 'guide-prestige-hangar'),
-    completeWhen: (s) => s.prestige.prestigeCount > 0,
-  },
-  {
-    id: 'guide-prestige-confirm',
-    title: 'Confirm Rebuild',
-    body: [
-      'Tap Confirm Rebuild. You earn Rebuild Matter. Yard Grid and Slag Bank open on the other side.',
-    ],
-    target: 'hangar-confirm',
-    tab: 'dock',
-    group: 'rebuild',
-    required: true,
-    availableWhen: (s) =>
-      firstRebuildAvailable(s) &&
-      guideSeen(s, 'guide-prestige-hangar') &&
-      !guideSeen(s, 'guide-prestige-confirm'),
-    completeWhen: (s) => s.prestige.prestigeCount > 0,
-  },
-  {
-    id: 'guide-furnace',
-    title: 'Furnace',
-    body: [
-      'Open More and tap Furnace. Choir-ash has been collecting from kills since sector 5.',
-      'Ash feeds a live Heat tank. Light channels for temporary boosts — you cannot power everything at once.',
-      'You do not tap wrecks for ash. Flares collect themselves. First move: Bank ash, then light Weapons I.',
-    ],
-    target: 'station-furnace',
-    tab: 'stats',
-    group: 'furnace',
-    required: true,
-    availableWhen: (s) => isSystemUnlocked(s, 'furnace') && !guideSeen(s, 'guide-furnace'),
-    completeWhen: (_s, tab) => tab === 'furnace',
-  },
-  {
-    id: 'guide-furnace-v2-ash',
-    title: 'Ash feeds the fire',
-    body: [
-      'Choir-ash is fuel, not a score. Kills drop it on their own after sector 5.',
-      'The Furnace burns ash into Heat. You are not buying a permanent +2% shop anymore.',
-    ],
-    target: 'furnace-ash',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'furnace') &&
-      !guideSeen(s, 'guide-furnace-v2-ash') &&
-      (guideSeen(s, 'guide-furnace') ||
-        (s.meta.seenOnboarding ?? []).includes('guide-furnace-ranks') ||
-        (s.meta.seenOnboarding ?? []).includes('guide-furnace-bank')),
-  },
-  {
-    id: 'guide-furnace-v2-heat',
-    title: 'Heat is live',
-    body: [
-      'Heat generates while ash remains and a small Hearth trickle always runs.',
-      'Bank dumps ash into the tank now. Auto Feed later does that tap for you.',
-    ],
-    target: 'furnace-heat',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-ash') && !guideSeen(s, 'guide-furnace-v2-heat'),
-  },
-  {
-    id: 'guide-furnace-v2-cap',
-    title: 'Capacity',
-    body: [
-      'The tank has a ceiling. Extra generation is wasted once Heat is full — ash stops burning so you do not throw fuel away.',
-      'Cistern upgrades raise the ceiling. Network Links still spend stored Heat as a lump.',
-    ],
-    target: 'furnace-cap',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-heat') && !guideSeen(s, 'guide-furnace-v2-cap'),
-  },
-  {
-    id: 'guide-furnace-v2-rate',
-    title: 'Heat per second',
-    body: [
-      'GENERATING is ash feed plus Hearth. CONSUMING is every lit channel. NET is the difference.',
-      'Positive NET fills the tank. Negative NET drains it. Read NET before you light a second fire.',
-    ],
-    target: 'furnace-net',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-cap') && !guideSeen(s, 'guide-furnace-v2-rate'),
-  },
-  {
-    id: 'guide-furnace-v2-channel',
-    title: 'Furnace Channels',
-    body: [
-      'A channel is a temporary system boost you choose to power: Weapons, Shielding, Network, Foundry, Research, Recovery.',
-      'The question is what you want to power right now — not which permanent rank to buy.',
-    ],
-    target: 'furnace-channels',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-rate') && !guideSeen(s, 'guide-furnace-v2-channel'),
-  },
-  {
-    id: 'guide-furnace-v2-consume',
-    title: 'Channels spend Heat',
-    body: [
-      'Every lit channel consumes Heat every second. If NET is negative, the tank drains.',
-      'When the tank hits your reserve (or empty), the lowest-priority channel drops a level. That is starvation — it is shown, not a silent shutdown.',
-    ],
-    target: 'furnace-channels',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-channel') && !guideSeen(s, 'guide-furnace-v2-consume'),
-  },
-  {
-    id: 'guide-furnace-v2-levels',
-    title: 'Stronger costs more',
-    body: [
-      'Weapons I is a modest damage boost. Weapons II and III cost several times the Heat.',
-      'Do not light III because the number looks bigger. Light what the tank can hold.',
-    ],
-    target: 'furnace-channels',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-consume') && !guideSeen(s, 'guide-furnace-v2-levels'),
-  },
-  {
-    id: 'guide-furnace-v2-limit',
-    title: 'Not everything at once',
-    body: [
-      'Early Furnace lights one channel. Extra Taps, a Rebuild, and Process Accumulation raise that cap.',
-      'You will not power Weapons, Shielding, and Foundry together on day one. Pick the job.',
-    ],
-    target: 'furnace-slots',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-levels') && !guideSeen(s, 'guide-furnace-v2-limit'),
-  },
-  {
-    id: 'guide-furnace-v2-bank',
-    title: 'Fund Heat',
-    body: [
-      'Tap Bank if you have a pile of ash. That fills the tank now so a channel has something to burn.',
-      'If Heat is already in the tank, this step lets go.',
-    ],
-    target: 'furnace-bank',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-limit') && !guideSeen(s, 'guide-furnace-v2-bank'),
-    completeWhen: (s) => (s.resources.heat ?? 0) > 0,
-  },
-  {
-    id: 'guide-furnace-v2-activate',
-    title: 'Light Weapons I',
-    body: [
-      'Tap Weapons I. Damage rises while the channel is lit and Heat starts to drain.',
-      'You can darken it later. One channel is the whole early puzzle.',
-    ],
+    id: 'guide-furnace-light',
+    kind: 'action',
+    title: 'Weapons I',
+    body: 'Spend Heat to power a temporary damage boost.',
     target: 'furnace-channel-weapons',
     tab: 'furnace',
     screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-bank') && !guideSeen(s, 'guide-furnace-v2-activate'),
-    completeWhen: (s) => Object.values(s.furnace?.wanted ?? {}).some((n) => n > 0),
-  },
-  {
-    id: 'guide-furnace-v2-net',
-    title: 'Read NET',
-    body: [
-      'GENERATING minus CONSUMING is NET. If it is red, the tank is shrinking.',
-      'That is the Furnace. Come back when you want a second channel, a preset, or the Manager.',
-    ],
-    target: 'furnace-net',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace-v2-activate') && !guideSeen(s, 'guide-furnace-v2-net'),
-  },
-  {
-    id: 'guide-furnace-v2-second',
-    title: 'Second channel',
-    body: [
-      'You can light two channels at once now. Priority decides which one starves last.',
-      'NET still rules. Two Level I fires are cheaper than one Level III.',
-    ],
-    target: 'furnace-slots',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-second',
-    tap: false,
+    group: 'furnace',
+    tap: true,
     availableWhen: (s) =>
       isSystemUnlocked(s, 'furnace') &&
-      guideSeen(s, 'guide-furnace-v2-net') &&
-      !guideSeen(s, 'guide-furnace-v2-second') &&
-      (s.furnace?.upgrades?.taps ?? 0) + (s.prestige?.prestigeCount ?? 0) + ((s.process?.earned ?? 0) >= 150 ? 1 : 0) >= 1,
-  },
-  {
-    id: 'guide-furnace-presets',
-    title: 'Furnace presets',
-    body: [
-      'Push, Farm, Industry, and Research are starting mixes. They do not invent a hidden best fire.',
-      'You can still set channels by hand. Presets only write the wanted lights.',
-    ],
-    target: 'furnace-presets',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-presets',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.process?.purchased.includes('furnace-presets')) && !guideSeen(s, 'guide-furnace-presets'),
-  },
-  {
-    id: 'guide-furnace-manager',
-    title: 'Furnace Manager',
-    body: [
-      'The manager keeps your wanted channels lit while Heat lasts. It will not spend below the reserve you set.',
-      'Priority is the starve order. Auto Channel may raise or drop levels to stay sustainable, then recover when the tank is healthy.',
-    ],
-    target: 'furnace-manager',
-    tab: 'furnace',
-    screen: 'furnace',
-    group: 'furnace-manager',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.process?.purchased.includes('furnace-auto')) && !guideSeen(s, 'guide-furnace-manager'),
-  },
-  {
-    id: 'guide-research-tab',
-    title: 'Research',
-    body: [
-      'Open More and tap Research. This walkthrough will pause so you can learn the desk.',
-      'Kills write notes into Material, Energy, and Observation whether you sit here or not.',
-      'Focus one branch. Breakthroughs unlock mechanics. First move: pick Energy if you want another Furnace channel, or Material for smelters.',
-    ],
-    target: 'station-research',
-    tab: 'stats',
-    group: 'research',
-    required: true,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'research') && !guideSeen(s, 'guide-research-tab'),
-    completeWhen: (_s, tab) => tab === 'research',
-  },
-  {
-    id: 'guide-research-xp',
-    title: 'How notes arrive',
-    body: [
-      'Every kill writes Research XP. Bosses write more. Archive on the Network still drips Data — that is a different drip.',
-      'You do not tap to research. Sortie fills the bars.',
-    ],
-    target: 'research-branches',
-    tab: 'research',
-    screen: 'research',
-    group: 'research-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'research') &&
-      (guideSeen(s, 'guide-research-tab') || guideSeen(s, 'guide-research-focus')) &&
-      !guideSeen(s, 'guide-research-xp'),
-  },
-  {
-    id: 'guide-research-branches',
-    title: 'Three branches',
-    body: [
-      'Material is Foundry and salvage. Energy is Furnace, Network throughput, and plate. Observation is Reliquary, notes, and the desk.',
-      'You pick a focus. You do not have to finish one branch before touching another.',
-    ],
-    target: 'research-branches',
-    tab: 'research',
-    screen: 'research',
-    group: 'research-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-research-xp') && !guideSeen(s, 'guide-research-branches'),
-  },
-  {
-    id: 'guide-research-focus-how',
-    title: 'Focus and background',
-    body: [
-      'The focused branch runs 4×. The other two still crawl in the background — they are not frozen.',
-      'A later Observation breakthrough makes that crawl faster. You can change focus any time.',
-    ],
-    target: 'research-focus',
-    tab: 'research',
-    screen: 'research',
-    group: 'research-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-research-branches') && !guideSeen(s, 'guide-research-focus-how'),
-  },
-  {
-    id: 'guide-research-node',
-    title: 'What a node is',
-    body: [
-      'Each discovery is a node. Most are small numbers — a little salvage, a little Heat, a little shard chance.',
-      'Look at the list under a branch. You can see the next few discoveries before you commit.',
-    ],
-    target: 'research-preview',
-    tab: 'research',
-    screen: 'research',
-    group: 'research-v2',
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-research-focus-how') && !guideSeen(s, 'guide-research-node'),
-  },
-  {
-    id: 'guide-research-bt-exist',
-    title: 'Breakthroughs',
-    body: [
-      'Every few nodes is a breakthrough. Those unlock mechanics, not merely a bigger multiplier.',
-      'Two more Energy discoveries and you light another Furnace channel. Plan for those, not for 1.32 to 1.36.',
-    ],
-    target: 'research-preview',
-    tab: 'research',
-    screen: 'research',
-    group: 'research-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-research-node') && !guideSeen(s, 'guide-research-bt-exist'),
-  },
-  {
-    id: 'guide-research-choice',
-    title: 'Pick for the job',
-    body: [
-      'No branch is mandatory at every point. Pushing wants Energy channels. Foundry work wants Material. Reliquary and desk work want Observation.',
-      'Material starts focused. You can keep it or switch.',
-    ],
-    target: 'research-focus',
-    tab: 'research',
-    screen: 'research',
-    group: 'research-v2',
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-research-bt-exist') && !guideSeen(s, 'guide-research-choice'),
+      (s.furnace?.wanted?.weapons ?? 0) < 1 &&
+      !guideSeen(s, 'guide-furnace-light'),
+    completeWhen: (s) => (s.furnace?.wanted?.weapons ?? 0) >= 1,
   },
   {
     id: 'guide-research-focus',
-    title: 'Pick a focus',
-    body: [
-      'Tap Material to keep the shop-floor focus, or pick Energy / Observation if that is the job.',
-      'Nodes persist when you Rebuild — you are not spending Salvage here.',
-    ],
+    kind: 'hint',
+    title: 'Focus',
+    body: 'Focus a branch to speed up its research.',
     target: 'research-focus',
     tab: 'research',
     screen: 'research',
     group: 'research',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-research-tab') && !guideSeen(s, 'guide-research-focus'),
-  },
-  {
-    id: 'guide-research-bt-near',
-    title: 'A breakthrough is next',
-    body: [
-      'This node unlocks a mechanic rather than merely a number.',
-      'Read the gold line. Auto Research will still follow your queue — you decide whether this is the job you want.',
-    ],
-    target: 'research-breakthrough',
-    tab: 'research',
-    screen: 'research',
-    group: 'research-bt',
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'research') &&
-      Object.values(s.hiveResearch?.completed ?? {}).some((n) => n === 2 || n === 5 || n === 8) &&
-      !guideSeen(s, 'guide-research-bt-near'),
-  },
-  {
-    id: 'guide-research-queue',
-    title: 'Research queue',
-    body: [
-      'The Focus queue lines up which branch to study next. Completions wait for this list unless Auto is on.',
-      'An Observation breakthrough can add slots. You still write the order.',
-    ],
-    target: 'process-research-queue',
-    tab: 'process',
-    screen: 'process',
-    group: 'research-queue',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.process?.purchased.includes('research-queue')) &&
-      !guideSeen(s, 'guide-research-queue') &&
-      guideSeen(s, 'guide-process-v2-buy'),
-  },
-  {
-    id: 'guide-research-auto',
-    title: 'Auto Research',
-    body: [
-      'Auto Research advances focus along your queue, then your priority list. It never invents a hidden best branch.',
-      'Turn it off when a breakthrough is the choice you want to make by hand.',
-    ],
-    target: 'process-research-auto',
-    tab: 'process',
-    screen: 'process',
-    group: 'research-auto',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.process?.purchased.includes('research-focus')) &&
-      !guideSeen(s, 'guide-research-auto') &&
-      guideSeen(s, 'guide-process-v2-buy'),
-  },
-  {
-    id: 'guide-yard',
-    title: 'Yard Grid',
-    body: [
-      'Open More and tap Yard. Buildings run even while you are docked.',
-      'They make Ore, Flux, and Ingots. This is a second idle layer, not combat.',
-    ],
-    target: 'station-yard',
-    tab: 'stats',
-    group: 'yard',
-    availableWhen: (s) => isSystemUnlocked(s, 'yard') && !guideSeen(s, 'guide-yard'),
-    completeWhen: (_s, tab) => tab === 'yard',
-  },
-  {
-    id: 'guide-yard-arms',
-    title: 'Place, then arm',
-    body: [
-      'Place buildings on empty cells. Spend Ingots on arms.',
-      'Arms apply on the next Rebuild, not this hull. Pending arms wait until you hang a new kit.',
-    ],
-    target: 'yard-grid',
-    tab: 'yard',
-    screen: 'yard',
-    group: 'yard',
-    availableWhen: (s) => guideSeen(s, 'guide-yard') && !guideSeen(s, 'guide-yard-arms'),
-  },
-  {
-    id: 'guide-slag',
-    title: 'Slag Bank',
-    body: [
-      'Open More and tap Slag Bank. Rebuild Matter buys hangar ranks that persist.',
-      'Unspent matter still banks a small bonus in the header. Ranks beat banking.',
-    ],
-    target: 'station-slag',
-    tab: 'stats',
-    group: 'slag',
-    availableWhen: (s) => isSystemUnlocked(s, 'slag') && !guideSeen(s, 'guide-slag'),
-    completeWhen: (_s, tab) => tab === 'slag',
-  },
-  {
-    id: 'guide-slag-ranks',
-    title: 'Spend the slag',
-    body: [
-      'Slag Edge, Forge, and Plate are the early ranks — damage, production, hull.',
-      'This is where Rebuild Matter goes. Challenge Marks stay in the bank for later.',
-    ],
-    target: 'slag-ranks',
-    tab: 'slag',
-    screen: 'slag',
-    group: 'slag',
-    availableWhen: (s) => guideSeen(s, 'guide-slag') && !guideSeen(s, 'guide-slag-ranks'),
-  },
-  {
-    id: 'guide-protocols',
-    title: 'Protocols',
-    body: [
-      'Open More and tap Protocols. Optional restricted sorties — one system is muted for the run.',
-      'Clear the goal sector. Completions change how that system scales forever, not a flat shop. Cores and Salvage wipe when a Protocol starts.',
-      'First move: read Mute Network. Skip is always available until the Task List asks.',
-    ],
-    target: 'station-protocols',
-    tab: 'stats',
-    group: 'protocols',
-    required: true,
-    availableWhen: (s) => isSystemUnlocked(s, 'protocols') && !guideSeen(s, 'guide-protocols'),
-    completeWhen: (_s, tab) => tab === 'protocols',
-  },
-  {
-    id: 'guide-protocols-run',
-    title: 'What a Protocol is',
-    body: [
-      'A Protocol is a short restricted career. One system sits idle. The rest of the hangar still works.',
-      'It is optional until the Task List asks. Skip is always available.',
-    ],
-    target: 'protocols-list',
-    tab: 'protocols',
-    screen: 'protocols',
-    group: 'protocols',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-protocols') && !guideSeen(s, 'guide-protocols-run'),
-  },
-  {
-    id: 'guide-protocol-restrict',
-    title: 'The restriction',
-    body: [
-      'Each card mutes one system for this run. Network, Foundry, Furnace, shards, guns, shields, or Salvage — read the line before you start.',
-      'The rest of the ship still works. The mute is the lesson.',
-    ],
-    target: 'protocol-mute-network',
-    tab: 'protocols',
-    screen: 'protocols',
-    group: 'protocols-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'protocols') &&
-      (guideSeen(s, 'guide-protocols') || guideSeen(s, 'guide-protocols-run')) &&
-      !guideSeen(s, 'guide-protocol-restrict'),
-  },
-  {
-    id: 'guide-protocol-persist',
-    title: 'What stays, what wipes',
-    body: [
-      'Start wipes Cores and Salvage, and Network bar levels. The lane restarts at sector 1.',
-      'Protocol ranks persist, and so do Foundry stock, Furnace upgrades, shards, and Research. Abandon ends the run with no rank.',
-    ],
-    target: 'protocols-list',
-    tab: 'protocols',
-    screen: 'protocols',
-    group: 'protocols-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-protocol-restrict') && !guideSeen(s, 'guide-protocol-persist'),
-  },
-  {
-    id: 'guide-protocol-start',
-    title: 'How to begin and end',
-    body: [
-      'Tap Start on a card when you mean to enter. This walkthrough will not launch one for you.',
-      'Abandon on the active card ends it. Rewards are permanent formula changes — they apply at every level of that system, even when the number looks small.',
-    ],
-    target: 'protocol-mute-network',
-    tab: 'protocols',
-    screen: 'protocols',
-    group: 'protocols-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-protocol-persist') && !guideSeen(s, 'guide-protocol-start'),
-  },
-  {
-    id: 'guide-protocol-first',
-    title: 'Read Mute Network first',
-    body: [
-      'Restriction: drone bars grant nothing. Reward: Network levels scale harder — not a flat damage shop.',
-      'This does not simply add 5%. It improves how Network scales at every level. Start only when you are ready.',
-    ],
-    target: 'protocol-mute-network',
-    tab: 'protocols',
-    screen: 'protocols',
-    group: 'protocols-v2',
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-protocol-start') && !guideSeen(s, 'guide-protocol-first'),
-  },
-  {
-    id: 'guide-protocol-formula',
-    title: 'Formula rewards',
-    body: [
-      'Protocol prizes bend growth, exponents, drain, and cost curves. A tiny exponent still compounds across every Network level you own.',
-      'Tap a Protocol name for the next prize and everything you already earned.',
-    ],
-    target: 'protocols-list',
-    tab: 'protocols',
-    screen: 'protocols',
-    group: 'protocols-v2',
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-protocol-first') && !guideSeen(s, 'guide-protocol-formula'),
-  },
-  {
-    id: 'guide-protocol-repeat',
-    title: 'Repeat clears',
-    body: [
-      'Each extra clear still pays, with a harder goal. Later ranks ease growth further or unlock a milestone such as stronger Relays.',
-      'Process can restart a Protocol you have already cleared by hand. It will not skip the first lesson.',
-    ],
-    target: 'protocols-list',
-    tab: 'protocols',
-    screen: 'protocols',
-    group: 'protocol-repeat',
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'protocols') &&
-      Object.values(s.protocols?.ranks ?? {}).some((n) => (n ?? 0) > 0) &&
-      !guideSeen(s, 'guide-protocol-repeat'),
-  },
-  {
-    id: 'guide-protocol-auto',
-    title: 'Protocol auto restart',
-    body: [
-      'Auto restart re-enters the Protocol you picked, after a clear, if Repeat is on.',
-      'Config lives under Process → Protocol Repeat. First clear is still by hand.',
-    ],
-    target: 'process-protocol-repeat',
-    tab: 'process',
-    screen: 'process',
-    group: 'protocol-auto',
-    tap: false,
-    availableWhen: (s) =>
-      Boolean(s.process?.purchased.includes('protocol-repeat')) &&
-      !guideSeen(s, 'guide-protocol-auto') &&
-      guideSeen(s, 'guide-process-v2-buy'),
-  },
-  {
-    id: 'guide-echo',
-    title: 'Echo Runs',
-    body: [
-      'Open More and tap Echo. Short gauntlets. The ship keeps its Cores.',
-      'Echo points buy a tree that persists. Launch the run from Dock after you queue it here.',
-      'First move: queue the first gauntlet, then Launch from Dock.',
-    ],
-    target: 'station-echo',
-    tab: 'stats',
-    group: 'echo',
-    required: true,
-    availableWhen: (s) => isSystemUnlocked(s, 'echo') && !guideSeen(s, 'guide-echo'),
-    completeWhen: (_s, tab) => tab === 'echo',
-  },
-  {
-    id: 'guide-echo-tree',
-    title: 'Gauntlet, then tree',
-    body: [
-      'Queue an Echo, Launch from Dock, finish the waves, spend points on the tree.',
-      'The lane you left is saved. Abandon returns you. Opens at sector 22.',
-    ],
-    target: 'echo-tree',
-    tab: 'echo',
-    screen: 'echo',
-    group: 'echo',
-    required: true,
-    availableWhen: (s) => guideSeen(s, 'guide-echo') && !guideSeen(s, 'guide-echo-tree'),
-  },
-  {
-    id: 'guide-specialists',
-    title: 'Specialists',
-    body: [
-      'Open More and tap Specialists. Print Gunner, Warden, and Scavenger.',
-      'They are not on the battlefield. Ranks persist when the hull does not.',
-    ],
-    target: 'station-specialists',
-    tab: 'stats',
-    group: 'specialists',
-    availableWhen: (s) => isSystemUnlocked(s, 'specialists') && !guideSeen(s, 'guide-specialists'),
-    completeWhen: (_s, tab) => tab === 'specialists',
-  },
-  {
-    id: 'guide-specialists-rank',
-    title: 'Print and rank',
-    body: [
-      'Gunner is damage, Warden is shield, Scavenger is salvage. Spend Salvage and Heat here.',
-      'Mastery from ranks feeds the ship. They never appear as extra hulls on Sortie.',
-    ],
-    target: 'specialists-list',
-    tab: 'specialists',
-    screen: 'specialists',
-    group: 'specialists',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-specialists') && !guideSeen(s, 'guide-specialists-rank'),
-  },
-  {
-    id: 'guide-tasks',
-    title: 'Task List',
-    body: [
-      'Open More and tap Task List. A checklist — Capital does not open for a sector number alone.',
-      'Finish the work, then Capital can light.',
-    ],
-    target: 'station-tasks',
-    tab: 'stats',
-    group: 'tasks',
-    availableWhen: (s) => isSystemUnlocked(s, 'tasks') && !guideSeen(s, 'guide-tasks'),
-    completeWhen: (_s, tab) => tab === 'tasks',
-  },
-  {
-    id: 'guide-tasks-list',
-    title: 'The checklist',
-    body: [
-      'Each row is a gate. Done stays done across Rebuild.',
-      'Capital waits on this list and sector 75. Do not skip rows hoping the door opens anyway.',
-    ],
-    target: 'tasks-list',
-    tab: 'tasks',
-    screen: 'tasks',
-    group: 'tasks',
-    availableWhen: (s) => guideSeen(s, 'guide-tasks') && !guideSeen(s, 'guide-tasks-list'),
-  },
-  {
-    id: 'guide-capital',
-    title: 'Capital',
-    body: [
-      'Open More and tap Capital. Second combat scale on this ship: Broadside, Bulkhead, Hold.',
-      'No fighters. No towers. Needs sector 75 and a finished Task List.',
-    ],
-    target: 'station-capital',
-    tab: 'stats',
-    group: 'capital',
-    availableWhen: (s) => isSystemUnlocked(s, 'capital') && !guideSeen(s, 'guide-capital'),
-    completeWhen: (_s, tab) => tab === 'capital',
-  },
-  {
-    id: 'guide-capital-tracks',
-    title: 'On the ship',
-    body: [
-      'Broadside is damage, Bulkhead is hull, Hold is salvage. Rank them with Salvage and Heat.',
-      'These persist. They are not extra ships on the lane.',
-    ],
-    target: 'capital-tracks',
-    tab: 'capital',
-    screen: 'capital',
-    group: 'capital',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-capital') && !guideSeen(s, 'guide-capital-tracks'),
-  },
-  {
-    id: 'guide-reinforce',
-    title: 'Reinforce',
-    body: [
-      'Open More and tap Reinforce. Second prestige. Rebuild swaps guns. Reinforce keeps the foundry.',
-      'The lane starts again, meaner. Opens at sector 80.',
-    ],
-    target: 'station-reinforce',
-    tab: 'stats',
-    group: 'reinforce',
-    availableWhen: (s) => isSystemUnlocked(s, 'reinforce') && !guideSeen(s, 'guide-reinforce'),
-    completeWhen: (_s, tab) => tab === 'reinforce',
-  },
-  {
-    id: 'guide-reinforce-go',
-    title: 'Keeps the shop',
-    body: [
-      'Reinforce spends a Rebuild-like reset but keeps Foundry stock and recipe levels.',
-      'Future kits grow. Use it when the current hull has nothing left to teach you.',
-    ],
-    target: 'reinforce-go',
-    tab: 'reinforce',
-    screen: 'reinforce',
-    group: 'reinforce',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-reinforce') && !guideSeen(s, 'guide-reinforce-go'),
-  },
-  {
-    id: 'guide-salvage',
-    title: 'Salvage',
-    body: [
-      'Sorties keep dropping Salvage. Open Cores anytime to raise run levels.',
-      'Hull lost keeps those levels. Rebuild wipes them so you can swap the loadout. Tap a Core name for every stat.',
-    ],
-    target: 'salvage-stat',
-    tab: 'combat',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-upgrade-plate') &&
-      (s.resources.salvage > 0 || careerHighestSector(s) >= 1) &&
-      !guideSeen(s, 'guide-salvage'),
-  },
-  {
-    id: 'guide-part-drop',
-    title: 'Foundry stock',
-    body: [
-      'The Foundry is online. Open Foundry and queue a recipe — wrecks feed the smelters.',
-      'Skip this if you already walked the Foundry tour.',
-    ],
-    target: 'foundry-tab',
-    screen: 'foundry',
-    group: 'foundry',
-    availableWhen: (s) =>
-      (s.meta.discoveredModules?.length ?? 0) > 0 &&
-      !guideSeen(s, 'guide-part-drop') &&
-      !guideSeen(s, 'guide-foundry'),
-    completeWhen: (_s, tab) => tab === 'foundry' || guideSeen(_s, 'guide-foundry'),
-  },
-  {
-    id: 'guide-codex-tab',
-    title: 'Codex',
-    body: [
-      'Open More and tap Codex. Encounter memory — families you have actually fought.',
-      'This is a reference, not a shop. Nothing to spend.',
-    ],
-    target: 'station-codex',
-    tab: 'stats',
-    group: 'codex',
-    availableWhen: (s) => isSystemUnlocked(s, 'codex') && !guideSeen(s, 'guide-codex-tab'),
-    completeWhen: (_s, tab) => tab === 'codex',
-  },
-  {
-    id: 'guide-codex-families',
-    title: 'Families',
-    body: [
-      'Each family you have seen lists a soft counter for the loadout you are flying.',
-      'Unknown signatures stay sealed until that hull shows up on the lane.',
-    ],
-    target: 'codex-families',
-    tab: 'codex',
-    screen: 'codex',
-    group: 'codex',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-codex-tab') && !guideSeen(s, 'guide-codex-families'),
-  },
-  {
-    id: 'guide-codex-roles',
-    title: 'Hull roles',
-    body: [
-      'Fighter, skirmisher, sniper, and the rest are stand-off classes. Silhouettes on the lane match these names.',
-      'Use this when a wave feels unfair — it usually names the counter. The next door waits until you leave.',
-    ],
-    target: 'codex-roles',
-    tab: 'codex',
-    screen: 'codex',
-    group: 'codex',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-codex-families') && !guideSeen(s, 'guide-codex-roles'),
-  },
-  {
-    id: 'guide-ai-tab',
-    title: 'Process',
-    body: [
-      'Open More and tap Process. The hangar is learning the chores you already know how to do.',
-      'Achievements grant Process points. Available is spendable. Earned is lifetime and never drops when you buy.',
-      'First move: buy Core Buy Max or Network Optimise if you can afford them — cheap helpers that show why Process exists. Opens after First Blood (clear sector 1).',
-    ],
-    target: 'station-process',
-    tab: 'stats',
-    group: 'process',
-    required: true,
-    availableWhen: (s) => isSystemUnlocked(s, 'process') && !guideSeen(s, 'guide-ai-tab'),
-    completeWhen: (_s, tab) => tab === 'process',
-  },
-  {
-    id: 'guide-process-v2-what',
-    title: 'What Process is',
-    body: [
-      'Process is the account learning your jobs. It is not a scarce one-off build pick.',
-      'Over time you can own most of the board. Automation copies work you have already done by hand.',
-    ],
-    target: 'process-available',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-v2',
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'process') &&
-      !guideSeen(s, 'guide-process-v2-what') &&
-      (guideSeen(s, 'guide-ai-tab') ||
-        (s.process?.purchased.length ?? 0) > 0 ||
-        (s.meta.completedAchievements ?? []).includes('first-blood')),
-  },
-  {
-    id: 'guide-process-v2-earn',
-    title: 'How points arrive',
-    body: [
-      'Process Points come from mastery: sector records, Cores, Network, Foundry, Research, Rebuilds, and unusual firsts.',
-      'Repeating a solved loop is a poor farm. The Log pane lists what still pays.',
-    ],
-    target: 'process-earned',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'process') &&
-      guideSeen(s, 'guide-process-v2-what') &&
-      !guideSeen(s, 'guide-process-v2-earn'),
-  },
-  {
-    id: 'guide-process-v2-ledger',
-    title: 'Available vs Earned',
-    body: [
-      'Process Available is what you can spend right now.',
-      'Process Earned is lifetime points. It never drops when you buy a node.',
-    ],
-    target: 'process-earned',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-process-v2-earn') && !guideSeen(s, 'guide-process-v2-ledger'),
-  },
-  {
-    id: 'guide-process-v2-automation',
-    title: 'Automation',
-    body: [
-      'Automation nodes add helpers, then settings, then full loops.',
-      'They expose controls. They should not silently pick a build for you.',
-    ],
-    target: 'process-automation',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-process-v2-ledger') && !guideSeen(s, 'guide-process-v2-automation'),
-  },
-  {
-    id: 'guide-process-v2-qol',
-    title: 'QoL',
-    body: [
-      'QoL nodes make the sitting kinder: longer offline, faster combat sim, and similar comforts.',
-      'They are not the same as Automation. Buy them when the sitting needs them.',
-    ],
-    target: 'process-qol',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-process-v2-automation') && !guideSeen(s, 'guide-process-v2-qol'),
-  },
-  {
-    id: 'guide-process-v2-accumulation',
-    title: 'Accumulation',
-    body: [
-      'Lifetime Process Earned unlocks permanent account milestones: Salvage, Network speed, offline cap, and more.',
-      'Spending points does not slow Accumulation. Only Earned counts.',
-    ],
-    target: 'process-accumulation',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-process-v2-qol') && !guideSeen(s, 'guide-process-v2-accumulation'),
-  },
-  {
-    id: 'guide-process-v2-understand',
-    title: 'Learn it first',
-    body: [
-      'Unlock automation after you understand the underlying system.',
-      'Cores Buy Max waits until you have ranked a Core. Network Optimise waits until you have assigned drones.',
-    ],
-    target: 'process-automation',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-process-v2-accumulation') && !guideSeen(s, 'guide-process-v2-understand'),
-  },
-  {
-    id: 'guide-process-v2-buy',
-    title: 'First purchase',
-    body: [
-      'Buy a cheap helper that matches work you already do. Core Buy Max or Network Optimise if you can afford them.',
-      'Spending Available does not reduce Earned.',
-    ],
-    target: 'process-first-buy',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-v2',
-    required: true,
-    tap: false,
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-process-v2-understand') && !guideSeen(s, 'guide-process-v2-buy'),
-    completeWhen: (s) => (s.process?.purchased.length ?? 0) > 0,
-  },
-  {
-    id: 'guide-process-network',
-    title: 'Network helper',
-    body: [
-      'Network Optimise is a manual tap. It applies the mix you chose — Push, Defence, Farm, Industry, Research, Balanced, or custom ratios.',
-      'Auto Optimise comes later. It will not invent a hidden best allocation.',
-    ],
-    target: 'network-optimise-btn',
-    tab: 'network',
-    screen: 'network',
-    group: 'process-network',
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'process') &&
-      isSystemUnlocked(s, 'network') &&
-      !guideSeen(s, 'guide-process-network') &&
-      guideSeen(s, 'guide-process-v2-buy') &&
-      !s.process?.purchased.includes('network-balance') &&
-      (s.process?.purchased.includes('network-optimise') ||
-        (s.resources.aiPoints >= 4 &&
-          Object.values(s.shipyard.moduleLevels ?? {}).some((n) => n > 0))),
-  },
-  {
-    id: 'guide-process-queue',
-    title: 'Queues',
-    body: [
-      'A queue is an ordered list you write. Smelters or Research pull the next item you lined up.',
-      'Turn Auto on only after the queue shows the work you want repeated.',
-    ],
-    target: 'process-foundry-queue',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-queue',
-    tap: false,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'foundry') &&
-      !guideSeen(s, 'guide-process-queue') &&
-      (s.process?.purchased.includes('foundry-queue') || s.process?.purchased.includes('research-queue')) &&
-      !s.process?.purchased.includes('foundry-auto') &&
-      !s.process?.purchased.includes('research-focus'),
-  },
-  {
-    id: 'guide-process-config',
-    title: 'Priorities live here',
-    body: [
-      'Configurable automation is useless if you cannot see the knobs.',
-      'Core priorities, Network presets, and keep/scrap rules sit on the Process node after you buy them.',
-    ],
-    target: 'process-config',
-    tab: 'process',
-    screen: 'process',
-    group: 'process-config',
-    tap: false,
-    availableWhen: (s) =>
-      !guideSeen(s, 'guide-process-config') &&
-      (s.process?.purchased.includes('core-priority') ||
-        s.process?.purchased.includes('network-presets') ||
-        s.process?.purchased.includes('reliquary-keep')),
-  },
-  {
-    id: 'guide-challenges',
-    title: 'Protocols unlocked',
-    body: [
-      'Sector 18 — open More and tap Protocols. Restricted sorties that change how a system scales. Optional.',
-    ],
-    target: 'station-protocols',
-    tab: 'stats',
-    group: 'protocols',
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'protocols') &&
-      !s.protocols?.activeId &&
-      !guideSeen(s, 'guide-challenges') &&
-      !guideSeen(s, 'guide-protocols'),
-    completeWhen: (_s, tab) => tab === 'protocols' || guideSeen(_s, 'guide-protocols'),
-  },
-  {
-    id: 'guide-logs',
-    title: 'Foundry Logs',
-    body: [
-      'Open More and tap Foundry Logs. Short industrial notes as doors and bosses open.',
-      'Flavour, not a system you have to spend in.',
-    ],
-    target: 'station-logs',
-    tab: 'stats',
-    group: 'logs',
-    availableWhen: (s) =>
-      guideSeen(s, 'guide-furnace') &&
-      (s.prestige.prestigeCount ?? 0) >= 1 &&
-      !guideSeen(s, 'guide-logs'),
-    completeWhen: (_s, tab) => tab === 'logs',
+    tap: true,
+    availableWhen: (s) => isSystemUnlocked(s, 'research') && !guideSeen(s, 'guide-research-focus'),
   },
 ]
+
 /** Dock/launch/sortie/cores tips that must not reappear after the first soft reset. */
 export const STARTER_GUIDE_IDS = [
-  'guide-shipyard-tab',
-  'guide-frame-select',
   'guide-launch',
-  'guide-sortie-field',
-  'guide-sortie-guns',
-  'guide-sortie-hull',
-  'guide-sortie-salvage',
-  'guide-salvage-lesson',
-  'guide-cores-sheet',
+  'guide-sortie-fire',
+  'guide-salvage-first',
   'guide-upgrade-pulse',
   'guide-upgrade-plate',
-  'guide-cores-inspect',
   'guide-cores-persist',
-  'guide-relaunch-upgraded',
+  'guide-relaunch',
 ] as const
 
-/** In-screen Network lessons after the door. Replay if a career never opened Network. */
-export const NETWORK_GUIDE_IDS = [
-  'guide-drone-cap',
-  'guide-network-make',
-  'guide-network-assign',
-  'guide-network-sortie',
-  'guide-network-bars',
-  'guide-network-links',
-] as const
+/** First Network assignment. Skip dismisses Strike and Ward. */
+export const NETWORK_GUIDE_IDS = ['guide-network-strike', 'guide-network-ward'] as const
 
-export const NETWORK_RELAY_GUIDE_IDS = [
-  'guide-network-relay',
-  'guide-network-relay-parent',
-] as const
+export const NETWORK_RELAY_GUIDE_IDS = [] as const
 
-export const PROTOCOL_V2_GUIDE_IDS = [
-  'guide-protocol-restrict',
-  'guide-protocol-persist',
-  'guide-protocol-start',
-  'guide-protocol-first',
-  'guide-protocol-formula',
-] as const
+export const PROTOCOL_V2_GUIDE_IDS = [] as const
 
-export const FOUNDRY_V2_GUIDE_IDS = [
-  'guide-foundry-what',
-  'guide-foundry-slots',
-  'guide-foundry-progress',
-  'guide-foundry-mastery-why',
-  'guide-foundry-points',
-] as const
+export const FOUNDRY_V2_GUIDE_IDS = ['guide-foundry-recipe', 'guide-foundry-mastery'] as const
 
-export const RESEARCH_V2_GUIDE_IDS = [
-  'guide-research-xp',
-  'guide-research-branches',
-  'guide-research-focus-how',
-  'guide-research-node',
-  'guide-research-bt-exist',
-  'guide-research-choice',
-] as const
+export const RESEARCH_V2_GUIDE_IDS = ['guide-research-focus'] as const
 
-/** First-Rebuild hangar walkthrough. Skip dismisses the whole group. */
-export const REBUILD_GUIDE_IDS = [
-  'guide-prestige-tab',
-  'guide-prestige-ready',
-  'guide-prestige-hangar',
-  'guide-prestige-confirm',
-] as const
+/** Rebuild uses the hangar KEEP/RESET modal, not a spotlight tour. */
+export const REBUILD_GUIDE_IDS = [] as const
 
-/** Furnace 2.0 tour after the door. Skip on the first step dismisses the group. */
-export const FURNACE_V2_GUIDE_IDS = [
-  'guide-furnace-v2-ash',
-  'guide-furnace-v2-heat',
-  'guide-furnace-v2-cap',
-  'guide-furnace-v2-rate',
-  'guide-furnace-v2-channel',
-  'guide-furnace-v2-consume',
-  'guide-furnace-v2-levels',
-  'guide-furnace-v2-limit',
-  'guide-furnace-v2-bank',
-  'guide-furnace-v2-activate',
-  'guide-furnace-v2-net',
-] as const
+export const FURNACE_V2_GUIDE_IDS = ['guide-furnace-light'] as const
 
 function markGuideSeen(seen: string[], id: string): boolean {
   if (seen.includes(id)) return false

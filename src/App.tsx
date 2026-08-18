@@ -1,7 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { TabId } from './game/types'
 import { useGame } from './hooks/useGame'
-import { activeGuideStep, isHangarGuideStep, isHubTabOpen } from './game/progression'
+import {
+  activeGuideStep,
+  guideAutoTabs,
+  guidePausesSimulation,
+  isHubTabOpen,
+} from './game/progression'
 import { contentKeys } from './game/hubAttention'
 import { wavesForSector } from './game/sectors'
 import { setActiveNumberNotation } from './game/format'
@@ -60,6 +65,7 @@ export default function App() {
   const [hangarOpen, setHangarOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
+  const [blockingModal, setBlockingModal] = useState(false)
   const [toasts, setToasts] = useState<QueuedToast[]>([])
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
   const [coresRequest, setCoresRequest] = useState<{ key: number; moduleId?: string } | null>(null)
@@ -72,8 +78,11 @@ export default function App() {
   const live = !game.state.combat.docked || dying
   const waves = wavesForSector(game.state.combat.sector)
   const guide =
-    dying || reportOpen ? null : activeGuideStep(game.state, tab, heldGuideId, { hangarOpen })
-  game.simPausedRef.current = Boolean(guide) || simulatorOpen
+    dying || reportOpen || hangarOpen || blockingModal
+      ? null
+      : activeGuideStep(game.state, tab, heldGuideId)
+  const pauseSim = guidePausesSimulation(guide) || hangarOpen || blockingModal || simulatorOpen
+  game.simPausedRef.current = pauseSim
 
   const go = useCallback(
     (next: TabId) => {
@@ -171,12 +180,7 @@ export default function App() {
   }, [game.state.combat.lastSortie, game.state.combat.docked, dying])
 
   useEffect(() => {
-    if (!guide || !hangarOpen) return
-    if (!isHangarGuideStep(guide)) setHangarOpen(false)
-  }, [guide, hangarOpen])
-
-  useEffect(() => {
-    if (!guide?.tab || dying) return
+    if (!guideAutoTabs(guide) || !guide?.tab || dying) return
     if (!game.state.combat.docked && guide.tab !== 'combat') return
     if (guide.id === lastGuideId.current) return
     lastGuideId.current = guide.id
@@ -197,7 +201,7 @@ export default function App() {
     setToasts((q) => enqueueToasts(q, incoming, Date.now()))
   }, [game.state])
 
-  const toastSuppressed = Boolean(guide) || hangarOpen || reportOpen
+  const toastSuppressed = pauseSim || reportOpen
 
   useEffect(() => {
     if (toasts.length === 0 || toastSuppressed) return
@@ -221,7 +225,7 @@ export default function App() {
   }, [tab, focusTarget])
 
   return (
-    <div className={guide ? 'app app-guide-lock' : 'app'}>
+    <div className={guidePausesSimulation(guide) ? 'app app-guide-lock' : 'app'}>
       <div className="chrome-top">
       <header className="topbar">
         <div className="brand-cluster">
@@ -269,7 +273,7 @@ export default function App() {
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
             onMarkCoresSeen={() => game.markHubSeen('cores')}
-            paused={Boolean(guide)}
+            paused={pauseSim}
             guide={guide}
             coresRequest={coresRequest}
             onOpenFoundry={() => {
@@ -357,6 +361,7 @@ export default function App() {
             onBack={() => go('stats')}
             onEnter={game.enterProtocol}
             onAbandon={game.abandonProtocol}
+            onBlockingChange={setBlockingModal}
           />
         )}
         {tab === 'echo' && (
@@ -398,6 +403,7 @@ export default function App() {
             state={game.state}
             onBack={() => go('stats')}
             onReinforce={game.performReinforce}
+            onBlockingChange={setBlockingModal}
           />
         )}
         {tab === 'logs' && <LogsTab state={game.state} onBack={() => go('stats')} />}
@@ -436,7 +442,12 @@ export default function App() {
       {reportOpen && game.state.combat.lastSortie.outcome ? (
         <SortieReport
           summary={game.state.combat.lastSortie}
+          state={game.state}
           onClose={() => setReportOpen(false)}
+          onUpgradeCores={() => {
+            setReportOpen(false)
+            applyToastNav({ kind: 'cores', moduleId: 'pulse-cannon' })
+          }}
         />
       ) : null}
 
@@ -459,7 +470,7 @@ export default function App() {
         onDismiss={(id) => setToasts((q) => dismissToast(q, id))}
         onAction={applyToastNav}
       />
-      <PwaUpdateBanner escapeHatch={Boolean(guide?.required)} />
+      <PwaUpdateBanner escapeHatch={Boolean(guide && guidePausesSimulation(guide))} />
     </div>
   )
 }

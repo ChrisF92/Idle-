@@ -90,7 +90,7 @@ export function FurnaceTab({
         </h2>
         <p>
           {open
-            ? 'Light channels with Heat. Ask what you want to power.'
+            ? 'Spend Heat to power temporary boosts.'
             : 'Clear sector 5 to light the Furnace.'}
         </p>
       </header>
@@ -105,32 +105,26 @@ export function FurnaceTab({
                 {formatCompact(heat, 1)} / {formatCompact(cap, 1)}
               </strong>
             </p>
-            <p data-guide="furnace-cap">
-              <span className="muted">Capacity</span>
-              <strong>{formatCompact(cap, 1)}</strong>
-            </p>
-            <p data-guide="furnace-gen">
-              <span className="muted">Generating</span>
-              <strong>{signed(gen)}/s</strong>
-            </p>
-            <p data-guide="furnace-consume">
-              <span className="muted">Consuming</span>
-              <strong>{formatCompact(use, 2)}/s</strong>
-            </p>
             <p className={net < -0.0005 ? 'furnace-net is-drain' : 'furnace-net'} data-guide="furnace-net">
               <span className="muted">Net</span>
-              <strong>
-                {signed(net)}/s
-                {net < -0.0005 && heat > 0 ? ` · ${Math.max(1, Math.round(heat / -net))}s tank` : ''}
-              </strong>
+              <strong>{signed(net)}/s</strong>
             </p>
             <p data-guide="furnace-slots">
-              <span className="muted">Channels lit</span>
+              <span className="muted">Channels</span>
               <strong>
                 {lit} / {slots}
               </strong>
             </p>
           </div>
+          <details className="network-explain">
+            <summary>Heat details</summary>
+            <p data-guide="furnace-cap">
+              Capacity {formatCompact(cap, 1)} · Generating {signed(gen)}/s · Consuming {formatCompact(use, 2)}/s
+            </p>
+            <p data-guide="furnace-gen" className="muted">
+              Ash burn {formatCompact(furnaceAshBurnPerSec(state, hive), 2)}/s
+            </p>
+          </details>
           {starve ? <p className="furnace-starve">{starve}</p> : null}
           <p className="muted" data-guide="furnace-ash">
             {formatCompact(ash, 1)} Choir-ash · {formatCompact(furnaceAshBurnPerSec(state, hive), 2)} ash/s
@@ -150,7 +144,7 @@ export function FurnaceTab({
           </p>
           {presetsOn && onPreset ? (
             <div className="process-config-block" data-guide="furnace-presets">
-              <p className="muted">Presets write wanted channels. They do not invent a hidden mix.</p>
+              <p className="muted">Presets set which channels you want lit.</p>
               <p className="assign-row">
                 {(Object.keys(FURNACE_PRESETS) as FurnacePresetId[]).map((id) => (
                   <button
@@ -220,7 +214,7 @@ export function FurnaceTab({
                           }
                           onClick={() => onSetChannel(ch.id, lv)}
                         >
-                          {lv === 0 ? 'Off' : roman(lv)}
+                          {lv === 0 ? 'Off' : lv === 1 && wanted === 0 ? 'Light' : roman(lv)}
                           {warn ? ' · drain' : ''}
                         </button>
                       )

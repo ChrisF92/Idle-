@@ -221,7 +221,7 @@ export function FoundryTab({
         </p>
       </header>
       {!open ? (
-        <p className="muted empty-state">Recipes, Foundry Points, and fitted bits land here.</p>
+        <p className="muted empty-state">Turn Salvage into permanent materials. Opens at sector 2.</p>
       ) : (
         <>
           <SheetTabs value={pane} onChange={setPane} options={FOUNDRY_PANES} label="Foundry panes" />

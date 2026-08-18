@@ -5,7 +5,6 @@ import {
   getNetworkBar,
   isNetworkBarUnlocked,
   networkBarCapped,
-  networkCycleMult,
   networkEffectLabel,
   networkFillCap,
   networkFillRate,
@@ -15,7 +14,6 @@ import {
   networkLevels,
   networkLinkCost,
   networkLinkEffectLabel,
-  networkLinkPower,
   networkLinkRank,
   networkPrimaryBars,
   networkProgress,
@@ -23,7 +21,7 @@ import {
   networkRelayId,
   type NetworkBarDef,
 } from '../game/network'
-import { droneCap, dronePower, idleWorkers } from '../game/catalog'
+import { droneCap, idleWorkers } from '../game/catalog'
 import { formatCompact } from '../game/format'
 import {
   inspectNetworkBar,
@@ -150,7 +148,7 @@ function BarRow({
                 ? 'At fill cap. Extra drones here do little — assign the Relay.'
                 : bar.layer === 'relay'
                   ? 'At fill cap. Extra drones here do little — assign the Lattice if it is open.'
-                  : 'At fill cap. Extra drones here do little — spread the corps.'}
+                  : 'At fill cap. Extra drones here do little — spread them.'}
             </p>
           ) : null}
           <div className={assigned > 0 ? 'network-fill is-active' : 'network-fill'} aria-hidden>
@@ -163,6 +161,7 @@ function BarRow({
             <strong>{assigned}</strong>
             <button
               type="button"
+              data-guide={`network-${bar.id}-plus`}
               disabled={idle <= 0}
               onClick={(e) => {
                 markLocalOk(e.currentTarget)
@@ -201,9 +200,6 @@ export function NetworkSheet({
 }: NetworkSheetProps) {
   const idle = idleWorkers(state)
   const cap = droneCap(state)
-  const power = dronePower(state)
-  const link = networkLinkPower(state)
-  const cycle = networkCycleMult(state)
 
   return (
     <div className={compact ? 'network-sheet network-sheet-compact' : 'network-sheet'}>
@@ -211,7 +207,7 @@ export function NetworkSheet({
         <>
       <p className={`network-corps${idleHighlight ? ' just-ready' : ''}`} data-guide="network-corps">
         <InspectName
-          name={`Corps ${state.base.workerDrones}/${cap}`}
+          name={`Drones ${state.base.workerDrones}/${cap}`}
           card={inspectNetworkOverview(state)}
         />
         <span className={idle > 0 ? 'status-tag live' : 'muted'}>
@@ -219,8 +215,7 @@ export function NetworkSheet({
         </span>
       </p>
       <p className="network-row-stats">
-        Link power {formatCompact(link, 2)} · efficiency ×{power.toFixed(2)} · cycle ×
-        {cycle.toFixed(2)}
+        {idle > 0 ? `${idle} idle. Assign drones to Strike or Ward.` : 'All drones assigned.'}
       </p>
       <h3 className="foundry-heading">Bars</h3>
       {networkPrimaryBars().map((bar) => (
@@ -231,7 +226,7 @@ export function NetworkSheet({
           <h3 className="foundry-heading" data-guide="network-infra">
             Infrastructure
           </h3>
-          <p className="muted">Relays improve the bar behind them. They are not a second damage shop.</p>
+          <p className="muted">Relays improve the bar behind them.</p>
           {networkInfraBars()
             .filter((bar) => networkInfraVisible(state, bar))
             .map((bar) => (

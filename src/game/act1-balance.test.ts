@@ -106,31 +106,15 @@ describe('Act 1 authored formulas', () => {
 })
 
 describe('Act 1 onboarding audit', () => {
-  it('pauses on each major system door and keeps copy free of designer jargon', () => {
+  it('does not pause on system doors and keeps copy free of designer jargon', () => {
     const byId = new Map(GUIDE_STEPS.map((s) => [s.id, s]))
-    for (const id of [
-      'guide-launch',
-      'guide-foundry',
-      'guide-reliquary',
-      'guide-furnace',
-      'guide-research-tab',
-      'guide-prestige-tab',
-      'guide-ai-tab',
-      'guide-protocols',
-      'guide-echo',
-    ]) {
+    for (const id of ['guide-launch', 'guide-foundry-recipe', 'guide-furnace-light', 'guide-research-focus']) {
       expect(byId.has(id)).toBe(true)
+      expect(byId.get(id)?.required).not.toBe(true)
     }
-    expect(byId.get('guide-foundry')?.required).toBe(true)
-    expect(byId.get('guide-research-tab')?.required).toBe(true)
-    expect(byId.get('guide-furnace')?.required).toBe(true)
-    expect(byId.get('guide-reliquary')?.required).toBe(true)
-    expect(byId.get('guide-prestige-tab')?.required).toBe(true)
-    expect(byId.get('guide-ai-tab')?.required).toBe(true)
-    expect(byId.get('guide-protocols')?.required).toBe(true)
-    expect(byId.get('guide-echo')?.required).toBe(true)
+    expect(GUIDE_STEPS.every((s) => s.kind !== 'critical')).toBe(true)
     const blob = [
-      ...GUIDE_STEPS.flatMap((s) => [s.title, ...s.body]),
+      ...GUIDE_STEPS.flatMap((s) => [s.title, ...(Array.isArray(s.body) ? s.body : [s.body])]),
       ...Object.values(SCREEN_HELP).flatMap((h) => [h.title, ...h.body]),
     ].join('\n')
     expect(blob).not.toMatch(JARGON)
@@ -138,13 +122,12 @@ describe('Act 1 onboarding audit', () => {
     expect(blob).toMatch(/Heat/)
   })
 
-  it('Skip of a system door does not retire a later v2 tour', () => {
+  it('Skip of Research focus does not invent a later desk tour', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 7
-    const skipped = skipOnboarding(s, 'guide-research-tab')
-    expect(skipped.meta.seenOnboarding).toContain('guide-research-tab')
-    expect(skipped.meta.seenOnboarding).not.toContain('guide-research-xp')
-    expect(activeGuideStep(skipped, 'research')?.id).toBe('guide-research-xp')
+    const skipped = skipOnboarding(s, 'guide-research-focus')
+    expect(skipped.meta.seenOnboarding).toContain('guide-research-focus')
+    expect(activeGuideStep(skipped, 'research')).toBeNull()
   })
 
   it('inspect sheets explain why damage, Network, Furnace, Rebuild, and Research change', () => {
