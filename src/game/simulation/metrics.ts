@@ -3,6 +3,7 @@ import { RESOURCE_LABELS } from '../state'
 import { idleWorkers, moduleLevel } from '../catalog'
 import { networkDiagnostics } from '../network'
 import { isSystemUnlocked } from '../progression'
+import { isResearchBreakthroughIndex } from '../hiveResearch'
 import type {
   CorePurchaseRecord,
   CoreSpendingSummary,
@@ -102,6 +103,15 @@ function hiveNodes(state: GameState): number {
   const c = state.hiveResearch?.completed
   if (!c) return 0
   return (c.material ?? 0) + (c.energy ?? 0) + (c.observation ?? 0)
+}
+
+function researchBreakthroughs(state: GameState | null): number {
+  if (!state?.hiveResearch?.completed) return 0
+  let n = 0
+  for (const done of Object.values(state.hiveResearch.completed)) {
+    for (let i = 0; i < (done ?? 0); i++) if (isResearchBreakthroughIndex(i)) n += 1
+  }
+  return n
 }
 
 export function addMilestone(
@@ -216,6 +226,8 @@ export function observeState(
     ['research', 'Hive Research'],
     ['process', 'Process'],
     ['network', 'Network'],
+    ['protocols', 'Protocols'],
+    ['echo', 'Echo'],
   ]
   for (const [id, label] of unlocks) {
     if (metrics.seenUnlocks.has(id)) continue
@@ -232,6 +244,8 @@ export function observeState(
       if (id === 'furnace') addMilestone(metrics, 'furnace-unlock', 'Furnace unlock', activeSeconds, calendarSeconds)
       if (id === 'reliquary') addMilestone(metrics, 'reliquary-unlock', 'Reliquary unlock', activeSeconds, calendarSeconds)
       if (id === 'research') addMilestone(metrics, 'hive-research-unlock', 'Hive Research', activeSeconds, calendarSeconds)
+      if (id === 'protocols') addMilestone(metrics, 'unlock-protocols', 'Protocols', activeSeconds, calendarSeconds)
+      if (id === 'echo') addMilestone(metrics, 'unlock-echo', 'Echo', activeSeconds, calendarSeconds)
       metrics.seenUnlocks.add(id)
       noteMeaningful(metrics, `${label} unlocked`, activeSeconds)
     }
@@ -241,6 +255,12 @@ export function observeState(
   if (nodes > 0 && metrics.hiveNodesSeen === 0) {
     addMilestone(metrics, 'first-hive-research-node', 'First Hive Research node', activeSeconds, calendarSeconds)
     noteMeaningful(metrics, 'First Hive Research node', activeSeconds)
+  }
+  const prevBt = researchBreakthroughs(prev)
+  const nowBt = researchBreakthroughs(state)
+  if (nowBt > 0 && prevBt === 0) {
+    addMilestone(metrics, 'first-research-bt', 'First Research breakthrough', activeSeconds, calendarSeconds)
+    noteMeaningful(metrics, 'First Research breakthrough', activeSeconds)
   }
   metrics.hiveNodesSeen = nodes
 

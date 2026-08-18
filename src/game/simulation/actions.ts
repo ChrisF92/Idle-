@@ -19,6 +19,7 @@ import {
   unlockModule,
   upgradeModule,
   assignWorker,
+  enterProtocol,
 } from '../actions'
 import { setCampaign, setDocked } from '../tick'
 import {
@@ -49,6 +50,8 @@ import {
   foundryRecipeLevel,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
+  foundrySalvageReserve,
+  scaledFoundryCost,
 } from '../foundry'
 import {
   FURNACE_UPGRADES,
@@ -64,6 +67,7 @@ import { PROCESS_NODES, canBuyProcessNode, hasProcess } from '../process'
 import { SHARDS, shardOwned, fittedShardId, isReliquarySlotUnlocked } from '../reliquary'
 import { careerHighestSector, GUIDE_STEPS, isSystemUnlocked } from '../progression'
 import { HIVE_RESEARCH_UNLOCK_SECTOR } from '../hiveResearch'
+import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
 import type { StrategyContext } from './types'
 
 export function skipGuides(state: GameState): GameState {
@@ -141,7 +145,8 @@ function coreScore(
   if (level >= MAX_MODULE_LEVEL) return -1
   if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return -1
   const cost = moduleUpgradeCost(level, moduleId)
-  if (cost > state.resources.salvage || cost <= 0) return -1
+  const reserved = foundrySalvageReserve(state)
+  if (cost > state.resources.salvage - reserved || cost <= 0) return -1
   const before = computeShipStats(state)
   const probe = structuredClone(state)
   probe.resources.salvage += cost
@@ -319,20 +324,20 @@ export function tendFoundry(state: GameState, ctx: StrategyContext): GameState {
     const current = next.foundry.slots[i]?.recipeId ?? null
     if (current) continue
     const salvage = next.resources.salvage
-    const pulseCost = moduleUpgradeCost(
-      moduleLevel(next.shipyard.moduleLevels, 'pulse-cannon'),
-      'pulse-cannon',
-    )
-    // Do not starve Core upgrades — only smelt when salvage is ahead of the next Pulse rank.
-    let recipe: FoundryRecipeId | null = isFoundryRecipeUnlocked(next, 'filament') ? 'filament' : null
-    if (salvage > pulseCost * 3 && isFoundryRecipeUnlocked(next, 'slag-ingot')) {
+    const slagCost = scaledFoundryCost(next, 'slag-ingot').salvage ?? 10
+    let recipe: FoundryRecipeId | null = null
+    if (isFoundryRecipeUnlocked(next, 'filament')) recipe = 'filament'
+    if (isFoundryRecipeUnlocked(next, 'slag-ingot') && salvage >= slagCost) {
       recipe = 'slag-ingot'
     }
     for (const def of FOUNDRY_RECIPES) {
       if (!isFoundryRecipeUnlocked(next, def.id)) continue
-      if (foundryRecipeLevel(next, def.id) < 4 && def.costs.materials) continue
       if (def.id === 'slag-ingot' || def.id === 'filament') continue
-      if (salvage > pulseCost * 4) recipe = def.id
+      if ((next.foundry.recipeLevels[def.id] ?? 0) >= 4 && def.costs.materials) {
+        recipe = def.id
+        break
+      }
+      if (!def.costs.materials && salvage > slagCost * 2) recipe = def.id
     }
     if (!recipe) continue
     const after = setFoundrySlot(next, i, recipe)
@@ -406,14 +411,30 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   return next
 }
 
-export function tendHiveResearch(state: GameState, ctx: StrategyContext): GameState {
+export function tendHiveResearch(
+  state: GameState,
+  ctx: StrategyContext,
+  mode: 'active' | 'casual' | 'optimiser' = 'active',
+): GameState {
   if (careerHighestSector(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return state
   const salvage = state.resources.salvage
   const pulseCost = moduleUpgradeCost(
     moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon'),
     'pulse-cannon',
   )
-  const want = salvage < pulseCost * 2 ? 'material' : 'energy'
+  const material = state.hiveResearch?.completed.material ?? 0
+  const energy = state.hiveResearch?.completed.energy ?? 0
+  const observation = state.hiveResearch?.completed.observation ?? 0
+  let want: 'material' | 'energy' | 'observation' =
+    salvage < pulseCost * 2 ? 'material' : 'energy'
+  if (mode === 'optimiser') {
+    if (energy < 3) want = 'energy'
+    else if (material < 3) want = 'material'
+    else if (observation < 3) want = 'observation'
+    else if (energy < 6) want = 'energy'
+    else if (material < 6) want = 'material'
+    else want = observation < 9 ? 'observation' : 'energy'
+  }
   if (state.hiveResearch?.focus === want) return state
   const next = setResearchFocus(state, want)
   if (next !== state) ctx.record(`research-focus ${want}`)
@@ -573,6 +594,17 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
   return after
 }
 
+export function tendProtocols(state: GameState, ctx: StrategyContext): GameState {
+  if (!state.combat.docked) return state
+  if (state.protocols?.activeId) return state
+  if ((state.shipyard.moduleLevels['pulse-cannon'] ?? 0) > 0) return state
+  const pick = PROTOCOLS.find((p) => canEnterProtocol(state, p.id).ok && protocolRank(state, p.id) < PROTOCOL_MAX_RANK)
+  if (!pick) return state
+  const after = enterProtocol(state, pick.id)
+  if (after !== state) ctx.recordMeaningful(`Protocol ${pick.name}`)
+  return after
+}
+
 export function industryPass(
   state: GameState,
   ctx: StrategyContext,
@@ -580,14 +612,15 @@ export function industryPass(
 ): GameState {
   let next = state
   next = maybeUnlockAndFit(next, ctx)
+  next = tendFoundry(next, ctx)
   next = spendSalvageOnCores(next, ctx, mode)
   next = rebalanceNetwork(next, ctx)
   next = buyUsefulNetworkLinks(next, ctx)
-  next = tendFoundry(next, ctx)
   next = tendFurnace(next, ctx)
-  next = tendHiveResearch(next, ctx)
+  next = tendHiveResearch(next, ctx, mode)
   next = tendProcess(next, ctx)
   next = tendReliquary(next, ctx)
   next = spendRebuildMatter(next, ctx)
+  if (mode === 'optimiser') next = tendProtocols(next, ctx)
   return next
 }

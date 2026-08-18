@@ -1,12 +1,9 @@
 /**
- * Theoretical run-time estimates (combat DPS vs wave hull).
+ * Theoretical combat-only floors. Authored Act 1 windows live in
+ * `src/game/balance/act1.ts` and `docs/act1-balance.md`.
  *
- * ITRTG mapping:
- * - First prestige (S10) ≈ first Hyperion soft-reset (~1h real with overhead)
- * - First Act 1 / S30 ≈ first Tyrant Overlord Baal (tutorial end, ~1–2 weeks)
- *
- * Length = many prestiges into a steep late hull wall. Permanents (research,
- * shops, momentum, chrono) make each re-push faster — not empty repetition.
+ * This file still prints a combat-DPS estimate so a hull curve change is visible.
+ * Do not treat these numbers as the player-facing calendar.
  */
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
@@ -133,7 +130,7 @@ function estimateCareerToAct1(): { combatSeconds: number; prestiges: number } {
   return { combatSeconds: combat, prestiges }
 }
 
-describe('balance estimates (ITRTG Baal-scale Act 1)', () => {
+describe('balance estimates (combat floors, not the Act 1 calendar)', () => {
   it('documents theoretical combat push times', () => {
     const fresh = createInitialState(0)
     const firstPrestige = pushSeconds(fresh, 1, PRESTIGE_MIN_SECTOR)
@@ -152,7 +149,7 @@ describe('balance estimates (ITRTG Baal-scale Act 1)', () => {
     // eslint-disable-next-line no-console -- intentional balance report
     console.log(
       [
-        '=== Cosmic Idle balance estimates ===',
+        '=== Combat-only floor estimates (see docs/act1-balance.md) ===',
         `Waves/sector: 2–4 + boss · Prestige min: S${PRESTIGE_MIN_SECTOR}`,
         `First → S${PRESTIGE_MIN_SECTOR} (Hyperion-like): ${formatDuration(firstPrestige)} combat`,
         `Naive fresh → S30: ${formatDuration(naiveAct1)} combat (wall)`,

@@ -10,8 +10,6 @@ import {
   challengeBlocksAi,
   idleWorkers,
   isStationUnlocked,
-  moduleLevel,
-  moduleUpgradeCost,
 } from './catalog'
 import {
   assembleBlueprint,
@@ -37,13 +35,13 @@ import {
   mergeSignalCores,
 } from './signalCores'
 import { hasProcess, processConfig } from './process'
-import { protocolCoreScalingAdd } from './protocols'
 import {
   FOUNDRY_RECIPES,
   buyFoundryUpgrade,
   foundryMaterialCount,
   foundryRecipeLevel,
   foundrySlotCount,
+  foundrySalvageReserve,
   isFoundryInfinite,
   isFoundryRecipeUnlocked,
   setFoundrySlot,
@@ -221,19 +219,14 @@ function autoBankAsh(state: GameState): void {
 
 function pickSmartSmeltRecipe(state: GameState, busy: Set<string>): FoundryRecipeId | null {
   const salvage = state.resources.salvage
-  const pulseCost = moduleUpgradeCost(
-    moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon'),
-    'pulse-cannon',
-    protocolCoreScalingAdd(state, 'weapon'),
-  )
-  const starve = salvage < pulseCost * 2.5
+  const reserve = foundrySalvageReserve(state)
   let best: FoundryRecipeId | null = null
   let bestScore = -1
   for (const def of FOUNDRY_RECIPES) {
     if (!isFoundryRecipeUnlocked(state, def.id)) continue
     if (isFoundryInfinite(state, def.id)) continue
     if (busy.has(def.id) && foundrySlotCount(state) < 3) continue
-    if (starve && (def.costs.salvage ?? 0) > 0) continue
+    if ((def.costs.salvage ?? 0) > 0 && salvage < Math.max(def.costs.salvage ?? 0, reserve)) continue
     const level = foundryRecipeLevel(state, def.id)
     let score = 20 - Math.min(12, level)
     if (def.costs.materials) score += 4
@@ -243,7 +236,7 @@ function pickSmartSmeltRecipe(state: GameState, busy: Set<string>): FoundryRecip
       best = def.id
     }
   }
-  if (!best && !starve && isFoundryRecipeUnlocked(state, 'slag-ingot') && !isFoundryInfinite(state, 'slag-ingot')) {
+  if (!best && isFoundryRecipeUnlocked(state, 'slag-ingot') && !isFoundryInfinite(state, 'slag-ingot')) {
     best = 'slag-ingot'
   }
   if (!best && isFoundryRecipeUnlocked(state, 'filament') && !isFoundryInfinite(state, 'filament')) {

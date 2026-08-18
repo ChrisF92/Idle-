@@ -35,7 +35,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Home. Launch a sortie from here. Combat keeps running if you stay on Dock after Launch.',
-      'Hull lost docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
+      'Hull lost docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter. Matter rises with the sector you reached this hull and the Rebuilds you have already done.',
     ],
   },
   combat: {
@@ -50,7 +50,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Network',
     body: [
       'Drones are a finite workforce. Assign them to bars. Strike is damage, Ward is shields, Yield is salvage, Loom is manufacture, Archive is Research data. Reassign when the job changes. Idle drones do nothing. Close is good enough.',
-      'Later Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop. Links (racks, acuity, cycle) persist on Rebuild. Bar levels reset.',
+      'Each completed cycle takes longer than the last, so early levels land quickly and later ones ask for more corps. Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop. Links persist on Rebuild. Bar levels reset.',
       'Tap a bar name for live numbers. Drones never fly on Sortie.',
     ],
   },
@@ -65,14 +65,14 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Reliquary',
     body: [
       'Fit one shard per colour. Extra copies of the fitted shard charge resonance and raise the same bonus.',
-      'Red and orange open at sector 3. Pink waits until 6. Green opens later. Tap a chip name for owned copies and the live effect. Shards persist when you Rebuild.',
+      'Red and orange open at sector 3. Pink waits until 6. Blue opens at 19, or earlier from an Observation breakthrough. Green opens later. Tap a chip name for owned copies and the live effect. Shards persist when you Rebuild.',
     ],
   },
   furnace: {
     title: 'Furnace',
     body: [
       'Kills drop Choir-ash on their own. Ash feeds a live Heat tank. Light Furnace Channels for temporary boosts — Weapons, Shielding, Network, Foundry, Research, Recovery.',
-      'Opens at sector 5. You cannot power every channel at once. Stronger levels cost several times the Heat. Heat also buys Network Links. Upgrades persist on Rebuild; the tank resets unless Ember Lock is ranked.',
+      'Opens at sector 5. Heat is a budget: lighting another channel, or a stronger level, costs several times more. If generation cannot cover drain, a channel goes dark. Heat also buys Network Links. Upgrades persist on Rebuild; the tank resets unless Ember Lock is ranked.',
     ],
   },
   research: {

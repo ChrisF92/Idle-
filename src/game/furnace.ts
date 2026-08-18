@@ -187,16 +187,27 @@ export const FURNACE_PRESETS: Record<
   research: { name: 'Research', blurb: 'Research + Network.', wanted: { research: 1, network: 1 } },
 }
 
-const BASE_IDLE_GEN = 0.02
-const HEARTH_IDLE = 0.035
-const BASE_ASH_FEED = 0.055
-const HEARTH_FEED = 0.03
-const BASE_CAPACITY = 24
-const CISTERN_GROWTH = 1.38
-const FLUE_PER = 0.1
-const BELLOWS_PER = 0.1
-const KINDLE_PER = 0.18
-const EMBER_PER = 0.22
+export const FURNACE_BASE_IDLE_GEN = 0.02
+export const FURNACE_HEARTH_IDLE = 0.035
+export const FURNACE_BASE_ASH_FEED = 0.055
+export const FURNACE_HEARTH_FEED = 0.03
+export const FURNACE_BASE_CAPACITY = 24
+export const FURNACE_CISTERN_GROWTH = 1.38
+export const FURNACE_FLUE_PER = 0.1
+export const FURNACE_BELLOWS_PER = 0.1
+export const FURNACE_KINDLE_PER = 0.18
+export const FURNACE_EMBER_PER = 0.22
+
+const BASE_IDLE_GEN = FURNACE_BASE_IDLE_GEN
+const HEARTH_IDLE = FURNACE_HEARTH_IDLE
+const BASE_ASH_FEED = FURNACE_BASE_ASH_FEED
+const HEARTH_FEED = FURNACE_HEARTH_FEED
+const BASE_CAPACITY = FURNACE_BASE_CAPACITY
+const CISTERN_GROWTH = FURNACE_CISTERN_GROWTH
+const FLUE_PER = FURNACE_FLUE_PER
+const BELLOWS_PER = FURNACE_BELLOWS_PER
+const KINDLE_PER = FURNACE_KINDLE_PER
+const EMBER_PER = FURNACE_EMBER_PER
 
 function emptyLevels(): Record<FurnaceChannelId, number> {
   return { weapons: 0, shielding: 0, network: 0, foundry: 0, research: 0, recovery: 0 }

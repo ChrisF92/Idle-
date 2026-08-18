@@ -81,9 +81,14 @@ export function formatSummary(report: SimulationReport): string {
     milestoneLine(run, 'first-pulse-upgrade', 'First Pulse upgrade'),
     milestoneLine(run, 'first-plate-upgrade', 'First Plate upgrade'),
     milestoneLine(run, 'foundry-unlock', 'Foundry unlock'),
+    milestoneLine(run, 'reliquary-unlock', 'Reliquary unlock'),
     milestoneLine(run, 'furnace-unlock', 'Furnace unlock'),
+    milestoneLine(run, 'hive-research-unlock', 'Research unlock'),
+    milestoneLine(run, 'first-research-bt', 'First Research BT'),
     milestoneLine(run, 'first-rebuild', 'First Rebuild'),
     milestoneLine(run, 'sector-10', 'Sector 10'),
+    milestoneLine(run, 'unlock-protocols', 'Protocols'),
+    milestoneLine(run, 'unlock-echo', 'Echo'),
     milestoneLine(run, 'sector-20', 'Sector 20'),
     milestoneLine(run, 'sector-30', 'Sector 30'),
     '',
@@ -130,7 +135,35 @@ export function formatSummary(report: SimulationReport): string {
     `Mults: dmg ×${run.network.multipliers.strike.toFixed(2)}  shield ×${run.network.multipliers.ward.toFixed(2)}  salvage ×${run.network.multipliers.salvage.toFixed(2)}  mfg ×${run.network.multipliers.manufacture.toFixed(2)}`,
     `Links: racks ${run.network.links.racks ?? 0}, acuity ${run.network.links.acuity ?? 0}, cycle ${run.network.links.cycle ?? 0}`,
     '',
+    '----------------------------------------',
+    'RESEARCH / PROCESS / FOUNDRY / FURNACE',
+    '----------------------------------------',
+    '',
+    `Research: M${run.research.material} E${run.research.energy} O${run.research.observation}  focus ${run.research.focus}  BT ${run.research.breakthroughs}`,
+    `Process: earned ${run.process.earned}  unspent ${run.process.available}  bought ${run.process.purchased.length}`,
+    `Foundry: FP ${run.foundry.points}  recipes ${Object.keys(run.foundry.recipeLevels).length}  fitted ${run.foundry.equipped.join(', ') || 'none'}`,
+    `Furnace: heat +${run.furnace.heatEarned.toFixed(1)} / −${run.furnace.heatSpent.toFixed(1)}  channels ${JSON.stringify(run.furnace.active)}`,
+    `Protocols: ${JSON.stringify(run.protocols.ranks)}  Echo tree ${run.echo.owned.join(', ') || 'none'}`,
+    '',
   )
+  const snap = run.snapshots[run.snapshots.length - 1]
+  if (snap) {
+    const c = snap.contribution
+    lines.push(
+      '----------------------------------------',
+      'ACT 1 SNAPSHOT',
+      '----------------------------------------',
+      '',
+      `At ${snap.at}  active ${formatSimDuration(snap.activeSeconds)}  calendar ${formatSimDuration(snap.calendarSeconds)}`,
+      `Sector ${snap.sector} (ever ${snap.highestEver})  Pulse ${snap.pulse}  Plate ${snap.plate}`,
+      `Network Strike ${snap.strike} Ward ${snap.ward} drones ${snap.drones}/${snap.droneCap} relays ${snap.relays}`,
+      `Foundry recipes ${snap.foundryRecipes} FP ${snap.foundryPoints} furnace lit ${snap.furnaceLit}/${snap.furnaceSlots}`,
+      `Research M${snap.research.material} E${snap.research.energy} O${snap.research.observation} BT ${snap.researchBreakthroughs}`,
+      `Process earned ${snap.processEarned} bought ${snap.processPurchased} Rebuilds ${snap.rebuilds}`,
+      `Damage extras: Network +${(c.networkDamage * 100).toFixed(0)}%  Furnace +${(c.furnaceDamage * 100).toFixed(0)}%  Reliquary +${(c.reliquaryDamage * 100).toFixed(0)}%  Research +${(c.researchDamage * 100).toFixed(0)}%  Rebuild momentum +${(c.rebuildMomentum * 100).toFixed(0)}%`,
+      '',
+    )
+  }
   if (run.economy.length > 0) {
     lines.push('----------------------------------------', 'ECONOMY', '----------------------------------------', '')
     for (const row of run.economy) {

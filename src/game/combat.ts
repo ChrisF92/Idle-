@@ -143,10 +143,16 @@ export function isBossSector(sector: number): boolean {
 }
 
 /**
- * USI: salvage drops on every kill; amount scales with sector
- * (hover the sector bar). S1 trash = 1 so the first Laser level (cost 3)
- * lands after the opening pack.
+ * Salvage per kill. S1 trash = 1 so the first Pulse rank (cost 3) lands
+ * after the opening pack. S1–S4 stay linear. After that the curve bends
+ * so Cores cannot vacuum every other system before the first Rebuild.
  */
+export function salvageSectorBase(sector: number): number {
+  const s = Math.max(1, sector)
+  if (s <= 4) return s
+  return 4 * Math.pow(s / 4, 0.7)
+}
+
 export function salvageFromKill(
   sector: number,
   isBoss: boolean,
@@ -155,7 +161,7 @@ export function salvageFromKill(
 ): number {
   if (state && protocolMutes(state, 'salvage')) return 0
   const exp = 1 + (state ? protocolModifiers(state).salvageSectorExpAdd : 0)
-  const raw = (isBoss ? 5 : 1) * Math.pow(Math.max(1, sector), exp)
+  const raw = (isBoss ? 5 : 1) * Math.pow(salvageSectorBase(sector), exp)
   return Math.max(1, Math.floor(raw * routeSalvageMult(normalizeRoute(route))))
 }
 
@@ -348,15 +354,15 @@ export function enemyForSector(
 export const ENEMY_EARLY_SECTOR = 8
 export const ENEMY_MID_SECTOR = 18
 
-const ENEMY_HULL_BASE = 1.55
-const ENEMY_HULL_EARLY = 1.235
-const ENEMY_HULL_MID = 1.18
-const ENEMY_HULL_LATE = 1.22
+export const ENEMY_HULL_BASE = 1.55
+export const ENEMY_HULL_EARLY = 1.235
+export const ENEMY_HULL_MID = 1.18
+export const ENEMY_HULL_LATE = 1.22
 
-const ENEMY_DMG_BASE = 0.9
-const ENEMY_DMG_EARLY = 1.28
-const ENEMY_DMG_MID = 1.155
-const ENEMY_DMG_LATE = 1.245
+export const ENEMY_DMG_BASE = 0.9
+export const ENEMY_DMG_EARLY = 1.28
+export const ENEMY_DMG_MID = 1.155
+export const ENEMY_DMG_LATE = 1.245
 
 function piecewiseSectorScale(
   sector: number,

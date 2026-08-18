@@ -159,7 +159,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Core Buy Max',
     category: 'cores',
     kind: 'automation',
-    blurb: 'Adds a Buy Max control on Cores. Spends Salvage according to your current priority.',
+    blurb: 'Adds a Buy Max control on Cores. Spends Salvage according to your current priority, and leaves enough for a Foundry slag craft so the smelter is not starved.',
     cost: 4,
     requiresMastery: 'cores',
   },

@@ -137,8 +137,8 @@ describe('Research milestones: costs', () => {
   it('keeps SAVE_VERSION at 33 and an achievable first node', () => {
     expect(SAVE_VERSION).toBe(33)
     const s = atResearch()
-    expect(hiveResearchNodeCost(0)).toBe(38)
-    expect(hiveResearchNodeCost(0, s)).toBe(38)
+    expect(hiveResearchNodeCost(0)).toBe(52)
+    expect(hiveResearchNodeCost(0, s)).toBe(52)
   })
 
   it('grows smoothly with a modest bump on breakthroughs, without a 6400 wall', () => {
@@ -146,8 +146,8 @@ describe('Research milestones: costs', () => {
     for (let i = 1; i < costs.length; i++) {
       expect(costs[i]!).toBeGreaterThan(costs[i - 1]!)
     }
-    expect(costs[2]!).toBeGreaterThan(Math.floor(38 * Math.pow(1.46, 2)))
-    expect(costs[8]!).toBeLessThan(2000)
+    expect(costs[2]!).toBeGreaterThan(Math.floor(52 * Math.pow(1.5, 2)))
+    expect(costs[8]!).toBeLessThan(2500)
     expect(costs[8]!).toBeLessThan(6400)
   })
 })

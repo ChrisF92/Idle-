@@ -95,8 +95,8 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     name: 'Slag Ingot',
     blurb: 'Salvage smelted into stock plate. Later recipes eat these.',
     maxLevel: 20,
-    craftTime: 8,
-    costs: { salvage: 16 },
+    craftTime: 6,
+    costs: { salvage: 10 },
     requiresSectorEver: 2,
     unlocksRecipe: { recipeId: 'hardened-plate', atLevel: 8 },
   },
@@ -105,8 +105,8 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     name: 'Filament',
     blurb: 'Drawn scrap wire for relays and pins.',
     maxLevel: 20,
-    craftTime: 8,
-    costs: { scrap: 6 },
+    craftTime: 6,
+    costs: { scrap: 5 },
     requiresSectorEver: 2,
     unlocksRecipe: { recipeId: 'relay', atLevel: 4 },
   },
@@ -742,6 +742,20 @@ export function scaledFoundryCost(state: GameState, id: FoundryRecipeId): Foundr
     }
   }
   return costs
+}
+
+/**
+ * Salvage Buy Max / Auto Salvage leave this much in the bank so an empty
+ * smelter can still start Slag Ingot. Manual Core taps are unaffected.
+ * Pulse and Plate L1 stay free of the reserve so the opening shop identity holds.
+ */
+export function foundrySalvageReserve(state: GameState): number {
+  if (careerEver(state) < 2) return 0
+  if ((state.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1) return 0
+  if ((state.shipyard.moduleLevels['plate-layer'] ?? 0) < 1) return 0
+  if (!isFoundryRecipeUnlocked(state, 'slag-ingot')) return 0
+  if (isFoundryInfinite(state, 'slag-ingot')) return 0
+  return scaledFoundryCost(state, 'slag-ingot').salvage ?? 10
 }
 
 export function foundryMaterialCount(state: GameState, id: string): number {

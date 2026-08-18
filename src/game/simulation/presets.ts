@@ -64,6 +64,21 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
     { type: 'first-rebuild' },
   ),
   preset(
+    'optimiser-first-rebuild',
+    'Optimiser → First Rebuild',
+    'Value-spend Cores and chase Research breakthroughs until the first Rebuild.',
+    'optimiser',
+    { type: 'first-rebuild' },
+  ),
+  preset(
+    'fresh-hour-1',
+    'Fresh → First hour',
+    'Engaged hour-1 sitting from a fresh save.',
+    'active',
+    { type: 'active-duration', seconds: 60 * 60 },
+    { deadlockSeconds: 25 * 60, maxIterations: 400_000, maxCalendarSeconds: 2 * 3600 },
+  ),
+  preset(
     'fresh-sector-30',
     'Fresh → Sector 30',
     'Active career through Act 1 (sector 30) across genuine Rebuilds.',

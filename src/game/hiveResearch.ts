@@ -158,12 +158,12 @@ export function createEmptyHiveResearchState(): HiveResearchState {
 }
 
 function nodeCostBump(index: number): number {
-  return isResearchBreakthroughIndex(index) ? 1.28 : 1
+  return isResearchBreakthroughIndex(index) ? 1.3 : 1
 }
 
 export function hiveResearchNodeCost(index: number, state?: GameState): number {
   const mult = state ? protocolModifiers(state).researchCostMult : 1
-  const raw = 38 * Math.pow(1.46, Math.max(0, index))
+  const raw = 52 * Math.pow(1.5, Math.max(0, index))
   return Math.max(1, Math.floor(raw * nodeCostBump(index) * mult))
 }
 
@@ -441,7 +441,7 @@ export function killResearchXp(state: GameState, isBoss: boolean): number {
   if (careerHighestSector(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return 0
   const sector = Math.max(1, state.combat.sector)
   const route = routeResearchMult(normalizeRoute(state.combat.route))
-  return (1 + 0.12 * (sector - 1)) * (isBoss ? 2.5 : 1) * route
+  return (0.58 + 0.085 * (sector - 1)) * (isBoss ? 2.5 : 1) * route
 }
 
 function tryCompleteNodes(state: GameState, branch: HiveResearchBranch): void {

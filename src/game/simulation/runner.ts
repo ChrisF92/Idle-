@@ -28,7 +28,9 @@ import { closeSession, getStrategy } from './strategies'
 import { BALANCE_TARGETS, evaluateTarget } from './targets'
 import { stopLabel } from './presets'
 import { aggregateMilestones } from './report'
+import { captureAct1Snapshot } from '../balance/act1'
 import type {
+  Act1Snapshot,
   CorePurchaseRecord,
   RebuildRecord,
   SafetyFlag,
@@ -133,7 +135,11 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
   const safety: SafetyFlag[] = []
   const limitations: StrategyLimitation[] = [
     {
-      system: 'Protocols / Echo / Specialists / Tasks / Capital / Yard / Reinforce',
+      system: 'Protocols / Echo',
+      note: 'Ticked by the real game loop. Optimiser may enter Mute Network after a Rebuild once Protocols open; Echo is still not played intelligently.',
+    },
+    {
+      system: 'Specialists / Tasks / Capital / Yard / Reinforce',
       note: 'Present in state and ticked where the real game ticks them, but the player strategy does not operate them intelligently yet.',
     },
     {
@@ -156,6 +162,8 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     config.strategy === 'casual' ? (config.session?.activeSeconds ?? 10 * 60) : Infinity
   let lastProgressKey = ''
   let lastProgressTime = 0
+  let lastSnapshotCount = 0
+  const snapshots: Act1Snapshot[] = []
   const strategy = getStrategy(config.strategy)
 
   const ctxFor = (): StrategyContext => ({
@@ -303,6 +311,22 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     state.lastTickAt = simNow
     if (config.strategy === 'casual') sessionLeft -= chunk
     observeState(metrics, state, prev, activeSeconds, calendarSeconds, chunk)
+    if (metrics.milestones.length > lastSnapshotCount) {
+      const added = metrics.milestones.slice(lastSnapshotCount)
+      lastSnapshotCount = metrics.milestones.length
+      for (const m of added) {
+        snapshots.push(
+          captureAct1Snapshot(
+            state,
+            m.id,
+            activeSeconds,
+            calendarSeconds,
+            metrics.resourceEarned.salvage ?? 0,
+          ),
+        )
+      }
+      if (snapshots.length > 48) snapshots.splice(0, snapshots.length - 48)
+    }
     trimCombatNoise(state)
 
     const faults = inspectNumericSafety(state, activeSeconds)
@@ -405,6 +429,31 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
       wanted: { ...(state.furnace?.wanted ?? {}) },
       active: { ...(state.furnace?.active ?? {}) },
     },
+    research: {
+      material: state.hiveResearch?.completed.material ?? 0,
+      energy: state.hiveResearch?.completed.energy ?? 0,
+      observation: state.hiveResearch?.completed.observation ?? 0,
+      focus: state.hiveResearch?.focus ?? 'material',
+      breakthroughs: captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds)
+        .researchBreakthroughs,
+    },
+    process: {
+      earned: state.process?.earned ?? 0,
+      available: state.resources.aiPoints,
+      purchased: [...(state.process?.purchased ?? [])],
+    },
+    protocols: {
+      ranks: { ...(state.protocols?.ranks ?? {}) },
+      activeId: state.protocols?.activeId ?? null,
+    },
+    echo: {
+      points: state.echo?.points ?? 0,
+      owned: [...(state.echo?.tree ?? [])],
+    },
+    snapshots: [
+      ...snapshots,
+      captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds, metrics.resourceEarned.salvage ?? 0),
+    ],
     economy: economyBuckets(state, metrics),
     rebuildLog: metrics.rebuildLog,
     meaningfulActions: metrics.meaningful,

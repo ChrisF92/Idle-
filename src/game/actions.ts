@@ -75,6 +75,7 @@ import {
   setFoundrySlot,
   unequipFoundryModule,
   isFoundryInfinite,
+  foundrySalvageReserve,
 } from './foundry'
 import { insertShard, removeShard } from './reliquary'
 import {
@@ -530,6 +531,10 @@ export function unequipAllModules(state: GameState): GameState {
   return next
 }
 
+function salvageAvailableForCores(state: GameState): number {
+  return Math.max(0, state.resources.salvage - foundrySalvageReserve(state))
+}
+
 export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean }): GameState {
   if (
     !opts?.force &&
@@ -548,7 +553,7 @@ export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
     const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
-    if (cost > state.resources.salvage) continue
+    if (cost > salvageAvailableForCores(state)) continue
     if (level < bestLevel || (level === bestLevel && cost < bestCost)) {
       bestId = id
       bestLevel = level
@@ -606,7 +611,7 @@ export function upgradeBestValueModule(state: GameState, opts?: { force?: boolea
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
     const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
-    if (cost <= 0 || cost > state.resources.salvage) continue
+    if (cost <= 0 || cost > salvageAvailableForCores(state)) continue
     const score = moduleUpgradeGain(state, id, level) / cost
     if (score > bestScore) {
       bestId = id
@@ -1693,7 +1698,7 @@ export function pickProcessCoreUpgrade(
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
     const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
-    if (cost <= 0 || cost > state.resources.salvage) continue
+    if (cost <= 0 || cost > salvageAvailableForCores(state)) continue
     let score = -cost
     if (want) {
       score += def.role === want ? 1000 : 0

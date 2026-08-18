@@ -54,9 +54,9 @@ export interface NetworkLinkDef {
 }
 
 /** Seconds of 1-drone work for a primary bar's first fill. */
-export const NETWORK_FILL_COST = 6
+export const NETWORK_FILL_COST = 9
 /** Soft growth so later fills take longer without dead-zoning. */
-export const NETWORK_FILL_COST_GROWTH = 0.035
+export const NETWORK_FILL_COST_GROWTH = 0.048
 /** Per-bar fill cap before Relays raise it. Extra drones on a capped bar waste work. */
 export const NETWORK_FILL_CAP_PER_SEC = 4
 /** Starting corps size — enough to split Strike / Ward. */
@@ -573,12 +573,12 @@ function primaryBonus(state: GameState, id: NetworkBarId, k: number): number {
 }
 
 export function networkStrikeMult(state: GameState): number {
-  return primaryBonus(state, 'strike', 0.08)
+  return primaryBonus(state, 'strike', 0.065)
 }
 
 export function networkWardMult(state: GameState): number {
   if (protocolMutes(state, 'shields')) return 1
-  return primaryBonus(state, 'ward', 0.08)
+  return primaryBonus(state, 'ward', 0.07)
 }
 
 export function networkSalvageMult(state: GameState): number {

@@ -91,6 +91,7 @@ export type MilestoneId =
   | 'first-hive-research-node'
   | 'first-process-purchase'
   | 'first-rebuild'
+  | 'first-research-bt'
   | 'first-reinforce'
   | `sector-${number}`
   | `rebuild-${number}`
@@ -196,6 +197,17 @@ export interface ProgressionWall {
 
 export type TargetSeverity = 'PASS' | 'WARNING' | 'FAIL' | 'SKIP'
 
+export interface BalanceTarget {
+  id: string
+  label: string
+  /** Seconds, inclusive. */
+  min: number
+  max: number
+  warningPad: number
+  milestoneId?: string
+  kind: 'milestone-time' | 'rebuild-count' | 'highest-sector'
+}
+
 export interface TargetResult {
   id: string
   label: string
@@ -219,6 +231,50 @@ export interface SimulationWarning {
 export interface StrategyLimitation {
   system: string
   note: string
+}
+
+export interface Act1Contribution {
+  networkDamage: number
+  furnaceDamage: number
+  reliquaryDamage: number
+  researchDamage: number
+  rebuildMomentum: number
+}
+
+export interface Act1Snapshot {
+  at: string
+  activeSeconds: number
+  calendarSeconds: number
+  sector: number
+  highestEver: number
+  salvage: number
+  salvageEarned: number
+  pulse: number
+  plate: number
+  drones: number
+  droneCap: number
+  strike: number
+  ward: number
+  yield: number
+  loom: number
+  archive: number
+  relays: number
+  foundrySlots: number
+  foundryPoints: number
+  foundryRecipes: number
+  foundryInfinite: number
+  furnaceSlots: number
+  furnaceLit: number
+  heat: number
+  research: { material: number; energy: number; observation: number; focus: string }
+  researchBreakthroughs: number
+  processEarned: number
+  processAvailable: number
+  processPurchased: number
+  rebuilds: number
+  protocolRanks: number
+  echoNodes: number
+  contribution: Act1Contribution
 }
 
 export interface SimulationRunReport {
@@ -253,6 +309,27 @@ export interface SimulationRunReport {
     wanted: Record<string, number>
     active: Record<string, number>
   }
+  research: {
+    material: number
+    energy: number
+    observation: number
+    focus: string
+    breakthroughs: number
+  }
+  process: {
+    earned: number
+    available: number
+    purchased: string[]
+  }
+  protocols: {
+    ranks: Record<string, number>
+    activeId: string | null
+  }
+  echo: {
+    points: number
+    owned: string[]
+  }
+  snapshots: Act1Snapshot[]
   economy: EconomyBucket[]
   rebuildLog: RebuildRecord[]
   meaningfulActions: MeaningfulAction[]

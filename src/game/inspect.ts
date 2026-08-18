@@ -33,6 +33,7 @@ import {
   networkCycleMult,
   networkEffectLabel,
   networkFillCap,
+  networkFillCost,
   networkFillRate,
   networkLevels,
   networkLinkCost,
@@ -182,7 +183,7 @@ export function inspectNetworkOverview(state: GameState): InspectCard {
     ],
     body: [
       'Drones are a finite workforce. Assign them to bars. Idle drones do nothing.',
-      'Different bars help different jobs. You can reassign any time. You do not need a perfect mix.',
+      'Each completed cycle takes longer than the last. Extra drones, Relays, and Links shorten that wait. Drones past the fill cap waste work.',
       'Later Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop.',
       'Bar levels reset on Rebuild. The corps and Link ranks stay. Drones never fly on Sortie.',
     ],
@@ -207,6 +208,7 @@ export function inspectNetworkBar(state: GameState, id: NetworkBarId): InspectCa
       { label: 'Cycle', value: `${Math.round(fill * 100)}%` },
       { label: 'Fill rate', value: rate > 0 ? `${rate.toFixed(2)}/s` : 'Idle' },
       { label: 'Fill cap', value: `${networkFillCap(state, id).toFixed(1)}/s` },
+      { label: 'Cycle work', value: `${networkFillCost(state, id).toFixed(1)} (first ${def.fillBase})` },
       { label: 'Next level', value: formatEta(eta) },
       { label: 'Now', value: networkEffectLabel(state, id) },
       { label: 'Link power', value: formatCompact(networkLinkPower(state), 2) },
@@ -391,6 +393,16 @@ export function inspectFurnaceOverview(state: GameState): InspectCard {
   const gen = furnaceGenerationPerSec(state)
   const use = furnaceConsumptionPerSec(state)
   const net = furnaceNetPerSec(state)
+  const starve = (state.furnace?.starveNote ?? '').trim()
+  const body = [
+    'Kills drop Choir-ash on their own after sector 5. Ash feeds Heat. Light channels for temporary boosts.',
+    'You cannot power every channel at once. Stronger levels cost several times the Heat.',
+    net < -0.001
+      ? 'Consuming outruns generating. When the tank hits reserve, the lowest-priority channel drops a level — that is starvation, not a silent shutdown.'
+      : 'Positive Net fills the tank. Negative Net drains it. Read Net before you light a second fire.',
+    'Upgrades persist when you Rebuild. Heat in the tank resets unless Ember Lock is ranked. Network Links still spend stored Heat.',
+  ]
+  if (starve) body.splice(2, 0, starve)
   return {
     title: 'Furnace',
     kicker: 'Heat',
@@ -406,10 +418,26 @@ export function inspectFurnaceOverview(state: GameState): InspectCard {
         value: furnaceActiveLevel(state, ch.id) > 0 ? `Lv ${furnaceActiveLevel(state, ch.id)}` : 'Off',
       })),
     ],
+    body,
+  }
+}
+
+export function inspectRebuildOverview(state: GameState): InspectCard {
+  const sector = Math.max(1, state.combat.sector)
+  const rebuilds = state.prestige.prestigeCount
+  const estimate = Math.max(1, Math.floor(sector / 2) + rebuilds + 1)
+  return {
+    title: 'Rebuild',
+    kicker: 'Hangar swap',
+    stats: [
+      { label: 'This hull sector', value: String(sector) },
+      { label: 'Rebuilds done', value: String(rebuilds) },
+      { label: 'Matter if you swap now', value: String(estimate) },
+    ],
     body: [
-      'Kills drop Choir-ash on their own after sector 5. Ash feeds Heat. Light channels for temporary boosts.',
-      'You cannot power every channel at once. Stronger levels cost several times the Heat.',
-      'Upgrades persist when you Rebuild. Heat in the tank resets unless Ember Lock is ranked. Network Links still spend stored Heat.',
+      'Rebuild swaps the hull and wipes Salvage and Core levels. Network links, Foundry recipes, shards, Research, and Furnace upgrades stay.',
+      'Matter this swap is about half the sector you reached, plus one for each Rebuild already done. Protocols can raise that later.',
+      'Swap when the push stalls and another system cannot break the wall — not every sector.',
     ],
   }
 }
@@ -689,6 +717,7 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
     body: [
       def.blurb,
       'Kills write XP into all three branches. The focused branch runs much faster. The others still crawl.',
+      `Focus is ${HIVE_RESEARCH_FOCUS_MULT}×. Switching later does not waste the other branches — they keep a background trickle.`,
       'Most nodes are small numbers. Breakthroughs unlock a mechanic — a Furnace channel, a smelter, a Reliquary slot.',
       next ? hiveResearchNodeEffectLine(next.node) : 'This branch is complete.',
       'Nodes persist when you Rebuild.',
@@ -704,6 +733,7 @@ export function inspectCopyCorpus(state: GameState): string[] {
     lines.push(card.title, card.kicker ?? '', ...card.stats.map((s) => `${s.label} ${s.value}`), ...card.body)
   }
   push(inspectNetworkOverview(state))
+  push(inspectRebuildOverview(state))
   for (const bar of NETWORK_BARS) push(inspectNetworkBar(state, bar.id))
   for (const link of NETWORK_LINKS) push(inspectNetworkLink(state, link.id))
   for (const id of state.shipyard.modules) push(inspectCore(state, id))
