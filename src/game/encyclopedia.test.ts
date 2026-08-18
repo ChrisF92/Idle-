@@ -28,9 +28,9 @@ describe('encyclopedia depth', () => {
     expect(open.meta.codexUnlocked).toBe(true)
   })
 
-  it('grows Foundry toward Synth: recipe chains, 4 slots, extra Act 1 bits', () => {
+  it('grows Foundry toward Synth: recipe chains, 5 slots, extra Act 1 bits', () => {
     expect(FOUNDRY_RECIPES.length).toBeGreaterThanOrEqual(18)
-    expect(FOUNDRY_MAX_SLOTS).toBe(4)
+    expect(FOUNDRY_MAX_SLOTS).toBe(5)
     expect(FOUNDRY_MODULE_SLOTS).toBe(2)
     expect(FOUNDRY_MODULES.some((m) => m.id === 'focus-array')).toBe(true)
     expect(FOUNDRY_MODULES.some((m) => m.id === 'pin-brace')).toBe(true)

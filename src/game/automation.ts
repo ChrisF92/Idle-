@@ -63,6 +63,7 @@ import {
   HIVE_RESEARCH_NODES,
   hiveResearchCompleted,
   hiveResearchHeatFromAshMult,
+  hiveResearchQueueCap,
   setResearchFocus,
 } from './hiveResearch'
 import { runFurnaceManager } from './furnace'
@@ -380,7 +381,7 @@ function autoResearchFocus(state: GameState): void {
     hiveResearchCompleted(state, id) < HIVE_RESEARCH_NODES[id].length
   let nextFocus = state.hiveResearch.focus
   if (hasProcess(state, 'research-queue') && cfg.research.queue.length > 0) {
-    const queued = cfg.research.queue.find(incomplete)
+    const queued = cfg.research.queue.slice(0, hiveResearchQueueCap(state)).find(incomplete)
     if (queued) nextFocus = queued
   } else if (hasProcess(state, 'research-priorities') && cfg.research.branchPriority.length > 0) {
     const ranked = cfg.research.branchPriority.find(incomplete)

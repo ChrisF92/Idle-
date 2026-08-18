@@ -42,8 +42,8 @@ import {
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { fittedRegenBonus } from './milestones'
 import { networkSalvageMult } from './network'
-import { grantReliquaryKillLoot, reliquarySalvageMult } from './reliquary'
-import { grantFurnaceKillLoot, furnaceSalvageMult } from './furnace'
+import { grantReliquaryKillLoot, reliquaryResearchXpMult, reliquarySalvageMult } from './reliquary'
+import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
 import { foundrySalvageMult, foundryPartDropMult, foundryShardDropBonus } from './foundry'
 import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
 import { yardSalvageMult } from './yard'
@@ -1742,7 +1742,11 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     hiveResearchShardDropBonus(state) + foundryShardDropBonus(state),
   )
   grantFurnaceKillLoot(state, unit.isBoss)
-  grantHiveResearchKillXp(state, unit.isBoss)
+  grantHiveResearchKillXp(
+    state,
+    unit.isBoss,
+    furnaceResearchXpMult(state) * reliquaryResearchXpMult(state),
+  )
 }
 
 function tryLootEnemyKill(

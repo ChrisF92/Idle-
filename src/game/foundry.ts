@@ -4,7 +4,13 @@ import type { FoundryRecipeId, FoundrySlot, FoundryState, GameState } from './ty
 import { networkManufactureMult } from './network'
 import { reliquaryFoundrySpeedMult } from './reliquary'
 import { furnaceFoundrySpeedMult } from './furnace'
-import { hiveResearchFoundrySpeedMult } from './hiveResearch'
+import {
+  hiveResearchFitSlots,
+  hiveResearchFoundrySlots,
+  hiveResearchFoundrySpeedMult,
+  hiveResearchInfiniteReduce,
+  hiveResearchMasteryReduce,
+} from './hiveResearch'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoFoundrySpeedMult } from './echo'
 import { processFoundrySpeedMult } from './process'
@@ -80,7 +86,7 @@ export interface FoundryModuleDef {
 }
 
 export const FOUNDRY_STARTING_SLOTS = 1
-export const FOUNDRY_MAX_SLOTS = 4
+export const FOUNDRY_MAX_SLOTS = 5
 export const FOUNDRY_MODULE_SLOTS = 2
 
 export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
@@ -595,7 +601,7 @@ export function isFoundryInfinite(state: GameState, id: string): boolean {
 }
 
 export function foundryRecipeGateNeed(state: GameState, level: number): number {
-  return Math.max(1, level - foundryMasteryGateReduce(state))
+  return Math.max(1, level - foundryMasteryGateReduce(state) - hiveResearchMasteryReduce(state))
 }
 
 export function isFoundryRecipeUnlocked(state: GameState, id: FoundryRecipeId): boolean {
@@ -629,10 +635,15 @@ export const FOUNDRY_MASTERY_STEPS: FoundryMasteryStep[] = [
   { at: 20, kind: 'infinite', blurb: 'Solved — the floor supplies this material on its own.' },
 ]
 
-export function foundryMasteryStepsFor(def: FoundryRecipeDef): FoundryMasteryStep[] {
-  const steps = FOUNDRY_MASTERY_STEPS.filter((step) => step.at < def.maxLevel && step.kind !== 'infinite')
+export function foundrySolvedLevel(state: GameState, def: FoundryRecipeDef): number {
+  return Math.max(12, def.maxLevel - hiveResearchInfiniteReduce(state))
+}
+
+export function foundryMasteryStepsFor(def: FoundryRecipeDef, state?: GameState): FoundryMasteryStep[] {
+  const cap = state ? foundrySolvedLevel(state, def) : def.maxLevel
+  const steps = FOUNDRY_MASTERY_STEPS.filter((step) => step.at < cap && step.kind !== 'infinite')
   steps.push({
-    at: def.maxLevel,
+    at: cap,
     kind: 'infinite',
     blurb: 'Solved — the floor supplies this material on its own.',
   })
@@ -643,14 +654,14 @@ export function foundryNextMastery(state: GameState, id: string): FoundryMastery
   const def = getFoundryRecipe(id)
   if (!def) return null
   const level = foundryRecipeLevel(state, id)
-  return foundryMasteryStepsFor(def).find((step) => step.at > level) ?? null
+  return foundryMasteryStepsFor(def, state).find((step) => step.at > level) ?? null
 }
 
 export function foundryReachedMastery(state: GameState, id: string): FoundryMasteryStep[] {
   const def = getFoundryRecipe(id)
   if (!def) return []
   const level = foundryRecipeLevel(state, id)
-  return foundryMasteryStepsFor(def).filter((step) => step.at <= level)
+  return foundryMasteryStepsFor(def, state).filter((step) => step.at <= level)
 }
 
 export function foundryCraftOutput(state: GameState, id: string): number {
@@ -691,6 +702,7 @@ export function foundrySlotCount(state: GameState): number {
     if (!def.extraSlots) continue
     extra += (state.foundry?.upgrades[def.id] ?? 0) * def.extraSlots
   }
+  extra += hiveResearchFoundrySlots(state)
   return Math.min(FOUNDRY_MAX_SLOTS, FOUNDRY_STARTING_SLOTS + extra)
 }
 
@@ -762,7 +774,8 @@ function grantCraft(state: GameState, id: FoundryRecipeId): void {
   const output = foundryCraftOutput(state, id)
   state.foundry.materials[id] = (state.foundry.materials[id] ?? 0) + output
   const level = foundryRecipeLevel(state, id)
-  if (level >= def.maxLevel) {
+  const solved = foundrySolvedLevel(state, def)
+  if (level >= solved) {
     markInfinite(state, id)
     return
   }
@@ -773,7 +786,7 @@ function grantCraft(state: GameState, id: FoundryRecipeId): void {
     const nextLevel = level + 1
     state.foundry.recipeLevels[id] = nextLevel
     state.foundry.points += nextLevel >= 16 ? 2 : 1
-    if (nextLevel >= def.maxLevel) markInfinite(state, id)
+    if (nextLevel >= solved) markInfinite(state, id)
   } else {
     state.foundry.recipeXp[id] = xp
   }
@@ -857,7 +870,7 @@ export function foundryShieldMult(state: GameState): number {
 }
 
 export function foundryFitSlots(state: GameState): number {
-  return FOUNDRY_MODULE_SLOTS + foundryExtraFitSlots(state)
+  return FOUNDRY_MODULE_SLOTS + foundryExtraFitSlots(state) + hiveResearchFitSlots(state)
 }
 
 export function foundryShieldFlat(state: GameState): number {

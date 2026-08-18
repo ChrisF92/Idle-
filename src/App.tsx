@@ -328,6 +328,7 @@ export default function App() {
             state={game.state}
             onBack={() => go('stats')}
             onFocus={game.setResearchFocus}
+            guideTarget={guide?.target}
           />
         )}
         {tab === 'yard' && (

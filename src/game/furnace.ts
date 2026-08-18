@@ -10,6 +10,7 @@ import type {
 } from './types'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { reliquaryAshMult } from './reliquary'
+import { hiveResearchFurnaceSlots } from './hiveResearch'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoAshMult } from './echo'
 import { mergeProcessConfig, processConfig, processFurnaceHooks } from './process'
@@ -17,7 +18,7 @@ import { mergeProcessConfig, processConfig, processFurnaceHooks } from './proces
 export const FURNACE_UNLOCK_SECTOR = 5
 export const ASH_PER_HEAT = 10
 export const FURNACE_CHANNEL_MAX = 3
-export const FURNACE_SLOT_CAP = 4
+export const FURNACE_SLOT_CAP = 5
 
 /** @deprecated old rank cap; upgrades use their own maxRank. */
 export const FURNACE_MAX_RANK = 8
@@ -291,6 +292,7 @@ export function furnaceChannelSlots(state: GameState): number {
   let slots = 1 + furnaceUpgradeRank(state, 'taps')
   if ((state.prestige?.prestigeCount ?? 0) >= 1) slots += 1
   if ((state.process?.earned ?? 0) >= 150) slots += 1
+  slots += hiveResearchFurnaceSlots(state)
   return Math.min(FURNACE_SLOT_CAP, slots)
 }
 

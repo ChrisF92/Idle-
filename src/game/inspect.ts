@@ -6,6 +6,7 @@ import type {
   FurnaceTrackId,
   FurnaceUpgradeId,
   GameState,
+  HiveResearchBranch,
   NetworkBarId,
   NetworkLinkId,
   ReliquaryColor,
@@ -97,6 +98,18 @@ import {
   scaledFoundryCost,
 } from './foundry'
 import { milestonesFor, pendingMilestone } from './milestones'
+import {
+  HIVE_RESEARCH_BRANCHES,
+  HIVE_RESEARCH_FOCUS_MULT,
+  HIVE_RESEARCH_NODES,
+  hiveResearchCompleted,
+  hiveResearchNextBreakthrough,
+  hiveResearchNodeCost,
+  hiveResearchNodeEffectLine,
+  hiveResearchUpcoming,
+  hiveResearchXp,
+  isResearchBreakthrough,
+} from './hiveResearch'
 import {
   RELIQUARY_RESONANCE_NEED,
   RELIQUARY_SLOTS,
@@ -647,6 +660,42 @@ export function inspectProtocol(state: GameState, id: string): InspectCard | nul
   }
 }
 
+export function inspectResearchBranch(state: GameState, id: HiveResearchBranch): InspectCard | null {
+  const def = HIVE_RESEARCH_BRANCHES.find((b) => b.id === id)
+  if (!def) return null
+  const nodes = HIVE_RESEARCH_NODES[id]
+  const done = hiveResearchCompleted(state, id)
+  const xp = hiveResearchXp(state, id)
+  const upcoming = hiveResearchUpcoming(state, id)
+  const next = upcoming[0]
+  const need = next ? hiveResearchNodeCost(next.index, state) : 0
+  const bt = hiveResearchNextBreakthrough(state, id)
+  const focused = (state.hiveResearch?.focus ?? 'material') === id
+  const stats: InspectStat[] = [
+    { label: 'Done', value: `${done}/${nodes.length}` },
+    { label: 'Focus', value: focused ? `${HIVE_RESEARCH_FOCUS_MULT}×` : 'Background' },
+  ]
+  if (next) {
+    stats.push(
+      { label: 'Next', value: `${next.node.name}${isResearchBreakthrough(next.node) ? ' (breakthrough)' : ''}` },
+      { label: 'XP', value: `${formatCompact(xp, 1)}/${formatCompact(need)}` },
+    )
+  }
+  if (bt) stats.push({ label: 'Breakthrough', value: `${bt.node.name} in ${bt.index - done}` })
+  return {
+    title: def.name,
+    kicker: 'Research branch',
+    stats,
+    body: [
+      def.blurb,
+      'Kills write XP into all three branches. The focused branch runs much faster. The others still crawl.',
+      'Most nodes are small numbers. Breakthroughs unlock a mechanic — a Furnace channel, a smelter, a Reliquary slot.',
+      next ? hiveResearchNodeEffectLine(next.node) : 'This branch is complete.',
+      'Nodes persist when you Rebuild.',
+    ],
+  }
+}
+
 /** Every live inspect string, for jargon tests. */
 export function inspectCopyCorpus(state: GameState): string[] {
   const lines: string[] = []
@@ -664,5 +713,6 @@ export function inspectCopyCorpus(state: GameState): string[] {
   for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
   for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))
   for (const up of FOUNDRY_UPGRADES) push(inspectFoundryUpgrade(state, up.id))
+  for (const b of HIVE_RESEARCH_BRANCHES) push(inspectResearchBranch(state, b.id))
   return lines
 }

@@ -46,7 +46,7 @@ describe('Act 1 Process depth', () => {
     expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')?.cost).toBe(4)
     expect(PROCESS_NODES.find((n) => n.id === 'auto-salvage')?.cost).toBe(8)
     expect(PROCESS_NODES.some((n) => /warp|crew|capital|reinforce/i.test(n.id))).toBe(false)
-    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(8)
+    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(9)
   })
 
   it('does not sell Auto-Salvage for First Blood Process', () => {

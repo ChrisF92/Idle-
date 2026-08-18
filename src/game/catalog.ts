@@ -1235,10 +1235,13 @@ export function frameTotalSlots(frame: ShipFrameDef): number {
   return frame.weaponSlots + frame.defenseSlots + frame.utilitySlots
 }
 
-export function frameRoleCap(frame: ShipFrameDef, role: ModuleRole): number {
-  if (role === 'weapon') return frame.weaponSlots
-  if (role === 'defense') return frame.defenseSlots
-  return frame.utilitySlots
+export function frameRoleCap(
+  frame: ShipFrameDef,
+  role: ModuleRole,
+  extra: Partial<Record<ModuleRole, number>> = {},
+): number {
+  const base = role === 'weapon' ? frame.weaponSlots : role === 'defense' ? frame.defenseSlots : frame.utilitySlots
+  return base + Math.max(0, extra[role] ?? 0)
 }
 
 /** Count fitted modules by role. */
@@ -1261,6 +1264,7 @@ export function fittedRoleSlotCounts(
 export function trimModulesToFrame(
   moduleIds: string[],
   frame: ShipFrameDef,
+  extra: Partial<Record<ModuleRole, number>> = {},
 ): string[] {
   const kept: string[] = []
   const used: Record<ModuleRole, number> = {
@@ -1271,7 +1275,7 @@ export function trimModulesToFrame(
   for (const id of moduleIds) {
     const role = getModule(id)?.role
     if (!role) continue
-    if (used[role] >= frameRoleCap(frame, role)) continue
+    if (used[role] >= frameRoleCap(frame, role, extra)) continue
     used[role] += 1
     kept.push(id)
   }
@@ -1282,12 +1286,13 @@ export function canFitModuleOnFrame(
   frame: ShipFrameDef,
   fittedModuleIds: string[],
   moduleId: string,
+  extra: Partial<Record<ModuleRole, number>> = {},
 ): boolean {
   const mod = getModule(moduleId)
   if (!mod) return false
   if (fittedModuleIds.includes(moduleId)) return false
   const used = fittedRoleSlotCounts(fittedModuleIds)
-  return used[mod.role] < frameRoleCap(frame, mod.role)
+  return used[mod.role] < frameRoleCap(frame, mod.role, extra)
 }
 
 export const SHIP_MODULES: ShipModuleDef[] = [

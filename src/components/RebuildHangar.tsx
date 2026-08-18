@@ -9,6 +9,7 @@ import {
   prestigeMinSectorFor,
   trimModulesToFrame,
 } from '../game/catalog'
+import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
 import { canPrestige, prestigeGainFor } from '../game/actions'
 import { yardPendingSummary } from '../game/yard'
 import { isSystemUnlocked } from '../game/progression'
@@ -22,10 +23,11 @@ interface RebuildHangarProps {
 
 export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps) {
   const available = SHIP_FRAMES.filter((f) => state.shipyard.unlockedFrames.includes(f.id))
+  const extra = { utility: hiveResearchExtraUtilitySlots(state) }
   const [frameId, setFrameId] = useState(state.shipyard.frameId)
   const frame = getFrame(frameId) ?? available[0]!
   const [modules, setModules] = useState(() =>
-    trimModulesToFrame(state.shipyard.modules, frame),
+    trimModulesToFrame(state.shipyard.modules, frame, extra),
   )
 
   const ready = canPrestige(state)
@@ -54,10 +56,10 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
       setModules(modules.filter((m) => m !== id))
       return
     }
-    if (!canFitModuleOnFrame(frame, modules, id)) {
+    if (!canFitModuleOnFrame(frame, modules, id, extra)) {
       const withoutRole = modules.filter((m) => getModule(m)?.role !== def.role)
-      if (canFitModuleOnFrame(frame, withoutRole, id)) {
-        setModules(trimModulesToFrame([...withoutRole, id], frame))
+      if (canFitModuleOnFrame(frame, withoutRole, id, extra)) {
+        setModules(trimModulesToFrame([...withoutRole, id], frame, extra))
       }
       return
     }
@@ -68,7 +70,7 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
     const next = getFrame(id)
     if (!next) return
     setFrameId(id)
-    setModules(trimModulesToFrame(modules, next))
+    setModules(trimModulesToFrame(modules, next, extra))
   }
 
   return (
@@ -101,7 +103,7 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
                 {f.name}
                 <span className="muted">
                   {' '}
-                  {f.weaponSlots}W {f.defenseSlots}S {f.utilitySlots}U
+                  {f.weaponSlots}W {f.defenseSlots}S {f.utilitySlots + extra.utility}U
                 </span>
               </button>
             ))}

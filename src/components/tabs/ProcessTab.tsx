@@ -28,6 +28,7 @@ import {
   processExtraPresetSlots,
 } from '../../game/process'
 import { FOUNDRY_RECIPES, foundryQueueCap } from '../../game/foundry'
+import { hiveResearchQueueCap } from '../../game/hiveResearch'
 import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
 import { NETWORK_BARS } from '../../game/network'
 import { PROTOCOLS, protocolRank } from '../../game/protocols'
@@ -494,10 +495,13 @@ function NodeConfig({
   }
   if (nodeId === 'research-queue' || nodeId === 'research-priorities' || nodeId === 'research-focus') {
     const branches: HiveResearchBranch[] = ['material', 'energy', 'observation']
+    const cap = hiveResearchQueueCap(state)
+    const queue = [...cfg.research.queue]
+    while (queue.length < cap) queue.push('' as HiveResearchBranch)
     return (
-      <div className="process-config-block">
+      <div className="process-config-block" data-guide="process-research-queue">
         {hasProcess(state, 'research-focus') ? (
-          <label className="process-config">
+          <label className="process-config" data-guide="process-research-auto">
             <input
               type="checkbox"
               checked={cfg.research.autoResearch}
@@ -506,20 +510,50 @@ function NodeConfig({
             Auto Research
           </label>
         ) : null}
-        <label className="process-config">
-          Priority order
-          <input
-            value={cfg.research.branchPriority.join(',')}
-            onChange={(e) =>
-              patch((c) => {
-                c.research.branchPriority = e.target.value
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter((id): id is HiveResearchBranch => branches.includes(id as HiveResearchBranch))
-              })
-            }
-          />
-        </label>
+        {hasProcess(state, 'research-queue') ? (
+          <>
+            <p className="muted">Focus queue · {cap} slots</p>
+            {queue.slice(0, cap).map((id, i) => (
+              <label key={i} className="process-config">
+                {i + 1}
+                <select
+                  value={id}
+                  onChange={(e) =>
+                    patch((c) => {
+                      const next = [...c.research.queue]
+                      while (next.length < cap) next.push('' as HiveResearchBranch)
+                      next[i] = e.target.value as HiveResearchBranch
+                      c.research.queue = next.filter(Boolean) as HiveResearchBranch[]
+                    })
+                  }
+                >
+                  <option value="">Empty</option>
+                  {branches.map((b) => (
+                    <option key={b} value={b}>
+                      {b[0]!.toUpperCase() + b.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </>
+        ) : null}
+        {hasProcess(state, 'research-priorities') ? (
+          <label className="process-config">
+            Priority order
+            <input
+              value={cfg.research.branchPriority.join(',')}
+              onChange={(e) =>
+                patch((c) => {
+                  c.research.branchPriority = e.target.value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter((id): id is HiveResearchBranch => branches.includes(id as HiveResearchBranch))
+                })
+              }
+            />
+          </label>
+        ) : null}
       </div>
     )
   }
@@ -662,6 +696,8 @@ export function ProcessTab({
         : guideTarget === 'process-automation' ||
             guideTarget === 'process-first-buy' ||
             guideTarget === 'process-foundry-queue' ||
+            guideTarget === 'process-research-queue' ||
+            guideTarget === 'process-research-auto' ||
             guideTarget === 'process-config' ||
             guideTarget === 'process-nodes'
           ? 'automation'

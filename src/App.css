@@ -932,6 +932,31 @@ h2 .inspect-name {
   color: var(--muted);
 }
 
+.research-preview {
+  margin: 0.35rem 0 0.2rem;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.research-lookahead {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent, #c9a227);
+}
+
+.research-breakthrough {
+  color: var(--accent, #c9a227);
+  font-weight: 650;
+}
+
+.research-row-breakthrough {
+  border-color: color-mix(in srgb, var(--accent, #c9a227) 45%, var(--line));
+}
+
 .slot-red {
   border-color: color-mix(in srgb, #c45c5c 55%, var(--line));
 }

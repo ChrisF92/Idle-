@@ -55,7 +55,7 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     s.combat.highestSector = 8
     expect(isFoundryRecipeUnlocked(s, 'choir-flux')).toBe(true)
     expect(isFoundryRecipeUnlocked(s, 'keel-strip')).toBe(false)
-    expect(FOUNDRY_MAX_SLOTS).toBe(4)
+    expect(FOUNDRY_MAX_SLOTS).toBe(5)
     s.foundry.upgrades['fp-slot'] = 1
     s.foundry.upgrades['fp-slot-2'] = 1
     s.foundry.upgrades['fp-slot-3'] = 1
@@ -77,8 +77,8 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(getEchoNode('echo-hold')?.requiresId).toBe('echo-yield')
     expect(SHARDS.some((s) => s.id === 'loom-chip')).toBe(true)
     expect(YARD_BUILDINGS.some((b) => b.id === 'choir-sieve')).toBe(true)
-    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(8)
-    expect(HIVE_RESEARCH_NODES.material).toHaveLength(8)
+    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(9)
+    expect(HIVE_RESEARCH_NODES.material).toHaveLength(9)
   })
 
   it('Ash Bank converts Choir-ash without a tap', () => {

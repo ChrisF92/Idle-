@@ -79,7 +79,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Research',
     body: [
       'Kills feed Material, Energy, and Observation. Focus one; the others still crawl.',
-      'Nodes persist across Rebuild. Opens at sector 7.',
+      'Small nodes are numbers. Breakthroughs unlock mechanics — extra Furnace channels, smelters, Reliquary slots. Nodes persist across Rebuild. Opens at sector 7.',
     ],
   },
   yard: {

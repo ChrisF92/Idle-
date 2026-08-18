@@ -10,7 +10,7 @@ import {
   NETWORK_RACK_CAP_PER_RANK,
 } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
-import { hiveResearchDataMult, hiveResearchNetworkMult } from './hiveResearch'
+import { hiveResearchDataMult, hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
 import { yardNetworkMult } from './yard'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoNetworkMult } from './echo'
@@ -379,6 +379,7 @@ export function getNetworkBar(id: string): NetworkBarDef | undefined {
 export function isNetworkBarUnlocked(state: GameState, id: NetworkBarId): boolean {
   const def = getNetworkBar(id)
   if (!def) return false
+  if (hiveResearchUnlocksRelay(state, id)) return true
   return careerEver(state) >= def.requiresSectorEver
 }
 
@@ -535,6 +536,7 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       infra *
       reliquaryNetworkMult(state) *
       hiveResearchNetworkMult(state) *
+      hiveResearchDroneEffMult(state) *
       yardNetworkMult(state) *
       protocolBonusMult(state, 'network') *
       echoNetworkMult(state) *

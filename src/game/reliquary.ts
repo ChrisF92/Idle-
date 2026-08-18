@@ -3,6 +3,7 @@
 import type { GameState, ReliquaryColor, ReliquaryState } from './types'
 import { careerHighestSector } from './progression'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
+import { hiveResearchUnlocksReliquary } from './hiveResearch'
 
 export interface ShardDef {
   id: string
@@ -206,6 +207,7 @@ export function getReliquarySlot(color: ReliquaryColor): ReliquarySlotDef | unde
 export function isReliquarySlotUnlocked(state: GameState, color: ReliquaryColor): boolean {
   const def = getReliquarySlot(color)
   if (!def) return false
+  if (hiveResearchUnlocksReliquary(state, color)) return true
   return careerHighestSector(state) >= def.requiresSectorEver
 }
 

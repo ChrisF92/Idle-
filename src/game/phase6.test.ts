@@ -22,6 +22,7 @@ import {
   hiveResearchCompleted,
   hiveResearchDamageMult,
   hiveResearchNodeCost,
+  hiveResearchShieldMult,
   hiveResearchXp,
 } from './hiveResearch'
 import { foundryCraftSpeed } from './foundry'
@@ -150,7 +151,8 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     s.hiveResearch.xp.energy = hiveResearchNodeCost(0)
     grantHiveResearchKillXp(s, false)
     expect(hiveResearchCompleted(s, 'energy')).toBeGreaterThanOrEqual(1)
-    expect(hiveResearchDamageMult(s)).toBeGreaterThan(1)
+    expect(hiveResearchShieldMult(s)).toBeGreaterThan(1)
+    expect(hiveResearchDamageMult(s)).toBe(1)
   })
 
   it('Foundry channel speeds the Foundry', () => {

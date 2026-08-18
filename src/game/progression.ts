@@ -1916,22 +1916,118 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-research-tab',
     title: 'Research',
     body: [
-      'Open More and tap Research. Kills write Material, Energy, and Observation whether you sit here or not.',
-      'Focus one branch for a large bonus. The other two still crawl.',
+      'Open More and tap Research. This walkthrough will pause so you can learn the desk.',
+      'Kills write notes into Material, Energy, and Observation whether you sit here or not.',
     ],
     target: 'station-research',
     tab: 'stats',
     group: 'research',
+    required: true,
     availableWhen: (s) =>
       isSystemUnlocked(s, 'research') && !guideSeen(s, 'guide-research-tab'),
     completeWhen: (_s, tab) => tab === 'research',
   },
   {
+    id: 'guide-research-xp',
+    title: 'How notes arrive',
+    body: [
+      'Every kill writes Research XP. Bosses write more. Archive on the Network still drips Data — that is a different drip.',
+      'You do not tap to research. Sortie fills the bars.',
+    ],
+    target: 'research-branches',
+    tab: 'research',
+    screen: 'research',
+    group: 'research-v2',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'research') &&
+      (guideSeen(s, 'guide-research-tab') || guideSeen(s, 'guide-research-focus')) &&
+      !guideSeen(s, 'guide-research-xp'),
+  },
+  {
+    id: 'guide-research-branches',
+    title: 'Three branches',
+    body: [
+      'Material is Foundry and salvage. Energy is Furnace, Network throughput, and plate. Observation is Reliquary, notes, and the desk.',
+      'You pick a focus. You do not have to finish one branch before touching another.',
+    ],
+    target: 'research-branches',
+    tab: 'research',
+    screen: 'research',
+    group: 'research-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-research-xp') && !guideSeen(s, 'guide-research-branches'),
+  },
+  {
+    id: 'guide-research-focus-how',
+    title: 'Focus and background',
+    body: [
+      'The focused branch runs 4×. The other two still crawl in the background — they are not frozen.',
+      'A later Observation breakthrough makes that crawl faster. You can change focus any time.',
+    ],
+    target: 'research-focus',
+    tab: 'research',
+    screen: 'research',
+    group: 'research-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-research-branches') && !guideSeen(s, 'guide-research-focus-how'),
+  },
+  {
+    id: 'guide-research-node',
+    title: 'What a node is',
+    body: [
+      'Each discovery is a node. Most are small numbers — a little salvage, a little Heat, a little shard chance.',
+      'Look at the list under a branch. You can see the next few discoveries before you commit.',
+    ],
+    target: 'research-preview',
+    tab: 'research',
+    screen: 'research',
+    group: 'research-v2',
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-research-focus-how') && !guideSeen(s, 'guide-research-node'),
+  },
+  {
+    id: 'guide-research-bt-exist',
+    title: 'Breakthroughs',
+    body: [
+      'Every few nodes is a breakthrough. Those unlock mechanics, not merely a bigger multiplier.',
+      'Two more Energy discoveries and you light another Furnace channel. Plan for those, not for 1.32 to 1.36.',
+    ],
+    target: 'research-preview',
+    tab: 'research',
+    screen: 'research',
+    group: 'research-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-research-node') && !guideSeen(s, 'guide-research-bt-exist'),
+  },
+  {
+    id: 'guide-research-choice',
+    title: 'Pick for the job',
+    body: [
+      'No branch is mandatory at every point. Pushing wants Energy channels. Foundry work wants Material. Reliquary and desk work want Observation.',
+      'Material starts focused. You can keep it or switch.',
+    ],
+    target: 'research-focus',
+    tab: 'research',
+    screen: 'research',
+    group: 'research-v2',
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-research-bt-exist') && !guideSeen(s, 'guide-research-choice'),
+  },
+  {
     id: 'guide-research-focus',
     title: 'Pick a focus',
     body: [
-      'Material is a safe first focus. Nodes persist when you Rebuild — you are not spending Salvage here.',
-      'Archive on the Network still drips Research data. This screen is the kill-fed tree.',
+      'Tap Material to keep the shop-floor focus, or pick Energy / Observation if that is the job.',
+      'Nodes persist when you Rebuild — you are not spending Salvage here.',
     ],
     target: 'research-focus',
     tab: 'research',
@@ -1939,6 +2035,57 @@ export const GUIDE_STEPS: GuideStep[] = [
     group: 'research',
     availableWhen: (s) =>
       guideSeen(s, 'guide-research-tab') && !guideSeen(s, 'guide-research-focus'),
+  },
+  {
+    id: 'guide-research-bt-near',
+    title: 'A breakthrough is next',
+    body: [
+      'This node unlocks a mechanic rather than merely a number.',
+      'Read the gold line. Auto Research will still follow your queue — you decide whether this is the job you want.',
+    ],
+    target: 'research-breakthrough',
+    tab: 'research',
+    screen: 'research',
+    group: 'research-bt',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'research') &&
+      Object.values(s.hiveResearch?.completed ?? {}).some((n) => n === 2 || n === 5 || n === 8) &&
+      !guideSeen(s, 'guide-research-bt-near'),
+  },
+  {
+    id: 'guide-research-queue',
+    title: 'Research queue',
+    body: [
+      'The Focus queue lines up which branch to study next. Completions wait for this list unless Auto is on.',
+      'An Observation breakthrough can add slots. You still write the order.',
+    ],
+    target: 'process-research-queue',
+    tab: 'process',
+    screen: 'process',
+    group: 'research-queue',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.process?.purchased.includes('research-queue')) &&
+      !guideSeen(s, 'guide-research-queue') &&
+      guideSeen(s, 'guide-process-v2-buy'),
+  },
+  {
+    id: 'guide-research-auto',
+    title: 'Auto Research',
+    body: [
+      'Auto Research advances focus along your queue, then your priority list. It never invents a hidden best branch.',
+      'Turn it off when a breakthrough is the choice you want to make by hand.',
+    ],
+    target: 'process-research-auto',
+    tab: 'process',
+    screen: 'process',
+    group: 'research-auto',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.process?.purchased.includes('research-focus')) &&
+      !guideSeen(s, 'guide-research-auto') &&
+      guideSeen(s, 'guide-process-v2-buy'),
   },
   {
     id: 'guide-yard',
@@ -2625,6 +2772,15 @@ export const FOUNDRY_V2_GUIDE_IDS = [
   'guide-foundry-progress',
   'guide-foundry-mastery-why',
   'guide-foundry-points',
+] as const
+
+export const RESEARCH_V2_GUIDE_IDS = [
+  'guide-research-xp',
+  'guide-research-branches',
+  'guide-research-focus-how',
+  'guide-research-node',
+  'guide-research-bt-exist',
+  'guide-research-choice',
 ] as const
 
 /** First-Rebuild hangar walkthrough. Skip dismisses the whole group. */

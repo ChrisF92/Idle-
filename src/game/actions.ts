@@ -86,7 +86,7 @@ import {
   setFurnaceChannel,
   setFurnacePriority,
 } from './furnace'
-import { hiveResearchHeatFromAshMult, setResearchFocus } from './hiveResearch'
+import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, setResearchFocus } from './hiveResearch'
 import { foundryAshHeatMult } from './foundryBonuses'
 import {
   armYardOnRebuild,
@@ -735,7 +735,7 @@ export function selectFrame(state: GameState, frameId: string): GameState {
   const next = structuredClone(state)
   next.shipyard.frameId = frameId
   next.shipyard.modules = filterModulesForChallenge(
-    trimModulesToFrame(next.shipyard.modules, frame),
+    trimModulesToFrame(next.shipyard.modules, frame, { utility: hiveResearchExtraUtilitySlots(next) }),
     next.prestige.activeChallengeId,
   )
   if (!next.combat.inFight) syncPersistedHullCaps(next)
@@ -994,7 +994,7 @@ export function fitModule(state: GameState, moduleId: string): GameState {
   }
   const frame = getFrame(state.shipyard.frameId)
   if (!frame) return state
-  if (!canFitModuleOnFrame(frame, state.shipyard.modules, moduleId)) return state
+  if (!canFitModuleOnFrame(frame, state.shipyard.modules, moduleId, { utility: hiveResearchExtraUtilitySlots(state) })) return state
 
   const next = structuredClone(state)
   next.shipyard.modules = [...next.shipyard.modules, moduleId]
@@ -1058,6 +1058,7 @@ function persistLoadout(
   frameId: string,
   modules: string[],
   activeChallengeId: string | null,
+  extra: Partial<Record<'weapon' | 'defense' | 'utility', number>> = {},
 ): GameState['shipyard'] {
   const frame = unlockedFrames.includes(frameId) ? frameId : 'scout-frame'
   const frameDef = getFrame(frame) ?? getFrame('scout-frame')!
@@ -1065,6 +1066,7 @@ function persistLoadout(
     trimModulesToFrame(
       modules.filter((id) => unlockedModules.includes(id)),
       frameDef,
+      extra,
     ),
     activeChallengeId,
   )
@@ -1262,6 +1264,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     kept.frameId,
     kept.modules,
     kept.activeChallengeId,
+    { utility: hiveResearchExtraUtilitySlots(state) },
   )
   state.combat = {
     ...fresh.combat,
@@ -1393,6 +1396,7 @@ export function performRebuild(
   next.shipyard.modules = trimModulesToFrame(
     hangar.modules.filter((id) => next.shipyard.unlockedModules.includes(id)),
     frame,
+    { utility: hiveResearchExtraUtilitySlots(next) },
   )
   const gain = prestigeGainFor(next)
   next.resources.prestigeMatter += gain
