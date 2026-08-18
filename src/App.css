@@ -49,22 +49,47 @@
   font-size: 0.62rem;
 }
 
-.offline-banner {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  align-items: start;
-  border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line));
-  background: color-mix(in srgb, var(--accent-2) 12%, var(--bg-panel));
-  padding: 0.55rem 0.75rem;
-  max-height: 28vh;
-  overflow: auto;
+.offline-modal-backdrop {
+  z-index: 72;
+  place-items: end center;
+  padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
-.offline-banner .offline-gains {
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
+.offline-modal-sheet {
+  width: min(480px, 100%);
+  max-height: min(78dvh, 640px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.offline-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.offline-gains {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.28rem;
+  font-size: 0.95rem;
   color: #c8e0d0;
+}
+
+.offline-modal-actions {
+  flex: 0 0 auto;
+  display: grid;
+}
+
+.offline-modal-actions .primary {
+  min-height: 2.75rem;
+  width: 100%;
 }
 
 .brand-cluster {
@@ -593,8 +618,7 @@ h2 .inspect-name {
 
 .app-guide-lock .panel-scroll,
 .app-guide-lock .cores-modal-card .core-sheet,
-.app-guide-lock .hud-chips,
-.app-guide-lock .offline-banner {
+.app-guide-lock .hud-chips {
   overscroll-behavior: none;
 }
 

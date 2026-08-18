@@ -53,7 +53,7 @@ export interface OfflineReport {
   sectorsBefore: number
   sectorsAfter: number
   sectorsCleared: number
-  /** Advance / Hold / Paused label for the welcome banner. */
+  /** Advance / Hold / Paused label for the welcome modal. */
   modeLabel: string
   gains: Partial<Resources>
   summary: string

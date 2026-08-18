@@ -77,11 +77,13 @@ export default function App() {
   const dying = (game.state.combat.defeatLeft ?? 0) > 0
   const live = !game.state.combat.docked || dying
   const waves = wavesForSector(game.state.combat.sector)
+  const offlineOpen = Boolean(game.offlineReport)
   const guide =
-    dying || reportOpen || hangarOpen || blockingModal
+    dying || reportOpen || hangarOpen || blockingModal || offlineOpen
       ? null
       : activeGuideStep(game.state, tab, heldGuideId)
-  const pauseSim = guidePausesSimulation(guide) || hangarOpen || blockingModal || simulatorOpen
+  const pauseSim =
+    guidePausesSimulation(guide) || hangarOpen || blockingModal || simulatorOpen || offlineOpen
   game.simPausedRef.current = pauseSim
 
   const go = useCallback(
@@ -240,13 +242,6 @@ export default function App() {
           </button>
         ) : null}
       </header>
-
-      {game.offlineReport ? (
-        <OfflineBanner
-          report={game.offlineReport}
-          onDismiss={game.dismissOfflineReport}
-        />
-      ) : null}
       </div>
 
       <main className="main">
@@ -436,6 +431,13 @@ export default function App() {
             setHangarOpen(false)
             go('dock')
           }}
+        />
+      ) : null}
+
+      {game.offlineReport ? (
+        <OfflineBanner
+          report={game.offlineReport}
+          onDismiss={game.dismissOfflineReport}
         />
       ) : null}
 

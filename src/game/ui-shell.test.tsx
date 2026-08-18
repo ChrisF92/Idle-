@@ -8,6 +8,7 @@ import { StatsTab } from '../components/tabs/StatsTab'
 import { TabNav } from '../components/TabNav'
 import { GuideOverlay } from '../components/GuideOverlay'
 import { ToastStack } from '../components/ToastStack'
+import { OfflineBanner } from '../components/OfflineBanner'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
 import { acknowledgeOnboarding, activeGuideStep, GUIDE_STEPS } from './progression'
@@ -203,6 +204,34 @@ describe('shell UX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sortie info' }))
     expect(screen.getByRole('dialog', { name: 'Sortie' })).toBeTruthy()
     expect(screen.getByText(/Drones are assigned on the Network tab/i)).toBeTruthy()
+  })
+
+  it('renders offline rewards as a dismissable modal', () => {
+    let dismissed = false
+    render(
+      <OfflineBanner
+        report={{
+          elapsedMs: 5 * 60 * 1000,
+          appliedMs: 5 * 60 * 1000,
+          capped: false,
+          sectorsBefore: 7,
+          sectorsAfter: 7,
+          sectorsCleared: 0,
+          modeLabel: 'Paused',
+          gains: { scrap: 672.88, heat: 6.76 },
+          summary: 'Away 5m',
+        }}
+        onDismiss={() => {
+          dismissed = true
+        }}
+      />,
+    )
+    expect(screen.getByRole('dialog', { name: 'Welcome back' })).toBeTruthy()
+    expect(screen.getByText(/\+672\.88 Scrap/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(dismissed).toBe(true)
   })
 
   it('renders actionable toasts without covering as a modal', () => {
