@@ -37,6 +37,7 @@ import {
   sellPart,
   setFoundrySlot,
   assembleBlueprint,
+  setTrackedPrint,
   setLaborProfile,
   setNumberNotation,
   startFabProject,
@@ -150,6 +151,7 @@ type Action =
   | { type: 'foundry-equip'; moduleId: string }
   | { type: 'foundry-unequip'; moduleId: string }
   | { type: 'assemble-blueprint'; moduleId: string }
+  | { type: 'track-print'; moduleId: string | null }
   | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
   | { type: 'reliquary-insert'; shardId: string }
   | { type: 'reliquary-remove'; color: import('../game/types').ReliquaryColor }
@@ -293,6 +295,8 @@ function reducer(state: GameState, action: Action): GameState {
       return unequipFoundryModule(state, action.moduleId)
     case 'assemble-blueprint':
       return assembleBlueprint(state, action.moduleId)
+    case 'track-print':
+      return setTrackedPrint(state, action.moduleId)
     case 'number-notation':
       return setNumberNotation(state, action.mode)
     case 'reliquary-insert':
@@ -468,6 +472,8 @@ export function useGame() {
       dispatch({ type: 'foundry-unequip', moduleId }),
     assembleBlueprint: (moduleId: string) =>
       dispatch({ type: 'assemble-blueprint', moduleId }),
+    setTrackedPrint: (moduleId: string | null) =>
+      dispatch({ type: 'track-print', moduleId }),
     setNumberNotation: (mode: 'engineering' | 'scientific') =>
       dispatch({ type: 'number-notation', mode }),
     insertShard: (shardId: string) => dispatch({ type: 'reliquary-insert', shardId }),

@@ -1874,28 +1874,58 @@ export function parsePartId(
   return { moduleId, partType }
 }
 
+/**
+ * Fragment counts by print unlock sector. Later specialist prints still add
+ * Foundry stock on top of these casing/core/lens needs.
+ *
+ * S2–S4: 4 fragments (2/1/1)
+ * S5–S10: 6 fragments (3/2/1)
+ * S11–S17: 9 fragments (4/3/2)
+ * S18+: long-farm 12 fragments (5/4/3)
+ */
+export function printFragmentNeeds(unlockSector: number): Pick<BlueprintRecipe, 'casing' | 'core' | 'lens'> {
+  if (unlockSector <= 4) return { casing: 2, core: 1, lens: 1 }
+  if (unlockSector <= 10) return { casing: 3, core: 2, lens: 1 }
+  if (unlockSector <= 17) return { casing: 4, core: 3, lens: 2 }
+  return { casing: 5, core: 4, lens: 3 }
+}
+
+function printRecipe(
+  moduleId: string,
+  extra: Partial<Pick<BlueprintRecipe, 'foundry' | 'requiresRecipeLevel'>> = {},
+): BlueprintRecipe {
+  const sector = modulePrintSector(moduleId)
+  return { moduleId, ...printFragmentNeeds(sector), ...extra }
+}
+
 /** Farmable blueprint recipes (not starter scrap unlocks, not CP schematics). */
 export const BLUEPRINTS: BlueprintRecipe[] = [
-  { moduleId: 'flak-array', casing: 5, core: 3, lens: 2 },
-  { moduleId: 'vector-thruster', casing: 5, core: 3, lens: 2 },
-  { moduleId: 'heavy-lance', casing: 4, core: 3, lens: 2 },
-  { moduleId: 'phase-beam', casing: 4, core: 3, lens: 2 },
-  { moduleId: 'barrier-projector', casing: 5, core: 3, lens: 2 },
-  { moduleId: 'drone-bay', casing: 4, core: 3, lens: 2 },
-  { moduleId: 'charge-prism', casing: 5, core: 4, lens: 2 },
-  { moduleId: 'lattice-ward', casing: 5, core: 3, lens: 3 },
-  { moduleId: 'rail-driver', casing: 5, core: 4, lens: 3 },
-  { moduleId: 'ion-burst', casing: 5, core: 4, lens: 3 },
-  { moduleId: 'swarm-rack', casing: 5, core: 4, lens: 3 },
-  { moduleId: 'ablative-mesh', casing: 5, core: 4, lens: 3 },
-  { moduleId: 'sensor-whisker', casing: 4, core: 3, lens: 4 },
-  { moduleId: 'grav-tether', casing: 5, core: 4, lens: 3 },
-  { moduleId: 'nano-lathe', casing: 5, core: 4, lens: 3, foundry: { 'brace-pin': 2 } },
-  { moduleId: 'salvage-rig', casing: 5, core: 4, lens: 3 },
-  { moduleId: 'keel-baffle', casing: 6, core: 5, lens: 3, foundry: { 'keel-strip': 2 }, requiresRecipeLevel: { recipeId: 'keel-strip', level: 1 } },
-  { moduleId: 'arc-lash', casing: 5, core: 5, lens: 4 },
-  { moduleId: 'slag-spit', casing: 6, core: 5, lens: 4, foundry: { 'void-slag': 2 } },
-  { moduleId: 'choir-tap', casing: 6, core: 5, lens: 5, foundry: { 'hearth-core': 1 }, requiresRecipeLevel: { recipeId: 'void-slag', level: 1 } },
+  printRecipe('flak-array'),
+  printRecipe('vector-thruster'),
+  printRecipe('heavy-lance'),
+  printRecipe('phase-beam'),
+  printRecipe('barrier-projector'),
+  printRecipe('drone-bay'),
+  printRecipe('charge-prism'),
+  printRecipe('lattice-ward'),
+  printRecipe('rail-driver'),
+  printRecipe('ion-burst'),
+  printRecipe('swarm-rack'),
+  printRecipe('ablative-mesh'),
+  printRecipe('sensor-whisker'),
+  printRecipe('grav-tether'),
+  printRecipe('nano-lathe', { foundry: { 'brace-pin': 2 } }),
+  printRecipe('salvage-rig'),
+  printRecipe('keel-baffle', {
+    foundry: { 'keel-strip': 2 },
+    requiresRecipeLevel: { recipeId: 'keel-strip', level: 1 },
+  }),
+  printRecipe('arc-lash'),
+  printRecipe('slag-spit', { foundry: { 'void-slag': 2 } }),
+  printRecipe('choir-tap', {
+    foundry: { 'hearth-core': 1 },
+    requiresRecipeLevel: { recipeId: 'void-slag', level: 1 },
+  }),
 ]
 
 export function getBlueprint(moduleId: string): BlueprintRecipe | undefined {
@@ -1979,6 +2009,9 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 2.4,
     bossRolls: 2,
     entries: [
+      { moduleId: 'charge-prism', partType: 'casing', weight: 3 },
+      { moduleId: 'charge-prism', partType: 'core', weight: 2 },
+      { moduleId: 'charge-prism', partType: 'lens', weight: 2 },
       { moduleId: 'ion-burst', partType: 'casing', weight: 2 },
       { moduleId: 'ion-burst', partType: 'core', weight: 2 },
       { moduleId: 'ion-burst', partType: 'lens', weight: 2 },
@@ -2074,25 +2107,192 @@ export function getEnemyDropTable(family: string): EnemyPartDropTable | undefine
   return ENEMY_PART_DROPS.find((t) => t.family === family)
 }
 
+/** Hidden early-career fragment-rate taper. Not shown in the UI. */
+export function earlyCareerFragmentMult(careerSector: number): number {
+  const n = Math.max(0, careerSector)
+  if (n <= 5) return 3.25
+  if (n <= 10) return 2.15
+  if (n <= 17) return 1.35
+  return 1
+}
+
+/** Extra fragment-roll chance while Hold-farming a tracked, eligible Core. */
+export const HOLD_TRACKED_FRAGMENT_MULT = 1.65
+
+/** Chance a successful eligible roll resolves as the tracked print. */
+export const TRACKED_PRINT_ROLL_BIAS = 0.7
+
+/** Untracked discovery: funnel early rolls into the closest incomplete print. */
+export const DISCOVERY_PRINT_ROLL_BIAS = 0.62
+
+/** Extra weight on still-needed part types while tracking an incomplete print. */
+export const TRACKED_MISSING_PART_WEIGHT = 8
+
+/** Milder than tracking: finish the closest print instead of flooding one leftover part. */
+export const DISCOVERY_MISSING_PART_WEIGHT = 4
+
+export const ENEMY_FAMILY_LABELS: Record<string, string> = {
+  swarm: 'Swarm',
+  armored: 'Armored',
+  ethereal: 'Ethereal',
+  divine: 'Divine',
+  titan: 'Titan',
+}
+
+export function enemyFamilyLabel(family: string): string {
+  return ENEMY_FAMILY_LABELS[family] ?? family
+}
+
+export function dropTableEntries(family: string, sector: number): EnemyPartDropEntry[] {
+  const table = getEnemyDropTable(family)
+  if (!table) return []
+  return [...table.entries, ...sectorBonusDropEntries(sector)].filter(
+    (e) => modulePrintSector(e.moduleId) <= sector,
+  )
+}
+
+export function familyCanDropPrint(family: string, moduleId: string, sector: number): boolean {
+  return dropTableEntries(family, sector).some((e) => e.moduleId === moduleId)
+}
+
+export interface PrintDropSource {
+  family: string
+  sector: number
+  weight: number
+}
+
+/** Families whose base tables can drop this print, derived from live drop data. */
+export function printDropSources(moduleId: string): PrintDropSource[] {
+  const sector = modulePrintSector(moduleId)
+  const sources: PrintDropSource[] = []
+  for (const table of ENEMY_PART_DROPS) {
+    const weight = table.entries
+      .filter((e) => e.moduleId === moduleId)
+      .reduce((sum, e) => sum + e.weight, 0)
+    if (weight <= 0) continue
+    sources.push({ family: table.family, sector, weight })
+  }
+  sources.sort((a, b) => b.weight - a.weight || a.sector - b.sector)
+  return sources
+}
+
+export function formatPrintSourceLine(moduleId: string): string {
+  const sources = printDropSources(moduleId)
+  if (sources.length === 0) return ''
+  const best = sources[0]!
+  const extra =
+    sources.length > 1
+      ? sources
+          .slice(1)
+          .map((s) => `${enemyFamilyLabel(s.family)} · Sector ${s.sector}+`)
+          .join(' · ')
+      : ''
+  const bestLine = `${enemyFamilyLabel(best.family)} · Sector ${best.sector}+`
+  return extra ? `Best source: ${bestLine} · ${extra}` : `Best source: ${bestLine}`
+}
+
+export interface TrackedDropContext {
+  trackedModuleId?: string | null
+  focusModuleId?: string | null
+  owned?: Partial<Record<PartType, number>>
+  need?: Partial<Record<PartType, number>>
+}
+
+function pickFromWeightedEntries(
+  entries: EnemyPartDropEntry[],
+  rng: () => number,
+  ctx?: TrackedDropContext,
+): EnemyPartDropEntry | null {
+  if (entries.length === 0) return null
+  const targetId = ctx?.trackedModuleId || ctx?.focusModuleId
+  const missingWeight = ctx?.trackedModuleId
+    ? TRACKED_MISSING_PART_WEIGHT
+    : DISCOVERY_MISSING_PART_WEIGHT
+  const stillNeed = Boolean(
+    targetId &&
+      ctx?.need &&
+      PART_TYPES.some((pt) => (ctx.owned?.[pt] ?? 0) < (ctx.need?.[pt] ?? 0)),
+  )
+  const weighted = entries.map((entry) => {
+    let weight = entry.weight
+    if (stillNeed && entry.moduleId === targetId) {
+      const need = ctx?.need?.[entry.partType] ?? 0
+      const owned = ctx?.owned?.[entry.partType] ?? 0
+      if (owned < need) weight *= missingWeight
+    }
+    return { entry, weight }
+  })
+  const total = weighted.reduce((sum, item) => sum + item.weight, 0)
+  if (total <= 0) return entries[entries.length - 1] ?? null
+  let roll = rng() * total
+  for (const item of weighted) {
+    roll -= item.weight
+    if (roll <= 0) return item.entry
+  }
+  return weighted[weighted.length - 1]?.entry ?? null
+}
+
 /** Weighted pick among drop entries (+ sector extras). Pure helper for tests. */
 export function pickWeightedDropEntry(
   family: string,
   sector: number,
   rng: () => number = Math.random,
+  ctx?: TrackedDropContext,
 ): EnemyPartDropEntry | null {
-  const table = getEnemyDropTable(family)
-  if (!table) return null
-  const entries = [...table.entries, ...sectorBonusDropEntries(sector)].filter(
-    (e) => modulePrintSector(e.moduleId) <= sector,
-  )
-  const total = entries.reduce((s, e) => s + e.weight, 0)
-  if (total <= 0) return null
-  let roll = rng() * total
-  for (const entry of entries) {
-    roll -= entry.weight
-    if (roll <= 0) return entry
+  const entries = dropTableEntries(family, sector)
+  if (entries.length === 0) return null
+  const tracked = ctx?.trackedModuleId
+  const trackedEntries = tracked ? entries.filter((e) => e.moduleId === tracked) : []
+  const focus = ctx?.focusModuleId
+  const focusEntries = focus ? entries.filter((e) => e.moduleId === focus) : []
+  let pool = entries
+  if (trackedEntries.length > 0 && rng() < TRACKED_PRINT_ROLL_BIAS) {
+    pool = trackedEntries
+  } else if (trackedEntries.length === 0 && focusEntries.length > 0 && rng() < DISCOVERY_PRINT_ROLL_BIAS) {
+    pool = focusEntries
   }
-  return entries[entries.length - 1] ?? null
+  return pickFromWeightedEntries(pool, rng, ctx)
+}
+
+export function discoveryFocusPrint(
+  state: GameState,
+  family: string,
+  sector: number,
+): string | null {
+  const ids = [...new Set(dropTableEntries(family, sector).map((e) => e.moduleId))]
+  let best: { id: string; remaining: number; sector: number; have: number } | null = null
+  for (const id of ids) {
+    if (state.shipyard.unlockedModules.includes(id)) continue
+    const progress = blueprintProgress(state, id)
+    if (!progress) continue
+    const totals = blueprintFragmentTotals(progress.owned, progress.need)
+    const remaining = Math.max(0, totals.need - totals.have)
+    if (remaining <= 0) continue
+    const printSector = modulePrintSector(id)
+    if (
+      !best ||
+      remaining < best.remaining ||
+      (remaining === best.remaining && totals.have > best.have) ||
+      (remaining === best.remaining && totals.have === best.have && printSector < best.sector)
+    ) {
+      best = { id, remaining, sector: printSector, have: totals.have }
+    }
+  }
+  return best?.id ?? null
+}
+
+export function blueprintFragmentTotals(
+  owned: Partial<Record<PartType, number>> | undefined,
+  need: Partial<Record<PartType, number>> | undefined,
+): { have: number; need: number } {
+  let have = 0
+  let want = 0
+  for (const pt of PART_TYPES) {
+    const n = need?.[pt] ?? 0
+    want += n
+    have += Math.min(owned?.[pt] ?? 0, n)
+  }
+  return { have, need: want }
 }
 
 export function isBlueprintComplete(

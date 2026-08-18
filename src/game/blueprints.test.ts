@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   FAB_SECONDS,
+  getBlueprint,
   getVisibleModules,
   isFarmableModule,
   isModuleVisible,
@@ -54,7 +55,7 @@ describe('blueprints and fabrication', () => {
     expect(state.parts[drop.partId]).toBeGreaterThan(0)
     expect(state.meta.discoveredModules).toContain(drop.moduleId)
     expect(
-      state.combat.log.some((l) => l.includes('Blueprint fragment recovered')),
+      state.combat.log.some((l) => /Flak Array · Casing 1\/2/.test(l) || l.includes('Flak Array')),
     ).toBe(true)
   })
 
@@ -67,10 +68,11 @@ describe('blueprints and fabrication', () => {
     expect(state.research.unlocked).toContain('module-fab')
 
     state.meta.discoveredModules = ['flak-array']
+    const recipe = getBlueprint('flak-array')!
     state.parts = {
-      [partId('flak-array', 'casing')]: 5,
-      [partId('flak-array', 'core')]: 3,
-      [partId('flak-array', 'lens')]: 2,
+      [partId('flak-array', 'casing')]: recipe.casing,
+      [partId('flak-array', 'core')]: recipe.core,
+      [partId('flak-array', 'lens')]: recipe.lens,
     }
     state.base.workerDrones = 2
     state = startFabProject(state, 'flak-array')
@@ -79,9 +81,9 @@ describe('blueprints and fabrication', () => {
     for (const pt of ['casing', 'core', 'lens'] as const) {
       state = depositFabPart(state, pt, 10)
     }
-    expect(state.base.fabProject?.contributed.casing).toBe(5)
-    expect(state.base.fabProject?.contributed.core).toBe(3)
-    expect(state.base.fabProject?.contributed.lens).toBe(2)
+    expect(state.base.fabProject?.contributed.casing).toBe(recipe.casing)
+    expect(state.base.fabProject?.contributed.core).toBe(recipe.core)
+    expect(state.base.fabProject?.contributed.lens).toBe(recipe.lens)
 
     state = assignWorker(state, 'fab-bay', 1)
     advanceSeconds(state, FAB_SECONDS + 0.1)

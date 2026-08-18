@@ -135,6 +135,7 @@ export function createInitialState(now = Date.now()): GameState {
       beams: [],
       fx: [],
       log: ['Hiveworks dock online. Launch a sortie when ready.'],
+      fragmentNotice: null,
       lastSortie: emptyLastSortie(),
       sortieMark: null,
       defeatLeft: 0,

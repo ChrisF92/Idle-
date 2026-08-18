@@ -1244,9 +1244,51 @@ h2 .inspect-name {
   letter-spacing: 0.03em;
 }
 
-.craft-chip .network-fill {
-  margin: 0;
-  height: 0.28rem;
+.network-row.is-tracked {
+  outline: 1px solid color-mix(in srgb, var(--accent-2) 55%, var(--line));
+}
+
+.print-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.print-row-actions button {
+  flex: 1 1 5.5rem;
+}
+
+.print-parts {
+  letter-spacing: 0.02em;
+}
+
+.print-warn {
+  color: color-mix(in srgb, var(--danger, #e08a6a) 80%, white);
+}
+
+.fragment-chip {
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  bottom: 0.35rem;
+  z-index: 3;
+  display: grid;
+  gap: 0.08rem;
+  padding: 0.28rem 0.4rem 0.32rem;
+  text-align: left;
+  background: color-mix(in srgb, var(--bg-inset) 82%, black);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.fragment-chip-title {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.fragment-chip-line {
+  font-size: 0.72rem;
 }
 
 .combat-intel-btn {

@@ -15,12 +15,19 @@ import type {
 } from './types'
 import {
   aiDoctrinesActive,
+  blueprintFragmentTotals,
+  blueprintProgress,
+  canDropModulePart,
   challengeShopDropBonus,
   challengeShopMatchupBonus,
   challengeStackRepairBonus,
+  discoveryFocusPrint,
+  earlyCareerFragmentMult,
   essenceBonusDataPerClear,
+  familyCanDropPrint,
   getEnemyDropTable,
   getModule,
+  HOLD_TRACKED_FRAGMENT_MULT,
   matterShopDataPerClear,
   matterShopDropBonus,
   matterShopRepairMult,
@@ -30,8 +37,8 @@ import {
   pickWeightedDropEntry,
   stationRepairBonus,
 } from './catalog'
-import { isSystemUnlocked } from './progression'
-import { isSectorBossWave, wavesForSector, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
+import { careerHighestSector, isSystemUnlocked } from './progression'
+import { isSectorBossWave, wavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
 import type { SectorRoute } from './types'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
 import {
@@ -1664,8 +1671,21 @@ export function rollEnemyPartDrop(
   const table = getEnemyDropTable(unit.family)
   if (!table) return []
 
+  const trackedId = state.foundry?.trackedPrintId ?? null
+  const trackedEligible = Boolean(
+    trackedId &&
+      canDropModulePart(state, trackedId) &&
+      familyCanDropPrint(unit.family, trackedId, state.combat.sector),
+  )
+  const holding =
+    normalizePushMode(state.combat.pushMode, state.combat.campaign) !== 'advance'
+  const holdMult = holding && trackedEligible ? HOLD_TRACKED_FRAGMENT_MULT : 1
+
+  const earlyMult = earlyCareerFragmentMult(careerHighestSector(state))
   let chance =
     table.chance *
+    earlyMult *
+    holdMult *
     logisticsDropMult(state) *
     foundryPartDropMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
@@ -1677,13 +1697,24 @@ export function rollEnemyPartDrop(
     chance = Math.min(1, chance * (table.bossChanceMult ?? 2))
     rolls = table.bossRolls ?? 2
   } else {
+    if (earlyMult >= 2.15) rolls += 1
     chance = Math.min(1, chance)
   }
 
   const results: PartDropResult[] = []
   for (let i = 0; i < rolls; i++) {
     if (rng() > chance) continue
-    const entry = pickWeightedDropEntry(unit.family, state.combat.sector, rng)
+    const focusId = trackedEligible
+      ? null
+      : discoveryFocusPrint(state, unit.family, state.combat.sector)
+    const progressId = trackedEligible ? trackedId : focusId
+    const dropProgress = progressId ? blueprintProgress(state, progressId) : null
+    const entry = pickWeightedDropEntry(unit.family, state.combat.sector, rng, {
+      trackedModuleId: trackedEligible ? trackedId : null,
+      focusModuleId: focusId,
+      owned: dropProgress?.owned,
+      need: dropProgress?.need,
+    })
     if (!entry) continue
     const id = partId(entry.moduleId, entry.partType)
     state.parts = {
@@ -1697,13 +1728,27 @@ export function rollEnemyPartDrop(
         entry.moduleId,
       ]
       discovered = true
-      const modName = getModule(entry.moduleId)?.name ?? entry.moduleId
-      const partLabel =
-        entry.partType.charAt(0).toUpperCase() + entry.partType.slice(1)
-      state.combat.log = [
-        `Blueprint fragment recovered: ${modName} ${partLabel}`,
-        ...state.combat.log,
-      ].slice(0, 40)
+    }
+    const progress = blueprintProgress(state, entry.moduleId)
+    const totals = blueprintFragmentTotals(progress?.owned, progress?.need)
+    const partHave = progress?.owned[entry.partType] ?? 1
+    const partNeed = progress?.need[entry.partType] ?? 1
+    const modName = getModule(entry.moduleId)?.name ?? entry.moduleId
+    const partLabel =
+      entry.partType.charAt(0).toUpperCase() + entry.partType.slice(1)
+    state.combat.log = [
+      `${modName} · ${partLabel} ${Math.min(partHave, partNeed)}/${partNeed}`,
+      ...state.combat.log,
+    ].slice(0, 40)
+    state.combat.fragmentNotice = {
+      moduleId: entry.moduleId,
+      partType: entry.partType,
+      name: modName,
+      partHave,
+      partNeed,
+      totalHave: totals.have,
+      totalNeed: totals.need,
+      seq: (state.combat.fragmentNotice?.seq ?? 0) + 1,
     }
     results.push({
       partId: id,
@@ -1713,6 +1758,21 @@ export function rollEnemyPartDrop(
     })
   }
   return results
+}
+
+export function sectorCanDropPrint(
+  sector: number,
+  moduleId: string,
+  route: SectorRoute | string = 'A',
+): boolean {
+  for (let wave = 1; wave <= wavesForSector(sector); wave++) {
+    const encounter = enemyForSector(sector, wave, route)
+    if (familyCanDropPrint(encounter.family, moduleId, sector)) return true
+    if (encounter.units.some((unit) => familyCanDropPrint(unit.family, moduleId, sector))) {
+      return true
+    }
+  }
+  return false
 }
 
 function fittedSalvageKillMult(state: GameState): number {

@@ -823,12 +823,33 @@ export function assembleBlueprint(state: GameState, moduleId: string): GameState
   }
   next.meta.lifetimeFabCrafts = (next.meta.lifetimeFabCrafts ?? 0) + 1
   const name = getModule(moduleId)?.name ?? moduleId
-  next.combat.log = [`Core printed: ${name}. Fit it on the next Rebuild.`, ...next.combat.log].slice(
-    0,
-    40,
-  )
+  if (next.foundry.trackedPrintId === moduleId) {
+    next.foundry.trackedPrintId = null
+    next.combat.log = [
+      `${name} assembled — choose another tracked print.`,
+      `Core printed: ${name}. Fit it on the next Rebuild.`,
+      ...next.combat.log,
+    ].slice(0, 40)
+  } else {
+    next.combat.log = [`Core printed: ${name}. Fit it on the next Rebuild.`, ...next.combat.log].slice(
+      0,
+      40,
+    )
+  }
   tryCompleteAchievements(next)
   return next
+}
+
+export function setTrackedPrint(state: GameState, moduleId: string | null): GameState {
+  if (moduleId) {
+    if (!isFarmableModule(moduleId) || !isCorePrintUnlocked(state, moduleId)) return state
+  }
+  const next = moduleId && state.foundry.trackedPrintId === moduleId ? null : moduleId
+  if ((state.foundry.trackedPrintId ?? null) === (next ?? null)) return state
+  return {
+    ...state,
+    foundry: { ...state.foundry, trackedPrintId: next },
+  }
 }
 
 export function startFabProject(state: GameState, moduleId: string): GameState {

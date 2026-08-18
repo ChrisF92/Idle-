@@ -42,7 +42,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Sortie',
     body: [
       'Weapons fire automatically. Waves come down the lane. The header shows sector, hull, and shield.',
-      'After hull loss, Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight.',
+      'After hull loss, Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight — use it to farm a tracked Core.',
       'Drones are assigned on the Network tab. They never appear here.',
     ],
   },
@@ -58,6 +58,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Foundry',
     body: [
       'Smelt Salvage and scrap into stock. Recipe level makes the same craft faster and more productive.',
+      'Prints: track one Core. Advance finds fragments as you push. Hold that Core’s family to farm it.',
       'Foundry Points buy extra smelters. Recipe progress persists on Rebuild. Fitted bits unequip.',
     ],
   },

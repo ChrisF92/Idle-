@@ -108,6 +108,9 @@ export default function App() {
         setTab(nav.tab)
         if (nav.focus) setFocusTarget(nav.focus)
         if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
+        if (nav.tab === 'foundry' && (nav.focus === 'foundry-fit' || nav.focus?.startsWith('fit-'))) {
+          setFoundryPane('fit')
+        }
       }
     },
     [game.state],
@@ -275,6 +278,10 @@ export default function App() {
               setFoundryPane('smelt')
               go('foundry')
             }}
+            onOpenPrints={() => {
+              setFoundryPane('prints')
+              go('foundry')
+            }}
             onBuyMaxCores={game.buyMaxCores}
           />
         )}
@@ -296,6 +303,7 @@ export default function App() {
             onEquip={game.equipFoundryModule}
             onUnequip={game.unequipFoundryModule}
             onAssemble={game.assembleBlueprint}
+            onTrack={game.setTrackedPrint}
             onBuyMax={game.buyMaxFoundryUpgrades}
             guideTarget={guide?.target}
             focusTarget={focusTarget}

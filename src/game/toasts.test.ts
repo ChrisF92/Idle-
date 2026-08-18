@@ -75,7 +75,21 @@ describe('session toasts', () => {
     expect(blueprintProgress(state, print!)?.complete).toBe(true)
     const toasts = diffToasts(prev, captureToastSnapshot(state), state)
     expect(toasts.some((t) => t.id === `assemble:${print}`)).toBe(true)
-    expect(toasts.find((t) => t.id === `assemble:${print}`)?.action?.label).toBe('ASSEMBLE')
+    expect(toasts.find((t) => t.id === `assemble:${print}`)?.action?.label).toBe('OPEN PRINTS')
+    expect(toasts.find((t) => t.id === `assemble:${print}`)?.category).toBe('CORE PRINT COMPLETE')
+  })
+
+  it('toasts the first fitted Foundry bit as MODULE READY', () => {
+    const state = markHullLost(createInitialState(0))
+    state.meta.highestSectorEver = 2
+    state.combat.highestSector = 2
+    state.combat.docked = true
+    const prev = captureToastSnapshot(state)
+    state.foundry.recipeLevels['hardened-plate'] = 1
+    state.foundry.materials['hardened-plate'] = 3
+    const toasts = diffToasts(prev, captureToastSnapshot(state), state)
+    expect(toasts.some((t) => t.id === 'foundry:module-ready')).toBe(true)
+    expect(toasts.find((t) => t.id === 'foundry:module-ready')?.action?.label).toBe('OPEN FOUNDRY')
   })
 
   it('coalesces duplicate ids and bounds the queue', () => {
