@@ -13,7 +13,6 @@ import {
   RESEARCH_QUEUE_BASE,
   grantHiveResearchKillXp,
   hiveResearchApproachingBreakthrough,
-  hiveResearchCompleted,
   hiveResearchDamageMult,
   hiveResearchDroneEffMult,
   hiveResearchExtraUtilitySlots,
@@ -298,13 +297,13 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
 
   it('round-trips completed nodes through save without bumping version', () => {
     const s = atResearch()
-    complete(s, 'material', 5)
+    complete(s, 'material', 6)
     complete(s, 'observation', 2)
     s.hiveResearch.focus = 'observation'
     s.hiveResearch.xp.observation = 12
     const loaded = importSave(exportSave(s))
     expect(SAVE_VERSION).toBe(33)
-    expect(loaded?.hiveResearch.completed.material).toBe(5)
+    expect(loaded?.hiveResearch.completed.material).toBe(6)
     expect(loaded?.hiveResearch.completed.observation).toBe(2)
     expect(loaded?.hiveResearch.focus).toBe('observation')
     expect(loaded?.hiveResearch.xp.observation).toBe(12)
