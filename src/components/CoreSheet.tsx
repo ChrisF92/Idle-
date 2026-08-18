@@ -88,7 +88,7 @@ function CoreRow({
             onUpgrade(moduleId)
           }}
         >
-          {maxed ? 'Maxed' : `Lv up · ${formatCompact(cost)} salvage`}
+          {maxed ? 'Maxed' : `Upgrade · ${formatCompact(cost)} Salvage`}
         </button>
       )}
     </article>

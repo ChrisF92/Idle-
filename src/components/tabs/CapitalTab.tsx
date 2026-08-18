@@ -38,7 +38,7 @@ export function CapitalTab({ state, onBack, onRank }: CapitalTabProps) {
         </p>
       </header>
       {!open ? (
-        <p className="muted">Second combat scale stays on the ship. No fighters on the field.</p>
+        <p className="muted">Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.</p>
       ) : (
         <div className="panel-scroll">
           <p className="muted">Ranks persist across Rebuild. Capital Hull unlocks in the hangar.</p>

@@ -233,7 +233,7 @@ function applyProduction(state: GameState, dtSeconds: number): void {
         (state.meta.lifetimeDronesBuilt ?? 0) + 1
       pushLog(
         state,
-        `Drone manufactured. Corps: ${state.base.workerDrones}/${cap}.`,
+        `Drone manufactured. Drones: ${state.base.workerDrones}/${cap}.`,
       )
     }
     if (state.base.workerDrones >= cap) {

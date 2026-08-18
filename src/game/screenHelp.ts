@@ -34,52 +34,52 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   dock: {
     title: 'Dock',
     body: [
-      'Home. Launch a sortie from here. Combat keeps running if you stay on Dock after Launch.',
-      'Hull lost docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter. Matter rises with the sector you reached this hull and the Rebuilds you have already done.',
+      'Launch a sortie from here. Combat keeps running if you stay on Dock after Launch.',
+      'Hull loss docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
     ],
   },
   combat: {
     title: 'Sortie',
     body: [
-      'The ship sits at the bottom. Waves come down the lane. The header is sector, hull, and shield.',
-      'After hull loss, Salvage and Cores open. Salvage ranks Pulse and Plate even mid-fight. Advance pushes sectors. Hold sector repeats the gauntlet. Hold wave farms this pack. Rebuild wipes Core levels so you can swap the loadout.',
-      'Drones belong on the Network tab — they never appear here and they never shoot.',
+      'Weapons fire automatically. Waves come down the lane. The header shows sector, hull, and shield.',
+      'After hull loss, Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight.',
+      'Drones are assigned on the Network tab. They never appear here.',
     ],
   },
   network: {
     title: 'Network',
     body: [
-      'Drones are a finite workforce. Assign them to bars. Strike is damage, Ward is shields, Yield is salvage, Loom is manufacture, Archive is Research data. Reassign when the job changes. Idle drones do nothing. Close is good enough.',
-      'Each completed cycle takes longer than the last, so early levels land quickly and later ones ask for more corps. Bars crawl while docked — Launch to actually cycle them. Relays improve the machinery behind a bar — fill speed, level strength, fill cap — not a second flat shop. Links persist on Rebuild. Bar levels reset.',
-      'Tap a bar name for live numbers. Drones never fly on Sortie.',
+      'Assign idle drones to bars. Strike raises damage. Ward raises shields. Yield, Loom, and Archive unlock later.',
+      'Bars fill while you fight and crawl while docked. Bar levels reset on Rebuild. Drones and Links stay.',
+      'Tap a bar name for live numbers, fill caps, and Relays.',
     ],
   },
   foundry: {
     title: 'Foundry',
     body: [
-      'Smelt salvage and scrap into stock, then into later materials and bits you can fit. Recipe mastery speeds crafts, raises output, and finally solves old stock so you can stop babysitting it.',
-      'Smelt, ranks, prints, and fit sit on their own panes. Foundry Points buy smelters and shop-floor ranks. Core prints still assemble here. Recipe levels persist on Rebuild.',
+      'Smelt Salvage and scrap into stock. Recipe level makes the same craft faster and more productive.',
+      'Foundry Points buy extra smelters. Recipe progress persists on Rebuild. Fitted bits unequip.',
     ],
   },
   reliquary: {
     title: 'Reliquary',
     body: [
-      'Fit one shard per colour. Extra copies of the fitted shard charge resonance and raise the same bonus.',
-      'Red and orange open at sector 3. Pink waits until 6. Blue opens at 19, or earlier from an Observation breakthrough. Green opens later. Tap a chip name for owned copies and the live effect. Shards persist when you Rebuild.',
+      'Fit one shard per colour slot for a permanent bonus. Extra copies raise resonance on the fitted shard.',
+      'Red and orange open at sector 3. Later colours unlock with sector or Observation. Shards persist on Rebuild.',
     ],
   },
   furnace: {
     title: 'Furnace',
     body: [
-      'Kills drop Choir-ash on their own. Ash feeds a live Heat tank. Light Furnace Channels for temporary boosts — Weapons, Shielding, Network, Foundry, Research, Recovery.',
-      'Opens at sector 5. Heat is a budget: lighting another channel, or a stronger level, costs several times more. If generation cannot cover drain, a channel goes dark. Heat also buys Network Links. Upgrades persist on Rebuild; the tank resets unless Ember Lock is ranked.',
+      'Kills drop Choir-ash. Ash becomes Heat. Light channels to spend Heat on temporary boosts.',
+      'Net Heat is generation minus channel drain. If Net stays negative, a channel goes dark. Upgrades persist on Rebuild.',
     ],
   },
   research: {
     title: 'Research',
     body: [
-      'Kills feed Material, Energy, and Observation. Focus one; the others still crawl.',
-      'Small nodes are numbers. Breakthroughs unlock mechanics — extra Furnace channels, smelters, Reliquary slots. Nodes persist across Rebuild. Opens at sector 7.',
+      'Kills feed Material, Energy, and Observation. Focus one branch to speed it up; the others still run.',
+      'Small nodes are numbers. Breakthroughs unlock mechanics. Progress persists across Rebuild.',
     ],
   },
   yard: {
@@ -93,70 +93,70 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Slag Bank',
     body: [
       'Spend Rebuild Matter on hangar ranks — damage, production, hull, drones, and more.',
-      'Unspent Rebuild Matter still banks a small bonus in the header. Ranks beat banking.',
+      'Unspent Rebuild Matter still banks a small bonus. Ranks beat banking.',
     ],
   },
   protocols: {
     title: 'Protocols',
     body: [
-      'Restricted sorties. One system is muted. Clear the goal sector. Completions change how that system scales — exponents, fill growth, Heat drain, recipe XP — not a flat shop.',
-      'Cores and Salvage wipe when a Protocol starts. Ranks persist. Optional until the Task List. Repeat clears still pay, with a harder goal.',
+      'Start a restricted sortie. One system is muted. Clear the goal sector for a permanent scaling bonus.',
+      'Starting a Protocol resets Salvage, Core levels, and the current run. Ranks persist. Repeat clears raise the goal.',
     ],
   },
   echo: {
     title: 'Echo Runs',
     body: [
-      'Short gauntlets. The ship keeps its Cores. Echo points buy a tree that persists — gauntlets and tree sit on their own panes.',
+      'Short challenge runs. The ship keeps its Cores. Echo points buy a tree that persists.',
       'Opens at sector 22. Launch the run from Dock.',
     ],
   },
   process: {
     title: 'Process',
     body: [
-      'Process Available is spendable. Process Earned is lifetime and never drops when you buy.',
-      'Automation copies chores you already understand. QoL eases the sitting. Accumulation unlocks from lifetime Earned. Opens after First Blood (clear sector 1).',
+      'Process Available is spendable. Process Earned is lifetime and does not drop when you buy.',
+      'Buy automation for repeated Core, Network, and Foundry tasks. Quality-of-life nodes ease idle time. Opens after clearing sector 1.',
     ],
   },
   specialists: {
     title: 'Specialists',
     body: [
-      'Print Gunner, Warden, and Scavenger. Rank them. They persist when the hull does not.',
+      'Rank Gunner, Warden, and Scavenger for permanent ship bonuses.',
       'They are not on the battlefield. Opens at sector 51.',
     ],
   },
   tasks: {
     title: 'Task List',
     body: [
-      'A checklist. Capital does not open for a sector number alone.',
+      'A checklist of late-game objectives. Capital does not open from a sector number alone.',
       'Opens at sector 72. Finish the list, then Capital can light.',
     ],
   },
   capital: {
     title: 'Capital',
     body: [
-      'Second combat scale on this ship: Broadside, Bulkhead, Hold.',
-      'No fighters. No towers. Needs sector 75 and a finished Task List.',
+      'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
+      'Needs sector 75 and a finished Task List. Ranks persist across Rebuild.',
     ],
   },
   reinforce: {
     title: 'Reinforce',
     body: [
-      'Second prestige. Rebuild swaps guns. Reinforce keeps the foundry and starts the lane again, meaner.',
-      'Opens at sector 80.',
+      'Second prestige. Keeps the Foundry and starts the lane again.',
+      'Opens at sector 80. Confirm shows what you keep, reset, and gain.',
     ],
   },
   logs: {
     title: 'Foundry Logs',
     body: [
       'Short industrial notes as doors and bosses open.',
-      'Flavour, not a system you have to spend in.',
+      'Optional flavour. Not a system you have to spend in.',
     ],
   },
   codex: {
     title: 'Codex',
     body: [
       'Enemy families and hull roles. Soft counters for the loadout you are flying.',
-      'Opens at sector 6. It remembers what you have seen.',
+      'Opens at sector 6. Optional reference.',
     ],
   },
   stats: {

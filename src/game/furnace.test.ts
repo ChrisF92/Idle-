@@ -26,7 +26,6 @@ import { applyOfflineCatchUp } from './offline'
 import {
   FURNACE_V2_GUIDE_IDS,
   activeGuideStep,
-  acknowledgeOnboarding,
   skipOnboarding,
 } from './progression'
 import { exportSave, importSave } from './save'
@@ -274,26 +273,19 @@ describe('Furnace 2.0 Rebuild, offline, save, onboarding', () => {
     expect(local.furnace.upgrades.hearth).toBe(1)
   })
 
-  it('starts the Furnace 2.0 tour after the door and lets Skip dismiss the group', () => {
+  it('starts a single Furnace light action on first open', () => {
     let s = furnaceReady()
-    s = acknowledgeOnboarding(s, 'guide-furnace')
-    expect(activeGuideStep(s, 'furnace')?.id).toBe('guide-furnace-v2-ash')
-    s = skipOnboarding(s, 'guide-furnace-v2-ash')
+    expect(activeGuideStep(s, 'furnace')?.id).toBe('guide-furnace-light')
+    s = skipOnboarding(s, 'guide-furnace-light')
     expect(activeGuideStep(s, 'furnace')).toBeNull()
     for (const id of FURNACE_V2_GUIDE_IDS) {
       expect(s.meta.seenOnboarding).toContain(id)
     }
   })
 
-  it('gives existing Furnace saves a one-time 2.0 migration tutorial', () => {
+  it('does not replay the Furnace light hint after it is seen', () => {
     const s = furnaceReady()
-    s.meta.seenOnboarding = ['guide-furnace', 'guide-furnace-bank', 'guide-furnace-ranks']
-    expect(activeGuideStep(s, 'furnace')?.id).toBe('guide-furnace-v2-ash')
-  })
-
-  it('does not replay a completed Furnace 2.0 tour', () => {
-    const s = furnaceReady()
-    s.meta.seenOnboarding = ['guide-furnace', ...FURNACE_V2_GUIDE_IDS]
+    s.meta.seenOnboarding = [...FURNACE_V2_GUIDE_IDS]
     expect(activeGuideStep(s, 'furnace')).toBeNull()
   })
 })

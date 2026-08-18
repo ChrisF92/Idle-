@@ -51,17 +51,6 @@ import { exportSave, importSave } from './save'
 import { createInitialState, SAVE_VERSION } from './state'
 import type { GameState, HiveResearchBranch } from './types'
 
-const PROCESS_V2_GUIDE_IDS = [
-  'guide-process-v2-what',
-  'guide-process-v2-earn',
-  'guide-process-v2-ledger',
-  'guide-process-v2-automation',
-  'guide-process-v2-qol',
-  'guide-process-v2-accumulation',
-  'guide-process-v2-understand',
-  'guide-process-v2-buy',
-] as const
-
 const JARGON = /USI|ITRTG|analogue|black-bar/i
 
 function atResearch(sector = 7): GameState {
@@ -310,84 +299,22 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
     expect(hiveResearchMasteryReduce(loaded!)).toBe(1)
   })
 
-  it('gives existing Research saves the v2 desk tour, and Skip dismisses that group', () => {
+  it('offers a single Research focus hint instead of a desk tour', () => {
     const s = atResearch()
-    s.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-foundry',
-      'guide-foundry-smelt',
-      'guide-foundry-keep',
-      'guide-research-tab',
-      'guide-research-focus',
-    ]
-    expect(activeGuideStep(s, 'research')?.id).toBe('guide-research-xp')
-    const skipped = skipOnboarding(s, 'guide-research-xp')
+    s.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
+    expect(activeGuideStep(s, 'research')?.id).toBe('guide-research-focus')
+    const skipped = skipOnboarding(s, 'guide-research-focus')
     for (const id of RESEARCH_V2_GUIDE_IDS) {
       expect(skipped.meta.seenOnboarding).toContain(id)
     }
     expect(activeGuideStep(skipped, 'research')).toBeNull()
   })
 
-  it('does not let Skip of the old Research door retire the v2 tour', () => {
-    const s = atResearch()
-    s.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS, 'guide-foundry']
-    const skipped = skipOnboarding(s, 'guide-research-tab')
-    expect(skipped.meta.seenOnboarding).toEqual(
-      expect.arrayContaining(['guide-research-tab', 'guide-research-focus']),
-    )
-    expect(skipped.meta.seenOnboarding).not.toContain('guide-research-xp')
-    expect(activeGuideStep(skipped, 'research')?.id).toBe('guide-research-xp')
-  })
-
-  it('highlights the first breakthrough, then Process queue and Auto Research', () => {
+  it('does not tour breakthroughs, queues, or auto-research', () => {
     const ids = new Set(GUIDE_STEPS.map((g) => g.id))
-    for (const id of [
-      'guide-research-xp',
-      'guide-research-branches',
-      'guide-research-focus-how',
-      'guide-research-node',
-      'guide-research-bt-exist',
-      'guide-research-choice',
-      'guide-research-bt-near',
-      'guide-research-queue',
-      'guide-research-auto',
-    ]) {
-      expect(ids.has(id)).toBe(true)
+    for (const id of ['guide-research-xp', 'guide-research-bt-near', 'guide-research-queue', 'guide-research-auto']) {
+      expect(ids.has(id)).toBe(false)
     }
-
-    const near = atResearch()
-    near.hiveResearch.completed.energy = 2
-    near.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-research-tab',
-      'guide-research-focus',
-      ...RESEARCH_V2_GUIDE_IDS,
-    ]
-    expect(activeGuideStep(near, 'research')?.id).toBe('guide-research-bt-near')
-    expect(activeGuideStep(near, 'research')?.target).toBe('research-breakthrough')
-
-    const mid = atResearch()
-    mid.hiveResearch.completed.energy = 3
-    mid.meta.seenOnboarding = [...near.meta.seenOnboarding]
-    expect(activeGuideStep(mid, 'research')?.id).not.toBe('guide-research-bt-near')
-
-    const queue = atResearch()
-    queue.process.purchased = ['research-queue']
-    queue.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-research-tab',
-      ...RESEARCH_V2_GUIDE_IDS,
-      ...PROCESS_V2_GUIDE_IDS,
-    ]
-    expect(activeGuideStep(queue, 'process')?.id).toBe('guide-research-queue')
-
-    const auto = atResearch()
-    auto.process.purchased = ['research-focus']
-    auto.meta.seenOnboarding = [...queue.meta.seenOnboarding, 'guide-research-queue']
-    expect(activeGuideStep(auto, 'process')?.id).toBe('guide-research-auto')
   })
 
   it('keeps Research inspect and guide copy free of designer jargon', () => {

@@ -62,6 +62,7 @@ export type DevAction =
   | { type: 'skip-guides' }
   | { type: 'set-wave'; wave: number }
   | { type: 'set-module-levels'; levels: Record<string, number> }
+  | { type: 'reset-onboarding' }
   | { type: 'seed-late-game' }
 
 export function applyDevAction(state: GameState, action: DevAction): GameState {
@@ -116,6 +117,13 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
     case 'clear-guides': {
       next.meta.seenOnboarding = []
       next.combat.log = ['[dev] Onboarding guides reset.', ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'reset-onboarding': {
+      next.meta.seenOnboarding = []
+      next.meta.hullLostOnce = false
+      next.meta.starterCombatLesson = 2
+      next.combat.log = ['[dev] First-run onboarding flags cleared.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'skip-guides': {

@@ -64,36 +64,15 @@ describe('module stat previews', () => {
 })
 
 describe('rebuild onboarding', () => {
-  it('offers Rebuild dock guide when it becomes available at sector 4', () => {
+  it('does not force a Rebuild overlay; hangar copy carries KEEP/RESET', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 4
     state.combat.sector = PRESTIGE_MIN_SECTOR
-    state.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-foundry',
-      'guide-reliquary',
-    ]
-    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-prestige-tab')
-  })
-
-  it('offers Rebuild button guide at the threshold before first Rebuild', () => {
-    const state = createInitialState(0)
-    state.meta.highestSectorEver = 4
-    state.combat.sector = PRESTIGE_MIN_SECTOR
-    state.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-foundry',
-      'guide-reliquary',
-      'guide-prestige-tab',
-    ]
-    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-prestige-ready')
-    expect(activeGuideStep(state, 'dock')?.target).toBe('rebuild-btn')
-    expect(activeGuideStep(state, 'dock')?.required).toBe(true)
+    state.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
+    expect(activeGuideStep(state, 'combat')?.id).not.toBe('guide-prestige-tab')
+    expect(activeGuideStep(state, 'dock')?.id).not.toBe('guide-prestige-ready')
   })
 })
-
 describe('dev tools', () => {
   it('jumps sector and grants resources', () => {
     let state = createInitialState(0)

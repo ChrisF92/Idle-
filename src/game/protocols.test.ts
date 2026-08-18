@@ -15,10 +15,8 @@ import { furnaceChannelHeatCost, furnaceDamageMult } from './furnace'
 import { hiveResearchNodeCost } from './hiveResearch'
 import { networkFormulaHooks, networkStrikeMult } from './network'
 import {
-  PROTOCOL_V2_GUIDE_IDS,
   STARTER_GUIDE_IDS,
   activeGuideStep,
-  skipOnboarding,
 } from './progression'
 import { canBuyProcessNode, hasProcessMastery, hydrateProcessState } from './process'
 import {
@@ -259,19 +257,9 @@ describe('Protocol Process automation and onboarding', () => {
     expect(hydrated.config.sortie.protocolId).toBeNull()
   })
 
-  it('gives existing Sector 18 saves the formula tour once and allows Skip', () => {
+  it('does not force a Protocol formula tour', () => {
     let s = protocolDock()
-    s.meta.seenOnboarding = [...STARTER_GUIDE_IDS, 'guide-protocols', 'guide-protocols-run']
-    expect(activeGuideStep(s, 'protocols')?.id).toBe('guide-protocol-restrict')
-    s = skipOnboarding(s, 'guide-protocol-restrict')
-    for (const id of PROTOCOL_V2_GUIDE_IDS) {
-      expect(s.meta.seenOnboarding).toContain(id)
-    }
-    expect(activeGuideStep(s, 'protocols')).toBeNull()
-
-    s.protocols.ranks['mute-network'] = 1
-    expect(activeGuideStep(s, 'protocols')?.id).toBe('guide-protocol-repeat')
-    s = skipOnboarding(s, 'guide-protocol-repeat')
+    s.meta.seenOnboarding = [...STARTER_GUIDE_IDS]
     expect(activeGuideStep(s, 'protocols')).toBeNull()
   })
 })

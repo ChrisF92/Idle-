@@ -45,6 +45,7 @@ import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { normalizePushMode, normalizeRoute } from './sectors'
+import { migrateOnboardingState } from './playerGuidance'
 
 export function saveGame(state: GameState): void {
   try {
@@ -652,6 +653,7 @@ function migrate(raw: unknown): GameState | null {
     }
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
+    migrateOnboardingState(hydrated)
     return hydrated
   }
 
@@ -744,6 +746,7 @@ function migrate(raw: unknown): GameState | null {
     }
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
+    migrateOnboardingState(hydrated)
     return hydrated
   }
 

@@ -49,7 +49,7 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove, guideTarget = 
         <h2>Reliquary</h2>
         <p>
           {open
-            ? 'One shard per colour. Extra copies fill resonance.'
+            ? 'One shard per colour. Fit a shard for a permanent bonus.'
             : 'Clear sector 3 to open the Reliquary.'}
         </p>
       </header>
@@ -85,7 +85,7 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove, guideTarget = 
                     {unlocked
                       ? fittedDef
                         ? `${fittedDef.name} · ${Math.round(res * 100)}%`
-                        : 'Empty'
+                        : 'Empty — Fit shard'
                       : `Sector ${slot.requiresSectorEver}`}
                   </span>
                 </div>
@@ -122,8 +122,7 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove, guideTarget = 
                           disabled={owned < 1 || isFit || gated}
                           onClick={() => onInsert(shard.id)}
                         >
-                          {shard.name}
-                          {gated ? ` S${shard.requiresSectorEver}` : ` (${formatCompact(owned)})`}
+                          {isFit ? 'Fitted' : owned < 1 ? shard.name : `Fit ${shard.name}`}
                         </button>
                       )
                     })}

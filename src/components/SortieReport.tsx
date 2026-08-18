@@ -1,13 +1,19 @@
-import type { SortieSummary } from '../game/types'
+import type { GameState, SortieSummary } from '../game/types'
 import { formatCompact } from '../game/format'
+import { isFirstDefeatReport, sortieNextHints } from '../game/playerGuidance'
 
 interface SortieReportProps {
   summary: SortieSummary
+  state: GameState
   onClose: () => void
+  onUpgradeCores?: () => void
 }
 
-export function SortieReport({ summary, onClose }: SortieReportProps) {
+export function SortieReport({ summary, state, onClose, onUpgradeCores }: SortieReportProps) {
   const defeat = summary.outcome === 'defeat'
+  const firstDefeat = defeat && isFirstDefeatReport(state)
+  const hints = firstDefeat ? [] : sortieNextHints(state)
+
   return (
     <div className="modal-backdrop sortie-report-backdrop" role="dialog" aria-labelledby="sortie-report-title">
       <div className="modal-sheet sortie-report-sheet">
@@ -15,14 +21,37 @@ export function SortieReport({ summary, onClose }: SortieReportProps) {
           <div>
             <p className="combat-hud-kicker">{defeat ? 'Hull lost' : 'Run complete'}</p>
             <h3 id="sortie-report-title">
-              {defeat ? 'Defeat' : 'Complete'} · S{summary.sector} W{summary.wave}
+              {firstDefeat
+                ? `You reached Sector ${summary.sector}`
+                : `${defeat ? 'Defeat' : 'Complete'} · S${summary.sector} W${summary.wave}`}
             </h3>
           </div>
           <button type="button" onClick={onClose}>
             Close
           </button>
         </header>
-        {summary.note ? <p className="muted">{summary.note}</p> : null}
+        {firstDefeat ? (
+          <>
+            <p>
+              You recovered <strong>{formatCompact(summary.salvageGained)} Salvage</strong>.
+            </p>
+            <p className="muted">
+              Hull loss does not remove your Core upgrades. Spend your Salvage and launch again.
+            </p>
+          </>
+        ) : summary.note ? (
+          <p className="muted">{summary.note}</p>
+        ) : null}
+        {hints.length > 0 ? (
+          <div className="sortie-next">
+            <p className="combat-hud-kicker">Possible next steps</p>
+            <ul>
+              {hints.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="stat-row dock-stats">
           <div>
             <span className="muted">Sectors</span>
@@ -52,9 +81,15 @@ export function SortieReport({ summary, onClose }: SortieReportProps) {
           </div>
         </div>
         <p className="assign-row">
-          <button type="button" className="primary" onClick={onClose}>
-            Back to Dock
-          </button>
+          {firstDefeat && onUpgradeCores ? (
+            <button type="button" className="primary" onClick={onUpgradeCores}>
+              Upgrade Cores
+            </button>
+          ) : (
+            <button type="button" className="primary" onClick={onClose}>
+              Back to Dock
+            </button>
+          )}
         </p>
       </div>
     </div>

@@ -26,25 +26,47 @@ export function OfflineBanner({ report, onDismiss }: OfflineBannerProps) {
     )
 
   return (
-    <aside className="offline-banner" role="status">
-      <div>
-        <strong>Welcome back</strong>
-        <p className="muted">
-          Away {formatDuration(report.elapsedMs)}
-          {report.capped ? ` · applied ${formatDuration(report.appliedMs)} (cap)` : ''}
-          {' · '}
-          {report.modeLabel} · sector {report.sectorsAfter}
-          {' · no fight sim'}
-        </p>
-        {gainLines.length > 0 ? (
-          <p className="offline-gains">{gainLines.join(' · ')}</p>
-        ) : (
-          <p className="muted">No notable resource gains.</p>
-        )}
+    <div
+      className="modal-backdrop offline-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="offline-report-title"
+    >
+      <div className="modal-sheet offline-modal-sheet">
+        <header className="modal-header">
+          <div>
+            <p className="combat-hud-kicker">Offline</p>
+            <h3 id="offline-report-title">Welcome back</h3>
+          </div>
+          <button type="button" onClick={onDismiss}>
+            Close
+          </button>
+        </header>
+        <div className="offline-modal-body">
+          <p className="muted">
+            Away {formatDuration(report.elapsedMs)}
+            {report.capped ? ` · applied ${formatDuration(report.appliedMs)} (cap)` : ''}
+            {' · '}
+            {report.modeLabel} · sector {report.sectorsAfter}
+            {report.sectorsCleared > 0 ? ` · +${report.sectorsCleared} sectors` : ''}
+            {' · no fight sim'}
+          </p>
+          {gainLines.length > 0 ? (
+            <ul className="offline-gains">
+              {gainLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">No notable resource gains.</p>
+          )}
+        </div>
+        <div className="offline-modal-actions">
+          <button type="button" className="primary" onClick={onDismiss}>
+            Continue
+          </button>
+        </div>
       </div>
-      <button type="button" onClick={onDismiss}>
-        Dismiss
-      </button>
-    </aside>
+    </div>
   )
 }

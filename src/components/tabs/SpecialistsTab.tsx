@@ -40,7 +40,7 @@ export function SpecialistsTab({ state, onBack, onRank }: SpecialistsTabProps) {
         </p>
       </header>
       {!open ? (
-        <p className="muted">Gunner, Warden, and Scavenger persist across Rebuild.</p>
+        <p className="muted">Rank specialists for permanent ship bonuses.</p>
       ) : (
         <div className="panel-scroll">
           <p className="muted">

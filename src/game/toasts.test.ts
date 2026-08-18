@@ -37,7 +37,7 @@ describe('session toasts', () => {
     const toasts = diffToasts(prev, captureToastSnapshot(state), state)
     expect(toasts.some((t) => t.id === 'sys:foundry')).toBe(true)
     const foundry = toasts.find((t) => t.id === 'sys:foundry')
-    expect(foundry?.action?.label).toBe('OPEN FOUNDRY')
+    expect(foundry?.action?.label).toBe('OPEN')
     expect(foundry?.action?.nav).toEqual({ kind: 'tab', tab: 'foundry' })
   })
 

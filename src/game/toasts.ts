@@ -11,6 +11,8 @@ import {
   isSystemUnlocked,
 } from './progression'
 import { isRouteBUnlocked } from './sectors'
+import { foundryMaterialCount, foundryRecipeLevel } from './foundry'
+import { processCoreHintReady } from './playerGuidance'
 import type { GameState, TabId } from './types'
 
 export const TOAST_TTL_MS = 5000
@@ -47,6 +49,10 @@ export interface ToastSnapshot {
   routeB: boolean
   act1Cleared: boolean
   achievements: string[]
+  foundrySlag: number
+  foundrySlagLevel: number
+  processCoreHint: boolean
+  protocolRankSum: number
 }
 
 const TRACKED_SYSTEMS: TabId[] = [
@@ -72,74 +78,74 @@ const STATION_TOAST: Partial<
   foundry: {
     category: 'SYSTEM ONLINE',
     title: 'Foundry unlocked',
-    body: 'Smelters and recipes are online.',
-    label: 'OPEN FOUNDRY',
+    body: 'Turn Salvage into permanent materials.',
+    label: 'OPEN',
   },
   reliquary: {
     category: 'SYSTEM ONLINE',
     title: 'Reliquary unlocked',
-    body: 'Shard colour slots are now available.',
-    label: 'OPEN RELIQUARY',
+    body: 'Fit shards for permanent bonuses.',
+    label: 'OPEN',
   },
   furnace: {
     category: 'SYSTEM ONLINE',
     title: 'Furnace unlocked',
-    body: 'Choir-ash feeds Heat. Light channels for the job you want powered.',
-    label: 'OPEN FURNACE',
+    body: 'Spend Heat on temporary ship boosts.',
+    label: 'OPEN',
   },
   research: {
     category: 'SYSTEM ONLINE',
     title: 'Research unlocked',
-    body: 'Permanent Hive Research is now available.',
-    label: 'OPEN RESEARCH',
+    body: 'Choose a branch to research faster.',
+    label: 'OPEN',
   },
   codex: {
     category: 'SYSTEM ONLINE',
     title: 'Codex unlocked',
-    body: 'Enemy families and hull roles are indexed.',
-    label: 'OPEN CODEX',
+    body: 'Optional reference for enemy families and hull roles.',
+    label: 'OPEN',
   },
   protocols: {
     category: 'SYSTEM ONLINE',
     title: 'Protocols unlocked',
-    body: 'Restricted sorties are now available.',
-    label: 'OPEN PROTOCOLS',
+    body: 'Restricted sorties that earn permanent scaling bonuses.',
+    label: 'OPEN',
   },
   echo: {
     category: 'SYSTEM ONLINE',
     title: 'Echo unlocked',
-    body: 'Short gauntlets and the Echo tree are online.',
-    label: 'OPEN ECHO',
+    body: 'Short challenge runs that earn permanent Echo upgrades.',
+    label: 'OPEN',
   },
   process: {
     category: 'SYSTEM ONLINE',
     title: 'Process unlocked',
-    body: 'The hangar can learn chores you already know. Achievements fund Process.',
-    label: 'OPEN PROCESS',
+    body: 'Spend Process Points to unlock automation.',
+    label: 'OPEN',
   },
   specialists: {
     category: 'SYSTEM ONLINE',
     title: 'Specialists unlocked',
-    body: 'Gunner, Warden, and Scavenger ranks are online.',
-    label: 'OPEN SPECIALISTS',
+    body: 'Rank specialists for permanent ship bonuses.',
+    label: 'OPEN',
   },
   tasks: {
     category: 'SYSTEM ONLINE',
     title: 'Task List unlocked',
     body: 'Finish the checklist to open Capital.',
-    label: 'OPEN TASKS',
+    label: 'OPEN',
   },
   capital: {
     category: 'SYSTEM ONLINE',
     title: 'Capital unlocked',
-    body: 'Second combat scale is online.',
-    label: 'OPEN CAPITAL',
+    body: 'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
+    label: 'OPEN',
   },
   reinforce: {
     category: 'SYSTEM ONLINE',
     title: 'Reinforce unlocked',
-    body: 'Second prestige. Keeps the foundry.',
-    label: 'OPEN REINFORCE',
+    body: 'Second prestige. Keeps the Foundry and starts the lane again.',
+    label: 'OPEN',
   },
 }
 
@@ -168,6 +174,8 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
     return false
   }
   if (a.act1Cleared !== b.act1Cleared) return false
+  if (a.foundrySlag !== b.foundrySlag || a.foundrySlagLevel !== b.foundrySlagLevel) return false
+  if (a.processCoreHint !== b.processCoreHint || a.protocolRankSum !== b.protocolRankSum) return false
   if (a.networkBars.length !== b.networkBars.length) return false
   if (a.farmablePrints.length !== b.farmablePrints.length) return false
   if (a.completePrints.length !== b.completePrints.length) return false
@@ -202,6 +210,10 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     routeB: isRouteBUnlocked(careerHighestSector(state)),
     act1Cleared: Boolean(state.meta.act1Cleared),
     achievements: [...(state.meta.completedAchievements ?? [])],
+    foundrySlag: foundryMaterialCount(state, 'slag-ingot'),
+    foundrySlagLevel: foundryRecipeLevel(state, 'slag-ingot'),
+    processCoreHint: processCoreHintReady(state),
+    protocolRankSum: Object.values(state.protocols?.ranks ?? {}).reduce((n, v) => n + v, 0),
   }
 }
 
@@ -231,9 +243,9 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: Gam
     push({
       id: 'sys:network',
       category: 'SYSTEM ONLINE',
-      title: 'Dock systems online',
-      body: 'Salvage ranks Cores. Drones live on Network. More stations are listed.',
-      action: { label: 'OPEN NETWORK', nav: { kind: 'tab', tab: 'network' } },
+      title: 'Drone Network unlocked',
+      body: 'Assign drones to improve combat and production.',
+      action: { label: 'OPEN', nav: { kind: 'tab', tab: 'network' } },
     })
   }
 
@@ -245,8 +257,8 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: Gam
         id: 'sys:yard',
         category: 'SYSTEM ONLINE',
         title: 'Yard unlocked',
-        body: 'Yard Grid and Slag Bank are online after Rebuild.',
-        action: { label: 'OPEN YARD', nav: { kind: 'tab', tab: 'yard' } },
+        body: 'Place buildings that run while docked.',
+        action: { label: 'OPEN', nav: { kind: 'tab', tab: 'yard' } },
       })
       continue
     }
@@ -258,7 +270,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: Gam
       id: 'sys:rebuild',
       category: 'HANGAR',
       title: 'Rebuild available',
-      body: 'The hangar can rebuild the hull and swap Cores.',
+      body: 'Swap hull and Cores. Permanent systems stay.',
       action: { label: 'VIEW REBUILD', nav: { kind: 'rebuild' } },
     })
   }
@@ -377,6 +389,46 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: Gam
         .slice(0, 3)
         .join(' · '),
       action: { label: 'OPEN PROCESS', nav: { kind: 'tab', tab: 'process' } },
+    })
+  }
+
+  if (next.foundrySlag > 0 && prev.foundrySlag <= 0) {
+    push({
+      id: 'foundry:slag',
+      category: 'FOUNDRY',
+      title: 'Slag Ingot produced',
+      body: 'Stock is ready. Keep smelting to raise recipe level.',
+      action: { label: 'OPEN', nav: { kind: 'tab', tab: 'foundry' } },
+    })
+  }
+
+  if (next.foundrySlagLevel > 0 && prev.foundrySlagLevel <= 0) {
+    push({
+      id: 'foundry:mastery',
+      category: 'FOUNDRY',
+      title: 'Recipe level increased',
+      body: 'Repeated crafting makes this recipe faster.',
+      action: { label: 'OPEN', nav: { kind: 'tab', tab: 'foundry' } },
+    })
+  }
+
+  if (next.processCoreHint && !prev.processCoreHint) {
+    push({
+      id: 'process:cores',
+      category: 'PROCESS',
+      title: 'Doing this often?',
+      body: 'Process can automate Core upgrades.',
+      action: { label: 'SHOW ME', nav: { kind: 'tab', tab: 'process', focus: 'process-first-buy' } },
+    })
+  }
+
+  if (next.protocolRankSum > 0 && prev.protocolRankSum <= 0) {
+    push({
+      id: 'protocol:rank1',
+      category: 'PROTOCOL',
+      title: 'Protocol cleared — Rank 1',
+      body: 'The muted system now scales better. Rank 2 has a harder target.',
+      action: { label: 'OPEN', nav: { kind: 'tab', tab: 'protocols' } },
     })
   }
 

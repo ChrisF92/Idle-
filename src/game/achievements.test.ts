@@ -77,34 +77,19 @@ describe('achievements and AI unlock', () => {
     expect(state.resources.aiPoints).toBe(6)
   })
 
-  it('offers prestige and AI guide steps when those systems unlock', () => {
+  it('does not force Rebuild or Process overlay tours', () => {
     const prestigeState = createInitialState(0)
     prestigeState.meta.highestSectorEver = 4
     prestigeState.combat.sector = 4
-    prestigeState.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-foundry',
-      'guide-reliquary',
-    ]
-    expect(activeGuideStep(prestigeState, 'combat')?.id).toBe('guide-prestige-tab')
+    prestigeState.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
+    expect(activeGuideStep(prestigeState, 'combat')).toBeNull()
+    expect(activeGuideStep(prestigeState, 'dock')?.id).not.toBe('guide-prestige-tab')
 
     const aiState = createInitialState(0)
     aiState.meta.aiUnlocked = true
     aiState.meta.completedAchievements = ['first-blood']
-    aiState.meta.seenOnboarding = [
-      ...STARTER_GUIDE_IDS,
-      ...NETWORK_GUIDE_IDS,
-      'guide-foundry',
-      'guide-reliquary',
-      'guide-furnace',
-      'guide-research-tab',
-      'guide-salvage',
-    ]
-    expect(activeGuideStep(aiState, 'combat')?.id).toBe('guide-ai-tab')
-
-    aiState.meta.seenOnboarding = [...aiState.meta.seenOnboarding, 'guide-ai-tab']
-    expect(activeGuideStep(aiState, 'process')?.id).toBe('guide-process-v2-what')
+    aiState.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
+    expect(activeGuideStep(aiState, 'process')).toBeNull()
   })
 
   it('lists a stable achievement catalog with AI rewards', () => {

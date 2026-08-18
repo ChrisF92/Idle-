@@ -88,7 +88,7 @@ export function NetworkTab({ state, onAssign, onBuyLink, onOptimise, onPreset, g
       ) : null}
       {onPreset && hasProcess(state, 'network-presets') ? (
         <div className="process-config-block" data-guide="network-presets">
-          <p className="muted">Presets write visible weights, then Optimise applies them to the corps.</p>
+          <p className="muted">Presets write visible weights, then Optimise applies them to your drones.</p>
           <p className="assign-row">
             {(Object.keys(NETWORK_PRESET_LABELS) as ProcessNetworkPreset[])
               .filter((id) => id !== 'custom')

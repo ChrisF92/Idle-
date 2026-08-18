@@ -47,8 +47,8 @@ describe('sortie feel', () => {
   it('starts the live guide catalog on Dock', () => {
     const state = createInitialState(0)
     const step = activeGuideStep(state, 'dock')
-    expect(step?.id).toBe('guide-shipyard-tab')
-    expect(step?.target).toBe('dock-tab')
-    expect(GUIDE_STEPS.some((s) => s.target === 'rebuild-btn')).toBe(true)
+    expect(step?.id).toBe('guide-launch')
+    expect(step?.target).toBe('launch')
+    expect(GUIDE_STEPS.some((s) => s.target === 'rebuild-btn')).toBe(false)
   })
 })

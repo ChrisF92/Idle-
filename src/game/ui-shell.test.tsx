@@ -8,6 +8,7 @@ import { StatsTab } from '../components/tabs/StatsTab'
 import { TabNav } from '../components/TabNav'
 import { GuideOverlay } from '../components/GuideOverlay'
 import { ToastStack } from '../components/ToastStack'
+import { OfflineBanner } from '../components/OfflineBanner'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
 import { acknowledgeOnboarding, activeGuideStep, GUIDE_STEPS } from './progression'
@@ -33,7 +34,7 @@ describe('shell UX', () => {
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cores/ })).toBeNull()
     expect(screen.queryByText('Salvage')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Launch' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
     expect(document.querySelector('[data-guide="sortie-canvas"]')).toBeTruthy()
     expect(document.querySelector('[data-guide="sortie-hull"]')).toBeTruthy()
   })
@@ -51,11 +52,10 @@ describe('shell UX', () => {
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
     expect(screen.getByRole('button', { name: /Cores/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Launch' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
     expect(document.querySelector('[data-guide="cores-sheet"]')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Cores/ }))
     expect(screen.getByText(/Salvage ranks these/i)).toBeTruthy()
-    expect(screen.getByText(/Drones live on Network/i)).toBeTruthy()
     expect(document.querySelector('[data-guide="core-pulse-cannon"]')).toBeTruthy()
   })
 
@@ -152,8 +152,8 @@ describe('shell UX', () => {
     expect(screen.getByRole('dialog', { name: 'Cores' })).toBeTruthy()
 
     const next = acknowledgeOnboarding(persist, 'guide-cores-persist')
-    const networkStep = activeGuideStep(next, 'combat')
-    expect(networkStep?.id).toBe('guide-drone-cap')
+    const relaunch = activeGuideStep(next, 'combat')
+    expect(relaunch?.id).toBe('guide-relaunch')
     rerender(
       <CombatTab
         state={next}
@@ -161,25 +161,25 @@ describe('shell UX', () => {
         onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
-        guide={networkStep}
+        guide={relaunch}
       />,
     )
     expect(screen.queryByRole('dialog', { name: 'Cores' })).toBeNull()
   })
 
-  it('shows Continue only on look-only onboarding tips', () => {
-    const tap = GUIDE_STEPS.find((s) => s.id === 'guide-drone-cap')
-    const look = GUIDE_STEPS.find((s) => s.id === 'guide-sortie-field')
+  it('shows Got it only on look-only onboarding tips', () => {
+    const tap = GUIDE_STEPS.find((s) => s.id === 'guide-network-strike')
+    const look = GUIDE_STEPS.find((s) => s.id === 'guide-cores-persist')
     expect(tap && look).toBeTruthy()
     const { rerender } = render(
       <GuideOverlay step={tap!} onComplete={() => undefined} onSkip={() => undefined} />,
     )
-    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
-    expect(screen.getByText(/Tap the highlighted control/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull()
+    expect(screen.getByText(/Tap the highlight/i)).toBeTruthy()
     rerender(
       <GuideOverlay step={look!} onComplete={() => undefined} onSkip={() => undefined} />,
     )
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy()
   })
 
   it('spotlights Network manufacture, corps, and Links', () => {
@@ -203,7 +203,35 @@ describe('shell UX', () => {
     render(<ScreenHelp screen="combat" />)
     fireEvent.click(screen.getByRole('button', { name: 'Sortie info' }))
     expect(screen.getByRole('dialog', { name: 'Sortie' })).toBeTruthy()
-    expect(screen.getByText(/Drones belong on the Network tab/i)).toBeTruthy()
+    expect(screen.getByText(/Drones are assigned on the Network tab/i)).toBeTruthy()
+  })
+
+  it('renders offline rewards as a dismissable modal', () => {
+    let dismissed = false
+    render(
+      <OfflineBanner
+        report={{
+          elapsedMs: 5 * 60 * 1000,
+          appliedMs: 5 * 60 * 1000,
+          capped: false,
+          sectorsBefore: 7,
+          sectorsAfter: 7,
+          sectorsCleared: 0,
+          modeLabel: 'Paused',
+          gains: { scrap: 672.88, heat: 6.76 },
+          summary: 'Away 5m',
+        }}
+        onDismiss={() => {
+          dismissed = true
+        }}
+      />,
+    )
+    expect(screen.getByRole('dialog', { name: 'Welcome back' })).toBeTruthy()
+    expect(screen.getByText(/\+672\.88 Scrap/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(dismissed).toBe(true)
   })
 
   it('renders actionable toasts without covering as a modal', () => {

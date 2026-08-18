@@ -49,22 +49,47 @@
   font-size: 0.62rem;
 }
 
-.offline-banner {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  align-items: start;
-  border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line));
-  background: color-mix(in srgb, var(--accent-2) 12%, var(--bg-panel));
-  padding: 0.55rem 0.75rem;
-  max-height: 28vh;
-  overflow: auto;
+.offline-modal-backdrop {
+  z-index: 72;
+  place-items: end center;
+  padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
-.offline-banner .offline-gains {
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
+.offline-modal-sheet {
+  width: min(480px, 100%);
+  max-height: min(78dvh, 640px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.offline-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.offline-gains {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.28rem;
+  font-size: 0.95rem;
   color: #c8e0d0;
+}
+
+.offline-modal-actions {
+  flex: 0 0 auto;
+  display: grid;
+}
+
+.offline-modal-actions .primary {
+  min-height: 2.75rem;
+  width: 100%;
 }
 
 .brand-cluster {
@@ -496,8 +521,57 @@ h2 .inspect-name {
   z-index: 2;
 }
 
-.guide-root-required .guide-hole {
+.guide-root-hint .guide-block,
+.guide-root-action .guide-block {
+  pointer-events: none;
+  background: transparent;
+}
+
+.guide-root-hint .guide-hole {
   box-shadow: none;
+  border-width: 2px;
+}
+
+.guide-root-action .guide-hole {
+  box-shadow: 0 0 0 9999px rgba(6, 9, 14, 0.35);
+}
+
+.guide-root-critical .guide-block {
+  pointer-events: auto;
+}
+
+.guide-tip-hint {
+  max-height: min(34vh, 200px);
+}
+
+.consequence-lists {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.5rem 0 0.85rem;
+}
+
+.consequence-lists h4 {
+  margin: 0 0 0.2rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.consequence-lists ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.sortie-next {
+  margin: 0.4rem 0 0.7rem;
+}
+
+.sortie-next ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
 }
 
 .guide-tip {
@@ -544,8 +618,7 @@ h2 .inspect-name {
 
 .app-guide-lock .panel-scroll,
 .app-guide-lock .cores-modal-card .core-sheet,
-.app-guide-lock .hud-chips,
-.app-guide-lock .offline-banner {
+.app-guide-lock .hud-chips {
   overscroll-behavior: none;
 }
 
