@@ -44,6 +44,7 @@ import {
   tickNetwork,
 } from './network'
 import { tickFoundry } from './foundry'
+import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { furnaceNetPerSec, tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult } from './hiveResearch'
@@ -214,7 +215,7 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   }
   tickFoundry(state, dtSeconds)
   tickYard(state, dtSeconds)
-  tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state))
+  tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {
@@ -290,7 +291,7 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
 
   add('scrap', networkScrapRate(state))
   add('data', networkDataRate(state))
-  add('heat', furnaceNetPerSec(state, hiveResearchHeatFromAshMult(state)))
+  add('heat', furnaceNetPerSec(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state)))
 
   return rates
 }

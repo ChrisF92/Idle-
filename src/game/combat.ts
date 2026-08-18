@@ -44,7 +44,7 @@ import { fittedRegenBonus } from './milestones'
 import { networkSalvageMult } from './network'
 import { grantReliquaryKillLoot, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot, furnaceSalvageMult } from './furnace'
-import { foundrySalvageMult } from './foundry'
+import { foundrySalvageMult, foundryPartDropMult, foundryShardDropBonus } from './foundry'
 import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
 import { yardSalvageMult } from './yard'
 import { echoSalvageMult } from './echo'
@@ -1661,6 +1661,7 @@ export function rollEnemyPartDrop(
   let chance =
     table.chance *
     logisticsDropMult(state) *
+    foundryPartDropMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
     (1 +
       matterShopDropBonus(state.prestige.matterShop) +
@@ -1734,7 +1735,12 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route, state) * salvageMult
   rollEnemyPartDrop(state, unit)
   grantSignalCoreDrop(state, 'kill', { family: unit.family })
-  grantReliquaryKillLoot(state, unit.isBoss, Math.random, hiveResearchShardDropBonus(state))
+  grantReliquaryKillLoot(
+    state,
+    unit.isBoss,
+    Math.random,
+    hiveResearchShardDropBonus(state) + foundryShardDropBonus(state),
+  )
   grantFurnaceKillLoot(state, unit.isBoss)
   grantHiveResearchKillXp(state, unit.isBoss)
 }

@@ -27,7 +27,7 @@ import {
   processEarned,
   processExtraPresetSlots,
 } from '../../game/process'
-import { FOUNDRY_RECIPES } from '../../game/foundry'
+import { FOUNDRY_RECIPES, foundryQueueCap } from '../../game/foundry'
 import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
 import { NETWORK_BARS } from '../../game/network'
 import { PROTOCOLS, protocolRank } from '../../game/protocols'
@@ -272,20 +272,35 @@ function NodeConfig({
     )
   }
   if (nodeId === 'foundry-queue') {
+    const cap = foundryQueueCap(state)
+    const queue = [...cfg.foundry.queue]
+    while (queue.length < cap) queue.push('' as FoundryRecipeId)
     return (
       <div className="process-config-block" data-guide="process-foundry-queue">
-        <p className="muted">Queue (comma recipe ids)</p>
-        <input
-          value={cfg.foundry.queue.join(',')}
-          onChange={(e) =>
-            patch((c) => {
-              c.foundry.queue = e.target.value
-                .split(',')
-                .map((s) => s.trim())
-                .filter(Boolean) as FoundryRecipeId[]
-            })
-          }
-        />
+        <p className="muted">Production queue · {cap} slots</p>
+        {queue.slice(0, cap).map((id, i) => (
+          <label key={i} className="process-config">
+            {i + 1}
+            <select
+              value={id}
+              onChange={(e) =>
+                patch((c) => {
+                  const next = [...c.foundry.queue]
+                  while (next.length < cap) next.push('' as FoundryRecipeId)
+                  next[i] = e.target.value as FoundryRecipeId
+                  c.foundry.queue = next.filter(Boolean) as FoundryRecipeId[]
+                })
+              }
+            >
+              <option value="">Empty</option>
+              {FOUNDRY_RECIPES.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
       </div>
     )
   }

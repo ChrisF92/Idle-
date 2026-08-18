@@ -74,11 +74,17 @@ import {
   LEGACY_TRACK_TO_CHANNEL,
 } from './furnace'
 import {
-  FOUNDRY_MODULE_SLOTS,
+  FOUNDRY_RECIPES,
+  FOUNDRY_UPGRADES,
   craftsForNextLevel,
   formatFoundryCost,
+  foundryCraftOutput,
   foundryCraftTime,
+  foundryFitSlots,
+  foundryHasMaterialChain,
   foundryMaterialCount,
+  foundryNextMastery,
+  foundryRecipeChainLine,
   foundryRecipeGateLine,
   foundryRecipeLevel,
   foundryUpgradeCost,
@@ -417,8 +423,11 @@ export function inspectFoundryRecipe(state: GameState, id: FoundryRecipeId): Ins
       { label: 'Stock', value: formatCompact(Number.isFinite(stock) ? stock : 0) },
       { label: 'Craft', value: formatFoundryCost(cost) },
       { label: 'Time', value: `${formatCompact(time, 1)}s` },
+      { label: 'Output', value: String(foundryCraftOutput(state, id)) },
       { label: 'To next level', value: `${xp}/${need} crafts` },
     )
+    const next = foundryNextMastery(state, id)
+    if (next) stats.push({ label: 'Next mastery', value: `Lv ${next.at} — ${next.blurb}` })
   }
   if (!unlocked) stats.push({ label: 'Gate', value: foundryRecipeGateLine(def) })
   else if (def.unlocksRecipe) {
@@ -427,9 +436,15 @@ export function inspectFoundryRecipe(state: GameState, id: FoundryRecipeId): Ins
   }
   const body = [
     def.blurb,
-    'Smelters run while you fly or sit docked. Queue a recipe on an idle slot.',
+    foundryHasMaterialChain(def)
+      ? foundryRecipeChainLine(def)
+      : 'Salvage or scrap goes in. Stock comes out.',
+    'Raising this recipe still matters: later crafts get faster, cheaper, and yield more — then the floor supplies it on its own.',
     'Recipe levels, stock, and Foundry Points persist when you Rebuild. Fitted bits come off.',
   ]
+  if (inf) {
+    body.unshift('This material is solved. You do not need to queue it any more.')
+  }
   if (def.requiresSectorEver > 2) {
     body.push(`This recipe opens after you clear sector ${def.requiresSectorEver}.`)
   }
@@ -462,6 +477,39 @@ export function inspectFoundryUpgrade(state: GameState, id: string): InspectCard
   if (def.extraSlots) {
     stats.push({ label: 'Smelters', value: `+${def.extraSlots * rank}` })
   }
+  if (def.extraFitSlots) {
+    stats.push({ label: 'Fit slots', value: `+${def.extraFitSlots * rank}` })
+  }
+  if (def.salvageBonus) {
+    stats.push({ label: 'Salvage', value: `+${pct(def.salvageBonus * rank)}` })
+  }
+  if (def.xpBonus) {
+    stats.push({ label: 'Mastery XP', value: `+${pct(def.xpBonus * rank)}` })
+  }
+  if (def.outputAdd) {
+    stats.push({ label: 'Output', value: `+${def.outputAdd * rank} per craft` })
+  }
+  if (def.masteryReduce) {
+    stats.push({ label: 'Gates', value: `−${def.masteryReduce * rank} mastery` })
+  }
+  if (def.networkFillBonus) {
+    stats.push({ label: 'Network fill', value: `+${pct(def.networkFillBonus * rank)}` })
+  }
+  if (def.ashHeatBonus) {
+    stats.push({ label: 'Ash Heat', value: `+${pct(def.ashHeatBonus * rank)}` })
+  }
+  if (def.researchXpBonus) {
+    stats.push({ label: 'Research XP', value: `+${pct(def.researchXpBonus * rank)}` })
+  }
+  if (def.shardDropBonus) {
+    stats.push({ label: 'Shards', value: `+${pct(def.shardDropBonus * rank)}` })
+  }
+  if (def.partDropBonus) {
+    stats.push({ label: 'Print drops', value: `+${pct(def.partDropBonus * rank)}` })
+  }
+  if (def.queueBonus) {
+    stats.push({ label: 'Queue', value: `+${def.queueBonus * rank} slots` })
+  }
   if (rank < def.maxRank) stats.push({ label: 'Next', value: `${cost} FP` })
   return {
     title: def.name,
@@ -469,10 +517,10 @@ export function inspectFoundryUpgrade(state: GameState, id: string): InspectCard
     stats,
     body: [
       def.blurb,
-      'Foundry Points come from finishing crafts. These ranks persist when you Rebuild.',
+      'Foundry Points come from finishing crafts and from mastery ranks. These ranks persist when you Rebuild.',
       def.extraSlots
         ? 'Extra smelters let you run more recipes at once. Four slots is the cap.'
-        : 'Ranks stack. Strike and Ward here sit on top of Network bars and Cores.',
+        : 'Ranks change the shop floor — speed, output, gates, and other systems — not only sortie stats.',
     ],
   }
 }
@@ -491,7 +539,7 @@ export function inspectFoundryModule(state: GameState, id: string): InspectCard 
       label: 'Status',
       value: fitted ? 'Fitted' : unlocked ? 'Ready' : 'Locked',
     },
-    { label: 'Fit slots', value: `${state.foundry.equipped.length}/${FOUNDRY_MODULE_SLOTS}` },
+    { label: 'Fit slots', value: `${state.foundry.equipped.length}/${foundryFitSlots(state)}` },
   ]
   if (def.damageMult) stats.push({ label: 'Damage', value: `×${def.damageMult.toFixed(2)}` })
   if (def.shieldFlat) stats.push({ label: 'Shield', value: `+${def.shieldFlat}` })
@@ -508,7 +556,7 @@ export function inspectFoundryModule(state: GameState, id: string): InspectCard 
     stats,
     body: [
       def.blurb,
-      'Print the bit from stock, then fit it while docked. Two bits at a time.',
+      'Print the bit from stock, then fit it while docked.',
       'Fitted bits come off on Rebuild. Recipe levels stay, so you can print them again.',
     ],
   }
@@ -614,5 +662,7 @@ export function inspectCopyCorpus(state: GameState): string[] {
   for (const ch of FURNACE_CHANNELS) push(inspectFurnaceChannel(state, ch.id))
   for (const up of FURNACE_UPGRADES) push(inspectFurnaceUpgrade(state, up.id))
   for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
+  for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))
+  for (const up of FOUNDRY_UPGRADES) push(inspectFoundryUpgrade(state, up.id))
   return lines
 }

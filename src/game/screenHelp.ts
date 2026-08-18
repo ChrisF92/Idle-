@@ -57,8 +57,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   foundry: {
     title: 'Foundry',
     body: [
-      'Smelt salvage into materials, then into bits you can fit. Recipe levels, stock, and Foundry Points persist when you Rebuild. Fitted bits come off.',
-      'Smelt, ranks, prints, and fit sit on their own panes. Core prints unlock when you reach a sector. Hold that sector to farm fragments, then Assemble here.',
+      'Smelt salvage and scrap into stock, then into later materials and bits you can fit. Recipe mastery speeds crafts, raises output, and finally solves old stock so you can stop babysitting it.',
+      'Smelt, ranks, prints, and fit sit on their own panes. Foundry Points buy smelters and shop-floor ranks. Core prints still assemble here. Recipe levels persist on Rebuild.',
     ],
   },
   reliquary: {

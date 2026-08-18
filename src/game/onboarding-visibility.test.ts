@@ -80,6 +80,7 @@ describe('Hiveworks onboarding catalog', () => {
       'guide-network-make',
       'guide-foundry',
       'guide-foundry-smelt',
+      'guide-foundry-what',
       'guide-reliquary',
       'guide-reliquary-slots',
       'guide-furnace',

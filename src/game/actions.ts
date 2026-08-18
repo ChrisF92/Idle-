@@ -68,10 +68,13 @@ import {
   canBuyFoundryUpgrade,
   equipFoundryModule,
   FOUNDRY_UPGRADES,
+  foundryMaterialCount,
+  foundryRecipeLevel,
   foundryUpgradeCost,
   persistFoundryOnRebuild,
   setFoundrySlot,
   unequipFoundryModule,
+  isFoundryInfinite,
 } from './foundry'
 import { insertShard, removeShard } from './reliquary'
 import {
@@ -84,6 +87,7 @@ import {
   setFurnacePriority,
 } from './furnace'
 import { hiveResearchHeatFromAshMult, setResearchFocus } from './hiveResearch'
+import { foundryAshHeatMult } from './foundryBonuses'
 import {
   armYardOnRebuild,
   buyYardArm,
@@ -173,7 +177,7 @@ export {
 }
 
 export function convertAshToHeat(state: GameState): GameState {
-  return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state))
+  return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
 }
 
 export function setNumberNotation(
@@ -773,6 +777,17 @@ export function canAssembleBlueprint(
   if (!recipe) return { ok: false, reason: 'Unknown print' }
   const progress = blueprintProgress(state, moduleId)
   if (!progress?.complete) return { ok: false, reason: 'Need more fragments' }
+  if (recipe.requiresRecipeLevel) {
+    const have = foundryRecipeLevel(state, recipe.requiresRecipeLevel.recipeId)
+    if (have < recipe.requiresRecipeLevel.level) {
+      return { ok: false, reason: 'Need more Foundry mastery' }
+    }
+  }
+  for (const [id, n] of Object.entries(recipe.foundry ?? {})) {
+    if ((n ?? 0) > foundryMaterialCount(state, id)) {
+      return { ok: false, reason: 'Need Foundry stock' }
+    }
+  }
   return { ok: true }
 }
 
@@ -790,6 +805,10 @@ export function assembleBlueprint(state: GameState, moduleId: string): GameState
     if (have < need) return state
     next.parts[id] = have - need
     if (next.parts[id] <= 0) delete next.parts[id]
+  }
+  for (const [id, n] of Object.entries(recipe.foundry ?? {})) {
+    if (!n || isFoundryInfinite(next, id)) continue
+    next.foundry.materials[id] = Math.max(0, (next.foundry.materials[id] ?? 0) - n)
   }
   if (!next.shipyard.unlockedModules.includes(moduleId)) {
     next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
@@ -1776,7 +1795,9 @@ export function pickFoundryUpgradeId(state: GameState): string | null {
     let score = -cost
     if (priority === 'speed') score = (up.speedBonus ?? 0) * 1000 - cost
     else if (priority === 'slots') score = (up.extraSlots ?? 0) * 1000 - cost
-    else if (priority === 'output') score = ((up.damageBonus ?? 0) + (up.shieldBonus ?? 0) + (up.salvageBonus ?? 0)) * 1000 - cost
+    else if (priority === 'output') {
+      score = ((up.outputAdd ?? 0) * 4 + (up.xpBonus ?? 0) + (up.salvageBonus ?? 0)) * 1000 - cost
+    }
     if (score > bestScore) {
       bestScore = score
       bestId = up.id

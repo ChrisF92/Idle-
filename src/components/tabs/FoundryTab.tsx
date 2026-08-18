@@ -5,13 +5,17 @@ import {
   FOUNDRY_RECIPES,
   FOUNDRY_UPGRADES,
   canBuyFoundryUpgrade,
+  foundryCraftOutput,
   foundryCraftTime,
+  foundryFitSlots,
+  foundryHasMaterialChain,
   foundryMaterialCount,
+  foundryNextMastery,
+  foundryRecipeChainLine,
   foundryRecipeLevel,
   foundryUpgradeCost,
   formatFoundryCost,
   foundryRecipeGateLine,
-  FOUNDRY_MODULE_SLOTS,
   isFoundryInfinite,
   isFoundryModuleUnlocked,
   isFoundryRecipeUnlocked,
@@ -68,7 +72,15 @@ function foundryPaneFromHints(
   if (requestedPane) return requestedPane
   if (focusTarget?.startsWith('print-')) return 'prints'
   if (guideTarget === 'foundry-prints') return 'prints'
-  if (guideTarget === 'foundry-smelters' || guideTarget === 'foundry-recipes') return 'smelt'
+  if (guideTarget === 'foundry-ranks') return 'ranks'
+  if (
+    guideTarget === 'foundry-smelters' ||
+    guideTarget === 'foundry-recipes' ||
+    guideTarget === 'foundry-chain' ||
+    guideTarget?.startsWith('foundry-recipe-')
+  ) {
+    return 'smelt'
+  }
   return null
 }
 
@@ -105,7 +117,7 @@ function RankRow({
           onBuyUpgrade(up.id)
         }}
       >
-        {rank >= up.maxRank ? 'Maxed' : `Buy · ${cost} FP`}
+        {rank >= up.maxRank ? 'Maxed' : can.ok ? `Buy · ${cost} FP` : can.reason ?? `Buy · ${cost} FP`}
       </button>
     </article>
   )
@@ -133,6 +145,14 @@ function PrintRow({
         return `${pt[0]!.toUpperCase()}${pt.slice(1)} ${have}/${want}`
       }).join(' · ')
     : ''
+  const foundryLine = recipe?.foundry
+    ? Object.entries(recipe.foundry)
+        .map(([id, n]) => `${n} ${FOUNDRY_RECIPES.find((r) => r.id === id)?.name ?? id}`)
+        .join(' · ')
+    : ''
+  const masteryLine = recipe?.requiresRecipeLevel
+    ? `${FOUNDRY_RECIPES.find((r) => r.id === recipe.requiresRecipeLevel?.recipeId)?.name ?? recipe.requiresRecipeLevel.recipeId} Lv ${recipe.requiresRecipeLevel.level}`
+    : ''
   const rowClass = printed
     ? 'network-row is-printed'
     : check.ok
@@ -152,7 +172,9 @@ function PrintRow({
         </span>
       </div>
       <p className="network-row-stats">
-        {printed ? 'Fit this Core on the next Rebuild.' : partsLine || mod.description}
+        {printed
+          ? 'Fit this Core on the next Rebuild.'
+          : [partsLine, foundryLine, masteryLine].filter(Boolean).join(' · ') || mod.description}
       </p>
       {!printed ? (
         <button
@@ -245,6 +267,9 @@ export function FoundryTab({
           <h3 className="foundry-heading" data-guide="foundry-recipes">
             Recipes
           </h3>
+          <p className="foundry-chain" data-guide="foundry-chain">
+            Advanced stock needs precursor materials. Example: Slag Ingot → Hardened Plate → Void Slag.
+          </p>
           {FOUNDRY_RECIPES.map((recipe) => {
             const unlocked = isFoundryRecipeUnlocked(state, recipe.id)
             const inf = isFoundryInfinite(state, recipe.id)
@@ -256,6 +281,7 @@ export function FoundryTab({
             const need = craftsForNextLevel(level, state)
             const assigned = foundry.slots.findIndex((s) => s.recipeId === recipe.id)
             const idleSlot = foundry.slots.findIndex((s) => !s.recipeId)
+            const nextMastery = foundryNextMastery(state, recipe.id)
             return (
               <article
                 key={recipe.id}
@@ -266,6 +292,7 @@ export function FoundryTab({
                       : 'network-row is-ready'
                     : 'network-row locked'
                 }
+                data-guide={`foundry-recipe-${recipe.id}`}
               >
                 <div className="network-row-main">
                   <InspectName
@@ -273,16 +300,24 @@ export function FoundryTab({
                     card={unlocked ? inspectFoundryRecipe(state, recipe.id) : null}
                   />
                   <span className="muted">
-                    {inf ? 'Infinite' : unlocked ? `Lv ${level}` : 'Locked'}
+                    {inf ? 'Solved' : unlocked ? `Lv ${level}` : 'Locked'}
                   </span>
                 </div>
                 <p className="network-row-stats">
                   {unlocked
                     ? inf
-                      ? 'Passive stock'
-                      : `${formatFoundryCost(cost)} · ${formatCompact(time, 1)}s · ${xp}/${need} · stock ${formatCompact(Number.isFinite(stock) ? stock : 0)}`
+                      ? 'The floor supplies this. You can leave it idle.'
+                      : `${formatFoundryCost(cost)} · ${formatCompact(time, 1)}s · ×${foundryCraftOutput(state, recipe.id)} · ${xp}/${need} · stock ${formatCompact(Number.isFinite(stock) ? stock : 0)}`
                     : recipe.blurb + ' · ' + foundryRecipeGateLine(recipe)}
                 </p>
+                {unlocked && !inf && foundryHasMaterialChain(recipe) ? (
+                  <p className="network-row-stats">{foundryRecipeChainLine(recipe)}</p>
+                ) : null}
+                {unlocked && !inf && nextMastery ? (
+                  <p className="network-row-stats">
+                    Next mastery Lv {nextMastery.at}: {nextMastery.blurb}
+                  </p>
+                ) : null}
                 {unlocked && !inf ? (
                   <button
                     type="button"
@@ -305,7 +340,9 @@ export function FoundryTab({
 
           {pane === 'ranks' ? (
             <>
-              <h3 className="foundry-heading">Ranks</h3>
+              <h3 className="foundry-heading" data-guide="foundry-ranks">
+                Ranks
+              </h3>
               {onBuyMax && hasProcess(state, 'foundry-buy-max') ? (
                 <p className="assign-row">
                   <button type="button" className="primary" onClick={onBuyMax}>
@@ -337,7 +374,7 @@ export function FoundryTab({
           {pane === 'fit' ? (
             <>
               <h3 className="foundry-heading">Fit</h3>
-              <p className="muted">{FOUNDRY_MODULE_SLOTS} fitted bits. Swap only while docked.</p>
+              <p className="muted">{foundryFitSlots(state)} fitted bits. Swap only while docked.</p>
               {FOUNDRY_MODULES.map((mod) => {
                 const unlocked = isFoundryModuleUnlocked(state, mod.id)
                 const fitted = foundry.equipped.includes(mod.id)

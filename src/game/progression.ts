@@ -1368,8 +1368,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-foundry',
     title: 'Foundry',
     body: [
-      'Tap Foundry. This is the shop floor — smelt wreck into stock, then into bits you can fit.',
-      'Smelters run while you fly or sit docked.',
+      'Tap Foundry. The shop floor turns Salvage and scrap into stock, then into later materials and bits.',
+      'Smelters run while you fly or sit docked. This walkthrough will pause here so you can learn the floor.',
     ],
     target: 'foundry-tab',
     screen: 'foundry',
@@ -1380,23 +1380,25 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'guide-foundry-smelt',
-    title: 'Queue a smelter',
+    title: 'First craft',
     body: [
-      'Pick Slag Ingot or Filament on an idle slot. The bar fills on its own.',
-      'Finished crafts make Foundry Points and raise the recipe level. Tap a recipe name for cost and time.',
+      'Tap Slag Ingot. Salvage is the input. The smelter bar is craft progress. Stock is the output.',
+      'This walkthrough will not start the craft for you.',
     ],
-    target: 'foundry-smelters',
+    target: 'foundry-recipe-slag-ingot',
     tab: 'foundry',
     screen: 'foundry',
     group: 'foundry',
+    required: true,
     availableWhen: (s) => guideSeen(s, 'guide-foundry') && !guideSeen(s, 'guide-foundry-smelt'),
+    completeWhen: (s) => (s.foundry?.slots ?? []).some((slot) => slot.recipeId != null),
   },
   {
     id: 'guide-foundry-keep',
     title: 'What Rebuild keeps',
     body: [
       'Recipe levels, stock, and Foundry Points persist when you Rebuild. Fitted bits come off so you can print them again.',
-      'You are done here. Launch when you want — the next door waits until you leave this screen.',
+      'Keep smelting old recipes — mastery is how the floor gets faster, cheaper, and finally solved.',
     ],
     target: 'foundry-recipes',
     tab: 'foundry',
@@ -1404,6 +1406,152 @@ export const GUIDE_STEPS: GuideStep[] = [
     group: 'foundry',
     availableWhen: (s) =>
       guideSeen(s, 'guide-foundry-smelt') && !guideSeen(s, 'guide-foundry-keep'),
+  },
+  {
+    id: 'guide-foundry-what',
+    title: 'What the floor makes',
+    body: [
+      'Early recipes spend Salvage or scrap. Later recipes spend those materials. Stock sits in the Foundry until you spend it on bits, prints, or the next recipe.',
+      'One smelter to start. Extra smelters are Foundry Point ranks.',
+    ],
+    target: 'foundry-recipes',
+    tab: 'foundry',
+    screen: 'foundry',
+    group: 'foundry-v2',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'foundry') &&
+      (guideSeen(s, 'guide-foundry') || guideSeen(s, 'guide-foundry-smelt')) &&
+      !guideSeen(s, 'guide-foundry-what'),
+  },
+  {
+    id: 'guide-foundry-slots',
+    title: 'Smelter slots',
+    body: [
+      'Each slot runs one recipe. Idle slots do nothing. Queue a recipe, then leave it to fill.',
+      'Second, third, and fourth smelters are Foundry Point ranks — later recipes need them.',
+    ],
+    target: 'foundry-smelters',
+    tab: 'foundry',
+    screen: 'foundry',
+    group: 'foundry-v2',
+    required: true,
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-foundry-what') && !guideSeen(s, 'guide-foundry-slots'),
+  },
+  {
+    id: 'guide-foundry-progress',
+    title: 'Craft progress',
+    body: [
+      'The bar is one craft. When it fills, you gain stock and recipe XP toward mastery.',
+      'Speed ranks and recipe mastery both shorten that bar.',
+    ],
+    target: 'foundry-smelters',
+    tab: 'foundry',
+    screen: 'foundry',
+    group: 'foundry-v2',
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-foundry-slots') && !guideSeen(s, 'guide-foundry-progress'),
+  },
+  {
+    id: 'guide-foundry-mastery-why',
+    title: 'Recipe mastery',
+    body: [
+      'Repeating an old recipe still matters. Mastery ranks change how that recipe smelts — speed, extra output, cheaper costs, then a solved floor.',
+      'Tap a recipe name for the next mastery rank.',
+    ],
+    target: 'foundry-recipes',
+    tab: 'foundry',
+    screen: 'foundry',
+    group: 'foundry-v2',
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-foundry-progress') && !guideSeen(s, 'guide-foundry-mastery-why'),
+  },
+  {
+    id: 'guide-foundry-points',
+    title: 'Foundry Points',
+    body: [
+      'Finishing crafts and hitting mastery ranks pay Foundry Points. Spend them on smelters, output, and shop-floor ranks — not only sortie bonuses.',
+      'Ranks persist when you Rebuild.',
+    ],
+    target: 'foundry-ranks',
+    tab: 'foundry',
+    screen: 'foundry',
+    group: 'foundry-v2',
+    tap: false,
+    availableWhen: (s) =>
+      guideSeen(s, 'guide-foundry-mastery-why') && !guideSeen(s, 'guide-foundry-points'),
+  },
+  {
+    id: 'guide-foundry-milestone',
+    title: 'Mastery milestone',
+    body: [
+      'This recipe just hit a mastery rank. That is not a flat shop bonus — the craft itself changed.',
+      'Later ranks add extra output, cheaper costs, and more Foundry Points. The last rank solves the material.',
+    ],
+    target: 'foundry-recipes',
+    tab: 'foundry',
+    screen: 'foundry',
+    group: 'foundry-milestone',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'foundry') &&
+      Object.values(s.foundry?.recipeLevels ?? {}).some((n) => (n ?? 0) >= 4) &&
+      !guideSeen(s, 'guide-foundry-milestone'),
+  },
+  {
+    id: 'guide-foundry-chain',
+    title: 'Precursor materials',
+    body: [
+      'Advanced components require precursor materials.',
+      'The line under a recipe is the chain. Make the inputs first, or let Process craft them once you own Prerequisites.',
+    ],
+    target: 'foundry-chain',
+    tab: 'foundry',
+    screen: 'foundry',
+    group: 'foundry-chain',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'foundry') &&
+      (((s.foundry?.recipeLevels['slag-ingot'] ?? 0) >= 8) ||
+        ((s.foundry?.recipeLevels['slag-ingot'] ?? 0) >= 4 &&
+          Math.max(s.meta.highestSectorEver ?? 0, s.combat.highestSector ?? 0) >= 5)) &&
+      !guideSeen(s, 'guide-foundry-chain'),
+  },
+  {
+    id: 'guide-foundry-solved',
+    title: 'Solved material',
+    body: [
+      'This recipe is industrialised. The floor supplies it. You do not need to queue it or watch the bar.',
+      'That only happens after substantial mastery. Automation helped on the way here.',
+    ],
+    target: 'foundry-recipes',
+    tab: 'foundry',
+    screen: 'foundry',
+    group: 'foundry-solved',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.foundry?.infinite?.length) && !guideSeen(s, 'guide-foundry-solved'),
+  },
+  {
+    id: 'guide-foundry-queue',
+    title: 'Foundry queue',
+    body: [
+      'Production Queue lines up recipes. Smelters pull from this list before Smart Smelt.',
+      'Queue Rack (a Foundry Point rank) adds more slots. You still choose the order.',
+    ],
+    target: 'process-foundry-queue',
+    tab: 'process',
+    screen: 'process',
+    group: 'foundry-queue',
+    tap: false,
+    availableWhen: (s) =>
+      Boolean(s.process?.purchased.includes('foundry-queue')) &&
+      !guideSeen(s, 'guide-foundry-queue') &&
+      guideSeen(s, 'guide-process-v2-buy'),
   },
   {
     id: 'guide-relaunch-upgraded',
@@ -2469,6 +2617,14 @@ export const PROTOCOL_V2_GUIDE_IDS = [
   'guide-protocol-start',
   'guide-protocol-first',
   'guide-protocol-formula',
+] as const
+
+export const FOUNDRY_V2_GUIDE_IDS = [
+  'guide-foundry-what',
+  'guide-foundry-slots',
+  'guide-foundry-progress',
+  'guide-foundry-mastery-why',
+  'guide-foundry-points',
 ] as const
 
 /** First-Rebuild hangar walkthrough. Skip dismisses the whole group. */

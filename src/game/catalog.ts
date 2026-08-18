@@ -2,7 +2,7 @@
 
 import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, careerHighestSector, isSystemUnlocked } from './progression'
 import { formatCompact, formatStat } from './format'
-import type { CoreAttrId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
+import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
@@ -1834,6 +1834,8 @@ export interface BlueprintRecipe {
   casing: number
   core: number
   lens: number
+  foundry?: Partial<Record<FoundryRecipeId, number>>
+  requiresRecipeLevel?: { recipeId: FoundryRecipeId; level: number }
 }
 
 export interface EnemyPartDropEntry {
@@ -1883,12 +1885,12 @@ export const BLUEPRINTS: BlueprintRecipe[] = [
   { moduleId: 'ablative-mesh', casing: 5, core: 4, lens: 3 },
   { moduleId: 'sensor-whisker', casing: 4, core: 3, lens: 4 },
   { moduleId: 'grav-tether', casing: 5, core: 4, lens: 3 },
-  { moduleId: 'nano-lathe', casing: 5, core: 4, lens: 3 },
+  { moduleId: 'nano-lathe', casing: 5, core: 4, lens: 3, foundry: { 'brace-pin': 2 } },
   { moduleId: 'salvage-rig', casing: 5, core: 4, lens: 3 },
-  { moduleId: 'keel-baffle', casing: 6, core: 5, lens: 3 },
+  { moduleId: 'keel-baffle', casing: 6, core: 5, lens: 3, foundry: { 'keel-strip': 2 }, requiresRecipeLevel: { recipeId: 'keel-strip', level: 1 } },
   { moduleId: 'arc-lash', casing: 5, core: 5, lens: 4 },
-  { moduleId: 'slag-spit', casing: 6, core: 5, lens: 4 },
-  { moduleId: 'choir-tap', casing: 6, core: 5, lens: 5 },
+  { moduleId: 'slag-spit', casing: 6, core: 5, lens: 4, foundry: { 'void-slag': 2 } },
+  { moduleId: 'choir-tap', casing: 6, core: 5, lens: 5, foundry: { 'hearth-core': 1 }, requiresRecipeLevel: { recipeId: 'void-slag', level: 1 } },
 ]
 
 export function getBlueprint(moduleId: string): BlueprintRecipe | undefined {

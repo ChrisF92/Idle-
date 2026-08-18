@@ -16,6 +16,7 @@ import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
+import { foundryNetworkFillMult } from './foundryBonuses'
 
 function careerEver(state: GameState): number {
   return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
@@ -538,7 +539,8 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       protocolBonusMult(state, 'network') *
       echoNetworkMult(state) *
       processNetworkSpeedMult(state) *
-      furnaceNetworkMult(state)) /
+      furnaceNetworkMult(state) *
+      foundryNetworkFillMult(state)) /
     cost
   )
 }

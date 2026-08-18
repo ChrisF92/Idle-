@@ -66,6 +66,7 @@ import {
   setResearchFocus,
 } from './hiveResearch'
 import { runFurnaceManager } from './furnace'
+import { foundryAshHeatMult, foundryQueueCap } from './foundryBonuses'
 function adopt(state: GameState, next: GameState): void {
   if (next === state) return
   state.resources = next.resources
@@ -273,7 +274,7 @@ function pickFoundryPrereqRecipe(state: GameState, target: FoundryRecipeId): Fou
 function nextFoundryRecipe(state: GameState, busy: Set<string>): FoundryRecipeId | null {
   const cfg = processConfig(state)
   if (hasProcess(state, 'foundry-queue')) {
-    for (const id of cfg.foundry.queue) {
+    for (const id of cfg.foundry.queue.slice(0, foundryQueueCap(state))) {
       if (busy.has(id) && foundrySlotCount(state) < 3) continue
       if (!isFoundryRecipeUnlocked(state, id) || isFoundryInfinite(state, id)) continue
       return id
@@ -295,7 +296,8 @@ function autoSmartSmelt(state: GameState): void {
   if (
     !hasProcess(state, 'smart-smelt') &&
     !hasProcess(state, 'foundry-repeat') &&
-    !hasProcess(state, 'foundry-queue')
+    !hasProcess(state, 'foundry-queue') &&
+    !hasProcess(state, 'foundry-prereqs')
   ) {
     return
   }
@@ -392,7 +394,7 @@ function autoResearchFocus(state: GameState): void {
 }
 
 function autoFurnaceManager(state: GameState): void {
-  const next = runFurnaceManager(state, hiveResearchHeatFromAshMult(state))
+  const next = runFurnaceManager(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
   if (next !== state) adopt(state, next)
 }
 

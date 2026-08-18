@@ -35,6 +35,7 @@ import { isSystemUnlocked, maybeGrantSystemUnlocks } from './progression'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { networkManufactureMult, tickNetwork } from './network'
 import { tickFoundry } from './foundry'
+import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult } from './hiveResearch'
@@ -121,7 +122,7 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
   tickNetwork(state, seconds)
   tickFoundry(state, seconds)
   tickYard(state, seconds)
-  tickFurnace(state, seconds, hiveResearchHeatFromAshMult(state))
+  tickFurnace(state, seconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {

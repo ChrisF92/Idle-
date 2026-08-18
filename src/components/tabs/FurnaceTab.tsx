@@ -24,6 +24,7 @@ import {
   furnaceWantedLevel,
 } from '../../game/furnace'
 import { hiveResearchHeatFromAshMult } from '../../game/hiveResearch'
+import { foundryAshHeatMult } from '../../game/foundryBonuses'
 import { formatCompact } from '../../game/format'
 import { inspectFurnaceChannel, inspectFurnaceOverview, inspectFurnaceUpgrade } from '../../game/inspect'
 import { InspectName } from '../InspectName'
@@ -62,7 +63,7 @@ export function FurnaceTab({
   const open = isSystemUnlocked(state, 'furnace')
   const ash = state.resources.choirAsh ?? 0
   const heat = state.resources.heat ?? 0
-  const hive = hiveResearchHeatFromAshMult(state)
+  const hive = hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state)
   const cap = furnaceCapacity(state)
   const gen = furnaceGenerationPerSec(state, hive)
   const use = furnaceConsumptionPerSec(state)

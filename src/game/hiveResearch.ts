@@ -8,6 +8,7 @@ import { normalizeRoute, routeResearchMult } from './sectors'
 import { echoResearchXpMult } from './echo'
 import { processResearchSpeedMult } from './process'
 import { protocolModifiers } from './protocols'
+import { foundryResearchXpMult } from './foundryBonuses'
 
 export const HIVE_RESEARCH_UNLOCK_SECTOR = 7
 /** USI default is 9×; 4× keeps early numbers retunable. */
@@ -220,7 +221,8 @@ export function grantHiveResearchKillXp(state: GameState, isBoss: boolean): numb
     reliquaryResearchXpMult(state) *
     hiveResearchXpMult(state) *
     echoResearchXpMult(state) *
-    processResearchSpeedMult(state)
+    processResearchSpeedMult(state) *
+    foundryResearchXpMult(state)
   let granted = 0
   for (const branch of HIVE_RESEARCH_BRANCHES) {
     const focusMult = branch.id === focus ? HIVE_RESEARCH_FOCUS_MULT : 1

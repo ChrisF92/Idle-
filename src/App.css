@@ -904,6 +904,13 @@ h2 .inspect-name {
   color: var(--muted);
 }
 
+.foundry-chain {
+  margin: 0.2rem 0 0.55rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .notation-tabs {
   margin-top: 0.25rem;
 }

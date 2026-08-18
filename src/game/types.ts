@@ -61,6 +61,12 @@ export type FoundryRecipeId =
   | 'warp-thread'
   | 'brace-pin'
   | 'slag-glass'
+  | 'temper-bar'
+  | 'coil-stack'
+  | 'flux-weave'
+  | 'hearth-core'
+  | 'sight-lattice'
+  | 'keel-lattice'
 
 export interface FoundrySlot {
   recipeId: FoundryRecipeId | null

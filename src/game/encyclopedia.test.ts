@@ -28,13 +28,15 @@ describe('encyclopedia depth', () => {
     expect(open.meta.codexUnlocked).toBe(true)
   })
 
-  it('grows Foundry toward Synth: 12 recipes, 4 slots, extra Act 1 bits', () => {
-    expect(FOUNDRY_RECIPES).toHaveLength(12)
+  it('grows Foundry toward Synth: recipe chains, 4 slots, extra Act 1 bits', () => {
+    expect(FOUNDRY_RECIPES.length).toBeGreaterThanOrEqual(18)
     expect(FOUNDRY_MAX_SLOTS).toBe(4)
     expect(FOUNDRY_MODULE_SLOTS).toBe(2)
     expect(FOUNDRY_MODULES.some((m) => m.id === 'focus-array')).toBe(true)
     expect(FOUNDRY_MODULES.some((m) => m.id === 'pin-brace')).toBe(true)
     expect(FOUNDRY_MODULES.some((m) => m.id === 'warp-keel')).toBe(true)
+    expect(FOUNDRY_MODULES.some((m) => m.id === 'hearth-plate')).toBe(true)
+    expect(FOUNDRY_RECIPES.some((r) => r.id === 'hearth-core' && (r.requiresSlots ?? 0) >= 3)).toBe(true)
 
     const s = createInitialState(0)
     s.meta.highestSectorEver = 12
