@@ -2,6 +2,7 @@
 
 import type { GameState, SpecialistId, SpecialistState } from './types'
 import { careerHighestSector } from './progression'
+import { recordPlaytest, noteSystemAction } from './playtest'
 
 export const SPECIALIST_UNLOCK_SECTOR = 51
 export const SPECIALIST_MAX_RANK = 20
@@ -76,12 +77,15 @@ export function canRankSpecialist(
 
 export function rankSpecialist(state: GameState, id: SpecialistId): GameState {
   if (!canRankSpecialist(state, id).ok) return state
+  const def = getSpecialist(id)
   const next = structuredClone(state)
   if (!next.specialists) next.specialists = createEmptySpecialistState()
   const cost = specialistRankCost(specialistRank(next, id))
   next.resources.salvage -= cost.salvage
   next.resources.heat -= cost.heat
   next.specialists.ranks[id] = specialistRank(next, id) + 1
+  recordPlaytest(next, 'specialist', { n: def?.name ?? id, v: next.specialists.ranks[id] })
+  noteSystemAction(next, 'specialists')
   return next
 }
 

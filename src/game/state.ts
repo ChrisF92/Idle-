@@ -62,6 +62,7 @@ import { createEmptyProcessState, processDamageMult, processShieldMult } from '.
 import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult } from './specialists'
 import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
 import { emptyLastSortie } from './sortieSummary'
+import { createEmptyPlaytest } from './playtest'
 
 export const SAVE_VERSION = 33
 export const SAVE_KEY = 'cosmic-idle-save'
@@ -202,6 +203,7 @@ export function createInitialState(now = Date.now()): GameState {
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),
     parts: {},
+    playtest: createEmptyPlaytest(now),
   }
   const stats = computeShipStats(state)
   state.combat.playerHull = stats.hullMax

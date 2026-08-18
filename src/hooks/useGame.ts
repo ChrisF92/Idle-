@@ -89,6 +89,7 @@ import { markHubSeen } from '../game/hubAttention'
 import { ensureStarterCoresTourSalvage } from '../game/catalog'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
+import { noteSessionEnd } from '../game/playtest'
 
 type Action =
   | { type: 'replace'; state: GameState }
@@ -181,6 +182,7 @@ type Action =
   | { type: 'rank-specialist'; specialistId: import('../game/types').SpecialistId }
   | { type: 'rank-capital'; capitalId: import('../game/types').CapitalId }
   | { type: 'reinforce' }
+  | { type: 'session-end' }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -355,6 +357,11 @@ function reducer(state: GameState, action: Action): GameState {
       return rankCapital(state, action.capitalId)
     case 'reinforce':
       return performReinforce(state)
+    case 'session-end': {
+      const next = structuredClone(state)
+      noteSessionEnd(next)
+      return next
+    }
     default:
       return state
   }
@@ -387,6 +394,19 @@ export function useGame() {
   useEffect(() => {
     saveGame(state)
   }, [state])
+
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') dispatch({ type: 'session-end' })
+    }
+    const onUnload = () => dispatch({ type: 'session-end' })
+    document.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', onUnload)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', onUnload)
+    }
+  }, [])
 
   return {
     state,

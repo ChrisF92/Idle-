@@ -1,6 +1,7 @@
 import type { GameState, SortieSummary } from '../game/types'
 import { formatCompact } from '../game/format'
 import { isFirstDefeatReport, sortieNextHints } from '../game/playerGuidance'
+import { buildSortieDiagnostic } from '../game/sortieTelemetry'
 
 interface SortieReportProps {
   summary: SortieSummary
@@ -9,10 +10,18 @@ interface SortieReportProps {
   onUpgradeCores?: () => void
 }
 
+const PRESSURE_LABEL: Record<string, string> = {
+  SURVIVABILITY: 'SURVIVABILITY',
+  DAMAGE: 'DAMAGE',
+  MIXED: 'MIXED',
+  HEALTHY: 'HEALTHY PUSH',
+}
+
 export function SortieReport({ summary, state, onClose, onUpgradeCores }: SortieReportProps) {
   const defeat = summary.outcome === 'defeat'
   const firstDefeat = defeat && isFirstDefeatReport(state)
   const hints = firstDefeat ? [] : sortieNextHints(state)
+  const diagnostic = firstDefeat ? null : buildSortieDiagnostic(summary, state)
 
   return (
     <div className="modal-backdrop sortie-report-backdrop" role="dialog" aria-labelledby="sortie-report-title">
@@ -23,7 +32,9 @@ export function SortieReport({ summary, state, onClose, onUpgradeCores }: Sortie
             <h3 id="sortie-report-title">
               {firstDefeat
                 ? `You reached Sector ${summary.sector}`
-                : `${defeat ? 'Defeat' : 'Complete'} · S${summary.sector} W${summary.wave}`}
+                : diagnostic
+                  ? diagnostic.title
+                  : `${defeat ? 'Defeat' : 'Complete'} · S${summary.sector} W${summary.wave}`}
             </h3>
           </div>
           <button type="button" onClick={onClose}>
@@ -39,9 +50,36 @@ export function SortieReport({ summary, state, onClose, onUpgradeCores }: Sortie
               Hull loss does not remove your Core upgrades. Spend your Salvage and launch again.
             </p>
           </>
-        ) : summary.note ? (
-          <p className="muted">{summary.note}</p>
-        ) : null}
+        ) : (
+          <>
+            {summary.note ? <p className="muted">{summary.note}</p> : null}
+            {diagnostic ? (
+              <div className="sortie-diagnosis">
+                {diagnostic.lines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+                {diagnostic.threat ? (
+                  <p>
+                    Primary pressure: <strong>{diagnostic.threat}</strong>
+                  </p>
+                ) : null}
+                <p>
+                  Pressure: <strong>{PRESSURE_LABEL[diagnostic.pressure] ?? diagnostic.pressure}</strong>
+                </p>
+                {diagnostic.improvements.length > 0 ? (
+                  <div className="sortie-next">
+                    <p className="combat-hud-kicker">Possible improvements</p>
+                    <ul>
+                      {diagnostic.improvements.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        )}
         {hints.length > 0 ? (
           <div className="sortie-next">
             <p className="combat-hud-kicker">Possible next steps</p>

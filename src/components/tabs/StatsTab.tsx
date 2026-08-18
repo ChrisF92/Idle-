@@ -221,7 +221,7 @@ export function StatsTab({
           </button>
         </p>
 
-        <DevTools onDevAction={onDevAction} onOpenSimulator={onOpenSimulator} />
+        <DevTools state={state} onDevAction={onDevAction} onOpenSimulator={onOpenSimulator} />
 
         <p className="muted">
           Progressive Web App: after deploy to GitHub Pages (HTTPS), Android Chrome can Install /

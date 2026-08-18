@@ -2,6 +2,7 @@
 
 import type { GameState, Resources, TabId } from './types'
 import { taskListComplete } from './tasks'
+import { noteHighestSector } from './playtest'
 
 export {
   WAVES_PER_SECTOR,
@@ -823,6 +824,7 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   if (ever > state.meta.highestSectorEver) {
     state.meta.highestSectorEver = ever
   }
+  noteHighestSector(state, ever)
 
   if (ever >= 6 && !state.meta.codexUnlocked) {
     state.meta.codexUnlocked = true

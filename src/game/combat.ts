@@ -52,6 +52,13 @@ import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
 import { processSalvageMult } from './process'
 import { protocolModifiers, protocolMutes } from './protocols'
+import { recordPlaytest } from './playtest'
+import {
+  maybeSampleSortieEnemies,
+  noteSortieIncoming,
+  noteSortieKill,
+  noteSortieOutgoing,
+} from './sortieTelemetry'
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
@@ -1725,6 +1732,8 @@ function fittedSalvageKillMult(state: GameState): number {
 
 export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void {
   if (unit.side !== 'enemy') return
+  noteSortieKill(state)
+  recordPlaytest(state, 'first_kill', { firstKey: 'kill' })
   const salvageMult =
     networkSalvageMult(state) *
     reliquarySalvageMult(state) *
@@ -1805,6 +1814,28 @@ function applyDamageToUnit(
     target.regenDelay = Math.max(target.regenDelay ?? 0, SHIELD_REGEN_DELAY)
   }
   return dealt
+}
+
+function noteCombatHit(
+  state: GameState,
+  side: 'player' | 'enemy',
+  target: CombatUnit,
+  dealt: number,
+  shieldBefore: number,
+  role?: CombatUnit['role'],
+): void {
+  if (dealt <= 0) return
+  if (side === 'player' && target.side === 'enemy') {
+    noteSortieOutgoing(state, dealt)
+    return
+  }
+  if (side === 'enemy' && target.side === 'player' && target.isFlagship) {
+    noteSortieIncoming(state, dealt, {
+      shieldBefore,
+      shieldAfter: target.shield,
+      role,
+    })
+  }
 }
 
 /** Test helper — same rules as live projectile impact. */
@@ -1894,6 +1925,7 @@ function spawnProjectile(
     delivery: weapon.delivery,
     originX: from.x,
     originY: from.y,
+    attackerRole: from.role,
     ...weaponDamageProfile(weapon.tags, weapon),
   })
 }
@@ -1919,6 +1951,7 @@ function spawnBeam(
     duration: BEAM_DURATION,
     damage,
     attackerFamily: from.family,
+    attackerRole: from.role,
     ...profile,
   })
 }
@@ -1949,6 +1982,7 @@ function tickBeams(
       shieldDamage: beam.shieldDamage ?? 1,
       armorDamage: beam.armorDamage ?? 0.25,
     })
+    noteCombatHit(state, beam.side, target, dealt, shieldBefore, from.role ?? beam.attackerRole)
     tryLootEnemyKill(state, target, prevHull)
     beam.popupAcc = (beam.popupAcc ?? 0) + dealt
     beam.popupT = (beam.popupT ?? 0) + slice
@@ -2009,6 +2043,7 @@ function updateProjectiles(
         shieldDamage: shot.shieldDamage ?? 1,
         armorDamage: shot.armorDamage ?? 0.25,
       })
+      noteCombatHit(state, shot.side, target, dealt, shieldBefore, shot.attackerRole)
       tryLootEnemyKill(state, target, prevHull)
       if (shot.dotDuration > 0 && shot.dotDamage > 0) {
         target.dots.push({ dps: shot.dotDamage, remaining: shot.dotDuration })
@@ -2041,6 +2076,7 @@ export function simulateCombat(
   pushLog: (state: GameState, line: string) => void,
 ): void {
   if (dt <= 0) return
+  maybeSampleSortieEnemies(state)
   const roles = fittedRoles(state)
   const matchupScale =
     1 +
@@ -2081,11 +2117,23 @@ export function simulateCombat(
       for (const dot of unit.dots) {
         if (dot.remaining <= 0) continue
         const tick = dot.dps * dt
+        const shieldBefore = unit.shield
+        const hullBefore = unit.hull
         if (unit.shield > 0) {
           unit.shield = Math.max(0, unit.shield - tick)
           unit.regenDelay = Math.max(unit.regenDelay ?? 0, SHIELD_REGEN_DELAY)
         } else {
           unit.hull = Math.max(0, unit.hull - tick)
+        }
+        const dealt =
+          shieldBefore > 0 ? shieldBefore - unit.shield : hullBefore - unit.hull
+        if (unit.side === 'player' && unit.isFlagship) {
+          noteSortieIncoming(state, dealt, {
+            shieldBefore,
+            shieldAfter: unit.shield,
+          })
+        } else if (unit.side === 'enemy') {
+          noteSortieOutgoing(state, dealt)
         }
         dot.remaining -= dt
       }

@@ -2,6 +2,7 @@
 
 import type { CapitalId, CapitalState, GameState } from './types'
 import { taskListComplete } from './tasks'
+import { noteSystemAction, recordPlaytest } from './playtest'
 
 export const CAPITAL_UNLOCK_SECTOR = 75
 export const CAPITAL_MAX_RANK = 20
@@ -69,12 +70,15 @@ export function canRankCapital(
 
 export function rankCapital(state: GameState, id: CapitalId): GameState {
   if (!canRankCapital(state, id).ok) return state
+  const def = getCapitalTrack(id)
   const next = structuredClone(state)
   if (!next.capital) next.capital = createEmptyCapitalState()
   const cost = capitalRankCost(capitalRank(next, id))
   next.resources.salvage -= cost.salvage
   next.resources.heat -= cost.heat
   next.capital.ranks[id] = capitalRank(next, id) + 1
+  recordPlaytest(next, 'capital', { n: def?.name ?? id, v: next.capital.ranks[id] })
+  noteSystemAction(next, 'capital')
   return next
 }
 

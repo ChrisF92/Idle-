@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import type { GameState } from '../game/types'
 import type { DevAction } from '../game/dev'
 import { isDevToolsEnabled, setDevToolsEnabled } from '../game/dev'
+import { PlaytestReport } from './PlaytestReport'
 
 interface DevToolsProps {
+  state?: GameState
   onDevAction: (action: DevAction) => void
   onOpenSimulator?: () => void
 }
@@ -40,12 +43,14 @@ function prepDoor(onDevAction: (action: DevAction) => void, sector: number): voi
   onDevAction({ type: 'dock-heal' })
 }
 
-export function DevTools({ onDevAction, onOpenSimulator }: DevToolsProps) {
+export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps) {
   const [enabled, setEnabled] = useState(() => isDevToolsEnabled())
   const [sector, setSector] = useState('8')
   const [open, setOpen] = useState(true)
+  const [reportOpen, setReportOpen] = useState(false)
 
   if (!enabled) {
+    if (!import.meta.env.DEV) return null
     return (
       <div className="dev-tools">
         <p className="muted">
@@ -91,6 +96,17 @@ export function DevTools({ onDevAction, onOpenSimulator }: DevToolsProps) {
             <p className="assign-row">
               <button type="button" className="primary" onClick={onOpenSimulator}>
                 Balance Simulator
+              </button>
+              {state ? (
+                <button type="button" className="primary" onClick={() => setReportOpen(true)}>
+                  Playtest report
+                </button>
+              ) : null}
+            </p>
+          ) : state ? (
+            <p className="assign-row">
+              <button type="button" className="primary" onClick={() => setReportOpen(true)}>
+                Playtest report
               </button>
             </p>
           ) : null}
@@ -238,6 +254,7 @@ export function DevTools({ onDevAction, onOpenSimulator }: DevToolsProps) {
           </div>
         </div>
       ) : null}
+      {reportOpen && state ? <PlaytestReport state={state} onClose={() => setReportOpen(false)} /> : null}
     </div>
   )
 }

@@ -724,8 +724,40 @@ h2 .inspect-name {
   pointer-events: none;
 }
 
-.sortie-report-backdrop {
-  z-index: 70;
+.sortie-diagnosis {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 0.65rem;
+}
+
+.sortie-diagnosis p {
+  margin: 0;
+}
+
+.playtest-report-backdrop {
+  z-index: 80;
+}
+
+.playtest-report-sheet {
+  max-width: 36rem;
+}
+
+.playtest-report-pre {
+  margin: 0;
+  padding: 0.7rem;
+  background: var(--bg-elevated, #12171f);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow: auto;
+  max-height: 18rem;
+}
+
+.playtest-json {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
 }
 
 .sortie-sheet {

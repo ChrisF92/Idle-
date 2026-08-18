@@ -7,6 +7,7 @@ import { echoResearchXpMult } from './echo'
 import { processResearchSpeedMult } from './process'
 import { protocolModifiers } from './protocols'
 import { foundryResearchXpMult } from './foundryBonuses'
+import { recordPlaytest, noteSystemAction } from './playtest'
 
 export const HIVE_RESEARCH_UNLOCK_SECTOR = 7
 export const HIVE_RESEARCH_FOCUS_MULT = 4
@@ -453,6 +454,11 @@ function tryCompleteNodes(state: GameState, branch: HiveResearchBranch): void {
     if ((state.hiveResearch.xp[branch] ?? 0) < need) break
     state.hiveResearch.xp[branch] = (state.hiveResearch.xp[branch] ?? 0) - need
     state.hiveResearch.completed[branch] = idx + 1
+    const node = nodes[idx]
+    if (node?.kind === 'breakthrough') {
+      recordPlaytest(state, 'research_break', { n: node.name, v: branch })
+    }
+    noteSystemAction(state, 'research')
   }
 }
 
@@ -491,5 +497,6 @@ export function setResearchFocus(state: GameState, branch: HiveResearchBranch): 
   const next = structuredClone(state)
   if (!next.hiveResearch) next.hiveResearch = createEmptyHiveResearchState()
   next.hiveResearch.focus = branch
+  noteSystemAction(next, 'research')
   return next
 }

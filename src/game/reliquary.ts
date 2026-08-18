@@ -4,6 +4,7 @@ import type { GameState, ReliquaryColor, ReliquaryState } from './types'
 import { careerHighestSector } from './progression'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { hiveResearchUnlocksReliquary } from './hiveResearch'
+import { noteSystemAction } from './playtest'
 
 export interface ShardDef {
   id: string
@@ -389,6 +390,7 @@ export function insertShard(state: GameState, shardId: string): GameState {
   const next = structuredClone(state)
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
   next.reliquary.slots[def.color] = shardId
+  noteSystemAction(next, 'reliquary')
   return next
 }
 
