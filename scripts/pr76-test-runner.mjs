@@ -9,8 +9,6 @@ function replaceIfPresent(text, oldText, newText) {
   return text.includes(oldText) ? text.replace(oldText, newText) : text
 }
 
-// The PR branch temporarily stores the implementation as a deterministic transform so
-// both the normal PR preview and the branch validator can exercise exactly the same code.
 if (!existsSync('src/game/cadence.ts')) {
   const py = `from pathlib import Path\nsrc = Path('.github/workflows/pr76-apply.yml').read_text().splitlines()\nstart = next(i for i, line in enumerate(src) if \"python <<'PY'\" in line) + 1\nend = next(i for i in range(start, len(src)) if src[i].strip() == 'PY')\nbody = src[start:end]\nbody = [line[10:] if line.startswith('          ') else line for line in body]\nPath('/tmp/pr76_apply.py').write_text('\\n'.join(body) + '\\n')\n`
   const extract = run('python', ['-c', py])
@@ -25,7 +23,6 @@ if (!existsSync('src/game/cadence.ts')) {
   }
 }
 
-// Process recognises actual Hive Research progress, not only legacy research nodes.
 {
   const path = 'src/game/progression.ts'
   let text = readFileSync(path, 'utf8')
@@ -50,7 +47,6 @@ if (!existsSync('src/game/cadence.ts')) {
   writeFileSync(path, text)
 }
 
-// Preserve the intended +4-sector order for Foundry bonus drop bands.
 {
   const path = 'src/game/catalog.ts'
   let text = readFileSync(path, 'utf8')
@@ -70,7 +66,6 @@ if (!existsSync('src/game/cadence.ts')) {
   writeFileSync(path, text)
 }
 
-// Every public unlock constant uses the same dependency-free cadence source.
 {
   const path = 'src/game/catalog.ts'
   let text = readFileSync(path, 'utf8')
@@ -92,7 +87,6 @@ for (const spec of [
   writeFileSync(path, text)
 }
 
-// Balance metadata must describe the new campaign, not the old S2–S7 system dump.
 {
   const path = 'src/game/balance/act1.ts'
   let text = readFileSync(path, 'utf8')
@@ -124,7 +118,6 @@ for (const spec of [
   echo: ECHO_UNLOCK_SECTOR,
   act1: ACT1_SECTOR,
 } as const`)
-  // First Rebuild is intentionally a real early-career chapter now, not a first-hour popup.
   text = text.replace(
 `    id: 'first-rebuild',
     label: 'First Rebuild',
@@ -206,6 +199,7 @@ for (const spec of [
 }
 
 await import('./pr76-test-migrate.mjs')
+await import('./pr76-test-migrate-2.mjs')
 
 const test = run('npx', ['vitest', 'run'])
 process.stdout.write(`${test.stdout ?? ''}${test.stderr ?? ''}`)
