@@ -54,9 +54,7 @@ patch('src/game/core-prints.test.ts', [
   ['highestSector = 4', 'highestSector = 8'],
   ['combat.sector = 4', 'combat.sector = 8'],
   ["pickWeightedDropEntry('ethereal', 2", "pickWeightedDropEntry('ethereal', 6"],
-  [/Armored · Sector 2\\\+/.source, /Armored · Sector 6\\\+/.source],
   ['Sector 4 Divine', 'Sector 8 Divine'],
-  [/Divine · Sector 4\\\+/.source, /Divine · Sector 8\\\+/.source],
   ["pickWeightedDropEntry('divine', 4", "pickWeightedDropEntry('divine', 8"],
   ["pickWeightedDropEntry('swarm', 6", "pickWeightedDropEntry('swarm', 10"],
   ["pickWeightedDropEntry('armored', 2", "pickWeightedDropEntry('armored', 6"],
@@ -209,16 +207,10 @@ patch('src/game/onboarding-visibility.test.ts', [
 
 // Matter ranks deliberately got larger/compounding effects.
 patch('src/game/matter-shop.test.ts', [
-  ['toBe(90)', 'toBeCloseTo(120)'],
-  ['toBe(70)', 'toBeCloseTo(95)'],
   ["it('ranks use steeper costs and 45% extra-rank scaling'", "it('ranks use steeper costs while key meta effects compound'"],
 ])
 patch('src/game/drone-economy.test.ts', [
-  ['toBeCloseTo(1.2)', 'toBeCloseTo(1.12)'],
-])
-patch('src/game/usi-pacing.test.ts', [
-  ['toBeCloseTo(0.04)', 'toBeCloseTo(0.08)'],
-  ['toBeCloseTo(0.03)', 'toBeCloseTo(0.06)'],
+  ['toBeCloseTo(1.2, 5)', 'toBeCloseTo(1.12, 5)'],
 ])
 
 // Slag opens on first Rebuild; Yard waits until S20 + two Rebuilds.
@@ -228,7 +220,7 @@ patch('src/game/slag-bank.test.ts', [
 ])
 
 // Functional tests below are about the system, not its door: put them at a mature career state.
-for (const file of ['src/game/process.test.ts', 'src/game/process-depth.test.ts', 'src/game/protocols.test.ts', 'src/game/playerGuidance.test.ts', 'src/game/hub-attention.test.ts']) {
+for (const file of ['src/game/process.test.ts', 'src/game/process-depth.test.ts', 'src/game/playerGuidance.test.ts', 'src/game/hub-attention.test.ts']) {
   patch(file, [
     ['highestSectorEver = 8', 'highestSectorEver = 68'],
     ['highestSector = 8', 'highestSector = 68'],
@@ -255,9 +247,8 @@ for (const file of ['src/game/tick.test.ts', 'src/game/phase11.test.ts']) {
   ])
 }
 patch('src/game/part-drops.test.ts', [
-  ['highestSectorEver = 2', 'highestSectorEver = 6'],
-  ['highestSector = 2', 'highestSector = 6'],
-  ['combat.sector = 2', 'combat.sector = 6'],
+  ['function withFoundry(state: GameState, sector = 18)', 'function withFoundry(state: GameState, sector = 22)'],
+  ['Bare swarm 2.8% at S18', 'Bare swarm 2.8% after the early-career taper'],
 ])
 patch('src/game/toasts.test.ts', [
   ['highestSectorEver = 2', 'highestSectorEver = 6'],
@@ -276,7 +267,90 @@ patch('src/game/cosmic-idle-cleanup.test.ts', [
   ['toBe(4)', 'toBe(12)'],
 ])
 
-// More now intentionally previews exactly one next major station.
+// --- Corrective second pass: update assertions and fixtures whose old numbers were
+// part of the test behaviour rather than simple system-door setup. ---
+
+patch('src/game/core-prints.test.ts', [
+  ['Armored · Sector 2\\+', 'Armored · Sector 6\\+'],
+  ['Divine · Sector 4\\+', 'Divine · Sector 8\\+'],
+])
+
+patch('src/game/foundry-depth.test.ts', [
+  ['function atFoundry(sector = 2)', 'function atFoundry(sector = 6)'],
+  ['const s = atFoundry(14)', 'const s = atFoundry(18)'],
+  ['s.combat.sector = 14', 's.combat.sector = 18'],
+])
+
+patch('src/game/research-milestones.test.ts', [
+  ['function atResearch(sector = 7)', 'function atResearch(sector = 34)'],
+])
+
+patch('src/game/frontier.test.ts', [
+  ["s.combat.highestSector = 9\n    s.meta.highestSectorEver = 9\n    s.combat.docked = true\n    s = setSectorRoute(s, 'B')\n    s.combat.sector = 10\n    s.combat.highestSector = 9", "s.combat.highestSector = 24\n    s.meta.highestSectorEver = 24\n    s.combat.docked = true\n    s = setSectorRoute(s, 'B')\n    s.combat.sector = 25\n    s.combat.highestSector = 24"],
+  ["expect(s.combat.frontierSector).toBe(10)\n    expect(s.combat.sector).toBe(9)", "expect(s.combat.frontierSector).toBe(25)\n    expect(s.combat.sector).toBe(24)"],
+])
+
+patch('src/game/hub-attention.test.ts', [
+  ['state.meta.highestSectorEver = 3\n    state.combat.highestSector = 3', 'state.meta.highestSectorEver = 16\n    state.combat.highestSector = 16'],
+  ["state.meta.aiUnlocked = true\n    state.shipyard.moduleLevels['pulse-cannon'] = 1", "state.meta.aiUnlocked = true\n    state.meta.highestSectorEver = 42\n    state.combat.highestSector = 42\n    state.prestige.prestigeCount = 2\n    state.research.unlocked.push('basic-optics')\n    state.shipyard.moduleLevels['pulse-cannon'] = 1"],
+])
+
+patch('src/game/matter-shop.test.ts', [
+  ['toBe(before + 50)', 'toBeCloseTo(before + 80)'],
+  ['toBe(before + 40)', 'toBeCloseTo(before + 65)'],
+  ['state.meta.highestSectorEver = 7', 'state.meta.highestSectorEver = 34\n    state.combat.highestSector = 34\n    state.combat.sector = 34'],
+])
+
+patch('src/game/onboarding-visibility.test.ts', [
+  ["expect(isSystemUnlocked(state, 'protocols')).toBe(true)\n    expect(isSystemUnlocked(state, 'echo')).toBe(true)", "expect(isSystemUnlocked(state, 'protocols')).toBe(true)\n    state.protocols.ranks['mute-network'] = 1\n    expect(isSystemUnlocked(state, 'echo')).toBe(true)"],
+])
+
+patch('src/game/phase3.test.ts', [
+  ["s = clearSector(s)\n    s = clearSector(s)\n    expect(s.combat.highestSector).toBeGreaterThanOrEqual(2)", "for (let i = 0; i < 6; i++) s = clearSector(s)\n    expect(s.combat.highestSector).toBeGreaterThanOrEqual(6)"],
+])
+
+patch('src/game/phase7.test.ts', [
+  ["s.combat.sector = 4\n    s.meta.highestSectorEver = 20\n    s.combat.highestSector = 20\n    s = performRebuild", "s.combat.sector = 20\n    s.meta.highestSectorEver = 20\n    s.combat.highestSector = 20\n    s.prestige.prestigeCount = 1\n    s = performRebuild"],
+  ['expect(isRouteBUnlocked(8)).toBe(true)', 'expect(isRouteBUnlocked(24)).toBe(true)'],
+  ['expect(maxLaunchSector(8)).toBe(9)', 'expect(maxLaunchSector(24)).toBe(25)'],
+])
+
+patch('src/game/phase8.test.ts', [
+  ["fresh.meta.highestSectorEver = ECHO_UNLOCK_SECTOR\n    expect(isSystemUnlocked(fresh, 'echo')).toBe(true)", "fresh.meta.highestSectorEver = ECHO_UNLOCK_SECTOR\n    fresh.combat.highestSector = ECHO_UNLOCK_SECTOR\n    fresh.protocols.ranks['mute-network'] = 1\n    expect(isSystemUnlocked(fresh, 'echo')).toBe(true)"],
+  ["s.meta.highestSectorEver = 62\n    s.combat.sector = 12", "s.meta.highestSectorEver = 62\n    s.combat.highestSector = 62\n    s.protocols.ranks['mute-network'] = 1\n    s.combat.sector = 12"],
+])
+
+patch('src/game/playerGuidance.test.ts', [
+  ["s.meta.aiUnlocked = true\n    s.meta.completedAchievements = ['first-blood']", "s.meta.aiUnlocked = true\n    s.meta.highestSectorEver = 42\n    s.combat.highestSector = 42\n    s.prestige.prestigeCount = 2\n    s.research.unlocked.push('basic-optics')\n    s.meta.completedAchievements = ['first-blood']"],
+])
+
+patch('src/game/process-depth.test.ts', [
+  ["early.meta.highestSectorEver = 3\n    early.combat.highestSector = 3\n    expect(canBuyProcessNode(early, 'smart-smelt').ok).toBe(true)", "early.meta.highestSectorEver = 42\n    early.combat.highestSector = 42\n    early.prestige.prestigeCount = 2\n    early.research.unlocked.push('basic-optics')\n    expect(canBuyProcessNode(early, 'smart-smelt').ok).toBe(true)"],
+  ["furnace.meta.highestSectorEver = 68\n    furnace.combat.highestSector = 68\n    furnace.resources.aiPoints = 80", "furnace.meta.highestSectorEver = 68\n    furnace.combat.highestSector = 68\n    furnace.prestige.prestigeCount = 2\n    furnace.research.unlocked.push('basic-optics')\n    furnace.resources.aiPoints = 80"],
+  ["s.meta.highestSectorEver = 4\n    s.combat.highestSector = 4\n    s.process.purchased = ['smart-smelt', 'print-assemble']", "s.meta.highestSectorEver = 42\n    s.combat.highestSector = 42\n    s.prestige.prestigeCount = 2\n    s.research.unlocked.push('basic-optics')\n    s.process.purchased = ['smart-smelt', 'print-assemble']"],
+])
+
+patch('src/game/protocols.test.ts', [
+  ['function protocolDock(sectorEver = 18)', 'function protocolDock(sectorEver = 52)'],
+  ["let s = enterProtocol(protocolDock(), 'cold-foundry')\n    s.combat.highestSector = 68\n    s.combat.sector = 5", "let s = enterProtocol(protocolDock(), 'cold-foundry')\n    s.combat.highestSector = 5\n    s.combat.sector = 5"],
+  ['s.meta.highestSectorEver = 5\n    s.combat.highestSector = 5\n    s.resources.heat = 8', 's.meta.highestSectorEver = 28\n    s.combat.highestSector = 28\n    s.resources.heat = 8'],
+])
+
 patch('src/game/screen-help.test.ts', [
-  ["expect(buckets.next.map((s) => s.id)).toEqual(expect.arrayContaining(['reliquary', 'furnace', 'process', 'yard']))", "expect(buckets.next.map((s) => s.id)).toEqual(['codex'])"],
+  ["it('hides late More doors until they are close, and opens Yard after Rebuild'", "it('previews one major door and opens Slag before later Yard mastery'"],
+  ["expect(early.next.map((s) => s.id)).toEqual(\n      expect.arrayContaining(['reliquary', 'furnace', 'process', 'yard']),\n    )", "expect(early.next.map((s) => s.id)).toEqual(['codex'])"],
+  ["expect(after.open.map((s) => s.id)).toEqual(expect.arrayContaining(['yard', 'slag']))", "expect(after.open.map((s) => s.id)).toContain('slag')\n    expect(after.open.map((s) => s.id)).not.toContain('yard')"],
+])
+
+patch('src/game/toasts.test.ts', [
+  ['state.combat.sector = 4', 'state.combat.sector = 12'],
+])
+
+patch('src/game/usi-pacing.test.ts', [
+  ['expect(prestigeMomentumDamageBonus(1, 0)).toBeCloseTo(0.04)', 'expect(prestigeMomentumDamageBonus(1, 0)).toBeCloseTo(0.08)'],
+  ['expect(prestigeMomentumProductionBonus(1, 0)).toBeCloseTo(0.03)', 'expect(prestigeMomentumProductionBonus(1, 0)).toBeCloseTo(0.06)'],
+  ['expect(prestigeMomentumDamageBonus(3, 0)).toBeCloseTo(0.12)', 'expect(prestigeMomentumDamageBonus(3, 0)).toBeCloseTo(Math.pow(1.08, 3) - 1)'],
+  ['expect(prestigeMomentumProductionBonus(3, 0)).toBeCloseTo(0.09)', 'expect(prestigeMomentumProductionBonus(3, 0)).toBeCloseTo(Math.pow(1.06, 3) - 1)'],
+  ['expect(prestigeMomentumDamageBonus(20, 0)).toBe(0.5)', 'expect(prestigeMomentumDamageBonus(20, 0)).toBeGreaterThan(3)'],
+  ['state.combat.sector = 10\n    state = performPrestige', 'state.combat.sector = 12\n    state.meta.highestSectorEver = 12\n    state.combat.highestSector = 12\n    state = performPrestige'],
 ])
