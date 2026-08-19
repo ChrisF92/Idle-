@@ -84,19 +84,20 @@ jobs:
         shell: bash
         run: |
           set +e
-          npm test 2>&1 | tee test-output.txt
+          npm test 2>&1 | tee pr76-test-output.txt
           status=${PIPESTATUS[0]}
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Upload test diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr76-test-output
-          path: test-output.txt
-      - name: Require tests green
+      - name: Persist failing test diagnostics
         if: steps.tests.outputs.status != '0'
-        run: exit 1
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add pr76-test-output.txt
+          git commit -m "chore: capture PR76 test failures"
+          git push origin HEAD:chatgpt/pr76-system-cadence-growth
+          exit 1
       - name: Lint
         run: npm run lint
       - name: Build
@@ -108,7 +109,7 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git rm .github/workflows/pr76-apply.yml
           git rm .github/workflows/pr76-push-runner.yml
-          git rm -f .pr76-trigger || true
+          git rm -f .pr76-trigger pr76-test-output.txt || true
           git add src
           git commit -m "feat: spread Act 1 systems and strengthen Rebuild growth"
           git push origin HEAD:chatgpt/pr76-system-cadence-growth
