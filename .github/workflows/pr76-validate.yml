@@ -1,0 +1,27 @@
+name: PR76 validate
+
+on:
+  pull_request:
+    branches:
+      - chatgpt/pr75-combat-curve-density-range
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.head_ref == 'chatgpt/pr76-system-cadence-growth'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
