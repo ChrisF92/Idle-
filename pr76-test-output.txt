@@ -5,76 +5,45 @@
 
 [1m[46m RUN [49m[22m [36mv3.2.7 [39m[90m/home/runner/work/Idle-/Idle-[39m
 
- [31m❯[39m src/game/foundry-depth.test.ts [2m([22m[2m27 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 109[2mms[22m[39m
-   [32m✓[39m Foundry depth: recipe chains[2m > [22mkeeps the original 12 recipes and adds six chained stock recipes[32m 4[2mms[22m[39m
-   [32m✓[39m Foundry depth: recipe chains[2m > [22mopens Temper Bar at sector 5 after Slag Ingot 4, as two-input stock[32m 7[2mms[22m[39m
-   [32m✓[39m Foundry depth: recipe chains[2m > [22masks Keel Strip for plate as well as Choir Flux[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: recipe chains[2m > [22masks Focus Lens for relay glass, and Control Mesh for a Coil Stack[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: recipe chains[2m > [22mgates Coil Stack and Hearth Core on extra smelters[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: mastery milestones[2m > [22mkeeps time, cost, and output identity before the first milestone[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: mastery milestones[2m > [22mapplies speed, output, efficiency, FP, then solved at recipe max[32m 2[2mms[22m[39m
-   [32m✓[39m Foundry depth: mastery milestones[2m > [22myields extra pieces after the output milestone[32m 32[2mms[22m[39m
-   [32m✓[39m Foundry depth: mastery milestones[2m > [22mmarks solved stock infinite and refuses to queue it[32m 12[2mms[22m[39m
-   [32m✓[39m Foundry depth: Foundry Point ranks[2m > [22madds shop-floor ranks instead of only combat percents[32m 2[2mms[22m[39m
-   [32m✓[39m Foundry depth: Foundry Point ranks[2m > [22mShop Floor shortens crafts-to-next without changing rank 0[32m 0[2mms[22m[39m
-   [32m✓[39m Foundry depth: Foundry Point ranks[2m > [22mYield Press adds output; Pattern Memory opens gates sooner[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: Foundry Point ranks[2m > [22mgates later shop-floor ranks on career sector[32m 1[2mms[22m[39m
-[31m   [31m×[31m Foundry depth: Foundry Point ranks[2m > [22mhooks Network, Ash, Research, Reliquary, prints, queue, and fit[39m[32m 13[2mms[22m[39m
-[31m     → expected 0 to be greater than 0[39m
-   [32m✓[39m Foundry depth: Foundry Point ranks[2m > [22mCold Foundry mutes the new shop-floor multipliers[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: modules and Core prints[2m > [22mopens the first fitted bits after the first Slag / Filament mastery[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: modules and Core prints[2m > [22mprints later bits from the new chain recipes[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: modules and Core prints[2m > [22masks Choir Tap for a Hearth Core and Void Slag mastery[32m 2[2mms[22m[39m
-   [32m✓[39m Foundry depth: modules and Core prints[2m > [22masks Nano Lathe for Brace Pins without changing Charge Prism[32m 0[2mms[22m[39m
-   [32m✓[39m Foundry depth: Process automation[2m > [22mwalks precursor stock toward a pinned target[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: Process automation[2m > [22mhonours Queue Rack capacity before Smart Smelt[32m 3[2mms[22m[39m
-   [32m✓[39m Foundry depth: Rebuild, save, onboarding[2m > [22mkeeps save version 33[32m 0[2mms[22m[39m
-   [32m✓[39m Foundry depth: Rebuild, save, onboarding[2m > [22mRebuild keeps chain mastery, points, and solved stock, not fitted bits[32m 3[2mms[22m[39m
-   [32m✓[39m Foundry depth: Rebuild, save, onboarding[2m > [22mround-trips new recipe ids and shop-floor ranks through save[32m 5[2mms[22m[39m
-   [32m✓[39m Foundry depth: Rebuild, save, onboarding[2m > [22mteaches Foundry with a single Slag Ingot action[32m 1[2mms[22m[39m
-   [32m✓[39m Foundry depth: Rebuild, save, onboarding[2m > [22mdoes not tour mastery milestones, chains, or Process queues[32m 0[2mms[22m[39m
-   [32m✓[39m Foundry depth: Rebuild, save, onboarding[2m > [22mkeeps Foundry inspect and guide copy free of designer jargon[32m 11[2mms[22m[39m
- [32m✓[39m src/game/tick.test.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 674[2mms[22m[39m
-   [33m[2m✓[22m[39m tickGame[2m > [22mhull persists between chained fights under Advance [33m 303[2mms[22m[39m
- [32m✓[39m src/game/ui-shell.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1234[2mms[22m[39m
-   [33m[2m✓[22m[39m shell UX[2m > [22mhides Cores and Salvage on Sortie until first hull loss [33m 330[2mms[22m[39m
- [31m❯[39m src/game/research-milestones.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 73[2mms[22m[39m
-   [32m✓[39m Research milestones: nodes and identity[2m > [22mkeeps three named branches and nine nodes with breakthroughs at 2 / 5 / 8[32m 9[2mms[22m[39m
-   [32m✓[39m Research milestones: nodes and identity[2m > [22mpreviews the next three discoveries including the first breakthrough from rank 0[32m 11[2mms[22m[39m
-[31m   [31m×[31m Research milestones: nodes and identity[2m > [22mzero completed nodes stay identity[39m[32m 13[2mms[22m[39m
+ [32m✓[39m src/game/foundry-depth.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m src/game/tick.test.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 469[2mms[22m[39m
+ [32m✓[39m src/game/ui-shell.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1011[2mms[22m[39m
+ [31m❯[39m src/game/research-milestones.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 54[2mms[22m[39m
+   [32m✓[39m Research milestones: nodes and identity[2m > [22mkeeps three named branches and nine nodes with breakthroughs at 2 / 5 / 8[32m 5[2mms[22m[39m
+   [32m✓[39m Research milestones: nodes and identity[2m > [22mpreviews the next three discoveries including the first breakthrough from rank 0[32m 7[2mms[22m[39m
+[31m   [31m×[31m Research milestones: nodes and identity[2m > [22mzero completed nodes stay identity[39m[32m 10[2mms[22m[39m
 [31m     → expected false to be true // Object.is equality[39m
    [32m✓[39m Research milestones: costs[2m > [22mkeeps SAVE_VERSION at 33 and an achievable first node[32m 1[2mms[22m[39m
    [32m✓[39m Research milestones: costs[2m > [22mgrows smoothly with a modest bump on breakthroughs, without a 6400 wall[32m 1[2mms[22m[39m
    [32m✓[39m Research milestones: breakthrough wiring[2m > [22mMaterial Second Smelter Bay adds a Foundry slot, not damage[32m 1[2mms[22m[39m
    [32m✓[39m Research milestones: breakthrough wiring[2m > [22mPattern Floor opens recipe mastery gates one rank sooner[32m 1[2mms[22m[39m
    [32m✓[39m Research milestones: breakthrough wiring[2m > [22mKeel Bay adds a utility Core slot and solves old recipes two ranks sooner[32m 1[2mms[22m[39m
-   [32m✓[39m Research milestones: breakthrough wiring[2m > [22mEnergy Extra Tap lights another Furnace channel; Ward Current is shield not damage[32m 2[2mms[22m[39m
+   [32m✓[39m Research milestones: breakthrough wiring[2m > [22mEnergy Extra Tap lights another Furnace channel; Ward Current is shield not damage[32m 1[2mms[22m[39m
    [32m✓[39m Research milestones: breakthrough wiring[2m > [22mCorps Draw makes assigned drones fill Network bars harder[32m 2[2mms[22m[39m
    [32m✓[39m Research milestones: breakthrough wiring[2m > [22mRelay Sight opens Archive Relay early and lights a second extra Furnace channel[32m 1[2mms[22m[39m
-   [32m✓[39m Research milestones: breakthrough wiring[2m > [22mObservation Second Desk speeds background branches[32m 1[2mms[22m[39m
-   [32m✓[39m Research milestones: breakthrough wiring[2m > [22mBlue Bay opens the blue Reliquary slot before its sector 40 gate[32m 2[2mms[22m[39m
-   [32m✓[39m Research milestones: breakthrough wiring[2m > [22mQueue Hall deepens the Research Queue and feeds Protocols into the desk[32m 1[2mms[22m[39m
-   [32m✓[39m Research milestones: Process queue and Auto Research[2m > [22mAuto Research follows the queue and can be turned off for a breakthrough choice[32m 3[2mms[22m[39m
+   [32m✓[39m Research milestones: breakthrough wiring[2m > [22mObservation Second Desk speeds background branches[32m 2[2mms[22m[39m
+   [32m✓[39m Research milestones: breakthrough wiring[2m > [22mBlue Bay opens the blue Reliquary slot before its sector 40 gate[32m 0[2mms[22m[39m
+   [32m✓[39m Research milestones: breakthrough wiring[2m > [22mQueue Hall deepens the Research Queue and feeds Protocols into the desk[32m 0[2mms[22m[39m
+   [32m✓[39m Research milestones: Process queue and Auto Research[2m > [22mAuto Research follows the queue and can be turned off for a breakthrough choice[32m 2[2mms[22m[39m
    [32m✓[39m Research milestones: Process queue and Auto Research[2m > [22mhonours queue capacity so extra entries past the cap are ignored[32m 1[2mms[22m[39m
-   [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22mRebuild keeps completed nodes, XP, and focus[32m 4[2mms[22m[39m
-   [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22mround-trips completed nodes through save without bumping version[32m 6[2mms[22m[39m
-   [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22moffers a single Research focus hint instead of a desk tour[32m 2[2mms[22m[39m
+   [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22mRebuild keeps completed nodes, XP, and focus[32m 3[2mms[22m[39m
+   [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22mround-trips completed nodes through save without bumping version[32m 5[2mms[22m[39m
+   [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22moffers a single Research focus hint instead of a desk tour[32m 1[2mms[22m[39m
    [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22mdoes not tour breakthroughs, queues, or auto-research[32m 0[2mms[22m[39m
-   [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22mkeeps Research inspect and guide copy free of designer jargon[32m 9[2mms[22m[39m
- [32m✓[39m src/game/network.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 810[2mms[22m[39m
-   [33m[2m✓[22m[39m phase 4: drone network[2m > [22mmanufactures drones from the start up to corps cap [33m 763[2mms[22m[39m
- [32m✓[39m src/game/frontier.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 293[2mms[22m[39m
- [32m✓[39m src/game/protocols.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 36[2mms[22m[39m
- [32m✓[39m src/game/playtest.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 658[2mms[22m[39m
- [32m✓[39m src/game/furnace.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 42[2mms[22m[39m
- [32m✓[39m src/game/campaign.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 521[2mms[22m[39m
- [32m✓[39m src/game/core-acquisition.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 207[2mms[22m[39m
- [32m✓[39m src/game/core-prints.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 65[2mms[22m[39m
- [32m✓[39m src/game/combat.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 411[2mms[22m[39m
-   [33m[2m✓[22m[39m fleet combat resolution[2m > [22mclears a sector with multi-unit packs [33m 371[2mms[22m[39m
- [32m✓[39m src/game/process.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 43[2mms[22m[39m
- [32m✓[39m src/game/onboarding-queue.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 28[2mms[22m[39m
- [32m✓[39m src/game/beam-charge.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+   [32m✓[39m Research milestones: Rebuild, save, onboarding[2m > [22mkeeps Research inspect and guide copy free of designer jargon[32m 7[2mms[22m[39m
+ [32m✓[39m src/game/network.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 765[2mms[22m[39m
+   [33m[2m✓[22m[39m phase 4: drone network[2m > [22mmanufactures drones from the start up to corps cap [33m 734[2mms[22m[39m
+ [32m✓[39m src/game/frontier.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 275[2mms[22m[39m
+ [32m✓[39m src/game/protocols.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m src/game/playtest.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 536[2mms[22m[39m
+ [32m✓[39m src/game/furnace.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/game/campaign.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 441[2mms[22m[39m
+ [32m✓[39m src/game/core-acquisition.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 172[2mms[22m[39m
+ [32m✓[39m src/game/core-prints.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/game/combat.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 280[2mms[22m[39m
+ [32m✓[39m src/game/process.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/game/onboarding-queue.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/game/beam-charge.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
 [90mstdout[2m | src/game/balance-estimate.test.ts[2m > [22m[2mbalance estimates (combat floors, not the Act 1 calendar)[2m > [22m[2mdocuments theoretical combat push times
 [22m[39m=== Combat-only floor estimates (see docs/act1-balance.md) ===
 Waves/sector: 2–4 + boss · Prestige min: S12
@@ -86,80 +55,62 @@ Career → first S30 (Baal-like): 14.7 h combat across ~16 prestiges
 Prestige #3 → S12: 39 min
 Momentum @3P: +26% dmg / +19% prod
 
- [32m✓[39m src/game/balance-estimate.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 483[2mms[22m[39m
-   [33m[2m✓[22m[39m balance estimates (combat floors, not the Act 1 calendar)[2m > [22mpost-tutorial starter clears sector 1 without death-looping [33m 332[2mms[22m[39m
- [32m✓[39m src/game/ascension-qol.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 99[2mms[22m[39m
- [32m✓[39m src/game/phase6.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 26[2mms[22m[39m
- [31m❯[39m src/game/process-depth.test.ts [2m([22m[2m11 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 52[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mkeeps Act 1 Process on helpers and skips late-game autos[32m 2[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mdoes not sell Auto-Salvage for First Blood Process[32m 4[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mgates Smart Smelt on Foundry and Heat Spend on Ash Bank[32m 1[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mSmart Smelt fills an empty smelter without starving Pulse[32m 2[2mms[22m[39m
-[31m   [31m×[31m Act 1 Process depth[2m > [22mShard Seat fits a red chip into an empty slot[39m[32m 9[2mms[22m[39m
-[31m     → expected undefined to be 'battle-chip' // Object.is equality[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mPrint Press assembles a complete Core print[32m 3[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mCombat Tempo and Deep Cache are Process QoL, not free[32m 4[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mHold ranks and Foundry Hold raise salvage[32m 4[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mBrace Pin unlocks at sector 6 after Slag Ingot 4[32m 1[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mbuyProcessNode still spends points and Neural Link can fire from Process[32m 1[2mms[22m[39m
-   [32m✓[39m Act 1 Process depth[2m > [22mAuto-Salvage still ranks a live Core[32m 19[2mms[22m[39m
- [32m✓[39m src/game/endless-depth.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 43[2mms[22m[39m
- [32m✓[39m src/game/matter-shop.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 130[2mms[22m[39m
- [32m✓[39m src/game/signal-cores.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 27[2mms[22m[39m
- [32m✓[39m src/game/phase9.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 330[2mms[22m[39m
- [32m✓[39m src/game/phase8.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 35[2mms[22m[39m
- [32m✓[39m src/game/blueprints.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 350[2mms[22m[39m
-   [33m[2m✓[22m[39m blueprints and fabrication[2m > [22mdeposit + workers completes fab → unlocks permanent [33m 331[2mms[22m[39m
- [32m✓[39m src/game/challenge-shop.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 36[2mms[22m[39m
- [32m✓[39m src/game/hub-attention.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 24[2mms[22m[39m
- [32m✓[39m src/game/playerGuidance.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 30[2mms[22m[39m
- [32m✓[39m src/game/toasts.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/game/balance-estimate.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 381[2mms[22m[39m
+ [32m✓[39m src/game/ascension-qol.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/game/process-depth.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/game/phase6.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/game/matter-shop.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/game/endless-depth.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/game/signal-cores.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/game/phase9.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 319[2mms[22m[39m
+ [32m✓[39m src/game/blueprints.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 230[2mms[22m[39m
+ [32m✓[39m src/game/phase8.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/game/challenge-shop.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/game/hub-attention.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/game/toasts.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/game/playerGuidance.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 48[2mms[22m[39m
  [32m✓[39m src/game/phase10.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 24[2mms[22m[39m
- [32m✓[39m src/game/simulation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 246[2mms[22m[39m
- [32m✓[39m src/game/phase7.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 112[2mms[22m[39m
- [32m✓[39m src/game/challenge-depth.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 62[2mms[22m[39m
- [32m✓[39m src/game/onboarding-visibility.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/game/simulation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 307[2mms[22m[39m
+ [32m✓[39m src/game/phase7.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m src/game/challenge-depth.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/game/onboarding-visibility.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
  [32m✓[39m src/game/phase11.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 69[2mms[22m[39m
- [32m✓[39m src/game/foundry.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 219[2mms[22m[39m
- [32m✓[39m src/game/challenge-pack.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 23[2mms[22m[39m
- [32m✓[39m src/game/phase3.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 174[2mms[22m[39m
- [32m✓[39m src/game/achievements.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 24[2mms[22m[39m
- [32m✓[39m src/game/usi-pacing.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 19[2mms[22m[39m
- [32m✓[39m src/game/drone-economy.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 90[2mms[22m[39m
- [32m✓[39m src/game/early-pacing.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 342[2mms[22m[39m
- [32m✓[39m src/game/pr75-combat.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 122[2mms[22m[39m
- [32m✓[39m src/game/usi-balance.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 16[2mms[22m[39m
- [31m❯[39m src/game/encyclopedia.test.ts [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 25[2mms[22m[39m
-   [32m✓[39m encyclopedia depth[2m > [22mopens Codex at sector 10 without Data research[32m 9[2mms[22m[39m
-   [32m✓[39m encyclopedia depth[2m > [22mgrows Foundry toward Synth: recipe chains, 5 slots, extra Act 1 bits[32m 2[2mms[22m[39m
-[31m   [31m×[31m encyclopedia depth[2m > [22mgates late Reliquary shards by career sector[39m[32m 10[2mms[22m[39m
-[31m     → expected false to be true // Object.is equality[39m
-   [32m✓[39m encyclopedia depth[2m > [22madds Delta and Fenix Echo gauntlets plus smelt/warp tree nodes[32m 2[2mms[22m[39m
-   [32m✓[39m encyclopedia depth[2m > [22mdocuments hull roles in the Codex catalog[32m 1[2mms[22m[39m
- [32m✓[39m src/game/format.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m src/game/sortie.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 103[2mms[22m[39m
- [32m✓[39m src/game/essence-ai.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 52[2mms[22m[39m
- [32m✓[39m src/game/usi-roles.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
- [32m✓[39m src/game/pr76-cadence.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/game/foundry.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 227[2mms[22m[39m
+ [32m✓[39m src/game/challenge-pack.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/game/phase3.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 129[2mms[22m[39m
+ [32m✓[39m src/game/achievements.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/game/usi-pacing.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/game/drone-economy.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m src/game/encyclopedia.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/game/early-pacing.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 249[2mms[22m[39m
+ [32m✓[39m src/game/pr75-combat.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m src/game/usi-balance.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/game/format.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/game/sortie.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m src/game/essence-ai.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/game/usi-roles.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/game/pr76-cadence.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
  [2m[90m↓[39m[22m src/game/simulation-baselines.test.ts [2m([22m[2m4 tests[22m[2m | [22m[33m4 skipped[39m[2m)[22m
  [31m❯[39m src/game/post-prestige.test.ts [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 27[2mms[22m[39m
-   [32m✓[39m post-prestige re-push balance[2m > [22mkeeps the S10 Matter curve value below the first legal Rebuild[32m 6[2mms[22m[39m
+   [32m✓[39m post-prestige re-push balance[2m > [22mkeeps the S10 Matter curve value below the first legal Rebuild[32m 5[2mms[22m[39m
    [32m✓[39m post-prestige re-push balance[2m > [22mstarts returning runs with scrap, data, and salvage kits[32m 5[2mms[22m[39m
-[31m   [31m×[31m post-prestige re-push balance[2m > [22mrefunds doctrine AI Points on prestige[39m[32m 11[2mms[22m[39m
+[31m   [31m×[31m post-prestige re-push balance[2m > [22mrefunds doctrine AI Points on prestige[39m[32m 10[2mms[22m[39m
 [31m     → expected 18 to be 4 // Object.is equality[39m
-   [32m✓[39m post-prestige re-push balance[2m > [22mcan buy Basic Optics with farmed data and one module level from return salvage[32m 3[2mms[22m[39m
- [32m✓[39m src/game/starter-combat.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 35[2mms[22m[39m
- [32m✓[39m src/game/part-drops.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m src/game/feel.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 23[2mms[22m[39m
- [32m✓[39m src/game/core.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 108[2mms[22m[39m
- [32m✓[39m src/game/inspect.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 21[2mms[22m[39m
- [32m✓[39m src/game/codex.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 25[2mms[22m[39m
- [32m✓[39m src/game/sortie-feel.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 43[2mms[22m[39m
- [32m✓[39m src/game/system-cuts.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 15[2mms[22m[39m
- [32m✓[39m src/game/slag-bank.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m src/game/cosmic-idle-cleanup.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m src/game/screen-help.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 19[2mms[22m[39m
- [32m✓[39m src/game/pwa-reload.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 13[2mms[22m[39m
+   [32m✓[39m post-prestige re-push balance[2m > [22mcan buy Basic Optics with farmed data and one module level from return salvage[32m 6[2mms[22m[39m
+ [32m✓[39m src/game/starter-combat.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/game/part-drops.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/game/feel.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/game/core.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 103[2mms[22m[39m
+ [32m✓[39m src/game/inspect.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/game/codex.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/game/sortie-feel.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/game/system-cuts.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/game/slag-bank.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/game/cosmic-idle-cleanup.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/game/screen-help.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/game/simulation-rebuild.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 312[2mms[22m[39m
+   [33m[2m✓[22m[39m career simulator isolation[2m > [22mdoes not mutate the browser save during a short fresh simulation [33m 311[2mms[22m[39m
+ [32m✓[39m src/game/pwa-reload.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
 [90mstdout[2m | src/game/act1-balance.test.ts[2m > [22m[2mAct 1 career simulations[2m > [22m[2mactive player reaches a first Rebuild inside the authored window
 [22m[39m
 ========================================
@@ -173,8 +124,8 @@ Start: Fresh
 Target: First Rebuild
 Seed: 1
 
-Calendar Time: 5h 17m
-Active Time: 5h 17m
+Calendar Time: 5h 27m
+Active Time: 5h 27m
 Offline Time: 0ms
 Highest Sector: 14
 Rebuilds: 1
@@ -190,9 +141,9 @@ FAIL: 1
 
 Major issue:
 Sector 6 progression wall
-Clear time: 4m 36s
+Clear time: 5m 54s
 Recent sector median: 1m 14s
-Difference: 3.7×
+Difference: 4.8×
 Likely constraint: Survivability
 
 ----------------------------------------
@@ -203,13 +154,13 @@ First Launch             0ms
 Sector 1                 29s
 First Pulse upgrade      14s
 First Plate upgrade      54s
-Foundry unlock           17m 51s
+Foundry unlock           17m 43s
 Reliquary unlock         —
 Furnace unlock           —
 Research unlock          —
 First Research BT        —
-First Rebuild            5h 15m
-Sector 10                1h 26m
+First Rebuild            5h 26m
+Sector 10                1h 29m
 Protocols                —
 Echo                     —
 Sector 20                —
@@ -220,10 +171,10 @@ REBUILDS
 ----------------------------------------
 
 Rebuild #1
-Run duration: 5h 15m
+Run duration: 5h 26m
 Highest sector: 14
 Matter earned: 8
-Why: 8 minutes without sector progress; Rebuild Matter gain: 8
+Why: 8 minutes without sector progress; push stalled 481s vs recent median 160s; Rebuild Matter gain: 8
 Permanent purchases: Slag Plate, Shield Bank
 Repush to previous best: not reached before stop
 
@@ -232,12 +183,12 @@ CORE SPENDING
 ----------------------------------------
 
 Pulse Cannon:
-Levels purchased: 43
-Share of Core spending: 49%
+Levels purchased: 44
+Share of Core spending: 53%
 
 Plate Layer:
 Levels purchased: 40
-Share of Core spending: 51%
+Share of Core spending: 47%
 
 ----------------------------------------
 NETWORK
@@ -264,7 +215,7 @@ Protocols: {}  Echo tree none
 ACT 1 SNAPSHOT
 ----------------------------------------
 
-At end  active 5h 17m  calendar 5h 17m
+At end  active 5h 27m  calendar 5h 27m
 Sector 2 (ever 14)  Pulse 4  Plate 3
 Network Strike 8 Ward 7 drones 30/30 relays 6
 Foundry recipes 3 FP 1 furnace lit 0/2
@@ -276,38 +227,38 @@ Damage extras: Network +49%  Furnace +0%  Reliquary +0%  Research +0%  Rebuild m
 ECONOMY
 ----------------------------------------
 
-Scrap  earned 75416.1  spent 75340.8  end 100.4
+Scrap  earned 79330.6  spent 79255.2  end 100.4
 Data  earned 4.0  spent 0.0  end 4.0
 Essence  earned 20.0  spent 0.0  end 20.0
 Process  earned 28.0  spent 0.0  end 28.0
-Salvage  earned 57940.0  spent 57935.3  end 4.7
+Salvage  earned 60074.5  spent 60069.8  end 4.7
 
 ----------------------------------------
 PROGRESSION WALLS
 ----------------------------------------
 
 Sector 6
-Clear time: 4m 36s
+Clear time: 5m 54s
 Recent sector median: 1m 14s
-Difference: 3.7×
+Difference: 4.8×
 Likely constraint: Survivability
 
 Sector 7
-Clear time: 33m 40s
-Recent sector median: 4m 6s
-Difference: 8.2×
+Clear time: 49m 20s
+Recent sector median: 3m 16s
+Difference: 15.1×
 Likely constraint: Survivability
 
 Sector 10
-Clear time: 31m 38s
-Recent sector median: 1m 38s
-Difference: 19.4×
+Clear time: 19m 12s
+Recent sector median: 1m 48s
+Difference: 10.7×
 Likely constraint: Survivability
 
 Sector 11
-Clear time: 3h 34m
-Recent sector median: 4m 36s
-Difference: 46.7×
+Clear time: 3h 42m
+Recent sector median: 5m 54s
+Difference: 37.6×
 Likely constraint: Survivability
 
 ----------------------------------------
@@ -316,17 +267,17 @@ PACING
 
 Average meaningful-action gap: 40s
 Median: 46s
-Longest: 1m 33s
-Location: Retry Frontier → Sector 11 clear
+Longest: 1m 32s
+Location: Retry Frontier → Retry Frontier
 
 ----------------------------------------
 WARNINGS
 ----------------------------------------
 
-1. Sector 6 is 3.7× slower than recent sectors (Survivability).
-2. Sector 7 is 8.2× slower than recent sectors (Survivability).
-3. Sector 10 is 19.4× slower than recent sectors (Survivability).
-4. Sector 11 is 46.7× slower than recent sectors (Survivability).
+1. Sector 6 is 4.8× slower than recent sectors (Survivability).
+2. Sector 7 is 15.1× slower than recent sectors (Survivability).
+3. Sector 10 is 10.7× slower than recent sectors (Survivability).
+4. Sector 11 is 37.6× slower than recent sectors (Survivability).
 
 Limitations:
 - Protocols / Echo: Ticked by the real game loop. Optimiser may enter Mute Network after a Rebuild once Protocols open; Echo is still not played intelligently.
@@ -336,65 +287,21 @@ Limitations:
 ========================================
 
 
- [31m❯[39m src/game/simulation-rebuild.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 20517[2mms[22m[39m
-[31m   [31m×[31m active career — first Rebuild[2m > [22mreaches a genuine first Rebuild from a fresh save[39m[33m 20516[2mms[22m[39m
-[31m     → expected 0 to be greater than or equal to 1[39m
- [32m✓[39m src/game/act1-balance.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 69386[2mms[22m[39m
-   [33m[2m✓[22m[39m Act 1 career simulations[2m > [22mactive player reaches a first Rebuild inside the authored window [33m 42068[2mms[22m[39m
-   [33m[2m✓[22m[39m Act 1 career simulations[2m > [22moptimiser first Rebuild is not a spam-reset and still spends Cores [33m 26000[2mms[22m[39m
-   [33m[2m✓[22m[39m Act 1 career simulations[2m > [22mcasual offline catch-up does not explode sector from a closed app [33m 1253[2mms[22m[39m
+ [32m✓[39m src/game/act1-balance.test.ts [2m([22m[2m10 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 35210[2mms[22m[39m
+   [33m[2m✓[22m[39m Act 1 career simulations[2m > [22mactive player reaches a first Rebuild inside the authored window [33m 34121[2mms[22m[39m
+   [33m[2m✓[22m[39m Act 1 career simulations[2m > [22mcasual offline catch-up does not explode sector from a closed app [33m 1061[2mms[22m[39m
 
-[2m Test Files [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m60 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (67)[39m
-[2m      Tests [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m580 passed[39m[22m[2m | [22m[33m4 skipped[39m[90m (590)[39m
-[2m     Errors [22m [1m[31m1 error[39m[22m
-[2m   Start at [22m 19:53:27
-[2m   Duration [22m 76.18s[2m (transform 2.36s, setup 0ms, collect 11.12s, tests 98.97s, environment 44.61s, prepare 6.80s)[22m
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m64 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (67)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m583 passed[39m[22m[2m | [22m[33m5 skipped[39m[90m (590)[39m
+[2m   Start at [22m 19:57:28
+[2m   Duration [22m 40.80s[2m (transform 1.98s, setup 0ms, collect 9.23s, tests 42.96s, environment 37.28s, prepare 5.82s)[22m
 
-
-::error file=/home/runner/work/Idle-/Idle-/src/game/encyclopedia.test.ts,title=src/game/encyclopedia.test.ts > encyclopedia depth > gates late Reliquary shards by career sector,line=56,column=74::AssertionError: expected false to be true // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- true%0A+ false%0A%0A ❯ src/game/encyclopedia.test.ts:56:74%0A%0A
-
-::error file=/home/runner/work/Idle-/Idle-/src/game/foundry-depth.test.ts,title=src/game/foundry-depth.test.ts > Foundry depth%3A Foundry Point ranks > hooks Network%2C Ash%2C Research%2C Reliquary%2C prints%2C queue%2C and fit,line=290,column=16::AssertionError: expected 0 to be greater than 0%0A ❯ src/game/foundry-depth.test.ts:290:16%0A%0A
 
 ::error file=/home/runner/work/Idle-/Idle-/src/game/post-prestige.test.ts,title=src/game/post-prestige.test.ts > post-prestige re-push balance > refunds doctrine AI Points on prestige,line=48,column=38::AssertionError: expected 18 to be 4 // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- 4%0A+ 18%0A%0A ❯ src/game/post-prestige.test.ts:48:38%0A%0A
 
-::error file=/home/runner/work/Idle-/Idle-/src/game/process-depth.test.ts,title=src/game/process-depth.test.ts > Act 1 Process depth > Shard Seat fits a red chip into an empty slot,line=101,column=35::AssertionError: expected undefined to be 'battle-chip' // Object.is equality%0A%0A- Expected: %0A"battle-chip"%0A%0A+ Received: %0Aundefined%0A%0A ❯ src/game/process-depth.test.ts:101:35%0A%0A
-
 ::error file=/home/runner/work/Idle-/Idle-/src/game/research-milestones.test.ts,title=src/game/research-milestones.test.ts > Research milestones%3A nodes and identity > zero completed nodes stay identity,line=121,column=48::AssertionError: expected false to be true // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- true%0A+ false%0A%0A ❯ src/game/research-milestones.test.ts:121:48%0A%0A
 
-::error file=/home/runner/work/Idle-/Idle-/src/game/simulation-rebuild.test.ts,title=src/game/simulation-rebuild.test.ts > active career — first Rebuild > reaches a genuine first Rebuild from a fresh save,line=25,column=26::AssertionError: expected 0 to be greater than or equal to 1%0A ❯ src/game/simulation-rebuild.test.ts:25:26%0A%0A
-
-[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 6 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
-
-[41m[1m FAIL [22m[49m src/game/encyclopedia.test.ts[2m > [22mencyclopedia depth[2m > [22mgates late Reliquary shards by career sector
-[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
-
-[32m- Expected[39m
-[31m+ Received[39m
-
-[32m- true[39m
-[31m+ false[39m
-
-[36m [2m❯[22m src/game/encyclopedia.test.ts:[2m56:74[22m[39m
-    [90m 54| [39m    early[33m.[39mmeta[33m.[39mhighestSectorEver [33m=[39m [34m3[39m
-    [90m 55| [39m    early[33m.[39mcombat[33m.[39mhighestSector [33m=[39m [34m3[39m
-    [90m 56| [39m    expect(unlockedShardPool(early).some((s) => s.id === 'battle-chip'…
-    [90m   | [39m                                                                         [31m^[39m
-    [90m 57| [39m    expect(unlockedShardPool(early).some((s) => s.id === 'overdraw-chi…
-    [90m 58| [39m    expect(unlockedShardPool(early).some((s) => s.id === 'warp-chip'))…
-
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯[22m[39m
-
-[41m[1m FAIL [22m[49m src/game/foundry-depth.test.ts[2m > [22mFoundry depth: Foundry Point ranks[2m > [22mhooks Network, Ash, Research, Reliquary, prints, queue, and fit
-[31m[1mAssertionError[22m: expected 0 to be greater than 0[39m
-[36m [2m❯[22m src/game/foundry-depth.test.ts:[2m290:16[22m[39m
-    [90m288| [39m    plainR[33m.[39mcombat[33m.[39msector [33m=[39m [34m7[39m
-    [90m289| [39m    [35mconst[39m xp0 [33m=[39m [34mgrantHiveResearchKillXp[39m(plainR[33m,[39m [35mfalse[39m)
-    [90m290| [39m    [34mexpect[39m(xp)[33m.[39m[34mtoBeGreaterThan[39m(xp0)
-    [90m   | [39m               [31m^[39m
-    [90m291| [39m  })
-    [90m292| [39m
-
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯[22m[39m
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
 
 [41m[1m FAIL [22m[49m src/game/post-prestige.test.ts[2m > [22mpost-prestige re-push balance[2m > [22mrefunds doctrine AI Points on prestige
 [31m[1mAssertionError[22m: expected 18 to be 4 // Object.is equality[39m
@@ -413,26 +320,7 @@ Limitations:
     [90m 49| [39m  })
     [90m 50| [39m
 
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯[22m[39m
-
-[41m[1m FAIL [22m[49m src/game/process-depth.test.ts[2m > [22mAct 1 Process depth[2m > [22mShard Seat fits a red chip into an empty slot
-[31m[1mAssertionError[22m: expected undefined to be 'battle-chip' // Object.is equality[39m
-
-[32m- Expected:[39m 
-"battle-chip"
-
-[31m+ Received:[39m 
-undefined
-
-[36m [2m❯[22m src/game/process-depth.test.ts:[2m101:35[22m[39m
-    [90m 99| [39m    s[33m.[39mreliquary[33m.[39mowned[[32m'battle-chip'[39m] [33m=[39m [34m1[39m
-    [90m100| [39m    [34mtickAutomation[39m(s)
-    [90m101| [39m    [34mexpect[39m(s[33m.[39mreliquary[33m.[39mslots[33m.[39mred)[33m.[39m[34mtoBe[39m([32m'battle-chip'[39m)
-    [90m   | [39m                                  [31m^[39m
-    [90m102| [39m  })
-    [90m103| [39m
-
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯[22m[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
 
 [41m[1m FAIL [22m[49m src/game/research-milestones.test.ts[2m > [22mResearch milestones: nodes and identity[2m > [22mzero completed nodes stay identity
 [31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
@@ -451,31 +339,5 @@ undefined
     [90m122| [39m  })
     [90m123| [39m})
 
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯[22m[39m
-
-[41m[1m FAIL [22m[49m src/game/simulation-rebuild.test.ts[2m > [22mactive career — first Rebuild[2m > [22mreaches a genuine first Rebuild from a fresh save
-[31m[1mAssertionError[22m: expected 0 to be greater than or equal to 1[39m
-[36m [2m❯[22m src/game/simulation-rebuild.test.ts:[2m25:26[22m[39m
-    [90m 23| [39m    [34mexpect[39m(localStorage[33m.[39m[34mgetItem[39m([33mSAVE_KEY[39m))[33m.[39m[34mtoBe[39m(before)
-    [90m 24| [39m    expect(run.safety.filter((s) => s.kind === 'nan' || s.kind === 'in…
-    [90m 25| [39m    [34mexpect[39m(run[33m.[39mrebuilds)[33m.[39m[34mtoBeGreaterThanOrEqual[39m([34m1[39m)
-    [90m   | [39m                         [31m^[39m
-    [90m 26| [39m    expect(run.milestones.some((m) => m.id === 'first-rebuild')).toBe(…
-    [90m 27| [39m    [35mconst[39m rec [33m=[39m run[33m.[39mrebuildLog[[34m0[39m]
-
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯[22m[39m
-
-[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Unhandled Errors [49m[22m[31m⎯⎯⎯⎯⎯⎯[39m
-[31m[1m
-Vitest caught 1 unhandled error during the test run.
-This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.[22m[39m
-
-[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Unhandled Error [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
-[31m[1mError[22m: [vitest-worker]: Timeout calling "onTaskUpdate"[39m
-[90m [2m❯[22m Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:[2m53:10[22m[39m
-[90m [2m❯[22m Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:[2m59:62[22m[39m
-[90m [2m❯[22m listOnTimeout node:internal/timers:[2m585:17[22m[39m
-[90m [2m❯[22m processTimers node:internal/timers:[2m521:7[22m[39m
-
-[31m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
 
