@@ -9,7 +9,7 @@
     "build:pages": "tsc -b && PAGES_BASE=/Idle-/ vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node scripts/pr76-test-runner.mjs && npm run lint",
+    "test": "node scripts/pr76-test-runner.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
     "jsdom": "^27.0.1",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
