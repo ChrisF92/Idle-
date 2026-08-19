@@ -709,7 +709,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return null
   }
   if (systemId === 'network' || systemId === 'stats') {
-    return 'Dock after hull loss'
+    return 'First hull loss'
   }
   if (systemId === 'foundry') {
     return 'Clear sector 2'
@@ -918,6 +918,7 @@ export function guideBodyLines(step: GuideStep): string[] {
 
 const TAP_TARGETS = new Set([
   'launch',
+  'retry-frontier',
   'upgrade-pulse-cannon',
   'upgrade-plate-layer',
   'network-strike-plus',
@@ -960,6 +961,7 @@ export function stepAllowedOnTab(step: GuideStep, tab: TabId): boolean {
   if (!home) return true
   if (home === tab) return true
   if (step.target === 'launch' && (tab === 'dock' || tab === 'combat')) return true
+  if (step.target === 'retry-frontier' && (tab === 'dock' || tab === 'combat')) return true
   return false
 }
 
@@ -1025,7 +1027,6 @@ export const GUIDE_STEPS: GuideStep[] = [
     tap: true,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
-      s.combat.docked &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 &&
       !guideSeen(s, 'guide-upgrade-pulse'),
     completeWhen: (s) => (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1,
@@ -1043,7 +1044,6 @@ export const GUIDE_STEPS: GuideStep[] = [
     tap: true,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
-      s.combat.docked &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1 &&
       !guideSeen(s, 'guide-upgrade-plate'),
@@ -1053,7 +1053,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-cores-persist',
     kind: 'hint',
     title: 'Cores stay',
-    body: 'Core upgrades stay after hull loss.',
+    body: 'Core upgrades stay after hull loss. Combat keeps farming while you upgrade.',
     target: 'cores-sheet',
     tab: 'combat',
     screen: 'combat',
@@ -1063,24 +1063,24 @@ export const GUIDE_STEPS: GuideStep[] = [
       hasHullLostOnce(s) &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
-      s.combat.docked &&
       !guideSeen(s, 'guide-cores-persist'),
   },
   {
     id: 'guide-relaunch',
     kind: 'action',
-    title: 'Launch again',
-    body: 'Launch another sortie. You should get further.',
-    target: 'launch',
-    tab: 'dock',
+    title: 'Retry the frontier',
+    body: 'Your ship is farming the last sector you could hold. Retry when you are stronger.',
+    target: 'retry-frontier',
+    tab: 'combat',
+    screen: 'combat',
     group: 'starter',
     tap: true,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
-      s.combat.docked &&
-      !guideSeen(s, 'guide-relaunch'),
-    completeWhen: (s) => !s.combat.docked,
+      !guideSeen(s, 'guide-relaunch') &&
+      (s.combat.frontierHold || s.combat.frontierSector > 0 || s.combat.docked),
+    completeWhen: (s) => !s.combat.docked && !s.combat.frontierHold,
   },
   {
     id: 'guide-network-strike',

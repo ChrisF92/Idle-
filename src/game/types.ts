@@ -184,6 +184,37 @@ export interface SortieSummary {
   stats: SortieRunStats
 }
 
+export type PressureClass = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
+
+/** Per-sector frontier attempt record for pacing analysis. */
+export interface SectorAttemptRecord {
+  sector: number
+  route: SectorRoute
+  attempts: number
+  failures: number
+  clears: number
+  frontierCombatMs: number
+  retreatFarmMs: number
+  lastPressure: PressureClass | ''
+  lastEnemyHpPct: number
+  lastFightMs: number
+  successFightMs: number
+  interventions: string[]
+}
+
+export interface SteamrollStreak {
+  from: number
+  to: number
+  n: number
+  route: SectorRoute
+}
+
+export interface FrontierIntervention {
+  k: string
+  n?: string
+  v?: number
+}
+
 /** Compact local playtest event. `t` is career playtime in milliseconds. */
 export type PlaytestEventKind =
   | 'session_start'
@@ -214,6 +245,10 @@ export type PlaytestEventKind =
   | 'capital'
   | 'system_open'
   | 'system_action'
+  | 'repelled'
+  | 'retry_frontier'
+  | 'frontier_clear'
+  | 'one_shot_streak'
 
 export interface PlaytestEvent {
   t: number
@@ -249,6 +284,25 @@ export interface PlaytestState {
   echos: Record<string, { a: number; c: number }>
   /** Network bar id → drone-seconds. */
   drones: Record<string, number>
+  /** Live combat simulation time (ms). Excludes pause, dock, and offline. */
+  activeCombatMs: number
+  /** Career time spent fighting an uncleared frontier sector. */
+  frontierCombatMs: number
+  /** Career time spent farming a fallback sector after being repelled. */
+  retreatFarmMs: number
+  /** Offline catch-up while undocked (no fight sim). */
+  offlineCombatMs: number
+  /** Offline catch-up while Frontier Hold was active. */
+  offlineRetreatFarmMs: number
+  /** Current consecutive first-attempt highest-sector clears. */
+  consecutiveFrontierOneShots: number
+  bestConsecutiveFrontierOneShots: number
+  steamrollFrom: number
+  lastSteamroll: SteamrollStreak | null
+  /** Route:sector → attempt record. */
+  sectorAttempts: Record<string, SectorAttemptRecord>
+  /** Power changes made while Frontier Hold is active, awaiting the next attempt. */
+  pendingInterventions: FrontierIntervention[]
 }
 
 /** USI Research analogue — kill-fed branches; persist across Rebuild. */
@@ -780,10 +834,30 @@ export interface CombatState {
   lastSortie: SortieSummary
   /** Live sortie snapshot. Null while docked. */
   sortieMark: SortieMark | null
-  /** Seconds left in the hull-loss beat before Dock. 0 = none. */
+  /** Seconds left in the hull-loss beat before retreat or Dock. 0 = none. */
   defeatLeft: number
   /** True when the pending beat is a tactical extract, not a hull kill. */
   defeatTactical: boolean
+  /**
+   * Auto-entered after being repelled at an uncleared frontier.
+   * Distinct from player Hold Sector / Hold Wave.
+   */
+  frontierHold: boolean
+  /** Failed / current uncleared frontier sector. 0 = none. */
+  frontierSector: number
+  frontierRoute: SectorRoute
+  /** True while a live attempt on frontierSector is in progress. */
+  frontierAttemptOpen: boolean
+  /** Compact HUD notice after a repel or a hard-won frontier clear. */
+  frontierNotice: FrontierNotice | null
+}
+
+export interface FrontierNotice {
+  kind: 'repelled' | 'cleared'
+  sector: number
+  fallback: number
+  first: boolean
+  seq: number
 }
 
 /**

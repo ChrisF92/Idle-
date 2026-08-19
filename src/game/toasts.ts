@@ -56,6 +56,7 @@ export interface ToastSnapshot {
   trackedPrintId: string | null
   processCoreHint: boolean
   protocolRankSum: number
+  frontierNoticeSeq: number
 }
 
 const TRACKED_SYSTEMS: TabId[] = [
@@ -182,6 +183,7 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
   if (a.trackedPrintId !== b.trackedPrintId) return false
   if (a.assembledPrints.length !== b.assembledPrints.length) return false
   if (a.processCoreHint !== b.processCoreHint || a.protocolRankSum !== b.protocolRankSum) return false
+  if (a.frontierNoticeSeq !== b.frontierNoticeSeq) return false
   if (a.networkBars.length !== b.networkBars.length) return false
   if (a.farmablePrints.length !== b.farmablePrints.length) return false
   if (a.completePrints.length !== b.completePrints.length) return false
@@ -228,6 +230,7 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     trackedPrintId: state.foundry.trackedPrintId ?? null,
     processCoreHint: processCoreHintReady(state),
     protocolRankSum: Object.values(state.protocols?.ranks ?? {}).reduce((n, v) => n + v, 0),
+    frontierNoticeSeq: state.combat.frontierNotice?.seq ?? 0,
   }
 }
 
@@ -244,7 +247,7 @@ function systemToast(id: TabId): ToastSpec | null {
 }
 
 /** Diff session snapshots. Empty on first load if prev is seeded from the same state. */
-export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: GameState): ToastSpec[] {
+export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: GameState): ToastSpec[] {
   const out: ToastSpec[] = []
   const seen = new Set<string>()
   const push = (spec: ToastSpec | null) => {
@@ -261,6 +264,32 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: Gam
       body: 'Assign drones to improve combat and production.',
       action: { label: 'OPEN', nav: { kind: 'tab', tab: 'network' } },
     })
+  }
+
+  if (next.frontierNoticeSeq > prev.frontierNoticeSeq) {
+    const notice = state.combat.frontierNotice
+    if (notice?.kind === 'repelled' && !notice.first) {
+      const fallback =
+        notice.fallback === notice.sector
+          ? `Holding Sector ${notice.fallback}.`
+          : `Falling back to S${notice.fallback}.`
+      push({
+        id: `frontier:repel:${notice.seq}`,
+        category: 'REPULSED',
+        title: `Repelled — S${notice.sector}`,
+        body: fallback,
+        action: { label: 'SORTIE', nav: { kind: 'tab', tab: 'combat' } },
+      })
+    }
+    if (notice?.kind === 'cleared') {
+      push({
+        id: `frontier:clear:${notice.seq}`,
+        category: 'FRONTIER',
+        title: `Frontier cleared — S${notice.sector}`,
+        body: 'Advance resumes.',
+        action: { label: 'SORTIE', nav: { kind: 'tab', tab: 'combat' } },
+      })
+    }
   }
 
   for (const id of TRACKED_SYSTEMS) {

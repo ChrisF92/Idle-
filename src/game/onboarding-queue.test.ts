@@ -25,8 +25,11 @@ function afterLaunch() {
 
 function afterFirstDeath() {
   let state = afterLaunch()
-  state = setDocked(state, true)
-  return markHullLost(state)
+  state = markHullLost(state)
+  state.combat.frontierHold = true
+  state.combat.frontierSector = Math.max(1, state.combat.sector)
+  state.combat.frontierRoute = 'A'
+  return state
 }
 
 describe('onboarding queue', () => {
@@ -87,7 +90,8 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(state, 'combat')?.id).toBe('guide-cores-persist')
 
     state = acknowledgeOnboarding(state, 'guide-cores-persist')
-    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-relaunch')
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-relaunch')
+    expect(activeGuideStep(state, 'combat')?.target).toBe('retry-frontier')
   })
 
   it('only shows Network assignment when the player opens Network', () => {

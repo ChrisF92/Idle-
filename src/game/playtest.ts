@@ -2,6 +2,12 @@
 
 import type { GameState, PlaytestEvent, PlaytestEventKind, PlaytestState } from './types'
 import { NETWORK_BAR_IDS } from './types'
+import {
+  hydrateInterventions,
+  hydrateSectorAttempts,
+  hydrateSteamroll,
+  summarizeInterventions,
+} from './frontier'
 
 export const PLAYTEST_VERSION = 1 as const
 export const PLAYTEST_MAX_EVENTS = 400
@@ -36,6 +42,17 @@ export function createEmptyPlaytest(now = Date.now()): PlaytestState {
     protocols: {},
     echos: {},
     drones: {},
+    activeCombatMs: 0,
+    frontierCombatMs: 0,
+    retreatFarmMs: 0,
+    offlineCombatMs: 0,
+    offlineRetreatFarmMs: 0,
+    consecutiveFrontierOneShots: 0,
+    bestConsecutiveFrontierOneShots: 0,
+    steamrollFrom: 0,
+    lastSteamroll: null,
+    sectorAttempts: {},
+    pendingInterventions: [],
   }
 }
 
@@ -73,6 +90,23 @@ export function hydratePlaytest(raw: unknown, now = Date.now()): PlaytestState {
     protocols: hydrateAttemptMap(src.protocols),
     echos: hydrateAttemptMap(src.echos),
     drones: hydrateNumberMap(src.drones),
+    activeCombatMs: Math.max(0, Math.floor(Number(src.activeCombatMs ?? 0) || 0)),
+    frontierCombatMs: Math.max(0, Math.floor(Number(src.frontierCombatMs ?? 0) || 0)),
+    retreatFarmMs: Math.max(0, Math.floor(Number(src.retreatFarmMs ?? 0) || 0)),
+    offlineCombatMs: Math.max(0, Math.floor(Number(src.offlineCombatMs ?? 0) || 0)),
+    offlineRetreatFarmMs: Math.max(0, Math.floor(Number(src.offlineRetreatFarmMs ?? 0) || 0)),
+    consecutiveFrontierOneShots: Math.max(
+      0,
+      Math.floor(Number(src.consecutiveFrontierOneShots ?? 0) || 0),
+    ),
+    bestConsecutiveFrontierOneShots: Math.max(
+      0,
+      Math.floor(Number(src.bestConsecutiveFrontierOneShots ?? 0) || 0),
+    ),
+    steamrollFrom: Math.max(0, Math.floor(Number(src.steamrollFrom ?? 0) || 0)),
+    lastSteamroll: hydrateSteamroll(src.lastSteamroll),
+    sectorAttempts: hydrateSectorAttempts(src.sectorAttempts),
+    pendingInterventions: hydrateInterventions(src.pendingInterventions),
   }
 }
 
@@ -146,8 +180,40 @@ export function recordPlaytest(
   if (log.events.length > PLAYTEST_MAX_EVENTS) {
     log.events.splice(0, log.events.length - PLAYTEST_MAX_EVENTS)
   }
+  if (
+    INTERVENTION_KINDS.has(kind) &&
+    state.combat &&
+    (state.combat.frontierHold ||
+      ((state.combat.frontierSector ?? 0) > 0 && !state.combat.frontierAttemptOpen))
+  ) {
+    if (!log.pendingInterventions) log.pendingInterventions = []
+    log.pendingInterventions.push({
+      k: kind,
+      n: opts?.n,
+      v: typeof opts?.v === 'number' ? opts.v : undefined,
+    })
+    if (log.pendingInterventions.length > 80) {
+      log.pendingInterventions.splice(0, log.pendingInterventions.length - 80)
+    }
+  }
   return true
 }
+
+const INTERVENTION_KINDS = new Set<PlaytestEventKind>([
+  'core_buy',
+  'core_assembled',
+  'core_fitted',
+  'print_changed',
+  'foundry_craft',
+  'foundry_fitted',
+  'research_break',
+  'process_buy',
+  'rebuild',
+  'reinforce',
+  'specialist',
+  'capital',
+  'system_action',
+])
 
 export function noteSystemAction(state: GameState, system: string, label?: string): boolean {
   return recordPlaytest(state, 'system_action', {
@@ -391,6 +457,62 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Echo attempts:`)
   lines.push(formatAttempts(log.echos))
   lines.push('')
+  lines.push('Combat clocks')
+  lines.push(`Active combat: ${formatPlaytimeMs(log.activeCombatMs ?? 0)}`)
+  lines.push(`Frontier combat: ${formatPlaytimeMs(log.frontierCombatMs ?? 0)}`)
+  lines.push(`Retreat farming: ${formatPlaytimeMs(log.retreatFarmMs ?? 0)}`)
+  lines.push(`Offline combat: ${formatPlaytimeMs(log.offlineCombatMs ?? 0)}`)
+  lines.push(`Offline retreat farm: ${formatPlaytimeMs(log.offlineRetreatFarmMs ?? 0)}`)
+  lines.push(
+    `Consecutive first-attempt clears: ${log.consecutiveFrontierOneShots ?? 0}` +
+      (log.bestConsecutiveFrontierOneShots
+        ? ` (best ${log.bestConsecutiveFrontierOneShots})`
+        : ''),
+  )
+  if (log.lastSteamroll && log.lastSteamroll.n >= 2) {
+    lines.push(
+      `Steamroll: S${log.lastSteamroll.from} → S${log.lastSteamroll.to}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
+    )
+  }
+  lines.push('')
+  lines.push('FRONTIER HISTORY')
+  const history = Object.values(log.sectorAttempts ?? {}).filter(
+    (row) => row.attempts > 0 || row.clears > 0 || row.failures > 0,
+  )
+  history.sort((a, b) => a.sector - b.sector || a.route.localeCompare(b.route))
+  if (history.length === 0) {
+    lines.push('(no frontier attempts yet)')
+  } else {
+    for (const row of history) {
+      const route = row.route === 'B' ? 'B' : ''
+      const result = row.clears > 0 ? 'Clear' : row.failures > 0 ? 'Repelled' : 'Open'
+      lines.push(`S${row.sector}${route}`)
+      lines.push(`Attempts: ${row.attempts}  Failures: ${row.failures}  ${result}`)
+      lines.push(`Frontier combat: ${formatPlaytimeMs(row.frontierCombatMs)}`)
+      if (row.retreatFarmMs > 0) {
+        lines.push(`Retreat farming: ${formatPlaytimeMs(row.retreatFarmMs)}`)
+      }
+      if (row.lastPressure && row.failures > 0) {
+        lines.push(`Pressure: ${row.lastPressure}`)
+      }
+      if (row.lastEnemyHpPct > 0 && row.clears === 0) {
+        lines.push(`Last failed attempt: enemy HP remaining ${row.lastEnemyHpPct}%`)
+      }
+      if (row.clears > 0 && row.successFightMs > 0) {
+        lines.push(`Successful attempt: ${formatPlaytimeMs(row.successFightMs)}`)
+      }
+      const pending =
+        state.combat?.frontierSector === row.sector
+          ? summarizeInterventions(log.pendingInterventions ?? [])
+          : []
+      const interventions = [...row.interventions, ...pending]
+      if (interventions.length > 0) {
+        lines.push('Interventions:')
+        for (const line of interventions) lines.push(`  ${line}`)
+      }
+      lines.push('')
+    }
+  }
   lines.push(`Events logged: ${log.events.length}`)
   return lines.join('\n')
 }

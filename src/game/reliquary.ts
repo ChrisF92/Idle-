@@ -5,6 +5,7 @@ import { careerHighestSector } from './progression'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
+import { noteFrontierIntervention } from './frontier'
 
 export interface ShardDef {
   id: string
@@ -391,6 +392,7 @@ export function insertShard(state: GameState, shardId: string): GameState {
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
   next.reliquary.slots[def.color] = shardId
   noteSystemAction(next, 'reliquary')
+  noteFrontierIntervention(next, 'reliquary', { n: def.name })
   return next
 }
 

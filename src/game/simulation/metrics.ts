@@ -195,9 +195,13 @@ export function observeState(
       addMilestone(metrics, 'first-launch', 'First Launch', activeSeconds, calendarSeconds)
     }
   }
-  if (!prev.combat.docked && state.combat.docked && prev.combat.lastSortie.outcome === 'defeat') {
-    metrics.deathsThisSector += 1
-    row.deaths += 1
+  if (state.combat.consecutiveLosses > prev.combat.consecutiveLosses) {
+    const diedAt = prev.combat.sector
+    const diedRow = metrics.sectors.get(diedAt) ?? emptySector(diedAt, activeSeconds)
+    diedRow.deaths += 1
+    metrics.sectors.set(diedAt, diedRow)
+    if (diedAt === state.combat.sector) metrics.deathsThisSector += 1
+    else metrics.deathsThisSector = 0
   }
 
   if (state.combat.sector !== metrics.lastSector) {

@@ -70,6 +70,21 @@ import {
 } from './playtest'
 import { sampleSortieEnemies, snapshotSortieEncounter } from './sortieTelemetry'
 import {
+  addCombatClockMs,
+  canRetryFrontier,
+  clearFrontierHold,
+  convertFrontierHoldToPlayerHold,
+  enterFrontierHold,
+  frontierFallbackSector,
+  isChallengeSortie,
+  isFrontierHold,
+  isUnclearedFrontierTarget,
+  nextFrontierNotice,
+  noteFrontierAttemptClear,
+  noteFrontierAttemptFail,
+  noteFrontierAttemptStart,
+} from './frontier'
+import {
   wavesForSector,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
@@ -360,7 +375,7 @@ export function starterRefitGate(
   return null
 }
 
-/** Hull-loss beat on Sortie before Dock + run report. */
+/** Hull-loss beat on Sortie before retreat or Dock + run report. */
 export const DEFEAT_SEQUENCE_S = 1.2
 
 function startDefeatSequence(state: GameState, tactical: boolean): void {
@@ -372,7 +387,18 @@ function startDefeatSequence(state: GameState, tactical: boolean): void {
   state.combat.playerShield = 0
   state.combat.defeatLeft = DEFEAT_SEQUENCE_S
   state.combat.defeatTactical = tactical
-  pushLog(state, tactical ? 'Tactical extract — pulling out.' : 'Hull lost — systems failing.')
+  if (tactical || isChallengeSortie(state)) {
+    pushLog(state, tactical ? 'Tactical extract — pulling out.' : 'Hull lost — systems failing.')
+    return
+  }
+  const failed = state.combat.sector
+  const fallback = frontierFallbackSector(failed, state.combat.highestSector ?? 0)
+  pushLog(
+    state,
+    fallback === failed
+      ? `Hull integrity lost. Holding Sector ${failed}.`
+      : `Hull integrity lost. Retreating to Sector ${fallback}.`,
+  )
 }
 
 function tickDefeatSequence(state: GameState, dt: number): boolean {
@@ -383,10 +409,11 @@ function tickDefeatSequence(state: GameState, dt: number): boolean {
   return true
 }
 
-/** Death: knockback to this sector's first wave, return to Hub. Ship (cores/salvage) stays. */
+/** Death: Echo/Protocol still end the attempt. Normal hull-loss retreats to a Frontier Hold. */
 function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   const fromSector = state.combat.sector
   const fromWave = state.combat.wave
+  const route = state.combat.route
   state.combat.defeatLeft = 0
   state.combat.defeatTactical = false
   clearEnemy(state)
@@ -396,15 +423,56 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
     fullHealPlayer(state)
     return
   }
+  if (state.protocols?.activeId || tactical) {
+    state.combat.sector = Math.max(1, fromSector)
+    state.combat.wave = 1
+    state.combat.docked = true
+    fullHealPlayer(state)
+    const note = tactical
+      ? `Tactical extract from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}.`
+      : `Hull lost in sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}. Protocol attempt docked.`
+    closeSortie(state, 'defeat', note, { sector: fromSector, wave: fromWave })
+    pushLog(state, `${note} Returned to dock.`)
+    return
+  }
+
+  const pushingFrontier = fromSector > (state.combat.highestSector ?? 0)
+  const alreadyHoldingFallback = isFrontierHold(state) && !pushingFrontier
+  const playerHold =
+    normalizePushMode(state.combat.pushMode, state.combat.campaign) !== 'advance' &&
+    !state.combat.frontierHold
+
+  if (pushingFrontier) {
+    noteFrontierAttemptFail(state, fromSector, route)
+    const first = !state.meta.hullLostOnce
+    const { fallback } = enterFrontierHold(state, fromSector, route)
+    const note =
+      fallback === fromSector
+        ? `Repelled at sector ${fromSector}${boss ? ' boss' : ''}. Holding Sector ${fallback}.`
+        : `Repelled at sector ${fromSector}${boss ? ' boss' : ''}. Retreating to Sector ${fallback}.`
+    closeSortie(state, 'defeat', note, { sector: fromSector, wave: fromWave }, { keepMark: true })
+    recordPlaytest(state, 'repelled', { n: `${route}${fromSector}`, v: fromSector, firstKey: 'repel' })
+    nextFrontierNotice(state, 'repelled', fromSector, fallback, first)
+    state.combat.sector = fallback
+    state.combat.wave = 1
+    state.combat.docked = false
+    fullHealPlayer(state)
+    pushLog(state, note)
+    beginFight(state)
+    return
+  }
+
+  const note = `Hull lost in sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}. Resuming.`
+  closeSortie(state, 'defeat', note, { sector: fromSector, wave: fromWave }, { keepMark: true })
+  if (!playerHold && !alreadyHoldingFallback) {
+    // Died on a cleared sector while Advancing — restart this sector, no Repelled card.
+  }
   state.combat.sector = Math.max(1, fromSector)
   state.combat.wave = 1
-  state.combat.docked = true
+  state.combat.docked = false
   fullHealPlayer(state)
-  const note = tactical
-    ? `Tactical extract from sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}.`
-    : `Hull lost in sector ${fromSector} wave ${fromWave}${boss ? ' boss' : ''}. Knocked back to W1.`
-  closeSortie(state, 'defeat', note, { sector: fromSector, wave: fromWave })
-  pushLog(state, `${note} Returned to dock.`)
+  pushLog(state, note)
+  beginFight(state)
 }
 
 function grantSectorClearRewards(state: GameState, clearedSector: number, wasBoss: boolean): void {
@@ -493,6 +561,18 @@ function onFightWon(state: GameState): void {
     if (wasBoss) {
       grantSectorClearRewards(state, clearedSector, wasBoss)
       const prevHighest = state.combat.highestSector
+      const frontierTarget = state.combat.frontierSector
+      if (clearedSector > prevHighest || (frontierTarget > 0 && clearedSector === frontierTarget)) {
+        const result = noteFrontierAttemptClear(state, clearedSector, state.combat.route)
+        if (result.hadFailures) {
+          nextFrontierNotice(state, 'cleared', clearedSector, clearedSector, false)
+          recordPlaytest(state, 'frontier_clear', {
+            n: `${state.combat.route}${clearedSector}`,
+            v: result.attempts,
+          })
+        }
+        clearFrontierHold(state)
+      }
       state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
       if (state.combat.highestSector > prevHighest) {
         noteHighestSector(state, state.combat.highestSector)
@@ -529,6 +609,20 @@ function onFightWon(state: GameState): void {
 
   grantSectorClearRewards(state, clearedSector, wasBoss)
   const prevHighest = state.combat.highestSector
+  const wasNewHighest = clearedSector > prevHighest
+  const frontierTarget = state.combat.frontierSector
+  const brokeFrontier =
+    wasNewHighest || (frontierTarget > 0 && clearedSector >= frontierTarget)
+  if (wasNewHighest || (frontierTarget > 0 && clearedSector === frontierTarget)) {
+    const result = noteFrontierAttemptClear(state, clearedSector, state.combat.route)
+    if (result.hadFailures) {
+      nextFrontierNotice(state, 'cleared', clearedSector, clearedSector, false)
+      recordPlaytest(state, 'frontier_clear', {
+        n: `${state.combat.route}${clearedSector}`,
+        v: result.attempts,
+      })
+    }
+  }
   state.combat.highestSector = Math.max(state.combat.highestSector, clearedSector)
   if (state.combat.highestSector > prevHighest) noteHighestSector(state, state.combat.highestSector)
   noteProtocolProgress(state)
@@ -536,11 +630,25 @@ function onFightWon(state: GameState): void {
   noteSectorClear(state)
   maybeGrantSystemUnlocks(state)
 
-  if (pushMode === 'advance') {
-    state.combat.sector = clearedSector + 1
+  const holdingFrontier = isFrontierHold(state)
+  if (brokeFrontier) {
+    clearFrontierHold(state)
+  }
+
+  const nextSector = clearedSector + 1
+  const blockedByFailedFrontier = isUnclearedFrontierTarget(state, nextSector)
+  if (pushMode === 'advance' && !holdingFrontier && !blockedByFailedFrontier) {
+    state.combat.sector = nextSector
     state.combat.wave = 1
   } else {
-    // Hold sector: repeat the whole sector from wave 1.
+    // Hold sector / Frontier Hold / failed-frontier gate: repeat this sector.
+    if (blockedByFailedFrontier) {
+      enterFrontierHold(
+        state,
+        state.combat.frontierSector,
+        state.combat.frontierRoute || state.combat.route,
+      )
+    }
     state.combat.sector = clearedSector
     state.combat.wave = 1
   }
@@ -548,6 +656,7 @@ function onFightWon(state: GameState): void {
   tryCompleteProtocol(state)
   if (
     !state.combat.docked &&
+    !isFrontierHold(state) &&
     hasProcess(state, 'auto-extract') &&
     processConfig(state).sortie.autoExtract &&
     wasBoss &&
@@ -565,6 +674,7 @@ function tickCombat(state: GameState, dt: number): void {
   if (!state.combat.inFight) return
 
   state.combat.fightElapsed = (state.combat.fightElapsed ?? 0) + dt
+  addCombatClockMs(state, dt)
   simulateCombat(state, dt, pushLog)
 
   const enemiesAlive = state.combat.enemyUnits.some((u) => u.hull > 0)
@@ -683,6 +793,10 @@ export function beginFight(state: GameState, keepFleet = false): void {
   clearShots(state)
   syncHullAggregates(state)
   sampleSortieEnemies(state)
+  if (isUnclearedFrontierTarget(state, state.combat.sector)) {
+    state.combat.frontierHold = false
+  }
+  noteFrontierAttemptStart(state)
   revealCodexFamilies(
     state,
     encounter.units.map((u) => u.family),
@@ -729,6 +843,9 @@ export function setPushMode(state: GameState, mode: CombatPushMode): GameState {
   }
   const next = structuredClone(state)
   applyPushMode(next, nextMode)
+  if (nextMode !== 'advance' && isFrontierHold(next)) {
+    convertFrontierHoldToPlayerHold(next)
+  }
   recordPlaytest(next, 'hold', {
     n: nextMode,
     v: nextMode !== 'advance',
@@ -741,9 +858,37 @@ export function setPushMode(state: GameState, mode: CombatPushMode): GameState {
   return next
 }
 
+/** Leave Frontier Hold and immediately attempt the failed sector. */
+export function retryFrontier(state: GameState): GameState {
+  if (!canRetryFrontier(state)) return state
+  const target = Math.max(1, Math.floor(state.combat.frontierSector))
+  const next = structuredClone(state)
+  if (next.combat.inFight) {
+    persistFlagshipHull(next)
+    clearEnemy(next)
+  }
+  next.combat.frontierHold = false
+  next.combat.frontierAttemptOpen = false
+  next.combat.frontierNotice = null
+  next.combat.defeatLeft = 0
+  next.combat.defeatTactical = false
+  applyPushMode(next, 'advance')
+  next.combat.sector = target
+  next.combat.wave = 1
+  next.combat.route = next.combat.frontierRoute || next.combat.route
+  next.combat.docked = false
+  fullHealPlayer(next)
+  if (!next.combat.sortieMark) next.combat.sortieMark = captureSortieMark(next)
+  recordPlaytest(next, 'retry_frontier', { n: `${next.combat.route}${target}`, v: target })
+  pushLog(next, `Retry frontier — sector ${target}.`)
+  beginFight(next)
+  return next
+}
+
 /**
  * Extract / Pause: freeze combat sim (kill-fed systems stop). Keep sector/wave.
  * Launch / Resume: combat sim runs even while the Hub UI is open.
+ * Frontier Hold persists across extract so a later Launch resumes farming.
  */
 export function setDocked(state: GameState, docked: boolean): GameState {
   if (state.combat.docked === docked) return state
@@ -798,6 +943,12 @@ export function warpToSector(state: GameState, sector: number): GameState {
   clearEnemy(next)
   next.combat.sector = Math.floor(sector)
   next.combat.wave = 1
+  if (next.combat.frontierSector > 0) {
+    const fallback = frontierFallbackSector(next.combat.frontierSector, next.combat.highestSector)
+    next.combat.frontierHold = next.combat.sector === fallback
+  } else {
+    next.combat.frontierHold = false
+  }
   pushLog(
     next,
     from === next.combat.sector

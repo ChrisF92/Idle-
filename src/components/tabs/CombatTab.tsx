@@ -13,11 +13,20 @@ import { CoreSheet } from '../CoreSheet'
 import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import { hasProcess } from '../../game/process'
+import {
+  canRetryFrontier,
+  combatStanceLabel,
+  isChallengeSortie,
+  isFrontierHold,
+} from '../../game/frontier'
 
 interface CombatTabProps {
   state: GameState
   onLaunch: () => void
   onSetPushMode: (mode: CombatPushMode) => void
+  onRetryFrontier?: () => void
+  onViewReport?: () => void
+  onDismissNotice?: () => void
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
@@ -110,10 +119,90 @@ function FragmentChip({ state, onOpen }: { state: GameState; onOpen?: () => void
   )
 }
 
+function FrontierNoticeCard({
+  state,
+  onViewReport,
+  onDismiss,
+  onViewCores,
+  onRetry,
+  lastEnemyHpPct,
+}: {
+  state: GameState
+  onViewReport?: () => void
+  onDismiss?: () => void
+  onViewCores: () => void
+  onRetry?: () => void
+  lastEnemyHpPct: number
+}) {
+  const notice = state.combat.frontierNotice
+  if (!notice) return null
+  const route = normalizeRoute(state.combat.frontierRoute || state.combat.route)
+  const tag = route === 'B' ? 'B' : ''
+  if (notice.kind === 'cleared') {
+    return (
+      <div className="frontier-card is-clear" role="status">
+        <span className="combat-hud-kicker">Frontier</span>
+        <strong>FRONTIER CLEARED — S{notice.sector}{tag}</strong>
+        <button type="button" onClick={onDismiss}>
+          Close
+        </button>
+      </div>
+    )
+  }
+  if (notice.first) {
+    return (
+      <div className="frontier-card is-first" role="status">
+        <span className="combat-hud-kicker">Repulsed</span>
+        <strong>You reached Sector {notice.sector}{tag}</strong>
+        <p>
+          Your ship has fallen back to Sector {notice.fallback} and will keep fighting there.
+          Improve your ship, then retry the frontier.
+        </p>
+        <p className="frontier-card-actions">
+          <button type="button" className="primary" onClick={onViewCores}>
+            View Cores
+          </button>
+          {onRetry ? (
+            <button type="button" onClick={onRetry}>
+              Retry S{notice.sector}{tag}
+            </button>
+          ) : null}
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="frontier-card" role="status">
+      <span className="combat-hud-kicker">Repelled at S{notice.sector}{tag}</span>
+      <strong>
+        {notice.fallback === notice.sector
+          ? `Holding Sector ${notice.fallback}`
+          : `Now farming S${notice.fallback}`}
+      </strong>
+      {lastEnemyHpPct > 0 ? (
+        <p className="muted">Last attempt: enemy HP remaining {lastEnemyHpPct}%</p>
+      ) : null}
+      <p className="frontier-card-actions">
+        {onViewReport ? (
+          <button type="button" onClick={onViewReport}>
+            View report
+          </button>
+        ) : null}
+        <button type="button" onClick={onDismiss}>
+          Dismiss
+        </button>
+      </p>
+    </div>
+  )
+}
+
 export function CombatTab({
   state,
   onLaunch,
   onSetPushMode,
+  onRetryFrontier,
+  onViewReport,
+  onDismissNotice,
   onUpgrade,
   onPickMilestone,
   paused = false,
@@ -134,7 +223,7 @@ export function CombatTab({
   const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const pushMode = normalizePushMode(combat.pushMode, combat.campaign)
   const titleId = useId()
-  const forceCores = coresGuideActive(state, guide) && (!live || dying)
+  const forceCores = coresGuideActive(state, guide)
   const salvageOpen = hasHullLostOnce(state)
   const [coresOpen, setCoresOpen] = useState(false)
   const sheetOpen = salvageOpen && (coresOpen || forceCores)
@@ -168,9 +257,9 @@ export function CombatTab({
   useEffect(() => {
     if (!coresRequest) return
     focusCoreId.current = coresRequest.moduleId
-    if (!live || dying) setCoresOpen(true)
+    setCoresOpen(true)
     onCoresRequestHandled?.()
-  }, [coresRequest, live, dying, onCoresRequestHandled])
+  }, [coresRequest, onCoresRequestHandled])
 
   useEffect(() => {
     if (!sheetOpen) return
@@ -275,6 +364,19 @@ export function CombatTab({
     ],
   )
 
+  const stance = combatStanceLabel(state)
+  const challenge = isChallengeSortie(state)
+  const frontierHold = isFrontierHold(state)
+  const retryOk = Boolean(onRetryFrontier) && canRetryFrontier(state) && !dying
+  const frontierTarget = Math.max(0, Math.floor(combat.frontierSector ?? 0))
+  const lastStats = combat.lastSortie?.stats
+  const lastEnemyHpPct =
+    lastStats && lastStats.finalEnemyHpMax > 0
+      ? Math.round((100 * lastStats.finalEnemyHp) / lastStats.finalEnemyHpMax)
+      : 0
+  const notice = combat.frontierNotice
+  const routeTag = normalizeRoute(combat.route) === 'B' ? 'B' : ''
+
   const battlefieldMode: BattlefieldMode =
     combat.inFight || dying ? 'fighting' : 'ready'
 
@@ -291,10 +393,18 @@ export function CombatTab({
               ? echoRun.name
               : protocol
                 ? `P${protocol.goalSector}`
-                : `S${combat.sector}${normalizeRoute(combat.route) === 'B' ? 'B' : ''}`}
+                : stance === 'frontier'
+                  ? `FRONTIER S${frontierTarget}${normalizeRoute(combat.frontierRoute) === 'B' ? 'B' : ''}`
+                  : stance === 'holding'
+                    ? 'HOLDING'
+                    : 'ADVANCING'}
           </span>
           <strong className="combat-hud-value">
-            W{combat.wave}/{waves}
+            {echoRun || protocol
+              ? `W${combat.wave}/${waves}`
+              : stance === 'frontier'
+                ? `Farm S${combat.sector}${routeTag} · W${combat.wave}/${waves}`
+                : `S${combat.sector}${routeTag} · W${combat.wave}/${waves}`}
           </strong>
         </div>
         <div
@@ -348,15 +458,30 @@ export function CombatTab({
         ) : null}
         {dying ? (
           <p className="sortie-defeat-banner" role="status">
-            Hull lost
+            {challenge
+              ? 'Hull lost'
+              : `REPELLED — S${combat.sector}${normalizeRoute(combat.route) === 'B' ? 'B' : ''}`}
           </p>
+        ) : null}
+        {!dying && notice ? (
+          <FrontierNoticeCard
+            state={state}
+            onViewReport={onViewReport}
+            onDismiss={onDismissNotice}
+            onViewCores={() => {
+              setCoresOpen(true)
+              onDismissNotice?.()
+            }}
+            onRetry={retryOk ? onRetryFrontier : undefined}
+            lastEnemyHpPct={lastEnemyHpPct}
+          />
         ) : null}
       </div>
 
       <div className="sortie-actions">
         {dying ? (
           <button type="button" disabled>
-            Hull lost
+            {challenge ? 'Hull lost' : 'Repelled'}
           </button>
         ) : live ? (
           <div className="sheet-tabs sortie-push-tabs" data-guide="sortie-push">
@@ -375,7 +500,7 @@ export function CombatTab({
           <button
             type="button"
             className="primary"
-            data-guide="launch"
+            data-guide={retryOk || !salvageOpen ? 'launch' : 'retry-frontier'}
             onClick={(e) => {
               markLocalOk(e.currentTarget)
               onLaunch()
@@ -384,6 +509,25 @@ export function CombatTab({
             Launch Sortie
           </button>
         )}
+        {retryOk ? (
+          <button
+            type="button"
+            className="primary frontier-retry-btn"
+            data-guide="retry-frontier"
+            onClick={(e) => {
+              markLocalOk(e.currentTarget)
+              onRetryFrontier?.()
+            }}
+          >
+            Retry S{frontierTarget}
+            {normalizeRoute(combat.frontierRoute) === 'B' ? 'B' : ''}
+          </button>
+        ) : null}
+        {frontierHold && onViewReport && combat.lastSortie.outcome === 'defeat' && !notice ? (
+          <button type="button" className="sortie-report-link" onClick={onViewReport}>
+            View report
+          </button>
+        ) : null}
         {salvageOpen ? (
           <button
             type="button"

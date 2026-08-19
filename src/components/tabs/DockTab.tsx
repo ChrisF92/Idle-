@@ -70,7 +70,7 @@ export function DockTab({
               ? 'Hull is docked. Rebuild hangar is ready.'
               : !summary.outcome
                 ? 'Your Scout is ready. Launch a sortie and see how far it gets.'
-                : 'Spend Salvage on Cores, then launch again.'}
+                : 'Spend Salvage on Cores, then return to the sortie.'}
         </p>
       </header>
 
@@ -173,8 +173,12 @@ export function DockTab({
       {summary.outcome ? (
         <div className="dock-summary">
           <p className="dock-summary-title">
-            {summary.outcome === 'defeat' ? 'Defeat' : 'Run'} · S{summary.sector} W
-            {summary.wave}
+            {summary.outcome === 'defeat'
+              ? /Protocol|Echo/.test(summary.note ?? '')
+                ? 'Defeat'
+                : 'Repelled'
+              : 'Run'}{' '}
+            · S{summary.sector} W{summary.wave}
           </p>
           <div className="stat-row dock-stats">
             <div>

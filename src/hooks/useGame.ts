@@ -9,6 +9,7 @@ import {
   setPushMode,
   setDocked,
   warpToSector,
+  retryFrontier,
 } from '../game/tick'
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
@@ -91,6 +92,7 @@ import { ensureStarterCoresTourSalvage } from '../game/catalog'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
 import { noteSessionEnd } from '../game/playtest'
+import { dismissFrontierNotice } from '../game/frontier'
 
 type Action =
   | { type: 'replace'; state: GameState }
@@ -98,6 +100,8 @@ type Action =
   | { type: 'engage' }
   | { type: 'set-campaign'; on: boolean }
   | { type: 'set-push-mode'; mode: CombatPushMode }
+  | { type: 'retry-frontier' }
+  | { type: 'dismiss-frontier-notice' }
   | { type: 'set-docked'; docked: boolean }
   | { type: 'warp'; sector: number }
   | { type: 'assign-worker'; stationId: string; delta: number }
@@ -198,6 +202,10 @@ function reducer(state: GameState, action: Action): GameState {
       return setCampaign(state, action.on)
     case 'set-push-mode':
       return setPushMode(state, action.mode)
+    case 'retry-frontier':
+      return retryFrontier(state)
+    case 'dismiss-frontier-notice':
+      return dismissFrontierNotice(state)
     case 'set-docked':
       return setDocked(state, action.docked)
     case 'warp':
@@ -420,6 +428,8 @@ export function useGame() {
     engage: () => dispatch({ type: 'engage' }),
     setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
     setPushMode: (mode: CombatPushMode) => dispatch({ type: 'set-push-mode', mode }),
+    retryFrontier: () => dispatch({ type: 'retry-frontier' }),
+    dismissFrontierNotice: () => dispatch({ type: 'dismiss-frontier-notice' }),
     setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
     warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
     assignWorker: (stationId: string, delta: number) =>

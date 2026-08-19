@@ -307,7 +307,7 @@ describe('sortie counters and pressure', () => {
       }),
     }
     render(<SortieReport summary={s.combat.lastSortie} state={s} onClose={() => undefined} />)
-    expect(screen.getByText(/DEFEATED — SECTOR 14 BOSS/)).toBeTruthy()
+    expect(screen.getByText(/REPELLED — SECTOR 14 BOSS/)).toBeTruthy()
     expect(screen.getByText(/Boss HP remaining: 31%/)).toBeTruthy()
     expect(screen.getByText(/Pressure:/)).toBeTruthy()
     expect(screen.getByText(/Possible improvements/)).toBeTruthy()

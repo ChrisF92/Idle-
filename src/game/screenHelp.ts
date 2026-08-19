@@ -35,14 +35,14 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Launch a sortie from here. Combat keeps running if you stay on Dock after Launch.',
-      'Hull loss docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
+      'Ordinary hull loss no longer docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
     ],
   },
   combat: {
     title: 'Sortie',
     body: [
       'Weapons fire automatically. Waves come down the lane. The header shows sector, hull, and shield.',
-      'After hull loss, Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight — use it to farm a tracked Core.',
+      'After hull loss the ship retreats and keeps farming the last sector you could hold. Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight — use it to farm a tracked Core. Retry Frontier attempts the sector that stopped you.',
       'Drones are assigned on the Network tab. They never appear here.',
     ],
   },

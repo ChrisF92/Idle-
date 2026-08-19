@@ -111,7 +111,8 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     expect(computeShipStats(s).shieldMax).toBe(30)
     s = setDocked(s, false)
     advanceSeconds(s, 45)
-    expect(s.combat.docked).toBe(true)
+    expect(s.combat.docked).toBe(false)
+    expect(s.combat.frontierHold).toBe(true)
     expect(s.combat.lastSortie?.outcome).toBe('defeat')
   })
 
@@ -126,7 +127,8 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     expect(enemySectorScale(15)).toBeGreaterThan(enemySectorScale(1) * 10)
     s = setDocked(s, false)
     advanceSeconds(s, 50)
-    expect(s.combat.docked).toBe(true)
+    expect(s.combat.docked).toBe(false)
+    expect(s.combat.frontierHold).toBe(true)
     expect(s.combat.lastSortie?.outcome).toBe('defeat')
   })
 

@@ -33,8 +33,9 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(s.combat.lastSortie.sectorsCleared).toBeGreaterThanOrEqual(1)
     expect(s.combat.lastSortie.salvageSpent).toBe(spent)
     expect(s.combat.lastSortie.salvageGained).toBeGreaterThan(0)
-    expect(s.combat.sortieMark).toBeNull()
-    expect(s.combat.docked).toBe(true)
+    expect(s.combat.sortieMark).toBeTruthy()
+    expect(s.combat.docked).toBe(false)
+    expect(s.combat.frontierHold).toBe(true)
   })
 
   it('unlocks story logs with doors and the first wreck', () => {

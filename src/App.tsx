@@ -270,6 +270,9 @@ export default function App() {
               game.setDocked(false)
             }}
             onSetPushMode={game.setPushMode}
+            onRetryFrontier={game.retryFrontier}
+            onViewReport={() => setReportOpen(true)}
+            onDismissNotice={game.dismissFrontierNotice}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
             onMarkCoresSeen={() => game.markHubSeen('cores')}

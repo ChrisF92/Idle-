@@ -40,6 +40,7 @@ import { tickYard } from './yard'
 import { tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult } from './hiveResearch'
 import { hasProcess, processIndustrySpeedMult, processOfflineBonusMs } from './process'
+import { addOfflineCombatMs, isFrontierHold } from './frontier'
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -259,15 +260,20 @@ export function applyOfflineCatchUp(
 
   applyIndustryOnly(next, seconds)
   applySectorOfflineRewards(next, seconds)
-  if (!next.combat.docked && hasProcess(next, 'offline-sortie')) {
+  if (!next.combat.docked && hasProcess(next, 'offline-sortie') && !isFrontierHold(next)) {
     const pushes = Math.min(4, Math.floor(seconds / 600))
     if (pushes > 0) {
-      next.combat.sector += pushes
+      const cap =
+        next.combat.frontierSector > (next.combat.highestSector ?? 0)
+          ? Math.max(next.combat.sector, next.combat.frontierSector - 1)
+          : Infinity
+      next.combat.sector = Math.min(next.combat.sector + pushes, cap)
       next.combat.highestSector = Math.max(next.combat.highestSector, next.combat.sector - 1)
       next.combat.wave = 1
       maybeGrantSystemUnlocks(next)
     }
   }
+  if (!next.combat.docked) addOfflineCombatMs(next, appliedMs)
   endOfflineFight(next, seconds)
   next.lastTickAt = now
 
@@ -281,14 +287,18 @@ export function applyOfflineCatchUp(
 
   const modeLabel = next.combat.docked
     ? 'Paused'
-    : next.combat.campaign
-      ? 'Advance'
-      : 'Hold'
+    : isFrontierHold(next)
+      ? 'Frontier Hold'
+      : next.combat.campaign
+        ? 'Advance'
+        : 'Hold'
   const mode = next.combat.docked
     ? 'Offline payout while Paused (industry + hangar repair, no fight sim).'
-    : next.combat.campaign
-      ? 'Offline payout from your Advance sector (no fight sim).'
-      : 'Offline payout while Holding / farming this sector (no fight sim).'
+    : isFrontierHold(next)
+      ? 'Offline payout while farming the fallback sector (no fight sim).'
+      : next.combat.campaign
+        ? 'Offline payout from your Advance sector (no fight sim).'
+        : 'Offline payout while Holding / farming this sector (no fight sim).'
 
   const summary = [
     `Welcome back. Away ${formatDuration(elapsedMs)}` +

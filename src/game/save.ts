@@ -48,6 +48,7 @@ import { normalizePushMode, normalizeRoute } from './sectors'
 import { migrateOnboardingState } from './playerGuidance'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
+import { hydrateFrontierCombat } from './frontier'
 
 export function saveGame(state: GameState): void {
   try {
@@ -142,6 +143,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       : null,
     defeatLeft: Math.max(0, Number(combat.defeatLeft ?? 0) || 0),
     defeatTactical: Boolean(combat.defeatTactical),
+    ...hydrateFrontierCombat(combat),
   }
 }
 

@@ -1,12 +1,12 @@
 /** Lightweight sortie counters and post-run pressure classification. */
 
-import type { EnemyRole, GameState, SortieRunStats, SortieSummary } from './types'
+import type { EnemyRole, GameState, PressureClass, SortieRunStats, SortieSummary } from './types'
 import { isSystemUnlocked } from './progression'
 import { specialistsUnlocked } from './specialists'
 import { capitalUnlocked } from './capital'
 import { STARTER_CORE_IDS } from './catalog'
 
-export type PressureClass = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
+export type { PressureClass }
 
 export interface SortieDiagnostic {
   title: string
@@ -254,8 +254,8 @@ export function buildSortieDiagnostic(
   const title =
     summary.outcome === 'defeat'
       ? stats.lastIsBoss
-        ? `DEFEATED — SECTOR ${summary.sector} BOSS`
-        : `DEFEATED — SECTOR ${summary.sector}`
+        ? `REPELLED — SECTOR ${summary.sector} BOSS`
+        : `REPELLED — SECTOR ${summary.sector}`
       : `CLEARED — SECTOR ${summary.sector}`
   const lines: string[] = []
   if (summary.outcome === 'defeat' && stats.lastIsBoss) {
