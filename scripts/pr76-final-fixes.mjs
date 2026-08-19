@@ -46,8 +46,6 @@ patch('src/game/simulation/actions.ts', [
   ["export function tendProcess(state: GameState, ctx: StrategyContext): GameState {\n  let next = state", "export function tendProcess(state: GameState, ctx: StrategyContext): GameState {\n  if (!isSystemUnlocked(state, 'process')) return state\n  let next = state"],
   ["if (careerHighestSector(state) < 3) return state\n  let next = state", "if (!isSystemUnlocked(state, 'reliquary')) return state\n  let next = state"],
 ])
-
-// The previous direct constant import is now redundant after strict system-gate checks.
 patch('src/game/simulation/actions.ts', [
   ["import { HIVE_RESEARCH_UNLOCK_SECTOR } from '../hiveResearch'\n", ''],
 ])
@@ -56,10 +54,16 @@ patch('src/game/simulation/actions.ts', [
 patch('src/game/research-milestones.test.ts', [
   ["it('Relay Sight opens Strike Relay early and lights a second extra Furnace channel'", "it('Relay Sight opens Archive Relay early and lights a second extra Furnace channel'"],
   ['const s = atResearch(7)', 'const s = atResearch(34)'],
-  ["expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(false)", "expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(false)"],
   ["expect(hiveResearchUnlocksRelay(s, 'strike-relay')).toBe(true)", "expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)"],
-  ["expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)", "expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(true)"],
   ["it('Blue Bay opens the blue Reliquary slot before sector 19'", "it('Blue Bay opens the blue Reliquary slot before its sector 40 gate'"],
+])
+// Earlier migration correctly recognises Strike Relay is already open by S34; for this
+// specific Relay Sight test, assert the still-future Archive Relay is closed before the breakthrough.
+patch('src/game/research-milestones.test.ts', [
+  ["const s = atResearch(34)\n    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)\n    complete(s, 'energy', 9)\n    expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)\n    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)",
+   "const s = atResearch(34)\n    expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(false)\n    complete(s, 'energy', 9)\n    expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)\n    expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(true)"],
+  ["it('Blue Bay opens the blue Reliquary slot before its sector 40 gate', () => {\n    const s = atResearch(34)\n    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(true)",
+   "it('Blue Bay opens the blue Reliquary slot before its sector 40 gate', () => {\n    const s = atResearch(34)\n    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)"],
 ])
 
 // Old test fixtures that still attempted Rebuild/challenge entry below the new legal gate.
@@ -77,8 +81,7 @@ patch('src/game/post-prestige.test.ts', [
    "    const control = structuredClone(state)\n    control.ai.purchased = []\n    control.resources.aiPoints = 0\n    control.combat.sector = 12\n    control.combat.highestSector = 12\n    control.meta.highestSectorEver = 12\n    const controlAfter = performPrestige(control, 1000)\n\n    state.combat.sector = 12\n    state.combat.highestSector = 12\n    state.meta.highestSectorEver = 12\n    state = performPrestige(state, 1000)\n    expect(state.ai.purchased).not.toContain('focus-fire')\n    expect(state.resources.aiPoints - controlAfter.resources.aiPoints).toBe(2)"],
 ])
 
-// The old Act-1 aggregate expected Research to be usable before the first Rebuild. With
-// strict S34 gating that assertion is obsolete; the simulator should now report zero.
+// With strict S34 Research gating, the first S12 Rebuild cannot have Research breakthroughs.
 patch('src/game/act1-balance.test.ts', [
   ['expect(atRebuild.researchBreakthroughs).toBeLessThanOrEqual(4)', 'expect(atRebuild.researchBreakthroughs).toBe(0)'],
 ])
