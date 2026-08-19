@@ -36,6 +36,7 @@ import {
   partId,
   pickWeightedDropEntry,
   stationRepairBonus,
+  SHORT_RANGE_MAX,
 } from './catalog'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { isSectorBossWave, wavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
@@ -256,6 +257,7 @@ function makeEnemyUnit(opts: {
   shape?: UnitShape
   x?: number
   y?: number
+  rewardWeight?: number
 }): CombatUnit {
   const family = opts.family
   const role = opts.role ?? (opts.isBoss ? 'boss' : undefined)
@@ -298,6 +300,7 @@ function makeEnemyUnit(opts: {
     kite: opts.kite ?? false,
     phaseWarnLeft: 0,
     regenDelay: 0,
+    rewardWeight: opts.rewardWeight ?? 1,
   }
 }
 
@@ -305,6 +308,99 @@ function packY(index: number, count: number): number {
   if (count <= 1) return 0
   const spread = Math.min(110, 28 * (count - 1))
   return -spread / 2 + (spread / Math.max(1, count - 1)) * index
+}
+
+/**
+ * Minimum on-screen formation size. The authored role/family patterns still decide
+ * what a wave is; this only fills sparse formations with lighter wing units so
+ * combat reads as a fleet engagement rather than one or two stat blocks.
+ *
+ * Wing units carry reduced rewards so density does not become an economy buff.
+ */
+function targetFormationSize(sector: number, bossWave: boolean): number {
+  const s = Math.max(1, Math.floor(sector))
+  if (bossWave) return s < 6 ? 3 : s < 16 ? 4 : 5
+  // Preserve the authored tutorial fight. Visual density ramps after S1.
+  if (s === 1) return 2
+  if (s <= 4) return 3
+  if (s <= 8) return 4
+  if (s <= 18) return 5
+  return 6
+}
+
+function densityPressureBudget(sector: number, bossWave: boolean): number {
+  if (bossWave) {
+    if (sector <= 5) return 0.06
+    if (sector <= 15) return 0.12
+    return 0.18
+  }
+  if (sector <= 1) return 0
+  if (sector <= 4) return 0.08
+  if (sector <= 8) return 0.14
+  if (sector <= 18) return 0.22
+  return 0.28
+}
+
+function densifyEncounter(
+  units: CombatUnit[],
+  sector: number,
+  bossWave: boolean,
+): CombatUnit[] {
+  const target = targetFormationSize(sector, bossWave)
+  if (units.length >= target) return units
+  const candidates = units
+    .filter((u) => !u.isBoss)
+    .sort((a, b) => (a.hullMax + a.shieldMax) - (b.hullMax + b.shieldMax))
+  if (candidates.length === 0) return units
+
+  const missing = target - units.length
+  const authoredEhp = units.reduce((sum, u) => sum + u.hullMax + u.shieldMax, 0)
+  const authoredDps = units.reduce(
+    (sum, u) => sum + u.weapons.reduce((wSum, w) => wSum + w.damage / Math.max(0.05, w.cooldown), 0),
+    0,
+  )
+  const budget = densityPressureBudget(sector, bossWave)
+  const wingEhp = Math.max(1, (authoredEhp * budget) / Math.max(1, missing))
+  const wingDps = Math.max(0.1, (authoredDps * budget * 0.85) / Math.max(1, missing))
+  const rewardShare = Math.min(0.35, Math.max(0.12, (budget * units.length) / Math.max(1, missing)))
+
+  const out = [...units]
+  let wing = 0
+  while (out.length < target) {
+    const source = candidates[wing % candidates.length]!
+    wing += 1
+    const sourceEhp = Math.max(1, source.hullMax + source.shieldMax)
+    const shieldShare = source.shieldMax / sourceEhp
+    const shieldMax = wingEhp * shieldShare
+    const hullMax = Math.max(1, wingEhp - shieldMax)
+    const weaponCount = Math.max(1, source.weapons.length)
+    const clone: CombatUnit = {
+      ...source,
+      id: nextUnitId(`e-${source.family}-wing`),
+      name: `${source.name} Wing ${wing}`,
+      hull: hullMax,
+      hullMax,
+      shield: shieldMax,
+      shieldMax,
+      armor: source.armor * 0.55,
+      weapons: source.weapons.map((weapon) => ({
+        ...weapon,
+        id: nextUnitId('ew-wing'),
+        damage: (wingDps * Math.max(0.05, weapon.cooldown)) / weaponCount,
+        cooldownLeft: 0,
+        telegraphLeft: 0,
+        telegraphToId: undefined,
+      })),
+      dots: [],
+      x: source.x + 8 + wing * 5,
+      y: packY(out.length, target),
+      phaseWarnLeft: 0,
+      regenDelay: 0,
+      rewardWeight: rewardShare,
+    }
+    out.push(clone)
+  }
+  return out
 }
 
 export function enemyForSector(
@@ -324,13 +420,17 @@ export function enemyForSector(
     names[(Math.floor((sector - 1) / FAMILY_ROTATION.length) + wave - 1) % names.length] ??
     'Unknown Entity'
 
-  const waveScale = (1 + Math.max(0, wave - 1) * 0.1) * routeDangerMult(side) * extraDanger
-  const units = bossWave
+  // Later waves should be tougher, but not a 40% stat cliff before every boss.
+  // Density now carries more of the pressure, so the within-sector ramp is gentler.
+  const waveScale = (1 + Math.max(0, wave - 1) * 0.06) * routeDangerMult(side) * extraDanger
+  let units = bossWave
     ? buildBossPack(sector, name, waveScale)
     : buildWavePack(sector, family, name, wave, waveScale)
+  units = densifyEncounter(units, sector, bossWave)
   const reach = Math.min(48, (Math.max(1, sector) - 1) * 2.8)
   for (const unit of units) {
-    unit.engageRange += reach
+    // Preferred standoff remains role-specific. moveUnits() progressively compresses
+    // long-range positions until every enemy eventually enters SHORT_RANGE_MAX.
     for (const weapon of unit.weapons) {
       weapon.range += reach
     }
@@ -370,13 +470,13 @@ export const ENEMY_MID_SECTOR = 18
 
 export const ENEMY_HULL_BASE = 1.55
 export const ENEMY_HULL_EARLY = 1.235
-export const ENEMY_HULL_MID = 1.18
-export const ENEMY_HULL_LATE = 1.22
+export const ENEMY_HULL_MID = 1.2
+export const ENEMY_HULL_LATE = 1.215
 
 export const ENEMY_DMG_BASE = 0.9
 export const ENEMY_DMG_EARLY = 1.28
-export const ENEMY_DMG_MID = 1.155
-export const ENEMY_DMG_LATE = 1.245
+export const ENEMY_DMG_MID = 1.16
+export const ENEMY_DMG_LATE = 1.225
 
 function piecewiseSectorScale(
   sector: number,
@@ -1582,6 +1682,32 @@ function laneDistance(a: CombatUnit, b: CombatUnit): number {
   return Math.abs(a.x - b.x)
 }
 
+/**
+ * Long-range roles establish their preferred standoff first, then pressure
+ * gradually collapses that distance. This preserves sniper/boss identity while
+ * guaranteeing that no legal short-range loadout is permanently soft-locked.
+ */
+export const ENEMY_CLOSE_DELAY_S = 6
+export const ENEMY_CLOSE_RATE = 2.6
+
+/** Shortest player weapon that can legally exist at this point in progression. */
+export function minimumPlayerWeaponRangeForSector(sector: number): number {
+  // S1 only has the starter Pulse battery/module available. Flak (55) enters at S2.
+  return sector <= 1 ? 180 : SHORT_RANGE_MAX
+}
+
+export function enemyApproachTarget(
+  unit: Pick<CombatUnit, 'engageRange'>,
+  fightElapsed: number,
+  sector = 2,
+): number {
+  const preferred = Math.max(0, unit.engageRange)
+  const minimumReach = minimumPlayerWeaponRangeForSector(sector)
+  if (preferred <= minimumReach) return preferred
+  const closing = Math.max(0, fightElapsed - ENEMY_CLOSE_DELAY_S) * ENEMY_CLOSE_RATE
+  return Math.max(minimumReach, preferred - closing)
+}
+
 function moveUnits(state: GameState, dt: number): void {
   // Player flagship stays at x=0, y=0. Escorts hold relative slots.
   for (const unit of state.combat.playerUnits) {
@@ -1590,9 +1716,10 @@ function moveUnits(state: GameState, dt: number): void {
     unit.y = 0
   }
 
+  const elapsed = Math.max(0, state.combat.fightElapsed ?? 0)
   for (const unit of state.combat.enemyUnits) {
     if (unit.hull <= 0) continue
-    const target = unit.engageRange
+    const target = enemyApproachTarget(unit, elapsed, state.combat.sector)
     if (unit.x > target + 2) {
       unit.x = Math.max(target, unit.x - unit.speed * dt)
     } else if (unit.kite && unit.x < target - 6) {
@@ -1669,8 +1796,9 @@ export interface PartDropResult {
  */
 export function rollEnemyPartDrop(
   state: GameState,
-  unit: Pick<CombatUnit, 'family' | 'isBoss' | 'name'>,
+  unit: Pick<CombatUnit, 'family' | 'isBoss' | 'name' | 'rewardWeight'>,
   rng: () => number = Math.random,
+  rewardWeight = unit.rewardWeight ?? 1,
 ): PartDropResult[] {
   // Keep early scrap sinks meaningful — no Core prints until the Foundry door.
   if (!isSystemUnlocked(state, 'foundry')) return []
@@ -1691,6 +1819,7 @@ export function rollEnemyPartDrop(
   const earlyMult = earlyCareerFragmentMult(careerHighestSector(state))
   let chance =
     table.chance *
+    Math.max(0, Math.min(1, rewardWeight)) *
     earlyMult *
     holdMult *
     logisticsDropMult(state) *
@@ -1794,6 +1923,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   if (unit.side !== 'enemy') return
   noteSortieKill(state)
   recordPlaytest(state, 'first_kill', { firstKey: 'kill' })
+  const rewardWeight = Math.max(0, Math.min(1, unit.rewardWeight ?? 1))
   const salvageMult =
     networkSalvageMult(state) *
     reliquarySalvageMult(state) *
@@ -1807,20 +1937,25 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     fittedSalvageKillMult(state) *
     processSalvageMult(state)
   state.resources.salvage +=
-    salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route, state) * salvageMult
-  rollEnemyPartDrop(state, unit)
-  grantSignalCoreDrop(state, 'kill', { family: unit.family })
-  grantReliquaryKillLoot(
-    state,
-    unit.isBoss,
-    Math.random,
-    hiveResearchShardDropBonus(state) + foundryShardDropBonus(state),
-  )
-  grantFurnaceKillLoot(state, unit.isBoss)
+    salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route, state) * salvageMult * rewardWeight
+  rollEnemyPartDrop(state, unit, Math.random, rewardWeight)
+  // Wing enemies exist to make formations richer, not to multiply the economy.
+  // Continuous XP scales directly; discrete loot uses the same expected-value weight.
+  const discreteLoot = rewardWeight >= 1 || Math.random() < rewardWeight
+  if (discreteLoot) {
+    grantSignalCoreDrop(state, 'kill', { family: unit.family })
+    grantReliquaryKillLoot(
+      state,
+      unit.isBoss,
+      Math.random,
+      hiveResearchShardDropBonus(state) + foundryShardDropBonus(state),
+    )
+    grantFurnaceKillLoot(state, unit.isBoss)
+  }
   grantHiveResearchKillXp(
     state,
     unit.isBoss,
-    furnaceResearchXpMult(state) * reliquaryResearchXpMult(state),
+    furnaceResearchXpMult(state) * reliquaryResearchXpMult(state) * rewardWeight,
   )
 }
 

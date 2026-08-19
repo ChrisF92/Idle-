@@ -122,6 +122,7 @@ export function noteFrontierAttemptStart(state: GameState): void {
 export function noteFrontierAttemptFail(state: GameState, failedSector: number, route: SectorRoute): void {
   const rec = ensureSectorAttempt(state, failedSector, route)
   rec.failures += 1
+  rec.attempts = Math.max(rec.attempts, rec.failures + rec.clears)
   state.combat.frontierAttemptOpen = false
   const stats = state.combat.sortieMark?.stats ?? state.combat.lastSortie?.stats ?? emptySortieRunStats()
   const pressure = classifyPressure(stats, 'defeat')
@@ -145,6 +146,7 @@ export function noteFrontierAttemptClear(
 ): { hadFailures: boolean; attempts: number } {
   const rec = ensureSectorAttempt(state, clearedSector, route)
   rec.clears += 1
+  rec.attempts = Math.max(rec.attempts, rec.failures + rec.clears)
   const stats = state.combat.sortieMark?.stats ?? emptySortieRunStats()
   rec.successFightMs = Math.max(0, Math.round((stats.finalFightTime ?? 0) * 1000))
   rec.lastFightMs = rec.successFightMs

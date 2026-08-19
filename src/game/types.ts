@@ -714,6 +714,8 @@ export interface CombatUnit {
   phaseWarnLeft: number
   /** Seconds until in-combat shield regen resumes after a hit. */
   regenDelay?: number
+  /** Kill-reward share. Authored enemies default to 1; density wing units are fractional. */
+  rewardWeight?: number
 }
 
 export interface CombatFx {
