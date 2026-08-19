@@ -68,7 +68,7 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git checkout origin/chatgpt/pr75-combat-curve-density-range -- package.json
           git rm -f .github/workflows/pr76-apply.yml .github/workflows/pr76-push-runner.yml
-          git rm -f scripts/pr76-test-runner.mjs scripts/pr76-test-migrate.mjs scripts/pr76-test-migrate-2.mjs scripts/pr76-test-migrate-3.mjs
+          git rm -f scripts/pr76-test-runner.mjs scripts/pr76-test-migrate.mjs scripts/pr76-test-migrate-2.mjs scripts/pr76-test-migrate-3.mjs scripts/pr76-final-fixes.mjs
           git rm -f .pr76-trigger pr76-test-output.txt || true
           git add src package.json
           git commit -m "feat: spread Act 1 systems and strengthen Rebuild growth"
