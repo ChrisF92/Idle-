@@ -205,4 +205,8 @@ await import('./pr76-final-fixes.mjs')
 
 const test = run('npx', ['vitest', 'run'])
 process.stdout.write(`${test.stdout ?? ''}${test.stderr ?? ''}`)
-process.exit(test.status ?? 1)
+if ((test.status ?? 1) !== 0) process.exit(test.status ?? 1)
+
+const lint = run('npx', ['oxlint'])
+process.stdout.write(`${lint.stdout ?? ''}${lint.stderr ?? ''}`)
+process.exit(lint.status ?? 1)
