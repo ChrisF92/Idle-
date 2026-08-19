@@ -23,11 +23,7 @@ patch('src/game/hiveResearch.ts', [
   ["unlockRelay: 'strike-relay'", "unlockRelay: 'archive-relay'"],
 ])
 
-patch('src/game/furnace.ts', [
-  ["import { noteFrontierIntervention } from './frontier'", "import { noteFrontierIntervention } from './frontier'\nimport { ACT1_CADENCE } from './cadence'"],
-  ['export const FURNACE_UNLOCK_SECTOR = 5', 'export const FURNACE_UNLOCK_SECTOR = ACT1_CADENCE.furnace'],
-])
-
+// Furnace is already centralised by the base PR76 transform; Reliquary was not.
 patch('src/game/reliquary.ts', [
   ["import { noteFrontierIntervention } from './frontier'", "import { noteFrontierIntervention } from './frontier'\nimport { ACT1_CADENCE } from './cadence'"],
   ['export const RELIQUARY_UNLOCK_SECTOR = 3', 'export const RELIQUARY_UNLOCK_SECTOR = ACT1_CADENCE.reliquary'],
@@ -57,8 +53,6 @@ patch('src/game/research-milestones.test.ts', [
   ["expect(hiveResearchUnlocksRelay(s, 'strike-relay')).toBe(true)", "expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)"],
   ["it('Blue Bay opens the blue Reliquary slot before sector 19'", "it('Blue Bay opens the blue Reliquary slot before its sector 40 gate'"],
 ])
-// Earlier migration correctly recognises Strike Relay is already open by S34; for this
-// specific Relay Sight test, assert the still-future Archive Relay is closed before the breakthrough.
 patch('src/game/research-milestones.test.ts', [
   ["const s = atResearch(34)\n    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)\n    complete(s, 'energy', 9)\n    expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)\n    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)",
    "const s = atResearch(34)\n    expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(false)\n    complete(s, 'energy', 9)\n    expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)\n    expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(true)"],
