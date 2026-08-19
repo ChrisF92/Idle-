@@ -105,6 +105,7 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git rm .github/workflows/pr76-apply.yml
+          git rm -f .pr76-trigger || true
           git add src
           git commit -m "feat: spread Act 1 systems and strengthen Rebuild growth"
           git push origin HEAD:${{ github.head_ref }}
