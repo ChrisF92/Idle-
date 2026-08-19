@@ -11,7 +11,6 @@ function replaceIfPresent(text, oldText, newText) {
 
 // The PR branch temporarily stores the implementation as a deterministic transform so
 // both the normal PR preview and the branch validator can exercise exactly the same code.
-// Apply it here only when another workflow has not already done so.
 if (!existsSync('src/game/cadence.ts')) {
   const py = `from pathlib import Path\nsrc = Path('.github/workflows/pr76-apply.yml').read_text().splitlines()\nstart = next(i for i, line in enumerate(src) if \"python <<'PY'\" in line) + 1\nend = next(i for i in range(start, len(src)) if src[i].strip() == 'PY')\nbody = src[start:end]\nbody = [line[10:] if line.startswith('          ') else line for line in body]\nPath('/tmp/pr76_apply.py').write_text('\\n'.join(body) + '\\n')\n`
   const extract = run('python', ['-c', py])
@@ -51,8 +50,7 @@ if (!existsSync('src/game/cadence.ts')) {
   writeFileSync(path, text)
 }
 
-// Preserve the intended +4-sector order for Foundry bonus drop bands. Only perform
-// the swap while the temporary marker is not already reflected in the final 12/16 order.
+// Preserve the intended +4-sector order for Foundry bonus drop bands.
 {
   const path = 'src/game/catalog.ts'
   let text = readFileSync(path, 'utf8')
@@ -61,8 +59,6 @@ if (!existsSync('src/game/cadence.ts')) {
   const end = text.indexOf('\n}\n', start) + 3
   if (start < 0 || end < 3) throw new Error('Missing sectorBonusDropEntries')
   let block = text.slice(start, end)
-  // The base transform accidentally reverses these two thresholds. Its first two
-  // bonus checks are 16 then 12; final cadence is 12 then 16.
   const i16 = block.indexOf('if (sector >= 16) {')
   const i12 = block.indexOf('if (sector >= 12) {')
   if (i16 >= 0 && i12 > i16) {
@@ -91,10 +87,121 @@ for (const spec of [
 ]) {
   const [path, oldImport, newImport, oldConstant, newConstant] = spec
   let text = readFileSync(path, 'utf8')
-  if (!text.includes(`import { ACT1_CADENCE } from './cadence'`)) {
-    text = replaceIfPresent(text, oldImport, newImport)
-  }
+  if (!text.includes(`import { ACT1_CADENCE } from './cadence'`)) text = replaceIfPresent(text, oldImport, newImport)
   text = replaceIfPresent(text, oldConstant, newConstant)
+  writeFileSync(path, text)
+}
+
+// Balance metadata must describe the new campaign, not the old S2–S7 system dump.
+{
+  const path = 'src/game/balance/act1.ts'
+  let text = readFileSync(path, 'utf8')
+  if (!text.includes(`import { ACT1_CADENCE } from '../cadence'`)) {
+    text = text.replace(`import type { GameState } from '../types'`, `import type { GameState } from '../types'\nimport { ACT1_CADENCE } from '../cadence'`)
+  }
+  text = text.replace(
+`export const ACT1_UNLOCKS = {
+  foundry: 2,
+  reliquary: 3,
+  rebuildAvailable: PRESTIGE_MIN_SECTOR,
+  furnace: 5,
+  codex: 6,
+  research: 7,
+  process: 1,
+  protocols: PROTOCOL_UNLOCK_SECTOR,
+  echo: ECHO_UNLOCK_SECTOR,
+  act1: ACT1_SECTOR,
+} as const`,
+`export const ACT1_UNLOCKS = {
+  foundry: ACT1_CADENCE.foundry,
+  reliquary: ACT1_CADENCE.reliquary,
+  rebuildAvailable: PRESTIGE_MIN_SECTOR,
+  furnace: ACT1_CADENCE.furnace,
+  codex: ACT1_CADENCE.codex,
+  research: ACT1_CADENCE.research,
+  process: ACT1_CADENCE.process,
+  protocols: PROTOCOL_UNLOCK_SECTOR,
+  echo: ECHO_UNLOCK_SECTOR,
+  act1: ACT1_SECTOR,
+} as const`)
+  // First Rebuild is intentionally a real early-career chapter now, not a first-hour popup.
+  text = text.replace(
+`    id: 'first-rebuild',
+    label: 'First Rebuild',
+    min: 8 * 60,
+    max: 50 * 60,
+    warningPad: 10 * 60,`,
+`    id: 'first-rebuild',
+    label: 'First Rebuild',
+    min: 30 * 60,
+    max: 5 * 60 * 60,
+    warningPad: 30 * 60,`)
+  text = text.replace(
+`    id: 'reliquary-unlock',
+    label: 'Reliquary unlock',
+    min: 90,
+    max: 14 * 60,
+    warningPad: 2 * 60,`,
+`    id: 'reliquary-unlock',
+    label: 'Reliquary unlock',
+    min: 60 * 60,
+    max: 8 * 60 * 60,
+    warningPad: 60 * 60,`)
+  text = text.replace(
+`    id: 'furnace-unlock',
+    label: 'Furnace unlock',
+    min: 4 * 60,
+    max: 22 * 60,
+    warningPad: 4 * 60,`,
+`    id: 'furnace-unlock',
+    label: 'Furnace unlock',
+    min: 3 * 60 * 60,
+    max: 18 * 60 * 60,
+    warningPad: 2 * 60 * 60,`)
+  text = text.replace(
+`    id: 'hive-research-unlock',
+    label: 'Research unlock',
+    min: 8 * 60,
+    max: 40 * 60,
+    warningPad: 6 * 60,`,
+`    id: 'hive-research-unlock',
+    label: 'Research unlock',
+    min: 5 * 60 * 60,
+    max: 24 * 60 * 60,
+    warningPad: 3 * 60 * 60,`)
+  text = text.replace(
+`    id: 'first-research-bt',
+    label: 'First Research breakthrough',
+    min: 16 * 60,
+    max: 90 * 60,
+    warningPad: 15 * 60,`,
+`    id: 'first-research-bt',
+    label: 'First Research breakthrough',
+    min: 6 * 60 * 60,
+    max: 30 * 60 * 60,
+    warningPad: 4 * 60 * 60,`)
+  text = text.replace(
+`    id: 'protocols-unlock',
+    label: 'Protocols',
+    min: 50 * 60,
+    max: 6 * 60 * 60,
+    warningPad: 40 * 60,`,
+`    id: 'protocols-unlock',
+    label: 'Protocols',
+    min: 10 * 60 * 60,
+    max: 3 * 24 * 60 * 60,
+    warningPad: 6 * 60 * 60,`)
+  text = text.replace(
+`    id: 'echo-unlock',
+    label: 'Echo',
+    min: 80 * 60,
+    max: 10 * 60 * 60,
+    warningPad: 90 * 60,`,
+`    id: 'echo-unlock',
+    label: 'Echo',
+    min: 16 * 60 * 60,
+    max: 5 * 24 * 60 * 60,
+    warningPad: 10 * 60 * 60,`)
   writeFileSync(path, text)
 }
 
