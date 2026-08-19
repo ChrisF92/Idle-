@@ -1,16 +1,32 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 function run(cmd, args, options = {}) {
   return spawnSync(cmd, args, { encoding: 'utf8', stdio: 'pipe', ...options })
 }
 
-function mustReplace(text, oldText, newText, label) {
-  if (!text.includes(oldText)) throw new Error(`Missing PR76 fix target: ${label}`)
-  return text.replace(oldText, newText)
+function replaceIfPresent(text, oldText, newText) {
+  return text.includes(oldText) ? text.replace(oldText, newText) : text
 }
 
-// Post-transform fix 1: Process recognises actual Hive Research progress, not only legacy research nodes.
+// The PR branch temporarily stores the implementation as a deterministic transform so
+// both the normal PR preview and the branch validator can exercise exactly the same code.
+// Apply it here only when another workflow has not already done so.
+if (!existsSync('src/game/cadence.ts')) {
+  const py = `from pathlib import Path\nsrc = Path('.github/workflows/pr76-apply.yml').read_text().splitlines()\nstart = next(i for i, line in enumerate(src) if \"python <<'PY'\" in line) + 1\nend = next(i for i in range(start, len(src)) if src[i].strip() == 'PY')\nbody = src[start:end]\nbody = [line[10:] if line.startswith('          ') else line for line in body]\nPath('/tmp/pr76_apply.py').write_text('\\n'.join(body) + '\\n')\n`
+  const extract = run('python', ['-c', py])
+  if (extract.status !== 0) {
+    process.stderr.write(`${extract.stdout ?? ''}${extract.stderr ?? ''}`)
+    process.exit(extract.status || 1)
+  }
+  const apply = run('python', ['/tmp/pr76_apply.py'])
+  if (apply.status !== 0) {
+    process.stderr.write(`${apply.stdout ?? ''}${apply.stderr ?? ''}`)
+    process.exit(apply.status || 1)
+  }
+}
+
+// Process recognises actual Hive Research progress, not only legacy research nodes.
 {
   const path = 'src/game/progression.ts'
   let text = readFileSync(path, 'utf8')
@@ -31,11 +47,12 @@ function mustReplace(text, oldText, newText, label) {
       researchProgress >= PROCESS_MIN_RESEARCH
     )
 `
-  text = mustReplace(text, oldText, newText, 'Process research mastery')
+  text = replaceIfPresent(text, oldText, newText)
   writeFileSync(path, text)
 }
 
-// Post-transform fix 2: preserve the intended +4-sector order for Foundry bonus drop bands.
+// Preserve the intended +4-sector order for Foundry bonus drop bands. Only perform
+// the swap while the temporary marker is not already reflected in the final 12/16 order.
 {
   const path = 'src/game/catalog.ts'
   let text = readFileSync(path, 'utf8')
@@ -44,78 +61,45 @@ function mustReplace(text, oldText, newText, label) {
   const end = text.indexOf('\n}\n', start) + 3
   if (start < 0 || end < 3) throw new Error('Missing sectorBonusDropEntries')
   let block = text.slice(start, end)
-  block = block.replace('if (sector >= 16) {', 'if (sector >= __PR76_FIRST__) {')
-  block = block.replace('if (sector >= 12) {', 'if (sector >= 16) {')
-  block = block.replace('if (sector >= __PR76_FIRST__) {', 'if (sector >= 12) {')
-  writeFileSync(path, text.slice(0, start) + block + text.slice(end))
+  // The base transform accidentally reverses these two thresholds. Its first two
+  // bonus checks are 16 then 12; final cadence is 12 then 16.
+  const i16 = block.indexOf('if (sector >= 16) {')
+  const i12 = block.indexOf('if (sector >= 12) {')
+  if (i16 >= 0 && i12 > i16) {
+    block = block.replace('if (sector >= 16) {', 'if (sector >= __PR76_FIRST__) {')
+    block = block.replace('if (sector >= 12) {', 'if (sector >= 16) {')
+    block = block.replace('if (sector >= __PR76_FIRST__) {', 'if (sector >= 12) {')
+    text = text.slice(0, start) + block + text.slice(end)
+  }
+  writeFileSync(path, text)
 }
 
-// Post-transform fix 3: every public unlock constant must use the same cadence source.
-// These constants are imported directly by UI/tests/sim code, so leaving the legacy
-// 18/22/51/4 values would make the game disagree with progression.ts.
+// Every public unlock constant uses the same dependency-free cadence source.
 {
   const path = 'src/game/catalog.ts'
   let text = readFileSync(path, 'utf8')
-  text = mustReplace(
-    text,
-    `/**\n * Rebuild hangar gate (sector 4). Duplicated here so catalog does not capture\n * \`progression.PRESTIGE_MIN_SECTOR\` during the progression → playtest → frontier\n * → sortieTelemetry → catalog cycle (that binding is still undefined at init).\n */\nexport const PRESTIGE_MIN_SECTOR = 4`,
-    `/** Rebuild hangar gate. cadence.ts is dependency-free, so this stays cycle-safe. */\nexport const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild`,
-    'catalog Rebuild gate',
-  )
+  const old = `/**\n * Rebuild hangar gate (sector 4). Duplicated here so catalog does not capture\n * \`progression.PRESTIGE_MIN_SECTOR\` during the progression → playtest → frontier\n * → sortieTelemetry → catalog cycle (that binding is still undefined at init).\n */\nexport const PRESTIGE_MIN_SECTOR = 4`
+  const next = `/** Rebuild hangar gate. cadence.ts is dependency-free, so this stays cycle-safe. */\nexport const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild`
+  text = replaceIfPresent(text, old, next)
   writeFileSync(path, text)
 }
 
-{
-  const path = 'src/game/protocols.ts'
+for (const spec of [
+  ['src/game/protocols.ts', `import { noteAttempt } from './playtest'`, `import { noteAttempt } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'export const PROTOCOL_UNLOCK_SECTOR = 18', 'export const PROTOCOL_UNLOCK_SECTOR = ACT1_CADENCE.protocols'],
+  ['src/game/echo.ts', `import { noteAttempt } from './playtest'`, `import { noteAttempt } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'export const ECHO_UNLOCK_SECTOR = 22', 'export const ECHO_UNLOCK_SECTOR = ACT1_CADENCE.echo'],
+  ['src/game/specialists.ts', `import { recordPlaytest, noteSystemAction } from './playtest'`, `import { recordPlaytest, noteSystemAction } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'export const SPECIALIST_UNLOCK_SECTOR = 51', 'export const SPECIALIST_UNLOCK_SECTOR = ACT1_CADENCE.specialists'],
+]) {
+  const [path, oldImport, newImport, oldConstant, newConstant] = spec
   let text = readFileSync(path, 'utf8')
-  text = mustReplace(text, `import { noteAttempt } from './playtest'`, `import { noteAttempt } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'Protocol cadence import')
-  text = mustReplace(text, 'export const PROTOCOL_UNLOCK_SECTOR = 18', 'export const PROTOCOL_UNLOCK_SECTOR = ACT1_CADENCE.protocols', 'Protocol unlock constant')
+  if (!text.includes(`import { ACT1_CADENCE } from './cadence'`)) {
+    text = replaceIfPresent(text, oldImport, newImport)
+  }
+  text = replaceIfPresent(text, oldConstant, newConstant)
   writeFileSync(path, text)
 }
 
-{
-  const path = 'src/game/echo.ts'
-  let text = readFileSync(path, 'utf8')
-  text = mustReplace(text, `import { noteAttempt } from './playtest'`, `import { noteAttempt } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'Echo cadence import')
-  text = mustReplace(text, 'export const ECHO_UNLOCK_SECTOR = 22', 'export const ECHO_UNLOCK_SECTOR = ACT1_CADENCE.echo', 'Echo unlock constant')
-  writeFileSync(path, text)
-}
-
-{
-  const path = 'src/game/specialists.ts'
-  let text = readFileSync(path, 'utf8')
-  text = mustReplace(text, `import { recordPlaytest, noteSystemAction } from './playtest'`, `import { recordPlaytest, noteSystemAction } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'Specialist cadence import')
-  text = mustReplace(text, 'export const SPECIALIST_UNLOCK_SECTOR = 51', 'export const SPECIALIST_UNLOCK_SECTOR = ACT1_CADENCE.specialists', 'Specialist unlock constant')
-  writeFileSync(path, text)
-}
-
-// Migrate legacy test fixtures/assertions to the new system cadence.
 await import('./pr76-test-migrate.mjs')
 
 const test = run('npx', ['vitest', 'run'])
-const output = `${test.stdout ?? ''}${test.stderr ?? ''}`
-process.stdout.write(output)
-
-if (test.status !== 0) {
-  writeFileSync('pr76-test-output.txt', output)
-  run('git', ['config', 'user.name', 'github-actions[bot]'])
-  run('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'])
-  run('git', ['add', 'pr76-test-output.txt'])
-  run('git', ['commit', '-m', 'chore: capture PR76 test failures'])
-  run('git', ['push', 'origin', 'HEAD:chatgpt/pr76-system-cadence-growth'])
-  process.exit(test.status || 1)
-}
-
-// Tests are green: make all temporary validation plumbing disappear from the PR diff.
-run('git', ['config', 'user.name', 'github-actions[bot]'])
-run('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'])
-run('git', ['checkout', 'origin/chatgpt/pr75-combat-curve-density-range', '--', 'package.json'])
-run('git', ['rm', '-f', 'scripts/pr76-test-runner.mjs'])
-run('git', ['rm', '-f', 'scripts/pr76-test-migrate.mjs'])
-run('git', ['rm', '-f', '.github/workflows/pr76-push-runner.yml'])
-run('git', ['rm', '-f', '.pr76-trigger'])
-run('git', ['rm', '-f', 'pr76-test-output.txt'])
-run('git', ['add', 'package.json'])
-run('git', ['commit', '-m', 'chore: remove temporary PR76 validation plumbing'])
-run('git', ['push', 'origin', 'HEAD:chatgpt/pr76-system-cadence-growth'])
-process.exit(0)
+process.stdout.write(`${test.stdout ?? ''}${test.stderr ?? ''}`)
+process.exit(test.status ?? 1)
