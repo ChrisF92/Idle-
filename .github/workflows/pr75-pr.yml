@@ -26,6 +26,7 @@ jobs:
           python .github/pr75_apply.py
           python .github/pr75_fix.py
           python .github/pr75_fix3.py
+          python .github/pr75_fix4.py
       - name: Install dependencies
         run: npm ci
       - name: Test
