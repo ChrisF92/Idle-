@@ -63,6 +63,9 @@ describe('shell UX', () => {
   it('does not auto-open Cores when opening Sortie during a live run', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.shipyard.moduleLevels['plate-layer'] = 1
+    state.meta.seenOnboarding = [...GUIDE_STEPS.map((s) => s.id)]
     let handled = 0
     render(
       <CombatTab

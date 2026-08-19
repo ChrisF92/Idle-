@@ -1,6 +1,6 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
-import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, careerHighestSector, isSystemUnlocked } from './progression'
+import { careerHighestSector, isSystemUnlocked } from './progression'
 import { formatCompact, formatStat } from './format'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
@@ -302,8 +302,12 @@ export interface ShipModuleDef {
   requiresChallengeShop?: string
 }
 
-/** Re-export progression prestige gate for existing imports. */
-export const PRESTIGE_MIN_SECTOR = PROGRESSION_PRESTIGE_MIN
+/**
+ * Rebuild hangar gate (sector 4). Duplicated here so catalog does not capture
+ * `progression.PRESTIGE_MIN_SECTOR` during the progression → playtest → frontier
+ * → sortieTelemetry → catalog cycle (that binding is still undefined at init).
+ */
+export const PRESTIGE_MIN_SECTOR = 4
 
 /** Base seconds to manufacture one worker drone at 1.0 speed. */
 export const WORKER_MANUFACTURE_SECONDS = 90

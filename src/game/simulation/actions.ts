@@ -21,7 +21,8 @@ import {
   assignWorker,
   enterProtocol,
 } from '../actions'
-import { setCampaign, setDocked } from '../tick'
+import { setCampaign, setDocked, retryFrontier } from '../tick'
+import { canRetryFrontier, isFrontierHold } from '../frontier'
 import {
   MAX_MODULE_LEVEL,
   canBuyMatterShop,
@@ -86,6 +87,14 @@ export function ensureLaunched(state: GameState, ctx: StrategyContext): GameStat
     ctx.recordMeaningful('Launch')
     ctx.record('launch')
   }
+  return next
+}
+
+/** Developer sim only — players retry by hand. Prevents a farm deadlock after a wall. */
+export function maybeRetryFrontier(state: GameState, ctx: StrategyContext): GameState {
+  if (!isFrontierHold(state) || !canRetryFrontier(state)) return state
+  const next = retryFrontier(state)
+  if (next !== state) ctx.recordMeaningful('Retry Frontier')
   return next
 }
 

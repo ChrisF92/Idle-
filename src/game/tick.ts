@@ -793,9 +793,6 @@ export function beginFight(state: GameState, keepFleet = false): void {
   clearShots(state)
   syncHullAggregates(state)
   sampleSortieEnemies(state)
-  if (isUnclearedFrontierTarget(state, state.combat.sector)) {
-    state.combat.frontierHold = false
-  }
   noteFrontierAttemptStart(state)
   revealCodexFamilies(
     state,

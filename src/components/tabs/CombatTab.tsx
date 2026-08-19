@@ -257,9 +257,9 @@ export function CombatTab({
   useEffect(() => {
     if (!coresRequest) return
     focusCoreId.current = coresRequest.moduleId
-    setCoresOpen(true)
+    if (!live || dying) setCoresOpen(true)
     onCoresRequestHandled?.()
-  }, [coresRequest, onCoresRequestHandled])
+  }, [coresRequest, live, dying, onCoresRequestHandled])
 
   useEffect(() => {
     if (!sheetOpen) return

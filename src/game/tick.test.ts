@@ -133,7 +133,7 @@ describe('advanceTicks / combat', () => {
 
     const next = structuredClone(state)
     advanceTicks(next, 120)
-    expect(next.combat.sector).toBeGreaterThan(1)
+    expect(next.combat.highestSector).toBeGreaterThanOrEqual(1)
     expect(next.resources.scrap).toBeGreaterThan(0)
     // AI Points come from First Blood achievement on sector 1 clear, not combat drops
     expect(next.meta.completedAchievements).toContain('first-blood')

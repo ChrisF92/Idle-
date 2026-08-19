@@ -14,7 +14,7 @@ export {
 /** Soft campaign climax — first Act 1 clear beat (sector 30). */
 export const ACT1_FINAL_SECTOR = 30
 
-/** Rebuild hangar becomes available mid–Act 1 (sector 4). */
+/** Rebuild hangar becomes available mid–Act 1 (sector 4). Keep in sync with catalog.PRESTIGE_MIN_SECTOR. */
 export const PRESTIGE_MIN_SECTOR = 4
 
 export type SystemId = Exclude<
@@ -1282,7 +1282,9 @@ export function isHangarGuideStep(step: GuideStep): boolean {
 }
 
 /** True while a sortie is live — station doors wait until Dock. Battlefield lessons may still start. */
+/** True while a first live sortie is running — station doors wait until hull loss or Dock. */
 export function guideQueueQuiet(state: GameState): boolean {
+  if (hasHullLostOnce(state)) return false
   return !state.combat.docked || (state.combat.defeatLeft ?? 0) > 0
 }
 
