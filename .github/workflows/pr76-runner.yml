@@ -32,13 +32,69 @@ jobs:
           start = next(i for i, line in enumerate(src) if "python <<'PY'" in line) + 1
           end = next(i for i in range(start, len(src)) if src[i].strip() == 'PY')
           body = src[start:end]
-          # The embedded script is indented ten spaces under the YAML block.
           body = [line[10:] if line.startswith('          ') else line for line in body]
           Path('/tmp/pr76_apply.py').write_text('\n'.join(body) + '\n')
           PY
           python /tmp/pr76_apply.py
+      - name: Apply PR76 validation fixes
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          p = Path('src/game/progression.ts')
+          text = p.read_text()
+          old = """    const used = (state.process?.purchased?.length ?? 0) > 0 || state.ai.purchased.length > 0
+    return used || (
+      careerHighestSector(state) >= ACT1_CADENCE.process &&
+      (state.prestige.prestigeCount ?? 0) >= PROCESS_MIN_REBUILDS &&
+      state.research.unlocked.length >= PROCESS_MIN_RESEARCH
+    )
+"""
+          new = """    const used = (state.process?.purchased?.length ?? 0) > 0 || state.ai.purchased.length > 0
+    const researchProgress =
+      state.research.unlocked.length +
+      Object.values(state.hiveResearch?.completed ?? {}).filter((n) => n > 0).length
+    return used || (
+      careerHighestSector(state) >= ACT1_CADENCE.process &&
+      (state.prestige.prestigeCount ?? 0) >= PROCESS_MIN_REBUILDS &&
+      researchProgress >= PROCESS_MIN_RESEARCH
+    )
+"""
+          if old not in text:
+            raise SystemExit('Process mastery gate target missing')
+          p.write_text(text.replace(old, new))
+
+          c = Path('src/game/catalog.ts')
+          text = c.read_text()
+          marker = 'function sectorBonusDropEntries'
+          start = text.index(marker)
+          end = text.index('\n}\n', start) + 3
+          block = text[start:end]
+          block = block.replace('if (sector >= 16) {', 'if (sector >= __PR76_FIRST__) {', 1)
+          block = block.replace('if (sector >= 12) {', 'if (sector >= 16) {', 1)
+          block = block.replace('if (sector >= __PR76_FIRST__) {', 'if (sector >= 12) {', 1)
+          text = text[:start] + block + text[end:]
+          c.write_text(text)
+          PY
       - name: Test
-        run: npm test
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee test-output.txt
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr76-test-output
+          path: test-output.txt
+      - name: Require tests green
+        if: steps.tests.outputs.status != '0'
+        run: exit 1
       - name: Lint
         run: npm run lint
       - name: Build
