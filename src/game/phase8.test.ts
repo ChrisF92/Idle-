@@ -18,7 +18,7 @@ import { applyOfflineCatchUp } from './offline'
 import { beginFight } from './tick'
 
 describe('phase 8: Protocols, Echo, Process', () => {
-  it('bumps save and keeps Protocols / Echo locked until 18 / 22', () => {
+  it('bumps save and keeps Protocols / Echo locked until 52 / 62', () => {
     expect(SAVE_VERSION).toBe(33)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'protocols')).toBe(false)
@@ -28,19 +28,26 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(isSystemUnlocked(fresh, 'protocols')).toBe(true)
     expect(isSystemUnlocked(fresh, 'echo')).toBe(false)
     fresh.meta.highestSectorEver = ECHO_UNLOCK_SECTOR
+    fresh.combat.highestSector = ECHO_UNLOCK_SECTOR
+    fresh.protocols.ranks['mute-network'] = 1
     expect(isSystemUnlocked(fresh, 'echo')).toBe(true)
   })
 
-  it('opens Process after the first achievement', () => {
+  it('opens Process only after its sector, Rebuild and Research mastery gates', () => {
     const s = createInitialState(0)
     s.meta.aiUnlocked = true
+    expect(isSystemUnlocked(s, 'process')).toBe(false)
+    s.meta.highestSectorEver = 42
+    s.combat.highestSector = 42
+    s.prestige.prestigeCount = 2
+    s.research.unlocked.push('basic-optics')
     expect(isSystemUnlocked(s, 'process')).toBe(true)
   })
 
   it('Protocol start wipes cores and mutes the system until the goal sector', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 18
-    s.combat.highestSector = 18
+    s.meta.highestSectorEver = 52
+    s.combat.highestSector = 52
     s.combat.docked = true
     s.resources.salvage = 40
     s.shipyard.moduleLevels = { 'pulse-cannon': 3 }
@@ -68,7 +75,7 @@ describe('phase 8: Protocols, Echo, Process', () => {
 
   it('Cold Foundry mutes foundry combat bonuses', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 18
+    s.meta.highestSectorEver = 52
     s.combat.docked = true
     s.foundry.upgrades['fp-damage'] = 2
     expect(foundryDamageMult(s)).toBeGreaterThan(1)
@@ -80,7 +87,9 @@ describe('phase 8: Protocols, Echo, Process', () => {
 
   it('Echo queues a 3-wave gauntlet and grants tree points on complete', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 22
+    s.meta.highestSectorEver = 62
+    s.combat.highestSector = 62
+    s.protocols.ranks['mute-network'] = 1
     s.combat.sector = 12
     s.combat.docked = true
     s = enterEcho(s, 'rift')
@@ -125,7 +134,7 @@ describe('phase 8: Protocols, Echo, Process', () => {
   it('Rebuild keeps Protocol ranks and Echo tree', () => {
     let s = createInitialState(0)
     s.combat.sector = 4
-    s.meta.highestSectorEver = 22
+    s.meta.highestSectorEver = 62
     s.protocols.ranks['mute-network'] = 2
     s.protocols.bestSector['mute-network'] = 9
     s.echo.points = 4

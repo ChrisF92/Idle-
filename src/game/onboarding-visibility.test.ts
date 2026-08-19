@@ -18,7 +18,7 @@ describe('resource visibility gates', () => {
     const state = createInitialState(0)
     expect(isResourceVisible(state, 'data')).toBe(false)
     expect(visibleResourceIds(state)).not.toContain('data')
-    state.meta.highestSectorEver = 7
+    state.meta.highestSectorEver = 34
     expect(isSystemUnlocked(state, 'research')).toBe(true)
     expect(isResourceVisible(state, 'data')).toBe(true)
   })
@@ -101,15 +101,16 @@ describe('Hiveworks onboarding catalog', () => {
 
   it('does not auto-open Reliquary, Protocols, or Echo from More', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 22
+    state.meta.highestSectorEver = 62
     state.prestige.prestigeCount = 3
     state.base.assignments.strike = 1
     state.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
     expect(isSystemUnlocked(state, 'reliquary')).toBe(true)
     expect(isSystemUnlocked(state, 'protocols')).toBe(true)
+    state.protocols.ranks['mute-network'] = 1
     expect(isSystemUnlocked(state, 'echo')).toBe(true)
     expect(activeGuideStep(state, 'stats')).toBeNull()
-    expect(challengesContentUnlocked(state)).toBe(false)
+    expect(challengesContentUnlocked(state)).toBe(true)
     state.meta.act1Cleared = true
     expect(challengesContentUnlocked(state)).toBe(true)
   })

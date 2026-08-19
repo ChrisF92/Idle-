@@ -53,7 +53,7 @@ import type { GameState, HiveResearchBranch } from './types'
 
 const JARGON = /USI|ITRTG|analogue|black-bar/i
 
-function atResearch(sector = 7): GameState {
+function atResearch(sector = 34): GameState {
   const s = createInitialState(0)
   s.meta.highestSectorEver = sector
   s.combat.highestSector = sector
@@ -117,7 +117,7 @@ describe('Research milestones: nodes and identity', () => {
     expect(hiveResearchExtraUtilitySlots(s)).toBe(0)
     expect(furnaceChannelSlots(s)).toBe(1)
     expect(foundrySlotCount(s)).toBe(1)
-    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(false)
+    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)
     expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)
   })
 })
@@ -198,11 +198,11 @@ describe('Research milestones: breakthrough wiring', () => {
     expect(networkRawFillRate(s, 'strike')).toBeGreaterThan(before)
   })
 
-  it('Relay Sight opens Strike Relay early and lights a second extra Furnace channel', () => {
-    const s = atResearch(7)
-    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(false)
+  it('Relay Sight opens Archive Relay early and lights a second extra Furnace channel', () => {
+    const s = atResearch(34)
+    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)
     complete(s, 'energy', 9)
-    expect(hiveResearchUnlocksRelay(s, 'strike-relay')).toBe(true)
+    expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)
     expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)
     expect(hiveResearchFurnaceSlots(s)).toBe(2)
     expect(furnaceChannelSlots(s)).toBe(3)
@@ -219,8 +219,8 @@ describe('Research milestones: breakthrough wiring', () => {
     expect(material / energy).toBeCloseTo(HIVE_RESEARCH_FOCUS_MULT / 1.5)
   })
 
-  it('Blue Bay opens the blue Reliquary slot before sector 19', () => {
-    const s = atResearch(7)
+  it('Blue Bay opens the blue Reliquary slot before its sector 40 gate', () => {
+    const s = atResearch(34)
     expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)
     complete(s, 'observation', 6)
     expect(hiveResearchUnlocksReliquary(s, 'blue')).toBe(true)

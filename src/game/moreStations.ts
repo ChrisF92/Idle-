@@ -2,6 +2,7 @@
 
 import type { GameState, TabId } from './types'
 import { careerHighestSector, isSystemUnlocked, SYSTEM_UNLOCKS } from './progression'
+import { ACT1_CADENCE } from './cadence'
 
 export interface MoreStationDef {
   id: TabId
@@ -10,30 +11,31 @@ export interface MoreStationDef {
 }
 
 export const MORE_STATIONS: MoreStationDef[] = [
-  { id: 'reliquary', name: 'Reliquary', blurb: 'Shards in colour slots.' },
-  { id: 'furnace', name: 'Furnace', blurb: 'Choir-ash → Heat → channels.' },
-  { id: 'research', name: 'Research', blurb: 'Material / Energy / Observation.' },
-  { id: 'codex', name: 'Codex', blurb: 'Families and hull roles.' },
-  { id: 'yard', name: 'Yard Grid', blurb: 'Buildings. Arms apply on the next Rebuild.' },
-  { id: 'slag', name: 'Slag Bank', blurb: 'Spend Rebuild Matter on hangar ranks.' },
-  { id: 'process', name: 'Process', blurb: 'Spend Process Points on automation.' },
-  { id: 'protocols', name: 'Protocols', blurb: 'Restricted sorties for permanent scaling.' },
-  { id: 'echo', name: 'Echo Runs', blurb: 'Short challenge runs. Echo upgrades persist.' },
-  { id: 'specialists', name: 'Specialists', blurb: 'Rank specialists for ship bonuses.' },
-  { id: 'tasks', name: 'Task List', blurb: 'Clear objectives for Capital.' },
-  { id: 'capital', name: 'Capital', blurb: 'Upgrade Broadside, Bulkhead, and Hold.' },
-  { id: 'reinforce', name: 'Reinforce', blurb: 'A later reset. Permanent systems stay.' },
+  { id: 'reliquary', name: 'Reliquary', blurb: 'Permanent shard loadout. Decision: which bonuses deserve your colour slots?' },
+  { id: 'furnace', name: 'Furnace', blurb: 'Turn Choir-ash into Heat. Decision: which temporary channels stay lit?' },
+  { id: 'research', name: 'Research', blurb: 'Long-term branches. Decision: which field gets the focus bonus?' },
+  { id: 'codex', name: 'Codex', blurb: 'Optional enemy-family and hull-role reference.' },
+  { id: 'yard', name: 'Yard Grid', blurb: 'Post-Rebuild industry. Build now; arms come online on the next Rebuild.' },
+  { id: 'slag', name: 'Slag Bank', blurb: 'Spend Rebuild Matter on large permanent, compounding growth.' },
+  { id: 'process', name: 'Process', blurb: 'Automation as relief: automate loops only after you have learned them manually.' },
+  { id: 'protocols', name: 'Protocols', blurb: 'Mute one system on purpose to earn specialised permanent scaling.' },
+  { id: 'echo', name: 'Echo Runs', blurb: 'Short combat tests with persistent rewards after you prove a Protocol.' },
+  { id: 'specialists', name: 'Specialists', blurb: 'Commit ranks to distinct permanent combat/economy roles.' },
+  { id: 'tasks', name: 'Task List', blurb: 'Late mastery objectives that prove the earlier systems are understood.' },
+  { id: 'capital', name: 'Capital', blurb: 'Late-run Broadside, Bulkhead, and Hold investment.' },
+  { id: 'reinforce', name: 'Reinforce', blurb: 'Higher-order reset after the Rebuild layer is mature.' },
 ]
 
 /** Locked doors this many sectors ahead still show as Coming up. */
-export const MORE_NEXT_WINDOW = 15
+export const MORE_NEXT_WINDOW = 12
 
 export function stationDoorSector(id: TabId): number {
   if (id === 'logs') return 0
-  if (id === 'process') return 1
-  if (id === 'yard' || id === 'slag') return 4
-  if (id === 'capital') return 75
-  if (id === 'reinforce') return 80
+  if (id === 'process') return ACT1_CADENCE.process
+  if (id === 'yard') return ACT1_CADENCE.yard
+  if (id === 'slag') return ACT1_CADENCE.rebuild
+  if (id === 'capital') return ACT1_CADENCE.capital
+  if (id === 'reinforce') return ACT1_CADENCE.reinforce
   const def = SYSTEM_UNLOCKS.find((s) => s.id === id)
   return def?.requiresSectorEver ?? 99
 }
@@ -52,7 +54,10 @@ export function moreStationBuckets(state: GameState): {
   }
   locked.sort((a, b) => stationDoorSector(a.id) - stationDoorSector(b.id))
   const cutoff = career + MORE_NEXT_WINDOW
-  const next = locked.filter((s) => stationDoorSector(s.id) <= cutoff)
-  const later = locked.filter((s) => stationDoorSector(s.id) > cutoff)
+  const candidates = locked.filter((s) => stationDoorSector(s.id) <= cutoff)
+  // One visible future door at a time: tease the next layer without dumping a roadmap on a new player.
+  const next = candidates.slice(0, 1)
+  const nextIds = new Set(next.map((s) => s.id))
+  const later = locked.filter((s) => !nextIds.has(s.id))
   return { open, next, later }
 }

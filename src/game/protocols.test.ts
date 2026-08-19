@@ -37,7 +37,7 @@ import {
 } from './protocols'
 import { exportSave, importSave } from './save'
 
-function protocolDock(sectorEver = 18) {
+function protocolDock(sectorEver = 52) {
   const s = createInitialState(0)
   s.meta.highestSectorEver = sectorEver
   s.combat.highestSector = sectorEver
@@ -97,8 +97,8 @@ describe('Protocol formula rewards', () => {
 
   it('Dead Furnace reduces Heat drain and Quiet Guns eases weapon Core scaling', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 5
-    s.combat.highestSector = 5
+    s.meta.highestSectorEver = 28
+    s.combat.highestSector = 28
     s.resources.heat = 8
     s = setFurnaceChannel(s, 'weapons', 1)
     const drain0 = furnaceChannelHeatCost(s, 'weapons')

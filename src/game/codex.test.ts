@@ -24,7 +24,7 @@ describe('codex', () => {
 
   it('unlocks Codex permanently after researching once', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 6
+    state.meta.highestSectorEver = 10
     state.resources.data = 50
     state = buyResearch(state, 'tactical-codex')
     expect(state.meta.codexUnlocked).toBe(true)

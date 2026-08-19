@@ -84,8 +84,8 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
 
   it('Ash Bank converts Choir-ash without a tap', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 5
-    s.combat.highestSector = 5
+    s.meta.highestSectorEver = 28
+    s.combat.highestSector = 28
     s.resources.aiPoints = 20
     s.meta.aiUnlocked = true
     s = buyProcessNode(s, 'auto-bank')

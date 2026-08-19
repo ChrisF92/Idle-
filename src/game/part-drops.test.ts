@@ -11,7 +11,7 @@ import { rollEnemyPartDrop } from './combat'
 import type { GameState } from './types'
 
 /** Research + career gate so Alloy Foundry (and thus part drops) are live. */
-function withFoundry(state: GameState, sector = 18): GameState {
+function withFoundry(state: GameState, sector = 22): GameState {
   state.meta.highestSectorEver = sector
   state.combat.highestSector = sector
   state.combat.sector = sector
@@ -58,7 +58,7 @@ describe('blueprint part drop rates', () => {
     const bare = withFoundry(createInitialState(0))
     const buffed = withFoundry(createInitialState(0))
     buffed.prestige.matterShop = { 'fragment-magnet': 10 }
-    // rng > chance fails. Bare swarm 2.8% at S18; rank-10 magnet ≈ 4.2%+.
+    // rng > chance fails. Bare swarm 2.8% after the early-career taper; rank-10 magnet ≈ 4.2%+.
     const bareHits = rollEnemyPartDrop(
       bare,
       { family: 'swarm', isBoss: false, name: 'Drone' },

@@ -82,25 +82,25 @@ const STATION_TOAST: Partial<
   foundry: {
     category: 'SYSTEM ONLINE',
     title: 'Foundry unlocked',
-    body: 'Turn Salvage into permanent materials.',
+    body: 'Choose a Core to track and decide what the smelters make next.',
     label: 'OPEN',
   },
   reliquary: {
     category: 'SYSTEM ONLINE',
     title: 'Reliquary unlocked',
-    body: 'Fit shards for permanent bonuses.',
+    body: 'Choose which permanent shard bonus earns each colour slot.',
     label: 'OPEN',
   },
   furnace: {
     category: 'SYSTEM ONLINE',
     title: 'Furnace unlocked',
-    body: 'Spend Heat on temporary ship boosts.',
+    body: 'Ash now becomes a push budget. Choose which temporary channels stay lit.',
     label: 'OPEN',
   },
   research: {
     category: 'SYSTEM ONLINE',
     title: 'Research unlocked',
-    body: 'Choose a branch to research faster.',
+    body: 'Choose one long-term branch to focus; breakthroughs unlock mechanics.',
     label: 'OPEN',
   },
   codex: {
@@ -112,19 +112,25 @@ const STATION_TOAST: Partial<
   protocols: {
     category: 'SYSTEM ONLINE',
     title: 'Protocols unlocked',
-    body: 'Restricted sorties that earn permanent scaling bonuses.',
+    body: 'Mute one familiar system on purpose and earn specialised permanent scaling.',
     label: 'OPEN',
   },
   echo: {
     category: 'SYSTEM ONLINE',
     title: 'Echo unlocked',
-    body: 'Short challenge runs that earn permanent Echo upgrades.',
+    body: 'Compact combat tests are online after your first Protocol clear.',
     label: 'OPEN',
   },
   process: {
     category: 'SYSTEM ONLINE',
     title: 'Process unlocked',
-    body: 'Spend Process Points to unlock automation.',
+    body: 'You know the manual loops now. Spend banked Process to automate the chores.',
+    label: 'OPEN',
+  },
+  slag: {
+    category: 'REBUILD',
+    title: 'Slag Bank unlocked',
+    body: 'Spend Rebuild Matter on large permanent ranks. Key growth ranks compound.',
     label: 'OPEN',
   },
   specialists: {
@@ -293,14 +299,13 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
   }
 
   for (const id of TRACKED_SYSTEMS) {
-    if (id === 'slag') continue
     if (!next.systems[id] || prev.systems[id]) continue
     if (id === 'yard') {
       push({
         id: 'sys:yard',
         category: 'SYSTEM ONLINE',
         title: 'Yard unlocked',
-        body: 'Place buildings that run while docked.',
+        body: 'Build industry for the next Rebuild; arms activate on that reset.',
         action: { label: 'OPEN', nav: { kind: 'tab', tab: 'yard' } },
       })
       continue

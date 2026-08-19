@@ -8,8 +8,9 @@ import { processResearchSpeedMult } from './process'
 import { protocolModifiers } from './protocols'
 import { foundryResearchXpMult } from './foundryBonuses'
 import { recordPlaytest, noteSystemAction } from './playtest'
+import { ACT1_CADENCE } from './cadence'
 
-export const HIVE_RESEARCH_UNLOCK_SECTOR = 7
+export const HIVE_RESEARCH_UNLOCK_SECTOR = ACT1_CADENCE.research
 export const HIVE_RESEARCH_FOCUS_MULT = 4
 export const HIVE_RESEARCH_NODES_PER_BRANCH = 9
 export const RESEARCH_QUEUE_BASE = 3
@@ -115,9 +116,9 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Heat Channel', blurb: 'Ash banks a little hotter.', kind: 'incremental', heatFromAsh: 0.1 },
     {
       name: 'Relay Sight',
-      blurb: 'Opens Strike Relay early, and lights one more Furnace channel.',
+      blurb: 'Opens Archive Relay ahead of its normal gate, and lights one more Furnace channel.',
       kind: 'breakthrough',
-      unlockRelay: 'strike-relay',
+      unlockRelay: 'archive-relay',
       furnaceSlots: 1,
     },
   ],

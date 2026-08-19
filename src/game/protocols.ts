@@ -4,8 +4,9 @@ import type { GameState, ProtocolMute, ProtocolState } from './types'
 import { careerHighestSector } from './progression'
 import { closeSortie } from './sortieSummary'
 import { noteAttempt } from './playtest'
+import { ACT1_CADENCE } from './cadence'
 
-export const PROTOCOL_UNLOCK_SECTOR = 18
+export const PROTOCOL_UNLOCK_SECTOR = ACT1_CADENCE.protocols
 export const PROTOCOL_MAX_RANK = 8
 
 export type ProtocolHookKind =

@@ -28,8 +28,8 @@ describe('hub attention', () => {
 
   it('badges Foundry for an idle smelter and new recipes', () => {
     let state = markHullLost(createInitialState(0))
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 68
+    state.combat.highestSector = 68
     expect(tabAttention(state, 'foundry')).toEqual({ spend: true, fresh: true })
     expect(contentKeys(state, 'foundry')).toEqual(
       expect.arrayContaining(['sys:foundry', 'recipe:slag-ingot', 'recipe:filament']),
@@ -48,8 +48,9 @@ describe('hub attention', () => {
 
   it('keeps More badged until the station itself is opened', () => {
     let state = markHullLost(createInitialState(0))
-    state.meta.highestSectorEver = 3
-    state.combat.highestSector = 3
+    state.meta.highestSectorEver = 16
+    state.combat.highestSector = 16
+    state = markHubSeen(state, 'codex')
     expect(tabAttention(state, 'stats').fresh).toBe(true)
     expect(moreStationAttention(state, 'reliquary').fresh).toBe(true)
 
@@ -68,13 +69,17 @@ describe('hub attention', () => {
   it('badges Process spend and Furnace ash without treating More as the station visit', () => {
     let state = markHullLost(createInitialState(0))
     state.meta.aiUnlocked = true
+    state.meta.highestSectorEver = 42
+    state.combat.highestSector = 42
+    state.prestige.prestigeCount = 2
+    state.research.unlocked.push('basic-optics')
     state.shipyard.moduleLevels['pulse-cannon'] = 1
     state.resources.aiPoints = 20
     expect(moreStationAttention(state, 'process').spend).toBe(true)
     expect(tabAttention(state, 'stats').spend).toBe(true)
 
-    state.meta.highestSectorEver = 5
-    state.combat.highestSector = 5
+    state.meta.highestSectorEver = 68
+    state.combat.highestSector = 68
     state.resources.choirAsh = 10
     expect(moreStationAttention(state, 'furnace').spend).toBe(true)
 
@@ -88,8 +93,8 @@ describe('hub attention', () => {
     state = markHubSeen(state, 'network')
     expect(tabAttention(state, 'network').fresh).toBe(false)
 
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 68
+    state.combat.highestSector = 68
     expect(tabAttention(state, 'network').fresh).toBe(true)
     expect(contentKeys(state, 'network')).toEqual(
       expect.arrayContaining(['netbar:yield', 'netbar:loom']),
@@ -99,8 +104,8 @@ describe('hub attention', () => {
   it('does not spam new pips on saves that predate seenContent', () => {
     const state = markHullLost(createInitialState(0))
     state.meta.seenContent = [LEGACY_SEEN_CONTENT]
-    state.meta.highestSectorEver = 5
-    state.combat.highestSector = 5
+    state.meta.highestSectorEver = 68
+    state.combat.highestSector = 68
     state.resources.salvage = 40
     expect(tabAttention(state, 'combat').fresh).toBe(false)
     expect(tabAttention(state, 'network').fresh).toBe(false)

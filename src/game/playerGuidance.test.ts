@@ -22,7 +22,7 @@ describe('player guidance helpers', () => {
 
   it('treats progressed careers as established and marks beginner ids', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 8
+    s.meta.highestSectorEver = 68
     s.prestige.prestigeCount = 1
     s.meta.seenOnboarding = ['guide-drone-cap', 'guide-furnace-v2-ash']
     migrateOnboardingState(s)
@@ -47,8 +47,8 @@ describe('player guidance helpers', () => {
 
   it('lists accurate Rebuild keep/reset from unlocked systems', () => {
     const s = markHullLost(createInitialState(0))
-    s.meta.highestSectorEver = 7
-    s.combat.highestSector = 7
+    s.meta.highestSectorEver = 68
+    s.combat.highestSector = 68
     s.combat.sector = 7
     const lists = rebuildConsequenceLists(s)
     expect(lists.gain[0]).toMatch(/Rebuild Matter/)
@@ -59,7 +59,7 @@ describe('player guidance helpers', () => {
 
   it('Reinforce lists keep Foundry and still reset the run', () => {
     const s = markHullLost(createInitialState(0))
-    s.meta.highestSectorEver = 80
+    s.meta.highestSectorEver = 680
     const lists = reinforceConsequenceLists(s)
     expect(lists.gain.join(' ')).toMatch(/Rebuild Matter/)
     expect(lists.reset).toContain('Salvage')
@@ -88,6 +88,10 @@ describe('player guidance helpers', () => {
   it('unlocks the Process Core toast after repeated manual ranks', () => {
     const s = markHullLost(createInitialState(0))
     s.meta.aiUnlocked = true
+    s.meta.highestSectorEver = 42
+    s.combat.highestSector = 42
+    s.prestige.prestigeCount = 2
+    s.research.unlocked.push('basic-optics')
     s.meta.completedAchievements = ['first-blood']
     s.shipyard.moduleLevels['pulse-cannon'] = 4
     s.shipyard.moduleLevels['plate-layer'] = 3

@@ -33,7 +33,7 @@ function resolveDefeat(state: ReturnType<typeof createInitialState>): void {
   advanceSeconds(state, DEFEAT_SEQUENCE_S + 0.3)
 }
 
-function protocolDock(sectorEver = 18) {
+function protocolDock(sectorEver = 52) {
   const s = createInitialState(0)
   s.meta.highestSectorEver = sectorEver
   s.combat.highestSector = sectorEver
@@ -162,17 +162,17 @@ describe('continuous combat frontier', () => {
 
   it('records Route B failure and clears hold when the player changes route', () => {
     let s = createInitialState(0)
-    s.combat.highestSector = 9
-    s.meta.highestSectorEver = 9
+    s.combat.highestSector = 24
+    s.meta.highestSectorEver = 24
     s.combat.docked = true
     s = setSectorRoute(s, 'B')
-    s.combat.sector = 10
-    s.combat.highestSector = 9
+    s.combat.sector = 25
+    s.combat.highestSector = 24
     s = startCombat(s)
     resolveDefeat(s)
     expect(s.combat.frontierRoute).toBe('B')
-    expect(s.combat.frontierSector).toBe(10)
-    expect(s.combat.sector).toBe(9)
+    expect(s.combat.frontierSector).toBe(25)
+    expect(s.combat.sector).toBe(24)
     s = setDocked(s, true)
     s = setSectorRoute(s, 'A')
     expect(s.combat.frontierHold).toBe(false)
@@ -181,9 +181,9 @@ describe('continuous combat frontier', () => {
 
   it('Rebuild clears stale Frontier Hold', () => {
     let s = createInitialState(0)
-    s.combat.sector = 5
-    s.combat.highestSector = 4
-    s.meta.highestSectorEver = 4
+    s.combat.sector = 13
+    s.combat.highestSector = 12
+    s.meta.highestSectorEver = 12
     s.shipyard.moduleLevels['pulse-cannon'] = 6
     s = startCombat(s)
     resolveDefeat(s)
@@ -208,8 +208,9 @@ describe('continuous combat frontier', () => {
 
   it('Echo hull-loss ends the Echo attempt and docks', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 22
-    s.combat.highestSector = 22
+    s.meta.highestSectorEver = 62
+    s.combat.highestSector = 62
+    s.protocols.ranks['mute-network'] = 1
     s.combat.docked = true
     s = enterEcho(s, 'rift')
     s = startCombat(s)

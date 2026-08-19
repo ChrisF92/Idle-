@@ -9,7 +9,7 @@
     "build:pages": "tsc -b && PAGES_BASE=/Idle-/ vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node scripts/pr76-test-runner.mjs",
+    "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {

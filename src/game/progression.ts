@@ -3,6 +3,13 @@
 import type { GameState, Resources, TabId } from './types'
 import { taskListComplete } from './tasks'
 import { noteHighestSector } from './playtest'
+import {
+  ACT1_CADENCE,
+  ECHO_MIN_PROTOCOL_RANKS,
+  PROCESS_MIN_REBUILDS,
+  PROCESS_MIN_RESEARCH,
+  YARD_MIN_REBUILDS,
+} from './cadence'
 
 export {
   WAVES_PER_SECTOR,
@@ -14,8 +21,9 @@ export {
 /** Soft campaign climax — first Act 1 clear beat (sector 30). */
 export const ACT1_FINAL_SECTOR = 30
 
-/** Rebuild hangar becomes available mid–Act 1 (sector 4). Keep in sync with catalog.PRESTIGE_MIN_SECTOR. */
-export const PRESTIGE_MIN_SECTOR = 4
+/** Rebuild is the first major meta-layer, after Cores/Network/Foundry have had room to breathe. */
+export const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild
+export const FOUNDRY_UNLOCK_SECTOR = ACT1_CADENCE.foundry
 
 export type SystemId = Exclude<
   TabId,
@@ -46,19 +54,19 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   },
   {
     id: 'reliquary',
-    requiresSectorEver: 3,
+    requiresSectorEver: ACT1_CADENCE.reliquary,
     label: 'Reliquary',
     tip: 'Fit shards for permanent bonuses.',
   },
   {
     id: 'furnace',
-    requiresSectorEver: 5,
+    requiresSectorEver: ACT1_CADENCE.furnace,
     label: 'Furnace',
     tip: 'Spend Heat on temporary ship boosts.',
   },
   {
     id: 'yard',
-    requiresSectorEver: 0,
+    requiresSectorEver: ACT1_CADENCE.yard,
     label: 'Yard Grid',
     tip: 'Place buildings. Spend Ingots on arms that apply on the next Rebuild.',
   },
@@ -70,43 +78,43 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   },
   {
     id: 'protocols',
-    requiresSectorEver: 18,
+    requiresSectorEver: ACT1_CADENCE.protocols,
     label: 'Protocols',
     tip: 'Restricted sorties. Clear the goal sector to rank the muted system.',
   },
   {
     id: 'echo',
-    requiresSectorEver: 22,
+    requiresSectorEver: ACT1_CADENCE.echo,
     label: 'Echo Runs',
     tip: 'Short challenge runs that earn permanent Echo upgrades.',
   },
   {
     id: 'process',
-    requiresSectorEver: 0,
+    requiresSectorEver: ACT1_CADENCE.process,
     label: 'Process',
     tip: 'Spend Process Points on automation and quality-of-life upgrades.'
   },
   {
     id: 'specialists',
-    requiresSectorEver: 51,
+    requiresSectorEver: ACT1_CADENCE.specialists,
     label: 'Specialists',
     tip: 'Rank specialists for permanent ship bonuses.',
   },
   {
     id: 'tasks',
-    requiresSectorEver: 72,
+    requiresSectorEver: ACT1_CADENCE.tasks,
     label: 'Task List',
     tip: 'Finish the checklist to open Capital.',
   },
   {
     id: 'capital',
-    requiresSectorEver: 75,
+    requiresSectorEver: ACT1_CADENCE.capital,
     label: 'Capital',
     tip: 'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
   },
   {
     id: 'reinforce',
-    requiresSectorEver: 80,
+    requiresSectorEver: ACT1_CADENCE.reinforce,
     label: 'Reinforce',
     tip: 'A later reset. Permanent systems stay.',
   },
@@ -118,32 +126,32 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   },
   {
     id: 'research',
-    requiresSectorEver: 7,
+    requiresSectorEver: ACT1_CADENCE.research,
     label: 'Research',
     tip: 'Focus a branch to research it faster.',
   },
   {
     id: 'codex',
-    requiresSectorEver: 6,
+    requiresSectorEver: ACT1_CADENCE.codex,
     label: 'Codex',
     tip: 'Optional reference for enemy families and hull roles.',
   },
   {
     id: 'core',
-    requiresSectorEver: 8,
+    requiresSectorEver: ACT1_CADENCE.research + 2,
     requiresResearch: 'core-training',
     label: 'Core',
     tip: 'Assign workers to training stations to raise Core attributes. Ranks wipe on prestige.',
   },
   {
     id: 'ai',
-    requiresSectorEver: 0,
+    requiresSectorEver: ACT1_CADENCE.process,
     label: 'Process',
     tip: 'Spend Process Points on automation and quality-of-life upgrades.'
   },
   {
     id: 'prestige',
-    requiresSectorEver: 4,
+    requiresSectorEver: ACT1_CADENCE.rebuild,
     label: 'Rebuild',
     tip: 'Rebuild to swap hull and Cores. Permanent systems stay.',
   },
@@ -192,14 +200,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'first-blood',
     name: 'First Blood',
-    description: 'Clear sector 1. Unlocks Process.',
+    description: 'Clear sector 1. Starts banking Process Points for later automation.',
     rewardAiPoints: 4,
     condition: { type: 'sector-ever', sector: 1 },
   },
   {
     id: 'chip-drawer',
     name: 'Chip Drawer',
-    description: 'Clear sector 3. Reliquary is open.',
+    description: 'Clear sector 3. Shard signatures are now detectable.',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 3 },
   },
@@ -220,7 +228,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'archive-open',
     name: 'Archive Open',
-    description: 'Clear sector 7. Research is open.',
+    description: 'Clear sector 7. Archive telemetry begins accumulating.',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 7 },
   },
@@ -678,22 +686,62 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     return false
   }
   if (systemId === 'foundry') {
-    return careerHighestSector(state) >= 2
+    const used =
+      Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0) ||
+      Object.values(state.foundry?.materials ?? {}).some((n) => n > 0) ||
+      (state.foundry?.equipped?.length ?? 0) > 0
+    return used || careerHighestSector(state) >= ACT1_CADENCE.foundry
   }
-  if (systemId === 'yard' || systemId === 'slag') {
-    return (state.prestige.prestigeCount ?? 0) >= 1
+  if (systemId === 'slag') {
+    return (state.prestige.prestigeCount ?? 0) >= 1 || Object.keys(state.prestige.matterShop ?? {}).length > 0
+  }
+  if (systemId === 'yard') {
+    const used = (state.yard?.cells ?? []).some((cell) => Boolean(cell.buildingId))
+    return used || (
+      careerHighestSector(state) >= ACT1_CADENCE.yard &&
+      (state.prestige.prestigeCount ?? 0) >= YARD_MIN_REBUILDS
+    )
   }
   if (systemId === 'capital') {
-    return careerHighestSector(state) >= 75 && taskListComplete(state)
+    return careerHighestSector(state) >= ACT1_CADENCE.capital && taskListComplete(state)
   }
   if (systemId === 'logs') {
     return true
   }
   if (systemId === 'ai' || systemId === 'process') {
-    return state.meta.aiUnlocked || state.meta.completedAchievements.length > 0
+    const used = (state.process?.purchased?.length ?? 0) > 0 || state.ai.purchased.length > 0
+    const researchProgress =
+      state.research.unlocked.length +
+      Object.values(state.hiveResearch?.completed ?? {}).filter((n) => n > 0).length
+    return used || (
+      careerHighestSector(state) >= ACT1_CADENCE.process &&
+      (state.prestige.prestigeCount ?? 0) >= PROCESS_MIN_REBUILDS &&
+      researchProgress >= PROCESS_MIN_RESEARCH
+    )
   }
   if (systemId === 'codex') {
-    return careerHighestSector(state) >= 6
+    return careerHighestSector(state) >= ACT1_CADENCE.codex
+  }
+  if (systemId === 'research') {
+    const used =
+      state.research.unlocked.length > 0 ||
+      Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
+    return used || careerHighestSector(state) >= ACT1_CADENCE.research
+  }
+  if (systemId === 'protocols') {
+    const used = Boolean(state.protocols?.activeId) || Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
+    return used || careerHighestSector(state) >= ACT1_CADENCE.protocols
+  }
+  if (systemId === 'echo') {
+    const protocolRanks = Object.values(state.protocols?.ranks ?? {}).reduce((sum, n) => sum + n, 0)
+    const used =
+      Boolean(state.echo?.activeId) ||
+      (state.echo?.tree?.length ?? 0) > 0 ||
+      Object.values(state.echo?.clears ?? {}).some((n) => n > 0)
+    return used || (
+      careerHighestSector(state) >= ACT1_CADENCE.echo &&
+      protocolRanks >= ECHO_MIN_PROTOCOL_RANKS
+    )
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return true
@@ -712,22 +760,28 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return 'First hull loss'
   }
   if (systemId === 'foundry') {
-    return 'Clear sector 2'
+    return `Clear sector ${ACT1_CADENCE.foundry}`
   }
-  if (systemId === 'yard' || systemId === 'slag') {
+  if (systemId === 'slag') {
     return 'Rebuild once'
   }
+  if (systemId === 'yard') {
+    return `Clear sector ${ACT1_CADENCE.yard} · Rebuild ${YARD_MIN_REBUILDS} times`
+  }
   if (systemId === 'capital') {
-    return 'Clear sector 75 · finish the Task List'
+    return `Clear sector ${ACT1_CADENCE.capital} · finish the Task List`
   }
   if (systemId === 'logs') {
     return null
   }
   if (systemId === 'ai' || systemId === 'process') {
-    return 'Complete First Blood (clear sector 1)'
+    return `Clear sector ${ACT1_CADENCE.process} · Rebuild ${PROCESS_MIN_REBUILDS} times · complete any Research`
   }
   if (systemId === 'codex') {
-    return 'Clear sector 6'
+    return `Clear sector ${ACT1_CADENCE.codex}`
+  }
+  if (systemId === 'echo') {
+    return `Clear sector ${ACT1_CADENCE.echo} · clear any Protocol once`
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return null
@@ -826,7 +880,7 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   }
   noteHighestSector(state, ever)
 
-  if (ever >= 6 && !state.meta.codexUnlocked) {
+  if (ever >= ACT1_CADENCE.codex && !state.meta.codexUnlocked) {
     state.meta.codexUnlocked = true
   }
 

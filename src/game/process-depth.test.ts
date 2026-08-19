@@ -61,14 +61,18 @@ describe('Act 1 Process depth', () => {
     early.meta.aiUnlocked = true
     early.resources.aiPoints = 80
     expect(canBuyProcessNode(early, 'smart-smelt').ok).toBe(false)
-    early.meta.highestSectorEver = 3
-    early.combat.highestSector = 3
+    early.meta.highestSectorEver = 42
+    early.combat.highestSector = 42
+    early.prestige.prestigeCount = 2
+    early.research.unlocked.push('basic-optics')
     expect(canBuyProcessNode(early, 'smart-smelt').ok).toBe(true)
 
     const furnace = createInitialState(0)
     furnace.meta.aiUnlocked = true
-    furnace.meta.highestSectorEver = 8
-    furnace.combat.highestSector = 8
+    furnace.meta.highestSectorEver = 68
+    furnace.combat.highestSector = 68
+    furnace.prestige.prestigeCount = 2
+    furnace.research.unlocked.push('basic-optics')
     furnace.resources.aiPoints = 80
     furnace.process.purchased = []
     expect(canBuyProcessNode(furnace, 'furnace-auto').ok).toBe(false)
@@ -89,8 +93,8 @@ describe('Act 1 Process depth', () => {
 
   it('Shard Seat fits a red chip into an empty slot', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 3
-    s.combat.highestSector = 3
+    s.meta.highestSectorEver = 68
+    s.combat.highestSector = 68
     s.process.purchased = ['auto-relic']
     s.reliquary.owned['battle-chip'] = 1
     tickAutomation(s)
@@ -99,8 +103,10 @@ describe('Act 1 Process depth', () => {
 
   it('Print Press assembles a complete Core print', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 4
-    s.combat.highestSector = 4
+    s.meta.highestSectorEver = 42
+    s.combat.highestSector = 42
+    s.prestige.prestigeCount = 2
+    s.research.unlocked.push('basic-optics')
     s.process.purchased = ['smart-smelt', 'print-assemble']
     const recipe = BLUEPRINTS.find((b) => b.moduleId === 'charge-prism')!
     s.parts = {

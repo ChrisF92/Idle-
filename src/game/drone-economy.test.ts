@@ -44,7 +44,7 @@ describe('drone corps cap + black-bar saturation', () => {
     state.resources.prestigeMatter = 20
     state.prestige.prestigeCount = 1
     state = buyMatterShop(state, 'drone-acuity')
-    expect(dronePower(state)).toBeCloseTo(1.2, 5)
+    expect(dronePower(state)).toBeCloseTo(1.12, 5)
   })
 
   it('hard black-bars scrap field; extras do not raise income', () => {

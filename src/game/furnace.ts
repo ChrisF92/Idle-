@@ -16,8 +16,9 @@ import { echoAshMult } from './echo'
 import { mergeProcessConfig, processConfig, processFurnaceHooks } from './process'
 import { noteSystemAction } from './playtest'
 import { noteFrontierIntervention } from './frontier'
+import { ACT1_CADENCE } from './cadence'
 
-export const FURNACE_UNLOCK_SECTOR = 5
+export const FURNACE_UNLOCK_SECTOR = ACT1_CADENCE.furnace
 export const ASH_PER_HEAT = 10
 export const FURNACE_CHANNEL_MAX = 3
 export const FURNACE_SLOT_CAP = 5

@@ -89,12 +89,12 @@ describe('phase 4: drone network', () => {
     expect(networkLevels(fast, 'strike')).toBeGreaterThanOrEqual(slowLv)
   })
 
-  it('Yield unlocks at sector 2 and boosts salvage + Strike fill', () => {
+  it('Yield opens at S4 before Loom at S9 and boosts salvage + Strike fill', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 2
-    s.combat.highestSector = 2
+    s.meta.highestSectorEver = 4
+    s.combat.highestSector = 4
     expect(isNetworkBarUnlocked(s, 'yield')).toBe(true)
-    expect(isNetworkBarUnlocked(s, 'loom')).toBe(true)
+    expect(isNetworkBarUnlocked(s, 'loom')).toBe(false)
 
     s = assignWorker(s, 'yield', 4)
     s.combat.docked = false
@@ -124,8 +124,9 @@ describe('phase 4: drone network', () => {
 
   it('Rebuild wipes bar levels and assignments, keeps the corps', () => {
     let s = createInitialState(0)
-    s.combat.sector = 4
-    s.meta.highestSectorEver = 4
+    s.combat.sector = 12
+    s.meta.highestSectorEver = 12
+    s.combat.highestSector = 12
     s = assignWorker(s, 'strike', 4)
     s.combat.docked = false
     tickNetwork(s, 25)
@@ -156,8 +157,8 @@ describe('phase 4: drone network', () => {
     expect(droneCap(s)).toBe(11)
     expect(s.resources.scrap).toBe(0)
 
-    s.meta.highestSectorEver = 5
-    s.combat.highestSector = 5
+    s.meta.highestSectorEver = 28
+    s.combat.highestSector = 28
     s.resources.heat = 20
     s = buyNetworkLink(s, 'racks')
     expect(networkLinkRank(s, 'racks')).toBe(2)
@@ -167,9 +168,9 @@ describe('phase 4: drone network', () => {
 
   it('acuity raises efficiency and cycle speed raises fill rate; Rebuild keeps Links', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 5
-    s.combat.highestSector = 5
-    s.combat.sector = 5
+    s.meta.highestSectorEver = 28
+    s.combat.highestSector = 28
+    s.combat.sector = 28
     s.resources.heat = 80
     s = assignWorker(s, 'strike', 2)
     const rate0 = networkFillRate(s, 'strike')
@@ -214,28 +215,28 @@ describe('Network layers', () => {
   }
 
   it('unlocks Relays and Lattices on career sector, not as extra damage shops', () => {
-    const early = sector(7)
+    const early = sector(11)
     expect(isNetworkBarUnlocked(early, 'strike-relay')).toBe(false)
     expect(isNetworkBarUnlocked(early, 'ward-relay')).toBe(false)
 
-    const s8 = sector(8)
+    const s8 = sector(12)
     expect(isNetworkBarUnlocked(s8, 'strike-relay')).toBe(true)
     expect(isNetworkBarUnlocked(s8, 'ward-relay')).toBe(false)
     expect(isNetworkBarUnlocked(s8, 'yield-relay')).toBe(false)
 
-    expect(isNetworkBarUnlocked(sector(9), 'ward-relay')).toBe(true)
-    expect(isNetworkBarUnlocked(sector(12), 'yield-relay')).toBe(true)
-    expect(isNetworkBarUnlocked(sector(13), 'loom-relay')).toBe(true)
-    expect(isNetworkBarUnlocked(sector(16), 'archive-relay')).toBe(true)
-    expect(isNetworkBarUnlocked(sector(19), 'strike-lattice')).toBe(false)
-    expect(isNetworkBarUnlocked(sector(20), 'strike-lattice')).toBe(true)
-    expect(isNetworkBarUnlocked(sector(22), 'ward-lattice')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(15), 'ward-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(20), 'yield-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(24), 'loom-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(38), 'archive-relay')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(43), 'strike-lattice')).toBe(false)
+    expect(isNetworkBarUnlocked(sector(44), 'strike-lattice')).toBe(true)
+    expect(isNetworkBarUnlocked(sector(48), 'ward-lattice')).toBe(true)
   })
 
   it('Strike Relay raises Strike fill, level strength, and fill cap', () => {
-    const plain = sector(8)
+    const plain = sector(12)
     plain.network.bars.strike.levels = 12
-    const relayed = sector(8)
+    const relayed = sector(12)
     relayed.network.bars.strike.levels = 12
     relayed.network.bars['strike-relay'].levels = 16
 
@@ -250,11 +251,11 @@ describe('Network layers', () => {
   })
 
   it('Strike Lattice improves Relay strength and Strike exponent, not a flat damage shop', () => {
-    const relayOnly = sector(20)
+    const relayOnly = sector(44)
     relayOnly.network.bars.strike.levels = 20
     relayOnly.network.bars['strike-relay'].levels = 16
 
-    const latticed = sector(20)
+    const latticed = sector(44)
     latticed.network.bars.strike.levels = 20
     latticed.network.bars['strike-relay'].levels = 16
     latticed.network.bars['strike-lattice'].levels = 9
@@ -273,7 +274,7 @@ describe('Network layers', () => {
   })
 
   it('assigns drones onto Relays and fills them on a sortie', () => {
-    let s = sector(8)
+    let s = sector(12)
     s.combat.docked = false
     s = assignWorker(s, 'strike-relay', 3)
     expect(s.base.assignments['strike-relay']).toBe(3)
@@ -282,8 +283,8 @@ describe('Network layers', () => {
   })
 
   it('Rebuild wipes Relay levels and assignments, keeps Links and the corps', () => {
-    let s = sector(8)
-    s.combat.sector = 8
+    let s = sector(12)
+    s.combat.sector = 12
     s.resources.heat = 40
     s = buyNetworkLink(s, 'racks')
     s = assignWorker(s, 'strike-relay', 3)
@@ -305,7 +306,7 @@ describe('Network layers', () => {
   })
 
   it('hydrates missing Relay keys on old Network saves', () => {
-    const s = sector(8)
+    const s = sector(12)
     s.network.bars.strike.levels = 7
     const parsed = JSON.parse(decodeURIComponent(escape(atob(exportSave(s))))) as {
       network: { bars: Record<string, { progress: number; levels: number }> }
@@ -321,7 +322,7 @@ describe('Network layers', () => {
   })
 
   it('exposes identity Protocol formula hooks and diagnostics', () => {
-    let s = sector(8)
+    let s = sector(12)
     s = assignWorker(s, 'strike', 2)
     const hooks = networkFormulaHooks(s)
     expect(hooks).toEqual({

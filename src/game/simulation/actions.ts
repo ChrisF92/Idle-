@@ -65,8 +65,7 @@ import {
 } from '../furnace'
 import { PROCESS_NODES, canBuyProcessNode, hasProcess } from '../process'
 import { SHARDS, shardOwned, fittedShardId, isReliquarySlotUnlocked } from '../reliquary'
-import { careerHighestSector, GUIDE_STEPS, isSystemUnlocked } from '../progression'
-import { HIVE_RESEARCH_UNLOCK_SECTOR } from '../hiveResearch'
+import { GUIDE_STEPS, isSystemUnlocked } from '../progression'
 import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
 import type { StrategyContext } from './types'
 
@@ -325,7 +324,7 @@ export function buyUsefulNetworkLinks(state: GameState, ctx: StrategyContext): G
 }
 
 export function tendFoundry(state: GameState, ctx: StrategyContext): GameState {
-  if (careerHighestSector(state) < 2) return state
+  if (!isSystemUnlocked(state, 'foundry')) return state
   let next = state
   const slots = foundrySlotCount(next)
   for (let i = 0; i < slots; i++) {
@@ -379,7 +378,7 @@ export function tendFoundry(state: GameState, ctx: StrategyContext): GameState {
 }
 
 export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
-  if (!isSystemUnlocked(state, 'furnace') && careerHighestSector(state) < 5) return state
+  if (!isSystemUnlocked(state, 'furnace')) return state
   let next = convertAshToHeat(state)
   if (next !== state) ctx.record('ash-to-heat')
   const slots = furnaceChannelSlots(next)
@@ -424,7 +423,7 @@ export function tendHiveResearch(
   ctx: StrategyContext,
   mode: 'active' | 'casual' | 'optimiser' = 'active',
 ): GameState {
-  if (careerHighestSector(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return state
+  if (!isSystemUnlocked(state, 'research')) return state
   const salvage = state.resources.salvage
   const pulseCost = moduleUpgradeCost(
     moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon'),
@@ -450,6 +449,7 @@ export function tendHiveResearch(
 }
 
 export function tendProcess(state: GameState, ctx: StrategyContext): GameState {
+  if (!isSystemUnlocked(state, 'process')) return state
   let next = state
   for (const node of PROCESS_NODES) {
     if (hasProcess(next, node.id)) continue
@@ -494,7 +494,7 @@ export function spendRebuildMatter(state: GameState, ctx: StrategyContext): Game
 }
 
 export function tendReliquary(state: GameState, ctx: StrategyContext): GameState {
-  if (careerHighestSector(state) < 3) return state
+  if (!isSystemUnlocked(state, 'reliquary')) return state
   let next = state
   for (const shard of SHARDS) {
     if (!isReliquarySlotUnlocked(next, shard.color)) continue

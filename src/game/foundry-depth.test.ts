@@ -55,7 +55,7 @@ import type { GameState } from './types'
 
 const JARGON = /USI|ITRTG|analogue|black-bar/i
 
-function atFoundry(sector = 2): GameState {
+function atFoundry(sector = 6): GameState {
   const s = createInitialState(0)
   s.meta.highestSectorEver = sector
   s.combat.highestSector = sector
@@ -280,12 +280,12 @@ describe('Foundry depth: Foundry Point ranks', () => {
     plain.base.assignments.strike = 1
     expect(networkFillRate(s, 'strike')).toBeGreaterThan(networkFillRate(plain, 'strike'))
 
-    s.meta.highestSectorEver = 7
-    s.combat.highestSector = 7
-    s.combat.sector = 7
+    s.meta.highestSectorEver = 34
+    s.combat.highestSector = 34
+    s.combat.sector = 34
     const xp = grantHiveResearchKillXp(s, false)
-    const plainR = atFoundry(7)
-    plainR.combat.sector = 7
+    const plainR = atFoundry(34)
+    plainR.combat.sector = 34
     const xp0 = grantHiveResearchKillXp(plainR, false)
     expect(xp).toBeGreaterThan(xp0)
   })
@@ -341,8 +341,8 @@ describe('Foundry depth: modules and Core prints', () => {
     expect(recipe.foundry?.['hearth-core']).toBe(1)
     expect(recipe.requiresRecipeLevel).toEqual({ recipeId: 'void-slag', level: 1 })
 
-    const s = atFoundry(14)
-    s.combat.sector = 14
+    const s = atFoundry(18)
+    s.combat.sector = 18
     s.parts = {
       [partId('choir-tap', 'casing')]: recipe.casing,
       [partId('choir-tap', 'core')]: recipe.core,
@@ -408,8 +408,8 @@ describe('Foundry depth: Rebuild, save, onboarding', () => {
   })
 
   it('Rebuild keeps chain mastery, points, and solved stock, not fitted bits', () => {
-    let s = atFoundry(8)
-    s.combat.sector = 8
+    let s = atFoundry(12)
+    s.combat.sector = 12
     s.foundry.recipeLevels['temper-bar'] = 6
     s.foundry.materials['temper-bar'] = 8
     s.foundry.points = 11

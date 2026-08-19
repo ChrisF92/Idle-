@@ -128,9 +128,9 @@ describe('local playtest log', () => {
 
   it('logs rebuild, route, and assembled cores from game actions', () => {
     let s = markHullLost(createInitialState(0))
-    s.combat.sector = 4
-    s.combat.highestSector = 4
-    s.meta.highestSectorEver = 4
+    s.combat.sector = 12
+    s.combat.highestSector = 12
+    s.meta.highestSectorEver = 12
     s.resources.salvage = 40
     s = upgradeModule(s, 'pulse-cannon')
     expect(s.playtest.events.some((e) => e.k === 'core_buy')).toBe(true)
