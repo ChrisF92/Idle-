@@ -54,7 +54,7 @@ patch('src/game/research-milestones.test.ts', [
   ["it('Blue Bay opens the blue Reliquary slot before sector 19'", "it('Blue Bay opens the blue Reliquary slot before its sector 40 gate'"],
 ])
 patch('src/game/research-milestones.test.ts', [
-  ["expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(true)\n    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(true)\n  })\n})\n\ndescribe('Research milestones: costs'", "expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(false)\n    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)\n  })\n})\n\ndescribe('Research milestones: costs'"],
+  ["expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)\n    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(true)\n  })\n})\n\ndescribe('Research milestones: costs'", "expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)\n    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)\n  })\n})\n\ndescribe('Research milestones: costs'"],
   ["const s = atResearch(34)\n    expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(true)\n    complete(s, 'energy', 9)\n    expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)\n    expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(true)",
    "const s = atResearch(34)\n    expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(false)\n    complete(s, 'energy', 9)\n    expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)\n    expect(isNetworkBarUnlocked(s, 'archive-relay')).toBe(true)"],
   ["it('Blue Bay opens the blue Reliquary slot before its sector 40 gate', () => {\n    const s = atResearch(34)\n    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(true)",
@@ -88,9 +88,7 @@ patch('src/game/tick.test.ts', [
 // Doctrine refund test should isolate the refund from whichever achievements a later legal
 // Rebuild also completes. Compare against an otherwise-identical no-doctrine control.
 patch('src/game/post-prestige.test.ts', [
-  ["    state.combat.sector = 10\n    state = performPrestige(state, 1000)\n    expect(state.ai.purchased).not.toContain('focus-fire')\n    // Refund 2 + Soft Reset achievement (+2)\n    expect(state.resources.aiPoints).toBe(4)",
-   "    const control = structuredClone(state)\n    control.ai.purchased = []\n    control.resources.aiPoints = 0\n    control.combat.sector = 12\n    control.combat.highestSector = 12\n    control.meta.highestSectorEver = 12\n    const controlAfter = performPrestige(control, 1000)\n\n    state.combat.sector = 12\n    state.combat.highestSector = 12\n    state.meta.highestSectorEver = 12\n    state = performPrestige(state, 1000)\n    expect(state.ai.purchased).not.toContain('focus-fire')\n    expect(state.resources.aiPoints - controlAfter.resources.aiPoints).toBe(2)"],
-  ["    state.combat.sector = 12\n    state = performPrestige(state, 1000)\n    expect(state.ai.purchased).not.toContain('focus-fire')\n    // Refund 2 + Soft Reset achievement (+2)\n    expect(state.resources.aiPoints).toBe(4)",
+  ["    state.combat.sector = 12\n    state.combat.highestSector = 12\n    state.meta.highestSectorEver = 12\n    state = performPrestige(state, 1000)\n    expect(state.ai.purchased).not.toContain('focus-fire')\n    // Refund 2 + Soft Reset achievement (+2)\n    expect(state.resources.aiPoints).toBe(4)",
    "    const control = structuredClone(state)\n    control.ai.purchased = []\n    control.resources.aiPoints = 0\n    control.combat.sector = 12\n    control.combat.highestSector = 12\n    control.meta.highestSectorEver = 12\n    const controlAfter = performPrestige(control, 1000)\n\n    state.combat.sector = 12\n    state.combat.highestSector = 12\n    state.meta.highestSectorEver = 12\n    state = performPrestige(state, 1000)\n    expect(state.ai.purchased).not.toContain('focus-fire')\n    expect(state.resources.aiPoints - controlAfter.resources.aiPoints).toBe(2)"],
 ])
 
