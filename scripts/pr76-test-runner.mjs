@@ -50,6 +50,45 @@ function mustReplace(text, oldText, newText, label) {
   writeFileSync(path, text.slice(0, start) + block + text.slice(end))
 }
 
+// Post-transform fix 3: every public unlock constant must use the same cadence source.
+// These constants are imported directly by UI/tests/sim code, so leaving the legacy
+// 18/22/51/4 values would make the game disagree with progression.ts.
+{
+  const path = 'src/game/catalog.ts'
+  let text = readFileSync(path, 'utf8')
+  text = mustReplace(
+    text,
+    `/**\n * Rebuild hangar gate (sector 4). Duplicated here so catalog does not capture\n * \`progression.PRESTIGE_MIN_SECTOR\` during the progression → playtest → frontier\n * → sortieTelemetry → catalog cycle (that binding is still undefined at init).\n */\nexport const PRESTIGE_MIN_SECTOR = 4`,
+    `/** Rebuild hangar gate. cadence.ts is dependency-free, so this stays cycle-safe. */\nexport const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild`,
+    'catalog Rebuild gate',
+  )
+  writeFileSync(path, text)
+}
+
+{
+  const path = 'src/game/protocols.ts'
+  let text = readFileSync(path, 'utf8')
+  text = mustReplace(text, `import { noteAttempt } from './playtest'`, `import { noteAttempt } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'Protocol cadence import')
+  text = mustReplace(text, 'export const PROTOCOL_UNLOCK_SECTOR = 18', 'export const PROTOCOL_UNLOCK_SECTOR = ACT1_CADENCE.protocols', 'Protocol unlock constant')
+  writeFileSync(path, text)
+}
+
+{
+  const path = 'src/game/echo.ts'
+  let text = readFileSync(path, 'utf8')
+  text = mustReplace(text, `import { noteAttempt } from './playtest'`, `import { noteAttempt } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'Echo cadence import')
+  text = mustReplace(text, 'export const ECHO_UNLOCK_SECTOR = 22', 'export const ECHO_UNLOCK_SECTOR = ACT1_CADENCE.echo', 'Echo unlock constant')
+  writeFileSync(path, text)
+}
+
+{
+  const path = 'src/game/specialists.ts'
+  let text = readFileSync(path, 'utf8')
+  text = mustReplace(text, `import { recordPlaytest, noteSystemAction } from './playtest'`, `import { recordPlaytest, noteSystemAction } from './playtest'\nimport { ACT1_CADENCE } from './cadence'`, 'Specialist cadence import')
+  text = mustReplace(text, 'export const SPECIALIST_UNLOCK_SECTOR = 51', 'export const SPECIALIST_UNLOCK_SECTOR = ACT1_CADENCE.specialists', 'Specialist unlock constant')
+  writeFileSync(path, text)
+}
+
 // Migrate legacy test fixtures/assertions to the new system cadence.
 await import('./pr76-test-migrate.mjs')
 
