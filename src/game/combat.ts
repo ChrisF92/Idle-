@@ -543,7 +543,11 @@ function buildWavePack(
   wave: number,
   waveScale: number,
 ): CombatUnit[] {
-  const pattern = ((wave - 1) % 5) as 0 | 1 | 2 | 3 | 4
+  // Keep S1-S8 onboarding deterministic. From S9 onward, rotate the authored
+  // five-pattern sequence each four-sector family cycle so returning families do
+  // not replay the same wave order forever (and climax patterns actually surface).
+  const patternOffset = sector <= 8 ? 0 : Math.floor((sector - 9) / 4) % 5
+  const pattern = ((wave - 1 + patternOffset) % 5) as 0 | 1 | 2 | 3 | 4
   const hullScale = enemySectorScale(sector) * waveScale
   const dmgScale = enemyDamageScale(sector) * waveScale
 

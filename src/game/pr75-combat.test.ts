@@ -38,6 +38,18 @@ describe('PR75 combat pacing', () => {
     expect(minimumPlayerWeaponRangeForSector(2)).toBe(SHORT_RANGE_MAX)
   })
 
+  it('rotates authored wave patterns when a family returns later in Act 1', () => {
+    // S9 and S13 are both Route A Swarm sectors. The later cycle should begin
+    // on a different authored pattern rather than replaying the same opening wave.
+    const s9 = enemyForSector(9, 1, 'A')
+    const s13 = enemyForSector(13, 1, 'A')
+    expect(s9.family).toBe('swarm')
+    expect(s13.family).toBe('swarm')
+    const roles9 = s9.units.filter((u) => (u.rewardWeight ?? 1) === 1).map((u) => u.role)
+    const roles13 = s13.units.filter((u) => (u.rewardWeight ?? 1) === 1).map((u) => u.role)
+    expect(roles13).not.toEqual(roles9)
+  })
+
   it('keeps normal and boss formations visually populated through Act 1', () => {
     for (const sector of [1, 3, 8, 9, 15, 19, 30, 51, 80]) {
       for (let wave = 1; wave <= wavesForSector(sector); wave += 1) {
