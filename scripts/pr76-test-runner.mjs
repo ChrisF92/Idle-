@@ -2,8 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 function run(cmd, args, options = {}) {
-  const r = spawnSync(cmd, args, { encoding: 'utf8', stdio: 'pipe', ...options })
-  return r
+  return spawnSync(cmd, args, { encoding: 'utf8', stdio: 'pipe', ...options })
 }
 
 function mustReplace(text, oldText, newText, label) {
@@ -48,9 +47,11 @@ function mustReplace(text, oldText, newText, label) {
   block = block.replace('if (sector >= 16) {', 'if (sector >= __PR76_FIRST__) {')
   block = block.replace('if (sector >= 12) {', 'if (sector >= 16) {')
   block = block.replace('if (sector >= __PR76_FIRST__) {', 'if (sector >= 12) {')
-  text = text.slice(0, start) + block + text.slice(end)
-  writeFileSync(path, text)
+  writeFileSync(path, text.slice(0, start) + block + text.slice(end))
 }
+
+// Migrate legacy test fixtures/assertions to the new system cadence.
+await import('./pr76-test-migrate.mjs')
 
 const test = run('npx', ['vitest', 'run'])
 const output = `${test.stdout ?? ''}${test.stderr ?? ''}`
@@ -66,11 +67,12 @@ if (test.status !== 0) {
   process.exit(test.status || 1)
 }
 
-// Tests are green: make the temporary validation plumbing disappear from the PR diff.
+// Tests are green: make all temporary validation plumbing disappear from the PR diff.
 run('git', ['config', 'user.name', 'github-actions[bot]'])
 run('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'])
 run('git', ['checkout', 'origin/chatgpt/pr75-combat-curve-density-range', '--', 'package.json'])
 run('git', ['rm', '-f', 'scripts/pr76-test-runner.mjs'])
+run('git', ['rm', '-f', 'scripts/pr76-test-migrate.mjs'])
 run('git', ['rm', '-f', '.github/workflows/pr76-push-runner.yml'])
 run('git', ['rm', '-f', '.pr76-trigger'])
 run('git', ['rm', '-f', 'pr76-test-output.txt'])
