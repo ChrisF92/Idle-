@@ -10,10 +10,7 @@ function replaceIfPresent(text, oldText, newText) {
 }
 
 if (!existsSync('src/game/cadence.ts')) {
-  const py = `from pathlib import import Path`
-  // Build the production patch from the checked-in workflow's Python block.
   const extractScript = `from pathlib import Path\nsrc = Path('.github/workflows/pr76-apply.yml').read_text().splitlines()\nstart = next(i for i, line in enumerate(src) if \"python <<'PY'\" in line) + 1\nend = next(i for i in range(start, len(src)) if src[i].strip() == 'PY')\nbody = src[start:end]\nbody = [line[10:] if line.startswith('          ') else line for line in body]\nPath('/tmp/pr76_apply.py').write_text('\\n'.join(body) + '\\n')\n`
-  void py
   const extract = run('python', ['-c', extractScript])
   if (extract.status !== 0) {
     process.stderr.write(`${extract.stdout ?? ''}${extract.stderr ?? ''}`)
@@ -204,6 +201,7 @@ for (const spec of [
 await import('./pr76-test-migrate.mjs')
 await import('./pr76-test-migrate-2.mjs')
 await import('./pr76-test-migrate-3.mjs')
+await import('./pr76-final-fixes.mjs')
 
 const test = run('npx', ['vitest', 'run'])
 process.stdout.write(`${test.stdout ?? ''}${test.stderr ?? ''}`)
