@@ -12,6 +12,7 @@ function patch(path, replacements) {
 patch('src/game/catalog.ts', [
   ["description: 'Rebuild / enter challenges from sector 2.'", "description: 'Rebuild / enter challenges two sectors earlier.'"],
   ['prestigeMinSector: 2,', 'prestigeMinSector: ACT1_CADENCE.rebuild - 2,'],
+  ['let min = PRESTIGE_MIN_SECTOR', 'let min: number = PRESTIGE_MIN_SECTOR'],
 ])
 
 // Local system constants must agree with the central cadence. These constants are also
@@ -44,6 +45,7 @@ patch('src/game/simulation/actions.ts', [
 ])
 patch('src/game/simulation/actions.ts', [
   ["import { HIVE_RESEARCH_UNLOCK_SECTOR } from '../hiveResearch'\n", ''],
+  ["import { careerHighestSector, GUIDE_STEPS, isSystemUnlocked } from '../progression'", "import { GUIDE_STEPS, isSystemUnlocked } from '../progression'"],
 ])
 
 // Research breakthroughs must remain meaningful after Research moves to S34.
