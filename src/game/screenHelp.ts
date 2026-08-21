@@ -99,10 +99,10 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     ],
   },
   protocols: {
-    title: 'Protocols',
+    title: 'Challenges',
     body: [
-      'Purpose: prove you understand a system by temporarily losing it. Pick a restriction, solve the run, and earn specialised permanent scaling.',
-      'Starting a Protocol resets Salvage, Core levels, and the current run. Ranks persist. Repeat clears raise the goal.',
+      'Purpose: prove this account can solve a modified version of the normal rules. Main decision: which restriction you take into a Sortie.',
+      'Opens at Wave 250 after Process is online. Before launch you see restriction, goal Wave, reward, disabled systems, and current best. Nothing important is hidden.',
     ],
   },
   echo: {

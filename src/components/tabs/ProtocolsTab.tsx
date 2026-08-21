@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import type { GameState } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
+import { ACT1_CADENCE } from '../../game/cadence'
 import {
   PROTOCOL_MAX_RANK,
-  PROTOCOL_UNLOCK_SECTOR,
   PROTOCOLS,
   activeProtocol,
   canEnterProtocol,
-  protocolBestSector,
+  protocolBestWave,
   protocolCumulativeLine,
-  protocolGoalSector,
+  protocolDisabledLine,
+  protocolGoalWave,
   protocolNextRewards,
   protocolRank,
   protocolRewardLine,
@@ -27,12 +28,7 @@ interface ProtocolsTabProps {
   onBlockingChange?: (open: boolean) => void
 }
 
-function firstProtocolStart(state: GameState): boolean {
-  const ranks = state.protocols?.ranks ?? {}
-  return Object.values(ranks).every((n) => !n)
-}
-
-function ProtocolCard({
+function ChallengeCard({
   state,
   def,
   running,
@@ -45,8 +41,8 @@ function ProtocolCard({
 }) {
   const rank = protocolRank(state, def.id)
   const check = canEnterProtocol(state, def.id)
-  const goal = protocolGoalSector(state, def.id)
-  const best = protocolBestSector(state, def.id)
+  const goal = protocolGoalWave(state, def.id)
+  const best = protocolBestWave(state, def.id)
   const next = protocolRewardLine(protocolNextRewards(state, def.id))
   const cumulative = protocolCumulativeLine(state, def.id)
   return (
@@ -64,21 +60,25 @@ function ProtocolCard({
         <strong>Restriction.</strong> {def.restriction}
       </p>
       <p className="network-row-stats">
-        <strong>Goal.</strong> Reach Sector {goal}.
+        <strong>Goal.</strong> Reach Wave {goal}.
       </p>
       <p className="network-row-stats">
         <strong>Reward.</strong> {next}
-        {best > 0 ? ` · best S${best}` : ''}
+      </p>
+      <p className="network-row-stats">
+        <strong>Disabled.</strong> {protocolDisabledLine(def)}
+      </p>
+      <p className="network-row-stats">
+        <strong>Current best.</strong> {best > 0 ? `Wave ${best}` : 'None yet'}
       </p>
       {rank > 0 ? <p className="network-row-stats">Owned: {cumulative}</p> : null}
-      <p className="muted">Starting this Protocol resets your current run.</p>
       <button
         type="button"
         className="primary"
         disabled={running || !check.ok}
         onClick={() => onRequestStart(def.id)}
       >
-        {running ? 'Active' : check.ok ? 'Start Protocol' : check.reason}
+        {running ? 'Active' : check.ok ? 'Start Challenge' : check.reason}
       </button>
     </article>
   )
@@ -95,7 +95,6 @@ export function ProtocolsTab({
   const active = activeProtocol(state)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const pending = pendingId ? PROTOCOLS.find((p) => p.id === pendingId) : undefined
-  const first = firstProtocolStart(state)
 
   useEffect(() => {
     onBlockingChange?.(Boolean(pending))
@@ -110,26 +109,28 @@ export function ProtocolsTab({
             More
           </button>
         </p>
-        <h2>Protocols</h2>
+        <h2>Challenges</h2>
         <p>
           {open
-            ? 'Restricted sorties. Clear the goal for a permanent scaling bonus.'
-            : `Reach Wave ${PROTOCOL_UNLOCK_SECTOR} to open Protocols.`}
+            ? 'Can this account solve a modified version of the normal rules?'
+            : `Reach Wave ${ACT1_CADENCE.protocols} after Process is online.`}
         </p>
       </header>
       {!open ? (
-        <p className="muted">Each Protocol mutes one system. Starting one resets your current run.</p>
+        <p className="muted">
+          Challenges reuse the Sortie engine. Restriction, goal, reward, and disabled systems are listed before launch.
+        </p>
       ) : (
         <div className="panel-scroll" data-guide="protocols-list">
           {active ? (
             <article className="network-row is-infra" data-guide="protocol-abandon">
               <div className="network-row-main">
                 <strong>{active.name}</strong>
-                <span className="muted">Goal S{protocolGoalSector(state, active.id)}</span>
+                <span className="muted">Goal Wave {protocolGoalWave(state, active.id)}</span>
               </div>
               <p className="network-row-stats">{active.restriction}</p>
               <p className="network-row-stats">
-                Best this run S{Math.max(state.combat.highestSector, state.combat.sector)} · next{' '}
+                Best this run Wave {Math.max(state.combat.wave, protocolBestWave(state, active.id))} · next{' '}
                 {protocolRewardLine(protocolNextRewards(state, active.id))}
               </p>
               <button type="button" onClick={onAbandon}>
@@ -138,7 +139,7 @@ export function ProtocolsTab({
             </article>
           ) : null}
           {PROTOCOLS.map((p) => (
-            <ProtocolCard
+            <ChallengeCard
               key={p.id}
               state={state}
               def={p}
@@ -149,29 +150,40 @@ export function ProtocolsTab({
         </div>
       )}
       {pending ? (
-        <div className="modal-backdrop" role="dialog" aria-labelledby="protocol-confirm-title">
+        <div className="modal-backdrop" role="dialog" aria-labelledby="challenge-confirm-title">
           <div className="modal-sheet">
             <header className="modal-header">
-              <h3 id="protocol-confirm-title">{pending.name}</h3>
+              <h3 id="challenge-confirm-title">{pending.name}</h3>
               <button type="button" onClick={() => setPendingId(null)}>
                 Close
               </button>
             </header>
-            {first ? (
-              <ConsequencePanel
-                lists={{
-                  gain: [protocolRewardLine(protocolNextRewards(state, pending.id))],
-                  keep: ['Foundry', 'Shards', 'Research', 'Process', 'Protocol ranks'],
-                  reset: ['Salvage', 'Core levels', 'Network bar levels', 'Current sortie'],
-                  change: [],
-                }}
-              />
-            ) : (
-              <p>Starting this Protocol resets Salvage, Core levels, and the current sortie.</p>
-            )}
-            <p className="muted">
-              Restriction: {pending.restriction} Goal: Sector {protocolGoalSector(state, pending.id)}.
+            <p className="network-row-stats">
+              <strong>Restriction.</strong> {pending.restriction}
             </p>
+            <p className="network-row-stats">
+              <strong>Goal.</strong> Reach Wave {protocolGoalWave(state, pending.id)}.
+            </p>
+            <p className="network-row-stats">
+              <strong>Reward.</strong> {protocolRewardLine(protocolNextRewards(state, pending.id))}
+            </p>
+            <p className="network-row-stats">
+              <strong>Disabled.</strong> {protocolDisabledLine(pending)}
+            </p>
+            <p className="network-row-stats">
+              <strong>Current best.</strong>{' '}
+              {protocolBestWave(state, pending.id) > 0
+                ? `Wave ${protocolBestWave(state, pending.id)}`
+                : 'None yet'}
+            </p>
+            <ConsequencePanel
+              lists={{
+                gain: [protocolRewardLine(protocolNextRewards(state, pending.id))],
+                keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge ranks'],
+                reset: ['Salvage', 'Core levels', 'Current Sortie'],
+                change: [],
+              }}
+            />
             <div className="modal-actions">
               <button type="button" onClick={() => setPendingId(null)}>
                 Cancel
@@ -184,7 +196,7 @@ export function ProtocolsTab({
                   setPendingId(null)
                 }}
               >
-                Start Protocol
+                Start Challenge
               </button>
             </div>
           </div>

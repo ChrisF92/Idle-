@@ -359,8 +359,10 @@ export type ProtocolMute =
 export interface ProtocolState {
   activeId: string | null
   ranks: Record<string, number>
-  /** Best sector reached inside each Protocol, including abandoned runs. */
+  /** Best sector reached inside each Challenge, including abandoned runs. */
   bestSector: Record<string, number>
+  /** Best Wave reached inside each Challenge. Canonical; bestSector is leftover. */
+  bestWave?: Record<string, number>
 }
 
 /** USI Warp Drive analogue — short gauntlets into a skill tree. */
@@ -1055,7 +1057,7 @@ export interface GameState {
   hiveResearch: HiveResearchState
   /** Yard Grid (USI Bases). Buildings persist; pending arms on next Rebuild. */
   yard: YardState
-  /** Protocols (USI Challenges). Ranks persist; active run is Rebuild-cleared. */
+  /** Challenges. Ranks persist; active run is Rebuild-cleared. */
   protocols: ProtocolState
   /** Echo Runs (USI Warp Drive). Tree + points persist. */
   echo: EchoState

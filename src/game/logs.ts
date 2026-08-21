@@ -101,7 +101,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'protocols',
     title: 'Restricted sortie',
-    body: 'Mute a system. Clear the goal. Rank what you starved. Protocols are optional. The list later is not.',
+    body: 'Mute a system. Clear the goal Wave. Rank what you starved. Challenges are optional. The list later is not.',
     unlock: (s) => career(s) >= 18,
   },
   {
@@ -119,7 +119,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'act1',
     title: 'Sector 30',
-    body: 'The first long wall. Not an ending. Protocols and Echo are already behind you if you took the doors.',
+    body: 'The first long wall. Not an ending. Challenges are already behind you if you took the door.',
     unlock: (s) => career(s) >= 30 || s.meta.act1Cleared,
   },
   {

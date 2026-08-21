@@ -45,6 +45,16 @@ describe('GDD information architecture', () => {
     processOpen.research.unlocked.push('alloy-smelting')
     expect(moreStationBuckets(processOpen).next.map((s) => s.id)).toEqual(['protocols'])
     expect(nextMajorDoor(processOpen)?.home).toBe('more')
+
+    const afterChallengesWave = atCareerWave(createInitialState(0), ACT1_CADENCE.protocols)
+    expect(moreStationBuckets(afterChallengesWave).next.map((s) => s.id)).toEqual(['process'])
+
+    const challengesOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.protocols)
+    challengesOpen.prestige.prestigeCount = 2
+    challengesOpen.research.unlocked.push('alloy-smelting')
+    expect(moreStationBuckets(challengesOpen).open.map((s) => s.id)).toEqual(['codex', 'protocols'])
+    expect(moreStationBuckets(challengesOpen).next.map((s) => s.id)).toEqual(['reinforce'])
+    expect(nextMajorDoor(challengesOpen)?.home).toBe('more')
   })
 
   it('lands Systems on a hub once Worker Drones unlock', () => {

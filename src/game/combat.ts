@@ -61,7 +61,7 @@ import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
 import { processSalvageMult } from './process'
-import { protocolModifiers, protocolMutes } from './protocols'
+import { protocolEnemyDensityMult, protocolModifiers, protocolMutes } from './protocols'
 import { directiveDensityMult, directiveShieldRegenMult } from './directives'
 import { recordPlaytest } from './playtest'
 import {
@@ -477,7 +477,7 @@ export function encounterForWave(wave: number, extraDanger = 1, state?: GameStat
   const trash = trashWavesForSector(sector)
   const localWave = boss ? wavesForSector(sector) : Math.min(trash, ((w - 1) % 10) % trash + 1)
   const encounter = enemyForSector(sector, localWave, 'A', extraDanger)
-  const density = state ? directiveDensityMult(state) : 1
+  const density = state ? directiveDensityMult(state) * protocolEnemyDensityMult(state) : 1
   if (density > 1 && encounter.units.length > 0) {
     const extra = Math.max(1, Math.round(encounter.units.length * (density - 1)))
     for (let i = 0; i < extra; i++) {

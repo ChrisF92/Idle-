@@ -125,7 +125,7 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   },
   {
     id: 'protocols-unlock',
-    label: 'Protocols',
+    label: 'Challenges',
     min: 10 * 60 * 60,
     max: 3 * 24 * 60 * 60,
     warningPad: 6 * 60 * 60,

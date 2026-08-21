@@ -449,8 +449,19 @@ function withProtocolDefaults(raw: ProtocolState | undefined): ProtocolState {
       if (v > 0) bestSector[id] = v
     }
   }
+  const bestWave: Record<string, number> = {}
+  const rawBestWave = (raw as ProtocolState).bestWave
+  if (rawBestWave && typeof rawBestWave === 'object') {
+    for (const [id, n] of Object.entries(rawBestWave)) {
+      const v = Math.max(0, Math.floor(Number(n) || 0))
+      if (v > 0) bestWave[id] = v
+    }
+  }
+  for (const [id, sector] of Object.entries(bestSector)) {
+    if (!bestWave[id] && sector > 0) bestWave[id] = sector * 10
+  }
   const active = typeof raw.activeId === 'string' ? raw.activeId : null
-  return { activeId: active, ranks, bestSector }
+  return { activeId: active, ranks, bestSector, bestWave }
 }
 
 function withEchoDefaults(raw: EchoState | undefined): EchoState {

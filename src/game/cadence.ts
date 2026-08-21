@@ -40,6 +40,7 @@ export const NETWORK_CADENCE = {
 export const YARD_MIN_REBUILDS = 2
 export const PROCESS_MIN_REBUILDS = 2
 export const PROCESS_MIN_RESEARCH = 1
+export const CHALLENGE_MIN_REBUILDS = 2
 export const ECHO_MIN_PROTOCOL_RANKS = 1
 
 /**

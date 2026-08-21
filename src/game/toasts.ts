@@ -108,8 +108,8 @@ const STATION_TOAST: Partial<
   },
   protocols: {
     category: 'SYSTEM ONLINE',
-    title: 'Protocols unlocked',
-    body: 'Mute one familiar system on purpose and earn specialised permanent scaling.',
+    title: 'Challenges unlocked',
+    body: 'Solve a modified version of the normal rules. Restriction, goal, reward, and disabled systems are listed before you launch.',
     label: 'OPEN',
   },
   process: {

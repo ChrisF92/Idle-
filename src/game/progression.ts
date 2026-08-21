@@ -82,8 +82,8 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'protocols',
     requiresSectorEver: ACT1_CADENCE.protocols,
-    label: 'Protocols',
-    tip: 'Restricted sorties. Clear the goal sector to rank the muted system.',
+    label: 'Challenges',
+    tip: 'Solve a modified version of the normal Sortie rules.',
   },
   {
     id: 'echo',
@@ -419,8 +419,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'protocol-clear',
-    name: 'Protocol Cleared',
-    description: 'Complete any Protocol.',
+    name: 'Challenge Cleared',
+    description: 'Complete any Challenge.',
     rewardAiPoints: 3,
     condition: { type: 'protocol-rank-sum', min: 1 },
   },
@@ -739,7 +739,10 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   }
   if (systemId === 'protocols') {
     const used = Boolean(state.protocols?.activeId) || Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
-    return used || meetsWave(state, ACT1_CADENCE.protocols)
+    return used || (
+      meetsWave(state, ACT1_CADENCE.protocols) &&
+      isSystemUnlocked(state, 'process')
+    )
   }
   if (systemId === 'echo') {
     return false
@@ -780,6 +783,9 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   }
   if (systemId === 'ai' || systemId === 'process') {
     return `Reach Wave ${ACT1_CADENCE.process} · Rebuild ${PROCESS_MIN_REBUILDS} times · complete any Research`
+  }
+  if (systemId === 'protocols') {
+    return `Reach Wave ${ACT1_CADENCE.protocols} · Process online`
   }
   if (systemId === 'codex') {
     return `Reach Wave ${ACT1_CADENCE.codex}`

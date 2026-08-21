@@ -145,7 +145,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   }
   if (isSystemUnlocked(state, 'process')) keep.push('Process')
   if (isSystemUnlocked(state, 'yard')) keep.push('Foundry construction')
-  if (isSystemUnlocked(state, 'protocols')) keep.push('Protocol ranks')
+  if (isSystemUnlocked(state, 'protocols')) keep.push('Challenge ranks')
   if (isSystemUnlocked(state, 'specialists')) keep.push('Specialists')
   if (isSystemUnlocked(state, 'capital')) keep.push('Capital')
 
@@ -169,7 +169,7 @@ export function reinforceConsequenceLists(state: GameState): ConsequenceLists {
 export function protocolStartLists(def: { reward: string }): ConsequenceLists {
   return {
     gain: [def.reward],
-    keep: ['Foundry', 'Shards', 'Research', 'Process', 'Protocol ranks'],
+    keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge ranks'],
     reset: ['Salvage', 'Core levels', 'Network bar levels', 'Current sortie'],
     change: [],
   }

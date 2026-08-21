@@ -49,10 +49,11 @@ import {
   PROTOCOL_MAX_RANK,
   PROTOCOLS,
   getProtocol,
-  protocolBestSector,
+  protocolBestWave,
   protocolCoreScalingAdd,
   protocolCumulativeLine,
-  protocolGoalSector,
+  protocolDisabledLine,
+  protocolGoalWave,
   protocolNextRewards,
   protocolRank,
   protocolRewardLine,
@@ -422,7 +423,7 @@ export function inspectRebuildOverview(state: GameState): InspectCard {
     ],
     body: [
       'Rebuild swaps the hull and wipes Salvage and Core levels. Network links, Foundry recipes, shards, and Research stay.',
-      'Matter this swap is about half the sector you reached, plus one for each Rebuild already done. Protocols can raise that later.',
+      'Matter this swap is about half the sector you reached, plus one for each Rebuild already done. Challenges can raise that later.',
       'Swap when the push stalls and another system cannot break the wall — not every sector.',
     ],
   }
@@ -648,22 +649,23 @@ export function inspectProtocol(state: GameState, id: string): InspectCard | nul
   const def = getProtocol(id)
   if (!def) return null
   const rank = protocolRank(state, id)
-  const goal = protocolGoalSector(state, id)
-  const best = protocolBestSector(state, id)
+  const goal = protocolGoalWave(state, id)
+  const best = protocolBestWave(state, id)
   return {
     title: def.name,
-    kicker: 'Protocol',
+    kicker: 'Challenge',
     stats: [
       { label: 'Clears', value: `${rank}/${PROTOCOL_MAX_RANK}` },
-      { label: 'Goal', value: `Sector ${goal}` },
-      { label: 'Best', value: best > 0 ? `Sector ${best}` : '—' },
+      { label: 'Goal', value: `Wave ${goal}` },
+      { label: 'Best', value: best > 0 ? `Wave ${best}` : '—' },
+      { label: 'Disabled', value: protocolDisabledLine(def) },
       { label: 'Next', value: protocolRewardLine(protocolNextRewards(state, id)) },
     ],
     body: [
       def.restriction,
-      'Starting this Protocol resets Salvage, Core levels, and the current sortie. Ranks persist on Rebuild.',
+      'Starting this Challenge resets Salvage, Core levels, and the current Sortie. Ranks persist on Rebuild.',
       rank > 0 ? protocolCumulativeLine(state, id) : def.blurb,
-      'Repeat clears still pay at every level, with diminishing returns. Later ranks raise the goal.',
+      'Repeat clears still pay at every level. Later ranks raise the goal Wave.',
     ],
   }
 }

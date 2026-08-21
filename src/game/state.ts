@@ -56,7 +56,7 @@ import {
   hiveResearchShieldMult,
 } from './hiveResearch'
 import { createEmptyYardState, yardDamageMult, yardShieldMult } from './yard'
-import { createEmptyProtocolState, protocolMutes } from './protocols'
+import { createEmptyProtocolState, protocolHullMult, protocolMutes } from './protocols'
 import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
 import { createEmptyProcessState, processDamageMult, processShieldMult } from './process'
 import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult } from './specialists'
@@ -407,6 +407,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
 
   if (protocolMutes(state, 'shields')) shieldMax = 0
 
+  hullMax *= protocolHullMult(state)
   hullMax *= runHullMult(state)
   shieldMax *= runShieldMult(state)
   shieldMax *= directiveShieldMult(state)

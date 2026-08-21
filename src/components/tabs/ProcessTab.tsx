@@ -450,12 +450,12 @@ function NodeConfig({
               checked={cfg.sortie.protocolRepeat}
               onChange={(e) => patch((c) => { c.sortie.protocolRepeat = e.target.checked })}
             />
-            Auto restart Protocol
+            Auto restart Challenge
           </label>
         ) : null}
         {hasProcess(state, 'protocol-presets') || hasProcess(state, 'protocol-repeat') ? (
           <label className="process-config">
-            Protocol
+            Challenge
             <select
               value={cfg.sortie.protocolId ?? cfg.sortie.lastProtocolId ?? ''}
               onChange={(e) => patch((c) => { c.sortie.protocolId = e.target.value || null })}

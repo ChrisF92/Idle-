@@ -20,7 +20,7 @@ export interface MajorDoorDef extends MoreStationDef {
 /** Secondary systems only. Industrial doors live under Systems. */
 export const MORE_STATIONS: MoreStationDef[] = [
   { id: 'codex', name: 'Codex', blurb: 'Optional enemy-family and hull-role reference.' },
-  { id: 'protocols', name: 'Challenges', blurb: 'Restricted sorties that test a modified ruleset.' },
+  { id: 'protocols', name: 'Challenges', blurb: 'Can this account solve a modified version of the normal rules?' },
   { id: 'reinforce', name: 'Reinforce', blurb: 'Higher-order reset after the Rebuild layer is mature.' },
 ]
 
@@ -74,7 +74,7 @@ export const MAJOR_DOORS: MajorDoorDef[] = [
   {
     id: 'protocols',
     name: 'Challenges',
-    blurb: 'Restricted sorties that test a modified ruleset.',
+    blurb: 'Can this account solve a modified version of the normal rules?',
     wave: ACT1_CADENCE.protocols,
     home: 'more',
   },

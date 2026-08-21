@@ -10,7 +10,7 @@ import type {
 } from './types'
 import { careerBestWave } from './progression'
 import { reliquaryAshMult } from './reliquary'
-import { protocolBonusMult, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoAshMult } from './echo'
 import { mergeProcessConfig, processConfig } from './process'
 import { noteSystemAction } from './playtest'
@@ -329,7 +329,7 @@ function channelBonusMult(state: GameState, id: FurnaceChannelId): number {
   const level = furnaceActiveLevel(state, id)
   const def = furnaceLevelDef(id, level)
   if (!def) return 1
-  return def.mult * protocolBonusMult(state, 'furnace')
+  return def.mult * (1 + protocolModifiers(state).furnaceEfficiencyAdd) * protocolBonusMult(state, 'furnace')
 }
 
 export function furnaceDamageMult(state: GameState): number {
@@ -421,13 +421,14 @@ export function furnaceChannelPreview(
   const lv = clampLevel(level)
   const current = furnaceActiveLevel(state, id)
   const extra = Math.max(0, furnaceLightCost(id, lv) - furnaceLightCost(id, current))
+  const spend = Math.max(0, Math.floor(extra * protocolModifiers(state).furnaceDrainMult + 1e-9))
   const heat = state.resources.heat ?? 0
   const slots = furnaceActiveCount(state, { ...(state.furnace?.active ?? emptyLevels()), [id]: lv })
   if (lv > 0 && !furnaceChannelUnlocked(state, id)) {
     return { ok: false, reason: 'Locked', net: 0, lastsSec: null, slots }
   }
-  if (extra > heat + 1e-9) {
-    return { ok: false, reason: `Need ${extra} Heat`, net: 0, lastsSec: null, slots }
+  if (spend > heat + 1e-9) {
+    return { ok: false, reason: `Need ${spend} Heat`, net: 0, lastsSec: null, slots }
   }
   return { ok: true, net: 0, lastsSec: null, slots }
 }
@@ -448,9 +449,10 @@ export function setFurnaceChannel(state: GameState, id: FurnaceChannelId, level:
   if (!check.ok && lv > 0) return state
   const current = furnaceActiveLevel(state, id)
   const extra = Math.max(0, furnaceLightCost(id, lv) - furnaceLightCost(id, current))
+  const spend = Math.max(0, Math.floor(extra * protocolModifiers(state).furnaceDrainMult + 1e-9))
   const next = structuredClone(state)
   if (!next.furnace) next.furnace = createEmptyFurnaceState()
-  next.resources.heat = Math.max(0, (next.resources.heat ?? 0) - extra)
+  next.resources.heat = Math.max(0, (next.resources.heat ?? 0) - spend)
   next.furnace.wanted[id] = lv
   next.furnace.active[id] = lv
   next.furnace.starveNote = ''

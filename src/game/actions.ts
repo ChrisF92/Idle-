@@ -103,7 +103,7 @@ import {
   getProtocol,
   noteProtocolProgress,
   protocolCoreScalingAdd,
-  protocolGoalSector,
+  protocolGoalWave,
   protocolModifiers,
   wipeProtocolLoadout,
 } from './protocols'
@@ -1325,6 +1325,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       activeId: null,
       ranks: { ...(state.protocols?.ranks ?? {}) },
       bestSector: { ...(state.protocols?.bestSector ?? {}) },
+      bestWave: { ...(state.protocols?.bestWave ?? {}) },
     },
     echo: {
       ...createEmptyEchoState(),
@@ -1685,9 +1686,9 @@ export function enterProtocol(state: GameState, protocolId: string, opts?: { aut
   next.combat.playerHull = stats.hullMax
   next.combat.playerShieldMax = stats.shieldMax
   next.combat.playerShield = stats.shieldMax
-  const goal = protocolGoalSector(next, protocolId)
+  const goal = protocolGoalWave(next, protocolId)
   next.combat.log = [
-    `Protocol ${def.name}. Goal: clear sector ${goal}. Cores and Salvage wiped. ${def.restriction}`,
+    `Challenge ${def.name}. Goal: reach Wave ${goal}. Cores and Salvage wiped. ${def.restriction}`,
     ...next.combat.log,
   ]
   noteAttempt(next, 'protocol', protocolId, 'start', def.name)
@@ -1706,7 +1707,7 @@ export function abandonProtocol(state: GameState): GameState {
   next.network = wipeNetworkBars(next.network)
   next.combat.docked = true
   next.combat.inFight = false
-  next.combat.log = [`Abandoned ${def?.name ?? 'Protocol'}.`, ...next.combat.log]
+  next.combat.log = [`Abandoned ${def?.name ?? 'Challenge'}.`, ...next.combat.log]
   noteAttempt(next, 'protocol', def?.id ?? 'protocol', 'end', def?.name)
   return next
 }
