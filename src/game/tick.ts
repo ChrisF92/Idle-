@@ -85,6 +85,7 @@ import { bandsClearedForWave, isBossWave, powerSectorForWave } from './waves'
 import {
   applyWorkshopCoreStarts,
   EXTRACTION_SCRAP_BONUS,
+  reclaimSpeed,
   resetRunCoreLevels,
   salvageWaveBonus,
 } from './workshop'
@@ -776,6 +777,20 @@ export function setPushMode(state: GameState, mode: CombatPushMode): GameState {
   return next
 }
 
+function launchFromDock(state: GameState): void {
+  clearFrontierHold(state)
+  state.combat.wave = 1
+  state.combat.sector = 1
+  state.combat.runUpgrades = {}
+  state.resources.salvage = 0
+  applyWorkshopCoreStarts(state)
+  state.combat.docked = false
+  state.combat.sortieMark = captureSortieMark(state)
+  recordPlaytest(state, 'first_launch', { firstKey: 'launch' })
+  state.shipyard.frameLocked = true
+  fullHealPlayer(state)
+}
+
 /** Extract ends the Sortie. Launch always starts at Wave 1. */
 export function setDocked(state: GameState, docked: boolean): GameState {
   if (state.combat.docked === docked) return state
@@ -796,17 +811,7 @@ export function setDocked(state: GameState, docked: boolean): GameState {
     finishSortie(next, 'extract', `Extracted at Wave ${at.wave}.`, at, true)
     pushLog(next, next.combat.lastSortie.note)
   } else {
-    clearFrontierHold(next)
-    next.combat.wave = 1
-    next.combat.sector = 1
-    next.combat.runUpgrades = {}
-    next.resources.salvage = 0
-    applyWorkshopCoreStarts(next)
-    next.combat.docked = false
-    next.combat.sortieMark = captureSortieMark(next)
-    recordPlaytest(next, 'first_launch', { firstKey: 'launch' })
-    next.shipyard.frameLocked = true
-    fullHealPlayer(next)
+    launchFromDock(next)
     pushLog(next, 'Sortie launched — Wave 1. Combat keeps running if you open the Dock.')
   }
   return next
@@ -856,13 +861,14 @@ export function warpToSector(state: GameState, sector: number): GameState {
 export function advanceSeconds(state: GameState, seconds: number): void {
   let left = Math.max(0, seconds)
   const combatSpeed = Math.max(combatSpeedMultiplier(state), processCombatSpeedMult(state))
+  const reclaim = reclaimSpeed(state)
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)
     // Industry / fab / training always use real dt.
     applyProduction(state, dt)
     if (state.combat.inFight) {
-      // Combat Chrono only accelerates the fight sim.
-      tickCombat(state, dt * combatSpeed)
+      // Combat Chrono and reclaim accelerate the fight sim only.
+      tickCombat(state, dt * combatSpeed * reclaim)
     } else {
       tickOutOfCombatRepair(state, dt)
       maybeAutoEngage(state)
@@ -883,10 +889,7 @@ function maybeProcessRelaunch(state: GameState): void {
   if (starterRefitGate(state)) return
   if (state.combat.playerHullMax <= 0) return
   if (state.combat.playerHull + 0.5 < state.combat.playerHullMax) return
-  state.combat.docked = false
-  if (!state.combat.sortieMark) state.combat.sortieMark = captureSortieMark(state)
-  recordPlaytest(state, 'first_launch', { firstKey: 'launch' })
-  if (!state.shipyard.frameLocked) state.shipyard.frameLocked = true
+  launchFromDock(state)
 }
 
 /**

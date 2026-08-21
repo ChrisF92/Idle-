@@ -5,7 +5,7 @@ import { buyRunUpgrade, buyWorkshopUpgrade, upgradeModule } from './actions'
 import { clearSector } from './testHelpers'
 import { encounterForWave } from './combat'
 import { isBossWave, powerSectorForWave } from './waves'
-import { effectiveUpgradeLevel, weaponPowerMult } from './workshop'
+import { effectiveUpgradeLevel, reclaimSpeed, weaponPowerMult } from './workshop'
 
 function launch(state = createInitialState()) {
   return setDocked(state, false)
@@ -97,5 +97,16 @@ describe('GDD sortie loop', () => {
     s = clearSector(s)
     expect(s.combat.highestSector).toBeGreaterThanOrEqual(1)
     expect(s.meta.bestWave).toBeGreaterThanOrEqual(10)
+  })
+
+  it('compresses solved Waves without adding combat power', () => {
+    const s = createInitialState()
+    s.meta.bestWave = 40
+    s.combat.bestWave = 40
+    s.combat.wave = 1
+    expect(reclaimSpeed(s)).toBeGreaterThan(1)
+    expect(reclaimSpeed(s)).toBeLessThanOrEqual(4)
+    s.combat.wave = 40
+    expect(reclaimSpeed(s)).toBe(1)
   })
 })

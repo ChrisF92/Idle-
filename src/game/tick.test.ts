@@ -23,8 +23,7 @@ import {
   upgradeModule,
 } from './actions'
 import { moduleLevel } from './catalog'
-import { equipPostTutorialLoadout, forceUnlockModule } from './testHelpers'
-import { WAVES_PER_SECTOR } from './progression'
+import { clearCurrentWave, equipPostTutorialLoadout, forceUnlockModule } from './testHelpers'
 
 describe('tickGame', () => {
   it('produces scrap from assigned worker stations over time', () => {
@@ -108,20 +107,17 @@ describe('tickGame', () => {
     expect(state.lastTickAt).toBe(400)
   })
 
-  it('hull persists between chained fights under Advance', () => {
+  it('hull persists between chained Waves in one Sortie', () => {
     let state = createInitialState(0)
     state = equipPostTutorialLoadout(state)
-    state.combat.campaign = true
     state = setDocked(state, false)
-    advanceTicks(state, 120)
-    expect(state.combat.highestSector).toBeGreaterThanOrEqual(1)
-    // After some clears, either in a fight at partial hull or repairing — not always full
-    if (state.combat.inFight) {
-      const flag = state.combat.playerUnits.find((u) => u.isFlagship)
-      expect(flag).toBeTruthy()
-    } else {
-      expect(state.combat.playerHull).toBeGreaterThan(0)
-    }
+    state = startCombat(state)
+    const hullAtStart = state.combat.playerHull
+    state = clearCurrentWave(state)
+    expect(state.combat.docked).toBe(false)
+    expect(state.combat.wave).toBeGreaterThan(1)
+    expect(state.combat.playerHull).toBeGreaterThan(0)
+    expect(state.combat.playerHull).toBeLessThanOrEqual(hullAtStart + 1)
   })
 })
 
@@ -326,9 +322,10 @@ describe('prestige and challenges', () => {
     expect(state.prestige.activeChallengeId).toBe('no-ai')
     expect(state.combat.sector).toBe(1)
 
-    // Force final wave of goal sector so one wipe completes the challenge
+    // Force a W300 boss wipe so one victory completes the S30 challenge goal.
     state.combat.sector = 30
-    state.combat.wave = WAVES_PER_SECTOR
+    state.combat.wave = 300
+    state.combat.isBoss = true
     state.combat.inFight = true
     state.combat.enemyUnits = [
       {
@@ -345,7 +342,7 @@ describe('prestige and challenges', () => {
         evasion: 0,
         damageTakenMult: 1,
         weapons: [],
-        isBoss: false,
+        isBoss: true,
         isFlagship: false,
         dots: [],
         x: 40,

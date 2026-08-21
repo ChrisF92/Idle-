@@ -15,6 +15,7 @@ import {
 import { fitModule, unlockModule } from './actions'
 import { equipPostTutorialLoadout } from './testHelpers'
 import type { CombatUnit } from './types'
+import { bossWaveForBand, waveForBand } from './waves'
 
 describe('enemy catalog', () => {
   it('rotates families and marks bosses every 5 sectors', () => {
@@ -39,7 +40,7 @@ describe('enemy catalog', () => {
 describe('role matchups', () => {
   it('weapons deal more to armored enemies', () => {
     let state = createInitialState(0)
-    state.combat.sector = 2
+    state.combat.wave = waveForBand(2)
     state = startCombat(state)
     expect(state.combat.enemyFamily).toBe('armored')
 
@@ -68,8 +69,7 @@ describe('role matchups', () => {
 
   it('bosses punish missing defense', () => {
     let state = createInitialState(0)
-    state.combat.sector = 5
-    state.combat.wave = 7
+    state.combat.wave = bossWaveForBand(5)
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
 

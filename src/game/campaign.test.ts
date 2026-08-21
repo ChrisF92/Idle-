@@ -19,28 +19,28 @@ import {
 import { clearCurrentWave, clearSector } from './testHelpers'
 
 describe('campaign combat', () => {
-  it('Hold farms the same sector after a clear', () => {
+  it('clears a ten-wave band and continues the Sortie', () => {
     let state = createInitialState(0)
     state = setCampaign(state, false)
     state = startCombat(state)
     expect(state.combat.sector).toBe(1)
     const scrapBefore = state.resources.scrap
     state = clearSector(state)
-    expect(state.combat.sector).toBe(1)
-    expect(state.combat.wave).toBe(1)
+    expect(state.combat.sector).toBe(2)
+    expect(state.combat.wave).toBe(11)
     expect(state.combat.highestSector).toBe(1)
     expect(state.resources.scrap).toBeGreaterThan(scrapBefore)
-    // Hold keeps auto-engaging the same sector
     expect(state.combat.inFight).toBe(true)
+    expect(state.combat.docked).toBe(false)
   })
 
-  it('Advance pushes to the next sector after a clear', () => {
+  it('Advance still pushes wave-to-wave after a band clear', () => {
     let state = createInitialState(0)
     state = setCampaign(state, true)
     state = startCombat(state)
     state = clearSector(state)
     expect(state.combat.sector).toBe(2)
-    expect(state.combat.wave).toBe(1)
+    expect(state.combat.wave).toBe(11)
     expect(state.combat.highestSector).toBe(1)
   })
 
@@ -58,7 +58,7 @@ describe('campaign combat', () => {
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
 
-  it('defeat on a cleared sector resumes combat on wave 1 without docking', () => {
+  it('defeat ends the Sortie and returns to Dock', () => {
     let state = createInitialState(0)
     state.combat.sector = 4
     state.combat.highestSector = 4
@@ -66,12 +66,10 @@ describe('campaign combat', () => {
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
     flag.hull = 0
     advanceTicks(state, 2)
-    expect(state.combat.sector).toBe(4)
-    expect(state.combat.wave).toBe(1)
-    expect(state.combat.docked).toBe(false)
-    expect(state.combat.inFight).toBe(true)
+    expect(state.combat.docked).toBe(true)
+    expect(state.combat.inFight).toBe(false)
     expect(state.combat.frontierHold).toBe(false)
-    expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
+    expect(state.combat.wave).toBe(1)
     expect(state.combat.lastSortie.outcome).toBe('defeat')
   })
 
@@ -103,7 +101,7 @@ describe('campaign combat', () => {
     expect(state.combat.highestSector).toBe(0)
   })
 
-  it('Hold wave repeats the same wave after a clear', () => {
+  it('waves always advance — there is no Hold-wave farm', () => {
     let state = createInitialState(0)
     state = setPushMode(state, 'hold-wave')
     state = startCombat(state)
@@ -112,7 +110,7 @@ describe('campaign combat', () => {
     const scrapBefore = state.resources.scrap
     state = clearCurrentWave(state)
     expect(state.combat.sector).toBe(1)
-    expect(state.combat.wave).toBe(1)
+    expect(state.combat.wave).toBe(2)
     expect(state.combat.highestSector).toBe(0)
     expect(state.resources.scrap).toBeGreaterThan(scrapBefore)
     expect(state.combat.inFight).toBe(true)

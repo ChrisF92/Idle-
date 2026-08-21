@@ -59,7 +59,7 @@ function enemy(isBoss = false): CombatUnit {
 
 describe('phase 6: Reliquary + Furnace + Research', () => {
   it('opens doors at spaced sectors 16 / 28 / 34', () => {
-    expect(SAVE_VERSION).toBe(33)
+    expect(SAVE_VERSION).toBe(34)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'reliquary')).toBe(false)
     expect(isSystemUnlocked(fresh, 'furnace')).toBe(false)

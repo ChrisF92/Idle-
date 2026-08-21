@@ -8,12 +8,12 @@ import {
 } from './combat'
 import { startCombat } from './tick'
 import { buyAiNode } from './actions'
+import { bossWaveForBand } from './waves'
 
 describe('boss telegraphs', () => {
   it('boss weapons wind up before firing', () => {
     let state = createInitialState(0)
-    state.combat.sector = 5
-    state.combat.wave = 7
+    state.combat.wave = bossWaveForBand(5)
     state.combat.docked = false
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)

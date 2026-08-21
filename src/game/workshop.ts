@@ -136,3 +136,14 @@ export function resetRunCoreLevels(state: GameState): void {
   applyWorkshopCoreStarts(state)
   state.combat.runUpgrades = {}
 }
+
+/**
+ * GDD §72 — replaying solved Waves is time compression, not extra power.
+ * +50% combat speed per 10 Waves behind career best, capped at 4×.
+ */
+export function reclaimSpeed(state: GameState): number {
+  const best = Math.max(0, state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
+  const wave = Math.max(1, state.combat.wave ?? 1)
+  if (best <= wave) return 1
+  return Math.min(4, 1 + 0.5 * Math.floor((best - wave) / 10))
+}

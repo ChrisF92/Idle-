@@ -10,6 +10,7 @@ import {
   essenceAlloyUpkeepMult,
 } from './catalog'
 import { clearSector } from './testHelpers'
+import { bossWaveForBand } from './waves'
 
 describe('essence upgrades', () => {
   it('lattice boosts boss essence, not combat damage', () => {
@@ -68,8 +69,7 @@ describe('AI doctrines', () => {
     let state = createInitialState(0)
     state.resources.aiPoints = 3
     state = buyAiNode(state, 'boss-protocol')
-    state.combat.sector = 5
-    state.combat.wave = 7
+    state.combat.wave = bossWaveForBand(5)
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
     const notes = computeFightDamage(state).matchupNotes.join(' ')

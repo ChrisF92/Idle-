@@ -20,6 +20,7 @@ import {
   upgradeModule,
   assignWorker,
   enterProtocol,
+  buyWorkshopUpgrade,
 } from '../actions'
 import { setCampaign, setDocked, retryFrontier } from '../tick'
 import { canRetryFrontier, isFrontierHold } from '../frontier'
@@ -68,6 +69,7 @@ import { SHARDS, shardOwned, fittedShardId, isReliquarySlotUnlocked } from '../r
 import { GUIDE_STEPS, isSystemUnlocked } from '../progression'
 import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
 import type { StrategyContext } from './types'
+import { RUN_UPGRADES, workshopLevel, type RunUpgradeId } from '../workshop'
 
 export function skipGuides(state: GameState): GameState {
   const seen = state.meta.seenOnboarding ?? []
@@ -613,6 +615,38 @@ export function tendProtocols(state: GameState, ctx: StrategyContext): GameState
   return after
 }
 
+export function spendScrapOnWorkshop(
+  state: GameState,
+  ctx: StrategyContext,
+  mode: 'active' | 'casual' | 'optimiser',
+): GameState {
+  if (!state.combat.docked) return state
+  if (!state.meta.hullLostOnce) return state
+  const preferDefense = state.combat.consecutiveLosses >= 2
+  const order: RunUpgradeId[] = preferDefense
+    ? ['hull', 'shield', 'weapon-power', 'cycle-rate', 'salvage-kill']
+    : ['weapon-power', 'hull', 'cycle-rate', 'shield', 'salvage-kill']
+  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
+  let next = state
+  const budget = mode === 'casual' ? 4 : 10
+  for (let n = 0; n < budget; n += 1) {
+    let bought = false
+    for (const id of order) {
+      const def = RUN_UPGRADES.find((row) => row.id === id)
+      if (!def || best < def.minBestWave) continue
+      const after = buyWorkshopUpgrade(next, id)
+      if (after === next) continue
+      const level = workshopLevel(after, id)
+      ctx.recordMeaningful(`Workshop ${def.name} → L${level}`)
+      next = after
+      bought = true
+      break
+    }
+    if (!bought) break
+  }
+  return next
+}
+
 export function industryPass(
   state: GameState,
   ctx: StrategyContext,
@@ -621,6 +655,7 @@ export function industryPass(
   let next = state
   next = maybeUnlockAndFit(next, ctx)
   next = tendFoundry(next, ctx)
+  next = spendScrapOnWorkshop(next, ctx, mode)
   next = spendSalvageOnCores(next, ctx, mode)
   next = rebalanceNetwork(next, ctx)
   next = buyUsefulNetworkLinks(next, ctx)

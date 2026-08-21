@@ -48,7 +48,7 @@ function protocolDock(sectorEver = 52) {
 
 describe('Protocol formula rewards', () => {
   it('keeps save version and rank-0 formulas identical to the unranked game', () => {
-    expect(SAVE_VERSION).toBe(33)
+    expect(SAVE_VERSION).toBe(34)
     const s = createInitialState(0)
     s.combat.sector = 10
     expect(protocolModifiers(s)).toEqual(emptyProtocolModifiers())

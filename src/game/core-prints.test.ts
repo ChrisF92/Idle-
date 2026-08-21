@@ -213,13 +213,13 @@ describe('sector-gated Core prints', () => {
     expect(state.combat.log.some((line) => /choose another tracked print/.test(line))).toBe(true)
   })
 
-  it('Hold wave farms without advancing the sector', () => {
+  it('waves always advance — there is no Hold-wave farm', () => {
     let state = createInitialState(0)
     state = setPushMode(state, 'hold-wave')
     state = startCombat(state)
     state = clearCurrentWave(state)
     expect(state.combat.sector).toBe(1)
-    expect(state.combat.wave).toBe(1)
+    expect(state.combat.wave).toBe(2)
     expect(state.combat.highestSector).toBe(0)
   })
 })

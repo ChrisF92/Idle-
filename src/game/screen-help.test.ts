@@ -22,14 +22,16 @@ describe('screen help and More buckets', () => {
     expect(early.next.map((s) => s.id)).toEqual(['codex'])
     expect(early.next.map((s) => s.id)).not.toContain('capital')
     expect(early.later.map((s) => s.id)).toEqual(
-      expect.arrayContaining(['protocols', 'specialists', 'capital', 'reinforce']),
+      expect.arrayContaining(['protocols', 'reinforce']),
     )
+    expect(early.later.map((s) => s.id)).not.toContain('specialists')
+    expect(early.later.map((s) => s.id)).not.toContain('capital')
     expect(MORE_STATIONS.some((s) => s.id === 'logs')).toBe(false)
 
     const rebuilt = createInitialState(0)
     rebuilt.prestige.prestigeCount = 1
     const after = moreStationBuckets(rebuilt)
-    expect(after.open.map((s) => s.id)).toContain('slag')
+    expect(after.open.map((s) => s.id)).not.toContain('slag')
     expect(after.open.map((s) => s.id)).not.toContain('yard')
   })
 })

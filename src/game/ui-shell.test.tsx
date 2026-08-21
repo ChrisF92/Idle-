@@ -172,11 +172,10 @@ describe('shell UX', () => {
     rerender(
       <TabNav active="combat" onChange={() => undefined} state={markHullLost(fresh)} />,
     )
-    expect(screen.getByRole('button', { name: /Network/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Network/ })).toBeNull()
     expect(screen.getByRole('button', { name: /More/ })).toBeTruthy()
-    expect(
-      screen.getByRole('button', { name: /Network/ }).querySelector('.attention-pip-spend'),
-    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Dock/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sortie/ })).toBeTruthy()
     expect(
       screen.getByRole('button', { name: /Sortie/ }).querySelector('.attention-pip-fresh'),
     ).toBeTruthy()
@@ -332,9 +331,9 @@ describe('shell UX', () => {
       />,
     )
     expect(screen.getByText('Coming up')).toBeTruthy()
-    expect(screen.getByText('Reliquary')).toBeTruthy()
+    expect(screen.getByText('Codex')).toBeTruthy()
     expect(screen.getByText(/Later systems/)).toBeTruthy()
-    expect(screen.getByText('Capital')).toBeTruthy()
+    expect(screen.getByText('Reinforce')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Copy export code' })).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
     expect(screen.getByRole('button', { name: 'Copy export code' })).toBeTruthy()

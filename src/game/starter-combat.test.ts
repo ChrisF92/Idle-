@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { advanceSeconds, setDocked, starterRefitGate } from './tick'
+import { advanceSeconds, setDocked, startCombat, starterRefitGate } from './tick'
 import { upgradeModule } from './actions'
 import { moduleUpgradeCost, salvageToRankStarterCores, ensureStarterCoresTourSalvage } from './catalog'
 import { closeSortie } from './sortieSummary'
@@ -24,23 +24,23 @@ describe('Hiveworks starter (tutorial retired)', () => {
     expect(state.combat.playerHull).toBeGreaterThan(0)
   })
 
-  it('first hull loss banks enough Salvage to rank Pulse and Plate', () => {
+  it('first hull loss wipes Salvage; Scrap and Workshop persist instead', () => {
     let state = createInitialState(0)
     expect(salvageToRankStarterCores(state)).toBe(
       moduleUpgradeCost(0, 'pulse-cannon') + moduleUpgradeCost(0, 'plate-layer'),
     )
     expect(salvageToRankStarterCores(state)).toBe(9)
-    state.resources.salvage = 3
-    closeSortie(state, 'defeat', 'Hull lost.')
-    expect(state.resources.salvage).toBe(9)
-    expect(state.meta.hullLostOnce).toBe(true)
-
-    state = upgradeModule(state, 'pulse-cannon')
-    expect(state.shipyard.moduleLevels['pulse-cannon']).toBe(1)
-    expect(state.resources.salvage).toBe(6)
-    state = upgradeModule(state, 'plate-layer')
-    expect(state.shipyard.moduleLevels['plate-layer']).toBe(1)
+    state = setDocked(state, false)
+    state = startCombat(state)
+    state.resources.salvage = 12
+    const flag = state.combat.playerUnits.find((u) => u.isFlagship)
+    if (flag) flag.hull = 0
+    state.combat.playerHull = 0
+    advanceSeconds(state, 2)
     expect(state.resources.salvage).toBe(0)
+    expect(state.meta.hullLostOnce).toBe(true)
+    expect(state.combat.docked).toBe(true)
+    expect(state.combat.lastSortie.outcome).toBe('defeat')
   })
 
   it('tops up Salvage when Pulse is ranked but Plate is still unaffordable', () => {

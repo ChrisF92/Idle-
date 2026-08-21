@@ -1279,6 +1279,8 @@ export function buyWorkshopUpgrade(state: GameState, id: RunUpgradeId): GameStat
   const def = RUN_UPGRADES.find((row) => row.id === id)
   if (!def) return state
   if (!state.meta.hullLostOnce) return state
+  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
+  if (best < def.minBestWave) return state
   const current = Math.max(0, Math.floor(state.workshop?.levels?.[id] ?? 0))
   if (current >= RUN_UPGRADE_CAP) return state
   const cost = workshopCost(current)

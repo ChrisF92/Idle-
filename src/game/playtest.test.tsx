@@ -279,10 +279,10 @@ describe('sortie counters and pressure', () => {
         onUpgradeCores={() => undefined}
       />,
     )
-    expect(screen.getByText(/You reached Sector 1/)).toBeTruthy()
+    expect(screen.getByText(/You recovered/)).toBeTruthy()
+    expect(screen.getByText(/Workshop/)).toBeTruthy()
     expect(screen.queryByText(/Pressure/)).toBeNull()
     expect(screen.queryByText(/Possible improvements/)).toBeNull()
-    expect(screen.getByRole('button', { name: 'Upgrade Cores' })).toBeTruthy()
   })
 
   it('shows diagnosis after the first-defeat lesson', () => {

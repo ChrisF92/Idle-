@@ -17,7 +17,7 @@ const PRESSURE_LABEL: Record<string, string> = {
   HEALTHY: 'HEALTHY PUSH',
 }
 
-export function SortieReport({ summary, state, onClose, onUpgradeCores }: SortieReportProps) {
+export function SortieReport({ summary, state, onClose }: SortieReportProps) {
   const defeat = summary.outcome === 'defeat'
   const firstDefeat = defeat && isFirstDefeatReport(state)
   const hints = firstDefeat ? [] : sortieNextHints(state)
@@ -120,15 +120,9 @@ export function SortieReport({ summary, state, onClose, onUpgradeCores }: Sortie
           </div>
         </div>
         <p className="assign-row">
-          {firstDefeat && onUpgradeCores ? (
-            <button type="button" className="primary" onClick={onUpgradeCores}>
-              Upgrade Cores
-            </button>
-          ) : (
-            <button type="button" className="primary" onClick={onClose}>
-              Continue
-            </button>
-          )}
+          <button type="button" className="primary" onClick={onClose}>
+            Continue
+          </button>
         </p>
       </div>
     </div>

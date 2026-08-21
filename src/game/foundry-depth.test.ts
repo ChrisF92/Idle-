@@ -403,8 +403,8 @@ describe('Foundry depth: Process automation', () => {
 })
 
 describe('Foundry depth: Rebuild, save, onboarding', () => {
-  it('keeps save version 33', () => {
-    expect(SAVE_VERSION).toBe(33)
+  it('keeps save version 34', () => {
+    expect(SAVE_VERSION).toBe(34)
   })
 
   it('Rebuild keeps chain mastery, points, and solved stock, not fitted bits', () => {

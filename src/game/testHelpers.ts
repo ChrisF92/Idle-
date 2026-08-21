@@ -25,17 +25,22 @@ export function forceUnlockModule(state: GameState, moduleId: string): GameState
   return next
 }
 
-/** Fitted Pulse + Plate at salvage L1. */
+/** Fitted Pulse + Plate at salvage L1, persisted as Workshop core starts. */
 export function equipPostTutorialLoadout(state: GameState): GameState {
   let next = forceUnlockModule(state, 'plate-layer')
   if (!next.shipyard.modules.includes('plate-layer')) {
     next.shipyard.modules = [...next.shipyard.modules, 'plate-layer']
   }
-  next.shipyard.moduleLevels = {
+  const levels = {
     ...next.shipyard.moduleLevels,
     'pulse-cannon': Math.max(1, next.shipyard.moduleLevels['pulse-cannon'] ?? 0),
     'plate-layer': Math.max(1, next.shipyard.moduleLevels['plate-layer'] ?? 0),
   }
+  next.shipyard.moduleLevels = levels
+  if (!next.workshop) {
+    next.workshop = { levels: {}, coreStarts: {} }
+  }
+  next.workshop.coreStarts = { ...next.workshop.coreStarts, ...levels }
   next.meta.starterCombatLesson = 2
   return next
 }

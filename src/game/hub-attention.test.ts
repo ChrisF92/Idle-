@@ -48,21 +48,21 @@ describe('hub attention', () => {
 
   it('keeps More badged until the station itself is opened', () => {
     let state = markHullLost(createInitialState(0))
-    state.meta.highestSectorEver = 16
-    state.combat.highestSector = 16
+    state.meta.highestSectorEver = 28
+    state.combat.highestSector = 28
     state = markHubSeen(state, 'codex')
     expect(tabAttention(state, 'stats').fresh).toBe(true)
-    expect(moreStationAttention(state, 'reliquary').fresh).toBe(true)
+    expect(moreStationAttention(state, 'furnace').fresh).toBe(true)
 
     state = markHubSeen(state, 'stats')
     expect(contentKeys(state, 'stats')).toEqual(['sys:more'])
     expect(state.meta.seenContent).toContain('sys:more')
-    expect(state.meta.seenContent).not.toContain('sys:reliquary')
+    expect(state.meta.seenContent).not.toContain('sys:furnace')
     expect(tabAttention(state, 'stats').fresh).toBe(true)
-    expect(moreStationAttention(state, 'reliquary').fresh).toBe(true)
+    expect(moreStationAttention(state, 'furnace').fresh).toBe(true)
 
-    state = markHubSeen(state, 'reliquary')
-    expect(moreStationAttention(state, 'reliquary').fresh).toBe(false)
+    state = markHubSeen(state, 'furnace')
+    expect(moreStationAttention(state, 'furnace').fresh).toBe(false)
     expect(tabAttention(state, 'stats').fresh).toBe(false)
   })
 

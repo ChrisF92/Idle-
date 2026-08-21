@@ -55,39 +55,38 @@ describe('hub vs sortie', () => {
     expect(s.combat.inFight || s.combat.wave > 1).toBe(true)
   })
 
-  it('clears sector 1 in 3 waves and advances', () => {
+  it('clears the first ten-wave band and stays live', () => {
     let s = createInitialState(0)
     s = setDocked(s, false)
     s = clearSector(s)
     expect(s.combat.sector).toBe(2)
     expect(s.combat.highestSector).toBeGreaterThanOrEqual(1)
+    expect(s.combat.docked).toBe(false)
     expect(s.resources.salvage).toBeGreaterThan(0)
   })
 
-  it('defeat on the opening frontier retreats and keeps fighting Sector 1', () => {
+  it('defeat on the opening Sortie docks and ends the run', () => {
     let s = createInitialState(0)
     s = setDocked(s, false)
     s = startCombat(s)
     for (const u of s.combat.playerUnits) u.hull = 0
     s.combat.playerHull = 0
     s = tickGame(s, s.lastTickAt + 2000)
-    expect(s.combat.docked).toBe(false)
-    expect(s.combat.inFight).toBe(true)
-    expect(s.combat.frontierHold).toBe(true)
-    expect(s.combat.frontierSector).toBe(1)
-    expect(s.combat.sector).toBe(1)
-    expect(s.combat.wave).toBe(1)
+    expect(s.combat.docked).toBe(true)
+    expect(s.combat.inFight).toBe(false)
+    expect(s.combat.frontierHold).toBe(false)
     expect(s.combat.lastSortie.outcome).toBe('defeat')
+    expect(s.combat.wave).toBe(1)
   })
 
-  it('salvage core levels persist across a live sortie', () => {
+  it('salvage core levels reset when the Sortie ends', () => {
     let s = createInitialState(0)
     s.shipyard.moduleLevels['pulse-cannon'] = 3
     s.resources.salvage = 40
     s = setDocked(s, false)
     s = clearCurrentWave(s)
     s = setDocked(s, true)
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(3)
-    expect(s.resources.salvage).toBeGreaterThan(0)
+    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
+    expect(s.resources.salvage).toBe(0)
   })
 })

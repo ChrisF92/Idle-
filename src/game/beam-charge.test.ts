@@ -14,6 +14,7 @@ import { wavesForSector } from './sectors'
 import { createInitialState } from './state'
 import { forceUnlockModule } from './testHelpers'
 import { startCombat } from './tick'
+import { waveForBand } from './waves'
 
 describe('charge lasers and Phase Beam', () => {
   it('keeps one bolt speed by tag; charge lasers are the only faster shots', () => {
@@ -42,8 +43,7 @@ describe('charge lasers and Phase Beam', () => {
     expect(catalog?.weapons[0]?.telegraphDuration).toBeGreaterThan(0)
 
     let state = createInitialState(0)
-    state.combat.sector = 3
-    state.combat.wave = 2
+    state.combat.wave = waveForBand(3, 2)
     state.combat.docked = false
     state = startCombat(state)
     const sniper = state.combat.enemyUnits.find((u) => u.role === 'sniper')
@@ -85,8 +85,7 @@ describe('charge lasers and Phase Beam', () => {
     )
 
     let state = createInitialState(0)
-    state.combat.sector = 1
-    state.combat.wave = wavesForSector(1)
+    state.combat.wave = 10
     state.combat.docked = false
     state = startCombat(state)
     const live = state.combat.enemyUnits.find((u) => u.isBoss)!
@@ -150,8 +149,7 @@ describe('charge lasers and Phase Beam', () => {
     state = forceUnlockModule(state, 'phase-beam')
     state = unfitModule(state, 'pulse-cannon')
     state = fitModule(state, 'phase-beam')
-    state.combat.sector = 3
-    state.combat.wave = 1
+    state.combat.wave = waveForBand(3)
     state.combat.docked = false
     state = startCombat(state)
     const flag = state.combat.playerUnits.find((u) => u.isFlagship)!

@@ -23,7 +23,7 @@ describe('sortie feel', () => {
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
 
-  it('holds the wreck on the field before retreating on death', () => {
+  it('holds the wreck on the field, then docks on death', () => {
     let state = createInitialState(0)
     state = setDocked(state, false)
     state = startCombat(state)
@@ -36,12 +36,11 @@ describe('sortie feel', () => {
     expect(state.combat.inFight).toBe(true)
 
     advanceSeconds(state, DEFEAT_SEQUENCE_S + 0.2)
-    expect(state.combat.docked).toBe(false)
+    expect(state.combat.docked).toBe(true)
     expect(state.combat.defeatLeft).toBe(0)
-    expect(state.combat.inFight).toBe(true)
-    expect(state.combat.frontierHold).toBe(true)
+    expect(state.combat.inFight).toBe(false)
+    expect(state.combat.frontierHold).toBe(false)
     expect(state.combat.lastSortie.outcome).toBe('defeat')
-    expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
     expect(state.combat.wave).toBe(1)
   })
 

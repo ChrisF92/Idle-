@@ -17,12 +17,13 @@ import {
 } from './specialists'
 import { yardGridSize, YARD_EXPAND_SECTOR_2 } from './yard'
 import { wavesForSector } from './sectors'
-import { advanceSeconds, setDocked } from './tick'
+import { advanceSeconds, setDocked, startCombat } from './tick'
 import { enemySectorScale } from './combat'
+import { waveForBand } from './waves'
 
 describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('bumps save and keeps Specialists locked until 68', () => {
-    expect(SAVE_VERSION).toBe(33)
+    expect(SAVE_VERSION).toBe(34)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR - 1
@@ -103,32 +104,26 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
 
   it('weapon-only Pulse dump dies at S8 with L0 Plate', () => {
     let s = createInitialState(0)
-    s.combat.sector = 8
-    s.combat.wave = 1
-    s.combat.highestSector = 7
-    s.meta.highestSectorEver = 7
+    s.combat.wave = waveForBand(8)
     s.shipyard.moduleLevels = { 'pulse-cannon': 20, 'plate-layer': 0 }
     expect(computeShipStats(s).shieldMax).toBe(30)
-    s = setDocked(s, false)
+    s = startCombat(s)
     advanceSeconds(s, 45)
-    expect(s.combat.docked).toBe(false)
-    expect(s.combat.frontierHold).toBe(true)
+    expect(s.combat.docked).toBe(true)
+    expect(s.combat.frontierHold).toBe(false)
     expect(s.combat.lastSortie?.outcome).toBe('defeat')
   })
 
   it('weapon-only Pulse dump dies at S15 with L0 Plate', () => {
     let s = createInitialState(0)
-    s.combat.sector = 15
-    s.combat.wave = 1
-    s.combat.highestSector = 14
-    s.meta.highestSectorEver = 14
+    s.combat.wave = waveForBand(15)
     s.shipyard.moduleLevels = { 'pulse-cannon': 25, 'plate-layer': 0 }
     expect(computeShipStats(s).shieldMax).toBe(30)
     expect(enemySectorScale(15)).toBeGreaterThan(enemySectorScale(1) * 10)
-    s = setDocked(s, false)
+    s = startCombat(s)
     advanceSeconds(s, 50)
-    expect(s.combat.docked).toBe(false)
-    expect(s.combat.frontierHold).toBe(true)
+    expect(s.combat.docked).toBe(true)
+    expect(s.combat.frontierHold).toBe(false)
     expect(s.combat.lastSortie?.outcome).toBe('defeat')
   })
 

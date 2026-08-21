@@ -23,3 +23,14 @@ export function isBossWave(wave: number): boolean {
 export function bandsClearedForWave(wave: number): number {
   return Math.max(0, Math.floor(Math.max(0, wave) / BOSS_WAVE_INTERVAL))
 }
+
+/** Global Wave for a legacy power-sector band (localWave 1–10). */
+export function waveForBand(sector: number, localWave = 1): number {
+  const s = Math.max(1, Math.floor(sector))
+  const local = Math.min(BOSS_WAVE_INTERVAL, Math.max(1, Math.floor(localWave)))
+  return (s - 1) * BOSS_WAVE_INTERVAL + local
+}
+
+export function bossWaveForBand(sector: number): number {
+  return waveForBand(sector, BOSS_WAVE_INTERVAL)
+}
