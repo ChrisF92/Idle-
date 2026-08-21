@@ -16,7 +16,6 @@ import {
   autoBalanceWorkers,
   buyMaxYardArms,
   canAssembleBlueprint,
-  convertAshToHeat,
   depositFabPart,
   enterProtocol,
   launchFabProject,
@@ -210,10 +209,8 @@ function autoNetworkBalance(state: GameState): void {
   if (next !== state) adopt(state, next)
 }
 
-function autoBankAsh(state: GameState): void {
-  if (!hasProcess(state, 'auto-bank')) return
-  if (!processConfig(state).furnace.autoFeed) return
-  adopt(state, convertAshToHeat(state))
+function autoBankAsh(_state: GameState): void {
+  /* GDD Furnace: converting Ash is a Sortie decision, not a live tank. */
 }
 
 function pickSmartSmeltRecipe(state: GameState, busy: Set<string>): FoundryRecipeId | null {

@@ -35,6 +35,16 @@ describe('GDD information architecture', () => {
 
     const afterResearch = atCareerWave(createInitialState(0), ACT1_CADENCE.research)
     expect(moreStationBuckets(afterResearch).next.map((s) => s.id)).toEqual(['process'])
+    expect(nextMajorDoor(afterResearch)?.home).toBe('systems')
+
+    const afterProcessWave = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
+    expect(moreStationBuckets(afterProcessWave).next.map((s) => s.id)).toEqual(['process'])
+
+    const processOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
+    processOpen.prestige.prestigeCount = 2
+    processOpen.research.unlocked.push('alloy-smelting')
+    expect(moreStationBuckets(processOpen).next.map((s) => s.id)).toEqual(['protocols'])
+    expect(nextMajorDoor(processOpen)?.home).toBe('more')
   })
 
   it('lands Systems on a hub once Worker Drones unlock', () => {
@@ -53,6 +63,17 @@ describe('GDD information architecture', () => {
 
     const research = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.research)
     expect(systemsHubCards(research).map((c) => c.id)).toEqual(['foundry', 'network', 'furnace', 'research'])
+
+    const process = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.process)
+    process.prestige.prestigeCount = 2
+    process.research.unlocked.push('alloy-smelting')
+    expect(systemsHubCards(process).map((c) => c.id)).toEqual([
+      'foundry',
+      'network',
+      'furnace',
+      'research',
+      'process',
+    ])
   })
 
   it('badges Systems for idle Worker Drones as well as Foundry', () => {

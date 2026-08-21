@@ -165,7 +165,7 @@ export default function App() {
         setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
         setTab('foundry')
       } else if (
-        (tab === 'furnace' || tab === 'research') &&
+        (tab === 'furnace' || tab === 'research' || tab === 'process') &&
         isHubTabOpen(game.state, 'foundry')
       ) {
         setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
@@ -197,6 +197,7 @@ export default function App() {
       if (isSystemUnlocked(game.state, 'network')) game.markHubSeen('network')
       if (isSystemUnlocked(game.state, 'furnace')) game.markHubSeen('furnace')
       if (isSystemUnlocked(game.state, 'research')) game.markHubSeen('research')
+      if (isSystemUnlocked(game.state, 'process')) game.markHubSeen('process')
     }
   }, [tab, hubStamp, systemsView, game])
 
@@ -457,7 +458,14 @@ export default function App() {
         {tab === 'process' && (
           <ProcessTab
             state={game.state}
-            onBack={() => go('stats')}
+            onBack={
+              showSystemsHub(game.state)
+                ? () => {
+                    setSystemsView('hub')
+                    if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
+                  }
+                : () => go('stats')
+            }
             onBuy={game.buyProcessNode}
             onConfig={game.setProcessConfig}
             guideTarget={guide?.target}

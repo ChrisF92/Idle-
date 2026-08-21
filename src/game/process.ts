@@ -17,6 +17,7 @@ import type {
 import { NETWORK_BAR_IDS } from './types'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { AI_NODES } from './catalog'
+import { isWorkerJob } from './workers'
 
 export type ProcessKind = 'automation' | 'qol'
 
@@ -56,15 +57,15 @@ export interface ProcessNodeDef {
 }
 
 export const PROCESS_CATEGORIES: { id: ProcessCategory; name: string }[] = [
+  { id: 'qol', name: 'Quality of life' },
   { id: 'cores', name: 'Cores' },
-  { id: 'network', name: 'Network' },
   { id: 'foundry', name: 'Foundry' },
-  { id: 'reliquary', name: 'Reliquary' },
-  { id: 'research', name: 'Research' },
+  { id: 'network', name: 'Worker Drones' },
   { id: 'furnace', name: 'Furnace' },
+  { id: 'research', name: 'Research' },
   { id: 'sortie', name: 'Sortie' },
+  { id: 'reliquary', name: 'Relics' },
   { id: 'yard', name: 'Construction' },
-  { id: 'qol', name: 'QoL' },
 ]
 
 export { NETWORK_BAR_IDS }
@@ -212,19 +213,19 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'network-optimise',
-    name: 'Network Optimise',
+    name: 'Worker Optimise',
     category: 'network',
     kind: 'automation',
-    blurb: 'One tap redistributes idle and Network drones to the current allocation.',
+    blurb: 'One tap assigns idle Worker Drones to industrial jobs using the current allocation.',
     cost: 4,
     requiresMastery: 'network',
   },
   {
     id: 'network-presets',
-    name: 'Network Presets',
+    name: 'Worker Presets',
     category: 'network',
     kind: 'automation',
-    blurb: 'Push, Defence, Farm, Industry, Research, or Balanced. Weights are visible. No hidden mix.',
+    blurb: 'Push, Defence, Farm, Industry, Research, or Balanced job mixes. Weights stay visible.',
     cost: 8,
     requiresId: 'network-optimise',
   },
@@ -239,10 +240,10 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'network-balance',
-    name: 'Network Auto Optimise',
+    name: 'Worker Auto Optimise',
     category: 'network',
     kind: 'automation',
-    blurb: 'Idle drones refill bars using your preset. Relays get weight once they open. Config lives on this Process node.',
+    blurb: 'Idle Worker Drones fill industrial jobs using your preset. Config lives on this Process node.',
     cost: 10,
     requiresId: 'network-presets',
   },
@@ -340,27 +341,27 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'auto-relic',
-    name: 'Reliquary Auto Equip',
+    name: 'Relic Auto Equip',
     category: 'reliquary',
     kind: 'automation',
-    blurb: 'Empty colour slots seat a shard. Never scraps. Swaps only if you allow it.',
+    blurb: 'Empty Relic sockets seat a matching Relic. Never scraps. Swaps only if you allow it.',
     cost: 8,
     requiresSystem: 'reliquary',
     requiresMastery: 'reliquary',
   },
   {
     id: 'reliquary-keep',
-    name: 'Reliquary Keep Rules',
+    name: 'Relic Keep Rules',
     category: 'reliquary',
     kind: 'automation',
-    blurb: 'Keep all, keep best, or upgrade-only. Auto Equip will not dump a fitted shard by default.',
+    blurb: 'Keep all, keep best, or upgrade-only. Auto Equip will not dump a fitted Relic by default.',
     cost: 10,
     requiresId: 'auto-relic',
     requiresSystem: 'reliquary',
   },
   {
     id: 'reliquary-quality',
-    name: 'Reliquary Quality Gate',
+    name: 'Relic Quality Gate',
     category: 'reliquary',
     kind: 'automation',
     blurb: 'Minimum score before Auto Equip will seat or swap a shard.',
@@ -370,7 +371,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'reliquary-merge',
-    name: 'Reliquary Auto Merge',
+    name: 'Relic Auto Merge',
     category: 'reliquary',
     kind: 'automation',
     blurb: 'Fold spare Signal Cores only after you enable it. Off by default so nothing valuable disappears.',
@@ -461,10 +462,10 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'auto-extract',
-    name: 'Safe Hold',
+    name: 'Auto Extract',
     category: 'sortie',
     kind: 'automation',
-    blurb: 'After a sector boss, Hold this sector if hull is under your threshold (default 35%).',
+    blurb: 'Pull out of a live Sortie if hull drops under your threshold (default 35%).',
     cost: 6,
     requiresSectorEver: 2,
   },
@@ -554,7 +555,6 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     kind: 'qol',
     blurb: '+4 hours on the offline cap, on top of Accumulation bonuses.',
     cost: 12,
-    requiresId: 'offline-sortie',
     requiresSectorEver: 8,
   },
   {
@@ -568,6 +568,90 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     requiresSectorEver: 10,
   },
 ]
+
+/** Nodes that fight the GDD loop or belong to retired systems. Kept on the save, hidden from the shop. */
+export const PROCESS_HIDDEN_IDS = new Set([
+  'echo-repeat',
+  'auto-bank',
+  'furnace-presets',
+  'furnace-reserve',
+  'furnace-channels',
+  'furnace-auto',
+  'network-tune',
+  'offline-sortie',
+])
+
+export type ProcessRevealTier = 'qol' | 'actions' | 'priorities' | 'later'
+
+export const PROCESS_REVEAL_TIERS: { id: ProcessRevealTier; name: string }[] = [
+  { id: 'qol', name: 'Quality of life' },
+  { id: 'actions', name: 'Simple actions' },
+  { id: 'priorities', name: 'Priorities' },
+  { id: 'later', name: 'Deeper automation' },
+]
+
+const PROCESS_NODE_TIER: Record<string, ProcessRevealTier> = {
+  'core-buy-max': 'qol',
+  'foundry-buy-max': 'qol',
+  'yard-buy-max': 'qol',
+  'deep-cache': 'qol',
+  'combat-tempo': 'qol',
+  'auto-salvage': 'actions',
+  'foundry-repeat': 'actions',
+  'smart-smelt': 'actions',
+  'print-assemble': 'actions',
+  'research-queue': 'actions',
+  'auto-extract': 'actions',
+  'sortie-relaunch': 'actions',
+  'network-optimise': 'actions',
+  'auto-relic': 'actions',
+  'protocol-repeat': 'actions',
+  'core-priority': 'priorities',
+  'core-ratios': 'priorities',
+  'core-presets': 'priorities',
+  'foundry-priority': 'priorities',
+  'foundry-queue': 'priorities',
+  'research-priorities': 'priorities',
+  'network-presets': 'priorities',
+  'network-ratios': 'priorities',
+  'reliquary-keep': 'priorities',
+  'yard-layouts': 'priorities',
+}
+
+export function processNodeTier(node: ProcessNodeDef): ProcessRevealTier {
+  if (node.kind === 'qol') return 'qol'
+  return PROCESS_NODE_TIER[node.id] ?? 'later'
+}
+
+export function processRevealAllows(state: GameState, tier: ProcessRevealTier): boolean {
+  const bought = state.process?.purchased?.length ?? 0
+  if (tier === 'qol' || tier === 'actions') return true
+  if (tier === 'priorities') return bought >= 1
+  return bought >= 2
+}
+
+export function processVisibleNodes(state: GameState): ProcessNodeDef[] {
+  return PROCESS_NODES.filter((node) => {
+    if (PROCESS_HIDDEN_IDS.has(node.id)) return false
+    return processRevealAllows(state, processNodeTier(node))
+  })
+}
+
+/** Manual loops the player has already practised — GDD §139. */
+export function processLessonCount(state: GameState): number {
+  const cores = Object.values(state.shipyard.moduleLevels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
+  const workshop = Object.values(state.workshop?.levels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
+  const recipes = Object.values(state.foundry?.recipeLevels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
+  return cores + workshop + recipes + (state.meta.lifetimeFabCrafts ?? 0)
+}
+
+export function processOnlineBlurb(state: GameState): string {
+  const n = processLessonCount(state)
+  if (n >= 8) {
+    return `You've already done this work ${n} times. Process can automate behaviours you've learned.`
+  }
+  return 'Automate behaviours you have already learned. Buy after you understand the loop.'
+}
 
 export type ProcessAccumEffect =
   | { type: 'salvage'; mult: number }
@@ -773,24 +857,23 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
   switch (kind) {
     case 'cores':
       return Object.values(state.shipyard.moduleLevels ?? {}).some((n) => n > 0)
-    case 'network': {
-      const assigned = NETWORK_BAR_IDS.some((id) => (state.base.assignments[id] ?? 0) > 0)
-      const leveled = Object.values(state.network?.bars ?? {}).some((b) => (b?.levels ?? 0) > 0)
-      return assigned || leveled
-    }
+    case 'network':
+      return Object.entries(state.base.assignments ?? {}).some(
+        ([id, n]) => (n ?? 0) > 0 && isWorkerJob(id),
+      )
     case 'foundry':
       return Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0)
     case 'reliquary':
       return (
         Object.values(state.reliquary?.owned ?? {}).some((n) => n > 0) ||
-        Object.values(state.reliquary?.slots ?? {}).some(Boolean)
+        Object.values(state.reliquary?.coreFits ?? {}).some((fits) => (fits ?? []).some(Boolean))
       )
     case 'research':
       return Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
     case 'furnace':
       return (
-        Object.values(state.furnace?.upgrades ?? {}).some((n) => n > 0) ||
         Object.values(state.furnace?.active ?? {}).some((n) => n > 0) ||
+        (state.resources.choirAsh ?? 0) > 0 ||
         (state.resources.heat ?? 0) > 0
       )
     case 'yard':
@@ -807,17 +890,17 @@ function systemLockReason(system: TabId): string {
     case 'foundry':
       return 'Foundry closed'
     case 'reliquary':
-      return 'Reliquary closed'
+      return 'Relics closed'
     case 'furnace':
       return 'Furnace dark'
     case 'research':
       return 'Research closed'
     case 'yard':
-      return 'Yard closed'
+      return 'Construction closed'
     case 'protocols':
-      return 'Protocols closed'
+      return 'Challenges closed'
     case 'echo':
-      return 'Echo closed'
+      return 'Retired'
     default:
       return 'Locked'
   }
@@ -828,19 +911,19 @@ function masteryLockReason(kind: ProcessMastery): string {
     case 'cores':
       return 'Rank a Core first'
     case 'network':
-      return 'Assign drones first'
+      return 'Assign Worker Drones first'
     case 'foundry':
       return 'Finish a craft first'
     case 'reliquary':
-      return 'Handle a shard first'
+      return 'Fit a Relic first'
     case 'research':
-      return 'Complete a research node first'
+      return 'Complete a Research project first'
     case 'furnace':
-      return 'Bank Heat first'
+      return 'Convert Ash or light a channel first'
     case 'yard':
       return 'Place a building first'
     case 'protocols':
-      return 'Clear a Protocol first'
+      return 'Clear a Challenge first'
     case 'echo':
       return 'Clear an Echo first'
   }
@@ -853,6 +936,7 @@ export function canBuyProcessNode(
   const def = getProcessNode(id)
   if (!def) return { ok: false, reason: 'Unknown node' }
   if (hasProcess(state, id)) return { ok: false, reason: 'Owned' }
+  if (PROCESS_HIDDEN_IDS.has(id)) return { ok: false, reason: 'Retired' }
   if (def.requiresId && !hasProcess(state, def.requiresId)) {
     const prior = getProcessNode(def.requiresId)
     return { ok: false, reason: prior ? `Need ${prior.name}` : 'Need prior node' }
@@ -873,7 +957,7 @@ export function canBuyProcessNode(
 }
 
 export function firstAffordableProcessNode(state: GameState): ProcessNodeDef | null {
-  for (const node of PROCESS_NODES) {
+  for (const node of processVisibleNodes(state)) {
     if (canBuyProcessNode(state, node.id).ok) return node
   }
   return null
@@ -1181,7 +1265,7 @@ export interface ProcessFurnaceHooks {
 export function processFurnaceHooks(state: GameState): ProcessFurnaceHooks {
   const cfg = processConfig(state)
   return {
-    autoFeed: hasProcess(state, 'auto-bank') && cfg.furnace.autoFeed,
+    autoFeed: false,
     presetsUnlocked: hasProcess(state, 'furnace-presets'),
     managerUnlocked: hasProcess(state, 'furnace-auto') && cfg.furnace.manager,
     autoChannel: hasProcess(state, 'furnace-channels') && cfg.furnace.autoChannel,

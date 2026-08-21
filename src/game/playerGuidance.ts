@@ -3,6 +3,7 @@
 import { idleWorkers, moduleLevel } from './catalog'
 import { foundryMaterialCount, foundryRecipeLevel } from './foundry'
 import { prestigeGainFor } from './actions'
+import { firstAffordableProcessNode } from './process'
 import { isSystemUnlocked } from './progression'
 import type { GameState } from './types'
 
@@ -207,6 +208,9 @@ export function sortieNextHints(state: GameState): string[] {
     const slag = foundryRecipeLevel(state, 'slag-ingot')
     const queued = state.foundry.slots.some((s) => s.recipeId === 'slag-ingot')
     if (slag < 2 && !queued) items.push('Start a Foundry craft')
+  }
+  if (isSystemUnlocked(state, 'process') && firstAffordableProcessNode(state)) {
+    items.push('Buy a Process automation')
   }
   return items.slice(0, 3)
 }

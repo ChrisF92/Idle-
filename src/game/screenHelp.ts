@@ -115,8 +115,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   process: {
     title: 'Process',
     body: [
-      'Purpose: remove chores you have already learned, not skip systems before you understand them. Process Available is spendable; Process Earned is lifetime.',
-      'Opens around sector 42 after at least two Rebuilds and some Research. Banked Process Points wait for you until then.',
+      'Purpose: automate behaviours you have already learned, not skip systems before you understand them. Main decision: which solved loop becomes a Process purchase.',
+      'Opens at Wave 210 after two Rebuilds and a completed Research project. Process Available is spendable; Process Earned is lifetime. Quality of life comes first; deeper priorities unlock after you buy something.',
     ],
   },
   specialists: {

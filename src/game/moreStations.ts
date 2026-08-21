@@ -115,7 +115,7 @@ export function moreStationBuckets(state: GameState): {
 }
 
 export function isSystemsNavTab(tab: TabId): boolean {
-  return tab === 'foundry' || tab === 'network' || tab === 'yard' || tab === 'furnace' || tab === 'research'
+  return tab === 'foundry' || tab === 'network' || tab === 'yard' || tab === 'furnace' || tab === 'research' || tab === 'process'
 }
 
 export function isMoreNavTab(tab: TabId): boolean {
@@ -125,7 +125,6 @@ export function isMoreNavTab(tab: TabId): boolean {
     tab === 'slag' ||
     tab === 'protocols' ||
     tab === 'echo' ||
-    tab === 'process' ||
     tab === 'specialists' ||
     tab === 'tasks' ||
     tab === 'capital' ||

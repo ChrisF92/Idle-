@@ -18,11 +18,12 @@ import {
   hiveResearchSpeed,
   hiveResearchXp,
 } from './hiveResearch'
-import { foundryAttention, furnaceAttention, networkAttention, researchAttention, type AttentionFlags } from './hubAttention'
+import { firstAffordableProcessNode, processAvailable } from './process'
+import { foundryAttention, furnaceAttention, networkAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
 
-export type SystemsHubId = Extract<TabId, 'foundry' | 'network' | 'furnace' | 'research'>
+export type SystemsHubId = Extract<TabId, 'foundry' | 'network' | 'furnace' | 'research' | 'process'>
 
 export interface SystemsHubCard {
   id: SystemsHubId
@@ -119,6 +120,16 @@ export function researchHubStatus(state: GameState): string[] {
   return lines.slice(0, 3)
 }
 
+export function processHubStatus(state: GameState): string[] {
+  const available = Math.floor(processAvailable(state))
+  const next = firstAffordableProcessNode(state)
+  const lines = [`${available} Process`]
+  if (next) lines.push(`Next: ${next.name}`)
+  else if ((state.process?.purchased?.length ?? 0) > 0) lines.push('Running')
+  else lines.push('No purchase yet')
+  return lines.slice(0, 3)
+}
+
 function card(
   id: SystemsHubId,
   name: string,
@@ -141,6 +152,9 @@ export function systemsHubCards(state: GameState): SystemsHubCard[] {
   }
   if (isSystemUnlocked(state, 'research')) {
     cards.push(card('research', 'Research', researchHubStatus(state), researchAttention(state)))
+  }
+  if (isSystemUnlocked(state, 'process')) {
+    cards.push(card('process', 'Process', processHubStatus(state), processAttention(state)))
   }
   return cards
 }

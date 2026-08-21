@@ -7,18 +7,14 @@ import type {
   ProcessNetworkPreset,
   YardArmId,
 } from '../../game/types'
-import {
-  ACHIEVEMENTS,
-  isAchievementUnlocked,
-  isSystemUnlocked,
-} from '../../game/progression'
-import { ACT1_CADENCE } from '../../game/cadence'
+import { isSystemUnlocked } from '../../game/progression'
+import { ACT1_CADENCE, PROCESS_MIN_REBUILDS } from '../../game/cadence'
 import {
   CORE_PRIORITY_LABELS,
   NETWORK_PRESET_LABELS,
   PROCESS_ACCUMULATION,
-  PROCESS_CATEGORIES,
   PROCESS_NODES,
+  PROCESS_REVEAL_TIERS,
   canBuyProcessNode,
   firstAffordableProcessNode,
   hasProcess,
@@ -27,6 +23,10 @@ import {
   processConfig,
   processEarned,
   processExtraPresetSlots,
+  processNodeTier,
+  processOnlineBlurb,
+  processRevealAllows,
+  processVisibleNodes,
 } from '../../game/process'
 import { FOUNDRY_RECIPES, foundryQueueCap } from '../../game/foundry'
 import { hiveResearchQueueCap } from '../../game/hiveResearch'
@@ -34,17 +34,6 @@ import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
 import { NETWORK_BARS } from '../../game/network'
 import { PROTOCOLS, protocolRank } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
-import { SheetTabs } from '../SheetTabs'
-import { useSyncedPane } from '../../hooks/useSyncedPane'
-
-type ProcessPane = 'automation' | 'qol' | 'accumulation' | 'log'
-
-const PROCESS_PANES: { id: ProcessPane; label: string }[] = [
-  { id: 'automation', label: 'Automation' },
-  { id: 'qol', label: 'QoL' },
-  { id: 'accumulation', label: 'Accumulation' },
-  { id: 'log', label: 'Log' },
-]
 
 interface ProcessTabProps {
   state: GameState
@@ -679,40 +668,29 @@ export function ProcessTab({
   const open = isSystemUnlocked(state, 'process')
   const available = processAvailable(state)
   const earned = processEarned(state)
-  const hint =
-    guideTarget === 'process-qol'
-      ? 'qol'
-      : guideTarget === 'process-accumulation'
-        ? 'accumulation'
-        : guideTarget === 'process-automation' ||
-            guideTarget === 'process-first-buy' ||
-            guideTarget === 'process-foundry-queue' ||
-            guideTarget === 'process-research-queue' ||
-            guideTarget === 'process-research-auto' ||
-            guideTarget === 'process-config' ||
-            guideTarget === 'process-nodes'
-          ? 'automation'
-          : null
-  const [pane, setPane] = useSyncedPane<ProcessPane>('automation', hint)
   const firstBuy = firstAffordableProcessNode(state)
+  const visible = processVisibleNodes(state)
+  const showAccount = (state.process?.purchased?.length ?? 0) >= 1
 
   return (
     <section className="panel screen-panel">
       <header className="panel-header">
         <p className="assign-row">
           <button type="button" onClick={onBack}>
-            More
+            Systems
           </button>
         </p>
         <h2>Process</h2>
         <p>
           {open
-            ? 'Spend Process Points on automation and quality-of-life upgrades.'
-            : `Reach Wave ${ACT1_CADENCE.process} to wake Process.`}
+            ? processOnlineBlurb(state)
+            : `Reach Wave ${ACT1_CADENCE.process}, Rebuild ${PROCESS_MIN_REBUILDS} times, and finish a Research project.`}
         </p>
       </header>
       {!open ? (
-        <p className="muted">Achievements grant Process Points. Spend them on automation.</p>
+        <p className="muted">
+          Process Points bank from achievements until then. Automate only what you have already done by hand.
+        </p>
       ) : (
         <>
           <div className="process-ledger">
@@ -725,51 +703,34 @@ export function ProcessTab({
               <strong>{formatCompact(earned, 1)}</strong>
             </p>
           </div>
-          <SheetTabs value={pane} onChange={setPane} options={PROCESS_PANES} label="Process panes" />
           <div className="panel-scroll">
-            {pane === 'automation' ? (
+            <p className="muted" data-guide="process-automation">
+              Quality of life first, then simple actions. Deeper priorities open after you buy something.
+            </p>
+            {PROCESS_REVEAL_TIERS.filter((tier) => processRevealAllows(state, tier.id)).map((tier) => {
+              const nodes = visible.filter((node) => processNodeTier(node) === tier.id)
+              if (nodes.length === 0) return null
+              return (
+                <div key={tier.id}>
+                  <h3 className="foundry-heading">{tier.name}</h3>
+                  {nodes.map((node) => (
+                    <NodeCard
+                      key={node.id}
+                      state={state}
+                      nodeId={node.id}
+                      onBuy={onBuy}
+                      onConfig={onConfig}
+                      highlight={guideTarget === 'process-first-buy' && firstBuy?.id === node.id}
+                    />
+                  ))}
+                </div>
+              )
+            })}
+            {showAccount ? (
               <>
-                <p className="muted" data-guide="process-automation">
-                  Helper, then settings, then full loops. Buy after you understand the system. Spending Available does
-                  not reduce Earned.
-                </p>
-                {PROCESS_CATEGORIES.filter((c) => c.id !== 'qol').map((cat) => {
-                  const nodes = PROCESS_NODES.filter(
-                    (n) => n.category === cat.id && n.kind === 'automation' && n.id !== 'echo-repeat',
-                  )
-                  if (nodes.length === 0) return null
-                  return (
-                    <div key={cat.id}>
-                      <h3 className="foundry-heading">{cat.name}</h3>
-                      {nodes.map((node) => (
-                        <NodeCard
-                          key={node.id}
-                          state={state}
-                          nodeId={node.id}
-                          onBuy={onBuy}
-                          onConfig={onConfig}
-                          highlight={firstBuy?.id === node.id}
-                        />
-                      ))}
-                    </div>
-                  )
-                })}
-              </>
-            ) : null}
-            {pane === 'qol' ? (
-              <>
-                <p className="muted" data-guide="process-qol">
-                  Comfort for the sitting. Not the same as Automation.
-                </p>
-                {PROCESS_NODES.filter((n) => n.kind === 'qol').map((node) => (
-                  <NodeCard key={node.id} state={state} nodeId={node.id} onBuy={onBuy} onConfig={onConfig} />
-                ))}
-              </>
-            ) : null}
-            {pane === 'accumulation' ? (
-              <>
+                <h3 className="foundry-heading">Account</h3>
                 <p className="muted" data-guide="process-accumulation">
-                  Permanent account milestones from lifetime Process Earned. Spending does not undo these.
+                  Lifetime Process Earned. Spending Available does not undo these.
                 </p>
                 {PROCESS_ACCUMULATION.map((row) => {
                   const status = processAccumulationStatus(earned, row)
@@ -786,32 +747,6 @@ export function ProcessTab({
                     </article>
                   )
                 })}
-              </>
-            ) : null}
-            {pane === 'log' ? (
-              <>
-                <h3 className="foundry-heading">Achievements</h3>
-                {ACHIEVEMENTS.filter((a) => !a.repeatable).map((a) => (
-                  <article key={a.id} className="network-row">
-                    <div className="network-row-main">
-                      <strong>{a.name}</strong>
-                      <span className="muted">
-                        {isAchievementUnlocked(state, a.id) ? 'Done' : `+${a.rewardAiPoints}`}
-                      </span>
-                    </div>
-                    <p className="network-row-stats">{a.description}</p>
-                  </article>
-                ))}
-                <h3 className="foundry-heading">Repeatable</h3>
-                {ACHIEVEMENTS.filter((a) => a.repeatable).map((a) => (
-                  <article key={a.id} className="network-row">
-                    <div className="network-row-main">
-                      <strong>{a.name}</strong>
-                      <span className="muted">+{a.rewardAiPoints}</span>
-                    </div>
-                    <p className="network-row-stats">{a.description}</p>
-                  </article>
-                ))}
               </>
             ) : null}
           </div>

@@ -46,7 +46,7 @@ export interface SystemUnlockDef {
 /**
  * Whole systems unlock by career progress. Locked More stations stay listed with requirements.
  * Dock and Sortie are always available. Salvage and More wait for the first hull loss.
- * Foundry and Worker Drones share Systems. Process unlocks on First Blood.
+ * Foundry, Worker Drones, Furnace, Research, and Process share Systems.
  */
 export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
@@ -95,7 +95,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'process',
     requiresSectorEver: ACT1_CADENCE.process,
     label: 'Process',
-    tip: 'Spend Process Points on automation and quality-of-life upgrades.'
+    tip: 'Automate behaviours you have already learned.',
   },
   {
     id: 'specialists',

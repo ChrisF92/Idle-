@@ -21,7 +21,7 @@ import { MORE_STATIONS } from './moreStations'
 import { pendingMilestone } from './milestones'
 import { NETWORK_BARS, NETWORK_LINKS, canBuyNetworkLink, isNetworkBarUnlocked } from './network'
 import { protocolCoreScalingAdd } from './protocols'
-import { PROCESS_NODES, canBuyProcessNode } from './process'
+import { canBuyProcessNode, processVisibleNodes } from './process'
 import { hasHullLostOnce, isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
 import { noteSystemOpen } from './playtest'
@@ -154,7 +154,11 @@ export function researchAttention(state: GameState): AttentionFlags {
   return { spend: researchSpend(state), fresh: hasUnseen(state, contentKeys(state, 'research')) }
 }
 
-/** Bottom-nav Systems pip — Foundry plus Worker Drones, Furnace, and Research once those doors are open. */
+export function processAttention(state: GameState): AttentionFlags {
+  return { spend: processSpend(state), fresh: hasUnseen(state, contentKeys(state, 'process')) }
+}
+
+/** Bottom-nav Systems pip — Foundry plus Worker Drones, Furnace, Research, and Process once those doors are open. */
 export function systemsTabAttention(state: GameState): AttentionFlags {
   const foundry = foundryAttention(state)
   const workers = isSystemUnlocked(state, 'network')
@@ -166,9 +170,12 @@ export function systemsTabAttention(state: GameState): AttentionFlags {
   const research = isSystemUnlocked(state, 'research')
     ? researchAttention(state)
     : { spend: false, fresh: false }
+  const process = isSystemUnlocked(state, 'process')
+    ? processAttention(state)
+    : { spend: false, fresh: false }
   return {
-    spend: foundry.spend || workers.spend || furnace.spend || research.spend,
-    fresh: foundry.fresh || workers.fresh || furnace.fresh || research.fresh,
+    spend: foundry.spend || workers.spend || furnace.spend || research.spend || process.spend,
+    fresh: foundry.fresh || workers.fresh || furnace.fresh || research.fresh || process.fresh,
   }
 }
 
@@ -207,14 +214,12 @@ function researchSpend(state: GameState): boolean {
 
 function processSpend(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'process')) return false
-  return PROCESS_NODES.some((n) => canBuyProcessNode(state, n.id).ok)
+  return processVisibleNodes(state).some((n) => canBuyProcessNode(state, n.id).ok)
 }
 
 export function moreStationAttention(state: GameState, id: TabId): AttentionFlags {
   if (!isSystemUnlocked(state, id)) return { spend: false, fresh: false }
   const fresh = hasUnseen(state, contentKeys(state, id))
-  if (id === 'furnace') return { spend: furnaceSpend(state), fresh }
-  if (id === 'process') return { spend: processSpend(state), fresh }
   return { spend: false, fresh }
 }
 
@@ -250,7 +255,7 @@ export function tabAttention(state: GameState, tab: TabId): AttentionFlags {
     case 'furnace':
       return furnaceAttention(state)
     case 'process':
-      return { spend: processSpend(state), fresh: hasUnseen(state, contentKeys(state, 'process')) }
+      return processAttention(state)
     default:
       return { spend: false, fresh: false }
   }
