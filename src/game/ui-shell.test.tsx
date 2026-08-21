@@ -27,14 +27,13 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Cores/ })).toBeNull()
-    expect(screen.queryByText('Salvage')).toBeNull()
+    expect(screen.getByRole('button', { name: /Cores/ })).toBeTruthy()
+    expect(screen.getByText('Salvage')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
     expect(document.querySelector('[data-guide="sortie-canvas"]')).toBeTruthy()
     expect(document.querySelector('[data-guide="sortie-hull"]')).toBeTruthy()
@@ -46,7 +45,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
@@ -71,7 +69,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         coresRequest={{ key: 1, moduleId: 'pulse-cannon' }}
@@ -90,7 +87,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         coresRequest={{ key: 1, moduleId: 'pulse-cannon' }}
@@ -109,6 +105,8 @@ describe('shell UX', () => {
       note: 'Hull lost in sector 2 wave 2. Knocked back',
       salvageGained: 4,
       salvageSpent: 6,
+      scrapEarned: 12,
+      newBest: true,
       networkLevels: 7,
     }
     render(
@@ -121,8 +119,8 @@ describe('shell UX', () => {
     )
     const summary = document.querySelector('.dock-summary')
     expect(summary).toBeTruthy()
-    expect(summary?.querySelectorAll('.dock-stats')).toHaveLength(2)
-    expect(summary?.querySelectorAll('.dock-stats > div')).toHaveLength(6)
+    expect(summary?.querySelectorAll('.dock-stats')).toHaveLength(1)
+    expect(summary?.querySelectorAll('.dock-stats > div')).toHaveLength(3)
     expect(screen.getByText(/Hull lost in sector 2 wave 2/)).toBeTruthy()
     expect(document.querySelector('.dock-screen .panel-scroll')).toBeTruthy()
   })
@@ -133,7 +131,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
@@ -211,7 +208,6 @@ describe('shell UX', () => {
       <CombatTab
         state={persist}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         guide={persistStep}
@@ -226,7 +222,6 @@ describe('shell UX', () => {
       <CombatTab
         state={next}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         guide={relaunch}
@@ -400,7 +395,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         onOpenFoundry={() => {
@@ -422,7 +416,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onSetPushMode={() => undefined}
         onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         onOpenFoundry={() => undefined}

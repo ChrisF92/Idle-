@@ -152,6 +152,15 @@ import {
 } from './state'
 import { buildPlayerFleet } from './combat'
 import {
+  createEmptyWorkshop,
+  effectiveUpgradeLevel,
+  RUN_UPGRADE_CAP,
+  RUN_UPGRADES,
+  runUpgradeCost,
+  workshopCost,
+  type RunUpgradeId,
+} from './workshop'
+import {
   ACT1_FINAL_SECTOR,
   careerHighestSector,
   isSystemUnlocked,
@@ -1213,6 +1222,75 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
   return next
 }
 
+export function buyRunUpgrade(state: GameState, id: RunUpgradeId): GameState {
+  if (state.combat.docked) return state
+  const def = RUN_UPGRADES.find((row) => row.id === id)
+  if (!def) return state
+  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
+  if (best < def.minBestWave) return state
+  const level = effectiveUpgradeLevel(state, id)
+  if (level >= RUN_UPGRADE_CAP) return state
+  const cost = runUpgradeCost(level)
+  if (state.resources.salvage < cost) return state
+  const next = structuredClone(state)
+  next.resources.salvage -= cost
+  noteSalvageSpend(next, cost)
+  next.combat.runUpgrades = {
+    ...(next.combat.runUpgrades ?? {}),
+    [id]: Math.max(0, Math.floor(next.combat.runUpgrades?.[id] ?? 0)) + 1,
+  }
+  if (next.combat.inFight) {
+    const prevUnits = next.combat.playerUnits
+    const rebuilt = buildPlayerFleet(next)
+    for (const unit of rebuilt) {
+      const prev = prevUnits.find((u) => u.id === unit.id)
+      if (prev && prev.hullMax > 0) {
+        unit.hull = Math.max(1, unit.hullMax * (prev.hull / prev.hullMax))
+        unit.shield =
+          unit.shieldMax > 0
+            ? unit.shieldMax * (prev.shield / Math.max(1, prev.shieldMax))
+            : 0
+      }
+    }
+    const prevFlag = prevUnits.find((u) => u.isFlagship)
+    const nextFlag = rebuilt.find((u) => u.isFlagship)
+    if (prevFlag && nextFlag) {
+      nextFlag.weapons = buildFlagshipWeapons(next).map((w) => {
+        const old = prevFlag.weapons.find((pw) => pw.id === w.id)
+        return old ? { ...w, cooldownLeft: old.cooldownLeft } : w
+      })
+    }
+    next.combat.playerUnits = rebuilt
+    const stats = computeShipStats(next)
+    next.combat.playerHullMax = stats.hullMax
+    next.combat.playerShieldMax = stats.shieldMax
+    if (nextFlag) {
+      next.combat.playerHull = nextFlag.hull
+      next.combat.playerShield = nextFlag.shield
+    }
+  } else {
+    syncPersistedHullCaps(next)
+  }
+  return next
+}
+
+export function buyWorkshopUpgrade(state: GameState, id: RunUpgradeId): GameState {
+  if (!state.combat.docked) return state
+  const def = RUN_UPGRADES.find((row) => row.id === id)
+  if (!def) return state
+  if (!state.meta.hullLostOnce) return state
+  const current = Math.max(0, Math.floor(state.workshop?.levels?.[id] ?? 0))
+  if (current >= RUN_UPGRADE_CAP) return state
+  const cost = workshopCost(current)
+  if (state.resources.scrap < cost) return state
+  const next = structuredClone(state)
+  if (!next.workshop) next.workshop = createEmptyWorkshop()
+  next.resources.scrap -= cost
+  next.workshop.levels = { ...next.workshop.levels, [id]: current + 1 }
+  syncPersistedHullCaps(next)
+  return next
+}
+
 function applyRunReset(state: GameState, now = Date.now()): void {
   const permanentAi = state.ai.purchased.filter((id) => {
     const def = getAiNode(id)
@@ -1341,8 +1419,10 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     kept.activeChallengeId,
     { utility: hiveResearchExtraUtilitySlots(state) },
   )
+  state.workshop = createEmptyWorkshop()
   state.combat = {
     ...fresh.combat,
+    bestWave: Math.max(kept.meta.bestWave ?? 0, 0),
     campaign: true,
     pushMode: 'advance',
     docked: true,

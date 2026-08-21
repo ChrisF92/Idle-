@@ -49,6 +49,8 @@ import {
   unlockModule,
   upgradeCheapestModule,
   upgradeModule,
+  buyRunUpgrade,
+  buyWorkshopUpgrade,
   withdrawFabPart,
   equipSignalCore,
   unequipSignalCore,
@@ -131,6 +133,8 @@ type Action =
   | { type: 'fit-module'; moduleId: string }
   | { type: 'unfit-module'; moduleId: string }
   | { type: 'upgrade-module'; moduleId: string }
+  | { type: 'buy-run-upgrade'; id: import('../game/types').RunUpgradeId }
+  | { type: 'buy-workshop-upgrade'; id: import('../game/types').RunUpgradeId }
   | {
       type: 'pick-milestone'
       moduleId: string
@@ -264,6 +268,10 @@ function reducer(state: GameState, action: Action): GameState {
       return unfitModule(state, action.moduleId)
     case 'upgrade-module':
       return upgradeModule(state, action.moduleId)
+    case 'buy-run-upgrade':
+      return buyRunUpgrade(state, action.id)
+    case 'buy-workshop-upgrade':
+      return buyWorkshopUpgrade(state, action.id)
     case 'pick-milestone':
       return pickCoreMilestone(state, action.moduleId, action.milestoneId, action.choiceId)
     case 'rebuild':
@@ -472,6 +480,10 @@ export function useGame() {
     fitModule: (moduleId: string) => dispatch({ type: 'fit-module', moduleId }),
     unfitModule: (moduleId: string) => dispatch({ type: 'unfit-module', moduleId }),
     upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
+    buyRunUpgrade: (id: import('../game/types').RunUpgradeId) =>
+      dispatch({ type: 'buy-run-upgrade', id }),
+    buyWorkshopUpgrade: (id: import('../game/types').RunUpgradeId) =>
+      dispatch({ type: 'buy-workshop-upgrade', id }),
     pickCoreMilestone: (moduleId: string, milestoneId: string, choiceId: string) =>
       dispatch({ type: 'pick-milestone', moduleId, milestoneId, choiceId }),
     performRebuild: (hangar: { frameId: string; modules: string[] }) =>

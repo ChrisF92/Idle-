@@ -28,13 +28,13 @@ export function SortieReport({ summary, state, onClose, onUpgradeCores }: Sortie
       <div className="modal-sheet sortie-report-sheet">
         <header className="modal-header">
           <div>
-            <p className="combat-hud-kicker">{defeat ? 'Repelled' : 'Run complete'}</p>
+            <p className="combat-hud-kicker">{defeat ? 'SORTIE COMPLETE' : 'EXTRACTED'}</p>
             <h3 id="sortie-report-title">
               {firstDefeat
-                ? `You reached Sector ${summary.sector}`
+                ? `Wave ${summary.wave}${summary.newBest ? ' · New Best' : ''}`
                 : diagnostic
                   ? diagnostic.title
-                  : `${defeat ? 'Repelled' : 'Complete'} · S${summary.sector} W${summary.wave}`}
+                  : `${defeat ? 'Defeat' : 'Extract'} · Wave ${summary.wave}`}
             </h3>
           </div>
           <button type="button" onClick={onClose}>
@@ -44,11 +44,11 @@ export function SortieReport({ summary, state, onClose, onUpgradeCores }: Sortie
         {firstDefeat ? (
           <>
             <p>
-              You recovered <strong>{formatCompact(summary.salvageGained)} Salvage</strong>.
+              You recovered <strong>{formatCompact(summary.scrapEarned)} Scrap</strong>.
             </p>
             <p className="muted">
-              Your ship has fallen back and will keep fighting. Core upgrades stay. Spend Salvage,
-              then retry the frontier.
+              Salvage from that Sortie is gone. Scrap survives. Spend it in Workshop so the next
+              Sortie starts stronger.
             </p>
           </>
         ) : (

@@ -39,9 +39,11 @@ import {
   SHORT_RANGE_MAX,
 } from './catalog'
 import { careerHighestSector, isSystemUnlocked } from './progression'
-import { isSectorBossWave, wavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
+import { isSectorBossWave, wavesForSector, trashWavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
 import type { SectorRoute } from './types'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
+import { isBossWave, powerSectorForWave } from './waves'
+import { salvageKillMult } from './workshop'
 import {
   logisticsDropMult,
   reactorsRepairMult,
@@ -295,6 +297,7 @@ function makeEnemyUnit(opts: {
     dots: [],
     x: opts.x ?? SPAWN_DISTANCE,
     y: opts.y ?? 0,
+    heading: 0,
     speed: opts.speed,
     engageRange: opts.engageRange,
     kite: opts.kite ?? false,
@@ -454,6 +457,32 @@ export function enemyForSector(
     blurb: familyBlurb(family, bossWave),
     units,
   }
+}
+
+function assignRadialHeadings(units: CombatUnit[], wave: number): void {
+  const n = Math.max(1, units.length)
+  const base = (Math.max(1, wave) * 2.399963229728653) % (Math.PI * 2)
+  units.forEach((unit, i) => {
+    unit.heading = base + (i / n) * Math.PI * 2
+    unit.y = 0
+  })
+}
+
+/** GDD encounter for a global Sortie Wave. Bosses land on every 10th Wave. */
+export function encounterForWave(wave: number, extraDanger = 1): SectorEncounter {
+  const w = Math.max(1, Math.floor(wave))
+  const sector = powerSectorForWave(w)
+  const boss = isBossWave(w)
+  const trash = trashWavesForSector(sector)
+  const localWave = boss ? wavesForSector(sector) : Math.min(trash, ((w - 1) % 10) % trash + 1)
+  const encounter = enemyForSector(sector, localWave, 'A', extraDanger)
+  assignRadialHeadings(encounter.units, w)
+  if (boss) {
+    encounter.isBoss = true
+    encounter.name = encounter.name.includes('Boss') ? encounter.name : `${encounter.name} (Boss)`
+  }
+  encounter.id = `w${w}-${encounter.family}`
+  return encounter
 }
 
 /**
@@ -1430,6 +1459,7 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
     dots: [],
     x: 0,
     y: 0,
+    heading: 0,
     speed: 0,
     engageRange: 0,
     kite: false,
@@ -1471,8 +1501,9 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
         isBoss: false,
         isFlagship: false,
         dots: [],
-        x: 12 + (escortIndex % 2) * 10,
-        y: escortIndex % 2 === 0 ? -22 - escortIndex * 4 : 22 + escortIndex * 4,
+        x: 0,
+        y: 0,
+        heading: escortIndex * 0.9,
         speed: 0,
         engageRange: 0,
         kite: false,
@@ -1729,9 +1760,8 @@ function moveUnits(state: GameState, dt: number): void {
     } else if (unit.kite && unit.x < target - 6) {
       unit.x = Math.min(target, unit.x + unit.speed * dt * 0.85)
     }
-    // Slight vertical drift so packs don't stack perfectly
-    unit.y += Math.sin(unit.x * 0.04 + unit.y) * 0.15
-    unit.y = Math.max(-80, Math.min(80, unit.y))
+    // Slight heading drift so packs don't sit on identical rays
+    unit.heading = (unit.heading ?? 0) + Math.sin(unit.x * 0.04 + (unit.heading ?? 0)) * 0.008
   }
 }
 
@@ -1939,7 +1969,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     specialistSalvageMult(state) *
     capitalSalvageMult(state) *
     fittedSalvageKillMult(state) *
-    processSalvageMult(state)
+    processSalvageMult(state) *
+    salvageKillMult(state)
   state.resources.salvage +=
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route, state) * salvageMult * rewardWeight
   rollEnemyPartDrop(state, unit, Math.random, rewardWeight)

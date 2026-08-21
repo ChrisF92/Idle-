@@ -1,9 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { CombatPushMode, GameState } from '../../game/types'
+import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
 import { computeShipStats } from '../../game/state'
-import { COMBAT_PUSH_MODES, normalizePushMode, normalizeRoute, pushModeLabel } from '../../game/sectors'
-import { wavesForRun, getEchoRun } from '../../game/echo'
-import { activeProtocol } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
 import { activeGuideStep, hasHullLostOnce, isCoresGuideTarget, isSystemUnlocked, type GuideStep } from '../../game/progression'
 import { attentionAria, coresAttention } from '../../game/hubAttention'
@@ -14,19 +11,22 @@ import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import { hasProcess } from '../../game/process'
 import {
-  canRetryFrontier,
-  combatStanceLabel,
-  isChallengeSortie,
-  isFrontierHold,
-} from '../../game/frontier'
+  effectiveUpgradeLevel,
+  runUpgradeCost,
+  visibleRunUpgrades,
+  workshopLevel,
+} from '../../game/workshop'
+import { isBossWave } from '../../game/waves'
+import { getEchoRun } from '../../game/echo'
+import { activeProtocol } from '../../game/protocols'
+import { isChallengeSortie } from '../../game/frontier'
 
 interface CombatTabProps {
   state: GameState
   onLaunch: () => void
-  onSetPushMode: (mode: CombatPushMode) => void
-  onRetryFrontier?: () => void
+  onExtract?: () => void
+  onBuyRunUpgrade?: (id: RunUpgradeId) => void
   onViewReport?: () => void
-  onDismissNotice?: () => void
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
@@ -119,79 +119,46 @@ function FragmentChip({ state, onOpen }: { state: GameState; onOpen?: () => void
   )
 }
 
-function FrontierNoticeCard({
+function RunUpgradePanel({
   state,
-  onViewReport,
-  onDismiss,
-  onViewCores,
-  onRetry,
-  lastEnemyHpPct,
+  category,
+  onBuy,
 }: {
   state: GameState
-  onViewReport?: () => void
-  onDismiss?: () => void
-  onViewCores: () => void
-  onRetry?: () => void
-  lastEnemyHpPct: number
+  category: RunUpgradeCategory
+  onBuy?: (id: RunUpgradeId) => void
 }) {
-  const notice = state.combat.frontierNotice
-  if (!notice) return null
-  const route = normalizeRoute(state.combat.frontierRoute || state.combat.route)
-  const tag = route === 'B' ? 'B' : ''
-  if (notice.kind === 'cleared') {
-    return (
-      <div className="frontier-card is-clear" role="status">
-        <span className="combat-hud-kicker">Frontier</span>
-        <strong>FRONTIER CLEARED — S{notice.sector}{tag}</strong>
-        <button type="button" onClick={onDismiss}>
-          Close
-        </button>
-      </div>
-    )
-  }
-  if (notice.first) {
-    return (
-      <div className="frontier-card is-first" role="status">
-        <span className="combat-hud-kicker">Repulsed</span>
-        <strong>You reached Sector {notice.sector}{tag}</strong>
-        <p>
-          Your ship has fallen back to Sector {notice.fallback} and will keep fighting there.
-          Improve your ship, then retry the frontier.
-        </p>
-        <p className="frontier-card-actions">
-          <button type="button" className="primary" onClick={onViewCores}>
-            View Cores
-          </button>
-          {onRetry ? (
-            <button type="button" onClick={onRetry}>
-              Retry S{notice.sector}{tag}
-            </button>
-          ) : null}
-        </p>
-      </div>
-    )
-  }
+  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
+  const rows = visibleRunUpgrades(best, category)
+  if (rows.length === 0) return <p className="muted">More upgrades open as Best Wave climbs.</p>
   return (
-    <div className="frontier-card" role="status">
-      <span className="combat-hud-kicker">Repelled at S{notice.sector}{tag}</span>
-      <strong>
-        {notice.fallback === notice.sector
-          ? `Holding Sector ${notice.fallback}`
-          : `Now farming S${notice.fallback}`}
-      </strong>
-      {lastEnemyHpPct > 0 ? (
-        <p className="muted">Last attempt: enemy HP remaining {lastEnemyHpPct}%</p>
-      ) : null}
-      <p className="frontier-card-actions">
-        {onViewReport ? (
-          <button type="button" onClick={onViewReport}>
-            View report
+    <div className="run-upgrade-list">
+      {rows.map((def) => {
+        const level = effectiveUpgradeLevel(state, def.id)
+        const start = workshopLevel(state, def.id)
+        const cost = runUpgradeCost(level)
+        const affordable = state.resources.salvage >= cost
+        return (
+          <button
+            key={def.id}
+            type="button"
+            className={affordable ? 'network-row is-affordable' : 'network-row'}
+            disabled={!onBuy || !affordable}
+            onClick={() => onBuy?.(def.id)}
+          >
+            <span>
+              <strong>{def.name}</strong>
+              <span className="muted">
+                {' '}
+                Lv {level}
+                {start > 0 ? ` (${start} Workshop)` : ''}
+              </span>
+              <p className="muted">{def.blurb}</p>
+            </span>
+            <strong>{formatCompact(cost)}</strong>
           </button>
-        ) : null}
-        <button type="button" onClick={onDismiss}>
-          Dismiss
-        </button>
-      </p>
+        )
+      })}
     </div>
   )
 }
@@ -199,10 +166,8 @@ function FrontierNoticeCard({
 export function CombatTab({
   state,
   onLaunch,
-  onSetPushMode,
-  onRetryFrontier,
-  onViewReport,
-  onDismissNotice,
+  onExtract,
+  onBuyRunUpgrade,
   onUpgrade,
   onPickMilestone,
   paused = false,
@@ -216,16 +181,16 @@ export function CombatTab({
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
-  const waves = wavesForRun(state)
   const dying = (combat.defeatLeft ?? 0) > 0
   const live = !combat.docked
   const protocol = activeProtocol(state)
   const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
-  const pushMode = normalizePushMode(combat.pushMode, combat.campaign)
   const titleId = useId()
   const forceCores = coresGuideActive(state, guide)
-  const salvageOpen = hasHullLostOnce(state)
+  const salvageOpen = live || hasHullLostOnce(state)
   const [coresOpen, setCoresOpen] = useState(false)
+  const [upgradeCat, setUpgradeCat] = useState<RunUpgradeCategory>('attack')
+  const [upgradesOpen, setUpgradesOpen] = useState(false)
   const sheetOpen = salvageOpen && (coresOpen || forceCores)
   const coresFlags = coresAttention(state)
   const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
@@ -294,9 +259,7 @@ export function CombatTab({
       }
       return
     }
-    if (combat.sector > prev.sector) {
-      setBanner({ text: `SECTOR ${prev.sector} CLEARED`, kind: 'sector' })
-    } else if (combat.isBoss && !prev.boss) {
+    if (combat.isBoss && !prev.boss) {
       setBanner({ text: 'BOSS WAVE', kind: 'boss' })
     } else if (combat.wave !== prev.wave) {
       setBanner({ text: `WAVE ${combat.wave}`, kind: 'wave' })
@@ -364,18 +327,7 @@ export function CombatTab({
     ],
   )
 
-  const stance = combatStanceLabel(state)
   const challenge = isChallengeSortie(state)
-  const frontierHold = isFrontierHold(state)
-  const retryOk = Boolean(onRetryFrontier) && canRetryFrontier(state) && !dying
-  const frontierTarget = Math.max(0, Math.floor(combat.frontierSector ?? 0))
-  const lastStats = combat.lastSortie?.stats
-  const lastEnemyHpPct =
-    lastStats && lastStats.finalEnemyHpMax > 0
-      ? Math.round((100 * lastStats.finalEnemyHp) / lastStats.finalEnemyHpMax)
-      : 0
-  const notice = combat.frontierNotice
-  const routeTag = normalizeRoute(combat.route) === 'B' ? 'B' : ''
 
   const battlefieldMode: BattlefieldMode =
     combat.inFight || dying ? 'fighting' : 'ready'
@@ -389,23 +341,9 @@ export function CombatTab({
       <header className="combat-hud-bar">
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">
-            {echoRun
-              ? echoRun.name
-              : protocol
-                ? `P${protocol.goalSector}`
-                : stance === 'frontier'
-                  ? `FRONTIER S${frontierTarget}${normalizeRoute(combat.frontierRoute) === 'B' ? 'B' : ''}`
-                  : stance === 'holding'
-                    ? 'HOLDING'
-                    : 'ADVANCING'}
+            {echoRun ? echoRun.name : protocol ? protocol.name : isBossWave(combat.wave) ? 'BOSS' : 'WAVE'}
           </span>
-          <strong className="combat-hud-value">
-            {echoRun || protocol
-              ? `W${combat.wave}/${waves}`
-              : stance === 'frontier'
-                ? `Farm S${combat.sector}${routeTag} · W${combat.wave}/${waves}`
-                : `S${combat.sector}${routeTag} · W${combat.wave}/${waves}`}
-          </strong>
+          <strong className="combat-hud-value">W{combat.wave}</strong>
         </div>
         <div
           className={`combat-hud-readout${hullBand === 'healthy' ? '' : ` is-${hullBand}`}`}
@@ -428,12 +366,10 @@ export function CombatTab({
             <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, shieldPct))})` }} />
           </span>
         </div>
-        {salvageOpen ? (
-          <div className="combat-hud-readout" data-guide="salvage-stat">
-            <span className="combat-hud-kicker">Salvage</span>
-            <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
-          </div>
-        ) : null}
+        <div className="combat-hud-readout" data-guide="salvage-stat">
+          <span className="combat-hud-kicker">Salvage</span>
+          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
+        </div>
       </header>
 
       <div className="sortie-canvas" data-guide="sortie-canvas">
@@ -451,56 +387,36 @@ export function CombatTab({
         {banner ? (
           <p className={`combat-banner is-${banner.kind}`} role="status">
             <span className="combat-banner-kicker">
-              {banner.kind === 'boss' ? 'CONTACT' : banner.kind === 'sector' ? 'CLEAR' : 'WAVE'}
+              {banner.kind === 'boss' ? 'CONTACT' : 'WAVE'}
             </span>
             <strong className="combat-banner-title">{banner.text}</strong>
           </p>
         ) : null}
         {dying ? (
           <p className="sortie-defeat-banner" role="status">
-            {challenge
-              ? 'Hull lost'
-              : `REPELLED — S${combat.sector}${normalizeRoute(combat.route) === 'B' ? 'B' : ''}`}
+            {challenge ? 'Hull lost' : `SORTIE COMPLETE — Wave ${combat.wave}`}
           </p>
-        ) : null}
-        {!dying && notice ? (
-          <FrontierNoticeCard
-            state={state}
-            onViewReport={onViewReport}
-            onDismiss={onDismissNotice}
-            onViewCores={() => {
-              setCoresOpen(true)
-              onDismissNotice?.()
-            }}
-            onRetry={retryOk ? onRetryFrontier : undefined}
-            lastEnemyHpPct={lastEnemyHpPct}
-          />
         ) : null}
       </div>
 
       <div className="sortie-actions">
         {dying ? (
           <button type="button" disabled>
-            {challenge ? 'Hull lost' : 'Repelled'}
+            Sortie ending
           </button>
         ) : live ? (
-          <div className="sheet-tabs sortie-push-tabs" data-guide="sortie-push">
-            {COMBAT_PUSH_MODES.map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                className={pushMode === mode ? 'sheet-tab active' : 'sheet-tab'}
-                onClick={() => onSetPushMode(mode)}
-              >
-                {pushModeLabel(mode)}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            data-guide="extract"
+            onClick={() => onExtract?.()}
+          >
+            Extract
+          </button>
         ) : (
           <button
             type="button"
             className="primary"
-            data-guide={retryOk || !salvageOpen ? 'launch' : 'retry-frontier'}
+            data-guide="launch"
             onClick={(e) => {
               markLocalOk(e.currentTarget)
               onLaunch()
@@ -509,39 +425,45 @@ export function CombatTab({
             Launch Sortie
           </button>
         )}
-        {retryOk ? (
+        {live ? (
           <button
             type="button"
-            className="primary frontier-retry-btn"
-            data-guide="retry-frontier"
-            onClick={(e) => {
-              markLocalOk(e.currentTarget)
-              onRetryFrontier?.()
-            }}
+            className={upgradesOpen ? 'primary' : undefined}
+            onClick={() => setUpgradesOpen((open) => !open)}
           >
-            Retry S{frontierTarget}
-            {normalizeRoute(combat.frontierRoute) === 'B' ? 'B' : ''}
+            Upgrades
           </button>
         ) : null}
-        {frontierHold && onViewReport && combat.lastSortie.outcome === 'defeat' && !notice ? (
-          <button type="button" className="sortie-report-link" onClick={onViewReport}>
-            View report
-          </button>
-        ) : null}
-        {salvageOpen ? (
-          <button
-            type="button"
-            className={sheetOpen ? 'primary sortie-cores-btn' : 'sortie-cores-btn'}
-            data-guide={sheetOpen ? undefined : 'cores-sheet'}
-            aria-expanded={sheetOpen}
-            aria-label={attentionAria('Cores', coresFlags)}
-            onClick={() => setCoresOpen((open) => !open)}
-          >
-            Cores
-            <AttentionPips spend={coresFlags.spend} fresh={coresFlags.fresh} />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className={sheetOpen ? 'primary sortie-cores-btn' : 'sortie-cores-btn'}
+          data-guide={sheetOpen ? undefined : 'cores-sheet'}
+          aria-expanded={sheetOpen}
+          aria-label={attentionAria('Cores', coresFlags)}
+          onClick={() => setCoresOpen((open) => !open)}
+        >
+          Cores
+          <AttentionPips spend={coresFlags.spend} fresh={coresFlags.fresh} />
+        </button>
       </div>
+
+      {upgradesOpen && live ? (
+        <div className="sortie-upgrade-dock">
+          <div className="sheet-tabs">
+            {(['attack', 'defense', 'economy'] as RunUpgradeCategory[]).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                className={upgradeCat === cat ? 'sheet-tab active' : 'sheet-tab'}
+                onClick={() => setUpgradeCat(cat)}
+              >
+                {cat === 'attack' ? 'Attack' : cat === 'defense' ? 'Defense' : 'Economy'}
+              </button>
+            ))}
+          </div>
+          <RunUpgradePanel state={state} category={upgradeCat} onBuy={onBuyRunUpgrade} />
+        </div>
+      ) : null}
 
       {sheetOpen ? (
         <div
@@ -561,7 +483,7 @@ export function CombatTab({
           >
             <p className="combat-hud-kicker">Cores</p>
             <h3 id={titleId}>Cores</h3>
-            <p className="sortie-sheet-kicker">Salvage ranks these Cores. They stay after hull loss.</p>
+            <p className="sortie-sheet-kicker">Salvage ranks these Cores for this Sortie only.</p>
             <CoreSheet
               state={state}
               compact

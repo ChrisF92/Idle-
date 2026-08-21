@@ -1,7 +1,7 @@
 import type { GameState } from './types'
-import { wavesForSector } from './sectors'
 import { grantEnemyKillRewards } from './combat'
 import { advanceTicks, startCombat } from './tick'
+import { isBossWave } from './waves'
 
 function wipeEnemies(state: GameState): void {
   for (const e of state.combat.enemyUnits) {
@@ -57,12 +57,18 @@ export function clearCurrentWave(state: GameState): GameState {
   return s
 }
 
-/** Clear the current sector's full gauntlet (trash + boss). */
+/** Clear through the next boss Wave (every 10th Wave). */
 export function clearSector(state: GameState): GameState {
   let s = state
-  const waves = wavesForSector(s.combat.sector)
-  for (let i = 0; i < waves; i++) {
+  let guard = 0
+  const startWave = Math.max(1, s.combat.wave || 1)
+  const goal = Math.ceil(startWave / 10) * 10
+  while ((s.combat.wave || 1) <= goal && !s.combat.docked && guard < 24) {
+    const before = s.combat.wave
     s = clearCurrentWave(s)
+    guard += 1
+    if (s.combat.docked) break
+    if (s.combat.wave === before && !isBossWave(before)) break
   }
   return s
 }

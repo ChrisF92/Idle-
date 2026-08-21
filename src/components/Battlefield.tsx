@@ -197,15 +197,15 @@ interface Scene {
   critVignette: number
 }
 
-/** Portrait logical canvas — phone-first, USI-style bottom ship / incoming waves. */
+/** Portrait logical canvas — Hive at centre, enemies from all directions. */
 const VIEW_W = 400
 const VIEW_H = 640
-/** Player flagship sits bottom-center. Enemies close in from the far side (top). */
-const PLAYER_SCREEN_X = VIEW_W / 2
-const PLAYER_SCREEN_Y = VIEW_H - 108
-const LANE_SCALE = (PLAYER_SCREEN_Y - 36) / SPAWN_DISTANCE
-/** Lateral spread from sim y (±~110). */
-const Y_SCALE = 1.2
+const HIVE_SCREEN_X = VIEW_W / 2
+/** Slightly below centre so inbound threats have more space above. */
+const HIVE_SCREEN_Y = VIEW_H * 0.58
+const RADIAL_SCALE = (Math.min(HIVE_SCREEN_X, HIVE_SCREEN_Y) - 36) / SPAWN_DISTANCE
+const PLAYER_SCREEN_X = HIVE_SCREEN_X
+const PLAYER_SCREEN_Y = HIVE_SCREEN_Y
 
 function tagColor(tag: string): string {
   switch (tag) {
@@ -425,11 +425,35 @@ function shotStyle(p: VisualShot): ShotStyle {
   }
 }
 
-function lanePointToScreen(x: number, y: number): { x: number; y: number } {
+function radialToScreen(range: number, heading = 0): { x: number; y: number } {
+  const dist = Math.max(0, range) * RADIAL_SCALE
   return {
-    x: PLAYER_SCREEN_X + y * Y_SCALE,
-    y: PLAYER_SCREEN_Y - Math.max(0, x) * LANE_SCALE,
+    x: HIVE_SCREEN_X + Math.sin(heading) * dist,
+    y: HIVE_SCREEN_Y - Math.cos(heading) * dist,
   }
+}
+
+function lanePointToScreen(x: number, y: number, heading = 0): { x: number; y: number } {
+  if (heading || Math.abs(y) < 1) return radialToScreen(x, heading)
+  return radialToScreen(x, Math.atan2(y, Math.max(1, x)))
+}
+
+function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
+  const r = unitRadius(unit)
+  if (unit.side === 'player' && unit.isFlagship) {
+    return { x: HIVE_SCREEN_X, y: HIVE_SCREEN_Y, r }
+  }
+  if (unit.side === 'player' && !unit.isFlagship) {
+    const orbit = 26 + r
+    const heading = unit.heading ?? 0
+    return {
+      x: HIVE_SCREEN_X + Math.sin(heading) * orbit,
+      y: HIVE_SCREEN_Y - Math.cos(heading) * orbit,
+      r,
+    }
+  }
+  const pos = radialToScreen(unit.x, unit.heading ?? 0)
+  return { ...pos, r }
 }
 
 function sideFill(side: 'player' | 'enemy', boss: boolean): string {
@@ -439,18 +463,6 @@ function sideFill(side: 'player' | 'enemy', boss: boolean): string {
 
 function primaryWeaponTag(weapons: WeaponInstance[]): string {
   return weapons[0]?.tags[0] ?? 'kinetic'
-}
-
-function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
-  const r = unitRadius(unit)
-  if (unit.side === 'player' && unit.isFlagship) {
-    return { x: PLAYER_SCREEN_X, y: PLAYER_SCREEN_Y, r }
-  }
-  return {
-    x: PLAYER_SCREEN_X + unit.y * Y_SCALE,
-    y: PLAYER_SCREEN_Y - Math.max(0, unit.x) * LANE_SCALE,
-    r,
-  }
 }
 
 /** Skirmishers are tiny; juggernauts and bosses fill the lane. */

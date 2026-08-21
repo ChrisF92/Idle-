@@ -1,8 +1,8 @@
 # Hiveworks
 
-Orbital foundry idle: player-launched sorties, USI-style ship + Cores, sectors as short wave gauntlets. Combat sim keeps running after Launch while you browse the Dock. See [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md).
+Portrait auto-combat incremental. Every Sortie starts at Wave 1, death or Extraction ends the run, and the Hive fights from the centre of the arena. See [`Hiveworks_Game_Design_Document_v1.0.md`](Hiveworks_Game_Design_Document_v1.0.md).
 
-Working package name was `cosmic-idle`; the PWA title is **Hiveworks**. Save key stays `cosmic-idle-save` so existing careers are not wiped.
+Working package name was `cosmic-idle`; the PWA title is **Hiveworks**. Save version bumps wipe old careers (pre-release, no migration).
 
 ## Stack
 

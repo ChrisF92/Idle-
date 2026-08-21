@@ -1,7 +1,6 @@
 /** Dock run summary — snapshot at Launch, close on Extract / Defeat. */
 
 import type { GameState, HiveResearchBranch, SortieMark, SortieSummary } from './types'
-import { ensureStarterCoresTourSalvage } from './catalog'
 import { retireLiveSortieGuides } from './progression'
 import { emptySortieRunStats, snapshotSortieEncounter } from './sortieTelemetry'
 import { recordPlaytest } from './playtest'
@@ -17,6 +16,8 @@ export function emptyLastSortie(sector = 1, wave = 1): SortieSummary {
     sectorsCleared: 0,
     salvageGained: 0,
     salvageSpent: 0,
+    scrapEarned: 0,
+    newBest: false,
     milestones: 0,
     researchXp: 0,
     networkLevels: 0,
@@ -54,6 +55,7 @@ export function captureSortieMark(state: GameState): SortieMark {
   return {
     salvage: state.resources.salvage ?? 0,
     salvageSpent: 0,
+    scrap: state.resources.scrap ?? 0,
     sectorsCleared: 0,
     corePicks: countCorePicks(state),
     researchXp: researchBanked(state),
@@ -77,28 +79,32 @@ export function closeSortie(
   outcome: 'extract' | 'defeat',
   note: string,
   at?: { sector: number; wave: number },
-  opts?: { keepMark?: boolean },
+  opts?: { keepMark?: boolean; scrapEarned?: number; newBest?: boolean },
 ): void {
   const mark = state.combat.sortieMark
   const spent = mark?.salvageSpent ?? 0
+  const wave = at?.wave ?? state.combat.wave
   if (outcome === 'defeat') {
     state.meta.hullLostOnce = true
     retireLiveSortieGuides(state)
-    const topped = ensureStarterCoresTourSalvage(state)
-    state.resources.salvage = topped.resources.salvage
     recordPlaytest(state, 'first_defeat', { firstKey: 'defeat' })
   }
   snapshotSortieEncounter(state)
   const salvageNow = state.resources.salvage ?? 0
   const gained = mark ? Math.max(0, salvageNow + spent - mark.salvage) : 0
+  const scrapEarned =
+    opts?.scrapEarned ??
+    Math.max(0, (state.resources.scrap ?? 0) - (mark?.scrap ?? state.resources.scrap ?? 0))
   state.combat.lastSortie = {
     outcome,
     sector: at?.sector ?? state.combat.sector,
-    wave: at?.wave ?? state.combat.wave,
+    wave,
     note,
     sectorsCleared: mark?.sectorsCleared ?? 0,
     salvageGained: Math.floor(gained),
     salvageSpent: Math.floor(spent),
+    scrapEarned: Math.floor(scrapEarned),
+    newBest: Boolean(opts?.newBest),
     milestones: Math.max(0, countCorePicks(state) - (mark?.corePicks ?? 0)),
     researchXp: Math.max(0, Math.floor(researchBanked(state) - (mark?.researchXp ?? 0))),
     networkLevels: Math.max(0, networkLevelsSum(state) - (mark?.networkLevels ?? 0)),

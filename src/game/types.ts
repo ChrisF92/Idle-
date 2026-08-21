@@ -163,6 +163,7 @@ export interface SortieRunStats {
 export interface SortieMark {
   salvage: number
   salvageSpent: number
+  scrap: number
   sectorsCleared: number
   corePicks: number
   researchXp: number
@@ -178,6 +179,8 @@ export interface SortieSummary {
   sectorsCleared: number
   salvageGained: number
   salvageSpent: number
+  scrapEarned: number
+  newBest: boolean
   milestones: number
   researchXp: number
   networkLevels: number
@@ -698,12 +701,14 @@ export interface CombatUnit {
   /** USI-style class. Optional on player units and old saves. */
   role?: EnemyRole
   /**
-   * Lane distance from the player flagship (0 = at player).
-   * Enemies spawn far and close in; player flagship stays at 0.
+   * Radial distance from the Hive (0 = at the Hive).
+   * Enemies spawn far and close in; the Hive stays at 0.
    */
   x: number
-  /** Vertical offset from centerline (player flagship at 0). */
+  /** Legacy lateral offset. Radial combat uses `heading` instead. */
   y: number
+  /** Approach angle in radians. 0 is screen-up. */
+  heading?: number
   /** Units of lane distance moved per second. */
   speed: number
   /** Preferred firing distance (enemies close to this, some kite). */
@@ -781,12 +786,32 @@ export interface CombatBeam {
   attackerRole?: EnemyRole
 }
 
+export type RunUpgradeCategory = 'attack' | 'defense' | 'economy'
+
+export type RunUpgradeId =
+  | 'weapon-power'
+  | 'cycle-rate'
+  | 'hull'
+  | 'shield'
+  | 'salvage-kill'
+  | 'salvage-wave'
+
+/** Rebuild-cycle starting power. Survives Sorties; resets on Rebuild. */
+export interface WorkshopState {
+  levels: Record<string, number>
+  coreStarts: Record<string, number>
+}
+
 export interface CombatState {
   sector: number
-  /** Highest sector cleared at least once this prestige (warp destinations: 1..highestSector). */
+  /** Highest 10-wave band cleared this prestige (W10 → 1). Kept so existing gates still read. */
   highestSector: number
-  /** Current wave within the sector (1..WAVES_PER_SECTOR). */
+  /** Current Sortie Wave. Every Launch starts at 1. */
   wave: number
+  /** Career best Wave this prestige. */
+  bestWave: number
+  /** Temporary Attack/Defense/Economy ranks bought with Salvage this Sortie. */
+  runUpgrades: Record<string, number>
   inFight: boolean
   /**
    * Player pause for Shipyard refit / repair. Auto-engage stops until Resume.
@@ -891,8 +916,10 @@ export type LaborProfile = 'balanced' | 'scrap' | 'data' | 'foundry-safe'
 
 /** Career / meta progress that survives prestige. */
 export interface MetaState {
-  /** Max sector ever cleared across the career. */
+  /** Max 10-wave band ever cleared across the career. */
   highestSectorEver: number
+  /** Highest Wave reached on any Sortie this career. */
+  bestWave: number
   /** Soft Act 1 climax reached (sector 30). */
   act1Cleared: boolean
   /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
@@ -992,6 +1019,7 @@ export interface GameState {
   resources: Resources
   shipyard: ShipLoadout
   combat: CombatState
+  workshop: WorkshopState
   base: BaseState
   /** Drone Network bars (Strike / Ward / …). Wiped on Rebuild. */
   network: NetworkState

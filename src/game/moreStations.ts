@@ -11,18 +11,11 @@ export interface MoreStationDef {
 }
 
 export const MORE_STATIONS: MoreStationDef[] = [
-  { id: 'reliquary', name: 'Reliquary', blurb: 'Permanent shard loadout. Decision: which bonuses deserve your colour slots?' },
   { id: 'furnace', name: 'Furnace', blurb: 'Turn Choir-ash into Heat. Decision: which temporary channels stay lit?' },
   { id: 'research', name: 'Research', blurb: 'Long-term branches. Decision: which field gets the focus bonus?' },
   { id: 'codex', name: 'Codex', blurb: 'Optional enemy-family and hull-role reference.' },
-  { id: 'yard', name: 'Yard Grid', blurb: 'Post-Rebuild industry. Build now; arms come online on the next Rebuild.' },
-  { id: 'slag', name: 'Slag Bank', blurb: 'Spend Rebuild Matter on large permanent, compounding growth.' },
   { id: 'process', name: 'Process', blurb: 'Automation as relief: automate loops only after you have learned them manually.' },
-  { id: 'protocols', name: 'Protocols', blurb: 'Mute one system on purpose to earn specialised permanent scaling.' },
-  { id: 'echo', name: 'Echo Runs', blurb: 'Short combat tests with persistent rewards after you prove a Protocol.' },
-  { id: 'specialists', name: 'Specialists', blurb: 'Commit ranks to distinct permanent combat/economy roles.' },
-  { id: 'tasks', name: 'Task List', blurb: 'Late mastery objectives that prove the earlier systems are understood.' },
-  { id: 'capital', name: 'Capital', blurb: 'Late-run Broadside, Bulkhead, and Hold investment.' },
+  { id: 'protocols', name: 'Challenges', blurb: 'Restricted sorties that test a modified ruleset.' },
   { id: 'reinforce', name: 'Reinforce', blurb: 'Higher-order reset after the Rebuild layer is mature.' },
 ]
 

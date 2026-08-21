@@ -8,7 +8,6 @@ import {
   isHubTabOpen,
 } from './game/progression'
 import { contentKeys } from './game/hubAttention'
-import { wavesForSector } from './game/sectors'
 import { setActiveNumberNotation } from './game/format'
 import {
   captureToastSnapshot,
@@ -76,7 +75,6 @@ export default function App() {
   const [heldGuideId, setHeldGuideId] = useState<string | null>(null)
   const dying = (game.state.combat.defeatLeft ?? 0) > 0
   const live = !game.state.combat.docked || dying
-  const waves = wavesForSector(game.state.combat.sector)
   const offlineOpen = Boolean(game.offlineReport)
   const guide =
     dying || reportOpen || hangarOpen || blockingModal || offlineOpen
@@ -243,7 +241,7 @@ export default function App() {
         {live ? (
           <button type="button" className="combat-chip" onClick={() => go('combat')}>
             <span className="live-pip" aria-hidden />
-            Live {game.state.combat.wave}/{waves}
+            Live W{game.state.combat.wave}
           </button>
         ) : null}
       </header>
@@ -259,8 +257,7 @@ export default function App() {
             }}
             onOpenSortie={() => go('combat')}
             onRebuild={() => setHangarOpen(true)}
-            onSetSector={game.setLaunchSector}
-            onSetRoute={game.setSectorRoute}
+            onBuyWorkshop={game.buyWorkshopUpgrade}
           />
         )}
         {tab === 'combat' && (
@@ -269,10 +266,9 @@ export default function App() {
             onLaunch={() => {
               game.setDocked(false)
             }}
-            onSetPushMode={game.setPushMode}
-            onRetryFrontier={game.retryFrontier}
+            onExtract={() => game.setDocked(true)}
+            onBuyRunUpgrade={game.buyRunUpgrade}
             onViewReport={() => setReportOpen(true)}
-            onDismissNotice={game.dismissFrontierNotice}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
             onMarkCoresSeen={() => game.markHubSeen('cores')}

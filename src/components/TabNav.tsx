@@ -5,10 +5,9 @@ import { attentionAria, tabAttention } from '../game/hubAttention'
 import { AttentionPips } from './AttentionPips'
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: 'dock', label: 'Dock', icon: '⌂' },
   { id: 'combat', label: 'Sortie', icon: '▲' },
-  { id: 'network', label: 'Network', icon: '◈' },
-  { id: 'foundry', label: 'Foundry', icon: '▣' },
+  { id: 'dock', label: 'Dock', icon: '⌂' },
+  { id: 'foundry', label: 'Systems', icon: '▣' },
   { id: 'stats', label: 'More', icon: '☰' },
 ]
 
@@ -39,7 +38,7 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
     <nav className="bottom-nav" aria-label="Game systems">
       {TABS.map((tab) => {
         const unlocked = isHubTabOpen(state, tab.id)
-        if ((tab.id === 'foundry' || tab.id === 'network' || tab.id === 'stats' || tab.id === 'dock') && !unlocked) {
+        if ((tab.id === 'foundry' || tab.id === 'stats' || tab.id === 'dock') && !unlocked) {
           return null
         }
         const isActive = tab.id === 'stats' ? moreActive : active === tab.id

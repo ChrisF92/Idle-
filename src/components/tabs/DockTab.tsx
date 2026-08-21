@@ -1,26 +1,21 @@
-import type { GameState } from '../../game/types'
+import type { GameState, RunUpgradeId } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { canPrestige } from '../../game/actions'
 import { prestigeMinSectorFor } from '../../game/catalog'
 import { formatCompact } from '../../game/format'
-import { careerHighestSector } from '../../game/progression'
-import {
-  isRouteBUnlocked,
-  maxLaunchSector,
-  normalizeRoute,
-  wavesForSector,
-} from '../../game/sectors'
-import { getEchoRun } from '../../game/echo'
-import { activeProtocol } from '../../game/protocols'
 import { markLocalOk } from '../../hooks/useJustBecame'
+import {
+  RUN_UPGRADES,
+  workshopCost,
+  workshopLevel,
+} from '../../game/workshop'
 
 interface DockTabProps {
   state: GameState
   onLaunch: () => void
   onOpenSortie: () => void
   onRebuild: () => void
-  onSetSector?: (sector: number) => void
-  onSetRoute?: (route: 'A' | 'B') => void
+  onBuyWorkshop?: (id: RunUpgradeId) => void
 }
 
 function meterScale(current: number, max: number): number {
@@ -33,44 +28,34 @@ export function DockTab({
   onLaunch,
   onOpenSortie,
   onRebuild,
-  onSetSector,
-  onSetRoute,
+  onBuyWorkshop,
 }: DockTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
   const live = !combat.docked
-  const waves = wavesForSector(combat.sector)
   const summary = combat.lastSortie
   const rebuildReady = canPrestige(state)
   const rebuildMin = prestigeMinSectorFor(state.prestige.shop)
-  const cleared = careerHighestSector(state)
-  const maxStart = maxLaunchSector(cleared)
-  const routeB = isRouteBUnlocked(cleared)
-  const route = normalizeRoute(combat.route)
-  const protocol = activeProtocol(state)
-  const echoRun = state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
-  const specialRun = Boolean(protocol || echoRun)
   const dockMode = live ? 'is-live' : rebuildReady ? 'is-rebuild' : 'is-ready'
   const hullPct = meterScale(combat.playerHull, stats.hullMax)
   const shieldPct = meterScale(combat.playerShield, stats.shieldMax)
+  const showWorkshop = Boolean(state.meta.hullLostOnce) && !live
+  const bestWave = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
 
   return (
     <section className={`panel screen-panel dock-screen ${dockMode}`}>
       <div className="panel-scroll">
       <header className="dock-hero">
-        <p className="hud-chip-label">
-          Sector {combat.sector}
-          {routeB ? (combat.route === 'B' ? 'B' : 'A') : ''}
-        </p>
+        <p className="hud-chip-label">Best Wave {bestWave || '—'}</p>
         <h2>Dock</h2>
         <p className="muted">
           {live
-            ? 'Sortie live. Hold or Advance from the battlefield.'
+            ? 'Sortie live. Combat continues while you are here.'
             : rebuildReady
               ? 'Hull is docked. Rebuild hangar is ready.'
               : !summary.outcome
-                ? 'Your Scout is ready. Launch a sortie and see how far it gets.'
-                : 'Spend Salvage on Cores, then return to the sortie.'}
+                ? 'Your Hive is ready. Launch a Sortie — every run starts at Wave 1.'
+                : 'Spend Scrap in Workshop, then launch another Sortie from Wave 1.'}
         </p>
       </header>
 
@@ -102,7 +87,7 @@ export function DockTab({
       {live ? (
         <button type="button" className="primary dock-cta" onClick={onOpenSortie}>
           <span className="live-pip" aria-hidden />
-          Battlefield · S{combat.sector} W{combat.wave}/{waves}
+          Battlefield · W{combat.wave}
         </button>
       ) : (
         <button
@@ -114,48 +99,9 @@ export function DockTab({
             onLaunch()
           }}
         >
-          {echoRun ? `Launch ${echoRun.name}` : protocol ? `Launch ${protocol.name}` : 'Launch Sortie'}
+          Launch Sortie
         </button>
       )}
-
-      {!live && onSetSector && maxStart > 1 && !specialRun ? (
-        <p className="assign-row dock-launch-row">
-          <button
-            type="button"
-            disabled={combat.sector <= 1}
-            onClick={() => onSetSector(combat.sector - 1)}
-          >
-            −
-          </button>
-          <span className="muted">Start S{combat.sector}</span>
-          <button
-            type="button"
-            disabled={combat.sector >= maxStart}
-            onClick={() => onSetSector(combat.sector + 1)}
-          >
-            +
-          </button>
-        </p>
-      ) : null}
-
-      {!live && onSetRoute && routeB && !specialRun ? (
-        <div className="sheet-tabs notation-tabs">
-          <button
-            type="button"
-            className={route !== 'B' ? 'sheet-tab active' : 'sheet-tab'}
-            onClick={() => onSetRoute('A')}
-          >
-            Route A
-          </button>
-          <button
-            type="button"
-            className={route === 'B' ? 'sheet-tab active' : 'sheet-tab'}
-            onClick={() => onSetRoute('B')}
-          >
-            Route B
-          </button>
-        </div>
-      ) : null}
 
       <button
         type="button"
@@ -170,42 +116,54 @@ export function DockTab({
         {rebuildReady ? 'Rebuild hangar' : `Rebuild · sector ${rebuildMin}`}
       </button>
 
+      {showWorkshop ? (
+        <div className="dock-workshop" data-guide="workshop">
+          <p className="combat-hud-kicker">Workshop</p>
+          <h3>Starting power</h3>
+          <p className="muted">Scrap survives Sorties. These levels reset on Rebuild.</p>
+          {RUN_UPGRADES.filter((def) => bestWave >= def.minBestWave || def.minBestWave === 0).map(
+            (def) => {
+              const level = workshopLevel(state, def.id)
+              const cost = workshopCost(level)
+              const affordable = state.resources.scrap >= cost
+              return (
+                <button
+                  key={def.id}
+                  type="button"
+                  className={affordable ? 'network-row is-affordable' : 'network-row'}
+                  disabled={!onBuyWorkshop || !affordable}
+                  onClick={() => onBuyWorkshop?.(def.id)}
+                >
+                  <span>
+                    <strong>{def.name}</strong>
+                    <span className="muted"> Lv {level} → {level + 1}</span>
+                  </span>
+                  <strong>{formatCompact(cost)} Scrap</strong>
+                </button>
+              )
+            },
+          )}
+        </div>
+      ) : null}
+
       {summary.outcome ? (
         <div className="dock-summary">
           <p className="dock-summary-title">
-            {summary.outcome === 'defeat'
-              ? /Protocol|Echo/.test(summary.note ?? '')
-                ? 'Defeat'
-                : 'Repelled'
-              : 'Run'}{' '}
-            · S{summary.sector} W{summary.wave}
+            SORTIE COMPLETE · Wave {summary.wave}
+            {summary.newBest ? ' · New Best' : ''}
           </p>
           <div className="stat-row dock-stats">
             <div>
-              <span className="muted">Sectors</span>
-              <strong>{summary.sectorsCleared}</strong>
+              <span className="muted">Scrap</span>
+              <strong>+{formatCompact(summary.scrapEarned)}</strong>
             </div>
             <div>
               <span className="muted">Salvage</span>
               <strong>+{formatCompact(summary.salvageGained)}</strong>
             </div>
             <div>
-              <span className="muted">Spent</span>
-              <strong>{formatCompact(summary.salvageSpent)}</strong>
-            </div>
-          </div>
-          <div className="stat-row dock-stats">
-            <div>
-              <span className="muted">Milestones</span>
-              <strong>{summary.milestones}</strong>
-            </div>
-            <div>
-              <span className="muted">Research</span>
-              <strong>+{formatCompact(summary.researchXp)}</strong>
-            </div>
-            <div>
-              <span className="muted">Network</span>
-              <strong>+{summary.networkLevels}</strong>
+              <span className="muted">Kills</span>
+              <strong>{formatCompact(summary.stats.kills)}</strong>
             </div>
           </div>
           {summary.note ? <p className="muted dock-last">{summary.note}</p> : null}

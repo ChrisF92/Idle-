@@ -63,8 +63,15 @@ import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult 
 import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { createEmptyPlaytest } from './playtest'
+import {
+  createEmptyWorkshop,
+  cycleRateMult,
+  runHullMult,
+  runShieldMult,
+  weaponPowerMult,
+} from './workshop'
 
-export const SAVE_VERSION = 33
+export const SAVE_VERSION = 34
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -117,6 +124,8 @@ export function createInitialState(now = Date.now()): GameState {
       pushMode: 'advance',
       campaign: true,
       route: 'A',
+      bestWave: 0,
+      runUpgrades: {},
       consecutiveLosses: 0,
       bossPhase: 0,
       fightElapsed: 0,
@@ -147,6 +156,7 @@ export function createInitialState(now = Date.now()): GameState {
       frontierAttemptOpen: false,
       frontierNotice: null,
     },
+    workshop: createEmptyWorkshop(),
     base: {
       workerDrones: NETWORK_STARTING_DRONES,
       assignments: {},
@@ -185,6 +195,7 @@ export function createInitialState(now = Date.now()): GameState {
     },
     meta: {
       highestSectorEver: 0,
+      bestWave: 0,
       act1Cleared: false,
       ascensionCount: 0,
       seenOnboarding: [],
@@ -265,8 +276,8 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
     weapons.push({
       id: 'frame-battery',
       name: 'Frame Battery',
-      damage: batteryDamage * mult,
-      cooldown: 1,
+      damage: batteryDamage * mult * weaponPowerMult(state),
+      cooldown: 1 / cycleRateMult(state),
       cooldownLeft: 0,
       // Must reach early kite packs (Ethereal ~110, Divine core ~105).
       range: capRange(120),
@@ -297,8 +308,8 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
     const built: WeaponInstance = {
       id: `${moduleId}-wpn`,
       name: mod.weapon.name,
-      damage: moduleWeaponDamage(mod, level, mastery) * mult,
-      cooldown: mod.weapon.cooldown,
+      damage: moduleWeaponDamage(mod, level, mastery) * mult * weaponPowerMult(state),
+      cooldown: mod.weapon.cooldown / cycleRateMult(state),
       cooldownLeft: 0,
       range: capRange(mod.weapon.range),
       tags: [...mod.weapon.tags],
@@ -390,6 +401,9 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= processShieldMult(state)
 
   if (protocolMutes(state, 'shields')) shieldMax = 0
+
+  hullMax *= runHullMult(state)
+  shieldMax *= runShieldMult(state)
 
   evasion = Math.min(0.45, evasion)
 

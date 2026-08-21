@@ -44,6 +44,7 @@ import { createEmptyProcessState, finalizeProcessMigration, hydrateProcessState 
 import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
+import { createEmptyWorkshop } from './workshop'
 import { normalizePushMode, normalizeRoute } from './sectors'
 import { migrateOnboardingState } from './playerGuidance'
 import { hydratePlaytest, noteSessionStart } from './playtest'
@@ -74,6 +75,8 @@ function withLastSortieDefaults(
     sectorsCleared: Math.max(0, Math.floor(Number(raw.sectorsCleared ?? 0) || 0)),
     salvageGained: Math.max(0, Math.floor(Number(raw.salvageGained ?? 0) || 0)),
     salvageSpent: Math.max(0, Math.floor(Number(raw.salvageSpent ?? 0) || 0)),
+    scrapEarned: Math.max(0, Math.floor(Number(raw.scrapEarned ?? 0) || 0)),
+    newBest: Boolean(raw.newBest),
     milestones: Math.max(0, Math.floor(Number(raw.milestones ?? 0) || 0)),
     researchXp: Math.max(0, Math.floor(Number(raw.researchXp ?? 0) || 0)),
     networkLevels: Math.max(0, Math.floor(Number(raw.networkLevels ?? 0) || 0)),
@@ -109,6 +112,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     enemyTags: combat.enemyTags ?? [],
     isBoss: combat.isBoss ?? false,
     highestSector: Math.max(0, combat.highestSector ?? 0),
+    bestWave: Math.max(0, Math.floor(Number(combat.bestWave ?? 0) || 0)),
+    runUpgrades: { ...(combat.runUpgrades ?? {}) },
     wave: Math.max(1, combat.wave ?? 1),
     campaign: normalizePushMode(combat.pushMode, combat.campaign ?? true) === 'advance',
     pushMode: normalizePushMode(combat.pushMode, combat.campaign ?? true),
@@ -134,6 +139,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       ? {
           salvage: Math.max(0, Number(combat.sortieMark.salvage ?? 0) || 0),
           salvageSpent: Math.max(0, Number(combat.sortieMark.salvageSpent ?? 0) || 0),
+          scrap: Math.max(0, Number(combat.sortieMark.scrap ?? 0) || 0),
           sectorsCleared: Math.max(0, Math.floor(Number(combat.sortieMark.sectorsCleared ?? 0) || 0)),
           corePicks: Math.max(0, Math.floor(Number(combat.sortieMark.corePicks ?? 0) || 0)),
           researchXp: Math.max(0, Number(combat.sortieMark.researchXp ?? 0) || 0),
@@ -509,6 +515,7 @@ function withMetaDefaults(
 
   return {
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
+    bestWave: Math.max(0, Math.floor(Number(meta?.bestWave ?? 0) || 0)),
     act1Cleared: meta?.act1Cleared ?? false,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
@@ -649,6 +656,7 @@ function migrate(raw: unknown): GameState | null {
       ...state,
       resources: withResourcesDefaults(state.resources, base.resources),
       combat,
+      workshop: state.workshop ?? createEmptyWorkshop(),
       shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
       base: migrateBase(state.base, base.base),
       network: withNetworkDefaults(state.network),
