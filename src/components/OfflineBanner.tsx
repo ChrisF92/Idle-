@@ -47,9 +47,7 @@ export function OfflineBanner({ report, onDismiss }: OfflineBannerProps) {
             Away {formatDuration(report.elapsedMs)}
             {report.capped ? ` · applied ${formatDuration(report.appliedMs)} (cap)` : ''}
             {' · '}
-            {report.modeLabel} · sector {report.sectorsAfter}
-            {report.sectorsCleared > 0 ? ` · +${report.sectorsCleared} sectors` : ''}
-            {' · no fight sim'}
+            {report.modeLabel} · Wave {report.wave}
           </p>
           {gainLines.length > 0 ? (
             <ul className="offline-gains">

@@ -141,7 +141,13 @@ describe('advanceTicks / combat', () => {
 
 describe('offline catch-up', () => {
   it('applies industry gains after a long absence', () => {
-    const state = createInitialState(0)
+    let state = createInitialState(0)
+    state.meta.bestWave = 30
+    state.combat.bestWave = 30
+    state.meta.highestSectorEver = 3
+    state.base.workerDrones = 2
+    state = assignWorker(state, 'scrap-field', 2)
+    state.combat.docked = true
     const { state: next, report } = applyOfflineCatchUp(state, 5 * 60 * 1000)
     expect(next.resources.scrap).toBeGreaterThan(state.resources.scrap)
     expect(report).not.toBeNull()
@@ -149,15 +155,15 @@ describe('offline catch-up', () => {
     expect(next.lastTickAt).toBe(5 * 60 * 1000)
   })
 
-  it('grants sector-scaled offline rewards without advancing sectors', () => {
+  it('does not advance Waves or sectors while away', () => {
     const state = createInitialState(0)
     state.combat.sector = 6
+    state.combat.wave = 14
     state.combat.campaign = true
     const { state: next, report } = applyOfflineCatchUp(state, 3 * 60 * 1000)
     expect(next.combat.sector).toBe(6)
+    expect(next.combat.wave).toBe(14)
     expect(report?.sectorsCleared ?? 0).toBe(0)
-    expect(next.resources.scrap).toBeGreaterThan(state.resources.scrap)
-    // AI Points are not granted offline from combat fantasy anymore
     expect(next.resources.aiPoints).toBe(state.resources.aiPoints)
   })
 

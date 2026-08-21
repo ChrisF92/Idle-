@@ -35,6 +35,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Launch a Sortie from here. Every run starts at Wave 1. Death or Extract returns you to Dock.',
+      'Close the game at Dock and the Hive keeps processing. Close during a Sortie and that run freezes until you return.',
       'Rebuild at Wave 70 trades this cycle’s Workshop and Scrap for permanent Matter. The hangar lists RESET, KEEP, and GAIN. Do not confirm until you mean it.',
     ],
   },
@@ -43,6 +44,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Weapons fire automatically. Waves come from all directions. The header shows Wave, hull, and shield.',
       'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage ranks Pulse and Plate for this run only.',
+      'If you close mid-Sortie, combat freezes. Foundry, fabrication, and Worker jobs keep running.',
       'Worker Drones unlock at Wave 30 and are assigned under More → Workers. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
     ],
   },
@@ -59,7 +61,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Purpose: turn combat income into crafted progression and new Cores. Main decision: what you are making next.',
       'Prints: track one Core. Fragments drop from matching enemy families as you push Waves.',
-      'Foundry Points buy extra smelters. Construction opens at Wave 90 inside this screen — not a separate Yard. Recipe progress persists on Rebuild. Fitted bits unequip.',
+      'Foundry Points buy extra smelters. Construction opens at Wave 90 inside this screen — not a separate Yard. Recipe progress persists on Rebuild and while you are away. Fitted bits unequip.',
     ],
   },
   reliquary: {

@@ -482,7 +482,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Ghost Sortie',
     category: 'sortie',
     kind: 'automation',
-    blurb: 'While launched, offline time pushes sectors (no fight sim).',
+    blurb: 'Later progression. Act 1 Sorties freeze while you are away; Hive industry still runs.',
     cost: 14,
     requiresId: 'auto-extract',
     requiresSectorEver: 4,

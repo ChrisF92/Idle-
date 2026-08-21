@@ -298,7 +298,7 @@ export interface PlaytestState {
   frontierCombatMs: number
   /** Career time spent farming a fallback sector after being repelled. */
   retreatFarmMs: number
-  /** Offline catch-up while undocked (no fight sim). */
+  /** Offline catch-up while a Sortie was frozen (combat did not run). */
   offlineCombatMs: number
   /** Offline catch-up while Frontier Hold was active. */
   offlineRetreatFarmMs: number

@@ -279,7 +279,9 @@ describe('shell UX', () => {
           sectorsBefore: 7,
           sectorsAfter: 7,
           sectorsCleared: 0,
+          wave: 7,
           modeLabel: 'Paused',
+          sortieFrozen: false,
           gains: { scrap: 672.88, heat: 6.76 },
           summary: 'Away 5m',
         }}

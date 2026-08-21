@@ -9,18 +9,14 @@ import {
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
   advanceFabProject,
-  aiDoctrinesActive,
   aiFabBonus,
   aiProductionBonus,
   challengeShopOfflineMs,
   droneCap,
-  essenceOfflineEssenceMultiplier,
   essenceProductionMultiplier,
   isStationUnlocked,
-  matterShopScrapBonus,
   metaProductionMultiplier,
   prestigeMomentumProductionBonus,
-  researchEssenceMultiplier,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
@@ -31,7 +27,6 @@ import {
   tickCoreTraining,
 } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
-import { isSystemUnlocked, maybeGrantSystemUnlocks } from './progression'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { networkManufactureMult, tickNetwork } from './network'
 import { tickFoundry } from './foundry'
@@ -39,8 +34,8 @@ import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult } from './hiveResearch'
-import { hasProcess, processIndustrySpeedMult, processOfflineBonusMs } from './process'
-import { addOfflineCombatMs, isFrontierHold } from './frontier'
+import { processIndustrySpeedMult, processOfflineBonusMs } from './process'
+
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
 
@@ -54,8 +49,10 @@ export interface OfflineReport {
   sectorsBefore: number
   sectorsAfter: number
   sectorsCleared: number
-  /** Advance / Hold / Paused label for the welcome modal. */
+  wave: number
+  /** Docked vs frozen Sortie label for the welcome modal. */
   modeLabel: string
+  sortieFrozen: boolean
   gains: Partial<Resources>
   summary: string
 }
@@ -162,81 +159,26 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
   tickCoreTraining(state, seconds)
 }
 
-/**
- * Sector-based offline combat payout (no fight simulation).
- * Scales with the sector you left on and offline duration.
- */
-function applySectorOfflineRewards(state: GameState, seconds: number): void {
-  const sector = Math.max(1, state.combat.sector)
-  const hours = seconds / 3600
-  const scrapPerHour =
-    (8 + sector * 3) *
-    (1 + matterShopScrapBonus(state.prestige.matterShop)) *
-    (1 + computeSignalCoreBonuses(state).scrap)
-  const dataPerHour =
-    state.prestige.activeChallengeId === 'data-drought' ||
-    !isSystemUnlocked(state, 'research')
-      ? 0
-      : 1.5 + sector * 0.35
-  const essencePerHour =
-    sector >= 5
-      ? (0.05 + Math.floor(sector / 5) * 0.04) *
-        researchEssenceMultiplier(state.research.unlocked) *
-        essenceOfflineEssenceMultiplier(state.essence.purchased)
-      : 0
-
-  const scrapMult = state.combat.campaign ? 1 : 1.25
-  const pushMult = state.combat.campaign ? 1.15 : 0.85
-
-  state.resources.scrap += scrapPerHour * hours * scrapMult
-  state.resources.data += dataPerHour * hours * pushMult
-  state.resources.essence += essencePerHour * hours
-}
-
-/** Offline does not simulate combat — clear an in-progress fight; apply field / pause repair. */
-function endOfflineFight(state: GameState, seconds: number): void {
+/** Hangar repair while Docked. A live Sortie is frozen, so hull does not move. */
+function applyHangarRepair(state: GameState, seconds: number): void {
+  if (!state.combat.docked) return
+  if (state.prestige.activeChallengeId === 'attrition') return
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerShieldMax = stats.shieldMax
-  if (state.combat.inFight) {
-    state.combat.inFight = false
-    state.combat.playerUnits = []
-    state.combat.enemyUnits = []
-    state.combat.enemyHull = 0
-    state.combat.enemyHullMax = 0
-    state.combat.projectiles = []
-    state.combat.beams = []
-    state.combat.fx = []
-    state.combat.enemyName = 'None'
-  }
-  if (state.prestige.activeChallengeId === 'attrition') return
-
-  let mult = state.combat.docked
-    ? 1
-    : aiDoctrinesActive(state, 'auto-launch-ready')
-      ? 0.85
-      : 0.4
-  if (
-    !state.combat.docked &&
-    aiDoctrinesActive(state, 'auto-dock-critical') &&
-    stats.hullMax > 0 &&
-    state.combat.playerHull / stats.hullMax < 0.35
-  ) {
-    mult = Math.max(mult, 0.95)
-  }
   state.combat.playerHull = Math.min(
     stats.hullMax,
-    state.combat.playerHull + repairRatePerSecond(state) * mult * seconds,
+    state.combat.playerHull + repairRatePerSecond(state) * seconds,
   )
   state.combat.playerShield = Math.min(
     stats.shieldMax,
-    state.combat.playerShield + shieldRepairRatePerSecond(state) * mult * seconds,
+    state.combat.playerShield + shieldRepairRatePerSecond(state) * seconds,
   )
 }
 
 /**
  * Apply offline progress for time since lastTickAt.
- * Industry + sector-scaled rewards; combat is NOT simulated tick-by-tick.
+ * GDD §107: Hive industry continues. A live Sortie freezes and resumes as-is.
  */
 export function applyOfflineCatchUp(
   state: GameState,
@@ -257,24 +199,11 @@ export function applyOfflineCatchUp(
   const next = structuredClone(state)
   const beforeResources = snapshotResources(next.resources)
   const sectorsBefore = next.combat.sector
+  const waveBefore = next.combat.wave
+  const sortieFrozen = !next.combat.docked
 
   applyIndustryOnly(next, seconds)
-  applySectorOfflineRewards(next, seconds)
-  if (!next.combat.docked && hasProcess(next, 'offline-sortie') && !isFrontierHold(next)) {
-    const pushes = Math.min(4, Math.floor(seconds / 600))
-    if (pushes > 0) {
-      const cap =
-        next.combat.frontierSector > (next.combat.highestSector ?? 0)
-          ? Math.max(next.combat.sector, next.combat.frontierSector - 1)
-          : Infinity
-      next.combat.sector = Math.min(next.combat.sector + pushes, cap)
-      next.combat.highestSector = Math.max(next.combat.highestSector, next.combat.sector - 1)
-      next.combat.wave = 1
-      maybeGrantSystemUnlocks(next)
-    }
-  }
-  if (!next.combat.docked) addOfflineCombatMs(next, appliedMs)
-  endOfflineFight(next, seconds)
+  applyHangarRepair(next, seconds)
   next.lastTickAt = now
 
   const gains = resourceDelta(beforeResources, next.resources)
@@ -285,27 +214,16 @@ export function applyOfflineCatchUp(
     return { state: next, report: null }
   }
 
-  const modeLabel = next.combat.docked
-    ? 'Paused'
-    : isFrontierHold(next)
-      ? 'Frontier Hold'
-      : next.combat.campaign
-        ? 'Advance'
-        : 'Hold'
-  const mode = next.combat.docked
-    ? 'Offline payout while Paused (industry + hangar repair, no fight sim).'
-    : isFrontierHold(next)
-      ? 'Offline payout while farming the fallback sector (no fight sim).'
-      : next.combat.campaign
-        ? 'Offline payout from your Advance sector (no fight sim).'
-        : 'Offline payout while Holding / farming this sector (no fight sim).'
+  const modeLabel = sortieFrozen ? 'Sortie frozen' : 'Docked'
+  const mode = sortieFrozen
+    ? `Sortie frozen at Wave ${waveBefore}. Combat did not advance.`
+    : 'Docked. Foundry, fabrication, Research jobs, and Worker Drones kept working.'
 
   const summary = [
     `Welcome back. Away ${formatDuration(elapsedMs)}` +
       (capped ? ` (applied ${formatDuration(appliedMs)} max)` : '') +
       '.',
     mode,
-    `Still at sector ${sectorsAfter}.`,
     formatGains(gains) + '.',
   ].join(' ')
 
@@ -320,7 +238,9 @@ export function applyOfflineCatchUp(
       sectorsBefore,
       sectorsAfter,
       sectorsCleared,
+      wave: next.combat.wave,
       modeLabel,
+      sortieFrozen,
       gains,
       summary,
     },
