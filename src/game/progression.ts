@@ -52,9 +52,9 @@ export interface SystemUnlockDef {
 export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'base',
-    requiresSectorEver: 4,
-    label: 'Base',
-    tip: 'Assign drones to production stations.',
+    requiresSectorEver: ACT1_CADENCE.workers,
+    label: 'Worker Drones',
+    tip: 'Assign Worker Drones to industrial jobs.',
   },
   {
     id: 'reliquary',
@@ -683,8 +683,11 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'dock' || systemId === 'combat' || systemId === 'shipyard') {
     return true
   }
-  if (systemId === 'network' || systemId === 'stats') {
+  if (systemId === 'stats') {
     return hasHullLostOnce(state)
+  }
+  if (systemId === 'network') {
+    return meetsWave(state, ACT1_CADENCE.workers)
   }
   if (systemId === 'cores') {
     return false
@@ -760,8 +763,11 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   if (systemId === 'combat' || systemId === 'shipyard') {
     return null
   }
-  if (systemId === 'network' || systemId === 'stats') {
+  if (systemId === 'stats') {
     return 'First hull loss'
+  }
+  if (systemId === 'network') {
+    return `Reach Wave ${ACT1_CADENCE.workers}`
   }
   if (systemId === 'foundry') {
     return `Reach Wave ${ACT1_CADENCE.foundry}`

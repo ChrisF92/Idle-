@@ -43,15 +43,15 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Weapons fire automatically. Waves come down the lane. The header shows sector, hull, and shield.',
       'After hull loss the ship retreats and keeps farming the last sector you could hold. Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight — use it to farm a tracked Core. Retry Frontier attempts the sector that stopped you.',
-      'Drones are assigned on the Network tab. They never appear here.',
+      'Worker Drones unlock at Wave 30 and are assigned under More → Workers.',
     ],
   },
   network: {
-    title: 'Network',
+    title: 'Worker Drones',
     body: [
-      'Purpose: turn a limited drone corps into the stat you need now. Main decision: where each drone works. Strike raises damage; Ward raises shield; later bars add farming and industry.',
-      'Bars fill while you fight and crawl while docked. Bar levels reset on Rebuild. Drones and Links stay.',
-      'Tap a bar name for live numbers, fill caps, and Relays.',
+      'Purpose: put a limited workforce on real industrial jobs. Main decision: processing now versus fabricating, researching, or growing more drones.',
+      'Jobs have a hard cap. Extra drones on a full job do nothing — split the corps.',
+      'Worker Drones do not fire weapons or raise shields. Combat power comes from Cores, Workshop, and Foundry.',
     ],
   },
   foundry: {

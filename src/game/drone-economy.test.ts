@@ -18,12 +18,20 @@ import {
   stationThroughput,
 } from './catalog'
 import { advanceSeconds, computeResourceRates } from './tick'
+import { atCareerWave } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
+
+function atWorkers(sectorEver = 12) {
+  const state = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
+  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver, sectorEver)
+  state.combat.highestSector = Math.max(state.combat.highestSector, sectorEver)
+  return state
+}
 
 describe('drone corps cap + black-bar saturation', () => {
   it('starts at base cap and stops manufacture at capacity', () => {
-    let state = createInitialState(0)
+    const state = atWorkers()
     expect(droneCap(state)).toBe(BASE_DRONE_CAP)
-    state.meta.highestSectorEver = 4
     state.base.workerDrones = BASE_DRONE_CAP
     state.base.manufactureProgress = 0.99
     advanceSeconds(state, 5)
@@ -31,8 +39,7 @@ describe('drone corps cap + black-bar saturation', () => {
   })
 
   it('research / AI / PM raise cap; acuity raises power', () => {
-    let state = createInitialState(0)
-    state.meta.highestSectorEver = 12
+    let state = atWorkers()
     state.resources.data = 200
     state = buyResearch(state, 'drone-logistics')
     expect(droneCap(state)).toBe(BASE_DRONE_CAP + 5)
@@ -48,8 +55,7 @@ describe('drone corps cap + black-bar saturation', () => {
   })
 
   it('hard black-bars scrap field; extras do not raise income', () => {
-    let state = createInitialState(0)
-    state.meta.highestSectorEver = 4
+    let state = atWorkers()
     state.base.workerDrones = 40
     state = assignWorker(state, 'scrap-field', 20)
     expect(stationBlackBarNeed(state, 'scrap-field')).toBe(20)
@@ -62,13 +68,11 @@ describe('drone corps cap + black-bar saturation', () => {
   })
 
   it('higher drone power black-bars with fewer bodies', () => {
-    let state = createInitialState(0)
-    state.meta.highestSectorEver = 18
+    let state = atWorkers()
     state.base.workerDrones = 20
     state.resources.aiPoints = 20
     state = buyAiNode(state, 'drone-efficiency-1')
     expect(dronePower(state)).toBeCloseTo(1.35, 5)
-    // ceil(20 / 1.35) = 15
     expect(stationBlackBarNeed(state, 'scrap-field')).toBe(15)
     state = assignWorker(state, 'scrap-field', 15)
     expect(stationThroughput(state, 'scrap-field')).toBeCloseTo(1, 5)
@@ -81,9 +85,7 @@ describe('drone corps cap + black-bar saturation', () => {
   })
 
   it('labor fill stops at black-bar; balanced dumps overflow to training', () => {
-    let state = createInitialState(0)
-    state.meta.highestSectorEver = 12
-    // Only scrap + training unlocked so overflow has somewhere to go.
+    let state = atWorkers()
     state.research.unlocked = ['core-training']
     state.base.workerDrones = 100
     state.resources.aiPoints = 10

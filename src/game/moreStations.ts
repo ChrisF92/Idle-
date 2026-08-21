@@ -12,6 +12,7 @@ export interface MoreStationDef {
 }
 
 export const MORE_STATIONS: MoreStationDef[] = [
+  { id: 'network', name: 'Workers', blurb: 'Assign Worker Drones to processing, fabrication, Research, and production.' },
   { id: 'furnace', name: 'Furnace', blurb: 'Turn Choir-ash into Heat. Decision: which temporary channels stay lit?' },
   { id: 'research', name: 'Research', blurb: 'Long-term branches. Decision: which field gets the focus bonus?' },
   { id: 'codex', name: 'Codex', blurb: 'Optional enemy-family and hull-role reference.' },
@@ -25,6 +26,7 @@ export const MORE_NEXT_WINDOW = 40
 
 export function stationDoorSector(id: TabId): number {
   if (id === 'logs') return 0
+  if (id === 'network') return ACT1_CADENCE.workers
   if (id === 'process') return ACT1_CADENCE.process
   if (id === 'yard') return ACT1_CADENCE.yard
   if (id === 'slag') return ACT1_CADENCE.rebuild

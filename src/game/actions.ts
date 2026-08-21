@@ -60,7 +60,6 @@ import {
   canBuyNetworkLink,
   createEmptyNetworkState,
   isNetworkBarId,
-  isNetworkBarUnlocked,
   networkLinkRank,
   wipeNetworkBars,
 } from './network'
@@ -121,7 +120,6 @@ import {
   getProcessNode,
   hasProcess,
   mergeProcessConfig,
-  networkAllocationWeights,
   processConfig,
   yardLayoutCap,
   NETWORK_BAR_IDS,
@@ -269,7 +267,7 @@ export function assignWorker(
 ): GameState {
   const networkBar = isNetworkBarId(stationId)
   if (networkBar) {
-    if (!isNetworkBarUnlocked(state, stationId)) return state
+    if (delta > 0) return state
   } else {
     const def = getStation(stationId)
     if (!def || !isStationUnlocked(state, stationId)) return state
@@ -1922,46 +1920,10 @@ export function buyMaxCores(state: GameState): GameState {
 export function optimiseNetwork(state: GameState): GameState {
   if (!hasProcess(state, 'network-optimise') && !hasProcess(state, 'network-balance')) return state
   const next = structuredClone(state)
-  const weights = networkAllocationWeights(next)
-  let pool = idleWorkers(next)
   for (const id of NETWORK_BAR_IDS) {
-    pool += next.base.assignments[id] ?? 0
     delete next.base.assignments[id]
   }
-  if (pool <= 0) return state
-  const usable = NETWORK_BAR_IDS.filter((id) => isNetworkBarUnlocked(next, id))
-  if (usable.length === 0) return state
-  const totalWeight = usable.reduce((sum, id) => sum + Math.max(0, weights[id] ?? 0), 0)
-  if (totalWeight <= 0) {
-    const each = Math.floor(pool / usable.length)
-    let rest = pool - each * usable.length
-    for (const id of usable) {
-      const n = each + (rest > 0 ? 1 : 0)
-      if (n > 0) next.base.assignments[id] = n
-      if (rest > 0) rest -= 1
-    }
-    return next
-  }
-  const assigned: Record<string, number> = {}
-  let used = 0
-  for (const id of usable) {
-    const n = Math.floor((pool * Math.max(0, weights[id] ?? 0)) / totalWeight)
-    assigned[id] = n
-    used += n
-  }
-  let rest = pool - used
-  const order = [...usable].sort((a, b) => (weights[b] ?? 0) - (weights[a] ?? 0))
-  let i = 0
-  while (rest > 0 && order.length > 0) {
-    const id = order[i % order.length]!
-    assigned[id] = (assigned[id] ?? 0) + 1
-    rest -= 1
-    i += 1
-  }
-  for (const id of usable) {
-    if ((assigned[id] ?? 0) > 0) next.base.assignments[id] = assigned[id]!
-  }
-  return next
+  return setLaborAssignments(next, assignByProfile(next, next.meta.laborProfile ?? 'balanced'))
 }
 
 export function applyNetworkPreset(state: GameState, preset: ProcessNetworkPreset): GameState {

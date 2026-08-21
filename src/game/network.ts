@@ -578,13 +578,12 @@ function primaryBonus(state: GameState, id: NetworkBarId, k: number): number {
   )
 }
 
-export function networkStrikeMult(state: GameState): number {
-  return primaryBonus(state, 'strike', 0.065)
+export function networkStrikeMult(_state: GameState): number {
+  return 1
 }
 
-export function networkWardMult(state: GameState): number {
-  if (protocolMutes(state, 'shields')) return 1
-  return primaryBonus(state, 'ward', 0.07)
+export function networkWardMult(_state: GameState): number {
+  return 1
 }
 
 export function networkSalvageMult(state: GameState): number {
