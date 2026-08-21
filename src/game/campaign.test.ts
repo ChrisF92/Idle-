@@ -73,7 +73,7 @@ describe('campaign combat', () => {
     expect(state.combat.lastSortie.outcome).toBe('defeat')
   })
 
-  it('Warp jumps to a cleared sector and aborts the fight', () => {
+  it('Warp no longer jumps the Sortie — every Launch is Wave 1', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8
     state.resources.aiPoints = 10
@@ -81,17 +81,13 @@ describe('campaign combat', () => {
     state = startCombat(state)
     state = clearSector(state)
     expect(state.combat.sector).toBe(2)
-    expect(state.combat.highestSector).toBe(1)
 
     state = startCombat(state)
     expect(state.combat.inFight).toBe(true)
+    const wave = state.combat.wave
     state = warpToSector(state, 1)
-    expect(state.combat.sector).toBe(1)
-    expect(state.combat.wave).toBe(1)
-    expect(state.combat.inFight).toBe(false)
-    advanceTicks(state, 1)
+    expect(state.combat.wave).toBe(wave)
     expect(state.combat.inFight).toBe(true)
-    expect(state.combat.sector).toBe(1)
   })
 
   it('rejects Warp to uncleared sectors', () => {

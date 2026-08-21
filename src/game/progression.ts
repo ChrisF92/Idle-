@@ -59,8 +59,8 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'reliquary',
     requiresSectorEver: ACT1_CADENCE.reliquary,
-    label: 'Reliquary',
-    tip: 'Fit shards for permanent bonuses.',
+    label: 'Relics',
+    tip: 'Relics install into fitted Cores while Docked.',
   },
   {
     id: 'furnace',
@@ -406,8 +406,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'shard-seat',
-    name: 'Shard Seated',
-    description: 'Fit a Reliquary shard.',
+    name: 'Relic Seated',
+    description: 'Install a Relic into a Core.',
     rewardAiPoints: 2,
     condition: { type: 'reliquary-fitted', min: 1 },
   },
@@ -584,7 +584,7 @@ export function achievementProgressValue(
         Object.values(state.furnace?.wanted ?? {}).reduce((a, b) => a + b, 0)
       )
     case 'reliquary-fitted':
-      return Object.values(state.reliquary?.slots ?? {}).filter(Boolean).length
+      return Object.values(state.reliquary?.coreFits ?? {}).filter(Boolean).length
     case 'hive-research-nodes':
       return Object.values(state.hiveResearch?.completed ?? {}).reduce((a, b) => a + b, 0)
     case 'protocol-rank-sum':
@@ -1132,19 +1132,19 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-relaunch',
     kind: 'action',
-    title: 'Retry the frontier',
-    body: 'Your ship is farming the last sector you could hold. Retry when you are stronger.',
-    target: 'retry-frontier',
-    tab: 'combat',
-    screen: 'combat',
+    title: 'Launch again',
+    body: 'Every Sortie starts at Wave 1. Spend Scrap in the Workshop, then launch.',
+    target: 'launch',
+    tab: 'dock',
+    screen: 'dock',
     group: 'starter',
     tap: true,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
       (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       !guideSeen(s, 'guide-relaunch') &&
-      (s.combat.frontierHold || s.combat.frontierSector > 0 || s.combat.docked),
-    completeWhen: (s) => !s.combat.docked && !s.combat.frontierHold,
+      s.combat.docked,
+    completeWhen: (s) => !s.combat.docked,
   },
   {
     id: 'guide-network-strike',

@@ -698,6 +698,12 @@ h2 .inspect-name {
   letter-spacing: 0.04em;
 }
 
+.dock-workshop,
+.dock-relics {
+  display: grid;
+  gap: 0.4rem;
+}
+
 .sortie-screen {
   flex: 1;
   min-height: 0;
@@ -973,6 +979,61 @@ h2 .inspect-name {
   min-height: 2.2rem;
   padding: 0.35rem 0.55rem;
   font-size: 0.82rem;
+}
+
+.relic-socket {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.relic-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.relic-picks button {
+  width: auto;
+  flex: 1 1 8rem;
+}
+
+.directive-backdrop {
+  z-index: 60;
+  place-items: center;
+}
+
+.directive-card {
+  width: min(420px, 100%);
+}
+
+.directive-picks {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.directive-picks button {
+  display: grid;
+  justify-items: start;
+  gap: 0.15rem;
+  text-align: left;
+  white-space: normal;
+  height: auto;
+  min-height: 2.8rem;
+}
+
+.directive-chip {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.45rem;
+  margin: 0;
+  padding: 0.28rem 0.45rem;
+  background: color-mix(in srgb, var(--bg-panel) 86%, transparent);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
 }
 
 .core-picks {

@@ -22,7 +22,7 @@ import {
   enterProtocol,
   buyWorkshopUpgrade,
 } from '../actions'
-import { setCampaign, setDocked, retryFrontier } from '../tick'
+import { setCampaign, setDocked, retryFrontier, chooseDirective } from '../tick'
 import { canRetryFrontier, isFrontierHold } from '../frontier'
 import {
   MAX_MODULE_LEVEL,
@@ -98,6 +98,16 @@ export function maybeRetryFrontier(state: GameState, ctx: StrategyContext): Game
   if (!isFrontierHold(state) || !canRetryFrontier(state)) return state
   const next = retryFrontier(state)
   if (next !== state) ctx.recordMeaningful('Retry Frontier')
+  return next
+}
+
+export function maybeChooseDirective(state: GameState, ctx: StrategyContext): GameState {
+  const offer = state.combat.directiveOffer
+  if (!offer || offer.length === 0) return state
+  const prefer = ['overcharge', 'reactive', 'pack-hunter', 'burn-hot', 'scavenger']
+  const id = prefer.find((p) => offer.includes(p)) ?? offer[0]!
+  const next = chooseDirective(state, id)
+  if (next !== state) ctx.recordMeaningful(`Directive ${id}`)
   return next
 }
 

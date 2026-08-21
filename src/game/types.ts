@@ -92,10 +92,12 @@ export interface FoundryState {
 
 export type ReliquaryColor = 'red' | 'orange' | 'pink' | 'blue' | 'green'
 
-/** USI V-Device analogue — colour slots, shards persist across Rebuild. */
+/** Relics installed into Cores. Colour slots remain for old saves but grant no bonuses. */
 export interface ReliquaryState {
   owned: Record<string, number>
   slots: Partial<Record<ReliquaryColor, string | null>>
+  /** Relics installed into fitted Cores (moduleId → relic id). */
+  coreFits: Record<string, string | null>
 }
 
 /** Legacy rank tracks — kept so old saves can migrate into Furnace 2.0. */
@@ -877,6 +879,10 @@ export interface CombatState {
   frontierAttemptOpen: boolean
   /** Compact HUD notice after a repel or a hard-won frontier clear. */
   frontierNotice: FrontierNotice | null
+  /** Directives chosen this Sortie. Wipe on Dock. */
+  directives: string[]
+  /** Pending Directive choice. Combat does not auto-engage while set. */
+  directiveOffer: string[] | null
 }
 
 export interface FrontierNotice {

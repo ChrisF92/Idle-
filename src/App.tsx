@@ -258,6 +258,8 @@ export default function App() {
             onOpenSortie={() => go('combat')}
             onRebuild={() => setHangarOpen(true)}
             onBuyWorkshop={game.buyWorkshopUpgrade}
+            onEquipRelic={game.equipRelic}
+            onRemoveRelic={game.removeRelic}
           />
         )}
         {tab === 'combat' && (
@@ -285,6 +287,9 @@ export default function App() {
               go('foundry')
             }}
             onBuyMaxCores={game.buyMaxCores}
+            onChooseDirective={game.chooseDirective}
+            onEquipRelic={game.equipRelic}
+            onRemoveRelic={game.removeRelic}
           />
         )}
         {tab === 'network' && (
@@ -316,9 +321,8 @@ export default function App() {
           <ReliquaryTab
             state={game.state}
             onBack={() => go('stats')}
-            onInsert={game.insertShard}
-            onRemove={game.removeShard}
-            guideTarget={guide?.target}
+            onEquipRelic={game.equipRelic}
+            onRemoveRelic={game.removeRelic}
           />
         )}
         {tab === 'furnace' && (

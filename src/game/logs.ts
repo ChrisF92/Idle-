@@ -41,13 +41,13 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'core-prints',
     title: 'Prints',
-    body: 'Wrecks leave Core fragments. Track a print, then Hold that family to farm it. Assemble in the Foundry, then Rebuild to fit the new gun.',
+    body: 'Wrecks leave Core fragments. Track a print and push Waves that drop that family. Assemble in the Foundry, then Rebuild to fit the new gun.',
     unlock: (s) => career(s) >= 2,
   },
   {
     id: 'reliquary',
-    title: 'Colour slots',
-    body: 'Shards remember the Choir. Fit one per colour. Extra copies hum until the slot sings. Red and orange first; pink waits at 6.',
+    title: 'Relic sockets',
+    body: 'Recovered Relics seat in fitted Cores while Docked. No colour bank. One socket each until mastery opens more.',
     unlock: (s) => career(s) >= 3,
   },
   {
@@ -75,10 +75,10 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
     unlock: (s) => career(s) >= 8,
   },
   {
-    id: 'route-b',
-    title: 'The other lane',
-    body: 'From sector 9 the Choir splits. Route B is the same length, meaner packs, richer wrecks. Pick it from the Dock.',
-    unlock: (s) => career(s) >= 9,
+    id: 'directives',
+    title: 'Directives',
+    body: 'Every fifty Waves the Sortie pauses. Three orders. One choice. The hull you pick here is the hull you keep until Dock.',
+    unlock: (s) => career(s) >= 5,
   },
   {
     id: 'yard',

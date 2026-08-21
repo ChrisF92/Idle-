@@ -41,9 +41,9 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   combat: {
     title: 'Sortie',
     body: [
-      'Weapons fire automatically. Waves come down the lane. The header shows sector, hull, and shield.',
-      'After hull loss the ship retreats and keeps farming the last sector you could hold. Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight — use it to farm a tracked Core. Retry Frontier attempts the sector that stopped you.',
-      'Worker Drones unlock at Wave 30 and are assigned under More → Workers.',
+      'Weapons fire automatically. Waves come from all directions. The header shows Wave, hull, and shield.',
+      'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage ranks Pulse and Plate for this run only.',
+      'Worker Drones unlock at Wave 30 and are assigned under More → Workers. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
     ],
   },
   network: {
@@ -58,15 +58,15 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Foundry',
     body: [
       'Purpose: turn combat income into crafted progression and new Cores. Main decision: what you are making next.',
-      'Prints: track one Core. Advance finds fragments as you push. Hold that Core’s family to farm it.',
+      'Prints: track one Core. Fragments drop from matching enemy families as you push Waves.',
       'Foundry Points buy extra smelters. Recipe progress persists on Rebuild. Fitted bits unequip.',
     ],
   },
   reliquary: {
-    title: 'Reliquary',
+    title: 'Relics',
     body: [
-      'Purpose: specialise permanent passive bonuses. Main decision: which shard earns each limited colour slot.',
-      'Reliquary arrives after the first Rebuild layer is familiar. Later colours unlock with progression or Observation. Shards persist on Rebuild.',
+      'Purpose: deepen Core loadouts. Main decision: which Relic sits in each fitted Core.',
+      'Relic sockets open at Wave 110. Install and remove freely while Docked. Relics persist on Rebuild.',
     ],
   },
   furnace: {

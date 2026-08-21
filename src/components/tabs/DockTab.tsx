@@ -9,6 +9,8 @@ import {
   workshopCost,
   workshopLevel,
 } from '../../game/workshop'
+import { isRelicsUnlocked, SHARDS, shardOwned } from '../../game/reliquary'
+import { CoreSheet } from '../CoreSheet'
 
 interface DockTabProps {
   state: GameState
@@ -16,6 +18,8 @@ interface DockTabProps {
   onOpenSortie: () => void
   onRebuild: () => void
   onBuyWorkshop?: (id: RunUpgradeId) => void
+  onEquipRelic?: (moduleId: string, relicId: string) => void
+  onRemoveRelic?: (moduleId: string) => void
 }
 
 function meterScale(current: number, max: number): number {
@@ -29,6 +33,8 @@ export function DockTab({
   onOpenSortie,
   onRebuild,
   onBuyWorkshop,
+  onEquipRelic,
+  onRemoveRelic,
 }: DockTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -143,6 +149,27 @@ export function DockTab({
               )
             },
           )}
+        </div>
+      ) : null}
+
+      {!live && isRelicsUnlocked(state) ? (
+        <div className="dock-relics" data-guide="relic-sockets">
+          <p className="combat-hud-kicker">Loadout</p>
+          <h3>Relics</h3>
+          <p className="muted">
+            {SHARDS.some((shard) => shardOwned(state, shard.id) > 0)
+              ? 'Install Relics into fitted Cores. Removal is free while Docked.'
+              : 'Relic sockets are open. Recover Relics from wrecks, then install them here.'}
+          </p>
+          <CoreSheet
+            state={state}
+            compact
+            relicsOnly
+            onUpgrade={() => undefined}
+            onPickMilestone={() => undefined}
+            onEquipRelic={onEquipRelic}
+            onRemoveRelic={onRemoveRelic}
+          />
         </div>
       ) : null}
 

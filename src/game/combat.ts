@@ -62,6 +62,7 @@ import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
 import { processSalvageMult } from './process'
 import { protocolModifiers, protocolMutes } from './protocols'
+import { directiveDensityMult, directiveShieldRegenMult } from './directives'
 import { recordPlaytest } from './playtest'
 import {
   maybeSampleSortieEnemies,
@@ -469,13 +470,21 @@ function assignRadialHeadings(units: CombatUnit[], wave: number): void {
 }
 
 /** GDD encounter for a global Sortie Wave. Bosses land on every 10th Wave. */
-export function encounterForWave(wave: number, extraDanger = 1): SectorEncounter {
+export function encounterForWave(wave: number, extraDanger = 1, state?: GameState): SectorEncounter {
   const w = Math.max(1, Math.floor(wave))
   const sector = powerSectorForWave(w)
   const boss = isBossWave(w)
   const trash = trashWavesForSector(sector)
   const localWave = boss ? wavesForSector(sector) : Math.min(trash, ((w - 1) % 10) % trash + 1)
   const encounter = enemyForSector(sector, localWave, 'A', extraDanger)
+  const density = state ? directiveDensityMult(state) : 1
+  if (density > 1 && encounter.units.length > 0) {
+    const extra = Math.max(1, Math.round(encounter.units.length * (density - 1)))
+    for (let i = 0; i < extra; i++) {
+      const src = encounter.units[i % encounter.units.length]!
+      encounter.units.push({ ...structuredClone(src), id: `${src.id}-pack${i}` })
+    }
+  }
   assignRadialHeadings(encounter.units, w)
   if (boss) {
     encounter.isBoss = true
@@ -2319,7 +2328,8 @@ export function simulateCombat(
   moveUnits(state, dt)
 
   const regenFrac =
-    fittedShieldRegenFraction(state.shipyard.modules) + fittedRegenBonus(state)
+    (fittedShieldRegenFraction(state.shipyard.modules) + fittedRegenBonus(state)) *
+    directiveShieldRegenMult(state)
   for (const unit of state.combat.playerUnits) {
     if ((unit.regenDelay ?? 0) > 0) {
       unit.regenDelay = Math.max(0, (unit.regenDelay ?? 0) - dt)

@@ -35,7 +35,6 @@ import {
 } from '../../game/catalog'
 import { canAssembleBlueprint } from '../../game/actions'
 import { sectorCanDropPrint } from '../../game/combat'
-import { normalizePushMode } from '../../game/sectors'
 import {
   inspectFoundryModule,
   inspectFoundryRecipe,
@@ -165,11 +164,11 @@ function PrintRow({
     ? `${FOUNDRY_RECIPES.find((r) => r.id === recipe.requiresRecipeLevel?.recipeId)?.name ?? recipe.requiresRecipeLevel.recipeId} Lv ${recipe.requiresRecipeLevel.level}`
     : ''
   const sourceLine = printed ? '' : formatPrintSourceLine(mod.id)
-  const holding = normalizePushMode(state.combat.pushMode, state.combat.campaign) !== 'advance'
+  const live = !state.combat.docked
   const familyMismatch =
     !printed &&
     tracked &&
-    holding &&
+    live &&
     !sectorCanDropPrint(state.combat.sector, mod.id, state.combat.route)
   const rowClass = printed
     ? 'network-row is-printed'
@@ -409,7 +408,7 @@ export function FoundryTab({
                 Core prints
               </h3>
               <p className="muted">
-                Track one print. Advance finds fragments as you push. Hold that Core&apos;s family to
+                Track one print. Advance finds fragments as you push.
                 farm it on purpose.
               </p>
               {listFarmableCores(state).map((mod) => (

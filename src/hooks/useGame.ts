@@ -10,6 +10,7 @@ import {
   setDocked,
   warpToSector,
   retryFrontier,
+  chooseDirective,
 } from '../game/tick'
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
@@ -57,8 +58,8 @@ import {
   mergeSignalCores,
   buyFoundryUpgrade,
   equipFoundryModule,
-  insertShard,
-  removeShard,
+  equipRelicOnCore,
+  removeRelicFromCore,
   convertAshToHeat,
   buyFurnaceUpgrade,
   setFurnaceChannel,
@@ -162,8 +163,9 @@ type Action =
   | { type: 'assemble-blueprint'; moduleId: string }
   | { type: 'track-print'; moduleId: string | null }
   | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
-  | { type: 'reliquary-insert'; shardId: string }
-  | { type: 'reliquary-remove'; color: import('../game/types').ReliquaryColor }
+  | { type: 'choose-directive'; id: string }
+  | { type: 'relic-equip'; moduleId: string; relicId: string }
+  | { type: 'relic-remove'; moduleId: string }
   | { type: 'furnace-convert' }
   | { type: 'furnace-upgrade'; upgradeId: import('../game/types').FurnaceUpgradeId }
   | { type: 'furnace-channel'; channelId: import('../game/types').FurnaceChannelId; level: number }
@@ -317,10 +319,12 @@ function reducer(state: GameState, action: Action): GameState {
       return setTrackedPrint(state, action.moduleId)
     case 'number-notation':
       return setNumberNotation(state, action.mode)
-    case 'reliquary-insert':
-      return insertShard(state, action.shardId)
-    case 'reliquary-remove':
-      return removeShard(state, action.color)
+    case 'choose-directive':
+      return chooseDirective(state, action.id)
+    case 'relic-equip':
+      return equipRelicOnCore(state, action.moduleId, action.relicId)
+    case 'relic-remove':
+      return removeRelicFromCore(state, action.moduleId)
     case 'furnace-convert':
       return convertAshToHeat(state)
     case 'furnace-upgrade':
@@ -518,9 +522,10 @@ export function useGame() {
       dispatch({ type: 'track-print', moduleId }),
     setNumberNotation: (mode: 'engineering' | 'scientific') =>
       dispatch({ type: 'number-notation', mode }),
-    insertShard: (shardId: string) => dispatch({ type: 'reliquary-insert', shardId }),
-    removeShard: (color: import('../game/types').ReliquaryColor) =>
-      dispatch({ type: 'reliquary-remove', color }),
+    chooseDirective: (id: string) => dispatch({ type: 'choose-directive', id }),
+    equipRelic: (moduleId: string, relicId: string) =>
+      dispatch({ type: 'relic-equip', moduleId, relicId }),
+    removeRelic: (moduleId: string) => dispatch({ type: 'relic-remove', moduleId }),
     convertAshToHeat: () => dispatch({ type: 'furnace-convert' }),
     buyFurnaceUpgrade: (upgradeId: import('../game/types').FurnaceUpgradeId) =>
       dispatch({ type: 'furnace-upgrade', upgradeId }),

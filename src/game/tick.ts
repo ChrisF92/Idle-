@@ -1,5 +1,5 @@
 import type { CombatPushMode, GameState, Resources } from './types'
-import { normalizePushMode, pushModeLabel, wavesForSector } from './sectors'
+import { wavesForSector } from './sectors'
 import {
   buildFlagshipWeapons,
   computeShipStats,
@@ -89,7 +89,14 @@ import {
   resetRunCoreLevels,
   salvageWaveBonus,
 } from './workshop'
-import { clearFrontierHold, isChallengeSortie, addCombatClockMs, isFrontierHold, convertFrontierHoldToPlayerHold, frontierFallbackSector } from './frontier'
+import { clearFrontierHold, isChallengeSortie, addCombatClockMs } from './frontier'
+import {
+  clearDirectives,
+  chooseDirective as applyDirectiveChoice,
+  directiveScrapMult,
+  hasDirectiveOffer,
+  queueDirectiveOffer,
+} from './directives'
 import {
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
@@ -170,6 +177,7 @@ function finishSortie(
   state.resources.salvage = 0
   resetRunCoreLevels(state)
   state.combat.runUpgrades = {}
+  clearDirectives(state)
   state.combat.frontierHold = false
   state.combat.frontierSector = 0
   state.combat.frontierAttemptOpen = false
@@ -530,7 +538,7 @@ function grantWaveClearRewards(state: GameState, wave: number, wasBoss: boolean)
     grantSectorClearRewards(state, powerSectorForWave(wave), true)
     return
   }
-  const drip = 1 + Math.floor(powerSectorForWave(wave) / 4)
+  const drip = Math.max(1, Math.floor((1 + Math.floor(powerSectorForWave(wave) / 4)) * directiveScrapMult(state)))
   state.resources.scrap += drip
   pushLog(
     state,
@@ -573,6 +581,10 @@ function onFightWon(state: GameState): void {
 
   state.combat.wave = clearedWave + 1
   state.combat.sector = powerSectorForWave(state.combat.wave)
+  if (queueDirectiveOffer(state, clearedWave)) {
+    state.combat.inFight = false
+    return
+  }
   if (
     !state.combat.docked &&
     hasProcess(state, 'auto-extract') &&
@@ -665,6 +677,7 @@ function tickOutOfCombatRepair(state: GameState, dt: number): void {
 /** Advance / Hold auto-engage while not Paused. AI never toggles this. */
 function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight || state.combat.docked) return
+  if (hasDirectiveOffer(state)) return
   if (starterRefitGate(state)) {
     state.combat.docked = true
     return
@@ -684,7 +697,7 @@ export function beginFight(state: GameState, keepFleet = false): void {
         'A',
         echoRun.danger,
       )
-    : encounterForWave(wave)
+    : encounterForWave(wave, 1, state)
   syncPersistedHullCaps(state)
 
   state.combat.docked = false
@@ -742,48 +755,33 @@ export function startCombat(state: GameState): GameState {
   return next
 }
 
-function applyPushMode(state: GameState, mode: CombatPushMode): void {
-  const next = normalizePushMode(mode, mode === 'advance')
-  state.combat.pushMode = next
-  state.combat.campaign = next === 'advance'
+function applyPushMode(state: GameState): void {
+  state.combat.pushMode = 'advance'
+  state.combat.campaign = true
 }
 
-/** Advance = true (push sectors), Hold = false (farm current sector). */
-export function setCampaign(state: GameState, on: boolean): GameState {
-  return setPushMode(state, on ? 'advance' : 'hold-sector')
+/** GDD: every Sortie stays on Advance. Hold modes are no-ops. */
+export function setCampaign(state: GameState, _on: boolean): GameState {
+  return setPushMode(state, 'advance')
 }
 
-export function setPushMode(state: GameState, mode: CombatPushMode): GameState {
-  const nextMode = normalizePushMode(mode, mode === 'advance')
-  if (
-    normalizePushMode(state.combat.pushMode, state.combat.campaign) === nextMode
-  ) {
-    return state
-  }
+export function setPushMode(state: GameState, _mode: CombatPushMode): GameState {
+  if (state.combat.pushMode === 'advance' && state.combat.campaign) return state
   const next = structuredClone(state)
-  applyPushMode(next, nextMode)
-  if (nextMode !== 'advance' && isFrontierHold(next)) {
-    convertFrontierHoldToPlayerHold(next)
-  }
-  recordPlaytest(next, 'hold', {
-    n: nextMode,
-    v: nextMode !== 'advance',
-  })
-  if (nextMode === 'advance') {
-    pushLog(next, 'Advance online — continuous sector push.')
-  } else {
-    pushLog(next, `${pushModeLabel(nextMode)} engaged — farming.`)
-  }
+  next.combat.pushMode = 'advance'
+  next.combat.campaign = true
   return next
 }
 
 function launchFromDock(state: GameState): void {
   clearFrontierHold(state)
+  applyPushMode(state)
   state.combat.wave = 1
   state.combat.sector = 1
   state.combat.runUpgrades = {}
   state.resources.salvage = 0
   applyWorkshopCoreStarts(state)
+  clearDirectives(state)
   state.combat.docked = false
   state.combat.sortieMark = captureSortieMark(state)
   recordPlaytest(state, 'first_launch', { firstKey: 'launch' })
@@ -822,38 +820,18 @@ export function retryFrontier(state: GameState): GameState {
   return state
 }
 
-/**
- * Warp to a sector cleared this prestige (1..highestSector).
- * Aborts the current fight. If docked, stays docked for refit; otherwise auto-engages next tick.
- */
-export function warpToSector(state: GameState, sector: number): GameState {
-  if (!aiDoctrinesActive(state, 'warp-navigator') && state.combat.highestSector < 1) {
-    return state
+/** GDD: every Sortie starts at Wave 1. Warp no longer jumps the run. */
+export function warpToSector(state: GameState, _sector: number): GameState {
+  return state
+}
+
+export function chooseDirective(state: GameState, id: string): GameState {
+  const next = applyDirectiveChoice(state, id)
+  if (next === state) return state
+  syncPersistedHullCaps(next)
+  if (!next.combat.docked && !next.combat.inFight && !hasDirectiveOffer(next)) {
+    beginFight(next)
   }
-  // Warp requires the Warp Navigator AI unlock (QoL gate).
-  if (!state.ai.purchased.includes('warp-navigator')) return state
-  const max = state.combat.highestSector
-  if (!Number.isFinite(sector) || sector < 1 || sector > max) return state
-  const next = structuredClone(state)
-  const from = next.combat.sector
-  if (next.combat.inFight) {
-    persistFlagshipHull(next)
-  }
-  clearEnemy(next)
-  next.combat.sector = Math.floor(sector)
-  next.combat.wave = 1
-  if (next.combat.frontierSector > 0) {
-    const fallback = frontierFallbackSector(next.combat.frontierSector, next.combat.highestSector)
-    next.combat.frontierHold = next.combat.sector === fallback
-  } else {
-    next.combat.frontierHold = false
-  }
-  pushLog(
-    next,
-    from === next.combat.sector
-      ? `Warp reaffirm — sector ${next.combat.sector} W1.`
-      : `Warped ${from} → sector ${next.combat.sector} W1.`,
-  )
   return next
 }
 

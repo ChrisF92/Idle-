@@ -149,6 +149,12 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       : null,
     defeatLeft: Math.max(0, Number(combat.defeatLeft ?? 0) || 0),
     defeatTactical: Boolean(combat.defeatTactical),
+    directives: Array.isArray(combat.directives)
+      ? combat.directives.filter((id): id is string => typeof id === 'string')
+      : [],
+    directiveOffer: Array.isArray(combat.directiveOffer)
+      ? combat.directiveOffer.filter((id): id is string => typeof id === 'string')
+      : null,
     ...hydrateFrontierCombat(combat),
   }
 }
@@ -363,7 +369,13 @@ function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState 
     const id = raw.slots?.[color]
     slots[color] = typeof id === 'string' && id.length > 0 ? id : null
   }
-  return { owned, slots }
+  const coreFits: Record<string, string | null> = {}
+  if (raw.coreFits && typeof raw.coreFits === 'object') {
+    for (const [moduleId, relicId] of Object.entries(raw.coreFits)) {
+      coreFits[moduleId] = typeof relicId === 'string' && relicId.length > 0 ? relicId : null
+    }
+  }
+  return { owned, slots, coreFits }
 }
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {

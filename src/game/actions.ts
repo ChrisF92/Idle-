@@ -77,7 +77,7 @@ import {
   isFoundryInfinite,
   foundrySalvageReserve,
 } from './foundry'
-import { insertShard, removeShard } from './reliquary'
+import { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore } from './reliquary'
 import {
   applyFurnacePreset,
   buyFurnaceUpgrade,
@@ -136,11 +136,6 @@ import {
   stampFirst,
 } from './playtest'
 import { noteFrontierIntervention } from './frontier'
-import {
-  isRouteBUnlocked,
-  maxLaunchSector,
-  normalizeRoute,
-} from './sectors'
 import type { SectorRoute } from './types'
 import {
   buildFlagshipWeapons,
@@ -188,7 +183,7 @@ export {
   unequipFoundryModule,
 }
 
-export { insertShard, removeShard, setResearchFocus }
+export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, setResearchFocus }
 export { buyFurnaceUpgrade, setFurnaceChannel, setFurnacePriority, applyFurnacePreset }
 
 export {
@@ -212,37 +207,19 @@ export function setNumberNotation(
   return next
 }
 
-export function setLaunchSector(state: GameState, sector: number): GameState {
+export function setLaunchSector(state: GameState, _sector: number): GameState {
   if (!state.combat.docked) return state
-  if (state.protocols?.activeId || state.echo?.activeId) return state
-  const max = maxLaunchSector(careerHighestSector(state))
-  const nextSector = Math.max(1, Math.min(max, Math.floor(sector)))
-  if (nextSector === state.combat.sector && state.combat.wave === 1) return state
+  if (state.combat.wave === 1 && state.combat.sector === 1) return state
   const next = structuredClone(state)
-  next.combat.sector = nextSector
+  next.combat.sector = 1
   next.combat.wave = 1
-  next.combat.frontierHold = false
   return next
 }
 
-export function setSectorRoute(state: GameState, route: SectorRoute): GameState {
-  if (!state.combat.docked) return state
-  const normalized = normalizeRoute(route)
-  if (normalized === 'B' && !isRouteBUnlocked(careerHighestSector(state))) return state
-  if (state.combat.route === normalized) return state
+export function setSectorRoute(state: GameState, _route: SectorRoute): GameState {
+  if (state.combat.route === 'A') return state
   const next = structuredClone(state)
-  next.combat.route = normalized
-  if (next.combat.frontierHold || next.combat.frontierSector > 0) {
-    next.combat.frontierHold = false
-    next.combat.frontierSector = 0
-    next.combat.frontierAttemptOpen = false
-    next.combat.frontierNotice = null
-    next.playtest.pendingInterventions = []
-    const cap = Math.max(1, next.combat.highestSector || 1)
-    if (next.combat.sector > cap) next.combat.sector = cap
-    next.combat.wave = 1
-  }
-  recordPlaytest(next, 'route', { n: normalized })
+  next.combat.route = 'A'
   return next
 }
 

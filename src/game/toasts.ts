@@ -5,12 +5,10 @@ import { pendingMilestone } from './milestones'
 import { NETWORK_BARS, isNetworkBarUnlocked } from './network'
 import {
   ACHIEVEMENTS,
-  careerHighestSector,
   firstRebuildAvailable,
   hasHullLostOnce,
   isSystemUnlocked,
 } from './progression'
-import { isRouteBUnlocked } from './sectors'
 import { foundryMaterialCount, foundryRecipeLevel, FOUNDRY_MODULES, isFoundryModuleAffordable } from './foundry'
 import { processCoreHintReady } from './playerGuidance'
 import type { GameState, TabId } from './types'
@@ -87,9 +85,9 @@ const STATION_TOAST: Partial<
   },
   reliquary: {
     category: 'SYSTEM ONLINE',
-    title: 'Reliquary unlocked',
-    body: 'Choose which permanent shard bonus earns each colour slot.',
-    label: 'OPEN',
+    title: 'Relic sockets unlocked',
+    body: 'Install Relics into fitted Cores while Docked. Removal is free.',
+    label: 'OPEN DOCK',
   },
   furnace: {
     category: 'SYSTEM ONLINE',
@@ -222,7 +220,7 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     completePrints: completePrintIds(state),
     pendingMilestones: pendingCoreIds(state),
     rebuildReady: firstRebuildAvailable(state),
-    routeB: isRouteBUnlocked(careerHighestSector(state)),
+    routeB: false,
     act1Cleared: Boolean(state.meta.act1Cleared),
     achievements: [...(state.meta.completedAchievements ?? [])],
     foundrySlag: foundryMaterialCount(state, 'slag-ingot'),
@@ -310,6 +308,16 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       })
       continue
     }
+    if (id === 'reliquary') {
+      push({
+        id: 'sys:reliquary',
+        category: 'SYSTEM ONLINE',
+        title: 'Relic sockets unlocked',
+        body: 'Install Relics into fitted Cores while Docked. Removal is free.',
+        action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
+      })
+      continue
+    }
     push(systemToast(id))
   }
 
@@ -320,16 +328,6 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       title: 'Rebuild available',
       body: 'Swap hull and Cores. Permanent systems stay.',
       action: { label: 'VIEW REBUILD', nav: { kind: 'rebuild' } },
-    })
-  }
-
-  if (next.routeB && !prev.routeB) {
-    push({
-      id: 'sys:route-b',
-      category: 'NAV',
-      title: 'Route B available',
-      body: 'An alternate sector lane is open from Dock.',
-      action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
     })
   }
 

@@ -17,6 +17,7 @@ import { mergeProcessConfig, processConfig, processFurnaceHooks } from './proces
 import { noteSystemAction } from './playtest'
 import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
+import { directiveHeatDrainMult, directiveHeatMult } from './directives'
 
 export const FURNACE_UNLOCK_SECTOR = ACT1_CADENCE.furnace
 export const ASH_PER_HEAT = 10
@@ -325,7 +326,7 @@ export function furnaceLevelDef(id: FurnaceChannelId, level: number): FurnaceCha
 export function furnaceChannelHeatCost(state: GameState, id: FurnaceChannelId, level = furnaceActiveLevel(state, id)): number {
   const def = furnaceLevelDef(id, level)
   if (!def) return 0
-  return def.heat * furnaceFlueMult(state) * protocolModifiers(state).furnaceDrainMult
+  return def.heat * furnaceFlueMult(state) * protocolModifiers(state).furnaceDrainMult * directiveHeatDrainMult(state)
 }
 
 export function furnaceConsumptionFor(
@@ -382,7 +383,7 @@ function channelBonusMult(state: GameState, id: FurnaceChannelId): number {
 }
 
 export function furnaceDamageMult(state: GameState): number {
-  return channelBonusMult(state, 'weapons')
+  return channelBonusMult(state, 'weapons') * directiveHeatMult(state)
 }
 
 export function furnaceShieldMult(state: GameState): number {

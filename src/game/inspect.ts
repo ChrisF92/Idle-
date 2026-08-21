@@ -122,6 +122,7 @@ import {
   shardOwned,
   shardResonance,
 } from './reliquary'
+import { ACT1_CADENCE } from './cadence'
 
 export interface InspectStat {
   label: string
@@ -607,36 +608,36 @@ export function inspectFoundryModule(state: GameState, id: string): InspectCard 
 export function inspectShard(state: GameState, shardId: string): InspectCard | null {
   const def = getShard(shardId)
   if (!def) return null
-  const slot = RELIQUARY_SLOTS.find((s) => s.color === def.color)
   const owned = shardOwned(state, shardId)
-  const fitted = fittedShardId(state, def.color) === shardId
+  const fitted =
+    Object.values(state.reliquary?.coreFits ?? {}).includes(shardId) ||
+    fittedShardId(state, def.color) === shardId
   const extra = Math.max(0, owned - (fitted ? 1 : 0))
   const res = fitted ? shardResonance(state, shardId) : extra / RELIQUARY_RESONANCE_NEED
   const scale = fitted ? shardEffectScale(state, shardId) : 0
   const stats: InspectStat[] = [
-    { label: 'Colour', value: slot?.name ?? def.color },
     { label: 'Owned', value: String(owned) },
-    { label: 'Fitted', value: fitted ? 'Yes' : 'No' },
+    { label: 'Installed', value: fitted ? 'Yes' : 'No' },
     {
       label: 'Resonance',
       value: fitted
         ? `${Math.round(res * 100)}% · ${extra}/${RELIQUARY_RESONANCE_NEED} extra`
-        : `${extra}/${RELIQUARY_RESONANCE_NEED} extra when fitted`,
+        : `${extra}/${RELIQUARY_RESONANCE_NEED} extra when installed`,
     },
   ]
   if (fitted) stats.push({ label: 'Effect', value: `×${formatCompact(scale, 2)} · ${shardEffectBlurb(def)}` })
   else stats.push({ label: 'Effect', value: shardEffectBlurb(def) })
   const body = [
     def.blurb,
-    'One shard per colour. Extra copies of the fitted shard charge resonance and raise the same bonus.',
-    'Shards persist when you Rebuild. They drop from kills after the Reliquary opens at sector 3.',
+    'Install Relics into fitted Cores while Docked. Removal is free.',
+    `Relics drop from wrecks after Wave ${ACT1_CADENCE.reliquary}. They persist on Rebuild.`,
   ]
   if ((def.requiresSectorEver ?? 0) > 0) {
-    body.push(`This chip waits until you have cleared sector ${def.requiresSectorEver}.`)
+    body.push(`This Relic waits until you have cleared sector ${def.requiresSectorEver}.`)
   }
   return {
     title: def.name,
-    kicker: 'Reliquary shard',
+    kicker: 'Relic',
     stats,
     body,
   }

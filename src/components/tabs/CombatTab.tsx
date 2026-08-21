@@ -20,6 +20,7 @@ import { isBossWave } from '../../game/waves'
 import { getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
 import { isChallengeSortie } from '../../game/frontier'
+import { DIRECTIVES, getDirective, hasDirectiveOffer } from '../../game/directives'
 
 interface CombatTabProps {
   state: GameState
@@ -37,6 +38,9 @@ interface CombatTabProps {
   onOpenFoundry?: () => void
   onOpenPrints?: () => void
   onBuyMaxCores?: () => void
+  onChooseDirective?: (id: string) => void
+  onEquipRelic?: (moduleId: string, relicId: string) => void
+  onRemoveRelic?: (moduleId: string) => void
 }
 
 function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {
@@ -178,6 +182,9 @@ export function CombatTab({
   onOpenFoundry,
   onOpenPrints,
   onBuyMaxCores,
+  onChooseDirective,
+  onEquipRelic,
+  onRemoveRelic,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -328,6 +335,10 @@ export function CombatTab({
   )
 
   const challenge = isChallengeSortie(state)
+  const directiveOffer = hasDirectiveOffer(state) ? (combat.directiveOffer ?? []) : []
+  const activeDirectives = (combat.directives ?? [])
+    .map((id) => getDirective(id))
+    .filter((def): def is NonNullable<typeof def> => Boolean(def))
 
   const battlefieldMode: BattlefieldMode =
     combat.inFight || dying ? 'fighting' : 'ready'
@@ -382,7 +393,7 @@ export function CombatTab({
           beams={combat.docked && !dying ? [] : combat.beams ?? []}
           fx={combat.fx}
           mode={battlefieldMode}
-          paused={paused}
+          paused={paused || directiveOffer.length > 0}
         />
         {banner ? (
           <p className={`combat-banner is-${banner.kind}`} role="status">
@@ -395,6 +406,12 @@ export function CombatTab({
         {dying ? (
           <p className="sortie-defeat-banner" role="status">
             {challenge ? 'Hull lost' : `SORTIE COMPLETE — Wave ${combat.wave}`}
+          </p>
+        ) : null}
+        {activeDirectives.length > 0 && directiveOffer.length === 0 ? (
+          <p className="directive-chip" role="status">
+            <span className="combat-hud-kicker">Directives</span>
+            {activeDirectives.map((def) => def.name).join(' · ')}
           </p>
         ) : null}
       </div>
@@ -490,6 +507,8 @@ export function CombatTab({
               onUpgrade={onUpgrade}
               onPickMilestone={onPickMilestone}
               onBuyMax={hasProcess(state, 'core-buy-max') ? onBuyMaxCores : undefined}
+              onEquipRelic={onEquipRelic}
+              onRemoveRelic={onRemoveRelic}
             />
             <button
               type="button"
@@ -499,6 +518,39 @@ export function CombatTab({
             >
               Close
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {directiveOffer.length > 0 && !dying ? (
+        <div className="screen-help-backdrop directive-backdrop" role="presentation">
+          <div
+            className="screen-help-card directive-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${titleId}-directive`}
+            data-guide="directive-offer"
+          >
+            <p className="combat-hud-kicker">DIRECTIVE AVAILABLE</p>
+            <h3 id={`${titleId}-directive`}>Directives strongly alter this Sortie only.</h3>
+            <div className="directive-picks">
+              {directiveOffer.map((id) => {
+                const def = getDirective(id) ?? DIRECTIVES.find((d) => d.id === id)
+                if (!def) return null
+                return (
+                  <button
+                    key={def.id}
+                    type="button"
+                    className="primary"
+                    disabled={!onChooseDirective}
+                    onClick={() => onChooseDirective?.(def.id)}
+                  >
+                    <strong>{def.name}</strong>
+                    <span className="muted">{def.blurb}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       ) : null}

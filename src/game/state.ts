@@ -70,6 +70,7 @@ import {
   runShieldMult,
   weaponPowerMult,
 } from './workshop'
+import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
 export const SAVE_VERSION = 34
 export const SAVE_KEY = 'cosmic-idle-save'
@@ -155,6 +156,8 @@ export function createInitialState(now = Date.now()): GameState {
       frontierRoute: 'A',
       frontierAttemptOpen: false,
       frontierNotice: null,
+      directives: [],
+      directiveOffer: null,
     },
     workshop: createEmptyWorkshop(),
     base: {
@@ -248,6 +251,7 @@ export function globalDamageMultiplier(state: GameState): number {
   )
   if (aiDoctrinesActive(state, 'focus-fire')) mult *= 1.06
   mult *= processDamageMult(state)
+  mult *= directiveWeaponMult(state)
   mult *= ballisticsDamageMult(state.core?.ranks.ballistics ?? 0)
   const coreDmg = computeSignalCoreBonuses(state).damage
   // Signal damage is a softer half-weight layer (not a full multiply stack).
@@ -313,7 +317,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       cooldownLeft: 0,
       range: capRange(mod.weapon.range),
       tags: [...mod.weapon.tags],
-      splash: mod.weapon.splash ?? 0,
+      splash: (mod.weapon.splash ?? 0) * directiveSplashMult(state),
       dotDuration: mod.weapon.dotDuration ?? 0,
       dotDamage: (mod.weapon.dotDamage ?? 0) * mult * mastery,
       telegraphDuration: mod.weapon.telegraphDuration ?? 0,
@@ -404,6 +408,8 @@ export function computeShipStats(state: GameState): ShipCombatStats {
 
   hullMax *= runHullMult(state)
   shieldMax *= runShieldMult(state)
+  shieldMax *= directiveShieldMult(state)
+  damageTakenMult *= directiveIncomingMult(state)
 
   evasion = Math.min(0.45, evasion)
 

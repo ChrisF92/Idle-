@@ -2,6 +2,7 @@
 
 import type { GameState, ReliquaryColor, ReliquaryState } from './types'
 import { careerBestWave, careerHighestSector } from './progression'
+import { meetsWave } from './waves'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
@@ -198,7 +199,7 @@ export const SHARDS: ShardDef[] = [
 ]
 
 export function createEmptyReliquaryState(): ReliquaryState {
-  return { owned: {}, slots: {} }
+  return { owned: {}, slots: {}, coreFits: {} }
 }
 
 export function getShard(id: string): ShardDef | undefined {
@@ -224,11 +225,60 @@ export function fittedShardId(state: GameState, color: ReliquaryColor): string |
   return state.reliquary?.slots[color] ?? null
 }
 
+export function isRelicsUnlocked(state: GameState): boolean {
+  return meetsWave(state, RELIQUARY_UNLOCK_SECTOR)
+}
+
+export function relicSocketCount(state: GameState, moduleId: string): number {
+  if (!isRelicsUnlocked(state)) return 0
+  if (!state.shipyard.modules.includes(moduleId)) return 0
+  return 1
+}
+
+export function coreRelicId(state: GameState, moduleId: string): string | null {
+  const id = state.reliquary?.coreFits?.[moduleId]
+  return typeof id === 'string' && id.length > 0 ? id : null
+}
+
+export function equipRelicOnCore(state: GameState, moduleId: string, relicId: string): GameState {
+  if (!state.combat.docked) return state
+  const def = getShard(relicId)
+  if (!def) return state
+  if (relicSocketCount(state, moduleId) < 1) return state
+  if (shardOwned(state, relicId) < 1) return state
+  const next = structuredClone(state)
+  if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
+  if (!next.reliquary.coreFits) next.reliquary.coreFits = {}
+  const previous = next.reliquary.coreFits[moduleId]
+  if (previous) {
+    next.reliquary.owned[previous] = shardOwned(next, previous) + 1
+  }
+  next.reliquary.owned[relicId] = shardOwned(next, relicId) - 1
+  if ((next.reliquary.owned[relicId] ?? 0) <= 0) delete next.reliquary.owned[relicId]
+  next.reliquary.coreFits[moduleId] = relicId
+  noteSystemAction(next, 'reliquary')
+  return next
+}
+
+export function removeRelicFromCore(state: GameState, moduleId: string): GameState {
+  if (!state.combat.docked) return state
+  const fitted = coreRelicId(state, moduleId)
+  if (!fitted) return state
+  const next = structuredClone(state)
+  if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
+  if (!next.reliquary.coreFits) next.reliquary.coreFits = {}
+  next.reliquary.owned[fitted] = shardOwned(next, fitted) + 1
+  next.reliquary.coreFits[moduleId] = null
+  return next
+}
+
 /** Extra copies of the inserted shard, 0..1. */
 export function shardResonance(state: GameState, id: string): number {
   const def = getShard(id)
   if (!def) return 0
-  if (fittedShardId(state, def.color) !== id) return 0
+  const fittedSomewhere =
+    Object.values(state.reliquary?.coreFits ?? {}).includes(id) || fittedShardId(state, def.color) === id
+  if (!fittedSomewhere) return 0
   const extra = Math.max(0, shardOwned(state, id) - 1)
   return Math.min(1, extra / RELIQUARY_RESONANCE_NEED)
 }
@@ -237,7 +287,9 @@ export function shardResonance(state: GameState, id: string): number {
 export function shardEffectScale(state: GameState, id: string): number {
   if (!getShard(id)) return 0
   const def = getShard(id)!
-  if (fittedShardId(state, def.color) !== id) return 0
+  if (fittedShardId(state, def.color) !== id && !Object.values(state.reliquary?.coreFits ?? {}).includes(id)) {
+    return 0
+  }
   const resonance = shardResonance(state, id)
   const exp = Math.max(0.45, 1 + protocolModifiers(state).reliquaryResonanceExpAdd)
   return 1 + Math.pow(resonance, exp)
@@ -270,9 +322,11 @@ export function reliquaryBonuses(state: GameState): ReliquaryBonuses {
   if (!state.reliquary) return out
   if (protocolMutes(state, 'reliquary')) return out
   const power = protocolBonusMult(state, 'reliquary')
-  for (const slot of RELIQUARY_SLOTS) {
-    const id = fittedShardId(state, slot.color)
-    if (!id) continue
+  const fitted = new Set<string>()
+  for (const id of Object.values(state.reliquary.coreFits ?? {})) {
+    if (id) fitted.add(id)
+  }
+  for (const id of fitted) {
     const def = getShard(id)
     if (!def) continue
     const scale = shardEffectScale(state, id) * power
