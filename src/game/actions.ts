@@ -163,7 +163,11 @@ import {
   retirePostResetOnboarding,
   tryCompleteAchievements,
 } from './progression'
-import { bandsClearedForWave } from './waves'
+import {
+  emptyRebuildCycle,
+  prestigeGainFor as rebuildMatterGain,
+  rebuildDoorMet,
+} from './rebuild'
 import {
   createEmptySignalCoresState,
   unequipAllSignalCores,
@@ -1068,25 +1072,14 @@ export function unfitModule(state: GameState, moduleId: string): GameState {
 }
 
 export function prestigeGainFor(state: GameState): number {
-  const reach = Math.max(
+  return Math.max(
     1,
-    bandsClearedForWave(careerBestWave(state)),
-    state.combat.highestSector,
-    Math.floor(state.combat.sector),
+    Math.floor(rebuildMatterGain(state) * protocolModifiers(state).rebuildMatterMult),
   )
-  const base = Math.max(
-    1,
-    Math.floor(reach / 2) + state.prestige.prestigeCount + 1,
-  )
-  const ascensions = state.meta.ascensionCount ?? 0
-  // Ascension is the long-term PM accelerator (USI-style snowball).
-  const raw = Math.max(1, Math.floor(base * (1 + 0.4 * ascensions)))
-  return Math.max(1, Math.floor(raw * protocolModifiers(state).rebuildMatterMult))
 }
 
 export function canPrestige(state: GameState): boolean {
-  if (state.prestige.activeChallengeId) return false
-  return careerBestWave(state) >= prestigeMinSectorFor(state.prestige.shop)
+  return Boolean(state.combat.docked) && rebuildDoorMet(state, prestigeMinSectorFor(state.prestige.shop))
 }
 
 /** Ascension unlocks after Act 1; soft-resets the run and boosts future PM gains. */
@@ -1327,7 +1320,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       seenOnboarding: [...(state.meta.seenOnboarding ?? [])],
     },
     parts: { ...(state.parts ?? {}) },
-    choirAsh: state.resources.choirAsh ?? 0,
     heat: state.resources.heat ?? 0,
     reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {} }),
     furnace: structuredClone(state.furnace ?? createEmptyFurnaceState()),
@@ -1371,12 +1363,11 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const bonusAi = challengeShopStartingAi(kept.shop)
   const bonusSalvage = challengeShopStartingSalvage(kept.shop)
   /**
-   * USI-style acceleration: returning kits grow with prestige count so each
-   * re-push starts faster (salvage / industry kick sooner). First Rebuild
-   * salvage covers Pulse L1 + Plate L1 + a second Plate so the Scout is not
-   * salvage-starved on the recover. Data kit is smaller now that research persists.
+   * Later Rebuilds start with a small kit so re-pushes aren't empty. First
+   * Rebuild wipes Scrap and Salvage (GDD §68) — Matter is the payout, not a
+   * leftover bank. Data kit is smaller now that research persists.
    */
-  const returning = kept.prestigeCount > 0 || (kept.meta.ascensionCount ?? 0) > 0
+  const returning = kept.prestigeCount > 1 || (kept.meta.ascensionCount ?? 0) > 0
   const pc = kept.prestigeCount
   const ac = kept.meta.ascensionCount ?? 0
   const returnScrap = returning ? 16 + Math.min(56, pc * 8 + ac * 10) : 0
@@ -1390,11 +1381,11 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     prestigeMatter: kept.prestigeMatter,
     challengePoints: kept.challengePoints,
     essence: kept.essence,
-    scrap: fresh.resources.scrap + bonusScrap + returnScrap,
+    scrap: bonusScrap + returnScrap + (returning ? fresh.resources.scrap : 0),
     data: fresh.resources.data + returnData,
     aiPoints: kept.aiPoints + bonusAi,
     salvage: bonusSalvage + returnSalvage,
-    choirAsh: kept.choirAsh,
+    choirAsh: 0,
     heat: furnaceRestartHeat({ ...state, furnace: kept.furnace } as GameState, kept.heat),
   }
   state.shipyard = persistLoadout(
@@ -1432,6 +1423,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     challengeClears: kept.challengeClears,
     shop: kept.shop,
     matterShop: kept.matterShop,
+    cycle: emptyRebuildCycle(),
   }
   state.codex = { seenFamilies: kept.seenFamilies }
   state.meta = kept.meta

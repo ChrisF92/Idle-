@@ -12,6 +12,7 @@ import {
   YARD_MIN_REBUILDS,
 } from './cadence'
 import { careerBestWave, meetsWave } from './waves'
+import { rebuildDoorMet } from './rebuild'
 
 export {
   WAVES_PER_SECTOR,
@@ -77,8 +78,8 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'slag',
     requiresSectorEver: 0,
-    label: 'Slag Bank',
-    tip: 'Spend Rebuild Matter on permanent hangar ranks.',
+    label: 'Matter',
+    tip: 'Spend Rebuild Matter inside the Rebuild hangar.',
   },
   {
     id: 'protocols',
@@ -869,8 +870,7 @@ function guideSeen(state: GameState, id: string): boolean {
 /** Dock Rebuild button is live and this career has never Rebuilt. */
 export function firstRebuildAvailable(state: GameState): boolean {
   if ((state.prestige.prestigeCount ?? 0) > 0) return false
-  if (state.prestige.activeChallengeId) return false
-  return meetsWave(state, PRESTIGE_MIN_SECTOR)
+  return rebuildDoorMet(state)
 }
 
 /**

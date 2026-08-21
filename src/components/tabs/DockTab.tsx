@@ -1,7 +1,7 @@
 import type { GameState, RunUpgradeId } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { canPrestige } from '../../game/actions'
-import { prestigeMinSectorFor } from '../../game/catalog'
+import { canOpenRebuildHangar, rebuildWaveNeed } from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import {
@@ -41,7 +41,8 @@ export function DockTab({
   const live = !combat.docked
   const summary = combat.lastSortie
   const rebuildReady = canPrestige(state)
-  const rebuildMin = prestigeMinSectorFor(state.prestige.shop)
+  const hangarOpen = canOpenRebuildHangar(state)
+  const rebuildMin = rebuildWaveNeed(state)
   const dockMode = live ? 'is-live' : rebuildReady ? 'is-rebuild' : 'is-ready'
   const hullPct = meterScale(combat.playerHull, stats.hullMax)
   const shieldPct = meterScale(combat.playerShield, stats.shieldMax)
@@ -113,13 +114,17 @@ export function DockTab({
         type="button"
         className="dock-rebuild"
         data-guide="rebuild-btn"
-        disabled={!rebuildReady}
+        disabled={!hangarOpen}
         onClick={(e) => {
           markLocalOk(e.currentTarget)
           onRebuild()
         }}
       >
-        {rebuildReady ? 'Rebuild hangar' : `Rebuild · Wave ${rebuildMin}`}
+        {rebuildReady
+          ? 'Rebuild hangar'
+          : (state.prestige.prestigeCount ?? 0) > 0
+            ? 'Matter shop'
+            : `Rebuild · Wave ${rebuildMin}`}
       </button>
 
       {showWorkshop ? (

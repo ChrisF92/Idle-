@@ -16,7 +16,7 @@ import {
   selectFrame,
   unlockFrame,
 } from './actions'
-import { clearCurrentWave, clearSector } from './testHelpers'
+import { clearCurrentWave, clearSector, armRebuildDoor } from './testHelpers'
 
 describe('campaign combat', () => {
   it('clears a ten-wave band and continues the Sortie', () => {
@@ -194,6 +194,8 @@ describe('campaign combat', () => {
       state = clearSector(state)
     }
     expect(state.meta.bestWave).toBeGreaterThanOrEqual(70)
+    state = setDocked(state, true)
+    state.prestige.cycle.sorties = Math.max(state.prestige.cycle.sorties, 3)
     expect(canPrestige(state)).toBe(true)
   })
 
@@ -211,11 +213,8 @@ describe('campaign combat', () => {
     state = selectFrame(state, 'scout-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
 
-    state.meta.bestWave = 70
-    state.combat.bestWave = 70
-    state.combat.sector = 1
-    state.combat.highestSector = 7
-    state.meta.highestSectorEver = 7
+    state = setDocked(state, true)
+    state = armRebuildDoor(state)
     state = performPrestige(state, 1000)
     expect(state.combat.docked).toBe(true)
     expect(state.shipyard.frameLocked).toBe(false)

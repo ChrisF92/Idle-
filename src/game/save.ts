@@ -214,6 +214,11 @@ function withPrestigeDefaults(
     challengeClears: migrateChallengeClears(prestige ?? {}),
     shop: migrateShopRanks(prestige?.shop),
     matterShop: migrateShopRanks(prestige?.matterShop),
+    cycle: {
+      bestWave: Math.max(0, Math.floor(Number(prestige?.cycle?.bestWave ?? 0) || 0)),
+      sorties: Math.max(0, Math.floor(Number(prestige?.cycle?.sorties ?? 0) || 0)),
+      scrapEarned: Math.max(0, Math.floor(Number(prestige?.cycle?.scrapEarned ?? 0) || 0)),
+    },
   }
 }
 

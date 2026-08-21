@@ -1,28 +1,40 @@
 import { useMemo, useState } from 'react'
 import type { GameState } from '../game/types'
 import {
+  MATTER_SHOP,
   SHIP_FRAMES,
   SHIP_MODULES,
+  canBuyMatterShop,
   canFitModuleOnFrame,
   getFrame,
   getModule,
-  prestigeMinSectorFor,
+  matterShopEffectBlurb,
+  shopRank,
   trimModulesToFrame,
 } from '../game/catalog'
 import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
-import { canPrestige } from '../game/actions'
+import { canPrestige, prestigeGainFor } from '../game/actions'
 import { yardPendingSummary } from '../game/yard'
 import { isSystemUnlocked } from '../game/progression'
 import { rebuildConsequenceLists } from '../game/playerGuidance'
 import { ConsequencePanel } from './ConsequencePanel'
+import {
+  cycleBestWave,
+  rebuildCycle,
+  rebuildWaveNeed,
+  workshopInvestment,
+} from '../game/rebuild'
+import { formatCompact } from '../game/format'
+import { RESOURCE_LABELS } from '../game/state'
 
 interface RebuildHangarProps {
   state: GameState
   onConfirm: (hangar: { frameId: string; modules: string[] }) => void
   onClose: () => void
+  onBuyMatter?: (itemId: string) => void
 }
 
-export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps) {
+export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: RebuildHangarProps) {
   const available = SHIP_FRAMES.filter((f) => state.shipyard.unlockedFrames.includes(f.id))
   const extra = { utility: hiveResearchExtraUtilitySlots(state) }
   const [frameId, setFrameId] = useState(state.shipyard.frameId)
@@ -32,8 +44,13 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
   )
 
   const ready = canPrestige(state)
-  const rebuildMin = prestigeMinSectorFor(state.prestige.shop)
+  const need = rebuildWaveNeed(state)
+  const cycle = rebuildCycle(state)
+  const gain = prestigeGainFor(state)
   const lists = rebuildConsequenceLists(state)
+  const shopOpen = isSystemUnlocked(state, 'slag') || (state.resources.prestigeMatter ?? 0) > 0
+  const matter = state.resources.prestigeMatter
+  const label = RESOURCE_LABELS.prestigeMatter
 
   const weapons = useMemo(
     () => SHIP_MODULES.filter((m) => m.role === 'weapon' && state.shipyard.unlockedModules.includes(m.id)),
@@ -80,7 +97,7 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
         <header className="modal-header">
           <div>
             <h3 id="rebuild-title">Rebuild</h3>
-            <p className="muted">Swap hull and Cores. Permanent systems stay.</p>
+            <p className="muted">Rebuild trades current-cycle development for permanent growth.</p>
           </div>
           <button type="button" onClick={onClose}>
             Close
@@ -88,9 +105,61 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
         </header>
 
         <div className="hangar-body">
+          <section className="hangar-cycle">
+            <p className="combat-hud-kicker">Current cycle</p>
+            <div className="stat-row dock-stats">
+              <div>
+                <span className="muted">Best Wave</span>
+                <strong>{cycleBestWave(state) || '—'}</strong>
+              </div>
+              <div>
+                <span className="muted">Sorties</span>
+                <strong>{cycle.sorties}</strong>
+              </div>
+              <div>
+                <span className="muted">Scrap generated</span>
+                <strong>{formatCompact(cycle.scrapEarned)}</strong>
+              </div>
+              <div>
+                <span className="muted">Workshop</span>
+                <strong>{workshopInvestment(state)} ranks</strong>
+              </div>
+            </div>
+          </section>
+
           <ConsequencePanel lists={lists} />
           {isSystemUnlocked(state, 'yard') ? (
             <p className="muted">Yard: {yardPendingSummary(state)}.</p>
+          ) : null}
+
+          {shopOpen ? (
+            <section className="hangar-matter">
+              <p className="combat-hud-kicker">Matter shop</p>
+              <h4>{formatCompact(matter, 1)} {label}</h4>
+              <p className="muted">Permanent ranks. Spend here — there is no separate Slag screen.</p>
+              {MATTER_SHOP.map((item) => {
+                const rank = shopRank(state.prestige.matterShop, item.id)
+                const can = canBuyMatterShop(state, item.id)
+                return (
+                  <article key={item.id} className="network-row">
+                    <div className="network-row-main">
+                      <strong>{item.name}</strong>
+                      <span className="muted">Lv {rank}</span>
+                    </div>
+                    <p className="network-row-stats">{item.description}</p>
+                    <p className="muted">{matterShopEffectBlurb(item, rank)}</p>
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={!onBuyMatter || !can.ok}
+                      onClick={() => onBuyMatter?.(item.id)}
+                    >
+                      {can.ok ? `${can.cost} ${label}` : can.reason}
+                    </button>
+                  </article>
+                )
+              })}
+            </section>
           ) : null}
 
           <h4 data-guide="hangar-hull">Hull</h4>
@@ -139,23 +208,23 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
             ))}
           </div>
 
-          <h4>Utility</h4>
-          <div className="hangar-picks">
-            {utilities.length === 0 ? (
-              <p className="muted">Print a utility Core in the Foundry, then Rebuild to fit it.</p>
-            ) : (
-              utilities.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={modules.includes(m.id) ? 'primary' : undefined}
-                  onClick={() => toggle(m.id)}
-                >
-                  {m.name}
-                </button>
-              ))
-            )}
-          </div>
+          {utilities.length > 0 ? (
+            <>
+              <h4>Utility</h4>
+              <div className="hangar-picks">
+                {utilities.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={modules.includes(m.id) ? 'primary' : undefined}
+                    onClick={() => toggle(m.id)}
+                  >
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
 
         <div className="modal-actions">
@@ -169,7 +238,7 @@ export function RebuildHangar({ state, onConfirm, onClose }: RebuildHangarProps)
             disabled={!ready}
             onClick={() => onConfirm({ frameId, modules })}
           >
-            {ready ? `Rebuild` : `Reach sector ${rebuildMin}`}
+            {ready ? `Rebuild · +${gain} Matter` : `Reach Wave ${need} this cycle`}
           </button>
         </div>
       </div>

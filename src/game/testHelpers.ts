@@ -2,6 +2,8 @@ import type { GameState } from './types'
 import { grantEnemyKillRewards } from './combat'
 import { advanceTicks, startCombat } from './tick'
 import { bandsClearedForWave, isBossWave } from './waves'
+import { ACT1_CADENCE } from './cadence'
+import { REBUILD_MIN_SORTIES } from './rebuild'
 
 function wipeEnemies(state: GameState): void {
   for (const e of state.combat.enemyUnits) {
@@ -59,9 +61,23 @@ export function atCareerWave(state: GameState, wave: number): GameState {
   const w = Math.max(0, Math.floor(wave))
   next.meta.bestWave = Math.max(next.meta.bestWave ?? 0, w)
   next.combat.bestWave = Math.max(next.combat.bestWave ?? 0, w)
+  if (!next.prestige.cycle) next.prestige.cycle = { bestWave: 0, sorties: 0, scrapEarned: 0 }
+  next.prestige.cycle.bestWave = Math.max(next.prestige.cycle.bestWave ?? 0, w)
+  if (w >= ACT1_CADENCE.rebuild) {
+    next.prestige.cycle.sorties = Math.max(next.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
+  }
   const bands = bandsClearedForWave(w)
   next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver ?? 0, bands)
   next.combat.highestSector = Math.max(next.combat.highestSector ?? 0, bands)
+  return next
+}
+
+/** Dock + cycle Wave 70 + enough Sorties for the Rebuild door. */
+export function armRebuildDoor(state: GameState): GameState {
+  const next = atCareerWave(state, ACT1_CADENCE.rebuild)
+  next.combat.docked = true
+  next.meta.hullLostOnce = true
+  next.prestige.cycle.sorties = Math.max(next.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
   return next
 }
 

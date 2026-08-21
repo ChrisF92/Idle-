@@ -192,6 +192,7 @@ export function createInitialState(now = Date.now()): GameState {
       challengeClears: {},
       shop: {},
       matterShop: {},
+      cycle: { bestWave: 0, sorties: 0, scrapEarned: 0 },
     },
     codex: {
       seenFamilies: [],

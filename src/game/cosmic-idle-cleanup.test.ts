@@ -3,6 +3,7 @@ import { GUIDE_STEPS, PRESTIGE_MIN_SECTOR } from './progression'
 import { RESOURCE_LABELS, createInitialState } from './state'
 import { canPrestige, performPrestige } from './actions'
 import { PRESTIGE_MIN_SECTOR as CATALOG_PRESTIGE_MIN, prestigeMinSectorFor } from './catalog'
+import { armRebuildDoor } from './testHelpers'
 
 const DEAD_GUIDE_TARGETS = [
   'shipyard-tab',
@@ -40,12 +41,7 @@ describe('Cosmic Idle UI cleanup', () => {
     expect(RESOURCE_LABELS.prestigeMatter).toBe('Rebuild Matter')
     expect(RESOURCE_LABELS.challengePoints).toBe('Challenge Marks')
 
-    let state = createInitialState(0)
-    state.meta.bestWave = 70
-    state.combat.bestWave = 70
-    state.combat.sector = 1
-    state.combat.highestSector = 7
-    state.meta.highestSectorEver = 7
+    let state = armRebuildDoor(createInitialState(0))
     expect(CATALOG_PRESTIGE_MIN).toBe(PRESTIGE_MIN_SECTOR)
     expect(prestigeMinSectorFor(state.prestige.shop)).toBe(PRESTIGE_MIN_SECTOR)
     expect(canPrestige(state)).toBe(true)

@@ -98,6 +98,10 @@ import {
   queueDirectiveOffer,
 } from './directives'
 import {
+  noteRebuildCycleSortie,
+  noteRebuildCycleWave,
+} from './rebuild'
+import {
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
@@ -145,6 +149,7 @@ function noteBestWave(state: GameState, wave: number): boolean {
   const prev = Math.max(state.combat.bestWave ?? 0, state.meta.bestWave ?? 0)
   state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
   state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
+  noteRebuildCycleWave(state, w)
   const bands = bandsClearedForWave(w)
   if (isBossWave(w) && bands > (state.combat.highestSector ?? 0)) {
     state.combat.highestSector = bands
@@ -174,6 +179,7 @@ function finishSortie(
     note = `${note} Extraction +${bonus} Scrap.`
   }
   closeSortie(state, outcome, note, at, { scrapEarned, newBest })
+  noteRebuildCycleSortie(state, scrapEarned)
   state.resources.salvage = 0
   resetRunCoreLevels(state)
   state.combat.runUpgrades = {}

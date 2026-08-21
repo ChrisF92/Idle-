@@ -1002,6 +1002,13 @@ export interface EssenceState {
   purchased: string[]
 }
 
+/** Progress inside the current Rebuild cycle. Wiped when a Rebuild lands. */
+export interface RebuildCycleState {
+  bestWave: number
+  sorties: number
+  scrapEarned: number
+}
+
 export interface PrestigeState {
   prestigeCount: number
   activeChallengeId: string | null
@@ -1011,6 +1018,8 @@ export interface PrestigeState {
   shop: Record<string, number>
   /** Permanent Rebuild Matter shop ranks (id → rank). */
   matterShop: Record<string, number>
+  /** Stats for the current Rebuild cycle. Reset when a Rebuild lands. */
+  cycle: RebuildCycleState
 }
 
 /** Encounter memory for the Codex — persists across prestige. */

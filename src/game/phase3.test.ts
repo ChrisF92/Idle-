@@ -10,7 +10,7 @@ import { pendingMilestone } from './milestones'
 import { getFrame } from './catalog'
 import { isSystemUnlocked, visibleResourceIds } from './progression'
 import { maybeGrantSystemUnlocks } from './progression'
-import { clearSector } from './testHelpers'
+import { clearSector, armRebuildDoor } from './testHelpers'
 import { setDocked } from './tick'
 
 describe('phase 3: milestones, rebuild, foundry', () => {
@@ -31,12 +31,7 @@ describe('phase 3: milestones, rebuild, foundry', () => {
   })
 
   it('allows Rebuild from Wave 70 and wipes Core levels', () => {
-    let s = createInitialState(0)
-    s.meta.bestWave = 70
-    s.combat.bestWave = 70
-    s.combat.sector = 1
-    s.meta.highestSectorEver = 7
-    s.combat.highestSector = 7
+    let s = armRebuildDoor(createInitialState(0))
     s.shipyard.moduleLevels['pulse-cannon'] = 6
     s.shipyard.corePicks = { 'pulse-cannon': { 'pulse-10': 'focused' } }
     expect(canPrestige(s)).toBe(true)
@@ -64,12 +59,7 @@ describe('phase 3: milestones, rebuild, foundry', () => {
   })
 
   it('Rebuild hangar can swap onto Frigate once unlocked', () => {
-    let s = createInitialState(0)
-    s.meta.bestWave = 70
-    s.combat.bestWave = 70
-    s.combat.sector = 1
-    s.combat.highestSector = 7
-    s.meta.highestSectorEver = 7
+    let s = armRebuildDoor(createInitialState(0))
     s.shipyard.unlockedFrames = ['scout-frame', 'line-frame']
     s = performRebuild(s, {
       frameId: 'line-frame',

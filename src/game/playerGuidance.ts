@@ -109,12 +109,28 @@ export function migrateOnboardingState(state: GameState): void {
 }
 
 export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
-  const gain = [`+${prestigeGainFor(state)} Rebuild Matter`]
-  const keep: string[] = [
-    'Manufactured drones and drone capacity',
-    'Network Links',
+  const gain = [
+    `+${prestigeGainFor(state)} Rebuild Matter`,
+    'Rebuild trades current-cycle development for permanent growth.',
   ]
-  const reset = ['Salvage', 'Core levels', 'Network bar levels', 'Current sortie']
+  const keep: string[] = [
+    'Career Best Wave',
+    'Unlocked systems',
+    'Hive Frames and Core unlocks',
+    'Core Mastery',
+    'Rebuild Matter',
+    'Long-term statistics',
+  ]
+  const reset = [
+    'Current Sortie',
+    'Salvage',
+    'Temporary Core levels',
+    'Run upgrades',
+    'Directives',
+    'Scrap',
+    'Workshop',
+    'Ash',
+  ]
   const change = ['Hull', 'Core loadout']
 
   if (isSystemUnlocked(state, 'foundry')) {
@@ -125,11 +141,9 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   if (isSystemUnlocked(state, 'research')) keep.push('Research')
   if (isSystemUnlocked(state, 'furnace')) {
     keep.push('Furnace upgrades')
-    if (furnaceUpgradeRank(state, 'ember') > 0) {
-      reset.push('Heat (Ember Lock keeps a fraction)')
-    } else {
-      reset.push('Heat')
-    }
+    reset.push(furnaceUpgradeRank(state, 'ember') > 0 ? 'Heat (Ember Lock keeps a fraction)' : 'Heat')
+  } else {
+    reset.push('Heat')
   }
   if (isSystemUnlocked(state, 'process')) keep.push('Process')
   if (isSystemUnlocked(state, 'yard')) keep.push('Yard')

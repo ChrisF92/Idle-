@@ -1264,6 +1264,17 @@ h2 .inspect-name {
   align-content: start;
 }
 
+.hangar-cycle,
+.hangar-matter {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.hangar-matter .network-row {
+  margin: 0;
+}
+}
+
 .hangar-picks {
   display: flex;
   flex-wrap: wrap;

@@ -34,8 +34,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   dock: {
     title: 'Dock',
     body: [
-      'Launch a sortie from here. Combat keeps running if you stay on Dock after Launch.',
-      'Ordinary hull loss no longer docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
+      'Launch a Sortie from here. Every run starts at Wave 1. Death or Extract returns you to Dock.',
+      'Rebuild at Wave 70 trades this cycle’s Workshop and Scrap for permanent Matter. The hangar lists RESET, KEEP, and GAIN. Do not confirm until you mean it.',
     ],
   },
   combat: {
@@ -91,10 +91,10 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     ],
   },
   slag: {
-    title: 'Slag Bank',
+    title: 'Matter',
     body: [
-      'Purpose: this is the first true exponential meta layer. Spend Rebuild Matter on permanent ranks that make the next push visibly stronger.',
-      'Damage and production ranks compound multiplicatively; other permanent ranks accelerate in their own niche. Unspent Matter gives only a tiny fallback bonus.',
+      'Purpose: spend Rebuild Matter on permanent ranks that make the next cycle stronger.',
+      'The Matter shop lives inside the Rebuild hangar. There is no separate Slag screen.',
     ],
   },
   protocols: {

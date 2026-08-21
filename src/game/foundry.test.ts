@@ -15,6 +15,7 @@ import {
 } from './foundry'
 import { isSystemUnlocked } from './progression'
 import { advanceSeconds } from './tick'
+import { armRebuildDoor } from './testHelpers'
 
 describe('phase 5: foundry + notation', () => {
   it('opens Foundry at Wave 20 with one smelter', () => {
@@ -81,12 +82,7 @@ describe('phase 5: foundry + notation', () => {
   })
 
   it('Rebuild wipes fitted bits but keeps recipe levels and points', () => {
-    let s = createInitialState(0)
-    s.meta.bestWave = 70
-    s.combat.bestWave = 70
-    s.combat.sector = 1
-    s.combat.highestSector = 7
-    s.meta.highestSectorEver = 7
+    let s = armRebuildDoor(createInitialState(0))
     s.foundry.recipeLevels['slag-ingot'] = 8
     s.foundry.points = 5
     s.foundry.materials['hardened-plate'] = 5

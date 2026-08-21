@@ -445,6 +445,7 @@ export default function App() {
             setHangarOpen(false)
             go('dock')
           }}
+          onBuyMatter={game.buyMatterShop}
         />
       ) : null}
 
