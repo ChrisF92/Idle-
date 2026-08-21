@@ -3,7 +3,7 @@ import {
   AI_NODES,
   MASTERY_PARTS_COST,
   MAX_MODULE_LEVEL,
-  MAX_MODULE_MASTERY,
+  moduleMasteryCap,
   PART_TYPES,
   RESEARCH,
   STATIONS,
@@ -1012,7 +1012,7 @@ export function investPartMastery(state: GameState, moduleId: string): GameState
   if (!state.shipyard.unlockedModules.includes(moduleId)) return state
   if (!getModule(moduleId)) return state
   const rank = moduleMasteryRank(state, moduleId)
-  if (rank >= MAX_MODULE_MASTERY) return state
+  if (rank >= moduleMasteryCap(state)) return state
   if (countModuleParts(state, moduleId) < MASTERY_PARTS_COST) return state
 
   const next = structuredClone(state)

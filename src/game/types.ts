@@ -138,7 +138,7 @@ export interface FurnaceState {
   starveNote: string
 }
 
-export type HiveResearchBranch = 'material' | 'energy' | 'observation'
+export type HiveResearchBranch = 'material' | 'energy' | 'observation' | 'computation'
 
 /** Lightweight run counters — accumulated, never a per-frame history. */
 export interface SortieRunStats {
@@ -971,7 +971,7 @@ export interface MetaState {
   lifetimeDronesBuilt: number
   /** Modules with at least one blueprint fragment recovered (permanent). */
   discoveredModules: string[]
-  /** Permanent mastery ranks from investing excess parts (cap 10). */
+  /** Permanent mastery ranks from investing excess parts (cap 10, then 20 at Wave 275). */
   moduleMastery: Record<string, number>
   /**
    * After first Null Signal clear, Signal Cores inventory + equipped

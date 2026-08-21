@@ -1,7 +1,7 @@
 /** Hive Research — one timed project at a time. Progress persists across Rebuild. */
 
 import type { GameState, HiveResearchBranch, HiveResearchState, NetworkBarId, ReliquaryColor } from './types'
-import { careerBestWave } from './progression'
+import { careerBestWave, isSystemUnlocked, meetsWave } from './progression'
 import { processResearchSpeedMult } from './process'
 import { protocolModifiers } from './protocols'
 import { foundryResearchXpMult } from './foundryBonuses'
@@ -69,6 +69,11 @@ export const HIVE_RESEARCH_BRANCHES: {
     id: 'material',
     name: 'Industrial Science',
     blurb: 'Foundry, fabrication, and production capacity.',
+  },
+  {
+    id: 'computation',
+    name: 'Computational Systems',
+    blurb: 'Process, automation, analytics, and smart controls.',
   },
 ]
 
@@ -154,15 +159,58 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
       protocolXp: 0.15,
     },
   ],
+  computation: [
+    { name: 'Loop Notes', blurb: 'Research crawls a little faster.', kind: 'incremental', researchXp: 0.04 },
+    { name: 'Idle Watch', blurb: 'Assigned drones fill jobs a little harder.', kind: 'incremental', droneEfficiency: 0.04 },
+    {
+      name: 'Queue Desk',
+      blurb: 'The Research Queue holds one more branch.',
+      kind: 'breakthrough',
+      researchQueueSlots: 1,
+    },
+    { name: 'Sortie Log', blurb: 'Active Challenges grant a little extra Research speed.', kind: 'incremental', protocolXp: 0.05 },
+    { name: 'Ash Audit', blurb: 'A little more salvage from wrecks.', kind: 'incremental', salvage: 0.03 },
+    {
+      name: 'Background Slot',
+      blurb: 'Unfocused branches crawl faster while another project is active.',
+      kind: 'breakthrough',
+      offFocusAdd: 0.25,
+    },
+    { name: 'Worker Brief', blurb: 'Assigned drones fill jobs a little harder.', kind: 'incremental', droneEfficiency: 0.05 },
+    { name: 'Craft Clock', blurb: 'Foundry crafts run a little faster.', kind: 'incremental', foundrySpeed: 0.03 },
+    {
+      name: 'Auto Desk',
+      blurb: 'Deeper Research Queue. Process can keep more branches in motion.',
+      kind: 'breakthrough',
+      researchQueueSlots: 2,
+      researchXp: 0.06,
+    },
+  ],
 }
 
 export function createEmptyHiveResearchState(): HiveResearchState {
-  return {
-    focus: 'energy',
-    active: false,
-    xp: { material: 0, energy: 0, observation: 0 },
-    completed: { material: 0, energy: 0, observation: 0 },
+  const xp = {} as Record<HiveResearchBranch, number>
+  const completed = {} as Record<HiveResearchBranch, number>
+  for (const branch of HIVE_RESEARCH_BRANCHES) {
+    xp[branch.id] = 0
+    completed[branch.id] = 0
   }
+  return { focus: 'energy', active: false, xp, completed }
+}
+
+export function hiveResearchComputationUnlocked(state: GameState): boolean {
+  return meetsWave(state, ACT1_CADENCE.mastery) && isSystemUnlocked(state, 'process')
+}
+
+export function hiveResearchBranchUnlocked(state: GameState, branch: HiveResearchBranch): boolean {
+  if (branch === 'computation') return hiveResearchComputationUnlocked(state)
+  return careerBestWave(state) >= HIVE_RESEARCH_UNLOCK_SECTOR
+}
+
+export function hiveResearchStartableBranches(state: GameState): HiveResearchBranch[] {
+  return HIVE_RESEARCH_BRANCHES.filter((branch) => hiveResearchBranchUnlocked(state, branch.id)).map(
+    (branch) => branch.id,
+  )
 }
 
 export function hiveResearchNodeCost(index: number, state?: GameState): number {
@@ -374,7 +422,8 @@ export function hiveResearchUnlocksReliquary(state: GameState, color: ReliquaryC
 }
 
 export function hiveResearchExtraUtilitySlots(state: GameState): number {
-  return hiveResearchBonuses(state).extraUtilitySlots
+  const late = meetsWave(state, ACT1_CADENCE.mastery) ? 1 : 0
+  return hiveResearchBonuses(state).extraUtilitySlots + late
 }
 
 export function hiveResearchUpcoming(
@@ -429,6 +478,7 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.offFocusAdd) return 'Background research crawls faster while another project is active.'
   if (node.unlockReliquary) return 'Opens the blue Reliquary slot.'
   if (node.researchQueueSlots) return 'Deeper Research Queue. Active Challenges grant extra Research speed.'
+  if (node.protocolXp) return 'Active Challenges grant extra Research speed.'
   const bits: string[] = []
   if (node.salvage) bits.push(`+${Math.round(node.salvage * 100)}% salvage`)
   if (node.foundrySpeed) bits.push(`+${Math.round(node.foundrySpeed * 100)}% craft speed`)
@@ -501,6 +551,10 @@ export function tickResearch(state: GameState, dtSeconds: number): void {
   if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return
   if (!state.hiveResearch?.active) return
   const branch = state.hiveResearch.focus
+  if (!hiveResearchBranchUnlocked(state, branch)) {
+    state.hiveResearch.active = false
+    return
+  }
   const nodes = HIVE_RESEARCH_NODES[branch]
   if (hiveResearchCompleted(state, branch) >= nodes.length) {
     state.hiveResearch.active = false
@@ -523,7 +577,7 @@ export function grantHiveResearchKillXp(
 
 export function setResearchFocus(state: GameState, branch: HiveResearchBranch): GameState {
   if (!HIVE_RESEARCH_BRANCHES.some((b) => b.id === branch)) return state
-  if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return state
+  if (!hiveResearchBranchUnlocked(state, branch)) return state
   if (hiveResearchCompleted(state, branch) >= HIVE_RESEARCH_NODES[branch].length) return state
   if (state.hiveResearch?.focus === branch && state.hiveResearch.active) return state
   const next = structuredClone(state)

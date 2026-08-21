@@ -1,4 +1,4 @@
-/** Specialists — USI Crew analogue. Print / rank; persist across Rebuild. */
+/** Specialists — deferred from Act 1. Frame / Core / Relic identity is enough. */
 
 import type { GameState, SpecialistId, SpecialistState } from './types'
 import { careerBestWave } from './progression'

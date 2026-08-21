@@ -29,7 +29,7 @@ import {
   processVisibleNodes,
 } from '../../game/process'
 import { FOUNDRY_RECIPES, foundryQueueCap } from '../../game/foundry'
-import { hiveResearchQueueCap } from '../../game/hiveResearch'
+import { hiveResearchQueueCap, hiveResearchStartableBranches, HIVE_RESEARCH_BRANCHES } from '../../game/hiveResearch'
 import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
 import { NETWORK_BARS } from '../../game/network'
 import { PROTOCOLS, protocolRank } from '../../game/protocols'
@@ -474,7 +474,7 @@ function NodeConfig({
     )
   }
   if (nodeId === 'research-queue' || nodeId === 'research-priorities' || nodeId === 'research-focus') {
-    const branches: HiveResearchBranch[] = ['material', 'energy', 'observation']
+    const branches = hiveResearchStartableBranches(state)
     const cap = hiveResearchQueueCap(state)
     const queue = [...cfg.research.queue]
     while (queue.length < cap) queue.push('' as HiveResearchBranch)
@@ -510,7 +510,7 @@ function NodeConfig({
                   <option value="">Empty</option>
                   {branches.map((b) => (
                     <option key={b} value={b}>
-                      {b[0]!.toUpperCase() + b.slice(1)}
+                      {HIVE_RESEARCH_BRANCHES.find((d) => d.id === b)?.name ?? b}
                     </option>
                   ))}
                 </select>

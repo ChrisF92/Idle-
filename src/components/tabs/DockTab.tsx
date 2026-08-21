@@ -171,7 +171,7 @@ export function DockTab({
           <h3>Relics</h3>
           <p className="muted">
             {SHARDS.some((shard) => shardOwned(state, shard.id) > 0)
-              ? 'Matching sockets only — Power, Shield, or Industrial. Core Mastery 5 adds Universal. Spare copies upgrade I–III in Relics with Slag Ingots.'
+              ? 'Matching sockets only — Power, Shield, or Industrial. Core Mastery 5 or Wave 275 adds Universal. Spare copies upgrade I–III in Relics with Slag Ingots.'
               : 'Relic sockets are open. Recover Relics from wrecks, then install them into matching Core sockets.'}
           </p>
           <CoreSheet

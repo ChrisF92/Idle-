@@ -1,4 +1,4 @@
-/** Task List — checklist gate into Capital. Opens with late Act 1 mastery. */
+/** Task List — checklist gate into Capital. Deferred from Act 1. */
 
 import type { GameState } from './types'
 import { ACT1_CADENCE } from './cadence'

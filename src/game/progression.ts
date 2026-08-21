@@ -101,13 +101,13 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'specialists',
     requiresSectorEver: ACT1_CADENCE.specialists,
     label: 'Specialists',
-    tip: 'Rank specialists for permanent ship bonuses.',
+    tip: 'Deferred from Act 1. Frame, Core, and Relic identity is enough.',
   },
   {
     id: 'tasks',
     requiresSectorEver: ACT1_CADENCE.tasks,
     label: 'Task List',
-    tip: 'Finish the checklist to open Capital.',
+    tip: 'Deferred from Act 1. Capital stays shut until this list exists.',
   },
   {
     id: 'capital',

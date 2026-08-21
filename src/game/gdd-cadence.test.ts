@@ -17,6 +17,9 @@ describe('GDD Act 1 wave cadence', () => {
     expect(ACT1_CADENCE.research).toBe(170)
     expect(ACT1_CADENCE.process).toBe(210)
     expect(ACT1_CADENCE.protocols).toBe(250)
+    expect(ACT1_CADENCE.mastery).toBe(275)
+    expect(ACT1_CADENCE.specialists).toBe(999)
+    expect(ACT1_CADENCE.tasks).toBe(999)
     expect(ACT1_CADENCE.reinforce).toBe(300)
   })
 

@@ -14,8 +14,11 @@ export const ACT1_CADENCE = {
   process: 210,
   protocols: 250,
   echo: 275,
-  specialists: 275,
-  tasks: 275,
+  mastery: 275,
+  /** Deferred from Act 1. Frame / Core / Relic identity is enough. */
+  specialists: 999,
+  /** Deferred from Act 1. Capital stays shut until this list exists. */
+  tasks: 999,
   capital: 300,
   reinforce: 300,
   /** Leftover Route B gate, kept in Wave space so it cannot fire in early Act 1. */

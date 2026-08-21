@@ -2,7 +2,7 @@
 
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
-import { bandsClearedForWave } from './waves'
+import { bandsClearedForWave, meetsWave } from './waves'
 import { formatCompact, formatStat } from './format'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
@@ -1838,6 +1838,12 @@ export const PART_TYPES: PartType[] = ['casing', 'core', 'lens']
 export const FAB_SECONDS = 120
 
 export const MAX_MODULE_MASTERY = 10
+/** Late Act 1 mastery (W275) raises the invest cap toward GDD §23. */
+export const LATE_ACT1_MODULE_MASTERY = 20
+
+export function moduleMasteryCap(state: GameState): number {
+  return meetsWave(state, ACT1_CADENCE.mastery) ? LATE_ACT1_MODULE_MASTERY : MAX_MODULE_MASTERY
+}
 
 /** Parts consumed per mastery rank (any part types of that module). */
 export const MASTERY_PARTS_COST = 3
@@ -2374,7 +2380,7 @@ export function partSellScrap(partIdStr: string): number {
 }
 
 export function masteryBonus(rank: number): number {
-  return 1 + 0.025 * Math.min(MAX_MODULE_MASTERY, Math.max(0, rank))
+  return 1 + 0.025 * Math.min(LATE_ACT1_MODULE_MASTERY, Math.max(0, rank))
 }
 
 export function moduleMasteryRank(

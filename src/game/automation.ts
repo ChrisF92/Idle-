@@ -57,6 +57,7 @@ import {
 import {
   HIVE_RESEARCH_BRANCHES,
   HIVE_RESEARCH_NODES,
+  hiveResearchBranchUnlocked,
   hiveResearchCompleted,
   hiveResearchHeatFromAshMult,
   hiveResearchQueueCap,
@@ -367,7 +368,7 @@ function autoResearchFocus(state: GameState): void {
   const cfg = processConfig(state)
   if (hasProcess(state, 'research-focus') && !cfg.research.autoResearch) return
   const incomplete = (id: (typeof HIVE_RESEARCH_BRANCHES)[number]['id']) =>
-    hiveResearchCompleted(state, id) < HIVE_RESEARCH_NODES[id].length
+    hiveResearchBranchUnlocked(state, id) && hiveResearchCompleted(state, id) < HIVE_RESEARCH_NODES[id].length
   let nextFocus = state.hiveResearch.focus
   if (hasProcess(state, 'research-queue') && cfg.research.queue.length > 0) {
     const queued = cfg.research.queue.slice(0, hiveResearchQueueCap(state)).find(incomplete)

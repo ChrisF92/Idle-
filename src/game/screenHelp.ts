@@ -67,7 +67,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Relics',
     body: [
       'Purpose: deepen Core loadouts. Main decision: which Relic sits in each fitted Core.',
-      'Relic sockets open at Wave 110. Matching types only — Power, Shield, Industrial — until Core Mastery 5 adds Universal. Install and remove freely while Docked. Relics persist on Rebuild. Spare copies plus Slag Ingots raise authored I–III tiers; hoarded extras do not resonate.',
+      'Relic sockets open at Wave 110. Matching types only — Power, Shield, Industrial — until Core Mastery 5 or Wave 275 adds Universal. Install and remove freely while Docked. Relics persist on Rebuild. Spare copies plus Slag Ingots raise authored I–III tiers; hoarded extras do not resonate.',
     ],
   },
   furnace: {
@@ -122,15 +122,15 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   specialists: {
     title: 'Specialists',
     body: [
-      'Rank Gunner, Warden, and Scavenger for permanent ship bonuses.',
-      'They are not on the battlefield. Opens around sector 68.',
+      'Deferred from Act 1. Frame, Core, and Relic identity is enough.',
+      'This station does not open during the opening campaign.',
     ],
   },
   tasks: {
     title: 'Task List',
     body: [
-      'A checklist of late-game objectives. Capital does not open from a sector number alone.',
-      'Opens around sector 72. Finish the list, then Capital can light.',
+      'Deferred from Act 1. Capital stays shut until this list exists.',
+      'This station does not open during the opening campaign.',
     ],
   },
   capital: {

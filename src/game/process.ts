@@ -1100,12 +1100,12 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
       autoResearch: research.autoResearch !== false,
       queue: Array.isArray(research.queue)
         ? research.queue.filter((id): id is HiveResearchBranch =>
-            id === 'material' || id === 'energy' || id === 'observation',
+            id === 'material' || id === 'energy' || id === 'observation' || id === 'computation',
           )
         : [],
       branchPriority: Array.isArray(research.branchPriority)
         ? research.branchPriority.filter((id): id is HiveResearchBranch =>
-            id === 'material' || id === 'energy' || id === 'observation',
+            id === 'material' || id === 'energy' || id === 'observation' || id === 'computation',
           )
         : [...empty.research.branchPriority],
     },

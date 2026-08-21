@@ -67,8 +67,6 @@ const TRACKED_SYSTEMS: TabId[] = [
   'process',
   'yard',
   'slag',
-  'specialists',
-  'tasks',
   'capital',
   'reinforce',
 ]
@@ -85,7 +83,7 @@ const STATION_TOAST: Partial<
   reliquary: {
     category: 'SYSTEM ONLINE',
     title: 'Relic sockets unlocked',
-    body: 'Matching sockets on fitted Cores. Mastery 5 adds Universal. Spare copies upgrade I–III with Slag Ingots.',
+    body: 'Matching sockets on fitted Cores. Mastery 5 or Wave 275 adds Universal. Spare copies upgrade I–III with Slag Ingots.',
     label: 'OPEN DOCK',
   },
   furnace: {
@@ -306,7 +304,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:reliquary',
         category: 'SYSTEM ONLINE',
         title: 'Relic sockets unlocked',
-        body: 'Matching sockets on fitted Cores. Mastery 5 adds Universal. Spare copies upgrade I–III with Slag Ingots.',
+        body: 'Matching sockets on fitted Cores. Mastery 5 or Wave 275 adds Universal. Spare copies upgrade I–III with Slag Ingots.',
         action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
       })
       continue

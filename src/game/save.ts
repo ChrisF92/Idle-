@@ -6,7 +6,6 @@ import type {
   EchoState,
   FurnaceState,
   GameState,
-  HiveResearchBranch,
   HiveResearchState,
   NetworkState,
   ProcessState,
@@ -36,7 +35,7 @@ import { createEmptyNetworkState } from './network'
 import { createEmptyFoundryState } from './foundry'
 import { createEmptyReliquaryState, hydrateCoreFits } from './reliquary'
 import { finalizeFurnaceMigration, hydrateFurnaceState } from './furnace'
-import { createEmptyHiveResearchState } from './hiveResearch'
+import { createEmptyHiveResearchState, HIVE_RESEARCH_BRANCHES } from './hiveResearch'
 import { createEmptyYardState } from './yard'
 import { createEmptyProtocolState } from './protocols'
 import { createEmptyEchoState } from './echo'
@@ -382,16 +381,13 @@ function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
   return hydrateFurnaceState(raw)
 }
 
-const HIVE_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation']
-
 function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResearchState {
   const empty = createEmptyHiveResearchState()
   if (!raw || typeof raw !== 'object') return empty
   const focus = raw.focus
-  empty.focus =
-    focus === 'energy' || focus === 'observation' || focus === 'material' ? focus : 'energy'
+  empty.focus = HIVE_RESEARCH_BRANCHES.some((b) => b.id === focus) ? focus : 'energy'
   empty.active = raw.active === true
-  for (const id of HIVE_BRANCHES) {
+  for (const { id } of HIVE_RESEARCH_BRANCHES) {
     empty.xp[id] = Math.max(0, Number(raw.xp?.[id] ?? 0) || 0)
     empty.completed[id] = Math.max(0, Math.floor(Number(raw.completed?.[id] ?? 0) || 0))
   }

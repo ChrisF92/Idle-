@@ -26,7 +26,8 @@ export const MORE_STATIONS: MoreStationDef[] = [
 
 /**
  * Act 1 doors advertised one at a time. Workshop, Directives, Rebuild, Relics,
- * and Construction expand screens the player already has — they are not listed here.
+ * Construction, and late Act 1 mastery expand screens the player already has —
+ * they are not listed here.
  */
 export const MAJOR_DOORS: MajorDoorDef[] = [
   {

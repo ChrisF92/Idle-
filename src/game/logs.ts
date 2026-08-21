@@ -47,7 +47,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'reliquary',
     title: 'Relic sockets',
-    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Shield, and Industrial until Mastery 5 adds Universal. Spare copies plus Slag Ingots raise I–III; extras do not resonate.',
+    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Shield, and Industrial until Mastery 5 or Wave 275 adds Universal. Spare copies plus Slag Ingots raise I–III; extras do not resonate.',
     unlock: (s) => career(s) >= 3,
   },
   {

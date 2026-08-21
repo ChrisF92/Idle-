@@ -6,6 +6,7 @@ import {
   HIVE_RESEARCH_NODES,
   formatResearchDuration,
   hiveResearchActive,
+  hiveResearchBranchUnlocked,
   hiveResearchCompleted,
   hiveResearchNodeCost,
   hiveResearchNodeEffectLine,
@@ -52,9 +53,22 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
       ) : (
         <div className="panel-scroll">
           <p className="muted" data-guide="research-branches">
-            Sensor Net {drones} · speed ×{speed.toFixed(2)}. Computational Systems opens with Process.
+            Sensor Net {drones} · speed ×{speed.toFixed(2)}.
           </p>
           {HIVE_RESEARCH_BRANCHES.map((branch) => {
+            const locked = !hiveResearchBranchUnlocked(state, branch.id)
+            if (locked) {
+              return (
+                <article key={branch.id} className="network-row">
+                  <div className="network-row-main">
+                    <span>{branch.name}</span>
+                    <span className="muted">Locked</span>
+                  </div>
+                  <p className="network-row-stats">{branch.blurb}</p>
+                  <p className="muted">Opens at Wave {ACT1_CADENCE.mastery} after Process.</p>
+                </article>
+              )
+            }
             const done = hiveResearchCompleted(state, branch.id)
             const nodes = HIVE_RESEARCH_NODES[branch.id]
             const xp = hiveResearchXp(state, branch.id)
@@ -125,7 +139,6 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
               </article>
             )
           })}
-          <p className="muted">Computational Systems — automation and smart controls. Opens with Process at Wave {ACT1_CADENCE.process}.</p>
         </div>
       )}
     </section>

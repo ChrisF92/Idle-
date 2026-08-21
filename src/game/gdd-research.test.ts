@@ -37,6 +37,7 @@ describe('GDD Research', () => {
     expect(HIVE_RESEARCH_NODES.energy.length).toBe(9)
     expect(HIVE_RESEARCH_NODES.observation.length).toBe(9)
     expect(HIVE_RESEARCH_NODES.material.length).toBe(9)
+    expect(setResearchFocus(open, 'computation')).toBe(open)
   })
 
   it('runs one timed project and does not take kill XP', () => {
