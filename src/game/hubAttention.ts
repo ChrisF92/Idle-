@@ -137,6 +137,22 @@ export function coresAttention(state: GameState): AttentionFlags {
   return { spend: coresSpend(state), fresh: coresFresh(state) }
 }
 
+export function networkAttention(state: GameState): AttentionFlags {
+  return { spend: networkSpend(state), fresh: hasUnseen(state, contentKeys(state, 'network')) }
+}
+
+export function foundryAttention(state: GameState): AttentionFlags {
+  return { spend: foundrySpend(state), fresh: hasUnseen(state, contentKeys(state, 'foundry')) }
+}
+
+/** Bottom-nav Systems pip — Foundry plus Worker Drones once that door is open. */
+export function systemsTabAttention(state: GameState): AttentionFlags {
+  const foundry = foundryAttention(state)
+  if (!isSystemUnlocked(state, 'network')) return foundry
+  const workers = networkAttention(state)
+  return { spend: foundry.spend || workers.spend, fresh: foundry.fresh || workers.fresh }
+}
+
 function networkSpend(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'network')) return false
   if (idleWorkers(state) > 0) return true
@@ -196,9 +212,9 @@ export function tabAttention(state: GameState, tab: TabId): AttentionFlags {
     case 'combat':
       return { spend: coresSpend(state), fresh: coresFresh(state) }
     case 'network':
-      return { spend: networkSpend(state), fresh: hasUnseen(state, contentKeys(state, 'network')) }
+      return networkAttention(state)
     case 'foundry':
-      return { spend: foundrySpend(state), fresh: hasUnseen(state, contentKeys(state, 'foundry')) }
+      return foundryAttention(state)
     case 'stats':
       return { spend: moreSpend(state), fresh: moreFresh(state) }
     case 'research':

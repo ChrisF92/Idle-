@@ -1,9 +1,10 @@
-/** More-tab station list and which doors to show now vs later. */
+/** More-tab secondary systems and the single next major door (GDD §109, §121). */
 
 import type { GameState, TabId } from './types'
 import { isSystemUnlocked, SYSTEM_UNLOCKS } from './progression'
 import { ACT1_CADENCE } from './cadence'
-import { careerBestWave } from './waves'
+
+export type DoorHome = 'more' | 'systems'
 
 export interface MoreStationDef {
   id: TabId
@@ -11,18 +12,80 @@ export interface MoreStationDef {
   blurb: string
 }
 
+export interface MajorDoorDef extends MoreStationDef {
+  wave: number
+  home: DoorHome
+}
+
+/** Secondary systems only. Industrial doors live under Systems. */
 export const MORE_STATIONS: MoreStationDef[] = [
-  { id: 'network', name: 'Workers', blurb: 'Assign Worker Drones to processing, fabrication, construction, Research, and production.' },
-  { id: 'furnace', name: 'Furnace', blurb: 'Turn Choir-ash into Heat. Decision: which temporary channels stay lit?' },
-  { id: 'research', name: 'Research', blurb: 'Long-term branches. Decision: which field gets the focus bonus?' },
   { id: 'codex', name: 'Codex', blurb: 'Optional enemy-family and hull-role reference.' },
-  { id: 'process', name: 'Process', blurb: 'Automation as relief: automate loops only after you have learned them manually.' },
   { id: 'protocols', name: 'Challenges', blurb: 'Restricted sorties that test a modified ruleset.' },
   { id: 'reinforce', name: 'Reinforce', blurb: 'Higher-order reset after the Rebuild layer is mature.' },
 ]
 
-/** Locked doors this many Waves ahead still show as Coming up. */
-export const MORE_NEXT_WINDOW = 40
+/**
+ * Act 1 doors advertised one at a time. Workshop, Directives, Rebuild, Relics,
+ * and Construction expand screens the player already has — they are not listed here.
+ */
+export const MAJOR_DOORS: MajorDoorDef[] = [
+  {
+    id: 'codex',
+    name: 'Codex',
+    blurb: 'Optional enemy-family and hull-role reference.',
+    wave: ACT1_CADENCE.codex,
+    home: 'more',
+  },
+  {
+    id: 'foundry',
+    name: 'Foundry',
+    blurb: 'Turn Salvage into crafted stock, prints, and fitted bits.',
+    wave: ACT1_CADENCE.foundry,
+    home: 'systems',
+  },
+  {
+    id: 'network',
+    name: 'Worker Drones',
+    blurb: 'Assign a limited corps to processing, fabrication, and construction.',
+    wave: ACT1_CADENCE.workers,
+    home: 'systems',
+  },
+  {
+    id: 'furnace',
+    name: 'Furnace',
+    blurb: 'Turn Choir-ash into Heat. Decision: which temporary channels stay lit?',
+    wave: ACT1_CADENCE.furnace,
+    home: 'systems',
+  },
+  {
+    id: 'research',
+    name: 'Research',
+    blurb: 'Long-term branches. Decision: which field gets the focus bonus?',
+    wave: ACT1_CADENCE.research,
+    home: 'systems',
+  },
+  {
+    id: 'process',
+    name: 'Process',
+    blurb: 'Automation as relief: automate loops only after you have learned them manually.',
+    wave: ACT1_CADENCE.process,
+    home: 'systems',
+  },
+  {
+    id: 'protocols',
+    name: 'Challenges',
+    blurb: 'Restricted sorties that test a modified ruleset.',
+    wave: ACT1_CADENCE.protocols,
+    home: 'more',
+  },
+  {
+    id: 'reinforce',
+    name: 'Reinforce',
+    blurb: 'Higher-order reset after the Rebuild layer is mature.',
+    wave: ACT1_CADENCE.reinforce,
+    home: 'more',
+  },
+]
 
 export function stationDoorSector(id: TabId): number {
   if (id === 'logs') return 0
@@ -36,23 +99,40 @@ export function stationDoorSector(id: TabId): number {
   return def?.requiresSectorEver ?? 99
 }
 
+export function nextMajorDoor(state: GameState): MajorDoorDef | null {
+  return MAJOR_DOORS.find((door) => !isSystemUnlocked(state, door.id)) ?? null
+}
+
 export function moreStationBuckets(state: GameState): {
   open: MoreStationDef[]
-  next: MoreStationDef[]
-  later: MoreStationDef[]
+  next: MajorDoorDef[]
+  later: MajorDoorDef[]
 } {
-  const career = careerBestWave(state)
-  const open: MoreStationDef[] = []
-  const locked: MoreStationDef[] = []
-  for (const station of MORE_STATIONS) {
-    if (isSystemUnlocked(state, station.id)) open.push(station)
-    else locked.push(station)
-  }
-  locked.sort((a, b) => stationDoorSector(a.id) - stationDoorSector(b.id))
-  const cutoff = career + MORE_NEXT_WINDOW
-  const candidates = locked.filter((s) => stationDoorSector(s.id) <= cutoff)
-  const next = candidates.slice(0, 1)
-  const nextIds = new Set(next.map((s) => s.id))
-  const later = locked.filter((s) => !nextIds.has(s.id))
-  return { open, next, later }
+  const open = MORE_STATIONS.filter((station) => isSystemUnlocked(state, station.id))
+  const nextDoor = nextMajorDoor(state)
+  const next = nextDoor ? [nextDoor] : []
+  return { open, next, later: [] }
+}
+
+export function isSystemsNavTab(tab: TabId): boolean {
+  return tab === 'foundry' || tab === 'network' || tab === 'yard'
+}
+
+export function isMoreNavTab(tab: TabId): boolean {
+  return (
+    tab === 'stats' ||
+    tab === 'reliquary' ||
+    tab === 'furnace' ||
+    tab === 'research' ||
+    tab === 'slag' ||
+    tab === 'protocols' ||
+    tab === 'echo' ||
+    tab === 'process' ||
+    tab === 'specialists' ||
+    tab === 'tasks' ||
+    tab === 'capital' ||
+    tab === 'reinforce' ||
+    tab === 'logs' ||
+    tab === 'codex'
+  )
 }

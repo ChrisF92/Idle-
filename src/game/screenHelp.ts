@@ -34,7 +34,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Launch a Sortie from here. Every run starts at Wave 1. Death or Extract returns you to Dock.',
-      'Close the game at Dock and the Hive keeps processing. Close during a Sortie and that run freezes until you return.',
+      'Header shows Best Wave, Rebuild cycle, Scrap, and Matter. Close here and the Hive keeps processing; close mid-Sortie and that run freezes.',
       'Rebuild at Wave 70 trades this cycle’s Workshop and Scrap for permanent Matter. The hangar lists RESET, KEEP, and GAIN. Do not confirm until you mean it.',
     ],
   },
@@ -44,7 +44,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
       'Weapons fire automatically. Waves come from all directions. The header shows Wave, hull, and shield.',
       'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage ranks Pulse and Plate for this run only.',
       'If you close mid-Sortie, combat freezes. Foundry, fabrication, and Worker jobs keep running.',
-      'Worker Drones unlock at Wave 30 and are assigned under More → Workers. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
+      'Worker Drones unlock at Wave 30 under Systems. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
     ],
   },
   network: {
@@ -52,7 +52,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Purpose: put a limited workforce on real industrial jobs. Main decision: processing now versus fabricating, researching, or growing more drones.',
       'Jobs have a hard cap. Extra drones on a full job do nothing — split the corps.',
-      'Worker Drones do not fire weapons or raise shields. Combat power comes from Cores, Workshop, and Foundry.',
+      'Worker Drones live under Systems after Wave 30. They do not fire weapons or raise shields. Combat power comes from Cores, Workshop, and Foundry.',
     ],
   },
   foundry: {
@@ -60,7 +60,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Purpose: turn combat income into crafted progression and new Cores. Main decision: what you are making next.',
       'Prints: track one Core. Fragments drop from matching enemy families as you push Waves.',
-      'Foundry Points buy extra smelters. Construction opens at Wave 90 inside this screen — not a separate Yard. Recipe progress persists on Rebuild and while you are away. Fitted bits unequip.',
+      'After Wave 30, Foundry and Worker Drones share Systems. Construction opens at Wave 90 inside Foundry → Build. Recipe progress persists on Rebuild.',
     ],
   },
   reliquary: {
@@ -164,8 +164,9 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   stats: {
     title: 'More',
     body: [
-      'Extra systems live here so the bottom bar stays five tabs: Dock, Sortie, Network, Foundry, More.',
-      'Open stations are ready. Coming up is the next door. Save and settings live on the Settings pane.',
+      'Secondary systems live here so the bottom bar stays SORTIE, DOCK, SYSTEMS, MORE.',
+      'Open stations are ready. Coming up is the next major door — Foundry, Workers, Furnace, and the rest — not a grey list of everything later.',
+      'Save and settings live on the Settings pane.',
     ],
   },
 }

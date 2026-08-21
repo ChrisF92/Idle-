@@ -193,7 +193,7 @@ export function sortieNextHints(state: GameState): string[] {
   const idle = idleWorkers(state)
 
   if (isSystemUnlocked(state, 'network') && idle > 0) {
-    items.push(`${idle} drone${idle === 1 ? '' : 's'} idle — assign on Network`)
+    items.push(`${idle} drone${idle === 1 ? '' : 's'} idle — assign under Systems`)
   }
   if (plate < pulse) items.push('Upgrade Plate')
   else if (pulse <= plate) items.push('Upgrade Pulse')

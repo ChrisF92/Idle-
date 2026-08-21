@@ -21,9 +21,10 @@ interface NetworkTabProps {
   onOptimise?: () => void
   onPreset?: (preset: ProcessNetworkPreset) => void
   guideTarget?: string | null
+  onBack?: () => void
 }
 
-export function NetworkTab({ state, onAssign, onOptimise }: NetworkTabProps) {
+export function NetworkTab({ state, onAssign, onOptimise, onBack }: NetworkTabProps) {
   const cap = droneCap(state)
   const idle = idleWorkers(state)
   const atCap = state.base.workerDrones >= cap
@@ -53,6 +54,13 @@ export function NetworkTab({ state, onAssign, onOptimise }: NetworkTabProps) {
   return (
     <section className="panel screen-panel">
       <header className="panel-header">
+        {onBack ? (
+          <p className="assign-row">
+            <button type="button" onClick={onBack}>
+              Systems
+            </button>
+          </p>
+        ) : null}
         <h2>Worker Drones</h2>
         <p>
           Corps {state.base.workerDrones}/{cap}

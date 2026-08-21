@@ -40,11 +40,13 @@ describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
     expect(s.combat.wave).toBe(1)
   })
 
-  it('does not list a standalone Reliquary, Yard, Echo, or Route B station', () => {
+  it('does not list a standalone Reliquary, Yard, Echo, Workers, or future Systems door on More', () => {
     expect(MORE_STATIONS.some((s) => s.id === 'reliquary')).toBe(false)
     expect(MORE_STATIONS.some((s) => s.id === 'yard')).toBe(false)
     expect(MORE_STATIONS.some((s) => s.id === 'echo')).toBe(false)
-    expect(MORE_STATIONS.map((s) => s.name).join(' ')).not.toMatch(/Route B|Frontier Hold|Yard|Echo/)
+    expect(MORE_STATIONS.some((s) => s.id === 'network')).toBe(false)
+    expect(MORE_STATIONS.some((s) => s.id === 'furnace')).toBe(false)
+    expect(MORE_STATIONS.map((s) => s.name).join(' ')).not.toMatch(/Route B|Frontier Hold|Yard|Echo|Workers|Furnace/)
   })
 
   it('never unlocks Echo and ignores leftover trees', () => {

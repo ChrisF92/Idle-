@@ -15,17 +15,14 @@ describe('screen help and More buckets', () => {
     }
   })
 
-  it('previews one major door and opens Slag before later Yard mastery', () => {
+  it('previews one major door and does not dump later systems on More', () => {
     const fresh = createInitialState(0)
     const early = moreStationBuckets(fresh)
     expect(early.open.map((s) => s.id)).toEqual([])
     expect(early.next.map((s) => s.id)).toEqual(['codex'])
     expect(early.next.map((s) => s.id)).not.toContain('capital')
-    expect(early.later.map((s) => s.id)).toEqual(
-      expect.arrayContaining(['protocols', 'reinforce']),
-    )
-    expect(early.later.map((s) => s.id)).not.toContain('specialists')
-    expect(early.later.map((s) => s.id)).not.toContain('capital')
+    expect(early.later).toEqual([])
+    expect(MORE_STATIONS.map((s) => s.id)).toEqual(['codex', 'protocols', 'reinforce'])
     expect(MORE_STATIONS.some((s) => s.id === 'logs')).toBe(false)
 
     const rebuilt = createInitialState(0)

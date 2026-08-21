@@ -699,9 +699,33 @@ h2 .inspect-name {
 }
 
 .dock-workshop,
-.dock-relics {
+.dock-relics,
+.dock-section {
   display: grid;
   gap: 0.4rem;
+}
+
+.dock-section h3,
+.dock-workshop h3,
+.dock-relics h3 {
+  margin: 0;
+}
+
+.dock-core-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dock-core-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.45rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--line);
+  background: var(--bg-inset);
 }
 
 .sortie-screen {

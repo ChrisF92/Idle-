@@ -1,16 +1,19 @@
-import type { GameState, RunUpgradeId } from '../../game/types'
-import { computeShipStats } from '../../game/state'
-import { canPrestige } from '../../game/actions'
-import { canOpenRebuildHangar, rebuildWaveNeed } from '../../game/rebuild'
+import { useState } from 'react'
+import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
+import { computeShipStats, RESOURCE_LABELS } from '../../game/state'
+import { canPrestige, prestigeGainFor } from '../../game/actions'
+import { canOpenRebuildHangar, rebuildCycle, rebuildWaveNeed } from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import {
-  RUN_UPGRADES,
+  visibleRunUpgrades,
   workshopCost,
   workshopLevel,
 } from '../../game/workshop'
 import { isRelicsUnlocked, SHARDS, shardOwned } from '../../game/reliquary'
+import { getFrame, getModule, moduleLevel, moduleMasteryRank } from '../../game/catalog'
 import { CoreSheet } from '../CoreSheet'
+import { SheetTabs } from '../SheetTabs'
 
 interface DockTabProps {
   state: GameState
@@ -26,6 +29,12 @@ function meterScale(current: number, max: number): number {
   if (max <= 0) return 0
   return Math.max(0, Math.min(1, current / max))
 }
+
+const WORKSHOP_PANES: { id: RunUpgradeCategory; label: string }[] = [
+  { id: 'attack', label: 'Attack' },
+  { id: 'defense', label: 'Defense' },
+  { id: 'economy', label: 'Economy' },
+]
 
 export function DockTab({
   state,
@@ -48,13 +57,18 @@ export function DockTab({
   const shieldPct = meterScale(combat.playerShield, stats.shieldMax)
   const showWorkshop = Boolean(state.meta.hullLostOnce) && !live
   const bestWave = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
+  const cycleNo = (state.prestige.prestigeCount ?? 0) + 1
+  const cycle = rebuildCycle(state)
+  const frame = getFrame(state.shipyard.frameId)
+  const matter = state.resources.prestigeMatter ?? 0
+  const [workshopCat, setWorkshopCat] = useState<RunUpgradeCategory>('attack')
 
   return (
     <section className={`panel screen-panel dock-screen ${dockMode}`}>
       <div className="panel-scroll">
       <header className="dock-hero">
-        <p className="hud-chip-label">Best Wave {bestWave || '—'}</p>
-        <h2>Dock</h2>
+        <p className="hud-chip-label">Dock</p>
+        <h2>Hive ready</h2>
         <p className="muted">
           {live
             ? 'Sortie live. Combat continues while you are here.'
@@ -68,26 +82,20 @@ export function DockTab({
 
       <div className="stat-row dock-stats">
         <div>
-          <span className="muted">Hull</span>
-          <strong>
-            {Math.ceil(combat.playerHull)}/{Math.ceil(stats.hullMax)}
-          </strong>
-          <span className="dock-stat-meter hull" aria-hidden>
-            <span style={{ transform: `scaleX(${hullPct})` }} />
-          </span>
+          <span className="muted">Best Wave</span>
+          <strong>{bestWave || '—'}</strong>
         </div>
         <div>
-          <span className="muted">Shield</span>
-          <strong>
-            {Math.ceil(combat.playerShield)}/{Math.ceil(stats.shieldMax)}
-          </strong>
-          <span className="dock-stat-meter shield" aria-hidden>
-            <span style={{ transform: `scaleX(${shieldPct})` }} />
-          </span>
+          <span className="muted">Cycle</span>
+          <strong>{cycleNo}</strong>
         </div>
         <div>
-          <span className="muted">DPS</span>
-          <strong>{formatCompact(stats.damage)}</strong>
+          <span className="muted">{RESOURCE_LABELS.scrap}</span>
+          <strong>{formatCompact(state.resources.scrap)}</strong>
+        </div>
+        <div>
+          <span className="muted">Matter</span>
+          <strong>{formatCompact(matter)}</strong>
         </div>
       </div>
 
@@ -110,52 +118,52 @@ export function DockTab({
         </button>
       )}
 
-      <button
-        type="button"
-        className="dock-rebuild"
-        data-guide="rebuild-btn"
-        disabled={!hangarOpen}
-        onClick={(e) => {
-          markLocalOk(e.currentTarget)
-          onRebuild()
-        }}
-      >
-        {rebuildReady
-          ? 'Rebuild hangar'
-          : (state.prestige.prestigeCount ?? 0) > 0
-            ? 'Matter shop'
-            : `Rebuild · Wave ${rebuildMin}`}
-      </button>
-
-      {showWorkshop ? (
-        <div className="dock-workshop" data-guide="workshop">
-          <p className="combat-hud-kicker">Workshop</p>
-          <h3>Starting power</h3>
-          <p className="muted">Scrap survives Sorties. These levels reset on Rebuild.</p>
-          {RUN_UPGRADES.filter((def) => bestWave >= def.minBestWave || def.minBestWave === 0).map(
-            (def) => {
-              const level = workshopLevel(state, def.id)
-              const cost = workshopCost(level)
-              const affordable = state.resources.scrap >= cost
-              return (
-                <button
-                  key={def.id}
-                  type="button"
-                  className={affordable ? 'network-row is-affordable' : 'network-row'}
-                  disabled={!onBuyWorkshop || !affordable}
-                  onClick={() => onBuyWorkshop?.(def.id)}
-                >
-                  <span>
-                    <strong>{def.name}</strong>
-                    <span className="muted"> Lv {level} → {level + 1}</span>
-                  </span>
-                  <strong>{formatCompact(cost)} Scrap</strong>
-                </button>
-              )
-            },
-          )}
+      <div className="dock-section dock-loadout">
+        <p className="combat-hud-kicker">Loadout</p>
+        <h3>Hive</h3>
+        <p className="muted">{frame?.name ?? 'Hive Frame'} · rank Cores on Sortie.</p>
+        <div className="stat-row dock-stats">
+          <div>
+            <span className="muted">Hull</span>
+            <strong>
+              {Math.ceil(combat.playerHull)}/{Math.ceil(stats.hullMax)}
+            </strong>
+            <span className="dock-stat-meter hull" aria-hidden>
+              <span style={{ transform: `scaleX(${hullPct})` }} />
+            </span>
+          </div>
+          <div>
+            <span className="muted">Shield</span>
+            <strong>
+              {Math.ceil(combat.playerShield)}/{Math.ceil(stats.shieldMax)}
+            </strong>
+            <span className="dock-stat-meter shield" aria-hidden>
+              <span style={{ transform: `scaleX(${shieldPct})` }} />
+            </span>
+          </div>
+          <div>
+            <span className="muted">DPS</span>
+            <strong>{formatCompact(stats.damage)}</strong>
+          </div>
         </div>
-      ) : null}
+        <ul className="dock-core-list">
+          {state.shipyard.modules.map((id) => {
+            const mod = getModule(id)
+            const run = moduleLevel(state.shipyard.moduleLevels, id)
+            const mastery = moduleMasteryRank(state, id)
+            return (
+              <li key={id}>
+                <strong>{mod?.name ?? id}</strong>
+                <span className="muted">
+                  {' '}
+                  Lv {run}
+                  {mastery > 0 ? ` · Mastery ${mastery}` : ''}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
 
       {!live && isRelicsUnlocked(state) ? (
         <div className="dock-relics" data-guide="relic-sockets">
@@ -177,6 +185,72 @@ export function DockTab({
           />
         </div>
       ) : null}
+
+      {showWorkshop ? (
+        <div className="dock-workshop" data-guide="workshop">
+          <p className="combat-hud-kicker">Workshop</p>
+          <h3>Starting power</h3>
+          <p className="muted">Scrap survives Sorties. These levels reset on Rebuild.</p>
+          <SheetTabs
+            value={workshopCat}
+            onChange={setWorkshopCat}
+            options={WORKSHOP_PANES}
+            label="Workshop categories"
+          />
+          {visibleRunUpgrades(bestWave, workshopCat).map((def) => {
+            const level = workshopLevel(state, def.id)
+            const cost = workshopCost(level)
+            const affordable = state.resources.scrap >= cost
+            return (
+              <button
+                key={def.id}
+                type="button"
+                className={affordable ? 'network-row is-affordable' : 'network-row'}
+                disabled={!onBuyWorkshop || !affordable}
+                onClick={() => onBuyWorkshop?.(def.id)}
+              >
+                <span>
+                  <strong>{def.name}</strong>
+                  <span className="muted"> Lv {level} → {level + 1}</span>
+                </span>
+                <strong>{formatCompact(cost)} Scrap</strong>
+              </button>
+            )
+          })}
+          {visibleRunUpgrades(bestWave, workshopCat).length === 0 ? (
+            <p className="muted">More {workshopCat} ranks open as Best Wave climbs.</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="dock-section dock-rebuild-block">
+        <p className="combat-hud-kicker">Rebuild</p>
+        <h3>Cycle {cycleNo}</h3>
+        <p className="muted">
+          This cycle: Best Wave {cycle.bestWave || bestWave || '—'} · {cycle.sorties} sortie
+          {cycle.sorties === 1 ? '' : 's'} · {formatCompact(cycle.scrapEarned)} Scrap generated.
+        </p>
+        <p className="muted">
+          RESET Scrap, Workshop, and Salvage. KEEP Best Wave, unlocks, and Matter.
+          {rebuildReady ? ` GAIN +${formatCompact(prestigeGainFor(state))} Matter.` : ''}
+        </p>
+        <button
+          type="button"
+          className="dock-rebuild"
+          data-guide="rebuild-btn"
+          disabled={!hangarOpen}
+          onClick={(e) => {
+            markLocalOk(e.currentTarget)
+            onRebuild()
+          }}
+        >
+          {rebuildReady
+            ? 'Rebuild hangar'
+            : (state.prestige.prestigeCount ?? 0) > 0
+              ? 'Matter shop'
+              : `Rebuild · Wave ${rebuildMin}`}
+        </button>
+      </div>
 
       {summary.outcome ? (
         <div className="dock-summary">

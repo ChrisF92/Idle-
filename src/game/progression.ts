@@ -45,8 +45,8 @@ export interface SystemUnlockDef {
 
 /**
  * Whole systems unlock by career progress. Locked More stations stay listed with requirements.
- * Dock and Sortie are always available. Salvage, Network, and More wait for the first hull loss.
- * Process unlocks on First Blood.
+ * Dock and Sortie are always available. Salvage and More wait for the first hull loss.
+ * Foundry and Worker Drones share Systems. Process unlocks on First Blood.
  */
 export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {

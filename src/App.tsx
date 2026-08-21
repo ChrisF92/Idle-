@@ -6,8 +6,10 @@ import {
   guideAutoTabs,
   guidePausesSimulation,
   isHubTabOpen,
+  isSystemUnlocked,
 } from './game/progression'
 import { contentKeys } from './game/hubAttention'
+import { showSystemsHub } from './game/systemsHub'
 import { setActiveNumberNotation } from './game/format'
 import {
   captureToastSnapshot,
@@ -29,6 +31,7 @@ import { DockTab } from './components/tabs/DockTab'
 import { CombatTab } from './components/tabs/CombatTab'
 import { NetworkTab } from './components/tabs/NetworkTab'
 import { FoundryTab, type FoundryPane } from './components/tabs/FoundryTab'
+import { SystemsTab } from './components/tabs/SystemsTab'
 import { ReliquaryTab } from './components/tabs/ReliquaryTab'
 import { FurnaceTab } from './components/tabs/FurnaceTab'
 import { ResearchTab } from './components/tabs/ResearchTab'
@@ -68,6 +71,7 @@ export default function App() {
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
   const [coresRequest, setCoresRequest] = useState<{ key: number; moduleId?: string } | null>(null)
   const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
+  const [systemsView, setSystemsView] = useState<'hub' | 'foundry'>('foundry')
   const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
@@ -87,13 +91,29 @@ export default function App() {
     (next: TabId) => {
       if (next === 'yard') {
         setFoundryPane('build')
+        setSystemsView('foundry')
         if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
+        return
+      }
+      if (next === 'foundry') {
+        setSystemsView('foundry')
+        if (isHubTabOpen(game.state, next)) setTab(next)
+        return
+      }
+      if (next === 'network') {
+        if (isHubTabOpen(game.state, next)) setTab(next)
         return
       }
       if (isHubTabOpen(game.state, next)) setTab(next)
     },
     [game.state],
   )
+
+  const openSystemsHub = useCallback(() => {
+    if (!isHubTabOpen(game.state, 'foundry')) return
+    setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
+    setTab('foundry')
+  }, [game.state])
 
   const applyToastNav = useCallback(
     (nav: ToastNav) => {
@@ -107,6 +127,7 @@ export default function App() {
         return
       }
       if (isHubTabOpen(game.state, nav.tab)) {
+        if (nav.tab === 'foundry') setSystemsView('foundry')
         setTab(nav.tab)
         if (nav.focus) setFocusTarget(nav.focus)
         if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
@@ -140,7 +161,10 @@ export default function App() {
         tab === 'reinforce' ||
         tab === 'logs' ||
         tab === 'codex'
-      if (station && isHubTabOpen(game.state, 'stats')) setTab('stats')
+      if (tab === 'network' && isHubTabOpen(game.state, 'foundry')) {
+        setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
+        setTab('foundry')
+      } else if (station && isHubTabOpen(game.state, 'stats')) setTab('stats')
       else if (isHubTabOpen(game.state, 'dock')) setTab('dock')
       else setTab('combat')
     }
@@ -163,7 +187,10 @@ export default function App() {
   const hubStamp = contentKeys(game.state, tab).join('|')
   useEffect(() => {
     game.markHubSeen(tab)
-  }, [tab, hubStamp, game])
+    if (tab === 'foundry' && systemsView === 'hub' && isSystemUnlocked(game.state, 'network')) {
+      game.markHubSeen('network')
+    }
+  }, [tab, hubStamp, systemsView, game])
 
   useEffect(() => {
     setHeldGuideId(guide?.id ?? null)
@@ -196,7 +223,10 @@ export default function App() {
     if (!game.state.combat.docked && guide.tab !== 'combat') return
     if (guide.id === lastGuideId.current) return
     lastGuideId.current = guide.id
-    if (isHubTabOpen(game.state, guide.tab)) setTab(guide.tab)
+    if (isHubTabOpen(game.state, guide.tab)) {
+      if (guide.tab === 'foundry') setSystemsView('foundry')
+      setTab(guide.tab)
+    }
   }, [guide, dying, game.state])
 
   useEffect(() => {
@@ -307,9 +337,26 @@ export default function App() {
             onOptimise={game.optimiseNetwork}
             onPreset={game.applyNetworkPreset}
             guideTarget={guide?.target}
+            onBack={
+              showSystemsHub(game.state)
+                ? () => {
+                    setSystemsView('hub')
+                    if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
+                  }
+                : undefined
+            }
           />
         )}
-        {tab === 'foundry' && (
+        {tab === 'foundry' && systemsView === 'hub' && showSystemsHub(game.state) ? (
+          <SystemsTab
+            state={game.state}
+            onManage={(id) => {
+              if (id === 'foundry') setSystemsView('foundry')
+              else go(id)
+            }}
+          />
+        ) : null}
+        {tab === 'foundry' && !(systemsView === 'hub' && showSystemsHub(game.state)) && (
           <FoundryTab
             state={game.state}
             onSetSlot={game.setFoundrySlot}
@@ -328,6 +375,7 @@ export default function App() {
             guideTarget={guide?.target}
             focusTarget={focusTarget}
             requestedPane={foundryPane}
+            onBack={showSystemsHub(game.state) ? () => setSystemsView('hub') : undefined}
           />
         )}
         {tab === 'reliquary' && (
@@ -438,7 +486,14 @@ export default function App() {
         )}
       </main>
 
-      <TabNav active={tab} onChange={go} state={game.state} />
+      <TabNav
+        active={tab}
+        onChange={(next) => {
+          if (next === 'foundry') openSystemsHub()
+          else go(next)
+        }}
+        state={game.state}
+      />
 
       {hangarOpen ? (
         <RebuildHangar

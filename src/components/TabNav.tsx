@@ -1,7 +1,8 @@
 import type { TabId } from '../game/types'
 import type { GameState } from '../game/types'
 import { isHubTabOpen } from '../game/progression'
-import { attentionAria, tabAttention } from '../game/hubAttention'
+import { attentionAria, systemsTabAttention, tabAttention } from '../game/hubAttention'
+import { isMoreNavTab, isSystemsNavTab } from '../game/moreStations'
 import { AttentionPips } from './AttentionPips'
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
@@ -18,22 +19,8 @@ interface TabNavProps {
 }
 
 export function TabNav({ active, onChange, state }: TabNavProps) {
-  const moreActive =
-    active === 'stats' ||
-    active === 'reliquary' ||
-    active === 'furnace' ||
-    active === 'research' ||
-    active === 'yard' ||
-    active === 'slag' ||
-    active === 'protocols' ||
-    active === 'echo' ||
-    active === 'process' ||
-    active === 'specialists' ||
-    active === 'tasks' ||
-    active === 'capital' ||
-    active === 'reinforce' ||
-    active === 'logs' ||
-    active === 'codex'
+  const moreActive = isMoreNavTab(active)
+  const systemsActive = isSystemsNavTab(active)
   return (
     <nav className="bottom-nav" aria-label="Game systems">
       {TABS.map((tab) => {
@@ -41,8 +28,9 @@ export function TabNav({ active, onChange, state }: TabNavProps) {
         if ((tab.id === 'foundry' || tab.id === 'stats' || tab.id === 'dock') && !unlocked) {
           return null
         }
-        const isActive = tab.id === 'stats' ? moreActive : active === tab.id
-        const flags = tabAttention(state, tab.id)
+        const isActive =
+          tab.id === 'stats' ? moreActive : tab.id === 'foundry' ? systemsActive : active === tab.id
+        const flags = tab.id === 'foundry' ? systemsTabAttention(state) : tabAttention(state, tab.id)
         return (
           <button
             key={tab.id}

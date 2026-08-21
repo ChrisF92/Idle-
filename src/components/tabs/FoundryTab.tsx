@@ -74,6 +74,7 @@ interface FoundryTabProps {
   guideTarget?: string | null
   focusTarget?: string | null
   requestedPane?: FoundryPane | null
+  onBack?: () => void
 }
 
 function foundryPaneFromHints(
@@ -266,6 +267,7 @@ export function FoundryTab({
   guideTarget = null,
   focusTarget = null,
   requestedPane = null,
+  onBack,
 }: FoundryTabProps) {
   const open = isSystemUnlocked(state, 'foundry')
   const construction = isSystemUnlocked(state, 'yard')
@@ -286,6 +288,13 @@ export function FoundryTab({
   return (
     <section className="panel screen-panel">
       <header className="panel-header">
+        {onBack ? (
+          <p className="assign-row">
+            <button type="button" onClick={onBack}>
+              Systems
+            </button>
+          </p>
+        ) : null}
         <h2>Foundry</h2>
         <p>
           {open

@@ -8,7 +8,7 @@ import { APP_BUILD } from '../../buildMeta'
 import { forceReloadApp } from '../../pwaReload'
 import { isSystemUnlocked, systemUnlockRequirement } from '../../game/progression'
 import { attentionAria, moreStationAttention } from '../../game/hubAttention'
-import { moreStationBuckets, type MoreStationDef } from '../../game/moreStations'
+import { moreStationBuckets, type MajorDoorDef, type MoreStationDef } from '../../game/moreStations'
 import { AttentionPips } from '../AttentionPips'
 import { SheetTabs } from '../SheetTabs'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
@@ -71,6 +71,33 @@ function StationRow({
   )
 }
 
+function DoorRow({
+  door,
+  state,
+  onOpen,
+}: {
+  door: MajorDoorDef
+  state: GameState
+  onOpen: (tab: TabId) => void
+}) {
+  if (door.home === 'more') {
+    return <StationRow station={door} state={state} onOpen={onOpen} />
+  }
+  const need = `Wave ${door.wave}`
+  return (
+    <article className="network-row locked" data-focus={`station-${door.id}`}>
+      <div className="network-row-main">
+        <strong>{door.name}</strong>
+        <span className="muted">Systems · {need}</span>
+      </div>
+      <p className="network-row-stats">{door.blurb}</p>
+      <button type="button" className="primary" disabled>
+        {need}
+      </button>
+    </article>
+  )
+}
+
 export function StatsTab({
   state,
   onHardReset,
@@ -101,7 +128,7 @@ export function StatsTab({
     <section className="panel screen-panel">
       <header className="panel-header">
         <h2>More</h2>
-        <p>Hangar stations. Save and settings on their own pane.</p>
+        <p>Secondary systems, Codex, and settings. One next unlock — not a grey list.</p>
       </header>
       <SheetTabs value={pane} onChange={setPane} options={MORE_PANES} label="More panes" />
       <div className="panel-scroll">
@@ -123,28 +150,10 @@ export function StatsTab({
           {buckets.next.length > 0 ? (
             <>
               <h3 className="foundry-heading">Coming up</h3>
-              {buckets.next.map((station) => (
-                <StationRow
-                  key={station.id}
-                  station={station}
-                  state={state}
-                  onOpen={onOpenStation}
-                />
+              {buckets.next.map((door) => (
+                <DoorRow key={door.id} door={door} state={state} onOpen={onOpenStation} />
               ))}
             </>
-          ) : null}
-          {buckets.later.length > 0 ? (
-            <details className="more-fold">
-              <summary>Later systems ({buckets.later.length})</summary>
-              {buckets.later.map((station) => (
-                <StationRow
-                  key={station.id}
-                  station={station}
-                  state={state}
-                  onOpen={onOpenStation}
-                />
-              ))}
-            </details>
           ) : null}
         </div>
       ) : null}
