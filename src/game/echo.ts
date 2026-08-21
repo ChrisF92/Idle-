@@ -1,10 +1,7 @@
-/** Echo Runs — USI Warp Drive analogue. Short gauntlets into a skill tree. */
+/** Echo Runs — leftover save data. GDD §95: there is no Echo system. */
 
 import type { GameState, EchoState, SectorRoute } from './types'
-import { careerBestWave } from './progression'
 import { wavesForSector } from './sectors'
-import { closeSortie } from './sortieSummary'
-import { noteAttempt } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 
 export const ECHO_UNLOCK_SECTOR = ACT1_CADENCE.echo
@@ -182,8 +179,9 @@ export function getEchoNode(id: string): EchoTreeDef | undefined {
   return ECHO_TREE.find((n) => n.id === id)
 }
 
-export function echoUnlocked(state: GameState): boolean {
-  return careerBestWave(state) >= ECHO_UNLOCK_SECTOR
+/** GDD: Echo is removed. Challenges cover alternate combat tests. */
+export function echoUnlocked(_state: GameState): boolean {
+  return false
 }
 
 export function echoClears(state: GameState, id: string): number {
@@ -195,25 +193,18 @@ export function echoHasNode(state: GameState, id: string): boolean {
 }
 
 export function wavesForRun(state: GameState): number {
-  if (state.echo?.activeId) return ECHO_WAVES
   return wavesForSector(state.combat.sector)
 }
 
-export function echoIsBossWave(state: GameState, wave: number): boolean {
-  if (!state.echo?.activeId) return false
-  return wave >= ECHO_WAVES
+export function echoIsBossWave(_state: GameState, _wave: number): boolean {
+  return false
 }
 
 export function echoTreeSum(
-  state: GameState,
-  key: 'damage' | 'shield' | 'salvage' | 'network' | 'researchXp' | 'foundrySpeed' | 'ash',
+  _state: GameState,
+  _key: 'damage' | 'shield' | 'salvage' | 'network' | 'researchXp' | 'foundrySpeed' | 'ash',
 ): number {
-  let n = 0
-  for (const id of state.echo?.tree ?? []) {
-    const def = getEchoNode(id)
-    if (def) n += def[key] ?? 0
-  }
-  return n
+  return 0
 }
 
 export function echoDamageMult(state: GameState): number {
@@ -245,41 +236,17 @@ export function echoAshMult(state: GameState): number {
 }
 
 export function canEnterEcho(
-  state: GameState,
-  id: string,
+  _state: GameState,
+  _id: string,
 ): { ok: boolean; reason?: string } {
-  if (!state.combat.docked || state.combat.inFight) {
-    return { ok: false, reason: 'Dock first' }
-  }
-  if (state.protocols?.activeId) return { ok: false, reason: 'Finish the Protocol first' }
-  if (state.echo?.activeId) return { ok: false, reason: 'Already in an Echo' }
-  if (!echoUnlocked(state)) {
-    return { ok: false, reason: `Reach Wave ${ECHO_UNLOCK_SECTOR}` }
-  }
-  const def = getEchoRun(id)
-  if (!def) return { ok: false, reason: 'Unknown Echo' }
-  if (def.requiresId && echoClears(state, def.requiresId) < 1) {
-    const need = getEchoRun(def.requiresId)?.name ?? def.requiresId
-    return { ok: false, reason: `Clear ${need} first` }
-  }
-  return { ok: true }
+  return { ok: false, reason: 'Echo is retired' }
 }
 
 export function canBuyEchoNode(
-  state: GameState,
-  id: string,
+  _state: GameState,
+  _id: string,
 ): { ok: boolean; reason?: string } {
-  if (!echoUnlocked(state)) {
-    return { ok: false, reason: `Reach Wave ${ECHO_UNLOCK_SECTOR}` }
-  }
-  const def = getEchoNode(id)
-  if (!def) return { ok: false, reason: 'Unknown node' }
-  if (echoHasNode(state, id)) return { ok: false, reason: 'Owned' }
-  if (def.requiresId && !echoHasNode(state, def.requiresId)) {
-    return { ok: false, reason: 'Need prior node' }
-  }
-  if ((state.echo?.points ?? 0) < def.cost) return { ok: false, reason: `Need ${def.cost} Echo` }
-  return { ok: true }
+  return { ok: false, reason: 'Echo is retired' }
 }
 
 export function restoreEchoResume(state: GameState): void {
@@ -291,37 +258,10 @@ export function restoreEchoResume(state: GameState): void {
 }
 
 export function tryCompleteEcho(state: GameState): boolean {
-  const id = state.echo?.activeId
-  if (!id) return false
-  const def = getEchoRun(id)
-  if (!def) {
-    state.echo.activeId = null
-    return true
-  }
-  if (!state.echo) state.echo = createEmptyEchoState()
-  state.echo.clears = { ...state.echo.clears, [id]: echoClears(state, id) + 1 }
-  state.echo.points = (state.echo.points ?? 0) + def.reward
-  state.echo.activeId = null
-  restoreEchoResume(state)
-  state.combat.docked = true
-  state.combat.inFight = false
-  state.combat.wave = 1
-  closeSortie(state, 'extract', `${def.name} complete. +${def.reward} Echo.`)
-  noteAttempt(state, 'echo', id, 'clear', def.name)
-  state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
-  return true
+  if (state.echo?.activeId) state.echo.activeId = null
+  return false
 }
 
-export function failEcho(state: GameState, reason: string): void {
-  const id = state.echo?.activeId
-  if (!id) return
-  const name = getEchoRun(id)?.name ?? 'Echo'
-  restoreEchoResume(state)
-  state.echo.activeId = null
-  state.combat.docked = true
-  state.combat.inFight = false
-  state.combat.wave = 1
-  closeSortie(state, 'defeat', `${name} failed. ${reason}`)
-  noteAttempt(state, 'echo', id, 'end', name)
-  state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
+export function failEcho(state: GameState, _reason: string): void {
+  if (state.echo?.activeId) state.echo.activeId = null
 }

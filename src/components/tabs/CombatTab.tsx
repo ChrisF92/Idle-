@@ -17,7 +17,6 @@ import {
   workshopLevel,
 } from '../../game/workshop'
 import { isBossWave } from '../../game/waves'
-import { getEchoRun } from '../../game/echo'
 import { activeProtocol } from '../../game/protocols'
 import { isChallengeSortie } from '../../game/frontier'
 import { DIRECTIVES, getDirective, hasDirectiveOffer } from '../../game/directives'
@@ -191,7 +190,6 @@ export function CombatTab({
   const dying = (combat.defeatLeft ?? 0) > 0
   const live = !combat.docked
   const protocol = activeProtocol(state)
-  const echoRun = combat && state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const titleId = useId()
   const forceCores = coresGuideActive(state, guide)
   const salvageOpen = live || hasHullLostOnce(state)
@@ -352,7 +350,7 @@ export function CombatTab({
       <header className="combat-hud-bar">
         <div className="combat-hud-readout">
           <span className="combat-hud-kicker">
-            {echoRun ? echoRun.name : protocol ? protocol.name : isBossWave(combat.wave) ? 'BOSS' : 'WAVE'}
+            {protocol ? protocol.name : isBossWave(combat.wave) ? 'BOSS' : 'WAVE'}
           </span>
           <strong className="combat-hud-value">W{combat.wave}</strong>
         </div>

@@ -17,7 +17,7 @@ describe('GDD system cadence', () => {
     expect(ACT1_CADENCE.echo).toBe(275)
   })
 
-  it('requires mastery gates for Process and Echo; construction is a Wave 90 Foundry expansion', () => {
+  it('requires a mastery gate for Process; Echo never opens', () => {
     const yard = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced - 1)
     expect(isSystemUnlocked(yard, 'yard')).toBe(false)
     const open = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced)
@@ -32,7 +32,9 @@ describe('GDD system cadence', () => {
     const echo = atCareerWave(createInitialState(1), ACT1_CADENCE.echo)
     expect(isSystemUnlocked(echo, 'echo')).toBe(false)
     echo.protocols.ranks['mute-network'] = ECHO_MIN_PROTOCOL_RANKS
-    expect(isSystemUnlocked(echo, 'echo')).toBe(true)
+    echo.echo.tree = ['echo-strike']
+    echo.echo.clears = { rift: 1 }
+    expect(isSystemUnlocked(echo, 'echo')).toBe(false)
   })
 
   it('keeps Core prints in ten-wave bands at or after Foundry', () => {

@@ -107,12 +107,7 @@ import {
   wipeProtocolLoadout,
 } from './protocols'
 import {
-  canBuyEchoNode,
-  canEnterEcho,
   createEmptyEchoState,
-  failEcho,
-  getEchoNode,
-  getEchoRun,
 } from './echo'
 import {
   canBuyProcessNode,
@@ -1720,48 +1715,20 @@ export function abandonProtocol(state: GameState): GameState {
   return next
 }
 
-export function enterEcho(state: GameState, echoId: string): GameState {
-  if (!canEnterEcho(state, echoId).ok) return state
-  const def = getEchoRun(echoId)
-  if (!def) return state
-  const next = structuredClone(state)
-  if (!next.echo) next.echo = createEmptyEchoState()
-  next.echo.activeId = echoId
-  if (!next.process) next.process = createEmptyProcessState()
-  next.process.config.sortie.lastEchoId = echoId
-  next.echo.resumeSector = next.combat.sector
-  next.echo.resumeWave = next.combat.wave
-  next.echo.resumeRoute = next.combat.route
-  next.combat.frontierHold = false
-  next.combat.frontierSector = 0
-  next.combat.frontierAttemptOpen = false
-  next.combat.frontierNotice = null
-  next.combat.wave = 1
-  next.combat.docked = true
-  next.combat.inFight = false
-  next.combat.log = [`Echo queued: ${def.name}. Launch to enter the gauntlet.`, ...next.combat.log]
-  noteAttempt(next, 'echo', echoId, 'start', def.name)
-  return next
+export function enterEcho(state: GameState, _echoId: string): GameState {
+  return state
 }
 
 export function abandonEcho(state: GameState): GameState {
   if (!state.echo?.activeId) return state
   const next = structuredClone(state)
-  if (!next.process) next.process = createEmptyProcessState()
-  next.process.config.sortie.lastEchoId = null
-  failEcho(next, 'Abandoned.')
+  if (!next.echo) next.echo = createEmptyEchoState()
+  next.echo.activeId = null
   return next
 }
 
-export function buyEchoNode(state: GameState, nodeId: string): GameState {
-  if (!canBuyEchoNode(state, nodeId).ok) return state
-  const def = getEchoNode(nodeId)
-  if (!def) return state
-  const next = structuredClone(state)
-  if (!next.echo) next.echo = createEmptyEchoState()
-  next.echo.points -= def.cost
-  next.echo.tree = [...next.echo.tree, nodeId]
-  return next
+export function buyEchoNode(state: GameState, _nodeId: string): GameState {
+  return state
 }
 
 export { rankSpecialist, rankCapital }

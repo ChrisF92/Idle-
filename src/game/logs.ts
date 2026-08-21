@@ -107,8 +107,8 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'echo',
     title: 'Rift',
-    body: 'Short gauntlets. The ship keeps its Cores. The Choir does not. Echo points buy a tree that persists.',
-    unlock: (s) => career(s) >= 22,
+    body: 'Short gauntlets used to live here. Echo is retired; Challenges cover alternate combat tests.',
+    unlock: () => false,
   },
   {
     id: 'heavy',

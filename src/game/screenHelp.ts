@@ -19,7 +19,6 @@ export const LIVE_SCREENS: TabId[] = [
   'yard',
   'slag',
   'protocols',
-  'echo',
   'process',
   'specialists',
   'tasks',
@@ -109,8 +108,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   echo: {
     title: 'Echo Runs',
     body: [
-      'Purpose: compact combat/build tests rather than another normal progression lane. The ship keeps its Cores; Echo rewards persist.',
-      'Opens around sector 62 after you have cleared at least one Protocol rank.',
+      'Echo is retired. Challenges cover alternate combat tests.',
+      'There is no Echo gauntlet or Echo tree in Act 1.',
     ],
   },
   process: {

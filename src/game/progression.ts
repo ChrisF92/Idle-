@@ -6,7 +6,6 @@ import { noteHighestSector } from './playtest'
 import {
   ACT1_CADENCE,
   ACT1_FINAL_WAVE,
-  ECHO_MIN_PROTOCOL_RANKS,
   PROCESS_MIN_REBUILDS,
   PROCESS_MIN_RESEARCH,
 } from './cadence'
@@ -88,9 +87,9 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   },
   {
     id: 'echo',
-    requiresSectorEver: ACT1_CADENCE.echo,
+    requiresSectorEver: 999,
     label: 'Echo Runs',
-    tip: 'Short challenge runs that earn permanent Echo upgrades.',
+    tip: 'Retired. Challenges cover alternate combat tests.',
   },
   {
     id: 'process',
@@ -743,15 +742,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     return used || meetsWave(state, ACT1_CADENCE.protocols)
   }
   if (systemId === 'echo') {
-    const protocolRanks = Object.values(state.protocols?.ranks ?? {}).reduce((sum, n) => sum + n, 0)
-    const used =
-      Boolean(state.echo?.activeId) ||
-      (state.echo?.tree?.length ?? 0) > 0 ||
-      Object.values(state.echo?.clears ?? {}).some((n) => n > 0)
-    return used || (
-      careerBestWave(state) >= ACT1_CADENCE.echo &&
-      protocolRanks >= ECHO_MIN_PROTOCOL_RANKS
-    )
+    return false
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return true
@@ -794,7 +785,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return `Reach Wave ${ACT1_CADENCE.codex}`
   }
   if (systemId === 'echo') {
-    return `Reach Wave ${ACT1_CADENCE.echo} · clear any Protocol once`
+    return null
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return null

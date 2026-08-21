@@ -464,7 +464,7 @@ function withEchoDefaults(raw: EchoState | undefined): EchoState {
     }
   }
   return {
-    activeId: typeof raw.activeId === 'string' ? raw.activeId : null,
+    activeId: null,
     resumeSector: Math.max(1, Math.floor(Number(raw.resumeSector) || 1)),
     resumeWave: Math.max(1, Math.floor(Number(raw.resumeWave) || 1)),
     resumeRoute: raw.resumeRoute === 'B' ? 'B' : 'A',

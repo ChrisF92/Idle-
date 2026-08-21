@@ -64,7 +64,6 @@ const TRACKED_SYSTEMS: TabId[] = [
   'research',
   'codex',
   'protocols',
-  'echo',
   'process',
   'yard',
   'slag',
@@ -111,12 +110,6 @@ const STATION_TOAST: Partial<
     category: 'SYSTEM ONLINE',
     title: 'Protocols unlocked',
     body: 'Mute one familiar system on purpose and earn specialised permanent scaling.',
-    label: 'OPEN',
-  },
-  echo: {
-    category: 'SYSTEM ONLINE',
-    title: 'Echo unlocked',
-    body: 'Compact combat tests are online after your first Protocol clear.',
     label: 'OPEN',
   },
   process: {

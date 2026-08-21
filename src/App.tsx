@@ -35,7 +35,6 @@ import { ResearchTab } from './components/tabs/ResearchTab'
 import { YardTab } from './components/tabs/YardTab'
 import { SlagTab } from './components/tabs/SlagTab'
 import { ProtocolsTab } from './components/tabs/ProtocolsTab'
-import { EchoTab } from './components/tabs/EchoTab'
 import { ProcessTab } from './components/tabs/ProcessTab'
 import { SpecialistsTab } from './components/tabs/SpecialistsTab'
 import { TasksTab } from './components/tabs/TasksTab'
@@ -386,16 +385,6 @@ export default function App() {
             onEnter={game.enterProtocol}
             onAbandon={game.abandonProtocol}
             onBlockingChange={setBlockingModal}
-          />
-        )}
-        {tab === 'echo' && (
-          <EchoTab
-            state={game.state}
-            onBack={() => go('stats')}
-            onEnter={game.enterEcho}
-            onAbandon={game.abandonEcho}
-            onBuy={game.buyEchoNode}
-            guideTarget={guide?.target}
           />
         )}
         {tab === 'process' && (

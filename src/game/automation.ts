@@ -18,7 +18,6 @@ import {
   canAssembleBlueprint,
   convertAshToHeat,
   depositFabPart,
-  enterEcho,
   enterProtocol,
   launchFabProject,
   optimiseNetwork,
@@ -412,18 +411,7 @@ function autoProtocolEchoRepeat(state: GameState): void {
     const next = enterProtocol(state, protocolId, { automated: true })
     if (next !== state) {
       adopt(state, next)
-      return
     }
-  }
-  if (
-    hasProcess(state, 'echo-repeat') &&
-    cfg.sortie.echoRepeat &&
-    state.combat.docked &&
-    !state.echo?.activeId &&
-    cfg.sortie.lastEchoId
-  ) {
-    const next = enterEcho(state, cfg.sortie.lastEchoId)
-    if (next !== state) adopt(state, next)
   }
 }
 

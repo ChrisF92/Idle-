@@ -512,7 +512,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Echo Repeat',
     category: 'sortie',
     kind: 'automation',
-    blurb: 'After an Echo clear, run the same gauntlet again if Repeat is on.',
+    blurb: 'Retired. Echo is not in Act 1; Challenges cover alternate combat tests.',
     cost: 10,
     requiresSystem: 'echo',
     requiresMastery: 'echo',

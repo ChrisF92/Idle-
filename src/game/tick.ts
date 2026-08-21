@@ -48,13 +48,6 @@ import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { furnaceNetPerSec, tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult } from './hiveResearch'
-import {
-  ECHO_WAVES,
-  failEcho,
-  getEchoRun,
-  tryCompleteEcho,
-  wavesForRun,
-} from './echo'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, processCombatSpeedMult, processConfig, processIndustrySpeedMult } from './process'
 import {
@@ -459,7 +452,7 @@ function tickDefeatSequence(state: GameState, dt: number): boolean {
   return true
 }
 
-/** Death ends the Sortie. Echo/Protocol still end their attempts. */
+/** Death ends the Sortie. */
 function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   const fromSector = state.combat.sector
   const fromWave = state.combat.wave
@@ -467,11 +460,7 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   state.combat.defeatTactical = false
   clearEnemy(state)
   state.combat.consecutiveLosses += 1
-  if (state.echo?.activeId) {
-    failEcho(state, tactical ? 'Extracted early.' : 'Hull lost.')
-    fullHealPlayer(state)
-    return
-  }
+  if (state.echo?.activeId) state.echo.activeId = null
   const label = boss ? ' boss' : ''
   const note = tactical
     ? `Extracted at Wave ${fromWave}${label}.`
@@ -560,20 +549,6 @@ function onFightWon(state: GameState): void {
   clearEnemiesOnly(state)
   state.combat.consecutiveLosses = 0
   noteBestWave(state, clearedWave)
-
-  const echoId = state.echo?.activeId
-  if (echoId) {
-    const total = wavesForRun(state)
-    if (clearedWave < total) {
-      state.combat.wave = clearedWave + 1
-      pushLog(state, `Echo wave ${clearedWave}/${total} down. Next: W${state.combat.wave}.`)
-      continueSortie(state)
-      return
-    }
-    tryCompleteEcho(state)
-    state.combat.playerUnits = []
-    return
-  }
 
   grantWaveClearRewards(state, clearedWave, wasBoss)
   if (wasBoss) {
@@ -692,18 +667,10 @@ function maybeAutoEngage(state: GameState): void {
 }
 
 export function beginFight(state: GameState, keepFleet = false): void {
-  const echoRun = state.echo?.activeId ? getEchoRun(state.echo.activeId) : undefined
   const wave = Math.max(1, state.combat.wave || 1)
   state.combat.wave = wave
   state.combat.sector = powerSectorForWave(wave)
-  const encounter = echoRun
-    ? enemyForSector(
-        echoRun.sectorPower,
-        wave >= ECHO_WAVES ? wavesForSector(echoRun.sectorPower) : wave,
-        'A',
-        echoRun.danger,
-      )
-    : encounterForWave(wave, 1, state)
+  const encounter = encounterForWave(wave, 1, state)
   syncPersistedHullCaps(state)
 
   state.combat.docked = false
@@ -747,9 +714,7 @@ export function beginFight(state: GameState, keepFleet = false): void {
       : ` ${encounter.blurb}`
   pushLog(
     state,
-    echoRun
-      ? `Echo ${echoRun.name} — wave ${wave} [${encounter.family}] (${encounter.units.length} units).${note}`
-      : `Engaging ${encounter.name} — Wave ${wave}${encounter.isBoss ? ' boss' : ''} [${encounter.family}] (${encounter.units.length} units).${note}`,
+    `Engaging ${encounter.name} — Wave ${wave}${encounter.isBoss ? ' boss' : ''} [${encounter.family}] (${encounter.units.length} units).${note}`,
   )
 }
 
@@ -808,10 +773,6 @@ export function setDocked(state: GameState, docked: boolean): GameState {
       persistFlagshipHull(next)
       clearEnemy(next)
     }
-    if (next.echo?.activeId) {
-      failEcho(next, 'Extracted early.')
-      return next
-    }
     finishSortie(next, 'extract', `Extracted at Wave ${at.wave}.`, at, true)
     pushLog(next, next.combat.lastSortie.note)
   } else {
@@ -869,7 +830,7 @@ function maybeProcessRelaunch(state: GameState): void {
   if (!processConfig(state).sortie.autoRelaunch) return
   if (!state.combat.docked) return
   if ((state.combat.defeatLeft ?? 0) > 0) return
-  if (state.protocols?.activeId || state.echo?.activeId) return
+  if (state.protocols?.activeId) return
   if (starterRefitGate(state)) return
   if (state.combat.playerHullMax <= 0) return
   if (state.combat.playerHull + 0.5 < state.combat.playerHullMax) return

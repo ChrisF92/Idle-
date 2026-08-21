@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { setCampaign, setPushMode, retryFrontier, warpToSector, setDocked } from './tick'
-import { setLaunchSector, setSectorRoute } from './actions'
+import { enterEcho, setLaunchSector, setSectorRoute } from './actions'
 import { MORE_STATIONS } from './moreStations'
+import { isSystemUnlocked } from './progression'
+import { canEnterEcho, echoDamageMult } from './echo'
 
-describe('GDD removed Route A/B and Frontier Hold', () => {
+describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
   it('keeps every Sortie on Advance from Wave 1', () => {
     let s = createInitialState(0)
     s.combat.docked = true
@@ -38,9 +40,22 @@ describe('GDD removed Route A/B and Frontier Hold', () => {
     expect(s.combat.wave).toBe(1)
   })
 
-  it('does not list a standalone Reliquary, Yard, or Route B station', () => {
+  it('does not list a standalone Reliquary, Yard, Echo, or Route B station', () => {
     expect(MORE_STATIONS.some((s) => s.id === 'reliquary')).toBe(false)
     expect(MORE_STATIONS.some((s) => s.id === 'yard')).toBe(false)
-    expect(MORE_STATIONS.map((s) => s.name).join(' ')).not.toMatch(/Route B|Frontier Hold|Yard/)
+    expect(MORE_STATIONS.some((s) => s.id === 'echo')).toBe(false)
+    expect(MORE_STATIONS.map((s) => s.name).join(' ')).not.toMatch(/Route B|Frontier Hold|Yard|Echo/)
+  })
+
+  it('never unlocks Echo and ignores leftover trees', () => {
+    const s = createInitialState(0)
+    s.echo.tree = ['echo-strike']
+    s.echo.clears = { rift: 2 }
+    s.echo.activeId = 'rift'
+    s.echo.points = 8
+    expect(isSystemUnlocked(s, 'echo')).toBe(false)
+    expect(enterEcho(s, 'rift')).toBe(s)
+    expect(echoDamageMult(s)).toBe(1)
+    expect(canEnterEcho(s, 'rift').ok).toBe(false)
   })
 })

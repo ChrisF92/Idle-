@@ -451,7 +451,7 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'protocol-repeat' || nodeId === 'protocol-presets' || nodeId === 'echo-repeat') {
+  if (nodeId === 'protocol-repeat' || nodeId === 'protocol-presets') {
     return (
       <div className="process-config-block" data-guide="process-protocol-repeat">
         {hasProcess(state, 'protocol-repeat') ? (
@@ -479,16 +479,6 @@ function NodeConfig({
                 </option>
               ))}
             </select>
-          </label>
-        ) : null}
-        {hasProcess(state, 'echo-repeat') ? (
-          <label className="process-config">
-            <input
-              type="checkbox"
-              checked={cfg.sortie.echoRepeat}
-              onChange={(e) => patch((c) => { c.sortie.echoRepeat = e.target.checked })}
-            />
-            Repeat last Echo
           </label>
         ) : null}
       </div>
@@ -744,7 +734,9 @@ export function ProcessTab({
                   not reduce Earned.
                 </p>
                 {PROCESS_CATEGORIES.filter((c) => c.id !== 'qol').map((cat) => {
-                  const nodes = PROCESS_NODES.filter((n) => n.category === cat.id && n.kind === 'automation')
+                  const nodes = PROCESS_NODES.filter(
+                    (n) => n.category === cat.id && n.kind === 'automation' && n.id !== 'echo-repeat',
+                  )
                   if (nodes.length === 0) return null
                   return (
                     <div key={cat.id}>
