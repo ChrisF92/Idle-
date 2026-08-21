@@ -61,7 +61,7 @@ describe('Process 2.0 ledger', () => {
 
   it('applies Accumulation Heat Ledger to Furnace generation without changing stored Heat', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 5
+    s.meta.highestSectorEver = 68
     s.process.earned = 150
     expect(processFurnaceHooks(s).outputMult).toBeCloseTo(1.15)
     expect(s.resources.heat ?? 0).toBe(0)
@@ -92,7 +92,7 @@ describe('Process 2.0 save and prestige', () => {
   it('Rebuild keeps purchased nodes, Earned, and config', () => {
     let s = createInitialState(0)
     s.combat.sector = 10
-    s.meta.highestSectorEver = 8
+    s.meta.highestSectorEver = 68
     s.process.purchased = ['core-buy-max']
     s.process.earned = 20
     s.process.config.core.priority = 'weapon'
@@ -130,8 +130,8 @@ describe('Process 2.0 mastery and achievements', () => {
   it('does not require mastery for Ash Bank or Smart Smelt', () => {
     const s = createInitialState(0)
     s.meta.aiUnlocked = true
-    s.meta.highestSectorEver = 5
-    s.combat.highestSector = 5
+    s.meta.highestSectorEver = 68
+    s.combat.highestSector = 68
     s.resources.aiPoints = 20
     expect(canBuyProcessNode(s, 'auto-bank').ok).toBe(true)
     expect(canBuyProcessNode(s, 'smart-smelt').ok).toBe(true)
@@ -161,8 +161,8 @@ describe('Process 2.0 Network presets and optimiser', () => {
     const ready = () => {
       let s = createInitialState(0)
       s.meta.hullLostOnce = true
-      s.meta.highestSectorEver = 8
-      s.combat.highestSector = 8
+      s.meta.highestSectorEver = 68
+      s.combat.highestSector = 68
       s.base.workerDrones = 10
       s.process.purchased = ['network-optimise', 'network-presets']
       return s
@@ -193,8 +193,8 @@ describe('Process 2.0 Network presets and optimiser', () => {
   it('Auto Optimise redistributes idle drones using the current preset', () => {
     let s = createInitialState(0)
     s.meta.hullLostOnce = true
-    s.meta.highestSectorEver = 8
-    s.combat.highestSector = 8
+    s.meta.highestSectorEver = 68
+    s.combat.highestSector = 68
     s.base.workerDrones = 10
     s.base.assignments.strike = 4
     s.process.purchased = ['network-optimise', 'network-presets', 'network-balance']

@@ -44,7 +44,7 @@ describe('prestige matter shop', () => {
     state.resources.prestigeMatter = 4
     const before = computeShipStats(state).hullMax
     state = buyMatterShop(state, 'matter-plating')
-    expect(computeShipStats(state).hullMax).toBe(before + 50)
+    expect(computeShipStats(state).hullMax).toBeCloseTo(before + 80)
   })
 
   it('salvage-rights increases combat scrap multiplier', () => {
@@ -67,13 +67,15 @@ describe('prestige matter shop', () => {
     state.resources.prestigeMatter = 4
     const before = computeShipStats(state).shieldMax
     state = buyMatterShop(state, 'shield-bank')
-    expect(computeShipStats(state).shieldMax).toBe(before + 40)
+    expect(computeShipStats(state).shieldMax).toBeCloseTo(before + 65)
   })
 
   it('archive-spur grants extra data on clear', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 3
-    state.meta.highestSectorEver = 7
+    state.meta.highestSectorEver = 34
+    state.combat.highestSector = 34
+    state.combat.sector = 34
     state = buyMatterShop(state, 'archive-spur')
     state.resources.data = 0
     state = startCombat(state)
@@ -99,7 +101,7 @@ describe('prestige matter shop', () => {
     expect(state.resources.prestigeMatter).toBe(2)
   })
 
-  it('ranks use steeper costs and 45% extra-rank scaling', () => {
+  it('ranks use steeper costs while key meta effects compound', () => {
     expect(nextShopCost(3, 0)).toBe(3)
     expect(nextShopCost(3, 1)).toBe(6)
     expect(matterShopEffectScale(1)).toBe(1)

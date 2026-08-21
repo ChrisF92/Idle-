@@ -15,13 +15,11 @@ describe('screen help and More buckets', () => {
     }
   })
 
-  it('hides late More doors until they are close, and opens Yard after Rebuild', () => {
+  it('previews one major door and opens Slag before later Yard mastery', () => {
     const fresh = createInitialState(0)
     const early = moreStationBuckets(fresh)
     expect(early.open.map((s) => s.id)).toEqual([])
-    expect(early.next.map((s) => s.id)).toEqual(
-      expect.arrayContaining(['reliquary', 'furnace', 'process', 'yard']),
-    )
+    expect(early.next.map((s) => s.id)).toEqual(['codex'])
     expect(early.next.map((s) => s.id)).not.toContain('capital')
     expect(early.later.map((s) => s.id)).toEqual(
       expect.arrayContaining(['protocols', 'specialists', 'capital', 'reinforce']),
@@ -31,6 +29,7 @@ describe('screen help and More buckets', () => {
     const rebuilt = createInitialState(0)
     rebuilt.prestige.prestigeCount = 1
     const after = moreStationBuckets(rebuilt)
-    expect(after.open.map((s) => s.id)).toEqual(expect.arrayContaining(['yard', 'slag']))
+    expect(after.open.map((s) => s.id)).toContain('slag')
+    expect(after.open.map((s) => s.id)).not.toContain('yard')
   })
 })

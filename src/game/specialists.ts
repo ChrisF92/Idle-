@@ -3,8 +3,9 @@
 import type { GameState, SpecialistId, SpecialistState } from './types'
 import { careerHighestSector } from './progression'
 import { recordPlaytest, noteSystemAction } from './playtest'
+import { ACT1_CADENCE } from './cadence'
 
-export const SPECIALIST_UNLOCK_SECTOR = 51
+export const SPECIALIST_UNLOCK_SECTOR = ACT1_CADENCE.specialists
 export const SPECIALIST_MAX_RANK = 20
 
 export interface SpecialistDef {

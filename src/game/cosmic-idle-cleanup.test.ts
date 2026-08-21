@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { GUIDE_STEPS } from './progression'
+import { GUIDE_STEPS, PRESTIGE_MIN_SECTOR } from './progression'
 import { RESOURCE_LABELS, createInitialState } from './state'
-import { performPrestige } from './actions'
+import { canPrestige, performPrestige } from './actions'
+import { PRESTIGE_MIN_SECTOR as CATALOG_PRESTIGE_MIN, prestigeMinSectorFor } from './catalog'
 
 const DEAD_GUIDE_TARGETS = [
   'shipyard-tab',
@@ -40,8 +41,12 @@ describe('Cosmic Idle UI cleanup', () => {
     expect(RESOURCE_LABELS.challengePoints).toBe('Challenge Marks')
 
     let state = createInitialState(0)
-    state.combat.sector = 10
-    state.meta.highestSectorEver = 10
+    state.combat.sector = 12
+    state.combat.highestSector = 12
+    state.meta.highestSectorEver = 12
+    expect(CATALOG_PRESTIGE_MIN).toBe(PRESTIGE_MIN_SECTOR)
+    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(PRESTIGE_MIN_SECTOR)
+    expect(canPrestige(state)).toBe(true)
     state = performPrestige(state, 1000)
     expect(state.combat.log[0]).toMatch(/Rebuild Matter/)
     expect(state.combat.log[0]).not.toMatch(/Prestige Matter/)

@@ -6,6 +6,7 @@ import {
   ensureLaunched,
   industryPass,
   maybeHold,
+  maybeRetryFrontier,
   shouldRebuild,
   skipGuides,
 } from './actions'
@@ -27,6 +28,7 @@ function playSession(state: GameState, ctx: StrategyContext, mode: 'active' | 'c
     next = maybeHold(next, false)
   }
   next = ensureLaunched(next, ctx)
+  next = maybeRetryFrontier(next, ctx)
   return next
 }
 
@@ -37,6 +39,7 @@ export const idleStrategy: PlayerStrategy = {
     let next = skipGuides(state)
     next = ensureAdvance(next)
     next = ensureLaunched(next, ctx)
+    next = maybeRetryFrontier(next, ctx)
     return next
   },
 }

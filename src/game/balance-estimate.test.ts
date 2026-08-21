@@ -162,7 +162,7 @@ describe('balance estimates (combat floors, not the Act 1 calendar)', () => {
     )
 
     expect(firstPrestige).toBeGreaterThan(2 * 60)
-    expect(firstPrestige).toBeLessThan(70 * 60)
+    expect(firstPrestige).toBeLessThan(150 * 60)
 
     // Fresh Act 1 without prestige is still a wall.
     expect(naiveAct1).toBeGreaterThan(30 * 60)

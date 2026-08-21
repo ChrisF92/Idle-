@@ -97,7 +97,7 @@ describe('blueprints and fabrication', () => {
 
   it('prestige keeps unlock + parts + discovery; clears fab project', () => {
     let state = createInitialState(0)
-    state.combat.sector = 10
+    state.combat.sector = 12
     state.meta.discoveredModules = ['flak-array', 'heavy-lance']
     state.meta.moduleMastery = { 'flak-array': 2 }
     state.parts = { [partId('flak-array', 'casing')]: 5 }

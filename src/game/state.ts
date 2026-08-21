@@ -141,6 +141,11 @@ export function createInitialState(now = Date.now()): GameState {
       sortieMark: null,
       defeatLeft: 0,
       defeatTactical: false,
+      frontierHold: false,
+      frontierSector: 0,
+      frontierRoute: 'A',
+      frontierAttemptOpen: false,
+      frontierNotice: null,
     },
     base: {
       workerDrones: NETWORK_STARTING_DRONES,

@@ -137,6 +137,7 @@ import {
   recordPlaytest,
   stampFirst,
 } from './playtest'
+import { noteFrontierIntervention } from './frontier'
 import {
   isRouteBUnlocked,
   maxLaunchSector,
@@ -209,6 +210,7 @@ export function setLaunchSector(state: GameState, sector: number): GameState {
   const next = structuredClone(state)
   next.combat.sector = nextSector
   next.combat.wave = 1
+  next.combat.frontierHold = false
   return next
 }
 
@@ -219,6 +221,16 @@ export function setSectorRoute(state: GameState, route: SectorRoute): GameState 
   if (state.combat.route === normalized) return state
   const next = structuredClone(state)
   next.combat.route = normalized
+  if (next.combat.frontierHold || next.combat.frontierSector > 0) {
+    next.combat.frontierHold = false
+    next.combat.frontierSector = 0
+    next.combat.frontierAttemptOpen = false
+    next.combat.frontierNotice = null
+    next.playtest.pendingInterventions = []
+    const cap = Math.max(1, next.combat.highestSector || 1)
+    if (next.combat.sector > cap) next.combat.sector = cap
+    next.combat.wave = 1
+  }
   recordPlaytest(next, 'route', { n: normalized })
   return next
 }
@@ -259,7 +271,10 @@ export function assignWorker(
       ...next.base.assignments,
       [stationId]: current + delta,
     }
-    if (networkBar) noteSystemAction(next, 'network')
+    if (networkBar) {
+      noteSystemAction(next, 'network')
+      noteFrontierIntervention(next, 'drone', { n: stationId, v: delta })
+    }
     return next
   }
 
@@ -271,6 +286,7 @@ export function assignWorker(
   if (left <= 0) delete assignments[stationId]
   else assignments[stationId] = left
   next.base.assignments = assignments
+  if (networkBar) noteFrontierIntervention(next, 'drone', { n: stationId, v: -remove })
   return next
 }
 
@@ -1469,6 +1485,9 @@ export function performRebuild(
   ]
   recordPlaytest(next, 'rebuild', { v: next.prestige.prestigeCount })
   stampFirst(next, 'rebuild')
+  next.playtest.pendingInterventions = []
+  next.playtest.consecutiveFrontierOneShots = 0
+  next.playtest.steamrollFrom = 0
   return next
 }
 
@@ -1606,6 +1625,10 @@ export function enterProtocol(state: GameState, protocolId: string, opts?: { aut
   next.combat.highestSector = 0
   next.combat.docked = true
   next.combat.inFight = false
+  next.combat.frontierHold = false
+  next.combat.frontierSector = 0
+  next.combat.frontierAttemptOpen = false
+  next.combat.frontierNotice = null
   next.combat.playerUnits = []
   next.combat.enemyUnits = []
   const stats = computeShipStats(next)
@@ -1651,6 +1674,10 @@ export function enterEcho(state: GameState, echoId: string): GameState {
   next.echo.resumeSector = next.combat.sector
   next.echo.resumeWave = next.combat.wave
   next.echo.resumeRoute = next.combat.route
+  next.combat.frontierHold = false
+  next.combat.frontierSector = 0
+  next.combat.frontierAttemptOpen = false
+  next.combat.frontierNotice = null
   next.combat.wave = 1
   next.combat.docked = true
   next.combat.inFight = false

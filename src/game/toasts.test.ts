@@ -32,8 +32,8 @@ describe('session toasts', () => {
   it('toasts Foundry unlock with a direct action', () => {
     const state = markHullLost(createInitialState(0))
     const prev = captureToastSnapshot(state)
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
     const toasts = diffToasts(prev, captureToastSnapshot(state), state)
     expect(toasts.some((t) => t.id === 'sys:foundry')).toBe(true)
     const foundry = toasts.find((t) => t.id === 'sys:foundry')
@@ -46,8 +46,8 @@ describe('session toasts', () => {
     state.meta.highestSectorEver = 6
     state.combat.highestSector = 6
     const prev = captureToastSnapshot(state)
-    state.meta.highestSectorEver = 7
-    state.combat.highestSector = 7
+    state.meta.highestSectorEver = 34
+    state.combat.highestSector = 34
     const ids = diffToasts(prev, captureToastSnapshot(state), state).map((t) => t.id)
     expect(ids).toContain('sys:research')
     expect(ids).not.toContain('netbar:archive')
@@ -56,7 +56,7 @@ describe('session toasts', () => {
   it('toasts Rebuild the first time the hangar is available', () => {
     const state = markHullLost(createInitialState(0))
     const prev = captureToastSnapshot(state)
-    state.combat.sector = 4
+    state.combat.sector = 12
     const toasts = diffToasts(prev, captureToastSnapshot(state), state)
     expect(toasts.some((t) => t.id === 'sys:rebuild')).toBe(true)
     expect(toasts.find((t) => t.id === 'sys:rebuild')?.action?.nav).toEqual({ kind: 'rebuild' })
@@ -81,8 +81,8 @@ describe('session toasts', () => {
 
   it('toasts the first fitted Foundry bit as MODULE READY', () => {
     const state = markHullLost(createInitialState(0))
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
     state.combat.docked = true
     const prev = captureToastSnapshot(state)
     state.foundry.recipeLevels['hardened-plate'] = 1

@@ -37,12 +37,12 @@ export function SlagTab({ state, onBack, onBuy }: SlagTabProps) {
       </header>
       {!open ? (
         <p className="muted">
-          Unspent {label} still banks a small damage and production bonus. Ranks beat banking.
+          Unspent {label} gives only a tiny fallback bonus. Spending it is the progression engine; key ranks compound across Rebuilds.
         </p>
       ) : (
         <div className="panel-scroll">
           <p className="muted">
-            Unspent {label} still banks a small damage and production bonus. Ranks beat banking.
+            Unspent {label} gives only a tiny fallback bonus. Spending it is the progression engine; key ranks compound across Rebuilds.
           </p>
           <h3 className="foundry-heading" data-guide="slag-ranks">
             Ranks

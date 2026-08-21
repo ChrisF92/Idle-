@@ -28,13 +28,13 @@ export function SortieReport({ summary, state, onClose, onUpgradeCores }: Sortie
       <div className="modal-sheet sortie-report-sheet">
         <header className="modal-header">
           <div>
-            <p className="combat-hud-kicker">{defeat ? 'Hull lost' : 'Run complete'}</p>
+            <p className="combat-hud-kicker">{defeat ? 'Repelled' : 'Run complete'}</p>
             <h3 id="sortie-report-title">
               {firstDefeat
                 ? `You reached Sector ${summary.sector}`
                 : diagnostic
                   ? diagnostic.title
-                  : `${defeat ? 'Defeat' : 'Complete'} · S${summary.sector} W${summary.wave}`}
+                  : `${defeat ? 'Repelled' : 'Complete'} · S${summary.sector} W${summary.wave}`}
             </h3>
           </div>
           <button type="button" onClick={onClose}>
@@ -47,7 +47,8 @@ export function SortieReport({ summary, state, onClose, onUpgradeCores }: Sortie
               You recovered <strong>{formatCompact(summary.salvageGained)} Salvage</strong>.
             </p>
             <p className="muted">
-              Hull loss does not remove your Core upgrades. Spend your Salvage and launch again.
+              Your ship has fallen back and will keep fighting. Core upgrades stay. Spend Salvage,
+              then retry the frontier.
             </p>
           </>
         ) : (
@@ -125,7 +126,7 @@ export function SortieReport({ summary, state, onClose, onUpgradeCores }: Sortie
             </button>
           ) : (
             <button type="button" className="primary" onClick={onClose}>
-              Back to Dock
+              Continue
             </button>
           )}
         </p>

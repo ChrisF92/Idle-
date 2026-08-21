@@ -64,14 +64,17 @@ describe('hub vs sortie', () => {
     expect(s.resources.salvage).toBeGreaterThan(0)
   })
 
-  it('defeat returns to dock and knocks back to wave 1 of the same sector', () => {
+  it('defeat on the opening frontier retreats and keeps fighting Sector 1', () => {
     let s = createInitialState(0)
     s = setDocked(s, false)
     s = startCombat(s)
     for (const u of s.combat.playerUnits) u.hull = 0
     s.combat.playerHull = 0
     s = tickGame(s, s.lastTickAt + 2000)
-    expect(s.combat.docked).toBe(true)
+    expect(s.combat.docked).toBe(false)
+    expect(s.combat.inFight).toBe(true)
+    expect(s.combat.frontierHold).toBe(true)
+    expect(s.combat.frontierSector).toBe(1)
     expect(s.combat.sector).toBe(1)
     expect(s.combat.wave).toBe(1)
     expect(s.combat.lastSortie.outcome).toBe('defeat')

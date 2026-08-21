@@ -1,6 +1,7 @@
 /** Sector length as a short wave gauntlet + boss. Replaces USI’s distance bar. */
 
 import type { CombatPushMode, SectorRoute } from './types'
+import { ACT1_CADENCE } from './cadence'
 
 export const COMBAT_PUSH_MODES: CombatPushMode[] = ['advance', 'hold-sector', 'hold-wave']
 
@@ -41,8 +42,8 @@ export function isSectorBossWave(sector: number, wave: number): boolean {
  */
 export const WAVES_PER_SECTOR = 5
 
-/** B-side opens when sector 8 is cleared (entering 9). */
-export const ROUTE_B_UNLOCK_CLEARED = 8
+/** B-side is a mid-game route choice, after the first meta/industry layers are learned. */
+export const ROUTE_B_UNLOCK_CLEARED = ACT1_CADENCE.routeB
 
 export function normalizeRoute(route: string | undefined | null): SectorRoute {
   return route === 'B' ? 'B' : 'A'

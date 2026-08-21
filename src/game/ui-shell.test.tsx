@@ -63,6 +63,9 @@ describe('shell UX', () => {
   it('does not auto-open Cores when opening Sortie during a live run', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
+    state.shipyard.moduleLevels['pulse-cannon'] = 1
+    state.shipyard.moduleLevels['plate-layer'] = 1
+    state.meta.seenOnboarding = [...GUIDE_STEPS.map((s) => s.id)]
     let handled = 0
     render(
       <CombatTab
@@ -344,8 +347,8 @@ describe('shell UX', () => {
 
   it('splits Foundry into Smelt, Ranks, Prints, and Fit', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
     render(
       <FoundryTab
         state={state}
@@ -370,8 +373,8 @@ describe('shell UX', () => {
 
   it('opens Foundry prints when a print is focused', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
     render(
       <FoundryTab
         state={state}
@@ -389,8 +392,8 @@ describe('shell UX', () => {
 
   it('shows running Foundry crafts on Sortie and opens Foundry from the strip', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
     state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.4, paid: true }
     let opened = false
     render(
@@ -413,8 +416,8 @@ describe('shell UX', () => {
 
   it('hides the Sortie craft strip when no smelter is running', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
     render(
       <CombatTab
         state={state}

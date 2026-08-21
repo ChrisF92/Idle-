@@ -35,21 +35,21 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Launch a sortie from here. Combat keeps running if you stay on Dock after Launch.',
-      'Hull loss docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
+      'Ordinary hull loss no longer docks you. Rebuild swaps the hull and wipes Salvage and Core levels for Rebuild Matter.',
     ],
   },
   combat: {
     title: 'Sortie',
     body: [
       'Weapons fire automatically. Waves come down the lane. The header shows sector, hull, and shield.',
-      'After hull loss, Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight — use it to farm a tracked Core.',
+      'After hull loss the ship retreats and keeps farming the last sector you could hold. Salvage ranks Pulse and Plate. Advance pushes sectors. Hold repeats the current fight — use it to farm a tracked Core. Retry Frontier attempts the sector that stopped you.',
       'Drones are assigned on the Network tab. They never appear here.',
     ],
   },
   network: {
     title: 'Network',
     body: [
-      'Assign idle drones to bars. Strike raises damage. Ward raises shields. Yield, Loom, and Archive unlock later.',
+      'Purpose: turn a limited drone corps into the stat you need now. Main decision: where each drone works. Strike raises damage; Ward raises shield; later bars add farming and industry.',
       'Bars fill while you fight and crawl while docked. Bar levels reset on Rebuild. Drones and Links stay.',
       'Tap a bar name for live numbers, fill caps, and Relays.',
     ],
@@ -57,7 +57,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   foundry: {
     title: 'Foundry',
     body: [
-      'Smelt Salvage and scrap into stock. Recipe level makes the same craft faster and more productive.',
+      'Purpose: turn combat income into crafted progression and new Cores. Main decision: what you are making next.',
       'Prints: track one Core. Advance finds fragments as you push. Hold that Core’s family to farm it.',
       'Foundry Points buy extra smelters. Recipe progress persists on Rebuild. Fitted bits unequip.',
     ],
@@ -65,71 +65,71 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   reliquary: {
     title: 'Reliquary',
     body: [
-      'Fit one shard per colour slot for a permanent bonus. Extra copies raise resonance on the fitted shard.',
-      'Red and orange open at sector 3. Later colours unlock with sector or Observation. Shards persist on Rebuild.',
+      'Purpose: specialise permanent passive bonuses. Main decision: which shard earns each limited colour slot.',
+      'Reliquary arrives after the first Rebuild layer is familiar. Later colours unlock with progression or Observation. Shards persist on Rebuild.',
     ],
   },
   furnace: {
     title: 'Furnace',
     body: [
-      'Kills drop Choir-ash. Ash becomes Heat. Light channels to spend Heat on temporary boosts.',
+      'Purpose: convert stored Choir-ash into a temporary push budget. Main decision: which channels deserve limited Heat right now.',
       'Net Heat is generation minus channel drain. If Net stays negative, a channel goes dark. Upgrades persist on Rebuild.',
     ],
   },
   research: {
     title: 'Research',
     body: [
-      'Kills feed Material, Energy, and Observation. Focus one branch to speed it up; the others still run.',
+      'Purpose: choose the account’s long-term development direction. Main decision: which branch gets the focus multiplier; the others still progress.',
       'Small nodes are numbers. Breakthroughs unlock mechanics. Progress persists across Rebuild.',
     ],
   },
   yard: {
     title: 'Yard Grid',
     body: [
-      'Place buildings that run even while you are docked. They make Ore, Flux, and Ingots.',
+      'Purpose: build an industrial engine between Rebuilds. Main decision: what the Yard should prepare for your next Rebuild.',
       'Spend Ingots on arms. Arms apply on the next Rebuild, not this hull.',
     ],
   },
   slag: {
     title: 'Slag Bank',
     body: [
-      'Spend Rebuild Matter on hangar ranks — damage, production, hull, drones, and more.',
-      'Unspent Rebuild Matter still banks a small bonus. Ranks beat banking.',
+      'Purpose: this is the first true exponential meta layer. Spend Rebuild Matter on permanent ranks that make the next push visibly stronger.',
+      'Damage and production ranks compound multiplicatively; other permanent ranks accelerate in their own niche. Unspent Matter gives only a tiny fallback bonus.',
     ],
   },
   protocols: {
     title: 'Protocols',
     body: [
-      'Start a restricted sortie. One system is muted. Clear the goal sector for a permanent scaling bonus.',
+      'Purpose: prove you understand a system by temporarily losing it. Pick a restriction, solve the run, and earn specialised permanent scaling.',
       'Starting a Protocol resets Salvage, Core levels, and the current run. Ranks persist. Repeat clears raise the goal.',
     ],
   },
   echo: {
     title: 'Echo Runs',
     body: [
-      'Short challenge runs. The ship keeps its Cores. Echo points buy a tree that persists.',
-      'Opens at sector 22. Launch the run from Dock.',
+      'Purpose: compact combat/build tests rather than another normal progression lane. The ship keeps its Cores; Echo rewards persist.',
+      'Opens around sector 62 after you have cleared at least one Protocol rank.',
     ],
   },
   process: {
     title: 'Process',
     body: [
-      'Process Available is spendable. Process Earned is lifetime and does not drop when you buy.',
-      'Buy automation for repeated Core, Network, and Foundry tasks. Quality-of-life nodes ease idle time. Opens after clearing sector 1.',
+      'Purpose: remove chores you have already learned, not skip systems before you understand them. Process Available is spendable; Process Earned is lifetime.',
+      'Opens around sector 42 after at least two Rebuilds and some Research. Banked Process Points wait for you until then.',
     ],
   },
   specialists: {
     title: 'Specialists',
     body: [
       'Rank Gunner, Warden, and Scavenger for permanent ship bonuses.',
-      'They are not on the battlefield. Opens at sector 51.',
+      'They are not on the battlefield. Opens around sector 68.',
     ],
   },
   tasks: {
     title: 'Task List',
     body: [
       'A checklist of late-game objectives. Capital does not open from a sector number alone.',
-      'Opens at sector 72. Finish the list, then Capital can light.',
+      'Opens around sector 72. Finish the list, then Capital can light.',
     ],
   },
   capital: {
@@ -157,7 +157,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Codex',
     body: [
       'Enemy families and hull roles. Soft counters for the loadout you are flying.',
-      'Opens at sector 6. Optional reference.',
+      'Opens around sector 10, once enemy families are worth comparing. Optional reference.',
     ],
   },
   stats: {

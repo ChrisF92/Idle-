@@ -25,8 +25,11 @@ function afterLaunch() {
 
 function afterFirstDeath() {
   let state = afterLaunch()
-  state = setDocked(state, true)
-  return markHullLost(state)
+  state = markHullLost(state)
+  state.combat.frontierHold = true
+  state.combat.frontierSector = Math.max(1, state.combat.sector)
+  state.combat.frontierRoute = 'A'
+  return state
 }
 
 describe('onboarding queue', () => {
@@ -87,7 +90,8 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(state, 'combat')?.id).toBe('guide-cores-persist')
 
     state = acknowledgeOnboarding(state, 'guide-cores-persist')
-    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-relaunch')
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-relaunch')
+    expect(activeGuideStep(state, 'combat')?.target).toBe('retry-frontier')
   })
 
   it('only shows Network assignment when the player opens Network', () => {
@@ -106,8 +110,8 @@ describe('onboarding queue', () => {
 
   it('teaches Foundry by selecting Slag Ingot, then mastery when it happens', () => {
     const state = afterFirstDeath()
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
     expect(activeGuideStep(state, 'dock')?.id).not.toBe('guide-foundry-recipe')
     expect(activeGuideStep(state, 'foundry')?.id).toBe('guide-foundry-recipe')
 
@@ -120,7 +124,7 @@ describe('onboarding queue', () => {
 
   it('lights one Furnace channel on first open and Skip dismisses the group', () => {
     const state = afterFirstDeath()
-    state.meta.highestSectorEver = 5
+    state.meta.highestSectorEver = 28
     expect(activeGuideStep(state, 'furnace')?.id).toBe('guide-furnace-light')
     const skipped = skipOnboarding(state, 'guide-furnace-light')
     for (const id of FURNACE_V2_GUIDE_IDS) {
@@ -131,7 +135,7 @@ describe('onboarding queue', () => {
 
   it('offers a Research focus hint without a desk tour', () => {
     const state = afterFirstDeath()
-    state.meta.highestSectorEver = 7
+    state.meta.highestSectorEver = 34
     expect(activeGuideStep(state, 'research')?.id).toBe('guide-research-focus')
     expect(guidePausesSimulation(activeGuideStep(state, 'research'))).toBe(false)
   })

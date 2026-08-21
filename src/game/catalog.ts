@@ -1,6 +1,7 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
-import { PRESTIGE_MIN_SECTOR as PROGRESSION_PRESTIGE_MIN, careerHighestSector, isSystemUnlocked } from './progression'
+import { careerHighestSector, isSystemUnlocked } from './progression'
+import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
 import { formatCompact, formatStat } from './format'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
@@ -302,8 +303,8 @@ export interface ShipModuleDef {
   requiresChallengeShop?: string
 }
 
-/** Re-export progression prestige gate for existing imports. */
-export const PRESTIGE_MIN_SECTOR = PROGRESSION_PRESTIGE_MIN
+/** Rebuild hangar gate. cadence.ts is dependency-free, so this stays cycle-safe. */
+export const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild
 
 /** Base seconds to manufacture one worker drone at 1.0 speed. */
 export const WORKER_MANUFACTURE_SECONDS = 90
@@ -811,10 +812,10 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'early-gate',
     name: 'Early Gate',
-    description: 'Rebuild / enter challenges from sector 2.',
+    description: 'Rebuild / enter challenges two sectors earlier.',
     costCp: 1,
     maxRank: 1,
-    prestigeMinSector: 2,
+    prestigeMinSector: ACT1_CADENCE.rebuild - 2,
   },
   {
     id: 'supply-cache',
@@ -917,26 +918,26 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'matter-blade',
     name: 'Slag Edge',
-    description: 'Permanent +8% combat damage (deep ranks; extra ranks +45% of base).',
+    description: 'Permanent combat multiplier. Each rank compounds at ×1.15.',
     costPm: 3,
     maxRank: 25,
-    damageBonus: 0.08,
+    damageBonus: 0.15,
   },
   {
     id: 'matter-forge',
     name: 'Slag Forge',
-    description: 'Permanent +12% base production (deep ranks).',
+    description: 'Permanent production multiplier. Each rank compounds at ×1.15.',
     costPm: 3,
     maxRank: 25,
-    productionBonus: 0.12,
+    productionBonus: 0.15,
   },
   {
     id: 'matter-plating',
     name: 'Slag Plate',
-    description: 'Permanent +50 hull (deep ranks).',
+    description: 'Permanent hull reinforcement. Flat gains accelerate across ranks.',
     costPm: 4,
     maxRank: 25,
-    hullBonus: 50,
+    hullBonus: 80,
   },
   {
     id: 'salvage-rights',
@@ -965,10 +966,10 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'shield-bank',
     name: 'Shield Bank',
-    description: 'Permanent +40 shield capacity on the flagship (deep ranks).',
+    description: 'Permanent shield bank. Flat gains accelerate across ranks.',
     costPm: 4,
     maxRank: 25,
-    shieldBonus: 40,
+    shieldBonus: 65,
   },
   {
     id: 'drone-corps',
@@ -982,10 +983,10 @@ export const MATTER_SHOP: MatterShopDef[] = [
     id: 'drone-acuity',
     name: 'Drone Acuity',
     description:
-      '+20% drone power per rank (extra ranks +45% of base). Black-bar stations with fewer bodies.',
+      'Permanent drone-power multiplier. Each rank compounds at ×1.12; black-bar stations with fewer bodies.',
     costPm: 4,
     maxRank: 25,
-    dronePowerBonus: 0.2,
+    dronePowerBonus: 0.12,
   },
   {
     id: 'synapse-lattice',
@@ -1878,15 +1879,15 @@ export function parsePartId(
  * Fragment counts by print unlock sector. Later specialist prints still add
  * Foundry stock on top of these casing/core/lens needs.
  *
- * S2–S4: 4 fragments (2/1/1)
- * S5–S10: 6 fragments (3/2/1)
- * S11–S17: 9 fragments (4/3/2)
- * S18+: long-farm 12 fragments (5/4/3)
+ * First 3 Foundry sectors: 4 fragments (2/1/1)
+ * Next 6 sectors: 6 fragments (3/2/1)
+ * Next 7 sectors: 9 fragments (4/3/2)
+ * Later prints: long-farm 12 fragments (5/4/3)
  */
 export function printFragmentNeeds(unlockSector: number): Pick<BlueprintRecipe, 'casing' | 'core' | 'lens'> {
-  if (unlockSector <= 4) return { casing: 2, core: 1, lens: 1 }
-  if (unlockSector <= 10) return { casing: 3, core: 2, lens: 1 }
-  if (unlockSector <= 17) return { casing: 4, core: 3, lens: 2 }
+  if (unlockSector <= ACT1_CADENCE.foundry + 2) return { casing: 2, core: 1, lens: 1 }
+  if (unlockSector <= ACT1_CADENCE.foundry + 8) return { casing: 3, core: 2, lens: 1 }
+  if (unlockSector <= ACT1_CADENCE.foundry + 15) return { casing: 4, core: 3, lens: 2 }
   return { casing: 5, core: 4, lens: 3 }
 }
 
@@ -2050,7 +2051,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
 /** Extra late-module weights unlocked at higher sectors. */
 function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
   const extras: EnemyPartDropEntry[] = []
-  if (sector >= 8) {
+  if (sector >= 12) {
     extras.push(
       { moduleId: 'barrier-projector', partType: 'casing', weight: 1 },
       { moduleId: 'drone-bay', partType: 'core', weight: 1 },
@@ -2058,7 +2059,7 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'sensor-whisker', partType: 'casing', weight: 1 },
     )
   }
-  if (sector >= 12) {
+  if (sector >= 16) {
     extras.push(
       { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
       { moduleId: 'ion-burst', partType: 'core', weight: 1 },
@@ -2066,7 +2067,7 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'keel-baffle', partType: 'core', weight: 1 },
     )
   }
-  if (sector >= 18) {
+  if (sector >= 22) {
     extras.push(
       { moduleId: 'grav-tether', partType: 'core', weight: 1 },
       { moduleId: 'nano-lathe', partType: 'lens', weight: 1 },
@@ -2078,7 +2079,8 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
 }
 
 export function modulePrintSector(moduleId: string): number {
-  return Math.max(0, getModule(moduleId)?.requiresSectorEver ?? 0)
+  const original = Math.max(0, getModule(moduleId)?.requiresSectorEver ?? 0)
+  return Math.max(ACT1_CADENCE.foundry, original + FOUNDRY_PRINT_SHIFT)
 }
 
 /** Career has reached the sector that unlocks this Core print. */
@@ -2110,9 +2112,9 @@ export function getEnemyDropTable(family: string): EnemyPartDropTable | undefine
 /** Hidden early-career fragment-rate taper. Not shown in the UI. */
 export function earlyCareerFragmentMult(careerSector: number): number {
   const n = Math.max(0, careerSector)
-  if (n <= 5) return 3.25
-  if (n <= 10) return 2.15
-  if (n <= 17) return 1.35
+  if (n <= ACT1_CADENCE.foundry + 3) return 3.25
+  if (n <= ACT1_CADENCE.foundry + 8) return 2.15
+  if (n <= ACT1_CADENCE.foundry + 15) return 1.35
   return 1
 }
 
@@ -2428,7 +2430,7 @@ export function dronePower(state: DroneEconomyState): number {
   }
   for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
     const bonus = getMatterShopItem(id)?.dronePowerBonus ?? 0
-    if (bonus) power += bonus * matterShopEffectScale(rank)
+    if (bonus) power *= matterShopRankMultiplier(bonus, rank)
   }
   for (const [id, rank] of Object.entries(state.prestige.shop)) {
     const bonus = getChallengeShopItem(id)?.dronePowerBonus ?? 0
@@ -2627,10 +2629,27 @@ export function nextShopCost(baseCost: number, currentRank: number): number {
   return Math.ceil(baseCost * 2 ** Math.max(0, currentRank))
 }
 
-/** Diminishing stack: rank 1 = 1× base; each extra rank adds 45% of base. */
+/** Legacy soft stacking used by Challenge-shop and probability-like effects. */
 export function matterShopEffectScale(rank: number): number {
   if (rank <= 0) return 0
   return 1 + 0.45 * (rank - 1)
+}
+
+/** True prestige growth: a per-rank percentage compounds multiplicatively. */
+export function matterShopRankMultiplier(perRank: number, rank: number): number {
+  return Math.pow(1 + Math.max(0, perRank), Math.max(0, rank))
+}
+
+export function matterShopCompoundBonus(perRank: number, rank: number): number {
+  return matterShopRankMultiplier(perRank, rank) - 1
+}
+
+/** Accelerating flat-stat ranks without turning a flat stat into a percentage stat. */
+export function matterShopFlatScale(rank: number, growth = 0.12): number {
+  const r = Math.max(0, rank)
+  if (r <= 0) return 0
+  if (growth <= 0) return r
+  return (Math.pow(1 + growth, r) - 1) / growth
 }
 
 export function shopMaxRank(def: { maxRank?: number }): number {
@@ -2808,7 +2827,7 @@ export function workerManufactureSpeed(state: DroneEconomyState): number {
   }
   for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
     const bonus = getMatterShopItem(id)?.manufactureBonus ?? 0
-    if (bonus) speed += bonus * matterShopEffectScale(rank)
+    if (bonus) speed *= matterShopRankMultiplier(bonus, rank)
   }
   const fab = stationEffectiveDrones(state, 'drone-fab')
   const fabDef = getStation('drone-fab')
@@ -3106,14 +3125,15 @@ export function metaDamageMultiplier(
   challengeClears: Record<string, number> = {},
 ): number {
   // Unspent PM/CP still help a little; spending unlocks stronger shop effects.
-  let mult = 1 + prestigeMatter * 0.006 + challengePoints * 0.01
+  // Banking is only a fallback. Spending Rebuild Matter should dominate.
+  let mult = 1 + prestigeMatter * 0.001 + challengePoints * 0.01
   for (const [id, rank] of Object.entries(shop)) {
     const def = getChallengeShopItem(id)
     if (def?.damageBonus) mult += def.damageBonus * matterShopEffectScale(rank)
   }
   for (const [id, rank] of Object.entries(matterShop)) {
     const def = getMatterShopItem(id)
-    if (def?.damageBonus) mult += def.damageBonus * matterShopEffectScale(rank)
+    if (def?.damageBonus) mult *= matterShopRankMultiplier(def.damageBonus, rank)
   }
   mult += challengeStackDamageBonus(challengeClears)
   return mult
@@ -3124,10 +3144,11 @@ export function metaProductionMultiplier(
   matterShop: Record<string, number> = {},
   challengeClears: Record<string, number> = {},
 ): number {
-  let mult = 1 + prestigeMatter * 0.006
+  // Banking is deliberately tiny; invested Matter is the progression engine.
+  let mult = 1 + prestigeMatter * 0.001
   for (const [id, rank] of Object.entries(matterShop)) {
     const def = getMatterShopItem(id)
-    if (def?.productionBonus) mult += def.productionBonus * matterShopEffectScale(rank)
+    if (def?.productionBonus) mult *= matterShopRankMultiplier(def.productionBonus, rank)
   }
   mult += challengeStackProductionBonus(challengeClears)
   return mult
@@ -3142,25 +3163,25 @@ export function prestigeMomentumDamageBonus(
   prestigeCount: number,
   ascensionCount: number,
 ): number {
-  const fromPrestige = Math.min(0.5, Math.max(0, prestigeCount) * 0.04)
-  const fromAscension = Math.min(0.5, Math.max(0, ascensionCount) * 0.08)
-  return fromPrestige + fromAscension
+  const fromPrestige = Math.pow(1.08, Math.max(0, prestigeCount))
+  const fromAscension = Math.pow(1.18, Math.max(0, ascensionCount))
+  return fromPrestige * fromAscension - 1
 }
 
 export function prestigeMomentumProductionBonus(
   prestigeCount: number,
   ascensionCount: number,
 ): number {
-  const fromPrestige = Math.min(0.42, Math.max(0, prestigeCount) * 0.03)
-  const fromAscension = Math.min(0.4, Math.max(0, ascensionCount) * 0.06)
-  return fromPrestige + fromAscension
+  const fromPrestige = Math.pow(1.06, Math.max(0, prestigeCount))
+  const fromAscension = Math.pow(1.15, Math.max(0, ascensionCount))
+  return fromPrestige * fromAscension - 1
 }
 
 export function matterShopHullBonus(matterShop: Record<string, number>): number {
   let total = 0
   for (const [id, rank] of Object.entries(matterShop)) {
     const bonus = getMatterShopItem(id)?.hullBonus ?? 0
-    if (bonus) total += bonus * matterShopEffectScale(rank)
+    if (bonus) total += bonus * matterShopFlatScale(rank)
   }
   return total
 }
@@ -3169,7 +3190,7 @@ export function matterShopShieldBonus(matterShop: Record<string, number>): numbe
   let total = 0
   for (const [id, rank] of Object.entries(matterShop)) {
     const bonus = getMatterShopItem(id)?.shieldBonus ?? 0
-    if (bonus) total += bonus * matterShopEffectScale(rank)
+    if (bonus) total += bonus * matterShopFlatScale(rank)
   }
   return total
 }
@@ -3178,7 +3199,7 @@ export function matterShopScrapBonus(matterShop: Record<string, number>): number
   let total = 0
   for (const [id, rank] of Object.entries(matterShop)) {
     const bonus = getMatterShopItem(id)?.scrapBonus ?? 0
-    if (bonus) total += bonus * matterShopEffectScale(rank)
+    if (bonus) total += matterShopCompoundBonus(bonus, rank)
   }
   return total
 }
@@ -3225,7 +3246,7 @@ export function matterShopRepairMult(matterShop: Record<string, number>): number
 }
 
 export function prestigeMinSectorFor(shop: Record<string, number>): number {
-  let min = PRESTIGE_MIN_SECTOR
+  let min: number = PRESTIGE_MIN_SECTOR
   for (const [id, rank] of Object.entries(shop)) {
     if (rank < 1) continue
     const def = getChallengeShopItem(id)
@@ -3293,11 +3314,11 @@ export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string 
   if (rank <= 0) return 'Not owned'
   const s = matterShopEffectScale(rank)
   const bits: string[] = []
-  if (def.damageBonus) bits.push(`+${(def.damageBonus * s * 100).toFixed(1)}% dmg`)
-  if (def.productionBonus) bits.push(`+${(def.productionBonus * s * 100).toFixed(1)}% prod`)
-  if (def.hullBonus) bits.push(`+${(def.hullBonus * s).toFixed(0)} hull`)
-  if (def.shieldBonus) bits.push(`+${(def.shieldBonus * s).toFixed(0)} shield`)
-  if (def.scrapBonus) bits.push(`+${(def.scrapBonus * s * 100).toFixed(1)}% scrap`)
+  if (def.damageBonus) bits.push(`×${matterShopRankMultiplier(def.damageBonus, rank).toFixed(2)} dmg`)
+  if (def.productionBonus) bits.push(`×${matterShopRankMultiplier(def.productionBonus, rank).toFixed(2)} prod`)
+  if (def.hullBonus) bits.push(`+${(def.hullBonus * matterShopFlatScale(rank)).toFixed(0)} hull`)
+  if (def.shieldBonus) bits.push(`+${(def.shieldBonus * matterShopFlatScale(rank)).toFixed(0)} shield`)
+  if (def.scrapBonus) bits.push(`×${matterShopRankMultiplier(def.scrapBonus, rank).toFixed(2)} scrap`)
   if (def.bonusDataPerClear) {
     bits.push(`+${(def.bonusDataPerClear * s).toFixed(1)} data/clear`)
   }
@@ -3307,7 +3328,7 @@ export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string 
   }
   if (def.droneCapBonus) bits.push(`+${def.droneCapBonus * rank} drone cap`)
   if (def.dronePowerBonus) {
-    bits.push(`+${(def.dronePowerBonus * s * 100).toFixed(1)}% drone power`)
+    bits.push(`×${matterShopRankMultiplier(def.dronePowerBonus, rank).toFixed(2)} drone power`)
   }
   if (def.manufactureBonus) {
     bits.push(`+${(def.manufactureBonus * s * 100).toFixed(1)}% manufacture`)
@@ -3333,7 +3354,7 @@ export function challengeShopEffectBlurb(def: ChallengeShopDef, rank: number): s
   if (def.matchupBonus) bits.push(`+${(def.matchupBonus * s * 100).toFixed(0)}% matchup`)
   if (def.droneCapBonus) bits.push(`+${def.droneCapBonus * rank} drone cap`)
   if (def.dronePowerBonus) {
-    bits.push(`+${(def.dronePowerBonus * s * 100).toFixed(1)}% drone power`)
+    bits.push(`×${matterShopRankMultiplier(def.dronePowerBonus, rank).toFixed(2)} drone power`)
   }
   if (def.dropBonus) bits.push(`+${(def.dropBonus * s * 100).toFixed(1)}% part drops`)
   if (def.unlockModuleId) {

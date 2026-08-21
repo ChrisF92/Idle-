@@ -25,23 +25,24 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     expect(getFrame('cruiser-frame')?.baseHull).toBe(70)
   })
 
-  it('unlocks Cruiser Hull after clearing sector 8', () => {
+  it('unlocks Cruiser Hull after clearing sector 24', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 8
-    s.combat.highestSector = 8
+    s.meta.highestSectorEver = 24
+    s.combat.highestSector = 24
     maybeGrantSystemUnlocks(s)
     expect(s.shipyard.unlockedFrames).toContain('cruiser-frame')
     expect(s.shipyard.unlockedFrames).toContain('line-frame')
   })
 
-  it('opens Yard after Rebuild; buildings produce; arms apply on the next Rebuild', () => {
+  it('opens Yard at S20 after two Rebuilds; buildings produce; arms apply on the next Rebuild', () => {
     let s = createInitialState(0)
-    s.combat.sector = 4
-    s.meta.highestSectorEver = 4
-    s.combat.highestSector = 4
+    s.combat.sector = 20
+    s.meta.highestSectorEver = 20
+    s.combat.highestSector = 20
+    s.prestige.prestigeCount = 1
     s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(isSystemUnlocked(s, 'yard')).toBe(true)
-    expect(yardGridSize(s)).toBe(3)
+    expect(yardGridSize(s)).toBe(4)
 
     s = placeYardBuilding(s, 0, 'slag-heap')
     expect(s.yard.cells[0]?.buildingId).toBe('slag-heap')
@@ -53,7 +54,8 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     s = buyYardArm(s, 'damage')
     expect(s.yard.pending.damage).toBe(1)
     const before = computeShipStats(s).damage
-    s.combat.sector = 4
+    s.combat.sector = 20
+    s.combat.highestSector = 20
     s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(yardArmed(s, 'damage')).toBe(1)
     expect(s.yard.pending.damage).toBe(0)
@@ -62,18 +64,18 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
 
   it('expands the grid at sector 14', () => {
     const s = createInitialState(0)
-    s.prestige.prestigeCount = 1
+    s.prestige.prestigeCount = 2
     s.meta.highestSectorEver = YARD_EXPAND_SECTOR
     expect(yardGridSize(s)).toBe(4)
   })
 
-  it('opens Route B after sector 8 and makes packs harder with more salvage', () => {
+  it('opens Route B after sector 24 and makes packs harder with more salvage', () => {
     const fresh = createInitialState(0)
     expect(isRouteBUnlocked(career(fresh))).toBe(false)
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 8
-    expect(isRouteBUnlocked(8)).toBe(true)
-    expect(maxLaunchSector(8)).toBe(9)
+    s.meta.highestSectorEver = 24
+    expect(isRouteBUnlocked(24)).toBe(true)
+    expect(maxLaunchSector(24)).toBe(25)
 
     const a = enemyForSector(9, 1, 'A')
     const b = enemyForSector(9, 1, 'B')
@@ -86,7 +88,7 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
 
   it('lets a docked ship pick start sector and route', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 8
+    s.meta.highestSectorEver = 24
     s.combat.docked = true
     s = setLaunchSector(s, 9)
     expect(s.combat.sector).toBe(9)
@@ -99,8 +101,8 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
 
   it('Rebuild hangar can swap onto Cruiser once unlocked', () => {
     let s = createInitialState(0)
-    s.combat.sector = 8
-    s.meta.highestSectorEver = 8
+    s.combat.sector = 24
+    s.meta.highestSectorEver = 24
     s.shipyard.unlockedFrames = ['scout-frame', 'line-frame', 'cruiser-frame']
     s = performRebuild(s, {
       frameId: 'cruiser-frame',

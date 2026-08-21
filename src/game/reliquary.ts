@@ -5,6 +5,8 @@ import { careerHighestSector } from './progression'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
+import { noteFrontierIntervention } from './frontier'
+import { ACT1_CADENCE } from './cadence'
 
 export interface ShardDef {
   id: string
@@ -28,18 +30,18 @@ export interface ReliquarySlotDef {
   requiresSectorEver: number
 }
 
-export const RELIQUARY_UNLOCK_SECTOR = 3
+export const RELIQUARY_UNLOCK_SECTOR = ACT1_CADENCE.reliquary
 /** Extra copies of an inserted shard to fill resonance. */
 export const RELIQUARY_RESONANCE_NEED = 12
 export const RELIQUARY_DROP_CHANCE = 0.1
 export const RELIQUARY_BOSS_DROP_CHANCE = 0.35
 
 export const RELIQUARY_SLOTS: ReliquarySlotDef[] = [
-  { color: 'red', name: 'Red', requiresSectorEver: 3 },
-  { color: 'orange', name: 'Orange', requiresSectorEver: 3 },
-  { color: 'pink', name: 'Pink', requiresSectorEver: 6 },
-  { color: 'blue', name: 'Blue', requiresSectorEver: 19 },
-  { color: 'green', name: 'Green', requiresSectorEver: 32 },
+  { color: 'red', name: 'Red', requiresSectorEver: ACT1_CADENCE.reliquary },
+  { color: 'orange', name: 'Orange', requiresSectorEver: ACT1_CADENCE.reliquary },
+  { color: 'pink', name: 'Pink', requiresSectorEver: 26 },
+  { color: 'blue', name: 'Blue', requiresSectorEver: 40 },
+  { color: 'green', name: 'Green', requiresSectorEver: 58 },
 ]
 
 export const SHARDS: ShardDef[] = [
@@ -391,6 +393,7 @@ export function insertShard(state: GameState, shardId: string): GameState {
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
   next.reliquary.slots[def.color] = shardId
   noteSystemAction(next, 'reliquary')
+  noteFrontierIntervention(next, 'reliquary', { n: def.name })
   return next
 }
 

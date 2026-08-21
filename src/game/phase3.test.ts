@@ -30,11 +30,11 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(computeShipStats(s).damage).toBeCloseTo(before * 1.15)
   })
 
-  it('allows Rebuild from sector 4 and wipes Core levels', () => {
+  it('allows Rebuild from sector 12 and wipes Core levels', () => {
     let s = createInitialState(0)
-    s.combat.sector = 4
-    s.meta.highestSectorEver = 4
-    s.combat.highestSector = 4
+    s.combat.sector = 12
+    s.meta.highestSectorEver = 12
+    s.combat.highestSector = 12
     s.shipyard.moduleLevels['pulse-cannon'] = 6
     s.shipyard.corePicks = { 'pulse-cannon': { 'pulse-10': 'focused' } }
     expect(canPrestige(s)).toBe(true)
@@ -63,9 +63,9 @@ describe('phase 3: milestones, rebuild, foundry', () => {
 
   it('Rebuild hangar can swap onto Frigate once unlocked', () => {
     let s = createInitialState(0)
-    s.combat.sector = 5
-    s.combat.highestSector = 4
-    s.meta.highestSectorEver = 4
+    s.combat.sector = 12
+    s.combat.highestSector = 12
+    s.meta.highestSectorEver = 12
     s.shipyard.unlockedFrames = ['scout-frame', 'line-frame']
     s = performRebuild(s, {
       frameId: 'line-frame',
@@ -74,16 +74,15 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(s.shipyard.frameId).toBe('line-frame')
   })
 
-  it('opens Foundry at sector 2 and hides scrap until then', () => {
+  it('opens Foundry at sector 6 and hides scrap until then', () => {
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(visibleResourceIds(fresh)).toEqual([])
 
     let s = createInitialState(0)
     s = setDocked(s, false)
-    s = clearSector(s)
-    s = clearSector(s)
-    expect(s.combat.highestSector).toBeGreaterThanOrEqual(2)
+    for (let i = 0; i < 6; i++) s = clearSector(s)
+    expect(s.combat.highestSector).toBeGreaterThanOrEqual(6)
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
     expect(visibleResourceIds(s)).toContain('scrap')
     s.meta.hullLostOnce = true

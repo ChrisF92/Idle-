@@ -58,7 +58,7 @@ function enemy(isBoss = false): CombatUnit {
 }
 
 describe('phase 6: Reliquary + Furnace + Research', () => {
-  it('opens doors at USI sectors 3 / 5 / 7', () => {
+  it('opens doors at spaced sectors 16 / 28 / 34', () => {
     expect(SAVE_VERSION).toBe(33)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'reliquary')).toBe(false)
@@ -68,12 +68,12 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     expect(isResourceVisible(fresh, 'data')).toBe(false)
 
     const s3 = createInitialState(0)
-    s3.meta.highestSectorEver = 3
+    s3.meta.highestSectorEver = 16
     expect(isSystemUnlocked(s3, 'reliquary')).toBe(true)
     expect(isSystemUnlocked(s3, 'furnace')).toBe(false)
 
     const s5 = createInitialState(0)
-    s5.meta.highestSectorEver = 5
+    s5.meta.highestSectorEver = 28
     expect(isSystemUnlocked(s5, 'furnace')).toBe(true)
     expect(isResourceVisible(s5, 'choirAsh')).toBe(true)
     expect(isSystemUnlocked(s5, 'research')).toBe(false)
@@ -83,14 +83,14 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     expect(isSystemUnlocked(s6, 'research')).toBe(false)
 
     const s7 = createInitialState(0)
-    s7.meta.highestSectorEver = 7
+    s7.meta.highestSectorEver = 34
     expect(isSystemUnlocked(s7, 'research')).toBe(true)
     expect(isResourceVisible(s7, 'data')).toBe(true)
   })
 
   it('inserts a shard and scales damage with resonance', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 3
+    s.meta.highestSectorEver = 16
     s.reliquary.owned['battle-chip'] = 1
     const before = computeShipStats(s).damage
     s = insertShard(s, 'battle-chip')
@@ -105,7 +105,7 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
   it('drops shards on kill once Reliquary is open', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 3
+    s.meta.highestSectorEver = 16
     const id = grantReliquaryKillLoot(s, false, () => 0)
     expect(id).toBeTruthy()
     expect(shardOwned(s, id!)).toBe(1)
@@ -114,7 +114,7 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
   it('banks Choir-ash into Heat and Weapons channels raise DPS', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 5
+    s.meta.highestSectorEver = 28
     s.combat.sector = 5
     const ash = grantFurnaceKillLoot(s, true)
     expect(ash).toBeGreaterThan(0)
@@ -135,8 +135,8 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
   it('feeds all three research branches and 4× the focused one', () => {
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 7
-    s.combat.sector = 7
+    s.meta.highestSectorEver = 34
+    s.combat.sector = 34
     s = setResearchFocus(s, 'energy')
     grantHiveResearchKillXp(s, false)
     const energy = hiveResearchXp(s, 'energy')
@@ -147,7 +147,7 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
   it('completes a research node and applies its bonus', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 7
+    s.meta.highestSectorEver = 34
     s.hiveResearch.xp.energy = hiveResearchNodeCost(0)
     grantHiveResearchKillXp(s, false)
     expect(hiveResearchCompleted(s, 'energy')).toBeGreaterThanOrEqual(1)
@@ -157,7 +157,7 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
   it('Foundry channel speeds the Foundry', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 5
+    s.meta.highestSectorEver = 28
     const before = foundryCraftSpeed(s)
     s.furnace.wanted.foundry = 2
     s.furnace.active.foundry = 2
@@ -166,8 +166,8 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
   it('Rebuild keeps shards, ash, Furnace upgrades, and research; wipes salvage and Heat', () => {
     let s = createInitialState(0)
-    s.combat.sector = 7
-    s.meta.highestSectorEver = 7
+    s.combat.sector = 34
+    s.meta.highestSectorEver = 34
     s.reliquary.owned['battle-chip'] = 3
     s = insertShardDirect(s, 'battle-chip')
     s.resources.choirAsh = 12
@@ -190,10 +190,10 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     expect(s.resources.salvage).toBeLessThan(50)
   })
 
-  it('kills grant ash and research together after sector 7', () => {
+  it('kills grant ash and research together after Research opens', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 7
-    s.combat.sector = 7
+    s.meta.highestSectorEver = 34
+    s.combat.sector = 34
     grantEnemyKillRewards(s, enemy(true))
     expect(s.resources.choirAsh).toBeGreaterThan(0)
     expect(hiveResearchXp(s, 'material')).toBeGreaterThan(0)

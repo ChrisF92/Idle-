@@ -133,7 +133,7 @@ describe('advanceTicks / combat', () => {
 
     const next = structuredClone(state)
     advanceTicks(next, 120)
-    expect(next.combat.sector).toBeGreaterThan(1)
+    expect(next.combat.highestSector).toBeGreaterThanOrEqual(1)
     expect(next.resources.scrap).toBeGreaterThan(0)
     // AI Points come from First Blood achievement on sector 1 clear, not combat drops
     expect(next.meta.completedAchievements).toContain('first-blood')
@@ -193,7 +193,7 @@ describe('purchases', () => {
 
   it('blocks alloy foundry until alloy-smelting research', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 7
+    state.meta.highestSectorEver = 34
     state.base.workerDrones = 2
     const blocked = assignWorker(state, 'alloy-foundry', 1)
     expect(blocked.base.assignments['alloy-foundry'] ?? 0).toBe(0)
@@ -218,7 +218,7 @@ describe('purchases', () => {
   it('assigned workers produce scrap and data over time', () => {
     let state = createInitialState(0)
     state.combat.docked = true
-    state.meta.highestSectorEver = 7
+    state.meta.highestSectorEver = 34
     state.base.workerDrones = 3
     state = assignWorker(state, 'scrap-field', 2)
     state = assignWorker(state, 'sensor-net', 1)
@@ -298,7 +298,9 @@ describe('shipyard', () => {
 describe('prestige and challenges', () => {
   it('prestiges at sector threshold and keeps fitted loadout', () => {
     let state = createInitialState(0)
-    state.combat.sector = 10
+    state.combat.sector = 12
+    state.combat.highestSector = 12
+    state.meta.highestSectorEver = 12
     state.resources.scrap = 999
     state.resources.alloys = 999
     state = unlockModule(state, 'plate-layer')
@@ -317,7 +319,9 @@ describe('prestige and challenges', () => {
   it('enters and completes a repeatable challenge', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
-    state.combat.sector = 10
+    state.combat.sector = 12
+    state.combat.highestSector = 12
+    state.meta.highestSectorEver = 12
     state = enterChallenge(state, 'no-ai', 2000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')
     expect(state.combat.sector).toBe(1)
@@ -402,8 +406,8 @@ describe('prestige and challenges', () => {
     expect(state.prestige.activeChallengeId).toBeNull()
     expect(state.resources.challengePoints).toBeGreaterThan(0)
 
-    // Repeatable — can enter again after reaching sector gate
-    state.combat.sector = 10
+    // Repeatable — can enter again after reaching the Rebuild gate
+    state.combat.sector = 12
     state = enterChallenge(state, 'no-ai', 3000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')
   })
@@ -419,7 +423,9 @@ describe('salvage module upgrades', () => {
     expect(computeShipStats(state).damage).toBeGreaterThan(before)
     expect(state.resources.salvage).toBeLessThan(100)
 
-    state.combat.sector = 10
+    state.combat.sector = 12
+    state.combat.highestSector = 12
+    state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
     // Returning runs start with a salvage kit for early module levels.
     expect(state.resources.salvage).toBe(19)

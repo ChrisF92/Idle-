@@ -58,11 +58,11 @@ describe('USI-aligned enemy pacing', () => {
 
 describe('USI-aligned Rebuild recovery', () => {
   it('gives each Rebuild a noticeable combat/production bump', () => {
-    expect(prestigeMomentumDamageBonus(1, 0)).toBeCloseTo(0.04)
-    expect(prestigeMomentumProductionBonus(1, 0)).toBeCloseTo(0.03)
-    expect(prestigeMomentumDamageBonus(3, 0)).toBeCloseTo(0.12)
-    expect(prestigeMomentumProductionBonus(3, 0)).toBeCloseTo(0.09)
-    expect(prestigeMomentumDamageBonus(20, 0)).toBe(0.5)
+    expect(prestigeMomentumDamageBonus(1, 0)).toBeCloseTo(0.08)
+    expect(prestigeMomentumProductionBonus(1, 0)).toBeCloseTo(0.06)
+    expect(prestigeMomentumDamageBonus(3, 0)).toBeCloseTo(Math.pow(1.08, 3) - 1)
+    expect(prestigeMomentumProductionBonus(3, 0)).toBeCloseTo(Math.pow(1.06, 3) - 1)
+    expect(prestigeMomentumDamageBonus(20, 0)).toBeGreaterThan(3)
   })
 
   it('opens Slag Bank rank 4 after the first Rebuild', () => {
@@ -76,7 +76,9 @@ describe('USI-aligned Rebuild recovery', () => {
 
   it('return salvage covers Pulse L1 plus two Plate levels', () => {
     let state = createInitialState(0)
-    state.combat.sector = 10
+    state.combat.sector = 12
+    state.meta.highestSectorEver = 12
+    state.combat.highestSector = 12
     state = performPrestige(state, 1000)
     const pulseCost = moduleUpgradeCost(0, 'pulse-cannon')
     const plate1 = moduleUpgradeCost(0, 'plate-layer')

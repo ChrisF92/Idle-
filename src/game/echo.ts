@@ -5,8 +5,9 @@ import { careerHighestSector } from './progression'
 import { wavesForSector } from './sectors'
 import { closeSortie } from './sortieSummary'
 import { noteAttempt } from './playtest'
+import { ACT1_CADENCE } from './cadence'
 
-export const ECHO_UNLOCK_SECTOR = 22
+export const ECHO_UNLOCK_SECTOR = ACT1_CADENCE.echo
 export const ECHO_WAVES = 3
 
 export interface EchoRunDef {

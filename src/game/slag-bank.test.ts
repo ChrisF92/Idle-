@@ -10,18 +10,18 @@ describe('Slag Bank', () => {
     expect(SAVE_VERSION).toBe(33)
   })
 
-  it('unlocks with the first Rebuild, same door as Yard', () => {
+  it('unlocks with the first Rebuild while Yard waits for later mastery', () => {
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'slag')).toBe(false)
     expect(isSystemUnlocked(fresh, 'yard')).toBe(false)
 
     let s = createInitialState(0)
-    s.combat.sector = 4
-    s.meta.highestSectorEver = 4
-    s.combat.highestSector = 4
+    s.combat.sector = 12
+    s.meta.highestSectorEver = 12
+    s.combat.highestSector = 12
     s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(isSystemUnlocked(s, 'slag')).toBe(true)
-    expect(isSystemUnlocked(s, 'yard')).toBe(true)
+    expect(isSystemUnlocked(s, 'yard')).toBe(false)
     expect(unlockedFoundryLogs(s).some((l) => l.id === 'slag')).toBe(true)
   })
 

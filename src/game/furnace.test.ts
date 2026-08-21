@@ -30,7 +30,7 @@ import {
 } from './progression'
 import { exportSave, importSave } from './save'
 
-function furnaceReady(sector = 5) {
+function furnaceReady(sector = 28) {
   const s = createInitialState(0)
   s.meta.highestSectorEver = sector
   s.combat.highestSector = sector
@@ -128,11 +128,11 @@ describe('Furnace 2.0 channels', () => {
   })
 
   it('keeps Foundry and Research channels locked until those systems open', () => {
-    const s = furnaceReady(5)
+    const s = furnaceReady(28)
     expect(canSetFurnaceChannel(s, 'foundry', 1).ok).toBe(true)
     expect(canSetFurnaceChannel(s, 'research', 1).ok).toBe(false)
-    s.meta.highestSectorEver = 7
-    s.combat.highestSector = 7
+    s.meta.highestSectorEver = 34
+    s.combat.highestSector = 34
     expect(canSetFurnaceChannel(s, 'research', 1).ok).toBe(true)
   })
 })
@@ -179,7 +179,7 @@ describe('Furnace 2.0 Process automation and presets', () => {
   })
 
   it('applies presets without inventing extra channels', () => {
-    let s = furnaceReady(7)
+    let s = furnaceReady(34)
     s.prestige.prestigeCount = 1
     s = applyFurnacePreset(s, 'push')
     expect(s.furnace.wanted.weapons).toBe(1)
@@ -193,7 +193,7 @@ describe('Furnace 2.0 Process automation and presets', () => {
   })
 
   it('with one slot, Research preset lights Research first', () => {
-    let s = furnaceReady(7)
+    let s = furnaceReady(34)
     expect(furnaceChannelSlots(s)).toBe(1)
     s = applyFurnacePreset(s, 'research')
     expect(s.furnace.wanted.research).toBe(1)
@@ -220,7 +220,7 @@ describe('Furnace 2.0 Process automation and presets', () => {
 
 describe('Furnace 2.0 Rebuild, offline, save, onboarding', () => {
   it('Rebuild keeps upgrades, wanted lights, and ash; Heat resets unless Ember', () => {
-    let s = furnaceReady(7)
+    let s = furnaceReady(34)
     s.furnace.upgrades.hearth = 2
     s.furnace.wanted.weapons = 2
     s.furnace.active.weapons = 2

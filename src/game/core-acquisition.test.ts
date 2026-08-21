@@ -94,9 +94,10 @@ function firstCoreBySeed(seed: number, extraClears = 1): number | null {
 describe('early Core acquisition benchmarks', () => {
   it('keeps the early-career fragment taper hidden and later bonuses independent', () => {
     expect(earlyCareerFragmentMult(4)).toBe(3.25)
-    expect(earlyCareerFragmentMult(8)).toBe(2.15)
-    expect(earlyCareerFragmentMult(14)).toBe(1.35)
-    expect(earlyCareerFragmentMult(18)).toBe(1)
+    expect(earlyCareerFragmentMult(8)).toBe(3.25)
+    expect(earlyCareerFragmentMult(14)).toBe(2.15)
+    expect(earlyCareerFragmentMult(21)).toBe(1.35)
+    expect(earlyCareerFragmentMult(22)).toBe(1)
     const late = createInitialState(0)
     late.meta.highestSectorEver = 20
     late.core.ranks.logistics = 20
@@ -106,7 +107,7 @@ describe('early Core acquisition benchmarks', () => {
     expect(foundryPartDropMult(late)).toBeCloseTo(1.32)
   })
 
-  it('lands the first non-starter Core around S4–S6 for a typical Advance run', () => {
+  it('lands the first non-starter Core shortly after the S6 Foundry door for a typical Advance run', () => {
     const seeds = [3, 7, 11, 13, 17, 19, 29, 31, 37, 41, 43, 47]
     const firsts = seeds.map((seed) => firstCoreBySeed(seed, 1))
     const assembled = firsts.filter((n): n is number => n != null)
@@ -114,9 +115,9 @@ describe('early Core acquisition benchmarks', () => {
     const sorted = [...assembled].sort((a, b) => a - b)
     const median = sorted[Math.floor(sorted.length / 2)]!
     const p90 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))]!
-    expect(median).toBeGreaterThanOrEqual(3)
-    expect(median).toBeLessThanOrEqual(7)
-    expect(p90).toBeLessThanOrEqual(9)
+    expect(median).toBeGreaterThanOrEqual(6)
+    expect(median).toBeLessThanOrEqual(11)
+    expect(p90).toBeLessThanOrEqual(13)
   })
 
   it('does not flood S4 with many different Cores, and typically yields 1–3 by S11', () => {
@@ -152,12 +153,12 @@ describe('early Core acquisition benchmarks', () => {
 
       const rngH = mulberry32(seed + 100)
       let hold = setPushMode(createInitialState(0), 'hold-sector')
-      hold.meta.highestSectorEver = 2
-      hold.combat.highestSector = 2
+      hold.meta.highestSectorEver = 6
+      hold.combat.highestSector = 6
       hold = setTrackedPrint(hold, 'heavy-lance')
       let loops = 0
       for (let n = 0; n < 20; n++) {
-        hold = rollSector(hold, 2, rngH, 1)
+        hold = rollSector(hold, 6, rngH, 1)
         loops += 1
         if (hold.shipyard.unlockedModules.includes('heavy-lance')) break
       }
@@ -233,8 +234,8 @@ describe('early Foundry equipment payoff', () => {
 describe('reduced print requirements stay assemble-ready on old inventories', () => {
   it('marks a previously incomplete Heavy Lance ready without deleting extras', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 2
-    state.combat.highestSector = 2
+    state.meta.highestSectorEver = 6
+    state.combat.highestSector = 6
     state.parts[partId('heavy-lance', 'casing')] = 4
     state.parts[partId('heavy-lance', 'core')] = 3
     state.parts[partId('heavy-lance', 'lens')] = 2

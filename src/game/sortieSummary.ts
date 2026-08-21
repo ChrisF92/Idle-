@@ -77,6 +77,7 @@ export function closeSortie(
   outcome: 'extract' | 'defeat',
   note: string,
   at?: { sector: number; wave: number },
+  opts?: { keepMark?: boolean },
 ): void {
   const mark = state.combat.sortieMark
   const spent = mark?.salvageSpent ?? 0
@@ -102,6 +103,10 @@ export function closeSortie(
     researchXp: Math.max(0, Math.floor(researchBanked(state) - (mark?.researchXp ?? 0))),
     networkLevels: Math.max(0, networkLevelsSum(state) - (mark?.networkLevels ?? 0)),
     stats: mark?.stats ?? emptySortieRunStats(),
+  }
+  if (opts?.keepMark && state.combat.sortieMark) {
+    state.combat.sortieMark.stats = emptySortieRunStats()
+    return
   }
   state.combat.sortieMark = null
 }

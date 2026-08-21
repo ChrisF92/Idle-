@@ -56,6 +56,7 @@ export interface ToastSnapshot {
   trackedPrintId: string | null
   processCoreHint: boolean
   protocolRankSum: number
+  frontierNoticeSeq: number
 }
 
 const TRACKED_SYSTEMS: TabId[] = [
@@ -81,25 +82,25 @@ const STATION_TOAST: Partial<
   foundry: {
     category: 'SYSTEM ONLINE',
     title: 'Foundry unlocked',
-    body: 'Turn Salvage into permanent materials.',
+    body: 'Choose a Core to track and decide what the smelters make next.',
     label: 'OPEN',
   },
   reliquary: {
     category: 'SYSTEM ONLINE',
     title: 'Reliquary unlocked',
-    body: 'Fit shards for permanent bonuses.',
+    body: 'Choose which permanent shard bonus earns each colour slot.',
     label: 'OPEN',
   },
   furnace: {
     category: 'SYSTEM ONLINE',
     title: 'Furnace unlocked',
-    body: 'Spend Heat on temporary ship boosts.',
+    body: 'Ash now becomes a push budget. Choose which temporary channels stay lit.',
     label: 'OPEN',
   },
   research: {
     category: 'SYSTEM ONLINE',
     title: 'Research unlocked',
-    body: 'Choose a branch to research faster.',
+    body: 'Choose one long-term branch to focus; breakthroughs unlock mechanics.',
     label: 'OPEN',
   },
   codex: {
@@ -111,19 +112,25 @@ const STATION_TOAST: Partial<
   protocols: {
     category: 'SYSTEM ONLINE',
     title: 'Protocols unlocked',
-    body: 'Restricted sorties that earn permanent scaling bonuses.',
+    body: 'Mute one familiar system on purpose and earn specialised permanent scaling.',
     label: 'OPEN',
   },
   echo: {
     category: 'SYSTEM ONLINE',
     title: 'Echo unlocked',
-    body: 'Short challenge runs that earn permanent Echo upgrades.',
+    body: 'Compact combat tests are online after your first Protocol clear.',
     label: 'OPEN',
   },
   process: {
     category: 'SYSTEM ONLINE',
     title: 'Process unlocked',
-    body: 'Spend Process Points to unlock automation.',
+    body: 'You know the manual loops now. Spend banked Process to automate the chores.',
+    label: 'OPEN',
+  },
+  slag: {
+    category: 'REBUILD',
+    title: 'Slag Bank unlocked',
+    body: 'Spend Rebuild Matter on large permanent ranks. Key growth ranks compound.',
     label: 'OPEN',
   },
   specialists: {
@@ -182,6 +189,7 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
   if (a.trackedPrintId !== b.trackedPrintId) return false
   if (a.assembledPrints.length !== b.assembledPrints.length) return false
   if (a.processCoreHint !== b.processCoreHint || a.protocolRankSum !== b.protocolRankSum) return false
+  if (a.frontierNoticeSeq !== b.frontierNoticeSeq) return false
   if (a.networkBars.length !== b.networkBars.length) return false
   if (a.farmablePrints.length !== b.farmablePrints.length) return false
   if (a.completePrints.length !== b.completePrints.length) return false
@@ -228,6 +236,7 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     trackedPrintId: state.foundry.trackedPrintId ?? null,
     processCoreHint: processCoreHintReady(state),
     protocolRankSum: Object.values(state.protocols?.ranks ?? {}).reduce((n, v) => n + v, 0),
+    frontierNoticeSeq: state.combat.frontierNotice?.seq ?? 0,
   }
 }
 
@@ -244,7 +253,7 @@ function systemToast(id: TabId): ToastSpec | null {
 }
 
 /** Diff session snapshots. Empty on first load if prev is seeded from the same state. */
-export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: GameState): ToastSpec[] {
+export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: GameState): ToastSpec[] {
   const out: ToastSpec[] = []
   const seen = new Set<string>()
   const push = (spec: ToastSpec | null) => {
@@ -263,15 +272,40 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, _state: Gam
     })
   }
 
+  if (next.frontierNoticeSeq > prev.frontierNoticeSeq) {
+    const notice = state.combat.frontierNotice
+    if (notice?.kind === 'repelled' && !notice.first) {
+      const fallback =
+        notice.fallback === notice.sector
+          ? `Holding Sector ${notice.fallback}.`
+          : `Falling back to S${notice.fallback}.`
+      push({
+        id: `frontier:repel:${notice.seq}`,
+        category: 'REPULSED',
+        title: `Repelled — S${notice.sector}`,
+        body: fallback,
+        action: { label: 'SORTIE', nav: { kind: 'tab', tab: 'combat' } },
+      })
+    }
+    if (notice?.kind === 'cleared') {
+      push({
+        id: `frontier:clear:${notice.seq}`,
+        category: 'FRONTIER',
+        title: `Frontier cleared — S${notice.sector}`,
+        body: 'Advance resumes.',
+        action: { label: 'SORTIE', nav: { kind: 'tab', tab: 'combat' } },
+      })
+    }
+  }
+
   for (const id of TRACKED_SYSTEMS) {
-    if (id === 'slag') continue
     if (!next.systems[id] || prev.systems[id]) continue
     if (id === 'yard') {
       push({
         id: 'sys:yard',
         category: 'SYSTEM ONLINE',
         title: 'Yard unlocked',
-        body: 'Place buildings that run while docked.',
+        body: 'Build industry for the next Rebuild; arms activate on that reset.',
         action: { label: 'OPEN', nav: { kind: 'tab', tab: 'yard' } },
       })
       continue

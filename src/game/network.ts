@@ -17,6 +17,7 @@ import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 import { foundryNetworkFillMult } from './foundryBonuses'
+import { NETWORK_CADENCE } from './cadence'
 
 function careerEver(state: GameState): number {
   return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
@@ -97,45 +98,45 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'yield',
     name: 'Yield',
     blurb: 'Salvage from wrecks, plus a trickle of scrap.',
-    requiresSectorEver: 2,
+    requiresSectorEver: NETWORK_CADENCE.yield,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
       'Yield makes wrecks worth more Salvage and drips scrap into the hangar.',
       'It also slightly speeds Strike and Ward — later bars feed the earlier ones.',
-      'Opens after you clear sector 2. Yield Relay later improves this bar’s fill and salvage scaling.',
+      'Opens after you clear sector 4. Yield Relay later improves this bar’s fill and salvage scaling.',
     ],
   },
   {
     id: 'loom',
     name: 'Loom',
     blurb: 'Faster drone manufacture and Foundry crafts.',
-    requiresSectorEver: 2,
+    requiresSectorEver: NETWORK_CADENCE.loom,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
       'Loom is the shop floor. Cycles speed how fast new drones print and how fast smelters run.',
       'It also slightly speeds Strike, Ward, and Yield.',
-      'Opens after you clear sector 2. Loom Relay later improves manufacture machinery.',
+      'Opens after you clear sector 9. Loom Relay later improves manufacture machinery.',
     ],
   },
   {
     id: 'archive',
     name: 'Archive',
     blurb: 'A trickle of Research data.',
-    requiresSectorEver: 7,
+    requiresSectorEver: NETWORK_CADENCE.archive,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
       'Archive writes Research data while you fly or sit docked. It also slightly speeds every bar before it.',
-      'Opens with Research at sector 7. Archive Relay later improves data throughput.',
+      'Opens with Research at sector 34. Archive Relay later improves data throughput.',
     ],
   },
   {
     id: 'strike-relay',
     name: 'Strike Relay',
     blurb: 'Infrastructure behind Strike.',
-    requiresSectorEver: 8,
+    requiresSectorEver: NETWORK_CADENCE.strikeRelay,
     layer: 'relay',
     parent: 'strike',
     fillBase: 10,
@@ -150,7 +151,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'ward-relay',
     name: 'Ward Relay',
     blurb: 'Infrastructure behind Ward.',
-    requiresSectorEver: 9,
+    requiresSectorEver: NETWORK_CADENCE.wardRelay,
     layer: 'relay',
     parent: 'ward',
     fillBase: 10,
@@ -164,7 +165,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'yield-relay',
     name: 'Yield Relay',
     blurb: 'Infrastructure behind Yield.',
-    requiresSectorEver: 12,
+    requiresSectorEver: NETWORK_CADENCE.yieldRelay,
     layer: 'relay',
     parent: 'yield',
     fillBase: 11,
@@ -178,7 +179,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'loom-relay',
     name: 'Loom Relay',
     blurb: 'Infrastructure behind Loom.',
-    requiresSectorEver: 13,
+    requiresSectorEver: NETWORK_CADENCE.loomRelay,
     layer: 'relay',
     parent: 'loom',
     fillBase: 11,
@@ -192,7 +193,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'archive-relay',
     name: 'Archive Relay',
     blurb: 'Infrastructure behind Archive.',
-    requiresSectorEver: 16,
+    requiresSectorEver: NETWORK_CADENCE.archiveRelay,
     layer: 'relay',
     parent: 'archive',
     fillBase: 12,
@@ -206,7 +207,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'strike-lattice',
     name: 'Strike Lattice',
     blurb: 'Infrastructure behind Strike Relay.',
-    requiresSectorEver: 20,
+    requiresSectorEver: NETWORK_CADENCE.strikeLattice,
     layer: 'lattice',
     parent: 'strike',
     fillBase: 14,
@@ -214,21 +215,21 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     detail: [
       'Strike Lattice improves the Relay that improves Strike. Higher-order Network.',
       'It raises Relay effectiveness, Strike’s level-scaling exponent, and how much each Strike drone counts.',
-      'Opens at sector 20. Levels reset on Rebuild.',
+      'Opens at sector 44. Levels reset on Rebuild.',
     ],
   },
   {
     id: 'ward-lattice',
     name: 'Ward Lattice',
     blurb: 'Infrastructure behind Ward Relay.',
-    requiresSectorEver: 22,
+    requiresSectorEver: NETWORK_CADENCE.wardLattice,
     layer: 'lattice',
     parent: 'ward',
     fillBase: 14,
     improves: 'Ward Relay strength, Ward scaling exponent, Ward drone efficiency',
     detail: [
       'Ward Lattice improves the Relay that improves Ward.',
-      'Opens at sector 22. Same idea as Strike Lattice, for the shield bar.',
+      'Opens at sector 48. Same idea as Strike Lattice, for the shield bar.',
     ],
   },
 ]
@@ -240,7 +241,7 @@ export const NETWORK_LINKS: NetworkLinkDef[] = [
     blurb: 'Hang more drone hulls. Raises corps cap.',
     detail: [
       'Racks are extra clamps in the hangar. Each rank adds one drone the corps may hold.',
-      'Before the Furnace, racks are jury-rigged with scrap. After sector 5, Heat from Choir-ash welds proper racks.',
+      'Before the Furnace, racks are jury-rigged with scrap. Once the Furnace opens, Heat from Choir-ash welds proper racks.',
       'Racks persist on Rebuild.',
     ],
     maxRank: 30,
@@ -253,7 +254,7 @@ export const NETWORK_LINKS: NetworkLinkDef[] = [
     blurb: 'Each drone thinks faster. Same bodies, more work.',
     detail: [
       'Acuity is drone efficiency. Each rank makes every assigned drone count as more Link power, so bars cycle with fewer bodies.',
-      'Heat from the Furnace tunes the corps. Opens with the Furnace at sector 5.',
+      'Heat from the Furnace tunes the corps. Opens with the Furnace at sector 28.',
       'Acuity persists on Rebuild.',
     ],
     maxRank: 20,
@@ -266,7 +267,7 @@ export const NETWORK_LINKS: NetworkLinkDef[] = [
     blurb: 'The Network ticks faster. Bars fill sooner.',
     detail: [
       'Cycle speed is the clock. Each rank raises how fast every assigned bar completes a level.',
-      'Heat from the Furnace overclocks the link. Opens with the Furnace at sector 5.',
+      'Heat from the Furnace overclocks the link. Opens with the Furnace at sector 28.',
       'Cycle speed persists on Rebuild.',
     ],
     maxRank: 20,

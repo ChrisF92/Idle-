@@ -58,7 +58,7 @@ describe('campaign combat', () => {
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
 
-  it('defeat knocks back to wave 1 of this sector and returns to Dock', () => {
+  it('defeat on a cleared sector resumes combat on wave 1 without docking', () => {
     let state = createInitialState(0)
     state.combat.sector = 4
     state.combat.highestSector = 4
@@ -68,8 +68,9 @@ describe('campaign combat', () => {
     advanceTicks(state, 2)
     expect(state.combat.sector).toBe(4)
     expect(state.combat.wave).toBe(1)
-    expect(state.combat.docked).toBe(true)
-    expect(state.combat.inFight).toBe(false)
+    expect(state.combat.docked).toBe(false)
+    expect(state.combat.inFight).toBe(true)
+    expect(state.combat.frontierHold).toBe(false)
     expect(state.combat.playerHull).toBe(state.combat.playerHullMax)
     expect(state.combat.lastSortie.outcome).toBe('defeat')
   })
@@ -195,11 +196,11 @@ describe('campaign combat', () => {
   it('reaches prestige sector on Advance with starter loadout', () => {
     let state = createInitialState(0)
     state = setDocked(state, false)
-    for (let i = 0; i < 80 && state.combat.highestSector < 10; i++) {
+    for (let i = 0; i < 120 && state.combat.highestSector < 12; i++) {
       state = clearSector(state)
     }
-    expect(state.combat.highestSector).toBeGreaterThanOrEqual(10)
-    expect(state.combat.sector).toBeGreaterThanOrEqual(10)
+    expect(state.combat.highestSector).toBeGreaterThanOrEqual(12)
+    expect(state.combat.sector).toBeGreaterThanOrEqual(12)
     expect(canPrestige(state)).toBe(true)
   })
 
@@ -217,8 +218,9 @@ describe('campaign combat', () => {
     state = selectFrame(state, 'scout-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
 
-    state.combat.sector = 10
-    state.meta.highestSectorEver = 10
+    state.combat.sector = 12
+    state.combat.highestSector = 12
+    state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
     expect(state.combat.docked).toBe(true)
     expect(state.shipyard.frameLocked).toBe(false)

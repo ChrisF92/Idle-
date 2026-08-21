@@ -31,7 +31,7 @@ import { advanceSeconds, computeResourceRates } from './tick'
 describe('onboarding survives soft resets', () => {
   it('retires starter guides after prestige', () => {
     let state = createInitialState(0)
-    state.combat.sector = 10
+    state.combat.sector = 12
     state = performPrestige(state, 1000)
     for (const id of STARTER_GUIDE_IDS) {
       expect(state.meta.seenOnboarding).toContain(id)
@@ -74,7 +74,7 @@ describe('onboarding survives soft resets', () => {
 describe('labor router QoL', () => {
   it('applies scrap / foundry-safe profiles', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 10
+    state.meta.highestSectorEver = 12
     state.base.workerDrones = 12
     state.resources.aiPoints = 20
     state.research.unlocked = ['alloy-smelting', 'drone-logistics']
@@ -129,7 +129,7 @@ describe('ascension-entry challenges', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
     state.meta.highestSectorEver = 30
-    state.combat.sector = 10
+    state.combat.sector = 12
     expect(isChallengeUnlocked(state, 'long-haul')).toBe(true)
     expect(canEnterChallenge(state, 'long-haul')).toBe(false)
 
@@ -166,12 +166,12 @@ describe('ascension-entry challenges', () => {
 describe('permanent research', () => {
   it('keeps researched unlocks (including Codex) across prestige', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 6
+    state.meta.highestSectorEver = 12
     state.resources.data = 200
     state = buyResearch(state, 'tactical-codex')
     state = buyResearch(state, 'basic-optics')
     state = buyResearch(state, 'alloy-smelting')
-    state.combat.sector = 10
+    state.combat.sector = 12
     state = performPrestige(state, 1000)
     expect(state.research.unlocked).toEqual(
       expect.arrayContaining(['tactical-codex', 'basic-optics', 'alloy-smelting']),

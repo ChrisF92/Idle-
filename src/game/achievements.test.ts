@@ -18,13 +18,13 @@ describe('achievements and AI unlock', () => {
     expect(state.meta.aiUnlocked).toBe(false)
   })
 
-  it('unlocks AI and grants points on First Blood (sector 1)', () => {
+  it('banks Process points on First Blood without opening automation early', () => {
     const state = createInitialState(0)
     state.combat.highestSector = 1
     const newly = tryCompleteAchievements(state)
     expect(newly).toContain('first-blood')
     expect(state.meta.aiUnlocked).toBe(true)
-    expect(isSystemUnlocked(state, 'ai')).toBe(true)
+    expect(isSystemUnlocked(state, 'ai')).toBe(false)
     expect(state.meta.completedAchievements).toContain('first-blood')
     expect(state.resources.aiPoints).toBe(4)
     expect(state.process.earned).toBe(4)
@@ -64,9 +64,9 @@ describe('achievements and AI unlock', () => {
 
   it('grants Soft Reset on prestige and keeps unspent AI points', () => {
     let state = createInitialState(0)
-    state.combat.highestSector = 8
-    state.meta.highestSectorEver = 8
-    state.combat.sector = 10
+    state.combat.highestSector = 12
+    state.meta.highestSectorEver = 12
+    state.combat.sector = 13
     maybeGrantSystemUnlocks(state)
     state.resources.aiPoints = 4
     state = performPrestige(state, 1000)

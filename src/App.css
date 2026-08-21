@@ -728,6 +728,69 @@ h2 .inspect-name {
   font-size: 0.95rem;
   letter-spacing: 0.04em;
   pointer-events: none;
+  z-index: 2;
+}
+
+.frontier-card {
+  position: absolute;
+  left: 0.45rem;
+  right: 0.45rem;
+  bottom: 0.45rem;
+  z-index: 4;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.4rem 0.5rem 0.45rem;
+  text-align: left;
+  background: color-mix(in srgb, var(--bg-inset) 88%, black);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+}
+
+.frontier-card.is-clear {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--line));
+}
+
+.frontier-card.is-first {
+  bottom: 0.55rem;
+}
+
+.frontier-card > strong {
+  font-family: var(--font-brand);
+  letter-spacing: 0.04em;
+}
+
+.frontier-card > p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.frontier-card-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+
+.frontier-card-actions button,
+.frontier-card > button {
+  width: auto;
+  min-height: 1.8rem;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.frontier-retry-btn {
+  flex: 0 0 auto;
+  min-width: 6.2rem;
+}
+
+.sortie-report-link {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
 }
 
 .sortie-diagnosis {

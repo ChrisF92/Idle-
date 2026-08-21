@@ -263,11 +263,11 @@ export function FoundryTab({
         <p>
           {open
             ? `${formatCompact(foundry.points)} FP · ${foundry.slots.length} smelter${foundry.slots.length === 1 ? '' : 's'}`
-            : 'Clear sector 2 to bring the Foundry online.'}
+            : 'Clear sector 6 to bring the Foundry online.'}
         </p>
       </header>
       {!open ? (
-        <p className="muted empty-state">Turn Salvage into permanent materials. Opens at sector 2.</p>
+        <p className="muted empty-state">Turn Salvage into permanent materials. Opens at sector 6.</p>
       ) : (
         <>
           <SheetTabs value={pane} onChange={setPane} options={FOUNDRY_PANES} label="Foundry panes" />

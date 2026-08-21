@@ -128,9 +128,9 @@ describe('local playtest log', () => {
 
   it('logs rebuild, route, and assembled cores from game actions', () => {
     let s = markHullLost(createInitialState(0))
-    s.combat.sector = 4
-    s.combat.highestSector = 4
-    s.meta.highestSectorEver = 4
+    s.combat.sector = 12
+    s.combat.highestSector = 12
+    s.meta.highestSectorEver = 12
     s.resources.salvage = 40
     s = upgradeModule(s, 'pulse-cannon')
     expect(s.playtest.events.some((e) => e.k === 'core_buy')).toBe(true)
@@ -307,7 +307,7 @@ describe('sortie counters and pressure', () => {
       }),
     }
     render(<SortieReport summary={s.combat.lastSortie} state={s} onClose={() => undefined} />)
-    expect(screen.getByText(/DEFEATED — SECTOR 14 BOSS/)).toBeTruthy()
+    expect(screen.getByText(/REPELLED — SECTOR 14 BOSS/)).toBeTruthy()
     expect(screen.getByText(/Boss HP remaining: 31%/)).toBeTruthy()
     expect(screen.getByText(/Pressure:/)).toBeTruthy()
     expect(screen.getByText(/Possible improvements/)).toBeTruthy()
