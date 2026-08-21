@@ -34,7 +34,7 @@ import {
 } from './signalCores'
 import { createEmptyNetworkState } from './network'
 import { createEmptyFoundryState } from './foundry'
-import { createEmptyReliquaryState } from './reliquary'
+import { createEmptyReliquaryState, hydrateCoreFits } from './reliquary'
 import { finalizeFurnaceMigration, hydrateFurnaceState } from './furnace'
 import { createEmptyHiveResearchState } from './hiveResearch'
 import { createEmptyYardState } from './yard'
@@ -374,12 +374,7 @@ function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState 
     const id = raw.slots?.[color]
     slots[color] = typeof id === 'string' && id.length > 0 ? id : null
   }
-  const coreFits: Record<string, string | null> = {}
-  if (raw.coreFits && typeof raw.coreFits === 'object') {
-    for (const [moduleId, relicId] of Object.entries(raw.coreFits)) {
-      coreFits[moduleId] = typeof relicId === 'string' && relicId.length > 0 ? relicId : null
-    }
-  }
+  const coreFits = hydrateCoreFits(raw.coreFits)
   return { owned, slots, coreFits }
 }
 

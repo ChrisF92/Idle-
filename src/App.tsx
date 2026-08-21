@@ -337,6 +337,7 @@ export default function App() {
             onBack={() => go('stats')}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
+            onUpgradeRelic={game.upgradeRelic}
           />
         )}
         {tab === 'furnace' && (

@@ -86,7 +86,7 @@ const STATION_TOAST: Partial<
   reliquary: {
     category: 'SYSTEM ONLINE',
     title: 'Relic sockets unlocked',
-    body: 'Install Relics into fitted Cores while Docked. Removal is free.',
+    body: 'Matching sockets on fitted Cores. Mastery 5 adds Universal. Spare copies upgrade I–III with Slag Ingots.',
     label: 'OPEN DOCK',
   },
   furnace: {
@@ -313,7 +313,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:reliquary',
         category: 'SYSTEM ONLINE',
         title: 'Relic sockets unlocked',
-        body: 'Install Relics into fitted Cores while Docked. Removal is free.',
+        body: 'Matching sockets on fitted Cores. Mastery 5 adds Universal. Spare copies upgrade I–III with Slag Ingots.',
         action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
       })
       continue

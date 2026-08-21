@@ -1,9 +1,10 @@
-/** Reliquary — USI V-Device analogue. Colour slots, shards, resonance. */
+/** Relics — GDD §§25–31. Typed sockets on Cores, authored I–III tiers, Foundry upgrades. */
 
-import type { GameState, ReliquaryColor, ReliquaryState } from './types'
+import type { GameState, RelicSocketClass, ReliquaryColor, ReliquaryState } from './types'
+import { getModule, moduleMasteryRank } from './catalog'
 import { careerBestWave, careerHighestSector } from './progression'
-import { meetsWave } from './waves'
-import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
+import { bandsClearedForWave, meetsWave } from './waves'
+import { protocolBonusMult, protocolMutes } from './protocols'
 import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
 import { noteFrontierIntervention } from './frontier'
@@ -16,6 +17,11 @@ export interface ShardDef {
   blurb: string
   /** Extra career gate beyond the colour slot. */
   requiresSectorEver?: number
+  socket?: RelicSocketClass
+  tier?: 1 | 2 | 3
+  upgradesTo?: string
+  /** II / III are Foundry-upgraded, not wreck drops. */
+  craftOnly?: boolean
   damage?: number
   salvage?: number
   shield?: number
@@ -31,13 +37,19 @@ export interface ReliquarySlotDef {
   requiresSectorEver: number
 }
 
-import { bandsClearedForWave } from './waves'
-
 export const RELIQUARY_UNLOCK_SECTOR = ACT1_CADENCE.reliquary
-/** Extra copies of an inserted shard to fill resonance. */
+/** Extra copies of an inserted shard to fill leftover resonance. Unused by Core Relics. */
 export const RELIQUARY_RESONANCE_NEED = 12
 export const RELIQUARY_DROP_CHANCE = 0.1
 export const RELIQUARY_BOSS_DROP_CHANCE = 0.35
+/** GDD §26: Universal socket once Core Mastery is meaningful. Cap is 10. */
+export const RELIC_UNIVERSAL_MASTERY = 5
+export const RELIC_SOCKET_LABELS: Record<RelicSocketClass, string> = {
+  power: 'Power',
+  shield: 'Shield',
+  industrial: 'Industrial',
+  universal: 'Universal',
+}
 
 export const RELIQUARY_SLOTS: ReliquarySlotDef[] = [
   { color: 'red', name: 'Red', requiresSectorEver: bandsClearedForWave(ACT1_CADENCE.reliquary) },
@@ -50,10 +62,34 @@ export const RELIQUARY_SLOTS: ReliquarySlotDef[] = [
 export const SHARDS: ShardDef[] = [
   {
     id: 'battle-chip',
-    name: 'Battle Chip',
+    name: 'Capacitor Shard I',
     color: 'red',
     blurb: 'Choir-cut damage lattice.',
+    socket: 'power',
+    tier: 1,
+    upgradesTo: 'battle-chip-ii',
     damage: 0.08,
+  },
+  {
+    id: 'battle-chip-ii',
+    name: 'Capacitor Shard II',
+    color: 'red',
+    blurb: 'Tuned capacitor. Foundry upgrade.',
+    socket: 'power',
+    tier: 2,
+    upgradesTo: 'battle-chip-iii',
+    craftOnly: true,
+    damage: 0.12,
+  },
+  {
+    id: 'battle-chip-iii',
+    name: 'Capacitor Shard III',
+    color: 'red',
+    blurb: 'Overdrawn capacitor. Damage ×1.18.',
+    socket: 'power',
+    tier: 3,
+    craftOnly: true,
+    damage: 0.18,
   },
   {
     id: 'keel-chip',
@@ -74,10 +110,34 @@ export const SHARDS: ShardDef[] = [
   },
   {
     id: 'salvage-chip',
-    name: 'Salvage Chip',
+    name: 'Salvage Matrix I',
     color: 'orange',
-    blurb: 'Marks wrecks for the Yield bar.',
+    blurb: 'Marks wrecks for extra Salvage.',
+    socket: 'industrial',
+    tier: 1,
+    upgradesTo: 'salvage-chip-ii',
     salvage: 0.1,
+  },
+  {
+    id: 'salvage-chip-ii',
+    name: 'Salvage Matrix II',
+    color: 'orange',
+    blurb: 'Kills from this Hive drop more Salvage. Foundry upgrade.',
+    socket: 'industrial',
+    tier: 2,
+    upgradesTo: 'salvage-chip-iii',
+    craftOnly: true,
+    salvage: 0.15,
+  },
+  {
+    id: 'salvage-chip-iii',
+    name: 'Salvage Matrix III',
+    color: 'orange',
+    blurb: 'Heavy wreck marks.',
+    socket: 'industrial',
+    tier: 3,
+    craftOnly: true,
+    salvage: 0.22,
   },
   {
     id: 'cycle-chip',
@@ -90,10 +150,34 @@ export const SHARDS: ShardDef[] = [
   },
   {
     id: 'plate-chip',
-    name: 'Plate Chip',
+    name: 'Aegis Plate I',
     color: 'orange',
     blurb: 'Hardens the shield envelope.',
+    socket: 'shield',
+    tier: 1,
+    upgradesTo: 'plate-chip-ii',
     shield: 0.08,
+  },
+  {
+    id: 'plate-chip-ii',
+    name: 'Aegis Plate II',
+    color: 'orange',
+    blurb: 'Layered aegis. Foundry upgrade.',
+    socket: 'shield',
+    tier: 2,
+    upgradesTo: 'plate-chip-iii',
+    craftOnly: true,
+    shield: 0.12,
+  },
+  {
+    id: 'plate-chip-iii',
+    name: 'Aegis Plate III',
+    color: 'orange',
+    blurb: 'Full-face aegis.',
+    socket: 'shield',
+    tier: 3,
+    craftOnly: true,
+    shield: 0.18,
   },
   {
     id: 'compute-chip',
@@ -229,70 +313,236 @@ export function isRelicsUnlocked(state: GameState): boolean {
   return meetsWave(state, RELIQUARY_UNLOCK_SECTOR)
 }
 
+export function hydrateCoreFits(raw: unknown): Record<string, Array<string | null>> {
+  const out: Record<string, Array<string | null>> = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [moduleId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string' && value.length > 0) {
+      out[moduleId] = [value]
+      continue
+    }
+    if (Array.isArray(value)) {
+      out[moduleId] = value.map((id) => (typeof id === 'string' && id.length > 0 ? id : null))
+    }
+  }
+  return out
+}
+
+export function relicSocketClass(def: ShardDef): RelicSocketClass {
+  if (def.socket) return def.socket
+  if ((def.shield ?? 0) > 0 && (def.damage ?? 0) <= 0) return 'shield'
+  if (def.color === 'red') return 'power'
+  return 'industrial'
+}
+
+export function relicFamilyId(id: string): string {
+  return id.replace(/-ii$|-iii$/, '')
+}
+
+export function relicTier(def: ShardDef): 1 | 2 | 3 {
+  return def.tier ?? 1
+}
+
+export function corePrimarySocket(moduleId: string): RelicSocketClass {
+  const role = getModule(moduleId)?.role
+  if (role === 'defense') return 'shield'
+  if (role === 'utility') return 'industrial'
+  return 'power'
+}
+
+export function coreSocketLayout(state: GameState, moduleId: string): RelicSocketClass[] {
+  if (!isRelicsUnlocked(state)) return []
+  if (!state.shipyard.modules.includes(moduleId)) return []
+  const sockets: RelicSocketClass[] = [corePrimarySocket(moduleId)]
+  if (moduleMasteryRank(state, moduleId) >= RELIC_UNIVERSAL_MASTERY) sockets.push('universal')
+  return sockets
+}
+
 export function relicSocketCount(state: GameState, moduleId: string): number {
-  if (!isRelicsUnlocked(state)) return 0
-  if (!state.shipyard.modules.includes(moduleId)) return 0
-  return 1
+  return coreSocketLayout(state, moduleId).length
+}
+
+export function relicFitsSocket(relic: RelicSocketClass, socket: RelicSocketClass): boolean {
+  if (socket === 'universal' || relic === 'universal') return true
+  return relic === socket
+}
+
+export function coreSocketRelics(state: GameState, moduleId: string): Array<string | null> {
+  const raw = state.reliquary?.coreFits?.[moduleId]
+  if (Array.isArray(raw)) return [...raw]
+  return []
+}
+
+export function fittedRelicIds(state: GameState): string[] {
+  const ids: string[] = []
+  for (const slots of Object.values(state.reliquary?.coreFits ?? {})) {
+    if (!Array.isArray(slots)) continue
+    for (const id of slots) if (id) ids.push(id)
+  }
+  return ids
 }
 
 export function coreRelicId(state: GameState, moduleId: string): string | null {
-  const id = state.reliquary?.coreFits?.[moduleId]
-  return typeof id === 'string' && id.length > 0 ? id : null
+  const id = coreSocketRelics(state, moduleId).find((slot) => typeof slot === 'string' && slot.length > 0)
+  return id ?? null
 }
 
-export function equipRelicOnCore(state: GameState, moduleId: string, relicId: string): GameState {
+function padCoreSockets(slots: Array<string | null>, count: number): Array<string | null> {
+  const next = slots.slice(0, Math.max(slots.length, count))
+  while (next.length < count) next.push(null)
+  return next
+}
+
+function takeOwned(state: GameState, relicId: string, qty = 1): void {
+  const have = shardOwned(state, relicId) - qty
+  if (have <= 0) delete state.reliquary.owned[relicId]
+  else state.reliquary.owned[relicId] = have
+}
+
+function giveOwned(state: GameState, relicId: string, qty = 1): void {
+  state.reliquary.owned[relicId] = shardOwned(state, relicId) + qty
+}
+
+export function equipRelicOnCore(
+  state: GameState,
+  moduleId: string,
+  relicId: string,
+  socketIndex?: number,
+): GameState {
   if (!state.combat.docked) return state
   const def = getShard(relicId)
   if (!def) return state
-  if (relicSocketCount(state, moduleId) < 1) return state
+  const layout = coreSocketLayout(state, moduleId)
+  if (layout.length < 1) return state
   if (shardOwned(state, relicId) < 1) return state
+  const relicClass = relicSocketClass(def)
+  const current = padCoreSockets(coreSocketRelics(state, moduleId), layout.length)
+  const family = relicFamilyId(relicId)
+  const occupiedFamily = current.some(
+    (id) => id && relicFamilyId(id) === family,
+  )
+  let index = socketIndex
+  if (index == null) {
+    index = current.findIndex((id, i) => !id && relicFitsSocket(relicClass, layout[i]!))
+  }
+  if (index < 0 || index >= layout.length) return state
+  const socket = layout[index]
+  if (!socket || !relicFitsSocket(relicClass, socket)) return state
+  const previous = current[index]
+  if (occupiedFamily && relicFamilyId(previous ?? '') !== family) return state
   const next = structuredClone(state)
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
   if (!next.reliquary.coreFits) next.reliquary.coreFits = {}
-  const previous = next.reliquary.coreFits[moduleId]
-  if (previous) {
-    next.reliquary.owned[previous] = shardOwned(next, previous) + 1
-  }
-  next.reliquary.owned[relicId] = shardOwned(next, relicId) - 1
-  if ((next.reliquary.owned[relicId] ?? 0) <= 0) delete next.reliquary.owned[relicId]
-  next.reliquary.coreFits[moduleId] = relicId
+  const slots = padCoreSockets(coreSocketRelics(next, moduleId), layout.length)
+  if (previous) giveOwned(next, previous)
+  takeOwned(next, relicId)
+  slots[index] = relicId
+  next.reliquary.coreFits[moduleId] = slots
   noteSystemAction(next, 'reliquary')
   return next
 }
 
-export function removeRelicFromCore(state: GameState, moduleId: string): GameState {
+export function removeRelicFromCore(
+  state: GameState,
+  moduleId: string,
+  socketIndex?: number,
+): GameState {
   if (!state.combat.docked) return state
-  const fitted = coreRelicId(state, moduleId)
+  const slots = coreSocketRelics(state, moduleId)
+  let index = socketIndex
+  if (index == null) {
+    index = -1
+    for (let i = slots.length - 1; i >= 0; i -= 1) {
+      if (slots[i]) {
+        index = i
+        break
+      }
+    }
+  }
+  const fitted = index >= 0 ? slots[index] : null
   if (!fitted) return state
   const next = structuredClone(state)
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
   if (!next.reliquary.coreFits) next.reliquary.coreFits = {}
-  next.reliquary.owned[fitted] = shardOwned(next, fitted) + 1
-  next.reliquary.coreFits[moduleId] = null
+  const copy = [...coreSocketRelics(next, moduleId)]
+  while (copy.length <= index) copy.push(null)
+  copy[index] = null
+  giveOwned(next, fitted)
+  next.reliquary.coreFits[moduleId] = copy
   return next
 }
 
-/** Extra copies of the inserted shard, 0..1. */
+export function relicUpgradeCost(nextTier: 2 | 3): { recipeId: string; amount: number } {
+  return { recipeId: 'slag-ingot', amount: nextTier === 2 ? 4 : 10 }
+}
+
+export function canUpgradeRelic(
+  state: GameState,
+  relicId: string,
+): { ok: boolean; reason?: string; nextId?: string; cost?: { recipeId: string; amount: number } } {
+  const def = getShard(relicId)
+  if (!def?.upgradesTo) return { ok: false, reason: 'No further tier' }
+  const nextDef = getShard(def.upgradesTo)
+  if (!nextDef) return { ok: false, reason: 'Unknown' }
+  if (!state.combat.docked) return { ok: false, reason: 'Dock first' }
+  const spare = shardOwned(state, relicId)
+  if (spare < 1) return { ok: false, reason: 'Need a spare Relic' }
+  const fittedCount = fittedRelicIds(state).filter((id) => id === relicId).length
+  if (spare + fittedCount < 2) return { ok: false, reason: 'Need a spare Relic' }
+  const cost = relicUpgradeCost(relicTier(nextDef) === 3 ? 3 : 2)
+  const have = Math.max(0, Math.floor(Number(state.foundry?.materials?.[cost.recipeId] ?? 0) || 0))
+  if (have < cost.amount) return { ok: false, reason: `Need ${cost.amount} Slag Ingots` }
+  return { ok: true, nextId: def.upgradesTo, cost }
+}
+
+export function upgradeRelic(state: GameState, relicId: string): GameState {
+  const check = canUpgradeRelic(state, relicId)
+  if (!check.ok || !check.nextId || !check.cost) return state
+  const next = structuredClone(state)
+  if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
+  if (!next.reliquary.coreFits) next.reliquary.coreFits = {}
+  if (!next.foundry.materials) next.foundry.materials = {}
+  takeOwned(next, relicId)
+  next.foundry.materials[check.cost.recipeId] = Math.max(
+    0,
+    Math.floor(Number(next.foundry.materials[check.cost.recipeId] ?? 0) || 0) - check.cost.amount,
+  )
+  let convertedFit = false
+  for (const sockets of Object.values(next.reliquary.coreFits)) {
+    if (!Array.isArray(sockets)) continue
+    const idx = sockets.findIndex((id) => id === relicId)
+    if (idx >= 0) {
+      sockets[idx] = check.nextId
+      convertedFit = true
+      break
+    }
+  }
+  if (!convertedFit) {
+    takeOwned(next, relicId)
+    giveOwned(next, check.nextId)
+  }
+  noteSystemAction(next, 'foundry')
+  return next
+}
+
+/** Extra copies of the inserted shard, 0..1. Leftover colour-slot math. */
 export function shardResonance(state: GameState, id: string): number {
   const def = getShard(id)
   if (!def) return 0
   const fittedSomewhere =
-    Object.values(state.reliquary?.coreFits ?? {}).includes(id) || fittedShardId(state, def.color) === id
+    fittedRelicIds(state).includes(id) || fittedShardId(state, def.color) === id
   if (!fittedSomewhere) return 0
   const extra = Math.max(0, shardOwned(state, id) - 1)
   return Math.min(1, extra / RELIQUARY_RESONANCE_NEED)
 }
 
-/** Inserted shards work at base; resonance doubles them at 100%. Extra copies fill faster if Protocols bend the curve. */
+/** Core Relics use authored values. Hoarded copies do not scale the bonus. */
 export function shardEffectScale(state: GameState, id: string): number {
   if (!getShard(id)) return 0
-  const def = getShard(id)!
-  if (fittedShardId(state, def.color) !== id && !Object.values(state.reliquary?.coreFits ?? {}).includes(id)) {
+  if (!fittedRelicIds(state).includes(id) && fittedShardId(state, getShard(id)!.color) !== id) {
     return 0
   }
-  const resonance = shardResonance(state, id)
-  const exp = Math.max(0.45, 1 + protocolModifiers(state).reliquaryResonanceExpAdd)
-  return 1 + Math.pow(resonance, exp)
+  return 1
 }
 
 interface ReliquaryBonuses {
@@ -322,14 +572,10 @@ export function reliquaryBonuses(state: GameState): ReliquaryBonuses {
   if (!state.reliquary) return out
   if (protocolMutes(state, 'reliquary')) return out
   const power = protocolBonusMult(state, 'reliquary')
-  const fitted = new Set<string>()
-  for (const id of Object.values(state.reliquary.coreFits ?? {})) {
-    if (id) fitted.add(id)
-  }
-  for (const id of fitted) {
+  for (const id of fittedRelicIds(state)) {
     const def = getShard(id)
     if (!def) continue
-    const scale = shardEffectScale(state, id) * power
+    const scale = power
     out.damage += (def.damage ?? 0) * scale
     out.salvage += (def.salvage ?? 0) * scale
     out.shield += (def.shield ?? 0) * scale
@@ -372,6 +618,7 @@ export function reliquaryAshMult(state: GameState): number {
 export function unlockedShardPool(state: GameState): ShardDef[] {
   const ever = careerHighestSector(state)
   return SHARDS.filter((s) => {
+    if (s.craftOnly) return false
     if (!isReliquarySlotUnlocked(state, s.color)) return false
     if ((s.requiresSectorEver ?? 0) > ever) return false
     return true
@@ -392,7 +639,7 @@ export function shardAutoScore(def: ShardDef): number {
 }
 
 export function shardEffectBlurb(def: ShardDef): string {
-  const bits: string[] = []
+  const bits: string[] = [`${RELIC_SOCKET_LABELS[relicSocketClass(def)]} · T${relicTier(def)}`]
   if (def.damage) bits.push(`+${Math.round(def.damage * 100)}% damage`)
   if (def.shield) bits.push(`+${Math.round(def.shield * 100)}% shield`)
   if (def.salvage) bits.push(`+${Math.round(def.salvage * 100)}% salvage`)

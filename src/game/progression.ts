@@ -583,8 +583,14 @@ export function achievementProgressValue(
         Object.values(state.furnace?.upgrades ?? {}).reduce((a, b) => a + b, 0) +
         Object.values(state.furnace?.wanted ?? {}).reduce((a, b) => a + b, 0)
       )
-    case 'reliquary-fitted':
-      return Object.values(state.reliquary?.coreFits ?? {}).filter(Boolean).length
+    case 'reliquary-fitted': {
+      let n = 0
+      for (const slots of Object.values(state.reliquary?.coreFits ?? {})) {
+        if (Array.isArray(slots)) n += slots.filter(Boolean).length
+        else if (slots) n += 1
+      }
+      return n
+    }
     case 'hive-research-nodes':
       return Object.values(state.hiveResearch?.completed ?? {}).reduce((a, b) => a + b, 0)
     case 'protocol-rank-sum':

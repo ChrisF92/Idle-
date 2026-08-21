@@ -112,15 +112,16 @@ import {
   isResearchBreakthrough,
 } from './hiveResearch'
 import {
-  RELIQUARY_RESONANCE_NEED,
   RELIQUARY_SLOTS,
+  fittedRelicIds,
   fittedShardId,
   getShard,
   isReliquarySlotUnlocked,
+  RELIC_SOCKET_LABELS,
+  relicSocketClass,
+  relicTier,
   shardEffectBlurb,
-  shardEffectScale,
   shardOwned,
-  shardResonance,
 } from './reliquary'
 import { ACT1_CADENCE } from './cadence'
 
@@ -609,29 +610,23 @@ export function inspectShard(state: GameState, shardId: string): InspectCard | n
   const def = getShard(shardId)
   if (!def) return null
   const owned = shardOwned(state, shardId)
-  const fitted =
-    Object.values(state.reliquary?.coreFits ?? {}).includes(shardId) ||
-    fittedShardId(state, def.color) === shardId
-  const extra = Math.max(0, owned - (fitted ? 1 : 0))
-  const res = fitted ? shardResonance(state, shardId) : extra / RELIQUARY_RESONANCE_NEED
-  const scale = fitted ? shardEffectScale(state, shardId) : 0
+  const fitted = fittedRelicIds(state).includes(shardId) || fittedShardId(state, def.color) === shardId
   const stats: InspectStat[] = [
     { label: 'Owned', value: String(owned) },
+    { label: 'Socket', value: RELIC_SOCKET_LABELS[relicSocketClass(def)] },
+    { label: 'Tier', value: String(relicTier(def)) },
     { label: 'Installed', value: fitted ? 'Yes' : 'No' },
-    {
-      label: 'Resonance',
-      value: fitted
-        ? `${Math.round(res * 100)}% · ${extra}/${RELIQUARY_RESONANCE_NEED} extra`
-        : `${extra}/${RELIQUARY_RESONANCE_NEED} extra when installed`,
-    },
+    { label: 'Effect', value: shardEffectBlurb(def) },
   ]
-  if (fitted) stats.push({ label: 'Effect', value: `×${formatCompact(scale, 2)} · ${shardEffectBlurb(def)}` })
-  else stats.push({ label: 'Effect', value: shardEffectBlurb(def) })
   const body = [
     def.blurb,
-    'Install Relics into fitted Cores while Docked. Removal is free.',
+    'Install Relics into matching Core sockets while Docked. Removal is free.',
+    'Duplicates go on another Core or upgrade the Relic at Foundry. They do not fill a resonance bank.',
     `Relics drop from wrecks after Wave ${ACT1_CADENCE.reliquary}. They persist on Rebuild.`,
   ]
+  if (def.upgradesTo) {
+    body.push('Foundry can raise this Relic to the next authored tier.')
+  }
   if ((def.requiresSectorEver ?? 0) > 0) {
     body.push(`This Relic waits until you have cleared sector ${def.requiresSectorEver}.`)
   }

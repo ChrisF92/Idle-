@@ -60,6 +60,7 @@ import {
   equipFoundryModule,
   equipRelicOnCore,
   removeRelicFromCore,
+  upgradeRelic,
   convertAshToHeat,
   buyFurnaceUpgrade,
   setFurnaceChannel,
@@ -164,8 +165,9 @@ type Action =
   | { type: 'track-print'; moduleId: string | null }
   | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
   | { type: 'choose-directive'; id: string }
-  | { type: 'relic-equip'; moduleId: string; relicId: string }
-  | { type: 'relic-remove'; moduleId: string }
+  | { type: 'relic-equip'; moduleId: string; relicId: string; socketIndex?: number }
+  | { type: 'relic-remove'; moduleId: string; socketIndex?: number }
+  | { type: 'relic-upgrade'; relicId: string }
   | { type: 'furnace-convert' }
   | { type: 'furnace-upgrade'; upgradeId: import('../game/types').FurnaceUpgradeId }
   | { type: 'furnace-channel'; channelId: import('../game/types').FurnaceChannelId; level: number }
@@ -322,9 +324,11 @@ function reducer(state: GameState, action: Action): GameState {
     case 'choose-directive':
       return chooseDirective(state, action.id)
     case 'relic-equip':
-      return equipRelicOnCore(state, action.moduleId, action.relicId)
+      return equipRelicOnCore(state, action.moduleId, action.relicId, action.socketIndex)
     case 'relic-remove':
-      return removeRelicFromCore(state, action.moduleId)
+      return removeRelicFromCore(state, action.moduleId, action.socketIndex)
+    case 'relic-upgrade':
+      return upgradeRelic(state, action.relicId)
     case 'furnace-convert':
       return convertAshToHeat(state)
     case 'furnace-upgrade':
@@ -523,9 +527,11 @@ export function useGame() {
     setNumberNotation: (mode: 'engineering' | 'scientific') =>
       dispatch({ type: 'number-notation', mode }),
     chooseDirective: (id: string) => dispatch({ type: 'choose-directive', id }),
-    equipRelic: (moduleId: string, relicId: string) =>
-      dispatch({ type: 'relic-equip', moduleId, relicId }),
-    removeRelic: (moduleId: string) => dispatch({ type: 'relic-remove', moduleId }),
+    equipRelic: (moduleId: string, relicId: string, socketIndex?: number) =>
+      dispatch({ type: 'relic-equip', moduleId, relicId, socketIndex }),
+    removeRelic: (moduleId: string, socketIndex?: number) =>
+      dispatch({ type: 'relic-remove', moduleId, socketIndex }),
+    upgradeRelic: (relicId: string) => dispatch({ type: 'relic-upgrade', relicId }),
     convertAshToHeat: () => dispatch({ type: 'furnace-convert' }),
     buyFurnaceUpgrade: (upgradeId: import('../game/types').FurnaceUpgradeId) =>
       dispatch({ type: 'furnace-upgrade', upgradeId }),

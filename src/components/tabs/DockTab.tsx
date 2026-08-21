@@ -18,8 +18,8 @@ interface DockTabProps {
   onOpenSortie: () => void
   onRebuild: () => void
   onBuyWorkshop?: (id: RunUpgradeId) => void
-  onEquipRelic?: (moduleId: string, relicId: string) => void
-  onRemoveRelic?: (moduleId: string) => void
+  onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
+  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
 }
 
 function meterScale(current: number, max: number): number {
@@ -163,8 +163,8 @@ export function DockTab({
           <h3>Relics</h3>
           <p className="muted">
             {SHARDS.some((shard) => shardOwned(state, shard.id) > 0)
-              ? 'Install Relics into fitted Cores. Removal is free while Docked.'
-              : 'Relic sockets are open. Recover Relics from wrecks, then install them here.'}
+              ? 'Matching sockets only — Power, Shield, or Industrial. Core Mastery 5 adds Universal. Spare copies upgrade I–III in Relics with Slag Ingots.'
+              : 'Relic sockets are open. Recover Relics from wrecks, then install them into matching Core sockets.'}
           </p>
           <CoreSheet
             state={state}

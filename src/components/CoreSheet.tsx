@@ -1,4 +1,4 @@
-import type { GameState } from '../game/types'
+import type { GameState, RelicSocketClass } from '../game/types'
 import {
   MAX_MODULE_LEVEL,
   getModule,
@@ -11,11 +11,14 @@ import { formatCompact } from '../game/format'
 import { inspectCore, inspectShard } from '../game/inspect'
 import { protocolCoreScalingAdd } from '../game/protocols'
 import {
+  RELIC_SOCKET_LABELS,
   SHARDS,
-  coreRelicId,
+  coreSocketLayout,
+  coreSocketRelics,
   getShard,
   isRelicsUnlocked,
-  relicSocketCount,
+  relicFitsSocket,
+  relicSocketClass,
   shardEffectBlurb,
   shardOwned,
 } from '../game/reliquary'
@@ -35,8 +38,8 @@ interface CoreSheetProps {
   compact?: boolean
   onBuyMax?: () => void
   /** Relic install/remove. Docked-only; omit during a live Sortie. */
-  onEquipRelic?: (moduleId: string, relicId: string) => void
-  onRemoveRelic?: (moduleId: string) => void
+  onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
+  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   /** Hide Salvage ranks and show Relic sockets only. */
   relicsOnly?: boolean
 }
@@ -44,35 +47,43 @@ interface CoreSheetProps {
 function RelicSocket({
   state,
   moduleId,
+  socketIndex,
+  socket,
   onEquipRelic,
   onRemoveRelic,
 }: {
   state: GameState
   moduleId: string
-  onEquipRelic?: (moduleId: string, relicId: string) => void
-  onRemoveRelic?: (moduleId: string) => void
+  socketIndex: number
+  socket: RelicSocketClass
+  onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
+  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
 }) {
-  if (!isRelicsUnlocked(state) || relicSocketCount(state, moduleId) < 1) return null
-  const fittedId = coreRelicId(state, moduleId)
+  const label = RELIC_SOCKET_LABELS[socket]
+  const fittedId = coreSocketRelics(state, moduleId)[socketIndex] ?? null
   const fitted = fittedId ? getShard(fittedId) : undefined
   const docked = Boolean(state.combat.docked)
   const canEdit = docked && Boolean(onEquipRelic || onRemoveRelic)
-  const owned = SHARDS.filter((shard) => shardOwned(state, shard.id) > 0 && shard.id !== fittedId)
+  const owned = SHARDS.filter((shard) => {
+    if (shardOwned(state, shard.id) < 1) return false
+    if (shard.id === fittedId) return false
+    return relicFitsSocket(relicSocketClass(shard), socket)
+  })
   return (
-    <div className="relic-socket" data-guide={`relic-${moduleId}`}>
+    <div className="relic-socket" data-guide={socketIndex === 0 ? `relic-${moduleId}` : undefined}>
       <p className="core-row-stats">
-        <span className="muted">Relic </span>
+        <span className="muted">{label} </span>
         {fitted ? (
           <>
             <InspectName name={fitted.name} card={inspectShard(state, fitted.id)} />
             <span className="muted"> · {shardEffectBlurb(fitted)}</span>
           </>
         ) : (
-          <span className="muted">{docked ? 'Empty socket' : 'Empty — install at Dock'}</span>
+          <span className="muted">{docked ? `Empty ${label} socket` : 'Empty — install at Dock'}</span>
         )}
       </p>
       {canEdit && fitted && onRemoveRelic ? (
-        <button type="button" onClick={() => onRemoveRelic(moduleId)}>
+        <button type="button" onClick={() => onRemoveRelic(moduleId, socketIndex)}>
           Remove Relic
         </button>
       ) : null}
@@ -83,7 +94,7 @@ function RelicSocket({
               key={shard.id}
               type="button"
               className="primary"
-              onClick={() => onEquipRelic(moduleId, shard.id)}
+              onClick={() => onEquipRelic(moduleId, shard.id, socketIndex)}
             >
               {shard.name}
               <span className="muted"> ×{shardOwned(state, shard.id)}</span>
@@ -91,6 +102,37 @@ function RelicSocket({
           ))}
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function RelicSockets({
+  state,
+  moduleId,
+  onEquipRelic,
+  onRemoveRelic,
+}: {
+  state: GameState
+  moduleId: string
+  onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
+  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
+}) {
+  if (!isRelicsUnlocked(state)) return null
+  const layout = coreSocketLayout(state, moduleId)
+  if (layout.length < 1) return null
+  return (
+    <div className="relic-sockets">
+      {layout.map((socket, index) => (
+        <RelicSocket
+          key={`${moduleId}-${socket}-${index}`}
+          state={state}
+          moduleId={moduleId}
+          socketIndex={index}
+          socket={socket}
+          onEquipRelic={onEquipRelic}
+          onRemoveRelic={onRemoveRelic}
+        />
+      ))}
     </div>
   )
 }
@@ -108,8 +150,8 @@ function CoreRow({
   moduleId: string
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
-  onEquipRelic?: (moduleId: string, relicId: string) => void
-  onRemoveRelic?: (moduleId: string) => void
+  onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
+  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   relicsOnly?: boolean
 }) {
   const def = getModule(moduleId)
@@ -137,7 +179,7 @@ function CoreRow({
         <span className="core-row-lv">Lv {level}</span>
       </div>
       {headline && !relicsOnly ? <p className="core-row-stats">{headline}</p> : null}
-      <RelicSocket
+      <RelicSockets
         state={state}
         moduleId={moduleId}
         onEquipRelic={onEquipRelic}

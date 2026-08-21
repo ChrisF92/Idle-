@@ -39,8 +39,8 @@ interface CombatTabProps {
   onOpenPrints?: () => void
   onBuyMaxCores?: () => void
   onChooseDirective?: (id: string) => void
-  onEquipRelic?: (moduleId: string, relicId: string) => void
-  onRemoveRelic?: (moduleId: string) => void
+  onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
+  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
 }
 
 function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {

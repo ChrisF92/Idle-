@@ -981,6 +981,11 @@ h2 .inspect-name {
   font-size: 0.82rem;
 }
 
+.relic-sockets {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .relic-socket {
   display: grid;
   gap: 0.3rem;

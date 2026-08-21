@@ -77,7 +77,7 @@ import {
   isFoundryInfinite,
   foundrySalvageReserve,
 } from './foundry'
-import { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore } from './reliquary'
+import { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, upgradeRelic } from './reliquary'
 import {
   applyFurnacePreset,
   buyFurnaceUpgrade,
@@ -187,7 +187,7 @@ export {
   unequipFoundryModule,
 }
 
-export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, setResearchFocus }
+export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, upgradeRelic, setResearchFocus }
 export { buyFurnaceUpgrade, setFurnaceChannel, setFurnacePriority, applyFurnacePreset }
 
 export {
@@ -1321,7 +1321,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     },
     parts: { ...(state.parts ?? {}) },
     heat: state.resources.heat ?? 0,
-    reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {} }),
+    reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {}, coreFits: {} }),
     furnace: structuredClone(state.furnace ?? createEmptyFurnaceState()),
     hiveResearch: structuredClone(
       state.hiveResearch ?? {

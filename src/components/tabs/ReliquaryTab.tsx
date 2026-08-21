@@ -2,9 +2,13 @@ import type { GameState } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
 import { ACT1_CADENCE } from '../../game/cadence'
 import {
+  RELIC_SOCKET_LABELS,
   SHARDS,
+  canUpgradeRelic,
   getShard,
   isRelicsUnlocked,
+  relicSocketClass,
+  relicTier,
   shardEffectBlurb,
   shardOwned,
 } from '../../game/reliquary'
@@ -15,11 +19,18 @@ import { CoreSheet } from '../CoreSheet'
 interface ReliquaryTabProps {
   state: GameState
   onBack: () => void
-  onEquipRelic: (moduleId: string, relicId: string) => void
-  onRemoveRelic: (moduleId: string) => void
+  onEquipRelic: (moduleId: string, relicId: string, socketIndex?: number) => void
+  onRemoveRelic: (moduleId: string, socketIndex?: number) => void
+  onUpgradeRelic: (relicId: string) => void
 }
 
-export function ReliquaryTab({ state, onBack, onEquipRelic, onRemoveRelic }: ReliquaryTabProps) {
+export function ReliquaryTab({
+  state,
+  onBack,
+  onEquipRelic,
+  onRemoveRelic,
+  onUpgradeRelic,
+}: ReliquaryTabProps) {
   const open = isRelicsUnlocked(state) || isSystemUnlocked(state, 'reliquary')
   const owned = SHARDS.filter((shard) => shardOwned(state, shard.id) > 0)
 
@@ -34,7 +45,7 @@ export function ReliquaryTab({ state, onBack, onEquipRelic, onRemoveRelic }: Rel
         <h2>Relics</h2>
         <p>
           {open
-            ? 'Install Relics into fitted Cores while Docked. There is no colour-slot Reliquary.'
+            ? 'Install Relics into matching Core sockets while Docked. Spare copies plus Slag Ingots raise authored tiers.'
             : `Reach Wave ${ACT1_CADENCE.reliquary} to open Relic sockets on Cores.`}
         </p>
       </header>
@@ -48,15 +59,31 @@ export function ReliquaryTab({ state, onBack, onEquipRelic, onRemoveRelic }: Rel
           ) : (
             owned.map((shard) => {
               const def = getShard(shard.id) ?? shard
+              const check = canUpgradeRelic(state, def.id)
               return (
                 <article key={def.id} className="network-row">
                   <div className="network-row-main">
                     <InspectName name={def.name} card={inspectShard(state, def.id)} />
-                    <span className="muted">×{shardOwned(state, def.id)}</span>
+                    <span className="muted">
+                      {RELIC_SOCKET_LABELS[relicSocketClass(def)]} · T{relicTier(def)} · ×
+                      {shardOwned(state, def.id)}
+                    </span>
                   </div>
                   <p className="network-row-stats">
                     {def.blurb} · {shardEffectBlurb(def)}
                   </p>
+                  {def.upgradesTo ? (
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={!check.ok}
+                      onClick={() => onUpgradeRelic(def.id)}
+                    >
+                      {check.ok
+                        ? `Upgrade · ${check.cost?.amount ?? 0} Slag Ingots`
+                        : (check.reason ?? 'Upgrade')}
+                    </button>
+                  ) : null}
                 </article>
               )
             })
