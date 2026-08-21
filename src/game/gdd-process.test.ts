@@ -94,7 +94,7 @@ describe('GDD Process', () => {
     s.workshop.levels['plate-layer'] = 3
     expect(processLessonCount(s)).toBe(8)
     expect(processOnlineBlurb(s)).toMatch(/8 times/)
-    expect(processOnlineBlurb(s)).toMatch(/already learned/)
+    expect(processOnlineBlurb(s)).toMatch(/you've learned/)
   })
 
   it('keeps Process purchases and Earned across Rebuild', () => {
