@@ -30,11 +30,13 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(computeShipStats(s).damage).toBeCloseTo(before * 1.15)
   })
 
-  it('allows Rebuild from sector 12 and wipes Core levels', () => {
+  it('allows Rebuild from Wave 70 and wipes Core levels', () => {
     let s = createInitialState(0)
-    s.combat.sector = 12
-    s.meta.highestSectorEver = 12
-    s.combat.highestSector = 12
+    s.meta.bestWave = 70
+    s.combat.bestWave = 70
+    s.combat.sector = 1
+    s.meta.highestSectorEver = 7
+    s.combat.highestSector = 7
     s.shipyard.moduleLevels['pulse-cannon'] = 6
     s.shipyard.corePicks = { 'pulse-cannon': { 'pulse-10': 'focused' } }
     expect(canPrestige(s)).toBe(true)
@@ -63,9 +65,11 @@ describe('phase 3: milestones, rebuild, foundry', () => {
 
   it('Rebuild hangar can swap onto Frigate once unlocked', () => {
     let s = createInitialState(0)
-    s.combat.sector = 12
-    s.combat.highestSector = 12
-    s.meta.highestSectorEver = 12
+    s.meta.bestWave = 70
+    s.combat.bestWave = 70
+    s.combat.sector = 1
+    s.combat.highestSector = 7
+    s.meta.highestSectorEver = 7
     s.shipyard.unlockedFrames = ['scout-frame', 'line-frame']
     s = performRebuild(s, {
       frameId: 'line-frame',

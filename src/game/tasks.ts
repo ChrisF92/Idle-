@@ -1,8 +1,10 @@
-/** Task List — USI Task List analogue. Checklist gate into Capital. */
+/** Task List — checklist gate into Capital. Opens with late Act 1 mastery. */
 
 import type { GameState } from './types'
+import { ACT1_CADENCE } from './cadence'
+import { careerBestWave } from './waves'
 
-export const TASK_UNLOCK_SECTOR = 72
+export const TASK_UNLOCK_SECTOR = ACT1_CADENCE.tasks
 
 export interface TaskDef {
   id: string
@@ -12,13 +14,13 @@ export interface TaskDef {
 }
 
 function career(state: GameState): number {
-  return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
+  return careerBestWave(state)
 }
 
 export const TASKS: TaskDef[] = [
   {
     id: 'clear-72',
-    name: 'Clear sector 72',
+    name: `Reach Wave ${TASK_UNLOCK_SECTOR}`,
     blurb: 'The list opens here.',
     done: (s) => career(s) >= TASK_UNLOCK_SECTOR,
   },

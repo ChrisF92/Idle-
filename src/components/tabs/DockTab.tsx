@@ -113,7 +113,7 @@ export function DockTab({
           onRebuild()
         }}
       >
-        {rebuildReady ? 'Rebuild hangar' : `Rebuild · sector ${rebuildMin}`}
+        {rebuildReady ? 'Rebuild hangar' : `Rebuild · Wave ${rebuildMin}`}
       </button>
 
       {showWorkshop ? (

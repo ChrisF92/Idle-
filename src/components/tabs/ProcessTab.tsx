@@ -12,6 +12,7 @@ import {
   isAchievementUnlocked,
   isSystemUnlocked,
 } from '../../game/progression'
+import { ACT1_CADENCE } from '../../game/cadence'
 import {
   CORE_PRIORITY_LABELS,
   NETWORK_PRESET_LABELS,
@@ -717,7 +718,7 @@ export function ProcessTab({
         <p>
           {open
             ? 'Spend Process Points on automation and quality-of-life upgrades.'
-            : 'Clear sector 1 to wake Process.'}
+            : `Reach Wave ${ACT1_CADENCE.process} to wake Process.`}
         </p>
       </header>
       {!open ? (

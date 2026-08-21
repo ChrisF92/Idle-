@@ -1,8 +1,9 @@
 /** More-tab station list and which doors to show now vs later. */
 
 import type { GameState, TabId } from './types'
-import { careerHighestSector, isSystemUnlocked, SYSTEM_UNLOCKS } from './progression'
+import { isSystemUnlocked, SYSTEM_UNLOCKS } from './progression'
 import { ACT1_CADENCE } from './cadence'
+import { careerBestWave } from './waves'
 
 export interface MoreStationDef {
   id: TabId
@@ -19,8 +20,8 @@ export const MORE_STATIONS: MoreStationDef[] = [
   { id: 'reinforce', name: 'Reinforce', blurb: 'Higher-order reset after the Rebuild layer is mature.' },
 ]
 
-/** Locked doors this many sectors ahead still show as Coming up. */
-export const MORE_NEXT_WINDOW = 12
+/** Locked doors this many Waves ahead still show as Coming up. */
+export const MORE_NEXT_WINDOW = 40
 
 export function stationDoorSector(id: TabId): number {
   if (id === 'logs') return 0
@@ -38,7 +39,7 @@ export function moreStationBuckets(state: GameState): {
   next: MoreStationDef[]
   later: MoreStationDef[]
 } {
-  const career = careerHighestSector(state)
+  const career = careerBestWave(state)
   const open: MoreStationDef[] = []
   const locked: MoreStationDef[] = []
   for (const station of MORE_STATIONS) {
@@ -48,7 +49,6 @@ export function moreStationBuckets(state: GameState): {
   locked.sort((a, b) => stationDoorSector(a.id) - stationDoorSector(b.id))
   const cutoff = career + MORE_NEXT_WINDOW
   const candidates = locked.filter((s) => stationDoorSector(s.id) <= cutoff)
-  // One visible future door at a time: tease the next layer without dumping a roadmap on a new player.
   const next = candidates.slice(0, 1)
   const nextIds = new Set(next.map((s) => s.id))
   const later = locked.filter((s) => !nextIds.has(s.id))

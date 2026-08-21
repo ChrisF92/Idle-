@@ -1,7 +1,7 @@
 import type { GameState } from './types'
 import { grantEnemyKillRewards } from './combat'
 import { advanceTicks, startCombat } from './tick'
-import { isBossWave } from './waves'
+import { bandsClearedForWave, isBossWave } from './waves'
 
 function wipeEnemies(state: GameState): void {
   for (const e of state.combat.enemyUnits) {
@@ -50,6 +50,18 @@ export function markHullLost(state: GameState): GameState {
   const next = structuredClone(state)
   next.meta.hullLostOnce = true
   next.combat.lastSortie = { ...next.combat.lastSortie, outcome: 'defeat' }
+  return next
+}
+
+/** Set career best Wave and matching ten-wave band clears. */
+export function atCareerWave(state: GameState, wave: number): GameState {
+  const next = structuredClone(state)
+  const w = Math.max(0, Math.floor(wave))
+  next.meta.bestWave = Math.max(next.meta.bestWave ?? 0, w)
+  next.combat.bestWave = Math.max(next.combat.bestWave ?? 0, w)
+  const bands = bandsClearedForWave(w)
+  next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver ?? 0, bands)
+  next.combat.highestSector = Math.max(next.combat.highestSector ?? 0, bands)
   return next
 }
 

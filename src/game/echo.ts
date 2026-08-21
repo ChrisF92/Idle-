@@ -1,7 +1,7 @@
 /** Echo Runs — USI Warp Drive analogue. Short gauntlets into a skill tree. */
 
 import type { GameState, EchoState, SectorRoute } from './types'
-import { careerHighestSector } from './progression'
+import { careerBestWave } from './progression'
 import { wavesForSector } from './sectors'
 import { closeSortie } from './sortieSummary'
 import { noteAttempt } from './playtest'
@@ -183,7 +183,7 @@ export function getEchoNode(id: string): EchoTreeDef | undefined {
 }
 
 export function echoUnlocked(state: GameState): boolean {
-  return careerHighestSector(state) >= ECHO_UNLOCK_SECTOR
+  return careerBestWave(state) >= ECHO_UNLOCK_SECTOR
 }
 
 export function echoClears(state: GameState, id: string): number {
@@ -254,7 +254,7 @@ export function canEnterEcho(
   if (state.protocols?.activeId) return { ok: false, reason: 'Finish the Protocol first' }
   if (state.echo?.activeId) return { ok: false, reason: 'Already in an Echo' }
   if (!echoUnlocked(state)) {
-    return { ok: false, reason: `Clear sector ${ECHO_UNLOCK_SECTOR}` }
+    return { ok: false, reason: `Reach Wave ${ECHO_UNLOCK_SECTOR}` }
   }
   const def = getEchoRun(id)
   if (!def) return { ok: false, reason: 'Unknown Echo' }
@@ -270,7 +270,7 @@ export function canBuyEchoNode(
   id: string,
 ): { ok: boolean; reason?: string } {
   if (!echoUnlocked(state)) {
-    return { ok: false, reason: `Clear sector ${ECHO_UNLOCK_SECTOR}` }
+    return { ok: false, reason: `Reach Wave ${ECHO_UNLOCK_SECTOR}` }
   }
   const def = getEchoNode(id)
   if (!def) return { ok: false, reason: 'Unknown node' }

@@ -26,12 +26,13 @@ import { PROTOCOL_UNLOCK_SECTOR } from '../protocols'
 import { ECHO_UNLOCK_SECTOR } from '../echo'
 import { reliquaryDamageMult } from '../reliquary'
 import type { GameState } from '../types'
-import { ACT1_CADENCE } from '../cadence'
+import { ACT1_CADENCE, ACT1_FINAL_WAVE } from '../cadence'
 import type { Act1Contribution, Act1Snapshot, BalanceTarget } from '../simulation/types'
 
+/** Ten-wave bands in Act 1 (W300 → 30). Leftover estimators still speak in bands. */
 export const ACT1_SECTOR = 30
 
-/** Career doors — keep in lockstep with progression / system files. */
+/** Career doors — Wave numbers from GDD §102. */
 export const ACT1_UNLOCKS = {
   foundry: ACT1_CADENCE.foundry,
   reliquary: ACT1_CADENCE.reliquary,
@@ -42,7 +43,7 @@ export const ACT1_UNLOCKS = {
   process: ACT1_CADENCE.process,
   protocols: PROTOCOL_UNLOCK_SECTOR,
   echo: ECHO_UNLOCK_SECTOR,
-  act1: ACT1_SECTOR,
+  act1: ACT1_FINAL_WAVE,
 } as const
 
 /**
@@ -63,8 +64,8 @@ export const ACT1_TARGETS: BalanceTarget[] = [
     id: 'foundry-unlock',
     label: 'Foundry unlock',
     min: 45,
-    max: 8 * 60,
-    warningPad: 90,
+    max: 60 * 60,
+    warningPad: 15 * 60,
     milestoneId: 'foundry-unlock',
     kind: 'milestone-time',
   },

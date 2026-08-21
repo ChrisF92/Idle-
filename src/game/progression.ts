@@ -5,11 +5,13 @@ import { taskListComplete } from './tasks'
 import { noteHighestSector } from './playtest'
 import {
   ACT1_CADENCE,
+  ACT1_FINAL_WAVE,
   ECHO_MIN_PROTOCOL_RANKS,
   PROCESS_MIN_REBUILDS,
   PROCESS_MIN_RESEARCH,
   YARD_MIN_REBUILDS,
 } from './cadence'
+import { careerBestWave, meetsWave } from './waves'
 
 export {
   WAVES_PER_SECTOR,
@@ -18,10 +20,12 @@ export {
   wavesForSector,
 } from './sectors'
 
-/** Soft campaign climax — first Act 1 clear beat (sector 30). */
+export { careerBestWave, meetsWave, ACT1_FINAL_WAVE }
+
+/** Soft campaign climax — W300 maps to 30 ten-wave bands for leftover sector gates. */
 export const ACT1_FINAL_SECTOR = 30
 
-/** Rebuild is the first major meta-layer, after Cores/Network/Foundry have had room to breathe. */
+/** Rebuild gate is career best Wave (GDD §102). Name kept for import churn. */
 export const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild
 export const FOUNDRY_UNLOCK_SECTOR = ACT1_CADENCE.foundry
 
@@ -32,7 +36,7 @@ export type SystemId = Exclude<
 
 export interface SystemUnlockDef {
   id: SystemId
-  /** Career highest sector cleared required (0 = always). Ignored for AI. */
+  /** Career best Wave required (0 = always). */
   requiresSectorEver: number
   /** Optional research gate after the sector gate. */
   requiresResearch?: string
@@ -690,7 +694,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
       Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0) ||
       Object.values(state.foundry?.materials ?? {}).some((n) => n > 0) ||
       (state.foundry?.equipped?.length ?? 0) > 0
-    return used || careerHighestSector(state) >= ACT1_CADENCE.foundry
+    return used || meetsWave(state, ACT1_CADENCE.foundry)
   }
   if (systemId === 'slag') {
     return (state.prestige.prestigeCount ?? 0) >= 1 || Object.keys(state.prestige.matterShop ?? {}).length > 0
@@ -698,12 +702,12 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'yard') {
     const used = (state.yard?.cells ?? []).some((cell) => Boolean(cell.buildingId))
     return used || (
-      careerHighestSector(state) >= ACT1_CADENCE.yard &&
+      careerBestWave(state) >= ACT1_CADENCE.yard &&
       (state.prestige.prestigeCount ?? 0) >= YARD_MIN_REBUILDS
     )
   }
   if (systemId === 'capital') {
-    return careerHighestSector(state) >= ACT1_CADENCE.capital && taskListComplete(state)
+    return meetsWave(state, ACT1_CADENCE.capital) && taskListComplete(state)
   }
   if (systemId === 'logs') {
     return true
@@ -714,23 +718,23 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
       state.research.unlocked.length +
       Object.values(state.hiveResearch?.completed ?? {}).filter((n) => n > 0).length
     return used || (
-      careerHighestSector(state) >= ACT1_CADENCE.process &&
+      careerBestWave(state) >= ACT1_CADENCE.process &&
       (state.prestige.prestigeCount ?? 0) >= PROCESS_MIN_REBUILDS &&
       researchProgress >= PROCESS_MIN_RESEARCH
     )
   }
   if (systemId === 'codex') {
-    return careerHighestSector(state) >= ACT1_CADENCE.codex
+    return meetsWave(state, ACT1_CADENCE.codex)
   }
   if (systemId === 'research') {
     const used =
       state.research.unlocked.length > 0 ||
       Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
-    return used || careerHighestSector(state) >= ACT1_CADENCE.research
+    return used || meetsWave(state, ACT1_CADENCE.research)
   }
   if (systemId === 'protocols') {
     const used = Boolean(state.protocols?.activeId) || Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
-    return used || careerHighestSector(state) >= ACT1_CADENCE.protocols
+    return used || meetsWave(state, ACT1_CADENCE.protocols)
   }
   if (systemId === 'echo') {
     const protocolRanks = Object.values(state.protocols?.ranks ?? {}).reduce((sum, n) => sum + n, 0)
@@ -739,13 +743,13 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
       (state.echo?.tree?.length ?? 0) > 0 ||
       Object.values(state.echo?.clears ?? {}).some((n) => n > 0)
     return used || (
-      careerHighestSector(state) >= ACT1_CADENCE.echo &&
+      careerBestWave(state) >= ACT1_CADENCE.echo &&
       protocolRanks >= ECHO_MIN_PROTOCOL_RANKS
     )
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return true
-  if (careerHighestSector(state) < def.requiresSectorEver) return false
+  if (careerBestWave(state) < def.requiresSectorEver) return false
   if (def.requiresResearch && !state.research.unlocked.includes(def.requiresResearch)) {
     return false
   }
@@ -760,34 +764,34 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return 'First hull loss'
   }
   if (systemId === 'foundry') {
-    return `Clear sector ${ACT1_CADENCE.foundry}`
+    return `Reach Wave ${ACT1_CADENCE.foundry}`
   }
   if (systemId === 'slag') {
     return 'Rebuild once'
   }
   if (systemId === 'yard') {
-    return `Clear sector ${ACT1_CADENCE.yard} · Rebuild ${YARD_MIN_REBUILDS} times`
+    return `Reach Wave ${ACT1_CADENCE.yard} · Rebuild ${YARD_MIN_REBUILDS} times`
   }
   if (systemId === 'capital') {
-    return `Clear sector ${ACT1_CADENCE.capital} · finish the Task List`
+    return `Reach Wave ${ACT1_CADENCE.capital} · finish the Task List`
   }
   if (systemId === 'logs') {
     return null
   }
   if (systemId === 'ai' || systemId === 'process') {
-    return `Clear sector ${ACT1_CADENCE.process} · Rebuild ${PROCESS_MIN_REBUILDS} times · complete any Research`
+    return `Reach Wave ${ACT1_CADENCE.process} · Rebuild ${PROCESS_MIN_REBUILDS} times · complete any Research`
   }
   if (systemId === 'codex') {
-    return `Clear sector ${ACT1_CADENCE.codex}`
+    return `Reach Wave ${ACT1_CADENCE.codex}`
   }
   if (systemId === 'echo') {
-    return `Clear sector ${ACT1_CADENCE.echo} · clear any Protocol once`
+    return `Reach Wave ${ACT1_CADENCE.echo} · clear any Protocol once`
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return null
   const parts: string[] = []
   if (def.requiresSectorEver > 0) {
-    parts.push(`Clear sector ${def.requiresSectorEver}`)
+    parts.push(`Reach Wave ${def.requiresSectorEver}`)
   }
   if (def.requiresResearch) {
     parts.push(`Research ${def.requiresResearch}`)
@@ -860,7 +864,7 @@ function guideSeen(state: GameState, id: string): boolean {
 export function firstRebuildAvailable(state: GameState): boolean {
   if ((state.prestige.prestigeCount ?? 0) > 0) return false
   if (state.prestige.activeChallengeId) return false
-  return state.combat.sector >= PRESTIGE_MIN_SECTOR
+  return meetsWave(state, PRESTIGE_MIN_SECTOR)
 }
 
 /**
@@ -869,7 +873,7 @@ export function firstRebuildAvailable(state: GameState): boolean {
  */
 export function challengesContentUnlocked(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return true
-  return state.meta.act1Cleared || careerHighestSector(state) >= ACT1_FINAL_SECTOR
+  return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE) || careerHighestSector(state) >= ACT1_FINAL_SECTOR
 }
 
 /** Grant Base starter drones; update career flags; check achievements. */
@@ -880,7 +884,7 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   }
   noteHighestSector(state, ever)
 
-  if (ever >= ACT1_CADENCE.codex && !state.meta.codexUnlocked) {
+  if (meetsWave(state, ACT1_CADENCE.codex) && !state.meta.codexUnlocked) {
     state.meta.codexUnlocked = true
   }
 
@@ -904,10 +908,10 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'capital-frame']
   }
 
-  if (ever >= ACT1_FINAL_SECTOR && !state.meta.act1Cleared) {
+  if ((meetsWave(state, ACT1_FINAL_WAVE) || ever >= ACT1_FINAL_SECTOR) && !state.meta.act1Cleared) {
     state.meta.act1Cleared = true
     state.combat.log = [
-      `Act 1 complete — sector ${ACT1_FINAL_SECTOR} cleared. Prestige, Ascension, and challenges are the long game.`,
+      `Act 1 complete — Wave ${ACT1_FINAL_WAVE}. Prestige, Ascension, and challenges are the long game.`,
       ...state.combat.log,
     ].slice(0, 40)
   }

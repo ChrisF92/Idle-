@@ -160,13 +160,17 @@ import {
   workshopCost,
   type RunUpgradeId,
 } from './workshop'
+import { ACT1_CADENCE } from './cadence'
 import {
   ACT1_FINAL_SECTOR,
+  ACT1_FINAL_WAVE,
+  careerBestWave,
   careerHighestSector,
   isSystemUnlocked,
   retirePostResetOnboarding,
   tryCompleteAchievements,
 } from './progression'
+import { bandsClearedForWave } from './waves'
 import {
   createEmptySignalCoresState,
   unequipAllSignalCores,
@@ -1089,10 +1093,15 @@ export function unfitModule(state: GameState, moduleId: string): GameState {
 }
 
 export function prestigeGainFor(state: GameState): number {
-  // +1 softens the re-push so first S10 prestige yields 6 PM.
+  const reach = Math.max(
+    1,
+    bandsClearedForWave(careerBestWave(state)),
+    state.combat.highestSector,
+    Math.floor(state.combat.sector),
+  )
   const base = Math.max(
     1,
-    Math.floor(state.combat.sector / 2) + state.prestige.prestigeCount + 1,
+    Math.floor(reach / 2) + state.prestige.prestigeCount + 1,
   )
   const ascensions = state.meta.ascensionCount ?? 0
   // Ascension is the long-term PM accelerator (USI-style snowball).
@@ -1102,19 +1111,19 @@ export function prestigeGainFor(state: GameState): number {
 
 export function canPrestige(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return false
-  return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
+  return careerBestWave(state) >= prestigeMinSectorFor(state.prestige.shop)
 }
 
 /** Ascension unlocks after Act 1; soft-resets the run and boosts future PM gains. */
 export function canAscend(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return false
   if (!state.meta.act1Cleared) return false
-  return state.combat.sector >= ACT1_FINAL_SECTOR
+  return careerBestWave(state) >= ACT1_FINAL_WAVE || careerHighestSector(state) >= ACT1_FINAL_SECTOR
 }
 
 export function canEnterChallenge(state: GameState, challengeId: string): boolean {
   if (state.prestige.activeChallengeId) return false
-  if (!state.meta.act1Cleared && careerHighestSector(state) < ACT1_FINAL_SECTOR) {
+  if (!state.meta.act1Cleared && careerBestWave(state) < ACT1_CADENCE.protocols) {
     return false
   }
   const challenge = getChallenge(challengeId)
@@ -1126,7 +1135,7 @@ export function canEnterChallenge(state: GameState, challengeId: string): boolea
   if (challenge.entryCost === 'ascension') {
     return canAscend(state)
   }
-  return state.combat.sector >= prestigeMinSectorFor(state.prestige.shop)
+  return careerBestWave(state) >= prestigeMinSectorFor(state.prestige.shop)
 }
 
 /** Persist fitted loadout; drop modules that conflict with an active challenge. */

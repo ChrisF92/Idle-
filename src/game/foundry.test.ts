@@ -17,7 +17,7 @@ import { isSystemUnlocked } from './progression'
 import { advanceSeconds } from './tick'
 
 describe('phase 5: foundry + notation', () => {
-  it('opens Foundry at sector 6 with one smelter', () => {
+  it('opens Foundry at Wave 20 with one smelter', () => {
     const fresh = createInitialState(0)
     expect(SAVE_VERSION).toBe(34)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
@@ -25,8 +25,10 @@ describe('phase 5: foundry + notation', () => {
     expect(fresh.meta.numberNotation).toBe('engineering')
 
     let s = createInitialState(0)
-    s.meta.highestSectorEver = 6
-    s.combat.highestSector = 6
+    s.meta.bestWave = 20
+    s.combat.bestWave = 20
+    s.meta.highestSectorEver = 2
+    s.combat.highestSector = 2
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
     expect(isFoundryRecipeUnlocked(s, 'slag-ingot')).toBe(true)
     expect(isFoundryRecipeUnlocked(s, 'hardened-plate')).toBe(false)
@@ -34,6 +36,8 @@ describe('phase 5: foundry + notation', () => {
 
   it('smelts Slag Ingots, levels the recipe, and grants Foundry Points', () => {
     let s = createInitialState(0)
+    s.meta.bestWave = 70
+    s.combat.bestWave = 70
     s.meta.highestSectorEver = 6
     s.combat.highestSector = 6
     s.resources.salvage = 80
@@ -47,6 +51,8 @@ describe('phase 5: foundry + notation', () => {
 
   it('unlocks Hardened Plate after Slag Ingot hits level 4', () => {
     let s = createInitialState(0)
+    s.meta.bestWave = 70
+    s.combat.bestWave = 70
     s.meta.highestSectorEver = 6
     s.combat.highestSector = 6
     s.foundry.recipeLevels['slag-ingot'] = 3
@@ -76,9 +82,11 @@ describe('phase 5: foundry + notation', () => {
 
   it('Rebuild wipes fitted bits but keeps recipe levels and points', () => {
     let s = createInitialState(0)
-    s.combat.sector = 12
-    s.combat.highestSector = 12
-    s.meta.highestSectorEver = 12
+    s.meta.bestWave = 70
+    s.combat.bestWave = 70
+    s.combat.sector = 1
+    s.combat.highestSector = 7
+    s.meta.highestSectorEver = 7
     s.foundry.recipeLevels['slag-ingot'] = 8
     s.foundry.points = 5
     s.foundry.materials['hardened-plate'] = 5
@@ -97,6 +105,8 @@ describe('phase 5: foundry + notation', () => {
 
   it('marks a recipe infinite at max level', () => {
     let s = createInitialState(0)
+    s.meta.bestWave = 70
+    s.combat.bestWave = 70
     s.meta.highestSectorEver = 6
     s.combat.highestSector = 6
     s.foundry.recipeLevels['slag-ingot'] = 19

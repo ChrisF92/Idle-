@@ -51,7 +51,7 @@ export function EchoTab({ state, onBack, onEnter, onAbandon, onBuy, guideTarget 
         <p>
           {open
             ? `${formatCompact(points)} Echo · short challenge runs`
-            : `Clear sector ${ECHO_UNLOCK_SECTOR} to open Echo Runs.`}
+            : `Reach Wave ${ECHO_UNLOCK_SECTOR} to open Echo Runs.`}
         </p>
       </header>
       {!open ? (

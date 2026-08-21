@@ -1,5 +1,6 @@
 import type { GameState } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
+import { ACT1_CADENCE } from '../../game/cadence'
 import {
   FOUNDRY_MODULES,
   FOUNDRY_RECIPES,
@@ -263,11 +264,11 @@ export function FoundryTab({
         <p>
           {open
             ? `${formatCompact(foundry.points)} FP · ${foundry.slots.length} smelter${foundry.slots.length === 1 ? '' : 's'}`
-            : 'Clear sector 6 to bring the Foundry online.'}
+            : `Reach Wave ${ACT1_CADENCE.foundry} to bring the Foundry online.`}
         </p>
       </header>
       {!open ? (
-        <p className="muted empty-state">Turn Salvage into permanent materials. Opens at sector 6.</p>
+        <p className="muted empty-state">Turn Salvage into permanent materials. Opens at Wave {ACT1_CADENCE.foundry}.</p>
       ) : (
         <>
           <SheetTabs value={pane} onChange={setPane} options={FOUNDRY_PANES} label="Foundry panes" />

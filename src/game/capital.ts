@@ -3,8 +3,10 @@
 import type { CapitalId, CapitalState, GameState } from './types'
 import { taskListComplete } from './tasks'
 import { noteSystemAction, recordPlaytest } from './playtest'
+import { ACT1_CADENCE } from './cadence'
+import { careerBestWave } from './waves'
 
-export const CAPITAL_UNLOCK_SECTOR = 75
+export const CAPITAL_UNLOCK_SECTOR = ACT1_CADENCE.capital
 export const CAPITAL_MAX_RANK = 20
 
 export interface CapitalTrackDef {
@@ -31,8 +33,7 @@ export function getCapitalTrack(id: string): CapitalTrackDef | undefined {
 }
 
 export function capitalUnlocked(state: GameState): boolean {
-  const ever = Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
-  return ever >= CAPITAL_UNLOCK_SECTOR && taskListComplete(state)
+  return careerBestWave(state) >= CAPITAL_UNLOCK_SECTOR && taskListComplete(state)
 }
 
 export function capitalRank(state: GameState, id: CapitalId): number {

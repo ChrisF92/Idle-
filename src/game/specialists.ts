@@ -1,7 +1,7 @@
 /** Specialists — USI Crew analogue. Print / rank; persist across Rebuild. */
 
 import type { GameState, SpecialistId, SpecialistState } from './types'
-import { careerHighestSector } from './progression'
+import { careerBestWave } from './progression'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 
@@ -32,7 +32,7 @@ export function getSpecialist(id: string): SpecialistDef | undefined {
 }
 
 export function specialistsUnlocked(state: GameState): boolean {
-  return careerHighestSector(state) >= SPECIALIST_UNLOCK_SECTOR
+  return careerBestWave(state) >= SPECIALIST_UNLOCK_SECTOR
 }
 
 export function specialistRank(state: GameState, id: SpecialistId): number {
@@ -60,7 +60,7 @@ export function canRankSpecialist(
   id: SpecialistId,
 ): { ok: boolean; reason?: string } {
   if (!specialistsUnlocked(state)) {
-    return { ok: false, reason: `Clear sector ${SPECIALIST_UNLOCK_SECTOR}` }
+    return { ok: false, reason: `Reach Wave ${SPECIALIST_UNLOCK_SECTOR}` }
   }
   const def = getSpecialist(id)
   if (!def) return { ok: false, reason: 'Unknown specialist' }

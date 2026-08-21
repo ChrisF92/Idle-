@@ -40,7 +40,7 @@ export function ReinforceTab({ state, onBack, onReinforce, onBlockingChange }: R
         <p>
           {open
             ? `Completed ${count} time${count === 1 ? '' : 's'}. Future Rebuild kits grow.`
-            : `Clear sector ${REINFORCE_UNLOCK_SECTOR} for the second prestige.`}
+            : `Reach Wave ${REINFORCE_UNLOCK_SECTOR} for the second prestige.`}
         </p>
       </header>
       {!open ? (

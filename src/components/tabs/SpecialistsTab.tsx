@@ -36,7 +36,7 @@ export function SpecialistsTab({ state, onBack, onRank }: SpecialistsTabProps) {
         <p>
           {open
             ? `${formatCompact(salvage, 1)} Salvage · ${formatCompact(heat, 1)} Heat · Mastery ${mastery}`
-            : `Clear sector ${SPECIALIST_UNLOCK_SECTOR} to print specialists.`}
+            : `Reach Wave ${SPECIALIST_UNLOCK_SECTOR} to print specialists.`}
         </p>
       </header>
       {!open ? (

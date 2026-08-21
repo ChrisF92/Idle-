@@ -34,13 +34,14 @@ describe('challenge point shop', () => {
     )
   })
 
-  it('early-gate lowers prestige sector requirement', () => {
+  it('early-gate lowers prestige Wave requirement', () => {
     let state = createInitialState(0)
-    expect(prestigeMinSectorFor({})).toBe(12)
+    expect(prestigeMinSectorFor({})).toBe(70)
     state.resources.challengePoints = 1
     state = buyChallengeShop(state, 'early-gate')
-    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(10)
-    state.combat.sector = 10
+    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(50)
+    state.meta.bestWave = 50
+    state.combat.bestWave = 50
     expect(canPrestige(state)).toBe(true)
   })
 

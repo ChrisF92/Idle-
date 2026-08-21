@@ -114,7 +114,7 @@ export function ProtocolsTab({
         <p>
           {open
             ? 'Restricted sorties. Clear the goal for a permanent scaling bonus.'
-            : `Clear sector ${PROTOCOL_UNLOCK_SECTOR} to open Protocols.`}
+            : `Reach Wave ${PROTOCOL_UNLOCK_SECTOR} to open Protocols.`}
         </p>
       </header>
       {!open ? (

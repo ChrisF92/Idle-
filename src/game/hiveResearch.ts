@@ -1,7 +1,7 @@
 /** Hive Research — kill-fed branches with incremental nodes and breakthroughs. */
 
 import type { GameState, HiveResearchBranch, HiveResearchState, NetworkBarId, ReliquaryColor } from './types'
-import { careerHighestSector } from './progression'
+import { careerBestWave } from './progression'
 import { normalizeRoute, routeResearchMult } from './sectors'
 import { echoResearchXpMult } from './echo'
 import { processResearchSpeedMult } from './process'
@@ -403,7 +403,7 @@ export function hiveResearchNextBreakthrough(
 }
 
 export function hiveResearchApproachingBreakthrough(state: GameState): boolean {
-  if (careerHighestSector(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return false
+  if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return false
   for (const branch of HIVE_RESEARCH_BRANCHES) {
     const done = hiveResearchCompleted(state, branch.id)
     const next = HIVE_RESEARCH_NODES[branch.id][done]
@@ -440,7 +440,7 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
 }
 
 export function killResearchXp(state: GameState, isBoss: boolean): number {
-  if (careerHighestSector(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return 0
+  if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return 0
   const sector = Math.max(1, state.combat.sector)
   const route = routeResearchMult(normalizeRoute(state.combat.route))
   return (0.58 + 0.085 * (sector - 1)) * (isBoss ? 2.5 : 1) * route
@@ -493,7 +493,7 @@ export function grantHiveResearchKillXp(state: GameState, isBoss: boolean, labEx
 
 export function setResearchFocus(state: GameState, branch: HiveResearchBranch): GameState {
   if (!HIVE_RESEARCH_BRANCHES.some((b) => b.id === branch)) return state
-  if (careerHighestSector(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return state
+  if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return state
   if (state.hiveResearch?.focus === branch) return state
   const next = structuredClone(state)
   if (!next.hiveResearch) next.hiveResearch = createEmptyHiveResearchState()

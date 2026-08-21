@@ -51,14 +51,14 @@ function firstRebuildConfig(strategy: 'active' | 'optimiser') {
 
 describe('Act 1 authored formulas', () => {
   it('keeps career doors and shop identities the redesigned systems already use', () => {
-    expect(ACT1_UNLOCKS.foundry).toBe(6)
-    expect(ACT1_UNLOCKS.reliquary).toBe(16)
+    expect(ACT1_UNLOCKS.foundry).toBe(20)
+    expect(ACT1_UNLOCKS.reliquary).toBe(110)
     expect(ACT1_UNLOCKS.rebuildAvailable).toBe(PRESTIGE_MIN_SECTOR)
-    expect(ACT1_UNLOCKS.furnace).toBe(28)
-    expect(ACT1_UNLOCKS.research).toBe(34)
-    expect(ACT1_UNLOCKS.protocols).toBe(52)
-    expect(ACT1_UNLOCKS.echo).toBe(62)
-    expect(ACT1_UNLOCKS.act1).toBe(30)
+    expect(ACT1_UNLOCKS.furnace).toBe(140)
+    expect(ACT1_UNLOCKS.research).toBe(170)
+    expect(ACT1_UNLOCKS.protocols).toBe(250)
+    expect(ACT1_UNLOCKS.echo).toBe(275)
+    expect(ACT1_UNLOCKS.act1).toBe(300)
     expect(moduleUpgradeCost(0, 'pulse-cannon')).toBe(3)
     expect(moduleUpgradeCost(0, 'plate-layer')).toBe(6)
     expect(salvageFromKill(1, false)).toBe(1)
@@ -101,7 +101,7 @@ describe('Act 1 authored formulas', () => {
     const hourBeats = ACT1_TARGETS.filter((t) =>
       ['sector-1', 'foundry-unlock'].includes(t.id),
     )
-    expect(hourBeats.every((t) => t.max <= 30 * 60)).toBe(true)
+    expect(hourBeats.every((t) => t.max <= 60 * 60)).toBe(true)
   })
 })
 

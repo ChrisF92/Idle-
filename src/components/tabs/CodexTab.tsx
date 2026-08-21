@@ -1,5 +1,6 @@
 import type { EnemyRole, GameState, UnitShape } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
+import { ACT1_CADENCE } from '../../game/cadence'
 import {
   CODEX_FAMILIES,
   CODEX_ROLES,
@@ -44,14 +45,14 @@ export function CodexTab({ state, onBack, guideTarget = null }: CodexTabProps) {
         <p>
           {open
             ? `Families ${revealed}/${CODEX_FAMILIES.length} · hull roles always listed`
-            : 'Clear sector 6 to decrypt encounter memory.'}
+            : `Reach Wave ${ACT1_CADENCE.codex} to decrypt encounter memory.`}
         </p>
       </header>
 
       {!open ? (
         <p className="muted">
           Families already seen this career: {revealed}/{CODEX_FAMILIES.length}
-          {revealed > 0 ? ' (waiting for sector 6).' : '.'}
+          {revealed > 0 ? ` (waiting for Wave ${ACT1_CADENCE.codex}).` : '.'}
         </p>
       ) : (
         <>

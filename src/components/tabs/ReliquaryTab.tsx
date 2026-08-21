@@ -1,5 +1,6 @@
 import type { GameState, ReliquaryColor } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
+import { ACT1_CADENCE } from '../../game/cadence'
 import {
   RELIQUARY_RESONANCE_NEED,
   RELIQUARY_SLOTS,
@@ -50,7 +51,7 @@ export function ReliquaryTab({ state, onBack, onInsert, onRemove, guideTarget = 
         <p>
           {open
             ? 'One shard per colour. Fit a shard for a permanent bonus.'
-            : 'Clear sector 3 to open the Reliquary.'}
+            : `Reach Wave ${ACT1_CADENCE.reliquary} to open the Reliquary.`}
         </p>
       </header>
       {!open ? (

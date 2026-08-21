@@ -34,3 +34,27 @@ export function waveForBand(sector: number, localWave = 1): number {
 export function bossWaveForBand(sector: number): number {
   return waveForBand(sector, BOSS_WAVE_INTERVAL)
 }
+
+/** Career best Wave — Dock / system doors read this, not the live fight sector. */
+export function careerBestWave(state: {
+  meta?: { bestWave?: number; highestSectorEver?: number }
+  combat?: { bestWave?: number; highestSector?: number }
+}): number {
+  return Math.max(
+    0,
+    Math.floor(state.meta?.bestWave ?? 0),
+    Math.floor(state.combat?.bestWave ?? 0),
+    Math.floor(state.meta?.highestSectorEver ?? 0),
+    Math.floor(state.combat?.highestSector ?? 0),
+  )
+}
+
+export function meetsWave(
+  state: {
+    meta?: { bestWave?: number }
+    combat?: { bestWave?: number }
+  },
+  wave: number,
+): boolean {
+  return careerBestWave(state) >= wave
+}

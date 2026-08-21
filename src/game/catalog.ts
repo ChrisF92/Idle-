@@ -2,6 +2,7 @@
 
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
+import { bandsClearedForWave } from './waves'
 import { formatCompact, formatStat } from './format'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
@@ -812,10 +813,10 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   {
     id: 'early-gate',
     name: 'Early Gate',
-    description: 'Rebuild / enter challenges two sectors earlier.',
+    description: 'Rebuild / enter challenges twenty Waves earlier.',
     costCp: 1,
     maxRank: 1,
-    prestigeMinSector: ACT1_CADENCE.rebuild - 2,
+    prestigeMinSector: ACT1_CADENCE.rebuild - 20,
   },
   {
     id: 'supply-cache',
@@ -2080,7 +2081,8 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
 
 export function modulePrintSector(moduleId: string): number {
   const original = Math.max(0, getModule(moduleId)?.requiresSectorEver ?? 0)
-  return Math.max(ACT1_CADENCE.foundry, original + FOUNDRY_PRINT_SHIFT)
+  const foundryBand = bandsClearedForWave(ACT1_CADENCE.foundry)
+  return Math.max(foundryBand, original + FOUNDRY_PRINT_SHIFT)
 }
 
 /** Career has reached the sector that unlocks this Core print. */
@@ -3346,7 +3348,7 @@ export function challengeShopEffectBlurb(def: ChallengeShopDef, rank: number): s
   const s = matterShopEffectScale(rank)
   const bits: string[] = []
   if (def.damageBonus) bits.push(`+${(def.damageBonus * s * 100).toFixed(1)}% dmg`)
-  if (def.prestigeMinSector) bits.push(`prestige from sector ${def.prestigeMinSector}`)
+  if (def.prestigeMinSector) bits.push(`prestige from Wave ${def.prestigeMinSector}`)
   if (def.startingScrap) bits.push(`+${def.startingScrap * rank} start scrap`)
   if (def.startingAiPoints) bits.push(`+${def.startingAiPoints * rank} start AIP`)
   if (def.startingSalvage) bits.push(`+${def.startingSalvage * rank} start salvage`)

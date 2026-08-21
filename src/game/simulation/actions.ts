@@ -67,6 +67,8 @@ import {
 import { PROCESS_NODES, canBuyProcessNode, hasProcess } from '../process'
 import { SHARDS, shardOwned, fittedShardId, isReliquarySlotUnlocked } from '../reliquary'
 import { GUIDE_STEPS, isSystemUnlocked } from '../progression'
+import { ACT1_CADENCE } from '../cadence'
+import { careerBestWave } from '../waves'
 import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
 import type { StrategyContext } from './types'
 import { RUN_UPGRADES, workshopLevel, type RunUpgradeId } from '../workshop'
@@ -563,7 +565,7 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
       `push stalled ${ctx.secondsSinceHighestSectorGain.toFixed(0)}s vs recent median ${median.toFixed(0)}s`,
     )
   }
-  if (gain >= 4 && state.combat.highestSector >= 6 && ctx.secondsSinceHighestSectorGain >= 180) {
+  if (gain >= 4 && careerBestWave(state) >= ACT1_CADENCE.foundry && ctx.secondsSinceHighestSectorGain >= 180) {
     reasons.push(`Rebuild Matter gain: ${gain}`)
   }
   const yes =

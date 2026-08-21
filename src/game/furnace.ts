@@ -8,7 +8,7 @@ import type {
   FurnaceUpgradeId,
   GameState,
 } from './types'
-import { careerHighestSector, isSystemUnlocked } from './progression'
+import { careerBestWave, isSystemUnlocked } from './progression'
 import { reliquaryAshMult } from './reliquary'
 import { hiveResearchFurnaceSlots } from './hiveResearch'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
@@ -311,7 +311,7 @@ export function furnaceChannelSlots(state: GameState): number {
 }
 
 export function furnaceChannelUnlocked(state: GameState, id: FurnaceChannelId): boolean {
-  if (careerHighestSector(state) < FURNACE_UNLOCK_SECTOR) return false
+  if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return false
   if (id === 'research') return isSystemUnlocked(state, 'research')
   if (id === 'foundry') return isSystemUnlocked(state, 'foundry')
   return true
@@ -414,7 +414,7 @@ export function furnaceAshChannelMult(state: GameState): number {
 }
 
 export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
-  if (careerHighestSector(state) < FURNACE_UNLOCK_SECTOR) return 0
+  if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return 0
   const sector = Math.max(1, state.combat.sector)
   const base = (0.5 + 0.1 * sector) * (isBoss ? 4 : 1)
   return base * reliquaryAshMult(state) * echoAshMult(state) * furnaceAshChannelMult(state)
@@ -428,7 +428,7 @@ export function grantFurnaceKillLoot(state: GameState, isBoss: boolean): number 
 }
 
 export function convertAshToHeat(state: GameState, heatMult = 1): GameState {
-  if (careerHighestSector(state) < FURNACE_UNLOCK_SECTOR) return state
+  if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return state
   const ash = state.resources.choirAsh ?? 0
   const cap = furnaceCapacity(state)
   const room = Math.max(0, cap - (state.resources.heat ?? 0))
@@ -454,8 +454,8 @@ export function canBuyFurnaceUpgrade(
   state: GameState,
   id: FurnaceUpgradeId,
 ): { ok: boolean; reason?: string } {
-  if (careerHighestSector(state) < FURNACE_UNLOCK_SECTOR) {
-    return { ok: false, reason: `Clear sector ${FURNACE_UNLOCK_SECTOR}` }
+  if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) {
+    return { ok: false, reason: `Reach Wave ${FURNACE_UNLOCK_SECTOR}` }
   }
   const def = getFurnaceUpgrade(id)
   if (!def) return { ok: false, reason: 'Unknown upgrade' }
@@ -618,7 +618,7 @@ function roman(n: number): string {
 }
 
 export function tickFurnace(state: GameState, dtSeconds: number, ashHeatMult = 1): void {
-  if (careerHighestSector(state) < FURNACE_UNLOCK_SECTOR) return
+  if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return
   if (!state.furnace) state.furnace = createEmptyFurnaceState()
   if (dtSeconds <= 0) return
 

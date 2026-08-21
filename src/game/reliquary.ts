@@ -1,7 +1,7 @@
 /** Reliquary — USI V-Device analogue. Colour slots, shards, resonance. */
 
 import type { GameState, ReliquaryColor, ReliquaryState } from './types'
-import { careerHighestSector } from './progression'
+import { careerBestWave, careerHighestSector } from './progression'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
@@ -30,6 +30,8 @@ export interface ReliquarySlotDef {
   requiresSectorEver: number
 }
 
+import { bandsClearedForWave } from './waves'
+
 export const RELIQUARY_UNLOCK_SECTOR = ACT1_CADENCE.reliquary
 /** Extra copies of an inserted shard to fill resonance. */
 export const RELIQUARY_RESONANCE_NEED = 12
@@ -37,8 +39,8 @@ export const RELIQUARY_DROP_CHANCE = 0.1
 export const RELIQUARY_BOSS_DROP_CHANCE = 0.35
 
 export const RELIQUARY_SLOTS: ReliquarySlotDef[] = [
-  { color: 'red', name: 'Red', requiresSectorEver: ACT1_CADENCE.reliquary },
-  { color: 'orange', name: 'Orange', requiresSectorEver: ACT1_CADENCE.reliquary },
+  { color: 'red', name: 'Red', requiresSectorEver: bandsClearedForWave(ACT1_CADENCE.reliquary) },
+  { color: 'orange', name: 'Orange', requiresSectorEver: bandsClearedForWave(ACT1_CADENCE.reliquary) },
   { color: 'pink', name: 'Pink', requiresSectorEver: 26 },
   { color: 'blue', name: 'Blue', requiresSectorEver: 40 },
   { color: 'green', name: 'Green', requiresSectorEver: 58 },
@@ -352,7 +354,7 @@ export function reliquaryDropChance(
   isBoss: boolean,
   extraChance = 0,
 ): number {
-  if (careerHighestSector(state) < RELIQUARY_UNLOCK_SECTOR) return 0
+  if (careerBestWave(state) < RELIQUARY_UNLOCK_SECTOR) return 0
   const pool = unlockedShardPool(state)
   if (pool.length === 0) return 0
   const base = isBoss ? RELIQUARY_BOSS_DROP_CHANCE : RELIQUARY_DROP_CHANCE
@@ -372,7 +374,7 @@ export function grantReliquaryKillLoot(
   rng: () => number = Math.random,
   extraChance = 0,
 ): string | null {
-  if (careerHighestSector(state) < RELIQUARY_UNLOCK_SECTOR) return null
+  if (careerBestWave(state) < RELIQUARY_UNLOCK_SECTOR) return null
   const pool = unlockedShardPool(state)
   if (pool.length === 0) return null
   const chance = reliquaryDropChance(state, isBoss, extraChance)

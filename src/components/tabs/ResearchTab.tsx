@@ -1,5 +1,6 @@
 import type { GameState, HiveResearchBranch } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
+import { ACT1_CADENCE } from '../../game/cadence'
 import {
   HIVE_RESEARCH_BRANCHES,
   HIVE_RESEARCH_FOCUS_MULT,
@@ -41,7 +42,7 @@ export function ResearchTab({ state, onBack, onFocus, guideTarget = null }: Rese
         <p>
           {open
             ? `Focus ${HIVE_RESEARCH_FOCUS_MULT}× on one branch. The others still run.`
-            : 'Clear sector 7 to open Research.'}
+            : `Reach Wave ${ACT1_CADENCE.research} to open Research.`}
         </p>
       </header>
       {!open ? (

@@ -41,9 +41,11 @@ describe('Cosmic Idle UI cleanup', () => {
     expect(RESOURCE_LABELS.challengePoints).toBe('Challenge Marks')
 
     let state = createInitialState(0)
-    state.combat.sector = 12
-    state.combat.highestSector = 12
-    state.meta.highestSectorEver = 12
+    state.meta.bestWave = 70
+    state.combat.bestWave = 70
+    state.combat.sector = 1
+    state.combat.highestSector = 7
+    state.meta.highestSectorEver = 7
     expect(CATALOG_PRESTIGE_MIN).toBe(PRESTIGE_MIN_SECTOR)
     expect(prestigeMinSectorFor(state.prestige.shop)).toBe(PRESTIGE_MIN_SECTOR)
     expect(canPrestige(state)).toBe(true)

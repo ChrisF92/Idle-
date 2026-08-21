@@ -16,6 +16,7 @@ import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
+import { careerBestWave } from './progression'
 import { foundryNetworkFillMult } from './foundryBonuses'
 import { NETWORK_CADENCE } from './cadence'
 
@@ -338,7 +339,7 @@ export function networkLinkCost(
   const def = getNetworkLink(id)
   if (!def) return null
   const rank = networkLinkRank(state, id)
-  const furnace = careerEver(state) >= FURNACE_UNLOCK_SECTOR
+  const furnace = careerBestWave(state) >= FURNACE_UNLOCK_SECTOR
   if (def.requiresFurnace || furnace) {
     return { resource: 'heat', amount: Math.ceil(def.heatBase * Math.pow(1.32, rank)) }
   }
@@ -354,8 +355,8 @@ export function canBuyNetworkLink(
 ): { ok: true; cost: { resource: 'heat' | 'scrap'; amount: number } } | { ok: false; reason: string } {
   const def = getNetworkLink(id)
   if (!def) return { ok: false, reason: 'Unknown link' }
-  if (def.requiresFurnace && careerEver(state) < FURNACE_UNLOCK_SECTOR) {
-    return { ok: false, reason: `Furnace · sector ${FURNACE_UNLOCK_SECTOR}` }
+  if (def.requiresFurnace && careerBestWave(state) < FURNACE_UNLOCK_SECTOR) {
+    return { ok: false, reason: `Furnace · Wave ${FURNACE_UNLOCK_SECTOR}` }
   }
   const rank = networkLinkRank(state, id)
   if (rank >= def.maxRank) return { ok: false, reason: 'Maxed' }

@@ -191,14 +191,13 @@ describe('campaign combat', () => {
     expect(state.combat.playerHull).toBeLessThan(state.combat.playerHullMax)
   })
 
-  it('reaches prestige sector on Advance with starter loadout', () => {
+  it('reaches prestige Wave on Advance with starter loadout', () => {
     let state = createInitialState(0)
     state = setDocked(state, false)
-    for (let i = 0; i < 120 && state.combat.highestSector < 12; i++) {
+    for (let i = 0; i < 80 && (state.meta.bestWave ?? 0) < 70; i++) {
       state = clearSector(state)
     }
-    expect(state.combat.highestSector).toBeGreaterThanOrEqual(12)
-    expect(state.combat.sector).toBeGreaterThanOrEqual(12)
+    expect(state.meta.bestWave).toBeGreaterThanOrEqual(70)
     expect(canPrestige(state)).toBe(true)
   })
 
@@ -216,9 +215,11 @@ describe('campaign combat', () => {
     state = selectFrame(state, 'scout-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
 
-    state.combat.sector = 12
-    state.combat.highestSector = 12
-    state.meta.highestSectorEver = 12
+    state.meta.bestWave = 70
+    state.combat.bestWave = 70
+    state.combat.sector = 1
+    state.combat.highestSector = 7
+    state.meta.highestSectorEver = 7
     state = performPrestige(state, 1000)
     expect(state.combat.docked).toBe(true)
     expect(state.shipyard.frameLocked).toBe(false)

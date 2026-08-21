@@ -1,7 +1,7 @@
 /** Protocols — restricted sorties that teach a system, then change how it scales. */
 
 import type { GameState, ProtocolMute, ProtocolState } from './types'
-import { careerHighestSector } from './progression'
+import { careerBestWave } from './progression'
 import { closeSortie } from './sortieSummary'
 import { noteAttempt } from './playtest'
 import { ACT1_CADENCE } from './cadence'
@@ -230,7 +230,7 @@ export function getProtocol(id: string): ProtocolDef | undefined {
 }
 
 export function protocolsUnlocked(state: GameState): boolean {
-  return careerHighestSector(state) >= PROTOCOL_UNLOCK_SECTOR
+  return careerBestWave(state) >= PROTOCOL_UNLOCK_SECTOR
 }
 
 export function protocolRank(state: GameState, id: string): number {
@@ -376,7 +376,7 @@ export function canEnterProtocol(
   if (state.echo?.activeId) return { ok: false, reason: 'Finish the Echo first' }
   if (state.protocols?.activeId) return { ok: false, reason: 'Already in a Protocol' }
   if (!protocolsUnlocked(state)) {
-    return { ok: false, reason: `Clear sector ${PROTOCOL_UNLOCK_SECTOR}` }
+    return { ok: false, reason: `Reach Wave ${PROTOCOL_UNLOCK_SECTOR}` }
   }
   const def = getProtocol(id)
   if (!def) return { ok: false, reason: 'Unknown Protocol' }

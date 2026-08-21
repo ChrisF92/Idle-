@@ -24,7 +24,7 @@ export function TasksTab({ state, onBack }: TasksTabProps) {
         <p>
           {open
             ? `${done}/${total} done · Capital at sector ${CAPITAL_UNLOCK_SECTOR} when the list is complete`
-            : `Clear sector ${TASK_UNLOCK_SECTOR} to open the list.`}
+            : `Reach Wave ${TASK_UNLOCK_SECTOR} to open the list.`}
         </p>
       </header>
       {!open ? (

@@ -1,5 +1,6 @@
 import type { FurnaceChannelId, FurnacePresetId, FurnaceUpgradeId, GameState } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
+import { ACT1_CADENCE } from '../../game/cadence'
 import {
   ASH_PER_HEAT,
   FURNACE_CHANNELS,
@@ -91,7 +92,7 @@ export function FurnaceTab({
         <p>
           {open
             ? 'Spend Heat to power temporary boosts.'
-            : 'Clear sector 5 to light the Furnace.'}
+            : `Reach Wave ${ACT1_CADENCE.furnace} to light the Furnace.`}
         </p>
       </header>
       {!open ? (
