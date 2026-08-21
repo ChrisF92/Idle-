@@ -46,8 +46,8 @@ describe('inspect sheets', () => {
     expect(core?.body.join(' ')).not.toMatch(JARGON)
 
     const attack = inspectFurnaceTrack(s, 'attack')
-    expect(attack?.stats.find((row) => row.label === 'Bonus')?.value).toMatch(/1\.18/)
-    expect(attack?.stats.find((row) => row.label === 'Heat/s')?.value).toBeTruthy()
+    expect(attack?.stats.find((row) => row.label === 'Bonus')?.value).toMatch(/1\.40/)
+    expect(attack?.stats.find((row) => row.label === 'Heat')?.value).toBeTruthy()
   })
 
   it('keeps inspect copy free of designer jargon', () => {

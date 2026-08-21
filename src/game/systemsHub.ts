@@ -9,11 +9,11 @@ import {
   PART_TYPES,
 } from './catalog'
 import { FOUNDRY_RECIPES, foundryRecipeLevel } from './foundry'
-import { foundryAttention, networkAttention, type AttentionFlags } from './hubAttention'
+import { foundryAttention, furnaceAttention, networkAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
 
-export type SystemsHubId = Extract<TabId, 'foundry' | 'network'>
+export type SystemsHubId = Extract<TabId, 'foundry' | 'network' | 'furnace'>
 
 export interface SystemsHubCard {
   id: SystemsHubId
@@ -80,6 +80,22 @@ export function workersHubStatus(state: GameState): string[] {
   return lines
 }
 
+export function furnaceHubStatus(state: GameState): string[] {
+  const ash = Math.floor(state.resources.choirAsh ?? 0)
+  const heat = Math.floor(state.resources.heat ?? 0)
+  const lines = [`Ash ${ash}`, `Heat ${heat}`]
+  const lit = (['weapons', 'shielding', 'recovery'] as const)
+    .map((id) => {
+      const lv = Math.max(0, Math.floor(state.furnace?.active?.[id] ?? 0))
+      if (lv <= 0) return null
+      const name = id === 'weapons' ? 'Weapons' : id === 'shielding' ? 'Ward' : 'Yield'
+      return `${name} ${lv === 1 ? 'I' : lv === 2 ? 'II' : 'III'}`
+    })
+    .filter((line): line is string => Boolean(line))
+  if (lit[0]) lines.push(lit[0])
+  return lines.slice(0, 3)
+}
+
 function card(
   id: SystemsHubId,
   name: string,
@@ -96,6 +112,9 @@ export function systemsHubCards(state: GameState): SystemsHubCard[] {
   }
   if (isSystemUnlocked(state, 'network')) {
     cards.push(card('network', 'Worker Drones', workersHubStatus(state), networkAttention(state)))
+  }
+  if (isSystemUnlocked(state, 'furnace')) {
+    cards.push(card('furnace', 'Furnace', furnaceHubStatus(state), furnaceAttention(state)))
   }
   return cards
 }

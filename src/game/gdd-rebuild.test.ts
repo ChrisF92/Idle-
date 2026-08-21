@@ -82,6 +82,7 @@ describe('GDD Rebuild', () => {
     expect(canPrestige(s)).toBe(false)
     expect(s.resources.scrap).toBe(0)
     expect(s.resources.choirAsh).toBe(0)
+    expect(s.resources.heat).toBe(0)
     expect(s.workshop.levels['weapon-power'] ?? 0).toBe(0)
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.combat.directives).toEqual([])

@@ -125,7 +125,7 @@ export type FurnaceUpgradeId =
 
 export type FurnacePresetId = 'push' | 'farm' | 'industry' | 'research'
 
-/** Furnace 2.0 — live Heat tank + active channels. Upgrades persist; Heat resets on Rebuild unless Ember. */
+/** Furnace — Ash converts to Sortie Heat. Channel lights last until Dock. */
 export interface FurnaceState {
   /** True after Furnace 2.0 hydrate. Old saves omit this and still carry `ranks`. */
   v2?: boolean

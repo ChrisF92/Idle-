@@ -145,12 +145,23 @@ export function foundryAttention(state: GameState): AttentionFlags {
   return { spend: foundrySpend(state), fresh: hasUnseen(state, contentKeys(state, 'foundry')) }
 }
 
+export function furnaceAttention(state: GameState): AttentionFlags {
+  return { spend: furnaceSpend(state), fresh: hasUnseen(state, contentKeys(state, 'furnace')) }
+}
+
 /** Bottom-nav Systems pip — Foundry plus Worker Drones once that door is open. */
 export function systemsTabAttention(state: GameState): AttentionFlags {
   const foundry = foundryAttention(state)
-  if (!isSystemUnlocked(state, 'network')) return foundry
-  const workers = networkAttention(state)
-  return { spend: foundry.spend || workers.spend, fresh: foundry.fresh || workers.fresh }
+  const workers = isSystemUnlocked(state, 'network')
+    ? networkAttention(state)
+    : { spend: false, fresh: false }
+  const furnace = isSystemUnlocked(state, 'furnace')
+    ? furnaceAttention(state)
+    : { spend: false, fresh: false }
+  return {
+    spend: foundry.spend || workers.spend || furnace.spend,
+    fresh: foundry.fresh || workers.fresh || furnace.fresh,
+  }
 }
 
 function networkSpend(state: GameState): boolean {
@@ -220,7 +231,7 @@ export function tabAttention(state: GameState, tab: TabId): AttentionFlags {
     case 'research':
       return { spend: false, fresh: hasUnseen(state, contentKeys(state, 'research')) }
     case 'furnace':
-      return { spend: furnaceSpend(state), fresh: hasUnseen(state, contentKeys(state, 'furnace')) }
+      return furnaceAttention(state)
     case 'process':
       return { spend: processSpend(state), fresh: hasUnseen(state, contentKeys(state, 'process')) }
     default:

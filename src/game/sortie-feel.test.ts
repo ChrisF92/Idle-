@@ -44,11 +44,10 @@ describe('sortie feel', () => {
     expect(state.combat.wave).toBe(1)
   })
 
-  it('starts the live guide catalog on Dock', () => {
+  it('does not overlay the old coach-mark catalog on Dock', () => {
     const state = createInitialState(0)
-    const step = activeGuideStep(state, 'dock')
-    expect(step?.id).toBe('guide-launch')
-    expect(step?.target).toBe('launch')
+    expect(activeGuideStep(state, 'dock')).toBeNull()
+    expect(activeGuideStep(state, 'combat')).toBeNull()
     expect(GUIDE_STEPS.some((s) => s.target === 'rebuild-btn')).toBe(false)
   })
 })

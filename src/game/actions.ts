@@ -83,6 +83,7 @@ import {
   buyFurnaceUpgrade,
   convertAshToHeat as convertAshToHeatRaw,
   createEmptyFurnaceState,
+  endFurnaceSortie,
   furnaceRestartHeat,
   setFurnaceChannel,
   setFurnacePriority,
@@ -1427,6 +1428,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.foundry = persistFoundryOnRebuild(state.foundry)
   state.reliquary = kept.reliquary
   state.furnace = kept.furnace
+  endFurnaceSortie(state)
   state.hiveResearch = kept.hiveResearch
   state.yard = armYardOnRebuild(kept.yard)
   state.protocols = kept.protocols

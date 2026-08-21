@@ -72,7 +72,7 @@ describe('Act 1 authored formulas', () => {
     expect(hiveResearchNodeCost(0)).toBe(52)
     expect(HIVE_RESEARCH_FOCUS_MULT).toBe(4)
     expect(FURNACE_CHANNEL_MAX).toBe(3)
-    expect(FURNACE_BASE_IDLE_GEN).toBeGreaterThan(0)
+    expect(FURNACE_BASE_IDLE_GEN).toBe(0)
     expect(ENEMY_HULL_EARLY).toBeGreaterThan(1)
     expect(ENEMY_DMG_EARLY).toBeGreaterThan(1)
     expect(PROCESS_NODES[0]?.cost).toBe(4)

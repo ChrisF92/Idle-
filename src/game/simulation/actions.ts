@@ -399,10 +399,7 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   const order: Array<Parameters<typeof setFurnaceChannel>[1]> = [
     'weapons',
     'shielding',
-    'foundry',
     'recovery',
-    'network',
-    'research',
   ]
   let lit = 0
   for (const id of order) {

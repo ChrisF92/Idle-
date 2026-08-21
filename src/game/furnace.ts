@@ -1,4 +1,4 @@
-/** Furnace 2.0 — Choir-ash feeds a live Heat tank that powers active channels. */
+/** Furnace — convert cycle Ash into Sortie Heat and spend it on a push. */
 
 import type {
   FurnaceChannelId,
@@ -8,16 +8,15 @@ import type {
   FurnaceUpgradeId,
   GameState,
 } from './types'
-import { careerBestWave, isSystemUnlocked } from './progression'
+import { careerBestWave } from './progression'
 import { reliquaryAshMult } from './reliquary'
-import { hiveResearchFurnaceSlots } from './hiveResearch'
-import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolMutes } from './protocols'
 import { echoAshMult } from './echo'
-import { mergeProcessConfig, processConfig, processFurnaceHooks } from './process'
+import { mergeProcessConfig, processConfig } from './process'
 import { noteSystemAction } from './playtest'
 import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
-import { directiveHeatDrainMult, directiveHeatMult } from './directives'
+import { directiveHeatMult } from './directives'
 
 export const FURNACE_UNLOCK_SECTOR = ACT1_CADENCE.furnace
 export const ASH_PER_HEAT = 10
@@ -69,95 +68,53 @@ export interface FurnaceChannelDef {
   levels: [FurnaceChannelLevelDef, FurnaceChannelLevelDef, FurnaceChannelLevelDef]
 }
 
+/** Push channels the player can light (GDD §75). Other ids stay on the save for hydrate. */
+export const GDD_FURNACE_CHANNEL_IDS: FurnaceChannelId[] = ['weapons', 'shielding', 'recovery']
+
 export const FURNACE_CHANNELS: FurnaceChannelDef[] = [
   {
     id: 'weapons',
     name: 'Weapons',
-    blurb: 'Sortie damage',
+    blurb: 'Large temporary offensive multiplier.',
     stat: 'Damage',
     levels: [
-      { mult: 1.18, heat: 0.05 },
-      { mult: 1.34, heat: 0.16 },
-      { mult: 1.52, heat: 0.48 },
+      { mult: 1.4, heat: 8 },
+      { mult: 1.8, heat: 20 },
+      { mult: 2.5, heat: 48 },
     ],
     detail: [
-      'Weapons burns Heat to raise Core damage for this lighting.',
-      'Level II and III cost far more Heat. You cannot leave this on at III forever early on.',
+      'Spend Heat to raise Hive damage for this Sortie.',
+      'III is a serious push. Heat dumps when you Dock.',
     ],
   },
   {
     id: 'shielding',
-    name: 'Shielding',
-    blurb: 'Max shield',
+    name: 'Ward',
+    blurb: 'Large temporary defensive multiplier.',
     stat: 'Shield',
     levels: [
-      { mult: 1.16, heat: 0.045 },
-      { mult: 1.3, heat: 0.14 },
-      { mult: 1.46, heat: 0.42 },
+      { mult: 1.4, heat: 8 },
+      { mult: 1.8, heat: 20 },
+      { mult: 2.5, heat: 48 },
     ],
     detail: [
-      'Shielding raises the flagship’s shield ceiling while the channel is lit.',
-      'Pair it with Weapons for a push. It still spends Heat every second.',
-    ],
-  },
-  {
-    id: 'network',
-    name: 'Network',
-    blurb: 'Network fill speed',
-    stat: 'Network fill',
-    levels: [
-      { mult: 1.16, heat: 0.05 },
-      { mult: 1.32, heat: 0.16 },
-      { mult: 1.52, heat: 0.48 },
-    ],
-    detail: [
-      'Network speeds every drone bar while the channel is lit.',
-      'Industry and Research presets lean on this. It does not pick a hidden best mix.',
-    ],
-  },
-  {
-    id: 'foundry',
-    name: 'Foundry',
-    blurb: 'Smelt speed',
-    stat: 'Foundry speed',
-    levels: [
-      { mult: 1.16, heat: 0.05 },
-      { mult: 1.32, heat: 0.16 },
-      { mult: 1.55, heat: 0.5 },
-    ],
-    detail: [
-      'Foundry speeds every smelter while the channel is lit.',
-      'Recipe levels still persist on their own. This is extra fire under the kiln.',
-    ],
-  },
-  {
-    id: 'research',
-    name: 'Research',
-    blurb: 'Research XP from kills',
-    stat: 'Research XP',
-    levels: [
-      { mult: 1.2, heat: 0.055 },
-      { mult: 1.42, heat: 0.18 },
-      { mult: 1.7, heat: 0.55 },
-    ],
-    detail: [
-      'Research writes kill notes faster while the channel is lit. Focus still matters.',
-      'Opens with Research at sector 7. Hungrier than Weapons at the same level.',
+      'Spend Heat to raise the Hive shield for this Sortie.',
+      'Pair with Weapons when you mean to break a wall.',
     ],
   },
   {
     id: 'recovery',
-    name: 'Recovery',
-    blurb: 'Salvage and Choir-ash',
-    stat: 'Salvage / Ash',
+    name: 'Yield',
+    blurb: 'Temporary economy multiplier.',
+    stat: 'Salvage',
     levels: [
-      { mult: 1.12, heat: 0.04, ashMult: 1.1 },
-      { mult: 1.24, heat: 0.12, ashMult: 1.22 },
-      { mult: 1.4, heat: 0.36, ashMult: 1.35 },
+      { mult: 1.4, heat: 8, ashMult: 1.2 },
+      { mult: 1.8, heat: 20, ashMult: 1.45 },
+      { mult: 2.5, heat: 48, ashMult: 1.8 },
     ],
     detail: [
-      'Recovery marks wrecks for more Salvage and more Choir-ash while lit.',
-      'Cheaper than Weapons. Farm presets run this beside a modest Weapons level.',
+      'Spend Heat to take more Salvage (and Ash) from wrecks this Sortie.',
+      'Farm here, then convert for a later Weapons push.',
     ],
   },
 ]
@@ -191,10 +148,10 @@ export const FURNACE_PRESETS: Record<
   research: { name: 'Research', blurb: 'Research + Network.', wanted: { research: 1, network: 1 } },
 }
 
-export const FURNACE_BASE_IDLE_GEN = 0.02
-export const FURNACE_HEARTH_IDLE = 0.035
-export const FURNACE_BASE_ASH_FEED = 0.055
-export const FURNACE_HEARTH_FEED = 0.03
+export const FURNACE_BASE_IDLE_GEN = 0
+export const FURNACE_HEARTH_IDLE = 0
+export const FURNACE_BASE_ASH_FEED = 0
+export const FURNACE_HEARTH_FEED = 0
 export const FURNACE_BASE_CAPACITY = 24
 export const FURNACE_CISTERN_GROWTH = 1.38
 export const FURNACE_FLUE_PER = 0.1
@@ -202,16 +159,11 @@ export const FURNACE_BELLOWS_PER = 0.1
 export const FURNACE_KINDLE_PER = 0.18
 export const FURNACE_EMBER_PER = 0.22
 
-const BASE_IDLE_GEN = FURNACE_BASE_IDLE_GEN
-const HEARTH_IDLE = FURNACE_HEARTH_IDLE
-const BASE_ASH_FEED = FURNACE_BASE_ASH_FEED
-const HEARTH_FEED = FURNACE_HEARTH_FEED
 const BASE_CAPACITY = FURNACE_BASE_CAPACITY
 const CISTERN_GROWTH = FURNACE_CISTERN_GROWTH
 const FLUE_PER = FURNACE_FLUE_PER
 const BELLOWS_PER = FURNACE_BELLOWS_PER
 const KINDLE_PER = FURNACE_KINDLE_PER
-const EMBER_PER = FURNACE_EMBER_PER
 
 function emptyLevels(): Record<FurnaceChannelId, number> {
   return { weapons: 0, shielding: 0, network: 0, foundry: 0, research: 0, recovery: 0 }
@@ -284,15 +236,15 @@ export function furnaceKindleMult(state: GameState): number {
 }
 
 export function furnaceAshHeatMult(state: GameState, extra = 1): number {
-  return Math.max(0.1, extra) * furnaceKindleMult(state) * processFurnaceHooks(state).outputMult
+  return Math.max(0.1, extra) * furnaceKindleMult(state)
 }
 
-export function furnaceIdleGenPerSec(state: GameState): number {
-  return (BASE_IDLE_GEN + HEARTH_IDLE * furnaceUpgradeRank(state, 'hearth')) * processFurnaceHooks(state).outputMult
+export function furnaceIdleGenPerSec(_state: GameState): number {
+  return 0
 }
 
-export function furnaceAshFeedPerSec(state: GameState): number {
-  return (BASE_ASH_FEED + HEARTH_FEED * furnaceUpgradeRank(state, 'hearth')) * processFurnaceHooks(state).outputMult
+export function furnaceAshFeedPerSec(_state: GameState): number {
+  return 0
 }
 
 export function furnaceFlueMult(state: GameState): number {
@@ -303,19 +255,13 @@ export function furnaceBellowsMult(state: GameState): number {
   return 1 + BELLOWS_PER * furnaceUpgradeRank(state, 'bellows')
 }
 
-export function furnaceChannelSlots(state: GameState): number {
-  let slots = 1 + furnaceUpgradeRank(state, 'taps')
-  if ((state.prestige?.prestigeCount ?? 0) >= 1) slots += 1
-  if ((state.process?.earned ?? 0) >= 150) slots += 1
-  slots += hiveResearchFurnaceSlots(state)
-  return Math.min(FURNACE_SLOT_CAP, slots)
+export function furnaceChannelSlots(_state: GameState): number {
+  return GDD_FURNACE_CHANNEL_IDS.length
 }
 
 export function furnaceChannelUnlocked(state: GameState, id: FurnaceChannelId): boolean {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return false
-  if (id === 'research') return isSystemUnlocked(state, 'research')
-  if (id === 'foundry') return isSystemUnlocked(state, 'foundry')
-  return true
+  return GDD_FURNACE_CHANNEL_IDS.includes(id)
 }
 
 export function furnaceLevelDef(id: FurnaceChannelId, level: number): FurnaceChannelLevelDef | null {
@@ -323,21 +269,26 @@ export function furnaceLevelDef(id: FurnaceChannelId, level: number): FurnaceCha
   return getFurnaceChannel(id)?.levels[level - 1] ?? null
 }
 
-export function furnaceChannelHeatCost(state: GameState, id: FurnaceChannelId, level = furnaceActiveLevel(state, id)): number {
+export function furnaceChannelHeatCost(
+  state: GameState,
+  id: FurnaceChannelId,
+  level = furnaceActiveLevel(state, id),
+): number {
   const def = furnaceLevelDef(id, level)
   if (!def) return 0
-  return def.heat * furnaceFlueMult(state) * protocolModifiers(state).furnaceDrainMult * directiveHeatDrainMult(state)
+  return def.heat
+}
+
+export function furnaceLightCost(id: FurnaceChannelId, level: number): number {
+  const def = furnaceLevelDef(id, clampLevel(level))
+  return def?.heat ?? 0
 }
 
 export function furnaceConsumptionFor(
-  state: GameState,
-  levels: Partial<Record<FurnaceChannelId, number>>,
+  _state: GameState,
+  _levels: Partial<Record<FurnaceChannelId, number>>,
 ): number {
-  let sum = 0
-  for (const id of FURNACE_CHANNEL_IDS) {
-    sum += furnaceChannelHeatCost(state, id, clampLevel(levels[id] ?? 0))
-  }
-  return sum
+  return 0
 }
 
 export function furnaceConsumptionPerSec(state: GameState): number {
@@ -378,8 +329,7 @@ function channelBonusMult(state: GameState, id: FurnaceChannelId): number {
   const level = furnaceActiveLevel(state, id)
   const def = furnaceLevelDef(id, level)
   if (!def) return 1
-  const extra = def.mult - 1
-  return (1 + extra * furnaceBellowsMult(state) * (1 + protocolModifiers(state).furnaceEfficiencyAdd)) * protocolBonusMult(state, 'furnace')
+  return def.mult * protocolBonusMult(state, 'furnace')
 }
 
 export function furnaceDamageMult(state: GameState): number {
@@ -409,9 +359,7 @@ export function furnaceSalvageMult(state: GameState): number {
 export function furnaceAshChannelMult(state: GameState): number {
   if (protocolMutes(state, 'furnace')) return 1
   const def = furnaceLevelDef('recovery', furnaceActiveLevel(state, 'recovery'))
-  if (!def?.ashMult) return 1
-  const extra = def.ashMult - 1
-  return 1 + extra * furnaceBellowsMult(state)
+  return def?.ashMult ?? 1
 }
 
 export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
@@ -428,19 +376,15 @@ export function grantFurnaceKillLoot(state: GameState, isBoss: boolean): number 
   return ash
 }
 
-export function convertAshToHeat(state: GameState, heatMult = 1): GameState {
+export function convertAshToHeat(state: GameState, _heatMult = 1): GameState {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return state
   const ash = state.resources.choirAsh ?? 0
-  const cap = furnaceCapacity(state)
-  const room = Math.max(0, cap - (state.resources.heat ?? 0))
-  if (room <= 1e-6) return state
-  const heatPerAsh = furnaceAshHeatMult(state, heatMult) / ASH_PER_HEAT
-  const maxAsh = room / Math.max(1e-6, heatPerAsh)
-  const used = Math.min(ash, maxAsh)
-  if (used <= 1e-6) return state
+  const batches = Math.floor(ash / ASH_PER_HEAT)
+  if (batches <= 0) return state
+  const used = batches * ASH_PER_HEAT
   const next = structuredClone(state)
   next.resources.choirAsh = ash - used
-  next.resources.heat = Math.min(cap, (next.resources.heat ?? 0) + used * heatPerAsh)
+  next.resources.heat = (next.resources.heat ?? 0) + batches
   return next
 }
 
@@ -452,19 +396,10 @@ export function furnaceUpgradeCost(state: GameState, id: FurnaceUpgradeId): numb
 }
 
 export function canBuyFurnaceUpgrade(
-  state: GameState,
-  id: FurnaceUpgradeId,
+  _state: GameState,
+  _id: FurnaceUpgradeId,
 ): { ok: boolean; reason?: string } {
-  if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) {
-    return { ok: false, reason: `Reach Wave ${FURNACE_UNLOCK_SECTOR}` }
-  }
-  const def = getFurnaceUpgrade(id)
-  if (!def) return { ok: false, reason: 'Unknown upgrade' }
-  const rank = furnaceUpgradeRank(state, id)
-  if (rank >= def.maxRank) return { ok: false, reason: 'Maxed' }
-  const cost = furnaceUpgradeCost(state, id)
-  if ((state.resources.heat ?? 0) < cost) return { ok: false, reason: `Need ${cost} Heat` }
-  return { ok: true }
+  return { ok: false, reason: 'Heat is spent on this Sortie' }
 }
 
 export function buyFurnaceUpgrade(state: GameState, id: FurnaceUpgradeId): GameState {
@@ -481,23 +416,20 @@ export function furnaceChannelPreview(
   state: GameState,
   id: FurnaceChannelId,
   level: number,
-  ashHeatMult = 1,
+  _ashHeatMult = 1,
 ): { ok: boolean; reason?: string; net: number; lastsSec: number | null; slots: number } {
-  const nextLevels = { ...(state.furnace?.active ?? emptyLevels()), [id]: clampLevel(level) }
-  const slots = furnaceActiveCount(state, nextLevels)
-  const capSlots = furnaceChannelSlots(state)
-  const consume = furnaceConsumptionFor(state, nextLevels)
-  const gen = furnaceGenerationPerSec(state, ashHeatMult)
-  const net = gen - consume
+  const lv = clampLevel(level)
+  const current = furnaceActiveLevel(state, id)
+  const extra = Math.max(0, furnaceLightCost(id, lv) - furnaceLightCost(id, current))
   const heat = state.resources.heat ?? 0
-  const lastsSec = net >= -1e-9 ? null : heat / Math.max(1e-6, -net)
-  if (level > 0 && !furnaceChannelUnlocked(state, id)) {
-    return { ok: false, reason: id === 'research' ? 'Research closed' : 'Locked', net, lastsSec, slots }
+  const slots = furnaceActiveCount(state, { ...(state.furnace?.active ?? emptyLevels()), [id]: lv })
+  if (lv > 0 && !furnaceChannelUnlocked(state, id)) {
+    return { ok: false, reason: 'Locked', net: 0, lastsSec: null, slots }
   }
-  if (slots > capSlots) {
-    return { ok: false, reason: `Only ${capSlots} channel${capSlots === 1 ? '' : 's'} at once`, net, lastsSec, slots }
+  if (extra > heat + 1e-9) {
+    return { ok: false, reason: `Need ${extra} Heat`, net: 0, lastsSec: null, slots }
   }
-  return { ok: true, net, lastsSec, slots }
+  return { ok: true, net: 0, lastsSec: null, slots }
 }
 
 export function canSetFurnaceChannel(
@@ -514,8 +446,11 @@ export function setFurnaceChannel(state: GameState, id: FurnaceChannelId, level:
   const lv = clampLevel(level)
   const check = canSetFurnaceChannel(state, id, lv)
   if (!check.ok && lv > 0) return state
+  const current = furnaceActiveLevel(state, id)
+  const extra = Math.max(0, furnaceLightCost(id, lv) - furnaceLightCost(id, current))
   const next = structuredClone(state)
   if (!next.furnace) next.furnace = createEmptyFurnaceState()
+  next.resources.heat = Math.max(0, (next.resources.heat ?? 0) - extra)
   next.furnace.wanted[id] = lv
   next.furnace.active[id] = lv
   next.furnace.starveNote = ''
@@ -573,153 +508,25 @@ export function applyFurnacePreset(state: GameState, preset: FurnacePresetId): G
   return next
 }
 
-export function furnaceRestartHeat(state: GameState, currentHeat: number): number {
-  const keep = EMBER_PER * furnaceUpgradeRank(state, 'ember')
-  if (keep <= 0) return 0
-  return Math.min(furnaceCapacity(state), Math.max(0, currentHeat) * keep)
+export function furnaceRestartHeat(_state: GameState, _currentHeat: number): number {
+  return 0
 }
 
-function starveLowest(state: GameState): boolean {
-  const order = [...furnacePriority(state)].reverse()
-  for (const id of order) {
-    const lv = furnaceActiveLevel(state, id)
-    if (lv <= 0) continue
-    state.furnace.active[id] = lv - 1
-    const name = getFurnaceChannel(id)?.name ?? id
-    const next = furnaceActiveLevel(state, id)
-    state.furnace.starveNote =
-      next <= 0 ? `${name} went dark — Heat could not hold it.` : `${name} dropped to ${roman(next)} — Heat was short.`
-    return true
-  }
-  return false
+/** Heat and channel lights last only for the current Sortie. */
+export function endFurnaceSortie(state: GameState): void {
+  state.resources.heat = 0
+  if (!state.furnace) return
+  state.furnace.active = emptyLevels()
+  state.furnace.wanted = emptyLevels()
+  state.furnace.starveNote = ''
 }
 
-function restoreWanted(state: GameState, reserve: number): boolean {
-  const heat = state.resources.heat ?? 0
-  if (heat <= reserve + furnaceCapacity(state) * 0.12) return false
-  const order = furnacePriority(state)
-  for (const id of order) {
-    const want = furnaceWantedLevel(state, id)
-    const have = furnaceActiveLevel(state, id)
-    if (want <= have) continue
-    const trial = { ...(state.furnace.active ?? emptyLevels()), [id]: have + 1 }
-    if (furnaceActiveCount(state, trial) > furnaceChannelSlots(state)) continue
-    const consume = furnaceConsumptionFor(state, trial)
-    const gen = furnaceGenerationPerSec(state)
-    if (gen - consume < -1e-6 && heat < reserve + 4) continue
-    state.furnace.active[id] = have + 1
-    if (state.furnace.starveNote) state.furnace.starveNote = ''
-    return true
-  }
-  return false
+export function tickFurnace(_state: GameState, _dtSeconds: number, _ashHeatMult = 1): void {
+  /* GDD: Heat is a Sortie spend, not a live tank. Industry does not burn Ash at Dock. */
 }
 
-function roman(n: number): string {
-  return n === 1 ? 'I' : n === 2 ? 'II' : n === 3 ? 'III' : String(n)
-}
-
-export function tickFurnace(state: GameState, dtSeconds: number, ashHeatMult = 1): void {
-  if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return
-  if (!state.furnace) state.furnace = createEmptyFurnaceState()
-  if (dtSeconds <= 0) return
-
-  const cap = furnaceCapacity(state)
-  const reserve = processFurnaceHooks(state).reserveHeat
-  let heat = state.resources.heat ?? 0
-  let ash = state.resources.choirAsh ?? 0
-
-  const idle = furnaceIdleGenPerSec(state)
-  const heatPerAsh = furnaceAshHeatMult(state, ashHeatMult) / ASH_PER_HEAT
-
-  let left = dtSeconds
-  let guard = 0
-  while (left > 1e-9 && guard++ < 64) {
-    const consume = furnaceConsumptionPerSec(state)
-    const room = Math.max(0, cap - heat)
-    const canFeed = ash > 1e-9 && room > 1e-6
-    const ashHeatRate = canFeed ? furnaceAshToHeatRate(state, ashHeatMult) : 0
-    const net = idle + ashHeatRate - consume
-
-    if (heat <= reserve + 1e-6 && net < -1e-6) {
-      if (!starveLowest(state)) break
-      continue
-    }
-    if (heat > reserve + cap * 0.12) {
-      if (restoreWanted(state, reserve)) continue
-    }
-
-    let dt = left
-    if (net > 1e-9 && room > 1e-9) dt = Math.min(dt, room / net)
-    else if (net < -1e-9 && heat > reserve + 1e-9) dt = Math.min(dt, (heat - reserve) / -net)
-    if (ashHeatRate > 1e-9) {
-      const burn = ashHeatRate / Math.max(1e-6, heatPerAsh)
-      dt = Math.min(dt, ash / Math.max(1e-9, burn))
-    }
-    dt = Math.max(0, Math.min(left, dt))
-    if (dt <= 1e-9) break
-
-    const startHeat = heat
-    heat += idle * dt
-    if (ashHeatRate > 0) {
-      const heatGain = Math.min(Math.max(0, cap - startHeat), ashHeatRate * dt)
-      const ashNeed = heatGain / Math.max(1e-6, heatPerAsh)
-      const spend = Math.min(ash, ashNeed)
-      ash -= spend
-      heat += spend * heatPerAsh
-    }
-    heat -= consume * dt
-    if (heat > cap) heat = cap
-    if (heat < 0) heat = 0
-    left -= dt
-  }
-
-  state.resources.heat = Math.min(cap, Math.max(0, heat))
-  state.resources.choirAsh = Math.max(0, ash)
-}
-
-export function runFurnaceManager(state: GameState, ashHeatMult = 1): GameState {
-  const hooks = processFurnaceHooks(state)
-  if (!hooks.managerUnlocked) return state
-  let next = state
-  if (hooks.autoFeed) {
-    const fed = convertAshToHeat(next, ashHeatMult)
-    if (fed !== next) next = fed
-  }
-  if (!hooks.autoChannel) return next
-
-  const cloned = structuredClone(next)
-  if (!cloned.furnace) cloned.furnace = createEmptyFurnaceState()
-  const slots = furnaceChannelSlots(cloned)
-  const reserve = hooks.reserveHeat
-  const gen = furnaceGenerationPerSec(cloned, ashHeatMult)
-  const budget = Math.max(0, gen - 0.002)
-  const order = furnacePriority(cloned)
-  const active = emptyLevels()
-  let usedSlots = 0
-  let usedHeat = 0
-
-  for (const id of order) {
-    if (usedSlots >= slots) break
-    if (!furnaceChannelUnlocked(cloned, id)) continue
-    const target = furnaceWantedLevel(cloned, id)
-    if (target <= 0) continue
-    let pick = 0
-    for (let lv = Math.min(FURNACE_CHANNEL_MAX, target); lv >= 1; lv--) {
-      const cost = furnaceChannelHeatCost(cloned, id, lv)
-      if (usedHeat + cost <= budget || (cloned.resources.heat ?? 0) > reserve + cost * 8) {
-        pick = lv
-        usedHeat += cost
-        break
-      }
-    }
-    if (pick <= 0) continue
-    active[id] = pick
-    usedSlots += 1
-  }
-
-  cloned.furnace.active = active
-  cloned.furnace.starveNote = ''
-  return cloned
+export function runFurnaceManager(state: GameState, _ashHeatMult = 1): GameState {
+  return state
 }
 
 export function hydrateFurnaceState(raw: FurnaceState | undefined): FurnaceState {

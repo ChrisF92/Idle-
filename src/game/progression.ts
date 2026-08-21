@@ -920,6 +920,9 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
 
 /* ---------- Guided onboarding (spotlight + directed clicks) ---------- */
 
+/** Old coach-marks fight the GDD Sortie/Dock loop. Keep the catalog for a later rewrite. */
+export const ONBOARDING_ENABLED = false
+
 export type GuideKind = 'hint' | 'action' | 'critical'
 
 export interface GuideStep {
@@ -1309,6 +1312,7 @@ export function retirePostResetOnboarding(state: GameState): void {
  * resurface after a run reset (docked again, empty assignments, etc.).
  */
 export function syncCompletedGuides(state: GameState, tab: TabId): GameState {
+  if (!ONBOARDING_ENABLED) return state
   const seen = [...(state.meta.seenOnboarding ?? [])]
   let changed = false
   for (const step of GUIDE_STEPS) {
@@ -1369,6 +1373,7 @@ export function activeGuideStep(
   heldId?: string | null,
   ui?: { hangarOpen?: boolean },
 ): GuideStep | null {
+  if (!ONBOARDING_ENABLED) return null
   const hangarOpen = Boolean(ui?.hangarOpen)
   const eligible = (step: GuideStep): boolean =>
     guideStepReady(state, tab, step) && stepAllowedOnTab(step, tab)

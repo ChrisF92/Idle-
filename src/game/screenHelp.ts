@@ -73,8 +73,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   furnace: {
     title: 'Furnace',
     body: [
-      'Purpose: convert stored Choir-ash into a temporary push budget. Main decision: which channels deserve limited Heat right now.',
-      'Net Heat is generation minus channel drain. If Net stays negative, a channel goes dark. Upgrades persist on Rebuild.',
+      'Purpose: spend stored cycle Ash to make this Sortie significantly stronger. Main decision: is this the run worth converting?',
+      'Ash persists across Sorties this Rebuild cycle. Convert Ash to Heat, then light Weapons, Ward, or Yield. Heat dumps when you Dock.',
     ],
   },
   research: {

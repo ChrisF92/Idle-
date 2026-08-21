@@ -85,7 +85,7 @@ export const RESOURCE_LABELS: Record<keyof Resources, string> = {
   prestigeMatter: 'Rebuild Matter',
   challengePoints: 'Challenge Marks',
   salvage: 'Salvage',
-  choirAsh: 'Choir-ash',
+  choirAsh: 'Ash',
   heat: 'Heat',
 }
 

@@ -53,7 +53,7 @@ export const MAJOR_DOORS: MajorDoorDef[] = [
   {
     id: 'furnace',
     name: 'Furnace',
-    blurb: 'Turn Choir-ash into Heat. Decision: which temporary channels stay lit?',
+    blurb: 'Convert Ash into Heat and spend it to make this Sortie significantly stronger.',
     wave: ACT1_CADENCE.furnace,
     home: 'systems',
   },
@@ -115,14 +115,13 @@ export function moreStationBuckets(state: GameState): {
 }
 
 export function isSystemsNavTab(tab: TabId): boolean {
-  return tab === 'foundry' || tab === 'network' || tab === 'yard'
+  return tab === 'foundry' || tab === 'network' || tab === 'yard' || tab === 'furnace'
 }
 
 export function isMoreNavTab(tab: TabId): boolean {
   return (
     tab === 'stats' ||
     tab === 'reliquary' ||
-    tab === 'furnace' ||
     tab === 'research' ||
     tab === 'slag' ||
     tab === 'protocols' ||

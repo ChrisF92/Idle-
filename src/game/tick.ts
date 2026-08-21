@@ -46,7 +46,7 @@ import {
 import { tickFoundry } from './foundry'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
-import { furnaceNetPerSec, tickFurnace } from './furnace'
+import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, processCombatSpeedMult, processConfig, processIndustrySpeedMult } from './process'
@@ -173,6 +173,7 @@ function finishSortie(
   }
   closeSortie(state, outcome, note, at, { scrapEarned, newBest })
   noteRebuildCycleSortie(state, scrapEarned)
+  endFurnaceSortie(state)
   state.resources.salvage = 0
   resetRunCoreLevels(state)
   state.combat.runUpgrades = {}

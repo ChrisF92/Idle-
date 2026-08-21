@@ -60,15 +60,10 @@ import {
 import {
   ASH_PER_HEAT,
   FURNACE_CHANNELS,
-  FURNACE_UPGRADES,
   canBuyFurnaceUpgrade,
   furnaceActiveLevel,
-  furnaceCapacity,
   furnaceChannelHeatCost,
-  furnaceConsumptionPerSec,
-  furnaceGenerationPerSec,
   furnaceLevelDef,
-  furnaceNetPerSec,
   furnaceUpgradeCost,
   furnaceUpgradeRank,
   getFurnaceChannel,
@@ -352,7 +347,7 @@ export function inspectFurnaceChannel(state: GameState, id: FurnaceChannelId): I
   const stats: InspectStat[] = [
     { label: 'Level', value: level > 0 ? String(level) : 'Off' },
     { label: 'Bonus', value: live ? `×${live.mult.toFixed(2)} ${def.stat}` : 'Dark' },
-    { label: 'Heat/s', value: formatCompact(furnaceChannelHeatCost(state, id, Math.max(level, 1)), 2) },
+    { label: 'Heat', value: formatCompact(furnaceChannelHeatCost(state, id, Math.max(level, 1)), 0) },
   ]
   return {
     title: def.name,
@@ -381,7 +376,7 @@ export function inspectFurnaceUpgrade(state: GameState, id: FurnaceUpgradeId): I
     title: def.name,
     kicker: 'Furnace upgrade',
     stats,
-    body: [def.blurb, 'Upgrades persist when you Rebuild. Heat in the tank does not, unless Ember Lock is ranked.'],
+    body: [def.blurb, 'Heat is spent on this Sortie. Permanent Furnace upgrades are retired.'],
   }
 }
 
@@ -392,36 +387,23 @@ export function inspectFurnaceTrack(state: GameState, id: FurnaceTrackId): Inspe
 export function inspectFurnaceOverview(state: GameState): InspectCard {
   const ash = state.resources.choirAsh ?? 0
   const heat = state.resources.heat ?? 0
-  const cap = furnaceCapacity(state)
-  const gen = furnaceGenerationPerSec(state)
-  const use = furnaceConsumptionPerSec(state)
-  const net = furnaceNetPerSec(state)
-  const starve = (state.furnace?.starveNote ?? '').trim()
-  const body = [
-    'Kills drop Choir-ash on their own after sector 5. Ash feeds Heat. Light channels for temporary boosts.',
-    'You cannot power every channel at once. Stronger levels cost several times the Heat.',
-    net < -0.001
-      ? 'Consuming outruns generating. When the tank hits reserve, the lowest-priority channel drops a level — that is starvation, not a silent shutdown.'
-      : 'Positive Net fills the tank. Negative Net drains it. Read Net before you light a second fire.',
-    'Upgrades persist when you Rebuild. Heat in the tank resets unless Ember Lock is ranked. Network Links still spend stored Heat.',
-  ]
-  if (starve) body.splice(2, 0, starve)
   return {
     title: 'Furnace',
-    kicker: 'Heat',
+    kicker: 'Push Heat',
     stats: [
-      { label: 'Heat', value: `${formatCompact(heat, 1)} / ${formatCompact(cap, 1)}` },
-      { label: 'Generating', value: `${formatCompact(gen, 2)}/s` },
-      { label: 'Consuming', value: `${formatCompact(use, 2)}/s` },
-      { label: 'Net', value: `${formatCompact(net, 2)}/s` },
-      { label: 'Choir-ash', value: formatCompact(ash, 1) },
-      { label: 'Bank', value: `${ASH_PER_HEAT} ash → 1 Heat at Kindling 0` },
+      { label: 'Ash', value: formatCompact(ash, 1) },
+      { label: 'Heat', value: formatCompact(heat, 1) },
+      { label: 'Convert', value: `${ASH_PER_HEAT} Ash → 1 Heat` },
       ...FURNACE_CHANNELS.map((ch) => ({
         label: ch.name,
         value: furnaceActiveLevel(state, ch.id) > 0 ? `Lv ${furnaceActiveLevel(state, ch.id)}` : 'Off',
       })),
     ],
-    body,
+    body: [
+      'Kills drop Ash after Wave 140. Ash persists across Sorties this Rebuild cycle.',
+      'Convert Ash into Heat, then spend Heat to light Weapons, Ward, or Yield for this Sortie.',
+      'Heat and channel lights dump when you Dock. Rebuild also clears Ash.',
+    ],
   }
 }
 
@@ -438,7 +420,7 @@ export function inspectRebuildOverview(state: GameState): InspectCard {
       { label: 'Matter if you swap now', value: String(estimate) },
     ],
     body: [
-      'Rebuild swaps the hull and wipes Salvage and Core levels. Network links, Foundry recipes, shards, Research, and Furnace upgrades stay.',
+      'Rebuild swaps the hull and wipes Salvage and Core levels. Network links, Foundry recipes, shards, and Research stay.',
       'Matter this swap is about half the sector you reached, plus one for each Rebuild already done. Protocols can raise that later.',
       'Swap when the push stalls and another system cannot break the wall — not every sector.',
     ],
@@ -736,7 +718,6 @@ export function inspectCopyCorpus(state: GameState): string[] {
   for (const id of state.shipyard.modules) push(inspectCore(state, id))
   push(inspectFurnaceOverview(state))
   for (const ch of FURNACE_CHANNELS) push(inspectFurnaceChannel(state, ch.id))
-  for (const up of FURNACE_UPGRADES) push(inspectFurnaceUpgrade(state, up.id))
   for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
   for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))
   for (const up of FOUNDRY_UPGRADES) push(inspectFoundryUpgrade(state, up.id))

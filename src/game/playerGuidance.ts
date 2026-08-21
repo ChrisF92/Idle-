@@ -1,7 +1,6 @@
 /** Contextual player guidance helpers — next-step hints, reset lists, save migration. */
 
 import { idleWorkers, moduleLevel } from './catalog'
-import { furnaceUpgradeRank } from './furnace'
 import { foundryMaterialCount, foundryRecipeLevel } from './foundry'
 import { prestigeGainFor } from './actions'
 import { isSystemUnlocked } from './progression'
@@ -129,7 +128,6 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
     'Directives',
     'Scrap',
     'Workshop',
-    'Ash',
   ]
   const change = ['Hull', 'Core loadout']
 
@@ -140,8 +138,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   if (isSystemUnlocked(state, 'reliquary')) keep.push('Relics')
   if (isSystemUnlocked(state, 'research')) keep.push('Research')
   if (isSystemUnlocked(state, 'furnace')) {
-    keep.push('Furnace upgrades')
-    reset.push(furnaceUpgradeRank(state, 'ember') > 0 ? 'Heat (Ember Lock keeps a fraction)' : 'Heat')
+    reset.push('Ash', 'Heat')
   } else {
     reset.push('Heat')
   }
@@ -201,7 +198,7 @@ export function sortieNextHints(state: GameState): string[] {
     items.push('Assign drones to Ward')
   }
   if (isSystemUnlocked(state, 'furnace') && (state.furnace?.wanted.shielding ?? 0) <= 0) {
-    items.push('Light a Shielding Furnace channel')
+    items.push('Spend Heat on Ward')
   }
   if (isSystemUnlocked(state, 'foundry')) {
     const slag = foundryRecipeLevel(state, 'slag-ingot')

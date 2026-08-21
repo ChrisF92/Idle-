@@ -164,6 +164,9 @@ export default function App() {
       if (tab === 'network' && isHubTabOpen(game.state, 'foundry')) {
         setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
         setTab('foundry')
+      } else if (tab === 'furnace' && isHubTabOpen(game.state, 'foundry')) {
+        setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
+        setTab('foundry')
       } else if (station && isHubTabOpen(game.state, 'stats')) setTab('stats')
       else if (isHubTabOpen(game.state, 'dock')) setTab('dock')
       else setTab('combat')
@@ -187,8 +190,9 @@ export default function App() {
   const hubStamp = contentKeys(game.state, tab).join('|')
   useEffect(() => {
     game.markHubSeen(tab)
-    if (tab === 'foundry' && systemsView === 'hub' && isSystemUnlocked(game.state, 'network')) {
-      game.markHubSeen('network')
+    if (tab === 'foundry' && systemsView === 'hub') {
+      if (isSystemUnlocked(game.state, 'network')) game.markHubSeen('network')
+      if (isSystemUnlocked(game.state, 'furnace')) game.markHubSeen('furnace')
     }
   }, [tab, hubStamp, systemsView, game])
 
@@ -390,12 +394,16 @@ export default function App() {
         {tab === 'furnace' && (
           <FurnaceTab
             state={game.state}
-            onBack={() => go('stats')}
+            onBack={
+              showSystemsHub(game.state)
+                ? () => {
+                    setSystemsView('hub')
+                    if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
+                  }
+                : () => go('stats')
+            }
             onConvert={game.convertAshToHeat}
             onSetChannel={game.setFurnaceChannel}
-            onSetPriority={game.setFurnacePriority}
-            onBuyUpgrade={game.buyFurnaceUpgrade}
-            onPreset={game.applyFurnacePreset}
           />
         )}
         {tab === 'research' && (

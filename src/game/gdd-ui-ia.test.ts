@@ -28,6 +28,10 @@ describe('GDD information architecture', () => {
     expect(moreStationBuckets(afterWorkers).next.map((s) => s.id)).toEqual(['furnace'])
     expect(nextMajorDoor(afterWorkers)?.id).toBe('furnace')
     expect(nextMajorDoor(afterWorkers)?.home).toBe('systems')
+
+    const afterFurnace = atCareerWave(createInitialState(0), ACT1_CADENCE.furnace)
+    expect(moreStationBuckets(afterFurnace).next.map((s) => s.id)).toEqual(['research'])
+    expect(nextMajorDoor(afterFurnace)?.home).toBe('systems')
   })
 
   it('lands Systems on a hub once Worker Drones unlock', () => {
@@ -40,6 +44,9 @@ describe('GDD information architecture', () => {
     expect(systemsHubCards(workers).map((c) => c.id)).toEqual(['foundry', 'network'])
     expect(workersHubStatus(workers)[0]).toMatch(/assigned/)
     expect(foundryHubStatus(workers).some((line) => /idle/i.test(line))).toBe(true)
+
+    const furnace = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
+    expect(systemsHubCards(furnace).map((c) => c.id)).toEqual(['foundry', 'network', 'furnace'])
   })
 
   it('badges Systems for idle Worker Drones as well as Foundry', () => {
