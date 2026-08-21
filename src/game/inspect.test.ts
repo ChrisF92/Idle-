@@ -56,8 +56,8 @@ describe('inspect sheets', () => {
     s.combat.highestSector = 8
     const blob = inspectCopyCorpus(s).join('\n')
     expect(blob).not.toMatch(JARGON)
-    expect(blob).toMatch(/Mute Network/)
-    expect(blob).toMatch(/not a flat shop|every level/)
+    expect(blob).toMatch(/Glass Hive/)
+    expect(blob).toMatch(/every level/)
     expect(NETWORK_BARS.every((bar) => inspectNetworkBar(s, bar.id))).toBe(true)
     expect(NETWORK_LINKS.every((link) => inspectNetworkLink(s, link.id))).toBe(true)
   })
