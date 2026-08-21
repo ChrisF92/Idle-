@@ -86,6 +86,11 @@ export default function App() {
 
   const go = useCallback(
     (next: TabId) => {
+      if (next === 'yard') {
+        setFoundryPane('build')
+        if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
+        return
+      }
       if (isHubTabOpen(game.state, next)) setTab(next)
     },
     [game.state],
@@ -108,6 +113,9 @@ export default function App() {
         if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
         if (nav.tab === 'foundry' && (nav.focus === 'foundry-fit' || nav.focus?.startsWith('fit-'))) {
           setFoundryPane('fit')
+        }
+        if (nav.tab === 'foundry' && (nav.focus === 'foundry-build' || nav.focus === 'yard-grid')) {
+          setFoundryPane('build')
         }
       }
     },
@@ -312,6 +320,12 @@ export default function App() {
             onAssemble={game.assembleBlueprint}
             onTrack={game.setTrackedPrint}
             onBuyMax={game.buyMaxFoundryUpgrades}
+            onPlaceBuilding={game.placeYardBuilding}
+            onClearBuilding={game.clearYardBuilding}
+            onBuyArm={game.buyYardArm}
+            onBuyMaxArms={game.buyMaxYardArms}
+            onSaveLayout={game.saveYardLayout}
+            onLoadLayout={game.loadYardLayout}
             guideTarget={guide?.target}
             focusTarget={focusTarget}
             requestedPane={foundryPane}

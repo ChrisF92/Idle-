@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, globalDamageMultiplier } from './state'
-import { ACT1_CADENCE, ECHO_MIN_PROTOCOL_RANKS, PROCESS_MIN_REBUILDS, YARD_MIN_REBUILDS } from './cadence'
+import { ACT1_CADENCE, ECHO_MIN_PROTOCOL_RANKS, PROCESS_MIN_REBUILDS } from './cadence'
 import { isSystemUnlocked, PRESTIGE_MIN_SECTOR } from './progression'
 import { matterShopRankMultiplier, modulePrintSector } from './catalog'
 import { bandsClearedForWave } from './waves'
@@ -17,12 +17,11 @@ describe('GDD system cadence', () => {
     expect(ACT1_CADENCE.echo).toBe(275)
   })
 
-  it('requires mastery gates for Yard, Process and Echo', () => {
-    const yard = atCareerWave(createInitialState(1), ACT1_CADENCE.yard)
-    yard.prestige.prestigeCount = YARD_MIN_REBUILDS - 1
+  it('requires mastery gates for Process and Echo; construction is a Wave 90 Foundry expansion', () => {
+    const yard = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced - 1)
     expect(isSystemUnlocked(yard, 'yard')).toBe(false)
-    yard.prestige.prestigeCount = YARD_MIN_REBUILDS
-    expect(isSystemUnlocked(yard, 'yard')).toBe(true)
+    const open = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced)
+    expect(isSystemUnlocked(open, 'yard')).toBe(true)
 
     const process = atCareerWave(createInitialState(1), ACT1_CADENCE.process)
     process.prestige.prestigeCount = PROCESS_MIN_REBUILDS

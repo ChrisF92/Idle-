@@ -302,9 +302,9 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       push({
         id: 'sys:yard',
         category: 'SYSTEM ONLINE',
-        title: 'Yard unlocked',
-        body: 'Build industry for the next Rebuild; arms activate on that reset.',
-        action: { label: 'OPEN', nav: { kind: 'tab', tab: 'yard' } },
+        title: 'Construction unlocked',
+        body: 'Foundry construction is open. Place processing gear; arms apply on the next Rebuild.',
+        action: { label: 'OPEN', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
       })
       continue
     }

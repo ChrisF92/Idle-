@@ -1,9 +1,10 @@
 import type { GameState, YardArmId, YardBuildingId } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
+import { ACT1_CADENCE } from '../../game/cadence'
 import {
   YARD_ARMS,
   YARD_BUILDINGS,
-  YARD_EXPAND_SECTOR,
+  YARD_EXPAND_WAVE,
   YARD_GOOD_LABELS,
   canBuyYardArm,
   getYardBuilding,
@@ -29,7 +30,7 @@ const YARD_PANES: { id: YardPane; label: string }[] = [
 
 interface YardTabProps {
   state: GameState
-  onBack: () => void
+  onBack?: () => void
   onPlace: (index: number, buildingId: YardBuildingId) => void
   onClear: (index: number) => void
   onBuyArm: (id: YardArmId) => void
@@ -37,6 +38,8 @@ interface YardTabProps {
   onSaveLayout?: (name?: string) => void
   onLoadLayout?: (index: number) => void
   guideTarget?: string | null
+  /** Render inside the Foundry Build pane — no More chrome. */
+  embedded?: boolean
 }
 
 export function YardTab({
@@ -49,35 +52,23 @@ export function YardTab({
   onSaveLayout,
   onLoadLayout,
   guideTarget = null,
+  embedded = false,
 }: YardTabProps) {
   const open = isSystemUnlocked(state, 'yard')
   const size = yardGridSize(state)
   const cells = [...(state.yard?.cells ?? [])]
   while (cells.length < size * size) cells.push({ buildingId: null })
-  const hint = guideTarget === 'yard-grid' ? 'grid' : null
+  const hint = guideTarget === 'yard-grid' || guideTarget === 'foundry-build' ? 'grid' : null
   const [pane, setPane] = useSyncedPane<YardPane>('grid', hint)
 
-  return (
-    <section className="panel screen-panel">
-      <header className="panel-header">
-        <p className="assign-row">
-          <button type="button" onClick={onBack}>
-            More
-          </button>
-        </p>
-        <h2>Yard Grid</h2>
-        <p>
-          {open
-            ? `${size}×${size} · ${YARD_GOOD_LABELS.ore} ${formatCompact(yardGood(state, 'ore'), 1)} · ${YARD_GOOD_LABELS.flux} ${formatCompact(yardGood(state, 'flux'), 1)} · ${YARD_GOOD_LABELS.ingot} ${formatCompact(yardGood(state, 'ingot'), 1)}`
-            : 'Rebuild once to open the Yard.'}
-        </p>
-      </header>
-      {!open ? (
-        <p className="muted">Buildings run while docked. Spend Ingots to queue the next Rebuild.</p>
-      ) : (
-        <>
-          <SheetTabs value={pane} onChange={setPane} options={YARD_PANES} label="Yard panes" />
-          <div className="panel-scroll">
+  const body = !open ? (
+    <p className="muted">
+      Construction opens at Wave {ACT1_CADENCE.foundryAdvanced}. Buildings persist; arms apply on the next Rebuild.
+    </p>
+  ) : (
+    <>
+      <SheetTabs value={pane} onChange={setPane} options={YARD_PANES} label="Construction panes" />
+      <div className={embedded ? undefined : 'panel-scroll'}>
           {pane === 'grid' ? (
             <>
           <div className="yard-grid" data-guide="yard-grid" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
@@ -99,7 +90,7 @@ export function YardTab({
             })}
           </div>
           {size < 4 ? (
-            <p className="muted">Grid expands at sector {YARD_EXPAND_SECTOR}.</p>
+            <p className="muted">Grid expands at Wave {YARD_EXPAND_WAVE}.</p>
           ) : null}
           {onSaveLayout && hasProcess(state, 'yard-layouts') ? (
             <YardLayouts
@@ -184,9 +175,40 @@ export function YardTab({
           })}
             </>
           ) : null}
-          </div>
-        </>
-      )}
+      </div>
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className="foundry-construction" data-guide="foundry-build">
+        <h3 className="foundry-heading">Construction</h3>
+        <p className="muted">
+          Processing gear persists. Spend Ingots on arms that apply on the next Rebuild.
+        </p>
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <section className="panel screen-panel">
+      <header className="panel-header">
+        <p className="assign-row">
+          {onBack ? (
+            <button type="button" onClick={onBack}>
+              More
+            </button>
+          ) : null}
+        </p>
+        <h2>Construction</h2>
+        <p>
+          {open
+            ? `${size}×${size} · ${YARD_GOOD_LABELS.ore} ${formatCompact(yardGood(state, 'ore'), 1)} · ${YARD_GOOD_LABELS.flux} ${formatCompact(yardGood(state, 'flux'), 1)} · ${YARD_GOOD_LABELS.ingot} ${formatCompact(yardGood(state, 'ingot'), 1)}`
+            : `Opens at Wave ${ACT1_CADENCE.foundryAdvanced} inside Foundry.`}
+        </p>
+      </header>
+      {body}
     </section>
   )
 }

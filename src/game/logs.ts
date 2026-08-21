@@ -82,9 +82,9 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'yard',
-    title: 'Yard Grid',
-    body: 'Buildings stay. Ingots arm the next Rebuild, not this one. Place slag, still, press. Expand the grid as the career climbs.',
-    unlock: (s) => (s.prestige.prestigeCount ?? 0) >= 1,
+    title: 'Construction',
+    body: 'Foundry grows a construction floor at Wave 90. Buildings stay. Ingots arm the next Rebuild, not this hull.',
+    unlock: (s) => Math.max(s.meta.bestWave ?? 0, s.combat.bestWave ?? 0) >= 90,
   },
   {
     id: 'slag',

@@ -59,7 +59,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Purpose: turn combat income into crafted progression and new Cores. Main decision: what you are making next.',
       'Prints: track one Core. Fragments drop from matching enemy families as you push Waves.',
-      'Foundry Points buy extra smelters. Recipe progress persists on Rebuild. Fitted bits unequip.',
+      'Foundry Points buy extra smelters. Construction opens at Wave 90 inside this screen — not a separate Yard. Recipe progress persists on Rebuild. Fitted bits unequip.',
     ],
   },
   reliquary: {
@@ -84,10 +84,10 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     ],
   },
   yard: {
-    title: 'Yard Grid',
+    title: 'Construction',
     body: [
-      'Purpose: build an industrial engine between Rebuilds. Main decision: what the Yard should prepare for your next Rebuild.',
-      'Spend Ingots on arms. Arms apply on the next Rebuild, not this hull.',
+      'Purpose: expand Foundry with processing gear and Rebuild arms. Main decision: what to build for the next cycle.',
+      'Construction lives inside Foundry → Build. There is no separate Yard screen.',
     ],
   },
   slag: {

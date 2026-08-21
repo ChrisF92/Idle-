@@ -1,4 +1,4 @@
-/** Yard Grid — USI Bases analogue. Buildings persist; bonuses arm on Rebuild. */
+/** Foundry construction — GDD §65. Buildings persist; bonuses arm on Rebuild. */
 
 import type {
   GameState,
@@ -8,19 +8,31 @@ import type {
   YardGoodId,
   YardState,
 } from './types'
-import { careerHighestSector } from './progression'
+import { ACT1_CADENCE } from './cadence'
 import { processIndustrySpeedMult } from './process'
 import { noteSystemAction } from './playtest'
+import { careerBestWave } from './waves'
 
 export const YARD_START_SIZE = 3
-export const YARD_EXPAND_SECTOR = 14
 export const YARD_EXPANDED_SIZE = 4
-export const YARD_EXPAND_SECTOR_2 = 27
-export const YARD_EXPAND_SECTOR_3 = 40
-export const YARD_EXPAND_SECTOR_4 = 55
 export const YARD_MAX_SIZE = 7
 export const YARD_ARM_MAX = 20
 export const YARD_STARTER_ORE = 8
+/** Efficient Worker range on the construction job (GDD §61). */
+export const CONSTRUCTION_EFFICIENT = 4
+export const CONSTRUCTION_HARD_CAP = 8
+export const CONSTRUCTION_SPEED_PER_EFFICIENT = 0.12
+export const CONSTRUCTION_SPEED_PER_EXTRA = 0.04
+
+/** Wave doors for grid growth. Leftover sector aliases keep quarantined tests compiling. */
+export const YARD_EXPAND_WAVE = ACT1_CADENCE.furnace
+export const YARD_EXPAND_WAVE_2 = ACT1_CADENCE.process
+export const YARD_EXPAND_WAVE_3 = ACT1_CADENCE.echo
+export const YARD_EXPAND_WAVE_4 = ACT1_CADENCE.reinforce
+export const YARD_EXPAND_SECTOR = YARD_EXPAND_WAVE
+export const YARD_EXPAND_SECTOR_2 = YARD_EXPAND_WAVE_2
+export const YARD_EXPAND_SECTOR_3 = YARD_EXPAND_WAVE_3
+export const YARD_EXPAND_SECTOR_4 = YARD_EXPAND_WAVE_4
 
 export interface YardBuildingDef {
   id: YardBuildingId
@@ -108,17 +120,33 @@ export function getYardArm(id: string): YardArmDef | undefined {
   return YARD_ARMS.find((a) => a.id === id)
 }
 
+/** GDD §102: construction / advanced fabrication at career Best Wave 90. */
+export function isConstructionUnlocked(state: GameState): boolean {
+  if ((state.yard?.cells ?? []).some((cell) => Boolean(cell.buildingId))) return true
+  return careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
+}
+
+/** Leftover name — construction is the Foundry Build pane, not a top-level Yard. */
 export function isYardUnlocked(state: GameState): boolean {
-  return (state.prestige.prestigeCount ?? 0) >= 1
+  return isConstructionUnlocked(state)
 }
 
 export function yardGridSize(state: GameState): number {
-  const ever = careerHighestSector(state)
-  if (ever >= YARD_EXPAND_SECTOR_4) return YARD_MAX_SIZE
-  if (ever >= YARD_EXPAND_SECTOR_3) return 6
-  if (ever >= YARD_EXPAND_SECTOR_2) return 5
-  if (ever >= YARD_EXPAND_SECTOR) return YARD_EXPANDED_SIZE
+  const wave = careerBestWave(state)
+  if (wave >= YARD_EXPAND_WAVE_4) return YARD_MAX_SIZE
+  if (wave >= YARD_EXPAND_WAVE_3) return 6
+  if (wave >= YARD_EXPAND_WAVE_2) return 5
+  if (wave >= YARD_EXPAND_WAVE) return YARD_EXPANDED_SIZE
   return YARD_START_SIZE
+}
+
+/** Worker Drones on Construction: efficient 1–4, hard cap 8. Buildings still run with zero. */
+export function constructionSpeedMult(state: GameState): number {
+  const assigned = Math.max(0, Math.floor(Number(state.base?.assignments?.construction ?? 0) || 0))
+  const drones = Math.min(CONSTRUCTION_HARD_CAP, assigned)
+  const efficient = Math.min(CONSTRUCTION_EFFICIENT, drones)
+  const extra = Math.max(0, drones - CONSTRUCTION_EFFICIENT)
+  return 1 + efficient * CONSTRUCTION_SPEED_PER_EFFICIENT + extra * CONSTRUCTION_SPEED_PER_EXTRA
 }
 
 export function ensureYardGrid(state: GameState): void {
@@ -198,7 +226,7 @@ export function canBuyYardArm(
   state: GameState,
   id: YardArmId,
 ): { ok: boolean; reason?: string } {
-  if (!isYardUnlocked(state)) return { ok: false, reason: 'Rebuild once' }
+  if (!isYardUnlocked(state)) return { ok: false, reason: `Reach Wave ${ACT1_CADENCE.foundryAdvanced}` }
   const def = getYardArm(id)
   if (!def) return { ok: false, reason: 'Unknown' }
   const total = yardPending(state, id) + yardArmed(state, id)
@@ -240,7 +268,9 @@ export function tickYard(state: GameState, dtSeconds: number): void {
     if (!cell.buildingId) continue
     const def = getYardBuilding(cell.buildingId)
     if (!def) continue
-    state.yard.goods[def.produces] = yardGood(state, def.produces) + def.rate * dtSeconds * processIndustrySpeedMult(state)
+    state.yard.goods[def.produces] =
+      yardGood(state, def.produces) +
+      def.rate * dtSeconds * processIndustrySpeedMult(state) * constructionSpeedMult(state)
   }
 }
 

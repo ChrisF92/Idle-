@@ -64,6 +64,7 @@ export function contentKeys(state: GameState, scope: HubAttentionScope): string[
     for (const print of listFarmableCores(state)) {
       keys.push(`print:${print.id}`)
     }
+    if (isSystemUnlocked(state, 'yard')) keys.push('sys:yard')
     return keys
   }
   if (scope === 'research') {
@@ -146,6 +147,9 @@ function foundrySpend(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'foundry')) return false
   if (state.foundry.slots.some((s) => !s.recipeId)) return true
   if (FOUNDRY_UPGRADES.some((up) => canBuyFoundryUpgrade(state, up.id).ok)) return true
+  if (isSystemUnlocked(state, 'yard') && !(state.yard?.cells ?? []).some((cell) => cell.buildingId)) {
+    return true
+  }
   return listFarmableCores(state).some((print) => {
     if (state.shipyard.unlockedModules.includes(print.id)) return false
     return Boolean(blueprintProgress(state, print.id)?.complete)

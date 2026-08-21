@@ -9,7 +9,6 @@ import {
   ECHO_MIN_PROTOCOL_RANKS,
   PROCESS_MIN_REBUILDS,
   PROCESS_MIN_RESEARCH,
-  YARD_MIN_REBUILDS,
 } from './cadence'
 import { careerBestWave, meetsWave } from './waves'
 import { rebuildDoorMet } from './rebuild'
@@ -72,8 +71,8 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'yard',
     requiresSectorEver: ACT1_CADENCE.yard,
-    label: 'Yard Grid',
-    tip: 'Place buildings. Spend Ingots on arms that apply on the next Rebuild.',
+    label: 'Construction',
+    tip: 'Foundry construction. Place processing gear; arms apply on the next Rebuild.',
   },
   {
     id: 'slag',
@@ -705,10 +704,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   }
   if (systemId === 'yard') {
     const used = (state.yard?.cells ?? []).some((cell) => Boolean(cell.buildingId))
-    return used || (
-      careerBestWave(state) >= ACT1_CADENCE.yard &&
-      (state.prestige.prestigeCount ?? 0) >= YARD_MIN_REBUILDS
-    )
+    return used || careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
   }
   if (systemId === 'capital') {
     return meetsWave(state, ACT1_CADENCE.capital) && taskListComplete(state)
@@ -777,7 +773,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return 'Rebuild once'
   }
   if (systemId === 'yard') {
-    return `Reach Wave ${ACT1_CADENCE.yard} · Rebuild ${YARD_MIN_REBUILDS} times`
+    return `Reach Wave ${ACT1_CADENCE.foundryAdvanced}`
   }
   if (systemId === 'capital') {
     return `Reach Wave ${ACT1_CADENCE.capital} · finish the Task List`

@@ -15,7 +15,7 @@ export interface StationDef {
   description: string
   requiresResearch?: string
   /** System that must be unlocked before drones can be assigned. */
-  requiresSystem?: 'base' | 'research' | 'ai' | 'prestige' | 'core'
+  requiresSystem?: 'base' | 'research' | 'ai' | 'prestige' | 'core' | 'yard'
   /** Resource rates per assigned worker drone (per second). */
   rates: ResourceCost
   /** Scrap drained per assigned drone per second (Foundry-style). */
@@ -384,6 +384,15 @@ export const STATIONS: StationDef[] = [
     rates: {},
     kind: 'special',
     baseSlots: 40,
+  },
+  {
+    id: 'construction',
+    name: 'Construction',
+    description: 'Workers raise Foundry construction output. Efficient up to 4; hard cap 8.',
+    requiresSystem: 'yard',
+    rates: {},
+    kind: 'special',
+    baseSlots: 8,
   },
   {
     id: 'train-ballistics',

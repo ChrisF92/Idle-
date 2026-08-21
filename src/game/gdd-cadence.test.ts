@@ -12,6 +12,7 @@ describe('GDD Act 1 wave cadence', () => {
     expect(ACT1_CADENCE.foundry).toBe(20)
     expect(ACT1_CADENCE.workers).toBe(30)
     expect(PRESTIGE_MIN_SECTOR).toBe(70)
+    expect(ACT1_CADENCE.foundryAdvanced).toBe(90)
     expect(ACT1_CADENCE.furnace).toBe(140)
     expect(ACT1_CADENCE.research).toBe(170)
     expect(ACT1_CADENCE.process).toBe(210)
@@ -42,5 +43,12 @@ describe('GDD Act 1 wave cadence', () => {
     s.combat.wave = 69
     s.combat.docked = false
     expect(canPrestige(s)).toBe(false)
+  })
+
+  it('opens Foundry construction at Wave 90 without a Yard station', () => {
+    const locked = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced - 1)
+    expect(isSystemUnlocked(locked, 'yard')).toBe(false)
+    const open = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
+    expect(isSystemUnlocked(open, 'yard')).toBe(true)
   })
 })

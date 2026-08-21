@@ -12,7 +12,7 @@ export interface MoreStationDef {
 }
 
 export const MORE_STATIONS: MoreStationDef[] = [
-  { id: 'network', name: 'Workers', blurb: 'Assign Worker Drones to processing, fabrication, Research, and production.' },
+  { id: 'network', name: 'Workers', blurb: 'Assign Worker Drones to processing, fabrication, construction, Research, and production.' },
   { id: 'furnace', name: 'Furnace', blurb: 'Turn Choir-ash into Heat. Decision: which temporary channels stay lit?' },
   { id: 'research', name: 'Research', blurb: 'Long-term branches. Decision: which field gets the focus bonus?' },
   { id: 'codex', name: 'Codex', blurb: 'Optional enemy-family and hull-role reference.' },

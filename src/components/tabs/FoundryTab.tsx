@@ -1,4 +1,4 @@
-import type { GameState } from '../../game/types'
+import type { GameState, YardArmId, YardBuildingId } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
 import { ACT1_CADENCE } from '../../game/cadence'
 import {
@@ -42,11 +42,12 @@ import {
 } from '../../game/inspect'
 import { InspectName } from '../InspectName'
 import { SheetTabs } from '../SheetTabs'
+import { YardTab } from './YardTab'
 import { markLocalOk, useJustBecame } from '../../hooks/useJustBecame'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
 import { hasProcess } from '../../game/process'
 
-export type FoundryPane = 'smelt' | 'ranks' | 'prints' | 'fit'
+export type FoundryPane = 'smelt' | 'build' | 'ranks' | 'prints' | 'fit'
 
 const FOUNDRY_PANES: { id: FoundryPane; label: string }[] = [
   { id: 'smelt', label: 'Smelt' },
@@ -64,6 +65,12 @@ interface FoundryTabProps {
   onAssemble: (moduleId: string) => void
   onTrack?: (moduleId: string | null) => void
   onBuyMax?: () => void
+  onPlaceBuilding?: (index: number, buildingId: YardBuildingId) => void
+  onClearBuilding?: (index: number) => void
+  onBuyArm?: (id: YardArmId) => void
+  onBuyMaxArms?: () => void
+  onSaveLayout?: (name?: string) => void
+  onLoadLayout?: (index: number) => void
   guideTarget?: string | null
   focusTarget?: string | null
   requestedPane?: FoundryPane | null
@@ -77,6 +84,9 @@ function foundryPaneFromHints(
   if (requestedPane) return requestedPane
   if (focusTarget?.startsWith('print-') || focusTarget === 'foundry-prints') return 'prints'
   if (focusTarget === 'foundry-fit' || focusTarget?.startsWith('fit-')) return 'fit'
+  if (focusTarget === 'foundry-build' || guideTarget === 'foundry-build' || guideTarget === 'yard-grid') {
+    return 'build'
+  }
   if (guideTarget === 'foundry-prints') return 'prints'
   if (guideTarget === 'foundry-ranks') return 'ranks'
   if (
@@ -247,14 +257,31 @@ export function FoundryTab({
   onAssemble,
   onTrack,
   onBuyMax,
+  onPlaceBuilding,
+  onClearBuilding,
+  onBuyArm,
+  onBuyMaxArms,
+  onSaveLayout,
+  onLoadLayout,
   guideTarget = null,
   focusTarget = null,
   requestedPane = null,
 }: FoundryTabProps) {
   const open = isSystemUnlocked(state, 'foundry')
+  const construction = isSystemUnlocked(state, 'yard')
   const foundry = state.foundry
   const hint = foundryPaneFromHints(guideTarget, focusTarget, requestedPane)
   const [pane, setPane] = useSyncedPane<FoundryPane>('smelt', hint)
+  const panes: { id: FoundryPane; label: string }[] = construction
+    ? [
+        { id: 'smelt', label: 'Smelt' },
+        { id: 'build', label: 'Build' },
+        { id: 'ranks', label: 'Ranks' },
+        { id: 'prints', label: 'Prints' },
+        { id: 'fit', label: 'Fit' },
+      ]
+    : FOUNDRY_PANES
+  const activePane = pane === 'build' && !construction ? 'smelt' : pane
 
   return (
     <section className="panel screen-panel">
@@ -270,9 +297,9 @@ export function FoundryTab({
         <p className="muted empty-state">Turn Salvage into permanent materials. Opens at Wave {ACT1_CADENCE.foundry}.</p>
       ) : (
         <>
-          <SheetTabs value={pane} onChange={setPane} options={FOUNDRY_PANES} label="Foundry panes" />
+          <SheetTabs value={activePane} onChange={setPane} options={panes} label="Foundry panes" />
           <div className="panel-scroll">
-          {pane === 'smelt' ? (
+          {activePane === 'smelt' ? (
             <>
           <h3 className="foundry-heading" data-guide="foundry-smelters">
             Smelters
@@ -384,7 +411,21 @@ export function FoundryTab({
             </>
           ) : null}
 
-          {pane === 'ranks' ? (
+          {activePane === 'build' && onPlaceBuilding && onClearBuilding && onBuyArm ? (
+            <YardTab
+              embedded
+              state={state}
+              onPlace={onPlaceBuilding}
+              onClear={onClearBuilding}
+              onBuyArm={onBuyArm}
+              onBuyMax={onBuyMaxArms}
+              onSaveLayout={onSaveLayout}
+              onLoadLayout={onLoadLayout}
+              guideTarget={guideTarget}
+            />
+          ) : null}
+
+          {activePane === 'ranks' ? (
             <>
               <h3 className="foundry-heading" data-guide="foundry-ranks">
                 Ranks
@@ -402,7 +443,7 @@ export function FoundryTab({
             </>
           ) : null}
 
-          {pane === 'prints' ? (
+          {activePane === 'prints' ? (
             <>
               <h3 className="foundry-heading" data-guide="foundry-prints">
                 Core prints
@@ -423,7 +464,7 @@ export function FoundryTab({
             </>
           ) : null}
 
-          {pane === 'fit' ? (
+          {activePane === 'fit' ? (
             <>
               <h3 className="foundry-heading">Fit</h3>
               <p className="muted">{foundryFitSlots(state)} fitted bits. Swap only while docked.</p>

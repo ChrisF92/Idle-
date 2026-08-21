@@ -21,6 +21,8 @@ import {
   foundryXpMult,
 } from './foundryBonuses'
 import { noteSystemAction, recordPlaytest } from './playtest'
+import { ACT1_CADENCE } from './cadence'
+import { careerBestWave } from './waves'
 
 export {
   foundryAshHeatMult,
@@ -74,6 +76,8 @@ export interface FoundryUpgradeDef {
   partDropBonus?: number
   queueBonus?: number
   requiresSectorEver?: number
+  /** Career Best Wave door for advanced fabrication (GDD §102 W90). */
+  requiresWave?: number
 }
 
 export interface FoundryModuleDef {
@@ -318,10 +322,11 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
   {
     id: 'fp-slot-2',
     name: 'Third Smelter',
-    blurb: 'One extra Foundry slot',
+    blurb: 'One extra Foundry slot. Advanced fabrication at Wave 90.',
     baseCost: 18,
     maxRank: 1,
     extraSlots: 1,
+    requiresWave: ACT1_CADENCE.foundryAdvanced,
   },
   {
     id: 'fp-slot-3',
@@ -330,6 +335,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 32,
     maxRank: 1,
     extraSlots: 1,
+    requiresWave: ACT1_CADENCE.foundryAdvanced,
   },
   {
     id: 'fp-salvage',
@@ -426,7 +432,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 20,
     maxRank: 1,
     extraFitSlots: 1,
-    requiresSectorEver: 10,
+    requiresWave: ACT1_CADENCE.foundryAdvanced,
   },
 ]
 
@@ -925,6 +931,9 @@ export function canBuyFoundryUpgrade(
   if (!def) return { ok: false, reason: 'Unknown' }
   const rank = state.foundry?.upgrades[id] ?? 0
   if (rank >= def.maxRank) return { ok: false, reason: 'Maxed' }
+  if (def.requiresWave && careerBestWave(state) < def.requiresWave) {
+    return { ok: false, reason: `Reach Wave ${def.requiresWave}` }
+  }
   if (def.requiresSectorEver && careerEver(state) < def.requiresSectorEver) {
     return { ok: false, reason: `Clear sector ${def.requiresSectorEver}` }
   }

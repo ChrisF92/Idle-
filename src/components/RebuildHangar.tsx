@@ -129,7 +129,7 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
 
           <ConsequencePanel lists={lists} />
           {isSystemUnlocked(state, 'yard') ? (
-            <p className="muted">Yard: {yardPendingSummary(state)}.</p>
+            <p className="muted">Construction: {yardPendingSummary(state)}.</p>
           ) : null}
 
           {shopOpen ? (

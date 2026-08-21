@@ -38,8 +38,9 @@ describe('GDD removed Route A/B and Frontier Hold', () => {
     expect(s.combat.wave).toBe(1)
   })
 
-  it('does not list a standalone Reliquary or Route B station', () => {
+  it('does not list a standalone Reliquary, Yard, or Route B station', () => {
     expect(MORE_STATIONS.some((s) => s.id === 'reliquary')).toBe(false)
-    expect(MORE_STATIONS.map((s) => s.name).join(' ')).not.toMatch(/Route B|Frontier Hold/)
+    expect(MORE_STATIONS.some((s) => s.id === 'yard')).toBe(false)
+    expect(MORE_STATIONS.map((s) => s.name).join(' ')).not.toMatch(/Route B|Frontier Hold|Yard/)
   })
 })
