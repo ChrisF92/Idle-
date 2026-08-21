@@ -131,7 +131,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'research',
     requiresSectorEver: ACT1_CADENCE.research,
     label: 'Research',
-    tip: 'Focus a branch to research it faster.',
+    tip: 'Start one Research project. Sensor Net drones speed it up.',
   },
   {
     id: 'codex',

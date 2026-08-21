@@ -382,7 +382,7 @@ function autoResearchFocus(state: GameState): void {
     const ranked = cfg.research.branchPriority.find(incomplete)
     if (ranked) nextFocus = ranked
   }
-  if (nextFocus === state.hiveResearch.focus) return
+  if (nextFocus === state.hiveResearch.focus && state.hiveResearch.active) return
   adopt(state, setResearchFocus(state, nextFocus))
 }
 

@@ -197,6 +197,9 @@ export function sortieNextHints(state: GameState): string[] {
   if (isSystemUnlocked(state, 'network') && (state.base.assignments.ward ?? 0) === 0) {
     items.push('Assign drones to Ward')
   }
+  if (isSystemUnlocked(state, 'research') && !state.hiveResearch?.active) {
+    items.push('Start a Research project')
+  }
   if (isSystemUnlocked(state, 'furnace') && (state.furnace?.wanted.shielding ?? 0) <= 0) {
     items.push('Spend Heat on Ward')
   }

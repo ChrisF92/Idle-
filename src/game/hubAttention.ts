@@ -16,6 +16,7 @@ import {
   isFoundryRecipeUnlocked,
 } from './foundry'
 import { ASH_PER_HEAT } from './furnace'
+import { hiveResearchActive, hiveResearchCompleted, HIVE_RESEARCH_NODES } from './hiveResearch'
 import { MORE_STATIONS } from './moreStations'
 import { pendingMilestone } from './milestones'
 import { NETWORK_BARS, NETWORK_LINKS, canBuyNetworkLink, isNetworkBarUnlocked } from './network'
@@ -149,7 +150,11 @@ export function furnaceAttention(state: GameState): AttentionFlags {
   return { spend: furnaceSpend(state), fresh: hasUnseen(state, contentKeys(state, 'furnace')) }
 }
 
-/** Bottom-nav Systems pip — Foundry plus Worker Drones once that door is open. */
+export function researchAttention(state: GameState): AttentionFlags {
+  return { spend: researchSpend(state), fresh: hasUnseen(state, contentKeys(state, 'research')) }
+}
+
+/** Bottom-nav Systems pip — Foundry plus Worker Drones, Furnace, and Research once those doors are open. */
 export function systemsTabAttention(state: GameState): AttentionFlags {
   const foundry = foundryAttention(state)
   const workers = isSystemUnlocked(state, 'network')
@@ -158,9 +163,12 @@ export function systemsTabAttention(state: GameState): AttentionFlags {
   const furnace = isSystemUnlocked(state, 'furnace')
     ? furnaceAttention(state)
     : { spend: false, fresh: false }
+  const research = isSystemUnlocked(state, 'research')
+    ? researchAttention(state)
+    : { spend: false, fresh: false }
   return {
-    spend: foundry.spend || workers.spend || furnace.spend,
-    fresh: foundry.fresh || workers.fresh || furnace.fresh,
+    spend: foundry.spend || workers.spend || furnace.spend || research.spend,
+    fresh: foundry.fresh || workers.fresh || furnace.fresh || research.fresh,
   }
 }
 
@@ -186,6 +194,15 @@ function foundrySpend(state: GameState): boolean {
 function furnaceSpend(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'furnace')) return false
   return (state.resources.choirAsh ?? 0) >= ASH_PER_HEAT
+}
+
+function researchSpend(state: GameState): boolean {
+  if (!isSystemUnlocked(state, 'research')) return false
+  if (hiveResearchActive(state)) return false
+  return Object.keys(HIVE_RESEARCH_NODES).some((id) => {
+    const branch = id as keyof typeof HIVE_RESEARCH_NODES
+    return hiveResearchCompleted(state, branch) < HIVE_RESEARCH_NODES[branch].length
+  })
 }
 
 function processSpend(state: GameState): boolean {
@@ -229,7 +246,7 @@ export function tabAttention(state: GameState, tab: TabId): AttentionFlags {
     case 'stats':
       return { spend: moreSpend(state), fresh: moreFresh(state) }
     case 'research':
-      return { spend: false, fresh: hasUnseen(state, contentKeys(state, 'research')) }
+      return researchAttention(state)
     case 'furnace':
       return furnaceAttention(state)
     case 'process':

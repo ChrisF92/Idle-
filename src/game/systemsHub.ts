@@ -9,11 +9,20 @@ import {
   PART_TYPES,
 } from './catalog'
 import { FOUNDRY_RECIPES, foundryRecipeLevel } from './foundry'
-import { foundryAttention, furnaceAttention, networkAttention, type AttentionFlags } from './hubAttention'
+import {
+  formatResearchDuration,
+  hiveResearchActive,
+  hiveResearchActiveNode,
+  hiveResearchCompleted,
+  hiveResearchNodeCost,
+  hiveResearchSpeed,
+  hiveResearchXp,
+} from './hiveResearch'
+import { foundryAttention, furnaceAttention, networkAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
 
-export type SystemsHubId = Extract<TabId, 'foundry' | 'network' | 'furnace'>
+export type SystemsHubId = Extract<TabId, 'foundry' | 'network' | 'furnace' | 'research'>
 
 export interface SystemsHubCard {
   id: SystemsHubId
@@ -96,6 +105,20 @@ export function furnaceHubStatus(state: GameState): string[] {
   return lines.slice(0, 3)
 }
 
+export function researchHubStatus(state: GameState): string[] {
+  if (!hiveResearchActive(state)) return ['No project']
+  const node = hiveResearchActiveNode(state)
+  const branch = state.hiveResearch?.focus ?? 'energy'
+  const done = hiveResearchCompleted(state, branch)
+  const need = hiveResearchNodeCost(done, state)
+  const xp = hiveResearchXp(state, branch)
+  const speed = hiveResearchSpeed(state)
+  const left = speed > 0 ? Math.max(0, (need - xp) / speed) : 0
+  const lines = [node?.name ?? 'Researching']
+  if (left > 0) lines.push(`${formatResearchDuration(left)} left`)
+  return lines.slice(0, 3)
+}
+
 function card(
   id: SystemsHubId,
   name: string,
@@ -115,6 +138,9 @@ export function systemsHubCards(state: GameState): SystemsHubCard[] {
   }
   if (isSystemUnlocked(state, 'furnace')) {
     cards.push(card('furnace', 'Furnace', furnaceHubStatus(state), furnaceAttention(state)))
+  }
+  if (isSystemUnlocked(state, 'research')) {
+    cards.push(card('research', 'Research', researchHubStatus(state), researchAttention(state)))
   }
   return cards
 }

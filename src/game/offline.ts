@@ -33,7 +33,7 @@ import { tickFoundry } from './foundry'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { tickFurnace } from './furnace'
-import { hiveResearchHeatFromAshMult } from './hiveResearch'
+import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
 import { processIndustrySpeedMult, processOfflineBonusMs } from './process'
 
 /** Default hard cap; Deep Cache shop extends this. */
@@ -121,6 +121,7 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
   tickFoundry(state, seconds)
   tickYard(state, seconds)
   tickFurnace(state, seconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
+  tickResearch(state, seconds)
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {

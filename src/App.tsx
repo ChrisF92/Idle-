@@ -164,7 +164,10 @@ export default function App() {
       if (tab === 'network' && isHubTabOpen(game.state, 'foundry')) {
         setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
         setTab('foundry')
-      } else if (tab === 'furnace' && isHubTabOpen(game.state, 'foundry')) {
+      } else if (
+        (tab === 'furnace' || tab === 'research') &&
+        isHubTabOpen(game.state, 'foundry')
+      ) {
         setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
         setTab('foundry')
       } else if (station && isHubTabOpen(game.state, 'stats')) setTab('stats')
@@ -193,6 +196,7 @@ export default function App() {
     if (tab === 'foundry' && systemsView === 'hub') {
       if (isSystemUnlocked(game.state, 'network')) game.markHubSeen('network')
       if (isSystemUnlocked(game.state, 'furnace')) game.markHubSeen('furnace')
+      if (isSystemUnlocked(game.state, 'research')) game.markHubSeen('research')
     }
   }, [tab, hubStamp, systemsView, game])
 
@@ -409,7 +413,14 @@ export default function App() {
         {tab === 'research' && (
           <ResearchTab
             state={game.state}
-            onBack={() => go('stats')}
+            onBack={
+              showSystemsHub(game.state)
+                ? () => {
+                    setSystemsView('hub')
+                    if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
+                  }
+                : () => go('stats')
+            }
             onFocus={game.setResearchFocus}
             guideTarget={guide?.target}
           />

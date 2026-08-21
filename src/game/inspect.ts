@@ -95,13 +95,14 @@ import {
 } from './foundry'
 import { milestonesFor, pendingMilestone } from './milestones'
 import {
+  formatResearchDuration,
   HIVE_RESEARCH_BRANCHES,
-  HIVE_RESEARCH_FOCUS_MULT,
   HIVE_RESEARCH_NODES,
+  hiveResearchActive,
   hiveResearchCompleted,
-  hiveResearchNextBreakthrough,
   hiveResearchNodeCost,
   hiveResearchNodeEffectLine,
+  hiveResearchSpeed,
   hiveResearchUpcoming,
   hiveResearchXp,
   isResearchBreakthrough,
@@ -676,29 +677,29 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
   const upcoming = hiveResearchUpcoming(state, id)
   const next = upcoming[0]
   const need = next ? hiveResearchNodeCost(next.index, state) : 0
-  const bt = hiveResearchNextBreakthrough(state, id)
-  const focused = (state.hiveResearch?.focus ?? 'material') === id
+  const researching = hiveResearchActive(state) && (state.hiveResearch?.focus ?? 'energy') === id
+  const speed = hiveResearchSpeed(state)
+  const left = next && speed > 0 ? Math.max(0, (need - xp) / speed) : 0
   const stats: InspectStat[] = [
     { label: 'Done', value: `${done}/${nodes.length}` },
-    { label: 'Focus', value: focused ? `${HIVE_RESEARCH_FOCUS_MULT}×` : 'Background' },
+    { label: 'Slot', value: researching ? 'Active project' : 'Idle' },
   ]
   if (next) {
     stats.push(
       { label: 'Next', value: `${next.node.name}${isResearchBreakthrough(next.node) ? ' (breakthrough)' : ''}` },
-      { label: 'XP', value: `${formatCompact(xp, 1)}/${formatCompact(need)}` },
+      { label: 'Duration', value: researching ? formatResearchDuration(left) : formatResearchDuration(need) },
     )
   }
-  if (bt) stats.push({ label: 'Breakthrough', value: `${bt.node.name} in ${bt.index - done}` })
   return {
     title: def.name,
-    kicker: 'Research branch',
+    kicker: 'Research discipline',
     stats,
     body: [
       def.blurb,
-      'Kills write XP into all three branches. The focused branch runs much faster. The others still crawl.',
-      `Focus is ${HIVE_RESEARCH_FOCUS_MULT}×. Switching later does not waste the other branches — they keep a background trickle.`,
-      'Most nodes are small numbers. Breakthroughs unlock a mechanic — a Furnace channel, a smelter, a Reliquary slot.',
-      next ? hiveResearchNodeEffectLine(next.node) : 'This branch is complete.',
+      'One Research project at a time. Choose which discipline to focus.',
+      'The project runs during Sorties, at Dock, and offline. Sensor Net drones speed it up.',
+      'Most nodes are small numbers. Breakthroughs unlock a mechanic — a smelter, a Core slot, a Reliquary colour.',
+      next ? hiveResearchNodeEffectLine(next.node) : 'This discipline is complete.',
       'Nodes persist when you Rebuild.',
     ],
   }

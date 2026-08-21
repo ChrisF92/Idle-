@@ -341,7 +341,7 @@ export const STATIONS: StationDef[] = [
   {
     id: 'sensor-net',
     name: 'Sensor Net',
-    description: 'Workers sift anomaly noise into research data.',
+    description: 'Workers accelerate the active Research project.',
     requiresSystem: 'research',
     rates: { data: 0.045 },
     baseSlots: 16,

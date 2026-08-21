@@ -47,7 +47,7 @@ import { tickFoundry } from './foundry'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
-import { hiveResearchHeatFromAshMult } from './hiveResearch'
+import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, processCombatSpeedMult, processConfig, processIndustrySpeedMult } from './process'
 import {
@@ -288,6 +288,7 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   tickFoundry(state, dtSeconds)
   tickYard(state, dtSeconds)
   tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
+  tickResearch(state, dtSeconds)
 
   const cap = droneCap(state)
   if (state.base.workerDrones < cap) {

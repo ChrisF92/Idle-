@@ -88,7 +88,7 @@ import {
   setFurnaceChannel,
   setFurnacePriority,
 } from './furnace'
-import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, setResearchFocus } from './hiveResearch'
+import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, setResearchFocus, createEmptyHiveResearchState } from './hiveResearch'
 import { foundryAshHeatMult } from './foundryBonuses'
 import {
   armYardOnRebuild,
@@ -1319,13 +1319,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     heat: state.resources.heat ?? 0,
     reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {}, coreFits: {} }),
     furnace: structuredClone(state.furnace ?? createEmptyFurnaceState()),
-    hiveResearch: structuredClone(
-      state.hiveResearch ?? {
-        focus: 'material',
-        xp: { material: 0, energy: 0, observation: 0 },
-        completed: { material: 0, energy: 0, observation: 0 },
-      },
-    ),
+    hiveResearch: structuredClone(state.hiveResearch ?? createEmptyHiveResearchState()),
     yard: structuredClone(state.yard ?? createEmptyYardState()),
     protocols: {
       activeId: null,

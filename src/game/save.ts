@@ -389,7 +389,8 @@ function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResea
   if (!raw || typeof raw !== 'object') return empty
   const focus = raw.focus
   empty.focus =
-    focus === 'energy' || focus === 'observation' || focus === 'material' ? focus : 'material'
+    focus === 'energy' || focus === 'observation' || focus === 'material' ? focus : 'energy'
+  empty.active = raw.active === true
   for (const id of HIVE_BRANCHES) {
     empty.xp[id] = Math.max(0, Number(raw.xp?.[id] ?? 0) || 0)
     empty.completed[id] = Math.max(0, Math.floor(Number(raw.completed?.[id] ?? 0) || 0))

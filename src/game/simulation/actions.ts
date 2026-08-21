@@ -453,7 +453,7 @@ export function tendHiveResearch(
     else if (material < 6) want = 'material'
     else want = observation < 9 ? 'observation' : 'energy'
   }
-  if (state.hiveResearch?.focus === want) return state
+  if (state.hiveResearch?.focus === want && state.hiveResearch.active) return state
   const next = setResearchFocus(state, want)
   if (next !== state) ctx.record(`research-focus ${want}`)
   return next

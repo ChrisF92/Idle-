@@ -5,7 +5,7 @@ import { AttentionPips } from '../AttentionPips'
 
 interface SystemsTabProps {
   state: GameState
-  onManage: (tab: Extract<TabId, 'foundry' | 'network' | 'furnace'>) => void
+  onManage: (tab: Extract<TabId, 'foundry' | 'network' | 'furnace' | 'research'>) => void
 }
 
 export function SystemsTab({ state, onManage }: SystemsTabProps) {

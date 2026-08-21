@@ -13,7 +13,7 @@ import {
   salvageSectorBase,
 } from './combat'
 import { moduleUpgradeCost } from './catalog'
-import { hiveResearchNodeCost, HIVE_RESEARCH_FOCUS_MULT } from './hiveResearch'
+import { hiveResearchNodeCost, HIVE_RESEARCH_WORKER_ACCEL } from './hiveResearch'
 import { NETWORK_FILL_COST, NETWORK_STARTING_DRONES } from './network'
 import { FURNACE_BASE_IDLE_GEN, FURNACE_CHANNEL_MAX } from './furnace'
 import { foundrySalvageReserve } from './foundry'
@@ -69,8 +69,8 @@ describe('Act 1 authored formulas', () => {
     expect(salvageSectorBase(30)).toBeGreaterThan(8)
     expect(NETWORK_STARTING_DRONES).toBe(4)
     expect(NETWORK_FILL_COST).toBe(12)
-    expect(hiveResearchNodeCost(0)).toBe(52)
-    expect(HIVE_RESEARCH_FOCUS_MULT).toBe(4)
+    expect(hiveResearchNodeCost(0)).toBeGreaterThan(60)
+    expect(HIVE_RESEARCH_WORKER_ACCEL).toBe(0.25)
     expect(FURNACE_CHANNEL_MAX).toBe(3)
     expect(FURNACE_BASE_IDLE_GEN).toBe(0)
     expect(ENEMY_HULL_EARLY).toBeGreaterThan(1)

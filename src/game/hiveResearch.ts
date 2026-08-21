@@ -1,20 +1,25 @@
-/** Hive Research — kill-fed branches with incremental nodes and breakthroughs. */
+/** Hive Research — one timed project at a time. Progress persists across Rebuild. */
 
 import type { GameState, HiveResearchBranch, HiveResearchState, NetworkBarId, ReliquaryColor } from './types'
 import { careerBestWave } from './progression'
-import { normalizeRoute, routeResearchMult } from './sectors'
-import { echoResearchXpMult } from './echo'
 import { processResearchSpeedMult } from './process'
 import { protocolModifiers } from './protocols'
 import { foundryResearchXpMult } from './foundryBonuses'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { ACT1_CADENCE } from './cadence'
+import { stationEffectiveDrones } from './catalog'
 
 export const HIVE_RESEARCH_UNLOCK_SECTOR = ACT1_CADENCE.research
-export const HIVE_RESEARCH_FOCUS_MULT = 4
+/** @deprecated GDD uses one active project, not a focus multiplier. */
+export const HIVE_RESEARCH_FOCUS_MULT = 1
 export const HIVE_RESEARCH_NODES_PER_BRANCH = 9
 export const RESEARCH_QUEUE_BASE = 3
-export const RESEARCH_PREVIEW = 3
+/** Show only the next project so the mature tree stays hidden (GDD §138). */
+export const RESEARCH_PREVIEW = 1
+export const RESEARCH_INCREMENTAL_S = 8 * 60
+export const RESEARCH_BREAKTHROUGH_S = 20 * 60
+/** Each Sensor Net drone adds this much research speed. */
+export const HIVE_RESEARCH_WORKER_ACCEL = 0.25
 
 export type HiveResearchNodeKind = 'incremental' | 'breakthrough'
 
@@ -51,19 +56,19 @@ export const HIVE_RESEARCH_BRANCHES: {
   blurb: string
 }[] = [
   {
-    id: 'material',
-    name: 'Material',
-    blurb: 'Foundry, salvage, crafts, and construction. Pick this to grow the shop floor.',
-  },
-  {
     id: 'energy',
-    name: 'Energy',
-    blurb: 'Furnace channels, Network throughput, and plate. Pick this to power more systems at once.',
+    name: 'Hive Engineering',
+    blurb: 'Frames, hull, Workshop, and Core capacity.',
   },
   {
     id: 'observation',
-    name: 'Observation',
-    blurb: 'Reliquary, notes, and the research desk. Pick this for information, shards, and automation depth.',
+    name: 'Drone Systems',
+    blurb: 'Worker efficiency, targeting, and combat analytics.',
+  },
+  {
+    id: 'material',
+    name: 'Industrial Science',
+    blurb: 'Foundry, fabrication, and production capacity.',
   },
 ]
 
@@ -153,20 +158,18 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
 
 export function createEmptyHiveResearchState(): HiveResearchState {
   return {
-    focus: 'material',
+    focus: 'energy',
+    active: false,
     xp: { material: 0, energy: 0, observation: 0 },
     completed: { material: 0, energy: 0, observation: 0 },
   }
 }
 
-function nodeCostBump(index: number): number {
-  return isResearchBreakthroughIndex(index) ? 1.3 : 1
-}
-
 export function hiveResearchNodeCost(index: number, state?: GameState): number {
   const mult = state ? protocolModifiers(state).researchCostMult : 1
-  const raw = 52 * Math.pow(1.5, Math.max(0, index))
-  return Math.max(1, Math.floor(raw * nodeCostBump(index) * mult))
+  const base = isResearchBreakthroughIndex(index) ? RESEARCH_BREAKTHROUGH_S : RESEARCH_INCREMENTAL_S
+  const raw = base * Math.pow(1.25, Math.max(0, index))
+  return Math.max(1, Math.floor(raw * mult))
 }
 
 export function isResearchBreakthroughIndex(index: number): boolean {
@@ -416,16 +419,16 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.foundrySlots) return 'Adds a Foundry smelter.'
   if (node.furnaceSlots) {
     return node.unlockRelay
-      ? 'Opens Strike Relay and lights another Furnace channel.'
+      ? 'Opens Archive Relay and lights another Furnace channel.'
       : 'Lights one more Furnace channel at once.'
   }
   if (node.foundryMasteryReduce) return 'Recipe mastery gates open sooner.'
   if (node.extraUtilitySlots) return 'One extra utility Core slot on the hull. Old recipes solve sooner.'
   if (node.foundryFitSlots) return 'One extra fitted Foundry bit.'
-  if (node.droneEfficiency) return 'Assigned drones fill Network bars harder.'
-  if (node.offFocusAdd) return 'Unfocused branches crawl faster.'
+  if (node.droneEfficiency) return 'Assigned drones fill jobs harder.'
+  if (node.offFocusAdd) return 'Background research crawls faster while another project is active.'
   if (node.unlockReliquary) return 'Opens the blue Reliquary slot.'
-  if (node.researchQueueSlots) return 'Deeper Research Queue. Active Protocols grant extra Research XP.'
+  if (node.researchQueueSlots) return 'Deeper Research Queue. Active Protocols grant extra Research speed.'
   const bits: string[] = []
   if (node.salvage) bits.push(`+${Math.round(node.salvage * 100)}% salvage`)
   if (node.foundrySpeed) bits.push(`+${Math.round(node.foundrySpeed * 100)}% craft speed`)
@@ -435,15 +438,44 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.networkFill) bits.push(`+${Math.round(node.networkFill * 100)}% Network fill`)
   if (node.data) bits.push(`+${Math.round(node.data * 100)}% Archive data`)
   if (node.shardDrop) bits.push(`+${Math.round(node.shardDrop * 100)}% shard drops`)
-  if (node.researchXp) bits.push(`+${Math.round(node.researchXp * 100)}% research XP`)
+  if (node.researchXp) bits.push(`+${Math.round(node.researchXp * 100)}% research speed`)
   return bits.join(' · ') || node.blurb
 }
 
-export function killResearchXp(state: GameState, isBoss: boolean): number {
+export function hiveResearchSpeed(state: GameState): number {
   if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return 0
-  const sector = Math.max(1, state.combat.sector)
-  const route = routeResearchMult(normalizeRoute(state.combat.route))
-  return (0.58 + 0.085 * (sector - 1)) * (isBoss ? 2.5 : 1) * route
+  const drones = stationEffectiveDrones(state, 'sensor-net')
+  return (
+    (1 + HIVE_RESEARCH_WORKER_ACCEL * drones) *
+    hiveResearchXpMult(state) *
+    processResearchSpeedMult(state) *
+    foundryResearchXpMult(state) *
+    hiveResearchProtocolXpMult(state)
+  )
+}
+
+export function hiveResearchActive(state: GameState): boolean {
+  return Boolean(state.hiveResearch?.active)
+}
+
+export function hiveResearchActiveNode(state: GameState): HiveResearchNodeDef | null {
+  if (!hiveResearchActive(state)) return null
+  const branch = state.hiveResearch?.focus ?? 'energy'
+  const done = hiveResearchCompleted(state, branch)
+  return HIVE_RESEARCH_NODES[branch][done] ?? null
+}
+
+export function formatResearchDuration(seconds: number): string {
+  const s = Math.max(0, Math.ceil(seconds))
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  if (m >= 60) {
+    const h = Math.floor(m / 60)
+    const mm = m % 60
+    return mm > 0 ? `${h}h ${mm}m` : `${h}h`
+  }
+  if (m <= 0) return `${r}s`
+  return r > 0 ? `${m}m ${r}s` : `${m}m`
 }
 
 function tryCompleteNodes(state: GameState, branch: HiveResearchBranch): void {
@@ -460,44 +492,44 @@ function tryCompleteNodes(state: GameState, branch: HiveResearchBranch): void {
       recordPlaytest(state, 'research_break', { n: node.name, v: branch })
     }
     noteSystemAction(state, 'research')
+    state.hiveResearch.active = false
   }
 }
 
-/**
- * `labExtra` is Furnace × Reliquary research XP (applied at the combat call site
- * so this file does not import those systems).
- */
-export function grantHiveResearchKillXp(state: GameState, isBoss: boolean, labExtra = 1): number {
-  const base = killResearchXp(state, isBoss)
-  if (base <= 0) return 0
-  if (!state.hiveResearch) state.hiveResearch = createEmptyHiveResearchState()
-  const focus = state.hiveResearch.focus
-  const offFocus = hiveResearchOffFocusMult(state)
-  const lab =
-    Math.max(0.1, labExtra) *
-    hiveResearchXpMult(state) *
-    echoResearchXpMult(state) *
-    processResearchSpeedMult(state) *
-    foundryResearchXpMult(state) *
-    hiveResearchProtocolXpMult(state)
-  let granted = 0
-  for (const branch of HIVE_RESEARCH_BRANCHES) {
-    const focusMult = branch.id === focus ? HIVE_RESEARCH_FOCUS_MULT : offFocus
-    const gain = base * focusMult * lab
-    state.hiveResearch.xp[branch.id] = (state.hiveResearch.xp[branch.id] ?? 0) + gain
-    granted += gain
-    tryCompleteNodes(state, branch.id)
+export function tickResearch(state: GameState, dtSeconds: number): void {
+  if (dtSeconds <= 0) return
+  if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return
+  if (!state.hiveResearch?.active) return
+  const branch = state.hiveResearch.focus
+  const nodes = HIVE_RESEARCH_NODES[branch]
+  if (hiveResearchCompleted(state, branch) >= nodes.length) {
+    state.hiveResearch.active = false
+    return
   }
-  return granted
+  const speed = hiveResearchSpeed(state)
+  if (speed <= 0) return
+  state.hiveResearch.xp[branch] = (state.hiveResearch.xp[branch] ?? 0) + dtSeconds * speed
+  tryCompleteNodes(state, branch)
+}
+
+/** Combat no longer feeds every branch. Research ticks on time instead. */
+export function grantHiveResearchKillXp(
+  _state: GameState,
+  _isBoss: boolean,
+  _labExtra = 1,
+): number {
+  return 0
 }
 
 export function setResearchFocus(state: GameState, branch: HiveResearchBranch): GameState {
   if (!HIVE_RESEARCH_BRANCHES.some((b) => b.id === branch)) return state
   if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return state
-  if (state.hiveResearch?.focus === branch) return state
+  if (hiveResearchCompleted(state, branch) >= HIVE_RESEARCH_NODES[branch].length) return state
+  if (state.hiveResearch?.focus === branch && state.hiveResearch.active) return state
   const next = structuredClone(state)
   if (!next.hiveResearch) next.hiveResearch = createEmptyHiveResearchState()
   next.hiveResearch.focus = branch
+  next.hiveResearch.active = true
   noteSystemAction(next, 'research')
   return next
 }

@@ -313,9 +313,13 @@ export interface PlaytestState {
   pendingInterventions: FrontierIntervention[]
 }
 
-/** USI Research analogue — kill-fed branches; persist across Rebuild. */
+/** Permanent Research — one timed project at a time; persists across Rebuild. */
 export interface HiveResearchState {
+  /** Discipline of the active (or last) project. */
   focus: HiveResearchBranch
+  /** True while the next node of `focus` is running. */
+  active?: boolean
+  /** Seconds of progress toward that branch's next node. */
   xp: Record<HiveResearchBranch, number>
   /** Completed nodes per branch (0..node count). */
   completed: Record<HiveResearchBranch, number>

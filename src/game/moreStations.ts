@@ -60,7 +60,7 @@ export const MAJOR_DOORS: MajorDoorDef[] = [
   {
     id: 'research',
     name: 'Research',
-    blurb: 'Long-term branches. Decision: which field gets the focus bonus?',
+    blurb: 'Permanent branching technology. Decision: which underlying Hive rule improves next?',
     wave: ACT1_CADENCE.research,
     home: 'systems',
   },
@@ -115,14 +115,13 @@ export function moreStationBuckets(state: GameState): {
 }
 
 export function isSystemsNavTab(tab: TabId): boolean {
-  return tab === 'foundry' || tab === 'network' || tab === 'yard' || tab === 'furnace'
+  return tab === 'foundry' || tab === 'network' || tab === 'yard' || tab === 'furnace' || tab === 'research'
 }
 
 export function isMoreNavTab(tab: TabId): boolean {
   return (
     tab === 'stats' ||
     tab === 'reliquary' ||
-    tab === 'research' ||
     tab === 'slag' ||
     tab === 'protocols' ||
     tab === 'echo' ||
