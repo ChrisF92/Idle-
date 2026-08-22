@@ -547,7 +547,7 @@ export const AI_NODES: AiNodeDef[] = [
     id: 'auto-dock-critical',
     name: 'Crisis Patching',
     description:
-      'Much faster out-of-combat hull / shield repair while flagship hull is below 35%. Does not Pause combat.',
+      'Much faster out-of-combat hull / shield repair while Hive hull is below 35%. Does not Pause combat.',
     costAiPoints: 2,
     kind: 'automation',
     permanent: true,
@@ -666,7 +666,7 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'warp-navigator',
     name: 'Warp Navigator',
-    description: 'Unlocks the Warp button once any sector has been cleared.',
+    description: 'Leftover Warp control. Hiveworks Sorties always start at Wave 1.',
     costAiPoints: 2,
     kind: 'qol',
     permanent: true,
@@ -699,7 +699,7 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'tactical-retreat',
     name: 'Tactical Retreat',
-    description: 'Doctrine: disengage at 25% flagship hull instead of destruction.',
+    description: 'Doctrine: disengage at 25% Hive hull instead of destruction.',
     costAiPoints: 2,
     kind: 'doctrine',
     permanent: false,
@@ -819,7 +819,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'siphon-array',
     name: 'Siphon Array',
-    description: 'Permanent +1 Data on every sector clear.',
+    description: 'Permanent +1 Data on every 10-wave clear.',
     costEssence: 2,
     bonusDataPerClear: 1,
   },
@@ -983,7 +983,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'archive-spur',
     name: 'Archive Spur',
-    description: 'Permanent +2 Data on every sector clear (deep ranks).',
+    description: 'Permanent +2 Data on every 10-wave clear (deep ranks).',
     costPm: 3,
     maxRank: 30,
     bonusDataPerClear: 2,
@@ -1047,7 +1047,7 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'no-ai',
     name: 'Silent Bridge',
-    description: 'Reach sector 30 with AI assists disabled. Repeatable.',
+    description: 'Reach Wave 300 with AI assists disabled. Repeatable.',
     restriction: 'AI purchases and doctrines inactive',
     goalSector: 30,
     rewardChallengePoints: 1,
@@ -1057,7 +1057,7 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'thin-hull',
     name: 'Glass Frame',
-    description: 'Reach sector 30 with half hull. Stacks boost Paused repair.',
+    description: 'Reach Wave 300 with half hull. Stacks boost Paused repair.',
     restriction: 'Player hull max ×0.5',
     goalSector: 30,
     rewardChallengePoints: 1,
@@ -1068,7 +1068,7 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'data-drought',
     name: 'Data Drought',
-    description: 'Reach sector 30 without Data gains from combat. Repeatable.',
+    description: 'Reach Wave 300 without Data gains from combat. Repeatable.',
     restriction: 'Combat data drops disabled',
     goalSector: 30,
     rewardChallengePoints: 2,
@@ -1079,7 +1079,7 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'no-utility',
     name: 'Bare Rig',
-    description: 'Reach sector 30 without utility modules. Repeatable.',
+    description: 'Reach Wave 300 without utility modules. Repeatable.',
     restriction: 'Utility modules unequipped and blocked',
     goalSector: 30,
     rewardChallengePoints: 1,
@@ -1090,7 +1090,7 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'short-range',
     name: 'Knife Fight',
-    description: 'Reach sector 30 with all weapons capped to flak range. Repeatable.',
+    description: 'Reach Wave 300 with all weapons capped to flak range. Repeatable.',
     restriction: `Weapon range capped at ${SHORT_RANGE_MAX}`,
     goalSector: 30,
     rewardChallengePoints: 2,
@@ -1101,7 +1101,7 @@ export const CHALLENGES: ChallengeDef[] = [
   {
     id: 'mono-pulse',
     name: 'Mono Pulse',
-    description: 'Reach sector 30 with only the Pulse Cannon weapon module. Repeatable.',
+    description: 'Reach Wave 300 with only the Pulse Cannon weapon module. Repeatable.',
     restriction: 'Only Pulse Cannon weapon modules (Frame Battery ok)',
     goalSector: 30,
     rewardChallengePoints: 2,
@@ -1114,7 +1114,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: 'attrition',
     name: 'Attrition',
     description:
-      'Reach sector 30 with no hangar or field repair — hull only recovers on death warp. Repeatable.',
+      'Reach Wave 300 with no hangar or field repair — hull only recovers on death warp. Repeatable.',
     restriction: 'No Pause / field hull or shield repair',
     goalSector: 30,
     rewardChallengePoints: 2,
@@ -1126,7 +1126,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: 'long-haul',
     name: 'Long Haul',
     description:
-      'Ascension challenge: reach sector 30. Entering costs an Ascension (not a Prestige).',
+      'Ascension challenge: reach Wave 300. Entering costs an Ascension (not a Prestige).',
     restriction: 'None — endurance goal · starts via Ascension',
     goalSector: 30,
     rewardChallengePoints: 3,
@@ -1139,7 +1139,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: 'null-signal',
     name: 'Null Signal',
     description:
-      'Ascension challenge: reach sector 30 with no Signal Cores. First clear stabilizes the Signal bank.',
+      'Ascension challenge: reach Wave 300 with no Signal Cores. First clear stabilizes the Signal bank.',
     restriction: 'Signal Cores unequipped and cannot be equipped · starts via Ascension',
     goalSector: 30,
     rewardChallengePoints: 4,
@@ -1152,7 +1152,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: 'hollow-choir',
     name: 'Hollow Choir',
     description:
-      'Ascension challenge: reach sector 30 with AI assists disabled and half hull. Requires 1 prior Ascension.',
+      'Ascension challenge: reach Wave 300 with AI assists disabled and half hull. Requires 1 prior Ascension.',
     restriction: 'AI inactive · hull ×0.5 · starts via Ascension',
     goalSector: 30,
     rewardChallengePoints: 5,
@@ -1585,7 +1585,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Salvage Rig',
     role: 'utility',
     description:
-      'A wreck claw. Sector clears this run pay more scrap. Comes off when you Rebuild.',
+      'A wreck claw. Wave clears this run pay more scrap. Comes off when you Rebuild.',
     damageBonus: 2,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -2261,15 +2261,16 @@ export function printDropSources(moduleId: string): PrintDropSource[] {
 export function formatPrintSourceLine(moduleId: string): string {
   const sources = printDropSources(moduleId)
   if (sources.length === 0) return ''
+  const wave = modulePrintWave(moduleId)
   const best = sources[0]!
   const extra =
     sources.length > 1
       ? sources
           .slice(1)
-          .map((s) => `${enemyFamilyLabel(s.family)} · Sector ${s.sector}+`)
+          .map((s) => `${enemyFamilyLabel(s.family)} · Wave ${wave}+`)
           .join(' · ')
       : ''
-  const bestLine = `${enemyFamilyLabel(best.family)} · Sector ${best.sector}+`
+  const bestLine = `${enemyFamilyLabel(best.family)} · Wave ${wave}+`
   return extra ? `Best source: ${bestLine} · ${extra}` : `Best source: ${bestLine}`
 }
 
@@ -2797,7 +2798,7 @@ function matterRankGateReason(
   }
   if (nextRank >= 4) {
     if (state.prestige.prestigeCount < 1 && state.meta.highestSectorEver < 12) {
-      return 'Need 1 Rebuild or sector 12 career for rank 4+'
+      return 'Need 1 Rebuild or Best Wave 120 for rank 4+'
     }
   }
   return null

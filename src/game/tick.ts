@@ -75,7 +75,7 @@ import {
   totalEnemyHull,
   computeFightDamage,
 } from './combat'
-import { bandsClearedForWave, isBossWave, powerSectorForWave } from './waves'
+import { bandsClearedForWave, isBossWave, powerSectorForWave, waveForClearedBands } from './waves'
 import { newSortieSeed } from './threatBudget'
 import {
   applyWorkshopCoreStarts,
@@ -521,7 +521,7 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
   pushLog(
     state,
-    `${wasBoss ? 'Boss' : 'Sector'} ${clearedSector} cleared (${wavesForSector(clearedSector)} waves). ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
+    `${wasBoss ? 'Boss Wave' : 'Wave'} ${waveForClearedBands(clearedSector)} cleared (${wavesForSector(clearedSector)} waves). ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
   )
 }
 

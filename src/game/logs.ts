@@ -17,13 +17,13 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'dock',
     title: 'Dock 1',
-    body: 'Hiveworks wakes. Clamps hold a hull that still answers. The crew is gone. The process is not. Launch when the lane is clear.',
+    body: 'Hiveworks wakes. Clamps hold a hull that still answers. The crew is gone. The process is not. Launch when the Hive is ready.',
     unlock: () => true,
   },
   {
     id: 'boss-1',
     title: 'First wreck',
-    body: 'Sector 1 boss came in singing. Pulse cut the song. Plate held. Salvage tastes like slag and someone else’s shift.',
+    body: 'Wave 10 boss came in singing. Pulse cut the song. Plate held. Salvage tastes like slag and someone else’s shift.',
     unlock: (s) => career(s) >= 1,
   },
   {
@@ -118,7 +118,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'act1',
-    title: 'Sector 30',
+    title: 'Wave 300',
     body: 'The first long wall. Not an ending. Challenges are already behind you if you took the door.',
     unlock: (s) => career(s) >= 30 || s.meta.act1Cleared,
   },
@@ -149,7 +149,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'tasks',
     title: 'The list',
-    body: 'Capital does not open for a sector number. It opens when the work is done. Clear 72. Rebuild. Light the Furnace. Rank a Protocol. Finish an Echo. Print a Specialist.',
+    body: 'Capital does not open for a Wave number. It opens when the work is done. Clear Wave 720. Rebuild. Light the Furnace. Rank a Protocol. Finish an Echo. Print a Specialist.',
     unlock: (s) => career(s) >= 72,
   },
   {

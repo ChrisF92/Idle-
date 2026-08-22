@@ -7,6 +7,7 @@ import type { NumberNotation } from '../../game/format'
 import { APP_BUILD } from '../../buildMeta'
 import { forceReloadApp } from '../../pwaReload'
 import { isSystemUnlocked, systemUnlockRequirement } from '../../game/progression'
+import { careerBestWave } from '../../game/waves'
 import { attentionAria, moreStationAttention } from '../../game/hubAttention'
 import { moreStationBuckets, type MajorDoorDef, type MoreStationDef } from '../../game/moreStations'
 import { AttentionPips } from '../AttentionPips'
@@ -232,8 +233,8 @@ export function StatsTab({
             <strong>{state.version}</strong>
           </div>
           <div>
-            <span className="muted">Sector reached</span>
-            <strong>{state.combat.sector}</strong>
+            <span className="muted">Best Wave</span>
+            <strong>{careerBestWave(state) || '—'}</strong>
           </div>
           <div>
             <span className="muted">Rebuilds</span>

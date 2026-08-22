@@ -228,7 +228,7 @@ export function CombatTab({
       {
         id: 'preview-flag',
         side: 'player' as const,
-        name: 'Hiveworks hull',
+        name: 'Hive',
         shape: 'triangle' as const,
         family: 'player',
         hull: combat.playerHull,

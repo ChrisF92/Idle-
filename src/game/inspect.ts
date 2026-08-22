@@ -125,6 +125,7 @@ import {
   shardOwned,
 } from './reliquary'
 import { ACT1_CADENCE } from './cadence'
+import { cycleBestWave, prestigeGainFor } from './rebuild'
 
 export interface InspectStat {
   label: string
@@ -405,21 +406,21 @@ export function inspectFurnaceOverview(state: GameState): InspectCard {
 }
 
 export function inspectRebuildOverview(state: GameState): InspectCard {
-  const sector = Math.max(1, state.combat.sector)
+  const best = cycleBestWave(state)
   const rebuilds = state.prestige.prestigeCount
-  const estimate = Math.max(1, Math.floor(sector / 2) + rebuilds + 1)
+  const estimate = prestigeGainFor(state)
   return {
     title: 'Rebuild',
     kicker: 'Hangar swap',
     stats: [
-      { label: 'This hull sector', value: String(sector) },
+      { label: 'Cycle best Wave', value: String(best) },
       { label: 'Rebuilds done', value: String(rebuilds) },
       { label: 'Matter if you swap now', value: String(estimate) },
     ],
     body: [
-      'Rebuild swaps the hull and wipes Salvage and Core levels. Network links, Foundry recipes, shards, and Research stay.',
-      'Matter this swap is about half the sector you reached, plus one for each Rebuild already done. Challenges can raise that later.',
-      'Swap when the push stalls and another system cannot break the wall — not every sector.',
+      'Rebuild swaps the hull and wipes Salvage and Core Run Levels. Foundry recipes, Relics, Research, and Mastery stay.',
+      'Matter this swap is about one-tenth of your cycle Best Wave, plus Workshop ranks and Scrap earned this cycle. Unspent Scrap does not count.',
+      'Swap when the push stalls and another system cannot break the wall — not every Wave.',
     ],
   }
 }

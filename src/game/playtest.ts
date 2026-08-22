@@ -236,7 +236,7 @@ export function noteSessionStart(state: GameState, now = Date.now()): void {
   log.sessionAt = now
   log.sessionPlaytimeMs = log.playtimeMs
   recordPlaytest(state, 'session_start', {
-    n: `S${Math.max(state.combat?.highestSector ?? 0, state.meta?.highestSectorEver ?? 0)}`,
+    n: `W${Math.max(state.meta?.bestWave ?? 0, state.combat?.bestWave ?? 0)}`,
     v: log.playtimeMs,
   })
 }
@@ -246,7 +246,7 @@ export function noteSessionEnd(state: GameState): void {
   const last = log.events[log.events.length - 1]
   if (last?.k === 'session_end') return
   recordPlaytest(state, 'session_end', {
-    n: `S${Math.max(state.combat?.highestSector ?? 0, state.meta?.highestSectorEver ?? 0)}`,
+    n: `W${Math.max(state.meta?.bestWave ?? 0, state.combat?.bestWave ?? 0)}`,
     v: log.playtimeMs,
   })
 }
@@ -274,7 +274,7 @@ export function noteHighestSector(state: GameState, sector: number): void {
   if (next <= log.sectorAt) return
   log.sectorAt = next
   log.sectorAtPlaytime = log.playtimeMs
-  recordPlaytest(state, 'highest_sector', { n: `S${next}`, v: next, firstKey: `sector:${next}` })
+  recordPlaytest(state, 'highest_sector', { n: `W${next * 10}`, v: next, firstKey: `sector:${next}` })
 }
 
 export function noteAttempt(
@@ -363,7 +363,7 @@ export function playtestProgressRows(state: GameState): PlaytestProgressRow[] {
   for (const [key, at] of Object.entries(log.firsts)) {
     const match = /^sector:(\d+)$/.exec(key)
     if (!match) continue
-    rows.push({ label: `S${match[1]}`, atMs: at })
+    rows.push({ label: `W${Number(match[1]) * 10}`, atMs: at })
   }
   rows.sort((a, b) => a.atMs - b.atMs || a.label.localeCompare(b.label))
   return rows
@@ -441,7 +441,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   if (stall) {
     lines.push(
       `Longest progression stall:`,
-      `S${stall.from} → S${stall.to}: ${formatPlaytimeMs(stall.ms)}`,
+      `W${stall.from * 10} → W${stall.to * 10}: ${formatPlaytimeMs(stall.ms)}`,
     )
   } else {
     lines.push('Longest progression stall: none yet')
@@ -473,7 +473,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   )
   if (log.lastSteamroll && log.lastSteamroll.n >= 2) {
     lines.push(
-      `Steamroll: S${log.lastSteamroll.from} → S${log.lastSteamroll.to}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
+      `Steamroll: W${log.lastSteamroll.from * 10} → W${log.lastSteamroll.to * 10}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
     )
   }
   lines.push('')
@@ -488,7 +488,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
     for (const row of history) {
       const route = row.route === 'B' ? 'B' : ''
       const result = row.clears > 0 ? 'Clear' : row.failures > 0 ? 'Repelled' : 'Open'
-      lines.push(`S${row.sector}${route}`)
+      lines.push(`W${row.sector * 10}${route}`)
       lines.push(`Attempts: ${row.attempts}  Failures: ${row.failures}  ${result}`)
       lines.push(`Frontier combat: ${formatPlaytimeMs(row.frontierCombatMs)}`)
       if (row.retreatFarmMs > 0) {

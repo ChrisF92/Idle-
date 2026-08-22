@@ -256,9 +256,9 @@ export function buildSortieDiagnostic(
   const title =
     summary.outcome === 'defeat'
       ? stats.lastIsBoss
-        ? `REPELLED — SECTOR ${summary.sector} BOSS`
-        : `REPELLED — SECTOR ${summary.sector}`
-      : `CLEARED — SECTOR ${summary.sector}`
+        ? `REPELLED — WAVE ${summary.wave} BOSS`
+        : `REPELLED — WAVE ${summary.wave}`
+      : `CLEARED — WAVE ${summary.wave}`
   const lines: string[] = []
   if (summary.outcome === 'defeat' && stats.lastIsBoss) {
     lines.push(`Boss HP remaining: ${remainingPct}%`)

@@ -126,11 +126,11 @@ describe('sector-gated Core prints', () => {
   })
 
   it('derives Heavy Lance farm source from the armored drop table', () => {
-    expect(formatPrintSourceLine('heavy-lance')).toMatch(/Armored · Sector 6\+/)
+    expect(formatPrintSourceLine('heavy-lance')).toMatch(/Armored · Wave 60\+/)
   })
 
   it('lets Sector 8 Divine drop Charge Prism instead of sitting empty', () => {
-    expect(formatPrintSourceLine('charge-prism')).toMatch(/Divine · Sector 8\+/)
+    expect(formatPrintSourceLine('charge-prism')).toMatch(/Divine · Wave 80\+/)
     expect(pickWeightedDropEntry('divine', 8, () => 0)?.moduleId).toBe('charge-prism')
   })
 

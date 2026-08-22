@@ -1591,7 +1591,7 @@ export function roleIntel(role: EnemyRole): string {
     case 'fighter':
       return 'Medium stand-off. Stops a short distance out and trades shots.'
     case 'skirmisher':
-      return 'Faster and closer. Full dive from sector 4; early packs keep a milder range.'
+      return 'Faster and closer. Full dive from Wave 40; early packs keep a milder range.'
     case 'sniper':
       return 'Kites far back. Winds a charge laser, then a fast bolt.'
     case 'juggernaut':

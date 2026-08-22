@@ -88,7 +88,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
-      'Ward cycles thicken the flagship’s shield bank. Shield regenerates in the fight; Ward raises the ceiling.',
+      'Ward cycles thicken the Hive’s shield bank. Shield regenerates in the fight; Ward raises the ceiling.',
       'Split the corps with Strike until Yield and Loom open. Ward Relays later raise this bar’s machinery.',
       'Ward levels reset on Rebuild.',
     ],
@@ -103,7 +103,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     detail: [
       'Yield makes wrecks worth more Salvage and drips scrap into the hangar.',
       'It also slightly speeds Strike and Ward — later bars feed the earlier ones.',
-      'Opens after you clear sector 4. Yield Relay later improves this bar’s fill and salvage scaling.',
+      'Opens after Wave 40. Yield Relay later improves this bar’s fill and salvage scaling.',
     ],
   },
   {
@@ -116,7 +116,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     detail: [
       'Loom is the shop floor. Cycles speed how fast new drones print and how fast smelters run.',
       'It also slightly speeds Strike, Ward, and Yield.',
-      'Opens after you clear sector 9. Loom Relay later improves manufacture machinery.',
+      'Opens after Wave 90. Loom Relay later improves manufacture machinery.',
     ],
   },
   {
@@ -128,7 +128,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     fillBase: NETWORK_FILL_COST,
     detail: [
       'Archive writes Research data while you fly or sit docked. It also slightly speeds every bar before it.',
-      'Opens with Research at sector 34. Archive Relay later improves data throughput.',
+      'Opens with Research at Wave 340. Archive Relay later improves data throughput.',
     ],
   },
   {
@@ -214,7 +214,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     detail: [
       'Strike Lattice improves the Relay that improves Strike. Higher-order Network.',
       'It raises Relay effectiveness, Strike’s level-scaling exponent, and how much each Strike drone counts.',
-      'Opens at sector 44. Levels reset on Rebuild.',
+      'Opens at Wave 440. Levels reset on Rebuild.',
     ],
   },
   {
@@ -228,7 +228,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     improves: 'Ward Relay strength, Ward scaling exponent, Ward drone efficiency',
     detail: [
       'Ward Lattice improves the Relay that improves Ward.',
-      'Opens at sector 48. Same idea as Strike Lattice, for the shield bar.',
+      'Opens at Wave 480. Same idea as Strike Lattice, for the shield bar.',
     ],
   },
 ]
@@ -253,7 +253,7 @@ export const NETWORK_LINKS: NetworkLinkDef[] = [
     blurb: 'Each drone thinks faster. Same bodies, more work.',
     detail: [
       'Acuity is drone efficiency. Each rank makes every assigned drone count as more Link power, so bars cycle with fewer bodies.',
-      'Heat from the Furnace tunes the corps. Opens with the Furnace at sector 28.',
+      'Heat from the Furnace tunes the corps. Opens with the Furnace at Wave 140.',
       'Acuity persists on Rebuild.',
     ],
     maxRank: 20,
@@ -266,7 +266,7 @@ export const NETWORK_LINKS: NetworkLinkDef[] = [
     blurb: 'The Network ticks faster. Bars fill sooner.',
     detail: [
       'Cycle speed is the clock. Each rank raises how fast every assigned bar completes a level.',
-      'Heat from the Furnace overclocks the link. Opens with the Furnace at sector 28.',
+      'Heat from the Furnace overclocks the link. Opens with the Furnace at Wave 140.',
       'Cycle speed persists on Rebuild.',
     ],
     maxRank: 20,

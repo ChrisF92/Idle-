@@ -102,7 +102,7 @@ describe('shell UX', () => {
       outcome: 'defeat',
       sector: 2,
       wave: 2,
-      note: 'Hull lost in sector 2 wave 2. Knocked back',
+      note: 'Hull lost at Wave 2. Knocked back',
       salvageGained: 4,
       salvageSpent: 6,
       scrapEarned: 12,
@@ -121,7 +121,7 @@ describe('shell UX', () => {
     expect(summary).toBeTruthy()
     expect(summary?.querySelectorAll('.dock-stats')).toHaveLength(1)
     expect(summary?.querySelectorAll('.dock-stats > div')).toHaveLength(3)
-    expect(screen.getByText(/Hull lost in sector 2 wave 2/)).toBeTruthy()
+    expect(screen.getByText(/Hull lost at Wave 2/)).toBeTruthy()
     expect(document.querySelector('.dock-screen .panel-scroll')).toBeTruthy()
   })
 

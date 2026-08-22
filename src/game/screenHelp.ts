@@ -125,7 +125,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Codex',
     body: [
       'Enemy families and hull roles. Soft counters for the loadout you are flying.',
-      'Opens around sector 10, once enemy families are worth comparing. Optional reference.',
+      'Opens around Wave 10, once enemy families are worth comparing. Optional reference.',
     ],
   },
   stats: {

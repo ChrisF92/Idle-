@@ -53,7 +53,7 @@ export function canRankCapital(
   id: CapitalId,
 ): { ok: boolean; reason?: string } {
   if (!capitalUnlocked(state)) {
-    return { ok: false, reason: 'Finish the Task List and clear sector 75' }
+    return { ok: false, reason: 'Capital is retired from Act 1' }
   }
   const def = getCapitalTrack(id)
   if (!def) return { ok: false, reason: 'Unknown track' }

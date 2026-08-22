@@ -10,7 +10,7 @@ import {
 } from './inspect'
 import { NETWORK_BARS, NETWORK_LINKS } from './network'
 
-const JARGON = /USI|ITRTG|analogue|black-bar|PoC|TODO/i
+const JARGON = /USI|ITRTG|analogue|black-bar|PoC|TODO|\bFlagship\b|\bSector\b/i
 
 describe('inspect sheets', () => {
   it('Network, Cores, and Furnace sheets carry live numbers and player copy', () => {

@@ -1005,7 +1005,7 @@ export interface MetaState {
   highestSectorEver: number
   /** Highest Wave reached on any Sortie this career. */
   bestWave: number
-  /** Soft Act 1 climax reached (sector 30). */
+  /** Soft Act 1 climax reached (Wave 300). */
   act1Cleared: boolean
   /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
   ascensionCount: number

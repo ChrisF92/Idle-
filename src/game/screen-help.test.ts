@@ -10,7 +10,7 @@ describe('screen help and More buckets', () => {
       expect(help, id).toBeTruthy()
       expect(help.title.length).toBeGreaterThan(2)
       expect(help.body.length).toBeGreaterThanOrEqual(2)
-      expect(help.body.join(' ')).not.toMatch(/USI|ITRTG|analogue/i)
+      expect(help.body.join(' ')).not.toMatch(/USI|ITRTG|analogue|\bFlagship\b|\bSector\b/i)
       expect(screenHelpFor(id).title).toBe(help.title)
     }
   })

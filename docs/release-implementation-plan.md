@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ threat-budget + 10-wave bosses (SAVE_VERSION 35, package `0.1.0`)  
+**Code snapshot:** `main` @ Wave/Hive copy pass (SAVE_VERSION 35, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -93,6 +93,7 @@ Main already has the **GDD spine**, locked by `src/game/gdd-*.test.ts`:
 | PWA + local save + export/import + sim harness | existing |
 | Hive Frames: Starter + Bastion / Swarm / Reactor / Harvester (D8) | `catalog.ts` `SHIP_FRAMES`, `gdd-frames.test.ts` |
 | Threat budget + named 10-wave boss mechanics | `threatBudget.ts`, `bossMechanics.ts`, `gdd-threat-budget.test.ts` |
+| Player copy uses Wave / Hive, not Sector / Flagship | HUD, inspect, Codex, Stats, Sortie diagnostics |
 
 **Cadence in code** (`src/game/cadence.ts`) already matches GDD §102:
 
@@ -161,7 +162,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | PWA / portrait | PARTIAL | Works; description still says “USI-style”; orientation `any` |
 | Play Store wrap | MISSING | No TWA / Capacitor / listing assets |
 | Dev tools / playtests | PARTIAL | Still sector jumps, Echo / Specialists / Task List presets (`dev.ts`, `DevTools.tsx`) |
-| Codex / Stats / Settings | PARTIAL | Present; copy still hull/sector flavoured |
+| Codex / Stats / Settings | PARTIAL | Present; player copy uses Wave / Hive |
 | Audio | MISSING | No SFX/music pipeline |
 | Telemetry GDD §154–156 | PARTIAL | `sortieTelemetry.ts` + sim; not the full event set |
 | README / old balance docs | LEGACY | Describe sectors, Network, USI combat |
@@ -203,7 +204,7 @@ Order is dependency order, not calendar. Each phase is one PR off the previous. 
 4. Isolate or delete `NETWORK_BARS` combat UI. Yield/Loom/Archive multipliers must move onto Worker jobs or die (GDD §63: workers are not +damage/+shield; industrial speed is allowed).
 5. **Rewrite dev tools and playtest seeds in this PR** (D10). See §5a. `jump-sector` becomes career Best Wave + live Wave. Delete Echo / Specialists / Task List / Capital / S18–S80 USI door buttons. Add GDD door presets (W20 / 30 / 50 / 70 / 140 / 170 / 210 / 250 / 300).
 6. Strip Process categories/presets named Strike/Ward/Echo.
-7. Codex/inspect/help strings: Hive, Wave, Worker Drone, Challenge — not Flagship, Sector, Compute, Warp, Echo.
+7. **Done.** Codex/inspect/help strings: Hive, Wave, Worker Drone, Challenge — not Flagship, Sector, Compute, Warp, Echo.
 
 **Acceptance:**
 
@@ -282,7 +283,7 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 
 6. **Done.** Threat-budget generator (GDD §10): each wave band has budget, density, allowed families, elite chance. Seed stored on the Sortie for telemetry.
 7. **Done.** Boss every 10th wave: a **mechanic**, not only HP (telegraph, add spawn, shield phase, support aura). W300 stays authored climax (`climax-choir`).
-8. Sortie HUD already has Salvage/Scrap/Wave/Speed/Pressure/Time — keep, tighten to GDD §111–112.
+8. **Done.** Sortie HUD is Wave / Salvage / Scrap / Speed. Combat logs, Stats, inspect, Codex help, and Sortie diagnostics say Wave / Hive, not Sector / Flagship.
 
 **Acceptance:**
 

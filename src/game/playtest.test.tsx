@@ -121,7 +121,7 @@ describe('local playtest log', () => {
     expect(formatPlaytimeMs(stall!.ms)).toBe('8m 42s')
     const report = buildPlaytestReport(s)
     expect(report).toMatch(/PLAYTEST REPORT/)
-    expect(report).toMatch(/S5/)
+    expect(report).toMatch(/W50/)
     expect(report).toMatch(/Longest progression stall/)
     expect(exportPlaytestJson(s)).toMatch(/"events"/)
   })
@@ -254,6 +254,7 @@ describe('sortie counters and pressure', () => {
         ...s.combat.lastSortie,
         outcome: 'defeat',
         sector: 14,
+        wave: 140,
         stats: stats({
           finalFightTime: 28,
           shieldBreaks: 4,
@@ -265,7 +266,7 @@ describe('sortie counters and pressure', () => {
       },
       s,
     )
-    expect(text.title).toMatch(/SECTOR 14 BOSS/)
+    expect(text.title).toMatch(/WAVE 140 BOSS/)
     expect(text.improvements.length).toBeGreaterThan(0)
     expect(JSON.stringify(text)).not.toMatch(/optimal/i)
   })
@@ -294,7 +295,7 @@ describe('sortie counters and pressure', () => {
       outcome: 'defeat',
       sector: 14,
       wave: 5,
-      note: 'Hull lost in sector 14.',
+      note: 'Hull lost at Wave 140.',
       stats: stats({
         finalFightTime: 28,
         shieldBreaks: 4,

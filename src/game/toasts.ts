@@ -265,12 +265,12 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     if (notice?.kind === 'repelled' && !notice.first) {
       const fallback =
         notice.fallback === notice.sector
-          ? `Holding Sector ${notice.fallback}.`
-          : `Falling back to S${notice.fallback}.`
+          ? `Holding Wave ${notice.fallback * 10}.`
+          : `Falling back to Wave ${notice.fallback * 10}.`
       push({
         id: `frontier:repel:${notice.seq}`,
         category: 'REPULSED',
-        title: `Repelled — S${notice.sector}`,
+        title: `Repelled — Wave ${notice.sector * 10}`,
         body: fallback,
         action: { label: 'SORTIE', nav: { kind: 'tab', tab: 'combat' } },
       })
@@ -279,7 +279,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       push({
         id: `frontier:clear:${notice.seq}`,
         category: 'FRONTIER',
-        title: `Frontier cleared — S${notice.sector}`,
+        title: `Frontier cleared — Wave ${notice.sector * 10}`,
         body: 'Advance resumes.',
         action: { label: 'SORTIE', nav: { kind: 'tab', tab: 'combat' } },
       })

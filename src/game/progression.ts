@@ -443,8 +443,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   // --- Repeatables (long AIP sink) ---
   {
     id: 'sector-grind',
-    name: 'Sector Patrol',
-    description: 'Every 50 lifetime sector clears. Repeatable.',
+    name: 'Wave Patrol',
+    description: 'Every 50 lifetime 10-wave clears. Repeatable.',
     rewardAiPoints: 1,
     condition: { type: 'lifetime-sectors', min: 50 },
     repeatable: true,

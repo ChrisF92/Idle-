@@ -2274,7 +2274,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.restore()
     }
 
-    // Compact hull / shield pips under every ship, including the flagship.
+    // Compact hull / shield pips under every ship, including the Hive.
     {
       const barW = actor.r * 2.1
       const barX = ax - barW / 2

@@ -1636,7 +1636,7 @@ export function enterChallenge(
     ? `Ascension ×${next.meta.ascensionCount}`
     : 'Prestige'
   next.combat.log = [
-    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: sector ${challenge.goalSector}.`,
+    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: Wave ${challenge.goalSector * 10}.`,
     ...next.combat.log,
   ]
   return next
