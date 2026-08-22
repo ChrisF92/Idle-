@@ -913,11 +913,60 @@ h2 .inspect-name {
 }
 
 .sortie-sheet .core-sheet,
-.sortie-sheet .network-sheet {
+.sortie-sheet .network-sheet,
+.sortie-sheet .run-upgrade-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.run-upgrade-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.upgrade-card {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.5rem 0.55rem;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+}
+
+.upgrade-card.is-affordable {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+.upgrade-card-head {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.upgrade-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.upgrade-card-stats dt {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.upgrade-card-stats dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.82rem;
+}
+
+.upgrade-card > button {
+  justify-self: start;
+  min-height: 2.1rem;
 }
 
 .sortie-actions {
@@ -1382,7 +1431,7 @@ h2 .inspect-name {
 
 .combat-hud-bar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.25rem 0.4rem;
   align-items: end;
   padding: 0.35rem 0.65rem 0.3rem;

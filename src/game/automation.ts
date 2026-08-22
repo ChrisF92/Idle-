@@ -181,23 +181,21 @@ export function autoCoreTrain(state: GameState): void {
   state.base.assignments = assignments
 }
 
-/** Spend salvage on Core upgrades while affordable. */
+/** Spend Scrap on Core ranks at Dock while affordable. */
 export function autoSalvageUpgrades(state: GameState): void {
+  if (!state.combat.docked) return
   const cfg = processConfig(state)
-  const processSalvage = hasProcess(state, 'auto-salvage') && cfg.core.enabled
-  if (!aiDoctrinesActive(state, 'auto-salvage-loop') && !processSalvage) return
-  if (processSalvage && state.combat.docked) {
-    if (!aiDoctrinesActive(state, 'auto-salvage-loop')) return
-  }
+  const processCores = hasProcess(state, 'auto-salvage') && cfg.core.enabled
+  if (!aiDoctrinesActive(state, 'auto-salvage-loop') && !processCores) return
   let guard = 0
   while (guard++ < 20) {
-    const next = processSalvage
+    const next = processCores
       ? pickProcessCoreUpgrade(state, { force: true })
       : hasProcess(state, 'smart-core')
         ? upgradeBestValueModule(state, { force: true })
         : upgradeCheapestModule(state, { force: true })
     if (next === state) break
-    if (next.resources.salvage >= state.resources.salvage) break
+    if (next.resources.scrap >= state.resources.scrap) break
     adopt(state, next)
   }
 }

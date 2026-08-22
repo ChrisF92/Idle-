@@ -45,13 +45,13 @@ export function coreWarnings(spending: CoreSpendingSummary[]): SimulationWarning
   if (pulse && pulse.share >= 0.85 && (plate?.share ?? 0) < 0.1) {
     out.push({
       severity: 'warning',
-      message: `Pulse received ${(pulse.share * 100).toFixed(0)}% of Core salvage; Plate is nearly unused.`,
+      message: `Pulse received ${(pulse.share * 100).toFixed(0)}% of Core Scrap; Plate is nearly unused.`,
     })
   }
   if (plate && plate.share >= 0.85) {
     out.push({
       severity: 'warning',
-      message: `Plate received ${(plate.share * 100).toFixed(0)}% of Core salvage; damage may be starved.`,
+      message: `Plate received ${(plate.share * 100).toFixed(0)}% of Core Scrap; damage may be starved.`,
     })
   }
   if (plate && plate.levelsPurchased === 0 && pulse && pulse.levelsPurchased >= 8) {

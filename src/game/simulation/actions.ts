@@ -51,7 +51,6 @@ import {
   canBuyFoundryUpgrade,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
-  foundrySalvageReserve,
   scaledFoundryCost,
 } from '../foundry'
 import {
@@ -166,11 +165,11 @@ function coreScore(
   if (level >= MAX_MODULE_LEVEL) return -1
   if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return -1
   const cost = moduleUpgradeCost(level, moduleId)
-  const reserved = foundrySalvageReserve(state)
-  if (cost > state.resources.salvage - reserved || cost <= 0) return -1
+  if (cost > (state.resources.scrap ?? 0) || cost <= 0) return -1
   const before = computeShipStats(state)
   const probe = structuredClone(state)
-  probe.resources.salvage += cost
+  probe.combat.docked = true
+  probe.resources.scrap += cost
   const upgraded = upgradeModule(probe, moduleId)
   const after = computeShipStats(upgraded)
   const mod = getModule(moduleId)
@@ -192,6 +191,7 @@ export function spendSalvageOnCores(
   ctx: StrategyContext,
   mode: 'active' | 'casual' | 'optimiser',
 ): GameState {
+  if (!state.combat.docked) return state
   let next = resolveMilestones(state, ctx)
   let guard = 0
   while (guard++ < (mode === 'casual' ? 4 : 12)) {

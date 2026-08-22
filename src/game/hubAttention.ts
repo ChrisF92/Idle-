@@ -24,6 +24,12 @@ import { protocolCoreScalingAdd } from './protocols'
 import { canBuyProcessNode, processVisibleNodes } from './process'
 import { hasHullLostOnce, isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
+import {
+  RUN_UPGRADE_CAP,
+  effectiveUpgradeLevel,
+  runUpgradeCost,
+  visibleRunUpgrades,
+} from './workshop'
 import { noteSystemOpen } from './playtest'
 
 export type AttentionFlags = { spend: boolean; fresh: boolean }
@@ -120,12 +126,13 @@ function hasUnseen(state: GameState, keys: string[]): boolean {
 }
 
 function coresSpend(state: GameState): boolean {
+  if (!state.combat.docked) return false
   if (!hasHullLostOnce(state)) return false
-  const salvage = state.resources.salvage
+  const scrap = state.resources.scrap ?? 0
   for (const moduleId of state.shipyard.modules) {
     const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
     if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return true
-    if (level < MAX_MODULE_LEVEL && moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, getModule(moduleId)?.role)) <= salvage) return true
+    if (level < MAX_MODULE_LEVEL && moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, getModule(moduleId)?.role)) <= scrap) return true
   }
   return false
 }
@@ -240,10 +247,23 @@ export function attentionAria(label: string, flags: AttentionFlags): string {
   return notes.length ? `${label}, ${notes.join(', ')}` : label
 }
 
+function runUpgradeSpend(state: GameState): boolean {
+  if (state.combat.docked) return false
+  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
+  for (const def of visibleRunUpgrades(best)) {
+    const level = effectiveUpgradeLevel(state, def.id)
+    if (level >= RUN_UPGRADE_CAP) continue
+    if (runUpgradeCost(level) <= (state.resources.salvage ?? 0)) return true
+  }
+  return false
+}
+
 export function tabAttention(state: GameState, tab: TabId): AttentionFlags {
   switch (tab) {
     case 'combat':
-      return { spend: coresSpend(state), fresh: coresFresh(state) }
+      return { spend: runUpgradeSpend(state), fresh: coresFresh(state) }
+    case 'dock':
+      return { spend: coresSpend(state), fresh: false }
     case 'network':
       return networkAttention(state)
     case 'foundry':

@@ -131,7 +131,7 @@ export function snapshotWorkshopCoreStarts(state: GameState): void {
   state.workshop.coreStarts = { ...state.shipyard.moduleLevels }
 }
 
-/** After a Sortie, Core ranks snap back to Workshop starts. */
+/** After a Sortie, temporary Salvage ranks clear. Core ranks stay at Dock starts. */
 export function resetRunCoreLevels(state: GameState): void {
   applyWorkshopCoreStarts(state)
   state.combat.runUpgrades = {}

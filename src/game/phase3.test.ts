@@ -83,18 +83,18 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(visibleResourceIds(s)).toContain('salvage')
   })
 
-  it('still spends salvage on in-run Core levels', () => {
+  it('spends Scrap on Dock Core ranks', () => {
     let s = createInitialState(0)
-    s.resources.salvage = 10
+    s.resources.scrap = 10
     s = upgradeModule(s, 'pulse-cannon')
     expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
-    expect(s.resources.salvage).toBe(7)
+    expect(s.resources.scrap).toBe(7)
   })
 
   it('blocks further Pulse levels until the pending milestone is picked', () => {
     let s = createInitialState(0)
     s.shipyard.moduleLevels['pulse-cannon'] = 10
-    s.resources.salvage = 999
+    s.resources.scrap = 999
     s = upgradeModule(s, 'pulse-cannon')
     expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(10)
     s = pickCoreMilestone(s, 'pulse-cannon', 'pulse-10', 'rapid')

@@ -43,13 +43,14 @@ describe('Hiveworks starter (tutorial retired)', () => {
     expect(state.combat.lastSortie.outcome).toBe('defeat')
   })
 
-  it('tops up Salvage when Pulse is ranked but Plate is still unaffordable', () => {
+  it('tops up Scrap when Pulse is ranked but Plate is still unaffordable', () => {
     let state = createInitialState(0)
     state.meta.hullLostOnce = true
+    state.combat.docked = true
     state.shipyard.moduleLevels['pulse-cannon'] = 1
-    state.resources.salvage = 3
+    state.resources.scrap = 3
     state = ensureStarterCoresTourSalvage(state)
-    expect(state.resources.salvage).toBe(6)
+    expect(state.resources.scrap).toBe(6)
     state = upgradeModule(state, 'plate-layer')
     expect(state.shipyard.moduleLevels['plate-layer']).toBe(1)
   })

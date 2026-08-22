@@ -2,17 +2,16 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { formatCompact } from '../../game/format'
-import { activeGuideStep, hasHullLostOnce, isCoresGuideTarget, isSystemUnlocked, type GuideStep } from '../../game/progression'
-import { attentionAria, coresAttention } from '../../game/hubAttention'
-import { AttentionPips } from '../AttentionPips'
+import { activeGuideStep, isCoresGuideTarget, isSystemUnlocked, type GuideStep } from '../../game/progression'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
+import { SheetTabs } from '../SheetTabs'
 import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { markLocalOk } from '../../hooks/useJustBecame'
-import { hasProcess } from '../../game/process'
 import {
   effectiveUpgradeLevel,
   runUpgradeCost,
+  salvageWaveBonus,
   visibleRunUpgrades,
   workshopLevel,
 } from '../../game/workshop'
@@ -122,6 +121,33 @@ function FragmentChip({ state, onOpen }: { state: GameState; onOpen?: () => void
   )
 }
 
+function runUpgradePreview(
+  state: GameState,
+  id: RunUpgradeId,
+): { current: string; next: string } {
+  const level = effectiveUpgradeLevel(state, id)
+  const fmt = (per: number) => ({
+    current: `×${Math.pow(1 + per, level).toFixed(2)}`,
+    next: `×${Math.pow(1 + per, level + 1).toFixed(2)}`,
+  })
+  switch (id) {
+    case 'weapon-power':
+      return fmt(0.08)
+    case 'cycle-rate':
+      return fmt(0.03)
+    case 'hull':
+      return fmt(0.08)
+    case 'shield':
+      return fmt(0.1)
+    case 'salvage-kill':
+      return fmt(0.08)
+    case 'salvage-wave': {
+      const next = Math.floor(4 * (level + 1) * Math.pow(1.06, level + 1))
+      return { current: `+${formatCompact(salvageWaveBonus(state))}`, next: `+${formatCompact(next)}` }
+    }
+  }
+}
+
 function RunUpgradePanel({
   state,
   category,
@@ -141,30 +167,53 @@ function RunUpgradePanel({
         const start = workshopLevel(state, def.id)
         const cost = runUpgradeCost(level)
         const affordable = state.resources.salvage >= cost
+        const preview = runUpgradePreview(state, def.id)
         return (
-          <button
-            key={def.id}
-            type="button"
-            className={affordable ? 'network-row is-affordable' : 'network-row'}
-            disabled={!onBuy || !affordable}
-            onClick={() => onBuy?.(def.id)}
-          >
-            <span>
+          <article key={def.id} className={affordable ? 'upgrade-card is-affordable' : 'upgrade-card'}>
+            <header className="upgrade-card-head">
               <strong>{def.name}</strong>
               <span className="muted">
-                {' '}
                 Lv {level}
-                {start > 0 ? ` (${start} Workshop)` : ''}
+                {start > 0 ? ` · ${start} Workshop` : ''}
               </span>
-              <p className="muted">{def.blurb}</p>
-            </span>
-            <strong>{formatCompact(cost)}</strong>
-          </button>
+            </header>
+            <p className="muted">{def.blurb}</p>
+            <dl className="upgrade-card-stats">
+              <div>
+                <dt>Current</dt>
+                <dd>{preview.current}</dd>
+              </div>
+              <div>
+                <dt>Next</dt>
+                <dd>{preview.next}</dd>
+              </div>
+              <div>
+                <dt>Cost</dt>
+                <dd>{formatCompact(cost)} Salvage</dd>
+              </div>
+            </dl>
+            <button
+              type="button"
+              className="primary"
+              disabled={!onBuy || !affordable}
+              onClick={() => onBuy?.(def.id)}
+            >
+              Buy
+            </button>
+          </article>
         )
       })}
     </div>
   )
 }
+
+type SortiePane = 'upgrades' | 'cores' | 'directives'
+
+const SORTIE_PANES: { id: SortiePane; label: string; guide?: string }[] = [
+  { id: 'upgrades', label: 'Upgrades' },
+  { id: 'cores', label: 'Cores', guide: 'cores-sheet' },
+  { id: 'directives', label: 'Directives' },
+]
 
 export function CombatTab({
   state,
@@ -180,10 +229,7 @@ export function CombatTab({
   onCoresRequestHandled,
   onOpenFoundry,
   onOpenPrints,
-  onBuyMaxCores,
   onChooseDirective,
-  onEquipRelic,
-  onRemoveRelic,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -192,12 +238,8 @@ export function CombatTab({
   const protocol = activeProtocol(state)
   const titleId = useId()
   const forceCores = coresGuideActive(state, guide)
-  const salvageOpen = live || hasHullLostOnce(state)
-  const [coresOpen, setCoresOpen] = useState(false)
   const [upgradeCat, setUpgradeCat] = useState<RunUpgradeCategory>('attack')
-  const [upgradesOpen, setUpgradesOpen] = useState(false)
-  const sheetOpen = salvageOpen && (coresOpen || forceCores)
-  const coresFlags = coresAttention(state)
+  const [pane, setPane] = useState<SortiePane>(live ? 'upgrades' : 'cores')
   const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
   const shieldPct = stats.shieldMax > 0 ? combat.playerShield / stats.shieldMax : 0
   const hullBand = hullPct <= 0.28 ? 'critical' : hullPct <= 0.55 ? 'damaged' : 'healthy'
@@ -213,26 +255,26 @@ export function CombatTab({
   const focusCoreId = useRef<string | undefined>(undefined)
 
   useEffect(() => {
-    if (forceCores) setCoresOpen(true)
+    if (live) setPane('upgrades')
+  }, [live])
+
+  useEffect(() => {
+    if (forceCores) setPane('cores')
   }, [forceCores])
 
   useEffect(() => {
-    if (sheetOpen) onMarkCoresSeen?.()
-  }, [sheetOpen, onMarkCoresSeen])
-
-  useEffect(() => {
-    if (guide && !isCoresGuideTarget(guide)) setCoresOpen(false)
-  }, [guide])
+    if (pane === 'cores') onMarkCoresSeen?.()
+  }, [pane, onMarkCoresSeen])
 
   useEffect(() => {
     if (!coresRequest) return
     focusCoreId.current = coresRequest.moduleId
-    if (!live || dying) setCoresOpen(true)
+    if (!live || dying) setPane('cores')
     onCoresRequestHandled?.()
   }, [coresRequest, live, dying, onCoresRequestHandled])
 
   useEffect(() => {
-    if (!sheetOpen) return
+    if (pane !== 'cores') return
     const moduleId = focusCoreId.current
     if (!moduleId) return
     const id = moduleId.replace(/[^a-z0-9-]/gi, '')
@@ -241,7 +283,7 @@ export function CombatTab({
       el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     }
     focusCoreId.current = undefined
-  }, [sheetOpen])
+  }, [pane])
 
   useEffect(() => {
     if (combat.docked && !dying) {
@@ -282,15 +324,6 @@ export function CombatTab({
     const t = window.setTimeout(() => setBanner(null), 1700)
     return () => window.clearTimeout(t)
   }, [banner])
-
-  useEffect(() => {
-    if (!sheetOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !forceCores) setCoresOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [sheetOpen, forceCores])
 
   const previewPlayer = useMemo(
     () => [
@@ -334,6 +367,9 @@ export function CombatTab({
 
   const challenge = isChallengeSortie(state)
   const directiveOffer = hasDirectiveOffer(state) ? (combat.directiveOffer ?? []) : []
+  useEffect(() => {
+    if (directiveOffer.length > 0) setPane('directives')
+  }, [directiveOffer.length])
   const activeDirectives = (combat.directives ?? [])
     .map((id) => getDirective(id))
     .filter((def): def is NonNullable<typeof def> => Boolean(def))
@@ -378,6 +414,10 @@ export function CombatTab({
         <div className="combat-hud-readout" data-guide="salvage-stat">
           <span className="combat-hud-kicker">Salvage</span>
           <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
+        </div>
+        <div className="combat-hud-readout" data-guide="scrap-stat">
+          <span className="combat-hud-kicker">Scrap</span>
+          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.scrap))}</strong>
         </div>
       </header>
 
@@ -440,85 +480,60 @@ export function CombatTab({
             Launch Sortie
           </button>
         )}
-        {live ? (
-          <button
-            type="button"
-            className={upgradesOpen ? 'primary' : undefined}
-            onClick={() => setUpgradesOpen((open) => !open)}
-          >
-            Upgrades
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={sheetOpen ? 'primary sortie-cores-btn' : 'sortie-cores-btn'}
-          data-guide={sheetOpen ? undefined : 'cores-sheet'}
-          aria-expanded={sheetOpen}
-          aria-label={attentionAria('Cores', coresFlags)}
-          onClick={() => setCoresOpen((open) => !open)}
-        >
-          Cores
-          <AttentionPips spend={coresFlags.spend} fresh={coresFlags.fresh} />
-        </button>
       </div>
 
-      {upgradesOpen && live ? (
-        <div className="sortie-upgrade-dock">
-          <div className="sheet-tabs">
-            {(['attack', 'defense', 'economy'] as RunUpgradeCategory[]).map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                className={upgradeCat === cat ? 'sheet-tab active' : 'sheet-tab'}
-                onClick={() => setUpgradeCat(cat)}
-              >
-                {cat === 'attack' ? 'Attack' : cat === 'defense' ? 'Defense' : 'Economy'}
-              </button>
-            ))}
-          </div>
-          <RunUpgradePanel state={state} category={upgradeCat} onBuy={onBuyRunUpgrade} />
-        </div>
-      ) : null}
-
-      {sheetOpen ? (
-        <div
-          className="screen-help-backdrop cores-modal-backdrop"
-          role="presentation"
-          onClick={() => {
-            if (!forceCores) setCoresOpen(false)
-          }}
-        >
-          <div
-            className="screen-help-card cores-modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-            data-guide="cores-sheet"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="combat-hud-kicker">Cores</p>
-            <h3 id={titleId}>Cores</h3>
-            <p className="sortie-sheet-kicker">Salvage ranks these Cores for this Sortie only.</p>
+      <div className="sortie-sheet">
+        <SheetTabs
+          value={pane}
+          onChange={setPane}
+          options={SORTIE_PANES}
+          label="Sortie panes"
+        />
+        {pane === 'upgrades' ? (
+          live ? (
+            <>
+              <SheetTabs
+                value={upgradeCat}
+                onChange={setUpgradeCat}
+                options={[
+                  { id: 'attack', label: 'Attack' },
+                  { id: 'defense', label: 'Defense' },
+                  { id: 'economy', label: 'Economy' },
+                ]}
+                label="Upgrade categories"
+              />
+              <RunUpgradePanel state={state} category={upgradeCat} onBuy={onBuyRunUpgrade} />
+            </>
+          ) : (
+            <p className="muted">Launch to spend Salvage on Attack, Defense, and Economy.</p>
+          )
+        ) : null}
+        {pane === 'cores' ? (
+          <div data-guide="cores-sheet">
+            <p className="sortie-sheet-kicker">
+              Inspect only. Rank and equip Cores at Dock with Scrap.
+            </p>
             <CoreSheet
               state={state}
               compact
+              inspectOnly
               onUpgrade={onUpgrade}
               onPickMilestone={onPickMilestone}
-              onBuyMax={hasProcess(state, 'core-buy-max') ? onBuyMaxCores : undefined}
-              onEquipRelic={onEquipRelic}
-              onRemoveRelic={onRemoveRelic}
             />
-            <button
-              type="button"
-              className="primary"
-              disabled={forceCores}
-              onClick={() => setCoresOpen(false)}
-            >
-              Close
-            </button>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+        {pane === 'directives' ? (
+          <div>
+            {activeDirectives.length > 0 ? (
+              <p className="muted">
+                Active: {activeDirectives.map((def) => def.name).join(' · ')}
+              </p>
+            ) : (
+              <p className="muted">Directives pause the Sortie at Waves 50, 100, 150, 200, and 250.</p>
+            )}
+          </div>
+        ) : null}
+      </div>
 
       {directiveOffer.length > 0 && !dying ? (
         <div className="screen-help-backdrop directive-backdrop" role="presentation">

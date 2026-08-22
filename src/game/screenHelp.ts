@@ -34,15 +34,15 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Launch a Sortie from here. Every run starts at Wave 1. Death or Extract returns you to Dock.',
-      'Header shows Best Wave, Rebuild cycle, Scrap, and Matter. Close here and the Hive keeps processing; close mid-Sortie and that run freezes.',
-      'Rebuild at Wave 70 trades this cycle’s Workshop and Scrap for permanent Matter. The hangar lists RESET, KEEP, and GAIN. Do not confirm until you mean it.',
+      'Header shows Best Wave, Rebuild cycle, Scrap, and Matter. Equip and rank Cores here with Scrap — those ranks last until Rebuild. Workshop also spends Scrap.',
+      'Rebuild at Wave 70 trades this cycle’s Workshop, Core ranks, and Scrap for permanent Matter. The hangar lists RESET, KEEP, and GAIN. Do not confirm until you mean it.',
     ],
   },
   combat: {
     title: 'Sortie',
     body: [
       'Weapons fire automatically. Waves come from all directions. The header shows Wave, hull, and shield.',
-      'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage ranks Pulse and Plate for this run only.',
+      'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage buys Attack, Defense, and Economy for this run only. Rank Cores at Dock with Scrap.',
       'If you close mid-Sortie, combat freezes. Foundry, fabrication, and Worker jobs keep running.',
       'Worker Drones unlock at Wave 30 under Systems. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
     ],

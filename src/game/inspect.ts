@@ -286,9 +286,9 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   const stats: InspectStat[] = [
     { label: 'Role', value: ROLE_LABEL[def.role] ?? def.role },
     { label: 'Level', value: maxed ? `${level} · max` : `${level}/${MAX_MODULE_LEVEL}` },
-    { label: 'Salvage', value: formatCompact(state.resources.salvage) },
+    { label: 'Scrap', value: formatCompact(state.resources.scrap) },
   ]
-  if (!maxed) stats.push({ label: 'Next level', value: `${formatCompact(cost)} salvage` })
+  if (!maxed) stats.push({ label: 'Next level', value: `${formatCompact(cost)} Scrap` })
   for (const row of previews) {
     stats.push({
       label: row.label,

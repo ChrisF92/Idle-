@@ -11,7 +11,8 @@ import {
   workshopLevel,
 } from '../../game/workshop'
 import { isRelicsUnlocked, SHARDS, shardOwned } from '../../game/reliquary'
-import { getFrame, getModule, moduleLevel, moduleMasteryRank } from '../../game/catalog'
+import { getFrame } from '../../game/catalog'
+import { hasProcess } from '../../game/process'
 import { CoreSheet } from '../CoreSheet'
 import { SheetTabs } from '../SheetTabs'
 
@@ -21,6 +22,9 @@ interface DockTabProps {
   onOpenSortie: () => void
   onRebuild: () => void
   onBuyWorkshop?: (id: RunUpgradeId) => void
+  onUpgrade?: (moduleId: string) => void
+  onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
+  onBuyMaxCores?: () => void
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
 }
@@ -42,6 +46,9 @@ export function DockTab({
   onOpenSortie,
   onRebuild,
   onBuyWorkshop,
+  onUpgrade,
+  onPickMilestone,
+  onBuyMaxCores,
   onEquipRelic,
   onRemoveRelic,
 }: DockTabProps) {
@@ -76,7 +83,7 @@ export function DockTab({
               ? 'Hull is docked. Rebuild hangar is ready.'
               : !summary.outcome
                 ? 'Your Hive is ready. Launch a Sortie — every run starts at Wave 1.'
-                : 'Spend Scrap in Workshop, then launch another Sortie from Wave 1.'}
+                : 'Spend Scrap on Cores and Workshop, then launch another Sortie from Wave 1.'}
         </p>
       </header>
 
@@ -118,10 +125,13 @@ export function DockTab({
         </button>
       )}
 
-      <div className="dock-section dock-loadout">
+      <div className="dock-section dock-loadout" data-guide="dock-cores">
         <p className="combat-hud-kicker">Loadout</p>
         <h3>Hive</h3>
-        <p className="muted">{frame?.name ?? 'Hive Frame'} · rank Cores on Sortie.</p>
+        <p className="muted">
+          {frame?.name ?? 'Hive Frame'} · Equip and rank Cores here with Scrap. Ranks last until
+          Rebuild.
+        </p>
         <div className="stat-row dock-stats">
           <div>
             <span className="muted">Hull</span>
@@ -146,45 +156,24 @@ export function DockTab({
             <strong>{formatCompact(stats.damage)}</strong>
           </div>
         </div>
-        <ul className="dock-core-list">
-          {state.shipyard.modules.map((id) => {
-            const mod = getModule(id)
-            const run = moduleLevel(state.shipyard.moduleLevels, id)
-            const mastery = moduleMasteryRank(state, id)
-            return (
-              <li key={id}>
-                <strong>{mod?.name ?? id}</strong>
-                <span className="muted">
-                  {' '}
-                  Lv {run}
-                  {mastery > 0 ? ` · Mastery ${mastery}` : ''}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
-
-      {!live && isRelicsUnlocked(state) ? (
-        <div className="dock-relics" data-guide="relic-sockets">
-          <p className="combat-hud-kicker">Loadout</p>
-          <h3>Relics</h3>
-          <p className="muted">
+        {!live && isRelicsUnlocked(state) ? (
+          <p className="muted" data-guide="relic-sockets">
             {SHARDS.some((shard) => shardOwned(state, shard.id) > 0)
               ? 'Matching sockets only — Power, Shield, or Industrial. Core Mastery 5 or Wave 275 adds Universal. Spare copies upgrade I–III in Relics with Slag Ingots.'
               : 'Relic sockets are open. Recover Relics from wrecks, then install them into matching Core sockets.'}
           </p>
-          <CoreSheet
-            state={state}
-            compact
-            relicsOnly
-            onUpgrade={() => undefined}
-            onPickMilestone={() => undefined}
-            onEquipRelic={onEquipRelic}
-            onRemoveRelic={onRemoveRelic}
-          />
-        </div>
-      ) : null}
+        ) : null}
+        <CoreSheet
+          state={state}
+          compact
+          inspectOnly={live}
+          onUpgrade={onUpgrade ?? (() => undefined)}
+          onPickMilestone={onPickMilestone ?? (() => undefined)}
+          onBuyMax={!live && hasProcess(state, 'core-buy-max') ? onBuyMaxCores : undefined}
+          onEquipRelic={live ? undefined : onEquipRelic}
+          onRemoveRelic={live ? undefined : onRemoveRelic}
+        />
+      </div>
 
       {showWorkshop ? (
         <div className="dock-workshop" data-guide="workshop">
@@ -231,7 +220,7 @@ export function DockTab({
           {cycle.sorties === 1 ? '' : 's'} · {formatCompact(cycle.scrapEarned)} Scrap generated.
         </p>
         <p className="muted">
-          RESET Scrap, Workshop, and Salvage. KEEP Best Wave, unlocks, and Matter.
+          RESET Scrap, Workshop, Core ranks, and Salvage. KEEP Best Wave, unlocks, and Matter.
           {rebuildReady ? ` GAIN +${formatCompact(prestigeGainFor(state))} Matter.` : ''}
         </p>
         <button

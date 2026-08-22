@@ -124,7 +124,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   const reset = [
     'Current Sortie',
     'Salvage',
-    'Temporary Core levels',
+    'Core ranks',
     'Run upgrades',
     'Directives',
     'Scrap',

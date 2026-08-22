@@ -75,7 +75,6 @@ import {
   setFoundrySlot,
   unequipFoundryModule,
   isFoundryInfinite,
-  foundrySalvageReserve,
 } from './foundry'
 import { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, upgradeRelic } from './reliquary'
 import {
@@ -146,6 +145,7 @@ import {
   RUN_UPGRADE_CAP,
   RUN_UPGRADES,
   runUpgradeCost,
+  snapshotWorkshopCoreStarts,
   workshopCost,
   type RunUpgradeId,
 } from './workshop'
@@ -546,8 +546,8 @@ export function unequipAllModules(state: GameState): GameState {
   return next
 }
 
-function salvageAvailableForCores(state: GameState): number {
-  return Math.max(0, state.resources.salvage - foundrySalvageReserve(state))
+function scrapAvailableForCores(state: GameState): number {
+  return Math.max(0, state.resources.scrap ?? 0)
 }
 
 export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean }): GameState {
@@ -568,7 +568,7 @@ export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
     const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
-    if (cost > salvageAvailableForCores(state)) continue
+    if (cost > scrapAvailableForCores(state)) continue
     if (level < bestLevel || (level === bestLevel && cost < bestCost)) {
       bestId = id
       bestLevel = level
@@ -607,7 +607,7 @@ function moduleUpgradeGain(state: GameState, moduleId: string, level: number): n
   return gain
 }
 
-/** Spend salvage on the fitted Core with the best stat-gain per salvage. */
+/** Spend Scrap on the fitted Core with the best stat-gain per Scrap. Dock only. */
 export function upgradeBestValueModule(state: GameState, opts?: { force?: boolean }): GameState {
   if (
     !opts?.force &&
@@ -626,7 +626,7 @@ export function upgradeBestValueModule(state: GameState, opts?: { force?: boolea
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
     const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
-    if (cost <= 0 || cost > salvageAvailableForCores(state)) continue
+    if (cost <= 0 || cost > scrapAvailableForCores(state)) continue
     const score = moduleUpgradeGain(state, id, level) / cost
     if (score > bestScore) {
       bestId = id
@@ -1138,60 +1138,29 @@ function persistLoadout(
 }
 
 export function upgradeModule(state: GameState, moduleId: string): GameState {
+  if (!state.combat.docked) return state
   if (!state.shipyard.unlockedModules.includes(moduleId)) return state
   if (!getModule(moduleId)) return state
   const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
   if (level >= MAX_MODULE_LEVEL) return state
   if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return state
   const cost = moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, getModule(moduleId)?.role))
-  if (state.resources.salvage < cost) return state
+  if ((state.resources.scrap ?? 0) < cost) return state
 
   const next = structuredClone(state)
-  next.resources.salvage -= cost
-  noteSalvageSpend(next, cost)
+  next.resources.scrap -= cost
   next.shipyard.moduleLevels = {
     ...next.shipyard.moduleLevels,
     [moduleId]: level + 1,
   }
+  snapshotWorkshopCoreStarts(next)
   recordPlaytest(next, 'core_buy', {
     n: getModule(moduleId)?.name ?? moduleId,
     v: level + 1,
     firstKey: `core_buy:${moduleId}`,
   })
   noteSystemAction(next, 'cores')
-  if (!next.combat.inFight) {
-    syncPersistedHullCaps(next)
-    return next
-  }
-
-  const prevUnits = next.combat.playerUnits
-  const rebuilt = buildPlayerFleet(next)
-  for (const unit of rebuilt) {
-    const prev = prevUnits.find((u) => u.id === unit.id)
-    if (prev && prev.hullMax > 0) {
-      unit.hull = Math.max(1, unit.hullMax * (prev.hull / prev.hullMax))
-      unit.shield =
-        unit.shieldMax > 0
-          ? unit.shieldMax * (prev.shield / Math.max(1, prev.shieldMax))
-          : 0
-    }
-  }
-  const prevFlag = prevUnits.find((u) => u.isFlagship)
-  const nextFlag = rebuilt.find((u) => u.isFlagship)
-  if (prevFlag && nextFlag) {
-    nextFlag.weapons = buildFlagshipWeapons(next).map((w) => {
-      const old = prevFlag.weapons.find((pw) => pw.id === w.id)
-      return old ? { ...w, cooldownLeft: old.cooldownLeft } : w
-    })
-  }
-  next.combat.playerUnits = rebuilt
-  const stats = computeShipStats(next)
-  next.combat.playerHullMax = stats.hullMax
-  next.combat.playerShieldMax = stats.shieldMax
-  if (nextFlag) {
-    next.combat.playerHull = nextFlag.hull
-    next.combat.playerShield = nextFlag.shield
-  }
+  syncPersistedHullCaps(next)
   return next
 }
 
@@ -1809,7 +1778,7 @@ export function pickProcessCoreUpgrade(
     if (level >= MAX_MODULE_LEVEL) continue
     if (pendingMilestone(id, level, state.shipyard.corePicks?.[id])) continue
     const cost = moduleUpgradeCost(level, id, protocolCoreScalingAdd(state, getModule(id)?.role))
-    if (cost <= 0 || cost > salvageAvailableForCores(state)) continue
+    if (cost <= 0 || cost > scrapAvailableForCores(state)) continue
     let score = -cost
     if (want) {
       score += def.role === want ? 1000 : 0
@@ -1844,7 +1813,7 @@ export function buyMaxCores(state: GameState): GameState {
   while (guard++ < 40) {
     const after = pickProcessCoreUpgrade(next, { force: true })
     if (after === next) break
-    if (after.resources.salvage >= next.resources.salvage) break
+    if (after.resources.scrap >= next.resources.scrap) break
     next = after
   }
   return next

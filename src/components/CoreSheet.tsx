@@ -40,8 +40,10 @@ interface CoreSheetProps {
   /** Relic install/remove. Docked-only; omit during a live Sortie. */
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
-  /** Hide Salvage ranks and show Relic sockets only. */
+  /** Hide Scrap ranks and show Relic sockets only. */
   relicsOnly?: boolean
+  /** Sortie inspect: stats and Relics, no Dock ranks. */
+  inspectOnly?: boolean
 }
 
 function RelicSocket({
@@ -145,6 +147,7 @@ function CoreRow({
   onEquipRelic,
   onRemoveRelic,
   relicsOnly = false,
+  inspectOnly = false,
 }: {
   state: GameState
   moduleId: string
@@ -153,12 +156,13 @@ function CoreRow({
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   relicsOnly?: boolean
+  inspectOnly?: boolean
 }) {
   const def = getModule(moduleId)
   const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
   const cost = moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, def?.role))
   const maxed = level >= MAX_MODULE_LEVEL
-  const can = Boolean(def) && !maxed && state.resources.salvage >= cost
+  const can = Boolean(def) && !maxed && !inspectOnly && (state.resources.scrap ?? 0) >= cost
   const pending = pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])
   const justReady = useJustBecame(can)
   if (!def) return null
@@ -185,7 +189,11 @@ function CoreRow({
         onEquipRelic={onEquipRelic}
         onRemoveRelic={onRemoveRelic}
       />
-      {relicsOnly ? null : pending ? (
+      {relicsOnly ? null : inspectOnly ? (
+        <p className="muted">
+          {maxed ? 'Maxed' : `Rank at Dock · ${formatCompact(cost)} Scrap`}
+        </p>
+      ) : pending ? (
         <div className="core-picks">
           {pending.choices.map((choice) => (
             <button
@@ -210,7 +218,7 @@ function CoreRow({
             onUpgrade(moduleId)
           }}
         >
-          {maxed ? 'Maxed' : `Upgrade · ${formatCompact(cost)} Salvage`}
+          {maxed ? 'Maxed' : `Upgrade · ${formatCompact(cost)} Scrap`}
         </button>
       )}
     </article>
@@ -226,10 +234,11 @@ export function CoreSheet({
   onEquipRelic,
   onRemoveRelic,
   relicsOnly = false,
+  inspectOnly = false,
 }: CoreSheetProps) {
   return (
     <div className={compact ? 'core-sheet core-sheet-compact' : 'core-sheet'}>
-      {onBuyMax && !relicsOnly ? (
+      {onBuyMax && !relicsOnly && !inspectOnly ? (
         <p className="assign-row">
           <button type="button" className="primary" data-guide="core-buy-max" onClick={onBuyMax}>
             Buy Max
@@ -246,6 +255,7 @@ export function CoreSheet({
           onEquipRelic={onEquipRelic}
           onRemoveRelic={onRemoveRelic}
           relicsOnly={relicsOnly}
+          inspectOnly={inspectOnly}
         />
       ))}
     </div>

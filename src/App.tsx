@@ -304,6 +304,9 @@ export default function App() {
             onOpenSortie={() => go('combat')}
             onRebuild={() => setHangarOpen(true)}
             onBuyWorkshop={game.buyWorkshopUpgrade}
+            onUpgrade={game.upgradeModule}
+            onPickMilestone={game.pickCoreMilestone}
+            onBuyMaxCores={game.buyMaxCores}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
           />

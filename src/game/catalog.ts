@@ -1754,7 +1754,7 @@ export function moduleUpgradeCost(level: number, moduleId?: string, scalingAdd =
   return Math.ceil(base * scaling ** n)
 }
 
-/** Pulse L1 + Plate L1 — the first-death Cores tour spends this much Salvage. */
+/** Pulse L1 + Plate L1 — first Dock Core ranks cost this much Scrap. */
 export const STARTER_CORE_IDS = ['pulse-cannon', 'plate-layer'] as const
 
 export function salvageToRankStarterCores(
@@ -1773,16 +1773,16 @@ export function salvageToRankStarterCores(
 }
 
 /**
- * Bank wreck so the required Pulse/Plate taps are never unaffordable.
+ * Bank Scrap so the required Pulse/Plate Dock ranks are never unaffordable.
  * Heals saves already stuck mid-tour (Pulse bought, Plate still locked).
  */
 export function ensureStarterCoresTourSalvage(state: GameState): GameState {
   const need = salvageToRankStarterCores(state)
   if (need <= 0) return state
-  if ((state.resources.salvage ?? 0) >= need) return state
+  if ((state.resources.scrap ?? 0) >= need) return state
   return {
     ...state,
-    resources: { ...state.resources, salvage: need },
+    resources: { ...state.resources, scrap: need },
   }
 }
 
