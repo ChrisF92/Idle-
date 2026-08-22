@@ -55,7 +55,7 @@ Locked 2026-08-22 from owner answers. GDD Appendix E: D1 is an explicit review, 
 
 | ID | Question | Status | Lock |
 |---|---|---|---|
-| **D1** | Core power: GDD §22 Salvage Run Levels vs Dock Scrap ranks? | **LOCKED** | **Keep Dock Scrap ranks.** Salvage buys Attack / Defense / Economy only. Sortie Cores stay inspect-only. `workshop.coreStarts` is cycle-persistent and resets on Rebuild. Accepted amendment to GDD §22 / §37. |
+| **D1** | How do Cores gain power? | **LOCKED** (revised) | **GDD §22 + §32.** Sortie Cores are upgradeable with **Salvage Run Levels**, bought through **Attack / Defense / Economy** by role (weapon → Attack, defense → Defense, utility → Economy). Run Levels reset when the Sortie ends. **No Dock Scrap Core ranks.** `workshop.coreStarts` and Dock “Upgrade · N Scrap” on Cores are removed. Persistent per-Core progress is **Mastery only** (plus unlocks and Relics). Workshop Scrap still starts the *global* A/D/E upgrades (Weapon Power, Hull, …), not individual Cores. |
 | **D2** | Process Tier 4–6 (WHEN/THEN + profiles) for 1.0? | **LOCKED** | **Ship for 1.0.** Thin the rule vocabulary; do not skip the builder. After T1–T3 polish. |
 | **D3** | Combat presentation? | **LOCKED** | **Orbiting Cores around a central Hive.** Single Hive hull/shield pool; weapons are per-Core satellites. |
 | **D4** | Delete gated leftovers? | **LOCKED** (default kept) | Unwire from UI now. Delete or isolate. Capital / Specialists / Tasks stay deferred, not half-reachable. |
@@ -113,7 +113,7 @@ Main already has the **GDD spine**, locked by `src/game/gdd-*.test.ts`:
 
 What is *not* done is the **identity pass**: Hive + orbiting Cores, GDD Frames (one-cut replace), Network retirement, enemy taxonomy, Process rule builder, onboarding, leftover deletion, Play Store wrap, Wave-native dev tools / playtests, and a four-curve balance pass.
 
-**Accepted amendment (D1):** Cores are ranked at Dock with Scrap. That is cycle power, not Salvage run power. Do not implement GDD §22 Run Levels unless this lock is reopened.
+**D1 (revised, GDD-aligned):** Sortie Cores take Salvage Run Levels under Attack / Defense / Economy. Dock does not rank Cores with Scrap. Mastery is the only persistent per-Core stat. The `2ae52cf` Dock Scrap ranks are a **reverted experiment**, not an amendment.
 
 ---
 
@@ -133,7 +133,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Foundry processing + fabrication | PARTIAL | 18 recipes; mastery shorter than GDD table; UI still “smelter” flavoured |
 | Worker Drones | PARTIAL | Jobs exist; Network bar UI + fill still live |
 | Network Strike/Ward/Yield bars | LEGACY | Combat mults = 1; Yield/Loom/Archive still multiply |
-| Core Dock Scrap ranks | DONE (amendment) | D1: ranks at Dock with Scrap; Sortie Cores inspect-only. Keep `gdd-visual.test.tsx` |
+| Core Salvage Run Levels (A/D/E by role) | CONFLICT | GDD + D1: Sortie Salvage. Live code + `gdd-visual.test.tsx` still encode Dock Scrap ranks — Phase 3 rewrites that |
 | Orbiting Core units + visual families | MISSING | Weapons mounted on `Flagship` |
 | Duplicate Cores | MISSING | `canFitModuleOnFrame` rejects same `moduleId` |
 | Hive Frames as archetypes | PARTIAL | 9 USI hulls + Bastion; no Swarm/Reactor/Harvester |
@@ -176,7 +176,7 @@ Order is dependency order, not calendar. Each phase is one PR off the previous. 
 
 **Work:**
 
-- Add this file and lock owner decisions (D1 Dock Scrap, D2 Process 1.0, D3 orbiting Cores, D5 Play wrap, D8 Frame cut, D10 no migration + mandatory cheats/playtests).
+- Add this file and lock owner decisions (D1 Sortie Salvage Core Run Levels via A/D/E, no Dock Scrap Core ranks; D2 Process 1.0; D3 orbiting Cores; D5 Play wrap; D8 Frame cut; D10 no migration + mandatory cheats/playtests).
 - Rewrite `README.md` to the GDD loop (Waves, Hive, Workshop, Rebuild, no sectors-as-career).
 - Mark `docs/usi-reskin-plan.md` **superseded**. Keep it as history; do not follow it.
 - Retitle `docs/act1-balance.md` as a **historical USI-era curve note**, or slim it to a pointer at `src/game/balance/act1.ts` + GDD §141–155. Do not use its sector doors.
@@ -237,7 +237,8 @@ Required surface after Phase 1 (extend in later phases):
 | Set live Wave | In-sortie wave only; does not grant career |
 | Door presets | W20 Foundry, W30 Workers, W50 Directives, W70 Rebuild (legal + 3 sorties), W110 Relics, W140 Furnace, W170 Research, W210 Process (also 2 Rebuilds + 1 research), W250 Challenges, W300 climax / Reinforce |
 | +Resources | Scrap, Salvage, Matter, Ash, Heat, Foundry mats, Process points — GDD names |
-| Rank Cores | Set Dock Scrap ranks on fitted Cores |
+| Set Core Run Levels | Salvage Run Levels on fitted Cores (Sortie only; does not grant Mastery) |
+| Set Core Mastery | Permanent Mastery only |
 | Force boss | Next or current 10th-wave boss / W300 climax |
 | Skip / reset onboarding | Keep |
 | Wipe career | Keep (pre-1.0 wipes are expected) |
@@ -294,37 +295,44 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 
 ### Phase 3 — Buildcraft: Frames, Cores, Relics, loadout UI
 
-**Intent:** build identity is Frame + Cores + Relics, readable at the decision site. Core *ranks* stay Dock Scrap (D1).
+**Intent:** build identity is Frame + Cores + Relics. Cores level in the Sortie through Attack / Defense / Economy. Dock never spends Scrap on Core ranks (D1).
 
-**Files:** `catalog.ts` (`SHIP_FRAMES`, `SHIP_MODULES`), `actions.ts` (`upgradeModule`, `fitModule`, `canFitModuleOnFrame`), `workshop.ts` (`coreStarts`), `CombatTab.tsx`, `DockTab.tsx`, `inspect.ts`, `reliquary.ts`.
+**Files:** `catalog.ts` (`SHIP_FRAMES`, `SHIP_MODULES`), `actions.ts` (`upgradeModule`, `fitModule`, `canFitModuleOnFrame`), `workshop.ts` (`coreStarts`), `CombatTab.tsx`, `DockTab.tsx`, `inspect.ts`, `reliquary.ts`, `gdd-visual.test.tsx`, `gdd-sortie-loop.test.ts`.
 
 **Work:**
 
-1. **Keep Dock Scrap ranks.** `upgradeModule` stays docked + Scrap. Rebuild clears `workshop.coreStarts`. Sortie Cores tab stays inspect-only (Mastery, DPS, relics, contribution %). Do not add Salvage Core buys. Keep `gdd-visual.test.tsx`.
-2. Replace the USI hull ladder in **one cut** (D8, wipe old ids):
+1. **Remove Dock Scrap Core ranks.** Delete `workshop.coreStarts`, Dock “Upgrade · N Scrap” on Cores, and any Scrap cost on `upgradeModule`. Dock Loadout is equip / Relics / Mastery inspect only.
+2. **Salvage Run Levels on fitted Cores during the Sortie** (GDD §22, §115). Paid with Salvage. Reset to 0 when the Sortie ends (Extract or death). Rebuild also clears them because the Sortie is gone.
+3. **Buy them through Attack / Defense / Economy by role:**
+   - Weapon Cores (Pulse, Beam, Flak, Lance, …) under **Attack**
+   - Defense Cores (Plate, Barrier, Repair, …) under **Defense**
+   - Utility Cores (Salvage, targeting, …) under **Economy**
+   Fitted Cores of that role appear as cards in that shop pane (Run Lv, next Salvage cost, Buy). The Cores sheet can show the same buy or deep-link to the pane. Global A/D/E upgrades (Weapon Power, Hull, Salvage/Kill, …) stay as they are and still use Workshop starts + Salvage buys (GDD §36).
+4. **Mastery is the only persistent per-Core stat.** Slow, account-wide. Milestones at 5 / 10 / 20 / 30 / 50 (75/100 remote). Socket unlocks and behaviour mods live here. Mastery is not bought with Scrap.
+5. Replace the USI hull ladder in **one cut** (D8, wipe old ids):
    - **Starter** (balanced, 2 slots: Pulse + Plate)
    - **Bastion** (hull/shield, defensive slots)
    - **Swarm** (more slots, weaker per-Core / Hive durability)
    - **Reactor** (Furnace/Heat)
    - **Harvester** (economy / fragments / Ash)
-3. Unlock Frames from wave milestones, Foundry blueprints, Research, Challenges — not a linear “bigger hull.”
-4. Allow duplicate Core types; limits are Frame slot counts and role caps.
-5. Slot curve: ~2–3 early, ~5–6 late Act 1 (GDD §20).
-6. Mastery: permanent, slow. Milestones at 5 / 10 / 20 / 30 / 50 (75/100 can exist as remote caps). Socket unlocks and behaviour mods live here.
-7. Relic sockets: grow toward Power / Optical / Ballistic / Shield / Reactor / Sensor / Utility / Industrial / Universal. Do not require every class on day one; add as Cores need them.
-8. Dock Loadout comparison (GDD §117): Hull, Shield, DPS, slots, before → after when previewing a Frame or Core.
-9. Core roster: keep a small set that is visually and strategically distinct (Pulse, Beam, Flak, Lance, Barrier, Repair, Salvage/utility). Cut or merge USI leftovers that are generic +% modules.
-10. Acquisition loop: combat discovers fragment/blueprint → Foundry fabricates → Dock equips (GDD §24).
-11. Dev tools: Frame picker cheat + “set Core Scrap ranks” must use the new ids. Remove Scout / Frigate / Capital jumps.
+6. Unlock Frames from wave milestones, Foundry blueprints, Research, Challenges — not a linear “bigger hull.”
+7. Allow duplicate Core types; limits are Frame slot counts and role caps.
+8. Slot curve: ~2–3 early, ~5–6 late Act 1 (GDD §20).
+9. Relic sockets: grow toward Power / Optical / Ballistic / Shield / Reactor / Sensor / Utility / Industrial / Universal. Do not require every class on day one; add as Cores need them.
+10. Dock Loadout comparison (GDD §117): Hull, Shield, DPS, slots, before → after when previewing a Frame or Core. Show Mastery, not a Scrap rank.
+11. Core roster: keep a small set that is visually and strategically distinct (Pulse, Beam, Flak, Lance, Barrier, Repair, Salvage/utility). Cut or merge USI leftovers that are generic +% modules.
+12. Acquisition loop: combat discovers fragment/blueprint → Foundry fabricates → Dock equips (GDD §24).
+13. Rewrite `gdd-visual.test.tsx` and any “inspect-only Cores / Scrap at Dock” assertions. Add tests: Salvage Run Level on Pulse lives under Attack; Plate under Defense; reset on Extract; Dock cannot spend Scrap on a Core; Mastery survives Rebuild.
+14. Dev tools: Frame picker + set Run Levels / set Mastery. Remove Scout / Frigate / Capital and Scrap-rank cheats.
 
 **Acceptance:**
 
-- Player can run 3 Pulse + 1 Barrier + 1 Salvage on Swarm Frame.
+- Player can run 3 Pulse + 1 Barrier + 1 Salvage on Swarm Frame and Salvage-level each Pulse separately under Attack.
 - Switching Bastion ↔ Swarm shows % deltas without leaving Dock.
-- Mid-Sortie Salvage cannot raise Core ranks. Dock Scrap can. Rebuild wipes ranks.
-- Mastery and Relics persist through Rebuild.
+- Mid-Sortie Salvage raises Core Run Levels. Dock Scrap cannot. Extract/defeat returns Run Levels to 0.
+- Mastery and Relics persist through Rebuild. Workshop still starts global Weapon Power / Hull / etc.
 
-**SAVE_VERSION:** yes (frame ids). Hard wipe is fine (D10).
+**SAVE_VERSION:** yes (drop `coreStarts`, add run-level fields). Hard wipe is fine (D10).
 
 ---
 
@@ -420,16 +428,14 @@ Also:
 
 ### Phase 7 — Process as earned automation
 
-**Intent:** manual → convenience → auto → priority → condition → profiles (GDD §84).
-
-**Depends on D2.**
+**Intent:** manual → convenience → auto → priority → condition → profiles (GDD §84). **In the 1.0 train (D2).**
 
 **Files:** `process.ts`, `ProcessTab.tsx`, `automation.ts`, `tick.ts` (auto-buy hooks).
 
 **Work:**
 
 1. **T1 QoL:** ×10, Buy Max, contribution %, economy ROI, time-to-afford, repeat recipe, presets. All must change a real tap.
-2. **T2 Actions:** auto-level Cores (if D1), auto-buy Attack/Defense/Economy, repeat Foundry, apply a Worker preset.
+2. **T2 Actions:** auto-level Cores (Salvage Run Levels by A/D/E role), auto-buy Attack/Defense/Economy globals, repeat Foundry, apply a Worker preset.
 3. **T3 Priorities:** spend ratios, Salvage reserve, Core priority, Foundry priority, Worker presets. Example Attack 50 / Defense 30 / Economy 20.
 4. **T4 Conditions:** mobile chip builder. WHEN Wave ≥ N / threat = Survivability / queue empty AND … THEN spend profile / repeat recipe / extract.
 5. **T5 Cross-system:** Furnace push profile near Best; Research auto-queue; empty fab slot → tracked recipe.
@@ -544,7 +550,7 @@ Also:
 | 0 | Docs + this plan + locked decisions | no |
 | 1 | Legacy excision + Wave naming + **dev/playtest rewrite** | yes (cleaner IA + cheats) |
 | 2 | Hive + orbiting Cores + families | yes (the game’s look) |
-| 3 | GDD Frames / Dock Scrap Cores / loadout UI | yes (buildcraft) |
+| 3 | GDD Frames / Sortie A/D/E Core Run Levels / loadout UI | yes (buildcraft) |
 | 4 | Workers + Foundry factory | yes |
 | 5 | Research tree + Matter shop | yes |
 | 6 | Onboarding + toasts | yes |
@@ -614,8 +620,8 @@ From GDD §99–101, §166–167:
 **Keep as regression (they already express GDD):**  
 `gdd-sortie-loop`, `gdd-rebuild`, `gdd-reinforce`, `gdd-directives`, `gdd-furnace`, `gdd-workers`, `gdd-foundry-construction`, `gdd-research`, `gdd-process` (T1–T3 gates), `gdd-challenges`, `gdd-relics`, `gdd-mastery`, `gdd-removed-loop`, `gdd-ui-ia`, `gdd-offline`, `gdd-cadence`.
 
-**Keep as D1 contract (do not revert):**  
-`gdd-visual.test.tsx` (inspect-only Sortie Cores / Dock Scrap ranks), `gdd-sortie-loop` “does not spend Salvage on Core ranks mid-Sortie.”
+**Rewrite for D1 (current tests encode the discarded Dock Scrap experiment):**  
+`gdd-visual.test.tsx` (inspect-only Cores / Scrap ranks), `gdd-sortie-loop` if it forbids Salvage Core buys. New contract: Salvage Run Levels by role under A/D/E; no Dock Scrap Core ranks; Mastery persists.
 
 **Add:**
 
@@ -626,7 +632,7 @@ From GDD §99–101, §166–167:
 - Onboarding path (enabled).
 - No leftover tab ids in More/Systems.
 - Dev Tools: each GDD door preset grants that system and no removed one.
-- Playtest / sim: Wave-1 launch, Dock Scrap Core ranks, `ACT1_CADENCE` doors.
+- Playtest / sim: Wave-1 launch, Salvage Core Run Levels via A/D/E, `ACT1_CADENCE` doors. No Scrap Core ranks.
 
 ---
 
