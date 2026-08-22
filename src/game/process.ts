@@ -5,7 +5,6 @@ import type {
   FurnaceChannelId,
   GameState,
   HiveResearchBranch,
-  NetworkBarId,
   ProcessConfig,
   ProcessCorePriority,
   ProcessFoundryUpgradePriority,
@@ -17,7 +16,7 @@ import type {
 import { NETWORK_BAR_IDS } from './types'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { AI_NODES } from './catalog'
-import { isWorkerJob } from './workers'
+import { isWorkerJob, WORKER_JOB_IDS } from './workers'
 import { practicedCoreWork } from './corePractice'
 
 export type ProcessKind = 'automation' | 'qol'
@@ -73,61 +72,54 @@ export { NETWORK_BAR_IDS }
 
 export const NETWORK_PRESETS: Record<
   Exclude<ProcessNetworkPreset, 'custom'>,
-  Partial<Record<NetworkBarId, number>>
+  Partial<Record<string, number>>
 > = {
   push: {
-    strike: 5,
-    'strike-relay': 3,
-    'strike-lattice': 2,
-    ward: 2,
-    yield: 1,
-    loom: 1,
+    'scrap-field': 4,
+    'drone-fab': 3,
+    'fab-bay': 2,
+    'power-grid': 2,
+    'repair-bay': 1,
+    'sensor-net': 1,
   },
   defence: {
-    ward: 5,
-    'ward-relay': 3,
-    'ward-lattice': 2,
-    strike: 2,
-    yield: 1,
-    loom: 1,
+    'repair-bay': 5,
+    'power-grid': 3,
+    'scrap-field': 2,
+    'drone-fab': 1,
+    'sensor-net': 1,
   },
   farm: {
-    yield: 5,
-    'yield-relay': 3,
-    ward: 2,
-    strike: 2,
-    loom: 1,
-    archive: 1,
+    'scrap-field': 5,
+    'sensor-net': 3,
+    'alloy-foundry': 2,
+    'power-grid': 2,
+    'drone-fab': 1,
   },
   industry: {
-    loom: 5,
-    'loom-relay': 3,
-    yield: 2,
-    strike: 1,
-    ward: 1,
-    archive: 1,
+    'drone-fab': 4,
+    'fab-bay': 3,
+    construction: 3,
+    'alloy-foundry': 2,
+    'scrap-field': 2,
+    'power-grid': 1,
   },
   research: {
-    archive: 5,
-    'archive-relay': 3,
-    loom: 2,
-    yield: 1,
-    strike: 1,
-    ward: 1,
+    'sensor-net': 5,
+    'power-grid': 2,
+    'scrap-field': 2,
+    'drone-fab': 1,
+    'alloy-foundry': 1,
   },
   balanced: {
-    strike: 2,
-    ward: 2,
-    yield: 2,
-    loom: 2,
-    archive: 1,
-    'strike-relay': 1,
-    'ward-relay': 1,
-    'yield-relay': 1,
-    'loom-relay': 1,
-    'archive-relay': 1,
-    'strike-lattice': 1,
-    'ward-lattice': 1,
+    'scrap-field': 2,
+    'power-grid': 2,
+    'sensor-net': 2,
+    'alloy-foundry': 2,
+    'repair-bay': 2,
+    'drone-fab': 2,
+    'fab-bay': 1,
+    construction: 1,
   },
 }
 
@@ -235,7 +227,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Network Ratios',
     category: 'network',
     kind: 'automation',
-    blurb: 'Write your own bar weights. Optimise and Auto Optimise both honour them.',
+    blurb: 'Write your own job weights. Optimise and Auto Optimise both honour them.',
     cost: 12,
     requiresId: 'network-presets',
   },
@@ -253,7 +245,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Network Sortie Bias',
     category: 'network',
     kind: 'automation',
-    blurb: 'Optional overlay: while flying, lean Push toward Strike/Ward and Farm toward Yield.',
+    blurb: 'Optional overlay: while flying, lean Push toward salvage/fab jobs and Farm toward Scrap Field.',
     cost: 8,
     requiresId: 'network-balance',
     requiresSectorEver: 7,
@@ -1044,20 +1036,7 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
       preset: (NETWORK_PRESET_LABELS[netPreset as ProcessNetworkPreset]
         ? netPreset
         : empty.network.preset) as ProcessNetworkPreset,
-      ratios: {
-        strike: Math.max(0, num(netRatios.strike, 1)),
-        ward: Math.max(0, num(netRatios.ward, 1)),
-        yield: Math.max(0, num(netRatios.yield, 1)),
-        loom: Math.max(0, num(netRatios.loom, 1)),
-        archive: Math.max(0, num(netRatios.archive, 1)),
-        'strike-relay': Math.max(0, num(netRatios['strike-relay'], 0)),
-        'ward-relay': Math.max(0, num(netRatios['ward-relay'], 0)),
-        'yield-relay': Math.max(0, num(netRatios['yield-relay'], 0)),
-        'loom-relay': Math.max(0, num(netRatios['loom-relay'], 0)),
-        'archive-relay': Math.max(0, num(netRatios['archive-relay'], 0)),
-        'strike-lattice': Math.max(0, num(netRatios['strike-lattice'], 0)),
-        'ward-lattice': Math.max(0, num(netRatios['ward-lattice'], 0)),
-      },
+      ratios: migrateWorkerJobRatios(netRatios, empty.network.ratios),
     },
     foundry: {
       autoBuy: foundry.autoBuy !== false,
@@ -1275,35 +1254,65 @@ export function processFurnaceHooks(state: GameState): ProcessFurnaceHooks {
   }
 }
 
-export function networkAllocationWeights(state: GameState): Record<NetworkBarId, number> {
+function migrateWorkerJobRatios(
+  raw: Record<string, unknown>,
+  fallback: Partial<Record<string, number>>,
+): Partial<Record<string, number>> {
+  const out: Record<string, number> = {}
+  let sawJob = false
+  for (const id of WORKER_JOB_IDS) {
+    if (raw[id] != null) {
+      sawJob = true
+      out[id] = Math.max(0, num(raw[id], 0))
+    }
+  }
+  if (sawJob) {
+    for (const id of WORKER_JOB_IDS) {
+      if (out[id] == null) out[id] = 0
+    }
+    return out
+  }
+  const yieldW = num(raw.yield, 0)
+  const loomW = num(raw.loom, 0)
+  const archiveW = num(raw.archive, 0)
+  if (yieldW + loomW + archiveW > 0) {
+    return {
+      'scrap-field': Math.max(1, yieldW),
+      'drone-fab': Math.max(1, loomW),
+      'sensor-net': Math.max(1, archiveW),
+      'power-grid': 1,
+      'repair-bay': 1,
+    }
+  }
+  return { ...fallback }
+}
+
+export function networkAllocationWeights(state: GameState): Record<string, number> {
   const cfg = processConfig(state)
   const preset = cfg.network.preset
   const source =
     preset === 'custom'
       ? cfg.network.ratios
       : NETWORK_PRESETS[preset] ?? NETWORK_PRESETS.balanced
-  const weights = {} as Record<NetworkBarId, number>
-  for (const id of NETWORK_BAR_IDS) {
+  const weights: Record<string, number> = {}
+  for (const id of WORKER_JOB_IDS) {
     weights[id] = Math.max(0, source[id] ?? 0)
   }
   if (hasProcess(state, 'network-tune') && !state.combat.docked) {
     if (preset === 'defence') {
-      weights.ward *= 1.35
-      weights['ward-relay'] *= 1.2
-      weights['ward-lattice'] *= 1.15
+      weights['repair-bay'] *= 1.35
+      weights['power-grid'] *= 1.2
     } else if (preset === 'farm') {
-      weights.yield *= 1.35
-      weights['yield-relay'] *= 1.2
+      weights['scrap-field'] *= 1.35
     } else if (preset === 'industry') {
-      weights.loom *= 1.35
-      weights['loom-relay'] *= 1.2
+      weights['drone-fab'] *= 1.35
+      weights['fab-bay'] *= 1.2
+      weights.construction *= 1.15
     } else if (preset === 'research') {
-      weights.archive *= 1.35
-      weights['archive-relay'] *= 1.2
+      weights['sensor-net'] *= 1.35
     } else {
-      weights.strike *= 1.35
-      weights['strike-relay'] *= 1.2
-      weights['strike-lattice'] *= 1.15
+      weights['scrap-field'] *= 1.35
+      weights['drone-fab'] *= 1.2
     }
   }
   return weights

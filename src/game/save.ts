@@ -323,6 +323,9 @@ function migrateBase(
     if (hangar > 0) assignments['drone-fab'] = (assignments['drone-fab'] ?? 0) + hangar
   }
 
+  // Retired Strike/Ward/Yield bars no longer consume Worker Drones.
+  for (const id of NETWORK_BAR_IDS) delete assignments[id]
+
   const fab = base.fabProject
   const fabProject =
     fab &&

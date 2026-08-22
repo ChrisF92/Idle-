@@ -29,6 +29,7 @@ import {
   getMatterShopItem,
   getModule,
   idleWorkers,
+  isStationUnlocked,
   MATTER_SHOP,
   moduleLevel,
   moduleUpgradeCost,
@@ -41,7 +42,6 @@ import {
   NETWORK_BARS,
   NETWORK_LINKS,
   canBuyNetworkLink,
-  isNetworkBarUnlocked,
   networkLevels,
 } from '../network'
 import {
@@ -68,6 +68,7 @@ import { SHARDS, shardOwned, fittedShardId, isReliquarySlotUnlocked } from '../r
 import { GUIDE_STEPS, isSystemUnlocked } from '../progression'
 import { ACT1_CADENCE } from '../cadence'
 import { careerBestWave } from '../waves'
+import { WORKER_JOB_IDS } from '../workers'
 import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
 import type { StrategyContext } from './types'
 import { RUN_UPGRADES, workshopLevel, type RunUpgradeId } from '../workshop'
@@ -244,32 +245,28 @@ export function spendSalvageOnCores(
   return next
 }
 
-const NETWORK_WEIGHTS: Record<string, number> = {
-  strike: 4,
-  'strike-relay': 2,
-  'strike-lattice': 1,
-  ward: 3,
-  'ward-relay': 2,
-  'ward-lattice': 1,
-  yield: 2,
-  'yield-relay': 1,
-  loom: 2,
-  'loom-relay': 1,
-  archive: 1,
-  'archive-relay': 1,
+const WORKER_WEIGHTS: Record<string, number> = {
+  'scrap-field': 4,
+  'power-grid': 2,
+  'sensor-net': 2,
+  'alloy-foundry': 2,
+  'repair-bay': 2,
+  'drone-fab': 3,
+  'fab-bay': 2,
+  construction: 1,
 }
 
 export function rebalanceNetwork(state: GameState, ctx: StrategyContext): GameState {
   const drones = state.base.workerDrones
   if (drones <= 0) return state
-  const unlocked = NETWORK_BARS.filter((b) => isNetworkBarUnlocked(state, b.id))
+  const unlocked = WORKER_JOB_IDS.filter((id) => isStationUnlocked(state, id))
   if (unlocked.length === 0) return state
 
   const target: Record<string, number> = {}
   let remaining = drones
-  const weights = unlocked.map((b) => ({
-    id: b.id,
-    w: NETWORK_WEIGHTS[b.id] ?? 1,
+  const weights = unlocked.map((id) => ({
+    id,
+    w: WORKER_WEIGHTS[id] ?? 1,
   }))
   const totalW = weights.reduce((s, r) => s + r.w, 0)
   for (const row of weights) {
@@ -277,8 +274,7 @@ export function rebalanceNetwork(state: GameState, ctx: StrategyContext): GameSt
     target[row.id] = n
     remaining -= n
   }
-  // Prefer Strike leftovers while pushing.
-  const dump = unlocked.some((b) => b.id === 'strike') ? 'strike' : unlocked[0]!.id
+  const dump = unlocked.includes('scrap-field') ? 'scrap-field' : unlocked[0]!
   target[dump] = (target[dump] ?? 0) + Math.max(0, remaining)
 
   let already = idleWorkers(state) === 0
@@ -299,7 +295,6 @@ export function rebalanceNetwork(state: GameState, ctx: StrategyContext): GameSt
   if (already) return state
 
   let next = state
-  // Pull drones off stations / bars that should not keep them.
   for (const [id, have] of Object.entries(next.base.assignments)) {
     const want = target[id] ?? 0
     if (have > want) {
@@ -312,8 +307,8 @@ export function rebalanceNetwork(state: GameState, ctx: StrategyContext): GameSt
       next = assignWorker(next, id, Math.min(want - have, idleWorkers(next)))
     }
   }
-  if (idleWorkers(next) > 0 && isNetworkBarUnlocked(next, 'strike')) {
-    next = assignWorker(next, 'strike', idleWorkers(next))
+  if (idleWorkers(next) > 0 && isStationUnlocked(next, 'scrap-field')) {
+    next = assignWorker(next, 'scrap-field', idleWorkers(next))
   }
   if (next !== state) ctx.record('network-assign')
   return next

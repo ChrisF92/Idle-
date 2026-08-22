@@ -113,6 +113,7 @@ import {
   getProcessNode,
   hasProcess,
   mergeProcessConfig,
+  networkAllocationWeights,
   processConfig,
   yardLayoutCap,
   NETWORK_BAR_IDS,
@@ -494,6 +495,43 @@ function assignByProfile(
     else delete assignments['alloy-foundry']
   }
 
+  return assignments
+}
+
+function assignByNetworkWeights(
+  state: GameState,
+  weights: Record<string, number>,
+): Record<string, number> {
+  const stations = laborStations(state)
+  const assignments: Record<string, number> = {}
+  if (stations.length === 0 || state.base.workerDrones <= 0) return assignments
+
+  const rows = stations
+    .map((s) => ({
+      id: s.id,
+      w: Math.max(0, weights[s.id] ?? 0),
+      bb: stationBlackBarNeed(state, s.id),
+    }))
+    .filter((r) => r.w > 0 && Number.isFinite(r.bb))
+
+  if (rows.length === 0) return assignBalanced(state)
+
+  const totalW = rows.reduce((sum, row) => sum + row.w, 0)
+  let remaining = state.base.workerDrones
+  const ranked = [...rows].sort((a, b) => b.w - a.w || a.id.localeCompare(b.id))
+  for (const row of ranked) {
+    if (remaining <= 0) break
+    const want = Math.floor((state.base.workerDrones * row.w) / totalW)
+    const cap = Number.isFinite(row.bb) ? row.bb : want
+    const n = Math.min(remaining, want, cap)
+    if (n > 0) {
+      assignments[row.id] = n
+      remaining -= n
+    }
+  }
+  if (remaining > 0 && ranked[0]) {
+    assignments[ranked[0].id] = (assignments[ranked[0].id] ?? 0) + remaining
+  }
   return assignments
 }
 
@@ -1881,7 +1919,7 @@ export function optimiseNetwork(state: GameState): GameState {
   for (const id of NETWORK_BAR_IDS) {
     delete next.base.assignments[id]
   }
-  return setLaborAssignments(next, assignByProfile(next, next.meta.laborProfile ?? 'balanced'))
+  return setLaborAssignments(next, assignByNetworkWeights(next, networkAllocationWeights(next)))
 }
 
 export function applyNetworkPreset(state: GameState, preset: ProcessNetworkPreset): GameState {

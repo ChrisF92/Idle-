@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { buyProcessNode, performRebuild } from './actions'
+import { applyNetworkPreset, buyProcessNode, performRebuild } from './actions'
 import { ACT1_CADENCE, PROCESS_MIN_REBUILDS } from './cadence'
 import {
+  NETWORK_PRESETS,
   PROCESS_HIDDEN_IDS,
   canBuyProcessNode,
   hasProcessMastery,
+  mergeProcessConfig,
+  networkAllocationWeights,
+  processConfig,
   processFurnaceHooks,
   processLessonCount,
   processOnlineBlurb,
@@ -103,5 +107,51 @@ describe('GDD Process', () => {
     s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.process.purchased).toContain('core-buy-max')
     expect(s.process.earned).toBeGreaterThanOrEqual(40)
+  })
+
+  it('maps Worker presets onto industrial jobs, not Strike or Ward', () => {
+    expect(NETWORK_PRESETS.farm['scrap-field']).toBeGreaterThan(NETWORK_PRESETS.farm.strike ?? 0)
+    expect(NETWORK_PRESETS.push.strike).toBeUndefined()
+    expect(NETWORK_PRESETS.defence.ward).toBeUndefined()
+
+    let farm = processState()
+    farm.base.workerDrones = 10
+    farm.process.purchased = ['network-optimise', 'network-presets']
+    farm = applyNetworkPreset(farm, 'farm')
+    expect(farm.base.assignments.strike ?? 0).toBe(0)
+    expect(farm.base.assignments.ward ?? 0).toBe(0)
+    expect(farm.base.assignments['scrap-field'] ?? 0).toBeGreaterThan(0)
+
+    let defence = processState()
+    defence.base.workerDrones = 10
+    defence.process.purchased = ['network-optimise', 'network-presets']
+    defence = applyNetworkPreset(defence, 'defence')
+    expect(defence.base.assignments['repair-bay'] ?? 0).toBeGreaterThan(
+      defence.base.assignments['scrap-field'] ?? 0,
+    )
+  })
+
+  it('leans Farm toward Scrap Field while flying after Network Sortie Bias', () => {
+    const s = processState()
+    s.combat.docked = false
+    s.process.purchased = ['network-tune']
+    s.process.config = {
+      ...processConfig(s),
+      network: { ...processConfig(s).network, preset: 'farm' },
+    }
+    const flying = networkAllocationWeights(s)
+    s.combat.docked = true
+    const docked = networkAllocationWeights(s)
+    expect(flying['scrap-field']).toBeGreaterThan(docked['scrap-field'])
+  })
+
+  it('rewrites leftover Yield/Loom/Archive ratio keys onto jobs', () => {
+    const cfg = mergeProcessConfig({
+      network: { preset: 'custom', ratios: { yield: 5, loom: 3, archive: 2 } },
+    })
+    expect(cfg.network.ratios['scrap-field']).toBe(5)
+    expect(cfg.network.ratios['drone-fab']).toBe(3)
+    expect(cfg.network.ratios['sensor-net']).toBe(2)
+    expect(cfg.network.ratios.yield).toBeUndefined()
   })
 })

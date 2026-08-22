@@ -453,7 +453,7 @@ export interface ProcessConfig {
   network: {
     enabled: boolean
     preset: ProcessNetworkPreset
-    ratios: Partial<Record<NetworkBarId, number>>
+    ratios: Partial<Record<string, number>>
   }
   foundry: {
     autoBuy: boolean
