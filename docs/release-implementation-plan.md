@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ D8 Frames (SAVE_VERSION 35, package `0.1.0`)  
+**Code snapshot:** `main` @ threat-budget + 10-wave bosses (SAVE_VERSION 35, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -91,6 +91,8 @@ Main already has the **GDD spine**, locked by `src/game/gdd-*.test.ts`:
 | Offline: live Sortie freezes; industry continues | `offline.ts` |
 | Nav: Sortie / Dock / Systems / More | `TabNav.tsx` |
 | PWA + local save + export/import + sim harness | existing |
+| Hive Frames: Starter + Bastion / Swarm / Reactor / Harvester (D8) | `catalog.ts` `SHIP_FRAMES`, `gdd-frames.test.ts` |
+| Threat budget + named 10-wave boss mechanics | `threatBudget.ts`, `bossMechanics.ts`, `gdd-threat-budget.test.ts` |
 
 **Cadence in code** (`src/game/cadence.ts`) already matches GDD §102:
 
@@ -153,8 +155,8 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Loadout comparison UI | PARTIAL | Inspect exists; Frame/Core before-after not GDD §117 |
 | Game speed ×1.5/×2/×3 | PARTIAL | `sortieSpeed` / reclaim exist; unlock story is unclear |
 | Enemy families GDD §11 | PARTIAL | Swarm/Armored/Ethereal/Divine/Titan — no Skirmisher/Shielded/Sniper/Support/Elite taxonomy |
-| Threat-budget wave variation | PARTIAL | `buildWavePack` + sector templates; no seedable budget |
-| Authored bosses | PARTIAL | Every 10th is a boss; W300 climax exists; most are scaled fatties |
+| Threat-budget wave variation | DONE | `threatBudget.ts`; Sortie seed; W87 budget 100; packs vary from Wave 11 |
+| Authored bosses | DONE | Named mechanic every 10th Wave; W300 is `climax-choir` |
 | Offline freeze | DONE | |
 | PWA / portrait | PARTIAL | Works; description still says “USI-style”; orientation `any` |
 | Play Store wrap | MISSING | No TWA / Capacitor / listing assets |
@@ -278,8 +280,8 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
    | 260–299 | Complex mixes |
    | 300 | Act 1 boss |
 
-6. Threat-budget generator (GDD §10): each wave band has budget, density, allowed families, elite chance. Seed stored on the Sortie for telemetry.
-7. Boss every 10th wave: a **mechanic**, not only HP (telegraph, add spawn, shield phase, support aura). W300 stays authored climax.
+6. **Done.** Threat-budget generator (GDD §10): each wave band has budget, density, allowed families, elite chance. Seed stored on the Sortie for telemetry.
+7. **Done.** Boss every 10th wave: a **mechanic**, not only HP (telegraph, add spawn, shield phase, support aura). W300 stays authored climax (`climax-choir`).
 8. Sortie HUD already has Salvage/Scrap/Wave/Speed/Pressure/Time — keep, tighten to GDD §111–112.
 
 **Acceptance:**
@@ -621,7 +623,7 @@ From GDD §99–101, §166–167:
 **Add:**
 
 - Hive + orbit unit tests (positions, range rule).
-- Threat-budget invariance (two seeds, similar effective HP).
+- Threat-budget invariance (two seeds, similar effective HP) — `gdd-threat-budget.test.ts`.
 - Frame archetype comparison readout.
 - Process rule evaluation (WHEN/THEN).
 - Onboarding path (enabled).

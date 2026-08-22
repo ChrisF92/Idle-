@@ -45,6 +45,7 @@ export function emptySortieRunStats(): SortieRunStats {
     lastEnemyRole: '',
     lastIsBoss: false,
     kills: 0,
+    sortieSeed: 0,
   }
 }
 
@@ -79,6 +80,7 @@ export function hydrateSortieRunStats(raw: unknown): SortieRunStats {
     lastEnemyRole: typeof src.lastEnemyRole === 'string' ? src.lastEnemyRole : '',
     lastIsBoss: src.lastIsBoss === true,
     kills: Math.max(0, Math.floor(num(src.kills))),
+    sortieSeed: Math.max(0, Math.floor(num(src.sortieSeed))),
   }
 }
 

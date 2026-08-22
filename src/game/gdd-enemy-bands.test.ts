@@ -76,13 +76,15 @@ describe('GDD enemy wave bands', () => {
     expect(encounterForWave(11).family).not.toBe('armored')
   })
 
-  it('keeps every 10th Wave as an authored Titan boss', () => {
+  it('keeps every 10th Wave as an authored Titan boss with a named mechanic', () => {
     for (const wave of [10, 20, 40, 70, 100, 250]) {
       expect(isBossWave(wave)).toBe(true)
       expect(encounterForWave(wave).isBoss).toBe(true)
       expect(encounterForWave(wave).family).toBe('titan')
+      expect(encounterForWave(wave).mechanicId).toBeTruthy()
     }
     expect(encounterForWave(300).isBoss).toBe(true)
     expect(encounterForWave(300).family).toBe('titan')
+    expect(encounterForWave(300).mechanicId).toBe('climax-choir')
   })
 })

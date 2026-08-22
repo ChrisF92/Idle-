@@ -84,6 +84,7 @@ export function captureSortieMark(state: GameState): SortieMark {
     ash: state.resources.choirAsh ?? 0,
     data: state.resources.data ?? 0,
     fragments: fragmentCount(state),
+    sortieSeed: state.combat.sortieSeed ?? 0,
   }
 }
 
@@ -148,9 +149,13 @@ export function closeSortie(
     fragmentsEarned: Math.max(0, fragmentCount(state) - (mark?.fragments ?? 0)),
     cores: coreSortieRecords(state),
   }
+  if (state.combat.lastSortie.stats) {
+    state.combat.lastSortie.stats.sortieSeed = mark?.sortieSeed ?? state.combat.sortieSeed ?? 0
+  }
   if (opts?.keepMark && state.combat.sortieMark) {
     state.combat.sortieMark.stats = emptySortieRunStats()
     return
   }
   state.combat.sortieMark = null
+  state.combat.sortieSeed = undefined
 }

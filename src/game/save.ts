@@ -138,6 +138,16 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     docked: combat.docked ?? false,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
+    sortieSeed: Math.max(0, Math.floor(Number(combat.sortieSeed ?? 0) || 0)),
+    bossMechanic: typeof combat.bossMechanic === 'string' ? combat.bossMechanic : undefined,
+    waveThreat:
+      combat.waveThreat && typeof combat.waveThreat === 'object'
+        ? {
+            seed: Math.max(0, Math.floor(Number(combat.waveThreat.seed ?? 0) || 0)),
+            budget: Math.max(0, Number(combat.waveThreat.budget ?? 0) || 0),
+            spent: Math.max(0, Number(combat.waveThreat.spent ?? 0) || 0),
+          }
+        : undefined,
     fightElapsed: Math.max(0, Number(combat.fightElapsed ?? 0) || 0),
     playerShield: combat.playerShield ?? 0,
     playerShieldMax: combat.playerShieldMax ?? 0,

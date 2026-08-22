@@ -76,6 +76,7 @@ import {
   computeFightDamage,
 } from './combat'
 import { bandsClearedForWave, isBossWave, powerSectorForWave } from './waves'
+import { newSortieSeed } from './threatBudget'
 import {
   applyWorkshopCoreStarts,
   EXTRACTION_SCRAP_BONUS,
@@ -132,6 +133,8 @@ function clearEnemiesOnly(state: GameState): void {
   state.combat.enemyTags = []
   state.combat.isBoss = false
   state.combat.bossPhase = 0
+  state.combat.bossMechanic = undefined
+  state.combat.waveThreat = undefined
   state.combat.enemyUnits = []
   state.combat.enemyHull = 0
   state.combat.enemyHullMax = 0
@@ -682,6 +685,7 @@ export function beginFight(state: GameState, keepFleet = false): void {
   const wave = Math.max(1, state.combat.wave || 1)
   state.combat.wave = wave
   state.combat.sector = powerSectorForWave(wave)
+  if (!state.combat.sortieSeed) state.combat.sortieSeed = newSortieSeed(state)
   const encounter = encounterForWave(wave, 1, state)
   syncPersistedHullCaps(state)
 
@@ -697,6 +701,11 @@ export function beginFight(state: GameState, keepFleet = false): void {
   state.combat.enemyTags = [...encounter.tags]
   state.combat.isBoss = encounter.isBoss
   state.combat.bossPhase = 0
+  state.combat.bossMechanic = encounter.mechanicId
+  state.combat.waveThreat = encounter.threat
+    ? { seed: encounter.threat.seed, budget: encounter.threat.budget, spent: encounter.threat.spent }
+    : undefined
+  if (state.combat.sortieMark) state.combat.sortieMark.sortieSeed = state.combat.sortieSeed
   state.combat.enemyUnits = encounter.units.map((u) => structuredClone(u))
   const pressure = starterCombatPressureMult(state)
   if (pressure !== 1) {

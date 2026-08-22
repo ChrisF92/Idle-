@@ -162,6 +162,8 @@ export interface SortieRunStats {
   lastEnemyRole: string
   lastIsBoss: boolean
   kills: number
+  /** Sortie RNG seed so unusual packs can be reproduced (GDD §10). */
+  sortieSeed?: number
 }
 
 export interface SortieSpendByCategory {
@@ -200,6 +202,7 @@ export interface SortieMark {
   data: number
   fragments: number
   cores?: CoreSortieRecord[]
+  sortieSeed?: number
 }
 
 export interface SortieSummary {
@@ -904,6 +907,12 @@ export interface CombatState {
   /** A/B sector route from 9. Sticky for the sortie; change while docked. */
   route: SectorRoute
   consecutiveLosses: number
+  /** Stable Sortie RNG. 0 = canonical packs (tests). */
+  sortieSeed?: number
+  /** Named mechanic on the current 10-wave boss. */
+  bossMechanic?: string
+  /** Threat budget roll for the live wave. */
+  waveThreat?: { seed: number; budget: number; spent: number }
   bossPhase: number
   /** Seconds elapsed in the current fight (reset on beginFight). */
   fightElapsed: number

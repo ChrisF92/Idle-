@@ -53,6 +53,22 @@ import {
   waveInBand,
   type GddEnemyBandId,
 } from './waves'
+import {
+  measureThreatRoll,
+  newSortieSeed,
+  threatBudgetForWave,
+  threatSpecForWave,
+  varyPackToBudget,
+} from './threatBudget'
+import {
+  bossMechanicBlurb,
+  bossMechanicForWave,
+  bossMechanicHasAdds,
+  bossMechanicHasAura,
+  bossMechanicHasShieldPhase,
+  bossMechanicTelegraph,
+  type BossMechanicId,
+} from './bossMechanics'
 import { ACT1_FINAL_WAVE } from './cadence'
 import { salvageKillMult } from './workshop'
 import {
@@ -98,6 +114,8 @@ export interface SectorEncounter {
   salvageReward: number
   blurb: string
   units: CombatUnit[]
+  mechanicId?: string
+  threat?: { seed: number; budget: number; spent: number }
 }
 
 const MIXED_FAMILIES: EnemyFamily[] = ['swarm', 'armored', 'ethereal']
@@ -524,6 +542,7 @@ export function enemyForSector(
     salvageReward: salvageFromKill(sector, bossWave, side),
     blurb: familyBlurb(family, bossWave),
     units,
+    threat: measureThreatRoll(units, 0, threatBudgetForWave(careerWave), false),
   }
 }
 
@@ -545,6 +564,13 @@ export function encounterForWave(wave: number, extraDanger = 1, state?: GameStat
   const trash = trashWavesForSector(sector)
   const localWave = boss ? wavesForSector(sector) : Math.min(trash, ((w - 1) % 10) % trash + 1)
   const encounter = enemyForSector(sector, localWave, 'A', extraDanger, w)
+  const seed = state ? newSortieSeed(state) : 0
+  if (!boss) {
+    const spec = threatSpecForWave(w)
+    const varied = varyPackToBudget(encounter.units, spec, seed)
+    encounter.units = varied.units
+    encounter.threat = measureThreatRoll(encounter.units, seed, spec.budget, varied.elite)
+  }
   const density = state ? directiveDensityMult(state) * protocolEnemyDensityMult(state) : 1
   if (density > 1 && encounter.units.length > 0) {
     const extra = Math.max(1, Math.round(encounter.units.length * (density - 1)))
@@ -556,7 +582,17 @@ export function encounterForWave(wave: number, extraDanger = 1, state?: GameStat
   assignRadialHeadings(encounter.units, w)
   if (boss) {
     encounter.isBoss = true
-    encounter.name = encounter.name.includes('Boss') ? encounter.name : `${encounter.name} (Boss)`
+    const mechanic = bossMechanicForWave(w)
+    if (mechanic) {
+      applyBossMechanicToPack(encounter.units, mechanic)
+      encounter.mechanicId = mechanic
+      encounter.blurb = bossMechanicBlurb(mechanic)
+      encounter.name = encounter.name.includes('Boss') ? encounter.name : `${encounter.name} (Boss)`
+      encounter.tags = [...encounter.tags, mechanic]
+    } else {
+      encounter.name = encounter.name.includes('Boss') ? encounter.name : `${encounter.name} (Boss)`
+    }
+    encounter.threat = measureThreatRoll(encounter.units, seed, threatBudgetForWave(w), false)
   }
   encounter.id = `w${w}-${encounter.family}`
   return encounter
@@ -576,12 +612,15 @@ function act1ClimaxEncounter(extraDanger = 1, state?: GameState): SectorEncounte
     }
   }
   assignRadialHeadings(units, w)
+  applyBossMechanicToPack(units, 'climax-choir')
   return {
     id: `w${w}-climax`,
     name: ACT1_CLIMAX_NAME,
     family: 'titan',
-    tags: ['titan', 'boss', 'climax'],
+    tags: ['titan', 'boss', 'climax', 'climax-choir'],
     isBoss: true,
+    mechanicId: 'climax-choir',
+    threat: measureThreatRoll(units, state ? newSortieSeed(state) : 0, threatBudgetForWave(w), false),
     scrapReward: 20 + sector * 4,
     dataReward: 4 + Math.floor(sector / 2),
     aiReward: 0,
@@ -1376,8 +1415,54 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
 }
 
 export const ACT1_CLIMAX_NAME = 'Choir Crown'
-export const ACT1_CLIMAX_BLURB =
-  'Act 1 climax. Rebuild has reached the limit of this loop.'
+export const ACT1_CLIMAX_BLURB = bossMechanicBlurb('climax-choir')
+
+function applyBossMechanicToPack(units: CombatUnit[], mechanic: BossMechanicId): void {
+  const boss = units.find((u) => u.isBoss)
+  if (!boss) return
+  const telegraph = bossMechanicTelegraph(mechanic)
+  for (const weapon of boss.weapons) {
+    weapon.telegraphDuration = Math.max(weapon.telegraphDuration, telegraph)
+    if (mechanic === 'telegraph-slam') weapon.damage *= 1.2
+  }
+}
+
+function spawnBossAdds(state: GameState, boss: CombatUnit, label: string): void {
+  const sector = powerSectorForWave(state.combat.wave || 1)
+  const hullScale = enemySectorScale(sector)
+  const dmgScale = enemyDamageScale(sector)
+  const add = makeEnemyUnit({
+    name: label,
+    family: 'swarm',
+    role: 'skirmisher',
+    hull: 5 * hullScale,
+    damage: 2.2 * dmgScale,
+    cooldown: 0.9,
+    range: 36,
+    speed: 38,
+    engageRange: 28,
+    tags: ['kinetic'],
+    x: Math.max(36, boss.x * 0.72),
+    rewardWeight: 0.35,
+  })
+  add.heading = (boss.heading ?? 0) + 0.7 + state.combat.bossPhase * 0.9
+  state.combat.enemyUnits.push(add)
+  syncHullAggregates(state)
+}
+
+function tickBossSupportAura(state: GameState, dt: number): void {
+  const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
+  if (!mechanic || !bossMechanicHasAura(mechanic)) return
+  const boss = state.combat.enemyUnits.find((u) => u.isBoss && u.hull > 0)
+  if (!boss) return
+  for (const unit of state.combat.enemyUnits) {
+    if (unit.isBoss || unit.hull <= 0) continue
+    const dist = Math.abs((unit.x ?? 0) - (boss.x ?? 0))
+    if (dist > 70) continue
+    unit.hull = Math.min(unit.hullMax, unit.hull + Math.max(0.8, unit.hullMax * 0.04) * dt)
+    unit.armor = Math.max(unit.armor, 1)
+  }
+}
 
 function buildAct1ClimaxPack(sector: number, waveScale = 1): CombatUnit[] {
   const hullScale = enemySectorScale(sector) * 1.15 * waveScale
@@ -1876,8 +1961,18 @@ export function maybeAdvanceBossPhase(
       w.telegraphLeft = 0
       w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
     }
+    const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
+    if (mechanic && bossMechanicHasShieldPhase(mechanic)) {
+      boss.shieldMax = Math.max(boss.shieldMax, boss.hullMax * 0.45)
+      boss.shield = boss.shieldMax
+      pushLog(state, 'Boss phase 2 — shield wall raised.')
+    } else {
+      pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
+    }
+    if (mechanic && bossMechanicHasAdds(mechanic)) {
+      spawnBossAdds(state, boss, 'Called Thrall')
+    }
     revealCodexFamilies(state, ['armored'])
-    pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
   }
 
   if (state.combat.bossPhase < 2 && pct <= 1 / 3) {
@@ -1895,6 +1990,10 @@ export function maybeAdvanceBossPhase(
       w.range = Math.max(w.range, 130)
       w.telegraphLeft = 0
       w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
+    }
+    const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
+    if (mechanic && bossMechanicHasAdds(mechanic)) {
+      spawnBossAdds(state, boss, 'Called Thrall')
     }
     revealCodexFamilies(state, ['ethereal'])
     pushLog(state, 'Boss phase 3 — form frays [ethereal], kiting out.')
@@ -2540,6 +2639,7 @@ export function simulateCombat(
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
 
   moveUnits(state, dt)
+  tickBossSupportAura(state, dt)
 
   const masteryRegen = state.shipyard.modules.reduce(
     (n, id) => n + combinedCoreMods(state, id).regenAdd,

@@ -30,6 +30,7 @@ describe('GDD Act 1 climax and Reinforce', () => {
     expect(climax.name).toBe(ACT1_CLIMAX_NAME)
     expect(climax.id).toBe('w300-climax')
     expect(climax.blurb).toBe(ACT1_CLIMAX_BLURB)
+    expect(climax.mechanicId).toBe('climax-choir')
     expect(climax.units.some((u) => u.name === ACT1_CLIMAX_NAME && u.isBoss)).toBe(true)
     expect(climax.units.length).toBeGreaterThanOrEqual(4)
     expect(prior.name).not.toBe(ACT1_CLIMAX_NAME)
