@@ -16,7 +16,6 @@ import {
   specialistShieldMult,
 } from './specialists'
 import { yardGridSize, YARD_EXPAND_SECTOR_2 } from './yard'
-import { wavesForSector } from './sectors'
 import { advanceSeconds, setDocked, startCombat } from './tick'
 import { enemySectorScale } from './combat'
 import { waveForBand } from './waves'
@@ -140,13 +139,14 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
       ]),
     )
 
-    s.combat.sector = 9
+    s.combat.wave = 27
     s = applyDevAction(s, { type: 'force-boss-wave' })
-    expect(s.combat.wave).toBe(wavesForSector(9))
+    expect(s.combat.wave).toBe(30)
 
     s = applyDevAction(s, { type: 'unlock-catalog' })
-    expect(s.meta.highestSectorEver).toBeGreaterThanOrEqual(51)
-    expect(isSystemUnlocked(s, 'specialists')).toBe(true)
+    expect(s.meta.bestWave).toBeGreaterThanOrEqual(300)
+    expect(isSystemUnlocked(s, 'foundry')).toBe(true)
+    expect(isSystemUnlocked(s, 'specialists')).toBe(false)
 
     s = applyDevAction(s, {
       type: 'add-resources',

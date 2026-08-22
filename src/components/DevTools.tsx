@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { GameState } from '../game/types'
 import type { DevAction } from '../game/dev'
-import { isDevToolsEnabled, setDevToolsEnabled } from '../game/dev'
+import { GDD_DOOR_PRESETS, isDevToolsEnabled, setDevToolsEnabled } from '../game/dev'
 import { PlaytestReport } from './PlaytestReport'
 
 interface DevToolsProps {
@@ -14,38 +14,30 @@ const HIVE_RESOURCES: DevAction = {
   type: 'add-resources',
   amounts: {
     scrap: 500,
+    salvage: 400,
+    prestigeMatter: 5,
+    choirAsh: 80,
+    heat: 40,
     alloys: 200,
     energy: 200,
     data: 100,
-    essence: 10,
     aiPoints: 20,
-    prestigeMatter: 5,
-    challengePoints: 5,
-    salvage: 400,
-    choirAsh: 80,
-    heat: 40,
   },
 }
 
-const YARD_GOODS: DevAction = {
-  type: 'add-yard-goods',
-  amounts: { ore: 80, flux: 40, ingot: 20 },
-}
-
-function prepDoor(onDevAction: (action: DevAction) => void, sector: number): void {
+function prepDoor(onDevAction: (action: DevAction) => void, wave: number): void {
   onDevAction({ type: 'skip-guides' })
   onDevAction({ type: 'unlock-catalog' })
-  onDevAction({ type: 'set-prestige-count', count: 1 })
-  onDevAction({ type: 'jump-sector', sector })
+  onDevAction({ type: 'prep-gdd-door', wave })
   onDevAction(HIVE_RESOURCES)
-  onDevAction(YARD_GOODS)
   onDevAction({ type: 'fill-workers', count: 8 })
   onDevAction({ type: 'dock-heal' })
 }
 
 export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps) {
   const [enabled, setEnabled] = useState(() => isDevToolsEnabled())
-  const [sector, setSector] = useState('8')
+  const [bestWave, setBestWave] = useState('70')
+  const [liveWave, setLiveWave] = useState('1')
   const [open, setOpen] = useState(true)
   const [reportOpen, setReportOpen] = useState(false)
 
@@ -54,7 +46,7 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
     return (
       <div className="dev-tools">
         <p className="muted">
-          Dev tools are off. Enable them for jump/sector cheats while testing (also via{' '}
+          Dev tools are off. Enable them for Wave / door cheats while testing (also via{' '}
           <code>?dev=1</code>).
         </p>
         <button
@@ -90,7 +82,8 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
       {open ? (
         <div className="dev-tools-body">
           <p className="muted">
-            Hiveworks cheats — saved in this browser. Append <code>?dev=0</code> to turn off via URL.
+            Hiveworks cheats — GDD Wave cadence. Saved in this browser. Append <code>?dev=0</code> to
+            turn off.
           </p>
           {onOpenSimulator ? (
             <p className="assign-row">
@@ -112,74 +105,81 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
           ) : null}
           <div className="dev-tools-row">
             <label>
-              Sector{' '}
+              Best Wave{' '}
               <input
                 type="number"
-                min={1}
-                value={sector}
-                onChange={(e) => setSector(e.target.value)}
+                min={0}
+                value={bestWave}
+                onChange={(e) => setBestWave(e.target.value)}
               />
             </label>
             <button
               type="button"
               onClick={() =>
-                onDevAction({ type: 'jump-sector', sector: Number(sector) || 1 })
+                onDevAction({ type: 'set-best-wave', wave: Number(bestWave) || 0 })
               }
             >
-              Jump
+              Set Best
             </button>
-            {[8, 18, 22, 51, 72, 75, 80].map((n) => (
+            <label>
+              Live Wave{' '}
+              <input
+                type="number"
+                min={1}
+                value={liveWave}
+                onChange={(e) => setLiveWave(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => onDevAction({ type: 'set-wave', wave: Number(liveWave) || 1 })}
+            >
+              Set live
+            </button>
+          </div>
+          <div className="dev-tools-row">
+            {GDD_DOOR_PRESETS.map((door) => (
               <button
-                key={n}
+                key={door.wave}
                 type="button"
+                className="primary"
                 onClick={() => {
-                  setSector(String(n))
-                  onDevAction({ type: 'jump-sector', sector: n })
+                  setBestWave(String(door.wave))
+                  prepDoor(onDevAction, door.wave)
                 }}
               >
-                S{n}
+                {door.label}
               </button>
             ))}
           </div>
           <div className="dev-tools-row">
             <button type="button" onClick={() => onDevAction({ type: 'set-wave', wave: 1 })}>
-              Wave 1
+              Live W1
             </button>
-            <button
-              type="button"
-              onClick={() => onDevAction({ type: 'force-boss-wave' })}
-            >
+            <button type="button" onClick={() => onDevAction({ type: 'force-boss-wave' })}>
               Force boss
             </button>
             <button
               type="button"
-              onClick={() =>
-                onDevAction({
-                  type: 'set-module-levels',
-                  levels: { 'pulse-cannon': 20, 'plate-layer': 0 },
-                })
-              }
+              onClick={() => onDevAction({ type: 'set-core-run-levels', levels: { 0: 12, 1: 8 } })}
             >
-              Pulse 20 / Plate 0
+              Run Lv Pulse 12 / Plate 8
             </button>
             <button
               type="button"
               onClick={() =>
                 onDevAction({
-                  type: 'set-module-levels',
-                  levels: { 'pulse-cannon': 12, 'plate-layer': 12 },
+                  type: 'set-core-mastery',
+                  ranks: { 'pulse-cannon': 10, 'plate-layer': 10 },
                 })
               }
             >
-              Pulse 12 / Plate 12
+              Mastery 10 / 10
             </button>
           </div>
           <div className="dev-tools-row">
             <button type="button" onClick={() => onDevAction(HIVE_RESOURCES)}>
               +Resources
-            </button>
-            <button type="button" onClick={() => onDevAction(YARD_GOODS)}>
-              +Yard goods
             </button>
             <button type="button" onClick={() => onDevAction({ type: 'unlock-catalog' })}>
               Unlock catalog
@@ -191,15 +191,15 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
               +Workers
             </button>
             <button type="button" onClick={() => onDevAction({ type: 'dock-heal' })}>
-              Pause + heal
+              Dock + heal
             </button>
           </div>
           <div className="dev-tools-row">
             <button
               type="button"
-              onClick={() => onDevAction({ type: 'set-prestige-count', count: 1 })}
+              onClick={() => onDevAction({ type: 'set-prestige-count', count: 2 })}
             >
-              Prestige count = 1
+              Rebuilds = 2
             </button>
             <button type="button" onClick={() => onDevAction({ type: 'skip-guides' })}>
               Skip guides
@@ -210,46 +210,8 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
             <button type="button" onClick={() => onDevAction({ type: 'reset-onboarding' })}>
               Replay first-run
             </button>
-          </div>
-          <div className="dev-tools-row">
-            <button type="button" className="primary" onClick={() => prepDoor(onDevAction, 18)}>
-              Test Protocols @ 18
-            </button>
-            <button type="button" className="primary" onClick={() => prepDoor(onDevAction, 22)}>
-              Test Echo @ 22
-            </button>
-            <button type="button" className="primary" onClick={() => prepDoor(onDevAction, 51)}>
-              Test Specialists @ 51
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                prepDoor(onDevAction, 72)
-                onDevAction({ type: 'seed-late-game' })
-              }}
-            >
-              Test Task List @ 72
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                prepDoor(onDevAction, 75)
-                onDevAction({ type: 'seed-late-game' })
-              }}
-            >
-              Test Capital @ 75
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                prepDoor(onDevAction, 80)
-                onDevAction({ type: 'seed-late-game' })
-              }}
-            >
-              Test Reinforce @ 80
+            <button type="button" onClick={() => onDevAction({ type: 'seed-late-game' })}>
+              Seed W300
             </button>
           </div>
         </div>

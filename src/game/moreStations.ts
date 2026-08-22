@@ -119,18 +119,20 @@ export function isSystemsNavTab(tab: TabId): boolean {
   return tab === 'foundry' || tab === 'network' || tab === 'yard' || tab === 'furnace' || tab === 'research' || tab === 'process'
 }
 
+/** Leftover USI/Cosmic Idle screens — not routable in Act 1. */
+export const REMOVED_ACT1_TABS: TabId[] = [
+  'reliquary',
+  'slag',
+  'echo',
+  'specialists',
+  'tasks',
+  'capital',
+]
+
+export function isRemovedAct1Tab(tab: TabId): boolean {
+  return REMOVED_ACT1_TABS.includes(tab)
+}
+
 export function isMoreNavTab(tab: TabId): boolean {
-  return (
-    tab === 'stats' ||
-    tab === 'reliquary' ||
-    tab === 'slag' ||
-    tab === 'protocols' ||
-    tab === 'echo' ||
-    tab === 'specialists' ||
-    tab === 'tasks' ||
-    tab === 'capital' ||
-    tab === 'reinforce' ||
-    tab === 'logs' ||
-    tab === 'codex'
-  )
+  return tab === 'stats' || tab === 'protocols' || tab === 'reinforce' || tab === 'logs' || tab === 'codex'
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { setCampaign, setPushMode, retryFrontier, warpToSector, setDocked } from './tick'
 import { enterEcho, setLaunchSector, setSectorRoute } from './actions'
-import { MORE_STATIONS } from './moreStations'
+import { MORE_STATIONS, REMOVED_ACT1_TABS, isRemovedAct1Tab } from './moreStations'
 import { isSystemUnlocked } from './progression'
 import { canEnterEcho, echoDamageMult } from './echo'
 
@@ -47,6 +47,14 @@ describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
     expect(MORE_STATIONS.some((s) => s.id === 'network')).toBe(false)
     expect(MORE_STATIONS.some((s) => s.id === 'furnace')).toBe(false)
     expect(MORE_STATIONS.map((s) => s.name).join(' ')).not.toMatch(/Route B|Frontier Hold|Yard|Echo|Workers|Furnace/)
+  })
+
+  it('does not route Reliquary, Slag, Echo, Specialists, Tasks, or Capital', () => {
+    expect(REMOVED_ACT1_TABS).toEqual(['reliquary', 'slag', 'echo', 'specialists', 'tasks', 'capital'])
+    for (const id of REMOVED_ACT1_TABS) {
+      expect(isRemovedAct1Tab(id)).toBe(true)
+      expect(MORE_STATIONS.some((s) => s.id === id)).toBe(false)
+    }
   })
 
   it('never unlocks Echo and ignores leftover trees', () => {

@@ -946,7 +946,7 @@ export function canBuyProcessNode(
     return { ok: false, reason: systemLockReason(def.requiresSystem) }
   }
   if (def.requiresSectorEver && careerHighestSector(state) < def.requiresSectorEver) {
-    return { ok: false, reason: `Clear sector ${def.requiresSectorEver}` }
+    return { ok: false, reason: `Reach Wave ${def.requiresSectorEver}` }
   }
   if (def.requiresMastery && !hasProcessMastery(state, def.requiresMastery)) {
     return { ok: false, reason: masteryLockReason(def.requiresMastery) }

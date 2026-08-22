@@ -114,10 +114,11 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     expect(unlockedFoundryLogs(s).some((l) => l.id === 'capital')).toBe(true)
   })
 
-  it('dev seed-late-game completes the Task List', () => {
+  it('dev seed-late-game opens Reinforce without Capital', () => {
     let s = createInitialState(0)
     s = applyDevAction(s, { type: 'seed-late-game' })
-    expect(taskListProgress(s).done).toBe(taskListProgress(s).total)
-    expect(isSystemUnlocked(s, 'capital')).toBe(true)
+    expect(s.meta.act1Cleared).toBe(true)
+    expect(isSystemUnlocked(s, 'reinforce')).toBe(true)
+    expect(isSystemUnlocked(s, 'capital')).toBe(false)
   })
 })

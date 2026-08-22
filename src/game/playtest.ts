@@ -421,7 +421,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Career playtime: ${formatPlaytimeMs(log.playtimeMs)}`)
   lines.push(`Save age: ${formatPlaytimeMs(saveAgeMs(state, now))}`)
   lines.push(
-    `Highest sector: S${Math.max(state.combat?.highestSector ?? 0, state.meta?.highestSectorEver ?? 0, log.sectorAt)}`,
+    `Best Wave: ${Math.max(state.combat?.bestWave ?? 0, state.meta?.bestWave ?? 0, log.sectorAt)}`,
   )
   lines.push('')
   lines.push('Progression')
