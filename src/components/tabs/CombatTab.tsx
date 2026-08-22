@@ -146,6 +146,7 @@ export function CombatTab({
   const forceCores = coresGuideActive(state, guide)
   const [upgradeCat, setUpgradeCat] = useState<RunUpgradeCategory>('attack')
   const [buyMode, setBuyMode] = useState<BuyMode>(1)
+  const [shopCollapsed, setShopCollapsed] = useState(false)
   const [coresOpen, setCoresOpen] = useState(false)
   const [directivesOpen, setDirectivesOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -168,6 +169,10 @@ export function CombatTab({
   useEffect(() => {
     if (forceCores) setCoresOpen(true)
   }, [forceCores])
+
+  useEffect(() => {
+    if (guide?.target === 'run-upgrade-weapon-power') setShopCollapsed(false)
+  }, [guide?.target])
 
   useEffect(() => {
     if (coresOpen) onMarkCoresSeen?.()
@@ -268,7 +273,15 @@ export function CombatTab({
   const coreCap = state.shipyard.modules.length
 
   return (
-    <section className={hullBand === 'critical' ? 'sortie-screen is-critical' : 'sortie-screen'}>
+    <section
+      className={[
+        'sortie-screen',
+        hullBand === 'critical' ? 'is-critical' : '',
+        shopCollapsed ? 'is-shop-collapsed' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <header className="sortie-hud">
         <div className="sortie-hud-wave">
           {protocol ? <span className="combat-hud-kicker">{protocol.name}</span> : null}
@@ -376,32 +389,47 @@ export function CombatTab({
         </div>
       ) : null}
 
-      <div className="sortie-shop">
+      <div className={`sortie-shop${shopCollapsed ? ' is-collapsed' : ''}`}>
         {live ? (
           <>
             <div className="sortie-shop-head">
-              <SheetTabs
-                value={upgradeCat}
-                onChange={setUpgradeCat}
-                options={[
-                  { id: 'attack', label: 'Attack' },
-                  { id: 'defense', label: 'Defense' },
-                  { id: 'economy', label: 'Economy' },
-                ]}
-                label="Upgrade categories"
-              />
+              <button
+                type="button"
+                className="sortie-shop-toggle"
+                aria-expanded={!shopCollapsed}
+                aria-label={shopCollapsed ? 'Show upgrades' : 'Hide upgrades'}
+                onClick={() => setShopCollapsed((open) => !open)}
+              >
+                {shopCollapsed ? 'Upgrades' : 'Hide'}
+              </button>
+              {shopCollapsed ? null : (
+                <SheetTabs
+                  value={upgradeCat}
+                  onChange={setUpgradeCat}
+                  options={[
+                    { id: 'attack', label: 'Attack' },
+                    { id: 'defense', label: 'Defense' },
+                    { id: 'economy', label: 'Economy' },
+                  ]}
+                  label="Upgrade categories"
+                />
+              )}
               <button type="button" className="sortie-menu-btn" aria-label="Sortie menu" onClick={() => setMenuOpen(true)}>
                 ⋮
               </button>
             </div>
-            <BuyModeRow state={state} value={buyMode} onChange={setBuyMode} />
-            <UpgradeGrid
-              state={state}
-              category={upgradeCat}
-              kind="run"
-              buyMode={buyMode}
-              onBuy={(id, count) => onBuyRunUpgrade?.(id, count)}
-            />
+            {shopCollapsed ? null : (
+              <>
+                <BuyModeRow state={state} value={buyMode} onChange={setBuyMode} />
+                <UpgradeGrid
+                  state={state}
+                  category={upgradeCat}
+                  kind="run"
+                  buyMode={buyMode}
+                  onBuy={(id, count) => onBuyRunUpgrade?.(id, count)}
+                />
+              </>
+            )}
             <div className="sortie-shop-tools">
               <button type="button" className="sortie-tool" onClick={() => setCoresOpen(true)} data-guide="cores-sheet">
                 CORES · {coreCap}/{coreCap}

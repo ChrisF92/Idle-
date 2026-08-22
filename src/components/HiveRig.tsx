@@ -48,7 +48,7 @@ export function HiveRig({ state, compact = false, interactive = false, onSelect 
           <button
             key={core.id}
             type="button"
-            className={`hive-rig-sat is-${core.kind}`}
+            className={`hive-rig-sat is-${core.role} is-${core.kind}`}
             style={{
               left: `calc(50% + ${Math.cos(angle) * r}px)`,
               top: `calc(50% + ${Math.sin(angle) * r}px)`,

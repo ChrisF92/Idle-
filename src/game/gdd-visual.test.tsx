@@ -41,6 +41,16 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
     expect(screen.getByText('Weapon Power')).toBeTruthy()
     expect(screen.getByRole('button', { name: /CORES/i })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Weapon Power details' }))
+    expect(screen.getByRole('dialog', { name: 'Weapon Power' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Hide upgrades' }))
+    expect(screen.queryByText('Weapon Power')).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Attack' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))
+    expect(screen.getByText('Weapon Power')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
   })
 
   it('keeps Sortie Cores inspect-only', () => {

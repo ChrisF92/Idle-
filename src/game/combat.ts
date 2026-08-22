@@ -2275,6 +2275,8 @@ function spawnProjectile(
     originX: from.x,
     originY: from.y,
     attackerRole: from.role,
+    heading: from.side === 'player' ? (to.heading ?? 0) : (from.heading ?? 0),
+    weaponId: weapon.id,
     ...weaponDamageProfile(weapon.tags, weapon),
   })
 }
@@ -2301,6 +2303,8 @@ function spawnBeam(
     damage,
     attackerFamily: from.family,
     attackerRole: from.role,
+    heading: from.side === 'player' ? (to.heading ?? 0) : (from.heading ?? 0),
+    weaponId: weapon.id,
     ...profile,
   })
 }

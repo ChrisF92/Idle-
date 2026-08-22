@@ -145,6 +145,32 @@ describe('fleet combat resolution', () => {
     expect(state.combat.enemyHull).toBeLessThan(before)
   })
 
+  it('stamps radial heading and weapon id on player and enemy shots', () => {
+    let state = createInitialState(0)
+    state = startCombat(state)
+    const enemy = state.combat.enemyUnits[0]
+    enemy.x = 70
+    enemy.heading = 2.1
+    enemy.engageRange = 200
+    for (const weapon of enemy.weapons) {
+      weapon.range = 200
+      weapon.cooldownLeft = 0
+    }
+    for (const unit of state.combat.playerUnits) {
+      for (const weapon of unit.weapons) {
+        weapon.range = 200
+        weapon.cooldownLeft = 0
+      }
+    }
+    simulateCombat(state, 1 / 60, () => {})
+    const enemyShot = state.combat.projectiles.find((p) => p.side === 'enemy')
+    const playerShot = state.combat.projectiles.find((p) => p.side === 'player')
+    expect(enemyShot?.heading).toBeCloseTo(enemy.heading ?? 0)
+    expect(enemyShot?.originX).toBeCloseTo(enemy.x)
+    expect(playerShot?.heading).toBeCloseTo(enemy.heading ?? 0)
+    expect(playerShot?.weaponId).toMatch(/-wpn$/)
+  })
+
   it('uses one projectile speed for all weapon tags', () => {
     expect(projectileSpeedForTag('kinetic')).toBe(PROJECTILE_SPEED)
     expect(projectileSpeedForTag('pierce')).toBe(PROJECTILE_SPEED)

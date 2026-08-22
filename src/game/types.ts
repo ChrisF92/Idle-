@@ -786,6 +786,10 @@ export interface CombatProjectile {
   originY?: number
   /** Attacker class at fire time. Optional on old saves. */
   attackerRole?: EnemyRole
+  /** Radial heading used by the battlefield (0 = screen-up). */
+  heading?: number
+  /** Flagship weapon id (`${moduleId}-wpn`) so shots can leave that Core. */
+  weaponId?: string
 }
 
 /** Connected beam — damage ticks while the line is up (USI Beam Laser). */
@@ -810,6 +814,8 @@ export interface CombatBeam {
   popupT?: number
   /** Attacker class at fire time. Optional on old saves. */
   attackerRole?: EnemyRole
+  heading?: number
+  weaponId?: string
 }
 
 export type RunUpgradeCategory = 'attack' | 'defense' | 'economy'

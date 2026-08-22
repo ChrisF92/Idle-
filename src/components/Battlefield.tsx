@@ -9,10 +9,12 @@ import type {
   WeaponInstance,
   WeaponTag,
 } from '../game/types'
+import { getModule } from '../game/catalog'
 import { SPAWN_DISTANCE } from '../game/combat'
+import { coreRoleColor, projectileScreenPoint, weaponIdToCoreId } from '../game/combatVisual'
 import { formatCompact } from '../game/format'
 import type { DamageNumbersMode } from '../game/uiReadout'
-import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind, hiveFrameStyle, type CoreVisualKind, type HiveFrameStyle } from '../game/hiveVisual'
+import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind, hiveFrameStyle, type HiveFrameStyle } from '../game/hiveVisual'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -145,6 +147,16 @@ interface VisualBeam {
   side: 'player' | 'enemy'
   remaining: number
   duration: number
+  fromX: number
+  fromY: number
+  weaponId?: string
+}
+
+type CoreSlot = {
+  id: string
+  role: 'weapon' | 'defense' | 'utility'
+  x: number
+  y: number
 }
 
 interface TraceLinger {
@@ -204,6 +216,7 @@ interface Scene {
   critVignette: number
   frameId: string
   coreIds: string[]
+  coreSlots: CoreSlot[]
   hiveShieldPop: number
 }
 
@@ -443,9 +456,87 @@ function radialToScreen(range: number, heading = 0): { x: number; y: number } {
   }
 }
 
-function lanePointToScreen(x: number, y: number, heading = 0): { x: number; y: number } {
-  if (heading || Math.abs(y) < 1) return radialToScreen(x, heading)
-  return radialToScreen(x, Math.atan2(y, Math.max(1, x)))
+function hiveCenter(scene: Scene): { x: number; y: number } {
+  for (const actor of scene.actors.values()) {
+    if (actor.side === 'player' && actor.isFlagship) return { x: actor.x, y: actor.y }
+  }
+  return { x: HIVE_SCREEN_X, y: HIVE_SCREEN_Y }
+}
+
+function refreshCoreSlots(scene: Scene): void {
+  const hive = hiveCenter(scene)
+  const ids = scene.coreIds
+  scene.coreSlots = ids.map((id, index) => {
+    const kind = coreVisualKind(id)
+    const orbit = coreOrbitRadius(kind)
+    const speed = coreOrbitSpeed(kind)
+    const angle = scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0)
+    return {
+      id,
+      role: getModule(id)?.role ?? 'utility',
+      x: hive.x + Math.cos(angle) * orbit,
+      y: hive.y + Math.sin(angle) * orbit,
+    }
+  })
+}
+
+function stableSlotIndex(id: string, count: number): number {
+  if (count <= 0) return 0
+  let hash = 0
+  for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) | 0
+  return Math.abs(hash) % count
+}
+
+function playerMuzzle(scene: Scene, weaponId?: string, shotId = ''): { x: number; y: number } {
+  const weapons = scene.coreSlots.filter((slot) => slot.role === 'weapon')
+  const coreId = weaponIdToCoreId(weaponId)
+  const matched = coreId ? weapons.find((slot) => slot.id === coreId) : undefined
+  if (matched) return { x: matched.x, y: matched.y }
+  if (weapons.length === 0) return hiveCenter(scene)
+  const slot = weapons[stableSlotIndex(shotId || coreId || 'wpn', weapons.length)]
+  return { x: slot.x, y: slot.y }
+}
+
+function findCombatUnit(
+  playerUnits: CombatUnit[],
+  enemyUnits: CombatUnit[],
+  id: string,
+): CombatUnit | undefined {
+  return playerUnits.find((unit) => unit.id === id) ?? enemyUnits.find((unit) => unit.id === id)
+}
+
+function shotScreenEnds(
+  scene: Scene,
+  p: CombatProjectile,
+  playerUnits: CombatUnit[],
+  enemyUnits: CombatUnit[],
+): { from: { x: number; y: number }; to: { x: number; y: number }; screen: { x: number; y: number } } {
+  const fromUnit = findCombatUnit(playerUnits, enemyUnits, p.fromId)
+  const toUnit = findCombatUnit(playerUnits, enemyUnits, p.toId)
+  const fromActor = scene.actors.get(p.fromId)
+  const toActor = scene.actors.get(p.toId)
+  const heading = p.heading ?? (p.side === 'player' ? toUnit?.heading : fromUnit?.heading) ?? 0
+  const originRange = p.originX ?? fromUnit?.x ?? (p.side === 'player' ? 0 : p.x)
+  const destRange = toUnit?.x ?? (p.side === 'player' ? Math.max(originRange, p.x) : 0)
+  const from =
+    p.side === 'player'
+      ? playerMuzzle(scene, p.weaponId, p.id)
+      : fromActor
+        ? { x: fromActor.x, y: fromActor.y }
+        : radialToScreen(originRange, heading)
+  const to = toActor ? { x: toActor.x, y: toActor.y } : radialToScreen(destRange, heading)
+  return {
+    from,
+    to,
+    screen: projectileScreenPoint(p.side, p.x, originRange, destRange, from, to),
+  }
+}
+
+function beamOrigin(scene: Scene, beam: CombatBeam | VisualBeam): { x: number; y: number } {
+  if (beam.side === 'player') return playerMuzzle(scene, beam.weaponId, beam.id)
+  const from = scene.actors.get(beam.fromId)
+  if (from) return { x: from.x, y: from.y }
+  return hiveCenter(scene)
 }
 
 function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
@@ -902,6 +993,8 @@ function syncScene(
     }
   }
 
+  refreshCoreSlots(scene)
+
   // Mirror authoritative sim projectiles into screen space (damage is sim-only on impact)
   const nextProj = new Map<string, VisualShot>()
   const liveIds = new Set(projectiles.map((p) => p.id))
@@ -921,18 +1014,19 @@ function syncScene(
     })
   }
   for (const p of projectiles) {
-    const screen = lanePointToScreen(p.x, p.y)
-    const origin = lanePointToScreen(p.originX ?? p.x, p.originY ?? p.y)
+    const ends = shotScreenEnds(scene, p, playerUnits, enemyUnits)
+    const screen = ends.screen
+    const origin = ends.from
     const prev = scene.projectiles.get(p.id)
-    let hx = 0
-    let hy = p.side === 'player' ? -1 : 1
+    let hx = ends.to.x - ends.from.x
+    let hy = ends.to.y - ends.from.y
     if (prev) {
       const dx = screen.x - prev.x
       const dy = screen.y - prev.y
       if (Math.hypot(dx, dy) > 0.2) {
         hx = dx
         hy = dy
-      } else {
+      } else if (Math.hypot(prev.hx, prev.hy) > 0.2) {
         hx = prev.hx
         hy = prev.hy
       }
@@ -956,14 +1050,13 @@ function syncScene(
       if (from) {
         from.muzzle = 1
         const style = shotStyle(nextProj.get(p.id)!)
-        const noseY = from.side === 'player' ? from.y - from.r : from.y + from.r
-        burst(scene, from.x, noseY, style.core, from.isBoss ? 10 : 6, {
+        burst(scene, origin.x, origin.y, style.core, from.isBoss ? 10 : 6, {
           speed: 0.45,
           life: 0.28,
           size: from.isBoss ? 1.2 : 0.75,
         })
         if (from.isBoss || p.side === 'player' || p.delivery === 'charge') {
-          ring(scene, from.x, noseY, style.color, from.isBoss ? 28 : 16, 0.18, 1.4)
+          ring(scene, origin.x, origin.y, style.color, from.isBoss ? 28 : 16, 0.18, 1.4)
         }
       }
     } else if (prev) {
@@ -994,13 +1087,12 @@ function syncScene(
   const liveBeamIds = new Set(beams.map((b) => b.id))
   for (const prev of scene.beams) {
     if (liveBeamIds.has(prev.id)) continue
-    const from = scene.actors.get(prev.fromId)
     const to = scene.actors.get(prev.toId)
-    if (!from || !to) continue
+    if (!to) continue
     const palette = beamColor(prev.tag, prev.side)
     scene.traces.push({
-      x1: from.x,
-      y1: from.y,
+      x1: prev.fromX,
+      y1: prev.fromY,
       x2: to.x,
       y2: to.y,
       color: palette.glow,
@@ -1011,6 +1103,7 @@ function syncScene(
     })
   }
   for (const b of beams) {
+    const origin = beamOrigin(scene, b)
     nextBeams.push({
       id: b.id,
       fromId: b.fromId,
@@ -1019,6 +1112,9 @@ function syncScene(
       side: b.side,
       remaining: b.remaining,
       duration: b.duration,
+      fromX: origin.x,
+      fromY: origin.y,
+      weaponId: b.weaponId,
     })
     if (!scene.seenBeam.has(b.id)) {
       scene.seenBeam.add(b.id)
@@ -1026,9 +1122,8 @@ function syncScene(
       if (from) {
         from.muzzle = 1
         const palette = beamColor(b.tag, b.side)
-        const noseY = from.side === 'player' ? from.y - from.r : from.y + from.r
-        burst(scene, from.x, noseY, palette.core, 8, { speed: 0.4, life: 0.3, size: 0.9 })
-        ring(scene, from.x, noseY, palette.glow, 18, 0.2, 1.5)
+        burst(scene, origin.x, origin.y, palette.core, 8, { speed: 0.4, life: 0.3, size: 0.9 })
+        ring(scene, origin.x, origin.y, palette.glow, 18, 0.2, 1.5)
       }
     }
   }
@@ -1131,23 +1226,6 @@ function drawShape(
   ctx.restore()
 }
 
-function coreKindColor(kind: CoreVisualKind): string {
-  switch (kind) {
-    case 'flak':
-      return '#e0c07a'
-    case 'beam':
-      return '#5ec4b8'
-    case 'heavy':
-      return '#d88848'
-    case 'pulse':
-      return '#7ec8ff'
-    case 'shield':
-      return '#8fd4ff'
-    case 'utility':
-      return '#b8a0e0'
-  }
-}
-
 function drawHiveFrame(
   ctx: CanvasRenderingContext2D,
   style: HiveFrameStyle,
@@ -1218,33 +1296,37 @@ function drawOrbitingCores(
   ay: number,
   alpha: number,
 ): void {
-  const ids = scene.coreIds
-  if (ids.length === 0) return
-  ids.forEach((id, index) => {
-    const kind = coreVisualKind(id)
-    const orbit = coreOrbitRadius(kind)
-    const speed = coreOrbitSpeed(kind)
-    const angle = scene.time * speed + (index / ids.length) * Math.PI * 2
-    const x = ax + Math.cos(angle) * orbit
-    const y = ay + Math.sin(angle) * orbit
-    const color = coreKindColor(kind)
+  refreshCoreSlots(scene)
+  if (scene.coreSlots.length === 0) return
+  scene.coreSlots.forEach((slot, index) => {
+    const kind = coreVisualKind(slot.id)
+    const color = coreRoleColor(slot.role)
+    const pulse = scene.reducedMotion ? 0 : 0.5 + 0.5 * Math.sin(scene.time * (slot.role === 'defense' ? 4.2 : 3.1) + index)
     ctx.save()
+    if (slot.role === 'defense') {
+      ctx.globalAlpha = alpha * (0.18 + pulse * 0.16)
+      ctx.strokeStyle = color
+      ctx.lineWidth = 1.1
+      ctx.beginPath()
+      ctx.moveTo(ax, ay)
+      ctx.lineTo(slot.x, slot.y)
+      ctx.stroke()
+    } else if (slot.role === 'utility') {
+      ctx.globalAlpha = alpha * (0.2 + pulse * 0.18)
+      ctx.strokeStyle = color
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(slot.x, slot.y, 5.5 + pulse * 1.4, 0, Math.PI * 2)
+      ctx.stroke()
+    }
     ctx.globalAlpha = alpha * 0.95
     ctx.fillStyle = color
     ctx.strokeStyle = '#ffe8c7'
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.arc(x, y, kind === 'heavy' ? 4.2 : kind === 'flak' ? 2.8 : 3.3, 0, Math.PI * 2)
+    ctx.arc(slot.x, slot.y, kind === 'heavy' ? 4.2 : kind === 'flak' ? 2.8 : 3.3, 0, Math.PI * 2)
     ctx.fill()
     ctx.stroke()
-    if (kind === 'beam') {
-      ctx.globalAlpha = alpha * 0.35
-      ctx.strokeStyle = color
-      ctx.beginPath()
-      ctx.moveTo(ax, ay)
-      ctx.lineTo(x, y)
-      ctx.stroke()
-    }
     ctx.restore()
   })
 }
@@ -1862,13 +1944,14 @@ function drawLiveBeams(ctx: CanvasRenderingContext2D, scene: Scene): void {
   for (const beam of scene.beams) {
     const from = scene.actors.get(beam.fromId)
     const to = scene.actors.get(beam.toId)
-    if (!from || !to) continue
+    if (!to) continue
+    const origin = beam.side === 'player' || !from ? { x: beam.fromX, y: beam.fromY } : { x: from.x, y: from.y }
     const palette = beamColor(beam.tag, beam.side)
     const dwell = beam.duration > 0 ? beam.remaining / beam.duration : 1
-    const flicker = 0.72 + 0.28 * Math.sin(scene.time * 52 + from.bobPhase)
+    const flicker = 0.72 + 0.28 * Math.sin(scene.time * 52 + (from?.bobPhase ?? 0))
     const alpha = (0.5 + 0.45 * dwell) * flicker
     const width = beam.side === 'player' ? 3.4 : 2.6
-    drawLineGlow(ctx, from.x, from.y, to.x, to.y, palette.glow, palette.core, width, alpha)
+    drawLineGlow(ctx, origin.x, origin.y, to.x, to.y, palette.glow, palette.core, width, alpha)
     ctx.save()
     ctx.globalAlpha = alpha
     ctx.fillStyle = palette.core
@@ -2162,6 +2245,7 @@ export function Battlefield({
       critVignette: 0,
       frameId,
       coreIds,
+      coreSlots: [],
       hiveShieldPop: 0,
     }
     sceneRef.current = scene

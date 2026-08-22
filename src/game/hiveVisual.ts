@@ -1,7 +1,10 @@
 /** Frame / Core presentation helpers for battlefield and Dock hive preview. */
 
 import { getModule } from './catalog'
+import { coreRoleColor } from './combatVisual'
 import type { GameState } from './types'
+
+export { coreRoleColor }
 
 export type CoreVisualKind = 'flak' | 'beam' | 'heavy' | 'pulse' | 'shield' | 'utility'
 
@@ -67,12 +70,15 @@ export function hiveFrameStyle(frameId: string): HiveFrameStyle {
 
 export function equippedCoreVisuals(state: GameState) {
   return state.shipyard.modules.map((id, index) => {
+    const def = getModule(id)
+    const role = def?.role ?? 'utility'
     const kind = coreVisualKind(id)
     return {
       id,
-      name: getModule(id)?.name ?? id,
-      role: getModule(id)?.role ?? 'utility',
+      name: def?.name ?? id,
+      role,
       kind,
+      color: coreRoleColor(role),
       orbit: coreOrbitRadius(kind),
       speed: coreOrbitSpeed(kind),
       index,

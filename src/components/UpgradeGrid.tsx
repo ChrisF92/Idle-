@@ -63,8 +63,9 @@ export function BuyModeRow({
 export function UpgradeGrid({ state, category, kind, buyMode, onBuy }: UpgradeGridProps) {
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
   const rows = visibleRunUpgrades(best, category)
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [infoId, setInfoId] = useState<string | null>(null)
   if (rows.length === 0) return <p className="muted">More upgrades open as Best Wave climbs.</p>
+  const info = rows.find((row) => row.id === infoId)
 
   return (
     <div className="upgrade-grid">
@@ -81,12 +82,11 @@ export function UpgradeGrid({ state, category, kind, buyMode, onBuy }: UpgradeGr
         const currency = kind === 'run' ? 'Salvage' : 'Scrap'
         const affordable = bank >= cost && level < RUN_UPGRADE_CAP && cost > 0
         const preview = runUpgradePreview(state, def.id)
-        const expanded = openId === def.id
         const guide = kind === 'run' && def.id === 'weapon-power' ? 'run-upgrade-weapon-power' : undefined
         return (
           <article
             key={def.id}
-            className={`upgrade-tile${affordable ? ' is-affordable' : ''}${expanded ? ' is-open' : ''}`}
+            className={`upgrade-tile${affordable ? ' is-affordable' : ''}`}
             data-guide={guide}
           >
             <button
@@ -96,57 +96,76 @@ export function UpgradeGrid({ state, category, kind, buyMode, onBuy }: UpgradeGr
               onClick={() => onBuy?.(def.id, count)}
               aria-label={`${def.name}. ${affordable ? `Buy ${count} for ${formatCompact(cost)} ${currency}` : `Need ${formatCompact(cost)} ${currency}`}`}
             >
-              <strong>{def.name}</strong>
+              <span className="upgrade-tile-top">
+                <strong>{def.name}</strong>
+                <span className={`upgrade-tile-cost${affordable ? '' : ' is-short'}`}>
+                  {level >= RUN_UPGRADE_CAP ? 'Maxed' : formatCompact(cost)}
+                </span>
+              </span>
               <span className="upgrade-tile-level">
                 {kind === 'workshop' ? (
-                  <>
-                    START Lv{start} → {start + count}
-                  </>
+                  <>START Lv{start} → {start + count}</>
                 ) : (
                   <>
                     Lv{level}
-                    {run > 0 ? ` · +${run} run` : ''}
+                    {run > 0 ? ` · +${run}` : ''}
                   </>
                 )}
               </span>
               <span className="upgrade-tile-preview">
-                {kind === 'workshop' ? 'Starting effect ' : ''}
                 {preview.current} → {preview.next}
-              </span>
-              <span className={`upgrade-tile-cost${affordable ? '' : ' is-short'}`}>
-                {level >= RUN_UPGRADE_CAP ? 'Maxed' : `${formatCompact(cost)} ${currency}`}
               </span>
             </button>
             <button
               type="button"
               className="upgrade-tile-info"
               aria-label={`${def.name} details`}
-              onClick={() => setOpenId(expanded ? null : def.id)}
+              onClick={() => setInfoId(def.id)}
             >
               i
             </button>
-            {expanded ? (
-              <div className="upgrade-tile-detail">
-                <p>{def.blurb}</p>
-                {kind === 'workshop' ? (
-                  <p className="muted">
-                    Workshop Lv{start} means every Sortie begins with {start} effective levels. The
-                    temporary Sortie purchase-cost ladder still begins from its base cost.
-                  </p>
-                ) : (
-                  <p className="muted">
-                    Workshop Lv{start}
-                    {run > 0 ? ` · Sortie +${run}` : ''} · Effective Lv{level}
-                  </p>
-                )}
-                <p className="muted">
-                  {preview.current} → {preview.next} · {formatCompact(cost)} {currency}
-                </p>
-              </div>
-            ) : null}
           </article>
         )
       })}
+
+      {info ? (
+        <div
+          className="upgrade-info-modal"
+          role="dialog"
+          aria-labelledby={`upgrade-info-${info.id}`}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setInfoId(null)
+          }}
+        >
+          <div className="upgrade-info-card">
+            <header className="modal-header">
+              <h3 id={`upgrade-info-${info.id}`}>{info.name}</h3>
+              <button type="button" onClick={() => setInfoId(null)}>
+                Close
+              </button>
+            </header>
+            <p>{info.blurb}</p>
+            {kind === 'workshop' ? (
+              <p className="muted">
+                Workshop Lv{workshopLevel(state, info.id)} means every Sortie begins with that many
+                effective levels. The temporary Sortie purchase-cost ladder still begins from its
+                base cost.
+              </p>
+            ) : (
+              <p className="muted">
+                Workshop Lv{workshopLevel(state, info.id)}
+                {runPurchasedLevel(state, info.id) > 0
+                  ? ` · Sortie +${runPurchasedLevel(state, info.id)}`
+                  : ''}{' '}
+                · Effective Lv{effectiveUpgradeLevel(state, info.id)}
+              </p>
+            )}
+            <p className="muted">
+              {runUpgradePreview(state, info.id).current} → {runUpgradePreview(state, info.id).next}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
