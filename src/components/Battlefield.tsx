@@ -11,15 +11,11 @@ import type {
 } from '../game/types'
 import { getModule } from '../game/catalog'
 import {
-  closestValidFacing,
   coreRoleColor,
   easeAngle,
-  isOutwardFiringArc,
-  muzzleClearOfHive,
   pointOnRing,
   projectileScreenPoint,
   ringAngleToward,
-  segmentHitsCircle,
   weaponIdToCoreId,
 } from '../game/combatVisual'
 import { formatCompact } from '../game/format'
@@ -484,16 +480,11 @@ function radialToScreen(range: number, heading = 0): { x: number; y: number } {
 
 function hiveCenter(scene: Scene): { x: number; y: number } {
   for (const actor of scene.actors.values()) {
-    if (actor.side === 'player' && actor.isFlagship) return { x: actor.x, y: actor.y }
+    if (actor.side === 'player' && actor.isFlagship) {
+      return { x: actor.x, y: actor.y + actor.recoil * 5 }
+    }
   }
   return { x: HIVE_SCREEN_X, y: HIVE_SCREEN_Y }
-}
-
-function hiveClearRadius(scene: Scene): number {
-  for (const actor of scene.actors.values()) {
-    if (actor.side === 'player' && actor.isFlagship) return actor.r * 1.45 + 10
-  }
-  return 28
 }
 
 function ensureWeaponSpins(scene: Scene): void {
@@ -555,7 +546,6 @@ function coreHasBeam(scene: Scene, coreId: string): boolean {
 function stepWeaponCores(scene: Scene, dt: number): void {
   ensureWeaponSpins(scene)
   const hive = hiveCenter(scene)
-  const clearR = hiveClearRadius(scene)
   for (const spin of scene.weaponSpins.values()) {
     const target = coreTargetScreen(scene, spin.id)
     if (!target) {
@@ -564,32 +554,20 @@ function stepWeaponCores(scene: Scene, dt: number): void {
       continue
     }
     const face = ringAngleToward(hive, target)
-    const pos = pointOnRing(hive, spin.orbit, spin.angle)
-    const inArc =
-      isOutwardFiringArc(spin.angle, face) && !segmentHitsCircle(pos, target, hive, clearR)
     const beaming = spin.kind === 'beam' && coreHasBeam(scene, spin.id)
-    if (spin.kind === 'heavy' && spin.holdT > 0) {
-      if (!inArc) spin.angle = scene.reducedMotion ? face : easeAngle(spin.angle, closestValidFacing(spin.angle, face), dt, 12)
-      spin.holdT = Math.max(0, spin.holdT - dt)
-      continue
-    }
-    if (!inArc) {
-      const dest = closestValidFacing(spin.angle, face)
-      spin.angle = scene.reducedMotion ? dest : easeAngle(spin.angle, dest, dt, 11)
-    } else if (beaming) {
-      spin.angle += spin.speed * dt * 0.12
-    } else if (spin.kind === 'heavy') {
-      spin.angle += spin.speed * dt * 0.28
+    const stiffness = beaming ? 18 : spin.kind === 'heavy' ? 12 : 14
+    if (scene.reducedMotion) spin.angle = face
+    else if (spin.kind === 'heavy' && spin.holdT > 0) {
+      spin.angle = easeAngle(spin.angle, face, dt, 16)
     } else {
-      spin.angle += spin.speed * dt
+      spin.angle = easeAngle(spin.angle, face, dt, stiffness)
     }
     spin.holdT = Math.max(0, spin.holdT - dt)
   }
 }
 
-function refreshCoreSlots(scene: Scene): void {
+function refreshCoreSlots(scene: Scene, hive = hiveCenter(scene)): void {
   ensureWeaponSpins(scene)
-  const hive = hiveCenter(scene)
   const ids = scene.coreIds
   scene.coreSlots = ids.map((id, index) => {
     const kind = coreVisualKind(id)
@@ -615,29 +593,14 @@ function stableSlotIndex(id: string, count: number): number {
   return Math.abs(hash) % count
 }
 
-function playerMuzzle(
-  scene: Scene,
-  weaponId?: string,
-  shotId = '',
-  target?: { x: number; y: number } | null,
-): { x: number; y: number } {
+function playerMuzzle(scene: Scene, weaponId?: string, shotId = ''): { x: number; y: number } {
   const weapons = scene.coreSlots.filter((slot) => slot.role === 'weapon')
   const coreId = weaponIdToCoreId(weaponId)
   const matched = coreId ? weapons.find((slot) => slot.id === coreId) : undefined
-  const hive = hiveCenter(scene)
-  const raw = matched
-    ? { x: matched.x, y: matched.y }
-    : weapons.length === 0
-      ? hive
-      : (() => {
-          const slot = weapons[stableSlotIndex(shotId || coreId || 'wpn', weapons.length)]
-          return { x: slot.x, y: slot.y }
-        })()
-  if (!target) return raw
-  const orbit = matched
-    ? Math.hypot(matched.x - hive.x, matched.y - hive.y)
-    : 30
-  return muzzleClearOfHive(raw, target, hive, hiveClearRadius(scene), orbit)
+  if (matched) return { x: matched.x, y: matched.y }
+  if (weapons.length === 0) return hiveCenter(scene)
+  const slot = weapons[stableSlotIndex(shotId || coreId || 'wpn', weapons.length)]
+  return { x: slot.x, y: slot.y }
 }
 
 function findCombatUnit(
@@ -664,7 +627,7 @@ function shotScreenEnds(
   const to = toActor ? { x: toActor.x, y: toActor.y } : radialToScreen(destRange, heading)
   const from =
     p.side === 'player'
-      ? playerMuzzle(scene, p.weaponId, p.id, to)
+      ? playerMuzzle(scene, p.weaponId, p.id)
       : fromActor
         ? { x: fromActor.x, y: fromActor.y }
         : radialToScreen(originRange, heading)
@@ -676,9 +639,8 @@ function shotScreenEnds(
 }
 
 function beamOrigin(scene: Scene, beam: CombatBeam | VisualBeam): { x: number; y: number } {
-  const to = scene.actors.get(beam.toId)
   if (beam.side === 'player') {
-    return playerMuzzle(scene, beam.weaponId, beam.id, to ? { x: to.x, y: to.y } : null)
+    return playerMuzzle(scene, beam.weaponId, beam.id)
   }
   const from = scene.actors.get(beam.fromId)
   if (from) return { x: from.x, y: from.y }
@@ -1461,7 +1423,7 @@ function drawOrbitingCores(
   ay: number,
   alpha: number,
 ): void {
-  refreshCoreSlots(scene)
+  refreshCoreSlots(scene, { x: ax, y: ay })
   if (scene.coreSlots.length === 0) return
   scene.coreSlots.forEach((slot, index) => {
     const kind = coreVisualKind(slot.id)

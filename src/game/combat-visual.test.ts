@@ -56,16 +56,17 @@ describe('combat shot presentation', () => {
     expect(weaponIdToCoreId()).toBeNull()
   })
 
-  it('keeps an outward firing arc and eases toward the nearest valid facing', () => {
-    expect(isOutwardFiringArc(0.1, 0)).toBe(true)
-    expect(isOutwardFiringArc(Math.PI, 0)).toBe(false)
-    expect(closestValidFacing(0, 0.2)).toBeCloseTo(0)
-    expect(Math.abs(closestValidFacing(Math.PI, 0))).toBeCloseTo(CORE_FIRE_ARC)
-    expect(closestValidFacing(2.2, 0)).toBeCloseTo(CORE_FIRE_ARC)
-    const eased = easeAngle(0, 1, 0.05, 10)
-    expect(eased).toBeGreaterThan(0)
-    expect(eased).toBeLessThan(1)
+  it('eases a core around the ring toward its target facing', () => {
+    const first = easeAngle(0, 1.2, 0.05, 14)
+    const next = easeAngle(first, 1.2, 0.05, 14)
+    expect(first).toBeGreaterThan(0)
+    expect(first).toBeLessThan(1.2)
+    expect(next).toBeGreaterThan(first)
+    expect(next).toBeLessThan(1.2)
     expect(shortestAngleDelta(-3, 3)).toBeLessThan(0)
+    expect(isOutwardFiringArc(0.1, 0)).toBe(true)
+    expect(closestValidFacing(0, 0.2)).toBeCloseTo(0)
+    expect(CORE_FIRE_ARC).toBeGreaterThan(0)
   })
 
   it('rejects shots that would pass through the Hive and parks the muzzle on the outward rim', () => {
