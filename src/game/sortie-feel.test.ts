@@ -4,7 +4,7 @@ import { DEFEAT_SEQUENCE_S, advanceSeconds, setDocked, startCombat } from './tic
 import { GUIDE_STEPS, activeGuideStep } from './progression'
 
 describe('sortie feel', () => {
-  it('keeps the flagship in the lane between waves', () => {
+  it('keeps the Hive between waves', () => {
     let state = createInitialState(0)
     state = setDocked(state, false)
     state = startCombat(state)

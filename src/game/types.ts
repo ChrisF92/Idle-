@@ -744,7 +744,14 @@ export interface CombatUnit {
   damageTakenMult: number
   weapons: WeaponInstance[]
   isBoss: boolean
+  /** Player Hive hull/shield pool. Cores are not this unit. */
   isFlagship: boolean
+  /** Fitted weapon Core satellite. No HP; fires from orbit. */
+  isCore?: boolean
+  coreModuleId?: string
+  coreSlot?: number
+  /** Enemies never select this unit. */
+  untargetable?: boolean
   dots: DotInstance[]
   /** USI-style class. Optional on player units and old saves. */
   role?: EnemyRole

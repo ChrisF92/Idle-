@@ -133,12 +133,11 @@ import {
 import { noteFrontierIntervention } from './frontier'
 import type { SectorRoute } from './types'
 import {
-  buildFlagshipWeapons,
   computeShipStats,
   createInitialState,
   syncPersistedHullCaps,
 } from './state'
-import { buildPlayerFleet } from './combat'
+import { syncPlayerFleetWeapons } from './combat'
 import {
   createEmptyWorkshop,
   effectiveUpgradeLevel,
@@ -1239,30 +1238,11 @@ function applyRunUpgradePurchase(next: GameState, id: RunUpgradeId): boolean {
 
 function syncFleetAfterRunUpgrade(next: GameState): void {
   if (next.combat.inFight) {
-    const prevUnits = next.combat.playerUnits
-    const rebuilt = buildPlayerFleet(next)
-    for (const unit of rebuilt) {
-      const prev = prevUnits.find((u) => u.id === unit.id)
-      if (prev && prev.hullMax > 0) {
-        unit.hull = Math.max(1, unit.hullMax * (prev.hull / prev.hullMax))
-        unit.shield =
-          unit.shieldMax > 0
-            ? unit.shieldMax * (prev.shield / Math.max(1, prev.shieldMax))
-            : 0
-      }
-    }
-    const prevFlag = prevUnits.find((u) => u.isFlagship)
-    const nextFlag = rebuilt.find((u) => u.isFlagship)
-    if (prevFlag && nextFlag) {
-      nextFlag.weapons = buildFlagshipWeapons(next).map((w) => {
-        const old = prevFlag.weapons.find((pw) => pw.id === w.id)
-        return old ? { ...w, cooldownLeft: old.cooldownLeft } : w
-      })
-    }
-    next.combat.playerUnits = rebuilt
+    syncPlayerFleetWeapons(next)
     const stats = computeShipStats(next)
     next.combat.playerHullMax = stats.hullMax
     next.combat.playerShieldMax = stats.shieldMax
+    const nextFlag = next.combat.playerUnits.find((u) => u.isFlagship)
     if (nextFlag) {
       next.combat.playerHull = nextFlag.hull
       next.combat.playerShield = nextFlag.shield
@@ -1542,23 +1522,11 @@ export function pickCoreMilestone(
     syncPersistedHullCaps(next)
     return next
   }
-  const rebuilt = buildPlayerFleet(next)
-  const prevUnits = next.combat.playerUnits
-  for (const unit of rebuilt) {
-    const prev = prevUnits.find((u) => u.id === unit.id)
-    if (prev && prev.hullMax > 0) {
-      unit.hull = Math.max(1, unit.hullMax * (prev.hull / prev.hullMax))
-      unit.shield =
-        unit.shieldMax > 0
-          ? unit.shieldMax * (prev.shield / Math.max(1, prev.shieldMax))
-          : 0
-    }
-  }
-  next.combat.playerUnits = rebuilt
+  syncPlayerFleetWeapons(next)
   const stats = computeShipStats(next)
   next.combat.playerHullMax = stats.hullMax
   next.combat.playerShieldMax = stats.shieldMax
-  const flag = rebuilt.find((u) => u.isFlagship)
+  const flag = next.combat.playerUnits.find((u) => u.isFlagship)
   if (flag) {
     next.combat.playerHull = flag.hull
     next.combat.playerShield = flag.shield

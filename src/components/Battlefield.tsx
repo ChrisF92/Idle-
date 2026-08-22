@@ -672,6 +672,15 @@ function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
   if (unit.side === 'player' && unit.isFlagship) {
     return { x: HIVE_SCREEN_X, y: HIVE_SCREEN_Y, r }
   }
+  if (unit.side === 'player' && unit.isCore) {
+    const orbit = coreOrbitRadius(coreVisualKind(unit.coreModuleId ?? ''))
+    const heading = unit.heading ?? 0
+    return {
+      x: HIVE_SCREEN_X + Math.sin(heading) * orbit,
+      y: HIVE_SCREEN_Y - Math.cos(heading) * orbit,
+      r: 5,
+    }
+  }
   if (unit.side === 'player' && !unit.isFlagship) {
     const orbit = 26 + r
     const heading = unit.heading ?? 0
@@ -1096,6 +1105,7 @@ function syncScene(
   const livingIds = new Set<string>()
 
   for (const u of playerUnits) {
+    if (u.isCore) continue
     livingIds.add(u.id)
     ensureActor(scene, u)
   }

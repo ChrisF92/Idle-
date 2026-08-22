@@ -119,19 +119,21 @@ describe('charge lasers and Phase Beam', () => {
     state.combat.wave = 1
     state.combat.docked = false
     state = startCombat(state)
-    const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
-    expect(flag.weapons.some((w) => w.delivery === 'beam')).toBe(true)
+    const hive = state.combat.playerUnits.find((u) => u.isFlagship)!
+    const core = state.combat.playerUnits.find((u) => u.isCore)!
+    expect(hive.weapons.some((w) => w.delivery === 'beam')).toBe(false)
+    expect(core.weapons.some((w) => w.delivery === 'beam')).toBe(true)
     for (const e of state.combat.enemyUnits) {
       e.x = 40
       for (const w of e.weapons) w.cooldownLeft = 99
     }
-    for (const w of flag.weapons) w.cooldownLeft = 0
+    for (const w of core.weapons) w.cooldownLeft = 0
     state.combat.projectiles = []
     state.combat.beams = []
     simulateCombat(state, 0.05, () => undefined)
-    expect(state.combat.beams.some((b) => b.fromId === flag.id)).toBe(true)
-    expect(state.combat.projectiles.filter((p) => p.fromId === flag.id)).toHaveLength(0)
-    const beam = state.combat.beams.find((b) => b.fromId === flag.id)!
+    expect(state.combat.beams.some((b) => b.fromId === core.id)).toBe(true)
+    expect(state.combat.projectiles.filter((p) => p.fromId === hive.id)).toHaveLength(0)
+    const beam = state.combat.beams.find((b) => b.fromId === core.id)!
     expect(beam.duration).toBe(BEAM_DURATION)
     expect(beam.remaining).toBe(BEAM_DURATION)
 
@@ -151,7 +153,7 @@ describe('charge lasers and Phase Beam', () => {
     state.combat.wave = 71
     state.combat.docked = false
     state = startCombat(state)
-    const flag = state.combat.playerUnits.find((u) => u.isFlagship)!
+    const core = state.combat.playerUnits.find((u) => u.isCore)!
     const shielded = state.combat.enemyUnits.find((u) => u.shieldMax > 0)!
     expect(shielded.shield).toBeGreaterThan(0)
     const hullBefore = shielded.hull
@@ -159,7 +161,7 @@ describe('charge lasers and Phase Beam', () => {
     for (const w of shielded.weapons) w.cooldownLeft = 99
     shielded.x = 40
     shielded.shield = 8
-    for (const w of flag.weapons) {
+    for (const w of core.weapons) {
       w.cooldownLeft = 0
       w.damage = 400
     }

@@ -278,6 +278,37 @@ export function globalDamageMultiplier(state: GameState): number {
   return mult
 }
 
+export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance | null {
+  const moduleId = state.shipyard.modules[slot]
+  const mod = getModule(moduleId)
+  if (!mod?.weapon) return null
+  if (protocolMutes(state, 'weapons') && mod.role === 'weapon') return null
+  const mult = globalDamageMultiplier(state)
+  const shortRange = state.prestige.activeChallengeId === 'short-range'
+  const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
+  const level = Math.floor(effectiveRunLevel(state, slot))
+  const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
+  const mods = combinedCoreMods(state, moduleId)
+  return {
+    id: `${moduleId}-wpn-${slot}`,
+    name: mod.weapon.name,
+    damage: moduleWeaponDamage(mod, level, mastery) * mods.damageMult * mult * weaponPowerMult(state),
+    cooldown: (mod.weapon.cooldown * mods.cooldownMult) / cycleRateMult(state),
+    cooldownLeft: 0,
+    range: capRange(mod.weapon.range + mods.rangeAdd),
+    tags: [...mod.weapon.tags],
+    splash: ((mod.weapon.splash ?? 0) + mods.splashAdd) * directiveSplashMult(state),
+    dotDuration: mod.weapon.dotDuration ?? 0,
+    dotDamage: (mod.weapon.dotDamage ?? 0) * mult * mastery,
+    telegraphDuration: mod.weapon.telegraphDuration ?? 0,
+    telegraphLeft: 0,
+    delivery: mod.weapon.delivery,
+    hullDamage: mod.weapon.hullDamage,
+    shieldDamage: mod.weapon.shieldDamage,
+    armorDamage: mod.weapon.armorDamage,
+  }
+}
+
 export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
   const mult = globalDamageMultiplier(state)
@@ -309,31 +340,8 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   }
 
   for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
-    const moduleId = state.shipyard.modules[slot]!
-    const mod = getModule(moduleId)
-    if (!mod?.weapon) continue
-    if (muteGuns && mod.role === 'weapon') continue
-    const level = Math.floor(effectiveRunLevel(state, slot))
-    const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
-    const mods = combinedCoreMods(state, moduleId)
-    weapons.push({
-      id: `${moduleId}-wpn-${slot}`,
-      name: mod.weapon.name,
-      damage: moduleWeaponDamage(mod, level, mastery) * mods.damageMult * mult * weaponPowerMult(state),
-      cooldown: (mod.weapon.cooldown * mods.cooldownMult) / cycleRateMult(state),
-      cooldownLeft: 0,
-      range: capRange(mod.weapon.range + mods.rangeAdd),
-      tags: [...mod.weapon.tags],
-      splash: ((mod.weapon.splash ?? 0) + mods.splashAdd) * directiveSplashMult(state),
-      dotDuration: mod.weapon.dotDuration ?? 0,
-      dotDamage: (mod.weapon.dotDamage ?? 0) * mult * mastery,
-      telegraphDuration: mod.weapon.telegraphDuration ?? 0,
-      telegraphLeft: 0,
-      delivery: mod.weapon.delivery,
-      hullDamage: mod.weapon.hullDamage,
-      shieldDamage: mod.weapon.shieldDamage,
-      armorDamage: mod.weapon.armorDamage,
-    })
+    const weapon = buildCoreWeapon(state, slot)
+    if (weapon) weapons.push(weapon)
   }
 
   return weapons

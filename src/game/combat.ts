@@ -41,7 +41,8 @@ import {
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { isSectorBossWave, wavesForSector, trashWavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
 import type { SectorRoute } from './types'
-import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
+import { buildCoreWeapon, buildFlagshipWeapons, computeShipStats } from './state'
+import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind } from './hiveVisual'
 import {
   gddEnemyBandForWave,
   isAct1ClimaxWave,
@@ -1613,15 +1614,69 @@ export function sectorRoster(sector: number): SectorRosterEntry[] {
   return [...groups.values()]
 }
 
+function preserveWeaponCooldowns(prev: CombatUnit[], next: CombatUnit[]): void {
+  for (const unit of next) {
+    const old = prev.find((u) => u.id === unit.id)
+    if (!old) continue
+    unit.weapons = unit.weapons.map((weapon) => {
+      const prior = old.weapons.find((pw) => pw.id === weapon.id)
+      return prior
+        ? { ...weapon, cooldownLeft: prior.cooldownLeft, telegraphLeft: prior.telegraphLeft }
+        : weapon
+    })
+  }
+}
+
+export function buildCoreSatellite(state: GameState, slot: number, index: number, count: number): CombatUnit | null {
+  const moduleId = state.shipyard.modules[slot]
+  const mod = getModule(moduleId)
+  if (!mod?.weapon || mod.role !== 'weapon') return null
+  const weapon = buildCoreWeapon(state, slot)
+  if (!weapon) return null
+  const kind = coreVisualKind(moduleId)
+  const orbit = coreOrbitRadius(kind)
+  return {
+    id: `core-${slot}`,
+    side: 'player',
+    name: mod.name,
+    shape: 'circle',
+    family: 'core',
+    hull: 0,
+    hullMax: 0,
+    shield: 0,
+    shieldMax: 0,
+    armor: 0,
+    evasion: 0,
+    damageTakenMult: 1,
+    weapons: [weapon],
+    isBoss: false,
+    isFlagship: false,
+    isCore: true,
+    coreModuleId: moduleId,
+    coreSlot: slot,
+    untargetable: true,
+    dots: [],
+    x: orbit,
+    y: 0,
+    heading: count > 0 ? (index / count) * Math.PI * 2 : 0,
+    speed: 0,
+    engageRange: 0,
+    kite: false,
+    phaseWarnLeft: 0,
+    regenDelay: 0,
+  }
+}
+
 export function buildPlayerFleet(state: GameState): CombatUnit[] {
   const stats = computeShipStats(state)
   const hull = Math.min(state.combat.playerHull, stats.hullMax)
   const shield = Math.min(state.combat.playerShield, stats.shieldMax)
-  const flagship: CombatUnit = {
-    id: 'flagship',
+  const hiveWeapons = buildFlagshipWeapons(state).filter((weapon) => weapon.id === 'frame-battery')
+  const hive: CombatUnit = {
+    id: 'hive',
     side: 'player',
-    name: 'Flagship',
-    shape: 'triangle',
+    name: 'Hive',
+    shape: 'hex',
     family: 'player',
     hull: Math.max(1, hull),
     hullMax: stats.hullMax,
@@ -1630,7 +1685,7 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
     armor: stats.armor,
     evasion: stats.evasion,
     damageTakenMult: stats.damageTakenMult,
-    weapons: buildFlagshipWeapons(state),
+    weapons: hiveWeapons,
     isBoss: false,
     isFlagship: true,
     dots: [],
@@ -1644,53 +1699,32 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
     regenDelay: 0,
   }
 
-  const escorts: CombatUnit[] = []
-  let escortIndex = 0
-  const droneDmg = 6 * globalDamageMultiplier(state)
-  for (const moduleId of state.shipyard.modules) {
-    const mod = getModule(moduleId)
-    const n = mod?.escorts ?? 0
-    for (let i = 0; i < n; i += 1) {
-      escortIndex += 1
-      escorts.push({
-        id: `escort-${escortIndex}`,
-        side: 'player',
-        name: `Drone ${escortIndex}`,
-        shape: 'circle',
-        family: 'escort',
-        hull: 28 + stats.hullMax * 0.05,
-        hullMax: 28 + stats.hullMax * 0.05,
-        shield: 0,
-        shieldMax: 0,
-        armor: 0,
-        evasion: 0.05,
-        damageTakenMult: 1,
-        weapons: [
-          makeWeapon(
-            `escort-wpn-${escortIndex}`,
-            'Drone Pulse',
-            droneDmg,
-            1,
-            70,
-            ['kinetic'],
-          ),
-        ],
-        isBoss: false,
-        isFlagship: false,
-        dots: [],
-        x: 0,
-        y: 0,
-        heading: escortIndex * 0.9,
-        speed: 0,
-        engageRange: 0,
-        kite: false,
-        phaseWarnLeft: 0,
-        regenDelay: 0,
-      })
-    }
+  const weaponSlots: number[] = []
+  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
+    const mod = getModule(state.shipyard.modules[slot]!)
+    if (mod?.weapon && mod.role === 'weapon') weaponSlots.push(slot)
   }
+  const cores = weaponSlots
+    .map((slot, index) => buildCoreSatellite(state, slot, index, weaponSlots.length))
+    .filter((unit): unit is CombatUnit => Boolean(unit))
 
-  return [flagship, ...escorts]
+  return [hive, ...cores]
+}
+
+export function syncPlayerFleetWeapons(state: GameState): void {
+  const prev = state.combat.playerUnits
+  const rebuilt = buildPlayerFleet(state)
+  preserveWeaponCooldowns(prev, rebuilt)
+  const prevHive = prev.find((u) => u.isFlagship)
+  const nextHive = rebuilt.find((u) => u.isFlagship)
+  if (prevHive && nextHive && prevHive.hullMax > 0) {
+    nextHive.hull = Math.max(1, nextHive.hullMax * (prevHive.hull / prevHive.hullMax))
+    nextHive.shield =
+      nextHive.shieldMax > 0
+        ? nextHive.shieldMax * (prevHive.shield / Math.max(1, prevHive.shieldMax))
+        : 0
+  }
+  state.combat.playerUnits = rebuilt
 }
 
 export interface FightSummary {
@@ -1914,11 +1948,17 @@ export function enemyApproachTarget(
 }
 
 function moveUnits(state: GameState, dt: number): void {
-  // Player flagship stays at x=0, y=0. Escorts hold relative slots.
   for (const unit of state.combat.playerUnits) {
-    if (!unit.isFlagship) continue
-    unit.x = 0
+    if (unit.isFlagship) {
+      unit.x = 0
+      unit.y = 0
+      continue
+    }
+    if (!unit.isCore || !unit.coreModuleId) continue
+    const kind = coreVisualKind(unit.coreModuleId)
+    unit.x = coreOrbitRadius(kind)
     unit.y = 0
+    unit.heading = (unit.heading ?? 0) + coreOrbitSpeed(kind) * dt
   }
 
   const elapsed = Math.max(0, state.combat.fightElapsed ?? 0)
@@ -1942,7 +1982,12 @@ function pickTarget(
   focusFire: boolean,
 ): CombatUnit | null {
   const living = foes.filter(
-    (u) => u.hull > 0 && laneDistance(attacker, u) <= weapon.range + 0.5,
+    (u) =>
+      u.hull > 0 &&
+      !u.untargetable &&
+      !u.isCore &&
+      (attacker.side !== 'enemy' || u.isFlagship) &&
+      laneDistance(attacker, u) <= weapon.range + 0.5,
   )
   if (living.length === 0) return null
   if (attacker.side === 'player' && focusFire) {
@@ -2182,6 +2227,7 @@ function applyDamageToUnit(
   tags: WeaponTag[],
   profile?: WeaponDamageProfile,
 ): number {
+  if (target.untargetable || target.isCore) return 0
   const vs = profile ?? weaponDamageProfile(tags)
   let remaining = rawDamage * target.damageTakenMult
 
@@ -2373,7 +2419,7 @@ function tickBeams(
   for (const beam of state.combat.beams) {
     const from = findUnit(state, beam.fromId)
     const target = findUnit(state, beam.toId)
-    if (!from || from.hull <= 0 || !target || target.hull <= 0) continue
+    if (!from || (from.hull <= 0 && !from.isCore) || !target || target.hull <= 0) continue
     const slice = Math.min(dt, beam.remaining)
     if (slice <= 0) continue
     let dmg = beam.damage * (slice / beam.duration)
@@ -2521,7 +2567,7 @@ export function simulateCombat(
     const foes = side === 'player' ? state.combat.enemyUnits : state.combat.playerUnits
 
     for (const unit of allies) {
-      if (unit.hull <= 0) continue
+      if (unit.hull <= 0 && !unit.isCore) continue
 
       const prevHull = unit.hull
       for (const dot of unit.dots) {
@@ -2549,7 +2595,7 @@ export function simulateCombat(
       }
       unit.dots = unit.dots.filter((d) => d.remaining > 0)
       tryLootEnemyKill(state, unit, prevHull)
-      if (unit.hull <= 0) continue
+      if (unit.hull <= 0 && !unit.isCore) continue
 
       if (unit.phaseWarnLeft > 0) {
         unit.phaseWarnLeft = Math.max(0, unit.phaseWarnLeft - dt)

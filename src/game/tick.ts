@@ -1,7 +1,6 @@
 import type { CombatPushMode, GameState, Resources } from './types'
 import { wavesForSector } from './sectors'
 import {
-  buildFlagshipWeapons,
   computeShipStats,
   createInitialState,
   fullHealPlayer,
@@ -64,6 +63,7 @@ import {
 import { sampleSortieEnemies, snapshotSortieEncounter } from './sortieTelemetry'
 import {
   buildPlayerFleet,
+  syncPlayerFleetWeapons,
   encounterForWave,
   enemyForSector,
   repairRatePerSecond,
@@ -240,15 +240,9 @@ function applyNetworkCombatRefresh(state: GameState): void {
     state.combat.playerShield = Math.min(state.combat.playerShield, stats.shieldMax)
     return
   }
+  syncPlayerFleetWeapons(state)
   const flag = state.combat.playerUnits.find((u) => u.isFlagship)
   if (!flag) return
-  const nextWeapons = buildFlagshipWeapons(state)
-  flag.weapons = nextWeapons.map((w) => {
-    const old = flag.weapons.find((pw) => pw.id === w.id)
-    return old
-      ? { ...w, cooldownLeft: old.cooldownLeft, telegraphLeft: old.telegraphLeft }
-      : w
-  })
   flag.hullMax = stats.hullMax
   flag.shieldMax = stats.shieldMax
   flag.hull = Math.min(flag.hull, flag.hullMax)
