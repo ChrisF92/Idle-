@@ -147,8 +147,6 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   if (isSystemUnlocked(state, 'process')) keep.push('Process')
   if (isSystemUnlocked(state, 'yard')) keep.push('Foundry construction')
   if (isSystemUnlocked(state, 'protocols')) keep.push('Challenge ranks')
-  if (isSystemUnlocked(state, 'specialists')) keep.push('Specialists')
-  if (isSystemUnlocked(state, 'capital')) keep.push('Capital')
 
   return { gain, keep, reset, change }
 }

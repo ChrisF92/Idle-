@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { setCampaign, setPushMode, retryFrontier, warpToSector, setDocked } from './tick'
 import { enterEcho, setLaunchSector, setSectorRoute } from './actions'
-import { MORE_STATIONS } from './moreStations'
+import { MORE_STATIONS, REMOVED_ACT1_TABS, isMoreNavTab, isRemovedAct1Tab } from './moreStations'
+import { LIVE_SCREENS } from './screenHelp'
 import { isSystemUnlocked } from './progression'
 import { canEnterEcho, echoDamageMult } from './echo'
 
@@ -47,6 +51,27 @@ describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
     expect(MORE_STATIONS.some((s) => s.id === 'network')).toBe(false)
     expect(MORE_STATIONS.some((s) => s.id === 'furnace')).toBe(false)
     expect(MORE_STATIONS.map((s) => s.name).join(' ')).not.toMatch(/Route B|Frontier Hold|Yard|Echo|Workers|Furnace/)
+  })
+
+  it('does not route leftover Act 1 tabs and does not treat them as More nav', () => {
+    expect(REMOVED_ACT1_TABS).toEqual(['reliquary', 'slag', 'echo', 'specialists', 'tasks', 'capital'])
+    for (const id of REMOVED_ACT1_TABS) {
+      expect(isRemovedAct1Tab(id)).toBe(true)
+      expect(isMoreNavTab(id)).toBe(false)
+      expect(LIVE_SCREENS).not.toContain(id)
+    }
+    expect(isMoreNavTab('stats')).toBe(true)
+    expect(isMoreNavTab('protocols')).toBe(true)
+    expect(isMoreNavTab('reinforce')).toBe(true)
+    expect(isMoreNavTab('logs')).toBe(true)
+    expect(isMoreNavTab('codex')).toBe(true)
+  })
+
+  it('does not import leftover Act 1 tab modules from App', () => {
+    const app = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../App.tsx'), 'utf8')
+    for (const name of ['ReliquaryTab', 'SlagTab', 'EchoTab', 'SpecialistsTab', 'TasksTab', 'CapitalTab']) {
+      expect(app, name).not.toContain(name)
+    }
   })
 
   it('never unlocks Echo and ignores leftover trees', () => {
