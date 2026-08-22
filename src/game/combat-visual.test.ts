@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  closestValidFacing,
+  CORE_FIRE_ARC,
+  easeAngle,
+  isOutwardFiringArc,
+  muzzleClearOfHive,
+  pointOnRing,
   projectileScreenPoint,
+  segmentHitsCircle,
   shotTravelHeading,
   shotTravelT,
+  shortestAngleDelta,
   weaponIdToCoreId,
 } from './combatVisual'
 
@@ -46,5 +54,28 @@ describe('combat shot presentation', () => {
     expect(weaponIdToCoreId('pulse-cannon-wpn')).toBe('pulse-cannon')
     expect(weaponIdToCoreId('beam-laser')).toBe('beam-laser')
     expect(weaponIdToCoreId()).toBeNull()
+  })
+
+  it('keeps an outward firing arc and eases toward the nearest valid facing', () => {
+    expect(isOutwardFiringArc(0.1, 0)).toBe(true)
+    expect(isOutwardFiringArc(Math.PI, 0)).toBe(false)
+    expect(closestValidFacing(0, 0.2)).toBeCloseTo(0)
+    expect(Math.abs(closestValidFacing(Math.PI, 0))).toBeCloseTo(CORE_FIRE_ARC)
+    expect(closestValidFacing(2.2, 0)).toBeCloseTo(CORE_FIRE_ARC)
+    const eased = easeAngle(0, 1, 0.05, 10)
+    expect(eased).toBeGreaterThan(0)
+    expect(eased).toBeLessThan(1)
+    expect(shortestAngleDelta(-3, 3)).toBeLessThan(0)
+  })
+
+  it('rejects shots that would pass through the Hive and parks the muzzle on the outward rim', () => {
+    const hive = { x: 200, y: 370 }
+    const far = { x: 200, y: 40 }
+    const behind = { x: 200, y: 420 }
+    const facing = pointOnRing(hive, 30, -Math.PI / 2)
+    expect(segmentHitsCircle(behind, far, hive, 26)).toBe(true)
+    expect(segmentHitsCircle(facing, far, hive, 26)).toBe(false)
+    const cleared = muzzleClearOfHive(behind, far, hive, 26, 30)
+    expect(segmentHitsCircle(cleared, far, hive, 26)).toBe(false)
   })
 })

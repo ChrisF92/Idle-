@@ -11,10 +11,21 @@ import type {
 } from '../game/types'
 import { getModule } from '../game/catalog'
 import { SPAWN_DISTANCE } from '../game/combat'
-import { coreRoleColor, projectileScreenPoint, weaponIdToCoreId } from '../game/combatVisual'
+import {
+  closestValidFacing,
+  coreRoleColor,
+  easeAngle,
+  isOutwardFiringArc,
+  muzzleClearOfHive,
+  pointOnRing,
+  projectileScreenPoint,
+  ringAngleToward,
+  segmentHitsCircle,
+  weaponIdToCoreId,
+} from '../game/combatVisual'
 import { formatCompact } from '../game/format'
 import type { DamageNumbersMode } from '../game/uiReadout'
-import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind, hiveFrameStyle, type HiveFrameStyle } from '../game/hiveVisual'
+import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind, hiveFrameStyle, type CoreVisualKind, type HiveFrameStyle } from '../game/hiveVisual'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -159,6 +170,15 @@ type CoreSlot = {
   y: number
 }
 
+type WeaponCoreSpin = {
+  id: string
+  kind: CoreVisualKind
+  angle: number
+  holdT: number
+  orbit: number
+  speed: number
+}
+
 interface TraceLinger {
   x1: number
   y1: number
@@ -217,6 +237,7 @@ interface Scene {
   frameId: string
   coreIds: string[]
   coreSlots: CoreSlot[]
+  weaponSpins: Map<string, WeaponCoreSpin>
   hiveShieldPop: number
   livePlayerUnits: CombatUnit[]
   liveEnemyUnits: CombatUnit[]
@@ -467,19 +488,121 @@ function hiveCenter(scene: Scene): { x: number; y: number } {
   return { x: HIVE_SCREEN_X, y: HIVE_SCREEN_Y }
 }
 
+function hiveClearRadius(scene: Scene): number {
+  for (const actor of scene.actors.values()) {
+    if (actor.side === 'player' && actor.isFlagship) return actor.r * 1.45 + 10
+  }
+  return 28
+}
+
+function ensureWeaponSpins(scene: Scene): void {
+  const ids = scene.coreIds
+  const keep = new Set<string>()
+  ids.forEach((id, index) => {
+    if ((getModule(id)?.role ?? 'utility') !== 'weapon') return
+    keep.add(id)
+    if (scene.weaponSpins.has(id)) return
+    const kind = coreVisualKind(id)
+    const speed = coreOrbitSpeed(kind)
+    scene.weaponSpins.set(id, {
+      id,
+      kind,
+      angle: scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0),
+      holdT: 0,
+      orbit: coreOrbitRadius(kind),
+      speed,
+    })
+  })
+  for (const id of [...scene.weaponSpins.keys()]) {
+    if (!keep.has(id)) scene.weaponSpins.delete(id)
+  }
+}
+
+function coreTargetScreen(scene: Scene, coreId: string): { x: number; y: number } | null {
+  const shots = scene.liveProjectiles.filter(
+    (shot) => shot.side === 'player' && weaponIdToCoreId(shot.weaponId) === coreId,
+  )
+  for (let i = shots.length - 1; i >= 0; i -= 1) {
+    const actor = scene.actors.get(shots[i]!.toId)
+    if (actor) return { x: actor.x, y: actor.y }
+  }
+  for (const beam of scene.liveBeams) {
+    if (beam.side !== 'player' || weaponIdToCoreId(beam.weaponId) !== coreId) continue
+    const actor = scene.actors.get(beam.toId)
+    if (actor) return { x: actor.x, y: actor.y }
+  }
+  let best: { x: number; y: number } | null = null
+  let bestD = Infinity
+  const hive = hiveCenter(scene)
+  for (const actor of scene.actors.values()) {
+    if (actor.side !== 'enemy' || !actor.alive) continue
+    const d = Math.hypot(actor.x - hive.x, actor.y - hive.y)
+    if (d < bestD) {
+      bestD = d
+      best = { x: actor.x, y: actor.y }
+    }
+  }
+  return best
+}
+
+function coreHasBeam(scene: Scene, coreId: string): boolean {
+  return scene.liveBeams.some(
+    (beam) => beam.side === 'player' && weaponIdToCoreId(beam.weaponId) === coreId,
+  )
+}
+
+function stepWeaponCores(scene: Scene, dt: number): void {
+  ensureWeaponSpins(scene)
+  const hive = hiveCenter(scene)
+  const clearR = hiveClearRadius(scene)
+  for (const spin of scene.weaponSpins.values()) {
+    const target = coreTargetScreen(scene, spin.id)
+    if (!target) {
+      if (spin.holdT <= 0) spin.angle += spin.speed * dt
+      spin.holdT = Math.max(0, spin.holdT - dt)
+      continue
+    }
+    const face = ringAngleToward(hive, target)
+    const pos = pointOnRing(hive, spin.orbit, spin.angle)
+    const inArc =
+      isOutwardFiringArc(spin.angle, face) && !segmentHitsCircle(pos, target, hive, clearR)
+    const beaming = spin.kind === 'beam' && coreHasBeam(scene, spin.id)
+    if (spin.kind === 'heavy' && spin.holdT > 0) {
+      if (!inArc) spin.angle = scene.reducedMotion ? face : easeAngle(spin.angle, closestValidFacing(spin.angle, face), dt, 12)
+      spin.holdT = Math.max(0, spin.holdT - dt)
+      continue
+    }
+    if (!inArc) {
+      const dest = closestValidFacing(spin.angle, face)
+      spin.angle = scene.reducedMotion ? dest : easeAngle(spin.angle, dest, dt, 11)
+    } else if (beaming) {
+      spin.angle += spin.speed * dt * 0.12
+    } else if (spin.kind === 'heavy') {
+      spin.angle += spin.speed * dt * 0.28
+    } else {
+      spin.angle += spin.speed * dt
+    }
+    spin.holdT = Math.max(0, spin.holdT - dt)
+  }
+}
+
 function refreshCoreSlots(scene: Scene): void {
+  ensureWeaponSpins(scene)
   const hive = hiveCenter(scene)
   const ids = scene.coreIds
   scene.coreSlots = ids.map((id, index) => {
     const kind = coreVisualKind(id)
     const orbit = coreOrbitRadius(kind)
     const speed = coreOrbitSpeed(kind)
-    const angle = scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0)
+    const role = getModule(id)?.role ?? 'utility'
+    const spin = role === 'weapon' ? scene.weaponSpins.get(id) : undefined
+    const angle = spin?.angle ?? scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0)
+    const pos = pointOnRing(hive, orbit, angle)
     return {
       id,
-      role: getModule(id)?.role ?? 'utility',
-      x: hive.x + Math.cos(angle) * orbit,
-      y: hive.y + Math.sin(angle) * orbit,
+      role,
+      x: pos.x,
+      y: pos.y,
     }
   })
 }
@@ -491,14 +614,29 @@ function stableSlotIndex(id: string, count: number): number {
   return Math.abs(hash) % count
 }
 
-function playerMuzzle(scene: Scene, weaponId?: string, shotId = ''): { x: number; y: number } {
+function playerMuzzle(
+  scene: Scene,
+  weaponId?: string,
+  shotId = '',
+  target?: { x: number; y: number } | null,
+): { x: number; y: number } {
   const weapons = scene.coreSlots.filter((slot) => slot.role === 'weapon')
   const coreId = weaponIdToCoreId(weaponId)
   const matched = coreId ? weapons.find((slot) => slot.id === coreId) : undefined
-  if (matched) return { x: matched.x, y: matched.y }
-  if (weapons.length === 0) return hiveCenter(scene)
-  const slot = weapons[stableSlotIndex(shotId || coreId || 'wpn', weapons.length)]
-  return { x: slot.x, y: slot.y }
+  const hive = hiveCenter(scene)
+  const raw = matched
+    ? { x: matched.x, y: matched.y }
+    : weapons.length === 0
+      ? hive
+      : (() => {
+          const slot = weapons[stableSlotIndex(shotId || coreId || 'wpn', weapons.length)]
+          return { x: slot.x, y: slot.y }
+        })()
+  if (!target) return raw
+  const orbit = matched
+    ? Math.hypot(matched.x - hive.x, matched.y - hive.y)
+    : 30
+  return muzzleClearOfHive(raw, target, hive, hiveClearRadius(scene), orbit)
 }
 
 function findCombatUnit(
@@ -522,13 +660,13 @@ function shotScreenEnds(
   const heading = p.heading ?? (p.side === 'player' ? toUnit?.heading : fromUnit?.heading) ?? 0
   const originRange = p.originX ?? fromUnit?.x ?? (p.side === 'player' ? 0 : p.x)
   const destRange = toUnit?.x ?? (p.side === 'player' ? Math.max(originRange, p.x) : 0)
+  const to = toActor ? { x: toActor.x, y: toActor.y } : radialToScreen(destRange, heading)
   const from =
     p.side === 'player'
-      ? playerMuzzle(scene, p.weaponId, p.id)
+      ? playerMuzzle(scene, p.weaponId, p.id, to)
       : fromActor
         ? { x: fromActor.x, y: fromActor.y }
         : radialToScreen(originRange, heading)
-  const to = toActor ? { x: toActor.x, y: toActor.y } : radialToScreen(destRange, heading)
   return {
     from,
     to,
@@ -537,7 +675,10 @@ function shotScreenEnds(
 }
 
 function beamOrigin(scene: Scene, beam: CombatBeam | VisualBeam): { x: number; y: number } {
-  if (beam.side === 'player') return playerMuzzle(scene, beam.weaponId, beam.id)
+  const to = scene.actors.get(beam.toId)
+  if (beam.side === 'player') {
+    return playerMuzzle(scene, beam.weaponId, beam.id, to ? { x: to.x, y: to.y } : null)
+  }
   const from = scene.actors.get(beam.fromId)
   if (from) return { x: from.x, y: from.y }
   return hiveCenter(scene)
@@ -988,6 +1129,7 @@ function syncScene(
   scene.liveEnemyUnits = enemyUnits
   scene.liveProjectiles = projectiles
   scene.liveBeams = beams
+  ensureWeaponSpins(scene)
   const livingIds = new Set<string>()
 
   for (const u of playerUnits) {
@@ -1063,6 +1205,11 @@ function syncScene(
     })
     if (!scene.seenProj.has(p.id)) {
       scene.seenProj.add(p.id)
+      if (p.side === 'player') {
+        const coreId = weaponIdToCoreId(p.weaponId)
+        const spin = coreId ? scene.weaponSpins.get(coreId) : undefined
+        if (spin?.kind === 'heavy') spin.holdT = Math.max(spin.holdT, 0.22)
+      }
       const from = scene.actors.get(p.fromId)
       if (from) {
         from.muzzle = 1
@@ -2263,6 +2410,7 @@ export function Battlefield({
       frameId,
       coreIds,
       coreSlots: [],
+      weaponSpins: new Map(),
       hiveShieldPop: 0,
       livePlayerUnits: [],
       liveEnemyUnits: [],
@@ -2279,11 +2427,12 @@ export function Battlefield({
       const dt = p.paused ? 0 : Math.min(0.05, Math.max(0, (now - last) / 1000))
       last = now
 
+      scene.coreIds = p.coreIds
       syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.beams, p.fx, p.mode)
       scene.numbers = p.numbers
       scene.frameId = p.frameId
-      scene.coreIds = p.coreIds
       stepScene(scene, dt)
+      stepWeaponCores(scene, dt)
       layoutLiveShots(scene)
 
       const dpr = Math.min(2, window.devicePixelRatio || 1)
