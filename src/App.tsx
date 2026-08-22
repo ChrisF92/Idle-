@@ -10,6 +10,7 @@ import {
 } from './game/progression'
 import { contentKeys } from './game/hubAttention'
 import { showSystemsHub } from './game/systemsHub'
+import { isRemovedAct1Tab } from './game/moreStations'
 import { setActiveNumberNotation } from './game/format'
 import {
   captureToastSnapshot,
@@ -32,16 +33,10 @@ import { CombatTab } from './components/tabs/CombatTab'
 import { NetworkTab } from './components/tabs/NetworkTab'
 import { FoundryTab, type FoundryPane } from './components/tabs/FoundryTab'
 import { SystemsTab } from './components/tabs/SystemsTab'
-import { ReliquaryTab } from './components/tabs/ReliquaryTab'
 import { FurnaceTab } from './components/tabs/FurnaceTab'
 import { ResearchTab } from './components/tabs/ResearchTab'
-import { YardTab } from './components/tabs/YardTab'
-import { SlagTab } from './components/tabs/SlagTab'
 import { ProtocolsTab } from './components/tabs/ProtocolsTab'
 import { ProcessTab } from './components/tabs/ProcessTab'
-import { SpecialistsTab } from './components/tabs/SpecialistsTab'
-import { TasksTab } from './components/tabs/TasksTab'
-import { CapitalTab } from './components/tabs/CapitalTab'
 import { ReinforceTab } from './components/tabs/ReinforceTab'
 import { LogsTab } from './components/tabs/LogsTab'
 import { CodexTab } from './components/tabs/CodexTab'
@@ -89,6 +84,7 @@ export default function App() {
 
   const go = useCallback(
     (next: TabId) => {
+      if (isRemovedAct1Tab(next)) return
       if (next === 'yard') {
         setFoundryPane('build')
         setSystemsView('foundry')
@@ -146,19 +142,17 @@ export default function App() {
   )
 
   useEffect(() => {
+    if (isRemovedAct1Tab(tab)) {
+      setTab(isHubTabOpen(game.state, 'stats') ? 'stats' : 'dock')
+      return
+    }
     if (!isHubTabOpen(game.state, tab)) {
       const station =
-        tab === 'reliquary' ||
         tab === 'furnace' ||
         tab === 'research' ||
         tab === 'yard' ||
-        tab === 'slag' ||
         tab === 'protocols' ||
-        tab === 'echo' ||
         tab === 'process' ||
-        tab === 'specialists' ||
-        tab === 'tasks' ||
-        tab === 'capital' ||
         tab === 'reinforce' ||
         tab === 'logs' ||
         tab === 'codex'
@@ -438,15 +432,6 @@ export default function App() {
             onBack={showSystemsHub(game.state) ? () => setSystemsView('hub') : undefined}
           />
         )}
-        {tab === 'reliquary' && (
-          <ReliquaryTab
-            state={game.state}
-            onBack={() => go('stats')}
-            onEquipRelic={game.equipRelic}
-            onRemoveRelic={game.removeRelic}
-            onUpgradeRelic={game.upgradeRelic}
-          />
-        )}
         {tab === 'furnace' && (
           <FurnaceTab
             state={game.state}
@@ -477,26 +462,6 @@ export default function App() {
             guideTarget={guide?.target}
           />
         )}
-        {tab === 'yard' && (
-          <YardTab
-            state={game.state}
-            onBack={() => go('stats')}
-            onPlace={game.placeYardBuilding}
-            onClear={game.clearYardBuilding}
-            onBuyArm={game.buyYardArm}
-            onBuyMax={game.buyMaxYardArms}
-            onSaveLayout={game.saveYardLayout}
-            onLoadLayout={game.loadYardLayout}
-            guideTarget={guide?.target}
-          />
-        )}
-        {tab === 'slag' && (
-          <SlagTab
-            state={game.state}
-            onBack={() => go('stats')}
-            onBuy={game.buyMatterShop}
-          />
-        )}
         {tab === 'protocols' && (
           <ProtocolsTab
             state={game.state}
@@ -520,21 +485,6 @@ export default function App() {
             onBuy={game.buyProcessNode}
             onConfig={game.setProcessConfig}
             guideTarget={guide?.target}
-          />
-        )}
-        {tab === 'specialists' && (
-          <SpecialistsTab
-            state={game.state}
-            onBack={() => go('stats')}
-            onRank={game.rankSpecialist}
-          />
-        )}
-        {tab === 'tasks' && <TasksTab state={game.state} onBack={() => go('stats')} />}
-        {tab === 'capital' && (
-          <CapitalTab
-            state={game.state}
-            onBack={() => go('stats')}
-            onRank={game.rankCapital}
           />
         )}
         {tab === 'reinforce' && (

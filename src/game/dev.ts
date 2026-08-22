@@ -1,21 +1,40 @@
 /** Lightweight cheats for local / ?dev=1 testing. Never required for normal play. */
 
 import type { GameState, Resources, YardGoodId } from './types'
-import { AI_NODES, MAX_MODULE_LEVEL, RESEARCH, SHIP_FRAMES, SHIP_MODULES } from './catalog'
+import { AI_NODES, RESEARCH, SHIP_FRAMES, SHIP_MODULES } from './catalog'
+import {
+  ACT1_CADENCE,
+  ACT1_FINAL_WAVE,
+  CHALLENGE_MIN_REBUILDS,
+  PROCESS_MIN_REBUILDS,
+  PROCESS_MIN_RESEARCH,
+} from './cadence'
 import {
   ACHIEVEMENTS,
   GUIDE_STEPS,
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
 } from './progression'
+import { REBUILD_MIN_SORTIES } from './rebuild'
 import { syncPersistedHullCaps } from './state'
-import { enemyForSector } from './combat'
-import { wavesForRun, createEmptyEchoState } from './echo'
-import { createEmptyProtocolState } from './protocols'
-import { wavesForSector } from './sectors'
-import { ensureYardGrid } from './yard'
+import { encounterForWave } from './combat'
+import { CORE_MASTERY_CAP, CORE_RUN_LEVEL_CAP, setCoreRunLevel } from './coreProgression'
+import { isBossWave, powerSectorForWave, bandsClearedForWave } from './waves'
 
 export const DEV_FLAG_KEY = 'cosmic-idle-dev'
+
+export const GDD_DOOR_PRESETS = [
+  { wave: ACT1_CADENCE.foundry, label: 'W20 Foundry' },
+  { wave: ACT1_CADENCE.workers, label: 'W30 Workers' },
+  { wave: ACT1_CADENCE.directives, label: 'W50 Directives' },
+  { wave: ACT1_CADENCE.rebuild, label: 'W70 Rebuild' },
+  { wave: ACT1_CADENCE.reliquary, label: 'W110 Relics' },
+  { wave: ACT1_CADENCE.furnace, label: 'W140 Furnace' },
+  { wave: ACT1_CADENCE.research, label: 'W170 Research' },
+  { wave: ACT1_CADENCE.process, label: 'W210 Process' },
+  { wave: ACT1_CADENCE.protocols, label: 'W250 Challenges' },
+  { wave: ACT1_CADENCE.reinforce, label: 'W300 Reinforce' },
+] as const
 
 export function isDevToolsEnabled(): boolean {
   if (typeof window === 'undefined') return false
@@ -50,6 +69,8 @@ export function setDevToolsEnabled(on: boolean): void {
 
 export type DevAction =
   | { type: 'jump-sector'; sector: number }
+  | { type: 'set-best-wave'; wave: number }
+  | { type: 'prep-gdd-door'; wave: number }
   | { type: 'add-resources'; amounts: Partial<Resources> }
   | { type: 'add-yard-goods'; amounts: Partial<Record<YardGoodId, number>> }
   | { type: 'unlock-catalog' }
@@ -62,8 +83,58 @@ export type DevAction =
   | { type: 'skip-guides' }
   | { type: 'set-wave'; wave: number }
   | { type: 'set-module-levels'; levels: Record<string, number> }
+  | { type: 'set-core-run-levels'; levels: Record<number, number> }
+  | { type: 'set-core-mastery'; ranks: Record<string, number> }
   | { type: 'reset-onboarding' }
   | { type: 'seed-late-game' }
+  | { type: 'wipe-career' }
+
+export function grantCareerBestWave(state: GameState, wave: number): void {
+  const w = Math.max(0, Math.floor(wave))
+  state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
+  state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
+  if (!state.prestige.cycle) state.prestige.cycle = { bestWave: 0, sorties: 0, scrapEarned: 0 }
+  state.prestige.cycle.bestWave = Math.max(state.prestige.cycle.bestWave ?? 0, w)
+  const bands = bandsClearedForWave(w)
+  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver ?? 0, bands)
+  state.combat.highestSector = Math.max(state.combat.highestSector ?? 0, bands)
+  if (w >= ACT1_CADENCE.rebuild) {
+    state.prestige.cycle.sorties = Math.max(state.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
+  }
+}
+
+function armProcessGates(state: GameState): void {
+  state.prestige.prestigeCount = Math.max(state.prestige.prestigeCount ?? 0, PROCESS_MIN_REBUILDS)
+  const done = Object.values(state.hiveResearch.completed ?? {}).filter((n) => n > 0).length
+  if (done < PROCESS_MIN_RESEARCH) {
+    state.hiveResearch.completed.energy = Math.max(state.hiveResearch.completed.energy ?? 0, 1)
+  }
+}
+
+function clearFight(state: GameState): void {
+  state.combat.inFight = false
+  state.combat.enemyUnits = []
+  state.combat.playerUnits = []
+  state.combat.projectiles = []
+  state.combat.beams = []
+  state.combat.fx = []
+}
+
+function prepGddDoor(state: GameState, wave: number): void {
+  const w = Math.max(1, Math.floor(wave))
+  state.meta.hullLostOnce = true
+  grantCareerBestWave(state, w)
+  if (w >= ACT1_CADENCE.process) armProcessGates(state)
+  if (w >= ACT1_CADENCE.protocols) {
+    state.prestige.prestigeCount = Math.max(state.prestige.prestigeCount ?? 0, CHALLENGE_MIN_REBUILDS)
+  }
+  if (w >= ACT1_CADENCE.reinforce) {
+    state.meta.act1Cleared = true
+    armProcessGates(state)
+  }
+  maybeGrantSystemUnlocks(state)
+  tryCompleteAchievements(state)
+}
 
 export function applyDevAction(state: GameState, action: DevAction): GameState {
   const next = structuredClone(state)
@@ -77,7 +148,20 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, sector - 1)
       maybeGrantSystemUnlocks(next)
       tryCompleteAchievements(next)
-      next.combat.log = [`[dev] Jumped to sector ${sector}.`, ...next.combat.log].slice(0, 40)
+      next.combat.log = [`[dev] Legacy jump-sector ${sector} (use Best Wave).`, ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'set-best-wave': {
+      const wave = Math.max(0, Math.floor(action.wave))
+      grantCareerBestWave(next, wave)
+      maybeGrantSystemUnlocks(next)
+      tryCompleteAchievements(next)
+      next.combat.log = [`[dev] Best Wave ${wave}.`, ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'prep-gdd-door': {
+      prepGddDoor(next, action.wave)
+      next.combat.log = [`[dev] Opened GDD door at W${Math.floor(action.wave)}.`, ...next.combat.log].slice(0, 40)
       break
     }
     case 'add-resources': {
@@ -89,12 +173,11 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'add-yard-goods': {
-      ensureYardGrid(next)
       for (const [key, amount] of Object.entries(action.amounts)) {
         const k = key as YardGoodId
         next.yard.goods[k] = (next.yard.goods[k] ?? 0) + (amount ?? 0)
       }
-      next.combat.log = ['[dev] Yard goods granted.', ...next.combat.log].slice(0, 40)
+      next.combat.log = ['[dev] Construction goods granted.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'unlock-catalog': {
@@ -107,11 +190,11 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
           ...AI_NODES.filter((n) => n.permanent).map((n) => n.id),
         ]),
       ]
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 80)
-      next.combat.highestSector = Math.max(next.combat.highestSector, 80)
+      grantCareerBestWave(next, ACT1_FINAL_WAVE)
+      next.meta.hullLostOnce = true
       maybeGrantSystemUnlocks(next)
       tryCompleteAchievements(next)
-      next.combat.log = ['[dev] Catalog unlocked through sector 80.', ...next.combat.log].slice(0, 40)
+      next.combat.log = ['[dev] Catalog unlocked through Wave 300.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'clear-guides': {
@@ -135,7 +218,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
     case 'set-prestige-count': {
       next.prestige.prestigeCount = Math.max(0, Math.floor(action.count))
       next.combat.log = [
-        `[dev] Prestige count = ${next.prestige.prestigeCount}.`,
+        `[dev] Rebuild count = ${next.prestige.prestigeCount}.`,
         ...next.combat.log,
       ].slice(0, 40)
       break
@@ -143,19 +226,14 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
     case 'fill-workers': {
       const n = Math.max(0, Math.floor(action.count))
       next.base.workerDrones = Math.max(next.base.workerDrones, n)
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 3)
+      grantCareerBestWave(next, ACT1_CADENCE.workers)
       maybeGrantSystemUnlocks(next)
       next.combat.log = [`[dev] Worker drones ≥ ${n}.`, ...next.combat.log].slice(0, 40)
       break
     }
     case 'dock-heal': {
       next.combat.docked = true
-      next.combat.inFight = false
-      next.combat.enemyUnits = []
-      next.combat.playerUnits = []
-      next.combat.projectiles = []
-      next.combat.beams = []
-      next.combat.fx = []
+      clearFight(next)
       syncPersistedHullCaps(next)
       next.combat.playerHull = next.combat.playerHullMax
       next.combat.playerShield = next.combat.playerShieldMax
@@ -163,30 +241,22 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'force-boss-wave': {
-      const sector = Math.max(1, next.combat.sector)
-      const wave = wavesForSector(sector)
-      next.combat.sector = sector
+      const current = Math.max(1, next.combat.wave || 1)
+      const wave = isBossWave(current) ? current : Math.ceil(current / 10) * 10
       next.combat.wave = wave
-      next.combat.highestSector = Math.max(next.combat.highestSector, sector - 1)
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, sector - 1)
+      next.combat.sector = powerSectorForWave(wave)
       next.combat.docked = false
-      next.combat.inFight = false
-      next.combat.enemyUnits = []
-      next.combat.playerUnits = []
-      next.combat.projectiles = []
-      next.combat.beams = []
-      next.combat.fx = []
-      const enc = enemyForSector(sector, wave)
+      clearFight(next)
+      const enc = encounterForWave(wave)
       next.combat.log = [
-        `[dev] Forced boss setup — sector ${sector} W${wave} (${enc.name}).`,
+        `[dev] Forced boss — Wave ${wave} (${enc.name}).`,
         ...next.combat.log,
       ].slice(0, 40)
       maybeGrantSystemUnlocks(next)
       break
     }
     case 'grant-achievements': {
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 80)
-      next.combat.highestSector = Math.max(next.combat.highestSector, 80)
+      grantCareerBestWave(next, ACT1_FINAL_WAVE)
       next.research.unlocked = [...new Set([...next.research.unlocked, 'basic-optics'])]
       if (next.prestige.prestigeCount < 1) next.prestige.prestigeCount = 1
       next.ai.purchased = [...new Set([...next.ai.purchased, 'auto-engage'])]
@@ -204,40 +274,51 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'set-wave': {
-      const max = wavesForRun(next)
-      next.combat.wave = Math.max(1, Math.min(max, Math.floor(action.wave)))
-      next.combat.inFight = false
-      next.combat.enemyUnits = []
-      next.combat.log = [`[dev] Wave set to ${next.combat.wave}.`, ...next.combat.log].slice(
+      const wave = Math.max(1, Math.min(ACT1_FINAL_WAVE, Math.floor(action.wave)))
+      next.combat.wave = wave
+      next.combat.sector = powerSectorForWave(wave)
+      clearFight(next)
+      next.combat.log = [`[dev] Live Wave set to ${wave} (career unchanged).`, ...next.combat.log].slice(
         0,
         40,
       )
       break
     }
     case 'set-module-levels': {
-      const nextLevels = { ...next.shipyard.moduleLevels }
+      if (!next.meta.moduleMastery) next.meta.moduleMastery = {}
       for (const [id, level] of Object.entries(action.levels)) {
-        nextLevels[id] = Math.max(0, Math.min(MAX_MODULE_LEVEL, Math.floor(level)))
+        next.meta.moduleMastery[id] = Math.max(0, Math.min(CORE_MASTERY_CAP, Math.floor(level)))
       }
-      next.shipyard.moduleLevels = nextLevels
       syncPersistedHullCaps(next)
-      next.combat.log = ['[dev] Core levels set.', ...next.combat.log].slice(0, 40)
+      next.combat.log = ['[dev] Core Mastery set.', ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'set-core-run-levels': {
+      for (const [slot, level] of Object.entries(action.levels)) {
+        setCoreRunLevel(next, Number(slot), Math.max(0, Math.min(CORE_RUN_LEVEL_CAP, Math.floor(level))))
+      }
+      next.combat.log = ['[dev] Core Run Levels set.', ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'set-core-mastery': {
+      if (!next.meta.moduleMastery) next.meta.moduleMastery = {}
+      for (const [id, rank] of Object.entries(action.ranks)) {
+        next.meta.moduleMastery[id] = Math.max(0, Math.min(CORE_MASTERY_CAP, Math.floor(rank)))
+      }
+      syncPersistedHullCaps(next)
+      next.combat.log = ['[dev] Core Mastery set.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'seed-late-game': {
-      if (next.prestige.prestigeCount < 1) next.prestige.prestigeCount = 1
+      prepGddDoor(next, ACT1_FINAL_WAVE)
       next.resources.heat = Math.max(next.resources.heat ?? 0, 20)
       next.resources.salvage = Math.max(next.resources.salvage ?? 0, 400)
-      if (!next.specialists) next.specialists = { ranks: { gunner: 0, warden: 0, scavenger: 0 } }
-      next.specialists.ranks.gunner = Math.max(next.specialists.ranks.gunner ?? 0, 1)
-      if (!next.echo) next.echo = createEmptyEchoState()
-      next.echo.clears = { ...next.echo.clears, rift: Math.max(next.echo.clears.rift ?? 0, 1) }
-      if (!next.protocols) next.protocols = createEmptyProtocolState()
-      next.protocols.ranks = { ...next.protocols.ranks, 'mute-network': Math.max(next.protocols.ranks['mute-network'] ?? 0, 1) }
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, 75)
-      next.combat.highestSector = Math.max(next.combat.highestSector, 75)
-      maybeGrantSystemUnlocks(next)
-      next.combat.log = ['[dev] Late-game Task List seeded.', ...next.combat.log].slice(0, 40)
+      next.resources.choirAsh = Math.max(next.resources.choirAsh ?? 0, 80)
+      next.combat.log = ['[dev] Wave 300 / Reinforce seeded.', ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'wipe-career': {
+      next.combat.log = ['[dev] Wipe from More → Settings (hard reset).', ...next.combat.log].slice(0, 40)
       break
     }
     default:
