@@ -16,7 +16,6 @@ import { moduleUpgradeCost } from './catalog'
 import { hiveResearchNodeCost, HIVE_RESEARCH_WORKER_ACCEL } from './hiveResearch'
 import { NETWORK_FILL_COST, NETWORK_STARTING_DRONES } from './network'
 import { FURNACE_BASE_IDLE_GEN, FURNACE_CHANNEL_MAX } from './furnace'
-import { foundrySalvageReserve } from './foundry'
 import { buyMaxCores } from './actions'
 import {
   GUIDE_STEPS,
@@ -145,9 +144,10 @@ describe('Act 1 onboarding audit', () => {
   })
 })
 
-describe('Act 1 Buy Max / Foundry reserve', () => {
-  it('leaves Salvage for a slag craft once starter Cores are ranked', () => {
+describe('Act 1 Buy Max / Dock Scrap', () => {
+  it('spends Scrap at Dock and leaves Salvage for Foundry', () => {
     const s = createInitialState(0)
+    s.combat.docked = true
     s.meta.highestSectorEver = 4
     s.combat.highestSector = 4
     s.shipyard.moduleLevels['pulse-cannon'] = 4
@@ -156,10 +156,10 @@ describe('Act 1 Buy Max / Foundry reserve', () => {
     s.shipyard.modules = ['pulse-cannon', 'plate-layer']
     s.process.purchased = ['core-buy-max']
     s.resources.salvage = 40
-    const reserve = foundrySalvageReserve(s)
-    expect(reserve).toBeGreaterThanOrEqual(10)
+    s.resources.scrap = 80
     const after = buyMaxCores(s)
-    expect(after.resources.salvage).toBeGreaterThanOrEqual(reserve)
+    expect(after.resources.salvage).toBe(40)
+    expect(after.resources.scrap).toBeLessThan(80)
     expect(moduleLevelAfter(after)).toBeGreaterThan(4)
   })
 })
