@@ -43,30 +43,30 @@ Act 1 is not ready if:
 - one shop or one Core absorbs almost all spending;
 - W300 is “just a fat HP bar at a round number.”
 
-**Not required for v1.0** (GDD §162, §167): Play Store native wrap, supporter IAP, PvP, guilds, Echo, Capital, Specialists, Task List, fleet combat, full offline Sortie simulation, random-affix relic loot, ads, energy, battle pass.
+**Not required for v1.0** (GDD §162, §167): supporter IAP (see D6), PvP, guilds, Echo, Capital, Specialists, Task List, fleet combat, full offline Sortie simulation, random-affix relic loot, ads, energy, battle pass.
 
-**Platform lock for v1.0:** portrait-first PWA (Android install from HTTPS + browser). Native store wrap is post-launch unless Decision D5 changes.
+**Platform lock for v1.0:** portrait-first PWA **and** a Play Store wrap of that same build (D5). No save migration before the public 1.0 tag (D10). Dev tools and playtests must track the GDD loop on every phase — they are not a late polish item.
 
 ---
 
 ## 2. Decision Log
 
-Answer these before the named phase starts. Until answered, use the **Default**.
+Locked 2026-08-22 from owner answers. GDD Appendix E: D1 is an explicit review, not a silent code win.
 
-| ID | Question | Why it matters | Default until answered | Blocks |
-|---|---|---|---|---|
-| **D1** | Core power: GDD §22 Salvage **Run Levels** during Sortie, or current **Dock Scrap ranks** (`workshop.coreStarts`, commit `2ae52cf`)? | Largest GDD/code conflict. Tests currently encode Dock Scrap. | **Follow GDD §22.** Salvage buys temporary Core Run Levels in Sortie. Dock Scrap ranks become Workshop *starting* Core levels (cycle). Sortie Cores are not inspect-only. | Phase 3 |
-| **D2** | Is Process Tier 4–6 (mobile WHEN/THEN rule builder + Farm/Push/Challenge profiles) launch-required? | GDD §83–94 calls this a signature late-Act system. | **Yes for launch**, shipped after T1–T3 polish. Thin the rule vocabulary, do not skip the builder. | Phase 7 |
-| **D3** | Combat presentation: orbiting Core units around a central Hive, or keep flagship-mounted weapons with Hive branding? | GDD §13, §18, §110, §160. Current sim is `Flagship` + `buildFlagshipWeapons`. | **Orbiting Cores required.** Sim can keep a single Hive hull; weapons become per-Core units. | Phase 2 |
-| **D4** | Delete gated leftovers (Echo, Specialists, Tasks, Capital, Slag tab, Reliquary tab, Network bars, Route B, `sectors.ts` hold/warp) or keep code for Act 2? | Dead paths still import in `App.tsx` and confuse tests/saves. | **Unwire from UI now. Delete or isolate behind `src/game/legacy/` only if a later Act needs the types.** Capital/Specialists/Tasks stay deferred, not half-reachable. | Phase 1 |
-| **D5** | Is PWA-on-GitHub-Pages the v1.0 ship target, or is a Play Store APK required? | Scope of install, IAP, orientation lock. | **PWA only.** Portrait-first, installable, offline cache. | Phase 9 |
-| **D6** | Supporter upgrade / cosmetics at launch? | GDD §162 allows it; nothing is wired. | **No IAP at v1.0.** Leave a Settings hook for themes only. | Phase 9 |
-| **D7** | How authored does combat content need to be? | GDD §9–12 wants threat-budget waves + authored bosses, not only sector-band templates. | **Procedural normal waves with a written threat budget. Authored unique mechanics for every 10th-wave boss band and W300.** Not 300 unique scripts. | Phase 2, 8 |
-| **D8** | Frames: replace the USI hull ladder (Scout→Capital) with Bastion / Swarm / Reactor / Harvester sidegrades? | Current `SHIP_FRAMES` are linear hulls plus one Bastion. | **Yes.** Starter balanced Frame + 3 archetypes unlocking by wave/Foundry/Research/Challenge. Old hull IDs migrate or wipe (pre-release). | Phase 3 |
-| **D9** | Onboarding: enable `ONBOARDING_ENABLED` for launch? | Currently `false`. Guides exist but are off. | **Yes.** Rewrite to GDD §125–140. Skip always available. | Phase 6 |
-| **D10** | Save policy at release? | Pre-release bumps already wipe. Shipping a live audience changes this. | **Hard wipe OK until first public v1.0 tag.** After that, migrate. Document in More. | any SAVE_VERSION bump |
+| ID | Question | Status | Lock |
+|---|---|---|---|
+| **D1** | Core power: GDD §22 Salvage Run Levels vs Dock Scrap ranks? | **LOCKED** | **Keep Dock Scrap ranks.** Salvage buys Attack / Defense / Economy only. Sortie Cores stay inspect-only. `workshop.coreStarts` is cycle-persistent and resets on Rebuild. Accepted amendment to GDD §22 / §37. |
+| **D2** | Process Tier 4–6 (WHEN/THEN + profiles) for 1.0? | **LOCKED** | **Ship for 1.0.** Thin the rule vocabulary; do not skip the builder. After T1–T3 polish. |
+| **D3** | Combat presentation? | **LOCKED** | **Orbiting Cores around a central Hive.** Single Hive hull/shield pool; weapons are per-Core satellites. |
+| **D4** | Delete gated leftovers? | **LOCKED** (default kept) | Unwire from UI now. Delete or isolate. Capital / Specialists / Tasks stay deferred, not half-reachable. |
+| **D5** | PWA only vs Play Store? | **LOCKED** | **PWA and a Play Store wrap** of the same build. Portrait-first. See Phase 10. |
+| **D6** | Supporter upgrade / cosmetics at launch? | **OPEN** | A **supporter SKU** is a Play/App Store product id for an optional “thank you” pack (themes, Hive skins, non-power cosmetics). GDD §162 allows it and forbids P2W. **Not wired.** Stay **no IAP** until you want that pack; the wrap in Phase 10 does not require Billing. |
+| **D7** | How authored is combat content? | **LOCKED** (default kept) | Procedural normal waves with a threat budget. Authored mechanic per 10-wave boss band + W300. |
+| **D8** | Replace USI hull ladder with GDD Frames? | **LOCKED** | **Yes, one cut.** Starter + Bastion / Swarm / Reactor / Harvester. Old hull ids wipe (pre-1.0). |
+| **D9** | Enable onboarding for launch? | **LOCKED** (default kept) | Yes. Rewrite to GDD §125–140. Skip always available. |
+| **D10** | Save policy? | **LOCKED** | **No migration before 1.0.** Hard wipes are fine. After the public tag, migrate. **Dev tools and playtests must be updated with the game** — not left on sector / Echo / Task List cheats. |
 
-When a default is wrong, edit this table and the affected phase. Do not leave two authorities.
+Do not leave a second authority. If a later answer flips a lock, edit this table and the affected phase in the same PR.
 
 ---
 
@@ -111,7 +111,9 @@ Main already has the **GDD spine**, locked by `src/game/gdd-*.test.ts`:
 | 275 | Late mastery / Computation branch |
 | 300 | W300 boss + Reinforce |
 
-What is *not* done is the **identity pass**: Hive + orbiting Cores, GDD Frames, GDD Core run levels (D1), Network retirement, enemy taxonomy, Process rule builder, onboarding, leftover deletion, and a balance pass that treats the four GDD curves as first-class.
+What is *not* done is the **identity pass**: Hive + orbiting Cores, GDD Frames (one-cut replace), Network retirement, enemy taxonomy, Process rule builder, onboarding, leftover deletion, Play Store wrap, Wave-native dev tools / playtests, and a four-curve balance pass.
+
+**Accepted amendment (D1):** Cores are ranked at Dock with Scrap. That is cycle power, not Salvage run power. Do not implement GDD §22 Run Levels unless this lock is reopened.
 
 ---
 
@@ -131,7 +133,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Foundry processing + fabrication | PARTIAL | 18 recipes; mastery shorter than GDD table; UI still “smelter” flavoured |
 | Worker Drones | PARTIAL | Jobs exist; Network bar UI + fill still live |
 | Network Strike/Ward/Yield bars | LEGACY | Combat mults = 1; Yield/Loom/Archive still multiply |
-| Core Salvage Run Levels | CONFLICT | GDD §22 vs Dock Scrap ranks + `gdd-visual.test.tsx` |
+| Core Dock Scrap ranks | DONE (amendment) | D1: ranks at Dock with Scrap; Sortie Cores inspect-only. Keep `gdd-visual.test.tsx` |
 | Orbiting Core units + visual families | MISSING | Weapons mounted on `Flagship` |
 | Duplicate Cores | MISSING | `canFitModuleOnFrame` rejects same `moduleId` |
 | Hive Frames as archetypes | PARTIAL | 9 USI hulls + Bastion; no Swarm/Reactor/Harvester |
@@ -155,6 +157,8 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Authored bosses | PARTIAL | Every 10th is a boss; W300 climax exists; most are scaled fatties |
 | Offline freeze | DONE | |
 | PWA / portrait | PARTIAL | Works; description still says “USI-style”; orientation `any` |
+| Play Store wrap | MISSING | No TWA / Capacitor / listing assets |
+| Dev tools / playtests | PARTIAL | Still sector jumps, Echo / Specialists / Task List presets (`dev.ts`, `DevTools.tsx`) |
 | Codex / Stats / Settings | PARTIAL | Present; copy still hull/sector flavoured |
 | Audio | MISSING | No SFX/music pipeline |
 | Telemetry GDD §154–156 | PARTIAL | `sortieTelemetry.ts` + sim; not the full event set |
@@ -172,12 +176,12 @@ Order is dependency order, not calendar. Each phase is one PR off the previous. 
 
 **Work:**
 
-- Add this file.
+- Add this file and lock owner decisions (D1 Dock Scrap, D2 Process 1.0, D3 orbiting Cores, D5 Play wrap, D8 Frame cut, D10 no migration + mandatory cheats/playtests).
 - Rewrite `README.md` to the GDD loop (Waves, Hive, Workshop, Rebuild, no sectors-as-career).
 - Mark `docs/usi-reskin-plan.md` **superseded**. Keep it as history; do not follow it.
 - Retitle `docs/act1-balance.md` as a **historical USI-era curve note**, or slim it to a pointer at `src/game/balance/act1.ts` + GDD §141–155. Do not use its sector doors.
 
-**Acceptance:** a new reader of README describes the GDD game, not USI sectors.
+**Acceptance:** a new reader of README describes the GDD game, not USI sectors. Decision Log is locked, not a list of defaults.
 
 **SAVE_VERSION:** no.
 
@@ -185,9 +189,9 @@ Order is dependency order, not calendar. Each phase is one PR off the previous. 
 
 ### Phase 1 — Legacy excision and naming debt
 
-**Intent:** Act 1 code paths are only GDD systems. Career language is Wave, not Sector.
+**Intent:** Act 1 code paths are only GDD systems. Career language is Wave, not Sector. Dev tools jump the GDD cadence, not USI sectors.
 
-**Files:** `App.tsx`, `types.ts`, `state.ts`, `save.ts`, `progression.ts`, `cadence.ts`, `moreStations.ts`, `sectors.ts`, `network.ts`, `echo.ts`, `specialists.ts`, `tasks.ts`, `capital.ts`, `reliquary.ts` (tab vs sockets), `components/tabs/{Echo,Specialists,Tasks,Capital,Slag,Reliquary,Yard}Tab.tsx`, tests that `expect(SAVE_VERSION).toBe(34)`.
+**Files:** `App.tsx`, `types.ts`, `state.ts`, `save.ts`, `progression.ts`, `cadence.ts`, `moreStations.ts`, `sectors.ts`, `network.ts`, `echo.ts`, `specialists.ts`, `tasks.ts`, `capital.ts`, `reliquary.ts` (tab vs sockets), `components/tabs/{Echo,Specialists,Tasks,Capital,Slag,Reliquary,Yard}Tab.tsx`, `dev.ts`, `DevTools.tsx`, `playtest.ts`, tests that `expect(SAVE_VERSION).toBe(34)`.
 
 **Work:**
 
@@ -195,18 +199,53 @@ Order is dependency order, not calendar. Each phase is one PR off the previous. 
 2. `enterEcho`, `setSectorRoute`, `setLaunchSector`, hold/warp, Frontier Hold — already no-ops; delete call sites and dead UI. Keep a thin test that they are gone.
 3. Rename player-facing “sector” to Wave. Internally: keep `powerSectorForWave` as a **band helper** with a new name (`waveBand` / `threatBand`). Stop writing `requiresSectorEver` in new code; add `requiresBestWave` and migrate callers.
 4. Isolate or delete `NETWORK_BARS` combat UI. Yield/Loom/Archive multipliers must move onto Worker jobs or die (GDD §63: workers are not +damage/+shield; industrial speed is allowed).
-5. Strip Process categories/presets named Strike/Ward/Echo.
-6. Codex/inspect/help strings: Hive, Wave, Worker Drone, Challenge — not Flagship, Sector, Compute, Warp, Echo.
+5. **Rewrite dev tools and playtest seeds in this PR** (D10). See §5a. `jump-sector` becomes career Best Wave + live Wave. Delete Echo / Specialists / Task List / Capital / S18–S80 USI door buttons. Add GDD door presets (W20 / 30 / 50 / 70 / 140 / 170 / 210 / 250 / 300).
+6. Strip Process categories/presets named Strike/Ward/Echo.
+7. Codex/inspect/help strings: Hive, Wave, Worker Drone, Challenge — not Flagship, Sector, Compute, Warp, Echo.
 
 **Acceptance:**
 
 - `gdd-removed-loop.test.ts` still passes; expand it so Reliquary/Slag/Echo/Specialists/Tasks/Capital are not routable tabs.
 - `TabId` shrinks or unused ids are unused.
 - No player-facing “Sector N” except as a buried debug label.
+- Dev tools can open each GDD door from a wipe without touching leftover systems. Playtest report speaks Wave / Workshop / Rebuild.
 
 **Tests:** update every `SAVE_VERSION === 34` pin if you bump; prefer not bumping unless save keys change.
 
 **SAVE_VERSION:** bump if Network bar state or Echo fields are dropped from the save.
+
+---
+
+### 5a. Standing rule — Dev tools and playtests (D10)
+
+Owner lock: **updated cheats and playtests are required**, not optional polish. Every gameplay PR that changes a door, resource, or loop must leave `dev.ts`, `DevTools.tsx`, `playtest.ts`, and the simulator able to exercise that change.
+
+Current leftovers to kill in Phase 1 (`dev.ts`, `DevTools.tsx`):
+
+- `jump-sector` / Sector number box / `S8 S18 S22 S51 S72 S75 S80`
+- `prepDoor` for Protocols@18, Echo@22, Specialists@51, Task List / Capital / Reinforce@80
+- `seed-late-game` writing Echo clears, Specialist ranks, Task List
+- `force-boss-wave` via `wavesForSector`
+- Resource grants for essence / challengePoints / yard goods if those leave Act 1
+- Copy that says “sector”
+
+Required surface after Phase 1 (extend in later phases):
+
+| Control | Behaviour |
+|---|---|
+| Set Best Wave | Sets `bestWave` / `highestSectorEver` alias and grants doors |
+| Set live Wave | In-sortie wave only; does not grant career |
+| Door presets | W20 Foundry, W30 Workers, W50 Directives, W70 Rebuild (legal + 3 sorties), W110 Relics, W140 Furnace, W170 Research, W210 Process (also 2 Rebuilds + 1 research), W250 Challenges, W300 climax / Reinforce |
+| +Resources | Scrap, Salvage, Matter, Ash, Heat, Foundry mats, Process points — GDD names |
+| Rank Cores | Set Dock Scrap ranks on fitted Cores |
+| Force boss | Next or current 10th-wave boss / W300 climax |
+| Skip / reset onboarding | Keep |
+| Wipe career | Keep (pre-1.0 wipes are expected) |
+| Balance Simulator + Playtest report | Keep; report fields match GDD §154 |
+
+Automated playtests (`playtest.ts`, `src/game/simulation/**`, `gdd-*.test.ts` helpers) must launch at Wave 1, spend Scrap at Dock for Core ranks, and use `ACT1_CADENCE` doors. No Route B, Hold, Echo, or starting-wave helpers in new tests.
+
+When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle. When Phase 7 adds Process rules, add “inject Farm/Push profile.” When Phase 10 wraps Android, confirm `?dev=1` still works in the TWA (or a long-press More gesture).
 
 ---
 
@@ -255,49 +294,37 @@ Order is dependency order, not calendar. Each phase is one PR off the previous. 
 
 ### Phase 3 — Buildcraft: Frames, Cores, Relics, loadout UI
 
-**Intent:** build identity is Frame + Cores + Relics, readable at the decision site.
-
-**Depends on D1, D8.**
+**Intent:** build identity is Frame + Cores + Relics, readable at the decision site. Core *ranks* stay Dock Scrap (D1).
 
 **Files:** `catalog.ts` (`SHIP_FRAMES`, `SHIP_MODULES`), `actions.ts` (`upgradeModule`, `fitModule`, `canFitModuleOnFrame`), `workshop.ts` (`coreStarts`), `CombatTab.tsx`, `DockTab.tsx`, `inspect.ts`, `reliquary.ts`.
 
-**Work if D1 default (GDD §22) holds:**
+**Work:**
 
-1. **Run Level** on each fitted Core, bought with Salvage during Sortie. Reset on Sortie end to Workshop starting level.
-2. **Workshop Core Starts:** Scrap at Dock buys the next Sortie’s starting Run Level (cycle). Rebuild clears starts.
-3. Sortie Cores tab: compact GDD §115 card (Run Lv, Mastery, DPS, next cost). Expanded sheet: stats, relics, contribution %.
-4. Revert “inspect-only Cores” copy and `gdd-visual.test.tsx` assertions that forbid Salvage Core buys.
-
-**Work if D1 is reversed (keep Dock Scrap ranks):**
-
-- Document the amendment at the top of the GDD or in this Decision Log as accepted.
-- Sortie Cores stay inspect-only.
-- Still do Frames, duplicates, mastery, comparison UI.
-
-**Work regardless:**
-
-1. Replace hull ladder with:
+1. **Keep Dock Scrap ranks.** `upgradeModule` stays docked + Scrap. Rebuild clears `workshop.coreStarts`. Sortie Cores tab stays inspect-only (Mastery, DPS, relics, contribution %). Do not add Salvage Core buys. Keep `gdd-visual.test.tsx`.
+2. Replace the USI hull ladder in **one cut** (D8, wipe old ids):
    - **Starter** (balanced, 2 slots: Pulse + Plate)
    - **Bastion** (hull/shield, defensive slots)
    - **Swarm** (more slots, weaker per-Core / Hive durability)
    - **Reactor** (Furnace/Heat)
    - **Harvester** (economy / fragments / Ash)
-2. Unlock Frames from wave milestones, Foundry blueprints, Research, Challenges — not a linear “bigger hull.”
-3. Allow duplicate Core types; limits are Frame slot counts and role caps.
-4. Slot curve: ~2–3 early, ~5–6 late Act 1 (GDD §20).
-5. Mastery: permanent, slow. Milestones at 5 / 10 / 20 / 30 / 50 (75/100 can exist as remote caps). Socket unlocks and behaviour mods live here.
-6. Relic sockets: grow toward Power / Optical / Ballistic / Shield / Reactor / Sensor / Utility / Industrial / Universal. Do not require every class on day one; add as Cores need them.
-7. Dock Loadout comparison (GDD §117): Hull, Shield, DPS, slots, before → after when previewing a Frame or Core.
-8. Core roster: keep a small set that is visually and strategically distinct (Pulse, Beam, Flak, Lance, Barrier, Repair, Salvage/utility). Cut or merge USI leftovers that are generic +% modules.
-9. Acquisition loop: combat discovers fragment/blueprint → Foundry fabricates → Dock equips (GDD §24).
+3. Unlock Frames from wave milestones, Foundry blueprints, Research, Challenges — not a linear “bigger hull.”
+4. Allow duplicate Core types; limits are Frame slot counts and role caps.
+5. Slot curve: ~2–3 early, ~5–6 late Act 1 (GDD §20).
+6. Mastery: permanent, slow. Milestones at 5 / 10 / 20 / 30 / 50 (75/100 can exist as remote caps). Socket unlocks and behaviour mods live here.
+7. Relic sockets: grow toward Power / Optical / Ballistic / Shield / Reactor / Sensor / Utility / Industrial / Universal. Do not require every class on day one; add as Cores need them.
+8. Dock Loadout comparison (GDD §117): Hull, Shield, DPS, slots, before → after when previewing a Frame or Core.
+9. Core roster: keep a small set that is visually and strategically distinct (Pulse, Beam, Flak, Lance, Barrier, Repair, Salvage/utility). Cut or merge USI leftovers that are generic +% modules.
+10. Acquisition loop: combat discovers fragment/blueprint → Foundry fabricates → Dock equips (GDD §24).
+11. Dev tools: Frame picker cheat + “set Core Scrap ranks” must use the new ids. Remove Scout / Frigate / Capital jumps.
 
 **Acceptance:**
 
 - Player can run 3 Pulse + 1 Barrier + 1 Salvage on Swarm Frame.
 - Switching Bastion ↔ Swarm shows % deltas without leaving Dock.
-- Run Levels (if D1) reset on Extract/defeat; Mastery and Relics persist through Rebuild.
+- Mid-Sortie Salvage cannot raise Core ranks. Dock Scrap can. Rebuild wipes ranks.
+- Mastery and Relics persist through Rebuild.
 
-**SAVE_VERSION:** yes (frame ids, run-level fields).
+**SAVE_VERSION:** yes (frame ids). Hard wipe is fine (D10).
 
 ---
 
@@ -467,15 +494,46 @@ Also:
 
 5. Sortie telemetry blob (GDD §154): seed, start Best, end Wave, duration, death cause, spend shares, Directives, Furnace, New Best delta, extract vs death.
 6. Audio/VFX only on meaningful events (GDD §159). Readable over spectacle. Optional mute in Settings.
-7. PWA: portrait-first (`orientation` portrait-primary), fix meta description, install prompt copy, cache bust already tested.
+7. PWA: portrait-first (`orientation` portrait-primary), fix meta description, install prompt copy, cache bust already tested. This is the web ship **and** the body of the Play wrap.
 8. Settings: notation, damage-number mode, reduced motion (exists), export/import, wipe career.
-9. Rewrite README “Systems (tabs)” to the four-tab IA. Archive or stub old balance doc.
-10. Manual playtest script: first 30 min; first Rebuild; one Furnace push; one Challenge; W300 in dev-jump for finale feel.
-11. Version `1.0.0` when the above is green. Dev tools remain behind `?dev=1` / More toggle.
+9. Manual playtest script using the rewritten cheats: first 30 min from a wipe; first Rebuild via W70 preset; one Furnace push; one Challenge; W300 climax. Record gaps in the playtest report, not in ad-hoc notes.
+10. Version `1.0.0` when Phase 9 + 10 are green. Dev tools stay behind `?dev=1` / More toggle and must still match the shipped cadence.
 
-**Acceptance:** Casual profile hits first Rebuild inside the pad; Balanced does not skip Foundry/Workers; Optimiser is faster but not a different game. W300 is a peak on a slope, not a 10× cliff then a trivial W301.
+**Acceptance:** Casual profile hits first Rebuild inside the pad; Balanced does not skip Foundry/Workers; Optimiser is faster but not a different game. W300 is a peak on a slope, not a 10× cliff then a trivial W301. A tester can reproduce each beat from Dev Tools without sector leftovers.
 
 **SAVE_VERSION:** freeze a release number; start migrations after the public tag.
+
+---
+
+### Phase 10 — Play Store wrap
+
+**Intent:** the same Hiveworks build installs from the browser (PWA) and from Google Play. One game, two skins around it.
+
+**Approach:** Trusted Web Activity (Chrome **Bubblewrap** / `@bubblewrap/cli`) wrapping the production PWA origin (`https://chrisf92.github.io/Idle-/` or a custom domain if one exists by then). Do **not** fork the sim into a second Capacitor app unless D6 later needs Play Billing.
+
+**Repo work (agent can do):**
+
+1. `android/` (or `store/android/`) generated by Bubblewrap; commit the Gradle project or a documented generate script.
+2. Application id e.g. `com.hiveworks.app` (confirm before first upload — cannot change later).
+3. Portrait lock, `display: standalone`, Digital Asset Links (`assetlinks.json`) so the TWA opens without the Chrome URL bar.
+4. Store assets in `store/play/`: 512 icon, feature graphic, phone screenshots (portrait Sortie + Dock + Systems), short/full description, content rating notes (violence: abstract space combat).
+5. Privacy policy page (local save only; no account; export/import). Required for Play.
+6. Target current Play API level; 64-bit; no ads SDK.
+7. Signing: document upload-key vs app-signing. **Do not commit a production keystore.** Owner keeps the key.
+8. QA: install TWA, Launch → first Salvage, background/resume (Sortie freeze + industry), export/import, `?dev=1` if exposed.
+
+**Owner-only (cannot be done from this repo alone):**
+
+- Google Play Console account + one-time developer fee
+- Create the app listing, content rating questionnaire, target countries
+- Upload AAB, roll out internal testing → production
+- If a custom domain is preferred over GitHub Pages, DNS + HTTPS
+
+**If D6 later becomes “yes”:** add Play Billing (then Capacitor or a thin native billing bridge is justified). Until then, no IAP code.
+
+**Acceptance:** internal-track AAB installs, runs portrait, uses the same save format as the PWA (export/import between them is nice-to-have, not required — different origins). No Chrome toolbar. Listing copy matches the GDD loop, not USI.
+
+**SAVE_VERSION:** no.
 
 ---
 
@@ -483,18 +541,21 @@ Also:
 
 | PR | Phase | Player-visible? |
 |---|---|---|
-| 0 | Docs + this plan | no |
-| 1 | Legacy excision + Wave naming | yes (cleaner IA) |
+| 0 | Docs + this plan + locked decisions | no |
+| 1 | Legacy excision + Wave naming + **dev/playtest rewrite** | yes (cleaner IA + cheats) |
 | 2 | Hive + orbiting Cores + families | yes (the game’s look) |
-| 3 | Frames / Core levels / loadout UI | yes (buildcraft) |
+| 3 | GDD Frames / Dock Scrap Cores / loadout UI | yes (buildcraft) |
 | 4 | Workers + Foundry factory | yes |
 | 5 | Research tree + Matter shop | yes |
 | 6 | Onboarding + toasts | yes |
-| 7 | Process rules + profiles | yes (late) |
+| 7 | Process rules + profiles (1.0) | yes (late) |
 | 8 | Content / Challenges / finale | yes |
-| 9 | Balance + PWA + 1.0 tag prep | yes |
+| 9 | Balance + PWA polish + playtest script | yes |
+| 10 | Play Store TWA wrap + listing assets | store |
 
-Phases 2 and 3 can overlap if D1/D3/D8 are settled. Phase 7 can start in parallel with 8 once T1–T3 APIs are stable. Do not balance (9) until 2–5 exist, or the curves will be retuned twice.
+D1 / D3 / D8 are locked — Phases 2 and 3 can proceed without another design pass. Phase 7 is in the 1.0 train. Phase 10 can start in parallel with 9 once the PWA origin and portrait manifest are stable. Do not retune curves (9) until 2–5 exist.
+
+**Every PR after 1:** if a door, Frame, Core, or resource changes, update Dev Tools + playtest helpers in that same PR.
 
 ---
 
@@ -510,7 +571,8 @@ From GDD §99–101, §166–167:
 - PvP, guilds, battle pass, gacha, ads, energy, FOMO
 - Tower placement, manual Hive movement
 - Act 2 Reinforce mechanics beyond the door + fiction
-- Native store IAP (unless D5/D6 flip)
+- Play Billing / supporter IAP unless D6 flips to yes
+- Pre-1.0 save migration (wipes are expected)
 
 ---
 
@@ -542,6 +604,8 @@ From GDD §99–101, §166–167:
 | UI shell | `App.tsx`, `TabNav.tsx`, `CombatTab.tsx`, `DockTab.tsx`, `SystemsTab.tsx` |
 | Balance | `balance/act1.ts`, `simulation/**`, `sortieTelemetry.ts` |
 | Onboarding | `progression.ts`, `GuideOverlay.tsx`, `toasts.ts` |
+| Dev / playtest | `dev.ts`, `DevTools.tsx`, `playtest.ts` |
+| Play wrap | `store/` (new), Bubblewrap `android/` (new), `vite.config.ts` manifest |
 
 ---
 
@@ -550,8 +614,8 @@ From GDD §99–101, §166–167:
 **Keep as regression (they already express GDD):**  
 `gdd-sortie-loop`, `gdd-rebuild`, `gdd-reinforce`, `gdd-directives`, `gdd-furnace`, `gdd-workers`, `gdd-foundry-construction`, `gdd-research`, `gdd-process` (T1–T3 gates), `gdd-challenges`, `gdd-relics`, `gdd-mastery`, `gdd-removed-loop`, `gdd-ui-ia`, `gdd-offline`, `gdd-cadence`.
 
-**Rewrite when D1 lands:**  
-`gdd-visual.test.tsx` (inspect-only Cores / Scrap ranks), `gdd-sortie-loop` “does not spend Salvage on Core ranks mid-Sortie” if that assertion exists as a lock against GDD.
+**Keep as D1 contract (do not revert):**  
+`gdd-visual.test.tsx` (inspect-only Sortie Cores / Dock Scrap ranks), `gdd-sortie-loop` “does not spend Salvage on Core ranks mid-Sortie.”
 
 **Add:**
 
@@ -561,18 +625,15 @@ From GDD §99–101, §166–167:
 - Process rule evaluation (WHEN/THEN).
 - Onboarding path (enabled).
 - No leftover tab ids in More/Systems.
+- Dev Tools: each GDD door preset grants that system and no removed one.
+- Playtest / sim: Wave-1 launch, Dock Scrap Core ranks, `ACT1_CADENCE` doors.
 
 ---
 
-## 11. Open questions (ask if a default is wrong)
+## 11. Remaining questions
 
-1. **D1 Core ranks** — GDD Salvage Run Levels, or keep the recent Dock Scrap ranks?
-2. **D2 Process builder** — required for 1.0, or ship T1–T3 and defer conditions?
-3. **D3 Orbiting Cores** — required visual, or Hive branding on the current flagship model is enough for 1.0?
-4. **D5 Platform** — PWA only, or Play Store wrapper in the same release train?
-5. **D6 Monetisation** — any supporter SKU at launch?
-6. **D7 Boss authorship** — unique mechanic per 10-wave boss, or shared mechanic kit + W300 unique?
-7. **D8 Frames** — replace hull ladder in one PR, or add GDD archetypes beside old hulls and hide the ladder?
-8. **Save wipes** — is anyone on `gh-pages` production (`Idle-/`) whose career we must migrate before 1.0?
+1. **D6 Supporter SKU** — optional cosmetic Play purchase (see §2). Stay **no IAP** unless you want it. Not needed for the wrap.
+2. **Play application id + listing publisher name** — needed before the first AAB upload (Phase 10).
+3. **Production origin** — keep `https://chrisf92.github.io/Idle-/` for the TWA, or move to a custom domain?
 
-Defaults in §2 are enough to start Phase 0–1 immediately.
+Phase 1 can start now.

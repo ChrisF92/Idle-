@@ -11,6 +11,7 @@ Working package name was `cosmic-idle`; the PWA title is **Hiveworks**. Save ver
 
 - **Vite + React + TypeScript**
 - **PWA** (`vite-plugin-pwa`) — installable on Android from a deployed HTTPS URL
+- **Play Store wrap (1.0)** — Trusted Web Activity around the same PWA (see release plan Phase 10)
 - Local save (`localStorage`) + export/import codes
 - Simulation core under `src/game/` (UI-free, unit-tested)
 
@@ -101,5 +102,6 @@ Each open PR gets a live preview on the same GitHub Pages site:
 - An **info** button next to the title explains the current screen.
 - Dev tools (More tab): toggle anytime, or `?dev=1` / `?dev=0`. Jump, boss force, achievements, guide skip.
 - Onboarding is designed in the GDD (§125–140) and is currently disabled in code (`ONBOARDING_ENABLED`). Re-enable is Phase 6 of the release plan.
+- Locked release calls: Dock Scrap Core ranks; orbiting Cores around a central Hive; GDD Frames in one cut; Process rule builder in 1.0; no save migration before 1.0; Dev Tools and playtests stay on the GDD cadence.
 - Art is UI/text-first with canvas combat. The GDD target is a central Hive and orbiting Cores; the live battlefield is still mid-migration (see the release plan, Phase 2).
 - Stale design notes: [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md) and [`docs/act1-balance.md`](docs/act1-balance.md) are **superseded** by the GDD. Do not implement from them.
