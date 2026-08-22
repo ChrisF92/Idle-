@@ -124,6 +124,7 @@ export default function App() {
         setFocusTarget(nav.moduleId ? `core-${nav.moduleId}` : 'dock-cores')
         return
       }
+      if (nav.kind === 'tab' && isRemovedAct1Tab(nav.tab)) return
       if (isHubTabOpen(game.state, nav.tab)) {
         if (nav.tab === 'foundry') setSystemsView('foundry')
         if (nav.tab === 'dock') setDockPane('loadout')

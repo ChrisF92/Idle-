@@ -13,16 +13,11 @@ export const LIVE_SCREENS: TabId[] = [
   'combat',
   'network',
   'foundry',
-  'reliquary',
   'furnace',
   'research',
   'yard',
-  'slag',
   'protocols',
   'process',
-  'specialists',
-  'tasks',
-  'capital',
   'reinforce',
   'logs',
   'codex',
@@ -105,39 +100,11 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
       'Opens at Wave 250 after Process is online. Before launch you see restriction, goal Wave, reward, disabled systems, and current best. Nothing important is hidden.',
     ],
   },
-  echo: {
-    title: 'Echo Runs',
-    body: [
-      'Echo is retired. Challenges cover alternate combat tests.',
-      'There is no Echo gauntlet or Echo tree in Act 1.',
-    ],
-  },
   process: {
     title: 'Process',
     body: [
       'Purpose: automate behaviours you have already learned, not skip systems before you understand them. Main decision: which solved loop becomes a Process purchase.',
       'Opens at Wave 210 after two Rebuilds and a completed Research project. Process Available is spendable; Process Earned is lifetime. Quality of life comes first; deeper priorities unlock after you buy something.',
-    ],
-  },
-  specialists: {
-    title: 'Specialists',
-    body: [
-      'Deferred from Act 1. Frame, Core, and Relic identity is enough.',
-      'This station does not open during the opening campaign.',
-    ],
-  },
-  tasks: {
-    title: 'Task List',
-    body: [
-      'Deferred from Act 1. Capital stays shut until this list exists.',
-      'This station does not open during the opening campaign.',
-    ],
-  },
-  capital: {
-    title: 'Capital',
-    body: [
-      'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
-      'Needs sector 75 and a finished Task List. Ranks persist across Rebuild.',
     ],
   },
   reinforce: {
