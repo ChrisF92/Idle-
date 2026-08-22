@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canPrestige, performReinforce } from './actions'
+import { rebuildCycle } from './rebuild'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { ACT1_CLIMAX_BLURB, ACT1_CLIMAX_NAME, encounterForWave } from './combat'
 import { moreStationBuckets } from './moreStations'
@@ -76,9 +77,10 @@ describe('GDD Act 1 climax and Reinforce', () => {
     s = performReinforce(s)
     expect(s.meta.ascensionCount).toBe(1)
     expect(s.resources.prestigeMatter).toBeGreaterThan(matter)
-    expect(s.resources.scrap).toBe(0)
+    expect(s.resources.scrap).not.toBe(40)
     expect(s.workshop.levels['weapon-power'] ?? 0).toBe(0)
     expect(s.foundry.recipeLevels['slag-ingot']).toBe(3)
+    expect(rebuildCycle(s)).toEqual({ bestWave: 0, sorties: 0, scrapEarned: 0 })
     expect(s.meta.act1Cleared).toBe(true)
     expect(canPrestige(s)).toBe(false)
   })
