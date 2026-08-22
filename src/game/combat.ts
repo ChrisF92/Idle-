@@ -42,7 +42,15 @@ import { careerHighestSector, isSystemUnlocked } from './progression'
 import { isSectorBossWave, wavesForSector, trashWavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
 import type { SectorRoute } from './types'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
-import { isAct1ClimaxWave, isBossWave, powerSectorForWave } from './waves'
+import {
+  gddEnemyBandForWave,
+  isAct1ClimaxWave,
+  isBossWave,
+  powerSectorForWave,
+  waveForBand,
+  waveInBand,
+  type GddEnemyBandId,
+} from './waves'
 import { ACT1_FINAL_WAVE } from './cadence'
 import { salvageKillMult } from './workshop'
 import {
@@ -90,8 +98,8 @@ export interface SectorEncounter {
   units: CombatUnit[]
 }
 
-const FAMILY_ROTATION: EnemyFamily[] = ['swarm', 'armored', 'ethereal', 'divine']
-const FAMILY_ROTATION_B: EnemyFamily[] = ['armored', 'ethereal', 'divine', 'armored']
+const MIXED_FAMILIES: EnemyFamily[] = ['swarm', 'armored', 'ethereal']
+const COMPLEX_FAMILIES: EnemyFamily[] = ['swarm', 'armored', 'ethereal', 'divine']
 
 const NAMES: Record<EnemyFamily, string[]> = {
   swarm: ['Void Mite', 'Ashen Drifter', 'Needle Cloud'],
@@ -409,29 +417,84 @@ function densifyEncounter(
   return out
 }
 
+/** Catalog family that carries a GDD §12 wave-band idea. Bosses stay Titans. */
+export function primaryFamilyForWave(wave: number, boss = false): EnemyFamily {
+  if (boss || isAct1ClimaxWave(wave)) return 'titan'
+  const band = gddEnemyBandForWave(wave)
+  switch (band) {
+    case 'basic':
+    case 'swarm':
+    case 'skirmisher':
+      return 'swarm'
+    case 'armored':
+      return 'armored'
+    case 'shielded':
+    case 'sniper':
+    case 'support':
+      return 'ethereal'
+    case 'mixed':
+      return MIXED_FAMILIES[(Math.max(1, Math.floor(wave)) - 1) % MIXED_FAMILIES.length] ?? 'swarm'
+    case 'elite':
+      return 'divine'
+    case 'complex':
+      return COMPLEX_FAMILIES[(Math.max(1, Math.floor(wave)) - 1) % COMPLEX_FAMILIES.length] ?? 'swarm'
+    case 'climax':
+      return 'titan'
+  }
+}
+
+function packPatternForBand(band: GddEnemyBandId, wave: number): 0 | 1 | 2 | 3 | 4 {
+  const local = waveInBand(wave)
+  switch (band) {
+    case 'basic':
+      return 0
+    case 'swarm': {
+      const swarmPatterns = [0, 4, 2, 0, 4, 2, 0, 4, 2] as const
+      return swarmPatterns[local - 1] ?? 0
+    }
+    case 'skirmisher':
+      return 1
+    case 'armored':
+    case 'mixed':
+    case 'elite':
+    case 'complex':
+      return ((local - 1) % 5) as 0 | 1 | 2 | 3 | 4
+    case 'shielded':
+    case 'support':
+      return 0
+    case 'sniper':
+      return 1
+    case 'climax':
+      return 0
+  }
+}
+
 export function enemyForSector(
   sector: number,
   wave = 1,
   route: SectorRoute | string = 'A',
   extraDanger = 1,
+  globalWave?: number,
 ): SectorEncounter {
   const side = normalizeRoute(route)
-  const bossWave = isSectorBossWave(sector, wave)
-  const rotation = side === 'B' ? FAMILY_ROTATION_B : FAMILY_ROTATION
-  const family: EnemyFamily = bossWave
-    ? 'titan'
-    : (rotation[(sector - 1) % rotation.length] ?? 'swarm')
+  const careerWave = Math.max(1, Math.floor(globalWave ?? waveForBand(sector, wave)))
+  const bossWave =
+    globalWave != null
+      ? isBossWave(careerWave) || isAct1ClimaxWave(careerWave)
+      : isSectorBossWave(sector, wave)
+  const family = primaryFamilyForWave(careerWave, bossWave)
   const names = NAMES[family]
   const name =
-    names[(Math.floor((sector - 1) / FAMILY_ROTATION.length) + wave - 1) % names.length] ??
+    names[(careerWave + wave - 1) % names.length] ??
     'Unknown Entity'
 
   // Later waves should be tougher, but not a 40% stat cliff before every boss.
   // Density now carries more of the pressure, so the within-sector ramp is gentler.
   const waveScale = (1 + Math.max(0, wave - 1) * 0.06) * routeDangerMult(side) * extraDanger
+  const pattern = packPatternForBand(gddEnemyBandForWave(careerWave), careerWave)
   let units = bossWave
     ? buildBossPack(sector, name, waveScale)
-    : buildWavePack(sector, family, name, wave, waveScale)
+    : buildWavePack(sector, family, name, waveScale, pattern)
   units = densifyEncounter(units, sector, bossWave)
   const reach = Math.min(48, (Math.max(1, sector) - 1) * 2.8)
   for (const unit of units) {
@@ -479,7 +542,7 @@ export function encounterForWave(wave: number, extraDanger = 1, state?: GameStat
   const boss = isBossWave(w)
   const trash = trashWavesForSector(sector)
   const localWave = boss ? wavesForSector(sector) : Math.min(trash, ((w - 1) % 10) % trash + 1)
-  const encounter = enemyForSector(sector, localWave, 'A', extraDanger)
+  const encounter = enemyForSector(sector, localWave, 'A', extraDanger, w)
   const density = state ? directiveDensityMult(state) * protocolEnemyDensityMult(state) : 1
   if (density > 1 && encounter.units.length > 0) {
     const extra = Math.max(1, Math.round(encounter.units.length * (density - 1)))
@@ -604,21 +667,15 @@ export function enemyDamageScale(sector: number): number {
 export const SHIELD_REGEN_DELAY = 2
 
 /**
- * Wave-aware packs. Patterns cycle across the sector's waves.
- * Wave patterns: skirmish → pressure → elite → mixed → climax.
+ * Wave-aware packs. Pattern is chosen from the GDD §12 band, not a sector carousel.
  */
 function buildWavePack(
   sector: number,
   family: EnemyFamily,
   name: string,
-  wave: number,
   waveScale: number,
+  pattern: 0 | 1 | 2 | 3 | 4,
 ): CombatUnit[] {
-  // Keep S1-S8 onboarding deterministic. From S9 onward, rotate the authored
-  // five-pattern sequence each four-sector family cycle so returning families do
-  // not replay the same wave order forever (and climax patterns actually surface).
-  const patternOffset = sector <= 8 ? 0 : Math.floor((sector - 9) / 4) % 5
-  const pattern = ((wave - 1 + patternOffset) % 5) as 0 | 1 | 2 | 3 | 4
   const hullScale = enemySectorScale(sector) * waveScale
   const dmgScale = enemyDamageScale(sector) * waveScale
 
@@ -1401,19 +1458,19 @@ function familyBlurb(family: EnemyFamily, boss: boolean): string {
   return familyIntel(family)
 }
 
-/** Plain-language family description for sector intel (no loadout advice). */
+/** Plain-language family description for Codex intel (no loadout advice). */
 export function familyIntel(family: EnemyFamily): string {
   switch (family) {
     case 'swarm':
-      return 'Fighters and skirmishers close in; snipers hang back and charge.'
+      return 'Basic fighters first, then swarms and skirmishers. Numbers punish slow targeting.'
     case 'armored':
-      return 'Slow juggernauts that hold mid-range. Heavy hull.'
+      return 'High-hull plates that hold mid-range. Rewards pierce and sustained damage.'
     case 'ethereal':
-      return 'Shield fighters up close; snipers kite at long range.'
+      return 'Shield layers, charging snipers, and support that assist the pack.'
     case 'divine':
-      return 'A distant sniper core with diving fighters.'
+      return 'Elite formations: a distant core with diving attendants.'
     case 'titan':
-      return 'Massive flag entity with shifting phases.'
+      return 'Authored boss. Phases shift the fight around the Hive.'
   }
 }
 

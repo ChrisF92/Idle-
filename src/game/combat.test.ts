@@ -15,14 +15,15 @@ import {
 import { fitModule, unlockModule } from './actions'
 import { equipPostTutorialLoadout } from './testHelpers'
 import type { CombatUnit } from './types'
-import { bossWaveForBand, waveForBand } from './waves'
+import { bossWaveForBand } from './waves'
 
 describe('enemy catalog', () => {
-  it('rotates families and marks bosses every 5 sectors', () => {
+  it('picks GDD wave-band families and marks local last-wave bosses', () => {
     expect(enemyForSector(1).family).toBe('swarm')
-    expect(enemyForSector(2).family).toBe('armored')
-    expect(enemyForSector(3).family).toBe('ethereal')
-    expect(enemyForSector(4).family).toBe('divine')
+    expect(enemyForSector(2).family).toBe('swarm')
+    expect(enemyForSector(3).family).toBe('swarm')
+    expect(enemyForSector(5).family).toBe('armored')
+    expect(enemyForSector(8).family).toBe('ethereal')
     expect(isBossSector(5)).toBe(true)
     expect(enemyForSector(5, 1).isBoss).toBe(false)
     expect(enemyForSector(5, 7).isBoss).toBe(true)
@@ -30,7 +31,6 @@ describe('enemy catalog', () => {
     expect(enemyForSector(5, 7).essenceReward).toBeGreaterThan(0)
     expect(enemyForSector(1, 1).units.length).toBeGreaterThan(0)
     expect(enemyForSector(5, 7).units.some((u) => u.isBoss)).toBe(true)
-    // Waves in a sector are not identical
     expect(enemyForSector(1, 1).units.map((u) => u.name).join()).not.toBe(
       enemyForSector(1, 3).units.map((u) => u.name).join(),
     )
@@ -40,7 +40,7 @@ describe('enemy catalog', () => {
 describe('role matchups', () => {
   it('weapons deal more to armored enemies', () => {
     let state = createInitialState(0)
-    state.combat.wave = waveForBand(2)
+    state.combat.wave = 41
     state = startCombat(state)
     expect(state.combat.enemyFamily).toBe('armored')
 
@@ -99,10 +99,10 @@ describe('sector roster intel', () => {
 })
 
 describe('starter reach', () => {
-  it('starter weapons can hit sector 3 ethereal engage range', () => {
+  it('starter weapons can hit Shielded-band ethereal engage range', () => {
     const state = createInitialState(0)
     const maxRange = Math.max(...buildFlagshipWeapons(state).map((w) => w.range))
-    const ethereal = enemyForSector(3)
+    const ethereal = enemyForSector(8, 1)
     const maxEngage = Math.max(...ethereal.units.map((u) => u.engageRange))
     expect(ethereal.family).toBe('ethereal')
     expect(maxRange).toBeGreaterThanOrEqual(maxEngage)
@@ -234,7 +234,7 @@ describe('shield layers', () => {
   })
 
   it('stops Pulse from deleting a shielded ethereal in one shot', () => {
-    const pack = enemyForSector(3, 1)
+    const pack = enemyForSector(8, 1)
     const shielded = pack.units.find((u) => u.shieldMax > 0)
     expect(shielded).toBeTruthy()
     const hullBefore = shielded!.hull

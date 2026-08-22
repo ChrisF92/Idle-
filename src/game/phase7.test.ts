@@ -79,7 +79,7 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
 
     const a = enemyForSector(9, 1, 'A')
     const b = enemyForSector(9, 1, 'B')
-    expect(b.family).not.toBe(a.family)
+    expect(b.family).toBe(a.family)
     const aHull = a.units.reduce((n, u) => n + u.hullMax, 0)
     const bHull = b.units.reduce((n, u) => n + u.hullMax, 0)
     expect(bHull / aHull).toBeCloseTo(routeDangerMult('B'), 1)
