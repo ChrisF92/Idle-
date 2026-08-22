@@ -218,6 +218,10 @@ interface Scene {
   coreIds: string[]
   coreSlots: CoreSlot[]
   hiveShieldPop: number
+  livePlayerUnits: CombatUnit[]
+  liveEnemyUnits: CombatUnit[]
+  liveProjectiles: CombatProjectile[]
+  liveBeams: CombatBeam[]
 }
 
 /** Portrait logical canvas — Hive at centre, enemies from all directions. */
@@ -537,6 +541,26 @@ function beamOrigin(scene: Scene, beam: CombatBeam | VisualBeam): { x: number; y
   const from = scene.actors.get(beam.fromId)
   if (from) return { x: from.x, y: from.y }
   return hiveCenter(scene)
+}
+
+function layoutLiveShots(scene: Scene): void {
+  refreshCoreSlots(scene)
+  for (const [id, visual] of scene.projectiles) {
+    const p = scene.liveProjectiles.find((shot) => shot.id === id)
+    if (!p) continue
+    const ends = shotScreenEnds(scene, p, scene.livePlayerUnits, scene.liveEnemyUnits)
+    visual.x = ends.screen.x
+    visual.y = ends.screen.y
+    visual.ox = ends.from.x
+    visual.oy = ends.from.y
+    visual.hx = ends.to.x - ends.from.x
+    visual.hy = ends.to.y - ends.from.y
+  }
+  for (const beam of scene.beams) {
+    const origin = beamOrigin(scene, beam)
+    beam.fromX = origin.x
+    beam.fromY = origin.y
+  }
 }
 
 function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
@@ -960,6 +984,10 @@ function syncScene(
     scene.prevMode = mode
   }
   scene.mode = mode
+  scene.livePlayerUnits = playerUnits
+  scene.liveEnemyUnits = enemyUnits
+  scene.liveProjectiles = projectiles
+  scene.liveBeams = beams
   const livingIds = new Set<string>()
 
   for (const u of playerUnits) {
@@ -1018,19 +1046,8 @@ function syncScene(
     const screen = ends.screen
     const origin = ends.from
     const prev = scene.projectiles.get(p.id)
-    let hx = ends.to.x - ends.from.x
-    let hy = ends.to.y - ends.from.y
-    if (prev) {
-      const dx = screen.x - prev.x
-      const dy = screen.y - prev.y
-      if (Math.hypot(dx, dy) > 0.2) {
-        hx = dx
-        hy = dy
-      } else if (Math.hypot(prev.hx, prev.hy) > 0.2) {
-        hx = prev.hx
-        hy = prev.hy
-      }
-    }
+    const hx = ends.to.x - ends.from.x
+    const hy = ends.to.y - ends.from.y
     nextProj.set(p.id, {
       x: screen.x,
       y: screen.y,
@@ -1040,8 +1057,8 @@ function syncScene(
       attackerFamily: p.attackerFamily,
       hx,
       hy,
-      ox: prev?.ox ?? origin.x,
-      oy: prev?.oy ?? origin.y,
+      ox: origin.x,
+      oy: origin.y,
       delivery: p.delivery,
     })
     if (!scene.seenProj.has(p.id)) {
@@ -2247,6 +2264,10 @@ export function Battlefield({
       coreIds,
       coreSlots: [],
       hiveShieldPop: 0,
+      livePlayerUnits: [],
+      liveEnemyUnits: [],
+      liveProjectiles: [],
+      liveBeams: [],
     }
     sceneRef.current = scene
 
@@ -2263,6 +2284,7 @@ export function Battlefield({
       scene.frameId = p.frameId
       scene.coreIds = p.coreIds
       stepScene(scene, dt)
+      layoutLiveShots(scene)
 
       const dpr = Math.min(2, window.devicePixelRatio || 1)
       const cssW = canvas.clientWidth || VIEW_W

@@ -34,6 +34,14 @@ describe('combat shot presentation', () => {
     expect(mid.y).toBeCloseTo(245)
   })
 
+  it('keeps a live player shot attached when the muzzle moves', () => {
+    const target = { x: 200, y: 40 }
+    const first = projectileScreenPoint('player', 40, 0, 80, { x: 200, y: 370 }, target)
+    const moved = projectileScreenPoint('player', 40, 0, 80, { x: 236, y: 348 }, target)
+    expect(moved.x).not.toBeCloseTo(first.x)
+    expect(moved.y).not.toBeCloseTo(first.y)
+  })
+
   it('strips the flagship weapon suffix so shots can leave that Core', () => {
     expect(weaponIdToCoreId('pulse-cannon-wpn')).toBe('pulse-cannon')
     expect(weaponIdToCoreId('beam-laser')).toBe('beam-laser')
