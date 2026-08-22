@@ -1944,7 +1944,7 @@ export function maybeAdvanceBossPhase(
 ): void {
   if (!state.combat.isBoss) return
   const boss = state.combat.enemyUnits.find((u) => u.isBoss)
-  if (!boss || boss.hullMax <= 0) return
+  if (!boss || boss.hull <= 0 || boss.hullMax <= 0) return
   const pct = boss.hull / boss.hullMax
 
   if (state.combat.bossPhase < 1 && pct <= 2 / 3) {
