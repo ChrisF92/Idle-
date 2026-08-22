@@ -11,7 +11,7 @@ import {
   stationEffectiveDrones,
 } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
-import { hiveResearchDataMult, hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
+import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
 import { yardNetworkMult } from './yard'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoNetworkMult } from './echo'
@@ -562,22 +562,6 @@ export function networkFillRate(state: GameState, id: NetworkBarId): number {
 export function networkBarCapped(state: GameState, id: NetworkBarId): boolean {
   const raw = networkRawFillRate(state, id)
   return raw > networkFillCap(state, id) + 1e-6
-}
-
-/** 1 + k*((8L+1)^exp − 1). L=0 → 1. */
-function computeBonus(levels: number, k: number, exp = 0.5): number {
-  const L = Math.max(0, levels)
-  return 1 + k * (Math.pow(8 * L + 1, exp) - 1)
-}
-
-function primaryBonus(state: GameState, id: NetworkBarId, k: number): number {
-  if (protocolMutes(state, 'network')) return 1
-  if (!isNetworkBarUnlocked(state, id)) return 1
-  return computeBonus(
-    networkLevels(state, id),
-    k * networkLevelEffectiveness(state, id),
-    networkExponent(state, id),
-  )
 }
 
 export function networkStrikeMult(_state: GameState): number {
