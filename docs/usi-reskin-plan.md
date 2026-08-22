@@ -1,8 +1,12 @@
 # Hiveworks — USI-inspired rewrite plan
 
+> **SUPERSEDED.** This document is historical. Design authority is [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md). Implementation order is [`docs/release-implementation-plan.md`](release-implementation-plan.md).
+>
+> Sectors, Network combat bars, Echo, starting-wave select, and USI hull-ladder cadence are **removed or deferred** by the GDD. Do not implement from this file.
+
 Working title: **Hiveworks** (package/PWA name stays `cosmic-idle` until a rename pass).
 
-**Status:** accepted 2026-08-13. Defaults locked, then amended: USI combat + cores, no towers, **USI depth and run length**, sectors kept as the career ladder with waves inside each sector.
+**Status:** superseded 2026-08-22. Originally accepted 2026-08-13. Defaults locked, then amended: USI combat + cores, no towers, **USI depth and run length**, sectors kept as the career ladder with waves inside each sector. The GDD later dropped sectors and several USI doors.
 
 ---
 

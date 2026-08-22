@@ -1,5 +1,9 @@
 # Act 1 economy, pacing, and progression
 
+> **SUPERSEDED as design authority.** Career doors, sector language, and Network combat bars in this note are from the USI-era build. Live cadence lives in `src/game/cadence.ts` and GDD §102. Balance philosophy lives in GDD §141–155. Release work is sequenced in [`release-implementation-plan.md`](release-implementation-plan.md).
+>
+> Keep this file only as a historical curve dump until Phase 9 rewrites `src/game/balance/act1.ts` against the four GDD curves (enemy, Salvage, Scrap, Matter).
+
 Source of truth for Hiveworks Act 1 after Process 2.0, Furnace 2.0, Network layers, Protocol rewards, Foundry depth, and Research breakthroughs.
 
 This document is **not** a return to older USI / ITRTG calendar assumptions. Those games inspired the *shape* of a loop (understand → optimise → push → hit resistance → improve support systems → break through → automate solved work → discover a new layer). The numbers below are authored for the current systems.
