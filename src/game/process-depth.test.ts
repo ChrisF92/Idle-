@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { buyProcessNode } from './actions'
+import { ACT1_CADENCE } from './cadence'
+import { atCareerWave } from './testHelpers'
 import { PROCESS_NODES, canBuyProcessNode, hasProcess, processCombatSpeedMult, processOfflineBonusMs } from './process'
 import { tickAutomation } from './automation'
 import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
@@ -91,14 +93,14 @@ describe('Act 1 Process depth', () => {
     expect(s.foundry.slots[0]?.recipeId).toBe('filament')
   })
 
-  it('Shard Seat fits a red chip into an empty slot', () => {
-    const s = createInitialState(0)
-    s.meta.highestSectorEver = 68
-    s.combat.highestSector = 68
+  it('Shard Seat fits a red chip into an empty Core socket', () => {
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
+    s.combat.docked = true
     s.process.purchased = ['auto-relic']
     s.reliquary.owned['battle-chip'] = 1
     tickAutomation(s)
-    expect(s.reliquary.slots.red).toBe('battle-chip')
+    expect(s.reliquary.coreFits['pulse-cannon']?.[0]).toBe('battle-chip')
+    expect(s.reliquary.slots.red ?? null).toBeNull()
   })
 
   it('Print Press assembles a complete Core print', () => {

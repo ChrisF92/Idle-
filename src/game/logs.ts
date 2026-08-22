@@ -41,13 +41,13 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'core-prints',
     title: 'Prints',
-    body: 'Wrecks leave Core fragments. Track a print and push Waves that drop that family. Assemble in the Foundry, then Rebuild to fit the new gun.',
+    body: 'Wrecks leave Core fragments. Track a print and push Waves that drop that family. Assemble in the Foundry, then fit it at Dock.',
     unlock: (s) => career(s) >= 2,
   },
   {
     id: 'reliquary',
     title: 'Relic sockets',
-    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Shield, and Industrial until Mastery 5 or Wave 275 adds Universal. Spare copies plus Slag Ingots raise I–III; extras do not resonate.',
+    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Optical, Ballistic, Shield, and Industrial until Mastery 5 or Wave 275 adds Universal. Spare copies plus Slag Ingots raise I–III; extras do not resonate.',
     unlock: (s) => career(s) >= 3,
   },
   {

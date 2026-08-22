@@ -11,6 +11,7 @@ import {
 import {
   RELIC_SOCKET_LABELS,
   SHARDS,
+  canUpgradeRelic,
   coreSocketLayout,
   coreSocketRelics,
   getShard,
@@ -34,9 +35,10 @@ interface CoreSheetProps {
   onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
   compact?: boolean
   onBuyMax?: () => void
-  /** Relic install/remove. Docked-only; omit during a live Sortie. */
+  /** Relic install/remove/upgrade. Docked-only; omit during a live Sortie. */
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
+  onUpgradeRelic?: (relicId: string) => void
   relicsOnly?: boolean
   inspectOnly?: boolean
 }
@@ -48,6 +50,7 @@ function RelicSocket({
   socket,
   onEquipRelic,
   onRemoveRelic,
+  onUpgradeRelic,
 }: {
   state: GameState
   moduleId: string
@@ -55,6 +58,7 @@ function RelicSocket({
   socket: RelicSocketClass
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
+  onUpgradeRelic?: (relicId: string) => void
 }) {
   const label = RELIC_SOCKET_LABELS[socket]
   const fittedId = coreSocketRelics(state, moduleId)[socketIndex] ?? null
@@ -84,6 +88,11 @@ function RelicSocket({
           Remove Relic
         </button>
       ) : null}
+      {canEdit && fittedId && onUpgradeRelic && canUpgradeRelic(state, fittedId).ok ? (
+        <button type="button" className="primary" onClick={() => onUpgradeRelic(fittedId)}>
+          Upgrade Relic
+        </button>
+      ) : null}
       {canEdit && onEquipRelic && owned.length > 0 ? (
         <div className="relic-picks">
           {owned.map((shard) => (
@@ -108,11 +117,13 @@ function RelicSockets({
   moduleId,
   onEquipRelic,
   onRemoveRelic,
+  onUpgradeRelic,
 }: {
   state: GameState
   moduleId: string
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
+  onUpgradeRelic?: (relicId: string) => void
 }) {
   if (!isRelicsUnlocked(state)) return null
   const layout = coreSocketLayout(state, moduleId)
@@ -128,6 +139,7 @@ function RelicSockets({
           socket={socket}
           onEquipRelic={onEquipRelic}
           onRemoveRelic={onRemoveRelic}
+          onUpgradeRelic={onUpgradeRelic}
         />
       ))}
     </div>
@@ -139,12 +151,14 @@ function CoreRow({
   moduleId,
   onEquipRelic,
   onRemoveRelic,
+  onUpgradeRelic,
   relicsOnly = false,
 }: {
   state: GameState
   moduleId: string
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
+  onUpgradeRelic?: (relicId: string) => void
   relicsOnly?: boolean
 }) {
   const def = getModule(moduleId)
@@ -183,6 +197,7 @@ function CoreRow({
         moduleId={moduleId}
         onEquipRelic={onEquipRelic}
         onRemoveRelic={onRemoveRelic}
+        onUpgradeRelic={onUpgradeRelic}
       />
     </article>
   )
@@ -193,6 +208,7 @@ export function CoreSheet({
   compact = false,
   onEquipRelic,
   onRemoveRelic,
+  onUpgradeRelic,
   relicsOnly = false,
 }: CoreSheetProps) {
   return (
@@ -204,6 +220,7 @@ export function CoreSheet({
           moduleId={moduleId}
           onEquipRelic={onEquipRelic}
           onRemoveRelic={onRemoveRelic}
+          onUpgradeRelic={onUpgradeRelic}
           relicsOnly={relicsOnly}
         />
       ))}

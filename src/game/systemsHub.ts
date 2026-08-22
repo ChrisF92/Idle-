@@ -53,34 +53,44 @@ function printFragmentPct(state: GameState, moduleId: string): number | null {
 
 export function foundryHubStatus(state: GameState): string[] {
   const lines: string[] = []
-  let top: { name: string; level: number } | null = null
-  for (const recipe of FOUNDRY_RECIPES) {
-    const level = foundryRecipeLevel(state, recipe.id)
-    if (level <= 0) continue
-    if (!top || level > top.level) top = { name: recipe.name, level }
+  const temper = foundryRecipeLevel(state, 'temper-bar')
+  if (temper > 0) {
+    lines.push(`Temper Bar Mastery ${temper}`)
+  } else {
+    let top: { name: string; level: number } | null = null
+    for (const recipe of FOUNDRY_RECIPES) {
+      const level = foundryRecipeLevel(state, recipe.id)
+      if (level <= 0) continue
+      if (!top || level > top.level) top = { name: recipe.name, level }
+    }
+    if (top) lines.push(`${top.name} Mastery ${top.level}`)
   }
-  if (top) lines.push(`${top.name} Mastery ${top.level}`)
 
   const running = state.foundry.slots.filter((slot) => slot.recipeId)
   if (running.length === 0) {
     const idle = state.foundry.slots.length
-    lines.push(idle <= 1 ? 'Smelter idle' : `${idle} smelters idle`)
+    lines.push(idle <= 1 ? 'Processor idle' : `${idle} processors idle`)
   } else {
-    for (const slot of running.slice(0, 2)) {
+    for (const slot of running.slice(0, 1)) {
       const pct = Math.round((slot.progress ?? 0) * 100)
       lines.push(`${recipeName(slot.recipeId ?? '')}: ${pct}%`)
     }
   }
 
-  const tracked = state.foundry.trackedPrintId
-  if (tracked) {
-    const name = getModule(tracked)?.name ?? 'Print'
-    const pct = printFragmentPct(state, tracked)
-    lines.push(pct == null ? `Tracking ${name}` : `${name}: ${pct}%`)
+  const idleDrones = idleWorkers(state)
+  if (idleDrones > 0) {
+    lines.push(`${idleDrones} idle drones`)
+  } else {
+    const tracked = state.foundry.trackedPrintId
+    if (tracked) {
+      const name = getModule(tracked)?.name ?? 'Print'
+      const pct = printFragmentPct(state, tracked)
+      lines.push(pct == null ? `Tracking ${name}` : `${name}: ${pct}%`)
+    } else {
+      const workers = workerAllocationSummary(state).foundry
+      if (workers > 0) lines.push(`${workers} workers`)
+    }
   }
-
-  const workers = workerAllocationSummary(state).foundry
-  if (workers > 0) lines.push(`${workers} workers`)
   return lines.slice(0, 3)
 }
 

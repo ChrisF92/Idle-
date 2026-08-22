@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ Wave/Hive copy pass (SAVE_VERSION 35, package `0.1.0`)  
+**Code snapshot:** `main` @ Relic sockets + Foundry factory presentation (SAVE_VERSION 35, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -94,6 +94,8 @@ Main already has the **GDD spine**, locked by `src/game/gdd-*.test.ts`:
 | Hive Frames: Starter + Bastion / Swarm / Reactor / Harvester (D8) | `catalog.ts` `SHIP_FRAMES`, `gdd-frames.test.ts` |
 | Threat budget + named 10-wave boss mechanics | `threatBudget.ts`, `bossMechanics.ts`, `gdd-threat-budget.test.ts` |
 | Player copy uses Wave / Hive, not Sector / Flagship | HUD, inspect, Codex, Stats, Sortie diagnostics |
+| Relic sockets + GDD Core roster | Optical / Ballistic families; leftovers hidden from Prints |
+| Foundry factory presentation | Processing / Fabrication panes; Worker efficient/hard copy |
 
 **Cadence in code** (`src/game/cadence.ts`) already matches GDD §102:
 
@@ -133,15 +135,15 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Reinforce door after W300 | PARTIAL | Door exists; Act 2 rules correctly deferred; climax needs feel |
 | Directives | DONE | |
 | Furnace push channels | DONE | Extra non-GDD channels still in types |
-| Foundry processing + fabrication | PARTIAL | 18 recipes; mastery shorter than GDD table; UI still “smelter” flavoured |
-| Worker Drones | PARTIAL | Jobs exist; Network bar UI + fill still live |
+| Foundry processing + fabrication | PARTIAL | Processing / Fabrication panes + mastery table. Timed fab slots and craft-time retune still deferred |
+| Worker Drones | PARTIAL | Jobs + efficient/hard copy. Manufacture bar gone. Overflow dumps to Salvage ops. `train-*` leftover remains |
 | Network Strike/Ward/Yield bars | LEGACY | Combat mults = 1; Yield/Loom/Archive still multiply |
 | Core Salvage Run Levels (A/D/E by role) | CONFLICT | GDD + D1: Sortie Salvage. Live code + `gdd-visual.test.tsx` still encode Dock Scrap ranks — Phase 3 rewrites that |
 | Orbiting Core units + visual families | MISSING | Weapons mounted on `Flagship` |
 | Duplicate Cores | MISSING | `canFitModuleOnFrame` rejects same `moduleId` |
 | Hive Frames as archetypes | PARTIAL | 9 USI hulls + Bastion; no Swarm/Reactor/Harvester |
 | Core Mastery milestones 5/10/20/…/100 | PARTIAL | Part-invest mastery, cap 10→20 at W275 |
-| Relics on Cores | DONE | Socket classes thinner than GDD 9-class set |
+| Relics on Cores | DONE | Power / Optical / Ballistic / Shield / Industrial / Universal. Process auto-seats Core sockets |
 | Standalone Reliquary / colour slots | LEGACY | Tab still in `App.tsx`; colour bonuses disabled |
 | Research visual branching tree | PARTIAL | 4×9 nodes, preview-one; not a reconnecting tree |
 | Process T1–T3 | PARTIAL | 42 nodes, 8 hidden; presets still named Strike/Ward |
@@ -316,10 +318,10 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 6. **Done.** Bastion = Wave 70. Swarm = Foundry Temper Bar. Reactor = Research Extra Tap. Harvester = Swarm Pressure first clear.
 7. **Done.** Duplicate Core types; limits are Frame slot counts and role caps.
 8. **Done.** Slot curve 2 / 5 / 6 / 4 / 5.
-9. Relic sockets: grow toward Power / Optical / Ballistic / Shield / Reactor / Sensor / Utility / Industrial / Universal. Do not require every class on day one; add as Cores need them.
+9. **Done (this slice).** Relic sockets: Power / Optical / Ballistic / Shield / Industrial / Universal. Focus Lens + Burst Mesh families. Process auto-relic seats Core sockets. Dock Upgrade Relic. Reactor / Sensor still later.
 10. **Done.** Dock Loadout comparison shows Hull / Shield / DPS / slots before → after. Locked Frames list their unlock line.
-11. Core roster: keep a small set that is visually and strategically distinct (Pulse, Beam, Flak, Lance, Barrier, Repair, Salvage/utility). Cut or merge USI leftovers that are generic +% modules.
-12. Acquisition loop: combat discovers fragment/blueprint → Foundry fabricates → Dock equips (GDD §24).
+11. **Done (this slice).** Core roster whitelist (Pulse, Beam, Flak, Lance, Plate, Barrier, Lathe, Drone Bay, Charge Prism, Choir Tap). Leftovers hide unless already unlocked.
+12. **Done (this slice).** Acquisition copy: assemble then fit at Dock. Mid-Sortie assemble toasts “available next Sortie.”
 13. Rewrite `gdd-visual.test.tsx` and any “inspect-only Cores / Scrap at Dock” assertions. Add tests: Salvage Run Level on Pulse lives under Attack; Plate under Defense; reset on Extract; Dock cannot spend Scrap on a Core; Mastery survives Rebuild.
 14. **Done.** Dev Tools Frame picker (Starter / Bastion / Swarm / Reactor / Harvester) + Run Levels / Mastery. USI hull cheats gone.
 
@@ -342,15 +344,15 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 
 **Work:**
 
-1. Kill remaining Network bar fill/level UI. Assignment screen is **jobs**: processing, fabrication, Research, drone production, construction, salvage ops.
-2. Each job: minimum / efficient range / hard cap (GDD §61). Show “4/4 efficient” not an abstract bar.
-3. Drone production is a real investment (workers now vs more workers later). Slow.
-4. Foundry UI split: **Processing** (continuous chains, 2–3 stages) vs **Fabrication** (timed slots, 1 then more at W90).
-5. Material Mastery XP + milestone table (output, time, efficiency, rare chance). Act 1 must not max materials.
-6. Fabrication completes mid-Sortie → toast “available next Sortie”; cannot refit live (GDD §58).
-7. Times: first job ~30s, early component 2–5 min, early Core 5–15 min. Never introduce Foundry empty.
-8. Systems hub cards show live status (Temper Bar Mastery, job %, Ash, current Research, active Process rules) — GDD §120.
-9. Drop training-station leftovers (`train-ballistics` etc.) unless they are rewritten as Worker jobs with a GDD purpose.
+1. **Done (this slice).** Manufacture bar gone. Assignment screen is **jobs**: Processing, Fabrication, Research, Drone production, Construction, Salvage ops.
+2. **Done (this slice).** Each job shows `{assigned}/{efficient} efficient · cap {hard}`. Construction remains 4 / 8.
+3. Drone production is a real investment (workers now vs more workers later). Slow. Unchanged this slice.
+4. **Done (presentation).** Foundry panes: **Processing** vs **Fabrication**. Timed fabrication slots still deferred (would want SAVE 36).
+5. **Done (table).** Mastery steps render per recipe. Rare-chance column still later.
+6. **Done (this slice).** Mid-Sortie assemble → “available next Sortie”; cannot refit live.
+7. Times: first job ~30s, early component 2–5 min, early Core 5–15 min. Deferred with timed fab.
+8. **Done (this slice).** Hub cards show Temper Bar Mastery, running recipe, idle drones.
+9. Overflow no longer dumps to `train-*`. Stations remain in catalog this slice.
 
 **Acceptance:**
 

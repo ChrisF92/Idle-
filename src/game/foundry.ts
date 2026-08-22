@@ -1,4 +1,4 @@
-/** Foundry — USI Synth analogue. Recipes, smelter slots, Foundry Points, equippable bits. */
+/** Foundry — USI Synth analogue. Recipes, processor slots, Foundry Points, equippable bits. */
 
 import type { FoundryRecipeId, FoundrySlot, FoundryState, GameState } from './types'
 import { networkManufactureMult } from './network'
@@ -25,6 +25,17 @@ import { ACT1_CADENCE } from './cadence'
 import { careerBestWave } from './waves'
 import { practicedCoreWork } from './corePractice'
 import { getFrame, grantUnlockedFrame } from './catalog'
+
+export type FoundryPaneId = 'smelt' | 'build' | 'ranks' | 'prints' | 'fit'
+
+/** Player-facing pane names. Ids stay smelt/prints for nav and guides. */
+export const FOUNDRY_PANE_LABELS: Record<FoundryPaneId, string> = {
+  smelt: 'Processing',
+  build: 'Build',
+  ranks: 'Ranks',
+  prints: 'Fabrication',
+  fit: 'Fit',
+}
 
 export {
   foundryAshHeatMult,

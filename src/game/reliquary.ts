@@ -2,6 +2,7 @@
 
 import type { GameState, RelicSocketClass, ReliquaryColor, ReliquaryState } from './types'
 import { getModule, moduleMasteryRank } from './catalog'
+import { masteryMilestonesFor } from './coreProgression'
 import { careerBestWave } from './progression'
 import { meetsWave } from './waves'
 import { protocolBonusMult, protocolMutes } from './protocols'
@@ -46,6 +47,8 @@ export const RELIQUARY_BOSS_DROP_CHANCE = 0.35
 export const RELIC_UNIVERSAL_MASTERY = 5
 export const RELIC_SOCKET_LABELS: Record<RelicSocketClass, string> = {
   power: 'Power',
+  optical: 'Optical',
+  ballistic: 'Ballistic',
   shield: 'Shield',
   industrial: 'Industrial',
   universal: 'Universal',
@@ -178,6 +181,68 @@ export const SHARDS: ShardDef[] = [
     tier: 3,
     craftOnly: true,
     shield: 0.18,
+  },
+  {
+    id: 'focus-lens',
+    name: 'Focus Lens I',
+    color: 'red',
+    blurb: 'Tightens a held beam or charge shot.',
+    socket: 'optical',
+    tier: 1,
+    upgradesTo: 'focus-lens-ii',
+    damage: 0.08,
+  },
+  {
+    id: 'focus-lens-ii',
+    name: 'Focus Lens II',
+    color: 'red',
+    blurb: 'Corrected focus. Foundry upgrade.',
+    socket: 'optical',
+    tier: 2,
+    upgradesTo: 'focus-lens-iii',
+    craftOnly: true,
+    damage: 0.12,
+  },
+  {
+    id: 'focus-lens-iii',
+    name: 'Focus Lens III',
+    color: 'red',
+    blurb: 'Crystal lock. Damage ×1.18.',
+    socket: 'optical',
+    tier: 3,
+    craftOnly: true,
+    damage: 0.18,
+  },
+  {
+    id: 'burst-mesh',
+    name: 'Burst Mesh I',
+    color: 'red',
+    blurb: 'Spreads flak and pierce impact.',
+    socket: 'ballistic',
+    tier: 1,
+    upgradesTo: 'burst-mesh-ii',
+    damage: 0.08,
+  },
+  {
+    id: 'burst-mesh-ii',
+    name: 'Burst Mesh II',
+    color: 'red',
+    blurb: 'Tuned mesh. Foundry upgrade.',
+    socket: 'ballistic',
+    tier: 2,
+    upgradesTo: 'burst-mesh-iii',
+    craftOnly: true,
+    damage: 0.12,
+  },
+  {
+    id: 'burst-mesh-iii',
+    name: 'Burst Mesh III',
+    color: 'red',
+    blurb: 'Full burst lattice. Damage ×1.18.',
+    socket: 'ballistic',
+    tier: 3,
+    craftOnly: true,
+    damage: 0.18,
   },
   {
     id: 'compute-chip',
@@ -344,9 +409,16 @@ export function relicTier(def: ShardDef): 1 | 2 | 3 {
 }
 
 export function corePrimarySocket(moduleId: string): RelicSocketClass {
-  const role = getModule(moduleId)?.role
+  const def = getModule(moduleId)
+  const role = def?.role
   if (role === 'defense') return 'shield'
   if (role === 'utility') return 'industrial'
+  const delivery = def?.weapon?.delivery
+  const tags = def?.weapon?.tags ?? []
+  if (delivery === 'beam' || delivery === 'charge') return 'optical'
+  if (tags.includes('pierce') || tags.includes('splash') || tags.includes('kinetic')) {
+    return 'ballistic'
+  }
   return 'power'
 }
 
@@ -356,8 +428,8 @@ export function coreSocketLayout(state: GameState, moduleId: string): RelicSocke
   const sockets: RelicSocketClass[] = [corePrimarySocket(moduleId)]
   const mastery = moduleMasteryRank(state, moduleId)
   if (mastery >= 20) {
-    const extra = corePrimarySocket(moduleId) === 'power' ? 'industrial' : 'power'
-    if (!sockets.includes(extra)) sockets.push(extra)
+    const extra = masteryMilestonesFor(moduleId).find((ms) => ms.level === 20)?.socket
+    if (extra) sockets.push(extra)
   }
   if (mastery >= RELIC_UNIVERSAL_MASTERY || meetsWave(state, ACT1_CADENCE.mastery)) {
     sockets.push('universal')

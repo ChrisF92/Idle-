@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { computeShipStats, createInitialState } from './state'
-import { atCareerWave, equipPostTutorialLoadout } from './testHelpers'
+import { atCareerWave, equipPostTutorialLoadout, forceUnlockModule } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
+import { tickAutomation } from './automation'
 import {
   RELIC_UNIVERSAL_MASTERY,
   canUpgradeRelic,
+  corePrimarySocket,
   coreRelicId,
   coreSocketLayout,
   coreSocketRelics,
@@ -134,5 +136,49 @@ describe('GDD Relics in Cores', () => {
     const s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
     s.reliquary.slots.red = 'battle-chip'
     expect(reliquaryDamageMult(s)).toBe(1)
+  })
+
+  it('maps Beam to Optical and Flak / Lance to Ballistic', () => {
+    expect(corePrimarySocket('phase-beam')).toBe('optical')
+    expect(corePrimarySocket('charge-prism')).toBe('optical')
+    expect(corePrimarySocket('flak-array')).toBe('ballistic')
+    expect(corePrimarySocket('heavy-lance')).toBe('ballistic')
+    expect(corePrimarySocket('pulse-cannon')).toBe('power')
+  })
+
+  it('opens an Optical socket on Pulse at Mastery 20', () => {
+    let s = relicDock()
+    s.meta.moduleMastery = { ...s.meta.moduleMastery, 'pulse-cannon': 20 }
+    expect(coreSocketLayout(s, 'pulse-cannon')).toEqual(['power', 'optical', 'universal'])
+    s.reliquary.owned['focus-lens'] = 1
+    s = equipRelicOnCore(s, 'pulse-cannon', 'focus-lens', 1)
+    expect(coreSocketRelics(s, 'pulse-cannon')[1]).toBe('focus-lens')
+    expect(reliquaryDamageMult(s)).toBeGreaterThan(1)
+  })
+
+  it('seats Optical Relics on Beam and Ballistic Relics on Flak', () => {
+    let s = relicDock()
+    s = forceUnlockModule(s, 'phase-beam')
+    s = forceUnlockModule(s, 'flak-array')
+    s.shipyard.modules = ['pulse-cannon', 'phase-beam', 'flak-array']
+    s.reliquary.owned['focus-lens'] = 1
+    s.reliquary.owned['burst-mesh'] = 1
+
+    expect(equipRelicOnCore(s, 'phase-beam', 'burst-mesh')).toBe(s)
+    expect(equipRelicOnCore(s, 'flak-array', 'focus-lens')).toBe(s)
+
+    s = equipRelicOnCore(s, 'phase-beam', 'focus-lens')
+    s = equipRelicOnCore(s, 'flak-array', 'burst-mesh')
+    expect(coreSocketRelics(s, 'phase-beam')[0]).toBe('focus-lens')
+    expect(coreSocketRelics(s, 'flak-array')[0]).toBe('burst-mesh')
+  })
+
+  it('lets Process auto-relic fill empty Core sockets, not leftover colour slots', () => {
+    const s = relicDock()
+    s.process.purchased = ['auto-relic']
+    s.reliquary.owned['battle-chip'] = 1
+    tickAutomation(s)
+    expect(coreSocketRelics(s, 'pulse-cannon')[0]).toBe('battle-chip')
+    expect(s.reliquary.slots.red ?? null).toBeNull()
   })
 })

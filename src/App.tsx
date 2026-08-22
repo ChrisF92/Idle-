@@ -346,6 +346,7 @@ export default function App() {
             onBuyMaxCores={game.buyMaxCores}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
+            onUpgradeRelic={game.upgradeRelic}
             onSelectFrame={game.selectFrame}
             onFitCore={game.fitModule}
             onUnfitCore={game.unfitModule}

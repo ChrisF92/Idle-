@@ -28,6 +28,7 @@ interface DockTabProps {
   onBuyMaxCores?: () => void
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
+  onUpgradeRelic?: (relicId: string) => void
   onSelectFrame?: (frameId: string) => void
   onFitCore?: (moduleId: string) => void
   onUnfitCore?: (moduleId: string) => void
@@ -50,6 +51,7 @@ export function DockTab({
   onBuyWorkshop,
   onEquipRelic,
   onRemoveRelic,
+  onUpgradeRelic,
   onSelectFrame,
   onFitCore,
   onUnfitCore,
@@ -157,7 +159,7 @@ export function DockTab({
             {!locked && isRelicsUnlocked(state) ? (
               <p className="muted" data-guide="relic-sockets">
                 {SHARDS.some((shard) => shardOwned(state, shard.id) > 0)
-                  ? 'Matching sockets only — Power, Shield, or Industrial.'
+                  ? 'Matching sockets only — Power, Optical, Ballistic, Shield, or Industrial.'
                   : 'Relic sockets are open. Recover Relics from wrecks, then install them into matching Core sockets.'}
               </p>
             ) : null}
@@ -167,6 +169,7 @@ export function DockTab({
               inspectOnly={locked}
               onEquipRelic={locked ? undefined : onEquipRelic}
               onRemoveRelic={locked ? undefined : onRemoveRelic}
+              onUpgradeRelic={locked ? undefined : onUpgradeRelic}
             />
           </div>
         ) : null}

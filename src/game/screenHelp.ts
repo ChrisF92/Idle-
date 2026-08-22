@@ -62,7 +62,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Relics',
     body: [
       'Purpose: deepen Core loadouts. Main decision: which Relic sits in each fitted Core.',
-      'Relic sockets open at Wave 110. Matching types only — Power, Shield, Industrial — until Core Mastery 5 or Wave 275 adds Universal. Install and remove freely while Docked. Relics persist on Rebuild. Spare copies plus Slag Ingots raise authored I–III tiers; hoarded extras do not resonate.',
+      'Relic sockets open at Wave 110. Matching types only — Power, Optical, Ballistic, Shield, Industrial — until Core Mastery 5 or Wave 275 adds Universal. Install and remove freely while Docked. Relics persist on Rebuild. Spare copies plus Slag Ingots raise authored I–III tiers; hoarded extras do not resonate.',
     ],
   },
   furnace: {

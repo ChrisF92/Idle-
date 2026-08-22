@@ -1228,6 +1228,18 @@ h2 .inspect-name {
   line-height: 1.35;
 }
 
+.foundry-mastery-table {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.foundry-mastery-table .is-done {
+  color: var(--text);
+}
+
 .notation-tabs {
   margin-top: 0.25rem;
 }

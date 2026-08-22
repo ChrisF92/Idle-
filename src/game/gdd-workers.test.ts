@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignWorker } from './actions'
+import { assignWorker, autoBalanceWorkers } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { isStationUnlocked, stationEffectiveDrones } from './catalog'
 import {
@@ -15,7 +15,7 @@ import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 import { advanceTicks } from './tick'
-import { isWorkersUnlocked, WORKER_JOB_IDS } from './workers'
+import { isWorkersUnlocked, WORKER_JOB_IDS, workerJobCap, workerJobCapLine, workerJobLabel } from './workers'
 
 describe('GDD Worker Drones', () => {
   it('stays locked before Wave 30, even after the first hull loss', () => {
@@ -105,6 +105,21 @@ describe('GDD Worker Drones', () => {
     s.base.workerDrones = 16
     s.base.assignments['drone-fab'] = 8
     expect(networkManufactureMult(s)).toBeGreaterThan(1)
+  })
+
+  it('shows an efficient range and dumps overflow onto Salvage ops', () => {
+    expect(workerJobLabel('scrap-field')).toBe('Salvage ops')
+    expect(workerJobLabel('alloy-foundry')).toBe('Processing')
+    expect(workerJobLabel('fab-bay')).toBe('Fabrication')
+    expect(workerJobCap('construction')).toEqual({ min: 1, efficient: 4, hard: 8 })
+    expect(workerJobCapLine(2, 'construction')).toBe('2/4 efficient · cap 8')
+
+    let s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
+    s.research.unlocked = ['core-training']
+    s.base.workerDrones = 100
+    s = autoBalanceWorkers(s, 'balanced')
+    expect(s.base.assignments['scrap-field'] ?? 0).toBeGreaterThan(20)
+    expect(Object.keys(s.base.assignments).some((id) => id.startsWith('train-'))).toBe(false)
   })
 
   it('does not drip extra scrap or data from retired bars', () => {

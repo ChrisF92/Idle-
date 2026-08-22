@@ -93,7 +93,13 @@ export interface FoundryState {
 export type ReliquaryColor = 'red' | 'orange' | 'pink' | 'blue' | 'green'
 
 /** GDD §26 socket classes used in Act 1. Universal opens from Core Mastery. */
-export type RelicSocketClass = 'power' | 'shield' | 'industrial' | 'universal'
+export type RelicSocketClass =
+  | 'power'
+  | 'optical'
+  | 'ballistic'
+  | 'shield'
+  | 'industrial'
+  | 'universal'
 
 /** Relics installed into Cores. Colour slots remain for old saves but grant no bonuses. */
 export interface ReliquaryState {

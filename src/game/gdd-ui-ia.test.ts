@@ -68,6 +68,14 @@ describe('GDD information architecture', () => {
     expect(workersHubStatus(workers)[0]).toMatch(/assigned/)
     expect(foundryHubStatus(workers).some((line) => /idle/i.test(line))).toBe(true)
 
+    workers.foundry.recipeLevels['temper-bar'] = 3
+    workers.foundry.slots[0] = { recipeId: 'temper-bar', progress: 0.4, paid: true }
+    workers.base.workerDrones = 4
+    const foundry = foundryHubStatus(workers)
+    expect(foundry.some((line) => /Temper Bar Mastery 3/.test(line))).toBe(true)
+    expect(foundry.some((line) => /Temper Bar: 40%/.test(line))).toBe(true)
+    expect(foundry.some((line) => /idle drones/.test(line))).toBe(true)
+
     const furnace = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
     expect(systemsHubCards(furnace).map((c) => c.id)).toEqual(['foundry', 'furnace'])
 

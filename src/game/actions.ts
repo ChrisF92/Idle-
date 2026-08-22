@@ -332,7 +332,7 @@ function setLaborAssignments(
   return next
 }
 
-/** Fill each industry station to black-bar; dump overflow to Core training. */
+/** Fill each industry station to black-bar; dump overflow to Salvage ops. */
 function assignBalanced(state: GameState): Record<string, number> {
   const stations = laborStations(state)
   const assignments: Record<string, number> = {}
@@ -359,36 +359,16 @@ function assignBalanced(state: GameState): Record<string, number> {
   return assignments
 }
 
-/** Prefer uncapped Core training; otherwise overcap Scrap Field. */
+/** Extra drones sit on Salvage ops. Training ranges are leftover and unused. */
 function dumpOverflowDrones(
   state: GameState,
   assignments: Record<string, number>,
   count: number,
 ): void {
-  let left = count
-  const training = STATIONS.filter(
-    (s) => s.kind === 'training' && isStationUnlocked(state, s.id),
-  )
-  if (training.length > 0) {
-    const each = Math.floor(left / training.length)
-    for (const s of training) {
-      if (each > 0) {
-        assignments[s.id] = (assignments[s.id] ?? 0) + each
-        left -= each
-      }
-    }
-    for (const s of training) {
-      if (left <= 0) break
-      assignments[s.id] = (assignments[s.id] ?? 0) + 1
-      left -= 1
-    }
-  }
-  if (left > 0) {
-    const dump = isStationUnlocked(state, 'scrap-field')
-      ? 'scrap-field'
-      : laborStations(state)[0]?.id
-    if (dump) assignments[dump] = (assignments[dump] ?? 0) + left
-  }
+  const dump = isStationUnlocked(state, 'scrap-field')
+    ? 'scrap-field'
+    : laborStations(state)[0]?.id
+  if (dump) assignments[dump] = (assignments[dump] ?? 0) + count
 }
 
 /**
@@ -886,18 +866,18 @@ export function assembleBlueprint(state: GameState, moduleId: string): GameState
   }
   next.meta.lifetimeFabCrafts = (next.meta.lifetimeFabCrafts ?? 0) + 1
   const name = getModule(moduleId)?.name ?? moduleId
+  const fitLine = next.combat.docked
+    ? `Core printed: ${name}. Fit it at Dock.`
+    : `Core printed: ${name}. Available next Sortie.`
   if (next.foundry.trackedPrintId === moduleId) {
     next.foundry.trackedPrintId = null
     next.combat.log = [
       `${name} assembled — choose another tracked print.`,
-      `Core printed: ${name}. Fit it on the next Rebuild.`,
+      fitLine,
       ...next.combat.log,
     ].slice(0, 40)
   } else {
-    next.combat.log = [`Core printed: ${name}. Fit it on the next Rebuild.`, ...next.combat.log].slice(
-      0,
-      40,
-    )
+    next.combat.log = [fitLine, ...next.combat.log].slice(0, 40)
   }
   if (!(STARTER_CORE_IDS as readonly string[]).includes(moduleId)) {
     noteAssembledCore(next, name)

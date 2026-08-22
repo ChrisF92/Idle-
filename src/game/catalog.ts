@@ -2169,9 +2169,33 @@ export function isCorePrintUnlocked(state: GameState, moduleId: string): boolean
   return careerHighestSector(state) >= need || (state.combat?.sector ?? 1) >= need
 }
 
+/** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Prints / drops. */
+export const GDD_ROSTER_CORE_IDS = [
+  'pulse-cannon',
+  'phase-beam',
+  'flak-array',
+  'heavy-lance',
+  'plate-layer',
+  'barrier-projector',
+  'nano-lathe',
+  'drone-bay',
+  'charge-prism',
+  'choir-tap',
+] as const
+
+export function isGddRosterCore(moduleId: string): boolean {
+  return (GDD_ROSTER_CORE_IDS as readonly string[]).includes(moduleId)
+}
+
+/** Prints and wreck drops show leftovers only after they are already unlocked. */
+export function isCoreOnRoster(state: GameState, moduleId: string): boolean {
+  return isGddRosterCore(moduleId) || state.shipyard.unlockedModules.includes(moduleId)
+}
+
 /** Current fight can drop this Core's parts (print unlocked and fighting at/past its sector). */
 export function canDropModulePart(state: GameState, moduleId: string): boolean {
   if (!isFarmableModule(moduleId)) return false
+  if (!isCoreOnRoster(state, moduleId)) return false
   const need = modulePrintSector(moduleId)
   return isCorePrintUnlocked(state, moduleId) && (state.combat?.sector ?? 1) >= need
 }
@@ -2181,6 +2205,7 @@ export function listFarmableCores(state: GameState): ShipModuleDef[] {
   return BLUEPRINTS.map((b) => getModule(b.moduleId)).filter((m): m is ShipModuleDef => {
     if (!m) return false
     if (state.shipyard.unlockedModules.includes(m.id)) return true
+    if (!isGddRosterCore(m.id)) return false
     return isCorePrintUnlocked(state, m.id)
   })
 }

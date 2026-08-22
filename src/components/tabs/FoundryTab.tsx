@@ -11,6 +11,8 @@ import {
   foundryFitSlots,
   foundryHasMaterialChain,
   foundryMaterialCount,
+  FOUNDRY_PANE_LABELS,
+  foundryMasteryStepsFor,
   foundryNextMastery,
   foundryRecipeChainLine,
   foundryRecipeLevel,
@@ -50,10 +52,10 @@ import { hasProcess } from '../../game/process'
 export type FoundryPane = 'smelt' | 'build' | 'ranks' | 'prints' | 'fit'
 
 const FOUNDRY_PANES: { id: FoundryPane; label: string }[] = [
-  { id: 'smelt', label: 'Smelt' },
-  { id: 'ranks', label: 'Ranks' },
-  { id: 'prints', label: 'Prints' },
-  { id: 'fit', label: 'Fit' },
+  { id: 'smelt', label: FOUNDRY_PANE_LABELS.smelt },
+  { id: 'ranks', label: FOUNDRY_PANE_LABELS.ranks },
+  { id: 'prints', label: FOUNDRY_PANE_LABELS.prints },
+  { id: 'fit', label: FOUNDRY_PANE_LABELS.fit },
 ]
 
 interface FoundryTabProps {
@@ -205,7 +207,7 @@ function PrintRow({
       </div>
       <p className="network-row-stats">
         {printed
-          ? 'Fit this Core on the next Rebuild.'
+          ? 'Fit this Core at Dock.'
           : `Fragments ${totals.have} / ${totals.need}`}
       </p>
       {!printed ? (
@@ -276,11 +278,11 @@ export function FoundryTab({
   const [pane, setPane] = useSyncedPane<FoundryPane>('smelt', hint)
   const panes: { id: FoundryPane; label: string }[] = construction
     ? [
-        { id: 'smelt', label: 'Smelt' },
-        { id: 'build', label: 'Build' },
-        { id: 'ranks', label: 'Ranks' },
-        { id: 'prints', label: 'Prints' },
-        { id: 'fit', label: 'Fit' },
+        { id: 'smelt', label: FOUNDRY_PANE_LABELS.smelt },
+        { id: 'build', label: FOUNDRY_PANE_LABELS.build },
+        { id: 'ranks', label: FOUNDRY_PANE_LABELS.ranks },
+        { id: 'prints', label: FOUNDRY_PANE_LABELS.prints },
+        { id: 'fit', label: FOUNDRY_PANE_LABELS.fit },
       ]
     : FOUNDRY_PANES
   const activePane = pane === 'build' && !construction ? 'smelt' : pane
@@ -298,7 +300,7 @@ export function FoundryTab({
         <h2>Foundry</h2>
         <p>
           {open
-            ? `${formatCompact(foundry.points)} FP · ${foundry.slots.length} smelter${foundry.slots.length === 1 ? '' : 's'}`
+            ? `${formatCompact(foundry.points)} FP · ${foundry.slots.length} processor${foundry.slots.length === 1 ? '' : 's'}`
             : `Reach Wave ${ACT1_CADENCE.foundry} to bring the Foundry online.`}
         </p>
       </header>
@@ -311,7 +313,7 @@ export function FoundryTab({
           {activePane === 'smelt' ? (
             <>
           <h3 className="foundry-heading" data-guide="foundry-smelters">
-            Smelters
+            Processing
           </h3>
           {foundry.slots.map((slot, i) => (
             <article
@@ -395,6 +397,16 @@ export function FoundryTab({
                 {unlocked && !inf && foundryHasMaterialChain(recipe) ? (
                   <p className="network-row-stats">{foundryRecipeChainLine(recipe)}</p>
                 ) : null}
+                {unlocked && !inf ? (
+                  <ul className="foundry-mastery-table">
+                    {foundryMasteryStepsFor(recipe, state).map((step) => (
+                      <li key={step.at} className={level >= step.at ? 'is-done' : undefined}>
+                        Lv {step.at}
+                        {level >= step.at ? ' · done' : ''} — {step.blurb}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {unlocked && !inf && nextMastery ? (
                   <p className="network-row-stats">
                     Next mastery Lv {nextMastery.at}: {nextMastery.blurb}
@@ -411,7 +423,7 @@ export function FoundryTab({
                       else if (idleSlot >= 0) onSetSlot(idleSlot, recipe.id)
                     }}
                   >
-                    {assigned >= 0 ? 'Queued' : idleSlot >= 0 ? 'Smelt' : 'No slot'}
+                    {assigned >= 0 ? 'Queued' : idleSlot >= 0 ? 'Process' : 'No slot'}
                   </button>
                 ) : null}
               </article>
@@ -455,11 +467,11 @@ export function FoundryTab({
           {activePane === 'prints' ? (
             <>
               <h3 className="foundry-heading" data-guide="foundry-prints">
-                Core prints
+                Fabrication
               </h3>
               <p className="muted">
                 Track one print. Advance finds fragments as you push.
-                farm it on purpose.
+                Assemble, then fit the Core at Dock.
               </p>
               {listFarmableCores(state).map((mod) => (
                 <PrintRow

@@ -1,6 +1,6 @@
 /** Core Run Levels (temporary Salvage) and usage-driven Core Mastery. */
 
-import type { GameState, RunUpgradeCategory } from './types'
+import type { GameState, RelicSocketClass, RunUpgradeCategory } from './types'
 import {
   MAX_MODULE_LEVEL,
   getModule,
@@ -250,7 +250,7 @@ export interface MasteryMilestoneDef {
   splashAdd?: number
   salvageKillAdd?: number
   runScaleMult?: number
-  socket?: 'power' | 'shield' | 'industrial' | 'universal' | 'optical'
+  socket?: RelicSocketClass
 }
 
 const SHARED_LATE: MasteryMilestoneDef[] = [
@@ -270,7 +270,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   'heavy-lance': [
     { level: 5, name: 'Keel Weight', blurb: 'Heavier pierce.', damageMult: 1.1 },
     { level: 10, name: 'Slow Pierce', blurb: 'Armour-breaking focus.', damageMult: 1.06, rangeAdd: 8 },
-    { level: 20, name: 'Optical Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'optical' },
+    { level: 20, name: 'Ballistic Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'ballistic' },
     { level: 30, name: 'Run Feed', blurb: 'Sortie Run Levels scale harder.', runScaleMult: 1.1 },
     { level: 50, name: 'Breach Lance', blurb: 'Sustained pierce evolves.', damageMult: 1.14 },
     ...SHARED_LATE,
@@ -278,7 +278,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   'flak-array': [
     { level: 5, name: 'Wider Burst', blurb: 'Splash reaches one extra hull.', splashAdd: 1 },
     { level: 10, name: 'Retarget Mesh', blurb: 'Faster pack cycling.', cooldownMult: 1 / 1.1 },
-    { level: 20, name: 'Optical Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'optical' },
+    { level: 20, name: 'Ballistic Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'ballistic' },
     { level: 30, name: 'Overkill Transfer', blurb: 'Splash and Run scaling improve.', splashAdd: 1, runScaleMult: 1.08 },
     { level: 50, name: 'Cloud Flak', blurb: 'Pack shredding evolves.', damageMult: 1.1, splashAdd: 1 },
     ...SHARED_LATE,
@@ -294,7 +294,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   'plate-layer': [
     { level: 5, name: 'Bulk Ward', blurb: 'Shield ceiling +12%.', shieldMult: 1.12 },
     { level: 10, name: 'Quick Regen', blurb: '+2%/s shield regen.', regenAdd: 0.02 },
-    { level: 20, name: 'Mesh Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'optical' },
+    { level: 20, name: 'Shield Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'shield' },
     { level: 30, name: 'Run Bank', blurb: 'Sortie Run Levels thicken the bank more.', runScaleMult: 1.1 },
     { level: 50, name: 'Bastion Field', blurb: 'Break response evolves.', shieldMult: 1.15, regenAdd: 0.02 },
     ...SHARED_LATE,
@@ -302,7 +302,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   'lattice-ward': [
     { level: 5, name: 'Mesh Bank', blurb: 'Fast lattice ceiling.', shieldMult: 1.1 },
     { level: 10, name: 'Mesh Flow', blurb: '+3%/s regen.', regenAdd: 0.03 },
-    { level: 20, name: 'Mesh Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'optical' },
+    { level: 20, name: 'Shield Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'shield' },
     { level: 30, name: 'Run Flow', blurb: 'Run Levels scale regen and bank.', runScaleMult: 1.1, regenAdd: 0.01 },
     { level: 50, name: 'Live Lattice', blurb: 'Chip endurance evolves.', shieldMult: 1.12, regenAdd: 0.03 },
     ...SHARED_LATE,
@@ -310,7 +310,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   'barrier-projector': [
     { level: 5, name: 'Second Skin', blurb: 'Projected shield +12%.', shieldMult: 1.12 },
     { level: 10, name: 'Hold Field', blurb: 'Break recovery.', regenAdd: 0.02 },
-    { level: 20, name: 'Mesh Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'optical' },
+    { level: 20, name: 'Shield Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'shield' },
     { level: 30, name: 'Run Projection', blurb: 'Run Levels scale the envelope.', runScaleMult: 1.1 },
     { level: 50, name: 'Hard Barrier', blurb: 'Projection evolves.', shieldMult: 1.16 },
     ...SHARED_LATE,

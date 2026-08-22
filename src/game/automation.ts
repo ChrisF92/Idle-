@@ -45,12 +45,13 @@ import {
   setFoundrySlot,
 } from './foundry'
 import {
-  RELIQUARY_SLOTS,
   SHARDS,
-  fittedShardId,
+  coreSocketLayout,
+  coreSocketRelics,
+  equipRelicOnCore,
   getShard,
-  insertShard,
-  isReliquarySlotUnlocked,
+  relicFitsSocket,
+  relicSocketClass,
   shardAutoScore,
   shardOwned,
 } from './reliquary'
@@ -331,32 +332,38 @@ function autoPrintAssemble(state: GameState): void {
 
 function autoSeatShards(state: GameState): void {
   if (!hasProcess(state, 'auto-relic')) return
+  if (!state.combat.docked) return
   const cfg = processConfig(state)
   if (!cfg.reliquary.autoEquip) return
   const keep = hasProcess(state, 'reliquary-keep') ? cfg.reliquary.keepMode : 'keep-all'
   const minScore = hasProcess(state, 'reliquary-quality') ? cfg.reliquary.minScore : 0
-  for (const slot of RELIQUARY_SLOTS) {
-    if (!isReliquarySlotUnlocked(state, slot.color)) continue
-    const fitted = fittedShardId(state, slot.color)
-    const fittedDef = fitted ? getShard(fitted) : undefined
-    const fittedScore = fittedDef ? shardAutoScore(fittedDef) : 0
-    if (fitted && keep === 'keep-all') continue
-    let bestId: string | null = null
-    let bestScore = fitted ? fittedScore * (keep === 'upgrade-only' ? 1.15 : 1.05) : 0
-    for (const def of SHARDS) {
-      if (def.color !== slot.color) continue
-      if (shardOwned(state, def.id) < 1) continue
-      const score = shardAutoScore(def) + Math.min(0.04, shardOwned(state, def.id) * 0.002)
-      if (score < minScore) continue
-      if (score > bestScore) {
-        bestScore = score
-        bestId = def.id
+  for (const moduleId of state.shipyard.modules) {
+    const layout = coreSocketLayout(state, moduleId)
+    for (let i = 0; i < layout.length; i += 1) {
+      const socket = layout[i]
+      if (!socket) continue
+      const seated = coreSocketRelics(state, moduleId)
+      const fitted = seated[i] ?? null
+      const fittedDef = fitted ? getShard(fitted) : undefined
+      const fittedScore = fittedDef ? shardAutoScore(fittedDef) : 0
+      if (fitted && keep === 'keep-all') continue
+      let bestId: string | null = null
+      let bestScore = fitted ? fittedScore * (keep === 'upgrade-only' ? 1.15 : 1.05) : 0
+      for (const def of SHARDS) {
+        if (shardOwned(state, def.id) < 1) continue
+        if (!relicFitsSocket(relicSocketClass(def), socket)) continue
+        const score = shardAutoScore(def) + Math.min(0.04, shardOwned(state, def.id) * 0.002)
+        if (score < minScore) continue
+        if (score > bestScore) {
+          bestScore = score
+          bestId = def.id
+        }
       }
+      if (!bestId || bestId === fitted) continue
+      const next = equipRelicOnCore(state, moduleId, bestId, i)
+      if (next === state) continue
+      adopt(state, next)
     }
-    if (!bestId || bestId === fitted) continue
-    const next = insertShard(state, bestId)
-    if (next === state) continue
-    adopt(state, next)
   }
 }
 

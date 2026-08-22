@@ -81,7 +81,7 @@ describe('drone corps cap + black-bar saturation', () => {
     expect(droneCap(state)).toBe(BASE_DRONE_CAP + 2)
   })
 
-  it('labor fill stops at black-bar; balanced dumps overflow to training', () => {
+  it('labor fill stops at black-bar; balanced dumps overflow to Salvage ops', () => {
     let state = atWorkers()
     state.research.unlocked = ['core-training']
     state.base.workerDrones = 100
@@ -92,11 +92,10 @@ describe('drone corps cap + black-bar saturation', () => {
     expect(state.base.assignments['scrap-field']).toBe(20)
 
     state = autoBalanceWorkers(state, 'balanced')
-    const scrap = state.base.assignments['scrap-field'] ?? 0
-    expect(scrap).toBeLessThanOrEqual(20)
+    expect(state.base.assignments['scrap-field'] ?? 0).toBeGreaterThan(20)
     const trainingAssigned = Object.entries(state.base.assignments)
       .filter(([id]) => id.startsWith('train-'))
       .reduce((sum, [, n]) => sum + n, 0)
-    expect(trainingAssigned).toBeGreaterThan(0)
+    expect(trainingAssigned).toBe(0)
   })
 })

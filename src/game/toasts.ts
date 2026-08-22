@@ -76,7 +76,7 @@ const STATION_TOAST: Partial<
   foundry: {
     category: 'SYSTEM ONLINE',
     title: 'Foundry unlocked',
-    body: 'Choose a Core to track and decide what the smelters make next.',
+    body: 'Choose a Core to track and decide what Processing makes next.',
     label: 'OPEN',
   },
   reliquary: {
@@ -303,7 +303,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:reliquary',
         category: 'SYSTEM ONLINE',
         title: 'Relic sockets unlocked',
-        body: 'Matching sockets on fitted Cores. Mastery 5 or Wave 275 adds Universal. Spare copies upgrade I–III with Slag Ingots.',
+        body: 'Matching sockets on fitted Cores. Power, Optical, Ballistic, Shield, Industrial — then Universal at Mastery 5 or Wave 275. Spare copies upgrade I–III with Slag Ingots.',
         action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
       })
       continue
@@ -356,9 +356,9 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: `assemble:${printId}`,
         category: 'CORE PRINT COMPLETE',
         title: `${mod.name} is ready to assemble.`,
-        body: 'Open Prints to lock it in.',
+        body: 'Open Fabrication to lock it in.',
         action: {
-          label: 'OPEN PRINTS',
+          label: 'OPEN FABRICATION',
           nav: { kind: 'tab', tab: 'foundry', focus: `print-${printId}` },
         },
       })
@@ -378,17 +378,22 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
 
   for (const printId of next.assembledPrints) {
     if (prev.assembledPrints.includes(printId)) continue
-    if (prev.trackedPrintId !== printId) continue
     const mod = getModule(printId)
     if (!mod) continue
+    const live = !state.combat.docked
+    const tracked = prev.trackedPrintId === printId
     push({
-      id: `tracked-assembled:${printId}`,
+      id: tracked ? `tracked-assembled:${printId}` : `assembled:${printId}`,
       category: 'FOUNDRY',
       title: `${mod.name} assembled`,
-      body: 'Choose another tracked print.',
+      body: live
+        ? `${mod.name} is available next Sortie.`
+        : tracked
+          ? 'Choose another tracked print. Fit it at Dock.'
+          : 'Fit it at Dock.',
       action: {
-        label: 'OPEN PRINTS',
-        nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-prints' },
+        label: live ? 'OPEN DOCK' : 'FIT AT DOCK',
+        nav: { kind: 'tab', tab: 'dock' },
       },
     })
   }
