@@ -1,6 +1,9 @@
 # Hiveworks
 
-Portrait auto-combat incremental. Every Sortie starts at Wave 1, death or Extraction ends the run, and the Hive fights from the centre of the arena. See [`Hiveworks_Game_Design_Document_v1.0.md`](Hiveworks_Game_Design_Document_v1.0.md).
+Portrait incremental auto-combat. The player runs a stationary industrial **Hive**. Every **Sortie** starts at **Wave 1**, combat is automatic, and death or Extraction ends the run. Temporary **Salvage** powers the current Sortie. **Scrap** and the **Workshop** power the current Rebuild cycle. **Matter** from **Rebuild** powers the account. **Reinforce** after Wave 300 is the Act 1 door to a later scale.
+
+Design authority: [`Hiveworks_Game_Design_Document_v1.0.md`](Hiveworks_Game_Design_Document_v1.0.md).  
+Release work plan: [`docs/release-implementation-plan.md`](docs/release-implementation-plan.md).
 
 Working package name was `cosmic-idle`; the PWA title is **Hiveworks**. Save version bumps wipe old careers (pre-release, no migration).
 
@@ -8,38 +11,56 @@ Working package name was `cosmic-idle`; the PWA title is **Hiveworks**. Save ver
 
 - **Vite + React + TypeScript**
 - **PWA** (`vite-plugin-pwa`) — installable on Android from a deployed HTTPS URL
+- **Play Store wrap (1.0)** — Trusted Web Activity around the same PWA (see release plan Phase 10)
 - Local save (`localStorage`) + export/import codes
 - Simulation core under `src/game/` (UI-free, unit-tested)
 
 ## Systems (tabs)
 
-Bottom nav:
+Bottom nav (GDD §109):
 
 | Tab | Purpose |
 |---|---|
-| Dock | Home. Launch / Rebuild hangar. Combat keeps simulating while you stay here if a sortie is live. |
-| Sortie | USI-style battlefield (ship at the bottom, waves incoming). Advance / Hold sector / Hold wave. Cores sit under the field. |
-| Network | Assign drones to Strike / Ward (and later bars). They fill over time — they never appear on the battlefield. |
-| Foundry | Recipes, smelters, Core prints, Foundry Points, fitted bits. Unlocks at sector 2. |
-| More | Hangar stations (open / coming up / later), save / export, notation, rebuild, build stamp. |
+| Sortie | Live combat. Hive at the centre, enemies from around it. Salvage shop: Attack / Defense / Economy. Cores and Directives. |
+| Dock | Loadout (Frame, Cores, Relics), Workshop, Rebuild / Matter, Launch. |
+| Systems | Hub for unlocked industry: Foundry, Worker Drones, Furnace, Research, Process. |
+| More | Challenges, Codex, Stats, Settings, Reinforce, and **one** next major unlock. |
 
-Stations under **More** unfold on sector doors (Reliquary 3, Furnace 5, Codex 6, Research 7, Yard and Slag Bank on first Rebuild, Protocols 18, Echo 22, Specialists 51, Task List 72, Capital 75, Reinforce 80). Process opens after First Blood (clear sector 1).
+Locked systems do not appear as a grey list of the whole Act.
 
-## Progression notes
+### Act 1 doors (career Best Wave)
 
-- **Act 1** soft climax at sector **30** (6 boss milestones). Infinite push continues after.
-- Whole systems unlock by career sector clears; locked stations stay listed with requirements.
-- Boss sectors: vanguard waves first, **boss only on wave 5**. Waves use varied packs (fighters, skirmishers, snipers, juggernauts).
-- Header resources appear only once their system is unlocked or the resource is earned (Rebuild Matter after a Rebuild).
-- An **info** button next to the Hiveworks title explains the screen you are on.
-- Process points come from achievements (Process station), not combat drops. Unspent points persist across Rebuild.
-- Hive Research (Material / Energy / Observation) is **permanent** across Rebuild / Reinforce.
-- Guided onboarding waits until you are docked, keeps the current tip until Continue / Skip, and retires starter dock/launch/salvage tips after the first Rebuild. Reinforce clears the full catalog.
-- Research is permanent; enemy hull scales steeply while damage stays flatter so length comes from walls, not death loops.
-- Dev tools (More tab): toggle on anytime, or append `?dev=1` / `?dev=0`. Includes jump, boss force, achievements, guide skip.
-- Boss telegraphs: titan slams wind up before firing; snipers charge a lock laser; phase shifts flash a warn ring.
-- Pulse + Plate start fitted. Salvage ranks Cores during a sortie and wipes on Rebuild.
-- Rebuild hangar (Dock, from sector 4) swaps hull and Cores and grants **Rebuild Matter**. Reinforce at sector 80 is the second prestige layer — keeps the foundry.
+| Best Wave | Unlock |
+|---:|---|
+| Start | Sortie, starter Frame, starter Cores, Salvage shop |
+| First defeat | Scrap + Workshop |
+| 10 | Full Attack / Defense shop, Codex |
+| 20 | Foundry |
+| 30 | Worker Drones |
+| 40 | Expanded Economy |
+| 50 | Directives |
+| 70 | Rebuild + Matter |
+| 90 | Foundry construction |
+| 110 | Relic sockets |
+| 140 | Furnace |
+| 170 | Research |
+| 210 | Process |
+| 250 | Challenges |
+| 300 | Act 1 boss + Reinforce |
+
+Echo, Capital, Specialists, Task List, standalone Reliquary / Yard / Slag, sector routes, and Network combat bars are **removed or deferred**. See GDD §101 and Appendix B.
+
+## Loop
+
+1. Launch from Dock (always Wave 1).
+2. Hive and Cores fight automatically. Spend Salvage on this Sortie.
+3. Die or Extract (Extract pays a small Scrap bonus). Salvage and run upgrades reset.
+4. Spend Scrap in Workshop so the next Sortie starts stronger.
+5. Foundry, Workers, Relics, Furnace, Research, and Process unfold on the table above.
+6. Rebuild when the cycle walls — Workshop and Scrap reset; Matter stays.
+7. Clear Wave 300 to open Reinforce.
+
+Offline: a live Sortie **freezes**. Foundry, Research, and Worker jobs continue.
 
 ## Develop
 
@@ -56,7 +77,7 @@ npm run preview
 
 1. In the repo: **Settings → Pages → Source: Deploy from a branch** → branch **`gh-pages`** / folder **`/(root)`**.
 2. **Settings → Actions → General → Workflow permissions** → **Read and write** (needed so Actions can push `gh-pages` and PR previews).
-3. After `Deploy GitHub Pages` succeeds on `main`, open **https://chrisf92.github.io/Idle-/**
+3. After `Deploy GitHub Pages` succeeds on `main`, open **https://chrisf92.github.io/Idle-**
 4. Android Chrome → **Install app** / **Add to Home screen**.
 5. Saves are per-browser origin — use More → export/import between devices.
 
@@ -75,13 +96,12 @@ Each open PR gets a live preview on the same GitHub Pages site:
 
 ## Notes
 
-- Art is UI/text-first with simple SVG fleet shapes on Sortie.
-- Game logic should stay in `src/game/`; React is presentation + input.
-- Solo project: use **one feature per branch/PR** so slices stay reviewable.
-- Offline catch-up (up to 8h) runs on load: industry + sector-scaled rewards (no fight simulation).
-- Combat is a multi-unit fleet duel (weapons/cooldowns/tags) with hull that persists and repairs over time. Sortie HUD shows hull/shield/salvage; Core cards list Damage, RoF, Range. Advance / Hold sector / Hold wave replace Extract.
-- Extra Cores unlock as Foundry prints at sector doors; farm fragments on Hold, Assemble, then fit on Rebuild.
-- Entity families (Swarm/Armored/Ethereal/Divine) with module role counters; bosses every 5 sectors.
-- Fitted Cores persist through Rebuild; Protocols and Echo runs are optional restricted sorties.
-- Essence still exists in the sim; Hive Research is the live spend. Yard arms apply on the next Rebuild.
-- Capital scales the ship (Broadside / Bulkhead / Hold). No fighters on the field.
+- Game logic stays in `src/game/`; React is presentation + input.
+- Solo project: **one feature per branch/PR**.
+- Header resources appear only once their system is unlocked or the resource is earned.
+- An **info** button next to the title explains the current screen.
+- Dev tools (More tab): toggle anytime, or `?dev=1` / `?dev=0`. Jump, boss force, achievements, guide skip.
+- Onboarding is designed in the GDD (§125–140) and is currently disabled in code (`ONBOARDING_ENABLED`). Re-enable is Phase 6 of the release plan.
+- Locked release calls: Sortie Cores take Salvage Run Levels under Attack / Defense / Economy (no Dock Scrap Core ranks; Mastery only persists); orbiting Cores around a central Hive; GDD Frames in one cut; Process rule builder in 1.0; no save migration before 1.0; Dev Tools and playtests stay on the GDD cadence.
+- Art is UI/text-first with canvas combat. The GDD target is a central Hive and orbiting Cores; the live battlefield is still mid-migration (see the release plan, Phase 2).
+- Stale design notes: [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md) and [`docs/act1-balance.md`](docs/act1-balance.md) are **superseded** by the GDD. Do not implement from them.
