@@ -23,6 +23,15 @@ describe('GDD sortie loop', () => {
     expect(s.combat.sector).toBe(1)
   })
 
+  it('introduces a new enemy idea at each GDD wave band', () => {
+    expect(encounterForWave(1).family).toBe('swarm')
+    expect(encounterForWave(11).family).toBe('swarm')
+    expect(encounterForWave(21).units.every((u) => u.role === 'skirmisher')).toBe(true)
+    expect(encounterForWave(41).family).toBe('armored')
+    expect(encounterForWave(1).family).toBe(encounterForWave(4).family)
+    expect(encounterForWave(11).family).not.toBe('armored')
+  })
+
   it('places a boss on every 10th Wave', () => {
     expect(isBossWave(10)).toBe(true)
     expect(isBossWave(9)).toBe(false)

@@ -4,6 +4,7 @@ import {
   ENEMY_HULL_LATE,
   ENEMY_HULL_MID,
   enemyApproachTarget,
+  encounterForWave,
   enemyForSector,
   enemySectorScale,
   HIVE_STANDOFF_MIN,
@@ -71,16 +72,14 @@ describe('PR75 combat pacing', () => {
     }
   })
 
-  it('rotates authored wave patterns when a family returns later in Act 1', () => {
-    // S9 and S13 are both Route A Swarm sectors. The later cycle should begin
-    // on a different authored pattern rather than replaying the same opening wave.
-    const s9 = enemyForSector(9, 1, 'A')
-    const s13 = enemyForSector(13, 1, 'A')
-    expect(s9.family).toBe('swarm')
-    expect(s13.family).toBe('swarm')
-    const roles9 = s9.units.filter((u) => (u.rewardWeight ?? 1) === 1).map((u) => u.role)
-    const roles13 = s13.units.filter((u) => (u.rewardWeight ?? 1) === 1).map((u) => u.role)
-    expect(roles13).not.toEqual(roles9)
+  it('rotates authored wave patterns inside a GDD family band', () => {
+    const early = encounterForWave(41)
+    const later = encounterForWave(45)
+    expect(early.family).toBe('armored')
+    expect(later.family).toBe('armored')
+    const rolesEarly = early.units.filter((u) => (u.rewardWeight ?? 1) === 1).map((u) => u.role)
+    const rolesLater = later.units.filter((u) => (u.rewardWeight ?? 1) === 1).map((u) => u.role)
+    expect(rolesLater).not.toEqual(rolesEarly)
   })
 
   it('keeps normal and boss formations visually populated through Act 1', () => {
