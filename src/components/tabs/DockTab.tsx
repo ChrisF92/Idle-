@@ -8,7 +8,6 @@ import { markLocalOk } from '../../hooks/useJustBecame'
 import { type BuyMode } from '../../game/workshop'
 import { isRelicsUnlocked, SHARDS, shardOwned } from '../../game/reliquary'
 import { type ModuleRole, getFrame, getModule } from '../../game/catalog'
-import { hasProcess } from '../../game/process'
 import { CoreSheet } from '../CoreSheet'
 import { SheetTabs } from '../SheetTabs'
 import { HiveRig, type HiveRigTarget } from '../HiveRig'
@@ -49,9 +48,6 @@ export function DockTab({
   onOpenSortie,
   onRebuild,
   onBuyWorkshop,
-  onUpgrade,
-  onPickMilestone,
-  onBuyMaxCores,
   onEquipRelic,
   onRemoveRelic,
   onSelectFrame,
@@ -153,7 +149,10 @@ export function DockTab({
       <div className="dock-pane">
         {pane === 'loadout' ? (
           <div className="dock-loadout" data-guide="dock-cores">
-            <p className="muted">Equip and rank Cores here with Scrap — those ranks last until Rebuild.</p>
+            <p className="muted">
+              Equip Cores and Relics here. Permanent strength is Mastery — earned while a Core is equipped.
+              Temporary Run Levels are bought with Salvage during a Sortie.
+            </p>
             {locked ? <p className="muted">Loadout is locked until this Sortie docks.</p> : null}
             {!locked && isRelicsUnlocked(state) ? (
               <p className="muted" data-guide="relic-sockets">
@@ -166,9 +165,6 @@ export function DockTab({
               state={state}
               compact
               inspectOnly={locked}
-              onUpgrade={onUpgrade ?? (() => undefined)}
-              onPickMilestone={onPickMilestone ?? (() => undefined)}
-              onBuyMax={!locked && hasProcess(state, 'core-buy-max') ? onBuyMaxCores : undefined}
               onEquipRelic={locked ? undefined : onEquipRelic}
               onRemoveRelic={locked ? undefined : onRemoveRelic}
             />

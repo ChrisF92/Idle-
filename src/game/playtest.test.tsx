@@ -132,6 +132,7 @@ describe('local playtest log', () => {
     s.combat.highestSector = 12
     s.meta.highestSectorEver = 12
     s.resources.salvage = 40
+    s.combat.docked = false
     s = upgradeModule(s, 'pulse-cannon')
     expect(s.playtest.events.some((e) => e.k === 'core_buy')).toBe(true)
     s = setSectorRoute(s, 'A')
@@ -276,7 +277,6 @@ describe('sortie counters and pressure', () => {
         summary={{ ...s.combat.lastSortie, outcome: 'defeat', salvageGained: 4, sector: 1 }}
         state={s}
         onClose={() => undefined}
-        onUpgradeCores={() => undefined}
       />,
     )
     expect(screen.getByText(/You recovered/)).toBeTruthy()

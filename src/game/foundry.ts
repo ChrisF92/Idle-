@@ -23,6 +23,7 @@ import {
 import { noteSystemAction, recordPlaytest } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 import { careerBestWave } from './waves'
+import { practicedCoreWork } from './corePractice'
 
 export {
   foundryAshHeatMult,
@@ -759,8 +760,7 @@ export function scaledFoundryCost(state: GameState, id: FoundryRecipeId): Foundr
  */
 export function foundrySalvageReserve(state: GameState): number {
   if (careerEver(state) < 2) return 0
-  if ((state.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1) return 0
-  if ((state.shipyard.moduleLevels['plate-layer'] ?? 0) < 1) return 0
+  if (practicedCoreWork(state) < 2) return 0
   if (!isFoundryRecipeUnlocked(state, 'slag-ingot')) return 0
   if (isFoundryInfinite(state, 'slag-ingot')) return 0
   return scaledFoundryCost(state, 'slag-ingot').salvage ?? 10

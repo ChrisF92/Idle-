@@ -85,10 +85,11 @@ describe('USI-aligned Rebuild recovery', () => {
     const plate2 = moduleUpgradeCost(1, 'plate-layer')
     expect(state.resources.salvage).toBeGreaterThanOrEqual(pulseCost + plate1 + plate2)
 
+    state.combat.docked = false
     state = upgradeModule(state, 'pulse-cannon')
     state = upgradeModule(state, 'plate-layer')
     state = upgradeModule(state, 'plate-layer')
-    expect(state.shipyard.moduleLevels['pulse-cannon']).toBe(1)
-    expect(state.shipyard.moduleLevels['plate-layer']).toBe(2)
+    expect(state.combat.coreRunLevels?.['0']).toBe(1)
+    expect(state.combat.coreRunLevels?.['1']).toBe(2)
   })
 })

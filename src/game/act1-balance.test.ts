@@ -144,29 +144,25 @@ describe('Act 1 onboarding audit', () => {
   })
 })
 
-describe('Act 1 Buy Max / Dock Scrap', () => {
-  it('spends Scrap at Dock and leaves Salvage for Foundry', () => {
-    const s = createInitialState(0)
-    s.combat.docked = true
-    s.meta.highestSectorEver = 4
-    s.combat.highestSector = 4
-    s.shipyard.moduleLevels['pulse-cannon'] = 4
-    s.shipyard.moduleLevels['plate-layer'] = 2
-    s.shipyard.unlockedModules = ['pulse-cannon', 'plate-layer']
-    s.shipyard.modules = ['pulse-cannon', 'plate-layer']
-    s.process.purchased = ['core-buy-max']
-    s.resources.salvage = 40
-    s.resources.scrap = 80
-    const after = buyMaxCores(s)
-    expect(after.resources.salvage).toBe(40)
-    expect(after.resources.scrap).toBeLessThan(80)
-    expect(moduleLevelAfter(after)).toBeGreaterThan(4)
+describe('Act 1 Buy Max / Core Run Levels', () => {
+  it('spends Salvage on Run Levels during a Sortie and refuses Dock ranking', () => {
+    const docked = createInitialState(0)
+    docked.combat.docked = true
+    docked.process.purchased = ['core-buy-max']
+    docked.resources.salvage = 40
+    docked.resources.scrap = 80
+    const stillDocked = buyMaxCores(docked)
+    expect(stillDocked.resources.scrap).toBe(80)
+    expect(stillDocked.resources.salvage).toBe(40)
+
+    const live = structuredClone(docked)
+    live.combat.docked = false
+    const after = buyMaxCores(live)
+    expect(after.resources.salvage).toBeLessThan(40)
+    expect(after.resources.scrap).toBe(80)
+    expect(Object.values(after.combat.coreRunLevels ?? {}).reduce((a, b) => a + b, 0)).toBeGreaterThan(0)
   })
 })
-
-function moduleLevelAfter(state: ReturnType<typeof createInitialState>): number {
-  return state.shipyard.moduleLevels['pulse-cannon'] ?? 0
-}
 
 describe('Act 1 career simulations', () => {
   it('active player reaches a first Rebuild inside the authored window', () => {

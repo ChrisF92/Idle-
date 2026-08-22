@@ -7,10 +7,10 @@ import {
   canFitModuleOnFrame,
   getFrame,
   getModule,
-  moduleLevel,
   moduleMasteryRank,
   trimModulesToFrame,
 } from '../game/catalog'
+import { moduleCopyCount, moduleMasteryXp, masteryXpToNext, nextMasteryMilestone } from '../game/coreProgression'
 import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
 import { formatCompact } from '../game/format'
 import {
@@ -149,7 +149,13 @@ export function CoreDetailSheet({ state, moduleId, locked, onChange, onClose }: 
           </button>
         </header>
         <div className="sheet-scroll">
-          <p className="muted">Mastery {mastery}</p>
+          <p>
+            Mastery {mastery}
+            <span className="muted">
+              {' '}
+              · {moduleMasteryXp(state, moduleId)} / {masteryXpToNext(mastery)} XP
+            </span>
+          </p>
           <dl className="upgrade-card-stats">
             {dps > 0 ? (
               <div>
@@ -196,9 +202,20 @@ export function CoreDetailSheet({ state, moduleId, locked, onChange, onClose }: 
               })}
             </div>
           ) : null}
-          {nextSocket ? (
-            <p className="muted">Next Mastery milestone: M{nextSocket} · additional socket</p>
-          ) : null}
+          {(() => {
+            const next = nextMasteryMilestone(moduleId, mastery)
+            if (next) {
+              return (
+                <p className="muted">
+                  Next: M{next.level} · {next.name}
+                </p>
+              )
+            }
+            if (nextSocket) {
+              return <p className="muted">Next Mastery milestone: M{nextSocket} · additional socket</p>
+            }
+            return null
+          })()}
         </div>
         <div className="modal-actions">
           <button type="button" className="primary" disabled={locked || !onChange} onClick={onChange}>
@@ -229,10 +246,13 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
       SHIP_MODULES.filter((mod) => {
         if (!state.shipyard.unlockedModules.includes(mod.id)) return false
         if (wantRole && mod.role !== wantRole) return false
-        if (state.shipyard.modules.includes(mod.id) && mod.id !== replaceId) return false
+        const equipped = state.shipyard.modules.filter((id) => id === mod.id).length
+        const copies = moduleCopyCount(state, mod.id)
+        const freeing = replaceId === mod.id ? 1 : 0
+        if (equipped - freeing >= copies) return false
         return true
       }),
-    [state.shipyard.unlockedModules, state.shipyard.modules, wantRole, replaceId],
+    [state, wantRole, replaceId],
   )
 
   return (
@@ -256,14 +276,15 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
               : true
             const compare = previewLoadoutStats(state, state.shipyard.frameId, nextModules)
             const mastery = moduleMasteryRank(state, mod.id)
-            const level = moduleLevel(state.shipyard.moduleLevels, mod.id)
+            const copies = moduleCopyCount(state, mod.id)
             const dps = coreDps(state, mod.id)
             return (
               <article key={mod.id} className={fits ? 'upgrade-card is-affordable' : 'upgrade-card'}>
                 <header className="upgrade-card-head">
                   <strong>{mod.name}</strong>
                   <span className="muted">
-                    {ROLE_LABEL[mod.role]} · M{mastery} · Lv{level}
+                    {ROLE_LABEL[mod.role]} · Mastery {mastery}
+                    {copies > 1 ? ` · ${copies} copies` : ''}
                   </span>
                 </header>
                 <p className="muted">{mod.description}</p>

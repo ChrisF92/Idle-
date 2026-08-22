@@ -1,6 +1,7 @@
 /** Contextual player guidance helpers — next-step hints, reset lists, save migration. */
 
-import { idleWorkers, moduleLevel } from './catalog'
+import { idleWorkers } from './catalog'
+import { practicedCoreWork } from './corePractice'
 import { foundryMaterialCount, foundryRecipeLevel } from './foundry'
 import { prestigeGainFor } from './actions'
 import { firstAffordableProcessNode } from './process'
@@ -33,9 +34,12 @@ const LEGACY_TO_CURRENT: Record<string, string> = {
   'guide-sortie-guns': 'guide-sortie-fire',
   'guide-sortie-hull': 'guide-sortie-fire',
   'guide-sortie-salvage': 'guide-salvage-first',
-  'guide-salvage-lesson': 'guide-upgrade-pulse',
-  'guide-cores-sheet': 'guide-upgrade-pulse',
-  'guide-cores-inspect': 'guide-cores-persist',
+  'guide-salvage-lesson': 'guide-core-run',
+  'guide-cores-sheet': 'guide-core-run',
+  'guide-upgrade-pulse': 'guide-core-run',
+  'guide-upgrade-plate': 'guide-core-run',
+  'guide-cores-inspect': 'guide-core-mastery',
+  'guide-cores-persist': 'guide-core-mastery',
   'guide-relaunch-upgraded': 'guide-relaunch',
   'guide-drone-cap': 'guide-network-strike',
   'guide-network-make': 'guide-network-strike',
@@ -56,9 +60,8 @@ export const BEGINNER_GUIDE_IDS = [
   'guide-launch',
   'guide-sortie-fire',
   'guide-salvage-first',
-  'guide-upgrade-pulse',
-  'guide-upgrade-plate',
-  'guide-cores-persist',
+  'guide-core-run',
+  'guide-core-mastery',
   'guide-relaunch',
   'guide-network-strike',
   'guide-network-ward',
@@ -75,9 +78,7 @@ export function isEstablishedCareer(state: GameState): boolean {
   const seen = state.meta.seenOnboarding ?? []
   if (seen.length >= 15) return true
   if (seen.some((id) => (LEGACY_TOUR_MARKERS as readonly string[]).includes(id))) return true
-  const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
-  const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
-  return pulse + plate >= 4
+  return practicedCoreWork(state) >= 4
 }
 
 export function migrateOnboardingState(state: GameState): void {
@@ -124,7 +125,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   const reset = [
     'Current Sortie',
     'Salvage',
-    'Core ranks',
+    'Core Run Levels',
     'Run upgrades',
     'Directives',
     'Scrap',
@@ -171,7 +172,7 @@ export function protocolStartLists(def: { reward: string }): ConsequenceLists {
   return {
     gain: [def.reward],
     keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge ranks'],
-    reset: ['Salvage', 'Core levels', 'Network bar levels', 'Current sortie'],
+    reset: ['Salvage', 'Core Run Levels', 'Network bar levels', 'Current sortie'],
     change: [],
   }
 }
@@ -179,23 +180,18 @@ export function protocolStartLists(def: { reward: string }): ConsequenceLists {
 export function isFirstDefeatReport(state: GameState): boolean {
   if (isEstablishedCareer(state)) return false
   if ((state.prestige.prestigeCount ?? 0) > 0) return false
-  const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
-  const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
-  return pulse < 1 && plate < 1
+  return practicedCoreWork(state) < 1
 }
 
 export function sortieNextHints(state: GameState): string[] {
   if (isFirstDefeatReport(state)) return []
   const items: string[] = []
-  const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
-  const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
   const idle = idleWorkers(state)
 
   if (isSystemUnlocked(state, 'network') && idle > 0) {
     items.push(`${idle} drone${idle === 1 ? '' : 's'} idle — assign under Systems`)
   }
-  if (plate < pulse) items.push('Upgrade Plate')
-  else if (pulse <= plate) items.push('Upgrade Pulse')
+  items.push('Spend Salvage on Cores or global upgrades next Sortie')
   if (isSystemUnlocked(state, 'network') && (state.base.assignments['scrap-field'] ?? 0) === 0) {
     items.push('Assign Worker Drones under Systems')
   }
@@ -220,7 +216,5 @@ export function processCoreHintReady(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'process')) return false
   const purchased = state.process?.purchased ?? []
   if (purchased.includes('core-buy-max') || purchased.includes('auto-salvage')) return false
-  const pulse = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
-  const plate = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
-  return pulse + plate >= 6
+  return practicedCoreWork(state) >= 6
 }

@@ -18,7 +18,8 @@ describe('inspect sheets', () => {
     s.base.assignments.strike = 2
     s.network.bars.strike.levels = 4
     s.network.bars.strike.progress = 0.4
-    s.shipyard.moduleLevels['pulse-cannon'] = 3
+    s.combat.coreRunLevels = { '0': 3 }
+    s.combat.docked = false
     s.resources.salvage = 12
     s.resources.choirAsh = 25
     s.resources.heat = 8
@@ -42,7 +43,7 @@ describe('inspect sheets', () => {
 
     const core = inspectCore(s, 'pulse-cannon')
     expect(core?.stats.find((row) => row.label === 'Damage')?.value).toMatch(/→/)
-    expect(core?.body.join(' ')).toMatch(/Scrap/)
+    expect(core?.body.join(' ')).toMatch(/Mastery/)
     expect(core?.body.join(' ')).not.toMatch(JARGON)
 
     const attack = inspectFurnaceTrack(s, 'attack')

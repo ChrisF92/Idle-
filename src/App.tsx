@@ -186,7 +186,7 @@ export default function App() {
   }, [tab, game])
 
   useEffect(() => {
-    if (guide?.id === 'guide-upgrade-pulse' || guide?.id === 'guide-upgrade-plate') {
+    if (guide?.id === 'guide-core-run') {
       game.ensureStarterCoresSalvage()
     }
   }, [guide?.id, game])
@@ -367,6 +367,7 @@ export default function App() {
             }}
             onExtract={() => game.setDocked(true)}
             onBuyRunUpgrade={game.buyRunUpgrade}
+            onBuyCoreRun={game.buyCoreRunSlot}
             onViewReport={() => setReportOpen(true)}
             onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
@@ -610,6 +611,12 @@ export default function App() {
             setReportOpen(false)
             game.setDocked(false)
             go('combat')
+          }}
+          onViewCore={(moduleId) => {
+            setReportOpen(false)
+            setDockPane('loadout')
+            setFocusTarget(`core-${moduleId}`)
+            go('dock')
           }}
         />
       ) : null}

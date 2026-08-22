@@ -220,17 +220,26 @@ export function visibleRunUpgrades(bestWave: number, category?: RunUpgradeCatego
 }
 
 export function applyWorkshopCoreStarts(state: GameState): void {
-  state.shipyard.moduleLevels = { ...(state.workshop?.coreStarts ?? {}) }
+  if (!state.workshop) state.workshop = createEmptyWorkshop()
+  state.workshop.coreStarts = {}
+  state.shipyard.moduleLevels = {}
 }
 
 export function snapshotWorkshopCoreStarts(state: GameState): void {
   if (!state.workshop) state.workshop = createEmptyWorkshop()
-  state.workshop.coreStarts = { ...state.shipyard.moduleLevels }
+  state.workshop.coreStarts = {}
 }
 
-/** After a Sortie, temporary Salvage ranks clear. Core ranks stay at Dock starts. */
+/** After a Sortie, temporary Salvage ranks and Core Run Levels clear. */
 export function resetRunCoreLevels(state: GameState): void {
-  applyWorkshopCoreStarts(state)
+  state.shipyard.moduleLevels = {}
+  state.combat.coreRunLevels = {}
+  state.combat.coreSalvageSpent = {}
+  state.combat.coreMasteryStart = {}
+  state.combat.coreMasteryXp = {}
+  state.combat.coreBossClears = {}
+  state.combat.coreNewBest = {}
+  state.combat.coreMilestones = {}
   state.combat.runUpgrades = {}
 }
 

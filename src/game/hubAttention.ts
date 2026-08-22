@@ -1,11 +1,7 @@
 import {
-  MAX_MODULE_LEVEL,
   blueprintProgress,
   idleWorkers,
   listFarmableCores,
-  moduleLevel,
-  moduleUpgradeCost,
-  getModule,
 } from './catalog'
 import {
   FOUNDRY_MODULES,
@@ -18,9 +14,7 @@ import {
 import { ASH_PER_HEAT } from './furnace'
 import { hiveResearchActive, hiveResearchCompleted, HIVE_RESEARCH_NODES } from './hiveResearch'
 import { MORE_STATIONS } from './moreStations'
-import { pendingMilestone } from './milestones'
 import { NETWORK_BARS, NETWORK_LINKS, canBuyNetworkLink, isNetworkBarUnlocked } from './network'
-import { protocolCoreScalingAdd } from './protocols'
 import { canBuyProcessNode, processVisibleNodes } from './process'
 import { hasHullLostOnce, isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
@@ -126,15 +120,7 @@ function hasUnseen(state: GameState, keys: string[]): boolean {
   return keys.some((k) => !seen.has(k))
 }
 
-function coresSpend(state: GameState): boolean {
-  if (!state.combat.docked) return false
-  if (!hasHullLostOnce(state)) return false
-  const scrap = state.resources.scrap ?? 0
-  for (const moduleId of state.shipyard.modules) {
-    const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
-    if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return true
-    if (level < MAX_MODULE_LEVEL && moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, getModule(moduleId)?.role)) <= scrap) return true
-  }
+function coresSpend(_state: GameState): boolean {
   return false
 }
 

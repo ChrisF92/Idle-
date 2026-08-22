@@ -74,7 +74,7 @@ describe('Hiveworks onboarding catalog', () => {
       'guide-launch',
       'guide-sortie-fire',
       'guide-salvage-first',
-      'guide-upgrade-pulse',
+      'guide-core-run',
       'guide-network-strike',
       'guide-foundry-recipe',
       'guide-furnace-light',

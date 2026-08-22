@@ -81,27 +81,25 @@ describe('GDD sortie loop', () => {
     expect(effectiveUpgradeLevel(s, 'weapon-power')).toBe(1)
   })
 
-  it('does not spend Salvage on Core ranks mid-Sortie', () => {
+  it('spends Salvage on Core Run Levels mid-Sortie', () => {
     let s = launch(createInitialState())
     s.resources.salvage = 80
     s.resources.scrap = 80
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
-    expect(s.resources.salvage).toBe(80)
+    expect(s.combat.coreRunLevels?.['0']).toBe(1)
+    expect(s.resources.salvage).toBeLessThan(80)
     expect(s.resources.scrap).toBe(80)
   })
 
-  it('keeps Dock Scrap Core ranks after Extract', () => {
-    let s = createInitialState()
-    s.combat.docked = true
-    s.resources.scrap = 80
+  it('resets Core Run Levels after Extract', () => {
+    let s = launch(createInitialState())
+    s.resources.salvage = 80
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBeGreaterThanOrEqual(1)
-    expect(s.workshop?.coreStarts['pulse-cannon']).toBeGreaterThanOrEqual(1)
-    s = launch(s)
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBeGreaterThanOrEqual(1)
+    expect(s.combat.coreRunLevels?.['0']).toBe(1)
     s = setDocked(s, true)
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBeGreaterThanOrEqual(1)
+    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    s = launch(s)
+    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
   })
 
   it('clearing ten waves records a band clear for existing system gates', () => {

@@ -12,15 +12,19 @@ import type {
   ReliquaryColor,
 } from './types'
 import {
-  MAX_MODULE_LEVEL,
   droneCap,
   dronePower,
   getModule,
-  moduleLevel,
   moduleMasteryRank,
   moduleStatPreviews,
-  moduleUpgradeCost,
 } from './catalog'
+import {
+  coreRunCategory,
+  coreRunLevelForModule,
+  masteryXpToNext,
+  moduleMasteryXp,
+  nextMasteryMilestone,
+} from './coreProgression'
 import { formatCompact } from './format'
 import { coreContributionPct } from './uiReadout'
 import {
@@ -51,7 +55,6 @@ import {
   PROTOCOLS,
   getProtocol,
   protocolBestWave,
-  protocolCoreScalingAdd,
   protocolCumulativeLine,
   protocolDisabledLine,
   protocolGoalWave,
@@ -95,7 +98,7 @@ import {
   isFoundryRecipeUnlocked,
   scaledFoundryCost,
 } from './foundry'
-import { milestonesFor, pendingMilestone } from './milestones'
+import { milestonesFor } from './milestones'
 import {
   formatResearchDuration,
   HIVE_RESEARCH_BRANCHES,
@@ -276,24 +279,23 @@ export function inspectNetworkLink(state: GameState, id: NetworkLinkId): Inspect
 export function inspectCore(state: GameState, moduleId: string): InspectCard | null {
   const def = getModule(moduleId)
   if (!def) return null
-  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
   const mastery = moduleMasteryRank(state, moduleId)
-  const maxed = level >= MAX_MODULE_LEVEL
-  const cost = moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, def.role))
-  const previews = moduleStatPreviews(moduleId, level, !maxed, mastery)
+  const xp = moduleMasteryXp(state, moduleId)
+  const need = masteryXpToNext(mastery)
+  const run = state.combat.docked ? 0 : coreRunLevelForModule(state, moduleId)
+  const previews = moduleStatPreviews(moduleId, run, run < 200, mastery)
   const picks = state.shipyard.corePicks?.[moduleId]
-  const pending = pendingMilestone(moduleId, level, picks)
   const milestones = milestonesFor(moduleId)
   const contribution = coreContributionPct(state, moduleId)
+  const nextMs = nextMasteryMilestone(moduleId, mastery)
   const stats: InspectStat[] = [
     { label: 'Role', value: ROLE_LABEL[def.role] ?? def.role },
-    { label: 'Level', value: maxed ? `${level} · max` : `${level}/${MAX_MODULE_LEVEL}` },
-    { label: 'Mastery', value: String(mastery) },
-    { label: 'Scrap', value: formatCompact(state.resources.scrap) },
-    { label: 'Layer', value: 'Cycle · Dock Scrap' },
+    { label: 'Run Level', value: state.combat.docked ? '0 at Dock' : String(run) },
+    { label: 'Mastery', value: `${mastery} · ${xp} / ${need} XP` },
+    { label: 'Shop', value: coreRunCategory(moduleId) },
   ]
   if (contribution != null) stats.push({ label: 'Build', value: `${contribution}% of DPS` })
-  if (!maxed) stats.push({ label: 'Next level', value: `${formatCompact(cost)} Scrap` })
+  if (nextMs) stats.push({ label: 'Next Mastery', value: `M${nextMs.level} · ${nextMs.name}` })
   for (const row of previews) {
     stats.push({
       label: row.label,
@@ -316,28 +318,16 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
       const choiceId = picks?.[ms.id]
       if (!choiceId) return null
       const choice = ms.choices.find((c) => c.id === choiceId)
-      return choice ? `Lv ${ms.level}: ${choice.name}` : null
+      return choice ? `Legacy ${choice.name}` : null
     })
     .filter((line): line is string => Boolean(line))
-  if (taken.length > 0) stats.push({ label: 'Milestones', value: taken.join(' · ') })
-  if (pending) {
-    stats.push({
-      label: 'Choose',
-      value: pending.choices.map((c) => c.name).join(' or '),
-    })
-  } else {
-    const nextMs = milestones.find((ms) => level < ms.level && !picks?.[ms.id])
-    if (nextMs) stats.push({ label: 'Next node', value: `Level ${nextMs.level}` })
-  }
+  if (taken.length > 0) stats.push({ label: 'Kept effects', value: taken.join(' · ') })
 
   const body = [def.description]
   if (def.weapon) body.push(deliveryLine(def.weapon.delivery))
   body.push(
-    'Rank this Core at Dock with Scrap. Ranks persist across Sorties until Rebuild, then the loadout can be swapped.',
+    'Run Levels spend Salvage during a Sortie and reset when it ends. Mastery is earned while the Core is equipped and survives Rebuild. Relics are installed at Dock.',
   )
-  if (milestones.length > 0) {
-    body.push('Every ten levels you pick one of two nodes. Those picks wipe with the Core on Rebuild.')
-  }
   return {
     title: def.name,
     kicker: ROLE_LABEL[def.role] ?? 'Core',

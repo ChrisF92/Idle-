@@ -18,17 +18,21 @@ import {
   coreContributionPct,
   coreShieldOutput,
 } from '../../game/uiReadout'
-import { getModule, moduleLevel, moduleMasteryRank } from '../../game/catalog'
+import { getModule, moduleMasteryRank } from '../../game/catalog'
+import { coreRunLevel, nextMasteryMilestone } from '../../game/coreProgression'
 import { activeProtocol } from '../../game/protocols'
 import { isChallengeSortie } from '../../game/frontier'
 import { DIRECTIVES, getDirective, hasDirectiveOffer } from '../../game/directives'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
+import { inspectCore } from '../../game/inspect'
+import { InspectName } from '../InspectName'
 
 interface CombatTabProps {
   state: GameState
   onLaunch: () => void
   onExtract?: () => void
   onBuyRunUpgrade?: (id: RunUpgradeId, count?: number) => void
+  onBuyCoreRun?: (slot: number, count?: number) => void
   onViewReport?: () => void
   onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
@@ -129,6 +133,7 @@ export function CombatTab({
   onLaunch,
   onExtract,
   onBuyRunUpgrade,
+  onBuyCoreRun,
   paused = false,
   guide = null,
   onMarkCoresSeen,
@@ -427,6 +432,7 @@ export function CombatTab({
                   kind="run"
                   buyMode={buyMode}
                   onBuy={(id, count) => onBuyRunUpgrade?.(id, count)}
+                  onBuyCore={(slot, count) => onBuyCoreRun?.(slot, count)}
                 />
               </>
             )}
@@ -475,35 +481,38 @@ export function CombatTab({
                 Close
               </button>
             </header>
-            <p className="muted">Inspect only. Rank and equip Cores at Dock with Scrap.</p>
+            <p className="muted">
+              Loadout is locked mid-Sortie. Power Cores with Salvage in Attack, Defense, and Economy —
+              Run Levels reset when the Sortie ends.
+            </p>
             <div className="sheet-scroll" data-guide="cores-sheet">
-              {state.shipyard.modules.map((id) => {
+              {state.shipyard.modules.map((id, slot) => {
                 const def = getModule(id)
                 if (!def) return null
                 const dps = coreDps(state, id)
                 const share = coreContributionPct(state, id)
                 const shield = coreShieldOutput(state, id)
                 return (
-                  <button
-                    key={id}
-                    type="button"
+                  <div
+                    key={`${id}-${slot}`}
                     className="core-summary"
                     data-guide={`core-${id}`}
-                    onClick={() => setDetailCore(id)}
                   >
-                    <strong>{def.name}</strong>
-                    <span className="muted">
-                      Run Lv{moduleLevel(state.shipyard.moduleLevels, id)}
-                      {moduleMasteryRank(state, id) > 0 ? ` · M${moduleMasteryRank(state, id)}` : ''}
-                    </span>
-                    <span>
-                      {dps > 0
-                        ? `${formatCompact(dps)} DPS${share != null ? ` · ${share}% of output` : ''}`
-                        : shield > 0
-                          ? `+${formatCompact(shield)} Shield`
-                          : def.description}
-                    </span>
-                  </button>
+                    <InspectName name={def.name} card={inspectCore(state, id)} />
+                    <button type="button" onClick={() => setDetailCore(id)}>
+                      <span className="muted">
+                        Run Lv{coreRunLevel(state, slot)}
+                        {moduleMasteryRank(state, id) > 0 ? ` · Mastery ${moduleMasteryRank(state, id)}` : ''}
+                      </span>
+                      <span>
+                        {dps > 0
+                          ? `${formatCompact(dps)} DPS${share != null ? ` · ${share}% of output` : ''}`
+                          : shield > 0
+                            ? `+${formatCompact(shield)} Shield`
+                            : def.description}
+                      </span>
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -521,6 +530,28 @@ export function CombatTab({
               </button>
             </header>
             <p className="muted">{getModule(detailCore)?.description}</p>
+            {(() => {
+              const slot = state.shipyard.modules.indexOf(detailCore)
+              const mastery = moduleMasteryRank(state, detailCore)
+              const next = nextMasteryMilestone(detailCore, mastery)
+              return (
+                <>
+                  <p>
+                    Mastery {mastery}
+                    {slot >= 0 ? ` · Run Lv${coreRunLevel(state, slot)}` : ''}
+                  </p>
+                  <p className="muted">
+                    Run Levels spend Salvage and last only for this Sortie. Mastery is earned while
+                    the Core is equipped and survives Rebuild.
+                  </p>
+                  {next ? (
+                    <p className="muted">
+                      Next: M{next.level} · {next.name}
+                    </p>
+                  ) : null}
+                </>
+              )
+            })()}
             <p className="muted">Loadout and Relic changes stay locked while the Sortie is live.</p>
           </div>
         </div>

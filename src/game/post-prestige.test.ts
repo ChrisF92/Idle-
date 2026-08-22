@@ -70,8 +70,9 @@ describe('post-prestige re-push balance', () => {
 
     const before = computeShipStats(state).damage
     const upgradeCost = moduleUpgradeCost(0, 'pulse-cannon')
+    state.combat.docked = false
     state = upgradeModule(state, 'pulse-cannon')
-    expect(state.shipyard.moduleLevels['pulse-cannon']).toBe(1)
+    expect(state.combat.coreRunLevels?.['0']).toBe(1)
     expect(computeShipStats(state).damage).toBeGreaterThan(before)
     expect(state.resources.salvage).toBe(19 - upgradeCost)
   })

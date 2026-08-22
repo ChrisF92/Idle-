@@ -354,10 +354,12 @@ export function coreSocketLayout(state: GameState, moduleId: string): RelicSocke
   if (!isRelicsUnlocked(state)) return []
   if (!state.shipyard.modules.includes(moduleId)) return []
   const sockets: RelicSocketClass[] = [corePrimarySocket(moduleId)]
-  if (
-    moduleMasteryRank(state, moduleId) >= RELIC_UNIVERSAL_MASTERY ||
-    meetsWave(state, ACT1_CADENCE.mastery)
-  ) {
+  const mastery = moduleMasteryRank(state, moduleId)
+  if (mastery >= 20) {
+    const extra = corePrimarySocket(moduleId) === 'power' ? 'industrial' : 'power'
+    if (!sockets.includes(extra)) sockets.push(extra)
+  }
+  if (mastery >= RELIC_UNIVERSAL_MASTERY || meetsWave(state, ACT1_CADENCE.mastery)) {
     sockets.push('universal')
   }
   return sockets

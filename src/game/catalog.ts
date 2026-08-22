@@ -1298,10 +1298,11 @@ export function canFitModuleOnFrame(
   fittedModuleIds: string[],
   moduleId: string,
   extra: Partial<Record<ModuleRole, number>> = {},
+  copies = 1,
 ): boolean {
   const mod = getModule(moduleId)
   if (!mod) return false
-  if (fittedModuleIds.includes(moduleId)) return false
+  if (fittedModuleIds.filter((id) => id === moduleId).length >= Math.max(1, copies)) return false
   const used = fittedRoleSlotCounts(fittedModuleIds)
   return used[mod.role] < frameRoleCap(frame, mod.role, extra)
 }
@@ -1754,16 +1755,19 @@ export function moduleUpgradeCost(level: number, moduleId?: string, scalingAdd =
   return Math.ceil(base * scaling ** n)
 }
 
-/** Pulse L1 + Plate L1 — first Dock Core ranks cost this much Scrap. */
+/** Pulse Run Lv1 + Plate Run Lv1 — first Core Run Levels cost this much Salvage. */
 export const STARTER_CORE_IDS = ['pulse-cannon', 'plate-layer'] as const
 
 export function salvageToRankStarterCores(
-  state: Pick<GameState, 'shipyard'>,
+  state: Pick<GameState, 'shipyard' | 'combat' | 'meta'>,
   minLevel = 1,
 ): number {
+  if ((state.meta?.lifetimeCoreRunBuys ?? 0) >= minLevel) return 0
   let need = 0
   for (const id of STARTER_CORE_IDS) {
-    let level = moduleLevel(state.shipyard.moduleLevels, id)
+    const slot = state.shipyard.modules.indexOf(id)
+    let level =
+      slot >= 0 ? Math.max(0, Math.floor(state.combat?.coreRunLevels?.[String(slot)] ?? 0)) : 0
     while (level < minLevel) {
       need += moduleUpgradeCost(level, id)
       level += 1
@@ -1772,17 +1776,14 @@ export function salvageToRankStarterCores(
   return need
 }
 
-/**
- * Bank Scrap so the required Pulse/Plate Dock ranks are never unaffordable.
- * Heals saves already stuck mid-tour (Pulse bought, Plate still locked).
- */
+/** Bank Salvage so the first Core Run Level is never unaffordable during the tour. */
 export function ensureStarterCoresTourSalvage(state: GameState): GameState {
   const need = salvageToRankStarterCores(state)
   if (need <= 0) return state
-  if ((state.resources.scrap ?? 0) >= need) return state
+  if ((state.resources.salvage ?? 0) >= need) return state
   return {
     ...state,
-    resources: { ...state.resources, scrap: need },
+    resources: { ...state.resources, salvage: need },
   }
 }
 

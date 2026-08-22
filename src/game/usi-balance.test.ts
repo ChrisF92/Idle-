@@ -43,7 +43,8 @@ describe('USI Core formulas', () => {
     expect(computeShipStats(state).shieldMax).toBe(30)
     expect(fittedShieldRegenFraction(state.shipyard.modules)).toBe(0.05)
 
-    state.resources.scrap = 100
+    state.combat.docked = false
+    state.resources.salvage = 100
     const next = upgradeModule(state, 'plate-layer')
     expect(computeShipStats(next).shieldMax).toBe(35)
   })

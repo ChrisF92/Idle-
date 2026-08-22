@@ -1,6 +1,6 @@
 import type { GameState, ResourceId } from '../types'
 import { RESOURCE_LABELS } from '../state'
-import { idleWorkers, moduleLevel } from '../catalog'
+import { idleWorkers } from '../catalog'
 import { networkDiagnostics } from '../network'
 import { isSystemUnlocked } from '../progression'
 import { isResearchBreakthroughIndex } from '../hiveResearch'
@@ -175,8 +175,8 @@ export function observeState(
     if (clearedRow.firstClearActive == null) {
       clearedRow.firstClearActive = activeSeconds
       clearedRow.clearDuration = activeSeconds - clearedRow.firstEntryActive
-      clearedRow.pulseLevelOnClear = moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')
-      clearedRow.plateLevelOnClear = moduleLevel(state.shipyard.moduleLevels, 'plate-layer')
+      clearedRow.pulseLevelOnClear = state.combat.coreRunLevels?.['0'] ?? 0
+      clearedRow.plateLevelOnClear = state.combat.coreRunLevels?.['1'] ?? 0
     }
     metrics.sectors.set(cleared, clearedRow)
     if (TRACKED_SECTORS.includes(cleared) || cleared === 1) {
@@ -210,17 +210,8 @@ export function observeState(
   }
   metrics.lastDocked = state.combat.docked
 
-  if (
-    (state.shipyard.moduleLevels['pulse-cannon'] ?? 0) > 0 &&
-    (prev.shipyard.moduleLevels['pulse-cannon'] ?? 0) === 0
-  ) {
+  if ((state.meta.lifetimeCoreRunBuys ?? 0) > 0 && (prev.meta.lifetimeCoreRunBuys ?? 0) === 0) {
     addMilestone(metrics, 'first-pulse-upgrade', 'First Pulse upgrade', activeSeconds, calendarSeconds)
-  }
-  if (
-    (state.shipyard.moduleLevels['plate-layer'] ?? 0) > 0 &&
-    (prev.shipyard.moduleLevels['plate-layer'] ?? 0) === 0
-  ) {
-    addMilestone(metrics, 'first-plate-upgrade', 'First Plate upgrade', activeSeconds, calendarSeconds)
   }
 
   const unlocks: Array<[string, string]> = [

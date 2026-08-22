@@ -10,7 +10,6 @@ import {
   matterShopHullBonus,
   matterShopShieldBonus,
   metaDamageMultiplier,
-  moduleLevel,
   moduleLeveledBonus,
   moduleLevelMultiplier,
   moduleWeaponDamage,
@@ -30,12 +29,8 @@ import {
   computeSignalCoreBonuses,
   createEmptySignalCoresState,
 } from './signalCores'
-import {
-  applyMilestoneToWeapon,
-  corePicksFor,
-  fittedShieldMilestoneMult,
-  milestoneModsFor,
-} from './milestones'
+import { fittedShieldMilestoneMult } from './milestones'
+import { combinedCoreMods, effectiveRunLevel } from './coreProgression'
 import {
   createEmptyNetworkState,
   NETWORK_STARTING_DRONES,
@@ -113,6 +108,7 @@ export function createInitialState(now = Date.now()): GameState {
       unlockedFrames: ['scout-frame'],
       unlockedModules: ['pulse-cannon', 'plate-layer'],
       moduleLevels: {},
+      moduleCopies: { 'pulse-cannon': 1, 'plate-layer': 1 },
       corePicks: {},
       frameLocked: false,
     },
@@ -127,6 +123,13 @@ export function createInitialState(now = Date.now()): GameState {
       route: 'A',
       bestWave: 0,
       runUpgrades: {},
+      coreRunLevels: {},
+      coreSalvageSpent: {},
+      coreMasteryStart: {},
+      coreMasteryXp: {},
+      coreBossClears: {},
+      coreNewBest: {},
+      coreMilestones: {},
       consecutiveLosses: 0,
       bossPhase: 0,
       fightElapsed: 0,
@@ -216,6 +219,9 @@ export function createInitialState(now = Date.now()): GameState {
       lifetimeDronesBuilt: 0,
       discoveredModules: [],
       moduleMastery: {},
+      moduleMasteryXp: {},
+      coreProgressionMigrated: true,
+      lifetimeCoreRunBuys: 0,
       signalCoresCarryOver: false,
       starterCombatLesson: 2,
       hullLostOnce: false,
@@ -302,39 +308,32 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
     })
   }
 
-  for (const moduleId of state.shipyard.modules) {
+  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
+    const moduleId = state.shipyard.modules[slot]!
     const mod = getModule(moduleId)
     if (!mod?.weapon) continue
     if (muteGuns && mod.role === 'weapon') continue
-    const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+    const level = Math.floor(effectiveRunLevel(state, slot))
     const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
-    const profile = {
-      hullDamage: mod.weapon.hullDamage,
-      shieldDamage: mod.weapon.shieldDamage,
-      armorDamage: mod.weapon.armorDamage,
-    }
-    const built: WeaponInstance = {
-      id: `${moduleId}-wpn`,
+    const mods = combinedCoreMods(state, moduleId)
+    weapons.push({
+      id: `${moduleId}-wpn-${slot}`,
       name: mod.weapon.name,
-      damage: moduleWeaponDamage(mod, level, mastery) * mult * weaponPowerMult(state),
-      cooldown: mod.weapon.cooldown / cycleRateMult(state),
+      damage: moduleWeaponDamage(mod, level, mastery) * mods.damageMult * mult * weaponPowerMult(state),
+      cooldown: (mod.weapon.cooldown * mods.cooldownMult) / cycleRateMult(state),
       cooldownLeft: 0,
-      range: capRange(mod.weapon.range),
+      range: capRange(mod.weapon.range + mods.rangeAdd),
       tags: [...mod.weapon.tags],
-      splash: (mod.weapon.splash ?? 0) * directiveSplashMult(state),
+      splash: ((mod.weapon.splash ?? 0) + mods.splashAdd) * directiveSplashMult(state),
       dotDuration: mod.weapon.dotDuration ?? 0,
       dotDamage: (mod.weapon.dotDamage ?? 0) * mult * mastery,
       telegraphDuration: mod.weapon.telegraphDuration ?? 0,
       telegraphLeft: 0,
       delivery: mod.weapon.delivery,
-      ...profile,
-    }
-    const withNodes = applyMilestoneToWeapon(
-      built,
-      milestoneModsFor(moduleId, corePicksFor(state, moduleId)),
-    )
-    withNodes.range = capRange(withNodes.range)
-    weapons.push(withNodes)
+      hullDamage: mod.weapon.hullDamage,
+      shieldDamage: mod.weapon.shieldDamage,
+      armorDamage: mod.weapon.armorDamage,
+    })
   }
 
   return weapons
@@ -353,24 +352,21 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   let evasion = 0
   let escortCount = 0
 
-  for (const moduleId of state.shipyard.modules) {
+  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
+    const moduleId = state.shipyard.modules[slot]!
     const mod = getModule(moduleId)
     if (!mod) continue
     if (protocolMutes(state, 'shields') && mod.role === 'defense') continue
-    const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+    const level = Math.floor(effectiveRunLevel(state, slot))
     const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
+    const mods = combinedCoreMods(state, moduleId)
     const pctMult = moduleLevelMultiplier(level) * mastery
     hullMax += moduleLeveledBonus(mod.hullBonus, mod.hullBonusPerLevel, level, mastery)
-    // Soften incoming mult toward 1 as levels rise for defensive modules
     const taken = mod.damageTakenMult
     damageTakenMult *= taken < 1 ? 1 - (1 - taken) * Math.min(1.5, pctMult) / 1.5 : taken
     armor += moduleLeveledBonus(mod.armorBonus ?? 0, mod.armorBonusPerLevel, level, mastery)
-    shieldMax += moduleLeveledBonus(
-      mod.shieldBonus ?? 0,
-      mod.shieldBonusPerLevel,
-      level,
-      mastery,
-    )
+    shieldMax +=
+      moduleLeveledBonus(mod.shieldBonus ?? 0, mod.shieldBonusPerLevel, level, mastery) * mods.shieldMult
     evasion += (mod.evasionBonus ?? 0) * Math.min(1.4, pctMult)
     escortCount += mod.escorts ?? 0
   }

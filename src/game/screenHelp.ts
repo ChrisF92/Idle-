@@ -34,7 +34,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Launch a Sortie from here. Every run starts at Wave 1. Death or Extract returns you to Dock.',
-      'Loadout, Workshop, and Rebuild sit under the Hive preview. Equip and rank Cores here with Scrap — those ranks last until Rebuild.',
+      'Loadout, Workshop, and Rebuild sit under the Hive preview. Equip Cores and Relics here. Permanent Core strength is Mastery, earned while the Core is equipped.',
       'Workshop levels raise every Sortie’s starting power. Temporary Sortie purchases still start at the cheap base cost. Rebuild trades this cycle for Matter and lists RESET, KEEP, and GAIN.',
     ],
   },
@@ -42,7 +42,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Sortie',
     body: [
       'Weapons fire automatically. Waves come from all directions. The compact HUD shows Wave, Salvage, and Scrap earned this Sortie.',
-      'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage buys Attack, Defense, and Economy for this run only. Rank Cores at Dock with Scrap.',
+      'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage buys Attack, Defense, Economy, and Core Run Levels for this Sortie only. Mastery is earned while a Core is equipped and survives Rebuild.',
       'If you close mid-Sortie, combat freezes. Foundry, fabrication, and Worker jobs keep running.',
       'Worker Drones unlock at Wave 30 under Systems. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
     ],

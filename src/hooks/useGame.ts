@@ -51,6 +51,7 @@ import {
   unlockModule,
   upgradeCheapestModule,
   upgradeModule,
+  buyCoreRunSlot,
   buyRunUpgrade,
   buyWorkshopUpgrade,
   cycleSortieSpeed,
@@ -137,6 +138,7 @@ type Action =
   | { type: 'fit-module'; moduleId: string }
   | { type: 'unfit-module'; moduleId: string }
   | { type: 'upgrade-module'; moduleId: string }
+  | { type: 'buy-core-run'; slot: number; count?: number }
   | { type: 'buy-run-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
   | { type: 'buy-workshop-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
   | { type: 'cycle-sortie-speed' }
@@ -276,6 +278,8 @@ function reducer(state: GameState, action: Action): GameState {
       return unfitModule(state, action.moduleId)
     case 'upgrade-module':
       return upgradeModule(state, action.moduleId)
+    case 'buy-core-run':
+      return buyCoreRunSlot(state, action.slot, action.count)
     case 'buy-run-upgrade':
       return buyRunUpgrade(state, action.id, action.count)
     case 'buy-workshop-upgrade':
@@ -496,6 +500,8 @@ export function useGame() {
     fitModule: (moduleId: string) => dispatch({ type: 'fit-module', moduleId }),
     unfitModule: (moduleId: string) => dispatch({ type: 'unfit-module', moduleId }),
     upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
+    buyCoreRunSlot: (slot: number, count?: number) =>
+      dispatch({ type: 'buy-core-run', slot, count }),
     buyRunUpgrade: (id: import('../game/types').RunUpgradeId, count?: number) =>
       dispatch({ type: 'buy-run-upgrade', id, count }),
     buyWorkshopUpgrade: (id: import('../game/types').RunUpgradeId, count?: number) =>

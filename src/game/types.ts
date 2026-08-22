@@ -170,6 +170,21 @@ export interface SortieSpendByCategory {
   economy: number
 }
 
+/** Per equipped Core instance at Sortie close. */
+export interface CoreSortieRecord {
+  moduleId: string
+  slot: number
+  runLevel: number
+  masteryStart: number
+  masteryEnd: number
+  masteryXp: number
+  salvageSpent: number
+  contribution: number
+  bossClears: number
+  newBestBonus: boolean
+  milestones: number[]
+}
+
 /** Snapshot taken at Launch; closed into lastSortie on Extract / Defeat. */
 export interface SortieMark {
   salvage: number
@@ -184,6 +199,7 @@ export interface SortieMark {
   ash: number
   data: number
   fragments: number
+  cores?: CoreSortieRecord[]
 }
 
 export interface SortieSummary {
@@ -205,6 +221,7 @@ export interface SortieSummary {
   ashEarned: number
   dataEarned: number
   fragmentsEarned: number
+  cores?: CoreSortieRecord[]
 }
 
 export type PressureClass = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
@@ -660,11 +677,16 @@ export interface ShipLoadout {
   modules: string[]
   unlockedFrames: string[]
   unlockedModules: string[]
-  /** Per-module run upgrade levels (reset on prestige). */
+  /** Fabricated copies of a Core type. Mastery is shared; loadout may use extras. */
+  moduleCopies?: Record<string, number>
+  /**
+   * Legacy Scrap Dock ranks. Migrated into Core Mastery; kept empty for old saves.
+   * @deprecated Use combat.coreRunLevels during a Sortie.
+   */
   moduleLevels: Record<string, number>
   /**
-   * USI Core milestone picks: moduleId → milestoneId → choiceId.
-   * Wipes on Rebuild with Core levels.
+   * Legacy branching milestone picks. Preserved as permanent effects;
+   * new Mastery uses fixed authored milestones instead.
    */
   corePicks: Record<string, Record<string, string>>
   /**
@@ -844,6 +866,17 @@ export interface CombatState {
   bestWave: number
   /** Temporary Attack/Defense/Economy ranks bought with Salvage this Sortie. */
   runUpgrades: Record<string, number>
+  /** Temporary Core Run Levels by equipped slot index. Reset each Sortie. */
+  coreRunLevels?: Record<string, number>
+  /** Salvage spent on each Core slot this Sortie. */
+  coreSalvageSpent?: Record<string, number>
+  /** Mastery rank at Sortie start, keyed by Core type. */
+  coreMasteryStart?: Record<string, number>
+  /** Mastery XP gained this Sortie, keyed by Core type. */
+  coreMasteryXp?: Record<string, number>
+  coreBossClears?: Record<string, number>
+  coreNewBest?: Record<string, boolean>
+  coreMilestones?: Record<string, number[]>
   inFight: boolean
   /**
    * Player pause for Shipyard refit / repair. Auto-engage stops until Resume.
@@ -992,8 +1025,14 @@ export interface MetaState {
   lifetimeDronesBuilt: number
   /** Modules with at least one blueprint fragment recovered (permanent). */
   discoveredModules: string[]
-  /** Permanent mastery ranks from investing excess parts (cap 10, then 20 at Wave 275). */
+  /** Permanent Core Mastery level per Core type. Survives Rebuild. */
   moduleMastery: Record<string, number>
+  /** XP toward the next Mastery level, per Core type. */
+  moduleMasteryXp?: Record<string, number>
+  /** Old Scrap Dock ranks have been converted into Mastery. */
+  coreProgressionMigrated?: boolean
+  /** Lifetime Salvage Core Run Level purchases. */
+  lifetimeCoreRunBuys?: number
   /**
    * After first Null Signal clear, Signal Cores inventory + equipped
    * persist through prestige / challenge resets.

@@ -30,9 +30,9 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(computeShipStats(s).damage).toBeCloseTo(before * 1.15)
   })
 
-  it('allows Rebuild from Wave 70 and wipes Core levels', () => {
+  it('allows Rebuild from Wave 70 and keeps Core Mastery', () => {
     let s = armRebuildDoor(createInitialState(0))
-    s.shipyard.moduleLevels['pulse-cannon'] = 6
+    s.meta.moduleMastery = { 'pulse-cannon': 6 }
     s.shipyard.corePicks = { 'pulse-cannon': { 'pulse-10': 'focused' } }
     expect(canPrestige(s)).toBe(true)
 
@@ -42,7 +42,8 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     })
     expect(s.prestige.prestigeCount).toBe(1)
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
-    expect(s.shipyard.corePicks).toEqual({})
+    expect(s.meta.moduleMastery['pulse-cannon']).toBe(6)
+    expect(s.shipyard.corePicks['pulse-cannon']['pulse-10']).toBe('focused')
     expect(s.combat.docked).toBe(true)
   })
 
@@ -83,22 +84,21 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(visibleResourceIds(s)).toContain('salvage')
   })
 
-  it('spends Scrap on Dock Core ranks', () => {
+  it('spends Salvage on Core Run Levels during a Sortie', () => {
     let s = createInitialState(0)
-    s.resources.scrap = 10
+    s = setDocked(s, false)
+    s.resources.salvage = 10
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
-    expect(s.resources.scrap).toBe(7)
+    expect(s.combat.coreRunLevels?.['0']).toBe(1)
+    expect(s.resources.salvage).toBeLessThan(10)
   })
 
-  it('blocks further Pulse levels until the pending milestone is picked', () => {
+  it('does not require a milestone pick to buy the next Run Level', () => {
     let s = createInitialState(0)
-    s.shipyard.moduleLevels['pulse-cannon'] = 10
-    s.resources.scrap = 999
+    s = setDocked(s, false)
+    s.combat.coreRunLevels = { '0': 10 }
+    s.resources.salvage = 999
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(10)
-    s = pickCoreMilestone(s, 'pulse-cannon', 'pulse-10', 'rapid')
-    s = upgradeModule(s, 'pulse-cannon')
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(11)
+    expect(s.combat.coreRunLevels?.['0']).toBe(11)
   })
 })

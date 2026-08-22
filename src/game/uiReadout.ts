@@ -7,11 +7,11 @@ import {
   matterShopShieldBonus,
   metaDamageMultiplier,
   metaProductionMultiplier,
-  moduleLevel,
   moduleMasteryRank,
   moduleWeaponDamage,
 } from './catalog'
 import { formatCompact } from './format'
+import { corePrimaryOutput } from './coreProgression'
 import { processCombatSpeedMult } from './process'
 import { computeShipStats } from './state'
 import { ensureSortieStats, primaryThreat } from './sortieTelemetry'
@@ -107,18 +107,22 @@ export function liveBossHp(state: GameState): { hull: number; hullMax: number } 
 export function coreDps(state: GameState, moduleId: string): number {
   const def = getModule(moduleId)
   if (!def?.weapon) return 0
-  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+  const slot = state.shipyard.modules.indexOf(moduleId)
+  const out = slot >= 0 ? corePrimaryOutput(state, slot) : null
+  if (out?.label === 'DPS') return out.current
   const mastery = moduleMasteryRank(state, moduleId)
   const cooldown = Math.max(0.05, def.weapon.cooldown)
-  return moduleWeaponDamage(def, level, mastery) / cooldown
+  return moduleWeaponDamage(def, 0, mastery) / cooldown
 }
 
 export function coreShieldOutput(state: GameState, moduleId: string): number {
   const def = getModule(moduleId)
   if (!def) return 0
-  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+  const slot = state.shipyard.modules.indexOf(moduleId)
+  const out = slot >= 0 ? corePrimaryOutput(state, slot) : null
+  if (out?.label === 'Shield') return out.current
   const mastery = moduleMasteryRank(state, moduleId)
-  const flat = (def.shieldBonus ?? 0) + (def.shieldBonusPerLevel ?? 0) * level
+  const flat = def.shieldBonus ?? 0
   return flat * (1 + mastery * 0.02)
 }
 

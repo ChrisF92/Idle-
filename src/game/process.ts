@@ -18,6 +18,7 @@ import { NETWORK_BAR_IDS } from './types'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { AI_NODES } from './catalog'
 import { isWorkerJob } from './workers'
+import { practicedCoreWork } from './corePractice'
 
 export type ProcessKind = 'automation' | 'qol'
 
@@ -160,7 +161,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Core Buy Max',
     category: 'cores',
     kind: 'automation',
-    blurb: 'Adds a Buy Max control on Dock Cores. Spends Scrap according to your current priority.',
+    blurb: 'Adds Buy Max for Core Run Levels during a Sortie. Spends Salvage on the current priority.',
     cost: 4,
     requiresMastery: 'cores',
   },
@@ -196,7 +197,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Core Auto Upgrade',
     category: 'cores',
     kind: 'automation',
-    blurb: 'While docked, spend Scrap on Core ranks using your priority. Toggleable.',
+    blurb: 'While a Sortie is live, spend Salvage on Core Run Levels using your priority. Toggleable.',
     cost: 8,
     requiresId: 'core-buy-max',
     requiresMastery: 'cores',
@@ -639,7 +640,7 @@ export function processVisibleNodes(state: GameState): ProcessNodeDef[] {
 
 /** Manual loops the player has already practised — GDD §139. */
 export function processLessonCount(state: GameState): number {
-  const cores = Object.values(state.shipyard.moduleLevels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
+  const cores = practicedCoreWork(state)
   const workshop = Object.values(state.workshop?.levels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
   const recipes = Object.values(state.foundry?.recipeLevels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
   return cores + workshop + recipes + (state.meta.lifetimeFabCrafts ?? 0)
@@ -856,7 +857,7 @@ export function grantProcessPrereqs(purchased: string[]): string[] {
 export function hasProcessMastery(state: GameState, kind: ProcessMastery): boolean {
   switch (kind) {
     case 'cores':
-      return Object.values(state.shipyard.moduleLevels ?? {}).some((n) => n > 0)
+      return practicedCoreWork(state) > 0
     case 'network':
       return Object.entries(state.base.assignments ?? {}).some(
         ([id, n]) => (n ?? 0) > 0 && isWorkerJob(id),

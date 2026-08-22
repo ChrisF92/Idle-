@@ -11,6 +11,7 @@ import {
 } from './cadence'
 import { careerBestWave, meetsWave } from './waves'
 import { rebuildDoorMet } from './rebuild'
+import { anyCoreRunLevel, practicedCoreWork } from './corePractice'
 
 export {
   WAVES_PER_SECTOR,
@@ -371,7 +372,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'core-hands',
     name: 'Hands On Cores',
-    description: 'Rank Cores to a combined 2 run levels.',
+    description: 'Buy two Core Run Levels during a Sortie.',
     rewardAiPoints: 2,
     condition: { type: 'module-level-sum', min: 2 },
   },
@@ -572,7 +573,7 @@ export function achievementProgressValue(
     case 'lifetime-core-merges':
       return state.meta.lifetimeCoreMerges ?? 0
     case 'module-level-sum':
-      return Object.values(state.shipyard.moduleLevels ?? {}).reduce((a, b) => a + b, 0)
+      return practicedCoreWork(state)
     case 'network-level-sum':
       return Object.values(state.network?.bars ?? {}).reduce((a, b) => a + (b?.levels ?? 0), 0)
     case 'foundry-recipe-level':
@@ -994,8 +995,7 @@ export function guideBodyLines(step: GuideStep): string[] {
 const TAP_TARGETS = new Set([
   'launch',
   'retry-frontier',
-  'upgrade-pulse-cannon',
-  'upgrade-plate-layer',
+  'core-run-pulse-cannon',
   'network-strike-plus',
   'network-ward-plus',
   'worker-scrap-field',
@@ -1018,6 +1018,7 @@ export function guideStepNeedsTap(step: GuideStep): boolean {
 /** Cores modal should stay open for these spotlight targets. */
 export function isCoresGuideTarget(step: GuideStep): boolean {
   const t = step.target
+  if (t.startsWith('core-run-')) return false
   if (t.startsWith('core-') || t.startsWith('upgrade-')) return true
   return t === 'cores-sheet' && step.id !== 'guide-cores-sheet'
 }
@@ -1092,45 +1093,30 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (s) => Boolean(s.meta.hullLostOnce) || (s.combat.wave ?? 1) >= 2,
   },
   {
-    id: 'guide-upgrade-pulse',
+    id: 'guide-core-run',
     kind: 'action',
-    title: 'Pulse Cannon',
-    body: 'Rank Pulse at Dock with Scrap.',
-    target: 'upgrade-pulse-cannon',
-    tab: 'dock',
-    screen: 'dock',
+    title: 'Cores can be powered up during a Sortie',
+    body: 'Core Run Levels use Salvage and reset when the Sortie ends. Tap Pulse Core.',
+    target: 'core-run-pulse-cannon',
+    tab: 'combat',
+    screen: 'combat',
     group: 'cores',
     required: true,
     tap: true,
     availableWhen: (s) =>
-      hasHullLostOnce(s) &&
-      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) < 1 &&
-      !guideSeen(s, 'guide-upgrade-pulse'),
-    completeWhen: (s) => (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1,
+      !s.combat.docked &&
+      (s.combat.defeatLeft ?? 0) <= 0 &&
+      (s.resources.salvage ?? 0) > 0 &&
+      (guideSeen(s, 'guide-salvage-first') || hasHullLostOnce(s) || (s.combat.wave ?? 1) >= 2) &&
+      anyCoreRunLevel(s) < 1 &&
+      !guideSeen(s, 'guide-core-run'),
+    completeWhen: (s) => anyCoreRunLevel(s) >= 1 || (s.meta.lifetimeCoreRunBuys ?? 0) >= 1,
   },
   {
-    id: 'guide-upgrade-plate',
-    kind: 'action',
-    title: 'Plate',
-    body: 'Rank Plate at Dock with Scrap.',
-    target: 'upgrade-plate-layer',
-    tab: 'dock',
-    screen: 'dock',
-    group: 'cores',
-    required: true,
-    tap: true,
-    availableWhen: (s) =>
-      hasHullLostOnce(s) &&
-      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
-      (s.shipyard.moduleLevels['plate-layer'] ?? 0) < 1 &&
-      !guideSeen(s, 'guide-upgrade-plate'),
-    completeWhen: (s) => (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1,
-  },
-  {
-    id: 'guide-cores-persist',
+    id: 'guide-core-mastery',
     kind: 'hint',
-    title: 'Cores last',
-    body: 'Scrap ranks stay until Rebuild. Equip Cores at Dock, not mid-Sortie.',
+    title: 'Core Mastery',
+    body: 'An equipped Core develops permanently. Mastery survives Rebuild.',
     target: 'dock-cores',
     tab: 'dock',
     screen: 'dock',
@@ -1138,9 +1124,9 @@ export const GUIDE_STEPS: GuideStep[] = [
     tap: false,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
-      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
-      (s.shipyard.moduleLevels['plate-layer'] ?? 0) >= 1 &&
-      !guideSeen(s, 'guide-cores-persist'),
+      s.combat.docked &&
+      practicedCoreWork(s) > 0 &&
+      !guideSeen(s, 'guide-core-mastery'),
   },
   {
     id: 'guide-relaunch',
@@ -1154,7 +1140,6 @@ export const GUIDE_STEPS: GuideStep[] = [
     tap: true,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
-      (s.shipyard.moduleLevels['pulse-cannon'] ?? 0) >= 1 &&
       !guideSeen(s, 'guide-relaunch') &&
       s.combat.docked,
     completeWhen: (s) => !s.combat.docked,
@@ -1260,9 +1245,8 @@ export const STARTER_GUIDE_IDS = [
   'guide-launch',
   'guide-sortie-fire',
   'guide-salvage-first',
-  'guide-upgrade-pulse',
-  'guide-upgrade-plate',
-  'guide-cores-persist',
+  'guide-core-run',
+  'guide-core-mastery',
   'guide-relaunch',
 ] as const
 

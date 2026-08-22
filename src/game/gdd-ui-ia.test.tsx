@@ -66,7 +66,7 @@ describe('GDD shell information architecture', () => {
     expect(screen.getByText('Loadout')).toBeTruthy()
     expect(screen.getByText('Workshop')).toBeTruthy()
     expect(screen.getByText('Rebuild')).toBeTruthy()
-    expect(screen.getByText(/Equip and rank Cores here with Scrap/i)).toBeTruthy()
+    expect(screen.getByText(/Permanent strength is Mastery/i)).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Workshop' }))
     expect(screen.getByText('Weapon Power')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))

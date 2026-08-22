@@ -82,6 +82,10 @@ import {
   resetRunCoreLevels,
   salvageWaveBonus,
 } from './workshop'
+import {
+  awardEquippedMasteryXp,
+  snapshotCoreMasteryStart,
+} from './coreProgression'
 import { clearFrontierHold, isChallengeSortie, addCombatClockMs } from './frontier'
 import {
   clearDirectives,
@@ -549,11 +553,17 @@ function grantWaveClearRewards(state: GameState, wave: number, wasBoss: boolean)
 function onFightWon(state: GameState): void {
   const clearedWave = state.combat.wave
   const wasBoss = state.combat.isBoss
+  const careerBestBefore = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   state.meta.lifetimeWaveClears = (state.meta.lifetimeWaveClears ?? 0) + 1
   persistFlagshipHull(state)
   clearEnemiesOnly(state)
   state.combat.consecutiveLosses = 0
-  noteBestWave(state, clearedWave)
+  const newBest = noteBestWave(state, clearedWave)
+  awardEquippedMasteryXp(state, clearedWave, {
+    boss: wasBoss,
+    newBest,
+    careerBestBefore,
+  })
 
   grantWaveClearRewards(state, clearedWave, wasBoss)
   if (wasBoss) {
@@ -758,6 +768,13 @@ function launchFromDock(state: GameState): void {
   state.combat.runUpgrades = {}
   state.resources.salvage = 0
   applyWorkshopCoreStarts(state)
+  state.combat.coreRunLevels = {}
+  state.combat.coreSalvageSpent = {}
+  state.combat.coreMasteryXp = {}
+  state.combat.coreBossClears = {}
+  state.combat.coreNewBest = {}
+  state.combat.coreMilestones = {}
+  snapshotCoreMasteryStart(state)
   clearDirectives(state)
   state.combat.docked = false
   state.combat.sortieMark = captureSortieMark(state)

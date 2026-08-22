@@ -2,7 +2,8 @@ import type { GameState, SortieSummary } from '../game/types'
 import { formatCompact } from '../game/format'
 import { isFirstDefeatReport } from '../game/playerGuidance'
 import { getModule } from '../game/catalog'
-import { coreContributionPct, coreDps, formatRunTime } from '../game/uiReadout'
+import { corePrimaryOutput } from '../game/coreProgression'
+import { formatRunTime } from '../game/uiReadout'
 
 interface SortieReportProps {
   summary: SortieSummary
@@ -10,7 +11,7 @@ interface SortieReportProps {
   onClose: () => void
   onDock?: () => void
   onRunAgain?: () => void
-  onUpgradeCores?: () => void
+  onViewCore?: (moduleId: string) => void
 }
 
 function spendPct(part: number, total: number): string {
@@ -18,7 +19,7 @@ function spendPct(part: number, total: number): string {
   return `${Math.round((100 * part) / total)}%`
 }
 
-export function SortieReport({ summary, state, onClose, onDock, onRunAgain }: SortieReportProps) {
+export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onViewCore }: SortieReportProps) {
   const defeat = summary.outcome === 'defeat'
   const firstDefeat = defeat && isFirstDefeatReport(state)
   const goDock = () => {
@@ -40,13 +41,21 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain }: So
     stats?.lastIsBoss && stats.finalEnemyHpMax > 0
       ? Math.round((100 * stats.finalEnemyHp) / stats.finalEnemyHpMax)
       : null
-  const cores = state.shipyard.modules
-    .map((id) => {
-      const share = coreContributionPct(state, id)
-      const dps = coreDps(state, id)
-      return { id, name: getModule(id)?.name ?? id, share, dps }
-    })
-    .filter((row) => row.share != null || row.dps > 0)
+  const cores = (summary.cores ?? []).length > 0
+    ? summary.cores!
+    : state.shipyard.modules.map((id, slot) => ({
+        moduleId: id,
+        slot,
+        runLevel: 0,
+        masteryStart: 0,
+        masteryEnd: 0,
+        masteryXp: 0,
+        salvageSpent: 0,
+        contribution: 0,
+        bossClears: 0,
+        newBestBonus: false,
+        milestones: [] as number[],
+      }))
 
   return (
     <div className="modal-backdrop sortie-report-backdrop" role="dialog" aria-labelledby="sortie-report-title">
@@ -129,14 +138,35 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain }: So
 
             {cores.length > 0 ? (
               <section>
-                <p className="combat-hud-kicker">Core contribution</p>
+                <p className="combat-hud-kicker">Core performance</p>
                 <ul className="sortie-next">
-                  {cores.map((row) => (
-                    <li key={row.id}>
-                      {row.name}{' '}
-                      {row.share != null ? `${row.share}%` : `${formatCompact(row.dps)} DPS`}
-                    </li>
-                  ))}
+                  {cores.map((row) => {
+                    const name = getModule(row.moduleId)?.name ?? row.moduleId
+                    const leveled = row.masteryEnd > row.masteryStart
+                    const milestone = row.milestones[row.milestones.length - 1]
+                    const out = corePrimaryOutput(state, row.slot)
+                    return (
+                      <li key={`${row.moduleId}-${row.slot}`}>
+                        <strong>{name}</strong>
+                        {leveled ? ` — M${row.masteryStart} → M${row.masteryEnd}` : ''}
+                        {milestone ? ` · Mastery milestone M${milestone}` : ''}
+                        <span className="muted">
+                          {' '}
+                          Run Lv{row.runLevel}
+                          {row.masteryXp > 0 ? ` · +${row.masteryXp} Mastery XP` : ''}
+                          {out ? ` · ${formatCompact(out.current)} ${out.label}` : ''}
+                        </span>
+                        {onViewCore && (leveled || milestone) ? (
+                          <>
+                            {' '}
+                            <button type="button" onClick={() => onViewCore(row.moduleId)}>
+                              View Core
+                            </button>
+                          </>
+                        ) : null}
+                      </li>
+                    )
+                  })}
                 </ul>
               </section>
             ) : null}

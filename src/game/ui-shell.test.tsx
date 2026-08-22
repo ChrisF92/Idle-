@@ -54,7 +54,7 @@ describe('shell UX', () => {
     expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
     expect(document.querySelector('[data-guide="cores-sheet"]')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
-    expect(screen.getByText(/Rank and equip Cores at Dock/i)).toBeTruthy()
+    expect(screen.getByText(/Run Levels reset/i)).toBeTruthy()
     expect(document.querySelector('[data-guide="core-pulse-cannon"]')).toBeTruthy()
   })
 
@@ -200,8 +200,9 @@ describe('shell UX', () => {
       'guide-upgrade-plate',
       'guide-cores-inspect',
     ]
+    persist.meta.lifetimeCoreRunBuys = 2
     const persistStep = activeGuideStep(persist, 'dock')
-    expect(persistStep?.id).toBe('guide-cores-persist')
+    expect(persistStep?.id === 'guide-core-mastery' || persistStep?.id === 'guide-relaunch').toBe(true)
 
     render(
       <CombatTab
@@ -219,7 +220,7 @@ describe('shell UX', () => {
 
   it('shows Got it only on look-only onboarding tips', () => {
     const tap = GUIDE_STEPS.find((s) => s.id === 'guide-network-strike')
-    const look = GUIDE_STEPS.find((s) => s.id === 'guide-cores-persist')
+    const look = GUIDE_STEPS.find((s) => s.id === 'guide-core-mastery')
     expect(tap && look).toBeTruthy()
     const { rerender } = render(
       <GuideOverlay step={tap!} onComplete={() => undefined} onSkip={() => undefined} />,

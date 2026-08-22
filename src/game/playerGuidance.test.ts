@@ -42,7 +42,7 @@ describe('player guidance helpers', () => {
     s.meta.seenOnboarding = ['guide-shipyard-tab']
     migrateOnboardingState(s)
     expect(s.meta.seenOnboarding).toContain('guide-launch')
-    expect(s.meta.seenOnboarding).not.toContain('guide-upgrade-pulse')
+    expect(s.meta.seenOnboarding).not.toContain('guide-core-run')
   })
 
   it('lists accurate Rebuild keep/reset from unlocked systems', () => {
@@ -53,7 +53,7 @@ describe('player guidance helpers', () => {
     const lists = rebuildConsequenceLists(s)
     expect(lists.gain[0]).toMatch(/Rebuild Matter/)
     expect(lists.keep).toEqual(expect.arrayContaining(['Research', 'Foundry recipes, stock, and Foundry Points']))
-    expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Core ranks', 'Workshop']))
+    expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Core Run Levels', 'Workshop']))
     expect(lists.change).toEqual([])
   })
 
@@ -81,7 +81,7 @@ describe('player guidance helpers', () => {
     s.base.assignments = {}
     const hints = sortieNextHints(s)
     expect(hints.some((h) => /idle/i.test(h))).toBe(true)
-    expect(hints).toContain('Upgrade Plate')
+    expect(hints.some((h) => /Salvage|Cores/i.test(h))).toBe(true)
     expect(hints.join(' ')).not.toMatch(/Furnace/)
   })
 
@@ -110,7 +110,7 @@ describe('player guidance helpers', () => {
     s.meta.seenOnboarding = ['guide-drone-cap']
     const loaded = importSave(exportSave(s))
     expect(loaded?.meta.seenOnboarding).toContain('guide-launch')
-    expect(loaded?.meta.seenOnboarding).toContain('guide-upgrade-pulse')
+    expect(loaded?.meta.seenOnboarding).toContain('guide-core-run')
   })
 
   it('replay-first-run clears seen flags without wiping progress', () => {

@@ -54,7 +54,8 @@ export function coreRoleColor(role: 'weapon' | 'defense' | 'utility'): string {
 
 export function weaponIdToCoreId(weaponId?: string): string | null {
   if (!weaponId) return null
-  return weaponId.endsWith('-wpn') ? weaponId.slice(0, -4) : weaponId
+  const tagged = weaponId.match(/^(.*)-wpn(?:-\d+)?$/)
+  return tagged ? tagged[1] : weaponId
 }
 
 /** Half-width of a weapon Core's outward firing cone, in radians. */

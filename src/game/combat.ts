@@ -52,6 +52,7 @@ import {
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { fittedRegenBonus } from './milestones'
+import { combinedCoreMods } from './coreProgression'
 import { networkSalvageMult } from './network'
 import { grantReliquaryKillLoot, reliquaryResearchXpMult, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
@@ -2061,6 +2062,7 @@ function fittedSalvageKillMult(state: GameState): number {
   let add = 0
   for (const id of state.shipyard.modules) {
     add += getModule(id)?.salvageKillBonus ?? 0
+    add += combinedCoreMods(state, id).salvageKillAdd
   }
   return 1 + add
 }
@@ -2434,8 +2436,12 @@ export function simulateCombat(
 
   moveUnits(state, dt)
 
+  const masteryRegen = state.shipyard.modules.reduce(
+    (n, id) => n + combinedCoreMods(state, id).regenAdd,
+    0,
+  )
   const regenFrac =
-    (fittedShieldRegenFraction(state.shipyard.modules) + fittedRegenBonus(state)) *
+    (fittedShieldRegenFraction(state.shipyard.modules) + fittedRegenBonus(state) + masteryRegen) *
     directiveShieldRegenMult(state)
   for (const unit of state.combat.playerUnits) {
     if ((unit.regenDelay ?? 0) > 0) {

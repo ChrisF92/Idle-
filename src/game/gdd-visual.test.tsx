@@ -53,7 +53,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
   })
 
-  it('keeps Sortie Cores inspect-only', () => {
+  it('keeps Sortie Cores inspect-only and sells Run Levels in Attack', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
     state.resources.scrap = 80
@@ -66,12 +66,15 @@ describe('GDD visual layout and Dock Core ranks', () => {
         onPickMilestone={() => undefined}
       />,
     )
+    expect(screen.getByText('CORES')).toBeTruthy()
+    expect(screen.getByText('GLOBAL')).toBeTruthy()
+    expect(screen.getByText(/Pulse Cannon/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
-    expect(screen.getByText(/Rank and equip Cores at Dock/i)).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Upgrade/ })).toBeNull()
+    expect(screen.getByText(/Run Levels reset/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Upgrade ·/ })).toBeNull()
   })
 
-  it('ranks Cores from Dock Loadout with Scrap', () => {
+  it('inspects Mastery and Run Level instead of Dock Scrap ranks', () => {
     const state = markHullLost(createInitialState(0))
     state.resources.scrap = 40
     render(
@@ -80,43 +83,38 @@ describe('GDD visual layout and Dock Core ranks', () => {
         onLaunch={() => undefined}
         onOpenSortie={() => undefined}
         onRebuild={() => undefined}
-        onUpgrade={() => undefined}
       />,
     )
-    expect(screen.getByText(/Equip and rank Cores here with Scrap/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Upgrade · 3 Scrap/ })).toBeTruthy()
+    expect(screen.getByText(/Permanent strength is Mastery/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Upgrade · .* Scrap/ })).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'Workshop' }))
     expect(screen.getByText('Weapon Power')).toBeTruthy()
     expect(screen.getByText(/START Lv/)).toBeTruthy()
   })
 
-  it('inspects Core ranks in Scrap, not Salvage', () => {
+  it('inspects Core Mastery, not Scrap ranks', () => {
     const s = createInitialState(0)
-    s.resources.scrap = 12
     const card = inspectCore(s, 'pulse-cannon')
-    expect(card?.stats.find((row) => row.label === 'Scrap')?.value).toBeTruthy()
-    expect(card?.stats.find((row) => row.label === 'Mastery')?.value).toBeTruthy()
-    expect(card?.stats.find((row) => row.label === 'Layer')?.value).toMatch(/Dock Scrap/)
-    expect(card?.stats.find((row) => row.label === 'Next level')?.value).toMatch(/Scrap/)
-    expect(card?.stats.find((row) => row.label === 'Salvage')).toBeUndefined()
+    expect(card?.stats.find((row) => row.label === 'Mastery')?.value).toMatch(/XP/)
+    expect(card?.stats.find((row) => row.label === 'Run Level')?.value).toBeTruthy()
+    expect(card?.body.join(' ')).toMatch(/Mastery/)
+    expect(card?.stats.find((row) => row.label === 'Layer')).toBeUndefined()
+    expect(card?.stats.find((row) => row.label === 'Next level')).toBeUndefined()
   })
 
-  it('refuses in-run Core buys and persists Dock Scrap ranks through Extract', () => {
+  it('buys Core Run Levels with Salvage and resets them on Extract', () => {
     let s = createInitialState(0)
     s.resources.scrap = 80
+    s = launch(s)
     s.resources.salvage = 80
-    s = launch(s)
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
-
+    expect(s.combat.coreRunLevels?.['0']).toBe(1)
+    expect(s.resources.salvage).toBeLessThan(80)
+    expect(s.resources.scrap).toBe(80)
     s = setDocked(s, true)
+    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
-    expect(s.resources.scrap).toBe(77)
-    s = launch(s)
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
-    s = setDocked(s, true)
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
+    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
   })
 
   it('exposes Sortie speed and hub status without player-facing Pressure', () => {
@@ -128,13 +126,13 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(processHubStatus(docked)[0]).toMatch(/capabilities/)
   })
 
-  it('wipes Core ranks on Rebuild', () => {
+  it('keeps Mastery and wipes leftover ranks on Rebuild', () => {
     let s = armRebuildDoor(createInitialState(0))
-    s.resources.scrap = 40
-    s = upgradeModule(s, 'pulse-cannon')
-    expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
+    s.meta.moduleMastery = { 'pulse-cannon': 4 }
+    s.shipyard.moduleLevels = { 'pulse-cannon': 1 }
     s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.workshop?.coreStarts['pulse-cannon'] ?? 0).toBe(0)
+    expect(s.meta.moduleMastery['pulse-cannon']).toBe(4)
   })
 })

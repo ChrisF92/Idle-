@@ -22,7 +22,6 @@ import {
   unlockModule,
   upgradeModule,
 } from './actions'
-import { moduleLevel } from './catalog'
 import { clearCurrentWave, equipPostTutorialLoadout, forceUnlockModule } from './testHelpers'
 
 describe('tickGame', () => {
@@ -419,10 +418,11 @@ describe('prestige and challenges', () => {
 describe('salvage module upgrades', () => {
   it('upgrades a module with salvage and resets on prestige', () => {
     let state = createInitialState(0)
+    state.combat.docked = false
     state.resources.salvage = 100
     const before = computeShipStats(state).damage
     state = upgradeModule(state, 'pulse-cannon')
-    expect(moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')).toBe(1)
+    expect(state.combat.coreRunLevels?.['0']).toBe(1)
     expect(computeShipStats(state).damage).toBeGreaterThan(before)
     expect(state.resources.salvage).toBeLessThan(100)
 
@@ -430,9 +430,8 @@ describe('salvage module upgrades', () => {
     state.combat.highestSector = 12
     state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
-    // Returning runs start with a salvage kit for early module levels.
     expect(state.resources.salvage).toBe(19)
-    expect(moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon')).toBe(0)
+    expect(state.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
     expect(state.shipyard.modules).toContain('pulse-cannon')
   })
 })

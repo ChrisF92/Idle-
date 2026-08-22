@@ -850,11 +850,28 @@ button.just-ok {
   gap: 0.4rem;
 }
 
+.shop-kicker {
+  grid-column: 1 / -1;
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
 .upgrade-tile {
   position: relative;
   min-height: 0;
   border: 1px solid var(--line);
   background: var(--bg-inset);
+}
+
+.core-tile {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-inset));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+}
+
+.core-tile.is-affordable {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
 }
 
 .upgrade-tile.is-affordable {

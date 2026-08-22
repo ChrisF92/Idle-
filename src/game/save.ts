@@ -46,6 +46,7 @@ import { emptyLastSortie } from './sortieSummary'
 import { createEmptyWorkshop } from './workshop'
 import { normalizePushMode, normalizeRoute } from './sectors'
 import { migrateOnboardingState } from './playerGuidance'
+import { migrateLegacyCoreProgression } from './coreProgression'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
 import { hydrateFrontierCombat } from './frontier'
@@ -89,6 +90,7 @@ function withLastSortieDefaults(
     ashEarned: Math.max(0, Math.floor(Number(raw.ashEarned ?? 0) || 0)),
     dataEarned: Math.max(0, Math.floor(Number(raw.dataEarned ?? 0) || 0)),
     fragmentsEarned: Math.max(0, Math.floor(Number(raw.fragmentsEarned ?? 0) || 0)),
+    cores: Array.isArray(raw.cores) ? raw.cores : [],
   }
 }
 
@@ -122,6 +124,13 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     highestSector: Math.max(0, combat.highestSector ?? 0),
     bestWave: Math.max(0, Math.floor(Number(combat.bestWave ?? 0) || 0)),
     runUpgrades: { ...(combat.runUpgrades ?? {}) },
+    coreRunLevels: { ...(combat.coreRunLevels ?? {}) },
+    coreSalvageSpent: { ...(combat.coreSalvageSpent ?? {}) },
+    coreMasteryStart: { ...(combat.coreMasteryStart ?? {}) },
+    coreMasteryXp: { ...(combat.coreMasteryXp ?? {}) },
+    coreBossClears: { ...(combat.coreBossClears ?? {}) },
+    coreNewBest: { ...(combat.coreNewBest ?? {}) },
+    coreMilestones: { ...(combat.coreMilestones ?? {}) },
     wave: Math.max(1, combat.wave ?? 1),
     campaign: normalizePushMode(combat.pushMode, combat.campaign ?? true) === 'advance',
     pushMode: normalizePushMode(combat.pushMode, combat.campaign ?? true),
@@ -256,6 +265,7 @@ function withShipyardDefaults(
     modules: shipyard?.modules ?? base.modules,
     frameId: shipyard?.frameId ?? base.frameId,
     moduleLevels: shipyard?.moduleLevels ?? {},
+    moduleCopies: { ...(shipyard?.moduleCopies ?? base.moduleCopies ?? {}) },
     corePicks: shipyard?.corePicks ?? {},
     frameLocked: shipyard?.frameLocked ?? false,
   }
@@ -575,6 +585,9 @@ function withMetaDefaults(
     lifetimeDronesBuilt: Math.max(0, Math.floor(Number(meta?.lifetimeDronesBuilt ?? 0))),
     discoveredModules: [...(meta?.discoveredModules ?? [])],
     moduleMastery: { ...(meta?.moduleMastery ?? {}) },
+    moduleMasteryXp: { ...(meta?.moduleMasteryXp ?? {}) },
+    coreProgressionMigrated: meta?.coreProgressionMigrated === true,
+    lifetimeCoreRunBuys: Math.max(0, Math.floor(Number(meta?.lifetimeCoreRunBuys ?? 0) || 0)),
     signalCoresCarryOver: meta?.signalCoresCarryOver ?? false,
     // Progressed careers skip the starter death → Plate → salvage lesson.
     starterCombatLesson: (() => {
@@ -732,6 +745,7 @@ function migrate(raw: unknown): GameState | null {
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingState(hydrated)
+    migrateLegacyCoreProgression(hydrated)
     return hydrated
   }
 
@@ -826,6 +840,7 @@ function migrate(raw: unknown): GameState | null {
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingState(hydrated)
+    migrateLegacyCoreProgression(hydrated)
     return hydrated
   }
 

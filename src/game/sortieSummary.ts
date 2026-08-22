@@ -12,6 +12,7 @@ import { retireLiveSortieGuides } from './progression'
 import { emptySortieRunStats, snapshotSortieEncounter } from './sortieTelemetry'
 import { recordPlaytest } from './playtest'
 import { fragmentCount } from './uiReadout'
+import { coreSortieRecords } from './coreProgression'
 
 const RESEARCH_BRANCHES: HiveResearchBranch[] = ['material', 'energy', 'observation']
 
@@ -39,6 +40,7 @@ export function emptyLastSortie(sector = 1, wave = 1): SortieSummary {
     ashEarned: 0,
     dataEarned: 0,
     fragmentsEarned: 0,
+    cores: [],
   }
 }
 
@@ -144,6 +146,7 @@ export function closeSortie(
     ashEarned: Math.max(0, Math.floor((state.resources.choirAsh ?? 0) - (mark?.ash ?? 0))),
     dataEarned: Math.max(0, Math.floor((state.resources.data ?? 0) - (mark?.data ?? 0))),
     fragmentsEarned: Math.max(0, fragmentCount(state) - (mark?.fragments ?? 0)),
+    cores: coreSortieRecords(state),
   }
   if (opts?.keepMark && state.combat.sortieMark) {
     state.combat.sortieMark.stats = emptySortieRunStats()

@@ -1,17 +1,13 @@
 import type { GameState, RelicSocketClass } from '../game/types'
-import {
-  MAX_MODULE_LEVEL,
-  getModule,
-  moduleLevel,
-  moduleMasteryRank,
-  moduleStatPreviews,
-  moduleUpgradeCost,
-} from '../game/catalog'
-import { pendingMilestone } from '../game/milestones'
+import { getModule, moduleMasteryRank, moduleStatPreviews } from '../game/catalog'
 import { formatCompact } from '../game/format'
 import { inspectCore, inspectShard } from '../game/inspect'
 import { coreContributionPct, coreDps } from '../game/uiReadout'
-import { protocolCoreScalingAdd } from '../game/protocols'
+import {
+  masteryXpToNext,
+  moduleMasteryXp,
+  nextMasteryMilestone,
+} from '../game/coreProgression'
 import {
   RELIC_SOCKET_LABELS,
   SHARDS,
@@ -25,7 +21,6 @@ import {
   shardOwned,
 } from '../game/reliquary'
 import { InspectName } from './InspectName'
-import { markLocalOk, useJustBecame } from '../hooks/useJustBecame'
 
 const SLOT_LABEL: Record<string, string> = {
   weapon: 'Weapon',
@@ -35,16 +30,14 @@ const SLOT_LABEL: Record<string, string> = {
 
 interface CoreSheetProps {
   state: GameState
-  onUpgrade: (moduleId: string) => void
-  onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
+  onUpgrade?: (moduleId: string) => void
+  onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
   compact?: boolean
   onBuyMax?: () => void
   /** Relic install/remove. Docked-only; omit during a live Sortie. */
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
-  /** Hide Scrap ranks and show Relic sockets only. */
   relicsOnly?: boolean
-  /** Sortie inspect: stats and Relics, no Dock ranks. */
   inspectOnly?: boolean
 }
 
@@ -144,52 +137,40 @@ function RelicSockets({
 function CoreRow({
   state,
   moduleId,
-  onUpgrade,
-  onPickMilestone,
   onEquipRelic,
   onRemoveRelic,
   relicsOnly = false,
-  inspectOnly = false,
 }: {
   state: GameState
   moduleId: string
-  onUpgrade: (moduleId: string) => void
-  onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   relicsOnly?: boolean
-  inspectOnly?: boolean
 }) {
   const def = getModule(moduleId)
-  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
-  const cost = moduleUpgradeCost(level, moduleId, protocolCoreScalingAdd(state, def?.role))
-  const maxed = level >= MAX_MODULE_LEVEL
-  const can = Boolean(def) && !maxed && !inspectOnly && (state.resources.scrap ?? 0) >= cost
-  const pending = pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])
-  const justReady = useJustBecame(can)
   if (!def) return null
   const mastery = moduleMasteryRank(state, moduleId)
-  const stats = moduleStatPreviews(moduleId, level, !maxed, mastery)
+  const xp = moduleMasteryXp(state, moduleId)
+  const need = masteryXpToNext(mastery)
+  const next = nextMasteryMilestone(moduleId, mastery)
+  const stats = moduleStatPreviews(moduleId, 0, false, mastery)
   const dps = coreDps(state, moduleId)
   const share = coreContributionPct(state, moduleId)
-  const headline = stats
-    .map((s) => `${s.label} ${s.current}${s.next ? `→${s.next}` : ''}`)
-    .join(' · ')
+  const headline = stats.map((s) => `${s.label} ${s.current}`).join(' · ')
 
   return (
-    <article
-      className={`core-row${pending ? ' is-pending' : can ? ' is-affordable' : ''}${justReady ? ' just-ready' : ''}`}
-      data-guide={`core-${moduleId}`}
-      data-focus={`core-${moduleId}`}
-    >
+    <article className="core-row" data-guide={`core-${moduleId}`} data-focus={`core-${moduleId}`}>
       <div className="core-row-main">
         <span className="muted">{SLOT_LABEL[def.role] ?? def.role}</span>
         <InspectName name={def.name} card={inspectCore(state, moduleId)} />
-        <span className="core-row-lv">
-          Lv {level}
-          {mastery > 0 ? ` · Mastery ${mastery}` : ''}
-        </span>
+        <span className="core-row-lv">Mastery {mastery}</span>
       </div>
+      {relicsOnly ? null : (
+        <p className="core-row-stats muted">
+          {xp} / {need} XP
+          {next ? ` · Next M${next.level} ${next.name}` : ''}
+        </p>
+      )}
       {dps > 0 && !relicsOnly ? (
         <p className="core-row-stats">
           DPS {formatCompact(dps)}
@@ -203,73 +184,27 @@ function CoreRow({
         onEquipRelic={onEquipRelic}
         onRemoveRelic={onRemoveRelic}
       />
-      {relicsOnly ? null : inspectOnly ? (
-        <p className="muted">
-          {maxed ? 'Maxed' : `Next: Lv ${level + 1} — ${formatCompact(cost)} Scrap at Dock`}
-        </p>
-      ) : pending ? (
-        <div className="core-picks">
-          {pending.choices.map((choice) => (
-            <button
-              key={choice.id}
-              type="button"
-              className="primary"
-              onClick={() => onPickMilestone(moduleId, pending.id, choice.id)}
-            >
-              {choice.name}
-              <span className="muted"> {choice.blurb}</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="primary"
-          data-guide={`upgrade-${moduleId}`}
-          disabled={!can}
-          onClick={(e) => {
-            markLocalOk(e.currentTarget)
-            onUpgrade(moduleId)
-          }}
-        >
-          {maxed ? 'Maxed' : `Upgrade · ${formatCompact(cost)} Scrap`}
-        </button>
-      )}
     </article>
   )
 }
 
 export function CoreSheet({
   state,
-  onUpgrade,
-  onPickMilestone,
   compact = false,
-  onBuyMax,
   onEquipRelic,
   onRemoveRelic,
   relicsOnly = false,
-  inspectOnly = false,
 }: CoreSheetProps) {
   return (
     <div className={compact ? 'core-sheet core-sheet-compact' : 'core-sheet'}>
-      {onBuyMax && !relicsOnly && !inspectOnly ? (
-        <p className="assign-row">
-          <button type="button" className="primary" data-guide="core-buy-max" onClick={onBuyMax}>
-            Buy Max
-          </button>
-        </p>
-      ) : null}
       {state.shipyard.modules.map((moduleId) => (
         <CoreRow
           key={moduleId}
           state={state}
           moduleId={moduleId}
-          onUpgrade={onUpgrade}
-          onPickMilestone={onPickMilestone}
           onEquipRelic={onEquipRelic}
           onRemoveRelic={onRemoveRelic}
           relicsOnly={relicsOnly}
-          inspectOnly={inspectOnly}
         />
       ))}
     </div>

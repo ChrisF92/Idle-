@@ -17,7 +17,7 @@ import {
   setFoundrySlot,
   setResearchFocus,
   unlockModule,
-  upgradeModule,
+  buyCoreRunSlot,
   assignWorker,
   enterProtocol,
   buyWorkshopUpgrade,
@@ -25,7 +25,6 @@ import {
 import { setCampaign, setDocked, retryFrontier, chooseDirective } from '../tick'
 import { canRetryFrontier, isFrontierHold } from '../frontier'
 import {
-  MAX_MODULE_LEVEL,
   canBuyMatterShop,
   getMatterShopItem,
   getModule,
@@ -36,6 +35,7 @@ import {
   SHIP_MODULES,
 } from '../catalog'
 import { pendingMilestone } from '../milestones'
+import { CORE_RUN_LEVEL_CAP, coreRunLevel, coreRunUpgradeCost } from '../coreProgression'
 import { computeShipStats } from '../state'
 import {
   NETWORK_BARS,
@@ -157,20 +157,20 @@ export function resolveMilestones(state: GameState, ctx: StrategyContext): GameS
 
 function coreScore(
   state: GameState,
-  moduleId: string,
+  slot: number,
   mode: 'active' | 'optimiser',
   hullPressure: number,
 ): number {
-  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
-  if (level >= MAX_MODULE_LEVEL) return -1
-  if (pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])) return -1
-  const cost = moduleUpgradeCost(level, moduleId)
-  if (cost > (state.resources.scrap ?? 0) || cost <= 0) return -1
+  const moduleId = state.shipyard.modules[slot]
+  if (!moduleId) return -1
+  const level = coreRunLevel(state, slot)
+  if (level >= CORE_RUN_LEVEL_CAP) return -1
+  const cost = coreRunUpgradeCost(level, moduleId)
+  if (cost > (state.resources.salvage ?? 0) || cost <= 0) return -1
   const before = computeShipStats(state)
   const probe = structuredClone(state)
-  probe.combat.docked = true
-  probe.resources.scrap += cost
-  const upgraded = upgradeModule(probe, moduleId)
+  probe.resources.salvage += cost
+  const upgraded = buyCoreRunSlot(probe, slot, 1)
   const after = computeShipStats(upgraded)
   const mod = getModule(moduleId)
   const dpsGain = Math.max(0, after.damage - before.damage)
@@ -191,37 +191,35 @@ export function spendSalvageOnCores(
   ctx: StrategyContext,
   mode: 'active' | 'casual' | 'optimiser',
 ): GameState {
-  if (!state.combat.docked) return state
-  let next = resolveMilestones(state, ctx)
+  if (state.combat.docked) return state
+  let next = state
   let guard = 0
   while (guard++ < (mode === 'casual' ? 4 : 12)) {
-    next = resolveMilestones(next, ctx)
     const hullMax = Math.max(1, next.combat.playerHullMax)
     const hullPressure =
       next.combat.consecutiveLosses >= 2
         ? 1
         : 1 - Math.max(0, Math.min(1, next.combat.playerHull / hullMax))
-    let bestId: string | null = null
+    let bestSlot: number | null = null
     let bestScore = 0
-    for (const id of next.shipyard.unlockedModules) {
-      if (!next.shipyard.modules.includes(id) && getModule(id)?.role !== 'weapon') {
-        // Only upgrade fitted Cores, plus Pulse even if somehow unfit.
-        if (id !== 'pulse-cannon' && id !== 'plate-layer') continue
-      }
+    for (let slot = 0; slot < next.shipyard.modules.length; slot += 1) {
+      const id = next.shipyard.modules[slot]!
+      const level = coreRunLevel(next, slot)
       const score =
         mode === 'casual'
-          ? 1 / Math.max(1, moduleUpgradeCost(moduleLevel(next.shipyard.moduleLevels, id), id))
-          : coreScore(next, id, mode === 'optimiser' ? 'optimiser' : 'active', hullPressure)
+          ? 1 / Math.max(1, coreRunUpgradeCost(level, id))
+          : coreScore(next, slot, mode === 'optimiser' ? 'optimiser' : 'active', hullPressure)
       if (score > bestScore) {
         bestScore = score
-        bestId = id
+        bestSlot = slot
       }
     }
-    if (!bestId || bestScore <= 0) break
-    const level = moduleLevel(next.shipyard.moduleLevels, bestId)
-    const cost = moduleUpgradeCost(level, bestId)
+    if (bestSlot == null || bestScore <= 0) break
+    const bestId = next.shipyard.modules[bestSlot]!
+    const level = coreRunLevel(next, bestSlot)
+    const cost = coreRunUpgradeCost(level, bestId)
     const statsBefore = computeShipStats(next)
-    const after = upgradeModule(next, bestId)
+    const after = buyCoreRunSlot(next, bestSlot, 1)
     if (after === next) break
     const statsAfter = computeShipStats(after)
     const statBefore =
@@ -240,7 +238,7 @@ export function spendSalvageOnCores(
     })
     if (bestId === 'pulse-cannon' && level === 0) ctx.recordMeaningful('First Pulse upgrade')
     if (bestId === 'plate-layer' && level === 0) ctx.recordMeaningful('First Plate upgrade')
-    else ctx.recordMeaningful(`${getModule(bestId)?.name ?? bestId} → L${level + 1}`)
+    else ctx.recordMeaningful(`${getModule(bestId)?.name ?? bestId} → Run Lv${level + 1}`)
     next = after
   }
   return next
@@ -436,10 +434,7 @@ export function tendHiveResearch(
 ): GameState {
   if (!isSystemUnlocked(state, 'research')) return state
   const salvage = state.resources.salvage
-  const pulseCost = moduleUpgradeCost(
-    moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon'),
-    'pulse-cannon',
-  )
+  const pulseCost = moduleUpgradeCost(coreRunLevel(state, 0), 'pulse-cannon')
   const material = state.hiveResearch?.completed.material ?? 0
   const energy = state.hiveResearch?.completed.energy ?? 0
   const observation = state.hiveResearch?.completed.observation ?? 0
@@ -616,7 +611,7 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
 export function tendProtocols(state: GameState, ctx: StrategyContext): GameState {
   if (!state.combat.docked) return state
   if (state.protocols?.activeId) return state
-  if ((state.shipyard.moduleLevels['pulse-cannon'] ?? 0) > 0) return state
+  if ((state.meta.lifetimeCoreRunBuys ?? 0) > 0) return state
   const pick = PROTOCOLS.find((p) => canEnterProtocol(state, p.id).ok && protocolRank(state, p.id) < PROTOCOL_MAX_RANK)
   if (!pick) return state
   const after = enterProtocol(state, pick.id)

@@ -168,7 +168,7 @@ describe('fleet combat resolution', () => {
     expect(enemyShot?.heading).toBeCloseTo(enemy.heading ?? 0)
     expect(enemyShot?.originX).toBeCloseTo(enemy.x)
     expect(playerShot?.heading).toBeCloseTo(enemy.heading ?? 0)
-    expect(playerShot?.weaponId).toMatch(/-wpn$/)
+    expect(playerShot?.weaponId).toMatch(/-wpn(?:-\d+)?$/)
   })
 
   it('uses one projectile speed for all weapon tags', () => {
@@ -179,6 +179,7 @@ describe('fleet combat resolution', () => {
 
   it('clears a sector with multi-unit packs', () => {
     let state = equipPostTutorialLoadout(createInitialState(0))
+    state.combat.coreRunLevels = { '0': 1, '1': 1 }
     state = startCombat(state)
     expect(state.combat.enemyUnits.length).toBeGreaterThan(1)
     advanceTicks(state, 120)

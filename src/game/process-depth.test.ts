@@ -178,10 +178,9 @@ describe('Act 1 Process depth', () => {
     s.combat.docked = false
     s.process.purchased = ['auto-salvage']
     s.resources.salvage = 40
-    const before = s.shipyard.moduleLevels['pulse-cannon'] ?? 0
+    const before = Object.values(s.combat.coreRunLevels ?? {}).reduce((a, b) => a + b, 0)
     advanceSeconds(s, 1)
-    expect((s.shipyard.moduleLevels['pulse-cannon'] ?? 0) + (s.shipyard.moduleLevels['plate-layer'] ?? 0)).toBeGreaterThan(
-      before,
-    )
+    const after = Object.values(s.combat.coreRunLevels ?? {}).reduce((a, b) => a + b, 0)
+    expect(after).toBeGreaterThan(before)
   })
 })

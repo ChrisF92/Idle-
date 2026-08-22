@@ -70,28 +70,28 @@ describe('onboarding queue', () => {
     const state = createInitialState(0)
     const combatGuide = activeGuideStep(state, 'combat')
     expect(combatGuide?.id === 'guide-launch' || combatGuide == null).toBe(true)
-    expect(combatGuide?.id).not.toBe('guide-upgrade-pulse')
+    expect(combatGuide?.id).not.toBe('guide-core-run')
     expect(activeGuideStep(state, 'network')).toBeNull()
     const dead = markHullLost(state)
-    expect(activeGuideStep(dead, 'combat')?.id).toBe('guide-upgrade-pulse')
+    expect(activeGuideStep(dead, 'combat')?.id).toBe('guide-relaunch')
     expect(activeGuideStep(dead, 'network')?.id).toBe('guide-network-strike')
   })
 
-  it('walks Pulse then Plate as guided actions after the first defeat', () => {
+  it('teaches a Core Run Level after generic Salvage spending', () => {
     let state = afterFirstDeath()
     state.resources.salvage = 20
-    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-upgrade-pulse')
+    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-core-run')
     expect(guidePausesSimulation(activeGuideStep(state, 'combat'))).toBe(false)
 
-    state.shipyard.moduleLevels['pulse-cannon'] = 1
-    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-upgrade-plate')
+    state.combat.coreRunLevels = { '0': 1 }
+    state.meta.lifetimeCoreRunBuys = 1
+    expect(activeGuideStep(state, 'combat')?.id).not.toBe('guide-core-run')
 
-    state.shipyard.moduleLevels['plate-layer'] = 1
-    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-cores-persist')
-
-    state = acknowledgeOnboarding(state, 'guide-cores-persist')
-    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-relaunch')
-    expect(activeGuideStep(state, 'combat')?.target).toBe('retry-frontier')
+    state.combat.docked = true
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-core-mastery')
+    state = acknowledgeOnboarding(state, 'guide-core-mastery')
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-relaunch')
+    expect(activeGuideStep(state, 'combat')?.target).toBe('launch')
   })
 
   it('only shows Network assignment when the player opens Network', () => {
