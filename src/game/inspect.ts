@@ -204,7 +204,7 @@ export function inspectNetworkBar(state: GameState, id: NetworkBarId): InspectCa
   const rate = networkFillRate(state, id)
   const eta = networkSecondsToLevel(state, id)
   const stats: InspectStat[] = [
-    { label: 'Status', value: open ? `Level ${levels}` : `Opens after sector ${def.requiresSectorEver}` },
+    { label: 'Status', value: open ? `Level ${levels}` : `Opens after Wave ${def.requiresBestWave}` },
   ]
   if (open) {
     stats.push(
@@ -468,8 +468,8 @@ export function inspectFoundryRecipe(state: GameState, id: FoundryRecipeId): Ins
   if (inf) {
     body.unshift('This material is solved. You do not need to queue it any more.')
   }
-  if (def.requiresSectorEver > 2) {
-    body.push(`This recipe opens after you clear sector ${def.requiresSectorEver}.`)
+  if (def.requiresBestWave > ACT1_CADENCE.foundry) {
+    body.push(`This recipe opens after you reach Wave ${def.requiresBestWave}.`)
   }
   return {
     title: def.name,
@@ -606,8 +606,8 @@ export function inspectShard(state: GameState, shardId: string): InspectCard | n
   if (def.upgradesTo) {
     body.push('Foundry can raise this Relic to the next authored tier.')
   }
-  if ((def.requiresSectorEver ?? 0) > 0) {
-    body.push(`This Relic waits until you have cleared sector ${def.requiresSectorEver}.`)
+  if ((def.requiresBestWave ?? 0) > 0) {
+    body.push(`This Relic waits until you have reached Wave ${def.requiresBestWave}.`)
   }
   return {
     title: def.name,
@@ -630,7 +630,7 @@ export function inspectReliquarySlot(state: GameState, color: ReliquaryColor): I
     stats: [
       {
         label: 'Status',
-        value: open ? 'Empty' : `Opens after sector ${slot.requiresSectorEver}`,
+        value: open ? 'Empty' : `Opens after Wave ${slot.requiresBestWave}`,
       },
     ],
     body: [

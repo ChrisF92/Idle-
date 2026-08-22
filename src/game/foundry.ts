@@ -48,7 +48,7 @@ export interface FoundryRecipeDef {
   maxLevel: number
   craftTime: number
   costs: FoundryCost
-  requiresSectorEver: number
+  requiresBestWave: number
   requiresRecipeLevel?: { recipeId: FoundryRecipeId; level: number }
   /** Need this many smelters unlocked before the recipe opens. */
   requiresSlots?: number
@@ -76,7 +76,7 @@ export interface FoundryUpgradeDef {
   shardDropBonus?: number
   partDropBonus?: number
   queueBonus?: number
-  requiresSectorEver?: number
+  requiresBestWave?: number
   /** Career Best Wave door for advanced fabrication (GDD §102 W90). */
   requiresWave?: number
 }
@@ -103,7 +103,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 6,
     costs: { salvage: 10 },
-    requiresSectorEver: 2,
+    requiresBestWave: 20,
     unlocksRecipe: { recipeId: 'hardened-plate', atLevel: 4 },
   },
   {
@@ -113,7 +113,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 6,
     costs: { scrap: 5 },
-    requiresSectorEver: 2,
+    requiresBestWave: 20,
     unlocksRecipe: { recipeId: 'relay', atLevel: 4 },
   },
   {
@@ -123,7 +123,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 10,
     costs: { materials: { 'slag-ingot': 3, filament: 1 } },
-    requiresSectorEver: 5,
+    requiresBestWave: 50,
     requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
   },
   {
@@ -133,7 +133,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 12,
     costs: { materials: { 'slag-ingot': 4 } },
-    requiresSectorEver: 2,
+    requiresBestWave: 20,
     requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
     unlocksRecipe: { recipeId: 'void-slag', atLevel: 8 },
   },
@@ -144,7 +144,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 12,
     costs: { materials: { filament: 3 } },
-    requiresSectorEver: 2,
+    requiresBestWave: 20,
     requiresRecipeLevel: { recipeId: 'filament', level: 4 },
     unlocksRecipe: { recipeId: 'focus-lens', atLevel: 6 },
   },
@@ -155,7 +155,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 11,
     costs: { materials: { 'slag-ingot': 2, filament: 2 } },
-    requiresSectorEver: 6,
+    requiresBestWave: 60,
     requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
   },
   {
@@ -165,7 +165,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 14,
     costs: { salvage: 22, scrap: 8 },
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
     unlocksRecipe: { recipeId: 'keel-strip', atLevel: 4 },
   },
   {
@@ -175,7 +175,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 13,
     costs: { materials: { relay: 2, filament: 2 } },
-    requiresSectorEver: 9,
+    requiresBestWave: 90,
     requiresRecipeLevel: { recipeId: 'relay', level: 4 },
     requiresSlots: 2,
   },
@@ -186,7 +186,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 16,
     costs: { materials: { 'choir-flux': 3, 'hardened-plate': 1 } },
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
     requiresRecipeLevel: { recipeId: 'choir-flux', level: 4 },
     unlocksRecipe: { recipeId: 'warp-thread', atLevel: 4 },
   },
@@ -197,7 +197,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 13,
     costs: { materials: { filament: 2, relay: 2 } },
-    requiresSectorEver: 10,
+    requiresBestWave: 100,
     requiresRecipeLevel: { recipeId: 'relay', level: 4 },
   },
   {
@@ -207,7 +207,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 15,
     costs: { materials: { 'choir-flux': 2, 'hardened-plate': 2 } },
-    requiresSectorEver: 11,
+    requiresBestWave: 110,
     requiresRecipeLevel: { recipeId: 'choir-flux', level: 4 },
     requiresSlots: 2,
   },
@@ -218,7 +218,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 14,
     costs: { materials: { relay: 3, 'slag-glass': 1 } },
-    requiresSectorEver: 12,
+    requiresBestWave: 120,
     requiresRecipeLevel: { recipeId: 'relay', level: 6 },
     unlocksRecipe: { recipeId: 'control-mesh', atLevel: 4 },
   },
@@ -229,7 +229,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 20,
     craftTime: 16,
     costs: { materials: { 'hardened-plate': 3 } },
-    requiresSectorEver: 14,
+    requiresBestWave: 140,
     requiresRecipeLevel: { recipeId: 'hardened-plate', level: 8 },
   },
   {
@@ -239,7 +239,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 18,
     craftTime: 18,
     costs: { materials: { 'void-slag': 2, 'keel-strip': 2, 'temper-bar': 1 } },
-    requiresSectorEver: 15,
+    requiresBestWave: 150,
     requiresRecipeLevel: { recipeId: 'void-slag', level: 4 },
     requiresSlots: 3,
   },
@@ -250,7 +250,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 18,
     craftTime: 17,
     costs: { materials: { 'slag-glass': 2, 'focus-lens': 2 } },
-    requiresSectorEver: 16,
+    requiresBestWave: 160,
     requiresRecipeLevel: { recipeId: 'focus-lens', level: 4 },
     requiresSlots: 2,
   },
@@ -261,7 +261,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 18,
     craftTime: 18,
     costs: { materials: { 'focus-lens': 3, 'coil-stack': 1 } },
-    requiresSectorEver: 19,
+    requiresBestWave: 190,
     requiresRecipeLevel: { recipeId: 'focus-lens', level: 4 },
   },
   {
@@ -271,7 +271,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 18,
     craftTime: 20,
     costs: { materials: { 'keel-strip': 3, 'choir-flux': 2 } },
-    requiresSectorEver: 22,
+    requiresBestWave: 220,
     requiresRecipeLevel: { recipeId: 'keel-strip', level: 4 },
   },
   {
@@ -281,7 +281,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
     maxLevel: 16,
     craftTime: 22,
     costs: { materials: { 'warp-thread': 2, 'control-mesh': 1, 'hearth-core': 1 } },
-    requiresSectorEver: 22,
+    requiresBestWave: 220,
     requiresRecipeLevel: { recipeId: 'warp-thread', level: 4 },
     requiresSlots: 3,
   },
@@ -361,7 +361,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 8,
     maxRank: 2,
     outputAdd: 1,
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'fp-mastery',
@@ -370,7 +370,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 6,
     maxRank: 3,
     masteryReduce: 1,
-    requiresSectorEver: 6,
+    requiresBestWave: 60,
   },
   {
     id: 'fp-network',
@@ -379,7 +379,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 4,
     maxRank: 5,
     networkFillBonus: 0.03,
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'fp-ash',
@@ -388,7 +388,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 4,
     maxRank: 5,
     ashHeatBonus: 0.04,
-    requiresSectorEver: 5,
+    requiresBestWave: 50,
   },
   {
     id: 'fp-research',
@@ -397,7 +397,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 5,
     maxRank: 4,
     researchXpBonus: 0.05,
-    requiresSectorEver: 7,
+    requiresBestWave: 70,
   },
   {
     id: 'fp-reliquary',
@@ -406,7 +406,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 5,
     maxRank: 4,
     shardDropBonus: 0.02,
-    requiresSectorEver: 3,
+    requiresBestWave: 30,
   },
   {
     id: 'fp-print',
@@ -415,7 +415,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 5,
     maxRank: 4,
     partDropBonus: 0.08,
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'fp-queue',
@@ -424,7 +424,7 @@ export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
     baseCost: 6,
     maxRank: 2,
     queueBonus: 3,
-    requiresSectorEver: 3,
+    requiresBestWave: 30,
   },
   {
     id: 'fp-fit',
@@ -585,9 +585,6 @@ function emptySlot(): FoundrySlot {
   return { recipeId: null, progress: 0, paid: false }
 }
 
-function careerEver(state: GameState): number {
-  return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
-}
 
 export function getFoundryRecipe(id: string): FoundryRecipeDef | undefined {
   return FOUNDRY_RECIPES.find((r) => r.id === id)
@@ -616,7 +613,7 @@ export function foundryRecipeGateNeed(state: GameState, level: number): number {
 export function isFoundryRecipeUnlocked(state: GameState, id: FoundryRecipeId): boolean {
   const def = getFoundryRecipe(id)
   if (!def) return false
-  if (careerEver(state) < def.requiresSectorEver) return false
+  if (careerBestWave(state) < def.requiresBestWave) return false
   if (def.requiresSlots && foundrySlotCount(state) < def.requiresSlots) return false
   if (def.requiresRecipeLevel) {
     return (
@@ -759,7 +756,7 @@ export function scaledFoundryCost(state: GameState, id: FoundryRecipeId): Foundr
  * Pulse and Plate L1 stay free of the reserve so the opening shop identity holds.
  */
 export function foundrySalvageReserve(state: GameState): number {
-  if (careerEver(state) < 2) return 0
+  if (careerBestWave(state) < ACT1_CADENCE.foundry) return 0
   if (practicedCoreWork(state) < 2) return 0
   if (!isFoundryRecipeUnlocked(state, 'slag-ingot')) return 0
   if (isFoundryInfinite(state, 'slag-ingot')) return 0
@@ -839,7 +836,7 @@ function tryPaySlot(state: GameState, slot: FoundrySlot): boolean {
 
 export function tickFoundry(state: GameState, dtSeconds: number): void {
   if (!state.foundry) state.foundry = createEmptyFoundryState()
-  if (careerEver(state) < 2) return
+  if (careerBestWave(state) < ACT1_CADENCE.foundry) return
   ensureSlotCount(state)
   const speed = foundryCraftSpeed(state)
   const budget = Math.max(0, dtSeconds) * speed
@@ -934,8 +931,8 @@ export function canBuyFoundryUpgrade(
   if (def.requiresWave && careerBestWave(state) < def.requiresWave) {
     return { ok: false, reason: `Reach Wave ${def.requiresWave}` }
   }
-  if (def.requiresSectorEver && careerEver(state) < def.requiresSectorEver) {
-    return { ok: false, reason: `Clear sector ${def.requiresSectorEver}` }
+  if (def.requiresBestWave && careerBestWave(state) < def.requiresBestWave) {
+    return { ok: false, reason: `Reach Wave ${def.requiresBestWave}` }
   }
   const cost = foundryUpgradeCost(state, id)
   if ((state.foundry?.points ?? 0) < cost) return { ok: false, reason: `Need ${cost} FP` }
@@ -957,7 +954,7 @@ export function setFoundrySlot(
   slotIndex: number,
   recipeId: FoundryRecipeId | null,
 ): GameState {
-  if (careerEver(state) < 2) return state
+  if (careerBestWave(state) < ACT1_CADENCE.foundry) return state
   const next = structuredClone(state)
   ensureSlotCount(next)
   const slot = next.foundry.slots[slotIndex]
@@ -1050,7 +1047,7 @@ export function formatFoundryCost(cost: FoundryCost): string {
 
 /** Locked-recipe encyclopedia line: sector, parent level, what it unlocks. */
 export function foundryRecipeGateLine(recipe: FoundryRecipeDef): string {
-  const bits = [`S${recipe.requiresSectorEver}`]
+  const bits = [`W${recipe.requiresBestWave}`]
   if (recipe.requiresRecipeLevel) {
     const parent = getFoundryRecipe(recipe.requiresRecipeLevel.recipeId)?.name ?? recipe.requiresRecipeLevel.recipeId
     bits.push(`${parent} Lv ${recipe.requiresRecipeLevel.level}`)

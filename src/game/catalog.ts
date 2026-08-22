@@ -2,7 +2,7 @@
 
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
-import { bandsClearedForWave, meetsWave } from './waves'
+import { bandsClearedForWave, meetsWave, waveForClearedBands } from './waves'
 import { formatCompact, formatStat } from './format'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
@@ -61,8 +61,8 @@ export interface AiNodeDef {
   kind: 'automation' | 'doctrine' | 'qol'
   /** If true (default for automation/qol), kept across prestige. */
   permanent?: boolean
-  /** Career sector clear required before this node can be bought. */
-  requiresSectorEver?: number
+  /** Career best Wave required before this node can be bought. */
+  requiresBestWave?: number
   /** Must own this AI node first. */
   requiresAiNode?: string
   /** Extra manufacture speed while owned (permanent AI). */
@@ -147,7 +147,7 @@ export interface ChallengeShopDef {
   /** Additive blueprint part drop chance (0.15 = +15% at rank 1). */
   dropBonus?: number
   requiresPrestiges?: number
-  requiresSectorEver?: number
+  requiresBestWave?: number
   requiresAct1?: boolean
   requiresShopRank?: ShopRankGate
   requiresMetaAny?: ShopMetaAnyGate
@@ -203,7 +203,7 @@ export interface ChallengeDef {
   requiresChallengeClears?: { challengeId: string; clears: number }
   requiresPrestiges?: number
   /** Career highest sector ever required. */
-  requiresSectorEver?: number
+  requiresBestWave?: number
   /**
    * Career ascensions required to unlock (AND with other non-OR gates when set
    * alone; combined with OR group when other OR gates exist — see isChallengeUnlocked).
@@ -262,8 +262,8 @@ export interface ShipFrameDef {
   baseDamage: number
   baseHull: number
   unlockCost: ResourceCost
-  /** Career sector clear required to purchase. */
-  requiresSectorEver?: number
+  /** Career best Wave required to purchase. */
+  requiresBestWave?: number
 }
 
 export interface ShipModuleDef {
@@ -299,7 +299,7 @@ export interface ShipModuleDef {
   /** USI Core cost scaling per level (weapons 1.21, shields 1.2). */
   upgradeCostScaling?: number
   unlockCost: ResourceCost
-  requiresSectorEver?: number
+  requiresBestWave?: number
   /** Challenge shop schematic id required before scrap unlock (rank ≥ 1). */
   requiresChallengeShop?: string
 }
@@ -528,7 +528,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 2,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'auto-launch-ready',
@@ -538,7 +538,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 2,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'auto-assign-workers',
@@ -548,7 +548,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 2,
     kind: 'qol',
     permanent: true,
-    requiresSectorEver: 6,
+    requiresBestWave: 60,
   },
   {
     id: 'labor-loop',
@@ -558,7 +558,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 4,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 10,
+    requiresBestWave: 100,
     requiresAiNode: 'auto-assign-workers',
   },
   {
@@ -568,7 +568,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 3,
     kind: 'qol',
     permanent: true,
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
     droneCapBonus: 8,
   },
   {
@@ -579,7 +579,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 4,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 12,
+    requiresBestWave: 120,
     droneEfficiencyMult: 1.35,
   },
   {
@@ -589,7 +589,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 8,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 18,
+    requiresBestWave: 180,
     requiresAiNode: 'drone-efficiency-1',
     droneEfficiencyMult: 1.65,
   },
@@ -600,7 +600,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 3,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 10,
+    requiresBestWave: 100,
     manufactureBonus: 0.5,
   },
   {
@@ -610,7 +610,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 3,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 12,
+    requiresBestWave: 120,
     trainingBonus: 0.4,
   },
   {
@@ -620,7 +620,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 2,
     kind: 'qol',
     permanent: true,
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'batch-refit',
@@ -629,7 +629,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 1,
     kind: 'qol',
     permanent: true,
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'hold-accountant',
@@ -638,7 +638,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 1,
     kind: 'qol',
     permanent: true,
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'warp-navigator',
@@ -647,7 +647,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 2,
     kind: 'qol',
     permanent: true,
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'focus-fire',
@@ -689,7 +689,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 5,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 15,
+    requiresBestWave: 150,
     combatSpeedMult: 1.5,
   },
   {
@@ -699,7 +699,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 8,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 20,
+    requiresBestWave: 200,
     requiresAiNode: 'combat-chrono-1',
     combatSpeedMult: 2,
   },
@@ -710,7 +710,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 12,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 25,
+    requiresBestWave: 250,
     requiresAiNode: 'combat-chrono-2',
     combatSpeedMult: 3,
   },
@@ -722,7 +722,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 6,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 18,
+    requiresBestWave: 180,
     productionBonus: 0.4,
   },
   {
@@ -732,7 +732,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 6,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 18,
+    requiresBestWave: 180,
     fabBonus: 0.5,
   },
   // --- Deep automation (USI-style) ---
@@ -744,7 +744,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 6,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 16,
+    requiresBestWave: 160,
     requiresAiNode: 'salvage-optimizer',
   },
   {
@@ -755,7 +755,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 8,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 18,
+    requiresBestWave: 180,
   },
   {
     id: 'auto-fab-bay',
@@ -765,7 +765,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 10,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 20,
+    requiresBestWave: 200,
   },
   {
     id: 'auto-merge-signal',
@@ -774,7 +774,7 @@ export const AI_NODES: AiNodeDef[] = [
     costAiPoints: 12,
     kind: 'automation',
     permanent: true,
-    requiresSectorEver: 22,
+    requiresBestWave: 220,
   },
 ]
 
@@ -1161,7 +1161,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 0,
     baseHull: 48,
     unlockCost: {},
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'cruiser-frame',
@@ -1172,7 +1172,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 0,
     baseHull: 70,
     unlockCost: {},
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'heavy-cruiser-frame',
@@ -1183,7 +1183,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 0,
     baseHull: 95,
     unlockCost: {},
-    requiresSectorEver: 24,
+    requiresBestWave: 240,
   },
   {
     id: 'battlecruiser-frame',
@@ -1194,7 +1194,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 0,
     baseHull: 125,
     unlockCost: {},
-    requiresSectorEver: 41,
+    requiresBestWave: 410,
   },
   {
     id: 'capital-frame',
@@ -1205,7 +1205,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 0,
     baseHull: 160,
     unlockCost: {},
-    requiresSectorEver: 75,
+    requiresBestWave: 750,
   },
   {
     id: 'razor-frame',
@@ -1216,7 +1216,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 0,
     baseHull: 24,
     unlockCost: { alloys: 55, scrap: 120, energy: 20 },
-    requiresSectorEver: 12,
+    requiresBestWave: 120,
   },
   {
     id: 'pathfinder-frame',
@@ -1227,7 +1227,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 0,
     baseHull: 28,
     unlockCost: { alloys: 50, scrap: 110, data: 25 },
-    requiresSectorEver: 12,
+    requiresBestWave: 120,
   },
   {
     id: 'bastion-frame',
@@ -1238,7 +1238,7 @@ export const SHIP_FRAMES: ShipFrameDef[] = [
     baseDamage: 0,
     baseHull: 52,
     unlockCost: { alloys: 95, scrap: 180, energy: 35 },
-    requiresSectorEver: 14,
+    requiresBestWave: 140,
   },
 ]
 
@@ -1359,7 +1359,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     evasionBonus: 0.12,
     damageTakenMult: 0.88,
     unlockCost: { scrap: 30, alloys: 12 },
-    requiresSectorEver: 3,
+    requiresBestWave: 30,
   },
   {
     id: 'heavy-lance',
@@ -1378,7 +1378,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       tags: ['kinetic', 'pierce'],
     },
     unlockCost: { scrap: 50, alloys: 20 },
-    requiresSectorEver: 2,
+    requiresBestWave: 20,
   },
   {
     id: 'flak-array',
@@ -1398,7 +1398,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       splash: 2,
     },
     unlockCost: { scrap: 45, alloys: 18 },
-    requiresSectorEver: 2,
+    requiresBestWave: 20,
   },
   {
     id: 'phase-beam',
@@ -1418,7 +1418,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       delivery: 'beam',
     },
     unlockCost: { scrap: 55, alloys: 22, data: 8 },
-    requiresSectorEver: 3,
+    requiresBestWave: 30,
   },
   {
     id: 'barrier-projector',
@@ -1431,7 +1431,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     shieldBonus: 60,
     damageTakenMult: 1,
     unlockCost: { scrap: 40, alloys: 16, energy: 20 },
-    requiresSectorEver: 5,
+    requiresBestWave: 50,
   },
   {
     id: 'drone-bay',
@@ -1444,7 +1444,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     damageTakenMult: 1,
     salvageKillBonus: 0.12,
     unlockCost: { scrap: 60, alloys: 25, energy: 15 },
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'rail-driver',
@@ -1463,7 +1463,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       tags: ['kinetic', 'pierce'],
     },
     unlockCost: { scrap: 70, alloys: 28, data: 6 },
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'ion-burst',
@@ -1483,7 +1483,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       splash: 1,
     },
     unlockCost: { scrap: 65, alloys: 24, energy: 18 },
-    requiresSectorEver: 6,
+    requiresBestWave: 60,
   },
   {
     id: 'ablative-mesh',
@@ -1497,7 +1497,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     shieldBonus: 25,
     damageTakenMult: 1,
     unlockCost: { scrap: 55, alloys: 22 },
-    requiresSectorEver: 7,
+    requiresBestWave: 70,
   },
   {
     id: 'grav-tether',
@@ -1510,7 +1510,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     evasionBonus: 0.08,
     damageTakenMult: 0.85,
     unlockCost: { scrap: 50, alloys: 20, energy: 12 },
-    requiresSectorEver: 9,
+    requiresBestWave: 90,
   },
   {
     id: 'nano-lathe',
@@ -1522,7 +1522,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     hullBonus: 10,
     damageTakenMult: 1,
     unlockCost: { scrap: 45, alloys: 18, data: 10 },
-    requiresSectorEver: 10,
+    requiresBestWave: 100,
   },
   {
     id: 'salvage-rig',
@@ -1534,7 +1534,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     hullBonus: 0,
     damageTakenMult: 1,
     unlockCost: { scrap: 40, alloys: 15 },
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'charge-prism',
@@ -1561,7 +1561,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       telegraphDuration: 0.55,
     },
     unlockCost: {},
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'swarm-rack',
@@ -1587,7 +1587,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       armorDamage: 0.85,
     },
     unlockCost: {},
-    requiresSectorEver: 6,
+    requiresBestWave: 60,
   },
   {
     id: 'arc-lash',
@@ -1613,7 +1613,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       armorDamage: 0.35,
     },
     unlockCost: {},
-    requiresSectorEver: 9,
+    requiresBestWave: 90,
   },
   {
     id: 'slag-spit',
@@ -1641,7 +1641,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       armorDamage: 1.1,
     },
     unlockCost: {},
-    requiresSectorEver: 12,
+    requiresBestWave: 120,
   },
   {
     id: 'lattice-ward',
@@ -1658,7 +1658,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     upgradeBaseCost: 6,
     upgradeCostScaling: 1.2,
     unlockCost: {},
-    requiresSectorEver: 5,
+    requiresBestWave: 50,
   },
   {
     id: 'keel-baffle',
@@ -1677,7 +1677,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     upgradeBaseCost: 7,
     upgradeCostScaling: 1.2,
     unlockCost: {},
-    requiresSectorEver: 11,
+    requiresBestWave: 110,
   },
   {
     id: 'sensor-whisker',
@@ -1690,7 +1690,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     evasionBonus: 0.14,
     damageTakenMult: 0.94,
     unlockCost: {},
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'choir-tap',
@@ -1703,7 +1703,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     damageTakenMult: 1,
     salvageKillBonus: 0.2,
     unlockCost: {},
-    requiresSectorEver: 14,
+    requiresBestWave: 140,
   },
   {
     id: 'surge-capacitor',
@@ -2096,9 +2096,15 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
 }
 
 export function modulePrintSector(moduleId: string): number {
-  const original = Math.max(0, getModule(moduleId)?.requiresSectorEver ?? 0)
+  const originalWave = Math.max(0, getModule(moduleId)?.requiresBestWave ?? 0)
+  const original = bandsClearedForWave(originalWave)
   const foundryBand = bandsClearedForWave(ACT1_CADENCE.foundry)
   return Math.max(foundryBand, original + FOUNDRY_PRINT_SHIFT)
+}
+
+/** Player-facing print door. Drop tables still use the ten-wave band helper above. */
+export function modulePrintWave(moduleId: string): number {
+  return waveForClearedBands(modulePrintSector(moduleId))
 }
 
 /** Career has reached the sector that unlocks this Core print. */
@@ -2775,8 +2781,8 @@ export function canBuyChallengeShop(
       matterShop: Record<string, number>
       challengeClears: Record<string, number>
     }
-    meta: { act1Cleared: boolean; highestSectorEver: number }
-    combat?: { highestSector?: number }
+    meta: { act1Cleared: boolean; highestSectorEver: number; bestWave?: number }
+    combat?: { highestSector?: number; bestWave?: number }
   },
   itemId: string,
 ): ShopBuyCheck {
@@ -2798,12 +2804,11 @@ export function canBuyChallengeShop(
       maxRank,
     }
   }
-  if (def.requiresSectorEver != null) {
-    const ever = Math.max(state.meta.highestSectorEver, state.combat?.highestSector ?? 0)
-    if (ever < def.requiresSectorEver) {
+  if (def.requiresBestWave != null) {
+    if (!meetsWave(state, def.requiresBestWave)) {
       return {
         ok: false,
-        reason: `Need career sector ${def.requiresSectorEver}`,
+        reason: `Reach Wave ${def.requiresBestWave}`,
         cost,
         nextRank,
         maxRank,
@@ -3526,8 +3531,8 @@ export function challengeStackRepairBonus(clears: Record<string, number> = {}): 
 export function isChallengeUnlocked(
   state: {
     prestige: { challengeClears: Record<string, number>; prestigeCount: number }
-    meta?: { highestSectorEver?: number; act1Cleared?: boolean; ascensionCount?: number }
-    combat?: { highestSector?: number }
+    meta?: { highestSectorEver?: number; act1Cleared?: boolean; ascensionCount?: number; bestWave?: number }
+    combat?: { highestSector?: number; bestWave?: number }
   },
   challengeId: string,
 ): boolean {
@@ -3557,12 +3562,8 @@ export function isChallengeUnlocked(
     )
     gates.push(have >= def.requiresChallengeClears.clears)
   }
-  if (def.requiresSectorEver != null) {
-    const ever = Math.max(
-      state.meta?.highestSectorEver ?? 0,
-      state.combat?.highestSector ?? 0,
-    )
-    gates.push(ever >= def.requiresSectorEver)
+  if (def.requiresBestWave != null) {
+    gates.push(meetsWave(state, def.requiresBestWave))
   }
   if (def.requiresAscensions != null) {
     gates.push((state.meta?.ascensionCount ?? 0) >= def.requiresAscensions)

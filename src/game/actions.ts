@@ -41,7 +41,7 @@ import {
   moduleLeveledBonus,
   moduleMasteryRank,
   moduleWeaponDamage,
-  modulePrintSector,
+  modulePrintWave,
   parsePartId,
   partId,
   partSellScrap,
@@ -706,7 +706,7 @@ export function buyAiNode(state: GameState, nodeId: string): GameState {
   ) {
     return state
   }
-  if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
+  if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
   if (def.requiresAiNode && !state.ai.purchased.includes(def.requiresAiNode)) {
     return state
   }
@@ -777,7 +777,7 @@ export function unlockFrame(state: GameState, frameId: string): GameState {
   const def = getFrame(frameId)
   if (!def) return state
   if (state.shipyard.unlockedFrames.includes(frameId)) return state
-  if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
+  if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
   if (!canAfford(state.resources, def.unlockCost)) return state
 
   const next = structuredClone(state)
@@ -814,7 +814,7 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
     next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
     return next
   }
-  if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
+  if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
   if (!canAfford(state.resources, def.unlockCost)) return state
 
   const next = structuredClone(state)
@@ -833,7 +833,7 @@ export function canAssembleBlueprint(
     return { ok: false, reason: 'Copy limit' }
   }
   if (!isCorePrintUnlocked(state, moduleId)) {
-    return { ok: false, reason: `Clear sector ${modulePrintSector(moduleId)}` }
+    return { ok: false, reason: `Reach Wave ${modulePrintWave(moduleId)}` }
   }
   const recipe = getBlueprint(moduleId)
   if (!recipe) return { ok: false, reason: 'Unknown print' }
@@ -1575,7 +1575,7 @@ export function performRebuild(
   const frame = getFrame(hangar.frameId)
   if (!frame) return state
   if (!state.shipyard.unlockedFrames.includes(hangar.frameId)) return state
-  if (frame.requiresSectorEver && careerHighestSector(state) < frame.requiresSectorEver) {
+  if (frame.requiresBestWave && careerBestWave(state) < frame.requiresBestWave) {
     return state
   }
   const next = structuredClone(state)

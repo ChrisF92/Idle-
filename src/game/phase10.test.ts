@@ -43,13 +43,13 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
   })
 
   it('unlocks Capital Hull at 75 only after the Task List is done', () => {
-    expect(getFrame('capital-frame')?.requiresSectorEver).toBe(75)
+    expect(getFrame('capital-frame')?.requiresBestWave).toBe(750)
     expect(getFrame('capital-frame')?.weaponSlots).toBe(4)
     expect(getFrame('capital-frame')?.baseHull).toBe(160)
 
     const blocked = createInitialState(0)
-    blocked.meta.highestSectorEver = 75
-    blocked.combat.highestSector = 75
+    blocked.meta.bestWave = 750
+    blocked.combat.bestWave = 750
     maybeGrantSystemUnlocks(blocked)
     expect(blocked.shipyard.unlockedFrames).not.toContain('capital-frame')
 

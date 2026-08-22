@@ -20,15 +20,15 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'yard')).toBe(false)
     expect(fresh.combat.route).toBe('A')
-    expect(getFrame('cruiser-frame')?.requiresSectorEver).toBe(8)
+    expect(getFrame('cruiser-frame')?.requiresBestWave).toBe(80)
     expect(getFrame('cruiser-frame')?.defenseSlots).toBe(2)
     expect(getFrame('cruiser-frame')?.baseHull).toBe(70)
   })
 
-  it('unlocks Cruiser Hull after clearing sector 24', () => {
+  it('unlocks Cruiser Hull after Wave 80', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 24
-    s.combat.highestSector = 24
+    s.meta.bestWave = 80
+    s.combat.bestWave = 80
     maybeGrantSystemUnlocks(s)
     expect(s.shipyard.unlockedFrames).toContain('cruiser-frame')
     expect(s.shipyard.unlockedFrames).toContain('line-frame')

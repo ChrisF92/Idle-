@@ -61,6 +61,17 @@ describe('GDD Process', () => {
     expect(canBuyProcessNode(open, 'offline-sortie').ok).toBe(false)
   })
 
+  it('gates later Process nodes on Best Wave, not leftover sector bands', () => {
+    const early = processState({ wave: 50 })
+    early.process.purchased = ['auto-salvage']
+    early.resources.aiPoints = 20
+    expect(canBuyProcessNode(early, 'smart-core').reason).toBe('Reach Wave 60')
+    const ready = processState({ wave: 60 })
+    ready.process.purchased = ['auto-salvage']
+    ready.resources.aiPoints = 20
+    expect(canBuyProcessNode(ready, 'smart-core').ok).toBe(true)
+  })
+
   it('reveals priorities after the first purchase', () => {
     let s = processState()
     s.shipyard.moduleLevels['pulse-cannon'] = 1

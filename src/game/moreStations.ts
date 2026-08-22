@@ -88,7 +88,7 @@ export const MAJOR_DOORS: MajorDoorDef[] = [
   },
 ]
 
-export function stationDoorSector(id: TabId): number {
+export function stationDoorWave(id: TabId): number {
   if (id === 'logs') return 0
   if (id === 'network') return ACT1_CADENCE.workers
   if (id === 'process') return ACT1_CADENCE.process
@@ -97,7 +97,7 @@ export function stationDoorSector(id: TabId): number {
   if (id === 'capital') return ACT1_CADENCE.capital
   if (id === 'reinforce') return ACT1_CADENCE.reinforce
   const def = SYSTEM_UNLOCKS.find((s) => s.id === id)
-  return def?.requiresSectorEver ?? 99
+  return def?.requiresBestWave ?? 99
 }
 
 export function nextMajorDoor(state: GameState): MajorDoorDef | null {

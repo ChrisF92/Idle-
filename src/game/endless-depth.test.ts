@@ -70,6 +70,8 @@ describe('combat speed vs industry', () => {
   it('combat chrono multiplies combat speed only', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 25
+    state.meta.bestWave = 250
+    state.combat.bestWave = 250
     state.resources.aiPoints = 30
     state = buyAiNode(state, 'combat-chrono-1')
     expect(combatSpeedMultiplier(state)).toBe(1.5)
@@ -82,6 +84,8 @@ describe('combat speed vs industry', () => {
   it('requires chrono chain and ignores industry bonus for combat mult', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 25
+    state.meta.bestWave = 250
+    state.combat.bestWave = 250
     state.resources.aiPoints = 50
     expect(buyAiNode(state, 'combat-chrono-2').ai.purchased).not.toContain(
       'combat-chrono-2',
@@ -129,6 +133,8 @@ describe('automation AI', () => {
   it('auto-merge collapses triples during sim', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 22
+    state.meta.bestWave = 220
+    state.combat.bestWave = 220
     state.resources.aiPoints = 20
     state = buyAiNode(state, 'auto-merge-signal')
     expect(state.ai.purchased).toContain('auto-merge-signal')

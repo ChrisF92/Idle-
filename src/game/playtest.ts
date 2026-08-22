@@ -2,6 +2,7 @@
 
 import type { GameState, PlaytestEvent, PlaytestEventKind, PlaytestState } from './types'
 import { WORKER_JOB_IDS } from './workers'
+import { careerBestWave } from './waves'
 import {
   hydrateInterventions,
   hydrateSectorAttempts,
@@ -422,7 +423,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Career playtime: ${formatPlaytimeMs(log.playtimeMs)}`)
   lines.push(`Save age: ${formatPlaytimeMs(saveAgeMs(state, now))}`)
   lines.push(
-    `Best Wave: ${Math.max(state.combat?.bestWave ?? 0, state.meta?.bestWave ?? 0, log.sectorAt)}`,
+    `Highest Wave: ${careerBestWave(state)}`,
   )
   lines.push('')
   lines.push('Progression')

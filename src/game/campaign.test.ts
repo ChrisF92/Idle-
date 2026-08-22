@@ -151,6 +151,8 @@ describe('campaign combat', () => {
   it('AI never Pauses or Resumes combat', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8
+    state.meta.bestWave = 80
+    state.combat.bestWave = 80
     state.meta.aiUnlocked = true
     state.resources.aiPoints = 10
     state = buyAiNode(state, 'auto-dock-critical')
@@ -204,6 +206,8 @@ describe('campaign combat', () => {
     state.resources.scrap = 999
     state.resources.alloys = 999
     state.meta.highestSectorEver = 8
+    state.meta.bestWave = 40
+    state.combat.bestWave = 40
     state = unlockFrame(state, 'line-frame')
     state = selectFrame(state, 'line-frame')
     expect(state.shipyard.frameId).toBe('line-frame')
