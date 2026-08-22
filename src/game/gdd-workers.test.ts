@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignWorker, autoBalanceWorkers } from './actions'
+import { assignWorker, autoBalanceWorkers, buyAiNode } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { isStationUnlocked, stationEffectiveDrones } from './catalog'
 import {
@@ -114,9 +114,11 @@ describe('GDD Worker Drones', () => {
     expect(workerJobCap('construction')).toEqual({ min: 1, efficient: 4, hard: 8 })
     expect(workerJobCapLine(2, 'construction')).toBe('2/4 efficient · cap 8')
 
-    let s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
+    let s = atCareerWave(createInitialState(0), 120)
     s.research.unlocked = ['core-training']
     s.base.workerDrones = 100
+    s.resources.aiPoints = 10
+    s = buyAiNode(s, 'auto-assign-workers')
     s = autoBalanceWorkers(s, 'balanced')
     expect(s.base.assignments['scrap-field'] ?? 0).toBeGreaterThan(20)
     expect(Object.keys(s.base.assignments).some((id) => id.startsWith('train-'))).toBe(false)
