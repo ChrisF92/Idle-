@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { assignWorker } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { isStationUnlocked, stationEffectiveDrones } from './catalog'
-import { networkStrikeMult, networkWardMult } from './network'
+import {
+  networkDataRate,
+  networkManufactureMult,
+  networkSalvageMult,
+  networkScrapRate,
+  networkStrikeMult,
+  networkWardMult,
+  tickNetwork,
+} from './network'
 import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
@@ -67,5 +75,45 @@ describe('GDD Worker Drones', () => {
     const atCap = stationEffectiveDrones(s, 'scrap-field')
     s = assignWorker(s, 'scrap-field', 10)
     expect(stationEffectiveDrones(s, 'scrap-field')).toBe(atCap)
+  })
+
+  it('does not fill leftover Network bars', () => {
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
+    s.base.workerDrones = 8
+    s.base.assignments.strike = 4
+    s.network.bars.strike.levels = 0
+    s.network.bars.strike.progress = 0
+    expect(tickNetwork(s, 30)).toBe(false)
+    expect(s.network.bars.strike.levels).toBe(0)
+    expect(s.network.bars.strike.progress).toBe(0)
+    expect(s.base.assignments.strike).toBeUndefined()
+  })
+
+  it('raises salvage from Scrap Field labour, not Yield bars', () => {
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
+    s.network.bars.yield.levels = 40
+    expect(networkSalvageMult(s)).toBe(1)
+    s.base.workerDrones = 16
+    s.base.assignments['scrap-field'] = 8
+    expect(networkSalvageMult(s)).toBeGreaterThan(1)
+  })
+
+  it('raises manufacture from fabrication jobs, not Loom bars', () => {
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
+    s.network.bars.loom.levels = 40
+    expect(networkManufactureMult(s)).toBe(1)
+    s.base.workerDrones = 16
+    s.base.assignments['drone-fab'] = 8
+    expect(networkManufactureMult(s)).toBeGreaterThan(1)
+  })
+
+  it('does not drip extra scrap or data from retired bars', () => {
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
+    s.network.bars.yield.levels = 20
+    s.network.bars.archive.levels = 20
+    s.base.assignments.yield = 6
+    s.base.assignments.archive = 6
+    expect(networkScrapRate(s)).toBe(0)
+    expect(networkDataRate(s)).toBe(0)
   })
 })

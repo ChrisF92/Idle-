@@ -1,6 +1,7 @@
 import {
   blueprintProgress,
   idleWorkers,
+  isStationUnlocked,
   listFarmableCores,
 } from './catalog'
 import {
@@ -14,7 +15,8 @@ import {
 import { ASH_PER_HEAT } from './furnace'
 import { hiveResearchActive, hiveResearchCompleted, HIVE_RESEARCH_NODES } from './hiveResearch'
 import { MORE_STATIONS } from './moreStations'
-import { NETWORK_BARS, NETWORK_LINKS, canBuyNetworkLink, isNetworkBarUnlocked } from './network'
+import { NETWORK_LINKS, canBuyNetworkLink } from './network'
+import { WORKER_JOB_IDS } from './workers'
 import { canBuyProcessNode, processVisibleNodes } from './process'
 import { hasHullLostOnce, isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
@@ -50,8 +52,8 @@ export function contentKeys(state: GameState, scope: HubAttentionScope): string[
   }
   if (scope === 'network') {
     if (isSystemUnlocked(state, 'network')) keys.push('sys:network')
-    for (const bar of NETWORK_BARS) {
-      if (isNetworkBarUnlocked(state, bar.id)) keys.push(`netbar:${bar.id}`)
+    for (const id of WORKER_JOB_IDS) {
+      if (isStationUnlocked(state, id)) keys.push(`job:${id}`)
     }
     return keys
   }

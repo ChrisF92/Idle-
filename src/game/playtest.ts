@@ -1,7 +1,7 @@
 /** Local playtest event log — device-only, compact, manually exportable. */
 
 import type { GameState, PlaytestEvent, PlaytestEventKind, PlaytestState } from './types'
-import { NETWORK_BAR_IDS } from './types'
+import { WORKER_JOB_IDS } from './workers'
 import {
   hydrateInterventions,
   hydrateSectorAttempts,
@@ -13,18 +13,19 @@ export const PLAYTEST_VERSION = 1 as const
 export const PLAYTEST_MAX_EVENTS = 400
 
 const DRONE_LABELS: Record<string, string> = {
+  'scrap-field': 'Scrap Field',
+  'power-grid': 'Power Grid',
+  'sensor-net': 'Sensor Net',
+  'alloy-foundry': 'Alloy Foundry',
+  'repair-bay': 'Repair Bay',
+  'drone-fab': 'Drone Fabricator',
+  'fab-bay': 'Fabrication Bay',
+  construction: 'Construction',
   strike: 'Strike',
   ward: 'Ward',
   yield: 'Yield',
   loom: 'Loom',
   archive: 'Archive',
-  'strike-relay': 'Strike Relay',
-  'ward-relay': 'Ward Relay',
-  'yield-relay': 'Yield Relay',
-  'loom-relay': 'Loom Relay',
-  'archive-relay': 'Archive Relay',
-  'strike-lattice': 'Strike Lattice',
-  'ward-lattice': 'Ward Lattice',
 }
 
 export function createEmptyPlaytest(now = Date.now()): PlaytestState {
@@ -259,7 +260,7 @@ export function sampleDroneAllocation(state: GameState, dtSeconds: number): void
   const log = ensurePlaytest(state)
   const assignments = state.base?.assignments
   if (!assignments) return
-  for (const id of NETWORK_BAR_IDS) {
+  for (const id of WORKER_JOB_IDS) {
     const n = assignments[id] ?? 0
     if (n <= 0) continue
     log.drones[id] = (log.drones[id] ?? 0) + n * dtSeconds

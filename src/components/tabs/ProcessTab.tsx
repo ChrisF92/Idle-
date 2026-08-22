@@ -31,7 +31,8 @@ import {
 import { FOUNDRY_RECIPES, foundryQueueCap } from '../../game/foundry'
 import { hiveResearchQueueCap, hiveResearchStartableBranches, HIVE_RESEARCH_BRANCHES } from '../../game/hiveResearch'
 import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
-import { NETWORK_BARS } from '../../game/network'
+import { STATIONS } from '../../game/catalog'
+import { WORKER_JOB_IDS } from '../../game/workers'
 import { PROTOCOLS, protocolRank } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
 
@@ -201,36 +202,20 @@ function NodeConfig({
     )
   }
   if (nodeId === 'network-ratios') {
+    const jobs = STATIONS.filter((station) => WORKER_JOB_IDS.includes(station.id))
     return (
       <div className="process-config-block" data-guide="process-config">
-        <p className="muted">Primary</p>
-        {NETWORK_BARS.filter((bar) => bar.layer === 'primary').map((bar) => (
-          <label key={bar.id} className="process-config">
-            {bar.name}
+        <p className="muted">Jobs</p>
+        {jobs.map((job) => (
+          <label key={job.id} className="process-config">
+            {job.name}
             <input
               type="number"
               min={0}
-              value={cfg.network.ratios[bar.id] ?? 0}
+              value={cfg.network.ratios[job.id] ?? 0}
               onChange={(e) =>
                 patch((c) => {
-                  c.network.ratios[bar.id] = Math.max(0, Number(e.target.value) || 0)
-                  c.network.preset = 'custom'
-                })
-              }
-            />
-          </label>
-        ))}
-        <p className="muted">Infrastructure</p>
-        {NETWORK_BARS.filter((bar) => bar.layer !== 'primary').map((bar) => (
-          <label key={bar.id} className="process-config">
-            {bar.name}
-            <input
-              type="number"
-              min={0}
-              value={cfg.network.ratios[bar.id] ?? 0}
-              onChange={(e) =>
-                patch((c) => {
-                  c.network.ratios[bar.id] = Math.max(0, Number(e.target.value) || 0)
+                  c.network.ratios[job.id] = Math.max(0, Number(e.target.value) || 0)
                   c.network.preset = 'custom'
                 })
               }

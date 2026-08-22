@@ -2,7 +2,6 @@
 
 import { blueprintProgress, getModule, listFarmableCores, moduleLevel } from './catalog'
 import { pendingMilestone } from './milestones'
-import { NETWORK_BARS, isNetworkBarUnlocked } from './network'
 import {
   ACHIEVEMENTS,
   firstRebuildAvailable,
@@ -206,7 +205,7 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
   return {
     hullLost: hasHullLostOnce(state),
     systems,
-    networkBars: NETWORK_BARS.filter((bar) => isNetworkBarUnlocked(state, bar.id)).map((b) => b.id),
+    networkBars: [],
     farmablePrints: listFarmableCores(state).map((m) => m.id),
     completePrints: completePrintIds(state),
     pendingMilestones: pendingCoreIds(state),
@@ -328,24 +327,6 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       category: 'CAMPAIGN',
       title: 'Act 1 complete',
       body: 'Wave 300 is down. Reinforce is open on More.',
-    })
-  }
-
-  const researchJust = Boolean(next.systems.research && !prev.systems.research)
-  const foundryJust = Boolean(next.systems.foundry && !prev.systems.foundry)
-  for (const barId of next.networkBars) {
-    if (prev.networkBars.includes(barId)) continue
-    if (barId === 'strike' || barId === 'ward') continue
-    if ((barId === 'yield' || barId === 'loom') && foundryJust) continue
-    if (barId === 'archive' && researchJust) continue
-    const bar = NETWORK_BARS.find((b) => b.id === barId)
-    if (!bar) continue
-    push({
-      id: `netbar:${barId}`,
-      category: 'NETWORK',
-      title: `${bar.name} unlocked`,
-      body: bar.blurb,
-      action: { label: 'OPEN NETWORK', nav: { kind: 'tab', tab: 'network', focus: `network-${barId}` } },
     })
   }
 

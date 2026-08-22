@@ -1,4 +1,4 @@
-/** Drone Network — drones fill bars; later Relays improve the machinery of earlier bars. */
+/** Legacy Network bars stay on the save; Worker jobs own live industrial bonuses. */
 
 import type { GameState, NetworkBarId, NetworkBarState, NetworkLinkId, NetworkState } from './types'
 import { NETWORK_BAR_IDS } from './types'
@@ -8,9 +8,10 @@ import {
   idleWorkers,
   NETWORK_ACUITY_PER_RANK,
   NETWORK_RACK_CAP_PER_RANK,
+  stationEffectiveDrones,
 } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
-import { hiveResearchDataMult, hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
+import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
 import { yardNetworkMult } from './yard'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoNetworkMult } from './echo'
@@ -19,6 +20,7 @@ import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 import { careerBestWave } from './progression'
 import { foundryNetworkFillMult } from './foundryBonuses'
 import { NETWORK_CADENCE } from './cadence'
+import { isWorkersUnlocked, WORKER_JOB_IDS } from './workers'
 
 function careerEver(state: GameState): number {
   return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
@@ -562,22 +564,6 @@ export function networkBarCapped(state: GameState, id: NetworkBarId): boolean {
   return raw > networkFillCap(state, id) + 1e-6
 }
 
-/** 1 + k*((8L+1)^exp − 1). L=0 → 1. */
-function computeBonus(levels: number, k: number, exp = 0.5): number {
-  const L = Math.max(0, levels)
-  return 1 + k * (Math.pow(8 * L + 1, exp) - 1)
-}
-
-function primaryBonus(state: GameState, id: NetworkBarId, k: number): number {
-  if (protocolMutes(state, 'network')) return 1
-  if (!isNetworkBarUnlocked(state, id)) return 1
-  return computeBonus(
-    networkLevels(state, id),
-    k * networkLevelEffectiveness(state, id),
-    networkExponent(state, id),
-  )
-}
-
 export function networkStrikeMult(_state: GameState): number {
   return 1
 }
@@ -586,45 +572,37 @@ export function networkWardMult(_state: GameState): number {
   return 1
 }
 
+/** Salvage/kill bonus from Scrap Field labour. Yield bars no longer grant this. */
 export function networkSalvageMult(state: GameState): number {
-  return primaryBonus(state, 'yield', 0.05)
+  if (protocolMutes(state, 'network')) return 1
+  if (!isWorkersUnlocked(state)) return 1
+  const labor = stationEffectiveDrones(state, 'scrap-field')
+  return 1 + 0.045 * Math.sqrt(Math.max(0, labor))
 }
 
+/** Foundry / drone-print speed from fabrication jobs. Loom bars no longer grant this. */
 export function networkManufactureMult(state: GameState): number {
   if (protocolMutes(state, 'network')) return 1
-  if (!isNetworkBarUnlocked(state, 'loom')) return 1
-  const loom = computeBonus(
-    networkLevels(state, 'loom'),
-    0.04 * networkLevelEffectiveness(state, 'loom'),
-    networkExponent(state, 'loom'),
-  )
-  const relay = 1 + 0.03 * Math.sqrt(networkRelayLevels(state, 'loom')) * networkFormulaHooks(state).relayEffectivenessMult
-  return loom * relay
+  if (!isWorkersUnlocked(state)) return 1
+  const labor =
+    stationEffectiveDrones(state, 'drone-fab') +
+    stationEffectiveDrones(state, 'fab-bay') +
+    stationEffectiveDrones(state, 'construction')
+  return 1 + 0.04 * Math.sqrt(Math.max(0, labor))
 }
 
-export function networkScrapRate(state: GameState): number {
-  if (protocolMutes(state, 'network')) return 0
-  if (!isNetworkBarUnlocked(state, 'yield')) return 0
-  const L = networkLevels(state, 'yield')
-  if (L <= 0) return 0
-  const exp =
-    0.7 +
-    0.04 * Math.sqrt(networkRelayLevels(state, 'yield')) +
-    protocolModifiers(state).yieldScrapExpAdd
-  return 0.12 * Math.pow(L, exp)
+/** Extra hangar scrap drip retired — Scrap Field already produces scrap. */
+export function networkScrapRate(_state: GameState): number {
+  return 0
 }
 
-export function networkDataRate(state: GameState): number {
-  if (protocolMutes(state, 'network')) return 0
-  if (!isNetworkBarUnlocked(state, 'archive')) return 0
-  const L = networkLevels(state, 'archive')
-  if (L <= 0) return 0
-  const exp = 0.7 + 0.04 * Math.sqrt(networkRelayLevels(state, 'archive'))
-  return 0.025 * Math.pow(L, exp) * hiveResearchDataMult(state)
+/** Extra Research data drip retired — Sensor Net already produces data. */
+export function networkDataRate(_state: GameState): number {
+  return 0
 }
 
 export function networkAssigned(state: GameState): number {
-  return NETWORK_BARS.reduce((n, bar) => n + Math.max(0, state.base.assignments[bar.id] ?? 0), 0)
+  return WORKER_JOB_IDS.reduce((n, id) => n + Math.max(0, state.base.assignments[id] ?? 0), 0)
 }
 
 /** Assigned drones × efficiency. */
@@ -730,33 +708,14 @@ export function networkDiagnostics(state: GameState): NetworkDiagnostics {
 }
 
 /**
- * Fill assigned bars. Returns true if any bar gained a level (combat stats should refresh).
+ * Bars no longer fill. Worker jobs own industrial bonuses (see
+ * `networkSalvageMult` / `networkManufactureMult`). Returns false so combat
+ * stats are not refreshed on a phantom level-up.
  */
-export function tickNetwork(state: GameState, dtSeconds: number): boolean {
+export function tickNetwork(state: GameState, _dtSeconds: number): boolean {
   if (!state.network) state.network = createEmptyNetworkState()
-  let leveled = false
-  for (const bar of NETWORK_BARS) {
-    if (!isNetworkBarUnlocked(state, bar.id)) continue
-    const rec = state.network.bars[bar.id]
-    if (!rec) {
-      state.network.bars[bar.id] = { progress: 0, levels: 0 }
-    }
-    const slot = state.network.bars[bar.id]
-    const rate = networkFillRate(state, bar.id)
-    if (rate <= 0) continue
-    slot.progress += dtSeconds * rate
-    const gained = Math.floor(slot.progress)
-    if (gained > 0) {
-      slot.levels += gained
-      slot.progress -= gained
-      leveled = true
-    }
+  for (const id of NETWORK_BAR_IDS) {
+    if (state.base.assignments[id]) delete state.base.assignments[id]
   }
-
-  const scrap = networkScrapRate(state) * dtSeconds
-  if (scrap > 0) state.resources.scrap += scrap
-  const data = networkDataRate(state) * dtSeconds
-  if (data > 0) state.resources.data += data
-
-  return leveled
+  return false
 }
