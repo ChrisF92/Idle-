@@ -1,8 +1,7 @@
-/** Reinforce — second prestige layer at W300 (GDD §102). */
+/** Reinforce — higher prestige revealed by clearing the Wave 300 climax (GDD §164). */
 
 import type { GameState } from './types'
 import { ACT1_CADENCE } from './cadence'
-import { careerBestWave } from './waves'
 
 export const REINFORCE_UNLOCK_SECTOR = ACT1_CADENCE.reinforce
 
@@ -11,12 +10,15 @@ export function reinforceCount(state: GameState): number {
 }
 
 export function reinforceUnlocked(state: GameState): boolean {
-  return careerBestWave(state) >= REINFORCE_UNLOCK_SECTOR
+  return Boolean(state.meta.act1Cleared) || reinforceCount(state) > 0
 }
 
 export function canReinforce(state: GameState): { ok: boolean; reason?: string } {
   if (!reinforceUnlocked(state)) {
-    return { ok: false, reason: `Reach Wave ${REINFORCE_UNLOCK_SECTOR}` }
+    return { ok: false, reason: `Clear Wave ${REINFORCE_UNLOCK_SECTOR}` }
+  }
+  if (!state.combat.docked) {
+    return { ok: false, reason: 'Dock first' }
   }
   if (state.prestige.activeChallengeId) {
     return { ok: false, reason: 'Finish or abandon the active run' }

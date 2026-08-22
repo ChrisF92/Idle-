@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { ACT1_CADENCE } from './cadence'
+import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { isSystemUnlocked, PRESTIGE_MIN_SECTOR } from './progression'
 import { canPrestige } from './actions'
 import { atCareerWave } from './testHelpers'
@@ -21,6 +21,7 @@ describe('GDD Act 1 wave cadence', () => {
     expect(ACT1_CADENCE.specialists).toBe(999)
     expect(ACT1_CADENCE.tasks).toBe(999)
     expect(ACT1_CADENCE.reinforce).toBe(300)
+    expect(ACT1_FINAL_WAVE).toBe(300)
   })
 
   it('opens Foundry at Wave 20', () => {

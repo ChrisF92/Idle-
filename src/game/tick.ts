@@ -95,10 +95,12 @@ import {
   noteRebuildCycleWave,
 } from './rebuild'
 import {
+  completeAct1,
   isSystemUnlocked,
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
 } from './progression'
+import { ACT1_FINAL_WAVE } from './cadence'
 
 /** Legacy alias — production/offline still speak in seconds; combat is continuous. */
 export const TICK_MS = 1000
@@ -557,6 +559,7 @@ function onFightWon(state: GameState): void {
     noteProtocolProgress(state)
     state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
     noteSectorClear(state)
+    if (clearedWave >= ACT1_FINAL_WAVE) completeAct1(state)
     maybeGrantSystemUnlocks(state)
     tryCompleteChallenge(state)
     tryCompleteProtocol(state)

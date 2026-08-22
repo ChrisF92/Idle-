@@ -39,12 +39,12 @@ export function ReinforceTab({ state, onBack, onReinforce, onBlockingChange }: R
         <h2>Reinforce</h2>
         <p>
           {open
-            ? `Completed ${count} time${count === 1 ? '' : 's'}. Future Rebuild kits grow.`
-            : `Reach Wave ${REINFORCE_UNLOCK_SECTOR} for the second prestige.`}
+            ? `Completed ${count} time${count === 1 ? '' : 's'}. Rebuild has reached the limit of this loop.`
+            : `Clear Wave ${REINFORCE_UNLOCK_SECTOR} to reveal Reinforce.`}
         </p>
       </header>
       {!open ? (
-        <p className="muted">Reinforce keeps the Foundry and starts the lane again.</p>
+        <p className="muted">Reinforce changes the starting architecture of the Hive. Detailed Act 2 rules come later.</p>
       ) : (
         <div className="panel-scroll">
           <ConsequencePanel lists={lists} />

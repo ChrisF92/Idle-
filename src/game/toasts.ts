@@ -143,7 +143,7 @@ const STATION_TOAST: Partial<
   reinforce: {
     category: 'SYSTEM ONLINE',
     title: 'Reinforce unlocked',
-    body: 'Second prestige. Keeps the Foundry and starts the lane again.',
+    body: 'Rebuild has reached the limit of this loop. Reinforce changes the starting architecture of the Hive.',
     label: 'OPEN',
   },
 }
@@ -327,7 +327,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       id: 'sys:act1',
       category: 'CAMPAIGN',
       title: 'Act 1 complete',
-      body: 'Prestige, Ascension, and challenges are the long game.',
+      body: 'Wave 300 is down. Reinforce is open on More.',
     })
   }
 

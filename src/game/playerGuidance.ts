@@ -157,12 +157,13 @@ export function reinforceConsequenceLists(state: GameState): ConsequenceLists {
   const gain = [
     `+${Math.max(1, Math.floor(prestigeGainFor(state) * 0.5))} Rebuild Matter`,
     'Future Rebuild kits grow',
+    'The starting architecture of the Hive and the loop itself begins to shift',
   ]
   return {
     gain,
     keep: lists.keep,
     reset: lists.reset,
-    change: lists.change,
+    change: ['Rebuild is no longer the top of the ladder', ...lists.change],
   }
 }
 

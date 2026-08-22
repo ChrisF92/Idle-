@@ -160,9 +160,9 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'reinforce',
-    title: 'Second prestige',
-    body: 'Rebuild swaps guns. Reinforce keeps the foundry and starts the lane again, meaner. Returning kits grow. The Choir does too.',
-    unlock: (s) => career(s) >= 80 || (s.meta.ascensionCount ?? 0) > 0,
+    title: 'The loop ceiling',
+    body: 'Rebuild has gone as far as this architecture allows. Reinforce is the next scale — the Hive starting rules begin to shift.',
+    unlock: (s) => s.meta.act1Cleared || (s.meta.ascensionCount ?? 0) > 0,
   },
 ]
 

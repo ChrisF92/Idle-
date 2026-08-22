@@ -21,7 +21,7 @@ export interface MajorDoorDef extends MoreStationDef {
 export const MORE_STATIONS: MoreStationDef[] = [
   { id: 'codex', name: 'Codex', blurb: 'Optional enemy-family and hull-role reference.' },
   { id: 'protocols', name: 'Challenges', blurb: 'Can this account solve a modified version of the normal rules?' },
-  { id: 'reinforce', name: 'Reinforce', blurb: 'Higher-order reset after the Rebuild layer is mature.' },
+  { id: 'reinforce', name: 'Reinforce', blurb: 'Clear Wave 300. Change the scale of progression.' },
 ]
 
 /**
@@ -82,7 +82,7 @@ export const MAJOR_DOORS: MajorDoorDef[] = [
   {
     id: 'reinforce',
     name: 'Reinforce',
-    blurb: 'Higher-order reset after the Rebuild layer is mature.',
+    blurb: 'Clear Wave 300. Change the scale of progression.',
     wave: ACT1_CADENCE.reinforce,
     home: 'more',
   },

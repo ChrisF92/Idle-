@@ -42,7 +42,8 @@ import { careerHighestSector, isSystemUnlocked } from './progression'
 import { isSectorBossWave, wavesForSector, trashWavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
 import type { SectorRoute } from './types'
 import { buildFlagshipWeapons, computeShipStats, globalDamageMultiplier } from './state'
-import { isBossWave, powerSectorForWave } from './waves'
+import { isAct1ClimaxWave, isBossWave, powerSectorForWave } from './waves'
+import { ACT1_FINAL_WAVE } from './cadence'
 import { salvageKillMult } from './workshop'
 import {
   logisticsDropMult,
@@ -472,6 +473,7 @@ function assignRadialHeadings(units: CombatUnit[], wave: number): void {
 /** GDD encounter for a global Sortie Wave. Bosses land on every 10th Wave. */
 export function encounterForWave(wave: number, extraDanger = 1, state?: GameState): SectorEncounter {
   const w = Math.max(1, Math.floor(wave))
+  if (isAct1ClimaxWave(w)) return act1ClimaxEncounter(extraDanger, state)
   const sector = powerSectorForWave(w)
   const boss = isBossWave(w)
   const trash = trashWavesForSector(sector)
@@ -492,6 +494,36 @@ export function encounterForWave(wave: number, extraDanger = 1, state?: GameStat
   }
   encounter.id = `w${w}-${encounter.family}`
   return encounter
+}
+
+function act1ClimaxEncounter(extraDanger = 1, state?: GameState): SectorEncounter {
+  const w = ACT1_FINAL_WAVE
+  const sector = powerSectorForWave(w)
+  const waveScale = extraDanger
+  const units = buildAct1ClimaxPack(sector, waveScale)
+  const density = state ? directiveDensityMult(state) * protocolEnemyDensityMult(state) : 1
+  if (density > 1 && units.length > 0) {
+    const extra = Math.max(1, Math.round(units.length * (density - 1)))
+    for (let i = 0; i < extra; i++) {
+      const src = units[i % units.length]!
+      units.push({ ...structuredClone(src), id: `${src.id}-pack${i}` })
+    }
+  }
+  assignRadialHeadings(units, w)
+  return {
+    id: `w${w}-climax`,
+    name: ACT1_CLIMAX_NAME,
+    family: 'titan',
+    tags: ['titan', 'boss', 'climax'],
+    isBoss: true,
+    scrapReward: 20 + sector * 4,
+    dataReward: 4 + Math.floor(sector / 2),
+    aiReward: 0,
+    essenceReward: 1 + Math.floor(sector / 10),
+    salvageReward: salvageFromKill(sector, true, 'A'),
+    blurb: ACT1_CLIMAX_BLURB,
+    units,
+  }
 }
 
 /**
@@ -1281,6 +1313,84 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
     }),
   ]
   return [titan, ...adds]
+}
+
+export const ACT1_CLIMAX_NAME = 'Choir Crown'
+export const ACT1_CLIMAX_BLURB =
+  'Act 1 climax. Rebuild has reached the limit of this loop.'
+
+function buildAct1ClimaxPack(sector: number, waveScale = 1): CombatUnit[] {
+  const hullScale = enemySectorScale(sector) * 1.15 * waveScale
+  const dmgScale = enemyDamageScale(sector) * waveScale
+  return [
+    makeEnemyUnit({
+      name: ACT1_CLIMAX_NAME,
+      family: 'titan',
+      hull: Math.min(220, 24 + 18 * (sector - 1)) * hullScale,
+      armor: 3,
+      shield: Math.min(28, 10 + 1.6 * (sector - 1)) * hullScale,
+      damage: 12 * dmgScale,
+      cooldown: 1,
+      telegraphDuration: 0.4,
+      range: 125,
+      speed: 9,
+      engageRange: 105,
+      kite: true,
+      tags: ['kinetic'],
+      isBoss: true,
+      role: 'boss',
+      shape: 'hex',
+      x: SPAWN_DISTANCE + 8,
+      y: 0,
+      rewardWeight: 3,
+    }),
+    makeEnemyUnit({
+      name: 'Plate Thrall',
+      family: 'armored',
+      role: 'fighter',
+      hull: 16 * hullScale,
+      armor: 3,
+      damage: 3.2 * dmgScale,
+      cooldown: 1,
+      range: 55,
+      speed: 20,
+      engageRange: 50,
+      tags: ['kinetic'],
+      x: SPAWN_DISTANCE + 28,
+      y: -36,
+    }),
+    makeEnemyUnit({
+      name: 'Choir Mite',
+      family: 'swarm',
+      role: 'skirmisher',
+      hull: 5 * hullScale,
+      damage: 2.4 * dmgScale,
+      cooldown: 0.9,
+      range: 36,
+      speed: 40,
+      engageRange: 28,
+      tags: ['kinetic'],
+      x: SPAWN_DISTANCE + 34,
+      y: 36,
+    }),
+    makeEnemyUnit({
+      name: 'Veil Attendant',
+      family: 'ethereal',
+      role: 'sniper',
+      hull: 10 * hullScale,
+      shield: 8 * hullScale,
+      damage: 3.6 * dmgScale,
+      cooldown: 1.4,
+      telegraphDuration: 0.5,
+      range: 120,
+      speed: 16,
+      engageRange: 110,
+      kite: true,
+      tags: ['energy'],
+      x: SPAWN_DISTANCE + 16,
+      y: 0,
+    }),
+  ]
 }
 
 function familyBlurb(family: EnemyFamily, boss: boolean): string {

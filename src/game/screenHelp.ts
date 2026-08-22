@@ -143,8 +143,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   reinforce: {
     title: 'Reinforce',
     body: [
-      'Second prestige. Keeps the Foundry and starts the lane again.',
-      'Opens at sector 80. Confirm shows what you keep, reset, and gain.',
+      'Higher-order reset after Rebuild. The current loop has gone as far as it can.',
+      'Revealed by clearing Wave 300. Confirm shows what you keep, reset, and gain. Detailed Act 2 rules come later.',
     ],
   },
   logs: {

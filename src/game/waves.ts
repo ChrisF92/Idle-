@@ -1,6 +1,12 @@
 /** GDD wave helpers — Waves are the only combat progression coordinate. */
 
+import { ACT1_FINAL_WAVE } from './cadence'
+
 export const BOSS_WAVE_INTERVAL = 10
+
+export function isAct1ClimaxWave(wave: number): boolean {
+  return Math.max(1, Math.floor(wave)) === ACT1_FINAL_WAVE
+}
 
 /** Each 10-wave band maps onto one legacy sector of authored encounters / scaling. */
 export function powerSectorForWave(wave: number): number {

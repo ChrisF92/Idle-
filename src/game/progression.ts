@@ -119,7 +119,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'reinforce',
     requiresSectorEver: ACT1_CADENCE.reinforce,
     label: 'Reinforce',
-    tip: 'A later reset. Permanent systems stay.',
+    tip: 'Clear Wave 300. Rebuild has reached the limit of this loop.',
   },
   {
     id: 'logs',
@@ -747,6 +747,10 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'echo') {
     return false
   }
+  if (systemId === 'reinforce') {
+    const used = (state.meta.ascensionCount ?? 0) > 0
+    return used || Boolean(state.meta.act1Cleared)
+  }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return true
   if (careerBestWave(state) < def.requiresSectorEver) return false
@@ -792,6 +796,9 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   }
   if (systemId === 'echo') {
     return null
+  }
+  if (systemId === 'reinforce') {
+    return `Clear Wave ${ACT1_CADENCE.reinforce}`
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return null
@@ -913,15 +920,17 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'capital-frame']
   }
 
-  if ((meetsWave(state, ACT1_FINAL_WAVE) || ever >= ACT1_FINAL_SECTOR) && !state.meta.act1Cleared) {
-    state.meta.act1Cleared = true
-    state.combat.log = [
-      `Act 1 complete — Wave ${ACT1_FINAL_WAVE}. Prestige, Ascension, and challenges are the long game.`,
-      ...state.combat.log,
-    ].slice(0, 40)
-  }
-
   tryCompleteAchievements(state)
+}
+
+/** Clearing the Wave 300 climax reveals Reinforce (GDD §164). */
+export function completeAct1(state: GameState): void {
+  if (state.meta.act1Cleared) return
+  state.meta.act1Cleared = true
+  state.combat.log = [
+    `Act 1 complete — Wave ${ACT1_FINAL_WAVE}. Rebuild has reached the limit of this loop. Reinforce is open on More.`,
+    ...state.combat.log,
+  ].slice(0, 40)
 }
 
 /* ---------- Guided onboarding (spotlight + directed clicks) ---------- */

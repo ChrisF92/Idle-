@@ -122,7 +122,7 @@ import {
 } from './process'
 import { createEmptySpecialistState, rankSpecialist } from './specialists'
 import { createEmptyCapitalState, rankCapital } from './capital'
-import { canReinforce, REINFORCE_UNLOCK_SECTOR } from './reinforce'
+import { canReinforce } from './reinforce'
 import { noteSalvageSpend } from './sortieSummary'
 import {
   noteAssembledCore,
@@ -1740,7 +1740,7 @@ export function performReinforce(state: GameState, now = Date.now()): GameState 
   applyRunReset(next, now)
   tryCompleteAchievements(next)
   next.combat.log = [
-    `Reinforced (×${next.meta.ascensionCount}). +${gain} PM. Future Rebuild kits grow. Need sector ${REINFORCE_UNLOCK_SECTOR} career.`,
+    `Reinforced (×${next.meta.ascensionCount}). The Hive's starting architecture shifts. Future Rebuild kits grow.`,
     ...next.combat.log,
   ]
   recordPlaytest(next, 'reinforce', { v: next.meta.ascensionCount })
