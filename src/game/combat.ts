@@ -36,7 +36,7 @@ import {
   partId,
   pickWeightedDropEntry,
   stationRepairBonus,
-  SHORT_RANGE_MAX,
+  lowestPlayerCoreRange,
 } from './catalog'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { isSectorBossWave, wavesForSector, trashWavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
@@ -434,8 +434,8 @@ export function enemyForSector(
   units = densifyEncounter(units, sector, bossWave)
   const reach = Math.min(48, (Math.max(1, sector) - 1) * 2.8)
   for (const unit of units) {
-    // Preferred standoff remains role-specific. moveUnits() progressively compresses
-    // long-range positions until every enemy eventually enters SHORT_RANGE_MAX.
+    // Preferred standoff remains role-specific. moveUnits() never parks anyone
+    // outside the shortest player Core range in the catalog.
     for (const weapon of unit.weapons) {
       weapon.range += reach
     }
@@ -1841,25 +1841,18 @@ function laneDistance(a: CombatUnit, b: CombatUnit): number {
  * gradually collapses that distance. This preserves sniper/boss identity while
  * guaranteeing that no legal short-range loadout is permanently soft-locked.
  */
-export const ENEMY_CLOSE_DELAY_S = 6
-export const ENEMY_CLOSE_RATE = 2.6
-
-/** Shortest player weapon that can legally exist at this point in progression. */
-export function minimumPlayerWeaponRangeForSector(sector: number): number {
-  // S1 only has the starter Pulse battery/module available. Flak (55) enters at S2.
-  return sector <= 1 ? 180 : SHORT_RANGE_MAX
+/** Furthest legal enemy park distance: the shortest player Core weapon in the game. */
+export function minimumPlayerWeaponRangeForSector(_sector?: number): number {
+  return lowestPlayerCoreRange()
 }
 
 export function enemyApproachTarget(
   unit: Pick<CombatUnit, 'engageRange'>,
-  fightElapsed: number,
-  sector = 2,
+  _fightElapsed = 0,
+  _sector = 2,
 ): number {
   const preferred = Math.max(0, unit.engageRange)
-  const minimumReach = minimumPlayerWeaponRangeForSector(sector)
-  if (preferred <= minimumReach) return preferred
-  const closing = Math.max(0, fightElapsed - ENEMY_CLOSE_DELAY_S) * ENEMY_CLOSE_RATE
-  return Math.max(minimumReach, preferred - closing)
+  return Math.min(preferred, lowestPlayerCoreRange())
 }
 
 function moveUnits(state: GameState, dt: number): void {

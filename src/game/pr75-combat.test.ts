@@ -21,21 +21,27 @@ function minExpectedPack(sector: number, boss: boolean): number {
 }
 
 describe('PR75 combat pacing', () => {
-  it('lets ranged enemies establish standoff but eventually brings every enemy into minimum weapon range', () => {
-    let sawLongRange = false
+  it('parks each enemy at its role standoff without sitting outside the shortest player Core', () => {
+    let sawCloserRoles = false
+    let sawCappedRoles = false
     for (let sector = 1; sector <= 80; sector += 1) {
       for (let wave = 1; wave <= wavesForSector(sector); wave += 1) {
         const encounter = enemyForSector(sector, wave)
         for (const enemy of encounter.units) {
-          if (enemy.engageRange > SHORT_RANGE_MAX) sawLongRange = true
-          const floor = minimumPlayerWeaponRangeForSector(sector)
-          expect(enemyApproachTarget(enemy, 180, sector), `S${sector} W${wave} ${enemy.name}`).toBeLessThanOrEqual(floor)
+          const hold = enemyApproachTarget(enemy, 0, sector)
+          expect(hold, `S${sector} W${wave} ${enemy.name}`).toBeLessThanOrEqual(SHORT_RANGE_MAX)
+          expect(hold).toBe(enemyApproachTarget(enemy, 180, sector))
+          if (enemy.engageRange < SHORT_RANGE_MAX) sawCloserRoles = true
+          if (enemy.engageRange > SHORT_RANGE_MAX) sawCappedRoles = true
         }
       }
     }
-    expect(sawLongRange).toBe(true)
-    expect(minimumPlayerWeaponRangeForSector(1)).toBe(180)
+    expect(sawCloserRoles).toBe(true)
+    expect(sawCappedRoles).toBe(true)
+    expect(minimumPlayerWeaponRangeForSector(1)).toBe(SHORT_RANGE_MAX)
     expect(minimumPlayerWeaponRangeForSector(2)).toBe(SHORT_RANGE_MAX)
+    expect(enemyApproachTarget({ engageRange: 24 })).toBe(24)
+    expect(enemyApproachTarget({ engageRange: 118 })).toBe(SHORT_RANGE_MAX)
   })
 
   it('rotates authored wave patterns when a family returns later in Act 1', () => {

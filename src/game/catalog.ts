@@ -2591,6 +2591,16 @@ export function getModule(id: string): ShipModuleDef | undefined {
   return SHIP_MODULES.find((m) => m.id === id)
 }
 
+/** Shortest weapon range on any player Core in the catalog (currently Flak Array). */
+export function lowestPlayerCoreRange(): number {
+  let min = Infinity
+  for (const mod of SHIP_MODULES) {
+    const range = mod.weapon?.range
+    if (typeof range === 'number' && range > 0) min = Math.min(min, range)
+  }
+  return Number.isFinite(min) ? min : SHORT_RANGE_MAX
+}
+
 export function getChallenge(id: string): ChallengeDef | undefined {
   return CHALLENGES.find((c) => c.id === id)
 }
