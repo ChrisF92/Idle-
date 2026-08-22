@@ -19,7 +19,8 @@ import {
   hiveResearchXp,
 } from './hiveResearch'
 import { firstAffordableProcessNode, processAvailable, processConfig } from './process'
-import { foundryAttention, furnaceAttention, networkAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
+import { workerAllocationSummary } from './workers'
+import { foundryAttention, furnaceAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
 
@@ -78,6 +79,8 @@ export function foundryHubStatus(state: GameState): string[] {
     lines.push(pct == null ? `Tracking ${name}` : `${name}: ${pct}%`)
   }
 
+  const workers = workerAllocationSummary(state).foundry
+  if (workers > 0) lines.push(`${workers} workers`)
   return lines.slice(0, 3)
 }
 
@@ -98,7 +101,7 @@ export function furnaceHubStatus(state: GameState): string[] {
     .map((id) => {
       const lv = Math.max(0, Math.floor(state.furnace?.active?.[id] ?? 0))
       if (lv <= 0) return null
-      const name = id === 'weapons' ? 'Weapons' : id === 'shielding' ? 'Ward' : 'Yield'
+      const name = id === 'weapons' ? 'Weapons' : id === 'shielding' ? 'Shielding' : 'Recovery'
       return `${name} ${lv === 1 ? 'I' : lv === 2 ? 'II' : 'III'}`
     })
     .filter((line): line is string => Boolean(line))
@@ -118,6 +121,8 @@ export function researchHubStatus(state: GameState): string[] {
   const pct = need > 0 ? Math.min(100, Math.round((100 * xp) / need)) : 0
   const lines = [node?.name ?? 'Researching', `${pct}%`]
   if (left > 0) lines.push(`${formatResearchDuration(left)} left`)
+  const workers = workerAllocationSummary(state).research
+  if (workers > 0) lines.push(`${workers} workers`)
   return lines.slice(0, 3)
 }
 
@@ -132,11 +137,10 @@ export function processHubStatus(state: GameState): string[] {
   if (cfg.furnace.autoFeed || cfg.furnace.autoChannel) running += 1
   if (cfg.research.autoResearch) running += 1
   const next = firstAffordableProcessNode(state)
-  const lines = [`${bought} capabilities`]
-  if (running > 0) lines.push(`${running} active rules`)
+  const lines = running > 0 ? [`${running} automations active`] : [`${bought} capabilities`]
+  if (processAvailable(state) > 0) lines.push(`${Math.floor(processAvailable(state))} Process Points available`)
   else if (next) lines.push(`Next: ${next.name}`)
-  else if (processAvailable(state) > 0) lines.push(`${Math.floor(processAvailable(state))} Process`)
-  else lines.push('No purchase yet')
+  else if (running <= 0) lines.push('No purchase yet')
   return lines.slice(0, 3)
 }
 
@@ -153,9 +157,6 @@ export function systemsHubCards(state: GameState): SystemsHubCard[] {
   const cards: SystemsHubCard[] = []
   if (isSystemUnlocked(state, 'foundry')) {
     cards.push(card('foundry', 'Foundry', foundryHubStatus(state), foundryAttention(state)))
-  }
-  if (isSystemUnlocked(state, 'network')) {
-    cards.push(card('network', 'Worker Drones', workersHubStatus(state), networkAttention(state)))
   }
   if (isSystemUnlocked(state, 'furnace')) {
     cards.push(card('furnace', 'Furnace', furnaceHubStatus(state), furnaceAttention(state)))

@@ -221,6 +221,8 @@ export function createInitialState(now = Date.now()): GameState {
       hullLostOnce: false,
       numberNotation: 'engineering',
       damageNumbers: 'standard',
+      sortieSpeed: 1,
+      extractedOnce: false,
     },
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),

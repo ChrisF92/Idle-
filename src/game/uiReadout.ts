@@ -1,8 +1,12 @@
 /** GDD §111–119 live HUD and comparison helpers. */
 
 import {
-  combatSpeedMultiplier,
+  getAiNode,
   getModule,
+  matterShopHullBonus,
+  matterShopShieldBonus,
+  metaDamageMultiplier,
+  metaProductionMultiplier,
   moduleLevel,
   moduleMasteryRank,
   moduleWeaponDamage,
@@ -15,8 +19,59 @@ import type { GameState } from './types'
 
 export type DamageNumbersMode = 'minimal' | 'standard' | 'detailed'
 
+export function availableSortieSpeeds(state: GameState): number[] {
+  const speeds = new Set<number>([1])
+  for (const id of state.ai.purchased ?? []) {
+    const m = getAiNode(id)?.combatSpeedMult
+    if (m != null && m > 1) speeds.add(m)
+  }
+  const proc = processCombatSpeedMult(state)
+  if (proc > 1) speeds.add(proc)
+  return [...speeds].sort((a, b) => a - b)
+}
+
+export function chosenSortieSpeed(state: GameState): number {
+  const avail = availableSortieSpeeds(state)
+  const pref = state.meta.sortieSpeed
+  if (pref != null && avail.includes(pref)) return pref
+  return avail[avail.length - 1] ?? 1
+}
+
 export function sortieSpeed(state: GameState): number {
-  return Math.max(combatSpeedMultiplier(state), processCombatSpeedMult(state))
+  return chosenSortieSpeed(state)
+}
+
+export function runScrapEarned(state: GameState): number {
+  if (state.combat.docked || !state.combat.sortieMark) {
+    return Math.max(0, state.combat.lastSortie?.scrapEarned ?? 0)
+  }
+  return Math.max(0, (state.resources.scrap ?? 0) - (state.combat.sortieMark.scrap ?? 0))
+}
+
+export function fragmentCount(state: GameState): number {
+  return Object.values(state.parts ?? {}).reduce((n, v) => n + Math.max(0, Math.floor(Number(v) || 0)), 0)
+}
+
+export function permanentMultipliers(state: GameState): {
+  damage: number
+  defense: number
+  industry: number
+} {
+  const matter = state.resources.prestigeMatter ?? 0
+  const damage = metaDamageMultiplier(
+    matter,
+    state.resources.challengePoints ?? 0,
+    state.prestige.shop,
+    state.prestige.matterShop,
+    state.prestige.challengeClears,
+  )
+  const hullBonus = matterShopHullBonus(state.prestige.matterShop ?? {})
+  const shieldBonus = matterShopShieldBonus(state.prestige.matterShop ?? {})
+  return {
+    damage,
+    defense: 1 + hullBonus * 0.01 + shieldBonus * 0.01,
+    industry: metaProductionMultiplier(matter, state.prestige.matterShop, state.prestige.challengeClears),
+  }
 }
 
 export function formatRunTime(seconds: number): string {
@@ -26,6 +81,7 @@ export function formatRunTime(seconds: number): string {
   return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`
 }
 
+/** Internal telemetry label. Not shown in player-facing Sortie HUD. */
 export function livePressureLabel(state: GameState): string {
   if (state.combat.docked) return 'Docked'
   const hullMax = Math.max(1, state.combat.playerHullMax || 1)
@@ -55,6 +111,15 @@ export function coreDps(state: GameState, moduleId: string): number {
   const mastery = moduleMasteryRank(state, moduleId)
   const cooldown = Math.max(0.05, def.weapon.cooldown)
   return moduleWeaponDamage(def, level, mastery) / cooldown
+}
+
+export function coreShieldOutput(state: GameState, moduleId: string): number {
+  const def = getModule(moduleId)
+  if (!def) return 0
+  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
+  const mastery = moduleMasteryRank(state, moduleId)
+  const flat = (def.shieldBonus ?? 0) + (def.shieldBonusPerLevel ?? 0) * level
+  return flat * (1 + mastery * 0.02)
 }
 
 export function coreContributionPct(state: GameState, moduleId: string): number | null {

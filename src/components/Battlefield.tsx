@@ -12,6 +12,7 @@ import type {
 import { SPAWN_DISTANCE } from '../game/combat'
 import { formatCompact } from '../game/format'
 import type { DamageNumbersMode } from '../game/uiReadout'
+import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind, hiveFrameStyle, type CoreVisualKind, type HiveFrameStyle } from '../game/hiveVisual'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -26,6 +27,8 @@ interface BattlefieldProps {
   paused?: boolean
   /** GDD §113 floating combat numbers. */
   numbers?: DamageNumbersMode
+  frameId?: string
+  coreIds?: string[]
 }
 
 interface Actor {
@@ -199,6 +202,9 @@ interface Scene {
   scroll: number
   reducedMotion: boolean
   critVignette: number
+  frameId: string
+  coreIds: string[]
+  hiveShieldPop: number
 }
 
 /** Portrait logical canvas — Hive at centre, enemies from all directions. */
@@ -543,7 +549,7 @@ function ring(
 
 function addShake(scene: Scene, amount: number): void {
   if (scene.reducedMotion) return
-  scene.shake = Math.min(14, scene.shake + amount)
+  scene.shake = Math.min(4.5, scene.shake + amount * 0.45)
 }
 
 /** Layered death / impact pop — debris + shockwave. */
@@ -610,8 +616,18 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
       existing.deathT = 0
       existing.enterT = 0.3
     }
+    if (existing.isFlagship && existing.side === 'player' && existing.shield > 0 && unit.shield <= 0) {
+      scene.hiveShieldPop = 1
+      ring(scene, existing.x, existing.y, '#7ec8ff', existing.r * 4.2, 0.28, 2.4)
+      burst(scene, existing.x, existing.y, '#c8f0ff', scene.reducedMotion ? 4 : 10, {
+        speed: 0.9,
+        life: 0.35,
+        size: 0.9,
+      })
+    }
     if (unit.hull <= 0 && existing.alive) {
       existing.alive = false
+      const armored = existing.shape === 'hex' || existing.shape === 'square'
       const power =
         existing.isBoss
           ? 'boss'
@@ -619,7 +635,9 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
             ? 'large'
             : existing.side === 'player'
               ? 'medium'
-              : 'small'
+              : armored
+                ? 'medium'
+                : 'small'
       existing.deathT = existing.isBoss ? 1.7 : existing.isFlagship ? 1 : power === 'small' ? 0.42 : 0.7
       existing.deathStage = existing.isBoss ? 1 : 0
       explode(scene, existing.x, existing.y, sideFill(existing.side, existing.isBoss), power)
@@ -1113,6 +1131,171 @@ function drawShape(
   ctx.restore()
 }
 
+function coreKindColor(kind: CoreVisualKind): string {
+  switch (kind) {
+    case 'flak':
+      return '#e0c07a'
+    case 'beam':
+      return '#5ec4b8'
+    case 'heavy':
+      return '#d88848'
+    case 'pulse':
+      return '#7ec8ff'
+    case 'shield':
+      return '#8fd4ff'
+    case 'utility':
+      return '#b8a0e0'
+  }
+}
+
+function drawHiveFrame(
+  ctx: CanvasRenderingContext2D,
+  style: HiveFrameStyle,
+  r: number,
+  fill: string,
+  stroke: string,
+  alpha: number,
+): void {
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = fill
+  ctx.strokeStyle = stroke
+  ctx.lineWidth = 1.7
+  ctx.beginPath()
+  if (style === 'razor') {
+    ctx.moveTo(r * 1.05, 0)
+    ctx.lineTo(-r * 0.7, -r * 0.72)
+    ctx.lineTo(-r * 0.35, 0)
+    ctx.lineTo(-r * 0.7, r * 0.72)
+    ctx.closePath()
+  } else if (style === 'pathfinder') {
+    ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2)
+  } else if (style === 'bastion' || style === 'heavy' || style === 'capital') {
+    const n = style === 'capital' ? 8 : 6
+    for (let i = 0; i < n; i += 1) {
+      const a = (Math.PI * 2 * i) / n - Math.PI / n
+      const x = Math.cos(a) * r
+      const y = Math.sin(a) * r
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.closePath()
+  } else if (style === 'cruiser' || style === 'line') {
+    ctx.moveTo(r * 0.95, 0)
+    ctx.lineTo(0, -r * 0.7)
+    ctx.lineTo(-r * 0.85, -r * 0.35)
+    ctx.lineTo(-r * 0.85, r * 0.35)
+    ctx.lineTo(0, r * 0.7)
+    ctx.closePath()
+  } else {
+    ctx.moveTo(r * 0.9, 0)
+    ctx.lineTo(-r * 0.7, -r * 0.62)
+    ctx.lineTo(-r * 0.45, 0)
+    ctx.lineTo(-r * 0.7, r * 0.62)
+    ctx.closePath()
+  }
+  ctx.fill()
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.strokeStyle = style === 'bastion' ? '#e0c07a' : stroke
+  ctx.globalAlpha = alpha * 0.7
+  ctx.arc(0, 0, r * (style === 'capital' ? 1.28 : style === 'bastion' ? 1.18 : 1.08), 0, Math.PI * 2)
+  ctx.stroke()
+  if (style === 'bastion' || style === 'heavy' || style === 'capital') {
+    ctx.globalAlpha = alpha * 0.45
+    ctx.beginPath()
+    ctx.rect(-r * 0.22, -r * 1.05, r * 0.44, r * 0.28)
+    ctx.rect(-r * 0.22, r * 0.77, r * 0.44, r * 0.28)
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
+function drawOrbitingCores(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  ax: number,
+  ay: number,
+  alpha: number,
+): void {
+  const ids = scene.coreIds
+  if (ids.length === 0) return
+  ids.forEach((id, index) => {
+    const kind = coreVisualKind(id)
+    const orbit = coreOrbitRadius(kind)
+    const speed = coreOrbitSpeed(kind)
+    const angle = scene.time * speed + (index / ids.length) * Math.PI * 2
+    const x = ax + Math.cos(angle) * orbit
+    const y = ay + Math.sin(angle) * orbit
+    const color = coreKindColor(kind)
+    ctx.save()
+    ctx.globalAlpha = alpha * 0.95
+    ctx.fillStyle = color
+    ctx.strokeStyle = '#ffe8c7'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(x, y, kind === 'heavy' ? 4.2 : kind === 'flak' ? 2.8 : 3.3, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+    if (kind === 'beam') {
+      ctx.globalAlpha = alpha * 0.35
+      ctx.strokeStyle = color
+      ctx.beginPath()
+      ctx.moveTo(ax, ay)
+      ctx.lineTo(x, y)
+      ctx.stroke()
+    }
+    ctx.restore()
+  })
+}
+
+function drawHiveShield(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  actor: Actor,
+  ax: number,
+  ay: number,
+  alpha: number,
+): void {
+  const pct = actor.shieldMax > 0 ? actor.shield / actor.shieldMax : 0
+  if (scene.hiveShieldPop > 0 && pct <= 0) {
+    const t = scene.hiveShieldPop
+    ctx.save()
+    ctx.globalAlpha = alpha * t * 0.55
+    ctx.strokeStyle = '#c8f0ff'
+    ctx.lineWidth = 2.2
+    ctx.beginPath()
+    ctx.arc(ax, ay, actor.r + 10 + (1 - t) * 22, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+    return
+  }
+  if (pct <= 0) return
+  const unstable = pct < 0.55
+  const low = pct < 0.28
+  const wobble = scene.reducedMotion || !unstable ? 0 : Math.sin(scene.time * (low ? 18 : 8)) * (low ? 2.2 : 1.1)
+  const flicker = !scene.reducedMotion && low && Math.sin(scene.time * 28) < -0.35 ? 0.35 : 1
+  ctx.save()
+  ctx.translate(ax, ay)
+  ctx.globalAlpha = alpha * (0.16 + pct * 0.32) * flicker
+  ctx.strokeStyle = '#7ec8ff'
+  ctx.lineWidth = 1.3 + pct * 1.1 + actor.shieldHit
+  ctx.shadowColor = '#7ec8ff'
+  ctx.shadowBlur = scene.reducedMotion ? 0 : 6 + actor.shieldHit * 8
+  ctx.beginPath()
+  for (let i = 0; i < 6; i += 1) {
+    const a = (Math.PI / 3) * i - Math.PI / 6
+    const rad = actor.r + 7 + pct * 3 + wobble
+    const x = Math.cos(a) * rad
+    const y = Math.sin(a) * rad
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.closePath()
+  ctx.stroke()
+  ctx.restore()
+}
+
 function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.fillStyle = '#120e0c'
   ctx.fillRect(0, 0, scene.width, scene.height)
@@ -1236,6 +1419,7 @@ function stepScene(scene: Scene, dt: number): void {
   if (scene.shake > 0) {
     scene.shake = Math.max(0, scene.shake - dt * 18)
   }
+  if (scene.hiveShieldPop > 0) scene.hiveShieldPop = Math.max(0, scene.hiveShieldPop - dt * 2.4)
 
   for (const actor of scene.actors.values()) {
     if (actor.enterT > 0) actor.enterT = Math.max(0, actor.enterT - dt)
@@ -1783,8 +1967,9 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     const fill = sideFill(actor.side, actor.isBoss)
     const stroke = actor.side === 'player' ? '#ffe8c7' : '#d0dce8'
 
-    // Active shield bubble (only when the unit actually has shield remaining).
-    if (actor.alive && actor.shieldMax > 0 && actor.shield > 0) {
+    if (actor.isFlagship && actor.side === 'player') {
+      drawHiveShield(ctx, scene, actor, ax, ay, alpha)
+    } else if (actor.alive && actor.shieldMax > 0 && actor.shield > 0) {
       const pct = actor.shield / actor.shieldMax
       const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(scene.time * 3.2 + actor.bobPhase))
       const hitExpand = actor.shieldHit * 7
@@ -1814,9 +1999,12 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.shadowColor = '#ff6b6b'
       ctx.shadowBlur = 18 * (actor.enterT / 0.7)
     }
-    // Face the incoming lane: player nose up, enemies nose down.
-    ctx.rotate(actor.side === 'player' ? -Math.PI / 2 : Math.PI / 2)
-    drawShape(ctx, actor.shape, actor.r, fill, stroke, alpha)
+    if (actor.isFlagship && actor.side === 'player') {
+      drawHiveFrame(ctx, hiveFrameStyle(scene.frameId), actor.r * 1.15, fill, stroke, alpha)
+    } else {
+      ctx.rotate(actor.side === 'player' ? -Math.PI / 2 : Math.PI / 2)
+      drawShape(ctx, actor.shape, actor.r, fill, stroke, alpha)
+    }
 
     if (actor.muzzle > 0) {
       ctx.globalAlpha = actor.muzzle
@@ -1828,6 +2016,10 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.fill()
     }
     ctx.restore()
+
+    if (actor.isFlagship && actor.side === 'player' && actor.alive) {
+      drawOrbitingCores(ctx, scene, ax, ay, alpha)
+    }
 
     if ((actor.telegraph > 0 && !actor.chargeLaser) || (actor.phaseWarn > 0 && actor.telegraph <= 0)) {
       const pulse = actor.telegraph > 0 ? actor.telegraph : 1 - actor.phaseWarn
@@ -1924,11 +2116,13 @@ export function Battlefield({
   mode,
   paused = false,
   numbers = 'standard',
+  frameId = '',
+  coreIds = [],
 }: BattlefieldProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<Scene | null>(null)
-  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, beams, fx, mode, paused, numbers })
-  propsRef.current = { playerUnits, enemyUnits, projectiles, beams, fx, mode, paused, numbers }
+  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, beams, fx, mode, paused, numbers, frameId, coreIds })
+  propsRef.current = { playerUnits, enemyUnits, projectiles, beams, fx, mode, paused, numbers, frameId, coreIds }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1966,6 +2160,9 @@ export function Battlefield({
         typeof window.matchMedia === 'function' &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches,
       critVignette: 0,
+      frameId,
+      coreIds,
+      hiveShieldPop: 0,
     }
     sceneRef.current = scene
 
@@ -1979,6 +2176,8 @@ export function Battlefield({
 
       syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.beams, p.fx, p.mode)
       scene.numbers = p.numbers
+      scene.frameId = p.frameId
+      scene.coreIds = p.coreIds
       stepScene(scene, dt)
 
       const dpr = Math.min(2, window.devicePixelRatio || 1)

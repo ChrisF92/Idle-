@@ -53,8 +53,8 @@ describe('player guidance helpers', () => {
     const lists = rebuildConsequenceLists(s)
     expect(lists.gain[0]).toMatch(/Rebuild Matter/)
     expect(lists.keep).toEqual(expect.arrayContaining(['Research', 'Foundry recipes, stock, and Foundry Points']))
-    expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Core levels', 'Network bar levels']))
-    expect(lists.change).toEqual(expect.arrayContaining(['Hull', 'Core loadout']))
+    expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Core ranks', 'Workshop']))
+    expect(lists.change).toEqual([])
   })
 
   it('Reinforce lists keep Foundry and still reset the run', () => {

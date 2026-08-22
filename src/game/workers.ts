@@ -17,3 +17,28 @@ export function isWorkersUnlocked(state: GameState): boolean {
 export function isWorkerJob(stationId: string): boolean {
   return WORKER_JOB_IDS.includes(stationId)
 }
+
+export function workerAllocationSummary(state: GameState): {
+  total: number
+  assigned: number
+  idle: number
+  foundry: number
+  research: number
+  fabrication: number
+} {
+  const assignments = state.base.assignments ?? {}
+  const count = (id: string) => Math.max(0, Math.floor(assignments[id] ?? 0))
+  const foundry = count('alloy-foundry') + count('construction')
+  const research = count('sensor-net')
+  const fabrication = count('fab-bay') + count('drone-fab')
+  const assigned = Object.values(assignments).reduce((n, v) => n + Math.max(0, Math.floor(v ?? 0)), 0)
+  const total = Math.max(0, Math.floor(state.base.workerDrones ?? 0))
+  return {
+    total,
+    assigned,
+    idle: Math.max(0, total - assigned),
+    foundry,
+    research,
+    fabrication,
+  }
+}

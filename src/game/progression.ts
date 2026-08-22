@@ -998,6 +998,8 @@ const TAP_TARGETS = new Set([
   'upgrade-plate-layer',
   'network-strike-plus',
   'network-ward-plus',
+  'worker-scrap-field',
+  'worker-power-grid',
   'foundry-recipe-slag-ingot',
   'furnace-channel-weapons',
   'research-focus',
@@ -1075,8 +1077,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-salvage-first',
     kind: 'hint',
     title: 'Salvage recovered',
-    body: 'Spend Salvage to strengthen this run.',
-    target: 'sortie-canvas',
+    body: 'Spend Salvage to strengthen this run. Tap Weapon Power.',
+    target: 'run-upgrade-weapon-power',
     tab: 'combat',
     screen: 'combat',
     group: 'sortie',
@@ -1144,7 +1146,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-relaunch',
     kind: 'action',
     title: 'Launch again',
-    body: 'Every Sortie starts at Wave 1. Spend Scrap in the Workshop, then launch.',
+    body: 'Every Sortie starts at Wave 1. Workshop levels raise the starting baseline; Sortie purchase costs still start cheap. Spend Scrap, then launch.',
     target: 'launch',
     tab: 'dock',
     screen: 'dock',
@@ -1160,34 +1162,34 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-network-strike',
     kind: 'action',
-    title: 'Assign Strike',
-    body: 'Assign a drone to Strike.',
-    target: 'network-strike-plus',
+    title: 'Assign Worker Drones',
+    body: 'Put a Worker Drone on Scrap Field.',
+    target: 'worker-scrap-field',
     tab: 'network',
     screen: 'network',
     group: 'network',
     tap: true,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
-      (s.base.assignments.strike ?? 0) < 1 &&
+      (s.base.assignments['scrap-field'] ?? 0) < 1 &&
       !guideSeen(s, 'guide-network-strike'),
-    completeWhen: (s) => (s.base.assignments.strike ?? 0) >= 1,
+    completeWhen: (s) => (s.base.assignments['scrap-field'] ?? 0) >= 1,
   },
   {
     id: 'guide-network-ward',
     kind: 'hint',
-    title: 'Ward',
-    body: 'Try Ward to improve your shields.',
-    target: 'network-ward-plus',
+    title: 'Split the corps',
+    body: 'Jobs have a hard cap. Extra drones on a full job do nothing.',
+    target: 'worker-power-grid',
     tab: 'network',
     screen: 'network',
     group: 'network',
     tap: true,
     availableWhen: (s) =>
-      (s.base.assignments.strike ?? 0) >= 1 &&
-      (s.base.assignments.ward ?? 0) < 1 &&
+      (s.base.assignments['scrap-field'] ?? 0) >= 1 &&
+      (s.base.assignments['power-grid'] ?? 0) < 1 &&
       !guideSeen(s, 'guide-network-ward'),
-    completeWhen: (s) => (s.base.assignments.ward ?? 0) >= 1,
+    completeWhen: (s) => (s.base.assignments['power-grid'] ?? 0) >= 1,
   },
   {
     id: 'guide-foundry-recipe',

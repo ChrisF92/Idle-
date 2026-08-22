@@ -116,7 +116,12 @@ export function NetworkTab({ state, onAssign, onOptimise, onBack }: NetworkTabPr
                   <button type="button" disabled={assigned <= 0} onClick={() => onAssign(job.id, -1)}>
                     −
                   </button>
-                  <button type="button" disabled={idle <= 0} onClick={() => onAssign(job.id, 1)}>
+                  <button
+                    type="button"
+                    data-guide={`worker-${job.id}`}
+                    disabled={idle <= 0}
+                    onClick={() => onAssign(job.id, 1)}
+                  >
                     +
                   </button>
                 </p>

@@ -1,33 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { GameState } from '../game/types'
 import {
   MATTER_SHOP,
-  SHIP_FRAMES,
-  SHIP_MODULES,
   canBuyMatterShop,
-  canFitModuleOnFrame,
   getFrame,
   getModule,
   matterShopEffectBlurb,
-  metaDamageMultiplier,
+  moduleMasteryRank,
   shopRank,
-  trimModulesToFrame,
 } from '../game/catalog'
-import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
 import { canPrestige, prestigeGainFor } from '../game/actions'
 import { yardPendingSummary } from '../game/yard'
 import { isSystemUnlocked } from '../game/progression'
 import { rebuildConsequenceLists } from '../game/playerGuidance'
 import { ConsequencePanel } from './ConsequencePanel'
-import {
-  cycleBestWave,
-  rebuildCycle,
-  rebuildWaveNeed,
-  workshopInvestment,
-} from '../game/rebuild'
+import { cycleBestWave, rebuildCycle, rebuildWaveNeed, workshopInvestment } from '../game/rebuild'
 import { formatCompact } from '../game/format'
 import { computeShipStats, RESOURCE_LABELS } from '../game/state'
-import { formatStatShift, previewLoadoutStats } from '../game/uiReadout'
+import { coreDps, coreShieldOutput, permanentMultipliers } from '../game/uiReadout'
+import { prefersReducedMotion } from '../hooks/usePrefersReducedMotion'
 
 interface RebuildHangarProps {
   state: GameState
@@ -37,87 +28,44 @@ interface RebuildHangarProps {
 }
 
 export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: RebuildHangarProps) {
-  const available = SHIP_FRAMES.filter((f) => state.shipyard.unlockedFrames.includes(f.id))
-  const extra = { utility: hiveResearchExtraUtilitySlots(state) }
-  const [frameId, setFrameId] = useState(state.shipyard.frameId)
-  const frame = getFrame(frameId) ?? available[0]!
-  const [modules, setModules] = useState(() =>
-    trimModulesToFrame(state.shipyard.modules, frame, extra),
-  )
-
   const ready = canPrestige(state)
   const need = rebuildWaveNeed(state)
   const cycle = rebuildCycle(state)
   const gain = prestigeGainFor(state)
   const lists = rebuildConsequenceLists(state)
-  const shopOpen = isSystemUnlocked(state, 'slag') || (state.resources.prestigeMatter ?? 0) > 0
+  const shopAvailable = isSystemUnlocked(state, 'slag') || (state.resources.prestigeMatter ?? 0) > 0
+  const [shopOpen, setShopOpen] = useState(false)
+  const [collapsing, setCollapsing] = useState(false)
   const matter = state.resources.prestigeMatter
   const label = RESOURCE_LABELS.prestigeMatter
   const hive = computeShipStats(state)
-  const compare = previewLoadoutStats(state, frameId, modules)
-  const weaponNow = metaDamageMultiplier(
-    matter,
-    state.resources.challengePoints ?? 0,
-    state.prestige.shop,
-    state.prestige.matterShop,
-    state.prestige.challengeClears,
-  )
-  const weaponAfter = metaDamageMultiplier(
-    matter + gain,
-    state.resources.challengePoints ?? 0,
-    state.prestige.shop,
-    state.prestige.matterShop,
-    state.prestige.challengeClears,
-  )
+  const now = permanentMultipliers(state)
+  const after = permanentMultipliers({
+    ...state,
+    resources: { ...state.resources, prestigeMatter: matter + gain },
+  })
+  const frame = getFrame(state.shipyard.frameId)
 
-  const weapons = useMemo(
-    () => SHIP_MODULES.filter((m) => m.role === 'weapon' && state.shipyard.unlockedModules.includes(m.id)),
-    [state.shipyard.unlockedModules],
-  )
-  const shields = useMemo(
-    () =>
-      SHIP_MODULES.filter((m) => m.role === 'defense' && state.shipyard.unlockedModules.includes(m.id)),
-    [state.shipyard.unlockedModules],
-  )
-  const utilities = useMemo(
-    () =>
-      SHIP_MODULES.filter((m) => m.role === 'utility' && state.shipyard.unlockedModules.includes(m.id)),
-    [state.shipyard.unlockedModules],
-  )
-
-  function toggle(id: string) {
-    const def = getModule(id)
-    if (!def) return
-    if (modules.includes(id)) {
-      setModules(modules.filter((m) => m !== id))
+  function confirm() {
+    if (!ready || collapsing) return
+    const hangar = { frameId: state.shipyard.frameId, modules: [...state.shipyard.modules] }
+    if (prefersReducedMotion()) {
+      onConfirm(hangar)
       return
     }
-    if (!canFitModuleOnFrame(frame, modules, id, extra)) {
-      const withoutRole = modules.filter((m) => getModule(m)?.role !== def.role)
-      if (canFitModuleOnFrame(frame, withoutRole, id, extra)) {
-        setModules(trimModulesToFrame([...withoutRole, id], frame, extra))
-      }
-      return
-    }
-    setModules([...modules, id])
-  }
-
-  function pickFrame(id: string) {
-    const next = getFrame(id)
-    if (!next) return
-    setFrameId(id)
-    setModules(trimModulesToFrame(modules, next, extra))
+    setCollapsing(true)
+    window.setTimeout(() => onConfirm(hangar), 720)
   }
 
   return (
     <div className="modal-backdrop hangar-backdrop" role="dialog" aria-labelledby="rebuild-title">
-      <div className="hangar-sheet">
+      <div className={`hangar-sheet${collapsing ? ' is-collapsing' : ''}`}>
         <header className="modal-header">
           <div>
             <h3 id="rebuild-title">Rebuild</h3>
-            <p className="muted">Rebuild trades current-cycle development for permanent growth.</p>
+            <p className="muted">Should this cycle reset now?</p>
           </div>
-          <button type="button" onClick={onClose}>
+          <button type="button" onClick={onClose} disabled={collapsing}>
             Close
           </button>
         </header>
@@ -147,168 +95,116 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
 
           <section className="hangar-hive">
             <p className="combat-hud-kicker">Current Hive</p>
-            <p className="muted">
-              {getFrame(state.shipyard.frameId)?.name ?? 'Hive'} ·{' '}
-              {state.shipyard.modules.map((id) => getModule(id)?.name ?? id).join(' · ') || 'No Cores'}
+            <p>
+              <strong>{frame?.name ?? 'Hive'}</strong>
+              {' · '}
+              DPS {formatCompact(hive.damage)} · Hull {formatCompact(hive.hullMax)} · Sh{' '}
+              {formatCompact(hive.shieldMax)}
             </p>
-            <div className="stat-row dock-stats">
-              <div>
-                <span className="muted">Hull</span>
-                <strong>{formatCompact(hive.hullMax)}</strong>
-              </div>
-              <div>
-                <span className="muted">Shield</span>
-                <strong>{formatCompact(hive.shieldMax)}</strong>
-              </div>
-              <div>
-                <span className="muted">DPS</span>
-                <strong>{formatCompact(hive.damage)}</strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="hangar-preview">
-            <p className="combat-hud-kicker">Power preview</p>
-            <p className="muted">
-              Permanent weapon multiplier ×{weaponNow.toFixed(2)} → ×{weaponAfter.toFixed(2)}
-            </p>
-            {compare.current.hullMax !== compare.next.hullMax ||
-            compare.current.shieldMax !== compare.next.shieldMax ||
-            compare.current.damage !== compare.next.damage ? (
-              <dl className="upgrade-card-stats">
-                <div>
-                  <dt>Hull</dt>
-                  <dd>{formatStatShift(compare.current.hullMax, compare.next.hullMax)}</dd>
-                </div>
-                <div>
-                  <dt>Shield</dt>
-                  <dd>{formatStatShift(compare.current.shieldMax, compare.next.shieldMax)}</dd>
-                </div>
-                <div>
-                  <dt>DPS</dt>
-                  <dd>{formatStatShift(compare.current.damage, compare.next.damage)}</dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="muted">This loadout matches the current Hive.</p>
-            )}
+            <ul className="dock-core-list">
+              {state.shipyard.modules.map((id) => {
+                const def = getModule(id)
+                const mastery = moduleMasteryRank(state, id)
+                const dps = coreDps(state, id)
+                const shield = coreShieldOutput(state, id)
+                const stat =
+                  dps > 0
+                    ? `${formatCompact(dps)} DPS`
+                    : shield > 0
+                      ? `${formatCompact(shield)} Shield`
+                      : def?.role ?? ''
+                return (
+                  <li key={id}>
+                    {def?.name ?? id}
+                    {mastery > 0 ? ` · M${mastery}` : ''}
+                    {stat ? ` · ${stat}` : ''}
+                  </li>
+                )
+              })}
+            </ul>
           </section>
 
           <ConsequencePanel lists={lists} />
+
+          <section>
+            <p className="combat-hud-kicker">You gain</p>
+            <p className="rebuild-gain">+{gain} {label.toUpperCase()}</p>
+            <p className="muted">
+              Damage ×{now.damage.toFixed(1)} → ×{after.damage.toFixed(1)}
+              {' · '}
+              Defense ×{now.defense.toFixed(1)} → ×{after.defense.toFixed(1)}
+              {' · '}
+              Industry ×{now.industry.toFixed(1)} → ×{after.industry.toFixed(1)}
+            </p>
+          </section>
+
           {isSystemUnlocked(state, 'yard') ? (
             <p className="muted">Construction: {yardPendingSummary(state)}.</p>
           ) : null}
 
-          {shopOpen ? (
-            <section className="hangar-matter">
-              <p className="combat-hud-kicker">Matter shop</p>
-              <h4>{formatCompact(matter, 1)} {label}</h4>
-              <p className="muted">Permanent ranks. Spend here — there is no separate Slag screen.</p>
-              {MATTER_SHOP.map((item) => {
-                const rank = shopRank(state.prestige.matterShop, item.id)
-                const can = canBuyMatterShop(state, item.id)
-                return (
-                  <article key={item.id} className="network-row">
-                    <div className="network-row-main">
-                      <strong>{item.name}</strong>
-                      <span className="muted">Lv {rank}</span>
-                    </div>
-                    <p className="network-row-stats">{item.description}</p>
-                    <p className="muted">{matterShopEffectBlurb(item, rank)}</p>
-                    <button
-                      type="button"
-                      className="primary"
-                      disabled={!onBuyMatter || !can.ok}
-                      onClick={() => onBuyMatter?.(item.id)}
-                    >
-                      {can.ok ? `${can.cost} ${label}` : can.reason}
-                    </button>
-                  </article>
-                )
-              })}
-            </section>
-          ) : null}
-
-          <h4 data-guide="hangar-hull">Hull</h4>
-          <div className="hangar-picks">
-            {available.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className={frameId === f.id ? 'primary' : undefined}
-                onClick={() => pickFrame(f.id)}
-              >
-                {f.name}
-                <span className="muted">
-                  {' '}
-                  {f.weaponSlots}W {f.defenseSlots}S {f.utilitySlots + extra.utility}U
-                </span>
+          {shopAvailable ? (
+            <p className="assign-row">
+              <button type="button" onClick={() => setShopOpen(true)}>
+                Matter upgrades
               </button>
-            ))}
-          </div>
-
-          <h4>Weapon</h4>
-          <div className="hangar-picks">
-            {weapons.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                className={modules.includes(m.id) ? 'primary' : undefined}
-                onClick={() => toggle(m.id)}
-              >
-                {m.name}
-              </button>
-            ))}
-          </div>
-
-          <h4>Shield</h4>
-          <div className="hangar-picks">
-            {shields.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                className={modules.includes(m.id) ? 'primary' : undefined}
-                onClick={() => toggle(m.id)}
-              >
-                {m.name}
-              </button>
-            ))}
-          </div>
-
-          {utilities.length > 0 ? (
-            <>
-              <h4>Utility</h4>
-              <div className="hangar-picks">
-                {utilities.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    className={modules.includes(m.id) ? 'primary' : undefined}
-                    onClick={() => toggle(m.id)}
-                  >
-                    {m.name}
-                  </button>
-                ))}
-              </div>
-            </>
+            </p>
           ) : null}
         </div>
 
         <div className="modal-actions">
-          <button type="button" onClick={onClose}>
+          <button type="button" onClick={onClose} disabled={collapsing}>
             Cancel
           </button>
           <button
             type="button"
             className="primary"
             data-guide="hangar-confirm"
-            disabled={!ready}
-            onClick={() => onConfirm({ frameId, modules })}
+            disabled={!ready || collapsing}
+            onClick={confirm}
           >
             {ready ? `Rebuild · +${gain} Matter` : `Reach Wave ${need} this cycle`}
           </button>
         </div>
       </div>
+
+      {shopOpen ? (
+        <div className="sheet-overlay" role="dialog" aria-labelledby="matter-shop-title">
+          <div className="sheet-card">
+            <header className="modal-header">
+              <h3 id="matter-shop-title">Matter upgrades</h3>
+              <button type="button" onClick={() => setShopOpen(false)}>
+                Close
+              </button>
+            </header>
+            <p>
+              {formatCompact(matter, 1)} {label}
+            </p>
+            <p className="muted">Permanent ranks. Spend here — there is no separate Slag screen.</p>
+            {MATTER_SHOP.map((item) => {
+              const rank = shopRank(state.prestige.matterShop, item.id)
+              const can = canBuyMatterShop(state, item.id)
+              return (
+                <article key={item.id} className="network-row">
+                  <div className="network-row-main">
+                    <strong>{item.name}</strong>
+                    <span className="muted">Lv {rank}</span>
+                  </div>
+                  <p className="network-row-stats">{item.description}</p>
+                  <p className="muted">{matterShopEffectBlurb(item, rank)}</p>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={!onBuyMatter || !can.ok}
+                    onClick={() => onBuyMatter?.(item.id)}
+                  >
+                    {can.ok ? `${can.cost} ${label}` : can.reason}
+                  </button>
+                </article>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

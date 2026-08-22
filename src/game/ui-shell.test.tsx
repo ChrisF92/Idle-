@@ -32,7 +32,7 @@ describe('shell UX', () => {
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
-    expect(screen.getByRole('button', { name: /Cores/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /CORES/i })).toBeTruthy()
     expect(screen.getByText('Salvage')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
     expect(document.querySelector('[data-guide="sortie-canvas"]')).toBeTruthy()
@@ -50,11 +50,11 @@ describe('shell UX', () => {
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
-    expect(screen.getByRole('button', { name: /Cores/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /CORES/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
     expect(document.querySelector('[data-guide="cores-sheet"]')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Cores/ }))
-    expect(screen.getByText(/Salvage ranks these/i)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
+    expect(screen.getByText(/Rank and equip Cores at Dock/i)).toBeTruthy()
     expect(document.querySelector('[data-guide="core-pulse-cannon"]')).toBeTruthy()
   })
 
@@ -135,7 +135,7 @@ describe('shell UX', () => {
         onPickMilestone={() => undefined}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /Cores/ }))
+    fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Inspect Pulse Cannon' }))
     const dialog = screen.getByRole('dialog', { name: 'Pulse Cannon' })
     expect(dialog).toBeTruthy()
@@ -181,7 +181,7 @@ describe('shell UX', () => {
     ).toBeTruthy()
   })
 
-  it('closes the Cores modal when Network onboarding needs the tab bar', () => {
+  it('keeps the Cores sheet closed unless the player opens it', () => {
     const persist = markHullLost(createInitialState(0))
     persist.combat.docked = true
     persist.resources.salvage = 8
@@ -200,10 +200,10 @@ describe('shell UX', () => {
       'guide-upgrade-plate',
       'guide-cores-inspect',
     ]
-    const persistStep = activeGuideStep(persist, 'combat')
+    const persistStep = activeGuideStep(persist, 'dock')
     expect(persistStep?.id).toBe('guide-cores-persist')
 
-    const { rerender } = render(
+    render(
       <CombatTab
         state={persist}
         onLaunch={() => undefined}
@@ -212,21 +212,9 @@ describe('shell UX', () => {
         guide={persistStep}
       />,
     )
-    expect(screen.getByRole('dialog', { name: 'Cores' })).toBeTruthy()
-
-    const next = acknowledgeOnboarding(persist, 'guide-cores-persist')
-    const relaunch = activeGuideStep(next, 'combat')
-    expect(relaunch?.id).toBe('guide-relaunch')
-    rerender(
-      <CombatTab
-        state={next}
-        onLaunch={() => undefined}
-        onUpgrade={() => undefined}
-        onPickMilestone={() => undefined}
-        guide={relaunch}
-      />,
-    )
     expect(screen.queryByRole('dialog', { name: 'Cores' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
+    expect(screen.getByRole('dialog', { name: 'Cores' })).toBeTruthy()
   })
 
   it('shows Got it only on look-only onboarding tips', () => {
@@ -244,7 +232,7 @@ describe('shell UX', () => {
     expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy()
   })
 
-  it('spotlights Network manufacture, corps, and Links', () => {
+  it('spotlights Worker Drone jobs without Network combat labels', () => {
     render(
       <NetworkTab
         state={createInitialState(0)}
@@ -252,20 +240,19 @@ describe('shell UX', () => {
         onBuyLink={() => undefined}
       />,
     )
+    expect(screen.getByRole('heading', { name: 'Worker Drones' })).toBeTruthy()
     expect(document.querySelector('[data-guide="network-manufacture"]')).toBeTruthy()
-    expect(document.querySelector('[data-guide="network-corps"]')).toBeTruthy()
-    expect(document.querySelector('[data-guide="network-strike"]')).toBeTruthy()
-    expect(document.querySelector('[data-guide="network-links"]')).toBeTruthy()
-    expect(screen.queryByText('Corps racks')).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: 'Links' }))
-    expect(screen.getByText('Corps racks')).toBeTruthy()
+    expect(document.querySelector('[data-guide="worker-scrap-field"]')).toBeTruthy()
+    expect(screen.queryByText(/Strike/)).toBeNull()
+    expect(screen.queryByText(/Ward/)).toBeNull()
+    expect(screen.queryByText(/Yield/)).toBeNull()
   })
 
   it('opens per-screen help from the info button', () => {
     render(<ScreenHelp screen="combat" />)
     fireEvent.click(screen.getByRole('button', { name: 'Sortie info' }))
     expect(screen.getByRole('dialog', { name: 'Sortie' })).toBeTruthy()
-    expect(screen.getByText(/Drones are assigned on the Network tab/i)).toBeTruthy()
+    expect(screen.getByText(/Worker Drones unlock at Wave 30 under Systems/i)).toBeTruthy()
   })
 
   it('renders offline rewards as a dismissable modal', () => {

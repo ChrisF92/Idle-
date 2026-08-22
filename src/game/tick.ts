@@ -14,7 +14,6 @@ import {
   aiDoctrinesActive,
   aiFabBonus,
   aiProductionBonus,
-  combatSpeedMultiplier,
   droneCap,
   essenceBonusDataPerClear,
   essenceBossEssenceMultiplier,
@@ -49,7 +48,8 @@ import { tickYard } from './yard'
 import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
-import { hasProcess, processCombatSpeedMult, processConfig, processIndustrySpeedMult } from './process'
+import { hasProcess, processConfig, processIndustrySpeedMult } from './process'
+import { chosenSortieSpeed } from './uiReadout'
 import {
   captureSortieMark,
   closeSortie,
@@ -163,6 +163,7 @@ function finishSortie(
   at: { sector: number; wave: number },
   extractBonus = false,
 ): void {
+  const previousBest = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const newBest = noteBestWave(state, at.wave)
   const scrapNow = state.resources.scrap ?? 0
   const scrapStart = state.combat.sortieMark?.scrap ?? scrapNow
@@ -173,7 +174,7 @@ function finishSortie(
     scrapEarned += bonus
     note = `${note} Extraction +${bonus} Scrap.`
   }
-  closeSortie(state, outcome, note, at, { scrapEarned, newBest })
+  closeSortie(state, outcome, note, at, { scrapEarned, newBest, previousBest })
   noteRebuildCycleSortie(state, scrapEarned)
   endFurnaceSortie(state)
   state.resources.salvage = 0
@@ -810,7 +811,7 @@ export function chooseDirective(state: GameState, id: string): GameState {
 /** Advance continuous simulation by `seconds` of game time (mutates). */
 export function advanceSeconds(state: GameState, seconds: number): void {
   let left = Math.max(0, seconds)
-  const combatSpeed = Math.max(combatSpeedMultiplier(state), processCombatSpeedMult(state))
+  const combatSpeed = chosenSortieSpeed(state)
   const reclaim = reclaimSpeed(state)
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)

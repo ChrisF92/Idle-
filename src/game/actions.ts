@@ -123,6 +123,7 @@ import { createEmptySpecialistState, rankSpecialist } from './specialists'
 import { createEmptyCapitalState, rankCapital } from './capital'
 import { canReinforce } from './reinforce'
 import { noteSalvageSpend } from './sortieSummary'
+import { availableSortieSpeeds, chosenSortieSpeed } from './uiReadout'
 import {
   noteAssembledCore,
   noteAttempt,
@@ -142,9 +143,12 @@ import { buildPlayerFleet } from './combat'
 import {
   createEmptyWorkshop,
   effectiveUpgradeLevel,
+  maxAffordableRunPurchases,
+  maxAffordableWorkshopPurchases,
+  nextRunUpgradeCost,
   RUN_UPGRADE_CAP,
   RUN_UPGRADES,
-  runUpgradeCost,
+  runPurchasedLevel,
   snapshotWorkshopCoreStarts,
   workshopCost,
   type RunUpgradeId,
@@ -1175,23 +1179,24 @@ export function upgradeModule(state: GameState, moduleId: string): GameState {
   return next
 }
 
-export function buyRunUpgrade(state: GameState, id: RunUpgradeId): GameState {
-  if (state.combat.docked) return state
+function applyRunUpgradePurchase(next: GameState, id: RunUpgradeId): boolean {
   const def = RUN_UPGRADES.find((row) => row.id === id)
-  if (!def) return state
-  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
-  if (best < def.minBestWave) return state
-  const level = effectiveUpgradeLevel(state, id)
-  if (level >= RUN_UPGRADE_CAP) return state
-  const cost = runUpgradeCost(level)
-  if (state.resources.salvage < cost) return state
-  const next = structuredClone(state)
+  if (!def) return false
+  const best = Math.max(next.meta.bestWave ?? 0, next.combat.bestWave ?? 0, next.combat.wave ?? 1)
+  if (best < def.minBestWave) return false
+  if (effectiveUpgradeLevel(next, id) >= RUN_UPGRADE_CAP) return false
+  const cost = nextRunUpgradeCost(next, id)
+  if (next.resources.salvage < cost) return false
   next.resources.salvage -= cost
-  noteSalvageSpend(next, cost)
+  noteSalvageSpend(next, cost, def.category)
   next.combat.runUpgrades = {
     ...(next.combat.runUpgrades ?? {}),
-    [id]: Math.max(0, Math.floor(next.combat.runUpgrades?.[id] ?? 0)) + 1,
+    [id]: runPurchasedLevel(next, id) + 1,
   }
+  return true
+}
+
+function syncFleetAfterRunUpgrade(next: GameState): void {
   if (next.combat.inFight) {
     const prevUnits = next.combat.playerUnits
     const rebuilt = buildPlayerFleet(next)
@@ -1224,25 +1229,56 @@ export function buyRunUpgrade(state: GameState, id: RunUpgradeId): GameState {
   } else {
     syncPersistedHullCaps(next)
   }
+}
+
+export function buyRunUpgrade(state: GameState, id: RunUpgradeId, count = 1): GameState {
+  if (state.combat.docked) return state
+  const want = count === Number.POSITIVE_INFINITY ? maxAffordableRunPurchases(state, id) : Math.max(1, Math.floor(count))
+  if (want <= 0) return state
+  const next = structuredClone(state)
+  let bought = 0
+  for (let i = 0; i < want; i += 1) {
+    if (!applyRunUpgradePurchase(next, id)) break
+    bought += 1
+  }
+  if (bought <= 0) return state
+  syncFleetAfterRunUpgrade(next)
   return next
 }
 
-export function buyWorkshopUpgrade(state: GameState, id: RunUpgradeId): GameState {
+export function buyWorkshopUpgrade(state: GameState, id: RunUpgradeId, count = 1): GameState {
   if (!state.combat.docked) return state
   const def = RUN_UPGRADES.find((row) => row.id === id)
   if (!def) return state
   if (!state.meta.hullLostOnce) return state
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   if (best < def.minBestWave) return state
-  const current = Math.max(0, Math.floor(state.workshop?.levels?.[id] ?? 0))
-  if (current >= RUN_UPGRADE_CAP) return state
-  const cost = workshopCost(current)
-  if (state.resources.scrap < cost) return state
+  const want = count === Number.POSITIVE_INFINITY ? maxAffordableWorkshopPurchases(state, id) : Math.max(1, Math.floor(count))
+  if (want <= 0) return state
   const next = structuredClone(state)
   if (!next.workshop) next.workshop = createEmptyWorkshop()
-  next.resources.scrap -= cost
-  next.workshop.levels = { ...next.workshop.levels, [id]: current + 1 }
+  let bought = 0
+  for (let i = 0; i < want; i += 1) {
+    const current = Math.max(0, Math.floor(next.workshop.levels?.[id] ?? 0))
+    if (current >= RUN_UPGRADE_CAP) break
+    const cost = workshopCost(current)
+    if (next.resources.scrap < cost) break
+    next.resources.scrap -= cost
+    next.workshop.levels = { ...next.workshop.levels, [id]: current + 1 }
+    bought += 1
+  }
+  if (bought <= 0) return state
   syncPersistedHullCaps(next)
+  return next
+}
+
+export function cycleSortieSpeed(state: GameState): GameState {
+  const avail = availableSortieSpeeds(state)
+  if (avail.length <= 1) return state
+  const cur = chosenSortieSpeed(state)
+  const idx = Math.max(0, avail.indexOf(cur))
+  const next = structuredClone(state)
+  next.meta.sortieSpeed = avail[(idx + 1) % avail.length]
   return next
 }
 

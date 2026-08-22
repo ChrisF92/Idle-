@@ -255,9 +255,9 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     push({
       id: 'sys:network',
       category: 'SYSTEM ONLINE',
-      title: 'Drone Network unlocked',
-      body: 'Assign drones to improve combat and production.',
-      action: { label: 'OPEN', nav: { kind: 'tab', tab: 'network' } },
+      title: 'Workshop unlocked',
+      body: 'Scrap survives. Spend it so the next Sortie starts stronger.',
+      action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
     })
   }
 
@@ -317,7 +317,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       id: 'sys:rebuild',
       category: 'HANGAR',
       title: 'Rebuild available',
-      body: 'Swap hull and Cores. Permanent systems stay.',
+      body: 'Preview the reset, then confirm if this cycle should end.',
       action: { label: 'VIEW REBUILD', nav: { kind: 'rebuild' } },
     })
   }

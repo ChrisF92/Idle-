@@ -1,27 +1,52 @@
 import type { GameState, SortieSummary } from '../game/types'
 import { formatCompact } from '../game/format'
-import { isFirstDefeatReport, sortieNextHints } from '../game/playerGuidance'
-import { buildSortieDiagnostic } from '../game/sortieTelemetry'
+import { isFirstDefeatReport } from '../game/playerGuidance'
+import { getModule } from '../game/catalog'
+import { coreContributionPct, coreDps, formatRunTime } from '../game/uiReadout'
 
 interface SortieReportProps {
   summary: SortieSummary
   state: GameState
   onClose: () => void
+  onDock?: () => void
+  onRunAgain?: () => void
   onUpgradeCores?: () => void
 }
 
-const PRESSURE_LABEL: Record<string, string> = {
-  SURVIVABILITY: 'SURVIVABILITY',
-  DAMAGE: 'DAMAGE',
-  MIXED: 'MIXED',
-  HEALTHY: 'HEALTHY PUSH',
+function spendPct(part: number, total: number): string {
+  if (total <= 0) return '0%'
+  return `${Math.round((100 * part) / total)}%`
 }
 
-export function SortieReport({ summary, state, onClose }: SortieReportProps) {
+export function SortieReport({ summary, state, onClose, onDock, onRunAgain }: SortieReportProps) {
   const defeat = summary.outcome === 'defeat'
   const firstDefeat = defeat && isFirstDefeatReport(state)
-  const hints = firstDefeat ? [] : sortieNextHints(state)
-  const diagnostic = firstDefeat ? null : buildSortieDiagnostic(summary, state)
+  const goDock = () => {
+    onDock?.()
+    onClose()
+  }
+  const runAgain = () => {
+    if (firstDefeat) {
+      goDock()
+      return
+    }
+    onRunAgain?.()
+    onClose()
+  }
+  const spend = summary.spendByCategory
+  const spendTotal = (spend?.attack ?? 0) + (spend?.defense ?? 0) + (spend?.economy ?? 0)
+  const stats = summary.stats
+  const bossLeft =
+    stats?.lastIsBoss && stats.finalEnemyHpMax > 0
+      ? Math.round((100 * stats.finalEnemyHp) / stats.finalEnemyHpMax)
+      : null
+  const cores = state.shipyard.modules
+    .map((id) => {
+      const share = coreContributionPct(state, id)
+      const dps = coreDps(state, id)
+      return { id, name: getModule(id)?.name ?? id, share, dps }
+    })
+    .filter((row) => row.share != null || row.dps > 0)
 
   return (
     <div className="modal-backdrop sortie-report-backdrop" role="dialog" aria-labelledby="sortie-report-title">
@@ -30,98 +55,113 @@ export function SortieReport({ summary, state, onClose }: SortieReportProps) {
           <div>
             <p className="combat-hud-kicker">{defeat ? 'SORTIE COMPLETE' : 'EXTRACTED'}</p>
             <h3 id="sortie-report-title">
-              {firstDefeat
-                ? `Wave ${summary.wave}${summary.newBest ? ' · New Best' : ''}`
-                : diagnostic
-                  ? diagnostic.title
-                  : `${defeat ? 'Defeat' : 'Extract'} · Wave ${summary.wave}`}
+              {summary.previousBest > 0 ? `W${summary.previousBest} → W${summary.wave}` : `W${summary.wave}`}
+              {summary.newBest ? ' · NEW BEST' : ''}
+              {summary.newBest && summary.previousBest > 0 ? ` +${summary.wave - summary.previousBest}` : ''}
             </h3>
+            <p className="muted">{formatRunTime(stats?.finalFightTime ?? 0)}</p>
           </div>
           <button type="button" onClick={onClose}>
             Close
           </button>
         </header>
+
         {firstDefeat ? (
           <>
             <p>
               You recovered <strong>{formatCompact(summary.scrapEarned)} Scrap</strong>.
             </p>
             <p className="muted">
-              Salvage from that Sortie is gone. Scrap survives. Spend it in Workshop so the next
-              Sortie starts stronger.
+              Salvage from that Sortie is gone. Scrap survives. Spend it in Workshop so the next Sortie
+              starts stronger.
             </p>
           </>
         ) : (
           <>
             {summary.note ? <p className="muted">{summary.note}</p> : null}
-            {diagnostic ? (
-              <div className="sortie-diagnosis">
-                {diagnostic.lines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-                {diagnostic.threat ? (
-                  <p>
-                    Primary pressure: <strong>{diagnostic.threat}</strong>
-                  </p>
+            <section>
+              <p className="combat-hud-kicker">Rewards</p>
+              <div className="stat-row dock-stats">
+                <div>
+                  <span className="muted">Scrap</span>
+                  <strong>+{formatCompact(summary.scrapEarned)}</strong>
+                </div>
+                {summary.fragmentsEarned > 0 ? (
+                  <div>
+                    <span className="muted">Fragments</span>
+                    <strong>+{formatCompact(summary.fragmentsEarned)}</strong>
+                  </div>
                 ) : null}
-                <p>
-                  Pressure: <strong>{PRESSURE_LABEL[diagnostic.pressure] ?? diagnostic.pressure}</strong>
-                </p>
-                {diagnostic.improvements.length > 0 ? (
-                  <div className="sortie-next">
-                    <p className="combat-hud-kicker">Possible improvements</p>
-                    <ul>
-                      {diagnostic.improvements.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
+                {summary.ashEarned > 0 ? (
+                  <div>
+                    <span className="muted">Ash</span>
+                    <strong>+{formatCompact(summary.ashEarned)}</strong>
+                  </div>
+                ) : null}
+                {summary.dataEarned > 0 ? (
+                  <div>
+                    <span className="muted">Data</span>
+                    <strong>+{formatCompact(summary.dataEarned)}</strong>
                   </div>
                 ) : null}
               </div>
+            </section>
+
+            {spendTotal > 0 ? (
+              <section>
+                <p className="combat-hud-kicker">Spending</p>
+                <div className="stat-row dock-stats">
+                  <div>
+                    <span className="muted">Attack</span>
+                    <strong>{spendPct(spend.attack, spendTotal)}</strong>
+                  </div>
+                  <div>
+                    <span className="muted">Defense</span>
+                    <strong>{spendPct(spend.defense, spendTotal)}</strong>
+                  </div>
+                  <div>
+                    <span className="muted">Economy</span>
+                    <strong>{spendPct(spend.economy, spendTotal)}</strong>
+                  </div>
+                </div>
+              </section>
             ) : null}
+
+            {cores.length > 0 ? (
+              <section>
+                <p className="combat-hud-kicker">Core contribution</p>
+                <ul className="sortie-next">
+                  {cores.map((row) => (
+                    <li key={row.id}>
+                      {row.name}{' '}
+                      {row.share != null ? `${row.share}%` : `${formatCompact(row.dps)} DPS`}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            <section>
+              <p className="combat-hud-kicker">Sortie facts</p>
+              <ul>
+                {defeat ? <li>Hull reached zero.</li> : <li>Extracted with hull remaining.</li>}
+                {bossLeft != null ? <li>Boss remained at {bossLeft}% HP.</li> : null}
+                {stats?.finalFightTime > 0 ? (
+                  <li>Final encounter {formatRunTime(stats.finalFightTime)}.</li>
+                ) : null}
+                {stats?.damageDealt > 0 ? <li>Damage dealt {formatCompact(stats.damageDealt)}.</li> : null}
+                {stats?.damageTaken > 0 ? <li>Damage taken {formatCompact(stats.damageTaken)}.</li> : null}
+              </ul>
+            </section>
           </>
         )}
-        {hints.length > 0 ? (
-          <div className="sortie-next">
-            <p className="combat-hud-kicker">Possible next steps</p>
-            <ul>
-              {hints.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        <div className="stat-row dock-stats">
-          <div>
-            <span className="muted">Sectors</span>
-            <strong>{summary.sectorsCleared}</strong>
-          </div>
-          <div>
-            <span className="muted">Salvage</span>
-            <strong>+{formatCompact(summary.salvageGained)}</strong>
-          </div>
-          <div>
-            <span className="muted">Spent</span>
-            <strong>{formatCompact(summary.salvageSpent)}</strong>
-          </div>
-        </div>
-        <div className="stat-row dock-stats">
-          <div>
-            <span className="muted">Milestones</span>
-            <strong>{summary.milestones}</strong>
-          </div>
-          <div>
-            <span className="muted">Research</span>
-            <strong>+{formatCompact(summary.researchXp)}</strong>
-          </div>
-          <div>
-            <span className="muted">Network</span>
-            <strong>+{summary.networkLevels}</strong>
-          </div>
-        </div>
-        <p className="assign-row">
-          <button type="button" className="primary" onClick={onClose}>
-            Continue
+
+        <p className="assign-row sortie-report-actions">
+          <button type="button" onClick={goDock}>
+            Dock
+          </button>
+          <button type="button" className="primary" onClick={runAgain}>
+            {firstDefeat ? 'Continue' : 'Run Again'}
           </button>
         </p>
       </div>

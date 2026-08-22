@@ -307,10 +307,11 @@ describe('sortie counters and pressure', () => {
       }),
     }
     render(<SortieReport summary={s.combat.lastSortie} state={s} onClose={() => undefined} />)
-    expect(screen.getByText(/REPELLED — SECTOR 14 BOSS/)).toBeTruthy()
-    expect(screen.getByText(/Boss HP remaining: 31%/)).toBeTruthy()
-    expect(screen.getByText(/Pressure:/)).toBeTruthy()
-    expect(screen.getByText(/Possible improvements/)).toBeTruthy()
+    expect(screen.getByText(/SORTIE COMPLETE/)).toBeTruthy()
+    expect(screen.getByText(/Boss remained at 31% HP/)).toBeTruthy()
+    expect(screen.queryByText(/Pressure/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Dock' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Run Again' })).toBeTruthy()
     expect(screen.queryByText(/optimal/i)).toBeNull()
   })
 })

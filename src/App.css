@@ -10,6 +10,10 @@
   padding: env(safe-area-inset-top, 0px) 0 0;
 }
 
+.app.is-sortie {
+  grid-template-rows: 1fr auto;
+}
+
 .chrome-top {
   display: grid;
   min-width: 0;

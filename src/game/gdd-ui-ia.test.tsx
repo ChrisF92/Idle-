@@ -28,7 +28,9 @@ describe('GDD shell information architecture', () => {
     expect(screen.getByRole('heading', { name: 'Systems' })).toBeTruthy()
     expect(screen.getByText('Foundry')).toBeTruthy()
     expect(screen.getByText('Worker Drones')).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: /Manage/ }).length).toBe(2)
+    expect(screen.queryByRole('button', { name: /Manage/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Worker Drones/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Foundry/ })).toBeTruthy()
   })
 
   it('lists Codex as Coming up and hides the later-systems dump', () => {
@@ -64,8 +66,9 @@ describe('GDD shell information architecture', () => {
     expect(screen.getByText('Loadout')).toBeTruthy()
     expect(screen.getByText('Workshop')).toBeTruthy()
     expect(screen.getByText('Rebuild')).toBeTruthy()
-    expect(screen.getByText('Weapon Power')).toBeTruthy()
     expect(screen.getByText(/Equip and rank Cores here with Scrap/i)).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Workshop' }))
+    expect(screen.getByText('Weapon Power')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))
     expect(screen.queryByText('Weapon Power')).toBeNull()
     expect(screen.getAllByText('Hull').length).toBeGreaterThan(0)

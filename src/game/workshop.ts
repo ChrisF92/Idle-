@@ -65,9 +65,12 @@ export function createEmptyWorkshop(): WorkshopState {
   return { levels: {}, coreStarts: {} }
 }
 
+export function runPurchasedLevel(state: GameState, id: RunUpgradeId): number {
+  return Math.max(0, Math.floor(state.combat.runUpgrades?.[id] ?? 0))
+}
+
 export function runUpgradeLevel(state: GameState, id: RunUpgradeId): number {
-  const bought = Math.max(0, Math.floor(state.combat.runUpgrades?.[id] ?? 0))
-  return workshopLevel(state, id) + bought
+  return workshopLevel(state, id) + runPurchasedLevel(state, id)
 }
 
 export function workshopLevel(state: GameState, id: RunUpgradeId): number {
@@ -78,12 +81,78 @@ export function effectiveUpgradeLevel(state: GameState, id: RunUpgradeId): numbe
   return Math.min(RUN_UPGRADE_CAP, runUpgradeLevel(state, id))
 }
 
-export function runUpgradeCost(effectiveLevel: number): number {
-  return Math.floor(8 * Math.pow(1.18, Math.max(0, effectiveLevel)))
+/**
+ * Temporary Sortie purchase cost uses only the run-purchase counter.
+ * Workshop starting levels raise effective power but do not consume the cheap
+ * early-run ladder.
+ */
+export function runUpgradeCost(purchasedLevel: number): number {
+  return Math.floor(8 * Math.pow(1.18, Math.max(0, purchasedLevel)))
+}
+
+export function nextRunUpgradeCost(state: GameState, id: RunUpgradeId): number {
+  return runUpgradeCost(runPurchasedLevel(state, id))
+}
+
+export function runUpgradeBulkCost(state: GameState, id: RunUpgradeId, count: number): number {
+  const start = runPurchasedLevel(state, id)
+  const room = Math.max(0, RUN_UPGRADE_CAP - runUpgradeLevel(state, id))
+  const n = Math.min(Math.max(0, Math.floor(count)), room)
+  let total = 0
+  for (let i = 0; i < n; i += 1) total += runUpgradeCost(start + i)
+  return total
+}
+
+export function maxAffordableRunPurchases(state: GameState, id: RunUpgradeId): number {
+  let salvage = state.resources.salvage ?? 0
+  let bought = runPurchasedLevel(state, id)
+  let effective = runUpgradeLevel(state, id)
+  let n = 0
+  while (effective < RUN_UPGRADE_CAP) {
+    const cost = runUpgradeCost(bought)
+    if (salvage < cost) break
+    salvage -= cost
+    bought += 1
+    effective += 1
+    n += 1
+  }
+  return n
 }
 
 export function workshopCost(currentLevel: number): number {
   return Math.floor(12 * Math.pow(1.22, Math.max(0, currentLevel)))
+}
+
+export function workshopBulkCost(currentLevel: number, count: number): number {
+  const n = Math.min(Math.max(0, Math.floor(count)), Math.max(0, RUN_UPGRADE_CAP - currentLevel))
+  let total = 0
+  for (let i = 0; i < n; i += 1) total += workshopCost(currentLevel + i)
+  return total
+}
+
+export function maxAffordableWorkshopPurchases(state: GameState, id: RunUpgradeId): number {
+  let scrap = state.resources.scrap ?? 0
+  let level = workshopLevel(state, id)
+  let n = 0
+  while (level < RUN_UPGRADE_CAP) {
+    const cost = workshopCost(level)
+    if (scrap < cost) break
+    scrap -= cost
+    level += 1
+    n += 1
+  }
+  return n
+}
+
+export type BuyMode = 1 | 10 | 'max'
+
+/** ×1 is always available. ×10 / MAX open after the first hull loss. */
+export function unlockedBuyModes(state: GameState): BuyMode[] {
+  const modes: BuyMode[] = [1]
+  if (state.meta.hullLostOnce) {
+    modes.push(10, 'max')
+  }
+  return modes
 }
 
 export function runUpgradeMult(state: GameState, id: RunUpgradeId, perLevel: number): number {

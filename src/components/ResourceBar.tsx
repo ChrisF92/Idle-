@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { GameState, Resources } from '../game/types'
+import type { GameState, ResourceId, Resources } from '../game/types'
 import { RESOURCE_LABELS } from '../game/state'
 import { visibleResourceIds } from '../game/progression'
 import { formatNumber } from '../game/format'
@@ -7,10 +7,11 @@ import { formatNumber } from '../game/format'
 interface ResourceBarProps {
   state: GameState
   rates?: Partial<Resources>
+  only?: ResourceId[]
 }
 
-export function ResourceBar({ state }: ResourceBarProps) {
-  const ids = visibleResourceIds(state)
+export function ResourceBar({ state, only }: ResourceBarProps) {
+  const ids = only ?? visibleResourceIds(state)
   const idKey = ids.join('|')
   const prev = useRef<Partial<Resources>>({})
   const [up, setUp] = useState<Partial<Record<keyof Resources, boolean>>>({})

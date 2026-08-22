@@ -90,7 +90,7 @@ export function migrateOnboardingState(state: GameState): void {
     return
   }
   for (const id of BEGINNER_GUIDE_IDS) seen.add(id)
-  if ((state.base.assignments.strike ?? 0) > 0) {
+  if ((state.base.assignments.strike ?? 0) > 0 || (state.base.assignments['scrap-field'] ?? 0) > 0) {
     seen.add('guide-network-strike')
     seen.add('guide-network-ward')
   }
@@ -130,7 +130,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
     'Scrap',
     'Workshop',
   ]
-  const change = ['Hull', 'Core loadout']
+  const change: string[] = []
 
   if (isSystemUnlocked(state, 'foundry')) {
     keep.push('Foundry recipes, stock, and Foundry Points')
@@ -196,14 +196,14 @@ export function sortieNextHints(state: GameState): string[] {
   }
   if (plate < pulse) items.push('Upgrade Plate')
   else if (pulse <= plate) items.push('Upgrade Pulse')
-  if (isSystemUnlocked(state, 'network') && (state.base.assignments.ward ?? 0) === 0) {
-    items.push('Assign drones to Ward')
+  if (isSystemUnlocked(state, 'network') && (state.base.assignments['scrap-field'] ?? 0) === 0) {
+    items.push('Assign Worker Drones under Systems')
   }
   if (isSystemUnlocked(state, 'research') && !state.hiveResearch?.active) {
     items.push('Start a Research project')
   }
   if (isSystemUnlocked(state, 'furnace') && (state.furnace?.wanted.shielding ?? 0) <= 0) {
-    items.push('Spend Heat on Ward')
+    items.push('Spend Heat on Shielding')
   }
   if (isSystemUnlocked(state, 'foundry')) {
     const slag = foundryRecipeLevel(state, 'slag-ingot')

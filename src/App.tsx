@@ -27,7 +27,7 @@ import { prefersReducedMotion } from './hooks/usePrefersReducedMotion'
 import { ResourceBar } from './components/ResourceBar'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
-import { DockTab } from './components/tabs/DockTab'
+import { DockTab, type DockPane } from './components/tabs/DockTab'
 import { CombatTab } from './components/tabs/CombatTab'
 import { NetworkTab } from './components/tabs/NetworkTab'
 import { FoundryTab, type FoundryPane } from './components/tabs/FoundryTab'
@@ -69,9 +69,9 @@ export default function App() {
   const [blockingModal, setBlockingModal] = useState(false)
   const [toasts, setToasts] = useState<QueuedToast[]>([])
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
-  const [coresRequest, setCoresRequest] = useState<{ key: number; moduleId?: string } | null>(null)
   const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
   const [systemsView, setSystemsView] = useState<'hub' | 'foundry'>('foundry')
+  const [dockPane, setDockPane] = useState<DockPane>('loadout')
   const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
@@ -118,16 +118,19 @@ export default function App() {
   const applyToastNav = useCallback(
     (nav: ToastNav) => {
       if (nav.kind === 'rebuild') {
-        setHangarOpen(true)
+        if (isHubTabOpen(game.state, 'dock')) setTab('dock')
+        setDockPane('rebuild')
         return
       }
       if (nav.kind === 'cores') {
-        if (isHubTabOpen(game.state, 'combat')) setTab('combat')
-        setCoresRequest({ key: Date.now(), moduleId: nav.moduleId })
+        if (isHubTabOpen(game.state, 'dock')) setTab('dock')
+        setDockPane('loadout')
+        setFocusTarget(nav.moduleId ? `core-${nav.moduleId}` : 'dock-cores')
         return
       }
       if (isHubTabOpen(game.state, nav.tab)) {
         if (nav.tab === 'foundry') setSystemsView('foundry')
+        if (nav.tab === 'dock') setDockPane('loadout')
         setTab(nav.tab)
         if (nav.focus) setFocusTarget(nav.focus)
         if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
@@ -141,8 +144,6 @@ export default function App() {
     },
     [game.state],
   )
-
-  const clearCoresRequest = useCallback(() => setCoresRequest(null), [])
 
   useEffect(() => {
     if (!isHubTabOpen(game.state, tab)) {
@@ -228,6 +229,19 @@ export default function App() {
   }, [game.state.combat.lastSortie, game.state.combat.docked, dying])
 
   useEffect(() => {
+    if (!guide) return
+    if (guide.target === 'workshop' || guide.id.includes('workshop')) setDockPane('workshop')
+    else if (guide.target === 'rebuild-btn' || guide.id.includes('rebuild') || guide.id.includes('prestige-hangar')) {
+      setDockPane('rebuild')
+    } else if (
+      guide.tab === 'dock' &&
+      (guide.target === 'dock-cores' || guide.target.startsWith('upgrade-') || guide.target.startsWith('core-'))
+    ) {
+      setDockPane('loadout')
+    }
+  }, [guide])
+
+  useEffect(() => {
     if (!guideAutoTabs(guide) || !guide?.tab || dying) return
     if (!game.state.combat.docked && guide.tab !== 'combat') return
     if (guide.id === lastGuideId.current) return
@@ -276,22 +290,50 @@ export default function App() {
   }, [tab, focusTarget])
 
   return (
-    <div className={guidePausesSimulation(guide) ? 'app app-guide-lock' : 'app'}>
-      <div className="chrome-top">
-      <header className="topbar">
-        <div className="brand-cluster">
-          <p className="brand">Hiveworks</p>
-          <ScreenHelp screen={tab} />
+    <div
+      className={[
+        'app',
+        guidePausesSimulation(guide) ? 'app-guide-lock' : '',
+        tab === 'combat' ? 'is-sortie' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {tab !== 'combat' ? (
+        <div className="chrome-top">
+          <header className={`topbar is-${tab === 'dock' ? 'dock' : tab === 'stats' ? 'more' : 'systems'}`}>
+            <div className="brand-cluster">
+              <p className="brand">
+                {tab === 'dock'
+                  ? 'Hiveworks'
+                  : tab === 'stats'
+                    ? 'More'
+                    : tab === 'network'
+                      ? 'Worker Drones'
+                      : tab === 'foundry' && systemsView === 'hub'
+                        ? 'Systems'
+                        : tab === 'foundry'
+                          ? 'Foundry'
+                          : tab === 'furnace'
+                            ? 'Furnace'
+                            : tab === 'research'
+                              ? 'Research'
+                              : tab === 'process'
+                                ? 'Process'
+                                : 'Hiveworks'}
+              </p>
+              <ScreenHelp screen={tab} />
+            </div>
+            {tab === 'dock' ? <ResourceBar state={game.state} only={['scrap', 'prestigeMatter']} /> : null}
+            {live ? (
+              <button type="button" className="combat-chip" onClick={() => go('combat')}>
+                <span className="live-pip" aria-hidden />
+                LIVE · W{game.state.combat.wave}
+              </button>
+            ) : null}
+          </header>
         </div>
-        <ResourceBar state={game.state} />
-        {live ? (
-          <button type="button" className="combat-chip" onClick={() => go('combat')}>
-            <span className="live-pip" aria-hidden />
-            Live W{game.state.combat.wave}
-          </button>
-        ) : null}
-      </header>
-      </div>
+      ) : null}
 
       <main className="main">
         {tab === 'dock' && (
@@ -309,6 +351,12 @@ export default function App() {
             onBuyMaxCores={game.buyMaxCores}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
+            onSelectFrame={game.selectFrame}
+            onFitCore={game.fitModule}
+            onUnfitCore={game.unfitModule}
+            pane={dockPane}
+            onPaneChange={setDockPane}
+            focusModuleId={focusTarget?.startsWith('core-') ? focusTarget.slice(5) : null}
           />
         )}
         {tab === 'combat' && (
@@ -325,8 +373,7 @@ export default function App() {
             onMarkCoresSeen={() => game.markHubSeen('cores')}
             paused={pauseSim}
             guide={guide}
-            coresRequest={coresRequest}
-            onCoresRequestHandled={clearCoresRequest}
+            onCycleSpeed={game.cycleSortieSpeed}
             onOpenFoundry={() => {
               setFoundryPane('smelt')
               go('foundry')
@@ -530,9 +577,13 @@ export default function App() {
         <RebuildHangar
           state={game.state}
           onClose={() => setHangarOpen(false)}
-          onConfirm={(hangar) => {
-            game.performRebuild(hangar)
+          onConfirm={() => {
+            game.performRebuild({
+              frameId: game.state.shipyard.frameId,
+              modules: [...game.state.shipyard.modules],
+            })
             setHangarOpen(false)
+            setDockPane('loadout')
             go('dock')
           }}
           onBuyMatter={game.buyMatterShop}
@@ -551,9 +602,14 @@ export default function App() {
           summary={game.state.combat.lastSortie}
           state={game.state}
           onClose={() => setReportOpen(false)}
-          onUpgradeCores={() => {
+          onDock={() => {
             setReportOpen(false)
-            applyToastNav({ kind: 'cores', moduleId: 'pulse-cannon' })
+            go('dock')
+          }}
+          onRunAgain={() => {
+            setReportOpen(false)
+            game.setDocked(false)
+            go('combat')
           }}
         />
       ) : null}

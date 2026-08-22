@@ -40,13 +40,7 @@ describe('GDD Process', () => {
   it('opens under Systems at Wave 210 after two Rebuilds and a Research project', () => {
     const open = processState()
     expect(isSystemUnlocked(open, 'process')).toBe(true)
-    expect(systemsHubCards(open).map((c) => c.id)).toEqual([
-      'foundry',
-      'network',
-      'furnace',
-      'research',
-      'process',
-    ])
+    expect(systemsHubCards(open).map((c) => c.id)).toEqual(['foundry', 'furnace', 'research', 'process'])
   })
 
   it('shows QoL and simple actions first, hiding retired furnace and Ghost Sortie nodes', () => {

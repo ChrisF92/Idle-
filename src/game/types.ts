@@ -164,6 +164,12 @@ export interface SortieRunStats {
   kills: number
 }
 
+export interface SortieSpendByCategory {
+  attack: number
+  defense: number
+  economy: number
+}
+
 /** Snapshot taken at Launch; closed into lastSortie on Extract / Defeat. */
 export interface SortieMark {
   salvage: number
@@ -174,6 +180,10 @@ export interface SortieMark {
   researchXp: number
   networkLevels: number
   stats: SortieRunStats
+  spendByCategory: SortieSpendByCategory
+  ash: number
+  data: number
+  fragments: number
 }
 
 export interface SortieSummary {
@@ -186,10 +196,15 @@ export interface SortieSummary {
   salvageSpent: number
   scrapEarned: number
   newBest: boolean
+  previousBest: number
   milestones: number
   researchXp: number
   networkLevels: number
   stats: SortieRunStats
+  spendByCategory: SortieSpendByCategory
+  ashEarned: number
+  dataEarned: number
+  fragmentsEarned: number
 }
 
 export type PressureClass = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
@@ -994,6 +1009,13 @@ export interface MetaState {
   numberNotation: 'engineering' | 'scientific'
   /** GDD §113 floating combat numbers. */
   damageNumbers: 'minimal' | 'standard' | 'detailed'
+  /**
+   * Chosen Sortie combat speed. Clamped to unlocked Chrono / Process speeds.
+   * Missing on old saves — treated as the current maximum available.
+   */
+  sortieSpeed?: number
+  /** Player has Extracted at least once. Hides the first-run Extract row. */
+  extractedOnce?: boolean
 }
 
 export interface ResearchState {

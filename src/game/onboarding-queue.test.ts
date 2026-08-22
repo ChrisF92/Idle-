@@ -99,12 +99,12 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(state, 'dock')?.id).not.toBe('guide-network-strike')
     const step = activeGuideStep(state, 'network')
     expect(step?.id).toBe('guide-network-strike')
-    expect(step?.target).toBe('network-strike-plus')
+    expect(step?.target).toBe('worker-scrap-field')
     expect(guideAutoTabs(step)).toBe(false)
 
-    state.base.assignments.strike = 1
+    state.base.assignments['scrap-field'] = 1
     expect(activeGuideStep(state, 'network')?.id).toBe('guide-network-ward')
-    state.base.assignments.ward = 1
+    state.base.assignments['power-grid'] = 1
     expect(activeGuideStep(state, 'network')).toBeNull()
   })
 

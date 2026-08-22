@@ -76,10 +76,19 @@ function withLastSortieDefaults(
     salvageSpent: Math.max(0, Math.floor(Number(raw.salvageSpent ?? 0) || 0)),
     scrapEarned: Math.max(0, Math.floor(Number(raw.scrapEarned ?? 0) || 0)),
     newBest: Boolean(raw.newBest),
+    previousBest: Math.max(0, Math.floor(Number(raw.previousBest ?? 0) || 0)),
     milestones: Math.max(0, Math.floor(Number(raw.milestones ?? 0) || 0)),
     researchXp: Math.max(0, Math.floor(Number(raw.researchXp ?? 0) || 0)),
     networkLevels: Math.max(0, Math.floor(Number(raw.networkLevels ?? 0) || 0)),
     stats: hydrateSortieRunStats(raw.stats),
+    spendByCategory: {
+      attack: Math.max(0, Number(raw.spendByCategory?.attack ?? 0) || 0),
+      defense: Math.max(0, Number(raw.spendByCategory?.defense ?? 0) || 0),
+      economy: Math.max(0, Number(raw.spendByCategory?.economy ?? 0) || 0),
+    },
+    ashEarned: Math.max(0, Math.floor(Number(raw.ashEarned ?? 0) || 0)),
+    dataEarned: Math.max(0, Math.floor(Number(raw.dataEarned ?? 0) || 0)),
+    fragmentsEarned: Math.max(0, Math.floor(Number(raw.fragmentsEarned ?? 0) || 0)),
   }
 }
 
@@ -144,6 +153,14 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
           researchXp: Math.max(0, Number(combat.sortieMark.researchXp ?? 0) || 0),
           networkLevels: Math.max(0, Math.floor(Number(combat.sortieMark.networkLevels ?? 0) || 0)),
           stats: hydrateSortieRunStats(combat.sortieMark.stats) ?? emptySortieRunStats(),
+          spendByCategory: {
+            attack: Math.max(0, Number(combat.sortieMark.spendByCategory?.attack ?? 0) || 0),
+            defense: Math.max(0, Number(combat.sortieMark.spendByCategory?.defense ?? 0) || 0),
+            economy: Math.max(0, Number(combat.sortieMark.spendByCategory?.economy ?? 0) || 0),
+          },
+          ash: Math.max(0, Number(combat.sortieMark.ash ?? 0) || 0),
+          data: Math.max(0, Number(combat.sortieMark.data ?? 0) || 0),
+          fragments: Math.max(0, Math.floor(Number(combat.sortieMark.fragments ?? 0) || 0)),
         }
       : null,
     defeatLeft: Math.max(0, Number(combat.defeatLeft ?? 0) || 0),
@@ -577,6 +594,8 @@ function withMetaDefaults(
       meta?.damageNumbers === 'minimal' || meta?.damageNumbers === 'detailed'
         ? meta.damageNumbers
         : 'standard',
+    sortieSpeed: Number(meta?.sortieSpeed) > 0 ? Number(meta?.sortieSpeed) : undefined,
+    extractedOnce: meta?.extractedOnce === true,
   }
 }
 

@@ -21,7 +21,7 @@ function launch(state = createInitialState()) {
 }
 
 describe('GDD visual layout and Dock Core ranks', () => {
-  it('shows Scrap on the Sortie HUD and UPGRADES | CORES | DIRECTIVES panes', () => {
+  it('shows a compact Sortie HUD without Pressure or permanent Cores tabs', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
     render(
@@ -34,16 +34,13 @@ describe('GDD visual layout and Dock Core ranks', () => {
     )
     expect(screen.getByText('Salvage')).toBeTruthy()
     expect(screen.getByText('Scrap')).toBeTruthy()
-    expect(screen.getByText('Speed')).toBeTruthy()
-    expect(screen.getByText('Pressure')).toBeTruthy()
-    expect(screen.getByText('Time')).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Upgrades' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Cores' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Directives' })).toBeTruthy()
+    expect(screen.queryByText('Pressure')).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Upgrades' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Cores' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Directives' })).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
     expect(screen.getByText('Weapon Power')).toBeTruthy()
-    expect(screen.getByText('Current')).toBeTruthy()
-    expect(screen.getByText('Next')).toBeTruthy()
-    expect(screen.getByText('Cost')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /CORES/i })).toBeTruthy()
   })
 
   it('keeps Sortie Cores inspect-only', () => {
@@ -59,8 +56,8 @@ describe('GDD visual layout and Dock Core ranks', () => {
         onPickMilestone={() => undefined}
       />,
     )
-    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }))
-    expect(screen.getAllByText(/Scrap at Dock/i).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
+    expect(screen.getByText(/Rank and equip Cores at Dock/i)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Upgrade/ })).toBeNull()
   })
 
@@ -78,8 +75,9 @@ describe('GDD visual layout and Dock Core ranks', () => {
     )
     expect(screen.getByText(/Equip and rank Cores here with Scrap/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: /Upgrade · 3 Scrap/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Workshop' }))
     expect(screen.getByText('Weapon Power')).toBeTruthy()
-    expect(screen.getAllByText('Current').length).toBeGreaterThan(0)
+    expect(screen.getByText(/START Lv/)).toBeTruthy()
   })
 
   it('inspects Core ranks in Scrap, not Salvage', () => {
@@ -111,7 +109,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
   })
 
-  it('exposes Sortie speed, pressure, and hub status the GDD asks for', () => {
+  it('exposes Sortie speed and hub status without player-facing Pressure', () => {
     const docked = createInitialState(0)
     expect(livePressureLabel(docked)).toBe('Docked')
     expect(sortieSpeed(docked)).toBe(1)

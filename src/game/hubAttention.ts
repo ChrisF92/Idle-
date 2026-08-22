@@ -27,6 +27,7 @@ import type { GameState, TabId } from './types'
 import {
   RUN_UPGRADE_CAP,
   effectiveUpgradeLevel,
+  runPurchasedLevel,
   runUpgradeCost,
   visibleRunUpgrades,
 } from './workshop'
@@ -253,7 +254,7 @@ function runUpgradeSpend(state: GameState): boolean {
   for (const def of visibleRunUpgrades(best)) {
     const level = effectiveUpgradeLevel(state, def.id)
     if (level >= RUN_UPGRADE_CAP) continue
-    if (runUpgradeCost(level) <= (state.resources.salvage ?? 0)) return true
+    if (runUpgradeCost(runPurchasedLevel(state, def.id)) <= (state.resources.salvage ?? 0)) return true
   }
   return false
 }

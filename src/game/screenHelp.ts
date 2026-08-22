@@ -34,14 +34,14 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Launch a Sortie from here. Every run starts at Wave 1. Death or Extract returns you to Dock.',
-      'Header shows Best Wave, Rebuild cycle, Scrap, and Matter. Equip and rank Cores here with Scrap — those ranks last until Rebuild. Workshop also spends Scrap.',
-      'Rebuild at Wave 70 trades this cycle’s Workshop, Core ranks, and Scrap for permanent Matter. The hangar lists RESET, KEEP, and GAIN. Do not confirm until you mean it.',
+      'Loadout, Workshop, and Rebuild sit under the Hive preview. Equip and rank Cores here with Scrap — those ranks last until Rebuild.',
+      'Workshop levels raise every Sortie’s starting power. Temporary Sortie purchases still start at the cheap base cost. Rebuild trades this cycle for Matter and lists RESET, KEEP, and GAIN.',
     ],
   },
   combat: {
     title: 'Sortie',
     body: [
-      'Weapons fire automatically. Waves come from all directions. The header shows Wave, hull, and shield.',
+      'Weapons fire automatically. Waves come from all directions. The compact HUD shows Wave, Salvage, and Scrap earned this Sortie.',
       'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage buys Attack, Defense, and Economy for this run only. Rank Cores at Dock with Scrap.',
       'If you close mid-Sortie, combat freezes. Foundry, fabrication, and Worker jobs keep running.',
       'Worker Drones unlock at Wave 30 under Systems. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
@@ -74,7 +74,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Furnace',
     body: [
       'Purpose: spend stored cycle Ash to make this Sortie significantly stronger. Main decision: is this the run worth converting?',
-      'Ash persists across Sorties this Rebuild cycle. Convert Ash to Heat, then light Weapons, Ward, or Yield. Heat dumps when you Dock.',
+      'Ash persists across Sorties this Rebuild cycle. Convert Ash to Heat, then light Weapons, Shielding, or Recovery. Heat dumps when you Dock.',
     ],
   },
   research: {
