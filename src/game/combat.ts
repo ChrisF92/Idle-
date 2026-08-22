@@ -1836,11 +1836,9 @@ function laneDistance(a: CombatUnit, b: CombatUnit): number {
   return Math.abs(a.x - b.x)
 }
 
-/**
- * Long-range roles establish their preferred standoff first, then pressure
- * gradually collapses that distance. This preserves sniper/boss identity while
- * guaranteeing that no legal short-range loadout is permanently soft-locked.
- */
+/** Closest legal hold: outside the Hive hull so packs do not sit on the ship. */
+export const HIVE_STANDOFF_MIN = 36
+
 /** Furthest legal enemy park distance: the shortest player Core weapon in the game. */
 export function minimumPlayerWeaponRangeForSector(_sector?: number): number {
   return lowestPlayerCoreRange()
@@ -1851,8 +1849,10 @@ export function enemyApproachTarget(
   _fightElapsed = 0,
   _sector = 2,
 ): number {
+  const cap = lowestPlayerCoreRange()
+  const floor = Math.min(HIVE_STANDOFF_MIN, cap)
   const preferred = Math.max(0, unit.engageRange)
-  return Math.min(preferred, lowestPlayerCoreRange())
+  return Math.max(floor, Math.min(preferred, cap))
 }
 
 function moveUnits(state: GameState, dt: number): void {
@@ -1867,10 +1867,10 @@ function moveUnits(state: GameState, dt: number): void {
   for (const unit of state.combat.enemyUnits) {
     if (unit.hull <= 0) continue
     const target = enemyApproachTarget(unit, elapsed, state.combat.sector)
-    if (unit.x > target + 2) {
+    if (unit.x > target) {
       unit.x = Math.max(target, unit.x - unit.speed * dt)
-    } else if (unit.kite && unit.x < target - 6) {
-      unit.x = Math.min(target, unit.x + unit.speed * dt * 0.85)
+    } else if (unit.x < target) {
+      unit.x = Math.min(target, unit.x + unit.speed * dt * (unit.kite ? 0.85 : 1))
     }
     // Slight heading drift so packs don't sit on identical rays
     unit.heading = (unit.heading ?? 0) + Math.sin(unit.x * 0.04 + (unit.heading ?? 0)) * 0.008

@@ -6,8 +6,12 @@ import {
   enemyApproachTarget,
   enemyForSector,
   enemySectorScale,
+  HIVE_STANDOFF_MIN,
   minimumPlayerWeaponRangeForSector,
+  simulateCombat,
 } from './combat'
+import { createInitialState } from './state'
+import { startCombat } from './tick'
 import { SHORT_RANGE_MAX } from './catalog'
 import { wavesForSector } from './sectors'
 
@@ -40,8 +44,31 @@ describe('PR75 combat pacing', () => {
     expect(sawCappedRoles).toBe(true)
     expect(minimumPlayerWeaponRangeForSector(1)).toBe(SHORT_RANGE_MAX)
     expect(minimumPlayerWeaponRangeForSector(2)).toBe(SHORT_RANGE_MAX)
-    expect(enemyApproachTarget({ engageRange: 24 })).toBe(24)
+    expect(enemyApproachTarget({ engageRange: 24 })).toBe(HIVE_STANDOFF_MIN)
+    expect(enemyApproachTarget({ engageRange: 38 })).toBe(38)
     expect(enemyApproachTarget({ engageRange: 118 })).toBe(SHORT_RANGE_MAX)
+  })
+
+  it('stops living enemies short of the Hive and on their role hold', () => {
+    let state = createInitialState(0)
+    state.combat.sector = 2
+    state.combat.wave = 1
+    state = startCombat(state)
+    for (const unit of [...state.combat.playerUnits, ...state.combat.enemyUnits]) {
+      for (const weapon of unit.weapons) {
+        weapon.damage = 0
+        weapon.cooldownLeft = 99
+      }
+    }
+    for (let i = 0; i < 240; i += 1) simulateCombat(state, 1 / 30, () => {})
+    const living = state.combat.enemyUnits.filter((unit) => unit.hull > 0)
+    expect(living.length).toBeGreaterThan(0)
+    for (const unit of living) {
+      const hold = enemyApproachTarget(unit, state.combat.fightElapsed ?? 0, state.combat.sector)
+      expect(unit.x).toBeGreaterThanOrEqual(HIVE_STANDOFF_MIN - 0.05)
+      expect(unit.x).toBeLessThanOrEqual(SHORT_RANGE_MAX + 0.05)
+      expect(unit.x).toBeCloseTo(hold, 0)
+    }
   })
 
   it('rotates authored wave patterns when a family returns later in Act 1', () => {
