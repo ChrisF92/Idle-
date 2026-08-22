@@ -573,6 +573,10 @@ function withMetaDefaults(
       ),
     numberNotation:
       meta?.numberNotation === 'scientific' ? 'scientific' : 'engineering',
+    damageNumbers:
+      meta?.damageNumbers === 'minimal' || meta?.damageNumbers === 'detailed'
+        ? meta.damageNumbers
+        : 'standard',
   }
 }
 

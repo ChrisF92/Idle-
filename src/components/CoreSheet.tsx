@@ -3,12 +3,14 @@ import {
   MAX_MODULE_LEVEL,
   getModule,
   moduleLevel,
+  moduleMasteryRank,
   moduleStatPreviews,
   moduleUpgradeCost,
 } from '../game/catalog'
 import { pendingMilestone } from '../game/milestones'
 import { formatCompact } from '../game/format'
 import { inspectCore, inspectShard } from '../game/inspect'
+import { coreContributionPct, coreDps } from '../game/uiReadout'
 import { protocolCoreScalingAdd } from '../game/protocols'
 import {
   RELIC_SOCKET_LABELS,
@@ -166,7 +168,10 @@ function CoreRow({
   const pending = pendingMilestone(moduleId, level, state.shipyard.corePicks?.[moduleId])
   const justReady = useJustBecame(can)
   if (!def) return null
-  const stats = moduleStatPreviews(moduleId, level, !maxed)
+  const mastery = moduleMasteryRank(state, moduleId)
+  const stats = moduleStatPreviews(moduleId, level, !maxed, mastery)
+  const dps = coreDps(state, moduleId)
+  const share = coreContributionPct(state, moduleId)
   const headline = stats
     .map((s) => `${s.label} ${s.current}${s.next ? `→${s.next}` : ''}`)
     .join(' · ')
@@ -180,8 +185,17 @@ function CoreRow({
       <div className="core-row-main">
         <span className="muted">{SLOT_LABEL[def.role] ?? def.role}</span>
         <InspectName name={def.name} card={inspectCore(state, moduleId)} />
-        <span className="core-row-lv">Lv {level}</span>
+        <span className="core-row-lv">
+          Lv {level}
+          {mastery > 0 ? ` · Mastery ${mastery}` : ''}
+        </span>
       </div>
+      {dps > 0 && !relicsOnly ? (
+        <p className="core-row-stats">
+          DPS {formatCompact(dps)}
+          {share != null ? ` · ${share}%` : ''}
+        </p>
+      ) : null}
       {headline && !relicsOnly ? <p className="core-row-stats">{headline}</p> : null}
       <RelicSockets
         state={state}
@@ -191,7 +205,7 @@ function CoreRow({
       />
       {relicsOnly ? null : inspectOnly ? (
         <p className="muted">
-          {maxed ? 'Maxed' : `Rank at Dock · ${formatCompact(cost)} Scrap`}
+          {maxed ? 'Maxed' : `Next: Lv ${level + 1} — ${formatCompact(cost)} Scrap at Dock`}
         </p>
       ) : pending ? (
         <div className="core-picks">

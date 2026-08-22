@@ -11,10 +11,17 @@ import { markLocalOk } from '../../hooks/useJustBecame'
 import {
   effectiveUpgradeLevel,
   runUpgradeCost,
-  salvageWaveBonus,
+  runUpgradePreview,
   visibleRunUpgrades,
   workshopLevel,
 } from '../../game/workshop'
+import {
+  formatRunTime,
+  liveBossHp,
+  livePressureLabel,
+  normalizeDamageNumbers,
+  sortieSpeed,
+} from '../../game/uiReadout'
 import { isBossWave } from '../../game/waves'
 import { activeProtocol } from '../../game/protocols'
 import { isChallengeSortie } from '../../game/frontier'
@@ -119,33 +126,6 @@ function FragmentChip({ state, onOpen }: { state: GameState; onOpen?: () => void
       {body}
     </button>
   )
-}
-
-function runUpgradePreview(
-  state: GameState,
-  id: RunUpgradeId,
-): { current: string; next: string } {
-  const level = effectiveUpgradeLevel(state, id)
-  const fmt = (per: number) => ({
-    current: `×${Math.pow(1 + per, level).toFixed(2)}`,
-    next: `×${Math.pow(1 + per, level + 1).toFixed(2)}`,
-  })
-  switch (id) {
-    case 'weapon-power':
-      return fmt(0.08)
-    case 'cycle-rate':
-      return fmt(0.03)
-    case 'hull':
-      return fmt(0.08)
-    case 'shield':
-      return fmt(0.1)
-    case 'salvage-kill':
-      return fmt(0.08)
-    case 'salvage-wave': {
-      const next = Math.floor(4 * (level + 1) * Math.pow(1.06, level + 1))
-      return { current: `+${formatCompact(salvageWaveBonus(state))}`, next: `+${formatCompact(next)}` }
-    }
-  }
 }
 
 function RunUpgradePanel({
@@ -380,6 +360,9 @@ export function CombatTab({
   const playerUnits =
     combat.playerUnits.length > 0 ? combat.playerUnits : previewPlayer
   const enemyUnits = combat.docked && !dying ? [] : combat.enemyUnits
+  const speed = sortieSpeed(state)
+  const pressure = livePressureLabel(state)
+  const bossHp = liveBossHp(state)
 
   return (
     <section className={hullBand === 'critical' ? 'sortie-screen is-critical' : 'sortie-screen'}>
@@ -390,6 +373,20 @@ export function CombatTab({
           </span>
           <strong className="combat-hud-value">W{combat.wave}</strong>
         </div>
+        <div className="combat-hud-readout" data-guide="salvage-stat">
+          <span className="combat-hud-kicker">Salvage</span>
+          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
+        </div>
+        <div className="combat-hud-readout" data-guide="scrap-stat">
+          <span className="combat-hud-kicker">Scrap</span>
+          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.scrap))}</strong>
+        </div>
+        <div className="combat-hud-readout" data-guide="sortie-speed">
+          <span className="combat-hud-kicker">Speed</span>
+          <strong className="combat-hud-value">×{speed.toFixed(speed % 1 === 0 ? 0 : 1)}</strong>
+        </div>
+      </header>
+      <div className="combat-status-strip">
         <div
           className={`combat-hud-readout${hullBand === 'healthy' ? '' : ` is-${hullBand}`}`}
           data-guide="sortie-hull"
@@ -411,15 +408,30 @@ export function CombatTab({
             <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, shieldPct))})` }} />
           </span>
         </div>
-        <div className="combat-hud-readout" data-guide="salvage-stat">
-          <span className="combat-hud-kicker">Salvage</span>
-          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.salvage))}</strong>
+        <div className="combat-hud-readout">
+          <span className="combat-hud-kicker">Pressure</span>
+          <strong className="combat-hud-value">{pressure}</strong>
         </div>
-        <div className="combat-hud-readout" data-guide="scrap-stat">
-          <span className="combat-hud-kicker">Scrap</span>
-          <strong className="combat-hud-value">{formatCompact(Math.floor(state.resources.scrap))}</strong>
+        <div className="combat-hud-readout">
+          <span className="combat-hud-kicker">Time</span>
+          <strong className="combat-hud-value">{formatRunTime(combat.fightElapsed ?? 0)}</strong>
         </div>
-      </header>
+        {bossHp ? (
+          <div className="combat-hud-readout combat-hud-readout-wide">
+            <span className="combat-hud-kicker">Boss HP</span>
+            <strong className="combat-hud-value">
+              {formatCompact(Math.ceil(bossHp.hull))}/{formatCompact(Math.ceil(bossHp.hullMax))}
+            </strong>
+            <span className="hud-underline hull" aria-hidden>
+              <span
+                style={{
+                  transform: `scaleX(${Math.max(0, Math.min(1, bossHp.hull / Math.max(1, bossHp.hullMax)))})`,
+                }}
+              />
+            </span>
+          </div>
+        ) : null}
+      </div>
 
       <div className="sortie-canvas" data-guide="sortie-canvas">
         {onOpenFoundry ? <CraftStrip state={state} onOpen={onOpenFoundry} /> : null}
@@ -432,6 +444,7 @@ export function CombatTab({
           fx={combat.fx}
           mode={battlefieldMode}
           paused={paused || directiveOffer.length > 0}
+          numbers={normalizeDamageNumbers(state.meta.damageNumbers)}
         />
         {banner ? (
           <p className={`combat-banner is-${banner.kind}`} role="status">

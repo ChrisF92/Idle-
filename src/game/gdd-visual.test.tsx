@@ -4,7 +4,9 @@ import { CombatTab } from '../components/tabs/CombatTab'
 import { DockTab } from '../components/tabs/DockTab'
 import { performRebuild, upgradeModule } from './actions'
 import { inspectCore } from './inspect'
+import { processHubStatus, researchHubStatus } from './systemsHub'
 import { createInitialState } from './state'
+import { formatRunTime, livePressureLabel, sortieSpeed } from './uiReadout'
 import { armRebuildDoor, markHullLost } from './testHelpers'
 import { setDocked } from './tick'
 
@@ -32,6 +34,9 @@ describe('GDD visual layout and Dock Core ranks', () => {
     )
     expect(screen.getByText('Salvage')).toBeTruthy()
     expect(screen.getByText('Scrap')).toBeTruthy()
+    expect(screen.getByText('Speed')).toBeTruthy()
+    expect(screen.getByText('Pressure')).toBeTruthy()
+    expect(screen.getByText('Time')).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Upgrades' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Cores' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Directives' })).toBeTruthy()
@@ -55,7 +60,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
       />,
     )
     fireEvent.click(screen.getByRole('tab', { name: 'Cores' }))
-    expect(screen.getAllByText(/Rank at Dock/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Scrap at Dock/i).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: /Upgrade/ })).toBeNull()
   })
 
@@ -73,6 +78,8 @@ describe('GDD visual layout and Dock Core ranks', () => {
     )
     expect(screen.getByText(/Equip and rank Cores here with Scrap/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: /Upgrade · 3 Scrap/ })).toBeTruthy()
+    expect(screen.getByText('Weapon Power')).toBeTruthy()
+    expect(screen.getAllByText('Current').length).toBeGreaterThan(0)
   })
 
   it('inspects Core ranks in Scrap, not Salvage', () => {
@@ -80,6 +87,8 @@ describe('GDD visual layout and Dock Core ranks', () => {
     s.resources.scrap = 12
     const card = inspectCore(s, 'pulse-cannon')
     expect(card?.stats.find((row) => row.label === 'Scrap')?.value).toBeTruthy()
+    expect(card?.stats.find((row) => row.label === 'Mastery')?.value).toBeTruthy()
+    expect(card?.stats.find((row) => row.label === 'Layer')?.value).toMatch(/Dock Scrap/)
     expect(card?.stats.find((row) => row.label === 'Next level')?.value).toMatch(/Scrap/)
     expect(card?.stats.find((row) => row.label === 'Salvage')).toBeUndefined()
   })
@@ -100,6 +109,15 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
     s = setDocked(s, true)
     expect(s.shipyard.moduleLevels['pulse-cannon']).toBe(1)
+  })
+
+  it('exposes Sortie speed, pressure, and hub status the GDD asks for', () => {
+    const docked = createInitialState(0)
+    expect(livePressureLabel(docked)).toBe('Docked')
+    expect(sortieSpeed(docked)).toBe(1)
+    expect(formatRunTime(75)).toBe('1:15')
+    expect(researchHubStatus(docked)[0]).toMatch(/No project/)
+    expect(processHubStatus(docked)[0]).toMatch(/capabilities/)
   })
 
   it('wipes Core ranks on Rebuild', () => {

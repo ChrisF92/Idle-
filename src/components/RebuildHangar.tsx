@@ -9,6 +9,7 @@ import {
   getFrame,
   getModule,
   matterShopEffectBlurb,
+  metaDamageMultiplier,
   shopRank,
   trimModulesToFrame,
 } from '../game/catalog'
@@ -25,7 +26,8 @@ import {
   workshopInvestment,
 } from '../game/rebuild'
 import { formatCompact } from '../game/format'
-import { RESOURCE_LABELS } from '../game/state'
+import { computeShipStats, RESOURCE_LABELS } from '../game/state'
+import { formatStatShift, previewLoadoutStats } from '../game/uiReadout'
 
 interface RebuildHangarProps {
   state: GameState
@@ -51,6 +53,22 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
   const shopOpen = isSystemUnlocked(state, 'slag') || (state.resources.prestigeMatter ?? 0) > 0
   const matter = state.resources.prestigeMatter
   const label = RESOURCE_LABELS.prestigeMatter
+  const hive = computeShipStats(state)
+  const compare = previewLoadoutStats(state, frameId, modules)
+  const weaponNow = metaDamageMultiplier(
+    matter,
+    state.resources.challengePoints ?? 0,
+    state.prestige.shop,
+    state.prestige.matterShop,
+    state.prestige.challengeClears,
+  )
+  const weaponAfter = metaDamageMultiplier(
+    matter + gain,
+    state.resources.challengePoints ?? 0,
+    state.prestige.shop,
+    state.prestige.matterShop,
+    state.prestige.challengeClears,
+  )
 
   const weapons = useMemo(
     () => SHIP_MODULES.filter((m) => m.role === 'weapon' && state.shipyard.unlockedModules.includes(m.id)),
@@ -125,6 +143,55 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
                 <strong>{workshopInvestment(state)} ranks</strong>
               </div>
             </div>
+          </section>
+
+          <section className="hangar-hive">
+            <p className="combat-hud-kicker">Current Hive</p>
+            <p className="muted">
+              {getFrame(state.shipyard.frameId)?.name ?? 'Hive'} ·{' '}
+              {state.shipyard.modules.map((id) => getModule(id)?.name ?? id).join(' · ') || 'No Cores'}
+            </p>
+            <div className="stat-row dock-stats">
+              <div>
+                <span className="muted">Hull</span>
+                <strong>{formatCompact(hive.hullMax)}</strong>
+              </div>
+              <div>
+                <span className="muted">Shield</span>
+                <strong>{formatCompact(hive.shieldMax)}</strong>
+              </div>
+              <div>
+                <span className="muted">DPS</span>
+                <strong>{formatCompact(hive.damage)}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="hangar-preview">
+            <p className="combat-hud-kicker">Power preview</p>
+            <p className="muted">
+              Permanent weapon multiplier ×{weaponNow.toFixed(2)} → ×{weaponAfter.toFixed(2)}
+            </p>
+            {compare.current.hullMax !== compare.next.hullMax ||
+            compare.current.shieldMax !== compare.next.shieldMax ||
+            compare.current.damage !== compare.next.damage ? (
+              <dl className="upgrade-card-stats">
+                <div>
+                  <dt>Hull</dt>
+                  <dd>{formatStatShift(compare.current.hullMax, compare.next.hullMax)}</dd>
+                </div>
+                <div>
+                  <dt>Shield</dt>
+                  <dd>{formatStatShift(compare.current.shieldMax, compare.next.shieldMax)}</dd>
+                </div>
+                <div>
+                  <dt>DPS</dt>
+                  <dd>{formatStatShift(compare.current.damage, compare.next.damage)}</dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="muted">This loadout matches the current Hive.</p>
+            )}
           </section>
 
           <ConsequencePanel lists={lists} />

@@ -992,6 +992,8 @@ export interface MetaState {
   hullLostOnce: boolean
   /** HUD numbers ≥ 1000: engineering (12.3e3) or scientific (1.23e4). */
   numberNotation: 'engineering' | 'scientific'
+  /** GDD §113 floating combat numbers. */
+  damageNumbers: 'minimal' | 'standard' | 'detailed'
 }
 
 export interface ResearchState {

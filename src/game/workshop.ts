@@ -116,6 +116,34 @@ export function salvageWaveBonus(state: GameState): number {
   return Math.floor(4 * n * Math.pow(1.06, n))
 }
 
+/** GDD §114 Current / Next values for Sortie and Workshop cards. */
+export function runUpgradePreview(
+  state: GameState,
+  id: RunUpgradeId,
+): { current: string; next: string } {
+  const level = effectiveUpgradeLevel(state, id)
+  const fmt = (per: number) => ({
+    current: `×${Math.pow(1 + per, level).toFixed(2)}`,
+    next: `×${Math.pow(1 + per, level + 1).toFixed(2)}`,
+  })
+  switch (id) {
+    case 'weapon-power':
+      return fmt(0.08)
+    case 'cycle-rate':
+      return fmt(0.03)
+    case 'hull':
+      return fmt(0.08)
+    case 'shield':
+      return fmt(0.1)
+    case 'salvage-kill':
+      return fmt(0.08)
+    case 'salvage-wave': {
+      const next = Math.floor(4 * (level + 1) * Math.pow(1.06, level + 1))
+      return { current: `+${salvageWaveBonus(state)}`, next: `+${next}` }
+    }
+  }
+}
+
 export function visibleRunUpgrades(bestWave: number, category?: RunUpgradeCategory): RunUpgradeDef[] {
   return RUN_UPGRADES.filter(
     (def) => (category ? def.category === category : true) && bestWave >= def.minBestWave,

@@ -27,6 +27,7 @@ interface StatsTabProps {
   onDevAction: (action: DevAction) => void
   onRebuild?: () => void
   onNotation?: (mode: NumberNotation) => void
+  onDamageNumbers?: (mode: 'minimal' | 'standard' | 'detailed') => void
   onOpenStation?: (tab: TabId) => void
   onOpenSimulator?: () => void
   guideTarget?: string | null
@@ -105,6 +106,7 @@ export function StatsTab({
   onDevAction,
   onRebuild,
   onNotation,
+  onDamageNumbers,
   onOpenStation,
   onOpenSimulator,
   guideTarget = null,
@@ -149,7 +151,7 @@ export function StatsTab({
           ) : null}
           {buckets.next.length > 0 ? (
             <>
-              <h3 className="foundry-heading">Coming up</h3>
+              <h3 className="foundry-heading">Next system</h3>
               {buckets.next.map((door) => (
                 <DoorRow key={door.id} door={door} state={state} onOpen={onOpenStation} />
               ))}
@@ -182,6 +184,25 @@ export function StatsTab({
             <p className="muted">
               {state.meta.numberNotation === 'scientific' ? '1.23e4' : '12.3e3'}
             </p>
+          </div>
+        ) : null}
+
+        {onDamageNumbers ? (
+          <div>
+            <p className="muted">Combat numbers</p>
+            <div className="sheet-tabs notation-tabs">
+              {(['minimal', 'standard', 'detailed'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={(state.meta.damageNumbers ?? 'standard') === mode ? 'sheet-tab active' : 'sheet-tab'}
+                  onClick={() => onDamageNumbers(mode)}
+                >
+                  {mode === 'minimal' ? 'Minimal' : mode === 'detailed' ? 'Detailed' : 'Standard'}
+                </button>
+              ))}
+            </div>
+            <p className="muted">Restrained by default. Detailed shows every hit.</p>
           </div>
         ) : null}
 

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { DockTab } from '../components/tabs/DockTab'
 import { StatsTab } from '../components/tabs/StatsTab'
@@ -9,6 +9,10 @@ import { atCareerWave, markHullLost } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 
 afterEach(cleanup)
+
+beforeEach(() => {
+  HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext
+})
 
 describe('GDD shell information architecture', () => {
   it('marks Systems active while Worker Drones are open', () => {
@@ -37,7 +41,7 @@ describe('GDD shell information architecture', () => {
         onOpenStation={() => undefined}
       />,
     )
-    expect(screen.getByText('Coming up')).toBeTruthy()
+    expect(screen.getByText('Next system')).toBeTruthy()
     expect(screen.getByText('Codex')).toBeTruthy()
     expect(screen.queryByText(/Later systems/)).toBeNull()
     expect(screen.queryByText('Furnace')).toBeNull()
@@ -64,6 +68,6 @@ describe('GDD shell information architecture', () => {
     expect(screen.getByText(/Equip and rank Cores here with Scrap/i)).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))
     expect(screen.queryByText('Weapon Power')).toBeNull()
-    expect(screen.getByRole('button', { name: /Hull/ })).toBeTruthy()
+    expect(screen.getAllByText('Hull').length).toBeGreaterThan(0)
   })
 })

@@ -11,6 +11,7 @@ import type {
 } from '../game/types'
 import { SPAWN_DISTANCE } from '../game/combat'
 import { formatCompact } from '../game/format'
+import type { DamageNumbersMode } from '../game/uiReadout'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -23,6 +24,8 @@ interface BattlefieldProps {
   mode: BattlefieldMode
   /** Freeze interpolation / starfield while a coach-mark is up. */
   paused?: boolean
+  /** GDD §113 floating combat numbers. */
+  numbers?: DamageNumbersMode
 }
 
 interface Actor {
@@ -178,6 +181,7 @@ interface Scene {
   flashes: ScreenFlash[]
   rings: RingFx[]
   popups: DamagePopup[]
+  numbers: DamageNumbersMode
   shake: number
   seenFx: Set<string>
   seenProj: Set<string>
@@ -1558,6 +1562,8 @@ function spawnDamagePopup(scene: Scene, shot: CombatFx, to: Actor): void {
     }
   }
   const major = !miss && amount >= Math.max(14, to.hullMax * 0.12)
+  if (scene.numbers === 'minimal' && !major && hit !== 'shield') return
+  if (scene.numbers === 'standard' && !major && hit !== 'shield' && !fromPlayer) return
   scene.popups.push({
     x: to.x + (Math.random() - 0.5) * 14,
     y: to.y - to.r - 6,
@@ -1917,11 +1923,12 @@ export function Battlefield({
   fx,
   mode,
   paused = false,
+  numbers = 'standard',
 }: BattlefieldProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<Scene | null>(null)
-  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, beams, fx, mode, paused })
-  propsRef.current = { playerUnits, enemyUnits, projectiles, beams, fx, mode, paused }
+  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, beams, fx, mode, paused, numbers })
+  propsRef.current = { playerUnits, enemyUnits, projectiles, beams, fx, mode, paused, numbers }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1938,6 +1945,7 @@ export function Battlefield({
       flashes: [],
       rings: [],
       popups: [],
+      numbers,
       shake: 0,
       seenFx: new Set(),
       seenProj: new Set(),
@@ -1970,6 +1978,7 @@ export function Battlefield({
       last = now
 
       syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.beams, p.fx, p.mode)
+      scene.numbers = p.numbers
       stepScene(scene, dt)
 
       const dpr = Math.min(2, window.devicePixelRatio || 1)

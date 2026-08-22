@@ -165,7 +165,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'More',
     body: [
       'Secondary systems live here so the bottom bar stays SORTIE, DOCK, SYSTEMS, MORE.',
-      'Open stations are ready. Coming up is the next major door — Foundry, Workers, Furnace, and the rest — not a grey list of everything later.',
+      'Open stations are ready. Next system is the one major door ahead — Foundry, Workers, Furnace, and the rest — not a grey list of everything later.',
       'Save and settings live on the Settings pane.',
     ],
   },

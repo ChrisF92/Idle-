@@ -22,6 +22,7 @@ import {
   moduleUpgradeCost,
 } from './catalog'
 import { formatCompact } from './format'
+import { coreContributionPct } from './uiReadout'
 import {
   NETWORK_BARS,
   NETWORK_LINKS,
@@ -283,11 +284,15 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   const picks = state.shipyard.corePicks?.[moduleId]
   const pending = pendingMilestone(moduleId, level, picks)
   const milestones = milestonesFor(moduleId)
+  const contribution = coreContributionPct(state, moduleId)
   const stats: InspectStat[] = [
     { label: 'Role', value: ROLE_LABEL[def.role] ?? def.role },
     { label: 'Level', value: maxed ? `${level} · max` : `${level}/${MAX_MODULE_LEVEL}` },
+    { label: 'Mastery', value: String(mastery) },
     { label: 'Scrap', value: formatCompact(state.resources.scrap) },
+    { label: 'Layer', value: 'Cycle · Dock Scrap' },
   ]
+  if (contribution != null) stats.push({ label: 'Build', value: `${contribution}% of DPS` })
   if (!maxed) stats.push({ label: 'Next level', value: `${formatCompact(cost)} Scrap` })
   for (const row of previews) {
     stats.push({
@@ -328,7 +333,7 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   const body = [def.description]
   if (def.weapon) body.push(deliveryLine(def.weapon.delivery))
   body.push(
-    'Spend Salvage during a sortie to level this Core. Levels persist until Rebuild, including across hull loss. Rebuild wipes them so you can swap the loadout.',
+    'Rank this Core at Dock with Scrap. Ranks persist across Sorties until Rebuild, then the loadout can be swapped.',
   )
   if (milestones.length > 0) {
     body.push('Every ten levels you pick one of two nodes. Those picks wipe with the Core on Rebuild.')

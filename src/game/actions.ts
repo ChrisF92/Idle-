@@ -207,6 +207,17 @@ export function setNumberNotation(
   return next
 }
 
+export function setDamageNumbers(
+  state: GameState,
+  mode: 'minimal' | 'standard' | 'detailed',
+): GameState {
+  if (mode !== 'minimal' && mode !== 'standard' && mode !== 'detailed') return state
+  if (state.meta.damageNumbers === mode) return state
+  const next = structuredClone(state)
+  next.meta.damageNumbers = mode
+  return next
+}
+
 export function setLaunchSector(state: GameState, _sector: number): GameState {
   if (!state.combat.docked) return state
   if (state.combat.wave === 1 && state.combat.sector === 1) return state

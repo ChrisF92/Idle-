@@ -509,6 +509,7 @@ export default function App() {
             onDevAction={game.applyDevAction}
             onRebuild={() => setHangarOpen(true)}
             onNotation={game.setNumberNotation}
+            onDamageNumbers={game.setDamageNumbers}
             onOpenStation={go}
             onOpenSimulator={() => setSimulatorOpen(true)}
             guideTarget={guide?.target}

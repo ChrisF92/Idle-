@@ -13,8 +13,10 @@ import {
 import { isRelicsUnlocked, SHARDS, shardOwned } from '../../game/reliquary'
 import { getFrame } from '../../game/catalog'
 import { hasProcess } from '../../game/process'
+import { Battlefield } from '../Battlefield'
 import { CoreSheet } from '../CoreSheet'
 import { SheetTabs } from '../SheetTabs'
+import { runUpgradePreview } from '../../game/workshop'
 
 interface DockTabProps {
   state: GameState
@@ -125,6 +127,44 @@ export function DockTab({
         </button>
       )}
 
+      {!live ? (
+        <div className="dock-hive" aria-hidden>
+          <Battlefield
+            playerUnits={[
+              {
+                id: 'dock-flag',
+                side: 'player',
+                name: frame?.name ?? 'Hive',
+                shape: 'triangle',
+                family: 'player',
+                hull: combat.playerHull,
+                hullMax: stats.hullMax,
+                shield: combat.playerShield,
+                shieldMax: stats.shieldMax,
+                armor: stats.armor,
+                evasion: stats.evasion,
+                damageTakenMult: stats.damageTakenMult,
+                weapons: [],
+                isBoss: false,
+                isFlagship: true,
+                dots: [],
+                x: 0,
+                y: 0,
+                speed: 0,
+                engageRange: 0,
+                kite: false,
+                phaseWarnLeft: 0,
+              },
+            ]}
+            enemyUnits={[]}
+            projectiles={[]}
+            beams={[]}
+            fx={[]}
+            mode="docked"
+          />
+        </div>
+      ) : null}
+
       <div className="dock-section dock-loadout" data-guide="dock-cores">
         <p className="combat-hud-kicker">Loadout</p>
         <h3>Hive</h3>
@@ -190,20 +230,37 @@ export function DockTab({
             const level = workshopLevel(state, def.id)
             const cost = workshopCost(level)
             const affordable = state.resources.scrap >= cost
+            const preview = runUpgradePreview(state, def.id)
             return (
-              <button
-                key={def.id}
-                type="button"
-                className={affordable ? 'network-row is-affordable' : 'network-row'}
-                disabled={!onBuyWorkshop || !affordable}
-                onClick={() => onBuyWorkshop?.(def.id)}
-              >
-                <span>
+              <article key={def.id} className={affordable ? 'upgrade-card is-affordable' : 'upgrade-card'}>
+                <header className="upgrade-card-head">
                   <strong>{def.name}</strong>
-                  <span className="muted"> Lv {level} → {level + 1}</span>
-                </span>
-                <strong>{formatCompact(cost)} Scrap</strong>
-              </button>
+                  <span className="muted">Lv {level}</span>
+                </header>
+                <p className="muted">{def.blurb} Resets on Rebuild.</p>
+                <dl className="upgrade-card-stats">
+                  <div>
+                    <dt>Current</dt>
+                    <dd>{preview.current}</dd>
+                  </div>
+                  <div>
+                    <dt>Next</dt>
+                    <dd>{preview.next}</dd>
+                  </div>
+                  <div>
+                    <dt>Cost</dt>
+                    <dd>{formatCompact(cost)} Scrap</dd>
+                  </div>
+                </dl>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!onBuyWorkshop || !affordable}
+                  onClick={() => onBuyWorkshop?.(def.id)}
+                >
+                  Buy
+                </button>
+              </article>
             )
           })}
           {visibleRunUpgrades(bestWave, workshopCat).length === 0 ? (

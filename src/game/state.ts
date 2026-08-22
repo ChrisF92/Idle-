@@ -220,6 +220,7 @@ export function createInitialState(now = Date.now()): GameState {
       starterCombatLesson: 2,
       hullLostOnce: false,
       numberNotation: 'engineering',
+      damageNumbers: 'standard',
     },
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),

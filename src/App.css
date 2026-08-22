@@ -1431,7 +1431,7 @@ h2 .inspect-name {
 
 .combat-hud-bar {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.25rem 0.4rem;
   align-items: end;
   padding: 0.35rem 0.65rem 0.3rem;
@@ -1447,6 +1447,31 @@ h2 .inspect-name {
 
 .combat-hud-readout-wide {
   grid-column: 1 / -1;
+}
+
+.combat-status-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.25rem 0.4rem;
+  align-items: end;
+  padding: 0.28rem 0.65rem 0.32rem;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.dock-hive {
+  position: relative;
+  height: 8.6rem;
+  margin: 0 0 0.55rem;
+  border: 1px solid var(--line);
+  background: #120e0c;
+  overflow: hidden;
+}
+
+.dock-hive canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .combat-hud-kicker {

@@ -41,6 +41,7 @@ import {
   assembleBlueprint,
   setTrackedPrint,
   setLaborProfile,
+  setDamageNumbers,
   setNumberNotation,
   startFabProject,
   unfitModule,
@@ -164,6 +165,7 @@ type Action =
   | { type: 'assemble-blueprint'; moduleId: string }
   | { type: 'track-print'; moduleId: string | null }
   | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
+  | { type: 'damage-numbers'; mode: 'minimal' | 'standard' | 'detailed' }
   | { type: 'choose-directive'; id: string }
   | { type: 'relic-equip'; moduleId: string; relicId: string; socketIndex?: number }
   | { type: 'relic-remove'; moduleId: string; socketIndex?: number }
@@ -321,6 +323,8 @@ function reducer(state: GameState, action: Action): GameState {
       return setTrackedPrint(state, action.moduleId)
     case 'number-notation':
       return setNumberNotation(state, action.mode)
+    case 'damage-numbers':
+      return setDamageNumbers(state, action.mode)
     case 'choose-directive':
       return chooseDirective(state, action.id)
     case 'relic-equip':
@@ -526,6 +530,8 @@ export function useGame() {
       dispatch({ type: 'track-print', moduleId }),
     setNumberNotation: (mode: 'engineering' | 'scientific') =>
       dispatch({ type: 'number-notation', mode }),
+    setDamageNumbers: (mode: 'minimal' | 'standard' | 'detailed') =>
+      dispatch({ type: 'damage-numbers', mode }),
     chooseDirective: (id: string) => dispatch({ type: 'choose-directive', id }),
     equipRelic: (moduleId: string, relicId: string, socketIndex?: number) =>
       dispatch({ type: 'relic-equip', moduleId, relicId, socketIndex }),

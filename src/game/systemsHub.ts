@@ -18,7 +18,7 @@ import {
   hiveResearchSpeed,
   hiveResearchXp,
 } from './hiveResearch'
-import { firstAffordableProcessNode, processAvailable } from './process'
+import { firstAffordableProcessNode, processAvailable, processConfig } from './process'
 import { foundryAttention, furnaceAttention, networkAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
@@ -115,17 +115,27 @@ export function researchHubStatus(state: GameState): string[] {
   const xp = hiveResearchXp(state, branch)
   const speed = hiveResearchSpeed(state)
   const left = speed > 0 ? Math.max(0, (need - xp) / speed) : 0
-  const lines = [node?.name ?? 'Researching']
+  const pct = need > 0 ? Math.min(100, Math.round((100 * xp) / need)) : 0
+  const lines = [node?.name ?? 'Researching', `${pct}%`]
   if (left > 0) lines.push(`${formatResearchDuration(left)} left`)
   return lines.slice(0, 3)
 }
 
 export function processHubStatus(state: GameState): string[] {
-  const available = Math.floor(processAvailable(state))
+  const bought = state.process?.purchased?.length ?? 0
+  const cfg = processConfig(state)
+  let running = 0
+  if (cfg.core.enabled) running += 1
+  if (cfg.network.enabled) running += 1
+  if (cfg.foundry.autoBuy) running += 1
+  if (cfg.reliquary.autoEquip || cfg.reliquary.autoMerge) running += 1
+  if (cfg.furnace.autoFeed || cfg.furnace.autoChannel) running += 1
+  if (cfg.research.autoResearch) running += 1
   const next = firstAffordableProcessNode(state)
-  const lines = [`${available} Process`]
-  if (next) lines.push(`Next: ${next.name}`)
-  else if ((state.process?.purchased?.length ?? 0) > 0) lines.push('Running')
+  const lines = [`${bought} capabilities`]
+  if (running > 0) lines.push(`${running} active rules`)
+  else if (next) lines.push(`Next: ${next.name}`)
+  else if (processAvailable(state) > 0) lines.push(`${Math.floor(processAvailable(state))} Process`)
   else lines.push('No purchase yet')
   return lines.slice(0, 3)
 }

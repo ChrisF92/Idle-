@@ -42,7 +42,7 @@ describe('inspect sheets', () => {
 
     const core = inspectCore(s, 'pulse-cannon')
     expect(core?.stats.find((row) => row.label === 'Damage')?.value).toMatch(/→/)
-    expect(core?.body.join(' ')).toMatch(/Salvage/)
+    expect(core?.body.join(' ')).toMatch(/Scrap/)
     expect(core?.body.join(' ')).not.toMatch(JARGON)
 
     const attack = inspectFurnaceTrack(s, 'attack')
