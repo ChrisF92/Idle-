@@ -37,8 +37,8 @@ export type SystemId = Exclude<
 export interface SystemUnlockDef {
   id: SystemId
   /** Career best Wave required (0 = always). */
-  requiresSectorEver: number
-  /** Optional research gate after the sector gate. */
+  requiresBestWave: number
+  /** Optional research gate after the Wave door. */
   requiresResearch?: string
   label: string
   tip: string
@@ -52,110 +52,110 @@ export interface SystemUnlockDef {
 export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'base',
-    requiresSectorEver: ACT1_CADENCE.workers,
+    requiresBestWave: ACT1_CADENCE.workers,
     label: 'Worker Drones',
     tip: 'Assign Worker Drones to industrial jobs.',
   },
   {
     id: 'reliquary',
-    requiresSectorEver: ACT1_CADENCE.reliquary,
+    requiresBestWave: ACT1_CADENCE.reliquary,
     label: 'Relics',
     tip: 'Relics install into fitted Cores while Docked.',
   },
   {
     id: 'furnace',
-    requiresSectorEver: ACT1_CADENCE.furnace,
+    requiresBestWave: ACT1_CADENCE.furnace,
     label: 'Furnace',
     tip: 'Spend Heat on temporary ship boosts.',
   },
   {
     id: 'yard',
-    requiresSectorEver: ACT1_CADENCE.yard,
+    requiresBestWave: ACT1_CADENCE.yard,
     label: 'Construction',
     tip: 'Foundry construction. Place processing gear; arms apply on the next Rebuild.',
   },
   {
     id: 'slag',
-    requiresSectorEver: 0,
+    requiresBestWave: 0,
     label: 'Matter',
     tip: 'Spend Rebuild Matter inside the Rebuild hangar.',
   },
   {
     id: 'protocols',
-    requiresSectorEver: ACT1_CADENCE.protocols,
+    requiresBestWave: ACT1_CADENCE.protocols,
     label: 'Challenges',
     tip: 'Solve a modified version of the normal Sortie rules.',
   },
   {
     id: 'echo',
-    requiresSectorEver: 999,
+    requiresBestWave: 999,
     label: 'Echo Runs',
     tip: 'Retired. Challenges cover alternate combat tests.',
   },
   {
     id: 'process',
-    requiresSectorEver: ACT1_CADENCE.process,
+    requiresBestWave: ACT1_CADENCE.process,
     label: 'Process',
     tip: 'Automate behaviours you have already learned.',
   },
   {
     id: 'specialists',
-    requiresSectorEver: ACT1_CADENCE.specialists,
+    requiresBestWave: ACT1_CADENCE.specialists,
     label: 'Specialists',
     tip: 'Deferred from Act 1. Frame, Core, and Relic identity is enough.',
   },
   {
     id: 'tasks',
-    requiresSectorEver: ACT1_CADENCE.tasks,
+    requiresBestWave: ACT1_CADENCE.tasks,
     label: 'Task List',
     tip: 'Deferred from Act 1. Capital stays shut until this list exists.',
   },
   {
     id: 'capital',
-    requiresSectorEver: ACT1_CADENCE.capital,
+    requiresBestWave: ACT1_CADENCE.capital,
     label: 'Capital',
     tip: 'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
   },
   {
     id: 'reinforce',
-    requiresSectorEver: ACT1_CADENCE.reinforce,
+    requiresBestWave: ACT1_CADENCE.reinforce,
     label: 'Reinforce',
     tip: 'Clear Wave 300. Rebuild has reached the limit of this loop.',
   },
   {
     id: 'logs',
-    requiresSectorEver: 0,
+    requiresBestWave: 0,
     label: 'Foundry Logs',
     tip: 'Short industrial notes as doors open.',
   },
   {
     id: 'research',
-    requiresSectorEver: ACT1_CADENCE.research,
+    requiresBestWave: ACT1_CADENCE.research,
     label: 'Research',
     tip: 'Start one Research project. Sensor Net drones speed it up.',
   },
   {
     id: 'codex',
-    requiresSectorEver: ACT1_CADENCE.codex,
+    requiresBestWave: ACT1_CADENCE.codex,
     label: 'Codex',
     tip: 'Optional reference for enemy families and hull roles.',
   },
   {
     id: 'core',
-    requiresSectorEver: ACT1_CADENCE.research + 2,
+    requiresBestWave: ACT1_CADENCE.research + 2,
     requiresResearch: 'core-training',
     label: 'Core',
     tip: 'Assign workers to training stations to raise Core attributes. Ranks wipe on prestige.',
   },
   {
     id: 'ai',
-    requiresSectorEver: ACT1_CADENCE.process,
+    requiresBestWave: ACT1_CADENCE.process,
     label: 'Process',
     tip: 'Spend Process Points on automation and quality-of-life upgrades.'
   },
   {
     id: 'prestige',
-    requiresSectorEver: ACT1_CADENCE.rebuild,
+    requiresBestWave: ACT1_CADENCE.rebuild,
     label: 'Rebuild',
     tip: 'Rebuild to swap hull and Cores. Permanent systems stay.',
   },
@@ -204,35 +204,35 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'first-blood',
     name: 'First Blood',
-    description: 'Clear sector 1. Starts banking Process Points for later automation.',
+    description: 'Reach Wave 10. Starts banking Process Points for later automation.',
     rewardAiPoints: 4,
     condition: { type: 'sector-ever', sector: 1 },
   },
   {
     id: 'chip-drawer',
     name: 'Chip Drawer',
-    description: 'Clear sector 3. Shard signatures are now detectable.',
+    description: 'Reach Wave 30. Shard signatures are now detectable.',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 3 },
   },
   {
     id: 'hangar-opened',
     name: 'Hangar Opened',
-    description: 'Clear sector 4.',
+    description: 'Reach Wave 40.',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 4 },
   },
   {
     id: 'first-boss',
     name: 'First Titan',
-    description: 'Clear sector 5 (first boss sector).',
+    description: 'Reach Wave 50 (first band boss).',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 5 },
   },
   {
     id: 'archive-open',
     name: 'Archive Open',
-    description: 'Clear sector 7. Archive telemetry begins accumulating.',
+    description: 'Reach Wave 70. Archive telemetry begins accumulating.',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 7 },
   },
@@ -260,35 +260,35 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'sector-10',
     name: 'Deep Push',
-    description: 'Clear sector 10.',
+    description: 'Reach Wave 100.',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 10 },
   },
   {
     id: 'sector-15',
     name: 'Combat Corps',
-    description: 'Clear sector 15.',
+    description: 'Reach Wave 150.',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 15 },
   },
   {
     id: 'sector-20',
     name: 'Void Line',
-    description: 'Clear sector 20.',
+    description: 'Reach Wave 200.',
     rewardAiPoints: 2,
     condition: { type: 'sector-ever', sector: 20 },
   },
   {
     id: 'sector-25',
     name: 'Outer Rim',
-    description: 'Clear sector 25.',
+    description: 'Reach Wave 250.',
     rewardAiPoints: 3,
     condition: { type: 'sector-ever', sector: 25 },
   },
   {
     id: 'act1-clear',
     name: 'Exodus Gate',
-    description: 'Clear sector 30 and finish Act 1.',
+    description: 'Clear Wave 300 and finish Act 1.',
     rewardAiPoints: 3,
     condition: { type: 'act1-cleared' },
   },
@@ -754,7 +754,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return true
-  if (careerBestWave(state) < def.requiresSectorEver) return false
+  if (careerBestWave(state) < def.requiresBestWave) return false
   if (def.requiresResearch && !state.research.unlocked.includes(def.requiresResearch)) {
     return false
   }
@@ -804,8 +804,8 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return null
   const parts: string[] = []
-  if (def.requiresSectorEver > 0) {
-    parts.push(`Reach Wave ${def.requiresSectorEver}`)
+  if (def.requiresBestWave > 0) {
+    parts.push(`Reach Wave ${def.requiresBestWave}`)
   }
   if (def.requiresResearch) {
     parts.push(`Research ${def.requiresResearch}`)
@@ -901,20 +901,21 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
     state.meta.codexUnlocked = true
   }
 
-  if (ever >= 4 && !state.shipyard.unlockedFrames.includes('line-frame')) {
+  const best = careerBestWave(state)
+  if (best >= 40 && !state.shipyard.unlockedFrames.includes('line-frame')) {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'line-frame']
   }
-  if (ever >= 8 && !state.shipyard.unlockedFrames.includes('cruiser-frame')) {
+  if (best >= 80 && !state.shipyard.unlockedFrames.includes('cruiser-frame')) {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'cruiser-frame']
   }
-  if (ever >= 24 && !state.shipyard.unlockedFrames.includes('heavy-cruiser-frame')) {
+  if (best >= 240 && !state.shipyard.unlockedFrames.includes('heavy-cruiser-frame')) {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'heavy-cruiser-frame']
   }
-  if (ever >= 41 && !state.shipyard.unlockedFrames.includes('battlecruiser-frame')) {
+  if (best >= 410 && !state.shipyard.unlockedFrames.includes('battlecruiser-frame')) {
     state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'battlecruiser-frame']
   }
   if (
-    ever >= 75 &&
+    best >= 750 &&
     taskListComplete(state) &&
     !state.shipyard.unlockedFrames.includes('capital-frame')
   ) {

@@ -10,7 +10,7 @@ import { pendingMilestone } from './milestones'
 import { getFrame } from './catalog'
 import { isSystemUnlocked, visibleResourceIds } from './progression'
 import { maybeGrantSystemUnlocks } from './progression'
-import { clearSector, armRebuildDoor } from './testHelpers'
+import { atCareerWave, clearSector, armRebuildDoor } from './testHelpers'
 import { setDocked } from './tick'
 
 describe('phase 3: milestones, rebuild, foundry', () => {
@@ -47,16 +47,14 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(s.combat.docked).toBe(true)
   })
 
-  it('unlocks Frigate hull after clearing sector 4', () => {
-    let s = createInitialState(0)
+  it('unlocks Frigate hull after Wave 40', () => {
+    let s = atCareerWave(createInitialState(0), 40)
     s = setDocked(s, false)
-    s.combat.highestSector = 4
-    s.meta.highestSectorEver = 4
     maybeGrantSystemUnlocks(s)
     expect(s.shipyard.unlockedFrames).toContain('line-frame')
     expect(getFrame('line-frame')?.name).toBe('Frigate Hull')
     expect(getFrame('line-frame')?.weaponSlots).toBe(2)
-    expect(getFrame('line-frame')?.requiresSectorEver).toBe(4)
+    expect(getFrame('line-frame')?.requiresBestWave).toBe(40)
   })
 
   it('Rebuild hangar can swap onto Frigate once unlocked', () => {

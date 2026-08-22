@@ -21,11 +21,8 @@ import { advanceSeconds, computeResourceRates } from './tick'
 import { atCareerWave } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 
-function atWorkers(sectorEver = 12) {
-  const state = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
-  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver, sectorEver)
-  state.combat.highestSector = Math.max(state.combat.highestSector, sectorEver)
-  return state
+function atWorkers(bestWave = 120) {
+  return atCareerWave(createInitialState(0), Math.max(ACT1_CADENCE.workers, bestWave))
 }
 
 describe('drone corps cap + black-bar saturation', () => {

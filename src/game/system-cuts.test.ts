@@ -37,6 +37,8 @@ describe('system cuts', () => {
     let state = createInitialState(0)
     state.research.unlocked = ['drone-logistics']
     state.meta.highestSectorEver = 10
+    state.meta.bestWave = 100
+    state.combat.bestWave = 100
     expect(workerManufactureSpeed(state)).toBe(1)
 
     state.base.assignments['drone-fab'] = 1

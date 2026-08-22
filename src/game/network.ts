@@ -20,18 +20,14 @@ import { careerBestWave } from './progression'
 import { foundryNetworkFillMult } from './foundryBonuses'
 import { NETWORK_CADENCE } from './cadence'
 
-function careerEver(state: GameState): number {
-  return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
-}
-
 export type NetworkBarLayer = 'primary' | 'relay' | 'lattice'
 
 export interface NetworkBarDef {
   id: NetworkBarId
   name: string
   blurb: string
-  /** Career sector cleared to unlock. 0 = from the dock. */
-  requiresSectorEver: number
+  /** Career best Wave required to unlock. 0 = from the dock. */
+  requiresBestWave: number
   layer: NetworkBarLayer
   /** Primary bar this Relay / Lattice improves. */
   parent?: NetworkBarId
@@ -72,7 +68,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'strike',
     name: 'Strike',
     blurb: 'Each cycle raises sortie damage.',
-    requiresSectorEver: 0,
+    requiresBestWave: 0,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
@@ -86,7 +82,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'ward',
     name: 'Ward',
     blurb: 'Each cycle raises max shield.',
-    requiresSectorEver: 0,
+    requiresBestWave: 0,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
@@ -99,7 +95,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'yield',
     name: 'Yield',
     blurb: 'Salvage from wrecks, plus a trickle of scrap.',
-    requiresSectorEver: NETWORK_CADENCE.yield,
+    requiresBestWave: NETWORK_CADENCE.yield,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
@@ -112,7 +108,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'loom',
     name: 'Loom',
     blurb: 'Faster drone manufacture and Foundry crafts.',
-    requiresSectorEver: NETWORK_CADENCE.loom,
+    requiresBestWave: NETWORK_CADENCE.loom,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
@@ -125,7 +121,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'archive',
     name: 'Archive',
     blurb: 'A trickle of Research data.',
-    requiresSectorEver: NETWORK_CADENCE.archive,
+    requiresBestWave: NETWORK_CADENCE.archive,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
@@ -137,7 +133,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'strike-relay',
     name: 'Strike Relay',
     blurb: 'Infrastructure behind Strike.',
-    requiresSectorEver: NETWORK_CADENCE.strikeRelay,
+    requiresBestWave: NETWORK_CADENCE.strikeRelay,
     layer: 'relay',
     parent: 'strike',
     fillBase: 10,
@@ -152,7 +148,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'ward-relay',
     name: 'Ward Relay',
     blurb: 'Infrastructure behind Ward.',
-    requiresSectorEver: NETWORK_CADENCE.wardRelay,
+    requiresBestWave: NETWORK_CADENCE.wardRelay,
     layer: 'relay',
     parent: 'ward',
     fillBase: 10,
@@ -166,7 +162,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'yield-relay',
     name: 'Yield Relay',
     blurb: 'Infrastructure behind Yield.',
-    requiresSectorEver: NETWORK_CADENCE.yieldRelay,
+    requiresBestWave: NETWORK_CADENCE.yieldRelay,
     layer: 'relay',
     parent: 'yield',
     fillBase: 11,
@@ -180,7 +176,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'loom-relay',
     name: 'Loom Relay',
     blurb: 'Infrastructure behind Loom.',
-    requiresSectorEver: NETWORK_CADENCE.loomRelay,
+    requiresBestWave: NETWORK_CADENCE.loomRelay,
     layer: 'relay',
     parent: 'loom',
     fillBase: 11,
@@ -194,7 +190,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'archive-relay',
     name: 'Archive Relay',
     blurb: 'Infrastructure behind Archive.',
-    requiresSectorEver: NETWORK_CADENCE.archiveRelay,
+    requiresBestWave: NETWORK_CADENCE.archiveRelay,
     layer: 'relay',
     parent: 'archive',
     fillBase: 12,
@@ -208,7 +204,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'strike-lattice',
     name: 'Strike Lattice',
     blurb: 'Infrastructure behind Strike Relay.',
-    requiresSectorEver: NETWORK_CADENCE.strikeLattice,
+    requiresBestWave: NETWORK_CADENCE.strikeLattice,
     layer: 'lattice',
     parent: 'strike',
     fillBase: 14,
@@ -223,7 +219,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'ward-lattice',
     name: 'Ward Lattice',
     blurb: 'Infrastructure behind Ward Relay.',
-    requiresSectorEver: NETWORK_CADENCE.wardLattice,
+    requiresBestWave: NETWORK_CADENCE.wardLattice,
     layer: 'lattice',
     parent: 'ward',
     fillBase: 14,
@@ -384,7 +380,7 @@ export function isNetworkBarUnlocked(state: GameState, id: NetworkBarId): boolea
   const def = getNetworkBar(id)
   if (!def) return false
   if (hiveResearchUnlocksRelay(state, id)) return true
-  return careerEver(state) >= def.requiresSectorEver
+  return careerBestWave(state) >= def.requiresBestWave
 }
 
 export function networkLevels(state: GameState, id: NetworkBarId): number {
@@ -408,11 +404,11 @@ export function networkInfraBars(): NetworkBarDef[] {
   return NETWORK_BARS.filter((b) => b.layer !== 'primary')
 }
 
-/** Unlocked Relays/Lattices, plus the next layer once it is two sectors away. */
+/** Unlocked Relays/Lattices, plus the next layer once it is twenty Waves away. */
 export function networkInfraVisible(state: GameState, bar: NetworkBarDef): boolean {
   if (bar.layer === 'primary') return true
   if (isNetworkBarUnlocked(state, bar.id)) return true
-  return careerEver(state) + 2 >= bar.requiresSectorEver
+  return careerBestWave(state) + 20 >= bar.requiresBestWave
 }
 
 export function networkInfraSectionVisible(state: GameState): boolean {

@@ -2,8 +2,8 @@
 
 import type { GameState, RelicSocketClass, ReliquaryColor, ReliquaryState } from './types'
 import { getModule, moduleMasteryRank } from './catalog'
-import { careerBestWave, careerHighestSector } from './progression'
-import { bandsClearedForWave, meetsWave } from './waves'
+import { careerBestWave } from './progression'
+import { meetsWave } from './waves'
 import { protocolBonusMult, protocolMutes } from './protocols'
 import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
@@ -16,7 +16,7 @@ export interface ShardDef {
   color: ReliquaryColor
   blurb: string
   /** Extra career gate beyond the colour slot. */
-  requiresSectorEver?: number
+  requiresBestWave?: number
   socket?: RelicSocketClass
   tier?: 1 | 2 | 3
   upgradesTo?: string
@@ -34,7 +34,7 @@ export interface ShardDef {
 export interface ReliquarySlotDef {
   color: ReliquaryColor
   name: string
-  requiresSectorEver: number
+  requiresBestWave: number
 }
 
 export const RELIQUARY_UNLOCK_SECTOR = ACT1_CADENCE.reliquary
@@ -52,11 +52,11 @@ export const RELIC_SOCKET_LABELS: Record<RelicSocketClass, string> = {
 }
 
 export const RELIQUARY_SLOTS: ReliquarySlotDef[] = [
-  { color: 'red', name: 'Red', requiresSectorEver: bandsClearedForWave(ACT1_CADENCE.reliquary) },
-  { color: 'orange', name: 'Orange', requiresSectorEver: bandsClearedForWave(ACT1_CADENCE.reliquary) },
-  { color: 'pink', name: 'Pink', requiresSectorEver: 26 },
-  { color: 'blue', name: 'Blue', requiresSectorEver: 40 },
-  { color: 'green', name: 'Green', requiresSectorEver: 58 },
+  { color: 'red', name: 'Red', requiresBestWave: ACT1_CADENCE.reliquary },
+  { color: 'orange', name: 'Orange', requiresBestWave: ACT1_CADENCE.reliquary },
+  { color: 'pink', name: 'Pink', requiresBestWave: 260 },
+  { color: 'blue', name: 'Blue', requiresBestWave: 400 },
+  { color: 'green', name: 'Green', requiresBestWave: 580 },
 ]
 
 export const SHARDS: ShardDef[] = [
@@ -96,7 +96,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Keel Chip',
     color: 'red',
     blurb: 'Damage with a little plate. Sector 6.',
-    requiresSectorEver: 6,
+    requiresBestWave: 60,
     damage: 0.06,
     shield: 0.04,
   },
@@ -144,7 +144,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Cycle Chip',
     color: 'orange',
     blurb: 'Keeps bars turning. Sector 5.',
-    requiresSectorEver: 5,
+    requiresBestWave: 50,
     salvage: 0.06,
     networkFill: 0.06,
   },
@@ -191,7 +191,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Spark Chip',
     color: 'pink',
     blurb: 'A little extra bite. Sector 8.',
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
     damage: 0.07,
   },
   {
@@ -234,7 +234,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Overdraw Chip',
     color: 'red',
     blurb: 'Late damage lattice. Sector 12.',
-    requiresSectorEver: 12,
+    requiresBestWave: 120,
     damage: 0.1,
   },
   {
@@ -242,7 +242,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Assay Chip',
     color: 'red',
     blurb: 'Foundry pull with a bite. Sector 10.',
-    requiresSectorEver: 10,
+    requiresBestWave: 100,
     damage: 0.05,
     foundrySpeed: 0.06,
   },
@@ -251,7 +251,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Yield Chip',
     color: 'orange',
     blurb: 'Heavier wreck marks. Sector 8.',
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
     salvage: 0.12,
   },
   {
@@ -259,7 +259,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Archive Chip',
     color: 'pink',
     blurb: 'Observation notes. Sector 14.',
-    requiresSectorEver: 14,
+    requiresBestWave: 140,
     researchXp: 0.08,
   },
   {
@@ -267,7 +267,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Warp Chip',
     color: 'blue',
     blurb: 'Echo-side Foundry pull. Sector 22.',
-    requiresSectorEver: 22,
+    requiresBestWave: 220,
     foundrySpeed: 0.1,
     salvage: 0.05,
   },
@@ -276,7 +276,7 @@ export const SHARDS: ShardDef[] = [
     name: 'Reactor Chip',
     color: 'green',
     blurb: 'Choir-ash and a little damage. Sector 32.',
-    requiresSectorEver: 32,
+    requiresBestWave: 320,
     ash: 0.15,
     damage: 0.04,
   },
@@ -298,7 +298,7 @@ export function isReliquarySlotUnlocked(state: GameState, color: ReliquaryColor)
   const def = getReliquarySlot(color)
   if (!def) return false
   if (hiveResearchUnlocksReliquary(state, color)) return true
-  return careerHighestSector(state) >= def.requiresSectorEver
+  return careerBestWave(state) >= def.requiresBestWave
 }
 
 export function shardOwned(state: GameState, id: string): number {
@@ -623,11 +623,11 @@ export function reliquaryAshMult(state: GameState): number {
 }
 
 export function unlockedShardPool(state: GameState): ShardDef[] {
-  const ever = careerHighestSector(state)
+  const best = careerBestWave(state)
   return SHARDS.filter((s) => {
     if (s.craftOnly) return false
     if (!isReliquarySlotUnlocked(state, s.color)) return false
-    if ((s.requiresSectorEver ?? 0) > ever) return false
+    if ((s.requiresBestWave ?? 0) > best) return false
     return true
   })
 }
@@ -697,7 +697,7 @@ export function insertShard(state: GameState, shardId: string): GameState {
   const def = getShard(shardId)
   if (!def) return state
   if (!isReliquarySlotUnlocked(state, def.color)) return state
-  if ((def.requiresSectorEver ?? 0) > careerHighestSector(state)) return state
+  if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
   if (shardOwned(state, shardId) < 1) return state
   const next = structuredClone(state)
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()

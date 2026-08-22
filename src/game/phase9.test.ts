@@ -34,21 +34,21 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   })
 
   it('unlocks Heavy Cruiser at 24 and Battlecruiser at 41', () => {
-    expect(getFrame('heavy-cruiser-frame')?.requiresSectorEver).toBe(24)
+    expect(getFrame('heavy-cruiser-frame')?.requiresBestWave).toBe(240)
     expect(getFrame('heavy-cruiser-frame')?.weaponSlots).toBe(3)
     expect(getFrame('heavy-cruiser-frame')?.defenseSlots).toBe(2)
-    expect(getFrame('battlecruiser-frame')?.requiresSectorEver).toBe(41)
+    expect(getFrame('battlecruiser-frame')?.requiresBestWave).toBe(410)
     expect(getFrame('battlecruiser-frame')?.defenseSlots).toBe(3)
 
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 24
-    s.combat.highestSector = 24
+    s.meta.bestWave = 240
+    s.combat.bestWave = 240
     maybeGrantSystemUnlocks(s)
     expect(s.shipyard.unlockedFrames).toContain('heavy-cruiser-frame')
     expect(s.shipyard.unlockedFrames).not.toContain('battlecruiser-frame')
 
-    s.meta.highestSectorEver = 41
-    s.combat.highestSector = 41
+    s.meta.bestWave = 410
+    s.combat.bestWave = 410
     maybeGrantSystemUnlocks(s)
     expect(s.shipyard.unlockedFrames).toContain('battlecruiser-frame')
   })

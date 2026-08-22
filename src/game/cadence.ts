@@ -28,16 +28,16 @@ export const ACT1_CADENCE = {
 export const ACT1_FINAL_WAVE = 300
 
 export const NETWORK_CADENCE = {
-  yield: 4,
-  loom: 9,
-  strikeRelay: 12,
-  wardRelay: 15,
-  yieldRelay: 20,
-  loomRelay: 24,
-  archive: 34,
-  archiveRelay: 38,
-  strikeLattice: 44,
-  wardLattice: 48,
+  yield: 40,
+  loom: 90,
+  strikeRelay: 120,
+  wardRelay: 150,
+  yieldRelay: 200,
+  loomRelay: 240,
+  archive: 340,
+  archiveRelay: 380,
+  strikeLattice: 440,
+  wardLattice: 480,
 } as const
 
 export const YARD_MIN_REBUILDS = 2

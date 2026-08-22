@@ -1,6 +1,7 @@
 /** Local playtest event log — device-only, compact, manually exportable. */
 
 import type { GameState, PlaytestEvent, PlaytestEventKind, PlaytestState } from './types'
+import { careerBestWave } from './waves'
 import { NETWORK_BAR_IDS } from './types'
 import {
   hydrateInterventions,
@@ -421,7 +422,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Career playtime: ${formatPlaytimeMs(log.playtimeMs)}`)
   lines.push(`Save age: ${formatPlaytimeMs(saveAgeMs(state, now))}`)
   lines.push(
-    `Highest sector: S${Math.max(state.combat?.highestSector ?? 0, state.meta?.highestSectorEver ?? 0, log.sectorAt)}`,
+    `Highest Wave: ${careerBestWave(state)}`,
   )
   lines.push('')
   lines.push('Progression')

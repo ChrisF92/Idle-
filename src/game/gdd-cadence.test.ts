@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
-import { isSystemUnlocked, PRESTIGE_MIN_SECTOR } from './progression'
+import { isSystemUnlocked, PRESTIGE_MIN_SECTOR, SYSTEM_UNLOCKS, systemUnlockRequirement } from './progression'
 import { canPrestige } from './actions'
 import { atCareerWave } from './testHelpers'
-import { careerBestWave } from './waves'
+import { careerBestWave, waveForClearedBands } from './waves'
+import { getFrame, modulePrintSector, modulePrintWave } from './catalog'
 
 /** GDD §102 doors. Older campaign tests are quarantined in vitest.config.ts. */
 describe('GDD Act 1 wave cadence', () => {
@@ -54,5 +55,13 @@ describe('GDD Act 1 wave cadence', () => {
     expect(isSystemUnlocked(locked, 'yard')).toBe(false)
     const open = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
     expect(isSystemUnlocked(open, 'yard')).toBe(true)
+  })
+
+  it('stores system doors as requiresBestWave, not leftover sector bands', () => {
+    expect(SYSTEM_UNLOCKS.find((s) => s.id === 'furnace')?.requiresBestWave).toBe(ACT1_CADENCE.furnace)
+    expect(systemUnlockRequirement('furnace')).toBe('Reach Wave 140')
+    expect(getFrame('line-frame')?.requiresBestWave).toBe(40)
+    expect(waveForClearedBands(4)).toBe(40)
+    expect(modulePrintWave('flak-array')).toBe(modulePrintSector('flak-array') * 10)
   })
 })

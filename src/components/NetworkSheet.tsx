@@ -125,7 +125,7 @@ function BarRow({
     >
       <div className="network-row-main">
         <InspectName name={bar.name} card={open ? inspectNetworkBar(state, bar.id) : null} />
-        <span className="muted">{open ? `Lv ${levels}` : `Sector ${bar.requiresSectorEver}`}</span>
+        <span className="muted">{open ? `Lv ${levels}` : `Sector ${bar.requiresBestWave}`}</span>
       </div>
       {open ? (
         <>

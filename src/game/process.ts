@@ -15,7 +15,7 @@ import type {
   YardArmId,
 } from './types'
 import { NETWORK_BAR_IDS } from './types'
-import { careerHighestSector, isSystemUnlocked } from './progression'
+import { careerBestWave, isSystemUnlocked } from './progression'
 import { AI_NODES } from './catalog'
 import { isWorkerJob } from './workers'
 import { practicedCoreWork } from './corePractice'
@@ -52,7 +52,7 @@ export interface ProcessNodeDef {
   category: ProcessCategory
   kind: ProcessKind
   requiresId?: string
-  requiresSectorEver?: number
+  requiresBestWave?: number
   requiresSystem?: TabId
   requiresMastery?: ProcessMastery
 }
@@ -210,7 +210,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     blurb: 'Unlocks Best value as a Core priority — most stat per Scrap, still your choice.',
     cost: 12,
     requiresId: 'auto-salvage',
-    requiresSectorEver: 6,
+    requiresBestWave: 60,
   },
   {
     id: 'network-optimise',
@@ -256,7 +256,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     blurb: 'Optional overlay: while flying, lean Push toward Strike/Ward and Farm toward Yield.',
     cost: 8,
     requiresId: 'network-balance',
-    requiresSectorEver: 7,
+    requiresBestWave: 70,
   },
   {
     id: 'foundry-buy-max',
@@ -286,7 +286,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     blurb: 'Empty smelters queue unfinished recipes. Will not starve the next Pulse rank.',
     cost: 10,
     requiresSystem: 'foundry',
-    requiresSectorEver: 3,
+    requiresBestWave: 30,
   },
   {
     id: 'foundry-queue',
@@ -327,7 +327,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 16,
     requiresId: 'foundry-priority',
     requiresSystem: 'foundry',
-    requiresSectorEver: 6,
+    requiresBestWave: 60,
   },
   {
     id: 'print-assemble',
@@ -338,7 +338,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 8,
     requiresId: 'smart-smelt',
     requiresSystem: 'foundry',
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'auto-relic',
@@ -428,7 +428,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 16,
     requiresId: 'auto-bank',
     requiresSystem: 'furnace',
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'research-queue',
@@ -459,7 +459,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 12,
     requiresId: 'research-priorities',
     requiresSystem: 'research',
-    requiresSectorEver: 7,
+    requiresBestWave: 70,
   },
   {
     id: 'auto-extract',
@@ -468,7 +468,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     kind: 'automation',
     blurb: 'Pull out of a live Sortie if hull drops under your threshold (default 35%).',
     cost: 6,
-    requiresSectorEver: 2,
+    requiresBestWave: 20,
   },
   {
     id: 'sortie-relaunch',
@@ -487,7 +487,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     blurb: 'Later progression. Act 1 Sorties freeze while you are away; Hive industry still runs.',
     cost: 14,
     requiresId: 'auto-extract',
-    requiresSectorEver: 4,
+    requiresBestWave: 40,
   },
   {
     id: 'protocol-repeat',
@@ -556,7 +556,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     kind: 'qol',
     blurb: '+4 hours on the offline cap, on top of Accumulation bonuses.',
     cost: 12,
-    requiresSectorEver: 8,
+    requiresBestWave: 80,
   },
   {
     id: 'combat-tempo',
@@ -566,7 +566,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     blurb: 'Combat sim runs at ×1.5. Industry still uses real time.',
     cost: 15,
     requiresId: 'auto-salvage',
-    requiresSectorEver: 10,
+    requiresBestWave: 100,
   },
 ]
 
@@ -945,8 +945,8 @@ export function canBuyProcessNode(
   if (def.requiresSystem && !isSystemUnlocked(state, def.requiresSystem)) {
     return { ok: false, reason: systemLockReason(def.requiresSystem) }
   }
-  if (def.requiresSectorEver && careerHighestSector(state) < def.requiresSectorEver) {
-    return { ok: false, reason: `Clear sector ${def.requiresSectorEver}` }
+  if (def.requiresBestWave && careerBestWave(state) < def.requiresBestWave) {
+    return { ok: false, reason: `Reach Wave ${def.requiresBestWave}` }
   }
   if (def.requiresMastery && !hasProcessMastery(state, def.requiresMastery)) {
     return { ok: false, reason: masteryLockReason(def.requiresMastery) }
