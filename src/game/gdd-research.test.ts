@@ -87,7 +87,7 @@ describe('GDD Research', () => {
     s = setResearchFocus(s, 'material')
     s.hiveResearch.xp.material = 40
     s.hiveResearch.completed.energy = 2
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.hiveResearch.completed.energy).toBe(2)
     expect(s.hiveResearch.xp.material).toBe(40)
     expect(hiveResearchActive(s)).toBe(true)

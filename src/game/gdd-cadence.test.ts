@@ -60,7 +60,7 @@ describe('GDD Act 1 wave cadence', () => {
   it('stores system doors as requiresBestWave, not leftover sector bands', () => {
     expect(SYSTEM_UNLOCKS.find((s) => s.id === 'furnace')?.requiresBestWave).toBe(ACT1_CADENCE.furnace)
     expect(systemUnlockRequirement('furnace')).toBe('Reach Wave 140')
-    expect(getFrame('line-frame')?.requiresBestWave).toBe(40)
+    expect(getFrame('bastion-frame')?.requiresBestWave).toBe(70)
     expect(waveForClearedBands(4)).toBe(40)
     expect(modulePrintWave('flak-array')).toBe(modulePrintSector('flak-array') * 10)
   })

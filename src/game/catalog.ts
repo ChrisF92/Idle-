@@ -248,22 +248,45 @@ export const MAX_MODULE_LEVEL = 110
 
 export type ModuleRole = 'weapon' | 'defense' | 'utility'
 
+export type FrameUnlockSource = 'start' | 'wave' | 'foundry' | 'research' | 'challenge'
+
+export const STARTER_FRAME_ID = 'starter-frame'
+
 export interface ShipFrameDef {
   id: string
   name: string
+  description: string
   /** Attack / weapon module capacity. */
   weaponSlots: number
   defenseSlots: number
   utilitySlots: number
   /**
-   * Intrinsic flagship weapon damage. USI ships fire only equipped Cores —
+   * Intrinsic Hive weapon damage. Act 1 Frames fire only equipped Cores —
    * starter hulls use 0 (no free frame battery).
    */
   baseDamage: number
   baseHull: number
+  baseShield?: number
+  /** Multiplier on Hive hull after modules. */
+  hullMult?: number
+  /** Multiplier on Hive shield after modules. */
+  shieldMult?: number
+  /** Multiplier on fitted Core weapon damage. */
+  coreDamageMult?: number
+  /** Combat Salvage pickup multiplier. */
+  salvageMult?: number
+  /** Combat scrap drop multiplier. */
+  scrapMult?: number
+  /** Ash drop multiplier. */
+  ashMult?: number
+  /** Ash → Heat conversion multiplier. */
+  heatMult?: number
+  /** Furnace channel output multiplier. */
+  furnaceOutputMult?: number
   unlockCost: ResourceCost
-  /** Career best Wave required to purchase. */
+  /** Career best Wave required (wave-source Frames, or flavor floor). */
   requiresBestWave?: number
+  unlockSource: FrameUnlockSource
 }
 
 export interface ShipModuleDef {
@@ -1143,102 +1166,81 @@ export const CHALLENGES: ChallengeDef[] = [
 
 export const SHIP_FRAMES: ShipFrameDef[] = [
   {
-    id: 'scout-frame',
-    name: 'Scout Frame',
+    id: STARTER_FRAME_ID,
+    name: 'Starter Frame',
+    description: 'Balanced Hive. Two slots: Pulse and Plate. Sidegrades replace this; they do not obsolete it.',
     weaponSlots: 1,
     defenseSlots: 1,
     utilitySlots: 0,
     baseDamage: 0,
     baseHull: 40,
     unlockCost: {},
-  },
-  {
-    id: 'line-frame',
-    name: 'Frigate Hull',
-    weaponSlots: 2,
-    defenseSlots: 1,
-    utilitySlots: 1,
-    baseDamage: 0,
-    baseHull: 48,
-    unlockCost: {},
-    requiresBestWave: 40,
-  },
-  {
-    id: 'cruiser-frame',
-    name: 'Cruiser Hull',
-    weaponSlots: 2,
-    defenseSlots: 2,
-    utilitySlots: 1,
-    baseDamage: 0,
-    baseHull: 70,
-    unlockCost: {},
-    requiresBestWave: 80,
-  },
-  {
-    id: 'heavy-cruiser-frame',
-    name: 'Heavy Cruiser Hull',
-    weaponSlots: 3,
-    defenseSlots: 2,
-    utilitySlots: 1,
-    baseDamage: 0,
-    baseHull: 95,
-    unlockCost: {},
-    requiresBestWave: 240,
-  },
-  {
-    id: 'battlecruiser-frame',
-    name: 'Battlecruiser Hull',
-    weaponSlots: 3,
-    defenseSlots: 3,
-    utilitySlots: 1,
-    baseDamage: 0,
-    baseHull: 125,
-    unlockCost: {},
-    requiresBestWave: 410,
-  },
-  {
-    id: 'capital-frame',
-    name: 'Capital Hull',
-    weaponSlots: 4,
-    defenseSlots: 3,
-    utilitySlots: 1,
-    baseDamage: 0,
-    baseHull: 160,
-    unlockCost: {},
-    requiresBestWave: 750,
-  },
-  {
-    id: 'razor-frame',
-    name: 'Razor Frame',
-    weaponSlots: 2,
-    defenseSlots: 0,
-    utilitySlots: 1,
-    baseDamage: 0,
-    baseHull: 24,
-    unlockCost: { alloys: 55, scrap: 120, energy: 20 },
-    requiresBestWave: 120,
-  },
-  {
-    id: 'pathfinder-frame',
-    name: 'Pathfinder Frame',
-    weaponSlots: 1,
-    defenseSlots: 0,
-    utilitySlots: 2,
-    baseDamage: 0,
-    baseHull: 28,
-    unlockCost: { alloys: 50, scrap: 110, data: 25 },
-    requiresBestWave: 120,
+    unlockSource: 'start',
   },
   {
     id: 'bastion-frame',
     name: 'Bastion Frame',
+    description: 'Hull, Shield, and defensive Core room. Fewer guns.',
     weaponSlots: 1,
+    defenseSlots: 3,
+    utilitySlots: 1,
+    baseDamage: 0,
+    baseHull: 58,
+    baseShield: 16,
+    hullMult: 1.12,
+    shieldMult: 1.2,
+    coreDamageMult: 0.9,
+    unlockCost: {},
+    requiresBestWave: 70,
+    unlockSource: 'wave',
+  },
+  {
+    id: 'swarm-frame',
+    name: 'Swarm Frame',
+    description: 'More Core slots. Weaker Hive and a little less punch per Core.',
+    weaponSlots: 3,
     defenseSlots: 2,
     utilitySlots: 1,
     baseDamage: 0,
-    baseHull: 52,
-    unlockCost: { alloys: 95, scrap: 180, energy: 35 },
-    requiresBestWave: 140,
+    baseHull: 30,
+    hullMult: 0.88,
+    coreDamageMult: 0.85,
+    unlockCost: {},
+    requiresBestWave: 50,
+    unlockSource: 'foundry',
+  },
+  {
+    id: 'reactor-frame',
+    name: 'Reactor Frame',
+    description: 'Furnace and Heat run hotter. The Hive itself is thinner.',
+    weaponSlots: 2,
+    defenseSlots: 1,
+    utilitySlots: 1,
+    baseDamage: 0,
+    baseHull: 28,
+    hullMult: 0.85,
+    heatMult: 1.35,
+    furnaceOutputMult: 1.2,
+    unlockCost: {},
+    requiresBestWave: 170,
+    unlockSource: 'research',
+  },
+  {
+    id: 'harvester-frame',
+    name: 'Harvester Frame',
+    description: 'Salvage, Scrap, and Ash. Lower direct combat.',
+    weaponSlots: 1,
+    defenseSlots: 1,
+    utilitySlots: 3,
+    baseDamage: 0,
+    baseHull: 34,
+    coreDamageMult: 0.8,
+    salvageMult: 1.2,
+    scrapMult: 1.15,
+    ashMult: 1.25,
+    unlockCost: {},
+    requiresBestWave: 250,
+    unlockSource: 'challenge',
   },
 ]
 
@@ -1298,13 +1300,67 @@ export function canFitModuleOnFrame(
   fittedModuleIds: string[],
   moduleId: string,
   extra: Partial<Record<ModuleRole, number>> = {},
-  copies = 1,
+  _copies = 1,
 ): boolean {
   const mod = getModule(moduleId)
   if (!mod) return false
-  if (fittedModuleIds.filter((id) => id === moduleId).length >= Math.max(1, copies)) return false
   const used = fittedRoleSlotCounts(fittedModuleIds)
   return used[mod.role] < frameRoleCap(frame, mod.role, extra)
+}
+
+export function resolveFrameId(frameId: string | undefined | null): string {
+  return getFrame(frameId ?? '') ? (frameId as string) : STARTER_FRAME_ID
+}
+
+export function equippedFrame(state: GameState): ShipFrameDef {
+  return getFrame(resolveFrameId(state.shipyard.frameId)) ?? getFrame(STARTER_FRAME_ID)!
+}
+
+export function frameSalvageMult(state: GameState): number {
+  return equippedFrame(state).salvageMult ?? 1
+}
+
+export function frameScrapMult(state: GameState): number {
+  return equippedFrame(state).scrapMult ?? 1
+}
+
+export function frameAshMult(state: GameState): number {
+  return equippedFrame(state).ashMult ?? 1
+}
+
+export function frameHeatMult(state: GameState): number {
+  return equippedFrame(state).heatMult ?? 1
+}
+
+export function frameFurnaceOutputMult(state: GameState): number {
+  return equippedFrame(state).furnaceOutputMult ?? 1
+}
+
+export function frameCoreDamageMult(state: GameState): number {
+  return equippedFrame(state).coreDamageMult ?? 1
+}
+
+export function frameUnlockLine(frame: ShipFrameDef): string {
+  switch (frame.unlockSource) {
+    case 'start':
+      return 'Starter Frame'
+    case 'wave':
+      return `Reach Wave ${frame.requiresBestWave ?? 0}`
+    case 'foundry':
+      return 'Foundry: print Temper Bar'
+    case 'research':
+      return 'Research: Extra Tap'
+    case 'challenge':
+      return 'Challenge: clear Swarm Pressure'
+  }
+}
+
+export function grantUnlockedFrame(state: GameState, frameId: string, log?: string): boolean {
+  if (!getFrame(frameId)) return false
+  if (state.shipyard.unlockedFrames.includes(frameId)) return false
+  state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, frameId]
+  if (log) state.combat.log = [log, ...state.combat.log].slice(0, 40)
+  return true
 }
 
 export const SHIP_MODULES: ShipModuleDef[] = [

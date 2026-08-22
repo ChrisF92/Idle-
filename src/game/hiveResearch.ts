@@ -7,7 +7,7 @@ import { protocolModifiers } from './protocols'
 import { foundryResearchXpMult } from './foundryBonuses'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { ACT1_CADENCE } from './cadence'
-import { stationEffectiveDrones } from './catalog'
+import { getFrame, grantUnlockedFrame, stationEffectiveDrones } from './catalog'
 
 export const HIVE_RESEARCH_UNLOCK_SECTOR = ACT1_CADENCE.research
 /** @deprecated GDD uses one active project, not a focus multiplier. */
@@ -48,6 +48,7 @@ export interface HiveResearchNodeDef {
   protocolXp?: number
   unlockRelay?: NetworkBarId
   unlockReliquary?: ReliquaryColor
+  unlockFrame?: string
 }
 
 export const HIVE_RESEARCH_BRANCHES: {
@@ -110,9 +111,10 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Ash Kindling', blurb: 'Choir-ash makes a little more Heat.', kind: 'incremental', heatFromAsh: 0.08 },
     {
       name: 'Extra Tap',
-      blurb: 'Lights one more Furnace channel at once.',
+      blurb: 'Lights one more Furnace channel and unlocks the Reactor Frame.',
       kind: 'breakthrough',
       furnaceSlots: 1,
+      unlockFrame: 'reactor-frame',
     },
     { name: 'Pulse Coupling', blurb: 'Network bars fill a little faster.', kind: 'incremental', networkFill: 0.04 },
     { name: 'Charge Lattice', blurb: 'A little more sortie damage.', kind: 'incremental', damage: 0.03 },
@@ -538,6 +540,14 @@ function tryCompleteNodes(state: GameState, branch: HiveResearchBranch): void {
     state.hiveResearch.xp[branch] = (state.hiveResearch.xp[branch] ?? 0) - need
     state.hiveResearch.completed[branch] = idx + 1
     const node = nodes[idx]
+    if (node?.unlockFrame) {
+      const frame = getFrame(node.unlockFrame)
+      grantUnlockedFrame(
+        state,
+        node.unlockFrame,
+        frame ? `Research unlocked the ${frame.name}.` : 'Research unlocked a new Frame.',
+      )
+    }
     if (node?.kind === 'breakthrough') {
       recordPlaytest(state, 'research_break', { n: node.name, v: branch })
     }

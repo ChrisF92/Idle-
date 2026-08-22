@@ -26,6 +26,7 @@ import {
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
+  frameScrapMult,
 } from './catalog'
 import { tickAutomation } from './automation'
 import {
@@ -486,6 +487,7 @@ function grantSectorClearRewards(state: GameState, clearedSector: number, wasBos
   if (state.shipyard.modules.includes('salvage-rig')) scrapGain *= 1.25
   scrapGain *= 1 + matterShopScrapBonus(state.prestige.matterShop)
   scrapGain *= 1 + computeSignalCoreBonuses(state).scrap
+  scrapGain *= frameScrapMult(state)
   const siphonData =
     essenceBonusDataPerClear(state.essence.purchased) +
     matterShopDataPerClear(state.prestige.matterShop)

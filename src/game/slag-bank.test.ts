@@ -7,7 +7,7 @@ import { GUIDE_STEPS, isSystemUnlocked } from './progression'
 
 describe('Slag Bank', () => {
   it('keeps save version 34', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
   })
 
   it('unlocks with the first Rebuild while Yard waits for later mastery', () => {
@@ -19,7 +19,7 @@ describe('Slag Bank', () => {
     s.combat.sector = 12
     s.meta.highestSectorEver = 12
     s.combat.highestSector = 12
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(isSystemUnlocked(s, 'slag')).toBe(true)
     expect(isSystemUnlocked(s, 'yard')).toBe(false)
     expect(unlockedFoundryLogs(s).some((l) => l.id === 'slag')).toBe(true)

@@ -137,8 +137,8 @@ describe('local playtest log', () => {
     expect(s.playtest.events.some((e) => e.k === 'core_buy')).toBe(true)
     s = setSectorRoute(s, 'A')
     s.shipyard.unlockedModules = [...s.shipyard.unlockedModules, 'heavy-lance']
-    s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'line-frame']
-    s = selectFrame(s, 'line-frame')
+    s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'swarm-frame']
+    s = selectFrame(s, 'swarm-frame')
     s = fitModule(s, 'heavy-lance')
     expect(s.playtest.events.some((e) => e.k === 'core_fitted' && e.n === 'Heavy Lance')).toBe(true)
     s.meta.discoveredModules = [...s.meta.discoveredModules, 'flak-array']

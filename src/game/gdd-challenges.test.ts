@@ -121,7 +121,7 @@ describe('GDD Challenges', () => {
     s.hiveResearch.completed.energy = 1
     s.protocols.ranks = { 'glass-ward': 2 }
     s.protocols.bestWave = { 'glass-ward': 120 }
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.protocols.ranks['glass-ward']).toBe(2)
     expect(s.protocols.bestWave?.['glass-ward']).toBe(120)
   })

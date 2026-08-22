@@ -16,22 +16,22 @@ import { advanceSeconds } from './tick'
 
 describe('phase 7: Yard, Cruiser, A/B routes', () => {
   it('bumps save and keeps Yard locked until the first Rebuild', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'yard')).toBe(false)
     expect(fresh.combat.route).toBe('A')
-    expect(getFrame('cruiser-frame')?.requiresBestWave).toBe(80)
-    expect(getFrame('cruiser-frame')?.defenseSlots).toBe(2)
-    expect(getFrame('cruiser-frame')?.baseHull).toBe(70)
+    expect(getFrame('bastion-frame')?.requiresBestWave).toBe(70)
+    expect(getFrame('bastion-frame')?.defenseSlots).toBe(3)
+    expect(getFrame('starter-frame')?.baseHull).toBe(40)
   })
 
-  it('unlocks Cruiser Hull after Wave 80', () => {
+  it('unlocks Bastion Frame after Wave 70 and does not auto-grant Swarm', () => {
     const s = createInitialState(0)
     s.meta.bestWave = 80
     s.combat.bestWave = 80
     maybeGrantSystemUnlocks(s)
-    expect(s.shipyard.unlockedFrames).toContain('cruiser-frame')
-    expect(s.shipyard.unlockedFrames).toContain('line-frame')
+    expect(s.shipyard.unlockedFrames).toContain('bastion-frame')
+    expect(s.shipyard.unlockedFrames).not.toContain('swarm-frame')
   })
 
   it('opens Yard at S20 after two Rebuilds; buildings produce; arms apply on the next Rebuild', () => {
@@ -40,7 +40,7 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     s.meta.highestSectorEver = 20
     s.combat.highestSector = 20
     s.prestige.prestigeCount = 1
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(isSystemUnlocked(s, 'yard')).toBe(true)
     expect(yardGridSize(s)).toBe(4)
 
@@ -56,7 +56,7 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     const before = computeShipStats(s).damage
     s.combat.sector = 20
     s.combat.highestSector = 20
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(yardArmed(s, 'damage')).toBe(1)
     expect(s.yard.pending.damage).toBe(0)
     expect(computeShipStats(s).damage).toBeGreaterThan(before)
@@ -99,17 +99,21 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     expect(blocked.combat.route).toBe('B')
   })
 
-  it('Rebuild hangar can swap onto Cruiser once unlocked', () => {
+  it('Rebuild hangar can swap onto Bastion once unlocked', () => {
     let s = createInitialState(0)
     s.combat.sector = 24
     s.meta.highestSectorEver = 24
-    s.shipyard.unlockedFrames = ['scout-frame', 'line-frame', 'cruiser-frame']
+    s.shipyard.unlockedFrames = ['starter-frame', 'bastion-frame']
     s = performRebuild(s, {
-      frameId: 'cruiser-frame',
+      frameId: 'bastion-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
-    expect(s.shipyard.frameId).toBe('cruiser-frame')
-    expect(computeShipStats(s).hullMax).toBeGreaterThanOrEqual(70)
+    expect(s.shipyard.frameId).toBe('bastion-frame')
+    const starterHull = computeShipStats({
+      ...s,
+      shipyard: { ...s.shipyard, frameId: 'starter-frame' },
+    }).hullMax
+    expect(computeShipStats(s).hullMax).toBeGreaterThan(starterHull)
   })
 })
 

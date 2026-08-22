@@ -55,17 +55,14 @@ export function coreOrbitSpeed(kind: CoreVisualKind): number {
   }
 }
 
-export type HiveFrameStyle = 'scout' | 'line' | 'cruiser' | 'heavy' | 'capital' | 'razor' | 'pathfinder' | 'bastion'
+export type HiveFrameStyle = 'starter' | 'bastion' | 'swarm' | 'reactor' | 'harvester'
 
 export function hiveFrameStyle(frameId: string): HiveFrameStyle {
-  if (frameId.includes('razor')) return 'razor'
-  if (frameId.includes('pathfinder')) return 'pathfinder'
   if (frameId.includes('bastion')) return 'bastion'
-  if (frameId.includes('capital')) return 'capital'
-  if (frameId.includes('battle') || frameId.includes('heavy')) return 'heavy'
-  if (frameId.includes('cruiser')) return 'cruiser'
-  if (frameId.includes('line') || frameId.includes('frigate')) return 'line'
-  return 'scout'
+  if (frameId.includes('swarm')) return 'swarm'
+  if (frameId.includes('reactor')) return 'reactor'
+  if (frameId.includes('harvest')) return 'harvester'
+  return 'starter'
 }
 
 export function equippedCoreVisuals(state: GameState) {

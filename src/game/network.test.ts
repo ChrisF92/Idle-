@@ -30,7 +30,7 @@ import { exportSave, importSave } from './save'
 describe('phase 4: drone network', () => {
   it('starts with a corps; Network waits for first hull loss', () => {
     const s = createInitialState(0)
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     expect(s.base.workerDrones).toBe(NETWORK_STARTING_DRONES)
     expect(droneCap(s)).toBe(10)
     expect(idleWorkers(s)).toBe(NETWORK_STARTING_DRONES)
@@ -134,7 +134,7 @@ describe('phase 4: drone network', () => {
     const corps = s.base.workerDrones
 
     s = performRebuild(s, {
-      frameId: 'scout-frame',
+      frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(s.network.bars.strike.levels).toBe(0)
@@ -194,7 +194,7 @@ describe('phase 4: drone network', () => {
     const acuity = networkLinkRank(s, 'acuity')
     const cycle = networkLinkRank(s, 'cycle')
     s = performRebuild(s, {
-      frameId: 'scout-frame',
+      frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(s.network.bars.strike.levels).toBe(0)
@@ -295,7 +295,7 @@ describe('Network layers', () => {
     const racks = networkLinkRank(s, 'racks')
 
     s = performRebuild(s, {
-      frameId: 'scout-frame',
+      frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(s.network.bars['strike-relay'].levels).toBe(0)

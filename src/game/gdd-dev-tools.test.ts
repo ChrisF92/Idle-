@@ -77,6 +77,14 @@ describe('GDD Dev Tools', () => {
     expect(isBossWave(s.combat.wave)).toBe(true)
   })
 
+  it('picks any GDD Frame without the USI hull ladder', () => {
+    let s = applyDevAction(createInitialState(0), { type: 'select-frame', frameId: 'swarm-frame' })
+    expect(s.shipyard.frameId).toBe('swarm-frame')
+    expect(s.shipyard.unlockedFrames).toContain('swarm-frame')
+    s = applyDevAction(s, { type: 'select-frame', frameId: 'starter-frame' })
+    expect(s.shipyard.frameId).toBe('starter-frame')
+  })
+
   it('sets Core Run Levels and Mastery separately', () => {
     let s = createInitialState(0)
     s = applyDevAction(s, { type: 'set-core-run-levels', levels: { 0: 6 } })

@@ -14,7 +14,7 @@ import { YARD_BUILDINGS } from './yard'
 
 describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
   it('bumps save to 31', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
   })
 
   it('records Defeat salvage, spend, and wave on the Dock summary', () => {

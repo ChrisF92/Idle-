@@ -1377,30 +1377,35 @@ function drawHiveFrame(
   ctx.strokeStyle = stroke
   ctx.lineWidth = 1.7
   ctx.beginPath()
-  if (style === 'razor') {
-    ctx.moveTo(r * 1.05, 0)
-    ctx.lineTo(-r * 0.7, -r * 0.72)
-    ctx.lineTo(-r * 0.35, 0)
-    ctx.lineTo(-r * 0.7, r * 0.72)
+  if (style === 'swarm') {
+    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+    for (let i = 0; i < 6; i += 1) {
+      const a = (Math.PI * 2 * i) / 6
+      ctx.beginPath()
+      ctx.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * 0.22, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+    }
+    ctx.beginPath()
+  } else if (style === 'reactor') {
+    ctx.arc(0, 0, r * 0.82, 0, Math.PI * 2)
+  } else if (style === 'harvester') {
+    ctx.moveTo(r * 0.95, 0)
+    ctx.lineTo(0, -r * 0.62)
+    ctx.lineTo(-r * 1.05, -r * 0.28)
+    ctx.lineTo(-r * 1.05, r * 0.28)
+    ctx.lineTo(0, r * 0.62)
     ctx.closePath()
-  } else if (style === 'pathfinder') {
-    ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2)
-  } else if (style === 'bastion' || style === 'heavy' || style === 'capital') {
-    const n = style === 'capital' ? 8 : 6
-    for (let i = 0; i < n; i += 1) {
-      const a = (Math.PI * 2 * i) / n - Math.PI / n
+  } else if (style === 'bastion') {
+    for (let i = 0; i < 6; i += 1) {
+      const a = (Math.PI * 2 * i) / 6 - Math.PI / 6
       const x = Math.cos(a) * r
       const y = Math.sin(a) * r
       if (i === 0) ctx.moveTo(x, y)
       else ctx.lineTo(x, y)
     }
-    ctx.closePath()
-  } else if (style === 'cruiser' || style === 'line') {
-    ctx.moveTo(r * 0.95, 0)
-    ctx.lineTo(0, -r * 0.7)
-    ctx.lineTo(-r * 0.85, -r * 0.35)
-    ctx.lineTo(-r * 0.85, r * 0.35)
-    ctx.lineTo(0, r * 0.7)
     ctx.closePath()
   } else {
     ctx.moveTo(r * 0.9, 0)
@@ -1412,16 +1417,22 @@ function drawHiveFrame(
   ctx.fill()
   ctx.stroke()
   ctx.beginPath()
-  ctx.strokeStyle = style === 'bastion' ? '#e0c07a' : stroke
+  ctx.strokeStyle = style === 'bastion' ? '#e0c07a' : style === 'reactor' ? '#ff9a4a' : stroke
   ctx.globalAlpha = alpha * 0.7
-  ctx.arc(0, 0, r * (style === 'capital' ? 1.28 : style === 'bastion' ? 1.18 : 1.08), 0, Math.PI * 2)
+  ctx.arc(0, 0, r * (style === 'reactor' ? 1.22 : style === 'bastion' ? 1.18 : 1.08), 0, Math.PI * 2)
   ctx.stroke()
-  if (style === 'bastion' || style === 'heavy' || style === 'capital') {
+  if (style === 'bastion') {
     ctx.globalAlpha = alpha * 0.45
     ctx.beginPath()
     ctx.rect(-r * 0.22, -r * 1.05, r * 0.44, r * 0.28)
     ctx.rect(-r * 0.22, r * 0.77, r * 0.44, r * 0.28)
     ctx.fill()
+  }
+  if (style === 'reactor') {
+    ctx.globalAlpha = alpha * 0.5
+    ctx.beginPath()
+    ctx.arc(0, 0, r * 0.38, 0, Math.PI * 2)
+    ctx.stroke()
   }
   ctx.restore()
 }

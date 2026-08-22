@@ -24,6 +24,7 @@ import { noteSystemAction, recordPlaytest } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 import { careerBestWave } from './waves'
 import { practicedCoreWork } from './corePractice'
+import { getFrame, grantUnlockedFrame } from './catalog'
 
 export {
   foundryAshHeatMult,
@@ -53,6 +54,8 @@ export interface FoundryRecipeDef {
   /** Need this many smelters unlocked before the recipe opens. */
   requiresSlots?: number
   unlocksRecipe?: { recipeId: FoundryRecipeId; atLevel: number }
+  /** First craft of this recipe unlocks a Hive Frame. */
+  unlocksFrame?: string
 }
 
 export interface FoundryUpgradeDef {
@@ -119,12 +122,13 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   {
     id: 'temper-bar',
     name: 'Temper Bar',
-    blurb: 'Ingot and wire pressed together. First two-input stock.',
+    blurb: 'Ingot and wire pressed together. First print also unlocks the Swarm Frame.',
     maxLevel: 20,
     craftTime: 10,
     costs: { materials: { 'slag-ingot': 3, filament: 1 } },
     requiresBestWave: 50,
     requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
+    unlocksFrame: 'swarm-frame',
   },
   {
     id: 'hardened-plate',
@@ -792,6 +796,14 @@ function grantCraft(state: GameState, id: FoundryRecipeId): void {
   if (isFoundryInfinite(state, id)) return
   const output = foundryCraftOutput(state, id)
   state.foundry.materials[id] = (state.foundry.materials[id] ?? 0) + output
+  if (def.unlocksFrame) {
+    const frame = getFrame(def.unlocksFrame)
+    grantUnlockedFrame(
+      state,
+      def.unlocksFrame,
+      frame ? `Foundry printed the ${frame.name}.` : `Foundry printed a new Frame.`,
+    )
+  }
   const level = foundryRecipeLevel(state, id)
   const solved = foundrySolvedLevel(state, def)
   if (level >= solved) {

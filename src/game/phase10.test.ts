@@ -20,7 +20,7 @@ function seedTasks(s: ReturnType<typeof createInitialState>) {
 
 describe('phase 10: Task List, Capital, Reinforce, logs', () => {
   it('bumps save and keeps Task List / Capital / Reinforce on USI doors', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'tasks')).toBe(false)
     expect(isSystemUnlocked(fresh, 'capital')).toBe(false)
@@ -42,20 +42,19 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     expect(GUIDE_STEPS.some((s) => s.id === 'guide-tasks')).toBe(false)
   })
 
-  it('unlocks Capital Hull at 75 only after the Task List is done', () => {
-    expect(getFrame('capital-frame')?.requiresBestWave).toBe(750)
-    expect(getFrame('capital-frame')?.weaponSlots).toBe(4)
-    expect(getFrame('capital-frame')?.baseHull).toBe(160)
+  it('does not grant Harvester from Task List or Wave 300', () => {
+    expect(getFrame('harvester-frame')?.unlockSource).toBe('challenge')
+    expect(getFrame('harvester-frame')?.utilitySlots).toBe(3)
 
     const blocked = createInitialState(0)
-    blocked.meta.bestWave = 750
-    blocked.combat.bestWave = 750
+    blocked.meta.bestWave = 300
+    blocked.combat.bestWave = 300
     maybeGrantSystemUnlocks(blocked)
-    expect(blocked.shipyard.unlockedFrames).not.toContain('capital-frame')
+    expect(blocked.shipyard.unlockedFrames).not.toContain('harvester-frame')
 
     seedTasks(blocked)
     maybeGrantSystemUnlocks(blocked)
-    expect(blocked.shipyard.unlockedFrames).toContain('capital-frame')
+    expect(blocked.shipyard.unlockedFrames).not.toContain('harvester-frame')
   })
 
   it('expands Yard to 6×6 at 40 and 7×7 at 55', () => {
@@ -83,7 +82,7 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     expect(computeShipStats(s).damage).toBeGreaterThan(dmg0)
 
     s = performRebuild(s, {
-      frameId: 'scout-frame',
+      frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(capitalRank(s, 'broadside')).toBe(1)

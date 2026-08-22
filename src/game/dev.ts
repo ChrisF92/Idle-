@@ -1,7 +1,7 @@
 /** Lightweight cheats for local / ?dev=1 testing. Never required for normal play. */
 
 import type { GameState, Resources, YardGoodId } from './types'
-import { AI_NODES, RESEARCH, SHIP_FRAMES, SHIP_MODULES } from './catalog'
+import { AI_NODES, RESEARCH, SHIP_FRAMES, SHIP_MODULES, trimModulesToFrame } from './catalog'
 import {
   ACT1_CADENCE,
   ACT1_FINAL_WAVE,
@@ -88,6 +88,7 @@ export type DevAction =
   | { type: 'reset-onboarding' }
   | { type: 'seed-late-game' }
   | { type: 'wipe-career' }
+  | { type: 'select-frame'; frameId: string }
 
 export function grantCareerBestWave(state: GameState, wave: number): void {
   const w = Math.max(0, Math.floor(wave))
@@ -319,6 +320,19 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
     }
     case 'wipe-career': {
       next.combat.log = ['[dev] Wipe from More → Settings (hard reset).', ...next.combat.log].slice(0, 40)
+      break
+    }
+    case 'select-frame': {
+      const frame = SHIP_FRAMES.find((f) => f.id === action.frameId)
+      if (frame) {
+        if (!next.shipyard.unlockedFrames.includes(frame.id)) {
+          next.shipyard.unlockedFrames = [...next.shipyard.unlockedFrames, frame.id]
+        }
+        next.shipyard.frameId = frame.id
+        next.shipyard.modules = trimModulesToFrame(next.shipyard.modules, frame)
+        next.combat.log = [`[dev] Equipped ${frame.name}.`, ...next.combat.log].slice(0, 40)
+        if (!next.combat.inFight) syncPersistedHullCaps(next)
+      }
       break
     }
     default:

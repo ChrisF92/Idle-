@@ -17,6 +17,7 @@ import { noteSystemAction } from './playtest'
 import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
 import { directiveHeatMult } from './directives'
+import { frameAshMult, frameFurnaceOutputMult, frameHeatMult } from './catalog'
 
 export const FURNACE_UNLOCK_SECTOR = ACT1_CADENCE.furnace
 export const ASH_PER_HEAT = 10
@@ -236,7 +237,7 @@ export function furnaceKindleMult(state: GameState): number {
 }
 
 export function furnaceAshHeatMult(state: GameState, extra = 1): number {
-  return Math.max(0.1, extra) * furnaceKindleMult(state)
+  return Math.max(0.1, extra) * furnaceKindleMult(state) * frameHeatMult(state)
 }
 
 export function furnaceIdleGenPerSec(_state: GameState): number {
@@ -329,7 +330,12 @@ function channelBonusMult(state: GameState, id: FurnaceChannelId): number {
   const level = furnaceActiveLevel(state, id)
   const def = furnaceLevelDef(id, level)
   if (!def) return 1
-  return def.mult * (1 + protocolModifiers(state).furnaceEfficiencyAdd) * protocolBonusMult(state, 'furnace')
+  return (
+    def.mult *
+    (1 + protocolModifiers(state).furnaceEfficiencyAdd) *
+    protocolBonusMult(state, 'furnace') *
+    frameFurnaceOutputMult(state)
+  )
 }
 
 export function furnaceDamageMult(state: GameState): number {
@@ -366,7 +372,7 @@ export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return 0
   const sector = Math.max(1, state.combat.sector)
   const base = (0.5 + 0.1 * sector) * (isBoss ? 4 : 1)
-  return base * reliquaryAshMult(state) * echoAshMult(state) * furnaceAshChannelMult(state)
+  return base * reliquaryAshMult(state) * echoAshMult(state) * furnaceAshChannelMult(state) * frameAshMult(state)
 }
 
 export function grantFurnaceKillLoot(state: GameState, isBoss: boolean): number {

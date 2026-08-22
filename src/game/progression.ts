@@ -12,6 +12,7 @@ import {
 import { careerBestWave, meetsWave } from './waves'
 import { rebuildDoorMet } from './rebuild'
 import { anyCoreRunLevel, practicedCoreWork } from './corePractice'
+import { SHIP_FRAMES, grantUnlockedFrame } from './catalog'
 
 export {
   WAVES_PER_SECTOR,
@@ -902,24 +903,10 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   }
 
   const best = careerBestWave(state)
-  if (best >= 40 && !state.shipyard.unlockedFrames.includes('line-frame')) {
-    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'line-frame']
-  }
-  if (best >= 80 && !state.shipyard.unlockedFrames.includes('cruiser-frame')) {
-    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'cruiser-frame']
-  }
-  if (best >= 240 && !state.shipyard.unlockedFrames.includes('heavy-cruiser-frame')) {
-    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'heavy-cruiser-frame']
-  }
-  if (best >= 410 && !state.shipyard.unlockedFrames.includes('battlecruiser-frame')) {
-    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'battlecruiser-frame']
-  }
-  if (
-    best >= 750 &&
-    taskListComplete(state) &&
-    !state.shipyard.unlockedFrames.includes('capital-frame')
-  ) {
-    state.shipyard.unlockedFrames = [...state.shipyard.unlockedFrames, 'capital-frame']
+  for (const frame of SHIP_FRAMES) {
+    if (frame.unlockSource !== 'wave') continue
+    if ((frame.requiresBestWave ?? 0) > best) continue
+    grantUnlockedFrame(state, frame.id, `${frame.name} unlocked.`)
   }
 
   tryCompleteAchievements(state)

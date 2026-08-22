@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ `83d3350` (SAVE_VERSION 34, package `0.1.0`)  
+**Code snapshot:** `main` @ D8 Frames (SAVE_VERSION 35, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -309,21 +309,16 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
    - Utility Cores (Salvage, targeting, …) under **Economy**
    Fitted Cores of that role appear as cards in that shop pane (Run Lv, next Salvage cost, Buy). The Cores sheet can show the same buy or deep-link to the pane. Global A/D/E upgrades (Weapon Power, Hull, Salvage/Kill, …) stay as they are and still use Workshop starts + Salvage buys (GDD §36).
 4. **Mastery is the only persistent per-Core stat.** Slow, account-wide. Milestones at 5 / 10 / 20 / 30 / 50 (75/100 remote). Socket unlocks and behaviour mods live here. Mastery is not bought with Scrap.
-5. Replace the USI hull ladder in **one cut** (D8, wipe old ids):
-   - **Starter** (balanced, 2 slots: Pulse + Plate)
-   - **Bastion** (hull/shield, defensive slots)
-   - **Swarm** (more slots, weaker per-Core / Hive durability)
-   - **Reactor** (Furnace/Heat)
-   - **Harvester** (economy / fragments / Ash)
-6. Unlock Frames from wave milestones, Foundry blueprints, Research, Challenges — not a linear “bigger hull.”
-7. Allow duplicate Core types; limits are Frame slot counts and role caps.
-8. Slot curve: ~2–3 early, ~5–6 late Act 1 (GDD §20).
+5. **Done (D8).** USI hull ladder wiped for Starter + Bastion / Swarm / Reactor / Harvester (`SAVE_VERSION` 35).
+6. **Done.** Bastion = Wave 70. Swarm = Foundry Temper Bar. Reactor = Research Extra Tap. Harvester = Swarm Pressure first clear.
+7. **Done.** Duplicate Core types; limits are Frame slot counts and role caps.
+8. **Done.** Slot curve 2 / 5 / 6 / 4 / 5.
 9. Relic sockets: grow toward Power / Optical / Ballistic / Shield / Reactor / Sensor / Utility / Industrial / Universal. Do not require every class on day one; add as Cores need them.
-10. Dock Loadout comparison (GDD §117): Hull, Shield, DPS, slots, before → after when previewing a Frame or Core. Show Mastery, not a Scrap rank.
+10. **Done.** Dock Loadout comparison shows Hull / Shield / DPS / slots before → after. Locked Frames list their unlock line.
 11. Core roster: keep a small set that is visually and strategically distinct (Pulse, Beam, Flak, Lance, Barrier, Repair, Salvage/utility). Cut or merge USI leftovers that are generic +% modules.
 12. Acquisition loop: combat discovers fragment/blueprint → Foundry fabricates → Dock equips (GDD §24).
 13. Rewrite `gdd-visual.test.tsx` and any “inspect-only Cores / Scrap at Dock” assertions. Add tests: Salvage Run Level on Pulse lives under Attack; Plate under Defense; reset on Extract; Dock cannot spend Scrap on a Core; Mastery survives Rebuild.
-14. Dev tools: Frame picker + set Run Levels / set Mastery. Remove Scout / Frigate / Capital and Scrap-rank cheats.
+14. **Done.** Dev Tools Frame picker (Starter / Bastion / Swarm / Reactor / Harvester) + Run Levels / Mastery. USI hull cheats gone.
 
 **Acceptance:**
 

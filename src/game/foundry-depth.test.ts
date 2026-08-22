@@ -404,7 +404,7 @@ describe('Foundry depth: Process automation', () => {
 
 describe('Foundry depth: Rebuild, save, onboarding', () => {
   it('keeps save version 34', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
   })
 
   it('Rebuild keeps chain mastery, points, and solved stock, not fitted bits', () => {
@@ -418,7 +418,7 @@ describe('Foundry depth: Rebuild, save, onboarding', () => {
     s.combat.docked = true
     s = equipFoundryModule(s, 'temper-sleeve')
     expect(s.foundry.equipped).toContain('temper-sleeve')
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.foundry.equipped).toEqual([])
     expect(s.foundry.recipeLevels['temper-bar']).toBe(6)
     expect(s.foundry.points).toBe(11)

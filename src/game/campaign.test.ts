@@ -206,24 +206,24 @@ describe('campaign combat', () => {
     state.resources.scrap = 999
     state.resources.alloys = 999
     state.meta.highestSectorEver = 8
-    state.meta.bestWave = 40
-    state.combat.bestWave = 40
-    state = unlockFrame(state, 'line-frame')
-    state = selectFrame(state, 'line-frame')
-    expect(state.shipyard.frameId).toBe('line-frame')
+    state.meta.bestWave = 70
+    state.combat.bestWave = 70
+    state = unlockFrame(state, 'bastion-frame')
+    state = selectFrame(state, 'bastion-frame')
+    expect(state.shipyard.frameId).toBe('bastion-frame')
 
     state = setDocked(state, false)
     expect(state.shipyard.frameLocked).toBe(true)
-    state = selectFrame(state, 'scout-frame')
-    expect(state.shipyard.frameId).toBe('line-frame')
+    state = selectFrame(state, 'starter-frame')
+    expect(state.shipyard.frameId).toBe('bastion-frame')
 
     state = setDocked(state, true)
     state = armRebuildDoor(state)
     state = performPrestige(state, 1000)
     expect(state.combat.docked).toBe(true)
     expect(state.shipyard.frameLocked).toBe(false)
-    state = selectFrame(state, 'scout-frame')
-    expect(state.shipyard.frameId).toBe('scout-frame')
+    state = selectFrame(state, 'starter-frame')
+    expect(state.shipyard.frameId).toBe('starter-frame')
   })
 
   it('grants salvage on clear', () => {

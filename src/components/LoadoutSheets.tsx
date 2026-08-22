@@ -5,12 +5,14 @@ import {
   SHIP_FRAMES,
   SHIP_MODULES,
   canFitModuleOnFrame,
+  frameTotalSlots,
+  frameUnlockLine,
   getFrame,
   getModule,
   moduleMasteryRank,
   trimModulesToFrame,
 } from '../game/catalog'
-import { moduleCopyCount, moduleMasteryXp, masteryXpToNext, nextMasteryMilestone } from '../game/coreProgression'
+import { moduleMasteryXp, masteryXpToNext, nextMasteryMilestone } from '../game/coreProgression'
 import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
 import { formatCompact } from '../game/format'
 import {
@@ -39,7 +41,6 @@ interface FrameSheetProps {
 
 export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps) {
   const extra = { utility: hiveResearchExtraUtilitySlots(state) }
-  const available = SHIP_FRAMES.filter((f) => state.shipyard.unlockedFrames.includes(f.id))
   const current = getFrame(state.shipyard.frameId)
 
   return (
@@ -53,16 +54,20 @@ export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps)
         </header>
         {locked ? <p className="muted">Frame changes are locked until Dock.</p> : null}
         <div className="sheet-scroll">
-          {available.map((frame) => {
+          {SHIP_FRAMES.map((frame) => {
+            const owned = state.shipyard.unlockedFrames.includes(frame.id)
             const nextModules = trimModulesToFrame(state.shipyard.modules, frame, extra)
             const compare = previewLoadoutStats(state, frame.id, nextModules)
             const selected = frame.id === state.shipyard.frameId
+            const slotsNow = current ? frameTotalSlots(current) + extra.utility : 0
+            const slotsNext = frameTotalSlots(frame) + extra.utility
             return (
               <article key={frame.id} className={selected ? 'upgrade-card is-affordable' : 'upgrade-card'}>
                 <header className="upgrade-card-head">
                   <strong>{frame.name}</strong>
-                  {selected ? <span className="muted">Equipped</span> : null}
+                  {selected ? <span className="muted">Equipped</span> : owned ? null : <span className="muted">Locked</span>}
                 </header>
+                <p className="muted">{frame.description}</p>
                 <dl className="upgrade-card-stats">
                   <div>
                     <dt>Hull</dt>
@@ -81,35 +86,40 @@ export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps)
                     <dd>{frame.utilitySlots + extra.utility}</dd>
                   </div>
                 </dl>
-                {!selected ? (
+                {owned && !selected ? (
                   <dl className="upgrade-card-stats">
                     <div>
                       <dt>Hull</dt>
                       <dd>{formatStatShift(compare.current.hullMax, compare.next.hullMax)}</dd>
                     </div>
                     <div>
+                      <dt>Shield</dt>
+                      <dd>{formatStatShift(compare.current.shieldMax, compare.next.shieldMax)}</dd>
+                    </div>
+                    <div>
                       <dt>DPS</dt>
                       <dd>{formatStatShift(compare.current.damage, compare.next.damage)}</dd>
                     </div>
                     <div>
-                      <dt>Shield</dt>
-                      <dd>{formatStatShift(compare.current.shieldMax, compare.next.shieldMax)}</dd>
+                      <dt>Slots</dt>
+                      <dd>{formatStatShift(slotsNow, slotsNext)}</dd>
                     </div>
                   </dl>
                 ) : null}
+                {!owned ? <p className="muted">{frameUnlockLine(frame)}</p> : null}
                 <button
                   type="button"
                   className="primary"
-                  disabled={locked || selected || !onEquip}
+                  disabled={locked || selected || !owned || !onEquip}
                   onClick={() => onEquip?.(frame.id)}
                 >
-                  {selected ? 'Equipped' : 'Equip'}
+                  {selected ? 'Equipped' : owned ? 'Equip' : 'Locked'}
                 </button>
               </article>
             )
           })}
         </div>
-        {current ? <p className="muted">{current.name} is the current hull.</p> : null}
+        {current ? <p className="muted">{current.name} is the current Frame.</p> : null}
       </div>
     </div>
   )
@@ -246,13 +256,15 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
       SHIP_MODULES.filter((mod) => {
         if (!state.shipyard.unlockedModules.includes(mod.id)) return false
         if (wantRole && mod.role !== wantRole) return false
-        const equipped = state.shipyard.modules.filter((id) => id === mod.id).length
-        const copies = moduleCopyCount(state, mod.id)
-        const freeing = replaceId === mod.id ? 1 : 0
-        if (equipped - freeing >= copies) return false
+        const without = replaceId
+          ? state.shipyard.modules.filter((id) => id !== replaceId)
+          : state.shipyard.modules
+        if (frame && !canFitModuleOnFrame(frame, without, mod.id, extra) && replaceId !== mod.id) {
+          return false
+        }
         return true
       }),
-    [state, wantRole, replaceId],
+    [state, wantRole, replaceId, frame, extra],
   )
 
   return (
@@ -276,7 +288,6 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
               : true
             const compare = previewLoadoutStats(state, state.shipyard.frameId, nextModules)
             const mastery = moduleMasteryRank(state, mod.id)
-            const copies = moduleCopyCount(state, mod.id)
             const dps = coreDps(state, mod.id)
             return (
               <article key={mod.id} className={fits ? 'upgrade-card is-affordable' : 'upgrade-card'}>
@@ -284,7 +295,6 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
                   <strong>{mod.name}</strong>
                   <span className="muted">
                     {ROLE_LABEL[mod.role]} · Mastery {mastery}
-                    {copies > 1 ? ` · ${copies} copies` : ''}
                   </span>
                 </header>
                 <p className="muted">{mod.description}</p>

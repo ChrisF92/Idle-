@@ -23,6 +23,7 @@ import {
   getChallengeShopItem,
   getEssenceUpgrade,
   getFrame,
+  STARTER_FRAME_ID,
   getMatterShopItem,
   getModule,
   getStation,
@@ -776,6 +777,9 @@ export function unlockFrame(state: GameState, frameId: string): GameState {
   const def = getFrame(frameId)
   if (!def) return state
   if (state.shipyard.unlockedFrames.includes(frameId)) return state
+  if (def.unlockSource === 'foundry' || def.unlockSource === 'research' || def.unlockSource === 'challenge') {
+    return state
+  }
   if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
   if (!canAfford(state.resources, def.unlockCost)) return state
 
@@ -1168,8 +1172,8 @@ function persistLoadout(
   copies: Record<string, number> = {},
   corePicks: Record<string, Record<string, string>> = {},
 ): GameState['shipyard'] {
-  const frame = unlockedFrames.includes(frameId) ? frameId : 'scout-frame'
-  const frameDef = getFrame(frame) ?? getFrame('scout-frame')!
+  const frame = unlockedFrames.includes(frameId) ? frameId : STARTER_FRAME_ID
+  const frameDef = getFrame(frame) ?? getFrame(STARTER_FRAME_ID)!
   let fitted = filterModulesForChallenge(
     trimModulesToFrame(
       modules.filter((id) => unlockedModules.includes(id)),

@@ -24,7 +24,7 @@ import type {
 } from './types'
 import { NETWORK_BAR_IDS } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { AI_NODES, isAiNodePermanent } from './catalog'
+import { AI_NODES, isAiNodePermanent, resolveFrameId, getFrame, STARTER_FRAME_ID } from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
 import {
   SIGNAL_CORE_MAX_RANK,
@@ -260,10 +260,12 @@ function withShipyardDefaults(
   return {
     ...base,
     ...shipyard,
-    unlockedFrames: shipyard?.unlockedFrames ?? base.unlockedFrames,
+    unlockedFrames: (shipyard?.unlockedFrames ?? base.unlockedFrames)
+      .map((id) => (id === 'scout-frame' ? STARTER_FRAME_ID : id))
+      .filter((id) => Boolean(getFrame(id))),
     unlockedModules: shipyard?.unlockedModules ?? base.unlockedModules,
     modules: shipyard?.modules ?? base.modules,
-    frameId: shipyard?.frameId ?? base.frameId,
+    frameId: resolveFrameId(shipyard?.frameId ?? base.frameId),
     moduleLevels: shipyard?.moduleLevels ?? {},
     moduleCopies: { ...(shipyard?.moduleCopies ?? base.moduleCopies ?? {}) },
     corePicks: shipyard?.corePicks ?? {},

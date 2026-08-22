@@ -1,9 +1,12 @@
 import type { GameState, Resources, ShipCombatStats, WeaponInstance } from './types'
 import {
   SHORT_RANGE_MAX,
+  STARTER_FRAME_ID,
   aiDoctrinesActive,
+  equippedFrame,
   essenceDamageMultiplier,
   essenceHullBonus,
+  frameCoreDamageMult,
   getFrame,
   getModule,
   masteryBonus,
@@ -67,7 +70,7 @@ import {
 } from './workshop'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 34
+export const SAVE_VERSION = 35
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -85,7 +88,7 @@ export const RESOURCE_LABELS: Record<keyof Resources, string> = {
 }
 
 export function createInitialState(now = Date.now()): GameState {
-  const hullMax = getFrame('scout-frame')?.baseHull ?? 40
+  const hullMax = getFrame(STARTER_FRAME_ID)?.baseHull ?? 40
   const state: GameState = {
     version: SAVE_VERSION,
     lastTickAt: now,
@@ -103,9 +106,9 @@ export function createInitialState(now = Date.now()): GameState {
       heat: 0,
     },
     shipyard: {
-      frameId: 'scout-frame',
+      frameId: STARTER_FRAME_ID,
       modules: ['pulse-cannon', 'plate-layer'],
-      unlockedFrames: ['scout-frame'],
+      unlockedFrames: [STARTER_FRAME_ID],
       unlockedModules: ['pulse-cannon', 'plate-layer'],
       moduleLevels: {},
       moduleCopies: { 'pulse-cannon': 1, 'plate-layer': 1 },
@@ -292,7 +295,12 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
   return {
     id: `${moduleId}-wpn-${slot}`,
     name: mod.weapon.name,
-    damage: moduleWeaponDamage(mod, level, mastery) * mods.damageMult * mult * weaponPowerMult(state),
+    damage:
+      moduleWeaponDamage(mod, level, mastery) *
+      mods.damageMult *
+      mult *
+      weaponPowerMult(state) *
+      frameCoreDamageMult(state),
     cooldown: (mod.weapon.cooldown * mods.cooldownMult) / cycleRateMult(state),
     cooldownLeft: 0,
     range: capRange(mod.weapon.range + mods.rangeAdd),
@@ -310,7 +318,7 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
 }
 
 export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
-  const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
+  const frame = equippedFrame(state)
   const mult = globalDamageMultiplier(state)
   const shortRange = state.prestige.activeChallengeId === 'short-range'
   const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
@@ -349,14 +357,14 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
 
 /** Derive combat stats from frame, modules, research, meta, essence, and challenges. */
 export function computeShipStats(state: GameState): ShipCombatStats {
-  const frame = getFrame(state.shipyard.frameId) ?? getFrame('scout-frame')!
+  const frame = equippedFrame(state)
   let hullMax =
     frame.baseHull +
     essenceHullBonus(state.essence.purchased) +
     matterShopHullBonus(state.prestige.matterShop)
   let damageTakenMult = 1
   let armor = 0
-  let shieldMax = matterShopShieldBonus(state.prestige.matterShop)
+  let shieldMax = (frame.baseShield ?? 0) + matterShopShieldBonus(state.prestige.matterShop)
   let evasion = 0
   let escortCount = 0
 
@@ -378,6 +386,9 @@ export function computeShipStats(state: GameState): ShipCombatStats {
     evasion += (mod.evasionBonus ?? 0) * Math.min(1.4, pctMult)
     escortCount += mod.escorts ?? 0
   }
+
+  hullMax *= frame.hullMult ?? 1
+  shieldMax *= frame.shieldMult ?? 1
 
   if (
     state.prestige.activeChallengeId === 'thin-hull' ||

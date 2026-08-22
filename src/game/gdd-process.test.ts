@@ -115,7 +115,7 @@ describe('GDD Process', () => {
     s.process.purchased = ['core-buy-max']
     s.process.earned = 40
     s.resources.aiPoints = 36
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.process.purchased).toContain('core-buy-max')
     expect(s.process.earned).toBeGreaterThanOrEqual(40)
   })

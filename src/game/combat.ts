@@ -37,6 +37,7 @@ import {
   pickWeightedDropEntry,
   stationRepairBonus,
   lowestPlayerCoreRange,
+  frameSalvageMult,
 } from './catalog'
 import { careerHighestSector, isSystemUnlocked } from './progression'
 import { isSectorBossWave, wavesForSector, trashWavesForSector, normalizePushMode, normalizeRoute, routeDangerMult, routeSalvageMult } from './sectors'
@@ -2186,7 +2187,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     capitalSalvageMult(state) *
     fittedSalvageKillMult(state) *
     processSalvageMult(state) *
-    salvageKillMult(state)
+    salvageKillMult(state) *
+    frameSalvageMult(state)
   state.resources.salvage +=
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route, state) * salvageMult * rewardWeight
   rollEnemyPartDrop(state, unit, Math.random, rewardWeight)

@@ -40,7 +40,7 @@ function furnaceReady(sector = 28) {
 
 describe('Furnace 2.0 heat tank', () => {
   it('keeps SAVE_VERSION at 34', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
   })
 
   it('generates idle Heat into storage up to capacity', () => {
@@ -227,7 +227,7 @@ describe('Furnace 2.0 Rebuild, offline, save, onboarding', () => {
     s.resources.heat = 10
     s.resources.choirAsh = 12
     s.resources.prestigeMatter = 2
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.furnace.upgrades.hearth).toBe(2)
     expect(s.furnace.wanted.weapons).toBe(2)
     expect(s.resources.choirAsh).toBe(12)

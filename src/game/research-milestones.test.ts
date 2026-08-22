@@ -124,7 +124,7 @@ describe('Research milestones: nodes and identity', () => {
 
 describe('Research milestones: costs', () => {
   it('keeps SAVE_VERSION at 34 and an achievable first node', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     const s = atResearch()
     expect(hiveResearchNodeCost(0)).toBe(52)
     expect(hiveResearchNodeCost(0, s)).toBe(52)
@@ -162,7 +162,7 @@ describe('Research milestones: breakthrough wiring', () => {
 
   it('Keel Bay adds a utility Core slot and solves old recipes two ranks sooner', () => {
     const s = atResearch()
-    const frame = getFrame('line-frame')!
+    const frame = getFrame('bastion-frame')!
     expect(canFitModuleOnFrame(frame, ['drone-bay'], 'vector-thruster')).toBe(false)
     complete(s, 'material', 9)
     expect(hiveResearchExtraUtilitySlots(s)).toBe(1)
@@ -277,7 +277,7 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
     complete(s, 'energy', 3)
     s.hiveResearch.xp.energy = 40
     s.hiveResearch.focus = 'energy'
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.hiveResearch.completed.energy).toBe(3)
     expect(s.hiveResearch.xp.energy).toBe(40)
     expect(s.hiveResearch.focus).toBe('energy')
@@ -291,7 +291,7 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
     s.hiveResearch.focus = 'observation'
     s.hiveResearch.xp.observation = 12
     const loaded = importSave(exportSave(s))
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     expect(loaded?.hiveResearch.completed.material).toBe(6)
     expect(loaded?.hiveResearch.completed.observation).toBe(2)
     expect(loaded?.hiveResearch.focus).toBe('observation')

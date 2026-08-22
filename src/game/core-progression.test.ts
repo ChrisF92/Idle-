@@ -114,7 +114,7 @@ describe('Core Run Levels', () => {
     s.resources.salvage = 80
     s = buyCoreRunSlot(s, 0, 2)
     s = setDocked(s, true)
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon'] })
     expect(coreRunLevel(s, 0)).toBe(0)
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
   })
@@ -180,7 +180,7 @@ describe('Core Mastery', () => {
     s = setDocked(s, true)
     expect(moduleMasteryRank(s, 'pulse-cannon')).toBe(mastery)
     s = armRebuildDoor(s)
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon'] })
     expect(moduleMasteryRank(s, 'pulse-cannon')).toBe(mastery)
     expect(s.meta.moduleMasteryXp['pulse-cannon']).toBe(xp)
   })
@@ -279,8 +279,8 @@ describe('legacy Core rank migration', () => {
 
   it('keeps duplicate copies on one Mastery track after hydration', () => {
     let s = createInitialState(0)
-    s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'line-frame']
-    s.shipyard.frameId = 'line-frame'
+    s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'swarm-frame']
+    s.shipyard.frameId = 'swarm-frame'
     s.shipyard.unlockedModules = ['pulse-cannon']
     s.shipyard.moduleCopies = { 'pulse-cannon': 2 }
     s.shipyard.modules = ['pulse-cannon']

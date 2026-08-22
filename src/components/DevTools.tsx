@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { GameState } from '../game/types'
 import type { DevAction } from '../game/dev'
 import { GDD_DOOR_PRESETS, isDevToolsEnabled, setDevToolsEnabled } from '../game/dev'
+import { SHIP_FRAMES } from '../game/catalog'
 import { PlaytestReport } from './PlaytestReport'
 
 interface DevToolsProps {
@@ -193,6 +194,17 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
             <button type="button" onClick={() => onDevAction({ type: 'dock-heal' })}>
               Dock + heal
             </button>
+          </div>
+          <div className="dev-tools-row">
+            {SHIP_FRAMES.map((frame) => (
+              <button
+                key={frame.id}
+                type="button"
+                onClick={() => onDevAction({ type: 'select-frame', frameId: frame.id })}
+              >
+                {frame.name}
+              </button>
+            ))}
           </div>
           <div className="dev-tools-row">
             <button

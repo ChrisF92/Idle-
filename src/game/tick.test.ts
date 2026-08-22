@@ -282,14 +282,16 @@ describe('shipyard', () => {
     expect(computeShipStats(state).damage).toBeGreaterThan(bare)
   })
 
-  it('unlocks line frame with a utility slot', () => {
+  it('unlocks Bastion Frame with a utility slot', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
     state.meta.highestSectorEver = 8
-    state = unlockFrame(state, 'line-frame')
-    state = selectFrame(state, 'line-frame')
-    expect(state.shipyard.frameId).toBe('line-frame')
+    state.meta.bestWave = 70
+    state.combat.bestWave = 70
+    state = unlockFrame(state, 'bastion-frame')
+    state = selectFrame(state, 'bastion-frame')
+    expect(state.shipyard.frameId).toBe('bastion-frame')
     state = forceUnlockModule(state, 'vector-thruster')
     state = fitModule(state, 'vector-thruster')
     expect(state.shipyard.modules).toContain('vector-thruster')

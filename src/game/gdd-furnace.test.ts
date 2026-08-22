@@ -89,7 +89,7 @@ describe('GDD Furnace', () => {
     s.resources.choirAsh = 40
     s.resources.heat = 12
     s = setFurnaceChannel(s, 'weapons', 1)
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.resources.choirAsh).toBe(0)
     expect(s.resources.heat).toBe(0)
     expect(furnaceActiveLevel(s, 'weapons')).toBe(0)

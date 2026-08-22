@@ -1037,6 +1037,31 @@ button.just-ok {
   transform: translate(-50%, -50%);
 }
 
+.hive-rig-core.is-starter {
+  background: radial-gradient(circle at 35% 30%, #f0d8a8, #8a6230);
+}
+
+.hive-rig-core.is-bastion {
+  background: radial-gradient(circle at 35% 30%, #f4e4b8, #6a5330);
+  border-radius: 18%;
+}
+
+.hive-rig-core.is-swarm {
+  background: radial-gradient(circle at 35% 30%, #d8c4ff, #4a3868);
+  width: 2.6rem;
+  height: 2.6rem;
+}
+
+.hive-rig-core.is-reactor {
+  background: radial-gradient(circle at 35% 30%, #ffd0a0, #c45a20);
+  box-shadow: 0 0 0.7rem #ff8a3a88;
+}
+
+.hive-rig-core.is-harvester {
+  background: radial-gradient(circle at 35% 30%, #d8e8a8, #4a6230);
+  border-radius: 28%;
+}
+
 .hive-rig-sat {
   width: 1.15rem;
   height: 1.15rem;

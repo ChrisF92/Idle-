@@ -20,7 +20,7 @@ import { armRebuildDoor } from './testHelpers'
 describe('phase 5: foundry + notation', () => {
   it('opens Foundry at Wave 20 with one smelter', () => {
     const fresh = createInitialState(0)
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(fresh.foundry.slots).toHaveLength(1)
     expect(fresh.meta.numberNotation).toBe('engineering')
@@ -91,7 +91,7 @@ describe('phase 5: foundry + notation', () => {
     expect(s.foundry.equipped).toContain('slag-liner')
 
     s = performRebuild(s, {
-      frameId: 'scout-frame',
+      frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(s.foundry.equipped).toEqual([])

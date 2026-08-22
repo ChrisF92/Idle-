@@ -130,7 +130,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
     let s = armRebuildDoor(createInitialState(0))
     s.meta.moduleMastery = { 'pulse-cannon': 4 }
     s.shipyard.moduleLevels = { 'pulse-cannon': 1 }
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.workshop?.coreStarts['pulse-cannon'] ?? 0).toBe(0)
     expect(s.meta.moduleMastery['pulse-cannon']).toBe(4)

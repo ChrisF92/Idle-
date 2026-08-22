@@ -22,7 +22,7 @@ import { waveForBand } from './waves'
 
 describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('bumps save and keeps Specialists locked until 68', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR - 1
@@ -32,24 +32,19 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     expect(GUIDE_STEPS.some((s) => s.id === 'guide-specialists')).toBe(false)
   })
 
-  it('unlocks Heavy Cruiser at 24 and Battlecruiser at 41', () => {
-    expect(getFrame('heavy-cruiser-frame')?.requiresBestWave).toBe(240)
-    expect(getFrame('heavy-cruiser-frame')?.weaponSlots).toBe(3)
-    expect(getFrame('heavy-cruiser-frame')?.defenseSlots).toBe(2)
-    expect(getFrame('battlecruiser-frame')?.requiresBestWave).toBe(410)
-    expect(getFrame('battlecruiser-frame')?.defenseSlots).toBe(3)
+  it('does not auto-unlock Swarm, Reactor, or Harvester from waves', () => {
+    expect(getFrame('swarm-frame')?.unlockSource).toBe('foundry')
+    expect(getFrame('reactor-frame')?.unlockSource).toBe('research')
+    expect(getFrame('harvester-frame')?.unlockSource).toBe('challenge')
 
     const s = createInitialState(0)
-    s.meta.bestWave = 240
-    s.combat.bestWave = 240
+    s.meta.bestWave = 300
+    s.combat.bestWave = 300
     maybeGrantSystemUnlocks(s)
-    expect(s.shipyard.unlockedFrames).toContain('heavy-cruiser-frame')
-    expect(s.shipyard.unlockedFrames).not.toContain('battlecruiser-frame')
-
-    s.meta.bestWave = 410
-    s.combat.bestWave = 410
-    maybeGrantSystemUnlocks(s)
-    expect(s.shipyard.unlockedFrames).toContain('battlecruiser-frame')
+    expect(s.shipyard.unlockedFrames).toContain('bastion-frame')
+    expect(s.shipyard.unlockedFrames).not.toContain('swarm-frame')
+    expect(s.shipyard.unlockedFrames).not.toContain('reactor-frame')
+    expect(s.shipyard.unlockedFrames).not.toContain('harvester-frame')
   })
 
   it('expands Yard to 5×5 at sector 27', () => {
@@ -83,7 +78,7 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     expect(specialistDamageMult(s)).toBeCloseTo(1.25 * 1.01)
 
     s = performRebuild(s, {
-      frameId: 'scout-frame',
+      frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(specialistRank(s, 'gunner')).toBe(10)

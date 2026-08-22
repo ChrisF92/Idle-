@@ -37,7 +37,7 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(canPrestige(s)).toBe(true)
 
     s = performRebuild(s, {
-      frameId: 'scout-frame',
+      frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(s.prestige.prestigeCount).toBe(1)
@@ -47,24 +47,27 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(s.combat.docked).toBe(true)
   })
 
-  it('unlocks Frigate hull after Wave 40', () => {
-    let s = atCareerWave(createInitialState(0), 40)
+  it('unlocks Bastion Frame after Wave 70', () => {
+    let s = atCareerWave(createInitialState(0), 70)
     s = setDocked(s, false)
     maybeGrantSystemUnlocks(s)
-    expect(s.shipyard.unlockedFrames).toContain('line-frame')
-    expect(getFrame('line-frame')?.name).toBe('Frigate Hull')
-    expect(getFrame('line-frame')?.weaponSlots).toBe(2)
-    expect(getFrame('line-frame')?.requiresBestWave).toBe(40)
+    expect(s.shipyard.unlockedFrames).toContain('bastion-frame')
+    expect(getFrame('bastion-frame')?.name).toBe('Bastion Frame')
+    expect(getFrame('bastion-frame')?.defenseSlots).toBe(3)
+    expect(getFrame('bastion-frame')?.requiresBestWave).toBe(70)
+    const early = atCareerWave(createInitialState(0), 69)
+    maybeGrantSystemUnlocks(early)
+    expect(early.shipyard.unlockedFrames).not.toContain('bastion-frame')
   })
 
-  it('Rebuild hangar can swap onto Frigate once unlocked', () => {
+  it('Rebuild hangar can swap onto Bastion once unlocked', () => {
     let s = armRebuildDoor(createInitialState(0))
-    s.shipyard.unlockedFrames = ['scout-frame', 'line-frame']
+    s.shipyard.unlockedFrames = ['starter-frame', 'bastion-frame']
     s = performRebuild(s, {
-      frameId: 'line-frame',
+      frameId: 'bastion-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
-    expect(s.shipyard.frameId).toBe('line-frame')
+    expect(s.shipyard.frameId).toBe('bastion-frame')
   })
 
   it('opens Foundry at sector 6 and hides scrap until then', () => {

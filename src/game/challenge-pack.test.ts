@@ -49,9 +49,11 @@ describe('challenge pack: Bare Rig + Knife Fight', () => {
     state.meta.highestSectorEver = 8
     state.resources.scrap = 999
     state.resources.alloys = 999
-    // Scout has 0U — use Line Frame for a utility slot.
-    state = unlockFrame(state, 'line-frame')
-    state = selectFrame(state, 'line-frame')
+    // Starter has 0U — use Bastion for a utility slot.
+    state.meta.bestWave = 70
+    state.combat.bestWave = 70
+    state = unlockFrame(state, 'bastion-frame')
+    state = selectFrame(state, 'bastion-frame')
     state = forceUnlockModule(state, 'vector-thruster')
     state = unlockModule(state, 'plate-layer')
     state = fitModule(state, 'vector-thruster')

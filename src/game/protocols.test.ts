@@ -48,7 +48,7 @@ function protocolDock(sectorEver = 52) {
 
 describe('Protocol formula rewards', () => {
   it('keeps save version and rank-0 formulas identical to the unranked game', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     const s = createInitialState(0)
     s.combat.sector = 10
     expect(protocolModifiers(s)).toEqual(emptyProtocolModifiers())
@@ -207,7 +207,7 @@ describe('Protocol challenge runs', () => {
     s.protocols.ranks['mute-network'] = 3
     s.protocols.bestSector['mute-network'] = 11
     s.combat.sector = 4
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(protocolRank(s, 'mute-network')).toBe(3)
     expect(protocolBestSector(s, 'mute-network')).toBe(11)
     expect(s.protocols.activeId).toBeNull()

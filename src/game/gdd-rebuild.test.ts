@@ -74,7 +74,7 @@ describe('GDD Rebuild', () => {
     const career = s.meta.bestWave
     const before = prestigeGainFor(s)
 
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.prestige.prestigeCount).toBe(1)
     expect(s.resources.prestigeMatter).toBeGreaterThanOrEqual(before)
     expect(s.meta.bestWave).toBe(career)
@@ -92,7 +92,7 @@ describe('GDD Rebuild', () => {
 
   it('does not let a second Rebuild fire until this cycle reaches Wave 70 again', () => {
     let s = armRebuildDoor(createInitialState(0))
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(canPrestige(s)).toBe(false)
     s = atCareerWave(s, 40)
     s.prestige.cycle.sorties = 2

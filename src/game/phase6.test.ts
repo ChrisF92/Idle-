@@ -59,7 +59,7 @@ function enemy(isBoss = false): CombatUnit {
 
 describe('phase 6: Reliquary + Furnace + Research', () => {
   it('opens doors at spaced sectors 16 / 28 / 34', () => {
-    expect(SAVE_VERSION).toBe(34)
+    expect(SAVE_VERSION).toBe(35)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'reliquary')).toBe(false)
     expect(isSystemUnlocked(fresh, 'furnace')).toBe(false)
@@ -178,7 +178,7 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     s.hiveResearch.xp.material = 20
     s.resources.salvage = 50
 
-    s = performRebuild(s, { frameId: 'scout-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.reliquary.owned['battle-chip']).toBe(3)
     expect(s.reliquary.slots.red).toBe('battle-chip')
     expect(s.resources.heat).toBe(0)

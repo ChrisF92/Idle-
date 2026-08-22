@@ -7,6 +7,7 @@ import { noteAttempt } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 import { bandsClearedForWave } from './waves'
 import { isWorkerJob } from './workers'
+import { getFrame, grantUnlockedFrame } from './catalog'
 
 export const PROTOCOL_UNLOCK_SECTOR = ACT1_CADENCE.protocols
 export const CHALLENGE_UNLOCK_WAVE = ACT1_CADENCE.protocols
@@ -57,6 +58,8 @@ export interface ProtocolDef {
   hullMult?: number
   enemyDensityMult?: number
   rewards: ProtocolRewardStep[]
+  /** First completion unlocks this Hive Frame. */
+  unlocksFrame?: string
 }
 
 export const PROTOCOLS: ProtocolDef[] = [
@@ -102,12 +105,13 @@ export const PROTOCOLS: ProtocolDef[] = [
   {
     id: 'mute-network',
     name: 'Swarm Pressure',
-    blurb: 'Greatly increased enemy density. Completions improve Worker labour scaling.',
+    blurb: 'Greatly increased enemy density. First clear unlocks the Harvester Frame. Completions improve Worker labour scaling.',
     restriction: 'Encounters spawn far more hulls. Leftover Strike/Ward combat bars grant nothing.',
     disabledSystems: ['Strike / Ward combat bars'],
     mute: 'network',
     goalWave: 100,
     enemyDensityMult: 2.2,
+    unlocksFrame: 'harvester-frame',
     rewards: [
       { at: 1, hook: { kind: 'networkExponent', add: 0.02 }, blurb: 'Worker bonuses scale harder at every rank.' },
       { at: 2, hook: { kind: 'networkExponent', add: 0.015 }, blurb: 'A little more Worker scaling.' },
@@ -512,6 +516,14 @@ export function tryCompleteProtocol(state: GameState): void {
   state.protocols.activeId = null
   state.combat.docked = true
   const prize = protocolRewardLine(protocolRewardsAt(def, nextRank))
+  if (nextRank === 1 && def.unlocksFrame) {
+    const frame = getFrame(def.unlocksFrame)
+    grantUnlockedFrame(
+      state,
+      def.unlocksFrame,
+      frame ? `${def.name} unlocked the ${frame.name}.` : `${def.name} unlocked a new Frame.`,
+    )
+  }
   closeSortie(state, 'extract', `${def.name} complete (${nextRank}/${PROTOCOL_MAX_RANK}). ${prize}`)
   noteAttempt(state, 'protocol', def.id, 'clear', def.name)
   state.combat.log = [state.combat.lastSortie.note, ...state.combat.log].slice(0, 40)
