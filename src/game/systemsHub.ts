@@ -137,7 +137,8 @@ export function processHubStatus(state: GameState): string[] {
   if (cfg.furnace.autoFeed || cfg.furnace.autoChannel) running += 1
   if (cfg.research.autoResearch) running += 1
   const next = firstAffordableProcessNode(state)
-  const lines = running > 0 ? [`${running} automations active`] : [`${bought} capabilities`]
+  const lines =
+    bought > 0 && running > 0 ? [`${running} automations active`] : [`${bought} capabilities`]
   if (processAvailable(state) > 0) lines.push(`${Math.floor(processAvailable(state))} Process Points available`)
   else if (next) lines.push(`Next: ${next.name}`)
   else if (running <= 0) lines.push('No purchase yet')

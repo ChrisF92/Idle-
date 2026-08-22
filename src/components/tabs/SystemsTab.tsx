@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/types'
-import { foundryQueueLength, foundryUnlocked } from '../../game/foundry'
+import { isSystemUnlocked } from '../../game/progression'
 import { systemsHubCards, type SystemsHubId } from '../../game/systemsHub'
 import { workerAllocationSummary } from '../../game/workers'
 import { formatCompact } from '../../game/format'
@@ -56,8 +56,12 @@ export function SystemsTab({ state, onManage }: Props) {
         ))}
       </div>
 
-      {foundryUnlocked(state) && foundryQueueLength(state) > 0 ? (
-        <p className="panel-note">Foundry queue: {foundryQueueLength(state)} waiting behind the current job.</p>
+      {isSystemUnlocked(state, 'foundry') &&
+      state.foundry.slots.filter((slot) => slot.recipeId).length > 1 ? (
+        <p className="panel-note">
+          Foundry queue: {state.foundry.slots.filter((slot) => slot.recipeId).length - 1} waiting
+          behind the current job.
+        </p>
       ) : null}
     </section>
   )

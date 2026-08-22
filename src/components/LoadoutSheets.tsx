@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import type { GameState, ModuleRole } from '../game/types'
+import type { GameState } from '../game/types'
 import {
+  type ModuleRole,
   SHIP_FRAMES,
   SHIP_MODULES,
   canFitModuleOnFrame,

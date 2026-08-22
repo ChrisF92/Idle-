@@ -12,7 +12,7 @@ import { ToastStack } from '../components/ToastStack'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
-import { acknowledgeOnboarding, activeGuideStep, GUIDE_STEPS } from './progression'
+import { activeGuideStep, GUIDE_STEPS } from './progression'
 
 afterEach(cleanup)
 

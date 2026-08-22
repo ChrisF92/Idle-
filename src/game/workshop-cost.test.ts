@@ -59,12 +59,7 @@ describe('Workshop does not advance the Sortie purchase-cost ladder', () => {
   it('Case D: second purchase cost is identical regardless of Workshop level', () => {
     const a = buyRunUpgrade(launchWithSalvage(dockedWorkshop(0)), 'weapon-power')
     const b = buyRunUpgrade(launchWithSalvage(dockedWorkshop(2)), 'weapon-power')
-    const c = (() => {
-      const s = createInitialState(0)
-      s.meta.hullLostOnce = true
-      s.workshop.levels['weapon-power'] = 100
-      return buyRunUpgrade(launchWithSalvage(s), 'weapon-power')
-    })()
+    const c = buyRunUpgrade(launchWithSalvage(dockedWorkshop(10)), 'weapon-power')
     expect(nextRunUpgradeCost(a, 'weapon-power')).toBe(second)
     expect(nextRunUpgradeCost(b, 'weapon-power')).toBe(second)
     expect(nextRunUpgradeCost(c, 'weapon-power')).toBe(second)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { GameState, ModuleRole, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
+import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
 import { computeShipStats, RESOURCE_LABELS } from '../../game/state'
 import { canPrestige, prestigeGainFor } from '../../game/actions'
 import { canOpenRebuildHangar, rebuildCycle, rebuildWaveNeed, workshopInvestment } from '../../game/rebuild'
@@ -7,14 +7,14 @@ import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import { type BuyMode } from '../../game/workshop'
 import { isRelicsUnlocked, SHARDS, shardOwned } from '../../game/reliquary'
-import { getFrame, getModule } from '../../game/catalog'
+import { type ModuleRole, getFrame, getModule } from '../../game/catalog'
 import { hasProcess } from '../../game/process'
 import { CoreSheet } from '../CoreSheet'
 import { SheetTabs } from '../SheetTabs'
 import { HiveRig, type HiveRigTarget } from '../HiveRig'
 import { CoreDetailSheet, CorePicker, FrameSheet } from '../LoadoutSheets'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
-import { coreDps, coreShieldOutput, permanentMultipliers } from '../../game/uiReadout'
+import { permanentMultipliers } from '../../game/uiReadout'
 
 export type DockPane = 'loadout' | 'workshop' | 'rebuild'
 
@@ -28,7 +28,7 @@ interface DockTabProps {
   onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
   onBuyMaxCores?: () => void
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
-  onRemoveRelic?: (moduleId: string, relicId?: string, socketIndex?: number) => void
+  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onSelectFrame?: (frameId: string) => void
   onFitCore?: (moduleId: string) => void
   onUnfitCore?: (moduleId: string) => void

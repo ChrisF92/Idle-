@@ -30,7 +30,7 @@ describe('GDD shell information architecture', () => {
     expect(screen.getByText('Worker Drones')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Manage/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Worker Drones/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Foundry/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Foundry/ })).toBeTruthy()
   })
 
   it('lists Codex as Coming up and hides the later-systems dump', () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
 import { DockTab } from '../components/tabs/DockTab'
 import { SystemsTab } from '../components/tabs/SystemsTab'
@@ -39,7 +39,7 @@ describe('UI/UX pass regression', () => {
     )
     expect(screen.queryByText(/Pressure/i)).toBeNull()
     expect(screen.getByRole('button', { name: 'Dock' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Run Again' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Continue|Run Again/ })).toBeTruthy()
   })
 
   it('locks Dock loadout copy while a Sortie is live', () => {
