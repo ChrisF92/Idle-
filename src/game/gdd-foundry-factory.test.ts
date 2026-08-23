@@ -76,10 +76,13 @@ describe('GDD Foundry factory', () => {
       'construction',
     ])
     expect(workerJobLabel('alloy-foundry')).toBe('Processing')
+    expect(workerJobLabel('sensor-net')).toBe('Sensor Net')
     expect(workerJobLabel('fab-bay')).toBe('Fabrication')
     const open = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     expect(isStationUnlocked(open, 'alloy-foundry')).toBe(true)
+    expect(isStationUnlocked(open, 'sensor-net')).toBe(true)
     expect(isStationUnlocked(open, 'drone-fab')).toBe(false)
+    expect(isStationUnlocked(open, 'construction')).toBe(false)
   })
 
   it('lets processing workers shorten Recovered Stock', () => {
@@ -130,7 +133,7 @@ describe('GDD Foundry factory', () => {
     expect(s.shipyard.unlockedModules).toContain(moduleId)
   })
 
-  it('builds facilities on a fabrication slot and arms them next Sortie', () => {
+  it('builds facilities on a fabrication slot and applies them immediately', () => {
     let s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
     s.foundry.materials['slag-ingot'] = 20
     s.foundry.materials['hardened-plate'] = 10
@@ -150,11 +153,17 @@ describe('GDD Foundry factory', () => {
     expect(s.foundry.fabrication[0]?.kind).toBe('facility')
     s.combat.docked = false
     tickFoundry(s, 15 * 60 + 2)
-    expect(s.foundry.pendingFacilities).toContain('processing-line')
-    expect(hasFacility(s, 'processing-line')).toBe(false)
-    armPendingFacilities(s)
+    expect(s.foundry.pendingFacilities).toEqual([])
     expect(hasFacility(s, 'processing-line')).toBe(true)
     expect(foundrySlotCount(s)).toBe(2)
+  })
+
+  it('arms leftover pending facilities on load', () => {
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
+    s.foundry.pendingFacilities = ['processing-line']
+    armPendingFacilities(s)
+    expect(hasFacility(s, 'processing-line')).toBe(true)
+    expect(s.foundry.pendingFacilities).toEqual([])
   })
 
   it('keeps paid Fabrication progress across Rebuild', () => {

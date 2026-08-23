@@ -22,7 +22,7 @@ export interface WorkerJobCap {
 
 export const WORKER_JOB_LABELS: Record<string, string> = {
   'scrap-field': 'Salvage ops',
-  'sensor-net': 'Research',
+  'sensor-net': 'Sensor Net',
   'alloy-foundry': 'Processing',
   'drone-fab': 'Drone production',
   'fab-bay': 'Fabrication',

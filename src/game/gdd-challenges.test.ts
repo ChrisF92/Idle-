@@ -52,7 +52,8 @@ describe('GDD Challenges', () => {
     const open = challengeState()
     expect(isSystemUnlocked(open, 'protocols')).toBe(true)
     expect(moreStationBuckets(open).open.map((s) => s.id)).toContain('protocols')
-    expect(moreStationBuckets(open).next.map((s) => s.id)).toEqual(['reinforce'])
+    expect(moreStationBuckets(open).next).toEqual([])
+    expect(moreStationBuckets(open).open.map((s) => s.id)).not.toContain('reinforce')
   })
 
   it('lists the GDD examples with Wave goals and disabled systems', () => {

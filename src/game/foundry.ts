@@ -270,7 +270,7 @@ export const FOUNDRY_FACILITIES: FacilityDef[] = [
   {
     id: 'processing-line',
     name: 'Processing Line',
-    blurb: 'Adds a Processing slot. Arms on the next Sortie.',
+    blurb: 'Adds a Processing slot. Online as soon as the job finishes.',
     craftTime: 15 * 60,
     costs: { materials: { 'slag-ingot': 8, 'hardened-plate': 4 } },
     requiresBestWave: ACT1_CADENCE.foundryAdvanced,
@@ -279,7 +279,7 @@ export const FOUNDRY_FACILITIES: FacilityDef[] = [
   {
     id: 'fabrication-bay',
     name: 'Fabrication Machinery',
-    blurb: 'Adds a Fabrication slot. Arms on the next Sortie.',
+    blurb: 'Adds a Fabrication slot. Online as soon as the job finishes.',
     craftTime: 20 * 60,
     costs: { materials: { filament: 8, relay: 4 } },
     requiresBestWave: ACT1_CADENCE.foundryAdvanced,
@@ -288,7 +288,7 @@ export const FOUNDRY_FACILITIES: FacilityDef[] = [
   {
     id: 'drone-racks',
     name: 'Drone Racks',
-    blurb: '+4 Worker Drone capacity. Arms on the next Sortie.',
+    blurb: '+4 Worker Drone capacity. Online as soon as the job finishes.',
     craftTime: 15 * 60,
     costs: { materials: { 'slag-ingot': 6, filament: 4 } },
     requiresBestWave: ACT1_CADENCE.foundryAdvanced,
@@ -297,7 +297,7 @@ export const FOUNDRY_FACILITIES: FacilityDef[] = [
   {
     id: 'drone-fabricator',
     name: 'Worker Drone Fabricator',
-    blurb: 'Unlocks the Drone production job. Arms on the next Sortie.',
+    blurb: 'Unlocks the Drone production job. Online as soon as the job finishes.',
     craftTime: 25 * 60,
     costs: { materials: { 'slag-ingot': 10, 'temper-bar': 6 } },
     requiresBestWave: ACT1_CADENCE.foundryAdvanced,
@@ -306,7 +306,7 @@ export const FOUNDRY_FACILITIES: FacilityDef[] = [
   {
     id: 'research-annex',
     name: 'Research Annex',
-    blurb: 'Research projects run faster. Arms on the next Sortie.',
+    blurb: 'Research projects run faster. Online as soon as the job finishes.',
     craftTime: 30 * 60,
     costs: { materials: { relay: 8, 'slag-glass': 4 } },
     requiresBestWave: ACT1_CADENCE.foundryAdvanced,
@@ -315,7 +315,7 @@ export const FOUNDRY_FACILITIES: FacilityDef[] = [
   {
     id: 'storage-bay',
     name: 'Storage',
-    blurb: 'Salvage ops haul more scrap. Arms on the next Sortie.',
+    blurb: 'Salvage ops haul more scrap. Online as soon as the job finishes.',
     craftTime: 15 * 60,
     costs: { materials: { 'slag-ingot': 12 } },
     requiresBestWave: ACT1_CADENCE.foundryAdvanced,
@@ -324,7 +324,7 @@ export const FOUNDRY_FACILITIES: FacilityDef[] = [
   {
     id: 'specialised-works',
     name: 'Specialised Works',
-    blurb: 'Processing runs faster and may yield a rare extra piece. Arms on the next Sortie.',
+    blurb: 'Processing runs faster and may yield a rare extra piece. Online as soon as the job finishes.',
     craftTime: 45 * 60,
     costs: { materials: { 'temper-bar': 6, 'keel-strip': 4 } },
     requiresBestWave: ACT1_CADENCE.foundryAdvanced,
@@ -706,13 +706,10 @@ function completeFabrication(state: GameState, slot: FabricationSlot): void {
   if (!slot.kind || !slot.jobId) return
   if (slot.kind === 'facility') {
     const def = getFacility(slot.jobId)
-    state.foundry.pendingFacilities = [...(state.foundry.pendingFacilities ?? []), slot.jobId as FacilityId]
-    pushFoundryLog(
-      state,
-      state.combat.docked
-        ? `${def?.name ?? 'Facility'} complete. Arms next Sortie.`
-        : `${def?.name ?? 'Facility'} complete. Available next Sortie.`,
-    )
+    state.foundry.facilities = [...(state.foundry.facilities ?? []), slot.jobId as FacilityId]
+    state.foundry.pendingFacilities = (state.foundry.pendingFacilities ?? []).filter((id) => id !== slot.jobId)
+    ensureSlotCount(state)
+    pushFoundryLog(state, `${def?.name ?? 'Facility'} online.`)
     recordPlaytest(state, 'foundry_craft', { n: def?.name ?? slot.jobId, firstKey: `facility:${slot.jobId}` })
     noteSystemAction(state, 'foundry')
     return
@@ -766,6 +763,7 @@ export function claimFoundryCompletions(state: GameState): void {
   }
 }
 
+/** Drain leftover next-Sortie facilities from old saves. Bonuses apply immediately. */
 export function armPendingFacilities(state: GameState): void {
   if (!state.foundry) return
   const pending = state.foundry.pendingFacilities ?? []

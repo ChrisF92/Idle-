@@ -26,7 +26,7 @@ describe('GDD system cadence', () => {
     const process = atCareerWave(createInitialState(1), ACT1_CADENCE.process)
     process.prestige.prestigeCount = PROCESS_MIN_REBUILDS
     expect(isSystemUnlocked(process, 'process')).toBe(false)
-    process.research.unlocked.push('alloy-smelting')
+    process.hiveResearch.completed.energy = 1
     expect(isSystemUnlocked(process, 'process')).toBe(true)
 
     const echo = atCareerWave(createInitialState(1), ACT1_CADENCE.echo)

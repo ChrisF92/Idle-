@@ -115,7 +115,7 @@ export interface FoundryState {
   trackedPrintId: string | null
   /** Facilities armed on a previous Sortie launch. */
   facilities: FacilityId[]
-  /** Completed facilities that arm on the next Sortie. */
+  /** Leftover next-Sortie queue. Hydrate / complete now apply immediately. */
   pendingFacilities: FacilityId[]
   /** Cores finished mid-Sortie; unlock when Docked. */
   pendingCores: string[]

@@ -1,6 +1,7 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
 import { careerHighestSector, isSystemUnlocked } from './progression'
+import { WORKER_JOB_IDS } from './workers'
 import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
 import { bandsClearedForWave, meetsWave, waveForClearedBands } from './waves'
 import { formatCompact, formatStat } from './format'
@@ -15,7 +16,7 @@ export interface StationDef {
   description: string
   requiresResearch?: string
   /** System that must be unlocked before drones can be assigned. */
-  requiresSystem?: 'base' | 'research' | 'ai' | 'prestige' | 'core' | 'yard' | 'foundry'
+  requiresSystem?: 'base' | 'network' | 'research' | 'ai' | 'prestige' | 'core' | 'yard' | 'foundry'
   /** Resource rates per assigned worker drone (per second). */
   rates: ResourceCost
   /** Scrap drained per assigned drone per second (Foundry-style). */
@@ -379,7 +380,7 @@ export const STATIONS: StationDef[] = [
     id: 'sensor-net',
     name: 'Sensor Net',
     description: 'Workers accelerate the active Research project.',
-    requiresSystem: 'research',
+    requiresSystem: 'network',
     rates: { data: 0.045 },
     baseSlots: 16,
   },
@@ -2160,8 +2161,7 @@ export function modulePrintWave(moduleId: string): number {
 
 /** Career has reached the sector that unlocks this Core print. */
 export function isCorePrintUnlocked(state: GameState, moduleId: string): boolean {
-  const need = modulePrintSector(moduleId)
-  return careerHighestSector(state) >= need || (state.combat?.sector ?? 1) >= need
+  return careerHighestSector(state) >= modulePrintSector(moduleId)
 }
 
 /** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Prints / drops. */
@@ -2757,6 +2757,11 @@ export function isStationUnlocked(state: GameState, stationId: string): boolean 
     return (state.foundry?.facilities ?? []).includes('drone-fabricator')
   }
   return true
+}
+
+/** Jobs shown in Systems / Worker UI. Hidden until the station is legal. */
+export function visibleWorkerJobIds(state: GameState): string[] {
+  return WORKER_JOB_IDS.filter((id) => isStationUnlocked(state, id))
 }
 
 export function assignedWorkers(assignments: Record<string, number>): number {

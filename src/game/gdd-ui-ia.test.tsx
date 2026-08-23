@@ -33,7 +33,7 @@ describe('GDD shell information architecture', () => {
     expect(screen.getByRole('button', { name: /^Foundry/ })).toBeTruthy()
   })
 
-  it('lists Codex as Coming up and hides the later-systems dump', () => {
+  it('hides locked More doors instead of teasing the next system', () => {
     render(
       <StatsTab
         state={createInitialState(0)}
@@ -43,8 +43,8 @@ describe('GDD shell information architecture', () => {
         onOpenStation={() => undefined}
       />,
     )
-    expect(screen.getByText('Next system')).toBeTruthy()
-    expect(screen.getByText('Codex')).toBeTruthy()
+    expect(screen.queryByText('Next system')).toBeNull()
+    expect(screen.queryByText('Codex')).toBeNull()
     expect(screen.queryByText(/Later systems/)).toBeNull()
     expect(screen.queryByText('Furnace')).toBeNull()
     expect(screen.queryByText('Workers')).toBeNull()

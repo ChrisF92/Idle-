@@ -85,7 +85,7 @@ export function workerJobConsequence(state: GameState, jobId: string): WorkerJob
       title,
       assigned,
       band,
-      current: assigned > 0 ? `Research +${rate.toFixed(2)}/s` : 'Research idle',
+      current: assigned > 0 ? `Sensor Net +${rate.toFixed(2)}/s` : 'Sensor Net idle',
       next: `+1 → +${((station?.rates.data ?? 0.045) * (assigned + 1)).toFixed(2)}/s`,
     }
   }

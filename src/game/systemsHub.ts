@@ -1,6 +1,6 @@
 /** Systems hub status cards (GDD §120). Foundry is the parent industrial card. */
 
-import { idleWorkers } from './catalog'
+import { idleWorkers, visibleWorkerJobIds } from './catalog'
 import { fabricationJobLabel, FOUNDRY_RECIPES, foundryRecipeLevel } from './foundry'
 import {
   formatResearchDuration,
@@ -12,7 +12,7 @@ import {
   hiveResearchXp,
 } from './hiveResearch'
 import { firstAffordableProcessNode, processAvailable, processConfig } from './process'
-import { WORKER_JOB_IDS, workerAllocationSummary, workerJobLabel } from './workers'
+import { workerAllocationSummary, workerJobLabel } from './workers'
 import { foundryAttention, furnaceAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
@@ -57,9 +57,7 @@ export function foundryHubStatus(state: GameState): string[] {
 
   if (isSystemUnlocked(state, 'yard')) {
     const owned = state.foundry.facilities?.length ?? 0
-    const pending = state.foundry.pendingFacilities?.length ?? 0
-    if (pending > 0) lines.push(`Construction ${pending} arming next Sortie`)
-    else lines.push(owned > 0 ? `Construction ${owned} facilities` : 'Construction idle')
+    lines.push(owned > 0 ? `Construction ${owned} facilities` : 'Construction idle')
   } else {
     const temper = foundryRecipeLevel(state, 'temper-bar')
     if (temper > 0) lines.push(`Temper Bar Mastery ${temper}`)
@@ -74,7 +72,7 @@ export function foundryHubStatus(state: GameState): string[] {
 export function workersHubStatus(state: GameState): string[] {
   const summary = workerAllocationSummary(state)
   const lines = [`${summary.assigned} assigned · ${summary.idle} idle`]
-  for (const id of WORKER_JOB_IDS) {
+  for (const id of visibleWorkerJobIds(state)) {
     lines.push(`${workerJobLabel(id)} ${summary.jobs[id] ?? 0}`)
   }
   return lines

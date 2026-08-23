@@ -1,4 +1,4 @@
-/** Foundry construction — GDD §65. Facilities are fabricated; bonuses arm next Sortie. */
+/** Foundry construction — GDD §65. Facilities are fabricated; bonuses apply immediately. */
 
 import type { FacilityId, GameState, YardArmId, YardBuildingId, YardGoodId, YardState } from './types'
 import { ACT1_CADENCE } from './cadence'
@@ -151,7 +151,7 @@ export function yardPending(_state: GameState, _id: YardArmId): number {
 
 export function yardPendingSummary(state: GameState): string {
   const n = state.foundry?.pendingFacilities?.length ?? 0
-  return n > 0 ? `${n} facilities arm next Sortie` : 'No facilities pending'
+  return n > 0 ? `${n} facilities waiting to apply` : 'No facilities pending'
 }
 
 export function yardArmEffect(id: string): string {

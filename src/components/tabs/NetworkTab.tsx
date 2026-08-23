@@ -6,7 +6,7 @@ import {
   STATIONS,
 } from '../../game/catalog'
 import { useJustBecame } from '../../hooks/useJustBecame'
-import { WORKER_JOB_IDS } from '../../game/workers'
+import { visibleWorkerJobIds } from '../../game/catalog'
 import { workerJobConsequence } from '../../game/workerReadout'
 
 interface NetworkTabProps {
@@ -25,7 +25,8 @@ export function NetworkTab({ state, onAssign, onOptimise, onBack }: NetworkTabPr
   const atCap = state.base.workerDrones >= cap
   const idleFlash = useJustBecame(idle > 0)
 
-  const jobs = STATIONS.filter((station) => WORKER_JOB_IDS.includes(station.id))
+  const openIds = new Set(visibleWorkerJobIds(state))
+  const jobs = STATIONS.filter((station) => openIds.has(station.id))
 
   return (
     <section className="panel screen-panel">

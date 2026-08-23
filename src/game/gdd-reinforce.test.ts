@@ -41,7 +41,8 @@ describe('GDD Act 1 climax and Reinforce', () => {
     const approaching = climaxState({ wave: ACT1_CADENCE.reinforce - 1 })
     expect(isSystemUnlocked(approaching, 'reinforce')).toBe(false)
     expect(canReinforce(approaching).ok).toBe(false)
-    expect(moreStationBuckets(approaching).next.map((s) => s.id)).toEqual(['reinforce'])
+    expect(moreStationBuckets(approaching).open.map((s) => s.id)).not.toContain('reinforce')
+    expect(moreStationBuckets(approaching).next).toEqual([])
 
     const reached = climaxState({ wave: ACT1_CADENCE.reinforce })
     expect(reached.meta.act1Cleared).toBe(false)

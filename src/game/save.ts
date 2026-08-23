@@ -407,8 +407,8 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
       typeof raw.trackedPrintId === 'string' && raw.trackedPrintId.length > 0
         ? raw.trackedPrintId
         : null,
-    facilities: [...(raw.facilities ?? [])],
-    pendingFacilities: [...(raw.pendingFacilities ?? [])],
+    facilities: [...(raw.facilities ?? []), ...(raw.pendingFacilities ?? [])],
+    pendingFacilities: [],
     pendingCores: [...(raw.pendingCores ?? [])],
     pendingRelics: [...(raw.pendingRelics ?? [])],
   }

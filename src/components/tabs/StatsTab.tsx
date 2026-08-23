@@ -133,7 +133,7 @@ export function StatsTab({
     <section className="panel screen-panel">
       <header className="panel-header">
         <h2>More</h2>
-        <p>Secondary systems, Codex, and settings. One next unlock — not a grey list.</p>
+        <p>Secondary systems, Codex, and settings. Locked doors stay hidden.</p>
       </header>
       <SheetTabs value={pane} onChange={setPane} options={MORE_PANES} label="More panes" />
       <div className="panel-scroll">

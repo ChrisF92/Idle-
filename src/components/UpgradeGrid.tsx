@@ -28,6 +28,7 @@ import {
 } from '../game/coreProgression'
 import { getModule, moduleMasteryRank } from '../game/catalog'
 import { masteryMilestoneEffect, nextMasteryMilestone } from '../game/coreProgression'
+import { BottomSheet } from '../ui/primitives'
 
 export type UpgradeGridKind = 'run' | 'workshop'
 
@@ -231,92 +232,74 @@ export function UpgradeGrid({
       ) : null}
 
       {info ? (
-        <div
-          className="upgrade-info-modal"
-          role="dialog"
-          aria-labelledby={`upgrade-info-${info.id}`}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setInfoId(null)
-          }}
+        <BottomSheet
+          open
+          title={info.name}
+          onClose={() => setInfoId(null)}
+          size="standard"
+          overlayId={`upgrade-info-${info.id}`}
         >
-          <div className="upgrade-info-card">
-            <header className="modal-header">
-              <h3 id={`upgrade-info-${info.id}`}>{info.name}</h3>
-              <button type="button" onClick={() => setInfoId(null)}>
-                Close
-              </button>
-            </header>
-            <p>{runUpgradeEffectLine(info.id)}</p>
-            {kind === 'workshop' ? (
-              <p className="muted">
-                Workshop Lv{workshopLevel(state, info.id)} means every Sortie begins with that many
-                effective levels. The temporary Sortie purchase-cost ladder still begins from its
-                base cost.
-              </p>
-            ) : (
-              <p className="muted">
-                Workshop Lv{workshopLevel(state, info.id)}
-                {runPurchasedLevel(state, info.id) > 0
-                  ? ` · Sortie +${runPurchasedLevel(state, info.id)}`
-                  : ''}{' '}
-                · Effective Lv{effectiveUpgradeLevel(state, info.id)}
-              </p>
-            )}
+          <p>{runUpgradeEffectLine(info.id)}</p>
+          {kind === 'workshop' ? (
             <p className="muted">
-              {runUpgradePreview(state, info.id).current} → {runUpgradePreview(state, info.id).next}
+              Workshop Lv{workshopLevel(state, info.id)} means every Sortie begins with that many
+              effective levels. The temporary Sortie purchase-cost ladder still begins from its
+              base cost.
             </p>
+          ) : (
             <p className="muted">
-              {kind === 'workshop'
-                ? 'Permanent this cycle. Resets on Rebuild.'
-                : 'Temporary this Sortie. Cost is Salvage.'}
+              Workshop Lv{workshopLevel(state, info.id)}
+              {runPurchasedLevel(state, info.id) > 0
+                ? ` · Sortie +${runPurchasedLevel(state, info.id)}`
+                : ''}{' '}
+              · Effective Lv{effectiveUpgradeLevel(state, info.id)}
             </p>
-            {shopTimeToAfford(state, kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1), kind === 'run' ? state.resources.salvage : state.resources.scrap) ? (
-              <p className="muted">
-                {shopTimeToAfford(
-                  state,
-                  kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1),
-                  kind === 'run' ? state.resources.salvage : state.resources.scrap,
-                )}
-              </p>
-            ) : null}
-            {shopEconomyRoi(state, info.id) ? <p className="muted">{shopEconomyRoi(state, info.id)}</p> : null}
-          </div>
-        </div>
+          )}
+          <p className="muted">
+            {runUpgradePreview(state, info.id).current} → {runUpgradePreview(state, info.id).next}
+          </p>
+          <p className="muted">
+            {kind === 'workshop'
+              ? 'Permanent this cycle. Resets on Rebuild.'
+              : 'Temporary this Sortie. Cost is Salvage.'}
+          </p>
+          {shopTimeToAfford(state, kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1), kind === 'run' ? state.resources.salvage : state.resources.scrap) ? (
+            <p className="muted">
+              {shopTimeToAfford(
+                state,
+                kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1),
+                kind === 'run' ? state.resources.salvage : state.resources.scrap,
+              )}
+            </p>
+          ) : null}
+          {shopEconomyRoi(state, info.id) ? <p className="muted">{shopEconomyRoi(state, info.id)}</p> : null}
+        </BottomSheet>
       ) : null}
 
       {coreSlot ? (
-        <div
-          className="upgrade-info-modal"
-          role="dialog"
-          aria-labelledby={`core-info-${coreSlot.slot}`}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setCoreInfo(null)
-          }}
+        <BottomSheet
+          open
+          title={getModule(coreSlot.moduleId)?.name ?? 'Core'}
+          onClose={() => setCoreInfo(null)}
+          size="standard"
+          overlayId={`core-info-${coreSlot.slot}`}
         >
-          <div className="upgrade-info-card">
-            <header className="modal-header">
-              <h3 id={`core-info-${coreSlot.slot}`}>{getModule(coreSlot.moduleId)?.name ?? 'Core'}</h3>
-              <button type="button" onClick={() => setCoreInfo(null)}>
-                Close
-              </button>
-            </header>
-            <p className="muted">
-              Mastery {moduleMasteryRank(state, coreSlot.moduleId)} · Run Lv
-              {coreRunLevel(state, coreSlot.slot)}
-            </p>
-            <p>Run Levels use Salvage and last only for this Sortie.</p>
-            <p className="muted">Mastery is earned while the Core is equipped and survives Rebuild.</p>
-            {(() => {
-              const next = nextMasteryMilestone(coreSlot.moduleId, moduleMasteryRank(state, coreSlot.moduleId))
-              return next ? (
-                <p className="muted">
-                  Next: M{next.level} · {next.name} — {masteryMilestoneEffect(next)}
-                </p>
-              ) : null
-            })()}
-            <p className="muted">Loadout and Relics stay locked until Dock.</p>
-          </div>
-        </div>
+          <p className="muted">
+            Mastery {moduleMasteryRank(state, coreSlot.moduleId)} · Run Lv
+            {coreRunLevel(state, coreSlot.slot)}
+          </p>
+          <p>Run Levels use Salvage and last only for this Sortie.</p>
+          <p className="muted">Mastery is earned while the Core is equipped and survives Rebuild.</p>
+          {(() => {
+            const next = nextMasteryMilestone(coreSlot.moduleId, moduleMasteryRank(state, coreSlot.moduleId))
+            return next ? (
+              <p className="muted">
+                Next: M{next.level} · {next.name} — {masteryMilestoneEffect(next)}
+              </p>
+            ) : null
+          })()}
+          <p className="muted">Loadout and Relics stay locked until Dock.</p>
+        </BottomSheet>
       ) : null}
     </div>
   )

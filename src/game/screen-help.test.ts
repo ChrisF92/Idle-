@@ -15,12 +15,11 @@ describe('screen help and More buckets', () => {
     }
   })
 
-  it('previews one major door and does not dump later systems on More', () => {
+  it('hides locked doors on More and does not dump later systems', () => {
     const fresh = createInitialState(0)
     const early = moreStationBuckets(fresh)
     expect(early.open.map((s) => s.id)).toEqual([])
-    expect(early.next.map((s) => s.id)).toEqual(['codex'])
-    expect(early.next.map((s) => s.id)).not.toContain('capital')
+    expect(early.next).toEqual([])
     expect(early.later).toEqual([])
     expect(MORE_STATIONS.map((s) => s.id)).toEqual(['codex', 'protocols', 'reinforce'])
     expect(MORE_STATIONS.some((s) => s.id === 'logs')).toBe(false)

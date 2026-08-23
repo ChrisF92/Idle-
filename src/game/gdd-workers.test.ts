@@ -32,6 +32,8 @@ describe('GDD Worker Drones', () => {
     expect(isSystemUnlocked(open, 'network')).toBe(true)
     expect(isSystemUnlocked(open, 'base')).toBe(true)
     expect(isStationUnlocked(open, 'scrap-field')).toBe(true)
+    expect(isStationUnlocked(open, 'sensor-net')).toBe(true)
+    expect(isStationUnlocked(open, 'construction')).toBe(false)
     expect(WORKER_JOB_IDS).toEqual([
       'scrap-field',
       'sensor-net',
@@ -108,6 +110,7 @@ describe('GDD Worker Drones', () => {
 
   it('shows an efficient range and dumps overflow onto Salvage ops', () => {
     expect(workerJobLabel('scrap-field')).toBe('Salvage ops')
+    expect(workerJobLabel('sensor-net')).toBe('Sensor Net')
     expect(workerJobLabel('alloy-foundry')).toBe('Processing')
     expect(workerJobLabel('fab-bay')).toBe('Fabrication')
     expect(workerJobCap('construction')).toEqual({ min: 1, efficient: 4, hard: 8 })

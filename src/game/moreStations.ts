@@ -110,9 +110,7 @@ export function moreStationBuckets(state: GameState): {
   later: MajorDoorDef[]
 } {
   const open = MORE_STATIONS.filter((station) => isSystemUnlocked(state, station.id))
-  const nextDoor = nextMajorDoor(state)
-  const next = nextDoor ? [nextDoor] : []
-  return { open, next, later: [] }
+  return { open, next: [], later: [] }
 }
 
 export function isSystemsNavTab(tab: TabId): boolean {

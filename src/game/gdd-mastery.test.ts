@@ -66,6 +66,7 @@ describe('GDD late Act 1 mastery', () => {
     expect(isSystemUnlocked(open, 'echo')).toBe(false)
     expect(MORE_STATIONS.map((s) => s.id)).toEqual(['codex', 'protocols', 'reinforce'])
     expect(moreStationBuckets(open).open.map((s) => s.id)).toEqual(['codex', 'protocols'])
-    expect(moreStationBuckets(open).next.map((s) => s.id)).toEqual(['reinforce'])
+    expect(moreStationBuckets(open).next).toEqual([])
+    expect(moreStationBuckets(open).open.map((s) => s.id)).not.toContain('reinforce')
   })
 })

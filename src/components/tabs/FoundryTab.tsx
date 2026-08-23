@@ -1,6 +1,7 @@
 import type { FacilityId, GameState, YardArmId, YardBuildingId } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
 import { ACT1_CADENCE } from '../../game/cadence'
+import { careerBestWave } from '../../game/waves'
 import {
   FOUNDRY_FACILITIES,
   FOUNDRY_PANE_LABELS,
@@ -262,8 +263,8 @@ export function FoundryTab({
                 <p className="foundry-chain" data-guide="foundry-chain">
                   Recovered Scrap becomes stock, then alloy, then tempered parts. Processing uses Scrap, not Salvage.
                 </p>
-                {FOUNDRY_RECIPES.map((recipe) => {
-                  const unlocked = isFoundryRecipeUnlocked(state, recipe.id)
+                {FOUNDRY_RECIPES.filter((recipe) => isFoundryRecipeUnlocked(state, recipe.id)).map((recipe) => {
+                  const unlocked = true
                   const level = foundryRecipeLevel(state, recipe.id)
                   const stock = foundryMaterialCount(state, recipe.id)
                   const cost = scaledFoundryCost(state, recipe.id)
@@ -358,7 +359,11 @@ export function FoundryTab({
                           <span style={{ transform: `scaleX(${slot.progress})` }} />
                         </div>
                         <p className="network-row-stats">
-                          {slot.complete ? 'Complete — available next Sortie / Dock' : `${Math.round(slot.progress * 100)}%`}
+                          {slot.complete
+                            ? slot.kind === 'facility'
+                              ? 'Complete — bonus is live'
+                              : 'Complete — fit at Dock'
+                            : `${Math.round(slot.progress * 100)}%`}
                         </p>
                         {!slot.complete ? (
                           <button type="button" onClick={() => onStopFabrication?.(i)}>
@@ -381,9 +386,9 @@ export function FoundryTab({
               <>
                 <h3 className="foundry-heading">Construction</h3>
                 <p className="muted">
-                  Facilities consume a Fabrication slot and Construction workers. Bonuses arm on the next Sortie.
+                  Facilities consume a Fabrication slot and Construction workers. Bonuses apply as soon as the job finishes.
                 </p>
-                {FOUNDRY_FACILITIES.map((facility) => {
+                {FOUNDRY_FACILITIES.filter((facility) => careerBestWave(state) >= facility.requiresBestWave).map((facility) => {
                   const check = canStartFabrication(state, 'facility', facility.id)
                   const owned = foundryOwnedCount(state, facility.id)
                   const committed = foundryFacilityCommitted(state, facility.id)

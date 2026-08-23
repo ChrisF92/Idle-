@@ -73,7 +73,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'yard',
     requiresBestWave: ACT1_CADENCE.yard,
     label: 'Construction',
-    tip: 'Foundry construction. Fabricate facilities; bonuses arm on the next Sortie.',
+    tip: 'Foundry construction. Fabricate facilities; bonuses apply as soon as the job finishes.',
   },
   {
     id: 'slag',
@@ -700,20 +700,13 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     return false
   }
   if (systemId === 'foundry') {
-    const used =
-      Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0) ||
-      Object.values(state.foundry?.materials ?? {}).some((n) => n > 0) ||
-      (state.foundry?.facilities ?? []).length > 0
-    return used || meetsWave(state, ACT1_CADENCE.foundry)
+    return meetsWave(state, ACT1_CADENCE.foundry)
   }
   if (systemId === 'slag') {
     return (state.prestige.prestigeCount ?? 0) >= 1 || Object.keys(state.prestige.matterShop ?? {}).length > 0
   }
   if (systemId === 'yard') {
-    const used =
-      (state.foundry?.facilities ?? []).length > 0 ||
-      (state.foundry?.pendingFacilities ?? []).length > 0
-    return used || careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
+    return careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
   }
   if (systemId === 'capital') {
     return meetsWave(state, ACT1_CADENCE.capital) && taskListComplete(state)
@@ -723,9 +716,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   }
   if (systemId === 'ai' || systemId === 'process') {
     const used = (state.process?.purchased?.length ?? 0) > 0 || state.ai.purchased.length > 0
-    const researchProgress =
-      state.research.unlocked.length +
-      Object.values(state.hiveResearch?.completed ?? {}).filter((n) => n > 0).length
+    const researchProgress = Object.values(state.hiveResearch?.completed ?? {}).filter((n) => n > 0).length
     return used || (
       careerBestWave(state) >= ACT1_CADENCE.process &&
       (state.prestige.prestigeCount ?? 0) >= PROCESS_MIN_REBUILDS &&
@@ -736,10 +727,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     return meetsWave(state, ACT1_CADENCE.codex)
   }
   if (systemId === 'research') {
-    const used =
-      state.research.unlocked.length > 0 ||
-      Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
-    return used || meetsWave(state, ACT1_CADENCE.research)
+    return meetsWave(state, ACT1_CADENCE.research)
   }
   if (systemId === 'protocols') {
     const used = Boolean(state.protocols?.activeId) || Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
@@ -833,7 +821,7 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
       return hasHullLostOnce(state)
     case 'choirAsh':
     case 'heat':
-      return isSystemUnlocked(state, 'furnace') || state.resources[id] > 0
+      return isSystemUnlocked(state, 'furnace')
     case 'data':
       return isSystemUnlocked(state, 'research')
     case 'essence':

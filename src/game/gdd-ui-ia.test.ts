@@ -5,9 +5,10 @@ import { systemsTabAttention, tabAttention } from './hubAttention'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
+import { isSystemUnlocked } from './progression'
 
 describe('GDD information architecture', () => {
-  it('keeps More to secondary systems and previews one major door', () => {
+  it('keeps More to unlocked secondary systems and hides locked doors', () => {
     expect(MORE_STATIONS.map((s) => s.id)).toEqual(['codex', 'protocols', 'reinforce'])
     expect(MORE_STATIONS.some((s) => s.id === 'network')).toBe(false)
     expect(MORE_STATIONS.some((s) => s.id === 'furnace')).toBe(false)
@@ -16,45 +17,38 @@ describe('GDD information architecture', () => {
 
     const fresh = moreStationBuckets(createInitialState(0))
     expect(fresh.open).toEqual([])
-    expect(fresh.next.map((s) => s.id)).toEqual(['codex'])
+    expect(fresh.next).toEqual([])
     expect(fresh.later).toEqual([])
 
     const afterCodex = moreStationBuckets(atCareerWave(createInitialState(0), ACT1_CADENCE.codex))
     expect(afterCodex.open.map((s) => s.id)).toEqual(['codex'])
-    expect(afterCodex.next.map((s) => s.id)).toEqual(['foundry'])
-    expect(afterCodex.next[0]?.home).toBe('systems')
+    expect(afterCodex.next).toEqual([])
 
     const afterWorkers = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
-    expect(moreStationBuckets(afterWorkers).next.map((s) => s.id)).toEqual(['furnace'])
+    expect(moreStationBuckets(afterWorkers).next).toEqual([])
     expect(nextMajorDoor(afterWorkers)?.id).toBe('furnace')
-    expect(nextMajorDoor(afterWorkers)?.home).toBe('systems')
 
     const afterFurnace = atCareerWave(createInitialState(0), ACT1_CADENCE.furnace)
-    expect(moreStationBuckets(afterFurnace).next.map((s) => s.id)).toEqual(['research'])
-    expect(nextMajorDoor(afterFurnace)?.home).toBe('systems')
+    expect(moreStationBuckets(afterFurnace).next).toEqual([])
+    expect(nextMajorDoor(afterFurnace)?.id).toBe('research')
 
     const afterResearch = atCareerWave(createInitialState(0), ACT1_CADENCE.research)
-    expect(moreStationBuckets(afterResearch).next.map((s) => s.id)).toEqual(['process'])
-    expect(nextMajorDoor(afterResearch)?.home).toBe('systems')
-
-    const afterProcessWave = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
-    expect(moreStationBuckets(afterProcessWave).next.map((s) => s.id)).toEqual(['process'])
+    expect(moreStationBuckets(afterResearch).next).toEqual([])
+    expect(nextMajorDoor(afterResearch)?.id).toBe('process')
 
     const processOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
     processOpen.prestige.prestigeCount = 2
-    processOpen.research.unlocked.push('alloy-smelting')
-    expect(moreStationBuckets(processOpen).next.map((s) => s.id)).toEqual(['protocols'])
-    expect(nextMajorDoor(processOpen)?.home).toBe('more')
-
-    const afterChallengesWave = atCareerWave(createInitialState(0), ACT1_CADENCE.protocols)
-    expect(moreStationBuckets(afterChallengesWave).next.map((s) => s.id)).toEqual(['process'])
+    processOpen.hiveResearch.completed.energy = 1
+    expect(moreStationBuckets(processOpen).open.map((s) => s.id)).toEqual(['codex'])
+    expect(moreStationBuckets(processOpen).next).toEqual([])
+    expect(nextMajorDoor(processOpen)?.id).toBe('protocols')
 
     const challengesOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.protocols)
     challengesOpen.prestige.prestigeCount = 2
-    challengesOpen.research.unlocked.push('alloy-smelting')
+    challengesOpen.hiveResearch.completed.energy = 1
     expect(moreStationBuckets(challengesOpen).open.map((s) => s.id)).toEqual(['codex', 'protocols'])
-    expect(moreStationBuckets(challengesOpen).next.map((s) => s.id)).toEqual(['reinforce'])
-    expect(nextMajorDoor(challengesOpen)?.home).toBe('more')
+    expect(moreStationBuckets(challengesOpen).next).toEqual([])
+    expect(nextMajorDoor(challengesOpen)?.id).toBe('reinforce')
   })
 
   it('lands Systems on a hub once Worker Drones unlock', () => {
@@ -84,7 +78,7 @@ describe('GDD information architecture', () => {
 
     const process = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.process)
     process.prestige.prestigeCount = 2
-    process.research.unlocked.push('alloy-smelting')
+    process.hiveResearch.completed.energy = 1
     expect(systemsHubCards(process).map((c) => c.id)).toEqual(['foundry', 'furnace', 'research', 'process'])
   })
 
@@ -94,5 +88,21 @@ describe('GDD information architecture', () => {
     expect(tabAttention(workers, 'network').spend).toBe(true)
     expect(systemsTabAttention(workers).spend).toBe(true)
     expect(systemsTabAttention(workers).fresh).toBe(true)
+  })
+
+  it('does not open Furnace or Research before their Wave doors', () => {
+    const mid = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
+    mid.research.unlocked = ['alloy-smelting']
+    mid.hiveResearch.completed.energy = 1
+    expect(isSystemUnlocked(mid, 'furnace')).toBe(false)
+    expect(isSystemUnlocked(mid, 'research')).toBe(false)
+    expect(systemsHubCards(markHullLost(mid)).map((c) => c.id)).toEqual(['foundry'])
+
+    const furnace = atCareerWave(createInitialState(0), ACT1_CADENCE.furnace)
+    expect(isSystemUnlocked(furnace, 'furnace')).toBe(true)
+    expect(isSystemUnlocked(furnace, 'research')).toBe(false)
+
+    const research = atCareerWave(createInitialState(0), ACT1_CADENCE.research)
+    expect(isSystemUnlocked(research, 'research')).toBe(true)
   })
 })

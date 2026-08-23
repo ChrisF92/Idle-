@@ -305,7 +305,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:yard',
         category: 'SYSTEM ONLINE',
         title: 'Construction unlocked',
-        body: 'Foundry construction is open. Build facilities on a Fabrication slot; they arm on the next Sortie.',
+        body: 'Foundry construction is open. Build facilities on a Fabrication slot; bonuses apply as soon as the job finishes.',
         tier: 'major',
         action: { label: 'OPEN', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
       })
@@ -413,7 +413,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       id: `fab-facility:${facilityId}`,
       category: 'FOUNDRY',
       title: 'FACILITY COMPLETE',
-      body: 'Available next Sortie.',
+      body: 'Bonus is live.',
       action: { label: 'OPEN FOUNDRY', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
     })
   }

@@ -473,7 +473,7 @@ function AppShell() {
             onBack={showSystemsHub(game.state) ? () => setSystemsView('hub') : undefined}
           />
         )}
-        {tab === 'furnace' && (
+        {tab === 'furnace' && isHubTabOpen(game.state, 'furnace') && (
           <FurnaceTab
             state={game.state}
             onBack={
@@ -488,7 +488,7 @@ function AppShell() {
             onSetChannel={game.setFurnaceChannel}
           />
         )}
-        {tab === 'research' && (
+        {tab === 'research' && isHubTabOpen(game.state, 'research') && (
           <ResearchTab
             state={game.state}
             onBack={
@@ -512,7 +512,7 @@ function AppShell() {
             onBlockingChange={setBlockingModal}
           />
         )}
-        {tab === 'process' && (
+        {tab === 'process' && isHubTabOpen(game.state, 'process') && (
           <ProcessTab
             state={game.state}
             onBack={
