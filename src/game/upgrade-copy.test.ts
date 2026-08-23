@@ -5,7 +5,7 @@ import {
   masteryMilestonesFor,
 } from './coreProgression'
 import { FURNACE_CHANNELS, furnaceChannelEffectLine } from './furnace'
-import { FOUNDRY_MASTERY_STEPS, FOUNDRY_UPGRADES, foundryMasteryEffect, foundryUpgradeEffectLine } from './foundry'
+import { FOUNDRY_MASTERY_STEPS, FOUNDRY_UPGRADES, foundryMasteryEffect } from './foundry'
 import { HIVE_RESEARCH_NODES, hiveResearchNodeEffectLine } from './hiveResearch'
 import { protocolHookEffect } from './protocols'
 import { RUN_UPGRADES, runUpgradeEffectLine } from './workshop'
