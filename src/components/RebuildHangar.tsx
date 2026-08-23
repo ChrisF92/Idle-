@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import type { GameState } from '../game/types'
 import {
-  MATTER_SHOP,
+  MATTER_SHOP_CATEGORIES,
   canBuyMatterShop,
   getFrame,
   getModule,
   matterShopEffectBlurb,
+  matterShopItemsIn,
   moduleMasteryRank,
   shopRank,
 } from '../game/catalog'
@@ -17,7 +18,7 @@ import { ConsequencePanel } from './ConsequencePanel'
 import { cycleBestWave, rebuildCycle, rebuildWaveNeed, workshopInvestment } from '../game/rebuild'
 import { formatCompact } from '../game/format'
 import { computeShipStats, RESOURCE_LABELS } from '../game/state'
-import { coreDps, coreShieldOutput, permanentMultipliers } from '../game/uiReadout'
+import { coreDps, coreShieldOutput, rebuildPowerPreview } from '../game/uiReadout'
 import { prefersReducedMotion } from '../hooks/usePrefersReducedMotion'
 
 interface RebuildHangarProps {
@@ -39,11 +40,7 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
   const matter = state.resources.prestigeMatter
   const label = RESOURCE_LABELS.prestigeMatter
   const hive = computeShipStats(state)
-  const now = permanentMultipliers(state)
-  const after = permanentMultipliers({
-    ...state,
-    resources: { ...state.resources, prestigeMatter: matter + gain },
-  })
+  const preview = rebuildPowerPreview(state, gain)
   const frame = getFrame(state.shipyard.frameId)
 
   function confirm() {
@@ -130,11 +127,16 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
             <p className="combat-hud-kicker">You gain</p>
             <p className="rebuild-gain">+{gain} {label.toUpperCase()}</p>
             <p className="muted">
-              Damage ×{now.damage.toFixed(1)} → ×{after.damage.toFixed(1)}
+              Damage ×{preview.now.damage.toFixed(2)} → ×{preview.afterBank.damage.toFixed(2)}
               {' · '}
-              Defense ×{now.defense.toFixed(1)} → ×{after.defense.toFixed(1)}
+              Defense ×{preview.now.defense.toFixed(2)} → ×{preview.afterBank.defense.toFixed(2)}
               {' · '}
-              Industry ×{now.industry.toFixed(1)} → ×{after.industry.toFixed(1)}
+              Industry ×{preview.now.industry.toFixed(2)} → ×{preview.afterBank.industry.toFixed(2)}
+            </p>
+            <p className="muted">
+              Workshop Weapon Power rank 1 is ×{preview.workshopRank1.toFixed(2)}. Matter Edge rank 1 is ×
+              {preview.edgeRank1.toFixed(2)}
+              {preview.edgeBeatsWorkshop ? ' — stronger than one Workshop rank, and it survives Rebuild.' : '.'}
             </p>
           </section>
 
@@ -179,29 +181,34 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
             <p>
               {formatCompact(matter, 1)} {label}
             </p>
-            <p className="muted">Permanent ranks. Spend here — there is no separate Slag screen.</p>
-            {MATTER_SHOP.map((item) => {
-              const rank = shopRank(state.prestige.matterShop, item.id)
-              const can = canBuyMatterShop(state, item.id)
-              return (
-                <article key={item.id} className="network-row">
-                  <div className="network-row-main">
-                    <strong>{item.name}</strong>
-                    <span className="muted">Lv {rank}</span>
-                  </div>
-                  <p className="network-row-stats">{item.description}</p>
-                  <p className="muted">{matterShopEffectBlurb(item, rank)}</p>
-                  <button
-                    type="button"
-                    className="primary"
-                    disabled={!onBuyMatter || !can.ok}
-                    onClick={() => onBuyMatter?.(item.id)}
-                  >
-                    {can.ok ? `${can.cost} ${label}` : can.reason}
-                  </button>
-                </article>
-              )
-            })}
+            <p className="muted">Permanent ranks by category. There is no separate Slag screen.</p>
+            {MATTER_SHOP_CATEGORIES.map((cat) => (
+              <div key={cat.id} className="matter-shop-cat">
+                <h4 className="foundry-heading">{cat.name}</h4>
+                {matterShopItemsIn(cat.id).map((item) => {
+                  const rank = shopRank(state.prestige.matterShop, item.id)
+                  const can = canBuyMatterShop(state, item.id)
+                  return (
+                    <article key={item.id} className="network-row">
+                      <div className="network-row-main">
+                        <strong>{item.name}</strong>
+                        <span className="muted">Lv {rank}</span>
+                      </div>
+                      <p className="network-row-stats">{item.description}</p>
+                      <p className="muted">{matterShopEffectBlurb(item, rank)}</p>
+                      <button
+                        type="button"
+                        className="primary"
+                        disabled={!onBuyMatter || !can.ok}
+                        onClick={() => onBuyMatter?.(item.id)}
+                      >
+                        {can.ok ? `${can.cost} ${label}` : can.reason}
+                      </button>
+                    </article>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         </div>
       ) : null}

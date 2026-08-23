@@ -12,6 +12,7 @@ import {
   shopRank,
 } from './catalog'
 import { startCombat } from './tick'
+import { reclaimSpeed } from './workshop'
 import { clearSector } from './testHelpers'
 import { exportSave, importSave } from './save'
 import { NETWORK_STARTING_DRONES } from './network'
@@ -82,6 +83,17 @@ describe('prestige matter shop', () => {
     const enemy = enemyForSector(state.combat.sector, 5)
     state = clearSector(state)
     expect(state.resources.data).toBe(enemy.dataReward + 2)
+  })
+
+  it('Reclaim Clock speeds solved Waves and Workshop Kit is Foundation', () => {
+    let state = createInitialState(0)
+    state.resources.prestigeMatter = 4
+    state.meta.bestWave = 80
+    state.combat.bestWave = 80
+    state.combat.wave = 20
+    const base = reclaimSpeed(state)
+    state = buyMatterShop(state, 'reclaim-clock')
+    expect(reclaimSpeed(state)).toBeGreaterThan(base)
   })
 
   it('keeps matter shop purchases across prestige', () => {

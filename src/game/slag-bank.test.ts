@@ -40,9 +40,9 @@ describe('Slag Bank', () => {
   })
 
   it('uses Hiveworks rank names without a forced More-station tour', () => {
-    expect(getMatterShopItem('matter-blade')?.name).toBe('Slag Edge')
-    expect(getMatterShopItem('matter-forge')?.name).toBe('Slag Forge')
-    expect(getMatterShopItem('matter-plating')?.name).toBe('Slag Plate')
+    expect(getMatterShopItem('matter-blade')?.name).toBe('Edge')
+    expect(getMatterShopItem('matter-forge')?.name).toBe('Forge')
+    expect(getMatterShopItem('matter-plating')?.name).toBe('Plate')
     expect(MATTER_SHOP.length).toBeGreaterThan(8)
     expect(GUIDE_STEPS.some((step) => step.id === 'guide-slag')).toBe(false)
   })

@@ -25,6 +25,7 @@ import {
   getFrame,
   STARTER_FRAME_ID,
   getMatterShopItem,
+  matterShopWorkshopStarts,
   getModule,
   getStation,
   isAiNodePermanent,
@@ -1414,6 +1415,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     state.shipyard.corePicks ?? {},
   )
   state.workshop = createEmptyWorkshop()
+  const kit = matterShopWorkshopStarts(kept.matterShop)
+  if (kit > 0) state.workshop.levels['weapon-power'] = kit
   state.combat = {
     ...fresh.combat,
     bestWave: Math.max(kept.meta.bestWave ?? 0, 0),

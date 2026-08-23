@@ -49,6 +49,8 @@ export interface HiveResearchNodeDef {
   unlockRelay?: NetworkBarId
   unlockReliquary?: ReliquaryColor
   unlockFrame?: string
+  /** Cores lock wounded / boss hulls first. */
+  focusFire?: boolean
 }
 
 export const HIVE_RESEARCH_BRANCHES: {
@@ -107,7 +109,12 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     },
   ],
   energy: [
-    { name: 'Ward Current', blurb: 'A little more max shield.', kind: 'incremental', shield: 0.03 },
+    {
+      name: 'Priority Lock',
+      blurb: 'Cores lock wounded hulls and bosses first. A permanent targeting rule.',
+      kind: 'breakthrough',
+      focusFire: true,
+    },
     { name: 'Ash Kindling', blurb: 'Choir-ash makes a little more Heat.', kind: 'incremental', heatFromAsh: 0.08 },
     {
       name: 'Extra Tap',
@@ -273,6 +280,7 @@ interface HiveBonuses {
   protocolXp: number
   unlockRelays: NetworkBarId[]
   unlockReliquary: ReliquaryColor[]
+  focusFire: boolean
 }
 
 function emptyHiveBonuses(): HiveBonuses {
@@ -298,6 +306,7 @@ function emptyHiveBonuses(): HiveBonuses {
     protocolXp: 0,
     unlockRelays: [],
     unlockReliquary: [],
+    focusFire: false,
   }
 }
 
@@ -327,6 +336,7 @@ function addNode(out: HiveBonuses, node: HiveResearchNodeDef): void {
   if (node.unlockReliquary && !out.unlockReliquary.includes(node.unlockReliquary)) {
     out.unlockReliquary.push(node.unlockReliquary)
   }
+  if (node.focusFire) out.focusFire = true
 }
 
 export function hiveResearchBonuses(state: GameState): HiveBonuses {
@@ -428,6 +438,10 @@ export function hiveResearchExtraUtilitySlots(state: GameState): number {
   return hiveResearchBonuses(state).extraUtilitySlots + late
 }
 
+export function hiveResearchFocusFire(state: GameState): boolean {
+  return hiveResearchBonuses(state).focusFire
+}
+
 export function hiveResearchUpcoming(
   state: GameState,
   branch: HiveResearchBranch,
@@ -467,7 +481,8 @@ export function hiveResearchApproachingBreakthrough(state: GameState): boolean {
 }
 
 export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
-  if (node.foundrySlots) return 'Adds a Foundry smelter.'
+  if (node.focusFire) return 'Cores lock wounded hulls and bosses first.'
+  if (node.foundrySlots) return 'Adds a Foundry processor.'
   if (node.furnaceSlots) {
     return node.unlockRelay
       ? 'Opens Archive Relay and lights another Furnace channel.'

@@ -16,7 +16,7 @@ describe('system cuts', () => {
     const anatomy = RESEARCH.find((r) => r.id === 'entity-anatomy')
     expect(optics?.damageBonus).toBeUndefined()
     expect(anatomy?.damageBonus).toBeUndefined()
-    expect(anatomy?.essenceBonus).toBe(0.25)
+    expect(anatomy?.essenceBonus).toBeUndefined()
 
     let state = createInitialState(0)
     const before = computeShipStats(state).damage
@@ -25,7 +25,7 @@ describe('system cuts', () => {
     state = buyResearch(state, 'entity-anatomy')
     expect(researchDamageMultiplier(state.research.unlocked)).toBe(1)
     expect(computeShipStats(state).damage).toBe(before)
-    expect(researchEssenceMultiplier(state.research.unlocked)).toBeGreaterThan(1)
+    expect(researchEssenceMultiplier(state.research.unlocked)).toBe(1)
   })
 
   it('manufacture speed only from drone-fab station + AI overclock', () => {

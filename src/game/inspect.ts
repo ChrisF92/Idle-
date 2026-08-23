@@ -696,7 +696,7 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
       def.blurb,
       'One Research project at a time. Choose which discipline to focus.',
       'The project runs during Sorties, at Dock, and offline. Sensor Net drones speed it up.',
-      'Most nodes are small numbers. Breakthroughs unlock a mechanic — a smelter, a Core slot, a Reliquary colour.',
+      'Breakthroughs change a rule — targeting, a processor slot, a Frame, a Reliquary colour. Small percent nodes stay rare.',
       next ? hiveResearchNodeEffectLine(next.node) : 'This discipline is complete.',
       'Nodes persist when you Rebuild.',
     ],

@@ -155,13 +155,33 @@ export interface ChallengeShopDef {
   unlockModuleId?: string
 }
 
+export type MatterShopCategory =
+  | 'offensive'
+  | 'defensive'
+  | 'industrial'
+  | 'foundation'
+  | 'temporal'
+
+export const MATTER_SHOP_CATEGORIES: { id: MatterShopCategory; name: string }[] = [
+  { id: 'offensive', name: 'Offensive' },
+  { id: 'defensive', name: 'Defensive' },
+  { id: 'industrial', name: 'Industrial' },
+  { id: 'foundation', name: 'Foundation' },
+  { id: 'temporal', name: 'Temporal' },
+]
+
 export interface MatterShopDef {
   id: string
   name: string
   description: string
+  category: MatterShopCategory
   costPm: number
   /** Max purchase rank (default 1). */
   maxRank?: number
+  /** Weapon Power Workshop ranks applied after each Rebuild. */
+  workshopStartRanks?: number
+  /** Additive reclaim-speed bonus per rank (solved-wave compression). */
+  reclaimBonus?: number
   damageBonus?: number
   productionBonus?: number
   hullBonus?: number
@@ -470,6 +490,7 @@ export const STATIONS: StationDef[] = [
   },
 ]
 
+/** Leftover Data shop. Unlocks stations only — combat / essence / training bonuses are frozen. */
 export const RESEARCH: ResearchDef[] = [
   {
     id: 'basic-optics',
@@ -515,14 +536,12 @@ export const RESEARCH: ResearchDef[] = [
     name: 'Core Drills',
     description: '+35% Core attribute training speed. Permanent.',
     costData: 120,
-    trainingBonus: 0.35,
   },
   {
     id: 'entity-anatomy',
     name: 'Entity Anatomy',
     description: 'Deep autopsy protocols. +25% Essence from bosses. Required for advanced study. Permanent.',
     costData: 150,
-    essenceBonus: 0.25,
   },
   {
     id: 'boss-harvester',
@@ -530,7 +549,6 @@ export const RESEARCH: ResearchDef[] = [
     description: 'Extract more Essence from bosses (+100%). Permanent.',
     costData: 70,
     costEssence: 1,
-    essenceBonus: 1,
   },
 ]
 
@@ -950,24 +968,27 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
 export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'matter-blade',
-    name: 'Slag Edge',
+    name: 'Edge',
     description: 'Permanent combat multiplier. Each rank compounds at ×1.15.',
+    category: 'offensive',
     costPm: 3,
     maxRank: 25,
     damageBonus: 0.15,
   },
   {
     id: 'matter-forge',
-    name: 'Slag Forge',
+    name: 'Forge',
     description: 'Permanent production multiplier. Each rank compounds at ×1.15.',
+    category: 'industrial',
     costPm: 3,
     maxRank: 25,
     productionBonus: 0.15,
   },
   {
     id: 'matter-plating',
-    name: 'Slag Plate',
+    name: 'Plate',
     description: 'Permanent hull reinforcement. Flat gains accelerate across ranks.',
+    category: 'defensive',
     costPm: 4,
     maxRank: 25,
     hullBonus: 80,
@@ -976,6 +997,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
     id: 'salvage-rights',
     name: 'Salvage Rights',
     description: 'Permanent +25% scrap from combat clears (deep ranks).',
+    category: 'industrial',
     costPm: 3,
     maxRank: 30,
     scrapBonus: 0.25,
@@ -984,6 +1006,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
     id: 'archive-spur',
     name: 'Archive Spur',
     description: 'Permanent +2 Data on every 10-wave clear (deep ranks).',
+    category: 'temporal',
     costPm: 3,
     maxRank: 30,
     bonusDataPerClear: 2,
@@ -992,6 +1015,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
     id: 'drydock-boost',
     name: 'Drydock Boost',
     description: 'Permanent faster hull / shield repair while Paused (deep ranks).',
+    category: 'foundation',
     costPm: 4,
     maxRank: 25,
     repairMult: 0.6,
@@ -1000,6 +1024,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
     id: 'shield-bank',
     name: 'Shield Bank',
     description: 'Permanent shield bank. Flat gains accelerate across ranks.',
+    category: 'defensive',
     costPm: 4,
     maxRank: 25,
     shieldBonus: 65,
@@ -1008,6 +1033,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
     id: 'drone-corps',
     name: 'Drone Corps Charter',
     description: '+5 worker drone corps capacity per rank (deep ranks).',
+    category: 'industrial',
     costPm: 5,
     maxRank: 20,
     droneCapBonus: 5,
@@ -1017,6 +1043,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
     name: 'Drone Acuity',
     description:
       'Permanent drone-power multiplier. Each rank compounds at ×1.12; black-bar stations with fewer bodies.',
+    category: 'industrial',
     costPm: 4,
     maxRank: 25,
     dronePowerBonus: 0.12,
@@ -1025,6 +1052,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
     id: 'synapse-lattice',
     name: 'Synapse Lattice',
     description: '+12% Core training speed per rank (deep ranks; extra ranks +45% of base).',
+    category: 'foundation',
     costPm: 4,
     maxRank: 25,
     trainingBonus: 0.12,
@@ -1034,9 +1062,28 @@ export const MATTER_SHOP: MatterShopDef[] = [
     name: 'Fragment Magnet',
     description:
       'Permanent +10% blueprint part drop chance per rank (deep ranks; extra ranks +45% of base).',
+    category: 'industrial',
     costPm: 4,
     maxRank: 25,
     dropBonus: 0.1,
+  },
+  {
+    id: 'workshop-kit',
+    name: 'Workshop Kit',
+    description: 'Each Rebuild starts with +1 Weapon Power Workshop rank per Kit rank.',
+    category: 'foundation',
+    costPm: 5,
+    maxRank: 10,
+    workshopStartRanks: 1,
+  },
+  {
+    id: 'reclaim-clock',
+    name: 'Reclaim Clock',
+    description: 'Solved Waves compress faster. Each rank adds +10% reclaim speed.',
+    category: 'temporal',
+    costPm: 4,
+    maxRank: 15,
+    reclaimBonus: 0.1,
   },
 ]
 
@@ -2706,6 +2753,28 @@ export function getMatterShopItem(id: string): MatterShopDef | undefined {
   return MATTER_SHOP.find((m) => m.id === id)
 }
 
+export function matterShopItemsIn(category: MatterShopCategory): MatterShopDef[] {
+  return MATTER_SHOP.filter((item) => item.category === category)
+}
+
+export function matterShopWorkshopStarts(matterShop: Record<string, number> = {}): number {
+  let ranks = 0
+  for (const [id, rank] of Object.entries(matterShop)) {
+    const n = getMatterShopItem(id)?.workshopStartRanks ?? 0
+    if (n) ranks += n * Math.max(0, Math.floor(rank))
+  }
+  return ranks
+}
+
+export function matterShopReclaimBonus(matterShop: Record<string, number> = {}): number {
+  let bonus = 0
+  for (const [id, rank] of Object.entries(matterShop)) {
+    const n = getMatterShopItem(id)?.reclaimBonus ?? 0
+    if (n) bonus += n * Math.max(0, Math.floor(rank))
+  }
+  return bonus
+}
+
 export function getAiNode(id: string): AiNodeDef | undefined {
   return AI_NODES.find((n) => n.id === id)
 }
@@ -3452,6 +3521,8 @@ export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string 
     bits.push(`+${(def.trainingBonus * s * 100).toFixed(1)}% Core training`)
   }
   if (def.dropBonus) bits.push(`+${(def.dropBonus * s * 100).toFixed(1)}% part drops`)
+  if (def.workshopStartRanks) bits.push(`+${def.workshopStartRanks * rank} Workshop start`)
+  if (def.reclaimBonus) bits.push(`+${Math.round(def.reclaimBonus * rank * 100)}% reclaim`)
   return bits.join(' · ') || 'Owned'
 }
 

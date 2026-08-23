@@ -16,6 +16,7 @@ import {
   hiveResearchDamageMult,
   hiveResearchDroneEffMult,
   hiveResearchExtraUtilitySlots,
+  hiveResearchFocusFire,
   hiveResearchFitSlots,
   hiveResearchFoundrySlots,
   hiveResearchFurnaceSlots,
@@ -92,11 +93,9 @@ describe('Research milestones: nodes and identity', () => {
   it('previews the next three discoveries including the first breakthrough from rank 0', () => {
     const s = atResearch()
     const upcoming = hiveResearchUpcoming(s, 'energy')
-    expect(upcoming.map((row) => row.node.name)).toEqual(['Ward Current', 'Ash Kindling', 'Extra Tap'])
-    expect(hiveResearchNextBreakthrough(s, 'energy')?.node.name).toBe('Extra Tap')
-    expect(hiveResearchNextBreakthrough(s, 'energy')?.index).toBe(2)
-    expect(hiveResearchApproachingBreakthrough(s)).toBe(false)
-    complete(s, 'energy', 2)
+    expect(upcoming.map((row) => row.node.name)).toEqual(['Priority Lock'])
+    expect(hiveResearchNextBreakthrough(s, 'energy')?.node.name).toBe('Priority Lock')
+    expect(hiveResearchNextBreakthrough(s, 'energy')?.index).toBe(0)
     expect(hiveResearchApproachingBreakthrough(s)).toBe(true)
   })
 
@@ -177,10 +176,10 @@ describe('Research milestones: breakthrough wiring', () => {
     expect(foundryMasteryStepsFor(slag, s).at(-1)?.at).toBe(18)
   })
 
-  it('Energy Extra Tap lights another Furnace channel; Ward Current is shield not damage', () => {
+  it('Energy Extra Tap lights another Furnace channel; Priority Lock is targeting not damage', () => {
     const s = atResearch()
     complete(s, 'energy', 1)
-    expect(hiveResearchShieldMult(s)).toBeGreaterThan(1)
+    expect(hiveResearchFocusFire(s)).toBe(true)
     expect(hiveResearchDamageMult(s)).toBe(1)
     complete(s, 'energy', 3)
     expect(hiveResearchFurnaceSlots(s)).toBe(1)

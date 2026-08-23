@@ -4,7 +4,7 @@ export function ConsequencePanel({ lists }: { lists: ConsequenceLists }) {
   return (
     <div className="consequence-lists">
       <section>
-        <h4>Gain</h4>
+        <h4>GAIN</h4>
         <ul>
           {lists.gain.map((line) => (
             <li key={line}>{line}</li>
@@ -12,7 +12,7 @@ export function ConsequencePanel({ lists }: { lists: ConsequenceLists }) {
         </ul>
       </section>
       <section>
-        <h4>You keep</h4>
+        <h4>KEEP</h4>
         <ul>
           {lists.keep.map((line) => (
             <li key={line}>{line}</li>
@@ -20,7 +20,7 @@ export function ConsequencePanel({ lists }: { lists: ConsequenceLists }) {
         </ul>
       </section>
       <section>
-        <h4>You reset</h4>
+        <h4>RESET</h4>
         <ul>
           {lists.reset.map((line) => (
             <li key={line}>{line}</li>

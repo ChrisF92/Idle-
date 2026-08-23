@@ -88,8 +88,8 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'slag',
-    title: 'Slag Bank',
-    body: 'Rebuild Matter sits in the header and banks a trickle. The Slag Bank spends it on hangar ranks — edge, forge, plate. Ranks beat banking.',
+    title: 'Matter shop',
+    body: 'Rebuild Matter sits in the hangar. Spend it on Offensive, Defensive, Industrial, Foundation, or Temporal ranks. Ranks beat banking.',
     unlock: (s) => (s.prestige.prestigeCount ?? 0) >= 1,
   },
   {

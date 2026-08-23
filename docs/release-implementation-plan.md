@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ Relic sockets + Foundry factory presentation (SAVE_VERSION 35, package `0.1.0`)  
+**Code snapshot:** `main` @ Research tree + Matter shop identity (SAVE_VERSION 35, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -96,6 +96,7 @@ Main already has the **GDD spine**, locked by `src/game/gdd-*.test.ts`:
 | Player copy uses Wave / Hive, not Sector / Flagship | HUD, inspect, Codex, Stats, Sortie diagnostics |
 | Relic sockets + GDD Core roster | Optical / Ballistic families; leftovers hidden from Prints |
 | Foundry factory presentation | Processing / Fabrication panes; Worker efficient/hard copy |
+| Research tree + Matter identity | Priority Lock; hangar Matter categories; Rebuild power preview |
 
 **Cadence in code** (`src/game/cadence.ts`) already matches GDD §102:
 
@@ -131,7 +132,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Sortie loop (W1, auto-combat, death/Extract) | DONE | Extract +12% Scrap |
 | Salvage Attack/Defense/Economy shop | PARTIAL | Only 6 upgrades; later crit/pen/armor/scrap-kill missing |
 | Workshop | DONE | Caps 80; preview Current/Next exists |
-| Rebuild + Matter + Rebuild UI facts | DONE | Decision copy landed in `83d3350` |
+| Rebuild + Matter + Rebuild UI facts | DONE | RESET/KEEP/GAIN; hangar Matter shop by GDD category; Edge vs Workshop preview |
 | Reinforce door after W300 | PARTIAL | Door exists; Act 2 rules correctly deferred; climax needs feel |
 | Directives | DONE | |
 | Furnace push channels | DONE | Extra non-GDD channels still in types |
@@ -145,7 +146,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Core Mastery milestones 5/10/20/…/100 | PARTIAL | Part-invest mastery, cap 10→20 at W275 |
 | Relics on Cores | DONE | Power / Optical / Ballistic / Shield / Industrial / Universal. Process auto-seats Core sockets |
 | Standalone Reliquary / colour slots | LEGACY | Tab still in `App.tsx`; colour bonuses disabled |
-| Research visual branching tree | PARTIAL | 4×9 nodes, preview-one; not a reconnecting tree |
+| Research visual branching tree | DONE | Tree dots + next-only names. First Hive Engineering node is Priority Lock |
 | Process T1–T3 | PARTIAL | 42 nodes, 8 hidden; presets still named Strike/Ward |
 | Process T4–T6 rule builder | MISSING | |
 | Challenges | PARTIAL | Rules shown; confirm-launch + reward identity can deepen |
@@ -372,12 +373,12 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 
 **Work:**
 
-1. Delete or freeze the old `research.unlocked` string shop if it still grants parallel power.
-2. Visual branching tree per discipline (Hive Engineering, Drone Systems, Industrial Science, Computational Systems). Preview a small first slice on unlock (GDD §138).
-3. Prefer nodes that add mechanics / queues / targeting / automation over tiny %.
-4. 1 active project; later queue / second slot / Worker assist / Process auto-pick.
-5. Matter shop categories inside Rebuild only (GDD §70): Offensive, Defensive, Industrial, Foundation (baseline Workshop), Temporal (reclaim / Rebuild value). No Slag tab.
-6. Rebuild screen already lists RESET/KEEP/GAIN — add honest power preview where the formula is stable (GDD §119).
+1. **Done (freeze).** Leftover `research.unlocked` shop no longer grants damage, essence, or training power. Station unlock keys stay (`alloy-smelting`, `drone-logistics`, …).
+2. **Done.** Visual tree per discipline; only the next project is named (GDD §138).
+3. **Done (first cut).** Hive Engineering opens on Priority Lock (targeting). Later incrementals still exist.
+4. **Done already.** 1 active project; Worker Sensor Net assist; queue/second slot still later.
+5. **Done.** Matter shop is Rebuild-only, grouped Offensive / Defensive / Industrial / Foundation / Temporal. Workshop Kit + Reclaim Clock added. No Slag tab.
+6. **Done.** RESET / KEEP / GAIN labels plus Edge ×1.15 vs Workshop Weapon Power ×1.08 preview.
 
 **Acceptance:** first Research unlock is one project with a duration and a permanent rule change. Matter purchases are visibly stronger than Workshop.
 

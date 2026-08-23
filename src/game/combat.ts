@@ -83,7 +83,12 @@ import { networkSalvageMult } from './network'
 import { grantReliquaryKillLoot, reliquaryResearchXpMult, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
 import { foundrySalvageMult, foundryPartDropMult, foundryShardDropBonus } from './foundry'
-import { grantHiveResearchKillXp, hiveResearchSalvageMult, hiveResearchShardDropBonus } from './hiveResearch'
+import {
+  grantHiveResearchKillXp,
+  hiveResearchFocusFire,
+  hiveResearchSalvageMult,
+  hiveResearchShardDropBonus,
+} from './hiveResearch'
 import { yardSalvageMult } from './yard'
 import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
@@ -2635,7 +2640,7 @@ export function simulateCombat(
     challengeShopMatchupBonus(state.prestige.shop) +
     sensorsMatchupBonus(state.core?.ranks.sensors ?? 0) +
     computeSignalCoreBonuses(state).matchup
-  const focusFire = aiDoctrinesActive(state, 'focus-fire')
+  const focusFire = aiDoctrinesActive(state, 'focus-fire') || hiveResearchFocusFire(state)
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
 
   moveUnits(state, dt)

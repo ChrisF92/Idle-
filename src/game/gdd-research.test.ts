@@ -4,9 +4,13 @@ import { ACT1_CADENCE } from './cadence'
 import {
   grantHiveResearchKillXp,
   hiveResearchActive,
+  hiveResearchActiveNode,
   hiveResearchCompleted,
+  hiveResearchFocusFire,
   hiveResearchNodeCost,
+  hiveResearchNodeEffectLine,
   hiveResearchSpeed,
+  hiveResearchUpcoming,
   hiveResearchXp,
   HIVE_RESEARCH_NODES,
   HIVE_RESEARCH_WORKER_ACCEL,
@@ -77,6 +81,26 @@ describe('GDD Research', () => {
     s.hiveResearch.xp.energy = need - 1
     advanceTicks(s, 2)
     expect(hiveResearchCompleted(s, 'energy')).toBe(1)
+    expect(hiveResearchActive(s)).toBe(false)
+  })
+
+  it('opens Hive Engineering on a targeting rule, not a percent shop', () => {
+    let s = researchState()
+    s.combat.docked = true
+    s = setResearchFocus(s, 'energy')
+    const first = hiveResearchActiveNode(s)
+    expect(first?.name).toBe('Priority Lock')
+    expect(first?.kind).toBe('breakthrough')
+    expect(first?.focusFire).toBe(true)
+    expect(hiveResearchNodeEffectLine(first!)).toMatch(/wounded hulls/)
+    expect(hiveResearchUpcoming(s, 'energy')).toHaveLength(1)
+    expect(hiveResearchUpcoming(s, 'energy')[0]?.node.name).toBe('Priority Lock')
+
+    const need = hiveResearchNodeCost(0, s)
+    s.hiveResearch.xp.energy = need - 1
+    advanceTicks(s, 2)
+    expect(hiveResearchCompleted(s, 'energy')).toBe(1)
+    expect(hiveResearchFocusFire(s)).toBe(true)
     expect(hiveResearchActive(s)).toBe(false)
   })
 

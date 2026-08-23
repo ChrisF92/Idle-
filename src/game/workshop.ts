@@ -1,6 +1,7 @@
 /** GDD Workshop + temporary Sortie upgrades. Cycle-level starts; run purchases on top. */
 
 import type { GameState, RunUpgradeCategory, RunUpgradeId, WorkshopState } from './types'
+import { matterShopReclaimBonus } from './catalog'
 
 export type { RunUpgradeCategory, RunUpgradeId, WorkshopState }
 
@@ -251,5 +252,6 @@ export function reclaimSpeed(state: GameState): number {
   const best = Math.max(0, state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const wave = Math.max(1, state.combat.wave ?? 1)
   if (best <= wave) return 1
-  return Math.min(4, 1 + 0.5 * Math.floor((best - wave) / 10))
-}
+  const matter = 1 + matterShopReclaimBonus(state.prestige?.matterShop ?? {})
+  return Math.min(4, (1 + 0.5 * Math.floor((best - wave) / 10)) * matter)
+

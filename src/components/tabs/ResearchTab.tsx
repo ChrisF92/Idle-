@@ -26,6 +26,48 @@ interface ResearchTabProps {
   guideTarget?: string | null
 }
 
+function ResearchTree({
+  branchId,
+  done,
+}: {
+  branchId: HiveResearchBranch
+  done: number
+}) {
+  const nodes = HIVE_RESEARCH_NODES[branchId]
+  return (
+    <div className="research-tree" aria-hidden>
+      {[0, 1, 2].map((group) => (
+        <div key={group} className="research-tree-group">
+          {[0, 1, 2].map((offset) => {
+            const index = group * 3 + offset
+            const node = nodes[index]
+            if (!node) return null
+            const filled = index < done
+            const next = index === done
+            const hidden = index > done
+            const bt = isResearchBreakthrough(node)
+            return (
+              <span
+                key={node.name}
+                className={[
+                  'research-node',
+                  bt ? 'is-breakthrough' : '',
+                  filled ? 'is-done' : '',
+                  next ? 'is-next' : '',
+                  hidden ? 'is-hidden' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                title={hidden ? undefined : node.name}
+              />
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
   const open = isSystemUnlocked(state, 'research')
   const running = hiveResearchActive(state)
@@ -53,7 +95,7 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
       ) : (
         <div className="panel-scroll">
           <p className="muted" data-guide="research-branches">
-            Sensor Net {drones} · speed ×{speed.toFixed(2)}.
+            Sensor Net {drones} · speed ×{speed.toFixed(2)}. Only the next project is named.
           </p>
           {HIVE_RESEARCH_BRANCHES.map((branch) => {
             const locked = !hiveResearchBranchUnlocked(state, branch.id)
@@ -95,6 +137,7 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
                   </span>
                 </div>
                 <p className="network-row-stats">{branch.blurb}</p>
+                <ResearchTree branchId={branch.id} done={done} />
                 {next ? (
                   <>
                     <div className="network-fill" aria-hidden>
@@ -112,19 +155,6 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
                 ) : (
                   <p className="muted">Discipline complete</p>
                 )}
-                {done > 0 ? (
-                  <ul className="station-node-list">
-                    {nodes.slice(0, done).map((node) => (
-                      <li
-                        key={node.name}
-                        className={isResearchBreakthrough(node) ? 'research-breakthrough' : undefined}
-                      >
-                        {isResearchBreakthrough(node) ? 'Breakthrough · ' : ''}
-                        {node.name}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
                 {next ? (
                   <button
                     type="button"

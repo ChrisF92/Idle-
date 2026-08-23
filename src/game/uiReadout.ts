@@ -2,8 +2,10 @@
 
 import {
   getAiNode,
+  getMatterShopItem,
   getModule,
   matterShopHullBonus,
+  matterShopRankMultiplier,
   matterShopShieldBonus,
   metaDamageMultiplier,
   metaProductionMultiplier,
@@ -72,6 +74,24 @@ export function permanentMultipliers(state: GameState): {
     defense: 1 + hullBonus * 0.01 + shieldBonus * 0.01,
     industry: metaProductionMultiplier(matter, state.prestige.matterShop, state.prestige.challengeClears),
   }
+}
+
+/** Honest Rebuild preview: banked Matter vs spending Edge, vs one Workshop rank. */
+export function rebuildPowerPreview(state: GameState, gain: number): {
+  now: ReturnType<typeof permanentMultipliers>
+  afterBank: ReturnType<typeof permanentMultipliers>
+  workshopRank1: number
+  edgeRank1: number
+  edgeBeatsWorkshop: boolean
+} {
+  const now = permanentMultipliers(state)
+  const afterBank = permanentMultipliers({
+    ...state,
+    resources: { ...state.resources, prestigeMatter: (state.resources.prestigeMatter ?? 0) + Math.max(0, gain) },
+  })
+  const workshopRank1 = 1.08
+  const edgeRank1 = matterShopRankMultiplier(getMatterShopItem('matter-blade')?.damageBonus ?? 0.15, 1)
+  return { now, afterBank, workshopRank1, edgeRank1, edgeBeatsWorkshop: edgeRank1 > workshopRank1 }
 }
 
 export function formatRunTime(seconds: number): string {

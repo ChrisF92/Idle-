@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buyWorkshopUpgrade, canPrestige, performRebuild, prestigeGainFor } from './actions'
+import { buyMatterShop, buyWorkshopUpgrade, canPrestige, performRebuild, prestigeGainFor } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { equipRelicOnCore } from './reliquary'
 import {
@@ -11,6 +11,8 @@ import {
 import { createInitialState } from './state'
 import { armRebuildDoor, atCareerWave } from './testHelpers'
 import { setDocked } from './tick'
+import { MATTER_SHOP, MATTER_SHOP_CATEGORIES } from './catalog'
+import { rebuildPowerPreview } from './uiReadout'
 
 describe('GDD Rebuild', () => {
   it('stays locked before Wave 70 even with enough Sorties', () => {
@@ -101,6 +103,27 @@ describe('GDD Rebuild', () => {
     s = atCareerWave(s, 70)
     s.prestige.cycle.sorties = 2
     expect(canPrestige(s)).toBe(true)
+  })
+
+  it('shows Matter stronger than Workshop and applies Workshop Kit after Rebuild', () => {
+    const preview = rebuildPowerPreview(armRebuildDoor(createInitialState(0)), 8)
+    expect(preview.edgeBeatsWorkshop).toBe(true)
+    expect(preview.edgeRank1).toBeGreaterThan(preview.workshopRank1)
+    expect(MATTER_SHOP_CATEGORIES.map((c) => c.id)).toEqual([
+      'offensive',
+      'defensive',
+      'industrial',
+      'foundation',
+      'temporal',
+    ])
+    expect(MATTER_SHOP.every((item) => item.category)).toBe(true)
+
+    let s = armRebuildDoor(createInitialState(0))
+    s.resources.prestigeMatter = 5
+    s = buyMatterShop(s, 'workshop-kit')
+    expect(s.prestige.matterShop['workshop-kit']).toBe(1)
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    expect(s.workshop.levels['weapon-power']).toBe(1)
   })
 })
 
