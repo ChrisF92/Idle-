@@ -1,4 +1,5 @@
 .app {
+  width: min(480px, 100%);
   max-width: 480px;
   margin: 0 auto;
   height: 100dvh;
@@ -8,6 +9,7 @@
   grid-template-rows: auto 1fr auto;
   gap: 0;
   padding: env(safe-area-inset-top, 0px) 0 0;
+  box-sizing: border-box;
 }
 
 .app.is-sortie {
@@ -636,6 +638,8 @@ h2 .inspect-name {
 }
 
 .main {
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -644,6 +648,8 @@ h2 .inspect-name {
 
 .main > section {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -743,6 +749,8 @@ h2 .inspect-name {
 
 .sortie-screen {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -894,11 +902,17 @@ h2 .inspect-name {
 
 .sheet-tabs {
   display: flex;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   width: 100%;
+  min-width: 0;
   flex: 0 0 auto;
   margin-bottom: 0.35rem;
   box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .pane-tabs {
@@ -910,9 +924,10 @@ h2 .inspect-name {
 }
 
 .sheet-tab {
-  flex: 1;
+  flex: 1 0 auto;
+  min-width: 4.6rem;
   min-height: var(--touch);
-  padding: var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-3);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;

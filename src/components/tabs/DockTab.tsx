@@ -107,22 +107,36 @@ export function DockTab({
 
   return (
     <Screen className="dock-screen is-tabbed" sticky label="Dock">
-      <ContextBar>
-        {pane === 'home' ? (
-          <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
-        ) : (
-          <button type="button" className="dock-back-btn" onClick={() => setPane('home')}>
-            Dock
-          </button>
-        )}
-        {pane === 'loadout' && onOpenInventory ? (
-          <button type="button" className="dock-inventory-btn" onClick={onOpenInventory}>
-            Inventory
-          </button>
+      <div className="dock-screen-head">
+        <ContextBar>
+          {pane === 'home' ? (
+            <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
+          ) : (
+            <button type="button" className="dock-back-btn" onClick={() => setPane('home')}>
+              Dock
+            </button>
+          )}
+          {pane === 'loadout' && onOpenInventory ? (
+            <button type="button" className="dock-inventory-btn" onClick={onOpenInventory}>
+              Inventory
+            </button>
+          ) : null}
+          {pane === 'workshop' ? <ResourceBar state={state} only={['scrap']} compact /> : null}
+          {pane === 'rebuild' ? <ResourceBar state={state} only={['prestigeMatter']} compact /> : null}
+        </ContextBar>
+        {pane === 'workshop' && showWorkshop ? (
+          <SheetTabs
+            value={workshopCat}
+            onChange={setWorkshopCat}
+            options={[
+              { id: 'attack', label: 'Attack' },
+              { id: 'defense', label: 'Defense' },
+              { id: 'economy', label: 'Economy' },
+            ]}
+            label="Workshop categories"
+          />
         ) : null}
-        {pane === 'workshop' ? <ResourceBar state={state} only={['scrap']} compact /> : null}
-        {pane === 'rebuild' ? <ResourceBar state={state} only={['prestigeMatter']} compact /> : null}
-      </ContextBar>
+      </div>
 
       <div className="dock-pane">
         {pane === 'home' ? (
@@ -185,16 +199,6 @@ export function DockTab({
         {pane === 'workshop' && showWorkshop ? (
           <div className="dock-workshop" data-guide="workshop">
             {locked ? <p className="ui-meta">Workshop buys wait until Dock.</p> : null}
-            <SheetTabs
-              value={workshopCat}
-              onChange={setWorkshopCat}
-              options={[
-                { id: 'attack', label: 'Attack' },
-                { id: 'defense', label: 'Defense' },
-                { id: 'economy', label: 'Economy' },
-              ]}
-              label="Workshop categories"
-            />
             <BuyModeRow state={state} value={buyMode} onChange={setBuyMode} />
             <UpgradeGrid
               state={state}

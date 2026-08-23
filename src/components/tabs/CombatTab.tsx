@@ -353,7 +353,7 @@ export function CombatTab({
               )}
             </div>
             {shopCollapsed ? null : (
-              <>
+              <div className="sortie-shop-body">
                 <BuyModeRow state={state} value={buyMode} onChange={setBuyMode} />
                 <UpgradeGrid
                   state={state}
@@ -364,7 +364,7 @@ export function CombatTab({
                   onBuy={(id, count) => onBuyRunUpgrade?.(id, count)}
                   onBuyCore={(slot, count) => onBuyCoreRun?.(slot, count)}
                 />
-              </>
+              </div>
             )}
             {showDirectives && activeDirectives.length > 0 ? (
               <button
