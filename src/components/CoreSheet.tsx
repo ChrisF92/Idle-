@@ -112,7 +112,7 @@ function RelicSocket({
   )
 }
 
-function RelicSockets({
+export function RelicSockets({
   state,
   moduleId,
   onEquipRelic,

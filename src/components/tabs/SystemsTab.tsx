@@ -17,7 +17,6 @@ export function SystemsTab({ state, onManage }: Props) {
     <section className="tab-panel systems-tab systems-dashboard" aria-label="Systems">
       <header className="systems-dash-head">
         <h2>Systems</h2>
-        <p className="panel-note">Industrial status. Open a card for the full station.</p>
       </header>
 
       <button
@@ -31,8 +30,7 @@ export function SystemsTab({ state, onManage }: Props) {
           <span className="systems-workers-total">{formatCompact(workers.total)}</span>
         </div>
         <p className="systems-workers-line">
-          {formatCompact(workers.total)} total · {formatCompact(workers.assigned)} assigned ·{' '}
-          {formatCompact(workers.idle)} idle
+          {formatCompact(workers.assigned)} assigned · {formatCompact(workers.idle)} idle
         </p>
         <p className="systems-workers-split">
           Foundry {formatCompact(workers.foundry)} · Research {formatCompact(workers.research)} · Fabrication{' '}

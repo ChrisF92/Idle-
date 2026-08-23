@@ -1,19 +1,27 @@
 import { useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
-import { computeShipStats, RESOURCE_LABELS } from '../../game/state'
+import { computeShipStats } from '../../game/state'
 import { canPrestige, prestigeGainFor } from '../../game/actions'
-import { canOpenRebuildHangar, rebuildCycle, rebuildWaveNeed, workshopInvestment } from '../../game/rebuild'
+import { canOpenRebuildHangar, rebuildCycle, rebuildWaveNeed, REBUILD_MIN_SORTIES } from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import { type BuyMode } from '../../game/workshop'
-import { isRelicsUnlocked, SHARDS, shardOwned } from '../../game/reliquary'
-import { type ModuleRole, getFrame, getModule } from '../../game/catalog'
-import { CoreSheet } from '../CoreSheet'
+import { isRelicsUnlocked } from '../../game/reliquary'
+import { type ModuleRole, getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
 import { SheetTabs } from '../SheetTabs'
 import { HiveRig, type HiveRigTarget } from '../HiveRig'
 import { CoreDetailSheet, CorePicker, FrameSheet } from '../LoadoutSheets'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
-import { permanentMultipliers } from '../../game/uiReadout'
+import { frameBlurb, loadoutRelicFill } from '../../game/inventory'
+import {
+  ContextBar,
+  ItemRow,
+  Screen,
+  Section,
+  SectionHeader,
+  StatPair,
+  StickyAction,
+} from '../../ui/primitives'
 
 export type DockPane = 'loadout' | 'workshop' | 'rebuild'
 
@@ -70,7 +78,7 @@ export function DockTab({
   const cycleNo = (state.prestige.prestigeCount ?? 0) + 1
   const cycle = rebuildCycle(state)
   const frame = getFrame(state.shipyard.frameId)
-  const matter = state.resources.prestigeMatter ?? 0
+  const slots = (frame?.weaponSlots ?? 0) + (frame?.defenseSlots ?? 0) + (frame?.utilitySlots ?? 0)
   const [localPane, setLocalPane] = useState<DockPane>('loadout')
   const pane = paneProp ?? localPane
   const setPane = (next: DockPane) => {
@@ -84,7 +92,7 @@ export function DockTab({
   const [coreDetail, setCoreDetail] = useState<string | null>(focusModuleId ?? null)
   const [picker, setPicker] = useState<{ replaceId?: string; role?: ModuleRole } | null>(null)
   const locked = live
-  const perm = permanentMultipliers(state)
+  const relics = loadoutRelicFill(state)
 
   function onHive(target: HiveRigTarget) {
     if (target.kind === 'hive') setFrameOpen(true)
@@ -100,44 +108,24 @@ export function DockTab({
   }
 
   return (
-    <section className="panel screen-panel dock-screen is-tabbed">
-      <div className="dock-summary-head">
-        <div className="dock-meta-line">
-          <span>
-            Best Wave <strong>W{bestWave || '—'}</strong>
-          </span>
-          <span>
-            CYCLE <strong>{cycleNo}</strong>
-          </span>
-        </div>
-        <div className="dock-meta-line">
-          <span>
-            Scrap <strong>{formatCompact(state.resources.scrap)}</strong>
-          </span>
-          <span>
-            Matter <strong>{formatCompact(matter)}</strong>
-          </span>
-        </div>
+    <Screen className="dock-screen is-tabbed" sticky label="Dock">
+      <ContextBar>
+        <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
+        <StatPair label="Cycle" value={cycleNo} />
+      </ContextBar>
+
+      <div className="dock-hive-block">
         <HiveRig state={state} compact interactive={!locked} onSelect={onHive} />
-        <div className="dock-hive-readout">
-          <strong>
-            {frame?.name ?? 'Hive'} · {state.shipyard.modules.length}/
-            {(frame?.weaponSlots ?? 0) + (frame?.defenseSlots ?? 0) + (frame?.utilitySlots ?? 0)} CORES
-          </strong>
-          <p>
-            DPS {formatCompact(stats.damage)} · Hull {formatCompact(stats.hullMax)} · Sh{' '}
-            {formatCompact(stats.shieldMax)}
-          </p>
-        </div>
-        <div className="a11y-loadout">
-          <button type="button" onClick={() => setFrameOpen(true)}>
-            Frame
-          </button>
-          {state.shipyard.modules.map((id) => (
-            <button key={id} type="button" onClick={() => setCoreDetail(id)}>
-              {getModule(id)?.name ?? id}
-            </button>
-          ))}
+        <p className="dock-hive-frame">
+          <strong>{frame?.name ?? 'Hive'}</strong>
+          <span className="ui-meta">
+            {state.shipyard.modules.length}/{slots} Cores
+          </span>
+        </p>
+        <div className="dock-glance">
+          <StatPair label="DPS" value={formatCompact(stats.damage)} />
+          <StatPair label="Hull" value={formatCompact(stats.hullMax)} />
+          <StatPair label="Shield" value={formatCompact(stats.shieldMax)} />
         </div>
       </div>
 
@@ -151,35 +139,52 @@ export function DockTab({
       <div className="dock-pane">
         {pane === 'loadout' ? (
           <div className="dock-loadout" data-guide="dock-cores">
-            <p className="muted">
-              Equip Cores and Relics here. Permanent strength is Mastery — earned while a Core is equipped.
-              Temporary Run Levels are bought with Salvage during a Sortie.
-            </p>
-            {locked ? <p className="muted">Loadout is locked until this Sortie docks.</p> : null}
-            {!locked && isRelicsUnlocked(state) ? (
-              <p className="muted" data-guide="relic-sockets">
-                {SHARDS.some((shard) => shardOwned(state, shard.id) > 0)
-                  ? 'Matching sockets only — Power, Optical, Ballistic, Shield, or Industrial.'
-                  : 'Relic sockets are open. Recover Relics from wrecks, then install them into matching Core sockets.'}
-              </p>
-            ) : null}
-            <CoreSheet
-              state={state}
-              compact
-              inspectOnly={locked}
-              onEquipRelic={locked ? undefined : onEquipRelic}
-              onRemoveRelic={locked ? undefined : onRemoveRelic}
-              onUpgradeRelic={locked ? undefined : onUpgradeRelic}
-            />
+            {locked ? <p className="ui-meta">Loadout is locked until this Sortie docks.</p> : null}
+            <Section>
+              <SectionHeader title="Frame" />
+              <ItemRow
+                title={frame?.name ?? 'Hive'}
+                meta={frameBlurb(state)}
+                onClick={() => setFrameOpen(true)}
+              />
+            </Section>
+            <Section>
+              <SectionHeader title="Cores" />
+              {state.shipyard.modules.map((id) => {
+                const def = getModule(id)
+                return (
+                  <ItemRow
+                    key={id}
+                    title={def?.name ?? id}
+                    meta={`${def?.role === 'weapon' ? 'Weapon' : def?.role === 'defense' ? 'Defense' : 'Utility'} · M${moduleMasteryRank(state, id)}`}
+                    guide={`core-${id}`}
+                    onClick={() => setCoreDetail(id)}
+                  />
+                )
+              })}
+            </Section>
+            <Section>
+              <SectionHeader title="Relics" />
+              <ItemRow
+                title={isRelicsUnlocked(state) ? 'Sockets' : 'Locked'}
+                meta={
+                  isRelicsUnlocked(state)
+                    ? `${relics.filled} / ${relics.sockets || '—'} filled`
+                    : 'Opens with Relic sockets'
+                }
+                guide="relic-sockets"
+                onClick={() => {
+                  const first = state.shipyard.modules[0]
+                  if (first) setCoreDetail(first)
+                }}
+              />
+            </Section>
           </div>
         ) : null}
 
         {pane === 'workshop' && showWorkshop ? (
           <div className="dock-workshop" data-guide="workshop">
-            <p className="dock-scrap-balance">
-              {RESOURCE_LABELS.scrap} <strong>{formatCompact(state.resources.scrap)}</strong>
-            </p>
-            {locked ? <p className="muted">Workshop buys wait until Dock.</p> : null}
+            {locked ? <p className="ui-meta">Workshop buys wait until Dock.</p> : null}
             <SheetTabs
               value={workshopCat}
               onChange={setWorkshopCat}
@@ -203,40 +208,27 @@ export function DockTab({
 
         {pane === 'rebuild' ? (
           <div className="dock-rebuild-dash">
-            <p className="combat-hud-kicker">Rebuild</p>
-            <dl className="upgrade-card-stats">
-              <div>
-                <dt>Cycle Best</dt>
-                <dd>W{cycle.bestWave || bestWave || '—'}</dd>
-              </div>
-              <div>
-                <dt>Sorties</dt>
-                <dd>{cycle.sorties}</dd>
-              </div>
-              <div>
-                <dt>Workshop ranks</dt>
-                <dd>{workshopInvestment(state)}</dd>
-              </div>
-              <div>
-                <dt>Scrap generated</dt>
-                <dd>{formatCompact(cycle.scrapEarned)}</dd>
-              </div>
-            </dl>
-            {rebuildReady ? (
-              <p>
-                Matter if Rebuilt <strong>+{formatCompact(prestigeGainFor(state))}</strong>
-              </p>
-            ) : (
-              <p className="muted">
-                {(state.prestige.prestigeCount ?? 0) > 0
-                  ? `Need Wave ${rebuildMin} this cycle.`
-                  : `Reach Wave ${rebuildMin} and finish ${3} Sorties.`}
-              </p>
-            )}
-            <p className="muted">
-              Permanent · Damage ×{perm.damage.toFixed(1)} · Defense ×{perm.defense.toFixed(1)} · Industry ×
-              {perm.industry.toFixed(1)}
+            <SectionHeader title="Rebuild" />
+            <div className="dock-glance">
+              <StatPair label="Cycle Best" value={cycle.bestWave || bestWave ? `W${cycle.bestWave || bestWave}` : '—'} />
+              <StatPair
+                label="Requirement"
+                value={
+                  (state.prestige.prestigeCount ?? 0) > 0
+                    ? `Reach W${rebuildMin}`
+                    : `W${rebuildMin}`
+                }
+              />
+            </div>
+            <p className="ui-meta">
+              {(state.prestige.prestigeCount ?? 0) > 0
+                ? `${cycle.sorties} Sortie${cycle.sorties === 1 ? '' : 's'} this cycle`
+                : `${cycle.sorties} / ${REBUILD_MIN_SORTIES} Sorties completed`}
             </p>
+            <StatPair
+              label="Projected Matter"
+              value={rebuildReady ? formatCompact(prestigeGainFor(state)) : '0'}
+            />
             <button
               type="button"
               className="primary"
@@ -247,34 +239,32 @@ export function DockTab({
                 onRebuild()
               }}
             >
-              {rebuildReady
-                ? 'Preview Rebuild'
-                : (state.prestige.prestigeCount ?? 0) > 0
-                  ? 'Matter upgrades'
-                  : `Rebuild · Wave ${rebuildMin}`}
+              Preview Rebuild
             </button>
           </div>
         ) : null}
       </div>
 
-      {live ? (
-        <button type="button" className="primary dock-cta" onClick={onOpenSortie}>
-          <span className="live-pip" aria-hidden />
-          Return to Sortie · W{combat.wave}
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="primary dock-cta"
-          data-guide="launch"
-          onClick={(e) => {
-            markLocalOk(e.currentTarget)
-            onLaunch()
-          }}
-        >
-          Launch Sortie
-        </button>
-      )}
+      <StickyAction guide={live ? undefined : 'launch'}>
+        {live ? (
+          <button type="button" className="primary dock-cta" onClick={onOpenSortie}>
+            <span className="live-pip" aria-hidden />
+            Return to Sortie · W{combat.wave}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="primary dock-cta"
+            data-guide="launch"
+            onClick={(e) => {
+              markLocalOk(e.currentTarget)
+              onLaunch()
+            }}
+          >
+            Launch Sortie
+          </button>
+        )}
+      </StickyAction>
 
       {frameOpen ? (
         <FrameSheet
@@ -294,6 +284,9 @@ export function DockTab({
           locked={locked}
           onChange={() => setPicker({ replaceId: coreDetail, role: getModule(coreDetail)?.role })}
           onClose={() => setCoreDetail(null)}
+          onEquipRelic={locked ? undefined : onEquipRelic}
+          onRemoveRelic={locked ? undefined : onRemoveRelic}
+          onUpgradeRelic={locked ? undefined : onUpgradeRelic}
         />
       ) : null}
       {picker ? (
@@ -306,6 +299,6 @@ export function DockTab({
           onClose={() => setPicker(null)}
         />
       ) : null}
-    </section>
+    </Screen>
   )
 }

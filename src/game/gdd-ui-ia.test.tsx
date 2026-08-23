@@ -62,11 +62,11 @@ describe('GDD shell information architecture', () => {
       />,
     )
     expect(screen.getByText('Best Wave')).toBeTruthy()
-    expect(screen.getByText('Matter')).toBeTruthy()
     expect(screen.getByText('Loadout')).toBeTruthy()
     expect(screen.getByText('Workshop')).toBeTruthy()
     expect(screen.getByText('Rebuild')).toBeTruthy()
-    expect(screen.getByText(/Permanent strength is Mastery/i)).toBeTruthy()
+    expect(screen.queryByText(/Permanent strength is Mastery/i)).toBeNull()
+    expect(screen.queryByText(/Equip Cores and Relics here/i)).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'Workshop' }))
     expect(screen.getByText('Weapon Power')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))

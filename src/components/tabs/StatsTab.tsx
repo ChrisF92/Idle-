@@ -31,6 +31,7 @@ interface StatsTabProps {
   onDamageNumbers?: (mode: 'minimal' | 'standard' | 'detailed') => void
   onOpenStation?: (tab: TabId) => void
   onOpenSimulator?: () => void
+  onOpenInventory?: () => void
   guideTarget?: string | null
 }
 
@@ -110,6 +111,7 @@ export function StatsTab({
   onDamageNumbers,
   onOpenStation,
   onOpenSimulator,
+  onOpenInventory,
   guideTarget = null,
 }: StatsTabProps) {
   const [importCode, setImportCode] = useState('')
@@ -137,6 +139,13 @@ export function StatsTab({
       <div className="panel-scroll">
       {pane === 'stations' && onOpenStation ? (
         <div>
+          {onOpenInventory ? (
+            <p className="assign-row">
+              <button type="button" className="primary" onClick={onOpenInventory}>
+                Inventory
+              </button>
+            </p>
+          ) : null}
           {buckets.open.length > 0 ? (
             <>
               <h3 className="foundry-heading">Open</h3>

@@ -22,9 +22,12 @@ import {
   formatStatShift,
   previewLoadoutStats,
 } from '../game/uiReadout'
-import { coreSocketLayout, coreSocketRelics, getShard, isRelicsUnlocked } from '../game/reliquary'
+import { isRelicsUnlocked } from '../game/reliquary'
+import { coreCopyBreakdown } from '../game/inventory'
 import { inspectCore } from '../game/inspect'
 import { InspectName } from './InspectName'
+import { RelicSockets } from './CoreSheet'
+import { BottomSheet, Kicker, StatPair } from '../ui/primitives'
 
 const ROLE_LABEL: Record<ModuleRole, string> = {
   weapon: 'Weapon',
@@ -44,16 +47,8 @@ export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps)
   const current = getFrame(state.shipyard.frameId)
 
   return (
-    <div className="sheet-overlay" role="dialog" aria-labelledby="frame-sheet-title">
-      <div className="sheet-card">
-        <header className="modal-header">
-          <h3 id="frame-sheet-title">Hive Frame</h3>
-          <button type="button" onClick={onClose}>
-            Close
-          </button>
-        </header>
+    <BottomSheet open title="Hive Frame" onClose={onClose} overlayId="frame-sheet" size="full">
         {locked ? <p className="muted">Frame changes are locked until Dock.</p> : null}
-        <div className="sheet-scroll">
           {SHIP_FRAMES.map((frame) => {
             const owned = state.shipyard.unlockedFrames.includes(frame.id)
             const nextModules = trimModulesToFrame(state.shipyard.modules, frame, extra)
@@ -118,10 +113,8 @@ export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps)
               </article>
             )
           })}
-        </div>
         {current ? <p className="muted">{current.name} is the current Frame.</p> : null}
-      </div>
-    </div>
+    </BottomSheet>
   )
 }
 
@@ -131,109 +124,82 @@ interface CoreDetailSheetProps {
   locked?: boolean
   onChange?: () => void
   onClose: () => void
+  onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
+  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
+  onUpgradeRelic?: (relicId: string) => void
 }
 
-export function CoreDetailSheet({ state, moduleId, locked, onChange, onClose }: CoreDetailSheetProps) {
+export function CoreDetailSheet({
+  state,
+  moduleId,
+  locked,
+  onChange,
+  onClose,
+  onEquipRelic,
+  onRemoveRelic,
+  onUpgradeRelic,
+}: CoreDetailSheetProps) {
   const def = getModule(moduleId)
   if (!def) return null
   const mastery = moduleMasteryRank(state, moduleId)
   const dps = coreDps(state, moduleId)
   const share = coreContributionPct(state, moduleId)
   const shield = coreShieldOutput(state, moduleId)
-  const sockets = isRelicsUnlocked(state) ? coreSocketLayout(state, moduleId) : []
-  const fitted = coreSocketRelics(state, moduleId)
+  const xp = moduleMasteryXp(state, moduleId)
+  const need = masteryXpToNext(mastery)
+  const next = nextMasteryMilestone(moduleId, mastery)
   const nextSocket = mastery < 5 && mastery + 3 >= 5 ? 5 : mastery < 20 && mastery + 5 >= 20 ? 20 : null
 
   return (
-    <div className="sheet-overlay" role="dialog" aria-labelledby="core-detail-title">
-      <div className="sheet-card">
-        <header className="modal-header">
-          <div>
-            <p className="combat-hud-kicker">{ROLE_LABEL[def.role]}</p>
-            <h3 id="core-detail-title">
-              <InspectName name={def.name} card={inspectCore(state, moduleId)} />
-            </h3>
-          </div>
-          <button type="button" onClick={onClose}>
-            Close
-          </button>
-        </header>
-        <div className="sheet-scroll">
-          <p>
-            Mastery {mastery}
-            <span className="muted">
-              {' '}
-              · {moduleMasteryXp(state, moduleId)} / {masteryXpToNext(mastery)} XP
-            </span>
-          </p>
-          <dl className="upgrade-card-stats">
-            {dps > 0 ? (
-              <div>
-                <dt>DPS</dt>
-                <dd>{formatCompact(dps)}</dd>
-              </div>
-            ) : null}
-            {share != null && dps > 0 ? (
-              <div>
-                <dt>Hive share</dt>
-                <dd>{share}%</dd>
-              </div>
-            ) : null}
-            {shield > 0 ? (
-              <div>
-                <dt>Shield</dt>
-                <dd>+{formatCompact(shield)}</dd>
-              </div>
-            ) : null}
-            {def.weapon ? (
-              <>
-                <div>
-                  <dt>Range</dt>
-                  <dd>{def.weapon.range}</dd>
-                </div>
-                <div>
-                  <dt>Cycle</dt>
-                  <dd>{def.weapon.cooldown.toFixed(2)}s</dd>
-                </div>
-              </>
-            ) : null}
-          </dl>
-          <p>{def.description}</p>
-          {sockets.length > 0 ? (
-            <div>
-              <p className="combat-hud-kicker">Relics</p>
-              {sockets.map((socket, index) => {
-                const relic = fitted[index] ? getShard(fitted[index]!) : null
-                return (
-                  <p key={`${socket}-${index}`} className="muted">
-                    {relic ? relic.name : `Empty: ${socket}`}
-                  </p>
-                )
-              })}
-            </div>
-          ) : null}
-          {(() => {
-            const next = nextMasteryMilestone(moduleId, mastery)
-            if (next) {
-              return (
-                <p className="muted">
-                  Next: M{next.level} · {next.name}
-                </p>
-              )
-            }
-            if (nextSocket) {
-              return <p className="muted">Next Mastery milestone: M{nextSocket} · additional socket</p>
-            }
-            return null
-          })()}
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="primary" disabled={locked || !onChange} onClick={onChange}>
-            {locked ? 'Locked until Dock' : 'Change Core'}
-          </button>
-        </div>
+    <BottomSheet
+      open
+      title={<InspectName name={def.name} card={inspectCore(state, moduleId)} />}
+      kicker={`${ROLE_LABEL[def.role]} Core`}
+      onClose={onClose}
+      overlayId={`core-detail-${moduleId}`}
+      size="standard"
+      footer={
+        <button type="button" className="primary" disabled={locked || !onChange} onClick={onChange}>
+          {locked ? 'Locked until Dock' : 'Change Core'}
+        </button>
+      }
+    >
+      <Kicker>Mastery {mastery}</Kicker>
+      <span className="ui-progress" aria-hidden>
+        <span style={{ transform: `scaleX(${need > 0 ? Math.min(1, xp / need) : 1})` }} />
+      </span>
+      <p className="ui-meta">
+        {xp} / {need} XP
+      </p>
+      <div className="ui-context-bar">
+        {dps > 0 ? <StatPair label="Primary output" value={`${formatCompact(dps)} DPS`} /> : null}
+        {shield > 0 ? <StatPair label="Shield" value={`+${formatCompact(shield)}`} /> : null}
+        {share != null && dps > 0 ? <StatPair label="Hive share" value={`${share}%`} /> : null}
       </div>
-    </div>
+      {def.weapon ? (
+        <div className="ui-context-bar">
+          <StatPair label="Damage" value={formatCompact(def.weapon.damage)} />
+          <StatPair label="Cycle" value={`${def.weapon.cooldown.toFixed(2)}s`} />
+          <StatPair label="Range" value={def.weapon.range} />
+        </div>
+      ) : null}
+      {next ? (
+        <p className="ui-meta">
+          Next milestone M{next.level} · {next.name}
+        </p>
+      ) : nextSocket ? (
+        <p className="ui-meta">Next Mastery milestone: M{nextSocket} · additional socket</p>
+      ) : null}
+      {isRelicsUnlocked(state) ? (
+        <RelicSockets
+          state={state}
+          moduleId={moduleId}
+          onEquipRelic={locked ? undefined : onEquipRelic}
+          onRemoveRelic={locked ? undefined : onRemoveRelic}
+          onUpgradeRelic={locked ? undefined : onUpgradeRelic}
+        />
+      ) : null}
+    </BottomSheet>
   )
 }
 
@@ -268,16 +234,14 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
   )
 
   return (
-    <div className="sheet-overlay" role="dialog" aria-labelledby="core-picker-title">
-      <div className="sheet-card">
-        <header className="modal-header">
-          <h3 id="core-picker-title">{replaceId ? 'Replace Core' : 'Fit Core'}</h3>
-          <button type="button" onClick={onClose}>
-            Close
-          </button>
-        </header>
+    <BottomSheet
+      open
+      title={replaceId ? 'Replace Core' : 'Fit Core'}
+      onClose={onClose}
+      overlayId="core-picker"
+      size="full"
+    >
         {locked ? <p className="muted">Loadout changes are locked until Dock.</p> : null}
-        <div className="sheet-scroll">
           {options.map((mod) => {
             const without = replaceId
               ? state.shipyard.modules.filter((id) => id !== replaceId)
@@ -289,12 +253,14 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
             const compare = previewLoadoutStats(state, state.shipyard.frameId, nextModules)
             const mastery = moduleMasteryRank(state, mod.id)
             const dps = coreDps(state, mod.id)
+            const copies = coreCopyBreakdown(state, mod.id)
             return (
               <article key={mod.id} className={fits ? 'upgrade-card is-affordable' : 'upgrade-card'}>
                 <header className="upgrade-card-head">
                   <strong>{mod.name}</strong>
                   <span className="muted">
                     {ROLE_LABEL[mod.role]} · Mastery {mastery}
+                    {copies ? ` · ×${copies.owned} · Eq ${copies.equipped}` : ''}
                   </span>
                 </header>
                 <p className="muted">{mod.description}</p>
@@ -329,8 +295,6 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
             )
           })}
           {options.length === 0 ? <p className="muted">No other unlocked Cores for this slot.</p> : null}
-        </div>
-      </div>
-    </div>
+    </BottomSheet>
   )
 }

@@ -40,7 +40,6 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.queryByRole('tab', { name: 'Directives' })).toBeNull()
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
     expect(screen.getByText('Weapon Power')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /CORES/i })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Weapon Power details' }))
     expect(screen.getByRole('dialog', { name: 'Weapon Power' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
@@ -69,7 +68,8 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.getByText('CORES')).toBeTruthy()
     expect(screen.getByText('GLOBAL')).toBeTruthy()
     expect(screen.getByText(/Pulse Cannon/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Core Performance' }))
     expect(screen.getByText(/Run Levels reset/i)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Upgrade ·/ })).toBeNull()
   })
@@ -85,7 +85,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
         onRebuild={() => undefined}
       />,
     )
-    expect(screen.getByText(/Permanent strength is Mastery/i)).toBeTruthy()
+    expect(screen.queryByText(/Permanent strength is Mastery/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /Upgrade · .* Scrap/ })).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'Workshop' }))
     expect(screen.getByText('Weapon Power')).toBeTruthy()

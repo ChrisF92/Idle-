@@ -47,6 +47,10 @@ import { GuideOverlay } from './components/GuideOverlay'
 import { ScreenHelp } from './components/ScreenHelp'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { ToastStack } from './components/ToastStack'
+import { InventoryScreen } from './components/InventoryScreen'
+import { OverlayProvider, useOverlay, useOverlayLayer } from './ui/overlay'
+import './ui/tokens.css'
+import './ui/primitives.css'
 import './App.css'
 import './polish.css'
 
@@ -56,7 +60,16 @@ const BalanceSimulator = lazy(async () => {
 })
 
 export default function App() {
+  return (
+    <OverlayProvider>
+      <AppShell />
+    </OverlayProvider>
+  )
+}
+
+function AppShell() {
   const game = useGame()
+  const overlays = useOverlay()
   const [tab, setTab] = useState<TabId>('dock')
   const [hangarOpen, setHangarOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -67,6 +80,7 @@ export default function App() {
   const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
   const [systemsView, setSystemsView] = useState<'hub' | 'foundry'>('foundry')
   const [dockPane, setDockPane] = useState<DockPane>('loadout')
+  const [inventoryOpen, setInventoryOpen] = useState(false)
   const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
@@ -74,8 +88,21 @@ export default function App() {
   const dying = (game.state.combat.defeatLeft ?? 0) > 0
   const live = !game.state.combat.docked || dying
   const offlineOpen = Boolean(game.offlineReport)
+  useOverlayLayer({
+    id: 'rebuild-hangar',
+    kind: 'confirm',
+    open: hangarOpen,
+    onClose: () => setHangarOpen(false),
+  })
+  useOverlayLayer({
+    id: 'sortie-report',
+    kind: 'modal',
+    open: reportOpen,
+    onClose: () => setReportOpen(false),
+  })
+  const updateBlocking = overlays.topBlockingKind === 'update'
   const guide =
-    dying || reportOpen || hangarOpen || blockingModal || offlineOpen
+    dying || reportOpen || hangarOpen || blockingModal || offlineOpen || updateBlocking
       ? null
       : activeGuideStep(game.state, tab, heldGuideId)
   const pauseSim =
@@ -326,6 +353,16 @@ export default function App() {
                                 : 'Hiveworks'}
               </p>
               <ScreenHelp screen={tab} />
+              {tab === 'dock' ? (
+                <button
+                  type="button"
+                  className="ui-inventory-btn"
+                  aria-label="Inventory"
+                  onClick={() => setInventoryOpen(true)}
+                >
+                  Inventory
+                </button>
+              ) : null}
             </div>
             {tab === 'dock' ? <ResourceBar state={game.state} only={['scrap', 'prestigeMatter']} /> : null}
             {live ? (
@@ -521,6 +558,7 @@ export default function App() {
             onOpenStation={go}
             onOpenSimulator={() => setSimulatorOpen(true)}
             guideTarget={guide?.target}
+            onOpenInventory={() => setInventoryOpen(true)}
           />
         )}
       </main>
@@ -587,6 +625,19 @@ export default function App() {
         </Suspense>
       ) : null}
 
+      <InventoryScreen
+        state={game.state}
+        open={inventoryOpen}
+        onClose={() => setInventoryOpen(false)}
+        onSelectFrame={game.selectFrame}
+        onFitCore={game.fitModule}
+        onOpenFoundry={() => {
+          setInventoryOpen(false)
+          setFoundryPane('smelt')
+          go('foundry')
+        }}
+      />
+
       {guide ? (
         <GuideOverlay
           step={guide}
@@ -600,7 +651,7 @@ export default function App() {
         onDismiss={(id) => setToasts((q) => dismissToast(q, id))}
         onAction={applyToastNav}
       />
-      <PwaUpdateBanner escapeHatch={Boolean(guide && guidePausesSimulation(guide))} />
+      <PwaUpdateBanner />
     </div>
   )
 }

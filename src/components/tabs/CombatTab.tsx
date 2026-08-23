@@ -18,7 +18,7 @@ import {
   coreContributionPct,
   coreShieldOutput,
 } from '../../game/uiReadout'
-import { getModule, moduleMasteryRank } from '../../game/catalog'
+import { getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
 import { coreRunLevel, nextMasteryMilestone } from '../../game/coreProgression'
 import { activeProtocol } from '../../game/protocols'
 import { isChallengeSortie } from '../../game/frontier'
@@ -170,6 +170,8 @@ export function CombatTab({
   const showExtractRow = live && !state.meta.extractedOnce
   const careerBest = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
   const isNewBest = live && combat.wave > careerBest
+  const frame = getFrame(state.shipyard.frameId)
+  const dockedCalm = !live && !dying
 
   useEffect(() => {
     if (forceCores) setCoresOpen(true)
@@ -282,18 +284,19 @@ export function CombatTab({
   const speed = sortieSpeed(state)
   const bossHp = liveBossHp(state)
   const scrapRun = runScrapEarned(state)
-  const coreCap = state.shipyard.modules.length
 
   return (
     <section
       className={[
         'sortie-screen',
-        hullBand === 'critical' ? 'is-critical' : '',
+        hullBand === 'critical' && live ? 'is-critical' : '',
         shopCollapsed ? 'is-shop-collapsed' : '',
+        dockedCalm ? 'is-docked' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
+      {dockedCalm ? null : (
       <header className="sortie-hud">
         <div className="sortie-hud-wave">
           {protocol ? <span className="combat-hud-kicker">{protocol.name}</span> : null}
@@ -320,6 +323,7 @@ export function CombatTab({
           ×{speed.toFixed(speed % 1 === 0 ? 0 : 1)}
         </button>
       </header>
+      )}
 
       <div className="sortie-canvas" data-guide="sortie-canvas">
         {onOpenFoundry ? <CraftStrip state={state} onOpen={onOpenFoundry} /> : null}
@@ -351,6 +355,7 @@ export function CombatTab({
         ) : null}
       </div>
 
+      {dockedCalm ? null : (
       <div className="sortie-status">
         <div className="sortie-meter" data-guide="sortie-shield">
           <span>SHIELD</span>
@@ -386,6 +391,7 @@ export function CombatTab({
           </div>
         ) : null}
       </div>
+      )}
 
       {showExtractRow ? (
         <div className="sortie-actions">
@@ -444,23 +450,27 @@ export function CombatTab({
               </>
             )}
             <div className="sortie-shop-tools">
-              <button type="button" className="sortie-tool" onClick={() => setCoresOpen(true)} data-guide="cores-sheet">
-                CORES · {coreCap}/{coreCap}
-              </button>
-              <button
-                type="button"
-                className="sortie-tool"
-                onClick={() => setDirectivesOpen(true)}
-                disabled={activeDirectives.length === 0 && directiveOffer.length === 0}
-              >
-                DIRECTIVES · {activeDirectives.length}
-              </button>
+              {activeDirectives.length > 0 ? (
+                <button
+                  type="button"
+                  className="sortie-directive-chip"
+                  onClick={() => setDirectivesOpen(true)}
+                >
+                  {activeDirectives[0]?.name}
+                  {activeDirectives.length > 1 ? ` · +${activeDirectives.length - 1}` : ''}
+                </button>
+              ) : null}
             </div>
           </>
         ) : dying ? (
           <p className="muted">Sortie ending…</p>
         ) : (
           <div className="sortie-docked">
+            <p className="ui-kicker">Ready</p>
+            <strong className="sortie-ready-frame">{frame?.name ?? 'Hive'}</strong>
+            <p className="ui-meta">
+              {state.shipyard.modules.map((id) => getModule(id)?.name ?? id).join(' · ') || 'No Cores fitted'}
+            </p>
             <button
               type="button"
               className="primary"
@@ -471,9 +481,6 @@ export function CombatTab({
               }}
             >
               Launch Sortie
-            </button>
-            <button type="button" className="sortie-tool" onClick={() => setCoresOpen(true)} data-guide="cores-sheet">
-              CORES · {coreCap}/{coreCap}
             </button>
           </div>
         )}
@@ -611,6 +618,9 @@ export function CombatTab({
                 Extract
               </button>
             ) : null}
+            <button type="button" data-guide="cores-sheet" onClick={() => { setMenuOpen(false); setCoresOpen(true) }}>
+              Core Performance
+            </button>
             <p className="muted">
               DPS {formatCompact(stats.damage)} · {formatRunTime(combat.fightElapsed ?? 0)} · Wave {combat.wave}
             </p>

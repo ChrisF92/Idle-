@@ -209,15 +209,6 @@ export function UpgradeGrid({ state, category, kind, buyMode, onBuy, onBuyCore }
                   <span className="upgrade-tile-preview">
                     {preview.current} → {preview.next}
                   </span>
-                  <span className="upgrade-tile-scope">
-                    {kind === 'workshop' ? 'Until Rebuild' : 'This Sortie'}
-                  </span>
-                  {shopTimeToAfford(state, cost, bank) ? (
-                    <span className="upgrade-tile-scope">{shopTimeToAfford(state, cost, bank)}</span>
-                  ) : null}
-                  {shopEconomyRoi(state, def.id) ? (
-                    <span className="upgrade-tile-scope">{shopEconomyRoi(state, def.id)}</span>
-                  ) : null}
                 </button>
                 <button
                   type="button"
@@ -273,6 +264,16 @@ export function UpgradeGrid({ state, category, kind, buyMode, onBuy, onBuyCore }
                 ? 'Permanent this cycle. Resets on Rebuild.'
                 : 'Temporary this Sortie. Cost is Salvage.'}
             </p>
+            {shopTimeToAfford(state, kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1), kind === 'run' ? state.resources.salvage : state.resources.scrap) ? (
+              <p className="muted">
+                {shopTimeToAfford(
+                  state,
+                  kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1),
+                  kind === 'run' ? state.resources.salvage : state.resources.scrap,
+                )}
+              </p>
+            ) : null}
+            {shopEconomyRoi(state, info.id) ? <p className="muted">{shopEconomyRoi(state, info.id)}</p> : null}
           </div>
         </div>
       ) : null}
