@@ -2,30 +2,24 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { formatCompact } from '../../game/format'
-import { activeGuideStep, isCoresGuideTarget, isSystemUnlocked, type GuideStep } from '../../game/progression'
+import { activeGuideStep, isCoresGuideTarget, type GuideStep } from '../../game/progression'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { SheetTabs } from '../SheetTabs'
-import { FOUNDRY_RECIPES } from '../../game/foundry'
-import { markLocalOk } from '../../hooks/useJustBecame'
 import { type BuyMode } from '../../game/workshop'
 import {
+  availableSortieSpeeds,
   formatRunTime,
   liveBossHp,
   normalizeDamageNumbers,
+  runResourceRates,
   runScrapEarned,
   sortieSpeed,
-  coreDps,
-  coreContributionPct,
-  coreShieldOutput,
 } from '../../game/uiReadout'
-import { getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
-import { coreRunLevel, nextMasteryMilestone } from '../../game/coreProgression'
-import { activeProtocol } from '../../game/protocols'
-import { isChallengeSortie } from '../../game/frontier'
-import { DIRECTIVES, getDirective, hasDirectiveOffer } from '../../game/directives'
+import { DIRECTIVES, directivesUnlocked, getDirective, hasDirectiveOffer } from '../../game/directives'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
-import { inspectCore } from '../../game/inspect'
-import { InspectName } from '../InspectName'
+import { isChallengeSortie } from '../../game/frontier'
+
+type ShopTab = RunUpgradeCategory | 'cores'
 
 interface CombatTabProps {
   state: GameState
@@ -56,89 +50,14 @@ function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {
   return isCoresGuideTarget(step)
 }
 
-function CraftStrip({ state, onOpen }: { state: GameState; onOpen: () => void }) {
-  if (!isSystemUnlocked(state, 'foundry')) return null
-  const running = state.foundry.slots.flatMap((slot, index) => {
-    if (!slot.recipeId) return []
-    return [
-      {
-        index,
-        progress: slot.progress,
-        name: FOUNDRY_RECIPES.find((r) => r.id === slot.recipeId)?.name ?? 'Queued',
-      },
-    ]
-  })
-  if (running.length === 0) return null
-  const label = running.map((job) => job.name).join(', ')
-  return (
-    <button
-      type="button"
-      className="craft-strip"
-      onClick={onOpen}
-      aria-label={`Foundry smelting ${label}. Open Foundry.`}
-    >
-      <span className="combat-hud-kicker">Foundry</span>
-      {running.map((job) => (
-        <span key={job.index} className="craft-chip">
-          <span className="craft-chip-name">{job.name}</span>
-          <span className="network-fill is-active" aria-hidden>
-            <span style={{ transform: `scaleX(${job.progress})` }} />
-          </span>
-        </span>
-      ))}
-    </button>
-  )
-}
-
-function FragmentChip({ state, onOpen }: { state: GameState; onOpen?: () => void }) {
-  const notice = state.combat.fragmentNotice
-  const [chip, setChip] = useState(notice)
-  useEffect(() => {
-    if (!notice) return
-    setChip(notice)
-    const t = window.setTimeout(() => setChip(null), 2200)
-    return () => window.clearTimeout(t)
-  }, [notice])
-  if (!chip) return null
-  const partLabel = chip.partType.charAt(0).toUpperCase() + chip.partType.slice(1)
-  const body = (
-    <>
-      <span className="combat-hud-kicker">Fragment</span>
-      <strong className="fragment-chip-title">{chip.name}</strong>
-      <span className="fragment-chip-line">
-        {partLabel} {Math.min(chip.partHave, chip.partNeed)}/{chip.partNeed}
-        <span className="muted">
-          {' '}
-          · {chip.totalHave}/{chip.totalNeed}
-        </span>
-      </span>
-    </>
-  )
-  if (!onOpen) {
-    return (
-      <div className="fragment-chip" role="status">
-        {body}
-      </div>
-    )
-  }
-  return (
-    <button type="button" className="fragment-chip" onClick={onOpen} aria-label={`${chip.name} fragment. Open prints.`}>
-      {body}
-    </button>
-  )
-}
-
 export function CombatTab({
   state,
-  onLaunch,
   onExtract,
   onBuyRunUpgrade,
   onBuyCoreRun,
   paused = false,
   guide = null,
   onMarkCoresSeen,
-  onOpenFoundry,
-  onOpenPrints,
   onChooseDirective,
   onCycleSpeed,
 }: CombatTabProps) {
@@ -146,16 +65,14 @@ export function CombatTab({
   const stats = computeShipStats(state)
   const dying = (combat.defeatLeft ?? 0) > 0
   const live = !combat.docked
-  const protocol = activeProtocol(state)
   const titleId = useId()
   const forceCores = coresGuideActive(state, guide)
-  const [upgradeCat, setUpgradeCat] = useState<RunUpgradeCategory>('attack')
+  const [shopTab, setShopTab] = useState<ShopTab>('attack')
   const [buyMode, setBuyMode] = useState<BuyMode>(1)
-  const [shopCollapsed, setShopCollapsed] = useState(false)
-  const [coresOpen, setCoresOpen] = useState(false)
-  const [directivesOpen, setDirectivesOpen] = useState(false)
+  const [shopCollapsed, setShopCollapsed] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [detailCore, setDetailCore] = useState<string | null>(null)
+  const [directivesOpen, setDirectivesOpen] = useState(false)
+  const [rateView, setRateView] = useState<'salvage' | 'scrap' | null>(null)
   const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
   const shieldPct = stats.shieldMax > 0 ? combat.playerShield / stats.shieldMax : 0
   const hullBand = hullPct <= 0.28 ? 'critical' : hullPct <= 0.55 ? 'damaged' : 'healthy'
@@ -166,43 +83,30 @@ export function CombatTab({
     boss: combat.isBoss,
     primed: false,
   })
-  const focusCoreId = useRef<string | undefined>(undefined)
-  const showExtractRow = live && !state.meta.extractedOnce
   const careerBest = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
-  const isNewBest = live && combat.wave > careerBest
-  const frame = getFrame(state.shipyard.frameId)
-  const dockedCalm = !live && !dying
+  const extraSpeeds = availableSortieSpeeds(state).length > 1
 
   useEffect(() => {
-    if (forceCores) setCoresOpen(true)
-  }, [forceCores])
+    if (!forceCores) return
+    setShopCollapsed(false)
+    setShopTab('cores')
+    onMarkCoresSeen?.()
+  }, [forceCores, onMarkCoresSeen])
 
   useEffect(() => {
     if (guide?.target === 'run-upgrade-weapon-power') {
       setShopCollapsed(false)
-      setUpgradeCat('attack')
+      setShopTab('attack')
     }
     if (guide?.target === 'run-upgrade-hull') {
       setShopCollapsed(false)
-      setUpgradeCat('defense')
+      setShopTab('defense')
+    }
+    if (guide?.target?.startsWith('core-run') || guide?.target === 'cores-sheet') {
+      setShopCollapsed(false)
+      setShopTab('cores')
     }
   }, [guide?.target])
-
-  useEffect(() => {
-    if (coresOpen) onMarkCoresSeen?.()
-  }, [coresOpen, onMarkCoresSeen])
-
-  useEffect(() => {
-    if (!coresOpen) return
-    const moduleId = focusCoreId.current
-    if (!moduleId) return
-    const id = moduleId.replace(/[^a-z0-9-]/gi, '')
-    const el = document.querySelector(`[data-guide="core-${id}"]`)
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    }
-    focusCoreId.current = undefined
-  }, [coresOpen])
 
   useEffect(() => {
     if (combat.docked && !dying) {
@@ -272,62 +176,99 @@ export function CombatTab({
     ],
   )
 
+  if (!live && !dying) return null
+
   const challenge = isChallengeSortie(state)
   const directiveOffer = hasDirectiveOffer(state) ? (combat.directiveOffer ?? []) : []
   const activeDirectives = (combat.directives ?? [])
     .map((id) => getDirective(id))
     .filter((def): def is NonNullable<typeof def> => Boolean(def))
+  const showDirectives = directivesUnlocked(state)
 
   const battlefieldMode: BattlefieldMode = combat.inFight || dying ? 'fighting' : 'ready'
   const playerUnits = combat.playerUnits.length > 0 ? combat.playerUnits : previewPlayer
   const enemyUnits = combat.docked && !dying ? [] : combat.enemyUnits
   const speed = sortieSpeed(state)
-  const bossHp = liveBossHp(state)
+  const boss = liveBossHp(state)
   const scrapRun = runScrapEarned(state)
+  const rates = runResourceRates(state)
+  const salvageBank = Math.floor(state.resources.salvage)
+
+  function toggleRate(kind: 'salvage' | 'scrap') {
+    setRateView((cur) => (cur === kind ? null : kind))
+  }
 
   return (
     <section
       className={[
         'sortie-screen',
         hullBand === 'critical' && live ? 'is-critical' : '',
-        shopCollapsed ? 'is-shop-collapsed' : '',
-        dockedCalm ? 'is-docked' : '',
+        shopCollapsed ? 'is-shop-collapsed' : 'is-shop-open',
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      {dockedCalm ? null : (
-      <header className="sortie-hud">
-        <div className="sortie-hud-wave">
-          {protocol ? <span className="combat-hud-kicker">{protocol.name}</span> : null}
-          {!state.meta.hullLostOnce ? <span className="combat-hud-kicker">WAVE</span> : null}
-          <strong className={`sortie-wave${isNewBest ? ' is-new-best' : ''}`}>W{combat.wave}</strong>
-          <span className="sortie-best">{isNewBest ? 'NEW BEST' : `BEST ${careerBest || '—'}`}</span>
+      {boss ? (
+        <div className="sortie-boss-anchor" aria-label="Boss">
+          {boss.shieldMax > 0 ? (
+            <div className="sortie-meter">
+              <span>BOSS SHIELD</span>
+              <span className="hud-underline shield" aria-hidden>
+                <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, boss.shield / boss.shieldMax))})` }} />
+              </span>
+              <strong>
+                {formatCompact(Math.ceil(boss.shield))}/{formatCompact(Math.ceil(boss.shieldMax))}
+              </strong>
+            </div>
+          ) : null}
+          <div className="sortie-meter">
+            <span>BOSS HULL</span>
+            <span className="hud-underline hull" aria-hidden>
+              <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, boss.hull / Math.max(1, boss.hullMax)))})` }} />
+            </span>
+            <strong>
+              {formatCompact(Math.ceil(boss.hull))}/{formatCompact(Math.ceil(boss.hullMax))}
+            </strong>
+          </div>
         </div>
-        <div className="sortie-hud-res">
-          <div data-guide="salvage-stat">
-            <strong>{formatCompact(Math.floor(state.resources.salvage))}</strong>
-            <span className="muted">Salvage</span>
-          </div>
-          <div data-guide="scrap-stat">
-            <strong>+{formatCompact(Math.floor(scrapRun))}</strong>
-            <span className="muted">Scrap</span>
-          </div>
+      ) : null}
+
+      <header className="sortie-hud">
+        <div className="sortie-hud-econ">
+          <button
+            type="button"
+            className="sortie-econ"
+            data-guide="salvage-stat"
+            onClick={() => toggleRate('salvage')}
+          >
+            <strong>
+              {rateView === 'salvage' ? `${formatCompact(rates.salvagePerSec)}/s` : formatCompact(salvageBank)}
+            </strong>
+            <span className="muted">{rateView === 'salvage' ? 'Salvage /s' : 'Salvage'}</span>
+          </button>
+          <button type="button" className="sortie-econ" data-guide="scrap-stat" onClick={() => toggleRate('scrap')}>
+            <strong>
+              {rateView === 'scrap' ? `${formatCompact(rates.scrapPerSec)}/s` : `+${formatCompact(Math.floor(scrapRun))}`}
+            </strong>
+            <span className="muted">{rateView === 'scrap' ? 'Scrap /s' : 'Scrap'}</span>
+          </button>
+        </div>
+        <div className="sortie-hud-mid">
+          <strong className="sortie-wave">W{combat.wave}</strong>
+          <span>DPS {formatCompact(stats.damage)}</span>
+          <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>
         </div>
         <button
           type="button"
-          className="sortie-speed"
-          data-guide="sortie-speed"
-          onClick={() => onCycleSpeed?.()}
+          className="sortie-menu-btn"
+          aria-label="Sortie menu"
+          onClick={() => setMenuOpen(true)}
         >
-          ×{speed.toFixed(speed % 1 === 0 ? 0 : 1)}
+          ☰
         </button>
       </header>
-      )}
 
       <div className="sortie-canvas" data-guide="sortie-canvas">
-        {onOpenFoundry ? <CraftStrip state={state} onOpen={onOpenFoundry} /> : null}
-        <FragmentChip state={state} onOpen={onOpenPrints} />
         <Battlefield
           playerUnits={playerUnits}
           enemyUnits={enemyUnits}
@@ -355,7 +296,6 @@ export function CombatTab({
         ) : null}
       </div>
 
-      {dockedCalm ? null : (
       <div className="sortie-status">
         <div className="sortie-meter" data-guide="sortie-shield">
           <span>SHIELD</span>
@@ -371,44 +311,22 @@ export function CombatTab({
           </span>
           <strong>{Math.round(hullPct * 100)}%</strong>
         </div>
-        <div className="sortie-status-meta">
-          <span>DPS {formatCompact(stats.damage)}</span>
-          <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>
-        </div>
-        {bossHp ? (
-          <div className="sortie-meter">
-            <span>BOSS</span>
-            <span className="hud-underline hull" aria-hidden>
-              <span
-                style={{
-                  transform: `scaleX(${Math.max(0, Math.min(1, bossHp.hull / Math.max(1, bossHp.hullMax)))})`,
-                }}
-              />
-            </span>
-            <strong>
-              {formatCompact(Math.ceil(bossHp.hull))}/{formatCompact(Math.ceil(bossHp.hullMax))}
-            </strong>
-          </div>
+        {extraSpeeds ? (
+          <button
+            type="button"
+            className="sortie-speed"
+            data-guide="sortie-speed"
+            onClick={() => onCycleSpeed?.()}
+          >
+            ×{speed.toFixed(speed % 1 === 0 ? 0 : 1)}
+          </button>
         ) : null}
       </div>
-      )}
-
-      {showExtractRow ? (
-        <div className="sortie-actions">
-          {dying ? (
-            <button type="button" disabled>
-              Sortie ending
-            </button>
-          ) : (
-            <button type="button" data-guide="extract" onClick={() => onExtract?.()}>
-              Extract
-            </button>
-          )}
-        </div>
-      ) : null}
 
       <div className={`sortie-shop${shopCollapsed ? ' is-collapsed' : ''}`}>
-        {live ? (
+        {dying ? (
+          <p className="muted">Sortie ending…</p>
+        ) : (
           <>
             <div className="sortie-shop-head">
               <button
@@ -422,156 +340,47 @@ export function CombatTab({
               </button>
               {shopCollapsed ? null : (
                 <SheetTabs
-                  value={upgradeCat}
-                  onChange={setUpgradeCat}
+                  value={shopTab}
+                  onChange={setShopTab}
                   options={[
                     { id: 'attack', label: 'Attack' },
                     { id: 'defense', label: 'Defense' },
                     { id: 'economy', label: 'Economy' },
+                    { id: 'cores', label: 'Cores' },
                   ]}
                   label="Upgrade categories"
                 />
               )}
-              <button type="button" className="sortie-menu-btn" aria-label="Sortie menu" onClick={() => setMenuOpen(true)}>
-                ⋮
-              </button>
             </div>
             {shopCollapsed ? null : (
               <>
                 <BuyModeRow state={state} value={buyMode} onChange={setBuyMode} />
                 <UpgradeGrid
                   state={state}
-                  category={upgradeCat}
+                  category={shopTab === 'cores' ? 'attack' : shopTab}
                   kind="run"
+                  coresOnly={shopTab === 'cores'}
                   buyMode={buyMode}
                   onBuy={(id, count) => onBuyRunUpgrade?.(id, count)}
                   onBuyCore={(slot, count) => onBuyCoreRun?.(slot, count)}
                 />
               </>
             )}
-            <div className="sortie-shop-tools">
-              {activeDirectives.length > 0 ? (
-                <button
-                  type="button"
-                  className="sortie-directive-chip"
-                  onClick={() => setDirectivesOpen(true)}
-                >
-                  {activeDirectives[0]?.name}
-                  {activeDirectives.length > 1 ? ` · +${activeDirectives.length - 1}` : ''}
-                </button>
-              ) : null}
-            </div>
+            {showDirectives && activeDirectives.length > 0 ? (
+              <button
+                type="button"
+                className="sortie-directive-chip"
+                onClick={() => setDirectivesOpen(true)}
+              >
+                {activeDirectives[0]?.name}
+                {activeDirectives.length > 1 ? ` · +${activeDirectives.length - 1}` : ''}
+              </button>
+            ) : null}
           </>
-        ) : dying ? (
-          <p className="muted">Sortie ending…</p>
-        ) : (
-          <div className="sortie-docked">
-            <p className="ui-kicker">Ready</p>
-            <strong className="sortie-ready-frame">{frame?.name ?? 'Hive'}</strong>
-            <p className="ui-meta">
-              {state.shipyard.modules.map((id) => getModule(id)?.name ?? id).join(' · ') || 'No Cores fitted'}
-            </p>
-            <button
-              type="button"
-              className="primary"
-              data-guide="launch"
-              onClick={(e) => {
-                markLocalOk(e.currentTarget)
-                onLaunch()
-              }}
-            >
-              Launch Sortie
-            </button>
-          </div>
         )}
       </div>
 
-      {coresOpen ? (
-        <div className="sheet-overlay is-partial" role="dialog" aria-labelledby={`${titleId}-cores`}>
-          <div className="sheet-card">
-            <header className="modal-header">
-              <h3 id={`${titleId}-cores`}>Cores</h3>
-              <button type="button" onClick={() => setCoresOpen(false)}>
-                Close
-              </button>
-            </header>
-            <p className="muted">
-              Loadout is locked mid-Sortie. Power Cores with Salvage in Attack, Defense, and Economy —
-              Run Levels reset when the Sortie ends.
-            </p>
-            <div className="sheet-scroll" data-guide="cores-sheet">
-              {state.shipyard.modules.map((id, slot) => {
-                const def = getModule(id)
-                if (!def) return null
-                const dps = coreDps(state, id)
-                const share = coreContributionPct(state, id)
-                const shield = coreShieldOutput(state, id)
-                return (
-                  <div
-                    key={`${id}-${slot}`}
-                    className="core-summary"
-                    data-guide={`core-${id}`}
-                  >
-                    <InspectName name={def.name} card={inspectCore(state, id)} />
-                    <button type="button" onClick={() => setDetailCore(id)}>
-                      <span className="muted">
-                        Run Lv{coreRunLevel(state, slot)}
-                        {moduleMasteryRank(state, id) > 0 ? ` · Mastery ${moduleMasteryRank(state, id)}` : ''}
-                      </span>
-                      <span>
-                        {dps > 0
-                          ? `${formatCompact(dps)} DPS${share != null ? ` · ${share}% of output` : ''}`
-                          : shield > 0
-                            ? `+${formatCompact(shield)} Shield`
-                            : def.description}
-                      </span>
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {detailCore ? (
-        <div className="sheet-overlay" role="dialog" aria-labelledby={`${titleId}-core-detail`}>
-          <div className="sheet-card">
-            <header className="modal-header">
-              <h3 id={`${titleId}-core-detail`}>{getModule(detailCore)?.name ?? 'Core'}</h3>
-              <button type="button" onClick={() => setDetailCore(null)}>
-                Close
-              </button>
-            </header>
-            <p className="muted">{getModule(detailCore)?.description}</p>
-            {(() => {
-              const slot = state.shipyard.modules.indexOf(detailCore)
-              const mastery = moduleMasteryRank(state, detailCore)
-              const next = nextMasteryMilestone(detailCore, mastery)
-              return (
-                <>
-                  <p>
-                    Mastery {mastery}
-                    {slot >= 0 ? ` · Run Lv${coreRunLevel(state, slot)}` : ''}
-                  </p>
-                  <p className="muted">
-                    Run Levels spend Salvage and last only for this Sortie. Mastery is earned while
-                    the Core is equipped and survives Rebuild.
-                  </p>
-                  {next ? (
-                    <p className="muted">
-                      Next: M{next.level} · {next.name}
-                    </p>
-                  ) : null}
-                </>
-              )
-            })()}
-            <p className="muted">Loadout and Relic changes stay locked while the Sortie is live.</p>
-          </div>
-        </div>
-      ) : null}
-
-      {directivesOpen && directiveOffer.length === 0 ? (
+      {directivesOpen && directiveOffer.length === 0 && showDirectives ? (
         <div className="sheet-overlay is-partial" role="dialog" aria-labelledby={`${titleId}-dirs`}>
           <div className="sheet-card">
             <header className="modal-header">
@@ -603,9 +412,6 @@ export function CombatTab({
                 Close
               </button>
             </header>
-            <button type="button" disabled>
-              Pause
-            </button>
             {live && !dying ? (
               <button
                 type="button"
@@ -618,12 +424,6 @@ export function CombatTab({
                 Extract
               </button>
             ) : null}
-            <button type="button" data-guide="cores-sheet" onClick={() => { setMenuOpen(false); setCoresOpen(true) }}>
-              Core Performance
-            </button>
-            <p className="muted">
-              DPS {formatCompact(stats.damage)} · {formatRunTime(combat.fightElapsed ?? 0)} · Wave {combat.wave}
-            </p>
           </div>
         </div>
       ) : null}

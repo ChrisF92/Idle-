@@ -35,10 +35,11 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.getByText('Salvage')).toBeTruthy()
     expect(screen.getByText('Scrap')).toBeTruthy()
     expect(screen.queryByText('Pressure')).toBeNull()
-    expect(screen.queryByRole('tab', { name: 'Upgrades' })).toBeNull()
-    expect(screen.queryByRole('tab', { name: 'Cores' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Directives' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Attack' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Cores' })).toBeTruthy()
     expect(screen.getByText('Weapon Power')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Weapon Power details' }))
     expect(screen.getByRole('dialog', { name: 'Weapon Power' })).toBeTruthy()
@@ -52,7 +53,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
   })
 
-  it('keeps Sortie Cores inspect-only and sells Run Levels in Attack', () => {
+  it('sells Run Levels on the Cores tab and keeps Extract in the menu', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
     state.resources.scrap = 80
@@ -65,13 +66,14 @@ describe('GDD visual layout and Dock Core ranks', () => {
         onPickMilestone={() => undefined}
       />,
     )
-    expect(screen.getByText('CORES')).toBeTruthy()
-    expect(screen.getByText('GLOBAL')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }))
     expect(screen.getByText(/Pulse Cannon/)).toBeTruthy()
+    expect(screen.getAllByText(/Run Lv/).length).toBeGreaterThan(0)
+    expect(screen.queryByText('GLOBAL')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Core Performance' }))
-    expect(screen.getByText(/Run Levels reset/i)).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Upgrade ·/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Extract' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Core Performance' })).toBeNull()
   })
 
   it('inspects Mastery and Run Level instead of Dock Scrap ranks', () => {

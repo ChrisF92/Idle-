@@ -21,7 +21,6 @@ import {
   CORE_RUN_LEVEL_CAP,
   corePrimaryOutput,
   coreRunBulkCost,
-  coreRunCategory,
   coreRunLevel,
   equippedCoreSlots,
   maxAffordableCoreRunPurchases,
@@ -36,6 +35,7 @@ interface UpgradeGridProps {
   category: RunUpgradeCategory
   kind: UpgradeGridKind
   buyMode: BuyMode
+  coresOnly?: boolean
   onBuy?: (id: RunUpgradeId, count: number) => void
   onBuyCore?: (slot: number, count: number) => void
 }
@@ -80,13 +80,18 @@ export function BuyModeRow({
   )
 }
 
-export function UpgradeGrid({ state, category, kind, buyMode, onBuy, onBuyCore }: UpgradeGridProps) {
+export function UpgradeGrid({
+  state,
+  category,
+  kind,
+  buyMode,
+  coresOnly = false,
+  onBuy,
+  onBuyCore,
+}: UpgradeGridProps) {
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
-  const rows = visibleRunUpgrades(best, category)
-  const cores =
-    kind === 'run'
-      ? equippedCoreSlots(state).filter((row) => coreRunCategory(row.moduleId) === category)
-      : []
+  const rows = coresOnly ? [] : visibleRunUpgrades(best, category)
+  const cores = kind === 'run' && coresOnly ? equippedCoreSlots(state) : []
   const [infoId, setInfoId] = useState<string | null>(null)
   const [coreInfo, setCoreInfo] = useState<number | null>(null)
   if (rows.length === 0 && cores.length === 0) {

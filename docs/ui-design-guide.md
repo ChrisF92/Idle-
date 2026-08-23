@@ -28,8 +28,7 @@ Every screen answers one question.
 
 | Screen | Question |
 | --- | --- |
-| Sortie (docked) | Ready to launch? |
-| Sortie (live) | What should I do during this run? |
+| Sortie | Wave, Hull, Salvage, Scrap this run? |
 | Dock | Best Wave, Loadout, Launch / Resume? |
 | Loadout | What am I flying? |
 | Workshop | Which starting upgrade should I buy? |
@@ -234,7 +233,7 @@ Header is compact. Do not repeat every resource on every screen.
 
 - **Dock:** Hiveworks + ⓘ + Wallet icon. No currency chips in the header.
 - **Wallet:** icon opens a modal of all owned/visible currencies. Individual currencies only appear on the screens that spend them (Scrap on Workshop, Matter on Rebuild).
-- **Sortie:** own HUD, not the generic header
+- **Sortie:** own HUD only while a run is live. No Wallet. No generic header.
 - **Systems:** contextual header
 - **More:** no game currencies required
 
@@ -264,6 +263,20 @@ Rules:
 - Inventory is a Loadout-page button.
 - Do not show the Hive preview on Dock for now.
 - The expanded Core sheet lists **every** mastery milestone and highlights unlocked ranks plus the next one.
+
+### Sortie live HUD
+
+Sortie exists only while a run is live. Dock launches. After the report, land on Dock home.
+
+```
+Boss bars   (only on boss waves, top of screen)
+HUD         Salvage / Scrap this run (tap for /s)   Wave · DPS · time   ☰
+Canvas      combat
+Status      Shield · Hull     speed (only after extra speeds unlock)
+Shop        Upgrades  → expands to ~80% with Attack / Defense / Economy / Cores
+```
+
+Extract lives in the hamburger stub. Directives stay a centered full-screen pick; the Directives chip stays hidden until Wave 50.
 
 ## Onboarding
 

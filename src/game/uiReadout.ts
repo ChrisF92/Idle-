@@ -57,6 +57,22 @@ export function runScrapEarned(state: GameState): number {
   return Math.max(0, (state.resources.scrap ?? 0) - (state.combat.sortieMark.scrap ?? 0))
 }
 
+export function runSalvageEarned(state: GameState): number {
+  const mark = state.combat.sortieMark
+  if (state.combat.docked || !mark) {
+    return Math.max(0, state.combat.lastSortie?.salvageGained ?? 0)
+  }
+  return Math.max(0, (state.resources.salvage ?? 0) - (mark.salvage ?? 0) + (mark.salvageSpent ?? 0))
+}
+
+export function runResourceRates(state: GameState): { salvagePerSec: number; scrapPerSec: number } {
+  const elapsed = Math.max(1, state.combat.fightElapsed ?? 0)
+  return {
+    salvagePerSec: runSalvageEarned(state) / elapsed,
+    scrapPerSec: runScrapEarned(state) / elapsed,
+  }
+}
+
 export function fragmentCount(state: GameState): number {
   return Object.values(state.parts ?? {}).reduce((n, v) => n + Math.max(0, Math.floor(Number(v) || 0)), 0)
 }
@@ -121,13 +137,15 @@ export function livePressureLabel(state: GameState): string {
   return 'Steady'
 }
 
-export function liveBossHp(state: GameState): { hull: number; hullMax: number } | null {
+export function liveBossHp(state: GameState): { hull: number; hullMax: number; shield: number; shieldMax: number } | null {
   if (!state.combat.isBoss) return null
   const bosses = state.combat.enemyUnits.filter((u) => u.isBoss && u.hullMax > 0)
   if (bosses.length === 0) return null
   return {
     hull: bosses.reduce((n, u) => n + Math.max(0, u.hull), 0),
     hullMax: bosses.reduce((n, u) => n + Math.max(0, u.hullMax), 0),
+    shield: bosses.reduce((n, u) => n + Math.max(0, u.shield), 0),
+    shieldMax: bosses.reduce((n, u) => n + Math.max(0, u.shieldMax), 0),
   }
 }
 

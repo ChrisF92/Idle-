@@ -748,13 +748,48 @@ button.just-ok {
   }
 }
 
+.sortie-boss-anchor {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.35rem 0.7rem 0.3rem;
+  border-bottom: 1px solid var(--line);
+}
+
 .sortie-hud {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
   gap: 0.45rem;
-  padding: 0.4rem 0.7rem 0.3rem;
+  padding: 0.4rem 0.55rem 0.3rem;
   border-bottom: 1px solid var(--line);
+}
+
+.sortie-hud-econ {
+  display: grid;
+  gap: 0.12rem;
+  justify-items: start;
+}
+
+.sortie-econ {
+  display: grid;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.sortie-econ strong {
+  font-size: 0.95rem;
+}
+
+.sortie-hud-mid {
+  display: grid;
+  justify-items: end;
+  gap: 0.05rem;
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .sortie-hud-wave {
@@ -799,23 +834,39 @@ button.just-ok {
 }
 
 .sortie-canvas {
-  flex: 1 1 48%;
-  min-height: 38dvh;
-  max-height: 52dvh;
-}
-
-.sortie-screen.is-shop-collapsed .sortie-canvas {
-  flex: 1 1 70%;
-  min-height: 52dvh;
+  flex: 1 1 62%;
+  min-height: 46dvh;
   max-height: none;
 }
 
+.sortie-screen.is-shop-collapsed .sortie-canvas {
+  flex: 1 1 78%;
+  min-height: 58dvh;
+}
+
+.sortie-screen.is-shop-open .sortie-canvas {
+  flex: 0 1 12%;
+  min-height: 8dvh;
+}
+
+.sortie-screen.is-shop-open .sortie-shop {
+  flex: 0 0 80%;
+  max-height: 80%;
+}
+
 .sortie-status {
+  position: relative;
   display: grid;
   gap: 0.22rem;
   padding: 0.35rem 0.7rem 0.3rem;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
+}
+
+.sortie-status .sortie-speed {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.28rem;
 }
 
 .sortie-meter {
@@ -970,6 +1021,17 @@ button.just-ok {
   padding: 0.2rem 0.55rem;
 }
 
+.sortie-menu-btn {
+  width: var(--touch);
+  height: var(--touch);
+  min-height: var(--touch);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.2rem;
+}
+
 .sortie-shop.is-collapsed {
   flex: 0 0 auto;
 }
@@ -1001,7 +1063,9 @@ button.just-ok {
   inset: 0;
   z-index: 9;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem;
   background: rgba(8, 6, 5, 0.5);
 }
 
@@ -1009,8 +1073,13 @@ button.just-ok {
 .directive-picks {
   display: grid;
   gap: 0.4rem;
-  width: 100%;
+  width: min(26rem, 100%);
   padding: 0.7rem;
+}
+
+.directive-choice-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
 }
 
 .directive-pick {

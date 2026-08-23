@@ -137,6 +137,15 @@ export function hasDirectiveOffer(state: GameState): boolean {
   return (state.combat.directiveOffer?.length ?? 0) > 0
 }
 
+export function directivesUnlocked(state: GameState): boolean {
+  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
+  return (
+    best >= ACT1_CADENCE.directives ||
+    (state.combat.directives?.length ?? 0) > 0 ||
+    hasDirectiveOffer(state)
+  )
+}
+
 /** Three unused Directives for this milestone, rotated by Wave. */
 export function makeDirectiveOffer(state: GameState, wave: number): DirectiveId[] {
   const taken = new Set(state.combat.directives ?? [])

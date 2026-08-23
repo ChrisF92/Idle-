@@ -236,6 +236,13 @@ function AppShell() {
   }, [dying])
 
   useEffect(() => {
+    if (game.state.combat.docked && !dying && tab === 'combat') {
+      setDockPane('home')
+      setTab('dock')
+    }
+  }, [game.state.combat.docked, dying, tab])
+
+  useEffect(() => {
     const out = game.state.combat.lastSortie.outcome
     if (
       out === 'defeat' &&

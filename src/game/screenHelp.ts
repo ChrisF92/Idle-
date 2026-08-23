@@ -36,8 +36,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   combat: {
     title: 'Sortie',
     body: [
-      'Weapons fire automatically. Waves come from all directions. The compact HUD shows Wave, Salvage, and Scrap earned this Sortie.',
-      'Death or Extract ends the Sortie and returns you to Dock. Every Launch starts at Wave 1. Salvage buys Attack, Defense, Economy, and Core Run Levels for this Sortie only. Mastery is earned while a Core is equipped and survives Rebuild.',
+      'Weapons fire automatically. The HUD shows Wave, Salvage, Scrap this run, Hull, Shield, DPS, and time. Tap Salvage or Scrap to see their per-second rate. Bosses get hull and shield bars at the top.',
+      'Death or Extract ends the Sortie and returns you to Dock after the report. Salvage buys Attack, Defense, Economy, and Core Run Levels for this Sortie only. Extract lives in the top-right menu.',
       'If you close mid-Sortie, combat freezes. Foundry, fabrication, and Worker jobs keep running.',
       'Worker Drones unlock at Wave 30 under Systems. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
     ],

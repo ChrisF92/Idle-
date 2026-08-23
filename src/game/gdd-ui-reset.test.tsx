@@ -102,7 +102,7 @@ describe('UI architecture reset', () => {
     expect(screen.queryByText(/Permanent · Damage/)).toBeNull()
   })
 
-  it('shows a calm pre-launch Sortie without live HUD chrome', () => {
+  it('does not render a docked Ready Sortie now that Dock launches', () => {
     const state = createInitialState(0)
     render(
       <CombatTab
@@ -112,14 +112,12 @@ describe('UI architecture reset', () => {
         onPickMilestone={() => undefined}
       />,
     )
-    expect(screen.getByText('Ready')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
-    expect(screen.queryByText('Salvage')).toBeNull()
-    expect(document.querySelector('[data-guide="sortie-hull"]')).toBeNull()
-    expect(screen.queryByRole('button', { name: /CORES/i })).toBeNull()
+    expect(document.querySelector('.sortie-screen')).toBeNull()
+    expect(screen.queryByText('Ready')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Launch Sortie' })).toBeNull()
   })
 
-  it('shows live Sortie shop without a competing Cores button', () => {
+  it('shows live Sortie HUD and a collapsed shop with a Cores tab', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
     render(
@@ -131,9 +129,18 @@ describe('UI architecture reset', () => {
       />,
     )
     expect(screen.getByText('Salvage')).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /CORES ·/ })).toBeNull()
+    expect(screen.getByText('Scrap')).toBeTruthy()
+    expect(screen.queryByText(/BEST/)).toBeNull()
     expect(document.querySelector('[data-guide="sortie-hull"]')).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Attack' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))
+    expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Cores' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /CORES ·/ })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }))
+    expect(screen.getByText(/Pulse Cannon/)).toBeTruthy()
+    fireEvent.click(document.querySelector('[data-guide="salvage-stat"]')!)
+    expect(screen.getByText('Salvage /s')).toBeTruthy()
   })
 
   it('lists Inventory categories and Core copy counts', () => {
