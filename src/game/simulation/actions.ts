@@ -577,7 +577,7 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   const gain = prestigeGainFor(state)
   if (ctx.secondsSinceHighestSectorGain >= cfg.stallSeconds) {
     reasons.push(
-      `${Math.round(ctx.secondsSinceHighestSectorGain / 60)} minutes without sector progress`,
+      `${Math.round(ctx.secondsSinceHighestSectorGain / 60)} minutes without Wave progress`,
     )
   }
   if (state.combat.consecutiveLosses >= cfg.consecutiveLosses) {
