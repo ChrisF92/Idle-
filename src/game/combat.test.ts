@@ -4,6 +4,7 @@ import { startCombat, advanceTicks } from './tick'
 import {
   computeFightDamage,
   dealCombatDamage,
+  enemyApproachTarget,
   enemyForSector,
   isBossSector,
   PROJECTILE_SPEED,
@@ -99,13 +100,14 @@ describe('sector roster intel', () => {
 })
 
 describe('starter reach', () => {
-  it('starter weapons can hit Shielded-band ethereal engage range', () => {
+  it('starter weapons can hit Shielded-band ethereal hulls at their legal hold', () => {
     const state = createInitialState(0)
     const maxRange = Math.max(...buildFlagshipWeapons(state).map((w) => w.range))
     const ethereal = enemyForSector(8, 1)
-    const maxEngage = Math.max(...ethereal.units.map((u) => u.engageRange))
     expect(ethereal.family).toBe('ethereal')
-    expect(maxRange).toBeGreaterThanOrEqual(maxEngage)
+    for (const unit of ethereal.units) {
+      expect(maxRange).toBeGreaterThanOrEqual(enemyApproachTarget(unit))
+    }
   })
 })
 
