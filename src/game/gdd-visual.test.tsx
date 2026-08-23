@@ -72,7 +72,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.getAllByText(/Run Lv/).length).toBeGreaterThan(0)
     expect(screen.queryByText('GLOBAL')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
-    expect(screen.getByRole('button', { name: 'Extract' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Extract' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Core Performance' })).toBeNull()
   })
 
