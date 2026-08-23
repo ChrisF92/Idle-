@@ -176,7 +176,14 @@ export function CombatTab({
   }, [forceCores])
 
   useEffect(() => {
-    if (guide?.target === 'run-upgrade-weapon-power') setShopCollapsed(false)
+    if (guide?.target === 'run-upgrade-weapon-power') {
+      setShopCollapsed(false)
+      setUpgradeCat('attack')
+    }
+    if (guide?.target === 'run-upgrade-hull') {
+      setShopCollapsed(false)
+      setUpgradeCat('defense')
+    }
   }, [guide?.target])
 
   useEffect(() => {

@@ -71,6 +71,13 @@ export function NetworkTab({ state, onAssign, onOptimise, onBack }: NetworkTabPr
                 <span className="muted">{workerJobCapLine(assigned, job.id)}</span>
               </div>
               <p className="network-row-stats">{job.description}</p>
+              {job.id === 'scrap-field' && open ? (
+                <p className="muted">
+                  {assigned > 0
+                    ? `Scrap +${((job.rates.scrap ?? 0) * assigned).toFixed(1)}/s`
+                    : `Scrap 0/s → +${(job.rates.scrap ?? 0).toFixed(1)}/s with 1 drone`}
+                </p>
+              ) : null}
               {open ? (
                 <p className="assign-row">
                   <button type="button" disabled={assigned <= 0} onClick={() => onAssign(job.id, -1)}>

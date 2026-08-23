@@ -15,6 +15,7 @@ import {
 import { formatCompact } from './format'
 import { corePrimaryOutput } from './coreProgression'
 import { processCombatSpeedMult } from './process'
+import { advancedReadoutsUnlocked } from './disclosure'
 import { computeShipStats } from './state'
 import { ensureSortieStats, primaryThreat } from './sortieTelemetry'
 import type { GameState } from './types'
@@ -147,6 +148,7 @@ export function coreShieldOutput(state: GameState, moduleId: string): number {
 }
 
 export function coreContributionPct(state: GameState, moduleId: string): number | null {
+  if (!advancedReadoutsUnlocked(state)) return null
   const fleet = computeShipStats(state).damage
   if (fleet <= 0) return null
   if (!state.shipyard.modules.includes(moduleId)) return 0

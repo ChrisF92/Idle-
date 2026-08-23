@@ -21,12 +21,16 @@ export type ToastNav =
   | { kind: 'cores'; moduleId?: string }
   | { kind: 'rebuild' }
 
+export type ToastTier = 'minor' | 'action' | 'major'
+
 export interface ToastSpec {
   /** Coalesce key — duplicate ids refresh the existing toast instead of stacking. */
   id: string
   category: string
   title: string
   body: string
+  /** minor expires; action deep-links; major waits for a tap (GDD §124). */
+  tier?: ToastTier
   action?: { label: string; nav: ToastNav }
 }
 
@@ -117,7 +121,7 @@ const STATION_TOAST: Partial<
   },
   slag: {
     category: 'REBUILD',
-    title: 'Slag Bank unlocked',
+    title: 'Matter shop unlocked',
     body: 'Spend Rebuild Matter on large permanent ranks. Key growth ranks compound.',
     label: 'OPEN',
   },
@@ -236,6 +240,7 @@ function systemToast(id: TabId): ToastSpec | null {
     category: copy.category,
     title: copy.title,
     body: copy.body,
+    tier: 'major',
     action: { label: copy.label, nav: { kind: 'tab', tab: id } },
   }
 }
@@ -256,6 +261,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       category: 'SYSTEM ONLINE',
       title: 'Workshop unlocked',
       body: 'Scrap survives. Spend it so the next Sortie starts stronger.',
+      tier: 'major',
       action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
     })
   }
@@ -294,6 +300,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         category: 'SYSTEM ONLINE',
         title: 'Construction unlocked',
         body: 'Foundry construction is open. Place processing gear; arms apply on the next Rebuild.',
+        tier: 'major',
         action: { label: 'OPEN', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
       })
       continue
@@ -304,6 +311,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         category: 'SYSTEM ONLINE',
         title: 'Relic sockets unlocked',
         body: 'Matching sockets on fitted Cores. Power, Optical, Ballistic, Shield, Industrial — then Universal at Mastery 5 or Wave 275. Spare copies upgrade I–III with Slag Ingots.',
+        tier: 'major',
         action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
       })
       continue
@@ -316,7 +324,8 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       id: 'sys:rebuild',
       category: 'HANGAR',
       title: 'Rebuild available',
-      body: 'Preview the reset, then confirm if this cycle should end.',
+      body: 'Preview RESET, KEEP, and GAIN. Confirm only when you are ready.',
+      tier: 'major',
       action: { label: 'VIEW REBUILD', nav: { kind: 'rebuild' } },
     })
   }
@@ -524,6 +533,12 @@ export function dismissToast(queue: QueuedToast[], id: string): QueuedToast[] {
   return queue.filter((t) => t.id !== id)
 }
 
+export function toastTier(spec: Pick<ToastSpec, 'tier' | 'action'>): ToastTier {
+  if (spec.tier) return spec.tier
+  if (spec.action) return 'action'
+  return 'minor'
+}
+
 export function expireToasts(queue: QueuedToast[], now: number, ttl = TOAST_TTL_MS): QueuedToast[] {
-  return queue.filter((t) => now - t.createdAt < ttl)
+  return queue.filter((t) => toastTier(t) === 'major' || now - t.createdAt < ttl)
 }

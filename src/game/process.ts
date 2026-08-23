@@ -149,6 +149,14 @@ export const CORE_PRIORITY_LABELS: Record<ProcessCorePriority, string> = {
  */
 export const PROCESS_NODES: ProcessNodeDef[] = [
   {
+    id: 'buy-ten',
+    name: 'Buy ×10',
+    category: 'qol',
+    kind: 'qol',
+    blurb: 'Adds ×10 on Salvage and Workshop purchases.',
+    cost: 2,
+  },
+  {
     id: 'core-buy-max',
     name: 'Core Buy Max',
     category: 'cores',
@@ -584,6 +592,7 @@ export const PROCESS_REVEAL_TIERS: { id: ProcessRevealTier; name: string }[] = [
 ]
 
 const PROCESS_NODE_TIER: Record<string, ProcessRevealTier> = {
+  'buy-ten': 'qol',
   'core-buy-max': 'qol',
   'foundry-buy-max': 'qol',
   'yard-buy-max': 'qol',

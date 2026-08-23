@@ -237,6 +237,14 @@ export default function App() {
   }, [guide])
 
   useEffect(() => {
+    if (!guide) return
+    if (guide.id === 'guide-workshop' || guide.target === 'workshop-weapon-power') {
+      setDockPane('workshop')
+    }
+    if (guide.id === 'guide-relic-install') setDockPane('loadout')
+  }, [guide])
+
+  useEffect(() => {
     if (!guideAutoTabs(guide) || !guide?.tab || dying) return
     if (!game.state.combat.docked && guide.tab !== 'combat') return
     if (guide.id === lastGuideId.current) return

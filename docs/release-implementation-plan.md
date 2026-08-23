@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ Research tree + Matter shop identity (SAVE_VERSION 35, package `0.1.0`)  
+**Code snapshot:** `main` @ onboarding + Matter shop identity (SAVE_VERSION 35, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -394,7 +394,7 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 
 **Files:** `progression.ts` (`ONBOARDING_ENABLED`, `GUIDE_STEPS`), `GuideOverlay.tsx`, `toasts.ts`, `playerGuidance.ts`, `screenHelp.ts`.
 
-**Work:** GDD §125–140 as a checklist, one concept / one action / one payoff / end.
+**Work:** **Done.** GDD §125–140 as a checklist, one concept / one action / one payoff / end. `ONBOARDING_ENABLED` is true. Skip is never blocked; skip groups are per door.
 
 | Step | Trigger | Action |
 |---|---|---|
@@ -416,10 +416,10 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 
 Also:
 
-- Toast tiers: minor / action (deep-link) / major unlock queued until tap (GDD §124).
-- Progressive disclosure: ×10 / MAX / AUTO / ROI / DPS breakdowns locked to Process or Research (GDD §122).
-- Universal information audit (GDD §123, Appendix C) on Sortie shop, Dock loadout, Workshop, Rebuild, Foundry job, Challenge launch.
-- Re-enable `ONBOARDING_ENABLED`. Skip never blocked. Skipping a door does not skip a later system’s first lesson.
+- **Done.** Toast tiers: minor / action (deep-link) / major unlock queued until tap (GDD §124).
+- **Done.** Progressive disclosure: ×10 / MAX / AUTO / DPS share locked to Process or Research (GDD §122).
+- **Done (first cut).** Universal information audit (GDD §123) on Sortie/Workshop tiles (This Sortie / Until Rebuild), Rebuild RESET/KEEP/GAIN, Challenge confirm.
+- **Done.** Re-enable `ONBOARDING_ENABLED`. Skip never blocked. Skipping a door does not skip a later system’s first lesson.
 
 **Acceptance:** a fresh state can complete Launch → Salvage buy → death → Workshop buy → second Launch without opening More. `gdd-furnace.test.ts` onboarding assertion updates to `true`.
 

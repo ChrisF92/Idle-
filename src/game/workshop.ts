@@ -2,6 +2,7 @@
 
 import type { GameState, RunUpgradeCategory, RunUpgradeId, WorkshopState } from './types'
 import { matterShopReclaimBonus } from './catalog'
+import { shopBulkTenUnlocked, shopBuyMaxUnlocked } from './disclosure'
 
 export type { RunUpgradeCategory, RunUpgradeId, WorkshopState }
 
@@ -147,12 +148,11 @@ export function maxAffordableWorkshopPurchases(state: GameState, id: RunUpgradeI
 
 export type BuyMode = 1 | 10 | 'max'
 
-/** ×1 is always available. ×10 / MAX open after the first hull loss. */
+/** ×1 is always available. ×10 / MAX wait for Process (GDD §122). */
 export function unlockedBuyModes(state: GameState): BuyMode[] {
   const modes: BuyMode[] = [1]
-  if (state.meta.hullLostOnce) {
-    modes.push(10, 'max')
-  }
+  if (shopBulkTenUnlocked(state)) modes.push(10)
+  if (shopBuyMaxUnlocked(state)) modes.push('max')
   return modes
 }
 

@@ -605,6 +605,15 @@ button.just-ok {
   animation: toast-in 0.28s var(--ease-out);
 }
 
+.toast-major {
+  inset-inline-start: 0;
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
+}
+
+.toast-minor {
+  opacity: 0.92;
+}
+
 .toast-kicker {
   margin: 0;
   font-size: 0.62rem;
@@ -900,9 +909,15 @@ button.just-ok {
 }
 
 .upgrade-tile-level,
-.upgrade-tile-preview {
+.upgrade-tile-preview,
+.upgrade-tile-scope {
   font-size: 0.7rem;
   color: var(--muted);
+}
+
+.upgrade-tile-scope {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .upgrade-tile-info {

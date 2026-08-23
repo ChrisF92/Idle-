@@ -203,18 +203,16 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
           ))}
         </div>
         <div className="guide-tip-actions">
-          {!required ? (
-            <button type="button" onClick={() => onSkip(step.id)}>
-              Skip
-            </button>
-          ) : needsTap ? (
-            <span className="muted">Tap the highlighted control</span>
-          ) : null}
+          <button type="button" onClick={() => onSkip(step.id)}>
+            Skip
+          </button>
           {!needsTap ? (
             <button type="button" className="primary" onClick={() => onComplete(step.id)}>
               {kind === 'critical' ? 'Continue' : 'Got it'}
             </button>
-          ) : null}
+          ) : (
+            <span className="muted">Tap the highlighted control</span>
+          )}
         </div>
       </div>
     </div>

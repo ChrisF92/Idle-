@@ -11,7 +11,7 @@ import {
 } from './cadence'
 import { careerBestWave, meetsWave } from './waves'
 import { rebuildDoorMet } from './rebuild'
-import { anyCoreRunLevel, practicedCoreWork } from './corePractice'
+import { practicedCoreWork } from './corePractice'
 import { SHIP_FRAMES, grantUnlockedFrame } from './catalog'
 
 export {
@@ -875,6 +875,58 @@ function guideSeen(state: GameState, id: string): boolean {
   return state.meta.seenOnboarding.includes(id)
 }
 
+function anyRunUpgradeBought(state: GameState): boolean {
+  return Object.values(state.combat.runUpgrades ?? {}).some((n) => (n ?? 0) > 0)
+}
+
+function anyWorkshopBought(state: GameState): boolean {
+  return Object.values(state.workshop?.levels ?? {}).some((n) => (n ?? 0) > 0)
+}
+
+function anyRelicOwned(state: GameState): boolean {
+  return Object.values(state.reliquary?.owned ?? {}).some((n) => (n ?? 0) > 0)
+}
+
+function anyRelicFitted(state: GameState): boolean {
+  for (const slots of Object.values(state.reliquary?.coreFits ?? {})) {
+    if (Array.isArray(slots) && slots.some(Boolean)) return true
+  }
+  return Object.values(state.reliquary?.slots ?? {}).some(Boolean)
+}
+
+/** First Salvage buy costs 8. */
+function canAffordFirstSalvageBuy(state: GameState): boolean {
+  return (state.resources.salvage ?? 0) >= 8
+}
+
+function hullUnderPressure(state: GameState): boolean {
+  const max = state.combat.playerHullMax ?? 0
+  if (max <= 0) return false
+  return (state.combat.playerHull ?? 0) / max <= 0.55
+}
+
+function foundryFirstJobReady(state: GameState): boolean {
+  if (!isSystemUnlocked(state, 'foundry')) return false
+  if ((state.foundry?.slots ?? []).some((slot) => slot.recipeId)) return false
+  const slag = state.foundry?.recipeLevels?.['slag-ingot'] ?? 0
+  const filament = state.foundry?.recipeLevels?.filament ?? 0
+  if (slag >= 1 || filament >= 1) return false
+  return (state.resources.salvage ?? 0) >= 10 || (state.resources.scrap ?? 0) >= 5
+}
+
+function foundryFirstJobDone(state: GameState): boolean {
+  const slag = state.foundry?.recipeLevels?.['slag-ingot'] ?? 0
+  const filament = state.foundry?.recipeLevels?.filament ?? 0
+  if (slag >= 1 || filament >= 1) return true
+  return (state.foundry?.slots ?? []).some(
+    (slot) => slot.recipeId === 'slag-ingot' || slot.recipeId === 'filament',
+  )
+}
+
+function foundryFirstJobTarget(state: GameState): string {
+  return (state.resources.salvage ?? 0) >= 10 ? 'foundry-recipe-slag-ingot' : 'foundry-recipe-filament'
+}
+
 /** Dock Rebuild button is live and this career has never Rebuilt. */
 export function firstRebuildAvailable(state: GameState): boolean {
   if ((state.prestige.prestigeCount ?? 0) > 0) return false
@@ -924,8 +976,8 @@ export function completeAct1(state: GameState): void {
 
 /* ---------- Guided onboarding (spotlight + directed clicks) ---------- */
 
-/** Old coach-marks fight the GDD Sortie/Dock loop. Keep the catalog for a later rewrite. */
-export const ONBOARDING_ENABLED = false
+/** GDD §125–140. Skip is always available. */
+export const ONBOARDING_ENABLED = true
 
 export type GuideKind = 'hint' | 'action' | 'critical'
 
@@ -935,6 +987,8 @@ export interface GuideStep {
   body: string | string[]
   /** Matches data-guide="…" on UI elements. */
   target: string
+  /** Resolve spotlight from live state (Foundry first job, etc.). */
+  targetFor?: (state: GameState) => string
   /** Home tab for this lesson. Never auto-switched unless autoTab is set. */
   tab?: TabId
   /** Screen this lesson belongs to. Lessons only show on their home screen. */
@@ -983,14 +1037,17 @@ export function guideBodyLines(step: GuideStep): string[] {
 const TAP_TARGETS = new Set([
   'launch',
   'retry-frontier',
-  'core-run-pulse-cannon',
-  'network-strike-plus',
-  'network-ward-plus',
+  'run-upgrade-weapon-power',
+  'run-upgrade-hull',
+  'workshop-weapon-power',
   'worker-scrap-field',
-  'worker-power-grid',
   'foundry-recipe-slag-ingot',
+  'foundry-recipe-filament',
   'furnace-channel-weapons',
   'research-focus',
+  'directive-offer',
+  'process-first-buy',
+  'relic-sockets',
 ])
 
 /** True when the player must tap the spotlight instead of Continue. */
@@ -1017,7 +1074,7 @@ function stepLessonScreen(step: GuideStep): TabId | undefined {
 
 /** Battlefield lessons may run during a live sortie, even on other screens. */
 export function isLiveSortieLesson(step: GuideStep): boolean {
-  return step.group === 'sortie'
+  return step.group === 'sortie' || step.group === 'salvage' || step.group === 'defense' || step.group === 'directive'
 }
 
 /** Lessons stay on their home screen. Live sortie hints may overlay any tab. */
@@ -1031,194 +1088,216 @@ export function stepAllowedOnTab(step: GuideStep, tab: TabId): boolean {
   return false
 }
 
+function resolveGuideStep(step: GuideStep, state: GameState): GuideStep {
+  if (!step.targetFor) return step
+  return { ...step, target: step.targetFor(state) }
+}
+
 export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-launch',
     kind: 'hint',
-    title: 'Scout ready',
-    body: 'Your Scout is ready. Launch a sortie and see how far it gets.',
+    title: 'Launch',
+    body: 'Starter Hive and Cores are already fitted. Launch — no loadout required.',
     target: 'launch',
     tab: 'dock',
-    group: 'starter',
+    group: 'launch',
     tap: true,
     availableWhen: (s) => s.combat.docked && !s.meta.hullLostOnce && !guideSeen(s, 'guide-launch'),
-    completeWhen: (s) => !s.combat.docked || Boolean(s.shipyard.frameLocked),
-  },
-  {
-    id: 'guide-sortie-fire',
-    kind: 'hint',
-    title: 'Weapons live',
-    body: 'Weapons fire automatically.',
-    target: 'sortie-canvas',
-    tab: 'combat',
-    screen: 'combat',
-    group: 'sortie',
-    tap: false,
-    availableWhen: (s) =>
-      !s.combat.docked &&
-      (s.combat.defeatLeft ?? 0) <= 0 &&
-      (s.resources.salvage ?? 0) <= 0 &&
-      !s.meta.hullLostOnce &&
-      !guideSeen(s, 'guide-sortie-fire'),
-    completeWhen: (s) => (s.resources.salvage ?? 0) > 0 || Boolean(s.meta.hullLostOnce),
+    completeWhen: (s) => !s.combat.docked,
   },
   {
     id: 'guide-salvage-first',
-    kind: 'hint',
-    title: 'Salvage recovered',
-    body: 'Spend Salvage to strengthen this run. Tap Weapon Power.',
+    kind: 'action',
+    pause: true,
+    title: 'Salvage',
+    body: [
+      'Enemies drop Salvage during a Sortie.',
+      'Spend it now — Salvage resets when the Sortie ends. Buy Weapon Power.',
+    ],
     target: 'run-upgrade-weapon-power',
     tab: 'combat',
     screen: 'combat',
-    group: 'sortie',
-    tap: false,
-    availableWhen: (s) =>
-      !s.combat.docked &&
-      (s.combat.defeatLeft ?? 0) <= 0 &&
-      (s.resources.salvage ?? 0) > 0 &&
-      !s.meta.hullLostOnce &&
-      !guideSeen(s, 'guide-salvage-first'),
-    completeWhen: (s) => Boolean(s.meta.hullLostOnce) || (s.combat.wave ?? 1) >= 2,
-  },
-  {
-    id: 'guide-core-run',
-    kind: 'action',
-    title: 'Cores can be powered up during a Sortie',
-    body: 'Core Run Levels use Salvage and reset when the Sortie ends. Tap Pulse Core.',
-    target: 'core-run-pulse-cannon',
-    tab: 'combat',
-    screen: 'combat',
-    group: 'cores',
-    required: true,
+    group: 'salvage',
     tap: true,
     availableWhen: (s) =>
       !s.combat.docked &&
       (s.combat.defeatLeft ?? 0) <= 0 &&
-      (s.resources.salvage ?? 0) > 0 &&
-      (guideSeen(s, 'guide-salvage-first') || hasHullLostOnce(s) || (s.combat.wave ?? 1) >= 2) &&
-      anyCoreRunLevel(s) < 1 &&
-      !guideSeen(s, 'guide-core-run'),
-    completeWhen: (s) => anyCoreRunLevel(s) >= 1 || (s.meta.lifetimeCoreRunBuys ?? 0) >= 1,
+      canAffordFirstSalvageBuy(s) &&
+      !anyRunUpgradeBought(s) &&
+      !guideSeen(s, 'guide-salvage-first'),
+    completeWhen: (s) => anyRunUpgradeBought(s),
   },
   {
-    id: 'guide-core-mastery',
+    id: 'guide-defense',
     kind: 'hint',
-    title: 'Core Mastery',
-    body: 'An equipped Core develops permanently. Mastery survives Rebuild.',
-    target: 'dock-cores',
+    title: 'Hull pressure',
+    body: 'Incoming pressure is increasing. Hull and Shield upgrades can extend this Sortie.',
+    target: 'run-upgrade-hull',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'defense',
+    tap: false,
+    availableWhen: (s) =>
+      !s.combat.docked &&
+      (s.combat.defeatLeft ?? 0) <= 0 &&
+      hullUnderPressure(s) &&
+      (s.resources.salvage ?? 0) >= 8 &&
+      (guideSeen(s, 'guide-salvage-first') || anyRunUpgradeBought(s)) &&
+      !guideSeen(s, 'guide-defense'),
+  },
+  {
+    id: 'guide-workshop',
+    kind: 'action',
+    title: 'Scrap',
+    body: [
+      'Scrap survives normal Sorties. Spend it in Workshop so future Sorties begin stronger.',
+      'Next Sortie starts at Weapon Power Lv1. Workshop lasts until Rebuild.',
+    ],
+    target: 'workshop-weapon-power',
     tab: 'dock',
     screen: 'dock',
-    group: 'cores',
-    tap: false,
+    group: 'workshop',
+    tap: true,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
       s.combat.docked &&
-      practicedCoreWork(s) > 0 &&
-      !guideSeen(s, 'guide-core-mastery'),
+      (s.resources.scrap ?? 0) >= 12 &&
+      (s.workshop?.levels?.['weapon-power'] ?? 0) < 1 &&
+      !guideSeen(s, 'guide-workshop'),
+    completeWhen: (s) => (s.workshop?.levels?.['weapon-power'] ?? 0) >= 1,
   },
   {
-    id: 'guide-relaunch',
+    id: 'guide-second-sortie',
     kind: 'action',
-    title: 'Launch again',
-    body: 'Every Sortie starts at Wave 1. Workshop levels raise the starting baseline; Sortie purchase costs still start cheap. Spend Scrap, then launch.',
+    title: 'Stronger start',
+    body: 'Workshop upgrades carried into this Sortie.',
     target: 'launch',
     tab: 'dock',
     screen: 'dock',
-    group: 'starter',
+    group: 'second-sortie',
     tap: true,
     availableWhen: (s) =>
       hasHullLostOnce(s) &&
-      !guideSeen(s, 'guide-relaunch') &&
-      s.combat.docked,
+      s.combat.docked &&
+      anyWorkshopBought(s) &&
+      !guideSeen(s, 'guide-second-sortie'),
     completeWhen: (s) => !s.combat.docked,
   },
   {
     id: 'guide-network-strike',
     kind: 'action',
-    title: 'Assign Worker Drones',
-    body: 'Put a Worker Drone on Scrap Field.',
+    title: 'Assign a Worker Drone',
+    body: 'Assign 1 Worker Drone to Salvage ops. One drone starts producing Scrap. Jobs have a hard cap.',
     target: 'worker-scrap-field',
     tab: 'network',
     screen: 'network',
-    group: 'network',
+    group: 'workers',
     tap: true,
     availableWhen: (s) =>
-      hasHullLostOnce(s) &&
+      isSystemUnlocked(s, 'network') &&
       (s.base.assignments['scrap-field'] ?? 0) < 1 &&
       !guideSeen(s, 'guide-network-strike'),
     completeWhen: (s) => (s.base.assignments['scrap-field'] ?? 0) >= 1,
   },
   {
-    id: 'guide-network-ward',
-    kind: 'hint',
-    title: 'Split the corps',
-    body: 'Jobs have a hard cap. Extra drones on a full job do nothing.',
-    target: 'worker-power-grid',
-    tab: 'network',
-    screen: 'network',
-    group: 'network',
-    tap: true,
-    availableWhen: (s) =>
-      (s.base.assignments['scrap-field'] ?? 0) >= 1 &&
-      (s.base.assignments['power-grid'] ?? 0) < 1 &&
-      !guideSeen(s, 'guide-network-ward'),
-    completeWhen: (s) => (s.base.assignments['power-grid'] ?? 0) >= 1,
-  },
-  {
     id: 'guide-foundry-recipe',
     kind: 'action',
-    title: 'Smelt',
-    body: 'Choose Slag Ingot.',
-    target: 'foundry-recipe-slag-ingot',
+    title: 'Processing',
+    body: [
+      'Recovered material becomes stock. Start a short job.',
+      'Recipe Mastery makes the next one faster, including offline.',
+    ],
+    target: 'foundry-recipe-filament',
+    targetFor: foundryFirstJobTarget,
     tab: 'foundry',
     screen: 'foundry',
     group: 'foundry',
     tap: true,
-    availableWhen: (s) =>
-      isSystemUnlocked(s, 'foundry') &&
-      !(s.foundry?.slots ?? []).some((slot) => slot.recipeId) &&
-      (s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) < 1 &&
-      !guideSeen(s, 'guide-foundry-recipe'),
-    completeWhen: (s) =>
-      (s.foundry?.slots ?? []).some((slot) => slot.recipeId === 'slag-ingot') ||
-      (s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) >= 1,
+    availableWhen: (s) => foundryFirstJobReady(s) && !guideSeen(s, 'guide-foundry-recipe'),
+    completeWhen: foundryFirstJobDone,
   },
   {
     id: 'guide-foundry-mastery',
     kind: 'hint',
-    title: 'Recipe level increased',
-    body: 'Repeated crafting makes this recipe faster.',
-    target: 'foundry-recipe-slag-ingot',
+    title: 'Recipe Mastery',
+    body: 'Repeated crafting makes this recipe faster, including while you are offline.',
+    target: 'foundry-recipe-filament',
+    targetFor: (s) =>
+      (s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) >= 1
+        ? 'foundry-recipe-slag-ingot'
+        : 'foundry-recipe-filament',
     tab: 'foundry',
     screen: 'foundry',
     group: 'foundry',
     tap: false,
     availableWhen: (s) =>
       isSystemUnlocked(s, 'foundry') &&
-      (s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) >= 1 &&
+      ((s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) >= 1 ||
+        (s.foundry?.recipeLevels?.filament ?? 0) >= 1) &&
       !guideSeen(s, 'guide-foundry-mastery'),
+  },
+  {
+    id: 'guide-directive',
+    kind: 'action',
+    pause: true,
+    title: 'Directive available',
+    body: 'Directives strongly alter this Sortie only. Pick one of the three cards.',
+    target: 'directive-offer',
+    tab: 'combat',
+    screen: 'combat',
+    group: 'directive',
+    tap: true,
+    availableWhen: (s) =>
+      !s.combat.docked &&
+      (s.combat.directiveOffer?.length ?? 0) >= 3 &&
+      !guideSeen(s, 'guide-directive'),
+    completeWhen: (s) => (s.combat.directives?.length ?? 0) > 0 || !(s.combat.directiveOffer?.length),
+  },
+  {
+    id: 'guide-relic-install',
+    kind: 'action',
+    title: 'Relic recovered',
+    body: 'Open a fitted Core. Install the Relic in an empty matching socket.',
+    target: 'relic-sockets',
+    tab: 'dock',
+    screen: 'dock',
+    group: 'relic',
+    tap: true,
+    availableWhen: (s) =>
+      s.combat.docked &&
+      isSystemUnlocked(s, 'reliquary') &&
+      anyRelicOwned(s) &&
+      !anyRelicFitted(s) &&
+      !guideSeen(s, 'guide-relic-install'),
+    completeWhen: anyRelicFitted,
   },
   {
     id: 'guide-furnace-light',
     kind: 'action',
-    title: 'Weapons I',
-    body: 'Spend Heat to power a temporary damage boost.',
+    title: 'Ash and Heat',
+    body: [
+      'Ash persists across Sorties this cycle. Convert it to Heat, then light Weapons.',
+      'Heat is this Sortie only and dumps when you Dock.',
+    ],
     target: 'furnace-channel-weapons',
+    targetFor: (s) => ((s.resources.heat ?? 0) >= 8 ? 'furnace-channel-weapons' : 'furnace-bank'),
     tab: 'furnace',
     screen: 'furnace',
     group: 'furnace',
     tap: true,
     availableWhen: (s) =>
       isSystemUnlocked(s, 'furnace') &&
+      ((s.resources.heat ?? 0) >= 8 || (s.resources.choirAsh ?? 0) >= 80) &&
       (s.furnace?.wanted?.weapons ?? 0) < 1 &&
       !guideSeen(s, 'guide-furnace-light'),
     completeWhen: (s) => (s.furnace?.wanted?.weapons ?? 0) >= 1,
   },
   {
     id: 'guide-research-focus',
-    kind: 'hint',
-    title: 'Focus',
-    body: 'Focus a branch to speed up its research.',
+    kind: 'action',
+    title: 'Priority Lock',
+    body: 'Start this project. It has a duration, keeps running offline, and permanently changes targeting.',
     target: 'research-focus',
     tab: 'research',
     screen: 'research',
@@ -1226,20 +1305,50 @@ export const GUIDE_STEPS: GuideStep[] = [
     tap: true,
     availableWhen: (s) => isSystemUnlocked(s, 'research') && !guideSeen(s, 'guide-research-focus'),
   },
+  {
+    id: 'guide-process-first',
+    kind: 'action',
+    title: 'Process online',
+    body: 'You have already done this work by hand. Buy one quality-of-life node. The rule builder stays closed.',
+    target: 'process-first-buy',
+    tab: 'process',
+    screen: 'process',
+    group: 'process',
+    tap: true,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'process') &&
+      (s.process?.purchased?.length ?? 0) < 1 &&
+      !guideSeen(s, 'guide-process-first'),
+    completeWhen: (s) => (s.process?.purchased?.length ?? 0) >= 1,
+  },
+  {
+    id: 'guide-challenge',
+    kind: 'hint',
+    title: 'Challenge',
+    body: 'Restriction, goal, reward, disabled systems, and current best are listed. Confirm before launch.',
+    target: 'protocols-list',
+    tab: 'protocols',
+    screen: 'protocols',
+    group: 'challenge',
+    tap: false,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'protocols') &&
+      !s.protocols?.activeId &&
+      !guideSeen(s, 'guide-challenge'),
+  },
 ]
 
-/** Dock/launch/sortie/cores tips that must not reappear after the first soft reset. */
+/** Dock/launch/sortie/workshop tips that must not reappear after the first soft reset. */
 export const STARTER_GUIDE_IDS = [
   'guide-launch',
-  'guide-sortie-fire',
   'guide-salvage-first',
-  'guide-core-run',
-  'guide-core-mastery',
-  'guide-relaunch',
+  'guide-defense',
+  'guide-workshop',
+  'guide-second-sortie',
 ] as const
 
-/** First Network assignment. Skip dismisses Strike and Ward. */
-export const NETWORK_GUIDE_IDS = ['guide-network-strike', 'guide-network-ward'] as const
+/** First Worker assignment. */
+export const NETWORK_GUIDE_IDS = ['guide-network-strike'] as const
 
 export const NETWORK_RELAY_GUIDE_IDS = [] as const
 
@@ -1369,7 +1478,7 @@ export function activeGuideStep(
   const pick = (step: GuideStep): GuideStep | 'wait' | null => {
     if (!eligible(step)) return null
     if (isHangarGuideStep(step) && !hangarOpen) return 'wait'
-    return step
+    return resolveGuideStep(step, state)
   }
   if (heldId) {
     const held = GUIDE_STEPS.find((step) => step.id === heldId)

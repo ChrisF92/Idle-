@@ -44,10 +44,9 @@ describe('sortie feel', () => {
     expect(state.combat.wave).toBe(1)
   })
 
-  it('does not overlay the old coach-mark catalog on Dock', () => {
+  it('does not force a Rebuild spotlight on Dock', () => {
     const state = createInitialState(0)
-    expect(activeGuideStep(state, 'dock')).toBeNull()
-    expect(activeGuideStep(state, 'combat')).toBeNull()
+    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-launch')
     expect(GUIDE_STEPS.some((s) => s.target === 'rebuild-btn')).toBe(false)
   })
 })

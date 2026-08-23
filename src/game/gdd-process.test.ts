@@ -50,6 +50,7 @@ describe('GDD Process', () => {
   it('shows QoL and simple actions first, hiding retired furnace and Ghost Sortie nodes', () => {
     const open = processState()
     const ids = processVisibleNodes(open).map((n) => n.id)
+    expect(ids).toContain('buy-ten')
     expect(ids).toContain('core-buy-max')
     expect(ids).toContain('auto-salvage')
     expect(ids).not.toContain('core-priority')

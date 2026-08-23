@@ -78,6 +78,11 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
         {firstDefeat ? (
           <>
             <p>
+              Wave {summary.wave}
+              {summary.newBest ? ' · New Best' : ''}
+              {stats?.kills ? ` · ${stats.kills} destroyed` : ''}.
+            </p>
+            <p>
               You recovered <strong>{formatCompact(summary.scrapEarned)} Scrap</strong>.
             </p>
             <p className="muted">

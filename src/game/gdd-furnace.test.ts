@@ -111,12 +111,12 @@ describe('GDD Furnace', () => {
   })
 })
 
-describe('old onboarding overlay', () => {
-  it('is disabled so coach-marks cannot steal the Sortie loop', () => {
-    expect(ONBOARDING_ENABLED).toBe(false)
+describe('GDD onboarding overlay', () => {
+  it('is enabled and starts on Dock Launch, not a flying lecture', () => {
+    expect(ONBOARDING_ENABLED).toBe(true)
     const fresh = createInitialState(0)
-    expect(activeGuideStep(fresh, 'dock')).toBeNull()
-    expect(activeGuideStep(fresh, 'combat')).toBeNull()
+    expect(activeGuideStep(fresh, 'dock')?.id).toBe('guide-launch')
+    expect(activeGuideStep(fresh, 'combat')?.target).toBe('launch')
     const flying = setDocked(fresh, false)
     expect(activeGuideStep(flying, 'combat')).toBeNull()
     expect(activeGuideStep(flying, 'dock')).toBeNull()

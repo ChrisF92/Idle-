@@ -167,7 +167,14 @@ export function UpgradeGrid({ state, category, kind, buyMode, onBuy, onBuyCore }
             const currency = kind === 'run' ? 'Salvage' : 'Scrap'
             const affordable = bank >= cost && level < RUN_UPGRADE_CAP && cost > 0
             const preview = runUpgradePreview(state, def.id)
-            const guide = kind === 'run' && def.id === 'weapon-power' ? 'run-upgrade-weapon-power' : undefined
+            const guide =
+              def.id === 'weapon-power'
+                ? kind === 'workshop'
+                  ? 'workshop-weapon-power'
+                  : 'run-upgrade-weapon-power'
+                : def.id === 'hull' && kind === 'run'
+                  ? 'run-upgrade-hull'
+                  : undefined
             return (
               <article
                 key={def.id}
@@ -199,6 +206,9 @@ export function UpgradeGrid({ state, category, kind, buyMode, onBuy, onBuyCore }
                   </span>
                   <span className="upgrade-tile-preview">
                     {preview.current} → {preview.next}
+                  </span>
+                  <span className="upgrade-tile-scope">
+                    {kind === 'workshop' ? 'Until Rebuild' : 'This Sortie'}
                   </span>
                 </button>
                 <button
@@ -249,6 +259,11 @@ export function UpgradeGrid({ state, category, kind, buyMode, onBuy, onBuyCore }
             )}
             <p className="muted">
               {runUpgradePreview(state, info.id).current} → {runUpgradePreview(state, info.id).next}
+            </p>
+            <p className="muted">
+              {kind === 'workshop'
+                ? 'Permanent this cycle. Resets on Rebuild.'
+                : 'Temporary this Sortie. Cost is Salvage.'}
             </p>
           </div>
         </div>
