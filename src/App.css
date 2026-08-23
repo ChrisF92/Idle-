@@ -679,7 +679,10 @@ h2 .inspect-name {
 }
 
 .dock-screen {
-  justify-content: flex-start;
+  /* Must stay stretch. flex-start on this grid packs the auto column
+     to the left and leaves the right side empty. */
+  justify-content: stretch;
+  justify-items: stretch;
   gap: 0;
   padding: 0;
 }
@@ -1544,10 +1547,11 @@ h2 .inspect-name {
 }
 
 .dock-hive-preview {
-  width: min(16.5rem, 72%);
+  width: 72%;
+  max-width: 16.5rem;
   aspect-ratio: 1;
   margin: 0.35rem auto 0.15rem;
-  flex: 0 0 auto;
+  justify-self: center;
 }
 
 .dock-hive-canvas {
