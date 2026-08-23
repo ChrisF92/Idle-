@@ -9,6 +9,8 @@ import {
   runPurchasedLevel,
   runUpgradeBulkCost,
   runUpgradePreview,
+  shopEconomyRoi,
+  shopTimeToAfford,
   unlockedBuyModes,
   visibleRunUpgrades,
   workshopBulkCost,
@@ -210,6 +212,12 @@ export function UpgradeGrid({ state, category, kind, buyMode, onBuy, onBuyCore }
                   <span className="upgrade-tile-scope">
                     {kind === 'workshop' ? 'Until Rebuild' : 'This Sortie'}
                   </span>
+                  {shopTimeToAfford(state, cost, bank) ? (
+                    <span className="upgrade-tile-scope">{shopTimeToAfford(state, cost, bank)}</span>
+                  ) : null}
+                  {shopEconomyRoi(state, def.id) ? (
+                    <span className="upgrade-tile-scope">{shopEconomyRoi(state, def.id)}</span>
+                  ) : null}
                 </button>
                 <button
                   type="button"

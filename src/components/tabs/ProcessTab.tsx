@@ -5,6 +5,8 @@ import type {
   HiveResearchBranch,
   ProcessCorePriority,
   ProcessNetworkPreset,
+  ProcessThenKind,
+  ProcessWhenKind,
   YardArmId,
 } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
@@ -115,6 +117,55 @@ function NodeConfig({
     onConfig(next)
   }
 
+  if (nodeId === 'auto-shop') {
+    return (
+      <label className="process-config" data-guide="process-config">
+        <input
+          type="checkbox"
+          checked={cfg.shop.autoBuy}
+          onChange={(e) => patch((c) => { c.shop.autoBuy = e.target.checked })}
+        />
+        Auto-buy Attack / Defense / Economy
+      </label>
+    )
+  }
+  if (nodeId === 'spend-ratios') {
+    const row = (key: 'attack' | 'defense' | 'economy', label: string) => (
+      <label key={key} className="process-config">
+        {label}
+        <input
+          type="number"
+          min={0}
+          value={cfg.shop.ratios[key]}
+          onChange={(e) =>
+            patch((c) => {
+              c.shop.ratios[key] = Math.max(0, Number(e.target.value) || 0)
+            })
+          }
+        />
+      </label>
+    )
+    return (
+      <div className="process-config-block" data-guide="process-config">
+        {row('attack', 'Attack %')}
+        {row('defense', 'Defense %')}
+        {row('economy', 'Economy %')}
+        <label className="process-config">
+          Salvage reserve
+          <input
+            type="number"
+            min={0}
+            value={cfg.shop.salvageReserve}
+            onChange={(e) =>
+              patch((c) => {
+                c.shop.salvageReserve = Math.max(0, Number(e.target.value) || 0)
+              })
+            }
+          />
+        </label>
+      </div>
+    )
+  }
   if (nodeId === 'auto-salvage') {
     return (
       <label className="process-config" data-guide="process-config">
@@ -643,6 +694,180 @@ function NodeConfig({
   return null
 }
 
+const WHEN_OPTIONS: { id: ProcessWhenKind; label: string }[] = [
+  { id: 'wave-gte', label: 'Wave ≥' },
+  { id: 'wave-of-best', label: 'Wave % of Best' },
+  { id: 'threat', label: 'Threat' },
+  { id: 'queue-empty', label: 'Foundry queue empty' },
+  { id: 'ash-gte', label: 'Ash ≥' },
+  { id: 'hull-lte', label: 'Hull % ≤' },
+  { id: 'research-idle', label: 'Research idle' },
+]
+
+const THEN_OPTIONS: { id: ProcessThenKind; label: string }[] = [
+  { id: 'spend-profile', label: 'Spend profile' },
+  { id: 'economy-target', label: 'Economy target' },
+  { id: 'extract', label: 'Extract' },
+  { id: 'furnace-push', label: 'Furnace push' },
+  { id: 'repeat-recipe', label: 'Repeat recipe' },
+  { id: 'research-next', label: 'Next Research' },
+  { id: 'fab-tracked', label: 'Tracked fab' },
+]
+
+function ProfileDesk({
+  state,
+  onConfig,
+}: {
+  state: GameState
+  onConfig: (config: GameState['process']['config']) => void
+}) {
+  const cfg = processConfig(state)
+  const showProfiles = hasProcess(state, 'run-profiles')
+  const showRules = hasProcess(state, 'rule-builder')
+  if (!showProfiles && !showRules) return null
+  const patch = (mutate: (next: GameState['process']['config']) => void) => {
+    const next = structuredClone(cfg)
+    mutate(next)
+    onConfig(next)
+  }
+  const active = cfg.profiles.find((p) => p.id === cfg.activeProfileId) ?? cfg.profiles[0]
+  return (
+    <div className="process-config-block" data-guide="process-profiles">
+      {showProfiles ? (
+        <>
+          <h3 className="foundry-heading">Run profile</h3>
+          <p className="muted">Farm banks Economy and Extracts. Push dumps Economy near Best and lights Furnace.</p>
+          <div className="assign-row">
+            {cfg.profiles.map((profile) => (
+              <button
+                key={profile.id}
+                type="button"
+                className={cfg.activeProfileId === profile.id ? 'sheet-tab active' : 'sheet-tab'}
+                onClick={() => patch((c) => { c.activeProfileId = profile.id })}
+              >
+                {profile.name}
+              </button>
+            ))}
+            <button type="button" className="sheet-tab" onClick={() => patch((c) => { c.activeProfileId = null })}>
+              Off
+            </button>
+          </div>
+        </>
+      ) : null}
+      {showRules && active ? (
+        <>
+          <h3 className="foundry-heading">WHEN / THEN</h3>
+          {active.rules.map((rule, index) => (
+            <article key={rule.id} className="network-row">
+              <p className="combat-hud-kicker">WHEN</p>
+              {rule.when.map((cond, ci) => (
+                <div key={`${rule.id}-w-${ci}`} className="assign-row">
+                  <select
+                    value={cond.kind}
+                    onChange={(e) =>
+                      patch((c) => {
+                        const p = c.profiles.find((row) => row.id === active.id)
+                        if (!p?.rules[index]?.when[ci]) return
+                        p.rules[index].when[ci].kind = e.target.value as ProcessWhenKind
+                      })
+                    }
+                  >
+                    {WHEN_OPTIONS.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {cond.kind === 'threat' ? (
+                    <select
+                      value={cond.threat ?? 'SURVIVABILITY'}
+                      onChange={(e) =>
+                        patch((c) => {
+                          const p = c.profiles.find((row) => row.id === active.id)
+                          if (!p?.rules[index]?.when[ci]) return
+                          p.rules[index].when[ci].threat = e.target.value as NonNullable<
+                            typeof cond.threat
+                          >
+                        })
+                      }
+                    >
+                      <option value="SURVIVABILITY">Survivability</option>
+                      <option value="DAMAGE">Damage</option>
+                      <option value="MIXED">Mixed</option>
+                    </select>
+                  ) : cond.kind === 'queue-empty' || cond.kind === 'research-idle' ? null : (
+                    <input
+                      type="number"
+                      min={0}
+                      value={cond.value ?? 0}
+                      onChange={(e) =>
+                        patch((c) => {
+                          const p = c.profiles.find((row) => row.id === active.id)
+                          if (!p?.rules[index]?.when[ci]) return
+                          p.rules[index].when[ci].value = Number(e.target.value) || 0
+                        })
+                      }
+                    />
+                  )}
+                </div>
+              ))}
+              <p className="combat-hud-kicker">THEN</p>
+              <select
+                value={rule.then.kind}
+                onChange={(e) =>
+                  patch((c) => {
+                    const p = c.profiles.find((row) => row.id === active.id)
+                    if (!p?.rules[index]) return
+                    p.rules[index].then.kind = e.target.value as ProcessThenKind
+                  })
+                }
+              >
+                {THEN_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {rule.then.kind === 'economy-target' ? (
+                <label className="process-config">
+                  Economy %
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={rule.then.economyPct ?? 0}
+                    onChange={(e) =>
+                      patch((c) => {
+                        const p = c.profiles.find((row) => row.id === active.id)
+                        if (!p?.rules[index]) return
+                        p.rules[index].then.economyPct = Number(e.target.value) || 0
+                      })
+                    }
+                  />
+                </label>
+              ) : null}
+              <label className="process-config">
+                <input
+                  type="checkbox"
+                  checked={rule.enabled}
+                  onChange={(e) =>
+                    patch((c) => {
+                      const p = c.profiles.find((row) => row.id === active.id)
+                      if (!p?.rules[index]) return
+                      p.rules[index].enabled = e.target.checked
+                    })
+                  }
+                />
+                On
+              </label>
+            </article>
+          ))}
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 export function ProcessTab({
   state,
   onBack,
@@ -692,6 +917,7 @@ export function ProcessTab({
             <p className="muted" data-guide="process-automation">
               Quality of life first, then simple actions. Deeper priorities open after you buy something.
             </p>
+            {onConfig ? <ProfileDesk state={state} onConfig={onConfig} /> : null}
             {PROCESS_REVEAL_TIERS.filter((tier) => processRevealAllows(state, tier.id)).map((tier) => {
               const nodes = visible.filter((node) => processNodeTier(node) === tier.id)
               if (nodes.length === 0) return null

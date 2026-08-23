@@ -15,7 +15,9 @@ import {
   assembleBlueprint,
   autoBalanceWorkers,
   buyMaxYardArms,
+  buyRunUpgrade,
   canAssembleBlueprint,
+  convertAshToHeat,
   depositFabPart,
   enterProtocol,
   launchFabProject,
@@ -33,6 +35,8 @@ import {
   mergeSignalCores,
 } from './signalCores'
 import { hasProcess, processConfig } from './process'
+import { evaluateProcessIntent, pickShopCategory } from './processProfiles'
+import { nextRunUpgradeCost, visibleRunUpgrades, type RunUpgradeId } from './workshop'
 import {
   FOUNDRY_RECIPES,
   buyFoundryUpgrade,
@@ -64,7 +68,7 @@ import {
   hiveResearchQueueCap,
   setResearchFocus,
 } from './hiveResearch'
-import { runFurnaceManager } from './furnace'
+import { furnaceActiveLevel, runFurnaceManager, setFurnaceChannel } from './furnace'
 import { foundryAshHeatMult, foundryQueueCap } from './foundryBonuses'
 function adopt(state: GameState, next: GameState): void {
   if (next === state) return
@@ -180,6 +184,50 @@ export function autoCoreTrain(state: GameState): void {
     idle -= 1
   }
   state.base.assignments = assignments
+}
+
+function autoShopUpgrades(state: GameState): void {
+  if (state.combat.docked) return
+  const intent = evaluateProcessIntent(state)
+  if (!intent.autoShop) return
+  const salvage = state.resources.salvage ?? 0
+  if (salvage <= intent.salvageReserve) return
+  let guard = 0
+  while (guard++ < 8) {
+    const bank = state.resources.salvage ?? 0
+    if (bank <= intent.salvageReserve) break
+    const cat = pickShopCategory(state, intent.spend)
+    if (!cat) break
+    const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
+    let pick: RunUpgradeId | null = null
+    let pickCost = Number.POSITIVE_INFINITY
+    for (const def of visibleRunUpgrades(best, cat)) {
+      const cost = nextRunUpgradeCost(state, def.id)
+      if (cost <= 0) continue
+      if (bank - cost < intent.salvageReserve) continue
+      if (cost < pickCost) {
+        pick = def.id
+        pickCost = cost
+      }
+    }
+    if (!pick) break
+    const next = buyRunUpgrade(state, pick, 1)
+    if (next === state) break
+    if ((next.resources.salvage ?? 0) >= bank) break
+    adopt(state, next)
+  }
+}
+
+function autoFurnacePush(state: GameState): void {
+  if (state.combat.docked) return
+  const intent = evaluateProcessIntent(state)
+  if (!intent.furnacePush) return
+  let next = convertAshToHeat(state)
+  if ((next.resources.heat ?? 0) >= 8 && furnaceActiveLevel(next, 'weapons') < 1) {
+    const lit = setFurnaceChannel(next, 'weapons', 1)
+    if (lit !== next) next = lit
+  }
+  if (next !== state) adopt(state, next)
 }
 
 /** Spend Salvage on Core Run Levels during a Sortie while affordable. */
@@ -426,6 +474,8 @@ export function tickAutomation(state: GameState): void {
   autoFabBay(state)
   autoCoreTrain(state)
   autoSalvageUpgrades(state)
+  autoShopUpgrades(state)
+  autoFurnacePush(state)
   autoNetworkBalance(state)
   autoBankAsh(state)
   autoSmartSmelt(state)

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { applyNetworkPreset, buyProcessNode, performRebuild } from './actions'
+import { tickAutomation } from './automation'
 import { ACT1_CADENCE, PROCESS_MIN_REBUILDS } from './cadence'
+import { shopReadoutUnlocked } from './disclosure'
 import {
   NETWORK_PRESETS,
   PROCESS_HIDDEN_IDS,
+  PROCESS_NODES,
   canBuyProcessNode,
   hasProcessMastery,
   mergeProcessConfig,
@@ -14,10 +17,16 @@ import {
   processOnlineBlurb,
   processVisibleNodes,
 } from './process'
+import {
+  evaluateProcessIntent,
+  processShouldExtract,
+  shopCategorySpend,
+} from './processProfiles'
 import { isSystemUnlocked } from './progression'
-import { createInitialState } from './state'
+import { createInitialState, SAVE_VERSION } from './state'
 import { systemsHubCards } from './systemsHub'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
+import { shopEconomyRoi, shopTimeToAfford } from './workshop'
 
 function processState(opts?: { wave?: number; rebuilds?: number; research?: boolean }) {
   const s = atCareerWave(markHullLost(createInitialState(0)), opts?.wave ?? ACT1_CADENCE.process)
@@ -51,8 +60,13 @@ describe('GDD Process', () => {
     const open = processState()
     const ids = processVisibleNodes(open).map((n) => n.id)
     expect(ids).toContain('buy-ten')
+    expect(ids).toContain('shop-readout')
+    expect(ids).toContain('auto-shop')
     expect(ids).toContain('core-buy-max')
     expect(ids).toContain('auto-salvage')
+    expect(ids).not.toContain('spend-ratios')
+    expect(ids).not.toContain('rule-builder')
+    expect(ids).not.toContain('run-profiles')
     expect(ids).not.toContain('core-priority')
     expect(ids).not.toContain('foundry-priority')
     for (const hidden of PROCESS_HIDDEN_IDS) {
@@ -165,5 +179,78 @@ describe('GDD Process', () => {
     expect(cfg.network.ratios['drone-fab']).toBe(3)
     expect(cfg.network.ratios['sensor-net']).toBe(2)
     expect(cfg.network.ratios.yield).toBeUndefined()
+  })
+
+  it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
+    expect(SAVE_VERSION).toBe(36)
+    expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
+    expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)
+    expect(PROCESS_NODES.find((n) => n.id === 'auto-shop')?.cost).toBe(8)
+    expect(PROCESS_NODES.find((n) => n.id === 'spend-ratios')?.cost).toBe(8)
+    expect(PROCESS_NODES.find((n) => n.id === 'rule-builder')?.cost).toBe(12)
+    expect(PROCESS_NODES.find((n) => n.id === 'run-profiles')?.cost).toBe(10)
+    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')?.cost).toBe(4)
+    expect(PROCESS_HIDDEN_IDS.has('offline-sortie')).toBe(true)
+    expect(PROCESS_HIDDEN_IDS.has('auto-bank')).toBe(true)
+    expect(PROCESS_HIDDEN_IDS.has('echo-repeat')).toBe(true)
+    expect(PROCESS_HIDDEN_IDS.has('network-tune')).toBe(true)
+  })
+
+  it('shows time-to-afford and Economy ROI only after Shop Readout', () => {
+    const s = processState()
+    s.combat.docked = false
+    s.combat.fightElapsed = 20
+    s.resources.salvage = 3
+    expect(shopReadoutUnlocked(s)).toBe(false)
+    expect(shopTimeToAfford(s, 8, 3)).toBeNull()
+    expect(shopEconomyRoi(s, 'salvage-kill')).toBeNull()
+    s.process.purchased = ['shop-readout']
+    expect(shopReadoutUnlocked(s)).toBe(true)
+    expect(shopTimeToAfford(s, 8, 20)).toBe('Affordable now')
+    expect(shopEconomyRoi(s, 'salvage-kill')).toMatch(/ROI/)
+  })
+
+  it('lets Farm auto-buy Economy first and Extract under half hull', () => {
+    const s = processState()
+    s.combat.docked = false
+    s.combat.wave = 8
+    s.combat.playerHull = 40
+    s.combat.playerHullMax = 100
+    s.resources.salvage = 400
+    s.process.purchased = ['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']
+    s.process.config = { ...processConfig(s), activeProfileId: 'farm' }
+
+    const intent = evaluateProcessIntent(s)
+    expect(intent.spend.economy).toBeGreaterThan(intent.spend.attack)
+    expect(intent.autoShop).toBe(true)
+    expect(intent.autoExtract).toBe(true)
+    expect(processShouldExtract(s)).toBe(true)
+
+    tickAutomation(s)
+    expect(shopCategorySpend(s, 'economy')).toBeGreaterThan(shopCategorySpend(s, 'attack'))
+    expect((s.combat.runUpgrades['salvage-kill'] ?? 0) + (s.combat.runUpgrades['salvage-wave'] ?? 0)).toBeGreaterThan(
+      s.combat.runUpgrades['weapon-power'] ?? 0,
+    )
+  })
+
+  it('lets Push dump Economy at 95% of Best and light Furnace', () => {
+    const s = processState()
+    s.combat.docked = false
+    s.combat.wave = Math.ceil(ACT1_CADENCE.process * 0.95)
+    s.resources.choirAsh = 80
+    s.resources.heat = 0
+    s.process.purchased = ['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']
+    s.process.config = { ...processConfig(s), activeProfileId: 'push' }
+
+    const intent = evaluateProcessIntent(s)
+    expect(intent.spend.economy).toBe(0)
+    expect(intent.furnacePush).toBe(true)
+    expect(intent.autoExtract).toBe(false)
+    expect(processShouldExtract(s)).toBe(false)
+
+    tickAutomation(s)
+    expect(s.furnace.wanted.weapons).toBeGreaterThanOrEqual(1)
+    expect(s.furnace.active.weapons).toBeGreaterThanOrEqual(1)
+    expect((s.resources.choirAsh ?? 0) + (s.resources.heat ?? 0) * 10).toBeLessThan(80)
   })
 })

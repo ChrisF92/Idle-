@@ -20,7 +20,7 @@ import { armRebuildDoor } from './testHelpers'
 describe('phase 5: foundry + notation', () => {
   it('opens Foundry at Wave 20 with one smelter', () => {
     const fresh = createInitialState(0)
-    expect(SAVE_VERSION).toBe(35)
+    expect(SAVE_VERSION).toBe(36)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(fresh.foundry.slots).toHaveLength(1)
     expect(fresh.meta.numberNotation).toBe('engineering')

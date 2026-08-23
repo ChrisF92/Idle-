@@ -2,7 +2,7 @@
 
 import type { GameState, RunUpgradeCategory, RunUpgradeId, WorkshopState } from './types'
 import { matterShopReclaimBonus } from './catalog'
-import { shopBulkTenUnlocked, shopBuyMaxUnlocked } from './disclosure'
+import { shopBulkTenUnlocked, shopBuyMaxUnlocked, shopReadoutUnlocked } from './disclosure'
 
 export type { RunUpgradeCategory, RunUpgradeId, WorkshopState }
 
@@ -212,6 +212,30 @@ export function runUpgradePreview(
       return { current: `+${salvageWaveBonus(state)}`, next: `+${next}` }
     }
   }
+}
+
+export function shopTimeToAfford(state: GameState, cost: number, bank: number): string | null {
+  if (!shopReadoutUnlocked(state)) return null
+  if (bank >= cost) return 'Affordable now'
+  const elapsed = state.combat.fightElapsed ?? 0
+  if (state.combat.docked || elapsed < 4) return null
+  const spent = Object.values(state.combat.runUpgrades ?? {}).reduce((n, lv) => {
+    let total = 0
+    for (let i = 0; i < (lv ?? 0); i += 1) total += runUpgradeCost(i)
+    return n + total
+  }, 0)
+  const earned = bank + spent
+  const rate = earned / elapsed
+  if (rate < 0.2) return null
+  const wait = Math.ceil((cost - bank) / rate)
+  return `~${wait}s`
+}
+
+export function shopEconomyRoi(state: GameState, id: RunUpgradeId): string | null {
+  if (!shopReadoutUnlocked(state)) return null
+  if (id !== 'salvage-kill' && id !== 'salvage-wave') return null
+  const preview = runUpgradePreview(state, id)
+  return `ROI ${preview.current} → ${preview.next}`
 }
 
 export function visibleRunUpgrades(bestWave: number, category?: RunUpgradeCategory): RunUpgradeDef[] {

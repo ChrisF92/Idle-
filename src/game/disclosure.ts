@@ -31,3 +31,8 @@ export function advancedReadoutsUnlocked(state: GameState): boolean {
   if ((state.research?.unlocked?.length ?? 0) > 0) return true
   return false
 }
+
+/** Time-to-afford and Economy ROI on shop tiles. */
+export function shopReadoutUnlocked(state: GameState): boolean {
+  return processOwns(state, 'shop-readout')
+}

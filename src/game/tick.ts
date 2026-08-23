@@ -49,6 +49,7 @@ import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, processConfig, processIndustrySpeedMult } from './process'
+import { processShouldExtract } from './processProfiles'
 import { chosenSortieSpeed } from './uiReadout'
 import {
   captureSortieMark,
@@ -581,13 +582,7 @@ function onFightWon(state: GameState): void {
     state.combat.inFight = false
     return
   }
-  if (
-    !state.combat.docked &&
-    hasProcess(state, 'auto-extract') &&
-    processConfig(state).sortie.autoExtract &&
-    state.combat.playerHullMax > 0 &&
-    state.combat.playerHull / state.combat.playerHullMax < processConfig(state).sortie.extractHullPct
-  ) {
+  if (!state.combat.docked && processShouldExtract(state)) {
     finishSortie(
       state,
       'extract',

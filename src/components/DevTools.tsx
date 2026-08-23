@@ -225,6 +225,12 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
             <button type="button" onClick={() => onDevAction({ type: 'seed-late-game' })}>
               Seed W300
             </button>
+            <button type="button" onClick={() => onDevAction({ type: 'inject-process-profile', profileId: 'farm' })}>
+              Inject Farm
+            </button>
+            <button type="button" onClick={() => onDevAction({ type: 'inject-process-profile', profileId: 'push' })}>
+              Inject Push
+            </button>
           </div>
         </div>
       ) : null}

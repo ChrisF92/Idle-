@@ -5,14 +5,23 @@ import type {
   FurnaceChannelId,
   GameState,
   HiveResearchBranch,
+  ProcessAction,
+  ProcessCondition,
   ProcessConfig,
   ProcessCorePriority,
   ProcessFoundryUpgradePriority,
   ProcessNetworkPreset,
+  ProcessProfile,
+  ProcessRule,
+  ProcessSpendMix,
   ProcessState,
+  ProcessThenKind,
+  ProcessThreatId,
+  ProcessWhenKind,
   TabId,
   YardArmId,
 } from './types'
+import { createDefaultProcessProfiles, withDefaultProfiles } from './processProfiles'
 import { NETWORK_BAR_IDS } from './types'
 import { careerBestWave, isSystemUnlocked } from './progression'
 import { AI_NODES } from './catalog'
@@ -157,6 +166,14 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 2,
   },
   {
+    id: 'shop-readout',
+    name: 'Shop Readout',
+    category: 'qol',
+    kind: 'qol',
+    blurb: 'Shows time-to-afford and Economy ROI on Salvage and Workshop tiles.',
+    cost: 2,
+  },
+  {
     id: 'core-buy-max',
     name: 'Core Buy Max',
     category: 'cores',
@@ -211,6 +228,42 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 12,
     requiresId: 'auto-salvage',
     requiresBestWave: 60,
+  },
+  {
+    id: 'auto-shop',
+    name: 'Shop Auto Buy',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'While a Sortie is live, spend Salvage on Attack, Defense, and Economy globals.',
+    cost: 8,
+    requiresId: 'buy-ten',
+  },
+  {
+    id: 'spend-ratios',
+    name: 'Spend Ratios',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'Set Attack / Defense / Economy targets and a Salvage reserve. Example 50 / 30 / 20.',
+    cost: 8,
+    requiresId: 'auto-shop',
+  },
+  {
+    id: 'rule-builder',
+    name: 'Rule Builder',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'WHEN Wave, threat, or an empty queue AND … THEN spend, extract, or light Furnace. Chips only.',
+    cost: 12,
+    requiresId: 'spend-ratios',
+  },
+  {
+    id: 'run-profiles',
+    name: 'Run Profiles',
+    category: 'sortie',
+    kind: 'automation',
+    blurb: 'Farm, Push, and Challenge profiles. Farm banks Economy and Extracts; Push dumps Economy near Best and lights Furnace.',
+    cost: 10,
+    requiresId: 'rule-builder',
   },
   {
     id: 'network-optimise',
@@ -593,11 +646,13 @@ export const PROCESS_REVEAL_TIERS: { id: ProcessRevealTier; name: string }[] = [
 
 const PROCESS_NODE_TIER: Record<string, ProcessRevealTier> = {
   'buy-ten': 'qol',
+  'shop-readout': 'qol',
   'core-buy-max': 'qol',
   'foundry-buy-max': 'qol',
   'yard-buy-max': 'qol',
   'deep-cache': 'qol',
   'combat-tempo': 'qol',
+  'auto-shop': 'actions',
   'auto-salvage': 'actions',
   'foundry-repeat': 'actions',
   'smart-smelt': 'actions',
@@ -608,6 +663,7 @@ const PROCESS_NODE_TIER: Record<string, ProcessRevealTier> = {
   'network-optimise': 'actions',
   'auto-relic': 'actions',
   'protocol-repeat': 'actions',
+  'spend-ratios': 'priorities',
   'core-priority': 'priorities',
   'core-ratios': 'priorities',
   'core-presets': 'priorities',
@@ -812,6 +868,13 @@ export function createEmptyProcessConfig(): ProcessConfig {
       lastEchoId: null,
       protocolId: null,
     },
+    shop: {
+      autoBuy: true,
+      ratios: { attack: 50, defense: 30, economy: 20 },
+      salvageReserve: 0,
+    },
+    activeProfileId: null,
+    profiles: createDefaultProcessProfiles(),
   }
 }
 
@@ -1005,6 +1068,8 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
   const research = isRecord(raw.research) ? raw.research : {}
   const yard = isRecord(raw.yard) ? raw.yard : {}
   const sortie = isRecord(raw.sortie) ? raw.sortie : {}
+  const shop = isRecord(raw.shop) ? raw.shop : {}
+  const shopRatios = isRecord(shop.ratios) ? shop.ratios : {}
   const ratios = isRecord(core.ratios) ? core.ratios : {}
   const netRatios = isRecord(network.ratios) ? network.ratios : {}
   const corePriority = typeof core.priority === 'string' ? core.priority : empty.core.priority
@@ -1132,7 +1197,107 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
       lastEchoId: typeof sortie.lastEchoId === 'string' ? sortie.lastEchoId : null,
       protocolId: typeof sortie.protocolId === 'string' ? sortie.protocolId : null,
     },
+    shop: {
+      autoBuy: shop.autoBuy !== false,
+      ratios: {
+        attack: Math.max(0, num(shopRatios.attack, empty.shop.ratios.attack)),
+        defense: Math.max(0, num(shopRatios.defense, empty.shop.ratios.defense)),
+        economy: Math.max(0, num(shopRatios.economy, empty.shop.ratios.economy)),
+      },
+      salvageReserve: Math.max(0, num(shop.salvageReserve, 0)),
+    },
+    activeProfileId: typeof raw.activeProfileId === 'string' ? raw.activeProfileId : null,
+    profiles: withDefaultProfiles(hydrateProfiles(raw.profiles)),
   }
+}
+
+const WHEN_KINDS: ProcessWhenKind[] = [
+  'wave-gte',
+  'wave-of-best',
+  'threat',
+  'queue-empty',
+  'ash-gte',
+  'hull-lte',
+  'research-idle',
+]
+
+const THEN_KINDS: ProcessThenKind[] = [
+  'spend-profile',
+  'economy-target',
+  'extract',
+  'repeat-recipe',
+  'furnace-push',
+  'research-next',
+  'fab-tracked',
+]
+
+function hydrateSpend(raw: unknown, fallback: ProcessSpendMix): ProcessSpendMix {
+  if (!isRecord(raw)) return fallback
+  return {
+    attack: Math.max(0, num(raw.attack, fallback.attack)),
+    defense: Math.max(0, num(raw.defense, fallback.defense)),
+    economy: Math.max(0, num(raw.economy, fallback.economy)),
+  }
+}
+
+function hydrateCondition(raw: unknown): ProcessCondition | null {
+  if (!isRecord(raw) || typeof raw.kind !== 'string') return null
+  if (!WHEN_KINDS.includes(raw.kind as ProcessWhenKind)) return null
+  const threat = raw.threat
+  return {
+    kind: raw.kind as ProcessWhenKind,
+    value: raw.value == null ? undefined : num(raw.value, 0),
+    threat:
+      threat === 'SURVIVABILITY' || threat === 'DAMAGE' || threat === 'MIXED' || threat === 'HEALTHY'
+        ? (threat as ProcessThreatId)
+        : undefined,
+  }
+}
+
+function hydrateAction(raw: unknown): ProcessAction {
+  if (!isRecord(raw) || typeof raw.kind !== 'string' || !THEN_KINDS.includes(raw.kind as ProcessThenKind)) {
+    return { kind: 'spend-profile' }
+  }
+  return {
+    kind: raw.kind as ProcessThenKind,
+    spend: raw.spend ? hydrateSpend(raw.spend, { attack: 50, defense: 30, economy: 20 }) : undefined,
+    economyPct: raw.economyPct == null ? undefined : num(raw.economyPct, 0),
+    recipeId: typeof raw.recipeId === 'string' ? (raw.recipeId as FoundryRecipeId) : undefined,
+  }
+}
+
+function hydrateRule(raw: unknown, index: number): ProcessRule | null {
+  if (!isRecord(raw)) return null
+  const when = Array.isArray(raw.when)
+    ? raw.when.map(hydrateCondition).filter((c): c is ProcessCondition => Boolean(c))
+    : []
+  if (when.length === 0) return null
+  return {
+    id: typeof raw.id === 'string' ? raw.id : `rule-${index}`,
+    enabled: raw.enabled !== false,
+    when,
+    then: hydrateAction(raw.then),
+  }
+}
+
+function hydrateProfiles(raw: unknown): ProcessProfile[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(isRecord).map((row, index) => ({
+    id: typeof row.id === 'string' ? row.id : `profile-${index}`,
+    name: typeof row.name === 'string' ? row.name : 'Profile',
+    spend: hydrateSpend(row.spend, { attack: 50, defense: 30, economy: 20 }),
+    salvageReserve: Math.max(0, num(row.salvageReserve, 0)),
+    autoExtract: row.autoExtract === true,
+    extractHullPct: Math.min(0.9, Math.max(0.05, num(row.extractHullPct, 0.35))),
+    autoShop: row.autoShop !== false,
+    workerPreset:
+      typeof row.workerPreset === 'string' && NETWORK_PRESET_LABELS[row.workerPreset as ProcessNetworkPreset]
+        ? (row.workerPreset as ProcessNetworkPreset)
+        : undefined,
+    rules: Array.isArray(row.rules)
+      ? row.rules.map(hydrateRule).filter((r): r is ProcessRule => Boolean(r))
+      : [],
+  }))
 }
 
 export function hydrateProcessState(raw: ProcessState | undefined): ProcessState {

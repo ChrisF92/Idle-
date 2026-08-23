@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ onboarding + Matter shop identity (SAVE_VERSION 35, package `0.1.0`)  
+**Code snapshot:** `main` @ Process Farm/Push/Challenge profiles (SAVE_VERSION 36, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -252,7 +252,7 @@ Required surface after Phase 1 (extend in later phases):
 
 Automated playtests (`playtest.ts`, `src/game/simulation/**`, `gdd-*.test.ts` helpers) must launch at Wave 1, spend Scrap at Dock for Core ranks, and use `ACT1_CADENCE` doors. No Route B, Hold, Echo, or starting-wave helpers in new tests.
 
-When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle. When Phase 7 adds Process rules, add “inject Farm/Push profile.” When Phase 10 wraps Android, confirm `?dev=1` still works in the TWA (or a long-press More gesture).
+When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle. **Done (Phase 7).** Dev Tools can inject Farm / Push Process profiles. When Phase 10 wraps Android, confirm `?dev=1` still works in the TWA (or a long-press More gesture).
 
 ---
 
@@ -348,7 +348,7 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 1. **Done (this slice).** Manufacture bar gone. Assignment screen is **jobs**: Processing, Fabrication, Research, Drone production, Construction, Salvage ops.
 2. **Done (this slice).** Each job shows `{assigned}/{efficient} efficient · cap {hard}`. Construction remains 4 / 8.
 3. Drone production is a real investment (workers now vs more workers later). Slow. Unchanged this slice.
-4. **Done (presentation).** Foundry panes: **Processing** vs **Fabrication**. Timed fabrication slots still deferred (would want SAVE 36).
+4. **Done (presentation).** Foundry panes: **Processing** vs **Fabrication**. Timed fabrication slots still deferred (would want SAVE 37; 36 was used for Process profiles).
 5. **Done (table).** Mastery steps render per recipe. Rare-chance column still later.
 6. **Done (this slice).** Mid-Sortie assemble → “available next Sortie”; cannot refit live.
 7. Times: first job ~30s, early component 2–5 min, early Core 5–15 min. Deferred with timed fab.
@@ -431,27 +431,27 @@ Also:
 
 **Intent:** manual → convenience → auto → priority → condition → profiles (GDD §84). **In the 1.0 train (D2).**
 
-**Files:** `process.ts`, `ProcessTab.tsx`, `automation.ts`, `tick.ts` (auto-buy hooks).
+**Files:** `process.ts`, `processProfiles.ts`, `ProcessTab.tsx`, `automation.ts`, `tick.ts`, `workshop.ts`, `UpgradeGrid.tsx`.
 
-**Work:**
+**Work:** **Done.** QoL → Actions → Priorities → Conditions → Cross-system → Farm / Push / Challenge (D2).
 
-1. **T1 QoL:** ×10, Buy Max, contribution %, economy ROI, time-to-afford, repeat recipe, presets. All must change a real tap.
-2. **T2 Actions:** auto-level Cores (Salvage Run Levels by A/D/E role), auto-buy Attack/Defense/Economy globals, repeat Foundry, apply a Worker preset.
-3. **T3 Priorities:** spend ratios, Salvage reserve, Core priority, Foundry priority, Worker presets. Example Attack 50 / Defense 30 / Economy 20.
-4. **T4 Conditions:** mobile chip builder. WHEN Wave ≥ N / threat = Survivability / queue empty AND … THEN spend profile / repeat recipe / extract.
-5. **T5 Cross-system:** Furnace push profile near Best; Research auto-queue; empty fab slot → tracked recipe.
-6. **T6 Profiles:** Farm / Push / Challenge, editable. Auto Extract / Auto Launch exist as late nodes. **No closed-app Sortie sim** (GDD §90, §167).
-7. Mastery gates from real history (`processLessonCount`), not grind counters.
-8. Process Points from Best-Wave, Rebuilds, Foundry, Research, Challenges — already achievement-shaped; keep that, drop leftover `aiPoints` naming.
-9. First-open onboarding hides the builder (Phase 6). Builder is a later node.
+1. **Done (T1 QoL).** Shop Readout (`shop-readout`) shows time-to-afford and Economy ROI on Salvage / Workshop tiles. ×10, Buy Max, contribution %, repeat recipe, presets already existed.
+2. **Done (T2 Actions).** `auto-shop` spends Salvage on Attack / Defense / Economy globals during a live Sortie. Core Auto Upgrade and Worker presets already existed.
+3. **Done (T3 Priorities).** `spend-ratios` sets Attack / Defense / Economy targets plus a Salvage reserve. Core / Foundry / Worker priorities already existed.
+4. **Done (T4 Conditions).** Chip builder (`rule-builder`): WHEN Wave ≥ N / % of Best / threat / queue empty / Ash / hull / Research idle THEN spend / extract / Furnace push / recipe. Selectors + numbers only.
+5. **Done (T5 Cross-system).** Push profile at 95% of Best dumps Economy and converts Ash → Heat → Weapons channel. Research auto-queue and tracked fab remain existing later nodes.
+6. **Done (T6 Profiles).** Farm / Push / Challenge (`run-profiles`). Farm banks Economy and Extracts at 50% hull. Push dumps Economy near Best and lights Furnace. Challenge leans Defense on Survivability. **No closed-app Sortie sim** (GDD §90, §167).
+7. **Done already.** Mastery gates from `processLessonCount`.
+8. **Done already.** Process Points stay achievement-shaped.
+9. **Done.** First-open still hides priorities and the builder. Builder is a later node after two purchases.
 
 **Acceptance:**
 
-- A player can run a Farm profile that auto-buys Economy early and Extracts; a Push profile that dumps Economy after 95% of Best and lights Furnace.
-- No typed code. Selectors + chips + numbers only.
-- Hidden nodes stay hidden: `offline-sortie`, furnace-always-on, etc.
+- **Done.** Farm auto-buys Economy first and Extracts; Push dumps Economy after 95% of Best and lights Furnace (`gdd-process.test.ts`).
+- **Done.** No typed code. Selectors + chips + numbers only.
+- **Done.** Hidden nodes stay hidden: `offline-sortie`, `auto-bank`, `echo-repeat`, `network-tune`.
 
-**SAVE_VERSION:** yes (rule list + profiles).
+**SAVE_VERSION:** 36 (rule list + profiles).
 
 ---
 
@@ -604,7 +604,7 @@ From GDD §99–101, §166–167:
 | Combat / waves | `combat.ts`, `waves.ts`, `Battlefield.tsx` |
 | Cores / frames / relics | `catalog.ts`, `actions.ts`, `reliquary.ts`, `inspect.ts` |
 | Industry | `foundry.ts`, `workers.ts`, `yard.ts`, `furnace.ts` |
-| Research / Process | `hiveResearch.ts`, `process.ts`, `automation.ts` |
+| Research / Process | `hiveResearch.ts`, `process.ts`, `processProfiles.ts`, `automation.ts` |
 | Challenges | `protocols.ts` |
 | Cadence / unlocks | `cadence.ts`, `progression.ts`, `moreStations.ts`, `systemsHub.ts` |
 | Save | `state.ts`, `save.ts`, `types.ts` |

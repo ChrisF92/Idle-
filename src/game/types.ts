@@ -450,6 +450,66 @@ export interface ProcessYardLayout {
   cells: YardCell[]
 }
 
+export type ProcessWhenKind =
+  | 'wave-gte'
+  | 'wave-of-best'
+  | 'threat'
+  | 'queue-empty'
+  | 'ash-gte'
+  | 'hull-lte'
+  | 'research-idle'
+
+export type ProcessThenKind =
+  | 'spend-profile'
+  | 'economy-target'
+  | 'extract'
+  | 'repeat-recipe'
+  | 'furnace-push'
+  | 'research-next'
+  | 'fab-tracked'
+
+export type ProcessThreatId = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
+
+export interface ProcessCondition {
+  kind: ProcessWhenKind
+  value?: number
+  threat?: ProcessThreatId
+}
+
+export interface ProcessSpendMix {
+  attack: number
+  defense: number
+  economy: number
+}
+
+export interface ProcessAction {
+  kind: ProcessThenKind
+  spend?: ProcessSpendMix
+  economyPct?: number
+  recipeId?: FoundryRecipeId | null
+}
+
+export interface ProcessRule {
+  id: string
+  enabled: boolean
+  when: ProcessCondition[]
+  then: ProcessAction
+}
+
+export type ProcessProfileId = 'farm' | 'push' | 'challenge' | 'custom'
+
+export interface ProcessProfile {
+  id: string
+  name: string
+  spend: ProcessSpendMix
+  salvageReserve: number
+  autoExtract: boolean
+  extractHullPct: number
+  autoShop: boolean
+  workerPreset?: ProcessNetworkPreset
+  rules: ProcessRule[]
+}
+
 /** Player-facing automation settings. Persist across Rebuild. */
 export interface ProcessConfig {
   core: {
@@ -506,6 +566,13 @@ export interface ProcessConfig {
     lastEchoId: string | null
     protocolId: string | null
   }
+  shop: {
+    autoBuy: boolean
+    ratios: ProcessSpendMix
+    salvageReserve: number
+  }
+  activeProfileId: string | null
+  profiles: ProcessProfile[]
 }
 
 /** Achievements → Process points → automation / QoL / accumulation. */

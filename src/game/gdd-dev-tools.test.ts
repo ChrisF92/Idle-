@@ -93,6 +93,21 @@ describe('GDD Dev Tools', () => {
     expect(moduleMasteryRank(s, 'pulse-cannon')).toBe(12)
   })
 
+  it('injects Farm and Push Process profiles', () => {
+    let farm = applyDevAction(createInitialState(0), { type: 'inject-process-profile', profileId: 'farm' })
+    expect(isSystemUnlocked(farm, 'process')).toBe(true)
+    expect(farm.process.purchased).toEqual(
+      expect.arrayContaining(['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']),
+    )
+    expect(farm.process.config.activeProfileId).toBe('farm')
+    expect(farm.process.config.profiles.map((p) => p.id)).toEqual(
+      expect.arrayContaining(['farm', 'push', 'challenge']),
+    )
+
+    const push = applyDevAction(farm, { type: 'inject-process-profile', profileId: 'push' })
+    expect(push.process.config.activeProfileId).toBe('push')
+  })
+
   it('seed-late-game opens Reinforce instead of Task List / Capital', () => {
     const s = applyDevAction(createInitialState(0), { type: 'seed-late-game' })
     expect(isSystemUnlocked(s, 'reinforce')).toBe(true)

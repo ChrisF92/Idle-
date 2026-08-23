@@ -20,6 +20,7 @@ import { syncPersistedHullCaps } from './state'
 import { encounterForWave } from './combat'
 import { CORE_MASTERY_CAP, CORE_RUN_LEVEL_CAP, setCoreRunLevel } from './coreProgression'
 import { isBossWave, powerSectorForWave, bandsClearedForWave } from './waves'
+import { createDefaultProcessProfiles } from './processProfiles'
 
 export const DEV_FLAG_KEY = 'cosmic-idle-dev'
 
@@ -89,6 +90,7 @@ export type DevAction =
   | { type: 'seed-late-game' }
   | { type: 'wipe-career' }
   | { type: 'select-frame'; frameId: string }
+  | { type: 'inject-process-profile'; profileId: 'farm' | 'push' | 'challenge' }
 
 export function grantCareerBestWave(state: GameState, wave: number): void {
   const w = Math.max(0, Math.floor(wave))
@@ -333,6 +335,18 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
         next.combat.log = [`[dev] Equipped ${frame.name}.`, ...next.combat.log].slice(0, 40)
         if (!next.combat.inFight) syncPersistedHullCaps(next)
       }
+      break
+    }
+    case 'inject-process-profile': {
+      prepGddDoor(next, ACT1_CADENCE.process)
+      const nodes = ['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']
+      next.process.purchased = [...new Set([...(next.process.purchased ?? []), ...nodes])]
+      if (!next.process.config.profiles.length) {
+        next.process.config.profiles = createDefaultProcessProfiles()
+      }
+      next.process.config.activeProfileId = action.profileId
+      next.resources.aiPoints = Math.max(next.resources.aiPoints ?? 0, 40)
+      next.combat.log = [`[dev] Process ${action.profileId} profile injected.`, ...next.combat.log].slice(0, 40)
       break
     }
     default:
