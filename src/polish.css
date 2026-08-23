@@ -508,7 +508,7 @@ button.just-ok {
 .combat-banner {
   position: absolute;
   left: 50%;
-  top: 14%;
+  top: 32%;
   transform: translateX(-50%);
   margin: 0;
   padding: 0.4rem 0.75rem 0.45rem;
@@ -742,17 +742,39 @@ button.just-ok {
   .network-fill.is-active::after,
   .smelter-active .network-fill::after,
   .hangar-sheet.is-collapsing,
-  .sortie-wave.is-new-best {
+  .sortie-wave.is-new-best,
+  .sortie-menu-pop {
     animation: none !important;
     opacity: 1;
   }
 }
 
+.sortie-canvas-chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.sortie-canvas-chrome > * {
+  pointer-events: auto;
+}
+
+.sortie-canvas-chrome.is-top {
+  top: 0;
+  background: linear-gradient(180deg, rgba(8, 6, 5, 0.78) 0%, rgba(8, 6, 5, 0.22) 70%, transparent);
+}
+
+.sortie-canvas-chrome.is-bottom {
+  bottom: 0;
+  background: linear-gradient(0deg, rgba(8, 6, 5, 0.78) 0%, rgba(8, 6, 5, 0.22) 70%, transparent);
+}
+
 .sortie-boss-anchor {
   display: grid;
   gap: 0.18rem;
-  padding: 0.35rem 0.7rem 0.3rem;
-  border-bottom: 1px solid var(--line);
+  padding: 0.35rem 0.7rem 0.1rem;
 }
 
 .sortie-hud {
@@ -760,8 +782,7 @@ button.just-ok {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: start;
   gap: 0.45rem;
-  padding: 0.4rem 0.55rem 0.3rem;
-  border-bottom: 1px solid var(--line);
+  padding: 0.3rem 0.45rem 0.55rem;
 }
 
 .sortie-hud-econ {
@@ -859,9 +880,7 @@ button.just-ok {
   position: relative;
   display: grid;
   gap: 0.22rem;
-  padding: 0.35rem 0.7rem 0.3rem;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 0.7rem 0.4rem;
 }
 
 .sortie-status .sortie-speed {
@@ -1061,6 +1080,11 @@ button.just-ok {
   padding: 0.2rem 0.55rem;
 }
 
+.sortie-menu {
+  position: relative;
+  justify-self: end;
+}
+
 .sortie-menu-btn {
   width: var(--touch);
   height: var(--touch);
@@ -1070,6 +1094,50 @@ button.just-ok {
   background: transparent;
   color: var(--text);
   font-size: 1.2rem;
+}
+
+.sortie-menu-btn.is-open {
+  color: var(--accent);
+}
+
+.sortie-menu-pop {
+  position: absolute;
+  top: calc(100% - 0.2rem);
+  right: 0;
+  z-index: 6;
+  min-width: 8.8rem;
+  padding: 0.25rem;
+  display: grid;
+  gap: 0.15rem;
+  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.46);
+  transform-origin: top right;
+  animation: sortie-menu-in 0.16s var(--ease-out);
+}
+
+.sortie-menu-pop button {
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.3rem 0.55rem;
+  text-align: left;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-inset));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+.sortie-menu-pop .muted {
+  margin: 0.35rem 0.45rem;
+}
+
+@keyframes sortie-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .sortie-shop.is-collapsed {

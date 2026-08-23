@@ -73,6 +73,7 @@ export function CombatTab({
   const [menuOpen, setMenuOpen] = useState(false)
   const [directivesOpen, setDirectivesOpen] = useState(false)
   const [rateView, setRateView] = useState<'salvage' | 'scrap' | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
   const shieldPct = stats.shieldMax > 0 ? combat.playerShield / stats.shieldMax : 0
   const hullBand = hullPct <= 0.28 ? 'critical' : hullPct <= 0.55 ? 'damaged' : 'healthy'
@@ -135,6 +136,22 @@ export function CombatTab({
     const t = window.setTimeout(() => setBanner(null), 1700)
     return () => window.clearTimeout(t)
   }, [banner])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointer = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
 
   const previewPlayer = useMemo(
     () => [
@@ -208,66 +225,6 @@ export function CombatTab({
         .filter(Boolean)
         .join(' ')}
     >
-      {boss ? (
-        <div className="sortie-boss-anchor" aria-label="Boss">
-          {boss.shieldMax > 0 ? (
-            <div className="sortie-meter">
-              <span>BOSS SHIELD</span>
-              <span className="hud-underline shield" aria-hidden>
-                <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, boss.shield / boss.shieldMax))})` }} />
-              </span>
-              <strong>
-                {formatCompact(Math.ceil(boss.shield))}/{formatCompact(Math.ceil(boss.shieldMax))}
-              </strong>
-            </div>
-          ) : null}
-          <div className="sortie-meter">
-            <span>BOSS HULL</span>
-            <span className="hud-underline hull" aria-hidden>
-              <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, boss.hull / Math.max(1, boss.hullMax)))})` }} />
-            </span>
-            <strong>
-              {formatCompact(Math.ceil(boss.hull))}/{formatCompact(Math.ceil(boss.hullMax))}
-            </strong>
-          </div>
-        </div>
-      ) : null}
-
-      <header className="sortie-hud">
-        <div className="sortie-hud-econ">
-          <button
-            type="button"
-            className="sortie-econ"
-            data-guide="salvage-stat"
-            onClick={() => toggleRate('salvage')}
-          >
-            <strong>
-              {rateView === 'salvage' ? `${formatCompact(rates.salvagePerSec)}/s` : formatCompact(salvageBank)}
-            </strong>
-            <span className="muted">{rateView === 'salvage' ? 'Salvage /s' : 'Salvage'}</span>
-          </button>
-          <button type="button" className="sortie-econ" data-guide="scrap-stat" onClick={() => toggleRate('scrap')}>
-            <strong>
-              {rateView === 'scrap' ? `${formatCompact(rates.scrapPerSec)}/s` : `+${formatCompact(Math.floor(scrapRun))}`}
-            </strong>
-            <span className="muted">{rateView === 'scrap' ? 'Scrap /s' : 'Scrap'}</span>
-          </button>
-        </div>
-        <div className="sortie-hud-mid">
-          <strong className="sortie-wave">W{combat.wave}</strong>
-          <span>DPS {formatCompact(stats.damage)}</span>
-          <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>
-        </div>
-        <button
-          type="button"
-          className="sortie-menu-btn"
-          aria-label="Sortie menu"
-          onClick={() => setMenuOpen(true)}
-        >
-          ☰
-        </button>
-      </header>
-
       <div className="sortie-canvas" data-guide="sortie-canvas">
         <Battlefield
           playerUnits={playerUnits}
@@ -281,6 +238,118 @@ export function CombatTab({
           frameId={state.shipyard.frameId}
           coreIds={state.shipyard.modules}
         />
+        <div className="sortie-canvas-chrome is-top">
+          {boss ? (
+            <div className="sortie-boss-anchor" aria-label="Boss">
+              {boss.shieldMax > 0 ? (
+                <div className="sortie-meter">
+                  <span>BOSS SHIELD</span>
+                  <span className="hud-underline shield" aria-hidden>
+                    <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, boss.shield / boss.shieldMax))})` }} />
+                  </span>
+                  <strong>
+                    {formatCompact(Math.ceil(boss.shield))}/{formatCompact(Math.ceil(boss.shieldMax))}
+                  </strong>
+                </div>
+              ) : null}
+              <div className="sortie-meter">
+                <span>BOSS HULL</span>
+                <span className="hud-underline hull" aria-hidden>
+                  <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, boss.hull / Math.max(1, boss.hullMax)))})` }} />
+                </span>
+                <strong>
+                  {formatCompact(Math.ceil(boss.hull))}/{formatCompact(Math.ceil(boss.hullMax))}
+                </strong>
+              </div>
+            </div>
+          ) : null}
+          <header className="sortie-hud">
+            <div className="sortie-hud-econ">
+              <button
+                type="button"
+                className="sortie-econ"
+                data-guide="salvage-stat"
+                onClick={() => toggleRate('salvage')}
+              >
+                <strong>
+                  {rateView === 'salvage' ? `${formatCompact(rates.salvagePerSec)}/s` : formatCompact(salvageBank)}
+                </strong>
+                <span className="muted">{rateView === 'salvage' ? 'Salvage /s' : 'Salvage'}</span>
+              </button>
+              <button type="button" className="sortie-econ" data-guide="scrap-stat" onClick={() => toggleRate('scrap')}>
+                <strong>
+                  {rateView === 'scrap' ? `${formatCompact(rates.scrapPerSec)}/s` : `+${formatCompact(Math.floor(scrapRun))}`}
+                </strong>
+                <span className="muted">{rateView === 'scrap' ? 'Scrap /s' : 'Scrap'}</span>
+              </button>
+            </div>
+            <div className="sortie-hud-mid">
+              <strong className="sortie-wave">W{combat.wave}</strong>
+              <span>DPS {formatCompact(stats.damage)}</span>
+              <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>
+            </div>
+            <div className="sortie-menu" ref={menuRef}>
+              <button
+                type="button"
+                className={`sortie-menu-btn${menuOpen ? ' is-open' : ''}`}
+                aria-label="Sortie menu"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                aria-controls={`${titleId}-menu`}
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                ☰
+              </button>
+              {menuOpen ? (
+                <div className="sortie-menu-pop" id={`${titleId}-menu`} role="menu" aria-label="Sortie">
+                  {live && !dying ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-guide="extract"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        onExtract?.()
+                      }}
+                    >
+                      Extract
+                    </button>
+                  ) : (
+                    <p className="muted">No actions</p>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </header>
+        </div>
+        <div className="sortie-canvas-chrome is-bottom">
+          <div className="sortie-status">
+            <div className="sortie-meter" data-guide="sortie-shield">
+              <span>SHIELD</span>
+              <span className="hud-underline shield" aria-hidden>
+                <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, shieldPct))})` }} />
+              </span>
+              <strong>{Math.round(shieldPct * 100)}%</strong>
+            </div>
+            <div className={`sortie-meter${hullBand === 'healthy' ? '' : ` is-${hullBand}`}`} data-guide="sortie-hull">
+              <span>HULL</span>
+              <span className="hud-underline hull" aria-hidden>
+                <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, hullPct))})` }} />
+              </span>
+              <strong>{Math.round(hullPct * 100)}%</strong>
+            </div>
+            {extraSpeeds ? (
+              <button
+                type="button"
+                className="sortie-speed"
+                data-guide="sortie-speed"
+                onClick={() => onCycleSpeed?.()}
+              >
+                ×{speed.toFixed(speed % 1 === 0 ? 0 : 1)}
+              </button>
+            ) : null}
+          </div>
+        </div>
         {banner ? (
           <p className={`combat-banner is-${banner.kind}`} role="status">
             <span className="combat-banner-kicker">
@@ -293,33 +362,6 @@ export function CombatTab({
           <p className="sortie-defeat-banner" role="status">
             {challenge ? 'Hull lost' : `SORTIE COMPLETE — Wave ${combat.wave}`}
           </p>
-        ) : null}
-      </div>
-
-      <div className="sortie-status">
-        <div className="sortie-meter" data-guide="sortie-shield">
-          <span>SHIELD</span>
-          <span className="hud-underline shield" aria-hidden>
-            <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, shieldPct))})` }} />
-          </span>
-          <strong>{Math.round(shieldPct * 100)}%</strong>
-        </div>
-        <div className={`sortie-meter${hullBand === 'healthy' ? '' : ` is-${hullBand}`}`} data-guide="sortie-hull">
-          <span>HULL</span>
-          <span className="hud-underline hull" aria-hidden>
-            <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, hullPct))})` }} />
-          </span>
-          <strong>{Math.round(hullPct * 100)}%</strong>
-        </div>
-        {extraSpeeds ? (
-          <button
-            type="button"
-            className="sortie-speed"
-            data-guide="sortie-speed"
-            onClick={() => onCycleSpeed?.()}
-          >
-            ×{speed.toFixed(speed % 1 === 0 ? 0 : 1)}
-          </button>
         ) : null}
       </div>
 
@@ -399,31 +441,6 @@ export function CombatTab({
             ) : (
               <p className="muted">Directives pause the Sortie at Waves 50, 100, 150, 200, and 250.</p>
             )}
-          </div>
-        </div>
-      ) : null}
-
-      {menuOpen ? (
-        <div className="sheet-overlay is-partial" role="dialog" aria-labelledby={`${titleId}-menu`}>
-          <div className="sheet-card">
-            <header className="modal-header">
-              <h3 id={`${titleId}-menu`}>Sortie</h3>
-              <button type="button" onClick={() => setMenuOpen(false)}>
-                Close
-              </button>
-            </header>
-            {live && !dying ? (
-              <button
-                type="button"
-                data-guide="extract"
-                onClick={() => {
-                  setMenuOpen(false)
-                  onExtract?.()
-                }}
-              >
-                Extract
-              </button>
-            ) : null}
           </div>
         </div>
       ) : null}
