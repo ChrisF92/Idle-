@@ -104,7 +104,7 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Slag Temper', blurb: 'Foundry crafts run a little faster.', kind: 'incremental', foundrySpeed: 0.04 },
     {
       name: 'Keel Bay',
-      blurb: 'One extra utility Core slot on the hull, and old Foundry recipes solve two ranks sooner.',
+      blurb: 'One extra utility Core slot on the hull, and Foundry mastery gates open sooner.',
       kind: 'breakthrough',
       extraUtilitySlots: 1,
       foundryInfiniteReduce: 2,
@@ -510,9 +510,9 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.unlockRelay) bits.push(`Unlocks ${node.unlockRelay.replace(/-/g, ' ')}`)
   if (node.unlockFrame) bits.push(`Unlocks ${getFrame(node.unlockFrame)?.name ?? node.unlockFrame}`)
   if (node.foundryMasteryReduce) bits.push(`Mastery gates −${node.foundryMasteryReduce} rank`)
-  if (node.foundryInfiniteReduce) bits.push(`Recipes solve ${node.foundryInfiniteReduce} ranks sooner`)
+  if (node.foundryInfiniteReduce) bits.push(`Mastery gates −${node.foundryInfiniteReduce}`)
   if (node.extraUtilitySlots) bits.push(`Utility Core slots +${node.extraUtilitySlots}`)
-  if (node.foundryFitSlots) bits.push(`Fitted Foundry bits +${node.foundryFitSlots}`)
+  if (node.foundryFitSlots) bits.push(`Fabrication slots +${node.foundryFitSlots}`)
   if (node.droneEfficiency) bits.push(`Drone efficiency +${Math.round(node.droneEfficiency * 100)}%`)
   if (node.offFocusAdd) bits.push(`Off-focus research +${Math.round(node.offFocusAdd * 100)}%`)
   if (node.researchQueueSlots) bits.push(`Research queue +${node.researchQueueSlots}`)

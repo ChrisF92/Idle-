@@ -162,7 +162,7 @@ export function YardTab({
                     armed {yardArmed(state, arm.id)} · queue {yardPending(state, arm.id)}
                   </span>
                 </div>
-                <p className="network-row-stats">{yardArmEffect(arm)}</p>
+                <p className="network-row-stats">{yardArmEffect(arm.id)}</p>
                 <button
                   type="button"
                   className="primary"

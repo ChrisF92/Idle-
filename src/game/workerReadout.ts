@@ -1,8 +1,7 @@
-/** Worker assignment consequences for Systems / Network UI. Does not import yard. */
+/** Worker assignment consequences for Systems / Worker UI. */
 
 import { STATIONS } from './catalog'
-import { FOUNDRY_RECIPES, foundryCraftSpeed, foundryCraftTime } from './foundry'
-import { networkManufactureMult } from './network'
+import { FOUNDRY_RECIPES, foundryCraftTime, foundryFabricationSpeed, foundryProcessingSpeed } from './foundry'
 import type { GameState } from './types'
 import { workerJobCap, workerJobLabel } from './workers'
 
@@ -32,8 +31,7 @@ export function workerJobConsequence(state: GameState, jobId: string): WorkerJob
   const cap = workerJobCap(jobId)
   const station = STATIONS.find((row) => row.id === jobId)
   const title = workerJobLabel(jobId, station?.name)
-  const band = `Efficient ${cap.min}–${cap.efficient}`
-  const speed = networkManufactureMult(state)
+  const band = `${assigned}/${cap.efficient} efficient · cap ${cap.hard}`
 
   if (jobId === 'scrap-field') {
     const rate = (station?.rates.scrap ?? 0.4) * assigned
@@ -49,29 +47,34 @@ export function workerJobConsequence(state: GameState, jobId: string): WorkerJob
   }
 
   if (jobId === 'alloy-foundry') {
+    const speed = foundryProcessingSpeed(state)
+    const slot = state.foundry?.slots?.find((row) => row.recipeId)
+    const recipe = slot?.recipeId ? FOUNDRY_RECIPES.find((row) => row.id === slot.recipeId) : null
+    const total = slot?.recipeId ? foundryCraftTime(state, slot.recipeId) / Math.max(0.05, speed) : 0
+    const remain = slot ? total * (1 - (slot.progress ?? 0)) : 0
     return {
       jobId,
-      title: 'Foundry Processing',
+      title: 'Processing',
       assigned,
       band,
-      current: `Current speed ${formatMult(speed)}`,
-      next: assigned >= cap.hard ? 'At hard cap' : 'More drones raise Processing speed',
+      current: recipe ? `${recipe.name} ${formatSeconds(remain)}` : `Current speed ${formatMult(speed)}`,
+      next: assigned >= cap.hard ? 'At hard cap' : 'More drones shorten Processing time',
     }
   }
 
   if (jobId === 'fab-bay' || jobId === 'construction') {
-    const slot = state.foundry?.slots?.find((row) => row.recipeId)
-    const recipe = slot?.recipeId ? FOUNDRY_RECIPES.find((row) => row.id === slot.recipeId) : null
-    const total = slot?.recipeId ? foundryCraftTime(state, slot.recipeId) / Math.max(0.05, foundryCraftSpeed(state)) : 0
-    const remain = slot ? total * (1 - (slot.progress ?? 0)) : 0
-    const slower = slot ? total * 1.25 * (1 - (slot.progress ?? 0)) : 0
+    const kind = jobId === 'construction' ? 'facility' : 'core'
+    const slot = state.foundry?.fabrication?.find((row) =>
+      jobId === 'construction' ? row.kind === 'facility' : row.kind === 'core' || row.kind === 'relic',
+    )
+    const speed = foundryFabricationSpeed(state, slot?.kind ?? kind)
     return {
       jobId,
       title: jobId === 'fab-bay' ? 'Fabrication' : 'Construction',
       assigned,
       band,
-      current: recipe ? `${recipe.name} ${formatSeconds(remain)}` : 'No job queued',
-      next: recipe ? `${formatSeconds(slower)} without these drones` : 'Assign before the next print',
+      current: slot?.jobId ? `Job ${Math.round((slot.progress ?? 0) * 100)}% · ${formatMult(speed)}` : 'No job queued',
+      next: assigned >= cap.hard ? 'At hard cap' : 'More drones shorten this job',
     }
   }
 
@@ -87,18 +90,6 @@ export function workerJobConsequence(state: GameState, jobId: string): WorkerJob
     }
   }
 
-  if (jobId === 'repair-bay') {
-    const per = station?.repairPerDrone ?? 1.2
-    return {
-      jobId,
-      title,
-      assigned,
-      band,
-      current: assigned > 0 ? `Dock repair +${(per * assigned).toFixed(1)}/s` : 'No extra repair',
-      next: `+1 → +${(per * (assigned + 1)).toFixed(1)}/s`,
-    }
-  }
-
   if (jobId === 'drone-fab') {
     const bonus = station?.manufactureBonusPerDrone ?? 0.35
     return {
@@ -106,20 +97,8 @@ export function workerJobConsequence(state: GameState, jobId: string): WorkerJob
       title,
       assigned,
       band,
-      current: assigned > 0 ? `Drone build ${formatMult(1 + bonus * assigned)}` : 'Standard drone build',
+      current: assigned > 0 ? `Drone build ${formatMult(1 + bonus * assigned)}` : 'Needs a Fabricator',
       next: `+1 → ${formatMult(1 + bonus * (assigned + 1))}`,
-    }
-  }
-
-  if (jobId === 'power-grid') {
-    const rate = (station?.rates.energy ?? 0.16) * assigned
-    return {
-      jobId,
-      title,
-      assigned,
-      band,
-      current: assigned > 0 ? `Energy +${rate.toFixed(2)}/s` : 'Energy idle',
-      next: `+1 → +${((station?.rates.energy ?? 0.16) * (assigned + 1)).toFixed(2)}/s`,
     }
   }
 

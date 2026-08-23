@@ -4,13 +4,11 @@ import type { GameState } from './types'
 import { ACT1_CADENCE } from './cadence'
 import { meetsWave } from './waves'
 
-/** Production / special jobs a Worker Drone can be assigned to. Training ranges stay on Cores. */
+/** Production jobs a Worker Drone can be assigned to. */
 export const WORKER_JOB_IDS: readonly string[] = [
   'scrap-field',
-  'power-grid',
   'sensor-net',
   'alloy-foundry',
-  'repair-bay',
   'drone-fab',
   'fab-bay',
   'construction',
@@ -22,27 +20,22 @@ export interface WorkerJobCap {
   hard: number
 }
 
-/** Display names — station ids stay. */
 export const WORKER_JOB_LABELS: Record<string, string> = {
   'scrap-field': 'Salvage ops',
-  'power-grid': 'Power',
   'sensor-net': 'Research',
   'alloy-foundry': 'Processing',
-  'repair-bay': 'Repair',
   'drone-fab': 'Drone production',
   'fab-bay': 'Fabrication',
-  'construction': 'Construction',
+  construction: 'Construction',
 }
 
 export const WORKER_JOB_CAPS: Record<string, WorkerJobCap> = {
   'scrap-field': { min: 1, efficient: 8, hard: 20 },
-  'power-grid': { min: 1, efficient: 6, hard: 16 },
   'sensor-net': { min: 1, efficient: 6, hard: 16 },
   'alloy-foundry': { min: 1, efficient: 4, hard: 12 },
-  'repair-bay': { min: 1, efficient: 6, hard: 16 },
   'drone-fab': { min: 1, efficient: 4, hard: 10 },
-  'fab-bay': { min: 1, efficient: 4, hard: 40 },
-  'construction': { min: 1, efficient: 4, hard: 8 },
+  'fab-bay': { min: 1, efficient: 4, hard: 8 },
+  construction: { min: 1, efficient: 4, hard: 8 },
 }
 
 export function workerJobCap(jobId: string): WorkerJobCap {
@@ -70,23 +63,18 @@ export function workerAllocationSummary(state: GameState): {
   total: number
   assigned: number
   idle: number
-  foundry: number
-  research: number
-  fabrication: number
+  jobs: Record<string, number>
 } {
   const assignments = state.base.assignments ?? {}
   const count = (id: string) => Math.max(0, Math.floor(assignments[id] ?? 0))
-  const foundry = count('alloy-foundry') + count('construction')
-  const research = count('sensor-net')
-  const fabrication = count('fab-bay') + count('drone-fab')
+  const jobs: Record<string, number> = {}
+  for (const id of WORKER_JOB_IDS) jobs[id] = count(id)
   const assigned = Object.values(assignments).reduce((n, v) => n + Math.max(0, Math.floor(v ?? 0)), 0)
   const total = Math.max(0, Math.floor(state.base.workerDrones ?? 0))
   return {
     total,
     assigned,
     idle: Math.max(0, total - assigned),
-    foundry,
-    research,
-    fabrication,
+    jobs,
   }
 }

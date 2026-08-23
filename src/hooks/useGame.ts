@@ -39,6 +39,8 @@ import {
   sellPart,
   setFoundrySlot,
   assembleBlueprint,
+  startFabrication,
+  stopFabrication,
   setTrackedPrint,
   setLaborProfile,
   setDamageNumbers,
@@ -163,6 +165,8 @@ type Action =
   | { type: 'hard-reset' }
   | { type: 'dev'; action: DevAction }
   | { type: 'foundry-slot'; slotIndex: number; recipeId: string | null }
+  | { type: 'foundry-stop-fab'; slotIndex: number }
+  | { type: 'foundry-start-facility'; facilityId: import('../game/types').FacilityId }
   | { type: 'foundry-upgrade'; upgradeId: string }
   | { type: 'foundry-equip'; moduleId: string }
   | { type: 'foundry-unequip'; moduleId: string }
@@ -319,6 +323,10 @@ function reducer(state: GameState, action: Action): GameState {
       return applyDevAction(state, action.action)
     case 'foundry-slot':
       return setFoundrySlot(state, action.slotIndex, action.recipeId as import('../game/types').FoundryRecipeId | null)
+    case 'foundry-stop-fab':
+      return stopFabrication(state, action.slotIndex)
+    case 'foundry-start-facility':
+      return startFabrication(state, 'facility', action.facilityId)
     case 'foundry-upgrade':
       return buyFoundryUpgrade(state, action.upgradeId)
     case 'foundry-equip':
@@ -529,6 +537,9 @@ export function useGame() {
       dispatch({ type: 'merge-cores', defId, rank }),
     setFoundrySlot: (slotIndex: number, recipeId: string | null) =>
       dispatch({ type: 'foundry-slot', slotIndex, recipeId }),
+    stopFabrication: (slotIndex: number) => dispatch({ type: 'foundry-stop-fab', slotIndex }),
+    startFacility: (facilityId: import('../game/types').FacilityId) =>
+      dispatch({ type: 'foundry-start-facility', facilityId }),
     buyFoundryUpgrade: (upgradeId: string) =>
       dispatch({ type: 'foundry-upgrade', upgradeId }),
     equipFoundryModule: (moduleId: string) =>

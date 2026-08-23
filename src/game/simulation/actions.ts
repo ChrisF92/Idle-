@@ -2,13 +2,11 @@
 
 import type { GameState, FoundryRecipeId } from '../types'
 import {
-  buyFoundryUpgrade,
   buyMatterShop,
   buyNetworkLink,
   buyProcessNode,
   canPrestige,
   convertAshToHeat,
-  equipFoundryModule,
   fitModule,
   insertShard,
   performPrestige,
@@ -45,10 +43,7 @@ import {
   networkLevels,
 } from '../network'
 import {
-  FOUNDRY_MODULES,
   FOUNDRY_RECIPES,
-  FOUNDRY_UPGRADES,
-  canBuyFoundryUpgrade,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
   scaledFoundryCost,
@@ -391,26 +386,6 @@ export function tendFoundry(state: GameState, ctx: StrategyContext): GameState {
     }
   }
 
-  for (const up of FOUNDRY_UPGRADES) {
-    if (!canBuyFoundryUpgrade(next, up.id).ok) continue
-    const after = buyFoundryUpgrade(next, up.id)
-    if (after !== next) {
-      ctx.recordMeaningful(`Foundry ${up.name}`)
-      next = after
-    }
-  }
-
-  if (next.combat.docked) {
-    for (const bit of FOUNDRY_MODULES) {
-      if (next.foundry.equipped.includes(bit.id)) continue
-      const after = equipFoundryModule(next, bit.id)
-      if (after !== next) {
-        ctx.recordMeaningful(`Fitted ${bit.name}`)
-        next = after
-        break
-      }
-    }
-  }
   return next
 }
 

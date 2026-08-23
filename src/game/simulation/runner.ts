@@ -435,10 +435,10 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     coreSpending: spending,
     network: networkSnapshot(state),
     foundry: {
-      points: state.foundry.points,
+      points: 0,
       recipeLevels: { ...state.foundry.recipeLevels },
-      upgrades: { ...state.foundry.upgrades },
-      equipped: [...state.foundry.equipped],
+      upgrades: {},
+      equipped: [],
       slotRecipes: state.foundry.slots.map((s) => s.recipeId),
     },
     furnace: {

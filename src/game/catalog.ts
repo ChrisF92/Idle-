@@ -15,7 +15,7 @@ export interface StationDef {
   description: string
   requiresResearch?: string
   /** System that must be unlocked before drones can be assigned. */
-  requiresSystem?: 'base' | 'research' | 'ai' | 'prestige' | 'core' | 'yard'
+  requiresSystem?: 'base' | 'research' | 'ai' | 'prestige' | 'core' | 'yard' | 'foundry'
   /** Resource rates per assigned worker drone (per second). */
   rates: ResourceCost
   /** Scrap drained per assigned drone per second (Foundry-style). */
@@ -376,14 +376,6 @@ export const STATIONS: StationDef[] = [
     baseSlots: 20,
   },
   {
-    id: 'power-grid',
-    name: 'Power Grid',
-    description: 'Workers stabilize reactor feeds for energy.',
-    requiresSystem: 'base',
-    rates: { energy: 0.16 },
-    baseSlots: 16,
-  },
-  {
     id: 'sensor-net',
     name: 'Sensor Net',
     description: 'Workers accelerate the active Research project.',
@@ -393,42 +385,29 @@ export const STATIONS: StationDef[] = [
   },
   {
     id: 'alloy-foundry',
-    name: 'Alloy Foundry',
-    description: 'Workers convert scrap into alloys.',
-    requiresSystem: 'research',
-    requiresResearch: 'alloy-smelting',
-    rates: { alloys: 0.12 },
-    upkeepScrapPerDrone: 0.16,
+    name: 'Processing',
+    description: 'Workers speed Foundry Processing.',
+    requiresSystem: 'foundry',
+    rates: {},
     baseSlots: 12,
   },
   {
-    id: 'repair-bay',
-    name: 'Repair Bay',
-    description: 'Workers speed hangar hull/shield restoration while Paused.',
-    requiresSystem: 'base',
-    rates: {},
-    repairPerDrone: 1.2,
-    baseSlots: 16,
-  },
-  {
     id: 'drone-fab',
-    name: 'Drone Fabricator',
-    description: 'Workers accelerate manufacturing of new worker drones.',
-    requiresSystem: 'base',
-    requiresResearch: 'drone-logistics',
+    name: 'Drone production',
+    description: 'Workers manufacture additional Worker Drones. Needs a Fabricator.',
+    requiresSystem: 'foundry',
     rates: {},
     manufactureBonusPerDrone: 0.35,
     baseSlots: 10,
   },
   {
     id: 'fab-bay',
-    name: 'Fabrication Bay',
-    description: 'Workers assemble deposited blueprint parts into modules.',
-    requiresSystem: 'base',
-    requiresResearch: 'module-fab',
+    name: 'Fabrication',
+    description: 'Workers speed Foundry Fabrication of Cores and Relics.',
+    requiresSystem: 'foundry',
     rates: {},
     kind: 'special',
-    baseSlots: 40,
+    baseSlots: 8,
   },
   {
     id: 'construction',
@@ -438,57 +417,6 @@ export const STATIONS: StationDef[] = [
     rates: {},
     kind: 'special',
     baseSlots: 8,
-  },
-  {
-    id: 'train-ballistics',
-    name: 'Ballistics Range',
-    description: 'Workers drill targeting drills — trains the Ballistics Core attribute (fleet DPS).',
-    requiresSystem: 'base',
-    requiresResearch: 'core-training',
-    rates: {},
-    kind: 'training',
-    trainsAttr: 'ballistics',
-  },
-  {
-    id: 'train-plating',
-    name: 'Plating Yard',
-    description: 'Workers harden armor schemes — trains the Plating Core attribute (hull + armor).',
-    requiresSystem: 'base',
-    requiresResearch: 'core-training',
-    rates: {},
-    kind: 'training',
-    trainsAttr: 'plating',
-  },
-  {
-    id: 'train-reactors',
-    name: 'Reactor Lab',
-    description: 'Workers tune reactor feeds — trains the Reactors Core attribute (shields + repair).',
-    requiresSystem: 'base',
-    requiresResearch: 'core-training',
-    rates: {},
-    kind: 'training',
-    trainsAttr: 'reactors',
-  },
-  {
-    id: 'train-sensors',
-    name: 'Sensor Academy',
-    description: 'Workers calibrate sensor nets — trains the Sensors Core attribute (evasion + matchup).',
-    requiresSystem: 'base',
-    requiresResearch: 'core-training',
-    rates: {},
-    kind: 'training',
-    trainsAttr: 'sensors',
-  },
-  {
-    id: 'train-logistics',
-    name: 'Logistics Hub',
-    description:
-      'Workers practice supply chains — trains Logistics (industry, Fab Bay speed, part drops, and training speed).',
-    requiresSystem: 'base',
-    requiresResearch: 'core-training',
-    rates: {},
-    kind: 'training',
-    trainsAttr: 'logistics',
   },
 ]
 
@@ -2585,6 +2513,7 @@ export type DroneEconomyState = {
   }
   meta?: { lifetimeDronesBuilt?: number }
   network?: { links?: { racks?: number; acuity?: number } }
+  foundry?: { facilities?: string[] }
 }
 
 /** Black-bar slot count (0 = uncapped linear scaling). */
@@ -2640,6 +2569,8 @@ export function droneCap(state: DroneEconomyState): number {
   )
   const racks = Math.max(0, Math.floor(state.network?.links?.racks ?? 0))
   cap += NETWORK_RACK_CAP_PER_RANK * racks
+  const droneRacks = (state.foundry?.facilities ?? []).filter((id) => id === 'drone-racks').length
+  cap += droneRacks * 4
   return Math.max(1, Math.floor(cap))
 }
 
@@ -2821,6 +2752,9 @@ export function isStationUnlocked(state: GameState, stationId: string): boolean 
   if (def.requiresSystem && !isSystemUnlocked(state, def.requiresSystem)) return false
   if (def.requiresResearch && !state.research.unlocked.includes(def.requiresResearch)) {
     return false
+  }
+  if (stationId === 'drone-fab') {
+    return (state.foundry?.facilities ?? []).includes('drone-fabricator')
   }
   return true
 }

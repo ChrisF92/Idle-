@@ -1,51 +1,48 @@
-/** Foundry — USI Synth analogue. Recipes, processor slots, Foundry Points, equippable bits. */
+/** Foundry — GDD §49–65. Processing (continuous) and timed Fabrication. */
 
-import type { FoundryRecipeId, FoundrySlot, FoundryState, GameState } from './types'
-import { networkManufactureMult } from './network'
+import type {
+  FabricationSlot,
+  FacilityId,
+  FabJobKind,
+  FoundryRecipeId,
+  FoundrySlot,
+  FoundryState,
+  GameState,
+  PendingRelicUpgrade,
+} from './types'
 import { reliquaryFoundrySpeedMult } from './reliquary'
 import { furnaceFoundrySpeedMult } from './furnace'
 import {
   hiveResearchFitSlots,
   hiveResearchFoundrySlots,
   hiveResearchFoundrySpeedMult,
-  hiveResearchInfiniteReduce,
   hiveResearchMasteryReduce,
 } from './hiveResearch'
-import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoFoundrySpeedMult } from './echo'
 import { processFoundrySpeedMult } from './process'
-import {
-  foundryExtraFitSlots,
-  foundryGlobalOutputAdd,
-  foundryMasteryGateReduce,
-  foundryXpMult,
-} from './foundryBonuses'
 import { noteSystemAction, recordPlaytest } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 import { careerBestWave } from './waves'
-import { practicedCoreWork } from './corePractice'
-import { getFrame, grantUnlockedFrame } from './catalog'
+import {
+  getBlueprint,
+  getFrame,
+  getModule,
+  grantUnlockedFrame,
+  PART_TYPES,
+  partId,
+  stationEffectiveDrones,
+} from './catalog'
+import { workerJobCap } from './workers'
 
-export type FoundryPaneId = 'smelt' | 'build' | 'ranks' | 'prints' | 'fit'
+export type FoundryPaneId = 'smelt' | 'build' | 'prints'
 
 /** Player-facing pane names. Ids stay smelt/prints for nav and guides. */
 export const FOUNDRY_PANE_LABELS: Record<FoundryPaneId, string> = {
   smelt: 'Processing',
   build: 'Build',
-  ranks: 'Ranks',
   prints: 'Fabrication',
-  fit: 'Fit',
 }
-
-export {
-  foundryAshHeatMult,
-  foundryNetworkFillMult,
-  foundryPartDropMult,
-  foundryQueueCap,
-  foundryResearchXpMult,
-  foundryShardDropBonus,
-  foundryXpMult,
-} from './foundryBonuses'
 
 export interface FoundryCost {
   salvage?: number
@@ -62,523 +59,276 @@ export interface FoundryRecipeDef {
   costs: FoundryCost
   requiresBestWave: number
   requiresRecipeLevel?: { recipeId: FoundryRecipeId; level: number }
-  /** Need this many smelters unlocked before the recipe opens. */
+  /** Need this many processors unlocked before the recipe opens. */
   requiresSlots?: number
   unlocksRecipe?: { recipeId: FoundryRecipeId; atLevel: number }
   /** First craft of this recipe unlocks a Hive Frame. */
   unlocksFrame?: string
 }
 
-export interface FoundryUpgradeDef {
-  id: string
+export interface FacilityDef {
+  id: FacilityId
   name: string
   blurb: string
-  baseCost: number
-  maxRank: number
-  extraSlots?: number
-  extraFitSlots?: number
-  damageBonus?: number
-  shieldBonus?: number
-  speedBonus?: number
-  salvageBonus?: number
-  xpBonus?: number
-  outputAdd?: number
-  masteryReduce?: number
-  networkFillBonus?: number
-  ashHeatBonus?: number
-  researchXpBonus?: number
-  shardDropBonus?: number
-  partDropBonus?: number
-  queueBonus?: number
-  requiresBestWave?: number
-  /** Career Best Wave door for advanced fabrication (GDD §102 W90). */
-  requiresWave?: number
+  craftTime: number
+  costs: FoundryCost
+  requiresBestWave: number
+  maxOwned: number
 }
 
-export interface FoundryModuleDef {
+export const FOUNDRY_STARTING_SLOTS = 1
+export const FOUNDRY_STARTING_FAB_SLOTS = 1
+export const FOUNDRY_MAX_SLOTS = 5
+export const FOUNDRY_MAX_FAB_SLOTS = 4
+export const FOUNDRY_QUEUE_BASE = 3
+
+/** @deprecated Ranks / Fit were removed. Kept so leftover tests compile while they are rewritten. */
+export const FOUNDRY_MODULE_SLOTS = 0
+export type FoundryUpgradeDef = { id: string; name: string; blurb: string; maxRank: number; baseCost: number }
+export type FoundryModuleDef = {
   id: string
   name: string
   blurb: string
   cost: Partial<Record<FoundryRecipeId, number>>
   requiresRecipeLevel: { recipeId: FoundryRecipeId; level: number }
-  damageMult?: number
-  shieldFlat?: number
 }
-
-export const FOUNDRY_STARTING_SLOTS = 1
-export const FOUNDRY_MAX_SLOTS = 5
-export const FOUNDRY_MODULE_SLOTS = 2
+export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = []
+export const FOUNDRY_MODULES: FoundryModuleDef[] = []
 
 export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   {
     id: 'slag-ingot',
-    name: 'Slag Ingot',
-    blurb: 'Salvage smelted into stock plate. Later recipes eat these.',
-    maxLevel: 20,
-    craftTime: 6,
-    costs: { salvage: 10 },
+    name: 'Recovered Stock',
+    blurb: 'Scrap pressed into persistent plate. First Processing job.',
+    maxLevel: 100,
+    craftTime: 30,
+    costs: { scrap: 8 },
     requiresBestWave: 20,
-    unlocksRecipe: { recipeId: 'hardened-plate', atLevel: 4 },
+    unlocksRecipe: { recipeId: 'hardened-plate', atLevel: 10 },
   },
   {
     id: 'filament',
     name: 'Filament',
     blurb: 'Drawn scrap wire for relays and pins.',
-    maxLevel: 20,
-    craftTime: 6,
-    costs: { scrap: 5 },
+    maxLevel: 100,
+    craftTime: 30,
+    costs: { scrap: 6 },
     requiresBestWave: 20,
-    unlocksRecipe: { recipeId: 'relay', atLevel: 4 },
-  },
-  {
-    id: 'temper-bar',
-    name: 'Temper Bar',
-    blurb: 'Ingot and wire pressed together. First print also unlocks the Swarm Frame.',
-    maxLevel: 20,
-    craftTime: 10,
-    costs: { materials: { 'slag-ingot': 3, filament: 1 } },
-    requiresBestWave: 50,
-    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
-    unlocksFrame: 'swarm-frame',
+    unlocksRecipe: { recipeId: 'relay', atLevel: 10 },
   },
   {
     id: 'hardened-plate',
-    name: 'Hardened Plate',
-    blurb: 'Pressed ingots. Feeds Slag Liner and later flux work.',
-    maxLevel: 20,
-    craftTime: 12,
-    costs: { materials: { 'slag-ingot': 4 } },
+    name: 'Alloy Plate',
+    blurb: 'Recovered stock refined into plate. Feeds later stock.',
+    maxLevel: 100,
+    craftTime: 120,
+    costs: { materials: { 'slag-ingot': 3 } },
     requiresBestWave: 20,
-    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
-    unlocksRecipe: { recipeId: 'void-slag', atLevel: 8 },
+    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 10 },
+    unlocksRecipe: { recipeId: 'void-slag', atLevel: 50 },
   },
   {
     id: 'relay',
     name: 'Relay',
-    blurb: 'Wound filament. Feeds Relay Coil and later glass.',
-    maxLevel: 20,
-    craftTime: 12,
+    blurb: 'Wound filament. Feeds later glass and coil work.',
+    maxLevel: 100,
+    craftTime: 150,
     costs: { materials: { filament: 3 } },
     requiresBestWave: 20,
-    requiresRecipeLevel: { recipeId: 'filament', level: 4 },
-    unlocksRecipe: { recipeId: 'focus-lens', atLevel: 6 },
+    requiresRecipeLevel: { recipeId: 'filament', level: 10 },
+    unlocksRecipe: { recipeId: 'focus-lens', atLevel: 50 },
+  },
+  {
+    id: 'temper-bar',
+    name: 'Temper Bar',
+    blurb: 'Stock and wire pressed together. First print also unlocks the Swarm Frame.',
+    maxLevel: 100,
+    craftTime: 180,
+    costs: { materials: { 'slag-ingot': 2, filament: 1 } },
+    requiresBestWave: 30,
+    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 5 },
+    unlocksFrame: 'swarm-frame',
   },
   {
     id: 'brace-pin',
     name: 'Brace Pin',
-    blurb: 'Pinned ingot and wire. Feeds Pin Brace.',
-    maxLevel: 20,
-    craftTime: 11,
+    blurb: 'Pinned stock and wire. Mid-chain fastener.',
+    maxLevel: 100,
+    craftTime: 180,
     costs: { materials: { 'slag-ingot': 2, filament: 2 } },
-    requiresBestWave: 60,
-    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 4 },
+    requiresBestWave: 40,
+    requiresRecipeLevel: { recipeId: 'slag-ingot', level: 5 },
   },
   {
     id: 'choir-flux',
     name: 'Choir Flux',
-    blurb: 'Condensed wreck vapour. Feeds Keel Strip.',
-    maxLevel: 20,
-    craftTime: 14,
-    costs: { salvage: 22, scrap: 8 },
-    requiresBestWave: 80,
-    unlocksRecipe: { recipeId: 'keel-strip', atLevel: 4 },
+    blurb: 'Condensed wreck vapour drawn from scrap.',
+    maxLevel: 100,
+    craftTime: 240,
+    costs: { scrap: 18 },
+    requiresBestWave: 50,
+    unlocksRecipe: { recipeId: 'keel-strip', atLevel: 10 },
   },
   {
     id: 'coil-stack',
     name: 'Coil Stack',
-    blurb: 'Relays bundled on filament. Needs a second smelter.',
-    maxLevel: 20,
-    craftTime: 13,
+    blurb: 'Relays bundled on filament. Needs a second processor.',
+    maxLevel: 100,
+    craftTime: 300,
     costs: { materials: { relay: 2, filament: 2 } },
     requiresBestWave: 90,
-    requiresRecipeLevel: { recipeId: 'relay', level: 4 },
+    requiresRecipeLevel: { recipeId: 'relay', level: 10 },
     requiresSlots: 2,
   },
   {
     id: 'keel-strip',
     name: 'Keel Strip',
-    blurb: 'Flux pressed over plate. Two precursors.',
-    maxLevel: 20,
-    craftTime: 16,
+    blurb: 'Flux pressed over plate.',
+    maxLevel: 100,
+    craftTime: 360,
     costs: { materials: { 'choir-flux': 3, 'hardened-plate': 1 } },
-    requiresBestWave: 80,
-    requiresRecipeLevel: { recipeId: 'choir-flux', level: 4 },
-    unlocksRecipe: { recipeId: 'warp-thread', atLevel: 4 },
+    requiresBestWave: 50,
+    requiresRecipeLevel: { recipeId: 'choir-flux', level: 10 },
   },
   {
     id: 'slag-glass',
     name: 'Slag Glass',
-    blurb: 'Drawn relay glass. Feeds Glass Sight.',
-    maxLevel: 20,
-    craftTime: 13,
+    blurb: 'Drawn relay glass.',
+    maxLevel: 100,
+    craftTime: 300,
     costs: { materials: { filament: 2, relay: 2 } },
-    requiresBestWave: 100,
-    requiresRecipeLevel: { recipeId: 'relay', level: 4 },
+    requiresBestWave: 70,
+    requiresRecipeLevel: { recipeId: 'relay', level: 10 },
   },
   {
     id: 'flux-weave',
     name: 'Flux Weave',
-    blurb: 'Plate and flux laminated. Needs a second smelter.',
-    maxLevel: 20,
-    craftTime: 15,
+    blurb: 'Plate and flux laminated. Needs a second processor.',
+    maxLevel: 100,
+    craftTime: 400,
     costs: { materials: { 'choir-flux': 2, 'hardened-plate': 2 } },
-    requiresBestWave: 110,
-    requiresRecipeLevel: { recipeId: 'choir-flux', level: 4 },
+    requiresBestWave: 90,
+    requiresRecipeLevel: { recipeId: 'choir-flux', level: 10 },
     requiresSlots: 2,
   },
   {
     id: 'focus-lens',
     name: 'Focus Lens',
-    blurb: 'Ground relay glass. Feeds Focus Array.',
-    maxLevel: 20,
-    craftTime: 14,
+    blurb: 'Ground relay glass.',
+    maxLevel: 100,
+    craftTime: 480,
     costs: { materials: { relay: 3, 'slag-glass': 1 } },
-    requiresBestWave: 120,
-    requiresRecipeLevel: { recipeId: 'relay', level: 6 },
-    unlocksRecipe: { recipeId: 'control-mesh', atLevel: 4 },
+    requiresBestWave: 90,
+    requiresRecipeLevel: { recipeId: 'relay', level: 50 },
+    unlocksRecipe: { recipeId: 'control-mesh', atLevel: 50 },
   },
   {
     id: 'void-slag',
     name: 'Void Slag',
-    blurb: 'Re-smelted plate. Feeds Void Liner.',
-    maxLevel: 20,
-    craftTime: 16,
+    blurb: 'Re-smelted plate.',
+    maxLevel: 100,
+    craftTime: 480,
     costs: { materials: { 'hardened-plate': 3 } },
     requiresBestWave: 140,
-    requiresRecipeLevel: { recipeId: 'hardened-plate', level: 8 },
+    requiresRecipeLevel: { recipeId: 'hardened-plate', level: 50 },
   },
   {
     id: 'hearth-core',
     name: 'Hearth Core',
-    blurb: 'Void slag, keel, and temper stock. Needs three smelters.',
-    maxLevel: 18,
-    craftTime: 18,
+    blurb: 'Void slag, keel, and temper stock. Needs three processors.',
+    maxLevel: 100,
+    craftTime: 900,
     costs: { materials: { 'void-slag': 2, 'keel-strip': 2, 'temper-bar': 1 } },
     requiresBestWave: 150,
-    requiresRecipeLevel: { recipeId: 'void-slag', level: 4 },
+    requiresRecipeLevel: { recipeId: 'void-slag', level: 10 },
     requiresSlots: 3,
   },
   {
     id: 'sight-lattice',
     name: 'Sight Lattice',
-    blurb: 'Glass and lenses stacked. Needs a second smelter.',
-    maxLevel: 18,
-    craftTime: 17,
+    blurb: 'Glass and lenses stacked. Needs a second processor.',
+    maxLevel: 100,
+    craftTime: 720,
     costs: { materials: { 'slag-glass': 2, 'focus-lens': 2 } },
     requiresBestWave: 160,
-    requiresRecipeLevel: { recipeId: 'focus-lens', level: 4 },
+    requiresRecipeLevel: { recipeId: 'focus-lens', level: 10 },
     requiresSlots: 2,
   },
   {
     id: 'control-mesh',
     name: 'Control Mesh',
-    blurb: 'Woven lenses and coil. Feeds Mesh Brace.',
-    maxLevel: 18,
-    craftTime: 18,
+    blurb: 'Woven lenses and coil.',
+    maxLevel: 100,
+    craftTime: 900,
     costs: { materials: { 'focus-lens': 3, 'coil-stack': 1 } },
     requiresBestWave: 190,
-    requiresRecipeLevel: { recipeId: 'focus-lens', level: 4 },
-  },
-  {
-    id: 'warp-thread',
-    name: 'Warp Thread',
-    blurb: 'Keel fibre for Echo-side crafts. Feeds Warp Keel.',
-    maxLevel: 18,
-    craftTime: 20,
-    costs: { materials: { 'keel-strip': 3, 'choir-flux': 2 } },
-    requiresBestWave: 220,
-    requiresRecipeLevel: { recipeId: 'keel-strip', level: 4 },
-  },
-  {
-    id: 'keel-lattice',
-    name: 'Keel Lattice',
-    blurb: 'Warp, mesh, and hearth stock. Needs three smelters.',
-    maxLevel: 16,
-    craftTime: 22,
-    costs: { materials: { 'warp-thread': 2, 'control-mesh': 1, 'hearth-core': 1 } },
-    requiresBestWave: 220,
-    requiresRecipeLevel: { recipeId: 'warp-thread', level: 4 },
-    requiresSlots: 3,
+    requiresRecipeLevel: { recipeId: 'focus-lens', level: 50 },
   },
 ]
 
-export const FOUNDRY_UPGRADES: FoundryUpgradeDef[] = [
+export const FOUNDRY_FACILITIES: FacilityDef[] = [
   {
-    id: 'fp-damage',
-    name: 'Foundry Strike',
-    blurb: '+4% sortie damage per rank',
-    baseCost: 2,
-    maxRank: 10,
-    damageBonus: 0.04,
+    id: 'processing-line',
+    name: 'Processing Line',
+    blurb: 'Adds a Processing slot. Arms on the next Sortie.',
+    craftTime: 15 * 60,
+    costs: { materials: { 'slag-ingot': 8, 'hardened-plate': 4 } },
+    requiresBestWave: ACT1_CADENCE.foundryAdvanced,
+    maxOwned: 2,
   },
   {
-    id: 'fp-shield',
-    name: 'Foundry Ward',
-    blurb: '+4% max shield per rank',
-    baseCost: 2,
-    maxRank: 10,
-    shieldBonus: 0.04,
+    id: 'fabrication-bay',
+    name: 'Fabrication Machinery',
+    blurb: 'Adds a Fabrication slot. Arms on the next Sortie.',
+    craftTime: 20 * 60,
+    costs: { materials: { filament: 8, relay: 4 } },
+    requiresBestWave: ACT1_CADENCE.foundryAdvanced,
+    maxOwned: 2,
   },
   {
-    id: 'fp-speed',
-    name: 'Smelt Speed',
-    blurb: '+8% craft speed per rank',
-    baseCost: 2,
-    maxRank: 10,
-    speedBonus: 0.08,
+    id: 'drone-racks',
+    name: 'Drone Racks',
+    blurb: '+4 Worker Drone capacity. Arms on the next Sortie.',
+    craftTime: 15 * 60,
+    costs: { materials: { 'slag-ingot': 6, filament: 4 } },
+    requiresBestWave: ACT1_CADENCE.foundryAdvanced,
+    maxOwned: 3,
   },
   {
-    id: 'fp-slot',
-    name: 'Second Smelter',
-    blurb: 'One extra Foundry slot',
-    baseCost: 8,
-    maxRank: 1,
-    extraSlots: 1,
+    id: 'drone-fabricator',
+    name: 'Worker Drone Fabricator',
+    blurb: 'Unlocks the Drone production job. Arms on the next Sortie.',
+    craftTime: 25 * 60,
+    costs: { materials: { 'slag-ingot': 10, 'temper-bar': 6 } },
+    requiresBestWave: ACT1_CADENCE.foundryAdvanced,
+    maxOwned: 1,
   },
   {
-    id: 'fp-slot-2',
-    name: 'Third Smelter',
-    blurb: 'One extra Foundry slot. Advanced fabrication at Wave 90.',
-    baseCost: 18,
-    maxRank: 1,
-    extraSlots: 1,
-    requiresWave: ACT1_CADENCE.foundryAdvanced,
+    id: 'research-annex',
+    name: 'Research Annex',
+    blurb: 'Research projects run faster. Arms on the next Sortie.',
+    craftTime: 30 * 60,
+    costs: { materials: { relay: 8, 'slag-glass': 4 } },
+    requiresBestWave: ACT1_CADENCE.foundryAdvanced,
+    maxOwned: 1,
   },
   {
-    id: 'fp-slot-3',
-    name: 'Fourth Smelter',
-    blurb: 'One extra Foundry slot. Four smelters is the cap.',
-    baseCost: 32,
-    maxRank: 1,
-    extraSlots: 1,
-    requiresWave: ACT1_CADENCE.foundryAdvanced,
+    id: 'storage-bay',
+    name: 'Storage',
+    blurb: 'Salvage ops haul more scrap. Arms on the next Sortie.',
+    craftTime: 15 * 60,
+    costs: { materials: { 'slag-ingot': 12 } },
+    requiresBestWave: ACT1_CADENCE.foundryAdvanced,
+    maxOwned: 1,
   },
   {
-    id: 'fp-salvage',
-    name: 'Foundry Hold',
-    blurb: '+3% salvage per rank',
-    baseCost: 3,
-    maxRank: 10,
-    salvageBonus: 0.03,
-  },
-  {
-    id: 'fp-xp',
-    name: 'Shop Floor',
-    blurb: 'Recipes need fewer crafts per mastery rank.',
-    baseCost: 4,
-    maxRank: 4,
-    xpBonus: 0.15,
-  },
-  {
-    id: 'fp-output',
-    name: 'Yield Press',
-    blurb: '+1 piece per finished craft, each rank.',
-    baseCost: 8,
-    maxRank: 2,
-    outputAdd: 1,
-    requiresBestWave: 40,
-  },
-  {
-    id: 'fp-mastery',
-    name: 'Pattern Memory',
-    blurb: 'Recipe mastery gates open 1 rank sooner per rank.',
-    baseCost: 6,
-    maxRank: 3,
-    masteryReduce: 1,
-    requiresBestWave: 60,
-  },
-  {
-    id: 'fp-network',
-    name: 'Loom Coupling',
-    blurb: 'Assigned drones fill Network bars a little faster.',
-    baseCost: 4,
-    maxRank: 5,
-    networkFillBonus: 0.03,
-    requiresBestWave: 40,
-  },
-  {
-    id: 'fp-ash',
-    name: 'Flue Catch',
-    blurb: 'Choir-ash makes Heat a little faster.',
-    baseCost: 4,
-    maxRank: 5,
-    ashHeatBonus: 0.04,
-    requiresBestWave: 50,
-  },
-  {
-    id: 'fp-research',
-    name: 'Lab Feed',
-    blurb: 'Kill Research XP climbs a little faster.',
-    baseCost: 5,
-    maxRank: 4,
-    researchXpBonus: 0.05,
-    requiresBestWave: 70,
-  },
-  {
-    id: 'fp-reliquary',
-    name: 'Shard Press',
-    blurb: 'Wrecks drop shards a little more often.',
-    baseCost: 5,
-    maxRank: 4,
-    shardDropBonus: 0.02,
-    requiresBestWave: 30,
-  },
-  {
-    id: 'fp-print',
-    name: 'Print Feed',
-    blurb: 'Wrecks drop Core print fragments a little more often.',
-    baseCost: 5,
-    maxRank: 4,
-    partDropBonus: 0.08,
-    requiresBestWave: 40,
-  },
-  {
-    id: 'fp-queue',
-    name: 'Queue Rack',
-    blurb: 'Process Production Queue can hold 3 more recipes per rank.',
-    baseCost: 6,
-    maxRank: 2,
-    queueBonus: 3,
-    requiresBestWave: 30,
-  },
-  {
-    id: 'fp-fit',
-    name: 'Fit Rack',
-    blurb: 'One extra fitted Foundry bit.',
-    baseCost: 20,
-    maxRank: 1,
-    extraFitSlots: 1,
-    requiresWave: ACT1_CADENCE.foundryAdvanced,
-  },
-]
-
-export const FOUNDRY_MODULES: FoundryModuleDef[] = [
-  {
-    id: 'slag-liner',
-    name: 'Slag Liner',
-    blurb: '+12 max shield',
-    cost: { 'hardened-plate': 3 },
-    requiresRecipeLevel: { recipeId: 'hardened-plate', level: 1 },
-    shieldFlat: 12,
-  },
-  {
-    id: 'relay-coil',
-    name: 'Relay Coil',
-    blurb: '×1.10 sortie damage',
-    cost: { relay: 3 },
-    requiresRecipeLevel: { recipeId: 'relay', level: 1 },
-    damageMult: 1.1,
-  },
-  {
-    id: 'keel-brace',
-    name: 'Keel Brace',
-    blurb: '+20 max shield · ×1.06 damage',
-    cost: { 'keel-strip': 4 },
-    requiresRecipeLevel: { recipeId: 'keel-strip', level: 1 },
-    shieldFlat: 20,
-    damageMult: 1.06,
-  },
-  {
-    id: 'focus-array',
-    name: 'Focus Array',
-    blurb: '×1.08 sortie damage',
-    cost: { 'focus-lens': 5 },
-    requiresRecipeLevel: { recipeId: 'focus-lens', level: 1 },
-    damageMult: 1.08,
-  },
-  {
-    id: 'void-liner',
-    name: 'Void Liner',
-    blurb: '+28 max shield',
-    cost: { 'void-slag': 5 },
-    requiresRecipeLevel: { recipeId: 'void-slag', level: 1 },
-    shieldFlat: 28,
-  },
-  {
-    id: 'mesh-brace',
-    name: 'Mesh Brace',
-    blurb: '+16 max shield · ×1.08 damage',
-    cost: { 'control-mesh': 4 },
-    requiresRecipeLevel: { recipeId: 'control-mesh', level: 1 },
-    shieldFlat: 16,
-    damageMult: 1.08,
-  },
-  {
-    id: 'warp-keel',
-    name: 'Warp Keel',
-    blurb: '+24 max shield · ×1.10 damage',
-    cost: { 'warp-thread': 4 },
-    requiresRecipeLevel: { recipeId: 'warp-thread', level: 1 },
-    shieldFlat: 24,
-    damageMult: 1.1,
-  },
-  {
-    id: 'pin-brace',
-    name: 'Pin Brace',
-    blurb: '+10 max shield · ×1.04 damage',
-    cost: { 'brace-pin': 5 },
-    requiresRecipeLevel: { recipeId: 'brace-pin', level: 1 },
-    shieldFlat: 10,
-    damageMult: 1.04,
-  },
-  {
-    id: 'glass-sight',
-    name: 'Glass Sight',
-    blurb: '×1.07 sortie damage',
-    cost: { 'slag-glass': 5 },
-    requiresRecipeLevel: { recipeId: 'slag-glass', level: 1 },
-    damageMult: 1.07,
-  },
-  {
-    id: 'temper-sleeve',
-    name: 'Temper Sleeve',
-    blurb: '+8 max shield · ×1.04 damage',
-    cost: { 'temper-bar': 5 },
-    requiresRecipeLevel: { recipeId: 'temper-bar', level: 1 },
-    shieldFlat: 8,
-    damageMult: 1.04,
-  },
-  {
-    id: 'coil-rack',
-    name: 'Coil Rack',
-    blurb: '×1.07 sortie damage',
-    cost: { 'coil-stack': 5 },
-    requiresRecipeLevel: { recipeId: 'coil-stack', level: 1 },
-    damageMult: 1.07,
-  },
-  {
-    id: 'flux-wrap',
-    name: 'Flux Wrap',
-    blurb: '+18 max shield',
-    cost: { 'flux-weave': 5 },
-    requiresRecipeLevel: { recipeId: 'flux-weave', level: 1 },
-    shieldFlat: 18,
-  },
-  {
-    id: 'hearth-plate',
-    name: 'Hearth Plate',
-    blurb: '+22 max shield · ×1.06 damage',
-    cost: { 'hearth-core': 4 },
-    requiresRecipeLevel: { recipeId: 'hearth-core', level: 1 },
-    shieldFlat: 22,
-    damageMult: 1.06,
-  },
-  {
-    id: 'lattice-sight',
-    name: 'Lattice Sight',
-    blurb: '×1.09 sortie damage',
-    cost: { 'sight-lattice': 4 },
-    requiresRecipeLevel: { recipeId: 'sight-lattice', level: 1 },
-    damageMult: 1.09,
-  },
-  {
-    id: 'lattice-keel',
-    name: 'Lattice Keel',
-    blurb: '+30 max shield · ×1.08 damage',
-    cost: { 'keel-lattice': 3 },
-    requiresRecipeLevel: { recipeId: 'keel-lattice', level: 1 },
-    shieldFlat: 30,
-    damageMult: 1.08,
+    id: 'specialised-works',
+    name: 'Specialised Works',
+    blurb: 'Processing runs faster and may yield a rare extra piece. Arms on the next Sortie.',
+    craftTime: 45 * 60,
+    costs: { materials: { 'temper-bar': 6, 'keel-strip': 4 } },
+    requiresBestWave: ACT1_CADENCE.foundryAdvanced,
+    maxOwned: 1,
   },
 ]
 
@@ -587,12 +337,13 @@ export function createEmptyFoundryState(): FoundryState {
     recipeLevels: {},
     recipeXp: {},
     materials: {},
-    infinite: [],
-    points: 0,
-    upgrades: {},
     slots: [emptySlot()],
-    equipped: [],
+    fabrication: [emptyFabSlot()],
     trackedPrintId: null,
+    facilities: [],
+    pendingFacilities: [],
+    pendingCores: [],
+    pendingRelics: [],
   }
 }
 
@@ -600,29 +351,55 @@ function emptySlot(): FoundrySlot {
   return { recipeId: null, progress: 0, paid: false }
 }
 
+function emptyFabSlot(): FabricationSlot {
+  return { kind: null, jobId: null, progress: 0, paid: false, complete: false }
+}
 
 export function getFoundryRecipe(id: string): FoundryRecipeDef | undefined {
   return FOUNDRY_RECIPES.find((r) => r.id === id)
 }
 
-export function getFoundryUpgrade(id: string): FoundryUpgradeDef | undefined {
-  return FOUNDRY_UPGRADES.find((u) => u.id === id)
+export function getFacility(id: string): FacilityDef | undefined {
+  return FOUNDRY_FACILITIES.find((f) => f.id === id)
 }
 
-export function getFoundryModule(id: string): FoundryModuleDef | undefined {
-  return FOUNDRY_MODULES.find((m) => m.id === id)
+export function getFoundryUpgrade(_id: string): FoundryUpgradeDef | undefined {
+  return undefined
+}
+
+export function getFoundryModule(_id: string): FoundryModuleDef | undefined {
+  return undefined
 }
 
 export function foundryRecipeLevel(state: GameState, id: string): number {
   return Math.max(0, Math.floor(state.foundry?.recipeLevels[id] ?? 0))
 }
 
-export function isFoundryInfinite(state: GameState, id: string): boolean {
-  return (state.foundry?.infinite ?? []).includes(id)
+export function isFoundryInfinite(_state: GameState, _id: string): boolean {
+  return false
+}
+
+export function foundryOwnedCount(state: GameState, id: FacilityId): number {
+  return (state.foundry?.facilities ?? []).filter((row) => row === id).length
+}
+
+export function foundryPendingCount(state: GameState, id: FacilityId): number {
+  return (state.foundry?.pendingFacilities ?? []).filter((row) => row === id).length
+}
+
+export function foundryFacilityCommitted(state: GameState, id: FacilityId): number {
+  const queued = (state.foundry?.fabrication ?? []).filter(
+    (slot) => slot.kind === 'facility' && slot.jobId === id,
+  ).length
+  return foundryOwnedCount(state, id) + foundryPendingCount(state, id) + queued
+}
+
+export function hasFacility(state: GameState, id: FacilityId): boolean {
+  return foundryOwnedCount(state, id) > 0
 }
 
 export function foundryRecipeGateNeed(state: GameState, level: number): number {
-  return Math.max(1, level - foundryMasteryGateReduce(state) - hiveResearchMasteryReduce(state))
+  return Math.max(1, level - hiveResearchMasteryReduce(state))
 }
 
 export function isFoundryRecipeUnlocked(state: GameState, id: FoundryRecipeId): boolean {
@@ -639,7 +416,7 @@ export function isFoundryRecipeUnlocked(state: GameState, id: FoundryRecipeId): 
   return true
 }
 
-export type FoundryMasteryKind = 'speed' | 'output' | 'efficiency' | 'fp' | 'infinite'
+export type FoundryMasteryKind = 'basic' | 'output' | 'refined' | 'efficiency' | 'multiplier' | 'advanced' | 'rare' | 'major'
 
 export interface FoundryMasteryStep {
   at: number
@@ -647,28 +424,19 @@ export interface FoundryMasteryStep {
   blurb: string
 }
 
-/** Mastery steps sit on existing unlock ranks — not a 5/10/20/30 shop. */
 export const FOUNDRY_MASTERY_STEPS: FoundryMasteryStep[] = [
-  { at: 4, kind: 'speed', blurb: 'This recipe smelts faster.' },
-  { at: 8, kind: 'output', blurb: 'Each finish now yields an extra piece.' },
-  { at: 12, kind: 'efficiency', blurb: 'This recipe spends less per craft.' },
-  { at: 16, kind: 'fp', blurb: 'Levelling this recipe now pays 2 Foundry Points.' },
-  { at: 20, kind: 'infinite', blurb: 'Solved — the floor supplies this material on its own.' },
+  { at: 1, kind: 'basic', blurb: 'Basic recipe online.' },
+  { at: 5, kind: 'output', blurb: 'Each finish yields an extra piece.' },
+  { at: 10, kind: 'refined', blurb: 'Refined child recipes can open.' },
+  { at: 20, kind: 'efficiency', blurb: 'This recipe spends less per craft.' },
+  { at: 30, kind: 'multiplier', blurb: 'Output multiplier.' },
+  { at: 50, kind: 'advanced', blurb: 'Advanced components can open.' },
+  { at: 75, kind: 'rare', blurb: 'Rare extra piece chance.' },
+  { at: 100, kind: 'major', blurb: 'Major mastery: faster crafts and more output.' },
 ]
 
-export function foundrySolvedLevel(state: GameState, def: FoundryRecipeDef): number {
-  return Math.max(12, def.maxLevel - hiveResearchInfiniteReduce(state))
-}
-
-export function foundryMasteryStepsFor(def: FoundryRecipeDef, state?: GameState): FoundryMasteryStep[] {
-  const cap = state ? foundrySolvedLevel(state, def) : def.maxLevel
-  const steps = FOUNDRY_MASTERY_STEPS.filter((step) => step.at < cap && step.kind !== 'infinite')
-  steps.push({
-    at: cap,
-    kind: 'infinite',
-    blurb: 'Solved — the floor supplies this material on its own.',
-  })
-  return steps
+export function foundryMasteryStepsFor(def: FoundryRecipeDef, _state?: GameState): FoundryMasteryStep[] {
+  return FOUNDRY_MASTERY_STEPS.filter((step) => step.at <= def.maxLevel)
 }
 
 export function foundryNextMastery(state: GameState, id: string): FoundryMasteryStep | null {
@@ -685,100 +453,82 @@ export function foundryReachedMastery(state: GameState, id: string): FoundryMast
   return foundryMasteryStepsFor(def, state).filter((step) => step.at <= level)
 }
 
-export function foundryCraftOutput(state: GameState, id: string): number {
-  const level = foundryRecipeLevel(state, id)
-  let n = 1
-  if (level >= 8) n += 1
-  if (level >= 16) n += 1
-  return n + foundryGlobalOutputAdd(state)
-}
-
 export const FOUNDRY_MASTERY_TIME_MULT = 0.88
 export const FOUNDRY_MASTERY_COST_MULT = 0.82
+export const FOUNDRY_RARE_CHANCE = 0.08
 
-function masteryTimeStep(level: number): number {
-  return level >= 4 ? FOUNDRY_MASTERY_TIME_MULT : 1
+export function foundryCraftOutput(state: GameState, id: string, roll = 1): number {
+  const level = foundryRecipeLevel(state, id)
+  let n = 1
+  if (level >= 5) n += 1
+  if (level >= 30) n *= 2
+  if (level >= 100) n += 2
+  if (hasFacility(state, 'storage-bay')) n += 1
+  if (level >= 75 && roll < FOUNDRY_RARE_CHANCE) n += 1
+  if (hasFacility(state, 'specialised-works') && roll < FOUNDRY_RARE_CHANCE) n += 1
+  return n
 }
 
-function masteryCostStep(level: number): number {
-  return level >= 12 ? FOUNDRY_MASTERY_COST_MULT : 1
-}
-
-/** Player-facing stat line from the mastery kind, not flavor copy. */
 export function foundryMasteryEffect(step: FoundryMasteryStep): string {
   switch (step.kind) {
-    case 'speed':
-      return `Craft time ×${FOUNDRY_MASTERY_TIME_MULT.toFixed(2)}`
+    case 'basic':
+      return 'Recipe available'
     case 'output':
       return 'Output +1 per craft'
+    case 'refined':
+      return 'Refined recipes may unlock'
     case 'efficiency':
       return `Craft cost ×${FOUNDRY_MASTERY_COST_MULT.toFixed(2)}`
-    case 'fp':
-      return 'Foundry Points +2 per level-up · Output +1 per craft'
-    case 'infinite':
-      return 'Recipe solved — infinite stock'
+    case 'multiplier':
+      return 'Output ×2'
+    case 'advanced':
+      return 'Advanced recipes may unlock'
+    case 'rare':
+      return `${Math.round(FOUNDRY_RARE_CHANCE * 100)}% chance of +1 piece`
+    case 'major':
+      return 'Craft time ×0.70 · Output +2'
   }
-}
-
-function formatUpgradePct(n: number): string {
-  const pct = n * 100
-  const rounded = Math.abs(pct - Math.round(pct)) < 0.05 ? Math.round(pct) : Number(pct.toFixed(1))
-  return `${pct >= 0 ? '+' : ''}${rounded}%`
-}
-
-/** Per-rank Foundry shop effect from the numeric fields. */
-export function foundryUpgradeEffectLine(def: FoundryUpgradeDef): string {
-  const bits: string[] = []
-  if (def.damageBonus) bits.push(`Damage ${formatUpgradePct(def.damageBonus)} per rank`)
-  if (def.shieldBonus) bits.push(`Shield ${formatUpgradePct(def.shieldBonus)} per rank`)
-  if (def.speedBonus) bits.push(`Craft speed ${formatUpgradePct(def.speedBonus)} per rank`)
-  if (def.extraSlots) bits.push(`Foundry slots +${def.extraSlots}`)
-  if (def.extraFitSlots) bits.push(`Fitted bits +${def.extraFitSlots}`)
-  if (def.salvageBonus) bits.push(`Salvage ${formatUpgradePct(def.salvageBonus)} per rank`)
-  if (def.xpBonus) bits.push(`Recipe XP ${formatUpgradePct(def.xpBonus)} per rank`)
-  if (def.outputAdd) bits.push(`Output +${def.outputAdd} per craft per rank`)
-  if (def.masteryReduce) bits.push(`Mastery gates −${def.masteryReduce} rank per rank`)
-  if (def.networkFillBonus) bits.push(`Network fill ${formatUpgradePct(def.networkFillBonus)} per rank`)
-  if (def.ashHeatBonus) bits.push(`Ash Heat ${formatUpgradePct(def.ashHeatBonus)} per rank`)
-  if (def.researchXpBonus) bits.push(`Research XP ${formatUpgradePct(def.researchXpBonus)} per rank`)
-  if (def.shardDropBonus) bits.push(`Shard drops ${formatUpgradePct(def.shardDropBonus)} per rank`)
-  if (def.partDropBonus) bits.push(`Print drops ${formatUpgradePct(def.partDropBonus)} per rank`)
-  if (def.queueBonus) bits.push(`Production queue +${def.queueBonus} slots per rank`)
-  return bits.join(' · ') || def.blurb
 }
 
 export function craftsForNextLevel(level: number, state?: GameState): number {
-  const growth = 1.15 * (state ? protocolModifiers(state).foundryXpNeedMult : 1)
-  const raw = Math.max(2, 2 + Math.floor(level * growth))
-  const xp = state ? foundryXpMult(state) : 1
-  return Math.max(2, Math.ceil(raw / Math.max(1, xp)))
+  const growth = 1.25 * (state ? protocolModifiers(state).foundryXpNeedMult : 1)
+  return Math.max(2, 2 + Math.floor(level * growth))
 }
 
 export function foundryCostMult(level: number, state?: GameState): number {
-  const bend = 0.03 * (state ? 1 / Math.max(0.5, protocolModifiers(state).foundryCostGrowthMult) : 1)
-  return Math.max(0.2, (1 - bend * Math.max(0, level)) * masteryCostStep(level))
+  const bend = 0.02 * (state ? 1 / Math.max(0.5, protocolModifiers(state).foundryCostGrowthMult) : 1)
+  const mastery = level >= 20 ? FOUNDRY_MASTERY_COST_MULT : 1
+  return Math.max(0.2, (1 - bend * Math.max(0, level)) * mastery)
 }
 
 export function foundryTimeMult(level: number): number {
-  return Math.max(0.15, (1 - 0.025 * Math.max(0, level)) * masteryTimeStep(level))
+  const major = level >= 100 ? 0.7 : 1
+  return Math.max(0.12, (1 - 0.012 * Math.max(0, level)) * major)
+}
+
+export function workerJobSpeedMult(state: GameState, jobId: string): number {
+  const assigned = stationEffectiveDrones(state, jobId)
+  const cap = workerJobCap(jobId)
+  const n = Math.min(cap.hard, assigned)
+  const efficient = Math.min(cap.efficient, n)
+  const extra = Math.max(0, n - cap.efficient)
+  return 1 + efficient * 0.12 + extra * 0.04
 }
 
 export function foundrySlotCount(state: GameState): number {
-  let extra = 0
-  for (const def of FOUNDRY_UPGRADES) {
-    if (!def.extraSlots) continue
-    extra += (state.foundry?.upgrades[def.id] ?? 0) * def.extraSlots
-  }
-  extra += hiveResearchFoundrySlots(state)
+  const extra = foundryOwnedCount(state, 'processing-line') + hiveResearchFoundrySlots(state)
   return Math.min(FOUNDRY_MAX_SLOTS, FOUNDRY_STARTING_SLOTS + extra)
 }
 
+export function foundryFabSlotCount(state: GameState): number {
+  const extra = foundryOwnedCount(state, 'fabrication-bay') + hiveResearchFitSlots(state)
+  return Math.min(FOUNDRY_MAX_FAB_SLOTS, FOUNDRY_STARTING_FAB_SLOTS + extra)
+}
+
 export function foundryCraftSpeed(state: GameState): number {
-  const rank = protocolMutes(state, 'foundry') ? 0 : state.foundry?.upgrades['fp-speed'] ?? 0
-  const bonus = (getFoundryUpgrade('fp-speed')?.speedBonus ?? 0) * rank
+  const specialised = hasFacility(state, 'specialised-works') ? 1.2 : 1
   return (
-    (1 + bonus) *
-    networkManufactureMult(state) *
+    specialised *
     reliquaryFoundrySpeedMult(state) *
     furnaceFoundrySpeedMult(state) *
     hiveResearchFoundrySpeedMult(state) *
@@ -786,6 +536,15 @@ export function foundryCraftSpeed(state: GameState): number {
     protocolBonusMult(state, 'foundry') *
     processFoundrySpeedMult(state)
   )
+}
+
+export function foundryProcessingSpeed(state: GameState): number {
+  return foundryCraftSpeed(state) * workerJobSpeedMult(state, 'alloy-foundry')
+}
+
+export function foundryFabricationSpeed(state: GameState, kind: FabJobKind | null): number {
+  const job = kind === 'facility' ? 'construction' : 'fab-bay'
+  return foundryCraftSpeed(state) * workerJobSpeedMult(state, job)
 }
 
 export function foundryCraftTime(state: GameState, id: FoundryRecipeId): number {
@@ -797,13 +556,16 @@ export function foundryCraftTime(state: GameState, id: FoundryRecipeId): number 
 export function scaledFoundryCost(state: GameState, id: FoundryRecipeId): FoundryCost {
   const def = getFoundryRecipe(id)
   if (!def) return {}
-  const m = foundryCostMult(foundryRecipeLevel(state, id), state)
+  return scaleCost(def.costs, foundryCostMult(foundryRecipeLevel(state, id), state))
+}
+
+function scaleCost(cost: FoundryCost, m: number): FoundryCost {
   const costs: FoundryCost = {}
-  if (def.costs.salvage) costs.salvage = Math.max(1, Math.ceil(def.costs.salvage * m))
-  if (def.costs.scrap) costs.scrap = Math.max(1, Math.ceil(def.costs.scrap * m))
-  if (def.costs.materials) {
+  if (cost.salvage) costs.salvage = Math.max(1, Math.ceil(cost.salvage * m))
+  if (cost.scrap) costs.scrap = Math.max(1, Math.ceil(cost.scrap * m))
+  if (cost.materials) {
     costs.materials = {}
-    for (const [mat, n] of Object.entries(def.costs.materials)) {
+    for (const [mat, n] of Object.entries(cost.materials)) {
       if (!n) continue
       costs.materials[mat as FoundryRecipeId] = Math.max(1, Math.ceil(n * m))
     }
@@ -811,21 +573,11 @@ export function scaledFoundryCost(state: GameState, id: FoundryRecipeId): Foundr
   return costs
 }
 
-/**
- * Salvage Buy Max / Auto Salvage leave this much in the bank so an empty
- * smelter can still start Slag Ingot. Manual Core taps are unaffected.
- * Pulse and Plate L1 stay free of the reserve so the opening shop identity holds.
- */
-export function foundrySalvageReserve(state: GameState): number {
-  if (careerBestWave(state) < ACT1_CADENCE.foundry) return 0
-  if (practicedCoreWork(state) < 2) return 0
-  if (!isFoundryRecipeUnlocked(state, 'slag-ingot')) return 0
-  if (isFoundryInfinite(state, 'slag-ingot')) return 0
-  return scaledFoundryCost(state, 'slag-ingot').salvage ?? 10
+export function foundrySalvageReserve(_state: GameState): number {
+  return 0
 }
 
 export function foundryMaterialCount(state: GameState, id: string): number {
-  if (isFoundryInfinite(state, id)) return Number.POSITIVE_INFINITY
   return Math.max(0, state.foundry?.materials[id] ?? 0)
 }
 
@@ -842,7 +594,7 @@ function payCost(state: GameState, cost: FoundryCost): void {
   state.resources.salvage -= cost.salvage ?? 0
   state.resources.scrap -= cost.scrap ?? 0
   for (const [id, n] of Object.entries(cost.materials ?? {})) {
-    if (!n || isFoundryInfinite(state, id)) continue
+    if (!n) continue
     state.foundry.materials[id] = Math.max(0, (state.foundry.materials[id] ?? 0) - n)
   }
 }
@@ -850,8 +602,7 @@ function payCost(state: GameState, cost: FoundryCost): void {
 function grantCraft(state: GameState, id: FoundryRecipeId): void {
   const def = getFoundryRecipe(id)
   if (!def) return
-  if (isFoundryInfinite(state, id)) return
-  const output = foundryCraftOutput(state, id)
+  const output = foundryCraftOutput(state, id, Math.random())
   state.foundry.materials[id] = (state.foundry.materials[id] ?? 0) + output
   if (def.unlocksFrame) {
     const frame = getFrame(def.unlocksFrame)
@@ -862,39 +613,26 @@ function grantCraft(state: GameState, id: FoundryRecipeId): void {
     )
   }
   const level = foundryRecipeLevel(state, id)
-  const solved = foundrySolvedLevel(state, def)
-  if (level >= solved) {
-    markInfinite(state, id)
-    return
-  }
+  if (level >= def.maxLevel) return
   const need = craftsForNextLevel(level, state)
   const xp = (state.foundry.recipeXp[id] ?? 0) + 1
   if (xp >= need) {
     state.foundry.recipeXp[id] = 0
     const nextLevel = level + 1
     state.foundry.recipeLevels[id] = nextLevel
-    state.foundry.points += nextLevel >= 16 ? 2 : 1
     recordPlaytest(state, 'foundry_craft', {
       n: def.name,
       v: nextLevel,
       firstKey: `foundry_craft:${id}:${nextLevel}`,
     })
     noteSystemAction(state, 'foundry')
-    if (nextLevel >= solved) markInfinite(state, id)
   } else {
     state.foundry.recipeXp[id] = xp
   }
 }
 
-function markInfinite(state: GameState, id: string): void {
-  if (!state.foundry.infinite.includes(id)) {
-    state.foundry.infinite = [...state.foundry.infinite, id]
-  }
-}
-
 function tryPaySlot(state: GameState, slot: FoundrySlot): boolean {
   if (!slot.recipeId || slot.paid) return slot.paid
-  if (isFoundryInfinite(state, slot.recipeId)) return false
   const cost = scaledFoundryCost(state, slot.recipeId)
   if (!canPayCost(state, cost)) return false
   payCost(state, cost)
@@ -907,17 +645,15 @@ export function tickFoundry(state: GameState, dtSeconds: number): void {
   if (!state.foundry) state.foundry = createEmptyFoundryState()
   if (careerBestWave(state) < ACT1_CADENCE.foundry) return
   ensureSlotCount(state)
-  const speed = foundryCraftSpeed(state)
-  const budget = Math.max(0, dtSeconds) * speed
+  tickProcessing(state, dtSeconds)
+  tickFabrication(state, dtSeconds)
+  if (state.combat.docked) claimFoundryCompletions(state)
+}
 
+function tickProcessing(state: GameState, dtSeconds: number): void {
+  const budget = Math.max(0, dtSeconds) * foundryProcessingSpeed(state)
   for (const slot of state.foundry.slots) {
     if (!slot.recipeId) continue
-    if (isFoundryInfinite(state, slot.recipeId)) {
-      slot.recipeId = null
-      slot.progress = 0
-      slot.paid = false
-      continue
-    }
     let left = budget
     while (left > 1e-9) {
       if (!tryPaySlot(state, slot)) break
@@ -936,86 +672,224 @@ export function tickFoundry(state: GameState, dtSeconds: number): void {
   }
 }
 
+function tickFabrication(state: GameState, dtSeconds: number): void {
+  for (const slot of state.foundry.fabrication) {
+    if (!slot.kind || !slot.jobId || slot.complete || !slot.paid) continue
+    const time = fabricationJobTime(state, slot.kind, slot.jobId)
+    if (time <= 0) continue
+    const speed = foundryFabricationSpeed(state, slot.kind)
+    slot.progress = Math.min(1, slot.progress + (Math.max(0, dtSeconds) * speed) / time)
+    if (slot.progress < 1) continue
+    slot.progress = 1
+    slot.complete = true
+    completeFabrication(state, slot)
+  }
+}
+
+function fabricationJobTime(state: GameState, kind: FabJobKind, jobId: string): number {
+  if (kind === 'facility') return getFacility(jobId)?.craftTime ?? 900
+  if (kind === 'relic') return jobId.endsWith('-iii') || relicTierHint(jobId) >= 3 ? 25 * 60 : 10 * 60
+  const wave = Math.max(1, careerBestWave(state))
+  if (wave <= 40) return 8 * 60
+  if (wave <= 90) return 12 * 60
+  if (wave <= 170) return 25 * 60
+  return 60 * 60
+}
+
+function relicTierHint(id: string): number {
+  if (id.endsWith('-iii') || id.includes('iii')) return 3
+  if (id.endsWith('-ii') || id.includes('ii')) return 2
+  return 1
+}
+
+function completeFabrication(state: GameState, slot: FabricationSlot): void {
+  if (!slot.kind || !slot.jobId) return
+  if (slot.kind === 'facility') {
+    const def = getFacility(slot.jobId)
+    state.foundry.pendingFacilities = [...(state.foundry.pendingFacilities ?? []), slot.jobId as FacilityId]
+    pushFoundryLog(
+      state,
+      state.combat.docked
+        ? `${def?.name ?? 'Facility'} complete. Arms next Sortie.`
+        : `${def?.name ?? 'Facility'} complete. Available next Sortie.`,
+    )
+    recordPlaytest(state, 'foundry_craft', { n: def?.name ?? slot.jobId, firstKey: `facility:${slot.jobId}` })
+    noteSystemAction(state, 'foundry')
+    return
+  }
+  if (slot.kind === 'core') {
+    state.foundry.pendingCores = [...(state.foundry.pendingCores ?? []), slot.jobId]
+    const name = getModule(slot.jobId)?.name ?? slot.jobId
+    pushFoundryLog(
+      state,
+      state.combat.docked ? `Core printed: ${name}. Fit it at Dock.` : `${name.toUpperCase()} COMPLETE. Available next Sortie.`,
+    )
+    if (state.foundry.trackedPrintId === slot.jobId) state.foundry.trackedPrintId = null
+    noteSystemAction(state, 'foundry')
+    return
+  }
+  if (slot.kind === 'relic') {
+    const [from, to] = slot.jobId.split('>')
+    if (from && to) {
+      state.foundry.pendingRelics = [...(state.foundry.pendingRelics ?? []), { from, to }]
+      pushFoundryLog(
+        state,
+        state.combat.docked ? `Relic upgrade ready.` : `RELIC UPGRADE COMPLETE. Available next Sortie.`,
+      )
+      noteSystemAction(state, 'foundry')
+    }
+  }
+}
+
+function pushFoundryLog(state: GameState, line: string): void {
+  state.combat.log = [line, ...state.combat.log].slice(0, 40)
+}
+
+export function claimFoundryCompletions(state: GameState): void {
+  if (!state.foundry) return
+  for (const moduleId of state.foundry.pendingCores ?? []) {
+    grantPendingCore(state, moduleId)
+  }
+  state.foundry.pendingCores = []
+  for (const relic of state.foundry.pendingRelics ?? []) {
+    applyPendingRelic(state, relic)
+  }
+  state.foundry.pendingRelics = []
+  for (const slot of state.foundry.fabrication ?? []) {
+    if (slot.complete) {
+      slot.kind = null
+      slot.jobId = null
+      slot.progress = 0
+      slot.paid = false
+      slot.complete = false
+    }
+  }
+}
+
+export function armPendingFacilities(state: GameState): void {
+  if (!state.foundry) return
+  const pending = state.foundry.pendingFacilities ?? []
+  if (pending.length === 0) return
+  state.foundry.facilities = [...(state.foundry.facilities ?? []), ...pending]
+  state.foundry.pendingFacilities = []
+  ensureSlotCount(state)
+}
+
+function grantPendingCore(state: GameState, moduleId: string): void {
+  if (!state.shipyard.unlockedModules.includes(moduleId)) {
+    state.shipyard.unlockedModules = [...state.shipyard.unlockedModules, moduleId]
+  }
+  if (!state.meta.discoveredModules.includes(moduleId)) {
+    state.meta.discoveredModules = [...state.meta.discoveredModules, moduleId]
+  }
+  state.shipyard.moduleCopies = {
+    ...(state.shipyard.moduleCopies ?? {}),
+    [moduleId]: Math.max(1, (state.shipyard.moduleCopies?.[moduleId] ?? 0) + 1),
+  }
+  state.meta.lifetimeFabCrafts = (state.meta.lifetimeFabCrafts ?? 0) + 1
+}
+
+function applyPendingRelic(state: GameState, relic: PendingRelicUpgrade): void {
+  if (!state.reliquary) return
+  const owned = state.reliquary.owned ?? {}
+  owned[relic.to] = (owned[relic.to] ?? 0) + 1
+  state.reliquary.owned = owned
+}
+
 function ensureSlotCount(state: GameState): void {
   const need = foundrySlotCount(state)
-  while (state.foundry.slots.length < need) {
-    state.foundry.slots.push(emptySlot())
+  while (state.foundry.slots.length < need) state.foundry.slots.push(emptySlot())
+  if (state.foundry.slots.length > need) state.foundry.slots = state.foundry.slots.slice(0, need)
+
+  const fabNeed = foundryFabSlotCount(state)
+  if (!state.foundry.fabrication) state.foundry.fabrication = [emptyFabSlot()]
+  while (state.foundry.fabrication.length < fabNeed) state.foundry.fabrication.push(emptyFabSlot())
+  if (state.foundry.fabrication.length > fabNeed) {
+    state.foundry.fabrication = state.foundry.fabrication.slice(0, fabNeed)
   }
-  if (state.foundry.slots.length > need) {
-    state.foundry.slots = state.foundry.slots.slice(0, need)
-  }
 }
 
-export function foundryDamageMult(state: GameState): number {
-  if (protocolMutes(state, 'foundry')) return 1
-  const rank = state.foundry?.upgrades['fp-damage'] ?? 0
-  let mult = 1 + (getFoundryUpgrade('fp-damage')?.damageBonus ?? 0) * rank
-  for (const id of state.foundry?.equipped ?? []) {
-    const mod = getFoundryModule(id)
-    if (mod?.damageMult) mult *= mod.damageMult
-  }
-  return mult
+export function foundryDamageMult(_state: GameState): number {
+  return 1
 }
 
-export function foundryShieldMult(state: GameState): number {
-  if (protocolMutes(state, 'foundry')) return 1
-  const rank = state.foundry?.upgrades['fp-shield'] ?? 0
-  return 1 + (getFoundryUpgrade('fp-shield')?.shieldBonus ?? 0) * rank
+export function foundryShieldMult(_state: GameState): number {
+  return 1
 }
 
-export function foundryFitSlots(state: GameState): number {
-  return FOUNDRY_MODULE_SLOTS + foundryExtraFitSlots(state) + hiveResearchFitSlots(state)
+export function foundryFitSlots(_state: GameState): number {
+  return 0
 }
 
-export function foundryShieldFlat(state: GameState): number {
-  if (protocolMutes(state, 'foundry')) return 0
-  let flat = 0
-  for (const id of state.foundry?.equipped ?? []) {
-    flat += getFoundryModule(id)?.shieldFlat ?? 0
-  }
-  return flat
+export function foundryShieldFlat(_state: GameState): number {
+  return 0
 }
 
-export function foundrySalvageMult(state: GameState): number {
-  if (protocolMutes(state, 'foundry')) return 1
-  const rank = state.foundry?.upgrades['fp-salvage'] ?? 0
-  return 1 + (getFoundryUpgrade('fp-salvage')?.salvageBonus ?? 0) * rank
+export function foundrySalvageMult(_state: GameState): number {
+  return 1
 }
 
-export function foundryUpgradeCost(state: GameState, id: string): number {
-  const def = getFoundryUpgrade(id)
-  if (!def) return Infinity
-  const rank = state.foundry?.upgrades[id] ?? 0
-  return Math.ceil(def.baseCost * 2 ** rank)
+export function foundryXpMult(_state: GameState): number {
+  return 1
+}
+
+export function foundryGlobalOutputAdd(_state: GameState): number {
+  return 0
+}
+
+export function foundryMasteryGateReduce(state: GameState): number {
+  return hiveResearchMasteryReduce(state)
+}
+
+export function foundryNetworkFillMult(_state: GameState): number {
+  return 1
+}
+
+export function foundryAshHeatMult(_state: GameState): number {
+  return 1
+}
+
+export function foundryResearchXpMult(state: GameState): number {
+  return hasFacility(state, 'research-annex') ? 1.2 : 1
+}
+
+export function foundryShardDropBonus(_state: GameState): number {
+  return 0
+}
+
+export function foundryPartDropMult(_state: GameState): number {
+  return 1
+}
+
+export function foundryQueueCap(_state: GameState): number {
+  return FOUNDRY_QUEUE_BASE
+}
+
+export function foundryDroneCapBonus(state: GameState): number {
+  return foundryOwnedCount(state, 'drone-racks') * 4
+}
+
+export function foundryResearchSpeedMult(state: GameState): number {
+  return hasFacility(state, 'research-annex') ? 1.25 : 1
+}
+
+export function foundrySalvageOpsMult(state: GameState): number {
+  return hasFacility(state, 'storage-bay') ? 1.25 : 1
+}
+
+export function foundryUpgradeCost(_state: GameState, _id: string): number {
+  return Infinity
 }
 
 export function canBuyFoundryUpgrade(
-  state: GameState,
-  id: string,
+  _state: GameState,
+  _id: string,
 ): { ok: boolean; reason?: string } {
-  const def = getFoundryUpgrade(id)
-  if (!def) return { ok: false, reason: 'Unknown' }
-  const rank = state.foundry?.upgrades[id] ?? 0
-  if (rank >= def.maxRank) return { ok: false, reason: 'Maxed' }
-  if (def.requiresWave && careerBestWave(state) < def.requiresWave) {
-    return { ok: false, reason: `Reach Wave ${def.requiresWave}` }
-  }
-  if (def.requiresBestWave && careerBestWave(state) < def.requiresBestWave) {
-    return { ok: false, reason: `Reach Wave ${def.requiresBestWave}` }
-  }
-  const cost = foundryUpgradeCost(state, id)
-  if ((state.foundry?.points ?? 0) < cost) return { ok: false, reason: `Need ${cost} FP` }
-  return { ok: true }
+  return { ok: false, reason: 'Ranks removed' }
 }
 
-export function buyFoundryUpgrade(state: GameState, id: string): GameState {
-  if (!canBuyFoundryUpgrade(state, id).ok) return state
-  const next = structuredClone(state)
-  const cost = foundryUpgradeCost(next, id)
-  next.foundry.points -= cost
-  next.foundry.upgrades[id] = (next.foundry.upgrades[id] ?? 0) + 1
-  ensureSlotCount(next)
-  return next
+export function buyFoundryUpgrade(state: GameState, _id: string): GameState {
+  return state
 }
 
 export function setFoundrySlot(
@@ -1029,7 +903,6 @@ export function setFoundrySlot(
   const slot = next.foundry.slots[slotIndex]
   if (!slot) return state
   if (recipeId && !isFoundryRecipeUnlocked(next, recipeId)) return state
-  if (recipeId && isFoundryInfinite(next, recipeId)) return state
   slot.recipeId = recipeId
   slot.progress = 0
   slot.paid = false
@@ -1037,70 +910,124 @@ export function setFoundrySlot(
   return next
 }
 
-function canPayModule(state: GameState, cost: Partial<Record<FoundryRecipeId, number>>): boolean {
-  for (const [id, n] of Object.entries(cost)) {
-    if ((n ?? 0) > foundryMaterialCount(state, id)) return false
+export function idleFabricationSlot(state: GameState): number {
+  ensureSlotCount(state)
+  return (state.foundry.fabrication ?? []).findIndex((slot) => !slot.kind && !slot.complete)
+}
+
+export function canStartFabrication(
+  state: GameState,
+  kind: FabJobKind,
+  jobId: string,
+): { ok: boolean; reason?: string; cost?: FoundryCost } {
+  if (careerBestWave(state) < ACT1_CADENCE.foundry) {
+    return { ok: false, reason: `Reach Wave ${ACT1_CADENCE.foundry}` }
   }
-  return true
-}
-
-export function isFoundryModuleUnlocked(state: GameState, id: string): boolean {
-  const def = getFoundryModule(id)
-  if (!def) return false
-  return foundryRecipeLevel(state, def.requiresRecipeLevel.recipeId) >= def.requiresRecipeLevel.level
-}
-
-export function isFoundryModuleAffordable(state: GameState, id: string): boolean {
-  const def = getFoundryModule(id)
-  if (!def || !isFoundryModuleUnlocked(state, id)) return false
-  if (state.foundry.equipped.includes(id)) return false
-  return canPayModule(state, def.cost)
-}
-
-export function equipFoundryModule(state: GameState, moduleId: string): GameState {
-  if (!state.combat.docked) return state
-  const def = getFoundryModule(moduleId)
-  if (!def || !isFoundryModuleUnlocked(state, moduleId)) return state
-  if (state.foundry.equipped.includes(moduleId)) return state
-  if (!canPayModule(state, def.cost)) return state
-  const next = structuredClone(state)
-  for (const [id, n] of Object.entries(def.cost)) {
-    if (!n || isFoundryInfinite(next, id)) continue
-    next.foundry.materials[id] = Math.max(0, (next.foundry.materials[id] ?? 0) - n)
+  if (idleFabricationSlot(state) < 0) return { ok: false, reason: 'No fabrication slot' }
+  if (kind === 'facility') {
+    const def = getFacility(jobId)
+    if (!def) return { ok: false, reason: 'Unknown facility' }
+    if (careerBestWave(state) < def.requiresBestWave) {
+      return { ok: false, reason: `Reach Wave ${def.requiresBestWave}` }
+    }
+    if (foundryFacilityCommitted(state, def.id) >= def.maxOwned) {
+      return { ok: false, reason: 'Already built' }
+    }
+    if (!canPayCost(state, def.costs)) return { ok: false, reason: 'Need Foundry stock', cost: def.costs }
+    return { ok: true, cost: def.costs }
   }
-  if (next.foundry.equipped.length >= foundryFitSlots(next)) {
-    const prev = getFoundryModule(next.foundry.equipped[0]!)
-    if (prev) {
-      for (const [id, n] of Object.entries(prev.cost)) {
-        if (!n || isFoundryInfinite(next, id)) continue
-        next.foundry.materials[id] = (next.foundry.materials[id] ?? 0) + n
+  if (kind === 'core') {
+    const recipe = getBlueprint(jobId)
+    if (!recipe) return { ok: false, reason: 'Unknown print' }
+    if (state.shipyard.unlockedModules.includes(jobId) && (state.foundry.pendingCores ?? []).includes(jobId)) {
+      return { ok: false, reason: 'Already queued' }
+    }
+    for (const pt of PART_TYPES) {
+      const need = recipe[pt] ?? 0
+      if (need > 0 && (state.parts[partId(jobId, pt)] ?? 0) < need) {
+        return { ok: false, reason: 'Need more fragments' }
       }
     }
-    next.foundry.equipped = [...next.foundry.equipped.slice(1), moduleId]
-  } else {
-    next.foundry.equipped = [...next.foundry.equipped, moduleId]
+    const cost: FoundryCost = { materials: { ...(recipe.foundry ?? {}) } }
+    if (!canPayCost(state, cost)) return { ok: false, reason: 'Need Foundry stock', cost }
+    return { ok: true, cost }
   }
-  recordPlaytest(next, 'foundry_fitted', {
-    n: def.name,
-    firstKey: 'foundry_fitted',
-  })
+  if (kind === 'relic') {
+    const [from, to] = jobId.split('>')
+    if (!from || !to) return { ok: false, reason: 'Unknown relic' }
+    const cost: FoundryCost = {
+      materials: { 'slag-ingot': to.endsWith('iii') || to.includes('-iii') ? 10 : 4 },
+    }
+    if ((state.reliquary?.owned?.[from] ?? 0) < 1) return { ok: false, reason: 'Need a spare Relic' }
+    if (!canPayCost(state, cost)) return { ok: false, reason: 'Need Foundry stock', cost }
+    return { ok: true, cost }
+  }
+  return { ok: false, reason: 'Unknown job' }
+}
+
+export function startFabrication(state: GameState, kind: FabJobKind, jobId: string): GameState {
+  const check = canStartFabrication(state, kind, jobId)
+  if (!check.ok) return state
+  const next = structuredClone(state)
+  ensureSlotCount(next)
+  const index = idleFabricationSlot(next)
+  const slot = next.foundry.fabrication[index]
+  if (!slot) return state
+  if (kind === 'core') {
+    const recipe = getBlueprint(jobId)
+    if (!recipe) return state
+    for (const pt of PART_TYPES) {
+      const need = recipe[pt] ?? 0
+      const id = partId(jobId, pt)
+      next.parts[id] = Math.max(0, (next.parts[id] ?? 0) - need)
+      if (next.parts[id] <= 0) delete next.parts[id]
+    }
+  }
+  if (kind === 'relic') {
+    const [from] = jobId.split('>')
+    if (from && next.reliquary?.owned) {
+      next.reliquary.owned[from] = Math.max(0, (next.reliquary.owned[from] ?? 0) - 1)
+      if (next.reliquary.owned[from] <= 0) delete next.reliquary.owned[from]
+    }
+  }
+  if (check.cost) payCost(next, check.cost)
+  slot.kind = kind
+  slot.jobId = jobId
+  slot.progress = 0
+  slot.paid = true
+  slot.complete = false
   noteSystemAction(next, 'foundry')
   return next
 }
 
-export function unequipFoundryModule(state: GameState, moduleId: string): GameState {
-  if (!state.combat.docked) return state
-  if (!state.foundry.equipped.includes(moduleId)) return state
-  const def = getFoundryModule(moduleId)
+export function stopFabrication(state: GameState, slotIndex: number): GameState {
+  const slot = state.foundry.fabrication[slotIndex]
+  if (!slot?.kind || slot.complete) return state
   const next = structuredClone(state)
-  next.foundry.equipped = next.foundry.equipped.filter((id) => id !== moduleId)
-  if (def) {
-    for (const [id, n] of Object.entries(def.cost)) {
-      if (!n || isFoundryInfinite(next, id)) continue
-      next.foundry.materials[id] = (next.foundry.materials[id] ?? 0) + n
-    }
-  }
+  const copy = next.foundry.fabrication[slotIndex]
+  if (!copy) return state
+  copy.kind = null
+  copy.jobId = null
+  copy.progress = 0
+  copy.paid = false
+  copy.complete = false
   return next
+}
+
+export function isFoundryModuleUnlocked(_state: GameState, _id: string): boolean {
+  return false
+}
+
+export function isFoundryModuleAffordable(_state: GameState, _id: string): boolean {
+  return false
+}
+
+export function equipFoundryModule(state: GameState, _moduleId: string): GameState {
+  return state
+}
+
+export function unequipFoundryModule(state: GameState, _moduleId: string): GameState {
+  return state
 }
 
 export function formatFoundryCost(cost: FoundryCost): string {
@@ -1114,7 +1041,6 @@ export function formatFoundryCost(cost: FoundryCost): string {
   return bits.join(' · ') || 'free'
 }
 
-/** Locked-recipe encyclopedia line: sector, parent level, what it unlocks. */
 export function foundryRecipeGateLine(recipe: FoundryRecipeDef): string {
   const bits = [`W${recipe.requiresBestWave}`]
   if (recipe.requiresRecipeLevel) {
@@ -1125,11 +1051,7 @@ export function foundryRecipeGateLine(recipe: FoundryRecipeDef): string {
     const child = getFoundryRecipe(recipe.unlocksRecipe.recipeId)?.name ?? recipe.unlocksRecipe.recipeId
     bits.push(`unlocks ${child} at Lv ${recipe.unlocksRecipe.atLevel}`)
   }
-  if (recipe.requiresSlots) bits.push(`${recipe.requiresSlots} smelters`)
-  const feeds = FOUNDRY_MODULES.filter((m) => m.requiresRecipeLevel.recipeId === recipe.id).map(
-    (m) => m.name,
-  )
-  if (feeds.length > 0) bits.push(`feeds ${feeds.join(', ')}`)
+  if (recipe.requiresSlots) bits.push(`${recipe.requiresSlots} processors`)
   return bits.join(' · ')
 }
 
@@ -1145,15 +1067,15 @@ export function foundryHasMaterialChain(recipe: FoundryRecipeDef): boolean {
 }
 
 export function foundryHasMasteryMilestone(state: GameState): boolean {
-  return FOUNDRY_RECIPES.some((r) => foundryRecipeLevel(state, r.id) >= 4)
+  return FOUNDRY_RECIPES.some((r) => foundryRecipeLevel(state, r.id) >= 5)
 }
 
 export function foundryHasChainRecipe(state: GameState): boolean {
   return FOUNDRY_RECIPES.some((r) => isFoundryRecipeUnlocked(state, r.id) && foundryHasMaterialChain(r))
 }
 
-export function foundryHasSolvedMaterial(state: GameState): boolean {
-  return (state.foundry?.infinite ?? []).length > 0
+export function foundryHasSolvedMaterial(_state: GameState): boolean {
+  return false
 }
 
 export function persistFoundryOnRebuild(foundry: FoundryState): FoundryState {
@@ -1161,15 +1083,34 @@ export function persistFoundryOnRebuild(foundry: FoundryState): FoundryState {
     recipeLevels: { ...foundry.recipeLevels },
     recipeXp: { ...foundry.recipeXp },
     materials: { ...foundry.materials },
-    infinite: [...foundry.infinite],
-    points: foundry.points,
-    upgrades: { ...foundry.upgrades },
     slots: foundry.slots.map((s) => ({
       recipeId: s.recipeId,
       progress: 0,
       paid: false,
     })),
-    equipped: [],
+    fabrication: (foundry.fabrication ?? []).map((s) => ({
+      kind: s.kind,
+      jobId: s.jobId,
+      progress: s.complete ? 1 : 0,
+      paid: s.paid,
+      complete: s.complete,
+    })),
     trackedPrintId: foundry.trackedPrintId ?? null,
+    facilities: [...(foundry.facilities ?? [])],
+    pendingFacilities: [...(foundry.pendingFacilities ?? [])],
+    pendingCores: [...(foundry.pendingCores ?? [])],
+    pendingRelics: [...(foundry.pendingRelics ?? [])],
   }
+}
+
+export function foundryUpgradeEffectLine(_def: FoundryUpgradeDef): string {
+  return ''
+}
+
+export function fabricationJobLabel(_state: GameState, slot: FabricationSlot): string {
+  if (!slot.kind || !slot.jobId) return 'Idle'
+  if (slot.kind === 'facility') return getFacility(slot.jobId)?.name ?? slot.jobId
+  if (slot.kind === 'core') return getModule(slot.jobId)?.name ?? slot.jobId
+  if (slot.kind === 'relic') return slot.jobId.replace('>', ' → ')
+  return slot.jobId
 }

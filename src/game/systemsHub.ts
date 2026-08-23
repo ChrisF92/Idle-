@@ -1,14 +1,7 @@
-/** Systems hub status cards (GDD §120). Only unlocked industrial systems appear. */
+/** Systems hub status cards (GDD §120). Foundry is the parent industrial card. */
 
-import {
-  assignedWorkers,
-  blueprintProgress,
-  droneCap,
-  getModule,
-  idleWorkers,
-  PART_TYPES,
-} from './catalog'
-import { FOUNDRY_RECIPES, foundryRecipeLevel } from './foundry'
+import { idleWorkers } from './catalog'
+import { fabricationJobLabel, FOUNDRY_RECIPES, foundryRecipeLevel } from './foundry'
 import {
   formatResearchDuration,
   hiveResearchActive,
@@ -19,7 +12,7 @@ import {
   hiveResearchXp,
 } from './hiveResearch'
 import { firstAffordableProcessNode, processAvailable, processConfig } from './process'
-import { workerAllocationSummary } from './workers'
+import { WORKER_JOB_IDS, workerAllocationSummary, workerJobLabel } from './workers'
 import { foundryAttention, furnaceAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
@@ -42,64 +35,48 @@ function recipeName(id: string): string {
   return FOUNDRY_RECIPES.find((recipe) => recipe.id === id)?.name ?? id
 }
 
-function printFragmentPct(state: GameState, moduleId: string): number | null {
-  const progress = blueprintProgress(state, moduleId)
-  if (!progress) return null
-  const owned = PART_TYPES.reduce((sum, part) => sum + progress.owned[part], 0)
-  const need = PART_TYPES.reduce((sum, part) => sum + progress.need[part], 0)
-  if (need <= 0) return 100
-  return Math.min(100, Math.round((owned / need) * 100))
-}
-
 export function foundryHubStatus(state: GameState): string[] {
   const lines: string[] = []
-  const temper = foundryRecipeLevel(state, 'temper-bar')
-  if (temper > 0) {
-    lines.push(`Temper Bar Mastery ${temper}`)
-  } else {
-    let top: { name: string; level: number } | null = null
-    for (const recipe of FOUNDRY_RECIPES) {
-      const level = foundryRecipeLevel(state, recipe.id)
-      if (level <= 0) continue
-      if (!top || level > top.level) top = { name: recipe.name, level }
-    }
-    if (top) lines.push(`${top.name} Mastery ${top.level}`)
-  }
-
   const running = state.foundry.slots.filter((slot) => slot.recipeId)
   if (running.length === 0) {
-    const idle = state.foundry.slots.length
-    lines.push(idle <= 1 ? 'Processor idle' : `${idle} processors idle`)
+    lines.push('Processing idle')
   } else {
-    for (const slot of running.slice(0, 1)) {
-      const pct = Math.round((slot.progress ?? 0) * 100)
-      lines.push(`${recipeName(slot.recipeId ?? '')}: ${pct}%`)
-    }
+    const slot = running[0]
+    const pct = Math.round((slot.progress ?? 0) * 100)
+    lines.push(`Processing ${recipeName(slot.recipeId ?? '')} ${pct}%`)
   }
 
-  const idleDrones = idleWorkers(state)
-  if (idleDrones > 0) {
-    lines.push(`${idleDrones} idle drones`)
+  const fab = (state.foundry.fabrication ?? []).find((slot) => slot.kind)
+  if (!fab) {
+    lines.push('Fabrication idle')
   } else {
-    const tracked = state.foundry.trackedPrintId
-    if (tracked) {
-      const name = getModule(tracked)?.name ?? 'Print'
-      const pct = printFragmentPct(state, tracked)
-      lines.push(pct == null ? `Tracking ${name}` : `${name}: ${pct}%`)
-    } else {
-      const workers = workerAllocationSummary(state).foundry
-      if (workers > 0) lines.push(`${workers} workers`)
+    const pct = Math.round((fab.progress ?? 0) * 100)
+    const name = fabricationJobLabel(state, fab)
+    lines.push(fab.complete ? `${name} ready` : `Fabrication ${name} ${pct}%`)
+  }
+
+  if (isSystemUnlocked(state, 'yard')) {
+    const owned = state.foundry.facilities?.length ?? 0
+    const pending = state.foundry.pendingFacilities?.length ?? 0
+    if (pending > 0) lines.push(`Construction ${pending} arming next Sortie`)
+    else lines.push(owned > 0 ? `Construction ${owned} facilities` : 'Construction idle')
+  } else {
+    const temper = foundryRecipeLevel(state, 'temper-bar')
+    if (temper > 0) lines.push(`Temper Bar Mastery ${temper}`)
+    else {
+      const idle = idleWorkers(state)
+      if (idle > 0) lines.push(`${idle} idle drones`)
     }
   }
   return lines.slice(0, 3)
 }
 
 export function workersHubStatus(state: GameState): string[] {
-  const cap = droneCap(state)
-  const assigned = assignedWorkers(state.base.assignments)
-  const idle = idleWorkers(state)
-  const lines = [`${assigned} / ${cap} assigned`]
-  if (idle > 0) lines.push(`${idle} idle`)
+  const summary = workerAllocationSummary(state)
+  const lines = [`${summary.assigned} assigned · ${summary.idle} idle`]
+  for (const id of WORKER_JOB_IDS) {
+    lines.push(`${workerJobLabel(id)} ${summary.jobs[id] ?? 0}`)
+  }
   return lines
 }
 
@@ -131,7 +108,7 @@ export function researchHubStatus(state: GameState): string[] {
   const pct = need > 0 ? Math.min(100, Math.round((100 * xp) / need)) : 0
   const lines = [node?.name ?? 'Researching', `${pct}%`]
   if (left > 0) lines.push(`${formatResearchDuration(left)} left`)
-  const workers = workerAllocationSummary(state).research
+  const workers = workerAllocationSummary(state).jobs['sensor-net'] ?? 0
   if (workers > 0) lines.push(`${workers} workers`)
   return lines.slice(0, 3)
 }

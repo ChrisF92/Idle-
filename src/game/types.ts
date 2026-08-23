@@ -68,6 +68,17 @@ export type FoundryRecipeId =
   | 'sight-lattice'
   | 'keel-lattice'
 
+export type FabJobKind = 'core' | 'relic' | 'facility'
+
+export type FacilityId =
+  | 'processing-line'
+  | 'fabrication-bay'
+  | 'drone-racks'
+  | 'drone-fabricator'
+  | 'research-annex'
+  | 'storage-bay'
+  | 'specialised-works'
+
 export interface FoundrySlot {
   recipeId: FoundryRecipeId | null
   /** 0..1 toward the current craft. */
@@ -76,18 +87,40 @@ export interface FoundrySlot {
   paid: boolean
 }
 
+export interface FabricationSlot {
+  kind: FabJobKind | null
+  jobId: string | null
+  /** 0..1 toward the current job. */
+  progress: number
+  paid: boolean
+  /** Finished in a live Sortie; claim when Docked / next launch. */
+  complete: boolean
+}
+
+export interface PendingRelicUpgrade {
+  from: string
+  to: string
+}
+
 export interface FoundryState {
   recipeLevels: Record<string, number>
   /** Crafts toward the next recipe level. */
   recipeXp: Record<string, number>
   materials: Record<string, number>
-  infinite: string[]
-  points: number
-  upgrades: Record<string, number>
+  /** Processing slots only. */
   slots: FoundrySlot[]
-  equipped: string[]
+  /** Discrete timed jobs: Cores, Relic tiers, facilities. */
+  fabrication: FabricationSlot[]
   /** Single Core print the player is currently farming. Persists across Rebuild. */
   trackedPrintId: string | null
+  /** Facilities armed on a previous Sortie launch. */
+  facilities: FacilityId[]
+  /** Completed facilities that arm on the next Sortie. */
+  pendingFacilities: FacilityId[]
+  /** Cores finished mid-Sortie; unlock when Docked. */
+  pendingCores: string[]
+  /** Relic upgrades finished mid-Sortie; apply when Docked. */
+  pendingRelics: PendingRelicUpgrade[]
 }
 
 export type ReliquaryColor = 'red' | 'orange' | 'pink' | 'blue' | 'green'
@@ -379,12 +412,12 @@ export interface YardCell {
   buildingId: YardBuildingId | null
 }
 
-/** USI Bases analogue — grid persists; pending arms on the next Rebuild. */
+/** Leftover Yard save shape. Live construction is Foundry facilities. */
 export interface YardState {
   cells: YardCell[]
   goods: Record<YardGoodId, number>
-  pending: Record<YardArmId, number>
-  armed: Record<YardArmId, number>
+  pending: Partial<Record<string, number>>
+  armed: Partial<Record<string, number>>
 }
 
 export type ProtocolMute =

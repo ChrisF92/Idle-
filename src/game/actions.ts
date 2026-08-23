@@ -53,7 +53,6 @@ import {
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   trimModulesToFrame,
-  STARTER_CORE_IDS,
   type ResourceCost,
 } from './catalog'
 import { milestonesFor } from './milestones'
@@ -66,18 +65,17 @@ import {
 } from './network'
 import {
   buyFoundryUpgrade,
-  canBuyFoundryUpgrade,
+  canStartFabrication,
   equipFoundryModule,
-  FOUNDRY_UPGRADES,
   foundryMaterialCount,
   foundryRecipeLevel,
-  foundryUpgradeCost,
   persistFoundryOnRebuild,
   setFoundrySlot,
+  startFabrication,
+  stopFabrication,
   unequipFoundryModule,
-  isFoundryInfinite,
 } from './foundry'
-import { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, upgradeRelic } from './reliquary'
+import { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, canUpgradeRelic } from './reliquary'
 import {
   applyFurnacePreset,
   buyFurnaceUpgrade,
@@ -126,7 +124,6 @@ import { canReinforce } from './reinforce'
 import { noteSalvageSpend } from './sortieSummary'
 import { availableSortieSpeeds, chosenSortieSpeed } from './uiReadout'
 import {
-  noteAssembledCore,
   noteAttempt,
   noteSystemAction,
   recordPlaytest,
@@ -158,7 +155,6 @@ import {
   buyCoreRunLevelByModule,
   coreRunLevel,
   coreRunUpgradeCost,
-  grantModuleCopy,
   moduleCopyCount,
   pickAutoCoreRunSlot,
 } from './coreProgression'
@@ -192,10 +188,18 @@ export {
   buyFoundryUpgrade,
   equipFoundryModule,
   setFoundrySlot,
+  startFabrication,
+  stopFabrication,
   unequipFoundryModule,
 }
 
-export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, upgradeRelic, setResearchFocus }
+export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, setResearchFocus }
+
+export function upgradeRelic(state: GameState, relicId: string): GameState {
+  const check = canUpgradeRelic(state, relicId)
+  if (!check.ok || !check.nextId) return state
+  return startFabrication(state, 'relic', `${relicId}>${check.nextId}`)
+}
 export { buyFurnaceUpgrade, setFurnaceChannel, setFurnacePriority, applyFurnacePreset }
 
 export {
@@ -834,58 +838,14 @@ export function canAssembleBlueprint(
       return { ok: false, reason: 'Need Foundry stock' }
     }
   }
-  return { ok: true }
+  return canStartFabrication(state, 'core', moduleId)
 }
 
-/** Consume farmed fragments and unlock the Core permanently. Farming is the time sink. */
+/** Queue a timed Fabrication job. Combat discovers fragments; Foundry constructs. */
 export function assembleBlueprint(state: GameState, moduleId: string): GameState {
   const check = canAssembleBlueprint(state, moduleId)
   if (!check.ok) return state
-  const recipe = getBlueprint(moduleId)
-  if (!recipe) return state
-  const next = structuredClone(state)
-  for (const pt of PART_TYPES) {
-    const need = recipe[pt]
-    const id = partId(moduleId, pt)
-    const have = next.parts[id] ?? 0
-    if (have < need) return state
-    next.parts[id] = have - need
-    if (next.parts[id] <= 0) delete next.parts[id]
-  }
-  for (const [id, n] of Object.entries(recipe.foundry ?? {})) {
-    if (!n || isFoundryInfinite(next, id)) continue
-    next.foundry.materials[id] = Math.max(0, (next.foundry.materials[id] ?? 0) - n)
-  }
-  if (!next.shipyard.unlockedModules.includes(moduleId)) {
-    next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
-    grantModuleCopy(next, moduleId)
-  } else {
-    grantModuleCopy(next, moduleId)
-  }
-  if (!next.meta.discoveredModules.includes(moduleId)) {
-    next.meta.discoveredModules = [...next.meta.discoveredModules, moduleId]
-  }
-  next.meta.lifetimeFabCrafts = (next.meta.lifetimeFabCrafts ?? 0) + 1
-  const name = getModule(moduleId)?.name ?? moduleId
-  const fitLine = next.combat.docked
-    ? `Core printed: ${name}. Fit it at Dock.`
-    : `Core printed: ${name}. Available next Sortie.`
-  if (next.foundry.trackedPrintId === moduleId) {
-    next.foundry.trackedPrintId = null
-    next.combat.log = [
-      `${name} assembled — choose another tracked print.`,
-      fitLine,
-      ...next.combat.log,
-    ].slice(0, 40)
-  } else {
-    next.combat.log = [fitLine, ...next.combat.log].slice(0, 40)
-  }
-  if (!(STARTER_CORE_IDS as readonly string[]).includes(moduleId)) {
-    noteAssembledCore(next, name)
-  }
-  noteSystemAction(next, 'foundry')
-  tryCompleteAchievements(next)
-  return next
+  return startFabrication(state, 'core', moduleId)
 }
 
 export function setTrackedPrint(state: GameState, moduleId: string | null): GameState {
@@ -1886,26 +1846,8 @@ export function applyNetworkPreset(state: GameState, preset: ProcessNetworkPrese
   return optimiseNetwork(next)
 }
 
-export function pickFoundryUpgradeId(state: GameState): string | null {
-  const cfg = processConfig(state)
-  const priority = hasProcess(state, 'foundry-priority') ? cfg.foundry.upgradePriority : 'cheapest'
-  let bestId: string | null = null
-  let bestScore = -Infinity
-  for (const up of FOUNDRY_UPGRADES) {
-    if (!canBuyFoundryUpgrade(state, up.id).ok) continue
-    const cost = foundryUpgradeCost(state, up.id)
-    let score = -cost
-    if (priority === 'speed') score = (up.speedBonus ?? 0) * 1000 - cost
-    else if (priority === 'slots') score = (up.extraSlots ?? 0) * 1000 - cost
-    else if (priority === 'output') {
-      score = ((up.outputAdd ?? 0) * 4 + (up.xpBonus ?? 0) + (up.salvageBonus ?? 0)) * 1000 - cost
-    }
-    if (score > bestScore) {
-      bestScore = score
-      bestId = up.id
-    }
-  }
-  return bestId
+export function pickFoundryUpgradeId(_state: GameState): string | null {
+  return null
 }
 
 export function buyMaxFoundryUpgrades(state: GameState): GameState {

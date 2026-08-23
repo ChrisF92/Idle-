@@ -563,7 +563,6 @@ export function canUpgradeRelic(
   if (!def?.upgradesTo) return { ok: false, reason: 'No further tier' }
   const nextDef = getShard(def.upgradesTo)
   if (!nextDef) return { ok: false, reason: 'Unknown' }
-  if (!state.combat.docked) return { ok: false, reason: 'Dock first' }
   const spare = shardOwned(state, relicId)
   if (spare < 1) return { ok: false, reason: 'Need a spare Relic' }
   const fittedCount = fittedRelicIds(state).filter((id) => id === relicId).length

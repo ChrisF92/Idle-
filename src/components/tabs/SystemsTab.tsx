@@ -1,7 +1,7 @@
 import type { GameState } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
 import { systemsHubCards, type SystemsHubId } from '../../game/systemsHub'
-import { workerAllocationSummary } from '../../game/workers'
+import { WORKER_JOB_IDS, workerAllocationSummary, workerJobLabel } from '../../game/workers'
 import { formatCompact } from '../../game/format'
 
 type Props = {
@@ -32,10 +32,13 @@ export function SystemsTab({ state, onManage }: Props) {
         <p className="systems-workers-line">
           {formatCompact(workers.assigned)} assigned · {formatCompact(workers.idle)} idle
         </p>
-        <p className="systems-workers-split">
-          Foundry {formatCompact(workers.foundry)} · Research {formatCompact(workers.research)} · Fabrication{' '}
-          {formatCompact(workers.fabrication)}
-        </p>
+        <ul className="systems-workers-jobs">
+          {WORKER_JOB_IDS.map((id) => (
+            <li key={id}>
+              {workerJobLabel(id)} {formatCompact(workers.jobs[id] ?? 0)}
+            </li>
+          ))}
+        </ul>
       </button>
 
       <div className="systems-dash-grid">
@@ -48,18 +51,16 @@ export function SystemsTab({ state, onManage }: Props) {
             onClick={() => onManage(card.id)}
           >
             <strong>{card.name}</strong>
-            <span>{card.status[0] ?? 'Idle'}</span>
-            {card.status.length > 1 ? <em>{card.status.slice(1).join(' · ')}</em> : null}
+            {card.status.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
           </button>
         ))}
       </div>
 
       {isSystemUnlocked(state, 'foundry') &&
-      state.foundry.slots.filter((slot) => slot.recipeId).length > 1 ? (
-        <p className="panel-note">
-          Foundry queue: {state.foundry.slots.filter((slot) => slot.recipeId).length - 1} waiting
-          behind the current job.
-        </p>
+      state.foundry.fabrication.some((slot) => slot.complete) ? (
+        <p className="panel-note">A Fabrication job is ready. Open Foundry to claim it while Docked.</p>
       ) : null}
     </section>
   )

@@ -141,8 +141,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   const change: string[] = []
 
   if (isSystemUnlocked(state, 'foundry')) {
-    keep.push('Foundry recipes, stock, and Foundry Points')
-    reset.push('Fitted Foundry bits')
+    keep.push('Foundry recipes, stock, and facilities')
   }
   if (isSystemUnlocked(state, 'reliquary')) keep.push('Relics')
   if (isSystemUnlocked(state, 'research')) keep.push('Research')

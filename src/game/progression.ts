@@ -73,7 +73,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'yard',
     requiresBestWave: ACT1_CADENCE.yard,
     label: 'Construction',
-    tip: 'Foundry construction. Place processing gear; arms apply on the next Rebuild.',
+    tip: 'Foundry construction. Fabricate facilities; bonuses arm on the next Sortie.',
   },
   {
     id: 'slag',
@@ -703,14 +703,16 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     const used =
       Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0) ||
       Object.values(state.foundry?.materials ?? {}).some((n) => n > 0) ||
-      (state.foundry?.equipped?.length ?? 0) > 0
+      (state.foundry?.facilities ?? []).length > 0
     return used || meetsWave(state, ACT1_CADENCE.foundry)
   }
   if (systemId === 'slag') {
     return (state.prestige.prestigeCount ?? 0) >= 1 || Object.keys(state.prestige.matterShop ?? {}).length > 0
   }
   if (systemId === 'yard') {
-    const used = (state.yard?.cells ?? []).some((cell) => Boolean(cell.buildingId))
+    const used =
+      (state.foundry?.facilities ?? []).length > 0 ||
+      (state.foundry?.pendingFacilities ?? []).length > 0
     return used || careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
   }
   if (systemId === 'capital') {

@@ -8,7 +8,7 @@ import {
   hasHullLostOnce,
   isSystemUnlocked,
 } from './progression'
-import { foundryMaterialCount, foundryRecipeLevel, FOUNDRY_MODULES, isFoundryModuleAffordable } from './foundry'
+import { foundryMaterialCount, foundryRecipeLevel } from './foundry'
 import { processCoreHintReady } from './playerGuidance'
 import type { GameState, TabId } from './types'
 
@@ -219,9 +219,7 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     achievements: [...(state.meta.completedAchievements ?? [])],
     foundrySlag: foundryMaterialCount(state, 'slag-ingot'),
     foundrySlagLevel: foundryRecipeLevel(state, 'slag-ingot'),
-    foundryFitReady:
-      (state.foundry.equipped?.length ?? 0) === 0 &&
-      FOUNDRY_MODULES.some((mod) => isFoundryModuleAffordable(state, mod.id)),
+    foundryFitReady: false,
     assembledPrints: listFarmableCores(state)
       .filter((print) => state.shipyard.unlockedModules.includes(print.id))
       .map((print) => print.id),

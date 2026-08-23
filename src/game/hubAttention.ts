@@ -4,14 +4,7 @@ import {
   isStationUnlocked,
   listFarmableCores,
 } from './catalog'
-import {
-  FOUNDRY_MODULES,
-  FOUNDRY_RECIPES,
-  FOUNDRY_UPGRADES,
-  canBuyFoundryUpgrade,
-  isFoundryModuleUnlocked,
-  isFoundryRecipeUnlocked,
-} from './foundry'
+import { FOUNDRY_FACILITIES, FOUNDRY_RECIPES, canStartFabrication, isFoundryRecipeUnlocked } from './foundry'
 import { ASH_PER_HEAT } from './furnace'
 import { hiveResearchActive, hiveResearchCompleted, HIVE_RESEARCH_NODES } from './hiveResearch'
 import { MORE_STATIONS } from './moreStations'
@@ -62,8 +55,8 @@ export function contentKeys(state: GameState, scope: HubAttentionScope): string[
     for (const rec of FOUNDRY_RECIPES) {
       if (isFoundryRecipeUnlocked(state, rec.id)) keys.push(`recipe:${rec.id}`)
     }
-    for (const bit of FOUNDRY_MODULES) {
-      if (isFoundryModuleUnlocked(state, bit.id)) keys.push(`bit:${bit.id}`)
+    for (const facility of FOUNDRY_FACILITIES) {
+      if (canStartFabrication(state, 'facility', facility.id).ok) keys.push(`facility:${facility.id}`)
     }
     for (const print of listFarmableCores(state)) {
       keys.push(`print:${print.id}`)
@@ -184,8 +177,8 @@ function networkSpend(state: GameState): boolean {
 function foundrySpend(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'foundry')) return false
   if (state.foundry.slots.some((s) => !s.recipeId)) return true
-  if (FOUNDRY_UPGRADES.some((up) => canBuyFoundryUpgrade(state, up.id).ok)) return true
-  if (isSystemUnlocked(state, 'yard') && !(state.yard?.cells ?? []).some((cell) => cell.buildingId)) {
+  if ((state.foundry.fabrication ?? []).some((s) => !s.kind)) return true
+  if (isSystemUnlocked(state, 'yard') && FOUNDRY_FACILITIES.some((facility) => canStartFabrication(state, 'facility', facility.id).ok)) {
     return true
   }
   return listFarmableCores(state).some((print) => {

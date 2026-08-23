@@ -85,24 +85,20 @@ export const NETWORK_PRESETS: Record<
 > = {
   push: {
     'scrap-field': 4,
-    'drone-fab': 3,
-    'fab-bay': 2,
-    'power-grid': 2,
-    'repair-bay': 1,
+    'fab-bay': 3,
+    'alloy-foundry': 2,
     'sensor-net': 1,
   },
   defence: {
-    'repair-bay': 5,
-    'power-grid': 3,
-    'scrap-field': 2,
-    'drone-fab': 1,
-    'sensor-net': 1,
+    'scrap-field': 3,
+    'alloy-foundry': 3,
+    'fab-bay': 2,
+    'sensor-net': 2,
   },
   farm: {
     'scrap-field': 5,
     'sensor-net': 3,
     'alloy-foundry': 2,
-    'power-grid': 2,
     'drone-fab': 1,
   },
   industry: {
@@ -111,21 +107,17 @@ export const NETWORK_PRESETS: Record<
     construction: 3,
     'alloy-foundry': 2,
     'scrap-field': 2,
-    'power-grid': 1,
   },
   research: {
     'sensor-net': 5,
-    'power-grid': 2,
     'scrap-field': 2,
-    'drone-fab': 1,
-    'alloy-foundry': 1,
+    'alloy-foundry': 2,
+    'fab-bay': 1,
   },
   balanced: {
     'scrap-field': 2,
-    'power-grid': 2,
     'sensor-net': 2,
     'alloy-foundry': 2,
-    'repair-bay': 2,
     'drone-fab': 2,
     'fab-bay': 1,
     construction: 1,
@@ -1466,8 +1458,8 @@ function migrateWorkerJobRatios(
       'scrap-field': Math.max(1, yieldW),
       'drone-fab': Math.max(1, loomW),
       'sensor-net': Math.max(1, archiveW),
-      'power-grid': 1,
-      'repair-bay': 1,
+      'alloy-foundry': 1,
+      'fab-bay': 1,
     }
   }
   return { ...fallback }
@@ -1486,8 +1478,8 @@ export function networkAllocationWeights(state: GameState): Record<string, numbe
   }
   if (hasProcess(state, 'network-tune') && !state.combat.docked) {
     if (preset === 'defence') {
-      weights['repair-bay'] *= 1.35
-      weights['power-grid'] *= 1.2
+      weights['alloy-foundry'] *= 1.2
+      weights['fab-bay'] *= 1.15
     } else if (preset === 'farm') {
       weights['scrap-field'] *= 1.35
     } else if (preset === 'industry') {

@@ -388,19 +388,29 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
         paid: s?.paid === true,
       }))
     : empty.slots
+  const fabrication = Array.isArray(raw.fabrication)
+    ? raw.fabrication.map((s) => ({
+        kind: s?.kind ?? null,
+        jobId: s?.jobId ?? null,
+        progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
+        paid: s?.paid === true,
+        complete: s?.complete === true,
+      }))
+    : empty.fabrication
   return {
     recipeLevels: { ...(raw.recipeLevels ?? {}) },
     recipeXp: { ...(raw.recipeXp ?? {}) },
     materials: { ...(raw.materials ?? {}) },
-    infinite: [...(raw.infinite ?? [])],
-    points: Math.max(0, Math.floor(Number(raw.points ?? 0) || 0)),
-    upgrades: { ...(raw.upgrades ?? {}) },
     slots: slots.length > 0 ? slots : empty.slots,
-    equipped: [...(raw.equipped ?? [])],
+    fabrication: fabrication.length > 0 ? fabrication : empty.fabrication,
     trackedPrintId:
       typeof raw.trackedPrintId === 'string' && raw.trackedPrintId.length > 0
         ? raw.trackedPrintId
         : null,
+    facilities: [...(raw.facilities ?? [])],
+    pendingFacilities: [...(raw.pendingFacilities ?? [])],
+    pendingCores: [...(raw.pendingCores ?? [])],
+    pendingRelics: [...(raw.pendingRelics ?? [])],
   }
 }
 

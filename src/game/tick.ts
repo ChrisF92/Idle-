@@ -42,7 +42,7 @@ import {
   networkScrapRate,
   tickNetwork,
 } from './network'
-import { tickFoundry } from './foundry'
+import { armPendingFacilities, tickFoundry } from './foundry'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
@@ -763,6 +763,7 @@ export function setPushMode(state: GameState, _mode: CombatPushMode): GameState 
 }
 
 function launchFromDock(state: GameState): void {
+  armPendingFacilities(state)
   clearFrontierHold(state)
   applyPushMode(state)
   state.combat.wave = 1

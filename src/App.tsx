@@ -158,7 +158,7 @@ function AppShell() {
         if (nav.focus) setFocusTarget(nav.focus)
         if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
         if (nav.tab === 'foundry' && (nav.focus === 'foundry-fit' || nav.focus?.startsWith('fit-'))) {
-          setFoundryPane('fit')
+          setFoundryPane('prints')
         }
         if (nav.tab === 'foundry' && (nav.focus === 'foundry-build' || nav.focus === 'yard-grid')) {
           setFoundryPane('build')
@@ -457,6 +457,8 @@ function AppShell() {
             onEquip={game.equipFoundryModule}
             onUnequip={game.unequipFoundryModule}
             onAssemble={game.assembleBlueprint}
+            onStartFacility={game.startFacility}
+            onStopFabrication={game.stopFabrication}
             onTrack={game.setTrackedPrint}
             onBuyMax={game.buyMaxFoundryUpgrades}
             onPlaceBuilding={game.placeYardBuilding}
