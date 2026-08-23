@@ -693,12 +693,58 @@ export function foundryCraftOutput(state: GameState, id: string): number {
   return n + foundryGlobalOutputAdd(state)
 }
 
+export const FOUNDRY_MASTERY_TIME_MULT = 0.88
+export const FOUNDRY_MASTERY_COST_MULT = 0.82
+
 function masteryTimeStep(level: number): number {
-  return level >= 4 ? 0.88 : 1
+  return level >= 4 ? FOUNDRY_MASTERY_TIME_MULT : 1
 }
 
 function masteryCostStep(level: number): number {
-  return level >= 12 ? 0.82 : 1
+  return level >= 12 ? FOUNDRY_MASTERY_COST_MULT : 1
+}
+
+/** Player-facing stat line from the mastery kind, not flavor copy. */
+export function foundryMasteryEffect(step: FoundryMasteryStep): string {
+  switch (step.kind) {
+    case 'speed':
+      return `Craft time ×${FOUNDRY_MASTERY_TIME_MULT.toFixed(2)}`
+    case 'output':
+      return 'Output +1 per craft'
+    case 'efficiency':
+      return `Craft cost ×${FOUNDRY_MASTERY_COST_MULT.toFixed(2)}`
+    case 'fp':
+      return 'Foundry Points +2 per level-up · Output +1 per craft'
+    case 'infinite':
+      return 'Recipe solved — infinite stock'
+  }
+}
+
+function formatUpgradePct(n: number): string {
+  const pct = n * 100
+  const rounded = Math.abs(pct - Math.round(pct)) < 0.05 ? Math.round(pct) : Number(pct.toFixed(1))
+  return `${pct >= 0 ? '+' : ''}${rounded}%`
+}
+
+/** Per-rank Foundry shop effect from the numeric fields. */
+export function foundryUpgradeEffectLine(def: FoundryUpgradeDef): string {
+  const bits: string[] = []
+  if (def.damageBonus) bits.push(`Damage ${formatUpgradePct(def.damageBonus)} per rank`)
+  if (def.shieldBonus) bits.push(`Shield ${formatUpgradePct(def.shieldBonus)} per rank`)
+  if (def.speedBonus) bits.push(`Craft speed ${formatUpgradePct(def.speedBonus)} per rank`)
+  if (def.extraSlots) bits.push(`Foundry slots +${def.extraSlots}`)
+  if (def.extraFitSlots) bits.push(`Fitted bits +${def.extraFitSlots}`)
+  if (def.salvageBonus) bits.push(`Salvage ${formatUpgradePct(def.salvageBonus)} per rank`)
+  if (def.xpBonus) bits.push(`Recipe XP ${formatUpgradePct(def.xpBonus)} per rank`)
+  if (def.outputAdd) bits.push(`Output +${def.outputAdd} per craft per rank`)
+  if (def.masteryReduce) bits.push(`Mastery gates −${def.masteryReduce} rank per rank`)
+  if (def.networkFillBonus) bits.push(`Network fill ${formatUpgradePct(def.networkFillBonus)} per rank`)
+  if (def.ashHeatBonus) bits.push(`Ash Heat ${formatUpgradePct(def.ashHeatBonus)} per rank`)
+  if (def.researchXpBonus) bits.push(`Research XP ${formatUpgradePct(def.researchXpBonus)} per rank`)
+  if (def.shardDropBonus) bits.push(`Shard drops ${formatUpgradePct(def.shardDropBonus)} per rank`)
+  if (def.partDropBonus) bits.push(`Print drops ${formatUpgradePct(def.partDropBonus)} per rank`)
+  if (def.queueBonus) bits.push(`Production queue +${def.queueBonus} slots per rank`)
+  return bits.join(' · ') || def.blurb
 }
 
 export function craftsForNextLevel(level: number, state?: GameState): number {

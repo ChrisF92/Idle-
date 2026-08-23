@@ -8,6 +8,7 @@ import {
   RUN_UPGRADE_CAP,
   runPurchasedLevel,
   runUpgradeBulkCost,
+  runUpgradeEffectLine,
   runUpgradePreview,
   shopEconomyRoi,
   shopTimeToAfford,
@@ -26,7 +27,7 @@ import {
   maxAffordableCoreRunPurchases,
 } from '../game/coreProgression'
 import { getModule, moduleMasteryRank } from '../game/catalog'
-import { nextMasteryMilestone } from '../game/coreProgression'
+import { masteryMilestoneEffect, nextMasteryMilestone } from '../game/coreProgression'
 
 export type UpgradeGridKind = 'run' | 'workshop'
 
@@ -245,7 +246,7 @@ export function UpgradeGrid({
                 Close
               </button>
             </header>
-            <p>{info.blurb}</p>
+            <p>{runUpgradeEffectLine(info.id)}</p>
             {kind === 'workshop' ? (
               <p className="muted">
                 Workshop Lv{workshopLevel(state, info.id)} means every Sortie begins with that many
@@ -309,7 +310,7 @@ export function UpgradeGrid({
               const next = nextMasteryMilestone(coreSlot.moduleId, moduleMasteryRank(state, coreSlot.moduleId))
               return next ? (
                 <p className="muted">
-                  Next: M{next.level} · {next.name}
+                  Next: M{next.level} · {next.name} — {masteryMilestoneEffect(next)}
                 </p>
               ) : null
             })()}

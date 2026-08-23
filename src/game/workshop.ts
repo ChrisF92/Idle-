@@ -330,6 +330,38 @@ export function shopTimeToAfford(state: GameState, cost: number, bank: number): 
   return `~${wait}s`
 }
 
+/** Per-rank stat line for Workshop / Sortie shop details. */
+export function runUpgradeEffectLine(id: RunUpgradeId): string {
+  switch (id) {
+    case 'weapon-power':
+      return `Weapon damage ${`×${(1 + WORKSHOP_WEAPON_POWER_PER_LEVEL).toFixed(2)}`} per rank`
+    case 'cycle-rate':
+      return `Fire rate ${`×${(1 + WORKSHOP_CYCLE_RATE_PER_LEVEL).toFixed(2)}`} per rank`
+    case 'hull':
+      return `Hull ${`×${(1 + WORKSHOP_HULL_PER_LEVEL).toFixed(2)}`} per rank`
+    case 'shield':
+      return `Shield ${`×${(1 + WORKSHOP_SHIELD_PER_LEVEL).toFixed(2)}`} per rank`
+    case 'salvage-kill':
+      return `Salvage/kill ${`×${(1 + WORKSHOP_SALVAGE_KILL_PER_LEVEL).toFixed(2)}`} per rank`
+    case 'salvage-wave':
+      return 'Wave Salvage +4 × rank × 1.06^rank'
+    case 'crit-chance':
+      return 'Crit chance +2% per rank (cap 45%)'
+    case 'armor-pen':
+      return 'Armor pen +0.05 per rank'
+    case 'shield-regen':
+      return 'Shield regen +0.4%/s per rank'
+    case 'armor':
+      return 'Armor +0.45 per rank'
+    case 'scrap-kill':
+      return 'Scrap/kill +0.35 per rank'
+    case 'fragment-chance':
+      return 'Fragment chance +6% per rank'
+    case 'ash-yield':
+      return 'Ash yield ×1.08 per rank'
+  }
+}
+
 export function shopEconomyRoi(state: GameState, id: RunUpgradeId): string | null {
   if (!shopReadoutUnlocked(state)) return null
   if (id !== 'salvage-kill' && id !== 'salvage-wave' && id !== 'scrap-kill' && id !== 'fragment-chance' && id !== 'ash-yield') {

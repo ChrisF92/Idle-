@@ -5,6 +5,7 @@ import {
   ASH_PER_HEAT,
   GDD_FURNACE_CHANNEL_IDS,
   FURNACE_CHANNELS,
+  furnaceChannelEffectLine,
   furnaceActiveLevel,
   furnaceChannelPreview,
   furnaceChannelUnlocked,
@@ -100,7 +101,7 @@ export function FurnaceTab({ state, onBack, onConvert, onSetChannel }: FurnaceTa
                   {unlocked
                     ? active > 0
                       ? `${ch.stat} ×${furnaceLevelDef(ch.id, active)?.mult.toFixed(2)} this Sortie`
-                      : `${ch.blurb} I costs ${formatCompact(furnaceLightCost(ch.id, 1), 1)} Heat`
+                      : `${furnaceChannelEffectLine(ch)} · I costs ${formatCompact(furnaceLightCost(ch.id, 1), 1)} Heat`
                     : ch.detail[0]}
                 </p>
                 {unlocked ? (

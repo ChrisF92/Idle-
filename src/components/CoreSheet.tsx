@@ -6,6 +6,7 @@ import { coreContributionPct, coreDps } from '../game/uiReadout'
 import {
   masteryXpToNext,
   moduleMasteryXp,
+  masteryMilestoneEffect,
   nextMasteryMilestone,
 } from '../game/coreProgression'
 import {
@@ -182,7 +183,7 @@ function CoreRow({
       {relicsOnly ? null : (
         <p className="core-row-stats muted">
           {xp} / {need} XP
-          {next ? ` · Next M${next.level} ${next.name}` : ''}
+          {next ? ` · Next M${next.level} ${next.name} — ${masteryMilestoneEffect(next)}` : ''}
         </p>
       )}
       {dps > 0 && !relicsOnly ? (
