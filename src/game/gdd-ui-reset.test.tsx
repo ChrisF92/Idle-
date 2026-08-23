@@ -60,7 +60,7 @@ describe('UI architecture reset', () => {
     expect(document.querySelector('.core-sheet')).toBeNull()
     expect(screen.queryByText(/Equip Cores and Relics here/i)).toBeNull()
     expect(screen.getByText('Pulse Cannon')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Pulse Cannon/ }))
+    fireEvent.click(document.querySelector('.ui-item-row[data-guide="core-pulse-cannon"]')!)
     expect(screen.getByRole('dialog', { name: /Pulse Cannon/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Change Core' })).toBeTruthy()
   })

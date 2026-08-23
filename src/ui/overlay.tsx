@@ -51,8 +51,11 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback((entry: OverlayEntry) => {
     setStack((prev) => {
-      const without = prev.filter((row) => row.id !== entry.id)
-      return [...without, entry]
+      const existing = prev.find((row) => row.id === entry.id)
+      if (existing && existing.kind === entry.kind && existing.blocking === entry.blocking) {
+        return prev
+      }
+      return [...prev.filter((row) => row.id !== entry.id), entry]
     })
   }, [])
 
@@ -163,9 +166,12 @@ export function useOverlayLayer(opts: {
   const blocking = opts.blocking ?? opts.kind !== 'toast'
   const allowed = !opts.open || api.canPresent(opts.kind, opts.id)
 
+  const register = api.register
+  const unregister = api.unregister
+
   useEffect(() => {
     if (!opts.open || !allowed) {
-      api.unregister(opts.id)
+      unregister(opts.id)
       return
     }
     const entry: OverlayEntry = {
@@ -174,22 +180,13 @@ export function useOverlayLayer(opts: {
       blocking,
       close: () => closeRef.current(),
     }
-    api.register(entry)
-    return () => api.unregister(opts.id)
-  }, [opts.open, opts.id, opts.kind, allowed, blocking, api])
+    register(entry)
+    return () => unregister(opts.id)
+  }, [opts.open, opts.id, opts.kind, allowed, blocking, register, unregister])
 
   useEffect(() => {
-    if (!opts.open || !allowed) {
-      if (pushed.current) {
-        pushed.current = false
-        if (typeof history !== 'undefined' && history.state?.hwOverlay === opts.id) {
-          history.back()
-        }
-      }
-      return
-    }
-    if (typeof history === 'undefined') return
-    history.pushState({ ...(history.state ?? {}), hwOverlay: opts.id }, '')
+    if (!opts.open || !allowed || typeof history === 'undefined') return
+    history.pushState({ ...(typeof history.state === 'object' && history.state ? history.state : {}), hwOverlay: opts.id }, '')
     pushed.current = true
     const onPop = () => {
       if (!pushed.current) return
@@ -199,9 +196,10 @@ export function useOverlayLayer(opts: {
     window.addEventListener('popstate', onPop)
     return () => {
       window.removeEventListener('popstate', onPop)
-      if (pushed.current) {
-        pushed.current = false
-        if (history.state?.hwOverlay === opts.id) history.back()
+      if (!pushed.current) return
+      pushed.current = false
+      if (history.state?.hwOverlay === opts.id) {
+        history.replaceState({ ...(history.state ?? {}), hwOverlay: undefined }, '')
       }
     }
   }, [opts.open, opts.id, allowed])
