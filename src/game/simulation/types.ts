@@ -2,7 +2,33 @@
 
 import type { GameState, NetworkBarId, ResourceId } from '../types'
 
-export type SimulationStrategyId = 'active' | 'casual' | 'optimiser' | 'idle'
+/** GDD §153 profiles, plus leftover aliases (`active` = Balanced, `idle` = no spend). */
+export type SimulationStrategyId =
+  | 'casual'
+  | 'balanced'
+  | 'offensive'
+  | 'defensive'
+  | 'economy-first'
+  | 'optimiser'
+  | 'active'
+  | 'idle'
+
+export type SimulationSpendProfile =
+  | 'casual'
+  | 'balanced'
+  | 'offensive'
+  | 'defensive'
+  | 'economy-first'
+  | 'optimiser'
+
+export const GDD_SIM_PROFILES: SimulationSpendProfile[] = [
+  'casual',
+  'balanced',
+  'offensive',
+  'defensive',
+  'economy-first',
+  'optimiser',
+]
 
 export type SimulationAccuracy = 'accurate'
 
@@ -15,6 +41,7 @@ export type SimulationStart =
 export type SimulationStop =
   | { type: 'first-rebuild' }
   | { type: 'rebuilds'; count: number }
+  | { type: 'wave'; wave: number }
   | { type: 'sector'; sector: number }
   | { type: 'duration'; calendarSeconds: number }
   | { type: 'active-duration'; seconds: number }
@@ -68,6 +95,7 @@ export interface SimulationProgress {
   sector: number
   highestSector: number
   highestSectorEver: number
+  highestWave: number
   rebuilds: number
   stopLabel: string
   note: string
@@ -76,24 +104,34 @@ export interface SimulationProgress {
 
 export type MilestoneId =
   | 'first-launch'
-  | 'sector-1'
-  | 'sector-5'
-  | 'sector-10'
-  | 'sector-20'
-  | 'sector-30'
+  | 'first-defeat'
+  | 'wave-1'
+  | 'wave-10'
+  | 'wave-20'
+  | 'wave-30'
+  | 'wave-50'
+  | 'wave-70'
+  | 'wave-100'
+  | 'wave-110'
+  | 'wave-140'
+  | 'wave-170'
+  | 'wave-210'
+  | 'wave-250'
+  | 'wave-300'
   | 'first-pulse-upgrade'
   | 'first-plate-upgrade'
-  | 'network-unlock'
+  | 'workers-unlock'
   | 'foundry-unlock'
   | 'furnace-unlock'
   | 'reliquary-unlock'
   | 'hive-research-unlock'
+  | 'process-unlock'
   | 'first-hive-research-node'
   | 'first-process-purchase'
   | 'first-rebuild'
   | 'first-research-bt'
   | 'first-reinforce'
-  | `sector-${number}`
+  | `wave-${number}`
   | `rebuild-${number}`
   | `unlock-${string}`
 
@@ -226,6 +264,7 @@ export interface SafetyFlag {
 export interface SimulationWarning {
   severity: 'info' | 'warning' | 'fail'
   message: string
+  code?: GddWarningCode
 }
 
 export interface StrategyLimitation {
@@ -241,11 +280,37 @@ export interface Act1Contribution {
   rebuildMomentum: number
 }
 
+export type GddWarningCode =
+  | 'WALL'
+  | 'HARD WALL'
+  | 'STEAMROLL'
+  | 'ECON TRAP'
+  | 'DEAD UPGRADE'
+  | 'DOMINANT UPGRADE'
+  | 'SYSTEM IRRELEVANT'
+  | 'SYSTEM DOMINANT'
+  | 'REBUILD WEAK'
+  | 'REBUILD EXPLOSIVE'
+
+export const GDD_WARNING_CODES: GddWarningCode[] = [
+  'WALL',
+  'HARD WALL',
+  'STEAMROLL',
+  'ECON TRAP',
+  'DEAD UPGRADE',
+  'DOMINANT UPGRADE',
+  'SYSTEM IRRELEVANT',
+  'SYSTEM DOMINANT',
+  'REBUILD WEAK',
+  'REBUILD EXPLOSIVE',
+]
+
 export interface Act1Snapshot {
   at: string
   activeSeconds: number
   calendarSeconds: number
   sector: number
+  bestWave: number
   highestEver: number
   salvage: number
   salvageEarned: number
@@ -288,6 +353,7 @@ export interface SimulationRunReport {
   offlineSeconds: number
   highestSector: number
   highestSectorEver: number
+  highestWave: number
   rebuilds: number
   prestigeMatterEarned: number
   milestones: MilestoneRecord[]

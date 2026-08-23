@@ -82,24 +82,21 @@ describe('Act 1 authored formulas', () => {
     const ids = ACT1_TARGETS.map((t) => t.id)
     expect(ids).toEqual(
       expect.arrayContaining([
-        'sector-1',
+        'first-wave',
         'foundry-unlock',
-        'reliquary-unlock',
+        'workers-unlock',
         'first-rebuild',
-        'furnace-unlock',
-        'hive-research-unlock',
-        'first-research-bt',
-        'sector-10',
-        'protocols-unlock',
-        'echo-unlock',
-        'sector-30',
+        'process-unlock',
+        'w300',
       ]),
     )
+    expect(ids).not.toContain('echo-unlock')
+    expect(ids).not.toContain('sector-1')
     const rebuild = ACT1_TARGETS.find((t) => t.id === 'first-rebuild')!
     expect(rebuild.min).toBeGreaterThanOrEqual(30 * 60)
     expect(rebuild.max).toBeLessThanOrEqual(5 * 60 * 60)
     const hourBeats = ACT1_TARGETS.filter((t) =>
-      ['sector-1', 'foundry-unlock'].includes(t.id),
+      ['first-wave', 'foundry-unlock'].includes(t.id),
     )
     expect(hourBeats.every((t) => t.max <= 60 * 60)).toBe(true)
   })

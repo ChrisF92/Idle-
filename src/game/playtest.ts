@@ -1,33 +1,19 @@
 /** Local playtest event log — device-only, compact, manually exportable. */
 
 import type { GameState, PlaytestEvent, PlaytestEventKind, PlaytestState } from './types'
-import { WORKER_JOB_IDS } from './workers'
-import { careerBestWave } from './waves'
+import { WORKER_JOB_IDS, WORKER_JOB_LABELS } from './workers'
+import { reportedBestWave } from './waves'
+import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import {
   hydrateInterventions,
   hydrateSectorAttempts,
   hydrateSteamroll,
-  summarizeInterventions,
 } from './frontier'
 
 export const PLAYTEST_VERSION = 1 as const
 export const PLAYTEST_MAX_EVENTS = 400
 
-const DRONE_LABELS: Record<string, string> = {
-  'scrap-field': 'Scrap Field',
-  'power-grid': 'Power Grid',
-  'sensor-net': 'Sensor Net',
-  'alloy-foundry': 'Alloy Foundry',
-  'repair-bay': 'Repair Bay',
-  'drone-fab': 'Drone Fabricator',
-  'fab-bay': 'Fabrication Bay',
-  construction: 'Construction',
-  strike: 'Strike',
-  ward: 'Ward',
-  yield: 'Yield',
-  loom: 'Loom',
-  archive: 'Archive',
-}
+const DRONE_LABELS: Record<string, string> = { ...WORKER_JOB_LABELS }
 
 export function createEmptyPlaytest(now = Date.now()): PlaytestState {
   return {
@@ -212,8 +198,6 @@ const INTERVENTION_KINDS = new Set<PlaytestEventKind>([
   'process_buy',
   'rebuild',
   'reinforce',
-  'specialist',
-  'capital',
   'system_action',
 ])
 
@@ -274,7 +258,18 @@ export function noteHighestSector(state: GameState, sector: number): void {
   if (next <= log.sectorAt) return
   log.sectorAt = next
   log.sectorAtPlaytime = log.playtimeMs
-  recordPlaytest(state, 'highest_sector', { n: `W${next * 10}`, v: next, firstKey: `sector:${next}` })
+  const wave = next * 10
+  recordPlaytest(state, 'highest_sector', { n: `W${wave}`, v: wave, firstKey: `wave:${wave}` })
+  if (log.firsts[`sector:${next}`] == null) log.firsts[`sector:${next}`] = log.playtimeMs
+}
+
+const TRACKED_PLAYTEST_WAVES = new Set([1, 10, 20, 30, 50, 70, 110, 140, 170, 210, 250, 300])
+
+export function noteCareerWave(state: GameState, wave: number): void {
+  const n = Math.max(0, Math.floor(wave))
+  if (n <= 0) return
+  if (n !== 1 && n % 10 !== 0 && !TRACKED_PLAYTEST_WAVES.has(n)) return
+  recordPlaytest(state, 'highest_sector', { n: `W${n}`, v: n, firstKey: `wave:${n}` })
 }
 
 export function noteAttempt(
@@ -360,10 +355,20 @@ export function playtestProgressRows(state: GameState): PlaytestProgressRow[] {
     const at = log.firsts[key]
     if (at != null) rows.push({ label, atMs: at })
   }
+  const waveSeen = new Set<number>()
+  for (const [key, at] of Object.entries(log.firsts)) {
+    const wave = /^wave:(\d+)$/.exec(key)
+    if (!wave) continue
+    const n = Number(wave[1])
+    waveSeen.add(n)
+    rows.push({ label: `W${n}`, atMs: at })
+  }
   for (const [key, at] of Object.entries(log.firsts)) {
     const match = /^sector:(\d+)$/.exec(key)
     if (!match) continue
-    rows.push({ label: `W${Number(match[1]) * 10}`, atMs: at })
+    const n = Number(match[1]) * 10
+    if (waveSeen.has(n)) continue
+    rows.push({ label: `W${n}`, atMs: at })
   }
   rows.sort((a, b) => a.atMs - b.atMs || a.label.localeCompare(b.label))
   return rows
@@ -371,25 +376,36 @@ export function playtestProgressRows(state: GameState): PlaytestProgressRow[] {
 
 export function longestProgressionStall(state: GameState, nowPlaytime?: number): PlaytestStall | null {
   const log = ensurePlaytest(state)
-  const marks: Array<{ sector: number; at: number }> = []
+  const marks: Array<{ wave: number; at: number }> = []
   for (const [key, at] of Object.entries(log.firsts)) {
-    const match = /^sector:(\d+)$/.exec(key)
-    if (!match) continue
-    marks.push({ sector: Number(match[1]), at })
+    const wave = /^wave:(\d+)$/.exec(key)
+    if (wave) {
+      marks.push({ wave: Number(wave[1]), at })
+      continue
+    }
+    const sector = /^sector:(\d+)$/.exec(key)
+    if (!sector) continue
+    marks.push({ wave: Number(sector[1]) * 10, at })
   }
-  marks.sort((a, b) => a.sector - b.sector || a.at - b.at)
+  marks.sort((a, b) => a.wave - b.wave || a.at - b.at)
+  const unique: Array<{ wave: number; at: number }> = []
+  for (const mark of marks) {
+    if (unique.some((row) => row.wave === mark.wave)) continue
+    unique.push(mark)
+  }
   let best: PlaytestStall | null = null
-  for (let i = 1; i < marks.length; i++) {
-    const ms = marks[i]!.at - marks[i - 1]!.at
+  for (let i = 1; i < unique.length; i++) {
+    const ms = unique[i]!.at - unique[i - 1]!.at
     if (!best || ms > best.ms) {
-      best = { from: marks[i - 1]!.sector, to: marks[i]!.sector, ms }
+      best = { from: unique[i - 1]!.wave, to: unique[i]!.wave, ms }
     }
   }
   const playtime = nowPlaytime ?? log.playtimeMs
-  if (log.sectorAt > 0) {
+  const currentWave = reportedBestWave(state)
+  if (currentWave > 0 && log.sectorAtPlaytime >= 0) {
     const current = playtime - log.sectorAtPlaytime
     if (current > 0 && (!best || current > best.ms)) {
-      best = { from: log.sectorAt, to: log.sectorAt + 1, ms: current }
+      best = { from: currentWave, to: currentWave + 10, ms: current }
     }
   }
   return best
@@ -415,6 +431,71 @@ function formatAttempts(map: Record<string, { a: number; c: number }>): string {
     .join(', ')
 }
 
+function checked(done: boolean, label: string, note?: string): string {
+  return `${done ? '[x]' : '[ ]'} ${label}${note ? ` — ${note}` : ''}`
+}
+
+export function formatPlaytestScript(state: GameState): string[] {
+  const log = ensurePlaytest(state)
+  const best = reportedBestWave(state)
+  const thirty = log.playtimeMs >= 30 * 60 * 1000
+  const rebuilt = log.firsts.rebuild != null
+  const furnace =
+    log.firsts['open:furnace'] != null ||
+    log.firsts['act:furnace'] != null ||
+    Object.values(state.furnace?.active ?? {}).some((n) => (n ?? 0) > 0)
+  const challenge = Object.values(log.protocols).some((row) => row.a > 0 || row.c > 0)
+  const climax = best >= ACT1_FINAL_WAVE
+  return [
+    'GDD PLAYTEST SCRIPT',
+    checked(thirty, 'First 30 min from a wipe', formatPlaytimeMs(log.playtimeMs)),
+    checked(rebuilt, 'First Rebuild (W70 preset)', rebuilt ? formatPlaytimeMs(log.firsts.rebuild) : 'not yet'),
+    checked(furnace, 'One Furnace push', furnace ? 'channel lit or system opened' : 'not yet'),
+    checked(challenge, 'One Challenge', challenge ? formatAttempts(log.protocols) : 'not yet'),
+    checked(climax, 'W300 climax', `Best W${best}`),
+    '',
+    `Cadence doors: Foundry W${ACT1_CADENCE.foundry} · Workers W${ACT1_CADENCE.workers} · Rebuild W${ACT1_CADENCE.rebuild} · Process W${ACT1_CADENCE.process} · Challenges W${ACT1_CADENCE.protocols}`,
+  ]
+}
+
+export function formatLastSortieTelemetry(state: GameState): string[] {
+  const last = state.combat?.lastSortie
+  if (!last || !last.outcome) {
+    return ['LAST SORTIE', '(no closed Sortie yet)']
+  }
+  const spend = last.spendByCategory ?? { attack: 0, defense: 0, economy: 0 }
+  const total = spend.attack + spend.defense + spend.economy
+  const share = (n: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : '0%')
+  const stats = last.stats
+  const cause = last.outcome === 'extract'
+    ? 'Extract'
+    : stats?.lastIsBoss
+      ? `Defeat — ${stats.lastEnemyName || 'boss'}`
+      : `Defeat — ${stats?.lastEnemyName || stats?.lastEnemyRole || 'unknown'}`
+  const furnace = Object.entries(state.furnace?.active ?? {})
+    .filter(([, n]) => (n ?? 0) > 0)
+    .map(([id, n]) => `${id} ${n}`)
+    .join(', ')
+  const directives = (state.combat.directives ?? []).join(', ')
+  const delta = last.newBest ? Math.max(0, last.wave - (last.previousBest ?? 0)) : 0
+  return [
+    'LAST SORTIE',
+    `Outcome: ${last.outcome === 'extract' ? 'Extract' : 'Defeat'}`,
+    `Seed: ${stats?.sortieSeed ?? state.combat.sortieSeed ?? 0}`,
+    `Start Best: W${last.previousBest ?? 0}`,
+    `End Wave: W${last.wave}`,
+    `Duration: ${formatPlaytimeMs(Math.round((stats?.finalFightTime ?? 0) * 1000))}`,
+    `Death cause: ${cause}`,
+    `Salvage earned: ${last.salvageGained}  spent: ${last.salvageSpent}`,
+    `Attack share: ${share(spend.attack)}  Defense: ${share(spend.defense)}  Economy: ${share(spend.economy)}`,
+    `Core spend: ${last.cores?.reduce((s, c) => s + (c.salvageSpent ?? 0), 0) ?? last.salvageSpent}`,
+    `Scrap: ${last.scrapEarned}  fragments: ${last.fragmentsEarned}  Ash: ${last.ashEarned}  Data: ${last.dataEarned}`,
+    `Directives: ${directives || 'none'}`,
+    `Furnace: ${furnace || 'none lit'}`,
+    `New Best: ${last.newBest ? `+${delta} (now W${last.wave})` : 'no'}`,
+  ]
+}
+
 /** Human-readable local report for developers. */
 export function buildPlaytestReport(state: GameState, now = Date.now()): string {
   const log = ensurePlaytest(state)
@@ -422,9 +503,9 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Session: ${formatPlaytimeMs(sessionPlaytimeMs(state))}`)
   lines.push(`Career playtime: ${formatPlaytimeMs(log.playtimeMs)}`)
   lines.push(`Save age: ${formatPlaytimeMs(saveAgeMs(state, now))}`)
-  lines.push(
-    `Highest Wave: ${careerBestWave(state)}`,
-  )
+  lines.push(`Highest Wave: ${reportedBestWave(state)}`)
+  lines.push('')
+  lines.push(...formatPlaytestScript(state))
   lines.push('')
   lines.push('Progression')
   const rows = playtestProgressRows(state)
@@ -441,7 +522,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   if (stall) {
     lines.push(
       `Longest progression stall:`,
-      `W${stall.from * 10} → W${stall.to * 10}: ${formatPlaytimeMs(stall.ms)}`,
+      `W${stall.from} → W${stall.to}: ${formatPlaytimeMs(stall.ms)}`,
     )
   } else {
     lines.push('Longest progression stall: none yet')
@@ -450,71 +531,23 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push('Cores assembled:')
   lines.push(log.cores.length > 0 ? log.cores.join('\n') : '(starter only)')
   lines.push('')
-  lines.push(`Most-used Drone allocation:`)
+  lines.push('Most-used Worker jobs:')
   lines.push(mostUsedDrones(state))
   lines.push('')
-  lines.push(`Protocol attempts:`)
+  lines.push('Challenge attempts:')
   lines.push(formatAttempts(log.protocols))
   lines.push('')
-  lines.push(`Echo attempts:`)
-  lines.push(formatAttempts(log.echos))
-  lines.push('')
   lines.push('Combat clocks')
-  lines.push(`Active combat: ${formatPlaytimeMs(log.activeCombatMs ?? 0)}`)
-  lines.push(`Frontier combat: ${formatPlaytimeMs(log.frontierCombatMs ?? 0)}`)
-  lines.push(`Retreat farming: ${formatPlaytimeMs(log.retreatFarmMs ?? 0)}`)
-  lines.push(`Offline combat: ${formatPlaytimeMs(log.offlineCombatMs ?? 0)}`)
-  lines.push(`Offline retreat farm: ${formatPlaytimeMs(log.offlineRetreatFarmMs ?? 0)}`)
-  lines.push(
-    `Consecutive first-attempt clears: ${log.consecutiveFrontierOneShots ?? 0}` +
-      (log.bestConsecutiveFrontierOneShots
-        ? ` (best ${log.bestConsecutiveFrontierOneShots})`
-        : ''),
-  )
+  lines.push(`Active Sortie time: ${formatPlaytimeMs(log.activeCombatMs ?? 0)}`)
+  lines.push(`Offline while Sortie frozen: ${formatPlaytimeMs(log.offlineCombatMs ?? 0)}`)
   if (log.lastSteamroll && log.lastSteamroll.n >= 2) {
     lines.push(
       `Steamroll: W${log.lastSteamroll.from * 10} → W${log.lastSteamroll.to * 10}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
     )
   }
   lines.push('')
-  lines.push('FRONTIER HISTORY')
-  const history = Object.values(log.sectorAttempts ?? {}).filter(
-    (row) => row.attempts > 0 || row.clears > 0 || row.failures > 0,
-  )
-  history.sort((a, b) => a.sector - b.sector || a.route.localeCompare(b.route))
-  if (history.length === 0) {
-    lines.push('(no frontier attempts yet)')
-  } else {
-    for (const row of history) {
-      const route = row.route === 'B' ? 'B' : ''
-      const result = row.clears > 0 ? 'Clear' : row.failures > 0 ? 'Repelled' : 'Open'
-      lines.push(`W${row.sector * 10}${route}`)
-      lines.push(`Attempts: ${row.attempts}  Failures: ${row.failures}  ${result}`)
-      lines.push(`Frontier combat: ${formatPlaytimeMs(row.frontierCombatMs)}`)
-      if (row.retreatFarmMs > 0) {
-        lines.push(`Retreat farming: ${formatPlaytimeMs(row.retreatFarmMs)}`)
-      }
-      if (row.lastPressure && row.failures > 0) {
-        lines.push(`Pressure: ${row.lastPressure}`)
-      }
-      if (row.lastEnemyHpPct > 0 && row.clears === 0) {
-        lines.push(`Last failed attempt: enemy HP remaining ${row.lastEnemyHpPct}%`)
-      }
-      if (row.clears > 0 && row.successFightMs > 0) {
-        lines.push(`Successful attempt: ${formatPlaytimeMs(row.successFightMs)}`)
-      }
-      const pending =
-        state.combat?.frontierSector === row.sector
-          ? summarizeInterventions(log.pendingInterventions ?? [])
-          : []
-      const interventions = [...row.interventions, ...pending]
-      if (interventions.length > 0) {
-        lines.push('Interventions:')
-        for (const line of interventions) lines.push(`  ${line}`)
-      }
-      lines.push('')
-    }
-  }
+  lines.push(...formatLastSortieTelemetry(state))
+  lines.push('')
   lines.push(`Events logged: ${log.events.length}`)
   return lines.join('\n')
 }

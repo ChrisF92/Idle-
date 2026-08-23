@@ -70,8 +70,17 @@ import { ACT1_CADENCE } from '../cadence'
 import { careerBestWave } from '../waves'
 import { WORKER_JOB_IDS } from '../workers'
 import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
-import type { StrategyContext } from './types'
+import type { SimulationSpendProfile, StrategyContext } from './types'
 import { RUN_UPGRADES, workshopLevel, type RunUpgradeId } from '../workshop'
+
+export function resolveSpendProfile(mode: string): SimulationSpendProfile {
+  if (mode === 'casual') return 'casual'
+  if (mode === 'offensive') return 'offensive'
+  if (mode === 'defensive') return 'defensive'
+  if (mode === 'economy-first') return 'economy-first'
+  if (mode === 'optimiser') return 'optimiser'
+  return 'balanced'
+}
 
 export function skipGuides(state: GameState): GameState {
   const seen = state.meta.seenOnboarding ?? []
@@ -97,7 +106,7 @@ export function ensureLaunched(state: GameState, ctx: StrategyContext): GameStat
 export function maybeRetryFrontier(state: GameState, ctx: StrategyContext): GameState {
   if (!isFrontierHold(state) || !canRetryFrontier(state)) return state
   const next = retryFrontier(state)
-  if (next !== state) ctx.recordMeaningful('Retry Frontier')
+  if (next !== state) ctx.recordMeaningful('Retry push')
   return next
 }
 
@@ -159,7 +168,7 @@ export function resolveMilestones(state: GameState, ctx: StrategyContext): GameS
 function coreScore(
   state: GameState,
   slot: number,
-  mode: 'active' | 'optimiser',
+  mode: SimulationSpendProfile,
   hullPressure: number,
 ): number {
   const moduleId = state.shipyard.modules[slot]
@@ -177,9 +186,19 @@ function coreScore(
   const dpsGain = Math.max(0, after.damage - before.damage)
   const hullGain = Math.max(0, after.hullMax - before.hullMax)
   const shieldGain = Math.max(0, after.shieldMax - before.shieldMax)
+  const survivability = (hullGain + shieldGain * 1.2) * (0.4 + hullPressure)
   if (mode === 'optimiser') {
-    const survivability = (hullGain + shieldGain * 1.2) * (0.4 + hullPressure)
     return (dpsGain * 1.4 + survivability) / cost
+  }
+  if (mode === 'offensive') {
+    return (dpsGain * 2.2 + survivability * 0.35) / cost
+  }
+  if (mode === 'defensive') {
+    return (survivability * 2.1 + dpsGain * 0.35) / cost
+  }
+  if (mode === 'economy-first') {
+    if (mod?.role === 'utility') return 2.4 / Math.max(1, cost)
+    return (dpsGain + survivability * 0.55) / cost
   }
   if (mod?.role === 'defense') {
     return (0.7 + hullPressure * 2) * (1 + shieldGain / Math.max(1, cost))
@@ -190,12 +209,13 @@ function coreScore(
 export function spendSalvageOnCores(
   state: GameState,
   ctx: StrategyContext,
-  mode: 'active' | 'casual' | 'optimiser',
+  mode: SimulationSpendProfile | 'active' | 'casual' | 'optimiser',
 ): GameState {
+  const profile = resolveSpendProfile(mode)
   if (state.combat.docked) return state
   let next = state
   let guard = 0
-  while (guard++ < (mode === 'casual' ? 4 : 12)) {
+  while (guard++ < (profile === 'casual' ? 4 : 12)) {
     const hullMax = Math.max(1, next.combat.playerHullMax)
     const hullPressure =
       next.combat.consecutiveLosses >= 2
@@ -207,9 +227,9 @@ export function spendSalvageOnCores(
       const id = next.shipyard.modules[slot]!
       const level = coreRunLevel(next, slot)
       const score =
-        mode === 'casual'
+        profile === 'casual'
           ? 1 / Math.max(1, coreRunUpgradeCost(level, id))
-          : coreScore(next, slot, mode === 'optimiser' ? 'optimiser' : 'active', hullPressure)
+          : coreScore(next, slot, profile, hullPressure)
       if (score > bestScore) {
         bestScore = score
         bestSlot = slot
@@ -256,17 +276,27 @@ const WORKER_WEIGHTS: Record<string, number> = {
   construction: 1,
 }
 
-export function rebalanceNetwork(state: GameState, ctx: StrategyContext): GameState {
+export function rebalanceNetwork(
+  state: GameState,
+  ctx: StrategyContext,
+  mode: SimulationSpendProfile | 'active' | 'casual' | 'optimiser' = 'balanced',
+): GameState {
+  const profile = resolveSpendProfile(mode)
   const drones = state.base.workerDrones
   if (drones <= 0) return state
   const unlocked = WORKER_JOB_IDS.filter((id) => isStationUnlocked(state, id))
   if (unlocked.length === 0) return state
 
+  const bias = { ...WORKER_WEIGHTS }
+  if (profile === 'economy-first') bias['scrap-field'] = 7
+  if (profile === 'defensive') bias['repair-bay'] = 5
+  if (profile === 'offensive') bias['drone-fab'] = 4
+
   const target: Record<string, number> = {}
   let remaining = drones
   const weights = unlocked.map((id) => ({
     id,
-    w: WORKER_WEIGHTS[id] ?? 1,
+    w: bias[id] ?? 1,
   }))
   const totalW = weights.reduce((s, r) => s + r.w, 0)
   for (const row of weights) {
@@ -425,9 +455,10 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
 export function tendHiveResearch(
   state: GameState,
   ctx: StrategyContext,
-  mode: 'active' | 'casual' | 'optimiser' = 'active',
+  mode: SimulationSpendProfile | 'active' | 'casual' | 'optimiser' = 'balanced',
 ): GameState {
   if (!isSystemUnlocked(state, 'research')) return state
+  const profile = resolveSpendProfile(mode)
   const salvage = state.resources.salvage
   const pulseCost = moduleUpgradeCost(coreRunLevel(state, 0), 'pulse-cannon')
   const material = state.hiveResearch?.completed.material ?? 0
@@ -435,7 +466,7 @@ export function tendHiveResearch(
   const observation = state.hiveResearch?.completed.observation ?? 0
   let want: 'material' | 'energy' | 'observation' =
     salvage < pulseCost * 2 ? 'material' : 'energy'
-  if (mode === 'optimiser') {
+  if (profile === 'optimiser') {
     if (energy < 3) want = 'energy'
     else if (material < 3) want = 'material'
     else if (observation < 3) want = 'observation'
@@ -614,20 +645,37 @@ export function tendProtocols(state: GameState, ctx: StrategyContext): GameState
   return after
 }
 
+function shopOrderFor(profile: SimulationSpendProfile, preferDefense: boolean): RunUpgradeId[] {
+  if (profile === 'casual') {
+    return preferDefense ? ['hull', 'weapon-power'] : ['weapon-power', 'hull']
+  }
+  if (profile === 'offensive') {
+    return ['weapon-power', 'cycle-rate', 'crit-chance', 'armor-pen', 'hull', 'shield']
+  }
+  if (profile === 'defensive') {
+    return ['hull', 'shield', 'shield-regen', 'armor', 'weapon-power']
+  }
+  if (profile === 'economy-first') {
+    return ['salvage-kill', 'scrap-kill', 'ash-yield', 'salvage-wave', 'fragment-chance', 'weapon-power', 'hull']
+  }
+  return preferDefense
+    ? ['hull', 'shield', 'weapon-power', 'cycle-rate', 'salvage-kill']
+    : ['weapon-power', 'hull', 'cycle-rate', 'shield', 'salvage-kill']
+}
+
 export function spendScrapOnWorkshop(
   state: GameState,
   ctx: StrategyContext,
-  mode: 'active' | 'casual' | 'optimiser',
+  mode: SimulationSpendProfile | 'active' | 'casual' | 'optimiser',
 ): GameState {
   if (!state.combat.docked) return state
   if (!state.meta.hullLostOnce) return state
+  const profile = resolveSpendProfile(mode)
   const preferDefense = state.combat.consecutiveLosses >= 2
-  const order: RunUpgradeId[] = preferDefense
-    ? ['hull', 'shield', 'weapon-power', 'cycle-rate', 'salvage-kill']
-    : ['weapon-power', 'hull', 'cycle-rate', 'shield', 'salvage-kill']
+  const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   let next = state
-  const budget = mode === 'casual' ? 4 : 10
+  const budget = profile === 'casual' ? 4 : 10
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     for (const id of order) {
@@ -649,20 +697,21 @@ export function spendScrapOnWorkshop(
 export function industryPass(
   state: GameState,
   ctx: StrategyContext,
-  mode: 'active' | 'casual' | 'optimiser',
+  mode: SimulationSpendProfile | 'active' | 'casual' | 'optimiser',
 ): GameState {
+  const profile = resolveSpendProfile(mode)
   let next = state
   next = maybeUnlockAndFit(next, ctx)
   next = tendFoundry(next, ctx)
-  next = spendScrapOnWorkshop(next, ctx, mode)
-  next = spendSalvageOnCores(next, ctx, mode)
-  next = rebalanceNetwork(next, ctx)
+  next = spendScrapOnWorkshop(next, ctx, profile)
+  next = spendSalvageOnCores(next, ctx, profile)
+  next = rebalanceNetwork(next, ctx, profile)
   next = buyUsefulNetworkLinks(next, ctx)
   next = tendFurnace(next, ctx)
-  next = tendHiveResearch(next, ctx, mode)
+  next = tendHiveResearch(next, ctx, profile)
   next = tendProcess(next, ctx)
   next = tendReliquary(next, ctx)
   next = spendRebuildMatter(next, ctx)
-  if (mode === 'optimiser') next = tendProtocols(next, ctx)
+  if (profile === 'optimiser') next = tendProtocols(next, ctx)
   return next
 }

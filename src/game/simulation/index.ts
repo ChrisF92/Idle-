@@ -16,7 +16,11 @@ export type {
   SimulationRunReport,
   SimulationProgress,
   SimulationStrategyId,
+  SimulationSpendProfile,
   SimulationStop,
   SimulationLogLevel,
+  GddWarningCode,
 } from './types'
-export { SIM_HISTORY_KEY, SIM_SAVE_KEY_GUARD } from './types'
+export { SIM_HISTORY_KEY, SIM_SAVE_KEY_GUARD, GDD_SIM_PROFILES, GDD_WARNING_CODES } from './types'
+export { spendProfileFor } from './strategies'
+export { detectGddWarnings } from './analysis'

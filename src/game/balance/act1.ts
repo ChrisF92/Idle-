@@ -1,15 +1,15 @@
 /**
- * Act 1 economy / pacing source of truth.
+ * Act 1 pacing windows and career snapshots.
  *
- * Human-readable formulas, targets, and simulator assumptions:
- * `docs/act1-balance.md`.
- *
- * Targets are authored for the current Hiveworks systems (Process 2.0,
- * Furnace 2.0, Network layers, Protocols, Foundry depth, Research
- * breakthroughs). They are not a copy of the old USI/ITRTG calendar.
+ * Named curves live in `src/game/balance/curves.ts`. This file does not retune
+ * them — it labels engaged-player windows for the simulator.
  *
  * Windows are **engaged active time** unless labelled calendar.
  * Casual sessions stretch the same beats across offline catch-up.
+ *
+ * GDD §155 pads (first defeat 3–5 min, Rebuild 2–4 h, Process 24–36 h,
+ * W300 70–100 h) are validation labels. Live CI still uses the current
+ * first-Rebuild window so this land does not force a combat retune.
  */
 
 import { droneCap, moduleLevel, prestigeMomentumDamageBonus } from '../catalog'
@@ -27,7 +27,12 @@ import { ECHO_UNLOCK_SECTOR } from '../echo'
 import { reliquaryDamageMult } from '../reliquary'
 import type { GameState } from '../types'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from '../cadence'
+import { reportedBestWave } from '../waves'
 import type { Act1Contribution, Act1Snapshot, BalanceTarget } from '../simulation/types'
+import { ENEMY_DMG_EARLY, ENEMY_HULL_EARLY } from './curves'
+
+void ENEMY_HULL_EARLY
+void ENEMY_DMG_EARLY
 
 /** Ten-wave bands in Act 1 (W300 → 30). Leftover estimators still speak in bands. */
 export const ACT1_SECTOR = 30
@@ -35,6 +40,7 @@ export const ACT1_SECTOR = 30
 /** Career doors — Wave numbers from GDD §102. */
 export const ACT1_UNLOCKS = {
   foundry: ACT1_CADENCE.foundry,
+  workers: ACT1_CADENCE.workers,
   reliquary: ACT1_CADENCE.reliquary,
   rebuildAvailable: PRESTIGE_MIN_SECTOR,
   furnace: ACT1_CADENCE.furnace,
@@ -49,20 +55,32 @@ export const ACT1_UNLOCKS = {
 /**
  * Engaged-player windows. First hour is dense; later beats lengthen.
  * Walls should point at another system, not an 8-hour wait on the same shop.
+ *
+ * CI gates Casual / Balanced first-Rebuild only. Process / W300 SKIP until
+ * a long run actually reaches them.
  */
 export const ACT1_TARGETS: BalanceTarget[] = [
   {
-    id: 'sector-1',
-    label: 'Sector 1',
+    id: 'first-wave',
+    label: 'First Wave',
     min: 20,
     max: 4 * 60,
     warningPad: 45,
-    milestoneId: 'sector-1',
+    milestoneId: 'wave-1',
+    kind: 'milestone-time',
+  },
+  {
+    id: 'first-defeat',
+    label: 'First defeat',
+    min: 3 * 60,
+    max: 5 * 60,
+    warningPad: 2 * 60,
+    milestoneId: 'first-defeat',
     kind: 'milestone-time',
   },
   {
     id: 'foundry-unlock',
-    label: 'Foundry unlock',
+    label: 'Foundry',
     min: 45,
     max: 60 * 60,
     warningPad: 15 * 60,
@@ -70,8 +88,17 @@ export const ACT1_TARGETS: BalanceTarget[] = [
     kind: 'milestone-time',
   },
   {
+    id: 'workers-unlock',
+    label: 'Workers',
+    min: 8 * 60,
+    max: 90 * 60,
+    warningPad: 20 * 60,
+    milestoneId: 'workers-unlock',
+    kind: 'milestone-time',
+  },
+  {
     id: 'reliquary-unlock',
-    label: 'Reliquary unlock',
+    label: 'Relics',
     min: 60 * 60,
     max: 8 * 60 * 60,
     warningPad: 60 * 60,
@@ -89,7 +116,7 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   },
   {
     id: 'furnace-unlock',
-    label: 'Furnace unlock',
+    label: 'Furnace',
     min: 3 * 60 * 60,
     max: 18 * 60 * 60,
     warningPad: 2 * 60 * 60,
@@ -98,7 +125,7 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   },
   {
     id: 'hive-research-unlock',
-    label: 'Research unlock',
+    label: 'Research',
     min: 5 * 60 * 60,
     max: 24 * 60 * 60,
     warningPad: 3 * 60 * 60,
@@ -115,16 +142,25 @@ export const ACT1_TARGETS: BalanceTarget[] = [
     kind: 'milestone-time',
   },
   {
-    id: 'sector-10',
-    label: 'Sector 10',
+    id: 'wave-100',
+    label: 'Wave 100',
     min: 18 * 60,
     max: 90 * 60,
     warningPad: 15 * 60,
-    milestoneId: 'sector-10',
+    milestoneId: 'wave-100',
     kind: 'milestone-time',
   },
   {
-    id: 'protocols-unlock',
+    id: 'process-unlock',
+    label: 'Process',
+    min: 24 * 60 * 60,
+    max: 36 * 60 * 60,
+    warningPad: 8 * 60 * 60,
+    milestoneId: 'process-unlock',
+    kind: 'milestone-time',
+  },
+  {
+    id: 'challenges-unlock',
     label: 'Challenges',
     min: 10 * 60 * 60,
     max: 3 * 24 * 60 * 60,
@@ -133,21 +169,12 @@ export const ACT1_TARGETS: BalanceTarget[] = [
     kind: 'milestone-time',
   },
   {
-    id: 'echo-unlock',
-    label: 'Echo',
-    min: 16 * 60 * 60,
-    max: 5 * 24 * 60 * 60,
-    warningPad: 10 * 60 * 60,
-    milestoneId: 'unlock-echo',
-    kind: 'milestone-time',
-  },
-  {
-    id: 'sector-30',
-    label: 'Sector 30 (Act 1)',
-    min: 3 * 60 * 60,
-    max: 16 * 60 * 60,
-    warningPad: 2 * 60 * 60,
-    milestoneId: 'sector-30',
+    id: 'w300',
+    label: 'Wave 300',
+    min: 70 * 60 * 60,
+    max: 100 * 60 * 60,
+    warningPad: 20 * 60 * 60,
+    milestoneId: 'wave-300',
     kind: 'milestone-time',
   },
 ]
@@ -155,8 +182,8 @@ export const ACT1_TARGETS: BalanceTarget[] = [
 /** Casual calendar: ~1.5–2.5h engagement per day. */
 export const ACT1_CASUAL_CALENDAR = {
   firstRebuildDays: [0, 1] as const,
-  sector10Days: [0, 2] as const,
-  sector30Days: [4, 14] as const,
+  wave100Days: [0, 2] as const,
+  w300Days: [4, 14] as const,
 }
 
 /** Expected engaged-player system levels at key career doors (bands, not rails). */
@@ -173,7 +200,7 @@ export const ACT1_EXPECTED_AT: Record<
     processEarned: [number, number]
   }
 > = {
-  'sector-4': {
+  'wave-40': {
     pulse: [2, 8],
     plate: [1, 6],
     drones: [4, 6],
@@ -183,7 +210,7 @@ export const ACT1_EXPECTED_AT: Record<
     rebuilds: [0, 1],
     processEarned: [4, 12],
   },
-  'sector-10': {
+  'wave-100': {
     pulse: [4, 14],
     plate: [3, 12],
     drones: [4, 10],
@@ -193,7 +220,7 @@ export const ACT1_EXPECTED_AT: Record<
     rebuilds: [1, 4],
     processEarned: [8, 40],
   },
-  'sector-30': {
+  'wave-300': {
     pulse: [8, 28],
     plate: [6, 24],
     drones: [6, 16],
@@ -204,6 +231,10 @@ export const ACT1_EXPECTED_AT: Record<
     processEarned: [25, 120],
   },
 }
+
+ACT1_EXPECTED_AT['sector-4'] = ACT1_EXPECTED_AT['wave-40']!
+ACT1_EXPECTED_AT['sector-10'] = ACT1_EXPECTED_AT['wave-100']!
+ACT1_EXPECTED_AT['sector-30'] = ACT1_EXPECTED_AT['wave-300']!
 
 export function act1Contribution(state: GameState): Act1Contribution {
   return {
@@ -241,6 +272,7 @@ export function captureAct1Snapshot(
     activeSeconds,
     calendarSeconds,
     sector: state.combat.sector,
+    bestWave: reportedBestWave(state),
     highestEver: Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0),
     salvage: state.resources.salvage,
     salvageEarned,

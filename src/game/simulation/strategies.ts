@@ -1,5 +1,5 @@
 import type { GameState } from '../types'
-import type { PlayerStrategy, StrategyContext } from './types'
+import type { PlayerStrategy, SimulationSpendProfile, SimulationStrategyId, StrategyContext } from './types'
 import {
   doRebuild,
   ensureAdvance,
@@ -13,7 +13,16 @@ import {
 } from './actions'
 import { setDocked } from '../tick'
 
-function playSession(state: GameState, ctx: StrategyContext, mode: 'active' | 'casual' | 'optimiser'): GameState {
+export function spendProfileFor(id: SimulationStrategyId): SimulationSpendProfile {
+  if (id === 'casual') return 'casual'
+  if (id === 'offensive') return 'offensive'
+  if (id === 'defensive') return 'defensive'
+  if (id === 'economy-first') return 'economy-first'
+  if (id === 'optimiser') return 'optimiser'
+  return 'balanced'
+}
+
+function playSession(state: GameState, ctx: StrategyContext, mode: SimulationSpendProfile): GameState {
   let next = skipGuides(state)
   next = industryPass(next, ctx, mode)
   const rebuild = shouldRebuild(next, ctx)
@@ -47,19 +56,52 @@ export const idleStrategy: PlayerStrategy = {
   },
 }
 
-export const activeStrategy: PlayerStrategy = {
-  id: 'active',
-  label: 'Active',
-  decide(state, ctx) {
-    return playSession(state, ctx, 'active')
-  },
-}
-
 export const casualStrategy: PlayerStrategy = {
   id: 'casual',
   label: 'Casual',
   decide(state, ctx) {
     return playSession(state, ctx, 'casual')
+  },
+}
+
+export const balancedStrategy: PlayerStrategy = {
+  id: 'balanced',
+  label: 'Balanced',
+  decide(state, ctx) {
+    return playSession(state, ctx, 'balanced')
+  },
+}
+
+/** Leftover alias — Balanced. */
+export const activeStrategy: PlayerStrategy = {
+  id: 'active',
+  label: 'Balanced',
+  decide(state, ctx) {
+    return playSession(state, ctx, 'balanced')
+  },
+}
+
+export const offensiveStrategy: PlayerStrategy = {
+  id: 'offensive',
+  label: 'Offensive',
+  decide(state, ctx) {
+    return playSession(state, ctx, 'offensive')
+  },
+}
+
+export const defensiveStrategy: PlayerStrategy = {
+  id: 'defensive',
+  label: 'Defensive',
+  decide(state, ctx) {
+    return playSession(state, ctx, 'defensive')
+  },
+}
+
+export const economyFirstStrategy: PlayerStrategy = {
+  id: 'economy-first',
+  label: 'Economy First',
+  decide(state, ctx) {
+    return playSession(state, ctx, 'economy-first')
   },
 }
 
@@ -75,11 +117,15 @@ export const STRATEGIES: Record<string, PlayerStrategy> = {
   idle: idleStrategy,
   active: activeStrategy,
   casual: casualStrategy,
+  balanced: balancedStrategy,
+  offensive: offensiveStrategy,
+  defensive: defensiveStrategy,
+  'economy-first': economyFirstStrategy,
   optimiser: optimiserStrategy,
 }
 
 export function getStrategy(id: string): PlayerStrategy {
-  return STRATEGIES[id] ?? activeStrategy
+  return STRATEGIES[id] ?? balancedStrategy
 }
 
 /** Dock before an offline period so catch-up matches a closed app. */

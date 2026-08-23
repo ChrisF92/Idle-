@@ -98,6 +98,24 @@ export function careerBestWave(state: {
   )
 }
 
+/**
+ * Player-facing Best Wave. Leftover `highestSector` fields store 10-wave bands,
+ * so a band of 7 is W70, not Wave 7.
+ */
+export function reportedBestWave(state: {
+  meta?: { bestWave?: number; highestSectorEver?: number }
+  combat?: { bestWave?: number; highestSector?: number }
+}): number {
+  const explicit = Math.max(
+    Math.floor(state.meta?.bestWave ?? 0),
+    Math.floor(state.combat?.bestWave ?? 0),
+  )
+  const fromBands = waveForClearedBands(
+    Math.max(state.meta?.highestSectorEver ?? 0, state.combat?.highestSector ?? 0),
+  )
+  return Math.max(0, explicit, fromBands)
+}
+
 export function meetsWave(
   state: {
     meta?: { bestWave?: number; highestSectorEver?: number }

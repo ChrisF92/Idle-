@@ -23,11 +23,11 @@ export default defineConfig({
         name: 'Hiveworks',
         short_name: 'Hiveworks',
         description:
-          'Orbital foundry idle. USI-style ship combat, player-launched sorties, industrial systems.',
+          'Portrait incremental auto-combat. Launch Hive Sorties from Wave 1, spend Salvage and Scrap, Rebuild, and clear Wave 300.',
         theme_color: '#12100e',
         background_color: '#12100e',
         display: 'standalone',
-        orientation: 'any',
+        orientation: 'portrait-primary',
         start_url: './',
         scope: './',
         lang: 'en',

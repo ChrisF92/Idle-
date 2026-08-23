@@ -74,8 +74,8 @@ describe('career simulator', () => {
 
   it('Casual offline periods use applyOfflineCatchUp rather than long advanceSeconds', () => {
     let seed = createInitialState(0)
-    seed = assignWorker(seed, 'strike', 2)
-    seed = assignWorker(seed, 'ward', 2)
+    seed = assignWorker(seed, 'scrap-field', 2)
+    seed = assignWorker(seed, 'power-grid', 2)
     seed.combat.docked = true
     const control = isolateGameState(seed)
     control.lastTickAt = 0

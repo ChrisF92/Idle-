@@ -50,9 +50,9 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
-  const [strategy, setStrategy] = useState<SimulationStrategyId>('active')
+  const [strategy, setStrategy] = useState<SimulationStrategyId>('balanced')
   const [stopKind, setStopKind] = useState<SimulationStop['type']>('first-rebuild')
-  const [sector, setSector] = useState(30)
+  const [wave, setWave] = useState(300)
   const [rebuilds, setRebuilds] = useState(10)
   const [days, setDays] = useState(7)
   const [runs, setRuns] = useState(1)
@@ -73,7 +73,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
     let stop: SimulationStop
     if (stopKind === 'first-rebuild') stop = { type: 'first-rebuild' }
     else if (stopKind === 'rebuilds') stop = { type: 'rebuilds', count: rebuilds }
-    else if (stopKind === 'sector') stop = { type: 'sector', sector }
+    else if (stopKind === 'wave' || stopKind === 'sector') stop = { type: 'wave', wave }
     else if (stopKind === 'duration') stop = { type: 'duration', calendarSeconds: days * 86400 }
     else if (stopKind === 'safety') stop = { type: 'safety' }
     else if (stopKind === 'reinforce') stop = { type: 'reinforce' }
@@ -90,14 +90,15 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
         offlineSeconds: Math.max(60, offlineHours * 3600),
       },
     })
-  }, [strategy, stopKind, sector, rebuilds, days, runs, seed, logging, activeMin, offlineHours])
+  }, [strategy, stopKind, wave, rebuilds, days, runs, seed, logging, activeMin, offlineHours])
 
   const applyPreset = (id: string) => {
     const preset = SIMULATION_PRESETS.find((p) => p.id === id)
     if (!preset) return
     setStrategy(preset.config.strategy)
     setStopKind(preset.config.stop.type)
-    if (preset.config.stop.type === 'sector') setSector(preset.config.stop.sector)
+    if (preset.config.stop.type === 'wave') setWave(preset.config.stop.wave)
+    if (preset.config.stop.type === 'sector') setWave(preset.config.stop.sector * 10)
     if (preset.config.stop.type === 'rebuilds') setRebuilds(preset.config.stop.count)
     if (preset.config.stop.type === 'duration') {
       setDays(Math.max(1, Math.round(preset.config.stop.calendarSeconds / 86400)))
@@ -190,9 +191,13 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
               value={strategy}
               onChange={(e) => setStrategy(e.target.value as SimulationStrategyId)}
             >
-              <option value="active">Active</option>
               <option value="casual">Casual</option>
+              <option value="balanced">Balanced</option>
+              <option value="offensive">Offensive</option>
+              <option value="defensive">Defensive</option>
+              <option value="economy-first">Economy First</option>
               <option value="optimiser">Optimiser</option>
+              <option value="idle">Idle</option>
             </select>
           </label>
           <label className="sim-field">
@@ -202,21 +207,21 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
               onChange={(e) => setStopKind(e.target.value as SimulationStop['type'])}
             >
               <option value="first-rebuild">First Rebuild</option>
-              <option value="sector">Sector</option>
+              <option value="wave">Wave</option>
               <option value="rebuilds">Rebuild count</option>
               <option value="duration">Calendar days</option>
               <option value="safety">Long safety run</option>
               <option value="reinforce">First Reinforce</option>
             </select>
           </label>
-          {stopKind === 'sector' ? (
+          {stopKind === 'wave' || stopKind === 'sector' ? (
             <label className="sim-field">
-              Sector
+              Wave
               <input
                 type="number"
                 min={1}
-                value={sector}
-                onChange={(e) => setSector(Number(e.target.value) || 1)}
+                value={wave}
+                onChange={(e) => setWave(Number(e.target.value) || 1)}
               />
             </label>
           ) : null}
@@ -318,7 +323,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
               <p>Calendar {formatSimDuration(progress?.calendarSeconds ?? 0)}</p>
               <p>Active {formatSimDuration(progress?.activeSeconds ?? 0)}</p>
               <p>
-                Sector {progress?.sector ?? '—'} · highest {progress?.highestSector ?? '—'}
+                Wave {progress?.highestWave ?? '—'} · Rebuilds {progress?.rebuilds ?? 0}
               </p>
               <p>Rebuilds {progress?.rebuilds ?? 0}</p>
               <p className="muted">{progress?.note ?? stopLabel(config.stop)}</p>
@@ -337,14 +342,14 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
               </p>
               <p>Simulated Active Time: {formatSimDuration(run0.activeSeconds)}</p>
               <p>Calendar Time: {formatSimDuration(run0.calendarSeconds)}</p>
-              <p>Highest Sector: {run0.highestSectorEver}</p>
+              <p>Highest Wave: {run0.highestWave}</p>
               <p>Rebuilds: {run0.rebuilds}</p>
               <p>
                 🟢 {pass} targets · 🟡 {warn} issues · 🔴 {fail} fails
               </p>
               {run0.walls[0] ? (
                 <p>
-                  🔴 Sector {run0.walls[0].sector} wall · {run0.walls[0].likelyConstraint} ·{' '}
+                  🔴 Wave {run0.walls[0].sector * 10} wall · {run0.walls[0].likelyConstraint} ·{' '}
                   {run0.walls[0].ratio.toFixed(1)}× recent median
                 </p>
               ) : null}
@@ -399,12 +404,12 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                     'None',
                 ],
                 [
-                  'sectors',
-                  'Sector Progression',
+                  'waves',
+                  'Wave bands',
                   run0.sectors
                     .map(
                       (s) =>
-                        `S${s.sector}  ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : 'open'}  deaths ${s.deaths}`,
+                        `W${s.sector * 10}  ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : 'open'}  deaths ${s.deaths}`,
                     )
                     .join('\n') || 'None',
                 ],
@@ -414,7 +419,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                   run0.rebuildLog
                     .map(
                       (r) =>
-                        `#${r.index} S${r.highestSector} +${r.matterEarned} PM\n${r.reasons.join('; ')}`,
+                        `#${r.index} W${r.highestSector * 10} +${r.matterEarned} Matter\n${r.reasons.join('; ')}`,
                     )
                     .join('\n\n') || 'None',
                 ],
@@ -426,9 +431,12 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                     .join('\n') || 'None',
                 ],
                 [
-                  'network',
-                  'Network',
-                  `Drones ${run0.network.drones}/${run0.network.cap}\nStrike ${run0.network.levels.strike}  Ward ${run0.network.levels.ward}`,
+                  'workers',
+                  'Workers',
+                  `Drones ${run0.network.drones}/${run0.network.cap}\n${Object.entries(run0.network.assignments)
+                    .filter(([, n]) => (n ?? 0) > 0)
+                    .map(([id, n]) => `${id} ${n}`)
+                    .join(', ') || 'none assigned'}`,
                 ],
                 [
                   'foundry',
@@ -448,7 +456,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                 [
                   'walls',
                   'Progression Walls',
-                  run0.walls.map((w) => `S${w.sector} ${w.ratio.toFixed(1)}×  ${w.likelyConstraint}\n${w.detail}`).join('\n\n') ||
+                  run0.walls.map((w) => `W${w.sector * 10} ${w.ratio.toFixed(1)}×  ${w.likelyConstraint}\n${w.detail}`).join('\n\n') ||
                     'None flagged',
                 ],
                 [

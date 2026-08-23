@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ Phase 8 shop / Challenges / speed / W300 (SAVE_VERSION 36, package `0.1.0`)  
+**Code snapshot:** Phase 9 first land — Wave sim / playtest (SAVE_VERSION 36, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -483,10 +483,10 @@ Also:
 
 **Work:**
 
-1. Expose named curves: enemy HP/dmg vs Wave; Salvage income; Scrap income; Workshop starting power; Matter. Change one layer per balance PR after this phase’s first land.
-2. Simulator profiles: Casual, Balanced, Offensive, Defensive, Economy First, Optimiser (GDD §153). Gate CI on Casual/Balanced windows, not Optimiser.
-3. Warning detectors: WALL, HARD WALL, STEAMROLL, ECON TRAP, DEAD/DOMINANT UPGRADE, SYSTEM IRRELEVANT/DOMINANT, REBUILD WEAK/EXPLOSIVE (GDD §155).
-4. Targets (validate, do not hard-code as time gates):
+1. **Done (first land).** Named curves in `src/game/balance/curves.ts` re-export live combat / Workshop / Scrap / Matter constants. Change **one layer per later balance PR**. This land does not retune HP / Salvage / Scrap / Matter.
+2. **Done (first land).** Simulator profiles: Casual, Balanced, Offensive, Defensive, Economy First, Optimiser (GDD §153). `active` is a Balanced alias. CI still gates Casual/Balanced first-Rebuild, not Optimiser.
+3. **Done (first land).** Warning detectors emit GDD §155 codes: WALL, HARD WALL, STEAMROLL, ECON TRAP, DEAD/DOMINANT UPGRADE, SYSTEM IRRELEVANT/DOMINANT, REBUILD WEAK/EXPLOSIVE.
+4. **Done (validate only).** Targets (do not hard-code as time gates; live first-Rebuild window stays 30 min–5 h so this land does not force a combat retune):
 
    | Beat | Active-equivalent |
    |---|---|
@@ -499,16 +499,16 @@ Also:
    Sortie lengths: open 3–5, early 5–12, mid 10–20, late 15–30. Compress with speed + reclaim if late runs exceed that.
    Rebuild recovery: return to previous Best in ~20–40% of original time. Then +5–15 Best over the next pushes.
 
-5. Sortie telemetry blob (GDD §154): seed, start Best, end Wave, duration, death cause, spend shares, Directives, Furnace, New Best delta, extract vs death.
-6. Audio/VFX only on meaningful events (GDD §159). Readable over spectacle. Optional mute in Settings.
-7. PWA: portrait-first (`orientation` portrait-primary), fix meta description, install prompt copy, cache bust already tested. This is the web ship **and** the body of the Play wrap.
-8. Settings: notation, damage-number mode, reduced motion (exists), export/import, wipe career.
-9. Manual playtest script using the rewritten cheats: first 30 min from a wipe; first Rebuild via W70 preset; one Furnace push; one Challenge; W300 climax. Record gaps in the playtest report, not in ad-hoc notes.
-10. Version `1.0.0` when Phase 9 + 10 are green. Dev tools stay behind `?dev=1` / More toggle and must still match the shipped cadence.
+5. **Done (first land).** Last-Sortie telemetry blob in the playtest report (GDD §154): seed, start Best, end Wave, duration, death cause, spend shares, Directives, Furnace, New Best delta, extract vs death.
+6. **Follow-on.** Audio/VFX only on meaningful events (GDD §159). Readable over spectacle. Optional mute in Settings.
+7. **Done (cheap).** PWA portrait-first (`orientation` portrait-primary). Meta / manifest description no longer says USI. Install copy in Stats already exists.
+8. **Exists.** Settings: notation, damage-number mode, reduced motion, export/import, wipe career.
+9. **Done (first land).** Manual playtest script in `buildPlaytestReport`: first 30 min from a wipe; first Rebuild; one Furnace push; one Challenge; W300 climax. Gaps record in the report.
+10. **Not this land.** Version `1.0.0` when Phase 9 + 10 are green. Package stays `0.1.0`. Dev tools stay behind `?dev=1` / More toggle.
 
-**Acceptance:** Casual profile hits first Rebuild inside the pad; Balanced does not skip Foundry/Workers; Optimiser is faster but not a different game. W300 is a peak on a slope, not a 10× cliff then a trivial W301. A tester can reproduce each beat from Dev Tools without sector leftovers.
+**Acceptance (first land):** simulator and playtest reports speak Wave / Hive / Workers / Challenges. Casual + Balanced profiles exist and remain the CI gates. Curves are named but not retuned. W300 is a labelled beat, not a leftover Sector 30. Tester can reproduce each script beat from Dev Tools without Sector / Echo / Frontier leftovers.
 
-**SAVE_VERSION:** freeze a release number; start migrations after the public tag.
+**SAVE_VERSION:** 36. Freeze a release number later; start migrations after the public tag.
 
 ---
 
@@ -619,7 +619,7 @@ From GDD §99–101, §166–167:
 ## 10. Contract tests to keep vs rewrite
 
 **Keep as regression (they already express GDD):**  
-`gdd-sortie-loop`, `gdd-rebuild`, `gdd-reinforce`, `gdd-directives`, `gdd-furnace`, `gdd-workers`, `gdd-foundry-construction`, `gdd-research`, `gdd-process` (T1–T3 gates), `gdd-challenges`, `gdd-relics`, `gdd-mastery`, `gdd-removed-loop`, `gdd-ui-ia`, `gdd-offline`, `gdd-cadence`.
+`gdd-sortie-loop`, `gdd-rebuild`, `gdd-reinforce`, `gdd-directives`, `gdd-furnace`, `gdd-workers`, `gdd-foundry-construction`, `gdd-research`, `gdd-process` (T1–T3 gates), `gdd-challenges`, `gdd-content`, `gdd-sim-playtest`, `gdd-relics`, `gdd-mastery`, `gdd-removed-loop`, `gdd-ui-ia`, `gdd-offline`, `gdd-cadence`.
 
 **Rewrite for D1 (current tests encode the discarded Dock Scrap experiment):**  
 `gdd-visual.test.tsx` (inspect-only Cores / Scrap ranks), `gdd-sortie-loop` if it forbids Salvage Core buys. New contract: Salvage Run Levels by role under A/D/E; no Dock Scrap Core ranks; Mastery persists.

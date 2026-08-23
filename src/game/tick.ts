@@ -58,6 +58,7 @@ import {
 } from './sortieSummary'
 import {
   addPlaytime,
+  noteCareerWave,
   noteHighestSector,
   recordPlaytest,
   sampleDroneAllocation,
@@ -154,6 +155,7 @@ function noteBestWave(state: GameState, wave: number): boolean {
   state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
   state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
   noteRebuildCycleWave(state, w)
+  if (w > prev) noteCareerWave(state, w)
   const bands = bandsClearedForWave(w)
   if (isBossWave(w) && bands > (state.combat.highestSector ?? 0)) {
     state.combat.highestSector = bands

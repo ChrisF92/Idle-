@@ -34,7 +34,7 @@ export function PlaytestReport({ state, onClose }: PlaytestReportProps) {
           </button>
         </header>
         <p className="muted">
-          Device log for balancing. Nothing is sent off this machine.
+          Device log for the GDD playtest script and last Sortie telemetry. Nothing is sent off this machine.
         </p>
         <pre className="playtest-report-pre">{report}</pre>
         <label className="stack">

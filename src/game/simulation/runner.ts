@@ -8,7 +8,7 @@ import {
   industryPass,
   skipGuides,
 } from './actions'
-import { detectWalls, coreWarnings, networkWarnings } from './analysis'
+import { detectWalls, coreWarnings, workerWarnings, detectGddWarnings } from './analysis'
 import { isolateGameState, startingState } from './clone'
 import { mulberry32 } from './format'
 import {
@@ -24,7 +24,8 @@ import {
   recordRebuildRow,
 } from './metrics'
 import { inspectNumericSafety } from './safety'
-import { closeSession, getStrategy } from './strategies'
+import { closeSession, getStrategy, spendProfileFor } from './strategies'
+import { reportedBestWave } from '../waves'
 import { BALANCE_TARGETS, evaluateTarget } from './targets'
 import { stopLabel } from './presets'
 import { aggregateMilestones } from './report'
@@ -79,9 +80,12 @@ function stopReached(
       return state.prestige.prestigeCount >= rebuildsAtStart + stop.count
         ? `Reached ${stop.count} Rebuilds`
         : null
+    case 'wave':
+      return reportedBestWave(state) >= stop.wave ? `Reached Wave ${stop.wave}` : null
     case 'sector':
-      return Math.max(state.meta.highestSectorEver, state.combat.highestSector) >= stop.sector
-        ? `Reached sector ${stop.sector}`
+      return reportedBestWave(state) >= stop.sector * 10 ||
+        Math.max(state.meta.highestSectorEver, state.combat.highestSector) >= stop.sector
+        ? `Reached Wave ${stop.sector * 10}`
         : null
     case 'duration':
       return calendarSeconds >= stop.calendarSeconds ? 'Calendar duration reached' : null
@@ -117,6 +121,7 @@ function makeProgress(
     sector: state.combat.sector,
     highestSector: state.combat.highestSector,
     highestSectorEver: Math.max(state.meta.highestSectorEver, state.combat.highestSector),
+    highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     stopLabel: stopLabel(config.stop),
     note,
@@ -135,16 +140,16 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
   const safety: SafetyFlag[] = []
   const limitations: StrategyLimitation[] = [
     {
-      system: 'Protocols / Echo',
-      note: 'Ticked by the real game loop. Optimiser may enter Mute Network after a Rebuild once Protocols open; Echo is still not played intelligently.',
+      system: 'Challenges',
+      note: 'Only the Optimiser profile enters Challenges. Casual and Balanced are the CI gates.',
     },
     {
-      system: 'Specialists / Tasks / Capital / Yard / Reinforce',
-      note: 'Present in state and ticked where the real game ticks them, but the player strategy does not operate them intelligently yet.',
+      system: 'Deferred systems',
+      note: 'Specialists, Capital, and the Task List are not operated. They stay hidden from the shipped loop.',
     },
     {
       system: 'Legacy AI nodes / Data research tree',
-      note: 'Not purchased: the current Process / Hive Research UI is what a real player sees.',
+      note: 'Not purchased: the current Process / Research UI is what a real player sees.',
     },
   ]
 
@@ -271,7 +276,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     } else if (activeSeconds - lastProgressTime >= config.deadlockSeconds) {
       safety.push({
         kind: 'deadlock',
-        message: `DEADLOCK / PROGRESSION STALL at sector ${state.combat.sector} after ${config.deadlockSeconds}s without salvage/scrap/heat/drone/sector/rebuild progress. Pulse L${state.shipyard.moduleLevels['pulse-cannon'] ?? 0}, Plate L${state.shipyard.moduleLevels['plate-layer'] ?? 0}, salvage ${state.resources.salvage.toFixed(1)}.`,
+        message: `DEADLOCK / PROGRESSION STALL at Wave ${reportedBestWave(state)} after ${config.deadlockSeconds}s without salvage/scrap/heat/drone/wave/rebuild progress. Pulse L${state.shipyard.moduleLevels['pulse-cannon'] ?? 0}, Plate L${state.shipyard.moduleLevels['plate-layer'] ?? 0}, salvage ${state.resources.salvage.toFixed(1)}.`,
         activeSeconds,
       })
       stopReason = 'DEADLOCK / PROGRESSION STALL'
@@ -350,29 +355,42 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
 
   // Final spend so post-rebuild matter isn't left sitting unused at stop.
   if (config.strategy !== 'idle') {
-    const mode = config.strategy === 'optimiser' ? 'optimiser' : config.strategy === 'casual' ? 'casual' : 'active'
+    const mode = spendProfileFor(config.strategy)
     state = industryPass(state, ctxFor(), mode)
   }
 
   const spending = coreSpending(metrics.corePurchases)
   const walls = detectWalls([...metrics.sectors.values()])
+  const salvageSpentOnCores = spending.reduce((s, r) => s + r.salvageSpent, 0)
   const warnings = [
     ...coreWarnings(spending),
-    ...networkWarnings(
-      metrics.networkIdleHint ?? false,
-      state.base.workerDrones,
-      state.network?.bars.strike.levels ?? 0,
-      state.network?.bars.ward.levels ?? 0,
-    ),
-    ...walls.map((w) => ({
-      severity: w.ratio >= 3 ? ('fail' as const) : ('warning' as const),
-      message: `Sector ${w.sector} is ${w.ratio.toFixed(1)}× slower than recent sectors (${w.likelyConstraint}).`,
-    })),
+    ...workerWarnings(metrics.networkIdleHint ?? false, state.base.workerDrones),
+    ...detectGddWarnings({
+      walls,
+      rebuildLog: metrics.rebuildLog,
+      spending,
+      milestones: metrics.milestones,
+      highestWave: reportedBestWave(state),
+      foundryRecipes: Object.values(state.foundry.recipeLevels).filter((n) => (n ?? 0) > 0).length,
+      workerDrones: state.base.workerDrones,
+      furnaceLit: Object.values(state.furnace?.active ?? {}).filter((n) => (n ?? 0) > 0).length,
+      researchBreakthroughs: captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds)
+        .researchBreakthroughs,
+      salvageEarned: metrics.resourceEarned.salvage ?? 0,
+      salvageSpentOnCores,
+      scrapEarned: metrics.resourceEarned.scrap ?? 0,
+      activeSeconds,
+    }),
   ]
-  if (metrics.rebuildLog.some((r) => r.repushRatio != null && r.repushRatio > 0.9)) {
+  const seenCodes = new Set(warnings.map((w) => w.code).filter(Boolean))
+  if (
+    metrics.rebuildLog.some((r) => r.repushRatio != null && r.repushRatio > 0.9) &&
+    !seenCodes.has('REBUILD WEAK')
+  ) {
     warnings.push({
       severity: 'warning',
-      message: 'At least one Rebuild barely accelerated the next push (repush ≈ previous push).',
+      code: 'REBUILD WEAK',
+      message: '[REBUILD WEAK] At least one Rebuild barely accelerated the next push.',
     })
   }
 
@@ -408,6 +426,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     offlineSeconds,
     highestSector: state.combat.highestSector,
     highestSectorEver: Math.max(state.meta.highestSectorEver, state.combat.highestSector),
+    highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     prestigeMatterEarned: matterEarned,
     milestones: metrics.milestones,

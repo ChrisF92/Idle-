@@ -58,32 +58,63 @@ function preset(
 export const SIMULATION_PRESETS: SimulationPreset[] = [
   preset(
     'fresh-first-rebuild',
-    'Fresh → First Rebuild',
-    'Active player from a fresh save until the first Rebuild, then a short repush.',
-    'active',
+    'Balanced → First Rebuild',
+    'Balanced player from a fresh save until the first Rebuild, then a short repush.',
+    'balanced',
     { type: 'first-rebuild' },
+  ),
+  preset(
+    'casual-first-rebuild',
+    'Casual → First Rebuild',
+    'Broad, imperfect spends until the first Rebuild. CI gates this window, not Optimiser.',
+    'casual',
+    { type: 'first-rebuild' },
+  ),
+  preset(
+    'offensive-hour-1',
+    'Offensive → First hour',
+    'Damage-heavy shop and Core spends for an hour of engaged play.',
+    'offensive',
+    { type: 'active-duration', seconds: 60 * 60 },
+    { deadlockSeconds: 25 * 60, maxIterations: 400_000, maxCalendarSeconds: 2 * 3600 },
+  ),
+  preset(
+    'defensive-hour-1',
+    'Defensive → First hour',
+    'Survivability-heavy shop and Core spends for an hour of engaged play.',
+    'defensive',
+    { type: 'active-duration', seconds: 60 * 60 },
+    { deadlockSeconds: 25 * 60, maxIterations: 400_000, maxCalendarSeconds: 2 * 3600 },
+  ),
+  preset(
+    'economy-first-hour-1',
+    'Economy First → First hour',
+    'ROI-first Salvage and Scrap spends for an hour of engaged play.',
+    'economy-first',
+    { type: 'active-duration', seconds: 60 * 60 },
+    { deadlockSeconds: 25 * 60, maxIterations: 400_000, maxCalendarSeconds: 2 * 3600 },
   ),
   preset(
     'optimiser-first-rebuild',
     'Optimiser → First Rebuild',
-    'Value-spend Cores and chase Research breakthroughs until the first Rebuild.',
+    'Value-spend Cores and chase Research breakthroughs until the first Rebuild. Not a CI gate.',
     'optimiser',
     { type: 'first-rebuild' },
   ),
   preset(
     'fresh-hour-1',
-    'Fresh → First hour',
+    'Balanced → First hour',
     'Engaged hour-1 sitting from a fresh save.',
-    'active',
+    'balanced',
     { type: 'active-duration', seconds: 60 * 60 },
     { deadlockSeconds: 25 * 60, maxIterations: 400_000, maxCalendarSeconds: 2 * 3600 },
   ),
   preset(
-    'fresh-sector-30',
-    'Fresh → Sector 30',
-    'Active career through Act 1 (sector 30) across genuine Rebuilds.',
-    'active',
-    { type: 'sector', sector: 30 },
+    'fresh-wave-300',
+    'Balanced → Wave 300',
+    'Balanced career through the Act 1 climax and Reinforce door.',
+    'balanced',
+    { type: 'wave', wave: 300 },
     { maxCalendarSeconds: 21 * 24 * 3600, deadlockSeconds: 90 * 60 },
   ),
   preset(
@@ -104,8 +135,8 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
   preset(
     'rebuild-x10',
     'Rebuild ×10',
-    'Active player through ten Rebuild cycles.',
-    'active',
+    'Balanced player through ten Rebuild cycles.',
+    'balanced',
     { type: 'rebuilds', count: 10 },
     { maxCalendarSeconds: 21 * 24 * 3600, deadlockSeconds: 90 * 60 },
   ),
@@ -113,7 +144,7 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
     'long-safety',
     'Long Safety Run',
     'Push well past early career looking for NaN, deadlock, and runaway scaling.',
-    'active',
+    'balanced',
     { type: 'safety' },
     {
       maxCalendarSeconds: 3 * 24 * 3600,
@@ -133,8 +164,10 @@ export function stopLabel(stop: SimulationStop): string {
       return 'First Rebuild'
     case 'rebuilds':
       return `Rebuild ×${stop.count}`
+    case 'wave':
+      return `Wave ${stop.wave}`
     case 'sector':
-      return `Sector ${stop.sector}`
+      return `Wave ${stop.sector * 10}`
     case 'duration':
       return `${Math.round(stop.calendarSeconds / 3600)}h calendar`
     case 'active-duration':

@@ -4,6 +4,8 @@ import { idleWorkers } from '../catalog'
 import { networkDiagnostics } from '../network'
 import { isSystemUnlocked } from '../progression'
 import { isResearchBreakthroughIndex } from '../hiveResearch'
+import { reportedBestWave } from '../waves'
+import { ACT1_CADENCE } from '../cadence'
 import type {
   CorePurchaseRecord,
   CoreSpendingSummary,
@@ -18,7 +20,7 @@ import type {
 } from './types'
 import { median } from './format'
 
-const TRACKED_SECTORS = [1, 5, 10, 15, 20, 25, 30]
+const TRACKED_WAVES = [1, 10, 20, 30, 50, 70, 100, 110, 140, 170, 210, 250, 300]
 
 export interface MetricsState {
   milestones: MilestoneRecord[]
@@ -35,6 +37,7 @@ export interface MetricsState {
   resourceSpent: Record<string, number>
   lastResources: Record<string, number>
   lastHighest: number
+  lastBestWave: number
   lastHighestAt: number
   lastMeaningfulAt: number
   lastRebuildActive: number | null
@@ -83,6 +86,7 @@ export function createMetrics(state: GameState): MetricsState {
     resourceSpent: {},
     lastResources: resources,
     lastHighest: state.combat.highestSector,
+    lastBestWave: reportedBestWave(state),
     lastHighestAt: 0,
     lastMeaningfulAt: 0,
     lastRebuildActive: null,
@@ -179,13 +183,29 @@ export function observeState(
       clearedRow.plateLevelOnClear = state.combat.coreRunLevels?.['1'] ?? 0
     }
     metrics.sectors.set(cleared, clearedRow)
-    if (TRACKED_SECTORS.includes(cleared) || cleared === 1) {
-      addMilestone(metrics, `sector-${cleared}`, `Sector ${cleared}`, activeSeconds, calendarSeconds)
+    const clearedWave = cleared * 10
+    if (TRACKED_WAVES.includes(clearedWave)) {
+      addMilestone(metrics, `wave-${clearedWave}`, `Wave ${clearedWave}`, activeSeconds, calendarSeconds)
     }
-    if (cleared === 1) addMilestone(metrics, 'sector-1', 'Sector 1', activeSeconds, calendarSeconds)
     metrics.lastHighest = cleared
     metrics.lastHighestAt = activeSeconds
-    noteMeaningful(metrics, `Sector ${cleared} clear`, activeSeconds)
+    noteMeaningful(metrics, `Wave ${clearedWave} band clear`, activeSeconds)
+  }
+
+  const bestWave = reportedBestWave(state)
+  if (bestWave > metrics.lastBestWave) {
+    for (const wave of TRACKED_WAVES) {
+      if (bestWave >= wave && metrics.lastBestWave < wave) {
+        addMilestone(metrics, `wave-${wave}`, `Wave ${wave}`, activeSeconds, calendarSeconds)
+        if (wave === 1) noteMeaningful(metrics, 'First Wave', activeSeconds)
+      }
+    }
+    metrics.lastBestWave = bestWave
+  }
+
+  if (state.meta.hullLostOnce && !prev.meta.hullLostOnce) {
+    addMilestone(metrics, 'first-defeat', 'First defeat', activeSeconds, calendarSeconds)
+    noteMeaningful(metrics, 'First defeat', activeSeconds)
   }
 
   if (prev.combat.docked && !state.combat.docked) {
@@ -214,36 +234,33 @@ export function observeState(
     addMilestone(metrics, 'first-pulse-upgrade', 'First Pulse upgrade', activeSeconds, calendarSeconds)
   }
 
+  if (!metrics.seenUnlocks.has('workers') && bestWave >= ACT1_CADENCE.workers) {
+    addMilestone(metrics, 'workers-unlock', 'Workers', activeSeconds, calendarSeconds)
+    metrics.seenUnlocks.add('workers')
+    noteMeaningful(metrics, 'Workers unlocked', activeSeconds)
+  }
+
   const unlocks: Array<[string, string]> = [
     ['foundry', 'Foundry'],
     ['furnace', 'Furnace'],
-    ['reliquary', 'Reliquary'],
-    ['research', 'Hive Research'],
+    ['reliquary', 'Relics'],
+    ['research', 'Research'],
     ['process', 'Process'],
-    ['network', 'Network'],
-    ['protocols', 'Protocols'],
-    ['echo', 'Echo'],
+    ['protocols', 'Challenges'],
   ]
   for (const [id, label] of unlocks) {
     if (metrics.seenUnlocks.has(id)) continue
-    if (id === 'network' || isSystemUnlocked(state, id as never)) {
-      if (id === 'foundry' && careerGate(state) < 2) continue
-      if (id === 'network') {
-        addMilestone(metrics, 'network-unlock', 'Network', 0, 0)
-        metrics.seenUnlocks.add(id)
-        continue
-      }
-      if (!isSystemUnlocked(state, id as never)) continue
-      addMilestone(metrics, `unlock-${id}`, label, activeSeconds, calendarSeconds)
-      if (id === 'foundry') addMilestone(metrics, 'foundry-unlock', 'Foundry unlock', activeSeconds, calendarSeconds)
-      if (id === 'furnace') addMilestone(metrics, 'furnace-unlock', 'Furnace unlock', activeSeconds, calendarSeconds)
-      if (id === 'reliquary') addMilestone(metrics, 'reliquary-unlock', 'Reliquary unlock', activeSeconds, calendarSeconds)
-      if (id === 'research') addMilestone(metrics, 'hive-research-unlock', 'Hive Research', activeSeconds, calendarSeconds)
-      if (id === 'protocols') addMilestone(metrics, 'unlock-protocols', 'Protocols', activeSeconds, calendarSeconds)
-      if (id === 'echo') addMilestone(metrics, 'unlock-echo', 'Echo', activeSeconds, calendarSeconds)
-      metrics.seenUnlocks.add(id)
-      noteMeaningful(metrics, `${label} unlocked`, activeSeconds)
-    }
+    if (id === 'foundry' && careerGate(state) < 2) continue
+    if (!isSystemUnlocked(state, id as never)) continue
+    addMilestone(metrics, `unlock-${id}`, label, activeSeconds, calendarSeconds)
+    if (id === 'foundry') addMilestone(metrics, 'foundry-unlock', 'Foundry unlock', activeSeconds, calendarSeconds)
+    if (id === 'furnace') addMilestone(metrics, 'furnace-unlock', 'Furnace unlock', activeSeconds, calendarSeconds)
+    if (id === 'reliquary') addMilestone(metrics, 'reliquary-unlock', 'Relics unlock', activeSeconds, calendarSeconds)
+    if (id === 'research') addMilestone(metrics, 'hive-research-unlock', 'Research unlock', activeSeconds, calendarSeconds)
+    if (id === 'process') addMilestone(metrics, 'process-unlock', 'Process unlock', activeSeconds, calendarSeconds)
+    if (id === 'protocols') addMilestone(metrics, 'unlock-protocols', 'Challenges', activeSeconds, calendarSeconds)
+    metrics.seenUnlocks.add(id)
+    noteMeaningful(metrics, `${label} unlocked`, activeSeconds)
   }
 
   const nodes = hiveNodes(state)

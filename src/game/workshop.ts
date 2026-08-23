@@ -111,6 +111,12 @@ export const RUN_UPGRADES: RunUpgradeDef[] = [
 
 export const RUN_UPGRADE_CAP = 80
 export const EXTRACTION_SCRAP_BONUS = 0.12
+/** Workshop starting-power curve — change only this layer in a later balance PR. */
+export const WORKSHOP_WEAPON_POWER_PER_LEVEL = 0.08
+export const WORKSHOP_CYCLE_RATE_PER_LEVEL = 0.03
+export const WORKSHOP_HULL_PER_LEVEL = 0.08
+export const WORKSHOP_SHIELD_PER_LEVEL = 0.1
+export const WORKSHOP_SALVAGE_KILL_PER_LEVEL = 0.08
 
 export function createEmptyWorkshop(): WorkshopState {
   return { levels: {}, coreStarts: {} }
@@ -210,23 +216,23 @@ export function runUpgradeMult(state: GameState, id: RunUpgradeId, perLevel: num
 }
 
 export function weaponPowerMult(state: GameState): number {
-  return runUpgradeMult(state, 'weapon-power', 0.08)
+  return runUpgradeMult(state, 'weapon-power', WORKSHOP_WEAPON_POWER_PER_LEVEL)
 }
 
 export function cycleRateMult(state: GameState): number {
-  return runUpgradeMult(state, 'cycle-rate', 0.03)
+  return runUpgradeMult(state, 'cycle-rate', WORKSHOP_CYCLE_RATE_PER_LEVEL)
 }
 
 export function runHullMult(state: GameState): number {
-  return runUpgradeMult(state, 'hull', 0.08)
+  return runUpgradeMult(state, 'hull', WORKSHOP_HULL_PER_LEVEL)
 }
 
 export function runShieldMult(state: GameState): number {
-  return runUpgradeMult(state, 'shield', 0.1)
+  return runUpgradeMult(state, 'shield', WORKSHOP_SHIELD_PER_LEVEL)
 }
 
 export function salvageKillMult(state: GameState): number {
-  return runUpgradeMult(state, 'salvage-kill', 0.08)
+  return runUpgradeMult(state, 'salvage-kill', WORKSHOP_SALVAGE_KILL_PER_LEVEL)
 }
 
 export function salvageWaveBonus(state: GameState): number {

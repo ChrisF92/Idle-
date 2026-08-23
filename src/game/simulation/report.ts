@@ -46,7 +46,7 @@ export function formatSummary(report: SimulationReport): string {
     `Calendar Time: ${formatSimDuration(run.calendarSeconds)}`,
     `Active Time: ${formatSimDuration(run.activeSeconds)}`,
     `Offline Time: ${formatSimDuration(run.offlineSeconds)}`,
-    `Highest Sector: ${run.highestSectorEver}`,
+    `Highest Wave: ${run.highestWave ?? run.highestSectorEver * 10}`,
     `Rebuilds: ${run.rebuilds}`,
     `Stop: ${run.stopReason}`,
     run.cancelled ? 'Cancelled: yes (partial report)' : '',
@@ -63,9 +63,9 @@ export function formatSummary(report: SimulationReport): string {
   if (major) {
     lines.push(
       `Major issue:`,
-      `Sector ${major.sector} progression wall`,
+      `Wave ${major.sector * 10} progression wall`,
       `Clear time: ${formatSimDuration(major.clearSeconds)}`,
-      `Recent sector median: ${formatSimDuration(major.recentMedian)}`,
+      `Recent wave-band median: ${formatSimDuration(major.recentMedian)}`,
       `Difference: ${major.ratio.toFixed(1)}×`,
       `Likely constraint: ${major.likelyConstraint}`,
       '',
@@ -77,20 +77,20 @@ export function formatSummary(report: SimulationReport): string {
     '----------------------------------------',
     '',
     milestoneLine(run, 'first-launch', 'First Launch'),
-    milestoneLine(run, 'sector-1', 'Sector 1'),
+    milestoneLine(run, 'wave-1', 'Wave 1'),
+    milestoneLine(run, 'first-defeat', 'First defeat'),
     milestoneLine(run, 'first-pulse-upgrade', 'First Pulse upgrade'),
     milestoneLine(run, 'first-plate-upgrade', 'First Plate upgrade'),
-    milestoneLine(run, 'foundry-unlock', 'Foundry unlock'),
-    milestoneLine(run, 'reliquary-unlock', 'Reliquary unlock'),
-    milestoneLine(run, 'furnace-unlock', 'Furnace unlock'),
-    milestoneLine(run, 'hive-research-unlock', 'Research unlock'),
-    milestoneLine(run, 'first-research-bt', 'First Research BT'),
+    milestoneLine(run, 'foundry-unlock', 'Foundry'),
+    milestoneLine(run, 'workers-unlock', 'Workers'),
     milestoneLine(run, 'first-rebuild', 'First Rebuild'),
-    milestoneLine(run, 'sector-10', 'Sector 10'),
-    milestoneLine(run, 'unlock-protocols', 'Protocols'),
-    milestoneLine(run, 'unlock-echo', 'Echo'),
-    milestoneLine(run, 'sector-20', 'Sector 20'),
-    milestoneLine(run, 'sector-30', 'Sector 30'),
+    milestoneLine(run, 'reliquary-unlock', 'Relics'),
+    milestoneLine(run, 'furnace-unlock', 'Furnace'),
+    milestoneLine(run, 'hive-research-unlock', 'Research'),
+    milestoneLine(run, 'first-research-bt', 'First Research BT'),
+    milestoneLine(run, 'process-unlock', 'Process'),
+    milestoneLine(run, 'unlock-protocols', 'Challenges'),
+    milestoneLine(run, 'wave-300', 'Wave 300'),
     '',
   )
   if (run.rebuildLog.length > 0) {
@@ -99,12 +99,12 @@ export function formatSummary(report: SimulationReport): string {
       lines.push(
         `Rebuild #${rec.index}`,
         `Run duration: ${formatSimDuration(rec.previousPushSeconds)}`,
-        `Highest sector: ${rec.highestSector}`,
+        `Highest Wave: ${rec.highestSector * 10}`,
         `Matter earned: ${rec.matterEarned}`,
         `Why: ${rec.reasons.join('; ') || 'heuristic'}`,
         rec.permanentPurchases.length
           ? `Permanent purchases: ${rec.permanentPurchases.join(', ')}`
-          : 'Permanent purchases: (see Slag Bank later in the run)',
+          : 'Permanent purchases: none this Rebuild',
         rec.repushSeconds != null
           ? `Repush to previous best: ${formatSimDuration(rec.repushSeconds)} (ratio ${rec.repushRatio?.toFixed(2) ?? '—'})`
           : 'Repush to previous best: not reached before stop',
@@ -125,15 +125,14 @@ export function formatSummary(report: SimulationReport): string {
   }
   lines.push(
     '----------------------------------------',
-    'NETWORK',
+    'WORKERS',
     '----------------------------------------',
     '',
     `Drones: ${run.network.drones}/${run.network.cap} (idle ${run.network.idle}, assigned ${run.network.assigned})`,
-    `Strike: ${run.network.levels.strike}  Ward: ${run.network.levels.ward}  Yield: ${run.network.levels.yield}  Loom: ${run.network.levels.loom}  Archive: ${run.network.levels.archive}`,
-    `Relays: strike ${run.network.levels['strike-relay'] ?? 0}  ward ${run.network.levels['ward-relay'] ?? 0}  yield ${run.network.levels['yield-relay'] ?? 0}  loom ${run.network.levels['loom-relay'] ?? 0}  archive ${run.network.levels['archive-relay'] ?? 0}`,
-    `Lattices: strike ${run.network.levels['strike-lattice'] ?? 0}  ward ${run.network.levels['ward-lattice'] ?? 0}`,
-    `Mults: dmg ×${run.network.multipliers.strike.toFixed(2)}  shield ×${run.network.multipliers.ward.toFixed(2)}  salvage ×${run.network.multipliers.salvage.toFixed(2)}  mfg ×${run.network.multipliers.manufacture.toFixed(2)}`,
-    `Links: racks ${run.network.links.racks ?? 0}, acuity ${run.network.links.acuity ?? 0}, cycle ${run.network.links.cycle ?? 0}`,
+    `Jobs: ${Object.entries(run.network.assignments)
+      .filter(([, n]) => (n ?? 0) > 0)
+      .map(([id, n]) => `${id} ${n}`)
+      .join(', ') || 'none'}`,
     '',
     '----------------------------------------',
     'RESEARCH / PROCESS / FOUNDRY / FURNACE',
@@ -143,7 +142,7 @@ export function formatSummary(report: SimulationReport): string {
     `Process: earned ${run.process.earned}  unspent ${run.process.available}  bought ${run.process.purchased.length}`,
     `Foundry: FP ${run.foundry.points}  recipes ${Object.keys(run.foundry.recipeLevels).length}  fitted ${run.foundry.equipped.join(', ') || 'none'}`,
     `Furnace: heat +${run.furnace.heatEarned.toFixed(1)} / −${run.furnace.heatSpent.toFixed(1)}  channels ${JSON.stringify(run.furnace.active)}`,
-    `Protocols: ${JSON.stringify(run.protocols.ranks)}  Echo tree ${run.echo.owned.join(', ') || 'none'}`,
+    `Challenges: ${JSON.stringify(run.protocols.ranks)}`,
     '',
   )
   const snap = run.snapshots[run.snapshots.length - 1]
@@ -155,12 +154,12 @@ export function formatSummary(report: SimulationReport): string {
       '----------------------------------------',
       '',
       `At ${snap.at}  active ${formatSimDuration(snap.activeSeconds)}  calendar ${formatSimDuration(snap.calendarSeconds)}`,
-      `Sector ${snap.sector} (ever ${snap.highestEver})  Pulse ${snap.pulse}  Plate ${snap.plate}`,
-      `Network Strike ${snap.strike} Ward ${snap.ward} drones ${snap.drones}/${snap.droneCap} relays ${snap.relays}`,
+      `Wave ${snap.bestWave} (band ${snap.highestEver})  Pulse ${snap.pulse}  Plate ${snap.plate}`,
+      `Workers ${snap.drones}/${snap.droneCap}`,
       `Foundry recipes ${snap.foundryRecipes} FP ${snap.foundryPoints} furnace lit ${snap.furnaceLit}/${snap.furnaceSlots}`,
       `Research M${snap.research.material} E${snap.research.energy} O${snap.research.observation} BT ${snap.researchBreakthroughs}`,
       `Process earned ${snap.processEarned} bought ${snap.processPurchased} Rebuilds ${snap.rebuilds}`,
-      `Damage extras: Network +${(c.networkDamage * 100).toFixed(0)}%  Furnace +${(c.furnaceDamage * 100).toFixed(0)}%  Reliquary +${(c.reliquaryDamage * 100).toFixed(0)}%  Research +${(c.researchDamage * 100).toFixed(0)}%  Rebuild momentum +${(c.rebuildMomentum * 100).toFixed(0)}%`,
+      `Damage extras: Furnace +${(c.furnaceDamage * 100).toFixed(0)}%  Relics +${(c.reliquaryDamage * 100).toFixed(0)}%  Research +${(c.researchDamage * 100).toFixed(0)}%  Rebuild momentum +${(c.rebuildMomentum * 100).toFixed(0)}%`,
       '',
     )
   }
@@ -175,9 +174,9 @@ export function formatSummary(report: SimulationReport): string {
     lines.push('----------------------------------------', 'PROGRESSION WALLS', '----------------------------------------', '')
     for (const wall of run.walls) {
       lines.push(
-        `Sector ${wall.sector}`,
+        `Wave ${wall.sector * 10}`,
         `Clear time: ${formatSimDuration(wall.clearSeconds)}`,
-        `Recent sector median: ${formatSimDuration(wall.recentMedian)}`,
+        `Recent wave-band median: ${formatSimDuration(wall.recentMedian)}`,
         `Difference: ${wall.ratio.toFixed(1)}×`,
         `Likely constraint: ${wall.likelyConstraint}`,
         '',
@@ -241,11 +240,11 @@ export function formatFullReport(report: SimulationReport): string {
       run.seed,
     ),
     '',
-    'SECTORS',
+    'WAVE BANDS',
   ]
   for (const s of run.sectors) {
     extra.push(
-      `S${s.sector}  clear ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : '—'}  deaths ${s.deaths}  salvage +${s.salvageEarned.toFixed(1)}  pulse ${s.pulseLevelOnClear ?? '—'} plate ${s.plateLevelOnClear ?? '—'}`,
+      `W${s.sector * 10}  clear ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : '—'}  deaths ${s.deaths}  salvage +${s.salvageEarned.toFixed(1)}  pulse ${s.pulseLevelOnClear ?? '—'} plate ${s.plateLevelOnClear ?? '—'}`,
     )
   }
   extra.push('', 'CORE PURCHASES')
@@ -272,12 +271,12 @@ export function reportToJson(report: SimulationReport): string {
 
 export function reportToCsv(report: SimulationReport): string {
   const run = report.runs[0]
-  if (!run) return 'sector,clearSeconds,deaths,salvage\n'
-  const rows = ['sector,clearSeconds,deaths,relaunches,salvage,pulse,plate,holdSeconds']
+  if (!run) return 'wave,clearSeconds,deaths,salvage\n'
+  const rows = ['wave,clearSeconds,deaths,relaunches,salvage,pulse,plate,holdSeconds']
   for (const s of run.sectors) {
     rows.push(
       [
-        s.sector,
+        s.sector * 10,
         s.clearDuration ?? '',
         s.deaths,
         s.relaunches,
