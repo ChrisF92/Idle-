@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { encounterForWave, enemyForSector } from './combat'
+import { encounterForWave, enemyApproachTarget, enemyForSector } from './combat'
 import { buildFlagshipWeapons, createInitialState } from './state'
 import { wavesForSector } from './sectors'
 
@@ -54,11 +54,12 @@ describe('USI enemy roles', () => {
     expect(sniper!.speed).toBeLessThan(fighter!.speed)
   })
 
-  it('Pulse still reaches Shielded and Sniper-band kites', () => {
+  it('Pulse still reaches Shielded and Sniper-band kites at their legal hold', () => {
     const pulse = Math.max(...buildFlagshipWeapons(createInitialState(0)).map((w) => w.range))
     const snipers = encounterForWave(101).units
-    const maxEngage = Math.max(...snipers.map((u) => u.engageRange))
-    expect(pulse).toBeGreaterThanOrEqual(maxEngage)
+    for (const unit of snipers) {
+      expect(pulse).toBeGreaterThanOrEqual(enemyApproachTarget(unit))
+    }
   })
 
   it('sector boss is a kiting titan with a telegraph', () => {
