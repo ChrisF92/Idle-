@@ -254,4 +254,5 @@ export function reclaimSpeed(state: GameState): number {
   if (best <= wave) return 1
   const matter = 1 + matterShopReclaimBonus(state.prestige?.matterShop ?? {})
   return Math.min(4, (1 + 0.5 * Math.floor((best - wave) / 10)) * matter)
+}
 
