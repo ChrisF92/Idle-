@@ -1199,7 +1199,10 @@ button.just-ok {
 
 .dock-screen.is-tabbed {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-content: stretch;
+  justify-items: stretch;
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -1288,9 +1291,11 @@ button.just-ok {
 }
 
 .dock-hive-preview {
-  width: min(16.5rem, 72%);
+  width: 72%;
+  max-width: 16.5rem;
   aspect-ratio: 1;
   margin: 0.35rem auto 0.15rem;
+  justify-self: center;
 }
 
 .dock-hive-canvas {
@@ -1381,6 +1386,7 @@ button.just-ok {
 
 .dock-pane {
   min-height: 0;
+  min-width: 0;
   width: 100%;
   overflow-x: hidden;
   overflow-y: auto;

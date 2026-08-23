@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
@@ -48,6 +50,14 @@ function OverlayProbe({
 }
 
 describe('UI architecture reset', () => {
+  it('stretches Dock across one full-width grid column', () => {
+    const polish = readFileSync(resolve(process.cwd(), 'src/polish.css'), 'utf8')
+    const app = readFileSync(resolve(process.cwd(), 'src/App.css'), 'utf8')
+    expect(polish).toMatch(/\.dock-screen\.is-tabbed\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s)
+    expect(app).toMatch(/\.dock-screen\s*\{[^}]*justify-content:\s*stretch/s)
+    expect(app).not.toMatch(/\.dock-screen\s*\{[^}]*justify-content:\s*flex-start/s)
+  })
+
   it('keeps Dock Loadout as rows and opens Core detail in a sheet', () => {
     const state = markHullLost(createInitialState(0))
     render(
