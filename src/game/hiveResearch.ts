@@ -51,6 +51,8 @@ export interface HiveResearchNodeDef {
   unlockFrame?: string
   /** Cores lock wounded / boss hulls first. */
   focusFire?: boolean
+  /** Unlocks a combat speed option (1.5 / 2 / 3). Highest completed wins. */
+  combatSpeed?: number
 }
 
 export const HIVE_RESEARCH_BRANCHES: {
@@ -123,7 +125,13 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
       furnaceSlots: 1,
       unlockFrame: 'reactor-frame',
     },
-    { name: 'Pulse Coupling', blurb: 'Network bars fill a little faster.', kind: 'incremental', networkFill: 0.04 },
+    {
+      name: 'Pulse Coupling',
+      blurb: 'Combat sim may run at ×2. Network bars still fill a little faster.',
+      kind: 'incremental',
+      networkFill: 0.04,
+      combatSpeed: 2,
+    },
     { name: 'Charge Lattice', blurb: 'A little more sortie damage.', kind: 'incremental', damage: 0.03 },
     {
       name: 'Corps Draw',
@@ -388,6 +396,20 @@ export function hiveResearchHeatFromAshMult(state: GameState): number {
   return 1 + hiveResearchBonuses(state).heatFromAsh
 }
 
+/** Highest combat-speed option unlocked by completed Research nodes. */
+export function hiveResearchCombatSpeed(state: GameState): number {
+  let best = 1
+  for (const branch of HIVE_RESEARCH_BRANCHES) {
+    const done = hiveResearchCompleted(state, branch.id)
+    const nodes = HIVE_RESEARCH_NODES[branch.id]
+    for (let i = 0; i < done; i += 1) {
+      const speed = nodes[i]?.combatSpeed ?? 1
+      if (speed > best) best = speed
+    }
+  }
+  return best
+}
+
 export function hiveResearchFurnaceSlots(state: GameState): number {
   return hiveResearchBonuses(state).furnaceSlots
 }
@@ -506,6 +528,7 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.data) bits.push(`+${Math.round(node.data * 100)}% Archive data`)
   if (node.shardDrop) bits.push(`+${Math.round(node.shardDrop * 100)}% shard drops`)
   if (node.researchXp) bits.push(`+${Math.round(node.researchXp * 100)}% research speed`)
+  if (node.combatSpeed && node.combatSpeed > 1) bits.push(`combat speed ×${node.combatSpeed}`)
   return bits.join(' · ') || node.blurb
 }
 

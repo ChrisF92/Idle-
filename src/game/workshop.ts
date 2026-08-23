@@ -58,6 +58,55 @@ export const RUN_UPGRADES: RunUpgradeDef[] = [
     blurb: 'Bonus Salvage when a Wave is cleared.',
     minBestWave: 40,
   },
+  {
+    id: 'crit-chance',
+    name: 'Critical Chance',
+    category: 'attack',
+    blurb: 'Hive weapons sometimes land a heavier hit.',
+    minBestWave: 50,
+  },
+  {
+    id: 'shield-regen',
+    name: 'Shield Regeneration',
+    category: 'defense',
+    blurb: 'The Hive shield bank refills faster between hits.',
+    minBestWave: 70,
+  },
+  {
+    id: 'scrap-kill',
+    name: 'Scrap / Kill',
+    category: 'economy',
+    blurb: 'Wrecks drop a little Scrap during the Sortie.',
+    minBestWave: 70,
+  },
+  {
+    id: 'armor-pen',
+    name: 'Armor Penetration',
+    category: 'attack',
+    blurb: 'Shots cut through armored hulls more cleanly.',
+    minBestWave: 110,
+  },
+  {
+    id: 'armor',
+    name: 'Armor',
+    category: 'defense',
+    blurb: 'The Hive shrugs off more hull damage.',
+    minBestWave: 110,
+  },
+  {
+    id: 'fragment-chance',
+    name: 'Fragment Chance',
+    category: 'economy',
+    blurb: 'Wrecks drop Core print fragments more often.',
+    minBestWave: 110,
+  },
+  {
+    id: 'ash-yield',
+    name: 'Ash Yield',
+    category: 'economy',
+    blurb: 'Kills bank more Choir-ash for the Furnace.',
+    minBestWave: 140,
+  },
 ]
 
 export const RUN_UPGRADE_CAP = 80
@@ -186,6 +235,36 @@ export function salvageWaveBonus(state: GameState): number {
   return Math.floor(4 * n * Math.pow(1.06, n))
 }
 
+export function critChance(state: GameState): number {
+  return Math.min(0.45, effectiveUpgradeLevel(state, 'crit-chance') * 0.02)
+}
+
+export function armorPenAdd(state: GameState): number {
+  return effectiveUpgradeLevel(state, 'armor-pen') * 0.05
+}
+
+export function shopArmor(state: GameState): number {
+  return effectiveUpgradeLevel(state, 'armor') * 0.45
+}
+
+export function shopShieldRegen(state: GameState): number {
+  return effectiveUpgradeLevel(state, 'shield-regen') * 0.004
+}
+
+export function scrapKillBonus(state: GameState, isBoss = false): number {
+  const n = effectiveUpgradeLevel(state, 'scrap-kill')
+  if (n <= 0) return 0
+  return (isBoss ? 2 : 0.35) * n
+}
+
+export function fragmentChanceMult(state: GameState): number {
+  return 1 + effectiveUpgradeLevel(state, 'fragment-chance') * 0.06
+}
+
+export function ashYieldMult(state: GameState): number {
+  return runUpgradeMult(state, 'ash-yield', 0.08)
+}
+
 /** GDD §114 Current / Next values for Sortie and Workshop cards. */
 export function runUpgradePreview(
   state: GameState,
@@ -211,6 +290,20 @@ export function runUpgradePreview(
       const next = Math.floor(4 * (level + 1) * Math.pow(1.06, level + 1))
       return { current: `+${salvageWaveBonus(state)}`, next: `+${next}` }
     }
+    case 'crit-chance':
+      return { current: `${Math.round(critChance(state) * 100)}%`, next: `${Math.min(45, (level + 1) * 2)}%` }
+    case 'armor-pen':
+      return { current: `+${armorPenAdd(state).toFixed(2)}`, next: `+${((level + 1) * 0.05).toFixed(2)}` }
+    case 'shield-regen':
+      return { current: `+${(shopShieldRegen(state) * 100).toFixed(1)}%/s`, next: `+${((level + 1) * 0.4).toFixed(1)}%/s` }
+    case 'armor':
+      return { current: `+${shopArmor(state).toFixed(1)}`, next: `+${((level + 1) * 0.45).toFixed(1)}` }
+    case 'scrap-kill':
+      return { current: `+${scrapKillBonus(state).toFixed(1)}`, next: `+${((level + 1) * 0.35).toFixed(1)}` }
+    case 'fragment-chance':
+      return { current: `×${fragmentChanceMult(state).toFixed(2)}`, next: `×${(1 + (level + 1) * 0.06).toFixed(2)}` }
+    case 'ash-yield':
+      return fmt(0.08)
   }
 }
 
@@ -233,7 +326,9 @@ export function shopTimeToAfford(state: GameState, cost: number, bank: number): 
 
 export function shopEconomyRoi(state: GameState, id: RunUpgradeId): string | null {
   if (!shopReadoutUnlocked(state)) return null
-  if (id !== 'salvage-kill' && id !== 'salvage-wave') return null
+  if (id !== 'salvage-kill' && id !== 'salvage-wave' && id !== 'scrap-kill' && id !== 'fragment-chance' && id !== 'ash-yield') {
+    return null
+  }
   const preview = runUpgradePreview(state, id)
   return `ROI ${preview.current} → ${preview.next}`
 }

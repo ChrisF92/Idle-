@@ -18,6 +18,7 @@ import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
 import { directiveHeatMult } from './directives'
 import { frameAshMult, frameFurnaceOutputMult, frameHeatMult } from './catalog'
+import { ashYieldMult } from './workshop'
 
 export const FURNACE_UNLOCK_SECTOR = ACT1_CADENCE.furnace
 export const ASH_PER_HEAT = 10
@@ -372,7 +373,14 @@ export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return 0
   const sector = Math.max(1, state.combat.sector)
   const base = (0.5 + 0.1 * sector) * (isBoss ? 4 : 1)
-  return base * reliquaryAshMult(state) * echoAshMult(state) * furnaceAshChannelMult(state) * frameAshMult(state)
+  return (
+    base *
+    reliquaryAshMult(state) *
+    echoAshMult(state) *
+    furnaceAshChannelMult(state) *
+    frameAshMult(state) *
+    ashYieldMult(state)
+  )
 }
 
 export function grantFurnaceKillLoot(state: GameState, isBoss: boolean): number {

@@ -932,6 +932,13 @@ export type RunUpgradeId =
   | 'shield'
   | 'salvage-kill'
   | 'salvage-wave'
+  | 'crit-chance'
+  | 'armor-pen'
+  | 'shield-regen'
+  | 'armor'
+  | 'scrap-kill'
+  | 'fragment-chance'
+  | 'ash-yield'
 
 /** Rebuild-cycle starting power. Survives Sorties; resets on Rebuild. */
 export interface WorkshopState {

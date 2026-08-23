@@ -58,9 +58,8 @@ import {
   protocolCumulativeLine,
   protocolDisabledLine,
   protocolGoalWave,
-  protocolNextRewards,
+  protocolNextRewardText,
   protocolRank,
-  protocolRewardLine,
 } from './protocols'
 import {
   ASH_PER_HEAT,
@@ -655,7 +654,7 @@ export function inspectProtocol(state: GameState, id: string): InspectCard | nul
       { label: 'Goal', value: `Wave ${goal}` },
       { label: 'Best', value: best > 0 ? `Wave ${best}` : '—' },
       { label: 'Disabled', value: protocolDisabledLine(def) },
-      { label: 'Next', value: protocolRewardLine(protocolNextRewards(state, id)) },
+      { label: 'Next', value: protocolNextRewardText(state, id) },
     ],
     body: [
       def.restriction,

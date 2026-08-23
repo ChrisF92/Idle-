@@ -45,7 +45,7 @@ export function bossMechanicBlurb(id: BossMechanicId): string {
     case 'support-aura':
       return 'Nearby thralls mend while the Boss lives. Split fire or the pack stalls.'
     case 'climax-choir':
-      return 'Act 1 climax. Slam, shield wall, and attending mites in one authored fight.'
+      return 'Act 1 climax. Slam, shield wall, and attending mites. Rebuild has reached the limit of this loop.'
   }
 }
 

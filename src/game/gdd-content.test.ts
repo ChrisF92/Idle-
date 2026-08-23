@@ -1,0 +1,142 @@
+import { describe, expect, it } from 'vitest'
+import { buyWorkshopUpgrade, enterProtocol } from './actions'
+import { ACT1_CADENCE } from './cadence'
+import { ACT1_CLIMAX_BLURB } from './combat'
+import { metaDamageMultiplier } from './catalog'
+import { FOUNDRY_LOGS, unlockedFoundryLogs } from './logs'
+import {
+  PROTOCOLS,
+  applyProtocolGrant,
+  protocolNextRewardText,
+  tryCompleteProtocol,
+} from './protocols'
+import { HIVE_RESEARCH_NODES, hiveResearchCombatSpeed } from './hiveResearch'
+import { processCombatSpeedMult } from './process'
+import { createInitialState } from './state'
+import { atCareerWave, markHullLost } from './testHelpers'
+import { availableSortieSpeeds } from './uiReadout'
+import { RUN_UPGRADES, scrapKillBonus, shopArmor, visibleRunUpgrades } from './workshop'
+
+describe('GDD Phase 8 content depth', () => {
+  it('gates later shop options after the starter pair', () => {
+    const ids = RUN_UPGRADES.map((row) => row.id)
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'weapon-power',
+        'cycle-rate',
+        'hull',
+        'shield',
+        'salvage-kill',
+        'salvage-wave',
+        'crit-chance',
+        'armor-pen',
+        'shield-regen',
+        'armor',
+        'scrap-kill',
+        'fragment-chance',
+        'ash-yield',
+      ]),
+    )
+    expect(visibleRunUpgrades(0).map((row) => row.id)).toEqual(['weapon-power', 'hull', 'salvage-kill'])
+    expect(visibleRunUpgrades(10).map((row) => row.id)).toEqual(
+      expect.arrayContaining(['cycle-rate', 'shield']),
+    )
+    expect(visibleRunUpgrades(40).map((row) => row.id)).toContain('salvage-wave')
+    expect(visibleRunUpgrades(49).map((row) => row.id)).not.toContain('crit-chance')
+    expect(visibleRunUpgrades(50).map((row) => row.id)).toContain('crit-chance')
+    expect(visibleRunUpgrades(70).map((row) => row.id)).toEqual(
+      expect.arrayContaining(['shield-regen', 'scrap-kill']),
+    )
+    expect(visibleRunUpgrades(110).map((row) => row.id)).toEqual(
+      expect.arrayContaining(['armor-pen', 'armor', 'fragment-chance']),
+    )
+    expect(visibleRunUpgrades(139).map((row) => row.id)).not.toContain('ash-yield')
+    expect(visibleRunUpgrades(140).map((row) => row.id)).toContain('ash-yield')
+  })
+
+  it('lets later Defense and Economy ranks change armor and Scrap/Kill', () => {
+    let s = markHullLost(createInitialState(0))
+    s = atCareerWave(s, 110)
+    s.combat.docked = true
+    s.resources.scrap = 400
+    s = buyWorkshopUpgrade(s, 'armor', 3)
+    s = buyWorkshopUpgrade(s, 'scrap-kill', 2)
+    expect(shopArmor(s)).toBeGreaterThan(0)
+    expect(scrapKillBonus(s)).toBeGreaterThan(0)
+  })
+
+  it('unlocks combat speed through Rebuild, Research, and Process', () => {
+    const fresh = createInitialState(0)
+    expect(availableSortieSpeeds(fresh)).toEqual([1])
+
+    const rebuild = structuredClone(fresh)
+    rebuild.prestige.matterShop['sortie-tempo'] = 1
+    expect(availableSortieSpeeds(rebuild)).toEqual([1, 1.5])
+
+    const research = structuredClone(fresh)
+    research.hiveResearch.completed.energy = 4
+    expect(HIVE_RESEARCH_NODES.energy[3]?.combatSpeed).toBe(2)
+    expect(hiveResearchCombatSpeed(research)).toBe(2)
+    expect(availableSortieSpeeds(research)).toEqual([1, 2])
+
+    const process = structuredClone(fresh)
+    process.process.purchased = ['combat-tempo']
+    expect(processCombatSpeedMult(process)).toBe(1.5)
+    process.process.purchased = ['combat-tempo', 'combat-overclock']
+    expect(processCombatSpeedMult(process)).toBe(3)
+    expect(availableSortieSpeeds(process)).toEqual([1, 3])
+  })
+
+  it('shows Challenge grants that expand the tested system, not global damage', () => {
+    expect(PROTOCOLS.every((def) => def.firstGrant || def.unlocksFrame)).toBe(true)
+    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'relic')).toBe(true)
+    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'process')).toBe(true)
+    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'recipe')).toBe(true)
+
+    const s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.protocols)
+    s.prestige.prestigeCount = 2
+    s.hiveResearch.completed.energy = 1
+    s.combat.docked = true
+    s.shipyard.moduleLevels['pulse-cannon'] = 2
+    expect(protocolNextRewardText(s, 'glass-ward')).toMatch(/Plate Chip/)
+    expect(protocolNextRewardText(s, 'quiet-guns')).toMatch(/Shop Readout/)
+    expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Frame/)
+
+    applyProtocolGrant(s, { kind: 'relic', id: 'plate-chip', blurb: 'test' })
+    expect(s.reliquary.owned['plate-chip']).toBeGreaterThanOrEqual(1)
+
+    let run = enterProtocol(s, 'quiet-guns')
+    expect(run.protocols.activeId).toBe('quiet-guns')
+    run.combat.wave = 100
+    tryCompleteProtocol(run)
+    expect(run.process.purchased).toContain('shop-readout')
+  })
+
+  it('keeps leftover Challenge Marks from buying global damage', () => {
+    const bare = metaDamageMultiplier(0, 0, {}, {}, {})
+    const stacked = metaDamageMultiplier(0, 80, { 'old-rank': 4 }, {}, { 'no-ai': 12 })
+    expect(stacked).toBe(bare)
+  })
+
+  it('keeps Foundry logs on the GDD doors and retires leftover systems', () => {
+    const fresh = unlockedFoundryLogs(createInitialState(0)).map((row) => row.id)
+    expect(fresh).toContain('dock')
+    expect(fresh).not.toContain('echo')
+    expect(fresh).not.toContain('capital')
+    expect(fresh).not.toContain('crew')
+
+    const late = atCareerWave(createInitialState(0), ACT1_CADENCE.reinforce)
+    late.meta.act1Cleared = true
+    const ids = unlockedFoundryLogs(late).map((row) => row.id)
+    expect(ids).toContain('reinforce')
+    expect(ids).toContain('act1')
+    expect(ids).not.toContain('echo')
+    expect(FOUNDRY_LOGS.find((row) => row.id === 'reinforce')?.body).toMatch(/knowledge backward/)
+    expect(FOUNDRY_LOGS.find((row) => row.id === 'core-prints')?.body).toMatch(/fit it at Dock/)
+  })
+
+  it('names the W300 climax as the Rebuild ceiling', () => {
+    expect(ACT1_CLIMAX_BLURB).toMatch(/Rebuild/)
+    expect(ACT1_CLIMAX_BLURB).toMatch(/slam|shield/i)
+  })
+})

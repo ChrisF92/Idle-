@@ -70,7 +70,14 @@ import {
   type BossMechanicId,
 } from './bossMechanics'
 import { ACT1_FINAL_WAVE } from './cadence'
-import { salvageKillMult } from './workshop'
+import {
+  armorPenAdd,
+  critChance,
+  fragmentChanceMult,
+  salvageKillMult,
+  scrapKillBonus,
+  shopShieldRegen,
+} from './workshop'
 import {
   logisticsDropMult,
   reactorsRepairMult,
@@ -2178,6 +2185,7 @@ export function rollEnemyPartDrop(
     holdMult *
     logisticsDropMult(state) *
     foundryPartDropMult(state) *
+    fragmentChanceMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
     (1 +
       matterShopDropBonus(state.prestige.matterShop) +
@@ -2295,6 +2303,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     frameSalvageMult(state)
   state.resources.salvage +=
     salvageFromKill(state.combat.sector, unit.isBoss, state.combat.route, state) * salvageMult * rewardWeight
+  const scrap = scrapKillBonus(state, unit.isBoss) * rewardWeight
+  if (scrap > 0) state.resources.scrap += scrap
   rollEnemyPartDrop(state, unit, Math.random, rewardWeight)
   // Wing enemies exist to make formations richer, not to multiply the economy.
   // Continuous XP scales directly; discrete loot uses the same expected-value weight.
@@ -2452,6 +2462,20 @@ function findUnit(state: GameState, id: string): CombatUnit | undefined {
   )
 }
 
+function tunePlayerShot(
+  state: GameState,
+  from: CombatUnit,
+  damage: number,
+  profile: { hullDamage: number; shieldDamage: number; armorDamage: number },
+): { damage: number; profile: { hullDamage: number; shieldDamage: number; armorDamage: number } } {
+  if (from.side !== 'player') return { damage, profile }
+  const crit = Math.random() < critChance(state)
+  return {
+    damage: crit ? damage * 1.5 : damage,
+    profile: { ...profile, armorDamage: profile.armorDamage + armorPenAdd(state) },
+  }
+}
+
 function spawnProjectile(
   state: GameState,
   from: CombatUnit,
@@ -2460,6 +2484,7 @@ function spawnProjectile(
   weapon: WeaponInstance,
 ): void {
   const tag = weapon.tags[0] ?? 'kinetic'
+  const tuned = tunePlayerShot(state, from, damage, weaponDamageProfile(weapon.tags, weapon))
   projGlobalSeq += 1
   state.combat.projectiles.push({
     id: `proj-${projGlobalSeq}`,
@@ -2469,7 +2494,7 @@ function spawnProjectile(
     tag,
     x: from.x,
     y: from.y,
-    damage,
+    damage: tuned.damage,
     tags: [...weapon.tags],
     dotDuration: weapon.dotDuration,
     dotDamage: weapon.dotDamage,
@@ -2481,7 +2506,7 @@ function spawnProjectile(
     attackerRole: from.role,
     heading: from.side === 'player' ? (to.heading ?? 0) : (from.heading ?? 0),
     weaponId: weapon.id,
-    ...weaponDamageProfile(weapon.tags, weapon),
+    ...tuned.profile,
   })
 }
 
@@ -2492,7 +2517,7 @@ function spawnBeam(
   damage: number,
   weapon: WeaponInstance,
 ): void {
-  const profile = weaponDamageProfile(weapon.tags, weapon)
+  const tuned = tunePlayerShot(state, from, damage, weaponDamageProfile(weapon.tags, weapon))
   beamGlobalSeq += 1
   if (!state.combat.beams) state.combat.beams = []
   state.combat.beams.push({
@@ -2504,12 +2529,12 @@ function spawnBeam(
     tags: [...weapon.tags],
     remaining: BEAM_DURATION,
     duration: BEAM_DURATION,
-    damage,
+    damage: tuned.damage,
     attackerFamily: from.family,
     attackerRole: from.role,
     heading: from.side === 'player' ? (to.heading ?? 0) : (from.heading ?? 0),
     weaponId: weapon.id,
-    ...profile,
+    ...tuned.profile,
   })
 }
 
@@ -2651,7 +2676,10 @@ export function simulateCombat(
     0,
   )
   const regenFrac =
-    (fittedShieldRegenFraction(state.shipyard.modules) + fittedRegenBonus(state) + masteryRegen) *
+    (fittedShieldRegenFraction(state.shipyard.modules) +
+      fittedRegenBonus(state) +
+      masteryRegen +
+      shopShieldRegen(state)) *
     directiveShieldRegenMult(state)
   for (const unit of state.combat.playerUnits) {
     if ((unit.regenDelay ?? 0) > 0) {

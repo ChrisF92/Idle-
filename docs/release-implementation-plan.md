@@ -2,7 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
-**Code snapshot:** `main` @ Process Farm/Push/Challenge profiles (SAVE_VERSION 36, package `0.1.0`)  
+**Code snapshot:** `main` @ Phase 8 shop / Challenges / speed / W300 (SAVE_VERSION 36, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
@@ -459,19 +459,19 @@ Also:
 
 **Intent:** enough variety that systems stay relevant through W300. Not a second game.
 
-**Work:**
+**Work:** **Done.** Variety through W300 without a second game.
 
-1. Run shop expansion after the starter pair: Cycle Rate @10 (exists), then Crit / Pen / Regen / Armor / Scrap/Kill / Fragment / Ash as **gated later options**, not dump-at-once (GDD §33–35).
-2. Challenge presentation: restriction, goal (Reach W150…), reward, disabled systems, current best, confirm (GDD §97). Rewards expand the tested system (Relic, Research node, Process, blueprint) — not global damage.
-3. Game speed unlocks ×1.5 / ×2 / ×3 via Rebuild / Research / Process. Reclaim acceleration remains **time compression**, not extra DPS (GDD §72, §106).
-4. W300: authored phases, readable telegraphs, Reinforce fiction line (Rebuild = knowledge backward; Reinforce = change the loop). No Act 2 shop required.
-5. Codex: family silhouettes and counters, filled by encounter, not a wiki dump.
-6. Flavour: short Foundry logs / milestone lines only (GDD §4.2). No cutscenes.
-7. Cut leftover catalog junk (old challenge-shop ranks, AI doctrines, essence if unused).
+1. **Done.** Later shop options after the starter pair: Crit @50, Shield Regen / Scrap/Kill @70, Pen / Armor / Fragment @110, Ash Yield @140. Cycle Rate @10 already existed.
+2. **Done.** Challenge cards already listed Restriction / Goal / Reward / Disabled / Best + confirm. First-clear grants now expand the tested system (Relic, Process, Foundry recipe, or Frame) — leftover Challenge Marks no longer buy global damage.
+3. **Done.** Combat speed ×1.5 Rebuild Matter (Sortie Tempo), ×2 Research Pulse Coupling, ×3 Process Combat Overclock. Reclaim stays time compression.
+4. **Done.** W300 climax copy + Reinforce fiction: Rebuild = knowledge backward; Reinforce = change the loop. No Act 2 shop.
+5. **Done already.** Codex families unlock on encounter with silhouettes and counters.
+6. **Done.** Foundry logs rewritten to GDD doors. Echo / Capital / Specialists / USI hull notes stay retired.
+7. **Done (hooks).** `metaDamageMultiplier` ignores leftover Challenge Marks, challenge-shop ranks, and old challenge stack damage. Catalog tables remain for excluded tests / old saves.
 
-**Acceptance:** Appendix D health checklist can be run in the simulator without “SYSTEM IRRELEVANT” on Foundry, Workers, Furnace, Research.
+**Acceptance:** shop / Challenge / speed / log contracts live in `gdd-content.test.ts`. Appendix D SYSTEM IRRELEVANT detectors remain Phase 9 simulator work.
 
-**SAVE_VERSION:** only if new reward fields.
+**SAVE_VERSION:** no (new shop ids hydrate as empty ranks; grants write existing Process / Relic / Foundry fields).
 
 ---
 

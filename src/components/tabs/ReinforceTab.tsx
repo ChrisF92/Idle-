@@ -39,12 +39,14 @@ export function ReinforceTab({ state, onBack, onReinforce, onBlockingChange }: R
         <h2>Reinforce</h2>
         <p>
           {open
-            ? `Completed ${count} time${count === 1 ? '' : 's'}. Rebuild has reached the limit of this loop.`
+            ? `Completed ${count} time${count === 1 ? '' : 's'}. Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself.`
             : `Clear Wave ${REINFORCE_UNLOCK_SECTOR} to reveal Reinforce.`}
         </p>
       </header>
       {!open ? (
-        <p className="muted">Reinforce changes the starting architecture of the Hive. Detailed Act 2 rules come later.</p>
+        <p className="muted">
+          Rebuild carries knowledge backward through this loop. Reinforce changes the Hive's starting architecture. No Act 2 shop opens here.
+        </p>
       ) : (
         <div className="panel-scroll">
           <ConsequencePanel lists={lists} />

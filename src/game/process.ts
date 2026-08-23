@@ -621,6 +621,16 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     requiresId: 'auto-salvage',
     requiresBestWave: 100,
   },
+  {
+    id: 'combat-overclock',
+    name: 'Combat Overclock',
+    category: 'qol',
+    kind: 'qol',
+    blurb: 'Combat sim may run at ×3. Industry still uses real time.',
+    cost: 18,
+    requiresId: 'combat-tempo',
+    requiresBestWave: 210,
+  },
 ]
 
 /** Nodes that fight the GDD loop or belong to retired systems. Kept on the save, hidden from the shop. */
@@ -1389,7 +1399,9 @@ export function processOfflineBonusMs(state: GameState): number {
 }
 
 export function processCombatSpeedMult(state: GameState): number {
-  return hasProcess(state, 'combat-tempo') ? 1.5 : 1
+  if (hasProcess(state, 'combat-overclock')) return 3
+  if (hasProcess(state, 'combat-tempo')) return 1.5
+  return 1
 }
 
 export function processExtraPresetSlots(state: GameState): number {

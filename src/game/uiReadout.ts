@@ -4,6 +4,7 @@ import {
   getAiNode,
   getMatterShopItem,
   getModule,
+  matterShopCombatSpeed,
   matterShopHullBonus,
   matterShopRankMultiplier,
   matterShopShieldBonus,
@@ -14,6 +15,7 @@ import {
 } from './catalog'
 import { formatCompact } from './format'
 import { corePrimaryOutput } from './coreProgression'
+import { hiveResearchCombatSpeed } from './hiveResearch'
 import { processCombatSpeedMult } from './process'
 import { advancedReadoutsUnlocked } from './disclosure'
 import { computeShipStats } from './state'
@@ -30,6 +32,10 @@ export function availableSortieSpeeds(state: GameState): number[] {
   }
   const proc = processCombatSpeedMult(state)
   if (proc > 1) speeds.add(proc)
+  const research = hiveResearchCombatSpeed(state)
+  if (research > 1) speeds.add(research)
+  const matter = matterShopCombatSpeed(state.prestige.matterShop)
+  if (matter > 1) speeds.add(matter)
   return [...speeds].sort((a, b) => a - b)
 }
 

@@ -11,9 +11,8 @@ import {
   protocolCumulativeLine,
   protocolDisabledLine,
   protocolGoalWave,
-  protocolNextRewards,
+  protocolNextRewardText,
   protocolRank,
-  protocolRewardLine,
   type ProtocolDef,
 } from '../../game/protocols'
 import { inspectProtocol } from '../../game/inspect'
@@ -43,7 +42,7 @@ function ChallengeCard({
   const check = canEnterProtocol(state, def.id)
   const goal = protocolGoalWave(state, def.id)
   const best = protocolBestWave(state, def.id)
-  const next = protocolRewardLine(protocolNextRewards(state, def.id))
+  const next = protocolNextRewardText(state, def.id)
   const cumulative = protocolCumulativeLine(state, def.id)
   return (
     <article
@@ -131,7 +130,7 @@ export function ProtocolsTab({
               <p className="network-row-stats">{active.restriction}</p>
               <p className="network-row-stats">
                 Best this run Wave {Math.max(state.combat.wave, protocolBestWave(state, active.id))} · next{' '}
-                {protocolRewardLine(protocolNextRewards(state, active.id))}
+                {protocolNextRewardText(state, active.id)}
               </p>
               <button type="button" onClick={onAbandon}>
                 Abandon
@@ -165,7 +164,7 @@ export function ProtocolsTab({
               <strong>Goal.</strong> Reach Wave {protocolGoalWave(state, pending.id)}.
             </p>
             <p className="network-row-stats">
-              <strong>Reward.</strong> {protocolRewardLine(protocolNextRewards(state, pending.id))}
+              <strong>Reward.</strong> {protocolNextRewardText(state, pending.id)}
             </p>
             <p className="network-row-stats">
               <strong>Disabled.</strong> {protocolDisabledLine(pending)}
@@ -178,7 +177,7 @@ export function ProtocolsTab({
             </p>
             <ConsequencePanel
               lists={{
-                gain: [protocolRewardLine(protocolNextRewards(state, pending.id))],
+                gain: [protocolNextRewardText(state, pending.id)],
                 keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge ranks'],
                 reset: ['Salvage', 'Core levels', 'Current Sortie'],
                 change: [],

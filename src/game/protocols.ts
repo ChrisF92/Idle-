@@ -46,6 +46,15 @@ export interface ProtocolRewardStep {
   blurb: string
 }
 
+export type ProtocolGrantKind = 'process' | 'relic' | 'recipe'
+
+/** First-clear grant that expands the tested system (GDD §98). */
+export interface ProtocolGrant {
+  kind: ProtocolGrantKind
+  id: string
+  blurb: string
+}
+
 export interface ProtocolDef {
   id: string
   name: string
@@ -60,6 +69,8 @@ export interface ProtocolDef {
   rewards: ProtocolRewardStep[]
   /** First completion unlocks this Hive Frame. */
   unlocksFrame?: string
+  /** First completion expands Relic / Process / Foundry — not global damage. */
+  firstGrant?: ProtocolGrant
 }
 
 export const PROTOCOLS: ProtocolDef[] = [
@@ -72,6 +83,7 @@ export const PROTOCOLS: ProtocolDef[] = [
     mute: 'shields',
     goalWave: 80,
     hullMult: 0.5,
+    firstGrant: { kind: 'relic', id: 'plate-chip', blurb: 'First clear seats a Plate Chip Relic.' },
     rewards: [
       { at: 1, hook: { kind: 'networkWardExponent', add: 0.02 }, blurb: 'Ward levels scale harder at every rank.' },
       { at: 2, hook: { kind: 'shieldCostScaling', add: -0.01 }, blurb: 'Plate Salvage costs grow a little slower.' },
@@ -91,6 +103,7 @@ export const PROTOCOLS: ProtocolDef[] = [
     disabledSystems: ['Weapon Cores'],
     mute: 'weapons',
     goalWave: 100,
+    firstGrant: { kind: 'process', id: 'shop-readout', blurb: 'First clear unlocks Shop Readout in Process.' },
     rewards: [
       { at: 1, hook: { kind: 'coreCostScaling', add: -0.01 }, blurb: 'Weapon Core Salvage costs grow a little slower.' },
       { at: 2, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon cost growth eases again.' },
@@ -131,6 +144,7 @@ export const PROTOCOLS: ProtocolDef[] = [
     disabledSystems: ['Furnace', 'Heat spend'],
     mute: 'furnace',
     goalWave: 150,
+    firstGrant: { kind: 'recipe', id: 'choir-flux', blurb: 'First clear unlocks the Choir Flux recipe.' },
     rewards: [
       { at: 1, hook: { kind: 'furnaceDrain', mult: 0.88 }, blurb: 'Lighting a channel spends less Heat.' },
       { at: 2, hook: { kind: 'furnaceDrain', mult: 0.88 }, blurb: 'Heat costs ease again.' },
@@ -150,6 +164,7 @@ export const PROTOCOLS: ProtocolDef[] = [
     disabledSystems: ['Salvage from wrecks'],
     mute: 'salvage',
     goalWave: 120,
+    firstGrant: { kind: 'recipe', id: 'filament', blurb: 'First clear unlocks the Filament recipe.' },
     rewards: [
       { at: 1, hook: { kind: 'salvageSectorExp', add: 0.03 }, blurb: 'Salvage from wrecks grows a little faster with Wave.' },
       { at: 2, hook: { kind: 'yieldScrapExp', add: 0.04 }, blurb: 'Yield scrap trickle scales harder.' },
@@ -169,6 +184,7 @@ export const PROTOCOLS: ProtocolDef[] = [
     disabledSystems: ['Foundry bits', 'Foundry combat ranks'],
     mute: 'foundry',
     goalWave: 150,
+    firstGrant: { kind: 'recipe', id: 'temper-bar', blurb: 'First clear unlocks the Temper Bar recipe.' },
     rewards: [
       { at: 1, hook: { kind: 'foundryXpNeed', mult: 0.94 }, blurb: 'Recipes need fewer crafts to level.' },
       { at: 2, hook: { kind: 'foundryXpNeed', mult: 0.94 }, blurb: 'Recipe levelling eases again.' },
@@ -188,6 +204,7 @@ export const PROTOCOLS: ProtocolDef[] = [
     disabledSystems: ['Relics', 'Resonance'],
     mute: 'reliquary',
     goalWave: 110,
+    firstGrant: { kind: 'relic', id: 'focus-lens', blurb: 'First clear seats a Focus Lens Relic.' },
     rewards: [
       { at: 1, hook: { kind: 'reliquaryResonanceExp', add: -0.06 }, blurb: 'Early extra Relic copies count for more.' },
       { at: 2, hook: { kind: 'reliquaryResonanceExp', add: -0.04 }, blurb: 'Resonance curve eases again.' },
@@ -437,6 +454,31 @@ export function protocolRewardLine(steps: ProtocolRewardStep[]): string {
   return steps.map((step) => step.blurb).join(' ')
 }
 
+export function protocolNextRewardText(state: GameState, id: string): string {
+  const def = getProtocol(id)
+  if (!def) return 'Maxed'
+  const next = protocolRank(state, id) + 1
+  if (next > PROTOCOL_MAX_RANK) return 'Maxed'
+  const grant = next === 1 && def.firstGrant ? `${def.firstGrant.blurb} ` : ''
+  const frame = next === 1 && def.unlocksFrame ? 'Unlocks a Hive Frame. ' : ''
+  return `${grant}${frame}${protocolRewardLine(protocolRewardsAt(def, next))}`.trim()
+}
+
+export function applyProtocolGrant(state: GameState, grant: ProtocolGrant): void {
+  if (grant.kind === 'process') {
+    if (!state.process.purchased.includes(grant.id)) {
+      state.process.purchased = [...state.process.purchased, grant.id]
+    }
+    return
+  }
+  if (grant.kind === 'relic') {
+    if (!state.reliquary) return
+    state.reliquary.owned[grant.id] = (state.reliquary.owned[grant.id] ?? 0) + 1
+    return
+  }
+  state.foundry.recipeLevels[grant.id] = Math.max(1, state.foundry.recipeLevels[grant.id] ?? 0)
+}
+
 export function protocolCumulativeLine(state: GameState, id: string): string {
   const granted = protocolGrantedRewards(state, id)
   if (granted.length === 0) return 'No completions yet.'
@@ -515,7 +557,13 @@ export function tryCompleteProtocol(state: GameState): void {
   state.protocols.ranks = { ...state.protocols.ranks, [def.id]: nextRank }
   state.protocols.activeId = null
   state.combat.docked = true
-  const prize = protocolRewardLine(protocolRewardsAt(def, nextRank))
+  const prize = [
+    nextRank === 1 && def.firstGrant ? def.firstGrant.blurb : '',
+    protocolRewardLine(protocolRewardsAt(def, nextRank)),
+  ]
+    .filter(Boolean)
+    .join(' ')
+  if (nextRank === 1 && def.firstGrant) applyProtocolGrant(state, def.firstGrant)
   if (nextRank === 1 && def.unlocksFrame) {
     const frame = getFrame(def.unlocksFrame)
     grantUnlockedFrame(

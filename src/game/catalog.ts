@@ -205,6 +205,8 @@ export interface MatterShopDef {
   trainingBonus?: number
   /** Additive blueprint part drop chance (0.1 = +10% at rank 1). */
   dropBonus?: number
+  /** Unlocks a combat speed option (1.5 / 2 / 3). Highest owned wins. */
+  combatSpeed?: number
 }
 
 export interface ChallengeDef {
@@ -1084,6 +1086,15 @@ export const MATTER_SHOP: MatterShopDef[] = [
     costPm: 4,
     maxRank: 15,
     reclaimBonus: 0.1,
+  },
+  {
+    id: 'sortie-tempo',
+    name: 'Sortie Tempo',
+    description: 'Unlocks combat speed ×1.5. Industry still uses real time. Not extra damage.',
+    category: 'temporal',
+    costPm: 6,
+    maxRank: 1,
+    combatSpeed: 1.5,
   },
 ]
 
@@ -2775,6 +2786,17 @@ export function matterShopReclaimBonus(matterShop: Record<string, number> = {}):
   return bonus
 }
 
+/** Highest combat-speed option unlocked by the Matter shop. */
+export function matterShopCombatSpeed(matterShop: Record<string, number> = {}): number {
+  let best = 1
+  for (const [id, rank] of Object.entries(matterShop)) {
+    if (Math.max(0, Math.floor(rank)) <= 0) continue
+    const speed = getMatterShopItem(id)?.combatSpeed ?? 1
+    if (speed > best) best = speed
+  }
+  return best
+}
+
 export function getAiNode(id: string): AiNodeDef | undefined {
   return AI_NODES.find((n) => n.id === id)
 }
@@ -3310,16 +3332,14 @@ export function metaDamageMultiplier(
 ): number {
   // Unspent PM/CP still help a little; spending unlocks stronger shop effects.
   // Banking is only a fallback. Spending Rebuild Matter should dominate.
-  let mult = 1 + prestigeMatter * 0.001 + challengePoints * 0.01
-  for (const [id, rank] of Object.entries(shop)) {
-    const def = getChallengeShopItem(id)
-    if (def?.damageBonus) mult += def.damageBonus * matterShopEffectScale(rank)
-  }
+  let mult = 1 + prestigeMatter * 0.001
+  void challengePoints
+  void shop
   for (const [id, rank] of Object.entries(matterShop)) {
     const def = getMatterShopItem(id)
     if (def?.damageBonus) mult *= matterShopRankMultiplier(def.damageBonus, rank)
   }
-  mult += challengeStackDamageBonus(challengeClears)
+  void challengeClears
   return mult
 }
 

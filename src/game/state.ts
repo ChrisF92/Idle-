@@ -66,6 +66,7 @@ import {
   cycleRateMult,
   runHullMult,
   runShieldMult,
+  shopArmor,
   weaponPowerMult,
 } from './workshop'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
@@ -428,6 +429,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   hullMax *= protocolHullMult(state)
   hullMax *= runHullMult(state)
   shieldMax *= runShieldMult(state)
+  armor += shopArmor(state)
   shieldMax *= directiveShieldMult(state)
   damageTakenMult *= directiveIncomingMult(state)
 
