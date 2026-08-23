@@ -25,7 +25,7 @@ import {
   type ToastSnapshot,
 } from './game/toasts'
 import { prefersReducedMotion } from './hooks/usePrefersReducedMotion'
-import { ResourceBar } from './components/ResourceBar'
+import { WalletButton } from './components/WalletButton'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
 import { DockTab, type DockPane } from './components/tabs/DockTab'
@@ -79,14 +79,13 @@ function AppShell() {
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
   const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
   const [systemsView, setSystemsView] = useState<'hub' | 'foundry'>('foundry')
-  const [dockPane, setDockPane] = useState<DockPane>('loadout')
+  const [dockPane, setDockPane] = useState<DockPane>('home')
   const [inventoryOpen, setInventoryOpen] = useState(false)
   const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
   const [heldGuideId, setHeldGuideId] = useState<string | null>(null)
   const dying = (game.state.combat.defeatLeft ?? 0) > 0
-  const live = !game.state.combat.docked || dying
   const offlineOpen = Boolean(game.offlineReport)
   useOverlayLayer({
     id: 'rebuild-hangar',
@@ -154,7 +153,7 @@ function AppShell() {
       if (nav.kind === 'tab' && isRemovedAct1Tab(nav.tab)) return
       if (isHubTabOpen(game.state, nav.tab)) {
         if (nav.tab === 'foundry') setSystemsView('foundry')
-        if (nav.tab === 'dock') setDockPane('loadout')
+        if (nav.tab === 'dock') setDockPane('home')
         setTab(nav.tab)
         if (nav.focus) setFocusTarget(nav.focus)
         if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
@@ -354,15 +353,7 @@ function AppShell() {
               </p>
               <ScreenHelp screen={tab} />
             </div>
-            {tab === 'dock' ? (
-              <ResourceBar state={game.state} only={['scrap', 'prestigeMatter']} compact />
-            ) : null}
-            {live ? (
-              <button type="button" className="combat-chip" onClick={() => go('combat')}>
-                <span className="live-pip" aria-hidden />
-                LIVE · W{game.state.combat.wave}
-              </button>
-            ) : null}
+            <WalletButton state={game.state} />
           </header>
         </div>
       ) : null}
@@ -389,6 +380,7 @@ function AppShell() {
             onUnfitCore={game.unfitModule}
             pane={dockPane}
             onPaneChange={setDockPane}
+            onBuyMatter={game.buyMatterShop}
             onOpenInventory={() => setInventoryOpen(true)}
             focusModuleId={focusTarget?.startsWith('core-') ? focusTarget.slice(5) : null}
           />
@@ -559,6 +551,11 @@ function AppShell() {
       <TabNav
         active={tab}
         onChange={(next) => {
+          if (next === 'dock') {
+            setDockPane('home')
+            go('dock')
+            return
+          }
           if (next === 'foundry') openSystemsHub()
           else go(next)
         }}
@@ -575,7 +572,7 @@ function AppShell() {
               modules: [...game.state.shipyard.modules],
             })
             setHangarOpen(false)
-            setDockPane('loadout')
+            setDockPane('home')
             go('dock')
           }}
           onBuyMatter={game.buyMatterShop}
@@ -596,6 +593,7 @@ function AppShell() {
           onClose={() => setReportOpen(false)}
           onDock={() => {
             setReportOpen(false)
+            setDockPane('home')
             go('dock')
           }}
           onRunAgain={() => {

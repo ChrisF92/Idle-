@@ -30,9 +30,10 @@ Every screen answers one question.
 | --- | --- |
 | Sortie (docked) | Ready to launch? |
 | Sortie (live) | What should I do during this run? |
-| Dock | What should I prepare before my next run? |
-| Workshop (Dock pane) | Which starting upgrade should I buy? |
-| Rebuild (Dock pane) | Should I reset this cycle now? |
+| Dock | Best Wave, Loadout, Launch / Resume? |
+| Loadout | What am I flying? |
+| Workshop | Which starting upgrade should I buy? |
+| Rebuild | Should I reset this cycle, and can I spend Matter? |
 | Inventory | What do I own? |
 | Systems | What is running, and where should Workers go? |
 | Foundry | What is being produced and what should I build next? |
@@ -231,32 +232,37 @@ Locked destinations stay hidden according to progression.
 
 Header is compact. Do not repeat every resource on every screen.
 
-- **Dock:** Hiveworks; Scrap · Matter. Inventory lives **on the Dock page**, not in the chrome header.
+- **Dock:** Hiveworks + ⓘ + Wallet icon. No currency chips in the header.
+- **Wallet:** icon opens a modal of all owned/visible currencies. Individual currencies only appear on the screens that spend them (Scrap on Workshop, Matter on Rebuild).
 - **Sortie:** own HUD, not the generic header
 - **Systems:** contextual header
 - **More:** no game currencies required
 
-Dock panes (Loadout / Workshop / Rebuild) must share one full column width. Pane tabs stretch edge to edge of the app column.
+Dock home is the post-Sortie landing. Loadout, Workshop, and Rebuild are their own screens, opened from full-width buttons on Dock.
 
 ### Dock mobile column
 
-Portrait Dock is one locked column. Switching Loadout / Workshop / Rebuild must not change page width, tab width, or card width.
-
 ```
-Header     Hiveworks                 Scrap 47 · Matter 0
-Context    Best W12    Cycle 1       [Inventory]
-Panes      LOADOUT | WORKSHOP | REBUILD   ← full width
-Body       scroll; rows and cards use the column
+Header     Hiveworks  ⓘ                         [Wallet]
+Dock       Best Wave
+           Loadout ›
+           Workshop ›
+           Rebuild ›   (Inactive until available)
 CTA        Launch Sortie  (or Return to Sortie)
 Nav        Dock | Systems | More
 ```
 
+Loadout screen: back to Dock, Inventory button, Frame + Cores. Relics live in the Core sheet and Inventory. Prep stays visible but locked during a live Sortie.
+
+Workshop screen: back to Dock, Scrap, Attack / Defense / Economy, two-up cards. Buy ×1 / ×10 / MAX only after those modes unlock.
+
+Rebuild screen: back to Dock, Matter, Best Wave, Cycle, projected Matter, Preview Rebuild (inactive until available). Matter upgrades stay spendable when the player has Matter.
+
 Rules:
 
-- Do not put Sortie on the bottom bar. Launch from Dock is the way in.
-- Inventory is a Dock-page **button**, not header chrome and not a bottom-nav destination.
-- Do not show the Hive preview on Dock while Loadout lists Frame and Cores.
-- Loadout / Workshop / Rebuild tabs stretch to the full app width.
+- Do not put Sortie on the bottom bar. Launch / Resume from Dock is the way in.
+- Inventory is a Loadout-page button.
+- Do not show the Hive preview on Dock for now.
 - The expanded Core sheet lists **every** mastery milestone and highlights unlocked ranks plus the next one.
 
 ## Onboarding

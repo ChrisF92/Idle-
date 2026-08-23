@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
 import { DockTab } from '../components/tabs/DockTab'
 import { SystemsTab } from '../components/tabs/SystemsTab'
@@ -53,8 +53,10 @@ describe('UI/UX pass regression', () => {
         onRebuild={() => undefined}
       />,
     )
-    expect(screen.getByText(/Loadout is locked until this Sortie docks/i)).toBeTruthy()
+    expect(screen.getByText(/Prep is locked until this Sortie docks/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: /Return to Sortie/i })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Loadout/ }))
+    expect(screen.getByText(/Loadout is locked until this Sortie docks/i)).toBeTruthy()
   })
 
   it('keeps Worker Drones as the Systems header without Manage buttons', () => {

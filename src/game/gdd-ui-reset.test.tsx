@@ -4,6 +4,7 @@ import { CombatTab } from '../components/tabs/CombatTab'
 import { DockTab } from '../components/tabs/DockTab'
 import { InventoryScreen } from '../components/InventoryScreen'
 import { TabNav } from '../components/TabNav'
+import { WalletButton } from '../components/WalletButton'
 import { OverlayProvider, useOverlay, useOverlayLayer } from '../ui/overlay'
 import { createInitialState } from './state'
 import { grantModuleCopy } from './coreProgression'
@@ -53,6 +54,7 @@ describe('UI architecture reset', () => {
       <OverlayProvider>
         <DockTab
           state={state}
+          pane="loadout"
           onLaunch={() => undefined}
           onOpenSortie={() => undefined}
           onOpenInventory={() => undefined}
@@ -68,7 +70,7 @@ describe('UI architecture reset', () => {
     expect(screen.getByRole('button', { name: 'Change Core' })).toBeTruthy()
   })
 
-  it('keeps Dock tabs and a reserved Launch control', () => {
+  it('keeps Dock as a home hub with Launch and own screens', () => {
     const state = markHullLost(createInitialState(0))
     render(
       <OverlayProvider>
@@ -81,17 +83,22 @@ describe('UI architecture reset', () => {
         />
       </OverlayProvider>,
     )
-    expect(screen.getByRole('tab', { name: 'Loadout' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Workshop' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Rebuild' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Inventory' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Inventory' }).className).toMatch(/dock-inventory-btn/)
+    expect(screen.getByText('Best Wave')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Loadout/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Workshop/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Rebuild/ })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Loadout' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Inventory' })).toBeNull()
     expect(document.querySelector('.hive-rig')).toBeNull()
-    expect(document.querySelector('.dock-screen.is-tabbed > .sheet-tabs')).toBeTruthy()
     expect(document.querySelector('.ui-sticky-action')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: 'Rebuild' }))
-    expect(screen.getByText('Preview Rebuild')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Loadout/ }))
+    expect(screen.getByRole('button', { name: 'Inventory' })).toBeTruthy()
+    expect(screen.queryByText('Sockets')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Dock' }))
+    fireEvent.click(screen.getByRole('button', { name: /Rebuild/ }))
+    expect(screen.getByText('Projected Matter')).toBeTruthy()
+    expect(screen.getByText('Cycle')).toBeTruthy()
     expect(screen.queryByText(/Permanent · Damage/)).toBeNull()
   })
 
@@ -157,6 +164,19 @@ describe('UI architecture reset', () => {
     expect(screen.getByText('onboard:no')).toBeTruthy()
   })
 
+  it('opens a Wallet modal of currencies from the header icon', () => {
+    const state = createInitialState(0)
+    state.resources.scrap = 47
+    render(
+      <OverlayProvider>
+        <WalletButton state={state} />
+      </OverlayProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Wallet' }))
+    expect(screen.getByRole('dialog', { name: 'Wallet' })).toBeTruthy()
+    expect(screen.getByText('Scrap')).toBeTruthy()
+  })
+
   it('keeps bottom nav to Dock, Systems, and More', () => {
     const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
     render(<TabNav active="dock" onChange={() => undefined} state={state} />)
@@ -173,6 +193,7 @@ describe('UI architecture reset', () => {
       <OverlayProvider>
         <DockTab
           state={state}
+          pane="loadout"
           onLaunch={() => undefined}
           onOpenSortie={() => undefined}
           onOpenInventory={() => undefined}

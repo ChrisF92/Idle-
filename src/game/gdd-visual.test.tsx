@@ -87,7 +87,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
     )
     expect(screen.queryByText(/Permanent strength is Mastery/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /Upgrade · .* Scrap/ })).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: 'Workshop' }))
+    fireEvent.click(screen.getByRole('button', { name: /Workshop/ }))
     expect(screen.getByText('Weapon Power')).toBeTruthy()
     expect(screen.getByText(/START Lv/)).toBeTruthy()
   })

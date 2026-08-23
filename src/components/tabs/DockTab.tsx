@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
 import { canPrestige, prestigeGainFor } from '../../game/actions'
-import { canOpenRebuildHangar, rebuildCycle, rebuildWaveNeed, REBUILD_MIN_SORTIES } from '../../game/rebuild'
+import { canOpenRebuildHangar, rebuildWaveNeed } from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import { type BuyMode } from '../../game/workshop'
-import { isRelicsUnlocked } from '../../game/reliquary'
 import { type ModuleRole, getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
+import { isSystemUnlocked } from '../../game/progression'
 import { SheetTabs } from '../SheetTabs'
 import { CoreDetailSheet, CorePicker, FrameSheet } from '../LoadoutSheets'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
-import { frameBlurb, loadoutRelicFill } from '../../game/inventory'
+import { frameBlurb } from '../../game/inventory'
+import { ResourceBar } from '../ResourceBar'
+import { MatterShopSheet } from '../RebuildHangar'
 import {
   ContextBar,
   ItemRow,
@@ -21,7 +23,7 @@ import {
   StickyAction,
 } from '../../ui/primitives'
 
-export type DockPane = 'loadout' | 'workshop' | 'rebuild'
+export type DockPane = 'home' | 'loadout' | 'workshop' | 'rebuild'
 
 interface DockTabProps {
   state: GameState
@@ -29,6 +31,7 @@ interface DockTabProps {
   onOpenSortie: () => void
   onRebuild: () => void
   onBuyWorkshop?: (id: RunUpgradeId, count?: number) => void
+  onBuyMatter?: (itemId: string) => void
   onUpgrade?: (moduleId: string) => void
   onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
   onBuyMaxCores?: () => void
@@ -44,18 +47,13 @@ interface DockTabProps {
   focusModuleId?: string | null
 }
 
-const DOCK_PANES: { id: DockPane; label: string; guide?: string }[] = [
-  { id: 'loadout', label: 'Loadout', guide: 'dock-cores' },
-  { id: 'workshop', label: 'Workshop', guide: 'workshop' },
-  { id: 'rebuild', label: 'Rebuild' },
-]
-
 export function DockTab({
   state,
   onLaunch,
   onOpenSortie,
   onRebuild,
   onBuyWorkshop,
+  onBuyMatter,
   onEquipRelic,
   onRemoveRelic,
   onUpgradeRelic,
@@ -75,9 +73,8 @@ export function DockTab({
   const showWorkshop = Boolean(state.meta.hullLostOnce)
   const bestWave = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
   const cycleNo = (state.prestige.prestigeCount ?? 0) + 1
-  const cycle = rebuildCycle(state)
   const frame = getFrame(state.shipyard.frameId)
-  const [localPane, setLocalPane] = useState<DockPane>('loadout')
+  const [localPane, setLocalPane] = useState<DockPane>('home')
   const pane = paneProp ?? localPane
   const setPane = (next: DockPane) => {
     if (!showWorkshop && next === 'workshop') return
@@ -89,8 +86,17 @@ export function DockTab({
   const [frameOpen, setFrameOpen] = useState(false)
   const [coreDetail, setCoreDetail] = useState<string | null>(focusModuleId ?? null)
   const [picker, setPicker] = useState<{ replaceId?: string; role?: ModuleRole } | null>(null)
+  const [matterShopOpen, setMatterShopOpen] = useState(false)
   const locked = live
-  const relics = loadoutRelicFill(state)
+  const matterShopAvailable =
+    isSystemUnlocked(state, 'slag') || (state.resources.prestigeMatter ?? 0) > 0
+
+  useEffect(() => {
+    if (!focusModuleId) return
+    setLocalPane('loadout')
+    onPaneChange?.('loadout')
+    setCoreDetail(focusModuleId)
+  }, [focusModuleId, onPaneChange])
 
   function fitReplacement(moduleId: string) {
     if (picker?.replaceId && picker.replaceId !== moduleId) onUnfitCore?.(picker.replaceId)
@@ -102,23 +108,49 @@ export function DockTab({
   return (
     <Screen className="dock-screen is-tabbed" sticky label="Dock">
       <ContextBar>
-        <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
-        <StatPair label="Cycle" value={cycleNo} />
-        {onOpenInventory ? (
+        {pane === 'home' ? (
+          <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
+        ) : (
+          <button type="button" className="dock-back-btn" onClick={() => setPane('home')}>
+            Dock
+          </button>
+        )}
+        {pane === 'loadout' && onOpenInventory ? (
           <button type="button" className="dock-inventory-btn" onClick={onOpenInventory}>
             Inventory
           </button>
         ) : null}
+        {pane === 'workshop' ? <ResourceBar state={state} only={['scrap']} compact /> : null}
+        {pane === 'rebuild' ? <ResourceBar state={state} only={['prestigeMatter']} compact /> : null}
       </ContextBar>
 
-      <SheetTabs
-        value={pane}
-        onChange={setPane}
-        options={showWorkshop ? DOCK_PANES : DOCK_PANES.filter((p) => p.id !== 'workshop')}
-        label="Dock sections"
-      />
-
       <div className="dock-pane">
+        {pane === 'home' ? (
+          <div className="dock-home">
+            {locked ? <p className="ui-meta">Prep is locked until this Sortie docks.</p> : null}
+            <ItemRow
+              title="Loadout"
+              meta="Frame and Cores"
+              guide="dock-cores"
+              onClick={() => setPane('loadout')}
+            />
+            {showWorkshop ? (
+              <ItemRow
+                title="Workshop"
+                meta="Starting power"
+                guide="workshop"
+                onClick={() => setPane('workshop')}
+              />
+            ) : null}
+            <ItemRow
+              title="Rebuild"
+              meta={hangarOpen ? 'Available' : 'Inactive'}
+              guide="rebuild-btn"
+              onClick={() => setPane('rebuild')}
+            />
+          </div>
+        ) : null}
+
         {pane === 'loadout' ? (
           <div className="dock-loadout" data-guide="dock-cores">
             {locked ? <p className="ui-meta">Loadout is locked until this Sortie docks.</p> : null}
@@ -131,7 +163,9 @@ export function DockTab({
               />
             </Section>
             <Section>
-              <SectionHeader title="Cores" />
+              <div data-guide="relic-sockets">
+                <SectionHeader title="Cores" />
+              </div>
               {state.shipyard.modules.map((id) => {
                 const def = getModule(id)
                 return (
@@ -144,22 +178,6 @@ export function DockTab({
                   />
                 )
               })}
-            </Section>
-            <Section>
-              <SectionHeader title="Relics" />
-              <ItemRow
-                title={isRelicsUnlocked(state) ? 'Sockets' : 'Locked'}
-                meta={
-                  isRelicsUnlocked(state)
-                    ? `${relics.filled} / ${relics.sockets || '—'} filled`
-                    : 'Opens with Relic sockets'
-                }
-                guide="relic-sockets"
-                onClick={() => {
-                  const first = state.shipyard.modules[0]
-                  if (first) setCoreDetail(first)
-                }}
-              />
             </Section>
           </div>
         ) : null}
@@ -190,23 +208,10 @@ export function DockTab({
 
         {pane === 'rebuild' ? (
           <div className="dock-rebuild-dash">
-            <SectionHeader title="Rebuild" />
             <div className="dock-glance">
-              <StatPair label="Cycle Best" value={cycle.bestWave || bestWave ? `W${cycle.bestWave || bestWave}` : '—'} />
-              <StatPair
-                label="Requirement"
-                value={
-                  (state.prestige.prestigeCount ?? 0) > 0
-                    ? `Reach W${rebuildMin}`
-                    : `W${rebuildMin}`
-                }
-              />
+              <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
+              <StatPair label="Cycle" value={cycleNo} />
             </div>
-            <p className="ui-meta">
-              {(state.prestige.prestigeCount ?? 0) > 0
-                ? `${cycle.sorties} Sortie${cycle.sorties === 1 ? '' : 's'} this cycle`
-                : `${cycle.sorties} / ${REBUILD_MIN_SORTIES} Sorties completed`}
-            </p>
             <StatPair
               label="Projected Matter"
               value={rebuildReady ? formatCompact(prestigeGainFor(state)) : '0'}
@@ -221,8 +226,13 @@ export function DockTab({
                 onRebuild()
               }}
             >
-              Preview Rebuild
+              {hangarOpen ? 'Preview Rebuild' : `Inactive · W${rebuildMin}`}
             </button>
+            {matterShopAvailable ? (
+              <button type="button" onClick={() => setMatterShopOpen(true)}>
+                Matter upgrades
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -279,6 +289,13 @@ export function DockTab({
           locked={locked}
           onEquip={fitReplacement}
           onClose={() => setPicker(null)}
+        />
+      ) : null}
+      {matterShopOpen ? (
+        <MatterShopSheet
+          state={state}
+          onClose={() => setMatterShopOpen(false)}
+          onBuyMatter={locked ? undefined : onBuyMatter}
         />
       ) : null}
     </Screen>
