@@ -266,6 +266,14 @@ export function furnaceChannelUnlocked(state: GameState, id: FurnaceChannelId): 
   return GDD_FURNACE_CHANNEL_IDS.includes(id)
 }
 
+export function furnaceChannelEffectLine(def: FurnaceChannelDef): string {
+  const ranks = def.levels.map((lv) => `×${lv.mult.toFixed(2)}`).join(' / ')
+  const ash = def.levels.some((lv) => lv.ashMult)
+    ? ` · Ash ${def.levels.map((lv) => `×${(lv.ashMult ?? 1).toFixed(2)}`).join(' / ')}`
+    : ''
+  return `${def.stat} ${ranks}${ash}`
+}
+
 export function furnaceLevelDef(id: FurnaceChannelId, level: number): FurnaceChannelLevelDef | null {
   if (level <= 0) return null
   return getFurnaceChannel(id)?.levels[level - 1] ?? null

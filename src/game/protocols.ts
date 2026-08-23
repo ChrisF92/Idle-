@@ -449,9 +449,51 @@ export function protocolNextRewards(state: GameState, id: string): ProtocolRewar
   return protocolRewardsAt(def, next)
 }
 
+export function protocolHookEffect(hook: ProtocolHook): string {
+  const add = hook.add
+  const mult = hook.mult
+  const addPct = add == null ? '' : `${add >= 0 ? '+' : ''}${Number((add * 100).toFixed(1))}%`
+  const addRaw = add == null ? '' : `${add >= 0 ? '+' : ''}${add}`
+  const multTxt = mult == null ? '' : `×${mult.toFixed(2)}`
+  switch (hook.kind) {
+    case 'networkExponent':
+      return `Network exponent ${addRaw}`
+    case 'networkFillGrowth':
+      return `Network fill growth ${multTxt}`
+    case 'networkRelay':
+      return `Relay pull ${addPct}`
+    case 'networkDroneEff':
+      return `Drone efficiency ${addPct}`
+    case 'networkWardExponent':
+      return `Ward exponent ${addRaw}`
+    case 'furnaceDrain':
+      return `Channel Heat cost ${multTxt}`
+    case 'furnaceEfficiency':
+      return `Channel bonus ${addPct}`
+    case 'foundryXpNeed':
+      return `Recipe XP need ${multTxt}`
+    case 'foundryCostGrowth':
+      return `Recipe cost growth ${multTxt}`
+    case 'researchCost':
+      return `Research time ${multTxt}`
+    case 'coreCostScaling':
+      return `Weapon Core cost growth ${addRaw}`
+    case 'shieldCostScaling':
+      return `Plate cost growth ${addRaw}`
+    case 'rebuildMatter':
+      return `Rebuild Matter ${multTxt}`
+    case 'reliquaryResonanceExp':
+      return `Relic resonance exponent ${addRaw}`
+    case 'salvageSectorExp':
+      return `Salvage Wave growth ${addRaw}`
+    case 'yieldScrapExp':
+      return `Yield scrap growth ${addRaw}`
+  }
+}
+
 export function protocolRewardLine(steps: ProtocolRewardStep[]): string {
   if (steps.length === 0) return 'Maxed'
-  return steps.map((step) => step.blurb).join(' ')
+  return steps.map((step) => protocolHookEffect(step.hook)).join(' · ')
 }
 
 export function protocolNextRewardText(state: GameState, id: string): string {

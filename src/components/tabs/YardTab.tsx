@@ -8,6 +8,7 @@ import {
   YARD_GOOD_LABELS,
   canBuyYardArm,
   getYardBuilding,
+  yardArmEffect,
   yardArmCost,
   yardArmed,
   yardGood,
@@ -161,7 +162,7 @@ export function YardTab({
                     armed {yardArmed(state, arm.id)} · queue {yardPending(state, arm.id)}
                   </span>
                 </div>
-                <p className="network-row-stats">{arm.blurb}</p>
+                <p className="network-row-stats">{yardArmEffect(arm)}</p>
                 <button
                   type="button"
                   className="primary"

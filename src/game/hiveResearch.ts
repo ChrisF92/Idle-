@@ -503,22 +503,21 @@ export function hiveResearchApproachingBreakthrough(state: GameState): boolean {
 }
 
 export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
-  if (node.focusFire) return 'Cores lock wounded hulls and bosses first.'
-  if (node.foundrySlots) return 'Adds a Foundry processor.'
-  if (node.furnaceSlots) {
-    return node.unlockRelay
-      ? 'Opens Archive Relay and lights another Furnace channel.'
-      : 'Lights one more Furnace channel at once.'
-  }
-  if (node.foundryMasteryReduce) return 'Recipe mastery gates open sooner.'
-  if (node.extraUtilitySlots) return 'One extra utility Core slot on the hull. Old recipes solve sooner.'
-  if (node.foundryFitSlots) return 'One extra fitted Foundry bit.'
-  if (node.droneEfficiency) return 'Assigned drones fill jobs harder.'
-  if (node.offFocusAdd) return 'Background research crawls faster while another project is active.'
-  if (node.unlockReliquary) return 'Opens the blue Reliquary slot.'
-  if (node.researchQueueSlots) return 'Deeper Research Queue. Active Challenges grant extra Research speed.'
-  if (node.protocolXp) return 'Active Challenges grant extra Research speed.'
   const bits: string[] = []
+  if (node.focusFire) bits.push('Cores lock wounded hulls and bosses first')
+  if (node.foundrySlots) bits.push(`Foundry slots +${node.foundrySlots}`)
+  if (node.furnaceSlots) bits.push(`Furnace channels +${node.furnaceSlots}`)
+  if (node.unlockRelay) bits.push(`Unlocks ${node.unlockRelay.replace(/-/g, ' ')}`)
+  if (node.unlockFrame) bits.push(`Unlocks ${getFrame(node.unlockFrame)?.name ?? node.unlockFrame}`)
+  if (node.foundryMasteryReduce) bits.push(`Mastery gates −${node.foundryMasteryReduce} rank`)
+  if (node.foundryInfiniteReduce) bits.push(`Recipes solve ${node.foundryInfiniteReduce} ranks sooner`)
+  if (node.extraUtilitySlots) bits.push(`Utility Core slots +${node.extraUtilitySlots}`)
+  if (node.foundryFitSlots) bits.push(`Fitted Foundry bits +${node.foundryFitSlots}`)
+  if (node.droneEfficiency) bits.push(`Drone efficiency +${Math.round(node.droneEfficiency * 100)}%`)
+  if (node.offFocusAdd) bits.push(`Off-focus research +${Math.round(node.offFocusAdd * 100)}%`)
+  if (node.researchQueueSlots) bits.push(`Research queue +${node.researchQueueSlots}`)
+  if (node.protocolXp) bits.push(`Challenge research +${Math.round(node.protocolXp * 100)}%`)
+  if (node.unlockReliquary) bits.push(`Opens the ${node.unlockReliquary} Reliquary slot`)
   if (node.salvage) bits.push(`+${Math.round(node.salvage * 100)}% salvage`)
   if (node.foundrySpeed) bits.push(`+${Math.round(node.foundrySpeed * 100)}% craft speed`)
   if (node.damage) bits.push(`+${Math.round(node.damage * 100)}% damage`)
@@ -528,7 +527,7 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.data) bits.push(`+${Math.round(node.data * 100)}% Archive data`)
   if (node.shardDrop) bits.push(`+${Math.round(node.shardDrop * 100)}% shard drops`)
   if (node.researchXp) bits.push(`+${Math.round(node.researchXp * 100)}% research speed`)
-  if (node.combatSpeed && node.combatSpeed > 1) bits.push(`combat speed ×${node.combatSpeed}`)
+  if (node.combatSpeed && node.combatSpeed > 1) bits.push(`Combat speed ×${node.combatSpeed}`)
   return bits.join(' · ') || node.blurb
 }
 

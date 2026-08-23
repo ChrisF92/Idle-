@@ -12,7 +12,13 @@ import {
   moduleMasteryRank,
   trimModulesToFrame,
 } from '../game/catalog'
-import { moduleMasteryXp, masteryXpToNext, masteryMilestonesFor, nextMasteryMilestone } from '../game/coreProgression'
+import {
+  moduleMasteryXp,
+  masteryXpToNext,
+  masteryMilestonesFor,
+  masteryMilestoneEffect,
+  nextMasteryMilestone,
+} from '../game/coreProgression'
 import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
 import { formatCompact } from '../game/format'
 import {
@@ -197,7 +203,7 @@ export function CoreDetailSheet({
                 M{ms.level} · {ms.name}
               </strong>
               <span className="ui-meta">{unlocked ? 'Unlocked' : upcoming ? 'Next' : 'Locked'}</span>
-              <p>{ms.blurb}</p>
+              <p>{masteryMilestoneEffect(ms)}</p>
             </article>
           )
         })}

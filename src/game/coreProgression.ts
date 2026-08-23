@@ -372,6 +372,40 @@ export function nextMasteryMilestone(
   return masteryMilestonesFor(moduleId).find((ms) => ms.level > mastery) ?? null
 }
 
+const SOCKET_EFFECT_LABEL: Record<RelicSocketClass, string> = {
+  power: 'Power',
+  optical: 'Optical',
+  ballistic: 'Ballistic',
+  shield: 'Shield',
+  industrial: 'Industrial',
+  universal: 'Universal',
+}
+
+function formatMult(n: number): string {
+  return `×${n.toFixed(2)}`
+}
+
+function formatPct(n: number): string {
+  const pct = n * 100
+  const rounded = Math.abs(pct - Math.round(pct)) < 0.05 ? Math.round(pct) : Number(pct.toFixed(1))
+  return `${pct >= 0 ? '+' : ''}${rounded}%`
+}
+
+/** Player-facing stat line from the milestone numbers, not flavor copy. */
+export function masteryMilestoneEffect(ms: MasteryMilestoneDef): string {
+  const bits: string[] = []
+  if (ms.damageMult) bits.push(`Damage ${formatMult(ms.damageMult)}`)
+  if (ms.cooldownMult) bits.push(`RoF ${formatMult(1 / ms.cooldownMult)}`)
+  if (ms.rangeAdd) bits.push(`Range +${ms.rangeAdd}`)
+  if (ms.shieldMult) bits.push(`Shield ${formatMult(ms.shieldMult)}`)
+  if (ms.regenAdd) bits.push(`Regen ${formatPct(ms.regenAdd)}/s`)
+  if (ms.splashAdd) bits.push(`Splash +${ms.splashAdd}`)
+  if (ms.salvageKillAdd) bits.push(`Salvage/kill ${formatPct(ms.salvageKillAdd)}`)
+  if (ms.runScaleMult) bits.push(`Run Level scaling ${formatMult(ms.runScaleMult)}`)
+  if (ms.socket) bits.push(`+1 ${SOCKET_EFFECT_LABEL[ms.socket]} Relic socket`)
+  return bits.join(' · ') || ms.blurb
+}
+
 export interface MasteryMods {
   damageMult: number
   cooldownMult: number

@@ -12,8 +12,10 @@ import {
   foundryHasMaterialChain,
   foundryMaterialCount,
   FOUNDRY_PANE_LABELS,
+  foundryMasteryEffect,
   foundryMasteryStepsFor,
   foundryNextMastery,
+  foundryUpgradeEffectLine,
   foundryRecipeChainLine,
   foundryRecipeLevel,
   foundryUpgradeCost,
@@ -126,7 +128,7 @@ function RankRow({
           {rank}/{up.maxRank}
         </span>
       </div>
-      <p className="network-row-stats">{up.blurb}</p>
+      <p className="network-row-stats">{foundryUpgradeEffectLine(up)}</p>
       <button
         type="button"
         className="primary"
@@ -402,14 +404,14 @@ export function FoundryTab({
                     {foundryMasteryStepsFor(recipe, state).map((step) => (
                       <li key={step.at} className={level >= step.at ? 'is-done' : undefined}>
                         Lv {step.at}
-                        {level >= step.at ? ' · done' : ''} — {step.blurb}
+                        {level >= step.at ? ' · done' : ''} — {foundryMasteryEffect(step)}
                       </li>
                     ))}
                   </ul>
                 ) : null}
                 {unlocked && !inf && nextMastery ? (
                   <p className="network-row-stats">
-                    Next mastery Lv {nextMastery.at}: {nextMastery.blurb}
+                    Next mastery Lv {nextMastery.at}: {foundryMasteryEffect(nextMastery)}
                   </p>
                 ) : null}
                 {unlocked && !inf ? (

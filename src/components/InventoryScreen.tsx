@@ -186,8 +186,7 @@ export function InventoryScreen({
       >
         {relic ? (
           <>
-            <p>{relic.blurb}</p>
-            {getShard(relic.id) ? <p className="ui-meta">{shardEffectBlurb(getShard(relic.id)!)}</p> : null}
+            <p>{getShard(relic.id) ? shardEffectBlurb(getShard(relic.id)!) : relic.blurb}</p>
             <div className="ui-context-bar">
               <StatPair label="Owned" value={`×${relic.owned}`} />
               <StatPair label="Equipped" value={relic.equipped} />

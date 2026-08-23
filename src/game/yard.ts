@@ -93,11 +93,19 @@ export const YARD_BUILDINGS: YardBuildingDef[] = [
 ]
 
 export const YARD_ARMS: YardArmDef[] = [
-  { id: 'damage', name: 'Strike Arm', blurb: 'Sortie damage next Rebuild.', costIngots: 12, bonus: 0.03 },
-  { id: 'shield', name: 'Ward Arm', blurb: 'Max shield next Rebuild.', costIngots: 12, bonus: 0.03 },
-  { id: 'salvage', name: 'Yield Arm', blurb: 'Salvage from kills next Rebuild.', costIngots: 10, bonus: 0.05 },
-  { id: 'network', name: 'Loom Arm', blurb: 'Network fill next Rebuild.', costIngots: 10, bonus: 0.04 },
+  { id: 'damage', name: 'Strike Arm', blurb: 'Damage +3% next Rebuild', costIngots: 12, bonus: 0.03 },
+  { id: 'shield', name: 'Ward Arm', blurb: 'Shield +3% next Rebuild', costIngots: 12, bonus: 0.03 },
+  { id: 'salvage', name: 'Yield Arm', blurb: 'Salvage +5% next Rebuild', costIngots: 10, bonus: 0.05 },
+  { id: 'network', name: 'Loom Arm', blurb: 'Network fill +4% next Rebuild', costIngots: 10, bonus: 0.04 },
 ]
+
+export function yardArmEffect(def: YardArmDef): string {
+  const pct = `+${Math.round(def.bonus * 100)}%`
+  if (def.id === 'damage') return `Damage ${pct} next Rebuild`
+  if (def.id === 'shield') return `Shield ${pct} next Rebuild`
+  if (def.id === 'salvage') return `Salvage ${pct} next Rebuild`
+  return `Network fill ${pct} next Rebuild`
+}
 
 export function createEmptyYardState(): YardState {
   return {

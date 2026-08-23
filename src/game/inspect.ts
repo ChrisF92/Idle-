@@ -23,6 +23,7 @@ import {
   coreRunLevelForModule,
   masteryXpToNext,
   moduleMasteryXp,
+  masteryMilestoneEffect,
   nextMasteryMilestone,
 } from './coreProgression'
 import { formatCompact } from './format'
@@ -84,7 +85,9 @@ import {
   foundryFitSlots,
   foundryHasMaterialChain,
   foundryMaterialCount,
+  foundryMasteryEffect,
   foundryNextMastery,
+  foundryUpgradeEffectLine,
   foundryRecipeChainLine,
   foundryRecipeGateLine,
   foundryRecipeLevel,
@@ -295,7 +298,12 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
     { label: 'Shop', value: coreRunCategory(moduleId) },
   ]
   if (contribution != null) stats.push({ label: 'Build', value: `${contribution}% of DPS` })
-  if (nextMs) stats.push({ label: 'Next Mastery', value: `M${nextMs.level} · ${nextMs.name}` })
+  if (nextMs) {
+    stats.push({
+      label: 'Next Mastery',
+      value: `M${nextMs.level} · ${nextMs.name} — ${masteryMilestoneEffect(nextMs)}`,
+    })
+  }
   for (const row of previews) {
     stats.push({
       label: row.label,
@@ -450,7 +458,7 @@ export function inspectFoundryRecipe(state: GameState, id: FoundryRecipeId): Ins
       { label: 'To next level', value: `${xp}/${need} crafts` },
     )
     const next = foundryNextMastery(state, id)
-    if (next) stats.push({ label: 'Next mastery', value: `Lv ${next.at} — ${next.blurb}` })
+    if (next) stats.push({ label: 'Next mastery', value: `Lv ${next.at} — ${foundryMasteryEffect(next)}` })
   }
   if (!unlocked) stats.push({ label: 'Gate', value: foundryRecipeGateLine(def) })
   else if (def.unlocksRecipe) {
@@ -539,7 +547,7 @@ export function inspectFoundryUpgrade(state: GameState, id: string): InspectCard
     kicker: 'Foundry rank',
     stats,
     body: [
-      def.blurb,
+      foundryUpgradeEffectLine(def),
       'Foundry Points come from finishing crafts and from mastery ranks. These ranks persist when you Rebuild.',
       def.extraSlots
         ? 'Extra smelters let you run more recipes at once. Four slots is the cap.'
