@@ -8,13 +8,18 @@ import {
   enemyForSector,
   enemySectorScale,
   HIVE_STANDOFF_MIN,
-  lowestEquippedPlayerWeaponRange,
   minimumPlayerWeaponRangeForSector,
   simulateCombat,
 } from './combat'
 import { createInitialState } from './state'
 import { startCombat } from './tick'
-import { SHORT_RANGE_MAX, getModule } from './catalog'
+import {
+  ENEMY_PARK_MAX,
+  MIN_CORE_WEAPON_RANGE,
+  SHORT_RANGE_MAX,
+  SHIP_MODULES,
+  getModule,
+} from './catalog'
 import { wavesForSector } from './sectors'
 import { forceUnlockModule } from './testHelpers'
 import { coreOrbitRadius } from './hiveVisual'
@@ -29,48 +34,59 @@ function minExpectedPack(sector: number, boss: boolean): number {
 }
 
 describe('PR75 combat pacing', () => {
-  it('parks each enemy at its role standoff without sitting outside the shortest equipped Core', () => {
+  it('parks each enemy on a loadout-independent hold that every Core can reach', () => {
     const starter = createInitialState(0)
-    const pulseRange = getModule('pulse-cannon')!.weapon!.range
-    expect(lowestEquippedPlayerWeaponRange(starter)).toBe(pulseRange)
+    const flakFitted = forceUnlockModule(createInitialState(0), 'flak-array')
+    flakFitted.shipyard.modules = ['flak-array']
     let sawCloserRoles = false
-    let sawCappedRoles = false
+    let sawFarRoles = false
     for (let sector = 1; sector <= 80; sector += 1) {
       for (let wave = 1; wave <= wavesForSector(sector); wave += 1) {
         const encounter = enemyForSector(sector, wave)
         for (const enemy of encounter.units) {
-          const hold = enemyApproachTarget(enemy, 0, sector, starter)
-          expect(hold, `S${sector} W${wave} ${enemy.name}`).toBeLessThanOrEqual(pulseRange)
+          const hold = enemyApproachTarget(enemy, 0, sector)
+          expect(hold, `S${sector} W${wave} ${enemy.name}`).toBeLessThanOrEqual(ENEMY_PARK_MAX)
           expect(hold).toBeGreaterThan(coreOrbitRadius('heavy'))
           expect(hold).toBe(enemyApproachTarget(enemy, 180, sector, starter))
+          expect(hold).toBe(enemyApproachTarget(enemy, 180, sector, flakFitted))
           expect(Math.max(...enemy.weapons.map((w) => w.range))).toBeGreaterThanOrEqual(hold)
-          if (hold < pulseRange) sawCloserRoles = true
-          if (enemy.engageRange > pulseRange) sawCappedRoles = true
+          if (hold < ENEMY_PARK_MAX) sawCloserRoles = true
+          if (hold >= 110) sawFarRoles = true
         }
       }
     }
     expect(sawCloserRoles).toBe(true)
-    expect(sawCappedRoles).toBe(true)
-    expect(minimumPlayerWeaponRangeForSector(1)).toBe(SHORT_RANGE_MAX)
-    expect(minimumPlayerWeaponRangeForSector(2, starter)).toBe(pulseRange)
-    expect(enemyApproachTarget({ engageRange: 24 }, 0, 2, starter)).toBe(HIVE_STANDOFF_MIN)
-    expect(enemyApproachTarget({ engageRange: 84 }, 0, 2, starter)).toBe(84)
-    expect(enemyApproachTarget({ engageRange: 118 }, 0, 2, starter)).toBe(pulseRange)
-    expect(enemyApproachTarget({ engageRange: 118 })).toBe(SHORT_RANGE_MAX)
+    expect(sawFarRoles).toBe(true)
+    expect(minimumPlayerWeaponRangeForSector(1)).toBe(ENEMY_PARK_MAX)
+    expect(minimumPlayerWeaponRangeForSector(2, starter)).toBe(ENEMY_PARK_MAX)
+    expect(enemyApproachTarget({ engageRange: 24 })).toBe(HIVE_STANDOFF_MIN)
+    expect(enemyApproachTarget({ engageRange: 84 })).toBe(84)
+    expect(enemyApproachTarget({ engageRange: 118 })).toBe(118)
+    expect(enemyApproachTarget({ engageRange: 200 })).toBe(ENEMY_PARK_MAX)
   })
 
-  it('pulls every park in to Flak when that is the shortest fitted gun', () => {
-    let flak = forceUnlockModule(createInitialState(0), 'flak-array')
+  it('requires every catalog Core gun to reach the farthest legal park', () => {
+    for (const mod of SHIP_MODULES) {
+      const range = mod.weapon?.range
+      if (typeof range !== 'number' || range <= 0) continue
+      expect(range, mod.id).toBeGreaterThanOrEqual(MIN_CORE_WEAPON_RANGE)
+      expect(range, mod.id).toBeGreaterThanOrEqual(ENEMY_PARK_MAX)
+    }
+    expect(getModule('flak-array')!.weapon!.range).toBe(MIN_CORE_WEAPON_RANGE)
+  })
+
+  it('compresses parks only for Knife Fight, not because Flak is fitted', () => {
+    const knife = createInitialState(0)
+    knife.prestige.activeChallengeId = 'short-range'
+    expect(minimumPlayerWeaponRangeForSector(1, knife)).toBe(SHORT_RANGE_MAX)
+    expect(enemyApproachTarget({ engageRange: 118 }, 0, 2, knife)).toBe(SHORT_RANGE_MAX)
+    const flak = forceUnlockModule(createInitialState(0), 'flak-array')
     flak.shipyard.modules = ['flak-array']
-    expect(lowestEquippedPlayerWeaponRange(flak)).toBe(SHORT_RANGE_MAX)
-    expect(enemyApproachTarget({ engageRange: 74 }, 0, 2, flak)).toBe(SHORT_RANGE_MAX)
-    expect(enemyApproachTarget({ engageRange: 118 }, 0, 2, flak)).toBe(SHORT_RANGE_MAX)
+    expect(enemyApproachTarget({ engageRange: 118 }, 0, 2, flak)).toBe(118)
   })
 
   it('stops living enemies short of the Hive and on their role hold', () => {
     let state = createInitialState(0)
-    const parkCap = lowestEquippedPlayerWeaponRange(state)
-    const parkFloor = Math.min(HIVE_STANDOFF_MIN, parkCap)
     state.combat.sector = 2
     state.combat.wave = 1
     state = startCombat(state)
@@ -84,9 +100,9 @@ describe('PR75 combat pacing', () => {
     const living = state.combat.enemyUnits.filter((unit) => unit.hull > 0)
     expect(living.length).toBeGreaterThan(0)
     for (const unit of living) {
-      const hold = enemyApproachTarget(unit, state.combat.fightElapsed ?? 0, state.combat.sector, state)
-      expect(unit.x).toBeGreaterThanOrEqual(parkFloor - 0.05)
-      expect(unit.x).toBeLessThanOrEqual(parkCap + 0.05)
+      const hold = enemyApproachTarget(unit, state.combat.fightElapsed ?? 0, state.combat.sector)
+      expect(unit.x).toBeGreaterThanOrEqual(HIVE_STANDOFF_MIN - 0.05)
+      expect(unit.x).toBeLessThanOrEqual(ENEMY_PARK_MAX + 0.05)
       expect(unit.x).toBeCloseTo(hold, 0)
     }
   })

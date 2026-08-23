@@ -106,7 +106,7 @@ describe('starter reach', () => {
     const ethereal = enemyForSector(8, 1)
     expect(ethereal.family).toBe('ethereal')
     for (const unit of ethereal.units) {
-      expect(maxRange).toBeGreaterThanOrEqual(enemyApproachTarget(unit, 0, 8, state))
+      expect(maxRange).toBeGreaterThanOrEqual(enemyApproachTarget(unit))
     }
   })
 })

@@ -1,5 +1,6 @@
 import type { GameState, Resources, ShipCombatStats, WeaponInstance } from './types'
 import {
+  MIN_CORE_WEAPON_RANGE,
   SHORT_RANGE_MAX,
   STARTER_FRAME_ID,
   aiDoctrinesActive,
@@ -333,8 +334,8 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       damage: batteryDamage * mult * weaponPowerMult(state),
       cooldown: 1 / cycleRateMult(state),
       cooldownLeft: 0,
-      // Must reach early kite packs (Ethereal ~110, Divine core ~105).
-      range: capRange(120),
+      // Must reach the farthest legal enemy park, same rule as Core guns.
+      range: capRange(MIN_CORE_WEAPON_RANGE),
       tags: ['kinetic'],
       splash: 0,
       dotDuration: 0,

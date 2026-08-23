@@ -9,6 +9,7 @@ import {
   hiveDrawRadius,
   hiveFramePalette,
   hiveFrameStyle,
+  paintHiveStation,
 } from './hiveVisual'
 
 const KINDS = ['flak', 'shield', 'pulse', 'utility', 'beam', 'heavy'] as const
@@ -33,6 +34,10 @@ describe('Hive Sortie presentation', () => {
       expect(coreScreenOrbit(kind)).toBe(coreOrbitRadius(kind) + CORE_SCREEN_ORBIT_PAD)
       expect(coreScreenOrbit(kind)).toBeGreaterThan(hull)
     }
+  })
+
+  it('exposes a face-on station painter for Dock and Sortie', () => {
+    expect(typeof paintHiveStation).toBe('function')
   })
 
   it('slews heavy Cores slower than a held beam', () => {

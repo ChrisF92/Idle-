@@ -12,6 +12,7 @@ import { CoreDetailSheet, CorePicker, FrameSheet } from '../LoadoutSheets'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
 import { frameBlurb } from '../../game/inventory'
 import { ResourceBar } from '../ResourceBar'
+import { DockHivePreview } from '../DockHivePreview'
 import { MatterShopSheet } from '../RebuildHangar'
 import {
   ContextBar,
@@ -141,6 +142,7 @@ export function DockTab({
       <div className="dock-pane">
         {pane === 'home' ? (
           <div className="dock-home">
+            <DockHivePreview state={state} />
             {locked ? <p className="ui-meta">Prep is locked until this Sortie docks.</p> : null}
             <ItemRow
               title="Loadout"

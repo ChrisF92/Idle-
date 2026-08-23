@@ -1543,19 +1543,18 @@ h2 .inspect-name {
   flex: 0 0 auto;
 }
 
-.dock-hive {
-  position: relative;
-  height: 8.6rem;
-  margin: 0 0 0.55rem;
-  border: 1px solid var(--line);
-  background: #120e0c;
-  overflow: hidden;
+.dock-hive-preview {
+  width: min(16.5rem, 72%);
+  aspect-ratio: 1;
+  margin: 0.35rem auto 0.15rem;
+  flex: 0 0 auto;
 }
 
-.dock-hive canvas {
+.dock-hive-canvas {
+  display: block;
   width: 100%;
   height: 100%;
-  display: block;
+  aspect-ratio: 1;
 }
 
 .combat-hud-kicker {

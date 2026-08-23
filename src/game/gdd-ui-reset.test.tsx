@@ -90,6 +90,8 @@ describe('UI architecture reset', () => {
     expect(screen.queryByRole('tab', { name: 'Loadout' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Inventory' })).toBeNull()
     expect(document.querySelector('.hive-rig')).toBeNull()
+    expect(document.querySelector('.dock-hive-preview')).toBeTruthy()
+    expect(document.querySelector('.dock-hive-canvas')).toBeTruthy()
     expect(document.querySelector('.ui-sticky-action')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Loadout/ }))

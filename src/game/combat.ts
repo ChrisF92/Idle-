@@ -36,7 +36,8 @@ import {
   partId,
   pickWeightedDropEntry,
   stationRepairBonus,
-  lowestPlayerCoreRange,
+  ENEMY_PARK_MAX,
+  SHORT_RANGE_MAX,
   frameSalvageMult,
 } from './catalog'
 import { careerHighestSector, isSystemUnlocked } from './progression'
@@ -2049,20 +2050,10 @@ function laneDistance(a: CombatUnit, b: CombatUnit): number {
   return Math.abs(a.x - b.x)
 }
 
-/** Shortest equipped Core gun. Catalog Flak is only the no-loadout fallback. */
-export function lowestEquippedPlayerWeaponRange(state: GameState): number {
-  const equipped: number[] = []
-  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
-    const weapon = buildCoreWeapon(state, slot)
-    if (weapon && Number.isFinite(weapon.range) && weapon.range > 0) equipped.push(weapon.range)
-  }
-  if (equipped.length === 0) return lowestPlayerCoreRange()
-  return Math.min(...equipped)
-}
-
-/** Furthest legal enemy park: the shortest *equipped* player Core, else catalog Flak. */
+/** Furthest legal park. Loadout does not move this — Knife Fight is the only compress. */
 export function minimumPlayerWeaponRangeForSector(_sector?: number, state?: GameState): number {
-  return state ? lowestEquippedPlayerWeaponRange(state) : lowestPlayerCoreRange()
+  if (state?.prestige.activeChallengeId === 'short-range') return SHORT_RANGE_MAX
+  return ENEMY_PARK_MAX
 }
 
 export function enemyApproachTarget(
@@ -2071,7 +2062,7 @@ export function enemyApproachTarget(
   _sector = 2,
   state?: GameState,
 ): number {
-  const cap = state ? lowestEquippedPlayerWeaponRange(state) : lowestPlayerCoreRange()
+  const cap = minimumPlayerWeaponRangeForSector(_sector, state)
   const floor = Math.min(HIVE_STANDOFF_MIN, cap)
   const preferred = Math.max(0, unit.engageRange)
   return Math.max(floor, Math.min(preferred, cap))

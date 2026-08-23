@@ -1098,7 +1098,16 @@ export const MATTER_SHOP: MatterShopDef[] = [
   },
 ]
 
-/** Knife Fight caps every flagship weapon (including Frame Battery) to flak reach. */
+/**
+ * Farthest legal enemy park. Parks are role-authored and do not move when the
+ * player swaps Cores. Every catalog weapon must reach this hold.
+ */
+export const ENEMY_PARK_MAX = 125
+
+/** Shortest legal player Core range — must reach `ENEMY_PARK_MAX`. */
+export const MIN_CORE_WEAPON_RANGE = ENEMY_PARK_MAX
+
+/** Knife Fight only: runtime cap on fitted guns. Parks also compress to this. */
 export const SHORT_RANGE_MAX = 55
 
 export const CHALLENGES: ChallengeDef[] = [
@@ -1438,7 +1447,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       damage: 10,
       damagePerLevel: 5,
       cooldown: 2,
-      range: 92,
+      range: 132,
       tags: ['energy'],
       hullDamage: 1,
       shieldDamage: 1,
@@ -1488,7 +1497,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Lance',
       damage: 38,
       cooldown: 2.5,
-      range: 132,
+      range: 152,
       tags: ['kinetic', 'pierce'],
     },
     unlockCost: { scrap: 50, alloys: 20 },
@@ -1499,7 +1508,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Flak Array',
     role: 'weapon',
     description:
-      'Short-range splash. Best at shredding packs that close in. Weak if the fight stays at long range.',
+      'Splash bursts. Best at shredding packs. Shortest legal Core reach — still hits every park.',
     damageBonus: 6,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1507,7 +1516,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Flak',
       damage: 14,
       cooldown: 1.05,
-      range: 55,
+      range: 125,
       tags: ['kinetic', 'splash'],
       splash: 2,
     },
@@ -1527,7 +1536,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Phase Beam',
       damage: 19,
       cooldown: 1.4,
-      range: 122,
+      range: 148,
       tags: ['energy', 'antiShield'],
       delivery: 'beam',
     },
@@ -1573,7 +1582,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Rail',
       damage: 26,
       cooldown: 1.85,
-      range: 158,
+      range: 168,
       tags: ['kinetic', 'pierce'],
     },
     unlockCost: { scrap: 70, alloys: 28, data: 6 },
@@ -1592,7 +1601,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       name: 'Ion Burst',
       damage: 13,
       cooldown: 1.15,
-      range: 100,
+      range: 136,
       tags: ['energy', 'antiShield', 'splash'],
       splash: 1,
     },
@@ -1666,7 +1675,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       damage: 28,
       damagePerLevel: 8,
       cooldown: 2.6,
-      range: 148,
+      range: 160,
       tags: ['energy'],
       hullDamage: 1,
       shieldDamage: 1.35,
@@ -1693,7 +1702,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       damage: 16,
       damagePerLevel: 5,
       cooldown: 1.9,
-      range: 115,
+      range: 144,
       tags: ['kinetic', 'splash'],
       splash: 2,
       hullDamage: 1.1,
@@ -1719,7 +1728,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       damage: 11,
       damagePerLevel: 4,
       cooldown: 1.05,
-      range: 105,
+      range: 140,
       tags: ['energy', 'antiShield', 'splash'],
       splash: 2,
       hullDamage: 0.85,
@@ -1745,7 +1754,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
       damage: 9,
       damagePerLevel: 3.5,
       cooldown: 1.1,
-      range: 68,
+      range: 128,
       tags: ['kinetic', 'dot'],
       splash: 1,
       dotDuration: 3,
@@ -2738,7 +2747,7 @@ export function getModule(id: string): ShipModuleDef | undefined {
   return SHIP_MODULES.find((m) => m.id === id)
 }
 
-/** Shortest weapon range on any player Core in the catalog (currently Flak Array). */
+/** Shortest weapon range on any player Core in the catalog. Must be ≥ ENEMY_PARK_MAX. */
 export function lowestPlayerCoreRange(): number {
   let min = Infinity
   for (const mod of SHIP_MODULES) {

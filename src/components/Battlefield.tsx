@@ -27,8 +27,8 @@ import {
   coreSlewStiffness,
   coreVisualKind,
   hiveDrawRadius,
-  hiveFramePalette,
   hiveFrameStyle,
+  paintHiveStation,
   HIVE_VISUAL_RADIUS,
   type CoreVisualKind,
   type HiveFrameStyle,
@@ -1394,23 +1394,6 @@ function drawShape(
   ctx.restore()
 }
 
-function pathRegularPoly(
-  ctx: CanvasRenderingContext2D,
-  sides: number,
-  r: number,
-  rot = 0,
-): void {
-  ctx.beginPath()
-  for (let i = 0; i < sides; i += 1) {
-    const a = (Math.PI * 2 * i) / sides + rot
-    const x = Math.cos(a) * r
-    const y = Math.sin(a) * r
-    if (i === 0) ctx.moveTo(x, y)
-    else ctx.lineTo(x, y)
-  }
-  ctx.closePath()
-}
-
 function drawHiveFrame(
   ctx: CanvasRenderingContext2D,
   style: HiveFrameStyle,
@@ -1420,143 +1403,7 @@ function drawHiveFrame(
   alpha: number,
   scene: Scene,
 ): void {
-  const pal = hiveFramePalette(style)
-  const spin = scene.reducedMotion ? 0 : scene.time * 0.18
-  const heartPulse = scene.reducedMotion ? 0.72 : 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(scene.time * 2.4))
-  ctx.save()
-  ctx.globalAlpha = alpha
-
-  const glow = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r * 1.55)
-  glow.addColorStop(0, `${pal.heart}55`)
-  glow.addColorStop(0.45, `${pal.hull}22`)
-  glow.addColorStop(1, 'rgba(18,14,12,0)')
-  ctx.fillStyle = glow
-  ctx.beginPath()
-  ctx.arc(0, 0, r * 1.55, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.save()
-  ctx.rotate(spin)
-  ctx.strokeStyle = pal.trim
-  ctx.globalAlpha = alpha * 0.55
-  ctx.lineWidth = style === 'bastion' ? 2.4 : style === 'swarm' ? 1.15 : 1.6
-  ctx.beginPath()
-  ctx.arc(0, 0, r * (style === 'bastion' ? 1.16 : style === 'reactor' ? 1.2 : 1.1), 0, Math.PI * 2)
-  ctx.stroke()
-  const lights = style === 'swarm' ? 8 : 6
-  for (let i = 0; i < lights; i += 1) {
-    const a = (Math.PI * 2 * i) / lights
-    const on = scene.reducedMotion ? 0.7 : 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(scene.time * 3 + i))
-    ctx.globalAlpha = alpha * on
-    ctx.fillStyle = i % 2 === 0 ? pal.heart : pal.stroke
-    ctx.beginPath()
-    ctx.arc(Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1, style === 'swarm' ? 1.15 : 1.45, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  ctx.restore()
-
-  ctx.globalAlpha = alpha
-  ctx.fillStyle = pal.hullDeep
-  ctx.strokeStyle = pal.stroke
-  ctx.lineWidth = 1.7
-  if (style === 'bastion') {
-    pathRegularPoly(ctx, 6, r, -Math.PI / 6)
-    ctx.fill()
-    ctx.stroke()
-    ctx.fillStyle = pal.hull
-    pathRegularPoly(ctx, 6, r * 0.72, -Math.PI / 6)
-    ctx.fill()
-    ctx.stroke()
-    ctx.fillStyle = pal.trim
-    ctx.globalAlpha = alpha * 0.7
-    for (let i = 0; i < 6; i += 1) {
-      const a = (Math.PI * 2 * i) / 6 - Math.PI / 6
-      ctx.save()
-      ctx.rotate(a)
-      ctx.fillRect(r * 0.78, -r * 0.12, r * 0.28, r * 0.24)
-      ctx.restore()
-    }
-  } else if (style === 'swarm') {
-    ctx.beginPath()
-    ctx.arc(0, 0, r * 0.48, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.stroke()
-    ctx.fillStyle = pal.hull
-    for (let i = 0; i < 6; i += 1) {
-      const a = (Math.PI * 2 * i) / 6 + spin * 0.35
-      ctx.beginPath()
-      ctx.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * 0.2, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.stroke()
-    }
-  } else if (style === 'reactor') {
-    ctx.beginPath()
-    ctx.arc(0, 0, r * 0.86, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.stroke()
-    ctx.strokeStyle = pal.trim
-    ctx.globalAlpha = alpha * 0.55
-    for (let i = 0; i < 8; i += 1) {
-      const a = (Math.PI * 2 * i) / 8
-      ctx.beginPath()
-      ctx.moveTo(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5)
-      ctx.lineTo(Math.cos(a) * r * 0.82, Math.sin(a) * r * 0.82)
-      ctx.stroke()
-    }
-    ctx.globalAlpha = alpha
-    ctx.strokeStyle = pal.stroke
-    ctx.beginPath()
-    ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2)
-    ctx.stroke()
-  } else if (style === 'harvester') {
-    ctx.beginPath()
-    ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.stroke()
-    ctx.fillStyle = pal.hull
-    ctx.strokeStyle = pal.trim
-    for (let i = 0; i < 3; i += 1) {
-      const a = (Math.PI * 2 * i) / 3 + spin * 0.2
-      ctx.save()
-      ctx.rotate(a)
-      ctx.beginPath()
-      ctx.moveTo(r * 0.45, -r * 0.18)
-      ctx.lineTo(r * 1.05, -r * 0.42)
-      ctx.lineTo(r * 1.12, 0)
-      ctx.lineTo(r * 1.05, r * 0.42)
-      ctx.lineTo(r * 0.45, r * 0.18)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-      ctx.restore()
-    }
-  } else {
-    pathRegularPoly(ctx, 6, r * 0.92, -Math.PI / 6)
-    ctx.fill()
-    ctx.stroke()
-    ctx.fillStyle = pal.hull
-    pathRegularPoly(ctx, 6, r * 0.62, Math.PI / 6)
-    ctx.fill()
-    ctx.stroke()
-    ctx.globalAlpha = alpha * 0.55
-    ctx.strokeStyle = pal.trim
-    ctx.beginPath()
-    ctx.moveTo(-r * 0.22, -r * 0.55)
-    ctx.lineTo(r * 0.22, -r * 0.55)
-    ctx.moveTo(-r * 0.22, r * 0.55)
-    ctx.lineTo(r * 0.22, r * 0.55)
-    ctx.stroke()
-  }
-
-  ctx.globalAlpha = alpha * heartPulse
-  const heart = ctx.createRadialGradient(0, 0, 0, 0, 0, r * (style === 'reactor' ? 0.42 : 0.32))
-  heart.addColorStop(0, pal.heart)
-  heart.addColorStop(1, 'rgba(18,14,12,0)')
-  ctx.fillStyle = heart
-  ctx.beginPath()
-  ctx.arc(0, 0, r * (style === 'reactor' ? 0.42 : 0.3), 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
+  paintHiveStation(ctx, style, r, scene.time, scene.reducedMotion, alpha)
 }
 
 function drawCoreDrone(
@@ -1811,28 +1658,22 @@ function drawBackground(ctx: CanvasRenderingContext2D, scene: Scene): void {
   ctx.lineTo(PLAYER_SCREEN_X, scene.height - 64)
   ctx.stroke()
 
-  // Foundry clamp plate under the hull — industrial floor, not empty stars.
-  const dockY = PLAYER_SCREEN_Y + 18
-  const plate = ctx.createRadialGradient(PLAYER_SCREEN_X, dockY, 8, PLAYER_SCREEN_X, dockY, 92)
-  plate.addColorStop(0, 'rgba(224, 138, 58, 0.22)')
-  plate.addColorStop(0.45, 'rgba(61, 143, 136, 0.08)')
-  plate.addColorStop(1, 'rgba(18, 14, 12, 0)')
-  ctx.fillStyle = plate
-  ctx.beginPath()
-  ctx.ellipse(PLAYER_SCREEN_X, dockY, 86, 22, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.strokeStyle = 'rgba(224, 138, 58, 0.28)'
-  ctx.lineWidth = 1.2
-  ctx.beginPath()
-  ctx.ellipse(PLAYER_SCREEN_X, dockY, 70, 16, 0, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.strokeStyle = 'rgba(224, 138, 58, 0.45)'
-  ctx.beginPath()
-  ctx.moveTo(PLAYER_SCREEN_X - 38, dockY)
-  ctx.lineTo(PLAYER_SCREEN_X - 22, dockY + 10)
-  ctx.moveTo(PLAYER_SCREEN_X + 38, dockY)
-  ctx.lineTo(PLAYER_SCREEN_X + 22, dockY + 10)
-  ctx.stroke()
+  if (scene.mode === 'docked' || scene.mode === 'repairing') {
+    const dockY = PLAYER_SCREEN_Y + 18
+    const plate = ctx.createRadialGradient(PLAYER_SCREEN_X, dockY, 8, PLAYER_SCREEN_X, dockY, 92)
+    plate.addColorStop(0, 'rgba(224, 138, 58, 0.22)')
+    plate.addColorStop(0.45, 'rgba(61, 143, 136, 0.08)')
+    plate.addColorStop(1, 'rgba(18, 14, 12, 0)')
+    ctx.fillStyle = plate
+    ctx.beginPath()
+    ctx.ellipse(PLAYER_SCREEN_X, dockY, 86, 22, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(224, 138, 58, 0.28)'
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.ellipse(PLAYER_SCREEN_X, dockY, 70, 16, 0, 0, Math.PI * 2)
+    ctx.stroke()
+  }
 }
 
 function stepScene(scene: Scene, dt: number): void {
