@@ -74,7 +74,8 @@ describe('Act 1 authored formulas', () => {
     expect(FURNACE_BASE_IDLE_GEN).toBe(0)
     expect(ENEMY_HULL_EARLY).toBeGreaterThan(1)
     expect(ENEMY_DMG_EARLY).toBeGreaterThan(1)
-    expect(PROCESS_NODES[0]?.cost).toBe(4)
+    expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
+    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')?.cost).toBe(4)
   })
 
   it('lists explicit progression windows from the opening through late career doors', () => {
