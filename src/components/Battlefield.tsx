@@ -20,7 +20,18 @@ import {
 } from '../game/combatVisual'
 import { formatCompact } from '../game/format'
 import type { DamageNumbersMode } from '../game/uiReadout'
-import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind, hiveFrameStyle, type CoreVisualKind, type HiveFrameStyle } from '../game/hiveVisual'
+import {
+  coreOrbitSpeed,
+  coreScreenOrbit,
+  coreSlewStiffness,
+  coreVisualKind,
+  hiveDrawRadius,
+  hiveFramePalette,
+  hiveFrameStyle,
+  HIVE_VISUAL_RADIUS,
+  type CoreVisualKind,
+  type HiveFrameStyle,
+} from '../game/hiveVisual'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -161,8 +172,11 @@ interface VisualBeam {
 type CoreSlot = {
   id: string
   role: 'weapon' | 'defense' | 'utility'
+  kind: CoreVisualKind
   x: number
   y: number
+  facing: number
+  firing: boolean
 }
 
 type WeaponCoreSpin = {
@@ -501,7 +515,7 @@ function ensureWeaponSpins(scene: Scene): void {
       kind,
       angle: scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0),
       holdT: 0,
-      orbit: coreOrbitRadius(kind),
+      orbit: coreScreenOrbit(kind),
       speed,
     })
   })
@@ -555,7 +569,7 @@ function stepWeaponCores(scene: Scene, dt: number): void {
     }
     const face = ringAngleToward(hive, target)
     const beaming = spin.kind === 'beam' && coreHasBeam(scene, spin.id)
-    const stiffness = beaming ? 18 : spin.kind === 'heavy' ? 12 : 14
+    const stiffness = coreSlewStiffness(spin.kind, beaming)
     if (scene.reducedMotion) spin.angle = face
     else if (spin.kind === 'heavy' && spin.holdT > 0) {
       spin.angle = easeAngle(spin.angle, face, dt, 16)
@@ -571,17 +585,27 @@ function refreshCoreSlots(scene: Scene, hive = hiveCenter(scene)): void {
   const ids = scene.coreIds
   scene.coreSlots = ids.map((id, index) => {
     const kind = coreVisualKind(id)
-    const orbit = coreOrbitRadius(kind)
+    const orbit = coreScreenOrbit(kind)
     const speed = coreOrbitSpeed(kind)
     const role = getModule(id)?.role ?? 'utility'
     const spin = role === 'weapon' ? scene.weaponSpins.get(id) : undefined
     const angle = spin?.angle ?? scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0)
     const pos = pointOnRing(hive, orbit, angle)
+    const target = role === 'weapon' ? coreTargetScreen(scene, id) : null
+    const facing = target
+      ? Math.atan2(target.y - pos.y, target.x - pos.x)
+      : angle
+    const firing =
+      scene.liveProjectiles.some((shot) => shot.side === 'player' && weaponIdToCoreId(shot.weaponId) === id) ||
+      scene.liveBeams.some((beam) => beam.side === 'player' && weaponIdToCoreId(beam.weaponId) === id)
     return {
       id,
       role,
+      kind,
       x: pos.x,
       y: pos.y,
+      facing,
+      firing,
     }
   })
 }
@@ -673,7 +697,7 @@ function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
     return { x: HIVE_SCREEN_X, y: HIVE_SCREEN_Y, r }
   }
   if (unit.side === 'player' && unit.isCore) {
-    const orbit = coreOrbitRadius(coreVisualKind(unit.coreModuleId ?? ''))
+    const orbit = coreScreenOrbit(coreVisualKind(unit.coreModuleId ?? ''))
     const heading = unit.heading ?? 0
     return {
       x: HIVE_SCREEN_X + Math.sin(heading) * orbit,
@@ -705,7 +729,7 @@ function primaryWeaponTag(weapons: WeaponInstance[]): string {
 
 /** Skirmishers are tiny; juggernauts and bosses fill the lane. */
 function unitRadius(unit: CombatUnit): number {
-  if (unit.isFlagship) return 16
+  if (unit.isFlagship) return HIVE_VISUAL_RADIUS
   if (unit.isBoss || unit.role === 'boss') return 18
   switch (unit.role) {
     case 'skirmisher':
@@ -1371,76 +1395,265 @@ function drawShape(
   ctx.restore()
 }
 
+function pathRegularPoly(
+  ctx: CanvasRenderingContext2D,
+  sides: number,
+  r: number,
+  rot = 0,
+): void {
+  ctx.beginPath()
+  for (let i = 0; i < sides; i += 1) {
+    const a = (Math.PI * 2 * i) / sides + rot
+    const x = Math.cos(a) * r
+    const y = Math.sin(a) * r
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.closePath()
+}
+
 function drawHiveFrame(
   ctx: CanvasRenderingContext2D,
   style: HiveFrameStyle,
   r: number,
-  fill: string,
-  stroke: string,
+  _fill: string,
+  _stroke: string,
   alpha: number,
+  scene: Scene,
 ): void {
+  const pal = hiveFramePalette(style)
+  const spin = scene.reducedMotion ? 0 : scene.time * 0.18
+  const heartPulse = scene.reducedMotion ? 0.72 : 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(scene.time * 2.4))
   ctx.save()
   ctx.globalAlpha = alpha
-  ctx.fillStyle = fill
-  ctx.strokeStyle = stroke
-  ctx.lineWidth = 1.7
+
+  const glow = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r * 1.55)
+  glow.addColorStop(0, `${pal.heart}55`)
+  glow.addColorStop(0.45, `${pal.hull}22`)
+  glow.addColorStop(1, 'rgba(18,14,12,0)')
+  ctx.fillStyle = glow
   ctx.beginPath()
-  if (style === 'swarm') {
-    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2)
+  ctx.arc(0, 0, r * 1.55, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.save()
+  ctx.rotate(spin)
+  ctx.strokeStyle = pal.trim
+  ctx.globalAlpha = alpha * 0.55
+  ctx.lineWidth = style === 'bastion' ? 2.4 : style === 'swarm' ? 1.15 : 1.6
+  ctx.beginPath()
+  ctx.arc(0, 0, r * (style === 'bastion' ? 1.16 : style === 'reactor' ? 1.2 : 1.1), 0, Math.PI * 2)
+  ctx.stroke()
+  const lights = style === 'swarm' ? 8 : 6
+  for (let i = 0; i < lights; i += 1) {
+    const a = (Math.PI * 2 * i) / lights
+    const on = scene.reducedMotion ? 0.7 : 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(scene.time * 3 + i))
+    ctx.globalAlpha = alpha * on
+    ctx.fillStyle = i % 2 === 0 ? pal.heart : pal.stroke
+    ctx.beginPath()
+    ctx.arc(Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1, style === 'swarm' ? 1.15 : 1.45, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.restore()
+
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = pal.hullDeep
+  ctx.strokeStyle = pal.stroke
+  ctx.lineWidth = 1.7
+  if (style === 'bastion') {
+    pathRegularPoly(ctx, 6, r, -Math.PI / 6)
     ctx.fill()
     ctx.stroke()
+    ctx.fillStyle = pal.hull
+    pathRegularPoly(ctx, 6, r * 0.72, -Math.PI / 6)
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = pal.trim
+    ctx.globalAlpha = alpha * 0.7
     for (let i = 0; i < 6; i += 1) {
-      const a = (Math.PI * 2 * i) / 6
+      const a = (Math.PI * 2 * i) / 6 - Math.PI / 6
+      ctx.save()
+      ctx.rotate(a)
+      ctx.fillRect(r * 0.78, -r * 0.12, r * 0.28, r * 0.24)
+      ctx.restore()
+    }
+  } else if (style === 'swarm') {
+    ctx.beginPath()
+    ctx.arc(0, 0, r * 0.48, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = pal.hull
+    for (let i = 0; i < 6; i += 1) {
+      const a = (Math.PI * 2 * i) / 6 + spin * 0.35
       ctx.beginPath()
-      ctx.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * 0.22, 0, Math.PI * 2)
+      ctx.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * 0.2, 0, Math.PI * 2)
       ctx.fill()
       ctx.stroke()
     }
-    ctx.beginPath()
   } else if (style === 'reactor') {
-    ctx.arc(0, 0, r * 0.82, 0, Math.PI * 2)
-  } else if (style === 'harvester') {
-    ctx.moveTo(r * 0.95, 0)
-    ctx.lineTo(0, -r * 0.62)
-    ctx.lineTo(-r * 1.05, -r * 0.28)
-    ctx.lineTo(-r * 1.05, r * 0.28)
-    ctx.lineTo(0, r * 0.62)
-    ctx.closePath()
-  } else if (style === 'bastion') {
-    for (let i = 0; i < 6; i += 1) {
-      const a = (Math.PI * 2 * i) / 6 - Math.PI / 6
-      const x = Math.cos(a) * r
-      const y = Math.sin(a) * r
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
+    ctx.beginPath()
+    ctx.arc(0, 0, r * 0.86, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+    ctx.strokeStyle = pal.trim
+    ctx.globalAlpha = alpha * 0.55
+    for (let i = 0; i < 8; i += 1) {
+      const a = (Math.PI * 2 * i) / 8
+      ctx.beginPath()
+      ctx.moveTo(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5)
+      ctx.lineTo(Math.cos(a) * r * 0.82, Math.sin(a) * r * 0.82)
+      ctx.stroke()
     }
-    ctx.closePath()
+    ctx.globalAlpha = alpha
+    ctx.strokeStyle = pal.stroke
+    ctx.beginPath()
+    ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2)
+    ctx.stroke()
+  } else if (style === 'harvester') {
+    ctx.beginPath()
+    ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = pal.hull
+    ctx.strokeStyle = pal.trim
+    for (let i = 0; i < 3; i += 1) {
+      const a = (Math.PI * 2 * i) / 3 + spin * 0.2
+      ctx.save()
+      ctx.rotate(a)
+      ctx.beginPath()
+      ctx.moveTo(r * 0.45, -r * 0.18)
+      ctx.lineTo(r * 1.05, -r * 0.42)
+      ctx.lineTo(r * 1.12, 0)
+      ctx.lineTo(r * 1.05, r * 0.42)
+      ctx.lineTo(r * 0.45, r * 0.18)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+      ctx.restore()
+    }
   } else {
-    ctx.moveTo(r * 0.9, 0)
-    ctx.lineTo(-r * 0.7, -r * 0.62)
-    ctx.lineTo(-r * 0.45, 0)
-    ctx.lineTo(-r * 0.7, r * 0.62)
+    pathRegularPoly(ctx, 6, r * 0.92, -Math.PI / 6)
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = pal.hull
+    pathRegularPoly(ctx, 6, r * 0.62, Math.PI / 6)
+    ctx.fill()
+    ctx.stroke()
+    ctx.globalAlpha = alpha * 0.55
+    ctx.strokeStyle = pal.trim
+    ctx.beginPath()
+    ctx.moveTo(-r * 0.22, -r * 0.55)
+    ctx.lineTo(r * 0.22, -r * 0.55)
+    ctx.moveTo(-r * 0.22, r * 0.55)
+    ctx.lineTo(r * 0.22, r * 0.55)
+    ctx.stroke()
+  }
+
+  ctx.globalAlpha = alpha * heartPulse
+  const heart = ctx.createRadialGradient(0, 0, 0, 0, 0, r * (style === 'reactor' ? 0.42 : 0.32))
+  heart.addColorStop(0, pal.heart)
+  heart.addColorStop(1, 'rgba(18,14,12,0)')
+  ctx.fillStyle = heart
+  ctx.beginPath()
+  ctx.arc(0, 0, r * (style === 'reactor' ? 0.42 : 0.3), 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawCoreDrone(
+  ctx: CanvasRenderingContext2D,
+  slot: CoreSlot,
+  hive: { x: number; y: number },
+  alpha: number,
+  scene: Scene,
+  index: number,
+): void {
+  const color = coreRoleColor(slot.role)
+  const pulse = scene.reducedMotion ? 0.4 : 0.5 + 0.5 * Math.sin(scene.time * (slot.role === 'defense' ? 4.2 : 3.1) + index)
+  if (slot.role === 'defense') {
+    ctx.save()
+    ctx.globalAlpha = alpha * (0.2 + pulse * 0.2)
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1.35
+    ctx.beginPath()
+    ctx.moveTo(hive.x, hive.y)
+    ctx.lineTo(slot.x, slot.y)
+    ctx.stroke()
+    ctx.restore()
+  }
+  if (scene.mode === 'repairing' && slot.role === 'defense' && !scene.reducedMotion) {
+    ctx.save()
+    ctx.globalAlpha = alpha * (0.2 + pulse * 0.25)
+    ctx.strokeStyle = '#7dffb0'
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.arc(slot.x, slot.y, 7 + pulse * 2, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  ctx.save()
+  ctx.translate(slot.x, slot.y)
+  ctx.rotate(slot.facing)
+  ctx.globalAlpha = alpha * 0.98
+  ctx.fillStyle = color
+  ctx.strokeStyle = '#ffe8c7'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  if (slot.kind === 'heavy') {
+    ctx.moveTo(6.2, 0)
+    ctx.lineTo(-2.4, -3.8)
+    ctx.lineTo(-4.2, 0)
+    ctx.lineTo(-2.4, 3.8)
+    ctx.closePath()
+  } else if (slot.kind === 'beam') {
+    ctx.rect(-4.6, -1.7, 9.4, 3.4)
+  } else if (slot.kind === 'flak') {
+    ctx.moveTo(4.6, 0)
+    ctx.lineTo(1.2, -3.4)
+    ctx.lineTo(-3.6, -2.2)
+    ctx.lineTo(-3.6, 2.2)
+    ctx.lineTo(1.2, 3.4)
+    ctx.closePath()
+  } else if (slot.kind === 'shield') {
+    ctx.moveTo(4.4, 0)
+    ctx.lineTo(1.2, -4.2)
+    ctx.lineTo(-3.4, -2.6)
+    ctx.lineTo(-3.4, 2.6)
+    ctx.lineTo(1.2, 4.2)
+    ctx.closePath()
+  } else if (slot.kind === 'utility') {
+    ctx.arc(0, 0, 3.2, 0, Math.PI * 2)
+  } else {
+    ctx.moveTo(5.2, 0)
+    ctx.lineTo(-3.4, -3.1)
+    ctx.lineTo(-2.1, 0)
+    ctx.lineTo(-3.4, 3.1)
     ctx.closePath()
   }
   ctx.fill()
   ctx.stroke()
-  ctx.beginPath()
-  ctx.strokeStyle = style === 'bastion' ? '#e0c07a' : style === 'reactor' ? '#ff9a4a' : stroke
-  ctx.globalAlpha = alpha * 0.7
-  ctx.arc(0, 0, r * (style === 'reactor' ? 1.22 : style === 'bastion' ? 1.18 : 1.08), 0, Math.PI * 2)
-  ctx.stroke()
-  if (style === 'bastion') {
-    ctx.globalAlpha = alpha * 0.45
+
+  if (slot.kind === 'beam') {
+    ctx.fillStyle = '#ffe8c7'
+    ctx.globalAlpha = alpha * (slot.firing ? 0.95 : 0.55)
     ctx.beginPath()
-    ctx.rect(-r * 0.22, -r * 1.05, r * 0.44, r * 0.28)
-    ctx.rect(-r * 0.22, r * 0.77, r * 0.44, r * 0.28)
+    ctx.arc(4.8, 0, 1.35, 0, Math.PI * 2)
     ctx.fill()
-  }
-  if (style === 'reactor') {
-    ctx.globalAlpha = alpha * 0.5
+  } else if (slot.kind === 'utility') {
+    ctx.strokeStyle = color
+    ctx.globalAlpha = alpha * (0.35 + pulse * 0.3)
     ctx.beginPath()
-    ctx.arc(0, 0, r * 0.38, 0, Math.PI * 2)
+    ctx.arc(0, 0, 5.4 + pulse * 1.1, -0.8, 0.8)
     ctx.stroke()
+  }
+
+  if (slot.firing) {
+    ctx.globalAlpha = alpha * 0.85
+    ctx.fillStyle = '#fff4d8'
+    ctx.beginPath()
+    ctx.arc(5.4, 0, 2.1, 0, Math.PI * 2)
+    ctx.fill()
   }
   ctx.restore()
 }
@@ -1455,47 +1668,7 @@ function drawOrbitingCores(
   refreshCoreSlots(scene, { x: ax, y: ay })
   if (scene.coreSlots.length === 0) return
   scene.coreSlots.forEach((slot, index) => {
-    const kind = coreVisualKind(slot.id)
-    const color = coreRoleColor(slot.role)
-    const pulse = scene.reducedMotion ? 0 : 0.5 + 0.5 * Math.sin(scene.time * (slot.role === 'defense' ? 4.2 : 3.1) + index)
-    ctx.save()
-    if (slot.role === 'defense') {
-      ctx.globalAlpha = alpha * (0.18 + pulse * 0.16)
-      ctx.strokeStyle = color
-      ctx.lineWidth = 1.1
-      ctx.beginPath()
-      ctx.moveTo(ax, ay)
-      ctx.lineTo(slot.x, slot.y)
-      ctx.stroke()
-    } else if (slot.role === 'utility') {
-      ctx.globalAlpha = alpha * (0.2 + pulse * 0.18)
-      ctx.strokeStyle = color
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.arc(slot.x, slot.y, 5.5 + pulse * 1.4, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-    ctx.globalAlpha = alpha * 0.95
-    ctx.fillStyle = color
-    ctx.strokeStyle = '#ffe8c7'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    if (kind === 'heavy') {
-      ctx.moveTo(slot.x, slot.y - 4.4)
-      ctx.lineTo(slot.x + 3.6, slot.y)
-      ctx.lineTo(slot.x, slot.y + 4.4)
-      ctx.lineTo(slot.x - 3.6, slot.y)
-      ctx.closePath()
-    } else if (kind === 'beam') {
-      ctx.rect(slot.x - 3.4, slot.y - 1.4, 6.8, 2.8)
-    } else if (kind === 'flak') {
-      ctx.arc(slot.x, slot.y, 2.6, 0, Math.PI * 2)
-    } else {
-      ctx.arc(slot.x, slot.y, kind === 'pulse' ? 3.4 : 3.1, 0, Math.PI * 2)
-    }
-    ctx.fill()
-    ctx.stroke()
-    ctx.restore()
+    drawCoreDrone(ctx, slot, { x: ax, y: ay }, alpha, scene, index)
   })
 }
 
@@ -1508,6 +1681,8 @@ function drawHiveShield(
   alpha: number,
 ): void {
   const pct = actor.shieldMax > 0 ? actor.shield / actor.shieldMax : 0
+  const style = hiveFrameStyle(scene.frameId)
+  const bastion = style === 'bastion'
   if (scene.hiveShieldPop > 0 && pct <= 0) {
     const t = scene.hiveShieldPop
     ctx.save()
@@ -1515,7 +1690,7 @@ function drawHiveShield(
     ctx.strokeStyle = '#c8f0ff'
     ctx.lineWidth = 2.2
     ctx.beginPath()
-    ctx.arc(ax, ay, actor.r + 10 + (1 - t) * 22, 0, Math.PI * 2)
+    ctx.arc(ax, ay, actor.r + 12 + (1 - t) * 22, 0, Math.PI * 2)
     ctx.stroke()
     ctx.restore()
     return
@@ -1528,15 +1703,15 @@ function drawHiveShield(
   const flicker = !scene.reducedMotion && low && Math.sin(scene.time * 28) < -0.35 ? 0.35 : 1
   ctx.save()
   ctx.translate(ax, ay)
-  ctx.globalAlpha = alpha * (0.16 + pct * 0.32) * flicker
+  ctx.globalAlpha = alpha * (0.18 + pct * (bastion ? 0.4 : 0.32)) * flicker
   ctx.strokeStyle = stable ? '#b8e6ff' : '#7ec8ff'
-  ctx.lineWidth = (stable ? 2.1 : 1.3) + pct * 1.1 + actor.shieldHit
+  ctx.lineWidth = (bastion ? 2.6 : stable ? 2.1 : 1.3) + pct * 1.1 + actor.shieldHit
   ctx.shadowColor = '#7ec8ff'
   ctx.shadowBlur = scene.reducedMotion ? 0 : 6 + actor.shieldHit * 8
   ctx.beginPath()
   for (let i = 0; i < 6; i += 1) {
     const a = (Math.PI / 3) * i - Math.PI / 6
-    const rad = actor.r + 7 + pct * 3 + wobble
+    const rad = actor.r + (bastion ? 10 : 8) + pct * 3 + wobble
     const x = Math.cos(a) * rad
     const y = Math.sin(a) * rad
     if (i === 0) ctx.moveTo(x, y)
@@ -2252,7 +2427,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.shadowBlur = 18 * (actor.enterT / 0.7)
     }
     if (actor.isFlagship && actor.side === 'player') {
-      drawHiveFrame(ctx, hiveFrameStyle(scene.frameId), actor.r * 1.15, fill, stroke, alpha)
+      drawHiveFrame(ctx, hiveFrameStyle(scene.frameId), hiveDrawRadius(actor.r), fill, stroke, alpha, scene)
     } else {
       ctx.rotate(actor.side === 'player' ? -Math.PI / 2 : Math.PI / 2)
       drawShape(ctx, actor.shape, actor.r, fill, stroke, alpha)
@@ -2295,8 +2470,8 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       ctx.restore()
     }
 
-    // Compact hull / shield pips under every ship, including the Hive.
-    {
+    // Compact hull / shield pips under enemies. Hive uses the canvas HUD.
+    if (!(actor.isFlagship && actor.side === 'player')) {
       const barW = actor.r * 2.1
       const barX = ax - barW / 2
       const barY = ay + actor.r + 5

@@ -22,6 +22,7 @@ export function coreVisualKind(moduleId: string): CoreVisualKind {
   return 'pulse'
 }
 
+/** Sim / lane orbit. Do not change these without a combat pass. */
 export function coreOrbitRadius(kind: CoreVisualKind): number {
   switch (kind) {
     case 'flak':
@@ -36,6 +37,31 @@ export function coreOrbitRadius(kind: CoreVisualKind): number {
     case 'heavy':
       return 44
   }
+}
+
+/** Extra pixels so Cores sit outside the larger Hive sprite. Presentation only. */
+export const CORE_SCREEN_ORBIT_PAD = 14
+
+export function coreScreenOrbit(kind: CoreVisualKind): number {
+  return coreOrbitRadius(kind) + CORE_SCREEN_ORBIT_PAD
+}
+
+/** Canvas radius of the Hive hull. Presentation only. */
+export const HIVE_VISUAL_RADIUS = 22
+
+export function hiveDrawRadius(bodyR = HIVE_VISUAL_RADIUS): number {
+  return bodyR * 1.22
+}
+
+/**
+ * How fast a weapon Core slews around the ring toward a target.
+ * Higher = snaps sooner. Presentation only today; a good hook if we later
+ * let Mastery / shop / Frame change slew.
+ */
+export function coreSlewStiffness(kind: CoreVisualKind, beaming: boolean): number {
+  if (beaming) return 18
+  if (kind === 'heavy') return 12
+  return 14
 }
 
 export function coreOrbitSpeed(kind: CoreVisualKind): number {
@@ -63,6 +89,29 @@ export function hiveFrameStyle(frameId: string): HiveFrameStyle {
   if (frameId.includes('reactor')) return 'reactor'
   if (frameId.includes('harvest')) return 'harvester'
   return 'starter'
+}
+
+export interface HiveFramePalette {
+  hull: string
+  hullDeep: string
+  stroke: string
+  heart: string
+  trim: string
+}
+
+export function hiveFramePalette(style: HiveFrameStyle): HiveFramePalette {
+  switch (style) {
+    case 'bastion':
+      return { hull: '#6a5840', hullDeep: '#3a2e22', stroke: '#e0c07a', heart: '#f0d090', trim: '#c4a050' }
+    case 'swarm':
+      return { hull: '#5a4a38', hullDeep: '#2c241c', stroke: '#d8c4a0', heart: '#e08a3a', trim: '#8b97a8' }
+    case 'reactor':
+      return { hull: '#5a4030', hullDeep: '#2a1c14', stroke: '#ff9a4a', heart: '#ff7a2a', trim: '#e08a3a' }
+    case 'harvester':
+      return { hull: '#5c4a32', hullDeep: '#2e2418', stroke: '#c47a3a', heart: '#e0a050', trim: '#3d8f88' }
+    default:
+      return { hull: '#6a5238', hullDeep: '#32281e', stroke: '#ffe8c7', heart: '#e08a3a', trim: '#e0b06a' }
+  }
 }
 
 export function equippedCoreVisuals(state: GameState) {
