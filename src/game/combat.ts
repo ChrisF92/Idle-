@@ -162,6 +162,13 @@ const ROLE_SHAPE: Record<EnemyRole, UnitShape> = {
 export const SPAWN_DISTANCE = 180
 
 /**
+ * Closest legal park. Must sit outside the Hive body (~22) plus the heaviest
+ * Core orbit (44) so closers do not stack on the drones. When the equipped
+ * weapon cap is shorter than this (Flak / Knife Fight), the cap wins.
+ */
+export const HIVE_STANDOFF_MIN = 72
+
+/**
  * USI Laser Cannon: range 600, projectile speed 700.
  * Map USI space-units onto this lane (spawn 180). Pulse no longer matches spawn;
  * long guns stop short so inbound hulls are visible before they take fire.
@@ -309,6 +316,7 @@ function makeEnemyUnit(opts: {
   const role = opts.role ?? (opts.isBoss ? 'boss' : undefined)
   const delivery: WeaponDelivery | undefined =
     opts.role === 'sniper' ? 'charge' : undefined
+  const gunRange = Math.max(opts.range, opts.engageRange + 8, HIVE_STANDOFF_MIN + 8)
   return {
     id: nextUnitId(`e-${family}`),
     side: 'enemy',
@@ -329,7 +337,7 @@ function makeEnemyUnit(opts: {
         `${opts.name} strike`,
         opts.damage,
         opts.cooldown ?? 1,
-        opts.range,
+        gunRange,
         opts.tags ?? ['kinetic'],
         opts.splash ?? 0,
         opts.telegraphDuration ?? 0,
@@ -766,7 +774,7 @@ function buildSwarmWave(
           cooldown: 0.9,
           range: 44,
           speed: 36,
-          engageRange: 38,
+          engageRange: 84,
           x: SPAWN_DISTANCE + i * 8,
           y: packY(i, 3),
         }),
@@ -782,7 +790,7 @@ function buildSwarmWave(
           cooldown: 0.95,
           range: sector < 4 ? 42 : 32,
           speed: sector < 4 ? 38 : 50,
-          engageRange: sector < 4 ? 36 : 24,
+          engageRange: sector < 4 ? 80 : 74,
           x: SPAWN_DISTANCE + i * 7,
           y: packY(i, 6),
         }),
@@ -799,7 +807,7 @@ function buildSwarmWave(
             cooldown: 1,
             range: 48,
             speed: 36,
-            engageRange: 40,
+            engageRange: 86,
             x: SPAWN_DISTANCE + i * 6,
             y: packY(i, 3),
           }),
@@ -833,7 +841,7 @@ function buildSwarmWave(
             cooldown: 0.95,
             range: 32,
             speed: 48,
-            engageRange: 24,
+            engageRange: 74,
             x: SPAWN_DISTANCE + i * 8,
             y: packY(i, 4),
           }),
@@ -867,7 +875,7 @@ function buildSwarmWave(
           cooldown: 0.9,
           range: 32,
           speed: 48,
-          engageRange: 24,
+          engageRange: 74,
           x: SPAWN_DISTANCE + i * 7,
           y: packY(i, count),
         }),
@@ -970,7 +978,7 @@ function buildArmoredWave(
           cooldown: 1.2,
           range: 55,
           speed: 28,
-          engageRange: 48,
+          engageRange: 90,
           tags: ['kinetic'],
           x: SPAWN_DISTANCE,
           y: -30,
@@ -1072,7 +1080,7 @@ function buildEtherealWave(
           cooldown: 1.1,
           range: 55,
           speed: 30,
-          engageRange: 48,
+          engageRange: 90,
           tags: ['energy'],
           x: SPAWN_DISTANCE,
           y: 0,
@@ -1114,7 +1122,7 @@ function buildEtherealWave(
             cooldown: 0.95,
             range: 36,
             speed: 46,
-            engageRange: 26,
+            engageRange: 76,
             tags: ['energy', 'pierce'],
             x: SPAWN_DISTANCE + i * 8,
             y: packY(i, 3),
@@ -1167,7 +1175,7 @@ function buildEtherealWave(
           cooldown: 0.9,
           range: 32,
           speed: 48,
-          engageRange: 24,
+          engageRange: 74,
           x: SPAWN_DISTANCE,
           y: 0,
         }),
@@ -1254,7 +1262,7 @@ function buildDivineWave(
           cooldown: 1,
           range: 50,
           speed: 32,
-          engageRange: 42,
+          engageRange: 88,
           tags: ['energy'],
           x: SPAWN_DISTANCE + 18,
           y: -26,
@@ -1272,7 +1280,7 @@ function buildDivineWave(
             cooldown: 0.95,
             range: 32,
             speed: 46,
-            engageRange: 24,
+            engageRange: 74,
             tags: ['energy'],
             x: SPAWN_DISTANCE + i * 10,
             y: packY(i, 3),
@@ -1343,7 +1351,7 @@ function buildDivineWave(
           cooldown: 1,
           range: 50,
           speed: 32,
-          engageRange: 42,
+          engageRange: 88,
           tags: ['energy'],
           x: SPAWN_DISTANCE + 20,
           y: -28,
@@ -1358,7 +1366,7 @@ function buildDivineWave(
           cooldown: 1,
           range: 50,
           speed: 32,
-          engageRange: 42,
+          engageRange: 88,
           tags: ['energy'],
           x: SPAWN_DISTANCE + 20,
           y: 28,
@@ -1403,7 +1411,7 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
       cooldown: 1,
       range: thrallFamily === 'armored' ? 55 : 40,
       speed: thrallFamily === 'armored' ? 20 : 36,
-      engageRange: thrallFamily === 'armored' ? 50 : 35,
+      engageRange: thrallFamily === 'armored' ? 92 : 82,
       tags: thrallFamily === 'armored' ? ['kinetic'] : ['kinetic'],
       x: SPAWN_DISTANCE + 30,
       y: -34,
@@ -1418,7 +1426,7 @@ function buildBossPack(sector: number, name: string, waveScale = 1): CombatUnit[
       cooldown: 1,
       range: thrallFamily === 'armored' ? 55 : 40,
       speed: thrallFamily === 'armored' ? 20 : 36,
-      engageRange: thrallFamily === 'armored' ? 50 : 35,
+      engageRange: thrallFamily === 'armored' ? 92 : 82,
       tags: ['kinetic'],
       x: SPAWN_DISTANCE + 30,
       y: 34,
@@ -1453,9 +1461,9 @@ function spawnBossAdds(state: GameState, boss: CombatUnit, label: string): void 
     cooldown: 0.9,
     range: 36,
     speed: 38,
-    engageRange: 28,
+    engageRange: 78,
     tags: ['kinetic'],
-    x: Math.max(36, boss.x * 0.72),
+    x: Math.max(HIVE_STANDOFF_MIN, boss.x * 0.72),
     rewardWeight: 0.35,
   })
   add.heading = (boss.heading ?? 0) + 0.7 + state.combat.bossPhase * 0.9
@@ -1512,7 +1520,7 @@ function buildAct1ClimaxPack(sector: number, waveScale = 1): CombatUnit[] {
       cooldown: 1,
       range: 55,
       speed: 20,
-      engageRange: 50,
+      engageRange: 92,
       tags: ['kinetic'],
       x: SPAWN_DISTANCE + 28,
       y: -36,
@@ -1526,7 +1534,7 @@ function buildAct1ClimaxPack(sector: number, waveScale = 1): CombatUnit[] {
       cooldown: 0.9,
       range: 36,
       speed: 40,
-      engageRange: 28,
+      engageRange: 78,
       tags: ['kinetic'],
       x: SPAWN_DISTANCE + 34,
       y: 36,
@@ -2041,20 +2049,29 @@ function laneDistance(a: CombatUnit, b: CombatUnit): number {
   return Math.abs(a.x - b.x)
 }
 
-/** Closest legal hold: outside the Hive hull so packs do not sit on the ship. */
-export const HIVE_STANDOFF_MIN = 36
+/** Shortest equipped Core gun. Catalog Flak is only the no-loadout fallback. */
+export function lowestEquippedPlayerWeaponRange(state: GameState): number {
+  const equipped: number[] = []
+  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
+    const weapon = buildCoreWeapon(state, slot)
+    if (weapon && Number.isFinite(weapon.range) && weapon.range > 0) equipped.push(weapon.range)
+  }
+  if (equipped.length === 0) return lowestPlayerCoreRange()
+  return Math.min(...equipped)
+}
 
-/** Furthest legal enemy park distance: the shortest player Core weapon in the game. */
-export function minimumPlayerWeaponRangeForSector(_sector?: number): number {
-  return lowestPlayerCoreRange()
+/** Furthest legal enemy park: the shortest *equipped* player Core, else catalog Flak. */
+export function minimumPlayerWeaponRangeForSector(_sector?: number, state?: GameState): number {
+  return state ? lowestEquippedPlayerWeaponRange(state) : lowestPlayerCoreRange()
 }
 
 export function enemyApproachTarget(
   unit: Pick<CombatUnit, 'engageRange'>,
   _fightElapsed = 0,
   _sector = 2,
+  state?: GameState,
 ): number {
-  const cap = lowestPlayerCoreRange()
+  const cap = state ? lowestEquippedPlayerWeaponRange(state) : lowestPlayerCoreRange()
   const floor = Math.min(HIVE_STANDOFF_MIN, cap)
   const preferred = Math.max(0, unit.engageRange)
   return Math.max(floor, Math.min(preferred, cap))
@@ -2077,7 +2094,7 @@ function moveUnits(state: GameState, dt: number): void {
   const elapsed = Math.max(0, state.combat.fightElapsed ?? 0)
   for (const unit of state.combat.enemyUnits) {
     if (unit.hull <= 0) continue
-    const target = enemyApproachTarget(unit, elapsed, state.combat.sector)
+    const target = enemyApproachTarget(unit, elapsed, state.combat.sector, state)
     if (unit.x > target) {
       unit.x = Math.max(target, unit.x - unit.speed * dt)
     } else if (unit.x < target) {

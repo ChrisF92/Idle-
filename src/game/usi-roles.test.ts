@@ -55,10 +55,11 @@ describe('USI enemy roles', () => {
   })
 
   it('Pulse still reaches Shielded and Sniper-band kites at their legal hold', () => {
-    const pulse = Math.max(...buildFlagshipWeapons(createInitialState(0)).map((w) => w.range))
+    const state = createInitialState(0)
+    const pulse = Math.max(...buildFlagshipWeapons(state).map((w) => w.range))
     const snipers = encounterForWave(101).units
     for (const unit of snipers) {
-      expect(pulse).toBeGreaterThanOrEqual(enemyApproachTarget(unit))
+      expect(pulse).toBeGreaterThanOrEqual(enemyApproachTarget(unit, 0, 2, state))
     }
   })
 

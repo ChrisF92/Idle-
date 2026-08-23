@@ -77,10 +77,12 @@ describe('GDD Hive and orbiting Cores', () => {
   })
 
   it('keeps Pulse reach legal against enemies parked at the Hive standoff', () => {
-    const fleet = buildPlayerFleet(createInitialState(0))
+    const state = createInitialState(0)
+    const fleet = buildPlayerFleet(state)
     const pulse = fleet.find((u) => u.isCore)?.weapons[0]
-    const hold = enemyApproachTarget({ engageRange: 38 })
+    const hold = enemyApproachTarget({ engageRange: 84 }, 0, 2, state)
     expect(pulse?.range).toBeGreaterThanOrEqual(hold)
+    expect(hold).toBeGreaterThan(coreOrbitRadius('heavy'))
   })
 
   it('keeps Pulse mid-field and Rail the longest gun, short of spawn', () => {
