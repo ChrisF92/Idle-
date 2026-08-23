@@ -52,7 +52,7 @@ describe('USI Core formulas', () => {
   it('maps USI laser projectile speed onto the lane (700 × 180/600)', () => {
     expect(SPAWN_DISTANCE).toBe(180)
     expect(PROJECTILE_SPEED).toBeCloseTo(210)
-    expect(getModule('pulse-cannon')?.weapon?.range).toBe(180)
+    expect(getModule('pulse-cannon')?.weapon?.range).toBeLessThan(SPAWN_DISTANCE)
   })
 
   it('applies USI laser vs kinetic damage profiles', () => {

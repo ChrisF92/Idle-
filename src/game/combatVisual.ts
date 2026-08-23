@@ -1,3 +1,6 @@
+/** Lane range drawn at the canvas rim. Spawn sits just outside so the close is visible. */
+export const RADIAL_EDGE_RANGE = 172
+
 /** Screen-space helpers for radial combat presentation. */
 
 export function shotTravelHeading(

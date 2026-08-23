@@ -15,6 +15,7 @@ import {
   easeAngle,
   pointOnRing,
   projectileScreenPoint,
+  RADIAL_EDGE_RANGE,
   ringAngleToward,
   weaponIdToCoreId,
 } from '../game/combatVisual'
@@ -260,8 +261,6 @@ const VIEW_H = 640
 const HIVE_SCREEN_X = VIEW_W / 2
 /** Slightly below centre so inbound threats have more space above. */
 const HIVE_SCREEN_Y = VIEW_H * 0.58
-/** Lane range that sits at the canvas rim. Smaller than spawn so hold rings read outside the Hive. */
-const RADIAL_EDGE_RANGE = 90
 const RADIAL_SCALE = (Math.min(HIVE_SCREEN_X, HIVE_SCREEN_Y) - 24) / RADIAL_EDGE_RANGE
 const PLAYER_SCREEN_X = HIVE_SCREEN_X
 const PLAYER_SCREEN_Y = HIVE_SCREEN_Y

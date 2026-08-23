@@ -4,7 +4,10 @@ import {
   dealCombatDamage,
   enemyApproachTarget,
   simulateCombat,
+  SPAWN_DISTANCE,
 } from './combat'
+import { getModule, lowestPlayerCoreRange } from './catalog'
+import { RADIAL_EDGE_RANGE } from './combatVisual'
 import { createInitialState } from './state'
 import { startCombat } from './tick'
 import { coreOrbitRadius, coreVisualKind } from './hiveVisual'
@@ -78,5 +81,21 @@ describe('GDD Hive and orbiting Cores', () => {
     const pulse = fleet.find((u) => u.isCore)?.weapons[0]
     const hold = enemyApproachTarget({ engageRange: 38 })
     expect(pulse?.range).toBeGreaterThanOrEqual(hold)
+  })
+
+  it('keeps Pulse mid-field and Rail the longest gun, short of spawn', () => {
+    const pulse = getModule('pulse-cannon')!.weapon!.range
+    const rail = getModule('rail-driver')!.weapon!.range
+    const flak = getModule('flak-array')!.weapon!.range
+    const charge = getModule('charge-prism')!.weapon!.range
+    const lance = getModule('heavy-lance')!.weapon!.range
+    expect(pulse).toBe(92)
+    expect(pulse).toBeLessThan(RADIAL_EDGE_RANGE)
+    expect(pulse).toBeGreaterThan(flak)
+    expect(rail).toBeGreaterThan(lance)
+    expect(rail).toBeGreaterThan(charge)
+    expect(rail).toBeLessThan(SPAWN_DISTANCE)
+    expect(flak).toBe(lowestPlayerCoreRange())
+    expect(RADIAL_EDGE_RANGE).toBeLessThan(SPAWN_DISTANCE)
   })
 })

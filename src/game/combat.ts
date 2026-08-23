@@ -163,7 +163,8 @@ export const SPAWN_DISTANCE = 180
 
 /**
  * USI Laser Cannon: range 600, projectile speed 700.
- * Map USI space-units onto this lane (spawn 180 ≈ laser max range).
+ * Map USI space-units onto this lane (spawn 180). Pulse no longer matches spawn;
+ * long guns stop short so inbound hulls are visible before they take fire.
  */
 export const USI_SPACE_TO_LANE = SPAWN_DISTANCE / 600
 
