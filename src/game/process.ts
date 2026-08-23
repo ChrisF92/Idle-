@@ -308,7 +308,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Foundry Buy Max',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Spend Foundry Points on ranks in one tap, using your upgrade priority.',
+    blurb: 'Retired. Foundry ranks and Foundry Points are gone.',
     cost: 4,
     requiresSystem: 'foundry',
     requiresMastery: 'foundry',
@@ -320,7 +320,6 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     kind: 'automation',
     blurb: 'Empty smelters refill the recipe you pin. You pick the recipe.',
     cost: 6,
-    requiresId: 'foundry-buy-max',
     requiresSystem: 'foundry',
   },
   {
@@ -358,7 +357,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Foundry Upgrade Priority',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Cheapest, speed, slots, or output. Buy Max and Auto Buy both use this.',
+    blurb: 'Retired. Foundry ranks and Foundry Points are gone.',
     cost: 10,
     requiresId: 'foundry-buy-max',
     requiresSystem: 'foundry',
@@ -368,7 +367,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Foundry Auto Buy',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Spend Foundry Points on ranks automatically using your priority.',
+    blurb: 'Retired. Foundry ranks and Foundry Points are gone.',
     cost: 16,
     requiresId: 'foundry-priority',
     requiresSystem: 'foundry',
@@ -635,6 +634,9 @@ export const PROCESS_HIDDEN_IDS = new Set([
   'furnace-auto',
   'network-tune',
   'offline-sortie',
+  'foundry-buy-max',
+  'foundry-priority',
+  'foundry-auto',
 ])
 
 export type ProcessRevealTier = 'qol' | 'actions' | 'priorities' | 'later'

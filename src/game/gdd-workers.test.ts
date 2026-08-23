@@ -32,17 +32,15 @@ describe('GDD Worker Drones', () => {
     expect(isSystemUnlocked(open, 'network')).toBe(true)
     expect(isSystemUnlocked(open, 'base')).toBe(true)
     expect(isStationUnlocked(open, 'scrap-field')).toBe(true)
-    expect(WORKER_JOB_IDS).toEqual(
-      expect.arrayContaining([
-        'scrap-field',
-        'power-grid',
-        'repair-bay',
-        'drone-fab',
-        'sensor-net',
-        'alloy-foundry',
-        'fab-bay',
-      ]),
-    )
+    expect(WORKER_JOB_IDS).toEqual([
+      'scrap-field',
+      'sensor-net',
+      'alloy-foundry',
+      'drone-fab',
+      'fab-bay',
+      'construction',
+    ])
+    expect(isStationUnlocked(open, 'drone-fab')).toBe(false)
   })
 
   it('does not let drones buy Strike or Ward combat power', () => {
@@ -103,6 +101,7 @@ describe('GDD Worker Drones', () => {
     s.network.bars.loom.levels = 40
     expect(networkManufactureMult(s)).toBe(1)
     s.base.workerDrones = 16
+    s.foundry.facilities = ['drone-fabricator']
     s.base.assignments['drone-fab'] = 8
     expect(networkManufactureMult(s)).toBeGreaterThan(1)
   })

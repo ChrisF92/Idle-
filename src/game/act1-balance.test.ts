@@ -242,7 +242,7 @@ describe('Act 1 career simulations', () => {
     s.furnace.wanted.weapons = 1
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(36)
+    expect(SAVE_VERSION).toBe(37)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.recipeLevels['slag-ingot']).toBe(4)

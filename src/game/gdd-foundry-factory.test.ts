@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { assembleBlueprint, assignWorker, setFoundrySlot, setDocked } from './actions'
+import { assembleBlueprint, assignWorker, performRebuild, setFoundrySlot } from './actions'
 import { ACT1_CADENCE } from './cadence'
-import { isStationUnlocked } from './catalog'
+import { isStationUnlocked, PART_TYPES, getBlueprint, partId } from './catalog'
 import {
   FOUNDRY_FACILITIES,
   FOUNDRY_MASTERY_STEPS,
@@ -10,15 +10,18 @@ import {
   FOUNDRY_STARTING_SLOTS,
   armPendingFacilities,
   canStartFabrication,
+  claimFoundryCompletions,
   foundryCraftTime,
   foundryFabSlotCount,
   foundrySlotCount,
   hasFacility,
   isFoundryRecipeUnlocked,
   startFabrication,
+  tickFoundry,
 } from './foundry'
+import { captureToastSnapshot, diffToasts } from './toasts'
 import { createInitialState, SAVE_VERSION } from './state'
-import { atCareerWave } from './testHelpers'
+import { armRebuildDoor, atCareerWave } from './testHelpers'
 import { advanceSeconds } from './tick'
 import { WORKER_JOB_IDS, workerJobLabel } from './workers'
 
@@ -91,34 +94,40 @@ describe('GDD Foundry factory', () => {
     crewed = assignWorker(crewed, 'alloy-foundry', 1)
     crewed = setFoundrySlot(crewed, 0, 'slag-ingot')
     expect(foundryCraftTime(crewed, 'slag-ingot')).toBe(idleTime)
-    advanceSeconds(crewed, 26)
-    expect(crewed.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(1)
+    advanceSeconds(idle, 27)
+    advanceSeconds(crewed, 27)
+    expect(crewed.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThan(
+      idle.foundry.materials['slag-ingot'] ?? 0,
+    )
   })
 
   it('fabricates Cores as a timed job, not an instant assemble', () => {
     let s = atFoundry(80)
-    s.resources.scrap = 40
-    s.foundry.materials['slag-ingot'] = 20
     const moduleId = 'flak-array'
-    const recipe = { casing: 1, core: 1, lens: 1 }
-    s.parts[`flak-array-casing`] = recipe.casing
-    s.parts[`flak-array-core`] = recipe.core
-    s.parts[`flak-array-lens`] = recipe.lens
+    const recipe = getBlueprint(moduleId)
+    expect(recipe).toBeTruthy()
+    for (const pt of PART_TYPES) {
+      s.parts[partId(moduleId, pt)] = recipe![pt]
+    }
+    s.foundry.materials['slag-ingot'] = 20
+    s.foundry.materials['filament'] = 20
     s.meta.discoveredModules = [...s.meta.discoveredModules, moduleId]
-    const before = assembleBlueprint(s, moduleId)
-    if (before === s) {
-      // Some prints need extra Foundry stock; force a start if fragments+stock pass.
-      expect(canStartFabrication(s, 'core', moduleId).ok || assembleBlueprint(s, moduleId) !== s).toBeTruthy()
-    }
+    const check = canStartFabrication(s, 'core', moduleId)
+    expect(check.ok).toBe(true)
     s = assembleBlueprint(s, moduleId)
-    if (s.foundry.fabrication[0]?.kind === 'core') {
-      expect(s.shipyard.unlockedModules.includes(moduleId)).toBe(false)
-      s.combat.docked = false
-      advanceSeconds(s, 8 * 60 + 5)
-      expect(s.foundry.pendingCores).toContain(moduleId)
-      s = setDocked(s, true)
-      expect(s.shipyard.unlockedModules).toContain(moduleId)
-    }
+    expect(s.foundry.fabrication[0]?.kind).toBe('core')
+    expect(s.shipyard.unlockedModules.includes(moduleId)).toBe(false)
+    s.combat.docked = false
+    const prevToast = captureToastSnapshot(s)
+    tickFoundry(s, 12 * 60 + 5)
+    expect(s.foundry.pendingCores).toContain(moduleId)
+    expect(s.shipyard.unlockedModules.includes(moduleId)).toBe(false)
+    const toasts = diffToasts(prevToast, captureToastSnapshot(s), s)
+    expect(toasts.some((toast) => /FLAK ARRAY COMPLETE/i.test(toast.title))).toBe(true)
+    expect(toasts.some((toast) => /Available next Sortie/i.test(toast.body))).toBe(true)
+    s.combat.docked = true
+    claimFoundryCompletions(s)
+    expect(s.shipyard.unlockedModules).toContain(moduleId)
   })
 
   it('builds facilities on a fabrication slot and arms them next Sortie', () => {
@@ -140,12 +149,28 @@ describe('GDD Foundry factory', () => {
     s = startFabrication(s, 'facility', 'processing-line')
     expect(s.foundry.fabrication[0]?.kind).toBe('facility')
     s.combat.docked = false
-    advanceSeconds(s, 15 * 60 + 2)
+    tickFoundry(s, 15 * 60 + 2)
     expect(s.foundry.pendingFacilities).toContain('processing-line')
     expect(hasFacility(s, 'processing-line')).toBe(false)
     armPendingFacilities(s)
     expect(hasFacility(s, 'processing-line')).toBe(true)
     expect(foundrySlotCount(s)).toBe(2)
+  })
+
+  it('keeps paid Fabrication progress across Rebuild', () => {
+    let s = atCareerWave(armRebuildDoor(createInitialState(0)), 80)
+    s.combat.docked = true
+    s.foundry.fabrication[0] = {
+      kind: 'core',
+      jobId: 'flak-array',
+      progress: 0.4,
+      paid: true,
+      complete: false,
+    }
+    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    expect(s.foundry.fabrication[0]?.kind).toBe('core')
+    expect(s.foundry.fabrication[0]?.progress).toBeCloseTo(0.4)
+    expect(s.foundry.fabrication[0]?.paid).toBe(true)
   })
 
   it('unlocks drone production only after the Fabricator arms', () => {

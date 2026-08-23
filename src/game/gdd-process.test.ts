@@ -69,6 +69,8 @@ describe('GDD Process', () => {
     expect(ids).not.toContain('run-profiles')
     expect(ids).not.toContain('core-priority')
     expect(ids).not.toContain('foundry-priority')
+    expect(ids).not.toContain('foundry-buy-max')
+    expect(ids).not.toContain('foundry-auto')
     for (const hidden of PROCESS_HIDDEN_IDS) {
       expect(ids).not.toContain(hidden)
     }
@@ -152,9 +154,8 @@ describe('GDD Process', () => {
     defence.base.workerDrones = 10
     defence.process.purchased = ['network-optimise', 'network-presets']
     defence = applyNetworkPreset(defence, 'defence')
-    expect(defence.base.assignments['repair-bay'] ?? 0).toBeGreaterThan(
-      defence.base.assignments['scrap-field'] ?? 0,
-    )
+    expect(defence.base.assignments['repair-bay'] ?? 0).toBe(0)
+    expect(defence.base.assignments['alloy-foundry'] ?? 0).toBeGreaterThan(0)
   })
 
   it('leans Farm toward Scrap Field while flying after Network Sortie Bias', () => {
@@ -182,7 +183,7 @@ describe('GDD Process', () => {
   })
 
   it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
-    expect(SAVE_VERSION).toBe(36)
+    expect(SAVE_VERSION).toBe(37)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'auto-shop')?.cost).toBe(8)
@@ -194,6 +195,8 @@ describe('GDD Process', () => {
     expect(PROCESS_HIDDEN_IDS.has('auto-bank')).toBe(true)
     expect(PROCESS_HIDDEN_IDS.has('echo-repeat')).toBe(true)
     expect(PROCESS_HIDDEN_IDS.has('network-tune')).toBe(true)
+    expect(PROCESS_HIDDEN_IDS.has('foundry-buy-max')).toBe(true)
+    expect(PROCESS_HIDDEN_IDS.has('foundry-auto')).toBe(true)
   })
 
   it('shows time-to-afford and Economy ROI only after Shop Readout', () => {

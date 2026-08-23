@@ -1,19 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { assignWorker, buyFoundryUpgrade, placeYardBuilding } from './actions'
+import { assignWorker } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { isStationUnlocked } from './catalog'
-import { canBuyFoundryUpgrade } from './foundry'
+import {
+  canStartFabrication,
+  foundrySlotCount,
+  hasFacility,
+  startFabrication,
+} from './foundry'
 import { MORE_STATIONS } from './moreStations'
 import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { atCareerWave } from './testHelpers'
-import { advanceSeconds } from './tick'
-import {
-  constructionSpeedMult,
-  isConstructionUnlocked,
-  yardGood,
-  yardGridSize,
-} from './yard'
+import { constructionSpeedMult, isConstructionUnlocked, yardGridSize } from './yard'
 
 describe('GDD Foundry construction', () => {
   it('stays locked before Wave 90 even after Rebuilds', () => {
@@ -30,38 +29,29 @@ describe('GDD Foundry construction', () => {
     expect(isSystemUnlocked(s, 'yard')).toBe(true)
     expect(isStationUnlocked(s, 'construction')).toBe(true)
     expect(MORE_STATIONS.some((station) => station.id === 'yard')).toBe(false)
-    expect(yardGridSize(s)).toBe(3)
+    expect(yardGridSize(s)).toBe(0)
   })
 
-  it('lets buildings produce and Worker Drones speed construction', () => {
+  it('starts facilities as Fabrication jobs sped by Construction workers', () => {
     let s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
-    s = placeYardBuilding(s, 0, 'slag-heap')
-    expect(s.yard.cells[0]?.buildingId).toBe('slag-heap')
-    const idle = yardGood(s, 'ore')
-    advanceSeconds(s, 10)
-    const withoutCrew = yardGood(s, 'ore')
-    expect(withoutCrew).toBeGreaterThan(idle)
-
+    s.foundry.materials['slag-ingot'] = 20
+    s.foundry.materials['hardened-plate'] = 10
+    expect(canStartFabrication(s, 'facility', 'processing-line').ok).toBe(true)
+    s = startFabrication(s, 'facility', 'processing-line')
+    expect(s.foundry.fabrication[0]?.kind).toBe('facility')
     s.base.workerDrones = 4
     s = assignWorker(s, 'construction', 4)
     expect(constructionSpeedMult(s)).toBeGreaterThan(1)
-    const beforeCrewed = yardGood(s, 'ore')
-    advanceSeconds(s, 10)
-    expect(yardGood(s, 'ore') - beforeCrewed).toBeGreaterThan(withoutCrew - idle - 0.01)
+    expect(hasFacility(s, 'processing-line')).toBe(false)
   })
 
-  it('holds the third smelter until Wave 90', () => {
+  it('adds a second processor from a Processing Line, not a rank shop', () => {
     const early = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
-    early.foundry.points = 40
-    expect(canBuyFoundryUpgrade(early, 'fp-slot').ok).toBe(true)
-    expect(canBuyFoundryUpgrade(early, 'fp-slot-2').ok).toBe(false)
-    expect(canBuyFoundryUpgrade(early, 'fp-slot-2').reason).toMatch(/Wave 90/)
+    expect(foundrySlotCount(early)).toBe(1)
+    expect(canStartFabrication(early, 'facility', 'processing-line').ok).toBe(false)
 
-    let open = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
-    open.foundry.points = 40
-    expect(canBuyFoundryUpgrade(open, 'fp-slot-2').ok).toBe(true)
-    open = buyFoundryUpgrade(open, 'fp-slot')
-    open = buyFoundryUpgrade(open, 'fp-slot-2')
-    expect(open.foundry.slots).toHaveLength(3)
+    const open = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
+    open.foundry.facilities = ['processing-line']
+    expect(foundrySlotCount(open)).toBe(2)
   })
 })

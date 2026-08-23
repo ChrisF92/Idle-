@@ -17,7 +17,6 @@ const GDD_REWRITE_PENDING = [
   'src/game/core-prints.test.ts',
   'src/game/core.test.ts',
   'src/game/encyclopedia.test.ts',
-  'src/game/foundry-depth.test.ts',
   'src/game/furnace.test.ts',
   'src/game/hub-attention.test.ts',
   'src/game/matter-shop.test.ts',

@@ -137,8 +137,8 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Reinforce door after W300 | PARTIAL | Door exists; Act 2 rules correctly deferred; climax needs feel |
 | Directives | DONE | |
 | Furnace push channels | DONE | Extra non-GDD channels still in types |
-| Foundry processing + fabrication | PARTIAL | Processing / Fabrication panes + mastery table. Timed fab slots and craft-time retune still deferred |
-| Worker Drones | PARTIAL | Jobs + efficient/hard copy. Manufacture bar gone. Overflow dumps to Salvage ops. `train-*` leftover remains |
+| Foundry processing + fabrication | DONE | Processing vs timed Fabrication (SAVE 37). Mastery table 1–100. Facilities on fab slots; bonuses arm next Sortie. Ranks / Fit / FP deleted. |
+| Worker Drones | DONE | Six GDD jobs. Power / Repair / train-* dropped. Drone production gated by constructed Fabricator. |
 | Network Strike/Ward/Yield bars | LEGACY | Combat mults = 1; Yield/Loom/Archive still multiply |
 | Core Salvage Run Levels (A/D/E by role) | CONFLICT | GDD + D1: Sortie Salvage. Live code + `gdd-visual.test.tsx` still encode Dock Scrap ranks — Phase 3 rewrites that |
 | Orbiting Core units + visual families | MISSING | Weapons mounted on `Flagship` |
@@ -346,15 +346,15 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 
 **Work:**
 
-1. **Done (this slice).** Manufacture bar gone. Assignment screen is **jobs**: Processing, Fabrication, Research, Drone production, Construction, Salvage ops.
-2. **Done (this slice).** Each job shows `{assigned}/{efficient} efficient · cap {hard}`. Construction remains 4 / 8.
-3. Drone production is a real investment (workers now vs more workers later). Slow. Unchanged this slice.
-4. **Done (presentation).** Foundry panes: **Processing** vs **Fabrication**. Timed fabrication slots still deferred (would want SAVE 37; 36 was used for Process profiles).
-5. **Done (table).** Mastery steps render per recipe. Rare-chance column still later.
-6. **Done (this slice).** Mid-Sortie assemble → “available next Sortie”; cannot refit live.
-7. Times: first job ~30s, early component 2–5 min, early Core 5–15 min. Deferred with timed fab.
-8. **Done (this slice).** Hub cards show Temper Bar Mastery, running recipe, idle drones.
-9. Overflow no longer dumps to `train-*`. Stations remain in catalog this slice.
+1. **Done.** Manufacture bar gone. Assignment screen is **jobs**: Processing, Fabrication, Research, Drone production, Construction, Salvage ops.
+2. **Done.** Each job shows `{assigned}/{efficient} efficient · cap {hard}`. Construction remains 4 / 8.
+3. **Done.** Drone production is a constructed Fabricator that then enables the job.
+4. **Done (SAVE 37).** Foundry panes: **Processing** vs **Fabrication**. Timed fabrication slots for Cores, Relic tiers, and facilities. Ranks / Fit / FP deleted.
+5. **Done.** GDD mastery table 1 / 5 / 10 / 20 / 30 / 50 / 75 / 100. No infinite/solved stock.
+6. **Done.** Mid-Sortie complete → toast; cannot fit until Dock / next Sortie.
+7. **Done.** First Processing job ~30s Scrap → Recovered Stock. Early Cores 8–12 min.
+8. **Done.** Hub cards show Processing / Fabrication / Construction (or Temper Mastery).
+9. **Done.** Power Grid, Repair Bay, and `train-*` dropped. Six GDD jobs only.
 
 **Acceptance:**
 

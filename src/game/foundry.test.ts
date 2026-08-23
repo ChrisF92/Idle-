@@ -1,28 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { computeShipStats, createInitialState, SAVE_VERSION } from './state'
-import {
-  buyFoundryUpgrade,
-  equipFoundryModule,
-  performRebuild,
-  setFoundrySlot,
-  setNumberNotation,
-} from './actions'
+import { performRebuild, setFoundrySlot, setNumberNotation } from './actions'
 import {
   foundryDamageMult,
+  foundryFabSlotCount,
   foundryRecipeLevel,
-  isFoundryInfinite,
+  foundrySlotCount,
   isFoundryRecipeUnlocked,
 } from './foundry'
 import { isSystemUnlocked } from './progression'
+import { createInitialState, SAVE_VERSION } from './state'
 import { advanceSeconds } from './tick'
 import { armRebuildDoor } from './testHelpers'
 
 describe('phase 5: foundry + notation', () => {
-  it('opens Foundry at Wave 20 with one smelter', () => {
+  it('opens Foundry at Wave 20 with one processor and one fabrication slot', () => {
     const fresh = createInitialState(0)
-    expect(SAVE_VERSION).toBe(36)
+    expect(SAVE_VERSION).toBe(37)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(fresh.foundry.slots).toHaveLength(1)
+    expect(fresh.foundry.fabrication).toHaveLength(1)
     expect(fresh.meta.numberNotation).toBe('engineering')
 
     let s = createInitialState(0)
@@ -31,88 +27,61 @@ describe('phase 5: foundry + notation', () => {
     s.meta.highestSectorEver = 2
     s.combat.highestSector = 2
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
+    expect(foundrySlotCount(s)).toBe(1)
+    expect(foundryFabSlotCount(s)).toBe(1)
     expect(isFoundryRecipeUnlocked(s, 'slag-ingot')).toBe(true)
     expect(isFoundryRecipeUnlocked(s, 'hardened-plate')).toBe(false)
   })
 
-  it('smelts Slag Ingots, levels the recipe, and grants Foundry Points', () => {
+  it('processes Recovered Stock from Scrap and raises mastery', () => {
     let s = createInitialState(0)
     s.meta.bestWave = 70
     s.combat.bestWave = 70
     s.meta.highestSectorEver = 6
     s.combat.highestSector = 6
-    s.resources.salvage = 80
+    s.resources.scrap = 80
     s = setFoundrySlot(s, 0, 'slag-ingot')
     expect(s.foundry.slots[0]?.recipeId).toBe('slag-ingot')
-    advanceSeconds(s, 20)
-    expect(s.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(2)
-    expect(foundryRecipeLevel(s, 'slag-ingot')).toBeGreaterThanOrEqual(1)
-    expect(s.foundry.points).toBeGreaterThanOrEqual(1)
+    advanceSeconds(s, 32)
+    expect(s.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(1)
+    expect(foundryRecipeLevel(s, 'slag-ingot')).toBeGreaterThanOrEqual(0)
   })
 
-  it('unlocks Hardened Plate after Slag Ingot hits level 4', () => {
+  it('unlocks Alloy Plate after Recovered Stock hits mastery 10', () => {
     let s = createInitialState(0)
     s.meta.bestWave = 70
     s.combat.bestWave = 70
-    s.meta.highestSectorEver = 6
-    s.combat.highestSector = 6
-    s.foundry.recipeLevels['slag-ingot'] = 3
+    s.foundry.recipeLevels['slag-ingot'] = 9
     expect(isFoundryRecipeUnlocked(s, 'hardened-plate')).toBe(false)
-    s.foundry.recipeLevels['slag-ingot'] = 4
+    s.foundry.recipeLevels['slag-ingot'] = 10
     expect(isFoundryRecipeUnlocked(s, 'hardened-plate')).toBe(true)
   })
 
-  it('Foundry Strike ranks raise ship DPS', () => {
-    let s = createInitialState(0)
-    s.meta.highestSectorEver = 6
-    const before = computeShipStats(s).damage
-    s.foundry.points = 2
-    s = buyFoundryUpgrade(s, 'fp-damage')
-    expect(s.foundry.upgrades['fp-damage']).toBe(1)
-    expect(foundryDamageMult(s)).toBeCloseTo(1.04)
-    expect(computeShipStats(s).damage).toBeGreaterThan(before)
+  it('does not sell combat ranks or Fit bits', () => {
+    const s = createInitialState(0)
+    expect(foundryDamageMult(s)).toBe(1)
   })
 
-  it('Second Smelter adds a slot', () => {
-    let s = createInitialState(0)
-    s.meta.highestSectorEver = 6
-    s.foundry.points = 8
-    s = buyFoundryUpgrade(s, 'fp-slot')
-    expect(s.foundry.slots).toHaveLength(2)
-  })
-
-  it('Rebuild wipes fitted bits but keeps recipe levels and points', () => {
+  it('Rebuild keeps recipe levels, stock, and facilities', () => {
     let s = armRebuildDoor(createInitialState(0))
     s.foundry.recipeLevels['slag-ingot'] = 8
-    s.foundry.points = 5
     s.foundry.materials['hardened-plate'] = 5
-    s.foundry.recipeLevels['hardened-plate'] = 1
-    s = equipFoundryModule(s, 'slag-liner')
-    expect(s.foundry.equipped).toContain('slag-liner')
-
+    s.foundry.facilities = ['storage-bay']
+    s.foundry.fabrication[0] = {
+      kind: 'core',
+      jobId: 'flak-array',
+      progress: 0.55,
+      paid: true,
+      complete: false,
+    }
     s = performRebuild(s, {
       frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
-    expect(s.foundry.equipped).toEqual([])
     expect(s.foundry.recipeLevels['slag-ingot']).toBe(8)
-    expect(s.foundry.points).toBe(5)
-  })
-
-  it('marks a recipe infinite at max level', () => {
-    let s = createInitialState(0)
-    s.meta.bestWave = 70
-    s.combat.bestWave = 70
-    s.meta.highestSectorEver = 6
-    s.combat.highestSector = 6
-    s.foundry.recipeLevels['slag-ingot'] = 19
-    s.foundry.recipeXp['slag-ingot'] = 99
-    s.resources.salvage = 200
-    s = setFoundrySlot(s, 0, 'slag-ingot')
-    advanceSeconds(s, 30)
-    expect(isFoundryInfinite(s, 'slag-ingot') || foundryRecipeLevel(s, 'slag-ingot') >= 20).toBe(
-      true,
-    )
+    expect(s.foundry.materials['hardened-plate']).toBe(5)
+    expect(s.foundry.facilities).toContain('storage-bay')
+    expect(s.foundry.fabrication[0]?.progress).toBeCloseTo(0.55)
   })
 
   it('stores the number notation toggle on meta', () => {

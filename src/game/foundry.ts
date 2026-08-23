@@ -1091,7 +1091,7 @@ export function persistFoundryOnRebuild(foundry: FoundryState): FoundryState {
     fabrication: (foundry.fabrication ?? []).map((s) => ({
       kind: s.kind,
       jobId: s.jobId,
-      progress: s.complete ? 1 : 0,
+      progress: s.progress,
       paid: s.paid,
       complete: s.complete,
     })),

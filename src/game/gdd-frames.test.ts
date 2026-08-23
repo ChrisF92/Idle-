@@ -22,7 +22,7 @@ import { salvageFromKill } from './combat'
 
 describe('GDD D8 Hive Frames', () => {
   it('replaces the USI hull ladder with five archetypes', () => {
-    expect(SAVE_VERSION).toBe(36)
+    expect(SAVE_VERSION).toBe(37)
     expect(SHIP_FRAMES.map((f) => f.id)).toEqual([
       'starter-frame',
       'bastion-frame',
@@ -86,11 +86,11 @@ describe('GDD D8 Hive Frames', () => {
     )
 
     let foundry = atCareerWave(createInitialState(0), 50)
-    foundry.foundry.recipeLevels['slag-ingot'] = 4
+    foundry.foundry.recipeLevels['slag-ingot'] = 5
     foundry.foundry.materials['slag-ingot'] = 40
     foundry.foundry.materials.filament = 20
     foundry = setFoundrySlot(foundry, 0, 'temper-bar')
-    advanceSeconds(foundry, 30)
+    advanceSeconds(foundry, 181)
     expect(foundry.shipyard.unlockedFrames).toContain('swarm-frame')
     expect(frameUnlockLine(getFrame('swarm-frame')!)).toMatch(/Temper Bar/)
 

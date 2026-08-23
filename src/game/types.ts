@@ -1245,7 +1245,7 @@ export interface GameState {
   base: BaseState
   /** Drone Network bars (Strike / Ward / …). Wiped on Rebuild. */
   network: NetworkState
-  /** Foundry recipes / smelters. Recipe XP and points persist; equipped modules wipe on Rebuild. */
+  /** Foundry processing, timed fabrication, and facilities. Recipes, stock, jobs, and facilities persist. */
   foundry: FoundryState
   /** Shard slots (Reliquary). Inventory + fitted shards persist across Rebuild. */
   reliquary: ReliquaryState
@@ -1253,7 +1253,7 @@ export interface GameState {
   furnace: FurnaceState
   /** Kill-fed Material / Energy / Observation. Persist across Rebuild. */
   hiveResearch: HiveResearchState
-  /** Yard Grid (USI Bases). Buildings persist; pending arms on next Rebuild. */
+  /** Leftover Yard grid stub. Live construction is Foundry facilities. */
   yard: YardState
   /** Challenges. Ranks persist; active run is Rebuild-cleared. */
   protocols: ProtocolState

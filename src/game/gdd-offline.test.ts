@@ -28,10 +28,10 @@ describe('GDD offline Sortie freeze', () => {
   it('advances Foundry crafts while Docked offline', () => {
     let s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
     s.combat.docked = true
-    s.resources.salvage = 80
+    s.resources.scrap = 80
     s = setFoundrySlot(s, 0, 'slag-ingot')
     s.lastTickAt = 0
-    const { state: next } = applyOfflineCatchUp(s, 20 * 1000)
+    const { state: next } = applyOfflineCatchUp(s, 70 * 1000)
     expect(next.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(2)
     expect(next.combat.wave).toBe(s.combat.wave)
   })

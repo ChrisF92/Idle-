@@ -9,7 +9,7 @@ import {
   PART_TYPES,
   partId,
 } from './catalog'
-import { FOUNDRY_PANE_LABELS } from './foundry'
+import { claimFoundryCompletions, FOUNDRY_PANE_LABELS, tickFoundry } from './foundry'
 import { FOUNDRY_LOGS } from './logs'
 import { createInitialState } from './state'
 import { atCareerWave, forceUnlockModule } from './testHelpers'
@@ -68,7 +68,14 @@ describe('GDD Core roster and acquisition', () => {
     }
     expect(canAssembleBlueprint(s, 'flak-array').ok).toBe(true)
     s = assembleBlueprint(s, 'flak-array')
-    expect(s.combat.log.join('\n')).toMatch(/Available next Sortie/)
-    expect(s.combat.log.join('\n')).not.toMatch(/Rebuild/)
+    expect(s.foundry.fabrication[0]?.kind).toBe('core')
+    expect(s.shipyard.unlockedModules.includes('flak-array')).toBe(false)
+    tickFoundry(s, 12 * 60 + 5)
+    expect(s.foundry.pendingCores).toContain('flak-array')
+    expect(s.shipyard.unlockedModules.includes('flak-array')).toBe(false)
+    s.combat.docked = true
+    claimFoundryCompletions(s)
+    expect(s.shipyard.unlockedModules).toContain('flak-array')
+    expect(s.foundry.pendingCores).not.toContain('flak-array')
   })
 })

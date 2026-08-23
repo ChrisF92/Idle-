@@ -54,6 +54,8 @@ export interface ToastSnapshot {
   foundrySlagLevel: number
   foundryFitReady: boolean
   assembledPrints: string[]
+  pendingCores: string[]
+  pendingFacilities: string[]
   trackedPrintId: string | null
   processCoreHint: boolean
   protocolRankSum: number
@@ -86,7 +88,7 @@ const STATION_TOAST: Partial<
   reliquary: {
     category: 'SYSTEM ONLINE',
     title: 'Relic sockets unlocked',
-    body: 'Matching sockets on fitted Cores. Mastery 5 or Wave 275 adds Universal. Spare copies upgrade I–III with Slag Ingots.',
+    body: 'Matching sockets on fitted Cores. Mastery 5 or Wave 275 adds Universal. Spare copies upgrade I–III in Fabrication.',
     label: 'OPEN DOCK',
   },
   furnace: {
@@ -180,6 +182,8 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
   if (a.foundryFitReady !== b.foundryFitReady) return false
   if (a.trackedPrintId !== b.trackedPrintId) return false
   if (a.assembledPrints.length !== b.assembledPrints.length) return false
+  if (a.pendingCores.length !== b.pendingCores.length) return false
+  if (a.pendingFacilities.length !== b.pendingFacilities.length) return false
   if (a.processCoreHint !== b.processCoreHint || a.protocolRankSum !== b.protocolRankSum) return false
   if (a.frontierNoticeSeq !== b.frontierNoticeSeq) return false
   if (a.networkBars.length !== b.networkBars.length) return false
@@ -196,6 +200,8 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
     same(a.farmablePrints, b.farmablePrints) &&
     same(a.completePrints, b.completePrints) &&
     same(a.assembledPrints, b.assembledPrints) &&
+    same(a.pendingCores, b.pendingCores) &&
+    same(a.pendingFacilities, b.pendingFacilities) &&
     same(a.pendingMilestones, b.pendingMilestones) &&
     same(a.achievements, b.achievements)
   )
@@ -223,6 +229,8 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     assembledPrints: listFarmableCores(state)
       .filter((print) => state.shipyard.unlockedModules.includes(print.id))
       .map((print) => print.id),
+    pendingCores: [...(state.foundry.pendingCores ?? [])],
+    pendingFacilities: [...(state.foundry.pendingFacilities ?? [])],
     trackedPrintId: state.foundry.trackedPrintId ?? null,
     processCoreHint: processCoreHintReady(state),
     protocolRankSum: Object.values(state.protocols?.ranks ?? {}).reduce((n, v) => n + v, 0),
@@ -297,7 +305,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:yard',
         category: 'SYSTEM ONLINE',
         title: 'Construction unlocked',
-        body: 'Foundry construction is open. Place processing gear; arms apply on the next Rebuild.',
+        body: 'Foundry construction is open. Build facilities on a Fabrication slot; they arm on the next Sortie.',
         tier: 'major',
         action: { label: 'OPEN', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
       })
@@ -308,7 +316,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:reliquary',
         category: 'SYSTEM ONLINE',
         title: 'Relic sockets unlocked',
-        body: 'Matching sockets on fitted Cores. Power, Optical, Ballistic, Shield, Industrial — then Universal at Mastery 5 or Wave 275. Spare copies upgrade I–III with Slag Ingots.',
+        body: 'Matching sockets on fitted Cores. Power, Optical, Ballistic, Shield, Industrial — then Universal at Mastery 5 or Wave 275. Spare copies upgrade I–III in Fabrication.',
         tier: 'major',
         action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
       })
@@ -383,23 +391,46 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     }
   }
 
-  for (const printId of next.assembledPrints) {
-    if (prev.assembledPrints.includes(printId)) continue
+  for (const printId of next.pendingCores) {
+    if (prev.pendingCores.includes(printId)) continue
     const mod = getModule(printId)
     if (!mod) continue
-    const live = !state.combat.docked
+    push({
+      id: `fab-core:${printId}`,
+      category: 'FOUNDRY',
+      title: `${mod.name.toUpperCase()} COMPLETE`,
+      body: state.combat.docked ? 'Fit it at Dock.' : 'Available next Sortie.',
+      action: {
+        label: state.combat.docked ? 'FIT AT DOCK' : 'OPEN DOCK',
+        nav: { kind: 'tab', tab: 'dock' },
+      },
+    })
+  }
+
+  for (const facilityId of next.pendingFacilities) {
+    if (prev.pendingFacilities.includes(facilityId)) continue
+    push({
+      id: `fab-facility:${facilityId}`,
+      category: 'FOUNDRY',
+      title: 'FACILITY COMPLETE',
+      body: 'Available next Sortie.',
+      action: { label: 'OPEN FOUNDRY', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
+    })
+  }
+
+  for (const printId of next.assembledPrints) {
+    if (prev.assembledPrints.includes(printId)) continue
+    if (next.pendingCores.includes(printId) || prev.pendingCores.includes(printId)) continue
+    const mod = getModule(printId)
+    if (!mod) continue
     const tracked = prev.trackedPrintId === printId
     push({
       id: tracked ? `tracked-assembled:${printId}` : `assembled:${printId}`,
       category: 'FOUNDRY',
-      title: `${mod.name} assembled`,
-      body: live
-        ? `${mod.name} is available next Sortie.`
-        : tracked
-          ? 'Choose another tracked print. Fit it at Dock.'
-          : 'Fit it at Dock.',
+      title: `${mod.name} ready to fit`,
+      body: tracked ? 'Choose another tracked print. Fit it at Dock.' : 'Fit it at Dock.',
       action: {
-        label: live ? 'OPEN DOCK' : 'FIT AT DOCK',
+        label: 'FIT AT DOCK',
         nav: { kind: 'tab', tab: 'dock' },
       },
     })
@@ -470,8 +501,8 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     push({
       id: 'foundry:slag',
       category: 'FOUNDRY',
-      title: 'Slag Ingot produced',
-      body: 'Stock is ready. Keep smelting to raise recipe level.',
+      title: 'Recovered Stock produced',
+      body: 'Stock is ready. Keep processing to raise recipe mastery.',
       action: { label: 'OPEN', nav: { kind: 'tab', tab: 'foundry' } },
     })
   }

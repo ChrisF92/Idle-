@@ -36,7 +36,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'core-prints',
     title: 'Prints',
-    body: 'Wrecks leave Core fragments. Track a print and push Waves that drop that family. Assemble in the Foundry, then fit it at Dock.',
+    body: 'Wrecks leave Core fragments. Track a print and push Waves that drop that family. Fabricate it in the Foundry, then fit it at Dock.',
     unlock: (s) => career(s) >= ACT1_CADENCE.foundry,
   },
   {
