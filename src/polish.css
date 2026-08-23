@@ -855,6 +855,7 @@ button.just-ok {
 
 .upgrade-grid {
   display: grid;
+  width: 100%;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.4rem;
 }
@@ -1021,8 +1022,47 @@ button.just-ok {
 
 .dock-screen.is-tabbed {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
+  overflow-x: hidden;
+  padding-inline: var(--space-4);
+  box-sizing: border-box;
+}
+
+.dock-screen.is-tabbed.has-sticky {
+  padding-bottom: 0;
+}
+
+.dock-screen.is-tabbed > .ui-context-bar,
+.dock-screen.is-tabbed > .dock-hive-block,
+.dock-screen.is-tabbed > .dock-pane,
+.dock-screen.is-tabbed > .ui-sticky-action {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 0;
+  box-sizing: border-box;
+}
+
+.dock-screen.is-tabbed > .sheet-tabs,
+.dock-screen.is-tabbed .dock-workshop > .sheet-tabs {
+  width: 100%;
+  margin-inline: 0;
+  margin-bottom: 0;
+}
+
+.dock-screen.is-tabbed > .ui-sticky-action {
+  position: static;
+  margin-top: 0;
+  padding-bottom: var(--space-2);
+}
+
+.dock-screen .ui-context-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
 }
 
 .dock-summary-head {
@@ -1109,7 +1149,10 @@ button.just-ok {
 
 .dock-pane {
   min-height: 0;
-  overflow: auto;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: var(--space-3) var(--space-4);
   padding-bottom: calc(var(--sticky-cta) + var(--space-4));
 }
@@ -1231,6 +1274,52 @@ button.just-ok {
 .dock-rebuild-dash {
   display: grid;
   gap: var(--space-5);
+  width: 100%;
+  min-width: 0;
+}
+
+.dock-inventory-btn {
+  min-height: var(--touch);
+  min-width: var(--touch);
+  padding: 0 var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-brand);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mastery-track {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mastery-ms {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3) 0 var(--space-3) var(--space-3);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--line) 55%, transparent);
+  opacity: 0.5;
+}
+
+.mastery-ms.is-unlocked {
+  opacity: 1;
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset 0 -1px 0 color-mix(in srgb, var(--line) 55%, transparent);
+}
+
+.mastery-ms.is-next {
+  opacity: 0.92;
+  box-shadow:
+    inset 3px 0 0 var(--warn),
+    inset 0 -1px 0 color-mix(in srgb, var(--line) 55%, transparent);
+}
+
+.mastery-ms strong {
+  font-family: var(--font-brand);
+  letter-spacing: 0.03em;
 }
 
 .dock-rebuild-dash .primary {

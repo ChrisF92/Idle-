@@ -12,7 +12,7 @@ import {
   moduleMasteryRank,
   trimModulesToFrame,
 } from '../game/catalog'
-import { moduleMasteryXp, masteryXpToNext, nextMasteryMilestone } from '../game/coreProgression'
+import { moduleMasteryXp, masteryXpToNext, masteryMilestonesFor, nextMasteryMilestone } from '../game/coreProgression'
 import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
 import { formatCompact } from '../game/format'
 import {
@@ -148,7 +148,7 @@ export function CoreDetailSheet({
   const xp = moduleMasteryXp(state, moduleId)
   const need = masteryXpToNext(mastery)
   const next = nextMasteryMilestone(moduleId, mastery)
-  const nextSocket = mastery < 5 && mastery + 3 >= 5 ? 5 : mastery < 20 && mastery + 5 >= 20 ? 20 : null
+  const milestones = masteryMilestonesFor(moduleId)
 
   return (
     <BottomSheet
@@ -157,7 +157,7 @@ export function CoreDetailSheet({
       kicker={`${ROLE_LABEL[def.role]} Core`}
       onClose={onClose}
       overlayId={`core-detail-${moduleId}`}
-      size="standard"
+      size="full"
       footer={
         <button type="button" className="primary" disabled={locked || !onChange} onClick={onChange}>
           {locked ? 'Locked until Dock' : 'Change Core'}
@@ -183,13 +183,25 @@ export function CoreDetailSheet({
           <StatPair label="Range" value={def.weapon.range} />
         </div>
       ) : null}
-      {next ? (
-        <p className="ui-meta">
-          Next milestone M{next.level} · {next.name}
-        </p>
-      ) : nextSocket ? (
-        <p className="ui-meta">Next Mastery milestone: M{nextSocket} · additional socket</p>
-      ) : null}
+      <section className="mastery-track" aria-label="Mastery milestones">
+        <Kicker>Milestones</Kicker>
+        {milestones.map((ms) => {
+          const unlocked = mastery >= ms.level
+          const upcoming = next?.level === ms.level
+          return (
+            <article
+              key={`${moduleId}-${ms.level}`}
+              className={`mastery-ms${unlocked ? ' is-unlocked' : ''}${upcoming ? ' is-next' : ''}`}
+            >
+              <strong>
+                M{ms.level} · {ms.name}
+              </strong>
+              <span className="ui-meta">{unlocked ? 'Unlocked' : upcoming ? 'Next' : 'Locked'}</span>
+              <p>{ms.blurb}</p>
+            </article>
+          )
+        })}
+      </section>
       {isRelicsUnlocked(state) ? (
         <RelicSockets
           state={state}

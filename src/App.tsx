@@ -353,18 +353,10 @@ function AppShell() {
                                 : 'Hiveworks'}
               </p>
               <ScreenHelp screen={tab} />
-              {tab === 'dock' ? (
-                <button
-                  type="button"
-                  className="ui-inventory-btn"
-                  aria-label="Inventory"
-                  onClick={() => setInventoryOpen(true)}
-                >
-                  Inventory
-                </button>
-              ) : null}
             </div>
-            {tab === 'dock' ? <ResourceBar state={game.state} only={['scrap', 'prestigeMatter']} /> : null}
+            {tab === 'dock' ? (
+              <ResourceBar state={game.state} only={['scrap', 'prestigeMatter']} compact />
+            ) : null}
             {live ? (
               <button type="button" className="combat-chip" onClick={() => go('combat')}>
                 <span className="live-pip" aria-hidden />
@@ -397,6 +389,7 @@ function AppShell() {
             onUnfitCore={game.unfitModule}
             pane={dockPane}
             onPaneChange={setDockPane}
+            onOpenInventory={() => setInventoryOpen(true)}
             focusModuleId={focusTarget?.startsWith('core-') ? focusTarget.slice(5) : null}
           />
         )}

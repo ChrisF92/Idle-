@@ -58,10 +58,12 @@ describe('GDD shell information architecture', () => {
         state={state}
         onLaunch={() => undefined}
         onOpenSortie={() => undefined}
+        onOpenInventory={() => undefined}
         onRebuild={() => undefined}
       />,
     )
     expect(screen.getByText('Best Wave')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Inventory' })).toBeTruthy()
     expect(screen.getByText('Loadout')).toBeTruthy()
     expect(screen.getByText('Workshop')).toBeTruthy()
     expect(screen.getByText('Rebuild')).toBeTruthy()

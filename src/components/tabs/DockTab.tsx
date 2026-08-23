@@ -40,6 +40,7 @@ interface DockTabProps {
   onSelectFrame?: (frameId: string) => void
   onFitCore?: (moduleId: string) => void
   onUnfitCore?: (moduleId: string) => void
+  onOpenInventory?: () => void
   pane?: DockPane
   onPaneChange?: (pane: DockPane) => void
   focusModuleId?: string | null
@@ -63,6 +64,7 @@ export function DockTab({
   onSelectFrame,
   onFitCore,
   onUnfitCore,
+  onOpenInventory,
   pane: paneProp,
   onPaneChange,
   focusModuleId,
@@ -112,6 +114,11 @@ export function DockTab({
       <ContextBar>
         <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
         <StatPair label="Cycle" value={cycleNo} />
+        {onOpenInventory ? (
+          <button type="button" className="dock-inventory-btn" aria-label="Inventory" onClick={onOpenInventory}>
+            Inventory
+          </button>
+        ) : null}
       </ContextBar>
 
       <div className="dock-hive-block">

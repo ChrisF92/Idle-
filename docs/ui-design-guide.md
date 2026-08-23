@@ -73,7 +73,7 @@ On wider desktop / browser: centre the app (current max-width ~480px). Optionall
 | Level | When | Examples |
 | --- | --- | --- |
 | 1 — Glance | Always visible | Pulse Core, M17, 18.4K DPS |
-| 2 — Decision | Tap opens a sheet | Damage, Cycle, Range, Relics, next Mastery |
+| 2 — Decision | Tap opens a sheet | Damage, Cycle, Range, Relics, every Mastery milestone |
 | 3 — Advanced | Expandable inside a sheet | Formulas, contribution breakdown, lifetime stats |
 
 Never place Level 3 information on the default screen.
@@ -221,19 +221,44 @@ Nothing may hide behind the CTA, the nav, the browser safe area, or the keyboard
 
 Bottom nav (fixed, not in the scroll):
 
-- SORTIE
 - DOCK
 - SYSTEMS when unlocked
 - MORE
+
+Do **not** put Sortie on the bottom bar. Launch Sortie from Dock is the way in. While a Sortie is live, Dock’s sticky CTA becomes **Return to Sortie**.
 
 Locked destinations stay hidden according to progression.
 
 Header is compact. Do not repeat every resource on every screen.
 
-- **Dock:** Hiveworks + Inventory affordance; Scrap · Matter
+- **Dock:** Hiveworks; Scrap · Matter. Inventory lives **on the Dock page**, not in the chrome header.
 - **Sortie:** own HUD, not the generic header
 - **Systems:** contextual header
 - **More:** no game currencies required
+
+Dock panes (Loadout / Workshop / Rebuild) must share one column width. Reserve scrollbar gutter so switching tabs never shifts the page.
+
+### Dock mobile column
+
+Portrait Dock is one locked column. Switching Loadout / Workshop / Rebuild must not change page width, tab width, or card width.
+
+```
+Header     Hiveworks                 Scrap 47 · Matter 0
+Context    Best W12    Cycle 1       [Inventory]
+Hive       compact preview (12–18vh)
+Glance     Frame · Cores · DPS / Hull / Shield
+Panes      LOADOUT | WORKSHOP | REBUILD
+Body       scroll; scrollbar-gutter: stable
+CTA        Launch Sortie  (or Return to Sortie)
+Nav        Dock | Systems | More
+```
+
+Rules:
+
+- Do not put Sortie on the bottom bar. Launch from Dock is the way in.
+- Inventory is a Dock-page control, not header chrome and not a bottom-nav destination.
+- Outer Dock tabs and Workshop category tabs share the same inset.
+- The expanded Core sheet lists **every** mastery milestone and highlights unlocked ranks plus the next one.
 
 ## Onboarding
 

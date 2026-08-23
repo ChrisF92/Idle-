@@ -29,7 +29,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Dock',
     body: [
       'Launch a Sortie from here. Every run starts at Wave 1. Death or Extract returns you to Dock.',
-      'Loadout, Workshop, and Rebuild sit under the Hive preview. Tap a Core row for Mastery, Relics, and change-out. Inventory (header) is the owned-item ledger — it is not a bottom-nav destination.',
+      'Loadout, Workshop, and Rebuild sit under the Hive preview. Tap a Core row for Mastery milestones, Relics, and change-out. Inventory is on this page — it is not a bottom-nav destination.',
       'Workshop levels raise every Sortie’s starting power. Temporary Sortie purchases still start at the cheap base cost. Rebuild trades this cycle for Matter and lists RESET, KEEP, and GAIN.',
     ],
   },

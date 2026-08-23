@@ -3,10 +3,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
 import { DockTab } from '../components/tabs/DockTab'
 import { InventoryScreen } from '../components/InventoryScreen'
+import { TabNav } from '../components/TabNav'
 import { OverlayProvider, useOverlay, useOverlayLayer } from '../ui/overlay'
 import { createInitialState } from './state'
 import { grantModuleCopy } from './coreProgression'
-import { markHullLost } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
+import { atCareerWave, markHullLost } from './testHelpers'
 import { useState } from 'react'
 
 afterEach(cleanup)
@@ -53,6 +55,7 @@ describe('UI architecture reset', () => {
           state={state}
           onLaunch={() => undefined}
           onOpenSortie={() => undefined}
+          onOpenInventory={() => undefined}
           onRebuild={() => undefined}
         />
       </OverlayProvider>,
@@ -73,6 +76,7 @@ describe('UI architecture reset', () => {
           state={state}
           onLaunch={() => undefined}
           onOpenSortie={() => undefined}
+          onOpenInventory={() => undefined}
           onRebuild={() => undefined}
         />
       </OverlayProvider>,
@@ -80,6 +84,7 @@ describe('UI architecture reset', () => {
     expect(screen.getByRole('tab', { name: 'Loadout' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Workshop' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Rebuild' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Inventory' })).toBeTruthy()
     expect(document.querySelector('.ui-sticky-action')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Rebuild' }))
@@ -147,5 +152,43 @@ describe('UI architecture reset', () => {
     )
     expect(screen.getByText('top:update')).toBeTruthy()
     expect(screen.getByText('onboard:no')).toBeTruthy()
+  })
+
+  it('keeps bottom nav to Dock, Systems, and More', () => {
+    const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
+    render(<TabNav active="dock" onChange={() => undefined} state={state} />)
+    expect(screen.getByRole('button', { name: /Dock/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Systems/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /More/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Sortie/ })).toBeNull()
+  })
+
+  it('lists every Core mastery milestone and highlights unlocked ranks', () => {
+    const state = markHullLost(createInitialState(0))
+    state.meta.moduleMastery = { 'pulse-cannon': 10 }
+    render(
+      <OverlayProvider>
+        <DockTab
+          state={state}
+          onLaunch={() => undefined}
+          onOpenSortie={() => undefined}
+          onOpenInventory={() => undefined}
+          onRebuild={() => undefined}
+        />
+      </OverlayProvider>,
+    )
+    fireEvent.click(document.querySelector('.ui-item-row[data-guide="core-pulse-cannon"]')!)
+    expect(screen.getByText(/M5 · Hardened Pulse/)).toBeTruthy()
+    expect(screen.getByText(/M10 · Tight Cycle/)).toBeTruthy()
+    expect(screen.getByText(/M20 · Optical Socket/)).toBeTruthy()
+    expect(screen.getByText(/M30 · Run Feed/)).toBeTruthy()
+    expect(screen.getByText(/M50 · Foundry Arc/)).toBeTruthy()
+    expect(screen.getByText(/M75 · Deep Pattern/)).toBeTruthy()
+    expect(screen.getByText(/M100 · True Mastery/)).toBeTruthy()
+    const unlocked = [...document.querySelectorAll('.mastery-ms.is-unlocked')].map((el) => el.textContent)
+    expect(unlocked.some((text) => text?.includes('Hardened Pulse'))).toBe(true)
+    expect(unlocked.some((text) => text?.includes('Tight Cycle'))).toBe(true)
+    expect(unlocked.some((text) => text?.includes('Optical Socket'))).toBe(false)
+    expect(document.querySelector('.mastery-ms.is-next')?.textContent).toMatch(/Optical Socket/)
   })
 })
