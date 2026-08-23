@@ -6,7 +6,8 @@ import {
   STATIONS,
 } from '../../game/catalog'
 import { useJustBecame } from '../../hooks/useJustBecame'
-import { WORKER_JOB_IDS, workerJobCapLine, workerJobLabel } from '../../game/workers'
+import { WORKER_JOB_IDS } from '../../game/workers'
+import { workerJobConsequence } from '../../game/workerReadout'
 
 interface NetworkTabProps {
   state: GameState
@@ -50,15 +51,14 @@ export function NetworkTab({ state, onAssign, onOptimise, onBack }: NetworkTabPr
           </button>
         </p>
       ) : null}
-      <p className="muted">
-        Each job has an efficient range and a hard cap. Extra drones on a full job do nothing.
-      </p>
       <div className="panel-scroll">
         {jobs.map((job) => {
           const open = isStationUnlocked(state, job.id)
           const assigned = state.base.assignments[job.id] ?? 0
+          const effect = workerJobConsequence(state, job.id)
           const rowClass = [
             'network-row',
+            'worker-job-row',
             open ? (assigned > 0 ? 'is-active' : 'is-idle') : 'locked',
             idleFlash && idle > 0 ? 'idle-flash' : '',
           ]
@@ -67,34 +67,29 @@ export function NetworkTab({ state, onAssign, onOptimise, onBack }: NetworkTabPr
           return (
             <article key={job.id} className={rowClass} data-guide={`worker-${job.id}`}>
               <div className="network-row-main">
-                <strong>{workerJobLabel(job.id, job.name)}</strong>
-                <span className="muted">{workerJobCapLine(assigned, job.id)}</span>
+                <strong>{effect.title}</strong>
+                <span className="muted">{effect.assigned} Worker Drones</span>
               </div>
-              <p className="network-row-stats">{job.description}</p>
-              {job.id === 'scrap-field' && open ? (
-                <p className="muted">
-                  {assigned > 0
-                    ? `Scrap +${((job.rates.scrap ?? 0) * assigned).toFixed(1)}/s`
-                    : `Scrap 0/s → +${(job.rates.scrap ?? 0).toFixed(1)}/s with 1 drone`}
-                </p>
-              ) : null}
+              <p className="ui-meta">{effect.band}</p>
+              <p className="network-row-stats">{open ? effect.current : 'Locked'}</p>
+              {open ? <p className="ui-meta">{effect.next}</p> : null}
               {open ? (
-                <p className="assign-row">
-                  <button type="button" disabled={assigned <= 0} onClick={() => onAssign(job.id, -1)}>
+                <p className="assign-row worker-stepper">
+                  <button type="button" disabled={assigned <= 0} aria-label={`Remove drone from ${effect.title}`} onClick={() => onAssign(job.id, -1)}>
                     −
                   </button>
+                  <strong aria-live="polite">{assigned}</strong>
                   <button
                     type="button"
                     data-guide={`worker-${job.id}`}
                     disabled={idle <= 0}
+                    aria-label={`Assign drone to ${effect.title}`}
                     onClick={() => onAssign(job.id, 1)}
                   >
                     +
                   </button>
                 </p>
-              ) : (
-                <p className="muted">Locked</p>
-              )}
+              ) : null}
             </article>
           )
         })}

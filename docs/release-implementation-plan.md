@@ -2,6 +2,7 @@
 
 **Status:** living working document  
 **Authority:** [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md)  
+**UI authority:** [`docs/ui-design-guide.md`](./ui-design-guide.md) — any future new screen or major UI change must follow that guide unless the design document explicitly overrides it.  
 **Code snapshot:** Phase 9 first land — Wave sim / playtest (SAVE_VERSION 36, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 

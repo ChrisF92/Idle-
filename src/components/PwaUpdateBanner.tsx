@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { forceReloadApp } from '../pwaReload'
-
-interface PwaUpdateBannerProps {
-  /** Required onboarding covers More — keep Reload tappable above the overlay. */
-  escapeHatch?: boolean
-}
+import { useOverlayLayer } from '../ui/overlay'
 
 /** Soft prompt when a new service-worker build is waiting. */
-export function PwaUpdateBanner({ escapeHatch = false }: PwaUpdateBannerProps) {
+export function PwaUpdateBanner() {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null)
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -38,41 +34,42 @@ export function PwaUpdateBanner({ escapeHatch = false }: PwaUpdateBannerProps) {
   }, [needRefresh])
 
   const showBanner = needRefresh && !dismissed
-  if (!showBanner && !escapeHatch) return null
+  useOverlayLayer({
+    id: 'pwa-update',
+    kind: 'update',
+    open: showBanner,
+    onClose: () => {
+      setDismissed(true)
+      setNeedRefresh(false)
+    },
+  })
+  if (!showBanner) return null
 
   return (
     <div className="pwa-update-banner" role="status">
-      <p>
-        {showBanner
-          ? 'A new Hiveworks build is ready.'
-          : 'Reload if this screen is from an older build.'}
-      </p>
+      <p>A new Hiveworks build is ready.</p>
       <div className="dev-tools-row">
-        {showBanner ? (
-          <button
-            type="button"
-            className="primary"
-            onClick={() => {
-              void updateServiceWorker(true)
-            }}
-          >
-            Update
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            void updateServiceWorker(true)
+          }}
+        >
+          Update
+        </button>
         <button type="button" className="primary" onClick={() => void forceReloadApp()}>
           Reload latest build
         </button>
-        {showBanner ? (
-          <button
-            type="button"
-            onClick={() => {
-              setDismissed(true)
-              setNeedRefresh(false)
-            }}
-          >
-            Later
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => {
+            setDismissed(true)
+            setNeedRefresh(false)
+          }}
+        >
+          Later
+        </button>
       </div>
     </div>
   )

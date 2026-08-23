@@ -28,6 +28,62 @@ interface RebuildHangarProps {
   onBuyMatter?: (itemId: string) => void
 }
 
+export function MatterShopSheet({
+  state,
+  onClose,
+  onBuyMatter,
+}: {
+  state: GameState
+  onClose: () => void
+  onBuyMatter?: (itemId: string) => void
+}) {
+  const matter = state.resources.prestigeMatter
+  const label = RESOURCE_LABELS.prestigeMatter
+  return (
+    <div className="sheet-overlay" role="dialog" aria-labelledby="matter-shop-title">
+      <div className="sheet-card">
+        <header className="modal-header">
+          <h3 id="matter-shop-title">Matter upgrades</h3>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+        </header>
+        <p>
+          {formatCompact(matter, 1)} {label}
+        </p>
+        <p className="muted">Permanent ranks by category. There is no separate Slag screen.</p>
+        {MATTER_SHOP_CATEGORIES.map((cat) => (
+          <div key={cat.id} className="matter-shop-cat">
+            <h4 className="foundry-heading">{cat.name}</h4>
+            {matterShopItemsIn(cat.id).map((item) => {
+              const rank = shopRank(state.prestige.matterShop, item.id)
+              const can = canBuyMatterShop(state, item.id)
+              return (
+                <article key={item.id} className="network-row">
+                  <div className="network-row-main">
+                    <strong>{item.name}</strong>
+                    <span className="muted">Lv {rank}</span>
+                  </div>
+                  <p className="network-row-stats">{item.description}</p>
+                  <p className="muted">{matterShopEffectBlurb(item, rank)}</p>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={!onBuyMatter || !can.ok}
+                    onClick={() => onBuyMatter?.(item.id)}
+                  >
+                    {can.ok ? `${can.cost} ${label}` : can.reason}
+                  </button>
+                </article>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: RebuildHangarProps) {
   const ready = canPrestige(state)
   const need = rebuildWaveNeed(state)
@@ -37,7 +93,6 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
   const shopAvailable = isSystemUnlocked(state, 'slag') || (state.resources.prestigeMatter ?? 0) > 0
   const [shopOpen, setShopOpen] = useState(false)
   const [collapsing, setCollapsing] = useState(false)
-  const matter = state.resources.prestigeMatter
   const label = RESOURCE_LABELS.prestigeMatter
   const hive = computeShipStats(state)
   const preview = rebuildPowerPreview(state, gain)
@@ -170,47 +225,7 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
       </div>
 
       {shopOpen ? (
-        <div className="sheet-overlay" role="dialog" aria-labelledby="matter-shop-title">
-          <div className="sheet-card">
-            <header className="modal-header">
-              <h3 id="matter-shop-title">Matter upgrades</h3>
-              <button type="button" onClick={() => setShopOpen(false)}>
-                Close
-              </button>
-            </header>
-            <p>
-              {formatCompact(matter, 1)} {label}
-            </p>
-            <p className="muted">Permanent ranks by category. There is no separate Slag screen.</p>
-            {MATTER_SHOP_CATEGORIES.map((cat) => (
-              <div key={cat.id} className="matter-shop-cat">
-                <h4 className="foundry-heading">{cat.name}</h4>
-                {matterShopItemsIn(cat.id).map((item) => {
-                  const rank = shopRank(state.prestige.matterShop, item.id)
-                  const can = canBuyMatterShop(state, item.id)
-                  return (
-                    <article key={item.id} className="network-row">
-                      <div className="network-row-main">
-                        <strong>{item.name}</strong>
-                        <span className="muted">Lv {rank}</span>
-                      </div>
-                      <p className="network-row-stats">{item.description}</p>
-                      <p className="muted">{matterShopEffectBlurb(item, rank)}</p>
-                      <button
-                        type="button"
-                        className="primary"
-                        disabled={!onBuyMatter || !can.ok}
-                        onClick={() => onBuyMatter?.(item.id)}
-                      >
-                        {can.ok ? `${can.cost} ${label}` : can.reason}
-                      </button>
-                    </article>
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
+        <MatterShopSheet state={state} onClose={() => setShopOpen(false)} onBuyMatter={onBuyMatter} />
       ) : null}
     </div>
   )

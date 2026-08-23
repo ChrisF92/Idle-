@@ -855,6 +855,14 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     }
     if (unit.hull <= 0 && existing.alive) {
       existing.alive = false
+      if (existing.trailShield > 0) {
+        ring(scene, existing.x, existing.y, '#7ec8ff', existing.r * 3.4, 0.22, 2)
+        burst(scene, existing.x, existing.y, '#c8f0ff', scene.reducedMotion ? 3 : 8, {
+          speed: 0.8,
+          life: 0.28,
+          size: 0.8,
+        })
+      }
       const armored = existing.shape === 'hex' || existing.shape === 'square'
       const power =
         existing.isBoss
@@ -1472,7 +1480,19 @@ function drawOrbitingCores(
     ctx.strokeStyle = '#ffe8c7'
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.arc(slot.x, slot.y, kind === 'heavy' ? 4.2 : kind === 'flak' ? 2.8 : 3.3, 0, Math.PI * 2)
+    if (kind === 'heavy') {
+      ctx.moveTo(slot.x, slot.y - 4.4)
+      ctx.lineTo(slot.x + 3.6, slot.y)
+      ctx.lineTo(slot.x, slot.y + 4.4)
+      ctx.lineTo(slot.x - 3.6, slot.y)
+      ctx.closePath()
+    } else if (kind === 'beam') {
+      ctx.rect(slot.x - 3.4, slot.y - 1.4, 6.8, 2.8)
+    } else if (kind === 'flak') {
+      ctx.arc(slot.x, slot.y, 2.6, 0, Math.PI * 2)
+    } else {
+      ctx.arc(slot.x, slot.y, kind === 'pulse' ? 3.4 : 3.1, 0, Math.PI * 2)
+    }
     ctx.fill()
     ctx.stroke()
     ctx.restore()
@@ -1501,6 +1521,7 @@ function drawHiveShield(
     return
   }
   if (pct <= 0) return
+  const stable = pct >= 0.75
   const unstable = pct < 0.55
   const low = pct < 0.28
   const wobble = scene.reducedMotion || !unstable ? 0 : Math.sin(scene.time * (low ? 18 : 8)) * (low ? 2.2 : 1.1)
@@ -1508,8 +1529,8 @@ function drawHiveShield(
   ctx.save()
   ctx.translate(ax, ay)
   ctx.globalAlpha = alpha * (0.16 + pct * 0.32) * flicker
-  ctx.strokeStyle = '#7ec8ff'
-  ctx.lineWidth = 1.3 + pct * 1.1 + actor.shieldHit
+  ctx.strokeStyle = stable ? '#b8e6ff' : '#7ec8ff'
+  ctx.lineWidth = (stable ? 2.1 : 1.3) + pct * 1.1 + actor.shieldHit
   ctx.shadowColor = '#7ec8ff'
   ctx.shadowBlur = scene.reducedMotion ? 0 : 6 + actor.shieldHit * 8
   ctx.beginPath()

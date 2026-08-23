@@ -6,7 +6,6 @@ import { isMoreNavTab, isSystemsNavTab } from '../game/moreStations'
 import { AttentionPips } from './AttentionPips'
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: 'combat', label: 'Sortie', icon: '▲' },
   { id: 'dock', label: 'Dock', icon: '⌂' },
   { id: 'foundry', label: 'Systems', icon: '▣' },
   { id: 'stats', label: 'More', icon: '☰' },

@@ -6,6 +6,7 @@ import {
   guideStepNeedsTap,
   type GuideStep,
 } from '../game/progression'
+import { useOverlayLayer } from '../ui/overlay'
 
 interface GuideOverlayProps {
   step: GuideStep
@@ -44,6 +45,12 @@ export function GuideOverlay({ step, onComplete, onSkip }: GuideOverlayProps) {
   const kind = guideKind(step)
   const pause = guidePausesSimulation(step)
   const lockUi = kind === 'critical'
+  useOverlayLayer({
+    id: `onboarding-${step.id}`,
+    kind: 'onboarding',
+    open: true,
+    onClose: () => onSkip(step.id),
+  })
 
   useEffect(() => {
     if (!lockUi) return

@@ -23,17 +23,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.7rem 0.35rem;
-  min-height: 2.6rem;
-  border-bottom: 1px solid var(--line);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  min-width: 0;
+  min-height: var(--header-height);
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--line) 55%, transparent);
 }
 
 .hud-chips {
   display: flex;
   flex-wrap: nowrap;
+  justify-content: flex-end;
   gap: 0.4rem;
-  overflow-x: auto;
+  overflow: hidden;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -114,9 +117,9 @@
 
 .screen-help-btn {
   flex: 0 0 auto;
-  width: 1.55rem;
-  height: 1.55rem;
-  min-height: 0;
+  width: var(--touch);
+  height: var(--touch);
+  min-height: var(--touch);
   padding: 0;
   border-radius: 999px;
   font-family: var(--font-brand);
@@ -582,16 +585,18 @@ h2 .inspect-name {
   position: absolute;
   z-index: 2;
   width: min(320px, calc(100vw - 24px));
-  max-height: min(46vh, 280px);
+  max-height: min(36vh, 220px);
   overflow: hidden;
   pointer-events: auto;
-  background: var(--bg-panel);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
-  padding: 0.75rem 0.85rem;
+  background: var(--bg-elevated);
+  border: none;
+  box-shadow:
+    0 -2px 0 var(--accent),
+    0 12px 36px rgba(0, 0, 0, 0.45);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  gap: var(--space-2);
 }
 
 .guide-tip-top {
@@ -608,7 +613,11 @@ h2 .inspect-name {
   min-height: 0;
   overflow: auto;
   display: grid;
-  gap: 0.35rem;
+  gap: var(--space-2);
+  font-family: var(--font-brand);
+  font-size: var(--type-body);
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .guide-tip-actions {
@@ -886,8 +895,10 @@ h2 .inspect-name {
 .sheet-tabs {
   display: flex;
   gap: 0.25rem;
+  width: 100%;
   flex: 0 0 auto;
   margin-bottom: 0.35rem;
+  box-sizing: border-box;
 }
 
 .pane-tabs {
@@ -900,20 +911,22 @@ h2 .inspect-name {
 
 .sheet-tab {
   flex: 1;
-  min-height: 2rem;
-  padding: 0.25rem 0.4rem;
+  min-height: var(--touch);
+  padding: var(--space-2) var(--space-2);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   background: transparent;
   color: var(--muted);
-  border: 1px solid transparent;
+  border: none;
+  box-shadow: inset 0 -2px 0 transparent;
 }
 
 .sheet-tab.active {
   color: var(--accent);
-  border-color: var(--line);
-  background: var(--bg-elevated);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .sortie-sheet .core-sheet,

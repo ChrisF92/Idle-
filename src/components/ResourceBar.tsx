@@ -4,13 +4,19 @@ import { RESOURCE_LABELS } from '../game/state'
 import { visibleResourceIds } from '../game/progression'
 import { formatNumber } from '../game/format'
 
+const SHORT_LABELS: Partial<Record<ResourceId, string>> = {
+  scrap: 'Scrap',
+  prestigeMatter: 'Matter',
+}
+
 interface ResourceBarProps {
   state: GameState
   rates?: Partial<Resources>
   only?: ResourceId[]
+  compact?: boolean
 }
 
-export function ResourceBar({ state, only }: ResourceBarProps) {
+export function ResourceBar({ state, only, compact = false }: ResourceBarProps) {
   const ids = only ?? visibleResourceIds(state)
   const idKey = ids.join('|')
   const prev = useRef<Partial<Resources>>({})
@@ -39,7 +45,7 @@ export function ResourceBar({ state, only }: ResourceBarProps) {
     <div className="hud-chips" aria-label="Resources">
       {ids.map((id) => (
         <span key={id} className="hud-chip">
-          <span className="hud-chip-label">{RESOURCE_LABELS[id]}</span>
+          <span className="hud-chip-label">{compact ? SHORT_LABELS[id] ?? RESOURCE_LABELS[id] : RESOURCE_LABELS[id]}</span>
           <strong className={up[id] ? 'tick-up' : undefined}>
             {formatNumber(state.resources[id], state.meta.numberNotation)}
           </strong>

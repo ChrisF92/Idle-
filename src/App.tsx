@@ -25,7 +25,7 @@ import {
   type ToastSnapshot,
 } from './game/toasts'
 import { prefersReducedMotion } from './hooks/usePrefersReducedMotion'
-import { ResourceBar } from './components/ResourceBar'
+import { WalletButton } from './components/WalletButton'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
 import { DockTab, type DockPane } from './components/tabs/DockTab'
@@ -47,6 +47,10 @@ import { GuideOverlay } from './components/GuideOverlay'
 import { ScreenHelp } from './components/ScreenHelp'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { ToastStack } from './components/ToastStack'
+import { InventoryScreen } from './components/InventoryScreen'
+import { OverlayProvider, useOverlay, useOverlayLayer } from './ui/overlay'
+import './ui/tokens.css'
+import './ui/primitives.css'
 import './App.css'
 import './polish.css'
 
@@ -56,7 +60,16 @@ const BalanceSimulator = lazy(async () => {
 })
 
 export default function App() {
+  return (
+    <OverlayProvider>
+      <AppShell />
+    </OverlayProvider>
+  )
+}
+
+function AppShell() {
   const game = useGame()
+  const overlays = useOverlay()
   const [tab, setTab] = useState<TabId>('dock')
   const [hangarOpen, setHangarOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -66,16 +79,29 @@ export default function App() {
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
   const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
   const [systemsView, setSystemsView] = useState<'hub' | 'foundry'>('foundry')
-  const [dockPane, setDockPane] = useState<DockPane>('loadout')
+  const [dockPane, setDockPane] = useState<DockPane>('home')
+  const [inventoryOpen, setInventoryOpen] = useState(false)
   const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const lastGuideId = useRef<string | null>(null)
   const [heldGuideId, setHeldGuideId] = useState<string | null>(null)
   const dying = (game.state.combat.defeatLeft ?? 0) > 0
-  const live = !game.state.combat.docked || dying
   const offlineOpen = Boolean(game.offlineReport)
+  useOverlayLayer({
+    id: 'rebuild-hangar',
+    kind: 'confirm',
+    open: hangarOpen,
+    onClose: () => setHangarOpen(false),
+  })
+  useOverlayLayer({
+    id: 'sortie-report',
+    kind: 'modal',
+    open: reportOpen,
+    onClose: () => setReportOpen(false),
+  })
+  const updateBlocking = overlays.topBlockingKind === 'update'
   const guide =
-    dying || reportOpen || hangarOpen || blockingModal || offlineOpen
+    dying || reportOpen || hangarOpen || blockingModal || offlineOpen || updateBlocking
       ? null
       : activeGuideStep(game.state, tab, heldGuideId)
   const pauseSim =
@@ -127,7 +153,7 @@ export default function App() {
       if (nav.kind === 'tab' && isRemovedAct1Tab(nav.tab)) return
       if (isHubTabOpen(game.state, nav.tab)) {
         if (nav.tab === 'foundry') setSystemsView('foundry')
-        if (nav.tab === 'dock') setDockPane('loadout')
+        if (nav.tab === 'dock') setDockPane('home')
         setTab(nav.tab)
         if (nav.focus) setFocusTarget(nav.focus)
         if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
@@ -327,13 +353,7 @@ export default function App() {
               </p>
               <ScreenHelp screen={tab} />
             </div>
-            {tab === 'dock' ? <ResourceBar state={game.state} only={['scrap', 'prestigeMatter']} /> : null}
-            {live ? (
-              <button type="button" className="combat-chip" onClick={() => go('combat')}>
-                <span className="live-pip" aria-hidden />
-                LIVE · W{game.state.combat.wave}
-              </button>
-            ) : null}
+            <WalletButton state={game.state} />
           </header>
         </div>
       ) : null}
@@ -360,6 +380,8 @@ export default function App() {
             onUnfitCore={game.unfitModule}
             pane={dockPane}
             onPaneChange={setDockPane}
+            onBuyMatter={game.buyMatterShop}
+            onOpenInventory={() => setInventoryOpen(true)}
             focusModuleId={focusTarget?.startsWith('core-') ? focusTarget.slice(5) : null}
           />
         )}
@@ -521,6 +543,7 @@ export default function App() {
             onOpenStation={go}
             onOpenSimulator={() => setSimulatorOpen(true)}
             guideTarget={guide?.target}
+            onOpenInventory={() => setInventoryOpen(true)}
           />
         )}
       </main>
@@ -528,6 +551,11 @@ export default function App() {
       <TabNav
         active={tab}
         onChange={(next) => {
+          if (next === 'dock') {
+            setDockPane('home')
+            go('dock')
+            return
+          }
           if (next === 'foundry') openSystemsHub()
           else go(next)
         }}
@@ -544,7 +572,7 @@ export default function App() {
               modules: [...game.state.shipyard.modules],
             })
             setHangarOpen(false)
-            setDockPane('loadout')
+            setDockPane('home')
             go('dock')
           }}
           onBuyMatter={game.buyMatterShop}
@@ -565,6 +593,7 @@ export default function App() {
           onClose={() => setReportOpen(false)}
           onDock={() => {
             setReportOpen(false)
+            setDockPane('home')
             go('dock')
           }}
           onRunAgain={() => {
@@ -587,6 +616,19 @@ export default function App() {
         </Suspense>
       ) : null}
 
+      <InventoryScreen
+        state={game.state}
+        open={inventoryOpen}
+        onClose={() => setInventoryOpen(false)}
+        onSelectFrame={game.selectFrame}
+        onFitCore={game.fitModule}
+        onOpenFoundry={() => {
+          setInventoryOpen(false)
+          setFoundryPane('smelt')
+          go('foundry')
+        }}
+      />
+
       {guide ? (
         <GuideOverlay
           step={guide}
@@ -600,7 +642,7 @@ export default function App() {
         onDismiss={(id) => setToasts((q) => dismissToast(q, id))}
         onAction={applyToastNav}
       />
-      <PwaUpdateBanner escapeHatch={Boolean(guide && guidePausesSimulation(guide))} />
+      <PwaUpdateBanner />
     </div>
   )
 }

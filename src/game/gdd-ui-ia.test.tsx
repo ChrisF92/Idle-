@@ -58,16 +58,18 @@ describe('GDD shell information architecture', () => {
         state={state}
         onLaunch={() => undefined}
         onOpenSortie={() => undefined}
+        onOpenInventory={() => undefined}
         onRebuild={() => undefined}
       />,
     )
     expect(screen.getByText('Best Wave')).toBeTruthy()
-    expect(screen.getByText('Matter')).toBeTruthy()
-    expect(screen.getByText('Loadout')).toBeTruthy()
-    expect(screen.getByText('Workshop')).toBeTruthy()
-    expect(screen.getByText('Rebuild')).toBeTruthy()
-    expect(screen.getByText(/Permanent strength is Mastery/i)).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: 'Workshop' }))
+    expect(screen.getByRole('button', { name: /Loadout/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Workshop/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Rebuild/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Inventory' })).toBeNull()
+    expect(screen.queryByText(/Permanent strength is Mastery/i)).toBeNull()
+    expect(screen.queryByText(/Equip Cores and Relics here/i)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Workshop/ }))
     expect(screen.getByText('Weapon Power')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))
     expect(screen.queryByText('Weapon Power')).toBeNull()

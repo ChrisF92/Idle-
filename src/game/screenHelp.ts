@@ -28,9 +28,9 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   dock: {
     title: 'Dock',
     body: [
-      'Launch a Sortie from here. Every run starts at Wave 1. Death or Extract returns you to Dock.',
-      'Loadout, Workshop, and Rebuild sit under the Hive preview. Equip Cores and Relics here. Permanent Core strength is Mastery, earned while the Core is equipped.',
-      'Workshop levels raise every Sortie’s starting power. Temporary Sortie purchases still start at the cheap base cost. Rebuild trades this cycle for Matter and lists RESET, KEEP, and GAIN.',
+      'Dock is home after every Sortie. Best Wave, Loadout, and Launch / Resume are the first things on this screen.',
+      'Loadout, Workshop, and Rebuild are their own screens. Inventory is inside Loadout. Relics are on a Core sheet or in Inventory.',
+      'Workshop spends Scrap. Rebuild shows projected Matter and can spend Matter even when Preview Rebuild is still inactive. The Wallet icon lists every currency.',
     ],
   },
   combat: {
