@@ -236,7 +236,7 @@ Header is compact. Do not repeat every resource on every screen.
 - **Systems:** contextual header
 - **More:** no game currencies required
 
-Dock panes (Loadout / Workshop / Rebuild) must share one column width. Reserve scrollbar gutter so switching tabs never shifts the page.
+Dock panes (Loadout / Workshop / Rebuild) must share one full column width. Pane tabs stretch edge to edge of the app column.
 
 ### Dock mobile column
 
@@ -245,10 +245,8 @@ Portrait Dock is one locked column. Switching Loadout / Workshop / Rebuild must 
 ```
 Header     Hiveworks                 Scrap 47 · Matter 0
 Context    Best W12    Cycle 1       [Inventory]
-Hive       compact preview (12–18vh)
-Glance     Frame · Cores · DPS / Hull / Shield
-Panes      LOADOUT | WORKSHOP | REBUILD
-Body       scroll; scrollbar-gutter: stable
+Panes      LOADOUT | WORKSHOP | REBUILD   ← full width
+Body       scroll; rows and cards use the column
 CTA        Launch Sortie  (or Return to Sortie)
 Nav        Dock | Systems | More
 ```
@@ -256,8 +254,9 @@ Nav        Dock | Systems | More
 Rules:
 
 - Do not put Sortie on the bottom bar. Launch from Dock is the way in.
-- Inventory is a Dock-page control, not header chrome and not a bottom-nav destination.
-- Outer Dock tabs and Workshop category tabs share the same inset.
+- Inventory is a Dock-page **button**, not header chrome and not a bottom-nav destination.
+- Do not show the Hive preview on Dock while Loadout lists Frame and Cores.
+- Loadout / Workshop / Rebuild tabs stretch to the full app width.
 - The expanded Core sheet lists **every** mastery milestone and highlights unlocked ranks plus the next one.
 
 ## Onboarding

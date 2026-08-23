@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
-import { computeShipStats } from '../../game/state'
 import { canPrestige, prestigeGainFor } from '../../game/actions'
 import { canOpenRebuildHangar, rebuildCycle, rebuildWaveNeed, REBUILD_MIN_SORTIES } from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
@@ -9,7 +8,6 @@ import { type BuyMode } from '../../game/workshop'
 import { isRelicsUnlocked } from '../../game/reliquary'
 import { type ModuleRole, getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
 import { SheetTabs } from '../SheetTabs'
-import { HiveRig, type HiveRigTarget } from '../HiveRig'
 import { CoreDetailSheet, CorePicker, FrameSheet } from '../LoadoutSheets'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
 import { frameBlurb, loadoutRelicFill } from '../../game/inventory'
@@ -70,7 +68,6 @@ export function DockTab({
   focusModuleId,
 }: DockTabProps) {
   const { combat } = state
-  const stats = computeShipStats(state)
   const live = !combat.docked
   const rebuildReady = canPrestige(state)
   const hangarOpen = canOpenRebuildHangar(state)
@@ -80,7 +77,6 @@ export function DockTab({
   const cycleNo = (state.prestige.prestigeCount ?? 0) + 1
   const cycle = rebuildCycle(state)
   const frame = getFrame(state.shipyard.frameId)
-  const slots = (frame?.weaponSlots ?? 0) + (frame?.defenseSlots ?? 0) + (frame?.utilitySlots ?? 0)
   const [localPane, setLocalPane] = useState<DockPane>('loadout')
   const pane = paneProp ?? localPane
   const setPane = (next: DockPane) => {
@@ -96,12 +92,6 @@ export function DockTab({
   const locked = live
   const relics = loadoutRelicFill(state)
 
-  function onHive(target: HiveRigTarget) {
-    if (target.kind === 'hive') setFrameOpen(true)
-    if (target.kind === 'core') setCoreDetail(target.moduleId)
-    if (target.kind === 'slot') setPicker({ role: target.role })
-  }
-
   function fitReplacement(moduleId: string) {
     if (picker?.replaceId && picker.replaceId !== moduleId) onUnfitCore?.(picker.replaceId)
     onFitCore?.(moduleId)
@@ -115,26 +105,11 @@ export function DockTab({
         <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
         <StatPair label="Cycle" value={cycleNo} />
         {onOpenInventory ? (
-          <button type="button" className="dock-inventory-btn" aria-label="Inventory" onClick={onOpenInventory}>
+          <button type="button" className="dock-inventory-btn" onClick={onOpenInventory}>
             Inventory
           </button>
         ) : null}
       </ContextBar>
-
-      <div className="dock-hive-block">
-        <HiveRig state={state} compact interactive={!locked} onSelect={onHive} />
-        <p className="dock-hive-frame">
-          <strong>{frame?.name ?? 'Hive'}</strong>
-          <span className="ui-meta">
-            {state.shipyard.modules.length}/{slots} Cores
-          </span>
-        </p>
-        <div className="dock-glance">
-          <StatPair label="DPS" value={formatCompact(stats.damage)} />
-          <StatPair label="Hull" value={formatCompact(stats.hullMax)} />
-          <StatPair label="Shield" value={formatCompact(stats.shieldMax)} />
-        </div>
-      </div>
 
       <SheetTabs
         value={pane}

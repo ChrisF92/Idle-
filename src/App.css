@@ -4,7 +4,6 @@
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
-  scrollbar-gutter: stable;
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 0;
@@ -639,7 +638,6 @@ h2 .inspect-name {
 .main {
   min-height: 0;
   overflow: hidden;
-  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
 }
