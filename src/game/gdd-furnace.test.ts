@@ -1,20 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { convertAshToHeat, performRebuild, setFurnaceChannel } from './actions'
+import { tickAutomation } from './automation'
 import { ACT1_CADENCE } from './cadence'
 import {
   ASH_PER_HEAT,
   canBuyFurnaceUpgrade,
+  canSetFurnaceChannel,
   furnaceActiveLevel,
   furnaceAshFromKill,
   furnaceCombatFx,
   furnaceDamageMult,
   furnaceIdleGenPerSec,
   furnaceLitLine,
+  furnacePushChannels,
   furnaceShieldMult,
   furnaceSalvageMult,
+  furnaceSpendableHeat,
   grantFurnaceKillLoot,
+  runFurnaceManager,
 } from './furnace'
 import { applyOfflineCatchUp } from './offline'
+import { processConfig, processFurnaceHooks } from './process'
 import { ONBOARDING_ENABLED, activeGuideStep, isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
@@ -119,6 +125,62 @@ describe('GDD Furnace', () => {
     const { state: next } = applyOfflineCatchUp(s, 10 * 60 * 1000)
     expect(next.resources.choirAsh).toBe(80)
     expect(next.resources.heat).toBe(0)
+  })
+
+  it('keeps only Weapons, Ward, and Yield as live channels', () => {
+    const s = furnaceState()
+    expect(furnacePushChannels().map((ch) => ch.name)).toEqual(['Weapons', 'Ward', 'Yield'])
+    expect(canSetFurnaceChannel(s, 'foundry', 1).ok).toBe(false)
+    expect(canSetFurnaceChannel(s, 'research', 1).ok).toBe(false)
+    expect(canSetFurnaceChannel(s, 'network', 1).ok).toBe(false)
+  })
+
+  it('exposes Heat reserve, channel preset, and conditional push without auto-feed', () => {
+    const s = furnaceState()
+    expect(processFurnaceHooks(s).autoFeed).toBe(false)
+    expect(processFurnaceHooks(s).conditionalPush).toBe(false)
+    s.process.purchased = ['furnace-presets', 'furnace-reserve', 'run-profiles']
+    s.process.config.furnace.reserveHeat = 12
+    s.process.config.furnace.preset = 'push'
+    s.resources.heat = 20
+    const hooks = processFurnaceHooks(s)
+    expect(hooks.autoFeed).toBe(false)
+    expect(hooks.presetsUnlocked).toBe(true)
+    expect(hooks.reserveHeat).toBe(12)
+    expect(hooks.preset).toBe('push')
+    expect(hooks.conditionalPush).toBe(true)
+    expect(furnaceSpendableHeat(s)).toBe(8)
+  })
+
+  it('Process furnace-push converts Ash but will not spend the Heat reserve', () => {
+    const s = furnaceState()
+    s.combat.docked = false
+    s.combat.wave = Math.ceil(ACT1_CADENCE.furnace * 0.95)
+    s.resources.choirAsh = 80
+    s.resources.heat = 0
+    s.process.purchased = ['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles', 'furnace-reserve']
+    s.process.config = { ...processConfig(s), activeProfileId: 'push' }
+    s.process.config.furnace.reserveHeat = 8
+    tickAutomation(s)
+    expect(s.resources.choirAsh).toBe(0)
+    expect(s.resources.heat).toBe(8)
+    expect(furnaceActiveLevel(s, 'weapons')).toBe(0)
+  })
+
+  it('Furnace Manager lights the Push preset while leaving the reserve', () => {
+    let s = furnaceState()
+    s.combat.docked = false
+    s.resources.heat = 24
+    s.process.purchased = ['furnace-presets', 'furnace-auto']
+    s.process.config.furnace.manager = true
+    s.process.config.furnace.preset = 'push'
+    s.process.config.furnace.reserveHeat = 8
+    s.process.purchased.push('furnace-reserve')
+    s = runFurnaceManager(s)
+    expect(furnaceActiveLevel(s, 'weapons')).toBe(1)
+    expect(furnaceActiveLevel(s, 'shielding')).toBe(1)
+    expect(s.resources.heat).toBe(8)
+    expect(furnaceCombatFx(s)).toEqual({ weapons: true, ward: true, yield: false })
   })
 })
 
