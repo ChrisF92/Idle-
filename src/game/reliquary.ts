@@ -507,7 +507,7 @@ export function equipRelicOnCore(
   if (!def) return state
   const instance = resolveCoreInstance(state, coreIdOrModuleId)
   if (!instance) return state
-  const layout = coreSocketLayout(state, instance.id)
+  const layout = coreSocketLayout(state, coreIdOrModuleId)
   if (layout.length < 1) return state
   if (shardOwned(state, relicId) < 1) return state
   const relicClass = relicSocketClass(def)
