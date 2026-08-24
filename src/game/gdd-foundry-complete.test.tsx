@@ -55,7 +55,7 @@ describe('complete Foundry interface', () => {
     expect(context.textContent).toContain('Foundry workers3')
     expect(context.textContent).toContain('Processors1/1')
     expect(context.textContent).toContain('Fabricators0/1')
-    expect(screen.getByText('Processor I')).toBeTruthy()
+    expect(screen.getAllByText('Processor I').length).toBeGreaterThan(0)
     expect(screen.getByText(/Waiting for Scrap/i)).toBeTruthy()
     expect(screen.getByText(/2 Worker Drones/)).toBeTruthy()
   })
