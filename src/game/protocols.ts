@@ -332,7 +332,7 @@ export function protocolRewardSummary(state: GameState, id: string): string {
     if (def.firstGrant) bits.push(grantSummary(def.firstGrant))
     if (def.unlocksFrame) {
       const frame = getFrame(def.unlocksFrame)
-      bits.push(frame ? `${frame.name} Frame` : 'Hive Frame')
+      bits.push(frame?.name ?? 'Hive Frame')
     }
     if (bits.length > 0) return bits.join(' · ')
   }
