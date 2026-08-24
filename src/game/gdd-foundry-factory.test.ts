@@ -226,7 +226,7 @@ describe('GDD Foundry factory', () => {
           autoExtract: false,
           extractHullPct: 0.35,
           autoShop: false,
-          rules: [{ id: 'fab', enabled: true, when: [], then: { kind: 'fab-tracked' } }],
+          rules: [{ id: 'fab', enabled: true, when: [{ kind: 'wave-gte', value: 1 }], then: { kind: 'fab-tracked' } }],
         },
       ],
     }

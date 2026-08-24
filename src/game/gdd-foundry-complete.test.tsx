@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FoundryTab } from '../components/tabs/FoundryTab'
 import { OverlayProvider } from '../ui/overlay'
 import { ACT1_CADENCE } from './cadence'
@@ -31,6 +31,8 @@ function renderFoundry(state = foundryState(), pane?: 'processing' | 'fabricatio
 }
 
 describe('complete Foundry interface', () => {
+  afterEach(() => cleanup())
+
   it('uses the four final panes without legacy player-facing tabs', () => {
     renderFoundry()
     expect(screen.getByRole('tab', { name: 'Processing' })).toBeTruthy()
@@ -77,7 +79,7 @@ describe('complete Foundry interface', () => {
     fireEvent.click(document.querySelector('.foundry-mastery-card')!)
     expect(screen.getByRole('dialog', { name: 'Recovered Stock' })).toBeTruthy()
     expect(screen.getByText('Milestones')).toBeTruthy()
-    expect(screen.getByText(/M10/)).toBeTruthy()
+    expect(screen.getAllByText(/M10/).length).toBeGreaterThan(0)
   })
 
   it('completes a Blueprint without creating the Core and links to its project', () => {
