@@ -19,11 +19,11 @@ The player operates a mobile industrial **Hive** that deploys into hostile space
 
 Every standard Sortie begins at **Wave 1**.
 
-Combat execution is automatic. The player's skill comes from preparation, resource allocation, buildcraft and automation rather than direct movement or aiming. During a Sortie the player spends temporary **Salvage** to improve the current run, adjusts systems that are explicitly allowed to change in combat, selects run-defining **Directives**, and eventually configures **Process** automation to handle actions they have already mastered.
+Combat execution is automatic. The player's skill comes from preparation, resource allocation, buildcraft and automation rather than direct movement or aiming. During a Sortie the player spends temporary **Salvage** on global Attack, Defense and Economy upgrades, adjusts systems that are explicitly allowed to change in combat, selects run-defining **Directives**, and eventually configures **Process** automation to handle actions they have already mastered.
 
 When the Hive is destroyed, the Sortie ends. Temporary run progression is lost, but persistent resources and account progression remain.
 
-Normal Sorties feed a larger **Rebuild Cycle**. **Scrap** earned during Sorties is spent in the **Workshop** to raise the starting levels of future Sorties within that cycle. Eventually the player performs a **Rebuild**, resetting Scrap and Workshop progression in exchange for permanent **Matter** and a substantial increase in long-term power.
+Normal Sorties feed a larger **Rebuild Cycle**. **Scrap** earned during Sorties funds global starting levels in the **Workshop** and per-copy **Core Levels** while Docked. Both persist between Sorties within that cycle. Eventually the player performs a **Rebuild**, resetting Scrap, Workshop progression and Core Levels in exchange for permanent **Matter** and a substantial increase in long-term power.
 
 The Act 1 progression hierarchy is therefore:
 
@@ -47,7 +47,7 @@ At first, the player only needs to understand:
 
 1. enemies attack the Hive;
 2. kills provide Salvage;
-3. Salvage buys temporary power;
+3. Salvage buys temporary Attack, Defense and Economy power;
 4. the Sortie eventually ends;
 5. Scrap makes future Sorties stronger.
 
@@ -243,7 +243,7 @@ The game's only standard combat progression coordinate. **Sectors are removed.**
 Temporary Sortie currency. Resets at the end of every Sortie.
 
 ## Scrap
-Persistent currency within the current Rebuild Cycle. Used mainly for Workshop development. Resets on Rebuild.
+Persistent currency within the current Rebuild Cycle. Spent on global starting levels in Workshop and on each physical copy's Core Level while Docked. Resets on Rebuild.
 
 ## Matter
 Permanent Rebuild currency. Survives Rebuild.
@@ -364,7 +364,7 @@ Detailed Reinforce/Act 2 reset rules are intentionally deferred.
 8. Enemies approach from around the Hive.
 9. Hive/Cores fight automatically.
 10. Enemies provide Salvage and persistent drops.
-11. Player purchases temporary run power.
+11. Player purchases temporary Attack, Defense and Economy run power.
 12. Player reaches increasingly difficult waves.
 13. Directives modify the run at milestone points.
 14. Furnace may be used for a serious push.
@@ -372,7 +372,7 @@ Detailed Reinforce/Act 2 reset rules are intentionally deferred.
 16. Sortie summary is shown.
 17. Persistent rewards are retained.
 18. Player returns to Dock.
-19. Spend Scrap in Workshop and manage persistent systems.
+19. Spend Scrap in Workshop and on individual Core Levels while Docked; manage persistent systems.
 20. Launch another Sortie.
 21. Eventually Rebuild when the cycle reaches a meaningful wall.
 
@@ -1057,6 +1057,8 @@ Salvage purchases the temporary levels above it.
 
 Run upgrades should have caps so progression remains balanceable.
 
+This formula applies to global Attack, Defense and Economy upgrades. Per-copy Core Levels are a separate Scrap-funded cycle system defined in section 22.
+
 ---
 
 # 37. Salvage
@@ -1132,13 +1134,15 @@ Show a resource prominently where it is relevant.
 
 # 41. Workshop
 
-Workshop is the primary **Rebuild-cycle progression system**.
+Workshop is the primary **global Rebuild-cycle progression system**.
 
 It answers:
 
-> **How should I make future Sorties in this cycle start stronger?**
+> **How should global Attack, Defense and Economy power start stronger in future Sorties this cycle?**
 
 Workshop levels survive normal Sorties but reset on Rebuild.
+
+Individual Core Levels are purchased separately from each physical Core copy's Dock details. They share the same Rebuild-cycle reset boundary.
 
 ---
 
@@ -2142,6 +2146,9 @@ Explicit list.
 ## Current Best
 The player's best Challenge performance.
 
+## Reset / Keep
+Challenge start resets Salvage, global run upgrades and the current Sortie. Per-copy Core Levels, shared Core Mastery and fitted Relics persist according to their normal Rebuild-cycle or permanent rules.
+
 Never hide important Challenge rules until after launch.
 
 ---
@@ -2227,7 +2234,7 @@ Initial target progression:
 | Career Best | Major Unlock / Expansion |
 |---:|---|
 | Start | Sorties, starter Frame, starter Cores, basic Salvage upgrades |
-| First defeat | Scrap + Workshop |
+| First defeat | Scrap + Workshop + Dock Core Levels |
 | W10 | Full Attack/Defense upgrade categories |
 | W20 | Foundry |
 | W30 | Worker Drones |
@@ -2417,7 +2424,7 @@ During Sortie:
 
 After Sortie:
 
-- the same Hive is analysed and upgraded.
+- the same Hive is analysed, with persistent upgrades performed at Dock.
 
 This provides strong visual continuity.
 
@@ -2459,15 +2466,17 @@ Show:
 
 ## Bottom Interaction — ~35–40%
 
-Primary tabs:
+Primary control:
 
-> UPGRADES | CORES | DIRECTIVES
+> UPGRADES
 
 Inside Upgrades:
 
 > ATTACK | DEFENSE | ECONOMY
 
 Combat remains visible while purchasing.
+
+Directive choices interrupt at their authored Waves; active Directives remain inspectable from their chip. Equipped Core information may be inspected during combat, but Core Levels cannot be purchased or automated during a Sortie.
 
 ---
 
@@ -2869,7 +2878,7 @@ Highlight a useful purchase.
 
 > **SALVAGE**  
 > Enemies drop Salvage during a Sortie.  
-> Spend it now — Salvage resets when the Sortie ends.
+> Spend it on Attack, Defense or Economy now — Salvage resets when the Sortie ends.
 
 Player buys the upgrade.
 
@@ -2906,7 +2915,7 @@ Show:
 - enemies destroyed;
 - significant drops.
 
-Then introduce Scrap/Workshop.
+Then introduce Scrap-funded cycle progression at Workshop and through Dock Core Levels.
 
 ---
 
@@ -2914,9 +2923,9 @@ Then introduce Scrap/Workshop.
 
 > **SCRAP**  
 > Scrap survives normal Sorties.  
-> Spend it in Workshop to make future Sorties begin stronger.
+> Spend it in Workshop for global starting power or on individual Core Levels while Docked.
 
-Guide one purchase.
+Guide one Workshop purchase. Core details separately explain that each physical copy has its own Core Level, while Mastery is shared by type.
 
 Show:
 
@@ -2933,7 +2942,7 @@ Clarify:
 At launch:
 
 > **STRONGER START**  
-> Workshop upgrades carried into this Sortie.
+> Workshop upgrades and equipped Core Levels carried into this Sortie.
 
 The player has now learned the core temporary-versus-cycle loop.
 
@@ -3069,7 +3078,7 @@ Use player history.
 Example:
 
 > **PROCESS ONLINE**  
-> You've manually purchased 428 Sortie upgrades.  
+> You've manually purchased 428 global Sortie upgrades across Attack, Defense and Economy.
 > Process can now automate behaviours you've already learned.
 
 Guide one simple automation or QoL purchase.
@@ -3295,9 +3304,10 @@ The rule is:
 
 The game should eventually be able to estimate effective contribution from:
 
-- Core base/Level/Mastery;
-- temporary upgrades;
-- Workshop;
+- Core base and shared type Mastery;
+- per-copy Core Levels;
+- temporary Attack, Defense and Economy upgrades;
+- Workshop global starting levels;
 - Matter;
 - Relics;
 - Furnace;
@@ -3694,7 +3704,9 @@ Learn:
 - Scrap;
 - Workshop;
 - persistent strength between Sorties;
-- basic Core building.
+- per-copy Core Levels at Dock;
+- shared Core Mastery through use;
+- Relics fitted to physical Core copies.
 
 ## First Deep System
 
@@ -3824,7 +3836,7 @@ Hiveworks Act 1 is a repeated-run incremental game centred on a stationary comba
 
 Every Sortie begins at Wave 1.
 
-Temporary power comes from Salvage. Rebuild-cycle power comes from Scrap and Workshop. Permanent exponential growth comes from Rebuild and Matter.
+Temporary power comes from Salvage-funded Attack, Defense and Economy upgrades. Rebuild-cycle power comes from Scrap-funded Workshop upgrades and per-copy Core Levels. Permanent exponential growth comes from Rebuild and Matter.
 
 Cores form the visible combat build. Relics modify those Cores. Foundry turns recovered resources into long-term equipment and infrastructure. Worker Drones operate the industrial economy. Furnace turns stored cycle resources into temporary push power. Research permanently changes the rules of systems through branching disciplines. Process gradually turns repetitive manual play into increasingly sophisticated automation. Challenges test the player's understanding under modified rules.
 
@@ -3846,7 +3858,7 @@ The design priority is not the number of systems.
 | Run Upgrades | Run | Where should Salvage be spent now? |
 | Cores | Rebuild Cycle + Permanent Mastery | What combat build am I using? |
 | Relics | Permanent | How should each Core be customised? |
-| Workshop | Rebuild Cycle | How should future runs in this cycle start stronger? |
+| Workshop | Rebuild Cycle | How should global starting power improve for future runs this cycle? |
 | Foundry | Permanent | What should I manufacture next? |
 | Worker Drones | Industry | Where should limited workforce be assigned? |
 | Directives | Run | How should this Sortie develop? |
@@ -3868,6 +3880,7 @@ The design priority is not the number of systems.
 | Frontier Hold | Removed from standard play | Death now ends a meaningful Sortie |
 | Starting Wave selection | Removed | Every Sortie begins W1 |
 | Route A/B | Removed/deferred | Complexity without enough current value |
+| Salvage-funded Core Run Levels / Core Rank terminology | Removed | Replaced by per-copy Scrap Core Levels at Dock and shared permanent type Mastery |
 | Network | Removed | Abstract combat multipliers replaced by Worker Drone labour |
 | Echo | Removed | Challenges cover alternate combat tests |
 | Standalone Reliquary | Removed | Relics install directly into Cores |
@@ -3904,7 +3917,7 @@ A healthy Act 1 build should generally demonstrate:
 - first Sortie ends within several minutes;
 - early runs improve Best Wave consistently;
 - Economy purchases have understandable ROI;
-- Workshop spending visibly improves the next Sortie;
+- Workshop and Dock Core Level spending visibly improve the next Sortie;
 - first Rebuild feels powerful;
 - old Waves are rapidly reclaimed after Rebuild;
 - Foundry remains relevant for the entire Act;

@@ -155,7 +155,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Slag top-level | LEGACY | Matter belongs in Rebuild |
 | Echo / Specialists / Tasks / Capital | LEGACY | Gates 999 / no-op |
 | Sectors as career key | LEGACY | `requiresSectorEver` holds **wave numbers**; `combat.sector` is a 10-wave band |
-| Onboarding | MISSING | `ONBOARDING_ENABLED = false` |
+| Onboarding | DONE | `ONBOARDING_ENABLED = true`; guide steps follow the current global Sortie upgrade and Dock cycle progression |
 | Toast levels (minor / action / major) | PARTIAL | Toast stack exists; major unlocks do not persist until tap |
 | Loadout comparison UI | PARTIAL | Inspect exists; Frame/Core before-after not GDD §117 |
 | Game speed ×1.5/×2/×3 | PARTIAL | `sortieSpeed` / reclaim exist; unlock story is unclear |
@@ -408,7 +408,7 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 | Rebuild | Door | RESET / KEEP / GAIN; do not force confirm |
 | Furnace | Door + enough Ash | Ash persists; Heat is this Sortie; large mult |
 | Research | Door | One project, duration, offline |
-| Process | Door + history | “You bought N upgrades; automate that.” One QoL. No rule builder yet |
+| Process | Door + history | “You bought N global Sortie upgrades; automate that.” One QoL. No rule builder yet |
 | Challenge | Door | Restriction, goal, reward, disabled, best — confirm |
 
 Also:

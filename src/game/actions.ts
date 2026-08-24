@@ -599,6 +599,7 @@ export function unequipAllModules(state: GameState): GameState {
   return next
 }
 
+/** @deprecated Retired per-Sortie Core automation compatibility path. */
 export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean }): GameState {
   if (
     !opts?.force &&
@@ -642,7 +643,7 @@ function moduleUpgradeGain(state: GameState, moduleId: string, level: number): n
   return gain
 }
 
-/** Spend Salvage on the fitted Core with the best stat-gain per Salvage. Sortie only. */
+/** @deprecated Retired per-Sortie Core automation compatibility path. */
 export function upgradeBestValueModule(state: GameState, opts?: { force?: boolean }): GameState {
   if (
     !opts?.force &&

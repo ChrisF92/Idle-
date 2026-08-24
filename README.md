@@ -101,7 +101,7 @@ Each open PR gets a live preview on the same GitHub Pages site:
 - Header resources appear only once their system is unlocked or the resource is earned.
 - An **info** button next to the title explains the current screen.
 - Dev tools (More tab): toggle anytime, or `?dev=1` / `?dev=0`. Jump, boss force, achievements, guide skip.
-- Onboarding is designed in the GDD (§125–140) and is currently disabled in code (`ONBOARDING_ENABLED`). Re-enable is Phase 6 of the release plan.
+- Onboarding follows the GDD (§125–140) and is enabled through `ONBOARDING_ENABLED`.
 - Locked release calls: physical Core copies take independent Scrap-funded Levels at Dock, share permanent type Mastery, and carry independent Relic loadouts; Sortie Salvage buys only global Attack / Defense / Economy upgrades; orbiting Cores around a central Hive; GDD Frames in one cut; Process rule builder in 1.0; no save migration before 1.0; Dev Tools and playtests stay on the GDD cadence.
 - Art is UI/text-first with canvas combat. The GDD target is a central Hive and orbiting Cores; the live battlefield is still mid-migration (see the release plan, Phase 2).
 - Stale design notes: [`docs/usi-reskin-plan.md`](docs/usi-reskin-plan.md) and [`docs/act1-balance.md`](docs/act1-balance.md) are **superseded** by the GDD. Do not implement from them.
