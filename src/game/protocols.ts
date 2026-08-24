@@ -46,7 +46,7 @@ export interface ProtocolRewardStep {
   blurb: string
 }
 
-export type ProtocolGrantKind = 'process' | 'relic' | 'recipe'
+export type ProtocolGrantKind = 'process' | 'relic' | 'recipe' | 'research'
 
 /** First-clear grant that expands the tested system (GDD §98). */
 export interface ProtocolGrant {
@@ -125,6 +125,11 @@ export const PROTOCOLS: ProtocolDef[] = [
     goalWave: 100,
     enemyDensityMult: 2.2,
     unlocksFrame: 'harvester-frame',
+    firstGrant: {
+      kind: 'research',
+      id: 'challenge-log',
+      blurb: 'First clear unlocks Challenge Log in Research.',
+    },
     rewards: [
       { at: 1, hook: { kind: 'foundryXpNeed', mult: 0.98 }, blurb: 'Material Mastery needs slightly fewer crafts.' },
       { at: 2, hook: { kind: 'researchCost', mult: 0.98 }, blurb: 'Research projects take slightly less time.' },
@@ -302,7 +307,84 @@ export function protocolEnemyDensityMult(state: GameState): number {
 }
 
 export function protocolDisabledLine(def: ProtocolDef): string {
-  return def.disabledSystems.join(', ')
+  return def.disabledSystems.length > 0 ? def.disabledSystems.join(', ') : 'None'
+}
+
+/** One-line restriction printed on Challenge landing cards. */
+export function challengeRestrictionLine(def: ProtocolDef): string {
+  return def.restriction
+}
+
+export function challengeRankLabel(state: GameState, id: string): string {
+  const rank = protocolRank(state, id)
+  if (rank >= PROTOCOL_MAX_RANK) return `Maxed · Rank ${PROTOCOL_MAX_RANK}`
+  if (rank > 0) return `Cleared · Rank ${rank}/${PROTOCOL_MAX_RANK}`
+  return `Open · Rank 0/${PROTOCOL_MAX_RANK}`
+}
+
+export function protocolRewardSummary(state: GameState, id: string): string {
+  const def = getProtocol(id)
+  if (!def) return 'Maxed'
+  const next = protocolRank(state, id) + 1
+  if (next > PROTOCOL_MAX_RANK) return 'Maxed'
+  if (next === 1) {
+    const bits: string[] = []
+    if (def.firstGrant) bits.push(grantSummary(def.firstGrant))
+    if (def.unlocksFrame) {
+      const frame = getFrame(def.unlocksFrame)
+      bits.push(frame ? `${frame.name} Frame` : 'Hive Frame')
+    }
+    if (bits.length > 0) return bits.join(' · ')
+  }
+  return protocolRewardLine(protocolRewardsAt(def, next))
+}
+
+function grantSummary(grant: ProtocolGrant): string {
+  switch (grant.kind) {
+    case 'relic':
+      return grant.blurb.replace(/^First clear seats a /i, '').replace(/\.$/, '')
+    case 'process':
+      return grant.blurb.replace(/^First clear unlocks /i, '').replace(/ in Process\.$/i, '')
+    case 'recipe':
+      return grant.blurb.replace(/^First clear unlocks the /i, '').replace(/\.$/, '')
+    case 'research':
+      return grant.blurb.replace(/^First clear unlocks /i, '').replace(/ in Research\.$/i, '')
+  }
+}
+
+/** Enemy / scenario modifiers shown on the Challenge sheet. */
+export function challengeScenarioLines(def: ProtocolDef): string[] {
+  const lines = ['Uses the normal Sortie engine.', 'Every Challenge starts at Wave 1.']
+  if (def.hullMult && def.hullMult !== 1) lines.push(`Hive Hull ×${def.hullMult}.`)
+  if (def.enemyDensityMult && def.enemyDensityMult !== 1) {
+    lines.push(`Enemy density ×${def.enemyDensityMult}.`)
+  }
+  switch (def.mute) {
+    case 'weapons':
+      lines.push('Weapon Cores deal no damage. The Frame Battery still fires.')
+      break
+    case 'shields':
+      lines.push('Plate and other shield bonuses grant nothing.')
+      break
+    case 'network':
+      lines.push('Encounters spawn far more hulls than a normal Sortie.')
+      break
+    case 'furnace':
+      lines.push('Furnace channels and Heat combat bonuses grant nothing.')
+      break
+    case 'salvage':
+      lines.push('Kills grant no Salvage. Scrap, Foundry, and Worker industry continue.')
+      break
+    case 'foundry':
+      lines.push('Foundry combat bonuses, craft speed ranks, and fitted bits do nothing.')
+      break
+    case 'reliquary':
+      lines.push('Fitted Relics and resonance grant nothing.')
+      break
+    default:
+      break
+  }
+  return lines
 }
 
 /** Legacy flat shop hook. Challenge ranks now change formulas instead. */
@@ -516,6 +598,13 @@ export function applyProtocolGrant(state: GameState, grant: ProtocolGrant): void
   if (grant.kind === 'relic') {
     if (!state.reliquary) return
     state.reliquary.owned[grant.id] = (state.reliquary.owned[grant.id] ?? 0) + 1
+    return
+  }
+  if (grant.kind === 'research') {
+    if (!state.hiveResearch) return
+    if (!state.hiveResearch.completedIds.includes(grant.id)) {
+      state.hiveResearch.completedIds = [...state.hiveResearch.completedIds, grant.id]
+    }
     return
   }
   state.foundry.recipeLevels[grant.id] = Math.max(1, state.foundry.recipeLevels[grant.id] ?? 0)

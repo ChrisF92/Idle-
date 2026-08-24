@@ -639,6 +639,7 @@ function withMetaDefaults(
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
     bestWave: Math.max(0, Math.floor(Number(meta?.bestWave ?? 0) || 0)),
     act1Cleared: meta?.act1Cleared ?? false,
+    act1FinalePending: meta?.act1FinalePending === true,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
     seenContent: Array.isArray(meta?.seenContent) ? [...meta.seenContent] : ['legacy'],

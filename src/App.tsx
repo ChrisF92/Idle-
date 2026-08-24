@@ -49,6 +49,7 @@ import { ScreenHelp } from './components/ScreenHelp'
 import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { ToastStack } from './components/ToastStack'
 import { InventoryScreen } from './components/InventoryScreen'
+import { Act1FinaleOverlay } from './components/Act1FinaleOverlay'
 import { OverlayProvider, useOverlay, useOverlayLayer } from './ui/overlay'
 import './ui/tokens.css'
 import './ui/primitives.css'
@@ -75,7 +76,6 @@ function AppShell() {
   const [hangarOpen, setHangarOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
-  const [blockingModal, setBlockingModal] = useState(false)
   const [toasts, setToasts] = useState<QueuedToast[]>([])
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
   const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
@@ -101,12 +101,17 @@ function AppShell() {
     onClose: () => setReportOpen(false),
   })
   const updateBlocking = overlays.topBlockingKind === 'update'
+  const finalePending = Boolean(game.state.meta.act1FinalePending)
   const guide =
-    dying || reportOpen || hangarOpen || blockingModal || offlineOpen || updateBlocking
+    dying || reportOpen || hangarOpen || offlineOpen || updateBlocking || finalePending
       ? null
       : activeGuideStep(game.state, tab, heldGuideId)
   const pauseSim =
-    guidePausesSimulation(guide) || hangarOpen || blockingModal || simulatorOpen || offlineOpen
+    guidePausesSimulation(guide) ||
+    hangarOpen ||
+    simulatorOpen ||
+    offlineOpen ||
+    finalePending
   game.simPausedRef.current = pauseSim
 
   const go = useCallback(
@@ -481,7 +486,6 @@ function AppShell() {
             onBack={() => go('stats')}
             onEnter={game.enterProtocol}
             onAbandon={game.abandonProtocol}
-            onBlockingChange={setBlockingModal}
           />
         )}
         {tab === 'process' && isHubTabOpen(game.state, 'process') && (
@@ -505,7 +509,6 @@ function AppShell() {
             state={game.state}
             onBack={() => go('stats')}
             onReinforce={game.performReinforce}
-            onBlockingChange={setBlockingModal}
           />
         )}
         {tab === 'logs' && <LogsTab state={game.state} onBack={() => go('stats')} />}
@@ -618,6 +621,14 @@ function AppShell() {
           onSkip={game.skipOnboarding}
         />
       ) : null}
+      <Act1FinaleOverlay
+        open={finalePending}
+        onContinue={() => game.dismissAct1Finale()}
+        onOpenReinforce={() => {
+          game.dismissAct1Finale()
+          go('reinforce')
+        }}
+      />
       <ToastStack
         toasts={toasts}
         suppressed={toastSuppressed}

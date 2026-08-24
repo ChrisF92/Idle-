@@ -199,6 +199,7 @@ export function CombatTab({
         'sortie-screen',
         hullBand === 'critical' && live ? 'is-critical' : '',
         shopCollapsed ? 'is-shop-collapsed' : 'is-shop-open',
+        combat.isBoss && combat.bossMechanic === 'climax-choir' ? 'is-climax' : '',
       ]
         .filter(Boolean)
         .join(' ')}

@@ -40,7 +40,7 @@ export const TASKS: TaskDef[] = [
   },
   {
     id: 'protocol',
-    name: 'Rank a Protocol',
+    name: 'Rank a Challenge',
     blurb: 'Finish one restricted sortie.',
     done: (s) => Object.values(s.protocols?.ranks ?? {}).some((n) => (n ?? 0) > 0),
   },

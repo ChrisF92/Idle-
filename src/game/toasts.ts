@@ -118,7 +118,7 @@ const STATION_TOAST: Partial<
   protocols: {
     category: 'SYSTEM ONLINE',
     title: 'Challenges unlocked',
-    body: 'Solve a modified version of the normal rules. Restriction, goal, reward, and disabled systems are listed before you launch.',
+    body: 'Solve a modified version of the normal rules. Tap a card for the full restriction, then start from Wave 1.',
     label: 'OPEN',
   },
   process: {
@@ -345,7 +345,9 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       id: 'sys:act1',
       category: 'CAMPAIGN',
       title: 'Act 1 complete',
-      body: 'Wave 300 is down. Reinforce is open on More.',
+      body: 'Choir Crown is down. The Hive remembers this reconstruction. Reinforce is open on More.',
+      tier: 'major',
+      action: { label: 'OPEN REINFORCE', nav: { kind: 'tab', tab: 'reinforce' } },
     })
   }
 
@@ -521,9 +523,9 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
   if (next.protocolRankSum > 0 && prev.protocolRankSum <= 0) {
     push({
       id: 'protocol:rank1',
-      category: 'PROTOCOL',
-      title: 'Protocol cleared — Rank 1',
-      body: 'The muted system now scales better. Rank 2 has a harder target.',
+      category: 'CHALLENGE',
+      title: 'Challenge cleared — Rank 1',
+      body: 'The restricted system now scales better. Rank 2 has a harder Wave goal.',
       action: { label: 'OPEN', nav: { kind: 'tab', tab: 'protocols' } },
     })
   }

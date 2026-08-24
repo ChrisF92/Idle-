@@ -93,6 +93,7 @@ describe('GDD Phase 8 content depth', () => {
     expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'relic')).toBe(true)
     expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'process')).toBe(true)
     expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'recipe')).toBe(true)
+    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'research')).toBe(true)
 
     const s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.protocols)
     s.prestige.prestigeCount = 2
@@ -102,6 +103,7 @@ describe('GDD Phase 8 content depth', () => {
     expect(protocolNextRewardText(s, 'glass-ward')).toMatch(/Plate Chip/)
     expect(protocolNextRewardText(s, 'quiet-guns')).toMatch(/Shop Readout/)
     expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Frame/)
+    expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Challenge Log/)
 
     applyProtocolGrant(s, { kind: 'relic', id: 'plate-chip', blurb: 'test' })
     expect(s.reliquary.owned['plate-chip']).toBeGreaterThanOrEqual(1)
