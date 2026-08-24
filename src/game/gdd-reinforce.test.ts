@@ -104,6 +104,6 @@ describe('GDD Act 1 climax and Reinforce', () => {
     expect(lists.change.some((line) => /starting architecture/.test(line))).toBe(true)
     expect(lists.change.some((line) => /No Capital/.test(line))).toBe(true)
     expect(lists.change.some((line) => /No Act 2 shop/.test(line))).toBe(true)
-    expect(lists.change.join(' ')).not.toMatch(/Capital shop|Act 2 shop opens/)
+    expect(lists.change.join(' ')).not.toMatch(/Act 2 shop is open|Capital is open/)
   })
 })
