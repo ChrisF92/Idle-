@@ -7,7 +7,7 @@ import { getBlueprint, PART_TYPES, partId } from './catalog'
 import { createInitialState } from './state'
 import { atCareerWave } from './testHelpers'
 
-function foundryState(wave = ACT1_CADENCE.foundryAdvanced) {
+function foundryState(wave: number = ACT1_CADENCE.foundryAdvanced) {
   return atCareerWave(createInitialState(0), wave)
 }
 
@@ -37,7 +37,9 @@ describe('complete Foundry interface', () => {
     expect(screen.getByRole('tab', { name: 'Fabrication' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Mastery' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Blueprints' })).toBeTruthy()
-    expect(screen.queryByRole('tab', { name: /Smelt|Prints|Build|Construction|Fit|Ranks/i })).toBeNull()
+    for (const legacy of ['Smelt', 'Prints', 'Build', 'Construction', 'Fit', 'Ranks']) {
+      expect(screen.queryByRole('tab', { name: legacy })).toBeNull()
+    }
   })
 
   it('keeps the header compact and shows active Processors first', () => {
@@ -47,9 +49,10 @@ describe('complete Foundry interface', () => {
     state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.4, paid: false }
     state.resources.scrap = 0
     renderFoundry(state)
-    expect(screen.getByText('Foundry workers').nextElementSibling?.textContent).toBe('3')
-    expect(screen.getByText('Processors').nextElementSibling?.textContent).toBe('1/1')
-    expect(screen.getByText('Fabricators').nextElementSibling?.textContent).toBe('0/1')
+    const context = document.querySelector('.ui-context-bar')!
+    expect(context.textContent).toContain('Foundry workers3')
+    expect(context.textContent).toContain('Processors1/1')
+    expect(context.textContent).toContain('Fabricators0/1')
     expect(screen.getByText('Processor I')).toBeTruthy()
     expect(screen.getByText(/Waiting for Scrap/i)).toBeTruthy()
     expect(screen.getByText(/2 Worker Drones/)).toBeTruthy()
@@ -71,7 +74,7 @@ describe('complete Foundry interface', () => {
     renderFoundry(state, 'mastery')
     expect(screen.getByText('Material Mastery')).toBeTruthy()
     expect(screen.getByText('M5')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Recovered Stock/i }))
+    fireEvent.click(document.querySelector('.foundry-mastery-card')!)
     expect(screen.getByRole('dialog', { name: 'Recovered Stock' })).toBeTruthy()
     expect(screen.getByText('Milestones')).toBeTruthy()
     expect(screen.getByText(/M10/)).toBeTruthy()

@@ -216,10 +216,10 @@ describe('GDD Foundry factory', () => {
     const config = processConfig(s)
     s.process.config = {
       ...config,
-      activeProfileId: 'tracked-fabrication',
+      activeProfileId: 'custom',
       profiles: [
         {
-          id: 'tracked-fabrication',
+          id: 'custom',
           name: 'Tracked Fabrication',
           spend: { attack: 34, defense: 33, economy: 33 },
           salvageReserve: 0,

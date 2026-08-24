@@ -26,25 +26,21 @@ import {
   foundryCraftTime,
   foundryFabSlotCount,
   foundryFabricationSpeed,
-  foundryFacilityCommitted,
   foundryMasteryEffect,
   foundryMasteryStepsFor,
   foundryMaterialCount,
   foundryMissingCost,
   foundryNextMastery,
-  foundryOwnedCount,
   foundryProcessingSpeed,
   foundryReachedMastery,
   foundryRecipeLevel,
   foundrySlotCount,
-  getFacility,
   getFoundryRecipe,
   isFoundryRecipeUnlocked,
   scaledFoundryCost,
   type FoundryCost,
   type FoundryPaneId,
 } from '../../game/foundry'
-import { careerBestWave } from '../../game/waves'
 import { formatCompact } from '../../game/format'
 import {
   SHARDS,

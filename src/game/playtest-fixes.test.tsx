@@ -185,7 +185,7 @@ describe('playtest fix pass', () => {
   })
 
   it('lists Fabrication drop Waves and families instead of enemy-family mismatch copy', () => {
-    const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.foundry)
+    const state = atCareerWave(markHullLost(createInitialState(0)), 80)
     render(
       <FoundryTab
         state={state}

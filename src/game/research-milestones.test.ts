@@ -79,7 +79,7 @@ describe('Research milestones: nodes and identity', () => {
         expect(isResearchBreakthrough(nodes[i]!)).toBe(i === 2 || i === 5 || i === 8)
       }
     }
-    expect(HIVE_RESEARCH_NODES.material[2]?.name).toBe('Second Smelter Bay')
+    expect(HIVE_RESEARCH_NODES.material[2]?.name).toBe('Second Processor')
     expect(HIVE_RESEARCH_NODES.energy[2]?.name).toBe('Extra Tap')
     expect(HIVE_RESEARCH_NODES.observation[2]?.name).toBe('Second Desk')
     expect(HIVE_RESEARCH_NODES.material[5]?.name).toBe('Pattern Floor')
@@ -141,7 +141,7 @@ describe('Research milestones: costs', () => {
 })
 
 describe('Research milestones: breakthrough wiring', () => {
-  it('Material Second Smelter Bay adds a Foundry slot, not damage', () => {
+  it('Material Second Processor adds a Foundry slot, not damage', () => {
     const s = atResearch()
     complete(s, 'material', 3)
     expect(hiveResearchFoundrySlots(s)).toBe(1)
