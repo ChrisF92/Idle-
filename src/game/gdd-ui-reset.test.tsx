@@ -175,7 +175,7 @@ describe('UI architecture reset', () => {
     expect(screen.getByText('Salvage /s')).toBeTruthy()
   })
 
-  it('lists Inventory categories and Core copy counts', () => {
+  it('lists Inventory categories and physical Core copies', () => {
     const state = createInitialState(0)
     grantModuleCopy(state, 'pulse-cannon')
     render(
@@ -186,7 +186,8 @@ describe('UI architecture reset', () => {
     expect(screen.getByRole('tab', { name: 'Equipment' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Relics' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Materials' })).toBeTruthy()
-    expect(screen.getByText(/×2 · Eq 1/)).toBeTruthy()
+    expect(screen.getByText(/Attack Core · Copy 1 · Equipped/)).toBeTruthy()
+    expect(screen.getByText(/Attack Core · Copy 2 · Available/)).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Relics' }))
     expect(screen.getByText(/No Relics yet/)).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Materials' }))
