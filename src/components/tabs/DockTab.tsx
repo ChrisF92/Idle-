@@ -244,21 +244,37 @@ export function DockTab({
                 const level = coreInstanceId
                   ? coreStartingLevel(state, coreInstanceId)
                   : 0
+                const title = moduleId ? (def?.name ?? moduleId) : `Empty ${roleLabel} Slot`
                 return (
-                  <ItemRow
+                  <div
                     key={coreInstanceId ?? `${role}-${index}`}
-                    title={moduleId ? (def?.name ?? moduleId) : `Empty ${roleLabel} Slot`}
-                    meta={
-                      moduleId
-                        ? `${roleLabel}${copyLabel} · Lv${level} · M${moduleMasteryRank(state, moduleId)}`
-                        : 'Tap to fit a Core'
-                    }
-                    guide={moduleId ? `core-${moduleId}` : undefined}
-                    onClick={() => {
-                      if (moduleId) setCoreDetail({ moduleId, coreInstanceId })
-                      else setPicker({ role })
-                    }}
-                  />
+                    className={`dock-core-slot${moduleId ? ' is-equipped' : ''}`}
+                  >
+                    <ItemRow
+                      title={title}
+                      meta={
+                        moduleId
+                          ? `${roleLabel}${copyLabel} · Lv${level} · M${moduleMasteryRank(state, moduleId)}`
+                          : 'Tap to fit a Core'
+                      }
+                      guide={moduleId ? `core-${moduleId}` : undefined}
+                      onClick={() => {
+                        if (moduleId) setCoreDetail({ moduleId, coreInstanceId })
+                        else setPicker({ role })
+                      }}
+                    />
+                    {moduleId && coreInstanceId ? (
+                      <button
+                        type="button"
+                        className="dock-core-unfit"
+                        disabled={locked || !onUnfitCore}
+                        aria-label={`Unequip ${title}${copyLabel}`}
+                        onClick={() => onUnfitCore?.(moduleId, coreInstanceId)}
+                      >
+                        Unequip
+                      </button>
+                    ) : null}
+                  </div>
                 )
               })}
             </Section>

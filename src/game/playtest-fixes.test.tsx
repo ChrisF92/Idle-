@@ -82,6 +82,30 @@ describe('playtest fix pass', () => {
     expect(screen.getByText('Fit Core')).toBeTruthy()
   })
 
+  it('unequips the physical Core selected from Loadout', () => {
+    const state = createInitialState(0)
+    const unfitted: Array<[string, string | undefined]> = []
+
+    render(
+      <OverlayProvider>
+        <DockTab
+          state={state}
+          pane="loadout"
+          onLaunch={() => undefined}
+          onOpenSortie={() => undefined}
+          onRebuild={() => undefined}
+          onUnfitCore={(moduleId, coreInstanceId) =>
+            unfitted.push([moduleId, coreInstanceId])
+          }
+        />
+      </OverlayProvider>,
+    )
+
+    expect(screen.getAllByRole('button', { name: /Unequip/ })).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Unequip Pulse Cannon' }))
+    expect(unfitted).toEqual([['pulse-cannon', 'pulse-cannon:1']])
+  })
+
   it('offers Scrap Core upgrades from Loadout and Inventory', () => {
     const state = createInitialState(0)
     state.resources.scrap = 100
