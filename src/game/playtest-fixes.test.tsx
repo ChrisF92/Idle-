@@ -51,6 +51,36 @@ describe('playtest fix pass', () => {
     expect(s.shipyard.frameLocked).toBe(false)
   })
 
+  it('shows every Frame slot in Attack, Defense, Utility order', () => {
+    const state = createInitialState(0)
+    state.shipyard.frameId = 'bastion-frame'
+
+    render(
+      <OverlayProvider>
+        <DockTab
+          state={state}
+          pane="loadout"
+          onLaunch={() => undefined}
+          onOpenSortie={() => undefined}
+          onRebuild={() => undefined}
+        />
+      </OverlayProvider>,
+    )
+
+    const rows = Array.from(document.querySelectorAll('.dock-loadout .ui-item-row'))
+    expect(rows.map((row) => row.querySelector('strong')?.textContent)).toEqual([
+      'Pulse Cannon',
+      'Plate Layer',
+      'Empty Defense Slot',
+      'Empty Defense Slot',
+      'Empty Utility Slot',
+    ])
+    expect(rows[0]?.querySelector('.ui-meta')?.textContent).toMatch(/^Attack · M/)
+
+    fireEvent.click(screen.getByRole('button', { name: /empty utility slot/i }))
+    expect(screen.getByText('Fit Core')).toBeTruthy()
+  })
+
   it('renders uniform upgrade tiles with cost, affordability, and level/cap in info', () => {
     const state = markHullLost(atCareerWave(createInitialState(0), 50))
     state.resources.scrap = 519

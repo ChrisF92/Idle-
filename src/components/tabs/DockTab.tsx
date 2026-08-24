@@ -5,7 +5,8 @@ import { canOpenRebuildHangar, rebuildWaveNeed } from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import { type BuyMode } from '../../game/workshop'
-import { type ModuleRole, getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
+import { type ModuleRole, frameRoleCap, getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
+import { hiveResearchExtraUtilitySlots } from '../../game/hiveResearch'
 import { isSystemUnlocked } from '../../game/progression'
 import { SheetTabs } from '../SheetTabs'
 import { CoreDetailSheet, CorePicker, FrameSheet } from '../LoadoutSheets'
@@ -25,6 +26,13 @@ import {
 } from '../../ui/primitives'
 
 export type DockPane = 'home' | 'loadout' | 'workshop' | 'rebuild'
+
+const LOADOUT_ROLE_ORDER: ModuleRole[] = ['weapon', 'defense', 'utility']
+const LOADOUT_ROLE_LABEL: Record<ModuleRole, string> = {
+  weapon: 'Attack',
+  defense: 'Defense',
+  utility: 'Utility',
+}
 
 interface DockTabProps {
   state: GameState
@@ -75,6 +83,13 @@ export function DockTab({
   const bestWave = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
   const cycleNo = (state.prestige.prestigeCount ?? 0) + 1
   const frame = getFrame(state.shipyard.frameId)
+  const loadoutSlots = frame
+    ? LOADOUT_ROLE_ORDER.flatMap((role) => {
+        const modules = state.shipyard.modules.filter((id) => getModule(id)?.role === role)
+        const capacity = frameRoleCap(frame, role, { utility: hiveResearchExtraUtilitySlots(state) })
+        return Array.from({ length: capacity }, (_, index) => ({ role, moduleId: modules[index] }))
+      })
+    : []
   const [localPane, setLocalPane] = useState<DockPane>('home')
   const pane = paneProp ?? localPane
   const setPane = (next: DockPane) => {
@@ -182,15 +197,19 @@ export function DockTab({
               <div data-guide="relic-sockets">
                 <SectionHeader title="Cores" />
               </div>
-              {state.shipyard.modules.map((id) => {
-                const def = getModule(id)
+              {loadoutSlots.map(({ role, moduleId }, index) => {
+                const def = moduleId ? getModule(moduleId) : undefined
+                const roleLabel = LOADOUT_ROLE_LABEL[role]
                 return (
                   <ItemRow
-                    key={id}
-                    title={def?.name ?? id}
-                    meta={`${def?.role === 'weapon' ? 'Weapon' : def?.role === 'defense' ? 'Defense' : 'Utility'} · M${moduleMasteryRank(state, id)}`}
-                    guide={`core-${id}`}
-                    onClick={() => setCoreDetail(id)}
+                    key={`${role}-${index}`}
+                    title={moduleId ? (def?.name ?? moduleId) : `Empty ${roleLabel} Slot`}
+                    meta={moduleId ? `${roleLabel} · M${moduleMasteryRank(state, moduleId)}` : 'Tap to fit a Core'}
+                    guide={moduleId ? `core-${moduleId}` : undefined}
+                    onClick={() => {
+                      if (moduleId) setCoreDetail(moduleId)
+                      else setPicker({ role })
+                    }}
                   />
                 )
               })}
