@@ -10,7 +10,7 @@ import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
 import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
-import { resolveCoreInstance } from './coreInstances'
+import { coreInstanceAtSlot, resolveCoreInstance } from './coreInstances'
 
 export interface ShardDef {
   id: string
@@ -428,7 +428,9 @@ export function coreSocketLayout(state: GameState, coreIdOrModuleId: string): Re
   const instance = resolveCoreInstance(state, coreIdOrModuleId)
   const moduleId = instance?.moduleId ?? coreIdOrModuleId
   const fitted = instance
-    ? state.shipyard.equippedCoreIds?.includes(instance.id)
+    ? state.shipyard.modules.some(
+        (_, slot) => coreInstanceAtSlot(state, slot)?.id === instance.id,
+      )
     : state.shipyard.modules.includes(moduleId)
   if (!fitted) return []
   const sockets: RelicSocketClass[] = [corePrimarySocket(moduleId)]

@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import type { GameState } from '../game/types'
 import {
   type ModuleRole,
@@ -223,7 +222,7 @@ export function CoreDetailSheet({
         <RelicSockets
           state={state}
           moduleId={moduleId}
-        coreInstanceId={coreInstanceId}
+          coreInstanceId={coreInstanceId}
           onEquipRelic={locked ? undefined : onEquipRelic}
           onRemoveRelic={locked ? undefined : onRemoveRelic}
           onUpgradeRelic={locked ? undefined : onUpgradeRelic}
@@ -265,19 +264,15 @@ export function CorePicker({
     replaceSlot >= 0
       ? state.shipyard.modules.filter((_, index) => index !== replaceSlot)
       : state.shipyard.modules
-  const options = useMemo(
-    () =>
-      availableCoreInstances(state, undefined, replaceCoreInstanceId)
-        .filter((instance) => instance.id !== replaceCoreInstanceId)
-        .flatMap((instance) => {
-          const mod = SHIP_MODULES.find((candidate) => candidate.id === instance.moduleId)
-          if (!mod || !state.shipyard.unlockedModules.includes(mod.id)) return []
-          if (wantRole && mod.role !== wantRole) return []
-          if (frame && !canFitModuleOnFrame(frame, without, mod.id, extra)) return []
-          return [{ mod, coreInstanceId: instance.id }]
-        }),
-    [state, wantRole, replaceCoreInstanceId, frame, without, extra],
-  )
+  const options = availableCoreInstances(state, undefined, replaceCoreInstanceId)
+    .filter((instance) => instance.id !== replaceCoreInstanceId)
+    .flatMap((instance) => {
+      const mod = SHIP_MODULES.find((candidate) => candidate.id === instance.moduleId)
+      if (!mod || !state.shipyard.unlockedModules.includes(mod.id)) return []
+      if (wantRole && mod.role !== wantRole) return []
+      if (frame && !canFitModuleOnFrame(frame, without, mod.id, extra)) return []
+      return [{ mod, coreInstanceId: instance.id }]
+    })
 
   return (
     <BottomSheet

@@ -111,12 +111,13 @@ export function DockTab({
   const [buyMode, setBuyMode] = useState<BuyMode>(1)
   const [frameOpen, setFrameOpen] = useState(false)
   const focusSlot = focusModuleId ? state.shipyard.modules.indexOf(focusModuleId) : -1
+  const focusedCoreInstanceId = coreInstanceAtSlot(state, focusSlot)?.id
   const [coreDetail, setCoreDetail] = useState<{
     moduleId: string
     coreInstanceId?: string
   } | null>(
     focusModuleId
-      ? { moduleId: focusModuleId, coreInstanceId: coreInstanceAtSlot(state, focusSlot)?.id }
+      ? { moduleId: focusModuleId, coreInstanceId: focusedCoreInstanceId }
       : null,
   )
   const [picker, setPicker] = useState<{
@@ -133,12 +134,11 @@ export function DockTab({
     if (!focusModuleId) return
     setLocalPane('loadout')
     onPaneChange?.('loadout')
-    const slot = state.shipyard.modules.indexOf(focusModuleId)
     setCoreDetail({
       moduleId: focusModuleId,
-      coreInstanceId: coreInstanceAtSlot(state, slot)?.id,
+      coreInstanceId: focusedCoreInstanceId,
     })
-  }, [focusModuleId, onPaneChange])
+  }, [focusModuleId, focusedCoreInstanceId, onPaneChange])
 
   function fitReplacement(moduleId: string, coreInstanceId: string) {
     if (picker?.replaceId) {
