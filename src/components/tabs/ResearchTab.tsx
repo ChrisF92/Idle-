@@ -108,11 +108,7 @@ function effectPreview(state: GameState, node: HiveResearchNodeDef): string[] {
     const now = hiveResearchQueueCap(state)
     lines.push(`Research queue ${now} → ${now + node.researchQueueSlots}`)
   }
-  if (node.coreStartLevel) {
-    lines.push(`Cycle Core Level +${node.coreStartLevel}`)
-  }
-  if (lines.length === 0) lines.push(hiveResearchNodeEffectLine(node))
-  return lines
+  return [...new Set(lines.filter((line) => line && line !== hiveResearchNodeEffectLine(node)))]
 }
 
 function ResearchGraph({

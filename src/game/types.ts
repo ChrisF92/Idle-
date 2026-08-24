@@ -398,7 +398,7 @@ export interface HiveResearchState {
   /** Seconds of progress toward `activeNodeId`. */
   progress?: number
   /** Completed node ids. Authoritative. */
-  completedIds?: string[]
+  completedIds: string[]
   /** Seconds of progress toward that branch's next node. Migrated into `progress`. */
   xp: Record<HiveResearchBranch, number>
   /** Completed node counts per branch. Derived from completedIds. */

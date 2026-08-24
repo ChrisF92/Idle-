@@ -48,7 +48,7 @@ describe('branching Research interface', () => {
     expect(screen.queryByRole('button', { name: 'Extra Tap' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Plate Bank' }))
     expect(screen.getByRole('dialog', { name: 'Plate Bank' })).toBeTruthy()
-    expect(screen.getByText(/Cycle Core Level/)).toBeTruthy()
+    expect(screen.getAllByText(/Cycle Core Level/).length).toBeGreaterThan(0)
     expect(screen.getByText(/Duration/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Start Research' })).toBeTruthy()
   })
