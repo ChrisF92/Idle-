@@ -63,8 +63,8 @@ describe('Process 2.0 ledger', () => {
     s.process.earned = 150
     expect(processFurnaceHooks(s).outputMult).toBeCloseTo(1.15)
     expect(s.resources.heat ?? 0).toBe(0)
-    expect(furnaceIdleGenPerSec(s)).toBeCloseTo(0.02 * 1.15)
-    expect(furnaceGenerationPerSec(s)).toBeGreaterThan(0.02)
+    expect(furnaceIdleGenPerSec(s)).toBe(0)
+    expect(furnaceGenerationPerSec(s)).toBe(0)
   })
 })
 

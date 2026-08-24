@@ -41,11 +41,11 @@ import {
 } from './protocols'
 import {
   ASH_PER_HEAT,
-  FURNACE_CHANNELS,
   canBuyFurnaceUpgrade,
   furnaceActiveLevel,
   furnaceChannelHeatCost,
   furnaceLevelDef,
+  furnacePushChannels,
   furnaceUpgradeCost,
   furnaceUpgradeRank,
   getFurnaceChannel,
@@ -281,14 +281,14 @@ export function inspectFurnaceOverview(state: GameState): InspectCard {
       { label: 'Ash', value: formatCompact(ash, 1) },
       { label: 'Heat', value: formatCompact(heat, 1) },
       { label: 'Convert', value: `${ASH_PER_HEAT} Ash → 1 Heat` },
-      ...FURNACE_CHANNELS.map((ch) => ({
+      ...furnacePushChannels().map((ch) => ({
         label: ch.name,
         value: furnaceActiveLevel(state, ch.id) > 0 ? `Lv ${furnaceActiveLevel(state, ch.id)}` : 'Off',
       })),
     ],
     body: [
       'Kills drop Ash after Wave 140. Ash persists across Sorties this Rebuild cycle.',
-      'Convert Ash into Heat, then spend Heat to light Weapons, Shielding, or Recovery for this Sortie.',
+      'Convert Ash into Heat, then spend Heat to light Weapons, Ward, or Yield for this Sortie.',
       'Heat and channel lights dump when you Dock. Rebuild also clears Ash.',
     ],
   }
@@ -504,7 +504,7 @@ export function inspectCopyCorpus(state: GameState): string[] {
   push(inspectRebuildOverview(state))
   for (const id of state.shipyard.modules) push(inspectCore(state, id))
   push(inspectFurnaceOverview(state))
-  for (const ch of FURNACE_CHANNELS) push(inspectFurnaceChannel(state, ch.id))
+  for (const ch of furnacePushChannels()) push(inspectFurnaceChannel(state, ch.id))
   for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
   for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))
   for (const b of HIVE_RESEARCH_BRANCHES) push(inspectResearchBranch(state, b.id))

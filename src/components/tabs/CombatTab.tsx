@@ -18,6 +18,8 @@ import {
 import { DIRECTIVES, directivesUnlocked, getDirective, hasDirectiveOffer } from '../../game/directives'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
 import { isChallengeSortie } from '../../game/frontier'
+import { isSystemUnlocked } from '../../game/progression'
+import { furnaceCombatFx, furnaceLitLine } from '../../game/furnace'
 
 type ShopTab = RunUpgradeCategory
 
@@ -213,6 +215,7 @@ export function CombatTab({
           numbers={normalizeDamageNumbers(state.meta.damageNumbers)}
           frameId={state.shipyard.frameId}
           coreIds={state.shipyard.modules}
+          furnacePush={furnaceCombatFx(state)}
         />
         <div className="sortie-canvas-chrome is-top">
           {boss ? (
@@ -297,6 +300,13 @@ export function CombatTab({
               ) : null}
             </div>
           </header>
+          {isSystemUnlocked(state, 'furnace') ? (
+            <p className="sortie-furnace" aria-label="Furnace">
+              <span>Ash {formatCompact(state.resources.choirAsh ?? 0, 1)}</span>
+              <span>Heat {formatCompact(state.resources.heat ?? 0, 1)}</span>
+              <span>{furnaceLitLine(state)}</span>
+            </p>
+          ) : null}
         </div>
         <div className="sortie-canvas-chrome is-bottom">
           <div className="sortie-status">

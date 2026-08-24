@@ -27,6 +27,8 @@ import {
 } from './hiveResearch'
 import { foundryCraftSpeed } from './foundry'
 import { isResourceVisible, isSystemUnlocked } from './progression'
+import { ACT1_CADENCE } from './cadence'
+import { atCareerWave, markHullLost } from './testHelpers'
 import type { CombatUnit } from './types'
 
 function enemy(isBoss = false): CombatUnit {
@@ -113,23 +115,22 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
   })
 
   it('banks Choir-ash into Heat and Weapons channels raise DPS', () => {
-    let s = createInitialState(0)
-    s.meta.highestSectorEver = 28
+    let s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
     s.combat.sector = 5
     const ash = grantFurnaceKillLoot(s, true)
     expect(ash).toBeGreaterThan(0)
     expect(s.resources.choirAsh).toBeGreaterThan(0)
     expect(furnaceAshFromKill(s, false)).toBeGreaterThan(0)
 
-    s.resources.choirAsh = 40
+    s.resources.choirAsh = 80
     s = convertAshToHeat(s)
     expect(s.resources.choirAsh).toBe(0)
-    expect(s.resources.heat).toBe(4)
+    expect(s.resources.heat).toBe(8)
 
     const before = computeShipStats(s).damage
     s = setFurnaceChannel(s, 'weapons', 1)
     expect(s.furnace.active.weapons).toBe(1)
-    expect(furnaceDamageMult(s)).toBeCloseTo(1.18)
+    expect(furnaceDamageMult(s)).toBeCloseTo(1.4)
     expect(computeShipStats(s).damage).toBeGreaterThan(before)
   })
 

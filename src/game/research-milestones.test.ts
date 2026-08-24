@@ -118,7 +118,7 @@ describe('Research milestones: nodes and identity', () => {
     expect(hiveResearchQueueCap(s)).toBe(RESEARCH_QUEUE_BASE)
     expect(hiveResearchProtocolXpMult(s)).toBe(1)
     expect(hiveResearchExtraUtilitySlots(s)).toBe(0)
-    expect(furnaceChannelSlots(s)).toBe(1)
+    expect(furnaceChannelSlots(s)).toBe(3)
     expect(foundrySlotCount(s)).toBe(1)
     expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)
   })
@@ -183,7 +183,7 @@ describe('Research milestones: breakthrough wiring', () => {
     expect(hiveResearchDamageMult(s)).toBe(1)
     completeIds(s, ['plate-bank', 'extra-tap'])
     expect(hiveResearchFurnaceSlots(s)).toBe(1)
-    expect(furnaceChannelSlots(s)).toBe(2)
+    expect(furnaceChannelSlots(s)).toBe(3)
     expect(hiveResearchDamageMult(s)).toBe(1)
   })
 

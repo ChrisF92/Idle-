@@ -227,7 +227,7 @@ export function possibleImprovements(
   if (wantDefense) {
     push('Plate', STARTER_CORE_IDS.includes('plate-layer'))
     push('Ward', isSystemUnlocked(state, 'network'))
-    push('Furnace Shielding', isSystemUnlocked(state, 'furnace'))
+    push('Furnace Ward', isSystemUnlocked(state, 'furnace'))
     push('Warden', specialistsUnlocked(state))
     push('Bulkhead', capitalUnlocked(state))
   }

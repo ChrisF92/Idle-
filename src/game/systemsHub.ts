@@ -23,6 +23,7 @@ import { foundryAttention, furnaceAttention, processAttention, researchAttention
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
 import { droneCap } from './catalog'
+import { furnaceLitLine } from './furnace'
 
 export type SystemsHubId = Extract<TabId, 'foundry' | 'network' | 'furnace' | 'research' | 'process'>
 
@@ -79,17 +80,7 @@ export function workersHubStatus(state: GameState): string[] {
 export function furnaceHubStatus(state: GameState): string[] {
   const ash = Math.floor(state.resources.choirAsh ?? 0)
   const heat = Math.floor(state.resources.heat ?? 0)
-  const lines = [`Ash ${ash}`, `Heat ${heat}`]
-  const lit = (['weapons', 'shielding', 'recovery'] as const)
-    .map((id) => {
-      const lv = Math.max(0, Math.floor(state.furnace?.active?.[id] ?? 0))
-      if (lv <= 0) return null
-      const name = id === 'weapons' ? 'Weapons' : id === 'shielding' ? 'Shielding' : 'Recovery'
-      return `${name} ${lv === 1 ? 'I' : lv === 2 ? 'II' : 'III'}`
-    })
-    .filter((line): line is string => Boolean(line))
-  if (lit[0]) lines.push(lit[0])
-  return lines.slice(0, 3)
+  return [`Ash ${ash}`, `Heat ${heat}`, furnaceLitLine(state)]
 }
 
 export function researchHubStatus(state: GameState): string[] {

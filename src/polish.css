@@ -1925,3 +1925,82 @@ button.just-ok {
   font-size: 0.72rem;
   letter-spacing: 0.02em;
 }
+
+.furnace-scroll {
+  display: grid;
+  align-content: start;
+  gap: var(--section-gap);
+  padding: var(--space-4);
+}
+
+.furnace-channel-list {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.furnace-channel-card {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  text-align: left;
+  border: none;
+  background: var(--elev-1);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.furnace-channel-card.is-lit {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--elev-1));
+}
+
+.furnace-channel-card.is-locked {
+  color: var(--muted);
+}
+
+.furnace-channel-hit {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.furnace-channel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.furnace-channel-name {
+  font-family: var(--font-brand);
+  font-size: var(--type-section);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.furnace-tier-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.furnace-tier-row button {
+  min-height: var(--touch);
+}
+
+.sortie-furnace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.7rem;
+  margin: 0.15rem 0.7rem 0.45rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}

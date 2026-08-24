@@ -6,8 +6,10 @@ import {
   canBuyFurnaceUpgrade,
   furnaceActiveLevel,
   furnaceAshFromKill,
+  furnaceCombatFx,
   furnaceDamageMult,
   furnaceIdleGenPerSec,
+  furnaceLitLine,
   furnaceShieldMult,
   furnaceSalvageMult,
   grantFurnaceKillLoot,
@@ -66,6 +68,15 @@ describe('GDD Furnace', () => {
     s = setFurnaceChannel(s, 'recovery', 1)
     expect(furnaceShieldMult(s)).toBeCloseTo(1.4)
     expect(furnaceSalvageMult(s)).toBeCloseTo(1.4)
+  })
+
+  it('keeps player-facing channel names Weapons, Ward, and Yield', () => {
+    const s = furnaceState()
+    s.furnace.active.weapons = 1
+    s.furnace.active.shielding = 2
+    s.furnace.active.recovery = 3
+    expect(furnaceLitLine(s)).toBe('Weapons I · Ward II · Yield III')
+    expect(furnaceCombatFx(s)).toEqual({ weapons: true, ward: true, yield: true })
   })
 
   it('dumps Heat and extinguishes channels on Extract', () => {

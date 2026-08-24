@@ -49,6 +49,7 @@ interface BattlefieldProps {
   numbers?: DamageNumbersMode
   frameId?: string
   coreIds?: string[]
+  furnacePush?: { weapons: boolean; ward: boolean; yield: boolean }
 }
 
 interface Actor {
@@ -108,6 +109,8 @@ interface Particle {
   size: number
   /** Optional drag multiplier per frame (default 0.9). */
   drag?: number
+  attractX?: number
+  attractY?: number
 }
 
 interface ScreenFlash {
@@ -253,6 +256,9 @@ interface Scene {
   liveEnemyUnits: CombatUnit[]
   liveProjectiles: CombatProjectile[]
   liveBeams: CombatBeam[]
+  furnaceWeapons: boolean
+  furnaceWard: boolean
+  furnaceYield: boolean
 }
 
 /** Portrait logical canvas — Hive at centre, enemies from all directions. */
@@ -302,7 +308,24 @@ function familyShotColor(family: string): string {
   }
 }
 
-function shotStyle(p: VisualShot): ShotStyle {
+function withFurnaceHeat(style: ShotStyle, hot: boolean): ShotStyle {
+  if (!hot) return style
+  return {
+    ...style,
+    color: '#ff7a32',
+    core: '#ffe8c0',
+    width: style.width * 1.38,
+    radius: style.radius * 1.28,
+    length: style.length * 1.2,
+    glow: style.glow + 12,
+  }
+}
+
+function shotStyle(p: VisualShot, furnaceWeapons = false): ShotStyle {
+  return withFurnaceHeat(shotStyleBase(p), furnaceWeapons && p.fromSide === 'player')
+}
+
+function shotStyleBase(p: VisualShot): ShotStyle {
   const tags = new Set<string>([p.tag, ...p.tags])
 
   if (p.delivery === 'charge') {
@@ -803,6 +826,28 @@ function addShake(scene: Scene, amount: number): void {
   scene.shake = Math.min(4.5, scene.shake + amount * 0.45)
 }
 
+function spawnSalvageMotes(scene: Scene, x: number, y: number): void {
+  if (!scene.furnaceYield) return
+  const n = scene.reducedMotion ? 3 : 9
+  for (let i = 0; i < n; i += 1) {
+    const a = Math.random() * Math.PI * 2
+    const sp = 28 + Math.random() * 70
+    scene.particles.push({
+      x,
+      y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp,
+      life: 0.72 + Math.random() * 0.4,
+      maxLife: 1.15,
+      color: i % 2 === 0 ? '#e0c07a' : '#ffe8c0',
+      size: 1.6 + Math.random() * 2.2,
+      drag: 0.94,
+      attractX: HIVE_SCREEN_X,
+      attractY: HIVE_SCREEN_Y,
+    })
+  }
+}
+
 /** Layered death / impact pop — debris + shockwave. */
 function explode(
   scene: Scene,
@@ -900,6 +945,7 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
       existing.deathT = existing.isBoss ? 1.7 : existing.isFlagship ? 1 : power === 'small' ? 0.42 : 0.7
       existing.deathStage = existing.isBoss ? 1 : 0
       explode(scene, existing.x, existing.y, sideFill(existing.side, existing.isBoss), power)
+      if (existing.side === 'enemy') spawnSalvageMotes(scene, existing.x, existing.y)
       // Wave / pack wipe — last enemy down gets a cool victory wash.
       if (existing.side === 'enemy' && !existing.isBoss) {
         // Count other living enemies still tracked this frame.
@@ -1174,7 +1220,7 @@ function syncScene(
   const liveIds = new Set(projectiles.map((p) => p.id))
   for (const [id, prev] of scene.projectiles) {
     if (liveIds.has(id) || !shouldDrawTrace(prev)) continue
-    const style = shotStyle(prev)
+    const style = shotStyle(prev, scene.furnaceWeapons)
     scene.traces.push({
       x1: prev.ox,
       y1: prev.oy,
@@ -1217,7 +1263,7 @@ function syncScene(
       const from = scene.actors.get(p.fromId)
       if (from) {
         from.muzzle = 1
-        const style = shotStyle(nextProj.get(p.id)!)
+        const style = shotStyle(nextProj.get(p.id)!, scene.furnaceWeapons)
         burst(scene, origin.x, origin.y, style.core, from.isBoss ? 10 : 6, {
           speed: 0.45,
           life: 0.28,
@@ -1230,7 +1276,7 @@ function syncScene(
     } else if (prev) {
       // Exhaust sparkles behind live rounds.
       if (Math.random() < (p.side === 'player' || p.attackerFamily === 'titan' ? 0.55 : 0.28)) {
-        const style = shotStyle(nextProj.get(p.id)!)
+        const style = shotStyle(nextProj.get(p.id)!, scene.furnaceWeapons)
         const mag = Math.hypot(hx, hy) || 1
         scene.particles.push({
           x: screen.x - (hx / mag) * 6,
@@ -1495,10 +1541,13 @@ function drawCoreDrone(
   }
 
   if (slot.firing) {
-    ctx.globalAlpha = alpha * 0.85
-    ctx.fillStyle = '#fff4d8'
+    const hot = scene.furnaceWeapons && slot.role === 'weapon'
+    ctx.globalAlpha = alpha * (hot ? 0.95 : 0.85)
+    ctx.fillStyle = hot ? '#ff7a32' : '#fff4d8'
+    ctx.shadowColor = hot ? '#ff7a32' : '#fff4d8'
+    ctx.shadowBlur = hot ? 14 : 0
     ctx.beginPath()
-    ctx.arc(5.4, 0, 2.1, 0, Math.PI * 2)
+    ctx.arc(5.4, 0, hot ? 3.6 : 2.1, 0, Math.PI * 2)
     ctx.fill()
   }
   ctx.restore()
@@ -1551,9 +1600,9 @@ function drawHiveShield(
   ctx.translate(ax, ay)
   ctx.globalAlpha = alpha * (0.18 + pct * (bastion ? 0.4 : 0.32)) * flicker
   ctx.strokeStyle = stable ? '#b8e6ff' : '#7ec8ff'
-  ctx.lineWidth = (bastion ? 2.6 : stable ? 2.1 : 1.3) + pct * 1.1 + actor.shieldHit
-  ctx.shadowColor = '#7ec8ff'
-  ctx.shadowBlur = scene.reducedMotion ? 0 : 6 + actor.shieldHit * 8
+  ctx.lineWidth = (bastion ? 2.6 : stable ? 2.1 : 1.3) + pct * 1.1 + actor.shieldHit + (scene.furnaceWard ? 2.2 : 0)
+  ctx.shadowColor = scene.furnaceWard ? '#c8f0ff' : '#7ec8ff'
+  ctx.shadowBlur = scene.reducedMotion ? 0 : 6 + actor.shieldHit * 8 + (scene.furnaceWard ? 10 : 0)
   ctx.beginPath()
   for (let i = 0; i < 6; i += 1) {
     const a = (Math.PI / 3) * i - Math.PI / 6
@@ -1565,6 +1614,14 @@ function drawHiveShield(
   }
   ctx.closePath()
   ctx.stroke()
+  if (scene.furnaceWard) {
+    ctx.globalAlpha = alpha * (0.22 + pct * 0.28)
+    ctx.strokeStyle = '#c8f0ff'
+    ctx.lineWidth = 1.6 + pct
+    ctx.beginPath()
+    ctx.arc(0, 0, actor.r + (bastion ? 16 : 14) + pct * 5, 0, Math.PI * 2)
+    ctx.stroke()
+  }
   ctx.restore()
 }
 
@@ -1750,6 +1807,26 @@ function stepScene(scene: Scene, dt: number): void {
     actor.x += (tx - actor.x) * Math.min(1, dt * 10)
     actor.y += (ty - actor.y) * Math.min(1, dt * 10)
 
+    if (scene.furnaceYield && actor.isFlagship && actor.side === 'player' && !scene.reducedMotion) {
+      if (Math.random() < dt * 7) {
+        const a = Math.random() * Math.PI * 2
+        const r = 22 + Math.random() * 18
+        scene.particles.push({
+          x: actor.x + Math.cos(a) * r,
+          y: actor.y + Math.sin(a) * r,
+          vx: Math.cos(a + Math.PI / 2) * 16,
+          vy: Math.sin(a + Math.PI / 2) * 16,
+          life: 0.55 + Math.random() * 0.3,
+          maxLife: 0.9,
+          color: '#e0c07a',
+          size: 1.4 + Math.random() * 1.6,
+          drag: 0.9,
+          attractX: actor.x,
+          attractY: actor.y,
+        })
+      }
+    }
+
     if (scene.mode === 'repairing' && actor.isFlagship && actor.side === 'player') {
       if (Math.random() < dt * 8) {
         scene.particles.push({
@@ -1806,6 +1883,14 @@ function stepScene(scene: Scene, dt: number): void {
   // Projectiles are authoritative from the sim; positions refresh in syncScene.
 
   for (const part of scene.particles) {
+    if (part.attractX != null && part.attractY != null) {
+      const dx = part.attractX - part.x
+      const dy = part.attractY - part.y
+      const dist = Math.hypot(dx, dy) || 1
+      const pull = 260
+      part.vx += (dx / dist) * pull * dt
+      part.vy += (dy / dist) * pull * dt
+    }
     part.x += part.vx * dt
     part.y += part.vy * dt
     const drag = part.drag ?? 0.9
@@ -1853,8 +1938,8 @@ function stepScene(scene: Scene, dt: number): void {
   }
 }
 
-function drawProjectile(ctx: CanvasRenderingContext2D, p: VisualShot): void {
-  const style = shotStyle(p)
+function drawProjectile(ctx: CanvasRenderingContext2D, p: VisualShot, furnaceWeapons = false): void {
+  const style = shotStyle(p, furnaceWeapons)
   const ang = Math.atan2(p.hy, p.hx)
 
   ctx.save()
@@ -2116,7 +2201,7 @@ function drawTraces(ctx: CanvasRenderingContext2D, scene: Scene): void {
   }
   for (const p of scene.projectiles.values()) {
     if (!shouldDrawTrace(p)) continue
-    const style = shotStyle(p)
+    const style = shotStyle(p, scene.furnaceWeapons)
     const dist = Math.hypot(p.x - p.ox, p.y - p.oy)
     if (dist < 8) continue
     const alpha = p.delivery === 'charge' ? 0.85 : 0.55
@@ -2134,8 +2219,19 @@ function drawLiveBeams(ctx: CanvasRenderingContext2D, scene: Scene): void {
     const dwell = beam.duration > 0 ? beam.remaining / beam.duration : 1
     const flicker = 0.72 + 0.28 * Math.sin(scene.time * 52 + (from?.bobPhase ?? 0))
     const alpha = (0.5 + 0.45 * dwell) * flicker
-    const width = beam.side === 'player' ? 3.4 : 2.6
-    drawLineGlow(ctx, origin.x, origin.y, to.x, to.y, palette.glow, palette.core, width, alpha)
+    const hot = scene.furnaceWeapons && beam.side === 'player'
+    const width = (beam.side === 'player' ? 3.4 : 2.6) * (hot ? 1.35 : 1)
+    drawLineGlow(
+      ctx,
+      origin.x,
+      origin.y,
+      to.x,
+      to.y,
+      hot ? '#ff7a32' : palette.glow,
+      hot ? '#ffe8c0' : palette.core,
+      width,
+      alpha,
+    )
     ctx.save()
     ctx.globalAlpha = alpha
     ctx.fillStyle = palette.core
@@ -2216,7 +2312,7 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
   drawChargeLasers(ctx, scene)
 
   for (const p of scene.projectiles.values()) {
-    drawProjectile(ctx, p)
+    drawProjectile(ctx, p, scene.furnaceWeapons)
   }
 
   const actors = [...scene.actors.values()].sort((a, b) => a.y - b.y)
@@ -2274,12 +2370,13 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     }
 
     if (actor.muzzle > 0) {
+      const hot = scene.furnaceWeapons && actor.side === 'player'
       ctx.globalAlpha = actor.muzzle
-      ctx.fillStyle = tagColor(actor.weaponTag)
-      ctx.shadowColor = tagColor(actor.weaponTag)
-      ctx.shadowBlur = 14 * actor.muzzle
+      ctx.fillStyle = hot ? '#ff7a32' : tagColor(actor.weaponTag)
+      ctx.shadowColor = hot ? '#ff7a32' : tagColor(actor.weaponTag)
+      ctx.shadowBlur = (hot ? 22 : 14) * actor.muzzle
       ctx.beginPath()
-      ctx.arc(actor.r, 0, 5 + actor.muzzle * 5, 0, Math.PI * 2)
+      ctx.arc(actor.r, 0, 5 + actor.muzzle * (hot ? 8 : 5), 0, Math.PI * 2)
       ctx.fill()
     }
     ctx.restore()
@@ -2385,11 +2482,36 @@ export function Battlefield({
   numbers = 'standard',
   frameId = '',
   coreIds = [],
+  furnacePush,
 }: BattlefieldProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<Scene | null>(null)
-  const propsRef = useRef({ playerUnits, enemyUnits, projectiles, beams, fx, mode, paused, numbers, frameId, coreIds })
-  propsRef.current = { playerUnits, enemyUnits, projectiles, beams, fx, mode, paused, numbers, frameId, coreIds }
+  const propsRef = useRef({
+    playerUnits,
+    enemyUnits,
+    projectiles,
+    beams,
+    fx,
+    mode,
+    paused,
+    numbers,
+    frameId,
+    coreIds,
+    furnacePush,
+  })
+  propsRef.current = {
+    playerUnits,
+    enemyUnits,
+    projectiles,
+    beams,
+    fx,
+    mode,
+    paused,
+    numbers,
+    frameId,
+    coreIds,
+    furnacePush,
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -2436,6 +2558,9 @@ export function Battlefield({
       liveEnemyUnits: [],
       liveProjectiles: [],
       liveBeams: [],
+      furnaceWeapons: false,
+      furnaceWard: false,
+      furnaceYield: false,
     }
     sceneRef.current = scene
 
@@ -2448,6 +2573,9 @@ export function Battlefield({
       last = now
 
       scene.coreIds = p.coreIds
+      scene.furnaceWeapons = Boolean(p.furnacePush?.weapons)
+      scene.furnaceWard = Boolean(p.furnacePush?.ward)
+      scene.furnaceYield = Boolean(p.furnacePush?.yield)
       syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.beams, p.fx, p.mode)
       scene.numbers = p.numbers
       scene.frameId = p.frameId
