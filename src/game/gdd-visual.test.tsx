@@ -38,7 +38,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.queryByRole('tab', { name: 'Attack' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Cores' })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Cores' })).toBeNull()
     expect(screen.getByText('Weapon Power')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Weapon Power details' }))
     expect(screen.getByRole('dialog', { name: 'Weapon Power' })).toBeTruthy()

@@ -33,8 +33,7 @@ import {
   SHIP_MODULES,
 } from '../catalog'
 import { pendingMilestone } from '../milestones'
-import { coreRunLevel, coreRunUpgradeCost } from '../coreProgression'
-import { computeShipStats } from '../state'
+import { coreRunLevel } from '../coreProgression'
 import {
   NETWORK_BARS,
   NETWORK_LINKS,

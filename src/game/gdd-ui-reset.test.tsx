@@ -241,7 +241,7 @@ describe('UI architecture reset', () => {
     expect(screen.getByText(/M5 · Hardened Pulse/)).toBeTruthy()
     expect(screen.getByText(/M10 · Tight Cycle/)).toBeTruthy()
     expect(screen.getByText(/M20 · Optical Socket/)).toBeTruthy()
-    expect(screen.getByText(/M30 · Run Feed/)).toBeTruthy()
+    expect(screen.getByText(/M30 · Core Feed/)).toBeTruthy()
     expect(screen.getByText(/M50 · Foundry Arc/)).toBeTruthy()
     expect(screen.getByText(/M75 · Deep Pattern/)).toBeTruthy()
     expect(screen.getByText(/M100 · True Mastery/)).toBeTruthy()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyNetworkPreset, buyProcessNode, performRebuild } from './actions'
+import { applyNetworkPreset, performRebuild } from './actions'
 import { tickAutomation } from './automation'
 import { ACT1_CADENCE, PROCESS_MIN_REBUILDS } from './cadence'
 import { shopReadoutUnlocked } from './disclosure'
