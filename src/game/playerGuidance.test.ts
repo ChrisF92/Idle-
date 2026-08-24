@@ -53,7 +53,7 @@ describe('player guidance helpers', () => {
     const lists = rebuildConsequenceLists(s)
     expect(lists.gain[0]).toMatch(/Rebuild Matter/)
     expect(lists.keep).toEqual(expect.arrayContaining(['Research', 'Foundry recipes, stock, and Foundry Points']))
-    expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Core Run Levels', 'Workshop']))
+    expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Run upgrades', 'Workshop']))
     expect(lists.change).toEqual([])
   })
 
@@ -85,7 +85,7 @@ describe('player guidance helpers', () => {
     expect(hints.join(' ')).not.toMatch(/Furnace/)
   })
 
-  it('unlocks the Process Core toast after repeated manual ranks', () => {
+  it('does not unlock retired Process Core automation', () => {
     const s = markHullLost(createInitialState(0))
     s.meta.aiUnlocked = true
     s.meta.highestSectorEver = 42
@@ -95,12 +95,11 @@ describe('player guidance helpers', () => {
     s.meta.completedAchievements = ['first-blood']
     s.shipyard.moduleLevels['pulse-cannon'] = 4
     s.shipyard.moduleLevels['plate-layer'] = 3
-    expect(processCoreHintReady(s)).toBe(true)
+    expect(processCoreHintReady(s)).toBe(false)
     const prev = captureToastSnapshot(s)
     prev.processCoreHint = false
     const toasts = diffToasts(prev, captureToastSnapshot(s), s)
-    expect(toasts.some((t) => t.id === 'process:cores')).toBe(true)
-    expect(toasts.find((t) => t.id === 'process:cores')?.action?.label).toBe('SHOW ME')
+    expect(toasts.some((t) => t.id === 'process:cores')).toBe(false)
   })
 
   it('hydrates established saves so they skip beginner overlays', () => {
@@ -110,7 +109,7 @@ describe('player guidance helpers', () => {
     s.meta.seenOnboarding = ['guide-drone-cap']
     const loaded = importSave(exportSave(s))
     expect(loaded?.meta.seenOnboarding).toContain('guide-launch')
-    expect(loaded?.meta.seenOnboarding).toContain('guide-core-run')
+    expect(loaded?.meta.seenOnboarding).not.toContain('guide-core-run')
   })
 
   it('replay-first-run clears seen flags without wiping progress', () => {

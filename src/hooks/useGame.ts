@@ -51,10 +51,7 @@ import {
   unequipFoundryModule,
   unlockFrame,
   unlockModule,
-  upgradeCheapestModule,
-  upgradeModule,
   buyCoreStartingLevel,
-  buyCoreRunSlot,
   buyRunUpgrade,
   buyWorkshopUpgrade,
   cycleSortieSpeed,
@@ -85,7 +82,6 @@ import {
   buyEchoNode,
   buyProcessNode,
   setProcessConfig,
-  buyMaxCores,
   optimiseNetwork,
   applyNetworkPreset,
   buyMaxFoundryUpgrades,
@@ -98,7 +94,6 @@ import {
 } from '../game/actions'
 import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides } from '../game/progression'
 import { markHubSeen } from '../game/hubAttention'
-import { ensureStarterCoresTourSalvage } from '../game/catalog'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
 import { noteSessionEnd } from '../game/playtest'
@@ -121,7 +116,6 @@ type Action =
   | { type: 'clear-worker-assignments' }
   | { type: 'fill-station'; stationId: string }
   | { type: 'sync-guides'; tab: import('../game/types').TabId }
-  | { type: 'ensure-starter-cores-salvage' }
   | { type: 'mark-hub-seen'; scope: import('../game/types').TabId }
   | { type: 'start-fab'; moduleId: string }
   | { type: 'launch-fab'; moduleId: string }
@@ -140,9 +134,7 @@ type Action =
   | { type: 'unlock-module'; moduleId: string }
   | { type: 'fit-module'; moduleId: string; coreInstanceId?: string }
   | { type: 'unfit-module'; moduleId: string; coreInstanceId?: string }
-  | { type: 'upgrade-module'; moduleId: string }
   | { type: 'buy-core-start'; coreInstanceId: string; count?: number }
-  | { type: 'buy-core-run'; slot: number; count?: number }
   | { type: 'buy-run-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
   | { type: 'buy-workshop-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
   | { type: 'cycle-sortie-speed' }
@@ -154,7 +146,6 @@ type Action =
     }
   | { type: 'rebuild'; hangar: { frameId: string; modules: string[] } }
   | { type: 'unequip-all' }
-  | { type: 'upgrade-cheapest' }
   | { type: 'ack-onboarding'; tipId: string }
   | { type: 'skip-onboarding'; tipId: string }
   | { type: 'prestige' }
@@ -198,7 +189,6 @@ type Action =
   | { type: 'buy-echo'; nodeId: string }
   | { type: 'buy-process'; nodeId: string }
   | { type: 'process-config'; config: import('../game/types').ProcessConfig }
-  | { type: 'process-core-buy-max' }
   | { type: 'process-network-optimise' }
   | { type: 'process-network-preset'; preset: import('../game/types').ProcessNetworkPreset }
   | { type: 'process-foundry-buy-max' }
@@ -244,8 +234,6 @@ function reducer(state: GameState, action: Action): GameState {
       return fillStationWorkers(state, action.stationId)
     case 'sync-guides':
       return syncCompletedGuides(state, action.tab)
-    case 'ensure-starter-cores-salvage':
-      return ensureStarterCoresTourSalvage(state)
     case 'mark-hub-seen':
       return markHubSeen(state, action.scope)
     case 'start-fab':
@@ -282,12 +270,8 @@ function reducer(state: GameState, action: Action): GameState {
       return fitModule(state, action.moduleId, action.coreInstanceId)
     case 'unfit-module':
       return unfitModule(state, action.moduleId, action.coreInstanceId)
-    case 'upgrade-module':
-      return upgradeModule(state, action.moduleId)
     case 'buy-core-start':
       return buyCoreStartingLevel(state, action.coreInstanceId, action.count)
-    case 'buy-core-run':
-      return buyCoreRunSlot(state, action.slot, action.count)
     case 'buy-run-upgrade':
       return buyRunUpgrade(state, action.id, action.count)
     case 'buy-workshop-upgrade':
@@ -300,8 +284,6 @@ function reducer(state: GameState, action: Action): GameState {
       return performRebuild(state, action.hangar)
     case 'unequip-all':
       return unequipAllModules(state)
-    case 'upgrade-cheapest':
-      return upgradeCheapestModule(state)
     case 'ack-onboarding':
       return acknowledgeOnboarding(state, action.tipId)
     case 'skip-onboarding':
@@ -389,8 +371,6 @@ function reducer(state: GameState, action: Action): GameState {
       return buyProcessNode(state, action.nodeId)
     case 'process-config':
       return setProcessConfig(state, action.config)
-    case 'process-core-buy-max':
-      return buyMaxCores(state)
     case 'process-network-optimise':
       return optimiseNetwork(state)
     case 'process-network-preset':
@@ -485,7 +465,6 @@ export function useGame() {
       dispatch({ type: 'fill-station', stationId }),
     syncCompletedGuides: (tab: import('../game/types').TabId) =>
       dispatch({ type: 'sync-guides', tab }),
-    ensureStarterCoresSalvage: () => dispatch({ type: 'ensure-starter-cores-salvage' }),
     markHubSeen: (scope: import('../game/types').TabId) =>
       dispatch({ type: 'mark-hub-seen', scope }),
     startFabProject: (moduleId: string) => dispatch({ type: 'start-fab', moduleId }),
@@ -513,11 +492,8 @@ export function useGame() {
       dispatch({ type: 'fit-module', moduleId, coreInstanceId }),
     unfitModule: (moduleId: string, coreInstanceId?: string) =>
       dispatch({ type: 'unfit-module', moduleId, coreInstanceId }),
-    upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
     buyCoreStartingLevel: (coreInstanceId: string, count?: number) =>
       dispatch({ type: 'buy-core-start', coreInstanceId, count }),
-    buyCoreRunSlot: (slot: number, count?: number) =>
-      dispatch({ type: 'buy-core-run', slot, count }),
     buyRunUpgrade: (id: import('../game/types').RunUpgradeId, count?: number) =>
       dispatch({ type: 'buy-run-upgrade', id, count }),
     buyWorkshopUpgrade: (id: import('../game/types').RunUpgradeId, count?: number) =>
@@ -528,7 +504,6 @@ export function useGame() {
     performRebuild: (hangar: { frameId: string; modules: string[] }) =>
       dispatch({ type: 'rebuild', hangar }),
     unequipAll: () => dispatch({ type: 'unequip-all' }),
-    upgradeCheapest: () => dispatch({ type: 'upgrade-cheapest' }),
     acknowledgeOnboarding: (tipId: string) =>
       dispatch({ type: 'ack-onboarding', tipId }),
     skipOnboarding: (tipId: string) => dispatch({ type: 'skip-onboarding', tipId }),
@@ -598,7 +573,6 @@ export function useGame() {
     buyProcessNode: (nodeId: string) => dispatch({ type: 'buy-process', nodeId }),
     setProcessConfig: (config: import('../game/types').ProcessConfig) =>
       dispatch({ type: 'process-config', config }),
-    buyMaxCores: () => dispatch({ type: 'process-core-buy-max' }),
     optimiseNetwork: () => dispatch({ type: 'process-network-optimise' }),
     applyNetworkPreset: (preset: import('../game/types').ProcessNetworkPreset) =>
       dispatch({ type: 'process-network-preset', preset }),

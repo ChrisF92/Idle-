@@ -17,11 +17,11 @@ describe('upgrade copy is quantitative', () => {
     expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 5)!)).toBe('Shield ×1.12')
     expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 10)!)).toBe('Regen +2%/s')
     expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 20)!)).toBe('+1 Shield Relic socket')
-    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 30)!)).toBe('Run Level scaling ×1.10')
+    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 30)!)).toBe('Core Level scaling ×1.10')
     expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 50)!)).toBe('Shield ×1.15 · Regen +2%/s')
     expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 75)!)).toBe('Damage ×1.06 · Shield ×1.06')
     expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 100)!)).toBe(
-      'Damage ×1.10 · Shield ×1.08 · Run Level scaling ×1.08',
+      'Damage ×1.10 · Shield ×1.08 · Core Level scaling ×1.08',
     )
   })
 
@@ -31,7 +31,7 @@ describe('upgrade copy is quantitative', () => {
         const line = masteryMilestoneEffect(ms)
         expect(line.length, `${id} M${ms.level}`).toBeGreaterThan(0)
         expect(line).not.toMatch(/evolves|understood|Synergy|thicken the bank|scale harder/i)
-        expect(line).toMatch(/×|\+|RoF|Range|Splash|socket|Regen|Salvage|Damage|Shield|Run Level/)
+        expect(line).toMatch(/×|\+|RoF|Range|Splash|socket|Regen|Salvage|Damage|Shield|Core Level/)
       }
     }
   })

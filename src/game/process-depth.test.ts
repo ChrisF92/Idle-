@@ -44,9 +44,8 @@ function enemy(): CombatUnit {
 
 describe('Act 1 Process depth', () => {
   it('keeps Act 1 Process on helpers and skips late-game autos', () => {
-    expect(PROCESS_NODES.length).toBeGreaterThanOrEqual(14)
-    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')?.cost).toBe(4)
-    expect(PROCESS_NODES.find((n) => n.id === 'auto-salvage')?.cost).toBe(8)
+    expect(PROCESS_NODES.length).toBeGreaterThanOrEqual(8)
+    expect(PROCESS_NODES.some((n) => n.id === 'core-buy-max' || n.id === 'auto-salvage')).toBe(false)
     expect(PROCESS_NODES.some((n) => /warp|crew|capital|reinforce/i.test(n.id))).toBe(false)
     expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(9)
   })
@@ -168,14 +167,13 @@ describe('Act 1 Process depth', () => {
     let s = createInitialState(0)
     s.meta.aiUnlocked = true
     s.meta.highestSectorEver = 1
-    s.shipyard.moduleLevels['pulse-cannon'] = 1
     s.resources.aiPoints = 6
-    s = buyProcessNode(s, 'core-buy-max')
-    expect(hasProcess(s, 'core-buy-max')).toBe(true)
+    s = buyProcessNode(s, 'buy-ten')
+    expect(hasProcess(s, 'buy-ten')).toBe(true)
     expect(s.meta.completedAchievements).toContain('neural-link')
   })
 
-  it('Auto-Salvage still ranks a live Core', () => {
+  it('legacy Auto-Salvage ownership cannot rank a live Core', () => {
     const s = createInitialState(0)
     s.combat.docked = false
     s.process.purchased = ['auto-salvage']
@@ -183,6 +181,7 @@ describe('Act 1 Process depth', () => {
     const before = Object.values(s.combat.coreRunLevels ?? {}).reduce((a, b) => a + b, 0)
     advanceSeconds(s, 1)
     const after = Object.values(s.combat.coreRunLevels ?? {}).reduce((a, b) => a + b, 0)
-    expect(after).toBeGreaterThan(before)
+    expect(after).toBe(before)
+    expect(s.resources.salvage).toBe(40)
   })
 })

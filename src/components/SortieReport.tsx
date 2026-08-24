@@ -157,8 +157,7 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
                         {milestone ? ` · Mastery milestone M${milestone}` : ''}
                         <span className="muted">
                           {' '}
-                          Run Lv{row.runLevel}
-                          {row.masteryXp > 0 ? ` · +${row.masteryXp} Mastery XP` : ''}
+                          {row.masteryXp > 0 ? `+${row.masteryXp} Mastery XP` : 'No Mastery XP'}
                           {out ? ` · ${formatCompact(out.current)} ${out.label}` : ''}
                         </span>
                         {onViewCore && (leveled || milestone) ? (

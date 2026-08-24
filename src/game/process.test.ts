@@ -10,7 +10,6 @@ import {
 import {
   canBuyProcessNode,
   hasProcess,
-  hasProcessMastery,
   hydrateProcessState,
   processAvailable,
   processConfig,
@@ -36,14 +35,13 @@ describe('Process 2.0 ledger', () => {
     let s = createInitialState(0)
     s.meta.aiUnlocked = true
     s.meta.completedAchievements = ['neural-link']
-    s.shipyard.moduleLevels['pulse-cannon'] = 1
     s.resources.aiPoints = 10
     s.process.earned = 10
     expect(processAvailable(s)).toBe(10)
     expect(processEarned(s)).toBe(10)
-    s = buyProcessNode(s, 'core-buy-max')
-    expect(hasProcess(s, 'core-buy-max')).toBe(true)
-    expect(processAvailable(s)).toBe(6)
+    s = buyProcessNode(s, 'buy-ten')
+    expect(hasProcess(s, 'buy-ten')).toBe(true)
+    expect(processAvailable(s)).toBe(8)
     expect(processEarned(s)).toBe(10)
   })
 
@@ -77,10 +75,10 @@ describe('Process 2.0 save and prestige', () => {
     s.process = { purchased: ['auto-salvage'] } as typeof s.process
     const imported = importSave(exportSave(s))
     expect(imported).toBeTruthy()
-    expect(imported!.process.purchased).toContain('auto-salvage')
-    expect(imported!.process.purchased).toContain('core-buy-max')
+    expect(imported!.process.purchased).not.toContain('auto-salvage')
+    expect(imported!.process.purchased).not.toContain('core-buy-max')
     expect(imported!.process.config.reliquary.autoMerge).toBe(false)
-    expect(processEarned(imported!)).toBeGreaterThanOrEqual(4 + 8)
+    expect(processEarned(imported!)).toBeGreaterThanOrEqual(4)
   })
 
   it('grantProcessPrereqs fills missing parents on hydrate', () => {
@@ -93,12 +91,12 @@ describe('Process 2.0 save and prestige', () => {
     let s = createInitialState(0)
     s.combat.sector = 10
     s.meta.highestSectorEver = 68
-    s.process.purchased = ['core-buy-max']
+    s.process.purchased = ['buy-ten']
     s.process.earned = 20
     s.process.config.core.priority = 'weapon'
     s.resources.aiPoints = 10
     s = performPrestige(s, 1000)
-    expect(hasProcess(s, 'core-buy-max')).toBe(true)
+    expect(hasProcess(s, 'buy-ten')).toBe(true)
     expect(processEarned(s)).toBeGreaterThanOrEqual(20)
     expect(processConfig(s).core.priority).toBe('weapon')
   })
@@ -116,15 +114,14 @@ describe('Process 2.0 save and prestige', () => {
 })
 
 describe('Process 2.0 mastery and achievements', () => {
-  it('gates Core Buy Max until a Core is ranked', () => {
+  it('does not expose retired Core Run automation', () => {
     const s = createInitialState(0)
     s.meta.aiUnlocked = true
     s.resources.aiPoints = 20
-    expect(hasProcessMastery(s, 'cores')).toBe(false)
-    expect(canBuyProcessNode(s, 'core-buy-max').ok).toBe(false)
-    s.shipyard.moduleLevels['pulse-cannon'] = 1
-    expect(hasProcessMastery(s, 'cores')).toBe(true)
-    expect(canBuyProcessNode(s, 'core-buy-max').ok).toBe(true)
+    expect(canBuyProcessNode(s, 'core-buy-max')).toEqual({
+      ok: false,
+      reason: 'Unknown node',
+    })
   })
 
   it('does not require mastery for Ash Bank or Smart Smelt', () => {

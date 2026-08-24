@@ -19,13 +19,13 @@ import {
   moduleStatPreviews,
 } from './catalog'
 import {
-  coreRunCategory,
-  coreRunLevelForModule,
+  coreStartingLevel,
   masteryXpToNext,
   moduleMasteryXp,
   masteryMilestoneEffect,
   nextMasteryMilestone,
 } from './coreProgression'
+import { resolveCoreInstance } from './coreInstances'
 import { formatCompact } from './format'
 import { coreContributionPct } from './uiReadout'
 import {
@@ -273,17 +273,18 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   const mastery = moduleMasteryRank(state, moduleId)
   const xp = moduleMasteryXp(state, moduleId)
   const need = masteryXpToNext(mastery)
-  const run = state.combat.docked ? 0 : coreRunLevelForModule(state, moduleId)
-  const previews = moduleStatPreviews(moduleId, run, run < 200, mastery)
+  const instance = resolveCoreInstance(state, moduleId)
+  const level = instance ? coreStartingLevel(state, instance.id) : 0
+  const previews = moduleStatPreviews(moduleId, level, level < 200, mastery)
   const picks = state.shipyard.corePicks?.[moduleId]
   const milestones = milestonesFor(moduleId)
   const contribution = coreContributionPct(state, moduleId)
   const nextMs = nextMasteryMilestone(moduleId, mastery)
   const stats: InspectStat[] = [
     { label: 'Role', value: ROLE_LABEL[def.role] ?? def.role },
-    { label: 'Run Level', value: state.combat.docked ? '0 at Dock' : String(run) },
+    { label: 'Core Level', value: String(level) },
     { label: 'Mastery', value: `${mastery} · ${xp} / ${need} XP` },
-    { label: 'Shop', value: coreRunCategory(moduleId) },
+    { label: 'Upgrade', value: 'Dock · Scrap' },
   ]
   if (contribution != null) stats.push({ label: 'Build', value: `${contribution}% of DPS` })
   if (nextMs) {
@@ -322,7 +323,7 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   const body = [def.description]
   if (def.weapon) body.push(deliveryLine(def.weapon.delivery))
   body.push(
-    'Run Levels spend Salvage during a Sortie and reset when it ends. Mastery is earned while the Core is equipped and survives Rebuild. Relics are installed at Dock.',
+    'Core Levels use Scrap at Dock and reset on Rebuild. Mastery is shared by identical Cores and survives Rebuild. Relics stay with each physical copy.',
   )
   return {
     title: def.name,
@@ -413,7 +414,7 @@ export function inspectRebuildOverview(state: GameState): InspectCard {
       { label: 'Matter if you swap now', value: String(estimate) },
     ],
     body: [
-      'Rebuild swaps the hull and wipes Salvage and Core Run Levels. Foundry recipes, Relics, Research, and Mastery stay.',
+      'Rebuild swaps the hull and wipes Salvage, Workshop upgrades, and Scrap-funded Core Levels. Foundry recipes, Relics, Research, and Mastery stay.',
       'Matter this swap is about one-tenth of your cycle Best Wave, plus Workshop ranks and Scrap earned this cycle. Unspent Scrap does not count.',
       'Swap when the push stalls and another system cannot break the wall — not every Wave.',
     ],

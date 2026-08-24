@@ -77,16 +77,8 @@ describe('onboarding queue', () => {
     expect(activeGuideStep(dead, 'network')?.id).toBe('guide-network-strike')
   })
 
-  it('teaches a Core Run Level after generic Salvage spending', () => {
+  it('teaches Core Mastery at Dock without a Sortie Core upgrade step', () => {
     let state = afterFirstDeath()
-    state.resources.salvage = 20
-    expect(activeGuideStep(state, 'combat')?.id).toBe('guide-core-run')
-    expect(guidePausesSimulation(activeGuideStep(state, 'combat'))).toBe(false)
-
-    state.combat.coreRunLevels = { '0': 1 }
-    state.meta.lifetimeCoreRunBuys = 1
-    expect(activeGuideStep(state, 'combat')?.id).not.toBe('guide-core-run')
-
     state.combat.docked = true
     expect(activeGuideStep(state, 'dock')?.id).toBe('guide-core-mastery')
     state = acknowledgeOnboarding(state, 'guide-core-mastery')

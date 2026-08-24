@@ -85,21 +85,12 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(visibleResourceIds(s)).toContain('salvage')
   })
 
-  it('spends Salvage on Core Run Levels during a Sortie', () => {
+  it('does not spend Salvage on Cores during a Sortie', () => {
     let s = createInitialState(0)
     s = setDocked(s, false)
     s.resources.salvage = 10
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.combat.coreRunLevels?.['0']).toBe(1)
-    expect(s.resources.salvage).toBeLessThan(10)
-  })
-
-  it('does not require a milestone pick to buy the next Run Level', () => {
-    let s = createInitialState(0)
-    s = setDocked(s, false)
-    s.combat.coreRunLevels = { '0': 10 }
-    s.resources.salvage = 999
-    s = upgradeModule(s, 'pulse-cannon')
-    expect(s.combat.coreRunLevels?.['0']).toBe(11)
+    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    expect(s.resources.salvage).toBe(10)
   })
 })

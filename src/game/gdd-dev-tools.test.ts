@@ -4,7 +4,6 @@ import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { ACT1_CADENCE } from './cadence'
 import { careerBestWave, isBossWave } from './waves'
-import { coreRunLevel } from './coreProgression'
 import { moduleMasteryRank } from './catalog'
 import { canRebuild } from './rebuild'
 
@@ -85,11 +84,9 @@ describe('GDD Dev Tools', () => {
     expect(s.shipyard.frameId).toBe('starter-frame')
   })
 
-  it('sets Core Run Levels and Mastery separately', () => {
+  it('sets shared Core Mastery', () => {
     let s = createInitialState(0)
-    s = applyDevAction(s, { type: 'set-core-run-levels', levels: { 0: 6 } })
     s = applyDevAction(s, { type: 'set-core-mastery', ranks: { 'pulse-cannon': 12 } })
-    expect(coreRunLevel(s, 0)).toBe(6)
     expect(moduleMasteryRank(s, 'pulse-cannon')).toBe(12)
   })
 

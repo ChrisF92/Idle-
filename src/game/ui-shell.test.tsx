@@ -27,7 +27,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )
@@ -39,23 +38,18 @@ describe('shell UX', () => {
     expect(document.querySelector('[data-guide="sortie-hull"]')).toBeTruthy()
   })
 
-  it('keeps Network off the Sortie sheet and opens Cores after hull loss', () => {
+  it('keeps Network and Core upgrades off the Sortie sheet', () => {
     const state = markHullLost(createInitialState(0))
     render(
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
-    expect(screen.getByRole('button', { name: /CORES/i })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /CORES/i })).toBeNull()
     expect(screen.getByRole('button', { name: 'Launch Sortie' })).toBeTruthy()
-    expect(document.querySelector('[data-guide="cores-sheet"]')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
-    expect(screen.getByText(/Run Levels reset/i)).toBeTruthy()
-    expect(document.querySelector('[data-guide="core-pulse-cannon"]')).toBeTruthy()
   })
 
   it('does not auto-open Cores when opening Sortie during a live run', () => {
@@ -69,7 +63,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         coresRequest={{ key: 1, moduleId: 'pulse-cannon' }}
         onCoresRequestHandled={() => {
@@ -87,7 +80,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         coresRequest={{ key: 1, moduleId: 'pulse-cannon' }}
       />,
@@ -131,7 +123,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )
@@ -208,7 +199,6 @@ describe('shell UX', () => {
       <CombatTab
         state={persist}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         guide={persistStep}
       />,
@@ -384,7 +374,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         onOpenFoundry={() => {
           opened = true
@@ -405,7 +394,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
         onOpenFoundry={() => undefined}
       />,

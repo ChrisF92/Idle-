@@ -7,7 +7,6 @@ import {
   prestigeGainFor,
   upgradeModule,
 } from './actions'
-import { moduleUpgradeCost } from './catalog'
 
 describe('post-prestige re-push balance', () => {
   it('keeps the S10 Matter curve value below the first legal Rebuild', () => {
@@ -69,11 +68,10 @@ describe('post-prestige re-push balance', () => {
     expect(state.research.unlocked).toContain('basic-optics')
 
     const before = computeShipStats(state).damage
-    const upgradeCost = moduleUpgradeCost(0, 'pulse-cannon')
     state.combat.docked = false
     state = upgradeModule(state, 'pulse-cannon')
-    expect(state.combat.coreRunLevels?.['0']).toBe(1)
-    expect(computeShipStats(state).damage).toBeGreaterThan(before)
-    expect(state.resources.salvage).toBe(19 - upgradeCost)
+    expect(state.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    expect(computeShipStats(state).damage).toBe(before)
+    expect(state.resources.salvage).toBe(19)
   })
 })

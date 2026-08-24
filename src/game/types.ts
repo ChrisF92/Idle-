@@ -1000,9 +1000,9 @@ export interface CombatState {
   bestWave: number
   /** Temporary Attack/Defense/Economy ranks bought with Salvage this Sortie. */
   runUpgrades: Record<string, number>
-  /** Temporary Core Run Levels by equipped slot index. Reset each Sortie. */
+  /** Retired Core Run Levels retained only for save compatibility. */
   coreRunLevels?: Record<string, number>
-  /** Salvage spent on each Core slot this Sortie. */
+  /** Retired Core spend ledger retained only for save compatibility. */
   coreSalvageSpent?: Record<string, number>
   /** Mastery rank at Sortie start, keyed by Core type. */
   coreMasteryStart?: Record<string, number>
@@ -1171,7 +1171,7 @@ export interface MetaState {
   moduleMasteryXp?: Record<string, number>
   /** Old Scrap Dock ranks have been converted into Mastery. */
   coreProgressionMigrated?: boolean
-  /** Lifetime Salvage Core Run Level purchases. */
+  /** Lifetime manual Core Level purchases (legacy field name retained in saves). */
   lifetimeCoreRunBuys?: number
   /**
    * After first Null Signal clear, Signal Cores inventory + equipped

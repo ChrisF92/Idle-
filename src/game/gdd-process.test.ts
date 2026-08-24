@@ -60,10 +60,11 @@ describe('GDD Process', () => {
     const open = processState()
     const ids = processVisibleNodes(open).map((n) => n.id)
     expect(ids).toContain('buy-ten')
+    expect(ids).toContain('shop-buy-max')
     expect(ids).toContain('shop-readout')
     expect(ids).toContain('auto-shop')
-    expect(ids).toContain('core-buy-max')
-    expect(ids).toContain('auto-salvage')
+    expect(ids).not.toContain('core-buy-max')
+    expect(ids).not.toContain('auto-salvage')
     expect(ids).not.toContain('spend-ratios')
     expect(ids).not.toContain('rule-builder')
     expect(ids).not.toContain('run-profiles')
@@ -76,27 +77,6 @@ describe('GDD Process', () => {
     }
     expect(canBuyProcessNode(open, 'auto-bank').ok).toBe(false)
     expect(canBuyProcessNode(open, 'offline-sortie').ok).toBe(false)
-  })
-
-  it('gates later Process nodes on Best Wave, not leftover sector bands', () => {
-    const early = processState({ wave: 50 })
-    early.process.purchased = ['auto-salvage']
-    early.resources.aiPoints = 20
-    expect(canBuyProcessNode(early, 'smart-core').reason).toBe('Reach Wave 60')
-    const ready = processState({ wave: 60 })
-    ready.process.purchased = ['auto-salvage']
-    ready.resources.aiPoints = 20
-    expect(canBuyProcessNode(ready, 'smart-core').ok).toBe(true)
-  })
-
-  it('reveals priorities after the first purchase', () => {
-    let s = processState()
-    s.shipyard.moduleLevels['pulse-cannon'] = 1
-    s.resources.aiPoints = 20
-    s = buyProcessNode(s, 'core-buy-max')
-    const ids = processVisibleNodes(s).map((n) => n.id)
-    expect(ids).toContain('core-priority')
-    expect(ids).not.toContain('smart-core')
   })
 
   it('counts industrial Worker jobs as mastery, not Strike or Ward bars', () => {
@@ -129,11 +109,11 @@ describe('GDD Process', () => {
     s.combat.docked = true
     s.prestige.prestigeCount = PROCESS_MIN_REBUILDS
     s.hiveResearch.completed.energy = 1
-    s.process.purchased = ['core-buy-max']
+    s.process.purchased = ['buy-ten']
     s.process.earned = 40
     s.resources.aiPoints = 36
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(s.process.purchased).toContain('core-buy-max')
+    expect(s.process.purchased).toContain('buy-ten')
     expect(s.process.earned).toBeGreaterThanOrEqual(40)
   })
 
@@ -185,12 +165,13 @@ describe('GDD Process', () => {
   it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
     expect(SAVE_VERSION).toBe(37)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
+    expect(PROCESS_NODES.find((n) => n.id === 'shop-buy-max')?.cost).toBe(4)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'auto-shop')?.cost).toBe(8)
     expect(PROCESS_NODES.find((n) => n.id === 'spend-ratios')?.cost).toBe(8)
     expect(PROCESS_NODES.find((n) => n.id === 'rule-builder')?.cost).toBe(12)
     expect(PROCESS_NODES.find((n) => n.id === 'run-profiles')?.cost).toBe(10)
-    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')?.cost).toBe(4)
+    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')).toBeUndefined()
     expect(PROCESS_HIDDEN_IDS.has('offline-sortie')).toBe(true)
     expect(PROCESS_HIDDEN_IDS.has('auto-bank')).toBe(true)
     expect(PROCESS_HIDDEN_IDS.has('echo-repeat')).toBe(true)

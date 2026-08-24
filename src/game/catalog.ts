@@ -1807,37 +1807,8 @@ export function moduleUpgradeCost(level: number, moduleId?: string, scalingAdd =
   return Math.ceil(base * scaling ** n)
 }
 
-/** Pulse Run Lv1 + Plate Run Lv1 — first Core Run Levels cost this much Salvage. */
+/** Starter Core definitions used by onboarding and telemetry. */
 export const STARTER_CORE_IDS = ['pulse-cannon', 'plate-layer'] as const
-
-export function salvageToRankStarterCores(
-  state: Pick<GameState, 'shipyard' | 'combat' | 'meta'>,
-  minLevel = 1,
-): number {
-  if ((state.meta?.lifetimeCoreRunBuys ?? 0) >= minLevel) return 0
-  let need = 0
-  for (const id of STARTER_CORE_IDS) {
-    const slot = state.shipyard.modules.indexOf(id)
-    let level =
-      slot >= 0 ? Math.max(0, Math.floor(state.combat?.coreRunLevels?.[String(slot)] ?? 0)) : 0
-    while (level < minLevel) {
-      need += moduleUpgradeCost(level, id)
-      level += 1
-    }
-  }
-  return need
-}
-
-/** Bank Salvage so the first Core Run Level is never unaffordable during the tour. */
-export function ensureStarterCoresTourSalvage(state: GameState): GameState {
-  const need = salvageToRankStarterCores(state)
-  if (need <= 0) return state
-  if ((state.resources.salvage ?? 0) >= need) return state
-  return {
-    ...state,
-    resources: { ...state.resources, salvage: need },
-  }
-}
 
 /**
  * Percent curve for stats that are not USI-flat (evasion, incoming).

@@ -372,7 +372,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'core-hands',
     name: 'Hands On Cores',
-    description: 'Buy two Core Run Levels during a Sortie.',
+    description: 'Buy two Core Levels with Scrap at Dock.',
     rewardAiPoints: 2,
     condition: { type: 'module-level-sum', min: 2 },
   },
@@ -1052,7 +1052,6 @@ export function guideStepNeedsTap(step: GuideStep): boolean {
 /** Cores modal should stay open for these spotlight targets. */
 export function isCoresGuideTarget(step: GuideStep): boolean {
   const t = step.target
-  if (t.startsWith('core-run-')) return false
   if (t.startsWith('core-') || t.startsWith('upgrade-')) return true
   return t === 'cores-sheet' && step.id !== 'guide-cores-sheet'
 }

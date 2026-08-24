@@ -15,7 +15,6 @@ import {
   setFoundrySlot,
   setResearchFocus,
   unlockModule,
-  buyCoreRunSlot,
   assignWorker,
   enterProtocol,
   buyWorkshopUpgrade,
@@ -34,12 +33,7 @@ import {
   SHIP_MODULES,
 } from '../catalog'
 import { pendingMilestone } from '../milestones'
-import {
-  CORE_RUN_LEVEL_CAP,
-  coreRunLevel,
-  coreRunUpgradeCost,
-  coreStartingLevelAtSlot,
-} from '../coreProgression'
+import { coreRunLevel, coreRunUpgradeCost } from '../coreProgression'
 import { computeShipStats } from '../state'
 import {
   NETWORK_BARS,
@@ -161,106 +155,6 @@ export function resolveMilestones(state: GameState, ctx: StrategyContext): GameS
       ctx.recordMeaningful(`${getModule(moduleId)?.name ?? moduleId} milestone ${choice.name}`)
       next = after
     }
-  }
-  return next
-}
-
-function coreScore(
-  state: GameState,
-  slot: number,
-  mode: SimulationSpendProfile,
-  hullPressure: number,
-): number {
-  const moduleId = state.shipyard.modules[slot]
-  if (!moduleId) return -1
-  const level = coreRunLevel(state, slot)
-  if (coreStartingLevelAtSlot(state, slot) + level >= CORE_RUN_LEVEL_CAP) return -1
-  const cost = coreRunUpgradeCost(level, moduleId)
-  if (cost > (state.resources.salvage ?? 0) || cost <= 0) return -1
-  const before = computeShipStats(state)
-  const probe = structuredClone(state)
-  probe.resources.salvage += cost
-  const upgraded = buyCoreRunSlot(probe, slot, 1)
-  const after = computeShipStats(upgraded)
-  const mod = getModule(moduleId)
-  const dpsGain = Math.max(0, after.damage - before.damage)
-  const hullGain = Math.max(0, after.hullMax - before.hullMax)
-  const shieldGain = Math.max(0, after.shieldMax - before.shieldMax)
-  const survivability = (hullGain + shieldGain * 1.2) * (0.4 + hullPressure)
-  if (mode === 'optimiser') {
-    return (dpsGain * 1.4 + survivability) / cost
-  }
-  if (mode === 'offensive') {
-    return (dpsGain * 2.2 + survivability * 0.35) / cost
-  }
-  if (mode === 'defensive') {
-    return (survivability * 2.1 + dpsGain * 0.35) / cost
-  }
-  if (mode === 'economy-first') {
-    if (mod?.role === 'utility') return 2.4 / Math.max(1, cost)
-    return (dpsGain + survivability * 0.55) / cost
-  }
-  if (mod?.role === 'defense') {
-    return (0.7 + hullPressure * 2) * (1 + shieldGain / Math.max(1, cost))
-  }
-  return (1.15 - hullPressure * 0.5) * (1 + dpsGain / Math.max(1, cost))
-}
-
-export function spendSalvageOnCores(
-  state: GameState,
-  ctx: StrategyContext,
-  mode: SimulationSpendProfile | 'active' | 'casual' | 'optimiser',
-): GameState {
-  const profile = resolveSpendProfile(mode)
-  if (state.combat.docked) return state
-  let next = state
-  let guard = 0
-  while (guard++ < (profile === 'casual' ? 4 : 12)) {
-    const hullMax = Math.max(1, next.combat.playerHullMax)
-    const hullPressure =
-      next.combat.consecutiveLosses >= 2
-        ? 1
-        : 1 - Math.max(0, Math.min(1, next.combat.playerHull / hullMax))
-    let bestSlot: number | null = null
-    let bestScore = 0
-    for (let slot = 0; slot < next.shipyard.modules.length; slot += 1) {
-      const id = next.shipyard.modules[slot]!
-      const level = coreRunLevel(next, slot)
-      const score =
-        profile === 'casual'
-          ? 1 / Math.max(1, coreRunUpgradeCost(level, id))
-          : coreScore(next, slot, profile, hullPressure)
-      if (score > bestScore) {
-        bestScore = score
-        bestSlot = slot
-      }
-    }
-    if (bestSlot == null || bestScore <= 0) break
-    const bestId = next.shipyard.modules[bestSlot]!
-    const level = coreRunLevel(next, bestSlot)
-    const cost = coreRunUpgradeCost(level, bestId)
-    const statsBefore = computeShipStats(next)
-    const after = buyCoreRunSlot(next, bestSlot, 1)
-    if (after === next) break
-    const statsAfter = computeShipStats(after)
-    const statBefore =
-      getModule(bestId)?.role === 'defense' ? statsBefore.shieldMax : statsBefore.damage
-    const statAfter =
-      getModule(bestId)?.role === 'defense' ? statsAfter.shieldMax : statsAfter.damage
-    ctx.recordCorePurchase({
-      moduleId: bestId,
-      name: getModule(bestId)?.name ?? bestId,
-      levelAfter: level + 1,
-      cost,
-      activeSeconds: ctx.activeSeconds,
-      statBefore,
-      statAfter,
-      marginalPerCost: cost > 0 ? (statAfter - statBefore) / cost : 0,
-    })
-    if (bestId === 'pulse-cannon' && level === 0) ctx.recordMeaningful('First Pulse upgrade')
-    if (bestId === 'plate-layer' && level === 0) ctx.recordMeaningful('First Plate upgrade')
-    else ctx.recordMeaningful(`${getModule(bestId)?.name ?? bestId} → Run Lv${level + 1}`)
-    next = after
   }
   return next
 }
@@ -684,7 +578,6 @@ export function industryPass(
   next = maybeUnlockAndFit(next, ctx)
   next = tendFoundry(next, ctx)
   next = spendScrapOnWorkshop(next, ctx, profile)
-  next = spendSalvageOnCores(next, ctx, profile)
   next = rebalanceNetwork(next, ctx, profile)
   next = buyUsefulNetworkLinks(next, ctx)
   next = tendFurnace(next, ctx)

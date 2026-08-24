@@ -161,12 +161,6 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
             </button>
             <button
               type="button"
-              onClick={() => onDevAction({ type: 'set-core-run-levels', levels: { 0: 12, 1: 8 } })}
-            >
-              Run Lv Pulse 12 / Plate 8
-            </button>
-            <button
-              type="button"
               onClick={() =>
                 onDevAction({
                   type: 'set-core-mastery',

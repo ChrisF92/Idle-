@@ -10,7 +10,7 @@ function processOwns(state: GameState, id: string): boolean {
 export function shopBulkTenUnlocked(state: GameState): boolean {
   return (
     processOwns(state, 'buy-ten') ||
-    processOwns(state, 'core-buy-max') ||
+    processOwns(state, 'shop-buy-max') ||
     processOwns(state, 'foundry-buy-max')
   )
 }
@@ -18,7 +18,7 @@ export function shopBulkTenUnlocked(state: GameState): boolean {
 /** MAX on Salvage / Workshop shops. */
 export function shopBuyMaxUnlocked(state: GameState): boolean {
   return (
-    processOwns(state, 'core-buy-max') ||
+    processOwns(state, 'shop-buy-max') ||
     processOwns(state, 'foundry-buy-max') ||
     processOwns(state, 'yard-buy-max')
   )

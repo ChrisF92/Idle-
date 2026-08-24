@@ -158,68 +158,21 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 2,
   },
   {
+    id: 'shop-buy-max',
+    name: 'Buy Max',
+    category: 'qol',
+    kind: 'qol',
+    blurb: 'Adds MAX to temporary Salvage upgrades and Workshop purchases.',
+    cost: 4,
+    requiresId: 'buy-ten',
+  },
+  {
     id: 'shop-readout',
     name: 'Shop Readout',
     category: 'qol',
     kind: 'qol',
     blurb: 'Shows time-to-afford and Economy ROI on Salvage and Workshop tiles.',
     cost: 2,
-  },
-  {
-    id: 'core-buy-max',
-    name: 'Core Buy Max',
-    category: 'cores',
-    kind: 'automation',
-    blurb: 'Adds Buy Max for Core Run Levels during a Sortie. Spends Salvage on the current priority.',
-    cost: 4,
-    requiresMastery: 'cores',
-  },
-  {
-    id: 'core-priority',
-    name: 'Core Upgrade Priority',
-    category: 'cores',
-    kind: 'automation',
-    blurb: 'Choose cheapest, weapon, shield, utility, or balanced before anything auto-spends.',
-    cost: 8,
-    requiresId: 'core-buy-max',
-  },
-  {
-    id: 'core-ratios',
-    name: 'Core Target Ratios',
-    category: 'cores',
-    kind: 'automation',
-    blurb: 'Set weapon / shield / utility level ratios. Auto spend follows the mix you wrote.',
-    cost: 12,
-    requiresId: 'core-priority',
-  },
-  {
-    id: 'core-presets',
-    name: 'Core Spending Presets',
-    category: 'cores',
-    kind: 'automation',
-    blurb: 'Save named Core spending mixes and swap them from Process.',
-    cost: 10,
-    requiresId: 'core-priority',
-  },
-  {
-    id: 'auto-salvage',
-    name: 'Core Auto Upgrade',
-    category: 'cores',
-    kind: 'automation',
-    blurb: 'While a Sortie is live, spend Salvage on Core Run Levels using your priority. Toggleable.',
-    cost: 8,
-    requiresId: 'core-buy-max',
-    requiresMastery: 'cores',
-  },
-  {
-    id: 'smart-core',
-    name: 'Core Value Spend',
-    category: 'cores',
-    kind: 'automation',
-    blurb: 'Unlocks Best value as a Core priority — most stat per Scrap, still your choice.',
-    cost: 12,
-    requiresId: 'auto-salvage',
-    requiresBestWave: 60,
   },
   {
     id: 'auto-shop',
@@ -639,6 +592,15 @@ export const PROCESS_HIDDEN_IDS = new Set([
   'foundry-auto',
 ])
 
+const RETIRED_CORE_RUN_PROCESS_IDS = new Set([
+  'core-buy-max',
+  'core-priority',
+  'core-ratios',
+  'core-presets',
+  'auto-salvage',
+  'smart-core',
+])
+
 export type ProcessRevealTier = 'qol' | 'actions' | 'priorities' | 'later'
 
 export const PROCESS_REVEAL_TIERS: { id: ProcessRevealTier; name: string }[] = [
@@ -903,6 +865,7 @@ export function getProcessNode(id: string): ProcessNodeDef | undefined {
 }
 
 export function hasProcess(state: GameState, id: string): boolean {
+  if (RETIRED_CORE_RUN_PROCESS_IDS.has(id)) return false
   return (state.process?.purchased ?? []).includes(id)
 }
 
@@ -1308,7 +1271,10 @@ export function hydrateProcessState(raw: ProcessState | undefined): ProcessState
   const empty = createEmptyProcessState()
   if (!raw || typeof raw !== 'object') return empty
   const purchased = Array.isArray(raw.purchased)
-    ? raw.purchased.filter((id) => typeof id === 'string')
+    ? raw.purchased
+        .filter((id) => typeof id === 'string')
+        .map((id) => (id === 'core-buy-max' ? 'shop-buy-max' : id))
+        .filter((id) => !RETIRED_CORE_RUN_PROCESS_IDS.has(id))
     : []
   return {
     purchased: grantProcessPrereqs(purchased),

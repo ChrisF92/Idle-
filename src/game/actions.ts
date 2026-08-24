@@ -1177,9 +1177,10 @@ function persistLoadout(
   return loadout
 }
 
-/** Sortie-only: spend Salvage to raise a Core's temporary Run Level. Dock no-op. */
+/** Retired compatibility action. Core upgrades are Dock-only through buyCoreStartingLevel. */
 export function upgradeModule(state: GameState, moduleId: string): GameState {
-  return buyCoreRunUpgrade(state, moduleId, 1)
+  void moduleId
+  return state
 }
 
 export function buyCoreStartingLevel(

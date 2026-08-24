@@ -18,7 +18,7 @@ import {
 import { REBUILD_MIN_SORTIES } from './rebuild'
 import { syncPersistedHullCaps } from './state'
 import { encounterForWave } from './combat'
-import { CORE_MASTERY_CAP, CORE_RUN_LEVEL_CAP, setCoreRunLevel } from './coreProgression'
+import { CORE_MASTERY_CAP } from './coreProgression'
 import { isBossWave, powerSectorForWave, bandsClearedForWave } from './waves'
 import { createDefaultProcessProfiles } from './processProfiles'
 import { noteCareerWave } from './playtest'
@@ -86,7 +86,6 @@ export type DevAction =
   | { type: 'skip-guides' }
   | { type: 'set-wave'; wave: number }
   | { type: 'set-module-levels'; levels: Record<string, number> }
-  | { type: 'set-core-run-levels'; levels: Record<number, number> }
   | { type: 'set-core-mastery'; ranks: Record<string, number> }
   | { type: 'reset-onboarding' }
   | { type: 'seed-late-game' }
@@ -295,13 +294,6 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       }
       syncPersistedHullCaps(next)
       next.combat.log = ['[dev] Core Mastery set.', ...next.combat.log].slice(0, 40)
-      break
-    }
-    case 'set-core-run-levels': {
-      for (const [slot, level] of Object.entries(action.levels)) {
-        setCoreRunLevel(next, Number(slot), Math.max(0, Math.min(CORE_RUN_LEVEL_CAP, Math.floor(level))))
-      }
-      next.combat.log = ['[dev] Core Run Levels set.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'set-core-mastery': {

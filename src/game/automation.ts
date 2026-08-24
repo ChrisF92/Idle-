@@ -23,9 +23,6 @@ import {
   launchFabProject,
   optimiseNetwork,
   pickFoundryUpgradeId,
-  pickProcessCoreUpgrade,
-  upgradeBestValueModule,
-  upgradeCheapestModule,
 } from './actions'
 import {
   SIGNAL_CORE_DEFS,
@@ -229,25 +226,6 @@ function autoFurnacePush(state: GameState): void {
     if (lit !== next) next = lit
   }
   if (next !== state) adopt(state, next)
-}
-
-/** Spend Salvage on Core Run Levels during a Sortie while affordable. */
-export function autoSalvageUpgrades(state: GameState): void {
-  if (state.combat.docked) return
-  const cfg = processConfig(state)
-  const processCores = hasProcess(state, 'auto-salvage') && cfg.core.enabled
-  if (!aiDoctrinesActive(state, 'auto-salvage-loop') && !processCores) return
-  let guard = 0
-  while (guard++ < 20) {
-    const next = processCores
-      ? pickProcessCoreUpgrade(state, { force: true })
-      : hasProcess(state, 'smart-core')
-        ? upgradeBestValueModule(state, { force: true })
-        : upgradeCheapestModule(state, { force: true })
-    if (next === state) break
-    if ((next.resources.salvage ?? 0) >= (state.resources.salvage ?? 0)) break
-    adopt(state, next)
-  }
 }
 
 function autoNetworkBalance(state: GameState): void {
@@ -476,7 +454,6 @@ export function tickAutomation(state: GameState): void {
   autoMergeSignalCores(state)
   autoFabBay(state)
   autoCoreTrain(state)
-  autoSalvageUpgrades(state)
   autoShopUpgrades(state)
   autoFurnacePush(state)
   autoNetworkBalance(state)

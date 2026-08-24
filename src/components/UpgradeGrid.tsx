@@ -18,17 +18,6 @@ import {
   workshopLevel,
   type BuyMode,
 } from '../game/workshop'
-import {
-  CORE_RUN_LEVEL_CAP,
-  corePrimaryOutput,
-  coreRunBulkCost,
-  coreRunLevel,
-  coreStartingLevelAtSlot,
-  equippedCoreSlots,
-  maxAffordableCoreRunPurchases,
-} from '../game/coreProgression'
-import { getModule, moduleMasteryRank } from '../game/catalog'
-import { masteryMilestoneEffect, nextMasteryMilestone } from '../game/coreProgression'
 import { BottomSheet } from '../ui/primitives'
 
 export type UpgradeGridKind = 'run' | 'workshop'
@@ -38,21 +27,13 @@ interface UpgradeGridProps {
   category: RunUpgradeCategory
   kind: UpgradeGridKind
   buyMode: BuyMode
-  coresOnly?: boolean
   onBuy?: (id: RunUpgradeId, count: number) => void
-  onBuyCore?: (slot: number, count: number) => void
 }
 
 function purchaseCount(state: GameState, id: RunUpgradeId, kind: UpgradeGridKind, mode: BuyMode): number {
   if (mode === 1) return 1
   if (mode === 10) return 10
   return kind === 'run' ? maxAffordableRunPurchases(state, id) : maxAffordableWorkshopPurchases(state, id)
-}
-
-function corePurchaseCount(state: GameState, slot: number, mode: BuyMode): number {
-  if (mode === 1) return 1
-  if (mode === 10) return 10
-  return maxAffordableCoreRunPurchases(state, slot)
 }
 
 export function BuyModeRow({
@@ -88,87 +69,20 @@ export function UpgradeGrid({
   category,
   kind,
   buyMode,
-  coresOnly = false,
   onBuy,
-  onBuyCore,
 }: UpgradeGridProps) {
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
-  const rows = coresOnly ? [] : visibleRunUpgrades(best, category)
-  const cores = kind === 'run' && coresOnly ? equippedCoreSlots(state) : []
+  const rows = visibleRunUpgrades(best, category)
   const [infoId, setInfoId] = useState<string | null>(null)
-  const [coreInfo, setCoreInfo] = useState<number | null>(null)
-  if (rows.length === 0 && cores.length === 0) {
+  if (rows.length === 0) {
     return <p className="muted">More upgrades open as Best Wave climbs.</p>
   }
   const info = rows.find((row) => row.id === infoId)
-  const coreSlot = coreInfo != null ? cores.find((row) => row.slot === coreInfo) : null
 
   return (
     <div className="upgrade-grid">
-      {cores.length > 0 ? (
-        <>
-          <p className="shop-kicker">CORES</p>
-          {cores.map((row) => {
-            const def = getModule(row.moduleId)
-            if (!def) return null
-            const level = coreRunLevel(state, row.slot)
-            const startingLevel = coreStartingLevelAtSlot(state, row.slot)
-            const effectiveLevel = startingLevel + level
-            const count = Math.max(1, corePurchaseCount(state, row.slot, buyMode))
-            const cost = coreRunBulkCost(state, row.slot, count)
-            const bank = state.resources.salvage ?? 0
-            const affordable = bank >= cost && effectiveLevel < CORE_RUN_LEVEL_CAP && cost > 0
-            const maxed = effectiveLevel >= CORE_RUN_LEVEL_CAP
-            const out = corePrimaryOutput(state, row.slot)
-            const guide =
-              row.moduleId === 'pulse-cannon' && row.slot === state.shipyard.modules.indexOf('pulse-cannon')
-                ? 'core-run-pulse-cannon'
-                : `core-run-${row.slot}`
-            return (
-              <article
-                key={`core-${row.slot}`}
-                className={`upgrade-tile core-tile${affordable ? ' is-affordable' : maxed ? ' is-maxed' : ' is-short'}`}
-                data-guide={guide}
-              >
-                <button
-                  type="button"
-                  className="upgrade-tile-buy"
-                  disabled={!onBuyCore || maxed}
-                  onClick={() => onBuyCore?.(row.slot, count)}
-                  aria-label={`${def.name}. ${affordable ? `Buy ${count} Run Levels for ${formatCompact(cost)} Salvage` : maxed ? 'Maxed' : `Need ${formatCompact(cost)} Salvage`}`}
-                >
-                  <span className="upgrade-tile-top">
-                    <strong>{def.name}</strong>
-                  </span>
-                  <span className="upgrade-tile-level">
-                    {startingLevel > 0 ? `Lv${startingLevel} + Run ${level}` : `Run Lv${level}`}
-                  </span>
-                  <span className="upgrade-tile-preview">
-                    {out
-                      ? `${formatCompact(out.current)} → ${formatCompact(out.next)} ${out.label}`
-                      : 'Run Level'}
-                  </span>
-                  <span className={`upgrade-tile-cost${affordable ? ' is-ok' : maxed ? '' : ' is-short'}`}>
-                    {maxed ? 'Maxed' : `${formatCompact(cost)} Salvage`}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="upgrade-tile-info"
-                  aria-label={`${def.name} details`}
-                  onClick={() => setCoreInfo(row.slot)}
-                >
-                  i
-                </button>
-              </article>
-            )
-          })}
-        </>
-      ) : null}
-
       {rows.length > 0 ? (
         <>
-          {kind === 'run' && cores.length > 0 ? <p className="shop-kicker">GLOBAL</p> : null}
           {rows.map((def) => {
             const start = workshopLevel(state, def.id)
             const run = runPurchasedLevel(state, def.id)
@@ -284,36 +198,6 @@ export function UpgradeGrid({
             </p>
           ) : null}
           {shopEconomyRoi(state, info.id) ? <p className="muted">{shopEconomyRoi(state, info.id)}</p> : null}
-        </BottomSheet>
-      ) : null}
-
-      {coreSlot ? (
-        <BottomSheet
-          open
-          title={getModule(coreSlot.moduleId)?.name ?? 'Core'}
-          onClose={() => setCoreInfo(null)}
-          size="standard"
-          overlayId={`core-info-${coreSlot.slot}`}
-        >
-          <p>
-            Core Level {coreStartingLevelAtSlot(state, coreSlot.slot)} + Run Level{' '}
-            {coreRunLevel(state, coreSlot.slot)} / {CORE_RUN_LEVEL_CAP}
-          </p>
-          <p className="muted">
-            Mastery {moduleMasteryRank(state, coreSlot.moduleId)} · Run Lv
-            {coreRunLevel(state, coreSlot.slot)}
-          </p>
-          <p>Run Levels use Salvage and last only for this Sortie.</p>
-          <p className="muted">Mastery is earned while the Core is equipped and survives Rebuild.</p>
-          {(() => {
-            const next = nextMasteryMilestone(coreSlot.moduleId, moduleMasteryRank(state, coreSlot.moduleId))
-            return next ? (
-              <p className="muted">
-                Next: M{next.level} · {next.name} — {masteryMilestoneEffect(next)}
-              </p>
-            ) : null
-          })()}
-          <p className="muted">Loadout and Relics stay locked until Dock.</p>
         </BottomSheet>
       ) : null}
     </div>

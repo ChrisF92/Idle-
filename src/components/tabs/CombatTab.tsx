@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { formatCompact } from '../../game/format'
-import { activeGuideStep, isCoresGuideTarget, type GuideStep } from '../../game/progression'
+import { type GuideStep } from '../../game/progression'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { SheetTabs } from '../SheetTabs'
 import { type BuyMode } from '../../game/workshop'
@@ -19,16 +19,14 @@ import { DIRECTIVES, directivesUnlocked, getDirective, hasDirectiveOffer } from 
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
 import { isChallengeSortie } from '../../game/frontier'
 
-type ShopTab = RunUpgradeCategory | 'cores'
+type ShopTab = RunUpgradeCategory
 
 interface CombatTabProps {
   state: GameState
   onLaunch: () => void
   onExtract?: () => void
   onBuyRunUpgrade?: (id: RunUpgradeId, count?: number) => void
-  onBuyCoreRun?: (slot: number, count?: number) => void
   onViewReport?: () => void
-  onUpgrade: (moduleId: string) => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
   guide?: GuideStep | null
@@ -44,20 +42,12 @@ interface CombatTabProps {
   onCycleSpeed?: () => void
 }
 
-function coresGuideActive(state: GameState, guide?: GuideStep | null): boolean {
-  const step = guide ?? activeGuideStep(state, 'combat')
-  if (!step) return false
-  return isCoresGuideTarget(step)
-}
-
 export function CombatTab({
   state,
   onExtract,
   onBuyRunUpgrade,
-  onBuyCoreRun,
   paused = false,
   guide = null,
-  onMarkCoresSeen,
   onChooseDirective,
   onCycleSpeed,
 }: CombatTabProps) {
@@ -66,7 +56,6 @@ export function CombatTab({
   const dying = (combat.defeatLeft ?? 0) > 0
   const live = !combat.docked
   const titleId = useId()
-  const forceCores = coresGuideActive(state, guide)
   const [shopTab, setShopTab] = useState<ShopTab>('attack')
   const [buyMode, setBuyMode] = useState<BuyMode>(1)
   const [shopCollapsed, setShopCollapsed] = useState(true)
@@ -88,13 +77,6 @@ export function CombatTab({
   const extraSpeeds = availableSortieSpeeds(state).length > 1
 
   useEffect(() => {
-    if (!forceCores) return
-    setShopCollapsed(false)
-    setShopTab('cores')
-    onMarkCoresSeen?.()
-  }, [forceCores, onMarkCoresSeen])
-
-  useEffect(() => {
     if (guide?.target === 'run-upgrade-weapon-power') {
       setShopCollapsed(false)
       setShopTab('attack')
@@ -102,10 +84,6 @@ export function CombatTab({
     if (guide?.target === 'run-upgrade-hull') {
       setShopCollapsed(false)
       setShopTab('defense')
-    }
-    if (guide?.target?.startsWith('core-run') || guide?.target === 'cores-sheet') {
-      setShopCollapsed(false)
-      setShopTab('cores')
     }
   }, [guide?.target])
 
@@ -388,7 +366,6 @@ export function CombatTab({
                     { id: 'attack', label: 'Attack' },
                     { id: 'defense', label: 'Defense' },
                     { id: 'economy', label: 'Economy' },
-                    { id: 'cores', label: 'Cores' },
                   ]}
                   label="Upgrade categories"
                 />
@@ -399,12 +376,10 @@ export function CombatTab({
                 <BuyModeRow state={state} value={buyMode} onChange={setBuyMode} />
                 <UpgradeGrid
                   state={state}
-                  category={shopTab === 'cores' ? 'attack' : shopTab}
+                  category={shopTab}
                   kind="run"
-                  coresOnly={shopTab === 'cores'}
                   buyMode={buyMode}
                   onBuy={(id, count) => onBuyRunUpgrade?.(id, count)}
-                  onBuyCore={(slot, count) => onBuyCoreRun?.(slot, count)}
                 />
               </div>
             )}

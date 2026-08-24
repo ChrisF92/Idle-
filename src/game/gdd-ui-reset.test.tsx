@@ -127,7 +127,6 @@ describe('UI architecture reset', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )
@@ -143,7 +142,6 @@ describe('UI architecture reset', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )
@@ -161,7 +159,7 @@ describe('UI architecture reset', () => {
     expect(screen.queryByRole('tab', { name: 'Attack' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Cores' })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Cores' })).toBeNull()
     expect(screen.queryByRole('button', { name: /CORES ·/ })).toBeNull()
     const shopTabs = document.querySelector('.sortie-shop-head .sheet-tabs')
     const shopBody = document.querySelector('.sortie-shop-body')
@@ -169,8 +167,6 @@ describe('UI architecture reset', () => {
     expect(shopBody).toBeTruthy()
     expect(shopBody?.contains(shopTabs)).toBe(false)
     expect(shopBody?.querySelector('.upgrade-grid')).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }))
-    expect(screen.getByText(/Pulse Cannon/)).toBeTruthy()
     fireEvent.click(document.querySelector('[data-guide="salvage-stat"]')!)
     expect(screen.getByText('Salvage /s')).toBeTruthy()
   })
@@ -257,7 +253,7 @@ describe('UI architecture reset', () => {
     expect(screen.getByText(/Damage ×1\.08/)).toBeTruthy()
     expect(screen.getByText(/RoF ×1\.08/)).toBeTruthy()
     expect(screen.getByText(/\+1 Optical Relic socket/)).toBeTruthy()
-    expect(screen.getByText(/Run Level scaling ×1\.10/)).toBeTruthy()
+    expect(screen.getByText(/Core Level scaling ×1\.10/)).toBeTruthy()
     expect(screen.getByText(/Damage ×1\.12 · Range \+10/)).toBeTruthy()
     expect(screen.getByText(/Damage ×1\.06 · Shield ×1\.06/)).toBeTruthy()
     expect(screen.queryByText(/Unlocks an extra Relic socket/)).toBeNull()

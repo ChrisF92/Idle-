@@ -16,7 +16,6 @@ import { moduleUpgradeCost } from './catalog'
 import { hiveResearchNodeCost, HIVE_RESEARCH_WORKER_ACCEL } from './hiveResearch'
 import { NETWORK_FILL_COST, NETWORK_STARTING_DRONES } from './network'
 import { FURNACE_BASE_IDLE_GEN, FURNACE_CHANNEL_MAX } from './furnace'
-import { buyMaxCores } from './actions'
 import {
   GUIDE_STEPS,
   PRESTIGE_MIN_SECTOR,
@@ -75,7 +74,7 @@ describe('Act 1 authored formulas', () => {
     expect(ENEMY_HULL_EARLY).toBeGreaterThan(1)
     expect(ENEMY_DMG_EARLY).toBeGreaterThan(1)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
-    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')?.cost).toBe(4)
+    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')).toBeUndefined()
   })
 
   it('lists explicit progression windows from the opening through late career doors', () => {
@@ -139,26 +138,6 @@ describe('Act 1 onboarding audit', () => {
     expect(blob.toLowerCase()).toMatch(/rebuild/)
     expect(blob.toLowerCase()).toMatch(/focus/)
     expect(blob.toLowerCase()).toMatch(/starvation|cycle work|half the sector/)
-  })
-})
-
-describe('Act 1 Buy Max / Core Run Levels', () => {
-  it('spends Salvage on Run Levels during a Sortie and refuses Dock ranking', () => {
-    const docked = createInitialState(0)
-    docked.combat.docked = true
-    docked.process.purchased = ['core-buy-max']
-    docked.resources.salvage = 40
-    docked.resources.scrap = 80
-    const stillDocked = buyMaxCores(docked)
-    expect(stillDocked.resources.scrap).toBe(80)
-    expect(stillDocked.resources.salvage).toBe(40)
-
-    const live = structuredClone(docked)
-    live.combat.docked = false
-    const after = buyMaxCores(live)
-    expect(after.resources.salvage).toBeLessThan(40)
-    expect(after.resources.scrap).toBe(80)
-    expect(Object.values(after.combat.coreRunLevels ?? {}).reduce((a, b) => a + b, 0)).toBeGreaterThan(0)
   })
 })
 

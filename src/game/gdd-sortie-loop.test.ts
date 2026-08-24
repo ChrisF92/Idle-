@@ -90,25 +90,14 @@ describe('GDD sortie loop', () => {
     expect(effectiveUpgradeLevel(s, 'weapon-power')).toBe(1)
   })
 
-  it('spends Salvage on Core Run Levels mid-Sortie', () => {
+  it('keeps Core upgrades out of the Sortie', () => {
     let s = launch(createInitialState())
     s.resources.salvage = 80
     s.resources.scrap = 80
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.combat.coreRunLevels?.['0']).toBe(1)
-    expect(s.resources.salvage).toBeLessThan(80)
+    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    expect(s.resources.salvage).toBe(80)
     expect(s.resources.scrap).toBe(80)
-  })
-
-  it('resets Core Run Levels after Extract', () => {
-    let s = launch(createInitialState())
-    s.resources.salvage = 80
-    s = upgradeModule(s, 'pulse-cannon')
-    expect(s.combat.coreRunLevels?.['0']).toBe(1)
-    s = setDocked(s, true)
-    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
-    s = launch(s)
-    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
   })
 
   it('clearing ten waves records a band clear for existing system gates', () => {

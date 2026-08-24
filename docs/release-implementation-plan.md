@@ -56,7 +56,7 @@ Locked 2026-08-22 from owner answers. GDD Appendix E: D1 is an explicit review, 
 
 | ID | Question | Status | Lock |
 |---|---|---|---|
-| **D1** | How do Cores gain power? | **LOCKED** (revised) | **GDD §22 + §32.** Sortie Cores are upgradeable with **Salvage Run Levels**, bought through **Attack / Defense / Economy** by role (weapon → Attack, defense → Defense, utility → Economy). Run Levels reset when the Sortie ends. **No Dock Scrap Core ranks.** `workshop.coreStarts` and Dock “Upgrade · N Scrap” on Cores are removed. Persistent per-Core progress is **Mastery only** (plus unlocks and Relics). Workshop Scrap still starts the *global* A/D/E upgrades (Weapon Power, Hull, …), not individual Cores. |
+| **D1** | How do Cores gain power? | **LOCKED** (revised) | Core upgrades are **Dock-only**. Each physical copy has its own Scrap-funded cycle Level and Relic loadout; identical copies share Mastery. The Sortie shop contains only global Attack / Defense / Economy upgrades. |
 | **D2** | Process Tier 4–6 (WHEN/THEN + profiles) for 1.0? | **LOCKED** | **Ship for 1.0.** Thin the rule vocabulary; do not skip the builder. After T1–T3 polish. |
 | **D3** | Combat presentation? | **LOCKED** | **Orbiting Cores around a central Hive.** Single Hive hull/shield pool; weapons are per-Core satellites. |
 | **D4** | Delete gated leftovers? | **LOCKED** (default kept) | Unwire from UI now. Delete or isolate. Capital / Specialists / Tasks stay deferred, not half-reachable. |
@@ -120,7 +120,7 @@ Main already has the **GDD spine**, locked by `src/game/gdd-*.test.ts`:
 
 What is *not* done is the **identity pass**: Hive + orbiting Cores, GDD Frames (one-cut replace), Network retirement, enemy taxonomy, Process rule builder, onboarding, leftover deletion, Play Store wrap, Wave-native dev tools / playtests, and a four-curve balance pass.
 
-**D1 (revised, GDD-aligned):** Sortie Cores take Salvage Run Levels under Attack / Defense / Economy. Dock does not rank Cores with Scrap. Mastery is the only persistent per-Core stat. The `2ae52cf` Dock Scrap ranks are a **reverted experiment**, not an amendment.
+**D1 (revised):** Physical Core copies take Scrap-funded Levels at Dock. Mastery remains shared by Core definition. Sorties do not offer Core upgrades.
 
 ---
 
@@ -140,7 +140,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Foundry processing + fabrication | DONE | Processing vs timed Fabrication (SAVE 37). Mastery table 1–100. Facilities on fab slots; bonuses arm next Sortie. Ranks / Fit / FP deleted. |
 | Worker Drones | DONE | Six GDD jobs. Power / Repair / train-* dropped. Drone production gated by constructed Fabricator. |
 | Network Strike/Ward/Yield bars | LEGACY | Combat mults = 1; Yield/Loom/Archive still multiply |
-| Core Salvage Run Levels (A/D/E by role) | CONFLICT | GDD + D1: Sortie Salvage. Live code + `gdd-visual.test.tsx` still encode Dock Scrap ranks — Phase 3 rewrites that |
+| Physical Core Levels | DONE | Per-copy Scrap Levels at Dock; shared Mastery; no Sortie Core upgrades |
 | Orbiting Core units + visual families | MISSING | Weapons mounted on `Flagship` |
 | Duplicate Cores | MISSING | `canFitModuleOnFrame` rejects same `moduleId` |
 | Hive Frames as archetypes | PARTIAL | 9 USI hulls + Bastion; no Swarm/Reactor/Harvester |
@@ -183,7 +183,7 @@ Order is dependency order, not calendar. Each phase is one PR off the previous. 
 
 **Work:**
 
-- Add this file and lock owner decisions (D1 Sortie Salvage Core Run Levels via A/D/E, no Dock Scrap Core ranks; D2 Process 1.0; D3 orbiting Cores; D5 Play wrap; D8 Frame cut; D10 no migration + mandatory cheats/playtests).
+- Add this file and lock owner decisions (D1 per-copy Scrap Core Levels at Dock, no Sortie Core upgrades; D2 Process 1.0; D3 orbiting Cores; D5 Play wrap; D8 Frame cut; D10 mandatory cheats/playtests).
 - Rewrite `README.md` to the GDD loop (Waves, Hive, Workshop, Rebuild, no sectors-as-career).
 - Mark `docs/usi-reskin-plan.md` **superseded**. Keep it as history; do not follow it.
 - Retitle `docs/act1-balance.md` as a **historical USI-era curve note**, or slim it to a pointer at `src/game/balance/act1.ts` + GDD §141–155. Do not use its sector doors.
@@ -302,20 +302,16 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 
 ### Phase 3 — Buildcraft: Frames, Cores, Relics, loadout UI
 
-**Intent:** build identity is Frame + Cores + Relics. Cores level in the Sortie through Attack / Defense / Economy. Dock never spends Scrap on Core ranks (D1).
+**Intent:** build identity is Frame + physical Core copies + Relics. Core Levels use Scrap at Dock; Sorties never sell Core upgrades (D1).
 
 **Files:** `catalog.ts` (`SHIP_FRAMES`, `SHIP_MODULES`), `actions.ts` (`upgradeModule`, `fitModule`, `canFitModuleOnFrame`), `workshop.ts` (`coreStarts`), `CombatTab.tsx`, `DockTab.tsx`, `inspect.ts`, `reliquary.ts`, `gdd-visual.test.tsx`, `gdd-sortie-loop.test.ts`.
 
 **Work:**
 
-1. **Remove Dock Scrap Core ranks.** Delete `workshop.coreStarts`, Dock “Upgrade · N Scrap” on Cores, and any Scrap cost on `upgradeModule`. Dock Loadout is equip / Relics / Mastery inspect only.
-2. **Salvage Run Levels on fitted Cores during the Sortie** (GDD §22, §115). Paid with Salvage. Reset to 0 when the Sortie ends (Extract or death). Rebuild also clears them because the Sortie is gone.
-3. **Buy them through Attack / Defense / Economy by role:**
-   - Weapon Cores (Pulse, Beam, Flak, Lance, …) under **Attack**
-   - Defense Cores (Plate, Barrier, Repair, …) under **Defense**
-   - Utility Cores (Salvage, targeting, …) under **Economy**
-   Fitted Cores of that role appear as cards in that shop pane (Run Lv, next Salvage cost, Buy). The Cores sheet can show the same buy or deep-link to the pane. Global A/D/E upgrades (Weapon Power, Hull, Salvage/Kill, …) stay as they are and still use Workshop starts + Salvage buys (GDD §36).
-4. **Mastery is the only persistent per-Core stat.** Slow, account-wide. Milestones at 5 / 10 / 20 / 30 / 50 (75/100 remote). Socket unlocks and behaviour mods live here. Mastery is not bought with Scrap.
+1. **Core upgrades live at Dock only.** Loadout and Inventory expose “Upgrade Core · N Scrap”.
+2. **Each physical copy levels independently.** Identical copies share Mastery, but not Core Level or Relics.
+3. **The Sortie shop is global only:** Attack, Defense, and Economy upgrades; no Cores tab or Core automation.
+4. **Mastery stays shared by Core definition.** Milestones and behaviour mods remain long-lived and are not bought.
 5. **Done (D8).** USI hull ladder wiped for Starter + Bastion / Swarm / Reactor / Harvester (`SAVE_VERSION` 35).
 6. **Done.** Bastion = Wave 70. Swarm = Foundry Temper Bar. Reactor = Research Extra Tap. Harvester = Swarm Pressure first clear.
 7. **Done.** Duplicate Core types; limits are Frame slot counts and role caps.
@@ -324,17 +320,17 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 10. **Done.** Dock Loadout comparison shows Hull / Shield / DPS / slots before → after. Locked Frames list their unlock line.
 11. **Done (this slice).** Core roster whitelist (Pulse, Beam, Flak, Lance, Plate, Barrier, Lathe, Drone Bay, Charge Prism, Choir Tap). Leftovers hide unless already unlocked.
 12. **Done (this slice).** Acquisition copy: assemble then fit at Dock. Mid-Sortie assemble toasts “available next Sortie.”
-13. Rewrite `gdd-visual.test.tsx` and any “inspect-only Cores / Scrap at Dock” assertions. Add tests: Salvage Run Level on Pulse lives under Attack; Plate under Defense; reset on Extract; Dock cannot spend Scrap on a Core; Mastery survives Rebuild.
-14. **Done.** Dev Tools Frame picker (Starter / Bastion / Swarm / Reactor / Harvester) + Run Levels / Mastery. USI hull cheats gone.
+13. Add tests: duplicate copies level independently with Scrap; Mastery remains shared; Sortie contains no Core controls; Core Levels reset on Rebuild.
+14. **Done.** Dev Tools Frame picker (Starter / Bastion / Swarm / Reactor / Harvester) + Mastery. USI hull cheats gone.
 
 **Acceptance:**
 
-- Player can run 3 Pulse + 1 Barrier + 1 Salvage on Swarm Frame and Salvage-level each Pulse separately under Attack.
+- Player can run duplicate Cores and upgrade each physical copy separately at Dock.
 - Switching Bastion ↔ Swarm shows % deltas without leaving Dock.
-- Mid-Sortie Salvage raises Core Run Levels. Dock Scrap cannot. Extract/defeat returns Run Levels to 0.
-- Mastery and Relics persist through Rebuild. Workshop still starts global Weapon Power / Hull / etc.
+- Mid-Sortie Salvage cannot raise individual Cores.
+- Mastery and Relics persist through Rebuild. Scrap Core Levels and Workshop upgrades reset.
 
-**SAVE_VERSION:** yes (drop `coreStarts`, add run-level fields). Hard wipe is fine (D10).
+**SAVE_VERSION:** no bump required; retired Run Level fields hydrate but no longer affect gameplay.
 
 ---
 
@@ -552,7 +548,7 @@ Also:
 | 0 | Docs + this plan + locked decisions | no |
 | 1 | Legacy excision + Wave naming + **dev/playtest rewrite** | yes (cleaner IA + cheats) |
 | 2 | Hive + orbiting Cores + families | yes (the game’s look) |
-| 3 | GDD Frames / Sortie A/D/E Core Run Levels / loadout UI | yes (buildcraft) |
+| 3 | GDD Frames / physical Core copies / Dock Core Levels / loadout UI | yes (buildcraft) |
 | 4 | Workers + Foundry factory | yes |
 | 5 | Research tree + Matter shop | yes |
 | 6 | Onboarding + toasts | yes |
@@ -622,8 +618,8 @@ From GDD §99–101, §166–167:
 **Keep as regression (they already express GDD):**  
 `gdd-sortie-loop`, `gdd-rebuild`, `gdd-reinforce`, `gdd-directives`, `gdd-furnace`, `gdd-workers`, `gdd-foundry-construction`, `gdd-research`, `gdd-process` (T1–T3 gates), `gdd-challenges`, `gdd-content`, `gdd-sim-playtest`, `gdd-relics`, `gdd-mastery`, `gdd-removed-loop`, `gdd-ui-ia`, `gdd-offline`, `gdd-cadence`.
 
-**Rewrite for D1 (current tests encode the discarded Dock Scrap experiment):**  
-`gdd-visual.test.tsx` (inspect-only Cores / Scrap ranks), `gdd-sortie-loop` if it forbids Salvage Core buys. New contract: Salvage Run Levels by role under A/D/E; no Dock Scrap Core ranks; Mastery persists.
+**Rewrite for D1:**
+`gdd-visual.test.tsx` and `gdd-sortie-loop` enforce Dock-only Scrap Core Levels. New contract: no Sortie Core purchases; per-copy Levels and Relics; shared Mastery.
 
 **Add:**
 
@@ -634,7 +630,7 @@ From GDD §99–101, §166–167:
 - Onboarding path (enabled).
 - No leftover tab ids in More/Systems.
 - Dev Tools: each GDD door preset grants that system and no removed one.
-- Playtest / sim: Wave-1 launch, Salvage Core Run Levels via A/D/E, `ACT1_CADENCE` doors. No Scrap Core ranks.
+- Playtest / sim: Wave-1 launch, global Sortie A/D/E upgrades, Dock-only Core Levels, `ACT1_CADENCE` doors.
 
 ---
 

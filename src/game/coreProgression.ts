@@ -1,4 +1,4 @@
-/** Core Run Levels (temporary Salvage) and usage-driven Core Mastery. */
+/** Scrap-funded physical Core Levels and usage-driven shared Core Mastery. */
 
 import type { GameState, RelicSocketClass, RunUpgradeCategory } from './types'
 import {
@@ -11,7 +11,6 @@ import {
   moduleWeaponDamage,
 } from './catalog'
 import { isChallengeSortie } from './frontier'
-import { noteSalvageSpend } from './sortieSummary'
 import { protocolCoreScalingAdd } from './protocols'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { milestoneModsFor } from './milestones'
@@ -159,6 +158,7 @@ export function buyCoreStartingLevel(
     if (cost <= 0 || (next.resources.scrap ?? 0) < cost) break
     next.resources.scrap -= cost
     next.workshop.coreStarts[instance.id] = level + 1
+    next.meta.lifetimeCoreRunBuys = (next.meta.lifetimeCoreRunBuys ?? 0) + 1
     bought += 1
   }
   if (bought <= 0) return state
@@ -358,7 +358,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Hardened Pulse', blurb: 'Base effectiveness +8%.', damageMult: 1.08 },
     { level: 10, name: 'Tight Cycle', blurb: 'Faster pulse cadence.', cooldownMult: 1 / 1.08 },
     { level: 20, name: 'Optical Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'optical' },
-    { level: 30, name: 'Run Feed', blurb: 'Sortie Run Levels scale harder.', runScaleMult: 1.1 },
+    { level: 30, name: 'Core Feed', blurb: 'Core Levels scale harder.', runScaleMult: 1.1 },
     { level: 50, name: 'Foundry Arc', blurb: 'Pulse behaviour evolves.', damageMult: 1.12, rangeAdd: 10 },
     ...SHARED_LATE,
   ],
@@ -366,7 +366,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Keel Weight', blurb: 'Heavier pierce.', damageMult: 1.1 },
     { level: 10, name: 'Slow Pierce', blurb: 'Armour-breaking focus.', damageMult: 1.06, rangeAdd: 8 },
     { level: 20, name: 'Ballistic Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'ballistic' },
-    { level: 30, name: 'Run Feed', blurb: 'Sortie Run Levels scale harder.', runScaleMult: 1.1 },
+    { level: 30, name: 'Core Feed', blurb: 'Core Levels scale harder.', runScaleMult: 1.1 },
     { level: 50, name: 'Breach Lance', blurb: 'Sustained pierce evolves.', damageMult: 1.14 },
     ...SHARED_LATE,
   ],
@@ -382,7 +382,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Held Contact', blurb: 'Beam damage +8%.', damageMult: 1.08 },
     { level: 10, name: 'Tracking Lock', blurb: 'Slightly longer reach.', rangeAdd: 12 },
     { level: 20, name: 'Optical Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'optical' },
-    { level: 30, name: 'Ramp Feed', blurb: 'Run Levels scale the beam harder.', runScaleMult: 1.12 },
+    { level: 30, name: 'Ramp Feed', blurb: 'Core Levels scale the beam harder.', runScaleMult: 1.12 },
     { level: 50, name: 'Chain Phase', blurb: 'Sustained contact evolves.', damageMult: 1.12, splashAdd: 1 },
     ...SHARED_LATE,
   ],
@@ -390,7 +390,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Bulk Ward', blurb: 'Shield ceiling +12%.', shieldMult: 1.12 },
     { level: 10, name: 'Quick Regen', blurb: '+2%/s shield regen.', regenAdd: 0.02 },
     { level: 20, name: 'Shield Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'shield' },
-    { level: 30, name: 'Run Bank', blurb: 'Sortie Run Levels thicken the bank more.', runScaleMult: 1.1 },
+    { level: 30, name: 'Core Bank', blurb: 'Core Levels thicken the bank more.', runScaleMult: 1.1 },
     { level: 50, name: 'Bastion Field', blurb: 'Break response evolves.', shieldMult: 1.15, regenAdd: 0.02 },
     ...SHARED_LATE,
   ],
@@ -398,7 +398,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Mesh Bank', blurb: 'Fast lattice ceiling.', shieldMult: 1.1 },
     { level: 10, name: 'Mesh Flow', blurb: '+3%/s regen.', regenAdd: 0.03 },
     { level: 20, name: 'Shield Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'shield' },
-    { level: 30, name: 'Run Flow', blurb: 'Run Levels scale regen and bank.', runScaleMult: 1.1, regenAdd: 0.01 },
+    { level: 30, name: 'Core Flow', blurb: 'Core Levels scale regen and bank.', runScaleMult: 1.1, regenAdd: 0.01 },
     { level: 50, name: 'Live Lattice', blurb: 'Chip endurance evolves.', shieldMult: 1.12, regenAdd: 0.03 },
     ...SHARED_LATE,
   ],
@@ -406,7 +406,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Second Skin', blurb: 'Projected shield +12%.', shieldMult: 1.12 },
     { level: 10, name: 'Hold Field', blurb: 'Break recovery.', regenAdd: 0.02 },
     { level: 20, name: 'Shield Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'shield' },
-    { level: 30, name: 'Run Projection', blurb: 'Run Levels scale the envelope.', runScaleMult: 1.1 },
+    { level: 30, name: 'Core Projection', blurb: 'Core Levels scale the envelope.', runScaleMult: 1.1 },
     { level: 50, name: 'Hard Barrier', blurb: 'Projection evolves.', shieldMult: 1.16 },
     ...SHARED_LATE,
   ],
@@ -414,7 +414,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Dockside Care', blurb: 'Repair identity +8% hull pad.', shieldMult: 1.04 },
     { level: 10, name: 'Live Lathe', blurb: 'Faster restoration.', regenAdd: 0.015 },
     { level: 20, name: 'Industrial Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'industrial' },
-    { level: 30, name: 'Run Repair', blurb: 'Run Levels scale hull support.', runScaleMult: 1.12 },
+    { level: 30, name: 'Core Repair', blurb: 'Core Levels scale hull support.', runScaleMult: 1.12 },
     { level: 50, name: 'Field Lathe', blurb: 'Repair behaviour evolves.', regenAdd: 0.02 },
     ...SHARED_LATE,
   ],
@@ -422,7 +422,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Yield Mesh', blurb: 'Better wreck conversion.', salvageKillAdd: 0.04 },
     { level: 10, name: 'Hold Scoop', blurb: 'Collection efficiency.', salvageKillAdd: 0.04 },
     { level: 20, name: 'Industrial Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'industrial' },
-    { level: 30, name: 'Run Scoop', blurb: 'Run Levels scale economy output.', runScaleMult: 1.12, salvageKillAdd: 0.03 },
+    { level: 30, name: 'Core Scoop', blurb: 'Core Levels scale economy output.', runScaleMult: 1.12, salvageKillAdd: 0.03 },
     { level: 50, name: 'Deep Claw', blurb: 'Economy identity evolves.', salvageKillAdd: 0.08 },
     ...SHARED_LATE,
   ],
@@ -430,7 +430,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Mark Wrecks', blurb: 'Salvage / kill +4%.', salvageKillAdd: 0.04 },
     { level: 10, name: 'Yield Link', blurb: 'Collection efficiency.', salvageKillAdd: 0.05 },
     { level: 20, name: 'Industrial Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'industrial' },
-    { level: 30, name: 'Run Yield', blurb: 'Run Levels scale Salvage.', runScaleMult: 1.1 },
+    { level: 30, name: 'Core Yield', blurb: 'Core Levels scale Salvage.', runScaleMult: 1.1 },
     { level: 50, name: 'Bound Marks', blurb: 'Economy identity evolves.', salvageKillAdd: 0.08 },
     ...SHARED_LATE,
   ],
@@ -438,7 +438,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 5, name: 'Choir Ear', blurb: 'Wreck tap +5%.', salvageKillAdd: 0.05 },
     { level: 10, name: 'Ash Filter', blurb: 'Conversion improves.', salvageKillAdd: 0.05 },
     { level: 20, name: 'Industrial Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'industrial' },
-    { level: 30, name: 'Run Tap', blurb: 'Run Levels scale economy.', runScaleMult: 1.1 },
+    { level: 30, name: 'Core Tap', blurb: 'Core Levels scale economy.', runScaleMult: 1.1 },
     { level: 50, name: 'Choir Flood', blurb: 'Tap evolves.', salvageKillAdd: 0.1 },
     ...SHARED_LATE,
   ],
@@ -496,7 +496,7 @@ export function masteryMilestoneEffect(ms: MasteryMilestoneDef): string {
   if (ms.regenAdd) bits.push(`Regen ${formatPct(ms.regenAdd)}/s`)
   if (ms.splashAdd) bits.push(`Splash +${ms.splashAdd}`)
   if (ms.salvageKillAdd) bits.push(`Salvage/kill ${formatPct(ms.salvageKillAdd)}`)
-  if (ms.runScaleMult) bits.push(`Run Level scaling ${formatMult(ms.runScaleMult)}`)
+  if (ms.runScaleMult) bits.push(`Core Level scaling ${formatMult(ms.runScaleMult)}`)
   if (ms.socket) bits.push(`+1 ${SOCKET_EFFECT_LABEL[ms.socket]} Relic socket`)
   return bits.join(' · ') || ms.blurb
 }
@@ -566,7 +566,9 @@ export function effectiveRunLevel(state: GameState, slot: number): number {
 }
 
 export function effectiveCoreLevel(state: GameState, slot: number): number {
-  return coreStartingLevelAtSlot(state, slot) + effectiveRunLevel(state, slot)
+  const moduleId = state.shipyard.modules[slot]
+  if (!moduleId) return 0
+  return coreStartingLevelAtSlot(state, slot) * combinedCoreMods(state, moduleId).runScaleMult
 }
 
 export function corePrimaryOutput(state: GameState, slot: number): CorePrimaryOutput | null {
@@ -607,39 +609,9 @@ export function corePrimaryOutput(state: GameState, slot: number): CorePrimaryOu
 }
 
 export function buyCoreRunLevel(state: GameState, slot: number, count = 1): GameState {
-  if (state.combat.docked) return state
-  const moduleId = state.shipyard.modules[slot]
-  if (!moduleId || !getModule(moduleId)) return state
-  const want =
-    count === Number.POSITIVE_INFINITY
-      ? maxAffordableCoreRunPurchases(state, slot)
-      : Math.max(1, Math.floor(count))
-  if (want <= 0) return state
-  const next = structuredClone(state)
-  if (!next.combat.coreRunLevels) next.combat.coreRunLevels = {}
-  if (!next.combat.coreSalvageSpent) next.combat.coreSalvageSpent = {}
-  let bought = 0
-  for (let i = 0; i < want; i += 1) {
-    const level = coreRunLevel(next, slot)
-    if (coreStartingLevelAtSlot(next, slot) + level >= CORE_RUN_LEVEL_CAP) break
-    const cost = coreRunUpgradeCost(level, moduleId)
-    if (cost <= 0 || (next.resources.salvage ?? 0) < cost) break
-    next.resources.salvage -= cost
-    noteSalvageSpend(next, cost, coreRunCategory(moduleId))
-    setCoreRunLevel(next, slot, level + 1)
-    next.combat.coreSalvageSpent[String(slot)] =
-      (next.combat.coreSalvageSpent[String(slot)] ?? 0) + cost
-    next.meta.lifetimeCoreRunBuys = (next.meta.lifetimeCoreRunBuys ?? 0) + 1
-    bought += 1
-  }
-  if (bought <= 0) return state
-  recordPlaytest(next, 'core_buy', {
-    n: getModule(moduleId)?.name ?? moduleId,
-    v: coreRunLevel(next, slot),
-    firstKey: `core_run:${moduleId}`,
-  })
-  noteSystemAction(next, 'cores')
-  return next
+  void slot
+  void count
+  return state
 }
 
 export function buyCoreRunLevelByModule(state: GameState, moduleId: string, count = 1): GameState {

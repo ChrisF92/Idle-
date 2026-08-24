@@ -206,12 +206,6 @@ function AppShell() {
     game.syncCompletedGuides(tab)
   }, [tab, game])
 
-  useEffect(() => {
-    if (guide?.id === 'guide-core-run') {
-      game.ensureStarterCoresSalvage()
-    }
-  }, [guide?.id, game])
-
   const hubStamp = contentKeys(game.state, tab).join('|')
   useEffect(() => {
     game.markHubSeen(tab)
@@ -376,9 +370,7 @@ function AppShell() {
             onOpenSortie={() => go('combat')}
             onRebuild={() => setHangarOpen(true)}
             onBuyWorkshop={game.buyWorkshopUpgrade}
-            onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
-            onBuyMaxCores={game.buyMaxCores}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
             onUpgradeRelic={game.upgradeRelic}
@@ -401,9 +393,7 @@ function AppShell() {
             }}
             onExtract={() => game.setDocked(true)}
             onBuyRunUpgrade={game.buyRunUpgrade}
-            onBuyCoreRun={game.buyCoreRunSlot}
             onViewReport={() => setReportOpen(true)}
-            onUpgrade={game.upgradeModule}
             onPickMilestone={game.pickCoreMilestone}
             onMarkCoresSeen={() => game.markHubSeen('cores')}
             paused={pauseSim}
@@ -417,7 +407,6 @@ function AppShell() {
               setFoundryPane('prints')
               go('foundry')
             }}
-            onBuyMaxCores={game.buyMaxCores}
             onChooseDirective={game.chooseDirective}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}

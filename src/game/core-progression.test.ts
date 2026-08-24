@@ -3,28 +3,22 @@ import { createInitialState, computeShipStats } from './state'
 import {
   buyCoreRunSlot,
   buyCoreStartingLevel,
-  buyMaxCores,
-  buyProcessNode,
   fitModule,
   performRebuild,
 } from './actions'
 import { importSave, exportSave } from './save'
 import { setDocked } from './tick'
-import { armRebuildDoor, forceUnlockModule, markHullLost } from './testHelpers'
+import { armRebuildDoor, forceUnlockModule } from './testHelpers'
 import {
-  CORE_RUN_LEVEL_CAP,
   applyMasteryXp,
   awardEquippedMasteryXp,
   corePrimaryOutput,
-  coreRunCategory,
   coreRunLevel,
-  coreRunUpgradeCost,
   coreStartingLevel,
   coreStartingUpgradeCost,
   legacyRankToMastery,
   masteryFrontierMult,
   masteryWaveXp,
-  maxAffordableCoreRunPurchases,
   migrateLegacyCoreProgression,
   moduleCopyCount,
   grantModuleCopy,
@@ -35,23 +29,15 @@ function live(state = createInitialState(0)) {
   return setDocked(state, false)
 }
 
-describe('Core Run Levels', () => {
-  it('starts every Sortie at Run Lv0', () => {
-    const s = live()
-    expect(coreRunLevel(s, 0)).toBe(0)
-    expect(s.combat.coreRunLevels ?? {}).toEqual({})
-  })
-
-  it('purchases with Salvage and raises that slot only', () => {
+describe('Dock Core Levels', () => {
+  it('does not sell Core upgrades during a Sortie', () => {
     let s = live()
     s.resources.salvage = 80
-    const cost = coreRunUpgradeCost(0, 'pulse-cannon')
     const before = computeShipStats(s).damage
     s = buyCoreRunSlot(s, 0, 1)
-    expect(coreRunLevel(s, 0)).toBe(1)
-    expect(s.resources.salvage).toBe(80 - cost)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
-    expect(computeShipStats(s).damage).toBeGreaterThan(before)
+    expect(coreRunLevel(s, 0)).toBe(0)
+    expect(s.resources.salvage).toBe(80)
+    expect(computeShipStats(s).damage).toBe(before)
   })
 
   it('buys separate physical Core levels with Scrap while sharing Mastery', () => {
@@ -84,50 +70,11 @@ describe('Core Run Levels', () => {
     )
   })
 
-  it('keeps duplicate Pulse instances on separate Run ladders', () => {
-    let s = live()
-    s = forceUnlockModule(s, 'pulse-cannon')
-    s.shipyard.moduleCopies = { 'pulse-cannon': 2 }
-    s.shipyard.modules = ['pulse-cannon', 'pulse-cannon']
-    s.resources.salvage = 200
-    s = buyCoreRunSlot(s, 0, 3)
-    s = buyCoreRunSlot(s, 1, 1)
-    expect(coreRunLevel(s, 0)).toBe(3)
-    expect(coreRunLevel(s, 1)).toBe(1)
-    expect(moduleMasteryRank(s, 'pulse-cannon')).toBe(0)
-  })
-
-  it('costs from the slot Run Level, not Mastery', () => {
+  it('ignores legacy Run Levels in combat power', () => {
     const s = live()
-    s.meta.moduleMastery = { 'pulse-cannon': 40 }
-    expect(coreRunUpgradeCost(coreRunLevel(s, 0), 'pulse-cannon')).toBe(coreRunUpgradeCost(0, 'pulse-cannon'))
+    const before = computeShipStats(s).damage
     s.combat.coreRunLevels = { '0': 5 }
-    expect(coreRunUpgradeCost(coreRunLevel(s, 0), 'pulse-cannon')).toBe(coreRunUpgradeCost(5, 'pulse-cannon'))
-  })
-
-  it('×10 and MAX follow the temporary ladder', () => {
-    let s = live()
-    s.resources.salvage = 10_000
-    s = buyCoreRunSlot(s, 0, 10)
-    expect(coreRunLevel(s, 0)).toBe(10)
-    const bank = s.resources.salvage
-    const max = maxAffordableCoreRunPurchases(s, 0)
-    expect(max).toBeGreaterThan(1)
-    s = buyCoreRunSlot(s, 0, Number.POSITIVE_INFINITY)
-    expect(coreRunLevel(s, 0)).toBe(10 + max)
-    expect(s.resources.salvage).toBeLessThan(bank)
-    expect(coreRunLevel(s, 0)).toBeLessThanOrEqual(CORE_RUN_LEVEL_CAP)
-  })
-
-  it('resets on death, Extract, and a new Sortie', () => {
-    let s = live()
-    s.resources.salvage = 80
-    s = buyCoreRunSlot(s, 0, 2)
-    expect(coreRunLevel(s, 0)).toBe(2)
-    s = setDocked(s, true)
-    expect(coreRunLevel(s, 0)).toBe(0)
-    s = live(s)
-    expect(coreRunLevel(s, 0)).toBe(0)
+    expect(computeShipStats(s).damage).toBe(before)
   })
 
   it('does not survive Rebuild as a cycle rank', () => {
@@ -135,27 +82,18 @@ describe('Core Run Levels', () => {
     s.resources.scrap = 100
     s = buyCoreStartingLevel(s, 'pulse-cannon:1')
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
-    s.combat.docked = false
-    s.resources.salvage = 80
-    s = buyCoreRunSlot(s, 0, 2)
-    s = setDocked(s, true)
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon'] })
-    expect(coreRunLevel(s, 0)).toBe(0)
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(0)
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
   })
 
-  it('saves and loads mid-Sortie Run Levels', () => {
+  it('saves and loads cycle Core Levels', () => {
     let s = createInitialState(0)
     s.resources.scrap = 100
     s = buyCoreStartingLevel(s, 'pulse-cannon:1')
-    s = live(s)
-    s.resources.salvage = 80
-    s = buyCoreRunSlot(s, 0, 2)
     const loaded = importSave(exportSave(s))
     expect(loaded).toBeTruthy()
     expect(coreStartingLevel(loaded!, 'pulse-cannon:1')).toBe(1)
-    expect(coreRunLevel(loaded!, 0)).toBe(2)
   })
 
   it('migrates legacy Core-type starting levels to a physical copy', () => {
@@ -233,8 +171,8 @@ describe('Core Mastery', () => {
 })
 
 describe('Core stat composition', () => {
-  it('combines Mastery, Run Level, and global Sortie upgrades without old Scrap ranks', () => {
-    let s = live()
+  it('combines shared Mastery and the physical copy Core Level', () => {
+    let s = createInitialState(0)
     s.shipyard.moduleLevels = { 'pulse-cannon': 40 }
     const leftover = computeShipStats(s).damage
     s.shipyard.moduleLevels = {}
@@ -244,61 +182,18 @@ describe('Core stat composition', () => {
     const mastered = computeShipStats(s).damage
     expect(mastered).toBeGreaterThan(leftover)
 
-    s.resources.salvage = 400
-    s = buyCoreRunSlot(s, 0, 4)
-    const run = computeShipStats(s).damage
-    expect(run).toBeGreaterThan(mastered)
+    s.resources.scrap = 400
+    s = buyCoreStartingLevel(s, 'pulse-cannon:1', 4)
+    const leveled = computeShipStats(s).damage
+    expect(leveled).toBeGreaterThan(mastered)
     const out = corePrimaryOutput(s, 0)
     expect(out?.label).toBe('DPS')
     expect(out!.next).toBeGreaterThan(out!.current)
   })
 })
 
-describe('Run purchase categories', () => {
-  it('places Cores by contribution, not only permanent role', () => {
-    expect(coreRunCategory('pulse-cannon')).toBe('attack')
-    expect(coreRunCategory('plate-layer')).toBe('defense')
-    expect(coreRunCategory('salvage-rig')).toBe('economy')
-    expect(coreRunCategory('nano-lathe')).toBe('defense')
-    expect(coreRunCategory('sensor-whisker')).toBe('attack')
-  })
-})
-
-describe('Core Process automation', () => {
-  it('Buy Max spends Salvage on Run Levels while live', () => {
-    let s = live()
-    s.resources.salvage = 400
-    s.process.purchased = ['core-buy-max']
-    s = buyMaxCores(s)
-    expect(coreRunLevel(s, 0)).toBeGreaterThan(0)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
-  })
-
-  it('does not Buy Max at Dock', () => {
-    let s = createInitialState(0)
-    s.combat.docked = true
-    s.resources.salvage = 400
-    s.resources.scrap = 400
-    s.process.purchased = ['core-buy-max']
-    s = buyMaxCores(s)
-    expect(coreRunLevel(s, 0)).toBe(0)
-  })
-
-  it('still gates Core Buy Max behind practised Core work', () => {
-    const s = markHullLost(createInitialState(0))
-    s.meta.aiUnlocked = true
-    s.meta.highestSectorEver = 42
-    s.combat.highestSector = 42
-    s.prestige.prestigeCount = 2
-    s.resources.aiPoints = 20
-    expect(buyProcessNode(s, 'core-buy-max')).toBe(s)
-    s.meta.lifetimeCoreRunBuys = 2
-    expect(buyProcessNode(s, 'core-buy-max')).not.toBe(s)
-  })
-})
-
 describe('legacy Core rank migration', () => {
-  it('converts leftover Scrap ranks into bounded Mastery and starts Run Lv0', () => {
+  it('converts leftover Scrap ranks into bounded Mastery', () => {
     const s = createInitialState(0)
     s.meta.coreProgressionMigrated = false
     s.shipyard.moduleLevels = { 'pulse-cannon': 12, 'plate-layer': 8 }

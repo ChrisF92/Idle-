@@ -424,9 +424,9 @@ describe('salvage module upgrades', () => {
     state.resources.salvage = 100
     const before = computeShipStats(state).damage
     state = upgradeModule(state, 'pulse-cannon')
-    expect(state.combat.coreRunLevels?.['0']).toBe(1)
-    expect(computeShipStats(state).damage).toBeGreaterThan(before)
-    expect(state.resources.salvage).toBeLessThan(100)
+    expect(state.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    expect(computeShipStats(state).damage).toBe(before)
+    expect(state.resources.salvage).toBe(100)
 
     state.combat.sector = 12
     state.combat.highestSector = 12

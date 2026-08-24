@@ -91,7 +91,7 @@ describe('GDD progressive disclosure', () => {
     expect(unlockedBuyModes(state)).toEqual([1, 10])
     expect(advancedReadoutsUnlocked(state)).toBe(true)
 
-    state.process.purchased = ['core-buy-max']
+    state.process.purchased = ['shop-buy-max']
     expect(shopBuyMaxUnlocked(state)).toBe(true)
     expect(unlockedBuyModes(state)).toContain('max')
   })

@@ -144,7 +144,7 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(protocolRank(s, 'mute-network')).toBe(2)
     expect(s.protocols.bestSector['mute-network']).toBe(9)
     expect(s.echo.tree).toContain('echo-strike')
-    expect(hasProcess(s, 'auto-salvage')).toBe(true)
+    expect(hasProcess(s, 'auto-salvage')).toBe(false)
     expect(s.protocols.activeId).toBeNull()
     expect(s.echo.activeId).toBeNull()
   })

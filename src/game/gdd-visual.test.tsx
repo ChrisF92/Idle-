@@ -28,7 +28,6 @@ describe('GDD visual layout and Dock Core ranks', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )
@@ -53,7 +52,7 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
   })
 
-  it('sells Run Levels on the Cores tab and keeps Extract in the menu', () => {
+  it('keeps Core upgrades out of the Sortie shop and Extract in the menu', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
     state.resources.scrap = 80
@@ -62,21 +61,18 @@ describe('GDD visual layout and Dock Core ranks', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }))
-    expect(screen.getByText(/Pulse Cannon/)).toBeTruthy()
-    expect(screen.getAllByText(/Run Lv/).length).toBeGreaterThan(0)
-    expect(screen.queryByText('GLOBAL')).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Cores' })).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
     expect(screen.getByRole('menuitem', { name: 'Extract' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Core Performance' })).toBeNull()
   })
 
-  it('inspects Mastery and Run Level instead of Dock Scrap ranks', () => {
+  it('keeps Core Levels in the Dock loadout', () => {
     const state = markHullLost(createInitialState(0))
     state.resources.scrap = 40
     render(
@@ -94,29 +90,25 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(screen.getByText(/START Lv/)).toBeTruthy()
   })
 
-  it('inspects Core Mastery, not Scrap ranks', () => {
+  it('inspects shared Mastery and Dock Core Level', () => {
     const s = createInitialState(0)
     const card = inspectCore(s, 'pulse-cannon')
     expect(card?.stats.find((row) => row.label === 'Mastery')?.value).toMatch(/XP/)
-    expect(card?.stats.find((row) => row.label === 'Run Level')?.value).toBeTruthy()
+    expect(card?.stats.find((row) => row.label === 'Core Level')?.value).toBeTruthy()
     expect(card?.body.join(' ')).toMatch(/Mastery/)
     expect(card?.stats.find((row) => row.label === 'Layer')).toBeUndefined()
     expect(card?.stats.find((row) => row.label === 'Next level')).toBeUndefined()
   })
 
-  it('buys Core Run Levels with Salvage and resets them on Extract', () => {
+  it('does not buy Core Levels with Salvage during a Sortie', () => {
     let s = createInitialState(0)
     s.resources.scrap = 80
     s = launch(s)
     s.resources.salvage = 80
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.combat.coreRunLevels?.['0']).toBe(1)
-    expect(s.resources.salvage).toBeLessThan(80)
+    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    expect(s.resources.salvage).toBe(80)
     expect(s.resources.scrap).toBe(80)
-    s = setDocked(s, true)
-    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
-    s = upgradeModule(s, 'pulse-cannon')
-    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
   })
 
   it('exposes Sortie speed and hub status without player-facing Pressure', () => {

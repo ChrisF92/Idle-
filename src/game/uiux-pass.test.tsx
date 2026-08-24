@@ -24,7 +24,6 @@ describe('UI/UX pass regression', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onUpgrade={() => undefined}
         onPickMilestone={() => undefined}
       />,
     )

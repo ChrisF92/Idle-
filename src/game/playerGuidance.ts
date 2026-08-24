@@ -132,7 +132,6 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   const reset = [
     'Current Sortie',
     'Salvage',
-    'Core Run Levels',
     'Run upgrades',
     'Directives',
     'Scrap',
@@ -176,7 +175,7 @@ export function protocolStartLists(def: { reward: string }): ConsequenceLists {
   return {
     gain: [def.reward],
     keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge ranks'],
-    reset: ['Salvage', 'Core Run Levels', 'Network bar levels', 'Current sortie'],
+    reset: ['Salvage', 'Run upgrades', 'Network bar levels', 'Current sortie'],
     change: [],
   }
 }
@@ -217,8 +216,6 @@ export function sortieNextHints(state: GameState): string[] {
 }
 
 export function processCoreHintReady(state: GameState): boolean {
-  if (!isSystemUnlocked(state, 'process')) return false
-  const purchased = state.process?.purchased ?? []
-  if (purchased.includes('core-buy-max') || purchased.includes('auto-salvage')) return false
-  return practicedCoreWork(state) >= 6
+  void state
+  return false
 }
