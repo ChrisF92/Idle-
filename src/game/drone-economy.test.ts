@@ -17,6 +17,7 @@ import {
   stationEffectiveDrones,
   stationThroughput,
 } from './catalog'
+import { workerJobContribution } from './workers'
 import { advanceSeconds, computeResourceRates } from './tick'
 import { atCareerWave } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
@@ -60,7 +61,10 @@ describe('drone corps cap + black-bar saturation', () => {
     const atBb = computeResourceRates(state).scrap ?? 0
 
     state = assignWorker(state, 'scrap-field', 10)
-    expect(stationEffectiveDrones(state, 'scrap-field')).toBe(20)
+    expect(stationEffectiveDrones(state, 'scrap-field')).toBeCloseTo(
+      workerJobContribution(20, 'scrap-field') * dronePower(state),
+      5,
+    )
     expect(computeResourceRates(state).scrap ?? 0).toBeCloseTo(atBb, 5)
   })
 

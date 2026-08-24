@@ -8,19 +8,18 @@ import {
   idleWorkers,
   NETWORK_ACUITY_PER_RANK,
   NETWORK_RACK_CAP_PER_RANK,
-  stationEffectiveDrones,
 } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
 import { yardNetworkMult } from './yard'
-import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 import { careerBestWave } from './progression'
 import { foundryNetworkFillMult } from './foundryBonuses'
 import { NETWORK_CADENCE } from './cadence'
-import { isWorkersUnlocked, WORKER_JOB_IDS } from './workers'
+import { WORKER_JOB_IDS } from './workers'
 
 export type NetworkBarLayer = 'primary' | 'relay' | 'lattice'
 

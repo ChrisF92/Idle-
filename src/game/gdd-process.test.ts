@@ -132,6 +132,7 @@ describe('GDD Process', () => {
 
     let defence = processState()
     defence.base.workerDrones = 10
+    defence.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0, paid: false }
     defence.process.purchased = ['network-optimise', 'network-presets']
     defence = applyNetworkPreset(defence, 'defence')
     expect(defence.base.assignments['repair-bay'] ?? 0).toBe(0)
