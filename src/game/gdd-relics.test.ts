@@ -17,6 +17,9 @@ import {
   removeRelicFromCore,
   upgradeRelic,
 } from './reliquary'
+import { fitModule } from './actions'
+import { grantModuleCopy } from './coreProgression'
+import { migrateCoreFitInstances } from './save'
 
 function relicDock(wave = ACT1_CADENCE.reliquary) {
   let s = atCareerWave(createInitialState(0), wave)
@@ -44,9 +47,41 @@ describe('GDD Relics in Cores', () => {
     const before = computeShipStats(s).damage
     s = equipRelicOnCore(s, 'pulse-cannon', 'battle-chip')
     expect(coreRelicId(s, 'pulse-cannon')).toBe('battle-chip')
-    expect(s.reliquary.coreFits['pulse-cannon']).toEqual(['battle-chip'])
+    expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
     expect(reliquaryDamageMult(s)).toBeGreaterThan(1)
     expect(computeShipStats(s).damage).toBeGreaterThan(before)
+  })
+
+  it('keeps separate Relic loadouts on duplicate Core instances', () => {
+    let s = relicDock()
+    s.shipyard.frameId = 'swarm-frame'
+    s.shipyard.unlockedFrames.push('swarm-frame')
+    grantModuleCopy(s, 'pulse-cannon')
+    s = fitModule(s, 'pulse-cannon')
+    const pulseInstances = s.shipyard.modules.flatMap((moduleId, slot) =>
+      moduleId === 'pulse-cannon' ? [s.shipyard.equippedCoreIds[slot]!] : [],
+    )
+    expect(pulseInstances).toHaveLength(2)
+
+    s.reliquary.owned['battle-chip'] = 1
+    s.reliquary.owned['pulse-chip'] = 1
+    s = equipRelicOnCore(s, pulseInstances[0]!, 'battle-chip')
+    s = equipRelicOnCore(s, pulseInstances[1]!, 'pulse-chip')
+
+    expect(coreSocketRelics(s, pulseInstances[0]!)[0]).toBe('battle-chip')
+    expect(coreSocketRelics(s, pulseInstances[1]!)[0]).toBe('pulse-chip')
+    expect(Object.keys(s.reliquary.coreFits)).toEqual(
+      expect.arrayContaining(pulseInstances),
+    )
+  })
+
+  it('migrates legacy Core-type Relic fits onto the first physical copy', () => {
+    const s = relicDock()
+    s.reliquary.coreFits = { 'pulse-cannon': ['battle-chip'] }
+    migrateCoreFitInstances(s)
+    expect(s.reliquary.coreFits).toEqual({
+      'pulse-cannon:1': ['battle-chip'],
+    })
   })
 
   it('seats Power Relics on Pulse and Shield Relics on Plate', () => {

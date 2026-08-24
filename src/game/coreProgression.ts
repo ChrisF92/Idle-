@@ -15,6 +15,7 @@ import { noteSalvageSpend } from './sortieSummary'
 import { protocolCoreScalingAdd } from './protocols'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { milestoneModsFor } from './milestones'
+import { addCoreInstance, coreInstanceAtSlot } from './coreInstances'
 
 export const CORE_RUN_LEVEL_CAP = MAX_MODULE_LEVEL
 export const CORE_MASTERY_CAP = 100
@@ -25,6 +26,7 @@ export const LEGACY_RANK_MASTERY_CAP = 18
 export interface CoreSlot {
   slot: number
   moduleId: string
+  coreInstanceId: string
 }
 
 export interface CorePrimaryOutput {
@@ -58,19 +60,23 @@ export interface CoreSortieRecord {
 }
 
 export function equippedCoreSlots(state: Pick<GameState, 'shipyard'>): CoreSlot[] {
-  return (state.shipyard.modules ?? []).map((moduleId, slot) => ({ slot, moduleId }))
+  return (state.shipyard.modules ?? []).map((moduleId, slot) => ({
+    slot,
+    moduleId,
+    coreInstanceId: coreInstanceAtSlot(state, slot)?.id ?? `${moduleId}:${slot + 1}`,
+  }))
 }
 
 export function moduleCopyCount(state: Pick<GameState, 'shipyard'>, moduleId: string): number {
-  const copies = state.shipyard.moduleCopies?.[moduleId]
-  if (copies != null) return Math.max(0, Math.floor(copies))
-  return state.shipyard.unlockedModules.includes(moduleId) ? 1 : 0
+  const instances = state.shipyard.coreInstances?.filter(
+    (instance) => instance.moduleId === moduleId,
+  ).length ?? 0
+  const copies = Math.max(0, Math.floor(state.shipyard.moduleCopies?.[moduleId] ?? 0))
+  return Math.max(instances, copies, state.shipyard.unlockedModules.includes(moduleId) ? 1 : 0)
 }
 
 export function grantModuleCopy(state: GameState, moduleId: string): void {
-  if (!state.shipyard.moduleCopies) state.shipyard.moduleCopies = {}
-  const have = moduleCopyCount(state, moduleId)
-  state.shipyard.moduleCopies[moduleId] = have <= 0 ? 1 : have + 1
+  addCoreInstance(state.shipyard, moduleId)
 }
 
 export function coreRunLevel(state: Pick<GameState, 'combat'>, slot: number): number {

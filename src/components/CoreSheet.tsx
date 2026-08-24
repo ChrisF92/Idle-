@@ -23,6 +23,7 @@ import {
   shardOwned,
 } from '../game/reliquary'
 import { InspectName } from './InspectName'
+import { coreInstanceAtSlot } from '../game/coreInstances'
 
 const SLOT_LABEL: Record<string, string> = {
   weapon: 'Weapon',
@@ -47,6 +48,7 @@ interface CoreSheetProps {
 function RelicSocket({
   state,
   moduleId,
+  coreInstanceId,
   socketIndex,
   socket,
   onEquipRelic,
@@ -55,6 +57,7 @@ function RelicSocket({
 }: {
   state: GameState
   moduleId: string
+  coreInstanceId: string
   socketIndex: number
   socket: RelicSocketClass
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
@@ -62,7 +65,7 @@ function RelicSocket({
   onUpgradeRelic?: (relicId: string) => void
 }) {
   const label = RELIC_SOCKET_LABELS[socket]
-  const fittedId = coreSocketRelics(state, moduleId)[socketIndex] ?? null
+  const fittedId = coreSocketRelics(state, coreInstanceId)[socketIndex] ?? null
   const fitted = fittedId ? getShard(fittedId) : undefined
   const docked = Boolean(state.combat.docked)
   const canEdit = docked && Boolean(onEquipRelic || onRemoveRelic)
@@ -85,7 +88,7 @@ function RelicSocket({
         )}
       </p>
       {canEdit && fitted && onRemoveRelic ? (
-        <button type="button" onClick={() => onRemoveRelic(moduleId, socketIndex)}>
+        <button type="button" onClick={() => onRemoveRelic(coreInstanceId, socketIndex)}>
           Remove Relic
         </button>
       ) : null}
@@ -101,7 +104,7 @@ function RelicSocket({
               key={shard.id}
               type="button"
               className="primary"
-              onClick={() => onEquipRelic(moduleId, shard.id, socketIndex)}
+              onClick={() => onEquipRelic(coreInstanceId, shard.id, socketIndex)}
             >
               {shard.name}
               <span className="muted"> ×{shardOwned(state, shard.id)}</span>
@@ -116,18 +119,20 @@ function RelicSocket({
 export function RelicSockets({
   state,
   moduleId,
+  coreInstanceId = moduleId,
   onEquipRelic,
   onRemoveRelic,
   onUpgradeRelic,
 }: {
   state: GameState
   moduleId: string
+  coreInstanceId?: string
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void
 }) {
   if (!isRelicsUnlocked(state)) return null
-  const layout = coreSocketLayout(state, moduleId)
+  const layout = coreSocketLayout(state, coreInstanceId)
   if (layout.length < 1) return null
   return (
     <div className="relic-sockets">
@@ -136,6 +141,7 @@ export function RelicSockets({
           key={`${moduleId}-${socket}-${index}`}
           state={state}
           moduleId={moduleId}
+          coreInstanceId={coreInstanceId}
           socketIndex={index}
           socket={socket}
           onEquipRelic={onEquipRelic}
@@ -150,6 +156,7 @@ export function RelicSockets({
 function CoreRow({
   state,
   moduleId,
+  coreInstanceId,
   onEquipRelic,
   onRemoveRelic,
   onUpgradeRelic,
@@ -157,6 +164,7 @@ function CoreRow({
 }: {
   state: GameState
   moduleId: string
+  coreInstanceId: string
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void
@@ -196,6 +204,7 @@ function CoreRow({
       <RelicSockets
         state={state}
         moduleId={moduleId}
+        coreInstanceId={coreInstanceId}
         onEquipRelic={onEquipRelic}
         onRemoveRelic={onRemoveRelic}
         onUpgradeRelic={onUpgradeRelic}
@@ -214,11 +223,12 @@ export function CoreSheet({
 }: CoreSheetProps) {
   return (
     <div className={compact ? 'core-sheet core-sheet-compact' : 'core-sheet'}>
-      {state.shipyard.modules.map((moduleId) => (
+      {state.shipyard.modules.map((moduleId, slot) => (
         <CoreRow
-          key={moduleId}
+          key={coreInstanceAtSlot(state, slot)?.id ?? `${moduleId}-${slot}`}
           state={state}
           moduleId={moduleId}
+          coreInstanceId={coreInstanceAtSlot(state, slot)?.id ?? moduleId}
           onEquipRelic={onEquipRelic}
           onRemoveRelic={onRemoveRelic}
           onUpgradeRelic={onUpgradeRelic}

@@ -1,10 +1,8 @@
 /**
  * Canonical owned-item model for Inventory.
  *
- * Relics are stored by Core *type*, not by Core instance:
- * `reliquary.coreFits[moduleId]` is one socket set per module id.
- * Extra Pulse Cannon copies share the same Relic loadout. Do not pretend
- * copies are separately configured unless the save model changes.
+ * Each physical Core copy has a stable instance ID and its own Relic sockets.
+ * Mastery remains shared by Core definition.
  */
 
 import { SHIP_FRAMES, SHIP_MODULES, getFrame, getModule, moduleMasteryRank, type ModuleRole } from './catalog'
@@ -21,6 +19,11 @@ import {
   type ShardDef,
 } from './reliquary'
 import type { GameState, RelicSocketClass } from './types'
+import {
+  coreInstanceAtSlot,
+  coreInstanceCopyNumber,
+  resolveCoreInstance,
+} from './coreInstances'
 
 export type InventoryCategory = 'equipment' | 'relics' | 'materials'
 export type MaterialFamily = 'industrial' | 'recovered'
@@ -140,9 +143,18 @@ function relicRowFromDef(state: GameState, def: ShardDef): RelicInventoryRow {
   const available = shardOwned(state, def.id)
   const equipped = fittedRelicIds(state).filter((id) => id === def.id).length
   const fittedOn: string[] = []
-  for (const [moduleId, slots] of Object.entries(state.reliquary?.coreFits ?? {})) {
+  for (const [coreInstanceId, slots] of Object.entries(state.reliquary?.coreFits ?? {})) {
     if (!Array.isArray(slots) || !slots.includes(def.id)) continue
-    const name = getModule(moduleId)?.name ?? moduleId
+    const instance = resolveCoreInstance(state, coreInstanceId)
+    const moduleId = instance?.moduleId ?? coreInstanceId
+    const baseName = getModule(moduleId)?.name ?? moduleId
+    const copies = state.shipyard.coreInstances.filter(
+      (candidate) => candidate.moduleId === moduleId,
+    ).length
+    const name =
+      instance && copies > 1
+        ? `${baseName} #${coreInstanceCopyNumber(state, instance.id)}`
+        : baseName
     if (!fittedOn.includes(name)) fittedOn.push(name)
   }
   return {
@@ -236,8 +248,10 @@ export function inventorySearchUseful(state: GameState): boolean {
 export function loadoutRelicFill(state: GameState): { filled: number; sockets: number } {
   let filled = 0
   let sockets = 0
-  for (const moduleId of state.shipyard.modules) {
-    const slots = coreSocketRelics(state, moduleId)
+  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
+    const coreInstanceId = coreInstanceAtSlot(state, slot)?.id
+    if (!coreInstanceId) continue
+    const slots = coreSocketRelics(state, coreInstanceId)
     sockets += slots.length
     filled += slots.filter(Boolean).length
   }
@@ -253,4 +267,4 @@ export function frameBlurb(state: GameState): string {
 }
 
 export const RELIC_STORAGE_NOTE =
-  'Relics are stored by Core type, not by individual Core copies. Extra copies of the same Core share one Relic loadout.'
+  'Relics stay fitted to that physical Core copy, even when the Core is removed from the Frame.'

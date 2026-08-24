@@ -138,7 +138,7 @@ export type RelicSocketClass =
 export interface ReliquaryState {
   owned: Record<string, number>
   slots: Partial<Record<ReliquaryColor, string | null>>
-  /** Relics in Core sockets (moduleId → slot list). Legacy saves stored one string. */
+  /** Relics in Core sockets (physical Core instance ID → slot list). */
   coreFits: Record<string, Array<string | null>>
 }
 
@@ -783,7 +783,12 @@ export interface Resources {
 
 export interface ShipLoadout {
   frameId: string
+  /** Core definitions fitted into Frame slots. Kept parallel with equippedCoreIds. */
   modules: string[]
+  /** Physical Core copies owned by the player. Mastery remains shared by moduleId. */
+  coreInstances: CoreInstance[]
+  /** Physical Core instance IDs fitted into the matching modules array positions. */
+  equippedCoreIds: string[]
   unlockedFrames: string[]
   unlockedModules: string[]
   /** Fabricated copies of a Core type. Mastery is shared; loadout may use extras. */
@@ -804,6 +809,11 @@ export interface ShipLoadout {
    * or while Paused.
    */
   frameLocked: boolean
+}
+
+export interface CoreInstance {
+  id: string
+  moduleId: string
 }
 
 export interface WeaponInstance {

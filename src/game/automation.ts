@@ -70,6 +70,7 @@ import {
 } from './hiveResearch'
 import { furnaceActiveLevel, runFurnaceManager, setFurnaceChannel } from './furnace'
 import { foundryAshHeatMult, foundryQueueCap } from './foundryBonuses'
+import { coreInstanceAtSlot } from './coreInstances'
 function adopt(state: GameState, next: GameState): void {
   if (next === state) return
   state.resources = next.resources
@@ -385,12 +386,14 @@ function autoSeatShards(state: GameState): void {
   if (!cfg.reliquary.autoEquip) return
   const keep = hasProcess(state, 'reliquary-keep') ? cfg.reliquary.keepMode : 'keep-all'
   const minScore = hasProcess(state, 'reliquary-quality') ? cfg.reliquary.minScore : 0
-  for (const moduleId of state.shipyard.modules) {
-    const layout = coreSocketLayout(state, moduleId)
+  for (let slotIndex = 0; slotIndex < state.shipyard.modules.length; slotIndex += 1) {
+    const coreInstanceId = coreInstanceAtSlot(state, slotIndex)?.id
+    if (!coreInstanceId) continue
+    const layout = coreSocketLayout(state, coreInstanceId)
     for (let i = 0; i < layout.length; i += 1) {
       const socket = layout[i]
       if (!socket) continue
-      const seated = coreSocketRelics(state, moduleId)
+      const seated = coreSocketRelics(state, coreInstanceId)
       const fitted = seated[i] ?? null
       const fittedDef = fitted ? getShard(fitted) : undefined
       const fittedScore = fittedDef ? shardAutoScore(fittedDef) : 0
@@ -408,7 +411,7 @@ function autoSeatShards(state: GameState): void {
         }
       }
       if (!bestId || bestId === fitted) continue
-      const next = equipRelicOnCore(state, moduleId, bestId, i)
+      const next = equipRelicOnCore(state, coreInstanceId, bestId, i)
       if (next === state) continue
       adopt(state, next)
     }

@@ -24,6 +24,7 @@ import {
   StatPair,
   StickyAction,
 } from '../../ui/primitives'
+import { coreInstanceAtSlot, coreInstanceCopyNumber } from '../../game/coreInstances'
 
 export type DockPane = 'home' | 'loadout' | 'workshop' | 'rebuild'
 
@@ -48,8 +49,8 @@ interface DockTabProps {
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void
   onSelectFrame?: (frameId: string) => void
-  onFitCore?: (moduleId: string) => void
-  onUnfitCore?: (moduleId: string) => void
+  onFitCore?: (moduleId: string, coreInstanceId?: string) => void
+  onUnfitCore?: (moduleId: string, coreInstanceId?: string) => void
   onOpenInventory?: () => void
   pane?: DockPane
   onPaneChange?: (pane: DockPane) => void
@@ -83,11 +84,20 @@ export function DockTab({
   const bestWave = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
   const cycleNo = (state.prestige.prestigeCount ?? 0) + 1
   const frame = getFrame(state.shipyard.frameId)
+  const fittedCores = state.shipyard.modules.map((moduleId, slot) => ({
+    moduleId,
+    coreInstanceId: coreInstanceAtSlot(state, slot)?.id,
+    role: getModule(moduleId)?.role,
+  }))
   const loadoutSlots = frame
     ? LOADOUT_ROLE_ORDER.flatMap((role) => {
-        const modules = state.shipyard.modules.filter((id) => getModule(id)?.role === role)
+        const modules = fittedCores.filter((core) => core.role === role)
         const capacity = frameRoleCap(frame, role, { utility: hiveResearchExtraUtilitySlots(state) })
-        return Array.from({ length: capacity }, (_, index) => ({ role, moduleId: modules[index] }))
+        return Array.from({ length: capacity }, (_, index) => ({
+          role,
+          moduleId: modules[index]?.moduleId,
+          coreInstanceId: modules[index]?.coreInstanceId,
+        }))
       })
     : []
   const [localPane, setLocalPane] = useState<DockPane>('home')
@@ -100,8 +110,20 @@ export function DockTab({
   const [workshopCat, setWorkshopCat] = useState<RunUpgradeCategory>('attack')
   const [buyMode, setBuyMode] = useState<BuyMode>(1)
   const [frameOpen, setFrameOpen] = useState(false)
-  const [coreDetail, setCoreDetail] = useState<string | null>(focusModuleId ?? null)
-  const [picker, setPicker] = useState<{ replaceId?: string; role?: ModuleRole } | null>(null)
+  const focusSlot = focusModuleId ? state.shipyard.modules.indexOf(focusModuleId) : -1
+  const [coreDetail, setCoreDetail] = useState<{
+    moduleId: string
+    coreInstanceId?: string
+  } | null>(
+    focusModuleId
+      ? { moduleId: focusModuleId, coreInstanceId: coreInstanceAtSlot(state, focusSlot)?.id }
+      : null,
+  )
+  const [picker, setPicker] = useState<{
+    replaceId?: string
+    replaceCoreInstanceId?: string
+    role?: ModuleRole
+  } | null>(null)
   const [matterShopOpen, setMatterShopOpen] = useState(false)
   const locked = live
   const matterShopAvailable =
@@ -111,12 +133,18 @@ export function DockTab({
     if (!focusModuleId) return
     setLocalPane('loadout')
     onPaneChange?.('loadout')
-    setCoreDetail(focusModuleId)
+    const slot = state.shipyard.modules.indexOf(focusModuleId)
+    setCoreDetail({
+      moduleId: focusModuleId,
+      coreInstanceId: coreInstanceAtSlot(state, slot)?.id,
+    })
   }, [focusModuleId, onPaneChange])
 
-  function fitReplacement(moduleId: string) {
-    if (picker?.replaceId && picker.replaceId !== moduleId) onUnfitCore?.(picker.replaceId)
-    onFitCore?.(moduleId)
+  function fitReplacement(moduleId: string, coreInstanceId: string) {
+    if (picker?.replaceId) {
+      onUnfitCore?.(picker.replaceId, picker.replaceCoreInstanceId)
+    }
+    onFitCore?.(moduleId, coreInstanceId)
     setPicker(null)
     setCoreDetail(null)
   }
@@ -197,17 +225,30 @@ export function DockTab({
               <div data-guide="relic-sockets">
                 <SectionHeader title="Cores" />
               </div>
-              {loadoutSlots.map(({ role, moduleId }, index) => {
+              {loadoutSlots.map(({ role, moduleId, coreInstanceId }, index) => {
                 const def = moduleId ? getModule(moduleId) : undefined
                 const roleLabel = LOADOUT_ROLE_LABEL[role]
+                const copyCount = moduleId
+                  ? state.shipyard.coreInstances.filter(
+                      (instance) => instance.moduleId === moduleId,
+                    ).length
+                  : 0
+                const copyLabel =
+                  coreInstanceId && copyCount > 1
+                    ? ` · Copy ${coreInstanceCopyNumber(state, coreInstanceId)}`
+                    : ''
                 return (
                   <ItemRow
-                    key={`${role}-${index}`}
+                    key={coreInstanceId ?? `${role}-${index}`}
                     title={moduleId ? (def?.name ?? moduleId) : `Empty ${roleLabel} Slot`}
-                    meta={moduleId ? `${roleLabel} · M${moduleMasteryRank(state, moduleId)}` : 'Tap to fit a Core'}
+                    meta={
+                      moduleId
+                        ? `${roleLabel}${copyLabel} · M${moduleMasteryRank(state, moduleId)}`
+                        : 'Tap to fit a Core'
+                    }
                     guide={moduleId ? `core-${moduleId}` : undefined}
                     onClick={() => {
-                      if (moduleId) setCoreDetail(moduleId)
+                      if (moduleId) setCoreDetail({ moduleId, coreInstanceId })
                       else setPicker({ role })
                     }}
                   />
@@ -297,9 +338,16 @@ export function DockTab({
       {coreDetail ? (
         <CoreDetailSheet
           state={state}
-          moduleId={coreDetail}
+          moduleId={coreDetail.moduleId}
+          coreInstanceId={coreDetail.coreInstanceId}
           locked={locked}
-          onChange={() => setPicker({ replaceId: coreDetail, role: getModule(coreDetail)?.role })}
+          onChange={() =>
+            setPicker({
+              replaceId: coreDetail.moduleId,
+              replaceCoreInstanceId: coreDetail.coreInstanceId,
+              role: getModule(coreDetail.moduleId)?.role,
+            })
+          }
           onClose={() => setCoreDetail(null)}
           onEquipRelic={locked ? undefined : onEquipRelic}
           onRemoveRelic={locked ? undefined : onRemoveRelic}
@@ -310,6 +358,7 @@ export function DockTab({
         <CorePicker
           state={state}
           replaceId={picker.replaceId}
+          replaceCoreInstanceId={picker.replaceCoreInstanceId}
           role={picker.role}
           locked={locked}
           onEquip={fitReplacement}

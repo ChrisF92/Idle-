@@ -314,7 +314,7 @@ Duplicate Cores are allowed. Communicate:
 
 ### Relic copies vs Core copies
 
-**Relics are stored by Core type, not by Core instance.** `reliquary.coreFits[moduleId]` is one socket set per module id. Extra copies of Pulse Cannon share the same Relic loadout. Inventory must not pretend copies have separately configured Relics unless the save model changes.
+**Relics are stored by physical Core instance.** `shipyard.coreInstances` gives every fabricated copy a stable ID and `reliquary.coreFits[coreInstanceId]` stores that copy's sockets. Extra copies of Pulse Cannon may carry different Relic loadouts; shared Mastery still belongs to the Core type.
 
 Owned / equipped / free Relic counts must account for copies fitted across Cores so the player understands why a Relic cannot be equipped.
 

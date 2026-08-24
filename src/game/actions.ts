@@ -130,7 +130,7 @@ import {
   stampFirst,
 } from './playtest'
 import { noteFrontierIntervention } from './frontier'
-import type { SectorRoute } from './types'
+import type { CoreInstance, SectorRoute } from './types'
 import {
   computeShipStats,
   createInitialState,
@@ -176,6 +176,12 @@ import {
   createEmptySignalCoresState,
   unequipAllSignalCores,
 } from './signalCores'
+import {
+  addCoreInstance,
+  availableCoreInstances,
+  normalizeCoreInstances,
+  reconcileEquippedCoreIds,
+} from './coreInstances'
 
 export {
   equipSignalCore,
@@ -586,6 +592,7 @@ export function unequipAllModules(state: GameState): GameState {
   if (state.combat.inFight) return state
   const next = structuredClone(state)
   next.shipyard.modules = []
+  next.shipyard.equippedCoreIds = []
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
@@ -782,12 +789,15 @@ export function selectFrame(state: GameState, frameId: string): GameState {
   if (!frame) return state
 
   const next = structuredClone(state)
+  const previousModules = [...next.shipyard.modules]
+  const previousCoreIds = [...(next.shipyard.equippedCoreIds ?? [])]
   next.shipyard.frameLocked = false
   next.shipyard.frameId = frameId
   next.shipyard.modules = filterModulesForChallenge(
     trimModulesToFrame(next.shipyard.modules, frame, { utility: hiveResearchExtraUtilitySlots(next) }),
     next.prestige.activeChallengeId,
   )
+  reconcileEquippedCoreIds(next.shipyard, previousModules, previousCoreIds)
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
@@ -802,6 +812,7 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
     if (shopRank(state.prestige.shop, def.requiresChallengeShop) < 1) return state
     const next = structuredClone(state)
     next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
+    addCoreInstance(next.shipyard, moduleId)
     return next
   }
   if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
@@ -810,6 +821,7 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
   const next = structuredClone(state)
   pay(next.resources, def.unlockCost)
   next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
+  addCoreInstance(next.shipyard, moduleId)
   return next
 }
 
@@ -1029,7 +1041,7 @@ export function investPartMastery(state: GameState, moduleId: string): GameState
   return next
 }
 
-export function fitModule(state: GameState, moduleId: string): GameState {
+export function fitModule(state: GameState, moduleId: string, coreInstanceId?: string): GameState {
   if (!state.shipyard.unlockedModules.includes(moduleId)) return state
   if (isModuleBlockedByChallenge(state.prestige.activeChallengeId, moduleId)) {
     return state
@@ -1050,7 +1062,14 @@ export function fitModule(state: GameState, moduleId: string): GameState {
   }
 
   const next = structuredClone(state)
+  normalizeCoreInstances(next.shipyard)
+  const available = availableCoreInstances(next, moduleId)
+  const instance = coreInstanceId
+    ? available.find((candidate) => candidate.id === coreInstanceId)
+    : available[0]
+  if (!instance) return state
   next.shipyard.modules = [...next.shipyard.modules, moduleId]
+  next.shipyard.equippedCoreIds = [...next.shipyard.equippedCoreIds, instance.id]
   recordPlaytest(next, 'core_fitted', {
     n: getModule(moduleId)?.name ?? moduleId,
     firstKey: `core_fitted:${moduleId}`,
@@ -1060,11 +1079,16 @@ export function fitModule(state: GameState, moduleId: string): GameState {
   return next
 }
 
-export function unfitModule(state: GameState, moduleId: string): GameState {
-  const idx = state.shipyard.modules.lastIndexOf(moduleId)
+export function unfitModule(state: GameState, moduleId: string, coreInstanceId?: string): GameState {
+  const idx = coreInstanceId
+    ? (state.shipyard.equippedCoreIds?.findIndex(
+        (id, slot) => id === coreInstanceId && state.shipyard.modules[slot] === moduleId,
+      ) ?? -1)
+    : state.shipyard.modules.lastIndexOf(moduleId)
   if (idx < 0) return state
   const next = structuredClone(state)
   next.shipyard.modules = next.shipyard.modules.filter((_, i) => i !== idx)
+  next.shipyard.equippedCoreIds = next.shipyard.equippedCoreIds.filter((_, i) => i !== idx)
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
@@ -1114,6 +1138,8 @@ function persistLoadout(
   extra: Partial<Record<'weapon' | 'defense' | 'utility', number>> = {},
   copies: Record<string, number> = {},
   corePicks: Record<string, Record<string, string>> = {},
+  coreInstances: CoreInstance[] = [],
+  equippedCoreIds: string[] = [],
 ): GameState['shipyard'] {
   const frame = unlockedFrames.includes(frameId) ? frameId : STARTER_FRAME_ID
   const frameDef = getFrame(frame) ?? getFrame(STARTER_FRAME_ID)!
@@ -1130,9 +1156,11 @@ function persistLoadout(
     fitted = ['pulse-cannon']
   }
 
-  return {
+  const loadout: GameState['shipyard'] = {
     frameId: frame,
     modules: fitted,
+    coreInstances: structuredClone(coreInstances),
+    equippedCoreIds: [],
     unlockedFrames,
     unlockedModules,
     moduleLevels: {},
@@ -1143,6 +1171,8 @@ function persistLoadout(
     corePicks: { ...corePicks },
     frameLocked: false,
   }
+  reconcileEquippedCoreIds(loadout, modules, equippedCoreIds)
+  return loadout
 }
 
 /** Sortie-only: spend Salvage to raise a Core's temporary Run Level. Dock no-op. */
@@ -1273,6 +1303,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     unlockedModules: [...state.shipyard.unlockedModules],
     frameId: state.shipyard.frameId,
     modules: [...state.shipyard.modules],
+    coreInstances: structuredClone(state.shipyard.coreInstances ?? []),
+    equippedCoreIds: [...(state.shipyard.equippedCoreIds ?? [])],
     prestigeCount: state.prestige.prestigeCount,
     challengeClears: { ...state.prestige.challengeClears },
     activeChallengeId: state.prestige.activeChallengeId,
@@ -1375,6 +1407,8 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     { utility: hiveResearchExtraUtilitySlots(state) },
     state.shipyard.moduleCopies ?? {},
     state.shipyard.corePicks ?? {},
+    kept.coreInstances,
+    kept.equippedCoreIds,
   )
   state.workshop = createEmptyWorkshop()
   const kit = matterShopWorkshopStarts(kept.matterShop)
@@ -1496,12 +1530,15 @@ export function performRebuild(
     return state
   }
   const next = structuredClone(state)
+  const previousModules = [...next.shipyard.modules]
+  const previousCoreIds = [...(next.shipyard.equippedCoreIds ?? [])]
   next.shipyard.frameId = hangar.frameId
   next.shipyard.modules = trimModulesToFrame(
     hangar.modules.filter((id) => next.shipyard.unlockedModules.includes(id)),
     frame,
     { utility: hiveResearchExtraUtilitySlots(next) },
   )
+  reconcileEquippedCoreIds(next.shipyard, previousModules, previousCoreIds)
   const gain = prestigeGainFor(next)
   next.resources.prestigeMatter += gain
   next.prestige.prestigeCount += 1

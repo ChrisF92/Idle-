@@ -3,6 +3,7 @@
 import { getModule } from './catalog'
 import { coreRoleColor } from './combatVisual'
 import type { GameState } from './types'
+import { coreInstanceAtSlot } from './coreInstances'
 
 export { coreRoleColor }
 
@@ -286,6 +287,7 @@ export function equippedCoreVisuals(state: GameState) {
     const kind = coreVisualKind(id)
     return {
       id,
+      coreInstanceId: coreInstanceAtSlot(state, index)?.id,
       name: def?.name ?? id,
       role,
       kind,

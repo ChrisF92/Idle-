@@ -99,7 +99,7 @@ describe('Act 1 Process depth', () => {
     s.process.purchased = ['auto-relic']
     s.reliquary.owned['battle-chip'] = 1
     tickAutomation(s)
-    expect(s.reliquary.coreFits['pulse-cannon']?.[0]).toBe('battle-chip')
+    expect(s.reliquary.coreFits['pulse-cannon:1']?.[0]).toBe('battle-chip')
     expect(s.reliquary.slots.red ?? null).toBeNull()
   })
 

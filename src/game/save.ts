@@ -50,6 +50,7 @@ import { migrateLegacyCoreProgression } from './coreProgression'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
 import { hydrateFrontierCombat } from './frontier'
+import { normalizeCoreInstances, resolveCoreInstance } from './coreInstances'
 
 export function saveGame(state: GameState): void {
   try {
@@ -267,7 +268,7 @@ function withShipyardDefaults(
   shipyard: GameState['shipyard'] | undefined,
   base: GameState['shipyard'],
 ): GameState['shipyard'] {
-  return {
+  const hydrated: GameState['shipyard'] = {
     ...base,
     ...shipyard,
     unlockedFrames: (shipyard?.unlockedFrames ?? base.unlockedFrames)
@@ -281,6 +282,7 @@ function withShipyardDefaults(
     corePicks: shipyard?.corePicks ?? {},
     frameLocked: shipyard?.frameLocked ?? false,
   }
+  return normalizeCoreInstances(hydrated)
 }
 
 function withResourcesDefaults(
@@ -433,6 +435,18 @@ function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState 
   }
   const coreFits = hydrateCoreFits(raw.coreFits)
   return { owned, slots, coreFits }
+}
+
+/** Move legacy module-definition relic keys onto stable physical Core instance IDs. */
+export function migrateCoreFitInstances(state: GameState): void {
+  normalizeCoreInstances(state.shipyard)
+  const migrated: ReliquaryState['coreFits'] = {}
+  for (const [key, slots] of Object.entries(state.reliquary.coreFits ?? {})) {
+    const instance = resolveCoreInstance(state, key)
+    const target = instance?.id ?? key
+    if (!migrated[target]) migrated[target] = [...slots]
+  }
+  state.reliquary.coreFits = migrated
 }
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
@@ -767,6 +781,7 @@ function migrate(raw: unknown): GameState | null {
       parts: withPartsDefaults(state.parts),
       playtest: hydratePlaytest(state.playtest),
     }
+    migrateCoreFitInstances(hydrated)
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingState(hydrated)
@@ -862,6 +877,7 @@ function migrate(raw: unknown): GameState | null {
       parts: withPartsDefaults(prev.parts),
       playtest: hydratePlaytest(prev.playtest),
     }
+    migrateCoreFitInstances(hydrated)
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingState(hydrated)

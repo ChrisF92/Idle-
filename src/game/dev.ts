@@ -22,6 +22,7 @@ import { CORE_MASTERY_CAP, CORE_RUN_LEVEL_CAP, setCoreRunLevel } from './corePro
 import { isBossWave, powerSectorForWave, bandsClearedForWave } from './waves'
 import { createDefaultProcessProfiles } from './processProfiles'
 import { noteCareerWave } from './playtest'
+import { reconcileEquippedCoreIds } from './coreInstances'
 
 export const DEV_FLAG_KEY = 'cosmic-idle-dev'
 
@@ -327,11 +328,14 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
     case 'select-frame': {
       const frame = SHIP_FRAMES.find((f) => f.id === action.frameId)
       if (frame) {
+        const previousModules = [...next.shipyard.modules]
+        const previousCoreIds = [...(next.shipyard.equippedCoreIds ?? [])]
         if (!next.shipyard.unlockedFrames.includes(frame.id)) {
           next.shipyard.unlockedFrames = [...next.shipyard.unlockedFrames, frame.id]
         }
         next.shipyard.frameId = frame.id
         next.shipyard.modules = trimModulesToFrame(next.shipyard.modules, frame)
+        reconcileEquippedCoreIds(next.shipyard, previousModules, previousCoreIds)
         next.combat.log = [`[dev] Equipped ${frame.name}.`, ...next.combat.log].slice(0, 40)
         if (!next.combat.inFight) syncPersistedHullCaps(next)
       }

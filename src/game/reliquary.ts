@@ -10,6 +10,7 @@ import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
 import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
+import { resolveCoreInstance } from './coreInstances'
 
 export interface ShardDef {
   id: string
@@ -422,9 +423,14 @@ export function corePrimarySocket(moduleId: string): RelicSocketClass {
   return 'power'
 }
 
-export function coreSocketLayout(state: GameState, moduleId: string): RelicSocketClass[] {
+export function coreSocketLayout(state: GameState, coreIdOrModuleId: string): RelicSocketClass[] {
   if (!isRelicsUnlocked(state)) return []
-  if (!state.shipyard.modules.includes(moduleId)) return []
+  const instance = resolveCoreInstance(state, coreIdOrModuleId)
+  const moduleId = instance?.moduleId ?? coreIdOrModuleId
+  const fitted = instance
+    ? state.shipyard.equippedCoreIds?.includes(instance.id)
+    : state.shipyard.modules.includes(moduleId)
+  if (!fitted) return []
   const sockets: RelicSocketClass[] = [corePrimarySocket(moduleId)]
   const mastery = moduleMasteryRank(state, moduleId)
   if (mastery >= 20) {
@@ -446,8 +452,12 @@ export function relicFitsSocket(relic: RelicSocketClass, socket: RelicSocketClas
   return relic === socket
 }
 
-export function coreSocketRelics(state: GameState, moduleId: string): Array<string | null> {
-  const raw = state.reliquary?.coreFits?.[moduleId]
+export function coreSocketRelics(state: GameState, coreIdOrModuleId: string): Array<string | null> {
+  const instance = resolveCoreInstance(state, coreIdOrModuleId)
+  const key = instance?.id ?? coreIdOrModuleId
+  const raw =
+    state.reliquary?.coreFits?.[key] ??
+    (key !== coreIdOrModuleId ? state.reliquary?.coreFits?.[coreIdOrModuleId] : undefined)
   if (Array.isArray(raw)) return [...raw]
   return []
 }
@@ -461,8 +471,10 @@ export function fittedRelicIds(state: GameState): string[] {
   return ids
 }
 
-export function coreRelicId(state: GameState, moduleId: string): string | null {
-  const id = coreSocketRelics(state, moduleId).find((slot) => typeof slot === 'string' && slot.length > 0)
+export function coreRelicId(state: GameState, coreIdOrModuleId: string): string | null {
+  const id = coreSocketRelics(state, coreIdOrModuleId).find(
+    (slot) => typeof slot === 'string' && slot.length > 0,
+  )
   return id ?? null
 }
 
@@ -484,18 +496,20 @@ function giveOwned(state: GameState, relicId: string, qty = 1): void {
 
 export function equipRelicOnCore(
   state: GameState,
-  moduleId: string,
+  coreIdOrModuleId: string,
   relicId: string,
   socketIndex?: number,
 ): GameState {
   if (!state.combat.docked) return state
   const def = getShard(relicId)
   if (!def) return state
-  const layout = coreSocketLayout(state, moduleId)
+  const instance = resolveCoreInstance(state, coreIdOrModuleId)
+  if (!instance) return state
+  const layout = coreSocketLayout(state, instance.id)
   if (layout.length < 1) return state
   if (shardOwned(state, relicId) < 1) return state
   const relicClass = relicSocketClass(def)
-  const current = padCoreSockets(coreSocketRelics(state, moduleId), layout.length)
+  const current = padCoreSockets(coreSocketRelics(state, instance.id), layout.length)
   const family = relicFamilyId(relicId)
   const occupiedFamily = current.some(
     (id) => id && relicFamilyId(id) === family,
@@ -512,22 +526,25 @@ export function equipRelicOnCore(
   const next = structuredClone(state)
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
   if (!next.reliquary.coreFits) next.reliquary.coreFits = {}
-  const slots = padCoreSockets(coreSocketRelics(next, moduleId), layout.length)
+  const slots = padCoreSockets(coreSocketRelics(next, instance.id), layout.length)
   if (previous) giveOwned(next, previous)
   takeOwned(next, relicId)
   slots[index] = relicId
-  next.reliquary.coreFits[moduleId] = slots
+  next.reliquary.coreFits[instance.id] = slots
+  if (instance.id !== coreIdOrModuleId) delete next.reliquary.coreFits[coreIdOrModuleId]
   noteSystemAction(next, 'reliquary')
   return next
 }
 
 export function removeRelicFromCore(
   state: GameState,
-  moduleId: string,
+  coreIdOrModuleId: string,
   socketIndex?: number,
 ): GameState {
   if (!state.combat.docked) return state
-  const slots = coreSocketRelics(state, moduleId)
+  const instance = resolveCoreInstance(state, coreIdOrModuleId)
+  if (!instance) return state
+  const slots = coreSocketRelics(state, instance.id)
   let index = socketIndex
   if (index == null) {
     index = -1
@@ -543,11 +560,12 @@ export function removeRelicFromCore(
   const next = structuredClone(state)
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
   if (!next.reliquary.coreFits) next.reliquary.coreFits = {}
-  const copy = [...coreSocketRelics(next, moduleId)]
+  const copy = [...coreSocketRelics(next, instance.id)]
   while (copy.length <= index) copy.push(null)
   copy[index] = null
   giveOwned(next, fitted)
-  next.reliquary.coreFits[moduleId] = copy
+  next.reliquary.coreFits[instance.id] = copy
+  if (instance.id !== coreIdOrModuleId) delete next.reliquary.coreFits[coreIdOrModuleId]
   return next
 }
 

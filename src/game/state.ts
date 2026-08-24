@@ -110,6 +110,11 @@ export function createInitialState(now = Date.now()): GameState {
     shipyard: {
       frameId: STARTER_FRAME_ID,
       modules: ['pulse-cannon', 'plate-layer'],
+      coreInstances: [
+        { id: 'pulse-cannon:1', moduleId: 'pulse-cannon' },
+        { id: 'plate-layer:1', moduleId: 'plate-layer' },
+      ],
+      equippedCoreIds: ['pulse-cannon:1', 'plate-layer:1'],
       unlockedFrames: [STARTER_FRAME_ID],
       unlockedModules: ['pulse-cannon', 'plate-layer'],
       moduleLevels: {},

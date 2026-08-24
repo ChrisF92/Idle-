@@ -72,7 +72,7 @@ describe('GDD Rebuild', () => {
     s.foundry.recipeLevels['slag-ingot'] = 4
     s.reliquary.owned['battle-chip'] = 1
     s = equipRelicOnCore(s, 'pulse-cannon', 'battle-chip')
-    expect(s.reliquary.coreFits['pulse-cannon']).toEqual(['battle-chip'])
+    expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
     const career = s.meta.bestWave
     const before = prestigeGainFor(s)
 
@@ -89,7 +89,7 @@ describe('GDD Rebuild', () => {
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.combat.directives).toEqual([])
     expect(s.foundry.recipeLevels['slag-ingot']).toBe(4)
-    expect(s.reliquary.coreFits['pulse-cannon']).toEqual(['battle-chip'])
+    expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
   })
 
   it('does not let a second Rebuild fire until this cycle reaches Wave 70 again', () => {

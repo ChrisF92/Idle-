@@ -3,7 +3,10 @@ import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
 import { equippedCoreVisuals, hiveFrameStyle } from '../game/hiveVisual'
 import type { GameState } from '../game/types'
 
-export type HiveRigTarget = { kind: 'hive' } | { kind: 'core'; moduleId: string } | { kind: 'slot'; role: 'weapon' | 'defense' | 'utility' }
+export type HiveRigTarget =
+  | { kind: 'hive' }
+  | { kind: 'core'; moduleId: string; coreInstanceId?: string }
+  | { kind: 'slot'; role: 'weapon' | 'defense' | 'utility' }
 
 interface HiveRigProps {
   state: GameState
@@ -46,7 +49,7 @@ export function HiveRig({ state, compact = false, interactive = false, onSelect 
         const r = compact ? 38 + core.orbit * 0.15 : 52 + core.orbit * 0.35
         return (
           <button
-            key={core.id}
+            key={core.coreInstanceId ?? `${core.id}-${index}`}
             type="button"
             className={`hive-rig-sat is-${core.role} is-${core.kind}`}
             style={{
@@ -56,7 +59,13 @@ export function HiveRig({ state, compact = false, interactive = false, onSelect 
             disabled={!interactive}
             data-guide={`core-${core.id}`}
             aria-label={getModule(core.id)?.name ?? core.id}
-            onClick={() => onSelect?.({ kind: 'core', moduleId: core.id })}
+            onClick={() =>
+              onSelect?.({
+                kind: 'core',
+                moduleId: core.id,
+                coreInstanceId: core.coreInstanceId,
+              })
+            }
           />
         )
       })}

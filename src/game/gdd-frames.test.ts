@@ -55,6 +55,11 @@ describe('GDD D8 Hive Frames', () => {
     let s = createInitialState(0)
     s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'swarm-frame']
     s.shipyard.unlockedModules = ['pulse-cannon', 'barrier-projector', 'salvage-rig']
+    s.shipyard.moduleCopies = {
+      'pulse-cannon': 3,
+      'barrier-projector': 1,
+      'salvage-rig': 1,
+    }
     s = selectFrame(s, 'swarm-frame')
     s.shipyard.modules = []
     s = fitModule(s, 'pulse-cannon')

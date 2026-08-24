@@ -137,8 +137,8 @@ type Action =
   | { type: 'unlock-frame'; frameId: string }
   | { type: 'select-frame'; frameId: string }
   | { type: 'unlock-module'; moduleId: string }
-  | { type: 'fit-module'; moduleId: string }
-  | { type: 'unfit-module'; moduleId: string }
+  | { type: 'fit-module'; moduleId: string; coreInstanceId?: string }
+  | { type: 'unfit-module'; moduleId: string; coreInstanceId?: string }
   | { type: 'upgrade-module'; moduleId: string }
   | { type: 'buy-core-run'; slot: number; count?: number }
   | { type: 'buy-run-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
@@ -277,9 +277,9 @@ function reducer(state: GameState, action: Action): GameState {
     case 'unlock-module':
       return unlockModule(state, action.moduleId)
     case 'fit-module':
-      return fitModule(state, action.moduleId)
+      return fitModule(state, action.moduleId, action.coreInstanceId)
     case 'unfit-module':
-      return unfitModule(state, action.moduleId)
+      return unfitModule(state, action.moduleId, action.coreInstanceId)
     case 'upgrade-module':
       return upgradeModule(state, action.moduleId)
     case 'buy-core-run':
@@ -505,8 +505,10 @@ export function useGame() {
     unlockFrame: (frameId: string) => dispatch({ type: 'unlock-frame', frameId }),
     selectFrame: (frameId: string) => dispatch({ type: 'select-frame', frameId }),
     unlockModule: (moduleId: string) => dispatch({ type: 'unlock-module', moduleId }),
-    fitModule: (moduleId: string) => dispatch({ type: 'fit-module', moduleId }),
-    unfitModule: (moduleId: string) => dispatch({ type: 'unfit-module', moduleId }),
+    fitModule: (moduleId: string, coreInstanceId?: string) =>
+      dispatch({ type: 'fit-module', moduleId, coreInstanceId }),
+    unfitModule: (moduleId: string, coreInstanceId?: string) =>
+      dispatch({ type: 'unfit-module', moduleId, coreInstanceId }),
     upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
     buyCoreRunSlot: (slot: number, count?: number) =>
       dispatch({ type: 'buy-core-run', slot, count }),

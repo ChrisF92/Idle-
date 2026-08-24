@@ -34,6 +34,10 @@ import { inspectCore } from '../game/inspect'
 import { InspectName } from './InspectName'
 import { RelicSockets } from './CoreSheet'
 import { BottomSheet, Kicker, StatPair } from '../ui/primitives'
+import {
+  availableCoreInstances,
+  coreInstanceCopyNumber,
+} from '../game/coreInstances'
 
 const ROLE_LABEL: Record<ModuleRole, string> = {
   weapon: 'Weapon',
@@ -127,6 +131,7 @@ export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps)
 interface CoreDetailSheetProps {
   state: GameState
   moduleId: string
+  coreInstanceId?: string
   locked?: boolean
   onChange?: () => void
   onClose: () => void
@@ -138,6 +143,7 @@ interface CoreDetailSheetProps {
 export function CoreDetailSheet({
   state,
   moduleId,
+  coreInstanceId = moduleId,
   locked,
   onChange,
   onClose,
@@ -155,12 +161,17 @@ export function CoreDetailSheet({
   const need = masteryXpToNext(mastery)
   const next = nextMasteryMilestone(moduleId, mastery)
   const milestones = masteryMilestonesFor(moduleId)
+  const copyCount = state.shipyard.coreInstances.filter(
+    (instance) => instance.moduleId === moduleId,
+  ).length
+  const copyLabel =
+    copyCount > 1 ? ` · Copy ${coreInstanceCopyNumber(state, coreInstanceId)}` : ''
 
   return (
     <BottomSheet
       open
       title={<InspectName name={def.name} card={inspectCore(state, moduleId)} />}
-      kicker={`${ROLE_LABEL[def.role]} Core`}
+      kicker={`${ROLE_LABEL[def.role]} Core${copyLabel}`}
       onClose={onClose}
       overlayId={`core-detail-${moduleId}`}
       size="full"
@@ -212,6 +223,7 @@ export function CoreDetailSheet({
         <RelicSockets
           state={state}
           moduleId={moduleId}
+        coreInstanceId={coreInstanceId}
           onEquipRelic={locked ? undefined : onEquipRelic}
           onRemoveRelic={locked ? undefined : onRemoveRelic}
           onUpgradeRelic={locked ? undefined : onUpgradeRelic}
@@ -224,31 +236,47 @@ export function CoreDetailSheet({
 interface CorePickerProps {
   state: GameState
   replaceId?: string
+  replaceCoreInstanceId?: string
   role?: ModuleRole
   locked?: boolean
-  onEquip: (moduleId: string) => void
+  onEquip: (moduleId: string, coreInstanceId: string) => void
   onClose: () => void
 }
 
-export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }: CorePickerProps) {
+export function CorePicker({
+  state,
+  replaceId,
+  replaceCoreInstanceId,
+  role,
+  locked,
+  onEquip,
+  onClose,
+}: CorePickerProps) {
   const extra = { utility: hiveResearchExtraUtilitySlots(state) }
   const frame = getFrame(state.shipyard.frameId)
   const current = replaceId ? getModule(replaceId) : null
   const wantRole = role ?? current?.role
+  const replaceSlot = replaceCoreInstanceId
+    ? state.shipyard.equippedCoreIds.indexOf(replaceCoreInstanceId)
+    : replaceId
+      ? state.shipyard.modules.lastIndexOf(replaceId)
+      : -1
+  const without =
+    replaceSlot >= 0
+      ? state.shipyard.modules.filter((_, index) => index !== replaceSlot)
+      : state.shipyard.modules
   const options = useMemo(
     () =>
-      SHIP_MODULES.filter((mod) => {
-        if (!state.shipyard.unlockedModules.includes(mod.id)) return false
-        if (wantRole && mod.role !== wantRole) return false
-        const without = replaceId
-          ? state.shipyard.modules.filter((id) => id !== replaceId)
-          : state.shipyard.modules
-        if (frame && !canFitModuleOnFrame(frame, without, mod.id, extra) && replaceId !== mod.id) {
-          return false
-        }
-        return true
-      }),
-    [state, wantRole, replaceId, frame, extra],
+      availableCoreInstances(state, undefined, replaceCoreInstanceId)
+        .filter((instance) => instance.id !== replaceCoreInstanceId)
+        .flatMap((instance) => {
+          const mod = SHIP_MODULES.find((candidate) => candidate.id === instance.moduleId)
+          if (!mod || !state.shipyard.unlockedModules.includes(mod.id)) return []
+          if (wantRole && mod.role !== wantRole) return []
+          if (frame && !canFitModuleOnFrame(frame, without, mod.id, extra)) return []
+          return [{ mod, coreInstanceId: instance.id }]
+        }),
+    [state, wantRole, replaceCoreInstanceId, frame, without, extra],
   )
 
   return (
@@ -260,24 +288,21 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
       size="full"
     >
         {locked ? <p className="muted">Loadout changes are locked until Dock.</p> : null}
-          {options.map((mod) => {
-            const without = replaceId
-              ? state.shipyard.modules.filter((id) => id !== replaceId)
-              : state.shipyard.modules
+          {options.map(({ mod, coreInstanceId }) => {
             const nextModules = frame ? trimModulesToFrame([...without, mod.id], frame, extra) : [...without, mod.id]
             const fits = frame
-              ? canFitModuleOnFrame(frame, without, mod.id, extra) || nextModules.includes(mod.id)
+              ? canFitModuleOnFrame(frame, without, mod.id, extra)
               : true
             const compare = previewLoadoutStats(state, state.shipyard.frameId, nextModules)
             const mastery = moduleMasteryRank(state, mod.id)
             const dps = coreDps(state, mod.id)
             const copies = coreCopyBreakdown(state, mod.id)
             return (
-              <article key={mod.id} className={fits ? 'upgrade-card is-affordable' : 'upgrade-card'}>
+              <article key={coreInstanceId} className={fits ? 'upgrade-card is-affordable' : 'upgrade-card'}>
                 <header className="upgrade-card-head">
                   <strong>{mod.name}</strong>
                   <span className="muted">
-                    {ROLE_LABEL[mod.role]} · Mastery {mastery}
+                    Copy {coreInstanceCopyNumber(state, coreInstanceId)} · {ROLE_LABEL[mod.role]} · Mastery {mastery}
                     {copies ? ` · ×${copies.owned} · Eq ${copies.equipped}` : ''}
                   </span>
                 </header>
@@ -305,7 +330,7 @@ export function CorePicker({ state, replaceId, role, locked, onEquip, onClose }:
                   type="button"
                   className="primary"
                   disabled={locked || !fits}
-                  onClick={() => onEquip(mod.id)}
+                  onClick={() => onEquip(mod.id, coreInstanceId)}
                 >
                   Equip
                 </button>
