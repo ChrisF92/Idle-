@@ -30,12 +30,12 @@ import {
   blueprintProgress,
   formatPrintSourceLine,
   getBlueprint,
-  listFarmableCores,
-  modulePrintSector,
+  isCorePrintUnlocked,
+  listFoundryPrintCards,
+  modulePrintWave,
   PART_TYPES,
 } from '../../game/catalog'
 import { canAssembleBlueprint } from '../../game/actions'
-import { sectorCanDropPrint } from '../../game/combat'
 import { inspectFoundryRecipe } from '../../game/inspect'
 import { InspectName } from '../InspectName'
 import { SheetTabs } from '../SheetTabs'
@@ -103,7 +103,7 @@ function PrintRow({
   onTrack,
 }: {
   state: GameState
-  mod: ReturnType<typeof listFarmableCores>[number]
+  mod: ReturnType<typeof listFoundryPrintCards>[number]
   onAssemble: (moduleId: string) => void
   onTrack?: (moduleId: string | null) => void
 }) {
@@ -113,42 +113,39 @@ function PrintRow({
   const check = canAssembleBlueprint(state, mod.id)
   const tracked = state.foundry.trackedPrintId === mod.id
   const queued = state.foundry.fabrication.some((slot) => slot.kind === 'core' && slot.jobId === mod.id)
-  const need = modulePrintSector(mod.id)
+  const dropWave = modulePrintWave(mod.id)
+  const open = isCorePrintUnlocked(state, mod.id)
   const printed = state.shipyard.unlockedModules.includes(mod.id)
   const partsLine = PART_TYPES.map((pt) => `${progress?.owned[pt] ?? 0}/${progress?.need[pt] ?? 0} ${pt}`).join(' · ')
-  const sourceLine = recipe ? formatPrintSourceLine(mod.id) : ''
+  const sourceLine = recipe ? formatPrintSourceLine(mod.id) : dropWave > 0 ? `Fragments from Wave ${dropWave}+` : ''
   const foundryLine = recipe?.foundry
     ? Object.entries(recipe.foundry)
         .map(([id, n]) => `${n} ${FOUNDRY_RECIPES.find((r) => r.id === id)?.name ?? id}`)
         .join(' · ')
     : ''
-  const familyMismatch = !sectorCanDropPrint(state.combat.sector, mod.id)
 
   return (
     <article className={printed ? 'network-row is-fitted' : queued ? 'network-row is-active' : 'network-row'}>
       <div className="network-row-main">
         <strong>{mod.name}</strong>
         <span className="muted">
-          {queued ? 'Fabricating' : printed ? 'Printed' : check.ok ? 'Ready to fabricate' : `W${need}`}
+          {queued ? 'Fabricating' : printed ? 'Printed' : check.ok ? 'Ready to fabricate' : `Wave ${dropWave}+`}
         </span>
       </div>
       <p className="network-row-stats">
         {printed
           ? 'Fit this Core at Dock after the job completes.'
-          : `Fragments ${totals.have} / ${totals.need}`}
+          : open
+            ? `Fragments ${totals.have} / ${totals.need}`
+            : `Parts drop from Wave ${dropWave}+`}
       </p>
-      {!printed ? <p className="network-row-stats print-parts">{partsLine}</p> : null}
+      {!printed && open ? <p className="network-row-stats print-parts">{partsLine}</p> : null}
       {!printed && (sourceLine || foundryLine) ? (
         <p className="network-row-stats">{[sourceLine, foundryLine].filter(Boolean).join(' · ')}</p>
       ) : null}
-      {familyMismatch ? (
-        <p className="network-row-stats print-warn">
-          {mod.name} fragments do not drop from this enemy family.
-        </p>
-      ) : null}
       {!printed && !queued ? (
         <p className="print-row-actions">
-          {onTrack ? (
+          {onTrack && open ? (
             <button type="button" className={tracked ? 'primary' : undefined} onClick={() => onTrack(tracked ? null : mod.id)}>
               {tracked ? 'Tracked' : 'Track'}
             </button>
@@ -342,8 +339,8 @@ export function FoundryTab({
                   Fabrication
                 </h3>
                 <p className="muted">
-                  Combat finds blueprints and parts. Foundry spends time and materials. Jobs finish during a Sortie but
-                  cannot be fitted until you Dock.
+                  Combat finds blueprints and parts. Foundry spends time and materials. Each card lists the enemy family
+                  and Wave where fragments start dropping. Jobs finish during a Sortie but cannot be fitted until you Dock.
                 </p>
                 {foundry.fabrication.map((slot, i) => (
                   <article key={i} className={slot.kind ? 'network-row is-active' : 'network-row is-idle'}>
@@ -376,7 +373,7 @@ export function FoundryTab({
                     )}
                   </article>
                 ))}
-                {listFarmableCores(state).map((mod) => (
+                {listFoundryPrintCards(state).map((mod) => (
                   <PrintRow key={mod.id} state={state} mod={mod} onAssemble={onAssemble} onTrack={onTrack} />
                 ))}
               </>

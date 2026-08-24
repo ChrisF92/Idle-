@@ -1,10 +1,8 @@
 /** Capital — USI Capital analogue. Second combat scale on the ship, not fighters. */
 
 import type { CapitalId, CapitalState, GameState } from './types'
-import { taskListComplete } from './tasks'
 import { noteSystemAction, recordPlaytest } from './playtest'
 import { ACT1_CADENCE } from './cadence'
-import { careerBestWave } from './waves'
 
 export const CAPITAL_UNLOCK_SECTOR = ACT1_CADENCE.capital
 export const CAPITAL_MAX_RANK = 20
@@ -32,8 +30,8 @@ export function getCapitalTrack(id: string): CapitalTrackDef | undefined {
   return CAPITAL_TRACKS.find((t) => t.id === id)
 }
 
-export function capitalUnlocked(state: GameState): boolean {
-  return careerBestWave(state) >= CAPITAL_UNLOCK_SECTOR && taskListComplete(state)
+export function capitalUnlocked(_state: GameState): boolean {
+  return false
 }
 
 export function capitalRank(state: GameState, id: CapitalId): number {
@@ -83,17 +81,14 @@ export function rankCapital(state: GameState, id: CapitalId): GameState {
   return next
 }
 
-export function capitalDamageMult(state: GameState): number {
-  const def = getCapitalTrack('broadside')
-  return 1 + capitalRank(state, 'broadside') * (def?.damage ?? 0)
+export function capitalDamageMult(_state: GameState): number {
+  return 1
 }
 
-export function capitalShieldMult(state: GameState): number {
-  const def = getCapitalTrack('bulkhead')
-  return 1 + capitalRank(state, 'bulkhead') * (def?.shield ?? 0)
+export function capitalShieldMult(_state: GameState): number {
+  return 1
 }
 
-export function capitalSalvageMult(state: GameState): number {
-  const def = getCapitalTrack('hold')
-  return 1 + capitalRank(state, 'hold') * (def?.salvage ?? 0)
+export function capitalSalvageMult(_state: GameState): number {
+  return 1
 }

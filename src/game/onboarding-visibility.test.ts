@@ -108,7 +108,7 @@ describe('Hiveworks onboarding catalog', () => {
     expect(isSystemUnlocked(state, 'reliquary')).toBe(true)
     expect(isSystemUnlocked(state, 'protocols')).toBe(true)
     state.protocols.ranks['mute-network'] = 1
-    expect(isSystemUnlocked(state, 'echo')).toBe(true)
+    expect(isSystemUnlocked(state, 'echo')).toBe(false)
     expect(activeGuideStep(state, 'stats')).toBeNull()
     expect(challengesContentUnlocked(state)).toBe(true)
     state.meta.act1Cleared = true

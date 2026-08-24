@@ -28,7 +28,7 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR - 1
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR
-    expect(isSystemUnlocked(fresh, 'specialists')).toBe(true)
+    expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     expect(GUIDE_STEPS.some((s) => s.id === 'guide-specialists')).toBe(false)
   })
 
@@ -64,26 +64,26 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     const shield0 = computeShipStats(s).shieldMax
 
     s = rankSpecialist(s, 'gunner')
-    expect(specialistRank(s, 'gunner')).toBe(1)
-    expect(specialistDamageMult(s)).toBeCloseTo(1.025)
-    expect(computeShipStats(s).damage).toBeGreaterThan(dmg0)
+    expect(specialistRank(s, 'gunner')).toBe(0)
+    expect(specialistDamageMult(s)).toBe(1)
+    expect(computeShipStats(s).damage).toBe(dmg0)
 
     s = rankSpecialist(s, 'warden')
-    expect(specialistShieldMult(s)).toBeCloseTo(1.03)
-    expect(computeShipStats(s).shieldMax).toBeGreaterThan(shield0)
+    expect(specialistShieldMult(s)).toBe(1)
+    expect(computeShipStats(s).shieldMax).toBe(shield0)
 
     for (let i = 0; i < 9; i += 1) s = rankSpecialist(s, 'gunner')
-    expect(specialistRank(s, 'gunner')).toBe(10)
-    expect(specialistMastery(s)).toBe(1)
-    expect(specialistDamageMult(s)).toBeCloseTo(1.25 * 1.01)
+    expect(specialistRank(s, 'gunner')).toBe(0)
+    expect(specialistMastery(s)).toBe(0)
+    expect(specialistDamageMult(s)).toBe(1)
 
     s = performRebuild(s, {
       frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
-    expect(specialistRank(s, 'gunner')).toBe(10)
-    expect(specialistRank(s, 'warden')).toBe(1)
-    expect(specialistMastery(s)).toBe(1)
+    expect(specialistRank(s, 'gunner')).toBe(0)
+    expect(specialistRank(s, 'warden')).toBe(0)
+    expect(specialistMastery(s)).toBe(0)
   })
 
   it('L0 Plate still holds sector 1', () => {
@@ -139,8 +139,9 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     expect(s.combat.wave).toBe(30)
 
     s = applyDevAction(s, { type: 'unlock-catalog' })
-    expect(s.meta.bestWave).toBeGreaterThanOrEqual(300)
-    expect(isSystemUnlocked(s, 'foundry')).toBe(true)
+    expect(s.meta.bestWave).toBeLessThan(300)
+    expect(s.shipyard.unlockedFrames).toContain('swarm-frame')
+    expect(isSystemUnlocked(s, 'foundry')).toBe(false)
     expect(isSystemUnlocked(s, 'specialists')).toBe(false)
 
     s = applyDevAction(s, {

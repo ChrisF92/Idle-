@@ -28,10 +28,9 @@ const HIVE_RESOURCES: DevAction = {
 
 function prepDoor(onDevAction: (action: DevAction) => void, wave: number): void {
   onDevAction({ type: 'skip-guides' })
-  onDevAction({ type: 'unlock-catalog' })
   onDevAction({ type: 'prep-gdd-door', wave })
   onDevAction(HIVE_RESOURCES)
-  onDevAction({ type: 'fill-workers', count: 8 })
+  if (wave >= 30) onDevAction({ type: 'fill-workers', count: 8 })
   onDevAction({ type: 'dock-heal' })
 }
 

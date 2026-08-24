@@ -111,60 +111,6 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
     body: 'Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself. No Act 2 shop opens here.',
     unlock: (s) => s.meta.act1Cleared || (s.meta.ascensionCount ?? 0) > 0,
   },
-  {
-    id: 'echo',
-    title: 'Rift',
-    body: 'Short gauntlets used to live here. Echo is retired; Challenges cover alternate combat tests.',
-    unlock: () => false,
-  },
-  {
-    id: 'cruiser',
-    title: 'Second hull',
-    body: 'Retired USI hull note.',
-    unlock: () => false,
-  },
-  {
-    id: 'heavy',
-    title: 'Heavy rack',
-    body: 'Retired USI hull note.',
-    unlock: () => false,
-  },
-  {
-    id: 'green-slot',
-    title: 'Fifth colour',
-    body: 'Retired band note.',
-    unlock: () => false,
-  },
-  {
-    id: 'battlecruiser',
-    title: 'Battlecruiser',
-    body: 'Retired USI hull note.',
-    unlock: () => false,
-  },
-  {
-    id: 'crew',
-    title: 'Print shop',
-    body: 'Specialists are deferred from Act 1.',
-    unlock: () => false,
-  },
-  {
-    id: 'tasks',
-    title: 'The list',
-    body: 'Capital and the Task List are deferred from Act 1.',
-    unlock: () => false,
-  },
-  {
-    id: 'capital',
-    title: 'Second scale',
-    body: 'Capital is deferred from Act 1.',
-    unlock: () => false,
-  },
-  {
-    id: 'boss-14',
-    title: 'Four by four',
-    body: 'Retired band note.',
-    unlock: () => false,
-  },
 ]
 
 export function unlockedFoundryLogs(state: GameState): FoundryLogDef[] {

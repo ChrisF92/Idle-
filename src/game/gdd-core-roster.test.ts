@@ -6,6 +6,9 @@ import {
   GDD_ROSTER_CORE_IDS,
   isGddRosterCore,
   listFarmableCores,
+  listFoundryPrintCards,
+  formatPrintSourceLine,
+  modulePrintWave,
   PART_TYPES,
   partId,
 } from './catalog'
@@ -77,5 +80,19 @@ describe('GDD Core roster and acquisition', () => {
     claimFoundryCompletions(s)
     expect(s.shipyard.unlockedModules).toContain('flak-array')
     expect(s.foundry.pendingCores).not.toContain('flak-array')
+  })
+
+  it('shows upcoming GDD prints with drop Wave and family at Foundry unlock', () => {
+    const early = atCareerWave(createInitialState(0), 20)
+    expect(listFarmableCores(early)).toEqual([])
+    const cards = listFoundryPrintCards(early)
+    expect(cards.map((m) => m.id)).toEqual(expect.arrayContaining(['flak-array', 'heavy-lance', 'phase-beam']))
+    for (const id of LEFTOVER_CORES) {
+      expect(cards.some((m) => m.id === id)).toBe(false)
+    }
+    expect(formatPrintSourceLine('flak-array')).toMatch(/Swarm · Wave \d+\+/)
+    expect(formatPrintSourceLine('heavy-lance')).toMatch(/Armored · Wave \d+\+/)
+    expect(modulePrintWave('flak-array')).toBeGreaterThanOrEqual(20)
+    expect(formatPrintSourceLine('flak-array')).not.toMatch(/fragments do not drop/i)
   })
 })

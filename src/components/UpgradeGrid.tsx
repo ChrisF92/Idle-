@@ -115,6 +115,7 @@ export function UpgradeGrid({
             const cost = coreRunBulkCost(state, row.slot, count)
             const bank = state.resources.salvage ?? 0
             const affordable = bank >= cost && level < CORE_RUN_LEVEL_CAP && cost > 0
+            const maxed = level >= CORE_RUN_LEVEL_CAP
             const out = corePrimaryOutput(state, row.slot)
             const guide =
               row.moduleId === 'pulse-cannon' && row.slot === state.shipyard.modules.indexOf('pulse-cannon')
@@ -123,27 +124,27 @@ export function UpgradeGrid({
             return (
               <article
                 key={`core-${row.slot}`}
-                className={`upgrade-tile core-tile${affordable ? ' is-affordable' : ''}`}
+                className={`upgrade-tile core-tile${affordable ? ' is-affordable' : maxed ? ' is-maxed' : ' is-short'}`}
                 data-guide={guide}
               >
                 <button
                   type="button"
                   className="upgrade-tile-buy"
-                  disabled={!onBuyCore || level >= CORE_RUN_LEVEL_CAP}
+                  disabled={!onBuyCore || maxed}
                   onClick={() => onBuyCore?.(row.slot, count)}
-                  aria-label={`${def.name}. ${affordable ? `Buy ${count} Run Levels for ${formatCompact(cost)} Salvage` : `Need ${formatCompact(cost)} Salvage`}`}
+                  aria-label={`${def.name}. ${affordable ? `Buy ${count} Run Levels for ${formatCompact(cost)} Salvage` : maxed ? 'Maxed' : `Need ${formatCompact(cost)} Salvage`}`}
                 >
                   <span className="upgrade-tile-top">
                     <strong>{def.name}</strong>
-                    <span className={`upgrade-tile-cost${affordable ? '' : ' is-short'}`}>
-                      {level >= CORE_RUN_LEVEL_CAP ? 'Maxed' : formatCompact(cost)}
-                    </span>
                   </span>
                   <span className="upgrade-tile-level">Run Lv{level}</span>
                   <span className="upgrade-tile-preview">
                     {out
                       ? `${formatCompact(out.current)} → ${formatCompact(out.next)} ${out.label}`
                       : 'Run Level'}
+                  </span>
+                  <span className={`upgrade-tile-cost${affordable ? ' is-ok' : maxed ? '' : ' is-short'}`}>
+                    {maxed ? 'Maxed' : `${formatCompact(cost)} Salvage`}
                   </span>
                 </button>
                 <button
@@ -175,6 +176,7 @@ export function UpgradeGrid({
             const bank = kind === 'run' ? state.resources.salvage : state.resources.scrap
             const currency = kind === 'run' ? 'Salvage' : 'Scrap'
             const affordable = bank >= cost && level < RUN_UPGRADE_CAP && cost > 0
+            const maxed = level >= RUN_UPGRADE_CAP
             const preview = runUpgradePreview(state, def.id)
             const guide =
               def.id === 'weapon-power'
@@ -187,21 +189,18 @@ export function UpgradeGrid({
             return (
               <article
                 key={def.id}
-                className={`upgrade-tile${affordable ? ' is-affordable' : ''}`}
+                className={`upgrade-tile${affordable ? ' is-affordable' : maxed ? ' is-maxed' : ' is-short'}`}
                 data-guide={guide}
               >
                 <button
                   type="button"
                   className="upgrade-tile-buy"
-                  disabled={!onBuy || level >= RUN_UPGRADE_CAP}
+                  disabled={!onBuy || maxed}
                   onClick={() => onBuy?.(def.id, count)}
-                  aria-label={`${def.name}. ${affordable ? `Buy ${count} for ${formatCompact(cost)} ${currency}` : `Need ${formatCompact(cost)} ${currency}`}`}
+                  aria-label={`${def.name}. ${affordable ? `Buy ${count} for ${formatCompact(cost)} ${currency}` : maxed ? 'Maxed' : `Need ${formatCompact(cost)} ${currency}`}`}
                 >
                   <span className="upgrade-tile-top">
                     <strong>{def.name}</strong>
-                    <span className={`upgrade-tile-cost${affordable ? '' : ' is-short'}`}>
-                      {level >= RUN_UPGRADE_CAP ? 'Maxed' : formatCompact(cost)}
-                    </span>
                   </span>
                   <span className="upgrade-tile-level">
                     {kind === 'workshop' ? (
@@ -215,6 +214,9 @@ export function UpgradeGrid({
                   </span>
                   <span className="upgrade-tile-preview">
                     {preview.current} → {preview.next}
+                  </span>
+                  <span className={`upgrade-tile-cost${affordable ? ' is-ok' : maxed ? '' : ' is-short'}`}>
+                    {maxed ? 'Maxed' : `${formatCompact(cost)} ${currency}`}
                   </span>
                 </button>
                 <button
@@ -240,6 +242,10 @@ export function UpgradeGrid({
           overlayId={`upgrade-info-${info.id}`}
         >
           <p>{runUpgradeEffectLine(info.id)}</p>
+          <p>
+            Level {kind === 'workshop' ? workshopLevel(state, info.id) : effectiveUpgradeLevel(state, info.id)} /{' '}
+            {RUN_UPGRADE_CAP}
+          </p>
           {kind === 'workshop' ? (
             <p className="muted">
               Workshop Lv{workshopLevel(state, info.id)} means every Sortie begins with that many
@@ -284,6 +290,9 @@ export function UpgradeGrid({
           size="standard"
           overlayId={`core-info-${coreSlot.slot}`}
         >
+          <p>
+            Run Level {coreRunLevel(state, coreSlot.slot)} / {CORE_RUN_LEVEL_CAP}
+          </p>
           <p className="muted">
             Mastery {moduleMasteryRank(state, coreSlot.moduleId)} · Run Lv
             {coreRunLevel(state, coreSlot.slot)}

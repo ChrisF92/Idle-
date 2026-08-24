@@ -28,14 +28,14 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     expect(isSystemUnlocked(fresh, 'logs')).toBe(true)
 
     fresh.meta.highestSectorEver = TASK_UNLOCK_SECTOR
-    expect(isSystemUnlocked(fresh, 'tasks')).toBe(true)
+    expect(isSystemUnlocked(fresh, 'tasks')).toBe(false)
     expect(isSystemUnlocked(fresh, 'capital')).toBe(false)
 
     seedTasks(fresh)
     fresh.meta.highestSectorEver = CAPITAL_UNLOCK_SECTOR
     fresh.combat.highestSector = CAPITAL_UNLOCK_SECTOR
     expect(taskListComplete(fresh)).toBe(true)
-    expect(isSystemUnlocked(fresh, 'capital')).toBe(true)
+    expect(isSystemUnlocked(fresh, 'capital')).toBe(false)
 
     fresh.meta.highestSectorEver = REINFORCE_UNLOCK_SECTOR
     expect(isSystemUnlocked(fresh, 'reinforce')).toBe(true)
@@ -77,15 +77,15 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     s.shipyard.moduleLevels['pulse-cannon'] = 8
     const dmg0 = computeShipStats(s).damage
     s = rankCapital(s, 'broadside')
-    expect(capitalRank(s, 'broadside')).toBe(1)
-    expect(capitalDamageMult(s)).toBeCloseTo(1.04)
-    expect(computeShipStats(s).damage).toBeGreaterThan(dmg0)
+    expect(capitalRank(s, 'broadside')).toBe(0)
+    expect(capitalDamageMult(s)).toBe(1)
+    expect(computeShipStats(s).damage).toBe(dmg0)
 
     s = performRebuild(s, {
       frameId: 'starter-frame',
       modules: ['pulse-cannon', 'plate-layer'],
     })
-    expect(capitalRank(s, 'broadside')).toBe(1)
+    expect(capitalRank(s, 'broadside')).toBe(0)
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
   })
 
@@ -110,7 +110,10 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     expect(unlockedFoundryLogs(s).some((l) => l.id === 'dock')).toBe(true)
     expect(unlockedFoundryLogs(s).some((l) => l.id === 'capital')).toBe(false)
     s.meta.highestSectorEver = 75
-    expect(unlockedFoundryLogs(s).some((l) => l.id === 'capital')).toBe(true)
+    s.meta.bestWave = 300
+    s.combat.bestWave = 300
+    expect(unlockedFoundryLogs(s).some((l) => l.id === 'capital')).toBe(false)
+    expect(unlockedFoundryLogs(s).some((l) => l.id === 'echo')).toBe(false)
   })
 
   it('dev seed-late-game opens Reinforce without Capital', () => {

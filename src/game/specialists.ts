@@ -1,7 +1,6 @@
 /** Specialists — deferred from Act 1. Frame / Core / Relic identity is enough. */
 
 import type { GameState, SpecialistId, SpecialistState } from './types'
-import { careerBestWave } from './progression'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 
@@ -31,8 +30,8 @@ export function getSpecialist(id: string): SpecialistDef | undefined {
   return SPECIALISTS.find((s) => s.id === id)
 }
 
-export function specialistsUnlocked(state: GameState): boolean {
-  return careerBestWave(state) >= SPECIALIST_UNLOCK_SECTOR
+export function specialistsUnlocked(_state: GameState): boolean {
+  return false
 }
 
 export function specialistRank(state: GameState, id: SpecialistId): number {
@@ -90,18 +89,14 @@ export function rankSpecialist(state: GameState, id: SpecialistId): GameState {
   return next
 }
 
-export function specialistDamageMult(state: GameState): number {
-  const def = getSpecialist('gunner')
-  const mastery = 1 + specialistMastery(state) * 0.01
-  return (1 + specialistRank(state, 'gunner') * (def?.damage ?? 0)) * mastery
+export function specialistDamageMult(_state: GameState): number {
+  return 1
 }
 
-export function specialistShieldMult(state: GameState): number {
-  const def = getSpecialist('warden')
-  return 1 + specialistRank(state, 'warden') * (def?.shield ?? 0)
+export function specialistShieldMult(_state: GameState): number {
+  return 1
 }
 
-export function specialistSalvageMult(state: GameState): number {
-  const def = getSpecialist('scavenger')
-  return 1 + specialistRank(state, 'scavenger') * (def?.salvage ?? 0)
+export function specialistSalvageMult(_state: GameState): number {
+  return 1
 }

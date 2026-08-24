@@ -21,6 +21,7 @@ import { encounterForWave } from './combat'
 import { CORE_MASTERY_CAP, CORE_RUN_LEVEL_CAP, setCoreRunLevel } from './coreProgression'
 import { isBossWave, powerSectorForWave, bandsClearedForWave } from './waves'
 import { createDefaultProcessProfiles } from './processProfiles'
+import { noteCareerWave } from './playtest'
 
 export const DEV_FLAG_KEY = 'cosmic-idle-dev'
 
@@ -104,6 +105,7 @@ export function grantCareerBestWave(state: GameState, wave: number): void {
   if (w >= ACT1_CADENCE.rebuild) {
     state.prestige.cycle.sorties = Math.max(state.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
   }
+  noteCareerWave(state, w)
 }
 
 function armProcessGates(state: GameState): void {
@@ -193,11 +195,10 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
           ...AI_NODES.filter((n) => n.permanent).map((n) => n.id),
         ]),
       ]
-      grantCareerBestWave(next, ACT1_FINAL_WAVE)
       next.meta.hullLostOnce = true
       maybeGrantSystemUnlocks(next)
       tryCompleteAchievements(next)
-      next.combat.log = ['[dev] Catalog unlocked through Wave 300.', ...next.combat.log].slice(0, 40)
+      next.combat.log = ['[dev] Catalog unlocked (career Best Wave unchanged).', ...next.combat.log].slice(0, 40)
       break
     }
     case 'clear-guides': {
@@ -229,13 +230,12 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
     case 'fill-workers': {
       const n = Math.max(0, Math.floor(action.count))
       next.base.workerDrones = Math.max(next.base.workerDrones, n)
-      grantCareerBestWave(next, ACT1_CADENCE.workers)
-      maybeGrantSystemUnlocks(next)
       next.combat.log = [`[dev] Worker drones ≥ ${n}.`, ...next.combat.log].slice(0, 40)
       break
     }
     case 'dock-heal': {
       next.combat.docked = true
+      next.shipyard.frameLocked = false
       clearFight(next)
       syncPersistedHullCaps(next)
       next.combat.playerHull = next.combat.playerHullMax

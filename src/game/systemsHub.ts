@@ -1,6 +1,6 @@
 /** Systems hub status cards (GDD §120). Foundry is the parent industrial card. */
 
-import { idleWorkers, visibleWorkerJobIds } from './catalog'
+import { idleWorkers } from './catalog'
 import { fabricationJobLabel, FOUNDRY_RECIPES, foundryRecipeLevel } from './foundry'
 import {
   formatResearchDuration,
@@ -12,7 +12,7 @@ import {
   hiveResearchXp,
 } from './hiveResearch'
 import { firstAffordableProcessNode, processAvailable, processConfig } from './process'
-import { workerAllocationSummary, workerJobLabel } from './workers'
+import { workerAllocationSummary } from './workers'
 import { foundryAttention, furnaceAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
@@ -71,11 +71,7 @@ export function foundryHubStatus(state: GameState): string[] {
 
 export function workersHubStatus(state: GameState): string[] {
   const summary = workerAllocationSummary(state)
-  const lines = [`${summary.assigned} assigned · ${summary.idle} idle`]
-  for (const id of visibleWorkerJobIds(state)) {
-    lines.push(`${workerJobLabel(id)} ${summary.jobs[id] ?? 0}`)
-  }
-  return lines
+  return [`${summary.assigned} assigned · ${summary.idle} idle`]
 }
 
 export function furnaceHubStatus(state: GameState): string[] {

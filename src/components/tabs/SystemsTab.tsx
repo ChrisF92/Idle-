@@ -1,8 +1,7 @@
 import type { GameState } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
 import { systemsHubCards, type SystemsHubId } from '../../game/systemsHub'
-import { visibleWorkerJobIds } from '../../game/catalog'
-import { workerAllocationSummary, workerJobLabel } from '../../game/workers'
+import { workerAllocationSummary } from '../../game/workers'
 import { formatCompact } from '../../game/format'
 
 type Props = {
@@ -33,13 +32,6 @@ export function SystemsTab({ state, onManage }: Props) {
         <p className="systems-workers-line">
           {formatCompact(workers.assigned)} assigned · {formatCompact(workers.idle)} idle
         </p>
-        <ul className="systems-workers-jobs">
-          {visibleWorkerJobIds(state).map((id) => (
-            <li key={id}>
-              {workerJobLabel(id)} {formatCompact(workers.jobs[id] ?? 0)}
-            </li>
-          ))}
-        </ul>
       </button>
 
       <div className="systems-dash-grid">

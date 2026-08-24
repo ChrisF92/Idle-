@@ -1,7 +1,6 @@
 /** Act 1 spine, system gates, achievements, and guided onboarding. */
 
 import type { GameState, Resources, TabId } from './types'
-import { taskListComplete } from './tasks'
 import { noteHighestSector } from './playtest'
 import {
   ACT1_CADENCE,
@@ -708,8 +707,8 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'yard') {
     return careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
   }
-  if (systemId === 'capital') {
-    return meetsWave(state, ACT1_CADENCE.capital) && taskListComplete(state)
+  if (systemId === 'capital' || systemId === 'specialists' || systemId === 'tasks') {
+    return false
   }
   if (systemId === 'logs') {
     return true

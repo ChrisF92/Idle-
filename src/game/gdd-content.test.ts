@@ -131,6 +131,7 @@ describe('GDD Phase 8 content depth', () => {
     expect(ids).toContain('reinforce')
     expect(ids).toContain('act1')
     expect(ids).not.toContain('echo')
+    expect(FOUNDRY_LOGS.some((row) => row.id === 'echo' || row.id === 'capital' || row.id === 'crew')).toBe(false)
     expect(FOUNDRY_LOGS.find((row) => row.id === 'reinforce')?.body).toMatch(/knowledge backward/)
     expect(FOUNDRY_LOGS.find((row) => row.id === 'core-prints')?.body).toMatch(/fit it at Dock/)
   })

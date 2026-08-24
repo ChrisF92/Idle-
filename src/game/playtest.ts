@@ -2,7 +2,7 @@
 
 import type { GameState, PlaytestEvent, PlaytestEventKind, PlaytestState } from './types'
 import { WORKER_JOB_IDS, WORKER_JOB_LABELS } from './workers'
-import { reportedBestWave } from './waves'
+import { reportedBestWave, meetsWave, waveForClearedBands } from './waves'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import {
   hydrateInterventions,
@@ -411,6 +411,40 @@ export function longestProgressionStall(state: GameState, nowPlaytime?: number):
   return best
 }
 
+function frameLabel(id: string): string {
+  const stem = id.replace(/-frame$/, '')
+  const title = stem
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(' ')
+  return title ? `${title} Frame` : id
+}
+
+function formatCareerSnapshot(state: GameState): string[] {
+  const frame = frameLabel(state.shipyard.frameId)
+  const levels = state.workshop?.levels ?? {}
+  const workshop = [
+    `Weapon Power ${Math.max(0, Math.floor(levels['weapon-power'] ?? 0))}`,
+    `Hull ${Math.max(0, Math.floor(levels.hull ?? 0))}`,
+    `Salvage/Kill ${Math.max(0, Math.floor(levels['salvage-kill'] ?? 0))}`,
+  ].join(' · ')
+  const systems: string[] = []
+  if (meetsWave(state, ACT1_CADENCE.foundry)) systems.push('Foundry')
+  if (meetsWave(state, ACT1_CADENCE.workers)) systems.push('Workers')
+  if (meetsWave(state, ACT1_CADENCE.reliquary)) systems.push('Relics')
+  if (meetsWave(state, ACT1_CADENCE.furnace)) systems.push('Furnace')
+  if (meetsWave(state, ACT1_CADENCE.research)) systems.push('Research')
+  if (meetsWave(state, ACT1_CADENCE.process)) systems.push('Process')
+  if (meetsWave(state, ACT1_CADENCE.protocols)) systems.push('Challenges')
+  if (meetsWave(state, ACT1_CADENCE.reinforce) || state.meta.act1Cleared) systems.push('Reinforce')
+  return [
+    `Frame: ${frame}`,
+    `Workshop starts: ${workshop}`,
+    `Systems: ${systems.length > 0 ? systems.join(' · ') : 'none yet'}`,
+  ]
+}
+
 function mostUsedDrones(state: GameState): string {
   const drones = ensurePlaytest(state).drones
   const entries = Object.entries(drones).filter(([, n]) => n > 0)
@@ -504,6 +538,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Career playtime: ${formatPlaytimeMs(log.playtimeMs)}`)
   lines.push(`Save age: ${formatPlaytimeMs(saveAgeMs(state, now))}`)
   lines.push(`Highest Wave: ${reportedBestWave(state)}`)
+  lines.push(...formatCareerSnapshot(state))
   lines.push('')
   lines.push(...formatPlaytestScript(state))
   lines.push('')
@@ -542,7 +577,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Offline while Sortie frozen: ${formatPlaytimeMs(log.offlineCombatMs ?? 0)}`)
   if (log.lastSteamroll && log.lastSteamroll.n >= 2) {
     lines.push(
-      `Steamroll: W${log.lastSteamroll.from * 10} → W${log.lastSteamroll.to * 10}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
+      `Steamroll: W${waveForClearedBands(log.lastSteamroll.from)} → W${waveForClearedBands(log.lastSteamroll.to)}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
     )
   }
   lines.push('')

@@ -2205,6 +2205,18 @@ export function listFarmableCores(state: GameState): ShipModuleDef[] {
   })
 }
 
+/** Foundry Fabrication list — GDD roster prints, including upcoming drop waves. */
+export function listFoundryPrintCards(state: GameState): ShipModuleDef[] {
+  if (!isSystemUnlocked(state, 'foundry')) return []
+  const rows = BLUEPRINTS.map((b) => getModule(b.moduleId)).filter((m): m is ShipModuleDef => {
+    if (!m) return false
+    if (state.shipyard.unlockedModules.includes(m.id)) return true
+    return isGddRosterCore(m.id)
+  })
+  rows.sort((a, b) => modulePrintWave(a.id) - modulePrintWave(b.id) || a.name.localeCompare(b.name))
+  return rows
+}
+
 export function getEnemyDropTable(family: string): EnemyPartDropTable | undefined {
   return ENEMY_PART_DROPS.find((t) => t.family === family)
 }
@@ -2280,18 +2292,12 @@ export function printDropSources(moduleId: string): PrintDropSource[] {
 
 export function formatPrintSourceLine(moduleId: string): string {
   const sources = printDropSources(moduleId)
-  if (sources.length === 0) return ''
   const wave = modulePrintWave(moduleId)
-  const best = sources[0]!
-  const extra =
-    sources.length > 1
-      ? sources
-          .slice(1)
-          .map((s) => `${enemyFamilyLabel(s.family)} · Wave ${wave}+`)
-          .join(' · ')
-      : ''
-  const bestLine = `${enemyFamilyLabel(best.family)} · Wave ${wave}+`
-  return extra ? `Best source: ${bestLine} · ${extra}` : `Best source: ${bestLine}`
+  if (wave <= 0) return ''
+  if (sources.length === 0) return `Fragments from Wave ${wave}+`
+  const families = sources.map((s) => enemyFamilyLabel(s.family))
+  const unique = [...new Set(families)]
+  return `${unique.join(', ')} · Wave ${wave}+`
 }
 
 export interface TrackedDropContext {

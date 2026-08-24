@@ -12,11 +12,10 @@ import { maybeAdvanceBossPhase } from './combat'
 import {
   buyAiNode,
   canPrestige,
-  performPrestige,
   selectFrame,
   unlockFrame,
 } from './actions'
-import { clearCurrentWave, clearSector, armRebuildDoor } from './testHelpers'
+import { clearCurrentWave, clearSector } from './testHelpers'
 
 describe('campaign combat', () => {
   it('clears a ten-wave band and continues the Sortie', () => {
@@ -201,7 +200,7 @@ describe('campaign combat', () => {
     expect(canPrestige(state)).toBe(true)
   })
 
-  it('locks frame after Launch and blocks select until prestige', () => {
+  it('locks frame after Launch and unlocks it again on Dock', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
@@ -218,8 +217,6 @@ describe('campaign combat', () => {
     expect(state.shipyard.frameId).toBe('bastion-frame')
 
     state = setDocked(state, true)
-    state = armRebuildDoor(state)
-    state = performPrestige(state, 1000)
     expect(state.combat.docked).toBe(true)
     expect(state.shipyard.frameLocked).toBe(false)
     state = selectFrame(state, 'starter-frame')

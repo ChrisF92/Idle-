@@ -776,11 +776,13 @@ export function unlockFrame(state: GameState, frameId: string): GameState {
 
 export function selectFrame(state: GameState, frameId: string): GameState {
   if (!state.shipyard.unlockedFrames.includes(frameId)) return state
-  if (state.shipyard.frameLocked) return state
+  // Docked is the source of truth. A stuck frameLocked flag must not block Loadout.
+  if (!state.combat.docked) return state
   const frame = getFrame(frameId)
   if (!frame) return state
 
   const next = structuredClone(state)
+  next.shipyard.frameLocked = false
   next.shipyard.frameId = frameId
   next.shipyard.modules = filterModulesForChallenge(
     trimModulesToFrame(next.shipyard.modules, frame, { utility: hiveResearchExtraUtilitySlots(next) }),

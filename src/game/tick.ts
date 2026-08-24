@@ -200,6 +200,7 @@ function finishSortie(
   state.combat.sector = 1
   state.combat.docked = true
   state.combat.inFight = false
+  state.shipyard.frameLocked = false
   fullHealPlayer(state)
 }
 

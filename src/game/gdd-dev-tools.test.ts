@@ -114,4 +114,27 @@ describe('GDD Dev Tools', () => {
     expect(isSystemUnlocked(s, 'capital')).toBe(false)
     expect(isSystemUnlocked(s, 'echo')).toBe(false)
   })
+
+  it('W20 Foundry door does not grant Wave 300 or later systems', () => {
+    let s = createInitialState(0)
+    s = applyDevAction(s, { type: 'skip-guides' })
+    s = applyDevAction(s, { type: 'prep-gdd-door', wave: ACT1_CADENCE.foundry })
+    s = applyDevAction(s, { type: 'fill-workers', count: 8 })
+    s = applyDevAction(s, { type: 'dock-heal' })
+    expect(careerBestWave(s)).toBe(ACT1_CADENCE.foundry)
+    expect(isSystemUnlocked(s, 'foundry')).toBe(true)
+    expect(isSystemUnlocked(s, 'network')).toBe(false)
+    expect(isSystemUnlocked(s, 'furnace')).toBe(false)
+    expect(isSystemUnlocked(s, 'research')).toBe(false)
+    expect(isSystemUnlocked(s, 'process')).toBe(false)
+    expect(s.base.workerDrones).toBeGreaterThanOrEqual(8)
+  })
+
+  it('unlock-catalog does not raise Best Wave', () => {
+    const s = applyDevAction(createInitialState(0), { type: 'unlock-catalog' })
+    expect(careerBestWave(s)).toBe(0)
+    expect(s.shipyard.unlockedFrames).toContain('bastion-frame')
+    expect(isSystemUnlocked(s, 'foundry')).toBe(false)
+    expect(isSystemUnlocked(s, 'furnace')).toBe(false)
+  })
 })

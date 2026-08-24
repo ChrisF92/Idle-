@@ -30,7 +30,7 @@ describe('phase 8: Protocols, Echo, Process', () => {
     fresh.meta.highestSectorEver = ECHO_UNLOCK_SECTOR
     fresh.combat.highestSector = ECHO_UNLOCK_SECTOR
     fresh.protocols.ranks['mute-network'] = 1
-    expect(isSystemUnlocked(fresh, 'echo')).toBe(true)
+    expect(isSystemUnlocked(fresh, 'echo')).toBe(false)
   })
 
   it('opens Process only after its sector, Rebuild and Research mastery gates', () => {
