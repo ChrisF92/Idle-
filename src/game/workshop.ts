@@ -379,13 +379,13 @@ export function visibleRunUpgrades(bestWave: number, category?: RunUpgradeCatego
 
 export function applyWorkshopCoreStarts(state: GameState): void {
   if (!state.workshop) state.workshop = createEmptyWorkshop()
-  state.workshop.coreStarts = {}
+  state.workshop.coreStarts = { ...(state.workshop.coreStarts ?? {}) }
   state.shipyard.moduleLevels = {}
 }
 
 export function snapshotWorkshopCoreStarts(state: GameState): void {
   if (!state.workshop) state.workshop = createEmptyWorkshop()
-  state.workshop.coreStarts = {}
+  state.workshop.coreStarts = { ...(state.workshop.coreStarts ?? {}) }
 }
 
 /** After a Sortie, temporary Salvage ranks and Core Run Levels clear. */

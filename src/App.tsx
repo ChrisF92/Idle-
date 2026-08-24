@@ -385,6 +385,7 @@ function AppShell() {
             onSelectFrame={game.selectFrame}
             onFitCore={game.fitModule}
             onUnfitCore={game.unfitModule}
+            onUpgradeCore={game.buyCoreStartingLevel}
             pane={dockPane}
             onPaneChange={setDockPane}
             onBuyMatter={game.buyMatterShop}
@@ -631,6 +632,7 @@ function AppShell() {
         onClose={() => setInventoryOpen(false)}
         onSelectFrame={game.selectFrame}
         onFitCore={game.fitModule}
+        onUpgradeCore={game.buyCoreStartingLevel}
         onOpenFoundry={() => {
           setInventoryOpen(false)
           setFoundryPane('smelt')

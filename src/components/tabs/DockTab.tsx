@@ -25,6 +25,7 @@ import {
   StickyAction,
 } from '../../ui/primitives'
 import { coreInstanceAtSlot, coreInstanceCopyNumber } from '../../game/coreInstances'
+import { coreStartingLevel } from '../../game/coreProgression'
 
 export type DockPane = 'home' | 'loadout' | 'workshop' | 'rebuild'
 
@@ -51,6 +52,7 @@ interface DockTabProps {
   onSelectFrame?: (frameId: string) => void
   onFitCore?: (moduleId: string, coreInstanceId?: string) => void
   onUnfitCore?: (moduleId: string, coreInstanceId?: string) => void
+  onUpgradeCore?: (coreInstanceId: string, count?: number) => void
   onOpenInventory?: () => void
   pane?: DockPane
   onPaneChange?: (pane: DockPane) => void
@@ -70,6 +72,7 @@ export function DockTab({
   onSelectFrame,
   onFitCore,
   onUnfitCore,
+  onUpgradeCore,
   onOpenInventory,
   pane: paneProp,
   onPaneChange,
@@ -165,6 +168,7 @@ export function DockTab({
               Inventory
             </button>
           ) : null}
+          {pane === 'loadout' ? <ResourceBar state={state} only={['scrap']} compact /> : null}
           {pane === 'workshop' ? <ResourceBar state={state} only={['scrap']} compact /> : null}
           {pane === 'rebuild' ? <ResourceBar state={state} only={['prestigeMatter']} compact /> : null}
         </ContextBar>
@@ -237,13 +241,16 @@ export function DockTab({
                   coreInstanceId && copyCount > 1
                     ? ` · Copy ${coreInstanceCopyNumber(state, coreInstanceId)}`
                     : ''
+                const level = coreInstanceId
+                  ? coreStartingLevel(state, coreInstanceId)
+                  : 0
                 return (
                   <ItemRow
                     key={coreInstanceId ?? `${role}-${index}`}
                     title={moduleId ? (def?.name ?? moduleId) : `Empty ${roleLabel} Slot`}
                     meta={
                       moduleId
-                        ? `${roleLabel}${copyLabel} · M${moduleMasteryRank(state, moduleId)}`
+                        ? `${roleLabel}${copyLabel} · Lv${level} · M${moduleMasteryRank(state, moduleId)}`
                         : 'Tap to fit a Core'
                     }
                     guide={moduleId ? `core-${moduleId}` : undefined}
@@ -352,6 +359,7 @@ export function DockTab({
           onEquipRelic={locked ? undefined : onEquipRelic}
           onRemoveRelic={locked ? undefined : onRemoveRelic}
           onUpgradeRelic={locked ? undefined : onUpgradeRelic}
+          onUpgradeCore={locked ? undefined : onUpgradeCore}
         />
       ) : null}
       {picker ? (

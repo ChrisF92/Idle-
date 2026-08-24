@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import {
   buyCoreRunSlot,
+  buyCoreStartingLevel,
   buyMaxCores,
   buyProcessNode,
   fitModule,
   performRebuild,
-  upgradeModule,
 } from './actions'
 import { importSave, exportSave } from './save'
 import { setDocked } from './tick'
@@ -19,12 +19,15 @@ import {
   coreRunCategory,
   coreRunLevel,
   coreRunUpgradeCost,
+  coreStartingLevel,
+  coreStartingUpgradeCost,
   legacyRankToMastery,
   masteryFrontierMult,
   masteryWaveXp,
   maxAffordableCoreRunPurchases,
   migrateLegacyCoreProgression,
   moduleCopyCount,
+  grantModuleCopy,
 } from './coreProgression'
 import { moduleMasteryRank } from './catalog'
 
@@ -51,15 +54,34 @@ describe('Core Run Levels', () => {
     expect(computeShipStats(s).damage).toBeGreaterThan(before)
   })
 
-  it('refuses Dock Scrap ranking', () => {
+  it('buys separate physical Core levels with Scrap while sharing Mastery', () => {
     let s = createInitialState(0)
-    s.combat.docked = true
+    s.shipyard.unlockedFrames.push('swarm-frame')
+    s.shipyard.frameId = 'swarm-frame'
+    grantModuleCopy(s, 'pulse-cannon')
+    s = fitModule(s, 'pulse-cannon')
+    const pulseIds = s.shipyard.modules.flatMap((moduleId, slot) =>
+      moduleId === 'pulse-cannon' ? [s.shipyard.equippedCoreIds[slot]!] : [],
+    )
+    expect(pulseIds).toHaveLength(2)
+
+    s.meta.moduleMastery['pulse-cannon'] = 7
     s.resources.scrap = 80
-    s.resources.salvage = 80
-    s = upgradeModule(s, 'pulse-cannon')
-    expect(coreRunLevel(s, 0)).toBe(0)
-    expect(s.resources.scrap).toBe(80)
-    expect(s.resources.salvage).toBe(80)
+    const cost = coreStartingUpgradeCost(s, pulseIds[1]!)
+    s = buyCoreStartingLevel(s, pulseIds[1]!)
+
+    expect(coreStartingLevel(s, pulseIds[0]!)).toBe(0)
+    expect(coreStartingLevel(s, pulseIds[1]!)).toBe(1)
+    expect(s.resources.scrap).toBe(80 - cost)
+    expect(moduleMasteryRank(s, 'pulse-cannon')).toBe(7)
+
+    s = live(s)
+    const pulseSlots = s.shipyard.modules.flatMap((moduleId, slot) =>
+      moduleId === 'pulse-cannon' ? [slot] : [],
+    )
+    expect(corePrimaryOutput(s, pulseSlots[1]!)!.current).toBeGreaterThan(
+      corePrimaryOutput(s, pulseSlots[0]!)!.current,
+    )
   })
 
   it('keeps duplicate Pulse instances on separate Run ladders', () => {
@@ -110,22 +132,37 @@ describe('Core Run Levels', () => {
 
   it('does not survive Rebuild as a cycle rank', () => {
     let s = armRebuildDoor(createInitialState(0))
+    s.resources.scrap = 100
+    s = buyCoreStartingLevel(s, 'pulse-cannon:1')
+    expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
     s.combat.docked = false
     s.resources.salvage = 80
     s = buyCoreRunSlot(s, 0, 2)
     s = setDocked(s, true)
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon'] })
     expect(coreRunLevel(s, 0)).toBe(0)
+    expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(0)
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
   })
 
   it('saves and loads mid-Sortie Run Levels', () => {
-    let s = live()
+    let s = createInitialState(0)
+    s.resources.scrap = 100
+    s = buyCoreStartingLevel(s, 'pulse-cannon:1')
+    s = live(s)
     s.resources.salvage = 80
     s = buyCoreRunSlot(s, 0, 2)
     const loaded = importSave(exportSave(s))
     expect(loaded).toBeTruthy()
+    expect(coreStartingLevel(loaded!, 'pulse-cannon:1')).toBe(1)
     expect(coreRunLevel(loaded!, 0)).toBe(2)
+  })
+
+  it('migrates legacy Core-type starting levels to a physical copy', () => {
+    const s = createInitialState(0)
+    s.workshop.coreStarts = { 'pulse-cannon': 4 }
+    const loaded = importSave(exportSave(s))
+    expect(loaded?.workshop.coreStarts).toEqual({ 'pulse-cannon:1': 4 })
   })
 })
 

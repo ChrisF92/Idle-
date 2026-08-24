@@ -43,7 +43,6 @@ import { createEmptyProcessState, finalizeProcessMigration, hydrateProcessState 
 import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
-import { createEmptyWorkshop } from './workshop'
 import { normalizePushMode, normalizeRoute } from './sectors'
 import { migrateOnboardingState } from './playerGuidance'
 import { migrateLegacyCoreProgression } from './coreProgression'
@@ -285,6 +284,15 @@ function withShipyardDefaults(
   return normalizeCoreInstances(hydrated)
 }
 
+function withWorkshopDefaults(
+  workshop: GameState['workshop'] | undefined,
+): GameState['workshop'] {
+  return {
+    levels: { ...(workshop?.levels ?? {}) },
+    coreStarts: { ...(workshop?.coreStarts ?? {}) },
+  }
+}
+
 function withResourcesDefaults(
   resources: Partial<GameState['resources']> | undefined,
   base: GameState['resources'],
@@ -447,6 +455,20 @@ export function migrateCoreFitInstances(state: GameState): void {
     if (!migrated[target]) migrated[target] = [...slots]
   }
   state.reliquary.coreFits = migrated
+}
+
+/** Move legacy Core-definition starting levels onto the first physical copy. */
+export function migrateCoreStartingLevelInstances(state: GameState): void {
+  normalizeCoreInstances(state.shipyard)
+  const migrated: Record<string, number> = {}
+  for (const [key, rawLevel] of Object.entries(state.workshop.coreStarts ?? {})) {
+    const level = Math.max(0, Math.floor(Number(rawLevel) || 0))
+    if (level <= 0) continue
+    const instance = resolveCoreInstance(state, key)
+    const target = instance?.id ?? key
+    migrated[target] = Math.max(migrated[target] ?? 0, level)
+  }
+  state.workshop.coreStarts = migrated
 }
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
@@ -757,7 +779,7 @@ function migrate(raw: unknown): GameState | null {
       ...state,
       resources: withResourcesDefaults(state.resources, base.resources),
       combat,
-      workshop: state.workshop ?? createEmptyWorkshop(),
+      workshop: withWorkshopDefaults(state.workshop),
       shipyard: withShipyardDefaults(state.shipyard, base.shipyard),
       base: migrateBase(state.base, base.base),
       network: withNetworkDefaults(state.network),
@@ -786,6 +808,7 @@ function migrate(raw: unknown): GameState | null {
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingState(hydrated)
     migrateLegacyCoreProgression(hydrated)
+    migrateCoreStartingLevelInstances(hydrated)
     return hydrated
   }
 
@@ -882,6 +905,7 @@ function migrate(raw: unknown): GameState | null {
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingState(hydrated)
     migrateLegacyCoreProgression(hydrated)
+    migrateCoreStartingLevelInstances(hydrated)
     return hydrated
   }
 

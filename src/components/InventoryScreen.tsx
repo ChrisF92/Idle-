@@ -17,6 +17,9 @@ import { foundryRecipeLevel } from '../game/foundry'
 import { SheetTabs } from './SheetTabs'
 import { EmptyState, FullSheet, ItemRow, Kicker, Section, SectionHeader, StatPair } from '../ui/primitives'
 import { CoreDetailSheet, FrameSheet } from './LoadoutSheets'
+import { getModule, moduleMasteryRank } from '../game/catalog'
+import { coreStartingLevel } from '../game/coreProgression'
+import { coreInstanceCopyNumber } from '../game/coreInstances'
 
 interface InventoryScreenProps {
   state: GameState
@@ -24,7 +27,8 @@ interface InventoryScreenProps {
   onClose: () => void
   onOpenFoundry?: () => void
   onSelectFrame?: (frameId: string) => void
-  onFitCore?: (moduleId: string) => void
+  onFitCore?: (moduleId: string, coreInstanceId?: string) => void
+  onUpgradeCore?: (coreInstanceId: string, count?: number) => void
 }
 
 export function InventoryScreen({
@@ -34,11 +38,15 @@ export function InventoryScreen({
   onOpenFoundry,
   onSelectFrame,
   onFitCore,
+  onUpgradeCore,
 }: InventoryScreenProps) {
   const [category, setCategory] = useState<InventoryCategory>('equipment')
   const [relicFilter, setRelicFilter] = useState<'all' | RelicSocketClass>('all')
   const [query, setQuery] = useState('')
-  const [coreId, setCoreId] = useState<string | null>(null)
+  const [coreId, setCoreId] = useState<{
+    moduleId: string
+    coreInstanceId: string
+  } | null>(null)
   const [frameOpen, setFrameOpen] = useState(false)
   const [relicId, setRelicId] = useState<string | null>(null)
   const [materialId, setMaterialId] = useState<string | null>(null)
@@ -56,6 +64,22 @@ export function InventoryScreen({
   const materials = useMemo(() => {
     const rows = inventoryMaterials(state)
     return filterInventoryRows(rows, query)
+  }, [state, query])
+  const coreRows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return state.shipyard.coreInstances
+      .flatMap((instance) => {
+        const def = getModule(instance.moduleId)
+        if (!def || (q && !def.name.toLowerCase().includes(q))) return []
+        return [{
+          instance,
+          def,
+          copy: coreInstanceCopyNumber(state, instance.id),
+          equipped: state.shipyard.equippedCoreIds.includes(instance.id),
+          level: coreStartingLevel(state, instance.id),
+          mastery: moduleMasteryRank(state, instance.moduleId),
+        }]
+      })
   }, [state, query])
 
   const relic = relicId ? relics.find((row) => row.id === relicId) ?? inventoryRelics(state).find((row) => row.id === relicId) : null
@@ -91,18 +115,23 @@ export function InventoryScreen({
               ) : null,
             )}
             <SectionHeader title="Cores" />
-            {equipment.filter((row) => row.kind === 'core').map((row) =>
-              row.kind === 'core' ? (
-                <ItemRow
-                  key={row.id}
-                  title={row.name}
-                  meta={`${row.role === 'weapon' ? 'Weapon' : row.role === 'defense' ? 'Defense' : 'Utility'} Core`}
-                  value={`×${row.owned} · Eq ${row.equipped} · M${row.mastery}`}
-                  onClick={() => setCoreId(row.id)}
-                />
-              ) : null,
-            )}
-            {equipment.length === 0 ? <EmptyState title="No equipment yet" /> : null}
+            {coreRows.map((row) => (
+              <ItemRow
+                key={row.instance.id}
+                title={row.def.name}
+                meta={`${row.def.role === 'weapon' ? 'Attack' : row.def.role === 'defense' ? 'Defense' : 'Utility'} Core · Copy ${row.copy} · ${row.equipped ? 'Equipped' : 'Available'}`}
+                value={`Lv${row.level} · M${row.mastery}`}
+                onClick={() =>
+                  setCoreId({
+                    moduleId: row.instance.moduleId,
+                    coreInstanceId: row.instance.id,
+                  })
+                }
+              />
+            ))}
+            {equipment.length === 0 && coreRows.length === 0 ? (
+              <EmptyState title="No equipment yet" />
+            ) : null}
           </Section>
         ) : null}
 
@@ -151,12 +180,16 @@ export function InventoryScreen({
       {coreId ? (
         <CoreDetailSheet
           state={state}
-          moduleId={coreId}
+          moduleId={coreId.moduleId}
+          coreInstanceId={coreId.coreInstanceId}
           locked={!docked}
+          onUpgradeCore={docked ? onUpgradeCore : undefined}
           onChange={
-            docked && onFitCore
+            docked &&
+            onFitCore &&
+            !state.shipyard.equippedCoreIds.includes(coreId.coreInstanceId)
               ? () => {
-                  onFitCore(coreId)
+                  onFitCore(coreId.moduleId, coreId.coreInstanceId)
                   setCoreId(null)
                 }
               : undefined

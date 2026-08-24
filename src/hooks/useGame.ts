@@ -53,6 +53,7 @@ import {
   unlockModule,
   upgradeCheapestModule,
   upgradeModule,
+  buyCoreStartingLevel,
   buyCoreRunSlot,
   buyRunUpgrade,
   buyWorkshopUpgrade,
@@ -140,6 +141,7 @@ type Action =
   | { type: 'fit-module'; moduleId: string; coreInstanceId?: string }
   | { type: 'unfit-module'; moduleId: string; coreInstanceId?: string }
   | { type: 'upgrade-module'; moduleId: string }
+  | { type: 'buy-core-start'; coreInstanceId: string; count?: number }
   | { type: 'buy-core-run'; slot: number; count?: number }
   | { type: 'buy-run-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
   | { type: 'buy-workshop-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
@@ -282,6 +284,8 @@ function reducer(state: GameState, action: Action): GameState {
       return unfitModule(state, action.moduleId, action.coreInstanceId)
     case 'upgrade-module':
       return upgradeModule(state, action.moduleId)
+    case 'buy-core-start':
+      return buyCoreStartingLevel(state, action.coreInstanceId, action.count)
     case 'buy-core-run':
       return buyCoreRunSlot(state, action.slot, action.count)
     case 'buy-run-upgrade':
@@ -510,6 +514,8 @@ export function useGame() {
     unfitModule: (moduleId: string, coreInstanceId?: string) =>
       dispatch({ type: 'unfit-module', moduleId, coreInstanceId }),
     upgradeModule: (moduleId: string) => dispatch({ type: 'upgrade-module', moduleId }),
+    buyCoreStartingLevel: (coreInstanceId: string, count?: number) =>
+      dispatch({ type: 'buy-core-start', coreInstanceId, count }),
     buyCoreRunSlot: (slot: number, count?: number) =>
       dispatch({ type: 'buy-core-run', slot, count }),
     buyRunUpgrade: (id: import('../game/types').RunUpgradeId, count?: number) =>

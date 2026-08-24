@@ -149,10 +149,22 @@ export function liveBossHp(state: GameState): { hull: number; hullMax: number; s
   }
 }
 
-export function coreDps(state: GameState, moduleId: string): number {
+function coreSlot(
+  state: Pick<GameState, 'shipyard'>,
+  moduleId: string,
+  coreInstanceId?: string,
+): number {
+  if (coreInstanceId) {
+    const slot = state.shipyard.equippedCoreIds.indexOf(coreInstanceId)
+    if (slot >= 0 && state.shipyard.modules[slot] === moduleId) return slot
+  }
+  return state.shipyard.modules.indexOf(moduleId)
+}
+
+export function coreDps(state: GameState, moduleId: string, coreInstanceId?: string): number {
   const def = getModule(moduleId)
   if (!def?.weapon) return 0
-  const slot = state.shipyard.modules.indexOf(moduleId)
+  const slot = coreSlot(state, moduleId, coreInstanceId)
   const out = slot >= 0 ? corePrimaryOutput(state, slot) : null
   if (out?.label === 'DPS') return out.current
   const mastery = moduleMasteryRank(state, moduleId)
@@ -160,10 +172,10 @@ export function coreDps(state: GameState, moduleId: string): number {
   return moduleWeaponDamage(def, 0, mastery) / cooldown
 }
 
-export function coreShieldOutput(state: GameState, moduleId: string): number {
+export function coreShieldOutput(state: GameState, moduleId: string, coreInstanceId?: string): number {
   const def = getModule(moduleId)
   if (!def) return 0
-  const slot = state.shipyard.modules.indexOf(moduleId)
+  const slot = coreSlot(state, moduleId, coreInstanceId)
   const out = slot >= 0 ? corePrimaryOutput(state, slot) : null
   if (out?.label === 'Shield') return out.current
   const mastery = moduleMasteryRank(state, moduleId)
@@ -171,13 +183,21 @@ export function coreShieldOutput(state: GameState, moduleId: string): number {
   return flat * (1 + mastery * 0.02)
 }
 
-export function coreContributionPct(state: GameState, moduleId: string): number | null {
+export function coreContributionPct(
+  state: GameState,
+  moduleId: string,
+  coreInstanceId?: string,
+): number | null {
   if (!advancedReadoutsUnlocked(state)) return null
   const fleet = computeShipStats(state).damage
   if (fleet <= 0) return null
-  if (!state.shipyard.modules.includes(moduleId)) return 0
+  const slot = coreSlot(state, moduleId, coreInstanceId)
+  if (slot < 0) return 0
   const probe = structuredClone(state)
-  probe.shipyard.modules = state.shipyard.modules.filter((id) => id !== moduleId)
+  probe.shipyard.modules = state.shipyard.modules.filter((_, index) => index !== slot)
+  probe.shipyard.equippedCoreIds = state.shipyard.equippedCoreIds.filter(
+    (_, index) => index !== slot,
+  )
   const without = computeShipStats(probe).damage
   return Math.max(0, Math.round(((fleet - without) / fleet) * 100))
 }

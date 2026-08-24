@@ -986,6 +986,7 @@ export type RunUpgradeId =
 /** Rebuild-cycle starting power. Survives Sorties; resets on Rebuild. */
 export interface WorkshopState {
   levels: Record<string, number>
+  /** Scrap-funded cycle starting levels keyed by physical Core instance ID. */
   coreStarts: Record<string, number>
 }
 

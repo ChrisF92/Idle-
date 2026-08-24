@@ -37,10 +37,15 @@ export function cycleBestWave(state: GameState): number {
 }
 
 export function workshopInvestment(state: GameState): number {
-  return Object.values(state.workshop?.levels ?? {}).reduce(
+  const global = Object.values(state.workshop?.levels ?? {}).reduce(
     (sum, n) => sum + Math.max(0, Math.floor(Number(n) || 0)),
     0,
   )
+  const cores = Object.values(state.workshop?.coreStarts ?? {}).reduce(
+    (sum, n) => sum + Math.max(0, Math.floor(Number(n) || 0)),
+    0,
+  )
+  return global + cores
 }
 
 export function noteRebuildCycleWave(state: GameState, wave: number): void {

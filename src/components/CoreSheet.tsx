@@ -177,8 +177,8 @@ function CoreRow({
   const need = masteryXpToNext(mastery)
   const next = nextMasteryMilestone(moduleId, mastery)
   const stats = moduleStatPreviews(moduleId, 0, false, mastery)
-  const dps = coreDps(state, moduleId)
-  const share = coreContributionPct(state, moduleId)
+  const dps = coreDps(state, moduleId, coreInstanceId)
+  const share = coreContributionPct(state, moduleId, coreInstanceId)
   const headline = stats.map((s) => `${s.label} ${s.current}`).join(' · ')
 
   return (

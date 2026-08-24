@@ -4,6 +4,7 @@ import { OverlayProvider } from '../ui/overlay'
 import { DockTab } from '../components/tabs/DockTab'
 import { FoundryTab } from '../components/tabs/FoundryTab'
 import { SystemsTab } from '../components/tabs/SystemsTab'
+import { InventoryScreen } from '../components/InventoryScreen'
 import { applyDevAction } from './dev'
 import { selectFrame } from './actions'
 import { createInitialState } from './state'
@@ -75,10 +76,47 @@ describe('playtest fix pass', () => {
       'Empty Defense Slot',
       'Empty Utility Slot',
     ])
-    expect(rows[0]?.querySelector('.ui-meta')?.textContent).toMatch(/^Attack · M/)
+    expect(rows[0]?.querySelector('.ui-meta')?.textContent).toMatch(/^Attack · Lv0 · M/)
 
     fireEvent.click(screen.getByRole('button', { name: /empty utility slot/i }))
     expect(screen.getByText('Fit Core')).toBeTruthy()
+  })
+
+  it('offers Scrap Core upgrades from Loadout and Inventory', () => {
+    const state = createInitialState(0)
+    state.resources.scrap = 100
+    const upgraded: string[] = []
+
+    render(
+      <OverlayProvider>
+        <DockTab
+          state={state}
+          pane="loadout"
+          onLaunch={() => undefined}
+          onOpenSortie={() => undefined}
+          onRebuild={() => undefined}
+          onUpgradeCore={(coreInstanceId) => upgraded.push(coreInstanceId)}
+        />
+      </OverlayProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Pulse Cannon.*Lv0/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Upgrade Core.*Scrap/i }))
+    expect(upgraded).toEqual(['pulse-cannon:1'])
+
+    cleanup()
+    render(
+      <OverlayProvider>
+        <InventoryScreen
+          state={state}
+          open
+          onClose={() => undefined}
+          onUpgradeCore={(coreInstanceId) => upgraded.push(coreInstanceId)}
+        />
+      </OverlayProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Pulse Cannon.*Copy 1/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Upgrade Core.*Scrap/i }))
+    expect(upgraded).toEqual(['pulse-cannon:1', 'pulse-cannon:1'])
   })
 
   it('renders uniform upgrade tiles with cost, affordability, and level/cap in info', () => {

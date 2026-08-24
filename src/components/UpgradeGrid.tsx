@@ -23,6 +23,7 @@ import {
   corePrimaryOutput,
   coreRunBulkCost,
   coreRunLevel,
+  coreStartingLevelAtSlot,
   equippedCoreSlots,
   maxAffordableCoreRunPurchases,
 } from '../game/coreProgression'
@@ -111,11 +112,13 @@ export function UpgradeGrid({
             const def = getModule(row.moduleId)
             if (!def) return null
             const level = coreRunLevel(state, row.slot)
+            const startingLevel = coreStartingLevelAtSlot(state, row.slot)
+            const effectiveLevel = startingLevel + level
             const count = Math.max(1, corePurchaseCount(state, row.slot, buyMode))
             const cost = coreRunBulkCost(state, row.slot, count)
             const bank = state.resources.salvage ?? 0
-            const affordable = bank >= cost && level < CORE_RUN_LEVEL_CAP && cost > 0
-            const maxed = level >= CORE_RUN_LEVEL_CAP
+            const affordable = bank >= cost && effectiveLevel < CORE_RUN_LEVEL_CAP && cost > 0
+            const maxed = effectiveLevel >= CORE_RUN_LEVEL_CAP
             const out = corePrimaryOutput(state, row.slot)
             const guide =
               row.moduleId === 'pulse-cannon' && row.slot === state.shipyard.modules.indexOf('pulse-cannon')
@@ -137,7 +140,9 @@ export function UpgradeGrid({
                   <span className="upgrade-tile-top">
                     <strong>{def.name}</strong>
                   </span>
-                  <span className="upgrade-tile-level">Run Lv{level}</span>
+                  <span className="upgrade-tile-level">
+                    {startingLevel > 0 ? `Lv${startingLevel} + Run ${level}` : `Run Lv${level}`}
+                  </span>
                   <span className="upgrade-tile-preview">
                     {out
                       ? `${formatCompact(out.current)} → ${formatCompact(out.next)} ${out.label}`
@@ -291,7 +296,8 @@ export function UpgradeGrid({
           overlayId={`core-info-${coreSlot.slot}`}
         >
           <p>
-            Run Level {coreRunLevel(state, coreSlot.slot)} / {CORE_RUN_LEVEL_CAP}
+            Core Level {coreStartingLevelAtSlot(state, coreSlot.slot)} + Run Level{' '}
+            {coreRunLevel(state, coreSlot.slot)} / {CORE_RUN_LEVEL_CAP}
           </p>
           <p className="muted">
             Mastery {moduleMasteryRank(state, coreSlot.moduleId)} · Run Lv

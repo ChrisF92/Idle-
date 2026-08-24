@@ -17,6 +17,9 @@ import {
   masteryMilestonesFor,
   masteryMilestoneEffect,
   nextMasteryMilestone,
+  CORE_START_LEVEL_CAP,
+  coreStartingLevel,
+  coreStartingUpgradeCost,
 } from '../game/coreProgression'
 import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
 import { formatCompact } from '../game/format'
@@ -137,6 +140,7 @@ interface CoreDetailSheetProps {
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void
+  onUpgradeCore?: (coreInstanceId: string, count?: number) => void
 }
 
 export function CoreDetailSheet({
@@ -149,13 +153,14 @@ export function CoreDetailSheet({
   onEquipRelic,
   onRemoveRelic,
   onUpgradeRelic,
+  onUpgradeCore,
 }: CoreDetailSheetProps) {
   const def = getModule(moduleId)
   if (!def) return null
   const mastery = moduleMasteryRank(state, moduleId)
-  const dps = coreDps(state, moduleId)
-  const share = coreContributionPct(state, moduleId)
-  const shield = coreShieldOutput(state, moduleId)
+  const dps = coreDps(state, moduleId, coreInstanceId)
+  const share = coreContributionPct(state, moduleId, coreInstanceId)
+  const shield = coreShieldOutput(state, moduleId, coreInstanceId)
   const xp = moduleMasteryXp(state, moduleId)
   const need = masteryXpToNext(mastery)
   const next = nextMasteryMilestone(moduleId, mastery)
@@ -165,6 +170,10 @@ export function CoreDetailSheet({
   ).length
   const copyLabel =
     copyCount > 1 ? ` · Copy ${coreInstanceCopyNumber(state, coreInstanceId)}` : ''
+  const coreLevel = coreStartingLevel(state, coreInstanceId)
+  const coreUpgradeCost = coreStartingUpgradeCost(state, coreInstanceId)
+  const coreMaxed = coreLevel >= CORE_START_LEVEL_CAP
+  const canAffordCore = (state.resources.scrap ?? 0) >= coreUpgradeCost
 
   return (
     <BottomSheet
@@ -188,10 +197,26 @@ export function CoreDetailSheet({
         {xp} / {need} XP
       </p>
       <div className="ui-context-bar">
+        <StatPair label="Core level" value={`${coreLevel} / ${CORE_START_LEVEL_CAP}`} />
+        <StatPair label="Mastery" value={mastery} />
         {dps > 0 ? <StatPair label="Primary output" value={`${formatCompact(dps)} DPS`} /> : null}
         {shield > 0 ? <StatPair label="Shield" value={`+${formatCompact(shield)}`} /> : null}
         {share != null && dps > 0 ? <StatPair label="Hive share" value={`${share}%`} /> : null}
       </div>
+      {onUpgradeCore ? (
+        <button
+          type="button"
+          className="primary"
+          disabled={locked || coreMaxed || !canAffordCore}
+          onClick={() => onUpgradeCore(coreInstanceId, 1)}
+        >
+          {coreMaxed
+            ? 'Core Level Maxed'
+            : canAffordCore
+              ? `Upgrade Core · ${formatCompact(coreUpgradeCost)} Scrap`
+              : `Need ${formatCompact(coreUpgradeCost)} Scrap`}
+        </button>
+      ) : null}
       {def.weapon ? (
         <div className="ui-context-bar">
           <StatPair label="Damage" value={formatCompact(def.weapon.damage)} />
@@ -297,7 +322,8 @@ export function CorePicker({
                 <header className="upgrade-card-head">
                   <strong>{mod.name}</strong>
                   <span className="muted">
-                    Copy {coreInstanceCopyNumber(state, coreInstanceId)} · {ROLE_LABEL[mod.role]} · Mastery {mastery}
+                    Copy {coreInstanceCopyNumber(state, coreInstanceId)} · {ROLE_LABEL[mod.role]} · Lv
+                    {coreStartingLevel(state, coreInstanceId)} · Mastery {mastery}
                     {copies ? ` · ×${copies.owned} · Eq ${copies.equipped}` : ''}
                   </span>
                 </header>

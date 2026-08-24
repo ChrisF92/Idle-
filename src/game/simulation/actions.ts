@@ -34,7 +34,12 @@ import {
   SHIP_MODULES,
 } from '../catalog'
 import { pendingMilestone } from '../milestones'
-import { CORE_RUN_LEVEL_CAP, coreRunLevel, coreRunUpgradeCost } from '../coreProgression'
+import {
+  CORE_RUN_LEVEL_CAP,
+  coreRunLevel,
+  coreRunUpgradeCost,
+  coreStartingLevelAtSlot,
+} from '../coreProgression'
 import { computeShipStats } from '../state'
 import {
   NETWORK_BARS,
@@ -169,7 +174,7 @@ function coreScore(
   const moduleId = state.shipyard.modules[slot]
   if (!moduleId) return -1
   const level = coreRunLevel(state, slot)
-  if (level >= CORE_RUN_LEVEL_CAP) return -1
+  if (coreStartingLevelAtSlot(state, slot) + level >= CORE_RUN_LEVEL_CAP) return -1
   const cost = coreRunUpgradeCost(level, moduleId)
   if (cost > (state.resources.salvage ?? 0) || cost <= 0) return -1
   const before = computeShipStats(state)

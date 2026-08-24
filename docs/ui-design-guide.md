@@ -311,6 +311,7 @@ Duplicate Cores are allowed. Communicate:
 - Equipped ×M
 - Available ×(N−M)
 - Shared Mastery for the Core type
+- A separate Scrap-funded Core Level for each physical copy
 
 ### Relic copies vs Core copies
 

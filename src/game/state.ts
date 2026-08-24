@@ -34,7 +34,7 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 import { fittedShieldMilestoneMult } from './milestones'
-import { combinedCoreMods, effectiveRunLevel } from './coreProgression'
+import { combinedCoreMods, effectiveCoreLevel } from './coreProgression'
 import {
   createEmptyNetworkState,
   NETWORK_STARTING_DRONES,
@@ -296,7 +296,7 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
   const mult = globalDamageMultiplier(state)
   const shortRange = state.prestige.activeChallengeId === 'short-range'
   const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
-  const level = Math.floor(effectiveRunLevel(state, slot))
+  const level = Math.floor(effectiveCoreLevel(state, slot))
   const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
   const mods = combinedCoreMods(state, moduleId)
   return {
@@ -380,7 +380,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
     const mod = getModule(moduleId)
     if (!mod) continue
     if (protocolMutes(state, 'shields') && mod.role === 'defense') continue
-    const level = Math.floor(effectiveRunLevel(state, slot))
+    const level = Math.floor(effectiveCoreLevel(state, slot))
     const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
     const mods = combinedCoreMods(state, moduleId)
     const pctMult = moduleLevelMultiplier(level) * mastery

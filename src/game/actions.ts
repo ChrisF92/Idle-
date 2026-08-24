@@ -151,8 +151,10 @@ import {
 } from './workshop'
 import { ACT1_CADENCE } from './cadence'
 import {
+  buyCoreStartingLevel as buyCoreStartingLevelInternal,
   buyCoreRunLevel,
   buyCoreRunLevelByModule,
+  coreStartingLevelAtSlot,
   coreRunLevel,
   coreRunUpgradeCost,
   moduleCopyCount,
@@ -656,7 +658,7 @@ export function upgradeBestValueModule(state: GameState, opts?: { force?: boolea
   for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
     const id = state.shipyard.modules[slot]!
     const level = coreRunLevel(state, slot)
-    if (level >= MAX_MODULE_LEVEL) continue
+    if (coreStartingLevelAtSlot(state, slot) + level >= MAX_MODULE_LEVEL) continue
     const cost = coreRunUpgradeCost(level, id)
     if (cost <= 0 || cost > (state.resources.salvage ?? 0)) continue
     const score = moduleUpgradeGain(state, id, level) / cost
@@ -1178,6 +1180,17 @@ function persistLoadout(
 /** Sortie-only: spend Salvage to raise a Core's temporary Run Level. Dock no-op. */
 export function upgradeModule(state: GameState, moduleId: string): GameState {
   return buyCoreRunUpgrade(state, moduleId, 1)
+}
+
+export function buyCoreStartingLevel(
+  state: GameState,
+  coreInstanceId: string,
+  count = 1,
+): GameState {
+  const next = buyCoreStartingLevelInternal(state, coreInstanceId, count)
+  if (next === state) return state
+  if (!next.combat.inFight) syncPersistedHullCaps(next)
+  return next
 }
 
 export function buyCoreRunUpgrade(state: GameState, moduleId: string, count = 1): GameState {
@@ -1823,7 +1836,7 @@ export function pickProcessCoreUpgrade(
     const def = getModule(id)
     if (!def) continue
     const level = coreRunLevel(state, slot)
-    if (level >= MAX_MODULE_LEVEL) continue
+    if (coreStartingLevelAtSlot(state, slot) + level >= MAX_MODULE_LEVEL) continue
     const cost = coreRunUpgradeCost(level, id)
     if (cost <= 0 || cost > (state.resources.salvage ?? 0)) continue
     let score = -cost

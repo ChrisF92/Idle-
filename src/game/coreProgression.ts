@@ -15,9 +15,16 @@ import { noteSalvageSpend } from './sortieSummary'
 import { protocolCoreScalingAdd } from './protocols'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { milestoneModsFor } from './milestones'
-import { addCoreInstance, coreInstanceAtSlot } from './coreInstances'
+import {
+  addCoreInstance,
+  coreInstanceAtSlot,
+  resolveCoreInstance,
+} from './coreInstances'
+import { workshopCost } from './workshop'
 
 export const CORE_RUN_LEVEL_CAP = MAX_MODULE_LEVEL
+/** Scrap-funded starting levels leave room for temporary Salvage growth. */
+export const CORE_START_LEVEL_CAP = 80
 export const CORE_MASTERY_CAP = 100
 
 /** Migration: leftover Scrap Dock ranks convert to at most this much Mastery. */
@@ -83,6 +90,87 @@ export function coreRunLevel(state: Pick<GameState, 'combat'>, slot: number): nu
   return Math.max(0, Math.floor(state.combat.coreRunLevels?.[String(slot)] ?? 0))
 }
 
+export function coreStartingLevel(
+  state: Pick<GameState, 'shipyard' | 'workshop'>,
+  coreInstanceId: string,
+): number {
+  const instance = resolveCoreInstance(state, coreInstanceId)
+  const key = instance?.id ?? coreInstanceId
+  const direct = state.workshop?.coreStarts?.[key]
+  if (direct != null) return Math.max(0, Math.min(CORE_START_LEVEL_CAP, Math.floor(direct)))
+  const legacy = instance?.moduleId
+    ? state.workshop?.coreStarts?.[instance.moduleId]
+    : undefined
+  return Math.max(0, Math.min(CORE_START_LEVEL_CAP, Math.floor(legacy ?? 0)))
+}
+
+export function coreStartingLevelAtSlot(
+  state: Pick<GameState, 'shipyard' | 'workshop'>,
+  slot: number,
+): number {
+  const instance = coreInstanceAtSlot(state, slot)
+  return instance ? coreStartingLevel(state, instance.id) : 0
+}
+
+export function coreStartingUpgradeCost(
+  state: Pick<GameState, 'shipyard' | 'workshop'>,
+  coreInstanceId: string,
+): number {
+  return workshopCost(coreStartingLevel(state, coreInstanceId))
+}
+
+export function maxAffordableCoreStartingPurchases(
+  state: Pick<GameState, 'resources' | 'shipyard' | 'workshop'>,
+  coreInstanceId: string,
+): number {
+  let scrap = Math.max(0, state.resources.scrap ?? 0)
+  let level = coreStartingLevel(state, coreInstanceId)
+  let count = 0
+  while (level < CORE_START_LEVEL_CAP) {
+    const cost = workshopCost(level)
+    if (scrap < cost) break
+    scrap -= cost
+    level += 1
+    count += 1
+  }
+  return count
+}
+
+export function buyCoreStartingLevel(
+  state: GameState,
+  coreInstanceId: string,
+  count = 1,
+): GameState {
+  if (!state.combat.docked) return state
+  const instance = resolveCoreInstance(state, coreInstanceId)
+  if (!instance) return state
+  const want =
+    count === Number.POSITIVE_INFINITY
+      ? maxAffordableCoreStartingPurchases(state, instance.id)
+      : Math.max(1, Math.floor(count))
+  if (want <= 0) return state
+  const next = structuredClone(state)
+  if (!next.workshop.coreStarts) next.workshop.coreStarts = {}
+  let bought = 0
+  for (let i = 0; i < want; i += 1) {
+    const level = coreStartingLevel(next, instance.id)
+    if (level >= CORE_START_LEVEL_CAP) break
+    const cost = workshopCost(level)
+    if (cost <= 0 || (next.resources.scrap ?? 0) < cost) break
+    next.resources.scrap -= cost
+    next.workshop.coreStarts[instance.id] = level + 1
+    bought += 1
+  }
+  if (bought <= 0) return state
+  recordPlaytest(next, 'core_buy', {
+    n: getModule(instance.moduleId)?.name ?? instance.moduleId,
+    v: coreStartingLevel(next, instance.id),
+    firstKey: `core_start:${instance.id}`,
+  })
+  noteSystemAction(next, 'cores')
+  return next
+}
+
 export function coreRunLevelForModule(
   state: Pick<GameState, 'combat' | 'shipyard'>,
   moduleId: string,
@@ -136,7 +224,7 @@ export function coreRunUpgradeCost(level: number, moduleId?: string): number {
 export function coreRunBulkCost(state: GameState, slot: number, count: number): number {
   const moduleId = state.shipyard.modules[slot]
   const start = coreRunLevel(state, slot)
-  const room = Math.max(0, CORE_RUN_LEVEL_CAP - start)
+  const room = Math.max(0, CORE_RUN_LEVEL_CAP - coreStartingLevelAtSlot(state, slot) - start)
   const n = Math.min(Math.max(0, Math.floor(count)), room)
   let total = 0
   for (let i = 0; i < n; i += 1) total += coreRunUpgradeCost(start + i, moduleId)
@@ -148,8 +236,9 @@ export function maxAffordableCoreRunPurchases(state: GameState, slot: number): n
   if (!moduleId) return 0
   let salvage = state.resources.salvage ?? 0
   let level = coreRunLevel(state, slot)
+  const starting = coreStartingLevelAtSlot(state, slot)
   let bought = 0
-  while (level < CORE_RUN_LEVEL_CAP && bought < 200) {
+  while (starting + level < CORE_RUN_LEVEL_CAP && bought < 200) {
     const cost = coreRunUpgradeCost(level, moduleId)
     if (cost <= 0 || salvage < cost) break
     salvage -= cost
@@ -476,6 +565,10 @@ export function effectiveRunLevel(state: GameState, slot: number): number {
   return raw * scale
 }
 
+export function effectiveCoreLevel(state: GameState, slot: number): number {
+  return coreStartingLevelAtSlot(state, slot) + effectiveRunLevel(state, slot)
+}
+
 export function corePrimaryOutput(state: GameState, slot: number): CorePrimaryOutput | null {
   const moduleId = state.shipyard.modules[slot]
   const def = getModule(moduleId)
@@ -483,7 +576,7 @@ export function corePrimaryOutput(state: GameState, slot: number): CorePrimaryOu
   const masteryRank = moduleMasteryRank(state, moduleId)
   const mastery = masteryBonus(masteryRank)
   const mods = combinedCoreMods(state, moduleId)
-  const level = Math.floor(effectiveRunLevel(state, slot))
+  const level = Math.floor(effectiveCoreLevel(state, slot))
   if (def.weapon) {
     const dmg = moduleWeaponDamage(def, level, mastery) * mods.damageMult
     const dmgNext = moduleWeaponDamage(def, level + 1, mastery) * mods.damageMult
@@ -528,7 +621,7 @@ export function buyCoreRunLevel(state: GameState, slot: number, count = 1): Game
   let bought = 0
   for (let i = 0; i < want; i += 1) {
     const level = coreRunLevel(next, slot)
-    if (level >= CORE_RUN_LEVEL_CAP) break
+    if (coreStartingLevelAtSlot(next, slot) + level >= CORE_RUN_LEVEL_CAP) break
     const cost = coreRunUpgradeCost(level, moduleId)
     if (cost <= 0 || (next.resources.salvage ?? 0) < cost) break
     next.resources.salvage -= cost
@@ -567,7 +660,7 @@ export function pickAutoCoreRunSlot(state: GameState): number | null {
   const salvage = state.resources.salvage ?? 0
   const affordable = slots.filter((row) => {
     const level = coreRunLevel(state, row.slot)
-    if (level >= CORE_RUN_LEVEL_CAP) return false
+    if (coreStartingLevelAtSlot(state, row.slot) + level >= CORE_RUN_LEVEL_CAP) return false
     return coreRunUpgradeCost(level, row.moduleId) <= salvage
   })
   if (affordable.length === 0) return null
