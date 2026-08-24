@@ -2004,3 +2004,108 @@ button.just-ok {
   letter-spacing: 0.04em;
   color: var(--accent);
 }
+
+.process-scroll {
+  padding: var(--space-4);
+}
+
+.process-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.process-graph {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.process-lane {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.process-lane-label {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.process-lane-track {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+}
+
+.process-graph-node {
+  flex: 0 0 5.6rem;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.25rem;
+  min-height: 4.4rem;
+  padding: var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: inherit;
+}
+
+.process-graph-icon {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 35%, transparent);
+}
+
+.process-graph-node.is-owned .process-graph-icon {
+  background: var(--accent);
+}
+
+.process-graph-node.is-available .process-graph-icon {
+  background: color-mix(in srgb, var(--accent) 70%, white);
+}
+
+.process-graph-node.is-locked {
+  opacity: 0.55;
+}
+
+.process-graph-name {
+  font-size: 0.72rem;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.process-auto-card,
+.process-rule-card {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  color: inherit;
+}
+
+.process-auto-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.process-rule-chip-row,
+.process-rule-editor {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.process-join-chip {
+  justify-self: start;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.06em;
+}

@@ -492,26 +492,50 @@ export interface ProcessYardLayout {
 export type ProcessWhenKind =
   | 'wave-gte'
   | 'wave-of-best'
-  | 'threat'
-  | 'queue-empty'
-  | 'ash-gte'
   | 'hull-lte'
+  | 'shield-lte'
+  | 'boss-active'
+  | 'enemies-gte'
+  | 'wave-time-gte'
+  | 'salvage-gte'
+  | 'scrap-run-gte'
+  | 'ash-gte'
+  | 'heat-gte'
+  | 'processor-idle'
+  | 'fabricator-idle'
+  | 'stock-lte'
+  | 'stock-gte'
   | 'research-idle'
+  | 'workers-idle-gte'
+  /** @deprecated Migrated to hull-lte on load. */
+  | 'threat'
+  /** @deprecated Migrated to processor-idle on load. */
+  | 'queue-empty'
 
 export type ProcessThenKind =
   | 'spend-profile'
+  | 'spend-ratios'
   | 'economy-target'
   | 'extract'
-  | 'repeat-recipe'
+  | 'furnace-preset'
   | 'furnace-push'
+  | 'worker-preset'
+  | 'foundry-target'
+  | 'foundry-stock'
   | 'research-next'
+  | 'launch-sortie'
+  | 'repeat-recipe'
   | 'fab-tracked'
 
 export type ProcessThreatId = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
 
+export type ProcessRuleJoin = 'and' | 'or'
+
 export interface ProcessCondition {
   kind: ProcessWhenKind
   value?: number
+  recipeId?: FoundryRecipeId
+  /** @deprecated Migrated away on load. */
   threat?: ProcessThreatId
 }
 
@@ -526,11 +550,17 @@ export interface ProcessAction {
   spend?: ProcessSpendMix
   economyPct?: number
   recipeId?: FoundryRecipeId | null
+  stockMin?: number
+  workerPreset?: ProcessNetworkPreset
+  furnacePreset?: FurnacePresetId
+  furnaceLevel?: number
 }
 
 export interface ProcessRule {
   id: string
+  label?: string
   enabled: boolean
+  join?: ProcessRuleJoin
   when: ProcessCondition[]
   then: ProcessAction
 }
@@ -546,6 +576,9 @@ export interface ProcessProfile {
   extractHullPct: number
   autoShop: boolean
   workerPreset?: ProcessNetworkPreset
+  furnacePreset?: FurnacePresetId | null
+  foundryRepeat?: FoundryRecipeId | null
+  researchAutoNext?: boolean
   rules: ProcessRule[]
 }
 
@@ -569,6 +602,7 @@ export interface ProcessConfig {
     queue: FoundryRecipeId[]
     targetRecipe: FoundryRecipeId | null
     upgradePriority: ProcessFoundryUpgradePriority
+    minStock: Partial<Record<FoundryRecipeId, number>>
   }
   reliquary: {
     autoMerge: boolean
@@ -612,6 +646,7 @@ export interface ProcessConfig {
   }
   activeProfileId: string | null
   profiles: ProcessProfile[]
+  lastActions: Record<string, string>
 }
 
 /** Achievements → Process points → automation / QoL / accumulation. */

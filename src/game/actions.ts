@@ -1773,6 +1773,15 @@ export function buyProcessNode(state: GameState, nodeId: string): GameState {
   if (!next.process) next.process = createEmptyProcessState()
   next.resources.aiPoints -= processNodeCost(next, def)
   next.process.purchased = [...next.process.purchased, nodeId]
+  if (nodeId === 'rule-builder' && !next.process.config.activeProfileId) {
+    next.process.config.activeProfileId = 'custom'
+  }
+  if (nodeId === 'furnace-channels') {
+    next.process.config.furnace.autoChannel = true
+  }
+  if (nodeId === 'furnace-presets' && !next.process.config.furnace.preset) {
+    next.process.config.furnace.preset = 'push'
+  }
   recordPlaytest(next, 'process_buy', { n: def.name })
   noteSystemAction(next, 'process')
   tryCompleteAchievements(next)

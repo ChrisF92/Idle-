@@ -42,7 +42,8 @@ import { tickYard } from './yard'
 import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
-import { hasProcess, processConfig, processIndustrySpeedMult } from './process'
+import { hasProcess, noteProcessLastAction, processConfig, processIndustrySpeedMult } from './process'
+import { evaluateProcessIntent } from './processProfiles'
 import { processShouldExtract } from './processProfiles'
 import { chosenSortieSpeed } from './uiReadout'
 import { WORKER_JOB_IDS } from './workers'
@@ -850,8 +851,9 @@ export function advanceSeconds(state: GameState, seconds: number): void {
 }
 
 function maybeProcessRelaunch(state: GameState): void {
-  if (!hasProcess(state, 'sortie-relaunch')) return
-  if (!processConfig(state).sortie.autoRelaunch) return
+  const intentLaunch = evaluateProcessIntent(state).launchSortie && hasProcess(state, 'rule-builder')
+  const autoLaunch = hasProcess(state, 'sortie-relaunch') && processConfig(state).sortie.autoRelaunch
+  if (!intentLaunch && !autoLaunch) return
   if (!state.combat.docked) return
   if ((state.combat.defeatLeft ?? 0) > 0) return
   if (state.protocols?.activeId) return
@@ -859,6 +861,7 @@ function maybeProcessRelaunch(state: GameState): void {
   if (state.combat.playerHullMax <= 0) return
   if (state.combat.playerHull + 0.5 < state.combat.playerHullMax) return
   launchFromDock(state)
+  noteProcessLastAction(state, 'sortie-relaunch', 'Launched Sortie')
 }
 
 /**

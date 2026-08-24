@@ -18,6 +18,7 @@ import {
   enterProtocol,
   optimiseNetwork,
   pickFoundryUpgradeId,
+  applyFurnacePreset,
 } from './actions'
 import {
   SIGNAL_CORE_DEFS,
@@ -26,7 +27,7 @@ import {
   countMergeable,
   mergeSignalCores,
 } from './signalCores'
-import { hasProcess, processConfig } from './process'
+import { hasProcess, noteProcessLastAction, processConfig } from './process'
 import { activeProcessProfile, evaluateProcessIntent, pickShopCategory } from './processProfiles'
 import { nextRunUpgradeCost, visibleRunUpgrades, type RunUpgradeId } from './workshop'
 import {
@@ -183,11 +184,20 @@ function autoShopUpgrades(state: GameState): void {
     if ((next.resources.salvage ?? 0) >= bank) break
     adopt(state, next)
   }
+  if (guard > 1) noteProcessLastAction(state, 'auto-shop', `Bought ${guard - 1} shop ranks`)
 }
 
 function autoFurnacePush(state: GameState): void {
   if (state.combat.docked) return
   const intent = evaluateProcessIntent(state)
+  if (intent.furnacePreset && hasProcess(state, 'furnace-presets')) {
+    const next = applyFurnacePreset(state, intent.furnacePreset)
+    if (next !== state) {
+      adopt(state, next)
+      state.process.config.furnace.preset = intent.furnacePreset
+      noteProcessLastAction(state, 'furnace-presets', `Applied ${intent.furnacePreset}`)
+    }
+  }
   if (!intent.furnacePush) return
   let next = convertAshToHeat(state)
   const spendable = furnaceSpendableHeat(next)
@@ -195,7 +205,10 @@ function autoFurnacePush(state: GameState): void {
     const lit = setFurnaceChannel(next, 'weapons', 1)
     if (lit !== next) next = lit
   }
-  if (next !== state) adopt(state, next)
+  if (next !== state) {
+    adopt(state, next)
+    noteProcessLastAction(state, 'furnace-channels', 'Lit Weapons')
+  }
 }
 
 function autoNetworkBalance(state: GameState): void {
@@ -203,11 +216,29 @@ function autoNetworkBalance(state: GameState): void {
   if (!processConfig(state).network.enabled) return
   if (idleWorkers(state) <= 0) return
   const profile = activeProcessProfile(state)
-  if (profile?.workerPreset && hasProcess(state, 'network-presets')) {
-    state.process.config.network.preset = profile.workerPreset
+  if (intentWorkerOrProfile(state, profile)) {
+    const preset = evaluateProcessIntent(state).workerPreset ?? profile?.workerPreset
+    if (preset && hasProcess(state, 'network-presets')) {
+      state.process.config.network.preset = preset
+    }
   }
   const next = optimiseNetwork(state)
-  if (next !== state) adopt(state, next)
+  if (next !== state) {
+    adopt(state, next)
+    noteProcessLastAction(state, 'network-balance', 'Filled idle Workers')
+  }
+}
+
+function intentWorkerOrProfile(
+  state: GameState,
+  profile: ReturnType<typeof activeProcessProfile>,
+): boolean {
+  const intent = evaluateProcessIntent(state)
+  if (intent.workerPreset && hasProcess(state, 'worker-conditional')) {
+    state.process.config.network.preset = intent.workerPreset
+    return true
+  }
+  return Boolean(profile?.workerPreset && hasProcess(state, 'network-presets'))
 }
 
 function autoBankAsh(_state: GameState): void {
@@ -264,6 +295,28 @@ function pickFoundryPrereqRecipe(state: GameState, target: FoundryRecipeId): Fou
 
 function nextFoundryRecipe(state: GameState, busy: Set<string>): FoundryRecipeId | null {
   const cfg = processConfig(state)
+  const intent = evaluateProcessIntent(state)
+  if (intent.foundryStock && hasProcess(state, 'foundry-stock')) {
+    const { recipeId, min } = intent.foundryStock
+    cfg.foundry.minStock = { ...cfg.foundry.minStock, [recipeId]: min }
+  }
+  if (intent.foundryTarget && hasProcess(state, 'foundry-repeat')) {
+    cfg.foundry.repeatRecipe = intent.foundryTarget
+    cfg.foundry.targetRecipe = intent.foundryTarget
+  }
+  if (hasProcess(state, 'foundry-stock')) {
+    for (const [id, min] of Object.entries(cfg.foundry.minStock ?? {})) {
+      if (foundryMaterialCount(state, id) >= (min ?? 0)) continue
+      const recipe = (hasProcess(state, 'foundry-prereqs')
+        ? pickFoundryPrereqRecipe(state, id as FoundryRecipeId)
+        : id) as FoundryRecipeId
+      if (!recipe) continue
+      if (busy.has(recipe) && foundrySlotCount(state) < 3) continue
+      if (!isFoundryRecipeUnlocked(state, recipe) || isFoundryInfinite(state, recipe)) continue
+      noteProcessLastAction(state, 'foundry-stock', `Refill ${id}`)
+      return recipe
+    }
+  }
   if (hasProcess(state, 'foundry-queue')) {
     for (const id of cfg.foundry.queue.slice(0, foundryQueueCap(state))) {
       if (busy.has(id) && foundrySlotCount(state) < 3) continue
@@ -288,7 +341,8 @@ function autoSmartSmelt(state: GameState): void {
     !hasProcess(state, 'smart-smelt') &&
     !hasProcess(state, 'foundry-repeat') &&
     !hasProcess(state, 'foundry-queue') &&
-    !hasProcess(state, 'foundry-prereqs')
+    !hasProcess(state, 'foundry-prereqs') &&
+    !hasProcess(state, 'foundry-stock')
   ) {
     return
   }
@@ -305,6 +359,7 @@ function autoSmartSmelt(state: GameState): void {
     if (next === state) continue
     adopt(state, next)
     busy.add(recipe)
+    noteProcessLastAction(state, 'foundry-repeat', `Queued ${recipe}`)
   }
 }
 
@@ -335,6 +390,7 @@ function autoPrintAssemble(state: GameState): void {
     const next = assembleBlueprint(state, moduleId)
     if (next === state) continue
     adopt(state, next)
+    noteProcessLastAction(state, 'print-assemble', `Started ${moduleId}`)
     return
   }
 }
@@ -382,7 +438,8 @@ function autoResearchFocus(state: GameState): void {
   if (!hasProcess(state, 'research-focus') && !hasProcess(state, 'research-queue')) return
   if (!state.hiveResearch) return
   const cfg = processConfig(state)
-  if (hasProcess(state, 'research-focus') && !cfg.research.autoResearch) return
+  const intent = evaluateProcessIntent(state)
+  if (hasProcess(state, 'research-focus') && !cfg.research.autoResearch && !intent.researchNext) return
   const incomplete = (id: (typeof HIVE_RESEARCH_BRANCHES)[number]['id']) =>
     hiveResearchBranchUnlocked(state, id) && hiveResearchCompleted(state, id) < HIVE_RESEARCH_NODES[id].length
   let nextFocus = state.hiveResearch.focus
@@ -392,12 +449,13 @@ function autoResearchFocus(state: GameState): void {
   } else if (hasProcess(state, 'research-priorities') && cfg.research.branchPriority.length > 0) {
     const ranked = cfg.research.branchPriority.find(incomplete)
     if (ranked) nextFocus = ranked
-  } else if (hasProcess(state, 'research-focus')) {
+  } else if (hasProcess(state, 'research-focus') || intent.researchNext) {
     const ranked = cfg.research.branchPriority.find(incomplete)
     if (ranked) nextFocus = ranked
   }
   if (nextFocus === state.hiveResearch.focus && state.hiveResearch.active) return
   adopt(state, setResearchFocus(state, nextFocus))
+  noteProcessLastAction(state, hasProcess(state, 'research-queue') ? 'research-queue' : 'research-focus', 'Started next project')
 }
 
 function autoFurnaceManager(state: GameState): void {

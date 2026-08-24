@@ -17,7 +17,7 @@ import {
   hiveResearchRemaining,
   hiveResearchSpeed,
 } from './hiveResearch'
-import { firstAffordableProcessNode, processAvailable, processConfig } from './process'
+import { firstAffordableProcessNode, processActiveAutomationCount, processAvailable } from './process'
 import { workerAllocationSummary } from './workers'
 import { foundryAttention, furnaceAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
@@ -104,17 +104,10 @@ export function researchHubStatus(state: GameState): string[] {
 
 export function processHubStatus(state: GameState): string[] {
   const bought = state.process?.purchased?.length ?? 0
-  const cfg = processConfig(state)
-  let running = 0
-  if (cfg.core.enabled) running += 1
-  if (cfg.network.enabled) running += 1
-  if (cfg.foundry.autoBuy) running += 1
-  if (cfg.reliquary.autoEquip || cfg.reliquary.autoMerge) running += 1
-  if (cfg.furnace.autoFeed || cfg.furnace.autoChannel) running += 1
-  if (cfg.research.autoResearch) running += 1
+  const running = processActiveAutomationCount(state)
   const next = firstAffordableProcessNode(state)
-  const lines =
-    bought > 0 && running > 0 ? [`${running} automations active`] : [`${bought} capabilities`]
+  const lines = [`${bought} capabilities`]
+  if (running > 0) lines.push(`${running} automations`)
   if (processAvailable(state) > 0) lines.push(`${Math.floor(processAvailable(state))} Process Points available`)
   else if (next) lines.push(`Next: ${next.name}`)
   else if (running <= 0) lines.push('No purchase yet')
