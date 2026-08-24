@@ -732,7 +732,7 @@ export function legacyRankToMastery(rank: number): { level: number; xp: number }
 
 /**
  * Convert leftover Scrap Dock ranks into bounded Mastery.
- * Mid-Sortie Run Levels start at 0 — old ranks were cycle-persistent, not temporary.
+ * Retired per-Sortie Core levels start at 0 and do not affect current Core power.
  */
 export function migrateLegacyCoreProgression(state: GameState): void {
   if (state.meta.coreProgressionMigrated) return

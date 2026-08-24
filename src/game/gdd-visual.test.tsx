@@ -20,7 +20,7 @@ function launch(state = createInitialState()) {
   return setDocked(state, false)
 }
 
-describe('GDD visual layout and Dock Core ranks', () => {
+describe('GDD visual layout and Dock Core Levels', () => {
   it('shows a compact Sortie HUD without Pressure or permanent Cores tabs', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false

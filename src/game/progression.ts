@@ -667,7 +667,7 @@ export function tryCompleteAchievements(state: GameState): string[] {
   return newly
 }
 
-/** First hull-loss dock — Salvage, Cores spend, Network, and More wait for this. */
+/** First hull-loss dock — Salvage, Dock Core spending, Network, and More wait for this. */
 export function hasHullLostOnce(state: GameState): boolean {
   return state.meta.hullLostOnce === true || state.combat.lastSortie?.outcome === 'defeat'
 }

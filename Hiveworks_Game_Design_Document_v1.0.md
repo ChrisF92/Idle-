@@ -286,7 +286,6 @@ A Sortie begins at Wave 1.
 
 - current Wave;
 - Salvage;
-- temporary Core levels;
 - temporary Attack upgrades;
 - temporary Defense upgrades;
 - temporary Economy upgrades;
@@ -303,6 +302,7 @@ A Rebuild Cycle contains multiple Sorties.
 
 - Scrap;
 - Workshop levels;
+- Scrap-funded Core Levels on each physical Core copy;
 - Ash;
 - current cycle statistics;
 - designated cycle-level infrastructure.
@@ -311,6 +311,7 @@ A Rebuild Cycle contains multiple Sorties.
 
 - Scrap;
 - Workshop levels;
+- Core Levels on each physical Core copy;
 - Ash;
 - active Sortie state;
 - designated cycle-only progression.
@@ -655,6 +656,8 @@ Cores are autonomous combat machines operating around the Hive.
 
 They may orbit, reposition or hold defensive positions according to their behaviour.
 
+Every fabricated Core is a physical instance with a stable identity. Instance identity carries that copy's Core Level and fitted Relics.
+
 The UI calls them simply **Cores**.
 
 ---
@@ -774,6 +777,13 @@ Example:
 
 This enables specialised builds.
 
+Copies of the same type:
+
+- share Core Mastery;
+- have independent Core Levels;
+- have independent Relic loadouts;
+- retain stable physical identities when fitted, stored or moved between slots.
+
 Limits may come from:
 
 - Frame capacity;
@@ -782,36 +792,36 @@ Limits may come from:
 
 ---
 
-# 22. Temporary Core Levels
+# 22. Core Levels
 
-Equipped Cores gain **temporary Run Levels** during a Sortie.
+Each physical Core copy has its own **Core Level**.
 
 Example:
 
-> Pulse Core  
-> Mastery 7  
-> Run Lv 0
+> Pulse Core · Copy 2
+> Core Level 7
+> Mastery 12
 
-The player spends Salvage to raise Run Level.
+The player spends Scrap while Docked to raise that copy's Core Level. Core Levels persist between normal Sorties within the current Rebuild Cycle and reset on Rebuild.
 
-At Sortie end:
+Core Levels cannot be purchased with Salvage and cannot be raised during a Sortie.
 
-> Run Level resets to its starting state.
-
-Mastery remains.
+Mastery belongs to the Core type rather than the physical copy and remains when Core Levels reset.
 
 ---
 
 # 23. Core Mastery
 
-Core Mastery is permanent and deliberately long-lived.
+Core Mastery belongs to the Core type, is earned through use, and is permanent and deliberately long-lived.
+
+Duplicate copies of the same Core type contribute to and benefit from the same Mastery progression.
 
 It should not be realistically maxed within the opening hours or necessarily within Act 1.
 
 Mastery may improve:
 
 - base effectiveness;
-- temporary-level scaling;
+- Core Level scaling;
 - firing behaviour;
 - special effects;
 - socket access;
@@ -856,6 +866,8 @@ Preferred loop:
 Relics are augmentations installed directly into Cores.
 
 There is no standalone Reliquary system.
+
+Relics are fitted per physical Core instance. Two copies of the same Core type may carry different Relic loadouts even though they share Mastery.
 
 Relics deepen Core buildcraft rather than functioning as another separate account-wide stat screen.
 
@@ -1060,7 +1072,6 @@ Earned from:
 
 Spent on:
 
-- temporary Core levels;
 - Attack upgrades;
 - Defense upgrades;
 - Economy upgrades.
@@ -1084,7 +1095,7 @@ Earned from:
 - Economy upgrades;
 - Extraction bonus.
 
-Spent primarily in Workshop.
+Spent primarily in Workshop and on individual Core Levels while Docked.
 
 Scrap resets on Rebuild.
 
@@ -1570,12 +1581,12 @@ Avoid arbitrary real-time locks.
 
 - current Sortie;
 - Salvage;
-- temporary Core levels;
 - temporary run upgrades;
 - Directives;
 - Heat;
 - Scrap;
 - Workshop;
+- Core Levels on each physical Core copy;
 - Ash;
 - explicitly cycle-only progression.
 
@@ -1909,7 +1920,6 @@ These should genuinely improve interaction rather than provide meaningless fille
 
 Possible automations:
 
-- auto-level Cores;
 - auto-buy Attack;
 - auto-buy Defense;
 - auto-buy Economy;
@@ -1925,7 +1935,6 @@ Possible controls:
 - upgrade priority list;
 - Salvage reserve;
 - spending ratios;
-- Core priority;
 - Foundry priority;
 - Worker Drone allocation presets.
 
@@ -1989,7 +1998,7 @@ Automation should generally unlock after natural manual use.
 
 Examples:
 
-- Core Auto-Buy after significant manual Core levelling;
+- Sortie upgrade automation after significant manual Attack, Defense and Economy purchasing;
 - Directive logic after repeated Directive selection;
 - Foundry repeat after repeated fabrication;
 - Worker Drone presets after genuine workforce management.
@@ -2537,16 +2546,12 @@ Compact view:
 
 ### PHASE BEAM
 
-Run Lv42  
+Core Level 42
 Mastery 17
 
 DPS:
 
 > 18.4K
-
-Next:
-
-> Lv43 — 1.2K Salvage
 
 Expanded view can reveal:
 
@@ -2625,9 +2630,11 @@ The player should not have to leave the screen to remember their current statist
 A Core detail sheet should be capable of showing:
 
 - category;
+- physical instance identity;
+- Core Level;
 - Mastery;
 - permanent base statistics;
-- temporary run scaling;
+- Core Level scaling;
 - Relic sockets;
 - equipped Relics;
 - milestone progress;
@@ -3288,7 +3295,7 @@ The rule is:
 
 The game should eventually be able to estimate effective contribution from:
 
-- Core base/Mastery;
+- Core base/Level/Mastery;
 - temporary upgrades;
 - Workshop;
 - Matter;
@@ -3349,7 +3356,6 @@ Every Sortie should be describable through data such as:
 - Attack spend share;
 - Defense spend share;
 - Economy spend share;
-- Core spend;
 - Scrap earned;
 - fragments;
 - Ash;
@@ -3403,7 +3409,7 @@ Useful event categories:
 
 - Sortie start;
 - run upgrade buy;
-- Core level purchase;
+- Dock Core Level purchase with Scrap;
 - Directive selection;
 - Furnace activation;
 - Worker Drone reassignment;
@@ -3838,7 +3844,7 @@ The design priority is not the number of systems.
 |---|---|---|
 | Sortie | Run | How far can this build go? |
 | Run Upgrades | Run | Where should Salvage be spent now? |
-| Cores | Permanent + Run | What combat build am I using? |
+| Cores | Rebuild Cycle + Permanent Mastery | What combat build am I using? |
 | Relics | Permanent | How should each Core be customised? |
 | Workshop | Rebuild Cycle | How should future runs in this cycle start stronger? |
 | Foundry | Permanent | What should I manufacture next? |

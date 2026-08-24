@@ -553,7 +553,7 @@ export function inspectProtocol(state: GameState, id: string): InspectCard | nul
     ],
     body: [
       def.restriction,
-      'Starting this Challenge resets Salvage, Core levels, and the current Sortie. Ranks persist on Rebuild.',
+      'Starting this Challenge resets Salvage, run upgrades, and the current Sortie. Core Levels persist until Rebuild.',
       rank > 0 ? protocolCumulativeLine(state, id) : def.blurb,
       'Repeat clears still pay at every level. Later ranks raise the goal Wave.',
     ],

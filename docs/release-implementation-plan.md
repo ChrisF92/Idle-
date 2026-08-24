@@ -29,7 +29,7 @@ A player can:
 1. Launch from Dock with a starter Frame and Cores already fitted.
 2. Fight a radial Hive Sortie that always starts at Wave 1.
 3. Spend Salvage on a visible Attack / Defense / Economy shop while combat stays on screen.
-4. Die or Extract, keep Scrap, spend Workshop, launch again stronger.
+4. Die or Extract, keep Scrap, spend Workshop and individual Core Levels at Dock, launch again stronger.
 5. Unfold Foundry → Workers → Directives → Rebuild → Relics → Furnace → Research → Process → Challenges on the GDD wave cadence.
 6. Rebuild around W70, feel a real leap, reclaim old waves much faster.
 7. Automate solved work with Process (QoL → actions → priorities → conditions → profiles).
@@ -142,7 +142,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Network Strike/Ward/Yield bars | LEGACY | Combat mults = 1; Yield/Loom/Archive still multiply |
 | Physical Core Levels | DONE | Per-copy Scrap Levels at Dock; shared Mastery; no Sortie Core upgrades |
 | Orbiting Core units + visual families | MISSING | Weapons mounted on `Flagship` |
-| Duplicate Cores | MISSING | `canFitModuleOnFrame` rejects same `moduleId` |
+| Duplicate Cores | DONE | Stable physical instances share type Mastery but keep independent Core Levels and Relic loadouts |
 | Hive Frames as archetypes | PARTIAL | 9 USI hulls + Bastion; no Swarm/Reactor/Harvester |
 | Core Mastery milestones 5/10/20/…/100 | PARTIAL | Part-invest mastery, cap 10→20 at W275 |
 | Relics on Cores | DONE | Power / Optical / Ballistic / Shield / Industrial / Universal. Process auto-seats Core sockets |
@@ -244,14 +244,14 @@ Required surface after Phase 1 (extend in later phases):
 | Set live Wave | In-sortie wave only; does not grant career |
 | Door presets | W20 Foundry, W30 Workers, W50 Directives, W70 Rebuild (legal + 3 sorties), W110 Relics, W140 Furnace, W170 Research, W210 Process (also 2 Rebuilds + 1 research), W250 Challenges, W300 climax / Reinforce |
 | +Resources | Scrap, Salvage, Matter, Ash, Heat, Foundry mats, Process points — GDD names |
-| Set Core Run Levels | Salvage Run Levels on fitted Cores (Sortie only; does not grant Mastery) |
+| Set Core Levels | Scrap-funded Levels on physical Core copies while Docked; does not grant Mastery |
 | Set Core Mastery | Permanent Mastery only |
 | Force boss | Next or current 10th-wave boss / W300 climax |
 | Skip / reset onboarding | Keep |
 | Wipe career | Keep (pre-1.0 wipes are expected) |
 | Balance Simulator + Playtest report | Keep; report fields match GDD §154 |
 
-Automated playtests (`playtest.ts`, `src/game/simulation/**`, `gdd-*.test.ts` helpers) must launch at Wave 1, spend Scrap at Dock for Core ranks, and use `ACT1_CADENCE` doors. No Route B, Hold, Echo, or starting-wave helpers in new tests.
+Automated playtests (`playtest.ts`, `src/game/simulation/**`, `gdd-*.test.ts` helpers) must launch at Wave 1, spend Scrap at Dock on each physical Core copy's Level, and use `ACT1_CADENCE` doors. No Route B, Hold, Echo, or starting-wave helpers in new tests.
 
 When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle. **Done (Phase 7).** Dev Tools can inject Farm / Push Process profiles. When Phase 10 wraps Android, confirm `?dev=1` still works in the TWA (or a long-press More gesture).
 
@@ -330,7 +330,7 @@ When Phase 2 adds orbiting Cores, add a “show hitboxes / orbit debug” toggle
 - Mid-Sortie Salvage cannot raise individual Cores.
 - Mastery and Relics persist through Rebuild. Scrap Core Levels and Workshop upgrades reset.
 
-**SAVE_VERSION:** no bump required; retired Run Level fields hydrate but no longer affect gameplay.
+**SAVE_VERSION:** no bump required; retired per-Sortie Core fields hydrate but no longer affect gameplay.
 
 ---
 
@@ -433,8 +433,8 @@ Also:
 **Work:** **Done.** QoL → Actions → Priorities → Conditions → Cross-system → Farm / Push / Challenge (D2).
 
 1. **Done (T1 QoL).** Shop Readout (`shop-readout`) shows time-to-afford and Economy ROI on Salvage / Workshop tiles. ×10, Buy Max, contribution %, repeat recipe, presets already existed.
-2. **Done (T2 Actions).** `auto-shop` spends Salvage on Attack / Defense / Economy globals during a live Sortie. Core Auto Upgrade and Worker presets already existed.
-3. **Done (T3 Priorities).** `spend-ratios` sets Attack / Defense / Economy targets plus a Salvage reserve. Core / Foundry / Worker priorities already existed.
+2. **Done (T2 Actions).** `auto-shop` spends Salvage on Attack / Defense / Economy globals during a live Sortie. It does not automate Core Levels; Worker presets remain separate.
+3. **Done (T3 Priorities).** `spend-ratios` sets Attack / Defense / Economy targets plus a Salvage reserve. Foundry and Worker priorities remain separate; there is no Sortie Core priority.
 4. **Done (T4 Conditions).** Chip builder (`rule-builder`): WHEN Wave ≥ N / % of Best / threat / queue empty / Ash / hull / Research idle THEN spend / extract / Furnace push / recipe. Selectors + numbers only.
 5. **Done (T5 Cross-system).** Push profile at 95% of Best dumps Economy and converts Ash → Heat → Weapons channel. Research auto-queue and tracked fab remain existing later nodes.
 6. **Done (T6 Profiles).** Farm / Push / Challenge (`run-profiles`). Farm banks Economy and Extracts at 50% hull. Push dumps Economy near Best and lights Furnace. Challenge leans Defense on Survivability. **No closed-app Sortie sim** (GDD §90, §167).

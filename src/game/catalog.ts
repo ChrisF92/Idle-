@@ -1792,8 +1792,8 @@ export function moduleLevel(
 }
 
 /**
- * Salvage cost to raise a Core from `level` → level+1.
- * USI: weapons 3 × 1.21^n, shields 6 × 1.2^n.
+ * Retired per-Sortie Core cost curve retained for compatibility simulations.
+ * Historical USI values: weapons 3 × 1.21^n, shields 6 × 1.2^n.
  */
 export function moduleUpgradeCost(level: number, moduleId?: string, scalingAdd = 0): number {
   const n = Math.max(0, level)

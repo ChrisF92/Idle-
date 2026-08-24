@@ -136,6 +136,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
     'Directives',
     'Scrap',
     'Workshop',
+    'Core Levels',
   ]
   const change: string[] = []
 
@@ -194,7 +195,7 @@ export function sortieNextHints(state: GameState): string[] {
   if (isSystemUnlocked(state, 'network') && idle > 0) {
     items.push(`${idle} drone${idle === 1 ? '' : 's'} idle — assign under Systems`)
   }
-  items.push('Spend Salvage on Cores or global upgrades next Sortie')
+  items.push('Spend Salvage on Attack, Defense, or Economy upgrades next Sortie')
   if (isSystemUnlocked(state, 'network') && (state.base.assignments['scrap-field'] ?? 0) === 0) {
     items.push('Assign Worker Drones under Systems')
   }

@@ -1718,7 +1718,7 @@ export function enterProtocol(state: GameState, protocolId: string, opts?: { aut
   next.combat.playerShield = stats.shieldMax
   const goal = protocolGoalWave(next, protocolId)
   next.combat.log = [
-    `Challenge ${def.name}. Goal: reach Wave ${goal}. Cores and Salvage wiped. ${def.restriction}`,
+    `Challenge ${def.name}. Goal: reach Wave ${goal}. Salvage and run upgrades reset. ${def.restriction}`,
     ...next.combat.log,
   ]
   noteAttempt(next, 'protocol', protocolId, 'start', def.name)
