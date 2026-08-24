@@ -87,7 +87,6 @@ import {
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { fittedRegenBonus } from './milestones'
 import { combinedCoreMods } from './coreProgression'
-import { networkSalvageMult } from './network'
 import { grantReliquaryKillLoot, reliquaryResearchXpMult, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
 import { foundrySalvageMult, foundryPartDropMult, foundryShardDropBonus } from './foundry'
@@ -2297,7 +2296,6 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   recordPlaytest(state, 'first_kill', { firstKey: 'kill' })
   const rewardWeight = Math.max(0, Math.min(1, unit.rewardWeight ?? 1))
   const salvageMult =
-    networkSalvageMult(state) *
     reliquarySalvageMult(state) *
     hiveResearchSalvageMult(state) *
     foundrySalvageMult(state) *

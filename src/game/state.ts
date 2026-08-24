@@ -38,8 +38,6 @@ import { combinedCoreMods, effectiveCoreLevel } from './coreProgression'
 import {
   createEmptyNetworkState,
   NETWORK_STARTING_DRONES,
-  networkStrikeMult,
-  networkWardMult,
 } from './network'
 import {
   createEmptyFoundryState,
@@ -276,7 +274,6 @@ export function globalDamageMultiplier(state: GameState): number {
   const coreDmg = computeSignalCoreBonuses(state).damage
   // Signal damage is a softer half-weight layer (not a full multiply stack).
   if (coreDmg) mult *= 1 + coreDmg * 0.5
-  mult *= networkStrikeMult(state)
   mult *= foundryDamageMult(state)
   mult *= reliquaryDamageMult(state)
   mult *= furnaceDamageMult(state)
@@ -418,7 +415,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax += signalBonuses.shield
   evasion += signalBonuses.evasion
   shieldMax *= fittedShieldMilestoneMult(state)
-  shieldMax *= networkWardMult(state)
   shieldMax *= foundryShieldMult(state)
   shieldMax += foundryShieldFlat(state)
   shieldMax *= reliquaryShieldMult(state)

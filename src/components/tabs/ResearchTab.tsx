@@ -15,7 +15,6 @@ import {
   hiveResearchXp,
   isResearchBreakthrough,
 } from '../../game/hiveResearch'
-import { stationEffectiveDrones } from '../../game/catalog'
 import { inspectResearchBranch } from '../../game/inspect'
 import { InspectName } from '../InspectName'
 
@@ -73,7 +72,7 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
   const running = hiveResearchActive(state)
   const focus = state.hiveResearch?.focus ?? 'energy'
   const speed = hiveResearchSpeed(state)
-  const drones = stationEffectiveDrones(state, 'sensor-net')
+  const drones = state.base.assignments['sensor-net'] ?? 0
 
   return (
     <section className="panel screen-panel">
@@ -91,11 +90,11 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
         </p>
       </header>
       {!open ? (
-        <p className="muted">Pick a discipline, start its next project, and assign Sensor Net drones to speed it up.</p>
+        <p className="muted">Pick a discipline, start its next project, and assign Worker Drones to speed it up.</p>
       ) : (
         <div className="panel-scroll">
           <p className="muted" data-guide="research-branches">
-            Sensor Net {drones} · speed ×{speed.toFixed(2)}. Only the next project is named.
+            Research Workers {drones} · speed ×{speed.toFixed(2)}. Only the next project is named.
           </p>
           {HIVE_RESEARCH_BRANCHES.map((branch) => {
             const locked = !hiveResearchBranchUnlocked(state, branch.id)

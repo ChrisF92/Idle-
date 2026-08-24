@@ -23,6 +23,7 @@ import {
   researchEssenceMultiplier,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
+  visibleWorkerJobIds,
   workerManufactureSpeed,
   frameScrapMult,
 } from './catalog'
@@ -32,7 +33,6 @@ import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { tryCompleteChallenge } from './actions'
 import {
   networkDataRate,
-  networkManufactureMult,
   networkScrapRate,
   tickNetwork,
 } from './network'
@@ -45,6 +45,7 @@ import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, processConfig, processIndustrySpeedMult } from './process'
 import { processShouldExtract } from './processProfiles'
 import { chosenSortieSpeed } from './uiReadout'
+import { WORKER_JOB_IDS } from './workers'
 import {
   captureSortieMark,
   closeSortie,
@@ -294,9 +295,12 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   tickResearch(state, dtSeconds)
 
   const cap = droneCap(state)
-  if (state.base.workerDrones < cap) {
-    const speed =
-      workerManufactureSpeed(state) * networkManufactureMult(state) * processIndustrySpeedMult(state)
+  if (
+    state.base.workerDrones < cap &&
+    isStationUnlocked(state, 'drone-fab') &&
+    (state.base.assignments['drone-fab'] ?? 0) > 0
+  ) {
+    const speed = workerManufactureSpeed(state) * processIndustrySpeedMult(state)
     state.base.manufactureProgress +=
       (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
     while (
@@ -321,6 +325,10 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   }
 
   tickCoreTraining(state, dtSeconds)
+  const activeJobs = new Set(visibleWorkerJobIds(state))
+  for (const jobId of WORKER_JOB_IDS) {
+    if (!activeJobs.has(jobId)) delete state.base.assignments[jobId]
+  }
 }
 
 /** Net industry rates (units / second). Combat drops are not included. */

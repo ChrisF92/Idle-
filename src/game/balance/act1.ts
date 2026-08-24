@@ -19,7 +19,6 @@ import {
   hiveResearchDamageMult,
   isResearchBreakthroughIndex,
 } from '../hiveResearch'
-import { NETWORK_BARS, networkStrikeMult } from '../network'
 import { PRESTIGE_MIN_SECTOR } from '../progression'
 import { processEarned, PROCESS_ACCUMULATION } from '../process'
 import { PROTOCOL_UNLOCK_SECTOR } from '../protocols'
@@ -238,7 +237,7 @@ ACT1_EXPECTED_AT['sector-30'] = ACT1_EXPECTED_AT['wave-300']!
 
 export function act1Contribution(state: GameState): Act1Contribution {
   return {
-    networkDamage: networkStrikeMult(state) - 1,
+    networkDamage: 0,
     furnaceDamage: furnaceDamageMult(state) - 1,
     reliquaryDamage: reliquaryDamageMult(state) - 1,
     researchDamage: hiveResearchDamageMult(state) - 1,
@@ -261,10 +260,7 @@ export function captureAct1Snapshot(
   for (const n of [material, energy, observation]) {
     for (let i = 0; i < n; i++) if (isResearchBreakthroughIndex(i)) bts += 1
   }
-  const relays = NETWORK_BARS.filter((b) => b.layer !== 'primary').reduce(
-    (n, b) => n + (state.network?.bars[b.id]?.levels ?? 0),
-    0,
-  )
+  const relays = 0
   const recipes = FOUNDRY_RECIPES.filter((r) => (state.foundry.recipeLevels[r.id] ?? 0) > 0).length
   const protocolRanks = Object.values(state.protocols?.ranks ?? {}).reduce((s, n) => s + (n ?? 0), 0)
   return {

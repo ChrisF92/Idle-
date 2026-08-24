@@ -3,6 +3,7 @@ import { isSystemUnlocked } from '../../game/progression'
 import { systemsHubCards, type SystemsHubId } from '../../game/systemsHub'
 import { workerAllocationSummary } from '../../game/workers'
 import { formatCompact } from '../../game/format'
+import { droneCap } from '../../game/catalog'
 
 type Props = {
   state: GameState
@@ -30,7 +31,7 @@ export function SystemsTab({ state, onManage }: Props) {
           <span className="systems-workers-total">{formatCompact(workers.total)}</span>
         </div>
         <p className="systems-workers-line">
-          {formatCompact(workers.assigned)} assigned · {formatCompact(workers.idle)} idle
+          {formatCompact(workers.assigned)} assigned · {formatCompact(workers.idle)} idle · capacity {formatCompact(droneCap(state))}
         </p>
       </button>
 

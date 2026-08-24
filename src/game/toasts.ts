@@ -63,6 +63,7 @@ export interface ToastSnapshot {
 
 const TRACKED_SYSTEMS: TabId[] = [
   'foundry',
+  'network',
   'reliquary',
   'furnace',
   'research',
@@ -83,6 +84,12 @@ const STATION_TOAST: Partial<
     title: 'Foundry unlocked',
     body: 'Choose a Core to track and decide what Processing makes next.',
     label: 'OPEN',
+  },
+  network: {
+    category: 'SYSTEM ONLINE',
+    title: 'Worker Drones unlocked',
+    body: 'Assign a limited workforce to real industrial jobs. Every job shows its efficient range and the effect of one more Worker.',
+    label: 'OPEN WORKERS',
   },
   reliquary: {
     category: 'SYSTEM ONLINE',
@@ -260,7 +267,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
 
   if (next.hullLost && !prev.hullLost) {
     push({
-      id: 'sys:network',
+      id: 'sys:workshop',
       category: 'SYSTEM ONLINE',
       title: 'Workshop unlocked',
       body: 'Scrap survives. Spend it so the next Sortie starts stronger.',

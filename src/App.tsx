@@ -10,6 +10,7 @@ import {
 } from './game/progression'
 import { contentKeys } from './game/hubAttention'
 import { showSystemsHub } from './game/systemsHub'
+import { hasProcess } from './game/process'
 import { isRemovedAct1Tab } from './game/moreStations'
 import { setActiveNumberNotation } from './game/format'
 import {
@@ -30,7 +31,7 @@ import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
 import { DockTab, type DockPane } from './components/tabs/DockTab'
 import { CombatTab } from './components/tabs/CombatTab'
-import { NetworkTab } from './components/tabs/NetworkTab'
+import { WorkerDronesTab } from './components/tabs/WorkerDronesTab'
 import { FoundryTab, type FoundryPane } from './components/tabs/FoundryTab'
 import { SystemsTab } from './components/tabs/SystemsTab'
 import { FurnaceTab } from './components/tabs/FurnaceTab'
@@ -405,12 +406,10 @@ function AppShell() {
           />
         )}
         {tab === 'network' && (
-          <NetworkTab
+          <WorkerDronesTab
             state={game.state}
             onAssign={game.assignWorker}
-            onBuyLink={game.buyNetworkLink}
-            onOptimise={game.optimiseNetwork}
-            onPreset={game.applyNetworkPreset}
+            onOptimise={hasProcess(game.state, 'network-optimise') ? game.optimiseNetwork : undefined}
             guideTarget={guide?.target}
             onBack={
               showSystemsHub(game.state)

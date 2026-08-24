@@ -62,7 +62,7 @@ export const SIGNAL_CORE_DEFS: SignalCoreDef[] = [
   },
   {
     id: 'loom-thread',
-    name: 'Loom Thread',
+    name: 'Fabricator Thread',
     description: 'Fab bay synchronizer drawn from wreck-looms.',
     rarity: 'common',
     allowedSlots: ['signal', 'ward'],
@@ -83,7 +83,7 @@ export const SIGNAL_CORE_DEFS: SignalCoreDef[] = [
   },
   {
     id: 'mirror-lattice',
-    name: 'Mirror Lattice',
+    name: 'Mirror Matrix',
     description: 'Refracts shield bleed into a stable lattice.',
     rarity: 'rare',
     allowedSlots: ['ward'],

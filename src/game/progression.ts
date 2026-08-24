@@ -12,6 +12,7 @@ import { careerBestWave, meetsWave } from './waves'
 import { rebuildDoorMet } from './rebuild'
 import { practicedCoreWork } from './corePractice'
 import { SHIP_FRAMES, grantUnlockedFrame } from './catalog'
+import { WORKER_JOB_IDS } from './workers'
 
 export {
   WAVES_PER_SECTOR,
@@ -176,7 +177,7 @@ export type AchievementCondition =
   | { type: 'lifetime-fab-crafts'; min: number }
   | { type: 'lifetime-core-merges'; min: number }
   | { type: 'module-level-sum'; min: number }
-  | { type: 'network-level-sum'; min: number }
+  | { type: 'worker-assignment-sum'; min: number }
   | { type: 'foundry-recipe-level'; recipeId: string; min: number }
   | { type: 'furnace-rank-sum'; min: number }
   | { type: 'reliquary-fitted'; min: number }
@@ -378,10 +379,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'network-cycle',
-    name: 'First Cycle',
-    description: 'Reach 4 total Network bar levels.',
+    name: 'First Workforce',
+    description: 'Assign 4 Worker Drones to real jobs.',
     rewardAiPoints: 2,
-    condition: { type: 'network-level-sum', min: 4 },
+    condition: { type: 'worker-assignment-sum', min: 4 },
   },
   {
     id: 'foundry-stock',
@@ -526,7 +527,7 @@ export function achievementBaseThreshold(condition: AchievementCondition): numbe
     case 'lifetime-fab-crafts':
     case 'lifetime-core-merges':
     case 'module-level-sum':
-    case 'network-level-sum':
+    case 'worker-assignment-sum':
     case 'furnace-rank-sum':
     case 'reliquary-fitted':
     case 'hive-research-nodes':
@@ -574,8 +575,8 @@ export function achievementProgressValue(
       return state.meta.lifetimeCoreMerges ?? 0
     case 'module-level-sum':
       return practicedCoreWork(state)
-    case 'network-level-sum':
-      return Object.values(state.network?.bars ?? {}).reduce((a, b) => a + (b?.levels ?? 0), 0)
+    case 'worker-assignment-sum':
+      return WORKER_JOB_IDS.reduce((sum, id) => sum + Math.max(0, state.base.assignments[id] ?? 0), 0)
     case 'foundry-recipe-level':
       return state.foundry?.recipeLevels?.[condition.recipeId] ?? 0
     case 'furnace-rank-sum':
@@ -1176,7 +1177,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'guide-network-strike',
     kind: 'action',
     title: 'Assign a Worker Drone',
-    body: 'Assign 1 Worker Drone to Salvage ops. One drone starts producing Scrap. Jobs have a hard cap.',
+    body: 'Assign 1 Worker Drone to Salvage Operations. The card shows Scrap per minute, the efficient range, and what one more Worker changes.',
     target: 'worker-scrap-field',
     tab: 'network',
     screen: 'network',

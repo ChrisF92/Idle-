@@ -53,6 +53,7 @@ import {
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   trimModulesToFrame,
+  visibleWorkerJobIds,
   type ResourceCost,
 } from './catalog'
 import { milestonesFor } from './milestones'
@@ -88,6 +89,7 @@ import {
 } from './furnace'
 import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, setResearchFocus, createEmptyHiveResearchState } from './hiveResearch'
 import { foundryAshHeatMult } from './foundryBonuses'
+import { isWorkerJob, workerJobCap } from './workers'
 import {
   armYardOnRebuild,
   buyYardArm,
@@ -283,12 +285,16 @@ export function assignWorker(
   } else {
     const def = getStation(stationId)
     if (!def || !isStationUnlocked(state, stationId)) return state
+    if (delta > 0 && isWorkerJob(stationId) && !visibleWorkerJobIds(state).includes(stationId)) {
+      return state
+    }
   }
   if (delta === 0) return state
 
   const current = state.base.assignments[stationId] ?? 0
   if (delta > 0) {
     if (idleWorkers(state) < delta) return state
+    if (!networkBar && current + delta > workerJobCap(stationId).hard) return state
     const next = structuredClone(state)
     next.base.assignments = {
       ...next.base.assignments,
@@ -331,8 +337,9 @@ export function buyNetworkLink(state: GameState, id: NetworkLinkId): GameState {
 
 /** Industry stations Labor Router can assign (excludes Core training). */
 function laborStations(state: GameState) {
+  const active = new Set(visibleWorkerJobIds(state))
   return STATIONS.filter(
-    (s) => s.kind !== 'training' && isStationUnlocked(state, s.id),
+    (s) => s.kind !== 'training' && active.has(s.id),
   )
 }
 
@@ -503,9 +510,9 @@ function assignByNetworkWeights(
     .map((s) => ({
       id: s.id,
       w: Math.max(0, weights[s.id] ?? 0),
-      bb: stationBlackBarNeed(state, s.id),
+      cap: workerJobCap(s.id).hard,
     }))
-    .filter((r) => r.w > 0 && Number.isFinite(r.bb))
+    .filter((r) => r.w > 0)
 
   if (rows.length === 0) return assignBalanced(state)
 
@@ -515,15 +522,22 @@ function assignByNetworkWeights(
   for (const row of ranked) {
     if (remaining <= 0) break
     const want = Math.floor((state.base.workerDrones * row.w) / totalW)
-    const cap = Number.isFinite(row.bb) ? row.bb : want
-    const n = Math.min(remaining, want, cap)
+    const n = Math.min(remaining, want, row.cap)
     if (n > 0) {
       assignments[row.id] = n
       remaining -= n
     }
   }
-  if (remaining > 0 && ranked[0]) {
-    assignments[ranked[0].id] = (assignments[ranked[0].id] ?? 0) + remaining
+  while (remaining > 0) {
+    let placed = false
+    for (const row of ranked) {
+      if ((assignments[row.id] ?? 0) >= row.cap) continue
+      assignments[row.id] = (assignments[row.id] ?? 0) + 1
+      remaining -= 1
+      placed = true
+      if (remaining <= 0) break
+    }
+    if (!placed) break
   }
   return assignments
 }
@@ -1448,17 +1462,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.parts = kept.parts
 
   retirePostResetOnboarding(state)
-
-  // Re-apply Labor Loop immediately so returning runs aren't stuck idle.
-  if (
-    kept.permanentAi.includes('labor-loop') &&
-    kept.permanentAi.includes('auto-assign-workers') &&
-    state.prestige.activeChallengeId !== 'no-ai'
-  ) {
-    const assigned = autoBalanceWorkers(state)
-    state.base.assignments = assigned.base.assignments
-    state.meta.laborProfile = assigned.meta.laborProfile
-  }
 
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax

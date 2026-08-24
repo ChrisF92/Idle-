@@ -145,12 +145,11 @@ export const SHARDS: ShardDef[] = [
   },
   {
     id: 'cycle-chip',
-    name: 'Cycle Chip',
+    name: 'Recovery Chip',
     color: 'orange',
-    blurb: 'Keeps bars turning. Wave 50.',
+    blurb: 'Marks wreck flow for additional Salvage. Wave 50.',
     requiresBestWave: 50,
     salvage: 0.06,
-    networkFill: 0.06,
   },
   {
     id: 'plate-chip',
@@ -247,10 +246,10 @@ export const SHARDS: ShardDef[] = [
   },
   {
     id: 'compute-chip',
-    name: 'Link Chip',
+    name: 'Processor Chip',
     color: 'pink',
-    blurb: 'Network bars fill faster.',
-    networkFill: 0.1,
+    blurb: 'Foundry Processing runs faster.',
+    foundrySpeed: 0.1,
   },
   {
     id: 'spark-chip',
@@ -262,7 +261,7 @@ export const SHARDS: ShardDef[] = [
   },
   {
     id: 'ward-chip',
-    name: 'Ward Chip',
+    name: 'Aegis Chip',
     color: 'pink',
     blurb: 'Second-layer plating.',
     shield: 0.06,
@@ -283,7 +282,7 @@ export const SHARDS: ShardDef[] = [
   },
   {
     id: 'loom-chip',
-    name: 'Loom Chip',
+    name: 'Fabricator Chip',
     color: 'blue',
     blurb: 'Foundry crafts run faster.',
     foundrySpeed: 0.08,
@@ -299,7 +298,7 @@ export const SHARDS: ShardDef[] = [
     id: 'overdraw-chip',
     name: 'Overdraw Chip',
     color: 'red',
-    blurb: 'Late damage lattice. Wave 120.',
+    blurb: 'Late damage matrix. Wave 120.',
     requiresBestWave: 120,
     damage: 0.1,
   },
@@ -314,7 +313,7 @@ export const SHARDS: ShardDef[] = [
   },
   {
     id: 'yield-chip',
-    name: 'Yield Chip',
+    name: 'Harvest Chip',
     color: 'orange',
     blurb: 'Heavier wreck marks. Wave 80.',
     requiresBestWave: 80,
@@ -741,7 +740,7 @@ export function shardEffectBlurb(def: ShardDef): string {
   if (def.damage) bits.push(`+${Math.round(def.damage * 100)}% damage`)
   if (def.shield) bits.push(`+${Math.round(def.shield * 100)}% shield`)
   if (def.salvage) bits.push(`+${Math.round(def.salvage * 100)}% salvage`)
-  if (def.networkFill) bits.push(`+${Math.round(def.networkFill * 100)}% Network fill`)
+  if (def.networkFill) bits.push(`+${Math.round(def.networkFill * 100)}% Worker contribution`)
   if (def.foundrySpeed) bits.push(`+${Math.round(def.foundrySpeed * 100)}% foundry`)
   if (def.researchXp) bits.push(`+${Math.round(def.researchXp * 100)}% research XP`)
   if (def.ash) bits.push(`+${Math.round(def.ash * 100)}% ash`)

@@ -25,8 +25,18 @@ describe('session toasts', () => {
     const nextState = markHullLost(fresh)
     const next = captureToastSnapshot(nextState)
     const toasts = diffToasts(prev, next, nextState)
-    expect(toasts.map((t) => t.id)).toEqual(['sys:network'])
-    expect(toasts[0]?.action?.nav).toEqual({ kind: 'tab', tab: 'network' })
+    expect(toasts.map((t) => t.id)).toEqual(['sys:workshop'])
+    expect(toasts[0]?.action?.nav).toEqual({ kind: 'tab', tab: 'dock' })
+  })
+
+  it('toasts Worker Drones when the workforce unlocks', () => {
+    const state = markHullLost(createInitialState(0))
+    const prev = captureToastSnapshot(state)
+    state.meta.highestSectorEver = 30
+    state.combat.bestWave = 30
+    const toasts = diffToasts(prev, captureToastSnapshot(state), state)
+    expect(toasts.find((toast) => toast.id === 'sys:network')?.title).toBe('Worker Drones unlocked')
+    expect(toasts.find((toast) => toast.id === 'sys:network')?.body).not.toMatch(/Network/)
   })
 
   it('toasts Foundry unlock with a direct action', () => {

@@ -4,20 +4,16 @@ import {
   inspectCopyCorpus,
   inspectCore,
   inspectFurnaceTrack,
-  inspectNetworkBar,
-  inspectNetworkLink,
   inspectNetworkOverview,
 } from './inspect'
-import { NETWORK_BARS, NETWORK_LINKS } from './network'
 
 const JARGON = /USI|ITRTG|analogue|black-bar|PoC|TODO|\bFlagship\b|\bSector\b/i
 
 describe('inspect sheets', () => {
-  it('Network, Cores, and Furnace sheets carry live numbers and player copy', () => {
+  it('Worker Drones, Cores, and Furnace sheets carry live numbers and player copy', () => {
     const s = createInitialState(0)
-    s.base.assignments.strike = 2
-    s.network.bars.strike.levels = 4
-    s.network.bars.strike.progress = 0.4
+    s.base.workerDrones = 5
+    s.base.assignments['scrap-field'] = 2
     s.combat.coreRunLevels = { '0': 3 }
     s.combat.docked = false
     s.resources.salvage = 12
@@ -29,17 +25,9 @@ describe('inspect sheets', () => {
     s.furnace.active.weapons = 1
 
     const overview = inspectNetworkOverview(s)
-    expect(overview.stats.some((row) => row.label === 'Link power')).toBe(true)
+    expect(overview.title).toBe('Worker Drones')
+    expect(overview.stats.find((row) => row.label === 'Assigned')?.value).toBe('2')
     expect(overview.body.join(' ')).toMatch(/Rebuild/)
-
-    const strike = inspectNetworkBar(s, 'strike')
-    expect(strike?.stats.find((row) => row.label === 'Status')?.value).toMatch(/Level 4/)
-    expect(strike?.stats.find((row) => row.label === 'Assigned')?.value).toBe('2')
-    expect(strike?.body.join(' ')).toMatch(/damage/i)
-
-    const racks = inspectNetworkLink(s, 'racks')
-    expect(racks?.title).toBe('Corps racks')
-    expect(racks?.body.join(' ')).toMatch(/Rebuild/)
 
     const core = inspectCore(s, 'pulse-cannon')
     expect(core?.stats.find((row) => row.label === 'Damage')?.value).toMatch(/→/)
@@ -59,7 +47,6 @@ describe('inspect sheets', () => {
     expect(blob).not.toMatch(JARGON)
     expect(blob).toMatch(/Glass Hive/)
     expect(blob).toMatch(/every level/)
-    expect(NETWORK_BARS.every((bar) => inspectNetworkBar(s, bar.id))).toBe(true)
-    expect(NETWORK_LINKS.every((link) => inspectNetworkLink(s, link.id))).toBe(true)
+    expect(blob).toMatch(/Worker Drones/)
   })
 })

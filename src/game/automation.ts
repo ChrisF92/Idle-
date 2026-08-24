@@ -11,7 +11,6 @@ import {
 } from './catalog'
 import {
   assembleBlueprint,
-  autoBalanceWorkers,
   buyMaxYardArms,
   buyRunUpgrade,
   canAssembleBlueprint,
@@ -28,7 +27,7 @@ import {
   mergeSignalCores,
 } from './signalCores'
 import { hasProcess, processConfig } from './process'
-import { evaluateProcessIntent, pickShopCategory } from './processProfiles'
+import { activeProcessProfile, evaluateProcessIntent, pickShopCategory } from './processProfiles'
 import { nextRunUpgradeCost, visibleRunUpgrades, type RunUpgradeId } from './workshop'
 import {
   FOUNDRY_RECIPES,
@@ -202,6 +201,10 @@ function autoNetworkBalance(state: GameState): void {
   if (!hasProcess(state, 'network-balance') && !hasProcess(state, 'network-tune')) return
   if (!processConfig(state).network.enabled) return
   if (idleWorkers(state) <= 0) return
+  const profile = activeProcessProfile(state)
+  if (profile?.workerPreset && hasProcess(state, 'network-presets')) {
+    state.process.config.network.preset = profile.workerPreset
+  }
   const next = optimiseNetwork(state)
   if (next !== state) adopt(state, next)
 }
@@ -428,7 +431,6 @@ function autoProtocolEchoRepeat(state: GameState): void {
 /** Run all owned automation passives once per sim batch. */
 export function tickAutomation(state: GameState): void {
   if (challengeBlocksAi(state)) return
-  autoLaborLoop(state)
   autoMergeSignalCores(state)
   autoFabBay(state)
   autoCoreTrain(state)
@@ -446,14 +448,7 @@ export function tickAutomation(state: GameState): void {
   autoProtocolEchoRepeat(state)
 }
 
-/** Re-apply Labor Router when drones sit idle (Labor Loop). */
+/** @deprecated Automatic reassignment now belongs to Process progression. */
 export function autoLaborLoop(state: GameState): void {
-  if (!aiDoctrinesActive(state, 'labor-loop')) return
-  if (!state.ai.purchased.includes('auto-assign-workers')) return
-  const idle = idleWorkers(state)
-  if (idle <= 0) return
-  if (idle < Math.max(1, Math.floor(state.base.workerDrones * 0.15))) return
-  const next = autoBalanceWorkers(state)
-  if (next === state) return
-  adopt(state, next)
+  void state
 }

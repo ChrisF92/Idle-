@@ -138,7 +138,7 @@ describe('GDD Process', () => {
     expect(defence.base.assignments['alloy-foundry'] ?? 0).toBeGreaterThan(0)
   })
 
-  it('leans Farm toward Scrap Field while flying after Network Sortie Bias', () => {
+  it('leans Farm toward Salvage Operations while flying after Worker Sortie Bias', () => {
     const s = processState()
     s.combat.docked = false
     s.process.purchased = ['network-tune']

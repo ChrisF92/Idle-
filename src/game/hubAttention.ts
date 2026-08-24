@@ -1,15 +1,14 @@
 import {
   blueprintProgress,
   idleWorkers,
-  isStationUnlocked,
   listFarmableCores,
+  visibleWorkerJobIds,
 } from './catalog'
 import { FOUNDRY_FACILITIES, FOUNDRY_RECIPES, canStartFabrication, isFoundryRecipeUnlocked } from './foundry'
 import { ASH_PER_HEAT } from './furnace'
 import { hiveResearchActive, hiveResearchCompleted, HIVE_RESEARCH_NODES } from './hiveResearch'
 import { MORE_STATIONS } from './moreStations'
-import { NETWORK_LINKS, canBuyNetworkLink } from './network'
-import { WORKER_JOB_IDS } from './workers'
+import { workerJobCap } from './workers'
 import { canBuyProcessNode, processVisibleNodes } from './process'
 import { hasHullLostOnce, isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
@@ -45,9 +44,7 @@ export function contentKeys(state: GameState, scope: HubAttentionScope): string[
   }
   if (scope === 'network') {
     if (isSystemUnlocked(state, 'network')) keys.push('sys:network')
-    for (const id of WORKER_JOB_IDS) {
-      if (isStationUnlocked(state, id)) keys.push(`job:${id}`)
-    }
+    for (const id of visibleWorkerJobIds(state)) keys.push(`job:${id}`)
     return keys
   }
   if (scope === 'foundry') {
@@ -170,8 +167,10 @@ export function systemsTabAttention(state: GameState): AttentionFlags {
 
 function networkSpend(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'network')) return false
-  if (idleWorkers(state) > 0) return true
-  return NETWORK_LINKS.some((link) => canBuyNetworkLink(state, link.id).ok)
+  if (idleWorkers(state) <= 0) return false
+  return visibleWorkerJobIds(state).some(
+    (id) => (state.base.assignments[id] ?? 0) < workerJobCap(id).hard,
+  )
 }
 
 function foundrySpend(state: GameState): boolean {

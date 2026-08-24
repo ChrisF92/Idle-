@@ -176,7 +176,7 @@ export function protocolStartLists(def: { reward: string }): ConsequenceLists {
   return {
     gain: [def.reward],
     keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge ranks'],
-    reset: ['Salvage', 'Run upgrades', 'Network bar levels', 'Current sortie'],
+    reset: ['Salvage', 'Run upgrades', 'Current sortie'],
     change: [],
   }
 }

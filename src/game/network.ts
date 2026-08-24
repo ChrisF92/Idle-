@@ -568,23 +568,14 @@ export function networkWardMult(_state: GameState): number {
   return 1
 }
 
-/** Salvage/kill bonus from Scrap Field labour. Yield bars no longer grant this. */
-export function networkSalvageMult(state: GameState): number {
-  if (protocolMutes(state, 'network')) return 1
-  if (!isWorkersUnlocked(state)) return 1
-  const labor = stationEffectiveDrones(state, 'scrap-field')
-  return 1 + 0.045 * Math.sqrt(Math.max(0, labor))
+/** @deprecated Worker Drones perform industry and never multiply combat rewards. */
+export function networkSalvageMult(_state: GameState): number {
+  return 1
 }
 
-/** Foundry / drone-print speed from fabrication jobs. Loom bars no longer grant this. */
-export function networkManufactureMult(state: GameState): number {
-  if (protocolMutes(state, 'network')) return 1
-  if (!isWorkersUnlocked(state)) return 1
-  const labor =
-    stationEffectiveDrones(state, 'drone-fab') +
-    stationEffectiveDrones(state, 'fab-bay') +
-    stationEffectiveDrones(state, 'construction')
-  return 1 + 0.04 * Math.sqrt(Math.max(0, labor))
+/** @deprecated Each Worker Drone job now affects only its own real work. */
+export function networkManufactureMult(_state: GameState): number {
+  return 1
 }
 
 /** Extra hangar scrap drip retired — Scrap Field already produces scrap. */
