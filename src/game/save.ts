@@ -24,7 +24,15 @@ import type {
 } from './types'
 import { NETWORK_BAR_IDS } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { AI_NODES, isAiNodePermanent, resolveFrameId, getFrame, STARTER_FRAME_ID } from './catalog'
+import {
+  AI_NODES,
+  PART_TYPES,
+  getFrame,
+  isAiNodePermanent,
+  partId,
+  resolveFrameId,
+  STARTER_FRAME_ID,
+} from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
 import {
   SIGNAL_CORE_MAX_RANK,
@@ -424,6 +432,19 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
   }
 }
 
+/** Refund the removed instant-assembly project into Blueprint fragment stock. */
+export function migrateLegacyFabProject(state: GameState): void {
+  const project = state.base.fabProject
+  if (!project) return
+  for (const partType of PART_TYPES) {
+    const amount = Math.max(0, Math.floor(project.contributed?.[partType] ?? 0))
+    if (amount <= 0) continue
+    const id = partId(project.moduleId, partType)
+    state.parts[id] = (state.parts[id] ?? 0) + amount
+  }
+  state.base.fabProject = null
+}
+
 const RELIQUARY_COLORS: ReliquaryColor[] = ['red', 'orange', 'pink', 'blue', 'green']
 
 function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState {
@@ -809,6 +830,7 @@ function migrate(raw: unknown): GameState | null {
     migrateOnboardingState(hydrated)
     migrateLegacyCoreProgression(hydrated)
     migrateCoreStartingLevelInstances(hydrated)
+    migrateLegacyFabProject(hydrated)
     return hydrated
   }
 
@@ -906,6 +928,7 @@ function migrate(raw: unknown): GameState | null {
     migrateOnboardingState(hydrated)
     migrateLegacyCoreProgression(hydrated)
     migrateCoreStartingLevelInstances(hydrated)
+    migrateLegacyFabProject(hydrated)
     return hydrated
   }
 

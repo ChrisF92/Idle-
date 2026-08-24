@@ -25,7 +25,7 @@ interface InventoryScreenProps {
   state: GameState
   open: boolean
   onClose: () => void
-  onOpenFoundry?: () => void
+  onOpenFoundry?: (pane: 'fabrication' | 'mastery') => void
   onSelectFrame?: (frameId: string) => void
   onFitCore?: (moduleId: string, coreInstanceId?: string) => void
   onUpgradeCore?: (coreInstanceId: string, count?: number) => void
@@ -237,7 +237,7 @@ export function InventoryScreen({
             ) : null}
             <p className="ui-meta">{RELIC_STORAGE_NOTE}</p>
             {onOpenFoundry ? (
-              <button type="button" onClick={onOpenFoundry}>
+              <button type="button" onClick={() => onOpenFoundry('fabrication')}>
                 Open Foundry
               </button>
             ) : null}
@@ -264,8 +264,8 @@ export function InventoryScreen({
               <p className="ui-meta">Produces {material.producedAs}</p>
             )}
             {onOpenFoundry ? (
-              <button type="button" className="primary" onClick={onOpenFoundry}>
-                Open Foundry
+              <button type="button" className="primary" onClick={() => onOpenFoundry('mastery')}>
+                Open Foundry Mastery
               </button>
             ) : null}
           </>

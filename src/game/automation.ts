@@ -3,10 +3,8 @@
 import type { FoundryRecipeId, GameState } from './types'
 import {
   BLUEPRINTS,
-  PART_TYPES,
   STATIONS,
   aiDoctrinesActive,
-  blueprintProgress,
   challengeBlocksAi,
   idleWorkers,
   isStationUnlocked,
@@ -18,9 +16,7 @@ import {
   buyRunUpgrade,
   canAssembleBlueprint,
   convertAshToHeat,
-  depositFabPart,
   enterProtocol,
-  launchFabProject,
   optimiseNetwork,
   pickFoundryUpgradeId,
 } from './actions'
@@ -115,42 +111,16 @@ export function autoMergeSignalCores(state: GameState): void {
   }
 }
 
-/** Start / top up Fabrication Bay projects when parts are available. */
+/** Legacy AI doctrine now uses the same timed Fabricator path as the player. */
 export function autoFabBay(state: GameState): void {
   if (!aiDoctrinesActive(state, 'auto-fab-bay')) return
   if (!isStationUnlocked(state, 'fab-bay')) return
-
-  if (state.base.fabProject) {
-    let next = state
-    for (const pt of PART_TYPES) {
-      next = depositFabPart(next, pt, 9999)
-    }
-    adopt(state, next)
+  for (const bp of BLUEPRINTS) {
+    if (!canAssembleBlueprint(state, bp.moduleId).ok) continue
+    const next = assembleBlueprint(state, bp.moduleId)
+    if (next !== state) adopt(state, next)
     return
   }
-
-  let bestId: string | null = null
-  let bestScore = 0
-  for (const bp of BLUEPRINTS) {
-    if (!state.meta.discoveredModules.includes(bp.moduleId)) continue
-    if (state.shipyard.unlockedModules.includes(bp.moduleId)) continue
-    const prog = blueprintProgress(state, bp.moduleId)
-    if (!prog) continue
-    let have = 0
-    let need = 0
-    for (const pt of PART_TYPES) {
-      have += Math.min(prog.owned[pt], prog.need[pt])
-      need += prog.need[pt]
-    }
-    if (have <= 0 || need <= 0) continue
-    const score = (prog.complete ? 1000 : 0) + have / need
-    if (score > bestScore) {
-      bestScore = score
-      bestId = bp.moduleId
-    }
-  }
-  if (!bestId) return
-  adopt(state, launchFabProject(state, bestId))
 }
 
 /** Park idle workers on the lowest Core training stations. */
@@ -348,12 +318,20 @@ function autoFoundryUpgrades(state: GameState): void {
 }
 
 function autoPrintAssemble(state: GameState): void {
-  if (!hasProcess(state, 'print-assemble')) return
-  for (const bp of BLUEPRINTS) {
-    if (!canAssembleBlueprint(state, bp.moduleId).ok) continue
-    const next = assembleBlueprint(state, bp.moduleId)
+  const intent = evaluateProcessIntent(state)
+  const tracked = state.foundry.trackedPrintId
+  const ids =
+    intent.fabTracked && tracked
+      ? [tracked]
+      : hasProcess(state, 'print-assemble')
+        ? BLUEPRINTS.map((bp) => bp.moduleId)
+        : []
+  for (const moduleId of ids) {
+    if (!canAssembleBlueprint(state, moduleId).ok) continue
+    const next = assembleBlueprint(state, moduleId)
     if (next === state) continue
     adopt(state, next)
+    return
   }
 }
 

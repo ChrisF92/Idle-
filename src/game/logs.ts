@@ -29,14 +29,14 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'foundry',
-    title: 'Smelter',
-    body: 'Slag in, plate out. The Foundry does not care what you were before. Recipe XP stays when the hull does not.',
+    title: 'Processing',
+    body: 'Wreck stock in, permanent material out. The Foundry does not care what you were before. Material Mastery stays when the hull does not.',
     unlock: (s) => career(s) >= ACT1_CADENCE.foundry,
   },
   {
     id: 'core-prints',
-    title: 'Prints',
-    body: 'Wrecks leave Core fragments. Track a print and push Waves that drop that family. Fabricate it in the Foundry, then fit it at Dock.',
+    title: 'Blueprints',
+    body: 'Wrecks leave Core fragments. Track a Blueprint and push Waves that drop that family. Complete it, fabricate the project, then equip the Core at Dock.',
     unlock: (s) => career(s) >= ACT1_CADENCE.foundry,
   },
   {
@@ -65,8 +65,8 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'yard',
-    title: 'Construction',
-    body: 'Foundry grows a construction floor at Wave 90. Buildings stay. Ingots arm the next Rebuild, not this hull.',
+    title: 'Infrastructure',
+    body: 'Foundry opens Infrastructure projects at Wave 90. New Processors, Fabricators, storage, and specialist facilities all consume Fabricator time.',
     unlock: (s) => career(s) >= ACT1_CADENCE.yard,
   },
   {

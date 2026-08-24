@@ -40,7 +40,7 @@ export const MAJOR_DOORS: MajorDoorDef[] = [
   {
     id: 'foundry',
     name: 'Foundry',
-    blurb: 'Turn Salvage into crafted stock, prints, and fitted bits.',
+    blurb: 'Run continuous Processing, complete Blueprints, and fabricate permanent equipment.',
     wave: ACT1_CADENCE.foundry,
     home: 'systems',
   },

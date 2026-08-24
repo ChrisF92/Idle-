@@ -33,8 +33,6 @@ interface CombatTabProps {
   onMarkCoresSeen?: () => void
   coresRequest?: { key: number; moduleId?: string } | null
   onCoresRequestHandled?: () => void
-  onOpenFoundry?: () => void
-  onOpenPrints?: () => void
   onBuyMaxCores?: () => void
   onChooseDirective?: (id: string) => void
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void

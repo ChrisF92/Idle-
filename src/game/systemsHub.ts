@@ -1,7 +1,11 @@
 /** Systems hub status cards (GDD §120). Foundry is the parent industrial card. */
 
-import { idleWorkers } from './catalog'
-import { fabricationJobLabel, FOUNDRY_RECIPES, foundryRecipeLevel } from './foundry'
+import {
+  fabricationJobLabel,
+  FOUNDRY_RECIPES,
+  foundryFabSlotCount,
+  foundrySlotCount,
+} from './foundry'
 import {
   formatResearchDuration,
   hiveResearchActive,
@@ -36,37 +40,32 @@ function recipeName(id: string): string {
 }
 
 export function foundryHubStatus(state: GameState): string[] {
-  const lines: string[] = []
+  const workers = workerAllocationSummary(state)
+  const foundryWorkers =
+    (workers.jobs['alloy-foundry'] ?? 0) +
+    (workers.jobs['fab-bay'] ?? 0) +
+    (workers.jobs.construction ?? 0)
   const running = state.foundry.slots.filter((slot) => slot.recipeId)
-  if (running.length === 0) {
-    lines.push('Processing idle')
-  } else {
+  const processors = `Processors ${running.length}/${foundrySlotCount(state)}`
+  const fab = (state.foundry.fabrication ?? []).find((slot) => slot.kind)
+  const activeFabricators = state.foundry.fabrication.filter((slot) => slot.kind).length
+  const fabricators = `Fabricators ${activeFabricators}/${foundryFabSlotCount(state)}`
+  const summaries: string[] = []
+  if (running[0]) {
     const slot = running[0]
     const pct = Math.round((slot.progress ?? 0) * 100)
-    lines.push(`Processing ${recipeName(slot.recipeId ?? '')} ${pct}%`)
+    summaries.push(`Processing ${recipeName(slot.recipeId ?? '')} ${pct}%`)
   }
-
-  const fab = (state.foundry.fabrication ?? []).find((slot) => slot.kind)
-  if (!fab) {
-    lines.push('Fabrication idle')
-  } else {
+  if (fab) {
     const pct = Math.round((fab.progress ?? 0) * 100)
     const name = fabricationJobLabel(state, fab)
-    lines.push(fab.complete ? `${name} ready` : `Fabrication ${name} ${pct}%`)
+    summaries.push(fab.complete ? `${name} ready` : `Fabricating ${name} ${pct}%`)
   }
-
-  if (isSystemUnlocked(state, 'yard')) {
-    const owned = state.foundry.facilities?.length ?? 0
-    lines.push(owned > 0 ? `Construction ${owned} facilities` : 'Construction idle')
-  } else {
-    const temper = foundryRecipeLevel(state, 'temper-bar')
-    if (temper > 0) lines.push(`Temper Bar Mastery ${temper}`)
-    else {
-      const idle = idleWorkers(state)
-      if (idle > 0) lines.push(`${idle} idle drones`)
-    }
-  }
-  return lines.slice(0, 3)
+  return [
+    `${foundryWorkers} Foundry worker${foundryWorkers === 1 ? '' : 's'}`,
+    `${processors} · ${fabricators}`,
+    summaries.join(' · ') || 'Foundry idle',
+  ]
 }
 
 export function workersHubStatus(state: GameState): string[] {

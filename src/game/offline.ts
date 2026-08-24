@@ -8,8 +8,6 @@ import {
 import {
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
-  advanceFabProject,
-  aiFabBonus,
   aiProductionBonus,
   challengeShopOfflineMs,
   droneCap,
@@ -21,11 +19,7 @@ import {
   stationUpkeepScrapPerDrone,
   workerManufactureSpeed,
 } from './catalog'
-import {
-  logisticsFabMult,
-  logisticsProdMult,
-  tickCoreTraining,
-} from './core'
+import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { networkManufactureMult, tickNetwork } from './network'
@@ -146,17 +140,6 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     }
   }
 
-  advanceFabProject(
-    state,
-    seconds,
-    (line) => {
-      state.combat.log = [line, ...state.combat.log].slice(0, 40)
-    },
-    logisticsFabMult(state) *
-      (1 + computeSignalCoreBonuses(state).fab) *
-      (1 + aiFabBonus(state)) *
-      networkManufactureMult(state),
-  )
   tickCoreTraining(state, seconds)
 }
 

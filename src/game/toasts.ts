@@ -52,10 +52,9 @@ export interface ToastSnapshot {
   achievements: string[]
   foundrySlag: number
   foundrySlagLevel: number
-  foundryFitReady: boolean
   assembledPrints: string[]
   pendingCores: string[]
-  pendingFacilities: string[]
+  facilities: string[]
   trackedPrintId: string | null
   processCoreHint: boolean
   protocolRankSum: number
@@ -179,11 +178,10 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
   }
   if (a.act1Cleared !== b.act1Cleared) return false
   if (a.foundrySlag !== b.foundrySlag || a.foundrySlagLevel !== b.foundrySlagLevel) return false
-  if (a.foundryFitReady !== b.foundryFitReady) return false
   if (a.trackedPrintId !== b.trackedPrintId) return false
   if (a.assembledPrints.length !== b.assembledPrints.length) return false
   if (a.pendingCores.length !== b.pendingCores.length) return false
-  if (a.pendingFacilities.length !== b.pendingFacilities.length) return false
+  if (a.facilities.length !== b.facilities.length) return false
   if (a.processCoreHint !== b.processCoreHint || a.protocolRankSum !== b.protocolRankSum) return false
   if (a.frontierNoticeSeq !== b.frontierNoticeSeq) return false
   if (a.networkBars.length !== b.networkBars.length) return false
@@ -201,7 +199,7 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
     same(a.completePrints, b.completePrints) &&
     same(a.assembledPrints, b.assembledPrints) &&
     same(a.pendingCores, b.pendingCores) &&
-    same(a.pendingFacilities, b.pendingFacilities) &&
+    same(a.facilities, b.facilities) &&
     same(a.pendingMilestones, b.pendingMilestones) &&
     same(a.achievements, b.achievements)
   )
@@ -225,12 +223,11 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     achievements: [...(state.meta.completedAchievements ?? [])],
     foundrySlag: foundryMaterialCount(state, 'slag-ingot'),
     foundrySlagLevel: foundryRecipeLevel(state, 'slag-ingot'),
-    foundryFitReady: false,
     assembledPrints: listFarmableCores(state)
       .filter((print) => state.shipyard.unlockedModules.includes(print.id))
       .map((print) => print.id),
     pendingCores: [...(state.foundry.pendingCores ?? [])],
-    pendingFacilities: [...(state.foundry.pendingFacilities ?? [])],
+    facilities: [...(state.foundry.facilities ?? [])],
     trackedPrintId: state.foundry.trackedPrintId ?? null,
     processCoreHint: processCoreHintReady(state),
     protocolRankSum: Object.values(state.protocols?.ranks ?? {}).reduce((n, v) => n + v, 0),
@@ -304,10 +301,10 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       push({
         id: 'sys:yard',
         category: 'SYSTEM ONLINE',
-        title: 'Construction unlocked',
-        body: 'Foundry construction is open. Build facilities on a Fabrication slot; bonuses apply as soon as the job finishes.',
+        title: 'Infrastructure unlocked',
+        body: 'Infrastructure projects now use Fabricators. Their bonuses apply as soon as Fabrication finishes.',
         tier: 'major',
-        action: { label: 'OPEN', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
+        action: { label: 'VIEW PROJECTS', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
       })
       continue
     }
@@ -350,13 +347,13 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     const mod = getModule(printId)
     if (!mod) continue
     push({
-      id: `print:${printId}`,
+      id: `blueprint:${printId}`,
       category: 'FOUNDRY',
-      title: 'Core Print available',
-      body: `${mod.name} can now be farmed from wrecks.`,
+      title: 'Core Blueprint discovered',
+      body: `${mod.name} fragments can now be recovered from wrecks.`,
       action: {
-        label: 'VIEW PRINT',
-        nav: { kind: 'tab', tab: 'foundry', focus: `print-${printId}` },
+        label: 'VIEW BLUEPRINT',
+        nav: { kind: 'tab', tab: 'foundry', focus: `blueprint-${printId}` },
       },
     })
   }
@@ -368,24 +365,24 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     if (!mod) continue
     if (firstPrintReady) {
       push({
-        id: `assemble:${printId}`,
-        category: 'CORE PRINT COMPLETE',
-        title: `${mod.name} is ready to assemble.`,
-        body: 'Open Fabrication to lock it in.',
+        id: `blueprint-complete:${printId}`,
+        category: 'BLUEPRINT COMPLETE',
+        title: `${mod.name} project unlocked`,
+        body: 'Completing a Blueprint does not create the item. Open its Fabrication project.',
         action: {
-          label: 'OPEN FABRICATION',
-          nav: { kind: 'tab', tab: 'foundry', focus: `print-${printId}` },
+          label: 'VIEW PROJECT',
+          nav: { kind: 'tab', tab: 'foundry', focus: `project-core-${printId}` },
         },
       })
     } else {
       push({
-        id: `assemble:${printId}`,
+        id: `blueprint-complete:${printId}`,
         category: 'FOUNDRY',
         title: 'Blueprint complete',
-        body: `${mod.name} is ready to assemble.`,
+        body: `${mod.name} Fabrication project unlocked.`,
         action: {
-          label: 'ASSEMBLE',
-          nav: { kind: 'tab', tab: 'foundry', focus: `print-${printId}` },
+          label: 'VIEW PROJECT',
+          nav: { kind: 'tab', tab: 'foundry', focus: `project-core-${printId}` },
         },
       })
     }
@@ -399,22 +396,22 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       id: `fab-core:${printId}`,
       category: 'FOUNDRY',
       title: `${mod.name.toUpperCase()} COMPLETE`,
-      body: state.combat.docked ? 'Fit it at Dock.' : 'Available next Sortie.',
+      body: state.combat.docked ? 'Equip it at Dock.' : 'Available next Sortie.',
       action: {
-        label: state.combat.docked ? 'FIT AT DOCK' : 'OPEN DOCK',
+        label: state.combat.docked ? 'EQUIP AT DOCK' : 'OPEN DOCK',
         nav: { kind: 'tab', tab: 'dock' },
       },
     })
   }
 
-  for (const facilityId of next.pendingFacilities) {
-    if (prev.pendingFacilities.includes(facilityId)) continue
+  for (const facilityId of next.facilities) {
+    if (prev.facilities.includes(facilityId)) continue
     push({
       id: `fab-facility:${facilityId}`,
       category: 'FOUNDRY',
-      title: 'FACILITY COMPLETE',
+      title: 'INFRASTRUCTURE COMPLETE',
       body: 'Bonus is live.',
-      action: { label: 'OPEN FOUNDRY', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
+      action: { label: 'VIEW INFRASTRUCTURE', nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-build' } },
     })
   }
 
@@ -427,10 +424,10 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     push({
       id: tracked ? `tracked-assembled:${printId}` : `assembled:${printId}`,
       category: 'FOUNDRY',
-      title: `${mod.name} ready to fit`,
-      body: tracked ? 'Choose another tracked print. Fit it at Dock.' : 'Fit it at Dock.',
+      title: `${mod.name} ready to equip`,
+      body: tracked ? 'Choose another tracked Blueprint. Equip it at Dock.' : 'Equip it at Dock.',
       action: {
-        label: 'FIT AT DOCK',
+        label: 'EQUIP AT DOCK',
         nav: { kind: 'tab', tab: 'dock' },
       },
     })
@@ -481,19 +478,6 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         .slice(0, 3)
         .join(' · '),
       action: { label: 'OPEN PROCESS', nav: { kind: 'tab', tab: 'process' } },
-    })
-  }
-
-  if (next.foundryFitReady && !prev.foundryFitReady) {
-    push({
-      id: 'foundry:module-ready',
-      category: 'MODULE READY',
-      title: 'You can now build your first ship module.',
-      body: 'Fit it in the Foundry while docked.',
-      action: {
-        label: 'OPEN FOUNDRY',
-        nav: { kind: 'tab', tab: 'foundry', focus: 'foundry-fit' },
-      },
     })
   }
 

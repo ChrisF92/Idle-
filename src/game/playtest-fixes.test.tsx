@@ -189,9 +189,9 @@ describe('playtest fix pass', () => {
     render(
       <FoundryTab
         state={state}
-        requestedPane="prints"
+        requestedPane="blueprints"
         onSetSlot={() => undefined}
-        onAssemble={() => undefined}
+        onFabricateCore={() => undefined}
       />,
     )
     expect(screen.queryByText(/fragments do not drop from this enemy family/i)).toBeNull()

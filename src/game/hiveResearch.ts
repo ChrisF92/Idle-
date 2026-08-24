@@ -87,8 +87,8 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     { name: 'Slag Assay', blurb: 'A little more salvage from wrecks.', kind: 'incremental', salvage: 0.03 },
     { name: 'Loom Timing', blurb: 'Foundry crafts run a little faster.', kind: 'incremental', foundrySpeed: 0.03 },
     {
-      name: 'Second Smelter Bay',
-      blurb: 'Adds a Foundry smelter. The floor can run another recipe at once.',
+      name: 'Second Processor',
+      blurb: 'Adds a Foundry Processor. The floor can run another material recipe at once.',
       kind: 'breakthrough',
       foundrySlots: 1,
     },

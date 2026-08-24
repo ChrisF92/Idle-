@@ -292,18 +292,17 @@ button.just-ok {
   height: 0.42rem;
 }
 
-.network-fill.is-active::after,
-.smelter-active .network-fill::after {
+.network-fill.is-active::after {
   content: '';
   position: absolute;
   inset: 0 auto 0 0;
   width: 28%;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, #ffe8c7 35%, transparent));
-  animation: smelt-scan 1.6s linear infinite;
+  animation: processing-scan 1.6s linear infinite;
   pointer-events: none;
 }
 
-@keyframes smelt-scan {
+@keyframes processing-scan {
   0% {
     transform: translateX(-120%);
   }
@@ -319,22 +318,6 @@ button.just-ok {
   100% {
     box-shadow: none;
   }
-}
-
-.foundry-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: color-mix(in srgb, var(--accent-2) 70%, var(--muted));
-}
-
-.foundry-heading::before {
-  content: '';
-  width: 0.55rem;
-  height: 2px;
-  background: var(--accent-2);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-2) 55%, transparent);
-  flex: 0 0 auto;
 }
 
 .panel-header h2 {
@@ -740,7 +723,6 @@ button.just-ok {
   .combat-hud-readout.is-critical .combat-hud-value,
   .live-pip,
   .network-fill.is-active::after,
-  .smelter-active .network-fill::after,
   .hangar-sheet.is-collapsing,
   .sortie-wave.is-new-best,
   .sortie-menu-pop {
@@ -1732,4 +1714,112 @@ button.just-ok {
 .upgrade-tile-info {
   width: var(--touch);
   min-height: var(--touch);
+}
+
+.foundry-screen > .sheet-tabs {
+  flex: 0 0 auto;
+  overflow-x: auto;
+}
+
+.foundry-active-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+}
+
+.foundry-active-summary .ui-summary-card {
+  min-width: 0;
+  padding: var(--space-2) 0;
+}
+
+.foundry-scroll {
+  display: grid;
+  align-content: start;
+  gap: var(--section-gap);
+  padding: var(--space-4);
+}
+
+.foundry-work-list,
+.foundry-mastery-list,
+.foundry-blueprint-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.foundry-work-card,
+.foundry-mastery-card,
+.foundry-blueprint-card {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+  text-align: left;
+  border: none;
+  background: var(--elev-1);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.foundry-work-card.is-active,
+.foundry-mastery-card:hover,
+.foundry-blueprint-card:hover {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.foundry-work-card.is-idle {
+  color: var(--muted);
+}
+
+.foundry-card-main {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  text-align: left;
+  border: 0;
+  background: transparent;
+}
+
+.foundry-card-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.foundry-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.foundry-blueprint-card {
+  grid-template-columns: 2.5rem 1fr;
+  align-items: center;
+}
+
+.foundry-blueprint-silhouette {
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.foundry-blueprint-copy {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.foundry-mastery-card .ui-progress {
+  margin-block: var(--space-1);
+}
+
+.ui-meta.is-done {
+  color: var(--ok);
+}
+
+.ui-meta.is-next {
+  color: var(--accent);
 }
