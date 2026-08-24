@@ -27,6 +27,7 @@ import { careerBestWave, isSystemUnlocked } from './progression'
 import { AI_NODES } from './catalog'
 import { isWorkerJob, WORKER_JOB_IDS } from './workers'
 import { practicedCoreWork } from './corePractice'
+import { researchProcessCostMult, resolvedResearchIds } from './hiveResearchTree'
 
 export type ProcessKind = 'automation' | 'qol'
 
@@ -432,7 +433,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Research Queue',
     category: 'research',
     kind: 'automation',
-    blurb: 'Line up which branch to focus next. Completions wait for your queue unless Auto is on.',
+    blurb: 'Line up which discipline to research next. Completions wait for your queue unless Auto is on.',
     cost: 5,
     requiresSystem: 'research',
     requiresMastery: 'research',
@@ -442,7 +443,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Research Branch Priority',
     category: 'research',
     kind: 'automation',
-    blurb: 'Order Material, Energy, and Observation. Auto Research follows this list.',
+    blurb: 'Order Hive Engineering, Drone Systems, and Industrial Science. Auto Research follows this list.',
     cost: 10,
     requiresId: 'research-queue',
     requiresSystem: 'research',
@@ -452,7 +453,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Auto Research',
     category: 'research',
     kind: 'automation',
-    blurb: 'Advance focus along your queue and priorities. Never picks a hidden “best” branch.',
+    blurb: 'Start the next available project along your queue. Never picks a hidden “best” node.',
     cost: 12,
     requiresId: 'research-priorities',
     requiresSystem: 'research',
@@ -904,7 +905,8 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
         Object.values(state.reliquary?.coreFits ?? {}).some((fits) => (fits ?? []).some(Boolean))
       )
     case 'research':
-      return Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
+      return (state.hiveResearch?.completedIds?.length ?? 0) > 0
+        || Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
     case 'furnace':
       return (
         Object.values(state.furnace?.active ?? {}).some((n) => n > 0) ||
@@ -964,6 +966,10 @@ function masteryLockReason(kind: ProcessMastery): string {
   }
 }
 
+export function processNodeCost(state: GameState, def: ProcessNodeDef): number {
+  return Math.max(1, Math.ceil(def.cost * researchProcessCostMult(resolvedResearchIds(state.hiveResearch))))
+}
+
 export function canBuyProcessNode(
   state: GameState,
   id: string,
@@ -985,8 +991,9 @@ export function canBuyProcessNode(
   if (def.requiresMastery && !hasProcessMastery(state, def.requiresMastery)) {
     return { ok: false, reason: masteryLockReason(def.requiresMastery) }
   }
-  if (state.resources.aiPoints < def.cost) {
-    return { ok: false, reason: `Need ${def.cost} Process` }
+  const cost = processNodeCost(state, def)
+  if (state.resources.aiPoints < cost) {
+    return { ok: false, reason: `Need ${cost} Process` }
   }
   return { ok: true }
 }

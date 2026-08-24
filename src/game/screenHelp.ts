@@ -75,8 +75,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   research: {
     title: 'Research',
     body: [
-      'Purpose: choose which underlying Hive rule improves next. Main decision: which discipline gets the single research project.',
-      'One project at a time. It runs during Sorties, at Dock, and offline. Sensor Net drones speed it up. Breakthroughs unlock mechanics; small nodes are numbers. Progress persists across Rebuild.',
+      'Purpose: choose which underlying Hive rule improves next. Main decision: which available project to start.',
+      'One project at a time. It runs during Sorties, at Dock, and offline. Worker Drones speed it up. Breakthroughs unlock mechanics. Progress persists across Rebuild. Queueing and auto-start are Process unlocks.',
     ],
   },
   yard: {

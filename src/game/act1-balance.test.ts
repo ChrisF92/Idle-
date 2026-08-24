@@ -216,14 +216,15 @@ describe('Act 1 career simulations', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 10
     s.combat.highestSector = 10
+    s.hiveResearch.completedIds = ['plate-bank', 'extra-tap']
     s.hiveResearch.completed.energy = 2
     s.foundry.recipeLevels['slag-ingot'] = 4
     s.furnace.wanted.weapons = 1
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(37)
+    expect(SAVE_VERSION).toBe(38)
     expect(back).toBeTruthy()
-    expect(back!.hiveResearch.completed.energy).toBe(2)
+    expect(back!.hiveResearch.completedIds).toEqual(expect.arrayContaining(['plate-bank', 'extra-tap']))
     expect(back!.foundry.recipeLevels['slag-ingot']).toBe(4)
     expect(back!.furnace.wanted.weapons).toBe(1)
   })

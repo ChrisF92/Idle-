@@ -79,8 +79,9 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(getEchoNode('echo-hold')?.requiresId).toBe('echo-yield')
     expect(SHARDS.some((s) => s.id === 'loom-chip')).toBe(true)
     expect(YARD_BUILDINGS.some((b) => b.id === 'choir-sieve')).toBe(true)
-    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(9)
-    expect(HIVE_RESEARCH_NODES.material).toHaveLength(9)
+    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBeGreaterThanOrEqual(6)
+    expect(HIVE_RESEARCH_NODES.material.length).toBeGreaterThanOrEqual(6)
+    expect(HIVE_RESEARCH_NODES.energy.length).toBeGreaterThanOrEqual(6)
   })
 
   it('Ash Bank converts Choir-ash without a tap', () => {

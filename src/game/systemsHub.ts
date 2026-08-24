@@ -10,10 +10,12 @@ import {
   formatResearchDuration,
   hiveResearchActive,
   hiveResearchActiveNode,
-  hiveResearchCompleted,
-  hiveResearchNodeCost,
+  hiveResearchHubIntel,
+  hiveResearchNodeDuration,
+  hiveResearchNodeEffectLine,
+  hiveResearchProgress,
+  hiveResearchRemaining,
   hiveResearchSpeed,
-  hiveResearchXp,
 } from './hiveResearch'
 import { firstAffordableProcessNode, processAvailable, processConfig } from './process'
 import { workerAllocationSummary } from './workers'
@@ -93,15 +95,17 @@ export function furnaceHubStatus(state: GameState): string[] {
 export function researchHubStatus(state: GameState): string[] {
   if (!hiveResearchActive(state)) return ['No project']
   const node = hiveResearchActiveNode(state)
-  const branch = state.hiveResearch?.focus ?? 'energy'
-  const done = hiveResearchCompleted(state, branch)
-  const need = hiveResearchNodeCost(done, state)
-  const xp = hiveResearchXp(state, branch)
+  const need = node ? hiveResearchNodeDuration(node, state) : 0
+  const xp = hiveResearchProgress(state)
   const speed = hiveResearchSpeed(state)
-  const left = speed > 0 ? Math.max(0, (need - xp) / speed) : 0
+  const left = speed > 0 ? hiveResearchRemaining(state) / speed : 0
   const pct = need > 0 ? Math.min(100, Math.round((100 * xp) / need)) : 0
   const lines = [node?.name ?? 'Researching', `${pct}%`]
   if (left > 0) lines.push(`${formatResearchDuration(left)} left`)
+  if (hiveResearchHubIntel(state) && node) {
+    const effect = hiveResearchNodeEffectLine(node)
+    if (effect) lines.splice(1, 0, effect)
+  }
   const workers = workerAllocationSummary(state).jobs['sensor-net'] ?? 0
   if (workers > 0) lines.push(`${workers} workers`)
   return lines.slice(0, 3)

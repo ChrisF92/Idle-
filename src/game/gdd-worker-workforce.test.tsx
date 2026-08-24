@@ -22,7 +22,8 @@ function workforceState() {
     { kind: 'facility', jobId: 'processing-line', progress: 0.5, paid: true, complete: false },
   ]
   state.hiveResearch.active = true
-  state.hiveResearch.focus = 'energy'
+  state.hiveResearch.focus = 'observation'
+  state.hiveResearch.activeNodeId = 'priority-lock'
   return state
 }
 

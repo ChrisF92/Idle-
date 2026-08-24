@@ -70,6 +70,7 @@ import {
   setFurnacePriority,
   applyFurnacePreset,
   setResearchFocus,
+  startResearch,
   setLaunchSector,
   setSectorRoute,
   placeYardBuilding,
@@ -177,6 +178,7 @@ type Action =
   | { type: 'furnace-priority'; priority: import('../game/types').FurnaceChannelId[] }
   | { type: 'furnace-preset'; preset: import('../game/types').FurnacePresetId }
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
+  | { type: 'research-start'; nodeId: string }
   | { type: 'launch-sector'; sector: number }
   | { type: 'sector-route'; route: import('../game/types').SectorRoute }
   | { type: 'yard-place'; index: number; buildingId: import('../game/types').YardBuildingId }
@@ -347,6 +349,8 @@ function reducer(state: GameState, action: Action): GameState {
       return applyFurnacePreset(state, action.preset)
     case 'research-focus':
       return setResearchFocus(state, action.branch)
+    case 'research-start':
+      return startResearch(state, action.nodeId)
     case 'launch-sector':
       return setLaunchSector(state, action.sector)
     case 'sector-route':
@@ -554,6 +558,7 @@ export function useGame() {
       dispatch({ type: 'furnace-preset', preset }),
     setResearchFocus: (branch: import('../game/types').HiveResearchBranch) =>
       dispatch({ type: 'research-focus', branch }),
+    startResearch: (nodeId: string) => dispatch({ type: 'research-start', nodeId }),
     setLaunchSector: (sector: number) => dispatch({ type: 'launch-sector', sector }),
     setSectorRoute: (route: import('../game/types').SectorRoute) =>
       dispatch({ type: 'sector-route', route }),

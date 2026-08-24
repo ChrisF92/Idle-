@@ -10,7 +10,7 @@ import {
   protocolNextRewardText,
   tryCompleteProtocol,
 } from './protocols'
-import { HIVE_RESEARCH_NODES, hiveResearchCombatSpeed } from './hiveResearch'
+import { getHiveResearchNode, hiveResearchCombatSpeed } from './hiveResearch'
 import { processCombatSpeedMult } from './process'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
@@ -74,8 +74,9 @@ describe('GDD Phase 8 content depth', () => {
     expect(availableSortieSpeeds(rebuild)).toEqual([1, 1.5])
 
     const research = structuredClone(fresh)
-    research.hiveResearch.completed.energy = 4
-    expect(HIVE_RESEARCH_NODES.energy[3]?.combatSpeed).toBe(2)
+    research.hiveResearch.completedIds = ['combat-sim']
+    research.hiveResearch.completed.observation = 1
+    expect(getHiveResearchNode('combat-sim')?.combatSpeed).toBe(2)
     expect(hiveResearchCombatSpeed(research)).toBe(2)
     expect(availableSortieSpeeds(research)).toEqual([1, 2])
 

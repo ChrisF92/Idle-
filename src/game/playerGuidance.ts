@@ -110,7 +110,13 @@ export function migrateOnboardingState(state: GameState): void {
     seen.add('guide-furnace-light')
   }
   const hive = state.hiveResearch
-  if (hive && Object.values(hive.xp).some((n) => n > 0)) {
+  if (
+    hive &&
+    (hive.active ||
+      (hive.completedIds?.length ?? 0) > 0 ||
+      Object.values(hive.xp ?? {}).some((n) => n > 0) ||
+      Object.values(hive.completed ?? {}).some((n) => n > 0))
+  ) {
     seen.add('guide-research-focus')
   }
   state.meta.seenOnboarding = [...seen]

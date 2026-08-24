@@ -391,11 +391,17 @@ export interface PlaytestState {
 export interface HiveResearchState {
   /** Discipline of the active (or last) project. */
   focus: HiveResearchBranch
-  /** True while the next node of `focus` is running. */
+  /** True while a specific node is running. */
   active?: boolean
-  /** Seconds of progress toward that branch's next node. */
+  /** Node currently being researched. */
+  activeNodeId?: string | null
+  /** Seconds of progress toward `activeNodeId`. */
+  progress?: number
+  /** Completed node ids. Authoritative. */
+  completedIds?: string[]
+  /** Seconds of progress toward that branch's next node. Migrated into `progress`. */
   xp: Record<HiveResearchBranch, number>
-  /** Completed nodes per branch (0..node count). */
+  /** Completed node counts per branch. Derived from completedIds. */
   completed: Record<HiveResearchBranch, number>
 }
 

@@ -6,12 +6,12 @@ import { foundryMasteryStepsFor, foundryRecipeGateNeed, foundrySlotCount, getFou
 import { furnaceChannelSlots } from './furnace'
 import {
   HIVE_RESEARCH_BRANCHES,
-  HIVE_RESEARCH_FOCUS_MULT,
   HIVE_RESEARCH_NODES,
-  HIVE_RESEARCH_NODES_PER_BRANCH,
+  RESEARCH_BREAKTHROUGH_S,
   RESEARCH_PREVIEW,
   RESEARCH_QUEUE_BASE,
-  grantHiveResearchKillXp,
+  RESEARCH_TREE,
+  getHiveResearchNode,
   hiveResearchApproachingBreakthrough,
   hiveResearchDamageMult,
   hiveResearchDroneEffMult,
@@ -23,21 +23,17 @@ import {
   hiveResearchInfiniteReduce,
   hiveResearchMasteryReduce,
   hiveResearchNextBreakthrough,
-  hiveResearchNodeCost,
-  hiveResearchOffFocusMult,
+  hiveResearchNodeDuration,
   hiveResearchProtocolXpMult,
   hiveResearchQueueCap,
   hiveResearchSalvageMult,
   hiveResearchShieldMult,
-  hiveResearchUnlocksRelay,
   hiveResearchUnlocksReliquary,
   hiveResearchUpcoming,
-  hiveResearchXp,
   isResearchBreakthrough,
-  isResearchBreakthroughIndex,
 } from './hiveResearch'
 import { inspectCopyCorpus, inspectResearchBranch } from './inspect'
-import { isNetworkBarUnlocked, networkRawFillRate } from './network'
+import { networkRawFillRate } from './network'
 import {
   GUIDE_STEPS,
   NETWORK_GUIDE_IDS,
@@ -50,7 +46,7 @@ import {
 import { isReliquarySlotUnlocked } from './reliquary'
 import { exportSave, importSave } from './save'
 import { createInitialState, SAVE_VERSION } from './state'
-import type { GameState, HiveResearchBranch } from './types'
+import type { GameState } from './types'
 
 const JARGON = /USI|ITRTG|analogue|black-bar/i
 
@@ -62,40 +58,49 @@ function atResearch(sector = 34): GameState {
   return s
 }
 
-function complete(state: GameState, branch: HiveResearchBranch, n: number): void {
-  state.hiveResearch.completed[branch] = n
+function completeIds(state: GameState, ids: string[]): void {
+  state.hiveResearch.completedIds = [...new Set([...(state.hiveResearch.completedIds ?? []), ...ids])]
+  for (const branch of HIVE_RESEARCH_BRANCHES) {
+    state.hiveResearch.completed[branch.id] = state.hiveResearch.completedIds.filter(
+      (id) => getHiveResearchNode(id)?.branch === branch.id,
+    ).length
+  }
 }
 
 describe('Research milestones: nodes and identity', () => {
-  it('keeps three named branches and nine nodes with breakthroughs at 2 / 5 / 8', () => {
-    expect(HIVE_RESEARCH_BRANCHES.map((b) => b.id)).toEqual(['material', 'energy', 'observation'])
-    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(9)
-    expect(RESEARCH_PREVIEW).toBe(3)
+  it('keeps four named disciplines with genuine forks and reconnects', () => {
+    expect(HIVE_RESEARCH_BRANCHES.map((b) => b.id)).toEqual([
+      'energy',
+      'observation',
+      'material',
+      'computation',
+    ])
+    expect(HIVE_RESEARCH_BRANCHES.map((b) => b.name)).toEqual([
+      'Hive Engineering',
+      'Drone Systems',
+      'Industrial Science',
+      'Computational Systems',
+    ])
+    expect(RESEARCH_PREVIEW).toBe(1)
+    expect(RESEARCH_TREE.length).toBeGreaterThanOrEqual(24)
     for (const branch of HIVE_RESEARCH_BRANCHES) {
-      const nodes = HIVE_RESEARCH_NODES[branch.id]
-      expect(nodes).toHaveLength(9)
-      for (let i = 0; i < nodes.length; i++) {
-        expect(isResearchBreakthroughIndex(i)).toBe(i === 2 || i === 5 || i === 8)
-        expect(isResearchBreakthrough(nodes[i]!)).toBe(i === 2 || i === 5 || i === 8)
-      }
+      expect(HIVE_RESEARCH_NODES[branch.id].length).toBeGreaterThanOrEqual(6)
+      expect(HIVE_RESEARCH_NODES[branch.id].some((node) => isResearchBreakthrough(node))).toBe(true)
     }
-    expect(HIVE_RESEARCH_NODES.material[2]?.name).toBe('Second Processor')
-    expect(HIVE_RESEARCH_NODES.energy[2]?.name).toBe('Extra Tap')
-    expect(HIVE_RESEARCH_NODES.observation[2]?.name).toBe('Second Desk')
-    expect(HIVE_RESEARCH_NODES.material[5]?.name).toBe('Pattern Floor')
-    expect(HIVE_RESEARCH_NODES.energy[5]?.name).toBe('Corps Draw')
-    expect(HIVE_RESEARCH_NODES.observation[5]?.name).toBe('Blue Bay')
-    expect(HIVE_RESEARCH_NODES.material[8]?.name).toBe('Keel Bay')
-    expect(HIVE_RESEARCH_NODES.energy[8]?.name).toBe('Relay Sight')
-    expect(HIVE_RESEARCH_NODES.observation[8]?.name).toBe('Queue Hall')
+    const children = (id: string) => RESEARCH_TREE.filter((node) => node.prerequisites.includes(id))
+    expect(children('plate-bank').length).toBeGreaterThanOrEqual(3)
+    expect(children('priority-lock').length).toBeGreaterThanOrEqual(2)
+    expect(children('second-processor').length).toBeGreaterThanOrEqual(2)
+    expect(children('queue-desk').length).toBeGreaterThanOrEqual(2)
+    expect(getHiveResearchNode('hangar-swap')?.prerequisites).toEqual(['extra-tap', 'keel-bay'])
+    expect(getHiveResearchNode('hearth-line')?.prerequisites).toEqual(['pattern-floor', 'fab-machinery'])
   })
 
-  it('previews the next three discoveries including the first breakthrough from rank 0', () => {
+  it('previews only the next available discovery', () => {
     const s = atResearch()
     const upcoming = hiveResearchUpcoming(s, 'energy')
-    expect(upcoming.map((row) => row.node.name)).toEqual(['Priority Lock'])
-    expect(hiveResearchNextBreakthrough(s, 'energy')?.node.name).toBe('Priority Lock')
-    expect(hiveResearchNextBreakthrough(s, 'energy')?.index).toBe(0)
+    expect(upcoming.map((row) => row.node.name)).toEqual(['Plate Bank'])
+    expect(hiveResearchNextBreakthrough(s, 'energy')?.node.name).toBe('Plate Bank')
     expect(hiveResearchApproachingBreakthrough(s)).toBe(true)
   })
 
@@ -110,51 +115,46 @@ describe('Research milestones: nodes and identity', () => {
     expect(hiveResearchMasteryReduce(s)).toBe(0)
     expect(hiveResearchInfiniteReduce(s)).toBe(0)
     expect(hiveResearchDroneEffMult(s)).toBe(1)
-    expect(hiveResearchOffFocusMult(s)).toBe(1)
     expect(hiveResearchQueueCap(s)).toBe(RESEARCH_QUEUE_BASE)
     expect(hiveResearchProtocolXpMult(s)).toBe(1)
     expect(hiveResearchExtraUtilitySlots(s)).toBe(0)
     expect(furnaceChannelSlots(s)).toBe(1)
     expect(foundrySlotCount(s)).toBe(1)
-    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)
     expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)
   })
 })
 
 describe('Research milestones: costs', () => {
-  it('keeps SAVE_VERSION at 34 and an achievable first node', () => {
-    expect(SAVE_VERSION).toBe(35)
+  it('keeps SAVE_VERSION and timed breakthroughs', () => {
+    expect(SAVE_VERSION).toBe(38)
     const s = atResearch()
-    expect(hiveResearchNodeCost(0)).toBe(52)
-    expect(hiveResearchNodeCost(0, s)).toBe(52)
+    const plate = getHiveResearchNode('plate-bank')!
+    expect(hiveResearchNodeDuration(plate)).toBe(RESEARCH_BREAKTHROUGH_S)
+    expect(hiveResearchNodeDuration(plate, s)).toBe(RESEARCH_BREAKTHROUGH_S)
   })
 
-  it('grows smoothly with a modest bump on breakthroughs, without a 6400 wall', () => {
-    const costs = Array.from({ length: 9 }, (_, i) => hiveResearchNodeCost(i))
-    for (let i = 1; i < costs.length; i++) {
-      expect(costs[i]!).toBeGreaterThan(costs[i - 1]!)
-    }
-    expect(costs[2]!).toBeGreaterThan(Math.floor(52 * Math.pow(1.5, 2)))
-    expect(costs[8]!).toBeLessThan(2500)
-    expect(costs[8]!).toBeLessThan(6400)
+  it('keeps later nodes slower than the first breakthrough without a 6400 wall', () => {
+    const hangar = getHiveResearchNode('hangar-swap')!
+    const plate = getHiveResearchNode('plate-bank')!
+    expect(hangar.duration).toBeGreaterThan(plate.duration)
+    expect(hangar.duration).toBeLessThan(6400)
   })
 })
 
 describe('Research milestones: breakthrough wiring', () => {
-  it('Material Second Processor adds a Foundry slot, not damage', () => {
+  it('Industrial Science Second Processor adds a Foundry slot, not damage', () => {
     const s = atResearch()
-    complete(s, 'material', 3)
+    completeIds(s, ['second-processor'])
     expect(hiveResearchFoundrySlots(s)).toBe(1)
     expect(foundrySlotCount(s)).toBe(2)
     expect(hiveResearchDamageMult(s)).toBe(1)
-    expect(hiveResearchSalvageMult(s)).toBeGreaterThan(1)
   })
 
   it('Pattern Floor opens recipe mastery gates one rank sooner', () => {
     const s = atResearch(5)
     s.foundry.recipeLevels['slag-ingot'] = 3
     expect(foundryRecipeGateNeed(s, 4)).toBe(4)
-    complete(s, 'material', 6)
+    completeIds(s, ['second-processor', 'pattern-floor'])
     expect(hiveResearchMasteryReduce(s)).toBe(1)
     expect(foundryRecipeGateNeed(s, 4)).toBe(3)
   })
@@ -163,7 +163,7 @@ describe('Research milestones: breakthrough wiring', () => {
     const s = atResearch()
     const frame = getFrame('bastion-frame')!
     expect(canFitModuleOnFrame(frame, ['drone-bay'], 'vector-thruster')).toBe(false)
-    complete(s, 'material', 9)
+    completeIds(s, ['plate-bank', 'keel-bay'])
     expect(hiveResearchExtraUtilitySlots(s)).toBe(1)
     expect(hiveResearchInfiniteReduce(s)).toBe(2)
     expect(
@@ -176,62 +176,44 @@ describe('Research milestones: breakthrough wiring', () => {
     expect(foundryMasteryStepsFor(slag, s).at(-1)?.at).toBe(18)
   })
 
-  it('Energy Extra Tap lights another Furnace channel; Priority Lock is targeting not damage', () => {
+  it('Hive Engineering Extra Tap lights another Furnace channel; Priority Lock is targeting', () => {
     const s = atResearch()
-    complete(s, 'energy', 1)
+    completeIds(s, ['priority-lock'])
     expect(hiveResearchFocusFire(s)).toBe(true)
     expect(hiveResearchDamageMult(s)).toBe(1)
-    complete(s, 'energy', 3)
+    completeIds(s, ['plate-bank', 'extra-tap'])
     expect(hiveResearchFurnaceSlots(s)).toBe(1)
     expect(furnaceChannelSlots(s)).toBe(2)
     expect(hiveResearchDamageMult(s)).toBe(1)
   })
 
-  it('Corps Draw makes assigned drones fill Network bars harder', () => {
+  it('Worker Calibration makes assigned drones fill jobs harder', () => {
     const s = atResearch()
     s.base.workerDrones = 1
     s.base.assignments.strike = 1
     const before = networkRawFillRate(s, 'strike')
-    complete(s, 'energy', 6)
+    completeIds(s, ['priority-lock', 'worker-calibration'])
     expect(hiveResearchDroneEffMult(s)).toBeCloseTo(1.12)
     expect(networkRawFillRate(s, 'strike')).toBeGreaterThan(before)
-  })
-
-  it('Relay Sight opens Archive Relay early and lights a second extra Furnace channel', () => {
-    const s = atResearch(34)
-    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)
-    complete(s, 'energy', 9)
-    expect(hiveResearchUnlocksRelay(s, 'archive-relay')).toBe(true)
-    expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)
-    expect(hiveResearchFurnaceSlots(s)).toBe(2)
-    expect(furnaceChannelSlots(s)).toBe(3)
-  })
-
-  it('Observation Second Desk speeds background branches', () => {
-    const s = atResearch()
-    s.hiveResearch.focus = 'material'
-    complete(s, 'observation', 3)
-    expect(hiveResearchOffFocusMult(s)).toBeCloseTo(1.5)
-    grantHiveResearchKillXp(s, false)
-    const material = hiveResearchXp(s, 'material')
-    const energy = hiveResearchXp(s, 'energy')
-    expect(material / energy).toBeCloseTo(HIVE_RESEARCH_FOCUS_MULT / 1.5)
   })
 
   it('Blue Bay opens the blue Reliquary slot before its sector 40 gate', () => {
     const s = atResearch(34)
     expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)
-    complete(s, 'observation', 6)
+    completeIds(s, ['priority-lock', 'combat-sim', 'blue-bay'])
     expect(hiveResearchUnlocksReliquary(s, 'blue')).toBe(true)
     expect(isReliquarySlotUnlocked(s, 'blue')).toBe(true)
   })
 
-  it('Queue Hall deepens the Research Queue and feeds Protocols into the desk', () => {
+  it('Queue Desk and Auto Desk deepen the Research Queue', () => {
     const s = atResearch()
     expect(hiveResearchQueueCap(s)).toBe(3)
-    complete(s, 'observation', 9)
+    completeIds(s, ['queue-desk'])
+    expect(hiveResearchQueueCap(s)).toBe(4)
+    completeIds(s, ['inspect-layer', 'process-primer', 'auto-desk'])
     expect(hiveResearchQueueCap(s)).toBe(6)
     expect(hiveResearchProtocolXpMult(s)).toBe(1)
+    completeIds(s, ['challenge-log'])
     s.protocols.activeId = 'cold-foundry'
     expect(hiveResearchProtocolXpMult(s)).toBeCloseTo(1.15)
   })
@@ -257,13 +239,13 @@ describe('Research milestones: Process queue and Auto Research', () => {
     const s = atResearch()
     s.process.purchased = ['research-queue', 'research-focus']
     s.process.config.research.autoResearch = true
-    complete(s, 'material', 9)
+    completeIds(s, HIVE_RESEARCH_NODES.material.map((node) => node.id))
     s.process.config.research.queue = ['material', 'material', 'material', 'energy']
     expect(hiveResearchQueueCap(s)).toBe(3)
     tickAutomation(s)
     expect(s.hiveResearch.focus).toBe('material')
 
-    complete(s, 'observation', 9)
+    completeIds(s, ['queue-desk', 'inspect-layer', 'process-primer', 'auto-desk'])
     expect(hiveResearchQueueCap(s)).toBe(6)
     tickAutomation(s)
     expect(s.hiveResearch.focus).toBe('energy')
@@ -273,35 +255,42 @@ describe('Research milestones: Process queue and Auto Research', () => {
 describe('Research milestones: Rebuild, save, onboarding', () => {
   it('Rebuild keeps completed nodes, XP, and focus', () => {
     let s = atResearch()
-    complete(s, 'energy', 3)
+    completeIds(s, ['plate-bank', 'extra-tap'])
     s.hiveResearch.xp.energy = 40
     s.hiveResearch.focus = 'energy'
+    s.hiveResearch.active = true
+    s.hiveResearch.activeNodeId = 'workshop-primer'
+    s.hiveResearch.progress = 40
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(s.hiveResearch.completed.energy).toBe(3)
+    expect(s.hiveResearch.completed.energy).toBe(2)
     expect(s.hiveResearch.xp.energy).toBe(40)
     expect(s.hiveResearch.focus).toBe('energy')
     expect(furnaceChannelSlots(s)).toBeGreaterThanOrEqual(2)
   })
 
-  it('round-trips completed nodes through save without bumping version', () => {
+  it('round-trips completed nodes through save', () => {
     const s = atResearch()
-    complete(s, 'material', 6)
-    complete(s, 'observation', 2)
+    completeIds(s, ['second-processor', 'pattern-floor', 'priority-lock', 'combat-sim'])
     s.hiveResearch.focus = 'observation'
     s.hiveResearch.xp.observation = 12
     const loaded = importSave(exportSave(s))
-    expect(SAVE_VERSION).toBe(35)
-    expect(loaded?.hiveResearch.completed.material).toBe(6)
+    expect(SAVE_VERSION).toBe(38)
+    expect(loaded?.hiveResearch.completed.material).toBe(2)
     expect(loaded?.hiveResearch.completed.observation).toBe(2)
+    expect(loaded?.hiveResearch.completedIds).toEqual(
+      expect.arrayContaining(['second-processor', 'pattern-floor', 'priority-lock', 'combat-sim']),
+    )
     expect(loaded?.hiveResearch.focus).toBe('observation')
     expect(loaded?.hiveResearch.xp.observation).toBe(12)
     expect(hiveResearchMasteryReduce(loaded!)).toBe(1)
   })
 
-  it('offers a single Research focus hint instead of a desk tour', () => {
+  it('offers a single Research start hint instead of a desk tour', () => {
     const s = atResearch()
     s.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
     expect(activeGuideStep(s, 'research')?.id).toBe('guide-research-focus')
+    expect(activeGuideStep(s, 'research')?.title).toBe('Start a project')
+    expect(guideBodyLines(activeGuideStep(s, 'research')!).join(' ')).toMatch(/offline/)
     const skipped = skipOnboarding(s, 'guide-research-focus')
     for (const id of RESEARCH_V2_GUIDE_IDS) {
       expect(skipped.meta.seenOnboarding).toContain(id)
@@ -318,7 +307,7 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
 
   it('keeps Research inspect and guide copy free of designer jargon', () => {
     const s = atResearch(8)
-    complete(s, 'energy', 2)
+    completeIds(s, ['plate-bank', 'extra-tap'])
     const blob = [
       inspectCopyCorpus(s).join('\n'),
       inspectResearchBranch(s, 'energy')?.body.join('\n') ?? '',
