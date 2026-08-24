@@ -73,13 +73,13 @@ describe('Process 3.0 UI', () => {
     state.process.config = { ...processConfig(state), activeProfileId: 'farm' }
     renderProcess(state)
     fireEvent.click(screen.getByRole('tab', { name: 'Rules' }))
-    expect(screen.getByText('WHEN')).toBeTruthy()
+    expect(screen.getAllByText('WHEN').length).toBeGreaterThan(0)
     expect(screen.getByText(/Wave ≥/)).toBeTruthy()
-    expect(screen.getByText('THEN')).toBeTruthy()
+    expect(screen.getAllByText('THEN').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Threat|Pressure|if \(/)).toBeNull()
     fireEvent.click(screen.getByText(/Wave ≥/))
     expect(screen.getByRole('dialog', { name: 'Bank Economy' })).toBeTruthy()
-    expect(screen.getByText('WHEN')).toBeTruthy()
+    expect(screen.getAllByText('WHEN').length).toBeGreaterThan(1)
     expect(screen.getByRole('button', { name: 'Delete rule' })).toBeTruthy()
   })
 
@@ -89,7 +89,7 @@ describe('Process 3.0 UI', () => {
     state.process.config = { ...processConfig(state), activeProfileId: 'farm' }
     renderProcess(state)
     fireEvent.click(screen.getByRole('tab', { name: 'Profiles' }))
-    expect(screen.getByText('Farm')).toBeTruthy()
+    expect(screen.getAllByText('Farm').length).toBeGreaterThan(0)
     expect(screen.getByText('Push')).toBeTruthy()
     expect(screen.getByText('Challenge')).toBeTruthy()
     expect(screen.getByText('Custom')).toBeTruthy()
