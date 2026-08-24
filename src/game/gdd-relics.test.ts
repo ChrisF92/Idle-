@@ -17,7 +17,7 @@ import {
   removeRelicFromCore,
   upgradeRelic,
 } from './reliquary'
-import { fitModule } from './actions'
+import { fitModule, unfitModule } from './actions'
 import { grantModuleCopy } from './coreProgression'
 import { migrateCoreFitInstances } from './save'
 
@@ -73,6 +73,11 @@ describe('GDD Relics in Cores', () => {
     expect(Object.keys(s.reliquary.coreFits)).toEqual(
       expect.arrayContaining(pulseInstances),
     )
+
+    s = unfitModule(s, 'pulse-cannon', pulseInstances[1])
+    expect(coreSocketRelics(s, pulseInstances[1]!)[0]).toBe('pulse-chip')
+    s = fitModule(s, 'pulse-cannon', pulseInstances[1])
+    expect(coreSocketRelics(s, pulseInstances[1]!)[0]).toBe('pulse-chip')
   })
 
   it('migrates legacy Core-type Relic fits onto the first physical copy', () => {
