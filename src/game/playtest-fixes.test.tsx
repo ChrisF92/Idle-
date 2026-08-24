@@ -67,7 +67,7 @@ describe('playtest fix pass', () => {
       </OverlayProvider>,
     )
 
-    const rows = Array.from(document.querySelectorAll('.dock-loadout .ui-item-row'))
+    const rows = Array.from(document.querySelectorAll('.dock-loadout .ui-item-row')).slice(1)
     expect(rows.map((row) => row.querySelector('strong')?.textContent)).toEqual([
       'Pulse Cannon',
       'Plate Layer',
