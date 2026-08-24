@@ -14,7 +14,7 @@ import {
   weaponDamageProfile,
 } from './combat'
 import { computeShipStats, createInitialState } from './state'
-import { upgradeModule } from './actions'
+import { buyCoreStartingLevel } from './actions'
 
 describe('USI Core formulas', () => {
   it('uses Laser Cannon salvage costs for Pulse Cannon (3 × 1.21^n)', () => {
@@ -38,15 +38,14 @@ describe('USI Core formulas', () => {
     expect(moduleWeaponDamage(pulse, 4)).toBe(30)
   })
 
-  it('levels Plate Layer with flat +5 max shield like Continuous Generator T1', () => {
-    const state = createInitialState(0)
+  it('levels Plate Layer with Scrap at Dock for flat +5 max shield', () => {
+    let state = createInitialState(0)
     expect(computeShipStats(state).shieldMax).toBe(30)
     expect(fittedShieldRegenFraction(state.shipyard.modules)).toBe(0.05)
 
-    state.combat.docked = false
-    state.resources.salvage = 100
-    const next = upgradeModule(state, 'plate-layer')
-    expect(computeShipStats(next).shieldMax).toBe(35)
+    state.resources.scrap = 100
+    state = buyCoreStartingLevel(state, 'plate-layer:1')
+    expect(computeShipStats(state).shieldMax).toBe(35)
   })
 
   it('maps USI laser projectile speed onto the lane (700 × 180/600)', () => {
