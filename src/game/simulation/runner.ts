@@ -149,7 +149,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
 function runOneSeeded(
   config: SimulationConfig,
   hooks: SimulationHooks | undefined,
-  _runIndex: number,
+  runIndex: number,
   seed: number,
   rng: () => number,
 ): SimulationRunReport {
