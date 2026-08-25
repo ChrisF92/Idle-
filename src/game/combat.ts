@@ -23,15 +23,11 @@ import {
   challengeStackRepairBonus,
   discoveryFocusPrint,
   earlyCareerFragmentMult,
-  essenceBonusDataPerClear,
   familyCanDropPrint,
   getEnemyDropTable,
   getModule,
-  HOLD_TRACKED_FRAGMENT_MULT,
-  matterShopDataPerClear,
   matterShopDropBonus,
   matterShopRepairMult,
-  matterShopScrapBonus,
   fittedShieldRegenFraction,
   partId,
   pickWeightedDropEntry,
@@ -57,7 +53,6 @@ import {
   varyPackToBudget,
 } from './threatBudget'
 import {
-  bossMechanicBlurb,
   bossMechanicForWave,
   bossMechanicHasAdds,
   bossMechanicHasAura,
@@ -106,7 +101,7 @@ import {
 
 export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
 
-export interface SectorEncounter {
+export interface WaveEncounter {
   id: string
   name: string
   family: EnemyFamily
@@ -163,15 +158,11 @@ export const HIVE_STANDOFF_MIN = 72
 
 /**
  * USI Laser Cannon: range 600, projectile speed 700.
- * Map USI space-units onto this lane (spawn 180). Pulse no longer matches spawn;
- * long guns stop short so inbound hulls are visible before they take fire.
+ * Map USI space-units onto the radial spawn radius (~300).
  */
 export const USI_SPACE_TO_LANE = SPAWN_DISTANCE / 600
 
-/**
- * Lane-units / second for all normal projectiles (player + enemy).
- * 700 USI × (180/600) = 210, so max-range travel stays ~0.86s.
- */
+/** Simulation-units / second for all normal projectiles (player + enemy). */
 export const PROJECTILE_SPEED = 700 * USI_SPACE_TO_LANE
 
 /** Sniper charge lasers — USI Charge Laser is a fast bolt after the wind-up. */
@@ -520,7 +511,7 @@ function applyWaveFormation(
 }
 
 /** Procedural encounter for a global Sortie Wave. Proper Bosses use the Boss provider. */
-export function encounterForWave(wave: number, extraDanger = 1, state?: GameState): SectorEncounter {
+export function encounterForWave(wave: number, extraDanger = 1, state?: GameState): WaveEncounter {
   const w = Math.max(1, Math.floor(wave))
   const family = primaryFamilyForWave(w, false)
   const names = NAMES[family]
@@ -1255,9 +1246,6 @@ function buildDivineWave(
   }
 }
 
-export const ACT1_CLIMAX_NAME = 'Choir Crown'
-export const ACT1_CLIMAX_BLURB = bossMechanicBlurb('climax-choir')
-
 function spawnBossAdds(state: GameState, boss: CombatUnit, label: string): void {
   const wave = liveWave(state)
   const hullScale = enemyWaveScale(wave)
@@ -1726,21 +1714,15 @@ export function maybeAdvanceBossPhase(
       w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
     }
     const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
-    const climax = mechanic === 'climax-choir'
     if (mechanic && bossMechanicHasShieldPhase(mechanic)) {
-      boss.shieldMax = Math.max(boss.shieldMax, boss.hullMax * (climax ? 0.7 : 0.45))
+      boss.shieldMax = Math.max(boss.shieldMax, boss.hullMax * 0.45)
       boss.shield = boss.shieldMax
-      pushLog(
-        state,
-        climax
-          ? 'Choir Crown — the loop folds. A temporal shield wall closes.'
-          : 'Boss phase 2 — shield wall raised.',
-      )
+      pushLog(state, 'Boss phase 2 — shield wall raised.')
     } else {
       pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
     }
     if (mechanic && bossMechanicHasAdds(mechanic)) {
-      spawnBossAdds(state, boss, climax ? 'Loop Mite' : 'Called Thrall')
+      spawnBossAdds(state, boss, 'Called Thrall')
     }
     revealCodexFamilies(state, ['armored'])
   }
@@ -1762,17 +1744,11 @@ export function maybeAdvanceBossPhase(
       w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
     }
     const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
-    const climax = mechanic === 'climax-choir'
     if (mechanic && bossMechanicHasAdds(mechanic)) {
-      spawnBossAdds(state, boss, climax ? 'Veil Echo' : 'Called Thrall')
+      spawnBossAdds(state, boss, 'Called Thrall')
     }
     revealCodexFamilies(state, ['ethereal'])
-    pushLog(
-      state,
-      climax
-        ? 'Choir Crown — reconstruction tears. Time around the Hive unthreads.'
-        : 'Boss phase 3 — form frays [ethereal], kiting out.',
-    )
+    pushLog(state, 'Boss phase 3 — form frays [ethereal], kiting out.')
   }
 }
 
@@ -1947,15 +1923,11 @@ export function rollEnemyPartDrop(
       canDropModulePart(state, trackedId) &&
       familyCanDropPrint(unit.family, trackedId, liveWave(state)),
   )
-  const holding = false
-  const holdMult = holding && trackedEligible ? HOLD_TRACKED_FRAGMENT_MULT : 1
-
   const earlyMult = earlyCareerFragmentMult(careerBestWave(state))
   let chance =
     table.chance *
     Math.max(0, Math.min(1, rewardWeight)) *
     earlyMult *
-    holdMult *
     logisticsDropMult(state) *
     foundryPartDropMult(state) *
     fragmentChanceMult(state) *
@@ -2595,56 +2567,6 @@ export function resolveCombatTick(
   simulateCombat(state, 1, pushLog)
 }
 
-export function totalEnemyHull(encounter: SectorEncounter): number {
+export function totalEnemyHull(encounter: WaveEncounter): number {
   return encounter.units.reduce((s, u) => s + u.hullMax, 0)
-}
-
-/** Estimated payout for the current Wave package. Hold farming is removed. */
-export function estimateHoldClearRewards(state: GameState): {
-  scrap: number
-  data: number
-  salvage: number
-} {
-  const wave = liveWave(state)
-  const clear = encounterForWave(wave, 1, state)
-  let scrap = clear.scrapReward
-  if (aiDoctrinesActive(state, 'scavenger')) scrap *= 1.3
-  if (state.shipyard.modules.includes('salvage-rig')) scrap *= 1.25
-  scrap *= 1 + matterShopScrapBonus(state.prestige.matterShop)
-
-  const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
-  const siphon =
-    essenceBonusDataPerClear(state.essence.purchased) +
-    matterShopDataPerClear(state.prestige.matterShop)
-  const data =
-    dataBlocked || !isSystemUnlocked(state, 'research') ? 0 : clear.dataReward + siphon
-  let salvage = 0
-  for (const unit of clear.units) {
-    salvage += salvageFromKill(wave, unit.isBoss, undefined, state)
-  }
-  return { scrap, data, salvage }
-}
-
-/**
- * Hold Accountant rates: clear rewards ÷ estimated clear time from fleet DPS vs wave hull.
- */
-export function estimateHoldFarmRates(state: GameState): {
-  scrapPerSec: number
-  dataPerSec: number
-  salvagePerSec: number
-  scrapPerClear: number
-  clearSeconds: number
-} {
-  const rewards = estimateHoldClearRewards(state)
-  const dps = Math.max(1, computeShipStats(state).damage)
-  const hullTotal = totalEnemyHull(encounterForWave(liveWave(state), 1, state))
-  // Floor keeps early sectors from reporting absurd r/s when packs die instantly.
-  const clearSeconds = Math.max(8, hullTotal / dps)
-  return {
-    scrapPerSec: rewards.scrap / clearSeconds,
-    dataPerSec: rewards.data / clearSeconds,
-    salvagePerSec: rewards.salvage / clearSeconds,
-    scrapPerClear: rewards.scrap,
-    clearSeconds,
-  }
 }

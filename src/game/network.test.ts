@@ -92,7 +92,6 @@ describe('phase 4: drone network', () => {
   it('Yield opens at S4 before Loom at S9 and boosts salvage + Strike fill', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 4
-    s.combat.highestSector = 4
     expect(isNetworkBarUnlocked(s, 'yield')).toBe(true)
     expect(isNetworkBarUnlocked(s, 'loom')).toBe(false)
 
@@ -124,9 +123,7 @@ describe('phase 4: drone network', () => {
 
   it('Rebuild wipes bar levels and assignments, keeps the corps', () => {
     let s = createInitialState(0)
-    s.combat.sector = 12
     s.meta.highestSectorEver = 12
-    s.combat.highestSector = 12
     s = assignWorker(s, 'strike', 4)
     s.combat.docked = false
     tickNetwork(s, 25)
@@ -158,7 +155,6 @@ describe('phase 4: drone network', () => {
     expect(s.resources.scrap).toBe(0)
 
     s.meta.highestSectorEver = 28
-    s.combat.highestSector = 28
     s.resources.heat = 20
     s = buyNetworkLink(s, 'racks')
     expect(networkLinkRank(s, 'racks')).toBe(2)
@@ -169,8 +165,6 @@ describe('phase 4: drone network', () => {
   it('acuity raises efficiency and cycle speed raises fill rate; Rebuild keeps Links', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 28
-    s.combat.highestSector = 28
-    s.combat.sector = 28
     s.resources.heat = 80
     s = assignWorker(s, 'strike', 2)
     const rate0 = networkFillRate(s, 'strike')
@@ -209,7 +203,6 @@ describe('Network layers', () => {
   function sector(n: number) {
     const s = createInitialState(0)
     s.meta.highestSectorEver = n
-    s.combat.highestSector = n
     s.meta.hullLostOnce = true
     return s
   }
@@ -284,7 +277,6 @@ describe('Network layers', () => {
 
   it('Rebuild wipes Relay levels and assignments, keeps Links and the corps', () => {
     let s = sector(12)
-    s.combat.sector = 12
     s.resources.heat = 40
     s = buyNetworkLink(s, 'racks')
     s = assignWorker(s, 'strike-relay', 3)

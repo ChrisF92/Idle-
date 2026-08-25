@@ -44,15 +44,12 @@ describe('deep matter shop + ascension', () => {
   it('ascension boosts future prestige matter gains', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
-    state.combat.sector = 30
-    state.combat.highestSector = 30
-    state.meta.highestSectorEver = 30
+    state.meta.bestWave = 1000
+    state.combat.bestWave = 1000
     expect(canAscend(state)).toBe(true)
     const before = prestigeGainFor(state)
     state = performAscension(state, 1000)
     expect(state.meta.ascensionCount).toBe(1)
-    expect(state.combat.sector).toBe(1)
-    state.combat.sector = 30
     expect(prestigeGainFor(state)).toBeGreaterThan(before)
   })
 
@@ -60,7 +57,6 @@ describe('deep matter shop + ascension', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
     state.meta.ascensionCount = 2
-    state.combat.sector = 10
     state = performPrestige(state, 2000)
     expect(state.meta.ascensionCount).toBe(2)
   })

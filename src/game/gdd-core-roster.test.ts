@@ -88,7 +88,9 @@ describe('GDD Core roster and acquisition', () => {
 
   it('shows upcoming GDD prints with drop Wave and family at Foundry unlock', () => {
     const early = atCareerWave(createInitialState(0), 20)
-    expect(listFarmableCores(early)).toEqual([])
+    expect(listFarmableCores(early).map((m) => m.id)).toEqual(
+      expect.arrayContaining(['flak-array', 'heavy-lance']),
+    )
     const cards = listFoundryPrintCards(early)
     expect(cards.map((m) => m.id)).toEqual(expect.arrayContaining(['flak-array', 'heavy-lance', 'phase-beam']))
     for (const id of LEFTOVER_CORES) {

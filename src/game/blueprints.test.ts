@@ -43,8 +43,6 @@ describe('blueprints and fabrication', () => {
   it('drop on kill discovers module and adds part', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 7
-    state.combat.highestSector = 7
-    state.combat.sector = 7
     const results = rollEnemyPartDrop(
       state,
       { family: 'swarm', isBoss: false, name: 'Drone' },
@@ -62,7 +60,6 @@ describe('blueprints and fabrication', () => {
   it('deposit + workers completes fab → unlocks permanent', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.combat.highestSector = 5
     state.resources.data = 150
     state = buyResearch(state, 'module-fab')
     expect(state.research.unlocked).toContain('module-fab')
@@ -97,7 +94,6 @@ describe('blueprints and fabrication', () => {
 
   it('prestige keeps unlock + parts + discovery; clears fab project', () => {
     let state = createInitialState(0)
-    state.combat.sector = 12
     state.meta.discoveredModules = ['flak-array', 'heavy-lance']
     state.meta.moduleMastery = { 'flak-array': 2 }
     state.parts = { [partId('flak-array', 'casing')]: 5 }

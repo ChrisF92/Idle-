@@ -11,14 +11,11 @@ import {
 describe('post-prestige re-push balance', () => {
   it('keeps the S10 Matter curve value below the first legal Rebuild', () => {
     const state = createInitialState(0)
-    state.combat.sector = 10
     expect(prestigeGainFor(state)).toBe(6)
   })
 
   it('starts returning runs with scrap, data, and salvage kits', () => {
     let state = createInitialState(0)
-    state.combat.sector = 12
-    state.combat.highestSector = 12
     state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
     expect(state.prestige.prestigeCount).toBe(1)
@@ -41,13 +38,9 @@ describe('post-prestige re-push balance', () => {
     const control = structuredClone(state)
     control.ai.purchased = []
     control.resources.aiPoints = 0
-    control.combat.sector = 12
-    control.combat.highestSector = 12
     control.meta.highestSectorEver = 12
     const controlAfter = performPrestige(control, 1000)
 
-    state.combat.sector = 12
-    state.combat.highestSector = 12
     state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
     expect(state.ai.purchased).not.toContain('focus-fire')
@@ -56,8 +49,6 @@ describe('post-prestige re-push balance', () => {
 
   it('can buy Basic Optics with farmed data and one module level from return salvage', () => {
     let state = createInitialState(0)
-    state.combat.sector = 12
-    state.combat.highestSector = 12
     state.meta.highestSectorEver = 12
     state = performPrestige(state, 2000)
 

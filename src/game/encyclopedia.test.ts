@@ -40,7 +40,6 @@ describe('encyclopedia depth', () => {
 
     const s = createInitialState(0)
     s.meta.highestSectorEver = 12
-    s.combat.highestSector = 12
     expect(isFoundryRecipeUnlocked(s, 'focus-lens')).toBe(false)
     s.foundry.recipeLevels.relay = 6
     expect(isFoundryRecipeUnlocked(s, 'focus-lens')).toBe(true)
@@ -52,18 +51,15 @@ describe('encyclopedia depth', () => {
   it('gates late Reliquary shards by career sector', () => {
     const early = createInitialState(0)
     early.meta.highestSectorEver = 15
-    early.combat.highestSector = 15
     expect(unlockedShardPool(early)).toHaveLength(0)
 
     const opened = createInitialState(0)
     opened.meta.highestSectorEver = 16
-    opened.combat.highestSector = 16
     expect(unlockedShardPool(opened).some((s) => s.id === 'battle-chip')).toBe(true)
     expect(unlockedShardPool(opened).some((s) => s.id === 'warp-chip')).toBe(false)
 
     const late = createInitialState(0)
     late.meta.highestSectorEver = 40
-    late.combat.highestSector = 40
     expect(unlockedShardPool(late).some((s) => s.id === 'overdraw-chip')).toBe(true)
     expect(unlockedShardPool(late).some((s) => s.id === 'warp-chip')).toBe(true)
     expect(shardEffectBlurb(SHARDS.find((s) => s.id === 'warp-chip')!)).toContain('foundry')

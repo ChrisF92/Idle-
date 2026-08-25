@@ -291,7 +291,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.resources.heat = Math.max(next.resources.heat ?? 0, 20)
       next.resources.salvage = Math.max(next.resources.salvage ?? 0, 400)
       next.resources.choirAsh = Math.max(next.resources.choirAsh ?? 0, 80)
-      next.combat.log = ['[dev] Wave 300 / Reinforce seeded.', ...next.combat.log].slice(0, 40)
+      next.combat.log = ['[dev] Wave 1000 / Reinforce seeded.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'wipe-career': {

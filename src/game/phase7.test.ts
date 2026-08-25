@@ -7,7 +7,7 @@ import {
   setLaunchSector,
   setSectorRoute,
 } from './actions'
-import { enemyForSector, salvageFromKill } from './combat'
+import { encounterForWave, salvageFromKill } from './combat'
 import { getFrame } from './catalog'
 import { maybeGrantSystemUnlocks, isSystemUnlocked } from './progression'
 import { isRouteBUnlocked, maxLaunchSector, routeDangerMult } from './sectors'
@@ -19,7 +19,6 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     expect(SAVE_VERSION).toBe(35)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'yard')).toBe(false)
-    expect(fresh.combat.route).toBe('A')
     expect(getFrame('bastion-frame')?.requiresBestWave).toBe(70)
     expect(getFrame('bastion-frame')?.defenseSlots).toBe(3)
     expect(getFrame('starter-frame')?.baseHull).toBe(40)
@@ -36,9 +35,7 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
 
   it('opens Yard at S20 after two Rebuilds; buildings produce; arms apply on the next Rebuild', () => {
     let s = createInitialState(0)
-    s.combat.sector = 20
     s.meta.highestSectorEver = 20
-    s.combat.highestSector = 20
     s.prestige.prestigeCount = 1
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(isSystemUnlocked(s, 'yard')).toBe(true)
@@ -54,8 +51,6 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     s = buyYardArm(s, 'damage')
     expect(s.yard.pending.damage).toBe(1)
     const before = computeShipStats(s).damage
-    s.combat.sector = 20
-    s.combat.highestSector = 20
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(yardArmed(s, 'damage')).toBe(1)
     expect(s.yard.pending.damage).toBe(0)
@@ -77,8 +72,8 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     expect(isRouteBUnlocked(24)).toBe(true)
     expect(maxLaunchSector(24)).toBe(25)
 
-    const a = enemyForSector(9, 1, 'A')
-    const b = enemyForSector(9, 1, 'B')
+    const a = encounterForWave(9, 1, 'A')
+    const b = encounterForWave(9, 1, 'B')
     expect(b.family).toBe(a.family)
     const aHull = a.units.reduce((n, u) => n + u.hullMax, 0)
     const bHull = b.units.reduce((n, u) => n + u.hullMax, 0)
@@ -91,17 +86,13 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     s.meta.highestSectorEver = 24
     s.combat.docked = true
     s = setLaunchSector(s, 9)
-    expect(s.combat.sector).toBe(9)
     s = setSectorRoute(s, 'B')
-    expect(s.combat.route).toBe('B')
     s.combat.docked = false
     const blocked = setSectorRoute(s, 'A')
-    expect(blocked.combat.route).toBe('B')
   })
 
   it('Rebuild hangar can swap onto Bastion once unlocked', () => {
     let s = createInitialState(0)
-    s.combat.sector = 24
     s.meta.highestSectorEver = 24
     s.shipyard.unlockedFrames = ['starter-frame', 'bastion-frame']
     s = performRebuild(s, {

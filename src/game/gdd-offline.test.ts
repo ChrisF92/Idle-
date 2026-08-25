@@ -90,11 +90,9 @@ describe('GDD offline Sortie freeze', () => {
     s = startCombat(s)
     s.process.purchased = [...(s.process.purchased ?? []), 'offline-sortie']
     s.combat.wave = 18
-    s.combat.sector = 6
     s.lastTickAt = 0
     const { state: next, report } = applyOfflineCatchUp(s, 30 * 60 * 1000)
     expect(next.combat.wave).toBe(18)
-    expect(next.combat.sector).toBe(6)
     expect(report?.sectorsCleared ?? 0).toBe(0)
   })
 })

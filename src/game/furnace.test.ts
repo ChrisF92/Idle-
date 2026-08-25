@@ -34,8 +34,6 @@ import { prepOnboardingDoor } from './onboarding'
 function furnaceReady(sector = 28) {
   const s = createInitialState(0)
   s.meta.highestSectorEver = sector
-  s.combat.highestSector = sector
-  s.combat.sector = sector
   return s
 }
 
@@ -133,7 +131,6 @@ describe('Furnace 2.0 channels', () => {
     expect(canSetFurnaceChannel(s, 'foundry', 1).ok).toBe(true)
     expect(canSetFurnaceChannel(s, 'research', 1).ok).toBe(false)
     s.meta.highestSectorEver = 34
-    s.combat.highestSector = 34
     expect(canSetFurnaceChannel(s, 'research', 1).ok).toBe(true)
   })
 })

@@ -110,7 +110,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'reinforce',
     requiresBestWave: ACT1_CADENCE.reinforce,
     label: 'Reinforce',
-    tip: 'Clear Wave 300. Rebuild has reached the limit of this loop.',
+    tip: 'Clear Wave 1000. Rebuild has reached the limit of this loop.',
   },
   {
     id: 'logs',
@@ -278,7 +278,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'act1-clear',
     name: 'Exodus Gate',
-    description: 'Clear Wave 300 and finish Act 1.',
+    description: 'Clear Wave 1000 and finish Act 1.',
     rewardAiPoints: 3,
     condition: { type: 'act1-cleared' },
   },
@@ -876,7 +876,7 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   tryCompleteAchievements(state)
 }
 
-/** Clearing the Wave 300 climax reveals Reinforce (GDD §164). */
+/** Clearing the Wave 1000 finale reveals Reinforce. */
 export function completeAct1(state: GameState): void {
   if (state.meta.act1Cleared) return
   state.meta.act1Cleared = true

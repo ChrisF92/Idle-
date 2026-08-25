@@ -5,7 +5,7 @@ import {
   partId,
 } from './catalog'
 import { assembleBlueprint, canAssembleBlueprint, setTrackedPrint } from './actions'
-import { enemyForSector, rollEnemyPartDrop, salvageFromKill } from './combat'
+import { encounterForWave, rollEnemyPartDrop, salvageFromKill } from './combat'
 import { craftsForNextLevel, FOUNDRY_MODULES, getFoundryRecipe } from './foundry'
 import { logisticsDropMult } from './core'
 import { foundryPartDropMult } from './foundryBonuses'
@@ -38,20 +38,17 @@ function tryAssemble(state: GameState): GameState {
 }
 
 function rollSector(state: GameState, sector: number, rng: () => number, clears = 1): GameState {
-  state.combat.sector = sector
   state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver, sector - 1)
-  state.combat.highestSector = Math.max(state.combat.highestSector, sector - 1)
   for (let c = 0; c < clears; c++) {
     const waves = wavesForSector(sector)
     for (let wave = 1; wave <= waves; wave++) {
-      const encounter = enemyForSector(sector, wave)
+      const encounter = encounterForWave(sector, wave)
       for (const unit of encounter.units) {
         rollEnemyPartDrop(state, unit, rng)
       }
     }
   }
   state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver, sector)
-  state.combat.highestSector = Math.max(state.combat.highestSector, sector)
   return tryAssemble(state)
 }
 
@@ -154,7 +151,6 @@ describe('early Core acquisition benchmarks', () => {
       const rngH = mulberry32(seed + 100)
       let hold = setPushMode(createInitialState(0), 'hold-sector')
       hold.meta.highestSectorEver = 6
-      hold.combat.highestSector = 6
       hold = setTrackedPrint(hold, 'heavy-lance')
       let loops = 0
       for (let n = 0; n < 20; n++) {
@@ -175,12 +171,8 @@ describe('early Core acquisition benchmarks', () => {
     const rngBuff = mulberry32(44)
     const bare = createInitialState(0)
     bare.meta.highestSectorEver = 20
-    bare.combat.highestSector = 20
-    bare.combat.sector = 20
     const buffed = createInitialState(0)
     buffed.meta.highestSectorEver = 20
-    buffed.combat.highestSector = 20
-    buffed.combat.sector = 20
     buffed.core.ranks.logistics = 25
     buffed.foundry.upgrades['fp-print'] = 4
     let bareHits = 0
@@ -218,7 +210,7 @@ describe('early Foundry equipment payoff', () => {
     for (let sector = 1; sector <= 7; sector++) {
       const waves = wavesForSector(sector)
       for (let wave = 1; wave <= waves; wave++) {
-        const encounter = enemyForSector(sector, wave)
+        const encounter = encounterForWave(sector, wave)
         for (const unit of encounter.units) {
           salvage += salvageFromKill(sector, unit.isBoss)
         }
@@ -235,7 +227,6 @@ describe('reduced print requirements stay assemble-ready on old inventories', ()
   it('marks a previously incomplete Heavy Lance ready without deleting extras', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
     state.parts[partId('heavy-lance', 'casing')] = 4
     state.parts[partId('heavy-lance', 'core')] = 3
     state.parts[partId('heavy-lance', 'lens')] = 2

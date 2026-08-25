@@ -20,7 +20,6 @@ describe('achievements and AI unlock', () => {
 
   it('banks Process points on First Blood without opening automation early', () => {
     const state = createInitialState(0)
-    state.combat.highestSector = 1
     const newly = tryCompleteAchievements(state)
     expect(newly).toContain('first-blood')
     expect(state.meta.aiUnlocked).toBe(true)
@@ -32,7 +31,6 @@ describe('achievements and AI unlock', () => {
 
   it('does not re-grant an already completed achievement', () => {
     const state = createInitialState(0)
-    state.combat.highestSector = 1
     tryCompleteAchievements(state)
     const points = state.resources.aiPoints
     const again = tryCompleteAchievements(state)
@@ -42,7 +40,6 @@ describe('achievements and AI unlock', () => {
 
   it('grants Archive Seed when research is purchased', () => {
     let state = createInitialState(0)
-    state.combat.highestSector = 5
     state.meta.highestSectorEver = 8
     tryCompleteAchievements(state)
     const before = state.resources.aiPoints
@@ -54,7 +51,6 @@ describe('achievements and AI unlock', () => {
 
   it('grants Neural Link when an AI node is purchased', () => {
     let state = createInitialState(0)
-    state.combat.highestSector = 1
     tryCompleteAchievements(state)
     state.resources.aiPoints = 2
     state = buyAiNode(state, 'auto-engage')
@@ -64,9 +60,7 @@ describe('achievements and AI unlock', () => {
 
   it('grants Soft Reset on prestige and keeps unspent AI points', () => {
     let state = createInitialState(0)
-    state.combat.highestSector = 12
     state.meta.highestSectorEver = 12
-    state.combat.sector = 13
     maybeGrantSystemUnlocks(state)
     state.resources.aiPoints = 4
     state = performPrestige(state, 1000)
@@ -80,7 +74,6 @@ describe('achievements and AI unlock', () => {
   it('does not force Rebuild or Process overlay tours', () => {
     const prestigeState = createInitialState(0)
     prestigeState.meta.highestSectorEver = 4
-    prestigeState.combat.sector = 4
     prestigeState.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
     expect(activeGuideStep(prestigeState, 'combat')).toBeNull()
     expect(activeGuideStep(prestigeState, 'dock')?.id).not.toBe('guide-prestige-tab')

@@ -1,3 +1,4 @@
+import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { TabNav } from '../components/TabNav'
@@ -19,22 +20,5 @@ describe('live Sortie chrome', () => {
     const live = startCombat(docked)
     expect(isSortieActive(live)).toBe(true)
     expect(isSortieActive(docked)).toBe(false)
-  })
-})
-
-describe('live Sortie chrome', () => {
-  it('renders DOCK | SYSTEMS | MORE only while docked', () => {
-    const docked = createInitialState(1)
-    const { unmount } = render(
-      <TabNav active="dock" onChange={() => undefined} state={docked} />,
-    )
-    expect(screen.getByLabelText('Game systems')).toBeTruthy()
-    expect(screen.getByText('Dock')).toBeTruthy()
-    expect(screen.getByText('Systems')).toBeTruthy()
-    expect(screen.getByText('More')).toBeTruthy()
-    unmount()
-
-    const live = startCombat(docked)
-    expect(isSortieActive(live)).toBe(true)
   })
 })

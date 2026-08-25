@@ -61,7 +61,6 @@ describe('UI/UX pass regression', () => {
   it('keeps Worker Drones as the Systems header without Manage buttons', () => {
     const state = markHullLost(createInitialState(0))
     state.meta.highestSectorEver = 40
-    state.combat.highestSector = 40
     render(<SystemsTab state={state} onManage={() => undefined} />)
     expect(screen.getByRole('heading', { name: 'Systems' })).toBeTruthy()
     expect(screen.getByText('Worker Drones')).toBeTruthy()

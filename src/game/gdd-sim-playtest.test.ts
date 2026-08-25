@@ -65,7 +65,7 @@ describe('GDD Phase 9 simulator + playtest', () => {
   it('keeps Act 1 targets on GDD beats and drops Echo', () => {
     const ids = ACT1_TARGETS.map((t) => t.id)
     expect(ids).toEqual(
-      expect.arrayContaining(['first-wave', 'foundry-unlock', 'first-rebuild', 'process-unlock', 'w300']),
+      expect.arrayContaining(['first-wave', 'foundry-unlock', 'first-rebuild', 'process-unlock', 'w1000']),
     )
     expect(ids).not.toContain('echo-unlock')
     expect(GDD_WARNING_CODES).toEqual(
@@ -199,7 +199,7 @@ describe('GDD Phase 9 simulator + playtest', () => {
     expect(script).toMatch(/\[x\] First Rebuild/)
     expect(script).toMatch(/\[x\] One Furnace push/)
     expect(script).toMatch(/\[x\] One Challenge/)
-    expect(script).toMatch(/\[ \] W300 climax/)
+    expect(script).toMatch(/\[ \] W1000 finale/)
     expect(telemetry).toMatch(/LAST SORTIE/)
     expect(telemetry).toMatch(/Seed: 17/)
     expect(telemetry).toMatch(/Start Best: W4/)

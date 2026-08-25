@@ -33,7 +33,6 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
 
     seedTasks(fresh)
     fresh.meta.highestSectorEver = CAPITAL_UNLOCK_SECTOR
-    fresh.combat.highestSector = CAPITAL_UNLOCK_SECTOR
     expect(taskListComplete(fresh)).toBe(true)
     expect(isSystemUnlocked(fresh, 'capital')).toBe(false)
 
@@ -69,10 +68,8 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     let s = createInitialState(0)
     seedTasks(s)
     s.meta.highestSectorEver = 75
-    s.combat.highestSector = 75
     s.resources.salvage = 5000
     s.resources.heat = 800
-    s.combat.sector = 75
     s.combat.docked = true
     s.shipyard.moduleLevels['pulse-cannon'] = 8
     const dmg0 = computeShipStats(s).damage
@@ -93,8 +90,6 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     let s = createInitialState(0)
     seedTasks(s)
     s.meta.highestSectorEver = 80
-    s.combat.highestSector = 80
-    s.combat.sector = 80
     s.combat.docked = true
     s.capital.ranks.broadside = 3
     s.shipyard.moduleLevels['pulse-cannon'] = 8

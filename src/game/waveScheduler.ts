@@ -3,6 +3,7 @@
 import type { CombatUnit, GameState, WavePackageKind, WavePackageState } from './types'
 import { encounterForWave, revealCodexFamilies, syncHullAggregates } from './combat'
 import { resolveBossEncounter } from './bossProvider'
+import { aiDoctrinesActive } from './catalog'
 import {
   battlefieldClearForBoss,
   beginBossHold,
@@ -115,7 +116,9 @@ function payWaveSecureReward(state: GameState, pkg: WavePackageState, hooks: Wav
   pkg.secured = true
   const salvageBonus = salvageWaveBonus(state)
   if (salvageBonus > 0) state.resources.salvage += salvageBonus
-  const drip = Math.max(1, Math.floor(1 + Math.floor(pkg.wave / 40)))
+  let drip = Math.max(1, 5 + Math.floor(pkg.wave / 5))
+  if (aiDoctrinesActive(state, 'scavenger')) drip *= 1.3
+  drip = Math.max(1, Math.floor(drip))
   state.resources.scrap += drip
   if (pkg.kind === 'boss') {
     grantSignalCoreDrop(state, 'boss')

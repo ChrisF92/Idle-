@@ -27,6 +27,8 @@ Nothing is despawned, weakened, or auto-killed to relieve pressure.
 
 Closing or reloading freezes live combat. Offline elapsed time advances combat by **0 seconds**. The save schema (`SAVE_VERSION` 42) stores Wave/package/pending state, sim clock, RNG, Hive hull/shield, Core orbit pose, weapon cooldowns, projectiles/beams, and Boss-boundary phase.
 
+The simulation clock uses a fixed 1/30s step. `simTime` advances **before** each combat step so reinforcement, cooldowns, and movement all observe the same timestamp. `simulationRate()` is the single future Time Compression hook (PR3); PR1 keeps it at 1×.
+
 Autosave is interval + hide/unload, not every render frame. Old saves with a different version are discarded (no combat migration).
 
 ## Boss provider (PR7)

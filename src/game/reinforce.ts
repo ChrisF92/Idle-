@@ -1,4 +1,4 @@
-/** Reinforce — higher prestige revealed by clearing the Wave 300 climax (GDD §164). */
+/** Reinforce — higher prestige revealed by clearing the Wave 1000 finale. */
 
 import type { GameState } from './types'
 import { ACT1_CADENCE } from './cadence'

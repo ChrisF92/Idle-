@@ -63,7 +63,6 @@ describe('Act 1 Process depth', () => {
     early.resources.aiPoints = 80
     expect(canBuyProcessNode(early, 'smart-smelt').ok).toBe(false)
     early.meta.highestSectorEver = 42
-    early.combat.highestSector = 42
     early.prestige.prestigeCount = 2
     early.research.unlocked.push('basic-optics')
     expect(canBuyProcessNode(early, 'smart-smelt').ok).toBe(true)
@@ -71,7 +70,6 @@ describe('Act 1 Process depth', () => {
     const furnace = createInitialState(0)
     furnace.meta.aiUnlocked = true
     furnace.meta.highestSectorEver = 68
-    furnace.combat.highestSector = 68
     furnace.prestige.prestigeCount = 2
     furnace.research.unlocked.push('basic-optics')
     furnace.resources.aiPoints = 80
@@ -84,7 +82,6 @@ describe('Act 1 Process depth', () => {
   it('Smart Smelt fills an empty smelter without starving Pulse', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 3
-    s.combat.highestSector = 3
     s.process.purchased = ['smart-smelt']
     s.resources.salvage = 4
     s.foundry.slots[0] = { recipeId: null, progress: 0, paid: false }
@@ -105,7 +102,6 @@ describe('Act 1 Process depth', () => {
   it('Print Press assembles a complete Core print', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 42
-    s.combat.highestSector = 42
     s.prestige.prestigeCount = 2
     s.research.unlocked.push('basic-optics')
     s.process.purchased = ['smart-smelt', 'print-assemble']
@@ -134,16 +130,12 @@ describe('Act 1 Process depth', () => {
   it('Hold ranks and Foundry Hold raise salvage', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 6
-    s.combat.highestSector = 6
-    s.combat.sector = 6
     const base = s.resources.salvage
     grantEnemyKillRewards(s, enemy())
     const plain = s.resources.salvage - base
 
     const buffed = createInitialState(0)
     buffed.meta.highestSectorEver = 6
-    buffed.combat.highestSector = 6
-    buffed.combat.sector = 6
     buffed.furnace.wanted.recovery = 1
     buffed.furnace.active.recovery = 1
     buffed.foundry.upgrades['fp-salvage'] = 2
@@ -157,7 +149,6 @@ describe('Act 1 Process depth', () => {
   it('Brace Pin unlocks at sector 6 after Slag Ingot 4', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 6
-    s.combat.highestSector = 6
     expect(isFoundryRecipeUnlocked(s, 'brace-pin')).toBe(false)
     s.foundry.recipeLevels['slag-ingot'] = 4
     expect(isFoundryRecipeUnlocked(s, 'brace-pin')).toBe(true)

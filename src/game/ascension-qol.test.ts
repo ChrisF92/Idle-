@@ -31,7 +31,6 @@ import { advanceSeconds, computeResourceRates } from './tick'
 describe('onboarding survives soft resets', () => {
   it('retires starter guides after prestige', () => {
     let state = createInitialState(0)
-    state.combat.sector = 12
     state = performPrestige(state, 1000)
     for (const id of STARTER_GUIDE_IDS) {
       expect(state.meta.seenOnboarding).toContain(id)
@@ -44,7 +43,6 @@ describe('onboarding survives soft resets', () => {
   it('retires the full guide catalog after ascension', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
-    state.combat.sector = 30
     state.meta.highestSectorEver = 30
     state = performAscension(state, 1000)
     expect(state.meta.ascensionCount).toBe(1)
@@ -129,11 +127,9 @@ describe('ascension-entry challenges', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
     state.meta.highestSectorEver = 30
-    state.combat.sector = 12
     expect(isChallengeUnlocked(state, 'long-haul')).toBe(true)
     expect(canEnterChallenge(state, 'long-haul')).toBe(false)
 
-    state.combat.sector = 30
     expect(canEnterChallenge(state, 'long-haul')).toBe(true)
     const before = state.meta.ascensionCount
     const beforePrestige = state.prestige.prestigeCount
@@ -148,7 +144,6 @@ describe('ascension-entry challenges', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
     state.meta.highestSectorEver = 30
-    state.combat.sector = 30
     expect(isChallengeUnlocked(state, 'hollow-choir')).toBe(false)
     state.meta.ascensionCount = 1
     expect(canEnterChallenge(state, 'hollow-choir')).toBe(true)
@@ -171,7 +166,6 @@ describe('permanent research', () => {
     state = buyResearch(state, 'tactical-codex')
     state = buyResearch(state, 'basic-optics')
     state = buyResearch(state, 'alloy-smelting')
-    state.combat.sector = 12
     state = performPrestige(state, 1000)
     expect(state.research.unlocked).toEqual(
       expect.arrayContaining(['tactical-codex', 'basic-optics', 'alloy-smelting']),

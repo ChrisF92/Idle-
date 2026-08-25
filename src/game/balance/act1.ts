@@ -168,12 +168,12 @@ export const ACT1_TARGETS: BalanceTarget[] = [
     kind: 'milestone-time',
   },
   {
-    id: 'w300',
-    label: 'Wave 300',
+    id: 'w1000',
+    label: 'Wave 1000',
     min: 70 * 60 * 60,
     max: 100 * 60 * 60,
     warningPad: 20 * 60 * 60,
-    milestoneId: 'wave-300',
+    milestoneId: 'wave-1000',
     kind: 'milestone-time',
   },
 ]

@@ -116,7 +116,6 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
   it('banks Choir-ash into Heat and Weapons channels raise DPS', () => {
     let s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
-    s.combat.sector = 5
     const ash = grantFurnaceKillLoot(s, true)
     expect(ash).toBeGreaterThan(0)
     expect(s.resources.choirAsh).toBeGreaterThan(0)
@@ -137,7 +136,6 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
   it('feeds all three research branches and 4× the focused one', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 34
-    s.combat.sector = 34
     s = setResearchFocus(s, 'energy')
     grantHiveResearchKillXp(s, false)
     const energy = hiveResearchXp(s, 'energy')
@@ -167,7 +165,6 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
   it('Rebuild keeps shards, ash, Furnace upgrades, and research; wipes salvage and Heat', () => {
     let s = createInitialState(0)
-    s.combat.sector = 34
     s.meta.highestSectorEver = 34
     s.reliquary.owned['battle-chip'] = 3
     s = insertShardDirect(s, 'battle-chip')
@@ -194,7 +191,6 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
   it('kills grant ash and research together after Research opens', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 34
-    s.combat.sector = 34
     grantEnemyKillRewards(s, enemy(true))
     expect(s.resources.choirAsh).toBeGreaterThan(0)
     expect(hiveResearchXp(s, 'material')).toBeGreaterThan(0)

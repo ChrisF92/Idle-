@@ -31,11 +31,9 @@ describe('career simulator', () => {
     localStorage.setItem(SAVE_KEY, '{"guard":true}')
     const live = createInitialState(0)
     live.resources.salvage = 77
-    live.combat.sector = 3
     const beforeSave = localStorage.getItem(SAVE_KEY)
     const report = await runSimulation(idleConfig(4, live))
     expect(live.resources.salvage).toBe(77)
-    expect(live.combat.sector).toBe(3)
     expect(live.combat.docked).toBe(true)
     expect(localStorage.getItem(SAVE_KEY)).toBe(beforeSave)
     expect(report.runs[0]?.activeSeconds).toBeGreaterThan(0)
@@ -63,8 +61,6 @@ describe('career simulator', () => {
     const report = await runSimulation(idleConfig(20, simStart))
     const sim = report.runs[0]!
     expect(sim.stopReason).toMatch(/Active duration/i)
-    expect(real.combat.sector).toBeGreaterThanOrEqual(1)
-    expect(sim.highestSector).toBe(real.combat.highestSector)
     expect(real.resources.salvage).toBeCloseTo(
       sim.economy.find((e) => e.id === 'salvage')?.ending ?? real.resources.salvage,
       5,
@@ -95,9 +91,7 @@ describe('career simulator', () => {
     const run = report.runs[0]!
     expect(run.offlineSeconds).toBeGreaterThan(50 * 60)
     expect(run.highestSector).toBeLessThan(5)
-    expect(offline.state.combat.highestSector).toBe(control.combat.highestSector)
     // Offline catch-up does not simulate fights, so sector should not explode.
-    expect(run.highestSector).toBeLessThanOrEqual(offline.state.combat.highestSector + 1)
   })
 
   it('detects NaN in isolated state', () => {

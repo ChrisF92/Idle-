@@ -35,11 +35,14 @@ describe('GDD Dev Tools', () => {
     expect(isSystemUnlocked(s, 'specialists')).toBe(false)
   })
 
-  it('set-wave changes only the live fight', () => {
+  it('set-wave and force-boss-wave no longer jump the live Sortie', () => {
     let s = createInitialState(0)
     s = applyDevAction(s, { type: 'set-wave', wave: 47 })
-    expect(s.combat.wave).toBe(47)
-    expect(careerBestWave(s)).toBeLessThan(47)
+    expect(s.combat.wave).toBe(1)
+    expect(careerBestWave(s)).toBe(0)
+    s = applyDevAction(s, { type: 'force-boss-wave' })
+    expect(s.combat.wave).toBe(1)
+    expect(isBossWave(s.combat.wave)).toBe(false)
   })
 
   it('opens each GDD door from a wipe', () => {
@@ -70,14 +73,6 @@ describe('GDD Dev Tools', () => {
     const relics = applyDevAction(createInitialState(0), { type: 'prep-gdd-door', wave: ACT1_CADENCE.reliquary })
     expect(isSystemUnlocked(relics, 'reliquary')).toBe(true)
     expect(relics.reliquary.owned['battle-chip'] ?? 0).toBeGreaterThanOrEqual(1)
-  })
-
-  it('force-boss-wave uses every 10th Wave', () => {
-    let s = createInitialState(0)
-    s = applyDevAction(s, { type: 'set-wave', wave: 27 })
-    s = applyDevAction(s, { type: 'force-boss-wave' })
-    expect(s.combat.wave).toBe(30)
-    expect(isBossWave(s.combat.wave)).toBe(true)
   })
 
   it('picks any GDD Frame without the USI hull ladder', () => {
@@ -116,7 +111,7 @@ describe('GDD Dev Tools', () => {
     expect(isSystemUnlocked(s, 'echo')).toBe(false)
   })
 
-  it('W20 Foundry door does not grant Wave 300 or later systems', () => {
+  it('W20 Foundry door does not grant Wave 1000 or later systems', () => {
     let s = createInitialState(0)
     s = applyDevAction(s, { type: 'skip-guides' })
     s = applyDevAction(s, { type: 'prep-gdd-door', wave: ACT1_CADENCE.foundry })

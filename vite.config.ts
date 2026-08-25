@@ -23,7 +23,7 @@ export default defineConfig({
         name: 'Hiveworks',
         short_name: 'Hiveworks',
         description:
-          'Portrait incremental auto-combat. Launch Hive Sorties from Wave 1, spend Salvage and Scrap, Rebuild, and clear Wave 300.',
+          'Portrait incremental auto-combat. Launch Hive Sorties from Wave 1, spend Salvage and Scrap, Rebuild, and clear Wave 1000.',
         theme_color: '#12100e',
         background_color: '#12100e',
         display: 'standalone',

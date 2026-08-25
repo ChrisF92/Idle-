@@ -104,7 +104,6 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     s = startCombat(s)
     advanceSeconds(s, 45)
     expect(s.combat.docked).toBe(true)
-    expect(s.combat.frontierHold).toBe(false)
     expect(s.combat.lastSortie?.outcome).toBe('defeat')
   })
 
@@ -117,7 +116,6 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     s = startCombat(s)
     advanceSeconds(s, 50)
     expect(s.combat.docked).toBe(true)
-    expect(s.combat.frontierHold).toBe(false)
     expect(s.combat.lastSortie?.outcome).toBe('defeat')
   })
 

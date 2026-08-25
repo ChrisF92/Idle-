@@ -34,7 +34,6 @@ describe('GDD Rebuild', () => {
   it('opens from Dock at Wave 70 after three Sorties, not the live Wave', () => {
     const s = armRebuildDoor(createInitialState(0))
     s.combat.wave = 1
-    s.combat.sector = 1
     expect(cycleBestWave(s)).toBe(70)
     expect(canPrestige(s)).toBe(true)
   })

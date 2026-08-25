@@ -35,7 +35,6 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(s.combat.lastSortie.salvageGained).toBeGreaterThan(0)
     expect(s.combat.sortieMark).toBeNull()
     expect(s.combat.docked).toBe(true)
-    expect(s.combat.frontierHold).toBe(false)
     expect(s.resources.salvage).toBe(0)
   })
 
@@ -54,7 +53,6 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
   it('opens Choir Flux at 8 and a fourth smelter slot', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 8
-    s.combat.highestSector = 8
     expect(isFoundryRecipeUnlocked(s, 'choir-flux')).toBe(true)
     expect(isFoundryRecipeUnlocked(s, 'keel-strip')).toBe(false)
     expect(FOUNDRY_MAX_SLOTS).toBe(5)
@@ -87,7 +85,6 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
   it('Ash Bank does not auto-convert Choir-ash; converting Ash is a Sortie decision', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 28
-    s.combat.highestSector = 28
     s.resources.aiPoints = 20
     s.meta.aiUnlocked = true
     s = buyProcessNode(s, 'auto-bank')

@@ -40,7 +40,6 @@ import { exportSave, importSave } from './save'
 function protocolDock(sectorEver = 52) {
   const s = createInitialState(0)
   s.meta.highestSectorEver = sectorEver
-  s.combat.highestSector = sectorEver
   s.combat.docked = true
   s.combat.inFight = false
   return s
@@ -50,7 +49,6 @@ describe('Protocol formula rewards', () => {
   it('keeps save version and rank-0 formulas identical to the unranked game', () => {
     expect(SAVE_VERSION).toBe(35)
     const s = createInitialState(0)
-    s.combat.sector = 10
     expect(protocolModifiers(s)).toEqual(emptyProtocolModifiers())
     expect(protocolBonusMult(s, 'network')).toBe(1)
     expect(moduleUpgradeCost(1, 'pulse-cannon')).toBe(Math.ceil(3 * 1.21))
@@ -98,7 +96,6 @@ describe('Protocol formula rewards', () => {
   it('Dead Furnace reduces Heat drain and Quiet Guns eases weapon Core scaling', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 28
-    s.combat.highestSector = 28
     s.resources.heat = 8
     s = setFurnaceChannel(s, 'weapons', 1)
     const drain0 = furnaceChannelHeatCost(s, 'weapons')
@@ -120,7 +117,6 @@ describe('Protocol formula rewards', () => {
 
   it('Glass Ward and Dry Hold change rebuild Matter and salvage sector growth', () => {
     const s = createInitialState(0)
-    s.combat.sector = 50
     const matter0 = prestigeGainFor(s)
     s.protocols.ranks['glass-ward'] = 4
     expect(prestigeGainFor(s)).toBeGreaterThan(matter0)
@@ -154,11 +150,9 @@ describe('Protocol challenge runs', () => {
     expect(s.resources.salvage).toBe(0)
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.network.bars.strike.levels).toBe(0)
-    expect(s.combat.sector).toBe(1)
     expect(protocolMutes(s, 'network')).toBe(true)
     expect(networkStrikeMult(s)).toBe(1)
 
-    s.combat.highestSector = 6
     tryCompleteProtocol(s)
     expect(s.protocols.activeId).toBeNull()
     expect(protocolRank(s, 'mute-network')).toBe(1)
@@ -166,10 +160,8 @@ describe('Protocol challenge runs', () => {
     expect(protocolModifiers(s).networkExponentAdd).toBeCloseTo(0.02)
 
     s = enterProtocol(s, 'mute-network')
-    s.combat.highestSector = 6
     tryCompleteProtocol(s)
     expect(protocolRank(s, 'mute-network')).toBe(1)
-    s.combat.highestSector = 7
     tryCompleteProtocol(s)
     expect(protocolRank(s, 'mute-network')).toBe(2)
   })
@@ -197,8 +189,6 @@ describe('Protocol challenge runs', () => {
 
   it('abandon records best sector and Rebuild keeps ranks plus best sector', () => {
     let s = enterProtocol(protocolDock(), 'cold-foundry')
-    s.combat.highestSector = 5
-    s.combat.sector = 5
     s = abandonProtocol(s)
     expect(s.protocols.activeId).toBeNull()
     expect(protocolBestSector(s, 'cold-foundry')).toBe(5)
@@ -206,7 +196,6 @@ describe('Protocol challenge runs', () => {
 
     s.protocols.ranks['mute-network'] = 3
     s.protocols.bestSector['mute-network'] = 11
-    s.combat.sector = 4
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(protocolRank(s, 'mute-network')).toBe(3)
     expect(protocolBestSector(s, 'mute-network')).toBe(11)

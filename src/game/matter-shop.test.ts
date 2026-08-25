@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats, SAVE_VERSION } from './state'
 import { buyMatterShop, performPrestige } from './actions'
-import { enemyForSector, repairRatePerSecond } from './combat'
+import { encounterForWave, repairRatePerSecond } from './combat'
 import {
   canBuyMatterShop,
   droneCap,
@@ -75,12 +75,10 @@ describe('prestige matter shop', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 3
     state.meta.highestSectorEver = 34
-    state.combat.highestSector = 34
-    state.combat.sector = 34
     state = buyMatterShop(state, 'archive-spur')
     state.resources.data = 0
     state = startCombat(state)
-    const enemy = enemyForSector(state.combat.sector, 5)
+    const enemy = encounterForWave(state.combat.sector, 5)
     state = clearSector(state)
     expect(state.resources.data).toBe(enemy.dataReward + 2)
   })
@@ -100,7 +98,6 @@ describe('prestige matter shop', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 3
     state = buyMatterShop(state, 'matter-blade')
-    state.combat.sector = 10
     state = performPrestige(state, 8000)
     expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(1)
   })

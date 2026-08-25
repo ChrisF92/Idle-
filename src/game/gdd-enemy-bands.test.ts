@@ -4,11 +4,11 @@ import {
   GDD_ENEMY_BANDS,
   gddEnemyBandForWave,
   isBossWave,
-  powerSectorForWave,
+  isCommanderCandidateWave,
 } from './waves'
 
 describe('GDD enemy wave bands', () => {
-  it('maps Act 1 Waves onto the §12 introduction table', () => {
+  it('maps Act 1 Waves onto the introduction table without a W300 climax band', () => {
     expect(gddEnemyBandForWave(1)).toBe('basic')
     expect(gddEnemyBandForWave(9)).toBe('basic')
     expect(gddEnemyBandForWave(10)).toBe('swarm')
@@ -28,8 +28,8 @@ describe('GDD enemy wave bands', () => {
     expect(gddEnemyBandForWave(220)).toBe('elite')
     expect(gddEnemyBandForWave(259)).toBe('elite')
     expect(gddEnemyBandForWave(260)).toBe('complex')
-    expect(gddEnemyBandForWave(299)).toBe('complex')
-    expect(gddEnemyBandForWave(300)).toBe('climax')
+    expect(gddEnemyBandForWave(300)).toBe('complex')
+    expect(gddEnemyBandForWave(999)).toBe('complex')
     expect(GDD_ENEMY_BANDS.map((b) => b.id)).toEqual([
       'basic',
       'swarm',
@@ -41,7 +41,6 @@ describe('GDD enemy wave bands', () => {
       'mixed',
       'elite',
       'complex',
-      'climax',
     ])
   })
 
@@ -55,7 +54,7 @@ describe('GDD enemy wave bands', () => {
     expect(primaryFamilyForWave(141)).toBe('ethereal')
     expect(primaryFamilyForWave(221)).toBe('divine')
     expect(primaryFamilyForWave(10, true)).toBe('titan')
-    expect(primaryFamilyForWave(300)).toBe('titan')
+    expect(primaryFamilyForWave(50, true)).toBe('titan')
   })
 
   it('lets live Sortie encounters follow global Wave, not a 10-wave sector carousel', () => {
@@ -72,19 +71,19 @@ describe('GDD enemy wave bands', () => {
     expect(encounterForWave(41).units.some((u) => u.role === 'juggernaut')).toBe(true)
     expect(encounterForWave(71).units.some((u) => u.role === 'shield')).toBe(true)
     expect(encounterForWave(101).units.some((u) => u.role === 'sniper')).toBe(true)
-    expect(powerSectorForWave(11)).toBe(2)
     expect(encounterForWave(11).family).not.toBe('armored')
   })
 
-  it('keeps every 10th Wave as an authored Titan boss with a named mechanic', () => {
-    for (const wave of [10, 20, 40, 70, 100, 250]) {
-      expect(isBossWave(wave)).toBe(true)
-      expect(encounterForWave(wave).isBoss).toBe(true)
-      expect(encounterForWave(wave).family).toBe('titan')
-      expect(encounterForWave(wave).mechanicId).toBeTruthy()
+  it('keeps Commander candidates in continuous flow and Bosses on 50-Wave boundaries', () => {
+    for (const wave of [10, 20, 40]) {
+      expect(isCommanderCandidateWave(wave)).toBe(true)
+      expect(isBossWave(wave)).toBe(false)
+      expect(encounterForWave(wave).isBoss).toBe(false)
+      expect(encounterForWave(wave).tags).toContain('commander')
     }
-    expect(encounterForWave(300).isBoss).toBe(true)
-    expect(encounterForWave(300).family).toBe('titan')
-    expect(encounterForWave(300).mechanicId).toBe('climax-choir')
+    expect(isBossWave(50)).toBe(true)
+    expect(isBossWave(100)).toBe(true)
+    expect(isCommanderCandidateWave(50)).toBe(false)
+    expect(encounterForWave(50).isBoss).toBe(false)
   })
 })

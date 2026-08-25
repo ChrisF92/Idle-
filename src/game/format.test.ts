@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { formatCompact, formatLargeNumber, formatStat, setActiveNumberNotation } from './format'
 import { moduleStatPreviews, moduleUpgradeEffectLines } from './catalog'
-import { activeGuideStep, NETWORK_GUIDE_IDS, PRESTIGE_MIN_SECTOR, STARTER_GUIDE_IDS } from './progression'
+import { activeGuideStep, NETWORK_GUIDE_IDS, STARTER_GUIDE_IDS } from './progression'
 import { createInitialState } from './state'
 import { applyDevAction } from './dev'
+import { careerBestWave } from './waves'
 
 describe('formatStat', () => {
   it('avoids float noise at 2dp', () => {
@@ -67,18 +68,16 @@ describe('rebuild onboarding', () => {
   it('does not force a Rebuild overlay; hangar copy carries KEEP/RESET', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 4
-    state.combat.sector = PRESTIGE_MIN_SECTOR
     state.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
     expect(activeGuideStep(state, 'combat')?.id).not.toBe('guide-prestige-tab')
     expect(activeGuideStep(state, 'dock')?.id).not.toBe('guide-prestige-ready')
   })
 })
 describe('dev tools', () => {
-  it('jumps sector and grants resources', () => {
+  it('jumps career Best Wave and grants resources', () => {
     let state = createInitialState(0)
     state = applyDevAction(state, { type: 'jump-sector', sector: 8 })
-    expect(state.combat.sector).toBe(8)
-    expect(state.meta.highestSectorEver).toBeGreaterThanOrEqual(7)
+    expect(careerBestWave(state)).toBeGreaterThanOrEqual(8)
 
     state = applyDevAction(state, {
       type: 'add-resources',

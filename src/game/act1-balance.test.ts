@@ -10,7 +10,7 @@ import {
   ENEMY_DMG_EARLY,
   ENEMY_HULL_EARLY,
   salvageFromKill,
-  salvageSectorBase,
+  salvageWaveBase,
 } from './combat'
 import { moduleUpgradeCost } from './catalog'
 import { hiveResearchNodeCost, HIVE_RESEARCH_WORKER_ACCEL } from './hiveResearch'
@@ -56,15 +56,15 @@ describe('Act 1 authored formulas', () => {
     expect(ACT1_UNLOCKS.research).toBe(170)
     expect(ACT1_UNLOCKS.protocols).toBe(250)
     expect(ACT1_UNLOCKS.echo).toBe(275)
-    expect(ACT1_UNLOCKS.act1).toBe(300)
+    expect(ACT1_UNLOCKS.act1).toBe(1000)
     expect(moduleUpgradeCost(0, 'pulse-cannon')).toBe(3)
     expect(moduleUpgradeCost(0, 'plate-layer')).toBe(6)
     expect(salvageFromKill(1, false)).toBe(1)
     expect(salvageFromKill(1, true)).toBe(5)
-    expect(salvageFromKill(4, false)).toBe(4)
-    expect(salvageSectorBase(10)).toBeLessThan(10)
-    expect(salvageSectorBase(30)).toBeLessThan(30)
-    expect(salvageSectorBase(30)).toBeGreaterThan(8)
+    expect(salvageFromKill(4, false)).toBe(1)
+    expect(salvageWaveBase(10)).toBeGreaterThan(1)
+    expect(salvageWaveBase(30)).toBeGreaterThan(salvageWaveBase(10))
+    expect(salvageWaveBase(1)).toBe(1)
     expect(NETWORK_STARTING_DRONES).toBe(4)
     expect(NETWORK_FILL_COST).toBe(12)
     expect(hiveResearchNodeCost(0)).toBeGreaterThan(60)
@@ -86,7 +86,7 @@ describe('Act 1 authored formulas', () => {
         'workers-unlock',
         'first-rebuild',
         'process-unlock',
-        'w300',
+        'w1000',
       ]),
     )
     expect(ids).not.toContain('echo-unlock')
@@ -133,7 +133,6 @@ describe('Act 1 onboarding audit', () => {
   it('inspect sheets explain why damage, Network, Furnace, Rebuild, and Research change', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 8
-    s.combat.highestSector = 8
     s.furnace.wanted.weapons = 1
     s.furnace.active.weapons = 1
     const blob = inspectCopyCorpus(s).join('\n')
@@ -219,13 +218,12 @@ describe('Act 1 career simulations', () => {
   it('roundtrips a mid-Act-1 save without bumping SAVE_VERSION', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 10
-    s.combat.highestSector = 10
     s.hiveResearch.completed.energy = 2
     s.foundry.recipeLevels['slag-ingot'] = 4
     s.furnace.wanted.weapons = 1
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(41)
+    expect(SAVE_VERSION).toBe(42)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.recipeLevels['slag-ingot']).toBe(4)

@@ -58,8 +58,6 @@ const JARGON = /USI|ITRTG|analogue|black-bar/i
 function atResearch(sector = 34): GameState {
   const s = createInitialState(0)
   s.meta.highestSectorEver = sector
-  s.combat.highestSector = sector
-  s.combat.sector = sector
   return s
 }
 

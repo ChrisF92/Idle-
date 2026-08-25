@@ -24,8 +24,8 @@ export function consumeSimSteps(
   state.combat.simAccumulator = (state.combat.simAccumulator ?? 0) + realSeconds * rate
   let guard = 0
   while (state.combat.simAccumulator + 1e-12 >= SIM_FIXED_DT && guard < 4000) {
-    step(SIM_FIXED_DT)
     state.combat.simTime = (state.combat.simTime ?? 0) + SIM_FIXED_DT
+    step(SIM_FIXED_DT)
     state.combat.simAccumulator -= SIM_FIXED_DT
     guard += 1
   }

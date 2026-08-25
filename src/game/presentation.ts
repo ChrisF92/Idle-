@@ -303,7 +303,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:act1',
         category: 'CAMPAIGN',
         title: 'Act 1 complete',
-        body: 'Wave 300 is down. Reinforce is open on More.',
+        body: 'Wave 1000 is down. Reinforce is open on More.',
         tier: 'major',
         action: { label: 'OPEN', nav: { kind: 'tab', tab: 'reinforce' } },
       },

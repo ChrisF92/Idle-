@@ -17,7 +17,6 @@ describe('session toasts', () => {
   it('emits nothing when the current state is the baseline', () => {
     const state = markHullLost(createInitialState(0))
     state.meta.highestSectorEver = 8
-    state.combat.highestSector = 8
     const snap = captureToastSnapshot(state)
     expect(diffToasts(snap, snap, state)).toEqual([])
   })
@@ -74,7 +73,6 @@ describe('session toasts', () => {
   it('toasts a completed Core Print toward Fabrication', () => {
     const state = markHullLost(createInitialState(0))
     state.meta.highestSectorEver = 8
-    state.combat.highestSector = 8
     const prev = captureToastSnapshot(state)
     const print = captureToastSnapshot(state).completePrints[0]
     const farmable = captureToastSnapshot(state)

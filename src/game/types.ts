@@ -1197,13 +1197,13 @@ export type LaborProfile = 'balanced' | 'scrap' | 'data' | 'foundry-safe'
 
 /** Career / meta progress that survives prestige. */
 export interface MetaState {
-  /** Max 10-wave band ever cleared across the career. */
+  /** Leftover later-PR field. Combat progression uses `bestWave`. */
   highestSectorEver: number
   /** Highest Wave reached on any Sortie this career. */
   bestWave: number
-  /** Soft Act 1 climax reached (Wave 300). */
+  /** Act 1 finale reached (Wave 1000). */
   act1Cleared: boolean
-  /** First Wave 300 clear — pending Act 1 completion presentation. */
+  /** First Wave 1000 clear — pending Act 1 completion presentation. */
   act1FinalePending?: boolean
   /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
   ascensionCount: number

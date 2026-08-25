@@ -1,16 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  encounterForWave,
-  maybeAdvanceBossPhase,
-  simulateCombat,
-} from './combat'
-import {
-  bossMechanicForWave,
-  bossMechanicHasAdds,
-  bossMechanicHasAura,
-  bossMechanicHasShieldPhase,
-  bossMechanicTelegraph,
-} from './bossMechanics'
+import { encounterForWave } from './combat'
 import { createInitialState } from './state'
 import {
   packDps,
@@ -21,12 +10,10 @@ import {
 } from './threatBudget'
 import { startCombat } from './tick'
 
-function seededState(seed: number, wave: number) {
+function seededState(seed: number) {
   const s = createInitialState(0)
   s.lastTickAt = 1
   s.combat.sortieSeed = seed
-  s.combat.wave = wave
-  s.combat.docked = false
   return s
 }
 
@@ -59,68 +46,18 @@ describe('GDD threat budget and boss mechanics', () => {
   })
 
   it('stores the Sortie seed on launch for telemetry', () => {
-    const s = startCombat(seededState(42, 12))
+    const s = startCombat(seededState(42))
     expect(s.combat.sortieSeed).toBe(42)
     expect(s.combat.sortieMark?.sortieSeed).toBe(42)
+    expect(s.combat.waveReached).toBe(1)
     expect(s.combat.waveThreat?.seed).toBe(42)
-    expect(s.combat.waveThreat?.budget).toBe(threatBudgetForWave(12))
+    expect(s.combat.waveThreat?.budget).toBe(threatBudgetForWave(1))
   })
 
-  it('assigns a named mechanic to every 10th Wave and W300', () => {
-    expect(bossMechanicForWave(10)).toBe('telegraph-slam')
-    expect(bossMechanicForWave(20)).toBe('add-spawn')
-    expect(bossMechanicForWave(30)).toBe('shield-phase')
-    expect(bossMechanicForWave(40)).toBe('support-aura')
-    expect(bossMechanicForWave(50)).toBe('telegraph-slam')
-    expect(bossMechanicForWave(300)).toBe('climax-choir')
-    expect(bossMechanicForWave(11)).toBeNull()
-
-    const slam = encounterForWave(10)
-    expect(slam.isBoss).toBe(true)
-    expect(slam.mechanicId).toBe('telegraph-slam')
-    const boss = slam.units.find((u) => u.isBoss)!
-    expect(boss.weapons[0]?.telegraphDuration).toBeGreaterThanOrEqual(bossMechanicTelegraph('telegraph-slam'))
-
-    expect(encounterForWave(20).mechanicId).toBe('add-spawn')
-    expect(encounterForWave(30).mechanicId).toBe('shield-phase')
-    expect(encounterForWave(40).mechanicId).toBe('support-aura')
-    expect(encounterForWave(300).mechanicId).toBe('climax-choir')
-  })
-
-  it('spawns adds when an Add Spawn boss changes phase', () => {
-    expect(bossMechanicHasAdds('add-spawn')).toBe(true)
-    const s = startCombat(seededState(0, 20))
-    s.combat.sortieSeed = 0
-    expect(s.combat.bossMechanic).toBe('add-spawn')
-    const before = s.combat.enemyUnits.length
-    const boss = s.combat.enemyUnits.find((u) => u.isBoss)!
-    boss.hull = boss.hullMax * 0.5
-    maybeAdvanceBossPhase(s, () => undefined)
-    expect(s.combat.bossPhase).toBe(1)
-    expect(s.combat.enemyUnits.length).toBeGreaterThan(before)
-  })
-
-  it('raises a shield wall on Shield Phase', () => {
-    expect(bossMechanicHasShieldPhase('shield-phase')).toBe(true)
-    const s = startCombat(seededState(0, 30))
-    const boss = s.combat.enemyUnits.find((u) => u.isBoss)!
-    const shieldBefore = boss.shieldMax
-    boss.hull = boss.hullMax * 0.5
-    maybeAdvanceBossPhase(s, () => undefined)
-    expect(boss.shieldMax).toBeGreaterThan(shieldBefore)
-    expect(boss.shield).toBe(boss.shieldMax)
-  })
-
-  it('mends nearby thralls under Support Aura', () => {
-    expect(bossMechanicHasAura('support-aura')).toBe(true)
-    const s = startCombat(seededState(0, 40))
-    for (const unit of s.combat.playerUnits) {
-      for (const weapon of unit.weapons) weapon.cooldownLeft = 99
-    }
-    const add = s.combat.enemyUnits.find((u) => !u.isBoss)!
-    add.hull = add.hullMax * 0.4
-    const before = add.hull
-    simulateCombat(s, 1.2, () => undefined)
-    expect(add.hull).toBeGreaterThan(before)
+  it('does not treat every 10th Wave as an authored Boss mechanic', () => {
+    expect(encounterForWave(10).isBoss).toBe(false)
+    expect(encounterForWave(20).isBoss).toBe(false)
+    expect(encounterForWave(30).mechanicId).toBeUndefined()
+    expect(encounterForWave(300).mechanicId).toBeUndefined()
   })
 })

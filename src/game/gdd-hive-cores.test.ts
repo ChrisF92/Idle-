@@ -25,7 +25,9 @@ describe('GDD Hive and orbiting Cores', () => {
     expect(cores.every((core) => core.hull === 0 && core.hullMax === 0)).toBe(true)
     expect(cores.every((core) => core.weapons.length === 1)).toBe(true)
     expect(cores[0]!.coreModuleId).toBe('pulse-cannon')
-    expect(cores[0]!.x).toBe(coreOrbitRadius(coreVisualKind('pulse-cannon')))
+    expect(Math.hypot(cores[0]!.x, cores[0]!.y)).toBeCloseTo(
+      coreOrbitRadius(coreVisualKind('pulse-cannon')),
+    )
   })
 
   it('lets enemies damage only the Hive', () => {
@@ -42,6 +44,7 @@ describe('GDD Hive and orbiting Cores', () => {
 
     for (const enemy of state.combat.enemyUnits) {
       enemy.x = 40
+      enemy.y = 0
       enemy.engageRange = 40
       for (const weapon of enemy.weapons) {
         weapon.range = 80
@@ -62,6 +65,7 @@ describe('GDD Hive and orbiting Cores', () => {
     const core = state.combat.playerUnits.find((u) => u.isCore)!
     for (const enemy of state.combat.enemyUnits) {
       enemy.x = 70
+      enemy.y = 0
       enemy.engageRange = 200
     }
     for (const weapon of core.weapons) {
@@ -71,8 +75,8 @@ describe('GDD Hive and orbiting Cores', () => {
     simulateCombat(state, 1 / 60, () => {})
     const shot = state.combat.projectiles.find((p) => p.side === 'player')
     expect(shot?.fromId).toBe(core.id)
-    expect(shot?.originX).toBeCloseTo(core.x)
-    expect(shot?.originX).not.toBeCloseTo(hive.x)
+    expect(Math.hypot(shot?.originX ?? 0, shot?.originY ?? 0)).toBeGreaterThan(10)
+    expect(shot?.originY).not.toBeCloseTo(hive.y)
     expect(shot?.weaponId).toMatch(/pulse-cannon-wpn-0/)
   })
 

@@ -56,7 +56,6 @@ describe('Signal Cores', () => {
     const b = makeSignalCoreInstance('kinetic-shard', 1)
     state.signalCores.inventory = [a, b]
     state.signalCores.equipped = { 'ward-0': a.uid }
-    state.combat.sector = 12
     state.meta.highestSectorEver = 8
 
     state = performPrestige(state, 1000)
@@ -68,7 +67,6 @@ describe('Signal Cores', () => {
     kept.signalCores.inventory = [c]
     kept.signalCores.equipped = { 'signal-0': c.uid }
     kept.meta.signalCoresCarryOver = true
-    kept.combat.sector = 12
     kept.meta.highestSectorEver = 8
     kept = performPrestige(kept, 2000)
     expect(kept.signalCores.inventory).toHaveLength(1)
@@ -94,7 +92,6 @@ describe('Signal Cores', () => {
     let state = createInitialState(0)
     state.prestige.prestigeCount = 3
     state.meta.act1Cleared = true
-    state.combat.sector = 30
     state.meta.highestSectorEver = 30
     const core = makeSignalCoreInstance('kinetic-shard', 1)
     state.signalCores.inventory = [core]
@@ -111,7 +108,6 @@ describe('Signal Cores', () => {
     const blocked = equipSignalCore(state, state.signalCores.inventory[0]!.uid, 'assault-0')
     expect(blocked.signalCores.equipped['assault-0']).toBeUndefined()
 
-    state.combat.highestSector = 30
     tryCompleteChallenge(state)
     expect(state.meta.signalCoresCarryOver).toBe(true)
     expect(state.prestige.activeChallengeId).toBeNull()

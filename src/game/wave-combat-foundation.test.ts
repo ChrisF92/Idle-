@@ -298,13 +298,14 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(pkg.secured).toBe(false)
     expect(livingEnemyCount(state)).toBeGreaterThan(0)
 
-    const scrap = state.resources.scrap
+    const scrapBefore = state.resources.scrap
     while (pkg.pendingCount > 0 || livingEnemyCount(state) > 0) {
       for (const unit of state.combat.enemyUnits) kill(state, unit)
       tickWaveScheduler(state, 0, silentHooks())
     }
     expect(pkg.rewardPaid).toBe(true)
     const scrapAfter = state.resources.scrap
+    expect(scrapAfter).toBeGreaterThan(scrapBefore)
     tickWaveScheduler(state, 0, silentHooks())
     expect(state.resources.scrap).toBe(scrapAfter)
     expect(pkg.rewardPaid).toBe(true)
@@ -441,8 +442,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(cores.length).toBeGreaterThan(0)
     for (const core of cores) {
       expect(Math.hypot(core.x, core.y)).toBeGreaterThan(10)
-      const def = getModule(core.coreModuleId ?? '')
-      expect(def?.role === 'weapon' || core.weapons.length > 0).toBe(true)
+      expect(core.weapons.length).toBeGreaterThan(0)
     }
   })
 })

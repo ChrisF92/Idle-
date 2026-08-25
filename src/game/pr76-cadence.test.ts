@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState, globalDamageMultiplier } from './state'
 import { ACT1_CADENCE, ECHO_MIN_PROTOCOL_RANKS, PROCESS_MIN_REBUILDS } from './cadence'
 import { isSystemUnlocked, PRESTIGE_MIN_SECTOR } from './progression'
-import { matterShopRankMultiplier, modulePrintSector } from './catalog'
-import { bandsClearedForWave } from './waves'
+import { matterShopRankMultiplier, modulePrintWave } from './catalog'
 import { atCareerWave } from './testHelpers'
 
 describe('GDD system cadence', () => {
@@ -37,9 +36,9 @@ describe('GDD system cadence', () => {
     expect(isSystemUnlocked(echo, 'echo')).toBe(false)
   })
 
-  it('keeps Core prints in ten-wave bands at or after Foundry', () => {
-    expect(modulePrintSector('flak-array')).toBeGreaterThanOrEqual(bandsClearedForWave(ACT1_CADENCE.foundry))
-    expect(modulePrintSector('heavy-lance')).toBeGreaterThanOrEqual(bandsClearedForWave(ACT1_CADENCE.foundry))
+  it('keeps Core prints on Wave doors at or after Foundry', () => {
+    expect(modulePrintWave('flak-array')).toBeGreaterThanOrEqual(ACT1_CADENCE.foundry)
+    expect(modulePrintWave('heavy-lance')).toBeGreaterThanOrEqual(ACT1_CADENCE.foundry)
   })
 })
 

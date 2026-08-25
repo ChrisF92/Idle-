@@ -48,9 +48,9 @@ describe('USI Core formulas', () => {
     expect(computeShipStats(state).shieldMax).toBe(35)
   })
 
-  it('maps USI laser projectile speed onto the lane (700 × 180/600)', () => {
-    expect(SPAWN_DISTANCE).toBe(180)
-    expect(PROJECTILE_SPEED).toBeCloseTo(210)
+  it('maps USI laser projectile speed onto the radial spawn radius (700 × 300/600)', () => {
+    expect(SPAWN_DISTANCE).toBe(300)
+    expect(PROJECTILE_SPEED).toBeCloseTo(350)
     expect(getModule('pulse-cannon')?.weapon?.range).toBeLessThan(SPAWN_DISTANCE)
   })
 
@@ -65,10 +65,10 @@ describe('USI Core formulas', () => {
     expect(kinetic.armorDamage).toBe(1)
   })
 
-  it('grants salvage per kill, S1 trash = 1 so the first Laser level costs 3 kills', () => {
+  it('grants salvage per kill, W1 trash = 1 so the first Laser level costs 3 kills', () => {
     expect(salvageFromKill(1, false)).toBe(1)
     expect(salvageFromKill(1, true)).toBe(5)
-    expect(salvageFromKill(4, false)).toBe(4)
+    expect(salvageFromKill(4, false)).toBe(1)
   })
 
   it('does not cap Cores at 12 — USI T1 runs into the 100s', () => {

@@ -14,7 +14,6 @@ describe('core attributes', () => {
   it('assigns workers to train-ballistics and time increases rank', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8
-    state.combat.highestSector = 5
     state.resources.data = 150
     state = buyResearch(state, 'core-training')
     state.base.workerDrones = 4
@@ -34,7 +33,6 @@ describe('core attributes', () => {
     state.core.ranks.ballistics = 12
     state.core.ranks.logistics = 5
     state.core.progress.ballistics = 0.4
-    state.combat.sector = 12
     state = performPrestige(state, 1000)
     expect(state.core.ranks.ballistics).toBe(0)
     expect(state.core.ranks.logistics).toBe(0)

@@ -330,7 +330,6 @@ describe('shell UX', () => {
   it('splits Foundry into Processing, Fabrication, Mastery, and Blueprints', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
     render(
       <FoundryTab
         state={state}
@@ -349,7 +348,6 @@ describe('shell UX', () => {
   it('opens Foundry blueprints when a print is focused', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
     render(
       <FoundryTab
         state={state}
@@ -365,7 +363,6 @@ describe('shell UX', () => {
   it('does not put Foundry craft controls on Sortie', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
     state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.4, paid: true }
     render(
       <CombatTab
@@ -380,7 +377,6 @@ describe('shell UX', () => {
   it('hides the Sortie craft strip when no smelter is running', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
     render(
       <CombatTab
         state={state}

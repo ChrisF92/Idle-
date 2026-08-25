@@ -53,8 +53,6 @@ describe('player guidance helpers', () => {
   it('lists accurate Rebuild keep/reset from unlocked systems', () => {
     const s = markHullLost(createInitialState(0))
     s.meta.highestSectorEver = 68
-    s.combat.highestSector = 68
-    s.combat.sector = 7
     s.meta.bestWave = 170
     s.combat.bestWave = 170
     const lists = rebuildConsequenceLists(s)
@@ -99,7 +97,6 @@ describe('player guidance helpers', () => {
     const s = markHullLost(createInitialState(0))
     s.meta.aiUnlocked = true
     s.meta.highestSectorEver = 42
-    s.combat.highestSector = 42
     s.prestige.prestigeCount = 2
     s.research.unlocked.push('basic-optics')
     s.meta.completedAchievements = ['first-blood']
