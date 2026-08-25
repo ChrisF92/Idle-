@@ -8,6 +8,7 @@ import {
   maybeHold,
   maybeRetryFrontier,
   maybeChooseDirective,
+  maybeExtractToWorkshop,
   shouldRebuild,
   skipGuides,
   tendFurnace,
@@ -25,6 +26,7 @@ export function spendProfileFor(id: SimulationStrategyId): SimulationSpendProfil
 
 function playSession(state: GameState, ctx: StrategyContext, mode: SimulationSpendProfile): GameState {
   let next = skipGuides(state)
+  next = maybeExtractToWorkshop(next, ctx)
   next = industryPass(next, ctx, mode)
   const rebuild = shouldRebuild(next, ctx)
   if (rebuild.yes) {

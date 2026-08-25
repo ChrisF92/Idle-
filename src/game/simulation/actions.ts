@@ -93,6 +93,7 @@ import {
   RUN_UPGRADES,
   nextRunUpgradeCost,
   visibleRunUpgrades,
+  workshopCost,
   workshopLevel,
   type RunUpgradeId,
 } from '../workshop'
@@ -123,6 +124,21 @@ export function ensureLaunched(state: GameState, ctx: StrategyContext): GameStat
     ctx.recordMeaningful('Launch')
     ctx.record('launch')
   }
+  return next
+}
+
+/** Economy-first extracts a dead wall to spend Scrap on Workshop instead of idling. */
+export function maybeExtractToWorkshop(state: GameState, ctx: StrategyContext): GameState {
+  if (state.combat.docked) return state
+  if (ctx.config.strategy !== 'economy-first') return state
+  const career = careerBestWave(state)
+  const wave = Math.max(1, state.combat.wave ?? 1)
+  if (career > 0 && wave < career * 0.9) return state
+  if (ctx.secondsSinceBestWaveGain < 12 * 60) return state
+  const wpCost = workshopCost(workshopLevel(state, 'weapon-power'))
+  if ((state.resources.scrap ?? 0) < wpCost) return state
+  const next = setDocked(state, true)
+  if (next !== state) ctx.recordMeaningful('Extract to Workshop')
   return next
 }
 
@@ -510,7 +526,9 @@ export function tendHiveResearch(
     salvage < pulseCost * 2 ? 'material' : 'energy'
   if (profile === 'offensive') want = 'observation'
   if (profile === 'defensive') want = 'energy'
-  if (profile === 'economy-first') want = 'material'
+  if (profile === 'economy-first') {
+    want = careerBestWave(state) >= ACT1_CADENCE.furnace ? 'energy' : 'material'
+  }
   if (profile === 'optimiser') {
     if (energy < 3) want = 'energy'
     else if (material < 3) want = 'material'
@@ -689,6 +707,13 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
     return { yes: false, reasons: [] }
   }
   if (furnaceReady && sinceRebuild < furnaceBankHold) {
+    return { yes: false, reasons: [] }
+  }
+  if (
+    furnaceReady &&
+    ctx.secondsSinceBestWaveGain < 12 * 3600 &&
+    (state.resources.scrap ?? 0) >= workshopCost(workshopLevel(state, 'weapon-power'))
+  ) {
     return { yes: false, reasons: [] }
   }
   if (furnaceOpen && furnaceBank >= 40 && ctx.secondsSinceHighestSectorGain < 50 * 60) {

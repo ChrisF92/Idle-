@@ -6,7 +6,7 @@ import { ASH_PER_HEAT, furnaceActiveLevel, furnaceLightCost } from './furnace'
 import { getHiveResearchNode } from './hiveResearch'
 import { createInitialState } from './state'
 import { defaultSimulationConfig } from './simulation/presets'
-import { tendFurnace, shouldRebuild } from './simulation/actions'
+import { tendFurnace, shouldRebuild, maybeExtractToWorkshop } from './simulation/actions'
 import { atCareerWave, markHullLost } from './testHelpers'
 import type { StrategyContext } from './simulation/types'
 import { workerJobCap } from './workers'
@@ -140,6 +140,7 @@ describe('Furnace banks Ash for a frontier push', () => {
     s.prestige.prestigeCount = 6
     s.prestige.cycle = { bestWave: 176, sorties: 20, scrapEarned: 8000 }
     s.resources.choirAsh = 500_000
+    s.resources.scrap = 0
     s.combat.consecutiveLosses = 0
     const decision = shouldRebuild(
       s,
@@ -225,6 +226,36 @@ describe('Furnace banks Ash for a frontier push', () => {
     s.resources.heat = 0
     s = tendFurnace(s, stubCtx({ secondsSinceHighestSectorGain: 40 * 60 }))
     expect(furnaceActiveLevel(s, 'weapons')).toBeGreaterThanOrEqual(2)
+  })
+
+  it('extracts Economy-first at the wall to spend Scrap on Workshop', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 176))
+    s.combat.docked = false
+    s.combat.wave = 176
+    s.resources.scrap = 50_000
+    const after = maybeExtractToWorkshop(
+      s,
+      stubCtx({
+        secondsSinceBestWaveGain: 15 * 60,
+        config: defaultSimulationConfig({ strategy: 'economy-first', stop: { type: 'wave', wave: 300 } }),
+      }),
+    )
+    expect(after.combat.docked).toBe(true)
+  })
+
+  it('does not extract Economy-first during reclaim', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 176))
+    s.combat.docked = false
+    s.combat.wave = 40
+    s.resources.scrap = 50_000
+    const after = maybeExtractToWorkshop(
+      s,
+      stubCtx({
+        secondsSinceBestWaveGain: 15 * 60,
+        config: defaultSimulationConfig({ strategy: 'economy-first', stop: { type: 'wave', wave: 300 } }),
+      }),
+    )
+    expect(after.combat.docked).toBe(false)
   })
 })
 
