@@ -160,7 +160,7 @@ async function runOneSeeded(
   const limitations: StrategyLimitation[] = [
     {
       system: 'Challenges',
-      note: 'Only the Optimiser profile enters Challenges. Casual and Balanced are the CI gates.',
+      note: 'Balanced and the other GDD profiles enter one Challenge after W250 when the cycle is healthy. They abandon if the card stalls.',
     },
     {
       system: 'Deferred systems',
@@ -290,7 +290,7 @@ async function runOneSeeded(
       break
     }
 
-    const progressKey = `${state.combat.highestSector}|${state.prestige.prestigeCount}|${Math.floor(state.resources.salvage)}|${Math.floor(state.resources.scrap)}|${Math.floor(state.resources.heat ?? 0)}|${state.base.workerDrones}`
+    const progressKey = `${reportedBestWave(state)}|${state.prestige.prestigeCount}|${Math.floor(state.resources.salvage)}|${Math.floor(state.resources.scrap)}|${Math.floor(state.resources.heat ?? 0)}|${Math.floor(state.resources.choirAsh ?? 0)}|${state.base.workerDrones}|${Math.floor(state.hiveResearch?.progress ?? 0)}`
     if (progressKey !== lastProgressKey) {
       lastProgressKey = progressKey
       lastProgressTime = activeSeconds
@@ -469,6 +469,7 @@ async function runOneSeeded(
     highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     prestigeMatterEarned: matterEarned,
+    act1Cleared: Boolean(state.meta.act1Cleared),
     milestones: metrics.milestones,
     sectors: [...metrics.sectors.values()].sort((a, b) => a.sector - b.sector),
     sorties: metrics.sorties,

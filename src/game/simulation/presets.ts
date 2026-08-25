@@ -118,7 +118,31 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
     'Balanced career through the Act 1 climax and Reinforce door.',
     'balanced',
     { type: 'wave', wave: 300 },
-    { maxCalendarSeconds: 21 * 24 * 3600, deadlockSeconds: 90 * 60 },
+    { maxCalendarSeconds: 14 * 24 * 3600, deadlockSeconds: 90 * 60, maxIterations: 4_000_000 },
+  ),
+  preset(
+    'offensive-wave-300',
+    'Offensive → Wave 300',
+    'Damage-heavy career through Choir Crown.',
+    'offensive',
+    { type: 'wave', wave: 300 },
+    { maxCalendarSeconds: 14 * 24 * 3600, deadlockSeconds: 90 * 60, maxIterations: 4_000_000 },
+  ),
+  preset(
+    'defensive-wave-300',
+    'Defensive → Wave 300',
+    'Survivability-heavy career through Choir Crown.',
+    'defensive',
+    { type: 'wave', wave: 300 },
+    { maxCalendarSeconds: 14 * 24 * 3600, deadlockSeconds: 90 * 60, maxIterations: 4_000_000 },
+  ),
+  preset(
+    'economy-first-wave-300',
+    'Economy First → Wave 300',
+    'ROI-first career through Choir Crown.',
+    'economy-first',
+    { type: 'wave', wave: 300 },
+    { maxCalendarSeconds: 14 * 24 * 3600, deadlockSeconds: 90 * 60, maxIterations: 4_000_000 },
   ),
   preset(
     'casual-1-day',
@@ -159,6 +183,23 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
 
 export function presetById(id: string): SimulationPreset | undefined {
   return SIMULATION_PRESETS.find((p) => p.id === id)
+}
+
+export function lateCareerConfig(
+  strategy: SimulationStrategyId,
+  stop: SimulationStop = { type: 'wave', wave: 300 },
+  seed = 1,
+): SimulationConfig {
+  return defaultSimulationConfig({
+    start: { type: 'fresh' },
+    strategy,
+    stop,
+    seed,
+    logging: 'milestones',
+    deadlockSeconds: 90 * 60,
+    maxIterations: 4_000_000,
+    maxCalendarSeconds: 14 * 24 * 3600,
+  })
 }
 
 export function stopLabel(stop: SimulationStop): string {

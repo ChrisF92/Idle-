@@ -375,7 +375,7 @@ export const STATIONS: StationDef[] = [
     description: 'Worker Drones haul debris into usable Scrap.',
     requiresSystem: 'base',
     rates: { scrap: 0.4 },
-    baseSlots: 20,
+    baseSlots: 24,
   },
   {
     id: 'sensor-net',
@@ -383,7 +383,7 @@ export const STATIONS: StationDef[] = [
     description: 'Worker Drones accelerate the active Research project.',
     requiresSystem: 'network',
     rates: {},
-    baseSlots: 16,
+    baseSlots: 20,
   },
   {
     id: 'alloy-foundry',
@@ -391,7 +391,7 @@ export const STATIONS: StationDef[] = [
     description: 'Workers speed Foundry Processing.',
     requiresSystem: 'foundry',
     rates: {},
-    baseSlots: 12,
+    baseSlots: 16,
   },
   {
     id: 'drone-fab',
@@ -400,7 +400,7 @@ export const STATIONS: StationDef[] = [
     requiresSystem: 'foundry',
     rates: {},
     manufactureBonusPerDrone: 0.35,
-    baseSlots: 10,
+    baseSlots: 12,
   },
   {
     id: 'fab-bay',
@@ -409,7 +409,7 @@ export const STATIONS: StationDef[] = [
     requiresSystem: 'foundry',
     rates: {},
     kind: 'special',
-    baseSlots: 8,
+    baseSlots: 10,
   },
   {
     id: 'construction',
@@ -418,7 +418,7 @@ export const STATIONS: StationDef[] = [
     requiresSystem: 'yard',
     rates: {},
     kind: 'special',
-    baseSlots: 8,
+    baseSlots: 10,
   },
 ]
 

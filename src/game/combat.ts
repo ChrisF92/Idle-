@@ -501,8 +501,12 @@ function packPatternForBand(band: GddEnemyBandId, wave: number): 0 | 1 | 2 | 3 |
     case 'complex':
       return ((local - 1) % 5) as 0 | 1 | 2 | 3 | 4
     case 'shielded':
-    case 'support':
       return 0
+    case 'support': {
+      // Shield escorts, snipers, mixed support — several axes, not an HP cliff.
+      const supportPatterns = [0, 3, 1, 0, 3, 1, 2, 0, 3] as const
+      return supportPatterns[local - 1] ?? 0
+    }
     case 'sniper':
       return 1
     case 'climax':

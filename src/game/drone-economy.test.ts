@@ -55,14 +55,14 @@ describe('drone corps cap + black-bar saturation', () => {
   it('hard black-bars scrap field; extras do not raise income', () => {
     let state = atWorkers()
     state.base.workerDrones = 40
-    state = assignWorker(state, 'scrap-field', 20)
-    expect(stationBlackBarNeed(state, 'scrap-field')).toBe(20)
+    state = assignWorker(state, 'scrap-field', 24)
+    expect(stationBlackBarNeed(state, 'scrap-field')).toBe(24)
     expect(isStationBlackBarred(state, 'scrap-field')).toBe(true)
     const atBb = computeResourceRates(state).scrap ?? 0
 
     state = assignWorker(state, 'scrap-field', 10)
     expect(stationEffectiveDrones(state, 'scrap-field')).toBeCloseTo(
-      workerJobContribution(20, 'scrap-field') * dronePower(state),
+      workerJobContribution(24, 'scrap-field') * dronePower(state),
       5,
     )
     expect(computeResourceRates(state).scrap ?? 0).toBeCloseTo(atBb, 5)

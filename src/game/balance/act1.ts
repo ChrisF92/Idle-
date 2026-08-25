@@ -55,8 +55,8 @@ export const ACT1_UNLOCKS = {
  * Engaged-player windows. First hour is dense; later beats lengthen.
  * Walls should point at another system, not an 8-hour wait on the same shop.
  *
- * CI gates Casual / Balanced first-Rebuild and Furnace lighting.
- * Research / Process / W300 SKIP until a long run actually reaches them.
+ * CI gates Casual / Balanced first-Rebuild, Furnace lighting, and late Act 1
+ * Research / Process / W300 once a long run actually reaches them.
  */
 export const ACT1_TARGETS: BalanceTarget[] = [
   {
@@ -116,27 +116,27 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   {
     id: 'furnace-unlock',
     label: 'Furnace',
-    min: 3 * 60 * 60,
-    max: 18 * 60 * 60,
-    warningPad: 2 * 60 * 60,
+    min: 8 * 60 * 60,
+    max: 15 * 60 * 60,
+    warningPad: 3 * 60 * 60,
     milestoneId: 'furnace-unlock',
     kind: 'milestone-time',
   },
   {
     id: 'hive-research-unlock',
     label: 'Research',
-    min: 5 * 60 * 60,
-    max: 24 * 60 * 60,
-    warningPad: 3 * 60 * 60,
+    min: 12 * 60 * 60,
+    max: 25 * 60 * 60,
+    warningPad: 5 * 60 * 60,
     milestoneId: 'hive-research-unlock',
     kind: 'milestone-time',
   },
   {
     id: 'first-research-bt',
     label: 'First Research breakthrough',
-    min: 6 * 60 * 60,
-    max: 30 * 60 * 60,
-    warningPad: 4 * 60 * 60,
+    min: 13 * 60 * 60,
+    max: 32 * 60 * 60,
+    warningPad: 6 * 60 * 60,
     milestoneId: 'first-research-bt',
     kind: 'milestone-time',
   },
@@ -152,18 +152,18 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   {
     id: 'process-unlock',
     label: 'Process',
-    min: 24 * 60 * 60,
-    max: 36 * 60 * 60,
-    warningPad: 8 * 60 * 60,
+    min: 25 * 60 * 60,
+    max: 45 * 60 * 60,
+    warningPad: 10 * 60 * 60,
     milestoneId: 'process-unlock',
     kind: 'milestone-time',
   },
   {
     id: 'challenges-unlock',
     label: 'Challenges',
-    min: 10 * 60 * 60,
-    max: 3 * 24 * 60 * 60,
-    warningPad: 6 * 60 * 60,
+    min: 40 * 60 * 60,
+    max: 70 * 60 * 60,
+    warningPad: 15 * 60 * 60,
     milestoneId: 'unlock-protocols',
     kind: 'milestone-time',
   },

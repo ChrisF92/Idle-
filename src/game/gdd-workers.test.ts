@@ -73,7 +73,7 @@ describe('GDD Worker Drones', () => {
   it('hard-caps a job so extra drones do not raise output', () => {
     let s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     s.base.workerDrones = 40
-    s = assignWorker(s, 'scrap-field', 20)
+    s = assignWorker(s, 'scrap-field', 24)
     const atCap = stationEffectiveDrones(s, 'scrap-field')
     s = assignWorker(s, 'scrap-field', 10)
     expect(stationEffectiveDrones(s, 'scrap-field')).toBe(atCap)
@@ -115,16 +115,16 @@ describe('GDD Worker Drones', () => {
     expect(workerJobLabel('sensor-net')).toBe('Research')
     expect(workerJobLabel('alloy-foundry')).toBe('Processing')
     expect(workerJobLabel('fab-bay')).toBe('Fabrication')
-    expect(workerJobCap('construction')).toEqual({ min: 2, efficient: 4, hard: 8 })
-    expect(workerJobCapLine(2, 'construction')).toBe('2/4 efficient · cap 8')
+    expect(workerJobCap('construction')).toEqual({ min: 2, efficient: 4, hard: 10 })
+    expect(workerJobCapLine(2, 'construction')).toBe('2/4 efficient · cap 10')
 
     const s = atCareerWave(createInitialState(0), 120)
     s.base.workerDrones = 20
-    s.base.assignments['scrap-field'] = 7
-    const seven = stationEffectiveDrones(s, 'scrap-field')
-    s.base.assignments['scrap-field'] = 8
-    const eight = stationEffectiveDrones(s, 'scrap-field')
     s.base.assignments['scrap-field'] = 9
+    const seven = stationEffectiveDrones(s, 'scrap-field')
+    s.base.assignments['scrap-field'] = 10
+    const eight = stationEffectiveDrones(s, 'scrap-field')
+    s.base.assignments['scrap-field'] = 11
     const nine = stationEffectiveDrones(s, 'scrap-field')
     expect(nine - eight).toBeLessThan(eight - seven)
   })

@@ -22,6 +22,11 @@ import { ashYieldMult } from './workshop'
 
 export const FURNACE_UNLOCK_SECTOR = ACT1_CADENCE.furnace
 export const ASH_PER_HEAT = 10
+/** Trash kill Ash at sector 1 after Furnace opens. Bosses pay 4×. */
+export const FURNACE_ASH_KILL_BASE = 0.7
+/** Extra Ash per power-sector so W140–W170 can bank Weapons I without a grind farm. */
+export const FURNACE_ASH_KILL_PER_SECTOR = 0.12
+export const FURNACE_ASH_BOSS_MULT = 4
 export const FURNACE_CHANNEL_MAX = 3
 export const FURNACE_SLOT_CAP = 5
 
@@ -438,7 +443,9 @@ export function furnaceAshChannelMult(state: GameState): number {
 export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return 0
   const sector = Math.max(1, state.combat.sector)
-  const base = (0.5 + 0.1 * sector) * (isBoss ? 4 : 1)
+  const base =
+    (FURNACE_ASH_KILL_BASE + FURNACE_ASH_KILL_PER_SECTOR * sector) *
+    (isBoss ? FURNACE_ASH_BOSS_MULT : 1)
   return (
     base *
     reliquaryAshMult(state) *

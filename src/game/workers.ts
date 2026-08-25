@@ -30,12 +30,12 @@ export const WORKER_JOB_LABELS: Record<string, string> = {
 }
 
 export const WORKER_JOB_CAPS: Record<string, WorkerJobCap> = {
-  'scrap-field': { min: 1, efficient: 8, hard: 20 },
-  'sensor-net': { min: 2, efficient: 6, hard: 16 },
-  'alloy-foundry': { min: 2, efficient: 4, hard: 12 },
-  'drone-fab': { min: 2, efficient: 4, hard: 10 },
-  'fab-bay': { min: 2, efficient: 4, hard: 8 },
-  construction: { min: 2, efficient: 4, hard: 8 },
+  'scrap-field': { min: 1, efficient: 10, hard: 24 },
+  'sensor-net': { min: 2, efficient: 8, hard: 20 },
+  'alloy-foundry': { min: 2, efficient: 6, hard: 16 },
+  'drone-fab': { min: 2, efficient: 4, hard: 12 },
+  'fab-bay': { min: 2, efficient: 4, hard: 10 },
+  construction: { min: 2, efficient: 4, hard: 10 },
 }
 
 export function workerJobCap(jobId: string): WorkerJobCap {

@@ -371,6 +371,7 @@ export interface SimulationRunReport {
   highestWave: number
   rebuilds: number
   prestigeMatterEarned: number
+  act1Cleared: boolean
   milestones: MilestoneRecord[]
   sectors: SectorRecord[]
   sorties: SortieRecord[]

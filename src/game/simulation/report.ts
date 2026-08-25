@@ -19,6 +19,14 @@ export function formatConfigText(config: SimulationConfig, seed: number): string
   ].join('\n')
 }
 
+function timelineLine(run: SimulationRunReport, wave: number, id: string, label: string): string {
+  const m = run.milestones.find((row) => row.id === id)
+  if (!m) return `W${wave}  ${label.padEnd(14)} —`
+  const hours = m.activeSeconds / 3600
+  const shown = hours >= 10 ? `${Math.round(hours)}h` : `${hours.toFixed(hours >= 1 ? 0 : 1)}h`
+  return `W${wave}  ${label.padEnd(14)} ${shown}`
+}
+
 function milestoneLine(run: SimulationRunReport, id: string, fallback: string): string {
   const m = run.milestones.find((row) => row.id === id)
   return m ? `${fallback.padEnd(24)} ${formatSimDuration(m.activeSeconds)}` : `${fallback.padEnd(24)} —`
@@ -91,6 +99,16 @@ export function formatSummary(report: SimulationReport): string {
     milestoneLine(run, 'process-unlock', 'Process'),
     milestoneLine(run, 'unlock-protocols', 'Challenges'),
     milestoneLine(run, 'wave-300', 'Wave 300'),
+    '',
+    '----------------------------------------',
+    'LATE ACT 1 TIMELINE',
+    '----------------------------------------',
+    '',
+    timelineLine(run, 140, 'furnace-unlock', 'Furnace'),
+    timelineLine(run, 170, 'hive-research-unlock', 'Research'),
+    timelineLine(run, 210, 'process-unlock', 'Process'),
+    timelineLine(run, 250, 'unlock-protocols', 'Challenges'),
+    timelineLine(run, 300, 'wave-300', 'Choir Crown'),
     '',
   )
   if (run.sorties.length > 0) {

@@ -17,6 +17,7 @@ import {
   unlockModule,
   assignWorker,
   enterProtocol,
+  abandonProtocol,
   buyWorkshopUpgrade,
   buyRunUpgrade,
   buyCoreStartingLevel,
@@ -49,6 +50,7 @@ import {
 } from '../network'
 import {
   FOUNDRY_FACILITIES,
+  FOUNDRY_RECIPES,
   canStartFabrication,
   foundryFacilityCommitted,
   foundryRecipeLevel,
@@ -58,11 +60,13 @@ import {
 } from '../foundry'
 import {
   FURNACE_UPGRADES,
+  ASH_PER_HEAT,
   buyFurnaceUpgrade,
   canBuyFurnaceUpgrade,
   canSetFurnaceChannel,
   furnaceActiveLevel,
   furnaceChannelSlots,
+  furnaceLightCost,
   furnaceUpgradeRank,
   setFurnaceChannel,
 } from '../furnace'
@@ -82,6 +86,7 @@ import { ACT1_CADENCE } from '../cadence'
 import { careerBestWave } from '../waves'
 import { workerJobCap } from '../workers'
 import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
+import { cycleBestWave } from '../rebuild'
 import type { SimulationSpendProfile, StrategyContext } from './types'
 import {
   RUN_UPGRADES,
@@ -362,31 +367,47 @@ function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
       if (slagOn) return 'slag-ingot'
     }
   }
-  const processing: FoundryRecipeId[] = ['slag-ingot', 'filament', 'temper-bar', 'hardened-plate', 'relay']
-  const unlocked = processing.filter((id) => isFoundryRecipeUnlocked(state, id))
-  if (!unlocked.length) {
+  const early: FoundryRecipeId[] = ['slag-ingot', 'filament', 'temper-bar', 'hardened-plate', 'relay']
+  const processing: FoundryRecipeId[] =
+    careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
+      ? FOUNDRY_RECIPES.filter((r) => isFoundryRecipeUnlocked(state, r.id)).map((r) => r.id)
+      : early.filter((id) => isFoundryRecipeUnlocked(state, id))
+  if (!processing.length) {
     if (slagOn) return 'slag-ingot'
     if (filOn) return 'filament'
     return temperOn ? 'temper-bar' : null
   }
-  const belowSoft = unlocked.filter((id) => foundryRecipeLevel(state, id) < 45)
-  const belowHard = unlocked.filter((id) => foundryRecipeLevel(state, id) < 90)
+  const belowSoft = processing.filter((id) => foundryRecipeLevel(state, id) < 45)
+  const belowHard = processing.filter((id) => foundryRecipeLevel(state, id) < 90)
   const pool = belowSoft.length ? belowSoft : belowHard
-  if (!pool.length) return null
+  if (!pool.length) return processing[0] ?? null
   pool.sort((a, b) => foundryRecipeLevel(state, a) - foundryRecipeLevel(state, b))
   return pool[0]!
 }
 
 export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   if (!isSystemUnlocked(state, 'furnace')) return state
-  let next = convertAshToHeat(state)
+  if (state.combat.docked) return state
+  const weaponsCost = furnaceLightCost('weapons', 1)
+  const wardCost = furnaceLightCost('shielding', 1)
+  const ash = state.resources.choirAsh ?? 0
+  const heat = state.resources.heat ?? 0
+  const bankedHeat = heat + Math.floor(ash / ASH_PER_HEAT)
+  const career = careerBestWave(state)
+  const wave = Math.max(1, state.combat.wave ?? 1)
+  const losses = state.combat.consecutiveLosses ?? 0
+  const nearFrontier =
+    career <= 0 || wave >= Math.max(1, career - 20) || (losses >= 1 && wave >= career * 0.8)
+  // Bank Ash until a Weapons I light is affordable, then spend on a frontier push.
+  // Drip-converting dumps Heat on Dock and never breaks W160.
+  if (!nearFrontier && bankedHeat < weaponsCost + wardCost) return state
+  if (furnaceActiveLevel(state, 'weapons') > 0) return state
+  if (bankedHeat < weaponsCost) return state
+
+  let next = heat < weaponsCost ? convertAshToHeat(state) : state
   if (next !== state) ctx.record('ash-to-heat')
   const slots = furnaceChannelSlots(next)
-  const order: Array<Parameters<typeof setFurnaceChannel>[1]> = [
-    'weapons',
-    'shielding',
-    'recovery',
-  ]
+  const order: Array<Parameters<typeof setFurnaceChannel>[1]> = ['weapons', 'shielding', 'recovery']
   let lit = 0
   for (const id of order) {
     if (furnaceActiveLevel(next, id) > 0) lit += 1
@@ -400,7 +421,6 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
       ctx.recordMeaningful(`Furnace ${id} I`)
       next = after
       lit += 1
-      break
     }
   }
   for (const up of FURNACE_UPGRADES) {
@@ -429,6 +449,9 @@ export function tendHiveResearch(
   const observation = state.hiveResearch?.completed.observation ?? 0
   let want: 'material' | 'energy' | 'observation' =
     salvage < pulseCost * 2 ? 'material' : 'energy'
+  if (profile === 'offensive') want = 'observation'
+  if (profile === 'defensive') want = 'energy'
+  if (profile === 'economy-first') want = 'material'
   if (profile === 'optimiser') {
     if (energy < 3) want = 'energy'
     else if (material < 3) want = 'material'
@@ -546,16 +569,37 @@ export function maybeUnlockAndFit(state: GameState, ctx: StrategyContext): GameS
 
 export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: boolean; reasons: string[] } {
   if (!canPrestige(state)) return { yes: false, reasons: [] }
+  if (state.protocols?.activeId) return { yes: false, reasons: [] }
   const cfg = ctx.config.rebuild
   const stallNeed =
     (state.prestige.prestigeCount ?? 0) < 1
       ? cfg.stallSeconds
       : Math.max(cfg.stallSeconds * 3, 18 * 60)
+  const cycleBest = cycleBestWave(state)
+  const career = careerBestWave(state)
+  const reclaiming =
+    (state.prestige.prestigeCount ?? 0) >= 1 && career > 0 && cycleBest < career * 0.88
+  const ash = state.resources.choirAsh ?? 0
+  const heat = state.resources.heat ?? 0
+  const furnaceBank = ash + heat * ASH_PER_HEAT
+  const furnaceOpen = isSystemUnlocked(state, 'furnace')
+  const furnaceReady = furnaceOpen && furnaceBank >= furnaceLightCost('weapons', 1) * ASH_PER_HEAT
   if (
     ctx.lastRebuildActive != null &&
     ctx.activeSeconds - ctx.lastRebuildActive < stallNeed &&
-    state.combat.consecutiveLosses < ctx.config.rebuild.consecutiveLosses
+    state.combat.consecutiveLosses < cfg.consecutiveLosses
   ) {
+    return { yes: false, reasons: [] }
+  }
+  // Reclaim: do not prestige-reset a bump. Reach the previous best (or spend Furnace) first.
+  if (reclaiming && ctx.secondsSinceHighestSectorGain < 40 * 60 && state.combat.consecutiveLosses < 5) {
+    return { yes: false, reasons: [] }
+  }
+  // Banked Heat/Ash is the W160 lever. Rebuild dumps it.
+  if (furnaceReady && ctx.secondsSinceHighestSectorGain < 45 * 60 && state.combat.consecutiveLosses < 5) {
+    return { yes: false, reasons: [] }
+  }
+  if (furnaceOpen && furnaceBank >= 40 && furnaceBank < 80 && ctx.secondsSinceHighestSectorGain < 30 * 60) {
     return { yes: false, reasons: [] }
   }
   const reasons: string[] = []
@@ -627,12 +671,28 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
 
 export function tendProtocols(state: GameState, ctx: StrategyContext): GameState {
   if (!state.combat.docked) return state
-  if (state.protocols?.activeId) return state
-  if ((state.meta.lifetimeCoreRunBuys ?? 0) > 0) return state
-  const pick = PROTOCOLS.find((p) => canEnterProtocol(state, p.id).ok && protocolRank(state, p.id) < PROTOCOL_MAX_RANK)
+  if (state.protocols?.activeId) {
+    const losses = state.combat.consecutiveLosses ?? 0
+    if (losses >= 4 || ctx.secondsSinceHighestSectorGain >= 25 * 60) {
+      const after = abandonProtocol(state)
+      if (after !== state) ctx.recordMeaningful('Abandon Challenge')
+      return after
+    }
+    return state
+  }
+  if (!isSystemUnlocked(state, 'protocols')) return state
+  const cycleBest = cycleBestWave(state)
+  const career = careerBestWave(state)
+  if (career > 0 && cycleBest < career * 0.75) return state
+  const prefer = ['glass-ward', 'dry-hold', 'mute-network', 'empty-reliquary']
+  const pick =
+    prefer
+      .map((id) => PROTOCOLS.find((p) => p.id === id))
+      .find((p) => p && canEnterProtocol(state, p.id).ok && protocolRank(state, p.id) < 1) ??
+    PROTOCOLS.find((p) => canEnterProtocol(state, p.id).ok && protocolRank(state, p.id) < PROTOCOL_MAX_RANK)
   if (!pick) return state
   const after = enterProtocol(state, pick.id)
-  if (after !== state) ctx.recordMeaningful(`Protocol ${pick.name}`)
+  if (after !== state) ctx.recordMeaningful(`Challenge ${pick.name}`)
   return after
 }
 
@@ -819,6 +879,6 @@ export function industryPass(
   next = tendProcess(next, ctx)
   next = tendReliquary(next, ctx)
   next = spendRebuildMatter(next, ctx)
-  if (profile === 'optimiser') next = tendProtocols(next, ctx)
+  next = tendProtocols(next, ctx)
   return next
 }

@@ -8,6 +8,7 @@ import { ACT1_CADENCE } from './cadence'
 import { bandsClearedForWave } from './waves'
 import { isWorkerJob } from './workers'
 import { getFrame, grantUnlockedFrame } from './catalog'
+import { coreStartingLevelAtSlot } from './coreProgression'
 
 export const PROTOCOL_UNLOCK_SECTOR = ACT1_CADENCE.protocols
 export const CHALLENGE_UNLOCK_WAVE = ACT1_CADENCE.protocols
@@ -409,9 +410,11 @@ export function challengeFamiliarity(
 ): { ok: boolean; reason?: string } {
   switch (def.mute) {
     case 'weapons':
+      if (coreStartingLevelAtSlot(state, 0) > 0) return { ok: true }
       if (Object.values(state.shipyard.moduleLevels ?? {}).some((n) => n > 0)) return { ok: true }
       return { ok: false, reason: 'Raise a Core Level first' }
     case 'shields':
+      if (coreStartingLevelAtSlot(state, 1) > 0) return { ok: true }
       if ((state.shipyard.moduleLevels?.['plate-layer'] ?? 0) > 0) return { ok: true }
       return { ok: false, reason: 'Raise Plate Core Level first' }
     case 'network':
