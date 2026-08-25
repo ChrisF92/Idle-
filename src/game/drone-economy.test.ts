@@ -74,8 +74,8 @@ describe('drone corps cap + black-bar saturation', () => {
     state.resources.aiPoints = 20
     state = buyAiNode(state, 'drone-efficiency-1')
     expect(dronePower(state)).toBeCloseTo(1.35, 5)
-    expect(stationBlackBarNeed(state, 'scrap-field')).toBe(15)
-    state = assignWorker(state, 'scrap-field', 15)
+    expect(stationBlackBarNeed(state, 'scrap-field')).toBe(18)
+    state = assignWorker(state, 'scrap-field', 18)
     expect(stationThroughput(state, 'scrap-field')).toBeCloseTo(1, 5)
   })
 
@@ -93,10 +93,10 @@ describe('drone corps cap + black-bar saturation', () => {
     state = buyAiNode(state, 'auto-assign-workers')
 
     state = fillStationWorkers(state, 'scrap-field')
-    expect(state.base.assignments['scrap-field']).toBe(20)
+    expect(state.base.assignments['scrap-field']).toBe(24)
 
     state = autoBalanceWorkers(state, 'balanced')
-    expect(state.base.assignments['scrap-field'] ?? 0).toBe(20)
+    expect(state.base.assignments['scrap-field'] ?? 0).toBe(24)
     const trainingAssigned = Object.entries(state.base.assignments)
       .filter(([id]) => id.startsWith('train-'))
       .reduce((sum, [, n]) => sum + n, 0)
