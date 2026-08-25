@@ -414,7 +414,7 @@ export function inspectReliquarySlot(state: GameState, color: ReliquaryColor): I
   if (card) return card
   return {
     title: slot.name,
-    kicker: 'Reliquary slot',
+    kicker: 'Relic socket',
     stats: [
       {
         label: 'Status',
@@ -422,8 +422,8 @@ export function inspectReliquarySlot(state: GameState, color: ReliquaryColor): I
       },
     ],
     body: [
-      'Fit one shard of this colour. Extra copies of that shard charge resonance.',
-      'Shards persist when you Rebuild.',
+      'Fit one Relic of this type. Extra copies of that Relic raise authored I–III tiers.',
+      'Relics persist when you Rebuild.',
     ],
   }
 }
@@ -486,7 +486,7 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
       def.blurb,
       'One Research project at a time. Branches inside a discipline may reconnect.',
       'The project runs during Sorties, at Dock, and offline. Worker Drones speed it up.',
-      'Breakthroughs change a rule — targeting, a processor slot, a Frame, a Reliquary colour.',
+      'Breakthroughs change a rule — targeting, a processor slot, a Frame, a Relic colour.',
       next ? hiveResearchNodeEffectLine(next.node) : 'This discipline is complete.',
       'Nodes persist when you Rebuild.',
     ],
@@ -506,6 +506,7 @@ export function inspectCopyCorpus(state: GameState): string[] {
   push(inspectFurnaceOverview(state))
   for (const ch of furnacePushChannels()) push(inspectFurnaceChannel(state, ch.id))
   for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
+  for (const slot of RELIQUARY_SLOTS) push(inspectReliquarySlot(state, slot.color))
   for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))
   for (const b of HIVE_RESEARCH_BRANCHES) push(inspectResearchBranch(state, b.id))
   return lines

@@ -13,20 +13,26 @@ export const ACT1_CADENCE = {
   research: 170,
   process: 210,
   protocols: 250,
+  /** @deprecated Echo is retired. Key kept so old saves / tests still resolve. */
   echo: 275,
   mastery: 275,
   /** Deferred from Act 1. Frame / Core / Relic identity is enough. */
   specialists: 999,
-  /** Deferred from Act 1. Capital stays shut until this list exists. */
+  /** Deferred from Act 1. Not a live door. */
   tasks: 999,
-  capital: 300,
+  /** Deferred from Act 1. Not a live door. */
+  capital: 999,
   reinforce: 300,
-  /** Leftover Route B gate, kept in Wave space so it cannot fire in early Act 1. */
-  routeB: 240,
+  /** @deprecated Route B does not exist. Unused leftover. */
+  routeB: 999,
 } as const
 
 export const ACT1_FINAL_WAVE = 300
 
+/**
+ * @deprecated Leftover Network-bar wave table. Bars never fill and never
+ * multiply combat. Worker jobs own industrial bonuses. Not an Act 1 gate.
+ */
 export const NETWORK_CADENCE = {
   yield: 40,
   loom: 90,

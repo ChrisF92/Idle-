@@ -69,7 +69,7 @@ export function ReinforceTab({ state, onBack, onReinforce }: ReinforceTabProps) 
       {!open ? (
         <p className="muted">
           Clear Wave {REINFORCE_UNLOCK_SECTOR} to reveal Reinforce. Rebuild carries knowledge backward.
-          Reinforce reconstructs the Hive. No Capital and no Act 2 shop open here.
+          Reinforce reconstructs the Hive. No Act 2 shop opens here.
         </p>
       ) : (
         <div className="panel-scroll">

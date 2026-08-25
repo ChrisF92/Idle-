@@ -33,7 +33,7 @@ export function Act1FinaleOverlay({ open, onContinue, onOpenReinforce }: Act1Fin
         </p>
         <p>
           Reinforce is open. It is substantially larger than Rebuild: the starting architecture of the Hive
-          changes. Capital stays closed. No Act 2 shop opens here.
+          changes. No Act 2 shop opens here.
         </p>
         <div className="modal-actions">
           <button type="button" onClick={onContinue}>

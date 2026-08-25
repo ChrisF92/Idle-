@@ -538,7 +538,7 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.offFocusAdd) bits.push(`Idle research crawl +${Math.round(node.offFocusAdd * 100)}%`)
   if (node.researchQueueSlots) bits.push(`Research queue +${node.researchQueueSlots}`)
   if (node.protocolXp) bits.push(`Challenge research +${Math.round(node.protocolXp * 100)}%`)
-  if (node.unlockReliquary) bits.push(`Opens the ${node.unlockReliquary} Reliquary slot`)
+  if (node.unlockReliquary) bits.push(`Opens the ${node.unlockReliquary} Relic socket`)
   if (node.coreStartLevel) bits.push(`Cycle Core Level +${node.coreStartLevel}`)
   if (node.workshopStartRanks) bits.push(`Rebuild Workshop ranks +${node.workshopStartRanks}`)
   if (node.salvageOpsMult) bits.push('Salvage Operations haul at 2×')

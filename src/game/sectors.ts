@@ -15,7 +15,7 @@ export function normalizePushMode(
 
 export function pushModeLabel(mode: CombatPushMode): string {
   if (mode === 'hold-wave') return 'Hold wave'
-  if (mode === 'hold-sector') return 'Hold sector'
+  if (mode === 'hold-sector') return 'Hold band'
   return 'Advance'
 }
 
@@ -42,27 +42,32 @@ export function isSectorBossWave(sector: number, wave: number): boolean {
  */
 export const WAVES_PER_SECTOR = 5
 
-/** B-side is a mid-game route choice, after the first meta/industry layers are learned. */
+/** @deprecated Route B does not exist. Always locked. */
 export const ROUTE_B_UNLOCK_CLEARED = ACT1_CADENCE.routeB
 
-export function normalizeRoute(route: string | undefined | null): SectorRoute {
-  return route === 'B' ? 'B' : 'A'
+/** Act 1 has one Sortie path. Leftover `B` on old saves hydrates to `A`. */
+export function normalizeRoute(_route?: string | null): SectorRoute {
+  return 'A'
 }
 
-export function isRouteBUnlocked(clearedSector: number): boolean {
-  return clearedSector >= ROUTE_B_UNLOCK_CLEARED
+/** @deprecated Route B is retired. Always false. */
+export function isRouteBUnlocked(_clearedSector: number): boolean {
+  return false
 }
 
-export function routeDangerMult(route: SectorRoute): number {
-  return route === 'B' ? 1.28 : 1
+/** @deprecated Route multipliers are retired. Always 1. */
+export function routeDangerMult(_route?: SectorRoute): number {
+  return 1
 }
 
-export function routeSalvageMult(route: SectorRoute): number {
-  return route === 'B' ? 1.2 : 1
+/** @deprecated Route multipliers are retired. Always 1. */
+export function routeSalvageMult(_route?: SectorRoute): number {
+  return 1
 }
 
-export function routeResearchMult(route: SectorRoute): number {
-  return route === 'B' ? 1.15 : 1
+/** @deprecated Route multipliers are retired. Always 1. */
+export function routeResearchMult(_route?: SectorRoute): number {
+  return 1
 }
 
 /** Highest sector you can Launch into (cleared, or the next one). */

@@ -41,7 +41,7 @@ describe('blueprint part drop rates', () => {
     expect(Object.keys(locked.parts)).toHaveLength(0)
   })
 
-  it('matter Fragment Magnet and CP Loot Protocols buff drop chance', () => {
+  it('matter Fragment Magnet and CP Loot Sweep buff drop chance', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 4
     state = buyMatterShop(state, 'fragment-magnet')

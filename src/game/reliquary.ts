@@ -331,7 +331,7 @@ export const SHARDS: ShardDef[] = [
     id: 'warp-chip',
     name: 'Warp Chip',
     color: 'blue',
-    blurb: 'Echo-side Foundry pull. Wave 220.',
+    blurb: 'Observation Foundry pull. Wave 220.',
     requiresBestWave: 220,
     foundrySpeed: 0.1,
     salvage: 0.05,
@@ -588,7 +588,7 @@ export function canUpgradeRelic(
   if (spare + fittedCount < 2) return { ok: false, reason: 'Need a spare Relic' }
   const cost = relicUpgradeCost(relicTier(nextDef) === 3 ? 3 : 2)
   const have = Math.max(0, Math.floor(Number(state.foundry?.materials?.[cost.recipeId] ?? 0) || 0))
-  if (have < cost.amount) return { ok: false, reason: `Need ${cost.amount} Slag Ingots` }
+  if (have < cost.amount) return { ok: false, reason: `Need ${cost.amount} Recovered Stock` }
   return { ok: true, nextId: def.upgradesTo, cost }
 }
 

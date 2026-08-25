@@ -127,13 +127,13 @@ describe('PR75 combat pacing', () => {
     }
   })
 
-  it('keeps density pressure proportional across Route A and Route B', () => {
+  it('ignores leftover Route B so both paths share the same encounter', () => {
     const a = enemyForSector(9, 1, 'A')
     const b = enemyForSector(9, 1, 'B')
     const aHull = a.units.reduce((sum, u) => sum + u.hullMax, 0)
     const bHull = b.units.reduce((sum, u) => sum + u.hullMax, 0)
-    expect(bHull / aHull).toBeGreaterThan(1.15)
-    expect(bHull / aHull).toBeLessThan(1.45)
+    expect(bHull / aHull).toBe(1)
+    expect(b.units.length).toBe(a.units.length)
   })
 
   it('adds fractional-reward wing units instead of multiplying the kill economy', () => {

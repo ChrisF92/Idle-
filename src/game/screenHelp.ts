@@ -62,7 +62,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Relics',
     body: [
       'Purpose: deepen Core loadouts. Main decision: which Relic sits in each fitted Core.',
-      'Relic sockets open at Wave 110. Matching types only — Power, Optical, Ballistic, Shield, Industrial — until Core Mastery 5 or Wave 275 adds Universal. Install and remove freely while Docked. Relics persist on Rebuild. Spare copies plus Slag Ingots raise authored I–III tiers; hoarded extras do not resonate.',
+      'Relic sockets open at Wave 110. Matching types only — Power, Optical, Ballistic, Shield, Industrial — until Core Mastery 5 or Wave 275 adds Universal. Install and remove freely while Docked. Relics persist on Rebuild. Spare copies plus Recovered Stock raise authored I–III tiers; hoarded extras do not resonate.',
     ],
   },
   furnace: {
@@ -83,14 +83,14 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Infrastructure',
     body: [
       'Purpose: expand Foundry with Processors, Fabricators, Worker capacity, and specialist facilities.',
-      'Infrastructure lives under Foundry → Fabrication. There is no separate Yard or placement screen.',
+      'Infrastructure lives under Foundry → Fabrication.',
     ],
   },
   slag: {
     title: 'Matter',
     body: [
       'Purpose: spend Rebuild Matter on permanent ranks that make the next cycle stronger.',
-      'The Matter shop lives inside the Rebuild hangar. There is no separate Slag screen.',
+      'The Matter shop lives inside the Rebuild hangar.',
     ],
   },
   protocols: {
@@ -112,7 +112,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Reinforce',
     body: [
       'Higher-order reset after Rebuild. The current loop has gone as far as it can.',
-      'Revealed by clearing Wave 300. The screen prints YOU RESET, YOU KEEP, and WHAT CHANGES. Confirm reconstructs the Hive. No Capital and no Act 2 shop open here.',
+      'Revealed by clearing Wave 300. The screen prints YOU RESET, YOU KEEP, and WHAT CHANGES. Confirm reconstructs the Hive. No Act 2 shop opens here.',
     ],
   },
   logs: {

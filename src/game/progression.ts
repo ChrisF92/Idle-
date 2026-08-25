@@ -90,7 +90,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'echo',
     requiresBestWave: 999,
-    label: 'Echo Runs',
+    label: 'Retired run type',
     tip: 'Retired. Challenges cover alternate combat tests.',
   },
   {
@@ -102,20 +102,20 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'specialists',
     requiresBestWave: ACT1_CADENCE.specialists,
-    label: 'Specialists',
+    label: 'Deferred crew layer',
     tip: 'Deferred from Act 1. Frame, Core, and Relic identity is enough.',
   },
   {
     id: 'tasks',
     requiresBestWave: ACT1_CADENCE.tasks,
-    label: 'Task List',
-    tip: 'Deferred from Act 1. Capital stays shut until this list exists.',
+    label: 'Deferred checklist',
+    tip: 'Deferred from Act 1. Not a live door.',
   },
   {
     id: 'capital',
     requiresBestWave: ACT1_CADENCE.capital,
-    label: 'Capital',
-    tip: 'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
+    label: 'Deferred late layer',
+    tip: 'Deferred from Act 1. Not a live door.',
   },
   {
     id: 'reinforce',
@@ -387,14 +387,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'foundry-stock',
     name: 'Stock Plate',
-    description: 'Raise Slag Ingot to rank 4.',
+    description: 'Raise Recovered Stock to rank 4.',
     rewardAiPoints: 2,
     condition: { type: 'foundry-recipe-level', recipeId: 'slag-ingot', min: 4 },
   },
   {
     id: 'foundry-plate',
     name: 'Plate Line',
-    description: 'Raise Slag Ingot to rank 8.',
+    description: 'Raise Recovered Stock to rank 8.',
     rewardAiPoints: 3,
     condition: { type: 'foundry-recipe-level', recipeId: 'slag-ingot', min: 8 },
   },
@@ -425,13 +425,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     description: 'Complete any Challenge.',
     rewardAiPoints: 3,
     condition: { type: 'protocol-rank-sum', min: 1 },
-  },
-  {
-    id: 'echo-clear',
-    name: 'Echo Mapped',
-    description: 'Complete an Echo run.',
-    rewardAiPoints: 3,
-    condition: { type: 'echo-clear-sum', min: 1 },
   },
   {
     id: 'yard-plot',
@@ -774,8 +767,11 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   if (systemId === 'yard') {
     return `Reach Wave ${ACT1_CADENCE.foundryAdvanced}`
   }
-  if (systemId === 'capital') {
-    return `Reach Wave ${ACT1_CADENCE.capital} · finish the Task List`
+  if (systemId === 'echo') {
+    return null
+  }
+  if (systemId === 'capital' || systemId === 'specialists' || systemId === 'tasks') {
+    return 'Deferred from Act 1'
   }
   if (systemId === 'logs') {
     return null
@@ -788,9 +784,6 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   }
   if (systemId === 'codex') {
     return `Reach Wave ${ACT1_CADENCE.codex}`
-  }
-  if (systemId === 'echo') {
-    return null
   }
   if (systemId === 'reinforce') {
     return `Clear Wave ${ACT1_CADENCE.reinforce}`
@@ -1132,8 +1125,8 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-defense',
     kind: 'hint',
-    title: 'Hull pressure',
-    body: 'Incoming pressure is increasing. Hull and Shield upgrades can extend this Sortie.',
+    title: 'Hull dropping',
+    body: 'Incoming fire is increasing. Hull and Shield upgrades can extend this Sortie.',
     target: 'run-upgrade-hull',
     tab: 'combat',
     screen: 'combat',

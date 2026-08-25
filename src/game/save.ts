@@ -52,6 +52,7 @@ import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { normalizePushMode, normalizeRoute } from './sectors'
+import { waveForClearedBands } from './waves'
 import { migrateOnboardingState } from './playerGuidance'
 import { migrateLegacyCoreProgression } from './coreProgression'
 import { hydratePlaytest, noteSessionStart } from './playtest'
@@ -130,7 +131,11 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     enemyTags: combat.enemyTags ?? [],
     isBoss: combat.isBoss ?? false,
     highestSector: Math.max(0, combat.highestSector ?? 0),
-    bestWave: Math.max(0, Math.floor(Number(combat.bestWave ?? 0) || 0)),
+    bestWave: Math.max(
+      0,
+      Math.floor(Number(combat.bestWave ?? 0) || 0),
+      waveForClearedBands(Math.max(0, combat.highestSector ?? 0)),
+    ),
     runUpgrades: { ...(combat.runUpgrades ?? {}) },
     coreRunLevels: {},
     coreSalvageSpent: {},
@@ -637,7 +642,11 @@ function withMetaDefaults(
 
   return {
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
-    bestWave: Math.max(0, Math.floor(Number(meta?.bestWave ?? 0) || 0)),
+    bestWave: Math.max(
+      0,
+      Math.floor(Number(meta?.bestWave ?? 0) || 0),
+      waveForClearedBands(Math.max(meta?.highestSectorEver ?? 0, highestSector)),
+    ),
     act1Cleared: meta?.act1Cleared ?? false,
     act1FinalePending: meta?.act1FinalePending === true,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
@@ -774,7 +783,7 @@ function migrate(raw: unknown): GameState | null {
     prestige?: GameState['prestige'] & { completedChallenges?: string[] }
   }
 
-  if (parsed.version === SAVE_VERSION) {
+  if (parsed.version === SAVE_VERSION || parsed.version === 40) {
     const state = parsed as GameState
     const base = createInitialState()
     const combat = withCombatDefaults(state.combat)
@@ -786,6 +795,7 @@ function migrate(raw: unknown): GameState | null {
     )
     const hydrated: GameState = {
       ...state,
+      version: SAVE_VERSION,
       resources: withResourcesDefaults(state.resources, base.resources),
       combat,
       workshop: withWorkshopDefaults(state.workshop),
@@ -928,7 +938,7 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as { version?: number }
-    if (parsed.version !== SAVE_VERSION) {
+    if (parsed.version !== SAVE_VERSION && parsed.version !== 40) {
       localStorage.removeItem(SAVE_KEY)
       return null
     }
@@ -957,7 +967,7 @@ export function importSave(code: string): GameState | null {
   try {
     const json = decodeURIComponent(escape(atob(code.trim())))
     const parsed = JSON.parse(json) as { version?: number }
-    if (parsed.version !== SAVE_VERSION) return null
+    if (parsed.version !== SAVE_VERSION && parsed.version !== 40) return null
     return migrate(parsed)
   } catch {
     return null

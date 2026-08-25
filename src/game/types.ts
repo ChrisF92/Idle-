@@ -1069,7 +1069,7 @@ export interface CombatState {
    * Both modes auto-engage while not Paused.
    */
   campaign: boolean
-  /** A/B sector route from 9. Sticky for the sortie; change while docked. */
+  /** @deprecated Always `'A'`. Route B does not exist. */
   route: SectorRoute
   consecutiveLosses: number
   /** Stable Sortie RNG. 0 = canonical packs (tests). */
@@ -1112,6 +1112,7 @@ export interface CombatState {
   /** True when the pending beat is a tactical extract, not a hull kill. */
   defeatTactical: boolean
   /**
+   * @deprecated Frontier Hold is retired. Hydrated false; never entered.
    * Auto-entered after being repelled at an uncleared frontier.
    * Distinct from player Hold Sector / Hold Wave.
    */
@@ -1301,7 +1302,7 @@ export interface GameState {
   network: NetworkState
   /** Foundry processing, timed fabrication, and facilities. Recipes, stock, jobs, and facilities persist. */
   foundry: FoundryState
-  /** Shard slots (Reliquary). Inventory + fitted shards persist across Rebuild. */
+  /** @deprecated Shard slots leftover. Relics install on Cores. Inventory + fitted shards persist across Rebuild. */
   reliquary: ReliquaryState
   /** Furnace 2.0 — upgrades and wanted channels persist; Heat resets unless Ember Lock. */
   furnace: FurnaceState
@@ -1311,13 +1312,13 @@ export interface GameState {
   yard: YardState
   /** Challenges. Ranks persist; active run is Rebuild-cleared. */
   protocols: ProtocolState
-  /** Echo Runs (USI Warp Drive). Tree + points persist. */
+  /** @deprecated Echo Runs leftover. Tree + points persist but never apply. */
   echo: EchoState
   /** Process automation nodes. Persist across Rebuild. */
   process: ProcessState
-  /** Specialists (USI Crew). Ranks persist across Rebuild. */
+  /** @deprecated Specialists leftover. Ranks persist but never apply. */
   specialists: SpecialistState
-  /** Capital ranks (USI Capital). Persist across Rebuild. */
+  /** @deprecated Capital leftover. Ranks persist but never apply. */
   capital: CapitalState
   research: ResearchState
   ai: AiState

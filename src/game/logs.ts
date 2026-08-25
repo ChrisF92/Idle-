@@ -2,6 +2,7 @@
 
 import type { GameState } from './types'
 import { ACT1_CADENCE } from './cadence'
+import { careerBestWave } from './waves'
 
 export interface FoundryLogDef {
   id: string
@@ -11,7 +12,7 @@ export interface FoundryLogDef {
 }
 
 function career(state: GameState): number {
-  return Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
+  return careerBestWave(state)
 }
 
 export const FOUNDRY_LOGS: FoundryLogDef[] = [
@@ -72,7 +73,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'reliquary',
     title: 'Relic sockets',
-    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Optical, Ballistic, Shield, and Industrial until Mastery 5. Spare copies plus Slag Ingots raise I–III.',
+    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Optical, Ballistic, Shield, and Industrial until Mastery 5. Spare copies plus Recovered Stock raise I–III.',
     unlock: (s) => career(s) >= ACT1_CADENCE.reliquary,
   },
   {
@@ -108,7 +109,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'reinforce',
     title: 'The loop ceiling',
-    body: 'Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself. No Capital. No Act 2 shop.',
+    body: 'Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself. No Act 2 shop.',
     unlock: (s) => s.meta.act1Cleared || (s.meta.ascensionCount ?? 0) > 0,
   },
 ]

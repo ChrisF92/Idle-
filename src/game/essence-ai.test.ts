@@ -73,7 +73,7 @@ describe('AI doctrines', () => {
     state = startCombat(state)
     expect(state.combat.isBoss).toBe(true)
     const notes = computeFightDamage(state).matchupNotes.join(' ')
-    expect(notes).toContain('Boss Protocol')
+    expect(notes).toContain('Boss Doctrine')
   })
 
   it('scavenger increases scrap rewards', () => {

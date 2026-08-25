@@ -156,7 +156,7 @@ export function formatSummary(report: SimulationReport): string {
       `At ${snap.at}  active ${formatSimDuration(snap.activeSeconds)}  calendar ${formatSimDuration(snap.calendarSeconds)}`,
       `Wave ${snap.bestWave} (band ${snap.highestEver})  Pulse ${snap.pulse}  Plate ${snap.plate}`,
       `Workers ${snap.drones}/${snap.droneCap}`,
-      `Foundry recipes ${snap.foundryRecipes} FP ${snap.foundryPoints} furnace lit ${snap.furnaceLit}/${snap.furnaceSlots}`,
+      `Foundry recipes ${snap.foundryRecipes} furnace lit ${snap.furnaceLit}/${snap.furnaceSlots}`,
       `Research M${snap.research.material} E${snap.research.energy} O${snap.research.observation} BT ${snap.researchBreakthroughs}`,
       `Process earned ${snap.processEarned} bought ${snap.processPurchased} Rebuilds ${snap.rebuilds}`,
       `Damage extras: Furnace +${(c.furnaceDamage * 100).toFixed(0)}%  Relics +${(c.reliquaryDamage * 100).toFixed(0)}%  Research +${(c.researchDamage * 100).toFixed(0)}%  Rebuild momentum +${(c.rebuildMomentum * 100).toFixed(0)}%`,

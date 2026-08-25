@@ -76,7 +76,7 @@ function challengeHiveStats(state: GameState, def: ProtocolDef): { label: string
       lines.push({ label: 'Relics', value: 'Muted' })
       break
     case 'network':
-      lines.push({ label: 'Encounter pressure', value: 'Swarm' })
+      lines.push({ label: 'Encounter density', value: 'Swarm' })
       break
     default:
       break

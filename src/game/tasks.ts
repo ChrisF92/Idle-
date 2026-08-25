@@ -1,4 +1,4 @@
-/** Task List — checklist gate into Capital. Deferred from Act 1. */
+/** @deprecated Deferred Task List leftover. Never shown in Act 1 UI. */
 
 import type { GameState } from './types'
 import { ACT1_CADENCE } from './cadence'
@@ -46,14 +46,14 @@ export const TASKS: TaskDef[] = [
   },
   {
     id: 'echo',
-    name: 'Finish an Echo Run',
-    blurb: 'Clear any Echo gauntlet.',
+    name: 'Retired run type',
+    blurb: 'Deferred from Act 1.',
     done: (s) => Object.values(s.echo?.clears ?? {}).some((n) => (n ?? 0) > 0),
   },
   {
     id: 'specialist',
-    name: 'Print a Specialist',
-    blurb: 'Gunner, Warden, or Scavenger rank 1.',
+    name: 'Deferred crew rank',
+    blurb: 'Deferred from Act 1.',
     done: (s) => Object.values(s.specialists?.ranks ?? {}).some((n) => (n ?? 0) >= 1),
   },
 ]

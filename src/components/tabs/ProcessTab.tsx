@@ -852,7 +852,7 @@ export function ProcessTab({
               }
             />
             {!hasProcess(state, 'rule-builder') ? (
-              <EmptyState title="Buy First Condition" body="Rules use real Wave, Hull, stock, and idle values. No Threat or Pressure." />
+              <EmptyState title="Buy First Condition" body="Rules use real Wave, Hull, stock, and idle values." />
             ) : (
               (ruleProfile?.rules ?? []).map((rule) => {
                 const view = formatProcessRule(rule)
