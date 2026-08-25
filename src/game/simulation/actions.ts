@@ -592,15 +592,18 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   if (state.protocols?.activeId) return { yes: false, reasons: [] }
   const prestigeCount = state.prestige.prestigeCount ?? 0
   const cfg = ctx.config.rebuild
+  const econ = ctx.config.strategy === 'economy-first'
   const stallNeed =
     prestigeCount < 1
       ? cfg.stallSeconds
       : careerBestWave(state) >= ACT1_CADENCE.furnace
         ? Math.max(cfg.stallSeconds * 5, 40 * 60)
-        : Math.min(
-            75 * 60,
-            Math.max(cfg.stallSeconds * 3, 18 * 60) + Math.max(0, prestigeCount - 1) * 5 * 60,
-          )
+        : econ
+          ? Math.min(
+              75 * 60,
+              Math.max(cfg.stallSeconds * 3, 18 * 60) + Math.max(0, prestigeCount - 1) * 5 * 60,
+            )
+          : Math.max(cfg.stallSeconds * 3, 18 * 60)
   const cycleBest = cycleBestWave(state)
   const career = careerBestWave(state)
   const reclaiming =
@@ -763,7 +766,8 @@ export function spendSalvageOnRunUpgrades(
   const profile = resolveSpendProfile(mode)
   const preferDefense =
     state.combat.consecutiveLosses >= 1 ||
-    (state.combat.playerHullMax > 0 && state.combat.playerHull / state.combat.playerHullMax <= 0.55)
+    (state.combat.playerHullMax > 0 && state.combat.playerHull / state.combat.playerHullMax <= 0.55) ||
+    (profile === 'economy-first' && ctx.secondsSinceHighestSectorGain >= 6 * 60)
   const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
   let next = state
@@ -801,7 +805,8 @@ export function spendScrapOnCoreStarts(
   if (!state.combat.docked) return state
   if (!state.meta.hullLostOnce) return state
   const profile = resolveSpendProfile(mode)
-  const preferDefense = state.combat.consecutiveLosses >= 2
+  const preferDefense =
+    state.combat.consecutiveLosses >= 2 || (profile === 'economy-first' && ctx.secondsSinceHighestSectorGain >= 6 * 60)
   const order = coreSlotOrder(profile, preferDefense)
   const slots = equippedCoreSlots(state)
   if (slots.length === 0) return state
@@ -870,7 +875,9 @@ export function spendScrapOnWorkshop(
   if (!state.combat.docked) return state
   if (!state.meta.hullLostOnce) return state
   const profile = resolveSpendProfile(mode)
-  const preferDefense = state.combat.consecutiveLosses >= 2
+  const preferDefense =
+    state.combat.consecutiveLosses >= 2 ||
+    (profile === 'economy-first' && ctx.secondsSinceHighestSectorGain >= 6 * 60)
   const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   let next = state
