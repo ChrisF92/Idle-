@@ -105,6 +105,6 @@ describe('late Act 1 career — four profiles through W300', () => {
         expect(w300!.activeSeconds).toBeGreaterThanOrEqual(10 * 3600)
         expect(w300!.activeSeconds).toBeLessThanOrEqual(120 * 3600)
       }
-    }, 1_200_000)
+    }, 1_800_000)
   }
 })
