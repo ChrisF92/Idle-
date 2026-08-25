@@ -41,6 +41,7 @@ export interface MetricsState {
   lastHighest: number
   lastBestWave: number
   lastHighestAt: number
+  lastBestWaveAt: number
   lastMeaningfulAt: number
   lastRebuildActive: number | null
   previousHighestAtRebuild: number
@@ -93,6 +94,7 @@ export function createMetrics(state: GameState): MetricsState {
     lastHighest: state.combat.highestSector,
     lastBestWave: reportedBestWave(state),
     lastHighestAt: 0,
+    lastBestWaveAt: 0,
     lastMeaningfulAt: 0,
     lastRebuildActive: null,
     previousHighestAtRebuild: 0,
@@ -238,6 +240,7 @@ export function observeState(
       }
     }
     metrics.lastBestWave = bestWave
+    metrics.lastBestWaveAt = activeSeconds
   }
 
   if (state.meta.hullLostOnce && !prev.hullLostOnce) {

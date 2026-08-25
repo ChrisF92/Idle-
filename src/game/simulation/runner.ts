@@ -201,6 +201,7 @@ async function runOneSeeded(
     calendarSeconds,
     offlineSeconds,
     secondsSinceHighestSectorGain: activeSeconds - metrics.lastHighestAt,
+    secondsSinceBestWaveGain: activeSeconds - metrics.lastBestWaveAt,
     secondsSinceMeaningfulAction: activeSeconds - metrics.lastMeaningfulAt,
     recentSectorClearMedian: recentClearMedian(metrics),
     lastRebuildActive: metrics.lastRebuildActive,

@@ -456,6 +456,7 @@ export interface StrategyContext {
   calendarSeconds: number
   offlineSeconds: number
   secondsSinceHighestSectorGain: number
+  secondsSinceBestWaveGain: number
   secondsSinceMeaningfulAction: number
   recentSectorClearMedian: number | null
   lastRebuildActive: number | null

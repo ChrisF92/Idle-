@@ -20,6 +20,7 @@ function stubCtx(overrides: Partial<StrategyContext> = {}): StrategyContext {
     calendarSeconds: 12 * 3600,
     offlineSeconds: 0,
     secondsSinceHighestSectorGain: 10 * 60,
+    secondsSinceBestWaveGain: 10 * 60,
     secondsSinceMeaningfulAction: 30,
     recentSectorClearMedian: 120,
     lastRebuildActive: 8 * 3600,
@@ -115,6 +116,24 @@ describe('Furnace banks Ash for a frontier push', () => {
     expect(decision.yes).toBe(false)
   })
 
+  it('does not Rebuild a Furnace bank mid-band while Best Wave is still moving', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 176))
+    s.combat.docked = true
+    s.prestige.prestigeCount = 8
+    s.prestige.cycle = { bestWave: 176, sorties: 12, scrapEarned: 4000 }
+    s.resources.choirAsh = 80_000
+    const decision = shouldRebuild(
+      s,
+      stubCtx({
+        secondsSinceHighestSectorGain: 4 * 3600,
+        secondsSinceBestWaveGain: 20 * 60,
+        lastRebuildActive: 1000,
+        activeSeconds: 20 * 3600,
+      }),
+    )
+    expect(decision.yes).toBe(false)
+  })
+
   it('Rebuilds a spent Furnace wall after a three-hour stall so Matter can take over', () => {
     let s = markHullLost(atCareerWave(createInitialState(0), 176))
     s.combat.docked = true
@@ -126,6 +145,7 @@ describe('Furnace banks Ash for a frontier push', () => {
       s,
       stubCtx({
         secondsSinceHighestSectorGain: 3 * 3600 + 60,
+        secondsSinceBestWaveGain: 3 * 3600 + 60,
         lastRebuildActive: 1000,
         activeSeconds: 20 * 3600,
       }),
