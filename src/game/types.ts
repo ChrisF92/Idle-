@@ -794,8 +794,8 @@ export interface ShipLoadout {
   /** Fabricated copies of a Core type. Mastery is shared; loadout may use extras. */
   moduleCopies?: Record<string, number>
   /**
-   * Legacy Scrap Dock ranks. Migrated into Core Mastery; kept empty for old saves.
-   * @deprecated Use combat.coreRunLevels during a Sortie.
+   * Retired Core-definition levels retained only for save compatibility.
+   * @deprecated Physical Core Levels live in workshop.coreStarts by Core instance ID.
    */
   moduleLevels: Record<string, number>
   /**
@@ -1000,7 +1000,7 @@ export interface CombatState {
   bestWave: number
   /** Temporary Attack/Defense/Economy ranks bought with Salvage this Sortie. */
   runUpgrades: Record<string, number>
-  /** Retired Core Run Levels retained only for save compatibility. */
+  /** Retired per-Sortie Core level data retained only for save compatibility. */
   coreRunLevels?: Record<string, number>
   /** Retired Core spend ledger retained only for save compatibility. */
   coreSalvageSpent?: Record<string, number>
@@ -1186,7 +1186,7 @@ export interface MetaState {
    */
   starterCombatLesson: number
   /**
-   * First hull-loss dock. Salvage HUD, Cores spend, Network, and More stay
+   * First hull-loss dock. Salvage HUD, Dock Core spending, Network, and More stay
    * hidden until this is true so the opening fight can finish the Sortie tour.
    */
   hullLostOnce: boolean

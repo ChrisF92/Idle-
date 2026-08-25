@@ -264,8 +264,8 @@ export interface ModuleWeaponDef {
 }
 
 /**
- * Max Salvage levels per Core in a run.
- * USI T1 cores routinely go past 70–110 before a T2 swap; 12 was a Cosmic Idle cap.
+ * Retired per-Sortie Core level cap retained by compatibility helpers.
+ * Current physical Core Levels use CORE_START_LEVEL_CAP.
  */
 export const MAX_MODULE_LEVEL = 110
 
@@ -320,12 +320,12 @@ export interface ShipModuleDef {
   /** Used for DPS estimates when no weapon profile is present. */
   damageBonus: number
   hullBonus: number
-  /** Flat hull added per Salvage level. Omit to keep the old 8%/level curve. */
+  /** Flat hull added per Core Level. Omit to keep the old 8%/level curve. */
   hullBonusPerLevel?: number
   armorBonus?: number
   armorBonusPerLevel?: number
   shieldBonus?: number
-  /** Flat shield added per Salvage level (USI Continuous Generator: +5). */
+  /** Flat shield added per Core Level (historical USI Continuous Generator: +5). */
   shieldBonusPerLevel?: number
   /**
    * In-combat shield regen as a fraction of max shields per second
@@ -340,9 +340,9 @@ export interface ShipModuleDef {
   escorts?: number
   /** Extra salvage from kills while fitted (utility Cores). */
   salvageKillBonus?: number
-  /** USI Core salvage cost for level 0 → 1 (weapons 3, shields 6). */
+  /** Retired per-Sortie cost base retained by compatibility simulations. */
   upgradeBaseCost?: number
-  /** USI Core cost scaling per level (weapons 1.21, shields 1.2). */
+  /** Retired per-Sortie cost scaling retained by compatibility simulations. */
   upgradeCostScaling?: number
   unlockCost: ResourceCost
   requiresBestWave?: number
@@ -1792,8 +1792,8 @@ export function moduleLevel(
 }
 
 /**
- * Salvage cost to raise a Core from `level` → level+1.
- * USI: weapons 3 × 1.21^n, shields 6 × 1.2^n.
+ * Retired per-Sortie Core cost curve retained for compatibility simulations.
+ * Historical USI values: weapons 3 × 1.21^n, shields 6 × 1.2^n.
  */
 export function moduleUpgradeCost(level: number, moduleId?: string, scalingAdd = 0): number {
   const n = Math.max(0, level)

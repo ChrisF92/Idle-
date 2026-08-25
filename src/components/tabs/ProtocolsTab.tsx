@@ -179,7 +179,7 @@ export function ProtocolsTab({
               lists={{
                 gain: [protocolNextRewardText(state, pending.id)],
                 keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge ranks'],
-                reset: ['Salvage', 'Core levels', 'Current Sortie'],
+                reset: ['Salvage', 'Run upgrades', 'Current Sortie'],
                 change: [],
               }}
             />

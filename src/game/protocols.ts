@@ -77,7 +77,7 @@ export const PROTOCOLS: ProtocolDef[] = [
   {
     id: 'glass-ward',
     name: 'Glass Hive',
-    blurb: 'Reduced Hull. Completions ease Plate Salvage growth and Ward pay.',
+    blurb: 'Reduced Hull. Completions ease Plate Core Level cost growth and Ward pay.',
     restriction: 'Hull is halved. Plate, Ward, and other shield bonuses grant nothing.',
     disabledSystems: ['Hull integrity', 'Shields', 'Ward'],
     mute: 'shields',
@@ -86,33 +86,33 @@ export const PROTOCOLS: ProtocolDef[] = [
     firstGrant: { kind: 'relic', id: 'plate-chip', blurb: 'First clear seats a Plate Chip Relic.' },
     rewards: [
       { at: 1, hook: { kind: 'networkWardExponent', add: 0.02 }, blurb: 'Ward levels scale harder at every rank.' },
-      { at: 2, hook: { kind: 'shieldCostScaling', add: -0.01 }, blurb: 'Plate Salvage costs grow a little slower.' },
+      { at: 2, hook: { kind: 'shieldCostScaling', add: -0.01 }, blurb: 'Plate Core Level costs grow a little slower.' },
       { at: 3, hook: { kind: 'networkWardExponent', add: 0.015 }, blurb: 'Ward scaling again.' },
       { at: 4, hook: { kind: 'rebuildMatter', mult: 1.04 }, blurb: 'Rebuilds pay a little more Matter.' },
       { at: 5, hook: { kind: 'shieldCostScaling', add: -0.012 }, blurb: 'Milestone: Plate stays cheaper longer.' },
       { at: 6, hook: { kind: 'networkWardExponent', add: 0.015 }, blurb: 'Ward scaling again.' },
       { at: 7, hook: { kind: 'rebuildMatter', mult: 1.04 }, blurb: 'Rebuild Matter again.' },
-      { at: 8, hook: { kind: 'shieldCostScaling', add: -0.012 }, blurb: 'Capstone: high Plate ranks stay in reach.' },
+      { at: 8, hook: { kind: 'shieldCostScaling', add: -0.012 }, blurb: 'Capstone: high Plate Core Levels stay in reach.' },
     ],
   },
   {
     id: 'quiet-guns',
     name: 'Mono Core',
-    blurb: 'Weapon Cores sit silent. Completions ease Salvage cost growth on weapon Cores.',
+    blurb: 'Weapon Cores sit silent. Completions ease cost growth on weapon Core Levels.',
     restriction: 'Fitted weapon Cores deal no damage. The Frame Battery still fires.',
     disabledSystems: ['Weapon Cores'],
     mute: 'weapons',
     goalWave: 100,
     firstGrant: { kind: 'process', id: 'shop-readout', blurb: 'First clear unlocks Shop Readout in Process.' },
     rewards: [
-      { at: 1, hook: { kind: 'coreCostScaling', add: -0.01 }, blurb: 'Weapon Core Salvage costs grow a little slower.' },
+      { at: 1, hook: { kind: 'coreCostScaling', add: -0.01 }, blurb: 'Weapon Core Level costs grow a little slower.' },
       { at: 2, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon cost growth eases again.' },
       { at: 3, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon cost growth again.' },
       { at: 4, hook: { kind: 'researchCost', mult: 0.96 }, blurb: 'Research projects need a little less time.' },
       { at: 5, hook: { kind: 'coreCostScaling', add: -0.012 }, blurb: 'Milestone: Pulse and kin stay cheaper longer.' },
       { at: 6, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon cost growth again.' },
-      { at: 7, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon Salvage curve still bends.' },
-      { at: 8, hook: { kind: 'coreCostScaling', add: -0.012 }, blurb: 'Capstone: high Core ranks stay in reach.' },
+      { at: 7, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon Core Level cost curve still bends.' },
+      { at: 8, hook: { kind: 'coreCostScaling', add: -0.012 }, blurb: 'Capstone: high Core Levels stay in reach.' },
     ],
   },
   {
@@ -328,10 +328,10 @@ export function challengeFamiliarity(
   switch (def.mute) {
     case 'weapons':
       if (Object.values(state.shipyard.moduleLevels ?? {}).some((n) => n > 0)) return { ok: true }
-      return { ok: false, reason: 'Rank a Core first' }
+      return { ok: false, reason: 'Raise a Core Level first' }
     case 'shields':
       if ((state.shipyard.moduleLevels?.['plate-layer'] ?? 0) > 0) return { ok: true }
-      return { ok: false, reason: 'Rank Plate first' }
+      return { ok: false, reason: 'Raise Plate Core Level first' }
     case 'network':
       if (
         Object.entries(state.base.assignments ?? {}).some(([id, n]) => (n ?? 0) > 0 && isWorkerJob(id))

@@ -388,7 +388,7 @@ export function snapshotWorkshopCoreStarts(state: GameState): void {
   state.workshop.coreStarts = { ...(state.workshop.coreStarts ?? {}) }
 }
 
-/** After a Sortie, temporary global Salvage ranks and retired Core data clear. */
+/** After a Sortie, global Salvage upgrades and retired per-Sortie Core fields clear. */
 export function resetRunCoreLevels(state: GameState): void {
   state.shipyard.moduleLevels = {}
   state.combat.coreRunLevels = {}

@@ -70,7 +70,7 @@ describe('Dock Core Levels', () => {
     )
   })
 
-  it('ignores legacy Run Levels in combat power', () => {
+  it('ignores retired per-Sortie Core levels in combat power', () => {
     const s = live()
     const before = computeShipStats(s).damage
     s.combat.coreRunLevels = { '0': 5 }
@@ -192,8 +192,8 @@ describe('Core stat composition', () => {
   })
 })
 
-describe('legacy Core rank migration', () => {
-  it('converts leftover Scrap ranks into bounded Mastery', () => {
+describe('legacy Core-definition level migration', () => {
+  it('converts leftover Scrap levels into bounded Mastery', () => {
     const s = createInitialState(0)
     s.meta.coreProgressionMigrated = false
     s.shipyard.moduleLevels = { 'pulse-cannon': 12, 'plate-layer': 8 }

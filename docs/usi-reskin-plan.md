@@ -2,7 +2,7 @@
 
 > **SUPERSEDED.** This document is historical. Design authority is [`Hiveworks_Game_Design_Document_v1.0.md`](../Hiveworks_Game_Design_Document_v1.0.md). Implementation order is [`docs/release-implementation-plan.md`](release-implementation-plan.md).
 >
-> Sectors, Network combat bars, Echo, starting-wave select, and USI hull-ladder cadence are **removed or deferred** by the GDD. Do not implement from this file.
+> Sectors, Network combat bars, Echo, starting-wave select, the USI hull-ladder cadence, and Salvage-funded Core progression are **removed or deferred** by the GDD. Current Cores are stable physical instances with independent Scrap-funded Levels and Relic loadouts, shared type Mastery, and no Sortie Core purchases. Do not implement from this file.
 
 Working title: **Hiveworks** (package/PWA name stays `cosmic-idle` until a rename pass).
 

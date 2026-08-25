@@ -65,7 +65,7 @@ describe('player guidance helpers', () => {
     expect(lists.reset).toContain('Salvage')
   })
 
-  it('flags the first defeat until starter Cores are ranked', () => {
+  it('flags the first defeat until the starter Cores have been used', () => {
     const s = markHullLost(createInitialState(0))
     expect(isFirstDefeatReport(s)).toBe(true)
     s.shipyard.moduleLevels['pulse-cannon'] = 1
@@ -81,7 +81,8 @@ describe('player guidance helpers', () => {
     s.base.assignments = {}
     const hints = sortieNextHints(s)
     expect(hints.some((h) => /idle/i.test(h))).toBe(true)
-    expect(hints.some((h) => /Salvage|Cores/i.test(h))).toBe(true)
+    expect(hints).toContain('Spend Salvage on Attack, Defense, or Economy upgrades next Sortie')
+    expect(hints.join(' ')).not.toMatch(/Salvage on Cores/i)
     expect(hints.join(' ')).not.toMatch(/Furnace/)
   })
 

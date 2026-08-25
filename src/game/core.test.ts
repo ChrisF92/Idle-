@@ -26,7 +26,7 @@ describe('core attributes', () => {
     expect(state.core.ranks.ballistics).toBeGreaterThanOrEqual(1)
   })
 
-  it('prestige clears core ranks completely but keeps research', () => {
+  it('prestige clears legacy Core attribute training but keeps research', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8
     state.resources.data = 150

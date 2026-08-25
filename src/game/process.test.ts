@@ -114,7 +114,7 @@ describe('Process 2.0 save and prestige', () => {
 })
 
 describe('Process 2.0 mastery and achievements', () => {
-  it('does not expose retired Core Run automation', () => {
+  it('does not expose retired per-Sortie Core automation', () => {
     const s = createInitialState(0)
     s.meta.aiUnlocked = true
     s.resources.aiPoints = 20
