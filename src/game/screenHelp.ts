@@ -103,8 +103,9 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   process: {
     title: 'Process',
     body: [
-      'Purpose: automate behaviours you have already learned, not skip systems before you understand them. Main decision: which solved loop becomes a Process purchase.',
-      'Opens at Wave 210 after two Rebuilds and a completed Research project. Process Available is spendable; Process Earned is lifetime. Quality of life comes first; deeper priorities unlock after you buy something.',
+      'Purpose: automate behaviours you have already learned. Manual → QoL → Automation → Priorities → Conditions → cross-system orchestration.',
+      'Opens at Wave 210 after two Rebuilds and a completed Research project. Process Points come from account mastery, never from time passing. Spend them on a capability graph; Automations, Rules, and Profiles sit on their own panes.',
+      'Late Act 1 automates repetitive within-run and industrial actions. Process does not fly Sorties while the app is closed.',
     ],
   },
   reinforce: {
