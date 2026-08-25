@@ -1162,6 +1162,8 @@ export const GUIDE_STEPS: GuideStep[] = [
       s.combat.docked &&
       (s.resources.scrap ?? 0) >= 12 &&
       (s.workshop?.levels?.['weapon-power'] ?? 0) < 1 &&
+      (s.prestige.prestigeCount ?? 0) < 1 &&
+      !firstRebuildAvailable(s) &&
       !guideSeen(s, 'guide-workshop'),
     completeWhen: (s) => (s.workshop?.levels?.['weapon-power'] ?? 0) >= 1,
   },
@@ -1179,6 +1181,8 @@ export const GUIDE_STEPS: GuideStep[] = [
       hasHullLostOnce(s) &&
       s.combat.docked &&
       anyWorkshopBought(s) &&
+      (s.prestige.prestigeCount ?? 0) < 1 &&
+      !firstRebuildAvailable(s) &&
       !guideSeen(s, 'guide-second-sortie'),
     completeWhen: (s) => !s.combat.docked,
   },

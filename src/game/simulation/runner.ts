@@ -192,6 +192,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     recordMeaningful: (label) => {
       noteMeaningful(metrics, label, activeSeconds)
       if (label === 'Launch') {
+        metrics.lastLaunchAt = activeSeconds
         addMilestone(metrics, 'first-launch', 'First Launch', activeSeconds, calendarSeconds)
       }
     },

@@ -215,6 +215,7 @@ export interface RebuildRecord {
   matterBalanceAfter: number
   reasons: string[]
   coresLost: Record<string, number>
+  workshopLost: Record<string, number>
   networkLevelsLost: Record<string, number>
   linksKept: Record<string, number>
   permanentPurchases: string[]

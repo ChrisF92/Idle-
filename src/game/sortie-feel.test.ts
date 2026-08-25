@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { DEFEAT_SEQUENCE_S, advanceSeconds, setDocked, startCombat } from './tick'
-import { GUIDE_STEPS, activeGuideStep } from './progression'
+import { activeGuideStep } from './progression'
 
 describe('sortie feel', () => {
   it('keeps the Hive between waves', () => {

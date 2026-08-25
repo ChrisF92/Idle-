@@ -188,9 +188,16 @@ export function detectGddWarnings(input: GddWarningInput): SimulationWarning[] {
     )
   }
 
-  const salvageKill = input.workshopLevels['salvage-kill'] ?? 0
-  const scrapKill = input.workshopLevels['scrap-kill'] ?? 0
-  const weaponPower = input.workshopLevels['weapon-power'] ?? 0
+  const salvageKill =
+    input.workshopLevels['salvage-kill'] ??
+    input.rebuildLog[0]?.workshopLost?.['salvage-kill'] ??
+    0
+  const scrapKill =
+    input.workshopLevels['scrap-kill'] ?? input.rebuildLog[0]?.workshopLost?.['scrap-kill'] ?? 0
+  const weaponPower =
+    input.workshopLevels['weapon-power'] ??
+    input.rebuildLog[0]?.workshopLost?.['weapon-power'] ??
+    0
   if (firstRebuild == null && salvageKill >= 8 && weaponPower <= 1) {
     out.push(
       warn(

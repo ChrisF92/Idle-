@@ -218,7 +218,7 @@ export function isBossSector(sector: number): boolean {
 export function salvageSectorBase(sector: number): number {
   const s = Math.max(1, sector)
   if (s <= 4) return s
-  return 4 * Math.pow(s / 4, 0.58)
+  return 4 * Math.pow(s / 4, SALVAGE_MID_EXPONENT)
 }
 
 export function salvageFromKill(
@@ -676,6 +676,9 @@ export const ENEMY_DMG_LATE = 1.225
 
 /** Extra hull/damage per Wave inside a 10-wave band. */
 export const ENEMY_WAVE_HULL_RAMP = 0.06
+
+/** Mid-band Salvage income exponent after band 4. S1–S4 stay linear. */
+export const SALVAGE_MID_EXPONENT = 0.5
 
 function piecewiseSectorScale(
   sector: number,

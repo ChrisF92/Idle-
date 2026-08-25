@@ -66,6 +66,10 @@ describe('GDD Dev Tools', () => {
     const climax = applyDevAction(createInitialState(0), { type: 'prep-gdd-door', wave: ACT1_CADENCE.reinforce })
     expect(isSystemUnlocked(climax, 'reinforce')).toBe(true)
     expect(climax.meta.act1Cleared).toBe(true)
+
+    const relics = applyDevAction(createInitialState(0), { type: 'prep-gdd-door', wave: ACT1_CADENCE.reliquary })
+    expect(isSystemUnlocked(relics, 'reliquary')).toBe(true)
+    expect(relics.reliquary.owned['battle-chip'] ?? 0).toBeGreaterThanOrEqual(1)
   })
 
   it('force-boss-wave uses every 10th Wave', () => {

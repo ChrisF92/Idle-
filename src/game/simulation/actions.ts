@@ -30,6 +30,7 @@ import {
   idleWorkers,
   isStationUnlocked,
   MATTER_SHOP,
+  moduleLevel,
   moduleUpgradeCost,
   SHIP_MODULES,
   visibleWorkerJobIds,
@@ -515,6 +516,7 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
     const level = coreStartingLevel(state, slot.coreInstanceId)
     coresLost[slot.moduleId] = Math.max(coresLost[slot.moduleId] ?? 0, level)
   }
+  const workshopLost = { ...(state.workshop?.levels ?? {}) }
   const networkLevelsLost: Record<string, number> = {}
   for (const bar of NETWORK_BARS) {
     networkLevelsLost[bar.id] = networkLevels(state, bar.id)
@@ -535,6 +537,7 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
     matterBalanceAfter: after.resources.prestigeMatter,
     reasons,
     coresLost,
+    workshopLost,
     networkLevelsLost,
     linksKept,
     previousPushSeconds: prevPush,

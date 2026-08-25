@@ -118,7 +118,7 @@ export const WORKSHOP_HULL_PER_LEVEL = 0.08
 export const WORKSHOP_SHIELD_PER_LEVEL = 0.1
 export const WORKSHOP_SALVAGE_KILL_PER_LEVEL = 0.08
 /** Temporary Salvage ranks are weaker per level than Workshop starts. */
-export const RUN_UPGRADE_POWER_SCALE = 0.48
+export const RUN_UPGRADE_POWER_SCALE = 0.36
 
 export function createEmptyWorkshop(): WorkshopState {
   return { levels: {}, coreStarts: {} }
@@ -146,7 +146,7 @@ export function effectiveUpgradeLevel(state: GameState, id: RunUpgradeId): numbe
  * early-run ladder.
  */
 export const RUN_UPGRADE_COST_BASE = 8
-export const RUN_UPGRADE_COST_GROWTH = 1.26
+export const RUN_UPGRADE_COST_GROWTH = 1.3
 
 export function runUpgradeCost(purchasedLevel: number): number {
   return Math.floor(RUN_UPGRADE_COST_BASE * Math.pow(RUN_UPGRADE_COST_GROWTH, Math.max(0, purchasedLevel)))

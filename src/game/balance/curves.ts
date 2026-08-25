@@ -27,6 +27,7 @@ export {
   ENEMY_WAVE_HULL_RAMP,
   salvageSectorBase,
   salvageFromKill,
+  SALVAGE_MID_EXPONENT,
 } from '../combat'
 
 export {

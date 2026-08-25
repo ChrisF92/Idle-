@@ -41,7 +41,7 @@ function firstRebuildConfig(strategy: 'active' | 'casual' | 'balanced' | 'offens
     seed: 1,
     logging: 'milestones',
     deadlockSeconds: 25 * 60,
-    postRebuildSeconds: 90,
+    postRebuildSeconds: 30 * 60,
     maxIterations: 400_000,
     maxCalendarSeconds: 6 * 3600,
   })

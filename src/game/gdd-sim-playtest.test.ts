@@ -75,6 +75,7 @@ describe('GDD Phase 9 simulator + playtest', () => {
       matterBalanceAfter: 2,
       reasons: ['stall'],
       coresLost: {},
+      workshopLost: {},
       networkLevelsLost: {},
       linksKept: {},
       permanentPurchases: [],

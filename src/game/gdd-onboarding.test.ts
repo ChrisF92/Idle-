@@ -140,6 +140,12 @@ describe('GDD onboarding catalog', () => {
     expect(activeGuideStep(ready, 'dock')?.id).toBe('guide-rebuild')
     expect(guidePausesSimulation(activeGuideStep(ready, 'dock'))).toBe(false)
 
+    const leftover = armRebuildDoor(fresh())
+    leftover.meta.hullLostOnce = true
+    leftover.workshop.levels['weapon-power'] = 1
+    leftover.combat.docked = true
+    expect(activeGuideStep(leftover, 'dock')?.id).toBe('guide-rebuild')
+
     const rebuilt = structuredClone(ready)
     rebuilt.prestige.prestigeCount = 1
     rebuilt.resources.prestigeMatter = 6
@@ -152,5 +158,32 @@ describe('GDD onboarding catalog', () => {
     const s = atCareerWave(fresh(), 300)
     s.meta.act1Cleared = true
     expect(activeGuideStep(s, 'reinforce')?.id).toBe('guide-reinforce')
+  })
+
+  it('major doors require one targeted action and finish when that action is done', () => {
+    const doors = [
+      'guide-launch',
+      'guide-salvage-first',
+      'guide-workshop',
+      'guide-second-sortie',
+      'guide-network-strike',
+      'guide-foundry-recipe',
+      'guide-directive',
+      'guide-relic-install',
+      'guide-furnace-light',
+      'guide-research-focus',
+      'guide-process-first',
+      'guide-rebuild',
+      'guide-rebuild-matter',
+      'guide-challenge',
+      'guide-reinforce',
+    ]
+    for (const id of doors) {
+      const step = GUIDE_STEPS.find((s) => s.id === id)
+      expect(step, id).toBeTruthy()
+      expect(step!.target, id).toBeTruthy()
+      expect(step!.completeWhen, id).toBeTruthy()
+      expect(['action', 'hint']).toContain(step!.kind)
+    }
   })
 })

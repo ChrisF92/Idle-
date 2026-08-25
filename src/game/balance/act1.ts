@@ -109,7 +109,7 @@ export const ACT1_TARGETS: BalanceTarget[] = [
     label: 'First Rebuild',
     min: 2 * 60 * 60,
     max: 4 * 60 * 60,
-    warningPad: 30 * 60,
+    warningPad: 45 * 60,
     milestoneId: 'first-rebuild',
     kind: 'milestone-time',
   },

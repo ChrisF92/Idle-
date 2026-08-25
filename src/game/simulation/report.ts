@@ -132,6 +132,17 @@ export function formatSummary(report: SimulationReport): string {
         rec.permanentPurchases.length
           ? `Permanent purchases: ${rec.permanentPurchases.join(', ')}`
           : 'Permanent purchases: none this Rebuild',
+        rec.workshopLost && Object.keys(rec.workshopLost).length
+          ? `Workshop at Rebuild: ${Object.entries(rec.workshopLost)
+              .filter(([, n]) => (n ?? 0) > 0)
+              .map(([id, n]) => `${id} L${n}`)
+              .join(', ')}`
+          : 'Workshop at Rebuild: none',
+        rec.coresLost && Object.keys(rec.coresLost).length
+          ? `Core Starts at Rebuild: ${Object.entries(rec.coresLost)
+              .map(([id, n]) => `${id} L${n}`)
+              .join(', ')}`
+          : 'Core Starts at Rebuild: none',
         rec.repushSeconds != null
           ? `Repush to previous best: ${formatSimDuration(rec.repushSeconds)} (ratio ${rec.repushRatio?.toFixed(2) ?? '—'})`
           : 'Repush to previous best: not reached before stop',

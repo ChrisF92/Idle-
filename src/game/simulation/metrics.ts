@@ -172,7 +172,7 @@ export function observeState(
   }
   const row = metrics.sectors.get(sector)!
   if (!state.combat.campaign) row.holdSeconds += dt
-  if (idleWorkers(state) > 0 && state.base.workerDrones > 0) {
+  if (idleWorkers(state) > 0 && state.base.workerDrones > 0 && isSystemUnlocked(state, 'network')) {
     metrics.idleAcc += dt
     if (metrics.idleAcc > 60) metrics.networkIdleHint = true
   } else {
@@ -242,7 +242,7 @@ export function observeState(
     const meaningful =
       summary.salvageSpent > 0 || summary.wave >= Math.max(1, summary.previousBest * 0.7)
     if (summary.newBest) metrics.failedPushStreak = 0
-    else if (meaningful) metrics.failedPushStreak += 1
+    else if (meaningful && !metrics.pendingRepush) metrics.failedPushStreak += 1
   }
   if (state.combat.consecutiveLosses > prev.combat.consecutiveLosses) {
     const diedAt = prev.combat.sector
@@ -353,6 +353,7 @@ export function recordRebuildRow(metrics: MetricsState, row: RebuildRecord): voi
     target: row.highestSector,
     start: row.activeSeconds,
   }
+  metrics.failedPushStreak = 0
 }
 
 export function coreSpending(purchases: CorePurchaseRecord[]): CoreSpendingSummary[] {
