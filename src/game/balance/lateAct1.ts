@@ -42,7 +42,7 @@ function packStats(wave: number) {
     0,
   )
   return {
-    packRoles: encounter.units.map((u) => u.role),
+    packRoles: encounter.units.map((u) => u.role ?? 'unknown'),
     packCount: encounter.units.length,
     packEhp,
     packDps,
