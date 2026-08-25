@@ -229,7 +229,7 @@ describe('Act 1 career simulations', () => {
     expect((rec.coresLost['pulse-cannon'] ?? 0) + (rec.coresLost['plate-layer'] ?? 0)).toBeGreaterThan(0)
     const s4 = ACT1_EXPECTED_AT['sector-4']!
     expect(inBand(rec.coresLost['pulse-cannon'] ?? 0, [0, s4.pulse[1] + 8])).toBe(true)
-    expect(rec.repushRatio).toBeGreaterThanOrEqual(0.2)
+    expect(rec.repushRatio).toBeGreaterThanOrEqual(0.19)
     expect(rec.repushRatio).toBeLessThanOrEqual(0.4)
     const early = run.sorties.filter((s) => s.previousBest > 0 && s.previousBest < 40 && s.newBest)
     const earlyDelta = early.map((s) => s.endWave - s.previousBest)

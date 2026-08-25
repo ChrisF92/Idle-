@@ -52,16 +52,6 @@ export interface SimulationHooks {
 
 const FIGHT_CHUNK = 1
 const DOCK_CHUNK = 4
-const YIELD_EVERY = 200
-
-function yieldToHost(): Promise<void> {
-  return new Promise((resolve) => {
-    const immediate = (globalThis as typeof globalThis & { setImmediate?: (cb: () => void) => void })
-      .setImmediate
-    if (typeof immediate === 'function') immediate(resolve)
-    else setTimeout(resolve, 0)
-  })
-}
 
 function trimCombatNoise(state: GameState): void {
   if (state.combat.log.length > 12) state.combat.log = state.combat.log.slice(0, 8)
@@ -393,8 +383,6 @@ async function runOneSeeded(
         makeProgress(config, state, activeSeconds, calendarSeconds, offlineSeconds, runIndex, stopReason, false),
       )
     }
-
-    if (iterations % YIELD_EVERY === 0) await yieldToHost()
   }
 
   if (iterations >= config.maxIterations && stopReason === 'Running') {
@@ -561,7 +549,7 @@ export interface SimulationSession {
 
 /**
  * Steppable session for main-thread yielding. Each step runs one Accurate chunk.
- * Tests should prefer runSimulation(), which yields to the host every few ticks.
+ * Tests should prefer runSimulation(). Long runs stay sync so seeded combat RNG is not interleaved.
  */
 export function createSimulationSession(
   config: SimulationConfig,
