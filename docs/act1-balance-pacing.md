@@ -19,14 +19,77 @@ No new systems were added. The simulator was taught to spend like a player (Salv
 | Workers | 34m | 8–90m | Pass |
 | First Pulse / Plate Core Levels | 1h 19m | — | After first Scrap docks |
 | Wave 40–50 | ~30m band clear | healthy wall 1–3 failed pushes | Survivability bump, then a New Best |
-| First Rebuild | **2h 9m at W100** | 2–4h, door W70 | Inside window (CI pad 1.5–4.5h) |
-| Post-Rebuild reclaim | **25m / 0.20** of the 2h 9m push | 20–40% | Pass (rounded; raw ~0.196) |
-| Relics | **~4h**, +18% damage fitted on Pulse | W110 door | Pass — Core sockets, not leftover colour slots |
-| Worker Fabricator | Cap **26** by first Rebuild, corps **~35** by Furnace | Grow after W90 | Pass |
-| Furnace Weapons I | **~8–13h unlock/lit around W140–W152**, a few Rebuilds | W140 door | Pass — Heat spent, +40% on the push. Band, not a rail |
-| Research / Process / W300 | not reached in CI | later doors | Skip-gated. A 30h continuation stall at W160 and never opens Research |
+| First Rebuild | **2h 18m at W100** | 2–4h, door W70 | Inside window (CI pad 1.5–4.5h) |
+| Post-Rebuild reclaim | **24m / 0.21** of the 2h 18m push | 20–40% | Pass |
+| Relics | **~3h 52m–4h 53m**, fitted on Pulse | W110 door | Pass — Core sockets, not leftover colour slots |
+| Worker Fabricator | Cap **26** by first Rebuild, corps **~37** by Furnace | Grow after W90 | Pass |
+| Furnace | **8h 14m–10h 42m at W140** | 8–15h | Pass |
+| Research | **11h 45m–14h 17m at W170** | 12–25h | Pass (pad 7–30h). First BT ~12–14 min later |
+| Process | **12h 40m–15h 12m at W210** | 25–45h | Early — wave door arrives once W160 no longer stalls |
+| Challenges | **13h 38m–15h 48m at W250** | 40–70h | Early for the same reason; Glass Hive is completable |
+| W300 Choir Crown | **14h 29m–16h 37m** | 70–100h authored | **Warning** — see late Act 1 diagnosis |
 
 Casual (10m sessions / 4h offline): first Rebuild is shorter in *active* time because offline Scrap feeds Core Levels.
+
+---
+
+## Late Act 1 (W140 → W300)
+
+### Original W160 wall diagnosis
+
+Not an HP cliff. Mid-band hull is `ENEMY_HULL_MID = 1.2` per 10-wave sector. W140→W160 is ~1.44× hull; W160→W161 is continuous.
+
+The missing lever was **Furnace as a stored push**, plus sim behaviour that prevented it:
+
+1. `tendFurnace` drip-converted Ash→Heat whenever 10 Ash was available. Heat dumps on Dock, so Weapons I (8 Heat = 80 Ash) never banked.
+2. Rebuild dumps Ash and Heat and resets Workshop + Core Starts. After the first Rebuild, consecutive deaths prestiged during reclaim.
+3. Deadlock `progressKey` ignored Ash and Best Wave, so dying at W160 looked like a deadlock while banking Ash.
+4. Challenges were never used by Balanced (`tendProtocols` bailed if `lifetimeCoreRunBuys > 0`).
+5. Foundry sim only rotated 5 early recipes under mastery 45, so unlock-at-50 chains never opened.
+6. Worker job hard caps left a growing corps idle.
+
+A ~30h Balanced continuation that stalled at W160 was Rebuild-spamming a 100–800 Ash bank every ~90 minutes.
+
+### Changes (no new systems)
+
+- Bank Ash until a wall Sortie; convert only the Heat Weapons I / Ward I can spend; do not Rebuild a Weapons-ready bank.
+- Light Furnace on the last ~8 waves of a frontier Sortie, not during reclaim.
+- All profiles may enter one Challenge after W250; they abandon if it stalls.
+- After W90, Foundry pushes recipes to their unlock gates, then rotates below mastery 90.
+- Worker job caps raised (scrap 24, research 20, processing 16, drone-fab 12, fab 10, construction 10).
+- First Research roots are 12-minute mechanical breakthroughs (`plate-bank`, `priority-lock`, `second-processor`).
+- Support-band W140–179 rotates shield / sniper / mixed packs (no hull nerf on that band).
+- Late curve (S17+ / W170+) steepens hull, damage, and density so Research-door waves are not the same bumps as S9–S16.
+- Salvage income flattens after W160.
+- Economy-first buys weapons when a wall appears instead of Salvage-Kill looping.
+
+### Before / after
+
+| | Before (stalled continuation) | After (seed 1 Balanced) |
+|---|---|---|
+| W140 Furnace | ~8–13h | **8h 14m–10h 42m** |
+| W160 | 30h stall, never Research | Passed in-cycle with banked Furnace |
+| W170 Research | never | **12–14h** |
+| W210 Process | never | **13–15h** |
+| W250 Challenges | never | **14–16h** |
+| W300 | never | **14h 29m–16h 37m**, Act 1 cleared, Reinforce open |
+
+### Four profiles through W300 (seed 1)
+
+| Profile | Furnace | Research | Process | Challenges | W300 | Rebuilds |
+|---|---|---|---|---|---|---|
+| Balanced | 8–11h | 12–14h | 13–15h | 14–16h | **14–17h** | 4–6 |
+| Offensive | 5h | 8h | 9h | 10h | **12h** | 2 |
+| Defensive | 22h | 25h | 28h | 31h | **44h** | 16 |
+| Economy-first | (see warnings) | | | | | |
+
+### Remaining warnings
+
+- **Authored 70–100h W300 vs 14–17h Balanced.** The 70h band assumed the W160 Rebuild-spam stall. Once Furnace is spent as a stored push and the cycle is kept, Workshop + Cores + Weapons I melt W170→W300. Stretching Balanced to 70h would mean reintroducing a fake stall, not finding another missing lever. Defensive naturally lands at 44h.
+- **Process / Challenges clocks are early** because those doors are Wave-gated (W210 / W250). They still require the prior manual loop; they just arrive sooner.
+- **REBUILD WEAK** on some mid cycles: Matter from a 1h Rebuild barely changes the next push until Furnace is online.
+- **Foundry** still specialises; not every recipe is M100, but late chains need the post-W90 unlock push to open at all.
+- **Economy-first** will Rebuild-spam combat walls unless it buys weapons when stalled. That spend flip is in the sim; a human econ player has to make the same choice.
 
 ---
 
@@ -39,7 +102,8 @@ Casual (10m sessions / 4h offline): first Rebuild is shorter in *active* time be
 | W80–W100 | Balanced / Optimiser / Defensive stall then Rebuild | Acceptable overshoot |
 | W110 | Relic door; fitted Battle Chip continues the push | Healthy once Relics seat on Cores |
 | W140 | Furnace door; Ash pays for Weapons I on the same push | Healthy once the sim waits for Heat 8 |
-| W160 | 30h continuation never reaches Research (W170) | Later-act. Rebuild-spam does not solve the band |
+| W160 | Was a 30h continuation that never reached Research | **Fixed** — banked Furnace + no Rebuild-spam of Ash. Not an HP cliff |
+| W170–W300 | Balanced melts Choir Crown in ~3h once the cycle is kept | Remaining STEAMROLL vs the authored 70–100h band; see Late Act 1 |
 | Worker Drones | Stay at 4 until the Fabricator facility (W90+) | Intended. Corps grows after Filament / Temper Bar stock the job |
 
 No HARD WALL (6–8 meaningful Sorties without a New Best) on the first-Rebuild cycle once the streak resets at Rebuild.

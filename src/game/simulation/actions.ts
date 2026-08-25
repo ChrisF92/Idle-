@@ -377,16 +377,20 @@ function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
     if (filOn) return 'filament'
     return temperOn ? 'temper-bar' : null
   }
-  const needsUnlock = processing.filter((id) => {
-    const def = FOUNDRY_RECIPES.find((row) => row.id === id)
-    const gate = def?.unlocksRecipe?.atLevel ?? 0
-    return gate > 0 && foundryRecipeLevel(state, id) < gate
-  })
-  if (needsUnlock.length) {
-    needsUnlock.sort((a, b) => foundryRecipeLevel(state, a) - foundryRecipeLevel(state, b))
-    return needsUnlock[0]!
+  const lateGame = careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
+  if (lateGame) {
+    const needsUnlock = processing.filter((id) => {
+      const def = FOUNDRY_RECIPES.find((row) => row.id === id)
+      const gate = def?.unlocksRecipe?.atLevel ?? 0
+      return gate > 0 && foundryRecipeLevel(state, id) < gate
+    })
+    if (needsUnlock.length) {
+      needsUnlock.sort((a, b) => foundryRecipeLevel(state, a) - foundryRecipeLevel(state, b))
+      return needsUnlock[0]!
+    }
   }
-  const belowSoft = processing.filter((id) => foundryRecipeLevel(state, id) < 55)
+  const softCap = lateGame ? 55 : 45
+  const belowSoft = processing.filter((id) => foundryRecipeLevel(state, id) < softCap)
   const belowHard = processing.filter((id) => foundryRecipeLevel(state, id) < 90)
   const pool = belowSoft.length ? belowSoft : belowHard
   if (!pool.length) return processing[0] ?? null
