@@ -437,7 +437,7 @@ export function resetRunCoreLevels(state: GameState): void {
  * post-Rebuild reclaim ~15% of the previous push (target 20–40%).
  */
 export const RECLAIM_PER_TEN_WAVES = 0.25
-export const RECLAIM_SPEED_CAP = 2.5
+export const RECLAIM_SPEED_CAP = 2.25
 
 /**
  * GDD §72 — replaying solved Waves is time compression, not extra power.

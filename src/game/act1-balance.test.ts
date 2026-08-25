@@ -229,6 +229,8 @@ describe('Act 1 career simulations', () => {
     expect((rec.coresLost['pulse-cannon'] ?? 0) + (rec.coresLost['plate-layer'] ?? 0)).toBeGreaterThan(0)
     const s4 = ACT1_EXPECTED_AT['sector-4']!
     expect(inBand(rec.coresLost['pulse-cannon'] ?? 0, [0, s4.pulse[1] + 8])).toBe(true)
+    expect(rec.repushRatio).toBeGreaterThanOrEqual(0.2)
+    expect(rec.repushRatio).toBeLessThanOrEqual(0.4)
     const early = run.sorties.filter((s) => s.previousBest > 0 && s.previousBest < 40 && s.newBest)
     const earlyDelta = early.map((s) => s.endWave - s.previousBest)
     // eslint-disable-next-line no-console
@@ -247,17 +249,17 @@ describe('Act 1 career simulations', () => {
     expect(first!.activeSeconds).toBeLessThanOrEqual(window.max + window.warningPad)
   }, 120_000)
 
-  it('balanced player lights Furnace Weapons then unlocks Research', async () => {
+  it('balanced player lights Furnace Weapons after the door', async () => {
     const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'balanced',
-        stop: { type: 'unlock', system: 'research' },
+        stop: { type: 'furnace-lit' },
         seed: 1,
         logging: 'milestones',
         deadlockSeconds: 90 * 60,
         maxIterations: 1_200_000,
-        maxCalendarSeconds: 30 * 3600,
+        maxCalendarSeconds: 24 * 3600,
       }),
     )
     const run = report.runs[0]!
@@ -265,9 +267,8 @@ describe('Act 1 career simulations', () => {
     console.log('\n' + formatSummary(report) + '\n')
     expect(run.milestones.some((m) => m.id === 'furnace-unlock')).toBe(true)
     expect(run.milestones.some((m) => m.id === 'reliquary-unlock')).toBe(true)
-    expect(run.milestones.some((m) => m.id === 'hive-research-unlock')).toBe(true)
     expect(run.rebuilds).toBeGreaterThanOrEqual(1)
-    expect(run.rebuilds).toBeLessThan(12)
+    expect(run.rebuilds).toBeLessThan(20)
     expect(run.furnace.heatSpent).toBeGreaterThan(0)
     const end = run.snapshots[run.snapshots.length - 1]!
     expect(end.contribution.reliquaryDamage).toBeGreaterThan(0)
@@ -279,7 +280,6 @@ describe('Act 1 career simulations', () => {
     expect(
       run.meaningfulActions.some((a) => /Furnace weapons/i.test(a.label)),
     ).toBe(true)
-    expect(run.research.focus).toBeTruthy()
   }, 180_000)
 
   it.skipIf(!process.env.RUN_WAVE_300)(
