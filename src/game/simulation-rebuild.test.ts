@@ -24,6 +24,6 @@ describe('career simulator isolation', () => {
     expect(run.safety.filter((s) => s.kind === 'nan' || s.kind === 'infinity')).toHaveLength(0)
     expect(run.calendarSeconds).toBeGreaterThan(0)
     expect(run.rebuilds).toBe(0)
-    expect(run.highestSectorEver).toBeGreaterThanOrEqual(1)
+    expect(run.highestWave).toBeGreaterThanOrEqual(1)
   }, 30_000)
 })
