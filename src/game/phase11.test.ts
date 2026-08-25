@@ -84,7 +84,7 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(HIVE_RESEARCH_NODES.energy.length).toBeGreaterThanOrEqual(6)
   })
 
-  it('Ash Bank converts Choir-ash without a tap', () => {
+  it('Ash Bank does not auto-convert Choir-ash; converting Ash is a Sortie decision', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 28
     s.combat.highestSector = 28
@@ -94,8 +94,8 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     s.resources.choirAsh = 25
     const before = s.resources.heat ?? 0
     advanceSeconds(s, 1)
-    expect(s.resources.heat).toBeGreaterThan(before)
-    expect(s.resources.choirAsh).toBeLessThan(25)
+    expect(s.resources.heat).toBe(before)
+    expect(s.resources.choirAsh).toBe(25)
     const again = convertAshToHeat(s)
     expect(again.resources.choirAsh).toBe(s.resources.choirAsh)
   })

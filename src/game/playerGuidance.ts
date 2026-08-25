@@ -209,7 +209,7 @@ export function sortieNextHints(state: GameState): string[] {
     items.push('Start a Research project')
   }
   if (isSystemUnlocked(state, 'furnace') && (state.furnace?.wanted.shielding ?? 0) <= 0) {
-    items.push('Spend Heat on Shielding')
+    items.push('Spend Heat on Ward')
   }
   if (isSystemUnlocked(state, 'foundry')) {
     const slag = foundryRecipeLevel(state, 'slag-ingot')

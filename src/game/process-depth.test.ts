@@ -147,7 +147,7 @@ describe('Act 1 Process depth', () => {
     buffed.furnace.wanted.recovery = 1
     buffed.furnace.active.recovery = 1
     buffed.foundry.upgrades['fp-salvage'] = 2
-    expect(furnaceSalvageMult(buffed)).toBeCloseTo(1.12)
+    expect(furnaceSalvageMult(buffed)).toBeCloseTo(1.4)
     expect(foundrySalvageMult(buffed)).toBeCloseTo(1.06)
     const before = buffed.resources.salvage
     grantEnemyKillRewards(buffed, enemy())

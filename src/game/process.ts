@@ -392,7 +392,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Presets',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Push, Farm, Industry, or Research. One tap sets which channels you want lit.',
+    blurb: 'Push (Weapons + Ward) or Farm (Weapons + Yield). One tap sets which channels you want lit.',
     cost: 10,
     requiresId: 'auto-bank',
     requiresSystem: 'furnace',
@@ -402,7 +402,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Reserve',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Hold a Heat reserve the manager must not drain.',
+    blurb: 'Hold a Heat reserve Process must not spend on channels.',
     cost: 8,
     requiresId: 'furnace-presets',
     requiresSystem: 'furnace',
@@ -412,7 +412,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Channels',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Let the manager raise and lower channel levels to keep Heat sustainable. You still set priority.',
+    blurb: 'Let Process raise and lower channel levels to keep Heat sustainable. You still set priority.',
     cost: 12,
     requiresId: 'furnace-presets',
     requiresSystem: 'furnace',
@@ -1395,10 +1395,12 @@ export interface ProcessFurnaceHooks {
   managerUnlocked: boolean
   autoChannel: boolean
   reserveHeat: number
+  preset: ProcessConfig['furnace']['preset']
+  conditionalPush: boolean
   outputMult: number
 }
 
-/** Live Heat generation, reserve, and Process automation the Furnace consumes. */
+/** Live Heat reserve, presets, and Process automation the Furnace consumes. Process UI is separate. */
 export function processFurnaceHooks(state: GameState): ProcessFurnaceHooks {
   const cfg = processConfig(state)
   return {
@@ -1407,6 +1409,12 @@ export function processFurnaceHooks(state: GameState): ProcessFurnaceHooks {
     managerUnlocked: hasProcess(state, 'furnace-auto') && cfg.furnace.manager,
     autoChannel: hasProcess(state, 'furnace-channels') && cfg.furnace.autoChannel,
     reserveHeat: hasProcess(state, 'furnace-reserve') ? cfg.furnace.reserveHeat : 0,
+    preset: cfg.furnace.preset ?? null,
+    conditionalPush:
+      hasProcess(state, 'run-profiles') &&
+      (cfg.profiles ?? []).some((profile) =>
+        (profile.rules ?? []).some((rule) => rule.then?.kind === 'furnace-push'),
+      ),
     outputMult: processFurnaceOutputMult(state),
   }
 }

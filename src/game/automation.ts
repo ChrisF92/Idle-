@@ -60,7 +60,7 @@ import {
   hiveResearchQueueCap,
   setResearchFocus,
 } from './hiveResearch'
-import { furnaceActiveLevel, runFurnaceManager, setFurnaceChannel } from './furnace'
+import { furnaceActiveLevel, furnaceSpendableHeat, runFurnaceManager, setFurnaceChannel } from './furnace'
 import { foundryAshHeatMult, foundryQueueCap } from './foundryBonuses'
 import { coreInstanceAtSlot } from './coreInstances'
 function adopt(state: GameState, next: GameState): void {
@@ -190,7 +190,8 @@ function autoFurnacePush(state: GameState): void {
   const intent = evaluateProcessIntent(state)
   if (!intent.furnacePush) return
   let next = convertAshToHeat(state)
-  if ((next.resources.heat ?? 0) >= 8 && furnaceActiveLevel(next, 'weapons') < 1) {
+  const spendable = furnaceSpendableHeat(next)
+  if (spendable >= 8 && furnaceActiveLevel(next, 'weapons') < 1) {
     const lit = setFurnaceChannel(next, 'weapons', 1)
     if (lit !== next) next = lit
   }

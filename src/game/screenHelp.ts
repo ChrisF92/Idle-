@@ -69,7 +69,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Furnace',
     body: [
       'Purpose: spend stored cycle Ash to make this Sortie significantly stronger. Main decision: is this the run worth converting?',
-      'Ash persists across Sorties this Rebuild cycle. Convert Ash to Heat, then light Weapons, Shielding, or Recovery. Heat dumps when you Dock.',
+      'Ash persists across Sorties this Rebuild cycle. Convert Ash to Heat, then light Weapons, Ward, or Yield. Heat dumps when you Dock.',
     ],
   },
   research: {

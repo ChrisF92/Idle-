@@ -12,7 +12,7 @@ import { careerBestWave } from './progression'
 import { reliquaryAshMult } from './reliquary'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoAshMult } from './echo'
-import { mergeProcessConfig, processConfig } from './process'
+import { mergeProcessConfig, processConfig, processFurnaceHooks } from './process'
 import { noteSystemAction } from './playtest'
 import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
@@ -77,46 +77,49 @@ export const FURNACE_CHANNELS: FurnaceChannelDef[] = [
   {
     id: 'weapons',
     name: 'Weapons',
-    blurb: 'Large temporary offensive multiplier.',
-    stat: 'Damage',
+    blurb: 'This Sortie’s weapon output. Spend Heat to break a wall.',
+    stat: 'Weapon Output',
     levels: [
       { mult: 1.4, heat: 8 },
       { mult: 1.8, heat: 20 },
       { mult: 2.5, heat: 48 },
     ],
     detail: [
-      'Spend Heat to raise Hive damage for this Sortie.',
-      'III is a serious push. Heat dumps when you Dock.',
+      'Spend Heat to raise Hive weapon output for this Sortie only.',
+      'Heat not spent on Ward or Yield. III is a serious push.',
+      'Lights dump when you Dock or lose the hull. Ash is untouched.',
     ],
   },
   {
     id: 'shielding',
-    name: 'Shielding',
-    blurb: 'Large temporary defensive multiplier.',
-    stat: 'Shield',
+    name: 'Ward',
+    blurb: 'This Sortie’s shield field. Survive the wall long enough to kill it.',
+    stat: 'Shield Field',
     levels: [
       { mult: 1.4, heat: 8 },
       { mult: 1.8, heat: 20 },
       { mult: 2.5, heat: 48 },
     ],
     detail: [
-      'Spend Heat to raise the Hive shield for this Sortie.',
-      'Pair with Weapons when you mean to break a wall.',
+      'Spend Heat to thicken the Hive shield field for this Sortie only.',
+      'Heat not spent on Weapons. Pair with Weapons when you mean to break a wall.',
+      'Lights dump when you Dock or lose the hull. Ash is untouched.',
     ],
   },
   {
     id: 'recovery',
-    name: 'Recovery',
-    blurb: 'Temporary economy multiplier.',
-    stat: 'Salvage',
+    name: 'Yield',
+    blurb: 'This Sortie’s Salvage take. Farm Ash for a later push.',
+    stat: 'Salvage Take',
     levels: [
       { mult: 1.4, heat: 8, ashMult: 1.2 },
       { mult: 1.8, heat: 20, ashMult: 1.45 },
       { mult: 2.5, heat: 48, ashMult: 1.8 },
     ],
     detail: [
-      'Spend Heat to take more Salvage (and Ash) from wrecks this Sortie.',
-      'Farm here, then convert for a later Weapons push.',
+      'Spend Heat to take more Salvage and Ash from wrecks this Sortie.',
+      'Heat not spent on Weapons. Farm here, then convert for a later Weapons push.',
+      'Lights dump when you Dock or lose the hull. Ash persists this Rebuild cycle.',
     ],
   },
 ]
@@ -144,8 +147,8 @@ export const FURNACE_PRESETS: Record<
   FurnacePresetId,
   { name: string; blurb: string; wanted: Partial<Record<FurnaceChannelId, number>> }
 > = {
-  push: { name: 'Push', blurb: 'Weapons + Shielding.', wanted: { weapons: 1, shielding: 1 } },
-  farm: { name: 'Farm', blurb: 'Weapons + Recovery.', wanted: { weapons: 1, recovery: 1 } },
+  push: { name: 'Push', blurb: 'Weapons + Ward.', wanted: { weapons: 1, shielding: 1 } },
+  farm: { name: 'Farm', blurb: 'Weapons + Yield.', wanted: { weapons: 1, recovery: 1 } },
   industry: { name: 'Industry', blurb: 'Foundry + Worker Drone Fabrication.', wanted: { foundry: 1, network: 1 } },
   research: { name: 'Research', blurb: 'Research + Worker Drone Fabrication.', wanted: { research: 1, network: 1 } },
 }
@@ -264,6 +267,61 @@ export function furnaceChannelSlots(_state: GameState): number {
 export function furnaceChannelUnlocked(state: GameState, id: FurnaceChannelId): boolean {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return false
   return GDD_FURNACE_CHANNEL_IDS.includes(id)
+}
+
+export function furnaceRoman(level: number): string {
+  if (level <= 0) return 'Off'
+  if (level === 1) return 'I'
+  if (level === 2) return 'II'
+  return 'III'
+}
+
+export function furnacePushChannels(): FurnaceChannelDef[] {
+  return FURNACE_CHANNELS.filter((ch) => GDD_FURNACE_CHANNEL_IDS.includes(ch.id))
+}
+
+export function furnaceConversionLine(): string {
+  return `${ASH_PER_HEAT} Ash → 1 Heat`
+}
+
+export function furnaceLitLine(state: GameState): string {
+  const bits = furnacePushChannels()
+    .map((ch) => {
+      const lv = furnaceActiveLevel(state, ch.id)
+      return lv > 0 ? `${ch.name} ${furnaceRoman(lv)}` : null
+    })
+    .filter((line): line is string => Boolean(line))
+  return bits.join(' · ') || 'Channels dark'
+}
+
+export function furnaceActiveEffectLine(state: GameState): string {
+  const bits = furnacePushChannels()
+    .map((ch) => {
+      const lv = furnaceActiveLevel(state, ch.id)
+      const def = furnaceLevelDef(ch.id, lv)
+      return def ? `${ch.stat} ×${def.mult.toFixed(2)}` : null
+    })
+    .filter((line): line is string => Boolean(line))
+  return bits.join(' · ') || 'No push'
+}
+
+export function furnaceSpendableHeat(state: GameState): number {
+  return Math.max(0, (state.resources.heat ?? 0) - processFurnaceHooks(state).reserveHeat)
+}
+
+export type FurnaceCombatFx = {
+  weapons: boolean
+  ward: boolean
+  yield: boolean
+}
+
+/** Combat VFX flags so Sortie can show the push without opening Furnace. */
+export function furnaceCombatFx(state: GameState): FurnaceCombatFx {
+  return {
+    weapons: furnaceActiveLevel(state, 'weapons') > 0,
+    ward: furnaceActiveLevel(state, 'shielding') > 0,
+    yield: furnaceActiveLevel(state, 'recovery') > 0,
+  }
 }
 
 export function furnaceChannelEffectLine(def: FurnaceChannelDef): string {
@@ -549,8 +607,26 @@ export function tickFurnace(_state: GameState, _dtSeconds: number, _ashHeatMult 
   /* GDD: Heat is a Sortie spend, not a live tank. Industry does not burn Ash at Dock. */
 }
 
+/** Process lights the configured preset while Heat stays above the reserve. */
 export function runFurnaceManager(state: GameState, _ashHeatMult = 1): GameState {
-  return state
+  const hooks = processFurnaceHooks(state)
+  if (!hooks.managerUnlocked && !hooks.autoChannel) return state
+  const presetId = hooks.preset as FurnacePresetId | null
+  if (!hooks.presetsUnlocked || !presetId) return state
+  const def = FURNACE_PRESETS[presetId]
+  if (!def) return state
+  let next = state
+  for (const id of Object.keys(def.wanted) as FurnaceChannelId[]) {
+    const lv = clampLevel(def.wanted[id] ?? 0)
+    if (lv <= 0) continue
+    if (!furnaceChannelUnlocked(next, id)) continue
+    if (furnaceActiveLevel(next, id) >= lv) continue
+    const extra = Math.max(0, furnaceLightCost(id, lv) - furnaceLightCost(id, furnaceActiveLevel(next, id)))
+    if (furnaceSpendableHeat(next) + 1e-9 < extra) continue
+    const lit = setFurnaceChannel(next, id, lv)
+    if (lit !== next) next = lit
+  }
+  return next
 }
 
 export function hydrateFurnaceState(raw: FurnaceState | undefined): FurnaceState {
