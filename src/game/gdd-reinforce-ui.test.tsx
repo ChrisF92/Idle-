@@ -59,7 +59,7 @@ describe('Act 1 finale and Reinforce UI', () => {
     expect(screen.getByText('YOU KEEP')).toBeTruthy()
     expect(screen.getByText('WHAT CHANGES')).toBeTruthy()
     expect(screen.queryByText('GAIN')).toBeNull()
-    expect(screen.getByText(/No Capital/)).toBeTruthy()
+    expect(screen.queryByText(/Capital/)).toBeNull()
     expect(screen.getByText(/No Act 2 shop/)).toBeTruthy()
     expect(document.querySelector('.network-row')).toBeNull()
   })

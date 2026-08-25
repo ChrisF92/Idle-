@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { GameState } from '../../game/types'
 import { unlockedFoundryLogs } from '../../game/logs'
+import { BottomSheet, ItemRow, Screen, ScreenHeader } from '../../ui/primitives'
 
 interface LogsTabProps {
   state: GameState
@@ -8,28 +10,28 @@ interface LogsTabProps {
 
 export function LogsTab({ state, onBack }: LogsTabProps) {
   const logs = unlockedFoundryLogs(state)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const selected = logs.find((log) => log.id === openId) ?? null
 
   return (
-    <section className="panel screen-panel">
-      <header className="panel-header">
-        <p className="assign-row">
+    <Screen className="panel screen-panel" label="Foundry Logs">
+      <ScreenHeader
+        title="Foundry Logs"
+        action={
           <button type="button" onClick={onBack}>
             More
           </button>
-        </p>
-        <h2>Foundry Logs</h2>
-        <p>{logs.length} notes on file.</p>
-      </header>
+        }
+      />
+      <p className="ui-meta">{logs.length} notes on file.</p>
       <div className="panel-scroll">
         {logs.map((log) => (
-          <article key={log.id} className="network-row">
-            <div className="network-row-main">
-              <strong>{log.title}</strong>
-            </div>
-            <p className="network-row-stats">{log.body}</p>
-          </article>
+          <ItemRow key={log.id} title={log.title} onClick={() => setOpenId(log.id)} />
         ))}
       </div>
-    </section>
+      <BottomSheet open={Boolean(selected)} title={selected?.title ?? 'Note'} onClose={() => setOpenId(null)}>
+        <p>{selected?.body}</p>
+      </BottomSheet>
+    </Screen>
   )
 }

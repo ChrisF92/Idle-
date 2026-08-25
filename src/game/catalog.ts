@@ -632,7 +632,7 @@ export const AI_NODES: AiNodeDef[] = [
   },
   {
     id: 'boss-protocol',
-    name: 'Boss Protocol',
+    name: 'Boss Doctrine',
     description: 'Doctrine: +25% damage vs boss units.',
     costAiPoints: 3,
     kind: 'doctrine',
@@ -640,7 +640,7 @@ export const AI_NODES: AiNodeDef[] = [
   },
   {
     id: 'scavenger',
-    name: 'Scavenger Protocol',
+    name: 'Scavenger Sweep',
     description: 'Doctrine: +30% scrap from combat clears.',
     costAiPoints: 2,
     kind: 'doctrine',
@@ -886,7 +886,7 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   },
   {
     id: 'loot-protocols',
-    name: 'Loot Protocols',
+    name: 'Loot Sweep',
     description:
       'Permanent +15% blueprint part drop chance per rank (extra ranks +45% of base).',
     costCp: 2,
@@ -1344,7 +1344,7 @@ export function frameUnlockLine(frame: ShipFrameDef): string {
     case 'wave':
       return `Reach Wave ${frame.requiresBestWave ?? 0}`
     case 'foundry':
-      return 'Foundry: print Temper Bar'
+      return 'Foundry: fabricate Temper Bar'
     case 'research':
       return 'Research: Extra Tap'
     case 'challenge':

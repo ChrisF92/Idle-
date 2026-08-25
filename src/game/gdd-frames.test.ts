@@ -22,7 +22,7 @@ import { salvageFromKill } from './combat'
 
 describe('GDD D8 Hive Frames', () => {
   it('replaces the USI hull ladder with five archetypes', () => {
-    expect(SAVE_VERSION).toBe(40)
+    expect(SAVE_VERSION).toBe(41)
     expect(SHIP_FRAMES.map((f) => f.id)).toEqual([
       'starter-frame',
       'bastion-frame',

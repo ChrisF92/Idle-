@@ -1592,7 +1592,7 @@ export function softCounterForFamily(family: EnemyFamily): string {
     case 'ethereal':
       return 'Soft counter: Utility, Grav Tether, energy / anti-shield, or Rail reach.'
     case 'divine':
-      return 'Soft counter: Utility / energy pressure; expect diving attendants.'
+      return 'Soft counter: Utility / energy damage; expect diving attendants.'
     case 'titan':
       return 'Soft counter: Defense + Ablative Mesh; pierce helps through phases.'
   }
@@ -1882,11 +1882,11 @@ export function computeFightDamage(state: GameState): FightSummary {
       notes.push('No Defense vs Boss ×1.20 incoming')
     } else {
       incomingMult *= Math.pow(0.92, roles.defense)
-      notes.push('Defense steadies boss pressure')
+      notes.push('Defense steadies the Hive against bosses')
     }
     if (aiDoctrinesActive(state, 'boss-protocol')) {
       playerDps *= 1.25
-      notes.push('Boss Protocol ×1.25')
+      notes.push('Boss Doctrine ×1.25')
     }
   }
 

@@ -1,6 +1,6 @@
 /** Echo Runs — leftover save data. GDD §95: there is no Echo system. */
 
-import type { GameState, EchoState, SectorRoute } from './types'
+import type { GameState, EchoState } from './types'
 import { wavesForSector } from './sectors'
 import { ACT1_CADENCE } from './cadence'
 
@@ -254,7 +254,7 @@ export function restoreEchoResume(state: GameState): void {
   if (!echo) return
   state.combat.sector = Math.max(1, echo.resumeSector || 1)
   state.combat.wave = Math.max(1, echo.resumeWave || 1)
-  state.combat.route = (echo.resumeRoute === 'B' ? 'B' : 'A') as SectorRoute
+  state.combat.route = 'A'
 }
 
 export function tryCompleteEcho(state: GameState): boolean {

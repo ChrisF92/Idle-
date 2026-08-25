@@ -38,7 +38,7 @@ export const DIRECTIVES: DirectiveDef[] = [
   },
   {
     id: 'scavenger',
-    name: 'Scavenger Protocol',
+    name: 'Scavenger Sweep',
     blurb: 'Scrap ×1.35. Weapon output ×0.90.',
     scrap: 1.35,
     weapon: 0.9,

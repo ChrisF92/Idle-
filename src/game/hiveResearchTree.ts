@@ -224,7 +224,7 @@ export const RESEARCH_TREE: HiveResearchNodeDef[] = [
     id: 'blue-bay',
     name: 'Blue Bay',
     shortName: 'Blue',
-    blurb: 'Opens the blue Reliquary slot. A new colour of chip can be fitted.',
+    blurb: 'Opens the blue Relic socket. A new colour of chip can be fitted.',
     branch: 'observation',
     prerequisites: ['combat-sim'],
     col: 2,

@@ -133,7 +133,7 @@ export function livePressureLabel(state: GameState): string {
   if (state.combat.isBoss) return 'Boss'
   const threat = primaryThreat(ensureSortieStats(state))
   if (threat) return threat
-  if (hullPct <= 0.55) return 'Pressure'
+  if (hullPct <= 0.55) return 'Damaged'
   return 'Steady'
 }
 

@@ -84,23 +84,9 @@ export function bossWaveForBand(sector: number): number {
   return waveForBand(sector, BOSS_WAVE_INTERVAL)
 }
 
-/** Career best Wave — Dock / system doors read this, not the live fight sector. */
-export function careerBestWave(state: {
-  meta?: { bestWave?: number; highestSectorEver?: number }
-  combat?: { bestWave?: number; highestSector?: number }
-}): number {
-  return Math.max(
-    0,
-    Math.floor(state.meta?.bestWave ?? 0),
-    Math.floor(state.combat?.bestWave ?? 0),
-    Math.floor(state.meta?.highestSectorEver ?? 0),
-    Math.floor(state.combat?.highestSector ?? 0),
-  )
-}
-
 /**
- * Player-facing Best Wave. Leftover `highestSector` fields store 10-wave bands,
- * so a band of 7 is W70, not Wave 7.
+ * Career best Wave — Dock / system doors and player Best Wave all read this.
+ * Leftover `highestSector` fields store 10-wave bands, so a band of 7 is W70.
  */
 export function reportedBestWave(state: {
   meta?: { bestWave?: number; highestSectorEver?: number }
@@ -114,6 +100,14 @@ export function reportedBestWave(state: {
     Math.max(state.meta?.highestSectorEver ?? 0, state.combat?.highestSector ?? 0),
   )
   return Math.max(0, explicit, fromBands)
+}
+
+/** Alias of `reportedBestWave`. Act 1 gates use career Best Wave, never live sector. */
+export function careerBestWave(state: {
+  meta?: { bestWave?: number; highestSectorEver?: number }
+  combat?: { bestWave?: number; highestSector?: number }
+}): number {
+  return reportedBestWave(state)
 }
 
 export function meetsWave(

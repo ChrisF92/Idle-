@@ -133,24 +133,6 @@ const STATION_TOAST: Partial<
     body: 'Spend Rebuild Matter on large permanent ranks. Key growth ranks compound.',
     label: 'OPEN',
   },
-  specialists: {
-    category: 'SYSTEM ONLINE',
-    title: 'Specialists unlocked',
-    body: 'Rank specialists for permanent ship bonuses.',
-    label: 'OPEN',
-  },
-  tasks: {
-    category: 'SYSTEM ONLINE',
-    title: 'Task List unlocked',
-    body: 'Finish the checklist to open Capital.',
-    label: 'OPEN',
-  },
-  capital: {
-    category: 'SYSTEM ONLINE',
-    title: 'Capital unlocked',
-    body: 'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
-    label: 'OPEN',
-  },
   reinforce: {
     category: 'SYSTEM ONLINE',
     title: 'Reinforce unlocked',
@@ -274,32 +256,6 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       tier: 'major',
       action: { label: 'OPEN DOCK', nav: { kind: 'tab', tab: 'dock' } },
     })
-  }
-
-  if (next.frontierNoticeSeq > prev.frontierNoticeSeq) {
-    const notice = state.combat.frontierNotice
-    if (notice?.kind === 'repelled' && !notice.first) {
-      const fallback =
-        notice.fallback === notice.sector
-          ? `Holding Wave ${notice.fallback * 10}.`
-          : `Falling back to Wave ${notice.fallback * 10}.`
-      push({
-        id: `frontier:repel:${notice.seq}`,
-        category: 'REPULSED',
-        title: `Repelled — Wave ${notice.sector * 10}`,
-        body: fallback,
-        action: { label: 'SORTIE', nav: { kind: 'tab', tab: 'combat' } },
-      })
-    }
-    if (notice?.kind === 'cleared') {
-      push({
-        id: `frontier:clear:${notice.seq}`,
-        category: 'FRONTIER',
-        title: `Frontier cleared — Wave ${notice.sector * 10}`,
-        body: 'Advance resumes.',
-        action: { label: 'SORTIE', nav: { kind: 'tab', tab: 'combat' } },
-      })
-    }
   }
 
   for (const id of TRACKED_SYSTEMS) {

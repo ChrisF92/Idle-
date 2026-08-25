@@ -631,7 +631,6 @@ export function canEnterProtocol(
   if (!state.combat.docked || state.combat.inFight) {
     return { ok: false, reason: 'Dock first' }
   }
-  if (state.echo?.activeId) return { ok: false, reason: 'Finish the Echo first' }
   if (state.protocols?.activeId) return { ok: false, reason: 'Already in a Challenge' }
   if (!protocolsUnlocked(state)) {
     return {

@@ -180,7 +180,6 @@ export function reinforceConsequenceLists(state: GameState): ConsequenceLists {
     'The Hive’s starting architecture reconstructs',
     'Future Rebuild kits grow',
     'Rebuild is no longer the top of the ladder',
-    'No Capital opens',
     'No Act 2 shop opens',
     ...lists.change,
   ]
