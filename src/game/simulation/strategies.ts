@@ -26,6 +26,8 @@ export function spendProfileFor(id: SimulationStrategyId): SimulationSpendProfil
 
 function playSession(state: GameState, ctx: StrategyContext, mode: SimulationSpendProfile): GameState {
   let next = skipGuides(state)
+  // Light a banked Furnace push before Extract can dock it away.
+  if (!next.combat.docked) next = tendFurnace(next, ctx)
   next = maybeExtractToWorkshop(next, ctx)
   next = industryPass(next, ctx, mode)
   const rebuild = shouldRebuild(next, ctx)

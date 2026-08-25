@@ -32,6 +32,8 @@ import { stopLabel, FIRST_SALVAGE_LESSON_SECONDS } from './presets'
 import { aggregateMilestones } from './report'
 import { captureAct1Snapshot } from '../balance/act1'
 import { coreStartingLevelAtSlot } from '../coreProgression'
+import { furnaceActiveLevel } from '../furnace'
+import { workshopLevel } from '../workshop'
 import type {
   Act1Snapshot,
   CorePurchaseRecord,
@@ -130,6 +132,9 @@ function makeProgress(
     heat: state.resources.heat ?? 0,
     scrap: state.resources.scrap ?? 0,
     salvage: state.resources.salvage ?? 0,
+    workshopWp: workshopLevel(state, 'weapon-power'),
+    pulse: coreStartingLevelAtSlot(state, 0),
+    furnaceWeapons: furnaceActiveLevel(state, 'weapons'),
     stopLabel: stopLabel(config.stop),
     note,
     cancelled,

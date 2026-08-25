@@ -6,11 +6,12 @@ import { ASH_PER_HEAT, furnaceActiveLevel, furnaceLightCost } from './furnace'
 import { getHiveResearchNode } from './hiveResearch'
 import { createInitialState } from './state'
 import { defaultSimulationConfig } from './simulation/presets'
-import { tendFurnace, shouldRebuild, maybeExtractToWorkshop } from './simulation/actions'
+import { tendFurnace, shouldRebuild, maybeExtractToWorkshop, spendScrapOnWorkshop } from './simulation/actions'
 import { atCareerWave, markHullLost } from './testHelpers'
 import type { StrategyContext } from './simulation/types'
 import { workerJobCap } from './workers'
 import { canReinforce } from './reinforce'
+import { workshopLevel } from './workshop'
 
 function stubCtx(overrides: Partial<StrategyContext> = {}): StrategyContext {
   const noop = () => undefined
@@ -228,6 +229,39 @@ describe('Furnace banks Ash for a frontier push', () => {
     expect(furnaceActiveLevel(s, 'weapons')).toBeGreaterThanOrEqual(2)
   })
 
+  it('escalates from Best-Wave stall even when the sector clock is still moving', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 190))
+    s.combat.docked = false
+    s.combat.wave = 1
+    s.combat.consecutiveLosses = 0
+    s.resources.choirAsh = 600
+    s.resources.heat = 0
+    s = tendFurnace(
+      s,
+      stubCtx({ secondsSinceHighestSectorGain: 8 * 60, secondsSinceBestWaveGain: 40 * 60 }),
+    )
+    expect(furnaceActiveLevel(s, 'weapons')).toBeGreaterThanOrEqual(2)
+  })
+
+  it('does not Rebuild-spam Economy-first while stacking toward Furnace', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 118))
+    s.combat.docked = true
+    s.prestige.prestigeCount = 2
+    s.prestige.cycle = { bestWave: 118, sorties: 8, scrapEarned: 800 }
+    s.resources.choirAsh = 0
+    const decision = shouldRebuild(
+      s,
+      stubCtx({
+        config: defaultSimulationConfig({ strategy: 'economy-first', stop: { type: 'wave', wave: 300 } }),
+        secondsSinceHighestSectorGain: 50 * 60,
+        secondsSinceBestWaveGain: 50 * 60,
+        lastRebuildActive: 11 * 3600,
+        activeSeconds: 12 * 3600,
+      }),
+    )
+    expect(decision.yes).toBe(false)
+  })
+
   it('extracts Economy-first at the wall to spend Scrap on Workshop', () => {
     let s = markHullLost(atCareerWave(createInitialState(0), 176))
     s.combat.docked = false
@@ -262,6 +296,23 @@ describe('Furnace banks Ash for a frontier push', () => {
     expect(furnaceActiveLevel(after, 'weapons')).toBe(1)
   })
 
+  it('extracts a failed lit push so Economy-first can dump Scrap into Workshop', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 190))
+    s.combat.docked = false
+    s.combat.wave = 190
+    s.resources.scrap = 50_000
+    s.furnace.active.weapons = 3
+    const after = maybeExtractToWorkshop(
+      s,
+      stubCtx({
+        secondsSinceBestWaveGain: 30 * 60,
+        secondsSinceHighestSectorGain: 30 * 60,
+        config: defaultSimulationConfig({ strategy: 'economy-first', stop: { type: 'wave', wave: 300 } }),
+      }),
+    )
+    expect(after.combat.docked).toBe(true)
+  })
+
   it('does not extract Economy-first during reclaim', () => {
     let s = markHullLost(atCareerWave(createInitialState(0), 176))
     s.combat.docked = false
@@ -275,6 +326,23 @@ describe('Furnace banks Ash for a frontier push', () => {
       }),
     )
     expect(after.combat.docked).toBe(false)
+  })
+
+  it('dumps a docked Economy-first Scrap pile into Workshop after the first Rebuild', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 118))
+    s.combat.docked = true
+    s.prestige.prestigeCount = 1
+    s.resources.scrap = 8_000
+    s.workshop.levels['weapon-power'] = 8
+    const before = workshopLevel(s, 'weapon-power')
+    s = spendScrapOnWorkshop(
+      s,
+      stubCtx({
+        config: defaultSimulationConfig({ strategy: 'economy-first', stop: { type: 'wave', wave: 300 } }),
+      }),
+      'economy-first',
+    )
+    expect(workshopLevel(s, 'weapon-power')).toBeGreaterThan(before + 6)
   })
 })
 

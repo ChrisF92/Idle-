@@ -102,6 +102,9 @@ export interface SimulationProgress {
   heat: number
   scrap: number
   salvage: number
+  workshopWp: number
+  pulse: number
+  furnaceWeapons: number
   stopLabel: string
   note: string
   cancelled: boolean

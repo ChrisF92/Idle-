@@ -98,6 +98,13 @@ import {
   type RunUpgradeId,
 } from '../workshop'
 
+/** After the first Rebuild, Economy-first docks with Scrap piles. Spend them. */
+function dockedShopBudget(state: GameState, base: number): number {
+  if (!state.combat.docked) return base
+  if ((state.prestige.prestigeCount ?? 0) < 1) return base
+  return 48
+}
+
 export function resolveSpendProfile(mode: string): SimulationSpendProfile {
   if (mode === 'casual') return 'casual'
   if (mode === 'offensive') return 'offensive'
@@ -131,11 +138,15 @@ export function ensureLaunched(state: GameState, ctx: StrategyContext): GameStat
 export function maybeExtractToWorkshop(state: GameState, ctx: StrategyContext): GameState {
   if (state.combat.docked) return state
   if (ctx.config.strategy !== 'economy-first') return state
-  if (furnaceActiveLevel(state, 'weapons') > 0) return state
   const career = careerBestWave(state)
   const wave = Math.max(1, state.combat.wave ?? 1)
   if (career > 0 && wave < career * 0.9) return state
-  if (ctx.secondsSinceBestWaveGain < 12 * 60) return state
+  const weaponsLit = furnaceActiveLevel(state, 'weapons') > 0
+  const stall = Math.max(ctx.secondsSinceBestWaveGain, ctx.secondsSinceHighestSectorGain)
+  // A freshly lit push needs time to break the wall. If that spend still
+  // cannot move Best Wave, dock and dump Scrap into the cycle shop.
+  if (weaponsLit && stall < 25 * 60) return state
+  if (!weaponsLit && stall < 12 * 60) return state
   const wpCost = workshopCost(workshopLevel(state, 'weapon-power'))
   if ((state.resources.scrap ?? 0) < wpCost) return state
   const next = setDocked(state, true)
@@ -434,7 +445,7 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   const wave = Math.max(1, state.combat.wave ?? 1)
   const reclaiming =
     (state.prestige.prestigeCount ?? 0) >= 1 && career > 0 && cycleBest < career * 0.88
-  const stallSec = ctx.secondsSinceHighestSectorGain
+  const stallSec = Math.max(ctx.secondsSinceHighestSectorGain, ctx.secondsSinceBestWaveGain)
   const stalled = stallSec >= 20 * 60
   const hardStall = stallSec >= 35 * 60
   const onTheWall = career <= 0 || wave >= Math.max(1, career - 8)
@@ -660,10 +671,9 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
       : careerBestWave(state) >= ACT1_CADENCE.furnace
         ? Math.max(cfg.stallSeconds * 5, 40 * 60)
         : econ
-          ? Math.min(
-              75 * 60,
-              Math.max(cfg.stallSeconds * 3, 18 * 60) + Math.max(0, prestigeCount - 1) * 5 * 60,
-            )
+          ? // Stack Workshop / Cores from the first Rebuild to Furnace.
+            // 18–75 min Rebuilds at W75–W118 dump the shop before W140.
+            4 * 3600
           : Math.max(cfg.stallSeconds * 3, 18 * 60)
   const cycleBest = cycleBestWave(state)
   const career = careerBestWave(state)
@@ -915,7 +925,14 @@ export function spendScrapOnCoreStarts(
   if (slots.length === 0) return state
   const wp = workshopLevel(state, 'weapon-power')
   let next = state
-  const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? (preferDefense ? 6 : 2) : 6
+  const budget =
+    profile === 'casual'
+      ? 2
+      : profile === 'economy-first'
+        ? preferDefense
+          ? dockedShopBudget(state, 24)
+          : 2
+        : 6
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     const ranked = [...order].sort((a, b) => {
@@ -984,7 +1001,8 @@ export function spendScrapOnWorkshop(
   const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   let next = state
-  const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? 6 : 4
+  const budget =
+    profile === 'casual' ? 2 : profile === 'economy-first' ? dockedShopBudget(state, 6) : 4
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     for (const id of order) {
