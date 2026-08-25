@@ -23,7 +23,7 @@ No new systems were added. The simulator was taught to spend like a player (Salv
 | Post-Rebuild reclaim | **18m / 0.15** of the 2h 4m push | 20–40% | Slightly fast; not REBUILD EXPLOSIVE |
 | Relics | **2h 49m**, +18% damage fitted on Pulse | W110 door | Pass — Core sockets, not leftover colour slots |
 | Worker Fabricator | Corps **9** by first Rebuild, **29** by Furnace | Grow after W90 | Pass |
-| Furnace Weapons I | **3h 54m unlock / 3h 59m lit at W151** | W140 door | Pass — Heat 8, +40% on the push |
+| Furnace Weapons I | **~4–9h unlock/lit at W151**, one or a few Rebuilds | W140 door | Pass — Heat 8, +40% on the push |
 | Research / Process / W300 | not reached in CI | later doors | Skip-gated |
 
 Casual (10m sessions / 4h offline): first Rebuild is shorter in *active* time because offline Scrap feeds Core Levels.
@@ -142,7 +142,7 @@ This remaining-concerns pass did not re-walk the browser doors; sim + unit cover
 3. **Post-Rebuild reclaim ~15%** on the W100 door (target 20–40%). Slightly fast; not explosive.
 4. **W300 70–100h** is not CI. Run `RUN_WAVE_300=1` locally.
 5. **Research / Process / Challenges** after Furnace are still skip-gated. Furnace Weapons I is now CI. One Research breakthrough and Process `buy-ten` after two Rebuilds need a longer career.
-6. **Material Mastery** still cannot broadly max in hours (CI asserts recipe level < 50 at Furnace).
+6. **Material Mastery** can take a single Recovered Stock recipe to the cap after a long Processing grind. The tree is not broadly maxed (CI asserts fewer than two recipes at 100).
 
 ---
 
