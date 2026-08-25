@@ -13,7 +13,6 @@ import {
   ACTIVE_ENEMY_SOFT_CAP,
   BOSS_WARNING_DURATION,
   isCommanderCandidateWave,
-  NORMAL_REINFORCEMENT_INTERVAL,
   waveEncounterKind,
 } from './waves'
 import { emptyBossBoundary } from './bossProvider'
