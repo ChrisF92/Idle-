@@ -243,6 +243,25 @@ describe('Furnace banks Ash for a frontier push', () => {
     expect(furnaceActiveLevel(s, 'weapons')).toBeGreaterThanOrEqual(2)
   })
 
+  it('takes Economy-first’s Process Rebuild after the first cycle stacks, not at the Research door', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 124))
+    s.combat.docked = true
+    s.prestige.prestigeCount = 1
+    s.prestige.cycle = { bestWave: 124, sorties: 8, scrapEarned: 2000 }
+    const decision = shouldRebuild(
+      s,
+      stubCtx({
+        config: defaultSimulationConfig({ strategy: 'economy-first', stop: { type: 'wave', wave: 300 } }),
+        secondsSinceHighestSectorGain: 10 * 60,
+        secondsSinceBestWaveGain: 10 * 60,
+        lastRebuildActive: 2 * 3600,
+        activeSeconds: 6.5 * 3600,
+      }),
+    )
+    expect(decision.yes).toBe(true)
+    expect(decision.reasons.join(' ')).toMatch(/Process/)
+  })
+
   it('does not Rebuild-spam Economy-first while stacking toward Furnace', () => {
     let s = markHullLost(atCareerWave(createInitialState(0), 118))
     s.combat.docked = true
@@ -296,7 +315,7 @@ describe('Furnace banks Ash for a frontier push', () => {
     expect(furnaceActiveLevel(after, 'weapons')).toBe(1)
   })
 
-  it('extracts a failed lit push so Economy-first can dump Scrap into Workshop', () => {
+  it('does not dump a lit Weapons III push to shop while Salvage is stacking', () => {
     let s = markHullLost(atCareerWave(createInitialState(0), 190))
     s.combat.docked = false
     s.combat.wave = 190
@@ -310,7 +329,8 @@ describe('Furnace banks Ash for a frontier push', () => {
         config: defaultSimulationConfig({ strategy: 'economy-first', stop: { type: 'wave', wave: 300 } }),
       }),
     )
-    expect(after.combat.docked).toBe(true)
+    expect(after.combat.docked).toBe(false)
+    expect(furnaceActiveLevel(after, 'weapons')).toBe(3)
   })
 
   it('does not extract Economy-first during reclaim', () => {

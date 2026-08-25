@@ -143,10 +143,8 @@ export function maybeExtractToWorkshop(state: GameState, ctx: StrategyContext): 
   if (career > 0 && wave < career * 0.9) return state
   const weaponsLit = furnaceActiveLevel(state, 'weapons') > 0
   const stall = Math.max(ctx.secondsSinceBestWaveGain, ctx.secondsSinceHighestSectorGain)
-  // A freshly lit push needs time to break the wall. If that spend still
-  // cannot move Best Wave, dock and dump Scrap into the cycle shop.
-  if (weaponsLit && stall < 25 * 60) return state
-  if (!weaponsLit && stall < 12 * 60) return state
+  if (weaponsLit) return state
+  if (stall < 12 * 60) return state
   const wpCost = workshopCost(workshopLevel(state, 'weapon-power'))
   if ((state.resources.scrap ?? 0) < wpCost) return state
   const next = setDocked(state, true)
@@ -698,10 +696,10 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   }
   const secondForProcess =
     prestigeCount === 1 &&
-    career >= 160 &&
     career < 250 &&
     ctx.lastRebuildActive != null &&
-    ctx.activeSeconds - ctx.lastRebuildActive >= 4 * 3600
+    ctx.activeSeconds - ctx.lastRebuildActive >= 4 * 3600 &&
+    (career >= 160 || (econ && career >= 90))
   if (secondForProcess && !reclaiming) {
     return { yes: true, reasons: ['Second Rebuild to open Process'] }
   }
