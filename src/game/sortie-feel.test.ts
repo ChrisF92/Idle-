@@ -46,7 +46,7 @@ describe('sortie feel', () => {
 
   it('does not force a Rebuild spotlight on Dock', () => {
     const state = createInitialState(0)
-    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-launch')
-    expect(GUIDE_STEPS.some((s) => s.target === 'rebuild-btn')).toBe(false)
+    expect(activeGuideStep(state, 'dock')).toBeNull()
+    expect(GUIDE_STEPS.find((s) => s.id === 'rebuild.preview')?.activation).toBe('visit')
   })
 })

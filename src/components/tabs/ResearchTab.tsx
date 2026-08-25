@@ -128,6 +128,7 @@ export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
                   researching ? ' is-active' : ''
                 }`}
                 data-guide={!researching ? 'research-focus' : undefined}
+                data-onboarding={!researching ? 'onboarding.research.available-node' : undefined}
               >
                 <div className="network-row-main">
                   <InspectName name={branch.name} card={inspectResearchBranch(state, branch.id)} />

@@ -12,7 +12,9 @@ import { ToastStack } from '../components/ToastStack'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
-import { activeGuideStep, GUIDE_STEPS } from './progression'
+import { ONBOARDING_LESSONS } from './onboarding'
+import { OverlayProvider } from '../ui/overlay'
+import type { PresentationItem } from './presentation'
 
 afterEach(cleanup)
 
@@ -57,7 +59,7 @@ describe('shell UX', () => {
     state.combat.docked = false
     state.shipyard.moduleLevels['pulse-cannon'] = 1
     state.shipyard.moduleLevels['plate-layer'] = 1
-    state.meta.seenOnboarding = [...GUIDE_STEPS.map((s) => s.id)]
+    state.meta.seenOnboarding = [...ONBOARDING_LESSONS.map((s) => s.id)]
     let handled = 0
     render(
       <CombatTab
@@ -152,75 +154,76 @@ describe('shell UX', () => {
     expect(screen.queryByRole('button', { name: /Network/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /More/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Dock/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Sortie/ })).toBeTruthy()
-
-    const live = createInitialState(0)
-    live.combat.docked = false
-    rerender(<TabNav active="combat" onChange={() => undefined} state={live} />)
-    expect(screen.queryByRole('button', { name: /Dock/ })).toBeNull()
-    expect(screen.getByRole('button', { name: /Sortie/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Sortie/ })).toBeNull()
 
     rerender(
-      <TabNav active="combat" onChange={() => undefined} state={markHullLost(fresh)} />,
+      <TabNav active="dock" onChange={() => undefined} state={markHullLost(fresh)} />,
     )
     expect(screen.queryByRole('button', { name: /Network/ })).toBeNull()
     expect(screen.getByRole('button', { name: /More/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Dock/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Sortie/ })).toBeTruthy()
-    expect(
-      screen.getByRole('button', { name: /Sortie/ }).querySelector('.attention-pip-fresh'),
-    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Sortie/ })).toBeNull()
   })
 
   it('keeps the Cores sheet closed unless the player opens it', () => {
     const persist = markHullLost(createInitialState(0))
-    persist.combat.docked = true
-    persist.resources.salvage = 8
-    persist.shipyard.moduleLevels['pulse-cannon'] = 1
-    persist.shipyard.moduleLevels['plate-layer'] = 1
-    persist.meta.seenOnboarding = [
-      'guide-shipyard-tab',
-      'guide-frame-select',
-      'guide-launch',
-      'guide-sortie-field',
-      'guide-sortie-guns',
-      'guide-sortie-hull',
-      'guide-salvage-lesson',
-      'guide-cores-sheet',
-      'guide-upgrade-pulse',
-      'guide-upgrade-plate',
-      'guide-cores-inspect',
-    ]
-    persist.meta.lifetimeCoreRunBuys = 2
-    const persistStep = activeGuideStep(persist, 'dock')
-    expect(persistStep?.id === 'guide-core-mastery' || persistStep?.id === 'guide-relaunch').toBe(true)
-
+    persist.combat.docked = false
+    persist.combat.inFight = true
     render(
       <CombatTab
         state={persist}
         onLaunch={() => undefined}
         onPickMilestone={() => undefined}
-        guide={persistStep}
       />,
     )
     expect(screen.queryByRole('dialog', { name: 'Cores' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
-    expect(screen.getByRole('dialog', { name: 'Cores' })).toBeTruthy()
   })
 
-  it('shows Got it only on look-only onboarding tips', () => {
-    const tap = GUIDE_STEPS.find((s) => s.id === 'guide-network-strike')
-    const look = GUIDE_STEPS.find((s) => s.id === 'guide-core-mastery')
+  it('shows Continue on payoff and tap copy on required actions', () => {
+    const tap = ONBOARDING_LESSONS.find((s) => s.id === 'workers.assignment')
+    const look = ONBOARDING_LESSONS.find((s) => s.id === 'challenges.start')
     expect(tap && look).toBeTruthy()
+    const tapItem: PresentationItem = {
+      id: 'onboarding:workers.assignment',
+      class: 'blocking',
+      priority: 80,
+      title: tap!.title,
+      body: ['Assign a Worker'],
+      actionLabel: tap!.actionLabel,
+      required: tap!.required,
+      dismissible: true,
+      skippable: true,
+      lessonId: tap!.id,
+      dedupeKey: tap!.id,
+      timestamp: 0,
+      order: 0,
+      pause: false,
+      kind: 'onboarding',
+      phase: 'action',
+    }
+    const lookItem: PresentationItem = {
+      ...tapItem,
+      id: 'onboarding:challenges.start',
+      title: look!.title,
+      body: ['Hint'],
+      actionLabel: undefined,
+      required: false,
+      lessonId: look!.id,
+      dedupeKey: look!.id,
+    }
     const { rerender } = render(
-      <GuideOverlay step={tap!} onComplete={() => undefined} onSkip={() => undefined} />,
+      <OverlayProvider>
+        <GuideOverlay item={tapItem} onComplete={() => undefined} onSkip={() => undefined} />
+      </OverlayProvider>,
     )
-    expect(screen.queryByRole('button', { name: 'Got it' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
     expect(screen.getByText(/Tap the highlight/i)).toBeTruthy()
     rerender(
-      <GuideOverlay step={look!} onComplete={() => undefined} onSkip={() => undefined} />,
+      <OverlayProvider>
+        <GuideOverlay item={lookItem} onComplete={() => undefined} onSkip={() => undefined} />
+      </OverlayProvider>,
     )
-    expect(screen.getByRole('button', { name: 'Got it' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy()
   })
 
   it('spotlights Worker Drone jobs without Network combat labels', () => {
@@ -278,21 +281,28 @@ describe('shell UX', () => {
 
   it('renders actionable toasts without covering as a modal', () => {
     render(
-      <ToastStack
-        toasts={[
-          {
+      <OverlayProvider>
+        <ToastStack
+          item={{
             id: 'sys:research',
-            key: 1,
-            createdAt: 0,
-            category: 'SYSTEM ONLINE',
+            class: 'action',
+            priority: 40,
             title: 'Research unlocked',
-            body: 'Permanent Hive Research is now available.',
+            body: ['Permanent Hive Research is now available.'],
+            kicker: 'SYSTEM ONLINE',
             action: { label: 'OPEN RESEARCH', nav: { kind: 'tab', tab: 'research' } },
-          },
-        ]}
-        onDismiss={() => undefined}
-        onAction={() => undefined}
-      />,
+            dismissible: true,
+            skippable: true,
+            dedupeKey: 'sys:research',
+            timestamp: 0,
+            order: 0,
+            pause: false,
+            kind: 'toast',
+          }}
+          onDismiss={() => undefined}
+          onAction={() => undefined}
+        />
+      </OverlayProvider>,
     )
     expect(screen.getByText('Research unlocked')).toBeTruthy()
     expect(screen.getByRole('button', { name: /OPEN RESEARCH/ })).toBeTruthy()

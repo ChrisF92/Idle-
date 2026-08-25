@@ -2,6 +2,7 @@ import type { OfflineReport } from '../game/offline'
 import { RESOURCE_LABELS } from '../game/state'
 import type { Resources } from '../game/types'
 import { formatCompact } from '../game/format'
+import { useOverlayLayer } from '../ui/overlay'
 
 interface OfflineBannerProps {
   report: OfflineReport
@@ -18,6 +19,12 @@ function formatDuration(ms: number): string {
 }
 
 export function OfflineBanner({ report, onDismiss }: OfflineBannerProps) {
+  useOverlayLayer({
+    id: 'offline-report',
+    kind: 'modal',
+    open: true,
+    onClose: onDismiss,
+  })
   const gainLines = Object.entries(report.gains)
     .filter(([, v]) => (v ?? 0) > 0.05)
     .map(

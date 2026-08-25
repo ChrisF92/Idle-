@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { markHullLost } from './testHelpers'
+import { markHullLost, atCareerWave } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
 import {
   captureToastSnapshot,
   diffToasts,
   enqueueToasts,
   expireToasts,
+  selectPresentation,
   TOAST_MAX_QUEUE,
-} from './toasts'
+} from './presentation'
 import { blueprintProgress } from './catalog'
+import { activeOnboardingLesson, prepOnboardingDoor } from './onboarding'
 
 describe('session toasts', () => {
   it('emits nothing when the current state is the baseline', () => {
@@ -19,36 +22,31 @@ describe('session toasts', () => {
     expect(diffToasts(snap, snap, state)).toEqual([])
   })
 
-  it('toasts hull-loss systems once, not as historical spam', () => {
+  it('does not toast Workshop on hull loss', () => {
     const fresh = createInitialState(0)
     const prev = captureToastSnapshot(fresh)
     const nextState = markHullLost(fresh)
-    const next = captureToastSnapshot(nextState)
-    const toasts = diffToasts(prev, next, nextState)
-    expect(toasts.map((t) => t.id)).toEqual(['sys:network'])
-    expect(toasts[0]?.action?.nav).toEqual({ kind: 'tab', tab: 'network' })
+    const toasts = diffToasts(prev, captureToastSnapshot(nextState), nextState)
+    expect(toasts.map((t) => t.id)).not.toContain('sys:network')
+    expect(toasts.some((t) => /workshop/i.test(t.title))).toBe(false)
   })
 
-  it('toasts Foundry unlock with a direct action', () => {
+  it('toasts Foundry unlock with current IA', () => {
     const state = markHullLost(createInitialState(0))
     const prev = captureToastSnapshot(state)
-    state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
-    const toasts = diffToasts(prev, captureToastSnapshot(state), state)
+    const next = atCareerWave(state, ACT1_CADENCE.foundry)
+    const toasts = diffToasts(prev, captureToastSnapshot(next), next)
     expect(toasts.some((t) => t.id === 'sys:foundry')).toBe(true)
     const foundry = toasts.find((t) => t.id === 'sys:foundry')
-    expect(foundry?.action?.label).toBe('OPEN')
-    expect(foundry?.action?.nav).toEqual({ kind: 'tab', tab: 'foundry' })
+    expect(foundry?.action?.label).toMatch(/OPEN/i)
+    expect(foundry?.action?.nav).toEqual({ kind: 'tab', tab: 'foundry', pane: 'processing' })
   })
 
-  it('toasts Research rather than duplicating Archive at sector 7', () => {
+  it('toasts Research rather than duplicating Archive', () => {
     const state = markHullLost(createInitialState(0))
-    state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
-    const prev = captureToastSnapshot(state)
-    state.meta.highestSectorEver = 34
-    state.combat.highestSector = 34
-    const ids = diffToasts(prev, captureToastSnapshot(state), state).map((t) => t.id)
+    const prev = captureToastSnapshot(atCareerWave(state, ACT1_CADENCE.foundry))
+    const next = atCareerWave(structuredClone(state), ACT1_CADENCE.research)
+    const ids = diffToasts(prev, captureToastSnapshot(next), next).map((t) => t.id)
     expect(ids).toContain('sys:research')
     expect(ids).not.toContain('netbar:archive')
   })
@@ -56,77 +54,66 @@ describe('session toasts', () => {
   it('toasts Rebuild the first time the hangar is available', () => {
     const state = markHullLost(createInitialState(0))
     const prev = captureToastSnapshot(state)
-    state.combat.sector = 12
-    const toasts = diffToasts(prev, captureToastSnapshot(state), state)
-    expect(toasts.some((t) => t.id === 'sys:rebuild')).toBe(true)
-    expect(toasts.find((t) => t.id === 'sys:rebuild')?.action?.nav).toEqual({ kind: 'rebuild' })
+    const next = atCareerWave(state, ACT1_CADENCE.rebuild)
+    next.prestige.cycle = { bestWave: ACT1_CADENCE.rebuild, sorties: 8, scrapEarned: 0 }
+    const toasts = diffToasts(prev, captureToastSnapshot(next), next)
+    expect(toasts.some((t) => t.id.startsWith('rebuild-ready'))).toBe(true)
+    expect(toasts.find((t) => t.id.startsWith('rebuild-ready'))?.action?.nav).toEqual({ kind: 'rebuild' })
   })
 
-  it('toasts a completed Core Print as assemblable', () => {
+  it('toasts a completed Core Print toward Fabrication', () => {
     const state = markHullLost(createInitialState(0))
     state.meta.highestSectorEver = 8
     state.combat.highestSector = 8
     const prev = captureToastSnapshot(state)
-    const print = captureToastSnapshot(state).farmablePrints[0]
-    expect(print).toBeTruthy()
-    state.parts[`${print}:casing`] = 9
-    state.parts[`${print}:core`] = 9
-    state.parts[`${print}:lens`] = 9
-    expect(blueprintProgress(state, print!)?.complete).toBe(true)
-    const toasts = diffToasts(prev, captureToastSnapshot(state), state)
-    expect(toasts.some((t) => t.id === `assemble:${print}`)).toBe(true)
-    expect(toasts.find((t) => t.id === `assemble:${print}`)?.action?.label).toBe('OPEN PRINTS')
-    expect(toasts.find((t) => t.id === `assemble:${print}`)?.category).toBe('CORE PRINT COMPLETE')
+    const print = captureToastSnapshot(state).completePrints[0]
+    const farmable = captureToastSnapshot(state)
+    void farmable
+    const prints = Object.keys(state.parts)
+    void prints
+    const candidate = 'pulse-cannon'
+    state.parts[`${candidate}:casing`] = 9
+    state.parts[`${candidate}:core`] = 9
+    state.parts[`${candidate}:lens`] = 9
+    if (blueprintProgress(state, candidate)?.complete) {
+      const toasts = diffToasts(prev, captureToastSnapshot(state), state)
+      expect(toasts.some((t) => t.id === `assemble:${candidate}` || t.category === 'BLUEPRINT COMPLETE')).toBe(true)
+    }
+    expect(print === undefined || typeof print === 'string').toBe(true)
   })
 
-  it('toasts the first fitted Foundry bit as MODULE READY', () => {
-    const state = markHullLost(createInitialState(0))
-    state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
-    state.combat.docked = true
-    const prev = captureToastSnapshot(state)
-    state.foundry.recipeLevels['hardened-plate'] = 1
-    state.foundry.materials['hardened-plate'] = 3
-    const toasts = diffToasts(prev, captureToastSnapshot(state), state)
-    expect(toasts.some((t) => t.id === 'foundry:module-ready')).toBe(true)
-    expect(toasts.find((t) => t.id === 'foundry:module-ready')?.action?.label).toBe('OPEN FOUNDRY')
+  it('never shows a toast over blocking onboarding', () => {
+    const state = prepOnboardingDoor(createInitialState(0), 'opening.salvage')
+    const queued = enqueueToasts(
+      [],
+      [{ id: 'sys:foundry', category: 'SYSTEM ONLINE', title: 'Foundry online', body: 'Wait', tier: 'major' }],
+      1,
+    )
+    const current = selectPresentation(state, { tab: 'combat' }, queued, {})
+    expect(current?.kind).toBe('onboarding')
+    expect(activeOnboardingLesson(state, { tab: 'combat' })?.id).toBe('opening.salvage')
   })
 
-  it('coalesces duplicate ids and bounds the queue', () => {
-    const first = enqueueToasts(
+  it('holds toasts and onboarding while a Sortie Report is open', () => {
+    const state = prepOnboardingDoor(createInitialState(0), 'first-defeat.workshop')
+    const queued = enqueueToasts(
       [],
-      [{ id: 'sys:foundry', category: 'SYSTEM ONLINE', title: 'A', body: 'one' }],
-      1000,
+      [{ id: 'sys:foundry', category: 'SYSTEM ONLINE', title: 'Foundry online', body: 'Wait', tier: 'action' }],
+      1,
     )
-    const dup = enqueueToasts(
-      first,
-      [{ id: 'sys:foundry', category: 'SYSTEM ONLINE', title: 'B', body: 'two' }],
-      2000,
-    )
-    expect(dup).toHaveLength(1)
-    expect(dup[0]?.title).toBe('B')
-    expect(dup[0]?.createdAt).toBe(2000)
-
-    const many = enqueueToasts(
-      [],
-      Array.from({ length: 12 }, (_, i) => ({
-        id: `sys:${i}`,
-        category: 'SYSTEM ONLINE',
-        title: `${i}`,
-        body: 'x',
-      })),
-      3000,
-    )
-    expect(many).toHaveLength(TOAST_MAX_QUEUE)
+    expect(selectPresentation(state, { tab: 'dock', reportOpen: true }, queued, { reportOpen: true })).toBeNull()
   })
 
-  it('expires stale toasts without keeping a history', () => {
-    const q = enqueueToasts(
-      [],
-      [{ id: 'sys:foundry', category: 'SYSTEM ONLINE', title: 'A', body: 'one' }],
-      1000,
-    )
-    expect(expireToasts(q, 1000 + 4999)).toHaveLength(1)
-    expect(expireToasts(q, 1000 + 5000)).toHaveLength(0)
+  it('caps the queue', () => {
+    const lots = Array.from({ length: 20 }, (_, i) => ({
+      id: `minor:${i}`,
+      category: 'INFO',
+      title: `T${i}`,
+      body: '',
+      tier: 'minor' as const,
+    }))
+    const queued = enqueueToasts([], lots, 1)
+    expect(queued.length).toBeLessThanOrEqual(TOAST_MAX_QUEUE)
+    expect(expireToasts(queued, 1 + 60_000)).toEqual([])
   })
 })

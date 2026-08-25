@@ -112,11 +112,11 @@ describe('GDD Furnace', () => {
 })
 
 describe('GDD onboarding overlay', () => {
-  it('is enabled and starts on Dock Launch, not a flying lecture', () => {
+  it('is enabled and a docked baseline has no Launch tutorial', () => {
     expect(ONBOARDING_ENABLED).toBe(true)
     const fresh = createInitialState(0)
-    expect(activeGuideStep(fresh, 'dock')?.id).toBe('guide-launch')
-    expect(activeGuideStep(fresh, 'combat')?.target).toBe('launch')
+    expect(activeGuideStep(fresh, 'dock')).toBeNull()
+    expect(activeGuideStep(fresh, 'combat')).toBeNull()
     const flying = setDocked(fresh, false)
     expect(activeGuideStep(flying, 'combat')).toBeNull()
     expect(activeGuideStep(flying, 'dock')).toBeNull()

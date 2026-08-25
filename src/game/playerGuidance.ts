@@ -2,118 +2,26 @@
 
 import { idleWorkers } from './catalog'
 import { practicedCoreWork } from './corePractice'
-import { foundryMaterialCount, foundryRecipeLevel } from './foundry'
+import { foundryRecipeLevel } from './foundry'
 import { prestigeGainFor } from './actions'
 import { firstAffordableProcessNode } from './process'
 import { isSystemUnlocked } from './progression'
+import { isEstablishedCareer, migrateOnboardingRegistry, ONBOARDING_LESSON_IDS } from './onboarding'
 import type { GameState } from './types'
+
+export { isEstablishedCareer }
+
+export const BEGINNER_GUIDE_IDS = ONBOARDING_LESSON_IDS
+
+export function migrateOnboardingState(state: GameState): void {
+  migrateOnboardingRegistry(state)
+}
 
 export interface ConsequenceLists {
   gain: string[]
   keep: string[]
   reset: string[]
   change: string[]
-}
-
-const LEGACY_TOUR_MARKERS = [
-  'guide-drone-cap',
-  'guide-network-make',
-  'guide-foundry-what',
-  'guide-furnace-v2-ash',
-  'guide-research-xp',
-  'guide-process-v2-what',
-  'guide-protocol-restrict',
-  'guide-reliquary-slots',
-  'guide-prestige-hangar',
-] as const
-
-const LEGACY_TO_CURRENT: Record<string, string> = {
-  'guide-shipyard-tab': 'guide-launch',
-  'guide-frame-select': 'guide-launch',
-  'guide-sortie-field': 'guide-salvage-first',
-  'guide-sortie-guns': 'guide-salvage-first',
-  'guide-sortie-hull': 'guide-salvage-first',
-  'guide-sortie-fire': 'guide-salvage-first',
-  'guide-sortie-salvage': 'guide-salvage-first',
-  'guide-salvage-lesson': 'guide-salvage-first',
-  'guide-cores-sheet': 'guide-salvage-first',
-  'guide-upgrade-pulse': 'guide-salvage-first',
-  'guide-upgrade-plate': 'guide-salvage-first',
-  'guide-core-run': 'guide-salvage-first',
-  'guide-cores-inspect': 'guide-workshop',
-  'guide-cores-persist': 'guide-workshop',
-  'guide-core-mastery': 'guide-workshop',
-  'guide-relaunch-upgraded': 'guide-second-sortie',
-  'guide-relaunch': 'guide-second-sortie',
-  'guide-drone-cap': 'guide-network-strike',
-  'guide-network-make': 'guide-network-strike',
-  'guide-network-assign': 'guide-network-strike',
-  'guide-network-ward': 'guide-network-strike',
-  'guide-foundry': 'guide-foundry-recipe',
-  'guide-foundry-smelt': 'guide-foundry-recipe',
-  'guide-foundry-what': 'guide-foundry-recipe',
-  'guide-furnace': 'guide-furnace-light',
-  'guide-furnace-v2-ash': 'guide-furnace-light',
-  'guide-furnace-v2-activate': 'guide-furnace-light',
-  'guide-research-tab': 'guide-research-focus',
-  'guide-research-xp': 'guide-research-focus',
-  'guide-research-focus-how': 'guide-research-focus',
-}
-
-/** First-run overlay ids. Established careers skip these on load. */
-export const BEGINNER_GUIDE_IDS = [
-  'guide-launch',
-  'guide-salvage-first',
-  'guide-defense',
-  'guide-workshop',
-  'guide-second-sortie',
-  'guide-network-strike',
-  'guide-foundry-recipe',
-  'guide-foundry-mastery',
-  'guide-furnace-light',
-  'guide-research-focus',
-  'guide-process-first',
-  'guide-relic-install',
-  'guide-directive',
-  'guide-challenge',
-] as const
-
-export function isEstablishedCareer(state: GameState): boolean {
-  if ((state.prestige.prestigeCount ?? 0) > 0) return true
-  if ((state.meta.ascensionCount ?? 0) > 0) return true
-  if ((state.meta.highestSectorEver ?? 0) >= 5) return true
-  const seen = state.meta.seenOnboarding ?? []
-  if (seen.length >= 15) return true
-  if (seen.some((id) => (LEGACY_TOUR_MARKERS as readonly string[]).includes(id))) return true
-  return practicedCoreWork(state) >= 4
-}
-
-export function migrateOnboardingState(state: GameState): void {
-  const seen = new Set(state.meta.seenOnboarding ?? [])
-  for (const [legacy, current] of Object.entries(LEGACY_TO_CURRENT)) {
-    if (seen.has(legacy)) seen.add(current)
-  }
-  if (!isEstablishedCareer(state)) {
-    state.meta.seenOnboarding = [...seen]
-    return
-  }
-  for (const id of BEGINNER_GUIDE_IDS) seen.add(id)
-  if ((state.base.assignments.strike ?? 0) > 0 || (state.base.assignments['scrap-field'] ?? 0) > 0) {
-    seen.add('guide-network-strike')
-    seen.add('guide-network-ward')
-  }
-  if (foundryRecipeLevel(state, 'slag-ingot') > 0 || foundryMaterialCount(state, 'slag-ingot') > 0) {
-    seen.add('guide-foundry-recipe')
-    seen.add('guide-foundry-mastery')
-  }
-  if (Object.values(state.furnace?.wanted ?? {}).some((lv) => lv > 0)) {
-    seen.add('guide-furnace-light')
-  }
-  const hive = state.hiveResearch
-  if (hive && Object.values(hive.xp).some((n) => n > 0)) {
-    seen.add('guide-research-focus')
-  }
-  state.meta.seenOnboarding = [...seen]
 }
 
 export function rebuildConsequenceLists(state: GameState): ConsequenceLists {

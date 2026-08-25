@@ -68,7 +68,7 @@ interface FoundryTabProps {
   onStopFabrication?: (slotIndex: number) => void
   guideTarget?: string | null
   focusTarget?: string | null
-  requestedPane?: FoundryPane | 'ranks' | 'fit' | 'build' | null
+  requestedPane?: FoundryPane | 'ranks' | 'fit' | 'build' | 'processing' | 'fabrication' | null
   onBack?: () => void
 }
 
@@ -78,19 +78,14 @@ function foundryPaneFromHints(
   requestedPane?: FoundryTabProps['requestedPane'],
 ): FoundryPane | null {
   if (requestedPane === 'build') return 'build'
-  if (requestedPane === 'prints' || requestedPane === 'fit') return 'prints'
-  if (requestedPane === 'smelt' || requestedPane === 'ranks') return 'smelt'
+  if (requestedPane === 'prints' || requestedPane === 'fit' || requestedPane === 'fabrication') return 'prints'
+  if (requestedPane === 'smelt' || requestedPane === 'ranks' || requestedPane === 'processing') return 'smelt'
   if (focusTarget?.startsWith('print-') || focusTarget === 'foundry-prints') return 'prints'
   if (focusTarget === 'foundry-build' || guideTarget === 'foundry-build' || guideTarget === 'yard-grid') {
     return 'build'
   }
   if (guideTarget === 'foundry-prints') return 'prints'
-  if (
-    guideTarget === 'foundry-smelters' ||
-    guideTarget === 'foundry-recipes' ||
-    guideTarget === 'foundry-chain' ||
-    guideTarget?.startsWith('foundry-recipe-')
-  ) {
+  if (guideTarget === 'onboarding.foundry.processor' || guideTarget === 'foundry-smelters' || guideTarget === 'foundry-recipes' || guideTarget === 'foundry-chain' || guideTarget?.startsWith('foundry-recipe-')) {
     return 'smelt'
   }
   return null
@@ -282,6 +277,7 @@ export function FoundryTab({
                           : 'network-row locked'
                       }
                       data-guide={`foundry-recipe-${recipe.id}`}
+                      data-onboarding={recipe.id === 'slag-ingot' ? 'onboarding.foundry.processor' : undefined}
                     >
                       <div className="network-row-main">
                         <InspectName

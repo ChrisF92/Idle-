@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { GameState } from '../game/types'
 import type { DevAction } from '../game/dev'
 import { GDD_DOOR_PRESETS, isDevToolsEnabled, setDevToolsEnabled } from '../game/dev'
+import { ONBOARDING_LESSON_IDS } from '../game/onboarding'
 import { SHIP_FRAMES } from '../game/catalog'
 import { PlaytestReport } from './PlaytestReport'
 
@@ -215,6 +216,13 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
             <button type="button" onClick={() => onDevAction({ type: 'reset-onboarding' })}>
               Replay first-run
             </button>
+          </div>
+          <div className="dev-tools-row">
+            {ONBOARDING_LESSON_IDS.map((id) => (
+              <button key={id} type="button" onClick={() => onDevAction({ type: 'prep-onboarding-door', lessonId: id })}>
+                Door {id}
+              </button>
+            ))}
             <button type="button" onClick={() => onDevAction({ type: 'seed-late-game' })}>
               Seed W300
             </button>

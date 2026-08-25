@@ -76,6 +76,7 @@ export function FurnaceTab({ state, onBack, onConvert, onSetChannel }: FurnaceTa
               disabled={batches <= 0}
               onClick={onConvert}
               data-guide="furnace-bank"
+              data-onboarding={(state.resources.heat ?? 0) < 8 ? 'onboarding.furnace.channel' : undefined}
             >
               Convert {formatCompact(batches, 1)} Heat
             </button>
@@ -92,6 +93,11 @@ export function FurnaceTab({ state, onBack, onConvert, onSetChannel }: FurnaceTa
                 key={ch.id}
                 className={`network-row${active > 0 ? ' is-active' : unlocked ? '' : ' locked'}`}
                 data-guide={ch.id === 'weapons' ? 'furnace-channel-weapons' : undefined}
+                data-onboarding={
+                  ch.id === 'weapons' && (state.resources.heat ?? 0) >= 8
+                    ? 'onboarding.furnace.channel'
+                    : undefined
+                }
               >
                 <div className="network-row-main">
                   <InspectName name={ch.name} card={unlocked ? inspectFurnaceChannel(state, ch.id) : null} />

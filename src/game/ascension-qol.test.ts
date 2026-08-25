@@ -37,7 +37,7 @@ describe('onboarding survives soft resets', () => {
       expect(state.meta.seenOnboarding).toContain(id)
     }
     expect(activeGuideStep(state, 'combat')).not.toMatchObject({
-      id: 'guide-launch',
+      id: 'opening.salvage',
     })
   })
 
@@ -54,11 +54,11 @@ describe('onboarding survives soft resets', () => {
     expect(activeGuideStep(state, 'combat')).toBeNull()
   })
 
-  it('syncCompletedGuides acks launch once the ship is flying', () => {
+  it('syncCompletedGuides does not complete Salvage just because combat is live', () => {
     let state = createInitialState(0)
     state.combat.docked = false
     state = syncCompletedGuides(state, 'dock')
-    expect(state.meta.seenOnboarding).toContain('guide-launch')
+    expect(state.meta.seenOnboarding).not.toContain('opening.salvage')
   })
 
   it('retirePostResetOnboarding is idempotent', () => {

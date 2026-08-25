@@ -29,6 +29,7 @@ import {
   skipOnboarding,
 } from './progression'
 import { exportSave, importSave } from './save'
+import { prepOnboardingDoor } from './onboarding'
 
 function furnaceReady(sector = 28) {
   const s = createInitialState(0)
@@ -274,9 +275,9 @@ describe('Furnace 2.0 Rebuild, offline, save, onboarding', () => {
   })
 
   it('starts a single Furnace light action on first open', () => {
-    let s = furnaceReady()
-    expect(activeGuideStep(s, 'furnace')?.id).toBe('guide-furnace-light')
-    s = skipOnboarding(s, 'guide-furnace-light')
+    let s = prepOnboardingDoor(createInitialState(0), 'furnace.channel')
+    expect(activeGuideStep(s, 'furnace')?.id).toBe('furnace.channel')
+    s = skipOnboarding(s, 'furnace.channel')
     expect(activeGuideStep(s, 'furnace')).toBeNull()
     for (const id of FURNACE_V2_GUIDE_IDS) {
       expect(s.meta.seenOnboarding).toContain(id)
@@ -284,7 +285,7 @@ describe('Furnace 2.0 Rebuild, offline, save, onboarding', () => {
   })
 
   it('does not replay the Furnace light hint after it is seen', () => {
-    const s = furnaceReady()
+    const s = prepOnboardingDoor(createInitialState(0), 'furnace.channel')
     s.meta.seenOnboarding = [...FURNACE_V2_GUIDE_IDS]
     expect(activeGuideStep(s, 'furnace')).toBeNull()
   })

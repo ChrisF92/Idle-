@@ -2,7 +2,6 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { formatCompact } from '../../game/format'
-import { type GuideStep } from '../../game/progression'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { SheetTabs } from '../SheetTabs'
 import { type BuyMode } from '../../game/workshop'
@@ -29,7 +28,7 @@ interface CombatTabProps {
   onViewReport?: () => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
-  guide?: GuideStep | null
+  onboardingTarget?: string | null
   onMarkCoresSeen?: () => void
   coresRequest?: { key: number; moduleId?: string } | null
   onCoresRequestHandled?: () => void
@@ -47,7 +46,7 @@ export function CombatTab({
   onExtract,
   onBuyRunUpgrade,
   paused = false,
-  guide = null,
+  onboardingTarget = null,
   onChooseDirective,
   onCycleSpeed,
 }: CombatTabProps) {
@@ -75,17 +74,29 @@ export function CombatTab({
   })
   const careerBest = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
   const extraSpeeds = availableSortieSpeeds(state).length > 1
+  const [dpsFlash, setDpsFlash] = useState<string | null>(null)
+  const dpsRef = useRef(stats.damage)
 
   useEffect(() => {
-    if (guide?.target === 'run-upgrade-weapon-power') {
+    if (onboardingTarget === 'onboarding.salvage.weapon-power') {
       setShopCollapsed(false)
       setShopTab('attack')
     }
-    if (guide?.target === 'run-upgrade-hull') {
-      setShopCollapsed(false)
-      setShopTab('defense')
+  }, [onboardingTarget])
+
+  useEffect(() => {
+    const prev = dpsRef.current
+    if (stats.damage > prev + 0.01) {
+      setDpsFlash(`DPS ${formatCompact(prev)} → ${formatCompact(stats.damage)}`)
     }
-  }, [guide?.target])
+    dpsRef.current = stats.damage
+  }, [stats.damage])
+
+  useEffect(() => {
+    if (!dpsFlash) return
+    const t = window.setTimeout(() => setDpsFlash(null), 1800)
+    return () => window.clearTimeout(t)
+  }, [dpsFlash])
 
   useEffect(() => {
     if (combat.docked && !dying) {
@@ -264,6 +275,7 @@ export function CombatTab({
             <div className="sortie-hud-mid">
               <strong className="sortie-wave">W{combat.wave}</strong>
               <span>DPS {formatCompact(stats.damage)}</span>
+              {dpsFlash ? <span className="sortie-dps-flash">{dpsFlash}</span> : null}
               <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>
             </div>
             <div className="sortie-menu" ref={menuRef}>
@@ -422,7 +434,7 @@ export function CombatTab({
 
       {directiveOffer.length > 0 && !dying ? (
         <div className="directive-choice" role="dialog" aria-modal="true" aria-labelledby={`${titleId}-directive`}>
-          <div className="directive-choice-card" data-guide="directive-offer">
+          <div className="directive-choice-card" data-guide="directive-offer" data-onboarding="onboarding.directives.choice">
             <p className="combat-hud-kicker">DIRECTIVE AVAILABLE</p>
             <h3 id={`${titleId}-directive`}>Choose one. Each card is the whole decision.</h3>
             <div className="directive-picks">

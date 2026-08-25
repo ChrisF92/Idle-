@@ -66,7 +66,7 @@ export function NetworkTab({ state, onAssign, onOptimise, onBack }: NetworkTabPr
             .filter(Boolean)
             .join(' ')
           return (
-            <article key={job.id} className={rowClass} data-guide={`worker-${job.id}`}>
+            <article key={job.id} className={rowClass} data-guide={`worker-${job.id}`} data-onboarding={job.id === 'scrap-field' ? 'onboarding.workers.salvage' : undefined}>
               <div className="network-row-main">
                 <strong>{effect.title}</strong>
                 <span className="muted">{effect.assigned} Worker Drones</span>

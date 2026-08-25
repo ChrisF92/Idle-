@@ -71,6 +71,16 @@ describe('Hiveworks onboarding catalog', () => {
   it('keeps a short action catalog and drops door-dragging tours', () => {
     const ids = new Set(GUIDE_STEPS.map((s) => s.id))
     for (const id of [
+      'opening.salvage',
+      'first-defeat.workshop',
+      'workers.assignment',
+      'foundry.processing',
+      'furnace.channel',
+      'research.project',
+    ]) {
+      expect(ids.has(id)).toBe(true)
+    }
+    for (const id of [
       'guide-launch',
       'guide-sortie-fire',
       'guide-salvage-first',
@@ -78,10 +88,6 @@ describe('Hiveworks onboarding catalog', () => {
       'guide-foundry-recipe',
       'guide-furnace-light',
       'guide-research-focus',
-    ]) {
-      expect(ids.has(id)).toBe(true)
-    }
-    for (const id of [
       'guide-sortie-field',
       'guide-drone-cap',
       'guide-foundry-what',

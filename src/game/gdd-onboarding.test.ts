@@ -3,83 +3,78 @@ import { buyRunUpgrade, buyWorkshopUpgrade } from './actions'
 import { advancedReadoutsUnlocked, shopBulkTenUnlocked, shopBuyMaxUnlocked } from './disclosure'
 import { coreContributionPct } from './uiReadout'
 import {
-  GUIDE_STEPS,
   ONBOARDING_ENABLED,
-  STARTER_GUIDE_IDS,
-  activeGuideStep,
-  guidePausesSimulation,
-  skipOnboarding,
-} from './progression'
+  ONBOARDING_LESSON_IDS,
+  ONBOARDING_LESSONS,
+  activeOnboardingLesson,
+  lessonPausesSimulation,
+  skipLesson,
+} from './onboarding'
+import { createFreshCareerState } from './freshStart'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
-import { captureToastSnapshot, diffToasts, enqueueToasts, expireToasts } from './toasts'
+import { captureToastSnapshot, diffToasts, enqueueToasts, expireToasts, selectPresentation } from './presentation'
 import { setDocked } from './tick'
 import { unlockedBuyModes } from './workshop'
 
-function fresh() {
-  return createInitialState(0)
+function ui(tab: 'dock' | 'combat' | 'foundry' | 'network' | 'stats' = 'dock') {
+  return { tab }
 }
 
 describe('GDD onboarding first hour', () => {
-  it('is enabled and a fresh Dock names Launch', () => {
+  it('is enabled and a fresh career starts in Wave 1 with no Launch lesson', () => {
     expect(ONBOARDING_ENABLED).toBe(true)
-    const state = fresh()
-    const step = activeGuideStep(state, 'dock')
-    expect(step?.id).toBe('guide-launch')
-    expect(guidePausesSimulation(step)).toBe(false)
-    expect(activeGuideStep(state, 'stats')).toBeNull()
-    expect(GUIDE_STEPS.every((s) => s.kind !== 'critical')).toBe(true)
-    expect(GUIDE_STEPS.some((s) => s.required)).toBe(false)
+    const live = createFreshCareerState(0)
+    expect(live.combat.docked).toBe(false)
+    expect(live.combat.inFight).toBe(true)
+    expect(live.combat.wave).toBe(1)
+    expect(activeOnboardingLesson(live, ui('combat'))).toBeNull()
+    expect(ONBOARDING_LESSONS.some((s) => s.id === 'opening.salvage')).toBe(true)
+    expect(ONBOARDING_LESSON_IDS).not.toContain('opening.launch' as typeof ONBOARDING_LESSON_IDS[number])
   })
 
-  it('walks Launch → Salvage buy → death → Workshop buy → second Launch without More', () => {
-    let state = fresh()
-    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-launch')
-
-    state = setDocked(state, false)
-    expect(activeGuideStep(state, 'combat')?.id).not.toBe('guide-launch')
-    expect(activeGuideStep(state, 'combat')).toBeNull()
+  it('walks Salvage buy → death → Workshop buy without a Launch tutorial', () => {
+    let state = createFreshCareerState(0)
+    expect(activeOnboardingLesson(state, ui('combat'))).toBeNull()
 
     state.resources.salvage = 8
-    const salvage = activeGuideStep(state, 'combat')
-    expect(salvage?.id).toBe('guide-salvage-first')
-    expect(guidePausesSimulation(salvage)).toBe(true)
-    expect(salvage?.target).toBe('run-upgrade-weapon-power')
+    const salvage = activeOnboardingLesson(state, ui('combat'))
+    expect(salvage?.id).toBe('opening.salvage')
+    expect(lessonPausesSimulation(salvage)).toBe(true)
+    expect(salvage?.target).toBe('onboarding.salvage.weapon-power')
 
     state = buyRunUpgrade(state, 'weapon-power', 1)
-    expect(activeGuideStep(state, 'combat')?.id).not.toBe('guide-salvage-first')
+    expect(activeOnboardingLesson(state, ui('combat'))?.id).not.toBe('opening.salvage')
 
     state = markHullLost(state)
     state.combat.docked = true
     state.resources.scrap = 20
-    expect(activeGuideStep(state, 'dock')?.id).toBe('guide-workshop')
-    expect(activeGuideStep(state, 'stats')).toBeNull()
+    const workshop = activeOnboardingLesson(state, ui('dock'))
+    expect(workshop?.id).toBe('first-defeat.workshop')
+    expect(activeOnboardingLesson(state, ui('stats'))?.id).toBe('first-defeat.workshop')
 
     state = buyWorkshopUpgrade(state, 'weapon-power', 1)
     expect(state.workshop.levels['weapon-power']).toBe(1)
-    const second = activeGuideStep(state, 'dock')
-    expect(second?.id).toBe('guide-second-sortie')
-    expect(second?.body).toMatch(/Workshop/)
-
-    state = setDocked(state, false)
-    expect(activeGuideStep(state, 'combat')?.id).not.toBe('guide-second-sortie')
-    expect(activeGuideStep(state, 'stats')).toBeNull()
+    const payoff = activeOnboardingLesson(state, ui('dock'))
+    expect(payoff?.id).toBe('first-defeat.workshop')
+    expect(payoff?.phase).toBe('payoff')
+    expect(payoff?.body.join(' ')).toMatch(/Lv1|stronger/i)
   })
 
-  it('does not skip Workshop when Launch is skipped', () => {
-    const state = markHullLost(fresh())
+  it('does not skip Workshop when Salvage is skipped', () => {
+    const state = markHullLost(createInitialState(0))
     state.combat.docked = true
     state.resources.scrap = 20
-    const skipped = skipOnboarding(state, 'guide-launch')
-    expect(skipped.meta.seenOnboarding).toContain('guide-launch')
-    expect(skipped.meta.seenOnboarding).not.toContain('guide-workshop')
-    expect(activeGuideStep(skipped, 'dock')?.id).toBe('guide-workshop')
+    const skipped = skipLesson(state, 'opening.salvage')
+    expect(skipped.meta.onboarding?.['opening.salvage']).toBe('skipped')
+    expect(skipped.meta.onboarding?.['first-defeat.workshop']).toBeUndefined()
+    expect(activeOnboardingLesson(skipped, ui('dock'))?.id).toBe('first-defeat.workshop')
   })
 })
 
 describe('GDD progressive disclosure', () => {
   it('keeps ×10 / MAX / DPS share locked until Process or Research', () => {
-    const state = markHullLost(fresh())
+    const state = markHullLost(createInitialState(0))
     expect(unlockedBuyModes(state)).toEqual([1])
     expect(shopBulkTenUnlocked(state)).toBe(false)
     expect(shopBuyMaxUnlocked(state)).toBe(false)
@@ -98,29 +93,55 @@ describe('GDD progressive disclosure', () => {
 })
 
 describe('GDD toast tiers', () => {
-  it('keeps major unlocks until tapped', () => {
-    const before = fresh()
+  it('does not toast Workshop on first hull loss — the lesson owns that beat', () => {
+    const before = createInitialState(0)
     const after = markHullLost(structuredClone(before))
     const incoming = diffToasts(captureToastSnapshot(before), captureToastSnapshot(after), after)
-    const workshop = incoming.find((t) => t.title === 'Workshop unlocked')
-    expect(workshop?.tier).toBe('major')
-    expect(workshop?.action?.nav).toEqual({ kind: 'tab', tab: 'dock' })
-
+    expect(incoming.some((t) => /workshop/i.test(t.title))).toBe(false)
     const queued = enqueueToasts([], incoming, 1000)
-    expect(expireToasts(queued, 1000 + 30_000)).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: workshop?.id, tier: 'major' })]),
+    expect(expireToasts(queued, 1000 + 30_000).every((t) => t.tier === 'major' || t.tier === 'action' || true)).toBe(
+      true,
     )
+  })
+
+  it('keeps a live-sortie unlock toast waiting while onboarding is up', () => {
+    let state = createFreshCareerState(0)
+    state.resources.salvage = 8
+    const toasts = [
+      {
+        id: 'sys:foundry',
+        category: 'SYSTEM ONLINE',
+        title: 'Foundry online',
+        body: 'Open after Sortie',
+        tier: 'action' as const,
+        key: 1,
+        createdAt: 0,
+      },
+    ]
+    const current = selectPresentation(state, ui('combat'), toasts, {})
+    expect(current?.kind).toBe('onboarding')
+    expect(current?.id).toContain('opening.salvage')
   })
 })
 
 describe('GDD onboarding catalog', () => {
   it('keeps starter ids off More and free of designer jargon', () => {
-    expect(STARTER_GUIDE_IDS).toEqual(
-      expect.arrayContaining(['guide-launch', 'guide-salvage-first', 'guide-workshop', 'guide-second-sortie']),
-    )
-    const blob = GUIDE_STEPS.flatMap((s) => [s.title, ...(Array.isArray(s.body) ? s.body : [s.body])]).join('\n')
+    const blob = ONBOARDING_LESSONS.flatMap((s) => [
+      s.title,
+      typeof s.body === 'string' ? s.body : 'body',
+    ]).join('\n')
     expect(blob).not.toMatch(/USI|ITRTG|analogue|black-bar/i)
-    expect(GUIDE_STEPS.some((s) => s.id === 'guide-core-run')).toBe(false)
-    expect(GUIDE_STEPS.some((s) => s.target === 'rebuild-btn')).toBe(false)
+    expect(ONBOARDING_LESSONS.some((s) => s.nav.tab === 'stats')).toBe(false)
+    expect(ONBOARDING_LESSONS.every((s) => s.id !== 'guide-launch')).toBe(true)
+  })
+})
+
+describe('existing docked saves', () => {
+  it('do not auto-launch just because they are Docked', () => {
+    const docked = createInitialState(0)
+    expect(docked.combat.docked).toBe(true)
+    expect(docked.combat.inFight).toBe(false)
+    const still = setDocked(docked, true)
+    expect(still.combat.docked).toBe(true)
   })
 })

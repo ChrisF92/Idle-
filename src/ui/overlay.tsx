@@ -9,14 +9,14 @@ import {
   type ReactNode,
 } from 'react'
 
-/** Lower number = higher priority. Only one of priorities 1–4 should display. */
-export type OverlayKind = 'update' | 'confirm' | 'unlock' | 'onboarding' | 'modal' | 'sheet' | 'toast'
+/** Lower number = higher priority. Only one exclusive overlay (priority < 6) at a time. */
+export type OverlayKind = 'update' | 'confirm' | 'onboarding' | 'major' | 'modal' | 'sheet' | 'toast'
 
 export const OVERLAY_PRIORITY: Record<OverlayKind, number> = {
   update: 1,
   confirm: 2,
-  unlock: 3,
-  onboarding: 4,
+  onboarding: 3,
+  major: 4,
   modal: 5,
   sheet: 5,
   toast: 6,
@@ -89,7 +89,6 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
 
   const canPresent = useCallback(
     (kind: OverlayKind, ignoreId?: string) => {
-      if (kind === 'toast') return true
       const others = stack.filter((row) => row.id !== ignoreId)
       const exclusiveOpen = others.some((row) => row.blocking && isExclusive(row.kind))
       if (!exclusiveOpen) return true
@@ -158,12 +157,14 @@ export function useOverlayLayer(opts: {
   open: boolean
   onClose: () => void
   blocking?: boolean
+  closeOnBack?: boolean
 }): { allowed: boolean } {
   const api = useOverlay()
   const closeRef = useRef(opts.onClose)
   closeRef.current = opts.onClose
   const pushed = useRef(false)
   const blocking = opts.blocking ?? opts.kind !== 'toast'
+  const closeOnBack = opts.closeOnBack ?? (opts.kind !== 'toast')
   const allowed = !opts.open || api.canPresent(opts.kind, opts.id)
 
   const register = api.register
@@ -190,6 +191,10 @@ export function useOverlayLayer(opts: {
     pushed.current = true
     const onPop = () => {
       if (!pushed.current) return
+      if (!closeOnBack) {
+        history.pushState({ ...(typeof history.state === 'object' && history.state ? history.state : {}), hwOverlay: opts.id }, '')
+        return
+      }
       pushed.current = false
       closeRef.current()
     }
@@ -202,7 +207,7 @@ export function useOverlayLayer(opts: {
         history.replaceState({ ...(history.state ?? {}), hwOverlay: undefined }, '')
       }
     }
-  }, [opts.open, opts.id, allowed])
+  }, [opts.open, opts.id, allowed, closeOnBack])
 
   return { allowed }
 }

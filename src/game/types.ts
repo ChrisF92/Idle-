@@ -1133,8 +1133,12 @@ export interface MetaState {
   act1Cleared: boolean
   /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
   ascensionCount: number
-  /** Onboarding tip ids already shown. */
+  /** Legacy onboarding ids. Kept in sync with `onboarding` for save migration. */
   seenOnboarding: string[]
+  /** Terminal lesson state only. Unseen/active are not persisted. */
+  onboarding: Partial<Record<string, 'complete' | 'skipped'>>
+  /** Persistent presentation dedupe keys (system unlocks, rebuild-ready, …). */
+  acknowledgedEvents: string[]
   /**
    * Content keys the player has already opened (systems, Network bars,
    * Foundry recipes). Missing on old saves — hydrated as a legacy sentinel.

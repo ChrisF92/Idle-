@@ -120,7 +120,7 @@ export function ProtocolsTab({
           Challenges reuse the Sortie engine. Restriction, goal, reward, and disabled systems are listed before launch.
         </p>
       ) : (
-        <div className="panel-scroll" data-guide="protocols-list">
+        <div className="panel-scroll" data-guide="protocols-list" data-onboarding="onboarding.challenges.list">
           {active ? (
             <article className="network-row is-infra" data-guide="protocol-abandon">
               <div className="network-row-main">

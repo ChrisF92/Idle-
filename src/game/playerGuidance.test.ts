@@ -26,9 +26,12 @@ describe('player guidance helpers', () => {
     s.prestige.prestigeCount = 1
     s.meta.seenOnboarding = ['guide-drone-cap', 'guide-furnace-v2-ash']
     migrateOnboardingState(s)
-    expect(s.meta.seenOnboarding).toContain('guide-launch')
-    expect(s.meta.seenOnboarding).toContain('guide-network-strike')
-    expect(s.meta.seenOnboarding).toContain('guide-furnace-light')
+    expect(s.meta.onboarding?.['opening.salvage']).toBe('complete')
+    expect(s.meta.onboarding?.['workers.assignment']).toBe('complete')
+    expect(s.meta.onboarding?.['furnace.channel']).toBe('complete')
+    expect(s.meta.seenOnboarding).toContain('opening.salvage')
+    expect(s.meta.seenOnboarding).toContain('workers.assignment')
+    expect(s.meta.seenOnboarding).toContain('furnace.channel')
   })
 
   it('does not flood a brand-new save with beginner completion', () => {
@@ -37,11 +40,13 @@ describe('player guidance helpers', () => {
     expect(s.meta.seenOnboarding).toEqual([])
   })
 
-  it('maps legacy launch ids onto the new launch hint', () => {
+  it('does not skip Salvage when only a retired Launch-first tour was completed', () => {
     const s = createInitialState(0)
     s.meta.seenOnboarding = ['guide-shipyard-tab']
     migrateOnboardingState(s)
-    expect(s.meta.seenOnboarding).toContain('guide-launch')
+    expect(s.meta.onboarding?.['opening.salvage']).toBeUndefined()
+    expect(s.meta.seenOnboarding).toContain('guide-shipyard-tab')
+    expect(s.meta.seenOnboarding).not.toContain('opening.salvage')
     expect(s.meta.seenOnboarding).not.toContain('guide-core-run')
   })
 
@@ -50,9 +55,11 @@ describe('player guidance helpers', () => {
     s.meta.highestSectorEver = 68
     s.combat.highestSector = 68
     s.combat.sector = 7
+    s.meta.bestWave = 170
+    s.combat.bestWave = 170
     const lists = rebuildConsequenceLists(s)
     expect(lists.gain[0]).toMatch(/Rebuild Matter/)
-    expect(lists.keep).toEqual(expect.arrayContaining(['Research', 'Foundry recipes, stock, and Foundry Points']))
+    expect(lists.keep).toEqual(expect.arrayContaining(['Research', 'Foundry recipes, stock, and facilities']))
     expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Run upgrades', 'Workshop']))
     expect(lists.change).toEqual([])
   })
@@ -75,6 +82,8 @@ describe('player guidance helpers', () => {
 
   it('suggests idle drones and Plate from unlocked systems only', () => {
     const s = markHullLost(createInitialState(0))
+    s.meta.bestWave = 30
+    s.combat.bestWave = 30
     s.shipyard.moduleLevels['pulse-cannon'] = 3
     s.shipyard.moduleLevels['plate-layer'] = 1
     s.base.workerDrones = 4
@@ -96,9 +105,7 @@ describe('player guidance helpers', () => {
     s.shipyard.moduleLevels['pulse-cannon'] = 4
     s.shipyard.moduleLevels['plate-layer'] = 3
     expect(processCoreHintReady(s)).toBe(false)
-    const prev = captureToastSnapshot(s)
-    prev.processCoreHint = false
-    const toasts = diffToasts(prev, captureToastSnapshot(s), s)
+    const toasts = diffToasts(captureToastSnapshot(s), captureToastSnapshot(s), s)
     expect(toasts.some((t) => t.id === 'process:cores')).toBe(false)
   })
 
@@ -108,13 +115,15 @@ describe('player guidance helpers', () => {
     s.prestige.prestigeCount = 2
     s.meta.seenOnboarding = ['guide-drone-cap']
     const loaded = importSave(exportSave(s))
-    expect(loaded?.meta.seenOnboarding).toContain('guide-launch')
+    expect(loaded?.meta.seenOnboarding).toContain('opening.salvage')
+    expect(loaded?.meta.onboarding?.['opening.salvage']).toBe('complete')
     expect(loaded?.meta.seenOnboarding).not.toContain('guide-core-run')
   })
 
   it('replay-first-run clears seen flags without wiping progress', () => {
     let s = markHullLost(createInitialState(0))
-    s.meta.seenOnboarding = ['guide-launch']
+    s.meta.seenOnboarding = ['opening.salvage']
+    s.meta.onboarding = { 'opening.salvage': 'complete' }
     s.meta.highestSectorEver = 3
     s = applyDevAction(s, { type: 'reset-onboarding' })
     expect(s.meta.seenOnboarding).toEqual([])

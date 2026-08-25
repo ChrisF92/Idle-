@@ -97,6 +97,12 @@ export function UpgradeGrid({
             const affordable = bank >= cost && level < RUN_UPGRADE_CAP && cost > 0
             const maxed = level >= RUN_UPGRADE_CAP
             const preview = runUpgradePreview(state, def.id)
+            const onboarding =
+              def.id === 'weapon-power'
+                ? kind === 'workshop'
+                  ? 'onboarding.workshop.weapon-power'
+                  : 'onboarding.salvage.weapon-power'
+                : undefined
             const guide =
               def.id === 'weapon-power'
                 ? kind === 'workshop'
@@ -110,6 +116,7 @@ export function UpgradeGrid({
                 key={def.id}
                 className={`upgrade-tile${affordable ? ' is-affordable' : maxed ? ' is-maxed' : ' is-short'}`}
                 data-guide={guide}
+                data-onboarding={onboarding}
               >
                 <button
                   type="button"

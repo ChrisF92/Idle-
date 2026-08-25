@@ -127,7 +127,7 @@ describe('GDD Foundry factory', () => {
     expect(s.shipyard.unlockedModules.includes(moduleId)).toBe(false)
     const toasts = diffToasts(prevToast, captureToastSnapshot(s), s)
     expect(toasts.some((toast) => /FLAK ARRAY COMPLETE/i.test(toast.title))).toBe(true)
-    expect(toasts.some((toast) => /Available next Sortie/i.test(toast.body))).toBe(true)
+    expect(toasts.some((toast) => /Available at Dock/i.test(toast.body))).toBe(true)
     s.combat.docked = true
     claimFoundryCompletions(s)
     expect(s.shipyard.unlockedModules).toContain(moduleId)

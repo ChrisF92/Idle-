@@ -226,7 +226,7 @@ export function DockTab({
               />
             </Section>
             <Section>
-              <div data-guide="relic-sockets">
+              <div data-guide="relic-sockets" data-onboarding="onboarding.relic.install">
                 <SectionHeader title="Cores" />
               </div>
               {loadoutSlots.map(({ role, moduleId, coreInstanceId }, index) => {
@@ -309,6 +309,7 @@ export function DockTab({
               type="button"
               className="primary"
               data-guide="rebuild-btn"
+              data-onboarding="onboarding.rebuild.preview"
               disabled={!hangarOpen}
               onClick={(e) => {
                 markLocalOk(e.currentTarget)

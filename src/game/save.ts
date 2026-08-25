@@ -44,7 +44,8 @@ import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { normalizePushMode, normalizeRoute } from './sectors'
-import { migrateOnboardingState } from './playerGuidance'
+import { migrateOnboardingRegistry } from './onboarding'
+import { createFreshCareerState } from './freshStart'
 import { migrateLegacyCoreProgression } from './coreProgression'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
@@ -633,6 +634,9 @@ function withMetaDefaults(
     act1Cleared: meta?.act1Cleared ?? false,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
+    onboarding:
+      meta?.onboarding && typeof meta.onboarding === 'object' ? { ...meta.onboarding } : {},
+    acknowledgedEvents: Array.isArray(meta?.acknowledgedEvents) ? [...meta.acknowledgedEvents] : [],
     seenContent: Array.isArray(meta?.seenContent) ? [...meta.seenContent] : ['legacy'],
     aiUnlocked: meta?.aiUnlocked ?? completed.length > 0,
     codexUnlocked: meta?.codexUnlocked === true,
@@ -806,7 +810,7 @@ function migrate(raw: unknown): GameState | null {
     migrateCoreFitInstances(hydrated)
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
-    migrateOnboardingState(hydrated)
+    migrateOnboardingRegistry(hydrated)
     migrateLegacyCoreProgression(hydrated)
     migrateCoreStartingLevelInstances(hydrated)
     return hydrated
@@ -903,7 +907,7 @@ function migrate(raw: unknown): GameState | null {
     migrateCoreFitInstances(hydrated)
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
-    migrateOnboardingState(hydrated)
+    migrateOnboardingRegistry(hydrated)
     migrateLegacyCoreProgression(hydrated)
     migrateCoreStartingLevelInstances(hydrated)
     return hydrated
@@ -933,7 +937,7 @@ export function loadOrCreateGame(now = Date.now()): GameState {
     noteSessionStart(loaded, now)
     return loaded
   }
-  const fresh = createInitialState(now)
+  const fresh = createFreshCareerState(now)
   noteSessionStart(fresh, now)
   return fresh
 }

@@ -610,8 +610,30 @@ button.just-ok {
   border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
 }
 
+.app.is-sortie .toast-stack {
+  bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px));
+}
+
 .toast-minor {
   opacity: 0.92;
+  padding: 0.4rem 0.65rem 0.45rem;
+}
+
+.toast-minor .toast-body,
+.toast-minor .toast-actions {
+  display: none;
+}
+
+.toast-action .toast-title {
+  font-size: 1rem;
+}
+
+.guide-tip-action-label {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .toast-kicker {

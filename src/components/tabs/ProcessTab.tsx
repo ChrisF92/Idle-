@@ -77,6 +77,7 @@ function NodeCard({
     <article
       className={`network-row process-node is-${status}${highlight ? ' is-guide' : ''}`}
       data-guide={highlight ? 'process-first-buy' : undefined}
+      data-onboarding={highlight ? 'onboarding.process.first-capability' : undefined}
     >
       <div className="network-row-main">
         <strong>{node.name}</strong>
@@ -931,7 +932,11 @@ export function ProcessTab({
                       nodeId={node.id}
                       onBuy={onBuy}
                       onConfig={onConfig}
-                      highlight={guideTarget === 'process-first-buy' && firstBuy?.id === node.id}
+                      highlight={
+                        (guideTarget === 'process-first-buy' ||
+                          guideTarget === 'onboarding.process.first-capability') &&
+                        firstBuy?.id === node.id
+                      }
                     />
                   ))}
                 </div>

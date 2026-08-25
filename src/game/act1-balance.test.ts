@@ -104,13 +104,17 @@ describe('Act 1 authored formulas', () => {
 describe('Act 1 onboarding audit', () => {
   it('does not pause on system doors and keeps copy free of designer jargon', () => {
     const byId = new Map(GUIDE_STEPS.map((s) => [s.id, s]))
-    for (const id of ['guide-launch', 'guide-foundry-recipe', 'guide-furnace-light', 'guide-research-focus']) {
+    for (const id of ['foundry.processing', 'furnace.channel', 'research.project']) {
       expect(byId.has(id)).toBe(true)
       expect(byId.get(id)?.required).not.toBe(true)
+      expect(byId.get(id)?.pause).toBe(false)
     }
-    expect(GUIDE_STEPS.every((s) => s.kind !== 'critical')).toBe(true)
+    expect(byId.has('opening.salvage')).toBe(true)
     const blob = [
-      ...GUIDE_STEPS.flatMap((s) => [s.title, ...(Array.isArray(s.body) ? s.body : [s.body])]),
+      ...GUIDE_STEPS.flatMap((s) => {
+        const body = typeof s.body === 'function' ? [] : Array.isArray(s.body) ? s.body : [s.body]
+        return [s.title, ...body]
+      }),
       ...Object.values(SCREEN_HELP).flatMap((h) => [h.title, ...h.body]),
     ].join('\n')
     expect(blob).not.toMatch(JARGON)
@@ -121,8 +125,8 @@ describe('Act 1 onboarding audit', () => {
   it('Skip of Research focus does not invent a later desk tour', () => {
     const s = createInitialState(0)
     s.meta.highestSectorEver = 7
-    const skipped = skipOnboarding(s, 'guide-research-focus')
-    expect(skipped.meta.seenOnboarding).toContain('guide-research-focus')
+    const skipped = skipOnboarding(s, 'research.project')
+    expect(skipped.meta.seenOnboarding).toContain('research.project')
     expect(activeGuideStep(skipped, 'research')).toBeNull()
   })
 

@@ -4,7 +4,6 @@ import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import {
   tickGame,
   startCombat,
-  resetGame,
   setCampaign,
   setPushMode,
   setDocked,
@@ -93,9 +92,10 @@ import {
   performReinforce,
 } from '../game/actions'
 import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides } from '../game/progression'
+import { acknowledgeEvent } from '../game/presentation'
 import { markHubSeen } from '../game/hubAttention'
 import { applyDevAction, type DevAction } from '../game/dev'
-import { createInitialState } from '../game/state'
+import { createFreshCareerState } from '../game/freshStart'
 import { noteSessionEnd } from '../game/playtest'
 import { dismissFrontierNotice } from '../game/frontier'
 
@@ -148,6 +148,7 @@ type Action =
   | { type: 'unequip-all' }
   | { type: 'ack-onboarding'; tipId: string }
   | { type: 'skip-onboarding'; tipId: string }
+  | { type: 'ack-event'; key: string }
   | { type: 'prestige' }
   | { type: 'ascend' }
   | { type: 'enter-challenge'; challengeId: string }
@@ -288,6 +289,8 @@ function reducer(state: GameState, action: Action): GameState {
       return acknowledgeOnboarding(state, action.tipId)
     case 'skip-onboarding':
       return skipOnboarding(state, action.tipId)
+    case 'ack-event':
+      return acknowledgeEvent(state, action.key)
     case 'prestige':
       return performPrestige(state)
     case 'ascend':
@@ -304,7 +307,7 @@ function reducer(state: GameState, action: Action): GameState {
       return mergeSignalCores(state, action.defId, action.rank)
     case 'hard-reset':
       clearSave()
-      return resetGame()
+      return createFreshCareerState()
     case 'dev':
       return applyDevAction(state, action.action)
     case 'foundry-slot':
@@ -507,6 +510,7 @@ export function useGame() {
     acknowledgeOnboarding: (tipId: string) =>
       dispatch({ type: 'ack-onboarding', tipId }),
     skipOnboarding: (tipId: string) => dispatch({ type: 'skip-onboarding', tipId }),
+    acknowledgeEvent: (key: string) => dispatch({ type: 'ack-event', key }),
     prestige: () => dispatch({ type: 'prestige' }),
     ascend: () => dispatch({ type: 'ascend' }),
     enterChallenge: (challengeId: string) =>
@@ -595,6 +599,6 @@ export function useGame() {
       setOfflineReport(report)
       return true
     },
-    newGame: () => dispatch({ type: 'replace', state: createInitialState() }),
+    newGame: () => dispatch({ type: 'replace', state: createFreshCareerState() }),
   }
 }

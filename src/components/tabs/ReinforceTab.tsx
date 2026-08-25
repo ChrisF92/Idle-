@@ -55,6 +55,7 @@ export function ReinforceTab({ state, onBack, onReinforce, onBlockingChange }: R
               type="button"
               className="primary"
               data-guide="reinforce-go"
+              data-onboarding="onboarding.reinforce.cta"
               disabled={!check.ok}
               onClick={() => setConfirm(true)}
             >

@@ -11,10 +11,10 @@ import {
 } from './cadence'
 import {
   ACHIEVEMENTS,
-  GUIDE_STEPS,
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
 } from './progression'
+import { prepOnboardingDoor, resetOnboardingRegistry, skipAllLessons, type OnboardingLessonId } from './onboarding'
 import { REBUILD_MIN_SORTIES } from './rebuild'
 import { syncPersistedHullCaps } from './state'
 import { encounterForWave } from './combat'
@@ -88,6 +88,7 @@ export type DevAction =
   | { type: 'set-module-levels'; levels: Record<string, number> }
   | { type: 'set-core-mastery'; ranks: Record<string, number> }
   | { type: 'reset-onboarding' }
+  | { type: 'prep-onboarding-door'; lessonId: string }
   | { type: 'seed-late-game' }
   | { type: 'wipe-career' }
   | { type: 'select-frame'; frameId: string }
@@ -202,22 +203,22 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'clear-guides': {
-      next.meta.seenOnboarding = []
-      next.combat.log = ['[dev] Onboarding guides reset.', ...next.combat.log].slice(0, 40)
-      break
+      return resetOnboardingRegistry(next)
     }
     case 'reset-onboarding': {
-      next.meta.seenOnboarding = []
-      next.meta.hullLostOnce = false
-      next.meta.starterCombatLesson = 2
-      next.combat.log = ['[dev] First-run onboarding flags cleared.', ...next.combat.log].slice(0, 40)
-      break
+      const cleared = resetOnboardingRegistry(next)
+      cleared.meta.hullLostOnce = false
+      cleared.meta.starterCombatLesson = 2
+      cleared.combat.log = ['[dev] First-run onboarding flags cleared.', ...cleared.combat.log].slice(0, 40)
+      return cleared
     }
     case 'skip-guides': {
-      const ids = GUIDE_STEPS.map((s) => s.id)
-      next.meta.seenOnboarding = [...new Set([...next.meta.seenOnboarding, ...ids])]
-      next.combat.log = ['[dev] Guides skipped.', ...next.combat.log].slice(0, 40)
-      break
+      const skipped = skipAllLessons(next)
+      skipped.combat.log = ['[dev] Guides skipped.', ...skipped.combat.log].slice(0, 40)
+      return skipped
+    }
+    case 'prep-onboarding-door': {
+      return prepOnboardingDoor(next, action.lessonId as OnboardingLessonId)
     }
     case 'set-prestige-count': {
       next.prestige.prestigeCount = Math.max(0, Math.floor(action.count))

@@ -21,7 +21,6 @@ const GDD_REWRITE_PENDING = [
   'src/game/hub-attention.test.ts',
   'src/game/matter-shop.test.ts',
   'src/game/network.test.ts',
-  'src/game/onboarding-queue.test.ts',
   'src/game/onboarding-visibility.test.ts',
   'src/game/part-drops.test.ts',
   'src/game/phase6.test.ts',
@@ -30,7 +29,6 @@ const GDD_REWRITE_PENDING = [
   'src/game/phase9.test.ts',
   'src/game/phase10.test.ts',
   'src/game/phase11.test.ts',
-  'src/game/playerGuidance.test.ts',
   'src/game/playtest.test.tsx',
   'src/game/post-prestige.test.ts',
   'src/game/process-depth.test.ts',
@@ -40,7 +38,6 @@ const GDD_REWRITE_PENDING = [
   'src/game/signal-cores.test.ts',
   'src/game/slag-bank.test.ts',
   'src/game/tick.test.ts',
-  'src/game/toasts.test.ts',
   'src/game/ui-shell.test.tsx',
   'src/game/usi-pacing.test.ts',
 ]

@@ -33,7 +33,7 @@ describe('Cosmic Idle UI cleanup', () => {
   it('does not spotlight deleted ITRTG tabs', () => {
     for (const step of GUIDE_STEPS) {
       expect(DEAD_GUIDE_TARGETS).not.toContain(step.target)
-      if (step.tab) expect(DEAD_GUIDE_TABS).not.toContain(step.tab)
+      expect(DEAD_GUIDE_TABS).not.toContain(step.nav.tab)
     }
   })
 

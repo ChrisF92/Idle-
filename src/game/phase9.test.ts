@@ -126,11 +126,11 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     s = applyDevAction(s, { type: 'skip-guides' })
     expect(s.meta.seenOnboarding).toEqual(
       expect.arrayContaining([
-        'guide-launch',
-        'guide-network-strike',
-        'guide-foundry-recipe',
-        'guide-furnace-light',
-        'guide-research-focus',
+        'opening.salvage',
+        'workers.assignment',
+        'foundry.processing',
+        'furnace.channel',
+        'research.project',
       ]),
     )
 

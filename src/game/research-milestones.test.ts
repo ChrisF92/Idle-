@@ -50,6 +50,7 @@ import {
 import { isReliquarySlotUnlocked } from './reliquary'
 import { exportSave, importSave } from './save'
 import { createInitialState, SAVE_VERSION } from './state'
+import { prepOnboardingDoor } from './onboarding'
 import type { GameState, HiveResearchBranch } from './types'
 
 const JARGON = /USI|ITRTG|analogue|black-bar/i
@@ -299,10 +300,10 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
   })
 
   it('offers a single Research focus hint instead of a desk tour', () => {
-    const s = atResearch()
+    const s = prepOnboardingDoor(createInitialState(0), 'research.project')
     s.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
-    expect(activeGuideStep(s, 'research')?.id).toBe('guide-research-focus')
-    const skipped = skipOnboarding(s, 'guide-research-focus')
+    expect(activeGuideStep(s, 'research')?.id).toBe('research.project')
+    const skipped = skipOnboarding(s, 'research.project')
     for (const id of RESEARCH_V2_GUIDE_IDS) {
       expect(skipped.meta.seenOnboarding).toContain(id)
     }
@@ -322,7 +323,7 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
     const blob = [
       inspectCopyCorpus(s).join('\n'),
       inspectResearchBranch(s, 'energy')?.body.join('\n') ?? '',
-      GUIDE_STEPS.filter((g) => g.id.startsWith('guide-research'))
+      GUIDE_STEPS.filter((g) => g.id === 'research.project')
         .flatMap((g) => [g.title, ...guideBodyLines(g)])
         .join('\n'),
     ].join('\n')

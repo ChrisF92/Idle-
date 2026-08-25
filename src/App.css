@@ -13,7 +13,11 @@
 }
 
 .app.is-sortie {
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
+}
+
+.app.is-sortie-away {
+  grid-template-rows: auto 1fr auto;
 }
 
 .chrome-top {
@@ -265,6 +269,35 @@ h2 .inspect-name {
   border-top: 1px solid var(--line);
   background: var(--bg-panel);
   padding: 0.15rem 0 calc(0.15rem + env(safe-area-inset-bottom, 0px));
+}
+
+.live-wave-bar {
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--line);
+  background: var(--bg-panel);
+  padding: 0.35rem 0.75rem calc(0.35rem + env(safe-area-inset-bottom, 0px));
+}
+
+.live-wave-btn {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.live-wave-kicker {
+  color: var(--accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+}
+
+.sortie-dps-flash {
+  color: var(--ok);
+  font-size: 0.72rem;
 }
 
 .nav-item {
