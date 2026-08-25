@@ -779,6 +779,14 @@ export function tendProtocols(state: GameState, ctx: StrategyContext): GameState
   return after
 }
 
+function economyConvertsToCombat(state: GameState, ctx: StrategyContext): boolean {
+  return (
+    ctx.secondsSinceHighestSectorGain >= 6 * 60 ||
+    ctx.secondsSinceBestWaveGain >= 6 * 60 ||
+    careerBestWave(state) >= ACT1_CADENCE.furnace
+  )
+}
+
 function shopOrderFor(profile: SimulationSpendProfile, preferDefense: boolean): RunUpgradeId[] {
   if (profile === 'casual') {
     return preferDefense ? ['hull', 'weapon-power'] : ['weapon-power', 'hull']
@@ -816,7 +824,7 @@ export function spendSalvageOnRunUpgrades(
   const preferDefense =
     state.combat.consecutiveLosses >= 1 ||
     (state.combat.playerHullMax > 0 && state.combat.playerHull / state.combat.playerHullMax <= 0.55) ||
-    (profile === 'economy-first' && ctx.secondsSinceHighestSectorGain >= 6 * 60)
+    (profile === 'economy-first' && economyConvertsToCombat(state, ctx))
   const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
   let next = state
@@ -855,7 +863,8 @@ export function spendScrapOnCoreStarts(
   if (!state.meta.hullLostOnce) return state
   const profile = resolveSpendProfile(mode)
   const preferDefense =
-    state.combat.consecutiveLosses >= 2 || (profile === 'economy-first' && ctx.secondsSinceHighestSectorGain >= 6 * 60)
+    state.combat.consecutiveLosses >= 2 ||
+    (profile === 'economy-first' && economyConvertsToCombat(state, ctx))
   const order = coreSlotOrder(profile, preferDefense)
   const slots = equippedCoreSlots(state)
   if (slots.length === 0) return state
@@ -926,7 +935,7 @@ export function spendScrapOnWorkshop(
   const profile = resolveSpendProfile(mode)
   const preferDefense =
     state.combat.consecutiveLosses >= 2 ||
-    (profile === 'economy-first' && ctx.secondsSinceHighestSectorGain >= 6 * 60)
+    (profile === 'economy-first' && economyConvertsToCombat(state, ctx))
   const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   let next = state
