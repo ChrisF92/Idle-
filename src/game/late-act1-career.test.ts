@@ -43,7 +43,7 @@ function careerProgressHooks(label: string) {
         logPath,
         `${hour}h${Math.floor((p.activeSeconds % 3600) / 60)
           .toString()
-          .padStart(2, '0')}m  W${p.highestWave}  R${p.rebuilds}  wp=${p.workshopWp} pulse=${p.pulse} fw=${p.furnaceWeapons}  ash=${p.ash.toFixed(0)} heat=${p.heat.toFixed(0)} scrap=${p.scrap.toFixed(0)}\n`,
+          .padStart(2, '0')}m  W${p.highestWave}  R${p.rebuilds}  wp=${p.workshopWp} hull=${p.workshopHull} pulse=${p.pulse} fw=${p.furnaceWeapons}  ash=${p.ash.toFixed(0)} heat=${p.heat.toFixed(0)} scrap=${p.scrap.toFixed(0)}\n`,
       )
     },
   }

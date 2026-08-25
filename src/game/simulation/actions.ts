@@ -840,7 +840,11 @@ function economyConvertsToCombat(state: GameState, ctx: StrategyContext): boolea
   )
 }
 
-function shopOrderFor(profile: SimulationSpendProfile, preferDefense: boolean): RunUpgradeId[] {
+function shopOrderFor(
+  profile: SimulationSpendProfile,
+  preferDefense: boolean,
+  state?: GameState,
+): RunUpgradeId[] {
   if (profile === 'casual') {
     return preferDefense ? ['hull', 'weapon-power'] : ['weapon-power', 'hull']
   }
@@ -852,7 +856,14 @@ function shopOrderFor(profile: SimulationSpendProfile, preferDefense: boolean): 
   }
   if (profile === 'economy-first') {
     if (preferDefense) {
-      return ['weapon-power', 'hull', 'salvage-kill', 'scrap-kill', 'ash-yield', 'salvage-wave']
+      const wp = state ? workshopLevel(state, 'weapon-power') : 0
+      const hull = state ? workshopLevel(state, 'hull') : 0
+      const shield = state ? workshopLevel(state, 'shield') : 0
+      // A 48-buy Scrap dump into Weapon Power left Hull at 0 and the Hive
+      // died on W177 with Weapons III lit. Keep the combat stats together.
+      if (hull < wp) return ['hull', 'shield', 'weapon-power', 'salvage-kill', 'scrap-kill']
+      if (shield < Math.max(0, wp - 4)) return ['shield', 'hull', 'weapon-power', 'salvage-kill']
+      return ['weapon-power', 'hull', 'shield', 'salvage-kill', 'scrap-kill']
     }
     return ['salvage-kill', 'scrap-kill', 'ash-yield', 'salvage-wave', 'fragment-chance', 'weapon-power', 'hull']
   }
@@ -878,12 +889,12 @@ export function spendSalvageOnRunUpgrades(
     state.combat.consecutiveLosses >= 1 ||
     (state.combat.playerHullMax > 0 && state.combat.playerHull / state.combat.playerHullMax <= 0.55) ||
     (profile === 'economy-first' && economyConvertsToCombat(state, ctx))
-  const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
   let next = state
   const budget = profile === 'casual' ? 3 : profile === 'optimiser' ? 12 : 8
   for (let n = 0; n < budget; n += 1) {
     let bought = false
+    const order = shopOrderFor(profile, preferDefense, next)
     for (const id of order) {
       const def = visibleRunUpgrades(best).find((row) => row.id === id)
       if (!def) continue
@@ -996,13 +1007,13 @@ export function spendScrapOnWorkshop(
   const preferDefense =
     state.combat.consecutiveLosses >= 2 ||
     (profile === 'economy-first' && economyConvertsToCombat(state, ctx))
-  const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   let next = state
   const budget =
     profile === 'casual' ? 2 : profile === 'economy-first' ? dockedShopBudget(state, 6) : 4
   for (let n = 0; n < budget; n += 1) {
     let bought = false
+    const order = shopOrderFor(profile, preferDefense, next)
     for (const id of order) {
       const def = RUN_UPGRADES.find((row) => row.id === id)
       if (!def || best < def.minBestWave) continue

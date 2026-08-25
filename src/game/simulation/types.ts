@@ -103,6 +103,7 @@ export interface SimulationProgress {
   scrap: number
   salvage: number
   workshopWp: number
+  workshopHull: number
   pulse: number
   furnaceWeapons: number
   stopLabel: string

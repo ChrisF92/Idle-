@@ -133,6 +133,7 @@ function makeProgress(
     scrap: state.resources.scrap ?? 0,
     salvage: state.resources.salvage ?? 0,
     workshopWp: workshopLevel(state, 'weapon-power'),
+    workshopHull: workshopLevel(state, 'hull'),
     pulse: coreStartingLevelAtSlot(state, 0),
     furnaceWeapons: furnaceActiveLevel(state, 'weapons'),
     stopLabel: stopLabel(config.stop),

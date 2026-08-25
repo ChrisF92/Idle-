@@ -362,7 +362,8 @@ describe('Furnace banks Ash for a frontier push', () => {
       }),
       'economy-first',
     )
-    expect(workshopLevel(s, 'weapon-power')).toBeGreaterThan(before + 6)
+    expect(workshopLevel(s, 'weapon-power')).toBeGreaterThan(before)
+    expect(workshopLevel(s, 'hull')).toBeGreaterThanOrEqual(workshopLevel(s, 'weapon-power') - 1)
   })
 })
 
