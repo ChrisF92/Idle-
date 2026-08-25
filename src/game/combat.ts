@@ -1497,7 +1497,7 @@ function buildAct1ClimaxPack(sector: number, waveScale = 1): CombatUnit[] {
       shield: Math.min(28, 10 + 1.6 * (sector - 1)) * hullScale,
       damage: 12 * dmgScale,
       cooldown: 1,
-      telegraphDuration: 0.4,
+      telegraphDuration: 0.95,
       range: 125,
       speed: 9,
       engageRange: 105,
@@ -1511,46 +1511,46 @@ function buildAct1ClimaxPack(sector: number, waveScale = 1): CombatUnit[] {
       rewardWeight: 3,
     }),
     makeEnemyUnit({
-      name: 'Plate Thrall',
+      name: 'Crown Plate',
       family: 'armored',
       role: 'fighter',
-      hull: 16 * hullScale,
-      armor: 3,
-      damage: 3.2 * dmgScale,
-      cooldown: 1,
-      range: 55,
-      speed: 20,
-      engageRange: 92,
+      hull: 18 * hullScale,
+      armor: 4,
+      damage: 3.4 * dmgScale,
+      cooldown: 1.05,
+      range: 58,
+      speed: 18,
+      engageRange: 94,
       tags: ['kinetic'],
       x: SPAWN_DISTANCE + 28,
       y: -36,
     }),
     makeEnemyUnit({
-      name: 'Choir Mite',
+      name: 'Loop Mite',
       family: 'swarm',
       role: 'skirmisher',
-      hull: 5 * hullScale,
-      damage: 2.4 * dmgScale,
-      cooldown: 0.9,
-      range: 36,
-      speed: 40,
-      engageRange: 78,
+      hull: 6 * hullScale,
+      damage: 2.6 * dmgScale,
+      cooldown: 0.8,
+      range: 38,
+      speed: 42,
+      engageRange: 80,
       tags: ['kinetic'],
       x: SPAWN_DISTANCE + 34,
       y: 36,
     }),
     makeEnemyUnit({
-      name: 'Veil Attendant',
+      name: 'Veil Echo',
       family: 'ethereal',
       role: 'sniper',
-      hull: 10 * hullScale,
-      shield: 8 * hullScale,
-      damage: 3.6 * dmgScale,
-      cooldown: 1.4,
-      telegraphDuration: 0.5,
-      range: 120,
-      speed: 16,
-      engageRange: 110,
+      hull: 12 * hullScale,
+      shield: 10 * hullScale,
+      damage: 4.0 * dmgScale,
+      cooldown: 1.25,
+      telegraphDuration: 0.7,
+      range: 128,
+      speed: 14,
+      engageRange: 118,
       kite: true,
       tags: ['energy'],
       x: SPAWN_DISTANCE + 16,
@@ -1983,15 +1983,21 @@ export function maybeAdvanceBossPhase(
       w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
     }
     const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
+    const climax = mechanic === 'climax-choir'
     if (mechanic && bossMechanicHasShieldPhase(mechanic)) {
-      boss.shieldMax = Math.max(boss.shieldMax, boss.hullMax * 0.45)
+      boss.shieldMax = Math.max(boss.shieldMax, boss.hullMax * (climax ? 0.7 : 0.45))
       boss.shield = boss.shieldMax
-      pushLog(state, 'Boss phase 2 — shield wall raised.')
+      pushLog(
+        state,
+        climax
+          ? 'Choir Crown — the loop folds. A temporal shield wall closes.'
+          : 'Boss phase 2 — shield wall raised.',
+      )
     } else {
       pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
     }
     if (mechanic && bossMechanicHasAdds(mechanic)) {
-      spawnBossAdds(state, boss, 'Called Thrall')
+      spawnBossAdds(state, boss, climax ? 'Loop Mite' : 'Called Thrall')
     }
     revealCodexFamilies(state, ['armored'])
   }
@@ -2013,11 +2019,17 @@ export function maybeAdvanceBossPhase(
       w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
     }
     const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
+    const climax = mechanic === 'climax-choir'
     if (mechanic && bossMechanicHasAdds(mechanic)) {
-      spawnBossAdds(state, boss, 'Called Thrall')
+      spawnBossAdds(state, boss, climax ? 'Veil Echo' : 'Called Thrall')
     }
     revealCodexFamilies(state, ['ethereal'])
-    pushLog(state, 'Boss phase 3 — form frays [ethereal], kiting out.')
+    pushLog(
+      state,
+      climax
+        ? 'Choir Crown — reconstruction tears. Time around the Hive unthreads.'
+        : 'Boss phase 3 — form frays [ethereal], kiting out.',
+    )
   }
 }
 

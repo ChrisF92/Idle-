@@ -70,7 +70,7 @@ import {
 } from './workshop'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 39
+export const SAVE_VERSION = 40
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -212,6 +212,7 @@ export function createInitialState(now = Date.now()): GameState {
       highestSectorEver: 0,
       bestWave: 0,
       act1Cleared: false,
+      act1FinalePending: false,
       ascensionCount: 0,
       seenOnboarding: [],
       seenContent: [],

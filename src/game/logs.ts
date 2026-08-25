@@ -102,13 +102,13 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'act1',
     title: 'Wave 300',
-    body: 'Choir Crown is the Act 1 wall. Slam, shield, and mites. Rebuild has reached the limit of this architecture.',
+    body: 'Choir Crown is the Act 1 wall — a temporal slam, a folding shield, then mites from a loop that has already happened. Rebuild has reached the limit of this architecture.',
     unlock: (s) => career(s) >= ACT1_CADENCE.reinforce || s.meta.act1Cleared,
   },
   {
     id: 'reinforce',
     title: 'The loop ceiling',
-    body: 'Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself. No Act 2 shop opens here.',
+    body: 'Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself. No Capital. No Act 2 shop.',
     unlock: (s) => s.meta.act1Cleared || (s.meta.ascensionCount ?? 0) > 0,
   },
 ]

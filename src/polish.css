@@ -2109,3 +2109,94 @@ button.just-ok {
   font-family: var(--font-mono, ui-monospace, monospace);
   letter-spacing: 0.06em;
 }
+
+.challenge-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.challenge-screen .ui-summary-card .ui-value {
+  font-size: var(--type-meta);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.act1-finale-card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.act1-finale-card:not(.is-static) {
+  animation: hive-destabilise 1.6s ease-out;
+}
+
+.reinforce-presentation {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
+    color-mix(in srgb, var(--bg) 88%, black);
+  animation: hive-destabilise 2.8s ease-in-out;
+}
+
+.sortie-screen.is-climax .sortie-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 11px,
+    color-mix(in srgb, var(--accent) 10%, transparent) 11px 12px
+  );
+  mix-blend-mode: screen;
+  animation: climax-distort 2.4s linear infinite;
+}
+
+@keyframes hive-destabilise {
+  0% {
+    filter: hue-rotate(-18deg) saturate(1.2);
+    opacity: 0.55;
+    transform: scale(0.98);
+  }
+  45% {
+    filter: hue-rotate(12deg) saturate(1.35);
+    opacity: 1;
+    transform: scale(1.01);
+  }
+  100% {
+    filter: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes climax-distort {
+  0% { opacity: 0.18; transform: translateY(0); }
+  50% { opacity: 0.32; transform: translateY(-4px); }
+  100% { opacity: 0.18; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .act1-finale-card,
+  .reinforce-presentation,
+  .sortie-screen.is-climax .sortie-canvas::after {
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+
+  .sortie-screen.is-climax .sortie-canvas::after {
+    opacity: 0.22;
+  }
+}
+

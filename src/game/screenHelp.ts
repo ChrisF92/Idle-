@@ -97,7 +97,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Challenges',
     body: [
       'Purpose: prove this account can solve a modified version of the normal rules. Main decision: which restriction you take into a Sortie.',
-      'Opens at Wave 250 after Process is online. Before launch you see restriction, goal Wave, reward, disabled systems, and current best. Nothing important is hidden.',
+      'Opens at Wave 250 after Process is online. Landing cards show name, restriction, goal Wave, best, reward, and rank. Tap for the exact sheet, then Start Challenge. Every run uses the normal Sortie engine from Wave 1.',
     ],
   },
   process: {
@@ -112,7 +112,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Reinforce',
     body: [
       'Higher-order reset after Rebuild. The current loop has gone as far as it can.',
-      'Revealed by clearing Wave 300. Confirm shows what you keep, reset, and gain. Detailed Act 2 rules come later.',
+      'Revealed by clearing Wave 300. The screen prints YOU RESET, YOU KEEP, and WHAT CHANGES. Confirm reconstructs the Hive. No Capital and no Act 2 shop open here.',
     ],
   },
   logs: {

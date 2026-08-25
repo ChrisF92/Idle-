@@ -1172,6 +1172,8 @@ export interface MetaState {
   bestWave: number
   /** Soft Act 1 climax reached (Wave 300). */
   act1Cleared: boolean
+  /** First Wave 300 clear — pending Act 1 completion presentation. */
+  act1FinalePending?: boolean
   /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
   ascensionCount: number
   /** Onboarding tip ids already shown. */

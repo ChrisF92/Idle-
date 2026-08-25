@@ -93,7 +93,7 @@ import {
   rankCapital,
   performReinforce,
 } from '../game/actions'
-import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides } from '../game/progression'
+import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides, dismissAct1Finale } from '../game/progression'
 import { markHubSeen } from '../game/hubAttention'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createInitialState } from '../game/state'
@@ -200,6 +200,7 @@ type Action =
   | { type: 'rank-specialist'; specialistId: import('../game/types').SpecialistId }
   | { type: 'rank-capital'; capitalId: import('../game/types').CapitalId }
   | { type: 'reinforce' }
+  | { type: 'dismiss-act1-finale' }
   | { type: 'session-end' }
 
 function reducer(state: GameState, action: Action): GameState {
@@ -393,6 +394,8 @@ function reducer(state: GameState, action: Action): GameState {
       return rankCapital(state, action.capitalId)
     case 'reinforce':
       return performReinforce(state)
+    case 'dismiss-act1-finale':
+      return dismissAct1Finale(state)
     case 'session-end': {
       const next = structuredClone(state)
       noteSessionEnd(next)
@@ -590,6 +593,7 @@ export function useGame() {
     rankCapital: (capitalId: import('../game/types').CapitalId) =>
       dispatch({ type: 'rank-capital', capitalId }),
     performReinforce: () => dispatch({ type: 'reinforce' }),
+    dismissAct1Finale: () => dispatch({ type: 'dismiss-act1-finale' }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {

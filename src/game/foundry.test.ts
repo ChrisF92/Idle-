@@ -15,7 +15,7 @@ import { armRebuildDoor } from './testHelpers'
 describe('phase 5: foundry + notation', () => {
   it('opens Foundry at Wave 20 with one processor and one fabrication slot', () => {
     const fresh = createInitialState(0)
-    expect(SAVE_VERSION).toBe(39)
+    expect(SAVE_VERSION).toBe(40)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(fresh.foundry.slots).toHaveLength(1)
     expect(fresh.foundry.fabrication).toHaveLength(1)
