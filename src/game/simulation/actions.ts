@@ -717,6 +717,15 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   ) {
     return { yes: false, reasons: [] }
   }
+  // Once the late shop is stacked, keep the cycle through Choir Crown.
+  // Rebuilding dumps Workshop and Salvage ranks; Economy-first was prestiged
+  // every 6h at W200 with Weapon Power already at cap.
+  if (
+    career >= ACT1_CADENCE.research &&
+    workshopLevel(state, 'weapon-power') >= 20
+  ) {
+    return { yes: false, reasons: [] }
+  }
   if (furnaceOpen && furnaceBank >= 40 && ctx.secondsSinceHighestSectorGain < 50 * 60) {
     return { yes: false, reasons: [] }
   }
