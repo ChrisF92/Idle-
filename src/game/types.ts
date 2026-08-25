@@ -1101,7 +1101,12 @@ export interface CombatState {
   coreMilestones?: Record<string, number[]>
   inFight: boolean
   /**
-   * Player pause at Dock. Auto-combat runs while undocked.
+   * Authoritative Sortie pause. Combat simTime advances only while a live
+   * Sortie is RUNNING (`docked === false && sortiePaused === false`).
+   */
+  sortiePaused: boolean
+  /**
+   * Player is at Dock with no live Sortie. Extract sets this and ends the run.
    */
   docked: boolean
   consecutiveLosses: number
@@ -1192,12 +1197,6 @@ export type LaborProfile = 'balanced' | 'scrap' | 'data' | 'foundry-safe'
 
 /** Career / meta progress that survives prestige. */
 export interface MetaState {
-  /**
-   * Leftover Foundry/Network/catalog gate field. Combat and Challenges use
-   * `bestWave`. Still written as a Wave-scaled mirror of career Best Wave
-   * because those later systems still read this key directly.
-   */
-  highestSectorEver: number
   /** Highest Wave reached on any Sortie this career. */
   bestWave: number
   /** Persistent Sortie serial used to mint a new stable seed per launch. */

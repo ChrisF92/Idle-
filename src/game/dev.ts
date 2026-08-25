@@ -93,7 +93,6 @@ export function grantCareerBestWave(state: GameState, wave: number): void {
   const w = Math.max(0, Math.floor(wave))
   state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
   state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
-  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver ?? 0, w)
   if (!state.prestige.cycle) state.prestige.cycle = { bestWave: 0, sorties: 0, scrapEarned: 0 }
   state.prestige.cycle.bestWave = Math.max(state.prestige.cycle.bestWave ?? 0, w)
   if (w >= ACT1_CADENCE.rebuild) {

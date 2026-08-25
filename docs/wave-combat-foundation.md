@@ -49,4 +49,4 @@ Dynamically spawned package units must go through `admitUnitToPackage` so Secure
 
 ## Remaining later-system field
 
-`meta.highestSectorEver` is still written as a Wave-scaled mirror of career Best Wave because Foundry, Network, and other later-PR gates still read that key. Combat and Challenges use `bestWave` / this-run `waveReached`. Do not treat career Best Wave as proof that an active Challenge reached its goal.
+Foundry, Network, and other later-PR gates read `meta.bestWave` / `careerBestWave(state)`. Combat and Challenges use `bestWave` / this-run `waveReached`. Do not treat career Best Wave as proof that an active Challenge reached its goal. Legacy Challenge `goalSector` converts through `legacyChallengeGoalWave` until PR10 (30 → Wave 300).

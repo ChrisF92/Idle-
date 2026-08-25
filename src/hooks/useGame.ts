@@ -6,6 +6,8 @@ import {
   startCombat,
   setDocked,
   chooseDirective,
+  setSortiePaused,
+  handleAppHidden,
 } from '../game/tick'
 import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
 import {
@@ -189,6 +191,8 @@ type Action =
   | { type: 'rank-capital'; capitalId: import('../game/types').CapitalId }
   | { type: 'reinforce' }
   | { type: 'session-end' }
+  | { type: 'set-sortie-paused'; paused: boolean }
+  | { type: 'visibility-hidden' }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -376,6 +380,10 @@ function reducer(state: GameState, action: Action): GameState {
       noteSessionEnd(next)
       return next
     }
+    case 'set-sortie-paused':
+      return setSortiePaused(state, action.paused)
+    case 'visibility-hidden':
+      return handleAppHidden(state)
     default:
       return state
   }
@@ -416,15 +424,16 @@ export function useGame() {
   }, [])
 
   useEffect(() => {
-    const persist = () => saveGame(stateRef.current)
+    const freezeAndPersist = () => {
+      const next = handleAppHidden(stateRef.current)
+      stateRef.current = next
+      dispatch({ type: 'replace', state: next })
+      saveGame(next)
+    }
     const onHide = () => {
-      persist()
-      if (document.visibilityState === 'hidden') dispatch({ type: 'session-end' })
+      if (document.visibilityState === 'hidden') freezeAndPersist()
     }
-    const onUnload = () => {
-      persist()
-      dispatch({ type: 'session-end' })
-    }
+    const onUnload = () => freezeAndPersist()
     document.addEventListener('visibilitychange', onHide)
     window.addEventListener('pagehide', onUnload)
     return () => {
@@ -440,6 +449,7 @@ export function useGame() {
     dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),
     setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
+    setSortiePaused: (paused: boolean) => dispatch({ type: 'set-sortie-paused', paused }),
     assignWorker: (stationId: string, delta: number) =>
       dispatch({ type: 'assign-worker', stationId, delta }),
     buyNetworkLink: (linkId: import('../game/types').NetworkLinkId) =>

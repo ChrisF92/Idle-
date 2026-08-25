@@ -195,6 +195,7 @@ export function applyOfflineCatchUp(
   const waveBefore = next.combat.wave
   const sortieFrozen = !next.combat.docked
 
+  if (sortieFrozen) next.combat.sortiePaused = true
   applyIndustryOnly(next, seconds)
   applyHangarRepair(next, seconds)
   next.lastTickAt = now

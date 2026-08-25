@@ -570,3 +570,15 @@ export function selectPresentation(
 export function isSortieActive(state: GameState): boolean {
   return !state.combat.docked
 }
+
+/** Global DOCK | SYSTEMS | MORE is hidden on the combat screen during a live Sortie. */
+export function showGlobalBottomNav(state: GameState, tab: string): boolean {
+  if (!isSortieActive(state)) return true
+  if (tab === 'combat') return false
+  return Boolean(state.combat.sortiePaused)
+}
+
+/** Compact return control while browsing with a paused live Sortie. */
+export function showSortieReturnControl(state: GameState, tab: string): boolean {
+  return isSortieActive(state) && Boolean(state.combat.sortiePaused) && tab !== 'combat'
+}

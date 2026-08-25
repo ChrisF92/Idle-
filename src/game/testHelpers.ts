@@ -1,6 +1,6 @@
 import type { GameState } from './types'
 import { grantEnemyKillRewards } from './combat'
-import { advanceTicks, startCombat } from './tick'
+import { advanceSeconds, startCombat } from './tick'
 import { ACT1_CADENCE } from './cadence'
 import { REBUILD_MIN_SORTIES } from './rebuild'
 
@@ -73,6 +73,6 @@ export function clearCurrentWave(state: GameState): GameState {
   let s = state
   if (!s.combat.inFight) s = startCombat(s)
   wipeEnemies(s)
-  advanceTicks(s, 1)
+  advanceSeconds(s, 1)
   return s
 }

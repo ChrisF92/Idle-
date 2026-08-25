@@ -2481,14 +2481,6 @@ export function simulateCombat(
   syncHullAggregates(state)
 }
 
-/** @deprecated use simulateCombat — kept for tests that step one second. */
-export function resolveCombatTick(
-  state: GameState,
-  pushLog: (state: GameState, line: string) => void,
-): void {
-  simulateCombat(state, 1, pushLog)
-}
-
 export function totalEnemyHull(encounter: WaveEncounter): number {
   return encounter.units.reduce((s, u) => s + u.hullMax, 0)
 }

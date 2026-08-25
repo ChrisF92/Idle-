@@ -608,7 +608,7 @@ export function retirePostResetOnboarding(state: GameState): void {
 export function isEstablishedCareer(state: GameState): boolean {
   if ((state.prestige.prestigeCount ?? 0) > 0) return true
   if ((state.meta.ascensionCount ?? 0) > 0) return true
-  if ((state.meta.highestSectorEver ?? 0) >= 5) return true
+  if ((state.meta.bestWave ?? 0) >= 50) return true
   const seen = state.meta.seenOnboarding ?? []
   if (seen.length >= 12) return true
   if (seen.some((id) => (LEGACY_TOUR_MARKERS as readonly string[]).includes(id))) return true
@@ -694,7 +694,6 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
   if (wave) {
     next.meta.bestWave = Math.max(next.meta.bestWave ?? 0, wave)
     next.combat.bestWave = Math.max(next.combat.bestWave ?? 0, wave)
-    next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver ?? 0, wave)
   }
 
   for (const lesson of ONBOARDING_LESSONS) {

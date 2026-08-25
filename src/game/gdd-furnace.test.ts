@@ -24,7 +24,7 @@ import { processConfig, processFurnaceHooks } from './process'
 import { ONBOARDING_ENABLED, activeGuideStep, isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
-import { advanceTicks, setDocked, startCombat } from './tick'
+import { advanceSeconds, setDocked, startCombat } from './tick'
 
 function furnaceState(wave = ACT1_CADENCE.furnace) {
   return atCareerWave(markHullLost(createInitialState(0)), wave)
@@ -118,7 +118,7 @@ describe('GDD Furnace', () => {
     s.resources.choirAsh = 80
     s.resources.heat = 0
     s.lastTickAt = 0
-    advanceTicks(s, 30)
+    advanceSeconds(s, 30)
     expect(s.resources.choirAsh).toBe(80)
     expect(s.resources.heat).toBe(0)
 

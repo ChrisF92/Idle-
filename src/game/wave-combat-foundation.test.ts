@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { startCombat, advanceSeconds, setDocked } from './tick'
-import { tryCompleteChallenge } from './actions'
+import { startCombat, advanceSeconds, setDocked, freezeActiveSortie, handleAppHidden, setSortiePaused, tickGame } from './tick'
+import { tryCompleteChallenge, assignWorker, setFoundrySlot } from './actions'
 import {
   ACT1_FINAL_WAVE,
   ACTIVE_ENEMY_SOFT_CAP,
@@ -18,15 +18,16 @@ import { FORMATION_IDS, formationSlots, pickFormation } from './formations'
 import { createSimRng, rngNext } from './simRng'
 import { SIM_FIXED_DT } from './simClock'
 import { setTestBossProvider } from './bossProvider'
-import { startWavePackage, tickWaveScheduler, type WaveSchedulerHooks } from './waveScheduler'
-import { admitUnitToPackage, livingEnemyCount } from './waveRuntime'
+import { startBossEncounter, startWavePackage, tickWaveScheduler, type WaveSchedulerHooks } from './waveScheduler'
+import { admitUnitToPackage, emptyWaveRuntime, livingEnemyCount, markWaveReached } from './waveRuntime'
 import { saveGame, loadOrCreateGame, clearSave } from './save'
 import { applyOfflineCatchUp } from './offline'
-import { isSortieActive } from './presentation'
+import { isSortieActive, showGlobalBottomNav, showSortieReturnControl } from './presentation'
 import type { CombatUnit, GameState } from './types'
-import { familyCanDropPrint, getChallenge, modulePrintWave } from './catalog'
+import { dropTableEntries, familyCanDropPrint, getChallenge, legacyChallengeGoalWave, modulePrintWave } from './catalog'
 import { maybeGrantSystemUnlocks } from './progression'
 import { ACT1_CADENCE } from './cadence'
+import { liveBossHp } from './uiReadout'
 import {
   grantEnemyKillRewards,
   pruneDeadEnemyUnits,
@@ -172,7 +173,46 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(launched.combat.wave).toBe(1)
     expect(launched.combat.waveReached).toBe(1)
     expect(launched.combat.nextWave).toBe(2)
+    expect(launched.combat.log.filter((line) => line.startsWith('Wave 1 reached'))).toHaveLength(1)
     expect(launched.combat.packages.some((p) => p.wave === 1 && p.reached)).toBe(true)
+  })
+
+  it('treats waveReached as the only Wave-Reached progress coordinate', () => {
+    const pre = createInitialState(1)
+    pre.combat.docked = false
+    pre.combat.inFight = true
+    Object.assign(pre.combat, emptyWaveRuntime())
+    pre.combat.wave = 0
+    expect(pre.combat.waveReached).toBe(0)
+    expect(pre.combat.packages).toEqual([])
+
+    const displayAhead = createInitialState(1)
+    displayAhead.combat.wave = 1
+    displayAhead.combat.waveReached = 0
+    expect(markWaveReached(displayAhead, 1)).toBe(true)
+    expect(displayAhead.combat.waveReached).toBe(1)
+    expect(markWaveReached(displayAhead, 1)).toBe(false)
+    expect(displayAhead.combat.waveReached).toBe(1)
+
+    const live = startCombat(createInitialState(1))
+    expect(live.combat.waveReached).toBe(1)
+    expect(live.meta.bestWave).toBeGreaterThanOrEqual(1)
+    expect(live.combat.bestWave).toBeGreaterThanOrEqual(1)
+    expect(live.combat.log.filter((line) => /Wave 1 reached/.test(line))).toHaveLength(1)
+    const logs = live.combat.log.length
+    tickWaveScheduler(live, 0.05, silentHooks())
+    tickWaveScheduler(live, 0.05, silentHooks())
+    expect(live.combat.log.filter((line) => /Wave 1 reached/.test(line))).toHaveLength(1)
+    expect(live.combat.log.length).toBeGreaterThanOrEqual(logs)
+
+    saveGame(live)
+    const loaded = loadOrCreateGame(Date.now() + 8_000)
+    expect(loaded.combat.waveReached).toBe(1)
+    expect(loaded.combat.sortiePaused).toBe(true)
+    loaded.combat.sortiePaused = false
+    const before = loaded.combat.log.filter((line) => /Wave 1 reached/.test(line)).length
+    advanceSeconds(loaded, 1.2)
+    expect(loaded.combat.log.filter((line) => /Wave 1 reached/.test(line))).toHaveLength(before)
   })
 
   it('does not require a Sector coordinate or Route choice', () => {
@@ -444,9 +484,16 @@ describe('PR1 wave-only radial combat foundation', () => {
     const docked = createInitialState(1)
     expect(docked.combat.docked).toBe(true)
     expect(isSortieActive(docked)).toBe(false)
+    expect(showGlobalBottomNav(docked, 'dock')).toBe(true)
     const live = startCombat(docked)
     expect(live.combat.docked).toBe(false)
     expect(isSortieActive(live)).toBe(true)
+    expect(showGlobalBottomNav(live, 'combat')).toBe(false)
+    expect(showSortieReturnControl(live, 'combat')).toBe(false)
+    const paused = setSortiePaused(live, true)
+    expect(showGlobalBottomNav(paused, 'combat')).toBe(false)
+    expect(showGlobalBottomNav(paused, 'dock')).toBe(true)
+    expect(showSortieReturnControl(paused, 'dock')).toBe(true)
   })
 
   it('does not keep a checkpoint or start-wave launch selector', () => {
@@ -551,6 +598,8 @@ describe('PR1 wave-only radial combat foundation', () => {
     const branchA = structuredClone(state)
     saveGame(state)
     const branchB = loadOrCreateGame(Date.now() + 60_000)
+    expect(branchB.combat.sortiePaused).toBe(true)
+    branchB.combat.sortiePaused = false
     expect(fingerprint(branchB)).toEqual(fingerprint(branchA))
     advanceSeconds(branchA, 3.1)
     advanceSeconds(branchB, 3.1)
@@ -716,7 +765,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     const pkg = state.combat.packages.find((p) => p.wave === 7)!
     const liveBoss = state.combat.enemyUnits.find((u) => u.packageId === pkg.id)!
     const add = durableDrone('pkg-add', 7, 1)
-    admitUnitToPackage(state, pkg, add, true)
+    admitUnitToPackage(state, pkg, add)
     expect(pkg.spawnedUnitIds.length).toBe(2)
     kill(state, liveBoss)
     pruneDeadEnemyUnits(state)
@@ -740,21 +789,202 @@ describe('PR1 wave-only radial combat foundation', () => {
   })
 
   it('cannot clear an active Challenge from career Best Wave alone', () => {
+    expect(legacyChallengeGoalWave({ goalSector: 30 })).toBe(300)
+    const challenge = getChallenge('mono-pulse')!
+    expect(legacyChallengeGoalWave(challenge)).toBe(300)
+
+    const late = createInitialState(1)
+    late.prestige.activeChallengeId = 'mono-pulse'
+    late.combat.wave = 299
+    late.combat.waveReached = 299
+    tryCompleteChallenge(late)
+    expect(late.prestige.activeChallengeId).toBe('mono-pulse')
+    expect(late.prestige.challengeClears['mono-pulse'] ?? 0).toBe(0)
+    late.combat.waveReached = 300
+    late.combat.wave = 300
+    tryCompleteChallenge(late)
+    expect(late.prestige.activeChallengeId).toBeNull()
+    expect(late.prestige.challengeClears['mono-pulse']).toBe(1)
+
     const state = createInitialState(1)
-    state.meta.bestWave = 800
-    state.combat.bestWave = 800
+    state.meta.bestWave = 1000
+    state.combat.bestWave = 1000
     state.prestige.activeChallengeId = 'mono-pulse'
-    const goal = getChallenge('mono-pulse')!.goalSector
     state.combat.wave = 1
     state.combat.waveReached = 1
     tryCompleteChallenge(state)
     expect(state.prestige.activeChallengeId).toBe('mono-pulse')
     expect(state.prestige.challengeClears['mono-pulse'] ?? 0).toBe(0)
-    state.combat.waveReached = goal
-    state.combat.wave = goal
-    tryCompleteChallenge(state)
-    expect(state.prestige.activeChallengeId).toBeNull()
-    expect(state.prestige.challengeClears['mono-pulse']).toBe(1)
+  })
+
+  it('keeps provider Boss identity on the authored Boss and not escorts', () => {
+    const state = launchSeeded(13)
+    muteWeapons(state)
+    const boss = durableDrone('actual-boss', 50)
+    boss.isBoss = true
+    boss.name = 'Actual Boss'
+    boss.family = 'titan'
+    const escortA = durableDrone('escort-a', 50, 0.8)
+    escortA.isBoss = false
+    escortA.name = 'Escort A'
+    const escortB = durableDrone('escort-b', 50, 1.6)
+    escortB.isBoss = false
+    escortB.name = 'Escort B'
+    setTestBossProvider(() => ({
+      id: 'mixed-escort',
+      name: 'Escort boundary',
+      warningDuration: 0.4,
+      units: [boss, escortA, escortB],
+      blurb: 'One Boss and two escorts',
+    }))
+    state.combat.nextWave = 50
+    state.combat.bossBoundary = {
+      phase: 'warning',
+      wave: 50,
+      warningLeft: 0,
+      warningDuration: 0.4,
+    }
+    startBossEncounter(state, silentHooks())
+    const pkg = state.combat.packages.find((p) => p.kind === 'boss')!
+    const living = state.combat.enemyUnits.filter((u) => u.packageId === pkg.id && u.hull > 0)
+    expect(living).toHaveLength(3)
+    expect(living.filter((u) => u.isBoss)).toHaveLength(1)
+    const hud = liveBossHp(state)
+    expect(hud).toBeTruthy()
+    const actual = living.find((u) => u.isBoss)!
+    expect(hud!.hull).toBe(actual.hull)
+    expect(hud!.hullMax).toBe(actual.hullMax)
+
+    const escort = living.find((u) => !u.isBoss)!
+    const salvage0 = state.resources.salvage
+    grantEnemyKillRewards(state, escort)
+    const escortPay = state.resources.salvage - salvage0
+    expect(escortPay).toBe(salvageFromKill(escort.sourceWave, false, undefined, state))
+    expect(escortPay).not.toBe(salvageFromKill(escort.sourceWave, true, undefined, state))
+    escort.hull = 0
+    pruneDeadEnemyUnits(state)
+    tickWaveScheduler(state, 0, silentHooks())
+    expect(pkg.secured).toBe(false)
+
+    for (const unit of state.combat.enemyUnits.filter((u) => u.packageId === pkg.id && !u.isBoss)) {
+      kill(state, unit)
+    }
+    tickWaveScheduler(state, 0, silentHooks())
+    expect(pkg.secured).toBe(false)
+    kill(state, actual)
+    tickWaveScheduler(state, 0, silentHooks())
+    expect(pkg.secured).toBe(true)
+  })
+
+  it('admits dynamic package adds through the cap-aware pending path', () => {
+    const state = launchSeeded(15)
+    muteWeapons(state)
+    state.combat.enemyUnits = []
+    state.combat.packages = []
+    state.combat.pendingReinforcements = []
+    const filler = Array.from({ length: ACTIVE_ENEMY_SOFT_CAP }, (_, i) =>
+      durableDrone(`fill-${i}`, 8, i * 0.11),
+    )
+    startWavePackage(state, 8, silentHooks(), filler)
+    const pkg = state.combat.packages.find((p) => p.wave === 8)!
+    expect(livingEnemyCount(state)).toBe(ACTIVE_ENEMY_SOFT_CAP)
+    const add = durableDrone('boss-add', 8, 2.2)
+    admitUnitToPackage(state, pkg, add)
+    expect(livingEnemyCount(state)).toBe(ACTIVE_ENEMY_SOFT_CAP)
+    expect(pkg.pendingCount).toBeGreaterThan(0)
+    expect(pkg.secured).toBe(false)
+    const pendingUnit = state.combat.pendingReinforcements.find((row) => row.packageId === pkg.id)?.units[0]
+    expect(pendingUnit?.sourceWave).toBe(8)
+    expect(pendingUnit?.packageId).toBe(pkg.id)
+
+    const one = state.combat.enemyUnits.find((u) => u.hull > 0)!
+    kill(state, one)
+    tickWaveScheduler(state, 0, silentHooks())
+    expect(pkg.pendingCount).toBe(0)
+    const spawnedAdd = state.combat.enemyUnits.find((u) => u.id === pendingUnit?.id)
+    expect(spawnedAdd).toBeTruthy()
+    expect(spawnedAdd!.packageId).toBe(pkg.id)
+    expect(spawnedAdd!.sourceWave).toBe(8)
+
+    for (const unit of [...state.combat.enemyUnits]) kill(state, unit)
+    tickWaveScheduler(state, 0, silentHooks())
+    while (pkg.pendingCount > 0 || state.combat.enemyUnits.some((u) => u.packageId === pkg.id && u.hull > 0)) {
+      for (const unit of state.combat.enemyUnits) kill(state, unit)
+      tickWaveScheduler(state, 0, silentHooks())
+    }
+    expect(pkg.secured).toBe(true)
+    expect(pkg.rewardPaid).toBe(true)
+    const scrap = state.resources.scrap
+    tickWaveScheduler(state, 0, silentHooks())
+    expect(state.resources.scrap).toBe(scrap)
+  })
+
+  it('freezes Sortie combat while PAUSED and resumes from the same state', () => {
+    const live = startCombat(createInitialState(4))
+    muteWeapons(live)
+    advanceSeconds(live, 0.8)
+    const sim = live.combat.simTime
+    const waveAt = live.combat.nextReinforcementAt
+    const pos = live.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y }))
+    const cd = live.combat.playerUnits.flatMap((u) => u.weapons.map((w) => w.cooldownLeft))
+    const paused = setSortiePaused(live, true)
+    expect(paused.combat.sortiePaused).toBe(true)
+    advanceSeconds(paused, 2.5)
+    expect(paused.combat.simTime).toBe(sim)
+    expect(paused.combat.nextReinforcementAt).toBe(waveAt)
+    expect(paused.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y }))).toEqual(pos)
+    expect(paused.combat.playerUnits.flatMap((u) => u.weapons.map((w) => w.cooldownLeft))).toEqual(cd)
+    const resumed = setSortiePaused(paused, false)
+    advanceSeconds(resumed, 0.4)
+    expect(resumed.combat.simTime).toBeGreaterThan(sim)
+  })
+
+  it('hidden-app freeze dumps zero combat time and stays paused until Resume', () => {
+    let state = startCombat(createInitialState(6))
+    muteWeapons(state)
+    advanceSeconds(state, 0.6)
+    const sim = state.combat.simTime
+    const waveAt = state.combat.nextReinforcementAt
+    const pos = state.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y }))
+    const cd = state.combat.playerUnits.flatMap((u) => u.weapons.map((w) => w.cooldownLeft))
+    state = handleAppHidden(state)
+    expect(state.combat.sortiePaused).toBe(true)
+    state.lastTickAt = Date.now() - 90_000
+    state = tickGame(state, Date.now())
+    expect(state.combat.simTime).toBe(sim)
+    expect(state.combat.nextReinforcementAt).toBe(waveAt)
+    expect(state.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y }))).toEqual(pos)
+    expect(state.combat.playerUnits.flatMap((u) => u.weapons.map((w) => w.cooldownLeft))).toEqual(cd)
+    expect(state.combat.sortiePaused).toBe(true)
+    state = setSortiePaused(state, false)
+    advanceSeconds(state, 0.3)
+    expect(state.combat.simTime).toBeGreaterThan(sim)
+  })
+
+  it('keeps Foundry/industry clocks independent of Sortie pause', () => {
+    let state = startCombat(createInitialState(2))
+    muteWeapons(state)
+    state.meta.bestWave = ACT1_CADENCE.foundry
+    state.combat.bestWave = ACT1_CADENCE.foundry
+    state.resources.scrap = 80
+    state.base.workerDrones = Math.max(2, state.base.workerDrones)
+    state = assignWorker(state, 'scrap-field', 2)
+    state = setFoundrySlot(state, 0, 'slag-ingot')
+    const paused = freezeActiveSortie(state)
+    const sim = paused.combat.simTime
+    const recipeProgress = paused.foundry.slots[0]?.progress ?? 0
+    advanceSeconds(paused, 32)
+    expect(paused.combat.simTime).toBe(sim)
+    expect(paused.foundry.slots[0]?.progress ?? 0).toBeGreaterThan(recipeProgress)
+    expect(paused.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(1)
+  })
+
+  it('keeps wave bonus drop tables on Wave 120/160/220 rather than old Sector 12/16/22', () => {
+    expect(familyCanDropPrint('swarm', 'barrier-projector', 50)).toBe(false)
+    expect(familyCanDropPrint('swarm', 'barrier-projector', 119)).toBe(false)
+    expect(familyCanDropPrint('swarm', 'barrier-projector', 120)).toBe(true)
+    expect(dropTableEntries('swarm', 12).some((e) => e.moduleId === 'barrier-projector')).toBe(false)
+    expect(modulePrintWave('pulse-cannon')).toBeLessThan(160)
   })
 
   it('does not keep obsolete Route/Sector/checkpoint compatibility stubs', () => {

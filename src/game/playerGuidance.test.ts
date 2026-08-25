@@ -22,7 +22,6 @@ describe('player guidance helpers', () => {
 
   it('treats progressed careers as established and marks beginner ids', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 68
     s.prestige.prestigeCount = 1
     s.meta.seenOnboarding = ['guide-drone-cap', 'guide-furnace-v2-ash']
     migrateOnboardingState(s)
@@ -52,7 +51,6 @@ describe('player guidance helpers', () => {
 
   it('lists accurate Rebuild keep/reset from unlocked systems', () => {
     const s = markHullLost(createInitialState(0))
-    s.meta.highestSectorEver = 68
     s.meta.bestWave = 170
     s.combat.bestWave = 170
     const lists = rebuildConsequenceLists(s)
@@ -64,7 +62,6 @@ describe('player guidance helpers', () => {
 
   it('Reinforce lists keep Foundry and still reset the run', () => {
     const s = markHullLost(createInitialState(0))
-    s.meta.highestSectorEver = 680
     const lists = reinforceConsequenceLists(s)
     expect(lists.gain.join(' ')).toMatch(/Rebuild Matter/)
     expect(lists.reset).toContain('Salvage')
@@ -96,7 +93,6 @@ describe('player guidance helpers', () => {
   it('does not unlock retired Process Core automation', () => {
     const s = markHullLost(createInitialState(0))
     s.meta.aiUnlocked = true
-    s.meta.highestSectorEver = 42
     s.prestige.prestigeCount = 2
     s.research.unlocked.push('basic-optics')
     s.meta.completedAchievements = ['first-blood']
@@ -109,7 +105,6 @@ describe('player guidance helpers', () => {
 
   it('hydrates established saves so they skip beginner overlays', () => {
     const s = markHullLost(createInitialState(0))
-    s.meta.highestSectorEver = 10
     s.prestige.prestigeCount = 2
     s.meta.seenOnboarding = ['guide-drone-cap']
     const loaded = importSave(exportSave(s))
@@ -122,10 +117,11 @@ describe('player guidance helpers', () => {
     let s = markHullLost(createInitialState(0))
     s.meta.seenOnboarding = ['opening.salvage']
     s.meta.onboarding = { 'opening.salvage': 'complete' }
-    s.meta.highestSectorEver = 3
+    s.meta.bestWave = 3
+    s.combat.bestWave = 3
     s = applyDevAction(s, { type: 'reset-onboarding' })
     expect(s.meta.seenOnboarding).toEqual([])
     expect(s.meta.hullLostOnce).toBe(false)
-    expect(s.meta.highestSectorEver).toBe(3)
+    expect(s.meta.bestWave).toBe(3)
   })
 })

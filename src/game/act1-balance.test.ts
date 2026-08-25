@@ -124,7 +124,6 @@ describe('Act 1 onboarding audit', () => {
 
   it('Skip of Research focus does not invent a later desk tour', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 7
     const skipped = skipOnboarding(s, 'research.project')
     expect(skipped.meta.seenOnboarding).toContain('research.project')
     expect(activeGuideStep(skipped, 'research')).toBeNull()
@@ -132,7 +131,6 @@ describe('Act 1 onboarding audit', () => {
 
   it('inspect sheets explain why damage, Network, Furnace, Rebuild, and Research change', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 8
     s.furnace.wanted.weapons = 1
     s.furnace.active.weapons = 1
     const blob = inspectCopyCorpus(s).join('\n')
@@ -210,14 +208,13 @@ describe('Act 1 career simulations', () => {
     expect(run.offlineSeconds).toBeGreaterThan(2 * 3600)
     // Death docks the Sortie, so 8-minute active slices no longer farm a held sector.
     // Offline catch-up must not explode the career; a couple of bands is enough progress.
-    expect(run.highestSectorEver).toBeGreaterThanOrEqual(1)
-    expect(run.highestSectorEver).toBeLessThan(18)
+    expect(run.highestWave).toBeGreaterThanOrEqual(1)
+    expect(run.highestWave).toBeLessThan(18)
     expect(run.safety.some((s) => s.kind === 'nan')).toBe(false)
   }, 120_000)
 
   it('roundtrips a mid-Act-1 save without bumping SAVE_VERSION', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 10
     s.hiveResearch.completed.energy = 2
     s.foundry.recipeLevels['slag-ingot'] = 4
     s.furnace.wanted.weapons = 1

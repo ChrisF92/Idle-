@@ -28,6 +28,7 @@ import {
   matterShopWorkshopStarts,
   getModule,
   getStation,
+  legacyChallengeGoalWave,
   isAiNodePermanent,
   isChallengeUnlocked,
   isFarmableModule,
@@ -1597,7 +1598,7 @@ export function enterChallenge(
     ? `Ascension ×${next.meta.ascensionCount}`
     : 'Prestige'
   next.combat.log = [
-    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: Wave ${challenge.goalSector}.`,
+    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: Wave ${legacyChallengeGoalWave(challenge)}.`,
     ...next.combat.log,
   ]
   return next
@@ -1619,8 +1620,8 @@ export function tryCompleteChallenge(state: GameState): void {
   if (!id) return
   const challenge = getChallenge(id)
   if (!challenge) return
-  const runWave = Math.max(0, state.combat.waveReached ?? 0, state.combat.wave ?? 0)
-  if (runWave < challenge.goalSector) return
+  const runWave = Math.max(0, state.combat.waveReached ?? 0)
+  if (runWave < legacyChallengeGoalWave(challenge)) return
 
   const maxClears = effectiveMaxClears(challenge, state.prestige.shop)
   const prev = challengeClearCount(state.prestige.challengeClears, id)

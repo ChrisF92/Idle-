@@ -11,11 +11,9 @@ import {
   bossBoundaryBlocksNormalWaves,
   createWavePackage,
   drainPending,
-  enqueuePending,
   enterBossWarning,
   markWaveReached,
   packageHasLivingOrPending,
-  splitSpawnCapacity,
   wavePackageKindFor,
 } from './waveRuntime'
 import { ACT1_FINAL_WAVE, BOSS_WARNING_DURATION, isBossWave, NORMAL_REINFORCEMENT_INTERVAL } from './waves'
@@ -44,16 +42,11 @@ function applyPresentation(state: GameState, presentation: WavePresentation, bos
 }
 
 function admitUnits(state: GameState, pkg: WavePackageState, units: CombatUnit[]): void {
-  const stamped = units.map((unit) => admitUnitToPackage(state, pkg, unit, false))
-  pkg.totalUnits = stamped.length
-  const { spawnNow, pending } = splitSpawnCapacity(state, stamped)
-  pkg.spawnedUnitIds.push(...spawnNow.map((u) => u.id))
-  state.combat.enemyUnits.push(...spawnNow)
-  enqueuePending(state, pkg, pending)
+  const admitted = units.map((unit) => admitUnitToPackage(state, pkg, unit))
   syncHullAggregates(state)
   revealCodexFamilies(
     state,
-    stamped.map((u) => u.family),
+    admitted.map((u) => u.family),
   )
 }
 
@@ -117,11 +110,13 @@ export function startBossEncounter(state: GameState, hooks: WaveSchedulerHooks):
   })
   const units = (spec?.units ?? []).map((u) => {
     const copy = structuredClone(u)
-    copy.isBoss = true
     copy.sourceWave = wave
     return copy
   })
-  const lead = units[0]
+  if (units.length > 0 && !units.some((u) => u.isBoss)) {
+    units[0]!.isBoss = true
+  }
+  const lead = units.find((u) => u.isBoss) ?? units[0]
   state.combat.bossBoundary = {
     phase: 'active',
     wave,

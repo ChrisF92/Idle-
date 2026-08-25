@@ -397,11 +397,6 @@ export function protocolGoalWave(state: GameState, id: string): number {
   return def.goalWave + protocolRank(state, id) * CHALLENGE_GOAL_STEP
 }
 
-/** @deprecated Wave goals are canonical. Kept for leftover sector readers. */
-export function protocolGoalSector(state: GameState, id: string): number {
-  return protocolGoalWave(state, id)
-}
-
 export function challengeFamiliarity(
   state: GameState,
   def: ProtocolDef,

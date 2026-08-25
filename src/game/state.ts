@@ -135,6 +135,7 @@ export function createInitialState(now = Date.now()): GameState {
       coreNewBest: {},
       coreMilestones: {},
       inFight: false,
+      sortiePaused: false,
       docked: true,
       consecutiveLosses: 0,
       sortieSeed: 0,
@@ -204,7 +205,6 @@ export function createInitialState(now = Date.now()): GameState {
       seenFamilies: [],
     },
     meta: {
-      highestSectorEver: 0,
       bestWave: 0,
       sortieSerial: 0,
       act1Cleared: false,

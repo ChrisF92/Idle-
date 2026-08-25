@@ -25,7 +25,7 @@ const RETIRED_POINT_IDS = new Set(['echo-clear'])
 export function processPointGroup(def: AchievementDef): ProcessPointGroup | null {
   if (RETIRED_POINT_IDS.has(def.id)) return null
   switch (def.condition.type) {
-    case 'sector-ever':
+    case 'best-wave':
     case 'act1-cleared':
     case 'lifetime-sectors':
     case 'lifetime-waves':

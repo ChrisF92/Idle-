@@ -368,7 +368,7 @@ export function observeState(
 }
 
 function careerGate(state: GameState): number {
-  return Math.max(state.meta.highestSectorEver ?? 0, Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0) ?? 0)
+  return Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
 }
 
 export function recordRebuildRow(metrics: MetricsState, row: RebuildRecord): void {

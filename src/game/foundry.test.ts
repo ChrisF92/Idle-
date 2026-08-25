@@ -24,7 +24,6 @@ describe('phase 5: foundry + notation', () => {
     let s = createInitialState(0)
     s.meta.bestWave = 20
     s.combat.bestWave = 20
-    s.meta.highestSectorEver = 2
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
     expect(foundrySlotCount(s)).toBe(1)
     expect(foundryFabSlotCount(s)).toBe(1)
@@ -36,7 +35,6 @@ describe('phase 5: foundry + notation', () => {
     let s = createInitialState(0)
     s.meta.bestWave = 70
     s.combat.bestWave = 70
-    s.meta.highestSectorEver = 6
     s.resources.scrap = 80
     s = setFoundrySlot(s, 0, 'slag-ingot')
     expect(s.foundry.slots[0]?.recipeId).toBe('slag-ingot')

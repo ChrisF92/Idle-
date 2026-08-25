@@ -46,6 +46,7 @@ import {
 import {
   addPlaytime,
   noteCareerWave,
+  noteSessionEnd,
   recordPlaytest,
   sampleDroneAllocation,
 } from './playtest'
@@ -131,7 +132,6 @@ function noteBestWave(state: GameState, wave: number): boolean {
   const prev = Math.max(state.combat.bestWave ?? 0, state.meta.bestWave ?? 0)
   state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
   state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
-  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver ?? 0, w)
   noteRebuildCycleWave(state, w)
   if (w > prev) noteCareerWave(state, w)
   return w > prev
@@ -551,7 +551,37 @@ function tickOutOfCombatRepair(state: GameState, dt: number): void {
   }
 }
 
-/** Advance / Hold auto-engage while not Paused. AI never toggles this. */
+export function isCombatSimulationRunning(state: GameState): boolean {
+  return !state.combat.docked && Boolean(state.combat.inFight) && !state.combat.sortiePaused
+}
+
+/** Freeze combat through the single Sortie PAUSED state. Does not Extract. */
+export function setSortiePaused(state: GameState, paused: boolean): GameState {
+  if (state.combat.docked) return state
+  if (Boolean(state.combat.sortiePaused) === paused) return state
+  const next = structuredClone(state)
+  next.combat.sortiePaused = paused
+  return next
+}
+
+/** Hide/background: pause a live Sortie. Already-paused Sorties stay paused. */
+export function freezeActiveSortie(state: GameState): GameState {
+  if (state.combat.docked) return state
+  return setSortiePaused(state, true)
+}
+
+/**
+ * App/tab hidden or closed. Freezes an active Sortie through the same PAUSED
+ * state. Hidden wall-clock time must not become combat catch-up.
+ */
+export function handleAppHidden(state: GameState): GameState {
+  const frozen = freezeActiveSortie(state)
+  const next = frozen === state ? structuredClone(state) : frozen
+  noteSessionEnd(next)
+  return next
+}
+
+/** Advance / auto-engage while Docked with no live Sortie. */
 function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight || state.combat.docked) return
   if (hasDirectiveOffer(state)) return
@@ -576,7 +606,8 @@ export function beginFight(state: GameState, keepFleet = false): void {
   state.combat.simTime = 0
   state.combat.simAccumulator = 0
   state.combat.idSeq = runtime.idSeq
-  state.combat.wave = 1
+  state.combat.wave = 0
+  state.combat.sortiePaused = false
   state.combat.docked = false
   state.combat.defeatLeft = 0
   state.combat.defeatTactical = false
@@ -654,7 +685,7 @@ export function setDocked(state: GameState, docked: boolean): GameState {
     pushLog(next, next.combat.lastSortie.note)
   } else {
     launchFromDock(next)
-    pushLog(next, 'Sortie launched — Wave 1. Combat keeps running if you open the Dock.')
+    pushLog(next, 'Sortie launched — Wave 1.')
   }
   return next
 }
@@ -675,9 +706,9 @@ export function advanceSeconds(state: GameState, seconds: number): void {
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)
     applyProduction(state, dt)
-    if (state.combat.inFight) {
+    if (isCombatSimulationRunning(state)) {
       consumeSimSteps(state, dt, (step) => tickCombat(state, step))
-    } else {
+    } else if (state.combat.docked) {
       tickOutOfCombatRepair(state, dt)
       maybeAutoEngage(state)
     }
@@ -703,16 +734,10 @@ function maybeProcessRelaunch(state: GameState): void {
 }
 
 /**
- * @deprecated name kept for tests — advances N seconds of continuous sim.
- */
-export function advanceTicks(state: GameState, ticks: number): void {
-  advanceSeconds(state, ticks)
-}
-
-/**
  * Live path: combat + industry advance by real elapsed time (no 1s combat ticks).
  * Long absences should call applyOfflineCatchUp instead.
- * `paused` holds the clock (onboarding overlay) so unpause does not dump catch-up.
+ * `paused` is the tutorial/overlay presentation gate so unpause does not dump catch-up.
+ * Sortie PAUSED uses `combat.sortiePaused` and still lets industry advance.
  */
 export function tickGame(state: GameState, now = Date.now(), paused = false): GameState {
   if (paused) {
@@ -750,8 +775,5 @@ export function resourceDelta(before: Resources, after: Resources): Partial<Reso
 export function resetGame(now = Date.now()): GameState {
   return createInitialState(now)
 }
-
-/** @deprecated walls removed — kept for import safety in old tests. */
-export const WALL_AFTER_LOSSES = 0
 
 export { totalEnemyHull }

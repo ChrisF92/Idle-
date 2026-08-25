@@ -82,8 +82,7 @@ function stopReached(
     case 'wave':
       return reportedBestWave(state) >= stop.wave ? `Reached Wave ${stop.wave}` : null
     case 'sector':
-      return reportedBestWave(state) >= stop.sector * 10 ||
-        Math.max(state.meta.highestSectorEver, Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)) >= stop.sector
+      return reportedBestWave(state) >= stop.sector * 10
         ? `Reached Wave ${stop.sector * 10}`
         : null
     case 'duration':
@@ -123,7 +122,6 @@ function makeProgress(
     offlineSeconds,
     sector: state.combat.wave,
     highestSector: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
-    highestSectorEver: Math.max(state.meta.highestSectorEver, Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)),
     highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     stopLabel: stopLabel(config.stop),
@@ -466,7 +464,6 @@ async function runOneSeeded(
     calendarSeconds,
     offlineSeconds,
     highestSector: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
-    highestSectorEver: Math.max(state.meta.highestSectorEver, Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)),
     highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     prestigeMatterEarned: matterEarned,

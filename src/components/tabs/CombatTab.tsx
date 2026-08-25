@@ -26,6 +26,9 @@ interface CombatTabProps {
   state: GameState
   onLaunch: () => void
   onExtract?: () => void
+  onPause?: () => void
+  onResume?: () => void
+  onPauseAndBrowse?: () => void
   onBuyRunUpgrade?: (id: RunUpgradeId, count?: number) => void
   onViewReport?: () => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
@@ -44,6 +47,9 @@ interface CombatTabProps {
 export function CombatTab({
   state,
   onExtract,
+  onPause,
+  onResume,
+  onPauseAndBrowse,
   onBuyRunUpgrade,
   paused = false,
   onboardingTarget = null,
@@ -222,7 +228,7 @@ export function CombatTab({
           beams={combat.docked && !dying ? [] : combat.beams ?? []}
           fx={combat.fx}
           mode={battlefieldMode}
-          paused={paused || directiveOffer.length > 0}
+          paused={paused || directiveOffer.length > 0 || combat.sortiePaused}
           numbers={normalizeDamageNumbers(state.meta.damageNumbers)}
           frameId={state.shipyard.frameId}
           coreIds={state.shipyard.modules}
@@ -300,17 +306,39 @@ export function CombatTab({
               {menuOpen ? (
                 <div className="sortie-menu-pop" id={`${titleId}-menu`} role="menu" aria-label="Sortie">
                   {live && !dying ? (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      data-guide="extract"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        onExtract?.()
-                      }}
-                    >
-                      Extract
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          onPause?.()
+                        }}
+                      >
+                        Pause
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          onPauseAndBrowse?.()
+                        }}
+                      >
+                        Pause &amp; Browse
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        data-guide="extract"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          onExtract?.()
+                        }}
+                      >
+                        Extract
+                      </button>
+                    </>
                   ) : (
                     <p className="muted">No actions</p>
                   )}
@@ -366,6 +394,13 @@ export function CombatTab({
           <p className="sortie-defeat-banner" role="status">
             {challenge ? 'Hull lost' : `SORTIE COMPLETE — Wave ${combat.wave}`}
           </p>
+        ) : combat.sortiePaused ? (
+          <div className="sortie-paused-overlay" role="status">
+            <p className="sortie-paused-title">SORTIE PAUSED</p>
+            <button type="button" className="sortie-resume-btn" onClick={() => onResume?.()}>
+              Resume
+            </button>
+          </div>
         ) : null}
       </div>
 

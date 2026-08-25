@@ -152,7 +152,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
 ]
 
 export type AchievementCondition =
-  | { type: 'sector-ever'; sector: number }
+  | { type: 'best-wave'; wave: number }
   | { type: 'research-count'; min: number }
   | { type: 'prestige-count'; min: number }
   | { type: 'ai-purchase-count'; min: number }
@@ -196,35 +196,35 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: 'First Blood',
     description: 'Reach Wave 10. Starts banking Process Points for later automation.',
     rewardAiPoints: 4,
-    condition: { type: 'sector-ever', sector: 1 },
+    condition: { type: 'best-wave', wave: 10 },
   },
   {
     id: 'chip-drawer',
     name: 'Chip Drawer',
     description: 'Reach Wave 30. Shard signatures are now detectable.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 3 },
+    condition: { type: 'best-wave', wave: 30 },
   },
   {
     id: 'hangar-opened',
     name: 'Hangar Opened',
     description: 'Reach Wave 40.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 4 },
+    condition: { type: 'best-wave', wave: 40 },
   },
   {
     id: 'first-boss',
     name: 'First Titan',
     description: 'Reach Wave 50 (first band boss).',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 5 },
+    condition: { type: 'best-wave', wave: 50 },
   },
   {
     id: 'archive-open',
     name: 'Archive Open',
     description: 'Reach Wave 70. Archive telemetry begins accumulating.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 7 },
+    condition: { type: 'best-wave', wave: 70 },
   },
   {
     id: 'first-research',
@@ -252,28 +252,28 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: 'Deep Push',
     description: 'Reach Wave 100.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 10 },
+    condition: { type: 'best-wave', wave: 100 },
   },
   {
     id: 'sector-15',
     name: 'Combat Corps',
     description: 'Reach Wave 150.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 15 },
+    condition: { type: 'best-wave', wave: 150 },
   },
   {
     id: 'sector-20',
     name: 'Void Line',
     description: 'Reach Wave 200.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 20 },
+    condition: { type: 'best-wave', wave: 200 },
   },
   {
     id: 'sector-25',
     name: 'Outer Rim',
     description: 'Reach Wave 250.',
     rewardAiPoints: 3,
-    condition: { type: 'sector-ever', sector: 25 },
+    condition: { type: 'best-wave', wave: 250 },
   },
   {
     id: 'act1-clear',
@@ -479,10 +479,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
 ]
 
-export function careerHighestSector(state: GameState): number {
-  return careerBestWave(state)
-}
-
 export function isAchievementUnlocked(state: GameState, id: string): boolean {
   return state.meta.completedAchievements.includes(id)
 }
@@ -493,8 +489,8 @@ export function achievementCompletions(state: GameState, id: string): number {
 
 export function achievementBaseThreshold(condition: AchievementCondition): number {
   switch (condition.type) {
-    case 'sector-ever':
-      return condition.sector
+    case 'best-wave':
+      return condition.wave
     case 'act1-cleared':
       return 1
     case 'research-count':
@@ -527,8 +523,8 @@ export function achievementProgressValue(
   condition: AchievementCondition,
 ): number {
   switch (condition.type) {
-    case 'sector-ever':
-      return careerHighestSector(state)
+    case 'best-wave':
+      return careerBestWave(state)
     case 'research-count':
       return state.research.unlocked.length
     case 'prestige-count':
@@ -807,7 +803,7 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
     case 'data':
       return isSystemUnlocked(state, 'research')
     case 'essence':
-      return state.resources.essence > 0 || careerHighestSector(state) >= 5
+      return state.resources.essence > 0 || careerBestWave(state) >= 50
     case 'aiPoints':
       return isSystemUnlocked(state, 'process') || isSystemUnlocked(state, 'ai')
     case 'prestigeMatter':
@@ -850,7 +846,7 @@ export function firstRebuildAvailable(state: GameState): boolean {
 }
 
 /**
- * Challenges + Challenge shop unlock after the first Act 1 clear (sector 30).
+ * Challenges + Challenge shop unlock after the Act 1 finale (Wave 1000).
  * Stay visible while a challenge is already running so Abandon remains available.
  */
 export function challengesContentUnlocked(state: GameState): boolean {

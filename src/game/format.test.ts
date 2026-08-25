@@ -67,7 +67,6 @@ describe('module stat previews', () => {
 describe('rebuild onboarding', () => {
   it('does not force a Rebuild overlay; hangar copy carries KEEP/RESET', () => {
     const state = createInitialState(0)
-    state.meta.highestSectorEver = 4
     state.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
     expect(activeGuideStep(state, 'combat')?.id).not.toBe('guide-prestige-tab')
     expect(activeGuideStep(state, 'dock')?.id).not.toBe('guide-prestige-ready')

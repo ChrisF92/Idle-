@@ -242,7 +242,7 @@ Required surface after Phase 1 (extend in later phases):
 
 | Control | Behaviour |
 |---|---|
-| Set Best Wave | Sets `bestWave` / `highestSectorEver` alias and grants doors |
+| Set Best Wave | Sets `bestWave` and grants doors |
 | Set live Wave | In-sortie wave only; does not grant career |
 | Door presets | W20 Foundry, W30 Workers, W50 Directives, W70 Rebuild (legal + 3 sorties), W110 Relics, W140 Furnace, W170 Research, W210 Process (also 2 Rebuilds + 1 research), W250 Challenges, W300 climax / Reinforce |
 | +Resources | Scrap, Salvage, Matter, Ash, Heat, Foundry mats, Process points — GDD names |

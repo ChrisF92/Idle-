@@ -136,6 +136,8 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     coreMilestones: { ...(combat.coreMilestones ?? {}) },
     wave: Math.max(0, combat.wave ?? 0),
     waveReached: Math.max(0, combat.waveReached ?? combat.wave ?? 0),
+    // Reload/close freezes a live Sortie. Resume is always explicit.
+    sortiePaused: combat.docked ? false : true,
     nextWave: Math.max(1, combat.nextWave ?? (combat.wave ?? 0) + 1),
     nextReinforcementAt: Number(combat.nextReinforcementAt ?? 0) || 0,
     packages: Array.isArray(combat.packages) ? combat.packages : [],
@@ -651,7 +653,6 @@ function withMetaDefaults(
       : 'balanced'
 
   return {
-    highestSectorEver: Math.max(0, meta?.highestSectorEver ?? 0),
     bestWave: Math.max(0, Math.floor(Number(meta?.bestWave ?? 0) || 0)),
     sortieSerial: Math.max(0, Math.floor(Number(meta?.sortieSerial ?? 0) || 0)),
     act1Cleared: meta?.act1Cleared ?? false,

@@ -2,7 +2,7 @@
 
 import { careerBestWave, isSystemUnlocked } from './progression'
 import { WORKER_JOB_IDS, workerJobContribution, workerJobHasWork } from './workers'
-import { ACT1_CADENCE } from './cadence'
+import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { meetsWave } from './waves'
 import { formatCompact, formatStat } from './format'
 import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
@@ -118,7 +118,7 @@ export interface ShopRankGate {
 export interface ShopMetaAnyGate {
   act1Cleared?: boolean
   prestiges?: number
-  sectorEver?: number
+  bestWave?: number
   anyChallengeClear?: boolean
 }
 
@@ -216,6 +216,7 @@ export interface ChallengeDef {
   name: string
   description: string
   restriction: string
+  /** Legacy Sector count. Convert with `legacyChallengeGoalWave` until PR10. */
   goalSector: number
   rewardChallengePoints: number
   /** ITRTG-style repeat cap (5–100). */
@@ -874,7 +875,7 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     maxRank: 1,
     offlineHours: 24,
     requiresShopRank: { shop: 'challenge', id: 'deep-cache', rank: 1 },
-    requiresMetaAny: { act1Cleared: true, prestiges: 3, sectorEver: 30 },
+    requiresMetaAny: { act1Cleared: true, prestiges: 3, bestWave: 300 },
   },
   {
     id: 'clearance-board',
@@ -2092,7 +2093,7 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
 /** Extra late-module weights unlocked at higher Waves. */
 function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
   const extras: EnemyPartDropEntry[] = []
-  if (wave >= 12) {
+  if (wave >= 120) {
     extras.push(
       { moduleId: 'barrier-projector', partType: 'casing', weight: 1 },
       { moduleId: 'drone-bay', partType: 'core', weight: 1 },
@@ -2100,7 +2101,7 @@ function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
       { moduleId: 'sensor-whisker', partType: 'casing', weight: 1 },
     )
   }
-  if (wave >= 16) {
+  if (wave >= 160) {
     extras.push(
       { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
       { moduleId: 'ion-burst', partType: 'core', weight: 1 },
@@ -2108,7 +2109,7 @@ function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
       { moduleId: 'keel-baffle', partType: 'core', weight: 1 },
     )
   }
-  if (wave >= 22) {
+  if (wave >= 220) {
     extras.push(
       { moduleId: 'grav-tether', partType: 'core', weight: 1 },
       { moduleId: 'nano-lathe', partType: 'lens', weight: 1 },
@@ -2637,6 +2638,14 @@ export function getChallenge(id: string): ChallengeDef | undefined {
   return CHALLENGES.find((c) => c.id === id)
 }
 
+/**
+ * Temporary until PR10 replaces the Challenge catalogue.
+ * Legacy `goalSector` is a Sector count (30 → Wave 300).
+ */
+export function legacyChallengeGoalWave(challenge: { goalSector: number }): number {
+  return Math.max(1, Math.floor(challenge.goalSector)) * 10
+}
+
 export function getEssenceUpgrade(id: string): EssenceUpgradeDef | undefined {
   return ESSENCE_UPGRADES.find((e) => e.id === id)
 }
@@ -2767,16 +2776,15 @@ export function shopMaxRank(def: { maxRank?: number }): number {
 function metaAnyGatePasses(
   state: {
     prestige: { prestigeCount: number; challengeClears: Record<string, number> }
-    meta: { act1Cleared: boolean; highestSectorEver: number }
-    combat?: { highestSector?: number }
+    meta: { act1Cleared: boolean; bestWave?: number }
+    combat?: { bestWave?: number }
   },
   gate: ShopMetaAnyGate,
 ): boolean {
   if (gate.act1Cleared && state.meta.act1Cleared) return true
   if (gate.prestiges != null && state.prestige.prestigeCount >= gate.prestiges) return true
-  if (gate.sectorEver != null) {
-    const ever = Math.max(state.meta.highestSectorEver, state.combat?.highestSector ?? 0)
-    if (ever >= gate.sectorEver) return true
+  if (gate.bestWave != null) {
+    if (careerBestWave(state) >= gate.bestWave) return true
   }
   if (gate.anyChallengeClear) {
     const clears = Object.values(state.prestige.challengeClears).some((n) => n > 0)
@@ -2792,7 +2800,8 @@ export type ShopBuyCheck =
 function matterRankGateReason(
   state: {
     prestige: { prestigeCount: number }
-    meta: { act1Cleared: boolean; highestSectorEver: number; ascensionCount?: number }
+    meta: { act1Cleared: boolean; bestWave?: number; ascensionCount?: number }
+    combat?: { bestWave?: number }
   },
   nextRank: number,
 ): string | null {
@@ -2814,7 +2823,7 @@ function matterRankGateReason(
     }
   }
   if (nextRank >= 4) {
-    if (state.prestige.prestigeCount < 1 && state.meta.highestSectorEver < 12) {
+    if (state.prestige.prestigeCount < 1 && careerBestWave(state) < 120) {
       return 'Need 1 Rebuild or Best Wave 120 for rank 4+'
     }
   }
@@ -2825,7 +2834,8 @@ export function canBuyMatterShop(
   state: {
     resources: { prestigeMatter: number }
     prestige: { prestigeCount: number; matterShop: Record<string, number> }
-    meta: { act1Cleared: boolean; highestSectorEver: number; ascensionCount?: number }
+    meta: { act1Cleared: boolean; bestWave?: number; ascensionCount?: number }
+    combat?: { bestWave?: number }
   },
   itemId: string,
 ): ShopBuyCheck {
@@ -2855,8 +2865,7 @@ export function canBuyChallengeShop(
       matterShop: Record<string, number>
       challengeClears: Record<string, number>
     }
-    meta: { act1Cleared: boolean; highestSectorEver: number; bestWave?: number }
-    combat?: { highestSector?: number; bestWave?: number }
+    meta: { act1Cleared: boolean; bestWave?: number }
   },
   itemId: string,
 ): ShopBuyCheck {
@@ -3606,8 +3615,8 @@ export function challengeStackRepairBonus(clears: Record<string, number> = {}): 
 export function isChallengeUnlocked(
   state: {
     prestige: { challengeClears: Record<string, number>; prestigeCount: number }
-    meta?: { highestSectorEver?: number; act1Cleared?: boolean; ascensionCount?: number; bestWave?: number }
-    combat?: { highestSector?: number; bestWave?: number }
+    meta?: { act1Cleared?: boolean; ascensionCount?: number; bestWave?: number }
+    combat?: { bestWave?: number }
   },
   challengeId: string,
 ): boolean {
@@ -3616,9 +3625,7 @@ export function isChallengeUnlocked(
 
   // Ascension-entry challenges only appear once Act 1 is cleared (ascension available).
   if (def.entryCost === 'ascension') {
-    const act1 =
-      state.meta?.act1Cleared === true ||
-      Math.max(state.meta?.highestSectorEver ?? 0, state.combat?.highestSector ?? 0) >= 30
+    const act1 = state.meta?.act1Cleared === true || meetsWave(state, ACT1_FINAL_WAVE)
     if (!act1) return false
     if ((state.meta?.ascensionCount ?? 0) < (def.requiresAscensions ?? 0)) {
       return false

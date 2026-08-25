@@ -34,7 +34,6 @@ describe('deep matter shop + ascension', () => {
     state.resources.prestigeMatter = 1e9
     state.meta.act1Cleared = true
     state.prestige.prestigeCount = 5
-    state.meta.highestSectorEver = 30
     expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(false)
     expect(canBuyMatterShop(state, 'matter-blade').reason).toMatch(/Reinforce/)
     state.meta.ascensionCount = 1
@@ -65,7 +64,6 @@ describe('deep matter shop + ascension', () => {
 describe('combat speed vs industry', () => {
   it('combat chrono multiplies combat speed only', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 25
     state.meta.bestWave = 250
     state.combat.bestWave = 250
     state.resources.aiPoints = 30
@@ -79,7 +77,6 @@ describe('combat speed vs industry', () => {
 
   it('requires chrono chain and ignores industry bonus for combat mult', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 25
     state.meta.bestWave = 250
     state.combat.bestWave = 250
     state.resources.aiPoints = 50
@@ -128,7 +125,6 @@ describe('achievements pack', () => {
 describe('automation AI', () => {
   it('auto-merge collapses triples during sim', () => {
     let state = createInitialState(0)
-    state.meta.highestSectorEver = 22
     state.meta.bestWave = 220
     state.combat.bestWave = 220
     state.resources.aiPoints = 20

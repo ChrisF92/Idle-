@@ -14,7 +14,7 @@ import {
 import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
-import { advanceTicks } from './tick'
+import { advanceSeconds } from './tick'
 import { isWorkersUnlocked, WORKER_JOB_IDS, workerJobCap, workerJobCapLine, workerJobLabel } from './workers'
 import { startFabrication } from './foundry'
 import { tickAutomation } from './automation'
@@ -66,7 +66,7 @@ describe('GDD Worker Drones', () => {
     s = assignWorker(s, 'scrap-field', 2)
     expect(s.base.assignments['scrap-field']).toBe(2)
     const before = s.resources.scrap
-    advanceTicks(s, 10)
+    advanceSeconds(s, 10)
     expect(s.resources.scrap).toBeGreaterThan(before)
   })
 
@@ -142,13 +142,13 @@ describe('GDD Worker Drones', () => {
     let idle = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
     idle.foundry.facilities = ['drone-fabricator']
     const before = idle.base.workerDrones
-    advanceTicks(idle, 120)
+    advanceSeconds(idle, 120)
     expect(idle.base.workerDrones).toBe(before)
 
     let staffed = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
     staffed.foundry.facilities = ['drone-fabricator']
     staffed = assignWorker(staffed, 'drone-fab', 2)
-    advanceTicks(staffed, 120)
+    advanceSeconds(staffed, 120)
     expect(staffed.base.workerDrones).toBeGreaterThan(before)
   })
 

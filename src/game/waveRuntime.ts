@@ -95,14 +95,14 @@ export function createWavePackage(
 }
 
 /**
- * Register a unit with an active Wave/Boss package and, by default, spawn it.
- * Dynamic adds (PR7) must go through this helper so Secure waits for them.
+ * Single package-aware admission path for Wave/Boss units, including dynamic adds.
+ * Assigns a serialised ID, packageId, and sourceWave. Spawns immediately only when
+ * active-enemy capacity exists; otherwise the unit enters pending reinforcement.
  */
 export function admitUnitToPackage(
   state: GameState,
   pkg: WavePackageState,
   unit: CombatUnit,
-  spawn = true,
 ): CombatUnit {
   const admitted: CombatUnit = {
     ...structuredClone(unit),
@@ -110,22 +110,14 @@ export function admitUnitToPackage(
     packageId: pkg.id,
     sourceWave: pkg.wave,
   }
-  if (spawn) {
+  if (livingEnemyCount(state) < ACTIVE_ENEMY_SOFT_CAP) {
     pkg.spawnedUnitIds.push(admitted.id)
     state.combat.enemyUnits.push(admitted)
-    pkg.totalUnits = Math.max(pkg.totalUnits, pkg.spawnedUnitIds.length + pkg.pendingCount)
+  } else {
+    enqueuePending(state, pkg, [admitted])
   }
+  pkg.totalUnits = Math.max(pkg.totalUnits, pkg.spawnedUnitIds.length + pkg.pendingCount)
   return admitted
-}
-
-export function splitSpawnCapacity(
-  state: GameState,
-  units: CombatUnit[],
-  cap = ACTIVE_ENEMY_SOFT_CAP,
-): { spawnNow: CombatUnit[]; pending: CombatUnit[] } {
-  const room = Math.max(0, cap - livingEnemyCount(state))
-  if (units.length <= room) return { spawnNow: units, pending: [] }
-  return { spawnNow: units.slice(0, room), pending: units.slice(room) }
 }
 
 export function enqueuePending(
@@ -173,10 +165,14 @@ export function drainPending(state: GameState, cap = ACTIVE_ENEMY_SOFT_CAP): Com
 
 export function markWaveReached(state: GameState, wave: number): boolean {
   const w = Math.max(1, Math.floor(wave))
-  const prevReached = Math.max(state.combat.waveReached ?? 0, state.combat.wave ?? 0)
-  state.combat.waveReached = Math.max(state.combat.waveReached ?? 0, w)
-  state.combat.wave = state.combat.waveReached
-  return w > prevReached
+  const prevReached = Math.max(0, state.combat.waveReached ?? 0)
+  if (w <= prevReached) {
+    state.combat.wave = state.combat.waveReached
+    return false
+  }
+  state.combat.waveReached = w
+  state.combat.wave = w
+  return true
 }
 
 export function bossBoundaryBlocksNormalWaves(boundary: BossBoundaryState): boolean {
@@ -205,5 +201,3 @@ export function enterBossWarning(state: GameState, duration = BOSS_WARNING_DURAT
     warningDuration: duration,
   }
 }
-
-export const DEFAULT_REINFORCEMENT_INTERVAL = NORMAL_REINFORCEMENT_INTERVAL
