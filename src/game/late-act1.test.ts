@@ -126,6 +126,50 @@ describe('Furnace banks Ash for a frontier push', () => {
     expect(furnaceActiveLevel(s, 'shielding')).toBe(1)
     expect(s.resources.choirAsh).toBeGreaterThan(80)
   })
+
+  it('does not spend Weapons II on a healthy frontier Sortie', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 160))
+    s.combat.docked = false
+    s.combat.wave = 155
+    s.resources.choirAsh = 500
+    s.resources.heat = 0
+    s = tendFurnace(s, stubCtx({ secondsSinceHighestSectorGain: 8 * 60 }))
+    expect(furnaceActiveLevel(s, 'weapons')).toBe(1)
+  })
+
+  it('escalates a stalled Ash bank to Weapons II+', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 176))
+    s.combat.docked = false
+    s.combat.wave = 170
+    s.resources.choirAsh = 500
+    s.resources.heat = 0
+    s = tendFurnace(s, stubCtx({ secondsSinceHighestSectorGain: 22 * 60 }))
+    expect(furnaceActiveLevel(s, 'weapons')).toBeGreaterThanOrEqual(2)
+  })
+
+  it('upgrades an already-lit Weapons I when the wall does not break', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 176))
+    s.combat.docked = false
+    s.combat.wave = 176
+    s.resources.choirAsh = 80
+    s.resources.heat = 0
+    s = tendFurnace(s, stubCtx({ secondsSinceHighestSectorGain: 8 * 60 }))
+    expect(furnaceActiveLevel(s, 'weapons')).toBe(1)
+    s.resources.choirAsh = 600
+    s = tendFurnace(s, stubCtx({ secondsSinceHighestSectorGain: 40 * 60 }))
+    expect(furnaceActiveLevel(s, 'weapons')).toBe(3)
+  })
+
+  it('lights a hard-stalled bank at Sortie start instead of waiting for the last eight waves', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 176))
+    s.combat.docked = false
+    s.combat.wave = 1
+    s.combat.consecutiveLosses = 0
+    s.resources.choirAsh = 600
+    s.resources.heat = 0
+    s = tendFurnace(s, stubCtx({ secondsSinceHighestSectorGain: 40 * 60 }))
+    expect(furnaceActiveLevel(s, 'weapons')).toBeGreaterThanOrEqual(2)
+  })
 })
 
 describe('late Act 1 authored windows and first Research', () => {

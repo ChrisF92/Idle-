@@ -10,6 +10,7 @@ import {
   maybeChooseDirective,
   shouldRebuild,
   skipGuides,
+  tendFurnace,
 } from './actions'
 import { setDocked } from '../tick'
 
@@ -38,6 +39,7 @@ function playSession(state: GameState, ctx: StrategyContext, mode: SimulationSpe
     next = maybeHold(next, false)
   }
   next = ensureLaunched(next, ctx)
+  next = tendFurnace(next, ctx)
   next = maybeChooseDirective(next, ctx)
   next = maybeRetryFrontier(next, ctx)
   return next

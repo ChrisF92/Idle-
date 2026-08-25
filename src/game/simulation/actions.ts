@@ -67,6 +67,7 @@ import {
   furnaceActiveLevel,
   furnaceChannelSlots,
   furnaceLightCost,
+  furnaceRoman,
   furnaceUpgradeRank,
   setFurnaceChannel,
 } from '../furnace'
@@ -398,11 +399,16 @@ function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
   return pool[0]!
 }
 
+function highestAffordableFurnaceLevel(bankedHeat: number, minLevel = 1): number {
+  for (let lv = 3; lv >= minLevel; lv -= 1) {
+    if (bankedHeat >= furnaceLightCost('weapons', lv)) return lv
+  }
+  return 0
+}
+
 export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   if (!isSystemUnlocked(state, 'furnace')) return state
   if (state.combat.docked) return state
-  const weaponsCost = furnaceLightCost('weapons', 1)
-  const wardCost = furnaceLightCost('shielding', 1)
   const ash = state.resources.choirAsh ?? 0
   const heat = state.resources.heat ?? 0
   const bankedHeat = heat + Math.floor(ash / ASH_PER_HEAT)
@@ -411,39 +417,69 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   const wave = Math.max(1, state.combat.wave ?? 1)
   const reclaiming =
     (state.prestige.prestigeCount ?? 0) >= 1 && career > 0 && cycleBest < career * 0.88
+  const stallSec = ctx.secondsSinceHighestSectorGain
+  const stalled = stallSec >= 20 * 60
+  const hardStall = stallSec >= 35 * 60
   const onTheWall = career <= 0 || wave >= Math.max(1, career - 8)
   const nearCareer = career <= 0 || wave >= career * 0.94
   const desperate =
     (state.combat.consecutiveLosses ?? 0) >= 2 && wave >= Math.max(40, career * 0.35)
+  // Weapons I is the healthy stored push. Escalate only after the wall has
+  // already eaten that spend — a combat-starved bank should not sit on millions
+  // of Ash lighting I forever.
+  let weaponsLv = highestAffordableFurnaceLevel(bankedHeat, 1)
+  if (!stalled && weaponsLv > 1) weaponsLv = 1
+  const weaponsCost = weaponsLv > 0 ? furnaceLightCost('weapons', weaponsLv) : 0
+  let wardLv = 0
+  if (weaponsLv > 0) {
+    const leftover = bankedHeat - weaponsCost
+    if (stalled) {
+      wardLv = highestAffordableFurnaceLevel(leftover, 1)
+      if (wardLv > weaponsLv) wardLv = weaponsLv
+    } else if (leftover >= furnaceLightCost('shielding', 1)) {
+      wardLv = 1
+    }
+  }
+  const escalateEarly =
+    stalled &&
+    weaponsLv >= 2 &&
+    (hardStall || wave >= Math.max(1, career * 0.5))
   // Bank Ash through reclaim. Convert only on the wall, and only the Heat this Sortie can spend.
-  // After repeated hull losses, light earlier so a banked push is not trapped on a failed reclaim.
-  if (reclaiming && !nearCareer && !desperate) return state
-  if (!onTheWall && !desperate) return state
-  if (furnaceActiveLevel(state, 'weapons') > 0) return state
-  if (bankedHeat < weaponsCost) return state
+  // After repeated hull losses or a long stall, light earlier so a banked push is not trapped.
+  if (reclaiming && !nearCareer && !desperate && !escalateEarly) return state
+  if (!onTheWall && !desperate && !escalateEarly) return state
+  if (weaponsLv < 1) return state
+  const currentWeapons = furnaceActiveLevel(state, 'weapons')
+  const currentWard = furnaceActiveLevel(state, 'shielding')
+  if (currentWeapons >= weaponsLv && currentWard >= wardLv) return state
 
-  const wantWard = bankedHeat >= weaponsCost + wardCost
-  const heatNeeded = weaponsCost + (wantWard ? wardCost : 0)
-  const batchesNeeded = Math.max(0, heatNeeded - Math.floor(heat))
+  const heatNeeded =
+    furnaceLightCost('weapons', weaponsLv) + (wardLv > 0 ? furnaceLightCost('shielding', wardLv) : 0)
+  const alreadyPaid =
+    furnaceLightCost('weapons', currentWeapons) +
+    (currentWard > 0 ? furnaceLightCost('shielding', currentWard) : 0)
+  const batchesNeeded = Math.max(0, heatNeeded - alreadyPaid - Math.floor(heat))
   let next = batchesNeeded > 0 ? convertAshToHeat(state, batchesNeeded) : state
   if (next !== state) ctx.record('ash-to-heat')
   const slots = furnaceChannelSlots(next)
-  const order: Array<Parameters<typeof setFurnaceChannel>[1]> = wantWard
-    ? ['weapons', 'shielding']
-    : ['weapons']
+  const order: Array<{ id: Parameters<typeof setFurnaceChannel>[1]; level: number }> = [
+    { id: 'weapons', level: weaponsLv },
+  ]
+  if (wardLv > 0) order.push({ id: 'shielding', level: wardLv })
   let lit = 0
-  for (const id of order) {
-    if (furnaceActiveLevel(next, id) > 0) lit += 1
+  for (const row of order) {
+    if (furnaceActiveLevel(next, row.id) > 0) lit += 1
   }
-  for (const id of order) {
-    if (furnaceActiveLevel(next, id) > 0) continue
-    if (lit >= slots) break
-    if (!canSetFurnaceChannel(next, id, 1).ok) continue
-    const after = setFurnaceChannel(next, id, 1)
+  for (const row of order) {
+    const have = furnaceActiveLevel(next, row.id)
+    if (have >= row.level) continue
+    if (have <= 0 && lit >= slots) break
+    if (!canSetFurnaceChannel(next, row.id, row.level).ok) continue
+    const after = setFurnaceChannel(next, row.id, row.level)
     if (after !== next) {
-      ctx.recordMeaningful(`Furnace ${id} I`)
+      ctx.recordMeaningful(`Furnace ${row.id} ${furnaceRoman(row.level)}`)
       next = after
-      lit += 1
+      if (have <= 0) lit += 1
     }
   }
   for (const up of FURNACE_UPGRADES) {
@@ -824,7 +860,7 @@ export function spendScrapOnCoreStarts(
   if (slots.length === 0) return state
   const wp = workshopLevel(state, 'weapon-power')
   let next = state
-  const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? 2 : 6
+      const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? (preferDefense ? 6 : 2) : 6
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     const ranked = [...order].sort((a, b) => {
