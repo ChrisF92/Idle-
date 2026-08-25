@@ -58,7 +58,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
     reset.push('Heat')
   }
   if (isSystemUnlocked(state, 'process')) keep.push('Process')
-  if (isSystemUnlocked(state, 'yard')) keep.push('Foundry construction')
+  if (isSystemUnlocked(state, 'yard')) keep.push('Foundry infrastructure')
   if (isSystemUnlocked(state, 'protocols')) keep.push('Challenge ranks')
 
   return { gain, keep, reset, change }
@@ -66,17 +66,35 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
 
 export function reinforceConsequenceLists(state: GameState): ConsequenceLists {
   const lists = rebuildConsequenceLists(state)
-  const gain = [
-    `+${Math.max(1, Math.floor(prestigeGainFor(state) * 0.5))} Rebuild Matter`,
+  const reset = [
+    ...lists.reset,
+    'Current loop position',
+    'This cycle’s Sortie path',
+  ]
+  const keep = [
+    ...lists.keep,
+    'Act 1 completion',
+    `Reinforce count (${reinforceCountLabel(state)})`,
+  ]
+  const change = [
+    `+${Math.max(1, Math.floor(prestigeGainFor(state) * 0.5))} Rebuild Matter — smaller cash than a Rebuild, larger change to the loop`,
+    'The Hive’s starting architecture reconstructs',
     'Future Rebuild kits grow',
-    'The starting architecture of the Hive and the loop itself begins to shift',
+    'Rebuild is no longer the top of the ladder',
+    'No Act 2 shop opens',
+    ...lists.change,
   ]
   return {
-    gain,
-    keep: lists.keep,
-    reset: lists.reset,
-    change: ['Rebuild is no longer the top of the ladder', ...lists.change],
+    gain: change,
+    keep,
+    reset,
+    change,
   }
+}
+
+function reinforceCountLabel(state: GameState): string {
+  const n = Math.max(0, Math.floor(state.meta.ascensionCount ?? 0))
+  return n === 0 ? 'none yet' : `×${n}`
 }
 
 export function protocolStartLists(def: { reward: string }): ConsequenceLists {
@@ -102,7 +120,7 @@ export function sortieNextHints(state: GameState): string[] {
   if (isSystemUnlocked(state, 'network') && idle > 0) {
     items.push(`${idle} drone${idle === 1 ? '' : 's'} idle — assign under Systems`)
   }
-  items.push('Spend Salvage on Cores or global upgrades next Sortie')
+  items.push('Spend Salvage on Attack, Defense, or Economy upgrades next Sortie')
   if (isSystemUnlocked(state, 'network') && (state.base.assignments['scrap-field'] ?? 0) === 0) {
     items.push('Assign Worker Drones under Systems')
   }

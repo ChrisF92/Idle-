@@ -141,13 +141,13 @@ describe('Act 1 onboarding audit', () => {
     expect(blob.toLowerCase()).toMatch(/heat/)
     expect(blob.toLowerCase()).toMatch(/rebuild/)
     expect(blob.toLowerCase()).toMatch(/focus/)
-    expect(blob.toLowerCase()).toMatch(/starvation|cycle work|half the sector/)
+    expect(blob.toLowerCase()).toMatch(/efficient range|diminishing returns/)
   })
 })
 
 describe('Act 1 career simulations', () => {
-  it('active player reaches a first Rebuild inside the authored window', () => {
-    const report = runSimulation(firstRebuildConfig('active'))
+  it('active player reaches a first Rebuild inside the authored window', async () => {
+    const report = await runSimulation(firstRebuildConfig('active'))
     const run = report.runs[0]!
     // eslint-disable-next-line no-console
     console.log('\n' + formatSummary(report) + '\n')
@@ -194,8 +194,8 @@ describe('Act 1 career simulations', () => {
     expect(contrib.researchDamage).toBe(0)
   }, 120_000)
 
-  it('casual offline catch-up does not explode sector from a closed app', () => {
-    const report = runSimulation(
+  it('casual offline catch-up does not explode sector from a closed app', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'casual',
@@ -225,7 +225,7 @@ describe('Act 1 career simulations', () => {
     s.furnace.wanted.weapons = 1
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(37)
+    expect(SAVE_VERSION).toBe(41)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.recipeLevels['slag-ingot']).toBe(4)

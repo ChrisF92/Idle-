@@ -89,7 +89,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'echo',
     requiresBestWave: 999,
-    label: 'Echo Runs',
+    label: 'Retired run type',
     tip: 'Retired. Challenges cover alternate combat tests.',
   },
   {
@@ -101,20 +101,20 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
   {
     id: 'specialists',
     requiresBestWave: ACT1_CADENCE.specialists,
-    label: 'Specialists',
+    label: 'Deferred crew layer',
     tip: 'Deferred from Act 1. Frame, Core, and Relic identity is enough.',
   },
   {
     id: 'tasks',
     requiresBestWave: ACT1_CADENCE.tasks,
-    label: 'Task List',
-    tip: 'Deferred from Act 1. Capital stays shut until this list exists.',
+    label: 'Deferred checklist',
+    tip: 'Deferred from Act 1. Not a live door.',
   },
   {
     id: 'capital',
     requiresBestWave: ACT1_CADENCE.capital,
-    label: 'Capital',
-    tip: 'Upgrade Broadside, Bulkhead, and Hold with Salvage and Heat.',
+    label: 'Deferred late layer',
+    tip: 'Deferred from Act 1. Not a live door.',
   },
   {
     id: 'reinforce',
@@ -386,14 +386,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'foundry-stock',
     name: 'Stock Plate',
-    description: 'Raise Slag Ingot to rank 4.',
+    description: 'Raise Recovered Stock to rank 4.',
     rewardAiPoints: 2,
     condition: { type: 'foundry-recipe-level', recipeId: 'slag-ingot', min: 4 },
   },
   {
     id: 'foundry-plate',
     name: 'Plate Line',
-    description: 'Raise Slag Ingot to rank 8.',
+    description: 'Raise Recovered Stock to rank 8.',
     rewardAiPoints: 3,
     condition: { type: 'foundry-recipe-level', recipeId: 'slag-ingot', min: 8 },
   },
@@ -426,16 +426,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     condition: { type: 'protocol-rank-sum', min: 1 },
   },
   {
-    id: 'echo-clear',
-    name: 'Echo Mapped',
-    description: 'Complete an Echo run.',
-    rewardAiPoints: 3,
-    condition: { type: 'echo-clear-sum', min: 1 },
-  },
-  {
     id: 'yard-plot',
-    name: 'Yard Plot',
-    description: 'Place a Yard building.',
+    name: 'Infrastructure Online',
+    description: 'Fabricate Foundry infrastructure.',
     rewardAiPoints: 2,
     condition: { type: 'yard-building-count', min: 1 },
   },

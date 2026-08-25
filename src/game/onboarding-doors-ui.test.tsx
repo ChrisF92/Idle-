@@ -28,6 +28,19 @@ afterEach(cleanup)
 
 beforeEach(() => {
   HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: String(query).includes('prefers-reduced-motion: reduce'),
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+      onchange: null,
+    }),
+  })
 })
 
 function renderDoor(id: OnboardingLessonId) {

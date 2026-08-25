@@ -24,7 +24,7 @@ import type {
 } from './types'
 import { NETWORK_BAR_IDS } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { AI_NODES, isAiNodePermanent, resolveFrameId, getFrame, STARTER_FRAME_ID } from './catalog'
+import { AI_NODES, isAiNodePermanent, resolveFrameId, getFrame, STARTER_FRAME_ID, PART_TYPES, partId } from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
 import {
   SIGNAL_CORE_MAX_RANK,
@@ -430,6 +430,19 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
   }
 }
 
+/** Refund the removed instant-assembly project into Blueprint fragment stock. */
+export function migrateLegacyFabProject(state: GameState): void {
+  const project = state.base.fabProject
+  if (!project) return
+  for (const partType of PART_TYPES) {
+    const amount = Math.max(0, Math.floor(project.contributed?.[partType] ?? 0))
+    if (amount <= 0) continue
+    const id = partId(project.moduleId, partType)
+    state.parts[id] = (state.parts[id] ?? 0) + amount
+  }
+  state.base.fabProject = null
+}
+
 const RELIQUARY_COLORS: ReliquaryColor[] = ['red', 'orange', 'pink', 'blue', 'green']
 
 function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState {
@@ -779,7 +792,7 @@ function migrate(raw: unknown): GameState | null {
     prestige?: GameState['prestige'] & { completedChallenges?: string[] }
   }
 
-  if (parsed.version === SAVE_VERSION) {
+  if (parsed.version === SAVE_VERSION || parsed.version === 40) {
     const state = parsed as GameState
     const base = createInitialState()
     const combat = withCombatDefaults(state.combat)
@@ -791,6 +804,7 @@ function migrate(raw: unknown): GameState | null {
     )
     const hydrated: GameState = {
       ...state,
+      version: SAVE_VERSION,
       resources: withResourcesDefaults(state.resources, base.resources),
       combat,
       workshop: withWorkshopDefaults(state.workshop),
@@ -823,6 +837,7 @@ function migrate(raw: unknown): GameState | null {
     migrateOnboardingRegistry(hydrated)
     migrateLegacyCoreProgression(hydrated)
     migrateCoreStartingLevelInstances(hydrated)
+    migrateLegacyFabProject(hydrated)
     return hydrated
   }
 
@@ -920,6 +935,7 @@ function migrate(raw: unknown): GameState | null {
     migrateOnboardingRegistry(hydrated)
     migrateLegacyCoreProgression(hydrated)
     migrateCoreStartingLevelInstances(hydrated)
+    migrateLegacyFabProject(hydrated)
     return hydrated
   }
 
@@ -931,7 +947,7 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as { version?: number }
-    if (parsed.version !== SAVE_VERSION) {
+    if (parsed.version !== SAVE_VERSION && parsed.version !== 40) {
       localStorage.removeItem(SAVE_KEY)
       return null
     }
@@ -960,7 +976,7 @@ export function importSave(code: string): GameState | null {
   try {
     const json = decodeURIComponent(escape(atob(code.trim())))
     const parsed = JSON.parse(json) as { version?: number }
-    if (parsed.version !== SAVE_VERSION) return null
+    if (parsed.version !== SAVE_VERSION && parsed.version !== 40) return null
     return migrate(parsed)
   } catch {
     return null
