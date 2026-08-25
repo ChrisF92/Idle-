@@ -56,13 +56,15 @@ describe('late Act 1 career — Balanced through Research', () => {
       careerProgressHooks('balanced-w170'),
     )
     const run = report.runs[0]!
+    writeFileSync('/tmp/hiveworks-career/balanced-w170-summary.txt', formatSummary(report))
     // eslint-disable-next-line no-console
     console.log('\n' + formatSummary(report) + '\n')
     expect(run.safety.filter((s) => s.kind === 'nan' || s.kind === 'infinity')).toHaveLength(0)
     expect(run.highestWave).toBeGreaterThanOrEqual(170)
     expect(run.milestones.some((m) => m.id === 'furnace-unlock')).toBe(true)
     expect(run.milestones.some((m) => m.id === 'hive-research-unlock')).toBe(true)
-    expect(run.furnace.heatSpent + run.furnace.heatEarned).toBeGreaterThan(0)
+    const ash = run.economy.find((row) => row.id === 'choirAsh')
+    expect((ash?.spent ?? 0) + (run.furnace.active.weapons ?? 0)).toBeGreaterThan(0)
     const researchAt = milestoneHours(run, 'hive-research-unlock')
     expect(researchAt).not.toBeNull()
     const window = ACT1_TARGETS.find((t) => t.id === 'hive-research-unlock')!
@@ -81,6 +83,7 @@ describe('late Act 1 career — four profiles through W300', () => {
         careerProgressHooks(`${strategy}-w300`),
       )
       const run = report.runs[0]!
+      writeFileSync(`/tmp/hiveworks-career/${strategy}-w300-summary.txt`, formatSummary(report))
       // eslint-disable-next-line no-console
       console.log(`\n===== ${strategy} W300 =====\n` + formatSummary(report) + '\n')
       expect(run.safety.filter((s) => s.kind === 'nan' || s.kind === 'infinity')).toHaveLength(0)
