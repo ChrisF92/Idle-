@@ -1,9 +1,9 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
-import { careerHighestSector, isSystemUnlocked } from './progression'
+import { careerBestWave, isSystemUnlocked } from './progression'
 import { WORKER_JOB_IDS, workerJobContribution, workerJobHasWork } from './workers'
-import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
-import { bandsClearedForWave, meetsWave, waveForClearedBands } from './waves'
+import { ACT1_CADENCE } from './cadence'
+import { meetsWave } from './waves'
 import { formatCompact, formatStat } from './format'
 import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
@@ -2119,21 +2119,19 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
   return extras
 }
 
-export function modulePrintSector(moduleId: string): number {
-  const originalWave = Math.max(0, getModule(moduleId)?.requiresBestWave ?? 0)
-  const original = bandsClearedForWave(originalWave)
-  const foundryBand = bandsClearedForWave(ACT1_CADENCE.foundry)
-  return Math.max(foundryBand, original + FOUNDRY_PRINT_SHIFT)
-}
-
-/** Player-facing print door. Drop tables still use the ten-wave band helper above. */
 export function modulePrintWave(moduleId: string): number {
-  return waveForClearedBands(modulePrintSector(moduleId))
+  const originalWave = Math.max(0, getModule(moduleId)?.requiresBestWave ?? 0)
+  return Math.max(ACT1_CADENCE.foundry, originalWave)
 }
 
-/** Career has reached the sector that unlocks this Core print. */
+/** Player-facing print door. Drop tables use Wave, not a Sector band. */
+export function modulePrintSector(moduleId: string): number {
+  return modulePrintWave(moduleId)
+}
+
+/** Career has reached the Wave that unlocks this Core print. */
 export function isCorePrintUnlocked(state: GameState, moduleId: string): boolean {
-  return careerHighestSector(state) >= modulePrintSector(moduleId)
+  return careerBestWave(state) >= modulePrintWave(moduleId)
 }
 
 /** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Blueprints and drops. */
@@ -2163,8 +2161,8 @@ export function isCoreOnRoster(state: GameState, moduleId: string): boolean {
 export function canDropModulePart(state: GameState, moduleId: string): boolean {
   if (!isFarmableModule(moduleId)) return false
   if (!isCoreOnRoster(state, moduleId)) return false
-  const need = modulePrintSector(moduleId)
-  return isCorePrintUnlocked(state, moduleId) && (state.combat?.sector ?? 1) >= need
+  const need = modulePrintWave(moduleId)
+  return isCorePrintUnlocked(state, moduleId) && Math.max(1, state.combat?.waveReached || state.combat?.wave || 1) >= need
 }
 
 export function listFarmableCores(state: GameState): ShipModuleDef[] {

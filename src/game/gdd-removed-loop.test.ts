@@ -11,37 +11,30 @@ import { isSystemUnlocked } from './progression'
 import { canEnterEcho, echoDamageMult } from './echo'
 
 describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
-  it('keeps every Sortie on Advance from Wave 1', () => {
+  it('keeps every Sortie launching at Wave 1 without Route or Sector', () => {
     let s = createInitialState(0)
     s.combat.docked = true
     s = setPushMode(s, 'hold-wave')
-    expect(s.combat.pushMode).toBe('advance')
-    expect(s.combat.campaign).toBe(true)
+    expect('pushMode' in s.combat).toBe(false)
 
     s = setCampaign(s, false)
-    expect(s.combat.pushMode).toBe('advance')
-
     s.combat.wave = 18
     s = setLaunchSector(s, 6)
-    expect(s.combat.wave).toBe(1)
-    expect(s.combat.sector).toBe(1)
+    expect(s.combat.wave).toBe(18)
 
     s = setSectorRoute(s, 'B')
-    expect(s.combat.route).toBe('A')
+    expect('route' in s.combat).toBe(false)
 
     s = warpToSector(s, 12)
-    expect(s.combat.wave).toBe(1)
-    expect(s.combat.sector).toBe(1)
+    expect(s.combat.wave).toBe(18)
   })
 
-  it('does not enter Frontier Hold and treats Retry as a no-op', () => {
+  it('treats Retry / Hold as a no-op and Launch still starts Wave 1', () => {
     let s = createInitialState(0)
-    s.combat.frontierHold = true
-    s.combat.frontierSector = 8
     expect(retryFrontier(s)).toBe(s)
     s = setDocked(s, false)
-    expect(s.combat.frontierHold).toBe(false)
-    expect(s.combat.wave).toBe(1)
+    expect(s.combat.waveReached).toBe(1)
+    expect(s.combat.docked).toBe(false)
   })
 
   it('does not list a standalone Reliquary, Yard, Echo, Workers, or future Systems door on More', () => {

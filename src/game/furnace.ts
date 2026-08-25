@@ -437,7 +437,7 @@ export function furnaceAshChannelMult(state: GameState): number {
 
 export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return 0
-  const sector = Math.max(1, state.combat.sector)
+  const sector = Math.max(1, state.combat.waveReached || state.combat.wave || 1)
   const base = (0.5 + 0.1 * sector) * (isBoss ? 4 : 1)
   return (
     base *

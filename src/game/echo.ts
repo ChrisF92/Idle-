@@ -1,7 +1,6 @@
 /** Echo Runs — leftover save data. GDD §95: there is no Echo system. */
 
 import type { GameState, EchoState } from './types'
-import { wavesForSector } from './sectors'
 import { ACT1_CADENCE } from './cadence'
 
 export const ECHO_UNLOCK_SECTOR = ACT1_CADENCE.echo
@@ -193,7 +192,7 @@ export function echoHasNode(state: GameState, id: string): boolean {
 }
 
 export function wavesForRun(state: GameState): number {
-  return wavesForSector(state.combat.sector)
+  return Math.max(1, state.combat.waveReached || state.combat.wave || 1)
 }
 
 export function echoIsBossWave(_state: GameState, _wave: number): boolean {
@@ -252,9 +251,7 @@ export function canBuyEchoNode(
 export function restoreEchoResume(state: GameState): void {
   const echo = state.echo
   if (!echo) return
-  state.combat.sector = Math.max(1, echo.resumeSector || 1)
   state.combat.wave = Math.max(1, echo.resumeWave || 1)
-  state.combat.route = 'A'
 }
 
 export function tryCompleteEcho(state: GameState): boolean {

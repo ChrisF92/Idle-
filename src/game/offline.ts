@@ -191,7 +191,7 @@ export function applyOfflineCatchUp(
 
   const next = structuredClone(state)
   const beforeResources = snapshotResources(next.resources)
-  const sectorsBefore = next.combat.sector
+  const sectorsBefore = next.combat.wave
   const waveBefore = next.combat.wave
   const sortieFrozen = !next.combat.docked
 
@@ -200,7 +200,7 @@ export function applyOfflineCatchUp(
   next.lastTickAt = now
 
   const gains = resourceDelta(beforeResources, next.resources)
-  const sectorsAfter = next.combat.sector
+  const sectorsAfter = next.combat.wave
   const sectorsCleared = Math.max(0, sectorsAfter - sectorsBefore)
 
   if (elapsedMs < OFFLINE_REPORT_THRESHOLD_MS) {

@@ -21,7 +21,7 @@ import {
   buyRunUpgrade,
   buyCoreStartingLevel,
 } from '../actions'
-import { setCampaign, setDocked, retryFrontier, chooseDirective } from '../tick'
+import { setDocked, retryFrontier, chooseDirective } from '../tick'
 import { canRetryFrontier, isFrontierHold } from '../frontier'
 import {
   canBuyMatterShop,
@@ -139,13 +139,11 @@ export function maybeChooseDirective(state: GameState, ctx: StrategyContext): Ga
 }
 
 export function ensureAdvance(state: GameState): GameState {
-  if (state.combat.campaign) return state
-  return setCampaign(state, true)
+  return state
 }
 
-export function maybeHold(state: GameState, hold: boolean): GameState {
-  if (state.combat.campaign === !hold) return state
-  return setCampaign(state, !hold)
+export function maybeHold(state: GameState, _hold: boolean): GameState {
+  return state
 }
 
 function pickMilestoneChoice(moduleId: string, milestoneId: string): string {
@@ -602,7 +600,7 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
   }
   const linksKept = { ...(state.network?.links ?? {}) }
   const gain = prestigeGainFor(state)
-  const highest = state.combat.highestSector
+  const highest = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const prevPush =
     ctx.lastRebuildActive == null ? ctx.activeSeconds : ctx.activeSeconds - ctx.lastRebuildActive
   const after = performPrestige(state)

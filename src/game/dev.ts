@@ -17,9 +17,7 @@ import {
 import { prepOnboardingDoor, resetOnboardingRegistry, skipAllLessons, type OnboardingLessonId } from './onboarding'
 import { REBUILD_MIN_SORTIES } from './rebuild'
 import { syncPersistedHullCaps } from './state'
-import { encounterForWave } from './combat'
 import { CORE_MASTERY_CAP } from './coreProgression'
-import { isBossWave, powerSectorForWave, bandsClearedForWave } from './waves'
 import { createDefaultProcessProfiles } from './processProfiles'
 import { noteCareerWave } from './playtest'
 import { reconcileEquippedCoreIds } from './coreInstances'
@@ -36,7 +34,7 @@ export const GDD_DOOR_PRESETS = [
   { wave: ACT1_CADENCE.research, label: 'W170 Research' },
   { wave: ACT1_CADENCE.process, label: 'W210 Process' },
   { wave: ACT1_CADENCE.protocols, label: 'W250 Challenges' },
-  { wave: ACT1_CADENCE.reinforce, label: 'W300 Reinforce' },
+  { wave: ACT1_CADENCE.reinforce, label: 'W1000 Reinforce' },
 ] as const
 
 export function isDevToolsEnabled(): boolean {
@@ -100,9 +98,6 @@ export function grantCareerBestWave(state: GameState, wave: number): void {
   state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
   if (!state.prestige.cycle) state.prestige.cycle = { bestWave: 0, sorties: 0, scrapEarned: 0 }
   state.prestige.cycle.bestWave = Math.max(state.prestige.cycle.bestWave ?? 0, w)
-  const bands = bandsClearedForWave(w)
-  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver ?? 0, bands)
-  state.combat.highestSector = Math.max(state.combat.highestSector ?? 0, bands)
   if (w >= ACT1_CADENCE.rebuild) {
     state.prestige.cycle.sorties = Math.max(state.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
   }
@@ -150,14 +145,8 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
 
   switch (action.type) {
     case 'jump-sector': {
-      const sector = Math.max(1, Math.floor(action.sector))
-      next.combat.sector = sector
-      next.combat.wave = 1
-      next.combat.highestSector = Math.max(next.combat.highestSector, sector - 1)
-      next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver, sector - 1)
-      maybeGrantSystemUnlocks(next)
-      tryCompleteAchievements(next)
-      next.combat.log = [`[dev] Legacy jump-sector ${sector} (use Best Wave).`, ...next.combat.log].slice(0, 40)
+      grantCareerBestWave(next, Math.max(1, Math.floor(action.sector)))
+      next.combat.log = [`[dev] Career Best Wave set from legacy jump.`, ...next.combat.log].slice(0, 40)
       break
     }
     case 'set-best-wave': {
@@ -248,18 +237,10 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'force-boss-wave': {
-      const current = Math.max(1, next.combat.wave || 1)
-      const wave = isBossWave(current) ? current : Math.ceil(current / 10) * 10
-      next.combat.wave = wave
-      next.combat.sector = powerSectorForWave(wave)
-      next.combat.docked = false
-      clearFight(next)
-      const enc = encounterForWave(wave)
       next.combat.log = [
-        `[dev] Forced boss — Wave ${wave} (${enc.name}).`,
+        `[dev] Live Wave jumping is removed. Every Sortie starts at Wave 1.`,
         ...next.combat.log,
       ].slice(0, 40)
-      maybeGrantSystemUnlocks(next)
       break
     }
     case 'grant-achievements': {
@@ -281,14 +262,10 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'set-wave': {
-      const wave = Math.max(1, Math.min(ACT1_FINAL_WAVE, Math.floor(action.wave)))
-      next.combat.wave = wave
-      next.combat.sector = powerSectorForWave(wave)
-      clearFight(next)
-      next.combat.log = [`[dev] Live Wave set to ${wave} (career unchanged).`, ...next.combat.log].slice(
-        0,
-        40,
-      )
+      next.combat.log = [
+        `[dev] Live Wave jumping is removed. Every Sortie starts at Wave 1.`,
+        ...next.combat.log,
+      ].slice(0, 40)
       break
     }
     case 'set-module-levels': {

@@ -405,10 +405,49 @@ export interface HiveResearchState {
   completed: Record<HiveResearchBranch, number>
 }
 
+/** @deprecated Route combat is removed. */
 export type SectorRoute = 'A' | 'B'
 
-/** Sortie push: Advance sectors, Hold the whole sector, or Hold this wave. */
+/** @deprecated Hold/Advance combat modes are removed. */
 export type CombatPushMode = 'advance' | 'hold-sector' | 'hold-wave'
+
+export type WavePackageKind = 'normal' | 'commander' | 'boss'
+
+export interface WavePackageState {
+  id: string
+  wave: number
+  kind: WavePackageKind
+  reached: boolean
+  secured: boolean
+  rewardPaid: boolean
+  spawnedUnitIds: string[]
+  pendingCount: number
+  totalUnits: number
+}
+
+export interface PendingReinforcement {
+  id: string
+  packageId: string
+  wave: number
+  kind: WavePackageKind
+  units: CombatUnit[]
+}
+
+export type BossBoundaryPhase = 'idle' | 'holding' | 'warning' | 'active' | 'cleared'
+
+export interface BossBoundaryState {
+  phase: BossBoundaryPhase
+  wave: number
+  warningLeft: number
+}
+
+export interface CombatIdSeq {
+  unit: number
+  proj: number
+  beam: number
+  fx: number
+  package: number
+}
 
 export type YardGoodId = 'ore' | 'flux' | 'ingot'
 export type YardBuildingId = 'slag-heap' | 'flux-still' | 'ingot-press' | 'choir-sieve'
@@ -863,7 +902,7 @@ export interface WeaponInstance {
   damage: number
   cooldown: number
   cooldownLeft: number
-  /** Max lane distance this weapon can fire. */
+  /** Max Euclidean distance this weapon can fire. */
   range: number
   tags: WeaponTag[]
   /** Extra targets beyond the primary. */
@@ -916,15 +955,22 @@ export interface CombatUnit {
   /** USI-style class. Optional on player units and old saves. */
   role?: EnemyRole
   /**
-   * Radial distance from the Hive (0 = at the Hive).
-   * Enemies spawn far and close in; the Hive stays at 0.
+   * True world X. Hive origin is (0, 0). +X is right.
    */
   x: number
-  /** Legacy lateral offset. Radial combat uses `heading` instead. */
+  /**
+   * True world Y. Hive origin is (0, 0). +Y is up.
+   */
   y: number
-  /** Approach angle in radians. 0 is screen-up. */
+  /** Orbit / facing angle in radians. 0 is +Y (screen-up). */
   heading?: number
-  /** Units of lane distance moved per second. */
+  /** Core orbit radius in simulation units. */
+  orbitRadius?: number
+  /** Wave package this unit belongs to. */
+  packageId?: string
+  /** Wave that spawned this unit. */
+  sourceWave?: number
+  /** Units of world distance moved per second. */
   speed: number
   /** Preferred firing distance (enemies close to this, some kite). */
   engageRange: number
@@ -956,7 +1002,7 @@ export interface CombatProjectile {
   toId: string
   side: 'player' | 'enemy'
   tag: string
-  /** Lane-space position. */
+  /** World-space position. */
   x: number
   y: number
   damage: number
@@ -1032,12 +1078,10 @@ export interface WorkshopState {
 }
 
 export interface CombatState {
-  sector: number
-  /** Highest 10-wave band cleared this prestige (W10 → 1). Kept so existing gates still read. */
-  highestSector: number
-  /** Current Sortie Wave. Every Launch starts at 1. */
+  /** Latest Wave Reached this Sortie (0 before the first reinforcement). */
   wave: number
-  /** Career best Wave this prestige. */
+  waveReached: number
+  /** Career best Wave this prestige/account. */
   bestWave: number
   /** Temporary Attack/Defense/Economy ranks bought with Salvage this Sortie. */
   runUpgrades: Record<string, number>
@@ -1054,34 +1098,33 @@ export interface CombatState {
   coreMilestones?: Record<string, number[]>
   inFight: boolean
   /**
-   * Player pause for Shipyard refit / repair. Auto-engage stops until Resume.
-   * Pausing resets the current sector to wave 1. AI never toggles this.
+   * Player pause at Dock. Auto-combat runs while undocked.
    */
   docked: boolean
-  /**
-   * Advance / Hold-sector / Hold-wave. Combat stays live until hull loss.
-   * `campaign` stays in sync: true iff pushMode === 'advance'.
-   */
-  pushMode: CombatPushMode
-  /**
-   * Advance mode: after a clear, push to the next sector.
-   * Hold mode: farm the current sector repeatedly (same rewards, no sector++).
-   * Both modes auto-engage while not Paused.
-   */
-  campaign: boolean
-  /** @deprecated Always `'A'`. Route B does not exist. */
-  route: SectorRoute
   consecutiveLosses: number
-  /** Stable Sortie RNG. 0 = canonical packs (tests). */
-  sortieSeed?: number
-  /** Named mechanic on the current 10-wave boss. */
+  /** Stable Sortie RNG seed. 0 is allowed for tests. */
+  sortieSeed: number
+  rng: { s: number }
+  /** Elapsed simulation time this Sortie. */
+  simTime: number
+  /** Leftover sim seconds waiting for the next fixed step. */
+  simAccumulator: number
+  /** Simulation timestamp of the next normal reinforcement. */
+  nextReinforcementAt: number
+  /** Next Wave number the scheduler will attempt to start. */
+  nextWave: number
+  packages: WavePackageState[]
+  pendingReinforcements: PendingReinforcement[]
+  bossBoundary: BossBoundaryState
+  idSeq: CombatIdSeq
+  /** Named mechanic on the current proper Boss, if any. */
   bossMechanic?: string
   /** Threat budget roll for the live wave. */
   waveThreat?: { seed: number; budget: number; spent: number }
   bossPhase: number
-  /** Seconds elapsed in the current fight (reset on beginFight). */
+  /** Seconds elapsed in the current Sortie (same as simTime while live). */
   fightElapsed: number
-  /** Persisted flagship hull between fights (not fully restored on clear). */
+  /** Persisted Hive hull between Sorties. */
   playerHull: number
   playerHullMax: number
   playerShield: number
@@ -1111,19 +1154,6 @@ export interface CombatState {
   defeatLeft: number
   /** True when the pending beat is a tactical extract, not a hull kill. */
   defeatTactical: boolean
-  /**
-   * @deprecated Frontier Hold is retired. Hydrated false; never entered.
-   * Auto-entered after being repelled at an uncleared frontier.
-   * Distinct from player Hold Sector / Hold Wave.
-   */
-  frontierHold: boolean
-  /** Failed / current uncleared frontier sector. 0 = none. */
-  frontierSector: number
-  frontierRoute: SectorRoute
-  /** True while a live attempt on frontierSector is in progress. */
-  frontierAttemptOpen: boolean
-  /** Compact HUD notice after a repel or a hard-won frontier clear. */
-  frontierNotice: FrontierNotice | null
   /** Directives chosen this Sortie. Wipe on Dock. */
   directives: string[]
   /** Pending Directive choice. Combat does not auto-engage while set. */

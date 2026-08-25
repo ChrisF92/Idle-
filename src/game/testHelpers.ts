@@ -1,7 +1,6 @@
 import type { GameState } from './types'
 import { grantEnemyKillRewards } from './combat'
 import { advanceTicks, startCombat } from './tick'
-import { bandsClearedForWave, isBossWave } from './waves'
 import { ACT1_CADENCE } from './cadence'
 import { REBUILD_MIN_SORTIES } from './rebuild'
 
@@ -57,9 +56,6 @@ export function atCareerWave(state: GameState, wave: number): GameState {
   if (w >= ACT1_CADENCE.rebuild) {
     next.prestige.cycle.sorties = Math.max(next.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
   }
-  const bands = bandsClearedForWave(w)
-  next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver ?? 0, bands)
-  next.combat.highestSector = Math.max(next.combat.highestSector ?? 0, bands)
   return next
 }
 
@@ -78,21 +74,5 @@ export function clearCurrentWave(state: GameState): GameState {
   if (!s.combat.inFight) s = startCombat(s)
   wipeEnemies(s)
   advanceTicks(s, 1)
-  return s
-}
-
-/** Clear through the next boss Wave (every 10th Wave). */
-export function clearSector(state: GameState): GameState {
-  let s = state
-  let guard = 0
-  const startWave = Math.max(1, s.combat.wave || 1)
-  const goal = Math.ceil(startWave / 10) * 10
-  while ((s.combat.wave || 1) <= goal && !s.combat.docked && guard < 24) {
-    const before = s.combat.wave
-    s = clearCurrentWave(s)
-    guard += 1
-    if (s.combat.docked) break
-    if (s.combat.wave === before && !isBossWave(before)) break
-  }
   return s
 }

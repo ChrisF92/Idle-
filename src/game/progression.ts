@@ -13,19 +13,9 @@ import { rebuildDoorMet } from './rebuild'
 import { practicedCoreWork } from './corePractice'
 import { SHIP_FRAMES, grantUnlockedFrame } from './catalog'
 
-export {
-  WAVES_PER_SECTOR,
-  isSectorBossWave,
-  trashWavesForSector,
-  wavesForSector,
-} from './sectors'
-
 export { careerBestWave, meetsWave, ACT1_FINAL_WAVE }
 
-/** Soft campaign climax — W300 maps to 30 ten-wave bands for leftover sector gates. */
-export const ACT1_FINAL_SECTOR = 30
-
-/** Rebuild gate is career best Wave (GDD §102). Name kept for import churn. */
+/** Rebuild gate is career best Wave. */
 export const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild
 export const FOUNDRY_UNLOCK_SECTOR = ACT1_CADENCE.foundry
 
@@ -490,7 +480,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 ]
 
 export function careerHighestSector(state: GameState): number {
-  return Math.max(state.meta.highestSectorEver, state.combat.highestSector)
+  return careerBestWave(state)
 }
 
 export function isAchievementUnlocked(state: GameState, id: string): boolean {
@@ -546,7 +536,7 @@ export function achievementProgressValue(
     case 'ai-purchase-count':
       return state.ai.purchased.length + (state.process?.purchased.length ?? 0)
     case 'act1-cleared':
-      return state.meta.act1Cleared || careerHighestSector(state) >= ACT1_FINAL_SECTOR
+      return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE)
         ? 1
         : 0
     case 'ascension-count':
@@ -865,22 +855,18 @@ export function firstRebuildAvailable(state: GameState): boolean {
  */
 export function challengesContentUnlocked(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return true
-  return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE) || careerHighestSector(state) >= ACT1_FINAL_SECTOR
+  return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE)
 }
 
 /** Grant Base starter drones; update career flags; check achievements. */
 export function maybeGrantSystemUnlocks(state: GameState): void {
-  const ever = careerHighestSector(state)
-  if (ever > state.meta.highestSectorEver) {
-    state.meta.highestSectorEver = ever
-  }
-  noteHighestSector(state, ever)
+  const best = careerBestWave(state)
+  noteHighestSector(state, best)
 
   if (meetsWave(state, ACT1_CADENCE.codex) && !state.meta.codexUnlocked) {
     state.meta.codexUnlocked = true
   }
 
-  const best = careerBestWave(state)
   for (const frame of SHIP_FRAMES) {
     if (frame.unlockSource !== 'wave') continue
     if ((frame.requiresBestWave ?? 0) > best) continue

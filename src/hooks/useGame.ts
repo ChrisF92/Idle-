@@ -425,6 +425,8 @@ export function useGame() {
     initial.current.report,
   )
   const simPausedRef = useRef(false)
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -434,14 +436,23 @@ export function useGame() {
   }, [])
 
   useEffect(() => {
-    saveGame(state)
-  }, [state])
+    const id = window.setInterval(() => saveGame(stateRef.current), 5000)
+    return () => {
+      saveGame(stateRef.current)
+      window.clearInterval(id)
+    }
+  }, [])
 
   useEffect(() => {
+    const persist = () => saveGame(stateRef.current)
     const onHide = () => {
+      persist()
       if (document.visibilityState === 'hidden') dispatch({ type: 'session-end' })
     }
-    const onUnload = () => dispatch({ type: 'session-end' })
+    const onUnload = () => {
+      persist()
+      dispatch({ type: 'session-end' })
+    }
     document.addEventListener('visibilitychange', onHide)
     window.addEventListener('pagehide', onUnload)
     return () => {

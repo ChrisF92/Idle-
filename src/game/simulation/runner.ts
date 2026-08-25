@@ -83,7 +83,7 @@ function stopReached(
       return reportedBestWave(state) >= stop.wave ? `Reached Wave ${stop.wave}` : null
     case 'sector':
       return reportedBestWave(state) >= stop.sector * 10 ||
-        Math.max(state.meta.highestSectorEver, state.combat.highestSector) >= stop.sector
+        Math.max(state.meta.highestSectorEver, Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)) >= stop.sector
         ? `Reached Wave ${stop.sector * 10}`
         : null
     case 'duration':
@@ -121,9 +121,9 @@ function makeProgress(
     calendarSeconds,
     activeSeconds,
     offlineSeconds,
-    sector: state.combat.sector,
-    highestSector: state.combat.highestSector,
-    highestSectorEver: Math.max(state.meta.highestSectorEver, state.combat.highestSector),
+    sector: state.combat.wave,
+    highestSector: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
+    highestSectorEver: Math.max(state.meta.highestSectorEver, Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)),
     highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     stopLabel: stopLabel(config.stop),
@@ -290,7 +290,7 @@ async function runOneSeeded(
       break
     }
 
-    const progressKey = `${state.combat.highestSector}|${state.prestige.prestigeCount}|${Math.floor(state.resources.salvage)}|${Math.floor(state.resources.scrap)}|${Math.floor(state.resources.heat ?? 0)}|${state.base.workerDrones}`
+    const progressKey = `${Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)}|${state.prestige.prestigeCount}|${Math.floor(state.resources.salvage)}|${Math.floor(state.resources.scrap)}|${Math.floor(state.resources.heat ?? 0)}|${state.base.workerDrones}`
     if (progressKey !== lastProgressKey) {
       lastProgressKey = progressKey
       lastProgressTime = activeSeconds
@@ -464,8 +464,8 @@ async function runOneSeeded(
     activeSeconds,
     calendarSeconds,
     offlineSeconds,
-    highestSector: state.combat.highestSector,
-    highestSectorEver: Math.max(state.meta.highestSectorEver, state.combat.highestSector),
+    highestSector: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
+    highestSectorEver: Math.max(state.meta.highestSectorEver, Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)),
     highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     prestigeMatterEarned: matterEarned,

@@ -34,7 +34,7 @@ function playSession(state: GameState, ctx: StrategyContext, mode: SimulationSpe
   // Hold briefly after repeated deaths so repairs can catch up.
   if (next.combat.consecutiveLosses >= 2 && next.combat.docked) {
     next = maybeHold(next, true)
-  } else if (next.combat.highestSector > 0 && next.combat.consecutiveLosses === 0) {
+  } else if (Math.max(next.meta.bestWave ?? 0, next.combat.bestWave ?? 0) > 0 && next.combat.consecutiveLosses === 0) {
     next = maybeHold(next, false)
   }
   next = ensureLaunched(next, ctx)

@@ -2,7 +2,7 @@
 
 import type { GameState, PlaytestEvent, PlaytestEventKind, PlaytestState } from './types'
 import { WORKER_JOB_IDS, WORKER_JOB_LABELS } from './workers'
-import { reportedBestWave, meetsWave, waveForClearedBands } from './waves'
+import { reportedBestWave, meetsWave } from './waves'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import {
   hydrateInterventions,
@@ -170,9 +170,7 @@ export function recordPlaytest(
   }
   if (
     INTERVENTION_KINDS.has(kind) &&
-    state.combat &&
-    (state.combat.frontierHold ||
-      ((state.combat.frontierSector ?? 0) > 0 && !state.combat.frontierAttemptOpen))
+    state.combat
   ) {
     if (!log.pendingInterventions) log.pendingInterventions = []
     log.pendingInterventions.push({
@@ -577,7 +575,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Offline while Sortie frozen: ${formatPlaytimeMs(log.offlineCombatMs ?? 0)}`)
   if (log.lastSteamroll && log.lastSteamroll.n >= 2) {
     lines.push(
-      `Steamroll: W${waveForClearedBands(log.lastSteamroll.from)} → W${waveForClearedBands(log.lastSteamroll.to)}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
+      `Steamroll: W${log.lastSteamroll.from} → W${log.lastSteamroll.to}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
     )
   }
   lines.push('')

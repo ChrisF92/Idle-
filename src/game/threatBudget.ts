@@ -91,8 +91,6 @@ export function threatSpecForWave(wave: number): WaveThreatSpec {
       return spec(w, budget, band, ['mixed', 'armored'], 'standard', 0.35, 3, 6)
     case 'complex':
       return spec(w, budget, band, ['elite', 'support', 'sniper'], 'dense', 0.28, 5, 8)
-    case 'climax':
-      return spec(w, budget, band, ['complex'], 'standard', 0, 4, 4)
   }
 }
 

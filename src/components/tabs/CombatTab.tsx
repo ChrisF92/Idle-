@@ -65,10 +65,9 @@ export function CombatTab({
   const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
   const shieldPct = stats.shieldMax > 0 ? combat.playerShield / stats.shieldMax : 0
   const hullBand = hullPct <= 0.28 ? 'critical' : hullPct <= 0.55 ? 'damaged' : 'healthy'
-  const [banner, setBanner] = useState<{ text: string; kind: 'wave' | 'boss' | 'sector' | 'best' } | null>(null)
+  const [banner, setBanner] = useState<{ text: string; kind: 'wave' | 'boss' | 'best' } | null>(null)
   const bannerRef = useRef({
     wave: combat.wave,
-    sector: combat.sector,
     boss: combat.isBoss,
     primed: false,
   })
@@ -100,13 +99,13 @@ export function CombatTab({
 
   useEffect(() => {
     if (combat.docked && !dying) {
-      bannerRef.current = { wave: combat.wave, sector: combat.sector, boss: combat.isBoss, primed: false }
+      bannerRef.current = { wave: combat.wave, boss: combat.isBoss, primed: false }
       setBanner(null)
       return
     }
     const prev = bannerRef.current
     if (!prev.primed) {
-      bannerRef.current = { wave: combat.wave, sector: combat.sector, boss: combat.isBoss, primed: true }
+      bannerRef.current = { wave: combat.wave, boss: combat.isBoss, primed: true }
       return
     }
     if (combat.isBoss && !prev.boss) {
@@ -117,8 +116,8 @@ export function CombatTab({
         kind: combat.wave > careerBest ? 'best' : 'wave',
       })
     }
-    bannerRef.current = { wave: combat.wave, sector: combat.sector, boss: combat.isBoss, primed: true }
-  }, [combat.wave, combat.sector, combat.isBoss, combat.docked, dying, careerBest])
+    bannerRef.current = { wave: combat.wave, boss: combat.isBoss, primed: true }
+  }, [combat.wave, combat.isBoss, combat.docked, dying, careerBest])
 
   useEffect(() => {
     if (!banner) return
@@ -276,6 +275,12 @@ export function CombatTab({
             </div>
             <div className="sortie-hud-mid">
               <strong className="sortie-wave">W{combat.wave}</strong>
+              <span>
+                {combat.enemyUnits.filter((u) => u.hull > 0).length} hostiles
+                {(combat.pendingReinforcements?.reduce((n, row) => n + row.units.length, 0) ?? 0) > 0
+                  ? ` +${combat.pendingReinforcements.reduce((n, row) => n + row.units.length, 0)} pending`
+                  : ''}
+              </span>
               <span>DPS {formatCompact(stats.damage)}</span>
               {dpsFlash ? <span className="sortie-dps-flash">{dpsFlash}</span> : null}
               <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>

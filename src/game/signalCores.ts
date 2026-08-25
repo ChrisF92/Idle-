@@ -212,14 +212,14 @@ export function slotKeyFor(type: SignalCoreSlotType, index: number): string {
 }
 
 /** Career sector used for slot unlocks. */
-function careerSector(state: GameState): number {
-  return Math.max(state.meta?.highestSectorEver ?? 0, state.combat?.highestSector ?? 0)
+function careerWave(state: GameState): number {
+  return Math.max(state.meta?.bestWave ?? 0, state.combat?.bestWave ?? 0)
 }
 
 /** Counts available slots per type (1 base, +1 at sector gates; max 2). */
 export function signalSlotCounts(state: GameState): Record<SignalCoreSlotType, number> {
-  const ever = careerSector(state)
-  const act1 = state.meta?.act1Cleared ?? ever >= 30
+  const ever = careerWave(state)
+  const act1 = state.meta?.act1Cleared ?? ever >= 1000
   return {
     assault: ever >= 20 || act1 ? 2 : 1,
     ward: ever >= 25 || act1 ? 2 : 1,
@@ -491,7 +491,7 @@ export interface SignalCoreDropResult {
 export function signalCoresUnlocked(state: GameState): boolean {
   return (
     (state.prestige?.prestigeCount ?? 0) >= 1 ||
-    (state.meta?.highestSectorEver ?? 0) >= 10
+    careerWave(state) >= 10
   )
 }
 

@@ -90,7 +90,7 @@ export function createMetrics(state: GameState): MetricsState {
     resourceEarned: {},
     resourceSpent: {},
     lastResources: resources,
-    lastHighest: state.combat.highestSector,
+    lastHighest: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
     lastBestWave: reportedBestWave(state),
     lastHighestAt: 0,
     lastMeaningfulAt: 0,
@@ -100,7 +100,7 @@ export function createMetrics(state: GameState): MetricsState {
     deathsThisSector: 0,
     relaunches: 0,
     lastDocked: state.combat.docked,
-    lastSector: state.combat.sector,
+    lastSector: state.combat.wave,
     seenUnlocks: new Set(),
     hiveNodesSeen: hiveNodes(state),
     networkIdleHint: false,
@@ -137,7 +137,7 @@ export function captureObservePrev(state: GameState): ObservePrev {
     hullLostOnce: !!state.meta.hullLostOnce,
     docked: state.combat.docked,
     consecutiveLosses: state.combat.consecutiveLosses,
-    sector: state.combat.sector,
+    sector: state.combat.wave,
     lifetimeCoreRunBuys: state.meta.lifetimeCoreRunBuys ?? 0,
     prestigeCount: state.prestige.prestigeCount,
     ascensionCount: state.meta.ascensionCount ?? 0,
@@ -195,12 +195,12 @@ export function observeState(
     metrics.lastResources[key] = value ?? 0
   }
 
-  const sector = state.combat.sector
+  const sector = state.combat.wave
   if (!metrics.sectors.has(sector)) {
     metrics.sectors.set(sector, emptySector(sector, activeSeconds))
   }
   const row = metrics.sectors.get(sector)!
-  if (!state.combat.campaign) row.holdSeconds += dt
+  if (!state.combat.docked) row.holdSeconds += 0
   if (idleWorkers(state) > 0 && state.base.workerDrones > 0 && isSystemUnlocked(state, 'network')) {
     metrics.idleAcc += dt
     if (metrics.idleAcc > 60) metrics.networkIdleHint = true
@@ -210,8 +210,8 @@ export function observeState(
   const salvageGain = state.resources.salvage - prev.salvage
   if (salvageGain > 0) row.salvageEarned += salvageGain
 
-  if (state.combat.highestSector > metrics.lastHighest) {
-    const cleared = state.combat.highestSector
+  if (Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0) > metrics.lastHighest) {
+    const cleared = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
     const clearedRow = metrics.sectors.get(cleared) ?? emptySector(cleared, activeSeconds)
     if (clearedRow.firstClearActive == null) {
       clearedRow.firstClearActive = activeSeconds
@@ -278,13 +278,13 @@ export function observeState(
     const diedRow = metrics.sectors.get(diedAt) ?? emptySector(diedAt, activeSeconds)
     diedRow.deaths += 1
     metrics.sectors.set(diedAt, diedRow)
-    if (diedAt === state.combat.sector) metrics.deathsThisSector += 1
+    if (diedAt === state.combat.wave) metrics.deathsThisSector += 1
     else metrics.deathsThisSector = 0
   }
 
-  if (state.combat.sector !== metrics.lastSector) {
+  if (state.combat.wave !== metrics.lastSector) {
     metrics.deathsThisSector = 0
-    metrics.lastSector = state.combat.sector
+    metrics.lastSector = state.combat.wave
   }
   metrics.lastDocked = state.combat.docked
 
@@ -354,13 +354,13 @@ export function observeState(
 
   if (metrics.pendingRepush) {
     const pending = metrics.pendingRepush
-    if (state.combat.highestSector >= pending.target) {
+    if (Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0) >= pending.target) {
       const rec = metrics.rebuildLog.find((r) => r.index === pending.rebuildIndex)
       if (rec && rec.repushSeconds == null) {
         rec.repushSeconds = activeSeconds - pending.start
         rec.repushRatio =
           rec.previousPushSeconds > 0 ? rec.repushSeconds / rec.previousPushSeconds : null
-        rec.newHighestAfter = state.combat.highestSector
+        rec.newHighestAfter = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
       }
       metrics.pendingRepush = null
     }
@@ -368,7 +368,7 @@ export function observeState(
 }
 
 function careerGate(state: GameState): number {
-  return Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0)
+  return Math.max(state.meta.highestSectorEver ?? 0, Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0) ?? 0)
 }
 
 export function recordRebuildRow(metrics: MetricsState, row: RebuildRecord): void {

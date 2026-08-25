@@ -5,7 +5,6 @@ import { isSystemUnlocked } from './progression'
 import { closeSortie } from './sortieSummary'
 import { noteAttempt } from './playtest'
 import { ACT1_CADENCE } from './cadence'
-import { bandsClearedForWave } from './waves'
 import { isWorkerJob } from './workers'
 import { getFrame, grantUnlockedFrame } from './catalog'
 
@@ -400,7 +399,7 @@ export function protocolGoalWave(state: GameState, id: string): number {
 
 /** @deprecated Wave goals are canonical. Kept for leftover sector readers. */
 export function protocolGoalSector(state: GameState, id: string): number {
-  return bandsClearedForWave(protocolGoalWave(state, id))
+  return protocolGoalWave(state, id)
 }
 
 export function challengeFamiliarity(
@@ -664,7 +663,7 @@ export function noteProtocolProgress(state: GameState): void {
   state.protocols.bestWave[id] = Math.max(state.protocols.bestWave[id] ?? 0, reached)
   state.protocols.bestSector[id] = Math.max(
     state.protocols.bestSector[id] ?? 0,
-    bandsClearedForWave(reached),
+    reached,
   )
 }
 
