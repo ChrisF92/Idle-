@@ -243,6 +243,25 @@ describe('Furnace banks Ash for a frontier push', () => {
     expect(after.combat.docked).toBe(true)
   })
 
+  it('does not extract a lit Furnace push to buy Workshop', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 176))
+    s.combat.docked = false
+    s.combat.wave = 176
+    s.resources.scrap = 50_000
+    s.resources.choirAsh = 80
+    s = tendFurnace(s, stubCtx({ secondsSinceHighestSectorGain: 8 * 60 }))
+    expect(furnaceActiveLevel(s, 'weapons')).toBe(1)
+    const after = maybeExtractToWorkshop(
+      s,
+      stubCtx({
+        secondsSinceBestWaveGain: 15 * 60,
+        config: defaultSimulationConfig({ strategy: 'economy-first', stop: { type: 'wave', wave: 300 } }),
+      }),
+    )
+    expect(after.combat.docked).toBe(false)
+    expect(furnaceActiveLevel(after, 'weapons')).toBe(1)
+  })
+
   it('does not extract Economy-first during reclaim', () => {
     let s = markHullLost(atCareerWave(createInitialState(0), 176))
     s.combat.docked = false

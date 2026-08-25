@@ -131,6 +131,7 @@ export function ensureLaunched(state: GameState, ctx: StrategyContext): GameStat
 export function maybeExtractToWorkshop(state: GameState, ctx: StrategyContext): GameState {
   if (state.combat.docked) return state
   if (ctx.config.strategy !== 'economy-first') return state
+  if (furnaceActiveLevel(state, 'weapons') > 0) return state
   const career = careerBestWave(state)
   const wave = Math.max(1, state.combat.wave ?? 1)
   if (career > 0 && wave < career * 0.9) return state
