@@ -4,9 +4,9 @@ import { defaultSimulationConfig } from './simulation/presets'
 import { runSimulation } from './simulation/runner'
 
 describe('career simulator isolation', () => {
-  it('does not mutate the browser save during a short fresh simulation', () => {
+  it('does not mutate the browser save during a short fresh simulation', async () => {
     const before = localStorage.getItem(SAVE_KEY)
-    const report = runSimulation(
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'active',
@@ -24,6 +24,6 @@ describe('career simulator isolation', () => {
     expect(run.safety.filter((s) => s.kind === 'nan' || s.kind === 'infinity')).toHaveLength(0)
     expect(run.calendarSeconds).toBeGreaterThan(0)
     expect(run.rebuilds).toBe(0)
-    expect(run.highestSectorEver).toBeGreaterThanOrEqual(1)
+    expect(run.highestWave).toBeGreaterThanOrEqual(1)
   }, 30_000)
 })

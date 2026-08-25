@@ -28,12 +28,26 @@ import { SCREEN_HELP } from './screenHelp'
 import { defaultSimulationConfig } from './simulation/presets'
 import { runSimulation } from './simulation/runner'
 import { formatSummary } from './simulation/report'
+import { tendReliquary } from './simulation/actions'
+import type { StrategyContext } from './simulation/types'
 import { createInitialState, SAVE_VERSION } from './state'
 import { exportSave, importSave } from './save'
+import { atCareerWave, equipPostTutorialLoadout } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
+import { reliquaryDamageMult } from './reliquary'
+import {
+  RUN_UPGRADE_OPENING_RANKS,
+  RUN_UPGRADE_POWER_SCALE,
+  RUN_UPGRADE_POWER_SCALE_OPENING,
+  RECLAIM_PER_TEN_WAVES,
+  RECLAIM_SPEED_CAP,
+  WORKSHOP_WEAPON_POWER_PER_LEVEL,
+  runUpgradeRunFactor,
+} from './workshop'
 
 const JARGON = /USI|ITRTG|analogue|black-bar/i
 
-function firstRebuildConfig(strategy: 'active' | 'optimiser') {
+function firstRebuildConfig(strategy: 'active' | 'casual' | 'balanced' | 'offensive' | 'defensive' | 'economy-first' | 'optimiser') {
   return defaultSimulationConfig({
     start: { type: 'fresh' },
     strategy,
@@ -41,10 +55,34 @@ function firstRebuildConfig(strategy: 'active' | 'optimiser') {
     seed: 1,
     logging: 'milestones',
     deadlockSeconds: 25 * 60,
-    postRebuildSeconds: 90,
+    postRebuildSeconds: 30 * 60,
     maxIterations: 400_000,
     maxCalendarSeconds: 6 * 3600,
   })
+}
+
+function dummyStrategyCtx(): StrategyContext {
+  return {
+    config: firstRebuildConfig('balanced'),
+    activeSeconds: 0,
+    calendarSeconds: 0,
+    offlineSeconds: 0,
+    secondsSinceHighestSectorGain: 0,
+    secondsSinceMeaningfulAction: 0,
+    recentSectorClearMedian: null,
+    lastRebuildActive: null,
+    previousHighestAtRebuild: 0,
+    deathsThisSector: 0,
+    relaunches: 0,
+    logging: 'summary',
+    rng: () => 0.5,
+    record: () => {},
+    recordMeaningful: () => {},
+    recordCorePurchase: () => {},
+    recordRebuild: () => {},
+    attachRebuildPurchase: () => {},
+    noteLimitation: () => {},
+  }
 }
 
 describe('Act 1 authored formulas', () => {
@@ -75,6 +113,23 @@ describe('Act 1 authored formulas', () => {
     expect(ENEMY_DMG_EARLY).toBeGreaterThan(1)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')).toBeUndefined()
+    const opening = runUpgradeRunFactor(RUN_UPGRADE_OPENING_RANKS, WORKSHOP_WEAPON_POWER_PER_LEVEL)
+    const flat = Math.pow(1 + WORKSHOP_WEAPON_POWER_PER_LEVEL * RUN_UPGRADE_POWER_SCALE, RUN_UPGRADE_OPENING_RANKS)
+    expect(opening).toBeGreaterThan(flat)
+    expect(RUN_UPGRADE_POWER_SCALE_OPENING).toBeGreaterThan(RUN_UPGRADE_POWER_SCALE)
+    expect(RECLAIM_PER_TEN_WAVES).toBeLessThan(0.5)
+    expect(RECLAIM_SPEED_CAP).toBeLessThan(4)
+  })
+
+  it('seats owned Relics into Core sockets at Dock so they actually multiply damage', () => {
+    let s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
+    s = equipPostTutorialLoadout(s)
+    s.combat.docked = true
+    s.reliquary.owned['battle-chip'] = 1
+    expect(reliquaryDamageMult(s)).toBe(1)
+    s = tendReliquary(s, dummyStrategyCtx())
+    expect(s.reliquary.coreFits['pulse-cannon:1']?.[0]).toBe('battle-chip')
+    expect(reliquaryDamageMult(s)).toBeGreaterThan(1)
   })
 
   it('lists explicit progression windows from the opening through late career doors', () => {
@@ -92,8 +147,8 @@ describe('Act 1 authored formulas', () => {
     expect(ids).not.toContain('echo-unlock')
     expect(ids).not.toContain('sector-1')
     const rebuild = ACT1_TARGETS.find((t) => t.id === 'first-rebuild')!
-    expect(rebuild.min).toBeGreaterThanOrEqual(30 * 60)
-    expect(rebuild.max).toBeLessThanOrEqual(5 * 60 * 60)
+    expect(rebuild.min).toBe(2 * 60 * 60)
+    expect(rebuild.max).toBe(4 * 60 * 60)
     const hourBeats = ACT1_TARGETS.filter((t) =>
       ['first-wave', 'foundry-unlock'].includes(t.id),
     )
@@ -104,7 +159,7 @@ describe('Act 1 authored formulas', () => {
 describe('Act 1 onboarding audit', () => {
   it('does not pause on system doors and keeps copy free of designer jargon', () => {
     const byId = new Map(GUIDE_STEPS.map((s) => [s.id, s]))
-    for (const id of ['guide-launch', 'guide-foundry-recipe', 'guide-furnace-light', 'guide-research-focus']) {
+    for (const id of ['guide-launch', 'guide-foundry-recipe', 'guide-furnace-light', 'guide-research-focus', 'guide-rebuild', 'guide-reinforce']) {
       expect(byId.has(id)).toBe(true)
       expect(byId.get(id)?.required).not.toBe(true)
     }
@@ -142,8 +197,8 @@ describe('Act 1 onboarding audit', () => {
 })
 
 describe('Act 1 career simulations', () => {
-  it('active player reaches a first Rebuild inside the authored window', () => {
-    const report = runSimulation(firstRebuildConfig('active'))
+  it('active player reaches a first Rebuild inside the authored window', async () => {
+    const report = await runSimulation(firstRebuildConfig('active'))
     const run = report.runs[0]!
     // eslint-disable-next-line no-console
     console.log('\n' + formatSummary(report) + '\n')
@@ -155,22 +210,107 @@ describe('Act 1 career simulations', () => {
     expect(first!.activeSeconds).toBeGreaterThanOrEqual(window.min - window.warningPad)
     expect(first!.activeSeconds).toBeLessThanOrEqual(window.max + window.warningPad)
     expect(run.milestones.some((m) => m.id === 'foundry-unlock')).toBe(true)
-    expect(run.milestones.some((m) => m.id === 'reliquary-unlock')).toBe(false)
     const end = run.snapshots[run.snapshots.length - 1]!
     const atRebuild = run.snapshots.find((s) => s.at === 'first-rebuild') ?? end
     expect(end.drones).toBeGreaterThanOrEqual(NETWORK_STARTING_DRONES)
     expect(end.processEarned).toBeGreaterThanOrEqual(4)
     expect(atRebuild.foundryRecipes).toBeGreaterThanOrEqual(1)
-    // Active sims can finish a second Material breakthrough during a survivability wall.
     expect(atRebuild.researchBreakthroughs).toBe(0)
     expect(atRebuild.strike).toBeLessThan(40)
     expect(atRebuild.contribution.networkDamage).toBeLessThan(1.6)
+    expect(run.sorties.some((s) => s.salvageSpent > 0)).toBe(true)
+    expect(run.coreSpending.some((c) => c.levelsPurchased > 0)).toBe(true)
+    const defeat = run.milestones.find((m) => m.id === 'first-defeat')
+    expect(defeat).toBeTruthy()
+    const defeatWindow = ACT1_TARGETS.find((t) => t.id === 'first-defeat')!
+    expect(defeat!.activeSeconds).toBeGreaterThanOrEqual(defeatWindow.min - defeatWindow.warningPad)
+    expect(defeat!.activeSeconds).toBeLessThanOrEqual(defeatWindow.max + defeatWindow.warningPad)
+    const rec = run.rebuildLog[0]!
+    expect((rec.coresLost['pulse-cannon'] ?? 0) + (rec.coresLost['plate-layer'] ?? 0)).toBeGreaterThan(0)
     const s4 = ACT1_EXPECTED_AT['sector-4']!
-    expect(inBand(end.pulse, [0, s4.pulse[1] + 8])).toBe(true)
+    expect(inBand(rec.coresLost['pulse-cannon'] ?? 0, [0, s4.pulse[1] + 8])).toBe(true)
+    expect(rec.repushRatio).toBeGreaterThanOrEqual(0.19)
+    expect(rec.repushRatio).toBeLessThanOrEqual(0.4)
+    const early = run.sorties.filter((s) => s.previousBest > 0 && s.previousBest < 40 && s.newBest)
+    const earlyDelta = early.map((s) => s.endWave - s.previousBest)
+    // eslint-disable-next-line no-console
+    console.log('early Best Δ', earlyDelta.slice(0, 12).join(', ') || '(none)')
   }, 120_000)
 
-  it.skip('optimiser first Rebuild is not a spam-reset and still spends Cores', () => {
-    const report = runSimulation(firstRebuildConfig('optimiser'))
+  it('offensive first Rebuild still sits inside the 2–4h pad', async () => {
+    const report = await runSimulation(firstRebuildConfig('offensive'))
+    const run = report.runs[0]!
+    // eslint-disable-next-line no-console
+    console.log('\n' + formatSummary(report) + '\n')
+    const first = run.milestones.find((m) => m.id === 'first-rebuild')
+    expect(first).toBeTruthy()
+    const window = ACT1_TARGETS.find((t) => t.id === 'first-rebuild')!
+    expect(first!.activeSeconds).toBeGreaterThanOrEqual(window.min - window.warningPad)
+    expect(first!.activeSeconds).toBeLessThanOrEqual(window.max + window.warningPad)
+  }, 120_000)
+
+  it('balanced player lights Furnace Weapons after the door', async () => {
+    const report = await runSimulation(
+      defaultSimulationConfig({
+        start: { type: 'fresh' },
+        strategy: 'balanced',
+        stop: { type: 'furnace-lit' },
+        seed: 1,
+        logging: 'milestones',
+        deadlockSeconds: 90 * 60,
+        maxIterations: 1_200_000,
+        maxCalendarSeconds: 24 * 3600,
+      }),
+    )
+    const run = report.runs[0]!
+    // eslint-disable-next-line no-console
+    console.log('\n' + formatSummary(report) + '\n')
+    expect(run.milestones.some((m) => m.id === 'furnace-unlock')).toBe(true)
+    expect(run.milestones.some((m) => m.id === 'reliquary-unlock')).toBe(true)
+    expect(run.rebuilds).toBeGreaterThanOrEqual(1)
+    expect(run.rebuilds).toBeLessThan(20)
+    expect(run.furnace.heatSpent).toBeGreaterThan(0)
+    const end = run.snapshots[run.snapshots.length - 1]!
+    expect(end.contribution.reliquaryDamage).toBeGreaterThan(0)
+    expect(end.drones).toBeGreaterThan(4)
+    expect(end.droneCap).toBeGreaterThan(4)
+    const levels = Object.values(run.foundry.recipeLevels ?? {})
+    const maxed = levels.filter((n) => (n ?? 0) >= 100).length
+    expect(maxed).toBe(0)
+    expect(
+      run.meaningfulActions.some((a) => /Furnace weapons/i.test(a.label)),
+    ).toBe(true)
+  }, 180_000)
+
+  it.skipIf(!process.env.RUN_WAVE_300)(
+    'balanced career reaches Wave 300 inside the 70–100h pad',
+    async () => {
+      const report = await runSimulation(
+        defaultSimulationConfig({
+          start: { type: 'fresh' },
+          strategy: 'balanced',
+          stop: { type: 'wave', wave: 300 },
+          seed: 1,
+          logging: 'milestones',
+          deadlockSeconds: 90 * 60,
+          maxIterations: 2_000_000,
+          maxCalendarSeconds: 21 * 24 * 3600,
+        }),
+      )
+      const run = report.runs[0]!
+      // eslint-disable-next-line no-console
+      console.log('\n' + formatSummary(report) + '\n')
+      const w300 = run.milestones.find((m) => m.id === 'wave-300')
+      expect(w300).toBeTruthy()
+      const window = ACT1_TARGETS.find((t) => t.id === 'w300')!
+      expect(w300!.activeSeconds).toBeGreaterThanOrEqual(window.min - window.warningPad)
+      expect(w300!.activeSeconds).toBeLessThanOrEqual(window.max + window.warningPad)
+    },
+    600_000,
+  )
+
+  it.skip('optimiser first Rebuild is not a spam-reset and still spends Cores', async () => {
+    const report = await runSimulation(firstRebuildConfig('optimiser'))
     const run = report.runs[0]!
     expect(run.rebuilds).toBeGreaterThanOrEqual(1)
     expect(run.coreSpending.some((c) => c.levelsPurchased > 0)).toBe(true)
@@ -190,8 +330,8 @@ describe('Act 1 career simulations', () => {
     expect(contrib.researchDamage).toBe(0)
   }, 120_000)
 
-  it('casual offline catch-up does not explode sector from a closed app', () => {
-    const report = runSimulation(
+  it('casual offline catch-up does not explode sector from a closed app', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'casual',
@@ -228,4 +368,23 @@ describe('Act 1 career simulations', () => {
     expect(back!.foundry.recipeLevels['slag-ingot']).toBe(4)
     expect(back!.furnace.wanted.weapons).toBe(1)
   })
+
+  it.skipIf(!process.env.RUN_PROFILE_SWEEP)(
+    'logs Casual / Balanced / Economy / Offensive / Defensive / Optimiser first Rebuilds',
+    async () => {
+      const profiles = ['casual', 'balanced', 'economy-first', 'offensive', 'defensive', 'optimiser'] as const
+      for (const strategy of profiles) {
+        const cfg = firstRebuildConfig(strategy)
+        if (strategy === 'casual') {
+          cfg.maxCalendarSeconds = 3 * 24 * 3600
+          cfg.deadlockSeconds = 45 * 60
+        }
+        const report = await runSimulation(cfg)
+        // eslint-disable-next-line no-console
+        console.log('\n' + formatSummary(report) + '\n')
+        expect(report.runs[0]?.safety.some((s) => s.kind === 'nan')).toBe(false)
+      }
+    },
+    600_000,
+  )
 })

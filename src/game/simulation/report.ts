@@ -93,9 +93,41 @@ export function formatSummary(report: SimulationReport): string {
     milestoneLine(run, 'wave-300', 'Wave 300'),
     '',
   )
+  if (run.sorties.length > 0) {
+    const first = run.sorties[0]!
+    const early = run.sorties.filter((s) => s.previousBest < 70)
+    const mid = run.sorties.filter((s) => s.previousBest >= 70 && s.previousBest < 170)
+    const late = run.sorties.filter((s) => s.previousBest >= 170)
+    const avg = (rows: typeof run.sorties) =>
+      rows.length ? rows.reduce((s, r) => s + r.duration, 0) / rows.length : 0
+    const medianDelta = (rows: typeof run.sorties) => {
+      const deltas = rows.filter((r) => r.newBest).map((r) => r.endWave - r.previousBest)
+      if (!deltas.length) return 0
+      const sorted = [...deltas].sort((a, b) => a - b)
+      return sorted[Math.floor(sorted.length / 2)] ?? 0
+    }
+    lines.push(
+      '----------------------------------------',
+      'SORTIES',
+      '----------------------------------------',
+      '',
+      `Count: ${run.sorties.length}`,
+      `First Sortie: ${formatSimDuration(first.duration)} → W${first.endWave} (${first.outcome ?? '—'})`,
+      early.length ? `Early duration avg: ${formatSimDuration(avg(early))}  Best Δ ${medianDelta(early)}` : '',
+      mid.length ? `Mid duration avg: ${formatSimDuration(avg(mid))}  Best Δ ${medianDelta(mid)}` : '',
+      late.length ? `Late duration avg: ${formatSimDuration(avg(late))}  Best Δ ${medianDelta(late)}` : '',
+      `Salvage spent on run upgrades: ${run.sorties.reduce((s, r) => s + r.salvageSpent, 0).toFixed(0)}`,
+      '',
+    )
+  }
   if (run.rebuildLog.length > 0) {
     lines.push('----------------------------------------', 'REBUILDS', '----------------------------------------', '')
-    for (const rec of run.rebuildLog) {
+    const recs = run.rebuildLog
+    const shown = recs.length <= 3 ? recs : [recs[0]!, recs[1]!, recs[recs.length - 1]!]
+    if (recs.length > shown.length) {
+      lines.push(`Showing first two and last of ${recs.length} Rebuilds`, '')
+    }
+    for (const rec of shown) {
       lines.push(
         `Rebuild #${rec.index}`,
         `Run duration: ${formatSimDuration(rec.previousPushSeconds)}`,
@@ -105,6 +137,17 @@ export function formatSummary(report: SimulationReport): string {
         rec.permanentPurchases.length
           ? `Permanent purchases: ${rec.permanentPurchases.join(', ')}`
           : 'Permanent purchases: none this Rebuild',
+        rec.workshopLost && Object.keys(rec.workshopLost).length
+          ? `Workshop at Rebuild: ${Object.entries(rec.workshopLost)
+              .filter(([, n]) => (n ?? 0) > 0)
+              .map(([id, n]) => `${id} L${n}`)
+              .join(', ')}`
+          : 'Workshop at Rebuild: none',
+        rec.coresLost && Object.keys(rec.coresLost).length
+          ? `Core Starts at Rebuild: ${Object.entries(rec.coresLost)
+              .map(([id, n]) => `${id} L${n}`)
+              .join(', ')}`
+          : 'Core Starts at Rebuild: none',
         rec.repushSeconds != null
           ? `Repush to previous best: ${formatSimDuration(rec.repushSeconds)} (ratio ${rec.repushRatio?.toFixed(2) ?? '—'})`
           : 'Repush to previous best: not reached before stop',
@@ -118,7 +161,7 @@ export function formatSummary(report: SimulationReport): string {
       lines.push(
         `${core.name}:`,
         `Levels purchased: ${core.levelsPurchased}`,
-        `Share of Core spending: ${(core.share * 100).toFixed(0)}%`,
+        `Share of Core Scrap: ${(core.share * 100).toFixed(0)}%`,
         '',
       )
     }

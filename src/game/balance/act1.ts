@@ -8,11 +8,10 @@
  * Casual sessions stretch the same beats across offline catch-up.
  *
  * GDD §155 pads (first defeat 3–5 min, Rebuild 2–4 h, Process 24–36 h,
- * W300 70–100 h) are validation labels. Live CI still uses the current
- * first-Rebuild window so this land does not force a combat retune.
+ * W300 70–100 h) are the live CI windows. Tune one named curve at a time.
  */
 
-import { droneCap, moduleLevel, prestigeMomentumDamageBonus } from '../catalog'
+import { droneCap, prestigeMomentumDamageBonus } from '../catalog'
 import { furnaceActiveCount, furnaceChannelSlots, furnaceDamageMult } from '../furnace'
 import { foundrySlotCount, FOUNDRY_RECIPES } from '../foundry'
 import {
@@ -29,6 +28,7 @@ import { ACT1_CADENCE, ACT1_FINAL_WAVE } from '../cadence'
 import { reportedBestWave } from '../waves'
 import type { Act1Contribution, Act1Snapshot, BalanceTarget } from '../simulation/types'
 import { ENEMY_DMG_EARLY, ENEMY_HULL_EARLY } from './curves'
+import { coreStartingLevelAtSlot } from '../coreProgression'
 
 void ENEMY_HULL_EARLY
 void ENEMY_DMG_EARLY
@@ -55,8 +55,8 @@ export const ACT1_UNLOCKS = {
  * Engaged-player windows. First hour is dense; later beats lengthen.
  * Walls should point at another system, not an 8-hour wait on the same shop.
  *
- * CI gates Casual / Balanced first-Rebuild only. Process / W300 SKIP until
- * a long run actually reaches them.
+ * CI gates Casual / Balanced first-Rebuild and Furnace lighting.
+ * Research / Process / W300 SKIP until a long run actually reaches them.
  */
 export const ACT1_TARGETS: BalanceTarget[] = [
   {
@@ -107,9 +107,9 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   {
     id: 'first-rebuild',
     label: 'First Rebuild',
-    min: 30 * 60,
-    max: 5 * 60 * 60,
-    warningPad: 30 * 60,
+    min: 2 * 60 * 60,
+    max: 4 * 60 * 60,
+    warningPad: 45 * 60,
     milestoneId: 'first-rebuild',
     kind: 'milestone-time',
   },
@@ -143,9 +143,9 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   {
     id: 'wave-100',
     label: 'Wave 100',
-    min: 18 * 60,
-    max: 90 * 60,
-    warningPad: 15 * 60,
+    min: 3 * 60 * 60,
+    max: 12 * 60 * 60,
+    warningPad: 2 * 60 * 60,
     milestoneId: 'wave-100',
     kind: 'milestone-time',
   },
@@ -272,8 +272,8 @@ export function captureAct1Snapshot(
     highestEver: Math.max(state.meta.highestSectorEver ?? 0, state.combat.highestSector ?? 0),
     salvage: state.resources.salvage,
     salvageEarned,
-    pulse: moduleLevel(state.shipyard.moduleLevels, 'pulse-cannon'),
-    plate: moduleLevel(state.shipyard.moduleLevels, 'plate-layer'),
+    pulse: coreStartingLevelAtSlot(state, 0),
+    plate: coreStartingLevelAtSlot(state, 1),
     drones: state.base.workerDrones,
     droneCap: droneCap(state),
     strike: state.network?.bars.strike.levels ?? 0,

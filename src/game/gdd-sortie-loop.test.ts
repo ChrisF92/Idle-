@@ -5,7 +5,13 @@ import { buyRunUpgrade, buyWorkshopUpgrade, upgradeModule } from './actions'
 import { clearSector } from './testHelpers'
 import { encounterForWave } from './combat'
 import { isBossWave, powerSectorForWave } from './waves'
-import { effectiveUpgradeLevel, reclaimSpeed, weaponPowerMult } from './workshop'
+import {
+  effectiveUpgradeLevel,
+  RECLAIM_PER_TEN_WAVES,
+  RECLAIM_SPEED_CAP,
+  reclaimSpeed,
+  weaponPowerMult,
+} from './workshop'
 
 function launch(state = createInitialState()) {
   return setDocked(state, false)
@@ -114,9 +120,13 @@ describe('GDD sortie loop', () => {
     s.meta.bestWave = 40
     s.combat.bestWave = 40
     s.combat.wave = 1
+    expect(reclaimSpeed(s)).toBeCloseTo(1 + RECLAIM_PER_TEN_WAVES * 3)
     expect(reclaimSpeed(s)).toBeGreaterThan(1)
-    expect(reclaimSpeed(s)).toBeLessThanOrEqual(4)
-    s.combat.wave = 40
+    expect(reclaimSpeed(s)).toBeLessThanOrEqual(RECLAIM_SPEED_CAP)
+    s.meta.bestWave = 100
+    s.combat.bestWave = 100
+    expect(reclaimSpeed(s)).toBe(RECLAIM_SPEED_CAP)
+    s.combat.wave = 100
     expect(reclaimSpeed(s)).toBe(1)
   })
 })

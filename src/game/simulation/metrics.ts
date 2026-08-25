@@ -6,6 +6,7 @@ import { isSystemUnlocked } from '../progression'
 import { isResearchBreakthroughIndex } from '../hiveResearch'
 import { reportedBestWave } from '../waves'
 import { ACT1_CADENCE } from '../cadence'
+import { coreStartingLevelAtSlot } from '../coreProgression'
 import type {
   CorePurchaseRecord,
   CoreSpendingSummary,
@@ -16,6 +17,7 @@ import type {
   RebuildRecord,
   SectorRecord,
   SimulationWarning,
+  SortieRecord,
   StrategyLimitation,
 } from './types'
 import { median } from './format'
@@ -51,6 +53,9 @@ export interface MetricsState {
   hiveNodesSeen: number
   networkIdleHint: boolean
   idleAcc: number
+  sorties: SortieRecord[]
+  lastLaunchAt: number
+  failedPushStreak: number
 }
 
 function emptySector(sector: number, active: number): SectorRecord {
@@ -100,6 +105,9 @@ export function createMetrics(state: GameState): MetricsState {
     hiveNodesSeen: hiveNodes(state),
     networkIdleHint: false,
     idleAcc: 0,
+    sorties: [],
+    lastLaunchAt: 0,
+    failedPushStreak: 0,
   }
 }
 
@@ -109,10 +117,39 @@ function hiveNodes(state: GameState): number {
   return (c.material ?? 0) + (c.energy ?? 0) + (c.observation ?? 0)
 }
 
-function researchBreakthroughs(state: GameState | null): number {
-  if (!state?.hiveResearch?.completed) return 0
+/** Fields observeState compares across a tick. Avoids cloning the whole save. */
+export interface ObservePrev {
+  salvage: number
+  hullLostOnce: boolean
+  docked: boolean
+  consecutiveLosses: number
+  sector: number
+  lifetimeCoreRunBuys: number
+  prestigeCount: number
+  ascensionCount: number
+  processPurchased: number
+  hiveCompleted: Record<string, number> | null
+}
+
+export function captureObservePrev(state: GameState): ObservePrev {
+  return {
+    salvage: state.resources.salvage ?? 0,
+    hullLostOnce: !!state.meta.hullLostOnce,
+    docked: state.combat.docked,
+    consecutiveLosses: state.combat.consecutiveLosses,
+    sector: state.combat.sector,
+    lifetimeCoreRunBuys: state.meta.lifetimeCoreRunBuys ?? 0,
+    prestigeCount: state.prestige.prestigeCount,
+    ascensionCount: state.meta.ascensionCount ?? 0,
+    processPurchased: state.process?.purchased.length ?? 0,
+    hiveCompleted: state.hiveResearch?.completed ? { ...state.hiveResearch.completed } : null,
+  }
+}
+
+function researchBreakthroughs(completed: Record<string, number> | null | undefined): number {
+  if (!completed) return 0
   let n = 0
-  for (const done of Object.values(state.hiveResearch.completed)) {
+  for (const done of Object.values(completed)) {
     for (let i = 0; i < (done ?? 0); i++) if (isResearchBreakthroughIndex(i)) n += 1
   }
   return n
@@ -142,7 +179,7 @@ function addEarned(metrics: MetricsState, key: string, amount: number): void {
 export function observeState(
   metrics: MetricsState,
   state: GameState,
-  prev: GameState,
+  prev: ObservePrev,
   activeSeconds: number,
   calendarSeconds: number,
   dt: number,
@@ -164,13 +201,13 @@ export function observeState(
   }
   const row = metrics.sectors.get(sector)!
   if (!state.combat.campaign) row.holdSeconds += dt
-  if (idleWorkers(state) > 0 && state.base.workerDrones > 0) {
+  if (idleWorkers(state) > 0 && state.base.workerDrones > 0 && isSystemUnlocked(state, 'network')) {
     metrics.idleAcc += dt
     if (metrics.idleAcc > 60) metrics.networkIdleHint = true
   } else {
     metrics.idleAcc = 0
   }
-  const salvageGain = state.resources.salvage - prev.resources.salvage
+  const salvageGain = state.resources.salvage - prev.salvage
   if (salvageGain > 0) row.salvageEarned += salvageGain
 
   if (state.combat.highestSector > metrics.lastHighest) {
@@ -179,8 +216,8 @@ export function observeState(
     if (clearedRow.firstClearActive == null) {
       clearedRow.firstClearActive = activeSeconds
       clearedRow.clearDuration = activeSeconds - clearedRow.firstEntryActive
-      clearedRow.pulseLevelOnClear = state.combat.coreRunLevels?.['0'] ?? 0
-      clearedRow.plateLevelOnClear = state.combat.coreRunLevels?.['1'] ?? 0
+      clearedRow.pulseLevelOnClear = coreStartingLevelAtSlot(state, 0)
+      clearedRow.plateLevelOnClear = coreStartingLevelAtSlot(state, 1)
     }
     metrics.sectors.set(cleared, clearedRow)
     const clearedWave = cleared * 10
@@ -203,20 +240,41 @@ export function observeState(
     metrics.lastBestWave = bestWave
   }
 
-  if (state.meta.hullLostOnce && !prev.meta.hullLostOnce) {
+  if (state.meta.hullLostOnce && !prev.hullLostOnce) {
     addMilestone(metrics, 'first-defeat', 'First defeat', activeSeconds, calendarSeconds)
     noteMeaningful(metrics, 'First defeat', activeSeconds)
   }
 
-  if (prev.combat.docked && !state.combat.docked) {
+  if (prev.docked && !state.combat.docked) {
     metrics.relaunches += 1
     row.relaunches += 1
+    metrics.lastLaunchAt = activeSeconds
     if (metrics.relaunches === 1) {
       addMilestone(metrics, 'first-launch', 'First Launch', activeSeconds, calendarSeconds)
     }
   }
-  if (state.combat.consecutiveLosses > prev.combat.consecutiveLosses) {
-    const diedAt = prev.combat.sector
+  if (!prev.docked && state.combat.docked && state.combat.lastSortie.outcome) {
+    const summary = state.combat.lastSortie
+    const duration = Math.max(0, activeSeconds - metrics.lastLaunchAt)
+    metrics.sorties.push({
+      index: metrics.sorties.length + 1,
+      activeSeconds,
+      duration,
+      endWave: summary.wave,
+      previousBest: summary.previousBest,
+      newBest: summary.newBest,
+      salvageEarned: summary.salvageGained,
+      salvageSpent: summary.salvageSpent,
+      scrapEarned: summary.scrapEarned,
+      outcome: summary.outcome,
+    })
+    const meaningful =
+      summary.salvageSpent > 0 || summary.wave >= Math.max(1, summary.previousBest * 0.7)
+    if (summary.newBest) metrics.failedPushStreak = 0
+    else if (meaningful && !metrics.pendingRepush) metrics.failedPushStreak += 1
+  }
+  if (state.combat.consecutiveLosses > prev.consecutiveLosses) {
+    const diedAt = prev.sector
     const diedRow = metrics.sectors.get(diedAt) ?? emptySector(diedAt, activeSeconds)
     diedRow.deaths += 1
     metrics.sectors.set(diedAt, diedRow)
@@ -230,8 +288,8 @@ export function observeState(
   }
   metrics.lastDocked = state.combat.docked
 
-  if ((state.meta.lifetimeCoreRunBuys ?? 0) > 0 && (prev.meta.lifetimeCoreRunBuys ?? 0) === 0) {
-    addMilestone(metrics, 'first-pulse-upgrade', 'First Pulse upgrade', activeSeconds, calendarSeconds)
+  if ((state.meta.lifetimeCoreRunBuys ?? 0) > 0 && prev.lifetimeCoreRunBuys === 0) {
+    addMilestone(metrics, 'first-core-start', 'First Core Level', activeSeconds, calendarSeconds)
   }
 
   if (!metrics.seenUnlocks.has('workers') && bestWave >= ACT1_CADENCE.workers) {
@@ -268,19 +326,19 @@ export function observeState(
     addMilestone(metrics, 'first-hive-research-node', 'First Hive Research node', activeSeconds, calendarSeconds)
     noteMeaningful(metrics, 'First Hive Research node', activeSeconds)
   }
-  const prevBt = researchBreakthroughs(prev)
-  const nowBt = researchBreakthroughs(state)
+  const prevBt = researchBreakthroughs(prev.hiveCompleted)
+  const nowBt = researchBreakthroughs(state.hiveResearch?.completed)
   if (nowBt > 0 && prevBt === 0) {
     addMilestone(metrics, 'first-research-bt', 'First Research breakthrough', activeSeconds, calendarSeconds)
     noteMeaningful(metrics, 'First Research breakthrough', activeSeconds)
   }
   metrics.hiveNodesSeen = nodes
 
-  if ((state.process?.purchased.length ?? 0) > 0 && (prev.process?.purchased.length ?? 0) === 0) {
+  if ((state.process?.purchased.length ?? 0) > 0 && prev.processPurchased === 0) {
     addMilestone(metrics, 'first-process-purchase', 'First Process purchase', activeSeconds, calendarSeconds)
   }
 
-  if (state.prestige.prestigeCount > prev.prestige.prestigeCount) {
+  if (state.prestige.prestigeCount > prev.prestigeCount) {
     addMilestone(
       metrics,
       state.prestige.prestigeCount === 1 ? 'first-rebuild' : `rebuild-${state.prestige.prestigeCount}`,
@@ -290,7 +348,7 @@ export function observeState(
     )
   }
 
-  if ((state.meta.ascensionCount ?? 0) > (prev.meta.ascensionCount ?? 0)) {
+  if ((state.meta.ascensionCount ?? 0) > prev.ascensionCount) {
     addMilestone(metrics, 'first-reinforce', 'Reinforce / Ascension', activeSeconds, calendarSeconds)
   }
 
@@ -324,6 +382,7 @@ export function recordRebuildRow(metrics: MetricsState, row: RebuildRecord): voi
     target: row.highestSector,
     start: row.activeSeconds,
   }
+  metrics.failedPushStreak = 0
 }
 
 export function coreSpending(purchases: CorePurchaseRecord[]): CoreSpendingSummary[] {
