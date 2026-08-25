@@ -46,6 +46,7 @@ export type SimulationStop =
   | { type: 'duration'; calendarSeconds: number }
   | { type: 'active-duration'; seconds: number }
   | { type: 'unlock'; system: string }
+  | { type: 'furnace-lit' }
   | { type: 'reinforce' }
   | { type: 'safety' }
 
@@ -156,6 +157,19 @@ export interface SectorRecord {
   bossClearSeconds: number | null
 }
 
+export interface SortieRecord {
+  index: number
+  activeSeconds: number
+  duration: number
+  endWave: number
+  previousBest: number
+  newBest: boolean
+  salvageEarned: number
+  salvageSpent: number
+  scrapEarned: number
+  outcome: 'extract' | 'defeat' | null
+}
+
 export interface CorePurchaseRecord {
   moduleId: string
   name: string
@@ -202,6 +216,7 @@ export interface RebuildRecord {
   matterBalanceAfter: number
   reasons: string[]
   coresLost: Record<string, number>
+  workshopLost: Record<string, number>
   networkLevelsLost: Record<string, number>
   linksKept: Record<string, number>
   permanentPurchases: string[]
@@ -358,6 +373,7 @@ export interface SimulationRunReport {
   prestigeMatterEarned: number
   milestones: MilestoneRecord[]
   sectors: SectorRecord[]
+  sorties: SortieRecord[]
   corePurchases: CorePurchaseRecord[]
   coreSpending: CoreSpendingSummary[]
   network: NetworkSnapshot

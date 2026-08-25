@@ -8,19 +8,17 @@ import {
   idleWorkers,
   NETWORK_ACUITY_PER_RANK,
   NETWORK_RACK_CAP_PER_RANK,
-  stationEffectiveDrones,
 } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
 import { yardNetworkMult } from './yard'
-import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 import { careerBestWave } from './progression'
 import { foundryNetworkFillMult } from './foundryBonuses'
-import { NETWORK_CADENCE } from './cadence'
-import { isWorkersUnlocked, WORKER_JOB_IDS } from './workers'
+import { WORKER_JOB_IDS } from './workers'
 
 export type NetworkBarLayer = 'primary' | 'relay' | 'lattice'
 
@@ -97,7 +95,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'yield',
     name: 'Yield',
     blurb: 'Salvage from wrecks, plus a trickle of scrap.',
-    requiresBestWave: NETWORK_CADENCE.yield,
+    requiresBestWave: 0,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
@@ -110,11 +108,11 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'loom',
     name: 'Loom',
     blurb: 'Faster drone manufacture and Foundry crafts.',
-    requiresBestWave: NETWORK_CADENCE.loom,
+    requiresBestWave: 0,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
-      'Loom is the shop floor. Cycles speed how fast new drones print and how fast smelters run.',
+      'Loom is the shop floor. Cycles speed how fast new drones fabricate and how fast Processors run.',
       'It also slightly speeds Strike, Ward, and Yield.',
       'Opens after Wave 90. Loom Relay later improves manufacture machinery.',
     ],
@@ -123,7 +121,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'archive',
     name: 'Archive',
     blurb: 'A trickle of Research data.',
-    requiresBestWave: NETWORK_CADENCE.archive,
+    requiresBestWave: 0,
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
@@ -135,7 +133,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'strike-relay',
     name: 'Strike Relay',
     blurb: 'Infrastructure behind Strike.',
-    requiresBestWave: NETWORK_CADENCE.strikeRelay,
+    requiresBestWave: 0,
     layer: 'relay',
     parent: 'strike',
     fillBase: 10,
@@ -150,7 +148,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'ward-relay',
     name: 'Ward Relay',
     blurb: 'Infrastructure behind Ward.',
-    requiresBestWave: NETWORK_CADENCE.wardRelay,
+    requiresBestWave: 0,
     layer: 'relay',
     parent: 'ward',
     fillBase: 10,
@@ -164,7 +162,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'yield-relay',
     name: 'Yield Relay',
     blurb: 'Infrastructure behind Yield.',
-    requiresBestWave: NETWORK_CADENCE.yieldRelay,
+    requiresBestWave: 0,
     layer: 'relay',
     parent: 'yield',
     fillBase: 11,
@@ -178,13 +176,13 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'loom-relay',
     name: 'Loom Relay',
     blurb: 'Infrastructure behind Loom.',
-    requiresBestWave: NETWORK_CADENCE.loomRelay,
+    requiresBestWave: 0,
     layer: 'relay',
     parent: 'loom',
     fillBase: 11,
     improves: 'Loom fill speed, manufacture scaling, Loom fill cap',
     detail: [
-      'Loom Relay improves Loom fill, drone printing / Foundry speed per Loom level, and Loom’s fill cap.',
+      'Loom Relay improves Loom fill, drone fabrication / Foundry speed per Loom level, and Loom’s fill cap.',
       'Industry presets lean on Loom then this Relay.',
     ],
   },
@@ -192,7 +190,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'archive-relay',
     name: 'Archive Relay',
     blurb: 'Infrastructure behind Archive.',
-    requiresBestWave: NETWORK_CADENCE.archiveRelay,
+    requiresBestWave: 0,
     layer: 'relay',
     parent: 'archive',
     fillBase: 12,
@@ -206,7 +204,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'strike-lattice',
     name: 'Strike Lattice',
     blurb: 'Infrastructure behind Strike Relay.',
-    requiresBestWave: NETWORK_CADENCE.strikeLattice,
+    requiresBestWave: 0,
     layer: 'lattice',
     parent: 'strike',
     fillBase: 14,
@@ -221,7 +219,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     id: 'ward-lattice',
     name: 'Ward Lattice',
     blurb: 'Infrastructure behind Ward Relay.',
-    requiresBestWave: NETWORK_CADENCE.wardLattice,
+    requiresBestWave: 0,
     layer: 'lattice',
     parent: 'ward',
     fillBase: 14,
@@ -568,23 +566,14 @@ export function networkWardMult(_state: GameState): number {
   return 1
 }
 
-/** Salvage/kill bonus from Scrap Field labour. Yield bars no longer grant this. */
-export function networkSalvageMult(state: GameState): number {
-  if (protocolMutes(state, 'network')) return 1
-  if (!isWorkersUnlocked(state)) return 1
-  const labor = stationEffectiveDrones(state, 'scrap-field')
-  return 1 + 0.045 * Math.sqrt(Math.max(0, labor))
+/** @deprecated Worker Drones perform industry and never multiply combat rewards. */
+export function networkSalvageMult(_state: GameState): number {
+  return 1
 }
 
-/** Foundry / drone-print speed from fabrication jobs. Loom bars no longer grant this. */
-export function networkManufactureMult(state: GameState): number {
-  if (protocolMutes(state, 'network')) return 1
-  if (!isWorkersUnlocked(state)) return 1
-  const labor =
-    stationEffectiveDrones(state, 'drone-fab') +
-    stationEffectiveDrones(state, 'fab-bay') +
-    stationEffectiveDrones(state, 'construction')
-  return 1 + 0.04 * Math.sqrt(Math.max(0, labor))
+/** @deprecated Each Worker Drone job now affects only its own real work. */
+export function networkManufactureMult(_state: GameState): number {
+  return 1
 }
 
 /** Extra hangar scrap drip retired — Scrap Field already produces scrap. */

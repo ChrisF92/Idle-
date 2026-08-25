@@ -9,9 +9,7 @@ import {
 import {
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
-  advanceFabProject,
   aiDoctrinesActive,
-  aiFabBonus,
   aiProductionBonus,
   droneCap,
   essenceBonusDataPerClear,
@@ -25,20 +23,16 @@ import {
   researchEssenceMultiplier,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
+  visibleWorkerJobIds,
   workerManufactureSpeed,
   frameScrapMult,
 } from './catalog'
 import { tickAutomation } from './automation'
-import {
-  logisticsFabMult,
-  logisticsProdMult,
-  tickCoreTraining,
-} from './core'
+import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { tryCompleteChallenge } from './actions'
 import {
   networkDataRate,
-  networkManufactureMult,
   networkScrapRate,
   tickNetwork,
 } from './network'
@@ -46,11 +40,13 @@ import { armPendingFacilities, tickFoundry } from './foundry'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
-import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
+import { hiveResearchHeatFromAshMult, hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
-import { hasProcess, processConfig, processIndustrySpeedMult } from './process'
+import { hasProcess, noteProcessLastAction, processConfig, processIndustrySpeedMult } from './process'
+import { evaluateProcessIntent } from './processProfiles'
 import { processShouldExtract } from './processProfiles'
 import { chosenSortieSpeed } from './uiReadout'
+import { WORKER_JOB_IDS } from './workers'
 import {
   captureSortieMark,
   closeSortie,
@@ -300,9 +296,12 @@ function applyProduction(state: GameState, dtSeconds: number): void {
   tickResearch(state, dtSeconds)
 
   const cap = droneCap(state)
-  if (state.base.workerDrones < cap) {
-    const speed =
-      workerManufactureSpeed(state) * networkManufactureMult(state) * processIndustrySpeedMult(state)
+  if (
+    state.base.workerDrones < cap &&
+    isStationUnlocked(state, 'drone-fab') &&
+    (state.base.assignments['drone-fab'] ?? 0) > 0
+  ) {
+    const speed = workerManufactureSpeed(state) * processIndustrySpeedMult(state)
     state.base.manufactureProgress +=
       (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
     while (
@@ -326,16 +325,11 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     }
   }
 
-  advanceFabProject(
-    state,
-    dtSeconds,
-    (line) => pushLog(state, line),
-    logisticsFabMult(state) *
-      (1 + computeSignalCoreBonuses(state).fab) *
-      (1 + aiFabBonus(state)) *
-      networkManufactureMult(state),
-  )
   tickCoreTraining(state, dtSeconds)
+  const activeJobs = new Set(visibleWorkerJobIds(state))
+  for (const jobId of WORKER_JOB_IDS) {
+    if (!activeJobs.has(jobId)) delete state.base.assignments[jobId]
+  }
 }
 
 /** Net industry rates (units / second). Combat drops are not included. */
@@ -367,7 +361,11 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
     }
 
     for (const [resource, perDrone] of Object.entries(station.rates)) {
-      add(resource as keyof Resources, (perDrone ?? 0) * effective * meta)
+      let amount = (perDrone ?? 0) * effective * meta
+      if (station.id === 'scrap-field' && resource === 'scrap') {
+        amount *= hiveResearchSalvageOpsMult(state)
+      }
+      add(resource as keyof Resources, amount)
     }
   }
 
@@ -853,8 +851,9 @@ export function advanceSeconds(state: GameState, seconds: number): void {
 }
 
 function maybeProcessRelaunch(state: GameState): void {
-  if (!hasProcess(state, 'sortie-relaunch')) return
-  if (!processConfig(state).sortie.autoRelaunch) return
+  const intentLaunch = evaluateProcessIntent(state).launchSortie && hasProcess(state, 'rule-builder')
+  const autoLaunch = hasProcess(state, 'sortie-relaunch') && processConfig(state).sortie.autoRelaunch
+  if (!intentLaunch && !autoLaunch) return
   if (!state.combat.docked) return
   if ((state.combat.defeatLeft ?? 0) > 0) return
   if (state.protocols?.activeId) return
@@ -862,6 +861,7 @@ function maybeProcessRelaunch(state: GameState): void {
   if (state.combat.playerHullMax <= 0) return
   if (state.combat.playerHull + 0.5 < state.combat.playerHullMax) return
   launchFromDock(state)
+  noteProcessLastAction(state, 'sortie-relaunch', 'Launched Sortie')
 }
 
 /**

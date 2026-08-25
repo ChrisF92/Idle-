@@ -1,10 +1,11 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
 import { careerHighestSector, isSystemUnlocked } from './progression'
-import { WORKER_JOB_IDS } from './workers'
+import { WORKER_JOB_IDS, workerJobContribution, workerJobHasWork } from './workers'
 import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
 import { bandsClearedForWave, meetsWave, waveForClearedBands } from './waves'
 import { formatCompact, formatStat } from './format'
+import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
@@ -264,8 +265,8 @@ export interface ModuleWeaponDef {
 }
 
 /**
- * Max Salvage levels per Core in a run.
- * USI T1 cores routinely go past 70–110 before a T2 swap; 12 was a Cosmic Idle cap.
+ * Retired per-Sortie Core level cap retained by compatibility helpers.
+ * Current physical Core Levels use CORE_START_LEVEL_CAP.
  */
 export const MAX_MODULE_LEVEL = 110
 
@@ -320,12 +321,12 @@ export interface ShipModuleDef {
   /** Used for DPS estimates when no weapon profile is present. */
   damageBonus: number
   hullBonus: number
-  /** Flat hull added per Salvage level. Omit to keep the old 8%/level curve. */
+  /** Flat hull added per Core Level. Omit to keep the old 8%/level curve. */
   hullBonusPerLevel?: number
   armorBonus?: number
   armorBonusPerLevel?: number
   shieldBonus?: number
-  /** Flat shield added per Salvage level (USI Continuous Generator: +5). */
+  /** Flat shield added per Core Level (historical USI Continuous Generator: +5). */
   shieldBonusPerLevel?: number
   /**
    * In-combat shield regen as a fraction of max shields per second
@@ -340,9 +341,9 @@ export interface ShipModuleDef {
   escorts?: number
   /** Extra salvage from kills while fitted (utility Cores). */
   salvageKillBonus?: number
-  /** USI Core salvage cost for level 0 → 1 (weapons 3, shields 6). */
+  /** Retired per-Sortie cost base retained by compatibility simulations. */
   upgradeBaseCost?: number
-  /** USI Core cost scaling per level (weapons 1.21, shields 1.2). */
+  /** Retired per-Sortie cost scaling retained by compatibility simulations. */
   upgradeCostScaling?: number
   unlockCost: ResourceCost
   requiresBestWave?: number
@@ -370,18 +371,18 @@ export const NETWORK_ACUITY_PER_RANK = 0.08
 export const STATIONS: StationDef[] = [
   {
     id: 'scrap-field',
-    name: 'Scrap Field',
-    description: 'Workers haul debris into usable scrap.',
+    name: 'Salvage Operations',
+    description: 'Worker Drones haul debris into usable Scrap.',
     requiresSystem: 'base',
     rates: { scrap: 0.4 },
     baseSlots: 20,
   },
   {
     id: 'sensor-net',
-    name: 'Sensor Net',
-    description: 'Workers accelerate the active Research project.',
+    name: 'Research',
+    description: 'Worker Drones accelerate the active Research project.',
     requiresSystem: 'network',
-    rates: { data: 0.045 },
+    rates: {},
     baseSlots: 16,
   },
   {
@@ -394,8 +395,8 @@ export const STATIONS: StationDef[] = [
   },
   {
     id: 'drone-fab',
-    name: 'Drone production',
-    description: 'Workers manufacture additional Worker Drones. Needs a Fabricator.',
+    name: 'Worker Drone Fabrication',
+    description: 'Worker Drones manufacture the next Worker Drone. Needs a Fabricator.',
     requiresSystem: 'foundry',
     rates: {},
     manufactureBonusPerDrone: 0.35,
@@ -412,8 +413,8 @@ export const STATIONS: StationDef[] = [
   },
   {
     id: 'construction',
-    name: 'Construction',
-    description: 'Workers raise Foundry construction output. Efficient up to 4; hard cap 8.',
+    name: 'Infrastructure',
+    description: 'Worker Drones accelerate an active Infrastructure project.',
     requiresSystem: 'yard',
     rates: {},
     kind: 'special',
@@ -431,14 +432,14 @@ export const RESEARCH: ResearchDef[] = [
   },
   {
     id: 'alloy-smelting',
-    name: 'Alloy Smelting',
-    description: 'Unlocks the Alloy Foundry station. Permanent.',
+    name: 'Materials Processing',
+    description: 'Unlocks the Foundry Processing station. Permanent.',
     costData: 45,
   },
   {
     id: 'module-fab',
     name: 'Module Fabrication',
-    description: 'Unlocks the Fabrication Bay — assemble blueprint parts into modules. Permanent.',
+    description: 'Unlocks timed Fabrication projects for completed Blueprints. Permanent.',
     costData: 110,
   },
   {
@@ -547,7 +548,7 @@ export const AI_NODES: AiNodeDef[] = [
     id: 'drone-efficiency-1',
     name: 'Swarm Optics',
     description:
-      '+35% drone power — each worker counts for more toward station black-bar (fewer bodies needed).',
+      '+35% Worker Drone contribution to real jobs.',
     costAiPoints: 4,
     kind: 'automation',
     permanent: true,
@@ -556,8 +557,8 @@ export const AI_NODES: AiNodeDef[] = [
   },
   {
     id: 'drone-efficiency-2',
-    name: 'Hive Lattice',
-    description: '+65% drone power toward station black-bar. Requires Swarm Optics.',
+    name: 'Hive Calibration',
+    description: '+65% Worker Drone contribution to real jobs. Requires Swarm Optics.',
     costAiPoints: 8,
     kind: 'automation',
     permanent: true,
@@ -631,7 +632,7 @@ export const AI_NODES: AiNodeDef[] = [
   },
   {
     id: 'boss-protocol',
-    name: 'Boss Protocol',
+    name: 'Boss Doctrine',
     description: 'Doctrine: +25% damage vs boss units.',
     costAiPoints: 3,
     kind: 'doctrine',
@@ -639,7 +640,7 @@ export const AI_NODES: AiNodeDef[] = [
   },
   {
     id: 'scavenger',
-    name: 'Scavenger Protocol',
+    name: 'Scavenger Sweep',
     description: 'Doctrine: +30% scrap from combat clears.',
     costAiPoints: 2,
     kind: 'doctrine',
@@ -753,7 +754,7 @@ export const AI_NODES: AiNodeDef[] = [
 export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'essence-lattice',
-    name: 'Essence Lattice',
+    name: 'Essence Matrix',
     description: 'Permanent +50% Essence from bosses.',
     costEssence: 2,
     bossEssenceBonus: 0.5,
@@ -885,7 +886,7 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
   },
   {
     id: 'loot-protocols',
-    name: 'Loot Protocols',
+    name: 'Loot Sweep',
     description:
       'Permanent +15% blueprint part drop chance per rank (extra ranks +45% of base).',
     costCp: 2,
@@ -981,7 +982,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
   },
   {
     id: 'synapse-lattice',
-    name: 'Synapse Lattice',
+    name: 'Synapse Matrix',
     description: '+12% Core training speed per rank (deep ranks; extra ranks +45% of base).',
     category: 'foundation',
     costPm: 4,
@@ -1343,7 +1344,7 @@ export function frameUnlockLine(frame: ShipFrameDef): string {
     case 'wave':
       return `Reach Wave ${frame.requiresBestWave ?? 0}`
     case 'foundry':
-      return 'Foundry: print Temper Bar'
+      return 'Foundry: fabricate Temper Bar'
     case 'research':
       return 'Research: Extra Tap'
     case 'challenge':
@@ -1487,10 +1488,10 @@ export const SHIP_MODULES: ShipModuleDef[] = [
   },
   {
     id: 'drone-bay',
-    name: 'Yield Link',
+    name: 'Salvage Beacon',
     role: 'utility',
     description:
-      'Marks wrecks so each kill pays more Salvage. Drones stay on the Network — nothing extra flies on Sortie.',
+      'Marks wrecks so each kill pays more Salvage. The beacon is a Core effect, not a Worker Drone job.',
     damageBonus: 0,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1697,10 +1698,10 @@ export const SHIP_MODULES: ShipModuleDef[] = [
   },
   {
     id: 'lattice-ward',
-    name: 'Lattice Ward',
+    name: 'Rapid Aegis',
     role: 'defense',
     description:
-      'A thin lattice that refills fast. Lower ceiling than Plate; higher regen. Built to outlast chip, not slams.',
+      'A thin shield mesh that refills fast. Lower ceiling than Plate; higher regen. Built to outlast chip, not slams.',
     damageBonus: 0,
     hullBonus: 0,
     shieldBonus: 22,
@@ -1749,7 +1750,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Choir Tap',
     role: 'utility',
     description:
-      'A wreck tap tuned to Choir hulls. Each kill pays more Salvage than Yield Link. Print it, then farm.',
+      'A wreck tap tuned to Choir hulls. Each kill pays more Salvage than the Salvage Beacon. Complete its Blueprint, then fabricate it.',
     damageBonus: 0,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1762,7 +1763,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Surge Capacitor',
     role: 'utility',
     description:
-      'Printed schematic. You take less from each shot and gain hull. Not found as wreck loot — buy the print, then fit it.',
+      'Challenge schematic. You take less from each shot and gain hull. Not found as wreck loot — unlock it, then equip it.',
     damageBonus: 0,
     hullBonus: 20,
     damageTakenMult: 0.9,
@@ -1774,7 +1775,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Mirror Plate',
     role: 'defense',
     description:
-      'Printed schematic plating. Extra hull and armour. Not found as wreck loot — buy the print, then fit it.',
+      'Challenge schematic plating. Extra hull and armour. Not found as wreck loot — unlock it, then equip it.',
     damageBonus: 0,
     hullBonus: 40,
     armorBonus: 5,
@@ -1792,8 +1793,8 @@ export function moduleLevel(
 }
 
 /**
- * Salvage cost to raise a Core from `level` → level+1.
- * USI: weapons 3 × 1.21^n, shields 6 × 1.2^n.
+ * Retired per-Sortie Core cost curve retained for compatibility simulations.
+ * Historical USI values: weapons 3 × 1.21^n, shields 6 × 1.2^n.
  */
 export function moduleUpgradeCost(level: number, moduleId?: string, scalingAdd = 0): number {
   const n = Math.max(0, level)
@@ -2135,7 +2136,7 @@ export function isCorePrintUnlocked(state: GameState, moduleId: string): boolean
   return careerHighestSector(state) >= modulePrintSector(moduleId)
 }
 
-/** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Prints / drops. */
+/** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Blueprints and drops. */
 export const GDD_ROSTER_CORE_IDS = [
   'pulse-cannon',
   'phase-beam',
@@ -2153,7 +2154,7 @@ export function isGddRosterCore(moduleId: string): boolean {
   return (GDD_ROSTER_CORE_IDS as readonly string[]).includes(moduleId)
 }
 
-/** Prints and wreck drops show leftovers only after they are already unlocked. */
+/** Blueprints and wreck drops show leftovers only after they are already unlocked. */
 export function isCoreOnRoster(state: GameState, moduleId: string): boolean {
   return isGddRosterCore(moduleId) || state.shipyard.unlockedModules.includes(moduleId)
 }
@@ -2491,6 +2492,7 @@ export type DroneEconomyState = {
   meta?: { lifetimeDronesBuilt?: number }
   network?: { links?: { racks?: number; acuity?: number } }
   foundry?: { facilities?: string[] }
+  hiveResearch?: { completedIds?: string[]; completed?: Record<string, number> }
 }
 
 /** Black-bar slot count (0 = uncapped linear scaling). */
@@ -2548,6 +2550,7 @@ export function droneCap(state: DroneEconomyState): number {
   cap += NETWORK_RACK_CAP_PER_RANK * racks
   const droneRacks = (state.foundry?.facilities ?? []).filter((id) => id === 'drone-racks').length
   cap += droneRacks * 4
+  cap += sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'droneCapBonus')
   return Math.max(1, Math.floor(cap))
 }
 
@@ -2560,7 +2563,7 @@ export function stationEffectiveDrones(
   if (!station) return 0
   const assigned = Math.max(0, state.base.assignments[stationId] ?? 0)
   if (assigned <= 0) return 0
-  const effective = assigned * dronePower(state)
+  const effective = workerJobContribution(assigned, stationId) * dronePower(state)
   const slots = stationBaseSlots(station)
   if (slots <= 0) return effective
   return Math.min(effective, slots)
@@ -2601,46 +2604,14 @@ export function isStationBlackBarred(
   return stationThroughput(state, stationId) >= 1 - 1e-9
 }
 
-/**
- * Advance Fabrication Bay craft when recipe is filled and workers are assigned.
- * Mutates state. Returns true if a module was completed this call.
- * `fabSpeedMult` comes from Logistics Core (default 1).
- */
+/** @deprecated Instant assembly was removed; Foundry Fabricators own all item jobs. */
 export function advanceFabProject(
-  state: GameState,
-  dtSeconds: number,
-  log?: (line: string) => void,
-  fabSpeedMult = 1,
+  _state: GameState,
+  _dtSeconds: number,
+  _log?: (line: string) => void,
+  _fabSpeedMult = 1,
 ): boolean {
-  if (dtSeconds <= 0) return false
-  if (!isStationUnlocked(state, 'fab-bay')) return false
-  const workers = stationEffectiveDrones(state, 'fab-bay')
-  const project = state.base.fabProject
-  if (workers <= 0 || !project) return false
-  const recipe = getBlueprint(project.moduleId)
-  if (!recipe || !isBlueprintComplete(project.contributed, recipe)) return false
-
-  project.progress += (workers * dtSeconds * Math.max(0.05, fabSpeedMult)) / FAB_SECONDS
-  if (project.progress < 1) return false
-
-  const mod = getModule(project.moduleId)
-  const name = mod?.name ?? project.moduleId
-  if (!state.shipyard.unlockedModules.includes(project.moduleId)) {
-    state.shipyard.unlockedModules = [
-      ...state.shipyard.unlockedModules,
-      project.moduleId,
-    ]
-  }
-  if (!state.meta.discoveredModules.includes(project.moduleId)) {
-    state.meta.discoveredModules = [
-      ...state.meta.discoveredModules,
-      project.moduleId,
-    ]
-  }
-  state.base.fabProject = null
-  state.meta.lifetimeFabCrafts = (state.meta.lifetimeFabCrafts ?? 0) + 1
-  log?.(`Fabrication complete: ${name} unlocked permanently.`)
-  return true
+  return false
 }
 
 export function getStation(id: string): StationDef | undefined {
@@ -2738,7 +2709,11 @@ export function isStationUnlocked(state: GameState, stationId: string): boolean 
 
 /** Jobs shown in Systems / Worker UI. Hidden until the station is legal. */
 export function visibleWorkerJobIds(state: GameState): string[] {
-  return WORKER_JOB_IDS.filter((id) => isStationUnlocked(state, id))
+  return WORKER_JOB_IDS.filter((id) => {
+    if (!isStationUnlocked(state, id) || !workerJobHasWork(state, id)) return false
+    if (id === 'drone-fab') return state.base.workerDrones < droneCap(state)
+    return true
+  })
 }
 
 export function assignedWorkers(assignments: Record<string, number>): number {
@@ -2748,7 +2723,11 @@ export function assignedWorkers(assignments: Record<string, number>): number {
 export function idleWorkers(state: {
   base: { workerDrones: number; assignments: Record<string, number> }
 }): number {
-  return Math.max(0, state.base.workerDrones - assignedWorkers(state.base.assignments))
+  const assigned = WORKER_JOB_IDS.reduce(
+    (sum, id) => sum + Math.max(0, state.base.assignments[id] ?? 0),
+    0,
+  )
+  return Math.max(0, state.base.workerDrones - assigned)
 }
 
 /** Rank owned for a shop id (0 if missing). */
@@ -2965,6 +2944,7 @@ export function workerManufactureSpeed(state: DroneEconomyState): number {
   if (fab > 0 && fabDef?.manufactureBonusPerDrone) {
     speed += fab * fabDef.manufactureBonusPerDrone
   }
+  speed += sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'workerManufacture')
   return Math.max(0.05, speed)
 }
 

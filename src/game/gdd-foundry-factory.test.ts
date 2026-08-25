@@ -24,6 +24,9 @@ import { createInitialState, SAVE_VERSION } from './state'
 import { armRebuildDoor, atCareerWave } from './testHelpers'
 import { advanceSeconds } from './tick'
 import { WORKER_JOB_IDS, workerJobLabel } from './workers'
+import { migrateLegacyFabProject } from './save'
+import { tickAutomation } from './automation'
+import { processConfig } from './process'
 
 function atFoundry(wave = ACT1_CADENCE.foundry) {
   return atCareerWave(createInitialState(0), wave)
@@ -31,7 +34,7 @@ function atFoundry(wave = ACT1_CADENCE.foundry) {
 
 describe('GDD Foundry factory', () => {
   it('bumps SAVE_VERSION for the factory shape', () => {
-    expect(SAVE_VERSION).toBe(37)
+    expect(SAVE_VERSION).toBe(41)
   })
 
   it('opens with one processing slot and one fabrication slot', () => {
@@ -76,7 +79,7 @@ describe('GDD Foundry factory', () => {
       'construction',
     ])
     expect(workerJobLabel('alloy-foundry')).toBe('Processing')
-    expect(workerJobLabel('sensor-net')).toBe('Sensor Net')
+    expect(workerJobLabel('sensor-net')).toBe('Research')
     expect(workerJobLabel('fab-bay')).toBe('Fabrication')
     const open = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     expect(isStationUnlocked(open, 'alloy-foundry')).toBe(true)
@@ -94,8 +97,8 @@ describe('GDD Foundry factory', () => {
     let crewed = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     crewed.resources.scrap = 80
     crewed.base.workerDrones = 4
-    crewed = assignWorker(crewed, 'alloy-foundry', 1)
     crewed = setFoundrySlot(crewed, 0, 'slag-ingot')
+    crewed = assignWorker(crewed, 'alloy-foundry', 1)
     expect(foundryCraftTime(crewed, 'slag-ingot')).toBe(idleTime)
     advanceSeconds(idle, 27)
     advanceSeconds(crewed, 27)
@@ -187,5 +190,52 @@ describe('GDD Foundry factory', () => {
     expect(isStationUnlocked(s, 'drone-fab')).toBe(false)
     s.foundry.facilities = ['drone-fabricator']
     expect(isStationUnlocked(s, 'drone-fab')).toBe(true)
+  })
+
+  it('refunds the removed instant-assembly project during save hydration', () => {
+    const s = atFoundry()
+    s.base.fabProject = {
+      moduleId: 'flak-array',
+      contributed: { casing: 2, core: 1 },
+      progress: 0.5,
+    }
+    migrateLegacyFabProject(s)
+    expect(s.base.fabProject).toBeNull()
+    expect(s.parts[partId('flak-array', 'casing')]).toBe(2)
+    expect(s.parts[partId('flak-array', 'core')]).toBe(1)
+  })
+
+  it('lets a Process rule start only the tracked Blueprint as a timed project', () => {
+    const moduleId = 'flak-array'
+    const recipe = getBlueprint(moduleId)!
+    const s = atFoundry(ACT1_CADENCE.process)
+    for (const part of PART_TYPES) s.parts[partId(moduleId, part)] = recipe[part]
+    s.meta.discoveredModules.push(moduleId)
+    s.foundry.trackedPrintId = moduleId
+    s.process.purchased = ['run-profiles']
+    const config = processConfig(s)
+    s.process.config = {
+      ...config,
+      activeProfileId: 'custom',
+      profiles: [
+        {
+          id: 'custom',
+          name: 'Tracked Fabrication',
+          spend: { attack: 34, defense: 33, economy: 33 },
+          salvageReserve: 0,
+          autoExtract: false,
+          extractHullPct: 0.35,
+          autoShop: false,
+          rules: [{ id: 'fab', enabled: true, when: [{ kind: 'wave-gte', value: 1 }], then: { kind: 'fab-tracked' } }],
+        },
+      ],
+    }
+    tickAutomation(s)
+    expect(s.foundry.fabrication[0]).toMatchObject({
+      kind: 'core',
+      jobId: moduleId,
+      complete: false,
+    })
+    expect(s.shipyard.unlockedModules).not.toContain(moduleId)
   })
 })

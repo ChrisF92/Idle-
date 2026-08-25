@@ -3,26 +3,22 @@
 import type { FoundryRecipeId, GameState } from './types'
 import {
   BLUEPRINTS,
-  PART_TYPES,
   STATIONS,
   aiDoctrinesActive,
-  blueprintProgress,
   challengeBlocksAi,
   idleWorkers,
   isStationUnlocked,
 } from './catalog'
 import {
   assembleBlueprint,
-  autoBalanceWorkers,
   buyMaxYardArms,
   buyRunUpgrade,
   canAssembleBlueprint,
   convertAshToHeat,
-  depositFabPart,
   enterProtocol,
-  launchFabProject,
   optimiseNetwork,
   pickFoundryUpgradeId,
+  applyFurnacePreset,
 } from './actions'
 import {
   SIGNAL_CORE_DEFS,
@@ -31,8 +27,8 @@ import {
   countMergeable,
   mergeSignalCores,
 } from './signalCores'
-import { hasProcess, processConfig } from './process'
-import { evaluateProcessIntent, pickShopCategory } from './processProfiles'
+import { hasProcess, noteProcessLastAction, processConfig } from './process'
+import { activeProcessProfile, evaluateProcessIntent, pickShopCategory } from './processProfiles'
 import { nextRunUpgradeCost, visibleRunUpgrades, type RunUpgradeId } from './workshop'
 import {
   FOUNDRY_RECIPES,
@@ -65,7 +61,7 @@ import {
   hiveResearchQueueCap,
   setResearchFocus,
 } from './hiveResearch'
-import { furnaceActiveLevel, runFurnaceManager, setFurnaceChannel } from './furnace'
+import { furnaceActiveLevel, furnaceSpendableHeat, runFurnaceManager, setFurnaceChannel } from './furnace'
 import { foundryAshHeatMult, foundryQueueCap } from './foundryBonuses'
 import { coreInstanceAtSlot } from './coreInstances'
 function adopt(state: GameState, next: GameState): void {
@@ -115,42 +111,16 @@ export function autoMergeSignalCores(state: GameState): void {
   }
 }
 
-/** Start / top up Fabrication Bay projects when parts are available. */
+/** Legacy AI doctrine now uses the same timed Fabricator path as the player. */
 export function autoFabBay(state: GameState): void {
   if (!aiDoctrinesActive(state, 'auto-fab-bay')) return
   if (!isStationUnlocked(state, 'fab-bay')) return
-
-  if (state.base.fabProject) {
-    let next = state
-    for (const pt of PART_TYPES) {
-      next = depositFabPart(next, pt, 9999)
-    }
-    adopt(state, next)
+  for (const bp of BLUEPRINTS) {
+    if (!canAssembleBlueprint(state, bp.moduleId).ok) continue
+    const next = assembleBlueprint(state, bp.moduleId)
+    if (next !== state) adopt(state, next)
     return
   }
-
-  let bestId: string | null = null
-  let bestScore = 0
-  for (const bp of BLUEPRINTS) {
-    if (!state.meta.discoveredModules.includes(bp.moduleId)) continue
-    if (state.shipyard.unlockedModules.includes(bp.moduleId)) continue
-    const prog = blueprintProgress(state, bp.moduleId)
-    if (!prog) continue
-    let have = 0
-    let need = 0
-    for (const pt of PART_TYPES) {
-      have += Math.min(prog.owned[pt], prog.need[pt])
-      need += prog.need[pt]
-    }
-    if (have <= 0 || need <= 0) continue
-    const score = (prog.complete ? 1000 : 0) + have / need
-    if (score > bestScore) {
-      bestScore = score
-      bestId = bp.moduleId
-    }
-  }
-  if (!bestId) return
-  adopt(state, launchFabProject(state, bestId))
 }
 
 /** Park idle workers on the lowest Core training stations. */
@@ -214,26 +184,61 @@ function autoShopUpgrades(state: GameState): void {
     if ((next.resources.salvage ?? 0) >= bank) break
     adopt(state, next)
   }
+  if (guard > 1) noteProcessLastAction(state, 'auto-shop', `Bought ${guard - 1} shop ranks`)
 }
 
 function autoFurnacePush(state: GameState): void {
   if (state.combat.docked) return
   const intent = evaluateProcessIntent(state)
+  if (intent.furnacePreset && hasProcess(state, 'furnace-presets')) {
+    const next = applyFurnacePreset(state, intent.furnacePreset)
+    if (next !== state) {
+      adopt(state, next)
+      state.process.config.furnace.preset = intent.furnacePreset
+      noteProcessLastAction(state, 'furnace-presets', `Applied ${intent.furnacePreset}`)
+    }
+  }
   if (!intent.furnacePush) return
   let next = convertAshToHeat(state)
-  if ((next.resources.heat ?? 0) >= 8 && furnaceActiveLevel(next, 'weapons') < 1) {
+  const spendable = furnaceSpendableHeat(next)
+  if (spendable >= 8 && furnaceActiveLevel(next, 'weapons') < 1) {
     const lit = setFurnaceChannel(next, 'weapons', 1)
     if (lit !== next) next = lit
   }
-  if (next !== state) adopt(state, next)
+  if (next !== state) {
+    adopt(state, next)
+    noteProcessLastAction(state, 'furnace-channels', 'Lit Weapons')
+  }
 }
 
 function autoNetworkBalance(state: GameState): void {
   if (!hasProcess(state, 'network-balance') && !hasProcess(state, 'network-tune')) return
   if (!processConfig(state).network.enabled) return
   if (idleWorkers(state) <= 0) return
+  const profile = activeProcessProfile(state)
+  if (intentWorkerOrProfile(state, profile)) {
+    const preset = evaluateProcessIntent(state).workerPreset ?? profile?.workerPreset
+    if (preset && hasProcess(state, 'network-presets')) {
+      state.process.config.network.preset = preset
+    }
+  }
   const next = optimiseNetwork(state)
-  if (next !== state) adopt(state, next)
+  if (next !== state) {
+    adopt(state, next)
+    noteProcessLastAction(state, 'network-balance', 'Filled idle Workers')
+  }
+}
+
+function intentWorkerOrProfile(
+  state: GameState,
+  profile: ReturnType<typeof activeProcessProfile>,
+): boolean {
+  const intent = evaluateProcessIntent(state)
+  if (intent.workerPreset && hasProcess(state, 'worker-conditional')) {
+    state.process.config.network.preset = intent.workerPreset
+    return true
+  }
+  return Boolean(profile?.workerPreset && hasProcess(state, 'network-presets'))
 }
 
 function autoBankAsh(_state: GameState): void {
@@ -290,6 +295,28 @@ function pickFoundryPrereqRecipe(state: GameState, target: FoundryRecipeId): Fou
 
 function nextFoundryRecipe(state: GameState, busy: Set<string>): FoundryRecipeId | null {
   const cfg = processConfig(state)
+  const intent = evaluateProcessIntent(state)
+  if (intent.foundryStock && hasProcess(state, 'foundry-stock')) {
+    const { recipeId, min } = intent.foundryStock
+    cfg.foundry.minStock = { ...cfg.foundry.minStock, [recipeId]: min }
+  }
+  if (intent.foundryTarget && hasProcess(state, 'foundry-repeat')) {
+    cfg.foundry.repeatRecipe = intent.foundryTarget
+    cfg.foundry.targetRecipe = intent.foundryTarget
+  }
+  if (hasProcess(state, 'foundry-stock')) {
+    for (const [id, min] of Object.entries(cfg.foundry.minStock ?? {})) {
+      if (foundryMaterialCount(state, id) >= (min ?? 0)) continue
+      const recipe = (hasProcess(state, 'foundry-prereqs')
+        ? pickFoundryPrereqRecipe(state, id as FoundryRecipeId)
+        : id) as FoundryRecipeId
+      if (!recipe) continue
+      if (busy.has(recipe) && foundrySlotCount(state) < 3) continue
+      if (!isFoundryRecipeUnlocked(state, recipe) || isFoundryInfinite(state, recipe)) continue
+      noteProcessLastAction(state, 'foundry-stock', `Refill ${id}`)
+      return recipe
+    }
+  }
   if (hasProcess(state, 'foundry-queue')) {
     for (const id of cfg.foundry.queue.slice(0, foundryQueueCap(state))) {
       if (busy.has(id) && foundrySlotCount(state) < 3) continue
@@ -314,7 +341,8 @@ function autoSmartSmelt(state: GameState): void {
     !hasProcess(state, 'smart-smelt') &&
     !hasProcess(state, 'foundry-repeat') &&
     !hasProcess(state, 'foundry-queue') &&
-    !hasProcess(state, 'foundry-prereqs')
+    !hasProcess(state, 'foundry-prereqs') &&
+    !hasProcess(state, 'foundry-stock')
   ) {
     return
   }
@@ -331,6 +359,7 @@ function autoSmartSmelt(state: GameState): void {
     if (next === state) continue
     adopt(state, next)
     busy.add(recipe)
+    noteProcessLastAction(state, 'foundry-repeat', `Queued ${recipe}`)
   }
 }
 
@@ -348,12 +377,21 @@ function autoFoundryUpgrades(state: GameState): void {
 }
 
 function autoPrintAssemble(state: GameState): void {
-  if (!hasProcess(state, 'print-assemble')) return
-  for (const bp of BLUEPRINTS) {
-    if (!canAssembleBlueprint(state, bp.moduleId).ok) continue
-    const next = assembleBlueprint(state, bp.moduleId)
+  const intent = evaluateProcessIntent(state)
+  const tracked = state.foundry.trackedPrintId
+  const ids =
+    intent.fabTracked && tracked
+      ? [tracked]
+      : hasProcess(state, 'print-assemble')
+        ? BLUEPRINTS.map((bp) => bp.moduleId)
+        : []
+  for (const moduleId of ids) {
+    if (!canAssembleBlueprint(state, moduleId).ok) continue
+    const next = assembleBlueprint(state, moduleId)
     if (next === state) continue
     adopt(state, next)
+    noteProcessLastAction(state, 'print-assemble', `Started ${moduleId}`)
+    return
   }
 }
 
@@ -400,7 +438,8 @@ function autoResearchFocus(state: GameState): void {
   if (!hasProcess(state, 'research-focus') && !hasProcess(state, 'research-queue')) return
   if (!state.hiveResearch) return
   const cfg = processConfig(state)
-  if (hasProcess(state, 'research-focus') && !cfg.research.autoResearch) return
+  const intent = evaluateProcessIntent(state)
+  if (hasProcess(state, 'research-focus') && !cfg.research.autoResearch && !intent.researchNext) return
   const incomplete = (id: (typeof HIVE_RESEARCH_BRANCHES)[number]['id']) =>
     hiveResearchBranchUnlocked(state, id) && hiveResearchCompleted(state, id) < HIVE_RESEARCH_NODES[id].length
   let nextFocus = state.hiveResearch.focus
@@ -410,12 +449,13 @@ function autoResearchFocus(state: GameState): void {
   } else if (hasProcess(state, 'research-priorities') && cfg.research.branchPriority.length > 0) {
     const ranked = cfg.research.branchPriority.find(incomplete)
     if (ranked) nextFocus = ranked
-  } else if (hasProcess(state, 'research-focus')) {
+  } else if (hasProcess(state, 'research-focus') || intent.researchNext) {
     const ranked = cfg.research.branchPriority.find(incomplete)
     if (ranked) nextFocus = ranked
   }
   if (nextFocus === state.hiveResearch.focus && state.hiveResearch.active) return
   adopt(state, setResearchFocus(state, nextFocus))
+  noteProcessLastAction(state, hasProcess(state, 'research-queue') ? 'research-queue' : 'research-focus', 'Started next project')
 }
 
 function autoFurnaceManager(state: GameState): void {
@@ -450,7 +490,6 @@ function autoProtocolEchoRepeat(state: GameState): void {
 /** Run all owned automation passives once per sim batch. */
 export function tickAutomation(state: GameState): void {
   if (challengeBlocksAi(state)) return
-  autoLaborLoop(state)
   autoMergeSignalCores(state)
   autoFabBay(state)
   autoCoreTrain(state)
@@ -468,14 +507,7 @@ export function tickAutomation(state: GameState): void {
   autoProtocolEchoRepeat(state)
 }
 
-/** Re-apply Labor Router when drones sit idle (Labor Loop). */
+/** @deprecated Automatic reassignment now belongs to Process progression. */
 export function autoLaborLoop(state: GameState): void {
-  if (!aiDoctrinesActive(state, 'labor-loop')) return
-  if (!state.ai.purchased.includes('auto-assign-workers')) return
-  const idle = idleWorkers(state)
-  if (idle <= 0) return
-  if (idle < Math.max(1, Math.floor(state.base.workerDrones * 0.15))) return
-  const next = autoBalanceWorkers(state)
-  if (next === state) return
-  adopt(state, next)
+  void state
 }

@@ -8,5 +8,7 @@ describe('simulation pause reasons', () => {
     expect(isSimPaused(collectPauseReasons({ directiveOffer: true }))).toBe(true)
     expect(collectPauseReasons({ updateBlocking: true, onboardingPause: true })[0]).toBe('update.critical')
     expect(collectPauseReasons({ onboardingPause: true, directiveOffer: true })).toEqual(['onboarding.action'])
+    expect(isSimPaused(collectPauseReasons({ finalePending: true }))).toBe(true)
+    expect(collectPauseReasons({ finalePending: true, onboardingPause: true })[0]).toBe('finale.act1')
   })
 })

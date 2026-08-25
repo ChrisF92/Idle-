@@ -3,6 +3,7 @@ import {
   ENEMY_HULL_EARLY,
   ENEMY_HULL_LATE,
   ENEMY_HULL_MID,
+  ENEMY_HULL_BASE,
   enemyApproachTarget,
   encounterForWave,
   enemyForSector,
@@ -127,13 +128,13 @@ describe('PR75 combat pacing', () => {
     }
   })
 
-  it('keeps density pressure proportional across Route A and Route B', () => {
+  it('ignores leftover Route B so both paths share the same encounter', () => {
     const a = enemyForSector(9, 1, 'A')
     const b = enemyForSector(9, 1, 'B')
     const aHull = a.units.reduce((sum, u) => sum + u.hullMax, 0)
     const bHull = b.units.reduce((sum, u) => sum + u.hullMax, 0)
-    expect(bHull / aHull).toBeGreaterThan(1.15)
-    expect(bHull / aHull).toBeLessThan(1.45)
+    expect(bHull / aHull).toBe(1)
+    expect(b.units.length).toBe(a.units.length)
   })
 
   it('adds fractional-reward wing units instead of multiplying the kill economy', () => {
@@ -143,8 +144,11 @@ describe('PR75 combat pacing', () => {
     expect(wings.every((u) => (u.rewardWeight ?? 1) <= 0.4)).toBe(true)
   })
 
-  it('keeps enemy hull scaling monotonic while strengthening the previously soft mid band', () => {
-    expect(ENEMY_HULL_EARLY).toBe(1.235)
+  it('keeps enemy hull scaling monotonic while steepening S4–S8 and leaving S1 on tutorial hull', () => {
+    expect(enemySectorScale(1)).toBeCloseTo(ENEMY_HULL_BASE)
+    expect(enemySectorScale(2)).toBeLessThan(ENEMY_HULL_BASE * Math.pow(1.235, 1))
+    expect(enemySectorScale(7)).toBeGreaterThan(ENEMY_HULL_BASE * Math.pow(1.235, 6))
+    expect(ENEMY_HULL_EARLY).toBeGreaterThan(1.23)
     expect(ENEMY_HULL_MID).toBeGreaterThan(1.18)
     expect(ENEMY_HULL_LATE).toBeGreaterThan(1.2)
     for (let sector = 1; sector < 80; sector += 1) {

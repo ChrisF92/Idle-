@@ -6,6 +6,7 @@ import { furnaceDamageMult } from './furnace'
 import {
   PROTOCOLS,
   canEnterProtocol,
+  challengeScenarioLines,
   getProtocol,
   protocolBestWave,
   protocolDisabledLine,
@@ -13,6 +14,7 @@ import {
   protocolHullMult,
   protocolMutes,
   protocolRank,
+  protocolRewardSummary,
   tryCompleteProtocol,
 } from './protocols'
 import { isSystemUnlocked } from './progression'
@@ -106,6 +108,7 @@ describe('GDD Challenges', () => {
     let s = challengeState()
     s = enterProtocol(s, 'glass-ward')
     expect(s.protocols.activeId).toBe('glass-ward')
+    expect(s.combat.wave).toBe(1)
     s.combat.wave = protocolGoalWave(s, 'glass-ward')
     tryCompleteProtocol(s)
     expect(protocolRank(s, 'glass-ward')).toBe(1)
@@ -125,5 +128,27 @@ describe('GDD Challenges', () => {
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.protocols.ranks['glass-ward']).toBe(2)
     expect(s.protocols.bestWave?.['glass-ward']).toBe(120)
+  })
+
+  it('starts every Challenge at Wave 1 on the normal Sortie engine', () => {
+    const s = enterProtocol(challengeState(), 'dry-hold')
+    expect(s.combat.wave).toBe(1)
+    expect(s.combat.sector).toBe(1)
+    expect(s.combat.docked).toBe(true)
+    expect(challengeScenarioLines(getProtocol('dry-hold')!).some((line) => /Wave 1/.test(line))).toBe(true)
+  })
+
+  it('grants Relics, Process, recipes, Research, and Frames rather than a global damage chip', () => {
+    const kinds = PROTOCOLS.map((def) => def.firstGrant?.kind).filter(Boolean)
+    expect(kinds).toEqual(expect.arrayContaining(['relic', 'process', 'recipe', 'research']))
+    expect(protocolRewardSummary(challengeState(), 'glass-ward')).toMatch(/Plate Chip/)
+    expect(protocolRewardSummary(challengeState(), 'quiet-guns')).toMatch(/Shop Readout/)
+    expect(protocolRewardSummary(challengeState(), 'mute-network')).toMatch(/Challenge Log/)
+    expect(protocolRewardSummary(challengeState(), 'mute-network')).toMatch(/Harvester/)
+
+    let swarm = enterProtocol(challengeState(), 'mute-network')
+    swarm.combat.wave = protocolGoalWave(swarm, 'mute-network')
+    tryCompleteProtocol(swarm)
+    expect(swarm.hiveResearch.completedIds).toContain('challenge-log')
   })
 })

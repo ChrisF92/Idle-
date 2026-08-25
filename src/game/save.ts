@@ -46,6 +46,7 @@ import { emptyLastSortie } from './sortieSummary'
 import { normalizePushMode, normalizeRoute } from './sectors'
 import { migrateOnboardingRegistry } from './onboarding'
 import { createFreshCareerState } from './freshStart'
+import { waveForClearedBands } from './waves'
 import { migrateLegacyCoreProgression } from './coreProgression'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
@@ -123,7 +124,11 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     enemyTags: combat.enemyTags ?? [],
     isBoss: combat.isBoss ?? false,
     highestSector: Math.max(0, combat.highestSector ?? 0),
-    bestWave: Math.max(0, Math.floor(Number(combat.bestWave ?? 0) || 0)),
+    bestWave: Math.max(
+      0,
+      Math.floor(Number(combat.bestWave ?? 0) || 0),
+      waveForClearedBands(Math.max(0, combat.highestSector ?? 0)),
+    ),
     runUpgrades: { ...(combat.runUpgrades ?? {}) },
     coreRunLevels: {},
     coreSalvageSpent: {},
@@ -630,8 +635,13 @@ function withMetaDefaults(
 
   return {
     highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
-    bestWave: Math.max(0, Math.floor(Number(meta?.bestWave ?? 0) || 0)),
+    bestWave: Math.max(
+      0,
+      Math.floor(Number(meta?.bestWave ?? 0) || 0),
+      waveForClearedBands(Math.max(meta?.highestSectorEver ?? 0, highestSector)),
+    ),
     act1Cleared: meta?.act1Cleared ?? false,
+    act1FinalePending: meta?.act1FinalePending === true,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
     onboarding:

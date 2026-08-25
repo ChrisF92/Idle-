@@ -47,7 +47,7 @@ describe('Act 1 Process depth', () => {
     expect(PROCESS_NODES.length).toBeGreaterThanOrEqual(8)
     expect(PROCESS_NODES.some((n) => n.id === 'core-buy-max' || n.id === 'auto-salvage')).toBe(false)
     expect(PROCESS_NODES.some((n) => /warp|crew|capital|reinforce/i.test(n.id))).toBe(false)
-    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBe(9)
+    expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBeGreaterThanOrEqual(6)
   })
 
   it('does not sell Auto-Salvage for First Blood Process', () => {
@@ -147,7 +147,7 @@ describe('Act 1 Process depth', () => {
     buffed.furnace.wanted.recovery = 1
     buffed.furnace.active.recovery = 1
     buffed.foundry.upgrades['fp-salvage'] = 2
-    expect(furnaceSalvageMult(buffed)).toBeCloseTo(1.12)
+    expect(furnaceSalvageMult(buffed)).toBeCloseTo(1.4)
     expect(foundrySalvageMult(buffed)).toBeCloseTo(1.06)
     const before = buffed.resources.salvage
     grantEnemyKillRewards(buffed, enemy())

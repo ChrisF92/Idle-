@@ -69,6 +69,7 @@ import {
   setFurnacePriority,
   applyFurnacePreset,
   setResearchFocus,
+  startResearch,
   setLaunchSector,
   setSectorRoute,
   placeYardBuilding,
@@ -91,7 +92,7 @@ import {
   rankCapital,
   performReinforce,
 } from '../game/actions'
-import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides } from '../game/progression'
+import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides, dismissAct1Finale } from '../game/progression'
 import { acknowledgeEvent } from '../game/presentation'
 import { markHubSeen } from '../game/hubAttention'
 import { applyDevAction, type DevAction } from '../game/dev'
@@ -178,6 +179,8 @@ type Action =
   | { type: 'furnace-priority'; priority: import('../game/types').FurnaceChannelId[] }
   | { type: 'furnace-preset'; preset: import('../game/types').FurnacePresetId }
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
+  | { type: 'research-start'; nodeId: string }
+  | { type: 'dismiss-act1-finale' }
   | { type: 'launch-sector'; sector: number }
   | { type: 'sector-route'; route: import('../game/types').SectorRoute }
   | { type: 'yard-place'; index: number; buildingId: import('../game/types').YardBuildingId }
@@ -350,6 +353,10 @@ function reducer(state: GameState, action: Action): GameState {
       return applyFurnacePreset(state, action.preset)
     case 'research-focus':
       return setResearchFocus(state, action.branch)
+    case 'research-start':
+      return startResearch(state, action.nodeId)
+    case 'dismiss-act1-finale':
+      return dismissAct1Finale(state)
     case 'launch-sector':
       return setLaunchSector(state, action.sector)
     case 'sector-route':
@@ -558,6 +565,8 @@ export function useGame() {
       dispatch({ type: 'furnace-preset', preset }),
     setResearchFocus: (branch: import('../game/types').HiveResearchBranch) =>
       dispatch({ type: 'research-focus', branch }),
+    startResearch: (nodeId: string) => dispatch({ type: 'research-start', nodeId }),
+    dismissAct1Finale: () => dispatch({ type: 'dismiss-act1-finale' }),
     setLaunchSector: (sector: number) => dispatch({ type: 'launch-sector', sector }),
     setSectorRoute: (route: import('../game/types').SectorRoute) =>
       dispatch({ type: 'sector-route', route }),

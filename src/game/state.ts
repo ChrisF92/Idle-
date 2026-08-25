@@ -38,8 +38,6 @@ import { combinedCoreMods, effectiveCoreLevel } from './coreProgression'
 import {
   createEmptyNetworkState,
   NETWORK_STARTING_DRONES,
-  networkStrikeMult,
-  networkWardMult,
 } from './network'
 import {
   createEmptyFoundryState,
@@ -72,7 +70,7 @@ import {
 } from './workshop'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 37
+export const SAVE_VERSION = 41
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -214,6 +212,7 @@ export function createInitialState(now = Date.now()): GameState {
       highestSectorEver: 0,
       bestWave: 0,
       act1Cleared: false,
+      act1FinalePending: false,
       ascensionCount: 0,
       seenOnboarding: [],
       onboarding: {},
@@ -278,7 +277,6 @@ export function globalDamageMultiplier(state: GameState): number {
   const coreDmg = computeSignalCoreBonuses(state).damage
   // Signal damage is a softer half-weight layer (not a full multiply stack).
   if (coreDmg) mult *= 1 + coreDmg * 0.5
-  mult *= networkStrikeMult(state)
   mult *= foundryDamageMult(state)
   mult *= reliquaryDamageMult(state)
   mult *= furnaceDamageMult(state)
@@ -420,7 +418,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax += signalBonuses.shield
   evasion += signalBonuses.evasion
   shieldMax *= fittedShieldMilestoneMult(state)
-  shieldMax *= networkWardMult(state)
   shieldMax *= foundryShieldMult(state)
   shieldMax += foundryShieldFlat(state)
   shieldMax *= reliquaryShieldMult(state)

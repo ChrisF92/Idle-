@@ -11,24 +11,35 @@
  * - Scrap income
  * - Workshop starting power
  * - Matter
+ * - Reclaim compression
  */
 
 export {
   ENEMY_HULL_BASE,
+  ENEMY_HULL_OPENING,
   ENEMY_HULL_EARLY,
   ENEMY_HULL_MID,
   ENEMY_HULL_LATE,
   ENEMY_DMG_BASE,
+  ENEMY_DMG_OPENING,
   ENEMY_DMG_EARLY,
   ENEMY_DMG_MID,
   ENEMY_DMG_LATE,
+  ENEMY_OPENING_SECTOR as ENEMY_OPENING_BAND,
   ENEMY_EARLY_SECTOR as ENEMY_EARLY_BAND,
   ENEMY_MID_SECTOR as ENEMY_MID_BAND,
+  ENEMY_WAVE_HULL_RAMP,
   salvageSectorBase,
   salvageFromKill,
+  SALVAGE_MID_EXPONENT,
 } from '../combat'
 
 export {
+  RUN_UPGRADE_COST_BASE,
+  RUN_UPGRADE_COST_GROWTH,
+  RUN_UPGRADE_POWER_SCALE,
+  RUN_UPGRADE_POWER_SCALE_OPENING,
+  RUN_UPGRADE_OPENING_RANKS,
   EXTRACTION_SCRAP_BONUS,
   RUN_UPGRADE_CAP,
   WORKSHOP_WEAPON_POWER_PER_LEVEL,
@@ -36,6 +47,8 @@ export {
   WORKSHOP_HULL_PER_LEVEL,
   WORKSHOP_SHIELD_PER_LEVEL,
   WORKSHOP_SALVAGE_KILL_PER_LEVEL,
+  RECLAIM_PER_TEN_WAVES,
+  RECLAIM_SPEED_CAP,
 } from '../workshop'
 
 export { REBUILD_SCRAP_PER_MATTER, REBUILD_MIN_WAVE, REBUILD_MIN_SORTIES } from '../rebuild'
@@ -47,6 +60,7 @@ export const CURVE_LAYERS = [
   'scrap',
   'workshop-start',
   'matter',
+  'reclaim',
 ] as const
 
 export type CurveLayer = (typeof CURVE_LAYERS)[number]

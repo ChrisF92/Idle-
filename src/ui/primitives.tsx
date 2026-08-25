@@ -142,6 +142,7 @@ export function ItemRow({
   onClick,
   disabled,
   guide,
+  onboarding,
 }: {
   title: ReactNode
   meta?: ReactNode
@@ -149,6 +150,7 @@ export function ItemRow({
   onClick?: () => void
   disabled?: boolean
   guide?: string
+  onboarding?: string
 }) {
   return (
     <button
@@ -157,6 +159,7 @@ export function ItemRow({
       onClick={onClick}
       disabled={disabled || !onClick}
       data-guide={guide}
+      data-onboarding={onboarding}
     >
       <span className="ui-item-row-copy">
         <strong>{title}</strong>
@@ -183,12 +186,14 @@ export function EmptyState({ title, body }: { title: string; body?: string }) {
 export function StickyAction({
   children,
   guide,
+  onboarding,
 }: {
   children: ReactNode
   guide?: string
+  onboarding?: string
 }) {
   return (
-    <div className="ui-sticky-action" data-guide={guide}>
+    <div className="ui-sticky-action" data-guide={guide} data-onboarding={onboarding}>
       {children}
     </div>
   )

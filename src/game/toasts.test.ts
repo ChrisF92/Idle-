@@ -27,8 +27,18 @@ describe('session toasts', () => {
     const prev = captureToastSnapshot(fresh)
     const nextState = markHullLost(fresh)
     const toasts = diffToasts(prev, captureToastSnapshot(nextState), nextState)
+    expect(toasts.map((t) => t.id)).not.toContain('sys:workshop')
     expect(toasts.map((t) => t.id)).not.toContain('sys:network')
     expect(toasts.some((t) => /workshop/i.test(t.title))).toBe(false)
+  })
+
+  it('toasts Worker Drones when the workforce unlocks', () => {
+    const state = markHullLost(createInitialState(0))
+    const prev = captureToastSnapshot(state)
+    const next = atCareerWave(state, ACT1_CADENCE.workers)
+    const toasts = diffToasts(prev, captureToastSnapshot(next), next)
+    expect(toasts.find((toast) => toast.id === 'sys:network')?.title).toBe('Worker Drones unlocked')
+    expect(toasts.find((toast) => toast.id === 'sys:network')?.body).not.toMatch(/Network/)
   })
 
   it('toasts Foundry unlock with current IA', () => {
@@ -77,7 +87,7 @@ describe('session toasts', () => {
     state.parts[`${candidate}:lens`] = 9
     if (blueprintProgress(state, candidate)?.complete) {
       const toasts = diffToasts(prev, captureToastSnapshot(state), state)
-      expect(toasts.some((t) => t.id === `assemble:${candidate}` || t.category === 'BLUEPRINT COMPLETE')).toBe(true)
+      expect(toasts.some((t) => t.id === `blueprint-complete:${candidate}` || t.category === 'BLUEPRINT COMPLETE')).toBe(true)
     }
     expect(print === undefined || typeof print === 'string').toBe(true)
   })

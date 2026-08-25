@@ -108,6 +108,7 @@ const TRACKED_SYSTEMS: TabId[] = [
   'protocols',
   'process',
   'reinforce',
+  'yard',
 ]
 
 const SYSTEM_TOAST: Partial<
@@ -121,7 +122,7 @@ const SYSTEM_TOAST: Partial<
     duringCombat: 'View after this Sortie, or open now.',
   },
   network: {
-    title: 'Workers online',
+    title: 'Worker Drones unlocked',
     body: 'Assign drones to Salvage, fabrication, and research jobs.',
     label: 'OPEN',
     nav: { kind: 'tab', tab: 'network' },
@@ -161,6 +162,12 @@ const SYSTEM_TOAST: Partial<
     body: 'Rebuild has reached the limit of this loop. Reinforce changes the Hive’s starting architecture.',
     label: 'OPEN',
     nav: { kind: 'tab', tab: 'reinforce' },
+  },
+  yard: {
+    title: 'Infrastructure unlocked',
+    body: 'Infrastructure projects now use Fabricators. Their bonuses apply as soon as Fabrication finishes.',
+    label: 'VIEW PROJECTS',
+    nav: { kind: 'tab', tab: 'foundry', pane: 'fabrication', focus: 'foundry-build' },
   },
 }
 
@@ -325,14 +332,14 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     pushUnique(
       out,
       {
-        id: `assemble:${printId}`,
+        id: `blueprint-complete:${printId}`,
         category: 'BLUEPRINT COMPLETE',
         title: mod.name,
         body: 'Ready to assemble in Fabrication.',
         tier: 'action',
         action: {
           label: 'VIEW PROJECT',
-          nav: { kind: 'tab', tab: 'foundry', pane: 'fabrication', focus: `print-${printId}` },
+          nav: { kind: 'tab', tab: 'foundry', pane: 'fabrication', focus: `project-core-${printId}` },
         },
       },
       seen,
@@ -367,10 +374,10 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
       {
         id: `fab-facility:${facilityId}`,
         category: 'FOUNDRY',
-        title: 'FACILITY COMPLETE',
+        title: 'INFRASTRUCTURE COMPLETE',
         body: 'Bonus is live.',
         tier: 'action',
-        action: { label: 'VIEW FOUNDRY', nav: { kind: 'tab', tab: 'foundry', pane: 'processing' } },
+        action: { label: 'VIEW INFRASTRUCTURE', nav: { kind: 'tab', tab: 'foundry', pane: 'fabrication', focus: 'foundry-build' } },
       },
       seen,
     )
@@ -526,6 +533,7 @@ export interface PresentationGate {
   confirmOpen?: boolean
   reportOpen?: boolean
   blockingModal?: boolean
+  finalePending?: boolean
 }
 
 /**
@@ -538,7 +546,7 @@ export function selectPresentation(
   gate: PresentationGate,
   now = Date.now(),
 ): PresentationItem | null {
-  if (gate.updateBlocking || gate.confirmOpen) return null
+  if (gate.updateBlocking || gate.confirmOpen || gate.finalePending) return null
   if (gate.reportOpen) return null
 
   const items: PresentationItem[] = []

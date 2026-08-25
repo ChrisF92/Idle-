@@ -4,6 +4,7 @@ import { useGame } from './hooks/useGame'
 import { isHubTabOpen, isSystemUnlocked } from './game/progression'
 import { contentKeys } from './game/hubAttention'
 import { showSystemsHub } from './game/systemsHub'
+import { hasProcess } from './game/process'
 import { isRemovedAct1Tab } from './game/moreStations'
 import { setActiveNumberNotation } from './game/format'
 import {
@@ -45,6 +46,7 @@ import { PwaUpdateBanner } from './components/PwaUpdateBanner'
 import { ToastStack } from './components/ToastStack'
 import { InventoryScreen } from './components/InventoryScreen'
 import { LiveWaveControl } from './components/LiveWaveControl'
+import { Act1FinaleOverlay } from './components/Act1FinaleOverlay'
 import { OverlayProvider, useOverlay, useOverlayLayer } from './ui/overlay'
 import './ui/tokens.css'
 import './ui/primitives.css'
@@ -55,6 +57,18 @@ const BalanceSimulator = lazy(async () => {
   const mod = await import('./components/BalanceSimulator')
   return { default: mod.BalanceSimulator }
 })
+
+function foundryPaneFromNav(nav: { pane?: string; focus?: string }): FoundryPane | null {
+  if (nav.pane === 'processing' || nav.pane === 'smelt') return 'processing'
+  if (nav.pane === 'fabrication' || nav.pane === 'build') return 'fabrication'
+  if (nav.pane === 'mastery' || nav.pane === 'ranks') return 'mastery'
+  if (nav.pane === 'blueprints' || nav.pane === 'prints' || nav.pane === 'fit') return 'blueprints'
+  if (nav.focus?.startsWith('blueprint-') || nav.focus?.startsWith('print-')) return 'blueprints'
+  if (nav.focus?.startsWith('project-') || nav.focus === 'foundry-build' || nav.focus === 'yard-grid') {
+    return 'fabrication'
+  }
+  return null
+}
 
 export default function App() {
   return (
@@ -71,10 +85,9 @@ function AppShell() {
   const [hangarOpen, setHangarOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
-  const [blockingModal, setBlockingModal] = useState(false)
   const [toasts, setToasts] = useState<QueuedToast[]>([])
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
-  const [foundryPane, setFoundryPane] = useState<FoundryPane | 'processing' | 'fabrication' | null>(null)
+  const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
   const [systemsView, setSystemsView] = useState<'hub' | 'foundry'>('foundry')
   const [dockPane, setDockPane] = useState<DockPane>('home')
   const [inventoryOpen, setInventoryOpen] = useState(false)
@@ -96,17 +109,19 @@ function AppShell() {
     onClose: () => setReportOpen(false),
   })
   const updateBlocking = overlays.topBlockingKind === 'update'
+  const finalePending = Boolean(game.state.meta.act1FinalePending)
   const presentation = selectPresentation(
     game.state,
-    { tab, reportOpen, hangarOpen, blockingModal },
+    { tab, reportOpen, hangarOpen },
     toasts,
-    { updateBlocking, confirmOpen: hangarOpen || blockingModal, reportOpen, blockingModal },
+    { updateBlocking, confirmOpen: hangarOpen, reportOpen, finalePending },
   )
   const onboarding = presentation?.kind === 'onboarding' ? presentation : null
   const pauseReasons = collectPauseReasons({
     onboardingPause: Boolean(onboarding?.pause),
     directiveOffer: (game.state.combat.directiveOffer?.length ?? 0) > 0 && Boolean(onboarding?.pause),
-    confirmOpen: hangarOpen || blockingModal,
+    confirmOpen: hangarOpen,
+    finalePending,
     offlineOpen,
     simulatorOpen,
     updateBlocking,
@@ -117,7 +132,7 @@ function AppShell() {
     (next: TabId) => {
       if (isRemovedAct1Tab(next)) return
       if (next === 'yard') {
-        setFoundryPane('build')
+        setFoundryPane('fabrication')
         setSystemsView('foundry')
         if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
         return
@@ -164,9 +179,8 @@ function AppShell() {
         else if (nav.tab === 'dock') setDockPane('home')
         setTab(nav.tab)
         if (nav.focus) setFocusTarget(nav.focus)
-        if (nav.tab === 'foundry' && nav.pane === 'fabrication') setFoundryPane('prints')
-        else if (nav.tab === 'foundry' && nav.pane === 'processing') setFoundryPane('smelt')
-        else if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
+        const pane = foundryPaneFromNav(nav)
+        if (nav.tab === 'foundry' && pane) setFoundryPane(pane)
       }
     },
     [game.state],
@@ -258,8 +272,8 @@ function AppShell() {
     if (nav.tab === 'dock' && nav.pane === 'loadout') setDockPane('loadout')
     if (nav.tab === 'foundry') {
       setSystemsView(nav.systemsView ?? 'foundry')
-      if (nav.pane === 'processing') setFoundryPane('smelt')
-      if (nav.pane === 'fabrication') setFoundryPane('prints')
+      const pane = foundryPaneFromNav(nav)
+      if (pane) setFoundryPane(pane)
     }
     if (nav.tab !== tab && (isHubTabOpen(game.state, nav.tab) || nav.tab === 'combat')) {
       setTab(nav.tab)
@@ -382,14 +396,6 @@ function AppShell() {
             paused={isSimPaused(pauseReasons)}
             onboardingTarget={onboarding?.target ?? null}
             onCycleSpeed={game.cycleSortieSpeed}
-            onOpenFoundry={() => {
-              setFoundryPane('smelt')
-              go('foundry')
-            }}
-            onOpenPrints={() => {
-              setFoundryPane('prints')
-              go('foundry')
-            }}
             onChooseDirective={game.chooseDirective}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
@@ -399,9 +405,7 @@ function AppShell() {
           <NetworkTab
             state={game.state}
             onAssign={game.assignWorker}
-            onBuyLink={game.buyNetworkLink}
-            onOptimise={game.optimiseNetwork}
-            onPreset={game.applyNetworkPreset}
+            onOptimise={hasProcess(game.state, 'network-optimise') ? game.optimiseNetwork : undefined}
             guideTarget={onboarding?.target}
             onBack={
               showSystemsHub(game.state)
@@ -426,20 +430,11 @@ function AppShell() {
           <FoundryTab
             state={game.state}
             onSetSlot={game.setFoundrySlot}
-            onBuyUpgrade={game.buyFoundryUpgrade}
-            onEquip={game.equipFoundryModule}
-            onUnequip={game.unequipFoundryModule}
-            onAssemble={game.assembleBlueprint}
+            onFabricateCore={game.assembleBlueprint}
+            onStartRelic={game.upgradeRelic}
             onStartFacility={game.startFacility}
             onStopFabrication={game.stopFabrication}
             onTrack={game.setTrackedPrint}
-            onBuyMax={game.buyMaxFoundryUpgrades}
-            onPlaceBuilding={game.placeYardBuilding}
-            onClearBuilding={game.clearYardBuilding}
-            onBuyArm={game.buyYardArm}
-            onBuyMaxArms={game.buyMaxYardArms}
-            onSaveLayout={game.saveYardLayout}
-            onLoadLayout={game.loadYardLayout}
             guideTarget={onboarding?.target}
             focusTarget={focusTarget}
             requestedPane={foundryPane}
@@ -472,7 +467,7 @@ function AppShell() {
                   }
                 : () => go('stats')
             }
-            onFocus={game.setResearchFocus}
+            onStart={game.startResearch}
             guideTarget={onboarding?.target}
           />
         )}
@@ -482,7 +477,6 @@ function AppShell() {
             onBack={() => go('stats')}
             onEnter={game.enterProtocol}
             onAbandon={game.abandonProtocol}
-            onBlockingChange={setBlockingModal}
           />
         )}
         {tab === 'process' && isHubTabOpen(game.state, 'process') && (
@@ -506,7 +500,6 @@ function AppShell() {
             state={game.state}
             onBack={() => go('stats')}
             onReinforce={game.performReinforce}
-            onBlockingChange={setBlockingModal}
           />
         )}
         {tab === 'logs' && <LogsTab state={game.state} onBack={() => go('stats')} />}
@@ -610,9 +603,9 @@ function AppShell() {
         onSelectFrame={game.selectFrame}
         onFitCore={game.fitModule}
         onUpgradeCore={game.buyCoreStartingLevel}
-        onOpenFoundry={() => {
+        onOpenFoundry={(pane) => {
           setInventoryOpen(false)
-          setFoundryPane('smelt')
+          setFoundryPane(pane)
           go('foundry')
         }}
       />
@@ -624,6 +617,14 @@ function AppShell() {
           onSkip={game.skipOnboarding}
         />
       ) : null}
+      <Act1FinaleOverlay
+        open={finalePending}
+        onContinue={() => game.dismissAct1Finale()}
+        onOpenReinforce={() => {
+          game.dismissAct1Finale()
+          go('reinforce')
+        }}
+      />
       <ToastStack
         item={presentation?.kind === 'toast' ? presentation : null}
         onDismiss={(id) => {

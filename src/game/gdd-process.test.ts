@@ -17,8 +17,10 @@ import {
   processOnlineBlurb,
   processVisibleNodes,
 } from './process'
+import { processPointSourcesByGroup } from './processPoints'
 import {
   evaluateProcessIntent,
+  formatProcessRule,
   processShouldExtract,
   shopCategorySpend,
 } from './processProfiles'
@@ -56,22 +58,29 @@ describe('GDD Process', () => {
     expect(systemsHubCards(open).map((c) => c.id)).toEqual(['foundry', 'furnace', 'research', 'process'])
   })
 
-  it('shows QoL and simple actions first, hiding retired furnace and Ghost Sortie nodes', () => {
+  it('shows the capability graph lanes and hides retired systems', () => {
     const open = processState()
     const ids = processVisibleNodes(open).map((n) => n.id)
     expect(ids).toContain('buy-ten')
     expect(ids).toContain('shop-buy-max')
     expect(ids).toContain('shop-readout')
     expect(ids).toContain('auto-shop')
+    expect(ids).toContain('spend-ratios')
+    expect(ids).toContain('rule-builder')
+    expect(ids).toContain('run-profiles')
+    expect(ids).toContain('furnace-presets')
+    expect(ids).toContain('furnace-reserve')
+    expect(ids).toContain('furnace-channels')
+    expect(ids).toContain('foundry-stock')
+    expect(ids).toContain('logic-and')
     expect(ids).not.toContain('core-buy-max')
     expect(ids).not.toContain('auto-salvage')
-    expect(ids).not.toContain('spend-ratios')
-    expect(ids).not.toContain('rule-builder')
-    expect(ids).not.toContain('run-profiles')
     expect(ids).not.toContain('core-priority')
     expect(ids).not.toContain('foundry-priority')
     expect(ids).not.toContain('foundry-buy-max')
     expect(ids).not.toContain('foundry-auto')
+    expect(ids).not.toContain('auto-relic')
+    expect(ids).not.toContain('echo-repeat')
     for (const hidden of PROCESS_HIDDEN_IDS) {
       expect(ids).not.toContain(hidden)
     }
@@ -132,13 +141,14 @@ describe('GDD Process', () => {
 
     let defence = processState()
     defence.base.workerDrones = 10
+    defence.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0, paid: false }
     defence.process.purchased = ['network-optimise', 'network-presets']
     defence = applyNetworkPreset(defence, 'defence')
     expect(defence.base.assignments['repair-bay'] ?? 0).toBe(0)
     expect(defence.base.assignments['alloy-foundry'] ?? 0).toBeGreaterThan(0)
   })
 
-  it('leans Farm toward Scrap Field while flying after Network Sortie Bias', () => {
+  it('leans Farm toward Salvage Operations while flying after Worker Sortie Bias', () => {
     const s = processState()
     s.combat.docked = false
     s.process.purchased = ['network-tune']
@@ -163,7 +173,7 @@ describe('GDD Process', () => {
   })
 
   it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
-    expect(SAVE_VERSION).toBe(37)
+    expect(SAVE_VERSION).toBe(41)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-buy-max')?.cost).toBe(4)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)
@@ -178,6 +188,7 @@ describe('GDD Process', () => {
     expect(PROCESS_HIDDEN_IDS.has('network-tune')).toBe(true)
     expect(PROCESS_HIDDEN_IDS.has('foundry-buy-max')).toBe(true)
     expect(PROCESS_HIDDEN_IDS.has('foundry-auto')).toBe(true)
+    expect(PROCESS_HIDDEN_IDS.has('furnace-presets')).toBe(false)
   })
 
   it('shows time-to-afford and Economy ROI only after Shop Readout', () => {
@@ -236,5 +247,24 @@ describe('GDD Process', () => {
     expect(s.furnace.wanted.weapons).toBeGreaterThanOrEqual(1)
     expect(s.furnace.active.weapons).toBeGreaterThanOrEqual(1)
     expect((s.resources.choirAsh ?? 0) + (s.resources.heat ?? 0) * 10).toBeLessThan(80)
+  })
+
+  it('awards Process Points from mastery sources, not elapsed time', () => {
+    const s = processState()
+    const groups = processPointSourcesByGroup(s)
+    expect(groups.map((g) => g.group)).toEqual(['wave', 'rebuild', 'foundry', 'research', 'challenge', 'mastery'])
+    expect(groups.find((g) => g.group === 'wave')?.upcoming.length).toBeGreaterThan(0)
+    expect(groups.some((g) => g.earned.concat(g.upcoming).some((row) => /time passed|offline hour/i.test(row.name)))).toBe(false)
+  })
+
+  it('prints Challenge rules from Hull, not Threat', () => {
+    const s = processState()
+    s.process.purchased = ['rule-builder', 'run-profiles']
+    s.process.config = { ...processConfig(s), activeProfileId: 'challenge' }
+    const rule = processConfig(s).profiles.find((p) => p.id === 'challenge')!.rules[0]!
+    const view = formatProcessRule(rule)
+    expect(view.when.join(' ')).toMatch(/Hull/)
+    expect(view.when.join(' ')).not.toMatch(/Threat|Pressure/)
+    expect(view.then).toMatch(/DEFENSE/)
   })
 })

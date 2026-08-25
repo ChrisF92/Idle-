@@ -7,7 +7,8 @@ import { inspectCore } from './inspect'
 import { processHubStatus, researchHubStatus } from './systemsHub'
 import { createInitialState } from './state'
 import { formatRunTime, livePressureLabel, sortieSpeed } from './uiReadout'
-import { armRebuildDoor, markHullLost } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
+import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
 import { setDocked } from './tick'
 
 afterEach(cleanup)
@@ -20,7 +21,7 @@ function launch(state = createInitialState()) {
   return setDocked(state, false)
 }
 
-describe('GDD visual layout and Dock Core ranks', () => {
+describe('GDD visual layout and Dock Core Levels', () => {
   it('shows a compact Sortie HUD without Pressure or permanent Cores tabs', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
@@ -118,6 +119,29 @@ describe('GDD visual layout and Dock Core ranks', () => {
     expect(formatRunTime(75)).toBe('1:15')
     expect(researchHubStatus(docked)[0]).toMatch(/No project/)
     expect(processHubStatus(docked)[0]).toMatch(/capabilities/)
+  })
+
+  it('shows Furnace Ash, Heat, and lit channels on the Sortie HUD', () => {
+    const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
+    state.combat.docked = false
+    state.resources.choirAsh = 25
+    state.resources.heat = 6
+    state.furnace.active.weapons = 1
+    state.furnace.active.recovery = 1
+    render(
+      <CombatTab
+        state={state}
+        onLaunch={() => undefined}
+        onPickMilestone={() => undefined}
+      />,
+    )
+    const hud = screen.getByLabelText('Furnace')
+    expect(hud.textContent).toContain('Ash')
+    expect(hud.textContent).toContain('25')
+    expect(hud.textContent).toContain('Heat')
+    expect(hud.textContent).toContain('6')
+    expect(hud.textContent).toContain('Weapons I')
+    expect(hud.textContent).toContain('Yield I')
   })
 
   it('keeps Mastery and wipes leftover ranks on Rebuild', () => {

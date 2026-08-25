@@ -13,6 +13,7 @@ import { isolateGameState, startingState } from './clone'
 import { mulberry32 } from './format'
 import {
   addMilestone,
+  captureObservePrev,
   coreSpending,
   createMetrics,
   economyBuckets,
@@ -27,9 +28,10 @@ import { inspectNumericSafety } from './safety'
 import { closeSession, getStrategy, spendProfileFor } from './strategies'
 import { reportedBestWave } from '../waves'
 import { BALANCE_TARGETS, evaluateTarget } from './targets'
-import { stopLabel } from './presets'
+import { stopLabel, FIRST_SALVAGE_LESSON_SECONDS } from './presets'
 import { aggregateMilestones } from './report'
 import { captureAct1Snapshot } from '../balance/act1'
+import { coreStartingLevelAtSlot } from '../coreProgression'
 import type {
   Act1Snapshot,
   CorePurchaseRecord,
@@ -48,15 +50,12 @@ export interface SimulationHooks {
   shouldCancel?: () => boolean
 }
 
-const CHUNK = 1
+const FIGHT_CHUNK = 1
+const DOCK_CHUNK = 4
 
 function trimCombatNoise(state: GameState): void {
   if (state.combat.log.length > 12) state.combat.log = state.combat.log.slice(0, 8)
   if (state.combat.fx.length > 0) state.combat.fx = []
-}
-
-function snapshotClone(state: GameState): GameState {
-  return isolateGameState(state)
 }
 
 function stopReached(
@@ -93,6 +92,10 @@ function stopReached(
       return activeSeconds >= stop.seconds ? 'Active duration reached' : null
     case 'unlock':
       return isSystemUnlocked(state, stop.system as never) ? `Unlocked ${stop.system}` : null
+    case 'furnace-lit':
+      return (state.furnace?.wanted?.weapons ?? 0) > 0 || (state.furnace?.active?.weapons ?? 0) > 0
+        ? 'Furnace Weapons lit'
+        : null
     case 'reinforce':
       return canReinforce(state).ok || (state.meta.ascensionCount ?? 0) > 0
         ? 'Reinforce available / used'
@@ -129,9 +132,25 @@ function makeProgress(
   }
 }
 
-export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runIndex = 0): SimulationRunReport {
+export async function runOne(config: SimulationConfig, hooks?: SimulationHooks, runIndex = 0): Promise<SimulationRunReport> {
   const seed = config.seed + runIndex * 9973
   const rng = mulberry32(seed)
+  const restoreRandom = Math.random
+  Math.random = rng
+  try {
+    return await runOneSeeded(config, hooks, runIndex, seed, rng)
+  } finally {
+    Math.random = restoreRandom
+  }
+}
+
+async function runOneSeeded(
+  config: SimulationConfig,
+  hooks: SimulationHooks | undefined,
+  runIndex: number,
+  seed: number,
+  rng: () => number,
+): Promise<SimulationRunReport> {
   const now0 = seed * 1000
   let state = skipGuides(startingState(config.start, now0))
   state.lastTickAt = now0
@@ -161,6 +180,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
   let lastDecisionAt = -999
   let lastProgressAt = 0
   let firstRebuildAt: number | null = null
+  let salvageLessonApplied = false
   let cancelled = false
   let stopReason = 'Running'
   let sessionLeft =
@@ -191,6 +211,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     recordMeaningful: (label) => {
       noteMeaningful(metrics, label, activeSeconds)
       if (label === 'Launch') {
+        metrics.lastLaunchAt = activeSeconds
         addMilestone(metrics, 'first-launch', 'First Launch', activeSeconds, calendarSeconds)
       }
     },
@@ -204,7 +225,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
       }
       if (config.logging !== 'summary') {
         metrics.detailedLog.push(
-          `${activeSeconds.toFixed(1)}s  ${row.name} L${row.levelAfter}  -${row.cost} salvage`,
+          `${activeSeconds.toFixed(1)}s  ${row.name} L${row.levelAfter}  -${row.cost} scrap`,
         )
       }
     },
@@ -276,7 +297,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     } else if (activeSeconds - lastProgressTime >= config.deadlockSeconds) {
       safety.push({
         kind: 'deadlock',
-        message: `DEADLOCK / PROGRESSION STALL at Wave ${reportedBestWave(state)} after ${config.deadlockSeconds}s without salvage/scrap/heat/drone/wave/rebuild progress. Pulse L${state.shipyard.moduleLevels['pulse-cannon'] ?? 0}, Plate L${state.shipyard.moduleLevels['plate-layer'] ?? 0}, salvage ${state.resources.salvage.toFixed(1)}.`,
+        message: `DEADLOCK / PROGRESSION STALL at Wave ${reportedBestWave(state)} after ${config.deadlockSeconds}s without salvage/scrap/heat/drone/wave/rebuild progress. Pulse L${coreStartingLevelAtSlot(state, 0)}, Plate L${coreStartingLevelAtSlot(state, 1)}, salvage ${state.resources.salvage.toFixed(1)}.`,
         activeSeconds,
       })
       stopReason = 'DEADLOCK / PROGRESSION STALL'
@@ -303,12 +324,18 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
       state.combat.docked ||
       !state.combat.inFight
     if (needDecide) decide()
+    if (
+      config.stop.type === 'furnace-lit' &&
+      ((state.furnace?.wanted?.weapons ?? 0) > 0 || (state.furnace?.active?.weapons ?? 0) > 0)
+    ) {
+      stopReason = 'Furnace Weapons lit'
+      break
+    }
 
-    const chunk = Math.min(
-      CHUNK,
-      config.strategy === 'casual' ? Math.max(0.05, sessionLeft) : CHUNK,
-    )
-    const prev = snapshotClone(state)
+    const base = state.combat.docked ? DOCK_CHUNK : FIGHT_CHUNK
+    const chunk =
+      config.strategy === 'casual' ? Math.min(base, Math.max(0.05, sessionLeft)) : base
+    const prev = captureObservePrev(state)
     advanceSeconds(state, chunk)
     activeSeconds += chunk
     calendarSeconds += chunk
@@ -316,6 +343,15 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     state.lastTickAt = simNow
     if (config.strategy === 'casual') sessionLeft -= chunk
     observeState(metrics, state, prev, activeSeconds, calendarSeconds, chunk)
+    if (
+      !salvageLessonApplied &&
+      Object.values(state.combat.runUpgrades ?? {}).some((n) => (n ?? 0) > 0)
+    ) {
+      activeSeconds += FIRST_SALVAGE_LESSON_SECONDS
+      calendarSeconds += FIRST_SALVAGE_LESSON_SECONDS
+      simNow += FIRST_SALVAGE_LESSON_SECONDS * 1000
+      salvageLessonApplied = true
+    }
     if (metrics.milestones.length > lastSnapshotCount) {
       const added = metrics.milestones.slice(lastSnapshotCount)
       lastSnapshotCount = metrics.milestones.length
@@ -362,6 +398,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
   const spending = coreSpending(metrics.corePurchases)
   const walls = detectWalls([...metrics.sectors.values()])
   const salvageSpentOnCores = spending.reduce((s, r) => s + r.salvageSpent, 0)
+  const salvageSpentOnRunUpgrades = metrics.sorties.reduce((s, row) => s + row.salvageSpent, 0)
   const warnings = [
     ...coreWarnings(spending),
     ...workerWarnings(metrics.networkIdleHint ?? false, state.base.workerDrones),
@@ -377,8 +414,11 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
       researchBreakthroughs: captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds)
         .researchBreakthroughs,
       salvageEarned: metrics.resourceEarned.salvage ?? 0,
+      salvageSpentOnRunUpgrades,
       salvageSpentOnCores,
       scrapEarned: metrics.resourceEarned.scrap ?? 0,
+      workshopLevels: { ...(state.workshop?.levels ?? {}) },
+      failedPushStreak: metrics.failedPushStreak,
       activeSeconds,
     }),
   ]
@@ -431,6 +471,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     prestigeMatterEarned: matterEarned,
     milestones: metrics.milestones,
     sectors: [...metrics.sectors.values()].sort((a, b) => a.sector - b.sector),
+    sorties: metrics.sorties,
     corePurchases: metrics.corePurchases,
     coreSpending: spending,
     network: networkSnapshot(state),
@@ -487,12 +528,12 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
   return run
 }
 
-export function runSimulation(config: SimulationConfig, hooks?: SimulationHooks): SimulationReport {
+export async function runSimulation(config: SimulationConfig, hooks?: SimulationHooks): Promise<SimulationReport> {
   const runs: SimulationRunReport[] = []
   const n = Math.max(1, Math.min(100, Math.floor(config.runs)))
   for (let i = 0; i < n; i++) {
     if (hooks?.shouldCancel?.()) break
-    runs.push(runOne(config, hooks, i))
+    runs.push(await runOne(config, hooks, i))
   }
   const report: SimulationReport = { runs, aggregate: [] }
   report.aggregate = aggregateMilestones(report)
@@ -508,12 +549,12 @@ export interface SimulationSession {
 
 /**
  * Steppable session for main-thread yielding. Each step runs one Accurate chunk.
- * Tests should prefer runSimulation() which is synchronous.
+ * Tests should prefer runSimulation(). Long runs stay sync so seeded combat RNG is not interleaved.
  */
 export function createSimulationSession(
   config: SimulationConfig,
   hooks?: SimulationHooks,
-): { run: () => SimulationReport } {
+): { run: () => Promise<SimulationReport> } {
   return {
     run: () => runSimulation(config, hooks),
   }

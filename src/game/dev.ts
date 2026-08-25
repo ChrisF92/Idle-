@@ -139,6 +139,9 @@ function prepGddDoor(state: GameState, wave: number): void {
     armProcessGates(state)
   }
   maybeGrantSystemUnlocks(state)
+  if (w >= ACT1_CADENCE.reliquary) {
+    state.reliquary.owned['battle-chip'] = Math.max(state.reliquary.owned['battle-chip'] ?? 0, 1)
+  }
   tryCompleteAchievements(state)
 }
 

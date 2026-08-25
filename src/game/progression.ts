@@ -901,10 +901,19 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
 export function completeAct1(state: GameState): void {
   if (state.meta.act1Cleared) return
   state.meta.act1Cleared = true
+  state.meta.act1FinalePending = true
   state.combat.log = [
-    `Act 1 complete — Wave ${ACT1_FINAL_WAVE}. Rebuild has reached the limit of this loop. Reinforce is open on More.`,
+    `Act 1 complete — Wave ${ACT1_FINAL_WAVE}. The Hive remembers this reconstruction. Reinforce is open on More.`,
     ...state.combat.log,
   ].slice(0, 40)
+}
+
+/** Player dismissed the first-clear Act 1 presentation. */
+export function dismissAct1Finale(state: GameState): GameState {
+  if (!state.meta.act1FinalePending) return state
+  const next = structuredClone(state)
+  next.meta.act1FinalePending = false
+  return next
 }
 
 

@@ -146,6 +146,9 @@ const LEGACY_LESSON_MAP: Record<string, OnboardingLessonId> = {
   'guide-research-focus-how': 'research.project',
   'guide-process-first': 'process.capability',
   'guide-challenge': 'challenges.start',
+  'guide-rebuild': 'rebuild.preview',
+  'guide-rebuild-matter': 'rebuild.preview',
+  'guide-reinforce': 'reinforce',
 }
 
 const STARTER_LESSON_IDS: OnboardingLessonId[] = ['opening.salvage', 'first-defeat.workshop']

@@ -1,4 +1,4 @@
-/** Process 2.0 — account-wide automation, QoL, and lifetime accumulation. */
+/** Process 3.0 — account-wide QoL, automation, rules, and profiles. */
 
 import type {
   FoundryRecipeId,
@@ -16,7 +16,6 @@ import type {
   ProcessSpendMix,
   ProcessState,
   ProcessThenKind,
-  ProcessThreatId,
   ProcessWhenKind,
   TabId,
   YardArmId,
@@ -27,19 +26,18 @@ import { careerBestWave, isSystemUnlocked } from './progression'
 import { AI_NODES } from './catalog'
 import { isWorkerJob, WORKER_JOB_IDS } from './workers'
 import { practicedCoreWork } from './corePractice'
+import { researchProcessCostMult, resolvedResearchIds } from './hiveResearchTree'
 
 export type ProcessKind = 'automation' | 'qol'
 
+export type ProcessLane = 'qol' | 'sortie' | 'workers' | 'foundry' | 'research' | 'furnace' | 'logic'
+
 export type ProcessCategory =
+  | ProcessLane
   | 'cores'
   | 'network'
-  | 'foundry'
   | 'reliquary'
-  | 'research'
-  | 'furnace'
-  | 'sortie'
   | 'yard'
-  | 'qol'
 
 export type ProcessMastery =
   | 'cores'
@@ -67,14 +65,22 @@ export interface ProcessNodeDef {
 
 export const PROCESS_CATEGORIES: { id: ProcessCategory; name: string }[] = [
   { id: 'qol', name: 'Quality of life' },
-  { id: 'cores', name: 'Cores' },
-  { id: 'foundry', name: 'Foundry' },
-  { id: 'network', name: 'Worker Drones' },
-  { id: 'furnace', name: 'Furnace' },
-  { id: 'research', name: 'Research' },
   { id: 'sortie', name: 'Sortie' },
-  { id: 'reliquary', name: 'Relics' },
-  { id: 'yard', name: 'Construction' },
+  { id: 'workers', name: 'Workers' },
+  { id: 'foundry', name: 'Foundry' },
+  { id: 'research', name: 'Research' },
+  { id: 'furnace', name: 'Furnace' },
+  { id: 'logic', name: 'Logic' },
+]
+
+export const PROCESS_LANES: { id: ProcessLane; name: string }[] = [
+  { id: 'qol', name: 'QoL' },
+  { id: 'sortie', name: 'Sortie' },
+  { id: 'workers', name: 'Workers' },
+  { id: 'foundry', name: 'Foundry' },
+  { id: 'research', name: 'Research' },
+  { id: 'furnace', name: 'Furnace' },
+  { id: 'logic', name: 'Logic' },
 ]
 
 export { NETWORK_BAR_IDS }
@@ -194,26 +200,62 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'rule-builder',
-    name: 'Rule Builder',
-    category: 'sortie',
+    name: 'First Condition',
+    category: 'logic',
     kind: 'automation',
-    blurb: 'WHEN Wave, threat, or an empty queue AND … THEN spend, extract, or light Furnace. Chips only.',
+    blurb: 'WHEN a real game value is true, THEN take one action. Chips only — no programming syntax.',
     cost: 12,
     requiresId: 'spend-ratios',
   },
   {
+    id: 'logic-and',
+    name: 'AND',
+    category: 'logic',
+    kind: 'automation',
+    blurb: 'Join two conditions with AND. Both must be true for the rule to fire.',
+    cost: 8,
+    requiresId: 'rule-builder',
+  },
+  {
+    id: 'logic-or',
+    name: 'OR',
+    category: 'logic',
+    kind: 'automation',
+    blurb: 'Join conditions with OR. Any matching condition fires the rule.',
+    cost: 8,
+    requiresId: 'logic-and',
+  },
+  {
+    id: 'extra-rules',
+    name: 'Extra Rule Slots',
+    category: 'logic',
+    kind: 'automation',
+    blurb: 'Hold up to four rules on the active profile.',
+    cost: 10,
+    requiresId: 'logic-and',
+  },
+  {
+    id: 'logic-complex',
+    name: 'Condition Complexity',
+    category: 'logic',
+    kind: 'automation',
+    blurb: 'Allow three or four conditions on a single rule.',
+    cost: 12,
+    requiresId: 'extra-rules',
+  },
+  {
     id: 'run-profiles',
     name: 'Run Profiles',
-    category: 'sortie',
+    category: 'logic',
     kind: 'automation',
-    blurb: 'Farm, Push, and Challenge profiles. Farm banks Economy and Extracts; Push dumps Economy near Best and lights Furnace.',
+    blurb: 'Farm, Push, Challenge, and Custom profiles. Presets stay editable.',
     cost: 10,
     requiresId: 'rule-builder',
   },
   {
     id: 'network-optimise',
     name: 'Worker Optimise',
-    category: 'network',
+    category: 'workers',
     kind: 'automation',
     blurb: 'One tap assigns idle Worker Drones to industrial jobs using the current allocation.',
     cost: 4,
@@ -222,33 +264,42 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   {
     id: 'network-presets',
     name: 'Worker Presets',
-    category: 'network',
+    category: 'workers',
     kind: 'automation',
-    blurb: 'Push, Defence, Farm, Industry, Research, or Balanced job mixes. Weights stay visible.',
+    blurb: 'Save an allocation preset: Push, Defence, Farm, Industry, Research, or Balanced.',
     cost: 8,
     requiresId: 'network-optimise',
   },
   {
     id: 'network-ratios',
-    name: 'Network Ratios',
-    category: 'network',
+    name: 'Worker Job Weights',
+    category: 'workers',
     kind: 'automation',
-    blurb: 'Write your own job weights. Optimise and Auto Optimise both honour them.',
+    blurb: 'Write your own job weights. Optimise and Auto Fill both honour them.',
     cost: 12,
     requiresId: 'network-presets',
   },
   {
     id: 'network-balance',
-    name: 'Worker Auto Optimise',
-    category: 'network',
+    name: 'Worker Auto Fill',
+    category: 'workers',
     kind: 'automation',
-    blurb: 'Idle Worker Drones fill industrial jobs using your preset. Config lives on this Process node.',
+    blurb: 'Idle Worker Drones fill industrial jobs using your saved preset.',
+    cost: 10,
+    requiresId: 'network-presets',
+  },
+  {
+    id: 'worker-conditional',
+    name: 'Conditional Worker Profile',
+    category: 'workers',
+    kind: 'automation',
+    blurb: 'Rules may assign a Worker preset when their conditions fire.',
     cost: 10,
     requiresId: 'network-presets',
   },
   {
     id: 'network-tune',
-    name: 'Network Sortie Bias',
+    name: 'Worker Sortie Bias',
     category: 'network',
     kind: 'automation',
     blurb: 'Optional overlay: while flying, lean Push toward salvage/fab jobs and Farm toward Scrap Field.',
@@ -261,26 +312,36 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Foundry Buy Max',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Retired. Foundry ranks and Foundry Points are gone.',
+    blurb: 'Compatibility placeholder; hidden from the Process shop.',
     cost: 4,
     requiresSystem: 'foundry',
     requiresMastery: 'foundry',
   },
   {
     id: 'foundry-repeat',
-    name: 'Repeat Recipe',
+    name: 'Processing Target',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Empty smelters refill the recipe you pin. You pick the recipe.',
+    blurb: 'Empty Processors refill the recipe you pin. You pick the recipe.',
     cost: 6,
     requiresSystem: 'foundry',
   },
   {
-    id: 'smart-smelt',
-    name: 'Smart Smelt',
+    id: 'foundry-stock',
+    name: 'Minimum Stock',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Empty smelters queue unfinished recipes. Will not starve the next Pulse rank.',
+    blurb: 'Keep a chosen material at or above a stock floor. Processors refill it when it dips.',
+    cost: 8,
+    requiresId: 'foundry-repeat',
+    requiresSystem: 'foundry',
+  },
+  {
+    id: 'smart-smelt',
+    name: 'Smart Processing',
+    category: 'foundry',
+    kind: 'automation',
+    blurb: 'Empty Processors select unfinished recipes without consuming Fabricator capacity.',
     cost: 10,
     requiresSystem: 'foundry',
     requiresBestWave: 30,
@@ -290,7 +351,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Production Queue',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Line up recipes. Smelters pull from the queue before Smart Smelt.',
+    blurb: 'Line up Processing recipes. Processors pull from this queue before Smart Processing.',
     cost: 12,
     requiresId: 'smart-smelt',
     requiresSystem: 'foundry',
@@ -310,7 +371,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Foundry Upgrade Priority',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Retired. Foundry ranks and Foundry Points are gone.',
+    blurb: 'Compatibility placeholder; hidden from the Process shop.',
     cost: 10,
     requiresId: 'foundry-buy-max',
     requiresSystem: 'foundry',
@@ -320,7 +381,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Foundry Auto Buy',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Retired. Foundry ranks and Foundry Points are gone.',
+    blurb: 'Compatibility placeholder; hidden from the Process shop.',
     cost: 16,
     requiresId: 'foundry-priority',
     requiresSystem: 'foundry',
@@ -328,10 +389,10 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'print-assemble',
-    name: 'Print Press',
+    name: 'Blueprint Fabrication',
     category: 'foundry',
     kind: 'automation',
-    blurb: 'Assemble a Core print as soon as every fragment is in stock.',
+    blurb: 'Start the tracked Core Blueprint project when its fragments and materials are ready.',
     cost: 8,
     requiresId: 'smart-smelt',
     requiresSystem: 'foundry',
@@ -391,9 +452,8 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Presets',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Push, Farm, Industry, or Research. One tap sets which channels you want lit.',
+    blurb: 'Push (Weapons + Ward) or Farm (Weapons + Yield). One tap sets which channels you want lit.',
     cost: 10,
-    requiresId: 'auto-bank',
     requiresSystem: 'furnace',
   },
   {
@@ -401,17 +461,17 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Furnace Reserve',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Hold a Heat reserve the manager must not drain.',
+    blurb: 'Hold a Heat reserve Process must not spend on channels.',
     cost: 8,
     requiresId: 'furnace-presets',
     requiresSystem: 'furnace',
   },
   {
     id: 'furnace-channels',
-    name: 'Furnace Channels',
+    name: 'Automatic Channel Control',
     category: 'furnace',
     kind: 'automation',
-    blurb: 'Let the manager raise and lower channel levels to keep Heat sustainable. You still set priority.',
+    blurb: 'Let Process raise and lower channel levels to keep Heat sustainable. You still set priority.',
     cost: 12,
     requiresId: 'furnace-presets',
     requiresSystem: 'furnace',
@@ -432,7 +492,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Research Queue',
     category: 'research',
     kind: 'automation',
-    blurb: 'Line up which branch to focus next. Completions wait for your queue unless Auto is on.',
+    blurb: 'Line up which discipline to research next. Completions wait for your queue unless Auto is on.',
     cost: 5,
     requiresSystem: 'research',
     requiresMastery: 'research',
@@ -442,7 +502,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Research Branch Priority',
     category: 'research',
     kind: 'automation',
-    blurb: 'Order Material, Energy, and Observation. Auto Research follows this list.',
+    blurb: 'Order Hive Engineering, Drone Systems, and Industrial Science. Auto Research follows this list.',
     cost: 10,
     requiresId: 'research-queue',
     requiresSystem: 'research',
@@ -452,7 +512,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     name: 'Auto Research',
     category: 'research',
     kind: 'automation',
-    blurb: 'Advance focus along your queue and priorities. Never picks a hidden “best” branch.',
+    blurb: 'Start the next available project along your queue. Never picks a hidden “best” node.',
     cost: 12,
     requiresId: 'research-priorities',
     requiresSystem: 'research',
@@ -469,7 +529,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'sortie-relaunch',
-    name: 'Sortie Relaunch',
+    name: 'Auto Launch',
     category: 'sortie',
     kind: 'automation',
     blurb: 'When docked with full hull, launch again. Toggleable. Does not choose Advance vs Hold.',
@@ -562,7 +622,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     kind: 'qol',
     blurb: 'Combat sim runs at ×1.5. Industry still uses real time.',
     cost: 15,
-    requiresId: 'auto-salvage',
+    requiresId: 'shop-readout',
     requiresBestWave: 100,
   },
   {
@@ -577,19 +637,23 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
 ]
 
-/** Nodes that fight the GDD loop or belong to retired systems. Kept on the save, hidden from the shop. */
+/** Nodes that fight the GDD loop or belong to retired systems. Kept on the save, hidden from the graph. */
 export const PROCESS_HIDDEN_IDS = new Set([
   'echo-repeat',
   'auto-bank',
-  'furnace-presets',
-  'furnace-reserve',
-  'furnace-channels',
   'furnace-auto',
   'network-tune',
   'offline-sortie',
   'foundry-buy-max',
   'foundry-priority',
   'foundry-auto',
+  'yard-buy-max',
+  'yard-layouts',
+  'yard-auto',
+  'auto-relic',
+  'reliquary-keep',
+  'reliquary-quality',
+  'reliquary-merge',
 ])
 
 const RETIRED_CORE_RUN_PROCESS_IDS = new Set([
@@ -654,11 +718,22 @@ export function processRevealAllows(state: GameState, tier: ProcessRevealTier): 
   return bought >= 2
 }
 
+export function processNodeLane(node: ProcessNodeDef): ProcessLane | null {
+  if (PROCESS_HIDDEN_IDS.has(node.id)) return null
+  if (node.category === 'qol' || node.category === 'sortie' || node.category === 'workers' || node.category === 'foundry' || node.category === 'research' || node.category === 'furnace' || node.category === 'logic') {
+    return node.category
+  }
+  if (node.category === 'network') return 'workers'
+  return null
+}
+
 export function processVisibleNodes(state: GameState): ProcessNodeDef[] {
-  return PROCESS_NODES.filter((node) => {
-    if (PROCESS_HIDDEN_IDS.has(node.id)) return false
-    return processRevealAllows(state, processNodeTier(node))
-  })
+  void state
+  return PROCESS_NODES.filter((node) => processNodeLane(node) != null)
+}
+
+export function processLaneNodes(state: GameState, lane: ProcessLane): ProcessNodeDef[] {
+  return processVisibleNodes(state).filter((node) => processNodeLane(node) === lane)
 }
 
 /** Manual loops the player has already practised — GDD §139. */
@@ -709,9 +784,9 @@ export const PROCESS_ACCUMULATION: ProcessAccumulationDef[] = [
   {
     id: 'acc-network-20',
     atEarned: 20,
-    name: 'Corps Cadence',
-    blurb: '×1.10 Network fill speed.',
-    effect: { type: 'networkSpeed', mult: 1.1 },
+    name: 'Workforce Cadence',
+    blurb: '×1.10 Worker Drone fabrication speed.',
+    effect: { type: 'industrySpeed', mult: 1.1 },
   },
   {
     id: 'acc-combat-35',
@@ -773,7 +848,7 @@ export const PROCESS_ACCUMULATION: ProcessAccumulationDef[] = [
     id: 'acc-industry-500',
     atEarned: 500,
     name: 'Shop Floor',
-    blurb: '×1.10 Foundry, Network, Yard, and drone manufacture speed.',
+    blurb: '×1.10 Worker Drone fabrication speed.',
     effect: { type: 'industrySpeed', mult: 1.1 },
   },
 ]
@@ -798,6 +873,7 @@ export function createEmptyProcessConfig(): ProcessConfig {
       queue: [],
       targetRecipe: null,
       upgradePriority: 'cheapest',
+      minStock: {},
     },
     reliquary: {
       autoMerge: false,
@@ -841,6 +917,7 @@ export function createEmptyProcessConfig(): ProcessConfig {
     },
     activeProfileId: null,
     profiles: createDefaultProcessProfiles(),
+    lastActions: {},
   }
 }
 
@@ -901,7 +978,8 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
         Object.values(state.reliquary?.coreFits ?? {}).some((fits) => (fits ?? []).some(Boolean))
       )
     case 'research':
-      return Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
+      return (state.hiveResearch?.completedIds?.length ?? 0) > 0
+        || Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
     case 'furnace':
       return (
         Object.values(state.furnace?.active ?? {}).some((n) => n > 0) ||
@@ -961,6 +1039,10 @@ function masteryLockReason(kind: ProcessMastery): string {
   }
 }
 
+export function processNodeCost(state: GameState, def: ProcessNodeDef): number {
+  return Math.max(1, Math.ceil(def.cost * researchProcessCostMult(resolvedResearchIds(state.hiveResearch))))
+}
+
 export function canBuyProcessNode(
   state: GameState,
   id: string,
@@ -982,8 +1064,9 @@ export function canBuyProcessNode(
   if (def.requiresMastery && !hasProcessMastery(state, def.requiresMastery)) {
     return { ok: false, reason: masteryLockReason(def.requiresMastery) }
   }
-  if (state.resources.aiPoints < def.cost) {
-    return { ok: false, reason: `Need ${def.cost} Process` }
+  const cost = processNodeCost(state, def)
+  if (state.resources.aiPoints < cost) {
+    return { ok: false, reason: `Need ${cost} Process` }
   }
   return { ok: true }
 }
@@ -1091,6 +1174,7 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
           ? foundryPriority
           : empty.foundry.upgradePriority
       ) as ProcessFoundryUpgradePriority,
+      minStock: hydrateMinStock(foundry.minStock),
     },
     reliquary: {
       autoMerge: reliquary.autoMerge === true,
@@ -1175,26 +1259,66 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
     },
     activeProfileId: typeof raw.activeProfileId === 'string' ? raw.activeProfileId : null,
     profiles: withDefaultProfiles(hydrateProfiles(raw.profiles)),
+    lastActions: hydrateLastActions(raw.lastActions),
   }
 }
+
+function hydrateMinStock(raw: unknown): Partial<Record<FoundryRecipeId, number>> {
+  if (!isRecord(raw)) return {}
+  const out: Partial<Record<FoundryRecipeId, number>> = {}
+  for (const [id, value] of Object.entries(raw)) {
+    const n = Math.max(0, Math.floor(num(value, 0)))
+    if (n > 0) out[id as FoundryRecipeId] = n
+  }
+  return out
+}
+
+function hydrateLastActions(raw: unknown): Record<string, string> {
+  if (!isRecord(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [id, value] of Object.entries(raw)) {
+    if (typeof value === 'string' && value) out[id] = value
+  }
+  return out
+}
+
+const FURNACE_PRESET_IDS = new Set(['push', 'farm', 'industry', 'research'])
 
 const WHEN_KINDS: ProcessWhenKind[] = [
   'wave-gte',
   'wave-of-best',
+  'hull-lte',
+  'shield-lte',
+  'boss-active',
+  'enemies-gte',
+  'wave-time-gte',
+  'salvage-gte',
+  'scrap-run-gte',
+  'ash-gte',
+  'heat-gte',
+  'processor-idle',
+  'fabricator-idle',
+  'stock-lte',
+  'stock-gte',
+  'research-idle',
+  'workers-idle-gte',
   'threat',
   'queue-empty',
-  'ash-gte',
-  'hull-lte',
-  'research-idle',
 ]
 
 const THEN_KINDS: ProcessThenKind[] = [
   'spend-profile',
+  'spend-ratios',
   'economy-target',
   'extract',
-  'repeat-recipe',
+  'furnace-preset',
   'furnace-push',
+  'worker-preset',
+  'foundry-target',
+  'foundry-stock',
   'research-next',
+  'launch-sortie',
+  'repeat-recipe',
   'fab-tracked',
 ]
 
@@ -1209,15 +1333,14 @@ function hydrateSpend(raw: unknown, fallback: ProcessSpendMix): ProcessSpendMix 
 
 function hydrateCondition(raw: unknown): ProcessCondition | null {
   if (!isRecord(raw) || typeof raw.kind !== 'string') return null
-  if (!WHEN_KINDS.includes(raw.kind as ProcessWhenKind)) return null
-  const threat = raw.threat
+  let kind = raw.kind as ProcessWhenKind
+  if (!WHEN_KINDS.includes(kind)) return null
+  if (kind === 'threat') kind = 'hull-lte'
+  if (kind === 'queue-empty') kind = 'processor-idle'
   return {
-    kind: raw.kind as ProcessWhenKind,
-    value: raw.value == null ? undefined : num(raw.value, 0),
-    threat:
-      threat === 'SURVIVABILITY' || threat === 'DAMAGE' || threat === 'MIXED' || threat === 'HEALTHY'
-        ? (threat as ProcessThreatId)
-        : undefined,
+    kind,
+    value: raw.value == null ? (kind === 'hull-lte' ? 35 : undefined) : num(raw.value, 0),
+    recipeId: typeof raw.recipeId === 'string' ? (raw.recipeId as FoundryRecipeId) : undefined,
   }
 }
 
@@ -1225,11 +1348,23 @@ function hydrateAction(raw: unknown): ProcessAction {
   if (!isRecord(raw) || typeof raw.kind !== 'string' || !THEN_KINDS.includes(raw.kind as ProcessThenKind)) {
     return { kind: 'spend-profile' }
   }
+  const workerPreset = raw.workerPreset
+  const furnacePreset = raw.furnacePreset
   return {
     kind: raw.kind as ProcessThenKind,
     spend: raw.spend ? hydrateSpend(raw.spend, { attack: 50, defense: 30, economy: 20 }) : undefined,
     economyPct: raw.economyPct == null ? undefined : num(raw.economyPct, 0),
     recipeId: typeof raw.recipeId === 'string' ? (raw.recipeId as FoundryRecipeId) : undefined,
+    stockMin: raw.stockMin == null ? undefined : Math.max(0, num(raw.stockMin, 0)),
+    workerPreset:
+      typeof workerPreset === 'string' && NETWORK_PRESET_LABELS[workerPreset as ProcessNetworkPreset]
+        ? (workerPreset as ProcessNetworkPreset)
+        : undefined,
+    furnacePreset:
+      typeof furnacePreset === 'string' && FURNACE_PRESET_IDS.has(furnacePreset)
+        ? (furnacePreset as ProcessAction['furnacePreset'])
+        : undefined,
+    furnaceLevel: raw.furnaceLevel == null ? undefined : Math.max(0, num(raw.furnaceLevel, 0)),
   }
 }
 
@@ -1241,7 +1376,9 @@ function hydrateRule(raw: unknown, index: number): ProcessRule | null {
   if (when.length === 0) return null
   return {
     id: typeof raw.id === 'string' ? raw.id : `rule-${index}`,
+    label: typeof raw.label === 'string' ? raw.label : undefined,
     enabled: raw.enabled !== false,
+    join: raw.join === 'or' ? 'or' : 'and',
     when,
     then: hydrateAction(raw.then),
   }
@@ -1261,6 +1398,14 @@ function hydrateProfiles(raw: unknown): ProcessProfile[] {
       typeof row.workerPreset === 'string' && NETWORK_PRESET_LABELS[row.workerPreset as ProcessNetworkPreset]
         ? (row.workerPreset as ProcessNetworkPreset)
         : undefined,
+    furnacePreset:
+      typeof row.furnacePreset === 'string' && FURNACE_PRESET_IDS.has(row.furnacePreset)
+        ? (row.furnacePreset as ProcessProfile['furnacePreset'])
+        : row.furnacePreset === null
+          ? null
+          : undefined,
+    foundryRepeat: typeof row.foundryRepeat === 'string' ? (row.foundryRepeat as FoundryRecipeId) : null,
+    researchAutoNext: row.researchAutoNext === true,
     rules: Array.isArray(row.rules)
       ? row.rules.map(hydrateRule).filter((r): r is ProcessRule => Boolean(r))
       : [],
@@ -1333,7 +1478,8 @@ export function processShieldMult(state: GameState): number {
 }
 
 export function processNetworkSpeedMult(state: GameState): number {
-  return processAccumMult(state, 'networkSpeed') * processAccumMult(state, 'industrySpeed')
+  void state
+  return 1
 }
 
 export function processFoundrySpeedMult(state: GameState): number {
@@ -1384,18 +1530,28 @@ export interface ProcessFurnaceHooks {
   managerUnlocked: boolean
   autoChannel: boolean
   reserveHeat: number
+  preset: ProcessConfig['furnace']['preset']
+  conditionalPush: boolean
   outputMult: number
 }
 
-/** Live Heat generation, reserve, and Process automation the Furnace consumes. */
+/** Live Heat reserve, presets, and Process automation the Furnace consumes. Process UI is separate. */
 export function processFurnaceHooks(state: GameState): ProcessFurnaceHooks {
   const cfg = processConfig(state)
   return {
     autoFeed: false,
     presetsUnlocked: hasProcess(state, 'furnace-presets'),
-    managerUnlocked: hasProcess(state, 'furnace-auto') && cfg.furnace.manager,
+    managerUnlocked:
+      (hasProcess(state, 'furnace-channels') && cfg.furnace.autoChannel) ||
+      (hasProcess(state, 'furnace-auto') && cfg.furnace.manager),
     autoChannel: hasProcess(state, 'furnace-channels') && cfg.furnace.autoChannel,
     reserveHeat: hasProcess(state, 'furnace-reserve') ? cfg.furnace.reserveHeat : 0,
+    preset: cfg.furnace.preset ?? null,
+    conditionalPush:
+      hasProcess(state, 'run-profiles') &&
+      (cfg.profiles ?? []).some((profile) =>
+        (profile.rules ?? []).some((rule) => rule.then?.kind === 'furnace-push' || rule.then?.kind === 'furnace-preset'),
+      ),
     outputMult: processFurnaceOutputMult(state),
   }
 }
@@ -1470,4 +1626,187 @@ export function corePresetCap(state: GameState): number {
 
 export function yardLayoutCap(state: GameState): number {
   return (hasProcess(state, 'yard-layouts') ? 2 : 0) + processExtraPresetSlots(state)
+}
+
+export function processRuleCapacity(state: GameState): number {
+  if (!hasProcess(state, 'rule-builder') && !hasProcess(state, 'run-profiles')) return 0
+  if (hasProcess(state, 'extra-rules')) return 4
+  if (hasProcess(state, 'run-profiles')) return 2
+  return 1
+}
+
+export function processMaxConditions(state: GameState): number {
+  if (!hasProcess(state, 'rule-builder')) return 0
+  if (hasProcess(state, 'logic-complex')) return 4
+  if (hasProcess(state, 'logic-and') || hasProcess(state, 'logic-or')) return 2
+  return 1
+}
+
+export function processAllowsAnd(state: GameState): boolean {
+  return hasProcess(state, 'logic-and') || hasProcess(state, 'logic-complex')
+}
+
+export function processAllowsOr(state: GameState): boolean {
+  return hasProcess(state, 'logic-or')
+}
+
+export function noteProcessLastAction(state: GameState, id: string, note: string): void {
+  if (!state.process) state.process = createEmptyProcessState()
+  if (!state.process.config.lastActions) state.process.config.lastActions = {}
+  state.process.config.lastActions[id] = note
+}
+
+export function processRulesUsed(state: GameState): number {
+  const id = processConfig(state).activeProfileId
+  const profile = (processConfig(state).profiles ?? []).find((row) => row.id === id)
+    ?? (processConfig(state).profiles ?? []).find((row) => row.id === 'custom')
+  return (profile?.rules ?? []).filter((rule) => rule.enabled).length
+}
+
+export interface ProcessAutomationCard {
+  id: string
+  name: string
+  enabled: boolean
+  summary: string
+  lastAction: string
+}
+
+function lastNote(state: GameState, id: string): string {
+  return processConfig(state).lastActions?.[id] || 'No action yet'
+}
+
+function spendSummary(state: GameState): string {
+  const mix = processConfig(state).shop.ratios
+  const reserve = processConfig(state).shop.salvageReserve
+  const reserveText = reserve > 0 ? ` · Reserve ${reserve >= 1000 ? `${Math.round(reserve / 100) / 10}K` : String(reserve)}` : ''
+  return `${mix.attack} / ${mix.defense} / ${mix.economy}${reserveText}`
+}
+
+export function processAutomationCards(state: GameState): ProcessAutomationCard[] {
+  const cfg = processConfig(state)
+  const cards: ProcessAutomationCard[] = []
+  if (hasProcess(state, 'auto-shop')) {
+    cards.push({
+      id: 'auto-shop',
+      name: 'Sortie Auto-Buy',
+      enabled: cfg.shop.autoBuy,
+      summary: spendSummary(state),
+      lastAction: lastNote(state, 'auto-shop'),
+    })
+  }
+  if (hasProcess(state, 'auto-extract')) {
+    cards.push({
+      id: 'auto-extract',
+      name: 'Auto Extract',
+      enabled: cfg.sortie.autoExtract,
+      summary: `Hull ≤ ${Math.round(cfg.sortie.extractHullPct * 100)}%`,
+      lastAction: lastNote(state, 'auto-extract'),
+    })
+  }
+  if (hasProcess(state, 'sortie-relaunch')) {
+    cards.push({
+      id: 'sortie-relaunch',
+      name: 'Auto Launch',
+      enabled: cfg.sortie.autoRelaunch,
+      summary: 'Launch when hull is full',
+      lastAction: lastNote(state, 'sortie-relaunch'),
+    })
+  }
+  if (hasProcess(state, 'network-balance')) {
+    cards.push({
+      id: 'network-balance',
+      name: 'Worker Auto Fill',
+      enabled: cfg.network.enabled,
+      summary: NETWORK_PRESET_LABELS[cfg.network.preset],
+      lastAction: lastNote(state, 'network-balance'),
+    })
+  }
+  if (hasProcess(state, 'foundry-repeat')) {
+    cards.push({
+      id: 'foundry-repeat',
+      name: 'Foundry Target',
+      enabled: Boolean(cfg.foundry.repeatRecipe),
+      summary: cfg.foundry.repeatRecipe ? `Repeat ${cfg.foundry.repeatRecipe}` : 'No recipe pinned',
+      lastAction: lastNote(state, 'foundry-repeat'),
+    })
+  }
+  if (hasProcess(state, 'foundry-stock')) {
+    const entries = Object.entries(cfg.foundry.minStock ?? {})
+    const first = entries[0]
+    cards.push({
+      id: 'foundry-stock',
+      name: 'Foundry Stock',
+      enabled: entries.length > 0,
+      summary: first ? `Keep ${first[0]} ≥${first[1]}` : 'No stock floor',
+      lastAction: lastNote(state, 'foundry-stock'),
+    })
+  }
+  if (hasProcess(state, 'foundry-queue')) {
+    cards.push({
+      id: 'foundry-queue',
+      name: 'Foundry Queue',
+      enabled: cfg.foundry.queue.length > 0,
+      summary: `${cfg.foundry.queue.length} recipes queued`,
+      lastAction: lastNote(state, 'foundry-queue'),
+    })
+  }
+  if (hasProcess(state, 'print-assemble')) {
+    cards.push({
+      id: 'print-assemble',
+      name: 'Tracked Fabrication',
+      enabled: true,
+      summary: 'Fabricate the tracked Core project',
+      lastAction: lastNote(state, 'print-assemble'),
+    })
+  }
+  if (hasProcess(state, 'research-queue')) {
+    cards.push({
+      id: 'research-queue',
+      name: 'Research Queue',
+      enabled: cfg.research.queue.length > 0,
+      summary: `${cfg.research.queue.length} projects queued`,
+      lastAction: lastNote(state, 'research-queue'),
+    })
+  }
+  if (hasProcess(state, 'research-focus')) {
+    cards.push({
+      id: 'research-focus',
+      name: 'Research Auto-Next',
+      enabled: cfg.research.autoResearch,
+      summary: cfg.research.autoResearch ? 'Start the next queued project' : 'Off',
+      lastAction: lastNote(state, 'research-focus'),
+    })
+  }
+  if (hasProcess(state, 'furnace-presets')) {
+    cards.push({
+      id: 'furnace-presets',
+      name: 'Furnace Preset',
+      enabled: Boolean(cfg.furnace.preset),
+      summary: cfg.furnace.preset ? String(cfg.furnace.preset) : 'No preset',
+      lastAction: lastNote(state, 'furnace-presets'),
+    })
+  }
+  if (hasProcess(state, 'furnace-channels')) {
+    cards.push({
+      id: 'furnace-channels',
+      name: 'Furnace Channels',
+      enabled: cfg.furnace.autoChannel,
+      summary: hasProcess(state, 'furnace-reserve') ? `Reserve ${cfg.furnace.reserveHeat}` : 'Auto channel levels',
+      lastAction: lastNote(state, 'furnace-channels'),
+    })
+  }
+  if (hasProcess(state, 'protocol-repeat')) {
+    cards.push({
+      id: 'protocol-repeat',
+      name: 'Challenge Repeat',
+      enabled: cfg.sortie.protocolRepeat,
+      summary: cfg.sortie.protocolId || 'Last started Challenge',
+      lastAction: lastNote(state, 'protocol-repeat'),
+    })
+  }
+  return cards
+}
+
+export function processActiveAutomationCount(state: GameState): number {
+  return processAutomationCards(state).filter((card) => card.enabled).length
 }

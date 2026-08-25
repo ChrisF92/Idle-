@@ -79,7 +79,7 @@ describe('hub vs sortie', () => {
     expect(s.combat.wave).toBe(1)
   })
 
-  it('salvage core levels reset when the Sortie ends', () => {
+  it('clears retired Core-definition level data when the Sortie ends', () => {
     let s = createInitialState(0)
     s.shipyard.moduleLevels['pulse-cannon'] = 3
     s.resources.salvage = 40

@@ -10,7 +10,7 @@ import {
   protocolNextRewardText,
   tryCompleteProtocol,
 } from './protocols'
-import { HIVE_RESEARCH_NODES, hiveResearchCombatSpeed } from './hiveResearch'
+import { getHiveResearchNode, hiveResearchCombatSpeed } from './hiveResearch'
 import { processCombatSpeedMult } from './process'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
@@ -74,8 +74,9 @@ describe('GDD Phase 8 content depth', () => {
     expect(availableSortieSpeeds(rebuild)).toEqual([1, 1.5])
 
     const research = structuredClone(fresh)
-    research.hiveResearch.completed.energy = 4
-    expect(HIVE_RESEARCH_NODES.energy[3]?.combatSpeed).toBe(2)
+    research.hiveResearch.completedIds = ['combat-sim']
+    research.hiveResearch.completed.observation = 1
+    expect(getHiveResearchNode('combat-sim')?.combatSpeed).toBe(2)
     expect(hiveResearchCombatSpeed(research)).toBe(2)
     expect(availableSortieSpeeds(research)).toEqual([1, 2])
 
@@ -92,6 +93,7 @@ describe('GDD Phase 8 content depth', () => {
     expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'relic')).toBe(true)
     expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'process')).toBe(true)
     expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'recipe')).toBe(true)
+    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'research')).toBe(true)
 
     const s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.protocols)
     s.prestige.prestigeCount = 2
@@ -101,6 +103,7 @@ describe('GDD Phase 8 content depth', () => {
     expect(protocolNextRewardText(s, 'glass-ward')).toMatch(/Plate Chip/)
     expect(protocolNextRewardText(s, 'quiet-guns')).toMatch(/Shop Readout/)
     expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Frame/)
+    expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Challenge Log/)
 
     applyProtocolGrant(s, { kind: 'relic', id: 'plate-chip', blurb: 'test' })
     expect(s.reliquary.owned['plate-chip']).toBeGreaterThanOrEqual(1)
@@ -133,7 +136,7 @@ describe('GDD Phase 8 content depth', () => {
     expect(ids).not.toContain('echo')
     expect(FOUNDRY_LOGS.some((row) => row.id === 'echo' || row.id === 'capital' || row.id === 'crew')).toBe(false)
     expect(FOUNDRY_LOGS.find((row) => row.id === 'reinforce')?.body).toMatch(/knowledge backward/)
-    expect(FOUNDRY_LOGS.find((row) => row.id === 'core-prints')?.body).toMatch(/fit it at Dock/)
+    expect(FOUNDRY_LOGS.find((row) => row.id === 'core-prints')?.body).toMatch(/equip the Core at Dock/)
   })
 
   it('names the W300 climax as the Rebuild ceiling', () => {

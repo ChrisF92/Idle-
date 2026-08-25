@@ -33,7 +33,7 @@ const LEFTOVER_CORES = [
 ]
 
 describe('GDD Core roster and acquisition', () => {
-  it('hides leftover Cores from Foundry Prints on a fresh career', () => {
+  it('hides leftover Cores from Foundry Blueprints on a fresh career', () => {
     const late = atCareerWave(createInitialState(0), 300)
     const ids = listFarmableCores(late).map((mod) => mod.id)
     expect(ids).toEqual(expect.arrayContaining(['flak-array', 'phase-beam', 'heavy-lance', 'barrier-projector']))
@@ -54,12 +54,16 @@ describe('GDD Core roster and acquisition', () => {
     expect(listFarmableCores(s).some((mod) => mod.id === 'rail-driver')).toBe(true)
   })
 
-  it('tells the player to assemble then fit at Dock, including mid-Sortie', () => {
+  it('tells the player to fabricate then equip at Dock, including mid-Sortie', () => {
     const log = FOUNDRY_LOGS.find((entry) => entry.id === 'core-prints')
-    expect(log?.body).toMatch(/fit it at Dock/i)
-    expect(log?.body).not.toMatch(/Rebuild to fit/)
-    expect(FOUNDRY_PANE_LABELS.prints).toBe('Fabrication')
-    expect(FOUNDRY_PANE_LABELS.smelt).toBe('Processing')
+    expect(log?.body).toMatch(/equip the Core at Dock/i)
+    expect(log?.body).not.toMatch(/Rebuild to equip/)
+    expect(FOUNDRY_PANE_LABELS).toEqual({
+      processing: 'Processing',
+      fabrication: 'Fabrication',
+      mastery: 'Mastery',
+      blueprints: 'Blueprints',
+    })
 
     let s = atCareerWave(createInitialState(0), 80)
     s.combat.docked = false

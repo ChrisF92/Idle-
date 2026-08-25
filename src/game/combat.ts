@@ -87,7 +87,6 @@ import {
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { fittedRegenBonus } from './milestones'
 import { combinedCoreMods } from './coreProgression'
-import { networkSalvageMult } from './network'
 import { grantReliquaryKillLoot, reliquaryResearchXpMult, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
 import { foundrySalvageMult, foundryPartDropMult, foundryShardDropBonus } from './foundry'
@@ -219,7 +218,7 @@ export function isBossSector(sector: number): boolean {
 export function salvageSectorBase(sector: number): number {
   const s = Math.max(1, sector)
   if (s <= 4) return s
-  return 4 * Math.pow(s / 4, 0.7)
+  return 4 * Math.pow(s / 4, SALVAGE_MID_EXPONENT)
 }
 
 export function salvageFromKill(
@@ -532,7 +531,7 @@ export function enemyForSector(
 
   // Later waves should be tougher, but not a 40% stat cliff before every boss.
   // Density now carries more of the pressure, so the within-sector ramp is gentler.
-  const waveScale = (1 + Math.max(0, wave - 1) * 0.06) * routeDangerMult(side) * extraDanger
+  const waveScale = (1 + Math.max(0, wave - 1) * ENEMY_WAVE_HULL_RAMP) * routeDangerMult(side) * extraDanger
   const pattern = packPatternForBand(gddEnemyBandForWave(careerWave), careerWave)
   let units = bossWave
     ? buildBossPack(sector, name, waveScale)
@@ -654,39 +653,53 @@ function act1ClimaxEncounter(extraDanger = 1, state?: GameState): SectorEncounte
 }
 
 /**
- * Piecewise enemy scaling aligned with USI career doors.
+ * Piecewise enemy scaling aligned with Act 1 doors.
  *
- * S1–S8 keep the original exponents so the tutorial still teaches Plate
- * (S1 chips L0 shield; S8 without Plate levels fails a full sector).
- * S9–S18 grow slower so S11/S15 are bumps, not 50–200× death cliffs —
- * USI's first real slowdown is the Challenges/Warp band (~18–23).
- * S19+ steepens again toward that band. S15 hull stays ≥10× S1.
+ * S1 stays on tutorial hull (2-shot mites). S2–S3 grow slower so early
+ * Best Δ can land at +2–4. S4–S8 steepen so W40–W80 is the wall that
+ * teaches Plate. S9–S18 grow slower so later bands are bumps, not cliffs.
+ * S19+ steepens again toward Challenges.
  */
 export const ENEMY_EARLY_SECTOR = 8
 export const ENEMY_MID_SECTOR = 18
+/** S1–S3 opening. S1 uses base only; S2–S3 grow slower so early Best Δ can land. */
+export const ENEMY_OPENING_SECTOR = 3
 
 export const ENEMY_HULL_BASE = 1.55
-export const ENEMY_HULL_EARLY = 1.235
+/** Per-band hull growth for S2–S3. S1 mites stay 2-shot (base × mite HP). */
+export const ENEMY_HULL_OPENING = 1.2
+/** Per-band hull growth for S4–S8. Steeper than the opening so W40–W80 is the wall. */
+export const ENEMY_HULL_EARLY = 1.3
 export const ENEMY_HULL_MID = 1.2
 export const ENEMY_HULL_LATE = 1.215
 
 export const ENEMY_DMG_BASE = 0.9
+export const ENEMY_DMG_OPENING = 1.22
 export const ENEMY_DMG_EARLY = 1.28
 export const ENEMY_DMG_MID = 1.16
 export const ENEMY_DMG_LATE = 1.225
 
+/** Extra hull/damage per Wave inside a 10-wave band. */
+export const ENEMY_WAVE_HULL_RAMP = 0.06
+
+/** Mid-band Salvage income exponent after band 4. S1–S4 stay linear. */
+export const SALVAGE_MID_EXPONENT = 0.5
+
 function piecewiseSectorScale(
   sector: number,
   base: number,
+  openingGrowth: number,
   earlyGrowth: number,
   midGrowth: number,
   lateGrowth: number,
 ): number {
   const s = Math.max(1, sector)
-  const atEarlyCap = base * Math.pow(earlyGrowth, ENEMY_EARLY_SECTOR - 1)
-  if (s <= ENEMY_EARLY_SECTOR) return base * Math.pow(earlyGrowth, s - 1)
-  const atMidCap = atEarlyCap * Math.pow(midGrowth, ENEMY_MID_SECTOR - ENEMY_EARLY_SECTOR)
+  if (s <= ENEMY_OPENING_SECTOR) return base * Math.pow(openingGrowth, s - 1)
+  const atOpening = base * Math.pow(openingGrowth, ENEMY_OPENING_SECTOR - 1)
+  if (s <= ENEMY_EARLY_SECTOR) return atOpening * Math.pow(earlyGrowth, s - ENEMY_OPENING_SECTOR)
+  const atEarlyCap = atOpening * Math.pow(earlyGrowth, ENEMY_EARLY_SECTOR - ENEMY_OPENING_SECTOR)
   if (s <= ENEMY_MID_SECTOR) return atEarlyCap * Math.pow(midGrowth, s - ENEMY_EARLY_SECTOR)
+  const atMidCap = atEarlyCap * Math.pow(midGrowth, ENEMY_MID_SECTOR - ENEMY_EARLY_SECTOR)
   return atMidCap * Math.pow(lateGrowth, s - ENEMY_MID_SECTOR)
 }
 
@@ -700,6 +713,7 @@ export function enemySectorScale(sector: number): number {
   return piecewiseSectorScale(
     sector,
     ENEMY_HULL_BASE,
+    ENEMY_HULL_OPENING,
     ENEMY_HULL_EARLY,
     ENEMY_HULL_MID,
     ENEMY_HULL_LATE,
@@ -717,6 +731,7 @@ export function enemyDamageScale(sector: number): number {
   return piecewiseSectorScale(
     sector,
     ENEMY_DMG_BASE,
+    ENEMY_DMG_OPENING,
     ENEMY_DMG_EARLY,
     ENEMY_DMG_MID,
     ENEMY_DMG_LATE,
@@ -1498,7 +1513,7 @@ function buildAct1ClimaxPack(sector: number, waveScale = 1): CombatUnit[] {
       shield: Math.min(28, 10 + 1.6 * (sector - 1)) * hullScale,
       damage: 12 * dmgScale,
       cooldown: 1,
-      telegraphDuration: 0.4,
+      telegraphDuration: 0.95,
       range: 125,
       speed: 9,
       engageRange: 105,
@@ -1512,46 +1527,46 @@ function buildAct1ClimaxPack(sector: number, waveScale = 1): CombatUnit[] {
       rewardWeight: 3,
     }),
     makeEnemyUnit({
-      name: 'Plate Thrall',
+      name: 'Crown Plate',
       family: 'armored',
       role: 'fighter',
-      hull: 16 * hullScale,
-      armor: 3,
-      damage: 3.2 * dmgScale,
-      cooldown: 1,
-      range: 55,
-      speed: 20,
-      engageRange: 92,
+      hull: 18 * hullScale,
+      armor: 4,
+      damage: 3.4 * dmgScale,
+      cooldown: 1.05,
+      range: 58,
+      speed: 18,
+      engageRange: 94,
       tags: ['kinetic'],
       x: SPAWN_DISTANCE + 28,
       y: -36,
     }),
     makeEnemyUnit({
-      name: 'Choir Mite',
+      name: 'Loop Mite',
       family: 'swarm',
       role: 'skirmisher',
-      hull: 5 * hullScale,
-      damage: 2.4 * dmgScale,
-      cooldown: 0.9,
-      range: 36,
-      speed: 40,
-      engageRange: 78,
+      hull: 6 * hullScale,
+      damage: 2.6 * dmgScale,
+      cooldown: 0.8,
+      range: 38,
+      speed: 42,
+      engageRange: 80,
       tags: ['kinetic'],
       x: SPAWN_DISTANCE + 34,
       y: 36,
     }),
     makeEnemyUnit({
-      name: 'Veil Attendant',
+      name: 'Veil Echo',
       family: 'ethereal',
       role: 'sniper',
-      hull: 10 * hullScale,
-      shield: 8 * hullScale,
-      damage: 3.6 * dmgScale,
-      cooldown: 1.4,
-      telegraphDuration: 0.5,
-      range: 120,
-      speed: 16,
-      engageRange: 110,
+      hull: 12 * hullScale,
+      shield: 10 * hullScale,
+      damage: 4.0 * dmgScale,
+      cooldown: 1.25,
+      telegraphDuration: 0.7,
+      range: 128,
+      speed: 14,
+      engageRange: 118,
       kite: true,
       tags: ['energy'],
       x: SPAWN_DISTANCE + 16,
@@ -1593,7 +1608,7 @@ export function softCounterForFamily(family: EnemyFamily): string {
     case 'ethereal':
       return 'Soft counter: Utility, Grav Tether, energy / anti-shield, or Rail reach.'
     case 'divine':
-      return 'Soft counter: Utility / energy pressure; expect diving attendants.'
+      return 'Soft counter: Utility / energy damage; expect diving attendants.'
     case 'titan':
       return 'Soft counter: Defense + Ablative Mesh; pierce helps through phases.'
   }
@@ -1883,11 +1898,11 @@ export function computeFightDamage(state: GameState): FightSummary {
       notes.push('No Defense vs Boss ×1.20 incoming')
     } else {
       incomingMult *= Math.pow(0.92, roles.defense)
-      notes.push('Defense steadies boss pressure')
+      notes.push('Defense steadies the Hive against bosses')
     }
     if (aiDoctrinesActive(state, 'boss-protocol')) {
       playerDps *= 1.25
-      notes.push('Boss Protocol ×1.25')
+      notes.push('Boss Doctrine ×1.25')
     }
   }
 
@@ -1984,15 +1999,21 @@ export function maybeAdvanceBossPhase(
       w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
     }
     const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
+    const climax = mechanic === 'climax-choir'
     if (mechanic && bossMechanicHasShieldPhase(mechanic)) {
-      boss.shieldMax = Math.max(boss.shieldMax, boss.hullMax * 0.45)
+      boss.shieldMax = Math.max(boss.shieldMax, boss.hullMax * (climax ? 0.7 : 0.45))
       boss.shield = boss.shieldMax
-      pushLog(state, 'Boss phase 2 — shield wall raised.')
+      pushLog(
+        state,
+        climax
+          ? 'Choir Crown — the loop folds. A temporal shield wall closes.'
+          : 'Boss phase 2 — shield wall raised.',
+      )
     } else {
       pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
     }
     if (mechanic && bossMechanicHasAdds(mechanic)) {
-      spawnBossAdds(state, boss, 'Called Thrall')
+      spawnBossAdds(state, boss, climax ? 'Loop Mite' : 'Called Thrall')
     }
     revealCodexFamilies(state, ['armored'])
   }
@@ -2014,11 +2035,17 @@ export function maybeAdvanceBossPhase(
       w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
     }
     const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
+    const climax = mechanic === 'climax-choir'
     if (mechanic && bossMechanicHasAdds(mechanic)) {
-      spawnBossAdds(state, boss, 'Called Thrall')
+      spawnBossAdds(state, boss, climax ? 'Veil Echo' : 'Called Thrall')
     }
     revealCodexFamilies(state, ['ethereal'])
-    pushLog(state, 'Boss phase 3 — form frays [ethereal], kiting out.')
+    pushLog(
+      state,
+      climax
+        ? 'Choir Crown — reconstruction tears. Time around the Hive unthreads.'
+        : 'Boss phase 3 — form frays [ethereal], kiting out.',
+    )
   }
 }
 
@@ -2297,7 +2324,6 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   recordPlaytest(state, 'first_kill', { firstKey: 'kill' })
   const rewardWeight = Math.max(0, Math.min(1, unit.rewardWeight ?? 1))
   const salvageMult =
-    networkSalvageMult(state) *
     reliquarySalvageMult(state) *
     hiveResearchSalvageMult(state) *
     foundrySalvageMult(state) *

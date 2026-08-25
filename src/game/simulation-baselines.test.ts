@@ -6,8 +6,8 @@ import { formatSummary } from './simulation/report'
 const runBaselines = process.env.RUN_SIM_BASELINES === '1'
 
 describe.skipIf(!runBaselines)('baseline career simulations (reporting only)', () => {
-  it('TEST 1 Fresh Active → First Rebuild', () => {
-    const report = runSimulation(
+  it('TEST 1 Fresh Active → First Rebuild', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'active',
@@ -25,8 +25,8 @@ describe.skipIf(!runBaselines)('baseline career simulations (reporting only)', (
     expect(report.runs[0]?.rebuilds).toBeGreaterThanOrEqual(1)
   }, 120_000)
 
-  it('TEST 2 Fresh Active → Sector 30', () => {
-    const report = runSimulation(
+  it('TEST 2 Fresh Active → Sector 30', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'active',
@@ -43,8 +43,8 @@ describe.skipIf(!runBaselines)('baseline career simulations (reporting only)', (
     expect(report.runs[0]?.safety.some((s) => s.kind === 'nan')).toBe(false)
   }, 180_000)
 
-  it('TEST 3 Casual 7 Days', () => {
-    const report = runSimulation(
+  it('TEST 3 Casual 7 Days', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'casual',
@@ -62,8 +62,8 @@ describe.skipIf(!runBaselines)('baseline career simulations (reporting only)', (
     expect(report.runs[0]?.calendarSeconds).toBeGreaterThan(6 * 24 * 3600)
   }, 180_000)
 
-  it('TEST 4 Long Safety Run', () => {
-    const report = runSimulation(
+  it('TEST 4 Long Safety Run', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'active',

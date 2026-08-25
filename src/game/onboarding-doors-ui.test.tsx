@@ -83,7 +83,7 @@ function renderDoor(id: OnboardingLessonId) {
             state={state}
             requestedPane="processing"
             onSetSlot={noop}
-            onAssemble={noop}
+            onFabricateCore={noop}
           />
         )
       case 'workers.assignment':
@@ -91,7 +91,7 @@ function renderDoor(id: OnboardingLessonId) {
       case 'furnace.channel':
         return <FurnaceTab state={state} onBack={noop} onConvert={noop} onSetChannel={noop} />
       case 'research.project':
-        return <ResearchTab state={state} onBack={noop} onFocus={noop} />
+        return <ResearchTab state={state} onBack={noop} onStart={noop} guideTarget={lesson.target} />
       case 'process.capability':
         return (
           <ProcessTab

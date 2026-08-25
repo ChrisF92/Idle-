@@ -65,10 +65,11 @@ describe('GDD information architecture', () => {
     workers.foundry.recipeLevels['temper-bar'] = 3
     workers.foundry.slots[0] = { recipeId: 'temper-bar', progress: 0.4, paid: true }
     workers.base.workerDrones = 4
+    workers.base.assignments['alloy-foundry'] = 2
     const foundry = foundryHubStatus(workers)
+    expect(foundry.some((line) => /2 Foundry workers/.test(line))).toBe(true)
+    expect(foundry.some((line) => /Processors 1\/1 · Fabricators 0\/1/.test(line))).toBe(true)
     expect(foundry.some((line) => /Processing Temper Bar 40%/.test(line))).toBe(true)
-    expect(foundry.some((line) => /Fabrication idle/.test(line))).toBe(true)
-    expect(foundry.some((line) => /Temper Bar Mastery 3/.test(line))).toBe(true)
 
     const furnace = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
     expect(systemsHubCards(furnace).map((c) => c.id)).toEqual(['foundry', 'furnace'])

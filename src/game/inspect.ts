@@ -13,7 +13,6 @@ import type {
 } from './types'
 import {
   droneCap,
-  dronePower,
   getModule,
   moduleMasteryRank,
   moduleStatPreviews,
@@ -28,29 +27,7 @@ import {
 import { resolveCoreInstance } from './coreInstances'
 import { formatCompact } from './format'
 import { coreContributionPct } from './uiReadout'
-import {
-  NETWORK_BARS,
-  NETWORK_LINKS,
-  canBuyNetworkLink,
-  getNetworkBar,
-  getNetworkLink,
-  isNetworkBarUnlocked,
-  networkAssigned,
-  networkCycleMult,
-  networkEffectLabel,
-  networkFillCap,
-  networkFillCost,
-  networkFillRate,
-  networkLevels,
-  networkLinkCost,
-  networkLinkEffectLabel,
-  networkLinkPower,
-  networkLinkRank,
-  networkProgress,
-  networkRelayBonusLabel,
-  networkRelayId,
-  networkSecondsToLevel,
-} from './network'
+import { workerAllocationSummary } from './workers'
 import {
   PROTOCOL_MAX_RANK,
   PROTOCOLS,
@@ -64,11 +41,11 @@ import {
 } from './protocols'
 import {
   ASH_PER_HEAT,
-  FURNACE_CHANNELS,
   canBuyFurnaceUpgrade,
   furnaceActiveLevel,
   furnaceChannelHeatCost,
   furnaceLevelDef,
+  furnacePushChannels,
   furnaceUpgradeCost,
   furnaceUpgradeRank,
   getFurnaceChannel,
@@ -99,7 +76,8 @@ import {
   HIVE_RESEARCH_NODES,
   hiveResearchActive,
   hiveResearchCompleted,
-  hiveResearchNodeCost,
+  hiveResearchInspectDetail,
+  hiveResearchNodeDuration,
   hiveResearchNodeEffectLine,
   hiveResearchSpeed,
   hiveResearchUpcoming,
@@ -148,14 +126,6 @@ const ROLE_LABEL: Record<string, string> = {
   utility: 'Utility Core',
 }
 
-function formatEta(seconds: number | null): string {
-  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return 'Idle'
-  if (seconds < 60) return `${seconds < 10 ? seconds.toFixed(1) : Math.ceil(seconds)}s`
-  const m = Math.floor(seconds / 60)
-  const s = Math.round(seconds % 60)
-  return `${m}m ${s}s`
-}
-
 function deliveryLine(delivery: string | undefined): string {
   if (delivery === 'beam') return 'Holds a beam on the target while it stays in range.'
   if (delivery === 'charge') return 'Winds up, then fires a fast bolt.'
@@ -163,108 +133,31 @@ function deliveryLine(delivery: string | undefined): string {
 }
 
 export function inspectNetworkOverview(state: GameState): InspectCard {
+  const workers = workerAllocationSummary(state)
   const cap = droneCap(state)
-  const idle = Math.max(0, state.base.workerDrones - networkAssigned(state))
   return {
-    title: 'Drone Network',
-    kicker: 'Drones',
+    title: 'Worker Drones',
+    kicker: 'Workforce',
     stats: [
-      { label: 'Drones', value: `${state.base.workerDrones}/${cap}` },
-      { label: 'Idle', value: String(idle) },
-      { label: 'Assigned', value: String(networkAssigned(state)) },
-      { label: 'Link power', value: formatCompact(networkLinkPower(state), 2) },
-      { label: 'Efficiency', value: `×${dronePower(state).toFixed(2)}` },
-      { label: 'Cycle speed', value: `×${networkCycleMult(state).toFixed(2)}` },
+      { label: 'Total', value: String(workers.total) },
+      { label: 'Assigned', value: String(workers.assigned) },
+      { label: 'Idle', value: String(workers.idle) },
+      { label: 'Capacity', value: String(cap) },
     ],
     body: [
-      'Assign idle drones to bars. Idle drones do nothing.',
-      'Each completed cycle takes longer than the last. Extra drones, Relays, and Links shorten that wait. Drones past the fill cap waste work. Bars crawl while docked.',
-      'Relays improve fill speed, level strength, and fill cap for the bar behind them.',
-      'Bar levels reset on Rebuild. Drones and Link ranks stay. Drones never fly on Sortie.',
+      'Assign Worker Drones to active Processing, Fabrication, Research, Worker Drone production, Infrastructure, or passive Salvage Operations.',
+      'Every job shows its efficient range and the exact consequence of adding one Worker. Workers beyond the efficient range have diminishing returns.',
+      'Worker Drones persist through Rebuild. Assignments reset so the next cycle can be planned around its active work.',
     ],
   }
 }
 
-export function inspectNetworkBar(state: GameState, id: NetworkBarId): InspectCard | null {
-  const def = getNetworkBar(id)
-  if (!def) return null
-  const open = isNetworkBarUnlocked(state, id)
-  const assigned = Math.max(0, state.base.assignments[id] ?? 0)
-  const levels = networkLevels(state, id)
-  const fill = networkProgress(state, id)
-  const rate = networkFillRate(state, id)
-  const eta = networkSecondsToLevel(state, id)
-  const stats: InspectStat[] = [
-    { label: 'Status', value: open ? `Level ${levels}` : `Opens after Wave ${def.requiresBestWave}` },
-  ]
-  if (open) {
-    stats.push(
-      { label: 'Assigned', value: String(assigned) },
-      { label: 'Cycle', value: `${Math.round(fill * 100)}%` },
-      { label: 'Fill rate', value: rate > 0 ? `${rate.toFixed(2)}/s` : 'Idle' },
-      { label: 'Fill cap', value: `${networkFillCap(state, id).toFixed(1)}/s` },
-      { label: 'Cycle work', value: `${networkFillCost(state, id).toFixed(1)} (first ${def.fillBase})` },
-      { label: 'Next level', value: formatEta(eta) },
-      { label: 'Now', value: networkEffectLabel(state, id) },
-      { label: 'Link power', value: formatCompact(networkLinkPower(state), 2) },
-    )
-    if (def.layer === 'primary') {
-      const relayId = networkRelayId(id)
-      if (relayId && isNetworkBarUnlocked(state, relayId)) {
-        stats.push({
-          label: getNetworkBar(relayId)?.name ?? 'Relay',
-          value: `L${networkLevels(state, relayId)} · ${networkRelayBonusLabel(state, id)}`,
-        })
-      }
-    } else if (def.parent) {
-      stats.push({
-        label: 'Improves',
-        value: def.improves ?? getNetworkBar(def.parent)?.name ?? def.parent,
-      })
-    }
-  }
-  return {
-    title: def.name,
-    kicker: def.layer === 'primary' ? 'Network bar' : 'Network infrastructure',
-    stats,
-    body: [...def.detail],
-  }
+export function inspectNetworkBar(_state: GameState, _id: NetworkBarId): InspectCard | null {
+  return null
 }
 
-export function inspectNetworkLink(state: GameState, id: NetworkLinkId): InspectCard | null {
-  const def = getNetworkLink(id)
-  if (!def) return null
-  const rank = networkLinkRank(state, id)
-  const cost = networkLinkCost(state, id)
-  const can = canBuyNetworkLink(state, id)
-  const stats: InspectStat[] = [
-    { label: 'Rank', value: `${rank}/${def.maxRank}` },
-    { label: 'Now', value: networkLinkEffectLabel(state, id) },
-  ]
-  if (can.ok) {
-    stats.push({
-      label: 'Next',
-      value: `${cost?.amount ?? 0} ${cost?.resource === 'heat' ? 'Heat' : 'scrap'}`,
-    })
-  } else {
-    stats.push({ label: 'Next', value: can.reason })
-  }
-  if (id === 'racks') {
-    stats.push({ label: 'Drone capacity', value: String(droneCap(state)) })
-  }
-  if (id === 'acuity') {
-    stats.push({ label: 'Efficiency', value: `×${dronePower(state).toFixed(2)}` })
-  }
-  if (id === 'cycle') {
-    stats.push({ label: 'Cycle speed', value: `×${networkCycleMult(state).toFixed(2)}` })
-  }
-  stats.push({ label: 'Link power', value: formatCompact(networkLinkPower(state), 2) })
-  return {
-    title: def.name,
-    kicker: 'Network link',
-    stats,
-    body: [...def.detail],
-  }
+export function inspectNetworkLink(_state: GameState, _id: NetworkLinkId): InspectCard | null {
+  return null
 }
 
 export function inspectCore(state: GameState, moduleId: string): InspectCard | null {
@@ -388,7 +281,7 @@ export function inspectFurnaceOverview(state: GameState): InspectCard {
       { label: 'Ash', value: formatCompact(ash, 1) },
       { label: 'Heat', value: formatCompact(heat, 1) },
       { label: 'Convert', value: `${ASH_PER_HEAT} Ash → 1 Heat` },
-      ...FURNACE_CHANNELS.map((ch) => ({
+      ...furnacePushChannels().map((ch) => ({
         label: ch.name,
         value: furnaceActiveLevel(state, ch.id) > 0 ? `Lv ${furnaceActiveLevel(state, ch.id)}` : 'Off',
       })),
@@ -521,7 +414,7 @@ export function inspectReliquarySlot(state: GameState, color: ReliquaryColor): I
   if (card) return card
   return {
     title: slot.name,
-    kicker: 'Reliquary slot',
+    kicker: 'Relic socket',
     stats: [
       {
         label: 'Status',
@@ -529,8 +422,8 @@ export function inspectReliquarySlot(state: GameState, color: ReliquaryColor): I
       },
     ],
     body: [
-      'Fit one shard of this colour. Extra copies of that shard charge resonance.',
-      'Shards persist when you Rebuild.',
+      'Fit one Relic of this type. Extra copies of that Relic raise authored I–III tiers.',
+      'Relics persist when you Rebuild.',
     ],
   }
 }
@@ -553,7 +446,7 @@ export function inspectProtocol(state: GameState, id: string): InspectCard | nul
     ],
     body: [
       def.restriction,
-      'Starting this Challenge resets Salvage, Core levels, and the current Sortie. Ranks persist on Rebuild.',
+      'Starting this Challenge resets Salvage, run upgrades, and the current Sortie. Core Levels persist until Rebuild.',
       rank > 0 ? protocolCumulativeLine(state, id) : def.blurb,
       'Repeat clears still pay at every level. Later ranks raise the goal Wave.',
     ],
@@ -568,7 +461,7 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
   const xp = hiveResearchXp(state, id)
   const upcoming = hiveResearchUpcoming(state, id)
   const next = upcoming[0]
-  const need = next ? hiveResearchNodeCost(next.index, state) : 0
+  const need = next ? hiveResearchNodeDuration(next.node, state) : 0
   const researching = hiveResearchActive(state) && (state.hiveResearch?.focus ?? 'energy') === id
   const speed = hiveResearchSpeed(state)
   const left = next && speed > 0 ? Math.max(0, (need - xp) / speed) : 0
@@ -581,6 +474,9 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
       { label: 'Next', value: `${next.node.name}${isResearchBreakthrough(next.node) ? ' (breakthrough)' : ''}` },
       { label: 'Duration', value: researching ? formatResearchDuration(left) : formatResearchDuration(need) },
     )
+    if (hiveResearchInspectDetail(state)) {
+      stats.push({ label: 'Result', value: hiveResearchNodeEffectLine(next.node) })
+    }
   }
   return {
     title: def.name,
@@ -588,9 +484,9 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
     stats,
     body: [
       def.blurb,
-      'One Research project at a time. Choose which discipline to focus.',
-      'The project runs during Sorties, at Dock, and offline. Sensor Net drones speed it up.',
-      'Breakthroughs change a rule — targeting, a processor slot, a Frame, a Reliquary colour. Small percent nodes stay rare.',
+      'One Research project at a time. Branches inside a discipline may reconnect.',
+      'The project runs during Sorties, at Dock, and offline. Worker Drones speed it up.',
+      'Breakthroughs change a rule — targeting, a processor slot, a Frame, a Relic colour.',
       next ? hiveResearchNodeEffectLine(next.node) : 'This discipline is complete.',
       'Nodes persist when you Rebuild.',
     ],
@@ -606,12 +502,11 @@ export function inspectCopyCorpus(state: GameState): string[] {
   }
   push(inspectNetworkOverview(state))
   push(inspectRebuildOverview(state))
-  for (const bar of NETWORK_BARS) push(inspectNetworkBar(state, bar.id))
-  for (const link of NETWORK_LINKS) push(inspectNetworkLink(state, link.id))
   for (const id of state.shipyard.modules) push(inspectCore(state, id))
   push(inspectFurnaceOverview(state))
-  for (const ch of FURNACE_CHANNELS) push(inspectFurnaceChannel(state, ch.id))
+  for (const ch of furnacePushChannels()) push(inspectFurnaceChannel(state, ch.id))
   for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
+  for (const slot of RELIQUARY_SLOTS) push(inspectReliquarySlot(state, slot.color))
   for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))
   for (const b of HIVE_RESEARCH_BRANCHES) push(inspectResearchBranch(state, b.id))
   return lines

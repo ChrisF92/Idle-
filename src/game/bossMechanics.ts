@@ -30,7 +30,7 @@ export function bossMechanicName(id: BossMechanicId): string {
     case 'support-aura':
       return 'Support Aura'
     case 'climax-choir':
-      return 'Choir Crown'
+      return 'Temporal Crown'
   }
 }
 
@@ -45,7 +45,7 @@ export function bossMechanicBlurb(id: BossMechanicId): string {
     case 'support-aura':
       return 'Nearby thralls mend while the Boss lives. Split fire or the pack stalls.'
     case 'climax-choir':
-      return 'Act 1 climax. Slam, shield wall, and attending mites. Rebuild has reached the limit of this loop.'
+      return 'Act 1 climax. A temporal slam, then a folding shield wall, then attending mites from a loop that has already happened. Rebuild has reached the limit of this architecture.'
   }
 }
 
@@ -66,7 +66,7 @@ export function bossMechanicTelegraph(id: BossMechanicId): number {
     case 'telegraph-slam':
       return 0.75
     case 'climax-choir':
-      return 0.55
+      return 0.95
     default:
       return 0.35
   }

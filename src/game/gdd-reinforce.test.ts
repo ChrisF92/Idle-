@@ -4,7 +4,8 @@ import { rebuildCycle } from './rebuild'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { ACT1_CLIMAX_BLURB, ACT1_CLIMAX_NAME, encounterForWave } from './combat'
 import { moreStationBuckets } from './moreStations'
-import { isSystemUnlocked } from './progression'
+import { dismissAct1Finale, isSystemUnlocked } from './progression'
+import { reinforceConsequenceLists } from './playerGuidance'
 import { canReinforce } from './reinforce'
 import { createInitialState } from './state'
 import { atCareerWave, clearCurrentWave, markHullLost } from './testHelpers'
@@ -32,8 +33,11 @@ describe('GDD Act 1 climax and Reinforce', () => {
     expect(climax.blurb).toBe(ACT1_CLIMAX_BLURB)
     expect(climax.mechanicId).toBe('climax-choir')
     expect(climax.units.some((u) => u.name === ACT1_CLIMAX_NAME && u.isBoss)).toBe(true)
-    expect(climax.units.length).toBeGreaterThanOrEqual(4)
-    expect(prior.name).not.toBe(ACT1_CLIMAX_NAME)
+    expect(climax.units.some((u) => u.name === 'Crown Plate')).toBe(true)
+    expect(climax.units.some((u) => u.name === 'Loop Mite')).toBe(true)
+    expect(climax.units.some((u) => u.name === 'Veil Echo')).toBe(true)
+    expect(prior.units.some((u) => u.name === 'Crown Plate')).toBe(false)
+    expect(prior.mechanicId).not.toBe('climax-choir')
     expect(new Set(climax.units.map((u) => u.family)).size).toBeGreaterThan(1)
   })
 
@@ -59,9 +63,13 @@ describe('GDD Act 1 climax and Reinforce', () => {
     s.combat.playerHullMax = 10_000
     s = clearCurrentWave(s)
     expect(s.meta.act1Cleared).toBe(true)
+    expect(s.meta.act1FinalePending).toBe(true)
     expect(isSystemUnlocked(s, 'reinforce')).toBe(true)
     expect(moreStationBuckets(s).open.map((door) => door.id)).toContain('reinforce')
     expect(moreStationBuckets(s).next).toEqual([])
+    const dismissed = dismissAct1Finale(s)
+    expect(dismissed.meta.act1FinalePending).toBe(false)
+    expect(dismissed.meta.act1Cleared).toBe(true)
   })
 
   it('refuses Reinforce mid-Sortie and resets the cycle from Dock', () => {
@@ -85,5 +93,16 @@ describe('GDD Act 1 climax and Reinforce', () => {
     expect(rebuildCycle(s)).toEqual({ bestWave: 0, sorties: 0, scrapEarned: 0 })
     expect(s.meta.act1Cleared).toBe(true)
     expect(canPrestige(s)).toBe(false)
+  })
+
+  it('prints YOU RESET, YOU KEEP, and WHAT CHANGES without opening Capital', () => {
+    const s = climaxState({ cleared: true })
+    const lists = reinforceConsequenceLists(s)
+    expect(lists.reset.length).toBeGreaterThan(lists.keep.length ? 0 : 1)
+    expect(lists.reset.some((line) => /Salvage/.test(line))).toBe(true)
+    expect(lists.keep.some((line) => /Act 1 completion/.test(line))).toBe(true)
+    expect(lists.change.some((line) => /starting architecture/.test(line))).toBe(true)
+    expect(lists.change.some((line) => /No Act 2 shop/.test(line))).toBe(true)
+    expect(lists.change.join(' ')).not.toMatch(/Act 2 shop is open|Capital/)
   })
 })

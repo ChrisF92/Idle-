@@ -46,7 +46,7 @@ export interface ProtocolRewardStep {
   blurb: string
 }
 
-export type ProtocolGrantKind = 'process' | 'relic' | 'recipe'
+export type ProtocolGrantKind = 'process' | 'relic' | 'recipe' | 'research'
 
 /** First-clear grant that expands the tested system (GDD §98). */
 export interface ProtocolGrant {
@@ -77,63 +77,68 @@ export const PROTOCOLS: ProtocolDef[] = [
   {
     id: 'glass-ward',
     name: 'Glass Hive',
-    blurb: 'Reduced Hull. Completions ease Plate Salvage growth and Ward pay.',
-    restriction: 'Hull is halved. Plate, Ward, and other shield bonuses grant nothing.',
-    disabledSystems: ['Hull integrity', 'Shields', 'Ward'],
+    blurb: 'Reduced Hull. Completions ease Plate Core Level cost growth.',
+    restriction: 'Hull is halved. Plate and other shield bonuses grant nothing.',
+    disabledSystems: ['Hull integrity', 'Shields'],
     mute: 'shields',
     goalWave: 80,
     hullMult: 0.5,
     firstGrant: { kind: 'relic', id: 'plate-chip', blurb: 'First clear seats a Plate Chip Relic.' },
     rewards: [
-      { at: 1, hook: { kind: 'networkWardExponent', add: 0.02 }, blurb: 'Ward levels scale harder at every rank.' },
-      { at: 2, hook: { kind: 'shieldCostScaling', add: -0.01 }, blurb: 'Plate Salvage costs grow a little slower.' },
-      { at: 3, hook: { kind: 'networkWardExponent', add: 0.015 }, blurb: 'Ward scaling again.' },
+      { at: 1, hook: { kind: 'shieldCostScaling', add: -0.005 }, blurb: 'Plate Core Level costs grow a little slower.' },
+      { at: 2, hook: { kind: 'shieldCostScaling', add: -0.01 }, blurb: 'Plate Core Level costs grow a little slower.' },
+      { at: 3, hook: { kind: 'shieldCostScaling', add: -0.008 }, blurb: 'Plate costs ease again.' },
       { at: 4, hook: { kind: 'rebuildMatter', mult: 1.04 }, blurb: 'Rebuilds pay a little more Matter.' },
       { at: 5, hook: { kind: 'shieldCostScaling', add: -0.012 }, blurb: 'Milestone: Plate stays cheaper longer.' },
-      { at: 6, hook: { kind: 'networkWardExponent', add: 0.015 }, blurb: 'Ward scaling again.' },
+      { at: 6, hook: { kind: 'shieldCostScaling', add: -0.01 }, blurb: 'Plate costs ease further.' },
       { at: 7, hook: { kind: 'rebuildMatter', mult: 1.04 }, blurb: 'Rebuild Matter again.' },
-      { at: 8, hook: { kind: 'shieldCostScaling', add: -0.012 }, blurb: 'Capstone: high Plate ranks stay in reach.' },
+      { at: 8, hook: { kind: 'shieldCostScaling', add: -0.012 }, blurb: 'Capstone: high Plate Core Levels stay in reach.' },
     ],
   },
   {
     id: 'quiet-guns',
     name: 'Mono Core',
-    blurb: 'Weapon Cores sit silent. Completions ease Salvage cost growth on weapon Cores.',
+    blurb: 'Weapon Cores sit silent. Completions ease cost growth on weapon Core Levels.',
     restriction: 'Fitted weapon Cores deal no damage. The Frame Battery still fires.',
     disabledSystems: ['Weapon Cores'],
     mute: 'weapons',
     goalWave: 100,
     firstGrant: { kind: 'process', id: 'shop-readout', blurb: 'First clear unlocks Shop Readout in Process.' },
     rewards: [
-      { at: 1, hook: { kind: 'coreCostScaling', add: -0.01 }, blurb: 'Weapon Core Salvage costs grow a little slower.' },
+      { at: 1, hook: { kind: 'coreCostScaling', add: -0.01 }, blurb: 'Weapon Core Level costs grow a little slower.' },
       { at: 2, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon cost growth eases again.' },
       { at: 3, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon cost growth again.' },
       { at: 4, hook: { kind: 'researchCost', mult: 0.96 }, blurb: 'Research projects need a little less time.' },
       { at: 5, hook: { kind: 'coreCostScaling', add: -0.012 }, blurb: 'Milestone: Pulse and kin stay cheaper longer.' },
       { at: 6, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon cost growth again.' },
-      { at: 7, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon Salvage curve still bends.' },
-      { at: 8, hook: { kind: 'coreCostScaling', add: -0.012 }, blurb: 'Capstone: high Core ranks stay in reach.' },
+      { at: 7, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon Core Level cost curve still bends.' },
+      { at: 8, hook: { kind: 'coreCostScaling', add: -0.012 }, blurb: 'Capstone: high Core Levels stay in reach.' },
     ],
   },
   {
     id: 'mute-network',
     name: 'Swarm Pressure',
-    blurb: 'Greatly increased enemy density. First clear unlocks the Harvester Frame. Completions improve Worker labour scaling.',
-    restriction: 'Encounters spawn far more hulls. Leftover Strike/Ward combat bars grant nothing.',
-    disabledSystems: ['Strike / Ward combat bars'],
+    blurb: 'Greatly increased enemy density. First clear unlocks the Harvester Frame. Completions improve permanent industry.',
+    restriction: 'Encounters spawn far more hulls.',
+    disabledSystems: [],
     mute: 'network',
     goalWave: 100,
     enemyDensityMult: 2.2,
     unlocksFrame: 'harvester-frame',
+    firstGrant: {
+      kind: 'research',
+      id: 'challenge-log',
+      blurb: 'First clear unlocks Challenge Log in Research.',
+    },
     rewards: [
-      { at: 1, hook: { kind: 'networkExponent', add: 0.02 }, blurb: 'Worker bonuses scale harder at every rank.' },
-      { at: 2, hook: { kind: 'networkExponent', add: 0.015 }, blurb: 'A little more Worker scaling.' },
-      { at: 3, hook: { kind: 'networkFillGrowth', mult: 0.94 }, blurb: 'Later Worker fills grow slower.' },
-      { at: 4, hook: { kind: 'networkExponent', add: 0.015 }, blurb: 'Worker scaling again.' },
-      { at: 5, hook: { kind: 'networkRelay', add: 0.08 }, blurb: 'Assigned drones pull harder on the jobs behind them.' },
-      { at: 6, hook: { kind: 'networkFillGrowth', mult: 0.94 }, blurb: 'Fill growth eases again.' },
-      { at: 7, hook: { kind: 'networkDroneEff', add: 0.05 }, blurb: 'Each assigned drone counts for more.' },
-      { at: 8, hook: { kind: 'networkFillGrowth', mult: 0.92 }, blurb: 'Capstone: Worker fills stay relevant late.' },
+      { at: 1, hook: { kind: 'foundryXpNeed', mult: 0.98 }, blurb: 'Material Mastery needs slightly fewer crafts.' },
+      { at: 2, hook: { kind: 'researchCost', mult: 0.98 }, blurb: 'Research projects take slightly less time.' },
+      { at: 3, hook: { kind: 'foundryCostGrowth', mult: 0.98 }, blurb: 'Processing costs grow a little slower.' },
+      { at: 4, hook: { kind: 'rebuildMatter', mult: 1.02 }, blurb: 'Rebuilds pay a little more Matter.' },
+      { at: 5, hook: { kind: 'foundryXpNeed', mult: 0.96 }, blurb: 'Material Mastery advances faster.' },
+      { at: 6, hook: { kind: 'researchCost', mult: 0.96 }, blurb: 'Research time eases again.' },
+      { at: 7, hook: { kind: 'foundryCostGrowth', mult: 0.96 }, blurb: 'Processing costs ease again.' },
+      { at: 8, hook: { kind: 'rebuildMatter', mult: 1.04 }, blurb: 'Capstone: permanent industry improves Rebuild value.' },
     ],
   },
   {
@@ -160,17 +165,17 @@ export const PROTOCOLS: ProtocolDef[] = [
     id: 'dry-hold',
     name: 'Limited Economy',
     blurb: 'Salvage is cut. Completions improve salvage growth and scrap trickle.',
-    restriction: 'Kills grant no Salvage. Scrap, Foundry, and Yield still run.',
+    restriction: 'Kills grant no Salvage. Scrap, Foundry, and Worker Drone industry continue.',
     disabledSystems: ['Salvage from wrecks'],
     mute: 'salvage',
     goalWave: 120,
     firstGrant: { kind: 'recipe', id: 'filament', blurb: 'First clear unlocks the Filament recipe.' },
     rewards: [
       { at: 1, hook: { kind: 'salvageSectorExp', add: 0.03 }, blurb: 'Salvage from wrecks grows a little faster with Wave.' },
-      { at: 2, hook: { kind: 'yieldScrapExp', add: 0.04 }, blurb: 'Yield scrap trickle scales harder.' },
+      { at: 2, hook: { kind: 'foundryXpNeed', mult: 0.98 }, blurb: 'Material Mastery needs slightly fewer crafts.' },
       { at: 3, hook: { kind: 'salvageSectorExp', add: 0.02 }, blurb: 'Salvage Wave growth again.' },
       { at: 4, hook: { kind: 'foundryXpNeed', mult: 0.96 }, blurb: 'Recipes need fewer crafts to level.' },
-      { at: 5, hook: { kind: 'yieldScrapExp', add: 0.05 }, blurb: 'Milestone: Yield scrap curve bends harder.' },
+      { at: 5, hook: { kind: 'foundryXpNeed', mult: 0.96 }, blurb: 'Milestone: Material Mastery advances faster.' },
       { at: 6, hook: { kind: 'salvageSectorExp', add: 0.02 }, blurb: 'Salvage Wave growth again.' },
       { at: 7, hook: { kind: 'rebuildMatter', mult: 1.03 }, blurb: 'Rebuilds pay a little more Matter.' },
       { at: 8, hook: { kind: 'salvageSectorExp', add: 0.03 }, blurb: 'Capstone: late Waves drop more Salvage.' },
@@ -302,7 +307,84 @@ export function protocolEnemyDensityMult(state: GameState): number {
 }
 
 export function protocolDisabledLine(def: ProtocolDef): string {
-  return def.disabledSystems.join(', ')
+  return def.disabledSystems.length > 0 ? def.disabledSystems.join(', ') : 'None'
+}
+
+/** One-line restriction printed on Challenge landing cards. */
+export function challengeRestrictionLine(def: ProtocolDef): string {
+  return def.restriction
+}
+
+export function challengeRankLabel(state: GameState, id: string): string {
+  const rank = protocolRank(state, id)
+  if (rank >= PROTOCOL_MAX_RANK) return `Maxed · Rank ${PROTOCOL_MAX_RANK}`
+  if (rank > 0) return `Cleared · Rank ${rank}/${PROTOCOL_MAX_RANK}`
+  return `Open · Rank 0/${PROTOCOL_MAX_RANK}`
+}
+
+export function protocolRewardSummary(state: GameState, id: string): string {
+  const def = getProtocol(id)
+  if (!def) return 'Maxed'
+  const next = protocolRank(state, id) + 1
+  if (next > PROTOCOL_MAX_RANK) return 'Maxed'
+  if (next === 1) {
+    const bits: string[] = []
+    if (def.firstGrant) bits.push(grantSummary(def.firstGrant))
+    if (def.unlocksFrame) {
+      const frame = getFrame(def.unlocksFrame)
+      bits.push(frame?.name ?? 'Hive Frame')
+    }
+    if (bits.length > 0) return bits.join(' · ')
+  }
+  return protocolRewardLine(protocolRewardsAt(def, next))
+}
+
+function grantSummary(grant: ProtocolGrant): string {
+  switch (grant.kind) {
+    case 'relic':
+      return grant.blurb.replace(/^First clear seats a /i, '').replace(/\.$/, '')
+    case 'process':
+      return grant.blurb.replace(/^First clear unlocks /i, '').replace(/ in Process\.$/i, '')
+    case 'recipe':
+      return grant.blurb.replace(/^First clear unlocks the /i, '').replace(/\.$/, '')
+    case 'research':
+      return grant.blurb.replace(/^First clear unlocks /i, '').replace(/ in Research\.$/i, '')
+  }
+}
+
+/** Enemy / scenario modifiers shown on the Challenge sheet. */
+export function challengeScenarioLines(def: ProtocolDef): string[] {
+  const lines = ['Uses the normal Sortie engine.', 'Every Challenge starts at Wave 1.']
+  if (def.hullMult && def.hullMult !== 1) lines.push(`Hive Hull ×${def.hullMult}.`)
+  if (def.enemyDensityMult && def.enemyDensityMult !== 1) {
+    lines.push(`Enemy density ×${def.enemyDensityMult}.`)
+  }
+  switch (def.mute) {
+    case 'weapons':
+      lines.push('Weapon Cores deal no damage. The Frame Battery still fires.')
+      break
+    case 'shields':
+      lines.push('Plate and other shield bonuses grant nothing.')
+      break
+    case 'network':
+      lines.push('Encounters spawn far more hulls than a normal Sortie.')
+      break
+    case 'furnace':
+      lines.push('Furnace channels and Heat combat bonuses grant nothing.')
+      break
+    case 'salvage':
+      lines.push('Kills grant no Salvage. Scrap, Foundry, and Worker industry continue.')
+      break
+    case 'foundry':
+      lines.push('Foundry combat bonuses, craft speed ranks, and fitted bits do nothing.')
+      break
+    case 'reliquary':
+      lines.push('Fitted Relics and resonance grant nothing.')
+      break
+    default:
+      break
+  }
+  return lines
 }
 
 /** Legacy flat shop hook. Challenge ranks now change formulas instead. */
@@ -328,10 +410,10 @@ export function challengeFamiliarity(
   switch (def.mute) {
     case 'weapons':
       if (Object.values(state.shipyard.moduleLevels ?? {}).some((n) => n > 0)) return { ok: true }
-      return { ok: false, reason: 'Rank a Core first' }
+      return { ok: false, reason: 'Raise a Core Level first' }
     case 'shields':
       if ((state.shipyard.moduleLevels?.['plate-layer'] ?? 0) > 0) return { ok: true }
-      return { ok: false, reason: 'Rank Plate first' }
+      return { ok: false, reason: 'Raise Plate Core Level first' }
     case 'network':
       if (
         Object.entries(state.base.assignments ?? {}).some(([id, n]) => (n ?? 0) > 0 && isWorkerJob(id))
@@ -518,6 +600,13 @@ export function applyProtocolGrant(state: GameState, grant: ProtocolGrant): void
     state.reliquary.owned[grant.id] = (state.reliquary.owned[grant.id] ?? 0) + 1
     return
   }
+  if (grant.kind === 'research') {
+    if (!state.hiveResearch) return
+    if (!state.hiveResearch.completedIds.includes(grant.id)) {
+      state.hiveResearch.completedIds = [...state.hiveResearch.completedIds, grant.id]
+    }
+    return
+  }
   state.foundry.recipeLevels[grant.id] = Math.max(1, state.foundry.recipeLevels[grant.id] ?? 0)
 }
 
@@ -542,7 +631,6 @@ export function canEnterProtocol(
   if (!state.combat.docked || state.combat.inFight) {
     return { ok: false, reason: 'Dock first' }
   }
-  if (state.echo?.activeId) return { ok: false, reason: 'Finish the Echo first' }
   if (state.protocols?.activeId) return { ok: false, reason: 'Already in a Challenge' }
   if (!protocolsUnlocked(state)) {
     return {

@@ -46,72 +46,73 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Worker Drones',
     body: [
       'Purpose: put a limited workforce on real industrial jobs. Main decision: processing now versus fabricating, researching, or growing more drones.',
-      'Jobs have a hard cap. Extra drones on a full job do nothing — split the corps.',
-      'Worker Drones live under Systems after Wave 30. They do not fire weapons or raise shields. Combat power comes from Cores, Workshop, and Foundry.',
+      'Each job has an efficient range and then diminishing returns. The card shows exactly what one more Worker changes.',
+      'Worker Drones live under Systems after Wave 30. They perform real work and never provide abstract damage, shield, or combat-resource multipliers.',
     ],
   },
   foundry: {
     title: 'Foundry',
     body: [
       'Purpose: turn combat income into crafted progression and new Cores. Main decision: what you are making next.',
-      'Prints: track one Core. Fragments drop from matching enemy families as you push Waves.',
-      'After Wave 30, Foundry and Worker Drones share Systems. Construction opens at Wave 90 inside Foundry → Build. Recipe progress persists on Rebuild.',
+      'Blueprints: track one Core. Fragments drop from matching enemy families as you push Waves; completion unlocks a timed Fabrication project.',
+      'After Wave 30, Foundry and Worker Drones share Systems. Infrastructure opens at Wave 90 under Fabrication. Processing, Fabrication, stock, and Mastery persist through Rebuild and continue offline.',
     ],
   },
   reliquary: {
     title: 'Relics',
     body: [
       'Purpose: deepen Core loadouts. Main decision: which Relic sits in each fitted Core.',
-      'Relic sockets open at Wave 110. Matching types only — Power, Optical, Ballistic, Shield, Industrial — until Core Mastery 5 or Wave 275 adds Universal. Install and remove freely while Docked. Relics persist on Rebuild. Spare copies plus Slag Ingots raise authored I–III tiers; hoarded extras do not resonate.',
+      'Relic sockets open at Wave 110. Matching types only — Power, Optical, Ballistic, Shield, Industrial — until Core Mastery 5 or Wave 275 adds Universal. Install and remove freely while Docked. Relics persist on Rebuild. Spare copies plus Recovered Stock raise authored I–III tiers; hoarded extras do not resonate.',
     ],
   },
   furnace: {
     title: 'Furnace',
     body: [
       'Purpose: spend stored cycle Ash to make this Sortie significantly stronger. Main decision: is this the run worth converting?',
-      'Ash persists across Sorties this Rebuild cycle. Convert Ash to Heat, then light Weapons, Shielding, or Recovery. Heat dumps when you Dock.',
+      'Ash persists across Sorties this Rebuild cycle. Convert Ash to Heat, then light Weapons, Ward, or Yield. Heat dumps when you Dock.',
     ],
   },
   research: {
     title: 'Research',
     body: [
-      'Purpose: choose which underlying Hive rule improves next. Main decision: which discipline gets the single research project.',
-      'One project at a time. It runs during Sorties, at Dock, and offline. Sensor Net drones speed it up. Breakthroughs unlock mechanics; small nodes are numbers. Progress persists across Rebuild.',
+      'Purpose: choose which underlying Hive rule improves next. Main decision: which available project to start.',
+      'One project at a time. It runs during Sorties, at Dock, and offline. Worker Drones speed it up. Breakthroughs unlock mechanics. Progress persists across Rebuild. Queueing and auto-start are Process unlocks.',
     ],
   },
   yard: {
-    title: 'Construction',
+    title: 'Infrastructure',
     body: [
-      'Purpose: expand Foundry with processing gear and Rebuild arms. Main decision: what to build for the next cycle.',
-      'Construction lives inside Foundry → Build. There is no separate Yard screen.',
+      'Purpose: expand Foundry with Processors, Fabricators, Worker capacity, and specialist facilities.',
+      'Infrastructure lives under Foundry → Fabrication.',
     ],
   },
   slag: {
     title: 'Matter',
     body: [
       'Purpose: spend Rebuild Matter on permanent ranks that make the next cycle stronger.',
-      'The Matter shop lives inside the Rebuild hangar. There is no separate Slag screen.',
+      'The Matter shop lives inside the Rebuild hangar.',
     ],
   },
   protocols: {
     title: 'Challenges',
     body: [
       'Purpose: prove this account can solve a modified version of the normal rules. Main decision: which restriction you take into a Sortie.',
-      'Opens at Wave 250 after Process is online. Before launch you see restriction, goal Wave, reward, disabled systems, and current best. Nothing important is hidden.',
+      'Opens at Wave 250 after Process is online. Landing cards show name, restriction, goal Wave, best, reward, and rank. Tap for the exact sheet, then Start Challenge. Every run uses the normal Sortie engine from Wave 1.',
     ],
   },
   process: {
     title: 'Process',
     body: [
-      'Purpose: automate behaviours you have already learned, not skip systems before you understand them. Main decision: which solved loop becomes a Process purchase.',
-      'Opens at Wave 210 after two Rebuilds and a completed Research project. Process Available is spendable; Process Earned is lifetime. Quality of life comes first; deeper priorities unlock after you buy something.',
+      'Purpose: automate behaviours you have already learned. Manual → QoL → Automation → Priorities → Conditions → cross-system orchestration.',
+      'Opens at Wave 210 after two Rebuilds and a completed Research project. Process Points come from account mastery, never from time passing. Spend them on a capability graph; Automations, Rules, and Profiles sit on their own panes.',
+      'Late Act 1 automates repetitive within-run and industrial actions. Process does not fly Sorties while the app is closed.',
     ],
   },
   reinforce: {
     title: 'Reinforce',
     body: [
       'Higher-order reset after Rebuild. The current loop has gone as far as it can.',
-      'Revealed by clearing Wave 300. Confirm shows what you keep, reset, and gain. Detailed Act 2 rules come later.',
+      'Revealed by clearing Wave 300. The screen prints YOU RESET, YOU KEEP, and WHAT CHANGES. Confirm reconstructs the Hive. No Act 2 shop opens here.',
     ],
   },
   logs: {

@@ -4,6 +4,7 @@ export type PauseReason =
   | 'onboarding.action'
   | 'directive.choice'
   | 'confirm.blocking'
+  | 'finale.act1'
   | 'offline.report'
   | 'dev.simulator'
   | 'update.critical'
@@ -11,6 +12,7 @@ export type PauseReason =
 const PAUSE_ORDER: PauseReason[] = [
   'update.critical',
   'confirm.blocking',
+  'finale.act1',
   'onboarding.action',
   'directive.choice',
   'offline.report',
@@ -21,6 +23,7 @@ export function collectPauseReasons(flags: {
   onboardingPause?: boolean
   directiveOffer?: boolean
   confirmOpen?: boolean
+  finalePending?: boolean
   offlineOpen?: boolean
   simulatorOpen?: boolean
   updateBlocking?: boolean
@@ -28,6 +31,7 @@ export function collectPauseReasons(flags: {
   const reasons: PauseReason[] = []
   if (flags.updateBlocking) reasons.push('update.critical')
   if (flags.confirmOpen) reasons.push('confirm.blocking')
+  if (flags.finalePending) reasons.push('finale.act1')
   if (flags.onboardingPause) reasons.push('onboarding.action')
   if (flags.directiveOffer && !flags.onboardingPause) reasons.push('directive.choice')
   if (flags.offlineOpen) reasons.push('offline.report')

@@ -111,7 +111,7 @@ export interface FoundryState {
   slots: FoundrySlot[]
   /** Discrete timed jobs: Cores, Relic tiers, facilities. */
   fabrication: FabricationSlot[]
-  /** Single Core print the player is currently farming. Persists across Rebuild. */
+  /** Single Core Blueprint the player is currently tracking. Persists across Rebuild. */
   trackedPrintId: string | null
   /** Facilities armed on a previous Sortie launch. */
   facilities: FacilityId[]
@@ -391,11 +391,17 @@ export interface PlaytestState {
 export interface HiveResearchState {
   /** Discipline of the active (or last) project. */
   focus: HiveResearchBranch
-  /** True while the next node of `focus` is running. */
+  /** True while a specific node is running. */
   active?: boolean
-  /** Seconds of progress toward that branch's next node. */
+  /** Node currently being researched. */
+  activeNodeId?: string | null
+  /** Seconds of progress toward `activeNodeId`. */
+  progress?: number
+  /** Completed node ids. Authoritative. */
+  completedIds: string[]
+  /** Seconds of progress toward that branch's next node. Migrated into `progress`. */
   xp: Record<HiveResearchBranch, number>
-  /** Completed nodes per branch (0..node count). */
+  /** Completed node counts per branch. Derived from completedIds. */
   completed: Record<HiveResearchBranch, number>
 }
 
@@ -486,26 +492,50 @@ export interface ProcessYardLayout {
 export type ProcessWhenKind =
   | 'wave-gte'
   | 'wave-of-best'
-  | 'threat'
-  | 'queue-empty'
-  | 'ash-gte'
   | 'hull-lte'
+  | 'shield-lte'
+  | 'boss-active'
+  | 'enemies-gte'
+  | 'wave-time-gte'
+  | 'salvage-gte'
+  | 'scrap-run-gte'
+  | 'ash-gte'
+  | 'heat-gte'
+  | 'processor-idle'
+  | 'fabricator-idle'
+  | 'stock-lte'
+  | 'stock-gte'
   | 'research-idle'
+  | 'workers-idle-gte'
+  /** @deprecated Migrated to hull-lte on load. */
+  | 'threat'
+  /** @deprecated Migrated to processor-idle on load. */
+  | 'queue-empty'
 
 export type ProcessThenKind =
   | 'spend-profile'
+  | 'spend-ratios'
   | 'economy-target'
   | 'extract'
-  | 'repeat-recipe'
+  | 'furnace-preset'
   | 'furnace-push'
+  | 'worker-preset'
+  | 'foundry-target'
+  | 'foundry-stock'
   | 'research-next'
+  | 'launch-sortie'
+  | 'repeat-recipe'
   | 'fab-tracked'
 
 export type ProcessThreatId = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
 
+export type ProcessRuleJoin = 'and' | 'or'
+
 export interface ProcessCondition {
   kind: ProcessWhenKind
   value?: number
+  recipeId?: FoundryRecipeId
+  /** @deprecated Migrated away on load. */
   threat?: ProcessThreatId
 }
 
@@ -520,11 +550,17 @@ export interface ProcessAction {
   spend?: ProcessSpendMix
   economyPct?: number
   recipeId?: FoundryRecipeId | null
+  stockMin?: number
+  workerPreset?: ProcessNetworkPreset
+  furnacePreset?: FurnacePresetId
+  furnaceLevel?: number
 }
 
 export interface ProcessRule {
   id: string
+  label?: string
   enabled: boolean
+  join?: ProcessRuleJoin
   when: ProcessCondition[]
   then: ProcessAction
 }
@@ -540,6 +576,9 @@ export interface ProcessProfile {
   extractHullPct: number
   autoShop: boolean
   workerPreset?: ProcessNetworkPreset
+  furnacePreset?: FurnacePresetId | null
+  foundryRepeat?: FoundryRecipeId | null
+  researchAutoNext?: boolean
   rules: ProcessRule[]
 }
 
@@ -563,6 +602,7 @@ export interface ProcessConfig {
     queue: FoundryRecipeId[]
     targetRecipe: FoundryRecipeId | null
     upgradePriority: ProcessFoundryUpgradePriority
+    minStock: Partial<Record<FoundryRecipeId, number>>
   }
   reliquary: {
     autoMerge: boolean
@@ -606,6 +646,7 @@ export interface ProcessConfig {
   }
   activeProfileId: string | null
   profiles: ProcessProfile[]
+  lastActions: Record<string, string>
 }
 
 /** Achievements → Process points → automation / QoL / accumulation. */
@@ -794,8 +835,8 @@ export interface ShipLoadout {
   /** Fabricated copies of a Core type. Mastery is shared; loadout may use extras. */
   moduleCopies?: Record<string, number>
   /**
-   * Legacy Scrap Dock ranks. Migrated into Core Mastery; kept empty for old saves.
-   * @deprecated Use combat.coreRunLevels during a Sortie.
+   * Retired Core-definition levels retained only for save compatibility.
+   * @deprecated Physical Core Levels live in workshop.coreStarts by Core instance ID.
    */
   moduleLevels: Record<string, number>
   /**
@@ -1000,7 +1041,7 @@ export interface CombatState {
   bestWave: number
   /** Temporary Attack/Defense/Economy ranks bought with Salvage this Sortie. */
   runUpgrades: Record<string, number>
-  /** Retired Core Run Levels retained only for save compatibility. */
+  /** Retired per-Sortie Core level data retained only for save compatibility. */
   coreRunLevels?: Record<string, number>
   /** Retired Core spend ledger retained only for save compatibility. */
   coreSalvageSpent?: Record<string, number>
@@ -1028,7 +1069,7 @@ export interface CombatState {
    * Both modes auto-engage while not Paused.
    */
   campaign: boolean
-  /** A/B sector route from 9. Sticky for the sortie; change while docked. */
+  /** @deprecated Always `'A'`. Route B does not exist. */
   route: SectorRoute
   consecutiveLosses: number
   /** Stable Sortie RNG. 0 = canonical packs (tests). */
@@ -1071,6 +1112,7 @@ export interface CombatState {
   /** True when the pending beat is a tactical extract, not a hull kill. */
   defeatTactical: boolean
   /**
+   * @deprecated Frontier Hold is retired. Hydrated false; never entered.
    * Auto-entered after being repelled at an uncleared frontier.
    * Distinct from player Hold Sector / Hold Wave.
    */
@@ -1131,6 +1173,8 @@ export interface MetaState {
   bestWave: number
   /** Soft Act 1 climax reached (Wave 300). */
   act1Cleared: boolean
+  /** First Wave 300 clear — pending Act 1 completion presentation. */
+  act1FinalePending?: boolean
   /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
   ascensionCount: number
   /** Legacy onboarding ids. Kept in sync with `onboarding` for save migration. */
@@ -1190,7 +1234,7 @@ export interface MetaState {
    */
   starterCombatLesson: number
   /**
-   * First hull-loss dock. Salvage HUD, Cores spend, Network, and More stay
+   * First hull-loss dock. Salvage HUD, Dock Core spending, Network, and More stay
    * hidden until this is true so the opening fight can finish the Sortie tour.
    */
   hullLostOnce: boolean
@@ -1262,7 +1306,7 @@ export interface GameState {
   network: NetworkState
   /** Foundry processing, timed fabrication, and facilities. Recipes, stock, jobs, and facilities persist. */
   foundry: FoundryState
-  /** Shard slots (Reliquary). Inventory + fitted shards persist across Rebuild. */
+  /** @deprecated Shard slots leftover. Relics install on Cores. Inventory + fitted shards persist across Rebuild. */
   reliquary: ReliquaryState
   /** Furnace 2.0 — upgrades and wanted channels persist; Heat resets unless Ember Lock. */
   furnace: FurnaceState
@@ -1272,13 +1316,13 @@ export interface GameState {
   yard: YardState
   /** Challenges. Ranks persist; active run is Rebuild-cleared. */
   protocols: ProtocolState
-  /** Echo Runs (USI Warp Drive). Tree + points persist. */
+  /** @deprecated Echo Runs leftover. Tree + points persist but never apply. */
   echo: EchoState
   /** Process automation nodes. Persist across Rebuild. */
   process: ProcessState
-  /** Specialists (USI Crew). Ranks persist across Rebuild. */
+  /** @deprecated Specialists leftover. Ranks persist but never apply. */
   specialists: SpecialistState
-  /** Capital ranks (USI Capital). Persist across Rebuild. */
+  /** @deprecated Capital leftover. Ranks persist but never apply. */
   capital: CapitalState
   research: ResearchState
   ai: AiState

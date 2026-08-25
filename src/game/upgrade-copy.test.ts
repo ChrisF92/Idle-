@@ -57,15 +57,15 @@ describe('upgrade copy is quantitative', () => {
   })
 
   it('states Hive Research, Challenge, Furnace, and Yard amounts', () => {
-    const keel = HIVE_RESEARCH_NODES.material.find((n) => n.name === 'Keel Bay')!
+    const keel = HIVE_RESEARCH_NODES.energy.find((n) => n.name === 'Keel Bay')!
     expect(hiveResearchNodeEffectLine(keel)).toMatch(/Utility Core slots \+1/)
     expect(hiveResearchNodeEffectLine(keel)).toMatch(/Mastery gates −2/)
-    const corps = HIVE_RESEARCH_NODES.energy.find((n) => n.name === 'Corps Draw')!
-    expect(hiveResearchNodeEffectLine(corps)).toBe('Drone efficiency +12%')
+    const corps = HIVE_RESEARCH_NODES.observation.find((n) => n.name === 'Worker Calibration')!
+    expect(hiveResearchNodeEffectLine(corps)).toBe('Worker contribution +12%')
     expect(protocolHookEffect({ kind: 'networkExponent', add: 0.02 })).toBe('Network exponent +0.02')
     expect(protocolHookEffect({ kind: 'furnaceDrain', mult: 0.88 })).toBe('Channel Heat cost ×0.88')
     const weapons = FURNACE_CHANNELS.find((ch) => ch.id === 'weapons')!
-    expect(furnaceChannelEffectLine(weapons)).toBe('Damage ×1.40 / ×1.80 / ×2.50')
+    expect(furnaceChannelEffectLine(weapons)).toBe('Weapon Output ×1.40 / ×1.80 / ×2.50')
     expect(YARD_ARMS).toEqual([])
     expect(yardArmEffect('processing-line')).toMatch(/Processing slot/)
   })

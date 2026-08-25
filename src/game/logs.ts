@@ -2,6 +2,7 @@
 
 import type { GameState } from './types'
 import { ACT1_CADENCE } from './cadence'
+import { careerBestWave } from './waves'
 
 export interface FoundryLogDef {
   id: string
@@ -11,7 +12,7 @@ export interface FoundryLogDef {
 }
 
 function career(state: GameState): number {
-  return Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
+  return careerBestWave(state)
 }
 
 export const FOUNDRY_LOGS: FoundryLogDef[] = [
@@ -29,14 +30,14 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'foundry',
-    title: 'Smelter',
-    body: 'Slag in, plate out. The Foundry does not care what you were before. Recipe XP stays when the hull does not.',
+    title: 'Processing',
+    body: 'Wreck stock in, permanent material out. The Foundry does not care what you were before. Material Mastery stays when the hull does not.',
     unlock: (s) => career(s) >= ACT1_CADENCE.foundry,
   },
   {
     id: 'core-prints',
-    title: 'Prints',
-    body: 'Wrecks leave Core fragments. Track a print and push Waves that drop that family. Fabricate it in the Foundry, then fit it at Dock.',
+    title: 'Blueprints',
+    body: 'Wrecks leave Core fragments. Track a Blueprint and push Waves that drop that family. Complete it, fabricate the project, then equip the Core at Dock.',
     unlock: (s) => career(s) >= ACT1_CADENCE.foundry,
   },
   {
@@ -65,14 +66,14 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'yard',
-    title: 'Construction',
-    body: 'Foundry grows a construction floor at Wave 90. Buildings stay. Ingots arm the next Rebuild, not this hull.',
+    title: 'Infrastructure',
+    body: 'Foundry opens Infrastructure projects at Wave 90. New Processors, Fabricators, storage, and specialist facilities all consume Fabricator time.',
     unlock: (s) => career(s) >= ACT1_CADENCE.yard,
   },
   {
     id: 'reliquary',
     title: 'Relic sockets',
-    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Optical, Ballistic, Shield, and Industrial until Mastery 5. Spare copies plus Slag Ingots raise I–III.',
+    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Optical, Ballistic, Shield, and Industrial until Mastery 5. Spare copies plus Recovered Stock raise I–III.',
     unlock: (s) => career(s) >= ACT1_CADENCE.reliquary,
   },
   {
@@ -102,13 +103,13 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'act1',
     title: 'Wave 300',
-    body: 'Choir Crown is the Act 1 wall. Slam, shield, and mites. Rebuild has reached the limit of this architecture.',
+    body: 'Choir Crown is the Act 1 wall — a temporal slam, a folding shield, then mites from a loop that has already happened. Rebuild has reached the limit of this architecture.',
     unlock: (s) => career(s) >= ACT1_CADENCE.reinforce || s.meta.act1Cleared,
   },
   {
     id: 'reinforce',
     title: 'The loop ceiling',
-    body: 'Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself. No Act 2 shop opens here.',
+    body: 'Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself. No Act 2 shop.',
     unlock: (s) => s.meta.act1Cleared || (s.meta.ascensionCount ?? 0) > 0,
   },
 ]

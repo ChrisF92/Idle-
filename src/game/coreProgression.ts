@@ -13,6 +13,7 @@ import {
 import { isChallengeSortie } from './frontier'
 import { protocolCoreScalingAdd } from './protocols'
 import { recordPlaytest, noteSystemAction } from './playtest'
+import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
 import { milestoneModsFor } from './milestones'
 import {
   addCoreInstance,
@@ -90,17 +91,19 @@ export function coreRunLevel(state: Pick<GameState, 'combat'>, slot: number): nu
 }
 
 export function coreStartingLevel(
-  state: Pick<GameState, 'shipyard' | 'workshop'>,
+  state: Pick<GameState, 'shipyard' | 'workshop'> & { hiveResearch?: GameState['hiveResearch'] },
   coreInstanceId: string,
 ): number {
   const instance = resolveCoreInstance(state, coreInstanceId)
   const key = instance?.id ?? coreInstanceId
   const direct = state.workshop?.coreStarts?.[key]
-  if (direct != null) return Math.max(0, Math.min(CORE_START_LEVEL_CAP, Math.floor(direct)))
-  const legacy = instance?.moduleId
-    ? state.workshop?.coreStarts?.[instance.moduleId]
-    : undefined
-  return Math.max(0, Math.min(CORE_START_LEVEL_CAP, Math.floor(legacy ?? 0)))
+  const purchased = direct != null
+    ? Math.max(0, Math.floor(direct))
+    : Math.max(0, Math.floor(
+        instance?.moduleId ? state.workshop?.coreStarts?.[instance.moduleId] ?? 0 : 0,
+      ))
+  const research = sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'coreStartLevel')
+  return Math.max(0, Math.min(CORE_START_LEVEL_CAP, purchased + research))
 }
 
 export function coreStartingLevelAtSlot(
@@ -387,7 +390,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     ...SHARED_LATE,
   ],
   'plate-layer': [
-    { level: 5, name: 'Bulk Ward', blurb: 'Shield ceiling +12%.', shieldMult: 1.12 },
+    { level: 5, name: 'Bulk Aegis', blurb: 'Shield ceiling +12%.', shieldMult: 1.12 },
     { level: 10, name: 'Quick Regen', blurb: '+2%/s shield regen.', regenAdd: 0.02 },
     { level: 20, name: 'Shield Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'shield' },
     { level: 30, name: 'Core Bank', blurb: 'Core Levels thicken the bank more.', runScaleMult: 1.1 },
@@ -399,7 +402,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     { level: 10, name: 'Mesh Flow', blurb: '+3%/s regen.', regenAdd: 0.03 },
     { level: 20, name: 'Shield Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'shield' },
     { level: 30, name: 'Core Flow', blurb: 'Core Levels scale regen and bank.', runScaleMult: 1.1, regenAdd: 0.01 },
-    { level: 50, name: 'Live Lattice', blurb: 'Chip endurance evolves.', shieldMult: 1.12, regenAdd: 0.03 },
+    { level: 50, name: 'Live Matrix', blurb: 'Chip endurance evolves.', shieldMult: 1.12, regenAdd: 0.03 },
     ...SHARED_LATE,
   ],
   'barrier-projector': [
@@ -419,7 +422,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
     ...SHARED_LATE,
   ],
   'salvage-rig': [
-    { level: 5, name: 'Yield Mesh', blurb: 'Better wreck conversion.', salvageKillAdd: 0.04 },
+    { level: 5, name: 'Recovery Mesh', blurb: 'Better wreck conversion.', salvageKillAdd: 0.04 },
     { level: 10, name: 'Hold Scoop', blurb: 'Collection efficiency.', salvageKillAdd: 0.04 },
     { level: 20, name: 'Industrial Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'industrial' },
     { level: 30, name: 'Core Scoop', blurb: 'Core Levels scale economy output.', runScaleMult: 1.12, salvageKillAdd: 0.03 },
@@ -428,9 +431,9 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'drone-bay': [
     { level: 5, name: 'Mark Wrecks', blurb: 'Salvage / kill +4%.', salvageKillAdd: 0.04 },
-    { level: 10, name: 'Yield Link', blurb: 'Collection efficiency.', salvageKillAdd: 0.05 },
+    { level: 10, name: 'Collection Feed', blurb: 'Collection efficiency.', salvageKillAdd: 0.05 },
     { level: 20, name: 'Industrial Socket', blurb: 'Unlocks an extra Relic socket.', socket: 'industrial' },
-    { level: 30, name: 'Core Yield', blurb: 'Core Levels scale Salvage.', runScaleMult: 1.1 },
+    { level: 30, name: 'Core Recovery', blurb: 'Core Levels scale Salvage.', runScaleMult: 1.1 },
     { level: 50, name: 'Bound Marks', blurb: 'Economy identity evolves.', salvageKillAdd: 0.08 },
     ...SHARED_LATE,
   ],
@@ -732,7 +735,7 @@ export function legacyRankToMastery(rank: number): { level: number; xp: number }
 
 /**
  * Convert leftover Scrap Dock ranks into bounded Mastery.
- * Mid-Sortie Run Levels start at 0 — old ranks were cycle-persistent, not temporary.
+ * Retired per-Sortie Core levels start at 0 and do not affect current Core power.
  */
 export function migrateLegacyCoreProgression(state: GameState): void {
   if (state.meta.coreProgressionMigrated) return

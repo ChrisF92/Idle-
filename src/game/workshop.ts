@@ -97,7 +97,7 @@ export const RUN_UPGRADES: RunUpgradeDef[] = [
     id: 'fragment-chance',
     name: 'Fragment Chance',
     category: 'economy',
-    blurb: 'Wrecks drop Core print fragments more often.',
+    blurb: 'Wrecks drop Core Blueprint fragments more often.',
     minBestWave: 110,
   },
   {
@@ -117,6 +117,11 @@ export const WORKSHOP_CYCLE_RATE_PER_LEVEL = 0.03
 export const WORKSHOP_HULL_PER_LEVEL = 0.08
 export const WORKSHOP_SHIELD_PER_LEVEL = 0.1
 export const WORKSHOP_SALVAGE_KILL_PER_LEVEL = 0.08
+/** Temporary Salvage ranks are weaker per level than Workshop starts. */
+export const RUN_UPGRADE_POWER_SCALE = 0.36
+/** First few Salvage ranks stay punchier so early Best Δ can land at +2–4. */
+export const RUN_UPGRADE_OPENING_RANKS = 4
+export const RUN_UPGRADE_POWER_SCALE_OPENING = 0.7
 
 export function createEmptyWorkshop(): WorkshopState {
   return { levels: {}, coreStarts: {} }
@@ -143,8 +148,11 @@ export function effectiveUpgradeLevel(state: GameState, id: RunUpgradeId): numbe
  * Workshop starting levels raise effective power but do not consume the cheap
  * early-run ladder.
  */
+export const RUN_UPGRADE_COST_BASE = 8
+export const RUN_UPGRADE_COST_GROWTH = 1.3
+
 export function runUpgradeCost(purchasedLevel: number): number {
-  return Math.floor(8 * Math.pow(1.18, Math.max(0, purchasedLevel)))
+  return Math.floor(RUN_UPGRADE_COST_BASE * Math.pow(RUN_UPGRADE_COST_GROWTH, Math.max(0, purchasedLevel)))
 }
 
 export function nextRunUpgradeCost(state: GameState, id: RunUpgradeId): number {
@@ -211,8 +219,20 @@ export function unlockedBuyModes(state: GameState): BuyMode[] {
   return modes
 }
 
+export function runUpgradeRunFactor(runRanks: number, perLevel: number): number {
+  const run = Math.max(0, Math.floor(runRanks))
+  const opening = Math.min(run, RUN_UPGRADE_OPENING_RANKS)
+  const rest = Math.max(0, run - opening)
+  return (
+    Math.pow(1 + perLevel * RUN_UPGRADE_POWER_SCALE_OPENING, opening) *
+    Math.pow(1 + perLevel * RUN_UPGRADE_POWER_SCALE, rest)
+  )
+}
+
 export function runUpgradeMult(state: GameState, id: RunUpgradeId, perLevel: number): number {
-  return Math.pow(1 + perLevel, effectiveUpgradeLevel(state, id))
+  const start = workshopLevel(state, id)
+  const run = runPurchasedLevel(state, id)
+  return Math.pow(1 + perLevel, start) * runUpgradeRunFactor(run, perLevel)
 }
 
 export function weaponPowerMult(state: GameState): number {
@@ -275,23 +295,33 @@ export function ashYieldMult(state: GameState): number {
 export function runUpgradePreview(
   state: GameState,
   id: RunUpgradeId,
+  kind: 'workshop' | 'run' = 'run',
 ): { current: string; next: string } {
+  const start = workshopLevel(state, id)
+  const run = runPurchasedLevel(state, id)
   const level = effectiveUpgradeLevel(state, id)
-  const fmt = (per: number) => ({
-    current: `×${Math.pow(1 + per, level).toFixed(2)}`,
-    next: `×${Math.pow(1 + per, level + 1).toFixed(2)}`,
-  })
+  const fmt = (per: number) => {
+    const current = runUpgradeMult(state, id, per)
+    const next =
+      kind === 'workshop'
+        ? Math.pow(1 + per, start + 1) * runUpgradeRunFactor(run, per)
+        : Math.pow(1 + per, start) * runUpgradeRunFactor(run + 1, per)
+    return {
+      current: `×${current.toFixed(2)}`,
+      next: `×${next.toFixed(2)}`,
+    }
+  }
   switch (id) {
     case 'weapon-power':
-      return fmt(0.08)
+      return fmt(WORKSHOP_WEAPON_POWER_PER_LEVEL)
     case 'cycle-rate':
-      return fmt(0.03)
+      return fmt(WORKSHOP_CYCLE_RATE_PER_LEVEL)
     case 'hull':
-      return fmt(0.08)
+      return fmt(WORKSHOP_HULL_PER_LEVEL)
     case 'shield':
-      return fmt(0.1)
+      return fmt(WORKSHOP_SHIELD_PER_LEVEL)
     case 'salvage-kill':
-      return fmt(0.08)
+      return fmt(WORKSHOP_SALVAGE_KILL_PER_LEVEL)
     case 'salvage-wave': {
       const next = Math.floor(4 * (level + 1) * Math.pow(1.06, level + 1))
       return { current: `+${salvageWaveBonus(state)}`, next: `+${next}` }
@@ -388,7 +418,7 @@ export function snapshotWorkshopCoreStarts(state: GameState): void {
   state.workshop.coreStarts = { ...(state.workshop.coreStarts ?? {}) }
 }
 
-/** After a Sortie, temporary global Salvage ranks and retired Core data clear. */
+/** After a Sortie, global Salvage upgrades and retired per-Sortie Core fields clear. */
 export function resetRunCoreLevels(state: GameState): void {
   state.shipyard.moduleLevels = {}
   state.combat.coreRunLevels = {}
@@ -402,14 +432,22 @@ export function resetRunCoreLevels(state: GameState): void {
 }
 
 /**
+ * GDD §72 sketched +50% combat speed per 10 Waves behind, capped at 4×.
+ * Live Act 1 windows need gentler compression: 4× made early Sorties ~3m and
+ * post-Rebuild reclaim ~15% of the previous push (target 20–40%).
+ */
+export const RECLAIM_PER_TEN_WAVES = 0.25
+export const RECLAIM_SPEED_CAP = 2.25
+
+/**
  * GDD §72 — replaying solved Waves is time compression, not extra power.
- * +50% combat speed per 10 Waves behind career best, capped at 4×.
+ * Combat speed grows per 10 Waves behind career best, then caps.
  */
 export function reclaimSpeed(state: GameState): number {
   const best = Math.max(0, state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const wave = Math.max(1, state.combat.wave ?? 1)
   if (best <= wave) return 1
   const matter = 1 + matterShopReclaimBonus(state.prestige?.matterShop ?? {})
-  return Math.min(4, (1 + 0.5 * Math.floor((best - wave) / 10)) * matter)
+  return Math.min(RECLAIM_SPEED_CAP, (1 + RECLAIM_PER_TEN_WAVES * Math.floor((best - wave) / 10)) * matter)
 }
 
