@@ -202,8 +202,8 @@ export function rebalanceNetwork(
   const unlocked = visibleWorkerJobIds(state)
   if (unlocked.length === 0) {
     if (isStationUnlocked(state, 'scrap-field')) {
-      if ((state.base.assignments['scrap-field'] ?? 0) < drones && idleWorkers(state) > 0) {
-        const next = assignWorker(state, 'scrap-field', idleWorkers(state))
+      if (idleWorkers(state) > 0) {
+        const next = assignUpToJobCap(state, 'scrap-field', idleWorkers(state))
         if (next !== state) ctx.record('network-assign')
         return next
       }
@@ -223,7 +223,7 @@ export function rebalanceNetwork(
     id,
     w: bias[id] ?? 1,
   }))
-  const totalW = weights.reduce((s, r) => s + r.w, 0)
+  const totalW = weights.reduce((s, r) => s + r.w, 0) || 1
   for (const row of weights) {
     const cap = workerJobCap(row.id).hard
     const n = Math.max(0, Math.min(cap, Math.floor((drones * row.w) / totalW)))
@@ -234,12 +234,22 @@ export function rebalanceNetwork(
     const minFab = Math.min(workerJobCap('drone-fab').min, remaining + (target['drone-fab'] ?? 0), drones)
     if ((target['drone-fab'] ?? 0) < minFab) {
       const add = minFab - (target['drone-fab'] ?? 0)
-      target['drone-fab'] = minFab
-      remaining -= add
+      const cap = workerJobCap('drone-fab').hard
+      const room = Math.max(0, cap - (target['drone-fab'] ?? 0))
+      const n = Math.min(add, room)
+      target['drone-fab'] = (target['drone-fab'] ?? 0) + n
+      remaining -= n
     }
   }
-  const dump = unlocked.includes('scrap-field') ? 'scrap-field' : unlocked[0]!
-  target[dump] = Math.max(0, (target[dump] ?? 0) + Math.max(0, remaining))
+  for (const row of [...weights].sort((a, b) => b.w - a.w)) {
+    if (remaining <= 0) break
+    const cap = workerJobCap(row.id).hard
+    const room = Math.max(0, cap - (target[row.id] ?? 0))
+    const add = Math.min(room, remaining)
+    if (add <= 0) continue
+    target[row.id] = (target[row.id] ?? 0) + add
+    remaining -= add
+  }
 
   let already = idleWorkers(state) === 0
   if (already) {
@@ -268,14 +278,23 @@ export function rebalanceNetwork(
   for (const [id, want] of Object.entries(target)) {
     const have = next.base.assignments[id] ?? 0
     if (want > have && idleWorkers(next) > 0) {
-      next = assignWorker(next, id, Math.min(want - have, idleWorkers(next)))
+      next = assignUpToJobCap(next, id, want - have)
     }
   }
-  if (idleWorkers(next) > 0 && isStationUnlocked(next, 'scrap-field')) {
-    next = assignWorker(next, 'scrap-field', idleWorkers(next))
+  for (const id of unlocked) {
+    if (idleWorkers(next) <= 0) break
+    next = assignUpToJobCap(next, id, idleWorkers(next))
   }
   if (next !== state) ctx.record('network-assign')
   return next
+}
+
+function assignUpToJobCap(state: GameState, jobId: string, delta: number): GameState {
+  const cap = workerJobCap(jobId).hard
+  const have = state.base.assignments[jobId] ?? 0
+  const n = Math.min(Math.max(0, delta), idleWorkers(state), Math.max(0, cap - have))
+  if (n <= 0) return state
+  return assignWorker(state, jobId, n)
 }
 
 export function buyUsefulNetworkLinks(state: GameState, ctx: StrategyContext): GameState {

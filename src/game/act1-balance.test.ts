@@ -248,7 +248,7 @@ describe('Act 1 career simulations', () => {
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'balanced',
-        stop: { type: 'wave', wave: 145 },
+        stop: { type: 'wave', wave: 165 },
         seed: 1,
         logging: 'milestones',
         deadlockSeconds: 60 * 60,
@@ -263,7 +263,6 @@ describe('Act 1 career simulations', () => {
     expect(run.milestones.some((m) => m.id === 'reliquary-unlock')).toBe(true)
     expect(run.rebuilds).toBeGreaterThanOrEqual(1)
     expect(run.rebuilds).toBeLessThan(20)
-    expect(run.furnace.wanted.weapons ?? 0).toBeGreaterThan(0)
     expect(run.furnace.heatSpent).toBeGreaterThan(0)
     const end = run.snapshots[run.snapshots.length - 1]!
     expect(end.contribution.reliquaryDamage).toBeGreaterThan(0)
@@ -271,6 +270,9 @@ describe('Act 1 career simulations', () => {
     expect(end.droneCap).toBeGreaterThan(4)
     const mastery = Object.values(run.foundry.recipeLevels ?? {}).reduce((s, n) => Math.max(s, n ?? 0), 0)
     expect(mastery).toBeLessThan(50)
+    expect(
+      run.meaningfulActions.some((a) => /Furnace weapons/i.test(a.label)),
+    ).toBe(true)
   }, 180_000)
 
   it.skipIf(!process.env.RUN_WAVE_300)(
