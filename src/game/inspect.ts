@@ -76,7 +76,8 @@ import {
   HIVE_RESEARCH_NODES,
   hiveResearchActive,
   hiveResearchCompleted,
-  hiveResearchNodeCost,
+  hiveResearchInspectDetail,
+  hiveResearchNodeDuration,
   hiveResearchNodeEffectLine,
   hiveResearchSpeed,
   hiveResearchUpcoming,
@@ -460,7 +461,7 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
   const xp = hiveResearchXp(state, id)
   const upcoming = hiveResearchUpcoming(state, id)
   const next = upcoming[0]
-  const need = next ? hiveResearchNodeCost(next.index, state) : 0
+  const need = next ? hiveResearchNodeDuration(next.node, state) : 0
   const researching = hiveResearchActive(state) && (state.hiveResearch?.focus ?? 'energy') === id
   const speed = hiveResearchSpeed(state)
   const left = next && speed > 0 ? Math.max(0, (need - xp) / speed) : 0
@@ -473,6 +474,9 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
       { label: 'Next', value: `${next.node.name}${isResearchBreakthrough(next.node) ? ' (breakthrough)' : ''}` },
       { label: 'Duration', value: researching ? formatResearchDuration(left) : formatResearchDuration(need) },
     )
+    if (hiveResearchInspectDetail(state)) {
+      stats.push({ label: 'Result', value: hiveResearchNodeEffectLine(next.node) })
+    }
   }
   return {
     title: def.name,
@@ -480,9 +484,9 @@ export function inspectResearchBranch(state: GameState, id: HiveResearchBranch):
     stats,
     body: [
       def.blurb,
-      'One Research project at a time. Choose which discipline to focus.',
-      'The project runs during Sorties, at Dock, and offline. Sensor Net drones speed it up.',
-      'Breakthroughs change a rule — targeting, a processor slot, a Frame, a Reliquary colour. Small percent nodes stay rare.',
+      'One Research project at a time. Branches inside a discipline may reconnect.',
+      'The project runs during Sorties, at Dock, and offline. Worker Drones speed it up.',
+      'Breakthroughs change a rule — targeting, a processor slot, a Frame, a Reliquary colour.',
       next ? hiveResearchNodeEffectLine(next.node) : 'This discipline is complete.',
       'Nodes persist when you Rebuild.',
     ],

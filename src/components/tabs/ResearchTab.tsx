@@ -1,175 +1,312 @@
+import { useMemo, useState } from 'react'
 import type { GameState, HiveResearchBranch } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
 import { ACT1_CADENCE } from '../../game/cadence'
 import {
   HIVE_RESEARCH_BRANCHES,
-  HIVE_RESEARCH_NODES,
   formatResearchDuration,
+  getHiveResearchNode,
   hiveResearchActive,
+  hiveResearchActiveNode,
   hiveResearchBranchUnlocked,
-  hiveResearchCompleted,
-  hiveResearchNodeCost,
+  hiveResearchCombatSpeed,
+  hiveResearchExtraUtilitySlots,
+  hiveResearchFurnaceSlots,
+  hiveResearchNodeDuration,
   hiveResearchNodeEffectLine,
+  hiveResearchProcessCostMult,
+  hiveResearchProgress,
+  hiveResearchQueueCap,
+  hiveResearchRemaining,
   hiveResearchSpeed,
-  hiveResearchUpcoming,
-  hiveResearchXp,
+  hiveResearchVisibleNodes,
+  hiveResearchWorkshopStartRanks,
   isResearchBreakthrough,
+  researchNodeViewState,
+  type HiveResearchNodeDef,
 } from '../../game/hiveResearch'
-import { inspectResearchBranch } from '../../game/inspect'
-import { InspectName } from '../InspectName'
+import { stationEffectiveDrones, droneCap } from '../../game/catalog'
+import { foundryFabSlotCount, foundrySlotCount } from '../../game/foundry'
+import { SheetTabs } from '../SheetTabs'
+import {
+  Badge,
+  BottomSheet,
+  ContextBar,
+  Screen,
+  ScreenHeader,
+  Section,
+  SectionHeader,
+  StatPair,
+} from '../../ui/primitives'
+import { useSyncedPane } from '../../hooks/useSyncedPane'
 
 interface ResearchTabProps {
   state: GameState
   onBack: () => void
-  onFocus: (branch: HiveResearchBranch) => void
+  onStart: (nodeId: string) => void
+  onFocus?: (branch: HiveResearchBranch) => void
   guideTarget?: string | null
+  requestedBranch?: HiveResearchBranch | null
 }
 
-function ResearchTree({
-  branchId,
-  done,
+const BRANCH_TABS = HIVE_RESEARCH_BRANCHES.map((branch) => ({
+  id: branch.id,
+  label: branch.tab,
+}))
+
+function workerDuration(state: GameState, node: HiveResearchNodeDef, extraWorkers = 0): number {
+  const assigned = Math.max(0, Math.floor(state.base.assignments['sensor-net'] ?? 0))
+  const probe: GameState = {
+    ...state,
+    base: {
+      ...state.base,
+      assignments: {
+        ...state.base.assignments,
+        'sensor-net': assigned + extraWorkers,
+      },
+    },
+  }
+  const speed = hiveResearchSpeed(probe)
+  return hiveResearchNodeDuration(node, state) / Math.max(0.01, speed)
+}
+
+function effectPreview(state: GameState, node: HiveResearchNodeDef): string[] {
+  const lines: string[] = []
+  if (node.furnaceSlots) {
+    const now = 1 + hiveResearchFurnaceSlots(state)
+    lines.push(`Furnace channels ${now} → ${now + node.furnaceSlots}`)
+  }
+  if (node.foundrySlots) {
+    const now = foundrySlotCount(state)
+    lines.push(`Processors ${now} → ${now + node.foundrySlots}`)
+  }
+  if (node.foundryFitSlots) {
+    const now = foundryFabSlotCount(state)
+    lines.push(`Fabricators ${now} → ${now + node.foundryFitSlots}`)
+  }
+  if (node.droneCapBonus) {
+    const now = droneCap(state)
+    lines.push(`Worker capacity ${now} → ${now + node.droneCapBonus}`)
+  }
+  if (node.extraUtilitySlots) {
+    const now = hiveResearchExtraUtilitySlots(state)
+    lines.push(`Utility Core slots ${now} → ${now + node.extraUtilitySlots}`)
+  }
+  if (node.workshopStartRanks) {
+    const now = hiveResearchWorkshopStartRanks(state)
+    lines.push(`Rebuild Workshop ranks ${now} → ${now + node.workshopStartRanks}`)
+  }
+  if (node.combatSpeed && node.combatSpeed > 1) {
+    const now = hiveResearchCombatSpeed(state)
+    lines.push(`Combat speed ×${now} → ×${Math.max(now, node.combatSpeed)}`)
+  }
+  if (node.processCostMult) {
+    const now = hiveResearchProcessCostMult(state)
+    lines.push(`Process costs ×${now} → ×${(now * node.processCostMult).toFixed(2)}`)
+  }
+  if (node.researchQueueSlots) {
+    const now = hiveResearchQueueCap(state)
+    lines.push(`Research queue ${now} → ${now + node.researchQueueSlots}`)
+  }
+  return [...new Set(lines.filter((line) => line && line !== hiveResearchNodeEffectLine(node)))]
+}
+
+function ResearchGraph({
+  state,
+  branch,
+  onSelect,
 }: {
-  branchId: HiveResearchBranch
-  done: number
+  state: GameState
+  branch: HiveResearchBranch
+  onSelect: (node: HiveResearchNodeDef) => void
 }) {
-  const nodes = HIVE_RESEARCH_NODES[branchId]
+  const nodes = hiveResearchVisibleNodes(state, branch)
+  const cols = Math.max(1, ...nodes.map((node) => node.col + 1))
+  const rows = Math.max(1, ...nodes.map((node) => node.row + 1))
+  const lookup = new Map(nodes.map((node) => [node.id, node]))
+
   return (
-    <div className="research-tree" aria-hidden>
-      {[0, 1, 2].map((group) => (
-        <div key={group} className="research-tree-group">
-          {[0, 1, 2].map((offset) => {
-            const index = group * 3 + offset
-            const node = nodes[index]
-            if (!node) return null
-            const filled = index < done
-            const next = index === done
-            const hidden = index > done
-            const bt = isResearchBreakthrough(node)
+    <div
+      className="research-graph"
+      style={{
+        gridTemplateColumns: `repeat(${cols}, minmax(3.6rem, 1fr))`,
+        gridTemplateRows: `repeat(${rows}, 4.6rem)`,
+      }}
+    >
+      <svg className="research-graph-edges" aria-hidden>
+        {nodes.flatMap((node) =>
+          node.prerequisites.map((id) => {
+            const from = lookup.get(id)
+            if (!from) return null
+            const x1 = ((from.col + 0.5) / cols) * 100
+            const y1 = ((from.row + 0.5) / rows) * 100
+            const x2 = ((node.col + 0.5) / cols) * 100
+            const y2 = ((node.row + 0.5) / rows) * 100
             return (
-              <span
-                key={node.name}
-                className={[
-                  'research-node',
-                  bt ? 'is-breakthrough' : '',
-                  filled ? 'is-done' : '',
-                  next ? 'is-next' : '',
-                  hidden ? 'is-hidden' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                title={hidden ? undefined : node.name}
+              <line
+                key={`${id}-${node.id}`}
+                x1={`${x1}%`}
+                y1={`${y1}%`}
+                x2={`${x2}%`}
+                y2={`${y2}%`}
               />
             )
-          })}
-        </div>
-      ))}
+          }),
+        )}
+      </svg>
+      {nodes.map((node) => {
+        const view = researchNodeViewState(state, node)
+        const revealed = view === 'completed' || view === 'active' || view === 'available'
+        return (
+          <button
+            key={node.id}
+            type="button"
+            className={[
+              'research-graph-node',
+              isResearchBreakthrough(node) ? 'is-breakthrough' : '',
+              `is-${view}`,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={{ gridColumn: node.col + 1, gridRow: node.row + 1 }}
+            onClick={() => onSelect(node)}
+            data-guide={view === 'available' ? 'research-focus' : undefined}
+            aria-label={revealed ? node.name : 'Locked project'}
+          >
+            <span className="research-graph-icon" />
+            {revealed ? <span className="research-graph-name">{node.shortName}</span> : null}
+          </button>
+        )
+      })}
     </div>
   )
 }
 
-export function ResearchTab({ state, onBack, onFocus }: ResearchTabProps) {
+export function ResearchTab({ state, onBack, onStart, requestedBranch }: ResearchTabProps) {
   const open = isSystemUnlocked(state, 'research')
-  const running = hiveResearchActive(state)
-  const focus = state.hiveResearch?.focus ?? 'energy'
+  const running = hiveResearchActiveNode(state)
+  const defaultBranch = running?.branch ?? 'energy'
+  const [branch, setBranch] = useSyncedPane<HiveResearchBranch>(defaultBranch, requestedBranch)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = selectedId ? getHiveResearchNode(selectedId) : null
+  const selectedView = selected ? researchNodeViewState(state, selected) : null
+  const drones = stationEffectiveDrones(state, 'sensor-net')
   const speed = hiveResearchSpeed(state)
-  const drones = state.base.assignments['sensor-net'] ?? 0
+  const need = running ? hiveResearchNodeDuration(running, state) : 0
+  const have = running ? hiveResearchProgress(state) : 0
+  const pct = need > 0 ? Math.min(100, Math.round((100 * have) / need)) : 0
+  const left = running && speed > 0 ? hiveResearchRemaining(state) / speed : 0
+  const discipline = HIVE_RESEARCH_BRANCHES.find((row) => row.id === branch)!
+  const selectedDiscipline = selected
+    ? HIVE_RESEARCH_BRANCHES.find((row) => row.id === selected.branch)?.name ?? discipline.name
+    : discipline.name
+  const locked = !hiveResearchBranchUnlocked(state, branch)
+
+  const sheetBody = useMemo(() => {
+    if (!selected) return null
+    const duration = workerDuration(state, selected)
+    const plus = workerDuration(state, selected, 1)
+    return (
+      <>
+        <p>{selected.blurb}</p>
+        <p className="ui-meta">{hiveResearchNodeEffectLine(selected)}</p>
+        {effectPreview(state, selected).map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+        <p>Duration {formatResearchDuration(duration)}</p>
+        <p className="ui-meta">
+          {selected.prerequisites.length
+            ? `Requires ${selected.prerequisites.map((id) => getHiveResearchNode(id)?.name ?? id).join(', ')}`
+            : 'No prerequisites'}
+        </p>
+        <p className="ui-meta">
+          {drones > 0
+            ? `${drones} Worker Drones · +1 Worker → ${formatResearchDuration(plus)}`
+            : `Assign Worker Drones to shorten this. +1 Worker → ${formatResearchDuration(plus)}`}
+        </p>
+      </>
+    )
+  }, [drones, selected, state])
 
   return (
-    <section className="panel screen-panel">
-      <header className="panel-header">
-        <p className="assign-row">
+    <Screen className="panel screen-panel research-screen" label="Research">
+      <ScreenHeader
+        title="Research"
+        action={
           <button type="button" onClick={onBack}>
             Systems
           </button>
-        </p>
-        <h2>Research</h2>
-        <p>
-          {open
-            ? 'One project at a time. It runs during Sorties, at Dock, and offline.'
-            : `Reach Wave ${ACT1_CADENCE.research} to open Research.`}
-        </p>
-      </header>
+        }
+      />
+      <ContextBar>
+        <StatPair label="Project" value={running?.name ?? 'Idle'} />
+        <StatPair label="Progress" value={running ? `${pct}%` : '—'} />
+        <StatPair label="Remaining" value={running ? formatResearchDuration(left) : '—'} />
+        <StatPair label="Speed" value={`×${speed.toFixed(2)}`} />
+        <StatPair label="Workers" value={drones} />
+      </ContextBar>
       {!open ? (
-        <p className="muted">Pick a discipline, start its next project, and assign Worker Drones to speed it up.</p>
+        <p className="muted">Reach Wave {ACT1_CADENCE.research} to open Research.</p>
       ) : (
-        <div className="panel-scroll">
-          <p className="muted" data-guide="research-branches">
-            Research Workers {drones} · speed ×{speed.toFixed(2)}. Only the next project is named.
-          </p>
-          {HIVE_RESEARCH_BRANCHES.map((branch) => {
-            const locked = !hiveResearchBranchUnlocked(state, branch.id)
-            if (locked) {
-              return (
-                <article key={branch.id} className="network-row">
-                  <div className="network-row-main">
-                    <span>{branch.name}</span>
-                    <span className="muted">Locked</span>
-                  </div>
-                  <p className="network-row-stats">{branch.blurb}</p>
-                  <p className="muted">Opens at Wave {ACT1_CADENCE.mastery} after Process.</p>
-                </article>
-              )
-            }
-            const done = hiveResearchCompleted(state, branch.id)
-            const nodes = HIVE_RESEARCH_NODES[branch.id]
-            const xp = hiveResearchXp(state, branch.id)
-            const upcoming = hiveResearchUpcoming(state, branch.id)
-            const next = upcoming[0]?.node
-            const need = next ? hiveResearchNodeCost(done, state) : 0
-            const fill = next ? Math.min(1, xp / Math.max(1, need)) : 1
-            const researching = running && focus === branch.id
-            const left = next && speed > 0 ? Math.max(0, (need - xp) / speed) : 0
-            const nextIsBt = Boolean(next && isResearchBreakthrough(next))
-            return (
-              <article
-                key={branch.id}
-                className={`network-row${nextIsBt ? ' research-row-breakthrough' : ''}${
-                  researching ? ' is-active' : ''
-                }`}
-                data-guide={!researching ? 'research-focus' : undefined}
-              >
-                <div className="network-row-main">
-                  <InspectName name={branch.name} card={inspectResearchBranch(state, branch.id)} />
-                  <span className="muted">
-                    {done}/{nodes.length}
-                    {researching ? ' · researching' : ''}
-                  </span>
-                </div>
-                <p className="network-row-stats">{branch.blurb}</p>
-                <ResearchTree branchId={branch.id} done={done} />
-                {next ? (
-                  <>
-                    <div className="network-fill" aria-hidden>
-                      <span style={{ width: `${Math.round(fill * 100)}%` }} />
-                    </div>
-                    <p className="muted">
-                      {nextIsBt ? 'Breakthrough · ' : ''}
-                      {next.name}
-                      {researching
-                        ? ` · ${formatResearchDuration(left)} left`
-                        : ` · ${formatResearchDuration(need)}`}
-                    </p>
-                    <p className="network-row-stats">{hiveResearchNodeEffectLine(next)}</p>
-                  </>
-                ) : (
-                  <p className="muted">Discipline complete</p>
-                )}
-                {next ? (
-                  <button
-                    type="button"
-                    className={researching ? 'primary' : undefined}
-                    disabled={researching}
-                    onClick={() => onFocus(branch.id)}
-                    data-guide="research-focus"
-                  >
-                    {researching ? 'Researching' : 'Research this'}
-                  </button>
-                ) : null}
-              </article>
-            )
-          })}
-        </div>
+        <>
+          <SheetTabs
+            value={branch}
+            onChange={setBranch}
+            options={BRANCH_TABS}
+            label="Research disciplines"
+          />
+          <div className="panel-scroll research-scroll">
+            <Section>
+              <SectionHeader
+                title={discipline.name}
+                action={
+                  selectedView === 'active' || running?.branch === branch ? <Badge tone="ok">Active</Badge> : undefined
+                }
+              />
+              <p className="ui-meta">{discipline.blurb}</p>
+              {locked ? (
+                <p className="muted">Opens at Wave {ACT1_CADENCE.mastery} after Process.</p>
+              ) : (
+                <ResearchGraph
+                  state={state}
+                  branch={branch}
+                  onSelect={(node) => setSelectedId(node.id)}
+                />
+              )}
+            </Section>
+          </div>
+        </>
       )}
-    </section>
+      <BottomSheet
+        open={Boolean(selected) && !locked}
+        title={selected?.name ?? 'Project'}
+        kicker={selectedDiscipline}
+        onClose={() => setSelectedId(null)}
+        footer={
+          selected && selectedView === 'available' ? (
+            <button
+              type="button"
+              className="primary"
+              data-guide="research-focus"
+              disabled={hiveResearchActive(state)}
+              onClick={() => {
+                onStart(selected.id)
+                setSelectedId(null)
+              }}
+            >
+              Start Research
+            </button>
+          ) : selectedView === 'active' ? (
+            <p className="ui-meta">This project is already running.</p>
+          ) : selectedView === 'completed' ? (
+            <p className="ui-meta">Complete. Permanent.</p>
+          ) : (
+            <p className="ui-meta">Locked until its prerequisites finish.</p>
+          )
+        }
+      >
+        {sheetBody}
+      </BottomSheet>
+    </Screen>
   )
 }

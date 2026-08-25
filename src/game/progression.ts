@@ -716,7 +716,10 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   }
   if (systemId === 'ai' || systemId === 'process') {
     const used = (state.process?.purchased?.length ?? 0) > 0 || state.ai.purchased.length > 0
-    const researchProgress = Object.values(state.hiveResearch?.completed ?? {}).filter((n) => n > 0).length
+    const researchProgress =
+      (state.hiveResearch?.completedIds?.length ?? 0) > 0
+        ? 1
+        : Object.values(state.hiveResearch?.completed ?? {}).filter((n) => n > 0).length
     return used || (
       careerBestWave(state) >= ACT1_CADENCE.process &&
       (state.prestige.prestigeCount ?? 0) >= PROCESS_MIN_REBUILDS &&
@@ -1281,14 +1284,18 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-research-focus',
     kind: 'action',
-    title: 'Priority Lock',
-    body: 'Start this project. It has a duration, keeps running offline, and permanently changes targeting.',
+    title: 'Start a project',
+    body: 'Pick one available project, read its duration, and start it. Research keeps running during Sorties, at Dock, and offline. It survives Rebuild.',
     target: 'research-focus',
     tab: 'research',
     screen: 'research',
     group: 'research',
     tap: true,
     availableWhen: (s) => isSystemUnlocked(s, 'research') && !guideSeen(s, 'guide-research-focus'),
+    completeWhen: (s) =>
+      Boolean(s.hiveResearch?.active) ||
+      (s.hiveResearch?.completedIds?.length ?? 0) > 0 ||
+      Object.values(s.hiveResearch?.completed ?? {}).some((n) => n > 0),
   },
   {
     id: 'guide-process-first',

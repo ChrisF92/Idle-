@@ -13,6 +13,7 @@ import {
 import { isChallengeSortie } from './frontier'
 import { protocolCoreScalingAdd } from './protocols'
 import { recordPlaytest, noteSystemAction } from './playtest'
+import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
 import { milestoneModsFor } from './milestones'
 import {
   addCoreInstance,
@@ -90,17 +91,19 @@ export function coreRunLevel(state: Pick<GameState, 'combat'>, slot: number): nu
 }
 
 export function coreStartingLevel(
-  state: Pick<GameState, 'shipyard' | 'workshop'>,
+  state: Pick<GameState, 'shipyard' | 'workshop'> & { hiveResearch?: GameState['hiveResearch'] },
   coreInstanceId: string,
 ): number {
   const instance = resolveCoreInstance(state, coreInstanceId)
   const key = instance?.id ?? coreInstanceId
   const direct = state.workshop?.coreStarts?.[key]
-  if (direct != null) return Math.max(0, Math.min(CORE_START_LEVEL_CAP, Math.floor(direct)))
-  const legacy = instance?.moduleId
-    ? state.workshop?.coreStarts?.[instance.moduleId]
-    : undefined
-  return Math.max(0, Math.min(CORE_START_LEVEL_CAP, Math.floor(legacy ?? 0)))
+  const purchased = direct != null
+    ? Math.max(0, Math.floor(direct))
+    : Math.max(0, Math.floor(
+        instance?.moduleId ? state.workshop?.coreStarts?.[instance.moduleId] ?? 0 : 0,
+      ))
+  const research = sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'coreStartLevel')
+  return Math.max(0, Math.min(CORE_START_LEVEL_CAP, purchased + research))
 }
 
 export function coreStartingLevelAtSlot(

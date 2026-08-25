@@ -40,7 +40,7 @@ import { armPendingFacilities, tickFoundry } from './foundry'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
-import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
+import { hiveResearchHeatFromAshMult, hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, processConfig, processIndustrySpeedMult } from './process'
 import { processShouldExtract } from './processProfiles'
@@ -360,7 +360,11 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
     }
 
     for (const [resource, perDrone] of Object.entries(station.rates)) {
-      add(resource as keyof Resources, (perDrone ?? 0) * effective * meta)
+      let amount = (perDrone ?? 0) * effective * meta
+      if (station.id === 'scrap-field' && resource === 'scrap') {
+        amount *= hiveResearchSalvageOpsMult(state)
+      }
+      add(resource as keyof Resources, amount)
     }
   }
 

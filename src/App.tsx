@@ -471,7 +471,7 @@ function AppShell() {
                   }
                 : () => go('stats')
             }
-            onFocus={game.setResearchFocus}
+            onStart={game.startResearch}
             guideTarget={guide?.target}
           />
         )}

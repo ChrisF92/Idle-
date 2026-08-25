@@ -11,7 +11,7 @@ import {
 import { applyDevAction } from './dev'
 import { fitModule, selectFrame, setFoundrySlot, unlockFrame } from './actions'
 import { furnaceAshHeatMult } from './furnace'
-import { hiveResearchNodeCost, tickResearch } from './hiveResearch'
+import { hiveResearchNodeDuration, getHiveResearchNode, tickResearch } from './hiveResearch'
 import { maybeGrantSystemUnlocks } from './progression'
 import { tryCompleteProtocol } from './protocols'
 import { computeShipStats, createInitialState, SAVE_VERSION } from './state'
@@ -22,7 +22,7 @@ import { salvageFromKill } from './combat'
 
 describe('GDD D8 Hive Frames', () => {
   it('replaces the USI hull ladder with five archetypes', () => {
-    expect(SAVE_VERSION).toBe(37)
+    expect(SAVE_VERSION).toBe(38)
     expect(SHIP_FRAMES.map((f) => f.id)).toEqual([
       'starter-frame',
       'bastion-frame',
@@ -100,10 +100,13 @@ describe('GDD D8 Hive Frames', () => {
     expect(frameUnlockLine(getFrame('swarm-frame')!)).toMatch(/Temper Bar/)
 
     let research = atCareerWave(createInitialState(0), 170)
+    const extraTap = getHiveResearchNode('extra-tap')!
     research.hiveResearch.active = true
     research.hiveResearch.focus = 'energy'
-    research.hiveResearch.completed.energy = 2
-    research.hiveResearch.xp.energy = hiveResearchNodeCost(2, research)
+    research.hiveResearch.completedIds = ['plate-bank']
+    research.hiveResearch.completed.energy = 1
+    research.hiveResearch.activeNodeId = 'extra-tap'
+    research.hiveResearch.progress = hiveResearchNodeDuration(extraTap, research)
     tickResearch(research, 1)
     expect(research.shipyard.unlockedFrames).toContain('reactor-frame')
 

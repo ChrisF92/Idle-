@@ -87,7 +87,7 @@ import {
   setFurnaceChannel,
   setFurnacePriority,
 } from './furnace'
-import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, setResearchFocus, createEmptyHiveResearchState } from './hiveResearch'
+import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, hiveResearchWorkshopStartRanks, setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { isWorkerJob, workerJobCap } from './workers'
 import {
@@ -113,6 +113,7 @@ import {
   canBuyProcessNode,
   createEmptyProcessState,
   getProcessNode,
+  processNodeCost,
   hasProcess,
   mergeProcessConfig,
   networkAllocationWeights,
@@ -203,7 +204,7 @@ export {
   unequipFoundryModule,
 }
 
-export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, setResearchFocus }
+export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, setResearchFocus, startResearch }
 
 export function upgradeRelic(state: GameState, relicId: string): GameState {
   const check = canUpgradeRelic(state, relicId)
@@ -1420,7 +1421,11 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   )
   state.workshop = createEmptyWorkshop()
   const kit = matterShopWorkshopStarts(kept.matterShop)
-  if (kit > 0) state.workshop.levels['weapon-power'] = kit
+  const primer = hiveResearchWorkshopStartRanks(state)
+  if (kit + primer > 0) {
+    state.workshop.levels['weapon-power'] = kit + primer
+    if (primer > 0) state.workshop.levels.hull = primer
+  }
   state.combat = {
     ...fresh.combat,
     bestWave: Math.max(kept.meta.bestWave ?? 0, 0),
@@ -1766,7 +1771,7 @@ export function buyProcessNode(state: GameState, nodeId: string): GameState {
   if (!def) return state
   const next = structuredClone(state)
   if (!next.process) next.process = createEmptyProcessState()
-  next.resources.aiPoints -= def.cost
+  next.resources.aiPoints -= processNodeCost(next, def)
   next.process.purchased = [...next.process.purchased, nodeId]
   recordPlaytest(next, 'process_buy', { n: def.name })
   noteSystemAction(next, 'process')

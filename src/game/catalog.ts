@@ -5,6 +5,7 @@ import { WORKER_JOB_IDS, workerJobContribution, workerJobHasWork } from './worke
 import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
 import { bandsClearedForWave, meetsWave, waveForClearedBands } from './waves'
 import { formatCompact, formatStat } from './format'
+import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
@@ -2491,6 +2492,7 @@ export type DroneEconomyState = {
   meta?: { lifetimeDronesBuilt?: number }
   network?: { links?: { racks?: number; acuity?: number } }
   foundry?: { facilities?: string[] }
+  hiveResearch?: { completedIds?: string[]; completed?: Record<string, number> }
 }
 
 /** Black-bar slot count (0 = uncapped linear scaling). */
@@ -2548,6 +2550,7 @@ export function droneCap(state: DroneEconomyState): number {
   cap += NETWORK_RACK_CAP_PER_RANK * racks
   const droneRacks = (state.foundry?.facilities ?? []).filter((id) => id === 'drone-racks').length
   cap += droneRacks * 4
+  cap += sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'droneCapBonus')
   return Math.max(1, Math.floor(cap))
 }
 
@@ -2941,6 +2944,7 @@ export function workerManufactureSpeed(state: DroneEconomyState): number {
   if (fab > 0 && fabDef?.manufactureBonusPerDrone) {
     speed += fab * fabDef.manufactureBonusPerDrone
   }
+  speed += sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'workerManufacture')
   return Math.max(0.05, speed)
 }
 

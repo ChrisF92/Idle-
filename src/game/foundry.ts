@@ -15,6 +15,7 @@ import { furnaceFoundrySpeedMult } from './furnace'
 import {
   hiveResearchFitSlots,
   hiveResearchDroneEffMult,
+  hiveResearchFoundryOutput,
   hiveResearchFoundrySlots,
   hiveResearchFoundrySpeedMult,
   hiveResearchMasteryReduce,
@@ -466,6 +467,7 @@ export function foundryCraftOutput(state: GameState, id: string, roll = 1): numb
   if (hasFacility(state, 'storage-bay')) n += 1
   if (level >= 75 && roll < FOUNDRY_RARE_CHANCE) n += 1
   if (hasFacility(state, 'specialised-works') && roll < FOUNDRY_RARE_CHANCE) n += 1
+  n += hiveResearchFoundryOutput(state)
   return n
 }
 

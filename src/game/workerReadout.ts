@@ -17,10 +17,9 @@ import {
 import {
   formatResearchDuration,
   hiveResearchActiveNode,
-  hiveResearchCompleted,
-  hiveResearchNodeCost,
+  hiveResearchNodeDuration,
+  hiveResearchProgress,
   hiveResearchSpeed,
-  hiveResearchXp,
 } from './hiveResearch'
 import { processIndustrySpeedMult } from './process'
 import type { GameState } from './types'
@@ -122,9 +121,8 @@ function fabricationConsequence(
 
 function researchConsequence(state: GameState, assigned: number, band: string): WorkerJobConsequence {
   const node = hiveResearchActiveNode(state)
-  const branch = state.hiveResearch.focus
   const remaining = node
-    ? Math.max(0, hiveResearchNodeCost(hiveResearchCompleted(state, branch), state) - hiveResearchXp(state, branch))
+    ? Math.max(0, hiveResearchNodeDuration(node, state) - hiveResearchProgress(state))
     : 0
   const current = remaining / Math.max(0.01, hiveResearchSpeed(state))
   const plus = withAssignment(state, 'sensor-net', assigned + 1)
