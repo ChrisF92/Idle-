@@ -377,7 +377,16 @@ function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
     if (filOn) return 'filament'
     return temperOn ? 'temper-bar' : null
   }
-  const belowSoft = processing.filter((id) => foundryRecipeLevel(state, id) < 45)
+  const needsUnlock = processing.filter((id) => {
+    const def = FOUNDRY_RECIPES.find((row) => row.id === id)
+    const gate = def?.unlocksRecipe?.atLevel ?? 0
+    return gate > 0 && foundryRecipeLevel(state, id) < gate
+  })
+  if (needsUnlock.length) {
+    needsUnlock.sort((a, b) => foundryRecipeLevel(state, a) - foundryRecipeLevel(state, b))
+    return needsUnlock[0]!
+  }
+  const belowSoft = processing.filter((id) => foundryRecipeLevel(state, id) < 55)
   const belowHard = processing.filter((id) => foundryRecipeLevel(state, id) < 90)
   const pool = belowSoft.length ? belowSoft : belowHard
   if (!pool.length) return processing[0] ?? null
@@ -577,13 +586,17 @@ export function maybeUnlockAndFit(state: GameState, ctx: StrategyContext): GameS
 export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: boolean; reasons: string[] } {
   if (!canPrestige(state)) return { yes: false, reasons: [] }
   if (state.protocols?.activeId) return { yes: false, reasons: [] }
+  const prestigeCount = state.prestige.prestigeCount ?? 0
   const cfg = ctx.config.rebuild
   const stallNeed =
-    (state.prestige.prestigeCount ?? 0) < 1
+    prestigeCount < 1
       ? cfg.stallSeconds
       : careerBestWave(state) >= ACT1_CADENCE.furnace
         ? Math.max(cfg.stallSeconds * 5, 40 * 60)
-        : Math.max(cfg.stallSeconds * 3, 18 * 60)
+        : Math.min(
+            75 * 60,
+            Math.max(cfg.stallSeconds * 3, 18 * 60) + Math.max(0, prestigeCount - 1) * 5 * 60,
+          )
   const cycleBest = cycleBestWave(state)
   const career = careerBestWave(state)
   const reclaiming =
@@ -721,6 +734,9 @@ function shopOrderFor(profile: SimulationSpendProfile, preferDefense: boolean): 
     return ['hull', 'shield', 'shield-regen', 'armor', 'weapon-power']
   }
   if (profile === 'economy-first') {
+    if (preferDefense) {
+      return ['weapon-power', 'hull', 'salvage-kill', 'scrap-kill', 'ash-yield', 'salvage-wave']
+    }
     return ['salvage-kill', 'scrap-kill', 'ash-yield', 'salvage-wave', 'fragment-chance', 'weapon-power', 'hull']
   }
   if (profile === 'optimiser') {
@@ -799,7 +815,7 @@ export function spendScrapOnCoreStarts(
       const slot = slots.find((row) => row.moduleId === moduleId)
       if (!slot) continue
       const level = coreStartingLevel(next, slot.coreInstanceId)
-      if (profile === 'economy-first' && wp < 3 && level >= 1) continue
+      if (profile === 'economy-first' && wp < 3 && level >= 1 && !preferDefense) continue
       if (profile !== 'optimiser' && profile !== 'offensive' && level > wp + 2) continue
       const before = next.resources.scrap
       const after = buyCoreStartingLevel(next, slot.coreInstanceId, 1)

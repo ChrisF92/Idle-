@@ -218,7 +218,9 @@ export function isBossSector(sector: number): boolean {
 export function salvageSectorBase(sector: number): number {
   const s = Math.max(1, sector)
   if (s <= 4) return s
-  return 4 * Math.pow(s / 4, SALVAGE_MID_EXPONENT)
+  if (s <= ENEMY_MID_SECTOR) return 4 * Math.pow(s / 4, SALVAGE_MID_EXPONENT)
+  const atMid = 4 * Math.pow(ENEMY_MID_SECTOR / 4, SALVAGE_MID_EXPONENT)
+  return atMid * Math.pow(s / ENEMY_MID_SECTOR, SALVAGE_LATE_EXPONENT)
 }
 
 export function salvageFromKill(
@@ -379,8 +381,9 @@ function targetFormationSize(sector: number, bossWave: boolean): number {
   if (s === 1) return 2
   if (s <= 4) return 3
   if (s <= 8) return 4
-  if (s <= 18) return 5
-  return 6
+  if (s <= 16) return 5
+  if (s <= 22) return 6
+  return 7
 }
 
 function densityPressureBudget(sector: number, bossWave: boolean): number {
@@ -392,8 +395,9 @@ function densityPressureBudget(sector: number, bossWave: boolean): number {
   if (sector <= 1) return 0
   if (sector <= 4) return 0.08
   if (sector <= 8) return 0.14
-  if (sector <= 18) return 0.22
-  return 0.28
+  if (sector <= 16) return 0.22
+  if (sector <= 22) return 0.32
+  return 0.4
 }
 
 function densifyEncounter(
@@ -661,11 +665,12 @@ function act1ClimaxEncounter(extraDanger = 1, state?: GameState): SectorEncounte
  *
  * S1 stays on tutorial hull (2-shot mites). S2–S3 grow slower so early
  * Best Δ can land at +2–4. S4–S8 steepen so W40–W80 is the wall that
- * teaches Plate. S9–S18 grow slower so later bands are bumps, not cliffs.
- * S19+ steepens again toward Challenges.
+ * teaches Plate. S9–S16 grow slower so Furnace is a bump, not a cliff.
+ * S17+ (Research door) steepens hull, damage, and density toward W300.
  */
 export const ENEMY_EARLY_SECTOR = 8
-export const ENEMY_MID_SECTOR = 18
+/** Mid band ends at W160. Research-door waves (W170+) use the late curve. */
+export const ENEMY_MID_SECTOR = 16
 /** S1–S3 opening. S1 uses base only; S2–S3 grow slower so early Best Δ can land. */
 export const ENEMY_OPENING_SECTOR = 3
 
@@ -675,19 +680,22 @@ export const ENEMY_HULL_OPENING = 1.2
 /** Per-band hull growth for S4–S8. Steeper than the opening so W40–W80 is the wall. */
 export const ENEMY_HULL_EARLY = 1.3
 export const ENEMY_HULL_MID = 1.2
-export const ENEMY_HULL_LATE = 1.215
+/** S17+ (W170+). Steep enough that a stacked shop still meets walls, not a 2-hour melt to W300. */
+export const ENEMY_HULL_LATE = 1.34
 
 export const ENEMY_DMG_BASE = 0.9
 export const ENEMY_DMG_OPENING = 1.22
 export const ENEMY_DMG_EARLY = 1.28
 export const ENEMY_DMG_MID = 1.16
-export const ENEMY_DMG_LATE = 1.225
+export const ENEMY_DMG_LATE = 1.26
 
 /** Extra hull/damage per Wave inside a 10-wave band. */
 export const ENEMY_WAVE_HULL_RAMP = 0.06
 
 /** Mid-band Salvage income exponent after band 4. S1–S4 stay linear. */
 export const SALVAGE_MID_EXPONENT = 0.5
+/** After W160, Salvage grows slower so sortie burst doesn't melt Research→W300. */
+export const SALVAGE_LATE_EXPONENT = 0.35
 
 function piecewiseSectorScale(
   sector: number,

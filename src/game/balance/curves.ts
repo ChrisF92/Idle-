@@ -32,6 +32,7 @@ export {
   salvageSectorBase,
   salvageFromKill,
   SALVAGE_MID_EXPONENT,
+  SALVAGE_LATE_EXPONENT,
 } from '../combat'
 
 export {
