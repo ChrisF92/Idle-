@@ -827,6 +827,7 @@ function economyConvertsToCombat(state: GameState, ctx: StrategyContext): boolea
   return (
     ctx.secondsSinceHighestSectorGain >= 6 * 60 ||
     ctx.secondsSinceBestWaveGain >= 6 * 60 ||
+    (state.prestige.prestigeCount ?? 0) >= 1 ||
     careerBestWave(state) >= ACT1_CADENCE.furnace
   )
 }
