@@ -192,7 +192,7 @@ export function lateCareerConfig(
   extra: Partial<SimulationConfig> = {},
 ): SimulationConfig {
   const waveCap =
-    stop.type === 'wave' && stop.wave <= 170 ? 45 * 3600 : 140 * 3600
+    stop.type === 'wave' && stop.wave <= 170 ? 45 * 3600 : 10 * 24 * 3600
   return defaultSimulationConfig({
     start: { type: 'fresh' },
     strategy,

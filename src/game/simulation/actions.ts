@@ -542,8 +542,11 @@ export function tendProcess(state: GameState, ctx: StrategyContext): GameState {
 
 export function spendRebuildMatter(state: GameState, ctx: StrategyContext): GameState {
   let next = state
+  const econCombat =
+    ctx.config.strategy === 'economy-first' && careerBestWave(state) >= ACT1_CADENCE.furnace
+  const guardLimit = econCombat ? 16 : 8
   let guard = 0
-  while (guard++ < 8 && next.resources.prestigeMatter > 0) {
+  while (guard++ < guardLimit && next.resources.prestigeMatter > 0) {
     let bestId: string | null = null
     let bestScore = 0
     for (const item of MATTER_SHOP) {
@@ -553,8 +556,8 @@ export function spendRebuildMatter(state: GameState, ctx: StrategyContext): Game
       const dmg = def?.damageBonus ?? 0
       const hull = (def?.hullBonus ?? 0) / 80
       const shield = (def?.shieldBonus ?? 0) / 80
-      const prod = (def?.productionBonus ?? 0) * 0.4
-      const score = (dmg * 1.6 + hull + shield + prod) / check.cost
+      const prod = (def?.productionBonus ?? 0) * (econCombat ? 0.05 : 0.4)
+      const score = (dmg * (econCombat ? 2.4 : 1.6) + hull + shield + prod) / check.cost
       if (score > bestScore) {
         bestScore = score
         bestId = item.id
@@ -676,10 +679,16 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   // Banked Ash is the W160 lever. Rebuild dumps it. Use Best-Wave stall, not
   // sector stall: a slow 10-wave band still gaining Waves must keep the bank.
   // Consecutive losses reset on every wave win, so they are not the signal.
+  const furnaceBankHold = 6 * 3600
+  const sinceRebuild =
+    ctx.lastRebuildActive == null ? Number.POSITIVE_INFINITY : ctx.activeSeconds - ctx.lastRebuildActive
   if (furnaceReady && reclaiming && state.combat.consecutiveLosses < 5) {
     return { yes: false, reasons: [] }
   }
-  if (furnaceReady && ctx.secondsSinceBestWaveGain < 3 * 3600) {
+  if (furnaceReady && ctx.secondsSinceBestWaveGain < furnaceBankHold) {
+    return { yes: false, reasons: [] }
+  }
+  if (furnaceReady && sinceRebuild < furnaceBankHold) {
     return { yes: false, reasons: [] }
   }
   if (furnaceOpen && furnaceBank >= 40 && ctx.secondsSinceHighestSectorGain < 50 * 60) {
@@ -870,7 +879,7 @@ export function spendScrapOnCoreStarts(
   if (slots.length === 0) return state
   const wp = workshopLevel(state, 'weapon-power')
   let next = state
-      const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? (preferDefense ? 6 : 2) : 6
+  const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? (preferDefense ? 6 : 2) : 6
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     const ranked = [...order].sort((a, b) => {
