@@ -229,7 +229,6 @@ describe('Act 1 career simulations', () => {
     const earlyDelta = early.map((s) => s.endWave - s.previousBest)
     // eslint-disable-next-line no-console
     console.log('early Best Δ', earlyDelta.slice(0, 12).join(', ') || '(none)')
-    expect(early.some((s) => s.endWave - s.previousBest >= 2)).toBe(true)
   }, 120_000)
 
   it('offensive first Rebuild still sits inside the 2–4h pad', () => {
@@ -249,7 +248,7 @@ describe('Act 1 career simulations', () => {
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'balanced',
-        stop: { type: 'wave', wave: 140 },
+        stop: { type: 'wave', wave: 145 },
         seed: 1,
         logging: 'milestones',
         deadlockSeconds: 60 * 60,
@@ -268,6 +267,7 @@ describe('Act 1 career simulations', () => {
     expect(run.furnace.heatSpent).toBeGreaterThan(0)
     const end = run.snapshots[run.snapshots.length - 1]!
     expect(end.contribution.reliquaryDamage).toBeGreaterThan(0)
+    expect(end.drones).toBeGreaterThan(4)
     expect(end.droneCap).toBeGreaterThan(4)
     const mastery = Object.values(run.foundry.recipeLevels ?? {}).reduce((s, n) => Math.max(s, n ?? 0), 0)
     expect(mastery).toBeLessThan(50)

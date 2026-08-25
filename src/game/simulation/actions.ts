@@ -49,11 +49,10 @@ import {
 } from '../network'
 import {
   FOUNDRY_FACILITIES,
-  FOUNDRY_RECIPES,
   canStartFabrication,
+  foundryFacilityCommitted,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
-  scaledFoundryCost,
   startFabrication,
 } from '../foundry'
 import {
@@ -301,24 +300,13 @@ export function tendFoundry(state: GameState, ctx: StrategyContext): GameState {
   const slots = foundrySlotCount(next)
   for (let i = 0; i < slots; i++) {
     const current = next.foundry.slots[i]?.recipeId ?? null
-    if (current) continue
-    const salvage = next.resources.salvage
-    const slagCost = scaledFoundryCost(next, 'slag-ingot').salvage ?? 10
-    let recipe: FoundryRecipeId | null = null
-    if (isFoundryRecipeUnlocked(next, 'filament')) recipe = 'filament'
-    if (isFoundryRecipeUnlocked(next, 'slag-ingot') && salvage >= slagCost) {
-      recipe = 'slag-ingot'
-    }
-    for (const def of FOUNDRY_RECIPES) {
-      if (!isFoundryRecipeUnlocked(next, def.id)) continue
-      if (def.id === 'slag-ingot' || def.id === 'filament') continue
-      if ((next.foundry.recipeLevels[def.id] ?? 0) >= 4 && def.costs.materials) {
-        recipe = def.id
-        break
-      }
-      if (!def.costs.materials && salvage > slagCost * 2) recipe = def.id
-    }
+    const progress = next.foundry.slots[i]?.progress ?? 0
+    const recipe = pickProcessingRecipe(next)
     if (!recipe) continue
+    if (current === recipe) continue
+    const currentStock = current ? foundryStock(next, current) : 0
+    const canSwitch = !current || progress < 0.05 || currentStock >= 8
+    if (!canSwitch) continue
     const after = setFoundrySlot(next, i, recipe)
     if (after !== next) {
       ctx.record(`foundry-slot ${recipe}`)
@@ -327,6 +315,36 @@ export function tendFoundry(state: GameState, ctx: StrategyContext): GameState {
   }
 
   return next
+}
+
+function foundryStock(state: GameState, id: FoundryRecipeId): number {
+  return Math.max(0, Math.floor(state.foundry.materials?.[id] ?? 0))
+}
+
+/** Player-like: stock the Fabricator chain after W90, otherwise keep Recovered Stock running. */
+function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
+  const slagOn = isFoundryRecipeUnlocked(state, 'slag-ingot')
+  const filOn = isFoundryRecipeUnlocked(state, 'filament')
+  const temperOn = isFoundryRecipeUnlocked(state, 'temper-bar')
+  if (!slagOn && !filOn && !temperOn) return null
+  const slag = foundryStock(state, 'slag-ingot')
+  const filament = foundryStock(state, 'filament')
+  const temper = foundryStock(state, 'temper-bar')
+  const fabDone = foundryFacilityCommitted(state, 'drone-fabricator') > 0
+  const wantFab =
+    !fabDone && careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
+  if (wantFab) {
+    if (temperOn && temper < 6 && slag >= 2 && filament >= 1) return 'temper-bar'
+    if (filOn && filament < 8) return 'filament'
+    if (slagOn && slag < 24) return 'slag-ingot'
+    if (temperOn && temper < 6) {
+      if (filOn && filament < 1) return 'filament'
+      if (slagOn) return 'slag-ingot'
+    }
+  }
+  if (slagOn) return 'slag-ingot'
+  if (filOn) return 'filament'
+  return 'temper-bar'
 }
 
 export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
