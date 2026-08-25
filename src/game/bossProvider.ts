@@ -105,5 +105,5 @@ export function developmentBossFallback(ctx: BossBuildContext): BossEncounterSpe
 }
 
 export function emptyBossBoundary(wave = 0): import('./types').BossBoundaryState {
-  return { phase: 'idle', wave, warningLeft: 0 }
+  return { phase: 'idle', wave, warningLeft: 0, warningDuration: BOSS_WARNING_DURATION }
 }

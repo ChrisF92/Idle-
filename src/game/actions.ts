@@ -132,7 +132,6 @@ import {
   recordPlaytest,
   stampFirst,
 } from './playtest'
-import { noteFrontierIntervention } from './frontier'
 import type { CoreInstance } from './types'
 import {
   computeShipStats,
@@ -243,14 +242,6 @@ export function setDamageNumbers(
   return next
 }
 
-export function setLaunchSector(state: GameState, _sector: number): GameState {
-  return state
-}
-
-export function setSectorRoute(state: GameState, _route: string): GameState {
-  return state
-}
-
 function canAfford(resources: Resources, cost: ResourceCost): boolean {
   for (const [key, amount] of Object.entries(cost)) {
     const need = amount ?? 0
@@ -293,7 +284,6 @@ export function assignWorker(
     }
     if (networkBar) {
       noteSystemAction(next, 'network')
-      noteFrontierIntervention(next, 'drone', { n: stationId, v: delta })
     }
     return next
   }
@@ -306,7 +296,6 @@ export function assignWorker(
   if (left <= 0) delete assignments[stationId]
   else assignments[stationId] = left
   next.base.assignments = assignments
-  if (networkBar) noteFrontierIntervention(next, 'drone', { n: stationId, v: -remove })
   return next
 }
 
@@ -1608,7 +1597,7 @@ export function enterChallenge(
     ? `Ascension ×${next.meta.ascensionCount}`
     : 'Prestige'
   next.combat.log = [
-    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: Wave ${challenge.goalSector * 10}.`,
+    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: Wave ${challenge.goalSector}.`,
     ...next.combat.log,
   ]
   return next
@@ -1630,8 +1619,8 @@ export function tryCompleteChallenge(state: GameState): void {
   if (!id) return
   const challenge = getChallenge(id)
   if (!challenge) return
-  const cleared = Math.max(state.combat.bestWave ?? 0, state.meta.bestWave ?? 0)
-  if (cleared < challenge.goalSector) return
+  const runWave = Math.max(0, state.combat.waveReached ?? 0, state.combat.wave ?? 0)
+  if (runWave < challenge.goalSector) return
 
   const maxClears = effectiveMaxClears(challenge, state.prestige.shop)
   const prev = challengeClearCount(state.prestige.challengeClears, id)

@@ -141,6 +141,6 @@ describe('GDD Phase 8 content depth', () => {
   it('names Wave 1000 as the Act 1 ceiling', () => {
     const log = FOUNDRY_LOGS.find((row) => row.id === 'act1')
     expect(log?.title).toMatch(/1000/)
-    expect(log?.body).toMatch(/Wave 1000/)
+    expect(log?.body).toMatch(/Choir Crown/)
   })
 })

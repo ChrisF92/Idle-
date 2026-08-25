@@ -51,11 +51,19 @@ export function hashSeed(...parts: number[]): number {
   return h >>> 0
 }
 
-/** Tests that pass lastTickAt=0 stay on the canonical pack. Live Sorties hash the clock. */
-export function newSortieSeed(state: GameState): number {
-  if ((state.combat.sortieSeed ?? 0) > 0) return state.combat.sortieSeed!
-  if ((state.lastTickAt ?? 0) === 0) return 0
-  return hashSeed(state.lastTickAt, state.prestige.prestigeCount ?? 0, state.combat.wave || 1)
+/**
+ * Mint a new stable Sortie seed from the account's persistent Sortie serial.
+ * Tests may inject `combat.sortieSeed` before launch; live Sorties always call this.
+ */
+export function allocateSortieSeed(state: GameState): number {
+  state.meta.sortieSerial = (state.meta.sortieSerial ?? 0) + 1
+  const seed = hashSeed(
+    0x51e3d7e,
+    state.meta.sortieSerial,
+    state.prestige.prestigeCount ?? 0,
+    state.meta.ascensionCount ?? 0,
+  )
+  return seed || 1
 }
 
 /** GDD Wave 87 example is budget 100. Linear from a small W1 floor. */

@@ -1331,6 +1331,11 @@ function syncScene(
     scene.seenFx.add(shot.id)
     const to = scene.actors.get(shot.toId)
     if (to) applyHitFx(scene, shot, to)
+    else if (shot.x != null && shot.y != null && shot.tag === 'death') {
+      const pos = worldToScreen(shot.x, shot.y)
+      burst(scene, pos.x, pos.y, '#e08a3a', 7, { speed: 1.05, size: 0.95, life: 0.4 })
+      hullFragments(scene, pos.x, pos.y, 3)
+    }
   }
   if (scene.seenFx.size > 240) scene.seenFx = new Set(fx.map((f) => f.id))
   capParticles(scene)

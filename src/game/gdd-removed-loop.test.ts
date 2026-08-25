@@ -3,8 +3,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { setCampaign, setPushMode, retryFrontier, warpToSector, setDocked } from './tick'
-import { enterEcho, setLaunchSector, setSectorRoute } from './actions'
+import { setDocked } from './tick'
+import { enterEcho } from './actions'
 import { MORE_STATIONS, REMOVED_ACT1_TABS, isMoreNavTab, isRemovedAct1Tab } from './moreStations'
 import { LIVE_SCREENS } from './screenHelp'
 import { isSystemUnlocked } from './progression'
@@ -12,26 +12,17 @@ import { canEnterEcho, echoDamageMult } from './echo'
 
 describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
   it('keeps every Sortie launching at Wave 1 without Route or Sector', () => {
-    let s = createInitialState(0)
+    const s = createInitialState(0)
     s.combat.docked = true
-    s = setPushMode(s, 'hold-wave')
     expect('pushMode' in s.combat).toBe(false)
-
-    s = setCampaign(s, false)
-    s.combat.wave = 18
-    s = setLaunchSector(s, 6)
-    expect(s.combat.wave).toBe(18)
-
-    s = setSectorRoute(s, 'B')
     expect('route' in s.combat).toBe(false)
-
-    s = warpToSector(s, 12)
+    expect('sector' in s.combat).toBe(false)
+    s.combat.wave = 18
     expect(s.combat.wave).toBe(18)
   })
 
-  it('treats Retry / Hold as a no-op and Launch still starts Wave 1', () => {
+  it('Launch still starts Wave 1', () => {
     let s = createInitialState(0)
-    expect(retryFrontier(s)).toBe(s)
     s = setDocked(s, false)
     expect(s.combat.waveReached).toBe(1)
     expect(s.combat.docked).toBe(false)

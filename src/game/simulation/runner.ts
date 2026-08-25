@@ -154,6 +154,7 @@ async function runOneSeeded(
   const now0 = seed * 1000
   let state = skipGuides(startingState(config.start, now0))
   state.lastTickAt = now0
+  if (!(state.combat.sortieSeed > 0)) state.combat.sortieSeed = seed
   const rebuildsAtStart = state.prestige.prestigeCount
   const metrics = createMetrics(state)
   const safety: SafetyFlag[] = []

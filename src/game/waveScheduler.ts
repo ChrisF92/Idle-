@@ -1,27 +1,24 @@
 /** Continuous Wave scheduler: reinforcement, pending threat, Boss boundaries. */
 
 import type { CombatUnit, GameState, WavePackageKind, WavePackageState } from './types'
-import { encounterForWave, revealCodexFamilies, syncHullAggregates } from './combat'
+import { encounterForWave, pruneDeadEnemyUnits, revealCodexFamilies, syncHullAggregates } from './combat'
 import { resolveBossEncounter } from './bossProvider'
 import { aiDoctrinesActive } from './catalog'
 import {
+  admitUnitToPackage,
   battlefieldClearForBoss,
   beginBossHold,
   bossBoundaryBlocksNormalWaves,
   createWavePackage,
   drainPending,
   enqueuePending,
+  enterBossWarning,
   markWaveReached,
   packageHasLivingOrPending,
   splitSpawnCapacity,
   wavePackageKindFor,
 } from './waveRuntime'
-import {
-  ACT1_FINAL_WAVE,
-  BOSS_WARNING_DURATION,
-  isBossWave,
-  NORMAL_REINFORCEMENT_INTERVAL,
-} from './waves'
+import { ACT1_FINAL_WAVE, BOSS_WARNING_DURATION, isBossWave, NORMAL_REINFORCEMENT_INTERVAL } from './waves'
 import { salvageWaveBonus } from './workshop'
 import { grantSignalCoreDrop } from './signalCores'
 
@@ -31,19 +28,25 @@ export interface WaveSchedulerHooks {
   onWaveSecured?: (state: GameState, pkg: WavePackageState) => void
 }
 
-function stampUnits(units: CombatUnit[], pkg: WavePackageState): CombatUnit[] {
-  return units.map((unit, i) => ({
-    ...structuredClone(unit),
-    id: `${pkg.id}-u${i + 1}`,
-    packageId: pkg.id,
-    sourceWave: pkg.wave,
-  }))
+export interface WavePresentation {
+  name: string
+  family: string
+  tags: string[]
+  threat?: { seed: number; budget: number; spent: number }
+}
+
+function applyPresentation(state: GameState, presentation: WavePresentation, boss: boolean): void {
+  state.combat.enemyName = presentation.name
+  state.combat.enemyFamily = presentation.family
+  state.combat.enemyTags = [...presentation.tags]
+  state.combat.isBoss = boss
+  state.combat.waveThreat = presentation.threat
 }
 
 function admitUnits(state: GameState, pkg: WavePackageState, units: CombatUnit[]): void {
-  const stamped = stampUnits(units, pkg)
-  const { spawnNow, pending } = splitSpawnCapacity(state, stamped)
+  const stamped = units.map((unit) => admitUnitToPackage(state, pkg, unit, false))
   pkg.totalUnits = stamped.length
+  const { spawnNow, pending } = splitSpawnCapacity(state, stamped)
   pkg.spawnedUnitIds.push(...spawnNow.map((u) => u.id))
   state.combat.enemyUnits.push(...spawnNow)
   enqueuePending(state, pkg, pending)
@@ -60,26 +63,43 @@ export function startWavePackage(
   hooks: WaveSchedulerHooks,
   unitsOverride?: CombatUnit[],
   kindOverride?: WavePackageKind,
+  presentationOverride?: WavePresentation,
 ): WavePackageState {
   const kind = kindOverride ?? wavePackageKindFor(wave)
-  const units =
-    unitsOverride ??
-    encounterForWave(wave, 1, state).units.map((u) => structuredClone(u))
+  const encounter = unitsOverride ? null : encounterForWave(wave, 1, state)
+  const units = unitsOverride ?? encounter!.units.map((u) => structuredClone(u))
   const pkg = createWavePackage(state, wave, kind, units.length)
   state.combat.packages.push(pkg)
   const first = markWaveReached(state, wave)
   admitUnits(state, pkg, units)
-  const encounter = encounterForWave(wave, 1, state)
-  state.combat.enemyName = encounter.name
-  state.combat.enemyFamily = encounter.family
-  state.combat.enemyTags = [...encounter.tags]
-  state.combat.isBoss = kind === 'boss'
-  state.combat.waveThreat = encounter.threat
-    ? { seed: encounter.threat.seed, budget: encounter.threat.budget, spent: encounter.threat.spent }
-    : undefined
-  if (kind === 'boss') {
-    state.combat.bossPhase = 0
+  if (presentationOverride) {
+    applyPresentation(state, presentationOverride, kind === 'boss')
+  } else if (encounter) {
+    applyPresentation(
+      state,
+      {
+        name: encounter.name,
+        family: encounter.family,
+        tags: [...encounter.tags],
+        threat: encounter.threat
+          ? { seed: encounter.threat.seed, budget: encounter.threat.budget, spent: encounter.threat.spent }
+          : undefined,
+      },
+      kind === 'boss',
+    )
+  } else {
+    const lead = units[0]
+    applyPresentation(
+      state,
+      {
+        name: lead?.name ?? `Wave ${wave}`,
+        family: lead?.family ?? '',
+        tags: lead ? [lead.family, ...(kind === 'boss' ? ['boss'] : [])] : [],
+      },
+      kind === 'boss',
+    )
   }
+  if (kind === 'boss') state.combat.bossPhase = 0
   if (first) hooks.onWaveReached?.(state, wave, kind)
   hooks.pushLog(
     state,
@@ -101,11 +121,19 @@ export function startBossEncounter(state: GameState, hooks: WaveSchedulerHooks):
     copy.sourceWave = wave
     return copy
   })
-  state.combat.bossBoundary = { phase: 'active', wave, warningLeft: 0 }
-  state.combat.enemyName = spec?.name ?? `Boss Wave ${wave}`
-  state.combat.isBoss = true
+  const lead = units[0]
+  state.combat.bossBoundary = {
+    phase: 'active',
+    wave,
+    warningLeft: 0,
+    warningDuration: spec?.warningDuration ?? state.combat.bossBoundary.warningDuration,
+  }
   state.combat.bossMechanic = spec?.id
-  startWavePackage(state, wave, hooks, units, 'boss')
+  startWavePackage(state, wave, hooks, units, 'boss', {
+    name: spec?.name ?? `Boss Wave ${wave}`,
+    family: lead?.family ?? 'titan',
+    tags: spec ? ['boss', spec.id] : ['boss'],
+  })
   state.combat.nextWave = wave + 1
   state.combat.nextReinforcementAt = Number.POSITIVE_INFINITY
 }
@@ -150,12 +178,21 @@ function releasePending(state: GameState): void {
 
 function scheduleNextNormal(state: GameState, fromWave: number): void {
   state.combat.nextWave = fromWave + 1
-  state.combat.nextReinforcementAt =
-    (state.combat.simTime ?? 0) + NORMAL_REINFORCEMENT_INTERVAL
+  state.combat.nextReinforcementAt = (state.combat.simTime ?? 0) + NORMAL_REINFORCEMENT_INTERVAL
+}
+
+function authoredWarningDuration(state: GameState, wave: number): number {
+  const spec = resolveBossEncounter({
+    wave,
+    seed: state.combat.sortieSeed ?? 1,
+    state,
+  })
+  return spec?.warningDuration ?? BOSS_WARNING_DURATION
 }
 
 export function tickWaveScheduler(state: GameState, dt: number, hooks: WaveSchedulerHooks): void {
   if (state.combat.docked) return
+  pruneDeadEnemyUnits(state)
   releasePending(state)
   const secured = resolveWaveSecurity(state, hooks)
 
@@ -164,7 +201,12 @@ export function tickWaveScheduler(state: GameState, dt: number, hooks: WaveSched
     const bossPkg = state.combat.packages.find((p) => p.wave === boundary.wave && p.kind === 'boss')
     const bossDead = bossPkg?.secured || secured.some((p) => p.kind === 'boss' && p.wave === boundary.wave)
     if (bossDead) {
-      state.combat.bossBoundary = { phase: 'cleared', wave: boundary.wave, warningLeft: 0 }
+      state.combat.bossBoundary = {
+        phase: 'cleared',
+        wave: boundary.wave,
+        warningLeft: 0,
+        warningDuration: boundary.warningDuration,
+      }
       state.combat.isBoss = false
       scheduleNextNormal(state, boundary.wave)
     }
@@ -173,11 +215,8 @@ export function tickWaveScheduler(state: GameState, dt: number, hooks: WaveSched
 
   if (boundary.phase === 'holding') {
     if (battlefieldClearForBoss(state)) {
-      state.combat.bossBoundary = {
-        phase: 'warning',
-        wave: boundary.wave,
-        warningLeft: BOSS_WARNING_DURATION,
-      }
+      const duration = boundary.warningDuration || authoredWarningDuration(state, boundary.wave)
+      enterBossWarning(state, duration)
       hooks.pushLog(state, `Boss warning — Wave ${boundary.wave}.`)
     }
     return
@@ -193,14 +232,13 @@ export function tickWaveScheduler(state: GameState, dt: number, hooks: WaveSched
 
   if (bossBoundaryBlocksNormalWaves(boundary)) return
 
-  if (isBossWave(state.combat.nextWave) && state.combat.nextWave <= ACT1_FINAL_WAVE) {
-    beginBossHold(state)
-    return
-  }
-
   if ((state.combat.simTime ?? 0) + 1e-9 >= (state.combat.nextReinforcementAt ?? 0)) {
     const wave = state.combat.nextWave
     if (wave > ACT1_FINAL_WAVE) return
+    if (isBossWave(wave)) {
+      beginBossHold(state, authoredWarningDuration(state, wave))
+      return
+    }
     startWavePackage(state, wave, hooks)
     scheduleNextNormal(state, wave)
   }

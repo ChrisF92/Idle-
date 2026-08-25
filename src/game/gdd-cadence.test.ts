@@ -5,7 +5,7 @@ import { isSystemUnlocked, PRESTIGE_MIN_SECTOR, SYSTEM_UNLOCKS, systemUnlockRequ
 import { canPrestige } from './actions'
 import { atCareerWave } from './testHelpers'
 import { careerBestWave } from './waves'
-import { getFrame, modulePrintSector, modulePrintWave } from './catalog'
+import { getFrame, modulePrintWave } from './catalog'
 
 /** GDD §102 doors. Older campaign tests are quarantined in vitest.config.ts. */
 describe('GDD Act 1 wave cadence', () => {
@@ -61,7 +61,6 @@ describe('GDD Act 1 wave cadence', () => {
     expect(SYSTEM_UNLOCKS.find((s) => s.id === 'furnace')?.requiresBestWave).toBe(ACT1_CADENCE.furnace)
     expect(systemUnlockRequirement('furnace')).toBe('Reach Wave 140')
     expect(getFrame('bastion-frame')?.requiresBestWave).toBe(70)
-    expect(modulePrintWave('flak-array')).toBe(modulePrintSector('flak-array'))
     expect(modulePrintWave('flak-array')).toBeGreaterThanOrEqual(ACT1_CADENCE.foundry)
   })
 })

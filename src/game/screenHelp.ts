@@ -112,7 +112,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Reinforce',
     body: [
       'Higher-order reset after Rebuild. The current loop has gone as far as it can.',
-      'Revealed by clearing Wave 1000. The screen prints YOU RESET, YOU KEEP, and WHAT CHANGES. Confirm reconstructs the Hive. No Act 2 shop opens here.',
+      'Revealed after defeating the Wave 1000 Choir Crown. The screen prints YOU RESET, YOU KEEP, and WHAT CHANGES. Confirm reconstructs the Hive. No Act 2 shop opens here.',
     ],
   },
   logs: {

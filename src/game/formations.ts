@@ -1,7 +1,21 @@
 /** Deterministic radial formation primitives. Enemy-specific assignment is later content. */
 
 import { pointFromBearing, TYPICAL_SPAWN_RADIUS, wrapTau } from './geometry'
-import { hashSeed, rngFloat, rngNext, type SimRngState } from './simRng'
+import { createSimRng, hashSeed, rngFloat, rngNext, type SimRngState } from './simRng'
+
+/** Independent of combat/loot RNG. Hash channel for Wave/package formation. */
+export const FORMATION_CHANNEL = 0xf04a11
+
+/** Deterministic formation stream: Sortie seed + Wave + package ordinal. */
+export function formationRngFor(
+  sortieSeed: number,
+  wave: number,
+  packageOrdinal: number,
+): SimRngState {
+  return createSimRng(
+    hashSeed(sortieSeed >>> 0, Math.max(1, wave), Math.max(1, packageOrdinal), FORMATION_CHANNEL),
+  )
+}
 
 export type FormationId =
   | 'spear'

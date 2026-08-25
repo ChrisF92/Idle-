@@ -40,7 +40,7 @@ describe('GDD Act 1 climax and Reinforce', () => {
     const reached = finaleState({ wave: ACT1_CADENCE.reinforce })
     expect(reached.meta.act1Cleared).toBe(false)
     expect(isSystemUnlocked(reached, 'reinforce')).toBe(false)
-    expect(canReinforce(reached).reason).toMatch(/Clear Wave 1000/)
+    expect(canReinforce(reached).reason).toMatch(/Choir Crown/)
   })
 
   it('reveals Reinforce after Act 1 is marked cleared', () => {

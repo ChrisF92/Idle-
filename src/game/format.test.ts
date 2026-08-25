@@ -76,7 +76,7 @@ describe('rebuild onboarding', () => {
 describe('dev tools', () => {
   it('jumps career Best Wave and grants resources', () => {
     let state = createInitialState(0)
-    state = applyDevAction(state, { type: 'jump-sector', sector: 8 })
+    state = applyDevAction(state, { type: 'set-best-wave', wave: 8 })
     expect(careerBestWave(state)).toBeGreaterThanOrEqual(8)
 
     state = applyDevAction(state, {

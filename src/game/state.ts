@@ -137,7 +137,7 @@ export function createInitialState(now = Date.now()): GameState {
       inFight: false,
       docked: true,
       consecutiveLosses: 0,
-      sortieSeed: 1,
+      sortieSeed: 0,
       rng: createSimRng(1),
       bossPhase: 0,
       fightElapsed: 0,
@@ -206,6 +206,7 @@ export function createInitialState(now = Date.now()): GameState {
     meta: {
       highestSectorEver: 0,
       bestWave: 0,
+      sortieSerial: 0,
       act1Cleared: false,
       act1FinalePending: false,
       ascensionCount: 0,

@@ -1936,8 +1936,8 @@ function printRecipe(
   moduleId: string,
   extra: Partial<Pick<BlueprintRecipe, 'foundry' | 'requiresRecipeLevel'>> = {},
 ): BlueprintRecipe {
-  const sector = modulePrintSector(moduleId)
-  return { moduleId, ...printFragmentNeeds(sector), ...extra }
+  const wave = modulePrintWave(moduleId)
+  return { moduleId, ...printFragmentNeeds(wave), ...extra }
 }
 
 /** Farmable blueprint recipes (not starter scrap unlocks, not CP schematics). */
@@ -2089,10 +2089,10 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
 ]
 
-/** Extra late-module weights unlocked at higher sectors. */
-function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
+/** Extra late-module weights unlocked at higher Waves. */
+function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
   const extras: EnemyPartDropEntry[] = []
-  if (sector >= 12) {
+  if (wave >= 12) {
     extras.push(
       { moduleId: 'barrier-projector', partType: 'casing', weight: 1 },
       { moduleId: 'drone-bay', partType: 'core', weight: 1 },
@@ -2100,7 +2100,7 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'sensor-whisker', partType: 'casing', weight: 1 },
     )
   }
-  if (sector >= 16) {
+  if (wave >= 16) {
     extras.push(
       { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
       { moduleId: 'ion-burst', partType: 'core', weight: 1 },
@@ -2108,7 +2108,7 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'keel-baffle', partType: 'core', weight: 1 },
     )
   }
-  if (sector >= 22) {
+  if (wave >= 22) {
     extras.push(
       { moduleId: 'grav-tether', partType: 'core', weight: 1 },
       { moduleId: 'nano-lathe', partType: 'lens', weight: 1 },
@@ -2122,11 +2122,6 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
 export function modulePrintWave(moduleId: string): number {
   const originalWave = Math.max(0, getModule(moduleId)?.requiresBestWave ?? 0)
   return Math.max(ACT1_CADENCE.foundry, originalWave)
-}
-
-/** Player-facing print door. Drop tables use Wave, not a Sector band. */
-export function modulePrintSector(moduleId: string): number {
-  return modulePrintWave(moduleId)
 }
 
 /** Career has reached the Wave that unlocks this Core print. */
@@ -2157,12 +2152,16 @@ export function isCoreOnRoster(state: GameState, moduleId: string): boolean {
   return isGddRosterCore(moduleId) || state.shipyard.unlockedModules.includes(moduleId)
 }
 
-/** Current fight can drop this Core's parts (print unlocked and fighting at/past its sector). */
-export function canDropModulePart(state: GameState, moduleId: string): boolean {
+/** Career print is unlocked and the fight Wave is at/past the print door. */
+export function canDropModulePart(state: GameState, moduleId: string, fightWave?: number): boolean {
   if (!isFarmableModule(moduleId)) return false
   if (!isCoreOnRoster(state, moduleId)) return false
   const need = modulePrintWave(moduleId)
-  return isCorePrintUnlocked(state, moduleId) && Math.max(1, state.combat?.waveReached || state.combat?.wave || 1) >= need
+  const wave = Math.max(
+    1,
+    Math.floor(fightWave ?? state.combat?.waveReached ?? state.combat?.wave ?? 1),
+  )
+  return isCorePrintUnlocked(state, moduleId) && wave >= need
 }
 
 export function listFarmableCores(state: GameState): ShipModuleDef[] {
@@ -2227,36 +2226,36 @@ export function enemyFamilyLabel(family: string): string {
   return ENEMY_FAMILY_LABELS[family] ?? family
 }
 
-export function dropTableEntries(family: string, sector: number): EnemyPartDropEntry[] {
+export function dropTableEntries(family: string, wave: number): EnemyPartDropEntry[] {
   const table = getEnemyDropTable(family)
   if (!table) return []
-  return [...table.entries, ...sectorBonusDropEntries(sector)].filter(
-    (e) => modulePrintSector(e.moduleId) <= sector,
+  return [...table.entries, ...waveBonusDropEntries(wave)].filter(
+    (e) => modulePrintWave(e.moduleId) <= wave,
   )
 }
 
-export function familyCanDropPrint(family: string, moduleId: string, sector: number): boolean {
-  return dropTableEntries(family, sector).some((e) => e.moduleId === moduleId)
+export function familyCanDropPrint(family: string, moduleId: string, wave: number): boolean {
+  return dropTableEntries(family, wave).some((e) => e.moduleId === moduleId)
 }
 
 export interface PrintDropSource {
   family: string
-  sector: number
+  wave: number
   weight: number
 }
 
 /** Families whose base tables can drop this print, derived from live drop data. */
 export function printDropSources(moduleId: string): PrintDropSource[] {
-  const sector = modulePrintSector(moduleId)
+  const wave = modulePrintWave(moduleId)
   const sources: PrintDropSource[] = []
   for (const table of ENEMY_PART_DROPS) {
     const weight = table.entries
       .filter((e) => e.moduleId === moduleId)
       .reduce((sum, e) => sum + e.weight, 0)
     if (weight <= 0) continue
-    sources.push({ family: table.family, sector, weight })
+    sources.push({ family: table.family, wave, weight })
   }
-  sources.sort((a, b) => b.weight - a.weight || a.sector - b.sector)
+  sources.sort((a, b) => b.weight - a.weight || a.wave - b.wave)
   return sources
 }
 
@@ -2336,10 +2335,10 @@ export function pickWeightedDropEntry(
 export function discoveryFocusPrint(
   state: GameState,
   family: string,
-  sector: number,
+  wave: number,
 ): string | null {
-  const ids = [...new Set(dropTableEntries(family, sector).map((e) => e.moduleId))]
-  let best: { id: string; remaining: number; sector: number; have: number } | null = null
+  const ids = [...new Set(dropTableEntries(family, wave).map((e) => e.moduleId))]
+  let best: { id: string; remaining: number; wave: number; have: number } | null = null
   for (const id of ids) {
     if (state.shipyard.unlockedModules.includes(id)) continue
     const progress = blueprintProgress(state, id)
@@ -2347,14 +2346,14 @@ export function discoveryFocusPrint(
     const totals = blueprintFragmentTotals(progress.owned, progress.need)
     const remaining = Math.max(0, totals.need - totals.have)
     if (remaining <= 0) continue
-    const printSector = modulePrintSector(id)
+    const printWave = modulePrintWave(id)
     if (
       !best ||
       remaining < best.remaining ||
       (remaining === best.remaining && totals.have > best.have) ||
-      (remaining === best.remaining && totals.have === best.have && printSector < best.sector)
+      (remaining === best.remaining && totals.have === best.have && printWave < best.wave)
     ) {
-      best = { id, remaining, sector: printSector, have: totals.have }
+      best = { id, remaining, wave: printWave, have: totals.have }
     }
   }
   return best?.id ?? null

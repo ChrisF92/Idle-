@@ -271,7 +271,7 @@ export type PressureClass = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
 /** Per-sector frontier attempt record for pacing analysis. */
 export interface SectorAttemptRecord {
   sector: number
-  route: SectorRoute
+  route: string
   attempts: number
   failures: number
   clears: number
@@ -288,7 +288,7 @@ export interface SteamrollStreak {
   from: number
   to: number
   n: number
-  route: SectorRoute
+  route: string
 }
 
 export interface FrontierIntervention {
@@ -405,12 +405,6 @@ export interface HiveResearchState {
   completed: Record<HiveResearchBranch, number>
 }
 
-/** @deprecated Route combat is removed. */
-export type SectorRoute = 'A' | 'B'
-
-/** @deprecated Hold/Advance combat modes are removed. */
-export type CombatPushMode = 'advance' | 'hold-sector' | 'hold-wave'
-
 export type WavePackageKind = 'normal' | 'commander' | 'boss'
 
 export interface WavePackageState {
@@ -439,6 +433,8 @@ export interface BossBoundaryState {
   phase: BossBoundaryPhase
   wave: number
   warningLeft: number
+  /** Authored warning length, captured when the Boss boundary becomes due. */
+  warningDuration?: number
 }
 
 export interface CombatIdSeq {
@@ -489,7 +485,7 @@ export interface EchoState {
   activeId: string | null
   resumeSector: number
   resumeWave: number
-  resumeRoute: SectorRoute
+  resumeRoute: string
   points: number
   tree: string[]
   clears: Record<string, number>
@@ -993,6 +989,13 @@ export interface CombatFx {
   /** Damage shown as a floating number. Omitted on misses / old saves. */
   amount?: number
   hit?: 'hull' | 'shield' | 'miss'
+  /**
+   * World position for death/hit FX after the target CombatUnit is retired.
+   * FX IDs are serialised (`combat.idSeq.fx`) so save/reload continuation stays
+   * deterministic; FX never feeds combat RNG, targeting, or rewards.
+   */
+  x?: number
+  y?: number
 }
 
 /** In-flight shot — damage applies on impact, not on fire. */
@@ -1160,14 +1163,6 @@ export interface CombatState {
   directiveOffer: string[] | null
 }
 
-export interface FrontierNotice {
-  kind: 'repelled' | 'cleared'
-  sector: number
-  fallback: number
-  first: boolean
-  seq: number
-}
-
 /**
  * Worker-drone industry: permanent drone counts, run assignments to stations.
  * Legacy `buildings` may appear in old saves and is migrated away.
@@ -1197,10 +1192,16 @@ export type LaborProfile = 'balanced' | 'scrap' | 'data' | 'foundry-safe'
 
 /** Career / meta progress that survives prestige. */
 export interface MetaState {
-  /** Leftover later-PR field. Combat progression uses `bestWave`. */
+  /**
+   * Leftover Foundry/Network/catalog gate field. Combat and Challenges use
+   * `bestWave`. Still written as a Wave-scaled mirror of career Best Wave
+   * because those later systems still read this key directly.
+   */
   highestSectorEver: number
   /** Highest Wave reached on any Sortie this career. */
   bestWave: number
+  /** Persistent Sortie serial used to mint a new stable seed per launch. */
+  sortieSerial: number
   /** Act 1 finale reached (Wave 1000). */
   act1Cleared: boolean
   /** First Wave 1000 clear — pending Act 1 completion presentation. */

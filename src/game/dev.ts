@@ -69,7 +69,6 @@ export function setDevToolsEnabled(on: boolean): void {
 }
 
 export type DevAction =
-  | { type: 'jump-sector'; sector: number }
   | { type: 'set-best-wave'; wave: number }
   | { type: 'prep-gdd-door'; wave: number }
   | { type: 'add-resources'; amounts: Partial<Resources> }
@@ -79,10 +78,8 @@ export type DevAction =
   | { type: 'set-prestige-count'; count: number }
   | { type: 'fill-workers'; count: number }
   | { type: 'dock-heal' }
-  | { type: 'force-boss-wave' }
   | { type: 'grant-achievements' }
   | { type: 'skip-guides' }
-  | { type: 'set-wave'; wave: number }
   | { type: 'set-module-levels'; levels: Record<string, number> }
   | { type: 'set-core-mastery'; ranks: Record<string, number> }
   | { type: 'reset-onboarding' }
@@ -96,6 +93,7 @@ export function grantCareerBestWave(state: GameState, wave: number): void {
   const w = Math.max(0, Math.floor(wave))
   state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
   state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
+  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver ?? 0, w)
   if (!state.prestige.cycle) state.prestige.cycle = { bestWave: 0, sorties: 0, scrapEarned: 0 }
   state.prestige.cycle.bestWave = Math.max(state.prestige.cycle.bestWave ?? 0, w)
   if (w >= ACT1_CADENCE.rebuild) {
@@ -144,11 +142,6 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
   const next = structuredClone(state)
 
   switch (action.type) {
-    case 'jump-sector': {
-      grantCareerBestWave(next, Math.max(1, Math.floor(action.sector)))
-      next.combat.log = [`[dev] Career Best Wave set from legacy jump.`, ...next.combat.log].slice(0, 40)
-      break
-    }
     case 'set-best-wave': {
       const wave = Math.max(0, Math.floor(action.wave))
       grantCareerBestWave(next, wave)
@@ -236,13 +229,6 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.combat.log = ['[dev] Docked and repaired.', ...next.combat.log].slice(0, 40)
       break
     }
-    case 'force-boss-wave': {
-      next.combat.log = [
-        `[dev] Live Wave jumping is removed. Every Sortie starts at Wave 1.`,
-        ...next.combat.log,
-      ].slice(0, 40)
-      break
-    }
     case 'grant-achievements': {
       grantCareerBestWave(next, ACT1_FINAL_WAVE)
       next.research.unlocked = [...new Set([...next.research.unlocked, 'basic-optics'])]
@@ -259,13 +245,6 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       next.meta.aiUnlocked = true
       next.meta.act1Cleared = true
       next.combat.log = ['[dev] All achievements granted.', ...next.combat.log].slice(0, 40)
-      break
-    }
-    case 'set-wave': {
-      next.combat.log = [
-        `[dev] Live Wave jumping is removed. Every Sortie starts at Wave 1.`,
-        ...next.combat.log,
-      ].slice(0, 40)
       break
     }
     case 'set-module-levels': {

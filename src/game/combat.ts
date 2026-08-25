@@ -45,20 +45,14 @@ import {
   type GddEnemyBandId,
 } from './waves'
 import { TYPICAL_SPAWN_RADIUS, coreWorldPosition, distanceBetween, distanceToHive, moveRadially } from './geometry'
-import { formationSlots, pickFormation, type FormationContext } from './formations'
-import { createSimRng, hashSeed, rngNext, type SimRngState } from './simRng'
+import { formationRngFor, formationSlots, pickFormation, type FormationContext } from './formations'
+import { createSimRng, rngNext, type SimRngState } from './simRng'
 import {
   measureThreatRoll,
   threatSpecForWave,
   varyPackToBudget,
 } from './threatBudget'
-import {
-  bossMechanicForWave,
-  bossMechanicHasAdds,
-  bossMechanicHasAura,
-  bossMechanicHasShieldPhase,
-  type BossMechanicId,
-} from './bossMechanics'
+import { nextCombatId } from './waveRuntime'
 import {
   armorPenAdd,
   critChance,
@@ -181,14 +175,6 @@ export function projectileSpeedForDelivery(delivery?: WeaponDelivery): number {
   return PROJECTILE_SPEED
 }
 
-let unitSeq = 0
-let fxGlobalSeq = 0
-let projGlobalSeq = 0
-let beamGlobalSeq = 0
-function nextUnitId(prefix: string): string {
-  unitSeq += 1
-  return `${prefix}-${unitSeq}`
-}
 function combatRng(state: GameState): number {
   if (!state.combat.rng) state.combat.rng = createSimRng(state.combat.sortieSeed || 1)
   return rngNext(state.combat.rng)
@@ -196,6 +182,13 @@ function combatRng(state: GameState): number {
 
 function liveWave(state: GameState): number {
   return Math.max(1, state.combat.waveReached || state.combat.wave || 1)
+}
+
+/** Kill economics/drop eligibility Wave. Malformed/dev units fall back to Wave 1. */
+export function rewardWaveOf(unit: { sourceWave?: number }): number {
+  const w = Number(unit.sourceWave)
+  if (Number.isFinite(w) && w >= 1) return Math.floor(w)
+  return 1
 }
 
 /**
@@ -304,7 +297,7 @@ function makeEnemyUnit(opts: {
     opts.role === 'sniper' ? 'charge' : undefined
   const gunRange = Math.max(opts.range, opts.engageRange + 8, HIVE_STANDOFF_MIN + 8)
   return {
-    id: nextUnitId(`e-${family}`),
+    id: `draft-e-${family}`,
     side: 'enemy',
     name: opts.name,
     shape: opts.shape ?? (role ? ROLE_SHAPE[role] : FAMILY_SHAPE[family]),
@@ -319,7 +312,7 @@ function makeEnemyUnit(opts: {
     damageTakenMult: 1,
     weapons: [
       makeWeapon(
-        nextUnitId('ew'),
+        `draft-ew-${family}`,
         `${opts.name} strike`,
         opts.damage,
         opts.cooldown ?? 1,
@@ -417,7 +410,7 @@ function densifyEncounter(
     const weaponCount = Math.max(1, source.weapons.length)
     const clone: CombatUnit = {
       ...source,
-      id: nextUnitId(`e-${source.family}-wing`),
+      id: `draft-e-${source.family}-wing-${wing}`,
       name: `${source.name} Wing ${wing}`,
       hull: hullMax,
       hullMax,
@@ -426,7 +419,7 @@ function densifyEncounter(
       armor: source.armor * 0.55,
       weapons: source.weapons.map((weapon) => ({
         ...weapon,
-        id: nextUnitId('ew-wing'),
+        id: `draft-ew-wing-${wing}`,
         damage: (wingDps * Math.max(0.05, weapon.cooldown)) / weaponCount,
         cooldownLeft: 0,
         telegraphLeft: 0,
@@ -532,7 +525,8 @@ export function encounterForWave(wave: number, extraDanger = 1, state?: GameStat
       units.push({ ...structuredClone(src), id: `${src.id}-pack${i}` })
     }
   }
-  const rng = state?.combat.rng ? { s: state.combat.rng.s } : createSimRng(hashSeed(seed, w, 17))
+  const packageOrdinal = (state?.combat.packages.length ?? 0) + 1
+  const rng = formationRngFor(seed, w, packageOrdinal)
   applyWaveFormation(units, w, rng, `w${w}`)
   const commander = isCommanderCandidateWave(w)
   return {
@@ -1246,52 +1240,9 @@ function buildDivineWave(
   }
 }
 
-function spawnBossAdds(state: GameState, boss: CombatUnit, label: string): void {
-  const wave = liveWave(state)
-  const hullScale = enemyWaveScale(wave)
-  const dmgScale = enemyDamageScale(wave)
-  const add = makeEnemyUnit({
-    name: label,
-    family: 'swarm',
-    role: 'skirmisher',
-    hull: 5 * hullScale,
-    damage: 2.2 * dmgScale,
-    cooldown: 0.9,
-    range: 36,
-    speed: 38,
-    engageRange: 78,
-    tags: ['kinetic'],
-    x: boss.x,
-    y: boss.y,
-    rewardWeight: 0.35,
-  })
-  add.heading = (boss.heading ?? 0) + 0.7 + state.combat.bossPhase * 0.9
-  const shifted = moveRadially(add.x, add.y, 24)
-  add.x = shifted.x
-  add.y = shifted.y
-  add.sourceWave = boss.sourceWave
-  add.packageId = boss.packageId
-  state.combat.enemyUnits.push(add)
-  syncHullAggregates(state)
-}
-
-function tickBossSupportAura(state: GameState, dt: number): void {
-  const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
-  if (!mechanic || !bossMechanicHasAura(mechanic)) return
-  const boss = state.combat.enemyUnits.find((u) => u.isBoss && u.hull > 0)
-  if (!boss) return
-  for (const unit of state.combat.enemyUnits) {
-    if (unit.isBoss || unit.hull <= 0) continue
-    const dist = Math.abs((unit.x ?? 0) - (boss.x ?? 0))
-    if (dist > 70) continue
-    unit.hull = Math.min(unit.hullMax, unit.hull + Math.max(0.8, unit.hullMax * 0.04) * dt)
-    unit.armor = Math.max(unit.armor, 1)
-  }
-}
-
 function familyBlurb(family: EnemyFamily, boss: boolean): string {
   if (boss) {
-    return 'Boss: three phases — kite titan, armored close, ethereal kite with shields.'
+    return 'Authored Boss encounter. Mechanics come from the Boss provider.'
   }
   return familyIntel(family)
 }
@@ -1308,7 +1259,7 @@ export function familyIntel(family: EnemyFamily): string {
     case 'divine':
       return 'Elite formations: a distant core with diving attendants.'
     case 'titan':
-      return 'Authored boss. Phases shift the fight around the Hive.'
+      return 'Authored Boss. The provider supplies the encounter.'
   }
 }
 
@@ -1324,7 +1275,7 @@ export function softCounterForFamily(family: EnemyFamily): string {
     case 'divine':
       return 'Soft counter: Utility / energy damage; expect diving attendants.'
     case 'titan':
-      return 'Soft counter: Defense + Ablative Mesh; pierce helps through phases.'
+      return 'Soft counter: Defense + Ablative Mesh; pierce helps against heavy hull.'
   }
 }
 
@@ -1382,7 +1333,7 @@ export function revealCodexFamilies(state: GameState, families: Iterable<string>
   }
 }
 
-export interface SectorRosterEntry {
+export interface WaveRosterEntry {
   key: string
   name: string
   family: EnemyFamily
@@ -1401,7 +1352,7 @@ export interface SectorRosterEntry {
 }
 
 function rosterStatsFromUnit(u: CombatUnit): Pick<
-  SectorRosterEntry,
+  WaveRosterEntry,
   'hull' | 'shield' | 'armor' | 'evasion' | 'dps' | 'speed' | 'range' | 'weaponTags'
 > {
   const weapon = u.weapons[0]
@@ -1419,8 +1370,8 @@ function rosterStatsFromUnit(u: CombatUnit): Pick<
 }
 
 /** Unique enemy types for a Wave (Codex/intel). */
-export function sectorRoster(wave: number): SectorRosterEntry[] {
-  const groups = new Map<string, SectorRosterEntry>()
+export function waveRoster(wave: number): WaveRosterEntry[] {
+  const groups = new Map<string, WaveRosterEntry>()
   const encounter = encounterForWave(wave)
   for (const u of encounter.units) {
       const key = `${u.family}:${u.name}`
@@ -1649,8 +1600,8 @@ function fittedRoles(state: GameState): Record<'weapon' | 'defense' | 'utility',
   return counts
 }
 
-export function matchupHintForSector(sector: number, fittedModuleIds: string[]): string {
-  const enemy = encounterForWave(sector)
+export function matchupHintForWave(wave: number, fittedModuleIds: string[]): string {
+  const enemy = encounterForWave(wave)
   const roles = { weapon: 0, defense: 0, utility: 0 }
   for (const id of fittedModuleIds) {
     const role = getModule(id)?.role
@@ -1689,69 +1640,6 @@ export function syncHullAggregates(state: GameState): void {
   }
 }
 
-/** Auto boss phase shifts — retags titan resistances. Mutates combat. */
-export function maybeAdvanceBossPhase(
-  state: GameState,
-  pushLog: (state: GameState, line: string) => void,
-): void {
-  if (!state.combat.isBoss) return
-  const boss = state.combat.enemyUnits.find((u) => u.isBoss)
-  if (!boss || boss.hull <= 0 || boss.hullMax <= 0) return
-  const pct = boss.hull / boss.hullMax
-
-  if (state.combat.bossPhase < 1 && pct <= 2 / 3) {
-    state.combat.bossPhase = 1
-    state.combat.enemyFamily = 'armored'
-    state.combat.enemyTags = ['armored', 'boss']
-    boss.family = 'armored'
-    boss.armor += 4
-    boss.engageRange = 80
-    boss.kite = false
-    boss.phaseWarnLeft = 0.9
-    for (const w of boss.weapons) {
-      w.damage *= 1.15
-      w.telegraphLeft = 0
-      w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
-    }
-    const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
-    if (mechanic && bossMechanicHasShieldPhase(mechanic)) {
-      boss.shieldMax = Math.max(boss.shieldMax, boss.hullMax * 0.45)
-      boss.shield = boss.shieldMax
-      pushLog(state, 'Boss phase 2 — shield wall raised.')
-    } else {
-      pushLog(state, 'Boss phase 2 — shell hardens [armored], closing in.')
-    }
-    if (mechanic && bossMechanicHasAdds(mechanic)) {
-      spawnBossAdds(state, boss, 'Called Thrall')
-    }
-    revealCodexFamilies(state, ['armored'])
-  }
-
-  if (state.combat.bossPhase < 2 && pct <= 1 / 3) {
-    state.combat.bossPhase = 2
-    state.combat.enemyFamily = 'ethereal'
-    state.combat.enemyTags = ['ethereal', 'boss']
-    boss.family = 'ethereal'
-    boss.evasion = Math.min(0.35, boss.evasion + 0.1)
-    boss.shield = Math.max(boss.shield, boss.shieldMax * 0.4)
-    boss.engageRange = 125
-    boss.kite = true
-    boss.phaseWarnLeft = 0.9
-    for (const w of boss.weapons) {
-      w.damage *= 1.2
-      w.range = Math.max(w.range, 130)
-      w.telegraphLeft = 0
-      w.cooldownLeft = Math.max(w.cooldownLeft, 0.45)
-    }
-    const mechanic = (state.combat.bossMechanic ?? bossMechanicForWave(state.combat.wave)) as BossMechanicId | null
-    if (mechanic && bossMechanicHasAdds(mechanic)) {
-      spawnBossAdds(state, boss, 'Called Thrall')
-    }
-    revealCodexFamilies(state, ['ethereal'])
-    pushLog(state, 'Boss phase 3 — form frays [ethereal], kiting out.')
-  }
-}
-
 /** Hull points restored per second while Paused (full) or between fights (field rate). */
 export function repairRatePerSecond(state: GameState): number {
   let rate = 5
@@ -1781,7 +1669,7 @@ function combatDistance(a: { x: number; y: number }, b: { x: number; y: number }
 }
 
 /** Furthest legal park. Loadout does not move this — Knife Fight is the only compress. */
-export function minimumPlayerWeaponRangeForSector(_sector?: number, state?: GameState): number {
+export function hiveParkRangeCap(state?: GameState): number {
   if (state?.prestige.activeChallengeId === 'short-range') return SHORT_RANGE_MAX
   return ENEMY_PARK_MAX
 }
@@ -1789,10 +1677,10 @@ export function minimumPlayerWeaponRangeForSector(_sector?: number, state?: Game
 export function enemyApproachTarget(
   unit: Pick<CombatUnit, 'engageRange'>,
   _fightElapsed = 0,
-  _sector = 2,
+  _wave = 2,
   state?: GameState,
 ): number {
-  const cap = minimumPlayerWeaponRangeForSector(_sector, state)
+  const cap = hiveParkRangeCap(state)
   const floor = Math.min(HIVE_STANDOFF_MIN, cap)
   const preferred = Math.max(0, unit.engageRange)
   return Math.max(floor, Math.min(preferred, cap))
@@ -1859,7 +1747,6 @@ function pickTarget(
     })
     return living[0] ?? null
   }
-  // Prefer nearest in lane
   living.sort((a, b) => combatDistance(attacker, a) - combatDistance(attacker, b))
   return living[0] ?? null
 }
@@ -1907,7 +1794,7 @@ export interface PartDropResult {
  */
 export function rollEnemyPartDrop(
   state: GameState,
-  unit: Pick<CombatUnit, 'family' | 'isBoss' | 'name' | 'rewardWeight'>,
+  unit: Pick<CombatUnit, 'family' | 'isBoss' | 'name' | 'rewardWeight' | 'sourceWave'>,
   rng: () => number = Math.random,
   rewardWeight = unit.rewardWeight ?? 1,
 ): PartDropResult[] {
@@ -1917,11 +1804,12 @@ export function rollEnemyPartDrop(
   const table = getEnemyDropTable(unit.family)
   if (!table) return []
 
+  const rewardWave = rewardWaveOf(unit)
   const trackedId = state.foundry?.trackedPrintId ?? null
   const trackedEligible = Boolean(
     trackedId &&
-      canDropModulePart(state, trackedId) &&
-      familyCanDropPrint(unit.family, trackedId, liveWave(state)),
+      canDropModulePart(state, trackedId, rewardWave) &&
+      familyCanDropPrint(unit.family, trackedId, rewardWave),
   )
   const earlyMult = earlyCareerFragmentMult(careerBestWave(state))
   let chance =
@@ -1949,10 +1837,10 @@ export function rollEnemyPartDrop(
     if (rng() > chance) continue
     const focusId = trackedEligible
       ? null
-      : discoveryFocusPrint(state, unit.family, liveWave(state))
+      : discoveryFocusPrint(state, unit.family, rewardWave)
     const progressId = trackedEligible ? trackedId : focusId
     const dropProgress = progressId ? blueprintProgress(state, progressId) : null
-    const entry = pickWeightedDropEntry(unit.family, liveWave(state), rng, {
+    const entry = pickWeightedDropEntry(unit.family, rewardWave, rng, {
       trackedModuleId: trackedEligible ? trackedId : null,
       focusModuleId: focusId,
       owned: dropProgress?.owned,
@@ -2003,10 +1891,9 @@ export function rollEnemyPartDrop(
   return results
 }
 
-export function sectorCanDropPrint(
+export function waveCanDropPrint(
   wave: number,
   moduleId: string,
-  _route?: string,
 ): boolean {
   const encounter = encounterForWave(wave)
   if (familyCanDropPrint(encounter.family, moduleId, wave)) return true
@@ -2041,7 +1928,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     salvageKillMult(state) *
     frameSalvageMult(state)
   state.resources.salvage +=
-    salvageFromKill(liveWave(state), unit.isBoss, undefined, state) * salvageMult * rewardWeight
+    salvageFromKill(rewardWaveOf(unit), unit.isBoss, undefined, state) * salvageMult * rewardWeight
   const scrap = scrapKillBonus(state, unit.isBoss) * rewardWeight
   if (scrap > 0) state.resources.scrap += scrap
   const rng = () => combatRng(state)
@@ -2073,6 +1960,33 @@ function tryLootEnemyKill(
   if (prevHull > 0 && unit.hull <= 0) {
     grantEnemyKillRewards(state, unit)
   }
+}
+
+/**
+ * After kill rewards and package accounting are safe, drop the full CombatUnit.
+ * Death VFX uses a lightweight FX payload (position + serialised id).
+ */
+export function pruneDeadEnemyUnits(state: GameState): void {
+  const kept: CombatUnit[] = []
+  let removed = false
+  for (const unit of state.combat.enemyUnits) {
+    if (unit.hull > 0) {
+      kept.push(unit)
+      continue
+    }
+    removed = true
+    state.combat.fx.push({
+      id: nextCombatId(state, 'fx', 'fx'),
+      fromId: unit.id,
+      toId: unit.id,
+      tag: 'death',
+      ttl: 0.4,
+      hit: 'hull',
+      x: unit.x,
+      y: unit.y,
+    })
+  }
+  if (removed) state.combat.enemyUnits = kept
 }
 
 function applyDamageToUnit(
@@ -2175,21 +2089,23 @@ function hitLayer(shieldBefore: number, hullBefore: number, target: CombatUnit):
 }
 
 function pushHitFx(
+  state: GameState,
   hits: CombatFx[],
   fromId: string,
   toId: string,
   tag: string,
-  opts: { amount?: number; hit?: CombatFx['hit']; ttl: number },
+  opts: { amount?: number; hit?: CombatFx['hit']; ttl: number; x?: number; y?: number },
 ): void {
-  fxGlobalSeq += 1
   hits.push({
-    id: `fx-${fxGlobalSeq}`,
+    id: nextCombatId(state, 'fx', 'fx'),
     fromId,
     toId,
     tag,
     ttl: opts.ttl,
     amount: opts.amount,
     hit: opts.hit,
+    x: opts.x,
+    y: opts.y,
   })
 }
 
@@ -2223,9 +2139,8 @@ function spawnProjectile(
 ): void {
   const tag = weapon.tags[0] ?? 'kinetic'
   const tuned = tunePlayerShot(state, from, damage, weaponDamageProfile(weapon.tags, weapon))
-  projGlobalSeq += 1
   state.combat.projectiles.push({
-    id: `proj-${projGlobalSeq}`,
+    id: nextCombatId(state, 'proj', 'proj'),
     fromId: from.id,
     toId: to.id,
     side: from.side,
@@ -2256,10 +2171,9 @@ function spawnBeam(
   weapon: WeaponInstance,
 ): void {
   const tuned = tunePlayerShot(state, from, damage, weaponDamageProfile(weapon.tags, weapon))
-  beamGlobalSeq += 1
   if (!state.combat.beams) state.combat.beams = []
   state.combat.beams.push({
-    id: `beam-${beamGlobalSeq}`,
+    id: nextCombatId(state, 'beam', 'beam'),
     fromId: from.id,
     toId: to.id,
     side: from.side,
@@ -2308,10 +2222,12 @@ function tickBeams(
     beam.popupT = (beam.popupT ?? 0) + slice
     const beamDone = beam.remaining - slice <= 1e-4 || target.hull <= 0
     if ((beam.popupT >= 0.16 || beamDone) && (beam.popupAcc ?? 0) >= 0.4) {
-      pushHitFx(hits, beam.fromId, beam.toId, beam.tag, {
+      pushHitFx(state, hits, beam.fromId, beam.toId, beam.tag, {
         amount: beam.popupAcc,
         hit: hitLayer(shieldBefore, prevHull, target),
         ttl: 0.35,
+        x: target.x,
+        y: target.y,
       })
       beam.popupAcc = 0
       beam.popupT = 0
@@ -2348,7 +2264,12 @@ function updateProjectiles(
     if (dist <= Math.max(3, step)) {
       // Impact
       if (target.evasion > 0 && combatRng(state) < target.evasion) {
-        pushHitFx(hits, shot.fromId, shot.toId, 'miss', { hit: 'miss', ttl: 0.35 })
+        pushHitFx(state, hits, shot.fromId, shot.toId, 'miss', {
+          hit: 'miss',
+          ttl: 0.35,
+          x: target.x,
+          y: target.y,
+        })
         continue
       }
 
@@ -2368,10 +2289,12 @@ function updateProjectiles(
       if (shot.dotDuration > 0 && shot.dotDamage > 0) {
         target.dots.push({ dps: shot.dotDamage, remaining: shot.dotDuration })
       }
-      pushHitFx(hits, shot.fromId, shot.toId, shot.tag, {
+      pushHitFx(state, hits, shot.fromId, shot.toId, shot.tag, {
         amount: dealt,
         hit: hitLayer(shieldBefore, prevHull, target),
         ttl: 0.55,
+        x: target.x,
+        y: target.y,
       })
       continue
     }
@@ -2393,7 +2316,7 @@ function updateProjectiles(
 export function simulateCombat(
   state: GameState,
   dt: number,
-  pushLog: (state: GameState, line: string) => void,
+  _pushLog: (state: GameState, line: string) => void,
 ): void {
   if (dt <= 0) return
   maybeSampleSortieEnemies(state)
@@ -2407,7 +2330,6 @@ export function simulateCombat(
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
 
   moveUnits(state, dt)
-  tickBossSupportAura(state, dt)
 
   const masteryRegen = state.shipyard.modules.reduce(
     (n, id) => n + combinedCoreMods(state, id).regenAdd,
@@ -2555,7 +2477,7 @@ export function simulateCombat(
     .filter((f) => f.ttl > 0)
     .slice(0, 96)
 
-  maybeAdvanceBossPhase(state, pushLog)
+  pruneDeadEnemyUnits(state)
   syncHullAggregates(state)
 }
 

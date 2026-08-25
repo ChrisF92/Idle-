@@ -694,7 +694,7 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
   if (wave) {
     next.meta.bestWave = Math.max(next.meta.bestWave ?? 0, wave)
     next.combat.bestWave = Math.max(next.combat.bestWave ?? 0, wave)
-    next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver ?? 0, Math.ceil(wave / 10))
+    next.meta.highestSectorEver = Math.max(next.meta.highestSectorEver ?? 0, wave)
   }
 
   for (const lesson of ONBOARDING_LESSONS) {

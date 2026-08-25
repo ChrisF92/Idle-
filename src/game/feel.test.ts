@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { maybeAdvanceBossPhase, simulateCombat } from './combat'
+import { simulateCombat } from './combat'
 import { startCombat } from './tick'
 import { TYPICAL_SPAWN_RADIUS, pointFromBearing } from './geometry'
 import type { CombatUnit } from './types'
@@ -79,15 +79,16 @@ describe('boss telegraphs', () => {
     expect(state.combat.projectiles.some((p) => p.fromId === boss.id)).toBe(true)
   })
 
-  it('phase shifts flash a phase warn', () => {
+  it('provider-driven bosses do not auto-shift through generic hull phases', () => {
     const state = createInitialState(0)
     state.combat.isBoss = true
     state.combat.bossPhase = 0
     const boss = testBoss(50)
     state.combat.enemyUnits = [boss]
-    boss.hull = boss.hullMax * 0.5
-    maybeAdvanceBossPhase(state, () => undefined)
-    expect(state.combat.bossPhase).toBe(1)
-    expect(boss.phaseWarnLeft).toBeGreaterThan(0)
+    boss.hull = boss.hullMax * 0.2
+    simulateCombat(state, 0.2, () => undefined)
+    expect(state.combat.bossPhase).toBe(0)
+    expect(boss.family).toBe('titan')
+    expect(boss.phaseWarnLeft).toBe(0)
   })
 })

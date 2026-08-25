@@ -110,7 +110,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'reinforce',
     requiresBestWave: ACT1_CADENCE.reinforce,
     label: 'Reinforce',
-    tip: 'Clear Wave 1000. Rebuild has reached the limit of this loop.',
+    tip: 'Defeat the Wave 1000 Choir Crown. Rebuild has reached the limit of this loop.',
   },
   {
     id: 'logs',
@@ -278,7 +278,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'act1-clear',
     name: 'Exodus Gate',
-    description: 'Clear Wave 1000 and finish Act 1.',
+    description: 'Defeat the Wave 1000 Choir Crown and finish Act 1.',
     rewardAiPoints: 3,
     condition: { type: 'act1-cleared' },
   },

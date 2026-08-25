@@ -60,7 +60,7 @@ import {
   repairRatePerSecond,
   shieldRepairRatePerSecond,
 } from './combat'
-import { newSortieSeed } from './threatBudget'
+import { allocateSortieSeed } from './threatBudget'
 import { consumeSimSteps, SIM_FIXED_DT } from './simClock'
 import { emptyWaveRuntime } from './waveRuntime'
 import { createSimRng } from './simRng'
@@ -131,6 +131,7 @@ function noteBestWave(state: GameState, wave: number): boolean {
   const prev = Math.max(state.combat.bestWave ?? 0, state.meta.bestWave ?? 0)
   state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
   state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
+  state.meta.highestSectorEver = Math.max(state.meta.highestSectorEver ?? 0, w)
   noteRebuildCycleWave(state, w)
   if (w > prev) noteCareerWave(state, w)
   return w > prev
@@ -563,7 +564,7 @@ function maybeAutoEngage(state: GameState): void {
 
 export function beginFight(state: GameState, keepFleet = false): void {
   syncPersistedHullCaps(state)
-  if (!state.combat.sortieSeed) state.combat.sortieSeed = newSortieSeed(state)
+  if (!(state.combat.sortieSeed > 0)) state.combat.sortieSeed = allocateSortieSeed(state)
   state.combat.rng = createSimRng(state.combat.sortieSeed)
   const runtime = emptyWaveRuntime()
   state.combat.waveReached = runtime.waveReached
@@ -613,15 +614,6 @@ export function startCombat(state: GameState): GameState {
   return next
 }
 
-/** Hold/Advance modes are removed. */
-export function setCampaign(state: GameState, _on: boolean): GameState {
-  return state
-}
-
-export function setPushMode(state: GameState, _mode: string): GameState {
-  return state
-}
-
 function launchFromDock(state: GameState): void {
   armPendingFacilities(state)
   state.combat.wave = 1
@@ -665,16 +657,6 @@ export function setDocked(state: GameState, docked: boolean): GameState {
     pushLog(next, 'Sortie launched — Wave 1. Combat keeps running if you open the Dock.')
   }
   return next
-}
-
-/** GDD: no Frontier Hold. Kept as a no-op so old UI/sim calls do not crash. */
-export function retryFrontier(state: GameState): GameState {
-  return state
-}
-
-/** GDD: every Sortie starts at Wave 1. Warp no longer jumps the run. */
-export function warpToSector(state: GameState, _sector: number): GameState {
-  return state
 }
 
 export function chooseDirective(state: GameState, id: string): GameState {
@@ -771,10 +753,5 @@ export function resetGame(now = Date.now()): GameState {
 
 /** @deprecated walls removed — kept for import safety in old tests. */
 export const WALL_AFTER_LOSSES = 0
-
-/** @deprecated use setCampaign(true) */
-export function resumeCampaign(state: GameState): GameState {
-  return setCampaign(state, true)
-}
 
 export { totalEnemyHull }

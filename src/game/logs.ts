@@ -103,7 +103,7 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'act1',
     title: 'Wave 1000',
-    body: 'The Act 1 wall is Wave 1000. Rebuild has reached the limit of this architecture. Authored Boss identities arrive with the later catalogue.',
+    body: 'The Act 1 wall is the Wave 1000 Choir Crown. Rebuild has reached the limit of this architecture. Reinforce opens after that defeat.',
     unlock: (s) => career(s) >= ACT1_CADENCE.reinforce || s.meta.act1Cleared,
   },
   {

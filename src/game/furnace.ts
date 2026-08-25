@@ -14,7 +14,6 @@ import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols
 import { echoAshMult } from './echo'
 import { mergeProcessConfig, processConfig, processFurnaceHooks } from './process'
 import { noteSystemAction } from './playtest'
-import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
 import { directiveHeatMult } from './directives'
 import { frameAshMult, frameFurnaceOutputMult, frameHeatMult } from './catalog'
@@ -537,7 +536,6 @@ export function setFurnaceChannel(state: GameState, id: FurnaceChannelId, level:
   next.furnace.active[id] = lv
   next.furnace.starveNote = ''
   if (lv > 0) noteSystemAction(next, 'furnace')
-  noteFrontierIntervention(next, 'furnace', { n: id, v: lv })
   return next
 }
 

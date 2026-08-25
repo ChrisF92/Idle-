@@ -1,71 +1,23 @@
-/** Challenge-sortie helpers and leftover playtest hydration. Hold/Retreat combat is removed. */
+/** Challenge-sortie helpers and leftover playtest hydration. */
 
 import type {
   FrontierIntervention,
   GameState,
   PressureClass,
   SectorAttemptRecord,
-  SectorRoute,
   SteamrollStreak,
 } from './types'
 import { classifyPressure } from './sortieTelemetry'
 
 export { classifyPressure }
 
-function normalizeRoute(_route?: string | null): SectorRoute {
+function normalizeRoute(_route?: string | null): string {
   return 'A'
-}
-
-export function emptySectorAttempt(sector: number, route: SectorRoute): SectorAttemptRecord {
-  return {
-    sector: Math.max(1, Math.floor(sector)),
-    route: normalizeRoute(route),
-    attempts: 0,
-    failures: 0,
-    clears: 0,
-    frontierCombatMs: 0,
-    retreatFarmMs: 0,
-    lastPressure: '',
-    lastEnemyHpPct: 0,
-    lastFightMs: 0,
-    successFightMs: 0,
-    interventions: [],
-  }
-}
-
-export function attemptKey(route: SectorRoute | string, sector: number): string {
-  return `${normalizeRoute(route)}:${Math.max(1, Math.floor(sector))}`
 }
 
 export function isChallengeSortie(state: GameState): boolean {
   return Boolean(state.protocols?.activeId || state.echo?.activeId)
 }
-
-export function isFrontierHold(_state: GameState): boolean {
-  return false
-}
-
-export function isFrontierCombat(_state: GameState): boolean {
-  return false
-}
-
-export function canRetryFrontier(_state: GameState): boolean {
-  return false
-}
-
-export function playerHoldActive(_state: GameState): boolean {
-  return false
-}
-
-export function combatStanceLabel(_state: GameState): 'advancing' | 'holding' | 'frontier' {
-  return 'advancing'
-}
-
-export function noteFrontierIntervention(
-  _state: GameState,
-  _kind: string,
-  _opts?: { n?: string; v?: number },
-): void {}
 
 export function addCombatClockMs(state: GameState, dtSeconds: number): void {
   if (dtSeconds <= 0) return
@@ -78,10 +30,6 @@ export function addOfflineCombatMs(state: GameState, ms: number): void {
   if (ms <= 0) return
   if (state.combat.docked) return
   state.playtest.offlineCombatMs = (state.playtest.offlineCombatMs ?? 0) + ms
-}
-
-export function dismissFrontierNotice(state: GameState): GameState {
-  return state
 }
 
 function isPressure(value: unknown): value is PressureClass {

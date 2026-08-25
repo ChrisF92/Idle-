@@ -3,7 +3,7 @@ import { applyDevAction, GDD_DOOR_PRESETS } from './dev'
 import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { ACT1_CADENCE } from './cadence'
-import { careerBestWave, isBossWave } from './waves'
+import { careerBestWave } from './waves'
 import { moduleMasteryRank } from './catalog'
 import { canRebuild } from './rebuild'
 
@@ -33,16 +33,6 @@ describe('GDD Dev Tools', () => {
     expect(isSystemUnlocked(s, 'furnace')).toBe(false)
     expect(isSystemUnlocked(s, 'echo')).toBe(false)
     expect(isSystemUnlocked(s, 'specialists')).toBe(false)
-  })
-
-  it('set-wave and force-boss-wave no longer jump the live Sortie', () => {
-    let s = createInitialState(0)
-    s = applyDevAction(s, { type: 'set-wave', wave: 47 })
-    expect(s.combat.wave).toBe(1)
-    expect(careerBestWave(s)).toBe(0)
-    s = applyDevAction(s, { type: 'force-boss-wave' })
-    expect(s.combat.wave).toBe(1)
-    expect(isBossWave(s.combat.wave)).toBe(false)
   })
 
   it('opens each GDD door from a wipe', () => {

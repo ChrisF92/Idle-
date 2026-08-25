@@ -12,7 +12,6 @@ import type {
 import {
   ACTIVE_ENEMY_SOFT_CAP,
   BOSS_WARNING_DURATION,
-  isBossWave,
   isCommanderCandidateWave,
   NORMAL_REINFORCEMENT_INTERVAL,
   waveEncounterKind,
@@ -95,6 +94,30 @@ export function createWavePackage(
   }
 }
 
+/**
+ * Register a unit with an active Wave/Boss package and, by default, spawn it.
+ * Dynamic adds (PR7) must go through this helper so Secure waits for them.
+ */
+export function admitUnitToPackage(
+  state: GameState,
+  pkg: WavePackageState,
+  unit: CombatUnit,
+  spawn = true,
+): CombatUnit {
+  const admitted: CombatUnit = {
+    ...structuredClone(unit),
+    id: nextCombatId(state, 'unit', `${pkg.id}-u`),
+    packageId: pkg.id,
+    sourceWave: pkg.wave,
+  }
+  if (spawn) {
+    pkg.spawnedUnitIds.push(admitted.id)
+    state.combat.enemyUnits.push(admitted)
+    pkg.totalUnits = Math.max(pkg.totalUnits, pkg.spawnedUnitIds.length + pkg.pendingCount)
+  }
+  return admitted
+}
+
 export function splitSpawnCapacity(
   state: GameState,
   units: CombatUnit[],
@@ -160,16 +183,13 @@ export function bossBoundaryBlocksNormalWaves(boundary: BossBoundaryState): bool
   return boundary.phase === 'holding' || boundary.phase === 'warning' || boundary.phase === 'active'
 }
 
-export function shouldHoldForBoss(state: GameState): boolean {
-  return isBossWave(state.combat.nextWave) && state.combat.bossBoundary.phase === 'idle'
-}
-
-export function beginBossHold(state: GameState): void {
+export function beginBossHold(state: GameState, warningDuration = BOSS_WARNING_DURATION): void {
   const wave = state.combat.nextWave
   state.combat.bossBoundary = {
     phase: 'holding',
     wave,
     warningLeft: 0,
+    warningDuration,
   }
 }
 
@@ -182,6 +202,7 @@ export function enterBossWarning(state: GameState, duration = BOSS_WARNING_DURAT
     phase: 'warning',
     wave: state.combat.bossBoundary.wave || state.combat.nextWave,
     warningLeft: duration,
+    warningDuration: duration,
   }
 }
 

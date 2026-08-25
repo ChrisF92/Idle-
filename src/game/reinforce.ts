@@ -15,7 +15,7 @@ export function reinforceUnlocked(state: GameState): boolean {
 
 export function canReinforce(state: GameState): { ok: boolean; reason?: string } {
   if (!reinforceUnlocked(state)) {
-    return { ok: false, reason: `Clear Wave ${REINFORCE_UNLOCK_SECTOR}` }
+    return { ok: false, reason: `Defeat the Wave ${REINFORCE_UNLOCK_SECTOR} Choir Crown` }
   }
   if (!state.combat.docked) {
     return { ok: false, reason: 'Dock first' }
