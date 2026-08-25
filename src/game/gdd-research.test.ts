@@ -58,7 +58,7 @@ describe('GDD Research', () => {
     expect(hiveResearchCompleted(s, 'material')).toBe(0)
   })
 
-  it('lets Sensor Net drones accelerate the active project', () => {
+  it('lets assigned Worker Drones accelerate the active Research project', () => {
     let slow = researchState()
     slow.combat.docked = true
     slow = setResearchFocus(slow, 'energy')
@@ -67,8 +67,8 @@ describe('GDD Research', () => {
     let fast = researchState()
     fast.combat.docked = true
     fast.base.workerDrones = 8
-    fast = assignWorker(fast, 'sensor-net', 4)
     fast = setResearchFocus(fast, 'energy')
+    fast = assignWorker(fast, 'sensor-net', 4)
     expect(hiveResearchSpeed(fast)).toBeCloseTo(base + HIVE_RESEARCH_WORKER_ACCEL * 4)
     expect(hiveResearchSpeed(fast)).toBeGreaterThan(base)
   })

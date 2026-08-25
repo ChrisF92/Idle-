@@ -34,7 +34,7 @@ import { FOUNDRY_RECIPES, foundryQueueCap } from '../../game/foundry'
 import { hiveResearchQueueCap, hiveResearchStartableBranches, HIVE_RESEARCH_BRANCHES } from '../../game/hiveResearch'
 import { FURNACE_CHANNELS, furnacePriority } from '../../game/furnace'
 import { STATIONS } from '../../game/catalog'
-import { WORKER_JOB_IDS } from '../../game/workers'
+import { WORKER_JOB_IDS, workerJobLabel } from '../../game/workers'
 import { PROTOCOLS, protocolRank } from '../../game/protocols'
 import { formatCompact } from '../../game/format'
 
@@ -259,7 +259,7 @@ function NodeConfig({
         <p className="muted">Jobs</p>
         {jobs.map((job) => (
           <label key={job.id} className="process-config">
-            {job.name}
+            {workerJobLabel(job.id, job.name)}
             <input
               type="number"
               min={0}

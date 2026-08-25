@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { assignWorker, autoBalanceWorkers, buyAiNode } from './actions'
+import { assignWorker } from './actions'
 import { ACT1_CADENCE } from './cadence'
-import { isStationUnlocked, stationEffectiveDrones } from './catalog'
+import { isStationUnlocked, stationEffectiveDrones, visibleWorkerJobIds } from './catalog'
 import {
   networkDataRate,
   networkManufactureMult,
@@ -16,6 +16,8 @@ import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 import { advanceTicks } from './tick'
 import { isWorkersUnlocked, WORKER_JOB_IDS, workerJobCap, workerJobCapLine, workerJobLabel } from './workers'
+import { startFabrication } from './foundry'
+import { tickAutomation } from './automation'
 
 describe('GDD Worker Drones', () => {
   it('stays locked before Wave 30, even after the first hull loss', () => {
@@ -89,41 +91,85 @@ describe('GDD Worker Drones', () => {
     expect(s.base.assignments.strike).toBeUndefined()
   })
 
-  it('raises salvage from Scrap Field labour, not Yield bars', () => {
+  it('never turns Worker Drone labour into a combat Salvage multiplier', () => {
     const s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     s.network.bars.yield.levels = 40
     expect(networkSalvageMult(s)).toBe(1)
     s.base.workerDrones = 16
     s.base.assignments['scrap-field'] = 8
-    expect(networkSalvageMult(s)).toBeGreaterThan(1)
+    expect(networkSalvageMult(s)).toBe(1)
   })
 
-  it('raises manufacture from fabrication jobs, not Loom bars', () => {
+  it('does not let unrelated Fabrication jobs multiply Worker Drone production', () => {
     const s = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     s.network.bars.loom.levels = 40
     expect(networkManufactureMult(s)).toBe(1)
     s.base.workerDrones = 16
     s.foundry.facilities = ['drone-fabricator']
     s.base.assignments['drone-fab'] = 8
-    expect(networkManufactureMult(s)).toBeGreaterThan(1)
+    expect(networkManufactureMult(s)).toBe(1)
   })
 
-  it('shows an efficient range and dumps overflow onto Salvage ops', () => {
-    expect(workerJobLabel('scrap-field')).toBe('Salvage ops')
-    expect(workerJobLabel('sensor-net')).toBe('Sensor Net')
+  it('shows efficient ranges and applies diminishing returns', () => {
+    expect(workerJobLabel('scrap-field')).toBe('Salvage Operations')
+    expect(workerJobLabel('sensor-net')).toBe('Research')
     expect(workerJobLabel('alloy-foundry')).toBe('Processing')
     expect(workerJobLabel('fab-bay')).toBe('Fabrication')
-    expect(workerJobCap('construction')).toEqual({ min: 1, efficient: 4, hard: 8 })
+    expect(workerJobCap('construction')).toEqual({ min: 2, efficient: 4, hard: 8 })
     expect(workerJobCapLine(2, 'construction')).toBe('2/4 efficient · cap 8')
 
-    let s = atCareerWave(createInitialState(0), 120)
-    s.research.unlocked = ['core-training']
-    s.base.workerDrones = 100
-    s.resources.aiPoints = 10
-    s = buyAiNode(s, 'auto-assign-workers')
-    s = autoBalanceWorkers(s, 'balanced')
-    expect(s.base.assignments['scrap-field'] ?? 0).toBeGreaterThan(20)
-    expect(Object.keys(s.base.assignments).some((id) => id.startsWith('train-'))).toBe(false)
+    const s = atCareerWave(createInitialState(0), 120)
+    s.base.workerDrones = 20
+    s.base.assignments['scrap-field'] = 7
+    const seven = stationEffectiveDrones(s, 'scrap-field')
+    s.base.assignments['scrap-field'] = 8
+    const eight = stationEffectiveDrones(s, 'scrap-field')
+    s.base.assignments['scrap-field'] = 9
+    const nine = stationEffectiveDrones(s, 'scrap-field')
+    expect(nine - eight).toBeLessThan(eight - seven)
+  })
+
+  it('shows Infrastructure only while a real project is active', () => {
+    let s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
+    expect(visibleWorkerJobIds(s)).not.toContain('construction')
+    s.foundry.materials['slag-ingot'] = 20
+    s.foundry.materials['hardened-plate'] = 10
+    s = startFabrication(s, 'facility', 'processing-line')
+    expect(visibleWorkerJobIds(s)).toContain('construction')
+  })
+
+  it('manufactures Worker Drones only when the real job is staffed', () => {
+    let idle = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
+    idle.foundry.facilities = ['drone-fabricator']
+    const before = idle.base.workerDrones
+    advanceTicks(idle, 120)
+    expect(idle.base.workerDrones).toBe(before)
+
+    let staffed = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
+    staffed.foundry.facilities = ['drone-fabricator']
+    staffed = assignWorker(staffed, 'drone-fab', 2)
+    advanceTicks(staffed, 120)
+    expect(staffed.base.workerDrones).toBeGreaterThan(before)
+  })
+
+  it('keeps automatic reassignment inside Process progression', () => {
+    const retired = atCareerWave(createInitialState(0), 120)
+    retired.base.workerDrones = 8
+    retired.ai.purchased = ['auto-assign-workers', 'labor-loop']
+    tickAutomation(retired)
+    expect(retired.base.assignments).toEqual({})
+
+    const process = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
+    process.base.workerDrones = 8
+    process.resources.scrap = 80
+    process.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0, paid: false }
+    process.process.purchased = ['network-optimise', 'network-presets', 'network-balance']
+    process.process.config.network.enabled = true
+    tickAutomation(process)
+    expect(Object.values(process.base.assignments).reduce((sum, n) => sum + n, 0)).toBeGreaterThan(0)
+    expect(Object.keys(process.base.assignments)).toEqual(
+      expect.arrayContaining(['scrap-field', 'alloy-foundry']),
+    )
   })
 
   it('does not drip extra scrap or data from retired bars', () => {

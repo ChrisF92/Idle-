@@ -28,6 +28,7 @@ describe('GDD shell information architecture', () => {
     expect(screen.getByRole('heading', { name: 'Systems' })).toBeTruthy()
     expect(screen.getByText('Foundry')).toBeTruthy()
     expect(screen.getByText('Worker Drones')).toBeTruthy()
+    expect(screen.getByText(/assigned · \d+ idle · capacity \d+/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Manage/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Worker Drones/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /^Foundry/ })).toBeTruthy()

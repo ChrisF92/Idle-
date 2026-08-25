@@ -132,13 +132,14 @@ describe('GDD Process', () => {
 
     let defence = processState()
     defence.base.workerDrones = 10
+    defence.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0, paid: false }
     defence.process.purchased = ['network-optimise', 'network-presets']
     defence = applyNetworkPreset(defence, 'defence')
     expect(defence.base.assignments['repair-bay'] ?? 0).toBe(0)
     expect(defence.base.assignments['alloy-foundry'] ?? 0).toBeGreaterThan(0)
   })
 
-  it('leans Farm toward Scrap Field while flying after Network Sortie Bias', () => {
+  it('leans Farm toward Salvage Operations while flying after Worker Sortie Bias', () => {
     const s = processState()
     s.combat.docked = false
     s.process.purchased = ['network-tune']

@@ -8,19 +8,18 @@ import {
   idleWorkers,
   NETWORK_ACUITY_PER_RANK,
   NETWORK_RACK_CAP_PER_RANK,
-  stationEffectiveDrones,
 } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
 import { yardNetworkMult } from './yard'
-import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
+import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 import { careerBestWave } from './progression'
 import { foundryNetworkFillMult } from './foundryBonuses'
 import { NETWORK_CADENCE } from './cadence'
-import { isWorkersUnlocked, WORKER_JOB_IDS } from './workers'
+import { WORKER_JOB_IDS } from './workers'
 
 export type NetworkBarLayer = 'primary' | 'relay' | 'lattice'
 
@@ -568,23 +567,14 @@ export function networkWardMult(_state: GameState): number {
   return 1
 }
 
-/** Salvage/kill bonus from Scrap Field labour. Yield bars no longer grant this. */
-export function networkSalvageMult(state: GameState): number {
-  if (protocolMutes(state, 'network')) return 1
-  if (!isWorkersUnlocked(state)) return 1
-  const labor = stationEffectiveDrones(state, 'scrap-field')
-  return 1 + 0.045 * Math.sqrt(Math.max(0, labor))
+/** @deprecated Worker Drones perform industry and never multiply combat rewards. */
+export function networkSalvageMult(_state: GameState): number {
+  return 1
 }
 
-/** Foundry / drone-print speed from fabrication jobs. Loom bars no longer grant this. */
-export function networkManufactureMult(state: GameState): number {
-  if (protocolMutes(state, 'network')) return 1
-  if (!isWorkersUnlocked(state)) return 1
-  const labor =
-    stationEffectiveDrones(state, 'drone-fab') +
-    stationEffectiveDrones(state, 'fab-bay') +
-    stationEffectiveDrones(state, 'construction')
-  return 1 + 0.04 * Math.sqrt(Math.max(0, labor))
+/** @deprecated Each Worker Drone job now affects only its own real work. */
+export function networkManufactureMult(_state: GameState): number {
+  return 1
 }
 
 /** Extra hangar scrap drip retired — Scrap Field already produces scrap. */

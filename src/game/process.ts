@@ -230,7 +230,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'network-ratios',
-    name: 'Network Ratios',
+    name: 'Worker Job Weights',
     category: 'network',
     kind: 'automation',
     blurb: 'Write your own job weights. Optimise and Auto Optimise both honour them.',
@@ -248,7 +248,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   },
   {
     id: 'network-tune',
-    name: 'Network Sortie Bias',
+    name: 'Worker Sortie Bias',
     category: 'network',
     kind: 'automation',
     blurb: 'Optional overlay: while flying, lean Push toward salvage/fab jobs and Farm toward Scrap Field.',
@@ -712,9 +712,9 @@ export const PROCESS_ACCUMULATION: ProcessAccumulationDef[] = [
   {
     id: 'acc-network-20',
     atEarned: 20,
-    name: 'Corps Cadence',
-    blurb: '×1.10 Network fill speed.',
-    effect: { type: 'networkSpeed', mult: 1.1 },
+    name: 'Workforce Cadence',
+    blurb: '×1.10 Worker Drone fabrication speed.',
+    effect: { type: 'industrySpeed', mult: 1.1 },
   },
   {
     id: 'acc-combat-35',
@@ -776,7 +776,7 @@ export const PROCESS_ACCUMULATION: ProcessAccumulationDef[] = [
     id: 'acc-industry-500',
     atEarned: 500,
     name: 'Shop Floor',
-    blurb: '×1.10 Foundry, Network, Yard, and drone manufacture speed.',
+    blurb: '×1.10 Worker Drone fabrication speed.',
     effect: { type: 'industrySpeed', mult: 1.1 },
   },
 ]
@@ -1336,7 +1336,8 @@ export function processShieldMult(state: GameState): number {
 }
 
 export function processNetworkSpeedMult(state: GameState): number {
-  return processAccumMult(state, 'networkSpeed') * processAccumMult(state, 'industrySpeed')
+  void state
+  return 1
 }
 
 export function processFoundrySpeedMult(state: GameState): number {

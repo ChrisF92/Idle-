@@ -46,8 +46,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Worker Drones',
     body: [
       'Purpose: put a limited workforce on real industrial jobs. Main decision: processing now versus fabricating, researching, or growing more drones.',
-      'Jobs have a hard cap. Extra drones on a full job do nothing — split the corps.',
-      'Worker Drones live under Systems after Wave 30. They do not fire weapons or raise shields. Combat power comes from Cores, Workshop, and Foundry.',
+      'Each job has an efficient range and then diminishing returns. The card shows exactly what one more Worker changes.',
+      'Worker Drones live under Systems after Wave 30. They perform real work and never provide abstract damage, shield, or combat-resource multipliers.',
     ],
   },
   foundry: {

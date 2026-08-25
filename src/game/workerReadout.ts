@@ -1,9 +1,30 @@
-/** Worker assignment consequences for Systems / Worker UI. */
+/** Exact Worker Drone assignment consequences for the Systems workforce UI. */
 
-import { STATIONS } from './catalog'
-import { FOUNDRY_RECIPES, foundryCraftTime, foundryFabricationSpeed, foundryProcessingSpeed } from './foundry'
+import {
+  STATIONS,
+  WORKER_MANUFACTURE_SECONDS,
+  stationEffectiveDrones,
+  workerManufactureSpeed,
+} from './catalog'
+import {
+  FOUNDRY_RECIPES,
+  fabricationJobLabel,
+  fabricationJobTime,
+  foundryCraftTime,
+  foundryFabricationSpeed,
+  foundryProcessingSpeed,
+} from './foundry'
+import {
+  formatResearchDuration,
+  hiveResearchActiveNode,
+  hiveResearchCompleted,
+  hiveResearchNodeCost,
+  hiveResearchSpeed,
+  hiveResearchXp,
+} from './hiveResearch'
+import { processIndustrySpeedMult } from './process'
 import type { GameState } from './types'
-import { workerJobCap, workerJobLabel } from './workers'
+import { workerJobCap, workerJobEfficientRange, workerJobLabel } from './workers'
 
 export interface WorkerJobConsequence {
   jobId: string
@@ -14,100 +35,158 @@ export interface WorkerJobConsequence {
   next: string
 }
 
-function formatMult(n: number): string {
-  return `×${n.toFixed(2)}`
+function formatSeconds(seconds: number): string {
+  const value = Math.max(0, Math.ceil(seconds))
+  if (value < 60) return `${value}s`
+  const minutes = Math.floor(value / 60)
+  const secs = value % 60
+  if (minutes < 60) return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ${minutes % 60}m`
 }
 
-function formatSeconds(n: number): string {
-  const s = Math.max(0, Math.ceil(n))
-  if (s < 60) return `${s}s`
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return r ? `${m}m ${r}s` : `${m}m`
+function withAssignment(state: GameState, jobId: string, assigned: number): GameState {
+  return {
+    ...state,
+    base: {
+      ...state.base,
+      assignments: {
+        ...state.base.assignments,
+        [jobId]: Math.max(0, assigned),
+      },
+    },
+  }
+}
+
+function nextLine(assigned: number, jobId: string, value: string): string {
+  return assigned >= workerJobCap(jobId).hard
+    ? '+1 Worker → no change (hard cap)'
+    : `+1 Worker → ${value}`
+}
+
+function processingConsequence(state: GameState, assigned: number, band: string): WorkerJobConsequence {
+  const slot = state.foundry.slots.find((row) => row.recipeId)
+  const recipe = slot?.recipeId ? FOUNDRY_RECIPES.find((row) => row.id === slot.recipeId) : undefined
+  const current = recipe
+    ? foundryCraftTime(state, recipe.id) / Math.max(0.01, foundryProcessingSpeed(state))
+    : 0
+  const plus = withAssignment(state, 'alloy-foundry', assigned + 1)
+  const next = recipe
+    ? foundryCraftTime(plus, recipe.id) / Math.max(0.01, foundryProcessingSpeed(plus))
+    : 0
+  return {
+    jobId: 'alloy-foundry',
+    title: recipe ? `${recipe.name} Processing` : 'Processing',
+    assigned,
+    band,
+    current: recipe ? `Cycle ${formatSeconds(current)}` : 'No active Processor',
+    next: nextLine(assigned, 'alloy-foundry', recipe ? formatSeconds(next) : 'no active Processor'),
+  }
+}
+
+function fabricationConsequence(
+  state: GameState,
+  jobId: 'fab-bay' | 'construction',
+  assigned: number,
+  band: string,
+): WorkerJobConsequence {
+  const slot = state.foundry.fabrication.find((row) =>
+    jobId === 'construction'
+      ? row.kind === 'facility' && !row.complete
+      : (row.kind === 'core' || row.kind === 'relic') && !row.complete,
+  )
+  if (!slot?.kind || !slot.jobId) {
+    return {
+      jobId,
+      title: jobId === 'construction' ? 'Infrastructure' : 'Fabrication',
+      assigned,
+      band,
+      current: 'No active project',
+      next: nextLine(assigned, jobId, 'no active project'),
+    }
+  }
+  const base = fabricationJobTime(state, slot.kind, slot.jobId) * (1 - slot.progress)
+  const current = base / Math.max(0.01, foundryFabricationSpeed(state, slot.kind))
+  const plus = withAssignment(state, jobId, assigned + 1)
+  const next = base / Math.max(0.01, foundryFabricationSpeed(plus, slot.kind))
+  const item = fabricationJobLabel(state, slot)
+  return {
+    jobId,
+    title: `${item} ${jobId === 'construction' ? 'Infrastructure' : 'Fabrication'}`,
+    assigned,
+    band,
+    current: `${formatSeconds(current)} remaining`,
+    next: nextLine(assigned, jobId, formatSeconds(next)),
+  }
+}
+
+function researchConsequence(state: GameState, assigned: number, band: string): WorkerJobConsequence {
+  const node = hiveResearchActiveNode(state)
+  const branch = state.hiveResearch.focus
+  const remaining = node
+    ? Math.max(0, hiveResearchNodeCost(hiveResearchCompleted(state, branch), state) - hiveResearchXp(state, branch))
+    : 0
+  const current = remaining / Math.max(0.01, hiveResearchSpeed(state))
+  const plus = withAssignment(state, 'sensor-net', assigned + 1)
+  const next = remaining / Math.max(0.01, hiveResearchSpeed(plus))
+  return {
+    jobId: 'sensor-net',
+    title: node ? `Research — ${node.name}` : 'Research',
+    assigned,
+    band,
+    current: node ? `${formatResearchDuration(current)} remaining` : 'No active Research',
+    next: nextLine(assigned, 'sensor-net', node ? formatResearchDuration(next) : 'no active Research'),
+  }
+}
+
+function droneFabricationConsequence(state: GameState, assigned: number, band: string): WorkerJobConsequence {
+  const remaining = Math.max(0, 1 - state.base.manufactureProgress)
+  const current =
+    remaining * WORKER_MANUFACTURE_SECONDS /
+    Math.max(0.01, workerManufactureSpeed(state) * processIndustrySpeedMult(state))
+  const plus = withAssignment(state, 'drone-fab', assigned + 1)
+  const next =
+    remaining * WORKER_MANUFACTURE_SECONDS /
+    Math.max(0.01, workerManufactureSpeed(plus) * processIndustrySpeedMult(plus))
+  return {
+    jobId: 'drone-fab',
+    title: 'Worker Drone Fabrication',
+    assigned,
+    band,
+    current: `Next Worker Drone · ${formatSeconds(current)}`,
+    next: nextLine(assigned, 'drone-fab', formatSeconds(next)),
+  }
 }
 
 export function workerJobConsequence(state: GameState, jobId: string): WorkerJobConsequence {
   const assigned = Math.max(0, Math.floor(state.base.assignments[jobId] ?? 0))
-  const cap = workerJobCap(jobId)
-  const station = STATIONS.find((row) => row.id === jobId)
-  const title = workerJobLabel(jobId, station?.name)
-  const band = `${assigned}/${cap.efficient} efficient · cap ${cap.hard}`
-
-  if (jobId === 'scrap-field') {
-    const rate = (station?.rates.scrap ?? 0.4) * assigned
-    const next = (station?.rates.scrap ?? 0.4) * (assigned + 1)
-    return {
-      jobId,
-      title,
-      assigned,
-      band,
-      current: assigned > 0 ? `Scrap +${rate.toFixed(1)}/s` : 'Scrap 0/s',
-      next: `+1 → +${next.toFixed(1)}/s`,
-    }
-  }
-
-  if (jobId === 'alloy-foundry') {
-    const speed = foundryProcessingSpeed(state)
-    const slot = state.foundry?.slots?.find((row) => row.recipeId)
-    const recipe = slot?.recipeId ? FOUNDRY_RECIPES.find((row) => row.id === slot.recipeId) : null
-    const total = slot?.recipeId ? foundryCraftTime(state, slot.recipeId) / Math.max(0.05, speed) : 0
-    const remain = slot ? total * (1 - (slot.progress ?? 0)) : 0
-    return {
-      jobId,
-      title: 'Processing',
-      assigned,
-      band,
-      current: recipe ? `${recipe.name} ${formatSeconds(remain)}` : `Current speed ${formatMult(speed)}`,
-      next: assigned >= cap.hard ? 'At hard cap' : 'More drones shorten Processing time',
-    }
-  }
-
+  const band = workerJobEfficientRange(jobId)
+  if (jobId === 'alloy-foundry') return processingConsequence(state, assigned, band)
   if (jobId === 'fab-bay' || jobId === 'construction') {
-    const kind = jobId === 'construction' ? 'facility' : 'core'
-    const slot = state.foundry?.fabrication?.find((row) =>
-      jobId === 'construction' ? row.kind === 'facility' : row.kind === 'core' || row.kind === 'relic',
-    )
-    const speed = foundryFabricationSpeed(state, slot?.kind ?? kind)
+    return fabricationConsequence(state, jobId, assigned, band)
+  }
+  if (jobId === 'sensor-net') return researchConsequence(state, assigned, band)
+  if (jobId === 'drone-fab') return droneFabricationConsequence(state, assigned, band)
+  if (jobId === 'scrap-field') {
+    const station = STATIONS.find((row) => row.id === jobId)
+    const perSecond = (station?.rates.scrap ?? 0.4) * stationEffectiveDrones(state, jobId)
+    const plus = withAssignment(state, jobId, assigned + 1)
+    const next = (station?.rates.scrap ?? 0.4) * stationEffectiveDrones(plus, jobId)
     return {
       jobId,
-      title: jobId === 'fab-bay' ? 'Fabrication' : 'Construction',
+      title: 'Salvage Operations',
       assigned,
       band,
-      current: slot?.jobId ? `Job ${Math.round((slot.progress ?? 0) * 100)}% · ${formatMult(speed)}` : 'No job queued',
-      next: assigned >= cap.hard ? 'At hard cap' : 'More drones shorten this job',
+      current: `+${Math.round(perSecond * 60)} Scrap/min`,
+      next: nextLine(assigned, jobId, `+${Math.round(next * 60)} Scrap/min`),
     }
   }
-
-  if (jobId === 'sensor-net') {
-    const rate = (station?.rates.data ?? 0.045) * assigned
-    return {
-      jobId,
-      title,
-      assigned,
-      band,
-      current: assigned > 0 ? `Sensor Net +${rate.toFixed(2)}/s` : 'Sensor Net idle',
-      next: `+1 → +${((station?.rates.data ?? 0.045) * (assigned + 1)).toFixed(2)}/s`,
-    }
-  }
-
-  if (jobId === 'drone-fab') {
-    const bonus = station?.manufactureBonusPerDrone ?? 0.35
-    return {
-      jobId,
-      title,
-      assigned,
-      band,
-      current: assigned > 0 ? `Drone build ${formatMult(1 + bonus * assigned)}` : 'Needs a Fabricator',
-      next: `+1 → ${formatMult(1 + bonus * (assigned + 1))}`,
-    }
-  }
-
   return {
     jobId,
-    title,
+    title: workerJobLabel(jobId),
     assigned,
     band,
-    current: assigned > 0 ? `${assigned} assigned` : 'Unassigned',
-    next: `Cap ${cap.hard}`,
+    current: assigned > 0 ? `${assigned} Workers` : 'Unassigned',
+    next: nextLine(assigned, jobId, `${assigned + 1} Workers`),
   }
 }

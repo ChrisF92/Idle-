@@ -85,14 +85,14 @@ export const HIVE_RESEARCH_BRANCHES: {
 export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef[]> = {
   material: [
     { name: 'Slag Assay', blurb: 'A little more salvage from wrecks.', kind: 'incremental', salvage: 0.03 },
-    { name: 'Loom Timing', blurb: 'Foundry crafts run a little faster.', kind: 'incremental', foundrySpeed: 0.03 },
+    { name: 'Processing Timing', blurb: 'Foundry crafts run a little faster.', kind: 'incremental', foundrySpeed: 0.03 },
     {
       name: 'Second Processor',
       blurb: 'Adds a Foundry Processor. The floor can run another material recipe at once.',
       kind: 'breakthrough',
       foundrySlots: 1,
     },
-    { name: 'Ingot Yield', blurb: 'A little more salvage.', kind: 'incremental', salvage: 0.03 },
+    { name: 'Wreck Recovery', blurb: 'A little more salvage.', kind: 'incremental', salvage: 0.03 },
     { name: 'Filament Draw', blurb: 'Foundry crafts run a little faster.', kind: 'incremental', foundrySpeed: 0.04 },
     {
       name: 'Pattern Floor',
@@ -127,30 +127,28 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
     },
     {
       name: 'Pulse Coupling',
-      blurb: 'Combat sim may run at ×2. Network bars still fill a little faster.',
+      blurb: 'Combat simulation may run at ×2.',
       kind: 'incremental',
-      networkFill: 0.04,
       combatSpeed: 2,
     },
-    { name: 'Charge Lattice', blurb: 'A little more sortie damage.', kind: 'incremental', damage: 0.03 },
+    { name: 'Charge Flow', blurb: 'A little more sortie damage.', kind: 'incremental', damage: 0.03 },
     {
-      name: 'Corps Draw',
-      blurb: 'Each assigned drone counts for more toward Network fill.',
+      name: 'Worker Calibration',
+      blurb: 'Worker Drones contribute more to Processing, Fabrication, and Research.',
       kind: 'breakthrough',
       droneEfficiency: 0.12,
     },
     { name: 'Plate Current', blurb: 'A little more max shield.', kind: 'incremental', shield: 0.04 },
     { name: 'Heat Channel', blurb: 'Ash banks a little hotter.', kind: 'incremental', heatFromAsh: 0.1 },
     {
-      name: 'Relay Sight',
-      blurb: 'Opens Archive Relay ahead of its normal gate, and lights one more Furnace channel.',
+      name: 'Heat Routing',
+      blurb: 'Lights one more Furnace channel.',
       kind: 'breakthrough',
-      unlockRelay: 'archive-relay',
       furnaceSlots: 1,
     },
   ],
   observation: [
-    { name: 'Archive Gain', blurb: 'Archive drips a little more Data.', kind: 'incremental', data: 0.05 },
+    { name: 'Archive Gain', blurb: 'Research projects run a little faster.', kind: 'incremental', researchXp: 0.05 },
     { name: 'Shard Sight', blurb: 'Wrecks drop shards a little more often.', kind: 'incremental', shardDrop: 0.02 },
     {
       name: 'Second Desk',
@@ -159,7 +157,7 @@ export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef
       offFocusAdd: 0.5,
     },
     { name: 'Field Notes', blurb: 'All research XP climbs a little faster.', kind: 'incremental', researchXp: 0.04 },
-    { name: 'Corps Sync', blurb: 'Network bars fill a little faster.', kind: 'incremental', networkFill: 0.04 },
+    { name: 'Workforce Sync', blurb: 'Worker Drones contribute a little more to active work.', kind: 'incremental', droneEfficiency: 0.04 },
     {
       name: 'Blue Bay',
       blurb: 'Opens the blue Reliquary slot. A new colour of chip can be fitted.',
@@ -507,7 +505,6 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.focusFire) bits.push('Cores lock wounded hulls and bosses first')
   if (node.foundrySlots) bits.push(`Foundry slots +${node.foundrySlots}`)
   if (node.furnaceSlots) bits.push(`Furnace channels +${node.furnaceSlots}`)
-  if (node.unlockRelay) bits.push(`Unlocks ${node.unlockRelay.replace(/-/g, ' ')}`)
   if (node.unlockFrame) bits.push(`Unlocks ${getFrame(node.unlockFrame)?.name ?? node.unlockFrame}`)
   if (node.foundryMasteryReduce) bits.push(`Mastery gates −${node.foundryMasteryReduce} rank`)
   if (node.foundryInfiniteReduce) bits.push(`Mastery gates −${node.foundryInfiniteReduce}`)
@@ -523,8 +520,8 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.damage) bits.push(`+${Math.round(node.damage * 100)}% damage`)
   if (node.shield) bits.push(`+${Math.round(node.shield * 100)}% shield`)
   if (node.heatFromAsh) bits.push(`+${Math.round(node.heatFromAsh * 100)}% Heat from ash`)
-  if (node.networkFill) bits.push(`+${Math.round(node.networkFill * 100)}% Network fill`)
-  if (node.data) bits.push(`+${Math.round(node.data * 100)}% Archive data`)
+  if (node.networkFill) bits.push(`+${Math.round(node.networkFill * 100)}% Worker contribution`)
+  if (node.data) bits.push(`+${Math.round(node.data * 100)}% research speed`)
   if (node.shardDrop) bits.push(`+${Math.round(node.shardDrop * 100)}% shard drops`)
   if (node.researchXp) bits.push(`+${Math.round(node.researchXp * 100)}% research speed`)
   if (node.combatSpeed && node.combatSpeed > 1) bits.push(`Combat speed ×${node.combatSpeed}`)
@@ -533,7 +530,7 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
 
 export function hiveResearchSpeed(state: GameState): number {
   if (careerBestWave(state) < HIVE_RESEARCH_UNLOCK_SECTOR) return 0
-  const drones = stationEffectiveDrones(state, 'sensor-net')
+  const drones = stationEffectiveDrones(state, 'sensor-net') * hiveResearchDroneEffMult(state)
   return (
     (1 + HIVE_RESEARCH_WORKER_ACCEL * drones) *
     hiveResearchXpMult(state) *

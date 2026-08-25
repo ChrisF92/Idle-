@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
 import { DockTab } from '../components/tabs/DockTab'
 import { FoundryTab } from '../components/tabs/FoundryTab'
-import { NetworkTab } from '../components/tabs/NetworkTab'
+import { WorkerDronesTab } from '../components/tabs/WorkerDronesTab'
 import { ScreenHelp } from '../components/ScreenHelp'
 import { StatsTab } from '../components/tabs/StatsTab'
 import { TabNav } from '../components/TabNav'
@@ -11,7 +11,8 @@ import { GuideOverlay } from '../components/GuideOverlay'
 import { ToastStack } from '../components/ToastStack'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { createInitialState } from './state'
-import { markHullLost } from './testHelpers'
+import { atCareerWave, markHullLost } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
 import { activeGuideStep, GUIDE_STEPS } from './progression'
 
 afterEach(cleanup)
@@ -134,16 +135,15 @@ describe('shell UX', () => {
     expect(dialog.parentElement?.parentElement).toBe(document.body)
   })
 
-  it('does not inspect locked Network bars', () => {
+  it('shows real Worker Drone jobs without obsolete combat work', () => {
     render(
-      <NetworkTab
-        state={markHullLost(createInitialState(0))}
+      <WorkerDronesTab
+        state={atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)}
         onAssign={() => undefined}
-        onBuyLink={() => undefined}
       />,
     )
-    expect(screen.queryByRole('button', { name: 'Inspect Archive' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Inspect Strike' })).toBeTruthy()
+    expect(screen.getByText('Salvage Operations')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/\bNetwork\b|\bStrike\b|\bWard\b|\bYield\b/)
   })
 
   it('hides Network and More until first hull loss', () => {
@@ -225,14 +225,12 @@ describe('shell UX', () => {
 
   it('spotlights Worker Drone jobs without Network combat labels', () => {
     render(
-      <NetworkTab
-        state={createInitialState(0)}
+      <WorkerDronesTab
+        state={atCareerWave(createInitialState(0), ACT1_CADENCE.workers)}
         onAssign={() => undefined}
-        onBuyLink={() => undefined}
       />,
     )
     expect(screen.getByRole('heading', { name: 'Worker Drones' })).toBeTruthy()
-    expect(document.querySelector('[data-guide="network-manufacture"]')).toBeTruthy()
     expect(document.querySelector('[data-guide="worker-scrap-field"]')).toBeTruthy()
     expect(screen.queryByText(/Strike/)).toBeNull()
     expect(screen.queryByText(/Ward/)).toBeNull()

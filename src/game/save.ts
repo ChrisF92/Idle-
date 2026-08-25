@@ -381,11 +381,7 @@ function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
   if (!network) return empty
   if (network.bars) {
     for (const id of NETWORK_BAR_IDS) {
-      const rec = network.bars[id]
-      empty.bars[id] = {
-        progress: Math.max(0, rec?.progress ?? 0),
-        levels: Math.max(0, Math.floor(rec?.levels ?? 0)),
-      }
+      empty.bars[id] = { progress: 0, levels: 0 }
     }
   }
   empty.links = {

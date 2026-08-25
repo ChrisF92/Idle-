@@ -20,6 +20,7 @@ import { workerAllocationSummary } from './workers'
 import { foundryAttention, furnaceAttention, processAttention, researchAttention, type AttentionFlags } from './hubAttention'
 import { isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
+import { droneCap } from './catalog'
 
 export type SystemsHubId = Extract<TabId, 'foundry' | 'network' | 'furnace' | 'research' | 'process'>
 
@@ -70,7 +71,7 @@ export function foundryHubStatus(state: GameState): string[] {
 
 export function workersHubStatus(state: GameState): string[] {
   const summary = workerAllocationSummary(state)
-  return [`${summary.assigned} assigned · ${summary.idle} idle`]
+  return [`${summary.assigned} assigned · ${summary.idle} idle · capacity ${droneCap(state)}`]
 }
 
 export function furnaceHubStatus(state: GameState): string[] {

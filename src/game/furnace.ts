@@ -91,7 +91,7 @@ export const FURNACE_CHANNELS: FurnaceChannelDef[] = [
   },
   {
     id: 'shielding',
-    name: 'Ward',
+    name: 'Shielding',
     blurb: 'Large temporary defensive multiplier.',
     stat: 'Shield',
     levels: [
@@ -106,7 +106,7 @@ export const FURNACE_CHANNELS: FurnaceChannelDef[] = [
   },
   {
     id: 'recovery',
-    name: 'Yield',
+    name: 'Recovery',
     blurb: 'Temporary economy multiplier.',
     stat: 'Salvage',
     levels: [
@@ -146,8 +146,8 @@ export const FURNACE_PRESETS: Record<
 > = {
   push: { name: 'Push', blurb: 'Weapons + Shielding.', wanted: { weapons: 1, shielding: 1 } },
   farm: { name: 'Farm', blurb: 'Weapons + Recovery.', wanted: { weapons: 1, recovery: 1 } },
-  industry: { name: 'Industry', blurb: 'Foundry + Network.', wanted: { foundry: 1, network: 1 } },
-  research: { name: 'Research', blurb: 'Research + Network.', wanted: { research: 1, network: 1 } },
+  industry: { name: 'Industry', blurb: 'Foundry + Worker Drone Fabrication.', wanted: { foundry: 1, network: 1 } },
+  research: { name: 'Research', blurb: 'Research + Worker Drone Fabrication.', wanted: { research: 1, network: 1 } },
 }
 
 export const FURNACE_BASE_IDLE_GEN = 0

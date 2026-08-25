@@ -14,6 +14,7 @@ import { reliquaryFoundrySpeedMult } from './reliquary'
 import { furnaceFoundrySpeedMult } from './furnace'
 import {
   hiveResearchFitSlots,
+  hiveResearchDroneEffMult,
   hiveResearchFoundrySlots,
   hiveResearchFoundrySpeedMult,
   hiveResearchMasteryReduce,
@@ -33,7 +34,6 @@ import {
   partId,
   stationEffectiveDrones,
 } from './catalog'
-import { workerJobCap } from './workers'
 
 export type FoundryPaneId = 'processing' | 'fabrication' | 'mastery' | 'blueprints'
 
@@ -129,7 +129,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   },
   {
     id: 'relay',
-    name: 'Relay',
+    name: 'Wound Coil',
     blurb: 'Wound filament. Feeds later glass and coil work.',
     maxLevel: 100,
     craftTime: 150,
@@ -172,7 +172,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   {
     id: 'coil-stack',
     name: 'Coil Stack',
-    blurb: 'Relays bundled on filament. Needs a second processor.',
+    blurb: 'Wound coils bundled on filament. Needs a second processor.',
     maxLevel: 100,
     craftTime: 300,
     costs: { materials: { relay: 2, filament: 2 } },
@@ -245,7 +245,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   },
   {
     id: 'sight-lattice',
-    name: 'Sight Lattice',
+    name: 'Sight Array',
     blurb: 'Glass and lenses stacked. Needs a second processor.',
     maxLevel: 100,
     craftTime: 720,
@@ -507,12 +507,7 @@ export function foundryTimeMult(level: number): number {
 }
 
 export function workerJobSpeedMult(state: GameState, jobId: string): number {
-  const assigned = stationEffectiveDrones(state, jobId)
-  const cap = workerJobCap(jobId)
-  const n = Math.min(cap.hard, assigned)
-  const efficient = Math.min(cap.efficient, n)
-  const extra = Math.max(0, n - cap.efficient)
-  return 1 + efficient * 0.12 + extra * 0.04
+  return 1 + stationEffectiveDrones(state, jobId) * hiveResearchDroneEffMult(state) * 0.12
 }
 
 export function foundrySlotCount(state: GameState): number {

@@ -1,7 +1,7 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
 import { careerHighestSector, isSystemUnlocked } from './progression'
-import { WORKER_JOB_IDS } from './workers'
+import { WORKER_JOB_IDS, workerJobContribution, workerJobHasWork } from './workers'
 import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
 import { bandsClearedForWave, meetsWave, waveForClearedBands } from './waves'
 import { formatCompact, formatStat } from './format'
@@ -370,18 +370,18 @@ export const NETWORK_ACUITY_PER_RANK = 0.08
 export const STATIONS: StationDef[] = [
   {
     id: 'scrap-field',
-    name: 'Scrap Field',
-    description: 'Workers haul debris into usable scrap.',
+    name: 'Salvage Operations',
+    description: 'Worker Drones haul debris into usable Scrap.',
     requiresSystem: 'base',
     rates: { scrap: 0.4 },
     baseSlots: 20,
   },
   {
     id: 'sensor-net',
-    name: 'Sensor Net',
-    description: 'Workers accelerate the active Research project.',
+    name: 'Research',
+    description: 'Worker Drones accelerate the active Research project.',
     requiresSystem: 'network',
-    rates: { data: 0.045 },
+    rates: {},
     baseSlots: 16,
   },
   {
@@ -394,8 +394,8 @@ export const STATIONS: StationDef[] = [
   },
   {
     id: 'drone-fab',
-    name: 'Drone production',
-    description: 'Workers manufacture additional Worker Drones. Needs a Fabricator.',
+    name: 'Worker Drone Fabrication',
+    description: 'Worker Drones manufacture the next Worker Drone. Needs a Fabricator.',
     requiresSystem: 'foundry',
     rates: {},
     manufactureBonusPerDrone: 0.35,
@@ -412,8 +412,8 @@ export const STATIONS: StationDef[] = [
   },
   {
     id: 'construction',
-    name: 'Construction',
-    description: 'Workers raise Foundry construction output. Efficient up to 4; hard cap 8.',
+    name: 'Infrastructure',
+    description: 'Worker Drones accelerate an active Infrastructure project.',
     requiresSystem: 'yard',
     rates: {},
     kind: 'special',
@@ -547,7 +547,7 @@ export const AI_NODES: AiNodeDef[] = [
     id: 'drone-efficiency-1',
     name: 'Swarm Optics',
     description:
-      '+35% drone power — each worker counts for more toward station black-bar (fewer bodies needed).',
+      '+35% Worker Drone contribution to real jobs.',
     costAiPoints: 4,
     kind: 'automation',
     permanent: true,
@@ -556,8 +556,8 @@ export const AI_NODES: AiNodeDef[] = [
   },
   {
     id: 'drone-efficiency-2',
-    name: 'Hive Lattice',
-    description: '+65% drone power toward station black-bar. Requires Swarm Optics.',
+    name: 'Hive Calibration',
+    description: '+65% Worker Drone contribution to real jobs. Requires Swarm Optics.',
     costAiPoints: 8,
     kind: 'automation',
     permanent: true,
@@ -753,7 +753,7 @@ export const AI_NODES: AiNodeDef[] = [
 export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'essence-lattice',
-    name: 'Essence Lattice',
+    name: 'Essence Matrix',
     description: 'Permanent +50% Essence from bosses.',
     costEssence: 2,
     bossEssenceBonus: 0.5,
@@ -981,7 +981,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
   },
   {
     id: 'synapse-lattice',
-    name: 'Synapse Lattice',
+    name: 'Synapse Matrix',
     description: '+12% Core training speed per rank (deep ranks; extra ranks +45% of base).',
     category: 'foundation',
     costPm: 4,
@@ -1487,10 +1487,10 @@ export const SHIP_MODULES: ShipModuleDef[] = [
   },
   {
     id: 'drone-bay',
-    name: 'Yield Link',
+    name: 'Salvage Beacon',
     role: 'utility',
     description:
-      'Marks wrecks so each kill pays more Salvage. Drones stay on the Network — nothing extra flies on Sortie.',
+      'Marks wrecks so each kill pays more Salvage. The beacon is a Core effect, not a Worker Drone job.',
     damageBonus: 0,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1697,10 +1697,10 @@ export const SHIP_MODULES: ShipModuleDef[] = [
   },
   {
     id: 'lattice-ward',
-    name: 'Lattice Ward',
+    name: 'Rapid Aegis',
     role: 'defense',
     description:
-      'A thin lattice that refills fast. Lower ceiling than Plate; higher regen. Built to outlast chip, not slams.',
+      'A thin shield mesh that refills fast. Lower ceiling than Plate; higher regen. Built to outlast chip, not slams.',
     damageBonus: 0,
     hullBonus: 0,
     shieldBonus: 22,
@@ -1749,7 +1749,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Choir Tap',
     role: 'utility',
     description:
-      'A wreck tap tuned to Choir hulls. Each kill pays more Salvage than Yield Link. Complete its Blueprint, then fabricate it.',
+      'A wreck tap tuned to Choir hulls. Each kill pays more Salvage than the Salvage Beacon. Complete its Blueprint, then fabricate it.',
     damageBonus: 0,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -2560,7 +2560,7 @@ export function stationEffectiveDrones(
   if (!station) return 0
   const assigned = Math.max(0, state.base.assignments[stationId] ?? 0)
   if (assigned <= 0) return 0
-  const effective = assigned * dronePower(state)
+  const effective = workerJobContribution(assigned, stationId) * dronePower(state)
   const slots = stationBaseSlots(station)
   if (slots <= 0) return effective
   return Math.min(effective, slots)
@@ -2706,7 +2706,11 @@ export function isStationUnlocked(state: GameState, stationId: string): boolean 
 
 /** Jobs shown in Systems / Worker UI. Hidden until the station is legal. */
 export function visibleWorkerJobIds(state: GameState): string[] {
-  return WORKER_JOB_IDS.filter((id) => isStationUnlocked(state, id))
+  return WORKER_JOB_IDS.filter((id) => {
+    if (!isStationUnlocked(state, id) || !workerJobHasWork(state, id)) return false
+    if (id === 'drone-fab') return state.base.workerDrones < droneCap(state)
+    return true
+  })
 }
 
 export function assignedWorkers(assignments: Record<string, number>): number {
@@ -2716,7 +2720,11 @@ export function assignedWorkers(assignments: Record<string, number>): number {
 export function idleWorkers(state: {
   base: { workerDrones: number; assignments: Record<string, number> }
 }): number {
-  return Math.max(0, state.base.workerDrones - assignedWorkers(state.base.assignments))
+  const assigned = WORKER_JOB_IDS.reduce(
+    (sum, id) => sum + Math.max(0, state.base.assignments[id] ?? 0),
+    0,
+  )
+  return Math.max(0, state.base.workerDrones - assigned)
 }
 
 /** Rank owned for a shop id (0 if missing). */

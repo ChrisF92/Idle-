@@ -52,7 +52,7 @@ export const CORE_MILESTONES: Record<string, CoreMilestoneDef[]> = {
       level: 40,
       choices: [
         { id: 'pierce-pulse', name: 'Pierce Pulse', blurb: 'Armour dmg 0.50', armorDamage: 0.5 },
-        { id: 'ward-flare', name: 'Ward Flare', blurb: 'Shield dmg ×1.25', shieldDamage: 1.25 },
+        { id: 'ward-flare', name: 'Aegis Flare', blurb: 'Shield dmg ×1.25', shieldDamage: 1.25 },
       ],
     },
     {
@@ -69,7 +69,7 @@ export const CORE_MILESTONES: Record<string, CoreMilestoneDef[]> = {
       id: 'plate-10',
       level: 10,
       choices: [
-        { id: 'bulk', name: 'Bulk Ward', blurb: 'Max shield ×1.20', shieldMult: 1.2 },
+        { id: 'bulk', name: 'Bulk Aegis', blurb: 'Max shield ×1.20', shieldMult: 1.2 },
         { id: 'quick', name: 'Quick Regen', blurb: '+3%/s regen', regenAdd: 0.03 },
       ],
     },
@@ -143,7 +143,7 @@ export const CORE_MILESTONES: Record<string, CoreMilestoneDef[]> = {
       id: 'rig-10',
       level: 10,
       choices: [
-        { id: 'yield-mesh', name: 'Yield Mesh', blurb: 'Max shield ×1.08', shieldMult: 1.08 },
+        { id: 'yield-mesh', name: 'Recovery Mesh', blurb: 'Max shield ×1.08', shieldMult: 1.08 },
         { id: 'hold-scoop', name: 'Hold Scoop', blurb: '+2%/s regen', regenAdd: 0.02 },
       ],
     },

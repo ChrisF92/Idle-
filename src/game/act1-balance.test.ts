@@ -137,7 +137,7 @@ describe('Act 1 onboarding audit', () => {
     expect(blob.toLowerCase()).toMatch(/heat/)
     expect(blob.toLowerCase()).toMatch(/rebuild/)
     expect(blob.toLowerCase()).toMatch(/focus/)
-    expect(blob.toLowerCase()).toMatch(/starvation|cycle work|half the sector/)
+    expect(blob.toLowerCase()).toMatch(/efficient range|diminishing returns/)
   })
 })
 

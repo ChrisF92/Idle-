@@ -79,7 +79,7 @@ describe('GDD Foundry factory', () => {
       'construction',
     ])
     expect(workerJobLabel('alloy-foundry')).toBe('Processing')
-    expect(workerJobLabel('sensor-net')).toBe('Sensor Net')
+    expect(workerJobLabel('sensor-net')).toBe('Research')
     expect(workerJobLabel('fab-bay')).toBe('Fabrication')
     const open = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     expect(isStationUnlocked(open, 'alloy-foundry')).toBe(true)
@@ -97,8 +97,8 @@ describe('GDD Foundry factory', () => {
     let crewed = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     crewed.resources.scrap = 80
     crewed.base.workerDrones = 4
-    crewed = assignWorker(crewed, 'alloy-foundry', 1)
     crewed = setFoundrySlot(crewed, 0, 'slag-ingot')
+    crewed = assignWorker(crewed, 'alloy-foundry', 1)
     expect(foundryCraftTime(crewed, 'slag-ingot')).toBe(idleTime)
     advanceSeconds(idle, 27)
     advanceSeconds(crewed, 27)

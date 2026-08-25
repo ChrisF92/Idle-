@@ -17,18 +17,20 @@ import {
   prestigeMomentumProductionBonus,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
+  visibleWorkerJobIds,
   workerManufactureSpeed,
 } from './catalog'
 import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
-import { networkManufactureMult, tickNetwork } from './network'
+import { tickNetwork } from './network'
 import { tickFoundry } from './foundry'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { tickYard } from './yard'
 import { tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
 import { processIndustrySpeedMult, processOfflineBonusMs } from './process'
+import { WORKER_JOB_IDS } from './workers'
 
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
@@ -118,9 +120,12 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
   tickResearch(state, seconds)
 
   const cap = droneCap(state)
-  if (state.base.workerDrones < cap) {
-    const speed =
-      workerManufactureSpeed(state) * networkManufactureMult(state) * processIndustrySpeedMult(state)
+  if (
+    state.base.workerDrones < cap &&
+    isStationUnlocked(state, 'drone-fab') &&
+    (state.base.assignments['drone-fab'] ?? 0) > 0
+  ) {
+    const speed = workerManufactureSpeed(state) * processIndustrySpeedMult(state)
     state.base.manufactureProgress +=
       (seconds * speed) / WORKER_MANUFACTURE_SECONDS
     while (
@@ -141,6 +146,10 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
   }
 
   tickCoreTraining(state, seconds)
+  const activeJobs = new Set(visibleWorkerJobIds(state))
+  for (const jobId of WORKER_JOB_IDS) {
+    if (!activeJobs.has(jobId)) delete state.base.assignments[jobId]
+  }
 }
 
 /** Hangar repair while Docked. A live Sortie is frozen, so hull does not move. */

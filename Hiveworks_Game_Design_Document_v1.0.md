@@ -1464,9 +1464,7 @@ Run identity remains locked once launched.
 
 # 59. Worker Drones
 
-Worker Drones replace the previous Network concept.
-
-They are actual industrial workers, not abstract combat multipliers.
+Worker Drones are actual industrial workers, not abstract combat multipliers.
 
 Identity:
 
@@ -1476,16 +1474,32 @@ Identity:
 
 # 60. Worker Drone Jobs
 
-Potential assignments:
+Assignments:
 
-- material processing;
-- fabrication;
-- Research;
+- active material Processing;
+- active Core/Relic Fabrication;
+- active Research;
 - Worker Drone production;
-- construction;
-- passive salvage operations.
+- passive Salvage Operations;
+- active Infrastructure projects.
 
 Worker Drones are assigned to actual work.
+
+The Worker overview header shows:
+
+- total Worker Drones;
+- assigned;
+- idle;
+- capacity.
+
+Each active job card shows only:
+
+- job name;
+- current assignment;
+- efficient range;
+- current effect or remaining time;
+- the exact result of adding one Worker;
+- minus / plus controls.
 
 ---
 
@@ -1496,6 +1510,8 @@ Individual jobs may define:
 - minimum workers;
 - efficient worker range;
 - hard cap.
+
+Workers contribute at full value through the efficient range. Additional Workers provide diminishing returns until the hard cap; scaling is never perfectly linear.
 
 Example:
 
