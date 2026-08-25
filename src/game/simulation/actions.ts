@@ -413,9 +413,12 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
     (state.prestige.prestigeCount ?? 0) >= 1 && career > 0 && cycleBest < career * 0.88
   const onTheWall = career <= 0 || wave >= Math.max(1, career - 8)
   const nearCareer = career <= 0 || wave >= career * 0.94
+  const desperate =
+    (state.combat.consecutiveLosses ?? 0) >= 2 && wave >= Math.max(40, career * 0.35)
   // Bank Ash through reclaim. Convert only on the wall, and only the Heat this Sortie can spend.
-  if (reclaiming && !nearCareer) return state
-  if (!onTheWall) return state
+  // After repeated hull losses, light earlier so a banked push is not trapped on a failed reclaim.
+  if (reclaiming && !nearCareer && !desperate) return state
+  if (!onTheWall && !desperate) return state
   if (furnaceActiveLevel(state, 'weapons') > 0) return state
   if (bankedHeat < weaponsCost) return state
 
@@ -624,6 +627,15 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   // Reclaim: do not prestige-reset a bump. Reach the previous best (or spend Furnace) first.
   if (reclaiming && ctx.secondsSinceHighestSectorGain < 40 * 60 && state.combat.consecutiveLosses < 5) {
     return { yes: false, reasons: [] }
+  }
+  const secondForProcess =
+    prestigeCount === 1 &&
+    career >= 160 &&
+    career < 250 &&
+    ctx.lastRebuildActive != null &&
+    ctx.activeSeconds - ctx.lastRebuildActive >= 4 * 3600
+  if (secondForProcess && !reclaiming) {
+    return { yes: true, reasons: ['Second Rebuild to open Process'] }
   }
   // Banked Ash is the W160 lever. Rebuild dumps it — never prestige a Weapons-ready
   // push away unless the wall has already eaten several Furnace attempts.
