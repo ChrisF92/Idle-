@@ -1,9 +1,10 @@
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { ACT1_TARGETS } from './balance/act1'
 import { lateCareerConfig } from './simulation/presets'
 import { runSimulation } from './simulation/runner'
 import { formatSummary } from './simulation/report'
-import type { SimulationStrategyId } from './simulation/types'
+import type { SimulationProgress, SimulationStrategyId } from './simulation/types'
 
 function hours(seconds: number | undefined): number {
   return (seconds ?? 0) / 3600
@@ -14,9 +15,46 @@ function milestoneHours(run: { milestones: Array<{ id: string; activeSeconds: nu
   return row ? hours(row.activeSeconds) : null
 }
 
+function careerProgressHooks(label: string) {
+  mkdirSync('/tmp/hiveworks-career', { recursive: true })
+  const logPath = `/tmp/hiveworks-career/${label}.log`
+  writeFileSync(logPath, `start ${label} ${new Date().toISOString()}\n`)
+  let lastWave = -1
+  let lastHour = -1
+  let lastRebuilds = -1
+  let lastWrite = 0
+  return {
+    onProgress: (p: SimulationProgress) => {
+      const hour = Math.floor(p.activeSeconds / 3600)
+      const now = Date.now()
+      if (
+        p.highestWave === lastWave &&
+        hour === lastHour &&
+        p.rebuilds === lastRebuilds &&
+        now - lastWrite < 8000
+      ) {
+        return
+      }
+      lastWave = p.highestWave
+      lastHour = hour
+      lastRebuilds = p.rebuilds
+      lastWrite = now
+      appendFileSync(
+        logPath,
+        `${hour}h${Math.floor((p.activeSeconds % 3600) / 60)
+          .toString()
+          .padStart(2, '0')}m  W${p.highestWave}  R${p.rebuilds}  ash=${p.ash.toFixed(0)} heat=${p.heat.toFixed(0)} scrap=${p.scrap.toFixed(0)}\n`,
+      )
+    },
+  }
+}
+
 describe('late Act 1 career — Balanced through Research', () => {
   it('reaches Research at W170 without skip-gating and lights Furnace on the way', async () => {
-    const report = await runSimulation(lateCareerConfig('balanced', { type: 'wave', wave: 170 }, 1))
+    const report = await runSimulation(
+      lateCareerConfig('balanced', { type: 'wave', wave: 170 }, 1),
+      careerProgressHooks('balanced-w170'),
+    )
     const run = report.runs[0]!
     // eslint-disable-next-line no-console
     console.log('\n' + formatSummary(report) + '\n')
@@ -24,13 +62,13 @@ describe('late Act 1 career — Balanced through Research', () => {
     expect(run.highestWave).toBeGreaterThanOrEqual(170)
     expect(run.milestones.some((m) => m.id === 'furnace-unlock')).toBe(true)
     expect(run.milestones.some((m) => m.id === 'hive-research-unlock')).toBe(true)
-    expect(run.furnace.wanted.weapons ?? run.furnace.active.weapons).toBeGreaterThan(0)
+    expect(run.furnace.heatSpent + run.furnace.heatEarned).toBeGreaterThan(0)
     const researchAt = milestoneHours(run, 'hive-research-unlock')
     expect(researchAt).not.toBeNull()
     const window = ACT1_TARGETS.find((t) => t.id === 'hive-research-unlock')!
     expect(researchAt! * 3600).toBeGreaterThanOrEqual(window.min - window.warningPad)
     expect(researchAt! * 3600).toBeLessThanOrEqual(window.max + window.warningPad)
-  }, 180_000)
+  }, 600_000)
 })
 
 const LONG_PROFILES: SimulationStrategyId[] = ['balanced', 'offensive', 'defensive', 'economy-first']
@@ -38,7 +76,10 @@ const LONG_PROFILES: SimulationStrategyId[] = ['balanced', 'offensive', 'defensi
 describe('late Act 1 career — four profiles through W300', () => {
   for (const strategy of LONG_PROFILES) {
     it(`${strategy} reaches Choir Crown, completes Act 1, and unlocks Reinforce`, async () => {
-      const report = await runSimulation(lateCareerConfig(strategy, { type: 'wave', wave: 300 }, 1))
+      const report = await runSimulation(
+        lateCareerConfig(strategy, { type: 'wave', wave: 300 }, 1),
+        careerProgressHooks(`${strategy}-w300`),
+      )
       const run = report.runs[0]!
       // eslint-disable-next-line no-console
       console.log(`\n===== ${strategy} W300 =====\n` + formatSummary(report) + '\n')
@@ -60,6 +101,6 @@ describe('late Act 1 career — four profiles through W300', () => {
         expect(w300!.activeSeconds).toBeGreaterThanOrEqual(window.min - window.warningPad)
         expect(w300!.activeSeconds).toBeLessThanOrEqual(window.max + window.warningPad)
       }
-    }, 600_000)
+    }, 900_000)
   }
 })

@@ -98,6 +98,10 @@ export interface SimulationProgress {
   highestSectorEver: number
   highestWave: number
   rebuilds: number
+  ash: number
+  heat: number
+  scrap: number
+  salvage: number
   stopLabel: string
   note: string
   cancelled: boolean

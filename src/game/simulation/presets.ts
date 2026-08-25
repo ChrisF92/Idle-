@@ -189,7 +189,10 @@ export function lateCareerConfig(
   strategy: SimulationStrategyId,
   stop: SimulationStop = { type: 'wave', wave: 300 },
   seed = 1,
+  extra: Partial<SimulationConfig> = {},
 ): SimulationConfig {
+  const waveCap =
+    stop.type === 'wave' && stop.wave <= 170 ? 45 * 3600 : 140 * 3600
   return defaultSimulationConfig({
     start: { type: 'fresh' },
     strategy,
@@ -198,7 +201,8 @@ export function lateCareerConfig(
     logging: 'milestones',
     deadlockSeconds: 90 * 60,
     maxIterations: 4_000_000,
-    maxCalendarSeconds: 14 * 24 * 3600,
+    maxCalendarSeconds: waveCap,
+    ...extra,
   })
 }
 
