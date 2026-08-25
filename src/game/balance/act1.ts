@@ -55,8 +55,8 @@ export const ACT1_UNLOCKS = {
  * Engaged-player windows. First hour is dense; later beats lengthen.
  * Walls should point at another system, not an 8-hour wait on the same shop.
  *
- * CI gates Casual / Balanced first-Rebuild only. Process / W300 SKIP until
- * a long run actually reaches them.
+ * CI gates Casual / Balanced first-Rebuild, Furnace lighting, and Research unlock.
+ * Process / W300 SKIP until a long run actually reaches them.
  */
 export const ACT1_TARGETS: BalanceTarget[] = [
   {

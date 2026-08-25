@@ -4,9 +4,9 @@ import { defaultSimulationConfig } from './simulation/presets'
 import { runSimulation } from './simulation/runner'
 
 describe('career simulator isolation', () => {
-  it('does not mutate the browser save during a short fresh simulation', () => {
+  it('does not mutate the browser save during a short fresh simulation', async () => {
     const before = localStorage.getItem(SAVE_KEY)
-    const report = runSimulation(
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'active',

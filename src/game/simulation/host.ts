@@ -22,9 +22,9 @@ function runOnMainThread(
     shouldCancel: () => cancelled,
     onProgress,
   }
-  const kick = () => {
+  const kick = async () => {
     try {
-      const report = runSimulation(config, hooks)
+      const report = await runSimulation(config, hooks)
       if (!cancelled) onDone(report)
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err))

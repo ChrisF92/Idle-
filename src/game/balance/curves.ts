@@ -11,6 +11,7 @@
  * - Scrap income
  * - Workshop starting power
  * - Matter
+ * - Reclaim compression
  */
 
 export {
@@ -46,6 +47,8 @@ export {
   WORKSHOP_HULL_PER_LEVEL,
   WORKSHOP_SHIELD_PER_LEVEL,
   WORKSHOP_SALVAGE_KILL_PER_LEVEL,
+  RECLAIM_PER_TEN_WAVES,
+  RECLAIM_SPEED_CAP,
 } from '../workshop'
 
 export { REBUILD_SCRAP_PER_MATTER, REBUILD_MIN_WAVE, REBUILD_MIN_SORTIES } from '../rebuild'
@@ -57,6 +60,7 @@ export const CURVE_LAYERS = [
   'scrap',
   'workshop-start',
   'matter',
+  'reclaim',
 ] as const
 
 export type CurveLayer = (typeof CURVE_LAYERS)[number]

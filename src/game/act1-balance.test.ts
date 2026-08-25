@@ -39,6 +39,8 @@ import {
   RUN_UPGRADE_OPENING_RANKS,
   RUN_UPGRADE_POWER_SCALE,
   RUN_UPGRADE_POWER_SCALE_OPENING,
+  RECLAIM_PER_TEN_WAVES,
+  RECLAIM_SPEED_CAP,
   WORKSHOP_WEAPON_POWER_PER_LEVEL,
   runUpgradeRunFactor,
 } from './workshop'
@@ -115,6 +117,8 @@ describe('Act 1 authored formulas', () => {
     const flat = Math.pow(1 + WORKSHOP_WEAPON_POWER_PER_LEVEL * RUN_UPGRADE_POWER_SCALE, RUN_UPGRADE_OPENING_RANKS)
     expect(opening).toBeGreaterThan(flat)
     expect(RUN_UPGRADE_POWER_SCALE_OPENING).toBeGreaterThan(RUN_UPGRADE_POWER_SCALE)
+    expect(RECLAIM_PER_TEN_WAVES).toBeLessThan(0.5)
+    expect(RECLAIM_SPEED_CAP).toBeLessThan(4)
   })
 
   it('seats owned Relics into Core sockets at Dock so they actually multiply damage', () => {
@@ -193,8 +197,8 @@ describe('Act 1 onboarding audit', () => {
 })
 
 describe('Act 1 career simulations', () => {
-  it('active player reaches a first Rebuild inside the authored window', () => {
-    const report = runSimulation(firstRebuildConfig('active'))
+  it('active player reaches a first Rebuild inside the authored window', async () => {
+    const report = await runSimulation(firstRebuildConfig('active'))
     const run = report.runs[0]!
     // eslint-disable-next-line no-console
     console.log('\n' + formatSummary(report) + '\n')
@@ -231,8 +235,8 @@ describe('Act 1 career simulations', () => {
     console.log('early Best Δ', earlyDelta.slice(0, 12).join(', ') || '(none)')
   }, 120_000)
 
-  it('offensive first Rebuild still sits inside the 2–4h pad', () => {
-    const report = runSimulation(firstRebuildConfig('offensive'))
+  it('offensive first Rebuild still sits inside the 2–4h pad', async () => {
+    const report = await runSimulation(firstRebuildConfig('offensive'))
     const run = report.runs[0]!
     // eslint-disable-next-line no-console
     console.log('\n' + formatSummary(report) + '\n')
@@ -243,17 +247,17 @@ describe('Act 1 career simulations', () => {
     expect(first!.activeSeconds).toBeLessThanOrEqual(window.max + window.warningPad)
   }, 120_000)
 
-  it('balanced player lights Furnace Weapons after the door', () => {
-    const report = runSimulation(
+  it('balanced player lights Furnace Weapons then unlocks Research', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'balanced',
-        stop: { type: 'furnace-lit' },
+        stop: { type: 'unlock', system: 'research' },
         seed: 1,
         logging: 'milestones',
-        deadlockSeconds: 60 * 60,
+        deadlockSeconds: 90 * 60,
         maxIterations: 1_200_000,
-        maxCalendarSeconds: 24 * 3600,
+        maxCalendarSeconds: 30 * 3600,
       }),
     )
     const run = report.runs[0]!
@@ -261,6 +265,7 @@ describe('Act 1 career simulations', () => {
     console.log('\n' + formatSummary(report) + '\n')
     expect(run.milestones.some((m) => m.id === 'furnace-unlock')).toBe(true)
     expect(run.milestones.some((m) => m.id === 'reliquary-unlock')).toBe(true)
+    expect(run.milestones.some((m) => m.id === 'hive-research-unlock')).toBe(true)
     expect(run.rebuilds).toBeGreaterThanOrEqual(1)
     expect(run.rebuilds).toBeLessThan(12)
     expect(run.furnace.heatSpent).toBeGreaterThan(0)
@@ -270,16 +275,17 @@ describe('Act 1 career simulations', () => {
     expect(end.droneCap).toBeGreaterThan(4)
     const levels = Object.values(run.foundry.recipeLevels ?? {})
     const maxed = levels.filter((n) => (n ?? 0) >= 100).length
-    expect(maxed).toBeLessThan(2)
+    expect(maxed).toBe(0)
     expect(
       run.meaningfulActions.some((a) => /Furnace weapons/i.test(a.label)),
     ).toBe(true)
+    expect(run.research.focus).toBeTruthy()
   }, 180_000)
 
   it.skipIf(!process.env.RUN_WAVE_300)(
     'balanced career reaches Wave 300 inside the 70–100h pad',
-    () => {
-      const report = runSimulation(
+    async () => {
+      const report = await runSimulation(
         defaultSimulationConfig({
           start: { type: 'fresh' },
           strategy: 'balanced',
@@ -303,8 +309,8 @@ describe('Act 1 career simulations', () => {
     600_000,
   )
 
-  it.skip('optimiser first Rebuild is not a spam-reset and still spends Cores', () => {
-    const report = runSimulation(firstRebuildConfig('optimiser'))
+  it.skip('optimiser first Rebuild is not a spam-reset and still spends Cores', async () => {
+    const report = await runSimulation(firstRebuildConfig('optimiser'))
     const run = report.runs[0]!
     expect(run.rebuilds).toBeGreaterThanOrEqual(1)
     expect(run.coreSpending.some((c) => c.levelsPurchased > 0)).toBe(true)
@@ -324,8 +330,8 @@ describe('Act 1 career simulations', () => {
     expect(contrib.researchDamage).toBe(0)
   }, 120_000)
 
-  it('casual offline catch-up does not explode sector from a closed app', () => {
-    const report = runSimulation(
+  it('casual offline catch-up does not explode sector from a closed app', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'casual',
@@ -365,7 +371,7 @@ describe('Act 1 career simulations', () => {
 
   it.skipIf(!process.env.RUN_PROFILE_SWEEP)(
     'logs Casual / Balanced / Economy / Offensive / Defensive / Optimiser first Rebuilds',
-    () => {
+    async () => {
       const profiles = ['casual', 'balanced', 'economy-first', 'offensive', 'defensive', 'optimiser'] as const
       for (const strategy of profiles) {
         const cfg = firstRebuildConfig(strategy)
@@ -373,7 +379,7 @@ describe('Act 1 career simulations', () => {
           cfg.maxCalendarSeconds = 3 * 24 * 3600
           cfg.deadlockSeconds = 45 * 60
         }
-        const report = runSimulation(cfg)
+        const report = await runSimulation(cfg)
         // eslint-disable-next-line no-console
         console.log('\n' + formatSummary(report) + '\n')
         expect(report.runs[0]?.safety.some((s) => s.kind === 'nan')).toBe(false)

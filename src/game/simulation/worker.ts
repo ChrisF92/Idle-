@@ -10,7 +10,10 @@ function post(msg: WorkerMessage): void {
 }
 
 self.onmessage = (ev: MessageEvent<HostMessage>) => {
-  const msg = ev.data
+  void handleHostMessage(ev.data)
+}
+
+async function handleHostMessage(msg: HostMessage): Promise<void> {
   if (msg.type === 'cancel') {
     cancelled = true
     return
@@ -19,7 +22,7 @@ self.onmessage = (ev: MessageEvent<HostMessage>) => {
   cancelled = false
   const config: SimulationConfig = msg.config
   try {
-    const report = runSimulation(config, {
+    const report = await runSimulation(config, {
       shouldCancel: () => cancelled,
       onProgress: (progress) => post({ type: 'progress', progress }),
     })

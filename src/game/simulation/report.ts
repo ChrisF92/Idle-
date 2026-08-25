@@ -122,7 +122,12 @@ export function formatSummary(report: SimulationReport): string {
   }
   if (run.rebuildLog.length > 0) {
     lines.push('----------------------------------------', 'REBUILDS', '----------------------------------------', '')
-    for (const rec of run.rebuildLog) {
+    const recs = run.rebuildLog
+    const shown = recs.length <= 3 ? recs : [recs[0]!, recs[1]!, recs[recs.length - 1]!]
+    if (recs.length > shown.length) {
+      lines.push(`Showing first two and last of ${recs.length} Rebuilds`, '')
+    }
+    for (const rec of shown) {
       lines.push(
         `Rebuild #${rec.index}`,
         `Run duration: ${formatSimDuration(rec.previousPushSeconds)}`,

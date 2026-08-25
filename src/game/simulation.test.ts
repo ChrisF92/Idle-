@@ -27,13 +27,13 @@ describe('career simulator', () => {
     localStorage.removeItem('hiveworks-sim-history')
   })
 
-  it('isolates supplied state and never writes the live save key', () => {
+  it('isolates supplied state and never writes the live save key', async () => {
     localStorage.setItem(SAVE_KEY, '{"guard":true}')
     const live = createInitialState(0)
     live.resources.salvage = 77
     live.combat.sector = 3
     const beforeSave = localStorage.getItem(SAVE_KEY)
-    const report = runSimulation(idleConfig(4, live))
+    const report = await runSimulation(idleConfig(4, live))
     expect(live.resources.salvage).toBe(77)
     expect(live.combat.sector).toBe(3)
     expect(live.combat.docked).toBe(true)
@@ -41,26 +41,26 @@ describe('career simulator', () => {
     expect(report.runs[0]?.activeSeconds).toBeGreaterThan(0)
   })
 
-  it('can begin from createInitialState', () => {
-    const report = runSimulation(idleConfig(3))
+  it('can begin from createInitialState', async () => {
+    const report = await runSimulation(idleConfig(3))
     expect(report.runs[0]?.config.startType).toBe('Fresh')
     expect(report.runs[0]?.highestSector).toBeGreaterThanOrEqual(0)
   })
 
-  it('is deterministic for the same config and seed', () => {
-    const a = runSimulation(idleConfig(8))
-    const b = runSimulation(idleConfig(8))
+  it('is deterministic for the same config and seed', async () => {
+    const a = await runSimulation(idleConfig(8))
+    const b = await runSimulation(idleConfig(8))
     expect(a.runs[0]?.activeSeconds).toBe(b.runs[0]?.activeSeconds)
     expect(a.runs[0]?.highestSector).toBe(b.runs[0]?.highestSector)
     expect(a.runs[0]?.economy.map((e) => e.ending)).toEqual(b.runs[0]?.economy.map((e) => e.ending))
   })
 
-  it('Accurate idle path matches advanceSeconds for a short launched fight', () => {
+  it('Accurate idle path matches advanceSeconds for a short launched fight', async () => {
     let real = createInitialState(0)
     real = setDocked(real, false)
     const simStart = isolateGameState(real)
     advanceSeconds(real, 20)
-    const report = runSimulation(idleConfig(20, simStart))
+    const report = await runSimulation(idleConfig(20, simStart))
     const sim = report.runs[0]!
     expect(sim.stopReason).toMatch(/Active duration/i)
     expect(real.combat.sector).toBeGreaterThanOrEqual(1)
@@ -72,7 +72,7 @@ describe('career simulator', () => {
     expect(real.combat.wave).toBeGreaterThanOrEqual(1)
   })
 
-  it('Casual offline periods use applyOfflineCatchUp rather than long advanceSeconds', () => {
+  it('Casual offline periods use applyOfflineCatchUp rather than long advanceSeconds', async () => {
     let seed = createInitialState(0)
     seed = assignWorker(seed, 'scrap-field', 2)
     seed = assignWorker(seed, 'power-grid', 2)
@@ -80,7 +80,7 @@ describe('career simulator', () => {
     const control = isolateGameState(seed)
     control.lastTickAt = 0
     const offline = applyOfflineCatchUp(control, 60 * 60 * 1000)
-    const report = runSimulation(
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'state', state: seed },
         strategy: 'casual',
@@ -107,10 +107,10 @@ describe('career simulator', () => {
     expect(flags.some((f) => f.kind === 'nan')).toBe(true)
   })
 
-  it('cancellation stops without writing the live save', () => {
+  it('cancellation stops without writing the live save', async () => {
     localStorage.setItem(SAVE_KEY, '{"guard":true}')
     let calls = 0
-    const report = runSimulation(idleConfig(500), {
+    const report = await runSimulation(idleConfig(500), {
       shouldCancel: () => {
         calls += 1
         return calls > 3

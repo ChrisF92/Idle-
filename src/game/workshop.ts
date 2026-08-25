@@ -432,14 +432,22 @@ export function resetRunCoreLevels(state: GameState): void {
 }
 
 /**
+ * GDD §72 sketched +50% combat speed per 10 Waves behind, capped at 4×.
+ * Live Act 1 windows need gentler compression: 4× made early Sorties ~3m and
+ * post-Rebuild reclaim ~15% of the previous push (target 20–40%).
+ */
+export const RECLAIM_PER_TEN_WAVES = 0.25
+export const RECLAIM_SPEED_CAP = 2.5
+
+/**
  * GDD §72 — replaying solved Waves is time compression, not extra power.
- * +50% combat speed per 10 Waves behind career best, capped at 4×.
+ * Combat speed grows per 10 Waves behind career best, then caps.
  */
 export function reclaimSpeed(state: GameState): number {
   const best = Math.max(0, state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const wave = Math.max(1, state.combat.wave ?? 1)
   if (best <= wave) return 1
   const matter = 1 + matterShopReclaimBonus(state.prestige?.matterShop ?? {})
-  return Math.min(4, (1 + 0.5 * Math.floor((best - wave) / 10)) * matter)
+  return Math.min(RECLAIM_SPEED_CAP, (1 + RECLAIM_PER_TEN_WAVES * Math.floor((best - wave) / 10)) * matter)
 }
 

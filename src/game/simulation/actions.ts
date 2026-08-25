@@ -51,6 +51,7 @@ import {
   FOUNDRY_FACILITIES,
   canStartFabrication,
   foundryFacilityCommitted,
+  foundryRecipeLevel,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
   startFabrication,
@@ -361,9 +362,19 @@ function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
       if (slagOn) return 'slag-ingot'
     }
   }
-  if (slagOn) return 'slag-ingot'
-  if (filOn) return 'filament'
-  return 'temper-bar'
+  const processing: FoundryRecipeId[] = ['slag-ingot', 'filament', 'temper-bar', 'hardened-plate', 'relay']
+  const unlocked = processing.filter((id) => isFoundryRecipeUnlocked(state, id))
+  if (!unlocked.length) {
+    if (slagOn) return 'slag-ingot'
+    if (filOn) return 'filament'
+    return temperOn ? 'temper-bar' : null
+  }
+  const belowSoft = unlocked.filter((id) => foundryRecipeLevel(state, id) < 45)
+  const belowHard = unlocked.filter((id) => foundryRecipeLevel(state, id) < 90)
+  const pool = belowSoft.length ? belowSoft : belowHard
+  if (!pool.length) return null
+  pool.sort((a, b) => foundryRecipeLevel(state, a) - foundryRecipeLevel(state, b))
+  return pool[0]!
 }
 
 export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {

@@ -13,6 +13,7 @@ import { isolateGameState, startingState } from './clone'
 import { mulberry32 } from './format'
 import {
   addMilestone,
+  captureObservePrev,
   coreSpending,
   createMetrics,
   economyBuckets,
@@ -49,15 +50,22 @@ export interface SimulationHooks {
   shouldCancel?: () => boolean
 }
 
-const CHUNK = 1
+const FIGHT_CHUNK = 1
+const DOCK_CHUNK = 4
+const YIELD_EVERY = 200
+
+function yieldToHost(): Promise<void> {
+  return new Promise((resolve) => {
+    const immediate = (globalThis as typeof globalThis & { setImmediate?: (cb: () => void) => void })
+      .setImmediate
+    if (typeof immediate === 'function') immediate(resolve)
+    else setTimeout(resolve, 0)
+  })
+}
 
 function trimCombatNoise(state: GameState): void {
   if (state.combat.log.length > 12) state.combat.log = state.combat.log.slice(0, 8)
   if (state.combat.fx.length > 0) state.combat.fx = []
-}
-
-function snapshotClone(state: GameState): GameState {
-  return isolateGameState(state)
 }
 
 function stopReached(
@@ -134,25 +142,25 @@ function makeProgress(
   }
 }
 
-export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runIndex = 0): SimulationRunReport {
+export async function runOne(config: SimulationConfig, hooks?: SimulationHooks, runIndex = 0): Promise<SimulationRunReport> {
   const seed = config.seed + runIndex * 9973
   const rng = mulberry32(seed)
   const restoreRandom = Math.random
   Math.random = rng
   try {
-    return runOneSeeded(config, hooks, runIndex, seed, rng)
+    return await runOneSeeded(config, hooks, runIndex, seed, rng)
   } finally {
     Math.random = restoreRandom
   }
 }
 
-function runOneSeeded(
+async function runOneSeeded(
   config: SimulationConfig,
   hooks: SimulationHooks | undefined,
   runIndex: number,
   seed: number,
   rng: () => number,
-): SimulationRunReport {
+): Promise<SimulationRunReport> {
   const now0 = seed * 1000
   let state = skipGuides(startingState(config.start, now0))
   state.lastTickAt = now0
@@ -334,11 +342,10 @@ function runOneSeeded(
       break
     }
 
-    const chunk = Math.min(
-      CHUNK,
-      config.strategy === 'casual' ? Math.max(0.05, sessionLeft) : CHUNK,
-    )
-    const prev = snapshotClone(state)
+    const base = state.combat.docked ? DOCK_CHUNK : FIGHT_CHUNK
+    const chunk =
+      config.strategy === 'casual' ? Math.min(base, Math.max(0.05, sessionLeft)) : base
+    const prev = captureObservePrev(state)
     advanceSeconds(state, chunk)
     activeSeconds += chunk
     calendarSeconds += chunk
@@ -386,6 +393,8 @@ function runOneSeeded(
         makeProgress(config, state, activeSeconds, calendarSeconds, offlineSeconds, runIndex, stopReason, false),
       )
     }
+
+    if (iterations % YIELD_EVERY === 0) await yieldToHost()
   }
 
   if (iterations >= config.maxIterations && stopReason === 'Running') {
@@ -531,12 +540,12 @@ function runOneSeeded(
   return run
 }
 
-export function runSimulation(config: SimulationConfig, hooks?: SimulationHooks): SimulationReport {
+export async function runSimulation(config: SimulationConfig, hooks?: SimulationHooks): Promise<SimulationReport> {
   const runs: SimulationRunReport[] = []
   const n = Math.max(1, Math.min(100, Math.floor(config.runs)))
   for (let i = 0; i < n; i++) {
     if (hooks?.shouldCancel?.()) break
-    runs.push(runOne(config, hooks, i))
+    runs.push(await runOne(config, hooks, i))
   }
   const report: SimulationReport = { runs, aggregate: [] }
   report.aggregate = aggregateMilestones(report)
@@ -552,12 +561,12 @@ export interface SimulationSession {
 
 /**
  * Steppable session for main-thread yielding. Each step runs one Accurate chunk.
- * Tests should prefer runSimulation() which is synchronous.
+ * Tests should prefer runSimulation(), which yields to the host every few ticks.
  */
 export function createSimulationSession(
   config: SimulationConfig,
   hooks?: SimulationHooks,
-): { run: () => SimulationReport } {
+): { run: () => Promise<SimulationReport> } {
   return {
     run: () => runSimulation(config, hooks),
   }

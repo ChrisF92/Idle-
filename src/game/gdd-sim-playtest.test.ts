@@ -19,9 +19,17 @@ import { WORKER_JOB_IDS } from './workers'
 const LEFTOVER = /\bSector\b|\bFlagship\b|\bEcho\b|\bFrontier\b|\bSlag Bank\b|\bStrike\b|\bWard\b/
 
 describe('GDD Phase 9 simulator + playtest', () => {
-  it('names the four curve layers without retuning live combat numbers', () => {
+  it('names the curve layers without retuning live combat numbers', () => {
     expect(CURVE_LAYERS).toEqual(
-      expect.arrayContaining(['enemy-hull', 'enemy-damage', 'salvage', 'scrap', 'workshop-start', 'matter']),
+      expect.arrayContaining([
+        'enemy-hull',
+        'enemy-damage',
+        'salvage',
+        'scrap',
+        'workshop-start',
+        'matter',
+        'reclaim',
+      ]),
     )
     expect(ENEMY_HULL_EARLY).toBeGreaterThan(1)
     expect(WORKSHOP_WEAPON_POWER_PER_LEVEL).toBe(0.08)
@@ -117,8 +125,8 @@ describe('GDD Phase 9 simulator + playtest', () => {
     expect(codes).toEqual(expect.arrayContaining(['HARD WALL', 'STEAMROLL', 'SYSTEM IRRELEVANT', 'REBUILD EXPLOSIVE']))
   })
 
-  it('balanced sim spends Salvage on run upgrades during the opening Sortie', () => {
-    const report = runSimulation(
+  it('balanced sim spends Salvage on run upgrades during the opening Sortie', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'balanced',
@@ -135,8 +143,8 @@ describe('GDD Phase 9 simulator + playtest', () => {
     expect(run.milestones.some((m) => m.id === 'first-defeat' || m.id === 'wave-1')).toBe(true)
   }, 40_000)
 
-  it('writes Wave-native sim summaries without leftover loop language', () => {
-    const report = runSimulation(
+  it('writes Wave-native sim summaries without leftover loop language', async () => {
+    const report = await runSimulation(
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'idle',
