@@ -36,6 +36,22 @@ describe('GDD offline Sortie freeze', () => {
     expect(next.combat.wave).toBe(s.combat.wave)
   })
 
+  it('advances timed Fabrication while offline', () => {
+    const s = atCareerWave(createInitialState(0), 80)
+    s.combat.docked = true
+    s.foundry.fabrication[0] = {
+      kind: 'core',
+      jobId: 'flak-array',
+      progress: 0,
+      paid: true,
+      complete: false,
+    }
+    s.lastTickAt = 0
+    const { state: next } = applyOfflineCatchUp(s, 6 * 60 * 1000)
+    expect(next.foundry.fabrication[0]?.progress).toBeGreaterThan(0)
+    expect(next.shipyard.unlockedModules).not.toContain('flak-array')
+  })
+
   it('freezes a live Sortie and resumes the same fight', () => {
     let s = setDocked(createInitialState(0), false)
     s = startCombat(s)

@@ -1307,7 +1307,11 @@ Foundry persists:
 
 # 50. Foundry Structure
 
-Foundry contains two related loops:
+Foundry navigation is:
+
+> **PROCESSING | FABRICATION | MASTERY | BLUEPRINTS**
+
+These views expose two related production loops and their long-term progression:
 
 ## Processing
 
@@ -1316,6 +1320,20 @@ Continuous material conversion.
 ## Fabrication
 
 Discrete timed item construction.
+
+## Mastery
+
+Long-lived material progression earned through Processing.
+
+## Blueprints
+
+Fragment discovery that unlocks Fabrication projects. Completing a Blueprint never creates the item directly.
+
+Blueprint states are:
+
+> **UNKNOWN → DISCOVERED → COMPLETE → FABRICATED**
+
+At COMPLETE, the Blueprint exposes **VIEW PROJECT** and the resulting Core, Relic, Hive or Industry item must still consume a Fabricator, materials and time.
 
 ---
 
@@ -1531,13 +1549,15 @@ This prevents late-game micromanagement.
 
 ---
 
-# 65. Foundry Construction / Yard
+# 65. Foundry Infrastructure
 
-“Yard” should not remain a separate top-level progression system.
+“Yard” does not remain a separate top-level progression system.
 
-Construction becomes an advanced Foundry/industry layer.
+Infrastructure is fabricated under:
 
-Possible construction includes:
+> **FABRICATION → INFRASTRUCTURE**
+
+Infrastructure projects include:
 
 - processing equipment;
 - fabrication machinery;

@@ -114,7 +114,7 @@ export const NETWORK_BARS: NetworkBarDef[] = [
     layer: 'primary',
     fillBase: NETWORK_FILL_COST,
     detail: [
-      'Loom is the shop floor. Cycles speed how fast new drones print and how fast smelters run.',
+      'Loom is the shop floor. Cycles speed how fast new drones fabricate and how fast Processors run.',
       'It also slightly speeds Strike, Ward, and Yield.',
       'Opens after Wave 90. Loom Relay later improves manufacture machinery.',
     ],

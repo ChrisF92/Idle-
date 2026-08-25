@@ -832,7 +832,7 @@ export function canAssembleBlueprint(
   state: GameState,
   moduleId: string,
 ): { ok: boolean; reason?: string } {
-  if (!isFarmableModule(moduleId)) return { ok: false, reason: 'Not a Core print' }
+  if (!isFarmableModule(moduleId)) return { ok: false, reason: 'No Core Blueprint' }
   if (!isSystemUnlocked(state, 'foundry')) return { ok: false, reason: 'Foundry closed' }
   if (state.shipyard.unlockedModules.includes(moduleId) && moduleCopyCount(state, moduleId) >= 8) {
     return { ok: false, reason: 'Copy limit' }
@@ -883,43 +883,12 @@ export function setTrackedPrint(state: GameState, moduleId: string | null): Game
 }
 
 export function startFabProject(state: GameState, moduleId: string): GameState {
-  if (!isFarmableModule(moduleId)) return state
-  if (!getBlueprint(moduleId)) return state
-  if (!state.meta.discoveredModules.includes(moduleId)) return state
-  if (state.shipyard.unlockedModules.includes(moduleId)) return state
-  if (!isStationUnlocked(state, 'fab-bay')) return state
-  if (state.base.fabProject?.moduleId === moduleId) return state
-
-  const next = structuredClone(state)
-  // Cancel prior project — return contributed parts to inventory.
-  if (next.base.fabProject) {
-    refundFabContributed(next)
-  }
-  next.base.fabProject = {
-    moduleId,
-    contributed: {},
-    progress: 0,
-  }
-  recordPlaytest(next, 'print_changed', { n: getModule(moduleId)?.name ?? moduleId })
-  noteSystemAction(next, 'foundry')
-  return next
+  return assembleBlueprint(state, moduleId)
 }
 
-/** Start a fab project and auto-deposit all available inventory parts. */
+/** @deprecated Uses the same timed Fabricator path as Blueprint projects. */
 export function launchFabProject(state: GameState, moduleId: string): GameState {
-  let next = startFabProject(state, moduleId)
-  if (!next.base.fabProject || next.base.fabProject.moduleId !== moduleId) {
-    // Already on this project — still top up deposits.
-    if (state.base.fabProject?.moduleId === moduleId) {
-      next = state
-    } else {
-      return next
-    }
-  }
-  for (const pt of PART_TYPES) {
-    next = depositFabPart(next, pt, 9999)
-  }
-  return next
+  return assembleBlueprint(state, moduleId)
 }
 
 export function clearFabProject(state: GameState): GameState {

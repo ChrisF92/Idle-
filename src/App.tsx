@@ -112,7 +112,7 @@ function AppShell() {
     (next: TabId) => {
       if (isRemovedAct1Tab(next)) return
       if (next === 'yard') {
-        setFoundryPane('build')
+        setFoundryPane('fabrication')
         setSystemsView('foundry')
         if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
         return
@@ -156,12 +156,12 @@ function AppShell() {
         if (nav.tab === 'dock') setDockPane('home')
         setTab(nav.tab)
         if (nav.focus) setFocusTarget(nav.focus)
-        if (nav.tab === 'foundry' && nav.focus?.startsWith('print-')) setFoundryPane('prints')
-        if (nav.tab === 'foundry' && (nav.focus === 'foundry-fit' || nav.focus?.startsWith('fit-'))) {
-          setFoundryPane('prints')
+        if (nav.tab === 'foundry' && (nav.focus?.startsWith('blueprint-') || nav.focus?.startsWith('print-'))) {
+          setFoundryPane('blueprints')
         }
+        if (nav.tab === 'foundry' && nav.focus?.startsWith('project-')) setFoundryPane('fabrication')
         if (nav.tab === 'foundry' && (nav.focus === 'foundry-build' || nav.focus === 'yard-grid')) {
-          setFoundryPane('build')
+          setFoundryPane('fabrication')
         }
       }
     },
@@ -399,14 +399,6 @@ function AppShell() {
             paused={pauseSim}
             guide={guide}
             onCycleSpeed={game.cycleSortieSpeed}
-            onOpenFoundry={() => {
-              setFoundryPane('smelt')
-              go('foundry')
-            }}
-            onOpenPrints={() => {
-              setFoundryPane('prints')
-              go('foundry')
-            }}
             onChooseDirective={game.chooseDirective}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
@@ -443,20 +435,11 @@ function AppShell() {
           <FoundryTab
             state={game.state}
             onSetSlot={game.setFoundrySlot}
-            onBuyUpgrade={game.buyFoundryUpgrade}
-            onEquip={game.equipFoundryModule}
-            onUnequip={game.unequipFoundryModule}
-            onAssemble={game.assembleBlueprint}
+            onFabricateCore={game.assembleBlueprint}
+            onStartRelic={game.upgradeRelic}
             onStartFacility={game.startFacility}
             onStopFabrication={game.stopFabrication}
             onTrack={game.setTrackedPrint}
-            onBuyMax={game.buyMaxFoundryUpgrades}
-            onPlaceBuilding={game.placeYardBuilding}
-            onClearBuilding={game.clearYardBuilding}
-            onBuyArm={game.buyYardArm}
-            onBuyMaxArms={game.buyMaxYardArms}
-            onSaveLayout={game.saveYardLayout}
-            onLoadLayout={game.loadYardLayout}
             guideTarget={guide?.target}
             focusTarget={focusTarget}
             requestedPane={foundryPane}
@@ -622,9 +605,9 @@ function AppShell() {
         onSelectFrame={game.selectFrame}
         onFitCore={game.fitModule}
         onUpgradeCore={game.buyCoreStartingLevel}
-        onOpenFoundry={() => {
+        onOpenFoundry={(pane) => {
           setInventoryOpen(false)
-          setFoundryPane('smelt')
+          setFoundryPane(pane)
           go('foundry')
         }}
       />

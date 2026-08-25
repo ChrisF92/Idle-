@@ -35,13 +35,13 @@ import {
 } from './catalog'
 import { workerJobCap } from './workers'
 
-export type FoundryPaneId = 'smelt' | 'build' | 'prints'
+export type FoundryPaneId = 'processing' | 'fabrication' | 'mastery' | 'blueprints'
 
-/** Player-facing pane names. Ids stay smelt/prints for nav and guides. */
 export const FOUNDRY_PANE_LABELS: Record<FoundryPaneId, string> = {
-  smelt: 'Processing',
-  build: 'Build',
-  prints: 'Fabrication',
+  processing: 'Processing',
+  fabrication: 'Fabrication',
+  mastery: 'Mastery',
+  blueprints: 'Blueprints',
 }
 
 export interface FoundryCost {
@@ -225,7 +225,7 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   {
     id: 'void-slag',
     name: 'Void Slag',
-    blurb: 'Re-smelted plate.',
+    blurb: 'Plate reprocessed under vacuum.',
     maxLevel: 100,
     craftTime: 480,
     costs: { materials: { 'hardened-plate': 3 } },
@@ -590,6 +590,15 @@ function canPayCost(state: GameState, cost: FoundryCost): boolean {
   return true
 }
 
+export function foundryMissingCost(state: GameState, cost: FoundryCost): string | null {
+  if ((cost.salvage ?? 0) > state.resources.salvage) return 'Salvage'
+  if ((cost.scrap ?? 0) > state.resources.scrap) return 'Scrap'
+  for (const [id, n] of Object.entries(cost.materials ?? {})) {
+    if ((n ?? 0) > foundryMaterialCount(state, id)) return getFoundryRecipe(id)?.name ?? id
+  }
+  return null
+}
+
 function payCost(state: GameState, cost: FoundryCost): void {
   state.resources.salvage -= cost.salvage ?? 0
   state.resources.scrap -= cost.scrap ?? 0
@@ -609,7 +618,7 @@ function grantCraft(state: GameState, id: FoundryRecipeId): void {
     grantUnlockedFrame(
       state,
       def.unlocksFrame,
-      frame ? `Foundry printed the ${frame.name}.` : `Foundry printed a new Frame.`,
+      frame ? `Foundry fabricated the ${frame.name}.` : `Foundry fabricated a new Frame.`,
     )
   }
   const level = foundryRecipeLevel(state, id)
@@ -686,7 +695,7 @@ function tickFabrication(state: GameState, dtSeconds: number): void {
   }
 }
 
-function fabricationJobTime(state: GameState, kind: FabJobKind, jobId: string): number {
+export function fabricationJobTime(state: GameState, kind: FabJobKind, jobId: string): number {
   if (kind === 'facility') return getFacility(jobId)?.craftTime ?? 900
   if (kind === 'relic') return jobId.endsWith('-iii') || relicTierHint(jobId) >= 3 ? 25 * 60 : 10 * 60
   const wave = Math.max(1, careerBestWave(state))
@@ -719,7 +728,7 @@ function completeFabrication(state: GameState, slot: FabricationSlot): void {
     const name = getModule(slot.jobId)?.name ?? slot.jobId
     pushFoundryLog(
       state,
-      state.combat.docked ? `Core printed: ${name}. Fit it at Dock.` : `${name.toUpperCase()} COMPLETE. Available next Sortie.`,
+      state.combat.docked ? `Core fabricated: ${name}. Equip it at Dock.` : `${name.toUpperCase()} COMPLETE. Available next Sortie.`,
     )
     if (state.foundry.trackedPrintId === slot.jobId) state.foundry.trackedPrintId = null
     noteSystemAction(state, 'foundry')
@@ -936,7 +945,7 @@ export function canStartFabrication(
   }
   if (kind === 'core') {
     const recipe = getBlueprint(jobId)
-    if (!recipe) return { ok: false, reason: 'Unknown print' }
+    if (!recipe) return { ok: false, reason: 'Unknown blueprint' }
     if (state.shipyard.unlockedModules.includes(jobId) && (state.foundry.pendingCores ?? []).includes(jobId)) {
       return { ok: false, reason: 'Already queued' }
     }

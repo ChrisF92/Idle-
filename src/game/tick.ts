@@ -9,9 +9,7 @@ import {
 import {
   STATIONS,
   WORKER_MANUFACTURE_SECONDS,
-  advanceFabProject,
   aiDoctrinesActive,
-  aiFabBonus,
   aiProductionBonus,
   droneCap,
   essenceBonusDataPerClear,
@@ -29,11 +27,7 @@ import {
   frameScrapMult,
 } from './catalog'
 import { tickAutomation } from './automation'
-import {
-  logisticsFabMult,
-  logisticsProdMult,
-  tickCoreTraining,
-} from './core'
+import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { tryCompleteChallenge } from './actions'
 import {
@@ -326,15 +320,6 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     }
   }
 
-  advanceFabProject(
-    state,
-    dtSeconds,
-    (line) => pushLog(state, line),
-    logisticsFabMult(state) *
-      (1 + computeSignalCoreBonuses(state).fab) *
-      (1 + aiFabBonus(state)) *
-      networkManufactureMult(state),
-  )
   tickCoreTraining(state, dtSeconds)
 }
 

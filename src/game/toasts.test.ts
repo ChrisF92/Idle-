@@ -62,34 +62,33 @@ describe('session toasts', () => {
     expect(toasts.find((t) => t.id === 'sys:rebuild')?.action?.nav).toEqual({ kind: 'rebuild' })
   })
 
-  it('toasts a completed Core Print as assemblable', () => {
+  it('toasts a completed Core Blueprint with View Project', () => {
     const state = markHullLost(createInitialState(0))
     state.meta.highestSectorEver = 8
     state.combat.highestSector = 8
     const prev = captureToastSnapshot(state)
-    const print = captureToastSnapshot(state).farmablePrints[0]
-    expect(print).toBeTruthy()
-    state.parts[`${print}:casing`] = 9
-    state.parts[`${print}:core`] = 9
-    state.parts[`${print}:lens`] = 9
-    expect(blueprintProgress(state, print!)?.complete).toBe(true)
+    const blueprint = captureToastSnapshot(state).farmablePrints[0]
+    expect(blueprint).toBeTruthy()
+    state.parts[`${blueprint}:casing`] = 9
+    state.parts[`${blueprint}:core`] = 9
+    state.parts[`${blueprint}:lens`] = 9
+    expect(blueprintProgress(state, blueprint!)?.complete).toBe(true)
     const toasts = diffToasts(prev, captureToastSnapshot(state), state)
-    expect(toasts.some((t) => t.id === `assemble:${print}`)).toBe(true)
-    expect(toasts.find((t) => t.id === `assemble:${print}`)?.action?.label).toBe('OPEN PRINTS')
-    expect(toasts.find((t) => t.id === `assemble:${print}`)?.category).toBe('CORE PRINT COMPLETE')
+    expect(toasts.some((t) => t.id === `blueprint-complete:${blueprint}`)).toBe(true)
+    expect(toasts.find((t) => t.id === `blueprint-complete:${blueprint}`)?.action?.label).toBe('VIEW PROJECT')
+    expect(toasts.find((t) => t.id === `blueprint-complete:${blueprint}`)?.category).toBe('BLUEPRINT COMPLETE')
   })
 
-  it('toasts the first fitted Foundry bit as MODULE READY', () => {
+  it('toasts completed Infrastructure', () => {
     const state = markHullLost(createInitialState(0))
     state.meta.highestSectorEver = 6
     state.combat.highestSector = 6
     state.combat.docked = true
     const prev = captureToastSnapshot(state)
-    state.foundry.recipeLevels['hardened-plate'] = 1
-    state.foundry.materials['hardened-plate'] = 3
+    state.foundry.facilities.push('processing-line')
     const toasts = diffToasts(prev, captureToastSnapshot(state), state)
-    expect(toasts.some((t) => t.id === 'foundry:module-ready')).toBe(true)
-    expect(toasts.find((t) => t.id === 'foundry:module-ready')?.action?.label).toBe('OPEN FOUNDRY')
+    expect(toasts.some((t) => t.id === 'fab-facility:processing-line')).toBe(true)
+    expect(toasts.find((t) => t.id === 'fab-facility:processing-line')?.action?.label).toBe('VIEW INFRASTRUCTURE')
   })
 
   it('coalesces duplicate ids and bounds the queue', () => {

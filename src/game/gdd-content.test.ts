@@ -133,7 +133,7 @@ describe('GDD Phase 8 content depth', () => {
     expect(ids).not.toContain('echo')
     expect(FOUNDRY_LOGS.some((row) => row.id === 'echo' || row.id === 'capital' || row.id === 'crew')).toBe(false)
     expect(FOUNDRY_LOGS.find((row) => row.id === 'reinforce')?.body).toMatch(/knowledge backward/)
-    expect(FOUNDRY_LOGS.find((row) => row.id === 'core-prints')?.body).toMatch(/fit it at Dock/)
+    expect(FOUNDRY_LOGS.find((row) => row.id === 'core-prints')?.body).toMatch(/equip the Core at Dock/)
   })
 
   it('names the W300 climax as the Rebuild ceiling', () => {

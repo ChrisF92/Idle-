@@ -431,14 +431,14 @@ export const RESEARCH: ResearchDef[] = [
   },
   {
     id: 'alloy-smelting',
-    name: 'Alloy Smelting',
-    description: 'Unlocks the Alloy Foundry station. Permanent.',
+    name: 'Materials Processing',
+    description: 'Unlocks the Foundry Processing station. Permanent.',
     costData: 45,
   },
   {
     id: 'module-fab',
     name: 'Module Fabrication',
-    description: 'Unlocks the Fabrication Bay — assemble blueprint parts into modules. Permanent.',
+    description: 'Unlocks timed Fabrication projects for completed Blueprints. Permanent.',
     costData: 110,
   },
   {
@@ -1749,7 +1749,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Choir Tap',
     role: 'utility',
     description:
-      'A wreck tap tuned to Choir hulls. Each kill pays more Salvage than Yield Link. Print it, then farm.',
+      'A wreck tap tuned to Choir hulls. Each kill pays more Salvage than Yield Link. Complete its Blueprint, then fabricate it.',
     damageBonus: 0,
     hullBonus: 0,
     damageTakenMult: 1,
@@ -1762,7 +1762,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Surge Capacitor',
     role: 'utility',
     description:
-      'Printed schematic. You take less from each shot and gain hull. Not found as wreck loot — buy the print, then fit it.',
+      'Challenge schematic. You take less from each shot and gain hull. Not found as wreck loot — unlock it, then equip it.',
     damageBonus: 0,
     hullBonus: 20,
     damageTakenMult: 0.9,
@@ -1774,7 +1774,7 @@ export const SHIP_MODULES: ShipModuleDef[] = [
     name: 'Mirror Plate',
     role: 'defense',
     description:
-      'Printed schematic plating. Extra hull and armour. Not found as wreck loot — buy the print, then fit it.',
+      'Challenge schematic plating. Extra hull and armour. Not found as wreck loot — unlock it, then equip it.',
     damageBonus: 0,
     hullBonus: 40,
     armorBonus: 5,
@@ -2135,7 +2135,7 @@ export function isCorePrintUnlocked(state: GameState, moduleId: string): boolean
   return careerHighestSector(state) >= modulePrintSector(moduleId)
 }
 
-/** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Prints / drops. */
+/** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Blueprints and drops. */
 export const GDD_ROSTER_CORE_IDS = [
   'pulse-cannon',
   'phase-beam',
@@ -2153,7 +2153,7 @@ export function isGddRosterCore(moduleId: string): boolean {
   return (GDD_ROSTER_CORE_IDS as readonly string[]).includes(moduleId)
 }
 
-/** Prints and wreck drops show leftovers only after they are already unlocked. */
+/** Blueprints and wreck drops show leftovers only after they are already unlocked. */
 export function isCoreOnRoster(state: GameState, moduleId: string): boolean {
   return isGddRosterCore(moduleId) || state.shipyard.unlockedModules.includes(moduleId)
 }
@@ -2601,46 +2601,14 @@ export function isStationBlackBarred(
   return stationThroughput(state, stationId) >= 1 - 1e-9
 }
 
-/**
- * Advance Fabrication Bay craft when recipe is filled and workers are assigned.
- * Mutates state. Returns true if a module was completed this call.
- * `fabSpeedMult` comes from Logistics Core (default 1).
- */
+/** @deprecated Instant assembly was removed; Foundry Fabricators own all item jobs. */
 export function advanceFabProject(
-  state: GameState,
-  dtSeconds: number,
-  log?: (line: string) => void,
-  fabSpeedMult = 1,
+  _state: GameState,
+  _dtSeconds: number,
+  _log?: (line: string) => void,
+  _fabSpeedMult = 1,
 ): boolean {
-  if (dtSeconds <= 0) return false
-  if (!isStationUnlocked(state, 'fab-bay')) return false
-  const workers = stationEffectiveDrones(state, 'fab-bay')
-  const project = state.base.fabProject
-  if (workers <= 0 || !project) return false
-  const recipe = getBlueprint(project.moduleId)
-  if (!recipe || !isBlueprintComplete(project.contributed, recipe)) return false
-
-  project.progress += (workers * dtSeconds * Math.max(0.05, fabSpeedMult)) / FAB_SECONDS
-  if (project.progress < 1) return false
-
-  const mod = getModule(project.moduleId)
-  const name = mod?.name ?? project.moduleId
-  if (!state.shipyard.unlockedModules.includes(project.moduleId)) {
-    state.shipyard.unlockedModules = [
-      ...state.shipyard.unlockedModules,
-      project.moduleId,
-    ]
-  }
-  if (!state.meta.discoveredModules.includes(project.moduleId)) {
-    state.meta.discoveredModules = [
-      ...state.meta.discoveredModules,
-      project.moduleId,
-    ]
-  }
-  state.base.fabProject = null
-  state.meta.lifetimeFabCrafts = (state.meta.lifetimeFabCrafts ?? 0) + 1
-  log?.(`Fabrication complete: ${name} unlocked permanently.`)
-  return true
+  return false
 }
 
 export function getStation(id: string): StationDef | undefined {

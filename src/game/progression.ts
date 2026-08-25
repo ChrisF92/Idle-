@@ -434,8 +434,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: 'yard-plot',
-    name: 'Yard Plot',
-    description: 'Place a Yard building.',
+    name: 'Infrastructure Online',
+    description: 'Fabricate Foundry infrastructure.',
     rewardAiPoints: 2,
     condition: { type: 'yard-building-count', min: 1 },
   },
@@ -598,7 +598,7 @@ export function achievementProgressValue(
     case 'echo-clear-sum':
       return Object.values(state.echo?.clears ?? {}).reduce((a, b) => a + b, 0)
     case 'yard-building-count':
-      return (state.yard?.cells ?? []).filter((c) => c.buildingId).length
+      return state.foundry?.facilities?.length ?? 0
   }
 }
 
@@ -1193,8 +1193,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     kind: 'action',
     title: 'Processing',
     body: [
-      'Recovered material becomes stock. Start a short job.',
-      'Recipe Mastery makes the next one faster, including offline.',
+      'Select a material for Processor I. Processing consumes its inputs, creates output, awards Mastery XP, then repeats.',
+      'Processing continues during Sorties and offline.',
     ],
     target: 'foundry-recipe-filament',
     targetFor: foundryFirstJobTarget,
@@ -1208,13 +1208,9 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: 'guide-foundry-mastery',
     kind: 'hint',
-    title: 'Recipe Mastery',
-    body: 'Repeated crafting makes this recipe faster, including while you are offline.',
-    target: 'foundry-recipe-filament',
-    targetFor: (s) =>
-      (s.foundry?.recipeLevels?.['slag-ingot'] ?? 0) >= 1
-        ? 'foundry-recipe-slag-ingot'
-        : 'foundry-recipe-filament',
+    title: 'Material Mastery',
+    body: 'Open Mastery to see current bonuses and the next milestone. Mastery remains long-lived through Act 1.',
+    target: 'foundry-mastery',
     tab: 'foundry',
     screen: 'foundry',
     group: 'foundry',

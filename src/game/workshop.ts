@@ -97,7 +97,7 @@ export const RUN_UPGRADES: RunUpgradeDef[] = [
     id: 'fragment-chance',
     name: 'Fragment Chance',
     category: 'economy',
-    blurb: 'Wrecks drop Core print fragments more often.',
+    blurb: 'Wrecks drop Core Blueprint fragments more often.',
     minBestWave: 110,
   },
   {

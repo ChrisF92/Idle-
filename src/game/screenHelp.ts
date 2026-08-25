@@ -54,8 +54,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Foundry',
     body: [
       'Purpose: turn combat income into crafted progression and new Cores. Main decision: what you are making next.',
-      'Prints: track one Core. Fragments drop from matching enemy families as you push Waves.',
-      'After Wave 30, Foundry and Worker Drones share Systems. Construction opens at Wave 90 inside Foundry → Build. Recipe progress persists on Rebuild.',
+      'Blueprints: track one Core. Fragments drop from matching enemy families as you push Waves; completion unlocks a timed Fabrication project.',
+      'After Wave 30, Foundry and Worker Drones share Systems. Infrastructure opens at Wave 90 under Fabrication. Processing, Fabrication, stock, and Mastery persist through Rebuild and continue offline.',
     ],
   },
   reliquary: {
@@ -80,10 +80,10 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     ],
   },
   yard: {
-    title: 'Construction',
+    title: 'Infrastructure',
     body: [
-      'Purpose: expand Foundry with processing gear and Rebuild arms. Main decision: what to build for the next cycle.',
-      'Construction lives inside Foundry → Build. There is no separate Yard screen.',
+      'Purpose: expand Foundry with Processors, Fabricators, Worker capacity, and specialist facilities.',
+      'Infrastructure lives under Foundry → Fabrication. There is no separate Yard or placement screen.',
     ],
   },
   slag: {

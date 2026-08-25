@@ -111,7 +111,7 @@ export interface FoundryState {
   slots: FoundrySlot[]
   /** Discrete timed jobs: Cores, Relic tiers, facilities. */
   fabrication: FabricationSlot[]
-  /** Single Core print the player is currently farming. Persists across Rebuild. */
+  /** Single Core Blueprint the player is currently tracking. Persists across Rebuild. */
   trackedPrintId: string | null
   /** Facilities armed on a previous Sortie launch. */
   facilities: FacilityId[]
