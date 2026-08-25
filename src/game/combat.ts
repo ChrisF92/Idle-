@@ -381,8 +381,8 @@ function targetFormationSize(sector: number, bossWave: boolean): number {
   if (s === 1) return 2
   if (s <= 4) return 3
   if (s <= 8) return 4
-  if (s <= 16) return 5
-  if (s <= 22) return 6
+  if (s <= 18) return 5
+  if (s <= 24) return 6
   return 7
 }
 
@@ -395,8 +395,8 @@ function densityPressureBudget(sector: number, bossWave: boolean): number {
   if (sector <= 1) return 0
   if (sector <= 4) return 0.08
   if (sector <= 8) return 0.14
-  if (sector <= 16) return 0.22
-  if (sector <= 22) return 0.32
+  if (sector <= 18) return 0.22
+  if (sector <= 24) return 0.32
   return 0.4
 }
 
@@ -665,12 +665,12 @@ function act1ClimaxEncounter(extraDanger = 1, state?: GameState): SectorEncounte
  *
  * S1 stays on tutorial hull (2-shot mites). S2–S3 grow slower so early
  * Best Δ can land at +2–4. S4–S8 steepen so W40–W80 is the wall that
- * teaches Plate. S9–S16 grow slower so Furnace is a bump, not a cliff.
- * S17+ (Research door) steepens hull, damage, and density toward W300.
+ * teaches Plate. S9–S18 grow slower so Furnace→Research is a bump, not a cliff.
+ * S19+ (Process door) steepens hull, damage, and density toward W300.
  */
 export const ENEMY_EARLY_SECTOR = 8
-/** Mid band ends at W160. Research-door waves (W170+) use the late curve. */
-export const ENEMY_MID_SECTOR = 16
+/** Mid band ends at W180. Process-door waves (W210+) use the late curve. */
+export const ENEMY_MID_SECTOR = 18
 /** S1–S3 opening. S1 uses base only; S2–S3 grow slower so early Best Δ can land. */
 export const ENEMY_OPENING_SECTOR = 3
 
@@ -680,7 +680,7 @@ export const ENEMY_HULL_OPENING = 1.2
 /** Per-band hull growth for S4–S8. Steeper than the opening so W40–W80 is the wall. */
 export const ENEMY_HULL_EARLY = 1.3
 export const ENEMY_HULL_MID = 1.2
-/** S17+ (W170+). Steeper than mid, but 1.34× locked Economy-first at W200 even at Workshop cap. */
+/** S19+ (W190+). Steeper than mid so Process→Choir Crown is not a shop melt. */
 export const ENEMY_HULL_LATE = 1.26
 
 export const ENEMY_DMG_BASE = 0.9
