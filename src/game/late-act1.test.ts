@@ -115,6 +115,24 @@ describe('Furnace banks Ash for a frontier push', () => {
     expect(decision.yes).toBe(false)
   })
 
+  it('Rebuilds a spent Furnace wall after a three-hour stall so Matter can take over', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 176))
+    s.combat.docked = true
+    s.prestige.prestigeCount = 6
+    s.prestige.cycle = { bestWave: 176, sorties: 20, scrapEarned: 8000 }
+    s.resources.choirAsh = 500_000
+    s.combat.consecutiveLosses = 0
+    const decision = shouldRebuild(
+      s,
+      stubCtx({
+        secondsSinceHighestSectorGain: 3 * 3600 + 60,
+        lastRebuildActive: 1000,
+        activeSeconds: 20 * 3600,
+      }),
+    )
+    expect(decision.yes).toBe(true)
+  })
+
   it('keeps leftover Ash after lighting Weapons I + Ward I on the wall', () => {
     let s = markHullLost(atCareerWave(createInitialState(0), 160))
     s.combat.docked = false

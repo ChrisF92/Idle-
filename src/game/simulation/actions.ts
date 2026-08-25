@@ -673,12 +673,11 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   if (secondForProcess && !reclaiming) {
     return { yes: true, reasons: ['Second Rebuild to open Process'] }
   }
-  // Banked Ash is the W160 lever. Rebuild dumps it — never prestige a Weapons-ready
-  // push away unless the wall has already eaten several Furnace attempts.
-  if (
-    furnaceReady &&
-    !(ctx.secondsSinceHighestSectorGain >= 3 * 3600 && state.combat.consecutiveLosses >= 8)
-  ) {
+  // Banked Ash is the W160 lever. Rebuild dumps it — do not prestige a
+  // Weapons-ready push away until the wall has already eaten a long Furnace
+  // attempt. Consecutive losses reset on every wave win, so a 3h stall is the
+  // real signal; requiring 8 losses left Economy-first farming Ash for a day.
+  if (furnaceReady && ctx.secondsSinceHighestSectorGain < 3 * 3600) {
     return { yes: false, reasons: [] }
   }
   if (furnaceOpen && furnaceBank >= 40 && ctx.secondsSinceHighestSectorGain < 50 * 60) {
