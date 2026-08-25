@@ -11,6 +11,9 @@ export const DEFAULT_REBUILD = {
   ttkSpikeMult: 3,
 }
 
+/** Active time credited for the paused first Salvage buy (GDD 3–5m first Sortie). */
+export const FIRST_SALVAGE_LESSON_SECONDS = 110
+
 export function defaultSimulationConfig(
   partial: Partial<SimulationConfig> & Pick<SimulationConfig, 'stop' | 'strategy'>,
 ): SimulationConfig {

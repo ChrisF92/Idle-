@@ -653,23 +653,28 @@ function act1ClimaxEncounter(extraDanger = 1, state?: GameState): SectorEncounte
 }
 
 /**
- * Piecewise enemy scaling aligned with USI career doors.
+ * Piecewise enemy scaling aligned with Act 1 doors.
  *
- * S1–S8 keep the original exponents so the tutorial still teaches Plate
- * (S1 chips L0 shield; S8 without Plate levels fails a full sector).
- * S9–S18 grow slower so S11/S15 are bumps, not 50–200× death cliffs —
- * USI's first real slowdown is the Challenges/Warp band (~18–23).
- * S19+ steepens again toward that band. S15 hull stays ≥10× S1.
+ * S1 stays on tutorial hull (2-shot mites). S2–S3 grow slower so early
+ * Best Δ can land at +2–4. S4–S8 steepen so W40–W80 is the wall that
+ * teaches Plate. S9–S18 grow slower so later bands are bumps, not cliffs.
+ * S19+ steepens again toward Challenges.
  */
 export const ENEMY_EARLY_SECTOR = 8
 export const ENEMY_MID_SECTOR = 18
+/** S1–S3 opening. S1 uses base only; S2–S3 grow slower so early Best Δ can land. */
+export const ENEMY_OPENING_SECTOR = 3
 
 export const ENEMY_HULL_BASE = 1.55
-export const ENEMY_HULL_EARLY = 1.235
+/** Per-band hull growth for S2–S3. S1 mites stay 2-shot (base × mite HP). */
+export const ENEMY_HULL_OPENING = 1.2
+/** Per-band hull growth for S4–S8. Steeper than the opening so W40–W80 is the wall. */
+export const ENEMY_HULL_EARLY = 1.3
 export const ENEMY_HULL_MID = 1.2
 export const ENEMY_HULL_LATE = 1.215
 
 export const ENEMY_DMG_BASE = 0.9
+export const ENEMY_DMG_OPENING = 1.22
 export const ENEMY_DMG_EARLY = 1.28
 export const ENEMY_DMG_MID = 1.16
 export const ENEMY_DMG_LATE = 1.225
@@ -683,15 +688,18 @@ export const SALVAGE_MID_EXPONENT = 0.5
 function piecewiseSectorScale(
   sector: number,
   base: number,
+  openingGrowth: number,
   earlyGrowth: number,
   midGrowth: number,
   lateGrowth: number,
 ): number {
   const s = Math.max(1, sector)
-  const atEarlyCap = base * Math.pow(earlyGrowth, ENEMY_EARLY_SECTOR - 1)
-  if (s <= ENEMY_EARLY_SECTOR) return base * Math.pow(earlyGrowth, s - 1)
-  const atMidCap = atEarlyCap * Math.pow(midGrowth, ENEMY_MID_SECTOR - ENEMY_EARLY_SECTOR)
+  if (s <= ENEMY_OPENING_SECTOR) return base * Math.pow(openingGrowth, s - 1)
+  const atOpening = base * Math.pow(openingGrowth, ENEMY_OPENING_SECTOR - 1)
+  if (s <= ENEMY_EARLY_SECTOR) return atOpening * Math.pow(earlyGrowth, s - ENEMY_OPENING_SECTOR)
+  const atEarlyCap = atOpening * Math.pow(earlyGrowth, ENEMY_EARLY_SECTOR - ENEMY_OPENING_SECTOR)
   if (s <= ENEMY_MID_SECTOR) return atEarlyCap * Math.pow(midGrowth, s - ENEMY_EARLY_SECTOR)
+  const atMidCap = atEarlyCap * Math.pow(midGrowth, ENEMY_MID_SECTOR - ENEMY_EARLY_SECTOR)
   return atMidCap * Math.pow(lateGrowth, s - ENEMY_MID_SECTOR)
 }
 
@@ -705,6 +713,7 @@ export function enemySectorScale(sector: number): number {
   return piecewiseSectorScale(
     sector,
     ENEMY_HULL_BASE,
+    ENEMY_HULL_OPENING,
     ENEMY_HULL_EARLY,
     ENEMY_HULL_MID,
     ENEMY_HULL_LATE,
@@ -722,6 +731,7 @@ export function enemyDamageScale(sector: number): number {
   return piecewiseSectorScale(
     sector,
     ENEMY_DMG_BASE,
+    ENEMY_DMG_OPENING,
     ENEMY_DMG_EARLY,
     ENEMY_DMG_MID,
     ENEMY_DMG_LATE,

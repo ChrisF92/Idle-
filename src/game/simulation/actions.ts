@@ -8,7 +8,7 @@ import {
   canPrestige,
   convertAshToHeat,
   fitModule,
-  insertShard,
+  equipRelicOnCore,
   performPrestige,
   pickCoreMilestone,
   prestigeGainFor,
@@ -67,7 +67,16 @@ import {
   setFurnaceChannel,
 } from '../furnace'
 import { PROCESS_NODES, canBuyProcessNode, hasProcess } from '../process'
-import { SHARDS, shardOwned, fittedShardId, isReliquarySlotUnlocked } from '../reliquary'
+import {
+  SHARDS,
+  shardOwned,
+  getShard,
+  coreSocketLayout,
+  coreSocketRelics,
+  relicFitsSocket,
+  relicSocketClass,
+  shardAutoScore,
+} from '../reliquary'
 import { GUIDE_STEPS, isSystemUnlocked } from '../progression'
 import { ACT1_CADENCE } from '../cadence'
 import { careerBestWave } from '../waves'
@@ -432,15 +441,33 @@ export function spendRebuildMatter(state: GameState, ctx: StrategyContext): Game
 }
 
 export function tendReliquary(state: GameState, ctx: StrategyContext): GameState {
+  if (!state.combat.docked) return state
   if (!isSystemUnlocked(state, 'reliquary')) return state
   let next = state
-  for (const shard of SHARDS) {
-    if (!isReliquarySlotUnlocked(next, shard.color)) continue
-    if (fittedShardId(next, shard.color)) continue
-    if (shardOwned(next, shard.id) < 1) continue
-    const after = insertShard(next, shard.id)
-    if (after !== next) {
-      ctx.recordMeaningful(`Reliquary ${shard.name}`)
+  for (const slot of equippedCoreSlots(next)) {
+    const layout = coreSocketLayout(next, slot.coreInstanceId)
+    for (let i = 0; i < layout.length; i += 1) {
+      const socket = layout[i]
+      if (!socket) continue
+      const seated = coreSocketRelics(next, slot.coreInstanceId)
+      const fitted = seated[i] ?? null
+      const fittedDef = fitted ? getShard(fitted) : undefined
+      const fittedScore = fittedDef ? shardAutoScore(fittedDef) : 0
+      let bestId: string | null = null
+      let bestScore = fitted ? fittedScore * 1.05 : 0
+      for (const def of SHARDS) {
+        if (shardOwned(next, def.id) < 1) continue
+        if (!relicFitsSocket(relicSocketClass(def), socket)) continue
+        const score = shardAutoScore(def)
+        if (score > bestScore) {
+          bestScore = score
+          bestId = def.id
+        }
+      }
+      if (!bestId || bestId === fitted) continue
+      const after = equipRelicOnCore(next, slot.coreInstanceId, bestId, i)
+      if (after === next) continue
+      ctx.recordMeaningful(`Relic ${getShard(bestId)?.name ?? bestId} → ${slot.moduleId}`)
       next = after
     }
   }
@@ -471,17 +498,21 @@ export function maybeUnlockAndFit(state: GameState, ctx: StrategyContext): GameS
 
 export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: boolean; reasons: string[] } {
   if (!canPrestige(state)) return { yes: false, reasons: [] }
+  const cfg = ctx.config.rebuild
+  const stallNeed =
+    (state.prestige.prestigeCount ?? 0) < 1
+      ? cfg.stallSeconds
+      : Math.max(cfg.stallSeconds * 3, 18 * 60)
   if (
     ctx.lastRebuildActive != null &&
-    ctx.activeSeconds - ctx.lastRebuildActive < ctx.config.rebuild.stallSeconds &&
+    ctx.activeSeconds - ctx.lastRebuildActive < stallNeed &&
     state.combat.consecutiveLosses < ctx.config.rebuild.consecutiveLosses
   ) {
     return { yes: false, reasons: [] }
   }
   const reasons: string[] = []
-  const cfg = ctx.config.rebuild
   const gain = prestigeGainFor(state)
-  if (ctx.secondsSinceHighestSectorGain >= cfg.stallSeconds) {
+  if (ctx.secondsSinceHighestSectorGain >= stallNeed) {
     reasons.push(
       `${Math.round(ctx.secondsSinceHighestSectorGain / 60)} minutes without Wave progress`,
     )
@@ -505,7 +536,7 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   const yes =
     reasons.length >= 1 &&
     gain >= 1 &&
-    (ctx.secondsSinceHighestSectorGain >= cfg.stallSeconds ||
+    (ctx.secondsSinceHighestSectorGain >= stallNeed ||
       state.combat.consecutiveLosses >= cfg.consecutiveLosses)
   return { yes, reasons }
 }

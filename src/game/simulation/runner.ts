@@ -27,7 +27,7 @@ import { inspectNumericSafety } from './safety'
 import { closeSession, getStrategy, spendProfileFor } from './strategies'
 import { reportedBestWave } from '../waves'
 import { BALANCE_TARGETS, evaluateTarget } from './targets'
-import { stopLabel } from './presets'
+import { stopLabel, FIRST_SALVAGE_LESSON_SECONDS } from './presets'
 import { aggregateMilestones } from './report'
 import { captureAct1Snapshot } from '../balance/act1'
 import { coreStartingLevelAtSlot } from '../coreProgression'
@@ -133,6 +133,22 @@ function makeProgress(
 export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runIndex = 0): SimulationRunReport {
   const seed = config.seed + runIndex * 9973
   const rng = mulberry32(seed)
+  const restoreRandom = Math.random
+  Math.random = rng
+  try {
+    return runOneSeeded(config, hooks, runIndex, seed, rng)
+  } finally {
+    Math.random = restoreRandom
+  }
+}
+
+function runOneSeeded(
+  config: SimulationConfig,
+  hooks: SimulationHooks | undefined,
+  _runIndex: number,
+  seed: number,
+  rng: () => number,
+): SimulationRunReport {
   const now0 = seed * 1000
   let state = skipGuides(startingState(config.start, now0))
   state.lastTickAt = now0
@@ -162,6 +178,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
   let lastDecisionAt = -999
   let lastProgressAt = 0
   let firstRebuildAt: number | null = null
+  let salvageLessonApplied = false
   let cancelled = false
   let stopReason = 'Running'
   let sessionLeft =
@@ -318,6 +335,15 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     state.lastTickAt = simNow
     if (config.strategy === 'casual') sessionLeft -= chunk
     observeState(metrics, state, prev, activeSeconds, calendarSeconds, chunk)
+    if (
+      !salvageLessonApplied &&
+      Object.values(state.combat.runUpgrades ?? {}).some((n) => (n ?? 0) > 0)
+    ) {
+      activeSeconds += FIRST_SALVAGE_LESSON_SECONDS
+      calendarSeconds += FIRST_SALVAGE_LESSON_SECONDS
+      simNow += FIRST_SALVAGE_LESSON_SECONDS * 1000
+      salvageLessonApplied = true
+    }
     if (metrics.milestones.length > lastSnapshotCount) {
       const added = metrics.milestones.slice(lastSnapshotCount)
       lastSnapshotCount = metrics.milestones.length

@@ -119,6 +119,9 @@ export const WORKSHOP_SHIELD_PER_LEVEL = 0.1
 export const WORKSHOP_SALVAGE_KILL_PER_LEVEL = 0.08
 /** Temporary Salvage ranks are weaker per level than Workshop starts. */
 export const RUN_UPGRADE_POWER_SCALE = 0.36
+/** First few Salvage ranks stay punchier so early Best Δ can land at +2–4. */
+export const RUN_UPGRADE_OPENING_RANKS = 4
+export const RUN_UPGRADE_POWER_SCALE_OPENING = 0.7
 
 export function createEmptyWorkshop(): WorkshopState {
   return { levels: {}, coreStarts: {} }
@@ -216,10 +219,20 @@ export function unlockedBuyModes(state: GameState): BuyMode[] {
   return modes
 }
 
+export function runUpgradeRunFactor(runRanks: number, perLevel: number): number {
+  const run = Math.max(0, Math.floor(runRanks))
+  const opening = Math.min(run, RUN_UPGRADE_OPENING_RANKS)
+  const rest = Math.max(0, run - opening)
+  return (
+    Math.pow(1 + perLevel * RUN_UPGRADE_POWER_SCALE_OPENING, opening) *
+    Math.pow(1 + perLevel * RUN_UPGRADE_POWER_SCALE, rest)
+  )
+}
+
 export function runUpgradeMult(state: GameState, id: RunUpgradeId, perLevel: number): number {
   const start = workshopLevel(state, id)
   const run = runPurchasedLevel(state, id)
-  return Math.pow(1 + perLevel, start) * Math.pow(1 + perLevel * RUN_UPGRADE_POWER_SCALE, run)
+  return Math.pow(1 + perLevel, start) * runUpgradeRunFactor(run, perLevel)
 }
 
 export function weaponPowerMult(state: GameState): number {
@@ -291,8 +304,8 @@ export function runUpgradePreview(
     const current = runUpgradeMult(state, id, per)
     const next =
       kind === 'workshop'
-        ? Math.pow(1 + per, start + 1) * Math.pow(1 + per * RUN_UPGRADE_POWER_SCALE, run)
-        : Math.pow(1 + per, start) * Math.pow(1 + per * RUN_UPGRADE_POWER_SCALE, run + 1)
+        ? Math.pow(1 + per, start + 1) * runUpgradeRunFactor(run, per)
+        : Math.pow(1 + per, start) * runUpgradeRunFactor(run + 1, per)
     return {
       current: `×${current.toFixed(2)}`,
       next: `×${next.toFixed(2)}`,
