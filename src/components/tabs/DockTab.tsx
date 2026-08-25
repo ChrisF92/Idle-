@@ -318,7 +318,7 @@ export function DockTab({
               {hangarOpen ? 'Preview Rebuild' : `Inactive · W${rebuildMin}`}
             </button>
             {matterShopAvailable ? (
-              <button type="button" onClick={() => setMatterShopOpen(true)}>
+              <button type="button" onClick={() => setMatterShopOpen(true)} data-guide="rebuild-matter-shop">
                 Matter upgrades
               </button>
             ) : null}

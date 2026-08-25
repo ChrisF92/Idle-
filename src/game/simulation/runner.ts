@@ -30,6 +30,7 @@ import { BALANCE_TARGETS, evaluateTarget } from './targets'
 import { stopLabel } from './presets'
 import { aggregateMilestones } from './report'
 import { captureAct1Snapshot } from '../balance/act1'
+import { coreStartingLevelAtSlot } from '../coreProgression'
 import type {
   Act1Snapshot,
   CorePurchaseRecord,
@@ -204,7 +205,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
       }
       if (config.logging !== 'summary') {
         metrics.detailedLog.push(
-          `${activeSeconds.toFixed(1)}s  ${row.name} L${row.levelAfter}  -${row.cost} salvage`,
+          `${activeSeconds.toFixed(1)}s  ${row.name} L${row.levelAfter}  -${row.cost} scrap`,
         )
       }
     },
@@ -276,7 +277,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     } else if (activeSeconds - lastProgressTime >= config.deadlockSeconds) {
       safety.push({
         kind: 'deadlock',
-        message: `DEADLOCK / PROGRESSION STALL at Wave ${reportedBestWave(state)} after ${config.deadlockSeconds}s without salvage/scrap/heat/drone/wave/rebuild progress. Pulse L${state.shipyard.moduleLevels['pulse-cannon'] ?? 0}, Plate L${state.shipyard.moduleLevels['plate-layer'] ?? 0}, salvage ${state.resources.salvage.toFixed(1)}.`,
+        message: `DEADLOCK / PROGRESSION STALL at Wave ${reportedBestWave(state)} after ${config.deadlockSeconds}s without salvage/scrap/heat/drone/wave/rebuild progress. Pulse L${coreStartingLevelAtSlot(state, 0)}, Plate L${coreStartingLevelAtSlot(state, 1)}, salvage ${state.resources.salvage.toFixed(1)}.`,
         activeSeconds,
       })
       stopReason = 'DEADLOCK / PROGRESSION STALL'
@@ -362,6 +363,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
   const spending = coreSpending(metrics.corePurchases)
   const walls = detectWalls([...metrics.sectors.values()])
   const salvageSpentOnCores = spending.reduce((s, r) => s + r.salvageSpent, 0)
+  const salvageSpentOnRunUpgrades = metrics.sorties.reduce((s, row) => s + row.salvageSpent, 0)
   const warnings = [
     ...coreWarnings(spending),
     ...workerWarnings(metrics.networkIdleHint ?? false, state.base.workerDrones),
@@ -377,8 +379,11 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
       researchBreakthroughs: captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds)
         .researchBreakthroughs,
       salvageEarned: metrics.resourceEarned.salvage ?? 0,
+      salvageSpentOnRunUpgrades,
       salvageSpentOnCores,
       scrapEarned: metrics.resourceEarned.scrap ?? 0,
+      workshopLevels: { ...(state.workshop?.levels ?? {}) },
+      failedPushStreak: metrics.failedPushStreak,
       activeSeconds,
     }),
   ]
@@ -431,6 +436,7 @@ export function runOne(config: SimulationConfig, hooks?: SimulationHooks, runInd
     prestigeMatterEarned: matterEarned,
     milestones: metrics.milestones,
     sectors: [...metrics.sectors.values()].sort((a, b) => a.sector - b.sector),
+    sorties: metrics.sorties,
     corePurchases: metrics.corePurchases,
     coreSpending: spending,
     network: networkSnapshot(state),

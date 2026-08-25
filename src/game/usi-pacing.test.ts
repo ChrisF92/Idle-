@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ENEMY_DMG_BASE,
+  ENEMY_DMG_EARLY,
   ENEMY_EARLY_SECTOR,
+  ENEMY_HULL_BASE,
+  ENEMY_HULL_EARLY,
   ENEMY_MID_SECTOR,
   enemyDamageScale,
   enemySectorScale,
@@ -19,15 +23,19 @@ function legacyDamageScale(sector: number): number {
   return 0.9 * Math.pow(1.28, Math.max(1, sector) - 1)
 }
 
-function legacyHullScale(sector: number): number {
-  return 1.55 * Math.pow(1.235, Math.max(1, sector) - 1)
+function authoredHullScale(sector: number): number {
+  return ENEMY_HULL_BASE * Math.pow(ENEMY_HULL_EARLY, Math.max(1, sector) - 1)
+}
+
+function authoredDamageScale(sector: number): number {
+  return ENEMY_DMG_BASE * Math.pow(ENEMY_DMG_EARLY, Math.max(1, sector) - 1)
 }
 
 describe('USI-aligned enemy pacing', () => {
-  it('keeps S1–S8 on the original hull and damage curve', () => {
+  it('keeps S1–S8 on the authored early hull and damage curve', () => {
     for (let s = 1; s <= ENEMY_EARLY_SECTOR; s += 1) {
-      expect(enemySectorScale(s)).toBeCloseTo(legacyHullScale(s), 10)
-      expect(enemyDamageScale(s)).toBeCloseTo(legacyDamageScale(s), 10)
+      expect(enemySectorScale(s)).toBeCloseTo(authoredHullScale(s), 10)
+      expect(enemyDamageScale(s)).toBeCloseTo(authoredDamageScale(s), 10)
     }
   })
 

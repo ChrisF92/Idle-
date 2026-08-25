@@ -117,6 +117,8 @@ export const WORKSHOP_CYCLE_RATE_PER_LEVEL = 0.03
 export const WORKSHOP_HULL_PER_LEVEL = 0.08
 export const WORKSHOP_SHIELD_PER_LEVEL = 0.1
 export const WORKSHOP_SALVAGE_KILL_PER_LEVEL = 0.08
+/** Temporary Salvage ranks are weaker per level than Workshop starts. */
+export const RUN_UPGRADE_POWER_SCALE = 0.48
 
 export function createEmptyWorkshop(): WorkshopState {
   return { levels: {}, coreStarts: {} }
@@ -143,8 +145,11 @@ export function effectiveUpgradeLevel(state: GameState, id: RunUpgradeId): numbe
  * Workshop starting levels raise effective power but do not consume the cheap
  * early-run ladder.
  */
+export const RUN_UPGRADE_COST_BASE = 8
+export const RUN_UPGRADE_COST_GROWTH = 1.26
+
 export function runUpgradeCost(purchasedLevel: number): number {
-  return Math.floor(8 * Math.pow(1.18, Math.max(0, purchasedLevel)))
+  return Math.floor(RUN_UPGRADE_COST_BASE * Math.pow(RUN_UPGRADE_COST_GROWTH, Math.max(0, purchasedLevel)))
 }
 
 export function nextRunUpgradeCost(state: GameState, id: RunUpgradeId): number {
@@ -212,7 +217,9 @@ export function unlockedBuyModes(state: GameState): BuyMode[] {
 }
 
 export function runUpgradeMult(state: GameState, id: RunUpgradeId, perLevel: number): number {
-  return Math.pow(1 + perLevel, effectiveUpgradeLevel(state, id))
+  const start = workshopLevel(state, id)
+  const run = runPurchasedLevel(state, id)
+  return Math.pow(1 + perLevel, start) * Math.pow(1 + perLevel * RUN_UPGRADE_POWER_SCALE, run)
 }
 
 export function weaponPowerMult(state: GameState): number {
@@ -275,23 +282,33 @@ export function ashYieldMult(state: GameState): number {
 export function runUpgradePreview(
   state: GameState,
   id: RunUpgradeId,
+  kind: 'workshop' | 'run' = 'run',
 ): { current: string; next: string } {
+  const start = workshopLevel(state, id)
+  const run = runPurchasedLevel(state, id)
   const level = effectiveUpgradeLevel(state, id)
-  const fmt = (per: number) => ({
-    current: `×${Math.pow(1 + per, level).toFixed(2)}`,
-    next: `×${Math.pow(1 + per, level + 1).toFixed(2)}`,
-  })
+  const fmt = (per: number) => {
+    const current = runUpgradeMult(state, id, per)
+    const next =
+      kind === 'workshop'
+        ? Math.pow(1 + per, start + 1) * Math.pow(1 + per * RUN_UPGRADE_POWER_SCALE, run)
+        : Math.pow(1 + per, start) * Math.pow(1 + per * RUN_UPGRADE_POWER_SCALE, run + 1)
+    return {
+      current: `×${current.toFixed(2)}`,
+      next: `×${next.toFixed(2)}`,
+    }
+  }
   switch (id) {
     case 'weapon-power':
-      return fmt(0.08)
+      return fmt(WORKSHOP_WEAPON_POWER_PER_LEVEL)
     case 'cycle-rate':
-      return fmt(0.03)
+      return fmt(WORKSHOP_CYCLE_RATE_PER_LEVEL)
     case 'hull':
-      return fmt(0.08)
+      return fmt(WORKSHOP_HULL_PER_LEVEL)
     case 'shield':
-      return fmt(0.1)
+      return fmt(WORKSHOP_SHIELD_PER_LEVEL)
     case 'salvage-kill':
-      return fmt(0.08)
+      return fmt(WORKSHOP_SALVAGE_KILL_PER_LEVEL)
     case 'salvage-wave': {
       const next = Math.floor(4 * (level + 1) * Math.pow(1.06, level + 1))
       return { current: `+${salvageWaveBonus(state)}`, next: `+${next}` }

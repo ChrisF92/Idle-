@@ -218,7 +218,7 @@ export function isBossSector(sector: number): boolean {
 export function salvageSectorBase(sector: number): number {
   const s = Math.max(1, sector)
   if (s <= 4) return s
-  return 4 * Math.pow(s / 4, 0.7)
+  return 4 * Math.pow(s / 4, 0.58)
 }
 
 export function salvageFromKill(
@@ -531,7 +531,7 @@ export function enemyForSector(
 
   // Later waves should be tougher, but not a 40% stat cliff before every boss.
   // Density now carries more of the pressure, so the within-sector ramp is gentler.
-  const waveScale = (1 + Math.max(0, wave - 1) * 0.06) * routeDangerMult(side) * extraDanger
+  const waveScale = (1 + Math.max(0, wave - 1) * ENEMY_WAVE_HULL_RAMP) * routeDangerMult(side) * extraDanger
   const pattern = packPatternForBand(gddEnemyBandForWave(careerWave), careerWave)
   let units = bossWave
     ? buildBossPack(sector, name, waveScale)
@@ -673,6 +673,9 @@ export const ENEMY_DMG_BASE = 0.9
 export const ENEMY_DMG_EARLY = 1.28
 export const ENEMY_DMG_MID = 1.16
 export const ENEMY_DMG_LATE = 1.225
+
+/** Extra hull/damage per Wave inside a 10-wave band. */
+export const ENEMY_WAVE_HULL_RAMP = 0.06
 
 function piecewiseSectorScale(
   sector: number,

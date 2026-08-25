@@ -11,7 +11,7 @@ import {
   skipOnboarding,
 } from './progression'
 import { createInitialState } from './state'
-import { markHullLost } from './testHelpers'
+import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
 import { captureToastSnapshot, diffToasts, enqueueToasts, expireToasts } from './toasts'
 import { setDocked } from './tick'
 import { unlockedBuyModes } from './workshop'
@@ -121,6 +121,36 @@ describe('GDD onboarding catalog', () => {
     const blob = GUIDE_STEPS.flatMap((s) => [s.title, ...(Array.isArray(s.body) ? s.body : [s.body])]).join('\n')
     expect(blob).not.toMatch(/USI|ITRTG|analogue|black-bar/i)
     expect(GUIDE_STEPS.some((s) => s.id === 'guide-core-run')).toBe(false)
-    expect(GUIDE_STEPS.some((s) => s.target === 'rebuild-btn')).toBe(false)
+    expect(GUIDE_STEPS.some((s) => s.target === 'rebuild-btn')).toBe(true)
+    expect(GUIDE_STEPS.some((s) => s.id === 'guide-rebuild-matter')).toBe(true)
+    expect(GUIDE_STEPS.find((s) => s.id === 'guide-rebuild-matter')?.target).toBe('rebuild-matter-shop')
+    expect(GUIDE_STEPS.some((s) => s.id === 'guide-reinforce')).toBe(true)
+  })
+
+  it('spots Rebuild when the door is live, then Matter after the hangar reset', () => {
+    const ready = armRebuildDoor(fresh())
+    ready.meta.seenOnboarding = [
+      ...STARTER_GUIDE_IDS,
+      'guide-network-strike',
+      'guide-foundry-recipe',
+      'guide-foundry-mastery',
+      'guide-directive',
+    ]
+    ready.base.assignments['scrap-field'] = 1
+    expect(activeGuideStep(ready, 'dock')?.id).toBe('guide-rebuild')
+    expect(guidePausesSimulation(activeGuideStep(ready, 'dock'))).toBe(false)
+
+    const rebuilt = structuredClone(ready)
+    rebuilt.prestige.prestigeCount = 1
+    rebuilt.resources.prestigeMatter = 6
+    rebuilt.meta.seenOnboarding = [...ready.meta.seenOnboarding, 'guide-rebuild']
+    expect(activeGuideStep(rebuilt, 'dock')?.id).toBe('guide-rebuild-matter')
+    expect(activeGuideStep(rebuilt, 'dock')?.target).toBe('rebuild-matter-shop')
+  })
+
+  it('spots Reinforce after the Wave 300 climax', () => {
+    const s = atCareerWave(fresh(), 300)
+    s.meta.act1Cleared = true
+    expect(activeGuideStep(s, 'reinforce')?.id).toBe('guide-reinforce')
   })
 })

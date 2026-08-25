@@ -6,6 +6,7 @@ import { isSystemUnlocked } from '../progression'
 import { isResearchBreakthroughIndex } from '../hiveResearch'
 import { reportedBestWave } from '../waves'
 import { ACT1_CADENCE } from '../cadence'
+import { coreStartingLevelAtSlot } from '../coreProgression'
 import type {
   CorePurchaseRecord,
   CoreSpendingSummary,
@@ -16,6 +17,7 @@ import type {
   RebuildRecord,
   SectorRecord,
   SimulationWarning,
+  SortieRecord,
   StrategyLimitation,
 } from './types'
 import { median } from './format'
@@ -51,6 +53,9 @@ export interface MetricsState {
   hiveNodesSeen: number
   networkIdleHint: boolean
   idleAcc: number
+  sorties: SortieRecord[]
+  lastLaunchAt: number
+  failedPushStreak: number
 }
 
 function emptySector(sector: number, active: number): SectorRecord {
@@ -100,6 +105,9 @@ export function createMetrics(state: GameState): MetricsState {
     hiveNodesSeen: hiveNodes(state),
     networkIdleHint: false,
     idleAcc: 0,
+    sorties: [],
+    lastLaunchAt: 0,
+    failedPushStreak: 0,
   }
 }
 
@@ -179,8 +187,8 @@ export function observeState(
     if (clearedRow.firstClearActive == null) {
       clearedRow.firstClearActive = activeSeconds
       clearedRow.clearDuration = activeSeconds - clearedRow.firstEntryActive
-      clearedRow.pulseLevelOnClear = state.combat.coreRunLevels?.['0'] ?? 0
-      clearedRow.plateLevelOnClear = state.combat.coreRunLevels?.['1'] ?? 0
+      clearedRow.pulseLevelOnClear = coreStartingLevelAtSlot(state, 0)
+      clearedRow.plateLevelOnClear = coreStartingLevelAtSlot(state, 1)
     }
     metrics.sectors.set(cleared, clearedRow)
     const clearedWave = cleared * 10
@@ -211,9 +219,30 @@ export function observeState(
   if (prev.combat.docked && !state.combat.docked) {
     metrics.relaunches += 1
     row.relaunches += 1
+    metrics.lastLaunchAt = activeSeconds
     if (metrics.relaunches === 1) {
       addMilestone(metrics, 'first-launch', 'First Launch', activeSeconds, calendarSeconds)
     }
+  }
+  if (!prev.combat.docked && state.combat.docked && state.combat.lastSortie.outcome) {
+    const summary = state.combat.lastSortie
+    const duration = Math.max(0, activeSeconds - metrics.lastLaunchAt)
+    metrics.sorties.push({
+      index: metrics.sorties.length + 1,
+      activeSeconds,
+      duration,
+      endWave: summary.wave,
+      previousBest: summary.previousBest,
+      newBest: summary.newBest,
+      salvageEarned: summary.salvageGained,
+      salvageSpent: summary.salvageSpent,
+      scrapEarned: summary.scrapEarned,
+      outcome: summary.outcome,
+    })
+    const meaningful =
+      summary.salvageSpent > 0 || summary.wave >= Math.max(1, summary.previousBest * 0.7)
+    if (summary.newBest) metrics.failedPushStreak = 0
+    else if (meaningful) metrics.failedPushStreak += 1
   }
   if (state.combat.consecutiveLosses > prev.combat.consecutiveLosses) {
     const diedAt = prev.combat.sector
@@ -231,7 +260,7 @@ export function observeState(
   metrics.lastDocked = state.combat.docked
 
   if ((state.meta.lifetimeCoreRunBuys ?? 0) > 0 && (prev.meta.lifetimeCoreRunBuys ?? 0) === 0) {
-    addMilestone(metrics, 'first-pulse-upgrade', 'First Pulse upgrade', activeSeconds, calendarSeconds)
+    addMilestone(metrics, 'first-core-start', 'First Core Level', activeSeconds, calendarSeconds)
   }
 
   if (!metrics.seenUnlocks.has('workers') && bestWave >= ACT1_CADENCE.workers) {

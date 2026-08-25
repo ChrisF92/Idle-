@@ -106,12 +106,33 @@ describe('GDD Phase 9 simulator + playtest', () => {
       furnaceLit: 0,
       researchBreakthroughs: 0,
       salvageEarned: 200,
+      salvageSpentOnRunUpgrades: 10,
       salvageSpentOnCores: 10,
       scrapEarned: 1,
+      workshopLevels: {},
+      failedPushStreak: 7,
       activeSeconds: 20 * 60,
     }).map((w) => w.code)
     expect(codes).toEqual(expect.arrayContaining(['HARD WALL', 'STEAMROLL', 'SYSTEM IRRELEVANT', 'REBUILD EXPLOSIVE']))
   })
+
+  it('balanced sim spends Salvage on run upgrades during the opening Sortie', () => {
+    const report = runSimulation(
+      defaultSimulationConfig({
+        start: { type: 'fresh' },
+        strategy: 'balanced',
+        stop: { type: 'active-duration', seconds: 4 * 60 },
+        seed: 1,
+        logging: 'milestones',
+        deadlockSeconds: 8 * 60,
+        maxIterations: 80_000,
+        maxCalendarSeconds: 10 * 60,
+      }),
+    )
+    const run = report.runs[0]!
+    expect(run.sorties.reduce((s, row) => s + row.salvageSpent, 0)).toBeGreaterThan(0)
+    expect(run.milestones.some((m) => m.id === 'first-defeat' || m.id === 'wave-1')).toBe(true)
+  }, 40_000)
 
   it('writes Wave-native sim summaries without leftover loop language', () => {
     const report = runSimulation(

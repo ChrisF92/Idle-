@@ -1043,6 +1043,10 @@ const TAP_TARGETS = new Set([
   'directive-offer',
   'process-first-buy',
   'relic-sockets',
+  'rebuild-btn',
+  'rebuild-matter-shop',
+  'reinforce-go',
+  'protocols-list',
 ])
 
 /** True when the player must tap the spotlight instead of Continue. */
@@ -1145,8 +1149,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     kind: 'action',
     title: 'Scrap',
     body: [
-      'Scrap survives normal Sorties. Spend it in Workshop so future Sorties begin stronger.',
-      'Next Sortie starts at Weapon Power Lv1. Workshop lasts until Rebuild.',
+      'That Sortie ended. Scrap from it survives.',
+      'Spend Scrap in Workshop so the next Sortie begins stronger. Buy Weapon Power.',
     ],
     target: 'workshop-weapon-power',
     tab: 'dock',
@@ -1316,19 +1320,76 @@ export const GUIDE_STEPS: GuideStep[] = [
     completeWhen: (s) => (s.process?.purchased?.length ?? 0) >= 1,
   },
   {
+    id: 'guide-rebuild',
+    kind: 'action',
+    title: 'Rebuild',
+    body: [
+      'This cycle is spent. Preview Rebuild — Scrap and Workshop convert to Matter, then the Hive starts a new cycle.',
+    ],
+    target: 'rebuild-btn',
+    tab: 'dock',
+    screen: 'dock',
+    group: 'rebuild',
+    tap: true,
+    availableWhen: (s) =>
+      s.combat.docked && firstRebuildAvailable(s) && !guideSeen(s, 'guide-rebuild'),
+    completeWhen: (s) => (s.prestige.prestigeCount ?? 0) >= 1,
+  },
+  {
+    id: 'guide-rebuild-matter',
+    kind: 'action',
+    title: 'Matter',
+    body: [
+      'Matter is permanent. Buy one upgrade — Edge, Plate, or Forge — then Launch. The next push should reclaim the old Best faster.',
+    ],
+    target: 'rebuild-matter-shop',
+    tab: 'dock',
+    screen: 'dock',
+    group: 'rebuild-matter',
+    tap: true,
+    availableWhen: (s) =>
+      s.combat.docked &&
+      (s.prestige.prestigeCount ?? 0) >= 1 &&
+      (s.resources.prestigeMatter ?? 0) >= 3 &&
+      !Object.values(s.prestige.matterShop ?? {}).some((n) => (n ?? 0) > 0) &&
+      !guideSeen(s, 'guide-rebuild-matter'),
+    completeWhen: (s) => Object.values(s.prestige.matterShop ?? {}).some((n) => (n ?? 0) > 0),
+  },
+  {
     id: 'guide-challenge',
-    kind: 'hint',
+    kind: 'action',
     title: 'Challenge',
-    body: 'Restriction, goal, reward, disabled systems, and current best are listed. Confirm before launch.',
+    body: [
+      'Restriction, goal, reward, disabled systems, and current best are listed. Open one card, then Start Challenge.',
+    ],
     target: 'protocols-list',
     tab: 'protocols',
     screen: 'protocols',
     group: 'challenge',
-    tap: false,
+    tap: true,
     availableWhen: (s) =>
       isSystemUnlocked(s, 'protocols') &&
       !s.protocols?.activeId &&
       !guideSeen(s, 'guide-challenge'),
+    completeWhen: (s) => Boolean(s.protocols?.activeId),
+  },
+  {
+    id: 'guide-reinforce',
+    kind: 'action',
+    title: 'Reinforce',
+    body: [
+      'Wave 300 is clear. Reinforce reconstructs the Hive’s starting architecture. Confirm YOU RESET / YOU KEEP / WHAT CHANGES, then Reinforce.',
+    ],
+    target: 'reinforce-go',
+    tab: 'reinforce',
+    screen: 'reinforce',
+    group: 'reinforce',
+    tap: true,
+    availableWhen: (s) =>
+      Boolean(s.meta.act1Cleared) &&
+      (s.meta.ascensionCount ?? 0) < 1 &&
+      !guideSeen(s, 'guide-reinforce'),
+    completeWhen: (s) => (s.meta.ascensionCount ?? 0) >= 1,
   },
 ]
 
@@ -1352,8 +1413,8 @@ export const FOUNDRY_V2_GUIDE_IDS = ['guide-foundry-recipe', 'guide-foundry-mast
 
 export const RESEARCH_V2_GUIDE_IDS = ['guide-research-focus'] as const
 
-/** Rebuild uses the hangar KEEP/RESET modal, not a spotlight tour. */
-export const REBUILD_GUIDE_IDS = [] as const
+/** First Rebuild spotlight. Matter payoff stays after the hangar reset. */
+export const REBUILD_GUIDE_IDS = ['guide-rebuild'] as const
 
 export const FURNACE_V2_GUIDE_IDS = ['guide-furnace-light'] as const
 

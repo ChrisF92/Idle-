@@ -156,6 +156,19 @@ export interface SectorRecord {
   bossClearSeconds: number | null
 }
 
+export interface SortieRecord {
+  index: number
+  activeSeconds: number
+  duration: number
+  endWave: number
+  previousBest: number
+  newBest: boolean
+  salvageEarned: number
+  salvageSpent: number
+  scrapEarned: number
+  outcome: 'extract' | 'defeat' | null
+}
+
 export interface CorePurchaseRecord {
   moduleId: string
   name: string
@@ -358,6 +371,7 @@ export interface SimulationRunReport {
   prestigeMatterEarned: number
   milestones: MilestoneRecord[]
   sectors: SectorRecord[]
+  sorties: SortieRecord[]
   corePurchases: CorePurchaseRecord[]
   coreSpending: CoreSpendingSummary[]
   network: NetworkSnapshot

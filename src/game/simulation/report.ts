@@ -93,6 +93,33 @@ export function formatSummary(report: SimulationReport): string {
     milestoneLine(run, 'wave-300', 'Wave 300'),
     '',
   )
+  if (run.sorties.length > 0) {
+    const first = run.sorties[0]!
+    const early = run.sorties.filter((s) => s.previousBest < 70)
+    const mid = run.sorties.filter((s) => s.previousBest >= 70 && s.previousBest < 170)
+    const late = run.sorties.filter((s) => s.previousBest >= 170)
+    const avg = (rows: typeof run.sorties) =>
+      rows.length ? rows.reduce((s, r) => s + r.duration, 0) / rows.length : 0
+    const medianDelta = (rows: typeof run.sorties) => {
+      const deltas = rows.filter((r) => r.newBest).map((r) => r.endWave - r.previousBest)
+      if (!deltas.length) return 0
+      const sorted = [...deltas].sort((a, b) => a - b)
+      return sorted[Math.floor(sorted.length / 2)] ?? 0
+    }
+    lines.push(
+      '----------------------------------------',
+      'SORTIES',
+      '----------------------------------------',
+      '',
+      `Count: ${run.sorties.length}`,
+      `First Sortie: ${formatSimDuration(first.duration)} → W${first.endWave} (${first.outcome ?? '—'})`,
+      early.length ? `Early duration avg: ${formatSimDuration(avg(early))}  Best Δ ${medianDelta(early)}` : '',
+      mid.length ? `Mid duration avg: ${formatSimDuration(avg(mid))}  Best Δ ${medianDelta(mid)}` : '',
+      late.length ? `Late duration avg: ${formatSimDuration(avg(late))}  Best Δ ${medianDelta(late)}` : '',
+      `Salvage spent on run upgrades: ${run.sorties.reduce((s, r) => s + r.salvageSpent, 0).toFixed(0)}`,
+      '',
+    )
+  }
   if (run.rebuildLog.length > 0) {
     lines.push('----------------------------------------', 'REBUILDS', '----------------------------------------', '')
     for (const rec of run.rebuildLog) {
@@ -118,7 +145,7 @@ export function formatSummary(report: SimulationReport): string {
       lines.push(
         `${core.name}:`,
         `Levels purchased: ${core.levelsPurchased}`,
-        `Share of Core spending: ${(core.share * 100).toFixed(0)}%`,
+        `Share of Core Scrap: ${(core.share * 100).toFixed(0)}%`,
         '',
       )
     }

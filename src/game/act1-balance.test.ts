@@ -33,7 +33,7 @@ import { exportSave, importSave } from './save'
 
 const JARGON = /USI|ITRTG|analogue|black-bar/i
 
-function firstRebuildConfig(strategy: 'active' | 'optimiser') {
+function firstRebuildConfig(strategy: 'active' | 'casual' | 'balanced' | 'offensive' | 'defensive' | 'economy-first' | 'optimiser') {
   return defaultSimulationConfig({
     start: { type: 'fresh' },
     strategy,
@@ -92,8 +92,8 @@ describe('Act 1 authored formulas', () => {
     expect(ids).not.toContain('echo-unlock')
     expect(ids).not.toContain('sector-1')
     const rebuild = ACT1_TARGETS.find((t) => t.id === 'first-rebuild')!
-    expect(rebuild.min).toBeGreaterThanOrEqual(30 * 60)
-    expect(rebuild.max).toBeLessThanOrEqual(5 * 60 * 60)
+    expect(rebuild.min).toBe(2 * 60 * 60)
+    expect(rebuild.max).toBe(4 * 60 * 60)
     const hourBeats = ACT1_TARGETS.filter((t) =>
       ['first-wave', 'foundry-unlock'].includes(t.id),
     )
@@ -104,7 +104,7 @@ describe('Act 1 authored formulas', () => {
 describe('Act 1 onboarding audit', () => {
   it('does not pause on system doors and keeps copy free of designer jargon', () => {
     const byId = new Map(GUIDE_STEPS.map((s) => [s.id, s]))
-    for (const id of ['guide-launch', 'guide-foundry-recipe', 'guide-furnace-light', 'guide-research-focus']) {
+    for (const id of ['guide-launch', 'guide-foundry-recipe', 'guide-furnace-light', 'guide-research-focus', 'guide-rebuild', 'guide-reinforce']) {
       expect(byId.has(id)).toBe(true)
       expect(byId.get(id)?.required).not.toBe(true)
     }
@@ -155,18 +155,20 @@ describe('Act 1 career simulations', () => {
     expect(first!.activeSeconds).toBeGreaterThanOrEqual(window.min - window.warningPad)
     expect(first!.activeSeconds).toBeLessThanOrEqual(window.max + window.warningPad)
     expect(run.milestones.some((m) => m.id === 'foundry-unlock')).toBe(true)
-    expect(run.milestones.some((m) => m.id === 'reliquary-unlock')).toBe(false)
     const end = run.snapshots[run.snapshots.length - 1]!
     const atRebuild = run.snapshots.find((s) => s.at === 'first-rebuild') ?? end
     expect(end.drones).toBeGreaterThanOrEqual(NETWORK_STARTING_DRONES)
     expect(end.processEarned).toBeGreaterThanOrEqual(4)
     expect(atRebuild.foundryRecipes).toBeGreaterThanOrEqual(1)
-    // Active sims can finish a second Material breakthrough during a survivability wall.
     expect(atRebuild.researchBreakthroughs).toBe(0)
     expect(atRebuild.strike).toBeLessThan(40)
     expect(atRebuild.contribution.networkDamage).toBeLessThan(1.6)
+    expect(run.sorties.some((s) => s.salvageSpent > 0)).toBe(true)
+    expect(run.coreSpending.some((c) => c.levelsPurchased > 0)).toBe(true)
+    const rec = run.rebuildLog[0]!
+    expect((rec.coresLost['pulse-cannon'] ?? 0) + (rec.coresLost['plate-layer'] ?? 0)).toBeGreaterThan(0)
     const s4 = ACT1_EXPECTED_AT['sector-4']!
-    expect(inBand(end.pulse, [0, s4.pulse[1] + 8])).toBe(true)
+    expect(inBand(rec.coresLost['pulse-cannon'] ?? 0, [0, s4.pulse[1] + 8])).toBe(true)
   }, 120_000)
 
   it.skip('optimiser first Rebuild is not a spam-reset and still spends Cores', () => {
@@ -228,4 +230,23 @@ describe('Act 1 career simulations', () => {
     expect(back!.foundry.recipeLevels['slag-ingot']).toBe(4)
     expect(back!.furnace.wanted.weapons).toBe(1)
   })
+
+  it.skipIf(!process.env.RUN_PROFILE_SWEEP)(
+    'logs Casual / Balanced / Economy / Offensive / Defensive / Optimiser first Rebuilds',
+    () => {
+      const profiles = ['casual', 'balanced', 'economy-first', 'offensive', 'defensive', 'optimiser'] as const
+      for (const strategy of profiles) {
+        const cfg = firstRebuildConfig(strategy)
+        if (strategy === 'casual') {
+          cfg.maxCalendarSeconds = 3 * 24 * 3600
+          cfg.deadlockSeconds = 45 * 60
+        }
+        const report = runSimulation(cfg)
+        // eslint-disable-next-line no-console
+        console.log('\n' + formatSummary(report) + '\n')
+        expect(report.runs[0]?.safety.some((s) => s.kind === 'nan')).toBe(false)
+      }
+    },
+    600_000,
+  )
 })

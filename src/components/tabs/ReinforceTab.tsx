@@ -84,6 +84,7 @@ export function ReinforceTab({ state, onBack, onReinforce }: ReinforceTabProps) 
             <button
               type="button"
               className="primary"
+              data-guide="reinforce-go"
               disabled={!check.ok}
               onClick={() => setConfirm(true)}
             >

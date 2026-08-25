@@ -18,6 +18,8 @@ import {
   assignWorker,
   enterProtocol,
   buyWorkshopUpgrade,
+  buyRunUpgrade,
+  buyCoreStartingLevel,
 } from '../actions'
 import { setCampaign, setDocked, retryFrontier, chooseDirective } from '../tick'
 import { canRetryFrontier, isFrontierHold } from '../frontier'
@@ -28,12 +30,16 @@ import {
   idleWorkers,
   isStationUnlocked,
   MATTER_SHOP,
-  moduleLevel,
   moduleUpgradeCost,
   SHIP_MODULES,
+  visibleWorkerJobIds,
 } from '../catalog'
 import { pendingMilestone } from '../milestones'
-import { coreRunLevel } from '../coreProgression'
+import {
+  coreStartingLevel,
+  coreRunLevel,
+  equippedCoreSlots,
+} from '../coreProgression'
 import {
   NETWORK_BARS,
   NETWORK_LINKS,
@@ -41,10 +47,13 @@ import {
   networkLevels,
 } from '../network'
 import {
+  FOUNDRY_FACILITIES,
   FOUNDRY_RECIPES,
+  canStartFabrication,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
   scaledFoundryCost,
+  startFabrication,
 } from '../foundry'
 import {
   FURNACE_UPGRADES,
@@ -61,10 +70,16 @@ import { SHARDS, shardOwned, fittedShardId, isReliquarySlotUnlocked } from '../r
 import { GUIDE_STEPS, isSystemUnlocked } from '../progression'
 import { ACT1_CADENCE } from '../cadence'
 import { careerBestWave } from '../waves'
-import { WORKER_JOB_IDS } from '../workers'
+import { workerJobCap } from '../workers'
 import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
 import type { SimulationSpendProfile, StrategyContext } from './types'
-import { RUN_UPGRADES, workshopLevel, type RunUpgradeId } from '../workshop'
+import {
+  RUN_UPGRADES,
+  nextRunUpgradeCost,
+  visibleRunUpgrades,
+  workshopLevel,
+  type RunUpgradeId,
+} from '../workshop'
 
 export function resolveSpendProfile(mode: string): SimulationSpendProfile {
   if (mode === 'casual') return 'casual'
@@ -160,10 +175,8 @@ export function resolveMilestones(state: GameState, ctx: StrategyContext): GameS
 
 const WORKER_WEIGHTS: Record<string, number> = {
   'scrap-field': 4,
-  'power-grid': 2,
   'sensor-net': 2,
-  'alloy-foundry': 2,
-  'repair-bay': 2,
+  'alloy-foundry': 3,
   'drone-fab': 3,
   'fab-bay': 2,
   construction: 1,
@@ -177,13 +190,23 @@ export function rebalanceNetwork(
   const profile = resolveSpendProfile(mode)
   const drones = state.base.workerDrones
   if (drones <= 0) return state
-  const unlocked = WORKER_JOB_IDS.filter((id) => isStationUnlocked(state, id))
-  if (unlocked.length === 0) return state
+  const unlocked = visibleWorkerJobIds(state)
+  if (unlocked.length === 0) {
+    if (isStationUnlocked(state, 'scrap-field')) {
+      if ((state.base.assignments['scrap-field'] ?? 0) < drones && idleWorkers(state) > 0) {
+        const next = assignWorker(state, 'scrap-field', idleWorkers(state))
+        if (next !== state) ctx.record('network-assign')
+        return next
+      }
+    }
+    return state
+  }
 
   const bias = { ...WORKER_WEIGHTS }
   if (profile === 'economy-first') bias['scrap-field'] = 7
-  if (profile === 'defensive') bias['repair-bay'] = 5
-  if (profile === 'offensive') bias['drone-fab'] = 4
+  if (profile === 'defensive') bias['alloy-foundry'] = 4
+  if (profile === 'offensive') bias['drone-fab'] = 5
+  if (unlocked.includes('drone-fab')) bias['drone-fab'] = Math.max(bias['drone-fab'] ?? 3, 4)
 
   const target: Record<string, number> = {}
   let remaining = drones
@@ -193,12 +216,21 @@ export function rebalanceNetwork(
   }))
   const totalW = weights.reduce((s, r) => s + r.w, 0)
   for (const row of weights) {
-    const n = Math.max(0, Math.floor((drones * row.w) / totalW))
+    const cap = workerJobCap(row.id).hard
+    const n = Math.max(0, Math.min(cap, Math.floor((drones * row.w) / totalW)))
     target[row.id] = n
     remaining -= n
   }
+  if (unlocked.includes('drone-fab')) {
+    const minFab = Math.min(workerJobCap('drone-fab').min, remaining + (target['drone-fab'] ?? 0), drones)
+    if ((target['drone-fab'] ?? 0) < minFab) {
+      const add = minFab - (target['drone-fab'] ?? 0)
+      target['drone-fab'] = minFab
+      remaining -= add
+    }
+  }
   const dump = unlocked.includes('scrap-field') ? 'scrap-field' : unlocked[0]!
-  target[dump] = (target[dump] ?? 0) + Math.max(0, remaining)
+  target[dump] = Math.max(0, (target[dump] ?? 0) + Math.max(0, remaining))
 
   let already = idleWorkers(state) === 0
   if (already) {
@@ -391,7 +423,7 @@ export function spendRebuildMatter(state: GameState, ctx: StrategyContext): Game
     if (!bestId) break
     const after = buyMatterShop(next, bestId)
     if (after === next) break
-    ctx.recordMeaningful(`Slag Bank ${getMatterShopItem(bestId)?.name ?? bestId}`)
+    ctx.recordMeaningful(`Matter ${getMatterShopItem(bestId)?.name ?? bestId}`)
     ctx.attachRebuildPurchase(getMatterShopItem(bestId)?.name ?? bestId)
     next = after
   }
@@ -478,7 +510,11 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
 }
 
 export function doRebuild(state: GameState, ctx: StrategyContext, reasons: string[]): GameState {
-  const coresLost: Record<string, number> = { ...state.shipyard.moduleLevels }
+  const coresLost: Record<string, number> = {}
+  for (const slot of equippedCoreSlots(state)) {
+    const level = coreStartingLevel(state, slot.coreInstanceId)
+    coresLost[slot.moduleId] = Math.max(coresLost[slot.moduleId] ?? 0, level)
+  }
   const networkLevelsLost: Record<string, number> = {}
   for (const bar of NETWORK_BARS) {
     networkLevelsLost[bar.id] = networkLevels(state, bar.id)
@@ -531,9 +567,123 @@ function shopOrderFor(profile: SimulationSpendProfile, preferDefense: boolean): 
   if (profile === 'economy-first') {
     return ['salvage-kill', 'scrap-kill', 'ash-yield', 'salvage-wave', 'fragment-chance', 'weapon-power', 'hull']
   }
+  if (profile === 'optimiser') {
+    return preferDefense
+      ? ['hull', 'weapon-power', 'cycle-rate', 'salvage-kill', 'shield']
+      : ['weapon-power', 'cycle-rate', 'hull', 'salvage-kill', 'shield']
+  }
   return preferDefense
     ? ['hull', 'shield', 'weapon-power', 'cycle-rate', 'salvage-kill']
     : ['weapon-power', 'hull', 'cycle-rate', 'shield', 'salvage-kill']
+}
+
+export function spendSalvageOnRunUpgrades(
+  state: GameState,
+  ctx: StrategyContext,
+  mode: SimulationSpendProfile | 'active' | 'casual' | 'optimiser',
+): GameState {
+  if (state.combat.docked) return state
+  if ((state.combat.defeatLeft ?? 0) > 0) return state
+  const profile = resolveSpendProfile(mode)
+  const preferDefense =
+    state.combat.consecutiveLosses >= 1 ||
+    (state.combat.playerHullMax > 0 && state.combat.playerHull / state.combat.playerHullMax <= 0.55)
+  const order = shopOrderFor(profile, preferDefense)
+  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
+  let next = state
+  const budget = profile === 'casual' ? 3 : profile === 'optimiser' ? 12 : 8
+  for (let n = 0; n < budget; n += 1) {
+    let bought = false
+    for (const id of order) {
+      const def = visibleRunUpgrades(best).find((row) => row.id === id)
+      if (!def) continue
+      const cost = nextRunUpgradeCost(next, id)
+      if (cost <= 0 || (next.resources.salvage ?? 0) < cost) continue
+      const after = buyRunUpgrade(next, id)
+      if (after === next) continue
+      ctx.recordMeaningful(`Salvage ${def.name} → L${(after.combat.runUpgrades?.[id] ?? 0)}`)
+      next = after
+      bought = true
+      break
+    }
+    if (!bought) break
+  }
+  return next
+}
+
+function coreSlotOrder(profile: SimulationSpendProfile, preferDefense: boolean): string[] {
+  if (profile === 'defensive' || preferDefense) return ['plate-layer', 'pulse-cannon']
+  if (profile === 'offensive') return ['pulse-cannon', 'plate-layer']
+  return ['pulse-cannon', 'plate-layer']
+}
+
+export function spendScrapOnCoreStarts(
+  state: GameState,
+  ctx: StrategyContext,
+  mode: SimulationSpendProfile | 'active' | 'casual' | 'optimiser',
+): GameState {
+  if (!state.combat.docked) return state
+  if (!state.meta.hullLostOnce) return state
+  const profile = resolveSpendProfile(mode)
+  const preferDefense = state.combat.consecutiveLosses >= 2
+  const order = coreSlotOrder(profile, preferDefense)
+  const slots = equippedCoreSlots(state)
+  if (slots.length === 0) return state
+  const wp = workshopLevel(state, 'weapon-power')
+  let next = state
+  const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? 2 : 6
+  for (let n = 0; n < budget; n += 1) {
+    let bought = false
+    const ranked = [...order].sort((a, b) => {
+      const la = coreStartingLevel(next, slots.find((row) => row.moduleId === a)?.coreInstanceId ?? a)
+      const lb = coreStartingLevel(next, slots.find((row) => row.moduleId === b)?.coreInstanceId ?? b)
+      return la - lb
+    })
+    for (const moduleId of ranked) {
+      const slot = slots.find((row) => row.moduleId === moduleId)
+      if (!slot) continue
+      const level = coreStartingLevel(next, slot.coreInstanceId)
+      if (profile === 'economy-first' && wp < 3 && level >= 1) continue
+      if (profile !== 'optimiser' && profile !== 'offensive' && level > wp + 2) continue
+      const before = next.resources.scrap
+      const after = buyCoreStartingLevel(next, slot.coreInstanceId, 1)
+      if (after === next) continue
+      const cost = Math.max(0, before - after.resources.scrap)
+      const afterLevel = coreStartingLevel(after, slot.coreInstanceId)
+      ctx.recordCorePurchase({
+        moduleId,
+        name: getModule(moduleId)?.name ?? moduleId,
+        levelAfter: afterLevel,
+        cost,
+        activeSeconds: ctx.activeSeconds,
+        statBefore: level,
+        statAfter: afterLevel,
+        marginalPerCost: cost > 0 ? 1 / cost : 0,
+      })
+      ctx.recordMeaningful(`${getModule(moduleId)?.name ?? moduleId} Core → L${afterLevel}`)
+      next = after
+      bought = true
+      break
+    }
+    if (!bought) break
+  }
+  return next
+}
+
+export function tendFoundryFacilities(state: GameState, ctx: StrategyContext): GameState {
+  if (!isSystemUnlocked(state, 'foundry')) return state
+  const prefer = ['drone-fabricator', 'drone-racks', 'processing-line', 'storage-bay', 'research-annex']
+  for (const id of prefer) {
+    const def = FOUNDRY_FACILITIES.find((row) => row.id === id)
+    if (!def) continue
+    if (!canStartFabrication(state, 'facility', id).ok) continue
+    const after = startFabrication(state, 'facility', id)
+    if (after !== state) {
+      ctx.recordMeaningful(`Foundry ${def.name}`)
+      return after
+    }
+  }
+  return state
 }
 
 export function spendScrapOnWorkshop(
@@ -548,7 +698,7 @@ export function spendScrapOnWorkshop(
   const order = shopOrderFor(profile, preferDefense)
   const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   let next = state
-  const budget = profile === 'casual' ? 4 : 10
+  const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? 6 : 4
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     for (const id of order) {
@@ -575,8 +725,11 @@ export function industryPass(
   const profile = resolveSpendProfile(mode)
   let next = state
   next = maybeUnlockAndFit(next, ctx)
+  next = spendSalvageOnRunUpgrades(next, ctx, profile)
   next = tendFoundry(next, ctx)
+  next = tendFoundryFacilities(next, ctx)
   next = spendScrapOnWorkshop(next, ctx, profile)
+  next = spendScrapOnCoreStarts(next, ctx, profile)
   next = rebalanceNetwork(next, ctx, profile)
   next = buyUsefulNetworkLinks(next, ctx)
   next = tendFurnace(next, ctx)

@@ -96,7 +96,7 @@ export function UpgradeGrid({
             const currency = kind === 'run' ? 'Salvage' : 'Scrap'
             const affordable = bank >= cost && level < RUN_UPGRADE_CAP && cost > 0
             const maxed = level >= RUN_UPGRADE_CAP
-            const preview = runUpgradePreview(state, def.id)
+            const preview = runUpgradePreview(state, def.id, kind)
             const guide =
               def.id === 'weapon-power'
                 ? kind === 'workshop'
@@ -181,7 +181,7 @@ export function UpgradeGrid({
             </p>
           )}
           <p className="muted">
-            {runUpgradePreview(state, info.id).current} → {runUpgradePreview(state, info.id).next}
+            {runUpgradePreview(state, info.id, kind).current} → {runUpgradePreview(state, info.id, kind).next}
           </p>
           <p className="muted">
             {kind === 'workshop'
