@@ -463,15 +463,17 @@ export function grantFurnaceKillLoot(state: GameState, isBoss: boolean): number 
   return ash
 }
 
-export function convertAshToHeat(state: GameState, _heatMult = 1): GameState {
+export function convertAshToHeat(state: GameState, _heatMult = 1, maxBatches?: number): GameState {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return state
   const ash = state.resources.choirAsh ?? 0
   const batches = Math.floor(ash / ASH_PER_HEAT)
-  if (batches <= 0) return state
-  const used = batches * ASH_PER_HEAT
+  const converted =
+    maxBatches == null ? batches : Math.min(batches, Math.max(0, Math.floor(maxBatches)))
+  if (converted <= 0) return state
+  const used = converted * ASH_PER_HEAT
   const next = structuredClone(state)
   next.resources.choirAsh = ash - used
-  next.resources.heat = (next.resources.heat ?? 0) + batches
+  next.resources.heat = (next.resources.heat ?? 0) + converted
   return next
 }
 

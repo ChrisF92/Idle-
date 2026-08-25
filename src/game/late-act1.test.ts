@@ -110,9 +110,21 @@ describe('Furnace banks Ash for a frontier push', () => {
     s.resources.choirAsh = 90
     const decision = shouldRebuild(
       s,
-      stubCtx({ secondsSinceHighestSectorGain: 20 * 60, lastRebuildActive: 1000 }),
+      stubCtx({ secondsSinceHighestSectorGain: 70 * 60, lastRebuildActive: 1000 }),
     )
     expect(decision.yes).toBe(false)
+  })
+
+  it('keeps leftover Ash after lighting Weapons I + Ward I on the wall', () => {
+    let s = markHullLost(atCareerWave(createInitialState(0), 160))
+    s.combat.docked = false
+    s.combat.wave = 155
+    s.resources.choirAsh = 250
+    s.resources.heat = 0
+    s = tendFurnace(s, stubCtx())
+    expect(furnaceActiveLevel(s, 'weapons')).toBe(1)
+    expect(furnaceActiveLevel(s, 'shielding')).toBe(1)
+    expect(s.resources.choirAsh).toBeGreaterThan(80)
   })
 })
 

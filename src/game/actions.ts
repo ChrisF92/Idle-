@@ -219,8 +219,12 @@ export {
   buyYardArm,
 }
 
-export function convertAshToHeat(state: GameState): GameState {
-  return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
+export function convertAshToHeat(state: GameState, maxBatches?: number): GameState {
+  return convertAshToHeatRaw(
+    state,
+    hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state),
+    maxBatches,
+  )
 }
 
 export function setNumberNotation(

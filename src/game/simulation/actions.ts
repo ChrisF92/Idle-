@@ -394,20 +394,27 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
   const heat = state.resources.heat ?? 0
   const bankedHeat = heat + Math.floor(ash / ASH_PER_HEAT)
   const career = careerBestWave(state)
+  const cycleBest = cycleBestWave(state)
   const wave = Math.max(1, state.combat.wave ?? 1)
-  const losses = state.combat.consecutiveLosses ?? 0
-  const nearFrontier =
-    career <= 0 || wave >= Math.max(1, career - 20) || (losses >= 1 && wave >= career * 0.8)
-  // Bank Ash until a Weapons I light is affordable, then spend on a frontier push.
-  // Drip-converting dumps Heat on Dock and never breaks W160.
-  if (!nearFrontier && bankedHeat < weaponsCost + wardCost) return state
+  const reclaiming =
+    (state.prestige.prestigeCount ?? 0) >= 1 && career > 0 && cycleBest < career * 0.88
+  const onTheWall = career <= 0 || wave >= Math.max(1, career - 8)
+  const nearCareer = career <= 0 || wave >= career * 0.94
+  // Bank Ash through reclaim. Convert only on the wall, and only the Heat this Sortie can spend.
+  if (reclaiming && !nearCareer) return state
+  if (!onTheWall) return state
   if (furnaceActiveLevel(state, 'weapons') > 0) return state
   if (bankedHeat < weaponsCost) return state
 
-  let next = heat < weaponsCost ? convertAshToHeat(state) : state
+  const wantWard = bankedHeat >= weaponsCost + wardCost
+  const heatNeeded = weaponsCost + (wantWard ? wardCost : 0)
+  const batchesNeeded = Math.max(0, heatNeeded - Math.floor(heat))
+  let next = batchesNeeded > 0 ? convertAshToHeat(state, batchesNeeded) : state
   if (next !== state) ctx.record('ash-to-heat')
   const slots = furnaceChannelSlots(next)
-  const order: Array<Parameters<typeof setFurnaceChannel>[1]> = ['weapons', 'shielding', 'recovery']
+  const order: Array<Parameters<typeof setFurnaceChannel>[1]> = wantWard
+    ? ['weapons', 'shielding']
+    : ['weapons']
   let lit = 0
   for (const id of order) {
     if (furnaceActiveLevel(next, id) > 0) lit += 1
@@ -574,7 +581,9 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   const stallNeed =
     (state.prestige.prestigeCount ?? 0) < 1
       ? cfg.stallSeconds
-      : Math.max(cfg.stallSeconds * 3, 18 * 60)
+      : careerBestWave(state) >= ACT1_CADENCE.furnace
+        ? Math.max(cfg.stallSeconds * 5, 40 * 60)
+        : Math.max(cfg.stallSeconds * 3, 18 * 60)
   const cycleBest = cycleBestWave(state)
   const career = careerBestWave(state)
   const reclaiming =
@@ -583,7 +592,8 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   const heat = state.resources.heat ?? 0
   const furnaceBank = ash + heat * ASH_PER_HEAT
   const furnaceOpen = isSystemUnlocked(state, 'furnace')
-  const furnaceReady = furnaceOpen && furnaceBank >= furnaceLightCost('weapons', 1) * ASH_PER_HEAT
+  const weaponsAsh = furnaceLightCost('weapons', 1) * ASH_PER_HEAT
+  const furnaceReady = furnaceOpen && furnaceBank >= weaponsAsh
   if (
     ctx.lastRebuildActive != null &&
     ctx.activeSeconds - ctx.lastRebuildActive < stallNeed &&
@@ -595,11 +605,15 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
   if (reclaiming && ctx.secondsSinceHighestSectorGain < 40 * 60 && state.combat.consecutiveLosses < 5) {
     return { yes: false, reasons: [] }
   }
-  // Banked Heat/Ash is the W160 lever. Rebuild dumps it.
-  if (furnaceReady && ctx.secondsSinceHighestSectorGain < 45 * 60 && state.combat.consecutiveLosses < 5) {
+  // Banked Ash is the W160 lever. Rebuild dumps it — never prestige a Weapons-ready
+  // push away unless the wall has already eaten several Furnace attempts.
+  if (
+    furnaceReady &&
+    !(ctx.secondsSinceHighestSectorGain >= 3 * 3600 && state.combat.consecutiveLosses >= 8)
+  ) {
     return { yes: false, reasons: [] }
   }
-  if (furnaceOpen && furnaceBank >= 40 && furnaceBank < 80 && ctx.secondsSinceHighestSectorGain < 30 * 60) {
+  if (furnaceOpen && furnaceBank >= 40 && ctx.secondsSinceHighestSectorGain < 50 * 60) {
     return { yes: false, reasons: [] }
   }
   const reasons: string[] = []
