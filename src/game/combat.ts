@@ -680,14 +680,14 @@ export const ENEMY_HULL_OPENING = 1.2
 /** Per-band hull growth for S4–S8. Steeper than the opening so W40–W80 is the wall. */
 export const ENEMY_HULL_EARLY = 1.3
 export const ENEMY_HULL_MID = 1.2
-/** S17+ (W170+). Steep enough that a stacked shop still meets walls, not a 2-hour melt to W300. */
-export const ENEMY_HULL_LATE = 1.34
+/** S17+ (W170+). Steeper than mid, but 1.34× locked Economy-first at W200 even at Workshop cap. */
+export const ENEMY_HULL_LATE = 1.26
 
 export const ENEMY_DMG_BASE = 0.9
 export const ENEMY_DMG_OPENING = 1.22
 export const ENEMY_DMG_EARLY = 1.28
 export const ENEMY_DMG_MID = 1.16
-export const ENEMY_DMG_LATE = 1.26
+export const ENEMY_DMG_LATE = 1.22
 
 /** Extra hull/damage per Wave inside a 10-wave band. */
 export const ENEMY_WAVE_HULL_RAMP = 0.06
