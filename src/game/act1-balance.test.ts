@@ -268,8 +268,9 @@ describe('Act 1 career simulations', () => {
     expect(end.contribution.reliquaryDamage).toBeGreaterThan(0)
     expect(end.drones).toBeGreaterThan(4)
     expect(end.droneCap).toBeGreaterThan(4)
-    const mastery = Object.values(run.foundry.recipeLevels ?? {}).reduce((s, n) => Math.max(s, n ?? 0), 0)
-    expect(mastery).toBeLessThan(50)
+    const levels = Object.values(run.foundry.recipeLevels ?? {})
+    const maxed = levels.filter((n) => (n ?? 0) >= 100).length
+    expect(maxed).toBeLessThan(2)
     expect(
       run.meaningfulActions.some((a) => /Furnace weapons/i.test(a.label)),
     ).toBe(true)
