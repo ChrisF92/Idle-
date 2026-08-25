@@ -141,7 +141,6 @@ describe('shell UX', () => {
       <NetworkTab
         state={markHullLost(createInitialState(0))}
         onAssign={() => undefined}
-        onBuyLink={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: 'Inspect Archive' })).toBeNull()
@@ -231,7 +230,6 @@ describe('shell UX', () => {
       <NetworkTab
         state={createInitialState(0)}
         onAssign={() => undefined}
-        onBuyLink={() => undefined}
       />,
     )
     expect(screen.getByRole('heading', { name: 'Worker Drones' })).toBeTruthy()
@@ -329,7 +327,7 @@ describe('shell UX', () => {
     expect(screen.getByRole('button', { name: 'Copy export code' })).toBeTruthy()
   })
 
-  it('splits Foundry into Smelt, Ranks, Prints, and Fit', () => {
+  it('splits Foundry into Processing, Fabrication, Mastery, and Blueprints', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
     state.combat.highestSector = 6
@@ -337,25 +335,18 @@ describe('shell UX', () => {
       <FoundryTab
         state={state}
         onSetSlot={() => undefined}
-        onBuyUpgrade={() => undefined}
-        onEquip={() => undefined}
-        onUnequip={() => undefined}
-        onAssemble={() => undefined}
+        onFabricateCore={() => undefined}
         onTrack={() => undefined}
       />,
     )
-    expect(screen.getByRole('tab', { name: 'Smelt' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Processing' })).toBeTruthy()
     expect(document.querySelector('[data-guide="foundry-smelters"]')).toBeTruthy()
-    expect(document.querySelector('[data-guide="foundry-recipes"]')).toBeTruthy()
     expect(screen.queryByText('Core prints')).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: 'Prints' }))
-    expect(screen.getByText('Core prints')).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: 'Track' }).length).toBeGreaterThan(0)
-    fireEvent.click(screen.getByRole('tab', { name: 'Fit' }))
-    expect(screen.getByText(/fitted bits/i)).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Blueprints' }))
+    expect(screen.getByText(/Blueprints/i)).toBeTruthy()
   })
 
-  it('opens Foundry prints when a print is focused', () => {
+  it('opens Foundry blueprints when a print is focused', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
     state.combat.highestSector = 6
@@ -363,37 +354,27 @@ describe('shell UX', () => {
       <FoundryTab
         state={state}
         onSetSlot={() => undefined}
-        onBuyUpgrade={() => undefined}
-        onEquip={() => undefined}
-        onUnequip={() => undefined}
-        onAssemble={() => undefined}
+        onFabricateCore={() => undefined}
         onTrack={() => undefined}
         focusTarget="print-pulse-cannon"
       />,
     )
-    expect(screen.getByText('Core prints')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Blueprints' }).getAttribute('aria-selected')).toBe('true')
   })
 
-  it('shows running Foundry crafts on Sortie and opens Foundry from the strip', () => {
+  it('does not put Foundry craft controls on Sortie', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
     state.combat.highestSector = 6
     state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.4, paid: true }
-    let opened = false
     render(
       <CombatTab
         state={state}
         onLaunch={() => undefined}
         onPickMilestone={() => undefined}
-        onOpenFoundry={() => {
-          opened = true
-        }}
       />,
     )
-    const strip = screen.getByRole('button', { name: /Foundry smelting Slag Ingot/i })
-    expect(strip).toBeTruthy()
-    fireEvent.click(strip)
-    expect(opened).toBe(true)
+    expect(screen.queryByRole('button', { name: /Foundry smelting/i })).toBeNull()
   })
 
   it('hides the Sortie craft strip when no smelter is running', () => {
@@ -405,7 +386,6 @@ describe('shell UX', () => {
         state={state}
         onLaunch={() => undefined}
         onPickMilestone={() => undefined}
-        onOpenFoundry={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: /Foundry smelting/i })).toBeNull()
