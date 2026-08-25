@@ -1,6 +1,6 @@
 # Hiveworks
 
-Portrait incremental auto-combat. The player runs a stationary industrial **Hive**. Every **Sortie** starts at **Wave 1**, combat is automatic, and death or Extraction ends the run. Temporary **Salvage** powers the current Sortie. **Scrap** and the **Workshop** power the current Rebuild cycle. **Matter** from **Rebuild** powers the account. **Reinforce** after Wave 300 is the Act 1 door to a later scale.
+Portrait incremental auto-combat. The player runs a stationary industrial **Hive**. Every **Sortie** starts at **Wave 1**, combat is automatic, and death or Extraction ends the run. Temporary **Salvage** powers the current Sortie. **Scrap** and the **Workshop** power the current Rebuild cycle. **Matter** from **Rebuild** powers the account. **Reinforce** after defeating the Wave 1000 Choir Crown is the Act 1 door to a later scale.
 
 Design authority: [`Hiveworks_Game_Design_Document_v1.0.md`](Hiveworks_Game_Design_Document_v1.0.md).  
 Act 1 implementation must conform to [`docs/act1-canonical-design.md`](docs/act1-canonical-design.md). Where older GDD/docs/code conflict, the canonical Act 1 design wins.  
