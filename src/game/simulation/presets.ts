@@ -177,6 +177,8 @@ export function stopLabel(stop: SimulationStop): string {
       return `${Math.round(stop.seconds / 60)}m active`
     case 'unlock':
       return `Unlock ${stop.system}`
+    case 'furnace-lit':
+      return 'Furnace Weapons lit'
     case 'reinforce':
       return 'First Reinforce'
     case 'safety':

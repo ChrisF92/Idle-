@@ -46,6 +46,7 @@ export type SimulationStop =
   | { type: 'duration'; calendarSeconds: number }
   | { type: 'active-duration'; seconds: number }
   | { type: 'unlock'; system: string }
+  | { type: 'furnace-lit' }
   | { type: 'reinforce' }
   | { type: 'safety' }
 

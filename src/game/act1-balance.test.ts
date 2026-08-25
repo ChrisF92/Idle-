@@ -248,7 +248,7 @@ describe('Act 1 career simulations', () => {
       defaultSimulationConfig({
         start: { type: 'fresh' },
         strategy: 'balanced',
-        stop: { type: 'wave', wave: 165 },
+        stop: { type: 'furnace-lit' },
         seed: 1,
         logging: 'milestones',
         deadlockSeconds: 60 * 60,
@@ -262,7 +262,7 @@ describe('Act 1 career simulations', () => {
     expect(run.milestones.some((m) => m.id === 'furnace-unlock')).toBe(true)
     expect(run.milestones.some((m) => m.id === 'reliquary-unlock')).toBe(true)
     expect(run.rebuilds).toBeGreaterThanOrEqual(1)
-    expect(run.rebuilds).toBeLessThan(20)
+    expect(run.rebuilds).toBeLessThan(12)
     expect(run.furnace.heatSpent).toBeGreaterThan(0)
     const end = run.snapshots[run.snapshots.length - 1]!
     expect(end.contribution.reliquaryDamage).toBeGreaterThan(0)

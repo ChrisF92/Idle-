@@ -94,6 +94,10 @@ function stopReached(
       return activeSeconds >= stop.seconds ? 'Active duration reached' : null
     case 'unlock':
       return isSystemUnlocked(state, stop.system as never) ? `Unlocked ${stop.system}` : null
+    case 'furnace-lit':
+      return (state.furnace?.wanted?.weapons ?? 0) > 0 || (state.furnace?.active?.weapons ?? 0) > 0
+        ? 'Furnace Weapons lit'
+        : null
     case 'reinforce':
       return canReinforce(state).ok || (state.meta.ascensionCount ?? 0) > 0
         ? 'Reinforce available / used'
@@ -322,6 +326,13 @@ function runOneSeeded(
       state.combat.docked ||
       !state.combat.inFight
     if (needDecide) decide()
+    if (
+      config.stop.type === 'furnace-lit' &&
+      ((state.furnace?.wanted?.weapons ?? 0) > 0 || (state.furnace?.active?.weapons ?? 0) > 0)
+    ) {
+      stopReason = 'Furnace Weapons lit'
+      break
+    }
 
     const chunk = Math.min(
       CHUNK,
