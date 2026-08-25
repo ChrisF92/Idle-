@@ -6,6 +6,8 @@
 **Code snapshot:** Phase 9 first land — Wave sim / playtest (SAVE_VERSION 36, package `0.1.0`)  
 **Goal:** take the current hybrid (GDD spine + leftover USI/Cosmic Idle) to a polished Act 1 release.
 
+> **Act 1 implementation must conform to [`docs/act1-canonical-design.md`](./act1-canonical-design.md). Where older GDD/docs/code conflict, the canonical Act 1 design wins.**
+
 This file is the implementation checklist. Update the Decision Log when a question is answered. Do not silently preserve a mechanic because the code already has it (GDD Appendix E).
 
 ---
