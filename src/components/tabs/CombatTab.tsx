@@ -1,8 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
+import type { CombatOverlayMode, GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
 import { computeShipStats } from '../../game/state'
 import { formatCompact } from '../../game/format'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
+import { CombatOverlaySheet, TargetingSheet } from '../CombatOverlaySheet'
 import { SheetTabs } from '../SheetTabs'
 import { type BuyMode } from '../../game/workshop'
 import {
@@ -18,7 +19,13 @@ import { DIRECTIVES, directivesUnlocked, getDirective, hasDirectiveOffer } from 
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
 import { isChallengeSortie } from '../../game/frontier'
 import { isSystemUnlocked } from '../../game/progression'
+import { lessonFinished } from '../../game/onboarding'
 import { furnaceCombatFx, furnaceLitLine } from '../../game/furnace'
+import {
+  canConfigureTargetingDoctrine,
+  combatOverlayGeometry,
+  targetCapableLoadoutCores,
+} from '../../game/coreTargeting'
 
 type ShopTab = RunUpgradeCategory
 
@@ -42,6 +49,11 @@ interface CombatTabProps {
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onCycleSpeed?: () => void
+  onSetCoreDoctrine?: (
+    coreInstanceId: string,
+    doctrine: import('../../game/types').TargetingDoctrineId,
+  ) => void
+  onCombatOverlayUi?: (info: { open: boolean; selectedCoreId: string | null }) => void
 }
 
 export function CombatTab({
@@ -55,6 +67,8 @@ export function CombatTab({
   onboardingTarget = null,
   onChooseDirective,
   onCycleSpeed,
+  onSetCoreDoctrine,
+  onCombatOverlayUi,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -65,6 +79,10 @@ export function CombatTab({
   const [buyMode, setBuyMode] = useState<BuyMode>(1)
   const [shopCollapsed, setShopCollapsed] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [overlaySheetOpen, setOverlaySheetOpen] = useState(false)
+  const [targetingSheetOpen, setTargetingSheetOpen] = useState(false)
+  const [overlayMode, setOverlayMode] = useState<CombatOverlayMode>('off')
+  const [overlayCoreId, setOverlayCoreId] = useState<string | null>(null)
   const [directivesOpen, setDirectivesOpen] = useState(false)
   const [rateView, setRateView] = useState<'salvage' | 'scrap' | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -102,6 +120,14 @@ export function CombatTab({
     const t = window.setTimeout(() => setDpsFlash(null), 1800)
     return () => window.clearTimeout(t)
   }, [dpsFlash])
+
+  useEffect(() => {
+    onCombatOverlayUi?.({ open: overlaySheetOpen, selectedCoreId: overlayCoreId })
+  }, [overlaySheetOpen, overlayCoreId, onCombatOverlayUi])
+
+  useEffect(() => {
+    return () => onCombatOverlayUi?.({ open: false, selectedCoreId: null })
+  }, [onCombatOverlayUi])
 
   useEffect(() => {
     if (combat.docked && !dying) {
@@ -204,6 +230,8 @@ export function CombatTab({
   const scrapRun = runScrapEarned(state)
   const rates = runResourceRates(state)
   const salvageBank = Math.floor(state.resources.salvage)
+  const overlayGeom = combatOverlayGeometry(state)
+  const overlayIntroPending = !lessonFinished(state, 'combat-overlay.ranges')
 
   function toggleRate(kind: 'salvage' | 'scrap') {
     setRateView((cur) => (cur === kind ? null : kind))
@@ -233,6 +261,9 @@ export function CombatTab({
           frameId={state.shipyard.frameId}
           coreIds={state.shipyard.modules}
           furnacePush={furnaceCombatFx(state)}
+          overlayMode={overlayMode}
+          overlayCoreId={overlayCoreId}
+          overlayCores={overlayGeom}
         />
         <div className="sortie-canvas-chrome is-top">
           {boss ? (
@@ -307,6 +338,34 @@ export function CombatTab({
                 <div className="sortie-menu-pop" id={`${titleId}-menu`} role="menu" aria-label="Sortie">
                   {live && !dying ? (
                     <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          if (!combat.sortiePaused) onPause?.()
+                          const cores = targetCapableLoadoutCores(state)
+                          if (!overlayCoreId && !overlayIntroPending) {
+                            setOverlayCoreId(cores[0]?.coreInstanceId ?? null)
+                          }
+                          setOverlaySheetOpen(true)
+                        }}
+                      >
+                        Combat Overlay
+                      </button>
+                      {canConfigureTargetingDoctrine(state) ? (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            if (!combat.sortiePaused) onPause?.()
+                            setTargetingSheetOpen(true)
+                          }}
+                        >
+                          Targeting
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         role="menuitem"
@@ -507,6 +566,25 @@ export function CombatTab({
           </div>
         </div>
       ) : null}
+      <CombatOverlaySheet
+        open={overlaySheetOpen}
+        state={state}
+        mode={overlayMode}
+        selectedCoreId={overlayCoreId}
+        onClose={() => setOverlaySheetOpen(false)}
+        onMode={setOverlayMode}
+        onSelectCore={(id) => {
+          setOverlayCoreId(id)
+          if (overlayMode === 'off') setOverlayMode('selected')
+          if (overlayIntroPending) setOverlaySheetOpen(false)
+        }}
+      />
+      <TargetingSheet
+        open={targetingSheetOpen}
+        state={state}
+        onClose={() => setTargetingSheetOpen(false)}
+        onSetDoctrine={(id, doctrine) => onSetCoreDoctrine?.(id, doctrine)}
+      />
     </section>
   )
 }

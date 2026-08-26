@@ -1,6 +1,8 @@
 /** Lane range drawn at the canvas rim. Spawn sits just outside so the close is visible. */
 export const RADIAL_EDGE_RANGE = 172
 
+import { shortestAngleDelta as geomShortest, wrapSignedPi } from './geometry'
+
 /** Screen-space helpers for radial combat presentation. */
 
 export function shotTravelHeading(
@@ -61,18 +63,18 @@ export function weaponIdToCoreId(weaponId?: string): string | null {
   return tagged ? tagged[1] : weaponId
 }
 
-/** Half-width of a weapon Core's outward firing cone, in radians. */
+/** Half-width of a weapon Core's outward firing cone, in radians. Presentation only. */
 export const CORE_FIRE_ARC = 0.82
 
 export function wrapAngle(angle: number): number {
-  const tau = Math.PI * 2
-  return ((angle + Math.PI) % tau + tau) % tau - Math.PI
+  return wrapSignedPi(angle)
 }
 
 export function shortestAngleDelta(from: number, to: number): number {
-  return wrapAngle(to - from)
+  return geomShortest(from, to)
 }
 
+/** Interpolate display angles between simulation snapshots. Not mechanical slew. */
 export function easeAngle(current: number, dest: number, dt: number, stiffness = 10): number {
   const delta = shortestAngleDelta(current, dest)
   return current + delta * (1 - Math.exp(-Math.max(0, dt) * stiffness))

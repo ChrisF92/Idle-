@@ -52,6 +52,7 @@ import {
   buyRunUpgrade,
   buyWorkshopUpgrade,
   cycleSortieSpeed,
+  setCoreTargetingDoctrine,
   withdrawFabPart,
   equipSignalCore,
   unequipSignalCore,
@@ -124,6 +125,7 @@ type Action =
   | { type: 'select-frame'; frameId: string }
   | { type: 'unlock-module'; moduleId: string }
   | { type: 'fit-module'; moduleId: string; coreInstanceId?: string }
+  | { type: 'set-core-doctrine'; coreInstanceId: string; doctrine: import('../game/types').TargetingDoctrineId }
   | { type: 'unfit-module'; moduleId: string; coreInstanceId?: string }
   | { type: 'buy-core-start'; coreInstanceId: string; count?: number }
   | { type: 'buy-run-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
@@ -254,6 +256,8 @@ function reducer(state: GameState, action: Action): GameState {
       return fitModule(state, action.moduleId, action.coreInstanceId)
     case 'unfit-module':
       return unfitModule(state, action.moduleId, action.coreInstanceId)
+    case 'set-core-doctrine':
+      return setCoreTargetingDoctrine(state, action.coreInstanceId, action.doctrine)
     case 'buy-core-start':
       return buyCoreStartingLevel(state, action.coreInstanceId, action.count)
     case 'buy-run-upgrade':
@@ -507,6 +511,10 @@ export function useGame() {
       dispatch({ type: 'fit-module', moduleId, coreInstanceId }),
     unfitModule: (moduleId: string, coreInstanceId?: string) =>
       dispatch({ type: 'unfit-module', moduleId, coreInstanceId }),
+    setCoreTargetingDoctrine: (
+      coreInstanceId: string,
+      doctrine: import('../game/types').TargetingDoctrineId,
+    ) => dispatch({ type: 'set-core-doctrine', coreInstanceId, doctrine }),
     buyCoreStartingLevel: (coreInstanceId: string, count?: number) =>
       dispatch({ type: 'buy-core-start', coreInstanceId, count }),
     buyRunUpgrade: (id: import('../game/types').RunUpgradeId, count?: number) =>

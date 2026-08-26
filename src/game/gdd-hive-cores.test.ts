@@ -68,6 +68,11 @@ describe('GDD Hive and orbiting Cores', () => {
       enemy.y = 0
       enemy.engageRange = 200
     }
+    const target = state.combat.enemyUnits[0]
+    if (target) {
+      core.currentTargetId = target.id
+      core.heading = Math.atan2(target.x - core.x, target.y - core.y)
+    }
     for (const weapon of core.weapons) {
       weapon.range = 200
       weapon.cooldownLeft = 0

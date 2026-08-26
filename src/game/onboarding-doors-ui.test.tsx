@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
 import { DockTab } from '../components/tabs/DockTab'
 import { FoundryTab } from '../components/tabs/FoundryTab'
@@ -51,6 +51,7 @@ function renderDoor(id: OnboardingLessonId) {
     switch (id) {
       case 'opening.salvage':
       case 'directives.choice':
+      case 'combat-overlay.ranges':
         return (
           <CombatTab
             state={state}
@@ -139,9 +140,19 @@ describe('onboarding door targets', () => {
     'process.capability',
     'challenges.start',
     'reinforce',
+    'combat-overlay.ranges',
   ] as OnboardingLessonId[])('mounts %s on the correct screen', (id) => {
     const { state, lesson } = renderDoor(id)
-    const step = activeOnboardingLesson(state, { tab: lesson.nav.tab })
+    if (id === 'combat-overlay.ranges') {
+      fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Combat Overlay' }))
+    }
+    const step = activeOnboardingLesson(
+      state,
+      id === 'combat-overlay.ranges'
+        ? { tab: lesson.nav.tab, combatOverlayOpen: true }
+        : { tab: lesson.nav.tab },
+    )
     expect(step?.id).toBe(id)
     const el = document.querySelector(targetSelector(lesson.target))
     expect(el, lesson.target).toBeTruthy()

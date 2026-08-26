@@ -5,6 +5,7 @@
 
 import { ACT1_CADENCE } from './cadence'
 import { practicedCoreWork } from './corePractice'
+import { targetCapableLoadoutCores } from './coreTargeting'
 import { firstRebuildAvailable, hasHullLostOnce, isSystemUnlocked } from './progression'
 import { firstAffordableProcessNode } from './process'
 import type { GameState, TabId } from './types'
@@ -25,6 +26,7 @@ export const ONBOARDING_LESSON_IDS = [
   'process.capability',
   'challenges.start',
   'reinforce',
+  'combat-overlay.ranges',
 ] as const
 
 export type OnboardingLessonId = (typeof ONBOARDING_LESSON_IDS)[number]
@@ -48,6 +50,7 @@ export const SEMANTIC_TARGET_IDS = [
   'onboarding.furnace.channel',
   'onboarding.challenges.list',
   'onboarding.reinforce.cta',
+  'onboarding.combat-overlay.core-selector',
 ] as const
 
 export type SemanticTargetId = (typeof SEMANTIC_TARGET_IDS)[number]
@@ -91,6 +94,8 @@ export interface PresentationUi {
   reportOpen?: boolean
   hangarOpen?: boolean
   blockingModal?: boolean
+  combatOverlayOpen?: boolean
+  combatOverlaySelectedCoreId?: string | null
 }
 
 export interface ResolvedLesson {
@@ -466,6 +471,27 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     availableWhen: (s) => isSystemUnlocked(s, 'reinforce') && (s.meta.ascensionCount ?? 0) < 1,
     completeWhen: (s) => (s.meta.ascensionCount ?? 0) > 0,
   },
+  {
+    id: 'combat-overlay.ranges',
+    title: 'Combat Overlay',
+    body: [
+      'Fire Range is how far this Core can shoot.',
+      'Acquisition Range is how far it can lock and pre-slew.',
+      'Firing Arc is the legal cone around current heading.',
+      'Slew is how quickly the Core turns onto a target.',
+      'Select a physical Core from the stationary list.',
+    ],
+    actionLabel: 'Select a Core',
+    target: 'onboarding.combat-overlay.core-selector',
+    nav: { tab: 'combat' },
+    pause: true,
+    skippable: false,
+    required: true,
+    activation: 'auto',
+    availableWhen: (s) =>
+      !s.combat.docked && Boolean(s.combat.inFight) && targetCapableLoadoutCores(s).length > 0,
+    completeWhen: () => false,
+  },
 ]
 
 export function activeGuideStep(
@@ -478,7 +504,14 @@ export function activeGuideStep(
   const reportOpen = typeof tabOrUi === 'object' ? tabOrUi.reportOpen : undefined
   const hangarOpen = typeof tabOrUi === 'object' ? tabOrUi.hangarOpen : extra?.hangarOpen
   const blockingModal = typeof tabOrUi === 'object' ? tabOrUi.blockingModal : undefined
-  return activeOnboardingLesson(state, { tab, reportOpen, hangarOpen, blockingModal })
+  return activeOnboardingLesson(state, {
+    tab,
+    reportOpen,
+    hangarOpen,
+    blockingModal,
+    combatOverlayOpen: typeof tabOrUi === 'object' ? tabOrUi.combatOverlayOpen : undefined,
+    combatOverlaySelectedCoreId: typeof tabOrUi === 'object' ? tabOrUi.combatOverlaySelectedCoreId : undefined,
+  })
 }
 
 function lessonById(id: string): OnboardingLesson | undefined {
@@ -508,11 +541,17 @@ function resolveLesson(lesson: OnboardingLesson, state: GameState, phase: 'actio
   }
 }
 
+function overlayRangesActionComplete(ui: PresentationUi): boolean {
+  return Boolean(ui.combatOverlayOpen && ui.combatOverlaySelectedCoreId)
+}
+
 function lessonEligible(lesson: OnboardingLesson, state: GameState, ui: PresentationUi): boolean {
   if (!ONBOARDING_ENABLED) return false
   if (lessonFinished(state, lesson.id)) return false
   if (ui.reportOpen && lesson.id === 'first-defeat.workshop') return false
   if (ui.hangarOpen && lesson.id === 'rebuild.preview') return false
+  if (lesson.id === 'combat-overlay.ranges' && !ui.combatOverlayOpen) return false
+  if (lesson.id === 'combat-overlay.ranges' && overlayRangesActionComplete(ui)) return false
   if (!lesson.availableWhen(state) && !lesson.completeWhen(state)) return false
   if (lesson.activation === 'visit' && !tabMatchesVisit(lesson.nav, ui.tab)) {
     if (lesson.completeWhen(state) && lesson.payoff) return tabMatchesVisit(lesson.nav, ui.tab)
@@ -775,6 +814,11 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
       break
     case 'reinforce':
       next.meta.act1Cleared = true
+      break
+    case 'combat-overlay.ranges':
+      next.combat.docked = false
+      next.combat.inFight = true
+      next.combat.sortiePaused = true
       break
     default:
       break

@@ -44,7 +44,22 @@ import {
   isCommanderCandidateWave,
   type GddEnemyBandId,
 } from './waves'
-import { TYPICAL_SPAWN_RADIUS, coreWorldPosition, distanceBetween, distanceToHive, moveRadially } from './geometry'
+import { coreInstanceAtSlot } from './coreInstances'
+import {
+  effectiveCoreFireRange,
+  firingSolution,
+  isTargetableEnemy,
+  noteCoreFiring,
+  noteCoreShotFired,
+  noteShotHeld,
+  orbitSpeedFactor,
+  playerCoreTarget,
+  profileForCore,
+  tickPlayerCoreTargeting,
+  emptyTargetingTelemetry,
+  effectiveChargeDurationSec,
+} from './coreTargeting'
+import { TYPICAL_SPAWN_RADIUS, coreWorldPosition, distanceBetween, distanceToHive, moveRadially, wrapTau } from './geometry'
 import { formationRngFor, formationSlots, pickFormation, type FormationContext } from './formations'
 import { createSimRng, rngNext, type SimRngState } from './simRng'
 import {
@@ -74,7 +89,6 @@ import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from 
 import { foundrySalvageMult, foundryPartDropMult, foundryShardDropBonus } from './foundry'
 import {
   grantHiveResearchKillXp,
-  hiveResearchFocusFire,
   hiveResearchSalvageMult,
   hiveResearchShardDropBonus,
 } from './hiveResearch'
@@ -1402,14 +1416,36 @@ export function waveRoster(wave: number): WaveRosterEntry[] {
 
 function preserveWeaponCooldowns(prev: CombatUnit[], next: CombatUnit[]): void {
   for (const unit of next) {
-    const old = prev.find((u) => u.id === unit.id)
+    const old =
+      prev.find((u) => u.id === unit.id) ??
+      (unit.coreInstanceId ? prev.find((u) => u.coreInstanceId === unit.coreInstanceId) : undefined) ??
+      (unit.coreSlot != null ? prev.find((u) => u.coreSlot === unit.coreSlot) : undefined)
     if (!old) continue
     unit.weapons = unit.weapons.map((weapon) => {
       const prior = old.weapons.find((pw) => pw.id === weapon.id)
       return prior
-        ? { ...weapon, cooldownLeft: prior.cooldownLeft, telegraphLeft: prior.telegraphLeft }
+        ? {
+            ...weapon,
+            cooldownLeft: prior.cooldownLeft,
+            telegraphLeft: prior.telegraphLeft,
+            telegraphToId: prior.telegraphToId,
+            telegraphDuration: prior.telegraphDuration,
+            chargeReady: prior.chargeReady,
+          }
         : weapon
     })
+    if (unit.isCore) {
+      unit.orbitAngle = old.orbitAngle ?? unit.orbitAngle
+      unit.heading = old.heading ?? unit.heading
+      unit.currentTargetId = old.currentTargetId
+      unit.targetLockTime = old.targetLockTime
+      unit.nextTargetEvalAt = old.nextTargetEvalAt
+      unit.heldShotNoted = old.heldShotNoted
+      unit.targetingTelemetry = old.targetingTelemetry
+        ? { ...old.targetingTelemetry }
+        : unit.targetingTelemetry
+      syncCoreWorldPosition(unit)
+    }
   }
 }
 
@@ -1419,12 +1455,13 @@ export function buildCoreSatellite(state: GameState, slot: number, index: number
   if (!mod?.weapon || mod.role !== 'weapon') return null
   const weapon = buildCoreWeapon(state, slot)
   if (!weapon) return null
+  const instance = coreInstanceAtSlot(state, slot)
   const kind = coreVisualKind(moduleId)
   const orbit = coreOrbitRadius(kind)
-  const heading = count > 0 ? (index / count) * Math.PI * 2 : 0
-  const pos = coreWorldPosition(orbit, heading)
+  const orbitAngle = count > 0 ? (index / count) * Math.PI * 2 : 0
+  const pos = coreWorldPosition(orbit, orbitAngle)
   return {
-    id: `core-${slot}`,
+    id: instance?.id ?? `core-${slot}`,
     side: 'player',
     name: mod.name,
     shape: 'circle',
@@ -1442,12 +1479,18 @@ export function buildCoreSatellite(state: GameState, slot: number, index: number
     isCore: true,
     coreModuleId: moduleId,
     coreSlot: slot,
+    coreInstanceId: instance?.id,
     untargetable: true,
     dots: [],
     x: pos.x,
     y: pos.y,
-    heading,
+    orbitAngle,
+    heading: orbitAngle,
     orbitRadius: orbit,
+    currentTargetId: undefined,
+    targetLockTime: 0,
+    nextTargetEvalAt: 0,
+    targetingTelemetry: emptyTargetingTelemetry(),
     speed: 0,
     engageRange: 0,
     kite: false,
@@ -1691,7 +1734,9 @@ function syncCoreWorldPosition(unit: CombatUnit): void {
   const kind = coreVisualKind(unit.coreModuleId)
   const orbit = unit.orbitRadius ?? coreOrbitRadius(kind)
   unit.orbitRadius = orbit
-  const pos = coreWorldPosition(orbit, unit.heading ?? 0)
+  unit.orbitAngle = wrapTau(unit.orbitAngle ?? 0)
+  unit.heading = wrapTau(unit.heading ?? unit.orbitAngle)
+  const pos = coreWorldPosition(orbit, unit.orbitAngle)
   unit.x = pos.x
   unit.y = pos.y
 }
@@ -1705,7 +1750,8 @@ function moveUnits(state: GameState, dt: number): void {
     }
     if (!unit.isCore || !unit.coreModuleId) continue
     const kind = coreVisualKind(unit.coreModuleId)
-    unit.heading = (unit.heading ?? 0) + coreOrbitSpeed(kind) * dt
+    const speed = coreOrbitSpeed(kind) * orbitSpeedFactor(state, unit)
+    unit.orbitAngle = wrapTau((unit.orbitAngle ?? 0) + speed * dt)
     syncCoreWorldPosition(unit)
   }
 
@@ -1725,11 +1771,10 @@ function moveUnits(state: GameState, dt: number): void {
   }
 }
 
-function pickTarget(
+function pickEnemyTarget(
   attacker: CombatUnit,
   foes: CombatUnit[],
   weapon: WeaponInstance,
-  focusFire: boolean,
 ): CombatUnit | null {
   const living = foes.filter(
     (u) =>
@@ -1740,13 +1785,6 @@ function pickTarget(
       combatDistance(attacker, u) <= weapon.range + 0.5,
   )
   if (living.length === 0) return null
-  if (attacker.side === 'player' && focusFire) {
-    living.sort((a, b) => {
-      if (a.isBoss !== b.isBoss) return a.isBoss ? -1 : 1
-      return a.hull / a.hullMax - b.hull / b.hullMax
-    })
-    return living[0] ?? null
-  }
   living.sort((a, b) => combatDistance(attacker, a) - combatDistance(attacker, b))
   return living[0] ?? null
 }
@@ -2203,6 +2241,10 @@ function tickBeams(
     const from = findUnit(state, beam.fromId)
     const target = findUnit(state, beam.toId)
     if (!from || (from.hull <= 0 && !from.isCore) || !target || target.hull <= 0) continue
+    if (from.isCore && from.side === 'player') {
+      const sol = firingSolution(state, from, target)
+      if (!sol.canConnectBeam) continue
+    }
     const slice = Math.min(dt, beam.remaining)
     if (slice <= 0) continue
     let dmg = beam.damage * (slice / beam.duration)
@@ -2308,10 +2350,134 @@ function updateProjectiles(
   return hits
 }
 
+function cancelCoreCharge(weapon: WeaponInstance): void {
+  weapon.telegraphLeft = 0
+  weapon.telegraphToId = undefined
+  weapon.chargeReady = false
+}
+
+function deliverPlayerShot(
+  state: GameState,
+  unit: CombatUnit,
+  weapon: WeaponInstance,
+  target: CombatUnit,
+  roles: Record<'weapon' | 'defense' | 'utility', number>,
+  matchupScale: number,
+  bossProtocol: boolean,
+): boolean {
+  if (target.hull <= 0) return false
+  let dmg = weapon.damage
+  dmg *= matchupMultiplier(weapon.tags, target, roles, matchupScale, bossProtocol)
+  if (weapon.delivery === 'beam') {
+    spawnBeam(state, unit, target, dmg, weapon)
+  } else {
+    spawnProjectile(state, unit, target, dmg, weapon)
+  }
+  return true
+}
+
+function splashTargets(
+  state: GameState,
+  unit: CombatUnit,
+  primary: CombatUnit,
+  foes: CombatUnit[],
+  weapon: WeaponInstance,
+  fireRange: number,
+): CombatUnit[] {
+  if (!(weapon.splash > 0 || weapon.tags.includes('splash'))) return [primary]
+  const extras = foes
+    .filter(
+      (u) =>
+        isTargetableEnemy(state, u) &&
+        u.id !== primary.id &&
+        combatDistance(unit, u) <= fireRange + 0.5,
+    )
+    .sort((a, b) => combatDistance(unit, a) - combatDistance(unit, b))
+    .slice(0, weapon.splash || 1)
+  return [primary, ...extras]
+}
+
+function firePlayerCore(
+  state: GameState,
+  unit: CombatUnit,
+  dt: number,
+  roles: Record<'weapon' | 'defense' | 'utility', number>,
+  matchupScale: number,
+  bossProtocol: boolean,
+): void {
+  const profile = profileForCore(unit)
+  const target = playerCoreTarget(state, unit)
+  const fireRange = effectiveCoreFireRange(state, unit)
+
+  for (const weapon of unit.weapons) {
+    if (weapon.cooldownLeft > 0 && !weapon.chargeReady && weapon.telegraphLeft <= 0) {
+      unit.heldShotNoted = false
+    }
+    weapon.cooldownLeft = Math.max(0, weapon.cooldownLeft - dt)
+
+    if (profile.requiresCharge) {
+      if (!target) {
+        cancelCoreCharge(weapon)
+        continue
+      }
+      const sol = firingSolution(state, unit, target)
+      if (weapon.telegraphLeft > 0) {
+        weapon.telegraphLeft = Math.max(0, weapon.telegraphLeft - dt)
+        weapon.telegraphToId = target.id
+        if (weapon.telegraphLeft > 0) continue
+        weapon.chargeReady = true
+      }
+      if (weapon.chargeReady) {
+        if (!sol.canReleaseCharge) {
+          noteShotHeld(unit)
+          continue
+        }
+        if (weapon.cooldownLeft > 0) continue
+        const fired = deliverPlayerShot(state, unit, weapon, target, roles, matchupScale, bossProtocol)
+        if (fired) {
+          cancelCoreCharge(weapon)
+          weapon.cooldownLeft = 0
+          noteCoreFiring(unit, dt)
+          noteCoreShotFired(unit)
+        }
+        continue
+      }
+      if (weapon.cooldownLeft > 0) continue
+      if (sol.canStartCharge) {
+        const charge = effectiveChargeDurationSec(state, unit)
+        weapon.telegraphDuration = charge
+        weapon.telegraphLeft = charge
+        weapon.telegraphToId = target.id
+        weapon.chargeReady = false
+      }
+      continue
+    }
+
+    if (weapon.cooldownLeft > 0) continue
+    if (!target) continue
+    const sol = firingSolution(state, unit, target)
+    const legal = profile.requiresStabilisedAim ? sol.canConnectBeam : sol.canFire
+    if (!legal) {
+      noteShotHeld(unit)
+      continue
+    }
+
+    const targets = splashTargets(state, unit, target, state.combat.enemyUnits, weapon, fireRange)
+    let fired = false
+    for (const shotAt of targets) {
+      if (deliverPlayerShot(state, unit, weapon, shotAt, roles, matchupScale, bossProtocol)) fired = true
+    }
+    if (fired) {
+      weapon.cooldownLeft = weapon.cooldown
+      noteCoreFiring(unit, dt)
+      noteCoreShotFired(unit)
+    }
+  }
+}
+
 /**
  * Continuous combat step (real seconds, not ticks).
- * Weapons only fire when a living target is inside weapon.range.
- * Damage is deferred until projectiles impact.
+ * Player Cores fire only with a persistent target and a legal firing solution.
  */
 export function simulateCombat(
   state: GameState,
@@ -2326,10 +2492,10 @@ export function simulateCombat(
     challengeShopMatchupBonus(state.prestige.shop) +
     sensorsMatchupBonus(state.core?.ranks.sensors ?? 0) +
     computeSignalCoreBonuses(state).matchup
-  const focusFire = aiDoctrinesActive(state, 'focus-fire') || hiveResearchFocusFire(state)
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
 
   moveUnits(state, dt)
+  tickPlayerCoreTargeting(state, dt)
 
   const masteryRegen = state.shipyard.modules.reduce(
     (n, id) => n + combinedCoreMods(state, id).regenAdd,
@@ -2350,7 +2516,6 @@ export function simulateCombat(
     unit.shield = Math.min(unit.shieldMax, unit.shield + unit.shieldMax * regenFrac * dt)
   }
 
-  // Resolve in-flight impacts first so hull updates before new targeting
   const hitFx = [
     ...updateProjectiles(state, dt, roles, matchupScale),
     ...tickBeams(state, dt, roles, matchupScale),
@@ -2396,16 +2561,20 @@ export function simulateCombat(
         unit.phaseWarnLeft = Math.max(0, unit.phaseWarnLeft - dt)
       }
 
+      if (side === 'player' && unit.isCore) {
+        firePlayerCore(state, unit, dt, roles, matchupScale, bossProtocol)
+        continue
+      }
+
       for (const weapon of unit.weapons) {
         weapon.cooldownLeft = Math.max(0, weapon.cooldownLeft - dt)
 
-        // Finish an active telegraph → fire.
         if (weapon.telegraphLeft > 0) {
           weapon.telegraphLeft = Math.max(0, weapon.telegraphLeft - dt)
           if (weapon.telegraphToId) {
             const locked = findUnit(state, weapon.telegraphToId)
             if (!locked || locked.hull <= 0) {
-              const next = pickTarget(unit, foes, weapon, focusFire && side === 'player')
+              const next = pickEnemyTarget(unit, foes, weapon)
               weapon.telegraphToId = next?.id
             }
           }
@@ -2413,8 +2582,7 @@ export function simulateCombat(
         } else if (weapon.cooldownLeft > 0) {
           continue
         } else if (weapon.telegraphDuration > 0) {
-          // Begin wind-up instead of firing immediately.
-          const windupTarget = pickTarget(unit, foes, weapon, focusFire && side === 'player')
+          const windupTarget = pickEnemyTarget(unit, foes, weapon)
           if (!windupTarget) continue
           weapon.telegraphLeft = weapon.telegraphDuration
           weapon.telegraphToId = windupTarget.id
@@ -2427,7 +2595,7 @@ export function simulateCombat(
         const primary =
           locked && locked.hull > 0 && combatDistance(unit, locked) <= weapon.range + 0.5
             ? locked
-            : pickTarget(unit, foes, weapon, focusFire && side === 'player')
+            : pickEnemyTarget(unit, foes, weapon)
         if (!primary) continue
 
         const targets: CombatUnit[] = [primary]
@@ -2458,7 +2626,6 @@ export function simulateCombat(
               bossProtocol,
             )
           }
-          // Enemy defense mult applied on impact (uses current roles)
 
           if (weapon.delivery === 'beam') {
             spawnBeam(state, unit, target, dmg, weapon)
@@ -2480,7 +2647,6 @@ export function simulateCombat(
   pruneDeadEnemyUnits(state)
   syncHullAggregates(state)
 }
-
 export function totalEnemyHull(encounter: WaveEncounter): number {
   return encounter.units.reduce((s, u) => s + u.hullMax, 0)
 }

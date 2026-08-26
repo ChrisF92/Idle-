@@ -1,4 +1,12 @@
-import type { GameState, LaborProfile, NetworkLinkId, PartType, ProcessNetworkPreset, Resources } from './types'
+import type {
+  GameState,
+  LaborProfile,
+  NetworkLinkId,
+  PartType,
+  ProcessNetworkPreset,
+  Resources,
+  TargetingDoctrineId,
+} from './types'
 import {
   AI_NODES,
   MASTERY_PARTS_COST,
@@ -89,6 +97,11 @@ import {
   setFurnacePriority,
 } from './furnace'
 import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, hiveResearchWorkshopStartRanks, setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
+import {
+  canConfigureTargetingDoctrine,
+  canEditTargetingNow,
+} from './coreTargeting'
+import { isTargetingCapableCoreModule, targetingProfileFor } from './targetingProfiles'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { isWorkerJob, workerJobCap } from './workers'
 import {
@@ -1067,6 +1080,38 @@ export function unfitModule(state: GameState, moduleId: string, coreInstanceId?:
   next.shipyard.modules = next.shipyard.modules.filter((_, i) => i !== idx)
   next.shipyard.equippedCoreIds = next.shipyard.equippedCoreIds.filter((_, i) => i !== idx)
   if (!next.combat.inFight) syncPersistedHullCaps(next)
+  return next
+}
+
+/**
+ * Per-physical-Core Doctrine. Allowed only while Docked or Sortie PAUSED,
+ * and only after Fire-Control Doctrine is unlocked (PR9). Changing Doctrine
+ * preserves Current Target, aim, and a valid charge/beam; it does not Resume.
+ * The next discretionary evaluation runs promptly after Resume.
+ */
+export function setCoreTargetingDoctrine(
+  state: GameState,
+  coreInstanceId: string,
+  doctrine: TargetingDoctrineId,
+): GameState {
+  if (!canConfigureTargetingDoctrine(state)) return state
+  if (!canEditTargetingNow(state)) return state
+  const instance = state.shipyard.coreInstances?.find((row) => row.id === coreInstanceId)
+  if (!instance) return state
+  if (!isTargetingCapableCoreModule(instance.moduleId)) return state
+  const profile = targetingProfileFor(instance.moduleId)
+  if (!(profile.allowedDoctrines as readonly string[]).includes(doctrine)) return state
+  if (instance.targetingDoctrine === doctrine) return state
+  const next = structuredClone(state)
+  const row = next.shipyard.coreInstances.find((item) => item.id === coreInstanceId)
+  if (!row) return state
+  row.targetingDoctrine = doctrine
+  const deployed = next.combat.playerUnits.find(
+    (unit) => unit.isCore && (unit.coreInstanceId === coreInstanceId || unit.id === coreInstanceId),
+  )
+  if (deployed) {
+    deployed.nextTargetEvalAt = 0
+  }
   return next
 }
 

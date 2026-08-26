@@ -90,12 +90,14 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   const canPresent = useCallback(
     (kind: OverlayKind, ignoreId?: string) => {
       const others = stack.filter((row) => row.id !== ignoreId)
-      const exclusiveOpen = others.some((row) => row.blocking && isExclusive(row.kind))
-      if (!exclusiveOpen) return true
+      const exclusiveOpen = others.filter((row) => row.blocking && isExclusive(row.kind))
+      if (exclusiveOpen.length === 0) return true
       if (isExclusive(kind)) {
         const incoming = OVERLAY_PRIORITY[kind]
-        return !others.some((row) => row.blocking && isExclusive(row.kind) && OVERLAY_PRIORITY[row.kind] < incoming)
+        return !exclusiveOpen.some((row) => OVERLAY_PRIORITY[row.kind] < incoming)
       }
+      // Onboarding is a spotlight over existing sheet content, not a replacement modal.
+      if (kind === 'sheet' && exclusiveOpen.every((row) => row.kind === 'onboarding')) return true
       return false
     },
     [stack],
