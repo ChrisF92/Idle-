@@ -25,8 +25,8 @@ import {
 } from './coreTargeting'
 import { targetingProfileFor } from './targetingProfiles'
 import { bearingBetween, degToRad, distanceBetween, radToDeg, shortestAngleDelta, slewHeading } from './geometry'
-import { createInitialState, loadOrCreateGame, SAVE_KEY, SAVE_VERSION } from './state'
-import { saveGame } from './save'
+import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
+import { loadOrCreateGame, saveGame } from './save'
 import { advanceSeconds, setSortiePaused, startCombat } from './tick'
 import type { CombatUnit, GameState, TargetingDoctrineId } from './types'
 
@@ -176,8 +176,8 @@ describe('persistent targeting', () => {
     })
     const better = enemy({
       id: 'nudge',
-      x: 48,
-      y: 168,
+      x: 40,
+      y: 155,
       hull: 50,
       hullMax: 50,
       weapons: [
@@ -282,13 +282,24 @@ describe('persistent targeting', () => {
     const core = pulseCore(state)
     const acquire = effectiveCoreAcquisitionRange(state, core)
     const fire = effectiveCoreFireRange(state, core)
-    setEnemies(state, [enemy({ id: 'far', x: 0, y: acquire * ACQUISITION_RETENTION + 20 })])
+    setEnemies(state, [
+      enemy({
+        id: 'far',
+        x: core.x,
+        y: core.y + acquire * ACQUISITION_RETENTION + 40,
+      }),
+    ])
     core.currentTargetId = 'far'
     tickPlayerCoreTargeting(state, 1 / 30)
     expect(core.currentTargetId).toBeUndefined()
 
-    const midY = (fire + acquire) / 2
-    setEnemies(state, [enemy({ id: 'mid', x: 0, y: midY })])
+    setEnemies(state, [
+      enemy({
+        id: 'mid',
+        x: core.x,
+        y: core.y + (fire + acquire) / 2,
+      }),
+    ])
     evalNow(state)
     expect(core.currentTargetId).toBe('mid')
     expect(distanceBetween(core, state.combat.enemyUnits[0]!)).toBeGreaterThan(fire)
@@ -736,9 +747,10 @@ describe('determinism, telemetry, and stress', () => {
   })
 
   it('records targeting telemetry and does not advance it while paused', () => {
-    const state = pulseSortie()
+    let state = pulseSortie()
     const core = pulseCore(state)
-    setEnemies(state, [enemy({ id: 'a', x: 0, y: 200 }), enemy({ id: 'b', x: 80, y: 80 })])
+    setEnemies(state, [enemy({ id: 'a', x: 0, y: 220 })])
+    core.heading = Math.PI
     evalNow(state)
     expect(core.targetingTelemetry?.targetSwitches).toBeGreaterThan(0)
     simulateCombat(state, 0.3, silent)
@@ -746,7 +758,7 @@ describe('determinism, telemetry, and stress', () => {
     const out = core.targetingTelemetry!.timeAcquiredOutsideFire
     expect(slew + out + core.targetingTelemetry!.timeNoTargetWhileEnemies).toBeGreaterThan(0)
     const frozen = { ...core.targetingTelemetry! }
-    setSortiePaused(state, true)
+    state = setSortiePaused(state, true)
     advanceSeconds(state, 1)
     expect(pulseCore(state).targetingTelemetry).toEqual(frozen)
   })

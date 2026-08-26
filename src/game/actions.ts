@@ -100,8 +100,8 @@ import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, hiveResearc
 import {
   canConfigureTargetingDoctrine,
   isSortieRunning,
-  targetingProfileFor,
 } from './coreTargeting'
+import { targetingProfileFor } from './targetingProfiles'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { isWorkerJob, workerJobCap } from './workers'
 import {

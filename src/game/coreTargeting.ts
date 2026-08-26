@@ -419,7 +419,7 @@ export function scoreDoctrine(
       return metrics.danger * 12 + metrics.urgency * 18 + metrics.proximity * 10 + bossNudge
     case 'focus':
       if (metrics.focusWeight >= 1) {
-        return metrics.focusWeight * 40 + metrics.danger * 4 + bossNudge * 0.4
+        return 1_000 + metrics.focusWeight * 40 + metrics.danger * 4 + bossNudge * 0.4
       }
       return scoreDoctrine('threat', unit, metrics)
     case 'execution':
