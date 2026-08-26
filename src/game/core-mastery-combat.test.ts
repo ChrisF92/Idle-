@@ -10,6 +10,7 @@ import {
   flakSplashCount,
   HEAVY_PEN_MOMENTUM,
   HEAVY_SHIELD_BYPASS,
+  nextEnemyAlongHeading,
   PHASE_RAMP_MAX,
   PHASE_RAMP_SECONDS,
   phaseRampAtMax,
@@ -23,7 +24,7 @@ import {
 import { hasMasteryEffect } from './coreMastery'
 import { getModule } from './catalog'
 import { desiredOrbitAngle, switchAdvantageFor } from './coreTargeting'
-import { shortestAngleDelta } from './geometry'
+import { applyPlayerCoreOrbit, bearingBetween, shortestAngleDelta } from './geometry'
 import type { CombatUnit, GameState } from './types'
 
 function silent() {
@@ -98,6 +99,43 @@ function dummyCore(moduleId: string): CombatUnit {
   }
 }
 
+function fitWeaponSortie(moduleId: string, mastery: number): GameState {
+  const state = withMastery(moduleId, mastery)
+  if (!state.shipyard.unlockedModules.includes(moduleId)) {
+    state.shipyard.unlockedModules = [...state.shipyard.unlockedModules, moduleId]
+  }
+  if (!state.shipyard.coreInstances.some((row) => row.id === `${moduleId}:1`)) {
+    state.shipyard.coreInstances.push({ id: `${moduleId}:1`, moduleId })
+  }
+  state.shipyard.modules = [moduleId]
+  state.shipyard.equippedCoreIds = [`${moduleId}:1`]
+  return startCombat(state)
+}
+
+function fireHeavyLance(mastery: number) {
+  const state = fitWeaponSortie('heavy-lance', mastery)
+  const core = state.combat.playerUnits.find((u) => u.coreModuleId === 'heavy-lance')!
+  core.orbitAngle = 0
+  applyPlayerCoreOrbit(core)
+  const range = getModule('heavy-lance')!.weapon!.range
+  state.combat.enemyUnits = [
+    dummyEnemy('siege', {
+      x: Math.sin(core.orbitAngle ?? 0) * range * 0.5,
+      y: Math.cos(core.orbitAngle ?? 0) * range * 0.5,
+      hull: 400,
+      hullMax: 400,
+      armor: 8,
+    }),
+  ]
+  core.currentTargetId = 'siege'
+  const weapon = core.weapons[0]!
+  weapon.cooldownLeft = 0
+  weapon.telegraphLeft = 0
+  weapon.chargeReady = true
+  simulateCombat(state, 1 / 30, silent)
+  return state.combat.projectiles.find((shot) => shot.sourceModuleId === 'heavy-lance')
+}
+
 describe('Pulse Cannon Mastery boundaries', () => {
   it('M10 Overkill Retarget works without M30 chain', () => {
     const below = withMastery('pulse-cannon', 9)
@@ -143,6 +181,23 @@ describe('Heavy Lance Mastery boundaries', () => {
     expect(hasMasteryEffect(withMastery('heavy-lance', 0), 'heavy-lance', 'heavy-pierce')).toBe(false)
     expect(hasMasteryEffect(withMastery('heavy-lance', 29), 'heavy-lance', 'heavy-pierce')).toBe(false)
     expect(hasMasteryEffect(withMastery('heavy-lance', 30), 'heavy-lance', 'heavy-pierce')).toBe(true)
+  })
+
+  it('M29 vs M30: only M30 fires a pierce-tagged Heavy Lance shot', () => {
+    const below = fireHeavyLance(29)
+    const at = fireHeavyLance(30)
+    expect(below?.tags.includes('pierce')).toBe(false)
+    expect(at?.tags.includes('pierce')).toBe(true)
+    expect(at?.originX).toBeCloseTo(0)
+    expect(at?.originY).toBeGreaterThan(20)
+  })
+
+  it('M75 Penetration Momentum damages a hull behind the shot path', () => {
+    const s = withMastery('heavy-lance', 75)
+    const primary = dummyEnemy('front', { x: 80, y: 0, hull: 40, hullMax: 40 })
+    const behind = dummyEnemy('rear', { x: 120, y: 0, hull: 40, hullMax: 40 })
+    s.combat.enemyUnits = [primary, behind]
+    expect(nextEnemyAlongHeading(s, primary, bearingBetween(primary, behind), primary.id)?.id).toBe('rear')
   })
 
   it('M10 Predictive Traverse changes the desired orbital solution for a moving target', () => {
@@ -213,6 +268,45 @@ describe('Phase Beam Mastery boundaries', () => {
     updatePhaseRamp(s, core, 2, true)
     expect(phaseRampMultiplier(s, core)).toBeGreaterThan(1)
     expect(phaseRampMultiplier(s, core)).toBeLessThan(PHASE_RAMP_MAX)
+  })
+
+  it('M29 vs M30: refraction glances only after M30 during legal beam contact', () => {
+    function beamTick(mastery: number) {
+      const state = fitWeaponSortie('phase-beam', mastery)
+      const core = state.combat.playerUnits.find((u) => u.coreModuleId === 'phase-beam')!
+      core.orbitAngle = 0
+      applyPlayerCoreOrbit(core)
+      state.combat.enemyUnits = [
+        dummyEnemy('primary', { x: 0, y: 90, hull: 80, hullMax: 80 }),
+        dummyEnemy('glance', { x: 18, y: 90, hull: 80, hullMax: 80 }),
+      ]
+      core.currentTargetId = 'primary'
+      state.combat.beams = [
+        {
+          id: 'beam-test',
+          fromId: core.id,
+          toId: 'primary',
+          side: 'player',
+          tag: 'energy',
+          tags: ['energy'],
+          remaining: 1,
+          duration: 1,
+          damage: 40,
+          attackerFamily: 'core',
+          sourceModuleId: 'phase-beam',
+        },
+      ]
+      simulateCombat(state, 0.25, silent)
+      const glance = state.combat.enemyUnits.find((u) => u.id === 'glance')!
+      const primary = state.combat.enemyUnits.find((u) => u.id === 'primary')!
+      return { glance, primary }
+    }
+    const below = beamTick(29)
+    const at = beamTick(30)
+    expect(below.primary.hull).toBeLessThan(80)
+    expect(below.glance.hull).toBe(80)
+    expect(at.primary.hull).toBeLessThan(80)
+    expect(at.glance.hull).toBeLessThan(80)
   })
 
   it('M50 Shield Bypass grows with Ramp and M100 Exposure requires max ramp', () => {

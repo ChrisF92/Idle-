@@ -83,7 +83,7 @@ import {
   effectiveChargeDurationSec,
   coreIsBeaming,
 } from './coreTargeting'
-import { applyPlayerCoreOrbit, TYPICAL_SPAWN_RADIUS, coreWorldPosition, distanceBetween, distanceToHive, moveRadially } from './geometry'
+import { applyPlayerCoreOrbit, TYPICAL_SPAWN_RADIUS, bearingBetween, coreWorldPosition, distanceBetween, distanceToHive, moveRadially } from './geometry'
 import { formationRngFor, formationSlots, pickFormation, type FormationContext } from './formations'
 import { createSimRng, rngNext, type SimRngState } from './simRng'
 import {
@@ -2225,7 +2225,7 @@ function spawnProjectile(
     originX: from.x,
     originY: from.y,
     attackerRole: from.role,
-    heading: from.side === 'player' ? (to.heading ?? 0) : (from.heading ?? 0),
+    heading: bearingBetween(from, to),
     weaponId: weapon.id,
     sourceModuleId: from.side === 'player' ? from.coreModuleId : undefined,
     shieldBypassFrac:
@@ -2255,7 +2255,7 @@ function spawnBeam(
     damage: tuned.damage,
     attackerFamily: from.family,
     attackerRole: from.role,
-    heading: from.side === 'player' ? (to.heading ?? 0) : (from.heading ?? 0),
+    heading: bearingBetween(from, to),
     weaponId: weapon.id,
     sourceModuleId: from.side === 'player' ? from.coreModuleId : undefined,
     shieldBypassFrac:
