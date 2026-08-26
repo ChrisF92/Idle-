@@ -19,7 +19,6 @@ const GDD_REWRITE_PENDING = [
   'src/game/encyclopedia.test.ts',
   'src/game/furnace.test.ts',
   'src/game/hub-attention.test.ts',
-  'src/game/matter-shop.test.ts',
   'src/game/network.test.ts',
   'src/game/onboarding-visibility.test.ts',
   'src/game/part-drops.test.ts',
