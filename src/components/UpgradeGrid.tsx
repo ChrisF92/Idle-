@@ -178,7 +178,10 @@ export function UpgradeGrid({
             <span className="upgrade-tile-level">{next.name} · starts Lv0</span>
             <span className="upgrade-tile-preview">{next.blurb}</span>
             <span className={`upgrade-tile-cost${unlockCheck?.ok ? ' is-ok' : ' is-short'}`}>
-              {unlockCheck?.ok ? `${formatCompact(nextCost)} Scrap` : unlockCheck?.reason ?? `${formatCompact(nextCost)} Scrap`}
+              {formatCompact(nextCost)} Scrap
+              {unlockCheck && !unlockCheck.ok && !/^Need \d/.test(unlockCheck.reason)
+                ? ` · ${unlockCheck.reason}`
+                : ''}
             </span>
           </button>
         </article>
