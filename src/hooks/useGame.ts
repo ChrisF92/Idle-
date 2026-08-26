@@ -124,6 +124,7 @@ type Action =
   | { type: 'unlock-frame'; frameId: string }
   | { type: 'select-frame'; frameId: string }
   | { type: 'unlock-module'; moduleId: string }
+  | { type: 'fit-module'; moduleId: string; coreInstanceId?: string }
   | { type: 'set-core-doctrine'; coreInstanceId: string; doctrine: import('../game/types').TargetingDoctrineId }
   | { type: 'unfit-module'; moduleId: string; coreInstanceId?: string }
   | { type: 'buy-core-start'; coreInstanceId: string; count?: number }

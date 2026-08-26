@@ -475,7 +475,7 @@ export function pickBestTarget(
 }
 
 export function currentTargetScore(
-  core: CombatUnit,
+  _core: CombatUnit,
   target: CombatUnit,
   bundle: EvalBundle,
   doctrine: TargetingDoctrineId,
