@@ -197,9 +197,32 @@ export function isCanonicalWeaponModule(moduleId: string): boolean {
   return BY_MODULE.has(moduleId)
 }
 
+/**
+ * Current PR2 targeting-capable modules: catalogue weapon Cores with a weapon
+ * definition. Defense/utility Cores (Plate Layer, Rapid Aegis, …) are not
+ * targeting-capable. PR4 may later extend this to targeting Utility Cores
+ * such as Grav Tether.
+ *
+ * The generic targeting fallback is only for temporary legacy WEAPON Cores
+ * awaiting PR4 — never for unknown non-weapon modules.
+ */
+export function isTargetingCapableCoreModule(moduleId: string): boolean {
+  const mod = getModule(moduleId)
+  return Boolean(mod && mod.role === 'weapon' && mod.weapon)
+}
+
 export function targetingProfileFor(moduleId: string): CoreTargetingProfile {
   const authored = BY_MODULE.get(moduleId)
   if (authored) return authored
+  if (!isTargetingCapableCoreModule(moduleId)) {
+    return {
+      ...LEGACY_CORE_TARGETING_FALLBACK,
+      fireRange: 0,
+      acquisitionRange: 0,
+      firingArcDeg: 0,
+      slewRateDegPerSec: 0,
+    }
+  }
   const weaponRange = getModule(moduleId)?.weapon?.range
   const fire = Number.isFinite(weaponRange) && (weaponRange ?? 0) > 0 ? (weaponRange as number) : 150
   return {

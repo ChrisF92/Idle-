@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { setCoreTargetingDoctrine, unfitModule, buyRunUpgrade } from './actions'
+import { fitModule, setCoreTargetingDoctrine, unfitModule } from './actions'
 import { addCoreInstance } from './coreInstances'
 import { buildPlayerFleet, simulateCombat } from './combat'
 import {
@@ -11,6 +11,7 @@ import {
   buildSharedTargetMetrics,
   canConfigureTargetingDoctrine,
   canEditTargetingNow,
+  clearCoreTarget,
   compareTargetTie,
   effectiveChargeDurationSec,
   effectiveCoreAcquisitionRange,
@@ -25,9 +26,11 @@ import {
   firingSolution,
   HYSTERESIS_ABSOLUTE_FLOOR,
   isTargetableEnemy,
+  isTargetingCapableCoreModule,
   pickBestTarget,
   playerCoreTarget,
   scoreDoctrine,
+  setCoreTarget,
   switchRequiredGain,
   TARGET_EVAL_INTERVAL,
   tickPlayerCoreTargeting,
@@ -597,6 +600,28 @@ describe('Fire-Control Doctrine gate', () => {
     expect(state.shipyard.coreInstances.find((row) => row.id === inst.id)?.targetingDoctrine).toBe('shield')
     expect(pulseCore(state).currentTargetId).toBe('keep')
     expect(state.combat.sortiePaused).toBe(true)
+  })
+})
+
+describe('targeting-capable Core gate', () => {
+  it('rejects Doctrine configuration on defense Cores and still falls back for legacy weapons', () => {
+    expect(isTargetingCapableCoreModule('plate-layer')).toBe(false)
+    expect(isTargetingCapableCoreModule('pulse-cannon')).toBe(true)
+    expect(isTargetingCapableCoreModule('rail-driver')).toBe(true)
+    expect(targetingProfileFor('rail-driver').profileId).toBe('legacy-fallback')
+    expect(targetingProfileFor('plate-layer').fireRange).toBe(0)
+
+    let state = enableFireControlDoctrineForTests(createInitialState(0))
+    const plate = state.shipyard.coreInstances.find((row) => row.moduleId === 'plate-layer')!
+    const blocked = setCoreTargetingDoctrine(state, plate.id, 'threat')
+    expect(blocked).toBe(state)
+    expect(blocked.shipyard.coreInstances.find((row) => row.id === plate.id)?.targetingDoctrine).toBeUndefined()
+
+    state = unfitModule(state, 'pulse-cannon')
+    const rail = addCoreInstance(state.shipyard, 'rail-driver')
+    state = fitModule(state, 'rail-driver', rail.id)
+    state = setCoreTargetingDoctrine(state, rail.id, 'focus')
+    expect(state.shipyard.coreInstances.find((row) => row.id === rail.id)?.targetingDoctrine).toBe('focus')
   })
 })
 
@@ -1295,6 +1320,45 @@ describe('telemetry semantics', () => {
     evalNow(state)
     expect(core.currentTargetId).toBe('hot')
     expect(core.targetingTelemetry?.targetSwitches).toBeGreaterThanOrEqual(1)
+  })
+
+  it('resets the held-shot latch on target loss and counts one blocked opportunity each', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    const a = enemy({ id: 'a', x: 0, y: 90 })
+    setEnemies(state, [a])
+    core.currentTargetId = 'a'
+    core.heldShotNoted = true
+    clearCoreTarget(core)
+    expect(core.heldShotNoted).toBe(false)
+    core.heldShotNoted = true
+    setCoreTarget(core, 'a')
+    expect(core.heldShotNoted).toBe(false)
+    expect(core.currentTargetId).toBe('a')
+
+    core.heading = bearingBetween(core, a) + Math.PI
+    core.weapons[0]!.cooldownLeft = 0
+    const blockedA = firingSolution(state, core, a)
+    expect(blockedA.inFireRange).toBe(true)
+    expect(blockedA.canFire).toBe(false)
+    simulateCombat(state, 1 / 30, silent)
+    expect(core.targetingTelemetry?.shotsHeldIllegalSolution).toBe(1)
+    simulateCombat(state, 1 / 30, silent)
+    simulateCombat(state, 1 / 30, silent)
+    expect(core.targetingTelemetry?.shotsHeldIllegalSolution).toBe(1)
+
+    const b = enemy({ id: 'b', x: 0, y: 90 })
+    setEnemies(state, [b])
+    core.heading = bearingBetween(core, b) + Math.PI
+    core.weapons[0]!.cooldownLeft = 0
+    simulateCombat(state, 1 / 30, silent)
+    expect(core.currentTargetId).toBe('b')
+    expect(core.targetingTelemetry?.shotsHeldIllegalSolution).toBe(2)
+    simulateCombat(state, 1 / 30, silent)
+    simulateCombat(state, 1 / 30, silent)
+    simulateCombat(state, 1 / 30, silent)
+    expect(core.targetingTelemetry?.shotsHeldIllegalSolution).toBe(2)
+    expect(core.targetingTelemetry?.shotsFired ?? 0).toBe(0)
   })
 })
 

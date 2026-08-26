@@ -3,7 +3,7 @@ import { createInitialState } from './state'
 import { createFreshCareerState } from './freshStart'
 import { markHullLost } from './testHelpers'
 import { setDocked } from './tick'
-import { buyRunUpgrade, buyWorkshopUpgrade } from './actions'
+import { buyRunUpgrade, buyWorkshopUpgrade, unfitModule } from './actions'
 import {
   ONBOARDING_LESSON_IDS,
   ONBOARDING_LESSONS,
@@ -114,6 +114,24 @@ describe('onboarding doors', () => {
     expect(payoff?.id).toBe('first-defeat.workshop')
     expect(payoff?.phase).toBe('payoff')
     expect(payoff?.body.join(' ')).toMatch(/Lv1|stronger/i)
+  })
+
+  it('completes Combat Overlay ranges only after a physical Core is selected', () => {
+    const state = prepOnboardingDoor(createInitialState(0), 'combat-overlay.ranges')
+    const open = { tab: 'combat' as const, combatOverlayOpen: true as const, combatOverlaySelectedCoreId: null }
+    const step = activeOnboardingLesson(state, open)
+    expect(step?.id).toBe('combat-overlay.ranges')
+    expect(step?.completeOnTap).toBe(false)
+    expect(
+      activeOnboardingLesson(state, { ...open, combatOverlaySelectedCoreId: 'pulse-cannon:1' }),
+    ).toBeNull()
+    expect(lessonFinished(state, 'combat-overlay.ranges')).toBe(false)
+
+    const empty = unfitModule(state, 'pulse-cannon')
+    expect(
+      activeOnboardingLesson(empty, { tab: 'combat', combatOverlayOpen: true }),
+    ).toBeNull()
+    expect(lessonFinished(empty, 'combat-overlay.ranges')).toBe(false)
   })
 })
 

@@ -79,7 +79,7 @@ Presentation only. Modes Off / Selected Core / All Cores. Opening the sheet from
 
 The Targeting sheet reuses `CoreDetailReadout` for Doctrine, Fire Range, Acquisition Range, Arc, and Slew.
 
-First meaningful Combat Overlay opening runs the `combat-overlay.ranges` onboarding lesson (existing onboarding architecture, not a separate tutorial). The Sortie stays paused; the player must select a physical Core from the stationary list, then explicitly Resume. Fire-Control Doctrine onboarding is PR9.
+First meaningful Combat Overlay opening runs the `combat-overlay.ranges` onboarding lesson (existing onboarding architecture, not a separate tutorial). "First meaningful opening" is the first Combat Overlay opening while at least one selectable target-capable physical Core is fitted. If the loadout has none, Combat Overlay may still open with `No target-capable Cores fitted.`; the required lesson stays pending and does not activate or auto-complete. The Sortie stays paused; completion requires an actual physical Core row selection (not a heading or blank-selector click), then the player explicitly Resume. Fire-Control Doctrine onboarding is PR9.
 
 ## Targeting telemetry
 
@@ -92,7 +92,7 @@ Per physical Core, simulation-time:
 - slew-limited time
 - firing/connected time
 - `shotsFired`: discrete fire events (projectile volley or beam connect)
-- `shotsHeldIllegalSolution`: one count per ready-but-illegal firing opportunity, not per simulation step
+- `shotsHeldIllegalSolution`: one count per ready-but-illegal firing opportunity, not per simulation step. The `heldShotNoted` latch resets when a shot fires, when Current Target is cleared/lost, and when Current Target changes or a new target is acquired.
 - acquisition delay
 
 Persisted with the live Sortie; reset on a new Sortie.
@@ -106,6 +106,8 @@ Weapon IDs that are not the canonical five use one isolated fallback:
 - Threat, 180° arc, 180°/s slew, 25% commitment
 
 Current IDs on that fallback: `rail-driver`, `ion-burst`, `charge-prism`, `swarm-rack`, `arc-lash`.
+
+`isTargetingCapableCoreModule(moduleId)` is the public gate: the module exists, `role` is `weapon`, and it has a weapon definition. Doctrine configuration (`setCoreTargetingDoctrine`) and overlay/Targeting Core lists use that predicate. Defense/utility Cores such as Plate Layer never receive the generic weapon fallback. PR4 may later extend the predicate to targeting-capable Utility Cores such as Grav Tether.
 
 ## Seed values used
 

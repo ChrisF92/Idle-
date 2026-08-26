@@ -56,12 +56,18 @@ export function CombatOverlaySheet({
           </button>
         ))}
       </div>
-      <CoreSelectorList
-        cores={cores}
-        selectedId={selected?.coreInstanceId ?? null}
-        onSelect={onSelectCore}
-        detail={mode === 'selected' ? selected : null}
-      />
+      {cores.length === 0 ? (
+        <p className="ui-meta" data-testid="combat-overlay-empty">
+          No target-capable Cores fitted.
+        </p>
+      ) : (
+        <CoreSelectorList
+          cores={cores}
+          selectedId={selected?.coreInstanceId ?? null}
+          onSelect={onSelectCore}
+          detail={mode === 'selected' ? selected : null}
+        />
+      )}
       {mode === 'off' ? (
         <p className="ui-meta">Overlay is off. No targeting geometry is drawn on the battlefield.</p>
       ) : null}

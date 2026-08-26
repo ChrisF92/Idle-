@@ -101,7 +101,7 @@ import {
   canConfigureTargetingDoctrine,
   canEditTargetingNow,
 } from './coreTargeting'
-import { targetingProfileFor } from './targetingProfiles'
+import { isTargetingCapableCoreModule, targetingProfileFor } from './targetingProfiles'
 import { foundryAshHeatMult } from './foundryBonuses'
 import { isWorkerJob, workerJobCap } from './workers'
 import {
@@ -1098,6 +1098,7 @@ export function setCoreTargetingDoctrine(
   if (!canEditTargetingNow(state)) return state
   const instance = state.shipyard.coreInstances?.find((row) => row.id === coreInstanceId)
   if (!instance) return state
+  if (!isTargetingCapableCoreModule(instance.moduleId)) return state
   const profile = targetingProfileFor(instance.moduleId)
   if (!(profile.allowedDoctrines as readonly string[]).includes(doctrine)) return state
   if (instance.targetingDoctrine === doctrine) return state

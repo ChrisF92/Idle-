@@ -23,6 +23,7 @@ import {
   type ToastSnapshot,
 } from './game/presentation'
 import { collectPauseReasons, isSimPaused } from './game/pause'
+import { lessonFinished } from './game/onboarding'
 import { prefersReducedMotion } from './hooks/usePrefersReducedMotion'
 import { WalletButton } from './components/WalletButton'
 import { TabNav } from './components/TabNav'
@@ -94,6 +95,7 @@ function AppShell() {
   const [dockPane, setDockPane] = useState<DockPane>('home')
   const [inventoryOpen, setInventoryOpen] = useState(false)
   const [combatOverlayOpen, setCombatOverlayOpen] = useState(false)
+  const [combatOverlaySelectedCoreId, setCombatOverlaySelectedCoreId] = useState<string | null>(null)
   const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const dying = (game.state.combat.defeatLeft ?? 0) > 0
@@ -113,12 +115,19 @@ function AppShell() {
   })
   const onCombatOverlayUi = useCallback((info: { open: boolean; selectedCoreId: string | null }) => {
     setCombatOverlayOpen(info.open)
+    setCombatOverlaySelectedCoreId(info.selectedCoreId)
   }, [])
+  const acknowledgeOnboarding = game.acknowledgeOnboarding
+  const overlayLessonPending = !lessonFinished(game.state, 'combat-overlay.ranges')
+  useEffect(() => {
+    if (!combatOverlaySelectedCoreId || !overlayLessonPending) return
+    acknowledgeOnboarding('combat-overlay.ranges')
+  }, [combatOverlaySelectedCoreId, overlayLessonPending, acknowledgeOnboarding])
   const updateBlocking = overlays.topBlockingKind === 'update'
   const finalePending = Boolean(game.state.meta.act1FinalePending)
   const presentation = selectPresentation(
     game.state,
-    { tab, reportOpen, hangarOpen, combatOverlayOpen },
+    { tab, reportOpen, hangarOpen, combatOverlayOpen, combatOverlaySelectedCoreId },
     toasts,
     { updateBlocking, confirmOpen: hangarOpen, reportOpen, finalePending },
   )

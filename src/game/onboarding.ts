@@ -5,6 +5,7 @@
 
 import { ACT1_CADENCE } from './cadence'
 import { practicedCoreWork } from './corePractice'
+import { targetCapableLoadoutCores } from './coreTargeting'
 import { firstRebuildAvailable, hasHullLostOnce, isSystemUnlocked } from './progression'
 import { firstAffordableProcessNode } from './process'
 import type { GameState, TabId } from './types'
@@ -487,7 +488,8 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     skippable: false,
     required: true,
     activation: 'auto',
-    availableWhen: (s) => !s.combat.docked && Boolean(s.combat.inFight),
+    availableWhen: (s) =>
+      !s.combat.docked && Boolean(s.combat.inFight) && targetCapableLoadoutCores(s).length > 0,
     completeWhen: () => false,
   },
 ]
@@ -535,8 +537,12 @@ function resolveLesson(lesson: OnboardingLesson, state: GameState, phase: 'actio
     required: lesson.required,
     phase,
     payoff: lesson.payoff ? linesOf(lesson.payoff, state) : undefined,
-    completeOnTap: lesson.id === 'rebuild.preview' || lesson.id === 'combat-overlay.ranges',
+    completeOnTap: lesson.id === 'rebuild.preview',
   }
+}
+
+function overlayRangesActionComplete(ui: PresentationUi): boolean {
+  return Boolean(ui.combatOverlayOpen && ui.combatOverlaySelectedCoreId)
 }
 
 function lessonEligible(lesson: OnboardingLesson, state: GameState, ui: PresentationUi): boolean {
@@ -545,6 +551,7 @@ function lessonEligible(lesson: OnboardingLesson, state: GameState, ui: Presenta
   if (ui.reportOpen && lesson.id === 'first-defeat.workshop') return false
   if (ui.hangarOpen && lesson.id === 'rebuild.preview') return false
   if (lesson.id === 'combat-overlay.ranges' && !ui.combatOverlayOpen) return false
+  if (lesson.id === 'combat-overlay.ranges' && overlayRangesActionComplete(ui)) return false
   if (!lesson.availableWhen(state) && !lesson.completeWhen(state)) return false
   if (lesson.activation === 'visit' && !tabMatchesVisit(lesson.nav, ui.tab)) {
     if (lesson.completeWhen(state) && lesson.payoff) return tabMatchesVisit(lesson.nav, ui.tab)

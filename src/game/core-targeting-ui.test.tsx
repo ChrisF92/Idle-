@@ -1,19 +1,20 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CombatTab } from '../components/tabs/CombatTab'
 import { TargetingSheet, CORE_SELECTOR_MIN_HEIGHT_PX } from '../components/CombatOverlaySheet'
+import { GuideOverlay } from '../components/GuideOverlay'
 import { OverlayProvider } from '../ui/overlay'
 import { createInitialState } from './state'
 import { addCoreInstance } from './coreInstances'
 import { enableFireControlDoctrineForTests, targetCapableLoadoutCores } from './coreTargeting'
 import { setSortiePaused, startCombat } from './tick'
-import { fitModule } from './actions'
+import { fitModule, unfitModule } from './actions'
 import { atCareerWave, markHullLost } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 import { TabNav } from '../components/TabNav'
-import { showGlobalBottomNav } from './presentation'
-import { completeLesson, prepOnboardingDoor, activeOnboardingLesson } from './onboarding'
+import { selectPresentation, showGlobalBottomNav } from './presentation'
+import { completeLesson, lessonFinished, prepOnboardingDoor, activeOnboardingLesson } from './onboarding'
 import type { GameState } from './types'
 
 afterEach(cleanup)
@@ -31,6 +32,55 @@ function liveSortie(): GameState {
 
 function wrap(ui: React.ReactNode) {
   return <OverlayProvider>{ui}</OverlayProvider>
+}
+
+function OverlayOnboardingHarness({
+  initial,
+  onPause,
+  onResume,
+}: {
+  initial: GameState
+  onPause?: () => void
+  onResume?: () => void
+}) {
+  const [state, setState] = useState(initial)
+  const [overlayUi, setOverlayUi] = useState<{ open: boolean; selectedCoreId: string | null }>({
+    open: false,
+    selectedCoreId: null,
+  })
+  useEffect(() => {
+    if (!overlayUi.selectedCoreId) return
+    setState((cur) =>
+      lessonFinished(cur, 'combat-overlay.ranges') ? cur : completeLesson(cur, 'combat-overlay.ranges'),
+    )
+  }, [overlayUi.selectedCoreId])
+  const presentationUi = {
+    tab: 'combat' as const,
+    combatOverlayOpen: overlayUi.open,
+    combatOverlaySelectedCoreId: overlayUi.selectedCoreId,
+  }
+  const item = selectPresentation(state, presentationUi, [], {})
+  return (
+    <>
+      <CombatTab
+        state={state}
+        onLaunch={() => undefined}
+        onPickMilestone={() => undefined}
+        onPause={onPause}
+        onResume={onResume}
+        onCombatOverlayUi={setOverlayUi}
+      />
+      {item?.kind === 'onboarding' ? (
+        <GuideOverlay
+          item={item}
+          onComplete={(id) => setState((cur) => completeLesson(cur, id))}
+          onSkip={() => undefined}
+        />
+      ) : null}
+      <span data-testid="overlay-lesson-finished">{String(lessonFinished(state, 'combat-overlay.ranges'))}</span>
+      <span data-testid="overlay-selected-core">{overlayUi.selectedCoreId ?? ''}</span>
+    </>
+  )
 }
 
 describe('Combat Overlay UI', () => {
@@ -244,18 +294,15 @@ describe('Combat Overlay onboarding', () => {
     state.combat.sortiePaused = false
     const pauses: boolean[] = []
     const resumes: boolean[] = []
-    const view = render(
+    render(
       wrap(
-        <CombatTab
-          state={state}
-          onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
+        <OverlayOnboardingHarness
+          initial={state}
           onPause={() => {
             pauses.push(true)
             state.combat.sortiePaused = true
           }}
           onResume={() => resumes.push(true)}
-          onboardingTarget={null}
         />,
       ),
     )
@@ -266,18 +313,148 @@ describe('Combat Overlay onboarding', () => {
     expect(screen.getByTestId('core-selector').getAttribute('data-onboarding')).toBe(
       'onboarding.combat-overlay.core-selector',
     )
-    const lesson = activeOnboardingLesson(state, { tab: 'combat', combatOverlayOpen: true })
-    expect(lesson?.id).toBe('combat-overlay.ranges')
-    expect(lesson?.body.join(' ')).toMatch(/Fire Range/)
-    expect(lesson?.body.join(' ')).toMatch(/Acquisition Range/)
-    expect(lesson?.body.join(' ')).toMatch(/Firing Arc/)
-    expect(lesson?.body.join(' ')).toMatch(/Slew/)
+    expect(screen.getByTestId('overlay-selected-core').textContent).toBe('')
+    expect(document.querySelector('.guide-root')).toBeTruthy()
+    expect(document.querySelector('.guide-tip-body')?.textContent).toMatch(/Fire Range/)
+    expect(document.querySelector('.guide-tip-body')?.textContent).toMatch(/Acquisition Range/)
+    expect(document.querySelector('.guide-tip-body')?.textContent).toMatch(/Firing Arc/)
+    expect(document.querySelector('.guide-tip-body')?.textContent).toMatch(/Slew/)
     expect(document.querySelector('.core-selector-row.is-selected')).toBeNull()
+    expect(screen.getByTestId('overlay-lesson-finished').textContent).toBe('false')
     const row = document.querySelector('.core-selector-row') as HTMLButtonElement
     fireEvent.click(row)
+    expect(screen.getByTestId('overlay-selected-core').textContent).toBeTruthy()
+    expect(screen.getByTestId('overlay-lesson-finished').textContent).toBe('true')
     expect(screen.getByTestId('combat-overlay').getAttribute('data-combat-overlay')).toBe('selected')
     expect(resumes).toEqual([])
     expect(state.combat.sortiePaused).toBe(true)
-    view.unmount()
+  })
+
+  it('does not complete overlay onboarding from a heading or blank selector click', () => {
+    const state = prepOnboardingDoor(createInitialState(1), 'combat-overlay.ranges')
+    const completes: string[] = []
+    const view = render(
+      wrap(
+        <>
+          <CombatTab
+            state={state}
+            onLaunch={() => undefined}
+            onPickMilestone={() => undefined}
+            onPause={() => {
+              state.combat.sortiePaused = true
+            }}
+            onCombatOverlayUi={() => undefined}
+          />
+          <GuideOverlay
+            item={selectPresentation(state, { tab: 'combat', combatOverlayOpen: true }, [], {})!}
+            onComplete={(id) => completes.push(id)}
+            onSkip={() => undefined}
+          />
+        </>,
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Combat Overlay' }))
+    view.rerender(
+      wrap(
+        <>
+          <CombatTab
+            state={state}
+            onLaunch={() => undefined}
+            onPickMilestone={() => undefined}
+            onPause={() => {
+              state.combat.sortiePaused = true
+            }}
+            onCombatOverlayUi={() => undefined}
+          />
+          <GuideOverlay
+            item={selectPresentation(state, { tab: 'combat', combatOverlayOpen: true }, [], {})!}
+            onComplete={(id) => completes.push(id)}
+            onSkip={() => undefined}
+          />
+        </>,
+      ),
+    )
+    fireEvent.click(screen.getByText('Cores'))
+    fireEvent.click(screen.getByTestId('core-selector'))
+    expect(completes).toEqual([])
+    expect(document.querySelector('.core-selector-row.is-selected')).toBeNull()
+    expect(lessonFinished(state, 'combat-overlay.ranges')).toBe(false)
+    expect(selectPresentation(state, { tab: 'combat', combatOverlayOpen: true }, [], {})?.id).toBe(
+      'onboarding:combat-overlay.ranges',
+    )
+  })
+
+  it('does not start required overlay onboarding with zero target-capable Cores', () => {
+    let state = prepOnboardingDoor(createInitialState(1), 'combat-overlay.ranges')
+    state = unfitModule(state, 'pulse-cannon')
+    expect(targetCapableLoadoutCores(state)).toHaveLength(0)
+    expect(lessonFinished(state, 'combat-overlay.ranges')).toBe(false)
+    const view = render(
+      wrap(
+        <CombatTab
+          state={state}
+          onLaunch={() => undefined}
+          onPickMilestone={() => undefined}
+          onPause={() => {
+            state.combat.sortiePaused = true
+          }}
+        />,
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Combat Overlay' }))
+    expect(screen.getByTestId('combat-overlay-empty').textContent).toMatch(/No target-capable Cores fitted/)
+    expect(activeOnboardingLesson(state, { tab: 'combat', combatOverlayOpen: true })).toBeNull()
+    expect(lessonFinished(state, 'combat-overlay.ranges')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog', { name: 'Combat Overlay' })).toBeNull()
+    expect(lessonFinished(state, 'combat-overlay.ranges')).toBe(false)
+
+    state = fitModule(state, 'pulse-cannon')
+    expect(targetCapableLoadoutCores(state).length).toBeGreaterThan(0)
+    view.rerender(
+      wrap(
+        <CombatTab
+          state={state}
+          onLaunch={() => undefined}
+          onPickMilestone={() => undefined}
+          onPause={() => {
+            state.combat.sortiePaused = true
+          }}
+        />,
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Combat Overlay' }))
+    expect(screen.queryByTestId('combat-overlay-empty')).toBeNull()
+    expect(activeOnboardingLesson(state, { tab: 'combat', combatOverlayOpen: true })?.id).toBe(
+      'combat-overlay.ranges',
+    )
+    expect(lessonFinished(state, 'combat-overlay.ranges')).toBe(false)
+    expect(document.querySelector('.core-selector-row')).toBeTruthy()
+  })
+
+  it('reports selectedCoreId through presentation overlay UI', () => {
+    const live = liveSortie()
+    const reports: Array<{ open: boolean; selectedCoreId: string | null }> = []
+    render(
+      wrap(
+        <CombatTab
+          state={live}
+          onLaunch={() => undefined}
+          onPickMilestone={() => undefined}
+          onPause={() => {
+            live.combat.sortiePaused = true
+          }}
+          onCombatOverlayUi={(info) => reports.push(info)}
+        />,
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Combat Overlay' }))
+    expect(reports.some((row) => row.open && row.selectedCoreId)).toBe(true)
+    const selected = reports.filter((row) => row.open).at(-1)
+    expect(selected?.selectedCoreId).toBe(targetCapableLoadoutCores(live)[0]?.coreInstanceId)
   })
 })

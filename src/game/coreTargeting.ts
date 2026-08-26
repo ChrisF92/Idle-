@@ -18,6 +18,7 @@ import {
   slewHeading,
 } from './geometry'
 import {
+  isTargetingCapableCoreModule,
   targetingProfileFor,
   type CoreTargetingProfile,
 } from './targetingProfiles'
@@ -692,6 +693,7 @@ export function evaluateCoreTarget(
 export function clearCoreTarget(core: CombatUnit): void {
   core.currentTargetId = undefined
   core.targetLockTime = 0
+  core.heldShotNoted = false
   for (const weapon of core.weapons) {
     weapon.telegraphLeft = 0
     weapon.telegraphToId = undefined
@@ -701,6 +703,7 @@ export function clearCoreTarget(core: CombatUnit): void {
 
 export function setCoreTarget(core: CombatUnit, id: string): void {
   if (core.currentTargetId === id) return
+  core.heldShotNoted = false
   const tel = ensureTargetingTelemetry(core)
   if (core.currentTargetId) tel.targetSwitches += 1
   else tel.initialAcquisitions += 1
@@ -863,8 +866,9 @@ export function targetCapableLoadoutCores(state: GameState): TargetingCoreReadou
   const out: TargetingCoreReadout[] = []
   for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
     const moduleId = state.shipyard.modules[slot]!
+    if (!isTargetingCapableCoreModule(moduleId)) continue
     const mod = getModule(moduleId)
-    if (!mod?.weapon || mod.role !== 'weapon') continue
+    if (!mod) continue
     const instance = coreInstanceAtSlot(state, slot)
     if (!instance) continue
     const spec = { moduleId, coreInstanceId: instance.id }
@@ -927,3 +931,4 @@ export function combatOverlayGeometry(state: GameState): CombatOverlayCoreGeom[]
 }
 
 export { wrapTau, radToDeg, degToRad, headingToScreenFacing } from './geometry'
+export { isTargetingCapableCoreModule } from './targetingProfiles'
