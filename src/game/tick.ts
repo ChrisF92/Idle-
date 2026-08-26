@@ -660,6 +660,7 @@ function launchFromDock(state: GameState): void {
   state.combat.waveReached = 0
   state.combat.runUpgrades = {}
   if (!isChallengeSortie(state)) {
+    // Normal Sorties drop leftover run Salvage. Challenge Hangar Rights already sits on the bank.
     state.resources.salvage = 0
   }
   applyWorkshopCoreStarts(state)
