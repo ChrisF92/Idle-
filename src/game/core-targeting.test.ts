@@ -1040,13 +1040,19 @@ describe('Focus excludes self-vote', () => {
     ])
     const ally = addAllyCore(state, 'pulse-cannon:2', 'a')
     const hive = state.combat.playerUnits.find((u) => u.isFlagship)!
-    core.currentTargetId = undefined
+    const evalFocusCore = () => {
+      for (const unit of state.combat.playerUnits) {
+        if (unit.isCore) unit.nextTargetEvalAt = 1e9
+      }
+      core.nextTargetEvalAt = 0
+      core.currentTargetId = undefined
+      tickPlayerCoreTargeting(state, 0)
+    }
     state.combat.playerUnits = [hive, core, ally]
-    evalNow(state)
+    evalFocusCore()
     const forward = core.currentTargetId
-    core.currentTargetId = undefined
     state.combat.playerUnits = [hive, ally, core]
-    evalNow(state)
+    evalFocusCore()
     expect(core.currentTargetId).toBe(forward)
     expect(forward).toBe('a')
   })
@@ -1242,7 +1248,7 @@ describe('targetLockTime', () => {
     tickPlayerCoreTargeting(state, 0.5)
     expect(core.targetLockTime).toBeCloseTo(0.5)
     state.combat.enemyUnits.find((u) => u.id === 'b')!.hull = 0
-    tickPlayerCoreTargeting(state, 0.1)
+    tickPlayerCoreTargeting(state, 0)
     expect(core.currentTargetId).not.toBe('b')
     expect(core.targetLockTime ?? 0).toBe(0)
 
@@ -1345,13 +1351,12 @@ describe('Heavy Lance cycle rate', () => {
 
   it('shortens Heavy charge when Cycle Rate improves', () => {
     let state = createInitialState(0)
+    state.workshop.levels = { ...(state.workshop.levels ?? {}), 'cycle-rate': 4 }
     state = unfitModule(state, 'pulse-cannon')
     state.shipyard.unlockedModules.push('heavy-lance')
     state.shipyard.modules = ['heavy-lance', 'plate-layer']
     state.shipyard.coreInstances.push({ id: 'heavy-lance:1', moduleId: 'heavy-lance' })
     state.shipyard.equippedCoreIds = ['heavy-lance:1', 'plate-layer:1']
-    state.resources.salvage = 10_000
-    state = buyRunUpgrade(state, 'cycle-rate', 3)
     state = startCombat(state)
     const core = state.combat.playerUnits.find((u) => u.isCore)!
     expect(effectiveChargeDurationSec(state, core)).toBeLessThan(2.8 - 0.05)

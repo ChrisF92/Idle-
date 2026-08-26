@@ -241,6 +241,7 @@ describe('Targeting configuration foundation', () => {
 describe('Combat Overlay onboarding', () => {
   it('pauses, explains ranges, and requires a stationary Core selection', () => {
     const state = prepOnboardingDoor(createInitialState(1), 'combat-overlay.ranges')
+    state.combat.sortiePaused = false
     const pauses: boolean[] = []
     const resumes: boolean[] = []
     const view = render(
