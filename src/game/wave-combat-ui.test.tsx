@@ -87,7 +87,7 @@ describe('live Sortie chrome and pause/browse contract', () => {
     expect(document.querySelector('.tab-nav, nav.tab-nav, [aria-label="Game systems"]')).toBeNull()
   })
 
-  it('lists Pause, Pause & Browse, and Extract in the Sortie hamburger', () => {
+  it('lists Pause and Pause & Browse; Extract stays locked before W210', () => {
     const live = liveSortie()
     render(
       <CombatTab
@@ -99,7 +99,8 @@ describe('live Sortie chrome and pause/browse contract', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
     expect(screen.getByRole('menuitem', { name: 'Pause' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Pause & Browse' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Extract' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Extract' })).toBeNull()
+    expect(screen.getByText(/Unlocks at Best Wave 210/i)).toBeTruthy()
   })
 
   it('Pause freezes simTime, enemies, Wave timers, and cooldowns until Resume', () => {

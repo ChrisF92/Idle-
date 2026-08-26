@@ -93,6 +93,6 @@ describe('Workshop and Rebuild onboarding UI', () => {
     expect(screen.getByText(`+${breakdown.waveScore}`)).toBeTruthy()
     expect(screen.getByText(/WHAT RESETS/i)).toBeTruthy()
     expect(screen.getByText(/WHAT STAYS/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Rebuild/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /Rebuild/ }).hasAttribute('disabled')).toBe(false)
   })
 })

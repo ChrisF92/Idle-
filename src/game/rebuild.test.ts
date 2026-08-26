@@ -18,6 +18,7 @@ import {
   rebuildDoorMet,
 } from './rebuild'
 import { extractSortie, setDocked } from './tick'
+import { workshopLevel } from './workshop'
 
 function docked(state = createInitialState(0)) {
   const next = markHullLost(state)

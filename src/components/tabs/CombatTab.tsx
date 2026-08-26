@@ -5,7 +5,7 @@ import { formatCompact } from '../../game/format'
 import { Battlefield, type BattlefieldMode } from '../Battlefield'
 import { CombatOverlaySheet, TargetingSheet } from '../CombatOverlaySheet'
 import { SheetTabs } from '../SheetTabs'
-import { type BuyMode } from '../../game/workshop'
+import { type BuyMode, tutorialSortieShopActive } from '../../game/workshop'
 import {
   availableSortieSpeeds,
   formatRunTime,
@@ -490,7 +490,7 @@ export function CombatTab({
               >
                 {shopCollapsed ? 'Upgrades' : 'Hide'}
               </button>
-              {shopCollapsed ? null : (
+              {shopCollapsed || tutorialSortieShopActive(state) ? null : (
                 <SheetTabs
                   value={shopTab}
                   onChange={setShopTab}

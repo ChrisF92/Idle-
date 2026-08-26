@@ -407,7 +407,7 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
       (s.prestige.prestigeCount ?? 0) > 0 &&
       !anyMatterPurchaseOwned(s) &&
       MATTER_SHOP.some((item) => canBuyMatterShop(s, item.id).ok),
-    completeWhen: (s) => anyMatterPurchaseOwned(s) || !MATTER_SHOP.some((item) => canBuyMatterShop(s, item.id).ok),
+    completeWhen: (s) => anyMatterPurchaseOwned(s),
   },
   {
     id: 'extraction.first-use',
@@ -423,7 +423,12 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     skippable: true,
     required: false,
     activation: 'visit',
-    availableWhen: () => false,
+    availableWhen: (s) =>
+      !s.combat.docked &&
+      Boolean(s.combat.inFight) &&
+      Boolean(s.combat.sortiePaused) &&
+      (s.meta.bestWave ?? 0) >= ACT1_CADENCE.rebuild &&
+      !s.meta.extractionExplained,
     completeWhen: (s) => Boolean(s.meta.extractionExplained),
   },
   {
@@ -830,6 +835,21 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
         normalSortiesCompleted: Math.max(next.prestige.cycle?.normalSortiesCompleted ?? 0, 3),
         bestWave: Math.max(next.prestige.cycle?.bestWave ?? 0, ACT1_CADENCE.rebuild),
       }
+      next.prestige.prestigeCount = 0
+      next.combat.docked = true
+      break
+    case 'rebuild.matter':
+      next.prestige.prestigeCount = Math.max(1, next.prestige.prestigeCount)
+      next.resources.prestigeMatter = Math.max(next.resources.prestigeMatter, 8)
+      next.prestige.matterShop = {}
+      next.combat.docked = true
+      break
+    case 'extraction.first-use':
+      next.combat.docked = false
+      next.combat.inFight = true
+      next.combat.sortiePaused = true
+      next.meta.extractionExplained = false
+      next.meta.bestWave = Math.max(next.meta.bestWave ?? 0, ACT1_CADENCE.rebuild)
       break
     case 'relic.install':
       next.reliquary.owned = { ...(next.reliquary.owned ?? {}), 'power-shard': 1 }

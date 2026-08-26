@@ -70,7 +70,10 @@ describe('combat speed vs industry', () => {
     state.resources.aiPoints = 30
     state.ai.purchased = ['combat-chrono-1', 'combat-chrono-2', 'combat-chrono-3']
     expect(combatSpeedMultiplier(state)).toBe(1)
-    expect(buyAiNode(state, 'combat-chrono-1').ai.purchased).not.toContain('combat-chrono-1')
+    const buying = createInitialState(0)
+    buying.meta.bestWave = 250
+    buying.resources.aiPoints = 30
+    expect(buyAiNode(buying, 'combat-chrono-1').ai.purchased).not.toContain('combat-chrono-1')
   })
 
   it('industry AI does not create a combat multiplier', () => {

@@ -3,7 +3,7 @@ import { buyMatterShop, cycleSortieSpeed } from './actions'
 import { hiveResearchCombatSpeed } from './hiveResearch'
 import { processCombatSpeedMult } from './process'
 import { createInitialState } from './state'
-import { markHullLost } from './testHelpers'
+import { markHullLost, atCareerWave } from './testHelpers'
 import { advanceSeconds, handleAppHidden, setDocked, setSortiePaused, tickGame } from './tick'
 import { availableSortieSpeeds } from './uiReadout'
 import { availableTimeCompressionSpeeds, selectedTimeCompression } from './matter'
@@ -33,7 +33,7 @@ describe('Time Compression clock', () => {
   })
 
   it('1× vs 3× equal simulation time matches combat clock through the public path', () => {
-    const seed = markHullLost(createInitialState(0))
+    const seed = atCareerWave(markHullLost(createInitialState(0)), 20)
     seed.foundry.slots = seed.foundry.slots.map((slot, i) =>
       i === 0 ? { ...slot, recipeId: 'slag-ingot', progress: 0, paid: true } : slot,
     )
