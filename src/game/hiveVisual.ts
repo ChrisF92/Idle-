@@ -54,17 +54,6 @@ export function hiveDrawRadius(bodyR = HIVE_VISUAL_RADIUS): number {
   return bodyR * 1.22
 }
 
-/**
- * How fast a weapon Core slews around the ring toward a target.
- * Higher = snaps sooner. Presentation only today; a good hook if we later
- * let Mastery / shop / Frame change slew.
- */
-export function coreSlewStiffness(kind: CoreVisualKind, beaming: boolean): number {
-  if (beaming) return 18
-  if (kind === 'heavy') return 12
-  return 14
-}
-
 export function coreOrbitSpeed(kind: CoreVisualKind): number {
   switch (kind) {
     case 'flak':

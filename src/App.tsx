@@ -415,6 +415,7 @@ function AppShell() {
             paused={isSimPaused(pauseReasons)}
             onboardingTarget={onboarding?.target ?? null}
             onCycleSpeed={game.cycleSortieSpeed}
+            onSetCoreDoctrine={game.setCoreTargetingDoctrine}
             onChooseDirective={game.chooseDirective}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}

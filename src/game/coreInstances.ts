@@ -7,7 +7,11 @@ function validInstances(loadout: ShipLoadout): CoreInstance[] {
     if (!value || typeof value.id !== 'string' || typeof value.moduleId !== 'string') continue
     if (!value.id || !value.moduleId || seen.has(value.id)) continue
     seen.add(value.id)
-    out.push({ id: value.id, moduleId: value.moduleId })
+    out.push({
+      id: value.id,
+      moduleId: value.moduleId,
+      targetingDoctrine: value.targetingDoctrine ?? null,
+    })
   }
   return out
 }

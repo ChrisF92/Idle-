@@ -4,7 +4,6 @@ import {
   HIVE_VISUAL_RADIUS,
   coreOrbitRadius,
   coreScreenOrbit,
-  coreSlewStiffness,
   coreVisualKind,
   hiveDrawRadius,
   hiveFramePalette,
@@ -38,10 +37,5 @@ describe('Hive Sortie presentation', () => {
 
   it('exposes a face-on station painter for Dock and Sortie', () => {
     expect(typeof paintHiveStation).toBe('function')
-  })
-
-  it('slews heavy Cores slower than a held beam', () => {
-    expect(coreSlewStiffness('heavy', false)).toBeLessThan(coreSlewStiffness('beam', true))
-    expect(coreSlewStiffness('pulse', false)).toBe(14)
   })
 })

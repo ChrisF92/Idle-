@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type {
   CombatBeam,
   CombatFx,
+  CombatOverlayMode,
   CombatProjectile,
   CombatUnit,
   UnitShape,
@@ -12,9 +13,7 @@ import type {
 import { getModule } from '../game/catalog'
 import {
   coreRoleColor,
-  easeAngle,
   pointOnRing,
-  ringAngleToward,
   weaponIdToCoreId,
 } from '../game/combatVisual'
 import { formatCompact } from '../game/format'
@@ -23,7 +22,6 @@ import { TYPICAL_SPAWN_RADIUS } from '../game/geometry'
 import {
   coreOrbitSpeed,
   coreScreenOrbit,
-  coreSlewStiffness,
   coreVisualKind,
   hiveDrawRadius,
   hiveFrameStyle,
@@ -32,6 +30,10 @@ import {
   type CoreVisualKind,
   type HiveFrameStyle,
 } from '../game/hiveVisual'
+import {
+  headingToScreenFacing,
+  type CombatOverlayCoreGeom,
+} from '../game/coreTargeting'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -49,6 +51,9 @@ interface BattlefieldProps {
   frameId?: string
   coreIds?: string[]
   furnacePush?: { weapons: boolean; ward: boolean; yield: boolean }
+  overlayMode?: CombatOverlayMode
+  overlayCoreId?: string | null
+  overlayCores?: CombatOverlayCoreGeom[]
 }
 
 interface Actor {
@@ -174,6 +179,7 @@ interface VisualBeam {
 
 type CoreSlot = {
   id: string
+  instanceId?: string
   role: 'weapon' | 'defense' | 'utility'
   kind: CoreVisualKind
   x: number
@@ -258,6 +264,9 @@ interface Scene {
   furnaceWeapons: boolean
   furnaceWard: boolean
   furnaceYield: boolean
+  overlayMode: CombatOverlayMode
+  overlayCoreId: string | null
+  overlayCores: CombatOverlayCoreGeom[]
 }
 
 /** Portrait logical canvas — Hive at centre, enemies from all directions. */
@@ -526,11 +535,11 @@ function ensureWeaponSpins(scene: Scene): void {
   const keep = new Set<string>()
   ids.forEach((id, index) => {
     if ((getModule(id)?.role ?? 'utility') !== 'weapon') return
-    keep.add(id)
-    if (scene.weaponSpins.has(id)) return
+    keep.add(`${id}:${index}`)
+    if (scene.weaponSpins.has(`${id}:${index}`)) return
     const kind = coreVisualKind(id)
     const speed = coreOrbitSpeed(kind)
-    scene.weaponSpins.set(id, {
+    scene.weaponSpins.set(`${id}:${index}`, {
       id,
       kind,
       angle: scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0),
@@ -539,63 +548,27 @@ function ensureWeaponSpins(scene: Scene): void {
       speed,
     })
   })
-  for (const id of [...scene.weaponSpins.keys()]) {
-    if (!keep.has(id)) scene.weaponSpins.delete(id)
+  for (const key of [...scene.weaponSpins.keys()]) {
+    if (!keep.has(key)) scene.weaponSpins.delete(key)
   }
 }
 
-function coreTargetScreen(scene: Scene, coreId: string): { x: number; y: number } | null {
-  const shots = scene.liveProjectiles.filter(
-    (shot) => shot.side === 'player' && weaponIdToCoreId(shot.weaponId) === coreId,
-  )
-  for (let i = shots.length - 1; i >= 0; i -= 1) {
-    const actor = scene.actors.get(shots[i]!.toId)
-    if (actor) return { x: actor.x, y: actor.y }
-  }
-  for (const beam of scene.liveBeams) {
-    if (beam.side !== 'player' || weaponIdToCoreId(beam.weaponId) !== coreId) continue
-    const actor = scene.actors.get(beam.toId)
-    if (actor) return { x: actor.x, y: actor.y }
-  }
-  let best: { x: number; y: number } | null = null
-  let bestD = Infinity
-  const hive = hiveCenter(scene)
-  for (const actor of scene.actors.values()) {
-    if (actor.side !== 'enemy' || !actor.alive) continue
-    const d = Math.hypot(actor.x - hive.x, actor.y - hive.y)
-    if (d < bestD) {
-      bestD = d
-      best = { x: actor.x, y: actor.y }
-    }
-  }
-  return best
-}
-
-function coreHasBeam(scene: Scene, coreId: string): boolean {
-  return scene.liveBeams.some(
-    (beam) => beam.side === 'player' && weaponIdToCoreId(beam.weaponId) === coreId,
+function simCoreForSlot(scene: Scene, moduleId: string, index: number): CombatUnit | undefined {
+  return scene.livePlayerUnits.find(
+    (unit) =>
+      unit.isCore &&
+      (unit.coreSlot === index ||
+        (unit.coreModuleId === moduleId && unit.coreSlot == null && index === 0)),
   )
 }
 
 function stepWeaponCores(scene: Scene, dt: number): void {
   ensureWeaponSpins(scene)
-  const hive = hiveCenter(scene)
-  for (const spin of scene.weaponSpins.values()) {
-    const target = coreTargetScreen(scene, spin.id)
-    if (!target) {
-      if (spin.holdT <= 0) spin.angle += spin.speed * dt
-      spin.holdT = Math.max(0, spin.holdT - dt)
-      continue
-    }
-    const face = ringAngleToward(hive, target)
-    const beaming = spin.kind === 'beam' && coreHasBeam(scene, spin.id)
-    const stiffness = coreSlewStiffness(spin.kind, beaming)
-    if (scene.reducedMotion) spin.angle = face
-    else if (spin.kind === 'heavy' && spin.holdT > 0) {
-      spin.angle = easeAngle(spin.angle, face, dt, 16)
-    } else {
-      spin.angle = easeAngle(spin.angle, face, dt, stiffness)
-    }
+  for (const [key, spin] of scene.weaponSpins) {
+    const index = Number(key.split(':').pop())
+    const sim = Number.isFinite(index) ? simCoreForSlot(scene, spin.id, index) : undefined
+    if (sim) continue
+    if (spin.holdT <= 0) spin.angle += spin.speed * dt
     spin.holdT = Math.max(0, spin.holdT - dt)
   }
 }
@@ -608,13 +581,26 @@ function refreshCoreSlots(scene: Scene, hive = hiveCenter(scene)): void {
     const orbit = coreScreenOrbit(kind)
     const speed = coreOrbitSpeed(kind)
     const role = getModule(id)?.role ?? 'utility'
-    const spin = role === 'weapon' ? scene.weaponSpins.get(id) : undefined
+    const sim = role === 'weapon' ? simCoreForSlot(scene, id, index) : undefined
+    if (sim) {
+      const pos = worldToScreen(sim.x, sim.y)
+      const firing =
+        scene.liveProjectiles.some((shot) => shot.fromId === sim.id) ||
+        scene.liveBeams.some((beam) => beam.fromId === sim.id)
+      return {
+        id,
+        instanceId: sim.coreInstanceId ?? sim.id,
+        role,
+        kind,
+        x: pos.x,
+        y: pos.y,
+        facing: headingToScreenFacing(sim.heading ?? sim.orbitAngle ?? 0),
+        firing,
+      }
+    }
+    const spin = role === 'weapon' ? scene.weaponSpins.get(`${id}:${index}`) : undefined
     const angle = spin?.angle ?? scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0)
     const pos = pointOnRing(hive, orbit, angle)
-    const target = role === 'weapon' ? coreTargetScreen(scene, id) : null
-    const facing = target
-      ? Math.atan2(target.y - pos.y, target.x - pos.x)
-      : angle
     const firing =
       scene.liveProjectiles.some((shot) => shot.side === 'player' && weaponIdToCoreId(shot.weaponId) === id) ||
       scene.liveBeams.some((beam) => beam.side === 'player' && weaponIdToCoreId(beam.weaponId) === id)
@@ -624,7 +610,7 @@ function refreshCoreSlots(scene: Scene, hive = hiveCenter(scene)): void {
       kind,
       x: pos.x,
       y: pos.y,
-      facing,
+      facing: angle,
       firing,
     }
   })
@@ -669,7 +655,9 @@ function shotScreenEnds(
   const to = toActor ? { x: toActor.x, y: toActor.y } : worldToScreen(toUnit?.x ?? 0, toUnit?.y ?? 0)
   const from =
     p.side === 'player'
-      ? playerMuzzle(scene, p.weaponId, p.id)
+      ? fromUnit
+        ? fromWorld
+        : playerMuzzle(scene, p.weaponId, p.id)
       : fromActor
         ? { x: fromActor.x, y: fromActor.y }
         : fromWorld
@@ -682,6 +670,8 @@ function shotScreenEnds(
 
 function beamOrigin(scene: Scene, beam: CombatBeam | VisualBeam): { x: number; y: number } {
   if (beam.side === 'player') {
+    const fromUnit = scene.livePlayerUnits.find((unit) => unit.id === beam.fromId)
+    if (fromUnit) return worldToScreen(fromUnit.x, fromUnit.y)
     return playerMuzzle(scene, beam.weaponId, beam.id)
   }
   const from = scene.actors.get(beam.fromId)
@@ -1535,6 +1525,69 @@ function drawCoreDrone(
     ctx.fill()
   }
   ctx.restore()
+}
+
+function drawCombatOverlay(ctx: CanvasRenderingContext2D, scene: Scene): void {
+  if (scene.overlayMode === 'off' || scene.overlayCores.length === 0) return
+  const selected = scene.overlayCores.filter((core) => {
+    if (scene.overlayMode === 'all') return true
+    return core.coreInstanceId === scene.overlayCoreId
+  })
+  for (const core of selected) {
+    const pos = worldToScreen(core.x, core.y)
+    const fireR = core.fireRange * RADIAL_SCALE
+    const acqR = core.acquisitionRange * RADIAL_SCALE
+    const detailed = scene.overlayMode === 'selected'
+    ctx.save()
+    ctx.translate(pos.x, pos.y)
+    ctx.strokeStyle = '#7ec8ff'
+    ctx.lineWidth = detailed ? 1.4 : 0.7
+    ctx.globalAlpha = detailed ? 0.22 : 0.1
+    ctx.setLineDash(detailed ? [6, 5] : [4, 6])
+    ctx.beginPath()
+    ctx.arc(0, 0, acqR, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.strokeStyle = '#e0b06a'
+    ctx.lineWidth = detailed ? 1.8 : 0.9
+    ctx.globalAlpha = detailed ? 0.38 : 0.14
+    ctx.beginPath()
+    ctx.arc(0, 0, fireR, 0, Math.PI * 2)
+    ctx.stroke()
+    if (detailed) {
+      const arc = (core.firingArcDeg * Math.PI) / 180
+      const facing = headingToScreenFacing(core.heading)
+      ctx.strokeStyle = '#ffe8c7'
+      ctx.fillStyle = 'rgba(224, 176, 106, 0.08)'
+      ctx.globalAlpha = 0.55
+      ctx.lineWidth = 1.2
+      ctx.beginPath()
+      ctx.moveTo(0, 0)
+      ctx.arc(0, 0, fireR, facing - arc / 2, facing + arc / 2)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
+    ctx.beginPath()
+    ctx.globalAlpha = detailed ? 0.9 : 0.45
+    ctx.fillStyle = '#ffe8c7'
+    ctx.arc(0, 0, detailed ? 4.2 : 3.2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+    if (detailed && core.currentTargetId && core.targetX != null && core.targetY != null) {
+      const to = worldToScreen(core.targetX, core.targetY)
+      ctx.save()
+      ctx.strokeStyle = core.fireable ? '#8fd98f' : '#7ec8ff'
+      ctx.globalAlpha = 0.45
+      ctx.lineWidth = 1.2
+      ctx.setLineDash(core.fireable ? [] : [4, 4])
+      ctx.beginPath()
+      ctx.moveTo(pos.x, pos.y)
+      ctx.lineTo(to.x, to.y)
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
 }
 
 function drawOrbitingCores(
@@ -2425,6 +2478,8 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
     }
   }
 
+  drawCombatOverlay(ctx, scene)
+
   for (const part of scene.particles) {
     ctx.globalAlpha = Math.max(0, part.life / part.maxLife)
     ctx.fillStyle = part.color
@@ -2467,6 +2522,9 @@ export function Battlefield({
   frameId = '',
   coreIds = [],
   furnacePush,
+  overlayMode = 'off',
+  overlayCoreId = null,
+  overlayCores = [],
 }: BattlefieldProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<Scene | null>(null)
@@ -2482,6 +2540,9 @@ export function Battlefield({
     frameId,
     coreIds,
     furnacePush,
+    overlayMode,
+    overlayCoreId,
+    overlayCores,
   })
   propsRef.current = {
     playerUnits,
@@ -2495,6 +2556,9 @@ export function Battlefield({
     frameId,
     coreIds,
     furnacePush,
+    overlayMode,
+    overlayCoreId,
+    overlayCores,
   }
 
   useEffect(() => {
@@ -2545,6 +2609,9 @@ export function Battlefield({
       furnaceWeapons: false,
       furnaceWard: false,
       furnaceYield: false,
+      overlayMode: 'off',
+      overlayCoreId: null,
+      overlayCores: [],
     }
     sceneRef.current = scene
 
@@ -2560,6 +2627,9 @@ export function Battlefield({
       scene.furnaceWeapons = Boolean(p.furnacePush?.weapons)
       scene.furnaceWard = Boolean(p.furnacePush?.ward)
       scene.furnaceYield = Boolean(p.furnacePush?.yield)
+      scene.overlayMode = p.overlayMode
+      scene.overlayCoreId = p.overlayCoreId
+      scene.overlayCores = p.overlayCores
       syncScene(scene, p.playerUnits, p.enemyUnits, p.projectiles, p.beams, p.fx, p.mode)
       scene.numbers = p.numbers
       scene.frameId = p.frameId
@@ -2621,13 +2691,41 @@ export function Battlefield({
   }, [mode])
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="battlefield"
-      width={VIEW_W}
-      height={VIEW_H}
-      role="img"
-      aria-label="Fleet battlefield"
-    />
+    <div className="battlefield-wrap">
+      <canvas
+        ref={canvasRef}
+        className="battlefield"
+        width={VIEW_W}
+        height={VIEW_H}
+        role="img"
+        aria-label="Fleet battlefield"
+      />
+      {overlayMode !== 'off' ? (
+        <div className="ui-vh" data-testid="combat-overlay" data-combat-overlay={overlayMode}>
+          {(overlayMode === 'all' ? overlayCores : overlayCores.filter((c) => c.coreInstanceId === overlayCoreId)).map(
+            (core) => (
+              <div
+                key={core.coreInstanceId}
+                data-overlay-core={core.coreInstanceId}
+                data-overlay-module={core.moduleId}
+              >
+                <span data-overlay-part="fire-boundary" data-radius={core.fireRange} />
+                <span data-overlay-part="acquisition-boundary" data-radius={core.acquisitionRange} />
+                {overlayMode === 'selected' ? (
+                  <>
+                    <span data-overlay-part="firing-arc" data-arc={core.firingArcDeg} />
+                    {core.currentTargetId ? (
+                      <span data-overlay-part="target-line" data-target={core.currentTargetId} />
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            ),
+          )}
+        </div>
+      ) : (
+        <div className="ui-vh" data-testid="combat-overlay" data-combat-overlay="off" />
+      )}
+    </div>
   )
 }

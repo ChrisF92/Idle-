@@ -887,9 +887,40 @@ export interface ShipLoadout {
   frameLocked: boolean
 }
 
+/** Canonical Targeting Doctrine IDs. Authored defaults apply until Fire-Control Doctrine unlocks. */
+export const TARGETING_DOCTRINE_IDS = [
+  'threat',
+  'focus',
+  'execution',
+  'heavy',
+  'shield',
+  'cluster',
+] as const
+
+export type TargetingDoctrineId = (typeof TARGETING_DOCTRINE_IDS)[number]
+
+export type CombatOverlayMode = 'off' | 'selected' | 'all'
+
+/** Per physical target-capable Core. Reset with each Sortie; persisted while live. */
+export interface CoreTargetingTelemetry {
+  targetSwitches: number
+  timeNoTargetWhileEnemies: number
+  timeAcquiredOutsideFire: number
+  timeSlewLimited: number
+  timeActivelyFiring: number
+  shotsHeldIllegalSolution: number
+  acquisitionDelayAccum: number
+}
+
 export interface CoreInstance {
   id: string
   moduleId: string
+  /**
+   * Player-selected Doctrine for this physical copy.
+   * Ignored until Fire-Control Doctrine is unlocked; invalid values fall back
+   * to the authored default. Survives Sortie and Rebuild; not reset with Core Level.
+   */
+  targetingDoctrine?: TargetingDoctrineId | null
 }
 
 export interface WeaponInstance {
@@ -911,6 +942,8 @@ export interface WeaponInstance {
   telegraphLeft: number
   /** Unit id the current telegraph is locking. */
   telegraphToId?: string
+  /** Heavy Lance: charge completed and is holding for a legal release. */
+  chargeReady?: boolean
   /** Bolt (default), connected beam, or charge-then-bolt. */
   delivery?: WeaponDelivery
   /** USI damage vs hull / shield / armour HP types. */
@@ -945,6 +978,13 @@ export interface CombatUnit {
   isCore?: boolean
   coreModuleId?: string
   coreSlot?: number
+  /** Stable physical Core instance ID from the loadout. Distinct for duplicates. */
+  coreInstanceId?: string
+  /**
+   * PR7 Veil flicker etc. may set this false. Default/omitted = targetable.
+   * Untargetable is not death.
+   */
+  targetable?: boolean
   /** Enemies never select this unit. */
   untargetable?: boolean
   dots: DotInstance[]
@@ -958,10 +998,20 @@ export interface CombatUnit {
    * True world Y. Hive origin is (0, 0). +Y is up.
    */
   y: number
-  /** Orbit / facing angle in radians. 0 is +Y (screen-up). */
+  /**
+   * Mechanical weapon facing in radians. 0 is +Y (screen-up). Distinct from
+   * orbitAngle. Advanced by slew rate toward the current target.
+   */
   heading?: number
+  /** Position on the Hive orbit ring in radians. Distinct from heading. */
+  orbitAngle?: number
   /** Core orbit radius in simulation units. */
   orbitRadius?: number
+  /** Persistent current target enemy ID for this physical Core. */
+  currentTargetId?: string
+  /** Simulation time of the next discretionary target evaluation. */
+  nextTargetEvalAt?: number
+  targetingTelemetry?: CoreTargetingTelemetry
   /** Wave package this unit belongs to. */
   packageId?: string
   /** Wave that spawned this unit. */
