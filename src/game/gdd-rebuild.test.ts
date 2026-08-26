@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buyMatterShop, buyWorkshopUpgrade, canPrestige, performRebuild, prestigeGainFor } from './actions'
+import { buyMatterShop, buyWorkshopUpgrade, performRebuild } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { equipRelicOnCore } from './reliquary'
 import {
   REBUILD_FIRST_MIN_SORTIES,
+  canRebuild,
   cycleBestWave,
   emptyRebuildCycle,
   grantGeneratedScrap,
@@ -22,7 +23,7 @@ describe('GDD Rebuild', () => {
     s.combat.docked = true
     s.prestige.cycle.normalSortiesCompleted = REBUILD_FIRST_MIN_SORTIES
     expect(rebuildDoorMet(s)).toBe(false)
-    expect(canPrestige(s)).toBe(false)
+    expect(canRebuild(s)).toBe(false)
   })
 
   it('stays locked at Wave 210 until three Sorties have finished', () => {
@@ -30,20 +31,20 @@ describe('GDD Rebuild', () => {
     s.combat.docked = true
     s.prestige.cycle.normalSortiesCompleted = 1
     expect(rebuildDoorMet(s)).toBe(false)
-    expect(canPrestige(s)).toBe(false)
+    expect(canRebuild(s)).toBe(false)
   })
 
   it('opens from Dock at Wave 210 after three Sorties, not the live Wave', () => {
     const s = armRebuildDoor(createInitialState(0))
     s.combat.wave = 1
     expect(cycleBestWave(s)).toBe(210)
-    expect(canPrestige(s)).toBe(true)
+    expect(canRebuild(s)).toBe(true)
   })
 
   it('refuses Rebuild while the Sortie is still live', () => {
     const s = armRebuildDoor(createInitialState(0))
     s.combat.docked = false
-    expect(canPrestige(s)).toBe(false)
+    expect(canRebuild(s)).toBe(false)
   })
 
   it('pays Matter from cycle Wave and Scrap generated — not unspent Scrap or Workshop', () => {
@@ -55,8 +56,8 @@ describe('GDD Rebuild', () => {
     spend.meta.hullLostOnce = true
     const bought = buyWorkshopUpgrade(spend, 'weapon-power')
     expect(bought.workshop.levels['weapon-power']).toBe(1)
-    expect(prestigeGainFor(bought)).toBe(prestigeGainFor(hoard))
-    expect(prestigeGainFor(hoard)).toBe(matterGainFor(base))
+    expect(matterGainFor(bought)).toBe(matterGainFor(hoard))
+    expect(matterGainFor(hoard)).toBe(matterGainFor(base))
   })
 
   it('resets the cycle and keeps Relics, Foundry recipes, and career Best Wave', () => {
@@ -74,14 +75,14 @@ describe('GDD Rebuild', () => {
     s = equipRelicOnCore(s, 'pulse-cannon', 'battle-chip')
     expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
     const career = s.meta.bestWave
-    const before = prestigeGainFor(s)
+    const before = matterGainFor(s)
 
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.prestige.prestigeCount).toBe(1)
     expect(s.resources.prestigeMatter).toBeGreaterThanOrEqual(before)
     expect(s.meta.bestWave).toBe(career)
     expect(rebuildCycle(s)).toEqual(emptyRebuildCycle())
-    expect(canPrestige(s)).toBe(false)
+    expect(canRebuild(s)).toBe(false)
     expect(s.resources.choirAsh).toBe(0)
     expect(s.resources.heat).toBe(0)
     expect(s.workshop.levels['weapon-power'] ?? 0).toBe(0)
@@ -93,11 +94,11 @@ describe('GDD Rebuild', () => {
   it('does not require Wave 210 again after the first Rebuild', () => {
     let s = armRebuildDoor(createInitialState(0))
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(canPrestige(s)).toBe(false)
+    expect(canRebuild(s)).toBe(false)
     s.prestige.cycle.bestWave = 40
     s.prestige.cycle.normalSortiesCompleted = 1
     s.combat.docked = true
-    expect(canPrestige(s)).toBe(true)
+    expect(canRebuild(s)).toBe(true)
   })
 
   it('uses the five canonical Matter categories', () => {

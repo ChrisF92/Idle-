@@ -103,10 +103,6 @@ export function clearRebuildCycle(state: GameState): void {
   state.prestige.cycle = emptyRebuildCycle()
 }
 
-export function rebuildWaveNeed(_state?: GameState): number {
-  return REBUILD_MIN_WAVE
-}
-
 export interface MatterGainBreakdown {
   cycleBestWave: number
   cycleScrapGenerated: number
@@ -139,11 +135,6 @@ export function matterGainBreakdown(state: GameState): MatterGainBreakdown {
 /** Canonical Matter payout. No protocol, workshop, rebuild-count, or Ascension multipliers. */
 export function matterGainFor(state: GameState): number {
   return matterGainBreakdown(state).total
-}
-
-/** @deprecated Use matterGainFor. Same canonical formula; name retained for existing UI imports. */
-export function prestigeGainFor(state: GameState): number {
-  return matterGainFor(state)
 }
 
 export function rebuildIneligibleReason(state: GameState): string | null {

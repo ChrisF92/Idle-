@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { buyMatterShop, cycleSortieSpeed } from './actions'
-import { hiveResearchCombatSpeed } from './hiveResearch'
-import { processCombatSpeedMult } from './process'
 import { createInitialState } from './state'
 import { markHullLost, atCareerWave } from './testHelpers'
 import { advanceSeconds, handleAppHidden, setDocked, setSortiePaused, tickGame } from './tick'
@@ -12,11 +10,8 @@ import { tickFoundry } from './foundry'
 describe('Time Compression clock', () => {
   it('is the only general combat-speed track', () => {
     const s = createInitialState(0)
-    s.ai.purchased = ['combat-chrono-1', 'combat-chrono-2', 'combat-chrono-3']
-    s.process.purchased = ['combat-tempo', 'combat-overclock']
-    expect(hiveResearchCombatSpeed(s)).toBe(1)
-    expect(processCombatSpeedMult(s)).toBe(1)
     expect(availableSortieSpeeds(s)).toEqual([1])
+    expect(availableTimeCompressionSpeeds(s)).toEqual([1])
   })
 
   it('cycles through unlocked speeds and persists across Rebuild preference storage', () => {

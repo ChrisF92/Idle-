@@ -8,7 +8,7 @@ import {
   shouldRebuild,
   skipGuides,
 } from './actions'
-import { setDocked } from '../tick'
+import { setSortiePaused } from '../tick'
 
 export function spendProfileFor(id: SimulationStrategyId): SimulationSpendProfile {
   if (id === 'casual') return 'casual'
@@ -115,8 +115,8 @@ export function getStrategy(id: string): PlayerStrategy {
   return STRATEGIES[id] ?? balancedStrategy
 }
 
-/** Dock before an offline period so catch-up matches a closed app. */
+/** Pause a live Sortie before an offline period so catch-up matches a closed app. */
 export function closeSession(state: GameState): GameState {
   if (state.combat.docked) return state
-  return setDocked(state, true)
+  return setSortiePaused(state, true)
 }

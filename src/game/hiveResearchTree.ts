@@ -42,7 +42,6 @@ export interface HiveResearchNodeDef {
   unlockReliquary?: ReliquaryColor
   unlockFrame?: string
   focusFire?: boolean
-  combatSpeed?: number
   coreStartLevel?: number
   workshopStartRanks?: number
   salvageOpsMult?: number

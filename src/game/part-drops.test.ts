@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { buyChallengeShop, buyMatterShop } from './actions'
+import { buyChallengeShop } from './actions'
 import {
   ENEMY_PART_DROPS,
   challengeShopDropBonus,
-  matterShopDropBonus,
   shopRank,
 } from './catalog'
 import { rollEnemyPartDrop } from './combat'
@@ -39,23 +38,20 @@ describe('blueprint part drop rates', () => {
     expect(Object.keys(locked.parts)).toHaveLength(0)
   })
 
-  it('matter Fragment Magnet and CP Loot Sweep buff drop chance', () => {
+  it('CP Loot Sweep buffs drop chance', () => {
     let state = createInitialState(0)
-    state.resources.prestigeMatter = 4
-    state = buyMatterShop(state, 'fragment-magnet')
-    expect(shopRank(state.prestige.matterShop, 'fragment-magnet')).toBe(1)
-    expect(matterShopDropBonus(state.prestige.matterShop)).toBeCloseTo(0.1)
-
     state.prestige.prestigeCount = 1
     state.resources.challengePoints = 2
     state = buyChallengeShop(state, 'loot-protocols')
+    expect(shopRank(state.prestige.shop, 'loot-protocols')).toBe(1)
     expect(challengeShopDropBonus(state.prestige.shop)).toBeCloseTo(0.15)
   })
 
   it('shop drop bonus increases successful rolls vs unbuffed', () => {
     const bare = withFoundry(createInitialState(0))
     const buffed = withFoundry(createInitialState(0))
-    buffed.prestige.matterShop = { 'fragment-magnet': 10 }
+    buffed.prestige.prestigeCount = 1
+    buffed.prestige.shop = { 'loot-protocols': 1 }
     // rng > chance fails. Bare swarm 2.8% after the early-career taper; rank-10 magnet ≈ 4.2%+.
     const bareHits = rollEnemyPartDrop(
       bare,

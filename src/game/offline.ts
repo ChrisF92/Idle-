@@ -123,9 +123,7 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     }
   }
 
-  const scrapBeforeNetwork = state.resources.scrap ?? 0
   tickNetwork(state, seconds)
-  creditIndustryScrap(state, (state.resources.scrap ?? 0) - scrapBeforeNetwork)
   tickFoundry(state, seconds)
   tickYard(state, seconds)
   tickFurnace(state, seconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))

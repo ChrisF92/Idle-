@@ -7,6 +7,7 @@ import { TabNav } from '../components/TabNav'
 import { createInitialState } from './state'
 import {
   advanceSeconds,
+  extractSortie,
   setDocked,
   setSortiePaused,
   startCombat,
@@ -218,7 +219,9 @@ describe('live Sortie chrome and pause/browse contract', () => {
   it('Extract terminates the Sortie instead of pausing it', () => {
     const live = setSortiePaused(liveSortie(), true)
     expect(live.combat.sortiePaused).toBe(true)
-    const extracted = setDocked(live, true)
+    live.meta.bestWave = Math.max(live.meta.bestWave ?? 0, 210)
+    live.combat.bestWave = Math.max(live.combat.bestWave ?? 0, 210)
+    const extracted = extractSortie(live)
     expect(extracted.combat.docked).toBe(true)
     expect(extracted.combat.inFight).toBe(false)
     expect(isSortieActive(extracted)).toBe(false)

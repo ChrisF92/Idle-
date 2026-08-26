@@ -278,9 +278,9 @@ function withPrestigeDefaults(
       bestWave: Math.max(0, Math.floor(Number(cycle.bestWave ?? 0) || 0)),
       normalSortiesCompleted: Math.max(
         0,
-        Math.floor(Number(cycle.normalSortiesCompleted ?? cycle.sorties ?? 0) || 0),
+        Math.floor(Number(cycle.normalSortiesCompleted ?? 0) || 0),
       ),
-      scrapGenerated: Math.max(0, Number(cycle.scrapGenerated ?? cycle.scrapEarned ?? 0) || 0),
+      scrapGenerated: Math.max(0, Number(cycle.scrapGenerated ?? 0) || 0),
     },
   }
 }

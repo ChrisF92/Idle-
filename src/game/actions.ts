@@ -1124,14 +1124,6 @@ export function setCoreTargetingDoctrine(
   return next
 }
 
-export function prestigeGainFor(state: GameState): number {
-  return matterGainFor(state)
-}
-
-export function canPrestige(state: GameState): boolean {
-  return canRebuild(state)
-}
-
 /** Ascension unlocks after Act 1; soft-resets the run and boosts future PM gains. */
 export function canAscend(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return false
@@ -1496,9 +1488,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
 
   retirePostResetOnboarding(state)
   applyReconstitutionCache(state)
-  state.resources.scrap = (state.resources.scrap ?? 0) + challengeShopStartingScrap(state.prestige.shop)
-  state.resources.salvage = (state.resources.salvage ?? 0) + challengeShopStartingSalvage(state.prestige.shop)
-  state.resources.aiPoints += challengeShopStartingAi(state.prestige.shop)
 
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
@@ -1579,7 +1568,7 @@ export function performRebuild(
   hangar: { frameId: string; modules: string[] },
   now = Date.now(),
 ): GameState {
-  if (!canPrestige(state)) return state
+  if (!canRebuild(state)) return state
   const frame = getFrame(hangar.frameId)
   if (!frame) return state
   if (!state.shipyard.unlockedFrames.includes(hangar.frameId)) return state
@@ -1596,7 +1585,7 @@ export function performRebuild(
     { utility: hiveResearchExtraUtilitySlots(next) },
   )
   reconcileEquippedCoreIds(next.shipyard, previousModules, previousCoreIds)
-  const gain = prestigeGainFor(next)
+  const gain = matterGainFor(next)
   next.resources.prestigeMatter += gain
   next.prestige.prestigeCount += 1
   next.prestige.activeChallengeId = null
@@ -1626,7 +1615,7 @@ export function performPrestige(state: GameState, now = Date.now()): GameState {
 export function performAscension(state: GameState, now = Date.now()): GameState {
   if (!canAscend(state)) return state
   const next = structuredClone(state)
-  const gain = Math.max(1, Math.floor(prestigeGainFor(next) * 0.5))
+  const gain = Math.max(1, Math.floor(matterGainFor(next) * 0.5))
   next.resources.prestigeMatter += gain
   next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
   next.prestige.activeChallengeId = null
@@ -1801,7 +1790,7 @@ export { rankSpecialist, rankCapital }
 export function performReinforce(state: GameState, now = Date.now()): GameState {
   if (!canReinforce(state).ok) return state
   const next = structuredClone(state)
-  const gain = Math.max(1, Math.floor(prestigeGainFor(next) * 0.5))
+  const gain = Math.max(1, Math.floor(matterGainFor(next) * 0.5))
   next.resources.prestigeMatter += gain
   next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
   next.prestige.activeChallengeId = null

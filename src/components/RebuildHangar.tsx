@@ -10,19 +10,20 @@ import {
   moduleMasteryRank,
   shopRank,
 } from '../game/catalog'
-import { canPrestige, prestigeGainFor } from '../game/actions'
+import {
+  canRebuild,
+  cycleBestWave,
+  cycleNormalSorties,
+  matterGainBreakdown,
+  matterGainFor,
+  rebuildCycle,
+  rebuildIneligibleReason,
+  REBUILD_MIN_WAVE,
+} from '../game/rebuild'
 import { yardPendingSummary } from '../game/yard'
 import { isSystemUnlocked } from '../game/progression'
 import { rebuildConsequenceLists } from '../game/playerGuidance'
 import { ConsequencePanel } from './ConsequencePanel'
-import {
-  cycleBestWave,
-  cycleNormalSorties,
-  matterGainBreakdown,
-  rebuildCycle,
-  rebuildIneligibleReason,
-  rebuildWaveNeed,
-} from '../game/rebuild'
 import { formatCompact } from '../game/format'
 import { computeShipStats, RESOURCE_LABELS } from '../game/state'
 import { coreDps, coreShieldOutput } from '../game/uiReadout'
@@ -97,11 +98,11 @@ export function MatterShopSheet({
 }
 
 export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: RebuildHangarProps) {
-  const ready = canPrestige(state)
-  const need = rebuildWaveNeed(state)
+  const ready = canRebuild(state)
+  const need = REBUILD_MIN_WAVE
   const cycle = rebuildCycle(state)
   const breakdown = matterGainBreakdown(state)
-  const gain = prestigeGainFor(state)
+  const gain = matterGainFor(state)
   const lists = rebuildConsequenceLists(state)
   const shopAvailable = isSystemUnlocked(state, 'slag') || (state.resources.prestigeMatter ?? 0) > 0
   const [shopOpen, setShopOpen] = useState(false)

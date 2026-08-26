@@ -9,7 +9,6 @@ import {
   hiveResearchActive,
   hiveResearchActiveNode,
   hiveResearchBranchUnlocked,
-  hiveResearchCombatSpeed,
   hiveResearchExtraUtilitySlots,
   hiveResearchFurnaceSlots,
   hiveResearchNodeDuration,
@@ -95,10 +94,6 @@ function effectPreview(state: GameState, node: HiveResearchNodeDef): string[] {
   if (node.workshopStartRanks) {
     const now = hiveResearchWorkshopStartRanks(state)
     lines.push(`Rebuild Workshop ranks ${now} → ${now + node.workshopStartRanks}`)
-  }
-  if (node.combatSpeed && node.combatSpeed > 1) {
-    const now = hiveResearchCombatSpeed(state)
-    lines.push(`Combat speed ×${now} → ×${Math.max(now, node.combatSpeed)}`)
   }
   if (node.processCostMult) {
     const now = hiveResearchProcessCostMult(state)

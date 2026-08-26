@@ -4,17 +4,16 @@ import {
   buyAiNode,
   buyResearch,
   performPrestige,
-  prestigeGainFor,
   upgradeModule,
 } from './actions'
 import { armRebuildDoor } from './testHelpers'
-import { matterScoresFrom } from './rebuild'
+import { matterGainFor, matterScoresFrom } from './rebuild'
 
 describe('post-rebuild re-push balance', () => {
   it('uses the canonical Matter curve, not the old S10 kit value', () => {
     const state = createInitialState(0)
-    expect(prestigeGainFor(state)).toBe(matterScoresFrom(0, 0).total)
-    expect(prestigeGainFor(state)).toBe(1)
+    expect(matterGainFor(state)).toBe(matterScoresFrom(0, 0).total)
+    expect(matterGainFor(state)).toBe(1)
   })
 
   it('Rebuild no longer grants hidden return kits', () => {

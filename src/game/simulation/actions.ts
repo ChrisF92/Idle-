@@ -5,13 +5,11 @@ import {
   buyMatterShop,
   buyNetworkLink,
   buyProcessNode,
-  canPrestige,
   convertAshToHeat,
   fitModule,
   equipRelicOnCore,
   performPrestige,
   pickCoreMilestone,
-  prestigeGainFor,
   setFoundrySlot,
   setResearchFocus,
   unlockModule,
@@ -21,6 +19,7 @@ import {
   buyRunUpgrade,
   buyCoreStartingLevel,
 } from '../actions'
+import { canRebuild, matterGainFor } from '../rebuild'
 import { setDocked, chooseDirective } from '../tick'
 import {
   canBuyMatterShop,
@@ -536,7 +535,7 @@ export function maybeUnlockAndFit(state: GameState, ctx: StrategyContext): GameS
 }
 
 export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: boolean; reasons: string[] } {
-  if (!canPrestige(state)) return { yes: false, reasons: [] }
+  if (!canRebuild(state)) return { yes: false, reasons: [] }
   const cfg = ctx.config.rebuild
   const stallNeed =
     (state.prestige.prestigeCount ?? 0) < 1
@@ -550,7 +549,7 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
     return { yes: false, reasons: [] }
   }
   const reasons: string[] = []
-  const gain = prestigeGainFor(state)
+  const gain = matterGainFor(state)
   if (ctx.secondsSinceHighestSectorGain >= stallNeed) {
     reasons.push(
       `${Math.round(ctx.secondsSinceHighestSectorGain / 60)} minutes without Wave progress`,
@@ -592,7 +591,7 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
     networkLevelsLost[bar.id] = networkLevels(state, bar.id)
   }
   const linksKept = { ...(state.network?.links ?? {}) }
-  const gain = prestigeGainFor(state)
+  const gain = matterGainFor(state)
   const highest = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const prevPush =
     ctx.lastRebuildActive == null ? ctx.activeSeconds : ctx.activeSeconds - ctx.lastRebuildActive

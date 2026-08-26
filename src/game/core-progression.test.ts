@@ -7,7 +7,7 @@ import {
   performRebuild,
 } from './actions'
 import { importSave, exportSave } from './save'
-import { setDocked } from './tick'
+import { extractSortie, setDocked } from './tick'
 import { armRebuildDoor, forceUnlockModule } from './testHelpers'
 import {
   applyMasteryXp,
@@ -153,7 +153,9 @@ describe('Core Mastery', () => {
     applyMasteryXp(s, 'pulse-cannon', 400)
     const mastery = moduleMasteryRank(s, 'pulse-cannon')
     const xp = s.meta.moduleMasteryXp['pulse-cannon']
-    s = setDocked(s, true)
+    s.meta.bestWave = Math.max(s.meta.bestWave ?? 0, 210)
+    s.combat.bestWave = Math.max(s.combat.bestWave ?? 0, 210)
+    s = extractSortie(s)
     expect(moduleMasteryRank(s, 'pulse-cannon')).toBe(mastery)
     s = armRebuildDoor(s)
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon'] })

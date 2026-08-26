@@ -615,26 +615,6 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     cost: 12,
     requiresBestWave: 80,
   },
-  {
-    id: 'combat-tempo',
-    name: 'Combat Tempo',
-    category: 'qol',
-    kind: 'qol',
-    blurb: 'Combat sim runs at ×1.5. Industry still uses real time.',
-    cost: 15,
-    requiresId: 'shop-readout',
-    requiresBestWave: 100,
-  },
-  {
-    id: 'combat-overclock',
-    name: 'Combat Overclock',
-    category: 'qol',
-    kind: 'qol',
-    blurb: 'Combat sim may run at ×3. Industry still uses real time.',
-    cost: 18,
-    requiresId: 'combat-tempo',
-    requiresBestWave: 210,
-  },
 ]
 
 /** Nodes that fight the GDD loop or belong to retired systems. Kept on the save, hidden from the graph. */
@@ -654,8 +634,6 @@ export const PROCESS_HIDDEN_IDS = new Set([
   'reliquary-keep',
   'reliquary-quality',
   'reliquary-merge',
-  'combat-tempo',
-  'combat-overclock',
 ])
 
 const RETIRED_CORE_RUN_PROCESS_IDS = new Set([
@@ -683,7 +661,6 @@ const PROCESS_NODE_TIER: Record<string, ProcessRevealTier> = {
   'foundry-buy-max': 'qol',
   'yard-buy-max': 'qol',
   'deep-cache': 'qol',
-  'combat-tempo': 'qol',
   'auto-shop': 'actions',
   'auto-salvage': 'actions',
   'foundry-repeat': 'actions',
@@ -1504,10 +1481,6 @@ export function processOfflineBonusMs(state: GameState): number {
     if (row.effect.type === 'offlineHours') hours += row.effect.hours
   }
   return hours * 60 * 60 * 1000
-}
-
-export function processCombatSpeedMult(_state: GameState): number {
-  return 1
 }
 
 export function processExtraPresetSlots(state: GameState): number {

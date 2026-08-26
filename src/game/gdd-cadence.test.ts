@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { isSystemUnlocked, PRESTIGE_MIN_SECTOR, SYSTEM_UNLOCKS, systemUnlockRequirement } from './progression'
-import { canPrestige } from './actions'
+import { canRebuild } from './rebuild'
 import { atCareerWave } from './testHelpers'
 import { careerBestWave } from './waves'
 import { getFrame, modulePrintWave } from './catalog'
@@ -40,14 +40,14 @@ describe('GDD Act 1 wave cadence', () => {
     s.combat.docked = true
     s.combat.wave = 1
     expect(careerBestWave(s)).toBe(210)
-    expect(canPrestige(s)).toBe(true)
+    expect(canRebuild(s)).toBe(true)
   })
 
   it('keeps Rebuild locked before Wave 210 even if still fighting', () => {
     let s = atCareerWave(createInitialState(0), 209)
     s.combat.wave = 209
     s.combat.docked = false
-    expect(canPrestige(s)).toBe(false)
+    expect(canRebuild(s)).toBe(false)
   })
 
   it('opens Foundry construction at Wave 90 without a Yard station', () => {

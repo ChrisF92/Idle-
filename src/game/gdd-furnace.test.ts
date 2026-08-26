@@ -24,7 +24,7 @@ import { processConfig, processFurnaceHooks } from './process'
 import { ONBOARDING_ENABLED, activeGuideStep, isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
-import { advanceSeconds, setDocked, startCombat } from './tick'
+import { advanceSeconds, extractSortie, setDocked, startCombat } from './tick'
 
 function furnaceState(wave = ACT1_CADENCE.furnace) {
   return atCareerWave(markHullLost(createInitialState(0)), wave)
@@ -92,7 +92,9 @@ describe('GDD Furnace', () => {
     s.resources.heat = 20
     s = setFurnaceChannel(s, 'weapons', 1)
     expect(furnaceActiveLevel(s, 'weapons')).toBe(1)
-    s = setDocked(s, true)
+    s.meta.bestWave = Math.max(s.meta.bestWave ?? 0, 210)
+    s.combat.bestWave = Math.max(s.combat.bestWave ?? 0, 210)
+    s = extractSortie(s)
     expect(s.combat.lastSortie.outcome).toBe('extract')
     expect(s.resources.heat).toBe(0)
     expect(furnaceActiveLevel(s, 'weapons')).toBe(0)

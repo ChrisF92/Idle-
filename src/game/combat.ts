@@ -26,8 +26,6 @@ import {
   familyCanDropPrint,
   getEnemyDropTable,
   getModule,
-  matterShopDropBonus,
-  matterShopRepairMult,
   fittedShieldRegenFraction,
   partId,
   pickWeightedDropEntry,
@@ -1692,8 +1690,6 @@ export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
   if (state.shipyard.modules.includes('nano-lathe')) rate *= 1.6
-  const shopMult = matterShopRepairMult(state.prestige.matterShop)
-  rate /= Math.max(0.2, shopMult)
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
   rate += stationRepairBonus(state)
   rate *= reactorsRepairMult(state.core?.ranks.reactors ?? 0)
@@ -1862,9 +1858,7 @@ export function rollEnemyPartDrop(
     foundryPartDropMult(state) *
     fragmentChanceMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
-    (1 +
-      matterShopDropBonus(state.prestige.matterShop) +
-      challengeShopDropBonus(state.prestige.shop))
+    (1 + challengeShopDropBonus(state.prestige.shop))
   let rolls = 1
   if (unit.isBoss) {
     chance = Math.min(1, chance * (table.bossChanceMult ?? 2))

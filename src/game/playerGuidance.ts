@@ -3,11 +3,10 @@
 import { idleWorkers } from './catalog'
 import { practicedCoreWork } from './corePractice'
 import { foundryRecipeLevel } from './foundry'
-import { prestigeGainFor } from './actions'
 import { firstAffordableProcessNode } from './process'
 import { isSystemUnlocked } from './progression'
 import { isEstablishedCareer, migrateOnboardingRegistry, ONBOARDING_LESSON_IDS } from './onboarding'
-import { REBUILD_KEEPS, REBUILD_RESETS } from './rebuild'
+import { matterGainFor, REBUILD_KEEPS, REBUILD_RESETS } from './rebuild'
 import type { GameState } from './types'
 
 export { isEstablishedCareer }
@@ -27,7 +26,7 @@ export interface ConsequenceLists {
 
 export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   const gain = [
-    `+${prestigeGainFor(state)} Rebuild Matter`,
+    `+${matterGainFor(state)} Rebuild Matter`,
     'Rebuild trades current-cycle development for permanent growth.',
   ]
   const keep: string[] = [...REBUILD_KEEPS]
@@ -59,7 +58,7 @@ export function reinforceConsequenceLists(state: GameState): ConsequenceLists {
     `Reinforce count (${reinforceCountLabel(state)})`,
   ]
   const change = [
-    `+${Math.max(1, Math.floor(prestigeGainFor(state) * 0.5))} Rebuild Matter — smaller cash than a Rebuild, larger change to the loop`,
+    `+${Math.max(1, Math.floor(matterGainFor(state) * 0.5))} Rebuild Matter — smaller cash than a Rebuild, larger change to the loop`,
     'The Hive’s starting architecture reconstructs',
     'Future Rebuild kits grow',
     'Rebuild is no longer the top of the ladder',

@@ -9,8 +9,7 @@ import {
   protocolNextRewardText,
   tryCompleteProtocol,
 } from './protocols'
-import { getHiveResearchNode, hiveResearchCombatSpeed } from './hiveResearch'
-import { processCombatSpeedMult } from './process'
+import { getHiveResearchNode } from './hiveResearch'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 import { availableSortieSpeeds } from './uiReadout'
@@ -75,14 +74,9 @@ describe('GDD Phase 8 content depth', () => {
     const research = structuredClone(fresh)
     research.hiveResearch.completedIds = ['combat-sim']
     research.hiveResearch.completed.observation = 1
-    expect(getHiveResearchNode('combat-sim')?.combatSpeed).toBeUndefined()
-    expect(hiveResearchCombatSpeed(research)).toBe(1)
+    expect(getHiveResearchNode('combat-sim')).toBeTruthy()
     expect(availableSortieSpeeds(research)).toEqual([1])
-
-    const process = structuredClone(fresh)
-    process.process.purchased = ['combat-tempo', 'combat-overclock']
-    expect(processCombatSpeedMult(process)).toBe(1)
-    expect(availableSortieSpeeds(process)).toEqual([1])
+    expect(availableSortieSpeeds(fresh)).toEqual([1])
   })
 
   it('shows Challenge grants that expand the tested system, not global damage', () => {

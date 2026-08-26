@@ -277,11 +277,9 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     }
   }
 
-  const scrapBeforeNetwork = state.resources.scrap ?? 0
   if (tickNetwork(state, dtSeconds)) {
     applyNetworkCombatRefresh(state)
   }
-  creditIndustryScrap(state, (state.resources.scrap ?? 0) - scrapBeforeNetwork)
   tickFoundry(state, dtSeconds)
   tickYard(state, dtSeconds)
   tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
@@ -426,10 +424,10 @@ export function starterRefitGate(
   return null
 }
 
-/** Hull-loss beat on Sortie before retreat or Dock + run report. */
+/** Hull-loss beat on Sortie before Dock + run report. */
 export const DEFEAT_SEQUENCE_S = 1.2
 
-function startDefeatSequence(state: GameState, tactical: boolean): void {
+function startDefeatSequence(state: GameState): void {
   if ((state.combat.defeatLeft ?? 0) > 0) return
   snapshotSortieEncounter(state)
   const flag = state.combat.playerUnits.find((u) => u.isFlagship)
@@ -437,11 +435,7 @@ function startDefeatSequence(state: GameState, tactical: boolean): void {
   state.combat.playerHull = 0
   state.combat.playerShield = 0
   state.combat.defeatLeft = DEFEAT_SEQUENCE_S
-  state.combat.defeatTactical = tactical
-  if (tactical || isChallengeSortie(state)) {
-    pushLog(state, tactical ? 'Tactical extract — pulling out.' : 'Hull lost — systems failing.')
-    return
-  }
+  state.combat.defeatTactical = false
   const failed = state.combat.wave
   pushLog(state, `Hull integrity lost at Wave ${failed}. Sortie ending.`)
 }
@@ -450,12 +444,12 @@ function tickDefeatSequence(state: GameState, dt: number): boolean {
   if ((state.combat.defeatLeft ?? 0) <= 0) return false
   state.combat.defeatLeft = Math.max(0, state.combat.defeatLeft - dt)
   if (state.combat.defeatLeft > 0) return true
-  onFightLost(state, state.combat.defeatTactical, state.combat.isBoss)
+  onFightLost(state, state.combat.isBoss)
   return true
 }
 
-/** Death ends the Sortie. */
-function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
+/** Death ends the Sortie. Hull loss is never a voluntary Extraction. */
+function onFightLost(state: GameState, boss: boolean): void {
   const fromWave = Math.max(1, state.combat.waveReached || state.combat.wave)
   state.combat.defeatLeft = 0
   state.combat.defeatTactical = false
@@ -463,16 +457,8 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   state.combat.consecutiveLosses += 1
   if (state.echo?.activeId) state.echo.activeId = null
   const label = boss ? ' boss' : ''
-  const note = tactical
-    ? `Extracted at Wave ${fromWave}${label}.`
-    : `Hull lost at Wave ${fromWave}${label}.`
-  finishSortie(
-    state,
-    tactical ? 'extract' : 'defeat',
-    note,
-    { sector: 0, wave: fromWave },
-    tactical,
-  )
+  const note = `Hull lost at Wave ${fromWave}${label}.`
+  finishSortie(state, 'defeat', note, { sector: 0, wave: fromWave }, false)
   pushLog(state, `${note} Returned to Dock.`)
 }
 
@@ -518,7 +504,7 @@ function tickCombat(state: GameState, dt: number): void {
   const flag = state.combat.playerUnits.find((u) => u.isFlagship)
   const flagHull = flag?.hull ?? 0
   if (flagHull <= 0) {
-    startDefeatSequence(state, false)
+    startDefeatSequence(state)
   }
 }
 
@@ -708,16 +694,16 @@ function endActiveSortieAsExtract(state: GameState, withBonus: boolean): void {
   pushLog(state, state.combat.lastSortie.note)
 }
 
-/** Extract ends the Sortie. Launch always starts at Wave 1. */
+/**
+ * Launch from Dock. `setDocked(true)` is a no-op: docking an active Sortie is not
+ * Extraction. Voluntary Extraction is `extractSortie()` only.
+ */
 export function setDocked(state: GameState, docked: boolean): GameState {
-  if (state.combat.docked === docked) return state
+  if (docked) return state
+  if (!state.combat.docked) return state
   const next = structuredClone(state)
-  if (docked) {
-    endActiveSortieAsExtract(next, canExtract(next))
-  } else {
-    launchFromDock(next)
-    pushLog(next, 'Sortie launched — Wave 1.')
-  }
+  launchFromDock(next)
+  pushLog(next, 'Sortie launched — Wave 1.')
   return next
 }
 

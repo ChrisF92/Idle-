@@ -27,7 +27,7 @@ import { defaultSimulationConfig } from './simulation/presets'
 import { runSimulation } from './simulation/runner'
 import { createInitialState, SAVE_VERSION } from './state'
 import { exportSave, importSave } from './save'
-import { canPrestige } from './actions'
+import { canRebuild } from './rebuild'
 import { ACT1_CADENCE } from './cadence'
 import { atCareerWave } from './testHelpers'
 
@@ -153,13 +153,13 @@ describe('Act 1 career simulations', () => {
     const short = atCareerWave(createInitialState(0), 209)
     short.combat.docked = true
     short.prestige.cycle = { bestWave: 209, normalSortiesCompleted: 3, scrapGenerated: 0 }
-    expect(canPrestige(short)).toBe(false)
+    expect(canRebuild(short)).toBe(false)
 
     const ready = atCareerWave(createInitialState(0), 210)
     ready.combat.docked = true
     ready.prestige.prestigeCount = 0
     ready.prestige.cycle = { bestWave: 210, normalSortiesCompleted: 3, scrapGenerated: 0 }
-    expect(canPrestige(ready)).toBe(true)
+    expect(canRebuild(ready)).toBe(true)
   })
 
   it.skip('optimiser first Rebuild is not a spam-reset and still spends Cores', () => {

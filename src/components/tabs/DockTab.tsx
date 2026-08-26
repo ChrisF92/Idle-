@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
-import { canPrestige, prestigeGainFor } from '../../game/actions'
 import {
   canOpenRebuildHangar,
+  canRebuild,
   cycleBestWave,
   cycleNormalSorties,
+  matterGainFor,
   rebuildCycle,
   rebuildIneligibleReason,
-  rebuildWaveNeed,
+  REBUILD_MIN_WAVE,
 } from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
@@ -89,9 +90,9 @@ export function DockTab({
 }: DockTabProps) {
   const { combat } = state
   const live = !combat.docked
-  const rebuildReady = canPrestige(state)
+  const rebuildReady = canRebuild(state)
   const hangarOpen = canOpenRebuildHangar(state)
-  const rebuildMin = rebuildWaveNeed(state)
+  const rebuildMin = REBUILD_MIN_WAVE
   const showWorkshop = Boolean(state.meta.hullLostOnce)
   const bestWave = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
   const frame = getFrame(state.shipyard.frameId)
@@ -316,7 +317,7 @@ export function DockTab({
             />
             <StatPair
               label="Projected Matter"
-              value={rebuildReady ? formatCompact(prestigeGainFor(state)) : '0'}
+              value={rebuildReady ? formatCompact(matterGainFor(state)) : '0'}
             />
             {!rebuildReady ? (
               <p className="muted">{rebuildIneligibleReason(state) ?? `Inactive · W${rebuildMin}`}</p>

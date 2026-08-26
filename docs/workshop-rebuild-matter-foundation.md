@@ -78,11 +78,13 @@ Unspent Matter has no power.
 
 ## Time Compression clock
 
-`advanceSeconds(realDt)` applies industry with `realDt` and combat with `realDt * selectedTimeCompression` through `SIM_FIXED_DT` substeps. PAUSED / hidden combat sim is 0. AI / Research / Process do not grant general combat speed.
+`advanceSeconds(realDt)` applies industry with `realDt` and combat with `realDt * selectedTimeCompression` through `SIM_FIXED_DT` substeps. PAUSED / hidden combat sim is 0. Process, Research, and AI general combat-speed nodes and APIs are removed. Time Compression is the only combat-speed architecture.
 
 ## Extraction
 
-Unlocks at career Best ≥ 210. Challenge Sorties cannot Extract. Bonus is `floor(sortieMark.grossScrapGenerated * 0.125)` of combat/Sortie Scrap only. Worker Scrap, reconstitution, and Salvage provisioning are excluded. Confirmation pauses; cancel stays PAUSED.
+Unlocks at career Best ≥ 210. Challenge Sorties cannot Extract. Bonus is `floor(sortieMark.grossScrapGenerated * 0.125)` of combat/Sortie Scrap only. Worker Scrap, reconstitution, and Salvage provisioning are excluded. `extractSortie()` is the only bonus path; `setDocked(true)` does not end a live Sortie. Confirmation pauses; cancel stays PAUSED.
+
+Normal Rebuild starting kits are Reconstitution Cache (Scrap) and Sortie Provisioning (Salvage at launch). Challenge-shop supply-cache / hangar-rights / doctrine-seed kits apply only on Challenge entry.
 
 ## Extension points
 

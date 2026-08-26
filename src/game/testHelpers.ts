@@ -1,6 +1,6 @@
 import type { GameState } from './types'
 import { grantEnemyKillRewards } from './combat'
-import { advanceSeconds, startCombat } from './tick'
+import { advanceSeconds, DEFEAT_SEQUENCE_S, startCombat } from './tick'
 import { ACT1_CADENCE } from './cadence'
 import { REBUILD_MIN_SORTIES, emptyRebuildCycle } from './rebuild'
 
@@ -71,6 +71,19 @@ export function armRebuildDoor(state: GameState): GameState {
     next.prestige.cycle.normalSortiesCompleted ?? 0,
     REBUILD_MIN_SORTIES,
   )
+  return next
+}
+
+/** Drive hull-loss through the real defeat sequence until Dock. */
+export function completeDefeat(state: GameState): GameState {
+  if (state.combat.docked) return state
+  const next = structuredClone(state)
+  next.combat.sortiePaused = false
+  next.combat.inFight = true
+  const flag = next.combat.playerUnits.find((u) => u.isFlagship)
+  if (flag) flag.hull = 0
+  next.combat.playerHull = 0
+  advanceSeconds(next, DEFEAT_SEQUENCE_S + 0.25)
   return next
 }
 

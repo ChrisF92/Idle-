@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buyCoreStartingLevel, buyWorkshopUpgrade, enterChallenge, performRebuild } from './actions'
+import { buyCoreStartingLevel, buyMatterShop, buyWorkshopUpgrade, enterChallenge, performRebuild } from './actions'
 import { addCoreInstance } from './coreInstances'
-import { coreStartingLevel } from './coreProgression'
+import { applyMasteryXp, coreStartingLevel } from './coreProgression'
 import { createInitialState } from './state'
-import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
+import { armRebuildDoor, atCareerWave, completeDefeat, markHullLost } from './testHelpers'
 import {
   canRebuild,
   cycleBestWave,
@@ -192,35 +192,96 @@ describe('Challenge / Rebuild separation', () => {
 })
 
 describe('physical Core Level lifecycle', () => {
-  it('persists through defeat and Extraction, then resets on Rebuild', () => {
+  it('persists through real defeat, relaunch, and Extraction, then resets on Rebuild', () => {
     let s = docked()
-    s.resources.scrap = 200
+    s.resources.scrap = 400
     s = buyCoreStartingLevel(s, 'pulse-cannon:1')
     const extra = addCoreInstance(s.shipyard, 'pulse-cannon')
     extra.targetingDoctrine = 'nearest'
-    s.workshop.coreStarts[extra.id] = 2
+    s = buyCoreStartingLevel(s, extra.id)
+    applyMasteryXp(s, 'pulse-cannon', 10_000)
+    const mastery = s.meta.moduleMastery['pulse-cannon']
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
-    expect(coreStartingLevel(s, extra.id)).toBe(2)
+    expect(coreStartingLevel(s, extra.id)).toBe(1)
+    expect(mastery).toBeGreaterThan(0)
 
     s = setDocked(s, false)
-    s = extractSortie({ ...s, meta: { ...s.meta, bestWave: 210 } })
+    s = completeDefeat(s)
+    expect(s.combat.docked).toBe(true)
+    expect(s.combat.lastSortie.outcome).toBe('defeat')
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
-    expect(coreStartingLevel(s, extra.id)).toBe(2)
+    expect(coreStartingLevel(s, extra.id)).toBe(1)
+    expect(s.meta.moduleMastery['pulse-cannon']).toBe(mastery)
+    expect(s.shipyard.coreInstances.find((row) => row.id === extra.id)?.targetingDoctrine).toBe('nearest')
 
     s = setDocked(s, false)
-    s.combat.playerUnits = s.combat.playerUnits.map((unit) =>
-      unit.isFlagship ? { ...unit, hull: 0 } : unit,
-    )
-    s.combat.playerHull = 0
-    s.combat.defeatLeft = 0.01
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
+    expect(coreStartingLevel(s, extra.id)).toBe(1)
+
+    s.meta.bestWave = Math.max(s.meta.bestWave ?? 0, 210)
+    s.combat.bestWave = Math.max(s.combat.bestWave ?? 0, 210)
+    s = extractSortie(s)
+    expect(s.combat.docked).toBe(true)
+    expect(s.combat.lastSortie.outcome).toBe('extract')
+    expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
+    expect(coreStartingLevel(s, extra.id)).toBe(1)
+    expect(s.meta.moduleMastery['pulse-cannon']).toBe(mastery)
+    expect(s.shipyard.coreInstances.find((row) => row.id === extra.id)?.targetingDoctrine).toBe('nearest')
 
     s = armRebuildDoor(s)
     s.combat.docked = true
     s = performRebuild(s, { frameId: s.shipyard.frameId, modules: s.shipyard.modules })
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(0)
     expect(coreStartingLevel(s, extra.id)).toBe(0)
+    expect(s.meta.moduleMastery['pulse-cannon']).toBe(mastery)
     expect(s.shipyard.coreInstances.find((row) => row.id === extra.id)?.targetingDoctrine).toBe('nearest')
+  })
+})
+
+describe('normal Rebuild starting kits', () => {
+  it('starts with zero Scrap without Reconstitution Cache, even with Challenge-shop cache rank', () => {
+    let s = armRebuildDoor(docked())
+    s.prestige.shop['supply-cache'] = 4
+    s.prestige.shop['hangar-rights'] = 2
+    s.prestige.shop['doctrine-seed'] = 3
+    s = performRebuild(s, { frameId: s.shipyard.frameId, modules: s.shipyard.modules })
+    expect(s.resources.scrap).toBe(0)
+    expect(s.resources.salvage).toBe(0)
+    expect(s.prestige.cycle.scrapGenerated).toBe(0)
+  })
+
+  it('starts with exactly the Reconstitution Cache grant and zero cycle Scrap', () => {
+    let s = armRebuildDoor(docked())
+    s.resources.prestigeMatter = 40
+    s = buyMatterShop(s, 'reconstitution-cache')
+    s = performRebuild(s, { frameId: s.shipyard.frameId, modules: s.shipyard.modules })
+    expect(s.resources.scrap).toBe(24)
+    expect(s.prestige.cycle.scrapGenerated).toBe(0)
+  })
+
+  it('grants only Sortie Provisioning Salvage on a normal launch', () => {
+    let s = armRebuildDoor(docked())
+    s.resources.prestigeMatter = 40
+    s = buyMatterShop(s, 'sortie-provisioning')
+    s.prestige.shop['hangar-rights'] = 4
+    s = performRebuild(s, { frameId: s.shipyard.frameId, modules: s.shipyard.modules })
+    expect(s.resources.salvage).toBe(0)
+    s = setDocked(s, false)
+    expect(s.resources.salvage).toBe(8)
+  })
+
+  it('keeps Challenge-shop kits on Challenge entry only', () => {
+    let s = armRebuildDoor(docked())
+    s.meta.act1Cleared = true
+    s.meta.bestWave = 1000
+    s.prestige.shop['supply-cache'] = 1
+    s.prestige.shop['hangar-rights'] = 1
+    s.prestige.shop['doctrine-seed'] = 1
+    const ai = s.resources.aiPoints
+    s = enterChallenge(s, 'no-ai')
+    expect(s.resources.scrap).toBe(20)
+    expect(s.resources.salvage).toBe(10)
+    expect(s.resources.aiPoints).toBe(ai + 1)
   })
 })
 

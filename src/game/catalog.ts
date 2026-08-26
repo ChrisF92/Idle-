@@ -606,14 +606,6 @@ export const AI_NODES: AiNodeDef[] = [
     kind: 'doctrine',
     permanent: false,
   },
-  {
-    id: 'tactical-retreat',
-    name: 'Tactical Retreat',
-    description: 'Doctrine: leftover. Canonical Extraction is a player action, not an automatic Hull-threshold extract.',
-    costAiPoints: 2,
-    kind: 'doctrine',
-    permanent: false,
-  },
   // --- Non-combat speed ---
   {
     id: 'chrono-industry',
@@ -2441,24 +2433,6 @@ export function matterShopItemsIn(category: MatterShopCategory): MatterShopDef[]
   return canonicalMatterItemsIn(category)
 }
 
-/** Workshop Kit is removed. Research primers are PR9. */
-export function matterShopWorkshopStarts(_matterShop: Record<string, number> = {}): number {
-  return 0
-}
-
-/** Reclaim Clock is removed. Reclaim is not Time Compression. */
-export function matterShopReclaimBonus(_matterShop: Record<string, number> = {}): number {
-  return 0
-}
-
-/** Time Compression is enumerated from purchased temporal nodes, not a leftover combatSpeed field. */
-export function matterShopCombatSpeed(matterShop: Record<string, number> = {}): number {
-  if ((matterShop['time-compression-3'] ?? 0) >= 1) return 3
-  if ((matterShop['time-compression-2'] ?? 0) >= 1) return 2
-  if ((matterShop['time-compression-1'] ?? 0) >= 1) return 1.5
-  return 1
-}
-
 export function getAiNode(id: string): AiNodeDef | undefined {
   return AI_NODES.find((n) => n.id === id)
 }
@@ -2991,23 +2965,6 @@ export function prestigeMomentumProductionBonus(
   return fromPrestige * fromAscension - 1
 }
 
-export function matterShopHullBonus(_matterShop: Record<string, number>): number {
-  return 0
-}
-
-export function matterShopShieldBonus(_matterShop: Record<string, number>): number {
-  return 0
-}
-
-export function matterShopScrapBonus(_matterShop: Record<string, number>): number {
-  return 0
-}
-
-/** Additive blueprint part drop chance from Matter shop ranks. */
-export function matterShopDropBonus(_matterShop: Record<string, number>): number {
-  return 0
-}
-
 /** Additive blueprint part drop chance from Challenge shop ranks. */
 export function challengeShopDropBonus(shop: Record<string, number>): number {
   let total = 0
@@ -3016,15 +2973,6 @@ export function challengeShopDropBonus(shop: Record<string, number>): number {
     if (bonus) total += bonus * matterShopEffectScale(rank)
   }
   return total
-}
-
-export function matterShopDataPerClear(_matterShop: Record<string, number>): number {
-  return 0
-}
-
-/** Repair duration multiplier from drydock ranks (lower = faster). Canonical Matter has no drydock node. */
-export function matterShopRepairMult(_matterShop: Record<string, number>): number {
-  return 1
 }
 
 export function challengeShopStartingScrap(shop: Record<string, number>): number {
@@ -3137,11 +3085,6 @@ export function aiDoctrinesActive(
 ): boolean {
   if (challengeBlocksAi(state)) return false
   return state.ai.purchased.includes(nodeId)
-}
-
-/** Time Compression is the only general combat-speed track. */
-export function combatSpeedMultiplier(_state?: unknown): number {
-  return 1
 }
 
 /** Additive station production from AI (non-combat). */

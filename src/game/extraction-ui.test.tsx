@@ -67,7 +67,10 @@ describe('Extraction UI', () => {
     expect(within(dialog).getByText(/Extraction bonus \+12/)).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: /Continue Sortie/i }))
     expect(extracted).toBe(false)
+    expect(paused).toBe(true)
     expect(screen.queryByRole('dialog', { name: /extract/i })).toBeNull()
+    expect(s.combat.docked).toBe(false)
+    expect(s.combat.lastSortie?.extractionBonusScrap ?? 0).toBe(0)
 
     fireEvent.click(screen.getByRole('button', { name: /menu|more/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: /^Extract$/ }))

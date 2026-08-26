@@ -11,6 +11,7 @@ import {
 } from './directives'
 import { computeShipStats, createInitialState } from './state'
 import { setDocked } from './tick'
+import { completeDefeat } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 
 describe('GDD Directives', () => {
@@ -42,7 +43,7 @@ describe('GDD Directives', () => {
     expect(directiveIncomingMult(s)).toBeCloseTo(1.15)
     expect(computeShipStats(s).damage).toBeGreaterThan(before * 1.2)
 
-    s = setDocked(s, true)
+    s = completeDefeat(s)
     expect(s.combat.directives).toEqual([])
     expect(directiveWeaponMult(s)).toBe(1)
   })

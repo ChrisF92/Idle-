@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buyRunUpgrade, buyWorkshopUpgrade, performRebuild } from './actions'
 import { createInitialState } from './state'
 import { setDocked } from './tick'
-import { armRebuildDoor } from './testHelpers'
+import { armRebuildDoor, completeDefeat } from './testHelpers'
 import {
   effectiveUpgradeLevel,
   nextRunUpgradeCost,
@@ -79,7 +79,7 @@ describe('Workshop does not advance the Sortie purchase-cost ladder', () => {
     s = buyRunUpgrade(s, 'weapon-power')
     s = buyRunUpgrade(s, 'weapon-power')
     expect(runPurchasedLevel(s, 'weapon-power')).toBe(2)
-    s = setDocked(s, true)
+    s = completeDefeat(s)
     expect(runPurchasedLevel(s, 'weapon-power')).toBe(0)
     expect(workshopLevel(s, 'weapon-power')).toBe(2)
     s = launchWithSalvage(s)
@@ -89,7 +89,7 @@ describe('Workshop does not advance the Sortie purchase-cost ladder', () => {
   it('Case G: Workshop survives Sorties and still resets on Rebuild', () => {
     let s = dockedWorkshop(2)
     s = launchWithSalvage(s)
-    s = setDocked(s, true)
+    s = completeDefeat(s)
     expect(workshopLevel(s, 'weapon-power')).toBe(2)
     s = armRebuildDoor(s)
     s.workshop.levels['weapon-power'] = 2

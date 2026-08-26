@@ -58,9 +58,53 @@ describe('Extraction', () => {
   it('opening confirmation leaves the Sortie PAUSED on cancel path', () => {
     let s = setDocked(markHullLost(createInitialState(0)), false)
     s.meta.bestWave = 210
+    grantGeneratedScrap(s, 100, 'combat-kill')
     s = setSortiePaused(s, true)
     expect(s.combat.sortiePaused).toBe(true)
     expect(s.combat.docked).toBe(false)
+    expect(s.combat.lastSortie?.extractionBonusScrap ?? 0).toBe(0)
+    expect(extractionBonusFor(s)).toBe(12)
+  })
+
+  it('A: docking an active Sortie does not award Extraction', () => {
+    let s = setDocked(markHullLost(createInitialState(0)), false)
+    s.meta.bestWave = 210
+    s.combat.bestWave = 210
+    grantGeneratedScrap(s, 100, 'combat-kill')
+    const bank = s.resources.scrap
+    const generated = s.prestige.cycle.scrapGenerated
+    const docked = setDocked(s, true)
+    expect(docked.combat.docked).toBe(false)
+    expect(docked.combat.inFight).toBe(true)
+    expect(docked.resources.scrap).toBe(bank)
+    expect(docked.prestige.cycle.scrapGenerated).toBe(generated)
+    expect(docked.combat.lastSortie?.extractionBonusScrap ?? 0).toBe(0)
+  })
+
+  it('B: confirmed extractSortie awards floor(100 × 0.125) = 12 once', () => {
+    let s = setDocked(markHullLost(createInitialState(0)), false)
+    s.meta.bestWave = 210
+    s.combat.bestWave = 210
+    grantGeneratedScrap(s, 100, 'combat-kill')
+    const extracted = extractSortie(s)
+    expect(extracted.combat.docked).toBe(true)
+    expect(extracted.combat.lastSortie.outcome).toBe('extract')
+    expect(extracted.combat.lastSortie.extractionBonusScrap).toBe(12)
+    expect(extracted.prestige.cycle.scrapGenerated).toBe(s.prestige.cycle.scrapGenerated + 12)
+  })
+
+  it('C: extracting again after Dock does not pay a second bonus', () => {
+    let s = setDocked(markHullLost(createInitialState(0)), false)
+    s.meta.bestWave = 210
+    s.combat.bestWave = 210
+    grantGeneratedScrap(s, 100, 'combat-kill')
+    s = extractSortie(s)
+    const bank = s.resources.scrap
+    const generated = s.prestige.cycle.scrapGenerated
+    const again = extractSortie(s)
+    expect(again.resources.scrap).toBe(bank)
+    expect(again.prestige.cycle.scrapGenerated).toBe(generated)
+    expect(again.combat.lastSortie.extractionBonusScrap).toBe(12)
   })
 })
 

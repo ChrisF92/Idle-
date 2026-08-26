@@ -6,16 +6,16 @@ import {
   canAscend,
   performAscension,
   performPrestige,
-  prestigeGainFor,
 } from './actions'
 import {
   canBuyMatterShop,
-  combatSpeedMultiplier,
   aiProductionBonus,
   shopMaxRank,
   getMatterShopItem,
   getAiNode,
 } from './catalog'
+import { matterGainFor } from './rebuild'
+import { availableTimeCompressionSpeeds } from './matter'
 import {
   ACHIEVEMENTS,
   tryCompleteAchievements,
@@ -46,11 +46,11 @@ describe('deep matter shop + ascension', () => {
     state.combat.bestWave = 1000
     state.prestige.cycle.bestWave = 1000
     expect(canAscend(state)).toBe(true)
-    const before = prestigeGainFor(state)
+    const before = matterGainFor(state)
     state = performAscension(state, 1000)
     expect(state.meta.ascensionCount).toBe(1)
     state.prestige.cycle.bestWave = 1000
-    expect(prestigeGainFor(state)).toBe(before)
+    expect(matterGainFor(state)).toBe(before)
   })
 
   it('keeps ascension across prestige', () => {
@@ -69,7 +69,7 @@ describe('combat speed vs industry', () => {
     state.combat.bestWave = 250
     state.resources.aiPoints = 30
     state.ai.purchased = ['combat-chrono-1', 'combat-chrono-2', 'combat-chrono-3']
-    expect(combatSpeedMultiplier(state)).toBe(1)
+    expect(availableTimeCompressionSpeeds(state)).toEqual([1])
     const buying = createInitialState(0)
     buying.meta.bestWave = 250
     buying.resources.aiPoints = 30
@@ -83,14 +83,14 @@ describe('combat speed vs industry', () => {
     state.resources.aiPoints = 50
     state = buyAiNode(state, 'chrono-industry')
     expect(aiProductionBonus(state)).toBeGreaterThanOrEqual(0)
-    expect(combatSpeedMultiplier(state)).toBe(1)
+    expect(availableTimeCompressionSpeeds(state)).toEqual([1])
   })
 
   it('Challenge sorties still cannot buy Time Compression from AI', () => {
     let state = createInitialState(0)
     state.ai.purchased = ['drone-efficiency-1']
     state.prestige.activeChallengeId = 'no-ai'
-    expect(combatSpeedMultiplier(state)).toBe(1)
+    expect(availableTimeCompressionSpeeds(state)).toEqual([1])
   })
 })
 
