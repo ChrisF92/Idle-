@@ -476,9 +476,9 @@ export function runUpgradeEffectLine(id: RunUpgradeId): string {
     case 'salvage-kill':
       return `Salvage/kill ×${(1 + WORKSHOP_SALVAGE_KILL_PER_LEVEL).toFixed(2)} per rank`
     case 'salvage-wave':
-      return 'Secured-Wave Salvage +4 × rank × 1.06^rank'
+      return 'Secured-Wave Salvage +4 per rank × 1.06^rank'
     case 'scrap-wave':
-      return 'Secured-Wave Scrap +2 × rank × 1.05^rank'
+      return 'Secured-Wave Scrap +2 per rank × 1.05^rank'
     case 'crit-chance':
       return `Crit chance +2% per rank (cap ${Math.round(CRIT_CHANCE_CAP * 100)}%)`
     case 'crit-factor':

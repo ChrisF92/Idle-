@@ -43,7 +43,7 @@ describe('upgrade copy is quantitative', () => {
       expect(line).toMatch(/per rank|1\.06\^rank/)
       expect(line).not.toMatch(/more damage|more often|withstands|refills faster/i)
     }
-    expect(runUpgradeEffectLine('weapon-power')).toBe('Weapon damage ×1.08 per rank')
+    expect(runUpgradeEffectLine('weapon-power')).toBe('Weapon-Core output ×1.08 per rank')
     expect(runUpgradeEffectLine('shield-regen')).toBe('Shield regen +0.4%/s per rank')
   })
 

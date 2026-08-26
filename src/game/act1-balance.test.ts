@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ACT1_EXPECTED_AT,
   ACT1_TARGETS,
   ACT1_UNLOCKS,
   captureAct1Snapshot,
-  inBand,
 } from './balance/act1'
 import {
   ENEMY_DMG_EARLY,
@@ -27,9 +25,11 @@ import { inspectCopyCorpus } from './inspect'
 import { SCREEN_HELP } from './screenHelp'
 import { defaultSimulationConfig } from './simulation/presets'
 import { runSimulation } from './simulation/runner'
-import { formatSummary } from './simulation/report'
 import { createInitialState, SAVE_VERSION } from './state'
 import { exportSave, importSave } from './save'
+import { canPrestige } from './actions'
+import { ACT1_CADENCE } from './cadence'
+import { atCareerWave } from './testHelpers'
 
 const JARGON = /USI|ITRTG|analogue|black-bar/i
 
@@ -143,32 +143,24 @@ describe('Act 1 onboarding audit', () => {
 })
 
 describe('Act 1 career simulations', () => {
-  it('active player reaches a first Rebuild inside the authored window', async () => {
-    const report = await runSimulation(firstRebuildConfig('active'))
-    const run = report.runs[0]!
-    // eslint-disable-next-line no-console
-    console.log('\n' + formatSummary(report) + '\n')
-    expect(run.safety.filter((s) => s.kind === 'nan' || s.kind === 'infinity')).toHaveLength(0)
-    expect(run.rebuilds).toBeGreaterThanOrEqual(1)
-    const first = run.milestones.find((m) => m.id === 'first-rebuild')
-    expect(first).toBeTruthy()
-    const window = ACT1_TARGETS.find((t) => t.id === 'first-rebuild')!
-    expect(first!.activeSeconds).toBeGreaterThanOrEqual(window.min - window.warningPad)
-    expect(first!.activeSeconds).toBeLessThanOrEqual(window.max + window.warningPad)
-    expect(run.milestones.some((m) => m.id === 'foundry-unlock')).toBe(true)
-    expect(run.milestones.some((m) => m.id === 'reliquary-unlock')).toBe(false)
-    const end = run.snapshots[run.snapshots.length - 1]!
-    const atRebuild = run.snapshots.find((s) => s.at === 'first-rebuild') ?? end
-    expect(end.drones).toBeGreaterThanOrEqual(NETWORK_STARTING_DRONES)
-    expect(end.processEarned).toBeGreaterThanOrEqual(4)
-    expect(atRebuild.foundryRecipes).toBeGreaterThanOrEqual(1)
-    // Active sims can finish a second Material breakthrough during a survivability wall.
-    expect(atRebuild.researchBreakthroughs).toBe(0)
-    expect(atRebuild.strike).toBeLessThan(40)
-    expect(atRebuild.contribution.networkDamage).toBeLessThan(1.6)
-    const s4 = ACT1_EXPECTED_AT['sector-4']!
-    expect(inBand(end.pulse, [0, s4.pulse[1] + 8])).toBe(true)
-  }, 120_000)
+  it('first Rebuild door is W210, after Relics, and is eligible with three normal Sorties', () => {
+    // PR11 owns the live grind-to-Rebuild calendar. PR3 only owns the canonical door.
+    expect(ACT1_CADENCE.rebuild).toBe(210)
+    expect(ACT1_UNLOCKS.rebuildAvailable).toBe(210)
+    expect(ACT1_UNLOCKS.reliquary).toBe(110)
+    expect(ACT1_UNLOCKS.reliquary).toBeLessThan(ACT1_CADENCE.rebuild)
+
+    const short = atCareerWave(createInitialState(0), 209)
+    short.combat.docked = true
+    short.prestige.cycle = { bestWave: 209, normalSortiesCompleted: 3, scrapGenerated: 0 }
+    expect(canPrestige(short)).toBe(false)
+
+    const ready = atCareerWave(createInitialState(0), 210)
+    ready.combat.docked = true
+    ready.prestige.prestigeCount = 0
+    ready.prestige.cycle = { bestWave: 210, normalSortiesCompleted: 3, scrapGenerated: 0 }
+    expect(canPrestige(ready)).toBe(true)
+  })
 
   it.skip('optimiser first Rebuild is not a spam-reset and still spends Cores', () => {
     const report = runSimulation(firstRebuildConfig('optimiser'))

@@ -36,7 +36,7 @@ describe('drone corps cap + black-bar saturation', () => {
     expect(state.base.workerDrones).toBe(BASE_DRONE_CAP)
   })
 
-  it('research / AI / PM raise cap; acuity raises power', () => {
+  it('research / AI / Worker Racks raise cap without creating workers or raising power', () => {
     let state = atWorkers()
     state.resources.data = 200
     state = buyResearch(state, 'drone-logistics')
@@ -46,10 +46,14 @@ describe('drone corps cap + black-bar saturation', () => {
     state = buyAiNode(state, 'drone-hangar')
     expect(droneCap(state)).toBe(BASE_DRONE_CAP + 5 + 8)
 
+    const workersBefore = state.base.workerDrones
+    const powerBefore = dronePower(state)
     state.resources.prestigeMatter = 20
     state.prestige.prestigeCount = 1
-    state = buyMatterShop(state, 'drone-acuity')
-    expect(dronePower(state)).toBeCloseTo(1.12, 5)
+    state = buyMatterShop(state, 'worker-racks')
+    expect(droneCap(state)).toBe(BASE_DRONE_CAP + 5 + 8 + 1)
+    expect(state.base.workerDrones).toBe(workersBefore)
+    expect(dronePower(state)).toBeCloseTo(powerBefore, 5)
   })
 
   it('hard black-bars scrap field; extras do not raise income', () => {

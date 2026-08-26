@@ -194,6 +194,7 @@ export function canRebuild(state: GameState): boolean {
 
 export const REBUILD_RESETS = [
   'Scrap',
+  'Salvage',
   'Workshop levels',
   'Core Levels',
   'Ash',
