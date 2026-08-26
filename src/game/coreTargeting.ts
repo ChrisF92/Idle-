@@ -345,7 +345,7 @@ export function beatsHysteresis(
  * effective-cooldown ratio the built weapon already uses versus the module
  * catalogue base. Charge is the cycle — do not also apply a full cooldown.
  */
-export function effectiveChargeDurationSec(state: GameState, core: CombatUnit): number {
+export function effectiveChargeDurationSec(_state: GameState, core: CombatUnit): number {
   const profile = profileForCore(core)
   if (!profile.requiresCharge || profile.chargeDurationSec <= 0) return 0
   const weapon = core.weapons[0]
@@ -572,7 +572,7 @@ function legalCandidates(state: GameState, core: CombatUnit, bundle: EvalBundle)
 }
 
 function scoringDoctrineFor(
-  state: GameState,
+  _state: GameState,
   core: CombatUnit,
   bundle: EvalBundle,
   doctrine: TargetingDoctrineId,
