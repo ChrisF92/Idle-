@@ -389,7 +389,6 @@ function AppShell() {
             onRebuild={() => setHangarOpen(true)}
             onBuyWorkshop={game.buyWorkshopUpgrade}
             onUnlockGeneric={game.buyGenericUnlock}
-            onPickMilestone={game.pickCoreMilestone}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
             onUpgradeRelic={game.upgradeRelic}
@@ -428,7 +427,6 @@ function AppShell() {
             }}
             onBuyRunUpgrade={game.buyRunUpgrade}
             onViewReport={() => setReportOpen(true)}
-            onPickMilestone={game.pickCoreMilestone}
             onMarkCoresSeen={() => game.markHubSeen('cores')}
             paused={isSimPaused(pauseReasons)}
             onboardingTarget={onboarding?.target ?? null}

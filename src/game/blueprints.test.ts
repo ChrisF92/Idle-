@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  FAB_SECONDS,
   getBlueprint,
   getVisibleModules,
   isFarmableModule,
@@ -10,9 +9,7 @@ import {
   partId,
 } from './catalog'
 import {
-  assignWorker,
   buyResearch,
-  depositFabPart,
   investPartMastery,
   performPrestige,
   sellPart,
@@ -21,17 +18,17 @@ import {
 } from './actions'
 import { rollEnemyPartDrop } from './combat'
 import { computeShipStats, createInitialState } from './state'
-import { advanceSeconds } from './tick'
 import { forceUnlockModule } from './testHelpers'
 
 describe('blueprints and fabrication', () => {
-  it('starter plate still scrap-unlockable; flak not scrap-unlockable', () => {
+  it('starter plate still scrap-unlockable; final Cores are not leftover-farmable', () => {
     let state = createInitialState(0)
     state.resources.scrap = 999
     state.resources.alloys = 999
 
     expect(isFarmableModule('plate-layer')).toBe(false)
-    expect(isFarmableModule('flak-array')).toBe(true)
+    expect(isFarmableModule('flak-array')).toBe(false)
+    expect(getBlueprint('flak-array')).toBeUndefined()
 
     state = unlockModule(state, 'plate-layer')
     expect(state.shipyard.unlockedModules).toContain('plate-layer')
@@ -40,56 +37,29 @@ describe('blueprints and fabrication', () => {
     expect(state.shipyard.unlockedModules).not.toContain('flak-array')
   })
 
-  it('drop on kill discovers module and adds part', () => {
+  it('leftover drop tables do not discover final Cores', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 7
     const results = rollEnemyPartDrop(
       state,
       { family: 'swarm', isBoss: false, name: 'Drone' },
-      () => 0, // always succeed chance + first weighted entry
+      () => 0,
     )
-    expect(results.length).toBeGreaterThan(0)
-    const drop = results[0]!
-    expect(state.parts[drop.partId]).toBeGreaterThan(0)
-    expect(state.meta.discoveredModules).toContain(drop.moduleId)
-    expect(
-      state.combat.log.some((l) => /Flak Array · Casing 1\/2/.test(l) || l.includes('Flak Array')),
-    ).toBe(true)
+    expect(results.every((drop) => drop.moduleId !== 'flak-array')).toBe(true)
+    expect(state.shipyard.unlockedModules).not.toContain('flak-array')
+    expect(state.shipyard.coreInstances.every((row) => row.moduleId !== 'flak-array')).toBe(true)
   })
 
-  it('deposit + workers completes fab → unlocks permanent', () => {
+  it('does not start leftover fabrication for a final Core', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 6
     state.resources.data = 150
     state = buyResearch(state, 'module-fab')
-    expect(state.research.unlocked).toContain('module-fab')
-
+    expect(getBlueprint('flak-array')).toBeUndefined()
     state.meta.discoveredModules = ['flak-array']
-    const recipe = getBlueprint('flak-array')!
-    state.parts = {
-      [partId('flak-array', 'casing')]: recipe.casing,
-      [partId('flak-array', 'core')]: recipe.core,
-      [partId('flak-array', 'lens')]: recipe.lens,
-    }
-    state.base.workerDrones = 2
     state = startFabProject(state, 'flak-array')
-    expect(state.base.fabProject?.moduleId).toBe('flak-array')
-
-    for (const pt of ['casing', 'core', 'lens'] as const) {
-      state = depositFabPart(state, pt, 10)
-    }
-    expect(state.base.fabProject?.contributed.casing).toBe(recipe.casing)
-    expect(state.base.fabProject?.contributed.core).toBe(recipe.core)
-    expect(state.base.fabProject?.contributed.lens).toBe(recipe.lens)
-
-    state = assignWorker(state, 'fab-bay', 1)
-    advanceSeconds(state, FAB_SECONDS + 0.1)
-
-    expect(state.shipyard.unlockedModules).toContain('flak-array')
     expect(state.base.fabProject).toBeNull()
-    expect(state.combat.log.some((l) => l.includes('Fabrication complete'))).toBe(
-      true,
-    )
+    expect(state.shipyard.unlockedModules).not.toContain('flak-array')
   })
 
   it('prestige keeps unlock + parts + discovery; clears fab project', () => {

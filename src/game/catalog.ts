@@ -1179,11 +1179,6 @@ export function moduleLevel(
   return Math.max(0, levels?.[moduleId] ?? 0)
 }
 
-/** Leftover helper. Per-Sortie Core purchases no longer exist. */
-export function moduleUpgradeCost(_level: number, _moduleId?: string, _scalingAdd = 0): number {
-  return 0
-}
-
 /** Starter Core definitions used by onboarding and telemetry. */
 export const STARTER_CORE_IDS = ['pulse-cannon', 'plate-layer'] as const
 
@@ -1314,20 +1309,23 @@ function printRecipe(
   return { moduleId, ...printFragmentNeeds(wave), ...extra }
 }
 
-/** Blueprint metadata for later Foundry wiring. Not a physical Core grant. */
+/** Leftover Foundry recipes. Isolated from the final 14 Cores (PR5 owns fabrication). */
 export const BLUEPRINTS: BlueprintRecipe[] = [
-  printRecipe('flak-array'),
-  printRecipe('salvage-beacon'),
-  printRecipe('heavy-lance'),
-  printRecipe('rapid-aegis'),
-  printRecipe('grav-tether'),
-  printRecipe('slag-spitter'),
-  printRecipe('nano-lathe'),
-  printRecipe('phase-beam'),
-  printRecipe('sensor-array'),
-  printRecipe('barrier-projector'),
-  printRecipe('ablative-mesh'),
-  printRecipe('choir-tap'),
+  printRecipe('vector-thruster'),
+  printRecipe('drone-bay'),
+  printRecipe('charge-prism'),
+  printRecipe('lattice-ward'),
+  printRecipe('rail-driver'),
+  printRecipe('ion-burst'),
+  printRecipe('swarm-rack'),
+  printRecipe('sensor-whisker'),
+  printRecipe('salvage-rig'),
+  printRecipe('keel-baffle', {
+    foundry: { 'keel-strip': 2 },
+    requiresRecipeLevel: { recipeId: 'keel-strip', level: 1 },
+  }),
+  printRecipe('arc-lash'),
+  printRecipe('slag-spit', { foundry: { 'void-slag': 2 } }),
 ]
 
 export function getBlueprint(moduleId: string): BlueprintRecipe | undefined {
@@ -1346,7 +1344,7 @@ export function isSchematicModule(_moduleId: string): boolean {
   return false
 }
 
-/** Base part drop chances — leftover Foundry fragment tables for PR5. */
+/** Leftover Foundry fragment tables. Final 14 Core IDs are not awarded here. */
 export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   {
     family: 'swarm',
@@ -1354,11 +1352,12 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 2.2,
     bossRolls: 2,
     entries: [
-      { moduleId: 'flak-array', partType: 'casing', weight: 4 },
-      { moduleId: 'flak-array', partType: 'core', weight: 2 },
-      { moduleId: 'flak-array', partType: 'lens', weight: 1 },
-      { moduleId: 'salvage-beacon', partType: 'casing', weight: 2 },
-      { moduleId: 'salvage-beacon', partType: 'core', weight: 1 },
+      { moduleId: 'salvage-rig', partType: 'casing', weight: 2 },
+      { moduleId: 'salvage-rig', partType: 'core', weight: 1 },
+      { moduleId: 'drone-bay', partType: 'casing', weight: 1 },
+      { moduleId: 'swarm-rack', partType: 'casing', weight: 3 },
+      { moduleId: 'swarm-rack', partType: 'core', weight: 2 },
+      { moduleId: 'swarm-rack', partType: 'lens', weight: 1 },
     ],
   },
   {
@@ -1367,13 +1366,11 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 2.2,
     bossRolls: 2,
     entries: [
-      { moduleId: 'heavy-lance', partType: 'casing', weight: 3 },
-      { moduleId: 'heavy-lance', partType: 'core', weight: 2 },
-      { moduleId: 'heavy-lance', partType: 'lens', weight: 1 },
-      { moduleId: 'ablative-mesh', partType: 'casing', weight: 2 },
-      { moduleId: 'ablative-mesh', partType: 'core', weight: 2 },
-      { moduleId: 'slag-spitter', partType: 'casing', weight: 2 },
-      { moduleId: 'slag-spitter', partType: 'core', weight: 1 },
+      { moduleId: 'keel-baffle', partType: 'casing', weight: 2 },
+      { moduleId: 'keel-baffle', partType: 'core', weight: 2 },
+      { moduleId: 'slag-spit', partType: 'casing', weight: 2 },
+      { moduleId: 'slag-spit', partType: 'core', weight: 1 },
+      { moduleId: 'slag-spit', partType: 'lens', weight: 1 },
     ],
   },
   {
@@ -1382,12 +1379,15 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 2.3,
     bossRolls: 2,
     entries: [
-      { moduleId: 'phase-beam', partType: 'casing', weight: 2 },
-      { moduleId: 'phase-beam', partType: 'core', weight: 2 },
-      { moduleId: 'phase-beam', partType: 'lens', weight: 2 },
-      { moduleId: 'rapid-aegis', partType: 'casing', weight: 2 },
-      { moduleId: 'rapid-aegis', partType: 'core', weight: 2 },
-      { moduleId: 'sensor-array', partType: 'lens', weight: 2 },
+      { moduleId: 'vector-thruster', partType: 'casing', weight: 3 },
+      { moduleId: 'vector-thruster', partType: 'core', weight: 2 },
+      { moduleId: 'vector-thruster', partType: 'lens', weight: 1 },
+      { moduleId: 'charge-prism', partType: 'casing', weight: 3 },
+      { moduleId: 'charge-prism', partType: 'core', weight: 2 },
+      { moduleId: 'charge-prism', partType: 'lens', weight: 2 },
+      { moduleId: 'lattice-ward', partType: 'casing', weight: 2 },
+      { moduleId: 'lattice-ward', partType: 'core', weight: 2 },
+      { moduleId: 'lattice-ward', partType: 'lens', weight: 2 },
     ],
   },
   {
@@ -1396,10 +1396,17 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 2.4,
     bossRolls: 2,
     entries: [
-      { moduleId: 'grav-tether', partType: 'casing', weight: 2 },
-      { moduleId: 'grav-tether', partType: 'core', weight: 2 },
-      { moduleId: 'sensor-array', partType: 'core', weight: 1 },
-      { moduleId: 'choir-tap', partType: 'casing', weight: 1 },
+      { moduleId: 'charge-prism', partType: 'casing', weight: 3 },
+      { moduleId: 'charge-prism', partType: 'core', weight: 2 },
+      { moduleId: 'charge-prism', partType: 'lens', weight: 2 },
+      { moduleId: 'ion-burst', partType: 'casing', weight: 2 },
+      { moduleId: 'ion-burst', partType: 'core', weight: 2 },
+      { moduleId: 'ion-burst', partType: 'lens', weight: 2 },
+      { moduleId: 'arc-lash', partType: 'casing', weight: 3 },
+      { moduleId: 'arc-lash', partType: 'core', weight: 2 },
+      { moduleId: 'arc-lash', partType: 'lens', weight: 2 },
+      { moduleId: 'sensor-whisker', partType: 'lens', weight: 2 },
+      { moduleId: 'sensor-whisker', partType: 'core', weight: 1 },
     ],
   },
   {
@@ -1408,27 +1415,34 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 1.4,
     bossRolls: 2,
     entries: [
-      { moduleId: 'nano-lathe', partType: 'casing', weight: 2 },
-      { moduleId: 'nano-lathe', partType: 'core', weight: 2 },
-      { moduleId: 'nano-lathe', partType: 'lens', weight: 2 },
-      { moduleId: 'barrier-projector', partType: 'casing', weight: 2 },
-      { moduleId: 'barrier-projector', partType: 'core', weight: 2 },
-      { moduleId: 'choir-tap', partType: 'core', weight: 2 },
-      { moduleId: 'choir-tap', partType: 'lens', weight: 2 },
+      { moduleId: 'rail-driver', partType: 'casing', weight: 3 },
+      { moduleId: 'rail-driver', partType: 'core', weight: 2 },
+      { moduleId: 'rail-driver', partType: 'lens', weight: 2 },
+      { moduleId: 'keel-baffle', partType: 'lens', weight: 2 },
     ],
   },
 ]
 
 function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
   const extras: EnemyPartDropEntry[] = []
-  if (wave >= modulePrintWave('barrier-projector')) {
-    extras.push({ moduleId: 'barrier-projector', partType: 'casing', weight: 1 })
+  if (wave >= 120) {
+    extras.push(
+      { moduleId: 'drone-bay', partType: 'core', weight: 1 },
+      { moduleId: 'salvage-rig', partType: 'lens', weight: 1 },
+      { moduleId: 'sensor-whisker', partType: 'casing', weight: 1 },
+    )
   }
-  if (wave >= modulePrintWave('sensor-array')) {
-    extras.push({ moduleId: 'sensor-array', partType: 'lens', weight: 1 })
+  if (wave >= 160) {
+    extras.push(
+      { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
+      { moduleId: 'ion-burst', partType: 'core', weight: 1 },
+      { moduleId: 'keel-baffle', partType: 'core', weight: 1 },
+    )
   }
-  if (wave >= modulePrintWave('choir-tap')) {
-    extras.push({ moduleId: 'choir-tap', partType: 'lens', weight: 1 })
+  if (wave >= 220) {
+    extras.push(
+      { moduleId: 'rail-driver', partType: 'lens', weight: 1 },
+    )
   }
   return extras
 }

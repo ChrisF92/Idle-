@@ -19,7 +19,7 @@ import { beginFight } from './tick'
 
 describe('phase 8: Protocols, Echo, Process', () => {
   it('bumps save and keeps Protocols / Echo locked until 52 / 62', () => {
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'protocols')).toBe(false)
     expect(isSystemUnlocked(fresh, 'echo')).toBe(false)
@@ -47,7 +47,6 @@ describe('phase 8: Protocols, Echo, Process', () => {
     s.meta.highestSectorEver = 52
     s.combat.docked = true
     s.resources.salvage = 40
-    s.shipyard.moduleLevels = { 'pulse-cannon': 3 }
     s.network.bars.strike.levels = 5
     const dmgBefore = computeShipStats(s).damage
     expect(networkStrikeMult(s)).toBeGreaterThan(1)
@@ -55,7 +54,6 @@ describe('phase 8: Protocols, Echo, Process', () => {
     s = enterProtocol(s, 'mute-network')
     expect(s.protocols.activeId).toBe('mute-network')
     expect(s.resources.salvage).toBe(0)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.network.bars.strike.levels).toBe(0)
     expect(protocolMutes(s, 'network')).toBe(true)
     expect(networkStrikeMult(s)).toBe(1)

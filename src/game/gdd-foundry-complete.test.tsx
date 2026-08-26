@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FoundryTab } from '../components/tabs/FoundryTab'
 import { OverlayProvider } from '../ui/overlay'
 import { ACT1_CADENCE } from './cadence'
-import { getBlueprint, PART_TYPES, partId } from './catalog'
+import { getBlueprint } from './catalog'
 import { createInitialState } from './state'
 import { atCareerWave } from './testHelpers'
 
@@ -82,19 +82,14 @@ describe('complete Foundry interface', () => {
     expect(screen.getAllByText(/M10/).length).toBeGreaterThan(0)
   })
 
-  it('completes a Blueprint without creating the Core and links to its project', () => {
+  it('does not complete leftover Blueprints for a final Core', () => {
     const state = foundryState(80)
     const moduleId = 'flak-array'
-    const recipe = getBlueprint(moduleId)!
+    expect(getBlueprint(moduleId)).toBeUndefined()
     state.meta.discoveredModules.push(moduleId)
-    for (const part of PART_TYPES) state.parts[partId(moduleId, part)] = recipe[part]
-    expect(state.shipyard.unlockedModules).not.toContain(moduleId)
     renderFoundry(state, 'blueprints')
-    fireEvent.click(screen.getByRole('button', { name: /Flak Array.*COMPLETE/i }))
-    expect(screen.getByText('View Project')).toBeTruthy()
-    fireEvent.click(screen.getByText('View Project'))
-    expect(screen.getByRole('dialog', { name: 'Flak Array' })).toBeTruthy()
-    expect(screen.getByText(/Blueprint complete/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Flak Array/i })).toBeNull()
     expect(state.shipyard.unlockedModules).not.toContain(moduleId)
+    expect(state.shipyard.coreInstances.every((row) => row.moduleId !== moduleId)).toBe(true)
   })
 })

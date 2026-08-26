@@ -14,8 +14,7 @@ import type {
   SortieCoreRuntime,
   WeaponTag,
 } from './types'
-import { distanceBetween, distanceToHive } from './geometry'
-import { isCommanderCandidateWave } from './waves'
+import { distanceBetween, distanceToHive, moveRadially } from './geometry'
 
 function enemyById(state: GameState, id: string | undefined): CombatUnit | undefined {
   if (!id) return undefined
@@ -76,8 +75,14 @@ export const CITADEL_SKIN_REDUCTION = 0.12
 export const AEGIS_OVERFLOW_CAP = 8
 export const AEGIS_SMALL_HIT = 6
 export const HEAVY_SHIELD_BYPASS = 0.35
+export const HEAVY_PEN_MOMENTUM = 0.35
 export const FLAK_DETONATION_RADIUS = 40
 export const PULSE_CONVERGENCE_FORKS = 2
+export const PHASE_REFRACTION_FRACTION = 0.28
+export const PHASE_EXPOSURE_SECONDS = 3
+export const PHASE_EXPOSURE_TAKEN_MULT = 1.18
+export const PHASE_RAMP_BYPASS_MIN = 0.08
+export const PHASE_RAMP_BYPASS_SPAN = 0.32
 
 export function emptySortieCoreRuntime(): SortieCoreRuntime {
   return {
@@ -97,6 +102,7 @@ export function emptySortieCoreRuntime(): SortieCoreRuntime {
     pulseChainAt: {},
     phaseRamp: {},
     phaseLockMemory: {},
+    phaseExposureUntil: {},
     heavyFractureUntil: 0,
     gravWellUntil: 0,
     aegisOverflow: 0,
@@ -123,9 +129,9 @@ function fitted(state: GameState, moduleId: string): boolean {
   return (state.shipyard.modules ?? []).includes(moduleId)
 }
 
+/** Boss identity only until PR7 supplies a real Commander flag. */
 export function isHighValueHostile(unit: CombatUnit): boolean {
-  if (unit.isBoss || unit.role === 'boss') return true
-  return isCommanderCandidateWave(unit.sourceWave ?? 0)
+  return Boolean(unit.isBoss || unit.role === 'boss')
 }
 
 export function choirTapAshToHeatMult(state: GameState): number {
@@ -273,6 +279,31 @@ function nearestEnemy(
   return best
 }
 
+/** Next living hull roughly behind `from` along `heading`. One extra target only. */
+export function nextEnemyAlongHeading(
+  state: GameState,
+  from: { x: number; y: number },
+  heading: number,
+  exceptId: string,
+  maxDist = 90,
+): CombatUnit | null {
+  let best: CombatUnit | null = null
+  let bestD = maxDist
+  for (const enemy of state.combat.enemyUnits) {
+    if (enemy.id === exceptId || enemy.hull <= 0 || enemy.untargetable) continue
+    const d = distanceBetween(from, enemy)
+    if (d > maxDist || d < 8) continue
+    const bearing = Math.atan2(enemy.x - from.x, enemy.y - from.y)
+    const delta = Math.abs((((bearing - heading + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) - Math.PI)
+    if (delta > 0.45) continue
+    if (d < bestD) {
+      best = enemy
+      bestD = d
+    }
+  }
+  return best
+}
+
 export function pulseOverkillHop(
   state: GameState,
   origin: { x: number; y: number },
@@ -284,19 +315,30 @@ export function pulseOverkillHop(
   return nearestEnemy(state, origin, exceptId, PULSE_CHAIN_RADIUS)
 }
 
+export function pulseChainTarget(
+  state: GameState,
+  origin: { x: number; y: number },
+  exceptId: string,
+): CombatUnit | null {
+  return nearestEnemy(state, origin, exceptId, PULSE_CHAIN_RADIUS)
+}
+
+/** Periodic M30+ chain hops. Independent of M10 overkill-on-kill. */
 export function pulseChainHops(state: GameState, coreInstanceId: string): number {
   let hops = 0
   if (hasMasteryEffect(state, 'pulse-cannon', 'pulse-periodic-chain')) hops += 1
   if (hasMasteryEffect(state, 'pulse-cannon', 'pulse-chain-continue')) hops += 1
   if (hasMasteryEffect(state, 'pulse-cannon', 'pulse-convergence')) hops += PULSE_CONVERGENCE_FORKS
+  if (hops <= 0) return 0
   const runtime = ensureSortieCoreRuntime(state)
-  const last = runtime.pulseChainAt[coreInstanceId] ?? 0
-  if (hops > 0 && state.combat.simTime - last < 1.6) return Math.min(1, hops)
-  if (hops > 0) runtime.pulseChainAt[coreInstanceId] = state.combat.simTime
+  const last = runtime.pulseChainAt[coreInstanceId]
+  if (last != null && state.combat.simTime - last < 1.6) return Math.min(1, hops)
+  runtime.pulseChainAt[coreInstanceId] = state.combat.simTime
   return hops
 }
 
-export function spawnMoltenPool(state: GameState, x: number, y: number): void {
+export function spawnMoltenPool(state: GameState, x: number, y: number, sourceModuleId?: string): void {
+  if (sourceModuleId != null && sourceModuleId !== 'slag-spitter') return
   if (!hasMasteryEffect(state, 'slag-spitter', 'slag-molten-pool')) return
   const runtime = ensureSortieCoreRuntime(state)
   const radius = hasMasteryEffect(state, 'slag-spitter', 'slag-spread')
@@ -347,7 +389,13 @@ export function densestClusterPoint(state: GameState): { x: number; y: number } 
   return { x: best.x, y: best.y }
 }
 
-export function applyFlakDeathDetonation(state: GameState, dead: CombatUnit, damage: number): void {
+export function applyFlakDeathDetonation(
+  state: GameState,
+  dead: CombatUnit,
+  damage: number,
+  sourceModuleId?: string,
+): void {
+  if (sourceModuleId !== 'flak-array') return
   if (!hasMasteryEffect(state, 'flak-array', 'flak-death-detonation')) return
   const origin = hasMasteryEffect(state, 'flak-array', 'flak-kill-box')
     ? densestClusterPoint(state) ?? dead
@@ -359,40 +407,35 @@ export function applyFlakDeathDetonation(state: GameState, dead: CombatUnit, dam
   }
 }
 
-function applyGravToEnemy(_state: GameState, enemy: CombatUnit, dt: number, origin: { x: number; y: number }, slow: number): void {
+function applyGravToEnemy(enemy: CombatUnit, dt: number, slow: number): void {
   const dist = distanceToHive(enemy.x, enemy.y)
   if (dist <= 8) return
   const pull = Math.min(GRAV_DRAG_PER_SEC * dt, Math.max(0, dist - 10))
-  const nx = enemy.x / dist
-  const ny = enemy.y / dist
-  enemy.x -= nx * pull
-  enemy.y -= ny * pull
-  enemy.speed = Math.max(4, enemy.speed * slow)
-  void origin
+  const next = moveRadially(enemy.x, enemy.y, -pull)
+  enemy.x = next.x
+  enemy.y = next.y
+  enemy.controlSlowMult = Math.min(enemy.controlSlowMult ?? 1, slow)
 }
 
 export function tickGravTether(state: GameState, dt: number): void {
+  for (const enemy of state.combat.enemyUnits) {
+    enemy.controlSlowMult = 1
+  }
   if (!fitted(state, 'grav-tether')) return
   const cores = state.combat.playerUnits.filter((u) => u.isCore && u.coreModuleId === 'grav-tether')
   const well = hasMasteryEffect(state, 'grav-tether', 'grav-gravity-well')
   for (const enemy of state.combat.enemyUnits) {
     if (enemy.hull <= 0) continue
-    let affected = false
-    let slow = GRAV_SLOW_FACTOR
     for (const core of cores) {
       const target = enemyById(state, core.currentTargetId)
       const anchor = target ?? core
       if (distanceBetween(enemy, anchor) <= GRAV_CONTROL_RADIUS) {
-        affected = true
-        applyGravToEnemy(state, enemy, dt, core, slow)
+        applyGravToEnemy(enemy, dt, GRAV_SLOW_FACTOR)
       }
     }
     if (well && distanceToHive(enemy.x, enemy.y) <= GRAV_WELL_RADIUS) {
-      affected = true
-      slow = GRAV_WELL_SLOW
-      applyGravToEnemy(state, enemy, dt, { x: 0, y: 0 }, slow)
+      applyGravToEnemy(enemy, dt, GRAV_WELL_SLOW)
     }
-    void affected
   }
 }
 
@@ -570,12 +613,35 @@ export function tickSupportCores(state: GameState, dt: number): void {
   tickAblativeLayer(state, dt)
   tickRapidAegis(state, dt)
   tickBarrierProjector(state, dt)
-  for (const core of state.combat.playerUnits) {
-    if (!core.isCore) continue
-    const contacting =
-      core.coreModuleId === 'phase-beam' && Boolean(enemyById(state, core.currentTargetId))
-    updatePhaseRamp(state, core, dt, contacting)
-  }
+}
+
+export function phaseRampBypassFrac(state: GameState, core: CombatUnit): number {
+  if ((core.coreModuleId ?? '') !== 'phase-beam') return 0
+  if (!hasMasteryEffect(state, 'phase-beam', 'phase-ramp-bypass')) return 0
+  const rampFrac = (phaseRampMultiplier(state, core) - 1) / Math.max(1e-6, PHASE_RAMP_MAX - 1)
+  return PHASE_RAMP_BYPASS_MIN + PHASE_RAMP_BYPASS_SPAN * Math.max(0, Math.min(1, rampFrac))
+}
+
+export function applyPhaseExposure(state: GameState, enemyId: string): void {
+  if (!hasMasteryEffect(state, 'phase-beam', 'phase-exposure')) return
+  const runtime = ensureSortieCoreRuntime(state)
+  if (!runtime.phaseExposureUntil) runtime.phaseExposureUntil = {}
+  runtime.phaseExposureUntil[enemyId] = Math.max(
+    runtime.phaseExposureUntil[enemyId] ?? 0,
+    state.combat.simTime + PHASE_EXPOSURE_SECONDS,
+  )
+}
+
+export function phaseExposureTakenMult(state: GameState, unit: CombatUnit): number {
+  const until = state.combat.coreRuntime?.phaseExposureUntil?.[unit.id] ?? 0
+  if (until > state.combat.simTime) return PHASE_EXPOSURE_TAKEN_MULT
+  return 1
+}
+
+export function phaseRampAtMax(state: GameState, core: CombatUnit): boolean {
+  if ((core.coreModuleId ?? '') !== 'phase-beam') return false
+  const key = core.coreInstanceId ?? core.id
+  return (state.combat.coreRuntime?.phaseRamp[key] ?? 0) >= PHASE_RAMP_SECONDS - 1e-6
 }
 
 export function authoredOrbitRadius(moduleId: string): number {

@@ -127,7 +127,6 @@ describe('UI architecture reset', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(document.querySelector('.sortie-screen')).toBeNull()
@@ -142,7 +141,6 @@ describe('UI architecture reset', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.getByText('Salvage')).toBeTruthy()

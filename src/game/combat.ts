@@ -36,22 +36,31 @@ import {
 } from './catalog'
 import { careerBestWave, isSystemUnlocked } from './progression'
 import { buildCoreWeapon, buildFlagshipWeapons, computeShipStats } from './state'
-import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind } from './hiveVisual'
 import {
   applyFlakDeathDetonation,
   applyHeavyArmorFracture,
+  applyPhaseExposure,
   choirTapOnHighValueKill,
   effectiveEnemyArmor,
   flakSplashCount,
+  HEAVY_PEN_MOMENTUM,
+  HEAVY_SHIELD_BYPASS,
   interceptEnemyProjectile,
   mitigateIncomingToHive,
+  nextEnemyAlongHeading,
+  PHASE_REFRACTION_FRACTION,
+  phaseExposureTakenMult,
+  phaseRampAtMax,
+  phaseRampBypassFrac,
   phaseRampMultiplier,
   pulseChainHops,
+  pulseChainTarget,
   pulseOverkillHop,
   salvageMarkBonus,
   spawnMoltenPool,
   tickSupportCores,
   tryBarrierIntercept,
+  updatePhaseRamp,
 } from './coreCombat'
 import { hasMasteryEffect } from './coreMastery'
 import {
@@ -67,14 +76,14 @@ import {
   noteCoreFiring,
   noteCoreShotFired,
   noteShotHeld,
-  orbitSpeedFactor,
   playerCoreTarget,
   profileForCore,
   tickPlayerCoreTargeting,
   emptyTargetingTelemetry,
   effectiveChargeDurationSec,
+  coreIsBeaming,
 } from './coreTargeting'
-import { TYPICAL_SPAWN_RADIUS, coreWorldPosition, distanceBetween, distanceToHive, moveRadially, wrapTau } from './geometry'
+import { applyPlayerCoreOrbit, TYPICAL_SPAWN_RADIUS, coreWorldPosition, distanceBetween, distanceToHive, moveRadially } from './geometry'
 import { formationRngFor, formationSlots, pickFormation, type FormationContext } from './formations'
 import { createSimRng, rngNext, type SimRngState } from './simRng'
 import {
@@ -101,7 +110,6 @@ import {
   sensorsMatchupBonus,
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
-import { fittedRegenBonus } from './milestones'
 import { combinedCoreMods } from './coreProgression'
 import { grantReliquaryKillLoot, reliquaryResearchXpMult, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
@@ -1455,7 +1463,7 @@ function preserveWeaponCooldowns(prev: CombatUnit[], next: CombatUnit[]): void {
     })
     if (unit.isCore) {
       unit.orbitAngle = old.orbitAngle ?? unit.orbitAngle
-      unit.heading = old.heading ?? unit.heading
+      applyPlayerCoreOrbit(unit)
       unit.currentTargetId = old.currentTargetId
       unit.targetLockTime = old.targetLockTime
       unit.nextTargetEvalAt = old.nextTargetEvalAt
@@ -1741,13 +1749,7 @@ export function enemyApproachTarget(
 
 function syncCoreWorldPosition(unit: CombatUnit): void {
   if (!unit.isCore || !unit.coreModuleId) return
-  const orbit = unit.orbitRadius ?? coreOrbitRadius(unit.coreModuleId)
-  unit.orbitRadius = orbit
-  unit.orbitAngle = wrapTau(unit.orbitAngle ?? 0)
-  unit.heading = wrapTau(unit.heading ?? unit.orbitAngle)
-  const pos = coreWorldPosition(orbit, unit.orbitAngle)
-  unit.x = pos.x
-  unit.y = pos.y
+  applyPlayerCoreOrbit(unit)
 }
 
 function moveUnits(state: GameState, dt: number): void {
@@ -1758,22 +1760,20 @@ function moveUnits(state: GameState, dt: number): void {
       continue
     }
     if (!unit.isCore || !unit.coreModuleId) continue
-    const kind = coreVisualKind(unit.coreModuleId)
-    const speed = coreOrbitSpeed(kind) * orbitSpeedFactor(state, unit)
-    unit.orbitAngle = wrapTau((unit.orbitAngle ?? 0) + speed * dt)
-    syncCoreWorldPosition(unit)
+    applyPlayerCoreOrbit(unit)
   }
 
   for (const unit of state.combat.enemyUnits) {
     if (unit.hull <= 0) continue
     const target = enemyApproachTarget(unit, state.combat.fightElapsed ?? 0, 0, state)
     const dist = distanceToHive(unit.x, unit.y)
+    const slow = unit.controlSlowMult ?? 1
     if (dist > target) {
-      const next = moveRadially(unit.x, unit.y, -unit.speed * dt)
+      const next = moveRadially(unit.x, unit.y, -unit.speed * slow * dt)
       unit.x = next.x
       unit.y = next.y
     } else if (dist < target && unit.kite) {
-      const next = moveRadially(unit.x, unit.y, unit.speed * dt * 0.85)
+      const next = moveRadially(unit.x, unit.y, unit.speed * slow * dt * 0.85)
       unit.x = next.x
       unit.y = next.y
     }
@@ -2042,10 +2042,14 @@ function applyDamageToUnit(
   tags: WeaponTag[],
   profile?: WeaponDamageProfile,
   state?: GameState,
+  opts?: { shieldBypassFrac?: number },
 ): number {
   if (target.untargetable || target.isCore) return 0
   const vs = profile ?? weaponDamageProfile(tags)
   let remaining = rawDamage * target.damageTakenMult
+  if (state && target.side === 'enemy') {
+    remaining *= phaseExposureTakenMult(state, target)
+  }
 
   if (state && target.isFlagship && target.side === 'player') {
     remaining = mitigateIncomingToHive(state, target, remaining, tags)
@@ -2057,8 +2061,10 @@ function applyDamageToUnit(
     remaining *= 1.5
   }
   let dealt = 0
-  if (state && tags.includes('bypass') && target.shield > 0 && target.hull > 0) {
-    const bypass = remaining * 0.35
+  const bypassFrac =
+    opts?.shieldBypassFrac ?? (tags.includes('bypass') ? HEAVY_SHIELD_BYPASS : 0)
+  if (state && bypassFrac > 0 && target.shield > 0 && target.hull > 0) {
+    const bypass = remaining * bypassFrac
     remaining -= bypass
     const hullHit = Math.min(target.hull, bypass)
     target.hull -= hullHit
@@ -2221,6 +2227,9 @@ function spawnProjectile(
     attackerRole: from.role,
     heading: from.side === 'player' ? (to.heading ?? 0) : (from.heading ?? 0),
     weaponId: weapon.id,
+    sourceModuleId: from.side === 'player' ? from.coreModuleId : undefined,
+    shieldBypassFrac:
+      from.coreModuleId === 'phase-beam' ? phaseRampBypassFrac(state, from) : undefined,
     ...tuned.profile,
   })
 }
@@ -2248,8 +2257,31 @@ function spawnBeam(
     attackerRole: from.role,
     heading: from.side === 'player' ? (to.heading ?? 0) : (from.heading ?? 0),
     weaponId: weapon.id,
+    sourceModuleId: from.side === 'player' ? from.coreModuleId : undefined,
+    shieldBypassFrac:
+      from.coreModuleId === 'phase-beam' ? phaseRampBypassFrac(state, from) : undefined,
     ...tuned.profile,
   })
+}
+
+function nearestLegalPhaseGlance(
+  state: GameState,
+  core: CombatUnit,
+  primary: CombatUnit,
+  _damage: number,
+): CombatUnit | null {
+  let best: CombatUnit | null = null
+  let bestD = 72
+  for (const enemy of state.combat.enemyUnits) {
+    if (enemy.id === primary.id || enemy.hull <= 0 || enemy.untargetable) continue
+    const d = distanceBetween(primary, enemy)
+    if (d > bestD) continue
+    const sol = firingSolution(state, core, enemy)
+    if (!sol.inFireRange || !sol.inArc) continue
+    best = enemy
+    bestD = d
+  }
+  return best
 }
 
 function tickBeams(
@@ -2277,13 +2309,35 @@ function tickBeams(
     }
     const prevHull = target.hull
     const shieldBefore = target.shield
-      const dealt = applyDamageToUnit(target, dmg, beam.tags, {
+    const dealt = applyDamageToUnit(target, dmg, beam.tags, {
       hullDamage: beam.hullDamage ?? 1,
       shieldDamage: beam.shieldDamage ?? 1,
       armorDamage: beam.armorDamage ?? 0.25,
-    }, state)
+    }, state, { shieldBypassFrac: beam.shieldBypassFrac })
     noteCombatHit(state, beam.side, target, dealt, shieldBefore, from.role ?? beam.attackerRole)
     tryLootEnemyKill(state, target, prevHull)
+    if (
+      beam.side === 'player' &&
+      from.coreModuleId === 'phase-beam' &&
+      hasMasteryEffect(state, 'phase-beam', 'phase-refraction')
+    ) {
+      const glance = nearestLegalPhaseGlance(state, from, target, dmg * PHASE_REFRACTION_FRACTION)
+      if (glance) {
+        applyDamageToUnit(glance, dmg * PHASE_REFRACTION_FRACTION, beam.tags, {
+          hullDamage: beam.hullDamage ?? 1,
+          shieldDamage: beam.shieldDamage ?? 1,
+          armorDamage: beam.armorDamage ?? 0.25,
+        }, state, { shieldBypassFrac: beam.shieldBypassFrac })
+      }
+    }
+    if (
+      beam.side === 'player' &&
+      from.coreModuleId === 'phase-beam' &&
+      phaseRampAtMax(state, from) &&
+      hasMasteryEffect(state, 'phase-beam', 'phase-exposure')
+    ) {
+      applyPhaseExposure(state, target.id)
+    }
     beam.popupAcc = (beam.popupAcc ?? 0) + dealt
     beam.popupT = (beam.popupT ?? 0) + slice
     const beamDone = beam.remaining - slice <= 1e-4 || target.hull <= 0
@@ -2352,14 +2406,39 @@ function updateProjectiles(
         hullDamage: shot.hullDamage ?? 1,
         shieldDamage: shot.shieldDamage ?? 1,
         armorDamage: shot.armorDamage ?? 0.25,
-      }, state)
+      }, state, { shieldBypassFrac: shot.shieldBypassFrac })
       noteCombatHit(state, shot.side, target, dealt, shieldBefore, shot.attackerRole)
       tryLootEnemyKill(state, target, prevHull)
-      if (shot.side === 'player' && prevHull > 0 && target.hull <= 0) {
-        applyFlakDeathDetonation(state, target, shot.damage)
+      if (shot.side === 'player' && dealt > 0 && shot.sourceModuleId === 'heavy-lance') {
+        if (hasMasteryEffect(state, 'heavy-lance', 'heavy-armor-fracture')) {
+          applyHeavyArmorFracture(state)
+        }
+        if (
+          hasMasteryEffect(state, 'heavy-lance', 'heavy-pen-momentum') &&
+          shot.tags.includes('pierce')
+        ) {
+          const behind = nextEnemyAlongHeading(state, target, shot.heading ?? 0, target.id)
+          if (behind) {
+            applyDamageToUnit(behind, shot.damage * HEAVY_PEN_MOMENTUM, ['kinetic'], undefined, state)
+          }
+        }
       }
-      if (shot.side === 'player' && shot.tags.includes('dot')) {
-        spawnMoltenPool(state, target.x, target.y)
+      if (shot.side === 'player' && prevHull > 0 && target.hull <= 0) {
+        applyFlakDeathDetonation(state, target, shot.damage, shot.sourceModuleId)
+        if (shot.sourceModuleId === 'pulse-cannon') {
+          const leftover = Math.max(0, shot.damage - prevHull)
+          const hop = pulseOverkillHop(state, target, leftover, target.id)
+          if (hop) {
+            applyDamageToUnit(hop, leftover * 0.45, shot.tags, {
+              hullDamage: shot.hullDamage ?? 1,
+              shieldDamage: shot.shieldDamage ?? 1,
+              armorDamage: shot.armorDamage ?? 0.25,
+            }, state)
+          }
+        }
+      }
+      if (shot.side === 'player' && shot.sourceModuleId === 'slag-spitter' && shot.tags.includes('dot')) {
+        spawnMoltenPool(state, target.x, target.y, shot.sourceModuleId)
       }
       if (shot.dotDuration > 0 && shot.dotDamage > 0) {
         target.dots.push({ dps: shot.dotDamage, remaining: shot.dotDuration })
@@ -2407,20 +2486,23 @@ function deliverPlayerShot(
     if (!weapon.tags.includes('pierce')) weapon.tags = [...weapon.tags, 'pierce']
   }
   dmg *= matchupMultiplier(weapon.tags, target, roles, matchupScale, bossProtocol)
+  if (unit.coreModuleId === 'phase-beam') {
+    const bypass = phaseRampBypassFrac(state, unit)
+    if (bypass > 0 && !weapon.tags.includes('bypass')) weapon.tags = [...weapon.tags, 'bypass']
+  }
   if (weapon.delivery === 'beam') {
     spawnBeam(state, unit, target, dmg, weapon)
   } else {
     spawnProjectile(state, unit, target, dmg, weapon)
   }
-  if (unit.coreModuleId === 'heavy-lance' && hasMasteryEffect(state, 'heavy-lance', 'heavy-armor-fracture')) {
-    applyHeavyArmorFracture(state)
-  }
   if (unit.coreModuleId === 'pulse-cannon') {
     const hops = pulseChainHops(state, unit.coreInstanceId ?? unit.id)
     let from = target
+    const used = new Set([target.id])
     for (let i = 0; i < hops; i += 1) {
-      const next = pulseOverkillHop(state, from, dmg * 0.45, from.id)
-      if (!next) break
+      const next = pulseChainTarget(state, from, from.id)
+      if (!next || used.has(next.id)) break
+      used.add(next.id)
       spawnProjectile(state, unit, next, dmg * 0.45, weapon)
       from = next
     }
@@ -2552,6 +2634,17 @@ export function simulateCombat(
 
   moveUnits(state, dt)
   tickPlayerCoreTargeting(state, dt)
+  for (const core of state.combat.playerUnits) {
+    if (!core.isCore || core.coreModuleId !== 'phase-beam') continue
+    const acquired = core.currentTargetId
+      ? state.combat.enemyUnits.find((u) => u.id === core.currentTargetId)
+      : undefined
+    const legal =
+      acquired && isTargetableEnemy(state, acquired) ? firingSolution(state, core, acquired) : null
+    const contacting = Boolean(legal?.canConnectBeam && coreIsBeaming(state, core))
+    updatePhaseRamp(state, core, dt, contacting)
+    if (contacting && phaseRampAtMax(state, core)) applyPhaseExposure(state, acquired!.id)
+  }
   tickSupportCores(state, dt)
 
   const masteryRegen = state.shipyard.modules.reduce(
@@ -2560,7 +2653,6 @@ export function simulateCombat(
   )
   const regenFrac =
     (fittedShieldRegenFraction(state.shipyard.modules) +
-      fittedRegenBonus(state) +
       masteryRegen +
       shopShieldRegen(state)) *
     directiveShieldRegenMult(state)

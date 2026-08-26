@@ -105,8 +105,8 @@ describe('GDD Process', () => {
 
   it('uses practised loops for the first-open history line', () => {
     const s = processState()
-    s.shipyard.moduleLevels['pulse-cannon'] = 5
-    s.workshop.levels['plate-layer'] = 3
+    s.meta.lifetimeCoreRunBuys = 5
+    s.workshop.levels['weapon-power'] = 3
     expect(processLessonCount(s)).toBe(8)
     expect(processOnlineBlurb(s)).toMatch(/8 times/)
     expect(processOnlineBlurb(s)).toMatch(/you've learned/)

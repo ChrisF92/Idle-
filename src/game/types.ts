@@ -876,15 +876,6 @@ export interface ShipLoadout {
   equippedCoreIds: string[]
   unlockedFrames: string[]
   unlockedModules: string[]
-  /** Fabricated copies of a Core type. Mastery is shared; loadout may use extras. */
-  moduleCopies?: Record<string, number>
-  /** Unused leftover. Physical Core Levels live in workshop.coreStarts. */
-  moduleLevels: Record<string, number>
-  /**
-   * Legacy branching milestone picks. Preserved as permanent effects;
-   * new Mastery uses fixed authored milestones instead.
-   */
-  corePicks: Record<string, Record<string, string>>
   /**
    * After the first Launch of a run, the frame cannot be changed until
    * prestige / challenge reset. Modules can still be refit between fights
@@ -1014,11 +1005,12 @@ export interface CombatUnit {
    */
   y: number
   /**
-   * Mechanical weapon facing in radians. 0 is +Y (screen-up). Distinct from
-   * orbitAngle. Advanced by slew rate toward the current target.
+   * For fitted player Cores this is the outward radial facing and always
+   * equals `orbitAngle`. Independent turret-style aiming heading is not used.
+   * Enemies and projectiles still use heading as movement/aim direction.
    */
   heading?: number
-  /** Position on the Hive orbit ring in radians. Distinct from heading. */
+  /** Position on the Hive orbit ring in radians. Player-Core slew advances this. */
   orbitAngle?: number
   /** Core orbit radius in simulation units. */
   orbitRadius?: number
@@ -1045,6 +1037,11 @@ export interface CombatUnit {
   sourceWave?: number
   /** Units of world distance moved per second. */
   speed: number
+  /**
+   * Temporary movement multiplier from Grav / control. Reset each tick.
+   * Never mutate authored `speed` to apply Slow.
+   */
+  controlSlowMult?: number
   /** Preferred firing distance (enemies close to this, some kite). */
   engageRange: number
   /** If true, back off when closer than engageRange. */
@@ -1105,6 +1102,10 @@ export interface CombatProjectile {
   heading?: number
   /** Flagship weapon id (`${moduleId}-wpn`) so shots can leave that Core. */
   weaponId?: string
+  /** Player Core type that fired this shot. Used for source-owned Mastery. */
+  sourceModuleId?: string
+  /** Optional Shield Bypass fraction for this shot. */
+  shieldBypassFrac?: number
 }
 
 /** Connected beam — damage ticks while the line is up (USI Beam Laser). */
@@ -1131,6 +1132,8 @@ export interface CombatBeam {
   attackerRole?: EnemyRole
   heading?: number
   weaponId?: string
+  sourceModuleId?: string
+  shieldBypassFrac?: number
 }
 
 export type RunUpgradeCategory = 'attack' | 'defense' | 'economy'
@@ -1216,6 +1219,7 @@ export interface SortieCoreRuntime {
   pulseChainAt: Record<string, number>
   phaseRamp: Record<string, number>
   phaseLockMemory: Record<string, { targetId: string; ramp: number; until: number }>
+  phaseExposureUntil: Record<string, number>
   heavyFractureUntil: number
   gravWellUntil: number
   aegisOverflow: number

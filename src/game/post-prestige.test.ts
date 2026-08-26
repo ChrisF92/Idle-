@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import {
-  buyAiNode,
   buyResearch,
   performPrestige,
-  upgradeModule,
 } from './actions'
 import { armRebuildDoor } from './testHelpers'
 import { matterGainFor, matterScoresFrom } from './rebuild'
@@ -54,8 +52,7 @@ describe('post-rebuild re-push balance', () => {
 
     const before = computeShipStats(state).damage
     state.combat.docked = false
-    state = upgradeModule(state, 'pulse-cannon')
-    expect(state.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    expect(state.workshop?.coreStarts['pulse-cannon:1'] ?? 0).toBe(0)
     expect(computeShipStats(state).damage).toBe(before)
   })
 })

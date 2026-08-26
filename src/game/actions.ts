@@ -46,7 +46,6 @@ import {
   isBlueprintComplete,
   isCorePrintUnlocked,
   isModuleBlockedByChallenge,
-  moduleLevel,
   moduleMasteryRank,
   modulePrintWave,
   parsePartId,
@@ -59,7 +58,6 @@ import {
   visibleWorkerJobIds,
   type ResourceCost,
 } from './catalog'
-import { milestonesFor } from './milestones'
 import {
   canBuyNetworkLink,
   createEmptyNetworkState,
@@ -167,8 +165,6 @@ import {
 import { ACT1_CADENCE } from './cadence'
 import {
   buyCoreStartingLevel as buyCoreStartingLevelInternal,
-  buyCoreRunLevel,
-  buyCoreRunLevelByModule,
   moduleCopyCount,
 } from './coreProgression'
 import {
@@ -618,15 +614,6 @@ export function unequipAllModules(state: GameState): GameState {
   return next
 }
 
-export function upgradeCheapestModule(state: GameState, _opts?: { force?: boolean }): GameState {
-  return state
-}
-
-/** @deprecated Retired per-Sortie Core automation. */
-export function upgradeBestValueModule(state: GameState, _opts?: { force?: boolean }): GameState {
-  return state
-}
-
 export function buyResearch(state: GameState, researchId: string): GameState {
   const def = RESEARCH.find((r) => r.id === researchId)
   if (!def) return state
@@ -1054,8 +1041,6 @@ function persistLoadout(
   modules: string[],
   activeChallengeId: string | null,
   usableSlots = 2,
-  copies: Record<string, number> = {},
-  corePicks: Record<string, Record<string, string>> = {},
   coreInstances: CoreInstance[] = [],
   equippedCoreIds: string[] = [],
 ): GameState['shipyard'] {
@@ -1079,22 +1064,10 @@ function persistLoadout(
     equippedCoreIds: [],
     unlockedFrames,
     unlockedModules,
-    moduleLevels: {},
-    moduleCopies: {
-      ...Object.fromEntries(unlockedModules.map((id) => [id, 1])),
-      ...copies,
-    },
-    corePicks: { ...corePicks },
     frameLocked: false,
   }
   reconcileEquippedCoreIds(loadout, modules, equippedCoreIds)
   return loadout
-}
-
-/** Retired compatibility action. Core upgrades are Dock-only through buyCoreStartingLevel. */
-export function upgradeModule(state: GameState, moduleId: string): GameState {
-  void moduleId
-  return state
 }
 
 export function buyCoreStartingLevel(
@@ -1106,22 +1079,6 @@ export function buyCoreStartingLevel(
   if (next === state) return state
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
-}
-
-export function buyCoreRunUpgrade(state: GameState, moduleId: string, count = 1): GameState {
-  if (state.combat.docked) return state
-  const after = buyCoreRunLevelByModule(state, moduleId, count)
-  if (after === state) return state
-  syncFleetAfterRunUpgrade(after)
-  return after
-}
-
-export function buyCoreRunSlot(state: GameState, slot: number, count = 1): GameState {
-  if (state.combat.docked) return state
-  const after = buyCoreRunLevel(state, slot, count)
-  if (after === state) return state
-  syncFleetAfterRunUpgrade(after)
-  return after
 }
 
 function applyRunUpgradePurchase(next: GameState, id: RunUpgradeId): boolean {
@@ -1328,8 +1285,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     kept.modules,
     kept.activeChallengeId,
     usableCoreSlots(state),
-    state.shipyard.moduleCopies ?? {},
-    state.shipyard.corePicks ?? {},
     kept.coreInstances,
     kept.equippedCoreIds,
   )
@@ -1422,40 +1377,6 @@ function applyChallengeSortieReset(state: GameState, now = Date.now(), kits = fa
   state.combat.playerHull = stats.hullMax
   state.combat.playerShieldMax = stats.shieldMax
   state.combat.playerShield = stats.shieldMax
-}
-
-export function pickCoreMilestone(
-  state: GameState,
-  moduleId: string,
-  milestoneId: string,
-  choiceId: string,
-): GameState {
-  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
-  const ms = milestonesFor(moduleId).find((m) => m.id === milestoneId)
-  if (!ms || level < ms.level) return state
-  if (!ms.choices.some((c) => c.id === choiceId)) return state
-  const next = structuredClone(state)
-  next.shipyard.corePicks = {
-    ...next.shipyard.corePicks,
-    [moduleId]: {
-      ...(next.shipyard.corePicks[moduleId] ?? {}),
-      [milestoneId]: choiceId,
-    },
-  }
-  if (!next.combat.inFight) {
-    syncPersistedHullCaps(next)
-    return next
-  }
-  syncPlayerFleetWeapons(next)
-  const stats = computeShipStats(next)
-  next.combat.playerHullMax = stats.hullMax
-  next.combat.playerShieldMax = stats.shieldMax
-  const flag = next.combat.playerUnits.find((u) => u.isFlagship)
-  if (flag) {
-    next.combat.playerHull = flag.hull
-    next.combat.playerShield = flag.shield
-  }
-  return next
 }
 
 export function performRebuild(
@@ -1722,28 +1643,6 @@ export function setProcessConfig(state: GameState, config: GameState['process'][
   const next = structuredClone(state)
   if (!next.process) next.process = createEmptyProcessState()
   next.process.config = mergeProcessConfig(config)
-  return next
-}
-
-export function pickProcessCoreUpgrade(
-  state: GameState,
-  _opts?: { force?: boolean },
-): GameState {
-  return state
-}
-
-export function buyMaxCores(state: GameState): GameState {
-  if (!hasProcess(state, 'core-buy-max')) return state
-  if (state.prestige.activeChallengeId === 'no-ai') return state
-  if (state.combat.docked) return state
-  let next = state
-  let guard = 0
-  while (guard++ < 80) {
-    const after = pickProcessCoreUpgrade(next, { force: true })
-    if (after === next) break
-    if ((after.resources.salvage ?? 0) >= (next.resources.salvage ?? 0)) break
-    next = after
-  }
   return next
 }
 

@@ -20,7 +20,7 @@ function seedTasks(s: ReturnType<typeof createInitialState>) {
 
 describe('phase 10: Task List, Capital, Reinforce, logs', () => {
   it('bumps save and keeps Task List / Capital / Reinforce on USI doors', () => {
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'tasks')).toBe(false)
     expect(isSystemUnlocked(fresh, 'capital')).toBe(false)
@@ -71,7 +71,6 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     s.resources.salvage = 5000
     s.resources.heat = 800
     s.combat.docked = true
-    s.shipyard.moduleLevels['pulse-cannon'] = 8
     const dmg0 = computeShipStats(s).damage
     s = rankCapital(s, 'broadside')
     expect(capitalRank(s, 'broadside')).toBe(0)
@@ -83,7 +82,6 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(capitalRank(s, 'broadside')).toBe(0)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
   })
 
   it('Reinforces at 80, increments the second prestige, and keeps Capital ranks', () => {
@@ -92,12 +90,10 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     s.meta.highestSectorEver = 80
     s.combat.docked = true
     s.capital.ranks.broadside = 3
-    s.shipyard.moduleLevels['pulse-cannon'] = 8
     expect(canReinforce(s).ok).toBe(true)
     s = performReinforce(s)
     expect(reinforceCount(s)).toBe(1)
     expect(capitalRank(s, 'broadside')).toBe(3)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
   })
 
   it('opens Foundry Logs as doors unlock', () => {

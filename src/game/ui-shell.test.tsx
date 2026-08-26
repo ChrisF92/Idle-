@@ -29,7 +29,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
@@ -46,7 +45,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: 'Network' })).toBeNull()
@@ -57,15 +55,12 @@ describe('shell UX', () => {
   it('does not auto-open Cores when opening Sortie during a live run', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
-    state.shipyard.moduleLevels['pulse-cannon'] = 1
-    state.shipyard.moduleLevels['plate-layer'] = 1
     state.meta.seenOnboarding = [...ONBOARDING_LESSONS.map((s) => s.id)]
     let handled = 0
     render(
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
         coresRequest={{ key: 1, moduleId: 'pulse-cannon' }}
         onCoresRequestHandled={() => {
           handled += 1
@@ -82,7 +77,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
         coresRequest={{ key: 1, moduleId: 'pulse-cannon' }}
       />,
     )
@@ -125,7 +119,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /CORES/i }))
@@ -172,7 +165,6 @@ describe('shell UX', () => {
       <CombatTab
         state={persist}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.queryByRole('dialog', { name: 'Cores' })).toBeNull()
@@ -368,7 +360,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: /Foundry smelting/i })).toBeNull()
@@ -381,7 +372,6 @@ describe('shell UX', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.queryByRole('button', { name: /Foundry smelting/i })).toBeNull()

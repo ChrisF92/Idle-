@@ -1,9 +1,10 @@
 /**
  * Persistent Core targeting: Doctrine → current target → hysteresis →
- * acquisition → mechanical slew → legal firing solution.
+ * acquisition → orbital traverse → legal firing solution.
  *
- * Presentation must derive heading from this simulation state. Do not aim
- * independently in the battlefield renderer.
+ * Fitted player Cores remain radially outward-facing. Slew Rate is orbital
+ * angular traverse around the Hive, not turret rotation. Presentation must
+ * use the same orbit angle / world position as the simulation.
  */
 
 import { coreInstanceAtSlot, coreInstanceCopyNumber, resolveCoreInstance } from './coreInstances'
@@ -11,11 +12,14 @@ import { hasMasteryEffect } from './coreMastery'
 import { frameTargetingSlewMult, getModule, SHORT_RANGE_MAX } from './catalog'
 import { phaseRampEstablished, sensorTargetingModifier } from './coreCombat'
 import {
+  applyPlayerCoreOrbit,
   bearingBetween,
   degToRad,
   distanceBetween,
   distanceToHive,
+  hiveBearingOf,
   isWithinArc,
+  playerCoreOutwardFacing,
   shortestAngleDelta,
   slewHeading,
 } from './geometry'
@@ -45,6 +49,12 @@ export const ACQUISITION_FIRE_GAP = 1.05
 export const DEFAULT_SWITCH_ADVANTAGE = 0.25
 /** Prevents near-zero Doctrine scores from chattering between candidates. */
 export const HYSTERESIS_ABSOLUTE_FLOOR = 4
+/** Heavy M10 Predictive Traverse lead along the target's current motion. */
+export const HEAVY_PREDICT_LEAD_SEC = 0.55
+/** Flak M10 Pack Prediction lead for cluster geometry. */
+export const FLAK_PACK_LEAD_SEC = 0.45
+/** Pulse M75 Adaptive Lock — extra hysteresis against orbital reversals. */
+export const PULSE_ADAPTIVE_LOCK_ADVANTAGE = 0.42
 
 export interface TargetingCoreSpec {
   moduleId: string
@@ -337,10 +347,17 @@ export function switchAdvantageFor(
   core: CombatUnit,
 ): number {
   const profile = profileForCore(core)
+  let advantage = profile.switchAdvantage
   if (coreIsStronglyCommitted(state, core) && profile.committedSwitchAdvantage != null) {
-    return profile.committedSwitchAdvantage
+    advantage = profile.committedSwitchAdvantage
   }
-  return profile.switchAdvantage
+  if (
+    (core.coreModuleId ?? specOf(core).moduleId) === 'pulse-cannon' &&
+    hasMasteryEffect(state, 'pulse-cannon', 'pulse-adaptive-lock')
+  ) {
+    advantage = Math.max(advantage, PULSE_ADAPTIVE_LOCK_ADVANTAGE)
+  }
+  return advantage
 }
 
 export function switchRequiredGain(currentScore: number, switchAdvantage: number): number {
@@ -736,22 +753,58 @@ export function setCoreTarget(core: CombatUnit, id: string): void {
   }
 }
 
+function predictedWorldPoint(unit: CombatUnit, leadSec: number): { x: number; y: number } {
+  return {
+    x: unit.x + Math.sin(unit.heading ?? 0) * unit.speed * leadSec,
+    y: unit.y + Math.cos(unit.heading ?? 0) * unit.speed * leadSec,
+  }
+}
+
+/** Hive-relative orbital angle that centres the outward firing arc on the target. */
+export function desiredOrbitAngle(state: GameState, core: CombatUnit, target: CombatUnit): number {
+  const moduleId = core.coreModuleId ?? specOf(core).moduleId
+  if (moduleId === 'heavy-lance' && hasMasteryEffect(state, 'heavy-lance', 'heavy-predictive-traverse')) {
+    return hiveBearingOf(predictedWorldPoint(target, HEAVY_PREDICT_LEAD_SEC))
+  }
+  if (moduleId === 'flak-array' && hasMasteryEffect(state, 'flak-array', 'flak-pack-prediction')) {
+    const pack = state.combat.enemyUnits.filter(
+      (unit) => isTargetableEnemy(state, unit) && distanceBetween(target, unit) <= CLUSTER_NEIGHBOUR_RADIUS,
+    )
+    if (pack.length > 0) {
+      let x = 0
+      let y = 0
+      for (const unit of pack) {
+        const predicted = predictedWorldPoint(unit, FLAK_PACK_LEAD_SEC)
+        x += predicted.x
+        y += predicted.y
+      }
+      return hiveBearingOf({ x: x / pack.length, y: y / pack.length })
+    }
+    return hiveBearingOf(predictedWorldPoint(target, FLAK_PACK_LEAD_SEC))
+  }
+  return hiveBearingOf(target)
+}
+
 export function firingSolution(state: GameState, core: CombatUnit, target: CombatUnit): FiringSolution {
+  applyPlayerCoreOrbit(core)
   const profile = profileForCore(core)
   const fire = effectiveCoreFireRange(state, core)
   const acquire = effectiveCoreAcquisitionRange(state, core)
   const arc = degToRad(effectiveCoreFiringArc(state, core))
   const distance = distanceBetween(core, target)
+  const facing = playerCoreOutwardFacing(core)
   const bearing = bearingBetween(core, target)
-  const heading = core.heading ?? 0
-  const delta = shortestAngleDelta(heading, bearing)
+  const desired = hiveBearingOf(target)
+  const delta = shortestAngleDelta(core.orbitAngle ?? facing, desired)
   const inAcquisition = distance <= acquire + 1e-6
   const inFireRange = distance <= fire + 1e-6
-  const inArc = isWithinArc(heading, bearing, arc)
-  const stabilised = Math.abs(delta) <= degToRad(profile.aimToleranceDeg) + 1e-6
+  const inArc = isWithinArc(facing, bearing, arc)
+  const orbitSettled = Math.abs(delta) <= degToRad(profile.aimToleranceDeg) + 1e-6
+  const stabilised = inArc && orbitSettled
   const canTraverseFire = profile.firesWhileTraversing && inFireRange && inArc
-  const canStabilisedFire = profile.requiresStabilisedAim && inFireRange && inArc && stabilised
-  const canFire = canTraverseFire || canStabilisedFire || (!profile.requiresStabilisedAim && inFireRange && inArc)
+  const canStabilisedFire =
+    inFireRange && inArc && (profile.requiresStabilisedAim ? stabilised : true)
+  const canFire = canTraverseFire || canStabilisedFire
   return {
     target,
     distance,
@@ -769,14 +822,16 @@ export function firingSolution(state: GameState, core: CombatUnit, target: Comba
 }
 
 export function slewCoreToward(state: GameState, core: CombatUnit, dt: number): { slewLimited: boolean } {
+  applyPlayerCoreOrbit(core)
   const target = findEnemy(state, core.currentTargetId)
   if (!target || !isTargetableEnemy(state, target)) return { slewLimited: false }
-  const bearing = bearingBetween(core, target)
-  const rateDeg = effectiveCoreSlewRate(state, core)
+  const desired = desiredOrbitAngle(state, core, target)
+  const rateDeg = effectiveCoreSlewRate(state, core) * orbitSpeedFactor(state, core)
   const maxDelta = degToRad(rateDeg) * Math.max(0, dt)
-  const before = core.heading ?? 0
-  const remaining = Math.abs(shortestAngleDelta(before, bearing))
-  core.heading = slewHeading(before, bearing, maxDelta)
+  const before = core.orbitAngle ?? playerCoreOutwardFacing(core)
+  const remaining = Math.abs(shortestAngleDelta(before, desired))
+  core.orbitAngle = slewHeading(before, desired, maxDelta)
+  applyPlayerCoreOrbit(core)
   return { slewLimited: remaining > maxDelta + 1e-6 }
 }
 
@@ -937,7 +992,7 @@ export function combatOverlayGeometry(state: GameState): CombatOverlayCoreGeom[]
       moduleId: core.coreModuleId,
       x: core.x,
       y: core.y,
-      heading: core.heading ?? core.orbitAngle ?? 0,
+      heading: playerCoreOutwardFacing(core),
       fireRange: effectiveCoreFireRange(state, core),
       acquisitionRange: effectiveCoreAcquisitionRange(state, core),
       firingArcDeg: effectiveCoreFiringArc(state, core),
@@ -950,5 +1005,5 @@ export function combatOverlayGeometry(state: GameState): CombatOverlayCoreGeom[]
   return out
 }
 
-export { wrapTau, radToDeg, degToRad, headingToScreenFacing } from './geometry'
+export { wrapTau, radToDeg, degToRad, headingToScreenFacing, playerCoreOutwardFacing, applyPlayerCoreOrbit } from './geometry'
 export { isTargetingCapableCoreModule } from './targetingProfiles'

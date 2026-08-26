@@ -11,6 +11,7 @@ import { RADIAL_EDGE_RANGE } from './combatVisual'
 import { createInitialState } from './state'
 import { startCombat } from './tick'
 import { coreOrbitRadius } from './hiveVisual'
+import { pointFromBearing } from './geometry'
 
 describe('GDD Hive and orbiting Cores', () => {
   it('builds a Hive hull with weapon Cores as untargetable satellites', () => {
@@ -62,15 +63,13 @@ describe('GDD Hive and orbiting Cores', () => {
     let state = startCombat(createInitialState(0))
     const hive = state.combat.playerUnits.find((u) => u.isFlagship)!
     const core = state.combat.playerUnits.find((u) => u.isCore)!
-    for (const enemy of state.combat.enemyUnits) {
-      enemy.x = 70
-      enemy.y = 0
-      enemy.engageRange = 200
-    }
     const target = state.combat.enemyUnits[0]
     if (target) {
+      const along = pointFromBearing(core.orbitAngle ?? 0, 90)
+      target.x = along.x
+      target.y = along.y
+      target.engageRange = 200
       core.currentTargetId = target.id
-      core.heading = Math.atan2(target.x - core.x, target.y - core.y)
     }
     for (const weapon of core.weapons) {
       weapon.range = 200

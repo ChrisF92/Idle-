@@ -402,11 +402,13 @@ export function challengeFamiliarity(
 ): { ok: boolean; reason?: string } {
   switch (def.mute) {
     case 'weapons':
-      if (Object.values(state.shipyard.moduleLevels ?? {}).some((n) => n > 0)) return { ok: true }
+      if (Object.values(state.workshop?.coreStarts ?? {}).some((n) => n > 0)) return { ok: true }
       return { ok: false, reason: 'Raise a Core Level first' }
-    case 'shields':
-      if ((state.shipyard.moduleLevels?.['plate-layer'] ?? 0) > 0) return { ok: true }
+    case 'shields': {
+      const plate = (state.shipyard.coreInstances ?? []).find((row) => row.moduleId === 'plate-layer')
+      if (plate && (state.workshop?.coreStarts?.[plate.id] ?? 0) > 0) return { ok: true }
       return { ok: false, reason: 'Raise Plate Core Level first' }
+    }
     case 'network':
       if (
         Object.entries(state.base.assignments ?? {}).some(([id, n]) => (n ?? 0) > 0 && isWorkerJob(id))
@@ -644,8 +646,6 @@ export function canEnterProtocol(
 
 export function wipeProtocolLoadout(state: GameState): void {
   state.resources.salvage = 0
-  state.shipyard.moduleLevels = {}
-  state.shipyard.corePicks = {}
 }
 
 export function noteProtocolProgress(state: GameState): void {

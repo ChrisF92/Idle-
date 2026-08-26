@@ -56,7 +56,6 @@ function renderDoor(id: OnboardingLessonId) {
           <CombatTab
             state={state}
             onLaunch={noop}
-            onPickMilestone={noop}
             onboardingTarget={lesson.target}
           />
         )

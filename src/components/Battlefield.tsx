@@ -594,7 +594,7 @@ function refreshCoreSlots(scene: Scene, hive = hiveCenter(scene)): void {
         kind,
         x: pos.x,
         y: pos.y,
-        facing: headingToScreenFacing(sim.heading ?? sim.orbitAngle ?? 0),
+        facing: headingToScreenFacing(sim.orbitAngle ?? sim.heading ?? 0),
         firing,
       }
     }

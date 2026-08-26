@@ -786,11 +786,6 @@ function grantPendingCore(state: GameState, moduleId: string): void {
   if (!state.meta.discoveredModules.includes(moduleId)) {
     state.meta.discoveredModules = [...state.meta.discoveredModules, moduleId]
   }
-  state.shipyard.moduleCopies = {
-    ...(state.shipyard.moduleCopies ?? {}),
-    [moduleId]: Math.max(1, (state.shipyard.moduleCopies?.[moduleId] ?? 0) + 1),
-  }
-  state.meta.lifetimeFabCrafts = (state.meta.lifetimeFabCrafts ?? 0) + 1
 }
 
 function applyPendingRelic(state: GameState, relic: PendingRelicUpgrade): void {

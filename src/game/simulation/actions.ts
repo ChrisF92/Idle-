@@ -9,7 +9,6 @@ import {
   fitModule,
   equipRelicOnCore,
   performPrestige,
-  pickCoreMilestone,
   setFoundrySlot,
   setResearchFocus,
   unlockModule,
@@ -28,15 +27,11 @@ import {
   idleWorkers,
   isStationUnlocked,
   MATTER_SHOP,
-  moduleLevel,
-  moduleUpgradeCost,
   SHIP_MODULES,
   visibleWorkerJobIds,
 } from '../catalog'
-import { pendingMilestone } from '../milestones'
 import {
   coreStartingLevel,
-  coreRunLevel,
   equippedCoreSlots,
 } from '../coreProgression'
 import {
@@ -128,39 +123,8 @@ export function maybeChooseDirective(state: GameState, ctx: StrategyContext): Ga
   return next
 }
 
-function pickMilestoneChoice(moduleId: string, milestoneId: string): string {
-  if (moduleId === 'pulse-cannon') {
-    if (milestoneId === 'pulse-10') return 'focused'
-    if (milestoneId === 'pulse-20') return 'hard-light'
-    if (milestoneId === 'pulse-30') return 'overcharge'
-    if (milestoneId === 'pulse-40') return 'pierce-pulse'
-    return 'foundry-arc'
-  }
-  if (moduleId === 'plate-layer') {
-    if (milestoneId === 'plate-10') return 'bulk'
-    return 'capacitor'
-  }
-  const ms = pendingMilestone(moduleId, 999, {})
-  return ms?.choices[0]?.id ?? ''
-}
-
-export function resolveMilestones(state: GameState, ctx: StrategyContext): GameState {
-  let next = state
-  for (const moduleId of next.shipyard.unlockedModules) {
-    const level = moduleLevel(next.shipyard.moduleLevels, moduleId)
-    const pending = pendingMilestone(moduleId, level, next.shipyard.corePicks?.[moduleId])
-    if (!pending) continue
-    const choice =
-      pending.choices.find((c) => c.id === pickMilestoneChoice(moduleId, pending.id)) ??
-      pending.choices[0]
-    if (!choice) continue
-    const after = pickCoreMilestone(next, moduleId, pending.id, choice.id)
-    if (after !== next) {
-      ctx.recordMeaningful(`${getModule(moduleId)?.name ?? moduleId} milestone ${choice.name}`)
-      next = after
-    }
-  }
-  return next
+export function resolveMilestones(state: GameState, _ctx: StrategyContext): GameState {
+  return state
 }
 
 const WORKER_WEIGHTS: Record<string, number> = {
@@ -403,7 +367,7 @@ export function tendHiveResearch(
   if (!isSystemUnlocked(state, 'research')) return state
   const profile = resolveSpendProfile(mode)
   const salvage = state.resources.salvage
-  const pulseCost = moduleUpgradeCost(coreRunLevel(state, 0), 'pulse-cannon')
+  const pulseCost = 12
   const material = state.hiveResearch?.completed.material ?? 0
   const energy = state.hiveResearch?.completed.energy ?? 0
   const observation = state.hiveResearch?.completed.observation ?? 0

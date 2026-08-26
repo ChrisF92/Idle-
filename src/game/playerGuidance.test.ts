@@ -70,8 +70,7 @@ describe('player guidance helpers', () => {
   it('flags the first defeat until the starter Cores have been used', () => {
     const s = markHullLost(createInitialState(0))
     expect(isFirstDefeatReport(s)).toBe(true)
-    s.shipyard.moduleLevels['pulse-cannon'] = 1
-    s.shipyard.moduleLevels['plate-layer'] = 1
+    s.meta.lifetimeCoreRunBuys = 1
     expect(isFirstDefeatReport(s)).toBe(false)
   })
 
@@ -79,8 +78,7 @@ describe('player guidance helpers', () => {
     const s = markHullLost(createInitialState(0))
     s.meta.bestWave = 30
     s.combat.bestWave = 30
-    s.shipyard.moduleLevels['pulse-cannon'] = 3
-    s.shipyard.moduleLevels['plate-layer'] = 1
+    s.meta.lifetimeCoreRunBuys = 1
     s.base.workerDrones = 4
     s.base.assignments = {}
     const hints = sortieNextHints(s)
@@ -96,8 +94,6 @@ describe('player guidance helpers', () => {
     s.prestige.prestigeCount = 2
     s.research.unlocked.push('basic-optics')
     s.meta.completedAchievements = ['first-blood']
-    s.shipyard.moduleLevels['pulse-cannon'] = 4
-    s.shipyard.moduleLevels['plate-layer'] = 3
     expect(processCoreHintReady(s)).toBe(false)
     const toasts = diffToasts(captureToastSnapshot(s), captureToastSnapshot(s), s)
     expect(toasts.some((t) => t.id === 'process:cores')).toBe(false)

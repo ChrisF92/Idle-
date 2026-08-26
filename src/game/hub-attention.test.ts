@@ -70,7 +70,6 @@ describe('hub attention', () => {
     state.meta.highestSectorEver = 42
     state.prestige.prestigeCount = 2
     state.research.unlocked.push('basic-optics')
-    state.shipyard.moduleLevels['pulse-cannon'] = 1
     state.resources.aiPoints = 20
     expect(moreStationAttention(state, 'process').spend).toBe(true)
     expect(tabAttention(state, 'stats').spend).toBe(true)

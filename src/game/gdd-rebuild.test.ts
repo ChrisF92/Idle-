@@ -68,11 +68,10 @@ describe('GDD Rebuild', () => {
     s.resources.choirAsh = 12
     s.resources.heat = 8
     s.workshop.levels['weapon-power'] = 3
-    s.shipyard.moduleLevels['pulse-cannon'] = 9
     s.combat.directives = ['overcharge']
     s.foundry.recipeLevels['slag-ingot'] = 4
     s.reliquary.owned['battle-chip'] = 1
-    s = equipRelicOnCore(s, 'pulse-cannon', 'battle-chip')
+    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
     expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
     const career = s.meta.bestWave
     const before = matterGainFor(s)

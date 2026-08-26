@@ -33,7 +33,6 @@ import {
   performAscension,
   performPrestige,
   performRebuild,
-  pickCoreMilestone,
   selectFrame,
   sellPart,
   setFoundrySlot,
@@ -137,12 +136,6 @@ type Action =
   | { type: 'buy-workshop-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
   | { type: 'buy-generic-unlock'; category: import('../game/types').RunUpgradeCategory }
   | { type: 'cycle-sortie-speed' }
-  | {
-      type: 'pick-milestone'
-      moduleId: string
-      milestoneId: string
-      choiceId: string
-    }
   | { type: 'rebuild'; hangar: { frameId: string; modules: string[] } }
   | { type: 'unequip-all' }
   | { type: 'ack-onboarding'; tipId: string }
@@ -278,8 +271,6 @@ function reducer(state: GameState, action: Action): GameState {
       return buyGenericUnlock(state, action.category)
     case 'cycle-sortie-speed':
       return cycleSortieSpeed(state)
-    case 'pick-milestone':
-      return pickCoreMilestone(state, action.moduleId, action.milestoneId, action.choiceId)
     case 'rebuild':
       return performRebuild(state, action.hangar)
     case 'unequip-all':
@@ -538,8 +529,6 @@ export function useGame() {
     buyGenericUnlock: (category: import('../game/types').RunUpgradeCategory) =>
       dispatch({ type: 'buy-generic-unlock', category }),
     cycleSortieSpeed: () => dispatch({ type: 'cycle-sortie-speed' }),
-    pickCoreMilestone: (moduleId: string, milestoneId: string, choiceId: string) =>
-      dispatch({ type: 'pick-milestone', moduleId, milestoneId, choiceId }),
     performRebuild: (hangar: { frameId: string; modules: string[] }) =>
       dispatch({ type: 'rebuild', hangar }),
     unequipAll: () => dispatch({ type: 'unequip-all' }),

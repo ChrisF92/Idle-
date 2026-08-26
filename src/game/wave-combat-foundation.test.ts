@@ -24,8 +24,14 @@ import { saveGame, loadOrCreateGame, clearSave } from './save'
 import { applyOfflineCatchUp, applyWallClock, handleAppVisible } from './offline'
 import { isSortieActive, showGlobalBottomNav, showSortieReturnControl } from './presentation'
 import type { CombatUnit, GameState } from './types'
-import { dropTableEntries, familyCanDropPrint, getChallenge, legacyChallengeGoalWave, modulePrintWave } from './catalog'
-import { maybeGrantSystemUnlocks } from './progression'
+import {
+  dropTableEntries,
+  familyCanDropPrint,
+  getChallenge,
+  isFarmableModule,
+  isGddRosterCore,
+  legacyChallengeGoalWave,
+} from './catalog'
 import { ACT1_CADENCE } from './cadence'
 import { liveBossHp } from './uiReadout'
 import {
@@ -544,34 +550,22 @@ describe('PR1 wave-only radial combat foundation', () => {
     )
     expect(w200Pay.resources.salvage).toBeGreaterThan(w1Pay.resources.salvage)
 
-    const latePrint = 'heavy-lance'
-    state.meta.bestWave = Math.max(state.meta.bestWave, modulePrintWave(latePrint))
-    maybeGrantSystemUnlocks(state)
-    expect(modulePrintWave(latePrint)).toBeGreaterThan(1)
-    expect(familyCanDropPrint('armored', latePrint, 1)).toBe(false)
-    expect(familyCanDropPrint('armored', latePrint, modulePrintWave(latePrint))).toBe(true)
-    const drops = rollEnemyPartDrop(
+    for (const coreId of [
+      'heavy-lance',
+      'ablative-mesh',
+      'slag-spitter',
+      'flak-array',
+      'barrier-projector',
+    ]) {
+      expect(familyCanDropPrint('armored', coreId, 400)).toBe(false)
+      expect(familyCanDropPrint('titan', coreId, 400)).toBe(false)
+    }
+    const leftoverHits = rollEnemyPartDrop(
       state,
-      { family: 'armored', isBoss: false, name: 'Jug', sourceWave: 1, rewardWeight: 1 },
+      { family: 'armored', isBoss: false, name: 'Jug', sourceWave: 200, rewardWeight: 1 },
       () => 0,
     )
-    expect(drops.every((d) => modulePrintWave(d.moduleId) <= 1)).toBe(true)
-    const lateDrops = rollEnemyPartDrop(
-      state,
-      {
-        family: 'armored',
-        isBoss: false,
-        name: 'Jug',
-        sourceWave: modulePrintWave(latePrint),
-        rewardWeight: 1,
-      },
-      () => 0,
-    )
-    expect(lateDrops.length).toBeGreaterThan(0)
-    expect(lateDrops.every((d) => modulePrintWave(d.moduleId) <= modulePrintWave(latePrint))).toBe(true)
-    expect(
-      lateDrops.some((d) => ['heavy-lance', 'ablative-mesh', 'slag-spitter'].includes(d.moduleId)),
-    ).toBe(true)
+    expect(leftoverHits.every((d) => !isGddRosterCore(d.moduleId))).toBe(true)
   })
 
   it('keeps pending units on their source-Wave economics when released', () => {
@@ -986,13 +980,12 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(paused.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(1)
   })
 
-  it('keeps print drop tables on authored Wave doors rather than old Sector 12/16/22', () => {
-    const barrierWave = modulePrintWave('barrier-projector')
-    expect(barrierWave).toBe(350)
-    expect(familyCanDropPrint('titan', 'barrier-projector', barrierWave - 1)).toBe(false)
-    expect(familyCanDropPrint('titan', 'barrier-projector', barrierWave)).toBe(true)
+  it('keeps leftover Foundry prints isolated from the final 14 Cores', () => {
+    expect(familyCanDropPrint('titan', 'barrier-projector', 400)).toBe(false)
     expect(dropTableEntries('swarm', 12).some((e) => e.moduleId === 'barrier-projector')).toBe(false)
-    expect(modulePrintWave('pulse-cannon')).toBeLessThan(160)
+    expect(dropTableEntries('titan', 400).some((e) => e.moduleId === 'rail-driver')).toBe(true)
+    expect(isFarmableModule('pulse-cannon')).toBe(false)
+    expect(isFarmableModule('heavy-lance')).toBe(false)
   })
 
   it('applies industry-only offline catch-up on hidden→visible without combat time', () => {

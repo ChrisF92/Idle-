@@ -187,7 +187,7 @@ describe('playtest fix pass', () => {
     expect(screen.getByText(/assigned/)).toBeTruthy()
   })
 
-  it('lists Fabrication drop Waves and families instead of enemy-family mismatch copy', () => {
+  it('does not list leftover Foundry cards for the final 14 Cores', () => {
     const state = atCareerWave(markHullLost(createInitialState(0)), 80)
     render(
       <FoundryTab
@@ -198,8 +198,8 @@ describe('playtest fix pass', () => {
       />,
     )
     expect(screen.queryByText(/fragments do not drop from this enemy family/i)).toBeNull()
-    expect(screen.getByText(/Flak Array/)).toBeTruthy()
-    expect(screen.getAllByText(/Swarm · Wave \d+\+/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Flak Array/)).toBeNull()
+    expect(screen.queryByText(/Heavy Lance/)).toBeNull()
   })
 
   it('writes Frame, Workshop, and Systems on the playtest report', () => {

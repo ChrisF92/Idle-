@@ -167,10 +167,9 @@ describe('Act 1 Process depth', () => {
     s.combat.docked = false
     s.process.purchased = ['auto-salvage']
     s.resources.salvage = 40
-    const before = Object.values(s.combat.coreRunLevels ?? {}).reduce((a, b) => a + b, 0)
+    const before = s.workshop?.coreStarts['pulse-cannon:1'] ?? 0
     advanceSeconds(s, 1)
-    const after = Object.values(s.combat.coreRunLevels ?? {}).reduce((a, b) => a + b, 0)
-    expect(after).toBe(before)
+    expect(s.workshop?.coreStarts['pulse-cannon:1'] ?? 0).toBe(before)
     expect(s.resources.salvage).toBe(40)
   })
 })

@@ -417,10 +417,8 @@ export function matureSocketLayout(moduleId: string): RelicSocketSpec[] {
 /**
  * M20 is the canonical point at which meaningful Relic capability expands.
  * Exact later socket-count unlocks are not authored — do not invent them.
+ * Runtime availability is PR6; this helper returns the mature layout only.
  */
-export function unlockedSocketLayout(moduleId: string, mastery: number): RelicSocketSpec[] {
-  const mature = matureSocketLayout(moduleId)
-  if (mature.length === 0) return []
-  if (mastery < 20) return mature.slice(0, 1)
-  return mature.slice(0, Math.min(2, mature.length))
+export function unlockedSocketLayout(moduleId: string, _mastery: number): RelicSocketSpec[] {
+  return matureSocketLayout(moduleId)
 }

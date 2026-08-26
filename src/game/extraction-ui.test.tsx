@@ -32,7 +32,6 @@ function renderCombat(state: GameState, handlers: Partial<{ extract: () => void;
           onPause={handlers.pause}
           onResume={() => undefined}
           onPauseAndBrowse={() => undefined}
-          onPickMilestone={() => undefined}
         />
       </div>
     </OverlayProvider>,

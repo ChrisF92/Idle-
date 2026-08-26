@@ -20,7 +20,6 @@ import {
   unfitModule,
   unlockFrame,
   unlockModule,
-  upgradeModule,
 } from './actions'
 import { clearCurrentWave, equipPostTutorialLoadout, forceUnlockModule } from './testHelpers'
 
@@ -403,20 +402,19 @@ describe('prestige and challenges', () => {
 })
 
 describe('salvage module upgrades', () => {
-  it('upgrades a module with salvage and resets on prestige', () => {
+  it('does not spend Salvage on Cores and keeps physical Core Levels across Rebuild', () => {
     let state = createInitialState(0)
     state.combat.docked = false
     state.resources.salvage = 100
     const before = computeShipStats(state).damage
-    state = upgradeModule(state, 'pulse-cannon')
-    expect(state.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    expect(state.workshop?.coreStarts['pulse-cannon:1'] ?? 0).toBe(0)
     expect(computeShipStats(state).damage).toBe(before)
     expect(state.resources.salvage).toBe(100)
 
     state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
     expect(state.resources.salvage).toBe(19)
-    expect(state.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
+    expect(state.workshop?.coreStarts['pulse-cannon:1'] ?? 0).toBe(0)
     expect(state.shipyard.modules).toContain('pulse-cannon')
   })
 })

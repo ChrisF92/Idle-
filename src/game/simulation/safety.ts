@@ -55,7 +55,7 @@ export function inspectNumericSafety(state: GameState, activeSeconds: number): S
     flags.push(flag('invalid', 'shieldMax is negative', activeSeconds))
   }
 
-  for (const [id, level] of Object.entries(state.shipyard.moduleLevels ?? {})) {
+  for (const [id, level] of Object.entries(state.workshop?.coreStarts ?? {})) {
     check(`core.${id}`, level)
   }
   for (const [id, rank] of Object.entries(state.network?.links ?? {})) {

@@ -48,7 +48,7 @@ import {
   tryBarrierIntercept,
   updatePhaseRamp,
 } from './coreCombat'
-import { fitModule, selectFrame, unfitModule, buyCoreRunSlot, performRebuild } from './actions'
+import { fitModule, selectFrame, unfitModule, performRebuild } from './actions'
 import { importSave, exportSave } from './save'
 import { extractSortie, setDocked } from './tick'
 import { armRebuildDoor, atCareerWave, completeDefeat, forceUnlockModule } from './testHelpers'
@@ -182,7 +182,6 @@ describe('PR4 Core Level lifecycle', () => {
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
     s = live(s)
     const salvage = s.resources.salvage
-    s = buyCoreRunSlot(s, 0, 1)
     expect(s.resources.salvage).toBe(salvage)
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
 
@@ -439,6 +438,8 @@ describe('PR4 defense and support', () => {
     expect(s.resources.heat).toBeGreaterThan(0)
     tickSupportCores(s, 0)
     expect(choirTapAshToHeatMult(s)).toBeGreaterThan(1)
+    const leftover = createInitialState(0)
+    expect(furnaceAshHeatMult(s)).toBe(furnaceAshHeatMult(leftover))
     const reactor = grantFrame(s, 'reactor-frame')
     reactor.shipyard.frameId = 'reactor-frame'
     expect(furnaceAshHeatMult(reactor)).toBeGreaterThan(furnaceAshHeatMult(s))
@@ -446,12 +447,14 @@ describe('PR4 defense and support', () => {
 })
 
 describe('PR4 sockets metadata', () => {
-  it('authors mature layouts and expands at M20 without inventing a third-socket schedule', () => {
+  it('authors mature layouts; M20 is Relic expansion; later socket counts stay unspecified', () => {
     expect(matureSocketLayout('pulse-cannon').map((s) => s.type)).toEqual(['power', 'optical', 'universal'])
-    expect(unlockedSocketLayout('pulse-cannon', 0)).toHaveLength(1)
-    expect(unlockedSocketLayout('pulse-cannon', 20)).toHaveLength(2)
-    expect(unlockedSocketLayout('pulse-cannon', 100)).toHaveLength(2)
     expect(matureSocketLayout('plate-layer')).toHaveLength(2)
+    const m20 = CORE_MASTERY_MILESTONES['pulse-cannon']?.find((m) => m.level === 20)
+    expect(m20?.effect).toBe('socket-expand')
+    expect(unlockedSocketLayout('pulse-cannon', 0)).toEqual(matureSocketLayout('pulse-cannon'))
+    expect(unlockedSocketLayout('pulse-cannon', 20)).toEqual(matureSocketLayout('pulse-cannon'))
+    expect(unlockedSocketLayout('pulse-cannon', 100)).toEqual(matureSocketLayout('pulse-cannon'))
   })
 })
 

@@ -49,7 +49,6 @@ function SortieChrome({
           onPause={() => undefined}
           onResume={() => undefined}
           onPauseAndBrowse={() => undefined}
-          onPickMilestone={() => undefined}
         />
       ) : null}
       {showSortieReturnControl(state, tab) ? (
@@ -93,7 +92,6 @@ describe('live Sortie chrome and pause/browse contract', () => {
       <CombatTab
         state={live}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
@@ -121,7 +119,6 @@ describe('live Sortie chrome and pause/browse contract', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.getByText('SORTIE PAUSED')).toBeTruthy()
@@ -161,7 +158,6 @@ describe('live Sortie chrome and pause/browse contract', () => {
                 state = setSortiePaused(state, false)
                 setN((n) => n + 1)
               }}
-              onPickMilestone={() => undefined}
             />
           ) : null}
           {showSortieReturnControl(state, tab) ? (

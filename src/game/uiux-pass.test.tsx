@@ -24,7 +24,6 @@ describe('UI/UX pass regression', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.queryByText(/Pressure/i)).toBeNull()

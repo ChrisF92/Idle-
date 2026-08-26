@@ -61,6 +61,7 @@ Canonical effects: Armor (diminishing returns), Armor Penetration, Shield Bypass
 - Configurable per physical Core after Research **Fire-Control Doctrine**; defaults are competent before unlock.
 - **Acquisition Range > Firing Range**; Cores may pre-acquire/pre-slew before firing range, but no fire until legal. Heavy Lance does not pre-charge by default.
 - Each Core authors Orbit radius/class, Slew Rate, Firing Arc, fire-while-traversing, stabilisation and target-loss behaviour.
+- **Core slew is orbital traverse, not local turret rotation.** A fitted Core remains outward-facing relative to the Hive at all times. Its authored Slew Rate controls how quickly its physical position may travel clockwise or counter-clockwise around its fixed orbit radius toward a firing solution. The Core's firing arc is centred on its outward radial facing. Acquisition may cause pre-traverse before the target enters firing range. “Fire while traversing” means the Core may fire while moving around its orbit, provided the target is otherwise inside the legal firing solution. Stabilisation means reducing/holding orbital movement for charge/fire. Projectiles and beams originate from the Core's current physical orbit position. Normal fitted player Cores do not independently swivel toward enemies with a turret-like local heading.
 - Combat Overlay modes: Off / Selected / All. Moving-Core taps optional only; stationary 44px+ Core list is the reliable selector. Same selector pattern is reused in Targeting.
 
 ## 6. Frames
@@ -1276,6 +1277,7 @@ Exact bonus tunes within the previously approved ~10–15% range.
 - Hive combat origin: `(0,0)`
 - Typical enemy reinforcement spawn radius: ~300 simulation units, formation-adjusted
 - Core orbit radius seed band: ~38–58 units by Core
+- Core Slew class/rate is **orbital angular traverse** around the Hive (clockwise/counter-clockwise on the authored radius), not independent turret-heading rotation
 - Base normal Wave reinforcement interval: **7.0 simulated seconds**
 - High Tempo seed: **15% shorter interval** → ~5.95s
 - Deep solved-Wave reclaim may reduce otherwise-empty interval toward a seed floor of ~1.5–2.0 simulated seconds, then smoothly return toward 7.0s as the run approaches meaningful pressure/frontier

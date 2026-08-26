@@ -48,7 +48,7 @@ import { createFreshCareerState } from './freshStart'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
 import { emptyWaveRuntime } from './waveRuntime'
-import { normalizeCoreInstances, resolveCoreInstance } from './coreInstances'
+import { normalizeCoreInstances } from './coreInstances'
 
 export function saveGame(state: GameState): void {
   try {
@@ -296,9 +296,6 @@ function withShipyardDefaults(
     unlockedModules: shipyard?.unlockedModules ?? base.unlockedModules,
     modules: shipyard?.modules ?? base.modules,
     frameId: resolveFrameId(shipyard?.frameId ?? base.frameId),
-    moduleLevels: shipyard?.moduleLevels ?? {},
-    moduleCopies: { ...(shipyard?.moduleCopies ?? base.moduleCopies ?? {}) },
-    corePicks: shipyard?.corePicks ?? {},
     frameLocked: shipyard?.frameLocked ?? false,
   }
   return normalizeCoreInstances(hydrated)
@@ -478,16 +475,15 @@ function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState 
   return { owned, slots, coreFits }
 }
 
-/** Move legacy module-definition relic keys onto stable physical Core instance IDs. */
-export function migrateCoreFitInstances(state: GameState): void {
-  normalizeCoreInstances(state.shipyard)
-  const migrated: ReliquaryState['coreFits'] = {}
-  for (const [key, slots] of Object.entries(state.reliquary.coreFits ?? {})) {
-    const instance = resolveCoreInstance(state, key)
-    const target = instance?.id ?? key
-    if (!migrated[target]) migrated[target] = [...slots]
+/** Drop malformed Relic fits that are not keyed to a physical Core instance. */
+export function sanitizeCoreFits(state: GameState): void {
+  const ids = new Set((state.shipyard.coreInstances ?? []).map((instance) => instance.id))
+  const next: ReliquaryState['coreFits'] = {}
+  for (const [key, slots] of Object.entries(state.reliquary?.coreFits ?? {})) {
+    if (!ids.has(key) || !Array.isArray(slots)) continue
+    next[key] = [...slots]
   }
-  state.reliquary.coreFits = migrated
+  if (state.reliquary) state.reliquary.coreFits = next
 }
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
@@ -836,7 +832,7 @@ function migrate(raw: unknown): GameState | null {
       parts: withPartsDefaults(state.parts),
       playtest: hydratePlaytest(state.playtest),
     }
-    migrateCoreFitInstances(hydrated)
+    sanitizeCoreFits(hydrated)
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingRegistry(hydrated)

@@ -33,10 +33,7 @@ const SLOT_LABEL: Record<string, string> = {
 
 interface CoreSheetProps {
   state: GameState
-  onUpgrade?: (moduleId: string) => void
-  onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
   compact?: boolean
-  onBuyMax?: () => void
   /** Relic install/remove/upgrade. Docked-only; omit during a live Sortie. */
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void

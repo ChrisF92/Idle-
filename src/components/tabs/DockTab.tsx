@@ -50,9 +50,6 @@ interface DockTabProps {
   onBuyWorkshop?: (id: RunUpgradeId, count?: number) => void
   onUnlockGeneric?: (category: RunUpgradeCategory) => void
   onBuyMatter?: (itemId: string) => void
-  onUpgrade?: (moduleId: string) => void
-  onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
-  onBuyMaxCores?: () => void
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void

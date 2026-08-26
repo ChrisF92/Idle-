@@ -47,11 +47,10 @@ export function emptyLastSortie(sector = 1, wave = 1): SortieSummary {
 }
 
 export function countCorePicks(state: GameState): number {
-  let n = 0
-  for (const picks of Object.values(state.shipyard.corePicks ?? {})) {
-    n += Object.keys(picks ?? {}).length
-  }
-  return n
+  return Object.values(state.combat.coreMilestones ?? {}).reduce(
+    (n, row) => n + (row?.length ?? 0),
+    0,
+  )
 }
 
 function researchBanked(state: GameState): number {

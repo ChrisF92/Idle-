@@ -63,7 +63,7 @@ export const SHIP_MODULE_DEFS = [
     role: 'weapon',
     identity: 'Slow line-breaking anti-heavy.',
     description:
-      'Charged pierce lance. Default Heavy. Stabilises to charge and fire. Does not pre-charge before a legal firing solution.',
+      'Charged anti-heavy lance. Default Heavy. Stabilises to charge and fire. Does not pre-charge before a legal firing solution. Pierce unlocks at Mastery 30.',
     orbitRadius: 56,
     unlockSource: 'wave',
     requiresBestWave: 100,
@@ -77,7 +77,7 @@ export const SHIP_MODULE_DEFS = [
       damagePerLevel: 5,
       cooldown: 2.8,
       range: 260,
-      tags: ['kinetic', 'pierce'],
+      tags: ['kinetic'],
       hullDamage: 1,
       shieldDamage: 0.7,
       armorDamage: 1,

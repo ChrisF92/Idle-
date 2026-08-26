@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { CombatTab } from '../components/tabs/CombatTab'
 import { DockTab } from '../components/tabs/DockTab'
-import { performRebuild, upgradeModule } from './actions'
+import { performRebuild } from './actions'
 import { inspectCore } from './inspect'
 import { processHubStatus, researchHubStatus } from './systemsHub'
 import { createInitialState } from './state'
@@ -29,7 +29,6 @@ describe('GDD visual layout and Dock Core Levels', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.getByText('Salvage')).toBeTruthy()
@@ -62,7 +61,6 @@ describe('GDD visual layout and Dock Core Levels', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))
@@ -107,9 +105,9 @@ describe('GDD visual layout and Dock Core Levels', () => {
     s.resources.scrap = 80
     s = launch(s)
     s.resources.salvage = 80
-    s = upgradeModule(s, 'pulse-cannon')
     expect(s.resources.salvage).toBe(80)
     expect(s.resources.scrap).toBe(80)
+    expect(s.workshop?.coreStarts['pulse-cannon:1'] ?? 0).toBe(0)
   })
 
   it('exposes Sortie speed and hub status without player-facing Pressure', () => {
@@ -132,7 +130,6 @@ describe('GDD visual layout and Dock Core Levels', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     const hud = screen.getByLabelText('Furnace')
@@ -147,9 +144,7 @@ describe('GDD visual layout and Dock Core Levels', () => {
   it('keeps Mastery and wipes leftover ranks on Rebuild', () => {
     let s = armRebuildDoor(createInitialState(0))
     s.meta.moduleMastery = { 'pulse-cannon': 4 }
-    s.shipyard.moduleLevels = { 'pulse-cannon': 1 }
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.workshop?.coreStarts['pulse-cannon:1'] ?? 0).toBe(0)
     expect(s.meta.moduleMastery['pulse-cannon']).toBe(4)
   })

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { performRebuild, upgradeModule } from './actions'
+import { buyCoreStartingLevel, performRebuild } from './actions'
 import { canRebuild } from './rebuild'
-import { pendingMilestone } from './milestones'
 import { nextMasteryMilestone } from './coreMastery'
 import { getFrame } from './catalog'
 import { isSystemUnlocked, visibleResourceIds } from './progression'
@@ -12,7 +11,6 @@ import { setDocked } from './tick'
 
 describe('phase 3: milestones, rebuild, foundry', () => {
   it('uses authored Core Mastery milestones instead of leftover 2-picks', () => {
-    expect(pendingMilestone('pulse-cannon', 10, {})).toBeNull()
     expect(nextMasteryMilestone('pulse-cannon', 0)?.name).toBe('Pulse Identity')
     expect(nextMasteryMilestone('pulse-cannon', 5)?.name).toBe('Overkill Retarget')
     expect(nextMasteryMilestone('pulse-cannon', 10)?.name).toBe('Relic Capability')
@@ -28,7 +26,6 @@ describe('phase 3: milestones, rebuild, foundry', () => {
       modules: ['pulse-cannon', 'plate-layer'],
     })
     expect(s.prestige.prestigeCount).toBe(1)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.meta.moduleMastery['pulse-cannon']).toBe(6)
     expect(s.combat.docked).toBe(true)
   })
@@ -72,7 +69,9 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     let s = createInitialState(0)
     s = setDocked(s, false)
     s.resources.salvage = 10
-    s = upgradeModule(s, 'pulse-cannon')
+    s.resources.scrap = 80
+    s = buyCoreStartingLevel(s, 'pulse-cannon:1')
     expect(s.resources.salvage).toBe(10)
+    expect(s.resources.scrap).toBe(80)
   })
 })

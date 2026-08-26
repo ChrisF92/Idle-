@@ -69,48 +69,31 @@ export interface CoreSortieRecord {
 }
 
 export function equippedCoreSlots(state: Pick<GameState, 'shipyard'>): CoreSlot[] {
-  return (state.shipyard.modules ?? []).map((moduleId, slot) => ({
-    slot,
-    moduleId,
-    coreInstanceId: coreInstanceAtSlot(state, slot)?.id ?? `${moduleId}:${slot + 1}`,
-  }))
+  const out: CoreSlot[] = []
+  for (let slot = 0; slot < (state.shipyard.modules ?? []).length; slot += 1) {
+    const moduleId = state.shipyard.modules[slot]!
+    const instance = coreInstanceAtSlot(state, slot)
+    if (!instance) continue
+    out.push({ slot, moduleId, coreInstanceId: instance.id })
+  }
+  return out
 }
 
 export function moduleCopyCount(state: Pick<GameState, 'shipyard'>, moduleId: string): number {
-  const instances = state.shipyard.coreInstances?.filter(
-    (instance) => instance.moduleId === moduleId,
-  ).length ?? 0
-  const copies = Math.max(0, Math.floor(state.shipyard.moduleCopies?.[moduleId] ?? 0))
-  return Math.max(instances, copies, state.shipyard.unlockedModules.includes(moduleId) ? 1 : 0)
+  return state.shipyard.coreInstances?.filter((instance) => instance.moduleId === moduleId).length ?? 0
 }
 
 export function grantModuleCopy(state: GameState, moduleId: string): void {
   addCoreInstance(state.shipyard, moduleId)
 }
 
-export function coreRunLevel(_state?: Pick<GameState, 'combat'>, _slot?: number): number {
-  return 0
-}
-
-export function coreRunLevelForModule(
-  _state: Pick<GameState, 'combat' | 'shipyard'>,
-  _moduleId: string,
-  _slotHint?: number,
-): number {
-  return 0
-}
-
-export function setCoreRunLevel(_state: GameState, _slot: number, _level: number): void {}
-
-export function clearCoreRunLevels(_state: GameState): void {}
-
 export function coreStartingLevel(
   state: Pick<GameState, 'shipyard' | 'workshop'> & { hiveResearch?: GameState['hiveResearch'] },
   coreInstanceId: string,
 ): number {
   const instance = resolveCoreInstance(state, coreInstanceId)
-  const key = instance?.id ?? coreInstanceId
-  const purchased = Math.max(0, Math.floor(state.workshop?.coreStarts?.[key] ?? 0))
+  if (!instance) return 0
+  const purchased = Math.max(0, Math.floor(state.workshop?.coreStarts?.[instance.id] ?? 0))
   const research = sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'coreStartLevel')
   return Math.max(0, Math.min(CORE_START_LEVEL_CAP, purchased + research))
 }
@@ -194,18 +177,6 @@ export function coreRunCategory(moduleId: string): RunUpgradeCategory {
   if (moduleId === 'nano-lathe') return 'defense'
   if (moduleId === 'grav-tether' || moduleId === 'sensor-array') return 'attack'
   return 'economy'
-}
-
-export function coreRunUpgradeCost(_level: number, _moduleId?: string): number {
-  return 0
-}
-
-export function coreRunBulkCost(_state: GameState, _slot: number, _count: number): number {
-  return 0
-}
-
-export function maxAffordableCoreRunPurchases(_state: GameState, _slot: number): number {
-  return 0
 }
 
 export function moduleMasteryXp(
@@ -337,15 +308,6 @@ export function combinedCoreMods(state: GameState, moduleId: string): MasteryMod
   return masteryModsFor(moduleId, moduleMasteryRank(state, moduleId))
 }
 
-export function effectiveRunLevel(state: GameState, slot: number): number {
-  const moduleId = state.shipyard.modules[slot]
-  if (!moduleId) return 0
-  const raw = coreRunLevel(state, slot)
-  const scale = combinedCoreMods(state, moduleId).runScaleMult
-  if (scale <= 1) return raw
-  return raw * scale
-}
-
 export function effectiveCoreLevel(state: GameState, slot: number): number {
   const moduleId = state.shipyard.modules[slot]
   if (!moduleId) return 0
@@ -387,22 +349,6 @@ export function corePrimaryOutput(state: GameState, slot: number): CorePrimaryOu
     return { label: 'Hull', current: cur, next: nxt }
   }
   return { label: 'Run', current: level, next: level + 1 }
-}
-
-export function buyCoreRunLevel(state: GameState, slot: number, count = 1): GameState {
-  void slot
-  void count
-  return state
-}
-
-export function buyCoreRunLevelByModule(state: GameState, moduleId: string, count = 1): GameState {
-  const slot = state.shipyard.modules.findIndex((id) => id === moduleId)
-  if (slot < 0) return state
-  return buyCoreRunLevel(state, slot, count)
-}
-
-export function pickAutoCoreRunSlot(_state: GameState): number | null {
-  return null
 }
 
 export function awardEquippedMasteryXp(
@@ -463,7 +409,7 @@ export function coreSortieRecords(state: GameState): CoreSortieRecord[] {
     return {
       moduleId: row.moduleId,
       slot: row.slot,
-      runLevel: coreRunLevel(state, row.slot),
+      runLevel: coreStartingLevelAtSlot(state, row.slot),
       masteryStart: start,
       masteryEnd: end,
       masteryXp: state.combat.coreMasteryXp?.[row.moduleId] ?? 0,
@@ -480,12 +426,4 @@ export function totalMasteryLevels(state: Pick<GameState, 'meta'>): number {
   return Object.values(state.meta.moduleMastery ?? {}).reduce((a, b) => a + Math.max(0, b), 0)
 }
 
-export function anyCoreRunLevel(_state: Pick<GameState, 'combat'>): number {
-  return 0
-}
-
 export { practicedCoreWork } from './corePractice'
-
-export function protocolScaledCoreCost(_state: GameState, _moduleId: string, _level: number): number {
-  return 0
-}

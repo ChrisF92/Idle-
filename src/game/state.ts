@@ -31,7 +31,6 @@ import {
   computeSignalCoreBonuses,
   createEmptySignalCoresState,
 } from './signalCores'
-import { fittedShieldMilestoneMult } from './milestones'
 import { combinedCoreMods, effectiveCoreLevel } from './coreProgression'
 import {
   createEmptyNetworkState,
@@ -118,9 +117,6 @@ export function createInitialState(now = Date.now()): GameState {
       equippedCoreIds: ['pulse-cannon:1', 'plate-layer:1'],
       unlockedFrames: [STARTER_FRAME_ID],
       unlockedModules: ['pulse-cannon', 'plate-layer'],
-      moduleLevels: {},
-      moduleCopies: { 'pulse-cannon': 1, 'plate-layer': 1 },
-      corePicks: {},
       frameLocked: false,
     },
     combat: {
@@ -181,6 +177,7 @@ export function createInitialState(now = Date.now()): GameState {
         pulseChainAt: {},
         phaseRamp: {},
         phaseLockMemory: {},
+        phaseExposureUntil: {},
         heavyFractureUntil: 0,
         gravWellUntil: 0,
         aegisOverflow: 0,
@@ -438,7 +435,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   armor += signalBonuses.armor
   shieldMax += signalBonuses.shield
   evasion += signalBonuses.evasion
-  shieldMax *= fittedShieldMilestoneMult(state)
   shieldMax *= foundryShieldMult(state)
   shieldMax += foundryShieldFlat(state)
   shieldMax *= reliquaryShieldMult(state)

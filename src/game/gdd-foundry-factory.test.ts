@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { assembleBlueprint, assignWorker, performRebuild, setFoundrySlot } from './actions'
 import { ACT1_CADENCE } from './cadence'
-import { isStationUnlocked, PART_TYPES, getBlueprint, partId } from './catalog'
+import { isStationUnlocked, getBlueprint, partId } from './catalog'
 import {
   FOUNDRY_FACILITIES,
   FOUNDRY_MASTERY_STEPS,
@@ -10,7 +10,6 @@ import {
   FOUNDRY_STARTING_SLOTS,
   armPendingFacilities,
   canStartFabrication,
-  claimFoundryCompletions,
   foundryCraftTime,
   foundryFabSlotCount,
   foundrySlotCount,
@@ -19,7 +18,6 @@ import {
   startFabrication,
   tickFoundry,
 } from './foundry'
-import { captureToastSnapshot, diffToasts } from './toasts'
 import { createInitialState, SAVE_VERSION } from './state'
 import { armRebuildDoor, atCareerWave } from './testHelpers'
 import { advanceSeconds } from './tick'
@@ -107,33 +105,14 @@ describe('GDD Foundry factory', () => {
     )
   })
 
-  it('fabricates Cores as a timed job, not an instant assemble', () => {
+  it('does not fabricate a final Core through leftover Foundry recipes', () => {
     let s = atFoundry(80)
     const moduleId = 'flak-array'
-    const recipe = getBlueprint(moduleId)
-    expect(recipe).toBeTruthy()
-    for (const pt of PART_TYPES) {
-      s.parts[partId(moduleId, pt)] = recipe![pt]
-    }
-    s.foundry.materials['slag-ingot'] = 20
-    s.foundry.materials['filament'] = 20
-    s.meta.discoveredModules = [...s.meta.discoveredModules, moduleId]
-    const check = canStartFabrication(s, 'core', moduleId)
-    expect(check.ok).toBe(true)
-    s = assembleBlueprint(s, moduleId)
-    expect(s.foundry.fabrication[0]?.kind).toBe('core')
-    expect(s.shipyard.unlockedModules.includes(moduleId)).toBe(false)
-    s.combat.docked = false
-    const prevToast = captureToastSnapshot(s)
-    tickFoundry(s, 12 * 60 + 5)
-    expect(s.foundry.pendingCores).toContain(moduleId)
-    expect(s.shipyard.unlockedModules.includes(moduleId)).toBe(false)
-    const toasts = diffToasts(prevToast, captureToastSnapshot(s), s)
-    expect(toasts.some((toast) => /FLAK ARRAY COMPLETE/i.test(toast.title))).toBe(true)
-    expect(toasts.some((toast) => /Available at Dock/i.test(toast.body))).toBe(true)
-    s.combat.docked = true
-    claimFoundryCompletions(s)
-    expect(s.shipyard.unlockedModules).toContain(moduleId)
+    expect(getBlueprint(moduleId)).toBeUndefined()
+    expect(canStartFabrication(s, 'core', moduleId).ok).toBe(false)
+    const after = assembleBlueprint(s, moduleId)
+    expect(after.foundry.fabrication[0]?.kind ?? null).not.toBe('core')
+    expect(after.shipyard.unlockedModules.includes(moduleId)).toBe(false)
   })
 
   it('builds facilities on a fabrication slot and applies them immediately', () => {
@@ -205,11 +184,9 @@ describe('GDD Foundry factory', () => {
     expect(s.parts[partId('flak-array', 'core')]).toBe(1)
   })
 
-  it('lets a Process rule start only the tracked Blueprint as a timed project', () => {
+  it('does not let leftover Process start fabrication of a final Core', () => {
     const moduleId = 'flak-array'
-    const recipe = getBlueprint(moduleId)!
     const s = atFoundry(ACT1_CADENCE.process)
-    for (const part of PART_TYPES) s.parts[partId(moduleId, part)] = recipe[part]
     s.meta.discoveredModules.push(moduleId)
     s.foundry.trackedPrintId = moduleId
     s.process.purchased = ['run-profiles']
@@ -231,11 +208,8 @@ describe('GDD Foundry factory', () => {
       ],
     }
     tickAutomation(s)
-    expect(s.foundry.fabrication[0]).toMatchObject({
-      kind: 'core',
-      jobId: moduleId,
-      complete: false,
-    })
+    expect(s.foundry.fabrication[0]?.jobId).not.toBe(moduleId)
     expect(s.shipyard.unlockedModules).not.toContain(moduleId)
+    expect(s.shipyard.coreInstances.every((row) => row.moduleId !== moduleId)).toBe(true)
   })
 })
