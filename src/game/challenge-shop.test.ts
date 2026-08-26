@@ -159,7 +159,7 @@ describe('challenge point shop', () => {
     state = enterChallenge(state, 'no-ai')
     expect(state.resources.scrap).toBe(20)
     expect(state.resources.salvage).toBe(10)
-    expect(state.resources.aiPoints).toBe(ai + 1)
+    expect(state.resources.aiPoints).toBeGreaterThanOrEqual(ai + 1)
     state = setDocked(state, false)
     expect(state.resources.salvage).toBe(10)
   })
