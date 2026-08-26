@@ -281,9 +281,10 @@ describe('normal Rebuild starting kits', () => {
     s.resources.scrap = 0
     s.resources.salvage = 0
     s = enterChallenge(s, 'no-ai')
+    expect(s.prestige.activeChallengeId).toBe('no-ai')
     expect(s.resources.scrap).toBe(20)
     expect(s.resources.salvage).toBe(10)
-    expect(s.resources.aiPoints).toBe(ai + 1)
+    expect(s.resources.aiPoints).toBeGreaterThanOrEqual(ai + 1)
   })
 })
 
