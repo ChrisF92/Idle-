@@ -1,8 +1,9 @@
 /** Relics — GDD §§25–31. Typed sockets on Cores, authored I–III tiers, Foundry upgrades. */
 
 import type { GameState, RelicSocketClass, ReliquaryColor, ReliquaryState } from './types'
-import { getModule, moduleMasteryRank } from './catalog'
+import { moduleMasteryRank } from './catalog'
 import { masteryMilestonesFor } from './coreProgression'
+import { matureSocketLayout } from './coreMastery'
 import { careerBestWave } from './progression'
 import { meetsWave } from './waves'
 import { protocolBonusMult, protocolMutes } from './protocols'
@@ -408,17 +409,7 @@ export function relicTier(def: ShardDef): 1 | 2 | 3 {
 }
 
 export function corePrimarySocket(moduleId: string): RelicSocketClass {
-  const def = getModule(moduleId)
-  const role = def?.role
-  if (role === 'defense') return 'shield'
-  if (role === 'utility') return 'industrial'
-  const delivery = def?.weapon?.delivery
-  const tags = def?.weapon?.tags ?? []
-  if (delivery === 'beam' || delivery === 'charge') return 'optical'
-  if (tags.includes('pierce') || tags.includes('splash') || tags.includes('kinetic')) {
-    return 'ballistic'
-  }
-  return 'power'
+  return matureSocketLayout(moduleId)[0]?.type ?? 'power'
 }
 
 export function coreSocketLayout(state: GameState, coreIdOrModuleId: string): RelicSocketClass[] {

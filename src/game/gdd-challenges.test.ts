@@ -143,7 +143,6 @@ describe('GDD Challenges', () => {
     expect(protocolRewardSummary(challengeState(), 'glass-ward')).toMatch(/Plate Chip/)
     expect(protocolRewardSummary(challengeState(), 'quiet-guns')).toMatch(/Shop Readout/)
     expect(protocolRewardSummary(challengeState(), 'mute-network')).toMatch(/Challenge Log/)
-    expect(protocolRewardSummary(challengeState(), 'mute-network')).toMatch(/Harvester/)
 
     let swarm = enterProtocol(challengeState(), 'mute-network')
     swarm.combat.wave = protocolGoalWave(swarm, 'mute-network')

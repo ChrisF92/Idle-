@@ -52,8 +52,8 @@ import { fitModule, selectFrame, unfitModule, buyCoreRunSlot, performRebuild } f
 import { importSave, exportSave } from './save'
 import { extractSortie, setDocked } from './tick'
 import { armRebuildDoor, atCareerWave, completeDefeat, forceUnlockModule } from './testHelpers'
-import { computeShipStats, createInitialState, SAVE_VERSION } from './state'
-import { buildPlayerFleet, dealCombatDamage, salvageFromKill } from './combat'
+import { createInitialState, SAVE_VERSION } from './state'
+import { buildPlayerFleet } from './combat'
 import { frameSensorTargetingContribution } from './coreTargeting'
 import { furnaceAshHeatMult } from './furnace'
 

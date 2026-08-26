@@ -11,7 +11,6 @@ import {
 import { isChallengeSortie } from './frontier'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
-import { milestoneModsFor } from './milestones'
 import {
   addCoreInstance,
   coreInstanceAtSlot,
@@ -335,18 +334,7 @@ export function masteryModsFor(moduleId: string, mastery: number): MasteryMods {
 }
 
 export function combinedCoreMods(state: GameState, moduleId: string): MasteryMods {
-  const mastery = masteryModsFor(moduleId, moduleMasteryRank(state, moduleId))
-  const legacy = milestoneModsFor(moduleId, state.shipyard.corePicks?.[moduleId])
-  return {
-    damageMult: mastery.damageMult * legacy.damageMult,
-    cooldownMult: mastery.cooldownMult * legacy.cooldownMult,
-    rangeAdd: mastery.rangeAdd + legacy.rangeAdd,
-    shieldMult: mastery.shieldMult * legacy.shieldMult,
-    regenAdd: mastery.regenAdd + legacy.regenAdd,
-    splashAdd: mastery.splashAdd,
-    salvageKillAdd: mastery.salvageKillAdd,
-    runScaleMult: mastery.runScaleMult,
-  }
+  return masteryModsFor(moduleId, moduleMasteryRank(state, moduleId))
 }
 
 export function effectiveRunLevel(state: GameState, slot: number): number {

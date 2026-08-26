@@ -178,9 +178,8 @@ describe('GDD Relics in Cores', () => {
     expect(reliquaryDamageMult(s)).toBe(1)
   })
 
-  it('maps Beam to Optical and Flak / Lance to Ballistic', () => {
+  it('maps authored mature sockets, not leftover Core IDs', () => {
     expect(corePrimarySocket('phase-beam')).toBe('optical')
-    expect(corePrimarySocket('charge-prism')).toBe('optical')
     expect(corePrimarySocket('flak-array')).toBe('ballistic')
     expect(corePrimarySocket('heavy-lance')).toBe('ballistic')
     expect(corePrimarySocket('pulse-cannon')).toBe('power')

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { fitModule, setCoreTargetingDoctrine, unfitModule } from './actions'
+import { setCoreTargetingDoctrine, unfitModule } from './actions'
 import { addCoreInstance } from './coreInstances'
 import { buildPlayerFleet, simulateCombat } from './combat'
 import {
