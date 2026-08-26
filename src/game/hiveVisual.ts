@@ -23,28 +23,16 @@ export function coreVisualKind(moduleId: string): CoreVisualKind {
   return 'pulse'
 }
 
-/** Sim / lane orbit. Do not change these without a combat pass. */
-export function coreOrbitRadius(kind: CoreVisualKind): number {
-  switch (kind) {
-    case 'flak':
-    case 'shield':
-      return 22
-    case 'pulse':
-      return 30
-    case 'utility':
-      return 34
-    case 'beam':
-      return 40
-    case 'heavy':
-      return 44
-  }
+/** Sim orbit. Authored on the Core definition (canonical seed band 38–58). */
+export function coreOrbitRadius(moduleId: string): number {
+  return getModule(moduleId)?.orbitRadius ?? 44
 }
 
-/** Extra pixels so Cores sit outside the larger Hive sprite. Presentation only. */
+/** Extra pixels so Cores sit outside the larger Hive sprite. Screen pad only. */
 export const CORE_SCREEN_ORBIT_PAD = 14
 
-export function coreScreenOrbit(kind: CoreVisualKind): number {
-  return coreOrbitRadius(kind) + CORE_SCREEN_ORBIT_PAD
+export function coreScreenOrbit(moduleId: string): number {
+  return coreOrbitRadius(moduleId) + CORE_SCREEN_ORBIT_PAD
 }
 
 /** Canvas radius of the Hive hull. Presentation only. */
@@ -281,7 +269,7 @@ export function equippedCoreVisuals(state: GameState) {
       role,
       kind,
       color: coreRoleColor(role),
-      orbit: coreOrbitRadius(kind),
+      orbit: coreOrbitRadius(id),
       speed: coreOrbitSpeed(kind),
       index,
     }

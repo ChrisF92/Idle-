@@ -117,13 +117,12 @@ export const PROTOCOLS: ProtocolDef[] = [
   {
     id: 'mute-network',
     name: 'Swarm Pressure',
-    blurb: 'Greatly increased enemy density. First clear unlocks the Harvester Frame. Completions improve permanent industry.',
+    blurb: 'Greatly increased enemy density. Completions improve permanent industry.',
     restriction: 'Encounters spawn far more hulls.',
     disabledSystems: [],
     mute: 'network',
     goalWave: 100,
     enemyDensityMult: 2.2,
-    unlocksFrame: 'harvester-frame',
     firstGrant: {
       kind: 'research',
       id: 'challenge-log',

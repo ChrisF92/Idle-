@@ -7,7 +7,9 @@
  */
 
 import { coreInstanceAtSlot, coreInstanceCopyNumber, resolveCoreInstance } from './coreInstances'
-import { getModule, SHORT_RANGE_MAX } from './catalog'
+import { hasMasteryEffect } from './coreMastery'
+import { frameTargetingSlewMult, getModule, SHORT_RANGE_MAX } from './catalog'
+import { phaseRampEstablished, sensorTargetingModifier } from './coreCombat'
 import {
   bearingBetween,
   degToRad,
@@ -176,9 +178,13 @@ export function matterTraverseContribution(state: GameState): TargetingStatModif
   return { slewRateMult: matterTraverseSlewMult(state) }
 }
 
-/** PR4 Frames / Sensor Array. */
-export function frameSensorTargetingContribution(_state: GameState): TargetingStatModifier {
-  return {}
+/** PR4 Frames / Sensor Array. Composed here; never bypasses the targeting engine. */
+export function frameSensorTargetingContribution(state: GameState): TargetingStatModifier {
+  const sensor = sensorTargetingModifier(state)
+  return {
+    slewRateMult: frameTargetingSlewMult(state) * sensor.slewRateMult,
+    acquisitionRangeMult: sensor.acquisitionRangeMult,
+  }
 }
 
 /** PR6 Relics (Tracking Gimbal, Fixed Mount, Predictive Bus). */
@@ -393,6 +399,7 @@ export function coreIsStronglyCommitted(state: GameState, core: CombatUnit): boo
   if (profile.requiresStabilisedAim && profile.profileId === 'phase-beam' && coreIsBeaming(state, core)) {
     return true
   }
+  if (profile.profileId === 'phase-beam' && phaseRampEstablished(state, core)) return true
   return false
 }
 
@@ -492,9 +499,14 @@ export function buildEvalBundle(state: GameState, enemies: CombatUnit[]): EvalBu
     let clusterCount = 0
     let clusterWeight = 0
     let clusterMass = ehp
+    const packLead = hasMasteryEffect(state, 'flak-array', 'flak-pack-prediction') ? 0.45 : 0
     for (const other of enemies) {
       if (other.id === unit.id) continue
-      if (distanceBetween(unit, other) <= CLUSTER_NEIGHBOUR_RADIUS) {
+      const ox = other.x + Math.sin(other.heading ?? 0) * other.speed * packLead
+      const oy = other.y + Math.cos(other.heading ?? 0) * other.speed * packLead
+      const ux = unit.x + Math.sin(unit.heading ?? 0) * unit.speed * packLead
+      const uy = unit.y + Math.cos(unit.heading ?? 0) * unit.speed * packLead
+      if (distanceBetween({ x: ux, y: uy }, { x: ox, y: oy }) <= CLUSTER_NEIGHBOUR_RADIUS) {
         clusterCount += 1
         const otherHp = effectiveHp(other)
         clusterMass += otherHp

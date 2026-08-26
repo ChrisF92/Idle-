@@ -4,14 +4,12 @@ import {
   HIVE_VISUAL_RADIUS,
   coreOrbitRadius,
   coreScreenOrbit,
-  coreVisualKind,
   hiveDrawRadius,
   hiveFramePalette,
   hiveFrameStyle,
   paintHiveStation,
 } from './hiveVisual'
-
-const KINDS = ['flak', 'shield', 'pulse', 'utility', 'beam', 'heavy'] as const
+import { SHIP_MODULES } from './catalog'
 
 describe('Hive Sortie presentation', () => {
   it('maps each Frame to a distinct architecture style and palette', () => {
@@ -25,13 +23,15 @@ describe('Hive Sortie presentation', () => {
     expect(strokes.size).toBe(styles.length)
   })
 
-  it('keeps sim orbits unchanged and parks screen Cores outside the hull', () => {
-    expect(coreOrbitRadius('pulse')).toBe(30)
-    expect(coreOrbitRadius(coreVisualKind('pulse-cannon'))).toBe(30)
+  it('uses authored Core orbit radii and parks screen Cores outside the hull', () => {
+    expect(coreOrbitRadius('pulse-cannon')).toBe(44)
+    expect(coreOrbitRadius('heavy-lance')).toBe(56)
     const hull = hiveDrawRadius(HIVE_VISUAL_RADIUS)
-    for (const kind of KINDS) {
-      expect(coreScreenOrbit(kind)).toBe(coreOrbitRadius(kind) + CORE_SCREEN_ORBIT_PAD)
-      expect(coreScreenOrbit(kind)).toBeGreaterThan(hull)
+    for (const mod of SHIP_MODULES) {
+      expect(coreOrbitRadius(mod.id)).toBeGreaterThanOrEqual(38)
+      expect(coreOrbitRadius(mod.id)).toBeLessThanOrEqual(58)
+      expect(coreScreenOrbit(mod.id)).toBe(coreOrbitRadius(mod.id) + CORE_SCREEN_ORBIT_PAD)
+      expect(coreScreenOrbit(mod.id)).toBeGreaterThan(hull)
     }
   })
 

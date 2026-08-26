@@ -24,8 +24,8 @@ function nextInstanceId(instances: CoreInstance[], moduleId: string): string {
 }
 
 /**
- * Hydrates physical Core copies from the legacy count + module arrays.
- * Mutates the supplied loadout so callers can use it during save migration.
+ * Hydrates physical Core copies from owned type counts and fitted slots.
+ * Current-version runtime only — not a save-schema translator.
  */
 export function normalizeCoreInstances(loadout: ShipLoadout): ShipLoadout {
   const instances = validInstances(loadout)

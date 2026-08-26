@@ -1,4 +1,5 @@
 import type { GameState } from './types'
+import { getModule } from './catalog'
 import { grantEnemyKillRewards } from './combat'
 import { advanceSeconds, DEFEAT_SEQUENCE_S, startCombat } from './tick'
 import { ACT1_CADENCE } from './cadence'
@@ -14,8 +15,11 @@ function wipeEnemies(state: GameState): void {
   state.combat.enemyHull = 0
 }
 
+import { addCoreInstance } from './coreInstances'
+
 /** Bypass scrap/fab gates — for tests that need a module already unlocked. */
 export function forceUnlockModule(state: GameState, moduleId: string): GameState {
+  if (!getModule(moduleId)) return state
   const next = structuredClone(state)
   if (!next.shipyard.unlockedModules.includes(moduleId)) {
     next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
@@ -23,6 +27,8 @@ export function forceUnlockModule(state: GameState, moduleId: string): GameState
   if (!next.meta.discoveredModules.includes(moduleId)) {
     next.meta.discoveredModules = [...next.meta.discoveredModules, moduleId]
   }
+  const owned = (next.shipyard.coreInstances ?? []).some((instance) => instance.moduleId === moduleId)
+  if (!owned) addCoreInstance(next.shipyard, moduleId)
   return next
 }
 

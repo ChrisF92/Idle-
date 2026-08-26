@@ -68,13 +68,6 @@ describe('Dock Core Levels', () => {
     )
   })
 
-  it('ignores retired per-Sortie Core levels in combat power', () => {
-    const s = live()
-    const before = computeShipStats(s).damage
-    s.combat.coreRunLevels = { '0': 5 }
-    expect(computeShipStats(s).damage).toBe(before)
-  })
-
   it('does not survive Rebuild as a cycle rank', () => {
     let s = armRebuildDoor(createInitialState(0))
     s.resources.scrap = 100
@@ -186,10 +179,7 @@ describe('Core Mastery', () => {
 describe('Core stat composition', () => {
   it('combines shared Mastery and the physical copy Core Level', () => {
     let s = createInitialState(0)
-    s.shipyard.moduleLevels = { 'pulse-cannon': 40 }
     const leftover = computeShipStats(s).damage
-    s.shipyard.moduleLevels = {}
-    expect(computeShipStats(s).damage).toBe(leftover)
 
     applyMasteryXp(s, 'pulse-cannon', 2000)
     const mastered = computeShipStats(s).damage

@@ -38,6 +38,23 @@ import { careerBestWave, isSystemUnlocked } from './progression'
 import { buildCoreWeapon, buildFlagshipWeapons, computeShipStats } from './state'
 import { coreOrbitRadius, coreOrbitSpeed, coreVisualKind } from './hiveVisual'
 import {
+  applyFlakDeathDetonation,
+  applyHeavyArmorFracture,
+  choirTapOnHighValueKill,
+  effectiveEnemyArmor,
+  flakSplashCount,
+  interceptEnemyProjectile,
+  mitigateIncomingToHive,
+  phaseRampMultiplier,
+  pulseChainHops,
+  pulseOverkillHop,
+  salvageMarkBonus,
+  spawnMoltenPool,
+  tickSupportCores,
+  tryBarrierIntercept,
+} from './coreCombat'
+import { hasMasteryEffect } from './coreMastery'
+import {
   gddEnemyBandForWave,
   isCommanderCandidateWave,
   type GddEnemyBandId,
@@ -1454,12 +1471,10 @@ function preserveWeaponCooldowns(prev: CombatUnit[], next: CombatUnit[]): void {
 export function buildCoreSatellite(state: GameState, slot: number, index: number, count: number): CombatUnit | null {
   const moduleId = state.shipyard.modules[slot]
   const mod = getModule(moduleId)
-  if (!mod?.weapon || mod.role !== 'weapon') return null
+  if (!mod) return null
   const weapon = buildCoreWeapon(state, slot)
-  if (!weapon) return null
   const instance = coreInstanceAtSlot(state, slot)
-  const kind = coreVisualKind(moduleId)
-  const orbit = coreOrbitRadius(kind)
+  const orbit = mod.orbitRadius
   const orbitAngle = count > 0 ? (index / count) * Math.PI * 2 : 0
   const pos = coreWorldPosition(orbit, orbitAngle)
   return {
@@ -1475,7 +1490,7 @@ export function buildCoreSatellite(state: GameState, slot: number, index: number
     armor: 0,
     evasion: 0,
     damageTakenMult: 1,
-    weapons: [weapon],
+    weapons: weapon ? [weapon] : [],
     isBoss: false,
     isFlagship: false,
     isCore: true,
@@ -1533,13 +1548,9 @@ export function buildPlayerFleet(state: GameState): CombatUnit[] {
     regenDelay: 0,
   }
 
-  const weaponSlots: number[] = []
-  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
-    const mod = getModule(state.shipyard.modules[slot]!)
-    if (mod?.weapon && mod.role === 'weapon') weaponSlots.push(slot)
-  }
-  const cores = weaponSlots
-    .map((slot, index) => buildCoreSatellite(state, slot, index, weaponSlots.length))
+  const slots = state.shipyard.modules.map((_, slot) => slot)
+  const cores = slots
+    .map((slot, index) => buildCoreSatellite(state, slot, index, slots.length))
     .filter((unit): unit is CombatUnit => Boolean(unit))
 
   return [hive, ...cores]
@@ -1689,7 +1700,6 @@ export function syncHullAggregates(state: GameState): void {
 export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
-  if (state.shipyard.modules.includes('nano-lathe')) rate *= 1.6
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
   rate += stationRepairBonus(state)
   rate *= reactorsRepairMult(state.core?.ranks.reactors ?? 0)
@@ -1731,8 +1741,7 @@ export function enemyApproachTarget(
 
 function syncCoreWorldPosition(unit: CombatUnit): void {
   if (!unit.isCore || !unit.coreModuleId) return
-  const kind = coreVisualKind(unit.coreModuleId)
-  const orbit = unit.orbitRadius ?? coreOrbitRadius(kind)
+  const orbit = unit.orbitRadius ?? coreOrbitRadius(unit.coreModuleId)
   unit.orbitRadius = orbit
   unit.orbitAngle = wrapTau(unit.orbitAngle ?? 0)
   unit.heading = wrapTau(unit.heading ?? unit.orbitAngle)
@@ -1962,7 +1971,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     fittedSalvageKillMult(state) *
     processSalvageMult(state) *
     salvageKillMult(state) *
-    frameSalvageMult(state)
+    frameSalvageMult(state) *
+    (1 + salvageMarkBonus(state, unit))
   state.resources.salvage +=
     salvageFromKill(rewardWaveOf(unit), unit.isBoss, undefined, state) * salvageMult * rewardWeight
   const scrap = scrapKillBonus(state, unit.isBoss) * rewardWeight * combatScrapMatterMult(state)
@@ -1980,6 +1990,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     )
     grantFurnaceKillLoot(state, unit.isBoss)
   }
+  choirTapOnHighValueKill(state, unit)
   grantHiveResearchKillXp(
     state,
     unit.isBoss,
@@ -2030,16 +2041,30 @@ function applyDamageToUnit(
   rawDamage: number,
   tags: WeaponTag[],
   profile?: WeaponDamageProfile,
+  state?: GameState,
 ): number {
   if (target.untargetable || target.isCore) return 0
   const vs = profile ?? weaponDamageProfile(tags)
   let remaining = rawDamage * target.damageTakenMult
 
+  if (state && target.isFlagship && target.side === 'player') {
+    remaining = mitigateIncomingToHive(state, target, remaining, tags)
+    if (remaining <= 0) return 0
+    if (tryBarrierIntercept(state, target, remaining)) return 0
+  }
+
   if (tags.includes('antiShield') && target.shield > 0) {
     remaining *= 1.5
   }
-
   let dealt = 0
+  if (state && tags.includes('bypass') && target.shield > 0 && target.hull > 0) {
+    const bypass = remaining * 0.35
+    remaining -= bypass
+    const hullHit = Math.min(target.hull, bypass)
+    target.hull -= hullHit
+    dealt += hullHit
+  }
+
   if (target.shield > 0 && remaining > 0) {
     const shieldHit = remaining * vs.shieldDamage
     const toShield = Math.min(target.shield, Math.max(0, shieldHit))
@@ -2054,7 +2079,7 @@ function applyDamageToUnit(
   if (remaining > 0 && target.hull > 0) {
     const armored = target.family === 'armored'
     let hullHit = remaining * (armored ? vs.armorDamage : vs.hullDamage)
-    let armor = target.armor
+    let armor = state ? effectiveEnemyArmor(state, target) : target.armor
     if (tags.includes('pierce')) armor *= 0.5
     // USI armour HP already uses the 0.25× multiplier; don't also subtract.
     if (armored && vs.armorDamage < 1) armor = 0
@@ -2095,8 +2120,9 @@ export function dealCombatDamage(
   rawDamage: number,
   tags: WeaponTag[] = ['energy'],
   profile?: WeaponDamageProfile,
+  state?: GameState,
 ): number {
-  return applyDamageToUnit(target, rawDamage, tags, profile)
+  return applyDamageToUnit(target, rawDamage, tags, profile, state)
 }
 
 function incomingDefenseMult(
@@ -2251,11 +2277,11 @@ function tickBeams(
     }
     const prevHull = target.hull
     const shieldBefore = target.shield
-    const dealt = applyDamageToUnit(target, dmg, beam.tags, {
+      const dealt = applyDamageToUnit(target, dmg, beam.tags, {
       hullDamage: beam.hullDamage ?? 1,
       shieldDamage: beam.shieldDamage ?? 1,
       armorDamage: beam.armorDamage ?? 0.25,
-    })
+    }, state)
     noteCombatHit(state, beam.side, target, dealt, shieldBefore, from.role ?? beam.attackerRole)
     tryLootEnemyKill(state, target, prevHull)
     beam.popupAcc = (beam.popupAcc ?? 0) + dealt
@@ -2313,6 +2339,9 @@ function updateProjectiles(
         continue
       }
 
+      if (shot.side !== 'player' && interceptEnemyProjectile(state, shot)) {
+        continue
+      }
       let dmg = shot.damage
       if (shot.side !== 'player') {
         dmg *= incomingDefenseMult(target, shot.attackerFamily, roles, matchupScale)
@@ -2323,9 +2352,15 @@ function updateProjectiles(
         hullDamage: shot.hullDamage ?? 1,
         shieldDamage: shot.shieldDamage ?? 1,
         armorDamage: shot.armorDamage ?? 0.25,
-      })
+      }, state)
       noteCombatHit(state, shot.side, target, dealt, shieldBefore, shot.attackerRole)
       tryLootEnemyKill(state, target, prevHull)
+      if (shot.side === 'player' && prevHull > 0 && target.hull <= 0) {
+        applyFlakDeathDetonation(state, target, shot.damage)
+      }
+      if (shot.side === 'player' && shot.tags.includes('dot')) {
+        spawnMoltenPool(state, target.x, target.y)
+      }
       if (shot.dotDuration > 0 && shot.dotDamage > 0) {
         target.dots.push({ dps: shot.dotDamage, remaining: shot.dotDuration })
       }
@@ -2364,12 +2399,31 @@ function deliverPlayerShot(
   bossProtocol: boolean,
 ): boolean {
   if (target.hull <= 0) return false
-  let dmg = weapon.damage
+  let dmg = weapon.damage * phaseRampMultiplier(state, unit)
+  if (unit.coreModuleId === 'heavy-lance' && hasMasteryEffect(state, 'heavy-lance', 'heavy-shield-bypass')) {
+    if (!weapon.tags.includes('bypass')) weapon.tags = [...weapon.tags, 'bypass']
+  }
+  if (unit.coreModuleId === 'heavy-lance' && hasMasteryEffect(state, 'heavy-lance', 'heavy-pierce')) {
+    if (!weapon.tags.includes('pierce')) weapon.tags = [...weapon.tags, 'pierce']
+  }
   dmg *= matchupMultiplier(weapon.tags, target, roles, matchupScale, bossProtocol)
   if (weapon.delivery === 'beam') {
     spawnBeam(state, unit, target, dmg, weapon)
   } else {
     spawnProjectile(state, unit, target, dmg, weapon)
+  }
+  if (unit.coreModuleId === 'heavy-lance' && hasMasteryEffect(state, 'heavy-lance', 'heavy-armor-fracture')) {
+    applyHeavyArmorFracture(state)
+  }
+  if (unit.coreModuleId === 'pulse-cannon') {
+    const hops = pulseChainHops(state, unit.coreInstanceId ?? unit.id)
+    let from = target
+    for (let i = 0; i < hops; i += 1) {
+      const next = pulseOverkillHop(state, from, dmg * 0.45, from.id)
+      if (!next) break
+      spawnProjectile(state, unit, next, dmg * 0.45, weapon)
+      from = next
+    }
   }
   return true
 }
@@ -2382,7 +2436,11 @@ function splashTargets(
   weapon: WeaponInstance,
   fireRange: number,
 ): CombatUnit[] {
-  if (!(weapon.splash > 0 || weapon.tags.includes('splash'))) return [primary]
+  const splashCap =
+    unit.coreModuleId === 'flak-array' ? flakSplashCount(state, weapon.splash || 1) : weapon.splash || 1
+  if (!(weapon.splash > 0 || weapon.tags.includes('splash') || unit.coreModuleId === 'flak-array')) {
+    return [primary]
+  }
   const extras = foes
     .filter(
       (u) =>
@@ -2391,7 +2449,7 @@ function splashTargets(
         combatDistance(unit, u) <= fireRange + 0.5,
     )
     .sort((a, b) => combatDistance(unit, a) - combatDistance(unit, b))
-    .slice(0, weapon.splash || 1)
+    .slice(0, splashCap)
   return [primary, ...extras]
 }
 
@@ -2494,6 +2552,7 @@ export function simulateCombat(
 
   moveUnits(state, dt)
   tickPlayerCoreTargeting(state, dt)
+  tickSupportCores(state, dt)
 
   const masteryRegen = state.shipyard.modules.reduce(
     (n, id) => n + combinedCoreMods(state, id).regenAdd,

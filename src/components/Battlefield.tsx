@@ -544,7 +544,7 @@ function ensureWeaponSpins(scene: Scene): void {
       kind,
       angle: scene.time * speed + (ids.length > 0 ? (index / ids.length) * Math.PI * 2 : 0),
       holdT: 0,
-      orbit: coreScreenOrbit(kind),
+      orbit: coreScreenOrbit(id),
       speed,
     })
   })
@@ -578,10 +578,10 @@ function refreshCoreSlots(scene: Scene, hive = hiveCenter(scene)): void {
   const ids = scene.coreIds
   scene.coreSlots = ids.map((id, index) => {
     const kind = coreVisualKind(id)
-    const orbit = coreScreenOrbit(kind)
+    const orbit = coreScreenOrbit(id)
     const speed = coreOrbitSpeed(kind)
     const role = getModule(id)?.role ?? 'utility'
-    const sim = role === 'weapon' ? simCoreForSlot(scene, id, index) : undefined
+    const sim = simCoreForSlot(scene, id, index)
     if (sim) {
       const pos = worldToScreen(sim.x, sim.y)
       const firing =

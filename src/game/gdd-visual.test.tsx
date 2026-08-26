@@ -108,7 +108,6 @@ describe('GDD visual layout and Dock Core Levels', () => {
     s = launch(s)
     s.resources.salvage = 80
     s = upgradeModule(s, 'pulse-cannon')
-    expect(s.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
     expect(s.resources.salvage).toBe(80)
     expect(s.resources.scrap).toBe(80)
   })

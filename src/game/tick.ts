@@ -1,4 +1,5 @@
 import type { GameState, Resources } from './types'
+import { emptySortieCoreRuntime } from './coreCombat'
 import {
   computeShipStats,
   createInitialState,
@@ -624,6 +625,7 @@ export function beginFight(state: GameState, keepFleet = false): void {
   state.combat.fightElapsed = 0
   state.shipyard.frameLocked = true
   state.combat.inFight = true
+  state.combat.coreRuntime = emptySortieCoreRuntime()
   state.combat.isBoss = false
   state.combat.bossPhase = 0
   state.combat.bossMechanic = undefined
@@ -664,8 +666,6 @@ function launchFromDock(state: GameState): void {
     state.resources.salvage = 0
   }
   applyWorkshopCoreStarts(state)
-  state.combat.coreRunLevels = {}
-  state.combat.coreSalvageSpent = {}
   state.combat.coreMasteryXp = {}
   state.combat.coreBossClears = {}
   state.combat.coreNewBest = {}

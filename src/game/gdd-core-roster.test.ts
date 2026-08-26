@@ -4,7 +4,9 @@ import {
   canDropModulePart,
   getBlueprint,
   GDD_ROSTER_CORE_IDS,
+  getModule,
   isGddRosterCore,
+  LEGACY_CORE_IDS,
   listFarmableCores,
   listFoundryPrintCards,
   formatPrintSourceLine,
@@ -17,24 +19,11 @@ import { FOUNDRY_LOGS } from './logs'
 import { createInitialState } from './state'
 import { atCareerWave, forceUnlockModule } from './testHelpers'
 
-const LEFTOVER_CORES = [
-  'rail-driver',
-  'ion-burst',
-  'swarm-rack',
-  'arc-lash',
-  'slag-spit',
-  'lattice-ward',
-  'ablative-mesh',
-  'keel-baffle',
-  'vector-thruster',
-  'grav-tether',
-  'sensor-whisker',
-  'salvage-rig',
-]
+const LEFTOVER_CORES = [...LEGACY_CORE_IDS]
 
 describe('GDD Core roster and acquisition', () => {
   it('hides leftover Cores from Foundry Blueprints on a fresh career', () => {
-    const late = atCareerWave(createInitialState(0), 300)
+    const late = atCareerWave(createInitialState(0), 400)
     const ids = listFarmableCores(late).map((mod) => mod.id)
     expect(ids).toEqual(expect.arrayContaining(['flak-array', 'phase-beam', 'heavy-lance', 'barrier-projector']))
     for (const id of LEFTOVER_CORES) {
@@ -44,14 +33,16 @@ describe('GDD Core roster and acquisition', () => {
     }
     for (const id of GDD_ROSTER_CORE_IDS) {
       if (id === 'pulse-cannon' || id === 'plate-layer') continue
+      if (modulePrintWave(id) > 400) continue
       expect(ids).toContain(id)
     }
   })
 
-  it('still lists a leftover Core after it is already unlocked', () => {
+  it('does not restore leftover Core identities even after a test grant', () => {
     let s = atCareerWave(createInitialState(0), 300)
     s = forceUnlockModule(s, 'rail-driver')
-    expect(listFarmableCores(s).some((mod) => mod.id === 'rail-driver')).toBe(true)
+    expect(getModule('rail-driver')).toBeUndefined()
+    expect(listFarmableCores(s).some((mod) => mod.id === 'rail-driver')).toBe(false)
   })
 
   it('tells the player to fabricate then equip at Dock, including mid-Sortie', () => {
@@ -88,9 +79,7 @@ describe('GDD Core roster and acquisition', () => {
 
   it('shows upcoming GDD prints with drop Wave and family at Foundry unlock', () => {
     const early = atCareerWave(createInitialState(0), 20)
-    expect(listFarmableCores(early).map((m) => m.id)).toEqual(
-      expect.arrayContaining(['flak-array', 'heavy-lance']),
-    )
+    expect(listFarmableCores(early).map((m) => m.id)).not.toContain('flak-array')
     const cards = listFoundryPrintCards(early)
     expect(cards.map((m) => m.id)).toEqual(expect.arrayContaining(['flak-array', 'heavy-lance', 'phase-beam']))
     for (const id of LEFTOVER_CORES) {

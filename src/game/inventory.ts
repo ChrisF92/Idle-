@@ -121,10 +121,7 @@ export function inventoryEquipment(state: GameState): EquipmentRow[] {
     name: frame.name,
     owned: true,
     equipped: state.shipyard.frameId === frame.id,
-    blurb:
-      frame.utilitySlots + frame.weaponSlots + frame.defenseSlots > 2
-        ? `${frame.weaponSlots}W · ${frame.defenseSlots}D · ${frame.utilitySlots}U`
-        : 'Balanced · 2 Core slots',
+    blurb: `${frame.identity} · ${frame.tradeoff}`,
   }))
 
   const cores = SHIP_MODULES.map((mod) => coreCopyBreakdown(state, mod.id)).filter(
@@ -261,9 +258,7 @@ export function loadoutRelicFill(state: GameState): { filled: number; sockets: n
 export function frameBlurb(state: GameState): string {
   const frame = getFrame(state.shipyard.frameId)
   if (!frame) return 'Hive'
-  const slots = frame.weaponSlots + frame.defenseSlots + frame.utilitySlots
-  if (frame.id === 'starter-frame' || slots <= 2) return 'Balanced · 2 Core slots'
-  return `${frame.weaponSlots} weapon · ${frame.defenseSlots} defense · ${frame.utilitySlots} utility`
+  return `${frame.identity} · ${frame.tradeoff}`
 }
 
 export const RELIC_STORAGE_NOTE =

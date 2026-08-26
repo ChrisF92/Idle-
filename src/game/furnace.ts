@@ -17,6 +17,7 @@ import { noteSystemAction } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 import { directiveHeatMult } from './directives'
 import { frameAshMult, frameFurnaceOutputMult, frameHeatMult } from './catalog'
+import { choirTapAshToHeatMult } from './coreCombat'
 import { ashYieldMult } from './workshop'
 
 export const FURNACE_UNLOCK_SECTOR = ACT1_CADENCE.furnace
@@ -240,7 +241,7 @@ export function furnaceKindleMult(state: GameState): number {
 }
 
 export function furnaceAshHeatMult(state: GameState, extra = 1): number {
-  return Math.max(0.1, extra) * furnaceKindleMult(state) * frameHeatMult(state)
+  return Math.max(0.1, extra) * furnaceKindleMult(state) * frameHeatMult(state) * choirTapAshToHeatMult(state)
 }
 
 export function furnaceIdleGenPerSec(_state: GameState): number {

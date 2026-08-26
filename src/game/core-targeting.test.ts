@@ -132,7 +132,7 @@ describe('canonical targeting profiles', () => {
     expect(targetingProfileFor('flak-array').allowedDoctrines).toEqual(['cluster', 'threat', 'execution'])
     expect(targetingProfileFor('phase-beam').defaultDoctrine).toBe('focus')
     expect(targetingProfileFor('phase-beam').allowedDoctrines).toEqual(['focus', 'heavy', 'shield'])
-    expect(targetingProfileFor('slag-spit').defaultDoctrine).toBe('cluster')
+    expect(targetingProfileFor('slag-spitter').defaultDoctrine).toBe('cluster')
     expect(targetingProfileFor('slag-spitter').allowedDoctrines).toEqual(['cluster', 'heavy', 'threat'])
   })
 
@@ -604,11 +604,11 @@ describe('Fire-Control Doctrine gate', () => {
 })
 
 describe('targeting-capable Core gate', () => {
-  it('rejects Doctrine configuration on defense Cores and still falls back for legacy weapons', () => {
+  it('rejects Doctrine configuration on defense Cores and leftover weapon IDs', () => {
     expect(isTargetingCapableCoreModule('plate-layer')).toBe(false)
     expect(isTargetingCapableCoreModule('pulse-cannon')).toBe(true)
-    expect(isTargetingCapableCoreModule('rail-driver')).toBe(true)
-    expect(targetingProfileFor('rail-driver').profileId).toBe('legacy-fallback')
+    expect(isTargetingCapableCoreModule('rail-driver')).toBe(false)
+    expect(targetingProfileFor('rail-driver').fireRange).toBe(0)
     expect(targetingProfileFor('plate-layer').fireRange).toBe(0)
 
     let state = enableFireControlDoctrineForTests(createInitialState(0))
@@ -616,12 +616,6 @@ describe('targeting-capable Core gate', () => {
     const blocked = setCoreTargetingDoctrine(state, plate.id, 'threat')
     expect(blocked).toBe(state)
     expect(blocked.shipyard.coreInstances.find((row) => row.id === plate.id)?.targetingDoctrine).toBeUndefined()
-
-    state = unfitModule(state, 'pulse-cannon')
-    const rail = addCoreInstance(state.shipyard, 'rail-driver')
-    state = fitModule(state, 'rail-driver', rail.id)
-    state = setCoreTargetingDoctrine(state, rail.id, 'focus')
-    expect(state.shipyard.coreInstances.find((row) => row.id === rail.id)?.targetingDoctrine).toBe('focus')
   })
 })
 
@@ -739,7 +733,7 @@ describe('acquisition, slew, and firing solution', () => {
     core.coreModuleId = 'flak-array'
     core.heading = bearing + degToRad(80)
     expect(firingSolution(state, core, target).canFire).toBe(true)
-    core.coreModuleId = 'slag-spit'
+    core.coreModuleId = 'slag-spitter'
     expect(firingSolution(state, core, target).canFire).toBe(true)
     core.coreModuleId = 'phase-beam'
     core.heading = bearing + degToRad(20)
@@ -810,7 +804,7 @@ describe('physical shot origin and persistence', () => {
     core.heading = 1.7
     core.orbitAngle = 0.4
     core.targetingTelemetry = { ...emptyTargetingTelemetry(), targetSwitches: 3, timeSlewLimited: 1.2 }
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     saveGame(state)
     const loaded = loadOrCreateGame()
     const loadedCore = loaded.combat.playerUnits.find((u) => u.isCore)!
@@ -916,11 +910,10 @@ describe('range / arc identity', () => {
     expect(effectiveCoreSlewRate(state, core)).toBe(360)
   })
 
-  it('uses the isolated legacy fallback for non-final weapon IDs', () => {
+  it('returns an empty profile for leftover weapon IDs', () => {
     const profile = targetingProfileFor('rail-driver')
-    expect(profile.profileId).toBe('legacy-fallback')
-    expect(profile.defaultDoctrine).toBe('threat')
-    expect(profile.acquisitionRange).toBeCloseTo(profile.fireRange * 1.4)
+    expect(profile.fireRange).toBe(0)
+    expect(profile.acquisitionRange).toBe(0)
   })
 })
 

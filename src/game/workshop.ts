@@ -542,8 +542,6 @@ export function snapshotWorkshopCoreStarts(state: GameState): void {
 
 /** After a Sortie, temporary Salvage upgrades clear. Physical Core Levels persist. */
 export function resetRunCoreLevels(state: GameState): void {
-  state.combat.coreRunLevels = {}
-  state.combat.coreSalvageSpent = {}
   state.combat.coreMasteryStart = {}
   state.combat.coreMasteryXp = {}
   state.combat.coreBossClears = {}

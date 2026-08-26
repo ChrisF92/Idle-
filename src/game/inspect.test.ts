@@ -14,7 +14,6 @@ describe('inspect sheets', () => {
     const s = createInitialState(0)
     s.base.workerDrones = 5
     s.base.assignments['scrap-field'] = 2
-    s.combat.coreRunLevels = { '0': 3 }
     s.combat.docked = false
     s.resources.salvage = 12
     s.resources.choirAsh = 25

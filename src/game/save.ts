@@ -128,8 +128,6 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     isBoss: combat.isBoss ?? false,
     bestWave: Math.max(0, Math.floor(Number(combat.bestWave ?? 0) || 0)),
     runUpgrades: { ...(combat.runUpgrades ?? {}) },
-    coreRunLevels: {},
-    coreSalvageSpent: {},
     coreMasteryStart: { ...(combat.coreMasteryStart ?? {}) },
     coreMasteryXp: { ...(combat.coreMasteryXp ?? {}) },
     coreBossClears: { ...(combat.coreBossClears ?? {}) },
@@ -214,6 +212,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     directiveOffer: Array.isArray(combat.directiveOffer)
       ? combat.directiveOffer.filter((id): id is string => typeof id === 'string')
       : null,
+    coreRuntime: combat.coreRuntime,
   }
 }
 
@@ -703,6 +702,12 @@ function withMetaDefaults(
       economy: Math.max(2, Math.floor(Number(meta?.genericUpgradeUnlocks?.economy ?? 2) || 2)),
     },
     extractionExplained: meta?.extractionExplained === true,
+    coreSlotGrants: Array.isArray(meta?.coreSlotGrants)
+      ? meta.coreSlotGrants.filter(
+          (row): row is NonNullable<GameState['meta']['coreSlotGrants']>[number] =>
+            Boolean(row && typeof row.id === 'string' && Number(row.slots) > 0),
+        )
+      : [],
   }
 }
 

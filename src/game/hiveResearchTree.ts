@@ -84,7 +84,6 @@ export const RESEARCH_TREE: HiveResearchNodeDef[] = [
     duration: BT * 1.2,
     kind: 'breakthrough',
     furnaceSlots: 1,
-    unlockFrame: 'reactor-frame',
   },
   {
     id: 'workshop-primer',

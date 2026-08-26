@@ -4,13 +4,13 @@ import {
   SHIP_FRAMES,
   SHIP_MODULES,
   canFitModuleOnFrame,
-  frameTotalSlots,
   frameUnlockLine,
   getFrame,
   getModule,
   moduleMasteryRank,
   trimModulesToFrame,
 } from '../game/catalog'
+import { usableCoreSlots } from '../game/coreSlots'
 import {
   moduleMasteryXp,
   masteryXpToNext,
@@ -21,7 +21,7 @@ import {
   coreStartingLevel,
   coreStartingUpgradeCost,
 } from '../game/coreProgression'
-import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
+import { targetingProfileFor } from '../game/targetingProfiles'
 import { formatCompact } from '../game/format'
 import {
   coreContributionPct,
@@ -30,11 +30,9 @@ import {
   formatStatShift,
   previewLoadoutStats,
 } from '../game/uiReadout'
-import { isRelicsUnlocked } from '../game/reliquary'
 import { coreCopyBreakdown } from '../game/inventory'
 import { inspectCore } from '../game/inspect'
 import { InspectName } from './InspectName'
-import { RelicSockets } from './CoreSheet'
 import { BottomSheet, Kicker, StatPair } from '../ui/primitives'
 import {
   availableCoreInstances,
@@ -55,25 +53,26 @@ interface FrameSheetProps {
 }
 
 export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps) {
-  const extra = { utility: hiveResearchExtraUtilitySlots(state) }
   const current = getFrame(state.shipyard.frameId)
+  const slotsNow = usableCoreSlots(state)
 
   return (
     <BottomSheet open title="Hive Frame" onClose={onClose} overlayId="frame-sheet" size="full">
         {locked ? <p className="muted">Frame changes are locked until Dock.</p> : null}
           {SHIP_FRAMES.map((frame) => {
             const owned = state.shipyard.unlockedFrames.includes(frame.id)
-            const nextModules = trimModulesToFrame(state.shipyard.modules, frame, extra)
+            const nextSlots = usableCoreSlots(state, frame.id)
+            const nextModules = trimModulesToFrame(state.shipyard.modules, nextSlots)
             const compare = previewLoadoutStats(state, frame.id, nextModules)
             const selected = frame.id === state.shipyard.frameId
-            const slotsNow = current ? frameTotalSlots(current) + extra.utility : 0
-            const slotsNext = frameTotalSlots(frame) + extra.utility
             return (
               <article key={frame.id} className={selected ? 'upgrade-card is-affordable' : 'upgrade-card'}>
                 <header className="upgrade-card-head">
                   <strong>{frame.name}</strong>
                   {selected ? <span className="muted">Equipped</span> : owned ? null : <span className="muted">Locked</span>}
                 </header>
+                <p>{frame.identity}</p>
+                <p className="muted">{frame.tradeoff}</p>
                 <p className="muted">{frame.description}</p>
                 <dl className="upgrade-card-stats">
                   <div>
@@ -81,16 +80,8 @@ export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps)
                     <dd>{formatCompact(frame.baseHull)}</dd>
                   </div>
                   <div>
-                    <dt>Weapon</dt>
-                    <dd>{frame.weaponSlots}</dd>
-                  </div>
-                  <div>
-                    <dt>Defense</dt>
-                    <dd>{frame.defenseSlots}</dd>
-                  </div>
-                  <div>
-                    <dt>Utility</dt>
-                    <dd>{frame.utilitySlots + extra.utility}</dd>
+                    <dt>Core slots</dt>
+                    <dd>{nextSlots}</dd>
                   </div>
                 </dl>
                 {owned && !selected ? (
@@ -109,7 +100,7 @@ export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps)
                     </div>
                     <div>
                       <dt>Slots</dt>
-                      <dd>{formatStatShift(slotsNow, slotsNext)}</dd>
+                      <dd>{formatStatShift(slotsNow, nextSlots)}</dd>
                     </div>
                   </dl>
                 ) : null}
@@ -137,9 +128,6 @@ interface CoreDetailSheetProps {
   locked?: boolean
   onChange?: () => void
   onClose: () => void
-  onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
-  onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
-  onUpgradeRelic?: (relicId: string) => void
   onUpgradeCore?: (coreInstanceId: string, count?: number) => void
 }
 
@@ -150,9 +138,6 @@ export function CoreDetailSheet({
   locked,
   onChange,
   onClose,
-  onEquipRelic,
-  onRemoveRelic,
-  onUpgradeRelic,
   onUpgradeCore,
 }: CoreDetailSheetProps) {
   const def = getModule(moduleId)
@@ -196,6 +181,20 @@ export function CoreDetailSheet({
       <p className="ui-meta">
         {xp} / {need} XP
       </p>
+      <p>{def.identity}</p>
+      <p className="muted">{def.description}</p>
+      <p className="ui-meta">Instance {coreInstanceId}</p>
+      {(() => {
+        const profile = targetingProfileFor(moduleId)
+        if (profile.fireRange <= 0) return null
+        return (
+          <div className="ui-context-bar">
+            <StatPair label="Doctrine" value={profile.defaultDoctrine} />
+            <StatPair label="Arc" value={`${profile.firingArcDeg}°`} />
+            <StatPair label="Slew" value={profile.slewClass} />
+          </div>
+        )
+      })()}
       <div className="ui-context-bar">
         <StatPair label="Core level" value={`${coreLevel} / ${CORE_START_LEVEL_CAP}`} />
         <StatPair label="Mastery" value={mastery} />
@@ -243,16 +242,6 @@ export function CoreDetailSheet({
           )
         })}
       </section>
-      {isRelicsUnlocked(state) ? (
-        <RelicSockets
-          state={state}
-          moduleId={moduleId}
-          coreInstanceId={coreInstanceId}
-          onEquipRelic={locked ? undefined : onEquipRelic}
-          onRemoveRelic={locked ? undefined : onRemoveRelic}
-          onUpgradeRelic={locked ? undefined : onUpgradeRelic}
-        />
-      ) : null}
     </BottomSheet>
   )
 }
@@ -271,15 +260,12 @@ export function CorePicker({
   state,
   replaceId,
   replaceCoreInstanceId,
-  role,
+  role: _role,
   locked,
   onEquip,
   onClose,
 }: CorePickerProps) {
-  const extra = { utility: hiveResearchExtraUtilitySlots(state) }
-  const frame = getFrame(state.shipyard.frameId)
-  const current = replaceId ? getModule(replaceId) : null
-  const wantRole = role ?? current?.role
+  const slots = usableCoreSlots(state)
   const replaceSlot = replaceCoreInstanceId
     ? state.shipyard.equippedCoreIds.indexOf(replaceCoreInstanceId)
     : replaceId
@@ -294,8 +280,7 @@ export function CorePicker({
     .flatMap((instance) => {
       const mod = SHIP_MODULES.find((candidate) => candidate.id === instance.moduleId)
       if (!mod || !state.shipyard.unlockedModules.includes(mod.id)) return []
-      if (wantRole && mod.role !== wantRole) return []
-      if (frame && !canFitModuleOnFrame(frame, without, mod.id, extra)) return []
+      if (!canFitModuleOnFrame(without, mod.id, slots)) return []
       return [{ mod, coreInstanceId: instance.id }]
     })
 
@@ -309,10 +294,8 @@ export function CorePicker({
     >
         {locked ? <p className="muted">Loadout changes are locked until Dock.</p> : null}
           {options.map(({ mod, coreInstanceId }) => {
-            const nextModules = frame ? trimModulesToFrame([...without, mod.id], frame, extra) : [...without, mod.id]
-            const fits = frame
-              ? canFitModuleOnFrame(frame, without, mod.id, extra)
-              : true
+            const nextModules = trimModulesToFrame([...without, mod.id], slots)
+            const fits = canFitModuleOnFrame(without, mod.id, slots)
             const compare = previewLoadoutStats(state, state.shipyard.frameId, nextModules)
             const mastery = moduleMasteryRank(state, mod.id)
             const dps = coreDps(state, mod.id)
@@ -327,6 +310,7 @@ export function CorePicker({
                     {copies ? ` · ×${copies.owned} · Eq ${copies.equipped}` : ''}
                   </span>
                 </header>
+                <p>{mod.identity}</p>
                 <p className="muted">{mod.description}</p>
                 {dps > 0 ? <p>DPS {formatCompact(dps)}</p> : null}
                 {fits ? (
@@ -345,7 +329,7 @@ export function CorePicker({
                     </div>
                   </dl>
                 ) : (
-                  <p className="muted">No free {ROLE_LABEL[mod.role]} slot on this Frame.</p>
+                  <p className="muted">No free universal Core slot on this Frame.</p>
                 )}
                 <button
                   type="button"

@@ -9,20 +9,18 @@ import {
   getFrame,
 } from './catalog'
 import { applyDevAction } from './dev'
-import { fitModule, selectFrame, setFoundrySlot, unlockFrame } from './actions'
+import { fitModule, selectFrame, unlockFrame } from './actions'
 import { furnaceAshHeatMult } from './furnace'
-import { hiveResearchNodeDuration, getHiveResearchNode, tickResearch } from './hiveResearch'
-import { maybeGrantSystemUnlocks } from './progression'
-import { tryCompleteProtocol } from './protocols'
 import { computeShipStats, createInitialState, SAVE_VERSION } from './state'
-import { atCareerWave } from './testHelpers'
-import { advanceSeconds } from './tick'
 import { formatStatShift, previewLoadoutStats } from './uiReadout'
 import { salvageFromKill } from './combat'
+import { grantModuleCopy } from './coreProgression'
+import { usableCoreSlots } from './coreSlots'
+import { forceUnlockModule } from './testHelpers'
 
 describe('GDD D8 Hive Frames', () => {
   it('replaces the USI hull ladder with five archetypes', () => {
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     expect(SHIP_FRAMES.map((f) => f.id)).toEqual([
       'starter-frame',
       'bastion-frame',
@@ -37,86 +35,46 @@ describe('GDD D8 Hive Frames', () => {
     expect(fresh.shipyard.frameId).toBe(STARTER_FRAME_ID)
     expect(fresh.shipyard.unlockedFrames).toEqual([STARTER_FRAME_ID])
     expect(fresh.shipyard.modules).toEqual(['pulse-cannon', 'plate-layer'])
-    expect(getFrame(STARTER_FRAME_ID)?.weaponSlots).toBe(1)
-    expect(getFrame(STARTER_FRAME_ID)?.defenseSlots).toBe(1)
-    expect(getFrame('swarm-frame')?.weaponSlots).toBe(3)
-    expect(getFrame('bastion-frame')?.defenseSlots).toBe(3)
-    expect(getFrame('harvester-frame')?.utilitySlots).toBe(3)
+    expect(getFrame(STARTER_FRAME_ID)).not.toHaveProperty('weaponSlots')
+    expect(getFrame(STARTER_FRAME_ID)).not.toHaveProperty('defenseSlots')
+    expect(getFrame('swarm-frame')).not.toHaveProperty('weaponSlots')
+    expect(usableCoreSlots(fresh)).toBe(2)
   })
 
-  it('lets Swarm wear three Pulse Cores limited by slots, not uniqueness', () => {
-    const swarm = getFrame('swarm-frame')!
-    expect(canFitModuleOnFrame(swarm, [], 'pulse-cannon')).toBe(true)
-    expect(canFitModuleOnFrame(swarm, ['pulse-cannon', 'pulse-cannon'], 'pulse-cannon')).toBe(true)
-    expect(canFitModuleOnFrame(swarm, ['pulse-cannon', 'pulse-cannon', 'pulse-cannon'], 'pulse-cannon')).toBe(
-      false,
-    )
-
+  it('lets Swarm wear three Pulse Cores limited by the account bus, not uniqueness', () => {
     let s = createInitialState(0)
     s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'swarm-frame']
-    s.shipyard.unlockedModules = ['pulse-cannon', 'barrier-projector', 'salvage-rig']
-    s.shipyard.moduleCopies = {
-      'pulse-cannon': 3,
-      'barrier-projector': 1,
-      'salvage-rig': 1,
-    }
     s = selectFrame(s, 'swarm-frame')
+    expect(usableCoreSlots(s)).toBe(3)
+    expect(canFitModuleOnFrame([], 'pulse-cannon', usableCoreSlots(s))).toBe(true)
+    expect(canFitModuleOnFrame(['pulse-cannon', 'pulse-cannon'], 'pulse-cannon', usableCoreSlots(s))).toBe(
+      true,
+    )
+    expect(
+      canFitModuleOnFrame(['pulse-cannon', 'pulse-cannon', 'pulse-cannon'], 'pulse-cannon', usableCoreSlots(s)),
+    ).toBe(false)
+
+    grantModuleCopy(s, 'pulse-cannon')
+    grantModuleCopy(s, 'pulse-cannon')
     s.shipyard.modules = []
+    s.shipyard.equippedCoreIds = []
     s = fitModule(s, 'pulse-cannon')
     s = fitModule(s, 'pulse-cannon')
     s = fitModule(s, 'pulse-cannon')
+    s = forceUnlockModule(s, 'barrier-projector')
     s = fitModule(s, 'barrier-projector')
-    s = fitModule(s, 'salvage-rig')
-    expect(s.shipyard.modules).toEqual([
-      'pulse-cannon',
-      'pulse-cannon',
-      'pulse-cannon',
-      'barrier-projector',
-      'salvage-rig',
-    ])
+    expect(s.shipyard.modules).toEqual(['pulse-cannon', 'pulse-cannon', 'pulse-cannon'])
   })
 
-  it('unlocks Bastion from Wave 70, Swarm from Temper Bar, Reactor from Extra Tap, Harvester from Swarm Pressure', () => {
-    const early = atCareerWave(createInitialState(0), 69)
-    maybeGrantSystemUnlocks(early)
-    expect(early.shipyard.unlockedFrames).not.toContain('bastion-frame')
-
-    const wave = atCareerWave(createInitialState(0), 70)
-    maybeGrantSystemUnlocks(wave)
-    expect(wave.shipyard.unlockedFrames).toContain('bastion-frame')
-    expect(wave.shipyard.unlockedFrames).not.toContain('swarm-frame')
-
-    expect(unlockFrame(createInitialState(0), 'swarm-frame').shipyard.unlockedFrames).not.toContain(
-      'swarm-frame',
-    )
-
-    let foundry = atCareerWave(createInitialState(0), 50)
-    foundry.foundry.recipeLevels['slag-ingot'] = 5
-    foundry.foundry.materials['slag-ingot'] = 40
-    foundry.foundry.materials.filament = 20
-    foundry = setFoundrySlot(foundry, 0, 'temper-bar')
-    advanceSeconds(foundry, 181)
-    expect(foundry.shipyard.unlockedFrames).toContain('swarm-frame')
-    expect(frameUnlockLine(getFrame('swarm-frame')!)).toMatch(/Temper Bar/)
-
-    let research = atCareerWave(createInitialState(0), 170)
-    const extraTap = getHiveResearchNode('extra-tap')!
-    research.hiveResearch.active = true
-    research.hiveResearch.focus = 'energy'
-    research.hiveResearch.completedIds = ['plate-bank']
-    research.hiveResearch.completed.energy = 1
-    research.hiveResearch.activeNodeId = 'extra-tap'
-    research.hiveResearch.progress = hiveResearchNodeDuration(extraTap, research)
-    tickResearch(research, 1)
-    expect(research.shipyard.unlockedFrames).toContain('reactor-frame')
-
-    const challenge = atCareerWave(createInitialState(0), 250)
-    challenge.prestige.prestigeCount = 2
-    challenge.hiveResearch.completed.energy = 1
-    challenge.protocols.activeId = 'mute-network'
-    challenge.combat.wave = 100
-    tryCompleteProtocol(challenge)
-    expect(challenge.shipyard.unlockedFrames).toContain('harvester-frame')
+  it('does not grant later Frames from Best Wave or leftover shops', () => {
+    const fresh = createInitialState(0)
+    expect(fresh.shipyard.unlockedFrames).toEqual([STARTER_FRAME_ID])
+    expect(unlockFrame(fresh, 'bastion-frame').shipyard.unlockedFrames).not.toContain('bastion-frame')
+    expect(unlockFrame(fresh, 'swarm-frame').shipyard.unlockedFrames).not.toContain('swarm-frame')
+    expect(frameUnlockLine(getFrame('bastion-frame')!)).toBe('Not yet obtainable')
+    expect(frameUnlockLine(getFrame('reactor-frame')!)).toBe('Not yet obtainable')
+    expect(frameUnlockLine(getFrame('swarm-frame')!)).toBe('Not yet obtainable')
+    expect(frameUnlockLine(getFrame('harvester-frame')!)).toBe('Not yet obtainable')
   })
 
   it('shows Hull / Shield / DPS / slot deltas when previewing Bastion vs Swarm', () => {

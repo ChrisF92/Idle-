@@ -1,12 +1,12 @@
-import { frameRoleCap, getFrame, getModule } from '../game/catalog'
-import { hiveResearchExtraUtilitySlots } from '../game/hiveResearch'
+import { getFrame, getModule } from '../game/catalog'
+import { usableCoreSlots } from '../game/coreSlots'
 import { equippedCoreVisuals, hiveFrameStyle } from '../game/hiveVisual'
 import type { GameState } from '../game/types'
 
 export type HiveRigTarget =
   | { kind: 'hive' }
   | { kind: 'core'; moduleId: string; coreInstanceId?: string }
-  | { kind: 'slot'; role: 'weapon' | 'defense' | 'utility' }
+  | { kind: 'slot' }
 
 interface HiveRigProps {
   state: GameState
@@ -15,21 +15,11 @@ interface HiveRigProps {
   onSelect?: (target: HiveRigTarget) => void
 }
 
-const ROLE_ORDER = ['weapon', 'defense', 'utility'] as const
-
 export function HiveRig({ state, compact = false, interactive = false, onSelect }: HiveRigProps) {
   const frame = getFrame(state.shipyard.frameId)
   const style = hiveFrameStyle(state.shipyard.frameId)
   const cores = equippedCoreVisuals(state)
-  const extra = { utility: hiveResearchExtraUtilitySlots(state) }
-  const empty: { role: (typeof ROLE_ORDER)[number]; index: number }[] = []
-  if (frame) {
-    for (const role of ROLE_ORDER) {
-      const cap = frameRoleCap(frame, role, extra)
-      const used = cores.filter((c) => c.role === role).length
-      for (let i = used; i < cap; i += 1) empty.push({ role, index: i })
-    }
-  }
+  const emptyCount = Math.max(0, usableCoreSlots(state) - cores.length)
 
   return (
     <div className={`hive-rig${compact ? ' is-compact' : ''} is-${style}`} aria-hidden={!interactive}>
@@ -45,7 +35,7 @@ export function HiveRig({ state, compact = false, interactive = false, onSelect 
         <span className="hive-rig-body" />
       </button>
       {cores.map((core, index) => {
-        const angle = (index / Math.max(1, cores.length + empty.length)) * Math.PI * 2 - Math.PI / 2
+        const angle = (index / Math.max(1, cores.length + emptyCount)) * Math.PI * 2 - Math.PI / 2
         const r = compact ? 38 + core.orbit * 0.15 : 52 + core.orbit * 0.35
         return (
           <button
@@ -69,22 +59,22 @@ export function HiveRig({ state, compact = false, interactive = false, onSelect 
           />
         )
       })}
-      {empty.map((slot, index) => {
+      {Array.from({ length: emptyCount }, (_, index) => {
         const angle =
-          ((cores.length + index) / Math.max(1, cores.length + empty.length)) * Math.PI * 2 - Math.PI / 2
+          ((cores.length + index) / Math.max(1, cores.length + emptyCount)) * Math.PI * 2 - Math.PI / 2
         const r = compact ? 42 : 58
         return (
           <button
-            key={`${slot.role}-${slot.index}`}
+            key={`empty-${index}`}
             type="button"
-            className={`hive-rig-sat is-empty is-${slot.role}`}
+            className="hive-rig-sat is-empty"
             style={{
               left: `calc(50% + ${Math.cos(angle) * r}px)`,
               top: `calc(50% + ${Math.sin(angle) * r}px)`,
             }}
             disabled={!interactive}
-            aria-label={`Empty ${slot.role} slot`}
-            onClick={() => onSelect?.({ kind: 'slot', role: slot.role })}
+            aria-label="Empty Core slot"
+            onClick={() => onSelect?.({ kind: 'slot' })}
           />
         )
       })}
