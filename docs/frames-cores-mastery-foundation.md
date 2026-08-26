@@ -45,7 +45,7 @@ Fresh account: Standard, Pulse Cannon `:1`, Plate Layer `:1`, two universal slot
 
 Mastery XP curve is the PR3 seed in `masteryXpToNext` (`coreProgression.ts`). PR11 owns final balance.
 
-There is no Salvage Core-level purchase and no per-Sortie `coreRunLevels`.
+There is no Salvage Core-level purchase and no per-Sortie `coreRunLevels`. Leftover USI 2-pick Core Level nodes no longer apply combat bonuses; authored Mastery effects are the only Core milestone path.
 
 ## Mastery milestones
 
