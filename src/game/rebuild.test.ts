@@ -278,6 +278,8 @@ describe('normal Rebuild starting kits', () => {
     s.prestige.shop['hangar-rights'] = 1
     s.prestige.shop['doctrine-seed'] = 1
     const ai = s.resources.aiPoints
+    s.resources.scrap = 0
+    s.resources.salvage = 0
     s = enterChallenge(s, 'no-ai')
     expect(s.resources.scrap).toBe(20)
     expect(s.resources.salvage).toBe(10)
