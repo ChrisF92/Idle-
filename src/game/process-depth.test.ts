@@ -3,7 +3,7 @@ import { createInitialState } from './state'
 import { buyProcessNode } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { atCareerWave } from './testHelpers'
-import { PROCESS_NODES, canBuyProcessNode, hasProcess, processCombatSpeedMult, processOfflineBonusMs } from './process'
+import { PROCESS_NODES, canBuyProcessNode, hasProcess, processOfflineBonusMs } from './process'
 import { tickAutomation } from './automation'
 import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
 import { furnaceSalvageMult } from './furnace'
@@ -115,12 +115,10 @@ describe('Act 1 Process depth', () => {
     expect(s.shipyard.unlockedModules).toContain('charge-prism')
   })
 
-  it('Combat Tempo and Deep Cache are Process QoL, not free', () => {
+  it('Deep Cache is Process QoL, not free', () => {
     let s = createInitialState(0)
-    expect(processCombatSpeedMult(s)).toBe(1)
     expect(processOfflineBonusMs(s)).toBe(0)
-    s.process.purchased = ['combat-tempo', 'deep-cache']
-    expect(processCombatSpeedMult(s)).toBe(1.5)
+    s.process.purchased = ['deep-cache']
     expect(processOfflineBonusMs(s)).toBe(4 * 60 * 60 * 1000)
     s.lastTickAt = 0
     const { report } = applyOfflineCatchUp(s, MAX_OFFLINE_MS + 5 * 60 * 60 * 1000)

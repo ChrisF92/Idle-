@@ -27,9 +27,6 @@ export const CORE_RUN_LEVEL_CAP = MAX_MODULE_LEVEL
 export const CORE_START_LEVEL_CAP = 80
 export const CORE_MASTERY_CAP = 100
 
-/** Migration: leftover Scrap Dock ranks convert to at most this much Mastery. */
-export const LEGACY_RANK_MASTERY_CAP = 18
-
 export interface CoreSlot {
   slot: number
   moduleId: string
@@ -96,12 +93,7 @@ export function coreStartingLevel(
 ): number {
   const instance = resolveCoreInstance(state, coreInstanceId)
   const key = instance?.id ?? coreInstanceId
-  const direct = state.workshop?.coreStarts?.[key]
-  const purchased = direct != null
-    ? Math.max(0, Math.floor(direct))
-    : Math.max(0, Math.floor(
-        instance?.moduleId ? state.workshop?.coreStarts?.[instance.moduleId] ?? 0 : 0,
-      ))
+  const purchased = Math.max(0, Math.floor(state.workshop?.coreStarts?.[key] ?? 0))
   const research = sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'coreStartLevel')
   return Math.max(0, Math.min(CORE_START_LEVEL_CAP, purchased + research))
 }
@@ -724,47 +716,6 @@ export function coreSortieRecords(state: GameState): CoreSortieRecord[] {
       milestones: state.combat.coreMilestones?.[row.moduleId] ?? [],
     }
   })
-}
-
-export function legacyRankToMastery(rank: number): { level: number; xp: number } {
-  const n = Math.max(0, Math.floor(rank))
-  if (n <= 0) return { level: 0, xp: 0 }
-  const level = Math.min(LEGACY_RANK_MASTERY_CAP, Math.max(1, Math.floor(n * 0.4) + (n >= 1 ? 1 : 0)))
-  return { level, xp: Math.min(masteryXpToNext(level) - 1, n * 8) }
-}
-
-/**
- * Convert leftover Scrap Dock ranks into bounded Mastery.
- * Retired per-Sortie Core levels start at 0 and do not affect current Core power.
- */
-export function migrateLegacyCoreProgression(state: GameState): void {
-  if (state.meta.coreProgressionMigrated) return
-  const ranks: Record<string, number> = {
-    ...(state.workshop?.coreStarts ?? {}),
-    ...(state.shipyard.moduleLevels ?? {}),
-  }
-  if (!state.meta.moduleMastery) state.meta.moduleMastery = {}
-  if (!state.meta.moduleMasteryXp) state.meta.moduleMasteryXp = {}
-  if (!state.shipyard.moduleCopies) state.shipyard.moduleCopies = {}
-  for (const id of state.shipyard.unlockedModules) {
-    if (state.shipyard.moduleCopies[id] == null) state.shipyard.moduleCopies[id] = 1
-  }
-  for (const [id, rank] of Object.entries(ranks)) {
-    if (!rank) continue
-    const mapped = legacyRankToMastery(rank)
-    const have = state.meta.moduleMastery[id] ?? 0
-    if (mapped.level > have) {
-      state.meta.moduleMastery[id] = mapped.level
-      state.meta.moduleMasteryXp[id] = mapped.xp
-    } else if (mapped.level === have) {
-      state.meta.moduleMasteryXp[id] = Math.max(state.meta.moduleMasteryXp[id] ?? 0, mapped.xp)
-    }
-  }
-  state.shipyard.moduleLevels = {}
-  if (state.workshop) state.workshop.coreStarts = {}
-  state.combat.coreRunLevels = state.combat.coreRunLevels ?? {}
-  if (state.combat.docked) state.combat.coreRunLevels = {}
-  state.meta.coreProgressionMigrated = true
 }
 
 export function totalMasteryLevels(state: Pick<GameState, 'meta'>): number {

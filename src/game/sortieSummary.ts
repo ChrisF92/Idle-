@@ -30,6 +30,8 @@ export function emptyLastSortie(sector = 1, wave = 1): SortieSummary {
     salvageGained: 0,
     salvageSpent: 0,
     scrapEarned: 0,
+    extractionBonusScrap: 0,
+    grossScrapGenerated: 0,
     newBest: false,
     previousBest: 0,
     milestones: 0,
@@ -75,6 +77,9 @@ export function captureSortieMark(state: GameState): SortieMark {
     salvage: state.resources.salvage ?? 0,
     salvageSpent: 0,
     scrap: state.resources.scrap ?? 0,
+    grossScrapGenerated: 0,
+    provisioningGranted: false,
+    challengeSortie: false,
     sectorsCleared: 0,
     corePicks: countCorePicks(state),
     researchXp: researchBanked(state),
@@ -111,7 +116,7 @@ export function closeSortie(
   outcome: 'extract' | 'defeat',
   note: string,
   at?: { sector: number; wave: number },
-  opts?: { keepMark?: boolean; scrapEarned?: number; newBest?: boolean; previousBest?: number },
+  opts?: { keepMark?: boolean; scrapEarned?: number; extractionBonusScrap?: number; newBest?: boolean; previousBest?: number },
 ): void {
   const mark = state.combat.sortieMark
   const spent = mark?.salvageSpent ?? 0
@@ -137,6 +142,8 @@ export function closeSortie(
     salvageGained: Math.floor(gained),
     salvageSpent: Math.floor(spent),
     scrapEarned: Math.floor(scrapEarned),
+    extractionBonusScrap: Math.max(0, Math.floor(opts?.extractionBonusScrap ?? 0)),
+    grossScrapGenerated: Math.max(0, mark?.grossScrapGenerated ?? 0),
     newBest: Boolean(opts?.newBest),
     previousBest: Math.max(0, Math.floor(opts?.previousBest ?? 0)),
     milestones: Math.max(0, countCorePicks(state) - (mark?.corePicks ?? 0)),

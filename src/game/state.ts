@@ -11,8 +11,6 @@ import {
   getFrame,
   getModule,
   masteryBonus,
-  matterShopHullBonus,
-  matterShopShieldBonus,
   metaDamageMultiplier,
   moduleLeveledBonus,
   moduleLevelMultiplier,
@@ -65,14 +63,17 @@ import { createSimRng } from './simRng'
 import {
   createEmptyWorkshop,
   cycleRateMult,
+  damageControlTakenMult,
+  emptyGenericUpgradeUnlocks,
   runHullMult,
   runShieldMult,
   shopArmor,
   weaponPowerMult,
 } from './workshop'
+import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 43
+export const SAVE_VERSION = 44
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -199,7 +200,7 @@ export function createInitialState(now = Date.now()): GameState {
       challengeClears: {},
       shop: {},
       matterShop: {},
-      cycle: { bestWave: 0, sorties: 0, scrapEarned: 0 },
+      cycle: { bestWave: 0, normalSortiesCompleted: 0, scrapGenerated: 0 },
     },
     codex: {
       seenFamilies: [],
@@ -227,7 +228,6 @@ export function createInitialState(now = Date.now()): GameState {
       discoveredModules: [],
       moduleMastery: {},
       moduleMasteryXp: {},
-      coreProgressionMigrated: true,
       lifetimeCoreRunBuys: 0,
       signalCoresCarryOver: false,
       starterCombatLesson: 2,
@@ -236,6 +236,8 @@ export function createInitialState(now = Date.now()): GameState {
       damageNumbers: 'standard',
       sortieSpeed: 1,
       extractedOnce: false,
+      genericUpgradeUnlocks: emptyGenericUpgradeUnlocks(),
+      extractionExplained: false,
     },
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),
@@ -303,6 +305,7 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
       mods.damageMult *
       mult *
       weaponPowerMult(state) *
+      (mod.role === 'weapon' ? weaponCalibrationMult(state) : 1) *
       frameCoreDamageMult(state),
     cooldown: (mod.weapon.cooldown * mods.cooldownMult) / cycleRateMult(state),
     cooldownLeft: 0,
@@ -363,11 +366,10 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   const frame = equippedFrame(state)
   let hullMax =
     frame.baseHull +
-    essenceHullBonus(state.essence.purchased) +
-    matterShopHullBonus(state.prestige.matterShop)
+    essenceHullBonus(state.essence.purchased)
   let damageTakenMult = 1
   let armor = 0
-  let shieldMax = (frame.baseShield ?? 0) + matterShopShieldBonus(state.prestige.matterShop)
+  let shieldMax = frame.baseShield ?? 0
   let evasion = 0
   let escortCount = 0
 
@@ -429,10 +431,13 @@ export function computeShipStats(state: GameState): ShipCombatStats {
 
   hullMax *= protocolHullMult(state)
   hullMax *= runHullMult(state)
+  hullMax *= matterHullMult(state)
   shieldMax *= runShieldMult(state)
+  shieldMax *= matterShieldMult(state)
   armor += shopArmor(state)
   shieldMax *= directiveShieldMult(state)
   damageTakenMult *= directiveIncomingMult(state)
+  damageTakenMult *= damageControlTakenMult(state)
 
   evasion = Math.min(0.45, evasion)
 

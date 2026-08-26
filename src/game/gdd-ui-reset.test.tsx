@@ -117,7 +117,7 @@ describe('UI architecture reset', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dock' }))
     fireEvent.click(screen.getByRole('button', { name: /Rebuild/ }))
     expect(screen.getByText('Projected Matter')).toBeTruthy()
-    expect(screen.getByText('Cycle')).toBeTruthy()
+    expect(screen.getByText('Cycle Best')).toBeTruthy()
     expect(screen.queryByText(/Permanent · Damage/)).toBeNull()
   })
 
@@ -154,7 +154,8 @@ describe('UI architecture reset', () => {
     expect(screen.queryByRole('button', { name: 'Extract' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
     expect(document.querySelector('.sortie-menu-pop')).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Extract' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Extract' })).toBeNull()
+    expect(screen.getByText(/Extract/)).toBeTruthy()
     expect(document.querySelector('.sheet-overlay')).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Attack' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))

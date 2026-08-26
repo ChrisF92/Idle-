@@ -68,16 +68,23 @@ import { createSimRng } from './simRng'
 import { tickWaveScheduler, type WaveSchedulerHooks } from './waveScheduler'
 import {
   applyWorkshopCoreStarts,
-  EXTRACTION_SCRAP_BONUS,
   resetRunCoreLevels,
 } from './workshop'
+import { canExtract, extractionBonusFor } from './extraction'
 import {
   awardEquippedMasteryXp,
   snapshotCoreMasteryStart,
 } from './coreProgression'
 import { isChallengeSortie, addCombatClockMs } from './frontier'
-import { clearDirectives, chooseDirective as applyDirectiveChoice, hasDirectiveOffer, queueDirectiveOffer } from './directives'
+import { anyMatterPurchaseOwned, sortieProvisioningSalvage } from './matter'
 import {
+  clearDirectives,
+  chooseDirective as applyDirectiveChoice,
+  hasDirectiveOffer,
+  queueDirectiveOffer,
+} from './directives'
+import {
+  grantGeneratedScrap,
   noteRebuildCycleSortie,
   noteRebuildCycleWave,
 } from './rebuild'
@@ -146,17 +153,19 @@ function finishSortie(
 ): void {
   const previousBest = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const newBest = noteBestWave(state, at.wave)
-  const scrapNow = state.resources.scrap ?? 0
-  const scrapStart = state.combat.sortieMark?.scrap ?? scrapNow
-  let scrapEarned = Math.max(0, scrapNow - scrapStart)
-  if (extractBonus && scrapEarned > 0) {
-    const bonus = Math.max(1, Math.floor(scrapEarned * EXTRACTION_SCRAP_BONUS))
-    state.resources.scrap += bonus
-    scrapEarned += bonus
+  const gross = Math.max(0, state.combat.sortieMark?.grossScrapGenerated ?? 0)
+  const bonus = extractBonus && outcome === 'extract' ? extractionBonusFor(state) : 0
+  if (bonus > 0) {
+    grantGeneratedScrap(state, bonus, 'extraction')
     note = `${note} Extraction +${bonus} Scrap.`
   }
-  closeSortie(state, outcome, note, at, { scrapEarned, newBest, previousBest })
-  noteRebuildCycleSortie(state, scrapEarned)
+  closeSortie(state, outcome, note, at, {
+    scrapEarned: gross,
+    extractionBonusScrap: bonus,
+    newBest,
+    previousBest,
+  })
+  noteRebuildCycleSortie(state)
   endFurnaceSortie(state)
   state.resources.salvage = 0
   resetRunCoreLevels(state)
@@ -229,6 +238,10 @@ function applyNetworkCombatRefresh(state: GameState): void {
   state.combat.playerShield = flag.shield
 }
 
+function creditIndustryScrap(state: GameState, amount: number): void {
+  if (amount > 0) grantGeneratedScrap(state, amount, 'industry')
+}
+
 function applyProduction(state: GameState, dtSeconds: number): void {
   const meta = productionMeta(state)
 
@@ -249,15 +262,18 @@ function applyProduction(state: GameState, dtSeconds: number): void {
       const efficiency = upkeep > 0 ? paid / upkeep : 1
       for (const [resource, perDrone] of Object.entries(station.rates)) {
         const key = resource as keyof GameState['resources']
-        state.resources[key] +=
-          (perDrone ?? 0) * effective * dtSeconds * efficiency * meta
+        const add = (perDrone ?? 0) * effective * dtSeconds * efficiency * meta
+        if (key === 'scrap') creditIndustryScrap(state, add)
+        else state.resources[key] += add
       }
       continue
     }
 
     for (const [resource, perDrone] of Object.entries(station.rates)) {
       const key = resource as keyof GameState['resources']
-      state.resources[key] += (perDrone ?? 0) * effective * dtSeconds * meta
+      const add = (perDrone ?? 0) * effective * dtSeconds * meta
+      if (key === 'scrap') creditIndustryScrap(state, add)
+      else state.resources[key] += add
     }
   }
 
@@ -408,10 +424,10 @@ export function starterRefitGate(
   return null
 }
 
-/** Hull-loss beat on Sortie before retreat or Dock + run report. */
+/** Hull-loss beat on Sortie before Dock + run report. */
 export const DEFEAT_SEQUENCE_S = 1.2
 
-function startDefeatSequence(state: GameState, tactical: boolean): void {
+function startDefeatSequence(state: GameState): void {
   if ((state.combat.defeatLeft ?? 0) > 0) return
   snapshotSortieEncounter(state)
   const flag = state.combat.playerUnits.find((u) => u.isFlagship)
@@ -419,11 +435,7 @@ function startDefeatSequence(state: GameState, tactical: boolean): void {
   state.combat.playerHull = 0
   state.combat.playerShield = 0
   state.combat.defeatLeft = DEFEAT_SEQUENCE_S
-  state.combat.defeatTactical = tactical
-  if (tactical || isChallengeSortie(state)) {
-    pushLog(state, tactical ? 'Tactical extract — pulling out.' : 'Hull lost — systems failing.')
-    return
-  }
+  state.combat.defeatTactical = false
   const failed = state.combat.wave
   pushLog(state, `Hull integrity lost at Wave ${failed}. Sortie ending.`)
 }
@@ -432,12 +444,12 @@ function tickDefeatSequence(state: GameState, dt: number): boolean {
   if ((state.combat.defeatLeft ?? 0) <= 0) return false
   state.combat.defeatLeft = Math.max(0, state.combat.defeatLeft - dt)
   if (state.combat.defeatLeft > 0) return true
-  onFightLost(state, state.combat.defeatTactical, state.combat.isBoss)
+  onFightLost(state, state.combat.isBoss)
   return true
 }
 
-/** Death ends the Sortie. */
-function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
+/** Death ends the Sortie. Hull loss is never a voluntary Extraction. */
+function onFightLost(state: GameState, boss: boolean): void {
   const fromWave = Math.max(1, state.combat.waveReached || state.combat.wave)
   state.combat.defeatLeft = 0
   state.combat.defeatTactical = false
@@ -445,16 +457,8 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
   state.combat.consecutiveLosses += 1
   if (state.echo?.activeId) state.echo.activeId = null
   const label = boss ? ' boss' : ''
-  const note = tactical
-    ? `Extracted at Wave ${fromWave}${label}.`
-    : `Hull lost at Wave ${fromWave}${label}.`
-  finishSortie(
-    state,
-    tactical ? 'extract' : 'defeat',
-    note,
-    { sector: 0, wave: fromWave },
-    tactical,
-  )
+  const note = `Hull lost at Wave ${fromWave}${label}.`
+  finishSortie(state, 'defeat', note, { sector: 0, wave: fromWave }, false)
   pushLog(state, `${note} Returned to Dock.`)
 }
 
@@ -499,15 +503,8 @@ function tickCombat(state: GameState, dt: number): void {
 
   const flag = state.combat.playerUnits.find((u) => u.isFlagship)
   const flagHull = flag?.hull ?? 0
-  const flagMax = flag?.hullMax ?? state.combat.playerHullMax
-  const retreatThreshold = aiDoctrinesActive(state, 'tactical-retreat')
-    ? flagMax * 0.25
-    : 0
-
-  if (flagHull <= retreatThreshold) {
-    const tactical =
-      aiDoctrinesActive(state, 'tactical-retreat') && retreatThreshold > 0
-    startDefeatSequence(state, tactical)
+  if (flagHull <= 0) {
+    startDefeatSequence(state)
   }
 }
 
@@ -593,6 +590,16 @@ function maybeAutoEngage(state: GameState): void {
   beginFight(state)
 }
 
+function applySortieProvisioningOnce(state: GameState): void {
+  if (state.combat.sortieMark?.provisioningGranted) return
+  const grant = sortieProvisioningSalvage(state)
+  if (grant > 0) state.resources.salvage = (state.resources.salvage ?? 0) + grant
+  if (!state.combat.sortieMark) state.combat.sortieMark = captureSortieMark(state)
+  state.combat.sortieMark.provisioningGranted = true
+  state.combat.sortieMark.salvage = state.resources.salvage ?? 0
+  if (isChallengeSortie(state)) state.combat.sortieMark.challengeSortie = true
+}
+
 export function beginFight(state: GameState, keepFleet = false): void {
   syncPersistedHullCaps(state)
   if (!(state.combat.sortieSeed > 0)) state.combat.sortieSeed = allocateSortieSeed(state)
@@ -612,6 +619,7 @@ export function beginFight(state: GameState, keepFleet = false): void {
   state.combat.docked = false
   state.combat.defeatLeft = 0
   state.combat.defeatTactical = false
+  applySortieProvisioningOnce(state)
   if (!state.combat.sortieMark) state.combat.sortieMark = captureSortieMark(state)
   state.combat.fightElapsed = 0
   state.shipyard.frameLocked = true
@@ -651,7 +659,10 @@ function launchFromDock(state: GameState): void {
   state.combat.wave = 1
   state.combat.waveReached = 0
   state.combat.runUpgrades = {}
-  state.resources.salvage = 0
+  if (!isChallengeSortie(state)) {
+    // Normal Sorties drop leftover run Salvage. Challenge Hangar Rights already sits on the bank.
+    state.resources.salvage = 0
+  }
   applyWorkshopCoreStarts(state)
   state.combat.coreRunLevels = {}
   state.combat.coreSalvageSpent = {}
@@ -663,31 +674,52 @@ function launchFromDock(state: GameState): void {
   clearDirectives(state)
   state.combat.docked = false
   state.combat.sortieMark = captureSortieMark(state)
+  if (isChallengeSortie(state)) state.combat.sortieMark.challengeSortie = true
+  applySortieProvisioningOnce(state)
   recordPlaytest(state, 'first_launch', { firstKey: 'launch' })
   state.shipyard.frameLocked = true
   fullHealPlayer(state)
   beginFight(state)
 }
 
-/** Extract ends the Sortie. Launch always starts at Wave 1. */
-export function setDocked(state: GameState, docked: boolean): GameState {
-  if (state.combat.docked === docked) return state
-  const next = structuredClone(state)
-  if (docked) {
-    next.combat.defeatLeft = 0
-    next.combat.defeatTactical = false
-    const at = { sector: 0, wave: Math.max(1, next.combat.waveReached || next.combat.wave) }
-    if (next.combat.inFight) {
-      snapshotSortieEncounter(next)
-      persistFlagshipHull(next)
-      clearEnemy(next)
-    }
-    finishSortie(next, 'extract', `Extracted at Wave ${at.wave}.`, at, true)
-    pushLog(next, next.combat.lastSortie.note)
-  } else {
-    launchFromDock(next)
-    pushLog(next, 'Sortie launched — Wave 1.')
+function endActiveSortieAsExtract(state: GameState, withBonus: boolean): void {
+  state.combat.defeatLeft = 0
+  state.combat.defeatTactical = false
+  const at = { sector: 0, wave: Math.max(1, state.combat.waveReached || state.combat.wave) }
+  if (state.combat.inFight) {
+    snapshotSortieEncounter(state)
+    persistFlagshipHull(state)
+    clearEnemy(state)
   }
+  finishSortie(state, 'extract', `Extracted at Wave ${at.wave}.`, at, withBonus)
+  pushLog(state, state.combat.lastSortie.note)
+}
+
+/**
+ * Launch from Dock. `setDocked(true)` is a no-op: docking an active Sortie is not
+ * Extraction. Voluntary Extraction is `extractSortie()` only.
+ */
+export function setDocked(state: GameState, docked: boolean): GameState {
+  if (docked) return state
+  if (!state.combat.docked) return state
+  const next = structuredClone(state)
+  launchFromDock(next)
+  pushLog(next, 'Sortie launched — Wave 1.')
+  return next
+}
+
+/** Confirmed voluntary Extraction. Bonus only when eligible. */
+export function extractSortie(state: GameState): GameState {
+  if (!canExtract(state)) return state
+  const next = structuredClone(state)
+  endActiveSortieAsExtract(next, true)
+  return next
+}
+
+export function markExtractionExplained(state: GameState): GameState {
+  if (state.meta.extractionExplained) return state
+  const next = structuredClone(state)
+  next.meta.extractionExplained = true
   return next
 }
 
@@ -701,7 +733,12 @@ export function chooseDirective(state: GameState, id: string): GameState {
   return next
 }
 
-/** Advance continuous simulation by `seconds` of game time (mutates). */
+/** Advance real wall-clock time. Industry uses realDt; combat uses realDt × Time Compression. */
+export function advanceRealTime(state: GameState, realDt: number): void {
+  advanceSeconds(state, realDt)
+}
+
+/** Advance continuous simulation by `seconds` of real time (mutates). */
 export function advanceSeconds(state: GameState, seconds: number): void {
   let left = Math.max(0, seconds)
   while (left > 1e-6) {
@@ -720,6 +757,19 @@ export function advanceSeconds(state: GameState, seconds: number): void {
   tryCompleteAchievements(state)
 }
 
+function tutorialBlocksAutoLaunch(state: GameState): boolean {
+  if (!state.meta.hullLostOnce) return true
+  if ((state.prestige.prestigeCount ?? 0) === 0 && workshopNeedsFirstLesson(state)) return true
+  if ((state.prestige.prestigeCount ?? 0) === 1 && !anyMatterPurchaseOwned(state)) return true
+  return false
+}
+
+function workshopNeedsFirstLesson(state: GameState): boolean {
+  const scrap = state.resources.scrap ?? 0
+  const wp = Math.max(0, Math.floor(state.workshop?.levels?.['weapon-power'] ?? 0))
+  return scrap >= 12 && wp < 1
+}
+
 function maybeProcessRelaunch(state: GameState): void {
   const intentLaunch = evaluateProcessIntent(state).launchSortie && hasProcess(state, 'rule-builder')
   const autoLaunch = hasProcess(state, 'sortie-relaunch') && processConfig(state).sortie.autoRelaunch
@@ -728,6 +778,7 @@ function maybeProcessRelaunch(state: GameState): void {
   if ((state.combat.defeatLeft ?? 0) > 0) return
   if (state.protocols?.activeId) return
   if (starterRefitGate(state)) return
+  if (tutorialBlocksAutoLaunch(state)) return
   if (state.combat.playerHullMax <= 0) return
   if (state.combat.playerHull + 0.5 < state.combat.playerHullMax) return
   launchFromDock(state)

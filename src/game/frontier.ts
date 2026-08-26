@@ -16,7 +16,12 @@ function normalizeRoute(_route?: string | null): string {
 }
 
 export function isChallengeSortie(state: GameState): boolean {
-  return Boolean(state.protocols?.activeId || state.echo?.activeId)
+  return Boolean(
+    state.prestige?.activeChallengeId ||
+      state.protocols?.activeId ||
+      state.echo?.activeId ||
+      state.combat?.sortieMark?.challengeSortie,
+  )
 }
 
 export function addCombatClockMs(state: GameState, dtSeconds: number): void {

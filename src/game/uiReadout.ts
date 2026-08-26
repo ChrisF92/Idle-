@@ -1,22 +1,9 @@
 /** GDD §111–119 live HUD and comparison helpers. */
 
-import {
-  getAiNode,
-  getMatterShopItem,
-  getModule,
-  matterShopCombatSpeed,
-  matterShopHullBonus,
-  matterShopRankMultiplier,
-  matterShopShieldBonus,
-  metaDamageMultiplier,
-  metaProductionMultiplier,
-  moduleMasteryRank,
-  moduleWeaponDamage,
-} from './catalog'
+import { getModule, metaDamageMultiplier, metaProductionMultiplier, moduleMasteryRank, moduleWeaponDamage } from './catalog'
+import { availableTimeCompressionSpeeds, matterHullMult, matterShieldMult, selectedTimeCompression, weaponCalibrationMult } from './matter'
 import { formatCompact } from './format'
 import { corePrimaryOutput } from './coreProgression'
-import { hiveResearchCombatSpeed } from './hiveResearch'
-import { processCombatSpeedMult } from './process'
 import { advancedReadoutsUnlocked } from './disclosure'
 import { computeShipStats } from './state'
 import { ensureSortieStats, primaryThreat } from './sortieTelemetry'
@@ -25,25 +12,11 @@ import type { GameState } from './types'
 export type DamageNumbersMode = 'minimal' | 'standard' | 'detailed'
 
 export function availableSortieSpeeds(state: GameState): number[] {
-  const speeds = new Set<number>([1])
-  for (const id of state.ai.purchased ?? []) {
-    const m = getAiNode(id)?.combatSpeedMult
-    if (m != null && m > 1) speeds.add(m)
-  }
-  const proc = processCombatSpeedMult(state)
-  if (proc > 1) speeds.add(proc)
-  const research = hiveResearchCombatSpeed(state)
-  if (research > 1) speeds.add(research)
-  const matter = matterShopCombatSpeed(state.prestige.matterShop)
-  if (matter > 1) speeds.add(matter)
-  return [...speeds].sort((a, b) => a - b)
+  return availableTimeCompressionSpeeds(state)
 }
 
 export function chosenSortieSpeed(state: GameState): number {
-  const avail = availableSortieSpeeds(state)
-  const pref = state.meta.sortieSpeed
-  if (pref != null && avail.includes(pref)) return pref
-  return avail[avail.length - 1] ?? 1
+  return selectedTimeCompression(state)
 }
 
 export function sortieSpeed(state: GameState): number {
@@ -52,9 +25,10 @@ export function sortieSpeed(state: GameState): number {
 
 export function runScrapEarned(state: GameState): number {
   if (state.combat.docked || !state.combat.sortieMark) {
-    return Math.max(0, state.combat.lastSortie?.scrapEarned ?? 0)
+    const last = state.combat.lastSortie
+    return Math.max(0, (last?.grossScrapGenerated ?? last?.scrapEarned) ?? 0)
   }
-  return Math.max(0, (state.resources.scrap ?? 0) - (state.combat.sortieMark.scrap ?? 0))
+  return Math.max(0, state.combat.sortieMark.grossScrapGenerated ?? 0)
 }
 
 export function runSalvageEarned(state: GameState): number {
@@ -82,30 +56,31 @@ export function permanentMultipliers(state: GameState): {
   defense: number
   industry: number
 } {
-  const matter = state.resources.prestigeMatter ?? 0
   const damage = metaDamageMultiplier(
-    matter,
+    state.resources.prestigeMatter ?? 0,
     state.resources.challengePoints ?? 0,
     state.prestige.shop,
     state.prestige.matterShop,
     state.prestige.challengeClears,
-  )
-  const hullBonus = matterShopHullBonus(state.prestige.matterShop ?? {})
-  const shieldBonus = matterShopShieldBonus(state.prestige.matterShop ?? {})
+  ) * weaponCalibrationMult(state)
   return {
     damage,
-    defense: 1 + hullBonus * 0.01 + shieldBonus * 0.01,
-    industry: metaProductionMultiplier(matter, state.prestige.matterShop, state.prestige.challengeClears),
+    defense: matterHullMult(state) * matterShieldMult(state),
+    industry: metaProductionMultiplier(
+      state.resources.prestigeMatter,
+      state.prestige.matterShop,
+      state.prestige.challengeClears,
+    ),
   }
 }
 
-/** Honest Rebuild preview: banked Matter vs spending Edge, vs one Workshop rank. */
+/** Rebuild preview: unspent Matter has no power. Purchased nodes do. */
 export function rebuildPowerPreview(state: GameState, gain: number): {
   now: ReturnType<typeof permanentMultipliers>
   afterBank: ReturnType<typeof permanentMultipliers>
   workshopRank1: number
-  edgeRank1: number
-  edgeBeatsWorkshop: boolean
+  calibrationRank1: number
+  purchaseBeatsWorkshop: boolean
 } {
   const now = permanentMultipliers(state)
   const afterBank = permanentMultipliers({
@@ -113,8 +88,14 @@ export function rebuildPowerPreview(state: GameState, gain: number): {
     resources: { ...state.resources, prestigeMatter: (state.resources.prestigeMatter ?? 0) + Math.max(0, gain) },
   })
   const workshopRank1 = 1.08
-  const edgeRank1 = matterShopRankMultiplier(getMatterShopItem('matter-blade')?.damageBonus ?? 0.15, 1)
-  return { now, afterBank, workshopRank1, edgeRank1, edgeBeatsWorkshop: edgeRank1 > workshopRank1 }
+  const calibrationRank1 = 1.04
+  return {
+    now,
+    afterBank,
+    workshopRank1,
+    calibrationRank1,
+    purchaseBeatsWorkshop: calibrationRank1 > workshopRank1,
+  }
 }
 
 export function formatRunTime(seconds: number): string {

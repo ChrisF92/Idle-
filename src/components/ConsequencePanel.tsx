@@ -49,7 +49,7 @@ export function ConsequencePanel({
         </ul>
       </section>
       <section>
-        <h4>KEEP</h4>
+        <h4>WHAT STAYS</h4>
         <ul>
           {lists.keep.map((line) => (
             <li key={line}>{line}</li>
@@ -57,7 +57,7 @@ export function ConsequencePanel({
         </ul>
       </section>
       <section>
-        <h4>RESET</h4>
+        <h4>WHAT RESETS</h4>
         <ul>
           {lists.reset.map((line) => (
             <li key={line}>{line}</li>

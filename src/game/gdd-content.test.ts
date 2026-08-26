@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buyWorkshopUpgrade, enterProtocol } from './actions'
+import { buyGenericUnlock, buyWorkshopUpgrade, enterProtocol } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { metaDamageMultiplier } from './catalog'
 import { FOUNDRY_LOGS, unlockedFoundryLogs } from './logs'
@@ -9,15 +9,14 @@ import {
   protocolNextRewardText,
   tryCompleteProtocol,
 } from './protocols'
-import { getHiveResearchNode, hiveResearchCombatSpeed } from './hiveResearch'
-import { processCombatSpeedMult } from './process'
+import { getHiveResearchNode } from './hiveResearch'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 import { availableSortieSpeeds } from './uiReadout'
 import { RUN_UPGRADES, scrapKillBonus, shopArmor, visibleRunUpgrades } from './workshop'
 
 describe('GDD Phase 8 content depth', () => {
-  it('gates later shop options after the starter pair', () => {
+  it('keeps the canonical 18 generic upgrades without Best-Wave shop gates', () => {
     const ids = RUN_UPGRADES.map((row) => row.id)
     expect(ids).toEqual(
       expect.arrayContaining([
@@ -32,59 +31,52 @@ describe('GDD Phase 8 content depth', () => {
         'shield-regen',
         'armor',
         'scrap-kill',
-        'fragment-chance',
-        'ash-yield',
+        'fragment-find',
+        'ash-recovery',
       ]),
     )
-    expect(visibleRunUpgrades(0).map((row) => row.id)).toEqual(['weapon-power', 'hull', 'salvage-kill'])
-    expect(visibleRunUpgrades(10).map((row) => row.id)).toEqual(
-      expect.arrayContaining(['cycle-rate', 'shield']),
+    expect(ids).not.toContain('fragment-chance')
+    expect(ids).not.toContain('ash-yield')
+
+    const fresh = createInitialState(0)
+    fresh.combat.docked = false
+    expect(visibleRunUpgrades(fresh).map((row) => row.id)).toEqual(['weapon-power', 'hull', 'salvage-kill'])
+
+    const known = markHullLost(createInitialState(0))
+    known.combat.docked = true
+    expect(visibleRunUpgrades(known).map((row) => row.id).sort()).toEqual(
+      ['cycle-rate', 'hull', 'salvage-kill', 'salvage-wave', 'shield', 'weapon-power'].sort(),
     )
-    expect(visibleRunUpgrades(40).map((row) => row.id)).toContain('salvage-wave')
-    expect(visibleRunUpgrades(49).map((row) => row.id)).not.toContain('crit-chance')
-    expect(visibleRunUpgrades(50).map((row) => row.id)).toContain('crit-chance')
-    expect(visibleRunUpgrades(70).map((row) => row.id)).toEqual(
-      expect.arrayContaining(['shield-regen', 'scrap-kill']),
-    )
-    expect(visibleRunUpgrades(110).map((row) => row.id)).toEqual(
-      expect.arrayContaining(['armor-pen', 'armor', 'fragment-chance']),
-    )
-    expect(visibleRunUpgrades(139).map((row) => row.id)).not.toContain('ash-yield')
-    expect(visibleRunUpgrades(140).map((row) => row.id)).toContain('ash-yield')
   })
 
-  it('lets later Defense and Economy ranks change armor and Scrap/Kill', () => {
+  it('lets later Defense and Economy ranks change armor and Scrap/Kill after unlocks', () => {
     let s = markHullLost(createInitialState(0))
     s = atCareerWave(s, 110)
     s.combat.docked = true
-    s.resources.scrap = 400
+    s.resources.scrap = 10000
+    s = buyGenericUnlock(s, 'defense')
+    s = buyGenericUnlock(s, 'defense')
+    s = buyGenericUnlock(s, 'economy')
     s = buyWorkshopUpgrade(s, 'armor', 3)
     s = buyWorkshopUpgrade(s, 'scrap-kill', 2)
     expect(shopArmor(s)).toBeGreaterThan(0)
     expect(scrapKillBonus(s)).toBeGreaterThan(0)
   })
 
-  it('unlocks combat speed through Rebuild, Research, and Process', () => {
+  it('unlocks combat speed only through Time Compression', () => {
     const fresh = createInitialState(0)
     expect(availableSortieSpeeds(fresh)).toEqual([1])
 
     const rebuild = structuredClone(fresh)
-    rebuild.prestige.matterShop['sortie-tempo'] = 1
+    rebuild.prestige.matterShop['time-compression-1'] = 1
     expect(availableSortieSpeeds(rebuild)).toEqual([1, 1.5])
 
     const research = structuredClone(fresh)
     research.hiveResearch.completedIds = ['combat-sim']
     research.hiveResearch.completed.observation = 1
-    expect(getHiveResearchNode('combat-sim')?.combatSpeed).toBe(2)
-    expect(hiveResearchCombatSpeed(research)).toBe(2)
-    expect(availableSortieSpeeds(research)).toEqual([1, 2])
-
-    const process = structuredClone(fresh)
-    process.process.purchased = ['combat-tempo']
-    expect(processCombatSpeedMult(process)).toBe(1.5)
-    process.process.purchased = ['combat-tempo', 'combat-overclock']
-    expect(processCombatSpeedMult(process)).toBe(3)
-    expect(availableSortieSpeeds(process)).toEqual([1, 3])
+    expect(getHiveResearchNode('combat-sim')).toBeTruthy()
+    expect(availableSortieSpeeds(research)).toEqual([1])
+    expect(availableSortieSpeeds(fresh)).toEqual([1])
   })
 
   it('shows Challenge grants that expand the tested system, not global damage', () => {

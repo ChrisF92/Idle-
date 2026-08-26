@@ -45,7 +45,6 @@ import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { migrateOnboardingRegistry } from './onboarding'
 import { createFreshCareerState } from './freshStart'
-import { migrateLegacyCoreProgression } from './coreProgression'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
 import { emptyWaveRuntime } from './waveRuntime'
@@ -76,6 +75,8 @@ function withLastSortieDefaults(
     salvageGained: Math.max(0, Math.floor(Number(raw.salvageGained ?? 0) || 0)),
     salvageSpent: Math.max(0, Math.floor(Number(raw.salvageSpent ?? 0) || 0)),
     scrapEarned: Math.max(0, Math.floor(Number(raw.scrapEarned ?? 0) || 0)),
+    extractionBonusScrap: Math.max(0, Math.floor(Number(raw.extractionBonusScrap ?? 0) || 0)),
+    grossScrapGenerated: Math.max(0, Number(raw.grossScrapGenerated ?? 0) || 0),
     newBest: Boolean(raw.newBest),
     previousBest: Math.max(0, Math.floor(Number(raw.previousBest ?? 0) || 0)),
     milestones: Math.max(0, Math.floor(Number(raw.milestones ?? 0) || 0)),
@@ -187,6 +188,9 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
           salvage: Math.max(0, Number(combat.sortieMark.salvage ?? 0) || 0),
           salvageSpent: Math.max(0, Number(combat.sortieMark.salvageSpent ?? 0) || 0),
           scrap: Math.max(0, Number(combat.sortieMark.scrap ?? 0) || 0),
+          grossScrapGenerated: Math.max(0, Number(combat.sortieMark.grossScrapGenerated ?? 0) || 0),
+          provisioningGranted: combat.sortieMark.provisioningGranted === true,
+          challengeSortie: combat.sortieMark.challengeSortie === true,
           sectorsCleared: Math.max(0, Math.floor(Number(combat.sortieMark.sectorsCleared ?? 0) || 0)),
           corePicks: Math.max(0, Math.floor(Number(combat.sortieMark.corePicks ?? 0) || 0)),
           researchXp: Math.max(0, Number(combat.sortieMark.researchXp ?? 0) || 0),
@@ -262,6 +266,7 @@ function migrateShopRanks(raw: unknown): Record<string, number> {
 function withPrestigeDefaults(
   prestige: (GameState['prestige'] & { completedChallenges?: string[] }) | undefined,
 ): GameState['prestige'] {
+  const cycle = (prestige?.cycle ?? {}) as Record<string, unknown>
   return {
     prestigeCount: prestige?.prestigeCount ?? 0,
     activeChallengeId: prestige?.activeChallengeId ?? null,
@@ -269,9 +274,12 @@ function withPrestigeDefaults(
     shop: migrateShopRanks(prestige?.shop),
     matterShop: migrateShopRanks(prestige?.matterShop),
     cycle: {
-      bestWave: Math.max(0, Math.floor(Number(prestige?.cycle?.bestWave ?? 0) || 0)),
-      sorties: Math.max(0, Math.floor(Number(prestige?.cycle?.sorties ?? 0) || 0)),
-      scrapEarned: Math.max(0, Math.floor(Number(prestige?.cycle?.scrapEarned ?? 0) || 0)),
+      bestWave: Math.max(0, Math.floor(Number(cycle.bestWave ?? 0) || 0)),
+      normalSortiesCompleted: Math.max(
+        0,
+        Math.floor(Number(cycle.normalSortiesCompleted ?? 0) || 0),
+      ),
+      scrapGenerated: Math.max(0, Number(cycle.scrapGenerated ?? 0) || 0),
     },
   }
 }
@@ -483,20 +491,6 @@ export function migrateCoreFitInstances(state: GameState): void {
   state.reliquary.coreFits = migrated
 }
 
-/** Move legacy Core-definition starting levels onto the first physical copy. */
-export function migrateCoreStartingLevelInstances(state: GameState): void {
-  normalizeCoreInstances(state.shipyard)
-  const migrated: Record<string, number> = {}
-  for (const [key, rawLevel] of Object.entries(state.workshop.coreStarts ?? {})) {
-    const level = Math.max(0, Math.floor(Number(rawLevel) || 0))
-    if (level <= 0) continue
-    const instance = resolveCoreInstance(state, key)
-    const target = instance?.id ?? key
-    migrated[target] = Math.max(migrated[target] ?? 0, level)
-  }
-  state.workshop.coreStarts = migrated
-}
-
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
   return hydrateFurnaceState(raw)
 }
@@ -676,7 +670,6 @@ function withMetaDefaults(
     discoveredModules: [...(meta?.discoveredModules ?? [])],
     moduleMastery: { ...(meta?.moduleMastery ?? {}) },
     moduleMasteryXp: { ...(meta?.moduleMasteryXp ?? {}) },
-    coreProgressionMigrated: meta?.coreProgressionMigrated === true,
     lifetimeCoreRunBuys: Math.max(0, Math.floor(Number(meta?.lifetimeCoreRunBuys ?? 0) || 0)),
     signalCoresCarryOver: meta?.signalCoresCarryOver ?? false,
     // Progressed careers skip the starter death → Plate → salvage lesson.
@@ -704,6 +697,12 @@ function withMetaDefaults(
         : 'standard',
     sortieSpeed: Number(meta?.sortieSpeed) > 0 ? Number(meta?.sortieSpeed) : undefined,
     extractedOnce: meta?.extractedOnce === true,
+    genericUpgradeUnlocks: {
+      attack: Math.max(2, Math.floor(Number(meta?.genericUpgradeUnlocks?.attack ?? 2) || 2)),
+      defense: Math.max(2, Math.floor(Number(meta?.genericUpgradeUnlocks?.defense ?? 2) || 2)),
+      economy: Math.max(2, Math.floor(Number(meta?.genericUpgradeUnlocks?.economy ?? 2) || 2)),
+    },
+    extractionExplained: meta?.extractionExplained === true,
   }
 }
 
@@ -836,8 +835,6 @@ function migrate(raw: unknown): GameState | null {
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingRegistry(hydrated)
-    migrateLegacyCoreProgression(hydrated)
-    migrateCoreStartingLevelInstances(hydrated)
     migrateLegacyFabProject(hydrated)
     return hydrated
   }

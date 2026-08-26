@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../../game/types'
-import { canPrestige, prestigeGainFor } from '../../game/actions'
-import { canOpenRebuildHangar, rebuildWaveNeed } from '../../game/rebuild'
+import {
+  canOpenRebuildHangar,
+  canRebuild,
+  cycleBestWave,
+  cycleNormalSorties,
+  matterGainFor,
+  rebuildCycle,
+  rebuildIneligibleReason,
+  REBUILD_MIN_WAVE,
+} from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import { type BuyMode } from '../../game/workshop'
@@ -42,6 +50,7 @@ interface DockTabProps {
   onOpenSortie: () => void
   onRebuild: () => void
   onBuyWorkshop?: (id: RunUpgradeId, count?: number) => void
+  onUnlockGeneric?: (category: RunUpgradeCategory) => void
   onBuyMatter?: (itemId: string) => void
   onUpgrade?: (moduleId: string) => void
   onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
@@ -65,6 +74,7 @@ export function DockTab({
   onOpenSortie,
   onRebuild,
   onBuyWorkshop,
+  onUnlockGeneric,
   onBuyMatter,
   onEquipRelic,
   onRemoveRelic,
@@ -80,12 +90,11 @@ export function DockTab({
 }: DockTabProps) {
   const { combat } = state
   const live = !combat.docked
-  const rebuildReady = canPrestige(state)
+  const rebuildReady = canRebuild(state)
   const hangarOpen = canOpenRebuildHangar(state)
-  const rebuildMin = rebuildWaveNeed(state)
+  const rebuildMin = REBUILD_MIN_WAVE
   const showWorkshop = Boolean(state.meta.hullLostOnce)
   const bestWave = Math.max(state.meta.bestWave ?? 0, combat.bestWave ?? 0)
-  const cycleNo = (state.prestige.prestigeCount ?? 0) + 1
   const frame = getFrame(state.shipyard.frameId)
   const fittedCores = state.shipyard.modules.map((moduleId, slot) => ({
     moduleId,
@@ -291,6 +300,7 @@ export function DockTab({
               kind="workshop"
               buyMode={buyMode}
               onBuy={locked ? undefined : (id, count) => onBuyWorkshop?.(id, count)}
+              onUnlock={locked ? undefined : onUnlockGeneric}
             />
           </div>
         ) : null}
@@ -298,13 +308,20 @@ export function DockTab({
         {pane === 'rebuild' ? (
           <div className="dock-rebuild-dash">
             <div className="dock-glance">
-              <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
-              <StatPair label="Cycle" value={cycleNo} />
+              <StatPair label="Cycle Best" value={cycleBestWave(state) ? `W${cycleBestWave(state)}` : '—'} />
+              <StatPair label="Sorties" value={String(cycleNormalSorties(state))} />
             </div>
             <StatPair
-              label="Projected Matter"
-              value={rebuildReady ? formatCompact(prestigeGainFor(state)) : '0'}
+              label="Scrap generated"
+              value={formatCompact(rebuildCycle(state).scrapGenerated)}
             />
+            <StatPair
+              label="Projected Matter"
+              value={rebuildReady ? formatCompact(matterGainFor(state)) : '0'}
+            />
+            {!rebuildReady ? (
+              <p className="muted">{rebuildIneligibleReason(state) ?? `Inactive · W${rebuildMin}`}</p>
+            ) : null}
             <button
               type="button"
               className="primary"

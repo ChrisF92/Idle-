@@ -359,15 +359,6 @@ export function hiveResearchHeatFromAshMult(state: GameState): number {
   return 1 + hiveResearchBonuses(state).heatFromAsh
 }
 
-export function hiveResearchCombatSpeed(state: GameState): number {
-  let best = 1
-  for (const id of hiveResearchCompletedIds(state)) {
-    const speed = getHiveResearchNode(id)?.combatSpeed ?? 1
-    if (speed > best) best = speed
-  }
-  return best
-}
-
 export function hiveResearchFurnaceSlots(state: GameState): number {
   return hiveResearchBonuses(state).furnaceSlots
 }
@@ -557,7 +548,6 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.data) bits.push(`+${Math.round(node.data * 100)}% research speed`)
   if (node.shardDrop) bits.push(`+${Math.round(node.shardDrop * 100)}% shard drops`)
   if (node.researchXp) bits.push(`+${Math.round(node.researchXp * 100)}% research speed`)
-  if (node.combatSpeed && node.combatSpeed > 1) bits.push(`Combat speed ×${node.combatSpeed}`)
   return bits.join(' · ') || node.blurb
 }
 

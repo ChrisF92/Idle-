@@ -2,9 +2,7 @@
 
 import {
   getAiNode,
-  getMatterShopItem,
   isStationUnlocked,
-  matterShopEffectScale,
   RESEARCH,
   stationEffectiveDrones,
 } from './catalog'
@@ -128,8 +126,8 @@ export function trainingEfficiency(state: {
     eff += getAiNode(id)?.trainingBonus ?? 0
   }
   for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
-    const bonus = getMatterShopItem(id)?.trainingBonus ?? 0
-    if (bonus) eff += bonus * matterShopEffectScale(rank)
+    void id
+    void rank
   }
   return Math.max(0.05, eff)
 }

@@ -42,7 +42,6 @@ export interface HiveResearchNodeDef {
   unlockReliquary?: ReliquaryColor
   unlockFrame?: string
   focusFire?: boolean
-  combatSpeed?: number
   coreStartLevel?: number
   workshopStartRanks?: number
   salvageOpsMult?: number
@@ -185,14 +184,13 @@ export const RESEARCH_TREE: HiveResearchNodeDef[] = [
     id: 'combat-sim',
     name: 'Combat Sim',
     shortName: 'Sim',
-    blurb: 'Unlocks combat simulation at ×2.',
+    blurb: 'Improves combat telemetry. Time Compression is the combat-speed track.',
     branch: 'observation',
     prerequisites: ['priority-lock'],
     col: 1,
     row: 2,
     duration: INC * 1.5,
     kind: 'incremental',
-    combatSpeed: 2,
   },
   {
     id: 'drone-racks',

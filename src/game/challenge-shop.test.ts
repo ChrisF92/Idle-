@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import {
   buyChallengeShop,
-  canPrestige,
+  enterChallenge,
   performPrestige,
   unlockModule,
 } from './actions'
+import { armRebuildDoor } from './testHelpers'
+import { canRebuild } from './rebuild'
+import { setDocked } from './tick'
 import { applyOfflineCatchUp } from './offline'
 import {
   canBuyChallengeShop,
@@ -13,7 +16,6 @@ import {
   challengeShopOfflineMs,
   effectiveMaxClears,
   getChallenge,
-  prestigeMinSectorFor,
   shopRank,
 } from './catalog'
 
@@ -34,35 +36,39 @@ describe('challenge point shop', () => {
     )
   })
 
-  it('early-gate lowers prestige Wave requirement', () => {
-    let state = createInitialState(0)
-    expect(prestigeMinSectorFor({})).toBe(70)
+  it('Early Gate is gone and cannot lower the Rebuild door', () => {
+    const state = createInitialState(0)
+    expect(canBuyChallengeShop(state, 'early-gate').ok).toBe(false)
     state.resources.challengePoints = 1
-    state = buyChallengeShop(state, 'early-gate')
-    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(50)
-    state.meta.bestWave = 50
-    state.combat.bestWave = 50
-    expect(canPrestige(state)).toBe(true)
+    const after = buyChallengeShop(state, 'early-gate')
+    expect(after.prestige.shop['early-gate'] ?? 0).toBe(0)
+    const eligible = createInitialState(0)
+    eligible.meta.bestWave = 50
+    eligible.combat.bestWave = 50
+    eligible.combat.docked = true
+    eligible.prestige.cycle.normalSortiesCompleted = 8
+    eligible.prestige.shop['early-gate'] = 1
+    expect(canRebuild(eligible)).toBe(false)
   })
 
-  it('supply-cache and doctrine-seed apply after prestige', () => {
-    let state = createInitialState(0)
+  it('supply-cache and doctrine-seed do not apply on normal Rebuild', () => {
+    let state = armRebuildDoor(createInitialState(0))
     state.resources.challengePoints = 3
     state = buyChallengeShop(state, 'supply-cache')
     state = buyChallengeShop(state, 'doctrine-seed')
+    const ai = state.resources.aiPoints
     state = performPrestige(state, 5000)
-    // 25 base + scaled return kit + 20 cache
-    expect(state.resources.scrap).toBeGreaterThanOrEqual(55)
-    expect(state.resources.aiPoints).toBeGreaterThanOrEqual(1)
+    expect(state.resources.scrap).toBe(0)
+    expect(state.resources.aiPoints).toBe(ai)
+    expect(state.prestige.cycle.scrapGenerated).toBe(0)
   })
 
-  it('hangar-rights grants starting salvage after prestige', () => {
-    let state = createInitialState(0)
+  it('hangar-rights does not grant starting salvage on normal Rebuild', () => {
+    let state = armRebuildDoor(createInitialState(0))
     state.resources.challengePoints = 2
     state = buyChallengeShop(state, 'hangar-rights')
     state = performPrestige(state, 5000)
-    // 10 hangar + scaled return salvage
-    expect(state.resources.salvage).toBeGreaterThanOrEqual(16)
+    expect(state.resources.salvage).toBe(0)
   })
 
   it('deep-cache extends offline cap', () => {
@@ -79,6 +85,7 @@ describe('challenge point shop', () => {
     let state = createInitialState(0)
     state.resources.challengePoints = 1
     state = buyChallengeShop(state, 'iron-will')
+    state = armRebuildDoor(state)
     state = performPrestige(state, 8000)
     expect(shopRank(state.prestige.shop, 'iron-will')).toBe(1)
   })
@@ -89,8 +96,9 @@ describe('challenge point shop', () => {
     state = buyChallengeShop(state, 'supply-cache')
     state = buyChallengeShop(state, 'supply-cache')
     expect(shopRank(state.prestige.shop, 'supply-cache')).toBe(2)
+    state = armRebuildDoor(state)
     state = performPrestige(state, 5000)
-    expect(state.resources.scrap).toBeGreaterThanOrEqual(75) // 25 starter + return kit + 40 cache
+    expect(state.resources.scrap).toBe(0)
   })
 
   it('schematic-surge unlocks surge-capacitor module', () => {
@@ -133,5 +141,26 @@ describe('challenge point shop', () => {
     expect(effectiveMaxClears(def, {})).toBe(def.maxClears)
     state = buyChallengeShop(state, 'clearance-board')
     expect(effectiveMaxClears(def, state.prestige.shop)).toBe(def.maxClears + 5)
+  })
+
+  it('applies starting kits only when entering a Challenge', () => {
+    let state = armRebuildDoor(createInitialState(0))
+    state.meta.act1Cleared = true
+    state.meta.bestWave = 1000
+    state.resources.challengePoints = 5
+    state = buyChallengeShop(state, 'supply-cache')
+    state = buyChallengeShop(state, 'hangar-rights')
+    state = buyChallengeShop(state, 'doctrine-seed')
+    const ai = state.resources.aiPoints
+    state = performPrestige(state, 5000)
+    expect(state.resources.scrap).toBe(0)
+    expect(state.resources.salvage).toBe(0)
+    state.meta.act1Cleared = true
+    state = enterChallenge(state, 'no-ai')
+    expect(state.resources.scrap).toBe(20)
+    expect(state.resources.salvage).toBe(10)
+    expect(state.resources.aiPoints).toBeGreaterThanOrEqual(ai + 1)
+    state = setDocked(state, false)
+    expect(state.resources.salvage).toBe(10)
   })
 })

@@ -24,6 +24,8 @@ const TAB_FOR: Record<OnboardingLessonId, Parameters<typeof activeOnboardingLess
   'workers.assignment': 'network',
   'directives.choice': 'combat',
   'rebuild.preview': 'dock',
+  'rebuild.matter': 'dock',
+  'extraction.first-use': 'combat',
   'relic.install': 'dock',
   'furnace.channel': 'furnace',
   'research.project': 'research',
@@ -52,7 +54,7 @@ function actionToast() {
 
 describe('onboarding doors', () => {
   it('covers every lesson with a matching screen, pane, and target', () => {
-    expect(ONBOARDING_LESSON_IDS).toHaveLength(13)
+    expect(ONBOARDING_LESSON_IDS).toHaveLength(15)
     for (const id of ONBOARDING_LESSON_IDS) {
       const lesson = ONBOARDING_LESSONS.find((row) => row.id === id)!
       const state = prepOnboardingDoor(createInitialState(0), id)

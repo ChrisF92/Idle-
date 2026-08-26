@@ -97,7 +97,7 @@ import {
   shardOwned,
 } from './reliquary'
 import { ACT1_CADENCE } from './cadence'
-import { cycleBestWave, prestigeGainFor } from './rebuild'
+import { cycleBestWave, matterGainFor } from './rebuild'
 
 export interface InspectStat {
   label: string
@@ -297,7 +297,7 @@ export function inspectFurnaceOverview(state: GameState): InspectCard {
 export function inspectRebuildOverview(state: GameState): InspectCard {
   const best = cycleBestWave(state)
   const rebuilds = state.prestige.prestigeCount
-  const estimate = prestigeGainFor(state)
+  const estimate = matterGainFor(state)
   return {
     title: 'Rebuild',
     kicker: 'Hangar swap',

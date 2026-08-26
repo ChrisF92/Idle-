@@ -480,7 +480,7 @@ export function formatPlaytestScript(state: GameState): string[] {
   return [
     'GDD PLAYTEST SCRIPT',
     checked(thirty, 'First 30 min from a wipe', formatPlaytimeMs(log.playtimeMs)),
-    checked(rebuilt, 'First Rebuild (W70 preset)', rebuilt ? formatPlaytimeMs(log.firsts.rebuild) : 'not yet'),
+    checked(rebuilt, 'First Rebuild (W210 preset)', rebuilt ? formatPlaytimeMs(log.firsts.rebuild) : 'not yet'),
     checked(furnace, 'One Furnace push', furnace ? 'channel lit or system opened' : 'not yet'),
     checked(challenge, 'One Challenge', challenge ? formatAttempts(log.protocols) : 'not yet'),
     checked(climax, 'W1000 finale', `Best W${best}`),

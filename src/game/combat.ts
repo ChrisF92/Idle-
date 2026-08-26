@@ -26,8 +26,6 @@ import {
   familyCanDropPrint,
   getEnemyDropTable,
   getModule,
-  matterShopDropBonus,
-  matterShopRepairMult,
   fittedShieldRegenFraction,
   partId,
   pickWeightedDropEntry,
@@ -71,11 +69,15 @@ import { nextCombatId } from './waveRuntime'
 import {
   armorPenAdd,
   critChance,
+  critFactor,
   fragmentChanceMult,
   salvageKillMult,
   scrapKillBonus,
+  shopHullRepair,
   shopShieldRegen,
 } from './workshop'
+import { combatScrapMatterMult } from './matter'
+import { grantGeneratedScrap } from './rebuild'
 import {
   logisticsDropMult,
   reactorsRepairMult,
@@ -1688,8 +1690,6 @@ export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
   if (state.shipyard.modules.includes('nano-lathe')) rate *= 1.6
-  const shopMult = matterShopRepairMult(state.prestige.matterShop)
-  rate /= Math.max(0.2, shopMult)
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
   rate += stationRepairBonus(state)
   rate *= reactorsRepairMult(state.core?.ranks.reactors ?? 0)
@@ -1858,9 +1858,7 @@ export function rollEnemyPartDrop(
     foundryPartDropMult(state) *
     fragmentChanceMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
-    (1 +
-      matterShopDropBonus(state.prestige.matterShop) +
-      challengeShopDropBonus(state.prestige.shop))
+    (1 + challengeShopDropBonus(state.prestige.shop))
   let rolls = 1
   if (unit.isBoss) {
     chance = Math.min(1, chance * (table.bossChanceMult ?? 2))
@@ -1967,8 +1965,8 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     frameSalvageMult(state)
   state.resources.salvage +=
     salvageFromKill(rewardWaveOf(unit), unit.isBoss, undefined, state) * salvageMult * rewardWeight
-  const scrap = scrapKillBonus(state, unit.isBoss) * rewardWeight
-  if (scrap > 0) state.resources.scrap += scrap
+  const scrap = scrapKillBonus(state, unit.isBoss) * rewardWeight * combatScrapMatterMult(state)
+  if (scrap > 0) grantGeneratedScrap(state, scrap, 'combat-kill')
   const rng = () => combatRng(state)
   rollEnemyPartDrop(state, unit, rng, rewardWeight)
   const discreteLoot = rewardWeight >= 1 || rng() < rewardWeight
@@ -2163,7 +2161,7 @@ function tunePlayerShot(
   if (from.side !== 'player') return { damage, profile }
   const crit = combatRng(state) < critChance(state)
   return {
-    damage: crit ? damage * 1.5 : damage,
+    damage: crit ? damage * critFactor(state) : damage,
     profile: { ...profile, armorDamage: profile.armorDamage + armorPenAdd(state) },
   }
 }
@@ -2507,12 +2505,17 @@ export function simulateCombat(
       masteryRegen +
       shopShieldRegen(state)) *
     directiveShieldRegenMult(state)
+  const hullRepairFrac = shopHullRepair(state)
   for (const unit of state.combat.playerUnits) {
     if ((unit.regenDelay ?? 0) > 0) {
       unit.regenDelay = Math.max(0, (unit.regenDelay ?? 0) - dt)
     }
+    if (unit.hull <= 0) continue
+    if (hullRepairFrac > 0 && unit.hullMax > 0) {
+      unit.hull = Math.min(unit.hullMax, unit.hull + unit.hullMax * hullRepairFrac * dt)
+    }
     if (regenFrac <= 0 || (unit.regenDelay ?? 0) > 0) continue
-    if (unit.hull <= 0 || unit.shieldMax <= 0) continue
+    if (unit.shieldMax <= 0) continue
     unit.shield = Math.min(unit.shieldMax, unit.shield + unit.shieldMax * regenFrac * dt)
   }
 

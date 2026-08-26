@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { canPrestige, performReinforce } from './actions'
+import { performReinforce } from './actions'
+import { canRebuild } from './rebuild'
 import { rebuildCycle } from './rebuild'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { encounterForWave } from './combat'
@@ -72,9 +73,9 @@ describe('GDD Act 1 climax and Reinforce', () => {
     expect(s.resources.scrap).not.toBe(40)
     expect(s.workshop.levels['weapon-power'] ?? 0).toBe(0)
     expect(s.foundry.recipeLevels['slag-ingot']).toBe(3)
-    expect(rebuildCycle(s)).toEqual({ bestWave: 0, sorties: 0, scrapEarned: 0 })
+    expect(rebuildCycle(s)).toEqual({ bestWave: 0, normalSortiesCompleted: 0, scrapGenerated: 0 })
     expect(s.meta.act1Cleared).toBe(true)
-    expect(canPrestige(s)).toBe(false)
+    expect(canRebuild(s)).toBe(false)
   })
 
   it('prints YOU RESET, YOU KEEP, and WHAT CHANGES without opening Capital', () => {

@@ -9,12 +9,11 @@ import { applyDevAction } from './dev'
 import { selectFrame } from './actions'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
-import { setDocked } from './tick'
+import { extractSortie, setDocked } from './tick'
 import { ACT1_CADENCE } from './cadence'
 import { careerBestWave } from './waves'
 import { isSystemUnlocked } from './progression'
 import { buildPlaytestReport } from './playtest'
-import { RUN_UPGRADE_CAP } from './workshop'
 
 afterEach(cleanup)
 
@@ -40,7 +39,9 @@ describe('playtest fix pass', () => {
     s = setDocked(s, false)
     expect(s.shipyard.frameLocked).toBe(true)
     expect(selectFrame(s, 'bastion-frame').shipyard.frameId).toBe('starter-frame')
-    s = setDocked(s, true)
+    s.meta.bestWave = Math.max(s.meta.bestWave ?? 0, 210)
+    s.combat.bestWave = Math.max(s.combat.bestWave ?? 0, 210)
+    s = extractSortie(s)
     expect(s.shipyard.frameLocked).toBe(false)
     s = selectFrame(s, 'bastion-frame')
     expect(s.shipyard.frameId).toBe('bastion-frame')
@@ -163,7 +164,7 @@ describe('playtest fix pass', () => {
     expect(document.querySelector('.upgrade-tile-cost')).toBeTruthy()
     expect(document.querySelector('.upgrade-tile.is-affordable, .upgrade-tile.is-short')).toBeTruthy()
     fireEvent.click(screen.getAllByRole('button', { name: /details/i })[0]!)
-    expect(screen.getByText(new RegExp(`Level \\d+ / ${RUN_UPGRADE_CAP}`))).toBeTruthy()
+    expect(screen.getByText(/Workshop \d+ \/ \d+/)).toBeTruthy()
   })
 
   it('does not dump Worker job lines onto the Foundry card', () => {

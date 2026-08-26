@@ -4,7 +4,6 @@ import {
   abandonProtocol,
   enterProtocol,
   performRebuild,
-  prestigeGainFor,
   setFurnaceChannel,
 } from './actions'
 import { tickAutomation } from './automation'
@@ -13,6 +12,7 @@ import { moduleUpgradeCost } from './catalog'
 import { craftsForNextLevel, foundryCostMult } from './foundry'
 import { furnaceChannelHeatCost, furnaceDamageMult } from './furnace'
 import { hiveResearchNodeCost } from './hiveResearch'
+import { matterGainFor } from './rebuild'
 import { networkFormulaHooks, networkStrikeMult } from './network'
 import {
   STARTER_GUIDE_IDS,
@@ -47,7 +47,7 @@ function protocolDock(sectorEver = 52) {
 
 describe('Protocol formula rewards', () => {
   it('keeps save version and rank-0 formulas identical to the unranked game', () => {
-    expect(SAVE_VERSION).toBe(35)
+    expect(SAVE_VERSION).toBe(44)
     const s = createInitialState(0)
     expect(protocolModifiers(s)).toEqual(emptyProtocolModifiers())
     expect(protocolBonusMult(s, 'network')).toBe(1)
@@ -58,7 +58,7 @@ describe('Protocol formula rewards', () => {
     expect(craftsForNextLevel(10)).toBe(craftsForNextLevel(10, s))
     expect(foundryCostMult(6)).toBe(foundryCostMult(6, s))
     expect(hiveResearchNodeCost(0)).toBe(hiveResearchNodeCost(0, s))
-    expect(prestigeGainFor(s)).toBe(6)
+    expect(matterGainFor(s)).toBe(1)
     expect(networkFormulaHooks(s)).toEqual({
       fillGrowthMult: 1,
       droneEfficiencyMult: 1,
@@ -115,11 +115,12 @@ describe('Protocol formula rewards', () => {
     )
   })
 
-  it('Glass Ward and Dry Hold change rebuild Matter and salvage sector growth', () => {
+  it('Glass Ward does not multiply canonical Rebuild Matter; Dry Hold still eases salvage growth', () => {
     const s = createInitialState(0)
-    const matter0 = prestigeGainFor(s)
+    s.prestige.cycle = { bestWave: 210, normalSortiesCompleted: 3, scrapGenerated: 0 }
+    const matter0 = matterGainFor(s)
     s.protocols.ranks['glass-ward'] = 4
-    expect(prestigeGainFor(s)).toBeGreaterThan(matter0)
+    expect(matterGainFor(s)).toBe(matter0)
 
     const drop0 = salvageFromKill(40, false, 'A', createInitialState(0))
     s.protocols.ranks['dry-hold'] = 1

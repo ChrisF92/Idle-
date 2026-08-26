@@ -17,7 +17,9 @@ import {
   wavePackageKindFor,
 } from './waveRuntime'
 import { ACT1_FINAL_WAVE, BOSS_WARNING_DURATION, isBossWave, NORMAL_REINFORCEMENT_INTERVAL } from './waves'
-import { salvageWaveBonus } from './workshop'
+import { salvageWaveBonus, scrapWaveBonus } from './workshop'
+import { combatScrapMatterMult } from './matter'
+import { grantGeneratedScrap } from './rebuild'
 import { grantSignalCoreDrop } from './signalCores'
 
 export interface WaveSchedulerHooks {
@@ -142,7 +144,8 @@ function payWaveSecureReward(state: GameState, pkg: WavePackageState, hooks: Wav
   let drip = Math.max(1, 5 + Math.floor(pkg.wave / 5))
   if (aiDoctrinesActive(state, 'scavenger')) drip *= 1.3
   drip = Math.max(1, Math.floor(drip))
-  state.resources.scrap += drip
+  const waveScrap = (drip + scrapWaveBonus(state)) * combatScrapMatterMult(state)
+  grantGeneratedScrap(state, waveScrap, 'combat-wave')
   if (pkg.kind === 'boss') {
     grantSignalCoreDrop(state, 'boss')
   }

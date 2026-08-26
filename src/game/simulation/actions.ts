@@ -5,13 +5,11 @@ import {
   buyMatterShop,
   buyNetworkLink,
   buyProcessNode,
-  canPrestige,
   convertAshToHeat,
   fitModule,
   equipRelicOnCore,
   performPrestige,
   pickCoreMilestone,
-  prestigeGainFor,
   setFoundrySlot,
   setResearchFocus,
   unlockModule,
@@ -21,6 +19,7 @@ import {
   buyRunUpgrade,
   buyCoreStartingLevel,
 } from '../actions'
+import { canRebuild, matterGainFor } from '../rebuild'
 import { setDocked, chooseDirective } from '../tick'
 import {
   canBuyMatterShop,
@@ -439,6 +438,21 @@ export function tendProcess(state: GameState, ctx: StrategyContext): GameState {
   return next
 }
 
+const MATTER_BUY_PRIORITY: Record<string, number> = {
+  'time-compression-1': 20,
+  'time-compression-2': 18,
+  'time-compression-3': 16,
+  'weapon-calibration': 14,
+  'traverse-actuators': 11,
+  'structural-memory': 10,
+  'field-memory': 10,
+  'recovery-charter': 8,
+  'foundry-throughput': 7,
+  'reconstitution-cache': 6,
+  'sortie-provisioning': 6,
+  'worker-racks': 5,
+}
+
 export function spendRebuildMatter(state: GameState, ctx: StrategyContext): GameState {
   let next = state
   let guard = 0
@@ -448,12 +462,7 @@ export function spendRebuildMatter(state: GameState, ctx: StrategyContext): Game
     for (const item of MATTER_SHOP) {
       const check = canBuyMatterShop(next, item.id)
       if (!check.ok || check.cost <= 0) continue
-      const def = getMatterShopItem(item.id)
-      const dmg = def?.damageBonus ?? 0
-      const hull = (def?.hullBonus ?? 0) / 80
-      const shield = (def?.shieldBonus ?? 0) / 80
-      const prod = (def?.productionBonus ?? 0) * 0.4
-      const score = (dmg * 1.6 + hull + shield + prod) / check.cost
+      const score = (MATTER_BUY_PRIORITY[item.id] ?? 1) / check.cost
       if (score > bestScore) {
         bestScore = score
         bestId = item.id
@@ -526,7 +535,7 @@ export function maybeUnlockAndFit(state: GameState, ctx: StrategyContext): GameS
 }
 
 export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: boolean; reasons: string[] } {
-  if (!canPrestige(state)) return { yes: false, reasons: [] }
+  if (!canRebuild(state)) return { yes: false, reasons: [] }
   const cfg = ctx.config.rebuild
   const stallNeed =
     (state.prestige.prestigeCount ?? 0) < 1
@@ -540,7 +549,7 @@ export function shouldRebuild(state: GameState, ctx: StrategyContext): { yes: bo
     return { yes: false, reasons: [] }
   }
   const reasons: string[] = []
-  const gain = prestigeGainFor(state)
+  const gain = matterGainFor(state)
   if (ctx.secondsSinceHighestSectorGain >= stallNeed) {
     reasons.push(
       `${Math.round(ctx.secondsSinceHighestSectorGain / 60)} minutes without Wave progress`,
@@ -582,7 +591,7 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
     networkLevelsLost[bar.id] = networkLevels(state, bar.id)
   }
   const linksKept = { ...(state.network?.links ?? {}) }
-  const gain = prestigeGainFor(state)
+  const gain = matterGainFor(state)
   const highest = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const prevPush =
     ctx.lastRebuildActive == null ? ctx.activeSeconds : ctx.activeSeconds - ctx.lastRebuildActive
@@ -628,7 +637,7 @@ function shopOrderFor(profile: SimulationSpendProfile, preferDefense: boolean): 
     return ['hull', 'shield', 'shield-regen', 'armor', 'weapon-power']
   }
   if (profile === 'economy-first') {
-    return ['salvage-kill', 'scrap-kill', 'ash-yield', 'salvage-wave', 'fragment-chance', 'weapon-power', 'hull']
+    return ['salvage-kill', 'scrap-kill', 'ash-recovery', 'salvage-wave', 'fragment-find', 'weapon-power', 'hull']
   }
   if (profile === 'optimiser') {
     return preferDefense
@@ -652,13 +661,12 @@ export function spendSalvageOnRunUpgrades(
     state.combat.consecutiveLosses >= 1 ||
     (state.combat.playerHullMax > 0 && state.combat.playerHull / state.combat.playerHullMax <= 0.55)
   const order = shopOrderFor(profile, preferDefense)
-  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
   let next = state
   const budget = profile === 'casual' ? 3 : profile === 'optimiser' ? 12 : 8
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     for (const id of order) {
-      const def = visibleRunUpgrades(best).find((row) => row.id === id)
+      const def = visibleRunUpgrades(next).find((row) => row.id === id)
       if (!def) continue
       const cost = nextRunUpgradeCost(next, id)
       if (cost <= 0 || (next.resources.salvage ?? 0) < cost) continue
@@ -759,14 +767,13 @@ export function spendScrapOnWorkshop(
   const profile = resolveSpendProfile(mode)
   const preferDefense = state.combat.consecutiveLosses >= 2
   const order = shopOrderFor(profile, preferDefense)
-  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   let next = state
   const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? 6 : 4
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     for (const id of order) {
       const def = RUN_UPGRADES.find((row) => row.id === id)
-      if (!def || best < def.minBestWave) continue
+      if (!def) continue
       const after = buyWorkshopUpgrade(next, id)
       if (after === next) continue
       const level = workshopLevel(after, id)

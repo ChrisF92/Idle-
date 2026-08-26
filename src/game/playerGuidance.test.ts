@@ -56,7 +56,7 @@ describe('player guidance helpers', () => {
     const lists = rebuildConsequenceLists(s)
     expect(lists.gain[0]).toMatch(/Rebuild Matter/)
     expect(lists.keep).toEqual(expect.arrayContaining(['Research', 'Foundry recipes, stock, and facilities']))
-    expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Run upgrades', 'Workshop']))
+    expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Workshop levels', 'Core Levels']))
     expect(lists.change).toEqual([])
   })
 

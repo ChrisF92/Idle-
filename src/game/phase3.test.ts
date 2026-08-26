@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import {
-  canPrestige,
   performRebuild,
   pickCoreMilestone,
   upgradeModule,
 } from './actions'
+import { canRebuild } from './rebuild'
 import { pendingMilestone } from './milestones'
 import { getFrame } from './catalog'
 import { isSystemUnlocked, visibleResourceIds } from './progression'
@@ -30,11 +30,11 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(computeShipStats(s).damage).toBeCloseTo(before * 1.15)
   })
 
-  it('allows Rebuild from Wave 70 and keeps Core Mastery', () => {
+  it('allows Rebuild from Wave 210 and keeps Core Mastery', () => {
     let s = armRebuildDoor(createInitialState(0))
     s.meta.moduleMastery = { 'pulse-cannon': 6 }
     s.shipyard.corePicks = { 'pulse-cannon': { 'pulse-10': 'focused' } }
-    expect(canPrestige(s)).toBe(true)
+    expect(canRebuild(s)).toBe(true)
 
     s = performRebuild(s, {
       frameId: 'starter-frame',

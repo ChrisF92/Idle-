@@ -1,8 +1,8 @@
 import type { GameState } from './types'
 import { grantEnemyKillRewards } from './combat'
-import { advanceSeconds, startCombat } from './tick'
+import { advanceSeconds, DEFEAT_SEQUENCE_S, startCombat } from './tick'
 import { ACT1_CADENCE } from './cadence'
-import { REBUILD_MIN_SORTIES } from './rebuild'
+import { REBUILD_MIN_SORTIES, emptyRebuildCycle } from './rebuild'
 
 function wipeEnemies(state: GameState): void {
   for (const e of state.combat.enemyUnits) {
@@ -51,20 +51,39 @@ export function atCareerWave(state: GameState, wave: number): GameState {
   const w = Math.max(0, Math.floor(wave))
   next.meta.bestWave = Math.max(next.meta.bestWave ?? 0, w)
   next.combat.bestWave = Math.max(next.combat.bestWave ?? 0, w)
-  if (!next.prestige.cycle) next.prestige.cycle = { bestWave: 0, sorties: 0, scrapEarned: 0 }
+  if (!next.prestige.cycle) next.prestige.cycle = emptyRebuildCycle()
   next.prestige.cycle.bestWave = Math.max(next.prestige.cycle.bestWave ?? 0, w)
   if (w >= ACT1_CADENCE.rebuild) {
-    next.prestige.cycle.sorties = Math.max(next.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
+    next.prestige.cycle.normalSortiesCompleted = Math.max(
+      next.prestige.cycle.normalSortiesCompleted ?? 0,
+      REBUILD_MIN_SORTIES,
+    )
   }
   return next
 }
 
-/** Dock + cycle Wave 70 + enough Sorties for the Rebuild door. */
+/** Dock + cycle Wave 210 + enough Sorties for the Rebuild door. */
 export function armRebuildDoor(state: GameState): GameState {
   const next = atCareerWave(state, ACT1_CADENCE.rebuild)
   next.combat.docked = true
   next.meta.hullLostOnce = true
-  next.prestige.cycle.sorties = Math.max(next.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
+  next.prestige.cycle.normalSortiesCompleted = Math.max(
+    next.prestige.cycle.normalSortiesCompleted ?? 0,
+    REBUILD_MIN_SORTIES,
+  )
+  return next
+}
+
+/** Drive hull-loss through the real defeat sequence until Dock. */
+export function completeDefeat(state: GameState): GameState {
+  if (state.combat.docked) return state
+  const next = structuredClone(state)
+  next.combat.sortiePaused = false
+  next.combat.inFight = true
+  const flag = next.combat.playerUnits.find((u) => u.isFlagship)
+  if (flag) flag.hull = 0
+  next.combat.playerHull = 0
+  advanceSeconds(next, DEFEAT_SEQUENCE_S + 0.25)
   return next
 }
 

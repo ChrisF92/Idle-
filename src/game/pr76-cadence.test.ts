@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialState, globalDamageMultiplier } from './state'
+import { createInitialState, computeShipStats } from './state'
 import { ACT1_CADENCE, ECHO_MIN_PROTOCOL_RANKS, PROCESS_MIN_REBUILDS } from './cadence'
 import { isSystemUnlocked, PRESTIGE_MIN_SECTOR } from './progression'
 import { matterShopRankMultiplier, modulePrintWave } from './catalog'
@@ -8,7 +8,7 @@ import { atCareerWave } from './testHelpers'
 describe('GDD system cadence', () => {
   it('spreads major systems across the Wave table', () => {
     expect(ACT1_CADENCE.foundry).toBe(20)
-    expect(PRESTIGE_MIN_SECTOR).toBe(70)
+    expect(PRESTIGE_MIN_SECTOR).toBe(210)
     expect(ACT1_CADENCE.furnace).toBe(140)
     expect(ACT1_CADENCE.research).toBe(170)
     expect(ACT1_CADENCE.process).toBe(210)
@@ -49,11 +49,13 @@ describe('Rebuild growth', () => {
     expect(matterShopRankMultiplier(0.15, 10)).toBeGreaterThan(4)
   })
 
-  it('makes invested Rebuild Matter materially stronger than an uninvested account', () => {
+  it('makes purchased Weapon Calibration stronger than unspent Matter', () => {
     const base = atCareerWave(createInitialState(1), 20)
     base.prestige.prestigeCount = 2
+    base.resources.prestigeMatter = 500
     const invested = structuredClone(base)
-    invested.prestige.matterShop['matter-blade'] = 3
-    expect(globalDamageMultiplier(invested)).toBeGreaterThan(globalDamageMultiplier(base) * 1.45)
+    invested.prestige.matterShop['weapon-calibration'] = 3
+    invested.resources.prestigeMatter = 0
+    expect(computeShipStats(invested).damage).toBeGreaterThan(computeShipStats(base).damage)
   })
 })

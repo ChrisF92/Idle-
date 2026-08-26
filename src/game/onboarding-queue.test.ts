@@ -101,7 +101,7 @@ describe('onboarding queue', () => {
     expect(ids.has('process.capability')).toBe(true)
     expect(ids.has('challenges.start')).toBe(true)
     expect(ids.has('reinforce')).toBe(true)
-    expect(ONBOARDING_LESSONS.length).toBe(13)
+    expect(ONBOARDING_LESSONS.length).toBe(15)
   })
 
   it('Skip on Workers dismisses that lesson only', () => {

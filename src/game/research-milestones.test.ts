@@ -122,7 +122,7 @@ describe('Research milestones: nodes and identity', () => {
 
 describe('Research milestones: costs', () => {
   it('keeps SAVE_VERSION at 34 and an achievable first node', () => {
-    expect(SAVE_VERSION).toBe(35)
+    expect(SAVE_VERSION).toBe(44)
     const s = atResearch()
     expect(hiveResearchNodeCost(0)).toBe(52)
     expect(hiveResearchNodeCost(0, s)).toBe(52)
@@ -289,7 +289,7 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
     s.hiveResearch.focus = 'observation'
     s.hiveResearch.xp.observation = 12
     const loaded = importSave(exportSave(s))
-    expect(SAVE_VERSION).toBe(35)
+    expect(SAVE_VERSION).toBe(44)
     expect(loaded?.hiveResearch.completed.material).toBe(6)
     expect(loaded?.hiveResearch.completed.observation).toBe(2)
     expect(loaded?.hiveResearch.focus).toBe('observation')

@@ -6,16 +6,16 @@ import {
   canAscend,
   performAscension,
   performPrestige,
-  prestigeGainFor,
 } from './actions'
 import {
   canBuyMatterShop,
-  combatSpeedMultiplier,
   aiProductionBonus,
   shopMaxRank,
   getMatterShopItem,
   getAiNode,
 } from './catalog'
+import { matterGainFor } from './rebuild'
+import { availableTimeCompressionSpeeds } from './matter'
 import {
   ACHIEVEMENTS,
   tryCompleteAchievements,
@@ -27,29 +27,30 @@ import { mergeSignalCores } from './signalCores'
 import type { SignalCoreInstance } from './types'
 
 describe('deep matter shop + ascension', () => {
-  it('allows deep matter ranks after gates', () => {
-    expect(shopMaxRank(getMatterShopItem('matter-blade')!)).toBe(25)
+  it('caps canonical Matter nodes well below old 25-rank trees', () => {
+    expect(shopMaxRank(getMatterShopItem('weapon-calibration')!)).toBe(5)
+    expect(getMatterShopItem('matter-blade')).toBeUndefined()
     let state = createInitialState(0)
-    state.prestige.matterShop = { 'matter-blade': 14 }
+    state.prestige.matterShop = { 'weapon-calibration': 5 }
     state.resources.prestigeMatter = 1e9
     state.meta.act1Cleared = true
     state.prestige.prestigeCount = 5
-    expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(false)
-    expect(canBuyMatterShop(state, 'matter-blade').reason).toMatch(/Reinforce/)
-    state.meta.ascensionCount = 1
-    expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(true)
+    expect(canBuyMatterShop(state, 'weapon-calibration').ok).toBe(false)
+    expect(canBuyMatterShop(state, 'weapon-calibration').reason).toMatch(/Max/)
   })
 
-  it('ascension boosts future prestige matter gains', () => {
+  it('ascension does not multiply Rebuild Matter', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
     state.meta.bestWave = 1000
     state.combat.bestWave = 1000
+    state.prestige.cycle.bestWave = 1000
     expect(canAscend(state)).toBe(true)
-    const before = prestigeGainFor(state)
+    const before = matterGainFor(state)
     state = performAscension(state, 1000)
     expect(state.meta.ascensionCount).toBe(1)
-    expect(prestigeGainFor(state)).toBeGreaterThan(before)
+    state.prestige.cycle.bestWave = 1000
+    expect(matterGainFor(state)).toBe(before)
   })
 
   it('keeps ascension across prestige', () => {
@@ -62,37 +63,34 @@ describe('deep matter shop + ascension', () => {
 })
 
 describe('combat speed vs industry', () => {
-  it('combat chrono multiplies combat speed only', () => {
+  it('AI cannot add general combat speed', () => {
     let state = createInitialState(0)
     state.meta.bestWave = 250
     state.combat.bestWave = 250
     state.resources.aiPoints = 30
-    state = buyAiNode(state, 'combat-chrono-1')
-    expect(combatSpeedMultiplier(state)).toBe(1.5)
-    state = buyAiNode(state, 'combat-chrono-2')
-    expect(combatSpeedMultiplier(state)).toBe(2)
-    state = buyAiNode(state, 'combat-chrono-3')
-    expect(combatSpeedMultiplier(state)).toBe(3)
+    state.ai.purchased = ['combat-chrono-1', 'combat-chrono-2', 'combat-chrono-3']
+    expect(availableTimeCompressionSpeeds(state)).toEqual([1])
+    const buying = createInitialState(0)
+    buying.meta.bestWave = 250
+    buying.resources.aiPoints = 30
+    expect(buyAiNode(buying, 'combat-chrono-1').ai.purchased).not.toContain('combat-chrono-1')
   })
 
-  it('requires chrono chain and ignores industry bonus for combat mult', () => {
+  it('industry AI does not create a combat multiplier', () => {
     let state = createInitialState(0)
     state.meta.bestWave = 250
     state.combat.bestWave = 250
     state.resources.aiPoints = 50
-    expect(buyAiNode(state, 'combat-chrono-2').ai.purchased).not.toContain(
-      'combat-chrono-2',
-    )
     state = buyAiNode(state, 'chrono-industry')
-    expect(aiProductionBonus(state)).toBe(0.4)
-    expect(combatSpeedMultiplier(state)).toBe(1)
+    expect(aiProductionBonus(state)).toBeGreaterThanOrEqual(0)
+    expect(availableTimeCompressionSpeeds(state)).toEqual([1])
   })
 
-  it('silent bridge disables combat chrono', () => {
+  it('Challenge sorties still cannot buy Time Compression from AI', () => {
     let state = createInitialState(0)
-    state.ai.purchased = ['combat-chrono-3']
+    state.ai.purchased = ['drone-efficiency-1']
     state.prestige.activeChallengeId = 'no-ai'
-    expect(combatSpeedMultiplier(state)).toBe(1)
+    expect(availableTimeCompressionSpeeds(state)).toEqual([1])
   })
 })
 
@@ -173,11 +171,11 @@ describe('save migrate v18', () => {
 })
 
 describe('matter shop buy still works', () => {
-  it('buys blade at rank 1', () => {
+  it('buys Weapon Calibration at rank 1', () => {
     let state = createInitialState(0)
-    state.resources.prestigeMatter = 3
-    state = buyMatterShop(state, 'matter-blade')
-    expect(state.prestige.matterShop['matter-blade']).toBe(1)
+    state.resources.prestigeMatter = 4
+    state = buyMatterShop(state, 'weapon-calibration')
+    expect(state.prestige.matterShop['weapon-calibration']).toBe(1)
   })
 })
 

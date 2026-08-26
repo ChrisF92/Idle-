@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { startCombat, advanceSeconds, setDocked, freezeActiveSortie, handleAppHidden, setSortiePaused, tickGame, LIVE_TICK_CAP } from './tick'
+import { startCombat, advanceSeconds, setDocked, freezeActiveSortie, handleAppHidden, setSortiePaused, tickGame, LIVE_TICK_CAP, extractSortie } from './tick'
 import { tryCompleteChallenge, assignWorker, setFoundrySlot } from './actions'
 import {
   ACT1_FINAL_WAVE,
@@ -615,7 +615,10 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(reloaded.combat.sortieSeed).toBe(first.combat.sortieSeed)
     expect(reloaded.meta.sortieSerial).toBe(1)
 
-    const extracted = setDocked(structuredClone(first), true)
+    const live = structuredClone(first)
+    live.meta.bestWave = 210
+    live.combat.bestWave = 210
+    const extracted = extractSortie(live)
     const second = setDocked(extracted, false)
     expect(second.combat.sortieSeed).not.toBe(first.combat.sortieSeed)
     expect(second.meta.sortieSerial).toBe(2)
@@ -1084,7 +1087,9 @@ describe('PR1 wave-only radial combat foundation', () => {
     let state = startCombat(createInitialState(1))
     state = setSortiePaused(state, true)
     expect(state.combat.sortiePaused).toBe(true)
-    const extracted = setDocked(state, true)
+    state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, 210)
+    state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, 210)
+    const extracted = extractSortie(state)
     expect(extracted.combat.docked).toBe(true)
     expect(extracted.combat.inFight).toBe(false)
     expect(extracted.combat.sortiePaused).toBe(false)

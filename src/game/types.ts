@@ -231,6 +231,12 @@ export interface SortieMark {
   salvage: number
   salvageSpent: number
   scrap: number
+  /** Qualifying combat Scrap generated this Sortie. Extraction uses this, not bank delta. */
+  grossScrapGenerated: number
+  /** Sortie Provisioning applied once for this launch. */
+  provisioningGranted: boolean
+  /** Set at launch if this Sortie is a Challenge. Survives mid-Sortie challenge completion. */
+  challengeSortie?: boolean
   sectorsCleared: number
   corePicks: number
   researchXp: number
@@ -253,6 +259,8 @@ export interface SortieSummary {
   salvageGained: number
   salvageSpent: number
   scrapEarned: number
+  extractionBonusScrap: number
+  grossScrapGenerated: number
   newBest: boolean
   previousBest: number
   milestones: number
@@ -1132,17 +1140,29 @@ export type RunUpgradeCategory = 'attack' | 'defense' | 'economy'
 export type RunUpgradeId =
   | 'weapon-power'
   | 'cycle-rate'
+  | 'crit-chance'
+  | 'crit-factor'
+  | 'armor-pen'
+  | 'targeting-servos'
   | 'hull'
   | 'shield'
-  | 'salvage-kill'
-  | 'salvage-wave'
-  | 'crit-chance'
-  | 'armor-pen'
   | 'shield-regen'
   | 'armor'
+  | 'repair-rate'
+  | 'damage-control'
+  | 'salvage-kill'
+  | 'salvage-wave'
   | 'scrap-kill'
-  | 'fragment-chance'
-  | 'ash-yield'
+  | 'scrap-wave'
+  | 'fragment-find'
+  | 'ash-recovery'
+
+/** Known permanent generic upgrades per category. Starter-six begins at 2. */
+export interface GenericUpgradeUnlocks {
+  attack: number
+  defense: number
+  economy: number
+}
 
 /** Rebuild-cycle starting power. Survives Sorties; resets on Rebuild. */
 export interface WorkshopState {
@@ -1318,8 +1338,6 @@ export interface MetaState {
   moduleMastery: Record<string, number>
   /** XP toward the next Mastery level, per Core type. */
   moduleMasteryXp?: Record<string, number>
-  /** Old Scrap Dock ranks have been converted into Mastery. */
-  coreProgressionMigrated?: boolean
   /** Lifetime manual Core Level purchases (legacy field name retained in saves). */
   lifetimeCoreRunBuys?: number
   /**
@@ -1344,12 +1362,19 @@ export interface MetaState {
   /** GDD §113 floating combat numbers. */
   damageNumbers: 'minimal' | 'standard' | 'detailed'
   /**
-   * Chosen Sortie combat speed. Clamped to unlocked Chrono / Process speeds.
-   * Missing on old saves — treated as the current maximum available.
+   * Chosen Sortie combat speed. Clamped to unlocked Time Compression speeds.
+   * Missing on old saves — treated as 1×.
    */
   sortieSpeed?: number
   /** Player has Extracted at least once. Hides the first-run Extract row. */
   extractedOnce?: boolean
+  /**
+   * Permanent generic-upgrade unlock counts per category.
+   * Survives Rebuild. Workshop cycle levels do not live here.
+   */
+  genericUpgradeUnlocks: GenericUpgradeUnlocks
+  /** First Extraction sheet has been opened and explained. */
+  extractionExplained?: boolean
 }
 
 export interface ResearchState {
@@ -1372,8 +1397,10 @@ export interface EssenceState {
 /** Progress inside the current Rebuild cycle. Wiped when a Rebuild lands. */
 export interface RebuildCycleState {
   bestWave: number
-  sorties: number
-  scrapEarned: number
+  /** Completed normal (non-Challenge) Sorties this cycle. */
+  normalSortiesCompleted: number
+  /** Gross Scrap GENERATED this cycle. Spending does not reduce this. */
+  scrapGenerated: number
 }
 
 export interface PrestigeState {

@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { createFreshCareerState, startOpeningSortie } from './freshStart'
 import { exportSave, importSave, loadOrCreateGame } from './save'
-import { markHullLost } from './testHelpers'
-import { setDocked } from './tick'
+import { completeDefeat, markHullLost } from './testHelpers'
 
 describe('fresh save vs existing docked save', () => {
   it('creates a genuinely new game already fighting Wave 1', () => {
@@ -33,7 +32,7 @@ describe('fresh save vs existing docked save', () => {
 
   it('does not auto-launch after extract/defeat/rebuild-style docking', () => {
     let state = createFreshCareerState(0)
-    state = setDocked(state, true)
+    state = completeDefeat(state)
     expect(state.combat.docked).toBe(true)
     expect(state.combat.inFight).toBe(false)
     const again = startOpeningSortie(state)

@@ -7,7 +7,7 @@ import { TabNav } from '../components/TabNav'
 import { createInitialState } from './state'
 import {
   advanceSeconds,
-  setDocked,
+  extractSortie,
   setSortiePaused,
   startCombat,
 } from './tick'
@@ -87,7 +87,7 @@ describe('live Sortie chrome and pause/browse contract', () => {
     expect(document.querySelector('.tab-nav, nav.tab-nav, [aria-label="Game systems"]')).toBeNull()
   })
 
-  it('lists Pause, Pause & Browse, and Extract in the Sortie hamburger', () => {
+  it('lists Pause and Pause & Browse; Extract stays locked before W210', () => {
     const live = liveSortie()
     render(
       <CombatTab
@@ -99,7 +99,8 @@ describe('live Sortie chrome and pause/browse contract', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
     expect(screen.getByRole('menuitem', { name: 'Pause' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Pause & Browse' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Extract' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Extract' })).toBeNull()
+    expect(screen.getByText(/Unlocks at Best Wave 210/i)).toBeTruthy()
   })
 
   it('Pause freezes simTime, enemies, Wave timers, and cooldowns until Resume', () => {
@@ -217,7 +218,9 @@ describe('live Sortie chrome and pause/browse contract', () => {
   it('Extract terminates the Sortie instead of pausing it', () => {
     const live = setSortiePaused(liveSortie(), true)
     expect(live.combat.sortiePaused).toBe(true)
-    const extracted = setDocked(live, true)
+    live.meta.bestWave = Math.max(live.meta.bestWave ?? 0, 210)
+    live.combat.bestWave = Math.max(live.combat.bestWave ?? 0, 210)
+    const extracted = extractSortie(live)
     expect(extracted.combat.docked).toBe(true)
     expect(extracted.combat.inFight).toBe(false)
     expect(isSortieActive(extracted)).toBe(false)

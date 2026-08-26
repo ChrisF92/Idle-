@@ -5,7 +5,7 @@ export const ACT1_CADENCE = {
   workers: 30,
   economy: 40,
   directives: 50,
-  rebuild: 70,
+  rebuild: 210,
   foundryAdvanced: 90,
   yard: 90,
   reliquary: 110,

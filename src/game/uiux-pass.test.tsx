@@ -5,7 +5,7 @@ import { DockTab } from '../components/tabs/DockTab'
 import { SystemsTab } from '../components/tabs/SystemsTab'
 import { SortieReport } from '../components/SortieReport'
 import { createInitialState } from './state'
-import { markHullLost } from './testHelpers'
+import { completeDefeat, markHullLost } from './testHelpers'
 import { setDocked } from './tick'
 import { buyRunUpgrade, buyWorkshopUpgrade } from './actions'
 import { nextRunUpgradeCost, runPurchasedLevel, runUpgradeCost, workshopLevel } from './workshop'
@@ -83,7 +83,7 @@ describe('UI/UX pass regression', () => {
     expect(first).toBe(runUpgradeCost(0))
     s = buyRunUpgrade(s, 'weapon-power')
     expect(runPurchasedLevel(s, 'weapon-power')).toBe(1)
-    s = setDocked(s, true)
+    s = completeDefeat(s)
     expect(runPurchasedLevel(s, 'weapon-power')).toBe(0)
     s = setDocked(s, false)
     expect(nextRunUpgradeCost(s, 'weapon-power')).toBe(runUpgradeCost(0))

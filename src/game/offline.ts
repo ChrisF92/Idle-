@@ -33,6 +33,7 @@ import { tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
 import { processIndustrySpeedMult, processOfflineBonusMs } from './process'
 import { WORKER_JOB_IDS } from './workers'
+import { grantGeneratedScrap } from './rebuild'
 
 /** Default hard cap; Deep Cache shop extends this. */
 export const MAX_OFFLINE_MS = 8 * 60 * 60 * 1000
@@ -72,6 +73,10 @@ function formatGains(gains: Partial<Resources>): string {
   return parts.length ? parts.join(', ') : 'no net resource gains'
 }
 
+function creditIndustryScrap(state: GameState, amount: number): void {
+  if (amount > 0) grantGeneratedScrap(state, amount, 'industry')
+}
+
 function applyIndustryOnly(state: GameState, seconds: number): void {
   const meta =
     metaProductionMultiplier(
@@ -103,15 +108,18 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       const efficiency = upkeep > 0 ? paid / upkeep : 1
       for (const [resource, perDrone] of Object.entries(station.rates)) {
         const key = resource as keyof Resources
-        state.resources[key] +=
-          (perDrone ?? 0) * effective * seconds * efficiency * meta
+        const add = (perDrone ?? 0) * effective * seconds * efficiency * meta
+        if (key === 'scrap') creditIndustryScrap(state, add)
+        else state.resources[key] += add
       }
       continue
     }
 
     for (const [resource, perDrone] of Object.entries(station.rates)) {
       const key = resource as keyof Resources
-      state.resources[key] += (perDrone ?? 0) * effective * seconds * meta
+      const add = (perDrone ?? 0) * effective * seconds * meta
+      if (key === 'scrap') creditIndustryScrap(state, add)
+      else state.resources[key] += add
     }
   }
 

@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import { encounterForWave, totalEnemyHull } from './combat'
+import { selectedTimeCompression } from './matter'
 import { PRESTIGE_MIN_SECTOR } from './progression'
 import { wavesForSector } from './sectors'
 import {
@@ -58,9 +59,11 @@ function buildCareerState(prestiges: number): GameState {
   state.prestige.prestigeCount = prestiges
   state.resources.prestigeMatter = Math.max(0, prestiges * 7)
   state.prestige.matterShop = {
-    'matter-blade': Math.min(16, Math.floor(prestiges * 0.5)),
-    'matter-forge': Math.min(14, Math.floor(prestiges * 0.4)),
-    'matter-plating': Math.min(12, Math.floor(prestiges * 0.35)),
+    'weapon-calibration': Math.min(5, Math.floor(prestiges * 0.4)),
+    'structural-memory': Math.min(5, Math.floor(prestiges * 0.35)),
+    'time-compression-1': prestiges >= 1 ? 1 : 0,
+    'time-compression-2': prestiges >= 3 ? 1 : 0,
+    'time-compression-3': prestiges >= 8 ? 1 : 0,
   }
   state.shipyard.moduleLevels = {
     'pulse-cannon': Math.min(16, Math.floor(prestiges * 0.55) + 1),
@@ -80,12 +83,10 @@ function buildCareerState(prestiges: number): GameState {
   }
   if (prestiges >= 6) {
     state.research.unlocked.push('module-fab', 'core-training')
-    state.ai.purchased = ['combat-chrono-1', 'drone-efficiency-1', 'auto-assign-workers']
+    state.ai.purchased = ['drone-efficiency-1', 'auto-assign-workers']
   }
   if (prestiges >= 12) {
     state.ai.purchased = [
-      'combat-chrono-1',
-      'combat-chrono-2',
       'drone-efficiency-1',
       'drone-efficiency-2',
       'chrono-industry',
@@ -94,16 +95,13 @@ function buildCareerState(prestiges: number): GameState {
     ]
   }
   if (prestiges >= 18) {
-    state.ai.purchased.push('combat-chrono-3')
+    state.ai.purchased.push('drone-hangar')
   }
   return state
 }
 
 function combatChrono(state: GameState): number {
-  if (state.ai.purchased.includes('combat-chrono-3')) return 3
-  if (state.ai.purchased.includes('combat-chrono-2')) return 2
-  if (state.ai.purchased.includes('combat-chrono-1')) return 1.5
-  return 1
+  return selectedTimeCompression(state)
 }
 
 /**

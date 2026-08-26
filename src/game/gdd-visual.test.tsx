@@ -69,7 +69,8 @@ describe('GDD visual layout and Dock Core Levels', () => {
     expect(screen.queryByRole('tab', { name: 'Cores' })).toBeNull()
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
-    expect(screen.getByRole('menuitem', { name: 'Extract' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Extract' })).toBeNull()
+    expect(screen.getByText(/Extract/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Core Performance' })).toBeNull()
   })
 
@@ -88,7 +89,7 @@ describe('GDD visual layout and Dock Core Levels', () => {
     expect(screen.queryByRole('button', { name: /Upgrade · .* Scrap/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Workshop/ }))
     expect(screen.getByText('Weapon Power')).toBeTruthy()
-    expect(screen.getByText(/START Lv/)).toBeTruthy()
+    expect(screen.getAllByText(/Workshop Lv/).length).toBeGreaterThan(0)
   })
 
   it('inspects shared Mastery and Dock Core Level', () => {
@@ -150,7 +151,7 @@ describe('GDD visual layout and Dock Core Levels', () => {
     s.shipyard.moduleLevels = { 'pulse-cannon': 1 }
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
-    expect(s.workshop?.coreStarts['pulse-cannon'] ?? 0).toBe(0)
+    expect(s.workshop?.coreStarts['pulse-cannon:1'] ?? 0).toBe(0)
     expect(s.meta.moduleMastery['pulse-cannon']).toBe(4)
   })
 })
