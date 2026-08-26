@@ -50,12 +50,14 @@ import {
   firingSolution,
   isTargetableEnemy,
   noteCoreFiring,
+  noteCoreShotFired,
   noteShotHeld,
   orbitSpeedFactor,
   playerCoreTarget,
   profileForCore,
   tickPlayerCoreTargeting,
   emptyTargetingTelemetry,
+  effectiveChargeDurationSec,
 } from './coreTargeting'
 import { TYPICAL_SPAWN_RADIUS, coreWorldPosition, distanceBetween, distanceToHive, moveRadially, wrapTau } from './geometry'
 import { formationRngFor, formationSlots, pickFormation, type FormationContext } from './formations'
@@ -1436,7 +1438,9 @@ function preserveWeaponCooldowns(prev: CombatUnit[], next: CombatUnit[]): void {
       unit.orbitAngle = old.orbitAngle ?? unit.orbitAngle
       unit.heading = old.heading ?? unit.heading
       unit.currentTargetId = old.currentTargetId
+      unit.targetLockTime = old.targetLockTime
       unit.nextTargetEvalAt = old.nextTargetEvalAt
+      unit.heldShotNoted = old.heldShotNoted
       unit.targetingTelemetry = old.targetingTelemetry
         ? { ...old.targetingTelemetry }
         : unit.targetingTelemetry
@@ -1484,6 +1488,7 @@ export function buildCoreSatellite(state: GameState, slot: number, index: number
     heading: orbitAngle,
     orbitRadius: orbit,
     currentTargetId: undefined,
+    targetLockTime: 0,
     nextTargetEvalAt: 0,
     targetingTelemetry: emptyTargetingTelemetry(),
     speed: 0,
@@ -2405,6 +2410,9 @@ function firePlayerCore(
   const fireRange = effectiveCoreFireRange(state, unit)
 
   for (const weapon of unit.weapons) {
+    if (weapon.cooldownLeft > 0 && !weapon.chargeReady && weapon.telegraphLeft <= 0) {
+      unit.heldShotNoted = false
+    }
     weapon.cooldownLeft = Math.max(0, weapon.cooldownLeft - dt)
 
     if (profile.requiresCharge) {
@@ -2420,20 +2428,25 @@ function firePlayerCore(
         weapon.chargeReady = true
       }
       if (weapon.chargeReady) {
-        if (!sol.canReleaseCharge) continue
+        if (!sol.canReleaseCharge) {
+          noteShotHeld(unit)
+          continue
+        }
         if (weapon.cooldownLeft > 0) continue
         const fired = deliverPlayerShot(state, unit, weapon, target, roles, matchupScale, bossProtocol)
         if (fired) {
           cancelCoreCharge(weapon)
           weapon.cooldownLeft = 0
           noteCoreFiring(unit, dt)
+          noteCoreShotFired(unit)
         }
         continue
       }
       if (weapon.cooldownLeft > 0) continue
       if (sol.canStartCharge) {
-        weapon.telegraphDuration = profile.chargeDurationSec
-        weapon.telegraphLeft = profile.chargeDurationSec
+        const charge = effectiveChargeDurationSec(state, unit)
+        weapon.telegraphDuration = charge
+        weapon.telegraphLeft = charge
         weapon.telegraphToId = target.id
         weapon.chargeReady = false
       }
@@ -2457,6 +2470,7 @@ function firePlayerCore(
     if (fired) {
       weapon.cooldownLeft = weapon.cooldown
       noteCoreFiring(unit, dt)
+      noteCoreShotFired(unit)
     }
   }
 }

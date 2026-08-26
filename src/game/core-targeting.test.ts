@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { setCoreTargetingDoctrine, unfitModule } from './actions'
+import { setCoreTargetingDoctrine, unfitModule, buyRunUpgrade } from './actions'
 import { addCoreInstance } from './coreInstances'
 import { buildPlayerFleet, simulateCombat } from './combat'
 import {
+  ACQUISITION_FIRE_GAP,
   ACQUISITION_RETENTION,
+  applyTargetingStats,
+  beatsHysteresis,
+  buildEvalBundle,
   buildSharedTargetMetrics,
   canConfigureTargetingDoctrine,
+  canEditTargetingNow,
   compareTargetTie,
+  effectiveChargeDurationSec,
   effectiveCoreAcquisitionRange,
   effectiveCoreFireRange,
   effectiveCoreFiringArc,
@@ -17,13 +23,17 @@ import {
   evaluateCoreTarget,
   FIRE_CONTROL_DOCTRINE_RESEARCH_ID,
   firingSolution,
+  HYSTERESIS_ABSOLUTE_FLOOR,
   isTargetableEnemy,
+  pickBestTarget,
   playerCoreTarget,
   scoreDoctrine,
+  switchRequiredGain,
   TARGET_EVAL_INTERVAL,
   tickPlayerCoreTargeting,
 } from './coreTargeting'
 import { targetingProfileFor } from './targetingProfiles'
+import { SHORT_RANGE_MAX } from './catalog'
 import { bearingBetween, degToRad, distanceBetween, radToDeg, shortestAngleDelta, slewHeading } from './geometry'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
 import { loadOrCreateGame, saveGame } from './save'
@@ -123,6 +133,53 @@ describe('canonical targeting profiles', () => {
     expect(targetingProfileFor('slag-spitter').allowedDoctrines).toEqual(['cluster', 'heavy', 'threat'])
   })
 
+  it('restores the approved PR2 targeting seeds', () => {
+    const pulse = targetingProfileFor('pulse-cannon')
+    expect(pulse.fireRange).toBe(170)
+    expect(pulse.acquisitionRange).toBe(240)
+    expect(pulse.firingArcDeg).toBe(150)
+    expect(pulse.slewRateDegPerSec).toBe(360)
+    expect(pulse.switchAdvantage).toBe(0.25)
+    expect(pulse.firesWhileTraversing).toBe(true)
+
+    const heavy = targetingProfileFor('heavy-lance')
+    expect(heavy.fireRange).toBe(260)
+    expect(heavy.acquisitionRange).toBe(380)
+    expect(heavy.firingArcDeg).toBe(100)
+    expect(heavy.slewRateDegPerSec).toBe(120)
+    expect(heavy.switchAdvantage).toBe(0.45)
+    expect(heavy.aimToleranceDeg).toBe(4)
+    expect(heavy.chargeDurationSec).toBe(2.8)
+    expect(heavy.firesWhileTraversing).toBe(false)
+
+    const flak = targetingProfileFor('flak-array')
+    expect(flak.fireRange).toBe(145)
+    expect(flak.acquisitionRange).toBe(210)
+    expect(flak.firingArcDeg).toBe(220)
+    expect(flak.slewRateDegPerSec).toBe(540)
+    expect(flak.switchAdvantage).toBe(0.1)
+    expect(flak.firesWhileTraversing).toBe(true)
+
+    const phase = targetingProfileFor('phase-beam')
+    expect(phase.fireRange).toBe(220)
+    expect(phase.acquisitionRange).toBe(310)
+    expect(phase.firingArcDeg).toBe(135)
+    expect(phase.slewRateDegPerSec).toBe(180)
+    expect(phase.switchAdvantage).toBe(0.6)
+    expect(phase.committedSwitchAdvantage).toBe(0.65)
+    expect(phase.aimToleranceDeg).toBe(6)
+    expect(phase.firesWhileTraversing).toBe(false)
+    expect(phase.switchAdvantage).toBeGreaterThan(heavy.switchAdvantage)
+
+    const slag = targetingProfileFor('slag-spitter')
+    expect(slag.fireRange).toBe(180)
+    expect(slag.acquisitionRange).toBe(250)
+    expect(slag.firingArcDeg).toBe(175)
+    expect(slag.slewRateDegPerSec).toBe(300)
+    expect(slag.switchAdvantage).toBe(0.2)
+    expect(slag.firesWhileTraversing).toBe(true)
+  })
+
   it('falls back to authored default when stored Doctrine is invalid', () => {
     const state = createInitialState(0)
     const inst = state.shipyard.coreInstances.find((row) => row.moduleId === 'pulse-cannon')!
@@ -199,10 +256,7 @@ describe('persistent targeting', () => {
     })
     setEnemies(state, [current, better])
     core.currentTargetId = 'hold'
-    const bundle = {
-      enemies: state.combat.enemyUnits,
-      metrics: buildSharedTargetMetrics(state, state.combat.enemyUnits),
-    }
+    const bundle = buildEvalBundle(state, state.combat.enemyUnits)
     const sHold = scoreDoctrine('threat', current, bundle.metrics.get('hold')!)
     const sNudge = scoreDoctrine('threat', better, bundle.metrics.get('nudge')!)
     expect(sNudge).toBeGreaterThan(sHold)
@@ -368,7 +422,7 @@ describe('Doctrine scoring', () => {
     expect(s.danger).toBeGreaterThan(s.harmless)
   })
 
-  it('Focus prefers existing allied commitment and falls back to Threat', () => {
+  it('Focus prefers OTHER allied commitment and falls back to Threat without self-vote', () => {
     const state = pulseSortie()
     const core = pulseCore(state)
     setEnemies(state, [
@@ -396,14 +450,31 @@ describe('Doctrine scoring', () => {
       }),
     ])
     core.currentTargetId = 'marked'
-    const committed = scores(state, 'focus')
-    expect(committed.marked).toBeGreaterThan(committed.other)
+    const inst = state.shipyard.coreInstances.find((row) => row.moduleId === 'pulse-cannon')!
+    inst.targetingDoctrine = 'focus'
+    enableFireControlDoctrineForTests(state)
+    state.hiveResearch.completedIds = [...new Set([...(state.hiveResearch.completedIds ?? []), FIRE_CONTROL_DOCTRINE_RESEARCH_ID])]
+    const hive = state.combat.playerUnits.find((u) => u.isFlagship)!
+    const ally: CombatUnit = {
+      ...core,
+      id: 'pulse-cannon:2',
+      coreInstanceId: 'pulse-cannon:2',
+      currentTargetId: 'marked',
+      targetingTelemetry: emptyTargetingTelemetry(),
+      weapons: core.weapons.map((w) => ({ ...w, id: `${w.id}-ally` })),
+    }
+    state.combat.playerUnits = [hive, core, ally]
+    const metrics = buildSharedTargetMetrics(state, state.combat.enemyUnits)
+    const bundle = buildEvalBundle(state, state.combat.enemyUnits)
+    const picked = pickBestTarget(state, core, bundle, 'focus')
+    expect(picked?.target.id).toBe('marked')
+    expect(metrics.get('marked')!.focusWeight).toBe(0)
 
-    core.currentTargetId = undefined
-    state.combat.projectiles = []
-    const fallback = scores(state, 'focus')
-    const threat = scores(state, 'threat')
-    expect(fallback.other).toBeCloseTo(threat.other, 5)
+    state.combat.playerUnits = [hive, core]
+    core.currentTargetId = 'marked'
+    const fallback = pickBestTarget(state, core, buildEvalBundle(state, state.combat.enemyUnits), 'focus')
+    const threat = pickBestTarget(state, core, buildEvalBundle(state, state.combat.enemyUnits), 'threat')
+    expect(fallback?.target.id).toBe(threat?.target.id)
   })
 
   it('Execution prefers a weakened finishable enemy', () => {
@@ -524,7 +595,7 @@ describe('Fire-Control Doctrine gate', () => {
     core.currentTargetId = 'keep'
     state = setCoreTargetingDoctrine(state, inst.id, 'shield')
     expect(state.shipyard.coreInstances.find((row) => row.id === inst.id)?.targetingDoctrine).toBe('shield')
-    expect(pulseCore(state).currentTargetId).toBeUndefined()
+    expect(pulseCore(state).currentTargetId).toBe('keep')
     expect(state.combat.sortiePaused).toBe(true)
   })
 })
@@ -752,7 +823,8 @@ describe('determinism, telemetry, and stress', () => {
     setEnemies(state, [enemy({ id: 'a', x: 0, y: 220 })])
     core.heading = Math.PI
     evalNow(state)
-    expect(core.targetingTelemetry?.targetSwitches).toBeGreaterThan(0)
+    expect(core.targetingTelemetry?.initialAcquisitions).toBeGreaterThan(0)
+    expect(core.targetingTelemetry?.targetSwitches ?? 0).toBe(0)
     simulateCombat(state, 0.3, silent)
     const slew = core.targetingTelemetry!.timeSlewLimited
     const out = core.targetingTelemetry!.timeAcquiredOutsideFire
@@ -816,7 +888,7 @@ describe('range / arc identity', () => {
     const core = fleet.find((u) => u.isCore)!
     expect(effectiveCoreAcquisitionRange(state, core)).toBeGreaterThan(effectiveCoreFireRange(state, core))
     expect(effectiveCoreFiringArc(state, core)).toBe(150)
-    expect(effectiveCoreSlewRate(state, core)).toBe(240)
+    expect(effectiveCoreSlewRate(state, core)).toBe(360)
   })
 
   it('uses the isolated legacy fallback for non-final weapon IDs', () => {
@@ -864,5 +936,473 @@ describe('player fire uses persistent target', () => {
     const shot = state.combat.projectiles.find((p) => p.side === 'player')
     expect(shot?.toId).toBe('locked')
     expect(playerCoreTarget(state, core)?.id).toBe('locked')
+  })
+})
+
+function stubGun(id: string, damage: number, cooldown = 1): CombatUnit['weapons'][number] {
+  return {
+    id,
+    name: 'g',
+    damage,
+    cooldown,
+    cooldownLeft: 1,
+    range: 80,
+    tags: ['kinetic'],
+    splash: 0,
+    dotDuration: 0,
+    dotDamage: 0,
+    telegraphDuration: 0,
+    telegraphLeft: 0,
+  }
+}
+
+function addAllyCore(state: GameState, id: string, targetId?: string): CombatUnit {
+  const core = pulseCore(state)
+  const ally: CombatUnit = {
+    ...core,
+    id,
+    coreInstanceId: id,
+    currentTargetId: targetId,
+    targetLockTime: 0,
+    targetingTelemetry: emptyTargetingTelemetry(),
+    weapons: core.weapons.map((w) => ({ ...w, id: `${w.id}-${id}` })),
+  }
+  state.combat.playerUnits.push(ally)
+  return ally
+}
+
+function fitHeavyLance(seed = 0): GameState {
+  let state = createInitialState(seed)
+  state = unfitModule(state, 'pulse-cannon')
+  state.shipyard.unlockedModules.push('heavy-lance')
+  state.shipyard.modules = ['heavy-lance', 'plate-layer']
+  state.shipyard.coreInstances.push({ id: 'heavy-lance:1', moduleId: 'heavy-lance' })
+  state.shipyard.equippedCoreIds = ['heavy-lance:1', 'plate-layer:1']
+  return startCombat(state)
+}
+
+describe('acquisition safety gap', () => {
+  it('keeps authored acquisition when fire is unmodified', () => {
+    const pulse = targetingProfileFor('pulse-cannon')
+    const stats = applyTargetingStats(pulse, {})
+    expect(stats.fire).toBe(170)
+    expect(stats.acquire).toBe(240)
+  })
+
+  it('preserves a meaningful acquire > fire gap if fire would overtake acquisition', () => {
+    const pulse = targetingProfileFor('pulse-cannon')
+    const stats = applyTargetingStats(pulse, { fireRangeAdd: 200 })
+    expect(stats.fire).toBe(370)
+    expect(stats.acquire).toBeGreaterThanOrEqual(stats.fire * ACQUISITION_FIRE_GAP - 1e-9)
+    expect(stats.acquire).toBeCloseTo(370 * ACQUISITION_FIRE_GAP)
+  })
+})
+
+describe('Focus excludes self-vote', () => {
+  it('does not self-anchor a lone Focus Core', () => {
+    const state = enableFireControlDoctrineForTests(pulseSortie())
+    const inst = state.shipyard.coreInstances.find((row) => row.moduleId === 'pulse-cannon')!
+    inst.targetingDoctrine = 'focus'
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({ id: 'a', x: 0, y: 160, speed: 6, weapons: [stubGun('a-g', 2, 3)] }),
+      enemy({ id: 'b', x: 10, y: 90, speed: 40, weapons: [stubGun('b-g', 18, 0.6)] }),
+    ])
+    core.currentTargetId = 'a'
+    evalNow(state)
+    const threat = pickBestTarget(state, core, buildEvalBundle(state, state.combat.enemyUnits), 'threat')
+    expect(core.currentTargetId).toBe(threat?.target.id)
+  })
+
+  it('lets a second Focus Core converge onto another Core’s commitment', () => {
+    const state = enableFireControlDoctrineForTests(pulseSortie())
+    const inst = state.shipyard.coreInstances.find((row) => row.moduleId === 'pulse-cannon')!
+    inst.targetingDoctrine = 'focus'
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({ id: 'a', x: 0, y: 140 }),
+      enemy({ id: 'b', x: 40, y: 90, speed: 40, weapons: [stubGun('b-g', 20, 0.5)] }),
+    ])
+    addAllyCore(state, 'pulse-cannon:2', 'a')
+    core.currentTargetId = undefined
+    evalNow(state)
+    expect(core.currentTargetId).toBe('a')
+  })
+
+  it('is independent of Core processing order', () => {
+    const state = enableFireControlDoctrineForTests(pulseSortie())
+    const inst = state.shipyard.coreInstances.find((row) => row.moduleId === 'pulse-cannon')!
+    inst.targetingDoctrine = 'focus'
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({ id: 'a', x: 0, y: 140 }),
+      enemy({ id: 'b', x: 40, y: 90, speed: 40, weapons: [stubGun('b-g', 20, 0.5)] }),
+    ])
+    const ally = addAllyCore(state, 'pulse-cannon:2', 'a')
+    const hive = state.combat.playerUnits.find((u) => u.isFlagship)!
+    core.currentTargetId = undefined
+    state.combat.playerUnits = [hive, core, ally]
+    evalNow(state)
+    const forward = core.currentTargetId
+    core.currentTargetId = undefined
+    state.combat.playerUnits = [hive, ally, core]
+    evalNow(state)
+    expect(core.currentTargetId).toBe(forward)
+    expect(forward).toBe('a')
+  })
+
+  it('does not permanently self-anchor from its own projectile', () => {
+    const state = enableFireControlDoctrineForTests(pulseSortie())
+    const inst = state.shipyard.coreInstances.find((row) => row.moduleId === 'pulse-cannon')!
+    inst.targetingDoctrine = 'focus'
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({ id: 'a', x: 0, y: 160, speed: 6, weapons: [stubGun('a-g', 2, 3)] }),
+      enemy({ id: 'b', x: 10, y: 90, speed: 40, weapons: [stubGun('b-g', 18, 0.6)] }),
+    ])
+    core.currentTargetId = undefined
+    state.combat.projectiles = [
+      {
+        id: 'own-shot',
+        fromId: core.id,
+        toId: 'a',
+        side: 'player',
+        tag: 'kinetic',
+        x: core.x,
+        y: core.y,
+        damage: 1,
+        tags: ['kinetic'],
+        dotDuration: 0,
+        dotDamage: 0,
+        speed: 40,
+        attackerFamily: 'core',
+      },
+    ]
+    evalNow(state)
+    expect(core.currentTargetId).toBe('b')
+  })
+})
+
+describe('Shield fallback and Execution / Cluster scoring', () => {
+  it('falls back to Threat when no legal candidate is meaningfully shielded', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({ id: 'harmless', x: 0, y: 180, speed: 4, shield: 0, shieldMax: 0, weapons: [stubGun('h', 1, 4)] }),
+      enemy({ id: 'danger', x: 20, y: 90, speed: 40, shield: 0, shieldMax: 0, weapons: [stubGun('d', 16, 0.7)] }),
+    ])
+    const bundle = buildEvalBundle(state, state.combat.enemyUnits)
+    expect(pickBestTarget(state, core, bundle, 'shield')?.target.id).toBe(
+      pickBestTarget(state, core, bundle, 'threat')?.target.id,
+    )
+  })
+
+  it('still prefers a meaningfully shielded target when one exists', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({ id: 'hull', x: 0, y: 140, hull: 200, hullMax: 200, shield: 0, shieldMax: 0, speed: 40, weapons: [stubGun('hh', 20, 0.5)] }),
+      enemy({ id: 'ward', x: 10, y: 150, hull: 40, hullMax: 40, shield: 80, shieldMax: 80, role: 'shield' }),
+    ])
+    const bundle = buildEvalBundle(state, state.combat.enemyUnits)
+    expect(pickBestTarget(state, core, bundle, 'shield')?.target.id).toBe('ward')
+  })
+
+  it('Execution prefers true remaining durability over a low-hull shielded tank', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({
+        id: 'a',
+        x: 0,
+        y: 130,
+        hull: 5,
+        hullMax: 100,
+        shield: 400,
+        shieldMax: 400,
+      }),
+      enemy({
+        id: 'b',
+        x: 10,
+        y: 140,
+        hull: 18,
+        hullMax: 40,
+        shield: 0,
+        shieldMax: 0,
+      }),
+    ])
+    const bundle = buildEvalBundle(state, state.combat.enemyUnits)
+    expect(pickBestTarget(state, core, bundle, 'execution')?.target.id).toBe('b')
+  })
+
+  it('Cluster includes local effective mass, not only neighbour DPS', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({ id: 'light-a', x: 0, y: 140, hull: 8, hullMax: 8 }),
+      enemy({ id: 'light-b', x: 8, y: 140, hull: 8, hullMax: 8 }),
+      enemy({ id: 'light-c', x: 0, y: 148, hull: 8, hullMax: 8 }),
+      enemy({ id: 'tank-a', x: 90, y: 140, hull: 220, hullMax: 220, armor: 12 }),
+      enemy({ id: 'tank-b', x: 98, y: 140, hull: 220, hullMax: 220, armor: 12 }),
+      enemy({ id: 'tank-c', x: 90, y: 148, hull: 220, hullMax: 220, armor: 12 }),
+    ])
+    const bundle = buildEvalBundle(state, state.combat.enemyUnits)
+    const picked = pickBestTarget(state, core, bundle, 'cluster')?.target.id
+    expect(picked === 'tank-a' || picked === 'tank-b' || picked === 'tank-c').toBe(true)
+    expect(bundle.metrics.get('tank-a')!.clusterMass).toBeGreaterThan(bundle.metrics.get('light-a')!.clusterMass)
+  })
+})
+
+describe('absolute hysteresis floor', () => {
+  it('uses a central absolute floor so near-zero scores cannot chatter', () => {
+    expect(switchRequiredGain(0, 0.25)).toBe(HYSTERESIS_ABSOLUTE_FLOOR)
+    expect(switchRequiredGain(0.2, 0.25)).toBe(HYSTERESIS_ABSOLUTE_FLOOR)
+    expect(beatsHysteresis(0.3, 0.2, 0.25)).toBe(false)
+    expect(beatsHysteresis(20, 0.2, 0.25)).toBe(true)
+  })
+})
+
+describe('Doctrine edit contract', () => {
+  it('allows Docked and PAUSED Sortie edits, rejects RUNNING and other transitions', () => {
+    let state = enableFireControlDoctrineForTests(createInitialState(0))
+    expect(canEditTargetingNow(state)).toBe(true)
+    expect(canConfigureTargetingDoctrine(state)).toBe(true)
+    state = startCombat(state)
+    expect(canEditTargetingNow(state)).toBe(false)
+    const running = setCoreTargetingDoctrine(state, pulseCore(state).coreInstanceId!, 'execution')
+    expect(running.shipyard.coreInstances.find((row) => row.moduleId === 'pulse-cannon')?.targetingDoctrine).not.toBe(
+      'execution',
+    )
+    state = setSortiePaused(state, true)
+    expect(canEditTargetingNow(state)).toBe(true)
+    const transitional = structuredClone(state)
+    transitional.combat.docked = false
+    transitional.combat.inFight = false
+    transitional.combat.sortiePaused = false
+    expect(canEditTargetingNow(transitional)).toBe(false)
+    const rejected = setCoreTargetingDoctrine(transitional, pulseCore(transitional).coreInstanceId!, 'execution')
+    expect(rejected.shipyard.coreInstances.find((row) => row.moduleId === 'pulse-cannon')?.targetingDoctrine).not.toBe(
+      'execution',
+    )
+  })
+
+  it('preserves current target, heading, and Heavy charge when Doctrine changes while paused', () => {
+    let state = enableFireControlDoctrineForTests(fitHeavyLance())
+    const core = state.combat.playerUnits.find((u) => u.isCore)!
+    const inst = state.shipyard.coreInstances.find((row) => row.moduleId === 'heavy-lance')!
+    setEnemies(state, [enemy({ id: 'hold', x: core.x + 20, y: core.y + 20, hull: 400, hullMax: 400, armor: 10 })])
+    core.currentTargetId = 'hold'
+    core.heading = 1.2
+    core.targetLockTime = 1.5
+    core.weapons[0]!.telegraphLeft = 1.1
+    core.weapons[0]!.telegraphToId = 'hold'
+    state = setSortiePaused(state, true)
+    const pausedCore = state.combat.playerUnits.find((u) => u.isCore)!
+    pausedCore.currentTargetId = 'hold'
+    pausedCore.heading = 1.2
+    pausedCore.targetLockTime = 1.5
+    pausedCore.weapons[0]!.telegraphLeft = 1.1
+    state = setCoreTargetingDoctrine(state, inst.id, 'threat')
+    const after = state.combat.playerUnits.find((u) => u.isCore)!
+    expect(after.currentTargetId).toBe('hold')
+    expect(after.heading).toBeCloseTo(1.2)
+    expect(after.targetLockTime).toBeCloseTo(1.5)
+    expect(after.weapons[0]!.telegraphLeft).toBeCloseTo(1.1)
+    expect(after.nextTargetEvalAt).toBe(0)
+  })
+})
+
+describe('targetLockTime', () => {
+  it('accumulates while the same target is retained, including cooldown and pre-slew', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    setEnemies(state, [enemy({ id: 'a', x: 0, y: 200 })])
+    evalNow(state)
+    expect(core.currentTargetId).toBe('a')
+    expect(core.targetLockTime ?? 0).toBe(0)
+    tickPlayerCoreTargeting(state, 0.4)
+    expect(core.targetLockTime).toBeCloseTo(0.4)
+    core.weapons[0]!.cooldownLeft = 2
+    tickPlayerCoreTargeting(state, 0.3)
+    expect(core.currentTargetId).toBe('a')
+    expect(core.targetLockTime).toBeCloseTo(0.7)
+  })
+
+  it('resets on switch and on loss, and does not advance while paused', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    setEnemies(state, [
+      enemy({ id: 'a', x: 0, y: 220, speed: 4, weapons: [stubGun('a', 1, 4)] }),
+      enemy({ id: 'b', x: 10, y: 90, speed: 40, weapons: [stubGun('b', 18, 0.6)] }),
+    ])
+    core.currentTargetId = 'a'
+    evalNow(state)
+    expect(core.currentTargetId).toBe('b')
+    expect(core.targetLockTime ?? 0).toBe(0)
+    tickPlayerCoreTargeting(state, 0.5)
+    expect(core.targetLockTime).toBeCloseTo(0.5)
+    state.combat.enemyUnits.find((u) => u.id === 'b')!.hull = 0
+    tickPlayerCoreTargeting(state, 0.1)
+    expect(core.currentTargetId).not.toBe('b')
+    expect(core.targetLockTime ?? 0).toBe(0)
+
+    const live = pulseSortie()
+    setEnemies(live, [enemy({ id: 'keep', x: 0, y: 150 })])
+    evalNow(live)
+    tickPlayerCoreTargeting(live, 0.8)
+    const paused = setSortiePaused(live, true)
+    const before = pulseCore(paused).targetLockTime
+    advanceSeconds(paused, 2)
+    expect(pulseCore(paused).targetLockTime).toBeCloseTo(before ?? 0)
+  })
+
+  it('persists through save/reload', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    setEnemies(state, [enemy({ id: 'keep', x: 20, y: 150 })])
+    evalNow(state)
+    core.targetLockTime = 2.25
+    saveGame(state)
+    const loaded = loadOrCreateGame()
+    expect(loaded.combat.playerUnits.find((u) => u.isCore)!.targetLockTime).toBeCloseTo(2.25)
+  })
+})
+
+describe('telemetry semantics', () => {
+  it('counts initial acquisitions separately from switches and records shots fired', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    setEnemies(state, [enemy({ id: 'a', x: 0, y: 100 })])
+    evalNow(state)
+    expect(core.targetingTelemetry?.initialAcquisitions).toBe(1)
+    expect(core.targetingTelemetry?.targetSwitches ?? 0).toBe(0)
+    core.heading = bearingBetween(core, state.combat.enemyUnits[0]!)
+    core.weapons[0]!.cooldownLeft = 0
+    simulateCombat(state, 1 / 30, silent)
+    expect(core.targetingTelemetry?.shotsFired).toBeGreaterThanOrEqual(1)
+    setEnemies(state, [
+      enemy({ id: 'a', x: 0, y: 220, speed: 4, weapons: [stubGun('a', 1, 4)] }),
+      enemy({ id: 'hot', x: 8, y: 80, speed: 50, weapons: [stubGun('hot', 30, 0.3)] }),
+    ])
+    core.currentTargetId = 'a'
+    core.nextTargetEvalAt = 0
+    evalNow(state)
+    expect(core.currentTargetId).toBe('hot')
+    expect(core.targetingTelemetry?.targetSwitches).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('Knife Fight fire-range cap', () => {
+  it('caps Pulse fire range without collapsing acquisition', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    expect(effectiveCoreFireRange(state, core)).toBe(170)
+    state.prestige.activeChallengeId = 'short-range'
+    const fire = effectiveCoreFireRange(state, core)
+    const acquire = effectiveCoreAcquisitionRange(state, core)
+    expect(fire).toBe(SHORT_RANGE_MAX)
+    expect(acquire).toBeGreaterThan(fire)
+    expect(acquire).toBeGreaterThanOrEqual(fire * ACQUISITION_FIRE_GAP)
+    const y = (fire + acquire) / 2
+    setEnemies(state, [enemy({ id: 'mid', x: 0, y })])
+    simulateCombat(state, 0.25, silent)
+    expect(core.currentTargetId).toBe('mid')
+    expect(state.combat.projectiles.filter((p) => p.side === 'player')).toHaveLength(0)
+    state.combat.enemyUnits[0]!.y = fire * 0.5
+    core.heading = bearingBetween(core, state.combat.enemyUnits[0]!)
+    core.weapons[0]!.cooldownLeft = 0
+    simulateCombat(state, 1 / 30, silent)
+    expect(state.combat.projectiles.some((p) => p.side === 'player')).toBe(true)
+  })
+})
+
+describe('Heavy Lance cycle rate', () => {
+  it('scales charge duration from the 2.8s base and does not double-cooldown', () => {
+    const state = fitHeavyLance()
+    const core = state.combat.playerUnits.find((u) => u.isCore)!
+    expect(effectiveChargeDurationSec(state, core)).toBeCloseTo(2.8, 5)
+    const baseCd = core.weapons[0]!.cooldown
+    core.weapons[0]!.cooldown = baseCd * 0.5
+    expect(effectiveChargeDurationSec(state, core)).toBeCloseTo(1.4, 5)
+    core.weapons[0]!.cooldown = baseCd * 2
+    expect(effectiveChargeDurationSec(state, core)).toBeCloseTo(5.6, 5)
+    core.weapons[0]!.cooldown = baseCd
+    const target = enemy({ id: 'siege', x: core.x + 30, y: core.y + 30, hull: 400, hullMax: 400, armor: 8 })
+    setEnemies(state, [target])
+    core.currentTargetId = 'siege'
+    core.heading = bearingBetween(core, target)
+    core.weapons[0]!.cooldownLeft = 0
+    simulateCombat(state, 1 / 30, silent)
+    expect(core.weapons[0]!.telegraphLeft).toBeGreaterThan(2.5)
+    expect(core.weapons[0]!.telegraphLeft).toBeLessThanOrEqual(2.8 + 1e-6)
+    core.weapons[0]!.telegraphLeft = 0
+    core.weapons[0]!.chargeReady = true
+    core.weapons[0]!.cooldownLeft = 0
+    simulateCombat(state, 1 / 30, silent)
+    expect(core.weapons[0]!.chargeReady).toBeFalsy()
+    expect(core.weapons[0]!.cooldownLeft).toBe(0)
+  })
+
+  it('shortens Heavy charge when Cycle Rate improves', () => {
+    let state = createInitialState(0)
+    state = unfitModule(state, 'pulse-cannon')
+    state.shipyard.unlockedModules.push('heavy-lance')
+    state.shipyard.modules = ['heavy-lance', 'plate-layer']
+    state.shipyard.coreInstances.push({ id: 'heavy-lance:1', moduleId: 'heavy-lance' })
+    state.shipyard.equippedCoreIds = ['heavy-lance:1', 'plate-layer:1']
+    state.resources.salvage = 10_000
+    state = buyRunUpgrade(state, 'cycle-rate', 3)
+    state = startCombat(state)
+    const core = state.combat.playerUnits.find((u) => u.isCore)!
+    expect(effectiveChargeDurationSec(state, core)).toBeLessThan(2.8 - 0.05)
+  })
+})
+
+describe('save/reload continuation with targeting state', () => {
+  it('matches an uninterrupted branch after reload, resume, and the same sim time', () => {
+    const state = fitHeavyLance(19)
+    for (const unit of state.combat.playerUnits) {
+      for (const weapon of unit.weapons) weapon.damage = 0
+    }
+    const core = state.combat.playerUnits.find((u) => u.isCore)!
+    setEnemies(state, [enemy({ id: 'keep', x: core.x + 40, y: core.y + 40, hull: 800, hullMax: 800, armor: 8 })])
+    evalNow(state)
+    simulateCombat(state, 0.35, silent)
+    core.targetLockTime = Math.max(core.targetLockTime ?? 0, 1.1)
+    const target = state.combat.enemyUnits[0]!
+    core.currentTargetId = 'keep'
+    core.heading = bearingBetween(core, target)
+    core.weapons[0]!.cooldownLeft = 0
+    simulateCombat(state, 0.4, silent)
+    expect(core.weapons[0]!.telegraphLeft).toBeGreaterThan(0)
+
+    const fingerprint = (s: GameState) => {
+      const c = s.combat.playerUnits.find((u) => u.isCore)!
+      return {
+        target: c.currentTargetId,
+        lock: c.targetLockTime,
+        heading: c.heading,
+        orbit: c.orbitAngle,
+        charge: c.weapons[0]?.telegraphLeft,
+        ready: Boolean(c.weapons[0]?.chargeReady),
+        cd: c.weapons[0]?.cooldownLeft,
+        shots: s.combat.projectiles.map((p) => ({ id: p.id, x: p.x, y: p.y, to: p.toId })),
+        beams: (s.combat.beams ?? []).map((b) => ({ id: b.id, from: b.fromId, to: b.toId })),
+        enemies: s.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y, hull: u.hull, shield: u.shield })),
+        scrap: s.resources.scrap,
+        salvage: s.resources.salvage,
+        tel: c.targetingTelemetry,
+        rng: s.combat.rng.s,
+      }
+    }
+
+    const branchA = structuredClone(state)
+    saveGame(state)
+    const branchB = loadOrCreateGame(Date.now() + 40_000)
+    expect(branchB.combat.sortiePaused).toBe(true)
+    branchB.combat.sortiePaused = false
+    simulateCombat(branchA, 0.9, silent)
+    simulateCombat(branchB, 0.9, silent)
+    expect(fingerprint(branchB)).toEqual(fingerprint(branchA))
   })
 })

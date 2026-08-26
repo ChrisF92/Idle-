@@ -2,7 +2,7 @@ import React from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CombatTab } from '../components/tabs/CombatTab'
-import { TargetingSheet } from '../components/CombatOverlaySheet'
+import { TargetingSheet, CORE_SELECTOR_MIN_HEIGHT_PX } from '../components/CombatOverlaySheet'
 import { OverlayProvider } from '../ui/overlay'
 import { createInitialState } from './state'
 import { addCoreInstance } from './coreInstances'
@@ -13,6 +13,7 @@ import { atCareerWave, markHullLost } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 import { TabNav } from '../components/TabNav'
 import { showGlobalBottomNav } from './presentation'
+import { completeLesson, prepOnboardingDoor, activeOnboardingLesson } from './onboarding'
 import type { GameState } from './types'
 
 afterEach(cleanup)
@@ -22,7 +23,10 @@ beforeEach(() => {
 })
 
 function liveSortie(): GameState {
-  return startCombat(atCareerWave(markHullLost(createInitialState(1)), ACT1_CADENCE.workers))
+  return completeLesson(
+    startCombat(atCareerWave(markHullLost(createInitialState(1)), ACT1_CADENCE.workers)),
+    'combat-overlay.ranges',
+  )
 }
 
 function wrap(ui: React.ReactNode) {
@@ -80,7 +84,11 @@ describe('Combat Overlay UI', () => {
     expect(screen.getByText('Slew')).toBeTruthy()
     const row = document.querySelector('.core-selector-row') as HTMLButtonElement
     expect(row).toBeTruthy()
-    expect(row.getBoundingClientRect().height === 0 || row.offsetHeight >= 40 || true).toBe(true)
+    expect(CORE_SELECTOR_MIN_HEIGHT_PX).toBe(44)
+    expect(row.style.minHeight).toBe('44px')
+    expect(row.className).toMatch(/is-selected/)
+    expect(row.textContent).toMatch(/SELECTED/)
+    expect(row.getAttribute('aria-pressed')).toBe('true')
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(resumes).toEqual([])
     expect(live.combat.sortiePaused).toBe(true)
@@ -120,7 +128,8 @@ describe('Combat Overlay UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.getByTestId('combat-overlay').getAttribute('data-combat-overlay')).toBe('all')
     expect(screen.getByTestId('combat-overlay').querySelector('[data-overlay-part="fire-boundary"]')).toBeTruthy()
-    expect(screen.getByTestId('combat-overlay').querySelector('[data-overlay-part="firing-arc"]')).toBeNull()
+    expect(screen.getByTestId('combat-overlay').querySelector('[data-overlay-part="firing-arc"]')).toBeTruthy()
+    expect(screen.getByTestId('combat-overlay').querySelector('[data-overlay-part="target-line"]')).toBeNull()
   })
 
   it('keeps overlay mode after Resume and Pause & Browse if the tab stays mounted', () => {
@@ -195,6 +204,11 @@ describe('Targeting configuration foundation', () => {
     expect(screen.getByRole('button', { name: 'Execution' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Shield' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Cluster' })).toBeNull()
+    expect(screen.getByTestId('core-detail-readout')).toBeTruthy()
+    expect(screen.getByText('Fire Range')).toBeTruthy()
+    expect(screen.getByText('Acquisition Range')).toBeTruthy()
+    expect(screen.getByText('Arc')).toBeTruthy()
+    expect(screen.getByText('Slew')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Execution' }))
     expect(changed).toHaveLength(1)
     expect(state.shipyard.coreInstances.find((row) => row.id === changed[0])?.targetingDoctrine).toBe('execution')
@@ -221,5 +235,48 @@ describe('Targeting configuration foundation', () => {
     expect(state.combat.sortiePaused).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(resumes).toEqual([])
+  })
+})
+
+describe('Combat Overlay onboarding', () => {
+  it('pauses, explains ranges, and requires a stationary Core selection', () => {
+    const state = prepOnboardingDoor(createInitialState(1), 'combat-overlay.ranges')
+    const pauses: boolean[] = []
+    const resumes: boolean[] = []
+    const view = render(
+      wrap(
+        <CombatTab
+          state={state}
+          onLaunch={() => undefined}
+          onPickMilestone={() => undefined}
+          onPause={() => {
+            pauses.push(true)
+            state.combat.sortiePaused = true
+          }}
+          onResume={() => resumes.push(true)}
+          onboardingTarget={null}
+        />,
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Combat Overlay' }))
+    expect(pauses).toEqual([true])
+    expect(state.combat.sortiePaused).toBe(true)
+    expect(screen.getByTestId('core-selector').getAttribute('data-onboarding')).toBe(
+      'onboarding.combat-overlay.core-selector',
+    )
+    const lesson = activeOnboardingLesson(state, { tab: 'combat', combatOverlayOpen: true })
+    expect(lesson?.id).toBe('combat-overlay.ranges')
+    expect(lesson?.body.join(' ')).toMatch(/Fire Range/)
+    expect(lesson?.body.join(' ')).toMatch(/Acquisition Range/)
+    expect(lesson?.body.join(' ')).toMatch(/Firing Arc/)
+    expect(lesson?.body.join(' ')).toMatch(/Slew/)
+    expect(document.querySelector('.core-selector-row.is-selected')).toBeNull()
+    const row = document.querySelector('.core-selector-row') as HTMLButtonElement
+    fireEvent.click(row)
+    expect(screen.getByTestId('combat-overlay').getAttribute('data-combat-overlay')).toBe('selected')
+    expect(resumes).toEqual([])
+    expect(state.combat.sortiePaused).toBe(true)
+    view.unmount()
   })
 })

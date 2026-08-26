@@ -99,7 +99,7 @@ import {
 import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, hiveResearchWorkshopStartRanks, setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
 import {
   canConfigureTargetingDoctrine,
-  isSortieRunning,
+  canEditTargetingNow,
 } from './coreTargeting'
 import { targetingProfileFor } from './targetingProfiles'
 import { foundryAshHeatMult } from './foundryBonuses'
@@ -1086,7 +1086,8 @@ export function unfitModule(state: GameState, moduleId: string, coreInstanceId?:
 /**
  * Per-physical-Core Doctrine. Allowed only while Docked or Sortie PAUSED,
  * and only after Fire-Control Doctrine is unlocked (PR9). Changing Doctrine
- * clears that Core's live target so it reacquires; it does not Resume.
+ * preserves Current Target, aim, and a valid charge/beam; it does not Resume.
+ * The next discretionary evaluation runs promptly after Resume.
  */
 export function setCoreTargetingDoctrine(
   state: GameState,
@@ -1094,7 +1095,7 @@ export function setCoreTargetingDoctrine(
   doctrine: TargetingDoctrineId,
 ): GameState {
   if (!canConfigureTargetingDoctrine(state)) return state
-  if (isSortieRunning(state)) return state
+  if (!canEditTargetingNow(state)) return state
   const instance = state.shipyard.coreInstances?.find((row) => row.id === coreInstanceId)
   if (!instance) return state
   const profile = targetingProfileFor(instance.moduleId)
@@ -1108,13 +1109,7 @@ export function setCoreTargetingDoctrine(
     (unit) => unit.isCore && (unit.coreInstanceId === coreInstanceId || unit.id === coreInstanceId),
   )
   if (deployed) {
-    deployed.currentTargetId = undefined
     deployed.nextTargetEvalAt = 0
-    for (const weapon of deployed.weapons) {
-      weapon.telegraphLeft = 0
-      weapon.telegraphToId = undefined
-      weapon.chargeReady = false
-    }
   }
   return next
 }

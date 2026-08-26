@@ -7,7 +7,7 @@
  */
 
 import { coreInstanceAtSlot, coreInstanceCopyNumber, resolveCoreInstance } from './coreInstances'
-import { getModule } from './catalog'
+import { getModule, SHORT_RANGE_MAX } from './catalog'
 import {
   bearingBetween,
   degToRad,
@@ -35,7 +35,11 @@ export const FIRE_CONTROL_DOCTRINE_RESEARCH_ID = 'd1-fire-control-doctrine'
 export const TARGET_EVAL_INTERVAL = 0.1
 export const CLUSTER_NEIGHBOUR_RADIUS = 60
 export const ACQUISITION_RETENTION = 1.05
+/** Authored Acquisition must stay at least this far above effective Fire Range. */
+export const ACQUISITION_FIRE_GAP = 1.05
 export const DEFAULT_SWITCH_ADVANTAGE = 0.25
+/** Prevents near-zero Doctrine scores from chattering between candidates. */
+export const HYSTERESIS_ABSOLUTE_FLOOR = 4
 
 export interface TargetingCoreSpec {
   moduleId: string
@@ -45,6 +49,8 @@ export interface TargetingCoreSpec {
 export interface TargetingStatModifier {
   fireRangeMult?: number
   fireRangeAdd?: number
+  /** Applied after multiplicative/additive fire-range effects. */
+  fireRangeCap?: number
   acquisitionRangeMult?: number
   acquisitionRangeAdd?: number
   slewRateMult?: number
@@ -77,19 +83,28 @@ export interface SharedTargetMetrics {
   proximity: number
   clusterCount: number
   clusterWeight: number
+  clusterMass: number
+  remainingFrac: number
   focusWeight: number
   shieldPresent: number
   heavyWeight: number
   finishable: number
 }
 
-interface EvalBundle {
+export interface FocusCommitmentSnapshot {
+  coreVotes: Array<{ coreId: string; enemyId: string }>
+  fire: Array<{ sourceId: string; enemyId: string; weight: number }>
+}
+
+export interface EvalBundle {
   enemies: CombatUnit[]
   metrics: Map<string, SharedTargetMetrics>
+  focus: FocusCommitmentSnapshot
 }
 
 export function emptyTargetingTelemetry(): CoreTargetingTelemetry {
   return {
+    initialAcquisitions: 0,
     targetSwitches: 0,
     timeNoTargetWhileEnemies: 0,
     timeAcquiredOutsideFire: 0,
@@ -97,12 +112,17 @@ export function emptyTargetingTelemetry(): CoreTargetingTelemetry {
     timeActivelyFiring: 0,
     shotsHeldIllegalSolution: 0,
     acquisitionDelayAccum: 0,
+    shotsFired: 0,
   }
 }
 
 export function ensureTargetingTelemetry(unit: CombatUnit): CoreTargetingTelemetry {
   if (!unit.targetingTelemetry) unit.targetingTelemetry = emptyTargetingTelemetry()
-  return unit.targetingTelemetry
+  const tel = unit.targetingTelemetry
+  if (tel.initialAcquisitions == null) tel.initialAcquisitions = 0
+  if (tel.shotsFired == null) tel.shotsFired = 0
+  if (tel.targetSwitches == null) tel.targetSwitches = 0
+  return tel
 }
 
 /** PR10 Silent Bridge: authored defaults remain; manual config is blocked. */
@@ -117,6 +137,18 @@ export function researchUnlocksDoctrineConfig(state: GameState): boolean {
 export function canConfigureTargetingDoctrine(state: GameState): boolean {
   if (challengeBlocksDoctrineConfig(state)) return false
   return researchUnlocksDoctrineConfig(state)
+}
+
+/**
+ * Doctrine configuration is legal only while Docked, or during an active
+ * Sortie that is explicitly PAUSED. Other non-running states are rejected.
+ */
+export function canEditTargetingNow(state: GameState): boolean {
+  if (state.combat.docked) return true
+  if (!state.combat.docked && Boolean(state.combat.inFight) && Boolean(state.combat.sortiePaused)) {
+    return true
+  }
+  return false
 }
 
 export function enableFireControlDoctrineForTests(state: GameState): GameState {
@@ -159,8 +191,13 @@ export function researchTargetingContribution(_state: GameState): TargetingStatM
 /**
  * PR10 Challenges may cap fire range (Knife Fight) or reduce acquisition
  * (Dead Reckoning) independently. Do not alias the two ranges.
+ * Temporary short-range / Knife Fight support lives here until PR10 owns
+ * the final catalogue.
  */
-export function challengeTargetingContribution(_state: GameState): TargetingStatModifier {
+export function challengeTargetingContribution(state: GameState): TargetingStatModifier {
+  if (state.prestige?.activeChallengeId === 'short-range') {
+    return { fireRangeCap: SHORT_RANGE_MAX }
+  }
   return {}
 }
 
@@ -179,7 +216,7 @@ export function collectTargetingModifiers(
 }
 
 export function composeTargetingModifiers(mods: TargetingStatModifier[]): TargetingStatModifier {
-  const out: Required<TargetingStatModifier> = {
+  const out: TargetingStatModifier = {
     fireRangeMult: 1,
     fireRangeAdd: 0,
     acquisitionRangeMult: 1,
@@ -188,15 +225,20 @@ export function composeTargetingModifiers(mods: TargetingStatModifier[]): Target
     slewRateAdd: 0,
     firingArcAddDeg: 0,
   }
+  let fireRangeCap: number | undefined
   for (const mod of mods) {
-    out.fireRangeMult *= mod.fireRangeMult ?? 1
-    out.fireRangeAdd += mod.fireRangeAdd ?? 0
-    out.acquisitionRangeMult *= mod.acquisitionRangeMult ?? 1
-    out.acquisitionRangeAdd += mod.acquisitionRangeAdd ?? 0
-    out.slewRateMult *= mod.slewRateMult ?? 1
-    out.slewRateAdd += mod.slewRateAdd ?? 0
-    out.firingArcAddDeg += mod.firingArcAddDeg ?? 0
+    out.fireRangeMult = (out.fireRangeMult ?? 1) * (mod.fireRangeMult ?? 1)
+    out.fireRangeAdd = (out.fireRangeAdd ?? 0) + (mod.fireRangeAdd ?? 0)
+    out.acquisitionRangeMult = (out.acquisitionRangeMult ?? 1) * (mod.acquisitionRangeMult ?? 1)
+    out.acquisitionRangeAdd = (out.acquisitionRangeAdd ?? 0) + (mod.acquisitionRangeAdd ?? 0)
+    out.slewRateMult = (out.slewRateMult ?? 1) * (mod.slewRateMult ?? 1)
+    out.slewRateAdd = (out.slewRateAdd ?? 0) + (mod.slewRateAdd ?? 0)
+    out.firingArcAddDeg = (out.firingArcAddDeg ?? 0) + (mod.firingArcAddDeg ?? 0)
+    if (mod.fireRangeCap != null && Number.isFinite(mod.fireRangeCap)) {
+      fireRangeCap = fireRangeCap == null ? mod.fireRangeCap : Math.min(fireRangeCap, mod.fireRangeCap)
+    }
   }
+  if (fireRangeCap != null) out.fireRangeCap = fireRangeCap
   return out
 }
 
@@ -212,17 +254,27 @@ export function profileForCore(core: CombatUnit | TargetingCoreSpec): CoreTarget
   return targetingProfileFor(specOf(core).moduleId)
 }
 
+export function applyTargetingStats(
+  profile: CoreTargetingProfile,
+  mods: TargetingStatModifier,
+): { fire: number; acquire: number; slew: number; arc: number } {
+  let fire = profile.fireRange * (mods.fireRangeMult ?? 1) + (mods.fireRangeAdd ?? 0)
+  if (mods.fireRangeCap != null && Number.isFinite(mods.fireRangeCap)) {
+    fire = Math.min(fire, mods.fireRangeCap)
+  }
+  fire = Math.max(1, fire)
+  const authoredAcquire =
+    profile.acquisitionRange * (mods.acquisitionRangeMult ?? 1) + (mods.acquisitionRangeAdd ?? 0)
+  const acquire = Math.max(fire * ACQUISITION_FIRE_GAP, authoredAcquire)
+  const slew = Math.max(1, profile.slewRateDegPerSec * (mods.slewRateMult ?? 1) + (mods.slewRateAdd ?? 0))
+  const arc = Math.max(8, profile.firingArcDeg + (mods.firingArcAddDeg ?? 0))
+  return { fire, acquire, slew, arc }
+}
+
 function appliedStats(state: GameState, core: CombatUnit | TargetingCoreSpec) {
   const profile = profileForCore(core)
   const mods = composeTargetingModifiers(collectTargetingModifiers(state, specOf(core)))
-  const fire = Math.max(1, profile.fireRange * (mods.fireRangeMult ?? 1) + (mods.fireRangeAdd ?? 0))
-  const acquire = Math.max(
-    fire + 1,
-    profile.acquisitionRange * (mods.acquisitionRangeMult ?? 1) + (mods.acquisitionRangeAdd ?? 0),
-  )
-  const slew = Math.max(1, profile.slewRateDegPerSec * (mods.slewRateMult ?? 1) + (mods.slewRateAdd ?? 0))
-  const arc = Math.max(8, profile.firingArcDeg + (mods.firingArcAddDeg ?? 0))
-  return { profile, fire, acquire, slew, arc }
+  return { profile, ...applyTargetingStats(profile, mods) }
 }
 
 export function effectiveCoreFireRange(state: GameState, core: CombatUnit | TargetingCoreSpec): number {
@@ -274,6 +326,33 @@ export function switchAdvantageFor(
     return profile.committedSwitchAdvantage
   }
   return profile.switchAdvantage
+}
+
+export function switchRequiredGain(currentScore: number, switchAdvantage: number): number {
+  return Math.max(HYSTERESIS_ABSOLUTE_FLOOR, Math.abs(currentScore) * switchAdvantage)
+}
+
+export function beatsHysteresis(
+  bestScore: number,
+  currentScore: number,
+  switchAdvantage: number,
+): boolean {
+  return bestScore > currentScore + switchRequiredGain(currentScore, switchAdvantage) + 1e-9
+}
+
+/**
+ * Heavy Lance's 2.8s seed is the BASE charge/cycle. Scale it by the same
+ * effective-cooldown ratio the built weapon already uses versus the module
+ * catalogue base. Charge is the cycle — do not also apply a full cooldown.
+ */
+export function effectiveChargeDurationSec(state: GameState, core: CombatUnit): number {
+  const profile = profileForCore(core)
+  if (!profile.requiresCharge || profile.chargeDurationSec <= 0) return 0
+  const weapon = core.weapons[0]
+  const module = getModule(core.coreModuleId ?? specOf(core).moduleId)
+  const baseCd = module?.weapon?.cooldown
+  if (!weapon || !baseCd || baseCd <= 0) return profile.chargeDurationSec
+  return Math.max(0.05, profile.chargeDurationSec * (weapon.cooldown / baseCd))
 }
 
 export function isTargetableEnemy(_state: GameState, unit: CombatUnit | undefined | null): boolean {
@@ -339,32 +418,60 @@ export function compareTargetTie(a: CombatUnit, b: CombatUnit): number {
   return 0
 }
 
-function focusCommitments(state: GameState): Map<string, number> {
-  const weights = new Map<string, number>()
-  const add = (id: string | undefined, w: number) => {
-    if (!id) return
-    weights.set(id, (weights.get(id) ?? 0) + w)
-  }
+function maxDurability(unit: CombatUnit): number {
+  const armor = Math.max(0, unit.armor)
+  return Math.max(1, unit.hullMax * (1 + armor / (armor + 40)) + Math.max(0, unit.shieldMax))
+}
+
+function snapshotFocusCommitments(state: GameState): FocusCommitmentSnapshot {
+  const coreVotes: FocusCommitmentSnapshot['coreVotes'] = []
+  const fire: FocusCommitmentSnapshot['fire'] = []
   for (const core of state.combat.playerUnits) {
     if (!core.isCore) continue
-    add(core.currentTargetId, 1)
+    if (core.currentTargetId) coreVotes.push({ coreId: core.id, enemyId: core.currentTargetId })
   }
   for (const shot of state.combat.projectiles) {
-    if (shot.side === 'player') add(shot.toId, 0.35)
+    if (shot.side === 'player' && shot.toId) {
+      fire.push({ sourceId: shot.fromId, enemyId: shot.toId, weight: 0.35 })
+    }
   }
   for (const beam of state.combat.beams ?? []) {
-    if (beam.side === 'player') add(beam.toId, 0.6)
+    if (beam.side === 'player' && beam.toId) {
+      fire.push({ sourceId: beam.fromId, enemyId: beam.toId, weight: 0.6 })
+    }
   }
-  return weights
+  return { coreVotes, fire }
+}
+
+export function focusWeightExcluding(
+  snapshot: FocusCommitmentSnapshot,
+  enemyId: string,
+  excludeCoreId: string | undefined,
+): number {
+  let weight = 0
+  for (const vote of snapshot.coreVotes) {
+    if (vote.coreId === excludeCoreId) continue
+    if (vote.enemyId === enemyId) weight += 1.4
+  }
+  for (const row of snapshot.fire) {
+    if (row.sourceId === excludeCoreId) continue
+    if (row.enemyId === enemyId) weight += row.weight
+  }
+  return weight
 }
 
 export function buildSharedTargetMetrics(state: GameState, enemies: CombatUnit[]): Map<string, SharedTargetMetrics> {
-  const focus = focusCommitments(state)
+  return buildEvalBundle(state, enemies).metrics
+}
+
+export function buildEvalBundle(state: GameState, enemies: CombatUnit[]): EvalBundle {
+  const focus = snapshotFocusCommitments(state)
   const metrics = new Map<string, SharedTargetMetrics>()
   for (const unit of enemies) {
     const ehp = effectiveHp(unit)
     const hullFrac = unit.hullMax > 0 ? unit.hull / unit.hullMax : 0
     const shieldFrac = unit.shieldMax > 0 ? unit.shield / unit.shieldMax : 0
+    const remainingFrac = ehp / maxDurability(unit)
     const dps = outgoingDps(unit)
     const eta = timeUntilAttack(unit)
     const urgency = 1 / (0.35 + eta)
@@ -375,34 +482,40 @@ export function buildSharedTargetMetrics(state: GameState, enemies: CombatUnit[]
     const danger = dps * urgency * roleBoost * statusBoost
     let clusterCount = 0
     let clusterWeight = 0
+    let clusterMass = ehp
     for (const other of enemies) {
       if (other.id === unit.id) continue
       if (distanceBetween(unit, other) <= CLUSTER_NEIGHBOUR_RADIUS) {
         clusterCount += 1
-        clusterWeight += 1 + outgoingDps(other) * 0.05
+        const otherHp = effectiveHp(other)
+        clusterMass += otherHp
+        clusterWeight += 1 + outgoingDps(other) * 0.05 + otherHp * 0.02
       }
     }
     const shieldPresent = unit.shield > 1 ? unit.shield * (0.45 + shieldFrac) : 0
     const heavyWeight =
       ehp * (1 + Math.max(0, unit.armor) / 20) * (unit.role === 'juggernaut' ? 1.35 : 1) * statusBoost
-    const finishable = 1 / (8 + ehp) + (1 - hullFrac)
+    const finishable =
+      1 / (8 + ehp) + (1 - remainingFrac) * 0.7 + (1 - hullFrac) * 0.15
     metrics.set(unit.id, {
       ehp,
       hullFrac,
       shieldFrac,
+      remainingFrac,
       armor: unit.armor,
       danger,
       urgency,
       proximity,
       clusterCount,
       clusterWeight,
-      focusWeight: focus.get(unit.id) ?? 0,
+      clusterMass,
+      focusWeight: 0,
       shieldPresent,
       heavyWeight,
       finishable,
     })
   }
-  return metrics
+  return { enemies, metrics, focus }
 }
 
 export function scoreDoctrine(
@@ -420,14 +533,65 @@ export function scoreDoctrine(
       }
       return scoreDoctrine('threat', unit, metrics)
     case 'execution':
-      return metrics.finishable * 80 + (1 - metrics.hullFrac) * 40 - metrics.ehp * 0.02
+      return (
+        metrics.finishable * 80 +
+        (1 - metrics.hullFrac) * 12 +
+        metrics.danger * 0.08 -
+        metrics.ehp * 0.03
+      )
     case 'heavy':
       return metrics.heavyWeight * 0.12 + metrics.armor * 1.4 + bossNudge * 0.6
     case 'shield':
       return metrics.shieldPresent * 0.45 + metrics.shieldFrac * 30
     case 'cluster':
-      return metrics.clusterCount * 18 + metrics.clusterWeight * 8 + metrics.proximity * 2
+      return (
+        metrics.clusterCount * 18 +
+        metrics.clusterWeight * 8 +
+        metrics.clusterMass * 0.05 +
+        metrics.danger * 0.08 +
+        metrics.proximity * 2
+      )
   }
+}
+
+function metricsForCore(
+  bundle: EvalBundle,
+  core: CombatUnit,
+  enemy: CombatUnit,
+): SharedTargetMetrics | undefined {
+  const base = bundle.metrics.get(enemy.id)
+  if (!base) return undefined
+  return {
+    ...base,
+    focusWeight: focusWeightExcluding(bundle.focus, enemy.id, core.id),
+  }
+}
+
+function legalCandidates(state: GameState, core: CombatUnit, bundle: EvalBundle): CombatUnit[] {
+  return bundle.enemies.filter((enemy) => isAcquirableTarget(state, core, enemy, false))
+}
+
+function scoringDoctrineFor(
+  state: GameState,
+  core: CombatUnit,
+  bundle: EvalBundle,
+  doctrine: TargetingDoctrineId,
+  candidates: CombatUnit[],
+): TargetingDoctrineId {
+  if (doctrine === 'focus') {
+    const otherCommit = candidates.some(
+      (enemy) => focusWeightExcluding(bundle.focus, enemy.id, core.id) >= 1,
+    )
+    if (!otherCommit) return 'threat'
+  }
+  if (doctrine === 'shield') {
+    const shielded = candidates.some((enemy) => {
+      const metrics = bundle.metrics.get(enemy.id)
+      return Boolean(metrics && metrics.shieldPresent > 0)
+    })
+    if (!shielded) return 'threat'
+  }
+  return doctrine
 }
 
 export function acquisitionLimit(state: GameState, core: CombatUnit, retaining: boolean): number {
@@ -451,13 +615,14 @@ export function pickBestTarget(
   bundle: EvalBundle,
   doctrine: TargetingDoctrineId,
 ): { target: CombatUnit; score: number } | null {
+  const candidates = legalCandidates(state, core, bundle)
+  const used = scoringDoctrineFor(state, core, bundle, doctrine, candidates)
   let best: CombatUnit | null = null
   let bestScore = -Infinity
-  for (const enemy of bundle.enemies) {
-    if (!isAcquirableTarget(state, core, enemy, false)) continue
-    const metrics = bundle.metrics.get(enemy.id)
+  for (const enemy of candidates) {
+    const metrics = metricsForCore(bundle, core, enemy)
     if (!metrics) continue
-    const score = scoreDoctrine(doctrine, enemy, metrics)
+    const score = scoreDoctrine(used, enemy, metrics)
     if (!best) {
       best = enemy
       bestScore = score
@@ -475,14 +640,15 @@ export function pickBestTarget(
 }
 
 export function currentTargetScore(
-  _core: CombatUnit,
+  core: CombatUnit,
   target: CombatUnit,
   bundle: EvalBundle,
   doctrine: TargetingDoctrineId,
+  usedDoctrine?: TargetingDoctrineId,
 ): number {
-  const metrics = bundle.metrics.get(target.id)
+  const metrics = metricsForCore(bundle, core, target)
   if (!metrics) return -Infinity
-  return scoreDoctrine(doctrine, target, metrics)
+  return scoreDoctrine(usedDoctrine ?? doctrine, target, metrics)
 }
 
 function suppressDiscretionarySwitch(state: GameState, core: CombatUnit): boolean {
@@ -497,20 +663,15 @@ export function evaluateCoreTarget(
   const doctrine = effectiveCoreTargetingDoctrine(state, core)
   const current = findEnemy(state, core.currentTargetId)
   const currentValid = current ? isAcquirableTarget(state, core, current, true) : false
-  if (!currentValid) {
-    if (core.currentTargetId) {
-      core.currentTargetId = undefined
-      for (const weapon of core.weapons) {
-        weapon.telegraphLeft = 0
-        weapon.telegraphToId = undefined
-        weapon.chargeReady = false
-      }
-    }
+  if (!currentValid && core.currentTargetId) {
+    clearCoreTarget(core)
   }
 
+  const candidates = legalCandidates(state, core, bundle)
+  const used = scoringDoctrineFor(state, core, bundle, doctrine, candidates)
   const best = pickBestTarget(state, core, bundle, doctrine)
   if (!best) {
-    if (!currentValid) core.currentTargetId = undefined
+    if (!currentValid) clearCoreTarget(core)
     return
   }
 
@@ -522,17 +683,34 @@ export function evaluateCoreTarget(
   if (best.target.id === current.id) return
   if (suppressDiscretionarySwitch(state, core)) return
 
-  const currentScore = currentTargetScore(core, current, bundle, doctrine)
-  const need = currentScore * (1 + switchAdvantageFor(state, core))
-  if (best.score + 1e-9 >= need && best.score > currentScore + 1e-9) {
+  const currentScore = currentTargetScore(core, current, bundle, doctrine, used)
+  if (beatsHysteresis(best.score, currentScore, switchAdvantageFor(state, core))) {
     setCoreTarget(core, best.target.id)
   }
 }
 
-function setCoreTarget(core: CombatUnit, id: string): void {
+export function clearCoreTarget(core: CombatUnit): void {
+  core.currentTargetId = undefined
+  core.targetLockTime = 0
+  for (const weapon of core.weapons) {
+    weapon.telegraphLeft = 0
+    weapon.telegraphToId = undefined
+    weapon.chargeReady = false
+  }
+}
+
+export function setCoreTarget(core: CombatUnit, id: string): void {
   if (core.currentTargetId === id) return
-  ensureTargetingTelemetry(core).targetSwitches += 1
+  const tel = ensureTargetingTelemetry(core)
+  if (core.currentTargetId) tel.targetSwitches += 1
+  else tel.initialAcquisitions += 1
   core.currentTargetId = id
+  core.targetLockTime = 0
+  for (const weapon of core.weapons) {
+    weapon.telegraphLeft = 0
+    weapon.telegraphToId = undefined
+    weapon.chargeReady = false
+  }
 }
 
 export function firingSolution(state: GameState, core: CombatUnit, target: CombatUnit): FiringSolution {
@@ -589,14 +767,7 @@ export function tickPlayerCoreTargeting(state: GameState, dt: number): void {
   for (const core of cores) {
     const current = findEnemy(state, core.currentTargetId)
     const valid = current ? isAcquirableTarget(state, core, current, true) : false
-    if (!valid && core.currentTargetId) {
-      core.currentTargetId = undefined
-      for (const weapon of core.weapons) {
-        weapon.telegraphLeft = 0
-        weapon.telegraphToId = undefined
-        weapon.chargeReady = false
-      }
-    }
+    if (!valid && core.currentTargetId) clearCoreTarget(core)
   }
 
   const needEval = cores.some((core) => {
@@ -604,9 +775,7 @@ export function tickPlayerCoreTargeting(state: GameState, dt: number): void {
     if (!current) return true
     return sim >= (core.nextTargetEvalAt ?? 0)
   })
-  const bundle: EvalBundle | null = needEval
-    ? { enemies, metrics: buildSharedTargetMetrics(state, enemies) }
-    : null
+  const bundle: EvalBundle | null = needEval ? buildEvalBundle(state, enemies) : null
 
   for (const core of cores) {
     const tel = ensureTargetingTelemetry(core)
@@ -621,18 +790,28 @@ export function tickPlayerCoreTargeting(state: GameState, dt: number): void {
     if (slew.slewLimited) tel.timeSlewLimited += dt
 
     const acquired = findEnemy(state, core.currentTargetId)
-    if (!acquired && enemiesExist) {
-      tel.timeNoTargetWhileEnemies += dt
-      tel.acquisitionDelayAccum += dt
-    } else if (acquired) {
+    if (acquired && isTargetableEnemy(state, acquired)) {
+      if (dt > 0) core.targetLockTime = (core.targetLockTime ?? 0) + dt
       const sol = firingSolution(state, core, acquired)
       if (!sol.inFireRange) tel.timeAcquiredOutsideFire += dt
       if (coreIsBeaming(state, core)) tel.timeActivelyFiring += dt
+    } else if (enemiesExist) {
+      tel.timeNoTargetWhileEnemies += dt
+      tel.acquisitionDelayAccum += dt
     }
   }
 }
 
 export function noteShotHeld(core: CombatUnit): void {
+  const ready = core.weapons.some(
+    (weapon) => weapon.cooldownLeft <= 0 || weapon.chargeReady || weapon.telegraphLeft > 0,
+  )
+  if (!ready) {
+    core.heldShotNoted = false
+    return
+  }
+  if (core.heldShotNoted) return
+  core.heldShotNoted = true
   ensureTargetingTelemetry(core).shotsHeldIllegalSolution += 1
 }
 
@@ -640,16 +819,19 @@ export function noteCoreFiring(core: CombatUnit, dt: number): void {
   ensureTargetingTelemetry(core).timeActivelyFiring += dt
 }
 
+export function noteCoreShotFired(core: CombatUnit): void {
+  ensureTargetingTelemetry(core).shotsFired += 1
+  core.heldShotNoted = false
+}
+
 export function playerCoreTarget(state: GameState, core: CombatUnit): CombatUnit | null {
   const target = findEnemy(state, core.currentTargetId)
   if (!target || !isTargetableEnemy(state, target)) {
-    if (core.currentTargetId) {
-      core.currentTargetId = undefined
-    }
+    if (core.currentTargetId) clearCoreTarget(core)
     return null
   }
   if (!isAcquirableTarget(state, core, target, true)) {
-    core.currentTargetId = undefined
+    clearCoreTarget(core)
     return null
   }
   return target

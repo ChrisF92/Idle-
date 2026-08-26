@@ -30,6 +30,7 @@ const TAB_FOR: Record<OnboardingLessonId, Parameters<typeof activeOnboardingLess
   'process.capability': 'process',
   'challenges.start': 'protocols',
   reinforce: 'reinforce',
+  'combat-overlay.ranges': 'combat',
 }
 
 function actionToast() {
@@ -51,11 +52,14 @@ function actionToast() {
 
 describe('onboarding doors', () => {
   it('covers every lesson with a matching screen, pane, and target', () => {
-    expect(ONBOARDING_LESSON_IDS).toHaveLength(12)
+    expect(ONBOARDING_LESSON_IDS).toHaveLength(13)
     for (const id of ONBOARDING_LESSON_IDS) {
       const lesson = ONBOARDING_LESSONS.find((row) => row.id === id)!
       const state = prepOnboardingDoor(createInitialState(0), id)
-      const ui = { tab: TAB_FOR[id] }
+      const ui =
+        id === 'combat-overlay.ranges'
+          ? { tab: TAB_FOR[id], combatOverlayOpen: true as const }
+          : { tab: TAB_FOR[id] }
       const step = activeOnboardingLesson(state, ui)
       expect(step?.id, id).toBe(id)
       expect(step?.nav.tab, id).toBe(lesson.nav.tab)

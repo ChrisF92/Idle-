@@ -19,6 +19,7 @@ import { DIRECTIVES, directivesUnlocked, getDirective, hasDirectiveOffer } from 
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
 import { isChallengeSortie } from '../../game/frontier'
 import { isSystemUnlocked } from '../../game/progression'
+import { lessonFinished } from '../../game/onboarding'
 import { furnaceCombatFx, furnaceLitLine } from '../../game/furnace'
 import {
   canConfigureTargetingDoctrine,
@@ -52,6 +53,7 @@ interface CombatTabProps {
     coreInstanceId: string,
     doctrine: import('../../game/types').TargetingDoctrineId,
   ) => void
+  onCombatOverlayUi?: (info: { open: boolean; selectedCoreId: string | null }) => void
 }
 
 export function CombatTab({
@@ -66,6 +68,7 @@ export function CombatTab({
   onChooseDirective,
   onCycleSpeed,
   onSetCoreDoctrine,
+  onCombatOverlayUi,
 }: CombatTabProps) {
   const { combat } = state
   const stats = computeShipStats(state)
@@ -117,6 +120,14 @@ export function CombatTab({
     const t = window.setTimeout(() => setDpsFlash(null), 1800)
     return () => window.clearTimeout(t)
   }, [dpsFlash])
+
+  useEffect(() => {
+    onCombatOverlayUi?.({ open: overlaySheetOpen, selectedCoreId: overlayCoreId })
+  }, [overlaySheetOpen, overlayCoreId, onCombatOverlayUi])
+
+  useEffect(() => {
+    return () => onCombatOverlayUi?.({ open: false, selectedCoreId: null })
+  }, [onCombatOverlayUi])
 
   useEffect(() => {
     if (combat.docked && !dying) {
@@ -220,9 +231,7 @@ export function CombatTab({
   const rates = runResourceRates(state)
   const salvageBank = Math.floor(state.resources.salvage)
   const overlayGeom = combatOverlayGeometry(state)
-  const overlayReadouts = targetCapableLoadoutCores(state)
-  const selectedOverlay =
-    overlayReadouts.find((core) => core.coreInstanceId === overlayCoreId) ?? overlayReadouts[0] ?? null
+  const overlayIntroPending = !lessonFinished(state, 'combat-overlay.ranges')
 
   function toggleRate(kind: 'salvage' | 'scrap') {
     setRateView((cur) => (cur === kind ? null : kind))
@@ -253,7 +262,7 @@ export function CombatTab({
           coreIds={state.shipyard.modules}
           furnacePush={furnaceCombatFx(state)}
           overlayMode={overlayMode}
-          overlayCoreId={selectedOverlay?.coreInstanceId ?? null}
+          overlayCoreId={overlayCoreId}
           overlayCores={overlayGeom}
         />
         <div className="sortie-canvas-chrome is-top">
@@ -336,7 +345,9 @@ export function CombatTab({
                           setMenuOpen(false)
                           if (!combat.sortiePaused) onPause?.()
                           const cores = targetCapableLoadoutCores(state)
-                          if (!overlayCoreId) setOverlayCoreId(cores[0]?.coreInstanceId ?? null)
+                          if (!overlayCoreId && !overlayIntroPending) {
+                            setOverlayCoreId(cores[0]?.coreInstanceId ?? null)
+                          }
                           setOverlaySheetOpen(true)
                         }}
                       >
@@ -559,12 +570,13 @@ export function CombatTab({
         open={overlaySheetOpen}
         state={state}
         mode={overlayMode}
-        selectedCoreId={selectedOverlay?.coreInstanceId ?? null}
+        selectedCoreId={overlayCoreId}
         onClose={() => setOverlaySheetOpen(false)}
         onMode={setOverlayMode}
         onSelectCore={(id) => {
           setOverlayCoreId(id)
           if (overlayMode === 'off') setOverlayMode('selected')
+          if (overlayIntroPending) setOverlaySheetOpen(false)
         }}
       />
       <TargetingSheet

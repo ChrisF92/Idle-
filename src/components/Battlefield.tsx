@@ -1554,20 +1554,18 @@ function drawCombatOverlay(ctx: CanvasRenderingContext2D, scene: Scene): void {
     ctx.beginPath()
     ctx.arc(0, 0, fireR, 0, Math.PI * 2)
     ctx.stroke()
-    if (detailed) {
-      const arc = (core.firingArcDeg * Math.PI) / 180
-      const facing = headingToScreenFacing(core.heading)
-      ctx.strokeStyle = '#ffe8c7'
-      ctx.fillStyle = 'rgba(224, 176, 106, 0.08)'
-      ctx.globalAlpha = 0.55
-      ctx.lineWidth = 1.2
-      ctx.beginPath()
-      ctx.moveTo(0, 0)
-      ctx.arc(0, 0, fireR, facing - arc / 2, facing + arc / 2)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-    }
+    const arc = (core.firingArcDeg * Math.PI) / 180
+    const facing = headingToScreenFacing(core.heading)
+    ctx.strokeStyle = '#ffe8c7'
+    ctx.fillStyle = detailed ? 'rgba(224, 176, 106, 0.08)' : 'rgba(224, 176, 106, 0.03)'
+    ctx.globalAlpha = detailed ? 0.55 : 0.16
+    ctx.lineWidth = detailed ? 1.2 : 0.7
+    ctx.beginPath()
+    ctx.moveTo(0, 0)
+    ctx.arc(0, 0, fireR, facing - arc / 2, facing + arc / 2)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
     ctx.beginPath()
     ctx.globalAlpha = detailed ? 0.9 : 0.45
     ctx.fillStyle = '#ffe8c7'
@@ -2711,13 +2709,9 @@ export function Battlefield({
               >
                 <span data-overlay-part="fire-boundary" data-radius={core.fireRange} />
                 <span data-overlay-part="acquisition-boundary" data-radius={core.acquisitionRange} />
-                {overlayMode === 'selected' ? (
-                  <>
-                    <span data-overlay-part="firing-arc" data-arc={core.firingArcDeg} />
-                    {core.currentTargetId ? (
-                      <span data-overlay-part="target-line" data-target={core.currentTargetId} />
-                    ) : null}
-                  </>
+                <span data-overlay-part="firing-arc" data-arc={core.firingArcDeg} data-overlay-detail={overlayMode} />
+                {overlayMode === 'selected' && core.currentTargetId ? (
+                  <span data-overlay-part="target-line" data-target={core.currentTargetId} />
                 ) : null}
               </div>
             ),

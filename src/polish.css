@@ -1208,6 +1208,14 @@ button.just-ok {
 
 .core-selector-row.is-selected {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent), inset 0 -1px 0 color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.core-selector-selected-mark {
+  font-size: var(--type-kicker);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 700;
 }
 
 .core-selector-name {

@@ -903,6 +903,13 @@ export type CombatOverlayMode = 'off' | 'selected' | 'all'
 
 /** Per physical target-capable Core. Reset with each Sortie; persisted while live. */
 export interface CoreTargetingTelemetry {
+  /**
+   * No-target → a Current Target. Reacquisition after a loss also increments
+   * this counter (a later lock of a new or the same enemy is a new acquisition,
+   * not a switch).
+   */
+  initialAcquisitions: number
+  /** Current Target A → Current Target B without an intervening loss. */
   targetSwitches: number
   timeNoTargetWhileEnemies: number
   timeAcquiredOutsideFire: number
@@ -910,6 +917,8 @@ export interface CoreTargetingTelemetry {
   timeActivelyFiring: number
   shotsHeldIllegalSolution: number
   acquisitionDelayAccum: number
+  /** Discrete fire events (projectile volley or beam connect), not per-tick. */
+  shotsFired: number
 }
 
 export interface CoreInstance {
@@ -1009,9 +1018,21 @@ export interface CombatUnit {
   orbitRadius?: number
   /** Persistent current target enemy ID for this physical Core. */
   currentTargetId?: string
+  /**
+   * Simulated seconds the SAME valid Current Target has been retained.
+   * 0 on fresh acquisition / loss / switch. Does not reset on cooldown,
+   * pre-slew, pause, or Doctrine change. PR4 owns Beam Ramp / Lock Memory
+   * consumption; PR2 only accumulates the clock.
+   */
+  targetLockTime?: number
   /** Simulation time of the next discretionary target evaluation. */
   nextTargetEvalAt?: number
   targetingTelemetry?: CoreTargetingTelemetry
+  /**
+   * Latches a single blocked-fire opportunity while the weapon is ready
+   * with an illegal solution. Cleared when the Core fires or leaves ready.
+   */
+  heldShotNoted?: boolean
   /** Wave package this unit belongs to. */
   packageId?: string
   /** Wave that spawned this unit. */

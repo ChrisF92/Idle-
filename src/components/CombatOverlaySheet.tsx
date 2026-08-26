@@ -7,6 +7,9 @@ import {
   type TargetingCoreReadout,
 } from '../game/coreTargeting'
 
+/** Stationary Core selector minimum. Matches `--touch` (44 CSS px). */
+export const CORE_SELECTOR_MIN_HEIGHT_PX = 44
+
 export function CombatOverlaySheet({
   open,
   state,
@@ -25,7 +28,7 @@ export function CombatOverlaySheet({
   onSelectCore: (coreInstanceId: string) => void
 }) {
   const cores = targetCapableLoadoutCores(state)
-  const selected = cores.find((core) => core.coreInstanceId === selectedCoreId) ?? cores[0] ?? null
+  const selected = cores.find((core) => core.coreInstanceId === selectedCoreId) ?? null
 
   return (
     <BottomSheet
@@ -81,7 +84,7 @@ export function CoreSelectorList({
   detail?: TargetingCoreReadout | null
 }) {
   return (
-    <div className="core-selector" data-testid="core-selector">
+    <div className="core-selector" data-testid="core-selector" data-onboarding="onboarding.combat-overlay.core-selector">
       <p className="ui-kicker">Cores</p>
       <ul className="core-selector-list">
         {cores.map((core) => (
@@ -90,9 +93,15 @@ export function CoreSelectorList({
               type="button"
               className={`core-selector-row${selectedId === core.coreInstanceId ? ' is-selected' : ''}`}
               aria-pressed={selectedId === core.coreInstanceId}
+              style={{ minHeight: CORE_SELECTOR_MIN_HEIGHT_PX }}
               onClick={() => onSelect(core.coreInstanceId)}
             >
               <span className="core-selector-name">
+                {selectedId === core.coreInstanceId ? (
+                  <span className="core-selector-selected-mark" aria-hidden>
+                    ▸ SELECTED
+                  </span>
+                ) : null}
                 {core.label}
                 <span className="ui-meta"> {doctrineLabel(core.doctrine)}</span>
               </span>
@@ -174,9 +183,15 @@ export function TargetingSheet({
                 type="button"
                 className={`core-selector-row${selected?.coreInstanceId === core.coreInstanceId ? ' is-selected' : ''}`}
                 aria-pressed={selected?.coreInstanceId === core.coreInstanceId}
+                style={{ minHeight: CORE_SELECTOR_MIN_HEIGHT_PX }}
                 onClick={() => setSelectedId(core.coreInstanceId)}
               >
                 <span className="core-selector-name">
+                  {selected?.coreInstanceId === core.coreInstanceId ? (
+                    <span className="core-selector-selected-mark" aria-hidden>
+                      ▸ SELECTED
+                    </span>
+                  ) : null}
                   {core.label}
                   <span className="ui-meta"> {doctrineLabel(core.doctrine)}</span>
                 </span>
@@ -186,7 +201,10 @@ export function TargetingSheet({
         </ul>
       </div>
       {selected ? (
-        <TargetingDoctrinePicker core={selected} onSetDoctrine={onSetDoctrine} />
+        <>
+          <CoreDetailReadout core={selected} />
+          <TargetingDoctrinePicker core={selected} onSetDoctrine={onSetDoctrine} />
+        </>
       ) : (
         <p className="ui-meta">No target-capable Cores fitted.</p>
       )}

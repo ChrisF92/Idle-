@@ -93,6 +93,7 @@ function AppShell() {
   const [systemsView, setSystemsView] = useState<'hub' | 'foundry'>('foundry')
   const [dockPane, setDockPane] = useState<DockPane>('home')
   const [inventoryOpen, setInventoryOpen] = useState(false)
+  const [combatOverlayOpen, setCombatOverlayOpen] = useState(false)
   const toastBaseline = useRef<ToastSnapshot | null>(null)
   const seenOutcome = useRef(game.state.combat.lastSortie.outcome)
   const dying = (game.state.combat.defeatLeft ?? 0) > 0
@@ -110,11 +111,14 @@ function AppShell() {
     open: reportOpen,
     onClose: () => setReportOpen(false),
   })
+  const onCombatOverlayUi = useCallback((info: { open: boolean; selectedCoreId: string | null }) => {
+    setCombatOverlayOpen(info.open)
+  }, [])
   const updateBlocking = overlays.topBlockingKind === 'update'
   const finalePending = Boolean(game.state.meta.act1FinalePending)
   const presentation = selectPresentation(
     game.state,
-    { tab, reportOpen, hangarOpen },
+    { tab, reportOpen, hangarOpen, combatOverlayOpen },
     toasts,
     { updateBlocking, confirmOpen: hangarOpen, reportOpen, finalePending },
   )
@@ -419,6 +423,7 @@ function AppShell() {
             onChooseDirective={game.chooseDirective}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
+            onCombatOverlayUi={onCombatOverlayUi}
           />
         )}
         {tab === 'network' && (
