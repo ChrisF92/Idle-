@@ -314,11 +314,13 @@ describe('Combat Overlay onboarding', () => {
       'onboarding.combat-overlay.core-selector',
     )
     expect(screen.getByTestId('overlay-selected-core').textContent).toBe('')
-    expect(document.querySelector('.guide-root')).toBeTruthy()
-    expect(document.querySelector('.guide-tip-body')?.textContent).toMatch(/Fire Range/)
-    expect(document.querySelector('.guide-tip-body')?.textContent).toMatch(/Acquisition Range/)
-    expect(document.querySelector('.guide-tip-body')?.textContent).toMatch(/Firing Arc/)
-    expect(document.querySelector('.guide-tip-body')?.textContent).toMatch(/Slew/)
+    const lesson = activeOnboardingLesson(state, { tab: 'combat', combatOverlayOpen: true })
+    expect(lesson?.id).toBe('combat-overlay.ranges')
+    expect(lesson?.completeOnTap).toBe(false)
+    expect(lesson?.body.join(' ')).toMatch(/Fire Range/)
+    expect(lesson?.body.join(' ')).toMatch(/Acquisition Range/)
+    expect(lesson?.body.join(' ')).toMatch(/Firing Arc/)
+    expect(lesson?.body.join(' ')).toMatch(/Slew/)
     expect(document.querySelector('.core-selector-row.is-selected')).toBeNull()
     expect(screen.getByTestId('overlay-lesson-finished').textContent).toBe('false')
     const row = document.querySelector('.core-selector-row') as HTMLButtonElement
@@ -332,57 +334,26 @@ describe('Combat Overlay onboarding', () => {
 
   it('does not complete overlay onboarding from a heading or blank selector click', () => {
     const state = prepOnboardingDoor(createInitialState(1), 'combat-overlay.ranges')
-    const completes: string[] = []
-    const view = render(
+    render(
       wrap(
-        <>
-          <CombatTab
-            state={state}
-            onLaunch={() => undefined}
-            onPickMilestone={() => undefined}
-            onPause={() => {
-              state.combat.sortiePaused = true
-            }}
-            onCombatOverlayUi={() => undefined}
-          />
-          <GuideOverlay
-            item={selectPresentation(state, { tab: 'combat', combatOverlayOpen: true }, [], {})!}
-            onComplete={(id) => completes.push(id)}
-            onSkip={() => undefined}
-          />
-        </>,
+        <OverlayOnboardingHarness
+          initial={state}
+          onPause={() => {
+            state.combat.sortiePaused = true
+          }}
+        />,
       ),
     )
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Combat Overlay' }))
-    view.rerender(
-      wrap(
-        <>
-          <CombatTab
-            state={state}
-            onLaunch={() => undefined}
-            onPickMilestone={() => undefined}
-            onPause={() => {
-              state.combat.sortiePaused = true
-            }}
-            onCombatOverlayUi={() => undefined}
-          />
-          <GuideOverlay
-            item={selectPresentation(state, { tab: 'combat', combatOverlayOpen: true }, [], {})!}
-            onComplete={(id) => completes.push(id)}
-            onSkip={() => undefined}
-          />
-        </>,
-      ),
-    )
+    expect(screen.getByTestId('core-selector')).toBeTruthy()
+    expect(document.querySelector('.guide-root')).toBeTruthy()
     fireEvent.click(screen.getByText('Cores'))
     fireEvent.click(screen.getByTestId('core-selector'))
-    expect(completes).toEqual([])
+    expect(screen.getByTestId('overlay-selected-core').textContent).toBe('')
+    expect(screen.getByTestId('overlay-lesson-finished').textContent).toBe('false')
     expect(document.querySelector('.core-selector-row.is-selected')).toBeNull()
     expect(lessonFinished(state, 'combat-overlay.ranges')).toBe(false)
-    expect(selectPresentation(state, { tab: 'combat', combatOverlayOpen: true }, [], {})?.id).toBe(
-      'onboarding:combat-overlay.ranges',
-    )
   })
 
   it('does not start required overlay onboarding with zero target-capable Cores', () => {
