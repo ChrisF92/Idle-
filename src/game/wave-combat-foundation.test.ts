@@ -990,8 +990,8 @@ describe('PR1 wave-only radial combat foundation', () => {
   it('applies industry-only offline catch-up on hidden→visible without combat time', () => {
     let state = startCombat(createInitialState(2))
     muteWeapons(state)
-    state.meta.bestWave = ACT1_CADENCE.foundry
-    state.combat.bestWave = ACT1_CADENCE.foundry
+    state.meta.bestWave = ACT1_CADENCE.workers
+    state.combat.bestWave = ACT1_CADENCE.workers
     state.resources.scrap = 80
     state.base.workerDrones = Math.max(2, state.base.workerDrones)
     state = assignWorker(state, 'scrap-field', 2)
@@ -1019,7 +1019,6 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(visible.combat.nextReinforcementAt).toBe(waveAt)
     expect(visible.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y }))).toEqual(pos)
     expect(visible.combat.playerUnits.flatMap((u) => u.weapons.map((w) => w.cooldownLeft))).toEqual(cd)
-    expect(visible.resources.scrap).toBeGreaterThan(capControl.resources.scrap)
     expect(visible.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThan(
       capControl.foundry.materials['slag-ingot'] ?? 0,
     )
@@ -1037,7 +1036,22 @@ describe('PR1 wave-only radial combat foundation', () => {
 
     const wall = applyWallClock(structuredClone(state), hideAt + hiddenMs)
     expect(wall.state.combat.simTime).toBe(sim)
-    expect(wall.state.resources.scrap).toBeGreaterThan(capControl.resources.scrap)
+    expect(wall.state.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThan(
+      capControl.foundry.materials['slag-ingot'] ?? 0,
+    )
+
+    const workersOnly = structuredClone(state)
+    for (const slot of workersOnly.foundry.slots) {
+      if (slot) {
+        slot.recipeId = '' as never
+        slot.progress = 0
+        slot.paid = false
+      }
+    }
+    const workerCap = structuredClone(workersOnly)
+    advanceSeconds(workerCap, LIVE_TICK_CAP)
+    const { state: workerVisible } = handleAppVisible(workersOnly, hideAt + hiddenMs)
+    expect(workerVisible.resources.scrap).toBeGreaterThan(workerCap.resources.scrap)
 
     const resumed = setSortiePaused(again, false)
     advanceSeconds(resumed, 0.3)
@@ -1047,6 +1061,8 @@ describe('PR1 wave-only radial combat foundation', () => {
   it('does not double-apply hidden time across visible catch-up then reload', () => {
     let state = startCombat(createInitialState(3))
     muteWeapons(state)
+    state.meta.bestWave = ACT1_CADENCE.workers
+    state.combat.bestWave = ACT1_CADENCE.workers
     state.base.workerDrones = Math.max(2, state.base.workerDrones)
     state = assignWorker(state, 'scrap-field', 2)
     const hideAt = 80_000
