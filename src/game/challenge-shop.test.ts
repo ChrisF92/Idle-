@@ -8,6 +8,7 @@ import {
 } from './actions'
 import { armRebuildDoor } from './testHelpers'
 import { canRebuild } from './rebuild'
+import { setDocked } from './tick'
 import { applyOfflineCatchUp } from './offline'
 import {
   canBuyChallengeShop,
@@ -159,5 +160,7 @@ describe('challenge point shop', () => {
     expect(state.resources.scrap).toBe(20)
     expect(state.resources.salvage).toBe(10)
     expect(state.resources.aiPoints).toBe(ai + 1)
+    state = setDocked(state, false)
+    expect(state.resources.salvage).toBe(10)
   })
 })

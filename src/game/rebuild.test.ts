@@ -285,6 +285,8 @@ describe('normal Rebuild starting kits', () => {
     expect(s.resources.scrap).toBe(20)
     expect(s.resources.salvage).toBe(10)
     expect(s.resources.aiPoints).toBeGreaterThanOrEqual(ai + 1)
+    s = setDocked(s, false)
+    expect(s.resources.salvage).toBe(10)
   })
 })
 

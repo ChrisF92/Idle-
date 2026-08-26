@@ -659,7 +659,9 @@ function launchFromDock(state: GameState): void {
   state.combat.wave = 1
   state.combat.waveReached = 0
   state.combat.runUpgrades = {}
-  state.resources.salvage = 0
+  if (!isChallengeSortie(state)) {
+    state.resources.salvage = 0
+  }
   applyWorkshopCoreStarts(state)
   state.combat.coreRunLevels = {}
   state.combat.coreSalvageSpent = {}

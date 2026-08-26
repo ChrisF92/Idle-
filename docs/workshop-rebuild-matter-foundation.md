@@ -84,7 +84,7 @@ Unspent Matter has no power.
 
 Unlocks at career Best ≥ 210. Challenge Sorties cannot Extract. Bonus is `floor(sortieMark.grossScrapGenerated * 0.125)` of combat/Sortie Scrap only. Worker Scrap, reconstitution, and Salvage provisioning are excluded. `extractSortie()` is the only bonus path; `setDocked(true)` does not end a live Sortie. Confirmation pauses; cancel stays PAUSED.
 
-Normal Rebuild starting kits are Reconstitution Cache (Scrap) and Sortie Provisioning (Salvage at launch). Challenge-shop supply-cache / hangar-rights / doctrine-seed kits apply only on Challenge entry.
+Normal Rebuild starting kits are Reconstitution Cache (Scrap) and Sortie Provisioning (Salvage at launch). Challenge-shop supply-cache / hangar-rights / doctrine-seed kits apply only on Challenge entry; Hangar Rights Salvage survives the subsequent Challenge launch and stacks with Sortie Provisioning.
 
 ## Extension points
 

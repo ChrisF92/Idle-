@@ -112,6 +112,8 @@ describe('Matter effects', () => {
   it('Sortie Provisioning grants Salvage once per normal launch', () => {
     let s = markHullLost(createInitialState(0))
     s.prestige.matterShop = { 'sortie-provisioning': 2 }
+    s.prestige.shop['hangar-rights'] = 4
+    s.resources.salvage = 99
     expect(sortieProvisioningSalvage(s)).toBe(16)
     expect(MATTER_SHOP.find((row) => row.id === 'sortie-provisioning')?.description).not.toMatch(
       /Challenges suppress/i,
@@ -126,6 +128,16 @@ describe('Matter effects', () => {
     beginFight(s)
     expect(s.resources.salvage).toBe(16)
     expect(s.combat.sortieMark?.provisioningGranted).toBe(true)
+  })
+
+  it('does not grant Hangar Rights on a normal Rebuild or launch', () => {
+    let s = armRebuildDoor(markHullLost(createInitialState(0)))
+    s.prestige.shop['hangar-rights'] = 4
+    s.prestige.matterShop = { 'sortie-provisioning': 2 }
+    s = performRebuild(s, { frameId: s.shipyard.frameId, modules: s.shipyard.modules })
+    expect(s.resources.salvage).toBe(0)
+    s = setDocked(s, false)
+    expect(s.resources.salvage).toBe(16)
   })
 
   it('Sortie Provisioning grants Salvage once on a Challenge Sortie', () => {
@@ -157,9 +169,11 @@ describe('Matter effects', () => {
     expect(s.combat.docked).toBe(true)
     expect(s.combat.sortieMark?.provisioningGranted).toBeFalsy()
     s = setDocked(s, false)
-    expect(s.resources.salvage).toBe(16)
+    expect(s.resources.salvage).toBe(26)
     expect(s.combat.sortieMark?.provisioningGranted).toBe(true)
     expect(s.combat.sortieMark?.challengeSortie).toBe(true)
+    beginFight(s)
+    expect(s.resources.salvage).toBe(26)
   })
 
   it('Recovery Charter boosts combat Scrap and not Worker Scrap', () => {
