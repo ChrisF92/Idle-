@@ -592,10 +592,8 @@ function maybeAutoEngage(state: GameState): void {
 
 function applySortieProvisioningOnce(state: GameState): void {
   if (state.combat.sortieMark?.provisioningGranted) return
-  if (!isChallengeSortie(state)) {
-    const grant = sortieProvisioningSalvage(state)
-    if (grant > 0) state.resources.salvage = (state.resources.salvage ?? 0) + grant
-  }
+  const grant = sortieProvisioningSalvage(state)
+  if (grant > 0) state.resources.salvage = (state.resources.salvage ?? 0) + grant
   if (!state.combat.sortieMark) state.combat.sortieMark = captureSortieMark(state)
   state.combat.sortieMark.provisioningGranted = true
   state.combat.sortieMark.salvage = state.resources.salvage ?? 0

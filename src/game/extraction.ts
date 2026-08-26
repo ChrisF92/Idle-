@@ -22,8 +22,16 @@ export function extractionBonusFor(state: GameState): number {
   return projectedExtractionBonus(sortieGrossScrapGenerated(state))
 }
 
+function liveHiveHull(state: GameState): number {
+  const flag = state.combat.playerUnits.find((unit) => unit.isFlagship)
+  const flagshipHull = flag != null ? flag.hull : 0
+  const aggregateHull = state.combat.playerHull
+  return Math.min(flagshipHull, aggregateHull)
+}
+
 export function extractionLockedReason(state: GameState): string | null {
   if (state.combat.docked || !state.combat.inFight) return 'No active Sortie'
+  if (liveHiveHull(state) <= 0) return 'Hive destroyed'
   if ((state.combat.defeatLeft ?? 0) > 0) return 'Defeat sequence'
   if (isChallengeSortie(state)) return 'Challenges cannot Extract'
   if (careerBestWave(state) < EXTRACTION_UNLOCK_WAVE) {

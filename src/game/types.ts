@@ -1338,8 +1338,6 @@ export interface MetaState {
   moduleMastery: Record<string, number>
   /** XP toward the next Mastery level, per Core type. */
   moduleMasteryXp?: Record<string, number>
-  /** Old Scrap Dock ranks have been converted into Mastery. */
-  coreProgressionMigrated?: boolean
   /** Lifetime manual Core Level purchases (legacy field name retained in saves). */
   lifetimeCoreRunBuys?: number
   /**

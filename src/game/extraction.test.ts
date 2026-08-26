@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buyMatterShop, buyWorkshopUpgrade, performRebuild } from './actions'
-import { canExtract, EXTRACTION_SCRAP_BONUS, extractionBonusFor, projectedExtractionBonus } from './extraction'
+import { canExtract, EXTRACTION_SCRAP_BONUS, extractionBonusFor, extractionLockedReason, projectedExtractionBonus } from './extraction'
 import { createInitialState } from './state'
-import { armRebuildDoor, markHullLost } from './testHelpers'
+import { armRebuildDoor, completeDefeat, markHullLost } from './testHelpers'
 import { extractSortie, setDocked, setSortiePaused } from './tick'
 import { grantGeneratedScrap } from './rebuild'
 import { workshopLevel } from './workshop'
@@ -41,18 +41,48 @@ describe('Extraction', () => {
     expect(extracted.resources.prestigeMatter).toBe(s.resources.prestigeMatter)
   })
 
-  it('defeat does not grant the bonus; Core and Workshop levels persist', () => {
+  it('zero-Hull live Sortie cannot Extract; defeat still persists Core and Workshop', () => {
     let s = markHullLost(createInitialState(0))
     s.resources.scrap = 40
     s = buyWorkshopUpgrade(s, 'weapon-power')
     const workshop = workshopLevel(s, 'weapon-power')
     s.workshop.coreStarts = { 'pulse-cannon:1': 4 }
     s = setDocked(s, false)
-    s.combat.playerUnits = [{ ...(s.combat.playerUnits[0] ?? { hull: 1, hullMax: 10, isFlagship: true, x: 0, y: 0, vx: 0, vy: 0, weapons: [] } as never), hull: 0, isFlagship: true }]
-    const extracted = extractSortie({ ...s, meta: { ...s.meta, bestWave: 210 } })
-    expect(extracted.workshop.coreStarts['pulse-cannon:1']).toBe(4)
-    expect(workshopLevel(extracted, 'weapon-power')).toBe(workshop)
-    expect(extracted.combat.runUpgrades['weapon-power'] ?? 0).toBe(0)
+    s.meta.bestWave = 210
+    s.combat.bestWave = 210
+    grantGeneratedScrap(s, 100, 'combat-kill')
+    expect(canExtract(s)).toBe(true)
+    expect(extractionBonusFor(s)).toBe(12)
+
+    s.combat.playerUnits = s.combat.playerUnits.map((unit) =>
+      unit.isFlagship ? { ...unit, hull: 0 } : unit,
+    )
+    s.combat.defeatLeft = 0
+    expect(canExtract(s)).toBe(false)
+    expect(extractionLockedReason(s)).toBe('Hive destroyed')
+
+    const bank = s.resources.scrap
+    const generated = s.prestige.cycle.scrapGenerated
+    const attempted = extractSortie(s)
+    expect(attempted).toBe(s)
+    expect(canExtract(attempted)).toBe(false)
+    expect(attempted.combat.docked).toBe(false)
+    expect(attempted.combat.inFight).toBe(true)
+    expect(attempted.combat.lastSortie?.outcome).not.toBe('extract')
+    expect(attempted.combat.lastSortie?.extractionBonusScrap ?? 0).toBe(0)
+    expect(attempted.resources.scrap).toBe(bank)
+    expect(attempted.prestige.cycle.scrapGenerated).toBe(generated)
+    expect(attempted.workshop.coreStarts['pulse-cannon:1']).toBe(4)
+    expect(workshopLevel(attempted, 'weapon-power')).toBe(workshop)
+
+    const defeated = completeDefeat(attempted)
+    expect(defeated.combat.lastSortie.outcome).toBe('defeat')
+    expect(defeated.combat.lastSortie.extractionBonusScrap ?? 0).toBe(0)
+    expect(defeated.workshop.coreStarts['pulse-cannon:1']).toBe(4)
+    expect(workshopLevel(defeated, 'weapon-power')).toBe(workshop)
+    expect(defeated.combat.runUpgrades['weapon-power'] ?? 0).toBe(0)
+    expect(defeated.resources.scrap).toBe(bank)
+    expect(defeated.prestige.cycle.scrapGenerated).toBe(generated)
   })
 
   it('opening confirmation leaves the Sortie PAUSED on cancel path', () => {

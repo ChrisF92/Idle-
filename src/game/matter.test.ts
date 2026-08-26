@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buyMatterShop, performRebuild } from './actions'
+import { buyMatterShop, enterChallenge, performRebuild } from './actions'
 import { computeShipStats, createInitialState } from './state'
 import { armRebuildDoor, markHullLost } from './testHelpers'
-import { setDocked, advanceSeconds } from './tick'
+import { setDocked, advanceSeconds, beginFight } from './tick'
 import {
   MATTER_SHOP,
   TIME_COMPRESSION_I_COST,
@@ -113,6 +113,9 @@ describe('Matter effects', () => {
     let s = markHullLost(createInitialState(0))
     s.prestige.matterShop = { 'sortie-provisioning': 2 }
     expect(sortieProvisioningSalvage(s)).toBe(16)
+    expect(MATTER_SHOP.find((row) => row.id === 'sortie-provisioning')?.description).not.toMatch(
+      /Challenges suppress/i,
+    )
     s = setDocked(s, false)
     expect(s.resources.salvage).toBe(16)
     expect(s.combat.sortieMark?.provisioningGranted).toBe(true)
@@ -120,6 +123,43 @@ describe('Matter effects', () => {
     s = structuredClone(s)
     s.combat.sortiePaused = true
     expect(s.resources.salvage).toBe(mid)
+    beginFight(s)
+    expect(s.resources.salvage).toBe(16)
+    expect(s.combat.sortieMark?.provisioningGranted).toBe(true)
+  })
+
+  it('Sortie Provisioning grants Salvage once on a Challenge Sortie', () => {
+    let s = markHullLost(createInitialState(0))
+    s.meta.act1Cleared = true
+    s.meta.bestWave = 1000
+    s.prestige.matterShop = { 'sortie-provisioning': 2 }
+    s.combat.docked = true
+    s = enterChallenge(s, 'no-ai')
+    expect(s.prestige.activeChallengeId).toBe('no-ai')
+    expect(s.resources.salvage).toBe(0)
+    s = setDocked(s, false)
+    expect(s.combat.sortieMark?.challengeSortie).toBe(true)
+    expect(s.resources.salvage).toBe(16)
+    expect(s.combat.sortieMark?.provisioningGranted).toBe(true)
+    beginFight(s)
+    expect(s.resources.salvage).toBe(16)
+  })
+
+  it('keeps Challenge-shop kits and Matter Sortie Provisioning as separate sources', () => {
+    let s = markHullLost(createInitialState(0))
+    s.meta.act1Cleared = true
+    s.meta.bestWave = 1000
+    s.prestige.shop['hangar-rights'] = 1
+    s.prestige.matterShop = { 'sortie-provisioning': 2 }
+    s.combat.docked = true
+    s = enterChallenge(s, 'no-ai')
+    expect(s.resources.salvage).toBe(10)
+    expect(s.combat.docked).toBe(true)
+    expect(s.combat.sortieMark?.provisioningGranted).toBeFalsy()
+    s = setDocked(s, false)
+    expect(s.resources.salvage).toBe(16)
+    expect(s.combat.sortieMark?.provisioningGranted).toBe(true)
+    expect(s.combat.sortieMark?.challengeSortie).toBe(true)
   })
 
   it('Recovery Charter boosts combat Scrap and not Worker Scrap', () => {

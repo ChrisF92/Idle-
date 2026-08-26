@@ -80,7 +80,7 @@ export const FOUNDRY_THROUGHPUT_PER_RANK = 0.08
 export const WORKER_RACKS_PER_RANK = 1
 /** Starting Scrap after Rebuild: 24 per Reconstitution Cache rank. */
 export const RECONSTITUTION_SCRAP_PER_RANK = 24
-/** Starting Salvage at normal Sortie launch: 8 per Sortie Provisioning rank. */
+/** Starting Salvage at Sortie launch: 8 per Sortie Provisioning rank. */
 export const SORTIE_PROVISIONING_PER_RANK = 8
 
 function pctLine(label: string, perRank: number, rank: number, nextRank: number, maxRank: number): string {
@@ -174,7 +174,7 @@ export const MATTER_SHOP: MatterShopDef[] = [
   {
     id: 'sortie-provisioning',
     name: 'Sortie Provisioning',
-    description: 'Small starting Salvage at each normal Sortie launch. Not combat Salvage. Challenges suppress it.',
+    description: 'Small starting Salvage at each Sortie launch. Not combat Salvage. Challenges use it unless a Challenge restriction says otherwise.',
     category: 'foundation',
     maxRank: 5,
     costs: INDUSTRY_COSTS,

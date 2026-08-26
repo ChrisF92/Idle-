@@ -1371,7 +1371,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       discoveredModules: [...(state.meta.discoveredModules ?? [])],
       moduleMastery: { ...(state.meta.moduleMastery ?? {}) },
       moduleMasteryXp: { ...(state.meta.moduleMasteryXp ?? {}) },
-      coreProgressionMigrated: true,
       lifetimeCoreRunBuys: state.meta.lifetimeCoreRunBuys ?? 0,
       signalCoresCarryOver: state.meta.signalCoresCarryOver ?? false,
       seenOnboarding: [...(state.meta.seenOnboarding ?? [])],

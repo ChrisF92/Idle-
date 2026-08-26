@@ -71,7 +71,7 @@ Non-temporal costs: stat nodes `4, 8, 15, 27, 49`; industrial/foundation `5, 9, 
 | foundry-throughput | 5 | +8% Processing + Fabrication / rank |
 | worker-racks | 4 | +1 Worker cap / rank |
 | reconstitution-cache | 5 | +24 starting Scrap / rank after Rebuild |
-| sortie-provisioning | 5 | +8 starting Salvage / rank at normal Launch |
+| sortie-provisioning | 5 | +8 starting Salvage / rank at Sortie launch (Challenges included unless a Challenge restriction says otherwise) |
 | time-compression-1/2/3 | 1 | 8 / 35 / 120 Matter → 1.5× / 2× / 3× |
 
 Unspent Matter has no power.

@@ -16,10 +16,8 @@ import {
   coreRunLevel,
   coreStartingLevel,
   coreStartingUpgradeCost,
-  legacyRankToMastery,
   masteryFrontierMult,
   masteryWaveXp,
-  migrateLegacyCoreProgression,
   moduleCopyCount,
   grantModuleCopy,
 } from './coreProgression'
@@ -94,13 +92,13 @@ describe('Dock Core Levels', () => {
     const loaded = importSave(exportSave(s))
     expect(loaded).toBeTruthy()
     expect(coreStartingLevel(loaded!, 'pulse-cannon:1')).toBe(1)
+    expect(loaded!.workshop.coreStarts['pulse-cannon:1']).toBe(1)
   })
 
-  it('migrates legacy Core-type starting levels to a physical copy', () => {
+  it('reads physical Core Levels by instance id only', () => {
     const s = createInitialState(0)
     s.workshop.coreStarts = { 'pulse-cannon': 4 }
-    const loaded = importSave(exportSave(s))
-    expect(loaded?.workshop.coreStarts).toEqual({ 'pulse-cannon:1': 4 })
+    expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(0)
   })
 })
 
@@ -171,6 +169,18 @@ describe('Core Mastery', () => {
     expect(s.combat.coreMasteryXp['pulse-cannon']).toBeGreaterThan(0)
     expect(Object.keys(s.combat.coreMasteryXp ?? {}).filter((id) => id === 'pulse-cannon')).toHaveLength(1)
   })
+
+  it('keeps duplicate copies on one Mastery track after hydration', () => {
+    let s = createInitialState(0)
+    s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'swarm-frame']
+    s.shipyard.frameId = 'swarm-frame'
+    s.shipyard.unlockedModules = ['pulse-cannon']
+    s.shipyard.moduleCopies = { 'pulse-cannon': 2 }
+    s.shipyard.modules = ['pulse-cannon']
+    s = fitModule(s, 'pulse-cannon')
+    expect(s.shipyard.modules.filter((id) => id === 'pulse-cannon')).toHaveLength(2)
+    expect(moduleCopyCount(s, 'pulse-cannon')).toBe(2)
+  })
 })
 
 describe('Core stat composition', () => {
@@ -192,35 +202,5 @@ describe('Core stat composition', () => {
     const out = corePrimaryOutput(s, 0)
     expect(out?.label).toBe('DPS')
     expect(out!.next).toBeGreaterThan(out!.current)
-  })
-})
-
-describe('legacy Core-definition level migration', () => {
-  it('converts leftover Scrap levels into bounded Mastery', () => {
-    const s = createInitialState(0)
-    s.meta.coreProgressionMigrated = false
-    s.shipyard.moduleLevels = { 'pulse-cannon': 12, 'plate-layer': 8 }
-    s.workshop.coreStarts = { 'pulse-cannon': 12 }
-    s.combat.docked = false
-    migrateLegacyCoreProgression(s)
-    expect(s.meta.coreProgressionMigrated).toBe(true)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
-    expect(moduleMasteryRank(s, 'pulse-cannon')).toBeGreaterThan(0)
-    expect(moduleMasteryRank(s, 'pulse-cannon')).toBeLessThanOrEqual(18)
-    expect(coreRunLevel(s, 0)).toBe(0)
-    const mapped = legacyRankToMastery(80)
-    expect(mapped.level).toBeLessThanOrEqual(18)
-  })
-
-  it('keeps duplicate copies on one Mastery track after hydration', () => {
-    let s = createInitialState(0)
-    s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'swarm-frame']
-    s.shipyard.frameId = 'swarm-frame'
-    s.shipyard.unlockedModules = ['pulse-cannon']
-    s.shipyard.moduleCopies = { 'pulse-cannon': 2 }
-    s.shipyard.modules = ['pulse-cannon']
-    s = fitModule(s, 'pulse-cannon')
-    expect(s.shipyard.modules.filter((id) => id === 'pulse-cannon')).toHaveLength(2)
-    expect(moduleCopyCount(s, 'pulse-cannon')).toBe(2)
   })
 })

@@ -45,7 +45,6 @@ import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { migrateOnboardingRegistry } from './onboarding'
 import { createFreshCareerState } from './freshStart'
-import { migrateLegacyCoreProgression } from './coreProgression'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
 import { emptyWaveRuntime } from './waveRuntime'
@@ -492,20 +491,6 @@ export function migrateCoreFitInstances(state: GameState): void {
   state.reliquary.coreFits = migrated
 }
 
-/** Move legacy Core-definition starting levels onto the first physical copy. */
-export function migrateCoreStartingLevelInstances(state: GameState): void {
-  normalizeCoreInstances(state.shipyard)
-  const migrated: Record<string, number> = {}
-  for (const [key, rawLevel] of Object.entries(state.workshop.coreStarts ?? {})) {
-    const level = Math.max(0, Math.floor(Number(rawLevel) || 0))
-    if (level <= 0) continue
-    const instance = resolveCoreInstance(state, key)
-    const target = instance?.id ?? key
-    migrated[target] = Math.max(migrated[target] ?? 0, level)
-  }
-  state.workshop.coreStarts = migrated
-}
-
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
   return hydrateFurnaceState(raw)
 }
@@ -685,7 +670,6 @@ function withMetaDefaults(
     discoveredModules: [...(meta?.discoveredModules ?? [])],
     moduleMastery: { ...(meta?.moduleMastery ?? {}) },
     moduleMasteryXp: { ...(meta?.moduleMasteryXp ?? {}) },
-    coreProgressionMigrated: meta?.coreProgressionMigrated === true,
     lifetimeCoreRunBuys: Math.max(0, Math.floor(Number(meta?.lifetimeCoreRunBuys ?? 0) || 0)),
     signalCoresCarryOver: meta?.signalCoresCarryOver ?? false,
     // Progressed careers skip the starter death → Plate → salvage lesson.
@@ -851,8 +835,6 @@ function migrate(raw: unknown): GameState | null {
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingRegistry(hydrated)
-    migrateLegacyCoreProgression(hydrated)
-    migrateCoreStartingLevelInstances(hydrated)
     migrateLegacyFabProject(hydrated)
     return hydrated
   }

@@ -228,7 +228,6 @@ export function createInitialState(now = Date.now()): GameState {
       discoveredModules: [],
       moduleMastery: {},
       moduleMasteryXp: {},
-      coreProgressionMigrated: true,
       lifetimeCoreRunBuys: 0,
       signalCoresCarryOver: false,
       starterCombatLesson: 2,
