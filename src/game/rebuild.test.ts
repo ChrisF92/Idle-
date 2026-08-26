@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { buyCoreStartingLevel, buyGenericUnlock, buyMatterShop, buyWorkshopUpgrade, enterChallenge, performRebuild } from './actions'
+import { buyCoreStartingLevel, buyWorkshopUpgrade, enterChallenge, performRebuild } from './actions'
 import { addCoreInstance } from './coreInstances'
 import { coreStartingLevel } from './coreProgression'
-import { ACT1_CADENCE } from './cadence'
 import { createInitialState } from './state'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
 import {

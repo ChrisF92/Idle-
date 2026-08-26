@@ -37,7 +37,7 @@ function prepDoor(onDevAction: (action: DevAction) => void, wave: number): void 
 
 export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps) {
   const [enabled, setEnabled] = useState(() => isDevToolsEnabled())
-  const [bestWave, setBestWave] = useState('70')
+  const [bestWave, setBestWave] = useState('210')
   const [open, setOpen] = useState(true)
   const [reportOpen, setReportOpen] = useState(false)
 
