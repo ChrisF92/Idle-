@@ -1421,9 +1421,15 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
 
 function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
   const extras: EnemyPartDropEntry[] = []
-  if (wave >= 120) extras.push({ moduleId: 'barrier-projector', partType: 'casing', weight: 1 })
-  if (wave >= 160) extras.push({ moduleId: 'sensor-array', partType: 'lens', weight: 1 })
-  if (wave >= 220) extras.push({ moduleId: 'choir-tap', partType: 'lens', weight: 1 })
+  if (wave >= modulePrintWave('barrier-projector')) {
+    extras.push({ moduleId: 'barrier-projector', partType: 'casing', weight: 1 })
+  }
+  if (wave >= modulePrintWave('sensor-array')) {
+    extras.push({ moduleId: 'sensor-array', partType: 'lens', weight: 1 })
+  }
+  if (wave >= modulePrintWave('choir-tap')) {
+    extras.push({ moduleId: 'choir-tap', partType: 'lens', weight: 1 })
+  }
   return extras
 }
 

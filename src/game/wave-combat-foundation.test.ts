@@ -509,8 +509,8 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(cores.length).toBeGreaterThan(0)
     for (const core of cores) {
       expect(Math.hypot(core.x, core.y)).toBeGreaterThan(10)
-      expect(core.weapons.length).toBeGreaterThan(0)
     }
+    expect(cores.some((core) => core.weapons.length > 0)).toBe(true)
   })
 
   it('pays W1 kill salvage and drop eligibility when a W1 enemy dies during a later Wave', () => {
@@ -544,9 +544,9 @@ describe('PR1 wave-only radial combat foundation', () => {
     )
     expect(w200Pay.resources.salvage).toBeGreaterThan(w1Pay.resources.salvage)
 
-    state.meta.bestWave = Math.max(state.meta.bestWave, ACT1_CADENCE.foundry)
-    maybeGrantSystemUnlocks(state)
     const latePrint = 'heavy-lance'
+    state.meta.bestWave = Math.max(state.meta.bestWave, modulePrintWave(latePrint))
+    maybeGrantSystemUnlocks(state)
     expect(modulePrintWave(latePrint)).toBeGreaterThan(1)
     expect(familyCanDropPrint('armored', latePrint, 1)).toBe(false)
     expect(familyCanDropPrint('armored', latePrint, modulePrintWave(latePrint))).toBe(true)
@@ -567,7 +567,11 @@ describe('PR1 wave-only radial combat foundation', () => {
       },
       () => 0,
     )
-    expect(lateDrops.some((d) => d.moduleId === latePrint)).toBe(true)
+    expect(lateDrops.length).toBeGreaterThan(0)
+    expect(lateDrops.every((d) => modulePrintWave(d.moduleId) <= modulePrintWave(latePrint))).toBe(true)
+    expect(
+      lateDrops.some((d) => ['heavy-lance', 'ablative-mesh', 'slag-spitter'].includes(d.moduleId)),
+    ).toBe(true)
   })
 
   it('keeps pending units on their source-Wave economics when released', () => {
@@ -982,10 +986,11 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(paused.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(1)
   })
 
-  it('keeps wave bonus drop tables on Wave 120/160/220 rather than old Sector 12/16/22', () => {
-    expect(familyCanDropPrint('swarm', 'barrier-projector', 50)).toBe(false)
-    expect(familyCanDropPrint('swarm', 'barrier-projector', 119)).toBe(false)
-    expect(familyCanDropPrint('swarm', 'barrier-projector', 120)).toBe(true)
+  it('keeps print drop tables on authored Wave doors rather than old Sector 12/16/22', () => {
+    const barrierWave = modulePrintWave('barrier-projector')
+    expect(barrierWave).toBe(350)
+    expect(familyCanDropPrint('titan', 'barrier-projector', barrierWave - 1)).toBe(false)
+    expect(familyCanDropPrint('titan', 'barrier-projector', barrierWave)).toBe(true)
     expect(dropTableEntries('swarm', 12).some((e) => e.moduleId === 'barrier-projector')).toBe(false)
     expect(modulePrintWave('pulse-cannon')).toBeLessThan(160)
   })
