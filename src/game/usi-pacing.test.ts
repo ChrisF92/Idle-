@@ -84,9 +84,7 @@ describe('USI-aligned Rebuild recovery', () => {
 
   it('return salvage covers Pulse L1 plus two Plate levels', () => {
     let state = createInitialState(0)
-    state.combat.sector = 12
     state.meta.highestSectorEver = 12
-    state.combat.highestSector = 12
     state = performPrestige(state, 1000)
     const pulseCost = moduleUpgradeCost(0, 'pulse-cannon')
     const plate1 = moduleUpgradeCost(0, 'plate-layer')

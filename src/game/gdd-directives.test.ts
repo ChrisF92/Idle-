@@ -7,9 +7,10 @@ import {
   directiveWeaponMult,
   hasDirectiveOffer,
   isDirectiveWave,
+  queueDirectiveOffer,
 } from './directives'
 import { computeShipStats, createInitialState } from './state'
-import { setDocked, startCombat, advanceTicks } from './tick'
+import { setDocked } from './tick'
 import { ACT1_CADENCE } from './cadence'
 
 describe('GDD Directives', () => {
@@ -22,19 +23,12 @@ describe('GDD Directives', () => {
     expect(isDirectiveWave(DIRECTIVE_INTERVAL * 6)).toBe(false)
   })
 
-  it('pauses the Sortie with three choices after clearing Wave 50', () => {
-    let s = setDocked(createInitialState(0), false)
-    s = startCombat(s)
-    s.combat.wave = 50
-    s.combat.isBoss = true
-    for (const e of s.combat.enemyUnits) e.hull = 0
-    s.combat.enemyHull = 0
-    advanceTicks(s, 1)
+  it('can queue a Directive offer on a Wave 50 Boss secure without jumping the Sortie', () => {
+    const s = createInitialState(0)
+    expect(queueDirectiveOffer(s, 50)).toBe(true)
     expect(hasDirectiveOffer(s)).toBe(true)
     expect(s.combat.directiveOffer).toHaveLength(3)
-    expect(s.combat.inFight).toBe(false)
-    expect(s.combat.docked).toBe(false)
-    expect(s.combat.wave).toBe(51)
+    expect(s.combat.wave).toBe(1)
   })
 
   it('applies Overcharge to this Sortie only', () => {

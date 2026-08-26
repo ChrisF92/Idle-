@@ -2,11 +2,8 @@ import type { GameState } from '../types'
 import type { PlayerStrategy, SimulationSpendProfile, SimulationStrategyId, StrategyContext } from './types'
 import {
   doRebuild,
-  ensureAdvance,
   ensureLaunched,
   industryPass,
-  maybeHold,
-  maybeRetryFrontier,
   maybeChooseDirective,
   shouldRebuild,
   skipGuides,
@@ -30,16 +27,8 @@ function playSession(state: GameState, ctx: StrategyContext, mode: SimulationSpe
     next = doRebuild(next, ctx, rebuild.reasons)
     next = industryPass(next, ctx, mode)
   }
-  next = ensureAdvance(next)
-  // Hold briefly after repeated deaths so repairs can catch up.
-  if (next.combat.consecutiveLosses >= 2 && next.combat.docked) {
-    next = maybeHold(next, true)
-  } else if (next.combat.highestSector > 0 && next.combat.consecutiveLosses === 0) {
-    next = maybeHold(next, false)
-  }
   next = ensureLaunched(next, ctx)
   next = maybeChooseDirective(next, ctx)
-  next = maybeRetryFrontier(next, ctx)
   return next
 }
 
@@ -48,10 +37,8 @@ export const idleStrategy: PlayerStrategy = {
   label: 'Idle',
   decide(state, ctx) {
     let next = skipGuides(state)
-    next = ensureAdvance(next)
     next = ensureLaunched(next, ctx)
     next = maybeChooseDirective(next, ctx)
-    next = maybeRetryFrontier(next, ctx)
     return next
   },
 }

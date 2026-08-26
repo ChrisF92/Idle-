@@ -130,7 +130,7 @@ export function closeSortie(
     Math.max(0, (state.resources.scrap ?? 0) - (mark?.scrap ?? state.resources.scrap ?? 0))
   state.combat.lastSortie = {
     outcome,
-    sector: at?.sector ?? state.combat.sector,
+    sector: at?.sector ?? 0,
     wave,
     note,
     sectorsCleared: mark?.sectorsCleared ?? 0,
@@ -157,5 +157,5 @@ export function closeSortie(
     return
   }
   state.combat.sortieMark = null
-  state.combat.sortieSeed = undefined
+  state.combat.sortieSeed = 0
 }

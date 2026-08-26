@@ -1,17 +1,15 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import type { GameState, LaborProfile, PartType, CombatPushMode } from '../game/types'
+import type { GameState, LaborProfile, PartType } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import {
   tickGame,
   startCombat,
-  setCampaign,
-  setPushMode,
   setDocked,
-  warpToSector,
-  retryFrontier,
   chooseDirective,
+  setSortiePaused,
+  handleAppHidden,
 } from '../game/tick'
-import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
+import { applyOfflineCatchUp, applyWallClock, handleAppVisible, type OfflineReport } from '../game/offline'
 import {
   abandonChallenge,
   assignWorker,
@@ -70,8 +68,6 @@ import {
   applyFurnacePreset,
   setResearchFocus,
   startResearch,
-  setLaunchSector,
-  setSectorRoute,
   placeYardBuilding,
   clearYardBuilding,
   buyYardArm,
@@ -98,18 +94,12 @@ import { markHubSeen } from '../game/hubAttention'
 import { applyDevAction, type DevAction } from '../game/dev'
 import { createFreshCareerState } from '../game/freshStart'
 import { noteSessionEnd } from '../game/playtest'
-import { dismissFrontierNotice } from '../game/frontier'
 
 type Action =
   | { type: 'replace'; state: GameState }
   | { type: 'tick'; now: number; paused?: boolean }
   | { type: 'engage' }
-  | { type: 'set-campaign'; on: boolean }
-  | { type: 'set-push-mode'; mode: CombatPushMode }
-  | { type: 'retry-frontier' }
-  | { type: 'dismiss-frontier-notice' }
   | { type: 'set-docked'; docked: boolean }
-  | { type: 'warp'; sector: number }
   | { type: 'assign-worker'; stationId: string; delta: number }
   | { type: 'buy-network-link'; linkId: import('../game/types').NetworkLinkId }
   | { type: 'auto-balance-workers'; profile?: LaborProfile }
@@ -181,8 +171,6 @@ type Action =
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
   | { type: 'research-start'; nodeId: string }
   | { type: 'dismiss-act1-finale' }
-  | { type: 'launch-sector'; sector: number }
-  | { type: 'sector-route'; route: import('../game/types').SectorRoute }
   | { type: 'yard-place'; index: number; buildingId: import('../game/types').YardBuildingId }
   | { type: 'yard-clear'; index: number }
   | { type: 'yard-arm'; armId: import('../game/types').YardArmId }
@@ -203,6 +191,8 @@ type Action =
   | { type: 'rank-capital'; capitalId: import('../game/types').CapitalId }
   | { type: 'reinforce' }
   | { type: 'session-end' }
+  | { type: 'set-sortie-paused'; paused: boolean }
+  | { type: 'visibility-hidden' }
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -212,18 +202,8 @@ function reducer(state: GameState, action: Action): GameState {
       return tickGame(state, action.now, action.paused)
     case 'engage':
       return startCombat(state)
-    case 'set-campaign':
-      return setCampaign(state, action.on)
-    case 'set-push-mode':
-      return setPushMode(state, action.mode)
-    case 'retry-frontier':
-      return retryFrontier(state)
-    case 'dismiss-frontier-notice':
-      return dismissFrontierNotice(state)
     case 'set-docked':
       return setDocked(state, action.docked)
-    case 'warp':
-      return warpToSector(state, action.sector)
     case 'assign-worker':
       return assignWorker(state, action.stationId, action.delta)
     case 'buy-network-link':
@@ -357,10 +337,6 @@ function reducer(state: GameState, action: Action): GameState {
       return startResearch(state, action.nodeId)
     case 'dismiss-act1-finale':
       return dismissAct1Finale(state)
-    case 'launch-sector':
-      return setLaunchSector(state, action.sector)
-    case 'sector-route':
-      return setSectorRoute(state, action.route)
     case 'yard-place':
       return placeYardBuilding(state, action.index, action.buildingId)
     case 'yard-clear':
@@ -404,6 +380,10 @@ function reducer(state: GameState, action: Action): GameState {
       noteSessionEnd(next)
       return next
     }
+    case 'set-sortie-paused':
+      return setSortiePaused(state, action.paused)
+    case 'visibility-hidden':
+      return handleAppHidden(state)
     default:
       return state
   }
@@ -425,27 +405,56 @@ export function useGame() {
     initial.current.report,
   )
   const simPausedRef = useRef(false)
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      dispatch({ type: 'tick', now: Date.now(), paused: simPausedRef.current })
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      const now = Date.now()
+      const { state: next, report } = applyWallClock(
+        stateRef.current,
+        now,
+        simPausedRef.current,
+      )
+      stateRef.current = next
+      dispatch({ type: 'replace', state: next })
+      if (report) setOfflineReport(report)
     }, 50)
     return () => window.clearInterval(id)
   }, [])
 
   useEffect(() => {
-    saveGame(state)
-  }, [state])
+    const id = window.setInterval(() => saveGame(stateRef.current), 5000)
+    return () => {
+      saveGame(stateRef.current)
+      window.clearInterval(id)
+    }
+  }, [])
 
   useEffect(() => {
-    const onHide = () => {
-      if (document.visibilityState === 'hidden') dispatch({ type: 'session-end' })
+    const freezeAndPersist = () => {
+      const next = handleAppHidden(stateRef.current)
+      stateRef.current = next
+      dispatch({ type: 'replace', state: next })
+      saveGame(next)
     }
-    const onUnload = () => dispatch({ type: 'session-end' })
-    document.addEventListener('visibilitychange', onHide)
+    const catchUpVisible = () => {
+      const { state: next, report } = handleAppVisible(stateRef.current, Date.now())
+      stateRef.current = next
+      dispatch({ type: 'replace', state: next })
+      saveGame(next)
+      if (report) setOfflineReport(report)
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') freezeAndPersist()
+      else catchUpVisible()
+    }
+    const onUnload = () => freezeAndPersist()
+    document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', onUnload)
     return () => {
-      document.removeEventListener('visibilitychange', onHide)
+      document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('pagehide', onUnload)
     }
   }, [])
@@ -456,12 +465,8 @@ export function useGame() {
     offlineReport,
     dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),
-    setCampaign: (on: boolean) => dispatch({ type: 'set-campaign', on }),
-    setPushMode: (mode: CombatPushMode) => dispatch({ type: 'set-push-mode', mode }),
-    retryFrontier: () => dispatch({ type: 'retry-frontier' }),
-    dismissFrontierNotice: () => dispatch({ type: 'dismiss-frontier-notice' }),
     setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
-    warpToSector: (sector: number) => dispatch({ type: 'warp', sector }),
+    setSortiePaused: (paused: boolean) => dispatch({ type: 'set-sortie-paused', paused }),
     assignWorker: (stationId: string, delta: number) =>
       dispatch({ type: 'assign-worker', stationId, delta }),
     buyNetworkLink: (linkId: import('../game/types').NetworkLinkId) =>
@@ -567,9 +572,6 @@ export function useGame() {
       dispatch({ type: 'research-focus', branch }),
     startResearch: (nodeId: string) => dispatch({ type: 'research-start', nodeId }),
     dismissAct1Finale: () => dispatch({ type: 'dismiss-act1-finale' }),
-    setLaunchSector: (sector: number) => dispatch({ type: 'launch-sector', sector }),
-    setSectorRoute: (route: import('../game/types').SectorRoute) =>
-      dispatch({ type: 'sector-route', route }),
     placeYardBuilding: (
       index: number,
       buildingId: import('../game/types').YardBuildingId,

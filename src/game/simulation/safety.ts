@@ -43,7 +43,7 @@ export function inspectNumericSafety(state: GameState, activeSeconds: number): S
   check('hullMax', state.combat.playerHullMax)
   check('shield', state.combat.playerShield)
   check('shieldMax', state.combat.playerShieldMax)
-  check('sector', state.combat.sector)
+  check('sector', state.combat.wave)
   check('wave', state.combat.wave)
   check('drones', state.base.workerDrones)
   check('prestigeCount', state.prestige.prestigeCount)

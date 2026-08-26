@@ -818,6 +818,35 @@ h2 .inspect-name {
   z-index: 2;
 }
 
+.sortie-paused-overlay {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
+  padding: 0.55rem 0.8rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: rgba(18, 14, 12, 0.88);
+}
+
+.sortie-paused-title {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-brand);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+}
+
+.sortie-resume-btn {
+  min-height: 2.2rem;
+  padding: 0.3rem 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .frontier-card {
   position: absolute;
   left: 0.45rem;

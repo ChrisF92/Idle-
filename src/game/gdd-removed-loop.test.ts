@@ -3,45 +3,29 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { setCampaign, setPushMode, retryFrontier, warpToSector, setDocked } from './tick'
-import { enterEcho, setLaunchSector, setSectorRoute } from './actions'
+import { setDocked } from './tick'
+import { enterEcho } from './actions'
 import { MORE_STATIONS, REMOVED_ACT1_TABS, isMoreNavTab, isRemovedAct1Tab } from './moreStations'
 import { LIVE_SCREENS } from './screenHelp'
 import { isSystemUnlocked } from './progression'
 import { canEnterEcho, echoDamageMult } from './echo'
 
 describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
-  it('keeps every Sortie on Advance from Wave 1', () => {
-    let s = createInitialState(0)
+  it('keeps every Sortie launching at Wave 1 without Route or Sector', () => {
+    const s = createInitialState(0)
     s.combat.docked = true
-    s = setPushMode(s, 'hold-wave')
-    expect(s.combat.pushMode).toBe('advance')
-    expect(s.combat.campaign).toBe(true)
-
-    s = setCampaign(s, false)
-    expect(s.combat.pushMode).toBe('advance')
-
+    expect('pushMode' in s.combat).toBe(false)
+    expect('route' in s.combat).toBe(false)
+    expect('sector' in s.combat).toBe(false)
     s.combat.wave = 18
-    s = setLaunchSector(s, 6)
-    expect(s.combat.wave).toBe(1)
-    expect(s.combat.sector).toBe(1)
-
-    s = setSectorRoute(s, 'B')
-    expect(s.combat.route).toBe('A')
-
-    s = warpToSector(s, 12)
-    expect(s.combat.wave).toBe(1)
-    expect(s.combat.sector).toBe(1)
+    expect(s.combat.wave).toBe(18)
   })
 
-  it('does not enter Frontier Hold and treats Retry as a no-op', () => {
+  it('Launch still starts Wave 1', () => {
     let s = createInitialState(0)
-    s.combat.frontierHold = true
-    s.combat.frontierSector = 8
-    expect(retryFrontier(s)).toBe(s)
     s = setDocked(s, false)
-    expect(s.combat.frontierHold).toBe(false)
-    expect(s.combat.wave).toBe(1)
+    expect(s.combat.waveReached).toBe(1)
+    expect(s.combat.docked).toBe(false)
   })
 
   it('does not list a standalone Reliquary, Yard, Echo, Workers, or future Systems door on More', () => {

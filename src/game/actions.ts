@@ -28,6 +28,7 @@ import {
   matterShopWorkshopStarts,
   getModule,
   getStation,
+  legacyChallengeGoalWave,
   isAiNodePermanent,
   isChallengeUnlocked,
   isFarmableModule,
@@ -132,8 +133,7 @@ import {
   recordPlaytest,
   stampFirst,
 } from './playtest'
-import { noteFrontierIntervention } from './frontier'
-import type { CoreInstance, SectorRoute } from './types'
+import type { CoreInstance } from './types'
 import {
   computeShipStats,
   createInitialState,
@@ -164,10 +164,8 @@ import {
   pickAutoCoreRunSlot,
 } from './coreProgression'
 import {
-  ACT1_FINAL_SECTOR,
   ACT1_FINAL_WAVE,
   careerBestWave,
-  careerHighestSector,
   isSystemUnlocked,
   retirePostResetOnboarding,
   tryCompleteAchievements,
@@ -245,22 +243,6 @@ export function setDamageNumbers(
   return next
 }
 
-export function setLaunchSector(state: GameState, _sector: number): GameState {
-  if (!state.combat.docked) return state
-  if (state.combat.wave === 1 && state.combat.sector === 1) return state
-  const next = structuredClone(state)
-  next.combat.sector = 1
-  next.combat.wave = 1
-  return next
-}
-
-export function setSectorRoute(state: GameState, _route: SectorRoute): GameState {
-  if (state.combat.route === 'A') return state
-  const next = structuredClone(state)
-  next.combat.route = 'A'
-  return next
-}
-
 function canAfford(resources: Resources, cost: ResourceCost): boolean {
   for (const [key, amount] of Object.entries(cost)) {
     const need = amount ?? 0
@@ -303,7 +285,6 @@ export function assignWorker(
     }
     if (networkBar) {
       noteSystemAction(next, 'network')
-      noteFrontierIntervention(next, 'drone', { n: stationId, v: delta })
     }
     return next
   }
@@ -316,7 +297,6 @@ export function assignWorker(
   if (left <= 0) delete assignments[stationId]
   else assignments[stationId] = left
   next.base.assignments = assignments
-  if (networkBar) noteFrontierIntervention(next, 'drone', { n: stationId, v: -remove })
   return next
 }
 
@@ -1105,7 +1085,7 @@ export function canPrestige(state: GameState): boolean {
 export function canAscend(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return false
   if (!state.meta.act1Cleared) return false
-  return careerBestWave(state) >= ACT1_FINAL_WAVE || careerHighestSector(state) >= ACT1_FINAL_SECTOR
+  return careerBestWave(state) >= ACT1_FINAL_WAVE
 }
 
 export function canEnterChallenge(state: GameState, challengeId: string): boolean {
@@ -1429,8 +1409,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.combat = {
     ...fresh.combat,
     bestWave: Math.max(kept.meta.bestWave ?? 0, 0),
-    campaign: true,
-    pushMode: 'advance',
     docked: true,
     wave: 1,
     log: [
@@ -1620,7 +1598,7 @@ export function enterChallenge(
     ? `Ascension ×${next.meta.ascensionCount}`
     : 'Prestige'
   next.combat.log = [
-    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: Wave ${challenge.goalSector * 10}.`,
+    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: Wave ${legacyChallengeGoalWave(challenge)}.`,
     ...next.combat.log,
   ]
   return next
@@ -1642,8 +1620,8 @@ export function tryCompleteChallenge(state: GameState): void {
   if (!id) return
   const challenge = getChallenge(id)
   if (!challenge) return
-  const cleared = state.combat.highestSector
-  if (cleared < challenge.goalSector) return
+  const runWave = Math.max(0, state.combat.waveReached ?? 0)
+  if (runWave < legacyChallengeGoalWave(challenge)) return
 
   const maxClears = effectiveMaxClears(challenge, state.prestige.shop)
   const prev = challengeClearCount(state.prestige.challengeClears, id)
@@ -1688,15 +1666,10 @@ export function enterProtocol(state: GameState, protocolId: string, opts?: { aut
   next.process.config.sortie.lastProtocolId = protocolId
   wipeProtocolLoadout(next)
   next.network = wipeNetworkBars(next.network)
-  next.combat.sector = 1
   next.combat.wave = 1
-  next.combat.highestSector = 0
+  next.combat.waveReached = 0
   next.combat.docked = true
   next.combat.inFight = false
-  next.combat.frontierHold = false
-  next.combat.frontierSector = 0
-  next.combat.frontierAttemptOpen = false
-  next.combat.frontierNotice = null
   next.combat.playerUnits = []
   next.combat.enemyUnits = []
   const stats = computeShipStats(next)

@@ -46,7 +46,7 @@ export function formatSummary(report: SimulationReport): string {
     `Calendar Time: ${formatSimDuration(run.calendarSeconds)}`,
     `Active Time: ${formatSimDuration(run.activeSeconds)}`,
     `Offline Time: ${formatSimDuration(run.offlineSeconds)}`,
-    `Highest Wave: ${run.highestWave ?? run.highestSectorEver * 10}`,
+    `Highest Wave: ${run.highestWave}`,
     `Rebuilds: ${run.rebuilds}`,
     `Stop: ${run.stopReason}`,
     run.cancelled ? 'Cancelled: yes (partial report)' : '',

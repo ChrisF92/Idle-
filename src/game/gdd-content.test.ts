@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buyWorkshopUpgrade, enterProtocol } from './actions'
 import { ACT1_CADENCE } from './cadence'
-import { ACT1_CLIMAX_BLURB } from './combat'
 import { metaDamageMultiplier } from './catalog'
 import { FOUNDRY_LOGS, unlockedFoundryLogs } from './logs'
 import {
@@ -139,8 +138,9 @@ describe('GDD Phase 8 content depth', () => {
     expect(FOUNDRY_LOGS.find((row) => row.id === 'core-prints')?.body).toMatch(/equip the Core at Dock/)
   })
 
-  it('names the W300 climax as the Rebuild ceiling', () => {
-    expect(ACT1_CLIMAX_BLURB).toMatch(/Rebuild/)
-    expect(ACT1_CLIMAX_BLURB).toMatch(/slam|shield/i)
+  it('names Wave 1000 as the Act 1 ceiling', () => {
+    const log = FOUNDRY_LOGS.find((row) => row.id === 'act1')
+    expect(log?.title).toMatch(/1000/)
+    expect(log?.body).toMatch(/Choir Crown/)
   })
 })

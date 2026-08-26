@@ -2,7 +2,7 @@
 
 import type { GameState, PlaytestEvent, PlaytestEventKind, PlaytestState } from './types'
 import { WORKER_JOB_IDS, WORKER_JOB_LABELS } from './workers'
-import { reportedBestWave, meetsWave, waveForClearedBands } from './waves'
+import { reportedBestWave, meetsWave } from './waves'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import {
   hydrateInterventions,
@@ -170,9 +170,7 @@ export function recordPlaytest(
   }
   if (
     INTERVENTION_KINDS.has(kind) &&
-    state.combat &&
-    (state.combat.frontierHold ||
-      ((state.combat.frontierSector ?? 0) > 0 && !state.combat.frontierAttemptOpen))
+    state.combat
   ) {
     if (!log.pendingInterventions) log.pendingInterventions = []
     log.pendingInterventions.push({
@@ -252,18 +250,17 @@ export function sampleDroneAllocation(state: GameState, dtSeconds: number): void
   }
 }
 
-export function noteHighestSector(state: GameState, sector: number): void {
+export function noteHighestSector(state: GameState, wave: number): void {
   const log = ensurePlaytest(state)
-  const next = Math.max(0, Math.floor(sector))
+  const next = Math.max(0, Math.floor(wave))
   if (next <= log.sectorAt) return
   log.sectorAt = next
   log.sectorAtPlaytime = log.playtimeMs
-  const wave = next * 10
-  recordPlaytest(state, 'highest_sector', { n: `W${wave}`, v: wave, firstKey: `wave:${wave}` })
-  if (log.firsts[`sector:${next}`] == null) log.firsts[`sector:${next}`] = log.playtimeMs
+  recordPlaytest(state, 'highest_sector', { n: `W${next}`, v: next, firstKey: `wave:${next}` })
+  if (log.firsts[`wave:${next}`] == null) log.firsts[`wave:${next}`] = log.playtimeMs
 }
 
-const TRACKED_PLAYTEST_WAVES = new Set([1, 10, 20, 30, 50, 70, 110, 140, 170, 210, 250, 300])
+const TRACKED_PLAYTEST_WAVES = new Set([1, 10, 20, 30, 50, 70, 110, 140, 170, 210, 250, 1000])
 
 export function noteCareerWave(state: GameState, wave: number): void {
   const n = Math.max(0, Math.floor(wave))
@@ -486,7 +483,7 @@ export function formatPlaytestScript(state: GameState): string[] {
     checked(rebuilt, 'First Rebuild (W70 preset)', rebuilt ? formatPlaytimeMs(log.firsts.rebuild) : 'not yet'),
     checked(furnace, 'One Furnace push', furnace ? 'channel lit or system opened' : 'not yet'),
     checked(challenge, 'One Challenge', challenge ? formatAttempts(log.protocols) : 'not yet'),
-    checked(climax, 'W300 climax', `Best W${best}`),
+    checked(climax, 'W1000 finale', `Best W${best}`),
     '',
     `Cadence doors: Foundry W${ACT1_CADENCE.foundry} · Workers W${ACT1_CADENCE.workers} · Rebuild W${ACT1_CADENCE.rebuild} · Process W${ACT1_CADENCE.process} · Challenges W${ACT1_CADENCE.protocols}`,
   ]
@@ -577,7 +574,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(`Offline while Sortie frozen: ${formatPlaytimeMs(log.offlineCombatMs ?? 0)}`)
   if (log.lastSteamroll && log.lastSteamroll.n >= 2) {
     lines.push(
-      `Steamroll: W${waveForClearedBands(log.lastSteamroll.from)} → W${waveForClearedBands(log.lastSteamroll.to)}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
+      `Steamroll: W${log.lastSteamroll.from} → W${log.lastSteamroll.to}: ${log.lastSteamroll.n} consecutive first-attempt clears`,
     )
   }
   lines.push('')

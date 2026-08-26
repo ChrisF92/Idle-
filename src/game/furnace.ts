@@ -14,7 +14,6 @@ import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols
 import { echoAshMult } from './echo'
 import { mergeProcessConfig, processConfig, processFurnaceHooks } from './process'
 import { noteSystemAction } from './playtest'
-import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
 import { directiveHeatMult } from './directives'
 import { frameAshMult, frameFurnaceOutputMult, frameHeatMult } from './catalog'
@@ -437,7 +436,7 @@ export function furnaceAshChannelMult(state: GameState): number {
 
 export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
   if (careerBestWave(state) < FURNACE_UNLOCK_SECTOR) return 0
-  const sector = Math.max(1, state.combat.sector)
+  const sector = Math.max(1, state.combat.waveReached || state.combat.wave || 1)
   const base = (0.5 + 0.1 * sector) * (isBoss ? 4 : 1)
   return (
     base *
@@ -537,7 +536,6 @@ export function setFurnaceChannel(state: GameState, id: FurnaceChannelId, level:
   next.furnace.active[id] = lv
   next.furnace.starveNote = ''
   if (lv > 0) noteSystemAction(next, 'furnace')
-  noteFrontierIntervention(next, 'furnace', { n: id, v: lv })
   return next
 }
 

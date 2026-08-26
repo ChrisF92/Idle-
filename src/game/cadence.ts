@@ -22,12 +22,12 @@ export const ACT1_CADENCE = {
   tasks: 999,
   /** Deferred from Act 1. Not a live door. */
   capital: 999,
-  reinforce: 300,
+  reinforce: 1000,
   /** @deprecated Route B does not exist. Unused leftover. */
   routeB: 999,
 } as const
 
-export const ACT1_FINAL_WAVE = 300
+export const ACT1_FINAL_WAVE = 1000
 
 /**
  * @deprecated Leftover Network-bar wave table. Bars never fill and never

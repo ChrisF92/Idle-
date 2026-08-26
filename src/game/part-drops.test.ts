@@ -13,8 +13,6 @@ import type { GameState } from './types'
 /** Research + career gate so Alloy Foundry (and thus part drops) are live. */
 function withFoundry(state: GameState, sector = 22): GameState {
   state.meta.highestSectorEver = sector
-  state.combat.highestSector = sector
-  state.combat.sector = sector
   return state
 }
 

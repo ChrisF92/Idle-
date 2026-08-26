@@ -56,15 +56,12 @@ describe('sector-gated Core prints', () => {
   it('hides late prints until the sector is reached', () => {
     const early = createInitialState(0)
     early.meta.highestSectorEver = 6
-    early.combat.highestSector = 6
     expect(isCorePrintUnlocked(early, 'flak-array')).toBe(true)
     expect(isCorePrintUnlocked(early, 'charge-prism')).toBe(false)
     expect(listFarmableCores(early).some((m) => m.id === 'charge-prism')).toBe(false)
 
     const mid = createInitialState(0)
     mid.meta.highestSectorEver = 8
-    mid.combat.highestSector = 8
-    mid.combat.sector = 8
     expect(isCorePrintUnlocked(mid, 'charge-prism')).toBe(true)
     expect(listFarmableCores(mid).some((m) => m.id === 'charge-prism')).toBe(true)
   })
@@ -77,8 +74,6 @@ describe('sector-gated Core prints', () => {
   it('assembles a print from farmed fragments', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 8
-    state.combat.highestSector = 8
-    state.combat.sector = 8
     const recipe = BLUEPRINTS.find((b) => b.moduleId === 'charge-prism')!
     state.parts = {
       [partId('charge-prism', 'casing')]: recipe.casing,
@@ -95,7 +90,6 @@ describe('sector-gated Core prints', () => {
   it('keeps over-cap fragments when requirements shrink', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
     state.parts = {
       [partId('heavy-lance', 'casing')]: 9,
       [partId('heavy-lance', 'core')]: 5,
@@ -114,8 +108,6 @@ describe('sector-gated Core prints', () => {
 
     const open = createInitialState(0)
     open.meta.highestSectorEver = 6
-    open.combat.highestSector = 6
-    open.combat.sector = 6
     const hits = rollEnemyPartDrop(
       open,
       { family: 'swarm', isBoss: true, name: 'Boss' },
@@ -183,8 +175,6 @@ describe('sector-gated Core prints', () => {
     const probe = 0.12
     const advance = createInitialState(0)
     advance.meta.highestSectorEver = 6
-    advance.combat.highestSector = 6
-    advance.combat.sector = 6
     advance.foundry.trackedPrintId = 'heavy-lance'
     expect(
       rollEnemyPartDrop(advance, { family: 'armored', isBoss: false, name: 'Jug' }, () => probe),
@@ -200,7 +190,6 @@ describe('sector-gated Core prints', () => {
   it('clears tracking when the tracked Core is assembled', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.combat.highestSector = 6
     state = setTrackedPrint(state, 'heavy-lance')
     const recipe = BLUEPRINTS.find((b) => b.moduleId === 'heavy-lance')!
     state.parts = {
@@ -218,8 +207,6 @@ describe('sector-gated Core prints', () => {
     state = setPushMode(state, 'hold-wave')
     state = startCombat(state)
     state = clearCurrentWave(state)
-    expect(state.combat.sector).toBe(1)
     expect(state.combat.wave).toBe(2)
-    expect(state.combat.highestSector).toBe(0)
   })
 })

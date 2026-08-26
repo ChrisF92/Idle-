@@ -29,7 +29,7 @@ export {
   ENEMY_EARLY_SECTOR as ENEMY_EARLY_BAND,
   ENEMY_MID_SECTOR as ENEMY_MID_BAND,
   ENEMY_WAVE_HULL_RAMP,
-  salvageSectorBase,
+  salvageWaveBase,
   salvageFromKill,
   SALVAGE_MID_EXPONENT,
 } from '../combat'

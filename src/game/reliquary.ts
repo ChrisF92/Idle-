@@ -8,7 +8,6 @@ import { meetsWave } from './waves'
 import { protocolBonusMult, protocolMutes } from './protocols'
 import { hiveResearchUnlocksReliquary } from './hiveResearch'
 import { noteSystemAction } from './playtest'
-import { noteFrontierIntervention } from './frontier'
 import { ACT1_CADENCE } from './cadence'
 import { coreInstanceAtSlot, resolveCoreInstance } from './coreInstances'
 
@@ -793,7 +792,6 @@ export function insertShard(state: GameState, shardId: string): GameState {
   if (!next.reliquary) next.reliquary = createEmptyReliquaryState()
   next.reliquary.slots[def.color] = shardId
   noteSystemAction(next, 'reliquary')
-  noteFrontierIntervention(next, 'reliquary', { n: def.name })
   return next
 }
 

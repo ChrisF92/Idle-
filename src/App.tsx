@@ -15,6 +15,8 @@ import {
   expireToasts,
   isSortieActive,
   selectPresentation,
+  showGlobalBottomNav,
+  showSortieReturnControl,
   snapshotsEqual,
   type PresentationNav,
   type QueuedToast,
@@ -251,6 +253,12 @@ function AppShell() {
   }, [game.state.combat.docked, dying, tab])
 
   useEffect(() => {
+    if (!game.state.combat.docked && tab !== 'combat' && !game.state.combat.sortiePaused) {
+      game.setSortiePaused(true)
+    }
+  }, [tab, game.state.combat.docked, game.state.combat.sortiePaused])
+
+  useEffect(() => {
     const out = game.state.combat.lastSortie.outcome
     if (
       out === 'defeat' &&
@@ -321,7 +329,7 @@ function AppShell() {
         'app',
         onboarding?.pause ? 'app-guide-lock' : '',
         tab === 'combat' && sortieLive ? 'is-sortie' : '',
-        tab !== 'combat' && sortieLive ? 'is-sortie-away' : '',
+        tab !== 'combat' && sortieLive && game.state.combat.sortiePaused ? 'is-sortie-away' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -388,7 +396,18 @@ function AppShell() {
             onLaunch={() => {
               game.setDocked(false)
             }}
-            onExtract={() => game.setDocked(true)}
+            onExtract={() => {
+              game.setDocked(true)
+              setDockPane('home')
+              setTab('dock')
+            }}
+            onPause={() => game.setSortiePaused(true)}
+            onResume={() => game.setSortiePaused(false)}
+            onPauseAndBrowse={() => {
+              game.setSortiePaused(true)
+              setDockPane('home')
+              setTab('dock')
+            }}
             onBuyRunUpgrade={game.buyRunUpgrade}
             onViewReport={() => setReportOpen(true)}
             onPickMilestone={game.pickCoreMilestone}
@@ -523,10 +542,13 @@ function AppShell() {
         )}
       </main>
 
-      {sortieLive && tab !== 'combat' ? (
-        <LiveWaveControl wave={game.state.combat.wave} onReturn={() => setTab('combat')} />
+      {showSortieReturnControl(game.state, tab) ? (
+        <LiveWaveControl
+          wave={Math.max(1, game.state.combat.waveReached || game.state.combat.wave)}
+          onReturn={() => setTab('combat')}
+        />
       ) : null}
-      {!sortieLive ? (
+      {showGlobalBottomNav(game.state, tab) ? (
         <TabNav
           active={tab}
           onChange={(next) => {

@@ -42,7 +42,6 @@ describe('tickGame', () => {
     start.meta.highestSectorEver = 4
     start.base.workerDrones = 2
     start = assignWorker(start, 'scrap-field', 2)
-    start.combat.campaign = false
     start.combat.docked = true
     const next = tickGame(start, 60_000)
     expect(next.lastTickAt).toBe(60_000)
@@ -79,7 +78,6 @@ describe('tickGame', () => {
 
   it('campaign auto-engages after Launch', () => {
     let state = createInitialState(0)
-    expect(state.combat.campaign).toBe(true)
     expect(state.combat.docked).toBe(true)
     state = tickGame(state, 1000)
     expect(state.combat.inFight).toBe(false)
@@ -90,7 +88,6 @@ describe('tickGame', () => {
 
   it('advances combat with real elapsed time (not whole-second ticks)', () => {
     let state = createInitialState(0)
-    state.combat.campaign = false
     state = startCombat(state)
     for (const e of state.combat.enemyUnits) e.x = 50
     const hullBefore = state.combat.enemyHull
@@ -128,7 +125,6 @@ describe('advanceTicks / combat', () => {
 
     const next = structuredClone(state)
     advanceTicks(next, 120)
-    expect(next.combat.highestSector).toBeGreaterThanOrEqual(1)
     expect(next.resources.scrap).toBeGreaterThan(0)
     // AI Points come from First Blood achievement on sector 1 clear, not combat drops
     expect(next.meta.completedAchievements).toContain('first-blood')
@@ -156,11 +152,8 @@ describe('offline catch-up', () => {
 
   it('does not advance Waves or sectors while away', () => {
     const state = createInitialState(0)
-    state.combat.sector = 6
     state.combat.wave = 14
-    state.combat.campaign = true
     const { state: next, report } = applyOfflineCatchUp(state, 3 * 60 * 1000)
-    expect(next.combat.sector).toBe(6)
     expect(next.combat.wave).toBe(14)
     expect(report?.sectorsCleared ?? 0).toBe(0)
     expect(next.resources.aiPoints).toBe(state.resources.aiPoints)
@@ -301,8 +294,6 @@ describe('shipyard', () => {
 describe('prestige and challenges', () => {
   it('prestiges at sector threshold and keeps fitted loadout', () => {
     let state = createInitialState(0)
-    state.combat.sector = 12
-    state.combat.highestSector = 12
     state.meta.highestSectorEver = 12
     state.resources.scrap = 999
     state.resources.alloys = 999
@@ -311,7 +302,6 @@ describe('prestige and challenges', () => {
     state = performPrestige(state, 1000)
     expect(state.prestige.prestigeCount).toBe(1)
     expect(state.resources.prestigeMatter).toBeGreaterThan(0)
-    expect(state.combat.sector).toBe(1)
     expect(state.shipyard.unlockedModules).toContain('plate-layer')
     expect(state.shipyard.modules).toContain('pulse-cannon')
     expect(state.shipyard.modules).toContain('plate-layer')
@@ -322,15 +312,11 @@ describe('prestige and challenges', () => {
   it('enters and completes a repeatable challenge', () => {
     let state = createInitialState(0)
     state.meta.act1Cleared = true
-    state.combat.sector = 12
-    state.combat.highestSector = 12
     state.meta.highestSectorEver = 12
     state = enterChallenge(state, 'no-ai', 2000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')
-    expect(state.combat.sector).toBe(1)
 
     // Force a W300 boss wipe so one victory completes the S30 challenge goal.
-    state.combat.sector = 30
     state.combat.wave = 300
     state.combat.isBoss = true
     state.combat.inFight = true
@@ -411,7 +397,6 @@ describe('prestige and challenges', () => {
     expect(state.resources.challengePoints).toBeGreaterThan(0)
 
     // Repeatable — can enter again after reaching the Rebuild gate
-    state.combat.sector = 12
     state = enterChallenge(state, 'no-ai', 3000)
     expect(state.prestige.activeChallengeId).toBe('no-ai')
   })
@@ -428,8 +413,6 @@ describe('salvage module upgrades', () => {
     expect(computeShipStats(state).damage).toBe(before)
     expect(state.resources.salvage).toBe(100)
 
-    state.combat.sector = 12
-    state.combat.highestSector = 12
     state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
     expect(state.resources.salvage).toBe(19)

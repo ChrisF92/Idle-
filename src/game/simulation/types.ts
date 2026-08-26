@@ -95,7 +95,6 @@ export interface SimulationProgress {
   offlineSeconds: number
   sector: number
   highestSector: number
-  highestSectorEver: number
   highestWave: number
   rebuilds: number
   stopLabel: string
@@ -367,7 +366,6 @@ export interface SimulationRunReport {
   calendarSeconds: number
   offlineSeconds: number
   highestSector: number
-  highestSectorEver: number
   highestWave: number
   rebuilds: number
   prestigeMatterEarned: number

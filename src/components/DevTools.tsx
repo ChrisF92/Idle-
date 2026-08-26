@@ -38,7 +38,6 @@ function prepDoor(onDevAction: (action: DevAction) => void, wave: number): void 
 export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps) {
   const [enabled, setEnabled] = useState(() => isDevToolsEnabled())
   const [bestWave, setBestWave] = useState('70')
-  const [liveWave, setLiveWave] = useState('1')
   const [open, setOpen] = useState(true)
   const [reportOpen, setReportOpen] = useState(false)
 
@@ -122,21 +121,6 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
             >
               Set Best
             </button>
-            <label>
-              Live Wave{' '}
-              <input
-                type="number"
-                min={1}
-                value={liveWave}
-                onChange={(e) => setLiveWave(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => onDevAction({ type: 'set-wave', wave: Number(liveWave) || 1 })}
-            >
-              Set live
-            </button>
           </div>
           <div className="dev-tools-row">
             {GDD_DOOR_PRESETS.map((door) => (
@@ -154,11 +138,8 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
             ))}
           </div>
           <div className="dev-tools-row">
-            <button type="button" onClick={() => onDevAction({ type: 'set-wave', wave: 1 })}>
-              Live W1
-            </button>
-            <button type="button" onClick={() => onDevAction({ type: 'force-boss-wave' })}>
-              Force boss
+            <button type="button" onClick={() => onDevAction({ type: 'set-best-wave', wave: 1 })}>
+              Best W1
             </button>
             <button
               type="button"
@@ -224,7 +205,7 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
               </button>
             ))}
             <button type="button" onClick={() => onDevAction({ type: 'seed-late-game' })}>
-              Seed W300
+              Seed W1000
             </button>
             <button type="button" onClick={() => onDevAction({ type: 'inject-process-profile', profileId: 'farm' })}>
               Inject Farm

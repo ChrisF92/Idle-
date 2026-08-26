@@ -28,7 +28,6 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(isSystemUnlocked(fresh, 'protocols')).toBe(true)
     expect(isSystemUnlocked(fresh, 'echo')).toBe(false)
     fresh.meta.highestSectorEver = ECHO_UNLOCK_SECTOR
-    fresh.combat.highestSector = ECHO_UNLOCK_SECTOR
     fresh.protocols.ranks['mute-network'] = 1
     expect(isSystemUnlocked(fresh, 'echo')).toBe(false)
   })
@@ -38,7 +37,6 @@ describe('phase 8: Protocols, Echo, Process', () => {
     s.meta.aiUnlocked = true
     expect(isSystemUnlocked(s, 'process')).toBe(false)
     s.meta.highestSectorEver = 42
-    s.combat.highestSector = 42
     s.prestige.prestigeCount = 2
     s.research.unlocked.push('basic-optics')
     expect(isSystemUnlocked(s, 'process')).toBe(true)
@@ -47,7 +45,6 @@ describe('phase 8: Protocols, Echo, Process', () => {
   it('Protocol start wipes cores and mutes the system until the goal sector', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 52
-    s.combat.highestSector = 52
     s.combat.docked = true
     s.resources.salvage = 40
     s.shipyard.moduleLevels = { 'pulse-cannon': 3 }
@@ -60,13 +57,10 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(s.resources.salvage).toBe(0)
     expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.network.bars.strike.levels).toBe(0)
-    expect(s.combat.sector).toBe(1)
-    expect(s.combat.highestSector).toBe(0)
     expect(protocolMutes(s, 'network')).toBe(true)
     expect(networkStrikeMult(s)).toBe(1)
     expect(computeShipStats(s).damage).toBeLessThanOrEqual(dmgBefore)
 
-    s.combat.highestSector = 6
     tryCompleteProtocol(s)
     expect(s.protocols.activeId).toBeNull()
     expect(protocolRank(s, 'mute-network')).toBe(1)
@@ -88,9 +82,7 @@ describe('phase 8: Protocols, Echo, Process', () => {
   it('Echo queues a 3-wave gauntlet and grants tree points on complete', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 62
-    s.combat.highestSector = 62
     s.protocols.ranks['mute-network'] = 1
-    s.combat.sector = 12
     s.combat.docked = true
     s = enterEcho(s, 'rift')
     expect(s.echo.activeId).toBe('rift')
@@ -105,7 +97,6 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(s.echo.activeId).toBeNull()
     expect(echoClears(s, 'rift')).toBe(1)
     expect(s.echo.points).toBe(2)
-    expect(s.combat.sector).toBe(12)
     expect(s.combat.docked).toBe(true)
 
     s = buyEchoNode(s, 'echo-strike')
@@ -117,23 +108,19 @@ describe('phase 8: Protocols, Echo, Process', () => {
     let s = createInitialState(0)
     s.meta.aiUnlocked = true
     s.meta.highestSectorEver = 4
-    s.combat.highestSector = 4
     s.resources.aiPoints = 40
     s.combat.docked = true
     s = buyProcessNode(s, 'auto-extract')
     s = buyProcessNode(s, 'offline-sortie')
     expect(hasProcess(s, 'offline-sortie')).toBe(true)
     s.combat.docked = false
-    s.combat.sector = 6
     s.lastTickAt = 0
     const { state: next, report } = applyOfflineCatchUp(s, 30 * 60 * 1000)
-    expect(next.combat.sector).toBeGreaterThan(6)
     expect(report?.sectorsCleared ?? 0).toBeGreaterThan(0)
   })
 
   it('Rebuild keeps Protocol ranks and Echo tree', () => {
     let s = createInitialState(0)
-    s.combat.sector = 4
     s.meta.highestSectorEver = 62
     s.protocols.ranks['mute-network'] = 2
     s.protocols.bestSector['mute-network'] = 9

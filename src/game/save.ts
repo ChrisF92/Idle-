@@ -24,7 +24,7 @@ import type {
 } from './types'
 import { NETWORK_BAR_IDS } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { AI_NODES, isAiNodePermanent, resolveFrameId, getFrame, STARTER_FRAME_ID, PART_TYPES, partId } from './catalog'
+import { AI_NODES, resolveFrameId, getFrame, STARTER_FRAME_ID, PART_TYPES, partId } from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
 import {
   SIGNAL_CORE_MAX_RANK,
@@ -43,14 +43,12 @@ import { createEmptyProcessState, finalizeProcessMigration, hydrateProcessState 
 import { createEmptySpecialistState } from './specialists'
 import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
-import { normalizePushMode, normalizeRoute } from './sectors'
 import { migrateOnboardingRegistry } from './onboarding'
 import { createFreshCareerState } from './freshStart'
-import { waveForClearedBands } from './waves'
 import { migrateLegacyCoreProgression } from './coreProgression'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
-import { hydrateFrontierCombat } from './frontier'
+import { emptyWaveRuntime } from './waveRuntime'
 import { normalizeCoreInstances, resolveCoreInstance } from './coreInstances'
 
 export function saveGame(state: GameState): void {
@@ -109,6 +107,9 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       kite: u.kite ?? false,
       phaseWarnLeft: u.phaseWarnLeft ?? 0,
       regenDelay: u.regenDelay ?? 0,
+      packageId: u.packageId,
+      sourceWave: u.sourceWave,
+      orbitRadius: u.orbitRadius,
       weapons: (u.weapons ?? []).map((w) => ({
         ...w,
         range: w.range ?? 90,
@@ -118,17 +119,13 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       })),
     }))
 
+  const runtime = emptyWaveRuntime()
   return {
     ...combat,
     enemyFamily: combat.enemyFamily ?? '',
     enemyTags: combat.enemyTags ?? [],
     isBoss: combat.isBoss ?? false,
-    highestSector: Math.max(0, combat.highestSector ?? 0),
-    bestWave: Math.max(
-      0,
-      Math.floor(Number(combat.bestWave ?? 0) || 0),
-      waveForClearedBands(Math.max(0, combat.highestSector ?? 0)),
-    ),
+    bestWave: Math.max(0, Math.floor(Number(combat.bestWave ?? 0) || 0)),
     runUpgrades: { ...(combat.runUpgrades ?? {}) },
     coreRunLevels: {},
     coreSalvageSpent: {},
@@ -137,10 +134,21 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     coreBossClears: { ...(combat.coreBossClears ?? {}) },
     coreNewBest: { ...(combat.coreNewBest ?? {}) },
     coreMilestones: { ...(combat.coreMilestones ?? {}) },
-    wave: Math.max(1, combat.wave ?? 1),
-    campaign: normalizePushMode(combat.pushMode, combat.campaign ?? true) === 'advance',
-    pushMode: normalizePushMode(combat.pushMode, combat.campaign ?? true),
-    route: normalizeRoute(combat.route),
+    wave: Math.max(0, combat.wave ?? 0),
+    waveReached: Math.max(0, combat.waveReached ?? combat.wave ?? 0),
+    // Reload/close freezes a live Sortie. Resume is always explicit.
+    sortiePaused: combat.docked ? false : true,
+    nextWave: Math.max(1, combat.nextWave ?? (combat.wave ?? 0) + 1),
+    nextReinforcementAt: Number(combat.nextReinforcementAt ?? 0) || 0,
+    packages: Array.isArray(combat.packages) ? combat.packages : [],
+    pendingReinforcements: Array.isArray(combat.pendingReinforcements)
+      ? combat.pendingReinforcements
+      : [],
+    bossBoundary: combat.bossBoundary ?? runtime.bossBoundary,
+    simTime: Math.max(0, Number(combat.simTime ?? 0) || 0),
+    simAccumulator: Math.max(0, Number(combat.simAccumulator ?? 0) || 0),
+    idSeq: combat.idSeq ?? runtime.idSeq,
+    rng: combat.rng ?? runtime.rng,
     docked: combat.docked ?? false,
     consecutiveLosses: combat.consecutiveLosses ?? 0,
     bossPhase: combat.bossPhase ?? 0,
@@ -173,7 +181,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     })),
     fx: combat.fx ?? [],
     fragmentNotice: null,
-    lastSortie: withLastSortieDefaults(combat.lastSortie, combat.sector ?? 1, combat.wave ?? 1),
+    lastSortie: withLastSortieDefaults(combat.lastSortie, 0, combat.wave ?? 1),
     sortieMark: combat.sortieMark
       ? {
           salvage: Math.max(0, Number(combat.sortieMark.salvage ?? 0) || 0),
@@ -202,7 +210,6 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     directiveOffer: Array.isArray(combat.directiveOffer)
       ? combat.directiveOffer.filter((id): id is string => typeof id === 'string')
       : null,
-    ...hydrateFrontierCombat(combat),
   }
 }
 
@@ -623,7 +630,6 @@ function withCapitalDefaults(raw: CapitalState | undefined): CapitalState {
 
 function withMetaDefaults(
   meta: GameState['meta'] | undefined,
-  highestSector: number,
 ): GameState['meta'] {
   const completed = meta?.completedAchievements ?? []
   const completions: Record<string, number> = {}
@@ -647,12 +653,8 @@ function withMetaDefaults(
       : 'balanced'
 
   return {
-    highestSectorEver: Math.max(meta?.highestSectorEver ?? 0, highestSector),
-    bestWave: Math.max(
-      0,
-      Math.floor(Number(meta?.bestWave ?? 0) || 0),
-      waveForClearedBands(Math.max(meta?.highestSectorEver ?? 0, highestSector)),
-    ),
+    bestWave: Math.max(0, Math.floor(Number(meta?.bestWave ?? 0) || 0)),
+    sortieSerial: Math.max(0, Math.floor(Number(meta?.sortieSerial ?? 0) || 0)),
     act1Cleared: meta?.act1Cleared ?? false,
     act1FinalePending: meta?.act1FinalePending === true,
     ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
@@ -681,13 +683,12 @@ function withMetaDefaults(
     starterCombatLesson: (() => {
       const raw = Math.floor(Number(meta?.starterCombatLesson))
       if (Number.isFinite(raw) && raw >= 0) return Math.min(2, raw)
-      return (meta?.highestSectorEver ?? 0) > 0 || highestSector > 0 ? 2 : 0
+      return (meta?.bestWave ?? 0) > 0 ? 2 : 0
     })(),
     // Progressed careers already left the first-fight lock.
     hullLostOnce:
       meta?.hullLostOnce === true ||
-      (meta?.highestSectorEver ?? 0) > 0 ||
-      highestSector > 0 ||
+      (meta?.bestWave ?? 0) > 0 ||
       (meta?.ascensionCount ?? 0) > 0 ||
       (meta?.seenOnboarding ?? []).some(
         (id) =>
@@ -792,13 +793,13 @@ function migrate(raw: unknown): GameState | null {
     prestige?: GameState['prestige'] & { completedChallenges?: string[] }
   }
 
-  if (parsed.version === SAVE_VERSION || parsed.version === 40) {
+  if (parsed.version === SAVE_VERSION) {
     const state = parsed as GameState
     const base = createInitialState()
     const combat = withCombatDefaults(state.combat)
     const codex = withCodexDefaults(state.codex)
     const meta = backfillCodexUnlocked(
-      withMetaDefaults(state.meta, combat.highestSector),
+      withMetaDefaults(state.meta),
       state.research,
       codex,
     )
@@ -841,104 +842,6 @@ function migrate(raw: unknown): GameState | null {
     return hydrated
   }
 
-  if (
-    parsed.version === 1 ||
-    parsed.version === 2 ||
-    parsed.version === 3 ||
-    parsed.version === 4 ||
-    parsed.version === 5 ||
-    parsed.version === 6 ||
-    parsed.version === 7 ||
-    parsed.version === 8 ||
-    parsed.version === 9 ||
-    parsed.version === 10 ||
-    parsed.version === 11 ||
-    parsed.version === 12 ||
-    parsed.version === 13 ||
-    parsed.version === 14 ||
-    parsed.version === 15 ||
-    parsed.version === 16 ||
-    parsed.version === 17 ||
-    parsed.version === 18 ||
-    parsed.version === 19
-  ) {
-    const base = createInitialState()
-    const prev = parsed as GameState & {
-      prestige?: GameState['prestige'] & { completedChallenges?: string[] }
-    }
-    const oldHighest = prev.combat?.highestSector ?? prev.combat?.sector ?? 1
-    const clearedApprox =
-      parsed.version === 10 ||
-      parsed.version === 11 ||
-      parsed.version === 14 ||
-      parsed.version === 15 ||
-      parsed.version === 16 ||
-      parsed.version === 17 ||
-      parsed.version === 18 ||
-      parsed.version === 19
-        ? Math.max(0, prev.combat?.highestSector ?? 0)
-        : Math.max(0, oldHighest - 1)
-    const combat = withCombatDefaults({
-      ...base.combat,
-      ...prev.combat,
-      highestSector: clearedApprox,
-      wave: 1,
-      playerUnits: [],
-      enemyUnits: [],
-      fx: [],
-      inFight: false,
-    })
-    const ai = withAiDefaults(prev.ai)
-    // Older saves treated all AI as run-scoped; keep permanents after migrate.
-    ai.purchased = ai.purchased.filter((id) => {
-      const def = AI_NODES.find((n) => n.id === id)
-      return def ? isAiNodePermanent(def) || def.kind === 'doctrine' : false
-    })
-    const codex = withCodexDefaults(prev.codex)
-    const meta = backfillCodexUnlocked(
-      withMetaDefaults(prev.meta, clearedApprox),
-      prev.research,
-      codex,
-    )
-    const hydrated: GameState = {
-      ...base,
-      ...prev,
-      version: SAVE_VERSION,
-      resources: withResourcesDefaults(prev.resources, base.resources),
-      combat,
-      shipyard: withShipyardDefaults(prev.shipyard, base.shipyard),
-      base: migrateBase(prev.base, base.base),
-      network: withNetworkDefaults(prev.network),
-      foundry: withFoundryDefaults(prev.foundry),
-      reliquary: withReliquaryDefaults(prev.reliquary),
-      furnace: withFurnaceDefaults(prev.furnace),
-      hiveResearch: withHiveResearchDefaults(prev.hiveResearch),
-      yard: withYardDefaults(prev.yard),
-      protocols: withProtocolDefaults(prev.protocols),
-      echo: withEchoDefaults(prev.echo),
-      process: withProcessDefaults(prev.process),
-      specialists: withSpecialistDefaults(prev.specialists),
-      capital: withCapitalDefaults(prev.capital),
-      essence: withEssenceDefaults(prev),
-      prestige: withPrestigeDefaults(prev.prestige),
-      codex,
-      ai,
-      meta,
-      core: withCoreDefaults(prev.core),
-      signalCores: withSignalCoresDefaults(prev.signalCores),
-      parts: withPartsDefaults(prev.parts),
-      playtest: hydratePlaytest(prev.playtest),
-    }
-    migrateCoreFitInstances(hydrated)
-    finalizeProcessMigration(hydrated)
-    finalizeFurnaceMigration(hydrated)
-    migrateOnboardingRegistry(hydrated)
-    migrateLegacyCoreProgression(hydrated)
-    migrateCoreStartingLevelInstances(hydrated)
-    migrateLegacyFabProject(hydrated)
-    return hydrated
-  }
-
   return null
 }
 
@@ -947,7 +850,7 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(SAVE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as { version?: number }
-    if (parsed.version !== SAVE_VERSION && parsed.version !== 40) {
+    if (parsed.version !== SAVE_VERSION) {
       localStorage.removeItem(SAVE_KEY)
       return null
     }
@@ -976,7 +879,7 @@ export function importSave(code: string): GameState | null {
   try {
     const json = decodeURIComponent(escape(atob(code.trim())))
     const parsed = JSON.parse(json) as { version?: number }
-    if (parsed.version !== SAVE_VERSION && parsed.version !== 40) return null
+    if (parsed.version !== SAVE_VERSION) return null
     return migrate(parsed)
   } catch {
     return null

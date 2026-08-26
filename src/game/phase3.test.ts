@@ -10,7 +10,7 @@ import { pendingMilestone } from './milestones'
 import { getFrame } from './catalog'
 import { isSystemUnlocked, visibleResourceIds } from './progression'
 import { maybeGrantSystemUnlocks } from './progression'
-import { atCareerWave, clearSector, armRebuildDoor } from './testHelpers'
+import { atCareerWave, armRebuildDoor } from './testHelpers'
 import { setDocked } from './tick'
 
 describe('phase 3: milestones, rebuild, foundry', () => {
@@ -70,15 +70,15 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(s.shipyard.frameId).toBe('bastion-frame')
   })
 
-  it('opens Foundry at sector 6 and hides scrap until then', () => {
+  it('opens Foundry at Wave 20 and hides scrap until then', () => {
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(visibleResourceIds(fresh)).toEqual([])
 
-    let s = createInitialState(0)
-    s = setDocked(s, false)
-    for (let i = 0; i < 6; i++) s = clearSector(s)
-    expect(s.combat.highestSector).toBeGreaterThanOrEqual(6)
+    const locked = atCareerWave(createInitialState(0), 19)
+    expect(isSystemUnlocked(locked, 'foundry')).toBe(false)
+
+    let s = atCareerWave(createInitialState(0), 20)
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
     expect(visibleResourceIds(s)).toContain('scrap')
     s.meta.hullLostOnce = true

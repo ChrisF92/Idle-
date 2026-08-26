@@ -82,8 +82,7 @@ function stopReached(
     case 'wave':
       return reportedBestWave(state) >= stop.wave ? `Reached Wave ${stop.wave}` : null
     case 'sector':
-      return reportedBestWave(state) >= stop.sector * 10 ||
-        Math.max(state.meta.highestSectorEver, state.combat.highestSector) >= stop.sector
+      return reportedBestWave(state) >= stop.sector * 10
         ? `Reached Wave ${stop.sector * 10}`
         : null
     case 'duration':
@@ -121,9 +120,8 @@ function makeProgress(
     calendarSeconds,
     activeSeconds,
     offlineSeconds,
-    sector: state.combat.sector,
-    highestSector: state.combat.highestSector,
-    highestSectorEver: Math.max(state.meta.highestSectorEver, state.combat.highestSector),
+    sector: state.combat.wave,
+    highestSector: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
     highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     stopLabel: stopLabel(config.stop),
@@ -154,6 +152,7 @@ async function runOneSeeded(
   const now0 = seed * 1000
   let state = skipGuides(startingState(config.start, now0))
   state.lastTickAt = now0
+  if (!(state.combat.sortieSeed > 0)) state.combat.sortieSeed = seed
   const rebuildsAtStart = state.prestige.prestigeCount
   const metrics = createMetrics(state)
   const safety: SafetyFlag[] = []
@@ -290,7 +289,7 @@ async function runOneSeeded(
       break
     }
 
-    const progressKey = `${state.combat.highestSector}|${state.prestige.prestigeCount}|${Math.floor(state.resources.salvage)}|${Math.floor(state.resources.scrap)}|${Math.floor(state.resources.heat ?? 0)}|${state.base.workerDrones}`
+    const progressKey = `${Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)}|${state.prestige.prestigeCount}|${Math.floor(state.resources.salvage)}|${Math.floor(state.resources.scrap)}|${Math.floor(state.resources.heat ?? 0)}|${state.base.workerDrones}`
     if (progressKey !== lastProgressKey) {
       lastProgressKey = progressKey
       lastProgressTime = activeSeconds
@@ -464,8 +463,7 @@ async function runOneSeeded(
     activeSeconds,
     calendarSeconds,
     offlineSeconds,
-    highestSector: state.combat.highestSector,
-    highestSectorEver: Math.max(state.meta.highestSectorEver, state.combat.highestSector),
+    highestSector: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
     highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     prestigeMatterEarned: matterEarned,

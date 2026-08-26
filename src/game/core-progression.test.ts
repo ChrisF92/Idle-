@@ -120,9 +120,10 @@ describe('Core Mastery', () => {
   })
 
   it('does not award unequipped Cores', () => {
-    const s = live()
-    s.shipyard.unlockedModules = ['pulse-cannon', 'plate-layer']
-    s.shipyard.modules = ['pulse-cannon']
+    const start = createInitialState(0)
+    start.shipyard.unlockedModules = ['pulse-cannon', 'plate-layer']
+    start.shipyard.modules = ['pulse-cannon']
+    const s = live(start)
     awardEquippedMasteryXp(s, 8, { boss: false, newBest: false, careerBestBefore: 8 })
     expect(s.meta.moduleMasteryXp['pulse-cannon'] ?? 0).toBeGreaterThan(0)
     expect(s.meta.moduleMasteryXp['plate-layer'] ?? 0).toBe(0)

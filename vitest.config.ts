@@ -44,6 +44,7 @@ const GDD_REWRITE_PENDING = [
 
 export default defineConfig({
   plugins: [react()],
+  esbuild: { jsx: 'automatic' },
   test: {
     environment: 'jsdom',
     exclude: [...configDefaults.exclude, ...GDD_REWRITE_PENDING],

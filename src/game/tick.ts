@@ -1,5 +1,4 @@
-import type { CombatPushMode, GameState, Resources } from './types'
-import { wavesForSector } from './sectors'
+import type { GameState, Resources } from './types'
 import {
   computeShipStats,
   createInitialState,
@@ -12,24 +11,18 @@ import {
   aiDoctrinesActive,
   aiProductionBonus,
   droneCap,
-  essenceBonusDataPerClear,
-  essenceBossEssenceMultiplier,
   essenceProductionMultiplier,
   isStationUnlocked,
-  matterShopDataPerClear,
-  matterShopScrapBonus,
   metaProductionMultiplier,
   prestigeMomentumProductionBonus,
-  researchEssenceMultiplier,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   visibleWorkerJobIds,
   workerManufactureSpeed,
-  frameScrapMult,
 } from './catalog'
 import { tickAutomation } from './automation'
 import { logisticsProdMult, tickCoreTraining } from './core'
-import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
+import { computeSignalCoreBonuses } from './signalCores'
 import { tryCompleteChallenge } from './actions'
 import {
   networkDataRate,
@@ -44,8 +37,6 @@ import { hiveResearchHeatFromAshMult, hiveResearchSalvageOpsMult, tickResearch }
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, noteProcessLastAction, processConfig, processIndustrySpeedMult } from './process'
 import { evaluateProcessIntent } from './processProfiles'
-import { processShouldExtract } from './processProfiles'
-import { chosenSortieSpeed } from './uiReadout'
 import { WORKER_JOB_IDS } from './workers'
 import {
   captureSortieMark,
@@ -55,7 +46,7 @@ import {
 import {
   addPlaytime,
   noteCareerWave,
-  noteHighestSector,
+  noteSessionEnd,
   recordPlaytest,
   sampleDroneAllocation,
 } from './playtest'
@@ -63,44 +54,35 @@ import { sampleSortieEnemies, snapshotSortieEncounter } from './sortieTelemetry'
 import {
   buildPlayerFleet,
   syncPlayerFleetWeapons,
-  encounterForWave,
-  enemyForSector,
-  repairRatePerSecond,
-  revealCodexFamilies,
-  shieldRepairRatePerSecond,
   simulateCombat,
   syncHullAggregates,
   totalEnemyHull,
   computeFightDamage,
+  repairRatePerSecond,
+  shieldRepairRatePerSecond,
 } from './combat'
-import { bandsClearedForWave, isBossWave, powerSectorForWave, waveForClearedBands } from './waves'
-import { newSortieSeed } from './threatBudget'
+import { allocateSortieSeed } from './threatBudget'
+import { consumeSimSteps, SIM_FIXED_DT } from './simClock'
+import { emptyWaveRuntime } from './waveRuntime'
+import { createSimRng } from './simRng'
+import { tickWaveScheduler, type WaveSchedulerHooks } from './waveScheduler'
 import {
   applyWorkshopCoreStarts,
   EXTRACTION_SCRAP_BONUS,
-  reclaimSpeed,
   resetRunCoreLevels,
-  salvageWaveBonus,
 } from './workshop'
 import {
   awardEquippedMasteryXp,
   snapshotCoreMasteryStart,
 } from './coreProgression'
-import { clearFrontierHold, isChallengeSortie, addCombatClockMs } from './frontier'
-import {
-  clearDirectives,
-  chooseDirective as applyDirectiveChoice,
-  directiveScrapMult,
-  hasDirectiveOffer,
-  queueDirectiveOffer,
-} from './directives'
+import { isChallengeSortie, addCombatClockMs } from './frontier'
+import { clearDirectives, chooseDirective as applyDirectiveChoice, hasDirectiveOffer, queueDirectiveOffer } from './directives'
 import {
   noteRebuildCycleSortie,
   noteRebuildCycleWave,
 } from './rebuild'
 import {
   completeAct1,
-  isSystemUnlocked,
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
 } from './progression'
@@ -111,7 +93,7 @@ export const TICK_MS = 1000
 /** Max live catch-up seconds when the tab was backgrounded briefly. */
 export const LIVE_TICK_CAP = 5
 /** Integration step for continuous sim (seconds). */
-export const SIM_STEP_S = 1 / 30
+export const SIM_STEP_S = SIM_FIXED_DT
 /** Skip tiny frame gaps. */
 export const MIN_FRAME_MS = 16
 
@@ -152,14 +134,6 @@ function noteBestWave(state: GameState, wave: number): boolean {
   state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
   noteRebuildCycleWave(state, w)
   if (w > prev) noteCareerWave(state, w)
-  const bands = bandsClearedForWave(w)
-  if (isBossWave(w) && bands > (state.combat.highestSector ?? 0)) {
-    state.combat.highestSector = bands
-    noteHighestSector(state, bands)
-  }
-  if (bands > (state.meta.highestSectorEver ?? 0) && isBossWave(w)) {
-    state.meta.highestSectorEver = bands
-  }
   return w > prev
 }
 
@@ -188,14 +162,14 @@ function finishSortie(
   resetRunCoreLevels(state)
   state.combat.runUpgrades = {}
   clearDirectives(state)
-  state.combat.frontierHold = false
-  state.combat.frontierSector = 0
-  state.combat.frontierAttemptOpen = false
-  state.combat.frontierNotice = null
+  Object.assign(state.combat, emptyWaveRuntime())
   state.combat.wave = 1
-  state.combat.sector = 1
+  state.combat.waveReached = 0
+  state.combat.packages = []
+  state.combat.pendingReinforcements = []
   state.combat.docked = true
   state.combat.inFight = false
+  state.combat.sortiePaused = false
   state.shipyard.frameLocked = false
   fullHealPlayer(state)
 }
@@ -401,12 +375,12 @@ export function isStarterCombatTutorial(state: GameState): boolean {
 export function starterDeathLessonOnLoss(state: GameState): 0 | 1 | null {
   if (!isStarterCombatTutorial(state)) return null
   const lesson = state.meta.starterCombatLesson ?? 0
-  const sector = state.combat.sector
-  if (lesson === 0 && sector <= 2) return 0
+  const wave = Math.max(1, state.combat.waveReached || state.combat.wave || 1)
+  if (lesson === 0 && wave <= 20) return 0
   if (
     lesson === 1 &&
     state.shipyard.modules.includes('plate-layer') &&
-    sector <= 3
+    wave <= 30
   ) {
     return 1
   }
@@ -421,7 +395,8 @@ export function starterCombatPressureMult(state: GameState): number {
   if (!isStarterCombatTutorial(state)) return 1
   const lesson = state.meta.starterCombatLesson ?? 0
   if (lesson === 1 && state.shipyard.modules.includes('plate-layer')) {
-    return state.combat.sector <= 2 ? 1.55 : 1.25
+    const wave = Math.max(1, state.combat.waveReached || state.combat.wave || 1)
+    return wave <= 20 ? 1.55 : 1.25
   }
   return 1
 }
@@ -463,8 +438,7 @@ function tickDefeatSequence(state: GameState, dt: number): boolean {
 
 /** Death ends the Sortie. */
 function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
-  const fromSector = state.combat.sector
-  const fromWave = state.combat.wave
+  const fromWave = Math.max(1, state.combat.waveReached || state.combat.wave)
   state.combat.defeatLeft = 0
   state.combat.defeatTactical = false
   clearEnemy(state)
@@ -478,142 +452,54 @@ function onFightLost(state: GameState, tactical: boolean, boss: boolean): void {
     state,
     tactical ? 'extract' : 'defeat',
     note,
-    { sector: fromSector, wave: fromWave },
+    { sector: 0, wave: fromWave },
     tactical,
   )
   pushLog(state, `${note} Returned to Dock.`)
 }
 
-function grantSectorClearRewards(state: GameState, clearedSector: number, wasBoss: boolean): void {
-  const enemy = enemyForSector(clearedSector, wavesForSector(clearedSector))
-  const dataBlocked = state.prestige.activeChallengeId === 'data-drought'
-  let scrapGain = enemy.scrapReward
-  if (aiDoctrinesActive(state, 'scavenger')) scrapGain *= 1.3
-  if (state.shipyard.modules.includes('salvage-rig')) scrapGain *= 1.25
-  scrapGain *= 1 + matterShopScrapBonus(state.prestige.matterShop)
-  scrapGain *= 1 + computeSignalCoreBonuses(state).scrap
-  scrapGain *= frameScrapMult(state)
-  const siphonData =
-    essenceBonusDataPerClear(state.essence.purchased) +
-    matterShopDataPerClear(state.prestige.matterShop)
-  const researchOpen = isSystemUnlocked(state, 'research')
-  const dataGain =
-    dataBlocked || !researchOpen ? 0 : enemy.dataReward + siphonData
-  const essenceGain = wasBoss
-    ? enemy.essenceReward *
-      researchEssenceMultiplier(state.research.unlocked) *
-      essenceBossEssenceMultiplier(state.essence.purchased)
-    : 0
-
-  state.resources.scrap += scrapGain
-  state.resources.data += dataGain
-  state.resources.essence += essenceGain
-  // Salvage is granted per kill during the fight (USI), not as a wave lump.
-
-  if (wasBoss) {
-    grantSignalCoreDrop(state, 'boss')
-  } else {
-    grantSignalCoreDrop(state, 'sector')
+function schedulerHooks(): WaveSchedulerHooks {
+  return {
+    pushLog,
+    onWaveReached: (s, wave, kind) => {
+      const careerBestBefore = Math.max(s.meta.bestWave ?? 0, s.combat.bestWave ?? 0)
+      const newBest = noteBestWave(s, wave)
+      awardEquippedMasteryXp(s, wave, {
+        boss: kind === 'boss',
+        newBest,
+        careerBestBefore,
+      })
+      maybeGrantSystemUnlocks(s)
+    },
+    onWaveSecured: (s, pkg) => {
+      s.meta.lifetimeWaveClears = (s.meta.lifetimeWaveClears ?? 0) + 1
+      if (pkg.kind === 'boss') {
+        noteProtocolProgress(s)
+        s.meta.lifetimeSectorClears = (s.meta.lifetimeSectorClears ?? 0) + 1
+        noteSectorClear(s)
+        if (pkg.wave >= ACT1_FINAL_WAVE) completeAct1(s)
+        maybeGrantSystemUnlocks(s)
+        tryCompleteChallenge(s)
+        tryCompleteProtocol(s)
+        queueDirectiveOffer(s, pkg.wave)
+      }
+    },
   }
-
-  const parts = [
-    `+${scrapGain.toFixed(1)} scrap`,
-    dataBlocked || !researchOpen ? 'data locked' : `+${dataGain} data`,
-  ]
-  if (essenceGain > 0) parts.push(`+${essenceGain} essence`)
-  pushLog(
-    state,
-    `${wasBoss ? 'Boss Wave' : 'Wave'} ${waveForClearedBands(clearedSector)} cleared (${wavesForSector(clearedSector)} waves). ${parts.join(', ')}. Hull ${Math.ceil(state.combat.playerHull)}/${Math.ceil(state.combat.playerHullMax)}.`,
-  )
-}
-
-function continueSortie(state: GameState): void {
-  if (state.combat.docked) {
-    state.combat.inFight = false
-    state.combat.playerUnits = []
-    return
-  }
-  beginFight(state, true)
-}
-
-function grantWaveClearRewards(state: GameState, wave: number, wasBoss: boolean): void {
-  const salvageBonus = salvageWaveBonus(state)
-  if (salvageBonus > 0) state.resources.salvage += salvageBonus
-  if (wasBoss) {
-    grantSectorClearRewards(state, powerSectorForWave(wave), true)
-    return
-  }
-  const drip = Math.max(1, Math.floor((1 + Math.floor(powerSectorForWave(wave) / 4)) * directiveScrapMult(state)))
-  state.resources.scrap += drip
-  pushLog(
-    state,
-    `Wave ${wave} down. +${drip} scrap.${salvageBonus ? ` +${salvageBonus} salvage.` : ''} Next: W${wave + 1}.`,
-  )
-}
-
-function onFightWon(state: GameState): void {
-  const clearedWave = state.combat.wave
-  const wasBoss = state.combat.isBoss
-  const careerBestBefore = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
-  state.meta.lifetimeWaveClears = (state.meta.lifetimeWaveClears ?? 0) + 1
-  persistFlagshipHull(state)
-  clearEnemiesOnly(state)
-  state.combat.consecutiveLosses = 0
-  const newBest = noteBestWave(state, clearedWave)
-  awardEquippedMasteryXp(state, clearedWave, {
-    boss: wasBoss,
-    newBest,
-    careerBestBefore,
-  })
-
-  grantWaveClearRewards(state, clearedWave, wasBoss)
-  if (wasBoss) {
-    noteProtocolProgress(state)
-    state.meta.lifetimeSectorClears = (state.meta.lifetimeSectorClears ?? 0) + 1
-    noteSectorClear(state)
-    if (clearedWave >= ACT1_FINAL_WAVE) completeAct1(state)
-    maybeGrantSystemUnlocks(state)
-    tryCompleteChallenge(state)
-    tryCompleteProtocol(state)
-  }
-
-  state.combat.wave = clearedWave + 1
-  state.combat.sector = powerSectorForWave(state.combat.wave)
-  if (queueDirectiveOffer(state, clearedWave)) {
-    state.combat.inFight = false
-    return
-  }
-  if (!state.combat.docked && processShouldExtract(state)) {
-    finishSortie(
-      state,
-      'extract',
-      `Auto-extracted at Wave ${clearedWave}.`,
-      { sector: powerSectorForWave(clearedWave), wave: clearedWave },
-      true,
-    )
-    return
-  }
-  continueSortie(state)
 }
 
 function tickCombat(state: GameState, dt: number): void {
   if (tickDefeatSequence(state, dt)) return
   if (!state.combat.inFight) return
+  if (hasDirectiveOffer(state)) return
 
   state.combat.fightElapsed = (state.combat.fightElapsed ?? 0) + dt
   addCombatClockMs(state, dt)
+  tickWaveScheduler(state, dt, schedulerHooks())
   simulateCombat(state, dt, pushLog)
 
-  const enemiesAlive = state.combat.enemyUnits.some((u) => u.hull > 0)
   const flag = state.combat.playerUnits.find((u) => u.isFlagship)
   const flagHull = flag?.hull ?? 0
   const flagMax = flag?.hullMax ?? state.combat.playerHullMax
-
-  if (!enemiesAlive) {
-    onFightWon(state)
-    return
-  }
-
   const retreatThreshold = aiDoctrinesActive(state, 'tactical-retreat')
     ? flagMax * 0.25
     : 0
@@ -666,7 +552,37 @@ function tickOutOfCombatRepair(state: GameState, dt: number): void {
   }
 }
 
-/** Advance / Hold auto-engage while not Paused. AI never toggles this. */
+export function isCombatSimulationRunning(state: GameState): boolean {
+  return !state.combat.docked && Boolean(state.combat.inFight) && !state.combat.sortiePaused
+}
+
+/** Freeze combat through the single Sortie PAUSED state. Does not Extract. */
+export function setSortiePaused(state: GameState, paused: boolean): GameState {
+  if (state.combat.docked) return state
+  if (Boolean(state.combat.sortiePaused) === paused) return state
+  const next = structuredClone(state)
+  next.combat.sortiePaused = paused
+  return next
+}
+
+/** Hide/background: pause a live Sortie. Already-paused Sorties stay paused. */
+export function freezeActiveSortie(state: GameState): GameState {
+  if (state.combat.docked) return state
+  return setSortiePaused(state, true)
+}
+
+/**
+ * App/tab hidden or closed. Freezes an active Sortie through the same PAUSED
+ * state. Hidden wall-clock time must not become combat catch-up.
+ */
+export function handleAppHidden(state: GameState): GameState {
+  const frozen = freezeActiveSortie(state)
+  const next = frozen === state ? structuredClone(state) : frozen
+  noteSessionEnd(next)
+  return next
+}
+
+/** Advance / auto-engage while Docked with no live Sortie. */
 function maybeAutoEngage(state: GameState): void {
   if (state.combat.inFight || state.combat.docked) return
   if (hasDirectiveOffer(state)) return
@@ -678,13 +594,21 @@ function maybeAutoEngage(state: GameState): void {
 }
 
 export function beginFight(state: GameState, keepFleet = false): void {
-  const wave = Math.max(1, state.combat.wave || 1)
-  state.combat.wave = wave
-  state.combat.sector = powerSectorForWave(wave)
-  if (!state.combat.sortieSeed) state.combat.sortieSeed = newSortieSeed(state)
-  const encounter = encounterForWave(wave, 1, state)
   syncPersistedHullCaps(state)
-
+  if (!(state.combat.sortieSeed > 0)) state.combat.sortieSeed = allocateSortieSeed(state)
+  state.combat.rng = createSimRng(state.combat.sortieSeed)
+  const runtime = emptyWaveRuntime()
+  state.combat.waveReached = runtime.waveReached
+  state.combat.nextWave = 1
+  state.combat.nextReinforcementAt = 0
+  state.combat.packages = []
+  state.combat.pendingReinforcements = []
+  state.combat.bossBoundary = runtime.bossBoundary
+  state.combat.simTime = 0
+  state.combat.simAccumulator = 0
+  state.combat.idSeq = runtime.idSeq
+  state.combat.wave = 0
+  state.combat.sortiePaused = false
   state.combat.docked = false
   state.combat.defeatLeft = 0
   state.combat.defeatTactical = false
@@ -692,47 +616,26 @@ export function beginFight(state: GameState, keepFleet = false): void {
   state.combat.fightElapsed = 0
   state.shipyard.frameLocked = true
   state.combat.inFight = true
-  state.combat.enemyName = encounter.name
-  state.combat.enemyFamily = encounter.family
-  state.combat.enemyTags = [...encounter.tags]
-  state.combat.isBoss = encounter.isBoss
+  state.combat.isBoss = false
   state.combat.bossPhase = 0
-  state.combat.bossMechanic = encounter.mechanicId
-  state.combat.waveThreat = encounter.threat
-    ? { seed: encounter.threat.seed, budget: encounter.threat.budget, spent: encounter.threat.spent }
-    : undefined
+  state.combat.bossMechanic = undefined
   if (state.combat.sortieMark) state.combat.sortieMark.sortieSeed = state.combat.sortieSeed
-  state.combat.enemyUnits = encounter.units.map((u) => structuredClone(u))
-  const pressure = starterCombatPressureMult(state)
-  if (pressure !== 1) {
-    for (const unit of state.combat.enemyUnits) {
-      for (const weapon of unit.weapons) {
-        weapon.damage *= pressure
-      }
-    }
-  }
   if (!keepFleet || state.combat.playerUnits.length === 0) {
     state.combat.playerUnits = buildPlayerFleet(state)
   } else {
     applyNetworkCombatRefresh(state)
   }
   clearShots(state)
+  state.combat.enemyUnits = []
   syncHullAggregates(state)
+  tickWaveScheduler(state, 0, schedulerHooks())
   sampleSortieEnemies(state)
-  revealCodexFamilies(
-    state,
-    encounter.units.map((u) => u.family),
-  )
-
   const matchup = computeFightDamage(state)
   const note =
     matchup.matchupNotes.length > 0
       ? ` ${matchup.matchupNotes.join('; ')}.`
-      : ` ${encounter.blurb}`
-  pushLog(
-    state,
-    `Engaging ${encounter.name} — Wave ${wave}${encounter.isBoss ? ' boss' : ''} [${encounter.family}] (${encounter.units.length} units).${note}`,
-  )
+      : ''
+  pushLog(state, `Sortie launched — Wave 1.${note}`)
 }
 
 export function startCombat(state: GameState): GameState {
@@ -743,30 +646,10 @@ export function startCombat(state: GameState): GameState {
   return next
 }
 
-function applyPushMode(state: GameState): void {
-  state.combat.pushMode = 'advance'
-  state.combat.campaign = true
-}
-
-/** GDD: every Sortie stays on Advance. Hold modes are no-ops. */
-export function setCampaign(state: GameState, _on: boolean): GameState {
-  return setPushMode(state, 'advance')
-}
-
-export function setPushMode(state: GameState, _mode: CombatPushMode): GameState {
-  if (state.combat.pushMode === 'advance' && state.combat.campaign) return state
-  const next = structuredClone(state)
-  next.combat.pushMode = 'advance'
-  next.combat.campaign = true
-  return next
-}
-
 function launchFromDock(state: GameState): void {
   armPendingFacilities(state)
-  clearFrontierHold(state)
-  applyPushMode(state)
   state.combat.wave = 1
-  state.combat.sector = 1
+  state.combat.waveReached = 0
   state.combat.runUpgrades = {}
   state.resources.salvage = 0
   applyWorkshopCoreStarts(state)
@@ -783,6 +666,7 @@ function launchFromDock(state: GameState): void {
   recordPlaytest(state, 'first_launch', { firstKey: 'launch' })
   state.shipyard.frameLocked = true
   fullHealPlayer(state)
+  beginFight(state)
 }
 
 /** Extract ends the Sortie. Launch always starts at Wave 1. */
@@ -792,7 +676,7 @@ export function setDocked(state: GameState, docked: boolean): GameState {
   if (docked) {
     next.combat.defeatLeft = 0
     next.combat.defeatTactical = false
-    const at = { sector: next.combat.sector, wave: next.combat.wave }
+    const at = { sector: 0, wave: Math.max(1, next.combat.waveReached || next.combat.wave) }
     if (next.combat.inFight) {
       snapshotSortieEncounter(next)
       persistFlagshipHull(next)
@@ -802,19 +686,9 @@ export function setDocked(state: GameState, docked: boolean): GameState {
     pushLog(next, next.combat.lastSortie.note)
   } else {
     launchFromDock(next)
-    pushLog(next, 'Sortie launched — Wave 1. Combat keeps running if you open the Dock.')
+    pushLog(next, 'Sortie launched — Wave 1.')
   }
   return next
-}
-
-/** GDD: no Frontier Hold. Kept as a no-op so old UI/sim calls do not crash. */
-export function retryFrontier(state: GameState): GameState {
-  return state
-}
-
-/** GDD: every Sortie starts at Wave 1. Warp no longer jumps the run. */
-export function warpToSector(state: GameState, _sector: number): GameState {
-  return state
 }
 
 export function chooseDirective(state: GameState, id: string): GameState {
@@ -830,16 +704,12 @@ export function chooseDirective(state: GameState, id: string): GameState {
 /** Advance continuous simulation by `seconds` of game time (mutates). */
 export function advanceSeconds(state: GameState, seconds: number): void {
   let left = Math.max(0, seconds)
-  const combatSpeed = chosenSortieSpeed(state)
-  const reclaim = reclaimSpeed(state)
   while (left > 1e-6) {
     const dt = Math.min(SIM_STEP_S, left)
-    // Industry / fab / training always use real dt.
     applyProduction(state, dt)
-    if (state.combat.inFight) {
-      // Combat Chrono and reclaim accelerate the fight sim only.
-      tickCombat(state, dt * combatSpeed * reclaim)
-    } else {
+    if (isCombatSimulationRunning(state)) {
+      consumeSimSteps(state, dt, (step) => tickCombat(state, step))
+    } else if (state.combat.docked) {
       tickOutOfCombatRepair(state, dt)
       maybeAutoEngage(state)
     }
@@ -865,16 +735,10 @@ function maybeProcessRelaunch(state: GameState): void {
 }
 
 /**
- * @deprecated name kept for tests — advances N seconds of continuous sim.
- */
-export function advanceTicks(state: GameState, ticks: number): void {
-  advanceSeconds(state, ticks)
-}
-
-/**
  * Live path: combat + industry advance by real elapsed time (no 1s combat ticks).
  * Long absences should call applyOfflineCatchUp instead.
- * `paused` holds the clock (onboarding overlay) so unpause does not dump catch-up.
+ * `paused` is the tutorial/overlay presentation gate so unpause does not dump catch-up.
+ * Sortie PAUSED uses `combat.sortiePaused` and still lets industry advance.
  */
 export function tickGame(state: GameState, now = Date.now(), paused = false): GameState {
   if (paused) {
@@ -911,14 +775,6 @@ export function resourceDelta(before: Resources, after: Resources): Partial<Reso
 
 export function resetGame(now = Date.now()): GameState {
   return createInitialState(now)
-}
-
-/** @deprecated walls removed — kept for import safety in old tests. */
-export const WALL_AFTER_LOSSES = 0
-
-/** @deprecated use setCampaign(true) */
-export function resumeCampaign(state: GameState): GameState {
-  return setCampaign(state, true)
 }
 
 export { totalEnemyHull }

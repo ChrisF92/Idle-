@@ -3,7 +3,7 @@ import { applyDevAction, GDD_DOOR_PRESETS } from './dev'
 import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { ACT1_CADENCE } from './cadence'
-import { careerBestWave, isBossWave } from './waves'
+import { careerBestWave } from './waves'
 import { moduleMasteryRank } from './catalog'
 import { canRebuild } from './rebuild'
 
@@ -35,13 +35,6 @@ describe('GDD Dev Tools', () => {
     expect(isSystemUnlocked(s, 'specialists')).toBe(false)
   })
 
-  it('set-wave changes only the live fight', () => {
-    let s = createInitialState(0)
-    s = applyDevAction(s, { type: 'set-wave', wave: 47 })
-    expect(s.combat.wave).toBe(47)
-    expect(careerBestWave(s)).toBeLessThan(47)
-  })
-
   it('opens each GDD door from a wipe', () => {
     const cases: Array<{ wave: number; id: 'foundry' | 'network' | 'furnace' | 'research' | 'process' | 'protocols' | 'reinforce' }> = [
       { wave: ACT1_CADENCE.foundry, id: 'foundry' },
@@ -70,14 +63,6 @@ describe('GDD Dev Tools', () => {
     const relics = applyDevAction(createInitialState(0), { type: 'prep-gdd-door', wave: ACT1_CADENCE.reliquary })
     expect(isSystemUnlocked(relics, 'reliquary')).toBe(true)
     expect(relics.reliquary.owned['battle-chip'] ?? 0).toBeGreaterThanOrEqual(1)
-  })
-
-  it('force-boss-wave uses every 10th Wave', () => {
-    let s = createInitialState(0)
-    s = applyDevAction(s, { type: 'set-wave', wave: 27 })
-    s = applyDevAction(s, { type: 'force-boss-wave' })
-    expect(s.combat.wave).toBe(30)
-    expect(isBossWave(s.combat.wave)).toBe(true)
   })
 
   it('picks any GDD Frame without the USI hull ladder', () => {
@@ -116,7 +101,7 @@ describe('GDD Dev Tools', () => {
     expect(isSystemUnlocked(s, 'echo')).toBe(false)
   })
 
-  it('W20 Foundry door does not grant Wave 300 or later systems', () => {
+  it('W20 Foundry door does not grant Wave 1000 or later systems', () => {
     let s = createInitialState(0)
     s = applyDevAction(s, { type: 'skip-guides' })
     s = applyDevAction(s, { type: 'prep-gdd-door', wave: ACT1_CADENCE.foundry })

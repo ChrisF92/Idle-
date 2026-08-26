@@ -26,7 +26,7 @@ import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
 import { systemsHubCards } from './systemsHub'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
-import { advanceTicks } from './tick'
+import { advanceSeconds } from './tick'
 
 function researchState(wave = ACT1_CADENCE.research) {
   return atCareerWave(markHullLost(createInitialState(0)), wave)
@@ -59,7 +59,7 @@ describe('GDD Research', () => {
     const before = hiveResearchXp(s, 'energy')
     grantHiveResearchKillXp(s, true)
     expect(hiveResearchXp(s, 'energy')).toBe(before)
-    advanceTicks(s, 10)
+    advanceSeconds(s, 10)
     expect(hiveResearchXp(s, 'energy')).toBeGreaterThan(before)
     expect(hiveResearchCompleted(s, 'material')).toBe(0)
   })
@@ -87,7 +87,7 @@ describe('GDD Research', () => {
     const need = hiveResearchNodeDuration(node, s)
     s.hiveResearch.progress = need - 1
     s.hiveResearch.xp.energy = need - 1
-    advanceTicks(s, 2)
+    advanceSeconds(s, 2)
     expect(hiveResearchCompleted(s, 'energy')).toBe(1)
     expect(hiveResearchActive(s)).toBe(false)
   })
@@ -106,7 +106,7 @@ describe('GDD Research', () => {
 
     const need = hiveResearchNodeDuration(first!, s)
     s.hiveResearch.progress = need - 1
-    advanceTicks(s, 2)
+    advanceSeconds(s, 2)
     expect(s.hiveResearch.completedIds).toContain('priority-lock')
     expect(hiveResearchFocusFire(s)).toBe(true)
     expect(hiveResearchActive(s)).toBe(false)

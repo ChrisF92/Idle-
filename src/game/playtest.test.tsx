@@ -128,8 +128,6 @@ describe('local playtest log', () => {
 
   it('logs rebuild, route, and assembled cores from game actions', () => {
     let s = markHullLost(createInitialState(0))
-    s.combat.sector = 12
-    s.combat.highestSector = 12
     s.meta.highestSectorEver = 12
     s.resources.salvage = 40
     s.combat.docked = false

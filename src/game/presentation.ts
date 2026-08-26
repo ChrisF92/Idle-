@@ -303,7 +303,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:act1',
         category: 'CAMPAIGN',
         title: 'Act 1 complete',
-        body: 'Wave 300 is down. Reinforce is open on More.',
+        body: 'The Choir Crown is destroyed. Reinforce is open on More.',
         tier: 'major',
         action: { label: 'OPEN', nav: { kind: 'tab', tab: 'reinforce' } },
       },
@@ -569,4 +569,16 @@ export function selectPresentation(
 
 export function isSortieActive(state: GameState): boolean {
   return !state.combat.docked
+}
+
+/** Global DOCK | SYSTEMS | MORE is hidden on the combat screen during a live Sortie. */
+export function showGlobalBottomNav(state: GameState, tab: string): boolean {
+  if (!isSortieActive(state)) return true
+  if (tab === 'combat') return false
+  return Boolean(state.combat.sortiePaused)
+}
+
+/** Compact return control while browsing with a paused live Sortie. */
+export function showSortieReturnControl(state: GameState, tab: string): boolean {
+  return isSortieActive(state) && Boolean(state.combat.sortiePaused) && tab !== 'combat'
 }

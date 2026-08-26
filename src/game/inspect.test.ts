@@ -19,8 +19,6 @@ describe('inspect sheets', () => {
     s.resources.salvage = 12
     s.resources.choirAsh = 25
     s.resources.heat = 8
-    s.meta.highestSectorEver = 5
-    s.combat.highestSector = 5
     s.furnace.wanted.weapons = 1
     s.furnace.active.weapons = 1
 
@@ -41,8 +39,6 @@ describe('inspect sheets', () => {
 
   it('keeps inspect copy free of designer jargon', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 8
-    s.combat.highestSector = 8
     const blob = inspectCopyCorpus(s).join('\n')
     expect(blob).not.toMatch(JARGON)
     expect(blob).toMatch(/Glass Hive/)

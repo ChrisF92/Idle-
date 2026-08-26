@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { DEFEAT_SEQUENCE_S, advanceSeconds, setDocked, startCombat } from './tick'
 import { GUIDE_STEPS, activeGuideStep } from './progression'
+import { NORMAL_REINFORCEMENT_INTERVAL } from './waves'
 
 describe('sortie feel', () => {
   it('keeps the Hive between waves', () => {
@@ -13,9 +14,9 @@ describe('sortie feel', () => {
     const id = flag!.id
     flag!.hull = Math.max(8, flag!.hullMax * 0.4)
     for (const e of state.combat.enemyUnits) e.hull = 0
-    advanceSeconds(state, 1)
+    advanceSeconds(state, NORMAL_REINFORCEMENT_INTERVAL + 0.05)
     expect(state.combat.inFight).toBe(true)
-    expect(state.combat.wave).toBe(2)
+    expect(state.combat.waveReached).toBeGreaterThanOrEqual(2)
     expect(state.combat.docked).toBe(false)
     const next = state.combat.playerUnits.find((u) => u.isFlagship)
     expect(next?.id).toBe(id)
@@ -39,7 +40,6 @@ describe('sortie feel', () => {
     expect(state.combat.docked).toBe(true)
     expect(state.combat.defeatLeft).toBe(0)
     expect(state.combat.inFight).toBe(false)
-    expect(state.combat.frontierHold).toBe(false)
     expect(state.combat.lastSortie.outcome).toBe('defeat')
     expect(state.combat.wave).toBe(1)
   })

@@ -47,7 +47,6 @@ describe('onboarding queue', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = true
     state.meta.bestWave = 30
-    state.meta.highestSectorEver = 4
     expect(activeOnboardingLesson(state, ui('dock'))?.id).not.toBe('workers.assignment')
     expect(activeOnboardingLesson(state, ui('dock'))?.id).not.toBe('foundry.processing')
   })

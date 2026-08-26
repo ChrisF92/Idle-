@@ -14,13 +14,12 @@ import {
   coreRoleColor,
   easeAngle,
   pointOnRing,
-  projectileScreenPoint,
-  RADIAL_EDGE_RANGE,
   ringAngleToward,
   weaponIdToCoreId,
 } from '../game/combatVisual'
 import { formatCompact } from '../game/format'
 import type { DamageNumbersMode } from '../game/uiReadout'
+import { TYPICAL_SPAWN_RADIUS } from '../game/geometry'
 import {
   coreOrbitSpeed,
   coreScreenOrbit,
@@ -267,7 +266,7 @@ const VIEW_H = 640
 const HIVE_SCREEN_X = VIEW_W / 2
 /** Slightly below centre so inbound threats have more space above. */
 const HIVE_SCREEN_Y = VIEW_H * 0.58
-const RADIAL_SCALE = (Math.min(HIVE_SCREEN_X, HIVE_SCREEN_Y) - 24) / RADIAL_EDGE_RANGE
+const RADIAL_SCALE = (Math.min(HIVE_SCREEN_X, HIVE_SCREEN_Y) - 24) / TYPICAL_SPAWN_RADIUS
 const PLAYER_SCREEN_X = HIVE_SCREEN_X
 const PLAYER_SCREEN_Y = HIVE_SCREEN_Y
 
@@ -506,11 +505,10 @@ function shotStyleBase(p: VisualShot): ShotStyle {
   }
 }
 
-function radialToScreen(range: number, heading = 0): { x: number; y: number } {
-  const dist = Math.max(0, range) * RADIAL_SCALE
+function worldToScreen(x: number, y: number): { x: number; y: number } {
   return {
-    x: HIVE_SCREEN_X + Math.sin(heading) * dist,
-    y: HIVE_SCREEN_Y - Math.cos(heading) * dist,
+    x: HIVE_SCREEN_X + x * RADIAL_SCALE,
+    y: HIVE_SCREEN_Y - y * RADIAL_SCALE,
   }
 }
 
@@ -667,20 +665,18 @@ function shotScreenEnds(
   const toUnit = findCombatUnit(playerUnits, enemyUnits, p.toId)
   const fromActor = scene.actors.get(p.fromId)
   const toActor = scene.actors.get(p.toId)
-  const heading = p.heading ?? (p.side === 'player' ? toUnit?.heading : fromUnit?.heading) ?? 0
-  const originRange = p.originX ?? fromUnit?.x ?? (p.side === 'player' ? 0 : p.x)
-  const destRange = toUnit?.x ?? (p.side === 'player' ? Math.max(originRange, p.x) : 0)
-  const to = toActor ? { x: toActor.x, y: toActor.y } : radialToScreen(destRange, heading)
+  const fromWorld = worldToScreen(p.originX ?? fromUnit?.x ?? 0, p.originY ?? fromUnit?.y ?? 0)
+  const to = toActor ? { x: toActor.x, y: toActor.y } : worldToScreen(toUnit?.x ?? 0, toUnit?.y ?? 0)
   const from =
     p.side === 'player'
       ? playerMuzzle(scene, p.weaponId, p.id)
       : fromActor
         ? { x: fromActor.x, y: fromActor.y }
-        : radialToScreen(originRange, heading)
+        : fromWorld
   return {
     from,
     to,
-    screen: projectileScreenPoint(p.side, p.x, originRange, destRange, from, to),
+    screen: worldToScreen(p.x, p.y),
   }
 }
 
@@ -718,25 +714,8 @@ function laneToScreen(unit: CombatUnit): { x: number; y: number; r: number } {
   if (unit.side === 'player' && unit.isFlagship) {
     return { x: HIVE_SCREEN_X, y: HIVE_SCREEN_Y, r }
   }
-  if (unit.side === 'player' && unit.isCore) {
-    const orbit = coreScreenOrbit(coreVisualKind(unit.coreModuleId ?? ''))
-    const heading = unit.heading ?? 0
-    return {
-      x: HIVE_SCREEN_X + Math.sin(heading) * orbit,
-      y: HIVE_SCREEN_Y - Math.cos(heading) * orbit,
-      r: 5,
-    }
-  }
-  if (unit.side === 'player' && !unit.isFlagship) {
-    const orbit = 26 + r
-    const heading = unit.heading ?? 0
-    return {
-      x: HIVE_SCREEN_X + Math.sin(heading) * orbit,
-      y: HIVE_SCREEN_Y - Math.cos(heading) * orbit,
-      r,
-    }
-  }
-  const pos = radialToScreen(unit.x, unit.heading ?? 0)
+  const pos = worldToScreen(unit.x, unit.y)
+  if (unit.isCore) return { ...pos, r: 5 }
   return { ...pos, r }
 }
 
@@ -1352,6 +1331,11 @@ function syncScene(
     scene.seenFx.add(shot.id)
     const to = scene.actors.get(shot.toId)
     if (to) applyHitFx(scene, shot, to)
+    else if (shot.x != null && shot.y != null && shot.tag === 'death') {
+      const pos = worldToScreen(shot.x, shot.y)
+      burst(scene, pos.x, pos.y, '#e08a3a', 7, { speed: 1.05, size: 0.95, life: 0.4 })
+      hullFragments(scene, pos.x, pos.y, 3)
+    }
   }
   if (scene.seenFx.size > 240) scene.seenFx = new Set(fx.map((f) => f.id))
   capParticles(scene)

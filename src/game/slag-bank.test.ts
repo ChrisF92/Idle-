@@ -16,9 +16,7 @@ describe('Slag Bank', () => {
     expect(isSystemUnlocked(fresh, 'yard')).toBe(false)
 
     let s = createInitialState(0)
-    s.combat.sector = 12
     s.meta.highestSectorEver = 12
-    s.combat.highestSector = 12
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(isSystemUnlocked(s, 'slag')).toBe(true)
     expect(isSystemUnlocked(s, 'yard')).toBe(false)

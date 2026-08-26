@@ -15,7 +15,7 @@ import { armRebuildDoor } from './testHelpers'
 describe('phase 5: foundry + notation', () => {
   it('opens Foundry at Wave 20 with one processor and one fabrication slot', () => {
     const fresh = createInitialState(0)
-    expect(SAVE_VERSION).toBe(41)
+    expect(SAVE_VERSION).toBe(42)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(fresh.foundry.slots).toHaveLength(1)
     expect(fresh.foundry.fabrication).toHaveLength(1)
@@ -24,8 +24,6 @@ describe('phase 5: foundry + notation', () => {
     let s = createInitialState(0)
     s.meta.bestWave = 20
     s.combat.bestWave = 20
-    s.meta.highestSectorEver = 2
-    s.combat.highestSector = 2
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
     expect(foundrySlotCount(s)).toBe(1)
     expect(foundryFabSlotCount(s)).toBe(1)
@@ -37,8 +35,6 @@ describe('phase 5: foundry + notation', () => {
     let s = createInitialState(0)
     s.meta.bestWave = 70
     s.combat.bestWave = 70
-    s.meta.highestSectorEver = 6
-    s.combat.highestSector = 6
     s.resources.scrap = 80
     s = setFoundrySlot(s, 0, 'slag-ingot')
     expect(s.foundry.slots[0]?.recipeId).toBe('slag-ingot')

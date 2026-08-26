@@ -133,7 +133,6 @@ describe('GDD Challenges', () => {
   it('starts every Challenge at Wave 1 on the normal Sortie engine', () => {
     const s = enterProtocol(challengeState(), 'dry-hold')
     expect(s.combat.wave).toBe(1)
-    expect(s.combat.sector).toBe(1)
     expect(s.combat.docked).toBe(true)
     expect(challengeScenarioLines(getProtocol('dry-hold')!).some((line) => /Wave 1/.test(line))).toBe(true)
   })

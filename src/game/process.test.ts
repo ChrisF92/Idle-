@@ -89,7 +89,6 @@ describe('Process 2.0 save and prestige', () => {
 
   it('Rebuild keeps purchased nodes, Earned, and config', () => {
     let s = createInitialState(0)
-    s.combat.sector = 10
     s.meta.highestSectorEver = 68
     s.process.purchased = ['buy-ten']
     s.process.earned = 20
@@ -128,7 +127,6 @@ describe('Process 2.0 mastery and achievements', () => {
     const s = createInitialState(0)
     s.meta.aiUnlocked = true
     s.meta.highestSectorEver = 68
-    s.combat.highestSector = 68
     s.resources.aiPoints = 20
     expect(canBuyProcessNode(s, 'auto-bank').ok).toBe(true)
     expect(canBuyProcessNode(s, 'smart-smelt').ok).toBe(true)
@@ -136,7 +134,6 @@ describe('Process 2.0 mastery and achievements', () => {
 
   it('First Blood grants 4 Process Available and Earned', () => {
     const s = createInitialState(0)
-    s.combat.highestSector = 1
     const newly = tryCompleteAchievements(s)
     expect(newly).toContain('first-blood')
     expect(s.resources.aiPoints).toBe(4)
@@ -159,7 +156,6 @@ describe('Process 2.0 Network presets and optimiser', () => {
       let s = createInitialState(0)
       s.meta.hullLostOnce = true
       s.meta.highestSectorEver = 68
-      s.combat.highestSector = 68
       s.base.workerDrones = 10
       s.process.purchased = ['network-optimise', 'network-presets']
       return s
@@ -182,7 +178,6 @@ describe('Process 2.0 Network presets and optimiser', () => {
 
     let farm = ready()
     farm.meta.highestSectorEver = 12
-    farm.combat.highestSector = 12
     farm = applyNetworkPreset(farm, 'farm')
     expect(farm.base.assignments.yield ?? 0).toBeGreaterThan(farm.base.assignments.strike ?? 0)
   })
@@ -191,7 +186,6 @@ describe('Process 2.0 Network presets and optimiser', () => {
     let s = createInitialState(0)
     s.meta.hullLostOnce = true
     s.meta.highestSectorEver = 68
-    s.combat.highestSector = 68
     s.base.workerDrones = 10
     s.base.assignments.strike = 4
     s.process.purchased = ['network-optimise', 'network-presets', 'network-balance']

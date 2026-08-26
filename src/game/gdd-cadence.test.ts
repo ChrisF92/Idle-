@@ -4,8 +4,8 @@ import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { isSystemUnlocked, PRESTIGE_MIN_SECTOR, SYSTEM_UNLOCKS, systemUnlockRequirement } from './progression'
 import { canPrestige } from './actions'
 import { atCareerWave } from './testHelpers'
-import { careerBestWave, waveForClearedBands } from './waves'
-import { getFrame, modulePrintSector, modulePrintWave } from './catalog'
+import { careerBestWave } from './waves'
+import { getFrame, modulePrintWave } from './catalog'
 
 /** GDD §102 doors. Older campaign tests are quarantined in vitest.config.ts. */
 describe('GDD Act 1 wave cadence', () => {
@@ -23,8 +23,8 @@ describe('GDD Act 1 wave cadence', () => {
     expect(ACT1_CADENCE.tasks).toBe(999)
     expect(ACT1_CADENCE.capital).toBe(999)
     expect(ACT1_CADENCE.routeB).toBe(999)
-    expect(ACT1_CADENCE.reinforce).toBe(300)
-    expect(ACT1_FINAL_WAVE).toBe(300)
+    expect(ACT1_CADENCE.reinforce).toBe(1000)
+    expect(ACT1_FINAL_WAVE).toBe(1000)
   })
 
   it('opens Foundry at Wave 20', () => {
@@ -38,7 +38,6 @@ describe('GDD Act 1 wave cadence', () => {
   it('allows Rebuild from Dock after Wave 70, not the live sector', () => {
     let s = atCareerWave(createInitialState(0), 70)
     s.combat.docked = true
-    s.combat.sector = 1
     s.combat.wave = 1
     expect(careerBestWave(s)).toBe(70)
     expect(canPrestige(s)).toBe(true)
@@ -46,7 +45,6 @@ describe('GDD Act 1 wave cadence', () => {
 
   it('keeps Rebuild locked before Wave 70 even if still fighting', () => {
     let s = atCareerWave(createInitialState(0), 69)
-    s.combat.sector = 7
     s.combat.wave = 69
     s.combat.docked = false
     expect(canPrestige(s)).toBe(false)
@@ -63,7 +61,6 @@ describe('GDD Act 1 wave cadence', () => {
     expect(SYSTEM_UNLOCKS.find((s) => s.id === 'furnace')?.requiresBestWave).toBe(ACT1_CADENCE.furnace)
     expect(systemUnlockRequirement('furnace')).toBe('Reach Wave 140')
     expect(getFrame('bastion-frame')?.requiresBestWave).toBe(70)
-    expect(waveForClearedBands(4)).toBe(40)
-    expect(modulePrintWave('flak-array')).toBe(modulePrintSector('flak-array') * 10)
+    expect(modulePrintWave('flak-array')).toBeGreaterThanOrEqual(ACT1_CADENCE.foundry)
   })
 })

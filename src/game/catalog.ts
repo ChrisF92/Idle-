@@ -1,9 +1,9 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
-import { careerHighestSector, isSystemUnlocked } from './progression'
+import { careerBestWave, isSystemUnlocked } from './progression'
 import { WORKER_JOB_IDS, workerJobContribution, workerJobHasWork } from './workers'
-import { ACT1_CADENCE, FOUNDRY_PRINT_SHIFT } from './cadence'
-import { bandsClearedForWave, meetsWave, waveForClearedBands } from './waves'
+import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
+import { meetsWave } from './waves'
 import { formatCompact, formatStat } from './format'
 import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
@@ -118,7 +118,7 @@ export interface ShopRankGate {
 export interface ShopMetaAnyGate {
   act1Cleared?: boolean
   prestiges?: number
-  sectorEver?: number
+  bestWave?: number
   anyChallengeClear?: boolean
 }
 
@@ -216,6 +216,7 @@ export interface ChallengeDef {
   name: string
   description: string
   restriction: string
+  /** Legacy Sector count. Convert with `legacyChallengeGoalWave` until PR10. */
   goalSector: number
   rewardChallengePoints: number
   /** ITRTG-style repeat cap (5–100). */
@@ -874,7 +875,7 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     maxRank: 1,
     offlineHours: 24,
     requiresShopRank: { shop: 'challenge', id: 'deep-cache', rank: 1 },
-    requiresMetaAny: { act1Cleared: true, prestiges: 3, sectorEver: 30 },
+    requiresMetaAny: { act1Cleared: true, prestiges: 3, bestWave: 300 },
   },
   {
     id: 'clearance-board',
@@ -1936,8 +1937,8 @@ function printRecipe(
   moduleId: string,
   extra: Partial<Pick<BlueprintRecipe, 'foundry' | 'requiresRecipeLevel'>> = {},
 ): BlueprintRecipe {
-  const sector = modulePrintSector(moduleId)
-  return { moduleId, ...printFragmentNeeds(sector), ...extra }
+  const wave = modulePrintWave(moduleId)
+  return { moduleId, ...printFragmentNeeds(wave), ...extra }
 }
 
 /** Farmable blueprint recipes (not starter scrap unlocks, not CP schematics). */
@@ -2089,10 +2090,10 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   },
 ]
 
-/** Extra late-module weights unlocked at higher sectors. */
-function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
+/** Extra late-module weights unlocked at higher Waves. */
+function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
   const extras: EnemyPartDropEntry[] = []
-  if (sector >= 12) {
+  if (wave >= 120) {
     extras.push(
       { moduleId: 'barrier-projector', partType: 'casing', weight: 1 },
       { moduleId: 'drone-bay', partType: 'core', weight: 1 },
@@ -2100,7 +2101,7 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'sensor-whisker', partType: 'casing', weight: 1 },
     )
   }
-  if (sector >= 16) {
+  if (wave >= 160) {
     extras.push(
       { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
       { moduleId: 'ion-burst', partType: 'core', weight: 1 },
@@ -2108,7 +2109,7 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
       { moduleId: 'keel-baffle', partType: 'core', weight: 1 },
     )
   }
-  if (sector >= 22) {
+  if (wave >= 220) {
     extras.push(
       { moduleId: 'grav-tether', partType: 'core', weight: 1 },
       { moduleId: 'nano-lathe', partType: 'lens', weight: 1 },
@@ -2119,21 +2120,14 @@ function sectorBonusDropEntries(sector: number): EnemyPartDropEntry[] {
   return extras
 }
 
-export function modulePrintSector(moduleId: string): number {
-  const originalWave = Math.max(0, getModule(moduleId)?.requiresBestWave ?? 0)
-  const original = bandsClearedForWave(originalWave)
-  const foundryBand = bandsClearedForWave(ACT1_CADENCE.foundry)
-  return Math.max(foundryBand, original + FOUNDRY_PRINT_SHIFT)
-}
-
-/** Player-facing print door. Drop tables still use the ten-wave band helper above. */
 export function modulePrintWave(moduleId: string): number {
-  return waveForClearedBands(modulePrintSector(moduleId))
+  const originalWave = Math.max(0, getModule(moduleId)?.requiresBestWave ?? 0)
+  return Math.max(ACT1_CADENCE.foundry, originalWave)
 }
 
-/** Career has reached the sector that unlocks this Core print. */
+/** Career has reached the Wave that unlocks this Core print. */
 export function isCorePrintUnlocked(state: GameState, moduleId: string): boolean {
-  return careerHighestSector(state) >= modulePrintSector(moduleId)
+  return careerBestWave(state) >= modulePrintWave(moduleId)
 }
 
 /** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Blueprints and drops. */
@@ -2159,12 +2153,16 @@ export function isCoreOnRoster(state: GameState, moduleId: string): boolean {
   return isGddRosterCore(moduleId) || state.shipyard.unlockedModules.includes(moduleId)
 }
 
-/** Current fight can drop this Core's parts (print unlocked and fighting at/past its sector). */
-export function canDropModulePart(state: GameState, moduleId: string): boolean {
+/** Career print is unlocked and the fight Wave is at/past the print door. */
+export function canDropModulePart(state: GameState, moduleId: string, fightWave?: number): boolean {
   if (!isFarmableModule(moduleId)) return false
   if (!isCoreOnRoster(state, moduleId)) return false
-  const need = modulePrintSector(moduleId)
-  return isCorePrintUnlocked(state, moduleId) && (state.combat?.sector ?? 1) >= need
+  const need = modulePrintWave(moduleId)
+  const wave = Math.max(
+    1,
+    Math.floor(fightWave ?? state.combat?.waveReached ?? state.combat?.wave ?? 1),
+  )
+  return isCorePrintUnlocked(state, moduleId) && wave >= need
 }
 
 export function listFarmableCores(state: GameState): ShipModuleDef[] {
@@ -2229,36 +2227,36 @@ export function enemyFamilyLabel(family: string): string {
   return ENEMY_FAMILY_LABELS[family] ?? family
 }
 
-export function dropTableEntries(family: string, sector: number): EnemyPartDropEntry[] {
+export function dropTableEntries(family: string, wave: number): EnemyPartDropEntry[] {
   const table = getEnemyDropTable(family)
   if (!table) return []
-  return [...table.entries, ...sectorBonusDropEntries(sector)].filter(
-    (e) => modulePrintSector(e.moduleId) <= sector,
+  return [...table.entries, ...waveBonusDropEntries(wave)].filter(
+    (e) => modulePrintWave(e.moduleId) <= wave,
   )
 }
 
-export function familyCanDropPrint(family: string, moduleId: string, sector: number): boolean {
-  return dropTableEntries(family, sector).some((e) => e.moduleId === moduleId)
+export function familyCanDropPrint(family: string, moduleId: string, wave: number): boolean {
+  return dropTableEntries(family, wave).some((e) => e.moduleId === moduleId)
 }
 
 export interface PrintDropSource {
   family: string
-  sector: number
+  wave: number
   weight: number
 }
 
 /** Families whose base tables can drop this print, derived from live drop data. */
 export function printDropSources(moduleId: string): PrintDropSource[] {
-  const sector = modulePrintSector(moduleId)
+  const wave = modulePrintWave(moduleId)
   const sources: PrintDropSource[] = []
   for (const table of ENEMY_PART_DROPS) {
     const weight = table.entries
       .filter((e) => e.moduleId === moduleId)
       .reduce((sum, e) => sum + e.weight, 0)
     if (weight <= 0) continue
-    sources.push({ family: table.family, sector, weight })
+    sources.push({ family: table.family, wave, weight })
   }
-  sources.sort((a, b) => b.weight - a.weight || a.sector - b.sector)
+  sources.sort((a, b) => b.weight - a.weight || a.wave - b.wave)
   return sources
 }
 
@@ -2338,10 +2336,10 @@ export function pickWeightedDropEntry(
 export function discoveryFocusPrint(
   state: GameState,
   family: string,
-  sector: number,
+  wave: number,
 ): string | null {
-  const ids = [...new Set(dropTableEntries(family, sector).map((e) => e.moduleId))]
-  let best: { id: string; remaining: number; sector: number; have: number } | null = null
+  const ids = [...new Set(dropTableEntries(family, wave).map((e) => e.moduleId))]
+  let best: { id: string; remaining: number; wave: number; have: number } | null = null
   for (const id of ids) {
     if (state.shipyard.unlockedModules.includes(id)) continue
     const progress = blueprintProgress(state, id)
@@ -2349,14 +2347,14 @@ export function discoveryFocusPrint(
     const totals = blueprintFragmentTotals(progress.owned, progress.need)
     const remaining = Math.max(0, totals.need - totals.have)
     if (remaining <= 0) continue
-    const printSector = modulePrintSector(id)
+    const printWave = modulePrintWave(id)
     if (
       !best ||
       remaining < best.remaining ||
       (remaining === best.remaining && totals.have > best.have) ||
-      (remaining === best.remaining && totals.have === best.have && printSector < best.sector)
+      (remaining === best.remaining && totals.have === best.have && printWave < best.wave)
     ) {
-      best = { id, remaining, sector: printSector, have: totals.have }
+      best = { id, remaining, wave: printWave, have: totals.have }
     }
   }
   return best?.id ?? null
@@ -2640,6 +2638,14 @@ export function getChallenge(id: string): ChallengeDef | undefined {
   return CHALLENGES.find((c) => c.id === id)
 }
 
+/**
+ * Temporary until PR10 replaces the Challenge catalogue.
+ * Legacy `goalSector` is a Sector count (30 → Wave 300).
+ */
+export function legacyChallengeGoalWave(challenge: { goalSector: number }): number {
+  return Math.max(1, Math.floor(challenge.goalSector)) * 10
+}
+
 export function getEssenceUpgrade(id: string): EssenceUpgradeDef | undefined {
   return ESSENCE_UPGRADES.find((e) => e.id === id)
 }
@@ -2770,16 +2776,15 @@ export function shopMaxRank(def: { maxRank?: number }): number {
 function metaAnyGatePasses(
   state: {
     prestige: { prestigeCount: number; challengeClears: Record<string, number> }
-    meta: { act1Cleared: boolean; highestSectorEver: number }
-    combat?: { highestSector?: number }
+    meta: { act1Cleared: boolean; bestWave?: number }
+    combat?: { bestWave?: number }
   },
   gate: ShopMetaAnyGate,
 ): boolean {
   if (gate.act1Cleared && state.meta.act1Cleared) return true
   if (gate.prestiges != null && state.prestige.prestigeCount >= gate.prestiges) return true
-  if (gate.sectorEver != null) {
-    const ever = Math.max(state.meta.highestSectorEver, state.combat?.highestSector ?? 0)
-    if (ever >= gate.sectorEver) return true
+  if (gate.bestWave != null) {
+    if (careerBestWave(state) >= gate.bestWave) return true
   }
   if (gate.anyChallengeClear) {
     const clears = Object.values(state.prestige.challengeClears).some((n) => n > 0)
@@ -2795,7 +2800,8 @@ export type ShopBuyCheck =
 function matterRankGateReason(
   state: {
     prestige: { prestigeCount: number }
-    meta: { act1Cleared: boolean; highestSectorEver: number; ascensionCount?: number }
+    meta: { act1Cleared: boolean; bestWave?: number; ascensionCount?: number }
+    combat?: { bestWave?: number }
   },
   nextRank: number,
 ): string | null {
@@ -2817,7 +2823,7 @@ function matterRankGateReason(
     }
   }
   if (nextRank >= 4) {
-    if (state.prestige.prestigeCount < 1 && state.meta.highestSectorEver < 12) {
+    if (state.prestige.prestigeCount < 1 && careerBestWave(state) < 120) {
       return 'Need 1 Rebuild or Best Wave 120 for rank 4+'
     }
   }
@@ -2828,7 +2834,8 @@ export function canBuyMatterShop(
   state: {
     resources: { prestigeMatter: number }
     prestige: { prestigeCount: number; matterShop: Record<string, number> }
-    meta: { act1Cleared: boolean; highestSectorEver: number; ascensionCount?: number }
+    meta: { act1Cleared: boolean; bestWave?: number; ascensionCount?: number }
+    combat?: { bestWave?: number }
   },
   itemId: string,
 ): ShopBuyCheck {
@@ -2858,8 +2865,7 @@ export function canBuyChallengeShop(
       matterShop: Record<string, number>
       challengeClears: Record<string, number>
     }
-    meta: { act1Cleared: boolean; highestSectorEver: number; bestWave?: number }
-    combat?: { highestSector?: number; bestWave?: number }
+    meta: { act1Cleared: boolean; bestWave?: number }
   },
   itemId: string,
 ): ShopBuyCheck {
@@ -3609,8 +3615,8 @@ export function challengeStackRepairBonus(clears: Record<string, number> = {}): 
 export function isChallengeUnlocked(
   state: {
     prestige: { challengeClears: Record<string, number>; prestigeCount: number }
-    meta?: { highestSectorEver?: number; act1Cleared?: boolean; ascensionCount?: number; bestWave?: number }
-    combat?: { highestSector?: number; bestWave?: number }
+    meta?: { act1Cleared?: boolean; ascensionCount?: number; bestWave?: number }
+    combat?: { bestWave?: number }
   },
   challengeId: string,
 ): boolean {
@@ -3619,9 +3625,7 @@ export function isChallengeUnlocked(
 
   // Ascension-entry challenges only appear once Act 1 is cleared (ascension available).
   if (def.entryCost === 'ascension') {
-    const act1 =
-      state.meta?.act1Cleared === true ||
-      Math.max(state.meta?.highestSectorEver ?? 0, state.combat?.highestSector ?? 0) >= 30
+    const act1 = state.meta?.act1Cleared === true || meetsWave(state, ACT1_FINAL_WAVE)
     if (!act1) return false
     if ((state.meta?.ascensionCount ?? 0) < (def.requiresAscensions ?? 0)) {
       return false

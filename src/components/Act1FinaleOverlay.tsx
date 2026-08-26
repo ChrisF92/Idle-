@@ -25,10 +25,10 @@ export function Act1FinaleOverlay({ open, onContinue, onOpenReinforce }: Act1Fin
         aria-modal="true"
         aria-labelledby="act1-finale-title"
       >
-        <p className="ui-kicker">Wave 300</p>
+        <p className="ui-kicker">Wave 1000</p>
         <h3 id="act1-finale-title">Act 1 complete</h3>
         <p>
-          Choir Crown is down. Rebuild has carried knowledge as far as this loop allows. Something in the
+          The Choir Crown is destroyed. Rebuild has carried knowledge as far as this loop allows. Something in the
           Hive remembers this reconstruction — a stutter in time, as if the lattice has folded shut before.
         </p>
         <p>

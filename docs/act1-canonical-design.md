@@ -6,6 +6,8 @@
 
 > **Implementation authority:** This document plus the final PR prompt is authoritative. Existing legacy code is not authoritative where it conflicts with this design.
 
+> **v1.0 implementation clarification:** The player may pause an active Sortie and browse account systems without ending the run. Sortie combat resumes only when explicitly resumed. Combat does not continue while browsing.
+
 > **Breaking-redesign rule:** Hiveworks is pre-release. **No save migration or backwards compatibility is required.** Old saves may be invalidated/reset. **Do not retain deprecated systems, compatibility aliases, migration code, legacy tests, or dead implementation merely to support the old game.** When a system is replaced, remove the obsolete implementation cleanly.
 
 ## 1. Core thesis
@@ -20,8 +22,11 @@
 - Continuous timed Waves: later Waves can spawn while earlier enemies remain alive.
 - Death ends Sortie; earned persistent rewards remain.
 - Voluntary Extraction later; safe end plus modest Scrap bonus.
-- Live Sortie hides bottom nav completely; outside Sortie nav is **DOCK | SYSTEMS | MORE**.
-- Sortie hamburger: Furnace, Targeting, Combat Overlay, Codex, Run Details, Extract as unlocked.
+- A live Sortie has two explicit simulation states: **RUNNING** and **PAUSED**. Sortie combat advances only while RUNNING.
+- The player may pause an active Sortie and browse account systems without ending the run. Sortie combat resumes only when explicitly resumed.
+- RUNNING Sortie on the combat screen, and PAUSED Sortie on the combat screen, hide global bottom nav completely. Use Sortie-specific controls.
+- PAUSED Sortie while browsing Dock / Systems / More shows **DOCK | SYSTEMS | MORE**. There is no supported Act 1 state where the player browses another account screen while live Sortie combat continues.
+- Sortie hamburger: **Pause**, **Pause & Browse**, **Extract**. Later PRs add Furnace, Targeting, Combat Overlay, Codex, Run Details as unlocked.
 - Hive anchored, slightly below screen centre; enemies attack 360°.
 - Cores are autonomous orbiting combat/support units; Worker Drones are industrial workforce.
 - No Route A/B, Echo, abstract Network bars, standalone Reliquary, Specialists or Capital in Act 1.
@@ -224,7 +229,7 @@ Sortie resets Salvage, temporary generic upgrades, Directives, Heat, Furnace sta
 
 ## 20. Persistence/offline
 
-Closing/reloading freezes active Sortie exactly. No offline combat. Save Wave/timer/pending reinforcements/enemies/status/positions/RNG/Hive state/Core angles+targets+cooldowns+beam/charge/temp upgrades/Salvage/Directives/Furnace/Heat/Challenge/Time Compression/temp effects. Reload cannot delete, reset, heal, reroll, refund or duplicate. Foundry and Research continue offline.
+Closing, reloading, or hiding the app/tab freezes an active Sortie through the same PAUSED state. Combat simulation time does not advance while PAUSED, hidden, or closed. No offline combat, and hidden wall-clock time contributes zero combat simulation. Returning from background leaves the Sortie PAUSED until the player explicitly Resumes. Save Wave/timer/pending reinforcements/enemies/status/positions/RNG/Hive state/Core angles+targets+cooldowns+beam/charge/temp upgrades/Salvage/Directives/Furnace/Heat/Challenge/Time Compression/temp effects/RUNNING-or-PAUSED. Reload cannot delete, reset, heal, reroll, refund, duplicate, or auto-Resume. Foundry and Research continue on their own real-time/offline clocks independently of combat `simTime`.
 
 ## 21. Process v1.0
 
@@ -1661,7 +1666,7 @@ This section explicitly resolves possible ambiguity across earlier design discus
 11. **Research E3 Thermal Conduits** improves Ash→Heat conversion. **E8 Thermal Recovery** instead modestly reduces Heat required by selected Furnace channels. They are not duplicate nodes.
 12. **Choir Tap M30 Hot Recovery:** high-value Choir/Commander/Boss recovery while fitted can grant a small bounded immediate Heat packet during the current Sortie. **M50 Furnace Feed:** Ash→Heat conversion performed while Choir Tap is fitted becomes more efficient for that Sortie. Neither changes an already-Ignited Furnace configuration.
 13. **Time Compression is the only general combat simulation-speed multiplier.** Research reclaim improvements reduce proven dead inter-Wave waiting only.
-14. **Combat freezes exactly when the app closes/reloads.** Foundry and Research progress offline; Sorties do not.
+14. **Combat freezes exactly when the app closes, reloads, or is hidden/backgrounded, using the same PAUSED Sortie state.** Returning visible does not auto-Resume. Foundry and Research progress on their own real-time/offline clocks; Sorties do not.
 15. **Targeting defaults are competent.** Fire-Control Doctrine unlocks customization, not basic intelligence.
 16. **No dynamic Process Doctrine flipping in Act 1.** Targeting profiles may be loaded once or manually switched.
 17. **Standard enemies attack the Hive, not Core HP.** Cores have no normal independent health/destruction loop.

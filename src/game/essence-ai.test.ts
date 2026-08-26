@@ -9,8 +9,7 @@ import {
   essenceProductionMultiplier,
   essenceAlloyUpkeepMult,
 } from './catalog'
-import { clearSector } from './testHelpers'
-import { bossWaveForBand } from './waves'
+import { clearCurrentWave } from './testHelpers'
 
 describe('essence upgrades', () => {
   it('lattice boosts boss essence, not combat damage', () => {
@@ -37,7 +36,6 @@ describe('essence upgrades', () => {
     let state = createInitialState(0)
     state.resources.essence = 5
     state = buyEssenceUpgrade(state, 'essence-lattice')
-    state.combat.sector = 10
     state = performPrestige(state, 1000)
     expect(state.essence.purchased).toContain('essence-lattice')
     expect(state.resources.essence).toBeGreaterThanOrEqual(0)
@@ -69,9 +67,11 @@ describe('AI doctrines', () => {
     let state = createInitialState(0)
     state.resources.aiPoints = 3
     state = buyAiNode(state, 'boss-protocol')
-    state.combat.wave = bossWaveForBand(5)
     state = startCombat(state)
-    expect(state.combat.isBoss).toBe(true)
+    const boss = state.combat.enemyUnits[0]
+    expect(boss).toBeTruthy()
+    boss!.isBoss = true
+    state.combat.isBoss = true
     const notes = computeFightDamage(state).matchupNotes.join(' ')
     expect(notes).toContain('Boss Doctrine')
   })
@@ -82,7 +82,7 @@ describe('AI doctrines', () => {
     state = buyAiNode(state, 'scavenger')
     state = startCombat(state)
     const scrapBefore = state.resources.scrap
-    state = clearSector(state)
+    state = clearCurrentWave(state)
     expect(state.resources.scrap - scrapBefore).toBeGreaterThan(5)
   })
 })

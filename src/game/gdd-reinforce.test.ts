@@ -2,17 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { canPrestige, performReinforce } from './actions'
 import { rebuildCycle } from './rebuild'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
-import { ACT1_CLIMAX_BLURB, ACT1_CLIMAX_NAME, encounterForWave } from './combat'
+import { encounterForWave } from './combat'
 import { moreStationBuckets } from './moreStations'
 import { dismissAct1Finale, isSystemUnlocked } from './progression'
 import { reinforceConsequenceLists } from './playerGuidance'
 import { canReinforce } from './reinforce'
 import { createInitialState } from './state'
-import { atCareerWave, clearCurrentWave, markHullLost } from './testHelpers'
-import { startCombat } from './tick'
-import { isAct1ClimaxWave } from './waves'
+import { atCareerWave, markHullLost } from './testHelpers'
+import { isAct1ClimaxWave, isAct1FinaleWave, isBossWave } from './waves'
 
-function climaxState(opts?: { wave?: number; cleared?: boolean }) {
+function finaleState(opts?: { wave?: number; cleared?: boolean }) {
   const s = atCareerWave(markHullLost(createInitialState(0)), opts?.wave ?? ACT1_CADENCE.reinforce)
   s.prestige.prestigeCount = 2
   s.hiveResearch.completed.energy = 1
@@ -22,63 +21,46 @@ function climaxState(opts?: { wave?: number; cleared?: boolean }) {
 }
 
 describe('GDD Act 1 climax and Reinforce', () => {
-  it('authors a unique Wave 300 boss instead of the generic titan pack', () => {
+  it('treats Wave 1000 as the Act 1 finale Boss boundary without an authored identity', () => {
     expect(isAct1ClimaxWave(ACT1_FINAL_WAVE)).toBe(true)
+    expect(isAct1FinaleWave(ACT1_FINAL_WAVE)).toBe(true)
+    expect(isBossWave(ACT1_FINAL_WAVE)).toBe(true)
     expect(isAct1ClimaxWave(290)).toBe(false)
-    const climax = encounterForWave(ACT1_FINAL_WAVE)
-    const prior = encounterForWave(ACT1_FINAL_WAVE - 10)
-    expect(climax.isBoss).toBe(true)
-    expect(climax.name).toBe(ACT1_CLIMAX_NAME)
-    expect(climax.id).toBe('w300-climax')
-    expect(climax.blurb).toBe(ACT1_CLIMAX_BLURB)
-    expect(climax.mechanicId).toBe('climax-choir')
-    expect(climax.units.some((u) => u.name === ACT1_CLIMAX_NAME && u.isBoss)).toBe(true)
-    expect(climax.units.some((u) => u.name === 'Crown Plate')).toBe(true)
-    expect(climax.units.some((u) => u.name === 'Loop Mite')).toBe(true)
-    expect(climax.units.some((u) => u.name === 'Veil Echo')).toBe(true)
-    expect(prior.units.some((u) => u.name === 'Crown Plate')).toBe(false)
-    expect(prior.mechanicId).not.toBe('climax-choir')
-    expect(new Set(climax.units.map((u) => u.family)).size).toBeGreaterThan(1)
+    const normal = encounterForWave(ACT1_FINAL_WAVE)
+    expect(normal.isBoss).toBe(false)
   })
 
-  it('keeps Reinforce locked until the Wave 300 climax is defeated', () => {
-    const approaching = climaxState({ wave: ACT1_CADENCE.reinforce - 1 })
+  it('keeps Reinforce locked until the Wave 1000 finale is defeated', () => {
+    const approaching = finaleState({ wave: ACT1_CADENCE.reinforce - 1 })
     expect(isSystemUnlocked(approaching, 'reinforce')).toBe(false)
     expect(canReinforce(approaching).ok).toBe(false)
     expect(moreStationBuckets(approaching).open.map((s) => s.id)).not.toContain('reinforce')
     expect(moreStationBuckets(approaching).next).toEqual([])
 
-    const reached = climaxState({ wave: ACT1_CADENCE.reinforce })
+    const reached = finaleState({ wave: ACT1_CADENCE.reinforce })
     expect(reached.meta.act1Cleared).toBe(false)
     expect(isSystemUnlocked(reached, 'reinforce')).toBe(false)
-    expect(canReinforce(reached).reason).toMatch(/Clear Wave 300/)
+    expect(canReinforce(reached).reason).toMatch(/Choir Crown/)
   })
 
-  it('reveals Reinforce after the climax is cleared', () => {
-    let s = climaxState({ wave: ACT1_CADENCE.reinforce - 1 })
-    s.combat.wave = ACT1_FINAL_WAVE
-    s = startCombat(s)
-    expect(s.combat.enemyName).toBe(ACT1_CLIMAX_NAME)
-    s.combat.playerHull = 10_000
-    s.combat.playerHullMax = 10_000
-    s = clearCurrentWave(s)
-    expect(s.meta.act1Cleared).toBe(true)
-    expect(s.meta.act1FinalePending).toBe(true)
+  it('reveals Reinforce after Act 1 is marked cleared', () => {
+    const s = finaleState({ cleared: true })
     expect(isSystemUnlocked(s, 'reinforce')).toBe(true)
     expect(moreStationBuckets(s).open.map((door) => door.id)).toContain('reinforce')
     expect(moreStationBuckets(s).next).toEqual([])
+    s.meta.act1FinalePending = true
     const dismissed = dismissAct1Finale(s)
     expect(dismissed.meta.act1FinalePending).toBe(false)
     expect(dismissed.meta.act1Cleared).toBe(true)
   })
 
   it('refuses Reinforce mid-Sortie and resets the cycle from Dock', () => {
-    const live = climaxState({ cleared: true })
+    const live = finaleState({ cleared: true })
     live.combat.docked = false
     expect(canReinforce(live).ok).toBe(false)
     expect(canReinforce(live).reason).toMatch(/Dock/)
 
-    let s = climaxState({ cleared: true })
+    let s = finaleState({ cleared: true })
     s.resources.scrap = 40
     s.workshop.levels['weapon-power'] = 2
     s.foundry.recipeLevels['slag-ingot'] = 3
@@ -96,7 +78,7 @@ describe('GDD Act 1 climax and Reinforce', () => {
   })
 
   it('prints YOU RESET, YOU KEEP, and WHAT CHANGES without opening Capital', () => {
-    const s = climaxState({ cleared: true })
+    const s = finaleState({ cleared: true })
     const lists = reinforceConsequenceLists(s)
     expect(lists.reset.length).toBeGreaterThan(lists.keep.length ? 0 : 1)
     expect(lists.reset.some((line) => /Salvage/.test(line))).toBe(true)

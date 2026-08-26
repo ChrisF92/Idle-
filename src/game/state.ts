@@ -60,6 +60,8 @@ import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult 
 import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { createEmptyPlaytest } from './playtest'
+import { emptyWaveRuntime } from './waveRuntime'
+import { createSimRng } from './simRng'
 import {
   createEmptyWorkshop,
   cycleRateMult,
@@ -70,7 +72,7 @@ import {
 } from './workshop'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 41
+export const SAVE_VERSION = 42
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -121,14 +123,8 @@ export function createInitialState(now = Date.now()): GameState {
       frameLocked: false,
     },
     combat: {
-      sector: 1,
-      highestSector: 0,
+      ...emptyWaveRuntime(),
       wave: 1,
-      inFight: false,
-      docked: true,
-      pushMode: 'advance',
-      campaign: true,
-      route: 'A',
       bestWave: 0,
       runUpgrades: {},
       coreRunLevels: {},
@@ -138,7 +134,12 @@ export function createInitialState(now = Date.now()): GameState {
       coreBossClears: {},
       coreNewBest: {},
       coreMilestones: {},
+      inFight: false,
+      sortiePaused: false,
+      docked: true,
       consecutiveLosses: 0,
+      sortieSeed: 0,
+      rng: createSimRng(1),
       bossPhase: 0,
       fightElapsed: 0,
       playerHull: hullMax,
@@ -162,11 +163,6 @@ export function createInitialState(now = Date.now()): GameState {
       sortieMark: null,
       defeatLeft: 0,
       defeatTactical: false,
-      frontierHold: false,
-      frontierSector: 0,
-      frontierRoute: 'A',
-      frontierAttemptOpen: false,
-      frontierNotice: null,
       directives: [],
       directiveOffer: null,
     },
@@ -209,8 +205,8 @@ export function createInitialState(now = Date.now()): GameState {
       seenFamilies: [],
     },
     meta: {
-      highestSectorEver: 0,
       bestWave: 0,
+      sortieSerial: 0,
       act1Cleared: false,
       act1FinalePending: false,
       ascensionCount: 0,

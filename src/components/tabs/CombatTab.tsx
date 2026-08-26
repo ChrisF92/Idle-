@@ -26,6 +26,9 @@ interface CombatTabProps {
   state: GameState
   onLaunch: () => void
   onExtract?: () => void
+  onPause?: () => void
+  onResume?: () => void
+  onPauseAndBrowse?: () => void
   onBuyRunUpgrade?: (id: RunUpgradeId, count?: number) => void
   onViewReport?: () => void
   onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
@@ -44,6 +47,9 @@ interface CombatTabProps {
 export function CombatTab({
   state,
   onExtract,
+  onPause,
+  onResume,
+  onPauseAndBrowse,
   onBuyRunUpgrade,
   paused = false,
   onboardingTarget = null,
@@ -65,10 +71,9 @@ export function CombatTab({
   const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
   const shieldPct = stats.shieldMax > 0 ? combat.playerShield / stats.shieldMax : 0
   const hullBand = hullPct <= 0.28 ? 'critical' : hullPct <= 0.55 ? 'damaged' : 'healthy'
-  const [banner, setBanner] = useState<{ text: string; kind: 'wave' | 'boss' | 'sector' | 'best' } | null>(null)
+  const [banner, setBanner] = useState<{ text: string; kind: 'wave' | 'boss' | 'best' } | null>(null)
   const bannerRef = useRef({
     wave: combat.wave,
-    sector: combat.sector,
     boss: combat.isBoss,
     primed: false,
   })
@@ -100,13 +105,13 @@ export function CombatTab({
 
   useEffect(() => {
     if (combat.docked && !dying) {
-      bannerRef.current = { wave: combat.wave, sector: combat.sector, boss: combat.isBoss, primed: false }
+      bannerRef.current = { wave: combat.wave, boss: combat.isBoss, primed: false }
       setBanner(null)
       return
     }
     const prev = bannerRef.current
     if (!prev.primed) {
-      bannerRef.current = { wave: combat.wave, sector: combat.sector, boss: combat.isBoss, primed: true }
+      bannerRef.current = { wave: combat.wave, boss: combat.isBoss, primed: true }
       return
     }
     if (combat.isBoss && !prev.boss) {
@@ -117,8 +122,8 @@ export function CombatTab({
         kind: combat.wave > careerBest ? 'best' : 'wave',
       })
     }
-    bannerRef.current = { wave: combat.wave, sector: combat.sector, boss: combat.isBoss, primed: true }
-  }, [combat.wave, combat.sector, combat.isBoss, combat.docked, dying, careerBest])
+    bannerRef.current = { wave: combat.wave, boss: combat.isBoss, primed: true }
+  }, [combat.wave, combat.isBoss, combat.docked, dying, careerBest])
 
   useEffect(() => {
     if (!banner) return
@@ -223,7 +228,7 @@ export function CombatTab({
           beams={combat.docked && !dying ? [] : combat.beams ?? []}
           fx={combat.fx}
           mode={battlefieldMode}
-          paused={paused || directiveOffer.length > 0}
+          paused={paused || directiveOffer.length > 0 || combat.sortiePaused}
           numbers={normalizeDamageNumbers(state.meta.damageNumbers)}
           frameId={state.shipyard.frameId}
           coreIds={state.shipyard.modules}
@@ -276,6 +281,12 @@ export function CombatTab({
             </div>
             <div className="sortie-hud-mid">
               <strong className="sortie-wave">W{combat.wave}</strong>
+              <span>
+                {combat.enemyUnits.filter((u) => u.hull > 0).length} hostiles
+                {(combat.pendingReinforcements?.reduce((n, row) => n + row.units.length, 0) ?? 0) > 0
+                  ? ` +${combat.pendingReinforcements.reduce((n, row) => n + row.units.length, 0)} pending`
+                  : ''}
+              </span>
               <span>DPS {formatCompact(stats.damage)}</span>
               {dpsFlash ? <span className="sortie-dps-flash">{dpsFlash}</span> : null}
               <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>
@@ -295,17 +306,39 @@ export function CombatTab({
               {menuOpen ? (
                 <div className="sortie-menu-pop" id={`${titleId}-menu`} role="menu" aria-label="Sortie">
                   {live && !dying ? (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      data-guide="extract"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        onExtract?.()
-                      }}
-                    >
-                      Extract
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          onPause?.()
+                        }}
+                      >
+                        Pause
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          onPauseAndBrowse?.()
+                        }}
+                      >
+                        Pause &amp; Browse
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        data-guide="extract"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          onExtract?.()
+                        }}
+                      >
+                        Extract
+                      </button>
+                    </>
                   ) : (
                     <p className="muted">No actions</p>
                   )}
@@ -361,6 +394,13 @@ export function CombatTab({
           <p className="sortie-defeat-banner" role="status">
             {challenge ? 'Hull lost' : `SORTIE COMPLETE — Wave ${combat.wave}`}
           </p>
+        ) : combat.sortiePaused ? (
+          <div className="sortie-paused-overlay" role="status">
+            <p className="sortie-paused-title">SORTIE PAUSED</p>
+            <button type="button" className="sortie-resume-btn" onClick={() => onResume?.()}>
+              Resume
+            </button>
+          </div>
         ) : null}
       </div>
 

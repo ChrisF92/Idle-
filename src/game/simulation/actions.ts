@@ -21,8 +21,7 @@ import {
   buyRunUpgrade,
   buyCoreStartingLevel,
 } from '../actions'
-import { setCampaign, setDocked, retryFrontier, chooseDirective } from '../tick'
-import { canRetryFrontier, isFrontierHold } from '../frontier'
+import { setDocked, chooseDirective } from '../tick'
 import {
   canBuyMatterShop,
   getMatterShopItem,
@@ -120,14 +119,6 @@ export function ensureLaunched(state: GameState, ctx: StrategyContext): GameStat
   return next
 }
 
-/** Developer sim only — players retry by hand. Prevents a farm deadlock after a wall. */
-export function maybeRetryFrontier(state: GameState, ctx: StrategyContext): GameState {
-  if (!isFrontierHold(state) || !canRetryFrontier(state)) return state
-  const next = retryFrontier(state)
-  if (next !== state) ctx.recordMeaningful('Retry push')
-  return next
-}
-
 export function maybeChooseDirective(state: GameState, ctx: StrategyContext): GameState {
   const offer = state.combat.directiveOffer
   if (!offer || offer.length === 0) return state
@@ -136,16 +127,6 @@ export function maybeChooseDirective(state: GameState, ctx: StrategyContext): Ga
   const next = chooseDirective(state, id)
   if (next !== state) ctx.recordMeaningful(`Directive ${id}`)
   return next
-}
-
-export function ensureAdvance(state: GameState): GameState {
-  if (state.combat.campaign) return state
-  return setCampaign(state, true)
-}
-
-export function maybeHold(state: GameState, hold: boolean): GameState {
-  if (state.combat.campaign === !hold) return state
-  return setCampaign(state, !hold)
 }
 
 function pickMilestoneChoice(moduleId: string, milestoneId: string): string {
@@ -602,7 +583,7 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
   }
   const linksKept = { ...(state.network?.links ?? {}) }
   const gain = prestigeGainFor(state)
-  const highest = state.combat.highestSector
+  const highest = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
   const prevPush =
     ctx.lastRebuildActive == null ? ctx.activeSeconds : ctx.activeSeconds - ctx.lastRebuildActive
   const after = performPrestige(state)

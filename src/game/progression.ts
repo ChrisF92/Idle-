@@ -13,19 +13,9 @@ import { rebuildDoorMet } from './rebuild'
 import { practicedCoreWork } from './corePractice'
 import { SHIP_FRAMES, grantUnlockedFrame } from './catalog'
 
-export {
-  WAVES_PER_SECTOR,
-  isSectorBossWave,
-  trashWavesForSector,
-  wavesForSector,
-} from './sectors'
-
 export { careerBestWave, meetsWave, ACT1_FINAL_WAVE }
 
-/** Soft campaign climax — W300 maps to 30 ten-wave bands for leftover sector gates. */
-export const ACT1_FINAL_SECTOR = 30
-
-/** Rebuild gate is career best Wave (GDD §102). Name kept for import churn. */
+/** Rebuild gate is career best Wave. */
 export const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild
 export const FOUNDRY_UNLOCK_SECTOR = ACT1_CADENCE.foundry
 
@@ -120,7 +110,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'reinforce',
     requiresBestWave: ACT1_CADENCE.reinforce,
     label: 'Reinforce',
-    tip: 'Clear Wave 300. Rebuild has reached the limit of this loop.',
+    tip: 'Defeat the Wave 1000 Choir Crown. Rebuild has reached the limit of this loop.',
   },
   {
     id: 'logs',
@@ -162,7 +152,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
 ]
 
 export type AchievementCondition =
-  | { type: 'sector-ever'; sector: number }
+  | { type: 'best-wave'; wave: number }
   | { type: 'research-count'; min: number }
   | { type: 'prestige-count'; min: number }
   | { type: 'ai-purchase-count'; min: number }
@@ -206,35 +196,35 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: 'First Blood',
     description: 'Reach Wave 10. Starts banking Process Points for later automation.',
     rewardAiPoints: 4,
-    condition: { type: 'sector-ever', sector: 1 },
+    condition: { type: 'best-wave', wave: 10 },
   },
   {
     id: 'chip-drawer',
     name: 'Chip Drawer',
     description: 'Reach Wave 30. Shard signatures are now detectable.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 3 },
+    condition: { type: 'best-wave', wave: 30 },
   },
   {
     id: 'hangar-opened',
     name: 'Hangar Opened',
     description: 'Reach Wave 40.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 4 },
+    condition: { type: 'best-wave', wave: 40 },
   },
   {
     id: 'first-boss',
     name: 'First Titan',
     description: 'Reach Wave 50 (first band boss).',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 5 },
+    condition: { type: 'best-wave', wave: 50 },
   },
   {
     id: 'archive-open',
     name: 'Archive Open',
     description: 'Reach Wave 70. Archive telemetry begins accumulating.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 7 },
+    condition: { type: 'best-wave', wave: 70 },
   },
   {
     id: 'first-research',
@@ -262,33 +252,33 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: 'Deep Push',
     description: 'Reach Wave 100.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 10 },
+    condition: { type: 'best-wave', wave: 100 },
   },
   {
     id: 'sector-15',
     name: 'Combat Corps',
     description: 'Reach Wave 150.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 15 },
+    condition: { type: 'best-wave', wave: 150 },
   },
   {
     id: 'sector-20',
     name: 'Void Line',
     description: 'Reach Wave 200.',
     rewardAiPoints: 2,
-    condition: { type: 'sector-ever', sector: 20 },
+    condition: { type: 'best-wave', wave: 200 },
   },
   {
     id: 'sector-25',
     name: 'Outer Rim',
     description: 'Reach Wave 250.',
     rewardAiPoints: 3,
-    condition: { type: 'sector-ever', sector: 25 },
+    condition: { type: 'best-wave', wave: 250 },
   },
   {
     id: 'act1-clear',
     name: 'Exodus Gate',
-    description: 'Clear Wave 300 and finish Act 1.',
+    description: 'Defeat the Wave 1000 Choir Crown and finish Act 1.',
     rewardAiPoints: 3,
     condition: { type: 'act1-cleared' },
   },
@@ -489,10 +479,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
 ]
 
-export function careerHighestSector(state: GameState): number {
-  return Math.max(state.meta.highestSectorEver, state.combat.highestSector)
-}
-
 export function isAchievementUnlocked(state: GameState, id: string): boolean {
   return state.meta.completedAchievements.includes(id)
 }
@@ -503,8 +489,8 @@ export function achievementCompletions(state: GameState, id: string): number {
 
 export function achievementBaseThreshold(condition: AchievementCondition): number {
   switch (condition.type) {
-    case 'sector-ever':
-      return condition.sector
+    case 'best-wave':
+      return condition.wave
     case 'act1-cleared':
       return 1
     case 'research-count':
@@ -537,8 +523,8 @@ export function achievementProgressValue(
   condition: AchievementCondition,
 ): number {
   switch (condition.type) {
-    case 'sector-ever':
-      return careerHighestSector(state)
+    case 'best-wave':
+      return careerBestWave(state)
     case 'research-count':
       return state.research.unlocked.length
     case 'prestige-count':
@@ -546,7 +532,7 @@ export function achievementProgressValue(
     case 'ai-purchase-count':
       return state.ai.purchased.length + (state.process?.purchased.length ?? 0)
     case 'act1-cleared':
-      return state.meta.act1Cleared || careerHighestSector(state) >= ACT1_FINAL_SECTOR
+      return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE)
         ? 1
         : 0
     case 'ascension-count':
@@ -817,7 +803,7 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
     case 'data':
       return isSystemUnlocked(state, 'research')
     case 'essence':
-      return state.resources.essence > 0 || careerHighestSector(state) >= 5
+      return state.resources.essence > 0 || careerBestWave(state) >= 50
     case 'aiPoints':
       return isSystemUnlocked(state, 'process') || isSystemUnlocked(state, 'ai')
     case 'prestigeMatter':
@@ -860,27 +846,23 @@ export function firstRebuildAvailable(state: GameState): boolean {
 }
 
 /**
- * Challenges + Challenge shop unlock after the first Act 1 clear (sector 30).
+ * Challenges + Challenge shop unlock after the Act 1 finale (Wave 1000).
  * Stay visible while a challenge is already running so Abandon remains available.
  */
 export function challengesContentUnlocked(state: GameState): boolean {
   if (state.prestige.activeChallengeId) return true
-  return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE) || careerHighestSector(state) >= ACT1_FINAL_SECTOR
+  return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE)
 }
 
 /** Grant Base starter drones; update career flags; check achievements. */
 export function maybeGrantSystemUnlocks(state: GameState): void {
-  const ever = careerHighestSector(state)
-  if (ever > state.meta.highestSectorEver) {
-    state.meta.highestSectorEver = ever
-  }
-  noteHighestSector(state, ever)
+  const best = careerBestWave(state)
+  noteHighestSector(state, best)
 
   if (meetsWave(state, ACT1_CADENCE.codex) && !state.meta.codexUnlocked) {
     state.meta.codexUnlocked = true
   }
 
-  const best = careerBestWave(state)
   for (const frame of SHIP_FRAMES) {
     if (frame.unlockSource !== 'wave') continue
     if ((frame.requiresBestWave ?? 0) > best) continue
@@ -890,7 +872,7 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
   tryCompleteAchievements(state)
 }
 
-/** Clearing the Wave 300 climax reveals Reinforce (GDD §164). */
+/** Clearing the Wave 1000 finale reveals Reinforce. */
 export function completeAct1(state: GameState): void {
   if (state.meta.act1Cleared) return
   state.meta.act1Cleared = true
