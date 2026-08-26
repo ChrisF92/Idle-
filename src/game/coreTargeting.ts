@@ -22,8 +22,6 @@ import {
   type CoreTargetingProfile,
 } from './targetingProfiles'
 import type {
-  CombatBeam,
-  CombatProjectile,
   CombatUnit,
   CoreInstance,
   CoreTargetingTelemetry,
@@ -284,7 +282,6 @@ export function isTargetableEnemy(_state: GameState, unit: CombatUnit | undefine
   if (unit.hull <= 0) return false
   if (unit.untargetable) return false
   if (unit.isCore) return false
-  if (unit.isFlagship) return false
   if (unit.targetable === false) return false
   return true
 }

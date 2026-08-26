@@ -221,7 +221,7 @@ function TargetingDoctrinePicker({
   )
 }
 
-export function doctrineLabel(id: string): string {
+function doctrineLabel(id: string): string {
   switch (id) {
     case 'threat':
       return 'Threat'

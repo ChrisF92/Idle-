@@ -837,6 +837,15 @@ describe('targetability extension', () => {
     evalNow(state)
     expect(pulseCore(state).currentTargetId).toBe('open')
   })
+
+  it('still treats an enemy flagship/Boss hull as targetable', () => {
+    const state = pulseSortie()
+    const boss = enemy({ id: 'bound', x: 0, y: 120, isFlagship: true, isBoss: true, hull: 80, hullMax: 80 })
+    expect(isTargetableEnemy(state, boss)).toBe(true)
+    setEnemies(state, [boss])
+    evalNow(state)
+    expect(pulseCore(state).currentTargetId).toBe('bound')
+  })
 })
 
 describe('player fire uses persistent target', () => {
