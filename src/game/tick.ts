@@ -169,6 +169,7 @@ function finishSortie(
   state.combat.pendingReinforcements = []
   state.combat.docked = true
   state.combat.inFight = false
+  state.combat.sortiePaused = false
   state.shipyard.frameLocked = false
   fullHealPlayer(state)
 }

@@ -9,7 +9,7 @@ import {
   setSortiePaused,
   handleAppHidden,
 } from '../game/tick'
-import { applyOfflineCatchUp, type OfflineReport } from '../game/offline'
+import { applyOfflineCatchUp, applyWallClock, handleAppVisible, type OfflineReport } from '../game/offline'
 import {
   abandonChallenge,
   assignWorker,
@@ -410,7 +410,16 @@ export function useGame() {
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      dispatch({ type: 'tick', now: Date.now(), paused: simPausedRef.current })
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      const now = Date.now()
+      const { state: next, report } = applyWallClock(
+        stateRef.current,
+        now,
+        simPausedRef.current,
+      )
+      stateRef.current = next
+      dispatch({ type: 'replace', state: next })
+      if (report) setOfflineReport(report)
     }, 50)
     return () => window.clearInterval(id)
   }, [])
@@ -430,14 +439,22 @@ export function useGame() {
       dispatch({ type: 'replace', state: next })
       saveGame(next)
     }
-    const onHide = () => {
+    const catchUpVisible = () => {
+      const { state: next, report } = handleAppVisible(stateRef.current, Date.now())
+      stateRef.current = next
+      dispatch({ type: 'replace', state: next })
+      saveGame(next)
+      if (report) setOfflineReport(report)
+    }
+    const onVisibility = () => {
       if (document.visibilityState === 'hidden') freezeAndPersist()
+      else catchUpVisible()
     }
     const onUnload = () => freezeAndPersist()
-    document.addEventListener('visibilitychange', onHide)
+    document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', onUnload)
     return () => {
-      document.removeEventListener('visibilitychange', onHide)
+      document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('pagehide', onUnload)
     }
   }, [])

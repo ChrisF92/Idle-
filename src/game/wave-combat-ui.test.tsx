@@ -215,7 +215,8 @@ describe('live Sortie chrome and pause/browse contract', () => {
   })
 
   it('Extract terminates the Sortie instead of pausing it', () => {
-    const live = liveSortie()
+    const live = setSortiePaused(liveSortie(), true)
+    expect(live.combat.sortiePaused).toBe(true)
     const extracted = setDocked(live, true)
     expect(extracted.combat.docked).toBe(true)
     expect(extracted.combat.inFight).toBe(false)

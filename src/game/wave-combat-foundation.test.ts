@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { startCombat, advanceSeconds, setDocked, freezeActiveSortie, handleAppHidden, setSortiePaused, tickGame } from './tick'
+import { startCombat, advanceSeconds, setDocked, freezeActiveSortie, handleAppHidden, setSortiePaused, tickGame, LIVE_TICK_CAP } from './tick'
 import { tryCompleteChallenge, assignWorker, setFoundrySlot } from './actions'
 import {
   ACT1_FINAL_WAVE,
@@ -21,7 +21,7 @@ import { setTestBossProvider } from './bossProvider'
 import { startBossEncounter, startWavePackage, tickWaveScheduler, type WaveSchedulerHooks } from './waveScheduler'
 import { admitUnitToPackage, emptyWaveRuntime, livingEnemyCount, markWaveReached } from './waveRuntime'
 import { saveGame, loadOrCreateGame, clearSave } from './save'
-import { applyOfflineCatchUp } from './offline'
+import { applyOfflineCatchUp, applyWallClock, handleAppVisible } from './offline'
 import { isSortieActive, showGlobalBottomNav, showSortieReturnControl } from './presentation'
 import type { CombatUnit, GameState } from './types'
 import { dropTableEntries, familyCanDropPrint, getChallenge, legacyChallengeGoalWave, modulePrintWave } from './catalog'
@@ -985,6 +985,94 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(familyCanDropPrint('swarm', 'barrier-projector', 120)).toBe(true)
     expect(dropTableEntries('swarm', 12).some((e) => e.moduleId === 'barrier-projector')).toBe(false)
     expect(modulePrintWave('pulse-cannon')).toBeLessThan(160)
+  })
+
+  it('applies industry-only offline catch-up on hidden→visible without combat time', () => {
+    let state = startCombat(createInitialState(2))
+    muteWeapons(state)
+    state.meta.bestWave = ACT1_CADENCE.foundry
+    state.combat.bestWave = ACT1_CADENCE.foundry
+    state.resources.scrap = 80
+    state.base.workerDrones = Math.max(2, state.base.workerDrones)
+    state = assignWorker(state, 'scrap-field', 2)
+    state = setFoundrySlot(state, 0, 'slag-ingot')
+    advanceSeconds(state, 0.4)
+    const sim = state.combat.simTime
+    const waveAt = state.combat.nextReinforcementAt
+    const pos = state.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y }))
+    const cd = state.combat.playerUnits.flatMap((u) => u.weapons.map((w) => w.cooldownLeft))
+    const wave = state.combat.wave
+    const hideAt = 50_000
+    state.lastTickAt = hideAt
+    state = handleAppHidden(state)
+    expect(state.combat.sortiePaused).toBe(true)
+
+    const hiddenMs = 10 * 60 * 1000
+    const capControl = structuredClone(state)
+    capControl.lastTickAt = hideAt
+    advanceSeconds(capControl, LIVE_TICK_CAP)
+
+    const { state: visible, report } = handleAppVisible(state, hideAt + hiddenMs)
+    expect(visible.combat.simTime).toBe(sim)
+    expect(visible.combat.sortiePaused).toBe(true)
+    expect(visible.combat.wave).toBe(wave)
+    expect(visible.combat.nextReinforcementAt).toBe(waveAt)
+    expect(visible.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y }))).toEqual(pos)
+    expect(visible.combat.playerUnits.flatMap((u) => u.weapons.map((w) => w.cooldownLeft))).toEqual(cd)
+    expect(visible.resources.scrap).toBeGreaterThan(capControl.resources.scrap)
+    expect(visible.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThan(
+      capControl.foundry.materials['slag-ingot'] ?? 0,
+    )
+    expect(report?.appliedMs).toBeGreaterThan(LIVE_TICK_CAP * 1000)
+    expect(visible.lastTickAt).toBe(hideAt + hiddenMs)
+
+    const scrapAfter = visible.resources.scrap
+    const foundryAfter = visible.foundry.slots[0]?.progress ?? 0
+    const { state: again, report: againReport } = handleAppVisible(visible, hideAt + hiddenMs + 40)
+    expect(again.resources.scrap).toBeCloseTo(scrapAfter, 5)
+    expect(again.foundry.slots[0]?.progress ?? 0).toBeCloseTo(foundryAfter, 8)
+    expect(againReport).toBeNull()
+    expect(again.combat.simTime).toBe(sim)
+    expect(again.combat.sortiePaused).toBe(true)
+
+    const wall = applyWallClock(structuredClone(state), hideAt + hiddenMs)
+    expect(wall.state.combat.simTime).toBe(sim)
+    expect(wall.state.resources.scrap).toBeGreaterThan(capControl.resources.scrap)
+
+    const resumed = setSortiePaused(again, false)
+    advanceSeconds(resumed, 0.3)
+    expect(resumed.combat.simTime).toBeGreaterThan(sim)
+  })
+
+  it('does not double-apply hidden time across visible catch-up then reload', () => {
+    let state = startCombat(createInitialState(3))
+    muteWeapons(state)
+    state.base.workerDrones = Math.max(2, state.base.workerDrones)
+    state = assignWorker(state, 'scrap-field', 2)
+    const hideAt = 80_000
+    state.lastTickAt = hideAt
+    state = handleAppHidden(state)
+    const visibleAt = hideAt + 8 * 60 * 1000
+    const { state: visible } = handleAppVisible(state, visibleAt)
+    const scrap = visible.resources.scrap
+    const sim = visible.combat.simTime
+    saveGame(visible)
+    const loaded = loadOrCreateGame(visibleAt + 200)
+    const { state: reloaded } = applyOfflineCatchUp(loaded, visibleAt + 200)
+    expect(reloaded.combat.simTime).toBe(sim)
+    expect(reloaded.combat.sortiePaused).toBe(true)
+    expect(reloaded.resources.scrap).toBeCloseTo(scrap, 5)
+  })
+
+  it('clears sortiePaused when a paused Sortie is Extracted', () => {
+    let state = startCombat(createInitialState(1))
+    state = setSortiePaused(state, true)
+    expect(state.combat.sortiePaused).toBe(true)
+    const extracted = setDocked(state, true)
+    expect(extracted.combat.docked).toBe(true)
+    expect(extracted.combat.inFight).toBe(false)
+    expect(extracted.combat.sortiePaused).toBe(false)
+    expect(isSortieActive(extracted)).toBe(false)
   })
 
   it('does not keep obsolete Route/Sector/checkpoint compatibility stubs', () => {

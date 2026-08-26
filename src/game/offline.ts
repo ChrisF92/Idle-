@@ -3,6 +3,8 @@ import { RESOURCE_LABELS, computeShipStats } from './state'
 import {
   resourceDelta,
   snapshotResources,
+  tickGame,
+  LIVE_TICK_CAP,
   TICK_MS,
 } from './tick'
 import {
@@ -239,4 +241,31 @@ export function applyOfflineCatchUp(
       summary,
     },
   }
+}
+
+/**
+ * Hidden → visible (or a live timer firing after JS was suspended).
+ * Small gaps stay on the live clock; larger gaps reuse industry-only offline catch-up.
+ */
+export function applyWallClock(
+  state: GameState,
+  now = Date.now(),
+  paused = false,
+): { state: GameState; report: OfflineReport | null } {
+  if (paused) {
+    return { state: tickGame(state, now, true), report: null }
+  }
+  const elapsedMs = Math.max(0, now - state.lastTickAt)
+  if (elapsedMs > LIVE_TICK_CAP * TICK_MS) {
+    return applyOfflineCatchUp(state, now)
+  }
+  return { state: tickGame(state, now, false), report: null }
+}
+
+/** Visibility `visible` without a page reload. Combat stays PAUSED; industry catches up. */
+export function handleAppVisible(
+  state: GameState,
+  now = Date.now(),
+): { state: GameState; report: OfflineReport | null } {
+  return applyOfflineCatchUp(state, now)
 }
