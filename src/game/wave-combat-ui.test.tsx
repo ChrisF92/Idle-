@@ -8,7 +8,6 @@ import { createInitialState } from './state'
 import {
   advanceSeconds,
   extractSortie,
-  setDocked,
   setSortiePaused,
   startCombat,
 } from './tick'
