@@ -12,7 +12,7 @@ describe('GDD Act 1 wave cadence', () => {
   it('places major doors on the GDD Wave table', () => {
     expect(ACT1_CADENCE.foundry).toBe(20)
     expect(ACT1_CADENCE.workers).toBe(30)
-    expect(PRESTIGE_MIN_SECTOR).toBe(70)
+    expect(PRESTIGE_MIN_SECTOR).toBe(210)
     expect(ACT1_CADENCE.foundryAdvanced).toBe(90)
     expect(ACT1_CADENCE.furnace).toBe(140)
     expect(ACT1_CADENCE.research).toBe(170)
@@ -35,17 +35,17 @@ describe('GDD Act 1 wave cadence', () => {
     expect(isSystemUnlocked(open, 'foundry')).toBe(true)
   })
 
-  it('allows Rebuild from Dock after Wave 70, not the live sector', () => {
-    let s = atCareerWave(createInitialState(0), 70)
+  it('allows Rebuild from Dock after Wave 210, not the live sector', () => {
+    let s = atCareerWave(createInitialState(0), 210)
     s.combat.docked = true
     s.combat.wave = 1
-    expect(careerBestWave(s)).toBe(70)
+    expect(careerBestWave(s)).toBe(210)
     expect(canPrestige(s)).toBe(true)
   })
 
-  it('keeps Rebuild locked before Wave 70 even if still fighting', () => {
-    let s = atCareerWave(createInitialState(0), 69)
-    s.combat.wave = 69
+  it('keeps Rebuild locked before Wave 210 even if still fighting', () => {
+    let s = atCareerWave(createInitialState(0), 209)
+    s.combat.wave = 209
     s.combat.docked = false
     expect(canPrestige(s)).toBe(false)
   })

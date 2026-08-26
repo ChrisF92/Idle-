@@ -5,6 +5,7 @@ import type {
   PartType,
   ProcessNetworkPreset,
   Resources,
+  RunUpgradeCategory,
   TargetingDoctrineId,
 } from './types'
 import {
@@ -33,7 +34,6 @@ import {
   getFrame,
   STARTER_FRAME_ID,
   getMatterShopItem,
-  matterShopWorkshopStarts,
   getModule,
   getStation,
   legacyChallengeGoalWave,
@@ -56,7 +56,6 @@ import {
   parsePartId,
   partId,
   partSellScrap,
-  prestigeMinSectorFor,
   shopRank,
   stationBlackBarNeed,
   stationEffectiveDrones,
@@ -96,7 +95,7 @@ import {
   setFurnaceChannel,
   setFurnacePriority,
 } from './furnace'
-import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, hiveResearchWorkshopStartRanks, setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
+import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
 import {
   canConfigureTargetingDoctrine,
   canEditTargetingNow,
@@ -117,7 +116,6 @@ import {
   getProtocol,
   noteProtocolProgress,
   protocolGoalWave,
-  protocolModifiers,
   wipeProtocolLoadout,
 } from './protocols'
 import {
@@ -154,14 +152,19 @@ import {
 } from './state'
 import { syncPlayerFleetWeapons } from './combat'
 import {
+  canUnlockNextGeneric,
   createEmptyWorkshop,
-  effectiveUpgradeLevel,
+  ensureGenericUnlocks,
+  isUpgradePermanentlyKnown,
   maxAffordableRunPurchases,
   maxAffordableWorkshopPurchases,
   nextRunUpgradeCost,
-  RUN_UPGRADE_CAP,
   RUN_UPGRADES,
   runPurchasedLevel,
+  sortieCap,
+  tutorialSortieShopActive,
+  TUTORIAL_SORTIE_UPGRADE_IDS,
+  workshopCap,
   workshopCost,
   type RunUpgradeId,
 } from './workshop'
@@ -184,14 +187,20 @@ import {
   tryCompleteAchievements,
 } from './progression'
 import {
+  applyReconstitutionCache,
+  canRebuild,
   emptyRebuildCycle,
-  prestigeGainFor as rebuildMatterGain,
-  rebuildDoorMet,
+  matterGainFor,
+  preserveGenericUnlocks,
+  resetPhysicalCoreLevels,
+  resetWorkshopCycleLevels,
 } from './rebuild'
 import {
   createEmptySignalCoresState,
   unequipAllSignalCores,
 } from './signalCores'
+import { emptyWaveRuntime } from './waveRuntime'
+import { clearDirectives } from './directives'
 import {
   addCoreInstance,
   availableCoreInstances,
@@ -1116,14 +1125,11 @@ export function setCoreTargetingDoctrine(
 }
 
 export function prestigeGainFor(state: GameState): number {
-  return Math.max(
-    1,
-    Math.floor(rebuildMatterGain(state) * protocolModifiers(state).rebuildMatterMult),
-  )
+  return matterGainFor(state)
 }
 
 export function canPrestige(state: GameState): boolean {
-  return Boolean(state.combat.docked) && rebuildDoorMet(state, prestigeMinSectorFor(state.prestige.shop))
+  return canRebuild(state)
 }
 
 /** Ascension unlocks after Act 1; soft-resets the run and boosts future PM gains. */
@@ -1147,7 +1153,7 @@ export function canEnterChallenge(state: GameState, challengeId: string): boolea
   if (challenge.entryCost === 'ascension') {
     return canAscend(state)
   }
-  return careerBestWave(state) >= prestigeMinSectorFor(state.prestige.shop)
+  return careerBestWave(state) >= ACT1_CADENCE.protocols
 }
 
 /** Persist fitted loadout; drop modules that conflict with an active challenge. */
@@ -1233,9 +1239,9 @@ export function buyCoreRunSlot(state: GameState, slot: number, count = 1): GameS
 function applyRunUpgradePurchase(next: GameState, id: RunUpgradeId): boolean {
   const def = RUN_UPGRADES.find((row) => row.id === id)
   if (!def) return false
-  const best = Math.max(next.meta.bestWave ?? 0, next.combat.bestWave ?? 0, next.combat.wave ?? 1)
-  if (best < def.minBestWave) return false
-  if (effectiveUpgradeLevel(next, id) >= RUN_UPGRADE_CAP) return false
+  if (!isUpgradePermanentlyKnown(next, id)) return false
+  if (tutorialSortieShopActive(next) && !TUTORIAL_SORTIE_UPGRADE_IDS.includes(id)) return false
+  if (runPurchasedLevel(next, id) >= sortieCap(id)) return false
   const cost = nextRunUpgradeCost(next, id)
   if (next.resources.salvage < cost) return false
   next.resources.salvage -= cost
@@ -1282,9 +1288,7 @@ export function buyWorkshopUpgrade(state: GameState, id: RunUpgradeId, count = 1
   if (!state.combat.docked) return state
   const def = RUN_UPGRADES.find((row) => row.id === id)
   if (!def) return state
-  if (!state.meta.hullLostOnce) return state
-  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
-  if (best < def.minBestWave) return state
+  if (!isUpgradePermanentlyKnown(state, id)) return state
   const want = count === Number.POSITIVE_INFINITY ? maxAffordableWorkshopPurchases(state, id) : Math.max(1, Math.floor(count))
   if (want <= 0) return state
   const next = structuredClone(state)
@@ -1292,7 +1296,7 @@ export function buyWorkshopUpgrade(state: GameState, id: RunUpgradeId, count = 1
   let bought = 0
   for (let i = 0; i < want; i += 1) {
     const current = Math.max(0, Math.floor(next.workshop.levels?.[id] ?? 0))
-    if (current >= RUN_UPGRADE_CAP) break
+    if (current >= workshopCap(id)) break
     const cost = workshopCost(current)
     if (next.resources.scrap < cost) break
     next.resources.scrap -= cost
@@ -1301,6 +1305,17 @@ export function buyWorkshopUpgrade(state: GameState, id: RunUpgradeId, count = 1
   }
   if (bought <= 0) return state
   syncPersistedHullCaps(next)
+  return next
+}
+
+export function buyGenericUnlock(state: GameState, category: RunUpgradeCategory): GameState {
+  const check = canUnlockNextGeneric(state, category)
+  if (!check.ok) return state
+  const next = structuredClone(state)
+  const unlocks = ensureGenericUnlocks(next)
+  next.resources.scrap -= check.cost
+  unlocks[category] = unlocks[category] + 1
+  next.meta.genericUpgradeUnlocks = unlocks
   return next
 }
 
@@ -1329,6 +1344,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   const kept = {
     prestigeMatter: state.resources.prestigeMatter,
     challengePoints: state.resources.challengePoints,
+    data: state.resources.data,
     /** Achievement AI Points persist; doctrine spend is refunded; shop bonus stacks. */
     aiPoints: state.resources.aiPoints + doctrineRefund,
     essence: state.resources.essence,
@@ -1403,20 +1419,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   }
 
   const fresh = createInitialState(now)
-  const bonusScrap = challengeShopStartingScrap(kept.shop)
-  const bonusAi = challengeShopStartingAi(kept.shop)
-  const bonusSalvage = challengeShopStartingSalvage(kept.shop)
-  /**
-   * Later Rebuilds start with a small kit so re-pushes aren't empty. First
-   * Rebuild wipes Scrap and Salvage (GDD §68) — Matter is the payout, not a
-   * leftover bank. Data kit is smaller now that research persists.
-   */
-  const returning = kept.prestigeCount > 1 || (kept.meta.ascensionCount ?? 0) > 0
-  const pc = kept.prestigeCount
-  const ac = kept.meta.ascensionCount ?? 0
-  const returnScrap = returning ? 16 + Math.min(56, pc * 8 + ac * 10) : 0
-  const returnData = returning ? Math.min(14, 3 + pc + ac * 2) : 0
-  const returnSalvage = returning ? 14 + Math.min(40, pc * 5 + ac * 6) : 0
 
   state.version = fresh.version
   state.lastTickAt = now
@@ -1425,12 +1427,12 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     prestigeMatter: kept.prestigeMatter,
     challengePoints: kept.challengePoints,
     essence: kept.essence,
-    scrap: bonusScrap + returnScrap + (returning ? fresh.resources.scrap : 0),
-    data: fresh.resources.data + returnData,
-    aiPoints: kept.aiPoints + bonusAi,
-    salvage: bonusSalvage + returnSalvage,
+    scrap: 0,
+    data: kept.data ?? state.resources.data,
+    aiPoints: kept.aiPoints,
+    salvage: 0,
     choirAsh: 0,
-    heat: furnaceRestartHeat({ ...state, furnace: kept.furnace } as GameState, kept.heat),
+    heat: furnaceRestartHeat({ ...state, furnace: kept.furnace } as GameState, 0),
   }
   state.shipyard = persistLoadout(
     kept.unlockedFrames,
@@ -1445,12 +1447,9 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     kept.equippedCoreIds,
   )
   state.workshop = createEmptyWorkshop()
-  const kit = matterShopWorkshopStarts(kept.matterShop)
-  const primer = hiveResearchWorkshopStartRanks(state)
-  if (kit + primer > 0) {
-    state.workshop.levels['weapon-power'] = kit + primer
-    if (primer > 0) state.workshop.levels.hull = primer
-  }
+  resetPhysicalCoreLevels(state)
+  resetWorkshopCycleLevels(state)
+  preserveGenericUnlocks(state)
   state.combat = {
     ...fresh.combat,
     bestWave: Math.max(kept.meta.bestWave ?? 0, 0),
@@ -1490,17 +1489,50 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.protocols = kept.protocols
   state.echo = kept.echo
   state.process = kept.process
-  if (bonusAi > 0) {
-    if (!state.process) state.process = createEmptyProcessState()
-    state.process.earned = (state.process.earned ?? 0) + bonusAi
-  }
   state.specialists = kept.specialists
   state.capital = kept.capital
   state.signalCores = kept.signalCores
   state.parts = kept.parts
 
   retirePostResetOnboarding(state)
+  applyReconstitutionCache(state)
+  state.resources.scrap = (state.resources.scrap ?? 0) + challengeShopStartingScrap(state.prestige.shop)
+  state.resources.salvage = (state.resources.salvage ?? 0) + challengeShopStartingSalvage(state.prestige.shop)
+  state.resources.aiPoints += challengeShopStartingAi(state.prestige.shop)
 
+  const stats = computeShipStats(state)
+  state.combat.playerHullMax = stats.hullMax
+  state.combat.playerHull = stats.hullMax
+  state.combat.playerShieldMax = stats.shieldMax
+  state.combat.playerShield = stats.shieldMax
+}
+
+/** Challenge Sortie reset — does not Rebuild, award Matter, or clear the normal cycle. */
+function applyChallengeSortieReset(state: GameState, now = Date.now(), kits = false): void {
+  state.lastTickAt = now
+  state.combat.inFight = false
+  state.combat.sortiePaused = false
+  state.combat.docked = true
+  state.combat.defeatLeft = 0
+  state.combat.defeatTactical = false
+  state.combat.runUpgrades = {}
+  Object.assign(state.combat, emptyWaveRuntime())
+  state.combat.wave = 1
+  state.combat.waveReached = 0
+  state.combat.packages = []
+  state.combat.pendingReinforcements = []
+  state.combat.playerUnits = []
+  state.combat.enemyUnits = []
+  state.combat.sortieMark = null
+  state.shipyard.frameLocked = false
+  clearDirectives(state)
+  endFurnaceSortie(state)
+  state.resources.salvage = 0
+  if (kits) {
+    state.resources.scrap = (state.resources.scrap ?? 0) + challengeShopStartingScrap(state.prestige.shop)
+    state.resources.salvage = challengeShopStartingSalvage(state.prestige.shop)
+    state.resources.aiPoints += challengeShopStartingAi(state.prestige.shop)
+  }
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerHull = stats.hullMax
@@ -1621,29 +1653,23 @@ export function enterChallenge(
   if (!challenge) return state
 
   const next = structuredClone(state)
-  const ascendEntry = challenge.entryCost === 'ascension'
-  let gain: number
-  if (ascendEntry) {
-    // ITRTG-style: starting the challenge IS the ascension.
-    gain = Math.max(1, Math.floor(prestigeGainFor(next) * 0.5))
-    next.resources.prestigeMatter += gain
+  const cycle = { ...next.prestige.cycle }
+  const prestigeCount = next.prestige.prestigeCount
+  const matter = next.resources.prestigeMatter
+  if (challenge.entryCost === 'ascension') {
     next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
-  } else {
-    gain = prestigeGainFor(next)
-    next.resources.prestigeMatter += gain
-    next.prestige.prestigeCount += 1
   }
   next.prestige.activeChallengeId = challengeId
-  applyRunReset(next, now)
+  applyChallengeSortieReset(next, now, true)
+  next.prestige.cycle = cycle
+  next.prestige.prestigeCount = prestigeCount
+  next.resources.prestigeMatter = matter
   if (challengeId === 'null-signal') {
     unequipAllSignalCores(next)
   }
   tryCompleteAchievements(next)
-  const entryLabel = ascendEntry
-    ? `Ascension ×${next.meta.ascensionCount}`
-    : 'Prestige'
   next.combat.log = [
-    `Entered challenge: ${challenge.name} via ${entryLabel} (+${gain} Rebuild Matter). Goal: Wave ${legacyChallengeGoalWave(challenge)}.`,
+    `Entered challenge: ${challenge.name}. Goal: Wave ${legacyChallengeGoalWave(challenge)}. This is not a Rebuild.`,
     ...next.combat.log,
   ]
   return next
@@ -1654,8 +1680,14 @@ export function abandonChallenge(state: GameState, now = Date.now()): GameState 
   if (!activeId) return state
   const next = structuredClone(state)
   const name = getChallenge(activeId)?.name ?? 'Challenge'
+  const cycle = { ...next.prestige.cycle }
+  const prestigeCount = next.prestige.prestigeCount
+  const matter = next.resources.prestigeMatter
   next.prestige.activeChallengeId = null
-  applyRunReset(next, now)
+  applyChallengeSortieReset(next, now, false)
+  next.prestige.cycle = cycle
+  next.prestige.prestigeCount = prestigeCount
+  next.resources.prestigeMatter = matter
   next.combat.log = [`Abandoned ${name}.`, ...next.combat.log]
   return next
 }

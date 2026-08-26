@@ -34,7 +34,7 @@ function atFoundry(wave = ACT1_CADENCE.foundry) {
 
 describe('GDD Foundry factory', () => {
   it('bumps SAVE_VERSION for the factory shape', () => {
-    expect(SAVE_VERSION).toBe(43)
+    expect(SAVE_VERSION).toBe(44)
   })
 
   it('opens with one processing slot and one fabrication slot', () => {

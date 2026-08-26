@@ -1,184 +1,98 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats, SAVE_VERSION } from './state'
-import { buyMatterShop, performPrestige } from './actions'
-import { encounterForWave, repairRatePerSecond } from './combat'
-import {
-  canBuyMatterShop,
-  droneCap,
-  matterShopEffectScale,
-  matterShopScrapBonus,
-  metaProductionMultiplier,
-  nextShopCost,
-  shopRank,
-} from './catalog'
-import { startCombat } from './tick'
-import { reclaimSpeed } from './workshop'
-import { clearSector } from './testHelpers'
+import { buyMatterShop, performRebuild } from './actions'
+import { canBuyMatterShop, droneCap, shopRank } from './catalog'
 import { exportSave, importSave } from './save'
-import { NETWORK_STARTING_DRONES } from './network'
+import { armRebuildDoor } from './testHelpers'
+import {
+  MATTER_SHOP,
+  TIME_COMPRESSION_I_COST,
+  TIME_COMPRESSION_II_COST,
+  TIME_COMPRESSION_III_COST,
+  reconstitutionStartingScrap,
+  weaponCalibrationMult,
+} from './matter'
 
-describe('prestige matter shop', () => {
-  it('spends PM on matter-blade and boosts damage more than banking', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 3
+describe('canonical Matter shop', () => {
+  it('has twelve nodes and exact Time Compression costs', () => {
+    expect(MATTER_SHOP.map((row) => row.id)).toEqual([
+      'weapon-calibration',
+      'traverse-actuators',
+      'structural-memory',
+      'field-memory',
+      'recovery-charter',
+      'foundry-throughput',
+      'worker-racks',
+      'reconstitution-cache',
+      'sortie-provisioning',
+      'time-compression-1',
+      'time-compression-2',
+      'time-compression-3',
+    ])
+    expect(MATTER_SHOP.find((row) => row.id === 'time-compression-1')?.costs).toEqual([TIME_COMPRESSION_I_COST])
+    expect(MATTER_SHOP.find((row) => row.id === 'time-compression-2')?.costs).toEqual([TIME_COMPRESSION_II_COST])
+    expect(MATTER_SHOP.find((row) => row.id === 'time-compression-3')?.costs).toEqual([TIME_COMPRESSION_III_COST])
+    expect(MATTER_SHOP.some((row) => /blade|forge|tempo|clock|kit|plating/.test(row.id))).toBe(false)
+  })
+
+  it('Weapon Calibration raises weapon-Core output and persists across Rebuild', () => {
+    let state = armRebuildDoor(createInitialState(0))
+    state.resources.prestigeMatter = 4
     const bankedDamage = computeShipStats(state).damage
-    state = buyMatterShop(state, 'matter-blade')
-    expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(1)
+    state = buyMatterShop(state, 'weapon-calibration')
+    expect(shopRank(state.prestige.matterShop, 'weapon-calibration')).toBe(1)
     expect(state.resources.prestigeMatter).toBe(0)
+    expect(weaponCalibrationMult(state)).toBeCloseTo(1.04)
     expect(computeShipStats(state).damage).toBeGreaterThan(bankedDamage)
+    state = performRebuild(state, { frameId: state.shipyard.frameId, modules: state.shipyard.modules })
+    expect(shopRank(state.prestige.matterShop, 'weapon-calibration')).toBe(1)
   })
 
-  it('matter-forge boosts production beyond banked PM', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 3
-    const banked = metaProductionMultiplier(3, {})
-    state = buyMatterShop(state, 'matter-forge')
-    const spent = metaProductionMultiplier(
-      state.resources.prestigeMatter,
-      state.prestige.matterShop,
-    )
-    expect(spent).toBeGreaterThan(banked)
-  })
-
-  it('matter-plating adds hull', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 4
-    const before = computeShipStats(state).hullMax
-    state = buyMatterShop(state, 'matter-plating')
-    expect(computeShipStats(state).hullMax).toBeCloseTo(before + 80)
-  })
-
-  it('salvage-rights increases combat scrap multiplier', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 3
-    state = buyMatterShop(state, 'salvage-rights')
-    expect(matterShopScrapBonus(state.prestige.matterShop)).toBe(0.25)
-  })
-
-  it('drydock-boost increases repair rate', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 4
-    const before = repairRatePerSecond(state)
-    state = buyMatterShop(state, 'drydock-boost')
-    expect(repairRatePerSecond(state)).toBeGreaterThan(before)
-  })
-
-  it('shield-bank adds permanent shield capacity', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 4
-    const before = computeShipStats(state).shieldMax
-    state = buyMatterShop(state, 'shield-bank')
-    expect(computeShipStats(state).shieldMax).toBeCloseTo(before + 65)
-  })
-
-  it('archive-spur grants extra data on clear', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 3
-    state.meta.highestSectorEver = 34
-    state = buyMatterShop(state, 'archive-spur')
-    state.resources.data = 0
-    state = startCombat(state)
-    const enemy = encounterForWave(state.combat.sector, 5)
-    state = clearSector(state)
-    expect(state.resources.data).toBe(enemy.dataReward + 2)
-  })
-
-  it('Reclaim Clock speeds solved Waves and Workshop Kit is Foundation', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 4
-    state.meta.bestWave = 80
-    state.combat.bestWave = 80
-    state.combat.wave = 20
-    const base = reclaimSpeed(state)
-    state = buyMatterShop(state, 'reclaim-clock')
-    expect(reclaimSpeed(state)).toBeGreaterThan(base)
-  })
-
-  it('keeps matter shop purchases across prestige', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 3
-    state = buyMatterShop(state, 'matter-blade')
-    state = performPrestige(state, 8000)
-    expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(1)
-  })
-
-  it('rejects purchase without enough PM', () => {
+  it('rejects purchase without enough Matter', () => {
     let state = createInitialState(0)
     state.resources.prestigeMatter = 2
-    state = buyMatterShop(state, 'matter-blade')
-    expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(0)
+    state = buyMatterShop(state, 'weapon-calibration')
+    expect(shopRank(state.prestige.matterShop, 'weapon-calibration')).toBe(0)
     expect(state.resources.prestigeMatter).toBe(2)
   })
 
-  it('ranks use steeper costs while key meta effects compound', () => {
-    expect(nextShopCost(3, 0)).toBe(3)
-    expect(nextShopCost(3, 1)).toBe(6)
-    expect(matterShopEffectScale(1)).toBe(1)
-    expect(matterShopEffectScale(2)).toBeCloseTo(1.45)
-    expect(matterShopEffectScale(0)).toBe(0)
-
+  it('Worker Racks raise capacity without fabricating Workers', () => {
     let state = createInitialState(0)
-    state.resources.prestigeMatter = 9
-    state.prestige.prestigeCount = 2
-    state = buyMatterShop(state, 'matter-blade')
-    expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(1)
-    state = buyMatterShop(state, 'matter-blade')
-    expect(shopRank(state.prestige.matterShop, 'matter-blade')).toBe(2)
-    expect(state.resources.prestigeMatter).toBe(0)
-    // 8% * 1.45 = 11.6% from shop; banked 0
-    const mult = 1 + 0.08 * 1.45
-    expect(computeShipStats(state).damage).toBeGreaterThan(
-      computeShipStats({
-        ...createInitialState(0),
-        resources: { ...createInitialState(0).resources, prestigeMatter: 0 },
-      }).damage * (mult - 0.01),
-    )
-  })
-
-  it('gates rank 4+ without a Rebuild or sector 12 career', () => {
-    let state = createInitialState(0)
-    state.prestige.matterShop = { 'matter-blade': 3 }
-    state.resources.prestigeMatter = 100
-    state.prestige.prestigeCount = 0
-    state.meta.highestSectorEver = 10
-    const check = canBuyMatterShop(state, 'matter-blade')
-    expect(check.ok).toBe(false)
-    expect(check.reason).toMatch(/rank 4/)
-    state.prestige.prestigeCount = 1
-    expect(canBuyMatterShop(state, 'matter-blade').ok).toBe(true)
-  })
-
-  it('loads array-shaped shops on a current-version save', () => {
-    const legacy = createInitialState(0)
-    const raw = {
-      ...legacy,
-      prestige: {
-        ...legacy.prestige,
-        shop: ['iron-will'],
-        matterShop: ['matter-blade', 'matter-forge'],
-      },
-    }
-    const code = btoa(unescape(encodeURIComponent(JSON.stringify(raw))))
-    const migrated = importSave(code)
-    expect(migrated).not.toBeNull()
-    expect(migrated!.version).toBe(SAVE_VERSION)
-    expect(shopRank(migrated!.prestige.matterShop, 'matter-blade')).toBe(1)
-    expect(shopRank(migrated!.prestige.matterShop, 'matter-forge')).toBe(1)
-    expect(shopRank(migrated!.prestige.shop, 'iron-will')).toBe(1)
-    const again = importSave(exportSave(migrated!))
-    expect(shopRank(again!.prestige.matterShop, 'matter-blade')).toBe(1)
-  })
-
-  it('drone-corps raises corps capacity each rank', () => {
-    let state = createInitialState(0)
-    state.resources.prestigeMatter = 15
-    state.prestige.prestigeCount = 2
+    state.resources.prestigeMatter = 5
     const before = droneCap(state)
-    state = buyMatterShop(state, 'drone-corps')
-    expect(droneCap(state)).toBe(before + 5)
-    expect(state.base.workerDrones).toBe(NETWORK_STARTING_DRONES)
-    state = buyMatterShop(state, 'drone-corps')
-    expect(droneCap(state)).toBe(before + 10)
-    expect(shopRank(state.prestige.matterShop, 'drone-corps')).toBe(2)
+    const workers = state.base.workerDrones
+    state = buyMatterShop(state, 'worker-racks')
+    expect(droneCap(state)).toBe(before + 1)
+    expect(state.base.workerDrones).toBe(workers)
+  })
+
+  it('Reconstitution Cache grants starting Scrap that is not cycle-generated', () => {
+    let state = armRebuildDoor(createInitialState(0))
+    state.resources.prestigeMatter = 5
+    state = buyMatterShop(state, 'reconstitution-cache')
+    expect(reconstitutionStartingScrap(state)).toBe(24)
+    state = performRebuild(state, { frameId: state.shipyard.frameId, modules: state.shipyard.modules })
+    expect(state.resources.scrap).toBe(24)
+    expect(state.prestige.cycle.scrapGenerated).toBe(0)
+  })
+
+  it('cannot buy Time Compression II before I', () => {
+    const state = createInitialState(0)
+    state.resources.prestigeMatter = 200
+    expect(canBuyMatterShop(state, 'time-compression-2').ok).toBe(false)
+    expect(canBuyMatterShop(state, 'time-compression-3').ok).toBe(false)
+  })
+
+  it('round-trips Matter ranks on a current-version save', () => {
+    const state = createInitialState(0)
+    state.prestige.matterShop = { 'weapon-calibration': 2, 'time-compression-1': 1 }
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(state))))
+    const loaded = importSave(code)
+    expect(loaded).not.toBeNull()
+    expect(loaded!.version).toBe(SAVE_VERSION)
+    expect(shopRank(loaded!.prestige.matterShop, 'weapon-calibration')).toBe(2)
+    expect(shopRank(loaded!.prestige.matterShop, 'time-compression-1')).toBe(1)
+    const again = importSave(exportSave(loaded!))
+    expect(shopRank(again!.prestige.matterShop, 'weapon-calibration')).toBe(2)
   })
 })

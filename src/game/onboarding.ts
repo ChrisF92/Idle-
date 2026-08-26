@@ -8,6 +8,8 @@ import { practicedCoreWork } from './corePractice'
 import { targetCapableLoadoutCores } from './coreTargeting'
 import { firstRebuildAvailable, hasHullLostOnce, isSystemUnlocked } from './progression'
 import { firstAffordableProcessNode } from './process'
+import { anyMatterPurchaseOwned, MATTER_SHOP } from './matter'
+import { canBuyMatterShop } from './catalog'
 import type { GameState, TabId } from './types'
 import { workshopCost, workshopLevel } from './workshop'
 
@@ -20,6 +22,8 @@ export const ONBOARDING_LESSON_IDS = [
   'workers.assignment',
   'directives.choice',
   'rebuild.preview',
+  'rebuild.matter',
+  'extraction.first-use',
   'relic.install',
   'furnace.channel',
   'research.project',
@@ -43,6 +47,8 @@ export const SEMANTIC_TARGET_IDS = [
   'onboarding.foundry.processor',
   'onboarding.workers.salvage',
   'onboarding.rebuild.preview',
+  'onboarding.rebuild.matter',
+  'onboarding.extraction.first-use',
   'onboarding.research.available-node',
   'onboarding.process.first-capability',
   'onboarding.directives.choice',
@@ -288,7 +294,8 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     title: 'Scrap survives Sorties',
     body: (s) => [
       `You recovered ${recoveredScrap(s)} Scrap.`,
-      'Workshop upgrades raise the starting level of every future Sortie this Rebuild cycle.',
+      'Workshop levels use Scrap. They survive Sortie end and reset on Rebuild.',
+      'Permanent NEXT UPGRADE unlocks also use Scrap, survive Rebuild, and grant zero levels.',
     ],
     actionLabel: 'Buy Weapon Power',
     payoff: (s) => {
@@ -364,12 +371,13 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
   },
   {
     id: 'rebuild.preview',
-    title: 'Rebuild Preview',
+    title: 'Rebuild',
     body: [
-      'Preview RESET, KEEP, and GAIN before you confirm.',
-      'Rebuild is optional — open Preview when you are ready.',
+      'Projected Matter comes from this cycle’s Best Wave and Scrap generated.',
+      'Rebuild resets Scrap, Workshop levels, Core Levels, and Ash. Matter, Cores, Foundry, and unlocks stay.',
     ],
-    actionLabel: 'Preview Rebuild',
+    actionLabel: 'Confirm Rebuild',
+    payoff: 'Matter awarded. Next: buy a permanent Matter rank.',
     target: 'onboarding.rebuild.preview',
     nav: { tab: 'dock', pane: 'rebuild' },
     pause: false,
@@ -378,6 +386,45 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     activation: 'visit',
     availableWhen: (s) => s.combat.docked && firstRebuildAvailable(s),
     completeWhen: (s) => (s.prestige.prestigeCount ?? 0) > 0,
+  },
+  {
+    id: 'rebuild.matter',
+    title: 'Matter shop',
+    body: [
+      'Unspent Matter has no power. Buy a permanent rank.',
+      'Any affordable node completes this step.',
+    ],
+    actionLabel: 'Buy a Matter rank',
+    payoff: 'Permanent effect unlocked. Launch remains manual.',
+    target: 'onboarding.rebuild.matter',
+    nav: { tab: 'dock', pane: 'rebuild' },
+    pause: false,
+    skippable: true,
+    required: false,
+    activation: 'auto',
+    availableWhen: (s) =>
+      s.combat.docked &&
+      (s.prestige.prestigeCount ?? 0) > 0 &&
+      !anyMatterPurchaseOwned(s) &&
+      MATTER_SHOP.some((item) => canBuyMatterShop(s, item.id).ok),
+    completeWhen: (s) => anyMatterPurchaseOwned(s) || !MATTER_SHOP.some((item) => canBuyMatterShop(s, item.id).ok),
+  },
+  {
+    id: 'extraction.first-use',
+    title: 'Extraction',
+    body: [
+      'Extract is a safe Sortie end. You keep persistent rewards.',
+      'Bonus is Scrap only. This is not a Rebuild. No Matter is awarded.',
+    ],
+    actionLabel: 'Review Extract',
+    target: 'onboarding.extraction.first-use',
+    nav: { tab: 'combat' },
+    pause: true,
+    skippable: true,
+    required: false,
+    activation: 'visit',
+    availableWhen: () => false,
+    completeWhen: (s) => Boolean(s.meta.extractionExplained),
   },
   {
     id: 'relic.install',
@@ -537,7 +584,7 @@ function resolveLesson(lesson: OnboardingLesson, state: GameState, phase: 'actio
     required: lesson.required,
     phase,
     payoff: lesson.payoff ? linesOf(lesson.payoff, state) : undefined,
-    completeOnTap: lesson.id === 'rebuild.preview',
+    completeOnTap: false,
   }
 }
 
@@ -721,6 +768,8 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
     'workers.assignment': ACT1_CADENCE.workers,
     'directives.choice': ACT1_CADENCE.directives,
     'rebuild.preview': ACT1_CADENCE.rebuild,
+    'rebuild.matter': ACT1_CADENCE.rebuild,
+    'extraction.first-use': ACT1_CADENCE.rebuild,
     'relic.install': ACT1_CADENCE.reliquary,
     'furnace.channel': ACT1_CADENCE.furnace,
     'research.project': ACT1_CADENCE.research,
@@ -777,8 +826,8 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
       break
     case 'rebuild.preview':
       next.prestige.cycle = {
-        ...(next.prestige.cycle ?? { bestWave: 0, sorties: 0, scrapEarned: 0 }),
-        sorties: Math.max(next.prestige.cycle?.sorties ?? 0, 3),
+        ...(next.prestige.cycle ?? { bestWave: 0, normalSortiesCompleted: 0, scrapGenerated: 0 }),
+        normalSortiesCompleted: Math.max(next.prestige.cycle?.normalSortiesCompleted ?? 0, 3),
         bestWave: Math.max(next.prestige.cycle?.bestWave ?? 0, ACT1_CADENCE.rebuild),
       }
       break
@@ -831,6 +880,6 @@ export const NETWORK_GUIDE_IDS = ['workers.assignment'] as const
 export const FOUNDRY_V2_GUIDE_IDS = ['foundry.processing'] as const
 export const RESEARCH_V2_GUIDE_IDS = ['research.project'] as const
 export const FURNACE_V2_GUIDE_IDS = ['furnace.channel'] as const
-export const REBUILD_GUIDE_IDS = ['rebuild.preview'] as const
+export const REBUILD_GUIDE_IDS = ['rebuild.preview', 'rebuild.matter'] as const
 export const NETWORK_RELAY_GUIDE_IDS = [] as const
 export const PROTOCOL_V2_GUIDE_IDS = [] as const

@@ -388,6 +388,7 @@ function AppShell() {
             onOpenSortie={() => go('combat')}
             onRebuild={() => setHangarOpen(true)}
             onBuyWorkshop={game.buyWorkshopUpgrade}
+            onUnlockGeneric={game.buyGenericUnlock}
             onPickMilestone={game.pickCoreMilestone}
             onEquipRelic={game.equipRelic}
             onRemoveRelic={game.removeRelic}
@@ -410,9 +411,13 @@ function AppShell() {
               game.setDocked(false)
             }}
             onExtract={() => {
-              game.setDocked(true)
+              game.extractSortie()
               setDockPane('home')
               setTab('dock')
+            }}
+            onExtractSheetOpen={() => {
+              game.setSortiePaused(true)
+              game.markExtractionExplained()
             }}
             onPause={() => game.setSortiePaused(true)}
             onResume={() => game.setSortiePaused(false)}

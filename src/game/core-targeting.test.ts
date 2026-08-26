@@ -810,7 +810,7 @@ describe('physical shot origin and persistence', () => {
     core.heading = 1.7
     core.orbitAngle = 0.4
     core.targetingTelemetry = { ...emptyTargetingTelemetry(), targetSwitches: 3, timeSlewLimited: 1.2 }
-    expect(SAVE_VERSION).toBe(43)
+    expect(SAVE_VERSION).toBe(44)
     saveGame(state)
     const loaded = loadOrCreateGame()
     const loadedCore = loaded.combat.playerUnits.find((u) => u.isCore)!

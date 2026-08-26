@@ -28,7 +28,7 @@ export const GDD_DOOR_PRESETS = [
   { wave: ACT1_CADENCE.foundry, label: 'W20 Foundry' },
   { wave: ACT1_CADENCE.workers, label: 'W30 Workers' },
   { wave: ACT1_CADENCE.directives, label: 'W50 Directives' },
-  { wave: ACT1_CADENCE.rebuild, label: 'W70 Rebuild' },
+  { wave: ACT1_CADENCE.rebuild, label: 'W210 Rebuild' },
   { wave: ACT1_CADENCE.reliquary, label: 'W110 Relics' },
   { wave: ACT1_CADENCE.furnace, label: 'W140 Furnace' },
   { wave: ACT1_CADENCE.research, label: 'W170 Research' },
@@ -93,10 +93,13 @@ export function grantCareerBestWave(state: GameState, wave: number): void {
   const w = Math.max(0, Math.floor(wave))
   state.meta.bestWave = Math.max(state.meta.bestWave ?? 0, w)
   state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, w)
-  if (!state.prestige.cycle) state.prestige.cycle = { bestWave: 0, sorties: 0, scrapEarned: 0 }
+  if (!state.prestige.cycle) state.prestige.cycle = { bestWave: 0, normalSortiesCompleted: 0, scrapGenerated: 0 }
   state.prestige.cycle.bestWave = Math.max(state.prestige.cycle.bestWave ?? 0, w)
   if (w >= ACT1_CADENCE.rebuild) {
-    state.prestige.cycle.sorties = Math.max(state.prestige.cycle.sorties ?? 0, REBUILD_MIN_SORTIES)
+    state.prestige.cycle.normalSortiesCompleted = Math.max(
+      state.prestige.cycle.normalSortiesCompleted ?? 0,
+      REBUILD_MIN_SORTIES,
+    )
   }
   noteCareerWave(state, w)
 }

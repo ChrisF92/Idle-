@@ -4,10 +4,11 @@ import { buyMatterShop, performRebuild } from './actions'
 import { canBuyMatterShop, getMatterShopItem, MATTER_SHOP, shopRank } from './catalog'
 import { unlockedFoundryLogs } from './logs'
 import { GUIDE_STEPS, isSystemUnlocked } from './progression'
+import { armRebuildDoor } from './testHelpers'
 
 describe('Slag Bank', () => {
-  it('keeps save version 34', () => {
-    expect(SAVE_VERSION).toBe(43)
+  it('bumps save version with the Matter shop rewrite', () => {
+    expect(SAVE_VERSION).toBe(44)
   })
 
   it('unlocks with the first Rebuild while Yard waits for later mastery', () => {
@@ -15,8 +16,7 @@ describe('Slag Bank', () => {
     expect(isSystemUnlocked(fresh, 'slag')).toBe(false)
     expect(isSystemUnlocked(fresh, 'yard')).toBe(false)
 
-    let s = createInitialState(0)
-    s.meta.highestSectorEver = 12
+    let s = armRebuildDoor(createInitialState(0))
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(isSystemUnlocked(s, 'slag')).toBe(true)
     expect(isSystemUnlocked(s, 'yard')).toBe(false)
@@ -26,22 +26,22 @@ describe('Slag Bank', () => {
   it('spends Rebuild Matter on hangar ranks through the shop path', () => {
     let s = createInitialState(0)
     s.prestige.prestigeCount = 1
-    s.resources.prestigeMatter = 3
+    s.resources.prestigeMatter = 4
     expect(isSystemUnlocked(s, 'slag')).toBe(true)
-    expect(canBuyMatterShop(s, 'matter-blade').ok).toBe(true)
+    expect(canBuyMatterShop(s, 'weapon-calibration').ok).toBe(true)
 
-    s = buyMatterShop(s, 'matter-blade')
-    expect(shopRank(s.prestige.matterShop, 'matter-blade')).toBe(1)
+    s = buyMatterShop(s, 'weapon-calibration')
+    expect(shopRank(s.prestige.matterShop, 'weapon-calibration')).toBe(1)
     expect(s.resources.prestigeMatter).toBe(0)
-    expect(canBuyMatterShop(s, 'matter-blade').ok).toBe(false)
-    expect(canBuyMatterShop(s, 'matter-blade').reason).toMatch(/Rebuild Matter/)
+    expect(canBuyMatterShop(s, 'weapon-calibration').ok).toBe(false)
+    expect(canBuyMatterShop(s, 'weapon-calibration').reason).toMatch(/Need|Matter/)
   })
 
-  it('uses Hiveworks rank names without a forced More-station tour', () => {
-    expect(getMatterShopItem('matter-blade')?.name).toBe('Edge')
-    expect(getMatterShopItem('matter-forge')?.name).toBe('Forge')
-    expect(getMatterShopItem('matter-plating')?.name).toBe('Plate')
-    expect(MATTER_SHOP.length).toBeGreaterThan(8)
+  it('uses canonical Matter names without a forced More-station tour', () => {
+    expect(getMatterShopItem('weapon-calibration')?.name).toBe('Weapon Calibration')
+    expect(getMatterShopItem('foundry-throughput')?.name).toBe('Foundry Throughput')
+    expect(getMatterShopItem('structural-memory')?.name).toBe('Structural Memory')
+    expect(MATTER_SHOP).toHaveLength(12)
     expect(GUIDE_STEPS.some((step) => step.id === 'guide-slag')).toBe(false)
   })
 })

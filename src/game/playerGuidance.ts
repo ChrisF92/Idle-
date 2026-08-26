@@ -7,6 +7,7 @@ import { prestigeGainFor } from './actions'
 import { firstAffordableProcessNode } from './process'
 import { isSystemUnlocked } from './progression'
 import { isEstablishedCareer, migrateOnboardingRegistry, ONBOARDING_LESSON_IDS } from './onboarding'
+import { REBUILD_KEEPS, REBUILD_RESETS } from './rebuild'
 import type { GameState } from './types'
 
 export { isEstablishedCareer }
@@ -29,22 +30,8 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
     `+${prestigeGainFor(state)} Rebuild Matter`,
     'Rebuild trades current-cycle development for permanent growth.',
   ]
-  const keep: string[] = [
-    'Career Best Wave',
-    'Unlocked systems',
-    'Hive Frames and Core unlocks',
-    'Core Mastery',
-    'Rebuild Matter',
-    'Long-term statistics',
-  ]
-  const reset = [
-    'Current Sortie',
-    'Salvage',
-    'Run upgrades',
-    'Directives',
-    'Scrap',
-    'Workshop',
-  ]
+  const keep: string[] = [...REBUILD_KEEPS]
+  const reset = [...REBUILD_RESETS]
   const change: string[] = []
 
   if (isSystemUnlocked(state, 'foundry')) {
@@ -52,11 +39,6 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   }
   if (isSystemUnlocked(state, 'reliquary')) keep.push('Relics')
   if (isSystemUnlocked(state, 'research')) keep.push('Research')
-  if (isSystemUnlocked(state, 'furnace')) {
-    reset.push('Ash', 'Heat')
-  } else {
-    reset.push('Heat')
-  }
   if (isSystemUnlocked(state, 'process')) keep.push('Process')
   if (isSystemUnlocked(state, 'yard')) keep.push('Foundry infrastructure')
   if (isSystemUnlocked(state, 'protocols')) keep.push('Challenge ranks')

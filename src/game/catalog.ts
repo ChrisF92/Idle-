@@ -6,7 +6,25 @@ import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { meetsWave } from './waves'
 import { formatCompact, formatStat } from './format'
 import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
+import {
+  MATTER_SHOP,
+  MATTER_SHOP_CATEGORIES,
+  canBuyMatterShop as canBuyCanonicalMatterShop,
+  getMatterShopItem as getCanonicalMatterItem,
+  matterShopEffectBlurb as canonicalMatterBlurb,
+  matterShopItemsIn as canonicalMatterItemsIn,
+  matterWorkerCapacityBonus,
+  type MatterShopCategory,
+  type MatterShopDef,
+} from './matter'
 import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
+
+export {
+  MATTER_SHOP,
+  MATTER_SHOP_CATEGORIES,
+  type MatterShopCategory,
+  type MatterShopDef,
+}
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
@@ -82,11 +100,6 @@ export interface AiNodeDef {
   droneCapBonus?: number
   /** Additive Fabrication Bay craft speed (0.5 = +50%). Non-combat. */
   fabBonus?: number
-  /**
-   * Combat sim speed multiplier while owned.
-   * Highest owned value wins; never applied to industry / fab / training.
-   */
-  combatSpeedMult?: number
 }
 
 export interface EssenceUpgradeDef {
@@ -155,60 +168,6 @@ export interface ChallengeShopDef {
   requiresMetaAny?: ShopMetaAnyGate
   /** When purchased rank≥1, ensure this module is in unlockedModules. */
   unlockModuleId?: string
-}
-
-export type MatterShopCategory =
-  | 'offensive'
-  | 'defensive'
-  | 'industrial'
-  | 'foundation'
-  | 'temporal'
-
-export const MATTER_SHOP_CATEGORIES: { id: MatterShopCategory; name: string }[] = [
-  { id: 'offensive', name: 'Offensive' },
-  { id: 'defensive', name: 'Defensive' },
-  { id: 'industrial', name: 'Industrial' },
-  { id: 'foundation', name: 'Foundation' },
-  { id: 'temporal', name: 'Temporal' },
-]
-
-export interface MatterShopDef {
-  id: string
-  name: string
-  description: string
-  category: MatterShopCategory
-  costPm: number
-  /** Max purchase rank (default 1). */
-  maxRank?: number
-  /** Weapon Power Workshop ranks applied after each Rebuild. */
-  workshopStartRanks?: number
-  /** Additive reclaim-speed bonus per rank (solved-wave compression). */
-  reclaimBonus?: number
-  damageBonus?: number
-  productionBonus?: number
-  hullBonus?: number
-  shieldBonus?: number
-  /** Multiplier on combat scrap rewards (0.25 = +25%). */
-  scrapBonus?: number
-  bonusDataPerClear?: number
-  /**
-   * Marker for drydock repair speed item. Rank r grants speed
-   * `0.4 * (1 + 0.45*(r-1))`, applied as repairMult = 1/(1+speed).
-   */
-  repairMult?: number
-  /** @deprecated Prefer droneCapBonus. */
-  bonusWorkerDrones?: number
-  /** Flat corps capacity per rank (summed; not diminishing-scaled). */
-  droneCapBonus?: number
-  /** Additive drone power per rank scale (0.2 = +20% at rank 1). */
-  dronePowerBonus?: number
-  manufactureBonus?: number
-  /** Additive Core training speed bonus per rank scale (0.12 = +12% at rank 1). */
-  trainingBonus?: number
-  /** Additive blueprint part drop chance (0.1 = +10% at rank 1). */
-  dropBonus?: number
-  /** Unlocks a combat speed option (1.5 / 2 / 3). Highest owned wins. */
-  combatSpeed?: number
 }
 
 export interface ChallengeDef {
@@ -650,43 +609,10 @@ export const AI_NODES: AiNodeDef[] = [
   {
     id: 'tactical-retreat',
     name: 'Tactical Retreat',
-    description: 'Doctrine: disengage at 25% Hive hull instead of destruction.',
+    description: 'Doctrine: leftover. Canonical Extraction is a player action, not an automatic Hull-threshold extract.',
     costAiPoints: 2,
     kind: 'doctrine',
     permanent: false,
-  },
-  // --- Combat speed (combat dt only) ---
-  {
-    id: 'combat-chrono-1',
-    name: 'Combat Chrono I',
-    description: 'Combat runs at 1.5× speed. Industry, fab, and training stay at 1×.',
-    costAiPoints: 5,
-    kind: 'automation',
-    permanent: true,
-    requiresBestWave: 150,
-    combatSpeedMult: 1.5,
-  },
-  {
-    id: 'combat-chrono-2',
-    name: 'Combat Chrono II',
-    description: 'Combat runs at 2× speed. Requires Chrono I.',
-    costAiPoints: 8,
-    kind: 'automation',
-    permanent: true,
-    requiresBestWave: 200,
-    requiresAiNode: 'combat-chrono-1',
-    combatSpeedMult: 2,
-  },
-  {
-    id: 'combat-chrono-3',
-    name: 'Combat Chrono III',
-    description: 'Combat runs at 3× speed. Requires Chrono II.',
-    costAiPoints: 12,
-    kind: 'automation',
-    permanent: true,
-    requiresBestWave: 250,
-    requiresAiNode: 'combat-chrono-2',
-    combatSpeedMult: 3,
   },
   // --- Non-combat speed ---
   {
@@ -794,14 +720,6 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     matchupBonus: 0.06,
   },
   {
-    id: 'early-gate',
-    name: 'Early Gate',
-    description: 'Rebuild / enter challenges twenty Waves earlier.',
-    costCp: 1,
-    maxRank: 1,
-    prestigeMinSector: ACT1_CADENCE.rebuild - 20,
-  },
-  {
     id: 'supply-cache',
     name: 'Supply Cache',
     description: 'Each run starts with +20 scrap per rank.',
@@ -894,138 +812,6 @@ export const CHALLENGE_SHOP: ChallengeShopDef[] = [
     maxRank: 6,
     dropBonus: 0.15,
     requiresPrestiges: 1,
-  },
-]
-
-/** Spend Rebuild Matter for stronger specialized permanents (vs banked +0.5% dmg/prod). */
-export const MATTER_SHOP: MatterShopDef[] = [
-  {
-    id: 'matter-blade',
-    name: 'Edge',
-    description: 'Permanent combat multiplier. Each rank compounds at ×1.15.',
-    category: 'offensive',
-    costPm: 3,
-    maxRank: 25,
-    damageBonus: 0.15,
-  },
-  {
-    id: 'matter-forge',
-    name: 'Forge',
-    description: 'Permanent production multiplier. Each rank compounds at ×1.15.',
-    category: 'industrial',
-    costPm: 3,
-    maxRank: 25,
-    productionBonus: 0.15,
-  },
-  {
-    id: 'matter-plating',
-    name: 'Plate',
-    description: 'Permanent hull reinforcement. Flat gains accelerate across ranks.',
-    category: 'defensive',
-    costPm: 4,
-    maxRank: 25,
-    hullBonus: 80,
-  },
-  {
-    id: 'salvage-rights',
-    name: 'Salvage Rights',
-    description: 'Permanent +25% scrap from combat clears (deep ranks).',
-    category: 'industrial',
-    costPm: 3,
-    maxRank: 30,
-    scrapBonus: 0.25,
-  },
-  {
-    id: 'archive-spur',
-    name: 'Archive Spur',
-    description: 'Permanent +2 Data on every 10-wave clear (deep ranks).',
-    category: 'temporal',
-    costPm: 3,
-    maxRank: 30,
-    bonusDataPerClear: 2,
-  },
-  {
-    id: 'drydock-boost',
-    name: 'Drydock Boost',
-    description: 'Permanent faster hull / shield repair while Paused (deep ranks).',
-    category: 'foundation',
-    costPm: 4,
-    maxRank: 25,
-    repairMult: 0.6,
-  },
-  {
-    id: 'shield-bank',
-    name: 'Shield Bank',
-    description: 'Permanent shield bank. Flat gains accelerate across ranks.',
-    category: 'defensive',
-    costPm: 4,
-    maxRank: 25,
-    shieldBonus: 65,
-  },
-  {
-    id: 'drone-corps',
-    name: 'Drone Corps Charter',
-    description: '+5 worker drone corps capacity per rank (deep ranks).',
-    category: 'industrial',
-    costPm: 5,
-    maxRank: 20,
-    droneCapBonus: 5,
-  },
-  {
-    id: 'drone-acuity',
-    name: 'Drone Acuity',
-    description:
-      'Permanent drone-power multiplier. Each rank compounds at ×1.12; black-bar stations with fewer bodies.',
-    category: 'industrial',
-    costPm: 4,
-    maxRank: 25,
-    dronePowerBonus: 0.12,
-  },
-  {
-    id: 'synapse-lattice',
-    name: 'Synapse Matrix',
-    description: '+12% Core training speed per rank (deep ranks; extra ranks +45% of base).',
-    category: 'foundation',
-    costPm: 4,
-    maxRank: 25,
-    trainingBonus: 0.12,
-  },
-  {
-    id: 'fragment-magnet',
-    name: 'Fragment Magnet',
-    description:
-      'Permanent +10% blueprint part drop chance per rank (deep ranks; extra ranks +45% of base).',
-    category: 'industrial',
-    costPm: 4,
-    maxRank: 25,
-    dropBonus: 0.1,
-  },
-  {
-    id: 'workshop-kit',
-    name: 'Workshop Kit',
-    description: 'Each Rebuild starts with +1 Weapon Power Workshop rank per Kit rank.',
-    category: 'foundation',
-    costPm: 5,
-    maxRank: 10,
-    workshopStartRanks: 1,
-  },
-  {
-    id: 'reclaim-clock',
-    name: 'Reclaim Clock',
-    description: 'Solved Waves compress faster. Each rank adds +10% reclaim speed.',
-    category: 'temporal',
-    costPm: 4,
-    maxRank: 15,
-    reclaimBonus: 0.1,
-  },
-  {
-    id: 'sortie-tempo',
-    name: 'Sortie Tempo',
-    description: 'Unlocks combat speed ×1.5. Industry still uses real time. Not extra damage.',
-    category: 'temporal',
-    costPm: 6,
-    maxRank: 1,
-    combatSpeed: 1.5,
   },
 ]
 
@@ -2507,10 +2293,6 @@ export function dronePower(state: DroneEconomyState): number {
   for (const id of state.research.unlocked) {
     power += RESEARCH.find((r) => r.id === id)?.dronePowerBonus ?? 0
   }
-  for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
-    const bonus = getMatterShopItem(id)?.dronePowerBonus ?? 0
-    if (bonus) power *= matterShopRankMultiplier(bonus, rank)
-  }
   for (const [id, rank] of Object.entries(state.prestige.shop)) {
     const bonus = getChallengeShopItem(id)?.dronePowerBonus ?? 0
     if (bonus) power += bonus * matterShopEffectScale(rank)
@@ -2531,10 +2313,7 @@ export function droneCap(state: DroneEconomyState): number {
       cap += getAiNode(id)?.droneCapBonus ?? 0
     }
   }
-  for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
-    const bonus = getMatterShopItem(id)?.droneCapBonus ?? 0
-    if (bonus) cap += bonus * Math.max(0, rank)
-  }
+  cap += matterWorkerCapacityBonus(state)
   for (const [id, rank] of Object.entries(state.prestige.shop)) {
     const bonus = getChallengeShopItem(id)?.droneCapBonus ?? 0
     if (bonus) cap += bonus * Math.max(0, rank)
@@ -2655,40 +2434,29 @@ export function getChallengeShopItem(id: string): ChallengeShopDef | undefined {
 }
 
 export function getMatterShopItem(id: string): MatterShopDef | undefined {
-  return MATTER_SHOP.find((m) => m.id === id)
+  return getCanonicalMatterItem(id)
 }
 
 export function matterShopItemsIn(category: MatterShopCategory): MatterShopDef[] {
-  return MATTER_SHOP.filter((item) => item.category === category)
+  return canonicalMatterItemsIn(category)
 }
 
-export function matterShopWorkshopStarts(matterShop: Record<string, number> = {}): number {
-  let ranks = 0
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const n = getMatterShopItem(id)?.workshopStartRanks ?? 0
-    if (n) ranks += n * Math.max(0, Math.floor(rank))
-  }
-  return ranks
+/** Workshop Kit is removed. Research primers are PR9. */
+export function matterShopWorkshopStarts(_matterShop: Record<string, number> = {}): number {
+  return 0
 }
 
-export function matterShopReclaimBonus(matterShop: Record<string, number> = {}): number {
-  let bonus = 0
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const n = getMatterShopItem(id)?.reclaimBonus ?? 0
-    if (n) bonus += n * Math.max(0, Math.floor(rank))
-  }
-  return bonus
+/** Reclaim Clock is removed. Reclaim is not Time Compression. */
+export function matterShopReclaimBonus(_matterShop: Record<string, number> = {}): number {
+  return 0
 }
 
-/** Highest combat-speed option unlocked by the Matter shop. */
+/** Time Compression is enumerated from purchased temporal nodes, not a leftover combatSpeed field. */
 export function matterShopCombatSpeed(matterShop: Record<string, number> = {}): number {
-  let best = 1
-  for (const [id, rank] of Object.entries(matterShop)) {
-    if (Math.max(0, Math.floor(rank)) <= 0) continue
-    const speed = getMatterShopItem(id)?.combatSpeed ?? 1
-    if (speed > best) best = speed
-  }
-  return best
+  if ((matterShop['time-compression-3'] ?? 0) >= 1) return 3
+  if ((matterShop['time-compression-2'] ?? 0) >= 1) return 2
+  if ((matterShop['time-compression-1'] ?? 0) >= 1) return 1.5
+  return 1
 }
 
 export function getAiNode(id: string): AiNodeDef | undefined {
@@ -2797,63 +2565,8 @@ export type ShopBuyCheck =
   | { ok: true; cost: number; nextRank: number; maxRank: number }
   | { ok: false; reason: string; cost?: number; nextRank?: number; maxRank?: number }
 
-function matterRankGateReason(
-  state: {
-    prestige: { prestigeCount: number }
-    meta: { act1Cleared: boolean; bestWave?: number; ascensionCount?: number }
-    combat?: { bestWave?: number }
-  },
-  nextRank: number,
-): string | null {
-  const ascensions = state.meta.ascensionCount ?? 0
-  if (nextRank >= 20) {
-    if (ascensions < 2) return 'Need 2 Reinforces for rank 20+'
-  }
-  if (nextRank >= 15) {
-    if (ascensions < 1) return 'Need 1 Reinforce for rank 15+'
-  }
-  if (nextRank >= 10) {
-    if (!state.meta.act1Cleared && ascensions < 1 && state.prestige.prestigeCount < 8) {
-      return 'Need Act 1, 1 Reinforce, or 8 Rebuilds for rank 10+'
-    }
-  }
-  if (nextRank >= 7) {
-    if (!state.meta.act1Cleared && state.prestige.prestigeCount < 5) {
-      return 'Need Act 1 cleared or 5 Rebuilds for rank 7+'
-    }
-  }
-  if (nextRank >= 4) {
-    if (state.prestige.prestigeCount < 1 && careerBestWave(state) < 120) {
-      return 'Need 1 Rebuild or Best Wave 120 for rank 4+'
-    }
-  }
-  return null
-}
-
-export function canBuyMatterShop(
-  state: {
-    resources: { prestigeMatter: number }
-    prestige: { prestigeCount: number; matterShop: Record<string, number> }
-    meta: { act1Cleared: boolean; bestWave?: number; ascensionCount?: number }
-    combat?: { bestWave?: number }
-  },
-  itemId: string,
-): ShopBuyCheck {
-  const def = getMatterShopItem(itemId)
-  if (!def) return { ok: false, reason: 'Unknown item' }
-  const current = shopRank(state.prestige.matterShop, itemId)
-  const maxRank = shopMaxRank(def)
-  const nextRank = current + 1
-  const cost = nextShopCost(def.costPm, current)
-  if (current >= maxRank) {
-    return { ok: false, reason: 'Max rank', cost, nextRank, maxRank }
-  }
-  const gate = matterRankGateReason(state, nextRank)
-  if (gate) return { ok: false, reason: gate, cost, nextRank, maxRank }
-  if (state.resources.prestigeMatter < cost) {
-    return { ok: false, reason: `Need ${cost} Rebuild Matter`, cost, nextRank, maxRank }
-  }
-  return { ok: true, cost, nextRank, maxRank }
+export function canBuyMatterShop(state: GameState, itemId: string): ShopBuyCheck {
+  return canBuyCanonicalMatterShop(state, itemId)
 }
 
 export function canBuyChallengeShop(
@@ -2940,10 +2653,6 @@ export function workerManufactureSpeed(state: DroneEconomyState): number {
   for (const [id, rank] of Object.entries(state.prestige.shop)) {
     const bonus = getChallengeShopItem(id)?.manufactureBonus ?? 0
     if (bonus) speed += bonus * matterShopEffectScale(rank)
-  }
-  for (const [id, rank] of Object.entries(state.prestige.matterShop)) {
-    const bonus = getMatterShopItem(id)?.manufactureBonus ?? 0
-    if (bonus) speed *= matterShopRankMultiplier(bonus, rank)
   }
   const fab = stationEffectiveDrones(state, 'drone-fab')
   const fabDef = getStation('drone-fab')
@@ -3241,17 +2950,12 @@ export function metaDamageMultiplier(
   matterShop: Record<string, number> = {},
   challengeClears: Record<string, number> = {},
 ): number {
-  // Unspent PM/CP still help a little; spending unlocks stronger shop effects.
-  // Banking is only a fallback. Spending Rebuild Matter should dominate.
-  let mult = 1 + prestigeMatter * 0.001
+  void prestigeMatter
   void challengePoints
   void shop
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const def = getMatterShopItem(id)
-    if (def?.damageBonus) mult *= matterShopRankMultiplier(def.damageBonus, rank)
-  }
+  void matterShop
   void challengeClears
-  return mult
+  return 1
 }
 
 export function metaProductionMultiplier(
@@ -3259,14 +2963,9 @@ export function metaProductionMultiplier(
   matterShop: Record<string, number> = {},
   challengeClears: Record<string, number> = {},
 ): number {
-  // Banking is deliberately tiny; invested Matter is the progression engine.
-  let mult = 1 + prestigeMatter * 0.001
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const def = getMatterShopItem(id)
-    if (def?.productionBonus) mult *= matterShopRankMultiplier(def.productionBonus, rank)
-  }
-  mult += challengeStackProductionBonus(challengeClears)
-  return mult
+  void prestigeMatter
+  void matterShop
+  return 1 + challengeStackProductionBonus(challengeClears)
 }
 
 /**
@@ -3292,41 +2991,21 @@ export function prestigeMomentumProductionBonus(
   return fromPrestige * fromAscension - 1
 }
 
-export function matterShopHullBonus(matterShop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const bonus = getMatterShopItem(id)?.hullBonus ?? 0
-    if (bonus) total += bonus * matterShopFlatScale(rank)
-  }
-  return total
+export function matterShopHullBonus(_matterShop: Record<string, number>): number {
+  return 0
 }
 
-export function matterShopShieldBonus(matterShop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const bonus = getMatterShopItem(id)?.shieldBonus ?? 0
-    if (bonus) total += bonus * matterShopFlatScale(rank)
-  }
-  return total
+export function matterShopShieldBonus(_matterShop: Record<string, number>): number {
+  return 0
 }
 
-export function matterShopScrapBonus(matterShop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const bonus = getMatterShopItem(id)?.scrapBonus ?? 0
-    if (bonus) total += matterShopCompoundBonus(bonus, rank)
-  }
-  return total
+export function matterShopScrapBonus(_matterShop: Record<string, number>): number {
+  return 0
 }
 
 /** Additive blueprint part drop chance from Matter shop ranks. */
-export function matterShopDropBonus(matterShop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const bonus = getMatterShopItem(id)?.dropBonus ?? 0
-    if (bonus) total += bonus * matterShopEffectScale(rank)
-  }
-  return total
+export function matterShopDropBonus(_matterShop: Record<string, number>): number {
+  return 0
 }
 
 /** Additive blueprint part drop chance from Challenge shop ranks. */
@@ -3339,35 +3018,13 @@ export function challengeShopDropBonus(shop: Record<string, number>): number {
   return total
 }
 
-export function matterShopDataPerClear(matterShop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const bonus = getMatterShopItem(id)?.bonusDataPerClear ?? 0
-    if (bonus) total += bonus * matterShopEffectScale(rank)
-  }
-  return total
+export function matterShopDataPerClear(_matterShop: Record<string, number>): number {
+  return 0
 }
 
-/** Repair duration multiplier from drydock ranks (lower = faster). */
-export function matterShopRepairMult(matterShop: Record<string, number>): number {
-  let mult = 1
-  for (const [id, rank] of Object.entries(matterShop)) {
-    const def = getMatterShopItem(id)
-    if (def?.repairMult == null || rank <= 0) continue
-    const speed = 0.4 * matterShopEffectScale(rank)
-    mult *= 1 / (1 + speed)
-  }
-  return mult
-}
-
-export function prestigeMinSectorFor(shop: Record<string, number>): number {
-  let min: number = PRESTIGE_MIN_SECTOR
-  for (const [id, rank] of Object.entries(shop)) {
-    if (rank < 1) continue
-    const def = getChallengeShopItem(id)
-    if (def?.prestigeMinSector) min = Math.min(min, def.prestigeMinSector)
-  }
-  return min
+/** Repair duration multiplier from drydock ranks (lower = faster). Canonical Matter has no drydock node. */
+export function matterShopRepairMult(_matterShop: Record<string, number>): number {
+  return 1
 }
 
 export function challengeShopStartingScrap(shop: Record<string, number>): number {
@@ -3426,35 +3083,7 @@ export function effectiveMaxClears(
 
 /** Short UI blurb for matter shop total effect at rank. */
 export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string {
-  if (rank <= 0) return 'Not owned'
-  const s = matterShopEffectScale(rank)
-  const bits: string[] = []
-  if (def.damageBonus) bits.push(`×${matterShopRankMultiplier(def.damageBonus, rank).toFixed(2)} dmg`)
-  if (def.productionBonus) bits.push(`×${matterShopRankMultiplier(def.productionBonus, rank).toFixed(2)} prod`)
-  if (def.hullBonus) bits.push(`+${(def.hullBonus * matterShopFlatScale(rank)).toFixed(0)} hull`)
-  if (def.shieldBonus) bits.push(`+${(def.shieldBonus * matterShopFlatScale(rank)).toFixed(0)} shield`)
-  if (def.scrapBonus) bits.push(`×${matterShopRankMultiplier(def.scrapBonus, rank).toFixed(2)} scrap`)
-  if (def.bonusDataPerClear) {
-    bits.push(`+${(def.bonusDataPerClear * s).toFixed(1)} data/clear`)
-  }
-  if (def.repairMult != null) {
-    const speed = 0.4 * s
-    bits.push(`+${(speed * 100).toFixed(0)}% repair speed`)
-  }
-  if (def.droneCapBonus) bits.push(`+${def.droneCapBonus * rank} drone cap`)
-  if (def.dronePowerBonus) {
-    bits.push(`×${matterShopRankMultiplier(def.dronePowerBonus, rank).toFixed(2)} drone power`)
-  }
-  if (def.manufactureBonus) {
-    bits.push(`+${(def.manufactureBonus * s * 100).toFixed(1)}% manufacture`)
-  }
-  if (def.trainingBonus) {
-    bits.push(`+${(def.trainingBonus * s * 100).toFixed(1)}% Core training`)
-  }
-  if (def.dropBonus) bits.push(`+${(def.dropBonus * s * 100).toFixed(1)}% part drops`)
-  if (def.workshopStartRanks) bits.push(`+${def.workshopStartRanks * rank} Workshop start`)
-  if (def.reclaimBonus) bits.push(`+${Math.round(def.reclaimBonus * rank * 100)}% reclaim`)
-  return bits.join(' · ') || 'Owned'
+  return canonicalMatterBlurb(def, rank)
 }
 
 /** Short UI blurb for challenge shop total effect at rank. */
@@ -3510,18 +3139,9 @@ export function aiDoctrinesActive(
   return state.ai.purchased.includes(nodeId)
 }
 
-/** Highest owned combat-speed multiplier (1 = real-time). Combat path only. */
-export function combatSpeedMultiplier(state: {
-  prestige: { activeChallengeId: string | null }
-  ai: { purchased: string[] }
-}): number {
-  if (challengeBlocksAi(state)) return 1
-  let best = 1
-  for (const id of state.ai.purchased) {
-    const m = getAiNode(id)?.combatSpeedMult
-    if (m != null && m > best) best = m
-  }
-  return best
+/** Time Compression is the only general combat-speed track. */
+export function combatSpeedMultiplier(_state?: unknown): number {
+  return 1
 }
 
 /** Additive station production from AI (non-combat). */

@@ -654,6 +654,8 @@ export const PROCESS_HIDDEN_IDS = new Set([
   'reliquary-keep',
   'reliquary-quality',
   'reliquary-merge',
+  'combat-tempo',
+  'combat-overclock',
 ])
 
 const RETIRED_CORE_RUN_PROCESS_IDS = new Set([
@@ -1504,9 +1506,7 @@ export function processOfflineBonusMs(state: GameState): number {
   return hours * 60 * 60 * 1000
 }
 
-export function processCombatSpeedMult(state: GameState): number {
-  if (hasProcess(state, 'combat-overclock')) return 3
-  if (hasProcess(state, 'combat-tempo')) return 1.5
+export function processCombatSpeedMult(_state: GameState): number {
   return 1
 }
 

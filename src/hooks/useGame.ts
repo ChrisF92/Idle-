@@ -5,6 +5,8 @@ import {
   tickGame,
   startCombat,
   setDocked,
+  extractSortie,
+  markExtractionExplained,
   chooseDirective,
   setSortiePaused,
   handleAppHidden,
@@ -51,6 +53,7 @@ import {
   buyCoreStartingLevel,
   buyRunUpgrade,
   buyWorkshopUpgrade,
+  buyGenericUnlock,
   cycleSortieSpeed,
   setCoreTargetingDoctrine,
   withdrawFabPart,
@@ -101,6 +104,8 @@ type Action =
   | { type: 'tick'; now: number; paused?: boolean }
   | { type: 'engage' }
   | { type: 'set-docked'; docked: boolean }
+  | { type: 'extract-sortie' }
+  | { type: 'mark-extraction-explained' }
   | { type: 'assign-worker'; stationId: string; delta: number }
   | { type: 'buy-network-link'; linkId: import('../game/types').NetworkLinkId }
   | { type: 'auto-balance-workers'; profile?: LaborProfile }
@@ -130,6 +135,7 @@ type Action =
   | { type: 'buy-core-start'; coreInstanceId: string; count?: number }
   | { type: 'buy-run-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
   | { type: 'buy-workshop-upgrade'; id: import('../game/types').RunUpgradeId; count?: number }
+  | { type: 'buy-generic-unlock'; category: import('../game/types').RunUpgradeCategory }
   | { type: 'cycle-sortie-speed' }
   | {
       type: 'pick-milestone'
@@ -206,6 +212,10 @@ function reducer(state: GameState, action: Action): GameState {
       return startCombat(state)
     case 'set-docked':
       return setDocked(state, action.docked)
+    case 'extract-sortie':
+      return extractSortie(state)
+    case 'mark-extraction-explained':
+      return markExtractionExplained(state)
     case 'assign-worker':
       return assignWorker(state, action.stationId, action.delta)
     case 'buy-network-link':
@@ -264,6 +274,8 @@ function reducer(state: GameState, action: Action): GameState {
       return buyRunUpgrade(state, action.id, action.count)
     case 'buy-workshop-upgrade':
       return buyWorkshopUpgrade(state, action.id, action.count)
+    case 'buy-generic-unlock':
+      return buyGenericUnlock(state, action.category)
     case 'cycle-sortie-speed':
       return cycleSortieSpeed(state)
     case 'pick-milestone':
@@ -470,6 +482,8 @@ export function useGame() {
     dismissOfflineReport: () => setOfflineReport(null),
     engage: () => dispatch({ type: 'engage' }),
     setDocked: (docked: boolean) => dispatch({ type: 'set-docked', docked }),
+    extractSortie: () => dispatch({ type: 'extract-sortie' }),
+    markExtractionExplained: () => dispatch({ type: 'mark-extraction-explained' }),
     setSortiePaused: (paused: boolean) => dispatch({ type: 'set-sortie-paused', paused }),
     assignWorker: (stationId: string, delta: number) =>
       dispatch({ type: 'assign-worker', stationId, delta }),
@@ -521,6 +535,8 @@ export function useGame() {
       dispatch({ type: 'buy-run-upgrade', id, count }),
     buyWorkshopUpgrade: (id: import('../game/types').RunUpgradeId, count?: number) =>
       dispatch({ type: 'buy-workshop-upgrade', id, count }),
+    buyGenericUnlock: (category: import('../game/types').RunUpgradeCategory) =>
+      dispatch({ type: 'buy-generic-unlock', category }),
     cycleSortieSpeed: () => dispatch({ type: 'cycle-sortie-speed' }),
     pickCoreMilestone: (moduleId: string, milestoneId: string, choiceId: string) =>
       dispatch({ type: 'pick-milestone', moduleId, milestoneId, choiceId }),

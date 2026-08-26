@@ -30,7 +30,7 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(computeShipStats(s).damage).toBeCloseTo(before * 1.15)
   })
 
-  it('allows Rebuild from Wave 70 and keeps Core Mastery', () => {
+  it('allows Rebuild from Wave 210 and keeps Core Mastery', () => {
     let s = armRebuildDoor(createInitialState(0))
     s.meta.moduleMastery = { 'pulse-cannon': 6 }
     s.shipyard.corePicks = { 'pulse-cannon': { 'pulse-10': 'focused' } }

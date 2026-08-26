@@ -26,6 +26,7 @@ import {
   combatOverlayGeometry,
   targetCapableLoadoutCores,
 } from '../../game/coreTargeting'
+import { canExtract, extractionBonusFor, extractionLockedReason, sortieGrossScrapGenerated } from '../../game/extraction'
 
 type ShopTab = RunUpgradeCategory
 
@@ -33,6 +34,7 @@ interface CombatTabProps {
   state: GameState
   onLaunch: () => void
   onExtract?: () => void
+  onExtractSheetOpen?: () => void
   onPause?: () => void
   onResume?: () => void
   onPauseAndBrowse?: () => void
@@ -59,6 +61,7 @@ interface CombatTabProps {
 export function CombatTab({
   state,
   onExtract,
+  onExtractSheetOpen,
   onPause,
   onResume,
   onPauseAndBrowse,
@@ -84,6 +87,7 @@ export function CombatTab({
   const [overlayMode, setOverlayMode] = useState<CombatOverlayMode>('off')
   const [overlayCoreId, setOverlayCoreId] = useState<string | null>(null)
   const [directivesOpen, setDirectivesOpen] = useState(false)
+  const [extractOpen, setExtractOpen] = useState(false)
   const [rateView, setRateView] = useState<'salvage' | 'scrap' | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
@@ -386,17 +390,25 @@ export function CombatTab({
                       >
                         Pause &amp; Browse
                       </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        data-guide="extract"
-                        onClick={() => {
-                          setMenuOpen(false)
-                          onExtract?.()
-                        }}
-                      >
-                        Extract
-                      </button>
+                      {canExtract(state) ? (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          data-guide="extract"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            if (!combat.sortiePaused) onPause?.()
+                            onExtractSheetOpen?.()
+                            setExtractOpen(true)
+                          }}
+                        >
+                          Extract
+                        </button>
+                      ) : (
+                        <p className="muted" role="menuitem">
+                          Extract · {extractionLockedReason(state)}
+                        </p>
+                      )}
                     </>
                   ) : (
                     <p className="muted">No actions</p>
@@ -562,6 +574,47 @@ export function CombatTab({
                   </button>
                 )
               })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {extractOpen ? (
+        <div className="sheet-overlay extract-confirm" role="dialog" aria-labelledby="extract-title">
+          <div className="sheet-card">
+            <header className="modal-header">
+              <h3 id="extract-title">Extract</h3>
+              <button type="button" onClick={() => setExtractOpen(false)}>
+                Close
+              </button>
+            </header>
+            {!state.meta.extractionExplained ? (
+              <div data-onboarding="onboarding.extraction.first-use">
+                <p>Safe end. The Sortie stops. Persistent rewards stay. Salvage and temporary upgrades reset.</p>
+                <p>The bonus is Scrap only. This is not a Rebuild. No Matter is awarded.</p>
+              </div>
+            ) : null}
+            <p>Wave {Math.max(1, combat.waveReached || combat.wave)}</p>
+            <p>
+              Scrap earned {formatCompact(sortieGrossScrapGenerated(state))}
+              {' · '}
+              Extraction bonus +{extractionBonusFor(state)}
+            </p>
+            <p className="muted">Workshop and Core Levels persist. Salvage does not.</p>
+            <div className="extract-confirm-actions">
+              <button type="button" className="extract-cancel-btn" onClick={() => setExtractOpen(false)}>
+                Continue Sortie
+              </button>
+              <button
+                type="button"
+                className="primary extract-confirm-btn"
+                data-guide="extract-confirm"
+                onClick={() => {
+                  setExtractOpen(false)
+                  onExtract?.()
+                }}
+              >
+                Extract
+              </button>
             </div>
           </div>
         </div>

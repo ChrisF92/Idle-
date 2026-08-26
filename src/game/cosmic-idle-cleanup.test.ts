@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { GUIDE_STEPS, PRESTIGE_MIN_SECTOR } from './progression'
 import { RESOURCE_LABELS, createInitialState } from './state'
 import { canPrestige, performPrestige } from './actions'
-import { PRESTIGE_MIN_SECTOR as CATALOG_PRESTIGE_MIN, prestigeMinSectorFor } from './catalog'
+import { PRESTIGE_MIN_SECTOR as CATALOG_PRESTIGE_MIN } from './catalog'
 import { armRebuildDoor } from './testHelpers'
 
 const DEAD_GUIDE_TARGETS = [
@@ -43,7 +43,7 @@ describe('Cosmic Idle UI cleanup', () => {
 
     let state = armRebuildDoor(createInitialState(0))
     expect(CATALOG_PRESTIGE_MIN).toBe(PRESTIGE_MIN_SECTOR)
-    expect(prestigeMinSectorFor(state.prestige.shop)).toBe(PRESTIGE_MIN_SECTOR)
+    expect(PRESTIGE_MIN_SECTOR).toBe(210)
     expect(canPrestige(state)).toBe(true)
     state = performPrestige(state, 1000)
     expect(state.combat.log[0]).toMatch(/Rebuild Matter/)

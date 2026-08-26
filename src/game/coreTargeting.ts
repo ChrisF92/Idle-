@@ -29,6 +29,8 @@ import type {
   GameState,
   TargetingDoctrineId,
 } from './types'
+import { targetingServosSlewMult } from './workshop'
+import { matterTraverseSlewMult } from './matter'
 
 /** Canonical Research node. PR9 authors the tree; PR2 only checks completion. */
 export const FIRE_CONTROL_DOCTRINE_RESEARCH_ID = 'd1-fire-control-doctrine'
@@ -165,8 +167,13 @@ export function isSortieRunning(state: GameState): boolean {
 }
 
 /** PR3 Targeting Servos — slew only. Never Doctrine / score / acquisition. */
-export function targetingServosContribution(_state: GameState): TargetingStatModifier {
-  return {}
+export function targetingServosContribution(state: GameState): TargetingStatModifier {
+  return { slewRateMult: targetingServosSlewMult(state) }
+}
+
+/** PR3 Matter Traverse Actuators — slew only. */
+export function matterTraverseContribution(state: GameState): TargetingStatModifier {
+  return { slewRateMult: matterTraverseSlewMult(state) }
 }
 
 /** PR4 Frames / Sensor Array. */
@@ -208,6 +215,7 @@ export function collectTargetingModifiers(
 ): TargetingStatModifier[] {
   return [
     targetingServosContribution(state),
+    matterTraverseContribution(state),
     frameSensorTargetingContribution(state),
     relicTargetingContribution(state, spec),
     directiveTargetingContribution(state),

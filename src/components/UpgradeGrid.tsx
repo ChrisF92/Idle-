@@ -2,19 +2,23 @@ import { useState } from 'react'
 import type { GameState, RunUpgradeCategory, RunUpgradeId } from '../game/types'
 import { formatCompact } from '../game/format'
 import {
+  canUnlockNextGeneric,
   effectiveUpgradeLevel,
   maxAffordableRunPurchases,
   maxAffordableWorkshopPurchases,
-  RUN_UPGRADE_CAP,
+  nextUnlockDef,
+  nextUnlockCost,
   runPurchasedLevel,
   runUpgradeBulkCost,
   runUpgradeEffectLine,
   runUpgradePreview,
   shopEconomyRoi,
   shopTimeToAfford,
+  sortieCap,
   unlockedBuyModes,
   visibleRunUpgrades,
   workshopBulkCost,
+  workshopCap,
   workshopLevel,
   type BuyMode,
 } from '../game/workshop'
@@ -28,6 +32,7 @@ interface UpgradeGridProps {
   kind: UpgradeGridKind
   buyMode: BuyMode
   onBuy?: (id: RunUpgradeId, count: number) => void
+  onUnlock?: (category: RunUpgradeCategory) => void
 }
 
 function purchaseCount(state: GameState, id: RunUpgradeId, kind: UpgradeGridKind, mode: BuyMode): number {
@@ -70,93 +75,113 @@ export function UpgradeGrid({
   kind,
   buyMode,
   onBuy,
+  onUnlock,
 }: UpgradeGridProps) {
-  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
-  const rows = visibleRunUpgrades(best, category)
+  const rows = visibleRunUpgrades(state, category)
   const [infoId, setInfoId] = useState<string | null>(null)
-  if (rows.length === 0) {
-    return <p className="muted">More upgrades open as Best Wave climbs.</p>
+  const next = kind === 'workshop' ? nextUnlockDef(state, category) : null
+  const nextCost = kind === 'workshop' ? nextUnlockCost(state, category) : null
+  const unlockCheck = kind === 'workshop' ? canUnlockNextGeneric(state, category) : null
+  if (rows.length === 0 && !next) {
+    return <p className="muted">No upgrades in this category yet.</p>
   }
   const info = rows.find((row) => row.id === infoId)
 
   return (
     <div className="upgrade-grid">
-      {rows.length > 0 ? (
-        <>
-          {rows.map((def) => {
-            const start = workshopLevel(state, def.id)
-            const run = runPurchasedLevel(state, def.id)
-            const level = effectiveUpgradeLevel(state, def.id)
-            const count = Math.max(1, purchaseCount(state, def.id, kind, buyMode))
-            const cost =
-              kind === 'run'
-                ? runUpgradeBulkCost(state, def.id, count)
-                : workshopBulkCost(start, count)
-            const bank = kind === 'run' ? state.resources.salvage : state.resources.scrap
-            const currency = kind === 'run' ? 'Salvage' : 'Scrap'
-            const affordable = bank >= cost && level < RUN_UPGRADE_CAP && cost > 0
-            const maxed = level >= RUN_UPGRADE_CAP
-            const preview = runUpgradePreview(state, def.id)
-            const onboarding =
-              def.id === 'weapon-power'
-                ? kind === 'workshop'
-                  ? 'onboarding.workshop.weapon-power'
-                  : 'onboarding.salvage.weapon-power'
-                : undefined
-            const guide =
-              def.id === 'weapon-power'
-                ? kind === 'workshop'
-                  ? 'workshop-weapon-power'
-                  : 'run-upgrade-weapon-power'
-                : def.id === 'hull' && kind === 'run'
-                  ? 'run-upgrade-hull'
-                  : undefined
-            return (
-              <article
-                key={def.id}
-                className={`upgrade-tile${affordable ? ' is-affordable' : maxed ? ' is-maxed' : ' is-short'}`}
-                data-guide={guide}
-                data-onboarding={onboarding}
-              >
-                <button
-                  type="button"
-                  className="upgrade-tile-buy"
-                  disabled={!onBuy || maxed}
-                  onClick={() => onBuy?.(def.id, count)}
-                  aria-label={`${def.name}. ${affordable ? `Buy ${count} for ${formatCompact(cost)} ${currency}` : maxed ? 'Maxed' : `Need ${formatCompact(cost)} ${currency}`}`}
-                >
-                  <span className="upgrade-tile-top">
-                    <strong>{def.name}</strong>
-                  </span>
-                  <span className="upgrade-tile-level">
-                    {kind === 'workshop' ? (
-                      <>START Lv{start} → {start + count}</>
-                    ) : (
-                      <>
-                        Lv{level}
-                        {run > 0 ? ` · +${run}` : ''}
-                      </>
-                    )}
-                  </span>
-                  <span className="upgrade-tile-preview">
-                    {preview.current} → {preview.next}
-                  </span>
-                  <span className={`upgrade-tile-cost${affordable ? ' is-ok' : maxed ? '' : ' is-short'}`}>
-                    {maxed ? 'Maxed' : `${formatCompact(cost)} ${currency}`}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="upgrade-tile-info"
-                  aria-label={`${def.name} details`}
-                  onClick={() => setInfoId(def.id)}
-                >
-                  i
-                </button>
-              </article>
-            )
-          })}
-        </>
+      {rows.map((def) => {
+        const start = workshopLevel(state, def.id)
+        const run = runPurchasedLevel(state, def.id)
+        const level = effectiveUpgradeLevel(state, def.id)
+        const count = Math.max(1, purchaseCount(state, def.id, kind, buyMode))
+        const cost =
+          kind === 'run'
+            ? runUpgradeBulkCost(state, def.id, count)
+            : workshopBulkCost(start, count, def.id)
+        const bank = kind === 'run' ? state.resources.salvage : state.resources.scrap
+        const currency = kind === 'run' ? 'Salvage' : 'Scrap'
+        const maxed = kind === 'workshop' ? start >= workshopCap(def.id) : run >= sortieCap(def.id)
+        const affordable = bank >= cost && !maxed && cost > 0
+        const preview = runUpgradePreview(state, def.id, kind === 'workshop' ? 'workshop' : 'run')
+        const onboarding =
+          def.id === 'weapon-power'
+            ? kind === 'workshop'
+              ? 'onboarding.workshop.weapon-power'
+              : 'onboarding.salvage.weapon-power'
+            : undefined
+        const guide =
+          def.id === 'weapon-power'
+            ? kind === 'workshop'
+              ? 'workshop-weapon-power'
+              : 'run-upgrade-weapon-power'
+            : def.id === 'hull' && kind === 'run'
+              ? 'run-upgrade-hull'
+              : undefined
+        return (
+          <article
+            key={def.id}
+            className={`upgrade-tile${affordable ? ' is-affordable' : maxed ? ' is-maxed' : ' is-short'}`}
+            data-guide={guide}
+            data-onboarding={onboarding}
+          >
+            <button
+              type="button"
+              className="upgrade-tile-buy"
+              disabled={!onBuy || maxed}
+              onClick={() => onBuy?.(def.id, count)}
+              aria-label={`${def.name}. ${affordable ? `Buy ${count} for ${formatCompact(cost)} ${currency}` : maxed ? 'Maxed' : `Need ${formatCompact(cost)} ${currency}`}`}
+            >
+              <span className="upgrade-tile-top">
+                <strong>{def.name}</strong>
+              </span>
+              <span className="upgrade-tile-level">
+                {kind === 'workshop' ? (
+                  <>Workshop Lv{start}{start > 0 ? ` → ${start + count}` : ' · Lv0'}</>
+                ) : (
+                  <>
+                    Workshop {start} · Sortie +{run} · Effective {level}
+                  </>
+                )}
+              </span>
+              <span className="upgrade-tile-preview">
+                {preview.current} → {preview.next}
+              </span>
+              <span className={`upgrade-tile-cost${affordable ? ' is-ok' : maxed ? '' : ' is-short'}`}>
+                {maxed ? 'Maxed' : `${formatCompact(cost)} ${currency}`}
+              </span>
+            </button>
+            <button
+              type="button"
+              className="upgrade-tile-info"
+              aria-label={`${def.name} details`}
+              onClick={() => setInfoId(def.id)}
+            >
+              i
+            </button>
+          </article>
+        )
+      })}
+
+      {next && nextCost != null ? (
+        <article className="upgrade-tile next-upgrade-card" data-guide="workshop-next-unlock">
+          <button
+            type="button"
+            className="upgrade-tile-buy"
+            disabled={!onUnlock || !unlockCheck?.ok}
+            onClick={() => onUnlock?.(category)}
+            aria-label={`Permanent unlock ${next.name} for ${formatCompact(nextCost)} Scrap`}
+          >
+            <span className="upgrade-tile-top">
+              <strong>NEXT UPGRADE</strong>
+              <span className="unlock-chip">PERMANENT UNLOCK</span>
+            </span>
+            <span className="upgrade-tile-level">{next.name} · starts Lv0</span>
+            <span className="upgrade-tile-preview">{next.blurb}</span>
+            <span className={`upgrade-tile-cost${unlockCheck?.ok ? ' is-ok' : ' is-short'}`}>
+              {unlockCheck?.ok ? `${formatCompact(nextCost)} Scrap` : unlockCheck?.reason ?? `${formatCompact(nextCost)} Scrap`}
+            </span>
+          </button>
+        </article>
       ) : null}
 
       {info ? (
@@ -169,22 +194,23 @@ export function UpgradeGrid({
         >
           <p>{runUpgradeEffectLine(info.id)}</p>
           <p>
-            Level {kind === 'workshop' ? workshopLevel(state, info.id) : effectiveUpgradeLevel(state, info.id)} /{' '}
-            {RUN_UPGRADE_CAP}
+            Workshop {workshopLevel(state, info.id)} / {workshopCap(info.id)}
+            {kind === 'run'
+              ? ` · Sortie +${runPurchasedLevel(state, info.id)} / ${sortieCap(info.id)} · Effective ${effectiveUpgradeLevel(state, info.id)}`
+              : ''}
           </p>
           {kind === 'workshop' ? (
             <p className="muted">
-              Workshop Lv{workshopLevel(state, info.id)} means every Sortie begins with that many
-              effective levels. The temporary Sortie purchase-cost ladder still begins from its
-              base cost.
+              Workshop levels last this Rebuild cycle and start every Sortie. Permanent unlocks
+              survive Rebuild but grant no free levels.
             </p>
           ) : (
             <p className="muted">
-              Workshop Lv{workshopLevel(state, info.id)}
+              Workshop {workshopLevel(state, info.id)}
               {runPurchasedLevel(state, info.id) > 0
                 ? ` · Sortie +${runPurchasedLevel(state, info.id)}`
                 : ''}{' '}
-              · Effective Lv{effectiveUpgradeLevel(state, info.id)}
+              · Effective {effectiveUpgradeLevel(state, info.id)}
             </p>
           )}
           <p className="muted">
@@ -192,14 +218,14 @@ export function UpgradeGrid({
           </p>
           <p className="muted">
             {kind === 'workshop'
-              ? 'Permanent this cycle. Resets on Rebuild.'
-              : 'Temporary this Sortie. Cost is Salvage.'}
+              ? 'Cycle power. Resets on Rebuild.'
+              : 'Temporary this Sortie. Cost is Salvage and ignores Workshop level.'}
           </p>
-          {shopTimeToAfford(state, kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1), kind === 'run' ? state.resources.salvage : state.resources.scrap) ? (
+          {shopTimeToAfford(state, kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1, info.id), kind === 'run' ? state.resources.salvage : state.resources.scrap) ? (
             <p className="muted">
               {shopTimeToAfford(
                 state,
-                kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1),
+                kind === 'run' ? runUpgradeBulkCost(state, info.id, 1) : workshopBulkCost(workshopLevel(state, info.id), 1, info.id),
                 kind === 'run' ? state.resources.salvage : state.resources.scrap,
               )}
             </p>

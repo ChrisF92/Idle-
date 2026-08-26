@@ -76,6 +76,8 @@ function withLastSortieDefaults(
     salvageGained: Math.max(0, Math.floor(Number(raw.salvageGained ?? 0) || 0)),
     salvageSpent: Math.max(0, Math.floor(Number(raw.salvageSpent ?? 0) || 0)),
     scrapEarned: Math.max(0, Math.floor(Number(raw.scrapEarned ?? 0) || 0)),
+    extractionBonusScrap: Math.max(0, Math.floor(Number(raw.extractionBonusScrap ?? 0) || 0)),
+    grossScrapGenerated: Math.max(0, Number(raw.grossScrapGenerated ?? 0) || 0),
     newBest: Boolean(raw.newBest),
     previousBest: Math.max(0, Math.floor(Number(raw.previousBest ?? 0) || 0)),
     milestones: Math.max(0, Math.floor(Number(raw.milestones ?? 0) || 0)),
@@ -187,6 +189,9 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
           salvage: Math.max(0, Number(combat.sortieMark.salvage ?? 0) || 0),
           salvageSpent: Math.max(0, Number(combat.sortieMark.salvageSpent ?? 0) || 0),
           scrap: Math.max(0, Number(combat.sortieMark.scrap ?? 0) || 0),
+          grossScrapGenerated: Math.max(0, Number(combat.sortieMark.grossScrapGenerated ?? 0) || 0),
+          provisioningGranted: combat.sortieMark.provisioningGranted === true,
+          challengeSortie: combat.sortieMark.challengeSortie === true,
           sectorsCleared: Math.max(0, Math.floor(Number(combat.sortieMark.sectorsCleared ?? 0) || 0)),
           corePicks: Math.max(0, Math.floor(Number(combat.sortieMark.corePicks ?? 0) || 0)),
           researchXp: Math.max(0, Number(combat.sortieMark.researchXp ?? 0) || 0),
@@ -262,6 +267,7 @@ function migrateShopRanks(raw: unknown): Record<string, number> {
 function withPrestigeDefaults(
   prestige: (GameState['prestige'] & { completedChallenges?: string[] }) | undefined,
 ): GameState['prestige'] {
+  const cycle = (prestige?.cycle ?? {}) as Record<string, unknown>
   return {
     prestigeCount: prestige?.prestigeCount ?? 0,
     activeChallengeId: prestige?.activeChallengeId ?? null,
@@ -269,9 +275,12 @@ function withPrestigeDefaults(
     shop: migrateShopRanks(prestige?.shop),
     matterShop: migrateShopRanks(prestige?.matterShop),
     cycle: {
-      bestWave: Math.max(0, Math.floor(Number(prestige?.cycle?.bestWave ?? 0) || 0)),
-      sorties: Math.max(0, Math.floor(Number(prestige?.cycle?.sorties ?? 0) || 0)),
-      scrapEarned: Math.max(0, Math.floor(Number(prestige?.cycle?.scrapEarned ?? 0) || 0)),
+      bestWave: Math.max(0, Math.floor(Number(cycle.bestWave ?? 0) || 0)),
+      normalSortiesCompleted: Math.max(
+        0,
+        Math.floor(Number(cycle.normalSortiesCompleted ?? cycle.sorties ?? 0) || 0),
+      ),
+      scrapGenerated: Math.max(0, Number(cycle.scrapGenerated ?? cycle.scrapEarned ?? 0) || 0),
     },
   }
 }
@@ -704,6 +713,12 @@ function withMetaDefaults(
         : 'standard',
     sortieSpeed: Number(meta?.sortieSpeed) > 0 ? Number(meta?.sortieSpeed) : undefined,
     extractedOnce: meta?.extractedOnce === true,
+    genericUpgradeUnlocks: {
+      attack: Math.max(2, Math.floor(Number(meta?.genericUpgradeUnlocks?.attack ?? 2) || 2)),
+      defense: Math.max(2, Math.floor(Number(meta?.genericUpgradeUnlocks?.defense ?? 2) || 2)),
+      economy: Math.max(2, Math.floor(Number(meta?.genericUpgradeUnlocks?.economy ?? 2) || 2)),
+    },
+    extractionExplained: meta?.extractionExplained === true,
   }
 }
 

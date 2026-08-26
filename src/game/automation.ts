@@ -166,10 +166,9 @@ function autoShopUpgrades(state: GameState): void {
     if (bank <= intent.salvageReserve) break
     const cat = pickShopCategory(state, intent.spend)
     if (!cat) break
-    const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
     let pick: RunUpgradeId | null = null
     let pickCost = Number.POSITIVE_INFINITY
-    for (const def of visibleRunUpgrades(best, cat)) {
+    for (const def of visibleRunUpgrades(state, cat)) {
       const cost = nextRunUpgradeCost(state, def.id)
       if (cost <= 0) continue
       if (bank - cost < intent.salvageReserve) continue

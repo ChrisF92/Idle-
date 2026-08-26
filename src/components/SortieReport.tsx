@@ -97,9 +97,15 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
               <p className="combat-hud-kicker">Rewards</p>
               <div className="stat-row dock-stats">
                 <div>
-                  <span className="muted">Scrap</span>
+                  <span className="muted">Scrap earned</span>
                   <strong>+{formatCompact(summary.scrapEarned)}</strong>
                 </div>
+                {summary.outcome === 'extract' ? (
+                  <div>
+                    <span className="muted">Extraction bonus</span>
+                    <strong>+{formatCompact(summary.extractionBonusScrap ?? 0)}</strong>
+                  </div>
+                ) : null}
                 {summary.fragmentsEarned > 0 ? (
                   <div>
                     <span className="muted">Fragments</span>
@@ -178,7 +184,7 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
             <section>
               <p className="combat-hud-kicker">Sortie facts</p>
               <ul>
-                {defeat ? <li>Hull reached zero.</li> : <li>Extracted with hull remaining.</li>}
+                {defeat ? <li>Hull reached zero.</li> : <li>Extraction · Safe return. No Matter.</li>}
                 {bossLeft != null ? <li>Boss remained at {bossLeft}% HP.</li> : null}
                 {stats?.finalFightTime > 0 ? (
                   <li>Final encounter {formatRunTime(stats.finalFightTime)}.</li>

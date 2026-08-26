@@ -12,6 +12,7 @@ import type {
 } from './types'
 import { reliquaryFoundrySpeedMult } from './reliquary'
 import { furnaceFoundrySpeedMult } from './furnace'
+import { foundryThroughputMult } from './matter'
 import {
   hiveResearchFitSlots,
   hiveResearchDroneEffMult,
@@ -536,12 +537,12 @@ export function foundryCraftSpeed(state: GameState): number {
 }
 
 export function foundryProcessingSpeed(state: GameState): number {
-  return foundryCraftSpeed(state) * workerJobSpeedMult(state, 'alloy-foundry')
+  return foundryCraftSpeed(state) * workerJobSpeedMult(state, 'alloy-foundry') * foundryThroughputMult(state)
 }
 
 export function foundryFabricationSpeed(state: GameState, kind: FabJobKind | null): number {
   const job = kind === 'facility' ? 'construction' : 'fab-bay'
-  return foundryCraftSpeed(state) * workerJobSpeedMult(state, job)
+  return foundryCraftSpeed(state) * workerJobSpeedMult(state, job) * foundryThroughputMult(state)
 }
 
 export function foundryCraftTime(state: GameState, id: FoundryRecipeId): number {
@@ -1083,28 +1084,7 @@ export function foundryHasSolvedMaterial(_state: GameState): boolean {
 }
 
 export function persistFoundryOnRebuild(foundry: FoundryState): FoundryState {
-  return {
-    recipeLevels: { ...foundry.recipeLevels },
-    recipeXp: { ...foundry.recipeXp },
-    materials: { ...foundry.materials },
-    slots: foundry.slots.map((s) => ({
-      recipeId: s.recipeId,
-      progress: 0,
-      paid: false,
-    })),
-    fabrication: (foundry.fabrication ?? []).map((s) => ({
-      kind: s.kind,
-      jobId: s.jobId,
-      progress: s.progress,
-      paid: s.paid,
-      complete: s.complete,
-    })),
-    trackedPrintId: foundry.trackedPrintId ?? null,
-    facilities: [...(foundry.facilities ?? [])],
-    pendingFacilities: [...(foundry.pendingFacilities ?? [])],
-    pendingCores: [...(foundry.pendingCores ?? [])],
-    pendingRelics: [...(foundry.pendingRelics ?? [])],
-  }
+  return structuredClone(foundry)
 }
 
 export function foundryUpgradeEffectLine(_def: FoundryUpgradeDef): string {

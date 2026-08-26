@@ -15,10 +15,17 @@ import { yardPendingSummary } from '../game/yard'
 import { isSystemUnlocked } from '../game/progression'
 import { rebuildConsequenceLists } from '../game/playerGuidance'
 import { ConsequencePanel } from './ConsequencePanel'
-import { cycleBestWave, rebuildCycle, rebuildWaveNeed, workshopInvestment } from '../game/rebuild'
+import {
+  cycleBestWave,
+  cycleNormalSorties,
+  matterGainBreakdown,
+  rebuildCycle,
+  rebuildIneligibleReason,
+  rebuildWaveNeed,
+} from '../game/rebuild'
 import { formatCompact } from '../game/format'
 import { computeShipStats, RESOURCE_LABELS } from '../game/state'
-import { coreDps, coreShieldOutput, rebuildPowerPreview } from '../game/uiReadout'
+import { coreDps, coreShieldOutput } from '../game/uiReadout'
 import { prefersReducedMotion } from '../hooks/usePrefersReducedMotion'
 
 interface RebuildHangarProps {
@@ -41,38 +48,43 @@ export function MatterShopSheet({
   const label = RESOURCE_LABELS.prestigeMatter
   return (
     <div className="sheet-overlay" role="dialog" aria-labelledby="matter-shop-title">
-      <div className="sheet-card">
+      <div className="sheet-card matter-shop-sheet">
         <header className="modal-header">
-          <h3 id="matter-shop-title">Matter upgrades</h3>
+          <h3 id="matter-shop-title">Matter shop</h3>
           <button type="button" onClick={onClose}>
             Close
           </button>
         </header>
-        <p>
+        <p data-onboarding="onboarding.rebuild.matter">
           {formatCompact(matter, 1)} {label}
         </p>
-        <p className="muted">Permanent ranks by category. There is no separate Slag screen.</p>
+        <p className="muted">Unspent Matter has no power. Only purchased ranks do.</p>
         {MATTER_SHOP_CATEGORIES.map((cat) => (
           <div key={cat.id} className="matter-shop-cat">
-            <h4 className="foundry-heading">{cat.name}</h4>
+            <h4 className="foundry-heading">{cat.name.toUpperCase()}</h4>
             {matterShopItemsIn(cat.id).map((item) => {
               const rank = shopRank(state.prestige.matterShop, item.id)
               const can = canBuyMatterShop(state, item.id)
               return (
-                <article key={item.id} className="network-row">
+                <article key={item.id} className="network-row matter-node-card">
                   <div className="network-row-main">
                     <strong>{item.name}</strong>
-                    <span className="muted">Lv {rank}</span>
+                    <span className="muted">
+                      {rank}/{item.maxRank}
+                    </span>
                   </div>
                   <p className="network-row-stats">{item.description}</p>
                   <p className="muted">{matterShopEffectBlurb(item, rank)}</p>
+                  {item.requiresId && rank < 1 ? (
+                    <p className="muted">Requires {item.requiresId.replace('time-compression-', 'Time Compression ')}</p>
+                  ) : null}
                   <button
                     type="button"
-                    className="primary"
+                    className="primary matter-buy-btn"
                     disabled={!onBuyMatter || !can.ok}
                     onClick={() => onBuyMatter?.(item.id)}
                   >
-                    {can.ok ? `${can.cost} ${label}` : can.reason}
+                    {rank >= item.maxRank ? 'Max rank' : can.ok ? `${can.cost} ${label}` : can.reason}
                   </button>
                 </article>
               )
@@ -88,15 +100,15 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
   const ready = canPrestige(state)
   const need = rebuildWaveNeed(state)
   const cycle = rebuildCycle(state)
+  const breakdown = matterGainBreakdown(state)
   const gain = prestigeGainFor(state)
   const lists = rebuildConsequenceLists(state)
   const shopAvailable = isSystemUnlocked(state, 'slag') || (state.resources.prestigeMatter ?? 0) > 0
   const [shopOpen, setShopOpen] = useState(false)
   const [collapsing, setCollapsing] = useState(false)
-  const label = RESOURCE_LABELS.prestigeMatter
   const hive = computeShipStats(state)
-  const preview = rebuildPowerPreview(state, gain)
   const frame = getFrame(state.shipyard.frameId)
+  const blocked = rebuildIneligibleReason(state)
 
   function confirm() {
     if (!ready || collapsing) return
@@ -115,7 +127,7 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
         <header className="modal-header">
           <div>
             <h3 id="rebuild-title">Rebuild</h3>
-            <p className="muted">Should this cycle reset now?</p>
+            <p className="muted">Reset this cycle for permanent Matter.</p>
           </div>
           <button type="button" onClick={onClose} disabled={collapsing}>
             Close
@@ -124,25 +136,25 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
 
         <div className="hangar-body">
           <section className="hangar-cycle">
-            <p className="combat-hud-kicker">Current cycle</p>
-            <div className="stat-row dock-stats">
+            <p className="combat-hud-kicker">PROJECTED MATTER</p>
+            <div className="stat-row dock-stats matter-breakdown" data-onboarding="onboarding.rebuild.preview">
               <div>
-                <span className="muted">Best Wave</span>
-                <strong>{cycleBestWave(state) || '—'}</strong>
-              </div>
-              <div>
-                <span className="muted">Sorties</span>
-                <strong>{cycle.sorties}</strong>
+                <span className="muted">Cycle Best W{breakdown.cycleBestWave || '—'}</span>
+                <strong>+{breakdown.waveScore}</strong>
               </div>
               <div>
                 <span className="muted">Scrap generated</span>
-                <strong>{formatCompact(cycle.scrapEarned)}</strong>
+                <strong>+{breakdown.scrapScore}</strong>
               </div>
               <div>
-                <span className="muted">Workshop</span>
-                <strong>{workshopInvestment(state)} ranks</strong>
+                <span className="muted">Matter gained</span>
+                <strong>{breakdown.total}</strong>
               </div>
             </div>
+            <p className="muted">
+              Cycle Best W{cycleBestWave(state) || 0} · {cycleNormalSorties(state)} normal Sorties ·{' '}
+              {formatCompact(cycle.scrapGenerated)} Scrap generated
+            </p>
           </section>
 
           <section className="hangar-hive">
@@ -178,22 +190,7 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
 
           <ConsequencePanel lists={lists} />
 
-          <section>
-            <p className="combat-hud-kicker">You gain</p>
-            <p className="rebuild-gain">+{gain} {label.toUpperCase()}</p>
-            <p className="muted">
-              Damage ×{preview.now.damage.toFixed(2)} → ×{preview.afterBank.damage.toFixed(2)}
-              {' · '}
-              Defense ×{preview.now.defense.toFixed(2)} → ×{preview.afterBank.defense.toFixed(2)}
-              {' · '}
-              Industry ×{preview.now.industry.toFixed(2)} → ×{preview.afterBank.industry.toFixed(2)}
-            </p>
-            <p className="muted">
-              Workshop Weapon Power rank 1 is ×{preview.workshopRank1.toFixed(2)}. Matter Edge rank 1 is ×
-              {preview.edgeRank1.toFixed(2)}
-              {preview.edgeBeatsWorkshop ? ' — stronger than one Workshop rank, and it survives Rebuild.' : '.'}
-            </p>
-          </section>
+          {!ready && blocked ? <p className="muted">{blocked}</p> : null}
 
           {isSystemUnlocked(state, 'yard') ? (
             <p className="muted">Construction: {yardPendingSummary(state)}.</p>
@@ -202,7 +199,7 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
           {shopAvailable ? (
             <p className="assign-row">
               <button type="button" onClick={() => setShopOpen(true)}>
-                Matter upgrades
+                Matter shop
               </button>
             </p>
           ) : null}
@@ -219,7 +216,7 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
             disabled={!ready || collapsing}
             onClick={confirm}
           >
-            {ready ? `Rebuild · +${gain} Matter` : `Reach Wave ${need} this cycle`}
+            {ready ? `Rebuild · +${gain} Matter` : `Reach Wave ${need}`}
           </button>
         </div>
       </div>

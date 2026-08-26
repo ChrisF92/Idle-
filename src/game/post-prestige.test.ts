@@ -7,27 +7,28 @@ import {
   prestigeGainFor,
   upgradeModule,
 } from './actions'
+import { armRebuildDoor } from './testHelpers'
+import { matterScoresFrom } from './rebuild'
 
-describe('post-prestige re-push balance', () => {
-  it('keeps the S10 Matter curve value below the first legal Rebuild', () => {
+describe('post-rebuild re-push balance', () => {
+  it('uses the canonical Matter curve, not the old S10 kit value', () => {
     const state = createInitialState(0)
-    expect(prestigeGainFor(state)).toBe(6)
+    expect(prestigeGainFor(state)).toBe(matterScoresFrom(0, 0).total)
+    expect(prestigeGainFor(state)).toBe(1)
   })
 
-  it('starts returning runs with scrap, data, and salvage kits', () => {
-    let state = createInitialState(0)
-    state.meta.highestSectorEver = 12
+  it('Rebuild no longer grants hidden return kits', () => {
+    let state = armRebuildDoor(createInitialState(0))
+    const dataBefore = state.resources.data
     state = performPrestige(state, 1000)
     expect(state.prestige.prestigeCount).toBe(1)
-    // 25 starter + 16 base return + 8×prestigeCount
-    expect(state.resources.scrap).toBe(49)
-    expect(state.resources.data).toBe(4) // scaled return kit
-    expect(state.resources.salvage).toBe(19) // 14 + 5×1
+    expect(state.resources.salvage).toBe(0)
+    expect(state.resources.data).toBe(dataBefore)
+    expect(state.prestige.cycle.scrapGenerated).toBe(0)
   })
 
-  it('refunds doctrine AI Points on prestige', () => {
-    let state = createInitialState(0)
-    // Avoid Neural Link achievement noise — mark it done, spend exact cost.
+  it('refunds doctrine AI Points on Rebuild', () => {
+    let state = armRebuildDoor(createInitialState(0))
     state.meta.completedAchievements = ['neural-link']
     state.meta.aiUnlocked = true
     state.resources.aiPoints = 2
@@ -38,22 +39,16 @@ describe('post-prestige re-push balance', () => {
     const control = structuredClone(state)
     control.ai.purchased = []
     control.resources.aiPoints = 0
-    control.meta.highestSectorEver = 12
     const controlAfter = performPrestige(control, 1000)
 
-    state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
     expect(state.ai.purchased).not.toContain('focus-fire')
     expect(state.resources.aiPoints - controlAfter.resources.aiPoints).toBe(2)
   })
 
-  it('can buy Basic Optics with farmed data and one module level from return salvage', () => {
-    let state = createInitialState(0)
-    state.meta.highestSectorEver = 12
+  it('cannot buy Core Levels with Salvage after Rebuild', () => {
+    let state = armRebuildDoor(createInitialState(0))
     state = performPrestige(state, 2000)
-
-    // Optics costs 20 Data; return kit grants a head start but still needs a short farm.
-    expect(state.resources.data).toBe(4)
     state.resources.data = 40
     state = buyResearch(state, 'basic-optics')
     expect(state.research.unlocked).toContain('basic-optics')
@@ -63,6 +58,5 @@ describe('post-prestige re-push balance', () => {
     state = upgradeModule(state, 'pulse-cannon')
     expect(state.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
     expect(computeShipStats(state).damage).toBe(before)
-    expect(state.resources.salvage).toBe(19)
   })
 })

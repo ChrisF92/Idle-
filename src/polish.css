@@ -2304,3 +2304,43 @@ button.just-ok {
   }
 }
 
+.next-upgrade-card .unlock-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line, #6a5848);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+}
+
+.matter-buy-btn,
+.extract-confirm-btn,
+.extract-cancel-btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.extract-confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.extract-confirm-actions button {
+  flex: 1;
+  min-height: 44px;
+}
+
+.matter-node-card {
+  margin-bottom: 0.75rem;
+}
+
+.matter-breakdown strong {
+  display: block;
+}
+
+.upgrade-tile-level {
+  white-space: normal;
+}
+
+

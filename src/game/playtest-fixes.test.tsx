@@ -14,7 +14,6 @@ import { ACT1_CADENCE } from './cadence'
 import { careerBestWave } from './waves'
 import { isSystemUnlocked } from './progression'
 import { buildPlaytestReport } from './playtest'
-import { RUN_UPGRADE_CAP } from './workshop'
 
 afterEach(cleanup)
 
@@ -163,7 +162,7 @@ describe('playtest fix pass', () => {
     expect(document.querySelector('.upgrade-tile-cost')).toBeTruthy()
     expect(document.querySelector('.upgrade-tile.is-affordable, .upgrade-tile.is-short')).toBeTruthy()
     fireEvent.click(screen.getAllByRole('button', { name: /details/i })[0]!)
-    expect(screen.getByText(new RegExp(`Level \\d+ / ${RUN_UPGRADE_CAP}`))).toBeTruthy()
+    expect(screen.getByText(/Workshop \d+ \/ \d+/)).toBeTruthy()
   })
 
   it('does not dump Worker job lines onto the Foundry card', () => {

@@ -120,7 +120,7 @@ describe('Act 1 Process depth', () => {
     expect(processCombatSpeedMult(s)).toBe(1)
     expect(processOfflineBonusMs(s)).toBe(0)
     s.process.purchased = ['combat-tempo', 'deep-cache']
-    expect(processCombatSpeedMult(s)).toBe(1.5)
+    expect(processCombatSpeedMult(s)).toBe(1)
     expect(processOfflineBonusMs(s)).toBe(4 * 60 * 60 * 1000)
     s.lastTickAt = 0
     const { report } = applyOfflineCatchUp(s, MAX_OFFLINE_MS + 5 * 60 * 60 * 1000)

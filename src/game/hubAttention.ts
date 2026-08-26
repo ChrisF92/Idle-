@@ -13,8 +13,6 @@ import { canBuyProcessNode, processVisibleNodes } from './process'
 import { hasHullLostOnce, isSystemUnlocked } from './progression'
 import type { GameState, TabId } from './types'
 import {
-  RUN_UPGRADE_CAP,
-  effectiveUpgradeLevel,
   runPurchasedLevel,
   runUpgradeCost,
   visibleRunUpgrades,
@@ -230,11 +228,10 @@ export function attentionAria(label: string, flags: AttentionFlags): string {
 
 function runUpgradeSpend(state: GameState): boolean {
   if (state.combat.docked) return false
-  const best = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0, state.combat.wave ?? 1)
-  for (const def of visibleRunUpgrades(best)) {
-    const level = effectiveUpgradeLevel(state, def.id)
-    if (level >= RUN_UPGRADE_CAP) continue
-    if (runUpgradeCost(runPurchasedLevel(state, def.id)) <= (state.resources.salvage ?? 0)) return true
+  for (const def of visibleRunUpgrades(state)) {
+    const run = runPurchasedLevel(state, def.id)
+    if (run >= (def.sortieMax ?? 0)) continue
+    if (runUpgradeCost(run) <= (state.resources.salvage ?? 0)) return true
   }
   return false
 }
