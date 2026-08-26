@@ -131,8 +131,8 @@ export const SHIP_MODULE_DEFS = [
     damageTakenMult: 1,
     weapon: {
       name: 'Phase Beam',
-      damage: 8,
-      damagePerLevel: 1.6,
+      damage: 3.36,
+      damagePerLevel: 0.67,
       cooldown: 0.42,
       range: 220,
       tags: ['energy', 'antiShield'],
@@ -262,7 +262,7 @@ export const SHIP_MODULE_DEFS = [
     damageBonus: 0,
     hullBonus: 0,
     damageTakenMult: 1,
-    salvageKillBonus: 0.12,
+    salvageKillBonus: 0,
     unlockCost: {},
   },
   {

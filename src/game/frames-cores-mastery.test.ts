@@ -318,6 +318,8 @@ describe('PR4 targeting geometry', () => {
     expect(targetingProfileFor('phase-beam').committedSwitchAdvantage).toBeGreaterThan(
       targetingProfileFor('pulse-cannon').switchAdvantage,
     )
+    const phase = getModule('phase-beam')!.weapon!
+    expect(phase.damage / phase.cooldown).toBeCloseTo(8, 1)
     expect(isTargetingCapableCoreModule('grav-tether')).toBe(true)
     expect(isTargetingCapableCoreModule('salvage-beacon')).toBe(true)
     expect(isTargetingCapableCoreModule('plate-layer')).toBe(false)
