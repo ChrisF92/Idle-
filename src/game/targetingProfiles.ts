@@ -116,7 +116,7 @@ export const PHASE_BEAM_TARGETING_PROFILE: CoreTargetingProfile = {
   slewRateDegPerSec: 180,
   slewClass: 'medium',
   switchAdvantage: 0.6,
-  committedSwitchAdvantage: 0.85,
+  committedSwitchAdvantage: 0.65,
   firesWhileTraversing: false,
   requiresStabilisedAim: true,
   aimToleranceDeg: 6,

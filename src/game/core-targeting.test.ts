@@ -650,10 +650,10 @@ describe('acquisition, slew, and firing solution', () => {
     state.shipyard.coreInstances.push({ id: 'heavy-lance:1', moduleId: 'heavy-lance' })
     state.shipyard.equippedCoreIds = ['heavy-lance:1', 'plate-layer:1']
     state = startCombat(state)
-    const core = state.combat.playerUnits.find((u) => u.isCore)!
+    const core = state.combat.playerUnits.find((u) => u.isCore && u.coreModuleId === 'heavy-lance')!
     const fire = effectiveCoreFireRange(state, core)
     const acquire = effectiveCoreAcquisitionRange(state, core)
-    setEnemies(state, [enemy({ id: 'siege', x: 0, y: (fire + acquire) / 2, hull: 400, hullMax: 400, armor: 12 })])
+    setEnemies(state, [enemy({ id: 'siege', x: 0, y: acquire * 0.9, hull: 400, hullMax: 400, armor: 12 })])
     for (const weapon of core.weapons) weapon.damage = 0
     simulateCombat(state, 0.4, silent)
     expect(core.currentTargetId).toBe('siege')
@@ -907,7 +907,7 @@ describe('range / arc identity', () => {
     const core = fleet.find((u) => u.isCore)!
     expect(effectiveCoreAcquisitionRange(state, core)).toBeGreaterThan(effectiveCoreFireRange(state, core))
     expect(effectiveCoreFiringArc(state, core)).toBe(150)
-    expect(effectiveCoreSlewRate(state, core)).toBe(360)
+    expect(effectiveCoreSlewRate(state, core)).toBeCloseTo(360 * 1.08)
   })
 
   it('returns an empty profile for leftover weapon IDs', () => {

@@ -180,8 +180,8 @@ describe('PR4 Core Level lifecycle', () => {
     s.resources.salvage = 40
     s = buyCoreStartingLevel(s, 'pulse-cannon:1')
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
-    const salvage = s.resources.salvage
     s = live(s)
+    const salvage = s.resources.salvage
     s = buyCoreRunSlot(s, 0, 1)
     expect(s.resources.salvage).toBe(salvage)
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
@@ -349,7 +349,7 @@ describe('PR4 targeting geometry', () => {
     const fleet = buildPlayerFleet(s)
     const pulse = fleet.find((u) => u.coreModuleId === 'pulse-cannon')
     expect(pulse?.orbitRadius).toBe(44)
-    expect(pulse?.x).not.toBe(0)
+    expect(Math.hypot(pulse?.x ?? 0, pulse?.y ?? 0)).toBeCloseTo(44)
   })
 })
 
