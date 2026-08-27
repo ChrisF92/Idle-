@@ -25,6 +25,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Prepare PR8 transform
+        run: python scripts/pr8_prepare.py
       - name: Apply PR8 transform
         run: python scripts/pr8_apply.py
       - name: Install
@@ -39,7 +41,7 @@ jobs:
         run: npm run build:pages
       - name: Commit verified PR8 tree
         run: |
-          rm scripts/pr8_apply.py
+          rm scripts/pr8_apply.py scripts/pr8_prepare.py
           rm .github/workflows/pr8-runner.yml
           git config user.name "ChatGPT PR8 Implementation"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
