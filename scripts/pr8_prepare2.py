@@ -33,6 +33,36 @@ if old_state_block not in text:
     raise SystemExit('prepare2: capacity state block missing')
 text = text.replace(old_state_block, new_state_block, 1)
 
+# Current waveScheduler uses scheduleNextNormal and salvageBonus/waveScrap rather than
+# the older waveKind/salvage/scrap shapes the initial transform targeted.
+old_ws_block = """ws = read('src/game/waveScheduler.ts')
+ws = ws.replace(\"import { waveKind } from './waves'\", \"import { waveKind } from './waves'\\nimport { directiveNormalReinforcementIntervalMult, directiveSalvageMult, directiveScrapMult } from './directives'\\nimport { furnaceSalvageMult, furnaceScrapMult } from './furnace'\")
+ws = ws.replace('state.combat.nextReinforcementAt = now + NORMAL_REINFORCEMENT_INTERVAL', 'state.combat.nextReinforcementAt = now + NORMAL_REINFORCEMENT_INTERVAL * directiveNormalReinforcementIntervalMult(state)')
+ws = ws.replace('const salvage = salvageWaveBonus(state)', 'const salvage = salvageWaveBonus(state) * directiveSalvageMult(state) * furnaceSalvageMult(state)')
+ws = ws.replace('const scrap = scrapWaveBonus(state)', 'const scrap = scrapWaveBonus(state) * directiveScrapMult(state) * furnaceScrapMult(state)')
+write('src/game/waveScheduler.ts', ws)"""
+new_ws_block = """ws = read('src/game/waveScheduler.ts')
+ws = ws.replace(
+    \"import { salvageWaveBonus, scrapWaveBonus } from './workshop'\",
+    \"import { salvageWaveBonus, scrapWaveBonus } from './workshop'\\nimport { directiveNormalReinforcementIntervalMult, directiveSalvageMult, directiveScrapMult } from './directives'\\nimport { furnaceSalvageMult, furnaceScrapMult } from './furnace'\",
+)
+ws = ws.replace(
+    '  state.combat.nextReinforcementAt = (state.combat.simTime ?? 0) + NORMAL_REINFORCEMENT_INTERVAL',
+    '  state.combat.nextReinforcementAt = (state.combat.simTime ?? 0) + NORMAL_REINFORCEMENT_INTERVAL * directiveNormalReinforcementIntervalMult(state)',
+)
+ws = ws.replace(
+    '  const salvageBonus = salvageWaveBonus(state)',
+    '  const salvageBonus = salvageWaveBonus(state) * directiveSalvageMult(state) * furnaceSalvageMult(state)',
+)
+ws = ws.replace(
+    \"  const waveScrap = (drip + scrapWaveBonus(state)) * combatScrapMatterMult(state)\",
+    \"  const waveScrap = (drip + scrapWaveBonus(state)) * combatScrapMatterMult(state) * directiveScrapMult(state) * furnaceScrapMult(state)\",
+)
+write('src/game/waveScheduler.ts', ws)"""
+if old_ws_block not in text:
+    raise SystemExit('prepare2: old scheduler transform block missing')
+text = text.replace(old_ws_block, new_ws_block, 1)
+
 # Focused test harness must use the current PR7 generator signature and scheduler hook.
 text = text.replace(
     "const ordinary = encounterForWave(base, 421, 77)",
