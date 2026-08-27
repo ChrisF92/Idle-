@@ -5,11 +5,13 @@ import {
   masteryMilestonesFor,
 } from './coreProgression'
 import { FURNACE_CHANNELS, furnaceChannelEffectLine } from './furnace'
-import { FOUNDRY_MASTERY_STEPS, FOUNDRY_UPGRADES, foundryMasteryEffect } from './foundry'
+import { FOUNDRY_PANE_LABELS, materialMasteryRank } from './foundry'
+import { FOUNDRY_FACILITIES, FOUNDRY_MATERIAL_IDS } from './foundryCatalogue'
+import { MATERIAL_MASTERY_MAX_RANK } from './foundrySeeds'
+import { createInitialState } from './state'
 import { HIVE_RESEARCH_NODES, hiveResearchNodeEffectLine } from './hiveResearch'
 import { protocolHookEffect } from './protocols'
 import { RUN_UPGRADES, runUpgradeEffectLine } from './workshop'
-import { YARD_ARMS, yardArmEffect } from './yard'
 
 describe('upgrade copy is quantitative', () => {
   it('formats Plate Layer mastery from authored slots, not invented percents', () => {
@@ -48,13 +50,12 @@ describe('upgrade copy is quantitative', () => {
     expect(runUpgradeEffectLine('shield-regen')).toBe('Shield regen +0.4%/s per rank')
   })
 
-  it('states Foundry recipe mastery and shop ranks as numbers', () => {
-    expect(foundryMasteryEffect(FOUNDRY_MASTERY_STEPS[0]!)).toBe('Recipe available')
-    expect(foundryMasteryEffect(FOUNDRY_MASTERY_STEPS[1]!)).toBe('Output +1 per craft')
-    expect(foundryMasteryEffect(FOUNDRY_MASTERY_STEPS[3]!)).toBe('Craft cost ×0.82')
-    expect(foundryMasteryEffect(FOUNDRY_MASTERY_STEPS[4]!)).toBe('Output ×2')
-    expect(foundryMasteryEffect(FOUNDRY_MASTERY_STEPS[7]!)).toBe('Craft time ×0.70 · Output +2')
-    expect(FOUNDRY_UPGRADES).toEqual([])
+  it('states Material Mastery as M0→M5 rather than 100 recipe levels', () => {
+    expect(MATERIAL_MASTERY_MAX_RANK).toBe(5)
+    expect(FOUNDRY_MATERIAL_IDS).toHaveLength(12)
+    expect(Object.values(FOUNDRY_PANE_LABELS)).toEqual(['Processing', 'Fabrication', 'Mastery', 'Blueprints'])
+    const s = createInitialState(0)
+    expect(materialMasteryRank(s, 'recovered-stock')).toBe(0)
   })
 
   it('states Hive Research, Challenge, Furnace, and Yard amounts', () => {
@@ -67,7 +68,13 @@ describe('upgrade copy is quantitative', () => {
     expect(protocolHookEffect({ kind: 'furnaceDrain', mult: 0.88 })).toBe('Channel Heat cost ×0.88')
     const weapons = FURNACE_CHANNELS.find((ch) => ch.id === 'weapons')!
     expect(furnaceChannelEffectLine(weapons)).toBe('Weapon Output ×1.40 / ×1.80 / ×2.50')
-    expect(YARD_ARMS).toEqual([])
-    expect(yardArmEffect('processing-line')).toMatch(/Processing slot/)
+    expect(FOUNDRY_FACILITIES.map((row) => row.id)).toEqual([
+      'processing-line',
+      'fabrication-bay',
+      'worker-fabricator',
+      'research-annex',
+      'recovery-storage',
+    ])
+    expect(FOUNDRY_FACILITIES[0]?.effect).toMatch(/Processing slot/)
   })
 })

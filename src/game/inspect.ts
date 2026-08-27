@@ -54,20 +54,14 @@ import {
 } from './furnace'
 import {
   FOUNDRY_RECIPES,
-  craftsForNextLevel,
   formatFoundryCost,
-  foundryCraftOutput,
   foundryCraftTime,
   foundryHasMaterialChain,
   foundryMaterialCount,
-  foundryMasteryEffect,
-  foundryNextMastery,
   foundryRecipeChainLine,
-  foundryRecipeGateLine,
-  foundryRecipeLevel,
   getFoundryRecipe,
   isFoundryRecipeUnlocked,
-  scaledFoundryCost,
+  materialMasteryRank,
 } from './foundry'
 import {
   formatResearchDuration,
@@ -306,50 +300,33 @@ export function inspectFoundryRecipe(state: GameState, id: FoundryRecipeId): Ins
   const def = getFoundryRecipe(id)
   if (!def) return null
   const unlocked = isFoundryRecipeUnlocked(state, id)
-  const level = foundryRecipeLevel(state, id)
+  const rank = materialMasteryRank(state, id)
   const stock = foundryMaterialCount(state, id)
-  const cost = scaledFoundryCost(state, id)
+  const cost = def.costs
   const time = foundryCraftTime(state, id)
-  const xp = state.foundry.recipeXp[id] ?? 0
-  const need = craftsForNextLevel(level, state)
   const stats: InspectStat[] = [
-    {
-      label: 'Status',
-      value: unlocked ? `Level ${level}/${def.maxLevel}` : 'Locked',
-    },
+    { label: 'Status', value: unlocked ? `M${rank}/M5` : 'Locked' },
+    { label: 'Stock', value: formatCompact(Number.isFinite(stock) ? stock : 0) },
   ]
   if (unlocked) {
     stats.push(
-      { label: 'Stock', value: formatCompact(Number.isFinite(stock) ? stock : 0) },
       { label: 'Craft', value: formatFoundryCost(cost) },
       { label: 'Time', value: `${formatCompact(time, 1)}s` },
-      { label: 'Output', value: String(foundryCraftOutput(state, id)) },
-      { label: 'To next level', value: `${xp}/${need} crafts` },
+      { label: 'Output', value: '1' },
     )
-    const next = foundryNextMastery(state, id)
-    if (next) stats.push({ label: 'Next mastery', value: `Lv ${next.at} — ${foundryMasteryEffect(next)}` })
-  }
-  if (!unlocked) stats.push({ label: 'Gate', value: foundryRecipeGateLine(def) })
-  else if (def.unlocksRecipe) {
-    const child = getFoundryRecipe(def.unlocksRecipe.recipeId)?.name ?? def.unlocksRecipe.recipeId
-    stats.push({ label: 'Unlocks', value: `${child} at level ${def.unlocksRecipe.atLevel}` })
-  }
-  const body = [
-    def.blurb,
-    foundryHasMaterialChain(def)
-      ? foundryRecipeChainLine(def)
-      : 'Salvage or scrap goes in. Stock comes out.',
-    'Raising this recipe still matters: later crafts get faster, cheaper, and yield more.',
-    'Recipe levels, stock, and facilities persist when you Rebuild.',
-  ]
-  if (def.requiresBestWave > ACT1_CADENCE.foundry) {
-    body.push(`This recipe opens after you reach Wave ${def.requiresBestWave}.`)
+  } else {
+    stats.push({ label: 'Gate', value: foundryRecipeChainLine(def) })
   }
   return {
     title: def.name,
     kicker: 'Foundry recipe',
     stats,
-    body,
+    body: [
+      def.blurb,
+      foundryHasMaterialChain(def) ? foundryRecipeChainLine(def) : 'Scrap or recovered inputs go in. Stock comes out.',
+      'Completed Processing cycles grant Material Mastery XP for this output. Mastery caps at M5.',
+      'Materials, Mastery, and infrastructure persist when you Rebuild.',
+    ],
   }
 }
 

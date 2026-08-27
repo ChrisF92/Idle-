@@ -44,9 +44,9 @@ import {
   FOUNDRY_FACILITIES,
   canStartFabrication,
   foundryFacilityCommitted,
-  foundryRecipeLevel,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
+  materialMasteryRank,
   startFabrication,
 } from '../foundry'
 import {
@@ -287,37 +287,38 @@ function foundryStock(state: GameState, id: FoundryRecipeId): number {
 
 /** Player-like: stock the Fabricator chain after W90, otherwise keep Recovered Stock running. */
 function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
-  const slagOn = isFoundryRecipeUnlocked(state, 'slag-ingot')
-  const filOn = isFoundryRecipeUnlocked(state, 'filament')
-  const temperOn = isFoundryRecipeUnlocked(state, 'temper-bar')
-  if (!slagOn && !filOn && !temperOn) return null
-  const slag = foundryStock(state, 'slag-ingot')
-  const filament = foundryStock(state, 'filament')
-  const temper = foundryStock(state, 'temper-bar')
-  const fabDone = foundryFacilityCommitted(state, 'drone-fabricator') > 0
-  const wantFab =
-    !fabDone && careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
+  const stockOn = isFoundryRecipeUnlocked(state, 'recovered-stock')
+  const filOn = isFoundryRecipeUnlocked(state, 'conductive-filament')
+  const temperOn = isFoundryRecipeUnlocked(state, 'tempered-alloy')
+  if (!stockOn && !filOn && !temperOn) return null
+  const stock = foundryStock(state, 'recovered-stock')
+  const filament = foundryStock(state, 'conductive-filament')
+  const temper = foundryStock(state, 'tempered-alloy')
+  const fabDone = foundryFacilityCommitted(state, 'worker-fabricator') > 0
+  const wantFab = !fabDone && careerBestWave(state) >= ACT1_CADENCE.foundry
   if (wantFab) {
-    if (temperOn && temper < 6 && slag >= 2 && filament >= 1) return 'temper-bar'
-    if (filOn && filament < 8) return 'filament'
-    if (slagOn && slag < 24) return 'slag-ingot'
-    if (temperOn && temper < 6) {
-      if (filOn && filament < 1) return 'filament'
-      if (slagOn) return 'slag-ingot'
-    }
+    if (temperOn && temper < 6 && stock >= 2 && filament >= 1) return 'tempered-alloy'
+    if (filOn && filament < 8) return 'conductive-filament'
+    if (stockOn && stock < 24) return 'recovered-stock'
   }
-  const processing: FoundryRecipeId[] = ['slag-ingot', 'filament', 'temper-bar', 'hardened-plate', 'relay']
+  const processing: FoundryRecipeId[] = [
+    'recovered-stock',
+    'conductive-filament',
+    'tempered-alloy',
+    'ballistic-composite',
+    'optical-glass',
+  ]
   const unlocked = processing.filter((id) => isFoundryRecipeUnlocked(state, id))
   if (!unlocked.length) {
-    if (slagOn) return 'slag-ingot'
-    if (filOn) return 'filament'
-    return temperOn ? 'temper-bar' : null
+    if (stockOn) return 'recovered-stock'
+    if (filOn) return 'conductive-filament'
+    return temperOn ? 'tempered-alloy' : null
   }
-  const belowSoft = unlocked.filter((id) => foundryRecipeLevel(state, id) < 45)
-  const belowHard = unlocked.filter((id) => foundryRecipeLevel(state, id) < 90)
+  const belowSoft = unlocked.filter((id) => materialMasteryRank(state, id) < 3)
+  const belowHard = unlocked.filter((id) => materialMasteryRank(state, id) < 5)
   const pool = belowSoft.length ? belowSoft : belowHard
   if (!pool.length) return null
-  pool.sort((a, b) => foundryRecipeLevel(state, a) - foundryRecipeLevel(state, b))
+  pool.sort((a, b) => materialMasteryRank(state, a) - materialMasteryRank(state, b))
   return pool[0]!
 }
 
@@ -707,7 +708,7 @@ export function spendScrapOnCoreStarts(
 
 export function tendFoundryFacilities(state: GameState, ctx: StrategyContext): GameState {
   if (!isSystemUnlocked(state, 'foundry')) return state
-  const prefer = ['drone-fabricator', 'drone-racks', 'processing-line', 'storage-bay', 'research-annex']
+  const prefer = ['processing-line', 'fabrication-bay', 'worker-fabricator', 'research-annex', 'recovery-storage']
   for (const id of prefer) {
     const def = FOUNDRY_FACILITIES.find((row) => row.id === id)
     if (!def) continue

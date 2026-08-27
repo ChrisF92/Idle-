@@ -4,7 +4,6 @@ import type { GameState, HiveResearchBranch, HiveResearchState, NetworkBarId, Re
 import { careerBestWave, isSystemUnlocked, meetsWave } from './progression'
 import { processResearchSpeedMult } from './process'
 import { protocolModifiers } from './protocols'
-import { foundryResearchXpMult } from './foundryBonuses'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 import { getFrame, grantUnlockedFrame, stationEffectiveDrones } from './catalog'
@@ -559,7 +558,6 @@ export function hiveResearchSpeed(state: GameState): number {
     labor *
     hiveResearchXpMult(state) *
     processResearchSpeedMult(state) *
-    foundryResearchXpMult(state) *
     hiveResearchProtocolXpMult(state)
   )
 }

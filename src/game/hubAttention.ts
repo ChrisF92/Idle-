@@ -56,7 +56,6 @@ export function contentKeys(state: GameState, scope: HubAttentionScope): string[
     for (const print of listFarmableCores(state)) {
       keys.push(`print:${print.id}`)
     }
-    if (isSystemUnlocked(state, 'yard')) keys.push('sys:yard')
     return keys
   }
   if (scope === 'research') {
@@ -175,7 +174,7 @@ function foundrySpend(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'foundry')) return false
   if (state.foundry.slots.some((s) => !s.recipeId)) return true
   if ((state.foundry.fabrication ?? []).some((s) => !s.kind)) return true
-  if (isSystemUnlocked(state, 'yard') && FOUNDRY_FACILITIES.some((facility) => canStartFabrication(state, 'facility', facility.id).ok)) {
+  if (FOUNDRY_FACILITIES.some((facility) => canStartFabrication(state, 'facility', facility.id).ok)) {
     return true
   }
   return listFarmableCores(state).some((print) => {

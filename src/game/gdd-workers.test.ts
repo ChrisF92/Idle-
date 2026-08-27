@@ -20,22 +20,22 @@ import { startFabrication } from './foundry'
 import { tickAutomation } from './automation'
 
 describe('GDD Worker Drones', () => {
-  it('stays locked before Wave 30, even after the first hull loss', () => {
-    const dead = markHullLost(atCareerWave(createInitialState(0), 29))
+  it('stays locked before Wave 50, even after the first hull loss', () => {
+    const dead = markHullLost(atCareerWave(createInitialState(0), 49))
     expect(isWorkersUnlocked(dead)).toBe(false)
     expect(isSystemUnlocked(dead, 'network')).toBe(false)
     expect(isSystemUnlocked(dead, 'base')).toBe(false)
     expect(isStationUnlocked(dead, 'scrap-field')).toBe(false)
   })
 
-  it('opens industrial jobs at Wave 30', () => {
+  it('opens industrial jobs with Foundry at Wave 50', () => {
     const open = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     expect(isWorkersUnlocked(open)).toBe(true)
     expect(isSystemUnlocked(open, 'network')).toBe(true)
     expect(isSystemUnlocked(open, 'base')).toBe(true)
     expect(isStationUnlocked(open, 'scrap-field')).toBe(true)
     expect(isStationUnlocked(open, 'sensor-net')).toBe(true)
-    expect(isStationUnlocked(open, 'construction')).toBe(false)
+    expect(isStationUnlocked(open, 'construction')).toBe(true)
     expect(WORKER_JOB_IDS).toEqual([
       'scrap-field',
       'sensor-net',
@@ -105,7 +105,7 @@ describe('GDD Worker Drones', () => {
     s.network.bars.loom.levels = 40
     expect(networkManufactureMult(s)).toBe(1)
     s.base.workerDrones = 16
-    s.foundry.facilities = ['drone-fabricator']
+    s.foundry.facilities = ['worker-fabricator']
     s.base.assignments['drone-fab'] = 8
     expect(networkManufactureMult(s)).toBe(1)
   })
@@ -132,24 +132,30 @@ describe('GDD Worker Drones', () => {
   it('shows Infrastructure only while a real project is active', () => {
     let s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
     expect(visibleWorkerJobIds(s)).not.toContain('construction')
-    s.foundry.materials['slag-ingot'] = 20
-    s.foundry.materials['hardened-plate'] = 10
+    s.foundry.materials['recovered-stock'] = 20
+    s.foundry.materials['tempered-alloy'] = 10
     s = startFabrication(s, 'facility', 'processing-line')
     expect(visibleWorkerJobIds(s)).toContain('construction')
   })
 
-  it('manufactures Worker Drones only when the real job is staffed', () => {
-    let idle = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
-    idle.foundry.facilities = ['drone-fabricator']
+  it('manufactures Worker Drones only through the Worker Fabricator job', () => {
+    let idle = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    idle.foundry.facilities = ['worker-fabricator']
+    idle.foundry.materials['recovered-stock'] = 40
+    idle.foundry.materials['conductive-filament'] = 20
+    idle.resources.scrap = 80
     const before = idle.base.workerDrones
     advanceSeconds(idle, 120)
     expect(idle.base.workerDrones).toBe(before)
 
-    let staffed = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
-    staffed.foundry.facilities = ['drone-fabricator']
-    staffed = assignWorker(staffed, 'drone-fab', 2)
+    let staffed = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    staffed.foundry.facilities = ['worker-fabricator']
+    staffed.foundry.materials['recovered-stock'] = 40
+    staffed.foundry.materials['conductive-filament'] = 20
+    staffed.resources.scrap = 80
+    staffed = startFabrication(staffed, 'worker', 'worker')
     advanceSeconds(staffed, 120)
-    expect(staffed.base.workerDrones).toBeGreaterThan(before)
+    expect(staffed.base.workerDrones).toBe(before + 1)
   })
 
   it('keeps automatic reassignment inside Process progression', () => {
@@ -162,7 +168,7 @@ describe('GDD Worker Drones', () => {
     const process = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
     process.base.workerDrones = 8
     process.resources.scrap = 80
-    process.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0, paid: false }
+    process.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0, paid: false }
     process.process.purchased = ['network-optimise', 'network-presets', 'network-balance']
     process.process.config.network.enabled = true
     tickAutomation(process)

@@ -441,7 +441,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                 [
                   'foundry',
                   'Foundry',
-                  `Recipes ${run0.foundry.points}\n${JSON.stringify(run0.foundry.recipeLevels)}`,
+                  `Recipes ${run0.foundry.points}\n${JSON.stringify(run0.foundry.masteryXp)}`,
                 ],
                 [
                   'furnace',

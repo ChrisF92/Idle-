@@ -5,7 +5,6 @@ import {
   autoBalanceWorkers,
   buyAiNode,
   buyMatterShop,
-  buyResearch,
   fillStationWorkers,
 } from './actions'
 import {
@@ -27,31 +26,22 @@ function atWorkers(bestWave = 120) {
 }
 
 describe('drone corps cap + black-bar saturation', () => {
-  it('starts at base cap and stops manufacture at capacity', () => {
+  it('starts at base cap and does not auto-manufacture Workers', () => {
     const state = atWorkers()
     expect(droneCap(state)).toBe(BASE_DRONE_CAP)
     state.base.workerDrones = BASE_DRONE_CAP
-    state.base.manufactureProgress = 0.99
     advanceSeconds(state, 5)
     expect(state.base.workerDrones).toBe(BASE_DRONE_CAP)
   })
 
-  it('research / AI / Worker Racks raise cap without creating workers or raising power', () => {
+  it('Matter Worker Racks raise cap without creating workers or raising power', () => {
     let state = atWorkers()
-    state.resources.data = 200
-    state = buyResearch(state, 'drone-logistics')
-    expect(droneCap(state)).toBe(BASE_DRONE_CAP + 5)
-
-    state.resources.aiPoints = 10
-    state = buyAiNode(state, 'drone-hangar')
-    expect(droneCap(state)).toBe(BASE_DRONE_CAP + 5 + 8)
-
     const workersBefore = state.base.workerDrones
     const powerBefore = dronePower(state)
     state.resources.prestigeMatter = 20
     state.prestige.prestigeCount = 1
     state = buyMatterShop(state, 'worker-racks')
-    expect(droneCap(state)).toBe(BASE_DRONE_CAP + 5 + 8 + 1)
+    expect(droneCap(state)).toBe(BASE_DRONE_CAP + 1)
     expect(state.base.workerDrones).toBe(workersBefore)
     expect(dronePower(state)).toBeCloseTo(powerBefore, 5)
   })
@@ -83,10 +73,10 @@ describe('drone corps cap + black-bar saturation', () => {
     expect(stationThroughput(state, 'scrap-field')).toBeCloseTo(1, 5)
   })
 
-  it('lifetime drones built softly raise cap', () => {
+  it('lifetime drones built do not raise capacity', () => {
     const state = createInitialState(0)
     state.meta.lifetimeDronesBuilt = 40
-    expect(droneCap(state)).toBe(BASE_DRONE_CAP + 2)
+    expect(droneCap(state)).toBe(BASE_DRONE_CAP)
   })
 
   it('labour assignment stops at the real job hard cap', () => {

@@ -58,12 +58,6 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Spend Heat on temporary ship boosts.',
   },
   {
-    id: 'yard',
-    requiresBestWave: ACT1_CADENCE.yard,
-    label: 'Construction',
-    tip: 'Foundry construction. Fabricate facilities; bonuses apply as soon as the job finishes.',
-  },
-  {
     id: 'slag',
     requiresBestWave: 0,
     label: 'Matter',
@@ -377,14 +371,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: 'Stock Plate',
     description: 'Raise Recovered Stock to rank 4.',
     rewardAiPoints: 2,
-    condition: { type: 'foundry-recipe-level', recipeId: 'slag-ingot', min: 4 },
+    condition: { type: 'foundry-recipe-level', recipeId: 'recovered-stock', min: 4 },
   },
   {
     id: 'foundry-plate',
     name: 'Plate Line',
-    description: 'Raise Recovered Stock to rank 8.',
+    description: 'Raise Recovered Stock to rank 5.',
     rewardAiPoints: 3,
-    condition: { type: 'foundry-recipe-level', recipeId: 'slag-ingot', min: 8 },
+    condition: { type: 'foundry-recipe-level', recipeId: 'recovered-stock', min: 5 },
   },
   {
     id: 'furnace-lit',
@@ -555,7 +549,7 @@ export function achievementProgressValue(
     case 'network-level-sum':
       return Object.values(state.network?.bars ?? {}).reduce((a, b) => a + (b?.levels ?? 0), 0)
     case 'foundry-recipe-level':
-      return state.foundry?.recipeLevels?.[condition.recipeId] ?? 0
+      return state.foundry?.masteryXp?.[condition.recipeId] ?? 0
     case 'furnace-rank-sum':
       return (
         Object.values(state.furnace?.upgrades ?? {}).reduce((a, b) => a + b, 0) +
@@ -576,7 +570,7 @@ export function achievementProgressValue(
     case 'echo-clear-sum':
       return Object.values(state.echo?.clears ?? {}).reduce((a, b) => a + b, 0)
     case 'yard-building-count':
-      return (state.yard?.cells ?? []).filter((c) => c.buildingId).length
+      return (state.foundry?.facilities ?? []).length
   }
 }
 
@@ -682,9 +676,6 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'slag') {
     return (state.prestige.prestigeCount ?? 0) >= 1 || Object.keys(state.prestige.matterShop ?? {}).length > 0
   }
-  if (systemId === 'yard') {
-    return careerBestWave(state) >= ACT1_CADENCE.foundryAdvanced
-  }
   if (systemId === 'capital' || systemId === 'specialists' || systemId === 'tasks') {
     return false
   }
@@ -744,9 +735,6 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   }
   if (systemId === 'slag') {
     return 'Rebuild once'
-  }
-  if (systemId === 'yard') {
-    return `Reach Wave ${ACT1_CADENCE.foundryAdvanced}`
   }
   if (systemId === 'capital') {
     return `Reach Wave ${ACT1_CADENCE.capital} · finish the Task List`

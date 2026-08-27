@@ -71,13 +71,15 @@ describe('onboarding queue', () => {
     expect(activeOnboardingLesson(completeLesson(state, 'workers.assignment'), ui('network'))).toBeNull()
   })
 
-  it('teaches Foundry processing on visit', () => {
+  it('teaches Foundry processing then Blueprint discovery on visit', () => {
     const state = prepOnboardingDoor(createInitialState(0), 'foundry.processing')
     expect(activeOnboardingLesson(state, ui('dock'))?.id).not.toBe('foundry.processing')
     expect(activeOnboardingLesson(state, ui('foundry'))?.id).toBe('foundry.processing')
-    state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.2, paid: true }
-    const after = completeLesson(state, 'foundry.processing')
-    expect(activeOnboardingLesson(after, ui('foundry'))).toBeNull()
+    state.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0.2, paid: true }
+    const afterProcessing = completeLesson(state, 'foundry.processing')
+    expect(activeOnboardingLesson(afterProcessing, ui('foundry'))?.id).toBe('foundry.blueprint')
+    const afterBlueprint = completeLesson(afterProcessing, 'foundry.blueprint')
+    expect(activeOnboardingLesson(afterBlueprint, ui('foundry'))).toBeNull()
   })
 
   it('lights Furnace on first open and Skip dismisses the lesson', () => {
@@ -101,7 +103,7 @@ describe('onboarding queue', () => {
     expect(ids.has('process.capability')).toBe(true)
     expect(ids.has('challenges.start')).toBe(true)
     expect(ids.has('reinforce')).toBe(true)
-    expect(ONBOARDING_LESSONS.length).toBe(15)
+    expect(ONBOARDING_LESSONS.length).toBe(16)
   })
 
   it('Skip on Workers dismisses that lesson only', () => {
@@ -118,7 +120,7 @@ describe('onboarding queue', () => {
   })
 
   it('Foundry group is the processing lesson only', () => {
-    expect(FOUNDRY_V2_GUIDE_IDS).toEqual(['foundry.processing'])
+    expect(FOUNDRY_V2_GUIDE_IDS).toEqual(['foundry.processing', 'foundry.blueprint'])
   })
 
   it('Directive lesson requires three real cards', () => {

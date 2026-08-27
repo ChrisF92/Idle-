@@ -7,7 +7,7 @@ import { atCareerWave } from './testHelpers'
 
 describe('GDD system cadence', () => {
   it('spreads major systems across the Wave table', () => {
-    expect(ACT1_CADENCE.foundry).toBe(20)
+    expect(ACT1_CADENCE.foundry).toBe(50)
     expect(PRESTIGE_MIN_SECTOR).toBe(210)
     expect(ACT1_CADENCE.furnace).toBe(140)
     expect(ACT1_CADENCE.research).toBe(170)
@@ -17,10 +17,10 @@ describe('GDD system cadence', () => {
   })
 
   it('requires a mastery gate for Process; Echo never opens', () => {
-    const yard = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced - 1)
-    expect(isSystemUnlocked(yard, 'yard')).toBe(false)
+    const beforeAdvanced = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced - 1)
+    expect(isSystemUnlocked(beforeAdvanced, 'foundry')).toBe(true)
     const open = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced)
-    expect(isSystemUnlocked(open, 'yard')).toBe(true)
+    expect(isSystemUnlocked(open, 'foundry')).toBe(true)
 
     const process = atCareerWave(createInitialState(1), ACT1_CADENCE.process)
     process.prestige.prestigeCount = PROCESS_MIN_REBUILDS

@@ -146,12 +146,6 @@ function AppShell() {
   const go = useCallback(
     (next: TabId) => {
       if (isRemovedAct1Tab(next)) return
-      if (next === 'yard') {
-        setFoundryPane('fabrication')
-        setSystemsView('foundry')
-        if (isHubTabOpen(game.state, 'foundry')) setTab('foundry')
-        return
-      }
       if (next === 'foundry') {
         setSystemsView('foundry')
         if (isHubTabOpen(game.state, next)) setTab(next)
@@ -210,7 +204,6 @@ function AppShell() {
       const station =
         tab === 'furnace' ||
         tab === 'research' ||
-        tab === 'yard' ||
         tab === 'protocols' ||
         tab === 'process' ||
         tab === 'reinforce' ||
@@ -470,7 +463,7 @@ function AppShell() {
             onFabricateCore={game.assembleBlueprint}
             onStartRelic={game.upgradeRelic}
             onStartFacility={game.startFacility}
-            onStopFabrication={game.stopFabrication}
+            onStartJob={game.startFabricationJob}
             onTrack={game.setTrackedPrint}
             guideTarget={onboarding?.target}
             focusTarget={focusTarget}

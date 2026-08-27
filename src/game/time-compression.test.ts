@@ -30,7 +30,7 @@ describe('Time Compression clock', () => {
   it('1× vs 3× equal simulation time matches combat clock through the public path', () => {
     const seed = atCareerWave(markHullLost(createInitialState(0)), 20)
     seed.foundry.slots = seed.foundry.slots.map((slot, i) =>
-      i === 0 ? { ...slot, recipeId: 'slag-ingot', progress: 0, paid: true } : slot,
+      i === 0 ? { ...slot, recipeId: 'recovered-stock', progress: 0, paid: true } : slot,
     )
     let a = setDocked(structuredClone(seed), false)
     let b = setDocked(structuredClone(seed), false)
@@ -44,13 +44,14 @@ describe('Time Compression clock', () => {
     advanceSeconds(b, 10)
     expect(b.combat.simTime).toBeCloseTo(a.combat.simTime, 4)
     expect(b.combat.wave).toBe(a.combat.wave)
-    expect(b.foundry.slots[0]?.progress ?? 0).toBeLessThan(a.foundry.slots[0]?.progress ?? 1)
+    expect(a.foundry.materials['recovered-stock'] ?? 0).toBeGreaterThan(b.foundry.materials['recovered-stock'] ?? 0)
+    expect(b.foundry.slots[0]?.progress ?? 0).toBeGreaterThan(0)
   })
 
   it('does not speed Foundry while compressing combat', () => {
     const a = createInitialState(0)
     a.foundry.slots = a.foundry.slots.map((slot, i) =>
-      i === 0 ? { ...slot, recipeId: 'slag-ingot', progress: 0, paid: true } : slot,
+      i === 0 ? { ...slot, recipeId: 'recovered-stock', progress: 0, paid: true } : slot,
     )
     const b = structuredClone(a)
     b.prestige.matterShop = {

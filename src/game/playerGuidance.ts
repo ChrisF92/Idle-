@@ -2,7 +2,6 @@
 
 import { idleWorkers } from './catalog'
 import { practicedCoreWork } from './corePractice'
-import { foundryRecipeLevel } from './foundry'
 import { firstAffordableProcessNode } from './process'
 import { isSystemUnlocked } from './progression'
 import { isEstablishedCareer, migrateOnboardingRegistry, ONBOARDING_LESSON_IDS } from './onboarding'
@@ -39,7 +38,6 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   if (isSystemUnlocked(state, 'reliquary')) keep.push('Relics')
   if (isSystemUnlocked(state, 'research')) keep.push('Research')
   if (isSystemUnlocked(state, 'process')) keep.push('Process')
-  if (isSystemUnlocked(state, 'yard')) keep.push('Foundry infrastructure')
   if (isSystemUnlocked(state, 'protocols')) keep.push('Challenge ranks')
 
   return { gain, keep, reset, change }
@@ -112,9 +110,8 @@ export function sortieNextHints(state: GameState): string[] {
     items.push('Spend Heat on Shielding')
   }
   if (isSystemUnlocked(state, 'foundry')) {
-    const slag = foundryRecipeLevel(state, 'slag-ingot')
-    const queued = state.foundry.slots.some((s) => s.recipeId === 'slag-ingot')
-    if (slag < 2 && !queued) items.push('Start a Foundry craft')
+    const queued = state.foundry.slots.some((s) => s.recipeId === 'recovered-stock')
+    if (!queued) items.push('Start a Foundry craft')
   }
   if (isSystemUnlocked(state, 'process') && firstAffordableProcessNode(state)) {
     items.push('Buy a Process automation')

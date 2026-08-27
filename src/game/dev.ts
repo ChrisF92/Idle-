@@ -1,6 +1,6 @@
 /** Lightweight cheats for local / ?dev=1 testing. Never required for normal play. */
 
-import type { GameState, Resources, YardGoodId } from './types'
+import type { GameState, Resources } from './types'
 import { AI_NODES, RESEARCH, SHIP_FRAMES, SHIP_MODULES, trimModulesToFrame } from './catalog'
 import { usableCoreSlots } from './coreSlots'
 import {
@@ -26,8 +26,8 @@ import { reconcileEquippedCoreIds } from './coreInstances'
 export const DEV_FLAG_KEY = 'cosmic-idle-dev'
 
 export const GDD_DOOR_PRESETS = [
-  { wave: ACT1_CADENCE.foundry, label: 'W20 Foundry' },
-  { wave: ACT1_CADENCE.workers, label: 'W30 Workers' },
+  { wave: ACT1_CADENCE.foundry, label: 'W50 Foundry' },
+  { wave: ACT1_CADENCE.workers, label: 'W50 Workers' },
   { wave: ACT1_CADENCE.directives, label: 'W50 Directives' },
   { wave: ACT1_CADENCE.rebuild, label: 'W210 Rebuild' },
   { wave: ACT1_CADENCE.reliquary, label: 'W110 Relics' },
@@ -73,7 +73,6 @@ export type DevAction =
   | { type: 'set-best-wave'; wave: number }
   | { type: 'prep-gdd-door'; wave: number }
   | { type: 'add-resources'; amounts: Partial<Resources> }
-  | { type: 'add-yard-goods'; amounts: Partial<Record<YardGoodId, number>> }
   | { type: 'unlock-catalog' }
   | { type: 'clear-guides' }
   | { type: 'set-prestige-count'; count: number }
@@ -164,14 +163,6 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
         next.resources[k] = (next.resources[k] ?? 0) + (amount ?? 0)
       }
       next.combat.log = ['[dev] Resources granted.', ...next.combat.log].slice(0, 40)
-      break
-    }
-    case 'add-yard-goods': {
-      for (const [key, amount] of Object.entries(action.amounts)) {
-        const k = key as YardGoodId
-        next.yard.goods[k] = (next.yard.goods[k] ?? 0) + (amount ?? 0)
-      }
-      next.combat.log = ['[dev] Construction goods granted.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'unlock-catalog': {

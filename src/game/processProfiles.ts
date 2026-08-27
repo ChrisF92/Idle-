@@ -200,7 +200,7 @@ export function conditionMet(state: GameState, cond: ProcessCondition): boolean 
     case 'processor-idle':
       return !(state.foundry?.slots ?? []).some((slot) => slot.recipeId)
     case 'fabricator-idle':
-      return (state.foundry?.fabrication ?? []).some((slot) => !slot.kind && !slot.complete)
+      return (state.foundry?.fabrication ?? []).some((slot) => !slot.kind)
     case 'ash-gte':
       return (state.resources.choirAsh ?? 0) >= Math.max(0, cond.value ?? 0)
     case 'heat-gte':

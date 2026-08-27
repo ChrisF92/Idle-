@@ -118,14 +118,14 @@ describe('GDD Relics in Cores', () => {
   it('upgrades I to II with a spare Relic and Slag Ingots', () => {
     let s = relicDock()
     s.reliquary.owned['battle-chip'] = 2
-    s.foundry.materials['slag-ingot'] = 4
+    s.foundry.materials['recovered-stock'] = 4
     s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
     const withI = reliquaryDamageMult(s)
     expect(canUpgradeRelic(s, 'battle-chip').ok).toBe(true)
     s = upgradeRelic(s, 'battle-chip')
     expect(s.reliquary.owned['battle-chip'] ?? 0).toBe(0)
     expect(s.reliquary.owned['battle-chip-ii'] ?? 0).toBe(0)
-    expect(s.foundry.materials['slag-ingot']).toBe(0)
+    expect(s.foundry.materials['recovered-stock']).toBe(0)
     expect(coreSocketRelics(s, 'pulse-cannon:1')[0]).toBe('battle-chip-ii')
     expect(reliquaryDamageMult(s)).toBeGreaterThan(withI)
   })

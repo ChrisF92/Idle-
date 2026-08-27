@@ -8,7 +8,7 @@ import { armRebuildDoor } from './testHelpers'
 
 describe('Slag Bank', () => {
   it('bumps save version with the Matter shop rewrite', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
   })
 
   it('unlocks with the first Rebuild while Yard waits for later mastery', () => {

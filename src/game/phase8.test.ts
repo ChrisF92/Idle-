@@ -9,7 +9,6 @@ import {
   performRebuild,
 } from './actions'
 import { networkStrikeMult } from './network'
-import { foundryDamageMult } from './foundry'
 import { isSystemUnlocked } from './progression'
 import { PROTOCOL_UNLOCK_SECTOR, protocolMutes, protocolRank, tryCompleteProtocol } from './protocols'
 import { ECHO_UNLOCK_SECTOR, echoClears, echoHasNode, tryCompleteEcho, wavesForRun } from './echo'
@@ -19,7 +18,7 @@ import { beginFight } from './tick'
 
 describe('phase 8: Protocols, Echo, Process', () => {
   it('bumps save and keeps Protocols / Echo locked until 52 / 62', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'protocols')).toBe(false)
     expect(isSystemUnlocked(fresh, 'echo')).toBe(false)
@@ -65,14 +64,12 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(protocolMutes(s, 'network')).toBe(false)
   })
 
-  it('Cold Foundry mutes foundry combat bonuses', () => {
+  it('Cold Foundry protocol can still be entered without Foundry combat bonuses', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 52
     s.combat.docked = true
-    s.foundry.upgrades['fp-damage'] = 2
-    expect(foundryDamageMult(s)).toBeGreaterThan(1)
     s = enterProtocol(s, 'cold-foundry')
-    expect(foundryDamageMult(s)).toBe(1)
+    expect(s.protocols.activeId).toBe('cold-foundry')
     s = abandonProtocol(s)
     expect(s.protocols.activeId).toBeNull()
   })
@@ -113,7 +110,7 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(hasProcess(s, 'offline-sortie')).toBe(true)
     s.combat.docked = false
     s.lastTickAt = 0
-    const { state: next, report } = applyOfflineCatchUp(s, 30 * 60 * 1000)
+    const { report } = applyOfflineCatchUp(s, 30 * 60 * 1000)
     expect(report?.sectorsCleared ?? 0).toBeGreaterThan(0)
   })
 

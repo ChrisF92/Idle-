@@ -236,7 +236,7 @@ describe('shell UX', () => {
     render(<ScreenHelp screen="combat" />)
     fireEvent.click(screen.getByRole('button', { name: 'Sortie info' }))
     expect(screen.getByRole('dialog', { name: 'Sortie' })).toBeTruthy()
-    expect(screen.getByText(/Worker Drones unlock at Wave 30 under Systems/i)).toBeTruthy()
+    expect(screen.getByText(/Worker Drones unlock at Wave 50 under Systems/i)).toBeTruthy()
   })
 
   it('renders offline rewards as a dismissable modal', () => {
@@ -355,7 +355,7 @@ describe('shell UX', () => {
   it('does not put Foundry craft controls on Sortie', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.4, paid: true }
+    state.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0.4, paid: true }
     render(
       <CombatTab
         state={state}

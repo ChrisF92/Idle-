@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { markHullLost } from './testHelpers'
+import { atCareerWave, markHullLost } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
 import {
   LEGACY_SEEN_CONTENT,
   contentKeys,
@@ -26,23 +27,22 @@ describe('hub attention', () => {
     expect(tabAttention(seenCores, 'combat').spend).toBe(true)
   })
 
-  it('badges Foundry for an idle smelter and new recipes', () => {
-    let state = markHullLost(createInitialState(0))
-    state.meta.highestSectorEver = 68
+  it('badges Foundry for an idle processor and newly unlocked recipes', () => {
+    let state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.foundry)
     expect(tabAttention(state, 'foundry')).toEqual({ spend: true, fresh: true })
     expect(contentKeys(state, 'foundry')).toEqual(
-      expect.arrayContaining(['sys:foundry', 'recipe:slag-ingot', 'recipe:filament']),
+      expect.arrayContaining(['sys:foundry', 'recipe:recovered-stock', 'recipe:conductive-filament']),
     )
 
-    state.foundry.slots[0].recipeId = 'slag-ingot'
+    state.foundry.slots[0].recipeId = 'recovered-stock'
     expect(tabAttention(state, 'foundry').spend).toBe(false)
 
     state = markHubSeen(state, 'foundry')
     expect(tabAttention(state, 'foundry').fresh).toBe(false)
 
-    state.foundry.recipeLevels['slag-ingot'] = 8
+    state.foundry.capabilities = ['advanced-processing']
     expect(tabAttention(state, 'foundry').fresh).toBe(true)
-    expect(contentKeys(state, 'foundry')).toEqual(expect.arrayContaining(['recipe:hardened-plate']))
+    expect(contentKeys(state, 'foundry')).toEqual(expect.arrayContaining(['recipe:phase-crystal']))
   })
 
   it('keeps More badged until the station itself is opened', () => {

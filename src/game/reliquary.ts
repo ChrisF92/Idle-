@@ -561,7 +561,7 @@ export function removeRelicFromCore(
 }
 
 export function relicUpgradeCost(nextTier: 2 | 3): { recipeId: string; amount: number } {
-  return { recipeId: 'slag-ingot', amount: nextTier === 2 ? 4 : 10 }
+  return { recipeId: 'recovered-stock', amount: nextTier === 2 ? 4 : 10 }
 }
 
 export function canUpgradeRelic(

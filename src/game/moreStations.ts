@@ -92,7 +92,6 @@ export function stationDoorWave(id: TabId): number {
   if (id === 'logs') return 0
   if (id === 'network') return ACT1_CADENCE.workers
   if (id === 'process') return ACT1_CADENCE.process
-  if (id === 'yard') return ACT1_CADENCE.yard
   if (id === 'slag') return ACT1_CADENCE.rebuild
   if (id === 'capital') return ACT1_CADENCE.capital
   if (id === 'reinforce') return ACT1_CADENCE.reinforce
@@ -114,7 +113,7 @@ export function moreStationBuckets(state: GameState): {
 }
 
 export function isSystemsNavTab(tab: TabId): boolean {
-  return tab === 'foundry' || tab === 'network' || tab === 'yard' || tab === 'furnace' || tab === 'research' || tab === 'process'
+  return tab === 'foundry' || tab === 'network' || tab === 'furnace' || tab === 'research' || tab === 'process'
 }
 
 /** Leftover USI/Cosmic Idle screens — not routable in Act 1. */

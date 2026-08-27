@@ -970,22 +970,23 @@ describe('PR1 wave-only radial combat foundation', () => {
     state.resources.scrap = 80
     state.base.workerDrones = Math.max(2, state.base.workerDrones)
     state = assignWorker(state, 'scrap-field', 2)
-    state = setFoundrySlot(state, 0, 'slag-ingot')
+    state = setFoundrySlot(state, 0, 'recovered-stock')
     const paused = freezeActiveSortie(state)
     const sim = paused.combat.simTime
-    const recipeProgress = paused.foundry.slots[0]?.progress ?? 0
-    advanceSeconds(paused, 32)
+    advanceSeconds(paused, 12)
     expect(paused.combat.simTime).toBe(sim)
-    expect(paused.foundry.slots[0]?.progress ?? 0).toBeGreaterThan(recipeProgress)
-    expect(paused.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(1)
+    expect(paused.foundry.slots[0]?.progress ?? 0).toBeGreaterThan(0)
+    advanceSeconds(paused, 20)
+    expect(paused.foundry.materials['recovered-stock'] ?? 0).toBeGreaterThanOrEqual(1)
   })
 
-  it('keeps leftover Foundry prints isolated from the final 14 Cores', () => {
+  it('uses Blueprint-specific fragments and does not remap leftover families onto the roster', () => {
     expect(familyCanDropPrint('titan', 'barrier-projector', 400)).toBe(false)
-    expect(dropTableEntries('swarm', 12).some((e) => e.moduleId === 'barrier-projector')).toBe(false)
-    expect(dropTableEntries('titan', 400).some((e) => e.moduleId === 'rail-driver')).toBe(true)
-    expect(isFarmableModule('pulse-cannon')).toBe(false)
-    expect(isFarmableModule('heavy-lance')).toBe(false)
+    expect(dropTableEntries('titan', 400)).toEqual([])
+    expect(dropTableEntries('swarm', 12)).toEqual([])
+    expect(isFarmableModule('pulse-cannon')).toBe(true)
+    expect(isFarmableModule('heavy-lance')).toBe(true)
+    expect(isGddRosterCore('heavy-lance')).toBe(true)
   })
 
   it('applies industry-only offline catch-up on hidden→visible without combat time', () => {
@@ -996,7 +997,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     state.resources.scrap = 80
     state.base.workerDrones = Math.max(2, state.base.workerDrones)
     state = assignWorker(state, 'scrap-field', 2)
-    state = setFoundrySlot(state, 0, 'slag-ingot')
+    state = setFoundrySlot(state, 0, 'recovered-stock')
     advanceSeconds(state, 0.4)
     const sim = state.combat.simTime
     const waveAt = state.combat.nextReinforcementAt
@@ -1020,8 +1021,8 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(visible.combat.nextReinforcementAt).toBe(waveAt)
     expect(visible.combat.enemyUnits.map((u) => ({ id: u.id, x: u.x, y: u.y }))).toEqual(pos)
     expect(visible.combat.playerUnits.flatMap((u) => u.weapons.map((w) => w.cooldownLeft))).toEqual(cd)
-    expect(visible.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThan(
-      capControl.foundry.materials['slag-ingot'] ?? 0,
+    expect(visible.foundry.materials['recovered-stock'] ?? 0).toBeGreaterThan(
+      capControl.foundry.materials['recovered-stock'] ?? 0,
     )
     expect(report?.appliedMs).toBeGreaterThan(LIVE_TICK_CAP * 1000)
     expect(visible.lastTickAt).toBe(hideAt + hiddenMs)
@@ -1037,8 +1038,8 @@ describe('PR1 wave-only radial combat foundation', () => {
 
     const wall = applyWallClock(structuredClone(state), hideAt + hiddenMs)
     expect(wall.state.combat.simTime).toBe(sim)
-    expect(wall.state.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThan(
-      capControl.foundry.materials['slag-ingot'] ?? 0,
+    expect(wall.state.foundry.materials['recovered-stock'] ?? 0).toBeGreaterThan(
+      capControl.foundry.materials['recovered-stock'] ?? 0,
     )
 
     const workersOnly = structuredClone(state)

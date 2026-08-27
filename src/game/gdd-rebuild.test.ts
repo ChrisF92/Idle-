@@ -69,7 +69,7 @@ describe('GDD Rebuild', () => {
     s.resources.heat = 8
     s.workshop.levels['weapon-power'] = 3
     s.combat.directives = ['overcharge']
-    s.foundry.recipeLevels['slag-ingot'] = 4
+    s.foundry.masteryXp['recovered-stock'] = 4
     s.reliquary.owned['battle-chip'] = 1
     s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
     expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
@@ -86,7 +86,7 @@ describe('GDD Rebuild', () => {
     expect(s.resources.heat).toBe(0)
     expect(s.workshop.levels['weapon-power'] ?? 0).toBe(0)
     expect(s.combat.directives).toEqual([])
-    expect(s.foundry.recipeLevels['slag-ingot']).toBe(4)
+    expect(s.foundry.masteryXp['recovered-stock']).toBe(4)
     expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
   })
 

@@ -9,10 +9,8 @@ import {
 } from './tick'
 import {
   STATIONS,
-  WORKER_MANUFACTURE_SECONDS,
   aiProductionBonus,
   challengeShopOfflineMs,
-  droneCap,
   essenceProductionMultiplier,
   isStationUnlocked,
   metaProductionMultiplier,
@@ -20,18 +18,15 @@ import {
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   visibleWorkerJobIds,
-  workerManufactureSpeed,
 } from './catalog'
 import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { tickNetwork } from './network'
-import { tickFoundry } from './foundry'
-import { foundryAshHeatMult } from './foundryBonuses'
-import { tickYard } from './yard'
+import { tickFoundry, foundrySalvageOpsMult } from './foundry'
 import { tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
-import { processIndustrySpeedMult, processOfflineBonusMs } from './process'
+import { processOfflineBonusMs } from './process'
 import { WORKER_JOB_IDS } from './workers'
 import { grantGeneratedScrap } from './rebuild'
 
@@ -109,8 +104,10 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       for (const [resource, perDrone] of Object.entries(station.rates)) {
         const key = resource as keyof Resources
         const add = (perDrone ?? 0) * effective * seconds * efficiency * meta
-        if (key === 'scrap') creditIndustryScrap(state, add)
-        else state.resources[key] += add
+        if (key === 'scrap') {
+          const salvageOps = station.id === 'scrap-field' ? foundrySalvageOpsMult(state) : 1
+          creditIndustryScrap(state, add * salvageOps)
+        } else state.resources[key] += add
       }
       continue
     }
@@ -118,42 +115,17 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     for (const [resource, perDrone] of Object.entries(station.rates)) {
       const key = resource as keyof Resources
       const add = (perDrone ?? 0) * effective * seconds * meta
-      if (key === 'scrap') creditIndustryScrap(state, add)
-      else state.resources[key] += add
+      if (key === 'scrap') {
+        const salvageOps = station.id === 'scrap-field' ? foundrySalvageOpsMult(state) : 1
+        creditIndustryScrap(state, add * salvageOps)
+      } else state.resources[key] += add
     }
   }
 
   tickNetwork(state, seconds)
   tickFoundry(state, seconds)
-  tickYard(state, seconds)
-  tickFurnace(state, seconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
+  tickFurnace(state, seconds, hiveResearchHeatFromAshMult(state))
   tickResearch(state, seconds)
-
-  const cap = droneCap(state)
-  if (
-    state.base.workerDrones < cap &&
-    isStationUnlocked(state, 'drone-fab') &&
-    (state.base.assignments['drone-fab'] ?? 0) > 0
-  ) {
-    const speed = workerManufactureSpeed(state) * processIndustrySpeedMult(state)
-    state.base.manufactureProgress +=
-      (seconds * speed) / WORKER_MANUFACTURE_SECONDS
-    while (
-      state.base.manufactureProgress >= 1 &&
-      state.base.workerDrones < cap
-    ) {
-      state.base.manufactureProgress -= 1
-      state.base.workerDrones += 1
-      state.meta.lifetimeDronesBuilt =
-        (state.meta.lifetimeDronesBuilt ?? 0) + 1
-    }
-    if (state.base.workerDrones >= cap) {
-      state.base.manufactureProgress = Math.min(
-        state.base.manufactureProgress,
-        0.999,
-      )
-    }
-  }
 
   tickCoreTraining(state, seconds)
   const activeJobs = new Set(visibleWorkerJobIds(state))

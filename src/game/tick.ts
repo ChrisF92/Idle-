@@ -8,10 +8,8 @@ import {
 } from './state'
 import {
   STATIONS,
-  WORKER_MANUFACTURE_SECONDS,
   aiDoctrinesActive,
   aiProductionBonus,
-  droneCap,
   essenceProductionMultiplier,
   isStationUnlocked,
   metaProductionMultiplier,
@@ -19,7 +17,6 @@ import {
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   visibleWorkerJobIds,
-  workerManufactureSpeed,
 } from './catalog'
 import { tickAutomation } from './automation'
 import { logisticsProdMult, tickCoreTraining } from './core'
@@ -30,13 +27,11 @@ import {
   networkScrapRate,
   tickNetwork,
 } from './network'
-import { armPendingFacilities, tickFoundry } from './foundry'
-import { foundryAshHeatMult } from './foundryBonuses'
-import { tickYard } from './yard'
+import { tickFoundry, foundrySalvageOpsMult } from './foundry'
 import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
-import { hasProcess, noteProcessLastAction, processConfig, processIndustrySpeedMult } from './process'
+import { hasProcess, noteProcessLastAction, processConfig } from './process'
 import { evaluateProcessIntent } from './processProfiles'
 import { WORKER_JOB_IDS } from './workers'
 import {
@@ -94,6 +89,7 @@ import {
   maybeGrantSystemUnlocks,
   tryCompleteAchievements,
 } from './progression'
+import { applyWaveSecureBlueprintSources } from './blueprints'
 import { ACT1_FINAL_WAVE } from './cadence'
 
 /** Legacy alias — production/offline still speak in seconds; combat is continuous. */
@@ -264,8 +260,10 @@ function applyProduction(state: GameState, dtSeconds: number): void {
       for (const [resource, perDrone] of Object.entries(station.rates)) {
         const key = resource as keyof GameState['resources']
         const add = (perDrone ?? 0) * effective * dtSeconds * efficiency * meta
-        if (key === 'scrap') creditIndustryScrap(state, add)
-        else state.resources[key] += add
+        if (key === 'scrap') {
+          const salvageOps = station.id === 'scrap-field' ? foundrySalvageOpsMult(state) : 1
+          creditIndustryScrap(state, add * salvageOps)
+        } else state.resources[key] += add
       }
       continue
     }
@@ -273,8 +271,10 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     for (const [resource, perDrone] of Object.entries(station.rates)) {
       const key = resource as keyof GameState['resources']
       const add = (perDrone ?? 0) * effective * dtSeconds * meta
-      if (key === 'scrap') creditIndustryScrap(state, add)
-      else state.resources[key] += add
+      if (key === 'scrap') {
+        const salvageOps = station.id === 'scrap-field' ? foundrySalvageOpsMult(state) : 1
+        creditIndustryScrap(state, add * salvageOps)
+      } else state.resources[key] += add
     }
   }
 
@@ -282,39 +282,8 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     applyNetworkCombatRefresh(state)
   }
   tickFoundry(state, dtSeconds)
-  tickYard(state, dtSeconds)
-  tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
+  tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state))
   tickResearch(state, dtSeconds)
-
-  const cap = droneCap(state)
-  if (
-    state.base.workerDrones < cap &&
-    isStationUnlocked(state, 'drone-fab') &&
-    (state.base.assignments['drone-fab'] ?? 0) > 0
-  ) {
-    const speed = workerManufactureSpeed(state) * processIndustrySpeedMult(state)
-    state.base.manufactureProgress +=
-      (dtSeconds * speed) / WORKER_MANUFACTURE_SECONDS
-    while (
-      state.base.manufactureProgress >= 1 &&
-      state.base.workerDrones < cap
-    ) {
-      state.base.manufactureProgress -= 1
-      state.base.workerDrones += 1
-      state.meta.lifetimeDronesBuilt =
-        (state.meta.lifetimeDronesBuilt ?? 0) + 1
-      pushLog(
-        state,
-        `Drone manufactured. Drones: ${state.base.workerDrones}/${cap}.`,
-      )
-    }
-    if (state.base.workerDrones >= cap) {
-      state.base.manufactureProgress = Math.min(
-        state.base.manufactureProgress,
-        0.999,
-      )
-    }
-  }
 
   tickCoreTraining(state, dtSeconds)
   const activeJobs = new Set(visibleWorkerJobIds(state))
@@ -354,7 +323,7 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
     for (const [resource, perDrone] of Object.entries(station.rates)) {
       let amount = (perDrone ?? 0) * effective * meta
       if (station.id === 'scrap-field' && resource === 'scrap') {
-        amount *= hiveResearchSalvageOpsMult(state)
+        amount *= hiveResearchSalvageOpsMult(state) * foundrySalvageOpsMult(state)
       }
       add(resource as keyof Resources, amount)
     }
@@ -362,7 +331,7 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
 
   add('scrap', networkScrapRate(state))
   add('data', networkDataRate(state))
-  add('heat', furnaceNetPerSec(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state)))
+  add('heat', furnaceNetPerSec(state, hiveResearchHeatFromAshMult(state)))
 
   return rates
 }
@@ -484,6 +453,7 @@ function schedulerHooks(): WaveSchedulerHooks {
         noteSectorClear(s)
         if (pkg.wave >= ACT1_FINAL_WAVE) completeAct1(s)
         maybeGrantSystemUnlocks(s)
+        applyWaveSecureBlueprintSources(s, pkg.wave, pkg.kind)
         tryCompleteChallenge(s)
         tryCompleteProtocol(s)
         queueDirectiveOffer(s, pkg.wave)
@@ -657,7 +627,6 @@ export function startCombat(state: GameState): GameState {
 }
 
 function launchFromDock(state: GameState): void {
-  armPendingFacilities(state)
   state.combat.wave = 1
   state.combat.waveReached = 0
   state.combat.runUpgrades = {}

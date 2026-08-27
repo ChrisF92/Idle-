@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { investPartMastery, setResearchFocus } from './actions'
+import { setResearchFocus } from './actions'
 import { ACT1_CADENCE, PROCESS_MIN_REBUILDS } from './cadence'
-import { LATE_ACT1_MODULE_MASTERY, MASTERY_PARTS_COST, moduleMasteryCap, moduleMasteryRank, partId } from './catalog'
+import { LATE_ACT1_MODULE_MASTERY, moduleMasteryCap, moduleMasteryRank } from './catalog'
 import {
   hiveResearchActive,
   hiveResearchComputationUnlocked,
@@ -51,12 +51,11 @@ describe('GDD late Act 1 mastery', () => {
     expect(hiveResearchExtraUtilitySlots(open)).toBe(1)
   })
 
-  it('lets Core Mastery climb past 10 after Wave 275', () => {
-    let s = masteryState()
-    s.meta.moduleMastery = { ...s.meta.moduleMastery, 'pulse-cannon': 10 }
-    s.parts[partId('pulse-cannon', 'casing')] = MASTERY_PARTS_COST
-    s = investPartMastery(s, 'pulse-cannon')
+  it('lets Core Mastery climb past 10 after Wave 275 without leftover parts', () => {
+    const s = masteryState()
+    s.meta.moduleMastery = { ...s.meta.moduleMastery, 'pulse-cannon': 11 }
     expect(moduleMasteryRank(s, 'pulse-cannon')).toBe(11)
+    expect(moduleMasteryCap(s)).toBe(LATE_ACT1_MODULE_MASTERY)
   })
 
   it('keeps Specialists, Tasks, and Echo shut, and does not add a More card', () => {

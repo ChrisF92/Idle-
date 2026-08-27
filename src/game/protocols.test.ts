@@ -8,7 +8,6 @@ import {
 } from './actions'
 import { tickAutomation } from './automation'
 import { salvageFromKill } from './combat'
-import { craftsForNextLevel, foundryCostMult } from './foundry'
 import { furnaceChannelHeatCost, furnaceDamageMult } from './furnace'
 import { hiveResearchNodeCost } from './hiveResearch'
 import { matterGainFor } from './rebuild'
@@ -46,7 +45,7 @@ function protocolDock(sectorEver = 52) {
 
 describe('Protocol formula rewards', () => {
   it('keeps save version and rank-0 formulas identical to the unranked game', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     const s = createInitialState(0)
     expect(protocolModifiers(s)).toEqual(emptyProtocolModifiers())
     expect(protocolBonusMult(s, 'network')).toBe(1)

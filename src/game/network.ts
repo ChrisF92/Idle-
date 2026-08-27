@@ -11,13 +11,11 @@ import {
 } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
-import { yardNetworkMult } from './yard'
 import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 import { careerBestWave } from './progression'
-import { foundryNetworkFillMult } from './foundryBonuses'
 import { WORKER_JOB_IDS } from './workers'
 
 export type NetworkBarLayer = 'primary' | 'relay' | 'lattice'
@@ -538,12 +536,10 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       reliquaryNetworkMult(state) *
       hiveResearchNetworkMult(state) *
       hiveResearchDroneEffMult(state) *
-      yardNetworkMult(state) *
       protocolBonusMult(state, 'network') *
       echoNetworkMult(state) *
       processNetworkSpeedMult(state) *
       furnaceNetworkMult(state) *
-      foundryNetworkFillMult(state) *
       activity) /
     cost
   )

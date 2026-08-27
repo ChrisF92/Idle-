@@ -4,6 +4,7 @@ import type {
   CoreAttrId,
   CoreState,
   EchoState,
+  FabJobKind,
   FurnaceState,
   GameState,
   HiveResearchState,
@@ -17,14 +18,10 @@ import type {
   SortieSummary,
   SpecialistId,
   SpecialistState,
-  YardArmId,
-  YardBuildingId,
-  YardGoodId,
-  YardState,
 } from './types'
 import { NETWORK_BAR_IDS } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { AI_NODES, resolveFrameId, getFrame, PART_TYPES, partId } from './catalog'
+import { AI_NODES, resolveFrameId, getFrame } from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
 import {
   SIGNAL_CORE_MAX_RANK,
@@ -33,10 +30,17 @@ import {
 } from './signalCores'
 import { createEmptyNetworkState } from './network'
 import { createEmptyFoundryState } from './foundry'
+import {
+  FOUNDRY_INFRASTRUCTURE_IDS,
+  getFabricationRecipe,
+  getFoundryRecipe,
+  isFoundryCapabilityId,
+  isFoundryMaterialId,
+} from './foundryCatalogue'
+import { canTrackBlueprint, isKnownBlueprintId, starterBlueprintIds } from './blueprints'
 import { createEmptyReliquaryState, hydrateCoreFits } from './reliquary'
 import { finalizeFurnaceMigration, hydrateFurnaceState } from './furnace'
 import { createEmptyHiveResearchState, HIVE_RESEARCH_BRANCHES } from './hiveResearch'
-import { createEmptyYardState } from './yard'
 import { createEmptyProtocolState } from './protocols'
 import { createEmptyEchoState } from './echo'
 import { createEmptyProcessState, finalizeProcessMigration, hydrateProcessState } from './process'
@@ -336,51 +340,19 @@ function migrateBase(
 ): GameState['base'] {
   if (!base) {
     return {
-      ...fallback,
+      workerDrones: fallback.workerDrones,
       assignments: { ...fallback.assignments },
-      fabProject: null,
     }
   }
-
-  // Legacy building levels → approximate worker drones + scrap/power assignments.
-  const buildings = base.buildings
-  let workers = base.workerDrones ?? 0
-  const assignments: Record<string, number> = { ...(base.assignments ?? {}) }
-
-  if (buildings && workers <= 0) {
-    const scrap = buildings.scrapYard ?? 0
-    const power = buildings.powerCell ?? 0
-    const sensor = buildings.sensorArray ?? 0
-    const foundry = buildings.foundry ?? 0
-    const hangar = buildings.workDroneHangar ?? 0
-    workers = Math.max(2, scrap + power + sensor + foundry + hangar)
-    if (scrap > 0) assignments['scrap-field'] = (assignments['scrap-field'] ?? 0) + scrap
-    if (power > 0) assignments['power-grid'] = (assignments['power-grid'] ?? 0) + power
-    if (sensor > 0) assignments['sensor-net'] = (assignments['sensor-net'] ?? 0) + sensor
-    if (foundry > 0) assignments['alloy-foundry'] = (assignments['alloy-foundry'] ?? 0) + foundry
-    if (hangar > 0) assignments['drone-fab'] = (assignments['drone-fab'] ?? 0) + hangar
+  const assignments: Record<string, number> = {}
+  for (const [id, n] of Object.entries(base.assignments ?? {})) {
+    const v = Math.max(0, Math.floor(Number(n) || 0))
+    if (v > 0) assignments[id] = v
   }
-
-  // Retired Strike/Ward/Yield bars no longer consume Worker Drones.
   for (const id of NETWORK_BAR_IDS) delete assignments[id]
-
-  const fab = base.fabProject
-  const fabProject =
-    fab &&
-    typeof fab.moduleId === 'string' &&
-    fab.moduleId.length > 0
-      ? {
-          moduleId: fab.moduleId,
-          contributed: { ...(fab.contributed ?? {}) },
-          progress: Math.max(0, Math.min(1, fab.progress ?? 0)),
-        }
-      : null
-
   return {
-    workerDrones: workers,
+    workerDrones: Math.max(0, Math.floor(Number(base.workerDrones) || 0)),
     assignments,
-    manufactureProgress: base.manufactureProgress ?? 0,
-    fabProject,
   }
 }
 
@@ -404,53 +376,89 @@ function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
   return empty
 }
 
+function idleFabSlot(): GameState['foundry']['fabrication'][number] {
+  return { kind: null, jobId: null, progress: 0, paid: false }
+}
+
 function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['foundry'] {
   const empty = createEmptyFoundryState()
   if (!raw || typeof raw !== 'object') return empty
+  const materials: Record<string, number> = {}
+  if (raw.materials && typeof raw.materials === 'object') {
+    for (const [id, n] of Object.entries(raw.materials)) {
+      if (!isFoundryMaterialId(id)) continue
+      const v = Math.max(0, Math.floor(Number(n) || 0))
+      if (v > 0) materials[id] = v
+    }
+  }
+  const masteryXp: Record<string, number> = {}
+  if (raw.masteryXp && typeof raw.masteryXp === 'object') {
+    for (const [id, n] of Object.entries(raw.masteryXp)) {
+      if (!isFoundryMaterialId(id)) continue
+      const v = Math.max(0, Number(n) || 0)
+      if (v > 0) masteryXp[id] = v
+    }
+  }
   const slots = Array.isArray(raw.slots)
-    ? raw.slots.map((s) => ({
-        recipeId: s?.recipeId ?? null,
-        progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
-        paid: s?.paid === true,
-      }))
+    ? raw.slots.map((s) => {
+        const recipeId =
+          s?.recipeId && isFoundryMaterialId(s.recipeId) && getFoundryRecipe(s.recipeId) ? s.recipeId : null
+        if (!recipeId) return { recipeId: null, progress: 0, paid: false }
+        return {
+          recipeId,
+          progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
+          paid: s?.paid === true,
+        }
+      })
     : empty.slots
+  const kindOk = (kind: unknown): kind is FabJobKind =>
+    kind === 'core' || kind === 'frame' || kind === 'relic' || kind === 'worker' || kind === 'facility'
   const fabrication = Array.isArray(raw.fabrication)
-    ? raw.fabrication.map((s) => ({
-        kind: s?.kind ?? null,
-        jobId: s?.jobId ?? null,
-        progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
-        paid: s?.paid === true,
-        complete: s?.complete === true,
-      }))
+    ? raw.fabrication.map((s) => {
+        const kind = s?.kind
+        const jobId = s?.jobId
+        if (!kindOk(kind) || typeof jobId !== 'string' || jobId.length === 0) return idleFabSlot()
+        if (!getFabricationRecipe(kind, jobId)) return idleFabSlot()
+        return {
+          kind,
+          jobId,
+          progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
+          paid: s?.paid === true,
+        }
+      })
     : empty.fabrication
+  const facilities = (raw.facilities ?? []).filter((id): id is (typeof FOUNDRY_INFRASTRUCTURE_IDS)[number] =>
+    (FOUNDRY_INFRASTRUCTURE_IDS as readonly string[]).includes(id),
+  )
+  const fragments: Record<string, number> = {}
+  if (raw.fragments && typeof raw.fragments === 'object') {
+    for (const [id, n] of Object.entries(raw.fragments)) {
+      if (!isKnownBlueprintId(id)) continue
+      const v = Math.max(0, Math.floor(Number(n) || 0))
+      if (v > 0) fragments[id] = v
+    }
+  }
+  const discovered = new Set<string>([
+    ...starterBlueprintIds(),
+    ...(Array.isArray(raw.discovered) ? raw.discovered.filter((id) => isKnownBlueprintId(id)) : []),
+  ])
+  const capabilities = Array.isArray(raw.capabilities)
+    ? raw.capabilities.filter((id): id is string => typeof id === 'string' && isFoundryCapabilityId(id))
+    : []
+  const trackedRaw = typeof raw.trackedPrintId === 'string' && isKnownBlueprintId(raw.trackedPrintId)
+    ? raw.trackedPrintId
+    : null
   return {
-    recipeLevels: { ...(raw.recipeLevels ?? {}) },
-    recipeXp: { ...(raw.recipeXp ?? {}) },
-    materials: { ...(raw.materials ?? {}) },
+    materials,
+    masteryXp,
     slots: slots.length > 0 ? slots : empty.slots,
     fabrication: fabrication.length > 0 ? fabrication : empty.fabrication,
-    trackedPrintId:
-      typeof raw.trackedPrintId === 'string' && raw.trackedPrintId.length > 0
-        ? raw.trackedPrintId
-        : null,
-    facilities: [...(raw.facilities ?? []), ...(raw.pendingFacilities ?? [])],
-    pendingFacilities: [],
-    pendingCores: [...(raw.pendingCores ?? [])],
-    pendingRelics: [...(raw.pendingRelics ?? [])],
+    facilities,
+    fragments,
+    discovered: [...discovered],
+    capabilities,
+    trackedPrintId: trackedRaw,
   }
-}
-
-/** Refund the removed instant-assembly project into Blueprint fragment stock. */
-export function migrateLegacyFabProject(state: GameState): void {
-  const project = state.base.fabProject
-  if (!project) return
-  for (const partType of PART_TYPES) {
-    const amount = Math.max(0, Math.floor(project.contributed?.[partType] ?? 0))
-    if (amount <= 0) continue
-    const id = partId(project.moduleId, partType)
-    state.parts[id] = (state.parts[id] ?? 0) + amount
-  }
-  state.base.fabProject = null
 }
 
 const RELIQUARY_COLORS: ReliquaryColor[] = ['red', 'orange', 'pink', 'blue', 'green']
@@ -500,39 +508,6 @@ function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResea
     empty.completed[id] = Math.max(0, Math.floor(Number(raw.completed?.[id] ?? 0) || 0))
   }
   return empty
-}
-
-const YARD_GOODS: YardGoodId[] = ['ore', 'flux', 'ingot']
-const YARD_ARMS: YardArmId[] = ['damage', 'shield', 'salvage', 'network']
-const YARD_BUILDINGS: YardBuildingId[] = ['slag-heap', 'flux-still', 'ingot-press', 'choir-sieve']
-
-function withYardDefaults(raw: YardState | undefined): YardState {
-  const empty = createEmptyYardState()
-  if (!raw || typeof raw !== 'object') return empty
-  const cells = Array.isArray(raw.cells)
-    ? raw.cells.map((c) => {
-        const id = c?.buildingId
-        return {
-          buildingId: id && YARD_BUILDINGS.includes(id) ? id : null,
-        }
-      })
-    : empty.cells
-  const goods = { ...empty.goods }
-  for (const id of YARD_GOODS) {
-    goods[id] = Math.max(0, Number(raw.goods?.[id] ?? empty.goods[id]) || 0)
-  }
-  const pending = { ...empty.pending }
-  const armed = { ...empty.armed }
-  for (const id of YARD_ARMS) {
-    pending[id] = Math.max(0, Math.floor(Number(raw.pending?.[id] ?? 0) || 0))
-    armed[id] = Math.max(0, Math.floor(Number(raw.armed?.[id] ?? 0) || 0))
-  }
-  return {
-    cells: cells.length > 0 ? cells : empty.cells,
-    goods,
-    pending,
-    armed,
-  }
 }
 
 function withProtocolDefaults(raw: ProtocolState | undefined): ProtocolState {
@@ -740,18 +715,6 @@ function withSignalCoresDefaults(
   return { inventory, equipped }
 }
 
-function withPartsDefaults(
-  parts: GameState['parts'] | undefined,
-): GameState['parts'] {
-  if (!parts || typeof parts !== 'object' || Array.isArray(parts)) return {}
-  const out: Record<string, number> = {}
-  for (const [id, n] of Object.entries(parts)) {
-    const qty = Math.floor(Number(n))
-    if (qty > 0) out[id] = qty
-  }
-  return out
-}
-
 function withCoreDefaults(core: GameState['core'] | undefined): CoreState {
   const empty = createEmptyCoreState()
   if (!core || typeof core !== 'object') return empty
@@ -815,7 +778,6 @@ function migrate(raw: unknown): GameState | null {
       reliquary: withReliquaryDefaults(state.reliquary),
       furnace: withFurnaceDefaults(state.furnace),
       hiveResearch: withHiveResearchDefaults(state.hiveResearch),
-      yard: withYardDefaults(state.yard),
       protocols: withProtocolDefaults(state.protocols),
       echo: withEchoDefaults(state.echo),
       process: withProcessDefaults(state.process),
@@ -828,14 +790,15 @@ function migrate(raw: unknown): GameState | null {
       meta,
       core: withCoreDefaults(state.core),
       signalCores: withSignalCoresDefaults(state.signalCores),
-      parts: withPartsDefaults(state.parts),
       playtest: hydratePlaytest(state.playtest),
     }
     sanitizeCoreFits(hydrated)
+    if (hydrated.foundry.trackedPrintId && !canTrackBlueprint(hydrated, hydrated.foundry.trackedPrintId)) {
+      hydrated.foundry.trackedPrintId = null
+    }
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingRegistry(hydrated)
-    migrateLegacyFabProject(hydrated)
     return hydrated
   }
 

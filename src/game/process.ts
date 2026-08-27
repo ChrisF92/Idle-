@@ -18,7 +18,6 @@ import type {
   ProcessThenKind,
   ProcessWhenKind,
   TabId,
-  YardArmId,
 } from './types'
 import { createDefaultProcessProfiles, withDefaultProfiles } from './processProfiles'
 import { NETWORK_BAR_IDS } from './types'
@@ -583,7 +582,6 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     kind: 'automation',
     blurb: 'Spend Ingots on selected construction arms in one tap.',
     cost: 4,
-    requiresSystem: 'yard',
     requiresMastery: 'yard',
   },
   {
@@ -594,7 +592,6 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     blurb: 'Save and restore construction grids. Extra slots come from Accumulation.',
     cost: 10,
     requiresId: 'yard-buy-max',
-    requiresSystem: 'yard',
   },
   {
     id: 'yard-auto',
@@ -604,7 +601,6 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
     blurb: 'Automatically buy the construction arms you selected. Buildings stay under your hand.',
     cost: 14,
     requiresId: 'yard-layouts',
-    requiresSystem: 'yard',
   },
   {
     id: 'deep-cache',
@@ -719,7 +715,7 @@ export function processLaneNodes(state: GameState, lane: ProcessLane): ProcessNo
 export function processLessonCount(state: GameState): number {
   const cores = practicedCoreWork(state)
   const workshop = Object.values(state.workshop?.levels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
-  const recipes = Object.values(state.foundry?.recipeLevels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
+  const recipes = Object.values(state.foundry?.masteryXp ?? {}).reduce((sum, n) => sum + Math.max(0, Number(n) || 0), 0)
   return cores + workshop + recipes + (state.meta.lifetimeFabCrafts ?? 0)
 }
 
@@ -873,12 +869,6 @@ export function createEmptyProcessConfig(): ProcessConfig {
       queue: [],
       branchPriority: ['material', 'energy', 'observation'],
     },
-    yard: {
-      autoUpgrade: true,
-      selectedArms: ['damage', 'shield', 'salvage', 'network'],
-      layouts: [],
-      activeLayout: 0,
-    },
     sortie: {
       autoExtract: true,
       extractHullPct: 0.35,
@@ -950,7 +940,7 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
         ([id, n]) => (n ?? 0) > 0 && isWorkerJob(id),
       )
     case 'foundry':
-      return Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0)
+      return Object.values(state.foundry?.masteryXp ?? {}).some((n) => (Number(n) || 0) > 0)
     case 'reliquary':
       return (
         Object.values(state.reliquary?.owned ?? {}).some((n) => n > 0) ||
@@ -966,7 +956,7 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
         (state.resources.heat ?? 0) > 0
       )
     case 'yard':
-      return (state.yard?.cells ?? []).some((c) => Boolean(c.buildingId))
+      return false
     case 'protocols':
       return Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
     case 'echo':
@@ -984,8 +974,6 @@ function systemLockReason(system: TabId): string {
       return 'Furnace dark'
     case 'research':
       return 'Research closed'
-    case 'yard':
-      return 'Construction closed'
     case 'protocols':
       return 'Challenges closed'
     case 'echo':
@@ -1095,7 +1083,6 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
   const reliquary = isRecord(raw.reliquary) ? raw.reliquary : {}
   const furnace = isRecord(raw.furnace) ? raw.furnace : {}
   const research = isRecord(raw.research) ? raw.research : {}
-  const yard = isRecord(raw.yard) ? raw.yard : {}
   const sortie = isRecord(raw.sortie) ? raw.sortie : {}
   const shop = isRecord(raw.shop) ? raw.shop : {}
   const shopRatios = isRecord(shop.ratios) ? shop.ratios : {}
@@ -1192,30 +1179,6 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
             id === 'material' || id === 'energy' || id === 'observation' || id === 'computation',
           )
         : [...empty.research.branchPriority],
-    },
-    yard: {
-      autoUpgrade: yard.autoUpgrade !== false,
-      selectedArms: Array.isArray(yard.selectedArms)
-        ? yard.selectedArms.filter((id): id is YardArmId =>
-            id === 'damage' || id === 'shield' || id === 'salvage' || id === 'network',
-          )
-        : [...empty.yard.selectedArms],
-      layouts: Array.isArray(yard.layouts)
-        ? yard.layouts
-            .filter(isRecord)
-            .map((layout) => ({
-              name: typeof layout.name === 'string' ? layout.name : 'Layout',
-              cells: Array.isArray(layout.cells)
-                ? layout.cells.map((cell) => ({
-                    buildingId:
-                      isRecord(cell) && typeof cell.buildingId === 'string'
-                        ? (cell.buildingId as ProcessConfig['yard']['layouts'][number]['cells'][number]['buildingId'])
-                        : null,
-                  }))
-                : [],
-            }))
-        : [],
-      activeLayout: Math.max(0, Math.floor(num(yard.activeLayout, 0))),
     },
     sortie: {
       autoExtract: sortie.autoExtract !== false,
@@ -1595,10 +1558,6 @@ export function networkAllocationWeights(state: GameState): Record<string, numbe
 
 export function corePresetCap(state: GameState): number {
   return 1 + (hasProcess(state, 'core-presets') ? 2 : 0) + processExtraPresetSlots(state)
-}
-
-export function yardLayoutCap(state: GameState): number {
-  return (hasProcess(state, 'yard-layouts') ? 2 : 0) + processExtraPresetSlots(state)
 }
 
 export function processRuleCapacity(state: GameState): number {

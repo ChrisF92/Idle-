@@ -15,14 +15,13 @@ import {
   specialistRank,
   specialistShieldMult,
 } from './specialists'
-import { yardGridSize, YARD_EXPAND_SECTOR_2 } from './yard'
 import { advanceSeconds, setDocked, startCombat } from './tick'
 import { enemySectorScale } from './combat'
 import { waveForBand } from './waves'
 
 describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('bumps save and keeps Specialists locked until 68', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR - 1
@@ -47,12 +46,11 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
     expect(s.shipyard.unlockedFrames).not.toContain('harvester-frame')
   })
 
-  it('expands Yard to 5×5 at sector 27', () => {
+  it('does not expand a leftover Yard grid', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = YARD_EXPAND_SECTOR_2 - 1
-    expect(yardGridSize(s)).toBe(4)
-    s.meta.highestSectorEver = YARD_EXPAND_SECTOR_2
-    expect(yardGridSize(s)).toBe(5)
+    expect(isSystemUnlocked(s, 'yard')).toBe(false)
+    s.meta.highestSectorEver = 27
+    expect(isSystemUnlocked(s, 'yard')).toBe(false)
   })
 
   it('ranks Specialists for damage / shield and persists across Rebuild', () => {

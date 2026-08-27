@@ -15,7 +15,6 @@ export const LIVE_SCREENS: TabId[] = [
   'foundry',
   'furnace',
   'research',
-  'yard',
   'protocols',
   'process',
   'reinforce',
@@ -39,7 +38,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
       'Weapons fire automatically. The HUD shows Wave, Salvage, Scrap this run, Hull, Shield, DPS, and time. Tap Salvage or Scrap to see their per-second rate. Bosses get hull and shield bars at the top.',
       'Death or Extract ends the Sortie and returns you to Dock after the report. Salvage buys temporary Attack, Defense, and Economy upgrades. Core Levels use Scrap at Dock. Extract lives in the top-right menu.',
       'If you close mid-Sortie, combat freezes. Foundry, fabrication, and Worker jobs keep running.',
-      'Worker Drones unlock at Wave 30 under Systems. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
+      'Worker Drones unlock at Wave 50 under Systems. Directives pause the Sortie at Wave 50, 100, 150, 200, and 250.',
     ],
   },
   network: {
@@ -47,7 +46,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Purpose: put a limited workforce on real industrial jobs. Main decision: processing now versus fabricating, researching, or growing more drones.',
       'Each job has an efficient range and then diminishing returns. The card shows exactly what one more Worker changes.',
-      'Worker Drones live under Systems after Wave 30. They perform real work and never provide abstract damage, shield, or combat-resource multipliers.',
+      'Worker Drones live under Systems after Wave 50. They perform real work and never provide abstract damage, shield, or combat-resource multipliers.',
     ],
   },
   foundry: {
@@ -55,7 +54,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Purpose: turn combat income into crafted progression and new Cores. Main decision: what you are making next.',
       'Blueprints: track one Core. Fragments drop from matching enemy families as you push Waves; completion unlocks a timed Fabrication project.',
-      'After Wave 30, Foundry and Worker Drones share Systems. Infrastructure opens at Wave 90 under Fabrication. Processing, Fabrication, stock, and Mastery persist through Rebuild and continue offline.',
+      'After Wave 50, Foundry and Worker Drones share Systems. Infrastructure lives under Fabrication. Processing, Fabrication, stock, and Mastery persist through Rebuild and continue offline.',
     ],
   },
   reliquary: {
@@ -77,13 +76,6 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Purpose: choose which underlying Hive rule improves next. Main decision: which available project to start.',
       'One project at a time. It runs during Sorties, at Dock, and offline. Worker Drones speed it up. Breakthroughs unlock mechanics. Progress persists across Rebuild. Queueing and auto-start are Process unlocks.',
-    ],
-  },
-  yard: {
-    title: 'Infrastructure',
-    body: [
-      'Purpose: expand Foundry with Processors, Fabricators, Worker capacity, and specialist facilities.',
-      'Infrastructure lives under Foundry → Fabrication.',
     ],
   },
   slag: {

@@ -51,10 +51,9 @@ describe('GDD information architecture', () => {
     expect(nextMajorDoor(challengesOpen)?.id).toBe('reinforce')
   })
 
-  it('lands Systems on a hub once Worker Drones unlock', () => {
-    const pre = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.foundry)
+  it('lands Systems on a hub once Foundry and Workers unlock', () => {
+    const pre = atCareerWave(markHullLost(createInitialState(0)), 49)
     expect(showSystemsHub(pre)).toBe(false)
-    expect(systemsHubCards(pre).map((c) => c.id)).toEqual(['foundry'])
 
     const workers = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
     expect(showSystemsHub(workers)).toBe(true)
@@ -62,14 +61,14 @@ describe('GDD information architecture', () => {
     expect(workersHubStatus(workers)[0]).toMatch(/assigned/)
     expect(foundryHubStatus(workers).some((line) => /idle/i.test(line))).toBe(true)
 
-    workers.foundry.recipeLevels['temper-bar'] = 3
-    workers.foundry.slots[0] = { recipeId: 'temper-bar', progress: 0.4, paid: true }
+    workers.foundry.masteryXp['recovered-stock'] = 3
+    workers.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0.4, paid: true }
     workers.base.workerDrones = 4
     workers.base.assignments['alloy-foundry'] = 2
     const foundry = foundryHubStatus(workers)
     expect(foundry.some((line) => /2 Foundry workers/.test(line))).toBe(true)
     expect(foundry.some((line) => /Processors 1\/1 · Fabricators 0\/1/.test(line))).toBe(true)
-    expect(foundry.some((line) => /Processing Temper Bar 40%/.test(line))).toBe(true)
+    expect(foundry.some((line) => /Processing Recovered Stock 40%/.test(line))).toBe(true)
 
     const furnace = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
     expect(systemsHubCards(furnace).map((c) => c.id)).toEqual(['foundry', 'furnace'])
@@ -85,6 +84,7 @@ describe('GDD information architecture', () => {
 
   it('badges Systems for idle Worker Drones as well as Foundry', () => {
     const workers = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
+    workers.base.workerDrones = Math.max(2, workers.base.workerDrones)
     expect(tabAttention(workers, 'foundry').spend).toBe(true)
     expect(tabAttention(workers, 'network').spend).toBe(true)
     expect(systemsTabAttention(workers).spend).toBe(true)

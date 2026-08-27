@@ -8,7 +8,6 @@ import { TASK_UNLOCK_SECTOR, taskListComplete } from './tasks'
 import { CAPITAL_UNLOCK_SECTOR, capitalDamageMult, capitalRank } from './capital'
 import { REINFORCE_UNLOCK_SECTOR, canReinforce, reinforceCount } from './reinforce'
 import { unlockedFoundryLogs } from './logs'
-import { yardGridSize, YARD_EXPAND_SECTOR_3, YARD_EXPAND_SECTOR_4, YARD_MAX_SIZE } from './yard'
 
 function seedTasks(s: ReturnType<typeof createInitialState>) {
   s.prestige.prestigeCount = 1
@@ -20,7 +19,7 @@ function seedTasks(s: ReturnType<typeof createInitialState>) {
 
 describe('phase 10: Task List, Capital, Reinforce, logs', () => {
   it('bumps save and keeps Task List / Capital / Reinforce on USI doors', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'tasks')).toBe(false)
     expect(isSystemUnlocked(fresh, 'capital')).toBe(false)
@@ -56,12 +55,9 @@ describe('phase 10: Task List, Capital, Reinforce, logs', () => {
     expect(blocked.shipyard.unlockedFrames).not.toContain('harvester-frame')
   })
 
-  it('expands Yard to 6×6 at 40 and 7×7 at 55', () => {
+  it('does not expand a leftover Yard grid at later doors', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = YARD_EXPAND_SECTOR_3
-    expect(yardGridSize(s)).toBe(6)
-    s.meta.highestSectorEver = YARD_EXPAND_SECTOR_4
-    expect(yardGridSize(s)).toBe(YARD_MAX_SIZE)
+    expect(isSystemUnlocked(s, 'yard')).toBe(false)
   })
 
   it('ranks Capital Broadside and persists across Rebuild', () => {

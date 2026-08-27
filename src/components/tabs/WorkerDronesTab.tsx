@@ -32,12 +32,14 @@ export function WorkerDronesTab({ state, onAssign, onOptimise, guideTarget, onBa
         title="Worker Drones"
         action={onBack ? <button type="button" onClick={onBack}>Systems</button> : undefined}
       />
-      <ContextBar>
-        <StatPair label="Total" value={summary.total} />
-        <StatPair label="Assigned" value={summary.assigned} />
-        <StatPair label="Idle" value={summary.idle} />
-        <StatPair label="Capacity" value={capacity} />
-      </ContextBar>
+          <ContextBar>
+            <StatPair label="Workers" value={`${summary.total} / ${capacity} capacity`} />
+            <StatPair label="Assigned" value={summary.assigned} />
+            <StatPair label="Idle" value={idle} />
+          </ContextBar>
+          <p className="ui-meta">
+            Owned Workers are physical. Worker Racks raise capacity only. Idle Workers remain possible.
+          </p>
       <div className="panel-scroll worker-drones-scroll">
         <Section>
           <SectionHeader
