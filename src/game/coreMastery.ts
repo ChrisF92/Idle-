@@ -63,6 +63,25 @@ function pending(level: number, name: string, blurb: string): MasteryMilestoneDe
   return { level, name, blurb, pending: true }
 }
 
+function pendingLevel(level: number): MasteryMilestoneDef {
+  if (level <= 5) {
+    return pending(5, 'Pending M5 identity', 'Identity/stat slot. Numeric magnitude is not authored.')
+  }
+  if (level <= 10) {
+    return pending(10, 'Pending M10 behaviour', 'Specific behaviour is not authored at this threshold.')
+  }
+  if (level <= 30) {
+    return pending(30, 'Pending M30 evolution', 'Specific behaviour is not authored at this threshold.')
+  }
+  if (level <= 50) {
+    return pending(50, 'Pending M50 evolution', 'Specific behaviour is not authored at this threshold.')
+  }
+  if (level <= 75) {
+    return pending(75, 'Pending M75 evolution', 'Specific behaviour is not authored at this threshold.')
+  }
+  return pending(100, 'Pending M100 capstone', 'Specific behaviour is not authored at this threshold.')
+}
+
 function socketExpand(socket: RelicSocketClass): MasteryMilestoneDef {
   return {
     level: 20,
@@ -202,7 +221,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'slag-spitter': [
     pending(5, 'Slag Identity', 'Identity/stat slot. Numeric magnitude is not authored.'),
-    pending(10, 'Slag Behaviour', 'No M10 behaviour is authored.'),
+    pendingLevel(10),
     socketExpand('power'),
     {
       level: 30,
@@ -231,11 +250,11 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'plate-layer': [
     pending(5, 'Plate Identity', 'Large predictable Shield bank. Numeric M5 is not authored.'),
-    pending(10, 'Impact Bracing', 'Later Plate behaviour. Threshold is not authored.'),
+    pendingLevel(10),
     socketExpand('shield'),
-    pending(30, 'Bypass Protection', 'Later Plate behaviour. Threshold is not authored.'),
-    pending(50, 'Break Replate', 'Shield-break Temporary Armor / recovery replate. Threshold is not authored.'),
-    pending(75, 'Recovery Replate', 'Later Plate behaviour. Threshold is not authored.'),
+    pendingLevel(30),
+    pendingLevel(50),
+    pendingLevel(75),
     {
       level: 100,
       name: 'Citadel Skin',
@@ -245,11 +264,11 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'rapid-aegis': [
     pending(5, 'Aegis Identity', 'Recovery specialist. Numeric M5 is not authored.'),
-    pending(10, 'Regen Ramp', 'Later Aegis behaviour. Threshold is not authored.'),
+    pendingLevel(10),
     socketExpand('universal'),
-    pending(30, 'Small-Hit Resilience', 'Later Aegis behaviour. Threshold is not authored.'),
-    pending(50, 'Break Recovery', 'Later Aegis behaviour. Threshold is not authored.'),
-    pending(75, 'Overflow Buffer', 'Later Aegis behaviour. Threshold is not authored.'),
+    pendingLevel(30),
+    pendingLevel(50),
+    pendingLevel(75),
     {
       level: 100,
       name: 'Perpetual Aegis',
@@ -259,11 +278,11 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'ablative-mesh': [
     pending(5, 'Mesh Identity', 'Hull/Armor/spike survival. Numeric M5 is not authored.'),
-    pending(10, 'Ablative Layer', 'Periodic layer is a base identity. Later thresholds are not authored.'),
+    pendingLevel(10),
     socketExpand('industrial'),
-    pending(30, 'Spike Mitigation', 'Later Mesh behaviour. Threshold is not authored.'),
-    pending(50, 'Temp Armor After Layer', 'Later Mesh behaviour. Threshold is not authored.'),
-    pending(75, 'Regrowth', 'Later Mesh behaviour. Threshold is not authored.'),
+    pendingLevel(30),
+    pendingLevel(50),
+    pendingLevel(75),
     {
       level: 100,
       name: 'Damage Deferral',
@@ -273,11 +292,11 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'barrier-projector': [
     pending(5, 'Barrier Identity', 'Reactive emergency defense. Numeric M5 is not authored.'),
-    pending(10, 'Break Pulse', 'Shield-break slow pulse is base identity. Later thresholds are not authored.'),
+    pendingLevel(10),
     socketExpand('optical'),
-    pending(30, 'Emergency Barrier', 'Low-Hull barrier is base identity. Threshold is not authored.'),
-    pending(50, 'Lethal Intercept', 'Long-cooldown intercept is base identity. Threshold is not authored.'),
-    pending(75, 'Stabilisation', 'Later Barrier behaviour. Threshold is not authored.'),
+    pendingLevel(30),
+    pendingLevel(50),
+    pendingLevel(75),
     {
       level: 100,
       name: 'Weaker Re-arm',
@@ -287,20 +306,20 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'salvage-beacon': [
     pending(5, 'Beacon Identity', 'Visible marks. Marked kills pay extra Salvage.'),
-    pending(10, 'Elite Bounty', 'Elite/Commander bounty. Threshold is not authored.'),
+    pendingLevel(10),
     socketExpand('optical'),
-    pending(30, 'Deterministic Cache', 'Later Beacon behaviour. Threshold is not authored.'),
-    pending(50, 'Two Marks', 'Later Beacon behaviour. Threshold is not authored.'),
-    pending(75, 'Group Sweep', 'Later Beacon behaviour. Threshold is not authored.'),
-    pending(100, 'Beacon Capstone', 'Capstone is not authored beyond the mark architecture.'),
+    pendingLevel(30),
+    pendingLevel(50),
+    pendingLevel(75),
+    pendingLevel(100),
   ],
   'grav-tether': [
     pending(5, 'Tether Identity', 'Slow and drag on real 2D positions.'),
-    pending(10, 'Twin Tether', 'Later Grav behaviour. Threshold is not authored.'),
+    pendingLevel(10),
     socketExpand('industrial'),
-    pending(30, 'Mass Bias', 'Later Grav behaviour. Threshold is not authored.'),
-    pending(50, 'Control Field', 'Later Grav behaviour. Threshold is not authored.'),
-    pending(75, 'Formation Hold', 'Later Grav behaviour. Threshold is not authored.'),
+    pendingLevel(30),
+    pendingLevel(50),
+    pendingLevel(75),
     {
       level: 100,
       name: 'Gravity Well',
@@ -310,20 +329,20 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'nano-lathe': [
     pending(5, 'Lathe Identity', 'In-combat Hull repair. Numeric M5 is not authored.'),
-    pending(10, 'Triage', 'Low-Hull triage is base identity. Threshold is not authored.'),
+    pendingLevel(10),
     socketExpand('shield'),
-    pending(30, 'Temp Armor Overflow', 'Excess repair → Temporary Armor is base identity. Threshold is not authored.'),
-    pending(50, 'Shield Crossfeed', 'Later Lathe behaviour. Threshold is not authored.'),
-    pending(75, 'Critical Burst', 'Later Lathe behaviour. Threshold is not authored.'),
-    pending(100, 'Lathe Capstone', 'Capstone is not authored beyond in-combat repair.'),
+    pendingLevel(30),
+    pendingLevel(50),
+    pendingLevel(75),
+    pendingLevel(100),
   ],
   'sensor-array': [
     pending(5, 'Sensor Identity', 'Acquisition and slew support.'),
-    pending(10, 'Pre-slew', 'Later Sensor behaviour. Threshold is not authored.'),
+    pendingLevel(10),
     socketExpand('industrial'),
-    pending(30, 'Predictive Solution', 'Later Sensor behaviour. Threshold is not authored.'),
-    pending(50, 'Overkill Forecast', 'Later Sensor behaviour. Threshold is not authored.'),
-    pending(75, 'Shared Tracks', 'Later Sensor behaviour. Threshold is not authored.'),
+    pendingLevel(30),
+    pendingLevel(50),
+    pendingLevel(75),
     {
       level: 100,
       name: 'Fire-Control Network',
@@ -333,7 +352,7 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
   ],
   'choir-tap': [
     pending(5, 'Tap Identity', 'Ash / Furnace economy. Numeric M5 is not authored.'),
-    pending(10, 'Resonance', 'Commander/Boss resonance. Threshold is not authored.'),
+    pendingLevel(10),
     socketExpand('power'),
     {
       level: 30,
@@ -347,8 +366,8 @@ export const CORE_MASTERY_MILESTONES: Record<string, MasteryMilestoneDef[]> = {
       blurb: 'Ash→Heat conversion while fitted is more efficient this Sortie. Does not change an Ignited Furnace.',
       effect: 'choir-furnace-feed',
     },
-    pending(75, 'Resonant Mark', 'Later Tap behaviour. Threshold is not authored.'),
-    pending(100, 'Boss Harvest', 'Deterministic Boss harvest. Threshold details are not authored.'),
+    pendingLevel(75),
+    pendingLevel(100),
   ],
 }
 

@@ -10,7 +10,7 @@
 import { coreInstanceAtSlot, coreInstanceCopyNumber, resolveCoreInstance } from './coreInstances'
 import { hasMasteryEffect } from './coreMastery'
 import { frameTargetingSlewMult, getModule, SHORT_RANGE_MAX } from './catalog'
-import { phaseRampEstablished, sensorTargetingModifier } from './coreCombat'
+import { phaseRampEstablished, sensorTargetingModifier, FLAK_DETONATION_RADIUS } from './coreCombat'
 import {
   applyPlayerCoreOrbit,
   bearingBetween,
@@ -497,6 +497,33 @@ export function buildSharedTargetMetrics(state: GameState, enemies: CombatUnit[]
   return buildEvalBundle(state, enemies).metrics
 }
 
+function predictedPoint(unit: CombatUnit, leadSec: number): { x: number; y: number } {
+  return {
+    x: unit.x + Math.sin(unit.heading ?? 0) * unit.speed * leadSec,
+    y: unit.y + Math.cos(unit.heading ?? 0) * unit.speed * leadSec,
+  }
+}
+
+function clusterStats(
+  unit: CombatUnit,
+  enemies: CombatUnit[],
+  leadSec: number,
+): Pick<SharedTargetMetrics, 'clusterCount' | 'clusterWeight' | 'clusterMass'> {
+  let clusterCount = 0
+  let clusterWeight = 0
+  let clusterMass = effectiveHp(unit)
+  const here = predictedPoint(unit, leadSec)
+  for (const other of enemies) {
+    if (other.id === unit.id) continue
+    if (distanceBetween(here, predictedPoint(other, leadSec)) > CLUSTER_NEIGHBOUR_RADIUS) continue
+    clusterCount += 1
+    const otherHp = effectiveHp(other)
+    clusterMass += otherHp
+    clusterWeight += 1 + outgoingDps(other) * 0.05 + otherHp * 0.02
+  }
+  return { clusterCount, clusterWeight, clusterMass }
+}
+
 export function buildEvalBundle(state: GameState, enemies: CombatUnit[]): EvalBundle {
   const focus = snapshotFocusCommitments(state)
   const metrics = new Map<string, SharedTargetMetrics>()
@@ -513,23 +540,7 @@ export function buildEvalBundle(state: GameState, enemies: CombatUnit[]): EvalBu
       unit.role === 'sniper' || unit.role === 'shield' ? 1.35 : unit.role === 'juggernaut' ? 1.1 : 1
     const statusBoost = unit.isBoss || unit.role === 'boss' ? 1.25 : 1
     const danger = dps * urgency * roleBoost * statusBoost
-    let clusterCount = 0
-    let clusterWeight = 0
-    let clusterMass = ehp
-    const packLead = hasMasteryEffect(state, 'flak-array', 'flak-pack-prediction') ? 0.45 : 0
-    for (const other of enemies) {
-      if (other.id === unit.id) continue
-      const ox = other.x + Math.sin(other.heading ?? 0) * other.speed * packLead
-      const oy = other.y + Math.cos(other.heading ?? 0) * other.speed * packLead
-      const ux = unit.x + Math.sin(unit.heading ?? 0) * unit.speed * packLead
-      const uy = unit.y + Math.cos(unit.heading ?? 0) * unit.speed * packLead
-      if (distanceBetween({ x: ux, y: uy }, { x: ox, y: oy }) <= CLUSTER_NEIGHBOUR_RADIUS) {
-        clusterCount += 1
-        const otherHp = effectiveHp(other)
-        clusterMass += otherHp
-        clusterWeight += 1 + outgoingDps(other) * 0.05 + otherHp * 0.02
-      }
-    }
+    const cluster = clusterStats(unit, enemies, 0)
     const shieldPresent = unit.shield > 1 ? unit.shield * (0.45 + shieldFrac) : 0
     const heavyWeight =
       ehp * (1 + Math.max(0, unit.armor) / 20) * (unit.role === 'juggernaut' ? 1.35 : 1) * statusBoost
@@ -544,13 +555,11 @@ export function buildEvalBundle(state: GameState, enemies: CombatUnit[]): EvalBu
       danger,
       urgency,
       proximity,
-      clusterCount,
-      clusterWeight,
-      clusterMass,
       focusWeight: 0,
       shieldPresent,
       heavyWeight,
       finishable,
+      ...cluster,
     })
   }
   return { enemies, metrics, focus }
@@ -593,16 +602,24 @@ export function scoreDoctrine(
 }
 
 function metricsForCore(
+  state: GameState,
   bundle: EvalBundle,
   core: CombatUnit,
   enemy: CombatUnit,
 ): SharedTargetMetrics | undefined {
   const base = bundle.metrics.get(enemy.id)
   if (!base) return undefined
-  return {
+  const next: SharedTargetMetrics = {
     ...base,
     focusWeight: focusWeightExcluding(bundle.focus, enemy.id, core.id),
   }
+  if (
+    (core.coreModuleId ?? '') === 'flak-array' &&
+    hasMasteryEffect(state, 'flak-array', 'flak-pack-prediction')
+  ) {
+    Object.assign(next, clusterStats(enemy, bundle.enemies, FLAK_PACK_LEAD_SEC))
+  }
+  return next
 }
 
 function legalCandidates(state: GameState, core: CombatUnit, bundle: EvalBundle): CombatUnit[] {
@@ -658,7 +675,7 @@ export function pickBestTarget(
   let best: CombatUnit | null = null
   let bestScore = -Infinity
   for (const enemy of candidates) {
-    const metrics = metricsForCore(bundle, core, enemy)
+    const metrics = metricsForCore(state, bundle, core, enemy)
     if (!metrics) continue
     const score = scoreDoctrine(used, enemy, metrics)
     if (!best) {
@@ -678,13 +695,14 @@ export function pickBestTarget(
 }
 
 export function currentTargetScore(
+  state: GameState,
   core: CombatUnit,
   target: CombatUnit,
   bundle: EvalBundle,
   doctrine: TargetingDoctrineId,
   usedDoctrine?: TargetingDoctrineId,
 ): number {
-  const metrics = metricsForCore(bundle, core, target)
+  const metrics = metricsForCore(state, bundle, core, target)
   if (!metrics) return -Infinity
   return scoreDoctrine(usedDoctrine ?? doctrine, target, metrics)
 }
@@ -721,7 +739,7 @@ export function evaluateCoreTarget(
   if (best.target.id === current.id) return
   if (suppressDiscretionarySwitch(state, core)) return
 
-  const currentScore = currentTargetScore(core, current, bundle, doctrine, used)
+  const currentScore = currentTargetScore(state, core, current, bundle, doctrine, used)
   if (beatsHysteresis(best.score, currentScore, switchAdvantageFor(state, core))) {
     setCoreTarget(core, best.target.id)
   }
@@ -760,6 +778,15 @@ function predictedWorldPoint(unit: CombatUnit, leadSec: number): { x: number; y:
   }
 }
 
+export function targetMetricsForCore(
+  state: GameState,
+  bundle: EvalBundle,
+  core: CombatUnit,
+  enemy: CombatUnit,
+): SharedTargetMetrics | undefined {
+  return metricsForCore(state, bundle, core, enemy)
+}
+
 /** Hive-relative orbital angle that centres the outward firing arc on the target. */
 export function desiredOrbitAngle(state: GameState, core: CombatUnit, target: CombatUnit): number {
   const moduleId = core.coreModuleId ?? specOf(core).moduleId
@@ -794,16 +821,16 @@ export function firingSolution(state: GameState, core: CombatUnit, target: Comba
   const distance = distanceBetween(core, target)
   const facing = playerCoreOutwardFacing(core)
   const bearing = bearingBetween(core, target)
-  const desired = hiveBearingOf(target)
+  const desired = desiredOrbitAngle(state, core, target)
   const delta = shortestAngleDelta(core.orbitAngle ?? facing, desired)
   const inAcquisition = distance <= acquire + 1e-6
   const inFireRange = distance <= fire + 1e-6
   const inArc = isWithinArc(facing, bearing, arc)
   const orbitSettled = Math.abs(delta) <= degToRad(profile.aimToleranceDeg) + 1e-6
-  const stabilised = inArc && orbitSettled
+  const stabilised = inArc && inFireRange && orbitSettled
   const canTraverseFire = profile.firesWhileTraversing && inFireRange && inArc
   const canStabilisedFire =
-    inFireRange && inArc && (profile.requiresStabilisedAim ? stabilised : true)
+    inFireRange && inArc && (profile.requiresStabilisedAim ? orbitSettled : true)
   const canFire = canTraverseFire || canStabilisedFire
   return {
     target,
@@ -815,10 +842,34 @@ export function firingSolution(state: GameState, core: CombatUnit, target: Comba
     inArc,
     stabilised,
     canFire,
-    canStartCharge: profile.requiresCharge && inFireRange && inArc && stabilised,
-    canReleaseCharge: profile.requiresCharge && inFireRange && inArc && stabilised,
-    canConnectBeam: profile.requiresStabilisedAim && !profile.requiresCharge && inFireRange && inArc && stabilised,
+    canStartCharge: profile.requiresCharge && inFireRange && inArc && orbitSettled,
+    canReleaseCharge: profile.requiresCharge && inFireRange && inArc && orbitSettled,
+    canConnectBeam: profile.requiresStabilisedAim && !profile.requiresCharge && inFireRange && inArc && orbitSettled,
   }
+}
+
+/** Densest cluster that is a legal Flak firing solution from this Core. */
+export function densestLegalFlakCluster(
+  state: GameState,
+  core: CombatUnit,
+): { x: number; y: number } | null {
+  applyPlayerCoreOrbit(core)
+  const legal = state.combat.enemyUnits.filter((unit) => {
+    if (!isTargetableEnemy(state, unit)) return false
+    const sol = firingSolution(state, core, unit)
+    return sol.inFireRange && sol.inArc
+  })
+  if (legal.length === 0) return null
+  let best = legal[0]!
+  let bestN = -1
+  for (const enemy of legal) {
+    const n = legal.filter((other) => distanceBetween(enemy, other) <= FLAK_DETONATION_RADIUS).length
+    if (n > bestN) {
+      best = enemy
+      bestN = n
+    }
+  }
+  return { x: best.x, y: best.y }
 }
 
 export function slewCoreToward(state: GameState, core: CombatUnit, dt: number): { slewLimited: boolean } {

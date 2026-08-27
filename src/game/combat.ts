@@ -37,12 +37,12 @@ import {
 import { careerBestWave, isSystemUnlocked } from './progression'
 import { buildCoreWeapon, buildFlagshipWeapons, computeShipStats } from './state'
 import {
-  applyFlakDeathDetonation,
   applyHeavyArmorFracture,
   applyPhaseExposure,
   choirTapOnHighValueKill,
   effectiveEnemyArmor,
   flakSplashCount,
+  FLAK_DETONATION_RADIUS,
   HEAVY_PEN_MOMENTUM,
   HEAVY_SHIELD_BYPASS,
   interceptEnemyProjectile,
@@ -70,7 +70,11 @@ import {
 } from './waves'
 import { coreInstanceAtSlot } from './coreInstances'
 import {
+  coreIsBeaming,
+  densestLegalFlakCluster,
+  effectiveChargeDurationSec,
   effectiveCoreFireRange,
+  emptyTargetingTelemetry,
   firingSolution,
   isTargetableEnemy,
   noteCoreFiring,
@@ -79,9 +83,6 @@ import {
   playerCoreTarget,
   profileForCore,
   tickPlayerCoreTargeting,
-  emptyTargetingTelemetry,
-  effectiveChargeDurationSec,
-  coreIsBeaming,
 } from './coreTargeting'
 import { applyPlayerCoreOrbit, TYPICAL_SPAWN_RADIUS, bearingBetween, coreWorldPosition, distanceBetween, distanceToHive, moveRadially } from './geometry'
 import { formationRngFor, formationSlots, pickFormation, type FormationContext } from './formations'
@@ -1956,6 +1957,8 @@ function fittedSalvageKillMult(state: GameState): number {
 
 export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void {
   if (unit.side !== 'enemy') return
+  if (unit.killRewarded) return
+  unit.killRewarded = true
   noteSortieKill(state)
   recordPlaytest(state, 'first_kill', { firstKey: 'kill' })
   const rewardWeight = Math.max(0, Math.min(1, unit.rewardWeight ?? 1))
@@ -2036,6 +2039,11 @@ export function pruneDeadEnemyUnits(state: GameState): void {
   if (removed) state.combat.enemyUnits = kept
 }
 
+interface AppliedHit {
+  dealt: number
+  hullOverkill: number
+}
+
 function applyDamageToUnit(
   target: CombatUnit,
   rawDamage: number,
@@ -2043,8 +2051,10 @@ function applyDamageToUnit(
   profile?: WeaponDamageProfile,
   state?: GameState,
   opts?: { shieldBypassFrac?: number },
-): number {
-  if (target.untargetable || target.isCore) return 0
+): AppliedHit {
+  if (target.untargetable || target.isCore || target.targetable === false) {
+    return { dealt: 0, hullOverkill: 0 }
+  }
   const vs = profile ?? weaponDamageProfile(tags)
   let remaining = rawDamage * target.damageTakenMult
   if (state && target.side === 'enemy') {
@@ -2053,14 +2063,16 @@ function applyDamageToUnit(
 
   if (state && target.isFlagship && target.side === 'player') {
     remaining = mitigateIncomingToHive(state, target, remaining, tags)
-    if (remaining <= 0) return 0
-    if (tryBarrierIntercept(state, target, remaining)) return 0
+    if (remaining <= 0) return { dealt: 0, hullOverkill: 0 }
+    if (tryBarrierIntercept(state, target, remaining)) return { dealt: 0, hullOverkill: 0 }
   }
 
   if (tags.includes('antiShield') && target.shield > 0) {
     remaining *= 1.5
   }
   let dealt = 0
+  let hullOverkill = 0
+  const hullBefore = target.hull
   const bypassFrac =
     opts?.shieldBypassFrac ?? (tags.includes('bypass') ? HEAVY_SHIELD_BYPASS : 0)
   if (state && bypassFrac > 0 && target.shield > 0 && target.hull > 0) {
@@ -2069,6 +2081,7 @@ function applyDamageToUnit(
     const hullHit = Math.min(target.hull, bypass)
     target.hull -= hullHit
     dealt += hullHit
+    if (hullBefore > 0 && target.hull <= 0) hullOverkill = Math.max(0, bypass - hullBefore)
   }
 
   if (target.shield > 0 && remaining > 0) {
@@ -2077,9 +2090,7 @@ function applyDamageToUnit(
     target.shield -= toShield
     dealt += toShield
     target.regenDelay = Math.max(target.regenDelay ?? 0, SHIELD_REGEN_DELAY)
-    // Shield layer absorbs the whole hit. Leftover does not spill into hull
-    // until a later projectile finds the shield already empty.
-    return dealt
+    return { dealt, hullOverkill }
   }
 
   if (remaining > 0 && target.hull > 0) {
@@ -2087,15 +2098,84 @@ function applyDamageToUnit(
     let hullHit = remaining * (armored ? vs.armorDamage : vs.hullDamage)
     let armor = state ? effectiveEnemyArmor(state, target) : target.armor
     if (tags.includes('pierce')) armor *= 0.5
-    // USI armour HP already uses the 0.25× multiplier; don't also subtract.
     if (armored && vs.armorDamage < 1) armor = 0
     hullHit = Math.max(1, hullHit - armor)
     const toHull = Math.min(target.hull, hullHit)
     target.hull -= toHull
     dealt += toHull
+    if (hullBefore > 0 && target.hull <= 0) {
+      hullOverkill = Math.max(hullOverkill, hullHit - hullBefore)
+    }
     target.regenDelay = Math.max(target.regenDelay ?? 0, SHIELD_REGEN_DELAY)
   }
-  return dealt
+  return { dealt, hullOverkill }
+}
+
+export interface PlayerCombatHit {
+  dealt: number
+  hullOverkill: number
+  prevHull: number
+  prevShield: number
+  killed: boolean
+}
+
+/** Player → enemy hit through the normal Shield/Hull/reward pipeline. Secondary hits do not cascade. */
+export function applyPlayerCombatHit(
+  state: GameState,
+  target: CombatUnit,
+  rawDamage: number,
+  tags: WeaponTag[],
+  profile?: WeaponDamageProfile,
+  opts?: { shieldBypassFrac?: number; role?: CombatUnit['role'] },
+): PlayerCombatHit {
+  const prevHull = target.hull
+  const prevShield = target.shield
+  const hit = applyDamageToUnit(target, rawDamage, tags, profile, state, opts)
+  noteCombatHit(state, 'player', target, hit.dealt, prevShield, opts?.role)
+  tryLootEnemyKill(state, target, prevHull)
+  return {
+    dealt: hit.dealt,
+    hullOverkill: hit.hullOverkill,
+    prevHull,
+    prevShield,
+    killed: prevHull > 0 && target.hull <= 0,
+  }
+}
+
+export function applyFlakDeathDetonation(
+  state: GameState,
+  dead: CombatUnit,
+  damage: number,
+  sourceModuleId: string | undefined,
+  fromId?: string,
+): void {
+  if (sourceModuleId !== 'flak-array') return
+  if (!hasMasteryEffect(state, 'flak-array', 'flak-death-detonation')) return
+  const core = state.combat.playerUnits.find(
+    (unit) => unit.isCore && unit.coreModuleId === 'flak-array' && (!fromId || unit.id === fromId),
+  )
+  let origin: { x: number; y: number } = dead
+  if (core && hasMasteryEffect(state, 'flak-array', 'flak-kill-box')) {
+    origin = densestLegalFlakCluster(state, core) ?? dead
+  }
+  for (const enemy of state.combat.enemyUnits) {
+    if (enemy.id === dead.id) continue
+    if (!isTargetableEnemy(state, enemy)) continue
+    if (distanceBetween(origin, enemy) > FLAK_DETONATION_RADIUS) continue
+    applyPlayerCombatHit(state, enemy, damage * 0.45, ['kinetic', 'splash'])
+  }
+}
+
+function applyMoltenPoolDamage(state: GameState, dt: number): void {
+  const runtime = state.combat.coreRuntime
+  if (!runtime) return
+  for (const pool of runtime.moltenPools) {
+    for (const enemy of state.combat.enemyUnits) {
+      if (!isTargetableEnemy(state, enemy)) continue
+      if (distanceBetween(enemy, pool) > pool.radius) continue
+      applyPlayerCombatHit(state, enemy, pool.dps * dt, ['kinetic', 'dot'])
+    }
+  }
 }
 
 function noteCombatHit(
@@ -2128,7 +2208,7 @@ export function dealCombatDamage(
   profile?: WeaponDamageProfile,
   state?: GameState,
 ): number {
-  return applyDamageToUnit(target, rawDamage, tags, profile, state)
+  return applyDamageToUnit(target, rawDamage, tags, profile, state).dealt
 }
 
 function incomingDefenseMult(
@@ -2273,7 +2353,7 @@ function nearestLegalPhaseGlance(
   let best: CombatUnit | null = null
   let bestD = 72
   for (const enemy of state.combat.enemyUnits) {
-    if (enemy.id === primary.id || enemy.hull <= 0 || enemy.untargetable) continue
+    if (enemy.id === primary.id || !isTargetableEnemy(state, enemy)) continue
     const d = distanceBetween(primary, enemy)
     if (d > bestD) continue
     const sol = firingSolution(state, core, enemy)
@@ -2309,11 +2389,12 @@ function tickBeams(
     }
     const prevHull = target.hull
     const shieldBefore = target.shield
-    const dealt = applyDamageToUnit(target, dmg, beam.tags, {
+    const hit = applyDamageToUnit(target, dmg, beam.tags, {
       hullDamage: beam.hullDamage ?? 1,
       shieldDamage: beam.shieldDamage ?? 1,
       armorDamage: beam.armorDamage ?? 0.25,
     }, state, { shieldBypassFrac: beam.shieldBypassFrac })
+    const dealt = hit.dealt
     noteCombatHit(state, beam.side, target, dealt, shieldBefore, from.role ?? beam.attackerRole)
     tryLootEnemyKill(state, target, prevHull)
     if (
@@ -2323,11 +2404,11 @@ function tickBeams(
     ) {
       const glance = nearestLegalPhaseGlance(state, from, target, dmg * PHASE_REFRACTION_FRACTION)
       if (glance) {
-        applyDamageToUnit(glance, dmg * PHASE_REFRACTION_FRACTION, beam.tags, {
+        applyPlayerCombatHit(state, glance, dmg * PHASE_REFRACTION_FRACTION, beam.tags, {
           hullDamage: beam.hullDamage ?? 1,
           shieldDamage: beam.shieldDamage ?? 1,
           armorDamage: beam.armorDamage ?? 0.25,
-        }, state, { shieldBypassFrac: beam.shieldBypassFrac })
+        }, { shieldBypassFrac: beam.shieldBypassFrac, role: from.role ?? beam.attackerRole })
       }
     }
     if (
@@ -2402,11 +2483,12 @@ function updateProjectiles(
       }
       const prevHull = target.hull
       const shieldBefore = target.shield
-      const dealt = applyDamageToUnit(target, dmg, shot.tags, {
+      const hit = applyDamageToUnit(target, dmg, shot.tags, {
         hullDamage: shot.hullDamage ?? 1,
         shieldDamage: shot.shieldDamage ?? 1,
         armorDamage: shot.armorDamage ?? 0.25,
       }, state, { shieldBypassFrac: shot.shieldBypassFrac })
+      const dealt = hit.dealt
       noteCombatHit(state, shot.side, target, dealt, shieldBefore, shot.attackerRole)
       tryLootEnemyKill(state, target, prevHull)
       if (shot.side === 'player' && dealt > 0 && shot.sourceModuleId === 'heavy-lance') {
@@ -2419,21 +2501,23 @@ function updateProjectiles(
         ) {
           const behind = nextEnemyAlongHeading(state, target, shot.heading ?? 0, target.id)
           if (behind) {
-            applyDamageToUnit(behind, shot.damage * HEAVY_PEN_MOMENTUM, ['kinetic'], undefined, state)
+            applyPlayerCombatHit(state, behind, shot.damage * HEAVY_PEN_MOMENTUM, ['kinetic'], undefined, {
+              role: shot.attackerRole,
+            })
           }
         }
       }
       if (shot.side === 'player' && prevHull > 0 && target.hull <= 0) {
-        applyFlakDeathDetonation(state, target, shot.damage, shot.sourceModuleId)
+        applyFlakDeathDetonation(state, target, shot.damage, shot.sourceModuleId, shot.fromId)
         if (shot.sourceModuleId === 'pulse-cannon') {
-          const leftover = Math.max(0, shot.damage - prevHull)
+          const leftover = hit.hullOverkill
           const hop = pulseOverkillHop(state, target, leftover, target.id)
           if (hop) {
-            applyDamageToUnit(hop, leftover * 0.45, shot.tags, {
+            applyPlayerCombatHit(state, hop, leftover * 0.45, shot.tags, {
               hullDamage: shot.hullDamage ?? 1,
               shieldDamage: shot.shieldDamage ?? 1,
               armorDamage: shot.armorDamage ?? 0.25,
-            }, state)
+            }, { role: shot.attackerRole })
           }
         }
       }
@@ -2646,6 +2730,7 @@ export function simulateCombat(
     if (contacting && phaseRampAtMax(state, core)) applyPhaseExposure(state, acquired!.id)
   }
   tickSupportCores(state, dt)
+  applyMoltenPoolDamage(state, dt)
 
   const masteryRegen = state.shipyard.modules.reduce(
     (n, id) => n + combinedCoreMods(state, id).regenAdd,

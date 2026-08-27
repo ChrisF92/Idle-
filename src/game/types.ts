@@ -991,8 +991,13 @@ export interface CombatUnit {
    * Untargetable is not death.
    */
   targetable?: boolean
-  /** Enemies never select this unit. */
+  /** Enemies never select this unit. Player Core satellites are untargetable. */
   untargetable?: boolean
+  /**
+   * True once kill rewards have been granted for this unit this Sortie.
+   * Prevents duplicate Salvage/Scrap/kill counts from secondary hits or cleanup.
+   */
+  killRewarded?: boolean
   dots: DotInstance[]
   /** USI-style class. Optional on player units and old saves. */
   role?: EnemyRole

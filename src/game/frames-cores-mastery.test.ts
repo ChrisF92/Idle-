@@ -292,6 +292,19 @@ describe('PR4 authored Mastery milestones', () => {
     expect(hasMasteryEffect(s, 'choir-tap', 'choir-hot-recovery')).toBe(true)
     expect(hasMasteryEffect(s, 'choir-tap', 'choir-furnace-feed')).toBe(true)
   })
+
+  it('does not assign unauthored defense/utility behaviours to pending thresholds', () => {
+    for (const rows of Object.values(CORE_MASTERY_MILESTONES)) {
+      for (const ms of rows) {
+        if (!ms.pending || ms.level === 5) continue
+        expect(ms.effect).toBeUndefined()
+        expect(ms.name.startsWith('Pending M')).toBe(true)
+      }
+    }
+    expect(CORE_MASTERY_MILESTONES['plate-layer']!.find((ms) => ms.level === 10)?.name).toBe(
+      'Pending M10 behaviour',
+    )
+  })
 })
 
 describe('PR4 targeting geometry', () => {

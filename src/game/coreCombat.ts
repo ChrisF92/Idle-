@@ -40,6 +40,7 @@ export const GRAV_WELL_SLOW = 0.5
 /** Ablative layer. Bounded; never immunity. */
 export const ABLATIVE_LAYER_HP = 14
 export const ABLATIVE_LAYER_PERIOD = 8
+/** Later Mesh spike absorb. Dormant until the canonical threshold is authored. */
 export const ABLATIVE_SPIKE_ABSORB = 0.35
 export const ABLATIVE_DEFERRAL_FRACTION = 0.22
 export const ABLATIVE_DEFERRAL_CAP = 36
@@ -73,6 +74,7 @@ export const SENSOR_FCN_SLEW_MULT = 1.12
 export const CITADEL_SKIN_REDUCTION = 0.12
 /** Rapid Aegis overflow buffer seed. */
 export const AEGIS_OVERFLOW_CAP = 8
+/** Later Aegis small-hit resilience. Dormant until the canonical threshold is authored. */
 export const AEGIS_SMALL_HIT = 6
 export const HEAVY_SHIELD_BYPASS = 0.35
 export const HEAVY_PEN_MOMENTUM = 0.35
@@ -230,9 +232,7 @@ export function salvageMarkBonus(state: GameState, unit: CombatUnit): number {
   const runtime = state.combat.coreRuntime
   const mark = runtime?.salvageMarks[unit.id]
   if (!mark || mark.until < state.combat.simTime) return 0
-  let bonus = SALVAGE_MARK_BONUS
-  if (mark.elite || isHighValueHostile(unit)) bonus += 0.12
-  return bonus
+  return SALVAGE_MARK_BONUS
 }
 
 export function markSalvageTarget(state: GameState, unit: CombatUnit, elite = false): void {
@@ -269,7 +269,7 @@ function nearestEnemy(
   let best: CombatUnit | null = null
   let bestD = radius
   for (const enemy of state.combat.enemyUnits) {
-    if (enemy.id === exceptId || enemy.hull <= 0 || enemy.untargetable) continue
+    if (enemy.id === exceptId || enemy.hull <= 0 || enemy.untargetable || enemy.targetable === false) continue
     const d = distanceBetween(from, enemy)
     if (d <= bestD) {
       best = enemy
@@ -290,7 +290,7 @@ export function nextEnemyAlongHeading(
   let best: CombatUnit | null = null
   let bestD = maxDist
   for (const enemy of state.combat.enemyUnits) {
-    if (enemy.id === exceptId || enemy.hull <= 0 || enemy.untargetable) continue
+    if (enemy.id === exceptId || enemy.hull <= 0 || enemy.untargetable || enemy.targetable === false) continue
     const d = distanceBetween(from, enemy)
     if (d > maxDist || d < 8) continue
     const bearing = Math.atan2(enemy.x - from.x, enemy.y - from.y)
@@ -338,7 +338,7 @@ export function pulseChainHops(state: GameState, coreInstanceId: string): number
 }
 
 export function spawnMoltenPool(state: GameState, x: number, y: number, sourceModuleId?: string): void {
-  if (sourceModuleId != null && sourceModuleId !== 'slag-spitter') return
+  if (sourceModuleId !== 'slag-spitter') return
   if (!hasMasteryEffect(state, 'slag-spitter', 'slag-molten-pool')) return
   const runtime = ensureSortieCoreRuntime(state)
   const radius = hasMasteryEffect(state, 'slag-spitter', 'slag-spread')
@@ -374,37 +374,11 @@ export function flakSplashCount(state: GameState, base: number): number {
   return n
 }
 
-export function densestClusterPoint(state: GameState): { x: number; y: number } | null {
-  const enemies = state.combat.enemyUnits.filter((u) => u.hull > 0)
-  if (enemies.length === 0) return null
-  let best = enemies[0]!
-  let bestN = -1
-  for (const enemy of enemies) {
-    const n = enemies.filter((o) => distanceBetween(enemy, o) <= FLAK_DETONATION_RADIUS).length
-    if (n > bestN) {
-      best = enemy
-      bestN = n
-    }
-  }
-  return { x: best.x, y: best.y }
-}
-
-export function applyFlakDeathDetonation(
-  state: GameState,
-  dead: CombatUnit,
-  damage: number,
-  sourceModuleId?: string,
-): void {
-  if (sourceModuleId !== 'flak-array') return
-  if (!hasMasteryEffect(state, 'flak-array', 'flak-death-detonation')) return
-  const origin = hasMasteryEffect(state, 'flak-array', 'flak-kill-box')
-    ? densestClusterPoint(state) ?? dead
-    : dead
-  for (const enemy of state.combat.enemyUnits) {
-    if (enemy.hull <= 0 || enemy.id === dead.id) continue
-    if (distanceBetween(origin, enemy) > FLAK_DETONATION_RADIUS) continue
-    enemy.hull = Math.max(0, enemy.hull - damage * 0.45)
-  }
+export function tickMoltenPools(state: GameState, dt: number): void {
+  const runtime = state.combat.coreRuntime
+  if (!runtime) return
+  runtime.moltenPools = runtime.moltenPools.filter((pool) => pool.until > state.combat.simTime)
+  void dt
 }
 
 function applyGravToEnemy(enemy: CombatUnit, dt: number, slow: number): void {
@@ -435,19 +409,6 @@ export function tickGravTether(state: GameState, dt: number): void {
     }
     if (well && distanceToHive(enemy.x, enemy.y) <= GRAV_WELL_RADIUS) {
       applyGravToEnemy(enemy, dt, GRAV_WELL_SLOW)
-    }
-  }
-}
-
-export function tickMoltenPools(state: GameState, dt: number): void {
-  const runtime = state.combat.coreRuntime
-  if (!runtime) return
-  runtime.moltenPools = runtime.moltenPools.filter((pool) => pool.until > state.combat.simTime)
-  for (const pool of runtime.moltenPools) {
-    for (const enemy of state.combat.enemyUnits) {
-      if (enemy.hull <= 0) continue
-      if (distanceBetween(enemy, pool) > pool.radius) continue
-      enemy.hull = Math.max(0, enemy.hull - pool.dps * dt)
     }
   }
 }
@@ -532,7 +493,7 @@ export function mitigateIncomingToHive(
   state: GameState,
   flag: CombatUnit,
   rawDamage: number,
-  tags: WeaponTag[],
+  _tags: WeaponTag[],
 ): number {
   let remaining = Math.max(0, rawDamage)
   const runtime = ensureSortieCoreRuntime(state)
@@ -541,21 +502,13 @@ export function mitigateIncomingToHive(
     remaining *= 1 - CITADEL_SKIN_REDUCTION
   }
 
-  if (fitted(state, 'rapid-aegis') && remaining < AEGIS_SMALL_HIT) {
-    flag.regenDelay = Math.max(0, (flag.regenDelay ?? 0) * 0.35)
-  }
-
   if (fitted(state, 'ablative-mesh') && remaining > 0) {
-    const spike = remaining >= 18 || tags.includes('kinetic')
     if (runtime.ablativeLayerHp > 0) {
-      const absorb = spike ? remaining * ABLATIVE_SPIKE_ABSORB : Math.min(remaining, runtime.ablativeLayerHp)
-      const take = Math.min(runtime.ablativeLayerHp, absorb)
+      const take = Math.min(runtime.ablativeLayerHp, remaining)
       runtime.ablativeLayerHp -= take
       remaining -= take
       if (runtime.ablativeLayerHp <= 0) {
         runtime.ablativeRegenAt = state.combat.simTime + ABLATIVE_LAYER_PERIOD
-        runtime.tempArmor = Math.min(12, runtime.tempArmor + 6)
-        runtime.tempArmorUntil = state.combat.simTime + 4
       }
     }
     if (hasMasteryEffect(state, 'ablative-mesh', 'ablative-deferral') && remaining > 0) {

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { startCombat } from './tick'
-import { simulateCombat } from './combat'
 import {
   applyFlakDeathDetonation,
+  simulateCombat,
+} from './combat'
+import {
   applyHeavyArmorFracture,
-  densestClusterPoint,
   effectiveEnemyArmor,
   flakSplashCount,
   HEAVY_PEN_MOMENTUM,
@@ -21,10 +22,20 @@ import {
   spawnMoltenPool,
   updatePhaseRamp,
 } from './coreCombat'
-import { hasMasteryEffect } from './coreMastery'
+import { CORE_MASTERY_MILESTONES, hasMasteryEffect } from './coreMastery'
 import { getModule } from './catalog'
-import { desiredOrbitAngle, switchAdvantageFor } from './coreTargeting'
+import {
+  buildEvalBundle,
+  densestLegalFlakCluster,
+  desiredOrbitAngle,
+  firingSolution,
+  playerCoreOutwardFacing,
+  scoreDoctrine,
+  switchAdvantageFor,
+  targetMetricsForCore,
+} from './coreTargeting'
 import { applyPlayerCoreOrbit, bearingBetween, shortestAngleDelta } from './geometry'
+import { ensureSortieStats } from './sortieTelemetry'
 import type { CombatUnit, GameState } from './types'
 
 function silent() {
@@ -55,6 +66,10 @@ function dummyEnemy(id: string, extra: Partial<CombatUnit> = {}): CombatUnit {
     isBoss: false,
     isFlagship: false,
     dots: [],
+    sourceWave: extra.sourceWave ?? 1,
+    rewardWeight: extra.rewardWeight ?? 1,
+    killRewarded: extra.killRewarded,
+    targetable: extra.targetable,
     x: extra.x ?? 80,
     y: extra.y ?? 0,
     heading: extra.heading ?? 0,
@@ -234,26 +249,20 @@ describe('Flak Array Mastery boundaries', () => {
     expect(flakSplashCount(withMastery('flak-array', 75), 2)).toBe(4)
   })
 
-  it('M50 Death Detonation is Flak-sourced and M100 uses the densest cluster', () => {
-    const flak = withMastery('flak-array', 50)
+  it('M50 Death Detonation is Flak-sourced and M100 requires a legal cluster', () => {
+    const flak = fitWeaponSortie('flak-array', 50)
+    const core = flak.combat.playerUnits.find((u) => u.coreModuleId === 'flak-array')!
+    core.orbitAngle = 0
+    applyPlayerCoreOrbit(core)
     flak.combat.enemyUnits = [
-      dummyEnemy('dead', { x: 0, y: 100, hull: 0 }),
-      dummyEnemy('near', { x: 10, y: 100, hull: 20, hullMax: 20 }),
+      dummyEnemy('dead', { x: 0, y: 90, hull: 0 }),
+      dummyEnemy('near', { x: 10, y: 90, hull: 20, hullMax: 20 }),
     ]
     const near = flak.combat.enemyUnits[1]!
-    applyFlakDeathDetonation(flak, flak.combat.enemyUnits[0]!, 10, 'pulse-cannon')
+    applyFlakDeathDetonation(flak, flak.combat.enemyUnits[0]!, 10, 'pulse-cannon', core.id)
     expect(near.hull).toBe(20)
-    applyFlakDeathDetonation(flak, flak.combat.enemyUnits[0]!, 10, 'flak-array')
+    applyFlakDeathDetonation(flak, flak.combat.enemyUnits[0]!, 10, 'flak-array', core.id)
     expect(near.hull).toBeLessThan(20)
-    const box = withMastery('flak-array', 100)
-    box.combat.enemyUnits = [
-      dummyEnemy('a', { x: 0, y: 0 }),
-      dummyEnemy('b', { x: 5, y: 0 }),
-      dummyEnemy('c', { x: 200, y: 0 }),
-    ]
-    const dense = densestClusterPoint(box)
-    expect(dense).not.toBeNull()
-    expect(Math.hypot(dense!.x, dense!.y)).toBeLessThan(20)
   })
 })
 
@@ -343,6 +352,8 @@ describe('Slag Spitter Mastery boundaries', () => {
   it('does not invent M10 and only Slag origin creates pools', () => {
     expect(hasMasteryEffect(withMastery('slag-spitter', 10), 'slag-spitter', 'slag-molten-pool')).toBe(false)
     const s = withMastery('slag-spitter', 30)
+    spawnMoltenPool(s, 10, 10)
+    expect(s.combat.coreRuntime?.moltenPools ?? []).toHaveLength(0)
     spawnMoltenPool(s, 10, 10, 'pulse-cannon')
     expect(s.combat.coreRuntime?.moltenPools ?? []).toHaveLength(0)
     spawnMoltenPool(s, 10, 10, 'slag-spitter')
@@ -373,5 +384,341 @@ describe('Grav Tether control is non-destructive', () => {
     const authored = live.combat.enemyUnits[0]!.speed
     simulateCombat(live, 0.4, silent)
     expect(live.combat.enemyUnits[0]!.speed).toBe(authored)
+  })
+})
+
+function killsOf(state: GameState): number {
+  return ensureSortieStats(state).kills
+}
+
+describe('Heavy M10 predictive traverse vs stabilisation', () => {
+  it('leads a lateral target, stays outward-facing, and still starts charge', () => {
+    function run(mastery: number) {
+      const state = fitWeaponSortie('heavy-lance', mastery)
+      const core = state.combat.playerUnits.find((u) => u.coreModuleId === 'heavy-lance')!
+      core.orbitAngle = 0
+      applyPlayerCoreOrbit(core)
+      const target = dummyEnemy('strafe', {
+        x: 0,
+        y: 180,
+        heading: Math.PI / 2,
+        speed: 80,
+        engageRange: 180,
+        kite: true,
+        hull: 400,
+        hullMax: 400,
+        weapons: [],
+      })
+      state.combat.enemyUnits = [target]
+      core.currentTargetId = 'strafe'
+      for (const weapon of core.weapons) {
+        weapon.cooldownLeft = 0
+        weapon.telegraphLeft = 0
+        weapon.chargeReady = false
+      }
+      const dt = 1 / 30
+      for (let i = 0; i < 45; i += 1) {
+        target.x += Math.sin(target.heading ?? 0) * target.speed * dt
+        target.y += Math.cos(target.heading ?? 0) * target.speed * dt
+        target.engageRange = Math.hypot(target.x, target.y)
+        simulateCombat(state, dt, silent)
+        expect(playerCoreOutwardFacing(core)).toBeCloseTo(core.orbitAngle ?? 0, 5)
+        expect(core.heading).toBeCloseTo(core.orbitAngle ?? 0, 5)
+      }
+      return { state, core, target, sol: firingSolution(state, core, target) }
+    }
+    const m9 = run(9)
+    const m10 = run(10)
+    expect(m9.sol.canStartCharge || m9.core.weapons[0]!.telegraphLeft > 0 || m9.core.weapons[0]!.chargeReady).toBe(
+      true,
+    )
+    const m10Lead = Math.abs(
+      shortestAngleDelta(desiredOrbitAngle(m10.state, m10.core, m10.target), hiveBearingNow(m10.target)),
+    )
+    expect(m10Lead).toBeGreaterThan(1e-3)
+    expect(Math.abs(shortestAngleDelta(m10.core.orbitAngle ?? 0, desiredOrbitAngle(m10.state, m10.core, m10.target)))).toBeLessThan(
+      Math.abs(shortestAngleDelta(m9.core.orbitAngle ?? 0, desiredOrbitAngle(m10.state, m10.core, m10.target))) + 0.2,
+    )
+    expect(m10.sol.inArc).toBe(true)
+    expect(m10.sol.inFireRange).toBe(true)
+    expect(m10.sol.canStartCharge || m10.core.weapons[0]!.telegraphLeft > 0 || m10.core.weapons[0]!.chargeReady).toBe(
+      true,
+    )
+  })
+})
+
+function hiveBearingNow(target: CombatUnit): number {
+  return Math.atan2(target.x, target.y)
+}
+
+describe('Secondary Mastery kill accounting', () => {
+  it('Pulse M10 overkill secondary kill pays once', () => {
+    const state = fitWeaponSortie('pulse-cannon', 10)
+    const core = state.combat.playerUnits.find((u) => u.coreModuleId === 'pulse-cannon')!
+    core.orbitAngle = 0
+    applyPlayerCoreOrbit(core)
+    state.combat.enemyUnits = [
+      dummyEnemy('primary', { x: 0, y: 90, hull: 4, hullMax: 4, armor: 6 }),
+      dummyEnemy('hop', { x: 12, y: 90, hull: 6, hullMax: 6 }),
+    ]
+    const salvage0 = state.resources.salvage
+    const kills0 = killsOf(state)
+    state.combat.projectiles = [
+      {
+        id: 'pulse-shot',
+        fromId: core.id,
+        toId: 'primary',
+        side: 'player',
+        tag: 'kinetic',
+        tags: ['kinetic'],
+        x: 0,
+        y: 90,
+        damage: 40,
+        speed: 400,
+        attackerFamily: 'core',
+        delivery: 'projectile',
+        originX: core.x,
+        originY: core.y,
+        heading: 0,
+        sourceModuleId: 'pulse-cannon',
+        hullDamage: 1,
+        shieldDamage: 1,
+        armorDamage: 0.25,
+        dotDuration: 0,
+        dotDamage: 0,
+      },
+    ]
+    simulateCombat(state, 1 / 30, silent)
+    expect(state.combat.enemyUnits.find((u) => u.id === 'primary')?.hull ?? 0).toBe(0)
+    expect(state.combat.enemyUnits.find((u) => u.id === 'hop')?.hull ?? 0).toBe(0)
+    expect(killsOf(state)).toBe(kills0 + 2)
+    expect(state.resources.salvage).toBeGreaterThan(salvage0)
+    const salvage1 = state.resources.salvage
+    const kills1 = killsOf(state)
+    simulateCombat(state, 1 / 30, silent)
+    expect(killsOf(state)).toBe(kills1)
+    expect(state.resources.salvage).toBe(salvage1)
+  })
+
+  it('Heavy M75 penetration secondary kill pays once', () => {
+    const state = fitWeaponSortie('heavy-lance', 75)
+    const core = state.combat.playerUnits.find((u) => u.coreModuleId === 'heavy-lance')!
+    core.orbitAngle = 0
+    applyPlayerCoreOrbit(core)
+    state.combat.enemyUnits = [
+      dummyEnemy('front', { x: 0, y: 90, hull: 8, hullMax: 8 }),
+      dummyEnemy('rear', { x: 0, y: 130, hull: 4, hullMax: 4 }),
+    ]
+    const salvage0 = state.resources.salvage
+    const kills0 = killsOf(state)
+    state.combat.projectiles = [
+      {
+        id: 'lance-shot',
+        fromId: core.id,
+        toId: 'front',
+        side: 'player',
+        tag: 'kinetic',
+        tags: ['kinetic', 'pierce'],
+        x: 0,
+        y: 90,
+        damage: 30,
+        speed: 400,
+        attackerFamily: 'core',
+        delivery: 'projectile',
+        originX: core.x,
+        originY: core.y,
+        heading: bearingBetween({ x: 0, y: 90 }, { x: 0, y: 130 }),
+        sourceModuleId: 'heavy-lance',
+        hullDamage: 1,
+        shieldDamage: 1,
+        armorDamage: 1,
+        dotDuration: 0,
+        dotDamage: 0,
+      },
+    ]
+    simulateCombat(state, 1 / 30, silent)
+    expect(state.combat.enemyUnits.find((u) => u.id === 'rear')?.hull ?? 0).toBe(0)
+    expect(killsOf(state)).toBeGreaterThanOrEqual(kills0 + 1)
+    expect(state.resources.salvage).toBeGreaterThan(salvage0)
+    const salvage1 = state.resources.salvage
+    const kills1 = killsOf(state)
+    simulateCombat(state, 1 / 30, silent)
+    expect(killsOf(state)).toBe(kills1)
+    expect(state.resources.salvage).toBe(salvage1)
+  })
+
+  it('Flak M50 death detonation secondary kill pays once and respects Shield', () => {
+    const state = fitWeaponSortie('flak-array', 50)
+    const core = state.combat.playerUnits.find((u) => u.coreModuleId === 'flak-array')!
+    core.orbitAngle = 0
+    applyPlayerCoreOrbit(core)
+    const dead = dummyEnemy('dead', { x: 0, y: 90, hull: 0, hullMax: 8 })
+    const victim = dummyEnemy('splash', { x: 8, y: 90, hull: 3, hullMax: 3 })
+    state.combat.enemyUnits = [dead, victim]
+    const salvage0 = state.resources.salvage
+    const kills0 = killsOf(state)
+    applyFlakDeathDetonation(state, dead, 40, 'flak-array', core.id)
+    expect(victim.hull).toBe(0)
+    expect(killsOf(state)).toBe(kills0 + 1)
+    expect(state.resources.salvage).toBeGreaterThan(salvage0)
+    const salvage1 = state.resources.salvage
+    applyFlakDeathDetonation(state, dead, 40, 'flak-array', core.id)
+    simulateCombat(state, 1 / 30, silent)
+    expect(killsOf(state)).toBe(kills0 + 1)
+    expect(state.resources.salvage).toBe(salvage1)
+
+    const shielded = fitWeaponSortie('flak-array', 50)
+    const sCore = shielded.combat.playerUnits.find((u) => u.coreModuleId === 'flak-array')!
+    sCore.orbitAngle = 0
+    applyPlayerCoreOrbit(sCore)
+    const ward = dummyEnemy('ward', { x: 8, y: 90, hull: 20, hullMax: 20, shield: 30, shieldMax: 30 })
+    shielded.combat.enemyUnits = [dummyEnemy('dead2', { x: 0, y: 90, hull: 0 }), ward]
+    applyFlakDeathDetonation(shielded, shielded.combat.enemyUnits[0]!, 20, 'flak-array', sCore.id)
+    expect(ward.hull).toBe(20)
+    expect(ward.shield).toBeLessThan(30)
+  })
+
+  it('Phase M30 refraction secondary kill pays once', () => {
+    const state = fitWeaponSortie('phase-beam', 30)
+    const core = state.combat.playerUnits.find((u) => u.coreModuleId === 'phase-beam')!
+    core.orbitAngle = 0
+    applyPlayerCoreOrbit(core)
+    state.combat.enemyUnits = [
+      dummyEnemy('primary', { x: 0, y: 90, hull: 80, hullMax: 80 }),
+      dummyEnemy('glance', { x: 16, y: 90, hull: 2, hullMax: 2 }),
+    ]
+    core.currentTargetId = 'primary'
+    const salvage0 = state.resources.salvage
+    const kills0 = killsOf(state)
+    state.combat.beams = [
+      {
+        id: 'beam-kill',
+        fromId: core.id,
+        toId: 'primary',
+        side: 'player',
+        tag: 'energy',
+        tags: ['energy'],
+        remaining: 1,
+        duration: 1,
+        damage: 80,
+        attackerFamily: 'core',
+        sourceModuleId: 'phase-beam',
+      },
+    ]
+    simulateCombat(state, 0.4, silent)
+    expect(state.combat.enemyUnits.find((u) => u.id === 'glance')?.hull ?? 0).toBe(0)
+    expect(killsOf(state)).toBe(kills0 + 1)
+    expect(state.resources.salvage).toBeGreaterThan(salvage0)
+    const salvage1 = state.resources.salvage
+    const kills1 = killsOf(state)
+    simulateCombat(state, 0.4, silent)
+    expect(killsOf(state)).toBe(kills1)
+    expect(state.resources.salvage).toBe(salvage1)
+  })
+
+  it('Slag pool secondary kill pays once and respects Shield', () => {
+    const state = fitWeaponSortie('slag-spitter', 30)
+    state.combat.enemyUnits = [dummyEnemy('burn', { x: 0, y: 80, hull: 1, hullMax: 1 })]
+    spawnMoltenPool(state, 0, 80, 'slag-spitter')
+    const salvage0 = state.resources.salvage
+    const kills0 = killsOf(state)
+    simulateCombat(state, 1, silent)
+    expect(state.combat.enemyUnits.find((u) => u.id === 'burn')?.hull ?? 0).toBe(0)
+    expect(killsOf(state)).toBe(kills0 + 1)
+    expect(state.resources.salvage).toBeGreaterThan(salvage0)
+    const salvage1 = state.resources.salvage
+    simulateCombat(state, 1, silent)
+    expect(killsOf(state)).toBe(kills0 + 1)
+    expect(state.resources.salvage).toBe(salvage1)
+
+    const shielded = fitWeaponSortie('slag-spitter', 30)
+    const ward = dummyEnemy('slag-ward', { x: 0, y: 80, hull: 20, hullMax: 20, shield: 12, shieldMax: 12 })
+    shielded.combat.enemyUnits = [ward]
+    spawnMoltenPool(shielded, 0, 80, 'slag-spitter')
+    simulateCombat(shielded, 0.8, silent)
+    expect(ward.hull).toBe(20)
+    expect(ward.shield).toBeLessThan(12)
+  })
+})
+
+describe('Flak M10/M100 scoping', () => {
+  it('does not rewrite another Core Cluster score when Flak is mastered but unequipped', () => {
+    const moving = [
+      dummyEnemy('a', { x: 0, y: 100, heading: Math.PI / 2, speed: 100 }),
+      dummyEnemy('b', { x: 80, y: 100, heading: -Math.PI / 2, speed: 100 }),
+    ]
+    const slagOnly = fitWeaponSortie('slag-spitter', 0)
+    slagOnly.meta.moduleMastery['flak-array'] = 10
+    slagOnly.combat.enemyUnits = moving.map((row) => ({ ...row }))
+    const slagCore = slagOnly.combat.playerUnits.find((u) => u.coreModuleId === 'slag-spitter')!
+    const baseline = fitWeaponSortie('slag-spitter', 0)
+    baseline.combat.enemyUnits = moving.map((row) => ({ ...row }))
+    const baseCore = baseline.combat.playerUnits.find((u) => u.coreModuleId === 'slag-spitter')!
+    const slagBundle = buildEvalBundle(slagOnly, slagOnly.combat.enemyUnits)
+    const baseBundle = buildEvalBundle(baseline, baseline.combat.enemyUnits)
+    const slagScore = scoreDoctrine(
+      'cluster',
+      slagOnly.combat.enemyUnits[0]!,
+      targetMetricsForCore(slagOnly, slagBundle, slagCore, slagOnly.combat.enemyUnits[0]!)!,
+    )
+    const baseScore = scoreDoctrine(
+      'cluster',
+      baseline.combat.enemyUnits[0]!,
+      targetMetricsForCore(baseline, baseBundle, baseCore, baseline.combat.enemyUnits[0]!)!,
+    )
+    expect(slagScore).toBeCloseTo(baseScore)
+
+    const flak = fitWeaponSortie('flak-array', 10)
+    flak.combat.enemyUnits = moving.map((row) => ({ ...row }))
+    const flakCore = flak.combat.playerUnits.find((u) => u.coreModuleId === 'flak-array')!
+    const flakBundle = buildEvalBundle(flak, flak.combat.enemyUnits)
+    const flakMetrics = targetMetricsForCore(flak, flakBundle, flakCore, flak.combat.enemyUnits[0]!)!
+    const slagMetrics = targetMetricsForCore(
+      slagOnly,
+      slagBundle,
+      slagCore,
+      slagOnly.combat.enemyUnits[0]!,
+    )!
+    expect(flakMetrics.clusterCount).toBeGreaterThan(slagMetrics.clusterCount)
+  })
+
+  it('Kill Box only selects a cluster inside legal Flak range and arc', () => {
+    const state = fitWeaponSortie('flak-array', 100)
+    const core = state.combat.playerUnits.find((u) => u.coreModuleId === 'flak-array')!
+    core.orbitAngle = 0
+    applyPlayerCoreOrbit(core)
+    state.combat.enemyUnits = [
+      dummyEnemy('legal-a', { x: 0, y: 90 }),
+      dummyEnemy('legal-b', { x: 8, y: 90 }),
+      dummyEnemy('far-a', { x: 0, y: -240 }),
+      dummyEnemy('far-b', { x: 8, y: -240 }),
+      dummyEnemy('far-c', { x: 16, y: -240 }),
+    ]
+    const chosen = densestLegalFlakCluster(state, core)!
+    expect(chosen.y).toBeGreaterThan(0)
+    expect(Math.hypot(chosen.x, chosen.y)).toBeLessThan(120)
+  })
+
+  it('skips untargetable enemies for Pulse overkill and Phase glance', () => {
+    const pulse = withMastery('pulse-cannon', 10)
+    pulse.combat.enemyUnits = [
+      dummyEnemy('veiled', { x: 40, y: 0, targetable: false }),
+      dummyEnemy('open', { x: 50, y: 0 }),
+    ]
+    expect(pulseOverkillHop(pulse, { x: 40, y: 0 }, 8, 'dead')?.id).toBe('open')
+  })
+})
+
+describe('Pending defense/utility milestone names', () => {
+  it('does not attach unauthored later behaviours to framework thresholds', () => {
+    const forbidden = /Impact Bracing|Bypass Protection|Regen Ramp|Twin Tether|Predictive Solution|Elite Bounty|Small-Hit|Break Pulse|Ablative Layer/
+    for (const rows of Object.values(CORE_MASTERY_MILESTONES)) {
+      for (const ms of rows) {
+        if (!ms.pending || ms.level === 5) continue
+        expect(ms.effect).toBeUndefined()
+        expect(ms.name.startsWith('Pending M')).toBe(true)
+        expect(ms.name).not.toMatch(forbidden)
+      }
+    }
   })
 })
