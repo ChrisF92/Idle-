@@ -67,7 +67,7 @@ function stock(state: ReturnType<typeof createInitialState>, id: string, n: numb
 
 describe('PR5 Foundry catalogue and panes', () => {
   it('uses save version 47 with no migration', () => {
-    expect(SAVE_VERSION).toBe(47)
+    expect(SAVE_VERSION).toBe(48)
     const raw = JSON.parse(JSON.stringify({ ...createInitialState(0), version: 46 }))
     expect(importSave(btoa(unescape(encodeURIComponent(JSON.stringify(raw)))))).toBeNull()
   })

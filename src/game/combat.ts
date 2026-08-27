@@ -65,10 +65,23 @@ import {
 } from './coreCombat'
 import { hasMasteryEffect } from './coreMastery'
 import {
-  gddEnemyBandForWave,
-  isCommanderCandidateWave,
-  type GddEnemyBandId,
-} from './waves'
+  encounterForWave,
+  type WaveEncounter,
+} from './encounterGenerator'
+import {
+  enemyDamageScale as seededDamageScale,
+  enemyWaveScale as seededHullScale,
+  salvageWaveBase as seededSalvageBase,
+  COMMANDER_REWARD,
+  BOSS_KILL_SALVAGE_MULT,
+} from './hostileSeeds'
+import { tickCommanderTraits, onHostileDeathHazards, movementSpeed, fireCooldown, ensureDeathHazards } from './commanderTraits'
+import { tickChoirCrown, isCoreJammed } from './choirCrown'
+import { tryReleaseReservedCommanders } from './commanders'
+import { recordCommanderDefeat } from './codex'
+import { noteCommanderDeath, noteOrdinaryKillSalvage } from './encounterTelemetry'
+import { ENEMY_FAMILY_IDS, type EnemyFamilyId } from './hostileCatalogue'
+import './bossRegistry'
 import { coreInstanceAtSlot } from './coreInstances'
 import {
   coreIsBeaming,
@@ -86,13 +99,7 @@ import {
   tickPlayerCoreTargeting,
 } from './coreTargeting'
 import { applyPlayerCoreOrbit, TYPICAL_SPAWN_RADIUS, bearingBetween, coreWorldPosition, distanceBetween, distanceToHive, moveRadially } from './geometry'
-import { formationRngFor, formationSlots, pickFormation, type FormationContext } from './formations'
-import { createSimRng, rngNext, type SimRngState } from './simRng'
-import {
-  measureThreatRoll,
-  threatSpecForWave,
-  varyPackToBudget,
-} from './threatBudget'
+import { createSimRng, rngNext } from './simRng'
 import { nextCombatId } from './waveRuntime'
 import {
   armorPenAdd,
@@ -122,8 +129,8 @@ import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
 import { processSalvageMult } from './process'
-import { protocolEnemyDensityMult, protocolModifiers, protocolMutes } from './protocols'
-import { directiveDensityMult, directiveShieldRegenMult } from './directives'
+import { protocolModifiers, protocolMutes } from './protocols'
+import { directiveShieldRegenMult } from './directives'
 import { recordPlaytest } from './playtest'
 import {
   maybeSampleSortieEnemies,
@@ -132,52 +139,10 @@ import {
   noteSortieOutgoing,
 } from './sortieTelemetry'
 
-export type EnemyFamily = 'swarm' | 'armored' | 'ethereal' | 'divine' | 'titan'
-
-export interface WaveEncounter {
-  id: string
-  name: string
-  family: EnemyFamily
-  tags: string[]
-  isBoss: boolean
-  scrapReward: number
-  dataReward: number
-  aiReward: number
-  essenceReward: number
-  salvageReward: number
-  blurb: string
-  units: CombatUnit[]
-  mechanicId?: string
-  threat?: { seed: number; budget: number; spent: number }
-}
-
-const MIXED_FAMILIES: EnemyFamily[] = ['swarm', 'armored', 'ethereal']
-const COMPLEX_FAMILIES: EnemyFamily[] = ['swarm', 'armored', 'ethereal', 'divine']
-
-const NAMES: Record<EnemyFamily, string[]> = {
-  swarm: ['Void Mite', 'Ashen Drifter', 'Needle Cloud'],
-  armored: ['Hive Shard', 'Carapace Walker', 'Iron Cyst'],
-  ethereal: ['Phase Wisp', 'Echo Veil', 'Null Mirage'],
-  divine: ['God-Spark Remnant', 'Halo Fragment', 'Choir Speck'],
-  titan: ['Titan Larva', 'Leviathan Seed', 'Throne Husk'],
-}
-
-const FAMILY_SHAPE: Record<EnemyFamily, UnitShape> = {
-  swarm: 'circle',
-  armored: 'square',
-  ethereal: 'diamond',
-  divine: 'hex',
-  titan: 'hex',
-}
-
-const ROLE_SHAPE: Record<EnemyRole, UnitShape> = {
-  fighter: 'triangle',
-  skirmisher: 'circle',
-  sniper: 'diamond',
-  juggernaut: 'square',
-  shield: 'hex',
-  boss: 'hex',
-}
+export type EnemyFamily = EnemyFamilyId
+export type { WaveEncounter }
+export { encounterForWave }
+export const FINAL_ENEMY_FAMILIES = ENEMY_FAMILY_IDS
 
 /** Typical spawn radius ahead of the Hive. Canonical seed ~300. */
 export const SPAWN_DISTANCE = TYPICAL_SPAWN_RADIUS
@@ -235,8 +200,7 @@ export function rewardWaveOf(unit: { sourceWave?: number }): number {
  * after the opening pack. Canonical reward scale seed 1.0065^(Wave-1).
  */
 export function salvageWaveBase(wave: number): number {
-  const w = Math.max(1, wave)
-  return Math.pow(1.0065, w - 1)
+  return seededSalvageBase(wave)
 }
 
 export function salvageFromKill(
@@ -247,7 +211,7 @@ export function salvageFromKill(
 ): number {
   if (state && protocolMutes(state, 'salvage')) return 0
   const exp = 1 + (state ? protocolModifiers(state).salvageSectorExpAdd : 0)
-  const raw = (isBoss ? 5 : 1) * Math.pow(salvageWaveBase(wave), exp)
+  const raw = (isBoss ? BOSS_KILL_SALVAGE_MULT : 1) * Math.pow(salvageWaveBase(wave), exp)
   return Math.max(1, Math.floor(raw))
 }
 
@@ -279,1097 +243,65 @@ export function weaponDamageProfile(tags: WeaponTag[], weapon?: WeaponInstance):
   }
 }
 
-function makeWeapon(
-  id: string,
-  name: string,
-  damage: number,
-  cooldown: number,
-  range: number,
-  tags: WeaponTag[],
-  splash = 0,
-  telegraphDuration = 0,
-  delivery?: WeaponDelivery,
-): WeaponInstance {
-  return {
-    id,
-    name,
-    damage,
-    cooldown,
-    cooldownLeft: 0,
-    range,
-    tags,
-    splash,
-    dotDuration: 0,
-    dotDamage: 0,
-    telegraphDuration,
-    telegraphLeft: 0,
-    delivery,
-  }
+
+export function enemyWaveScale(wave: number): number {
+  return seededHullScale(wave)
 }
 
-function makeEnemyUnit(opts: {
-  name: string
-  family: EnemyFamily
-  hull: number
-  armor?: number
-  shield?: number
-  evasion?: number
-  damage: number
-  cooldown?: number
-  range: number
-  speed: number
-  engageRange: number
-  kite?: boolean
-  tags?: WeaponTag[]
-  splash?: number
-  telegraphDuration?: number
-  isBoss?: boolean
-  role?: EnemyRole
-  shape?: UnitShape
-  x?: number
-  y?: number
-  rewardWeight?: number
-}): CombatUnit {
-  const family = opts.family
-  const role = opts.role ?? (opts.isBoss ? 'boss' : undefined)
-  const delivery: WeaponDelivery | undefined =
-    opts.role === 'sniper' ? 'charge' : undefined
-  const gunRange = Math.max(opts.range, opts.engageRange + 8, HIVE_STANDOFF_MIN + 8)
-  return {
-    id: `draft-e-${family}`,
-    side: 'enemy',
-    name: opts.name,
-    shape: opts.shape ?? (role ? ROLE_SHAPE[role] : FAMILY_SHAPE[family]),
-    role,
-    family,
-    hull: opts.hull,
-    hullMax: opts.hull,
-    shield: opts.shield ?? 0,
-    shieldMax: opts.shield ?? 0,
-    armor: opts.armor ?? 0,
-    evasion: opts.evasion ?? 0,
-    damageTakenMult: 1,
-    weapons: [
-      makeWeapon(
-        `draft-ew-${family}`,
-        `${opts.name} strike`,
-        opts.damage,
-        opts.cooldown ?? 1,
-        gunRange,
-        opts.tags ?? ['kinetic'],
-        opts.splash ?? 0,
-        opts.telegraphDuration ?? 0,
-        delivery,
-      ),
-    ],
-    isBoss: opts.isBoss ?? false,
-    isFlagship: opts.isBoss ?? false,
-    dots: [],
-    x: opts.x ?? 0,
-    y: opts.y ?? TYPICAL_SPAWN_RADIUS,
-    heading: 0,
-    speed: opts.speed,
-    engageRange: opts.engageRange,
-    kite: opts.kite ?? false,
-    phaseWarnLeft: 0,
-    regenDelay: 0,
-    rewardWeight: opts.rewardWeight ?? 1,
-  }
+export function enemyDamageScale(wave: number): number {
+  return seededDamageScale(wave)
 }
 
-function packY(index: number, count: number): number {
-  if (count <= 1) return 0
-  const spread = Math.min(110, 28 * (count - 1))
-  return -spread / 2 + (spread / Math.max(1, count - 1)) * index
+/** Leftover alias used by retired sector-pacing tests. */
+export function enemySectorScale(wave: number): number {
+  return enemyWaveScale(wave)
 }
 
-/**
- * Minimum on-screen formation size. The authored role/family patterns still decide
- * what a wave is; this only fills sparse formations with lighter wing units so
- * combat reads as a fleet engagement rather than one or two stat blocks.
- *
- * Wing units carry reduced rewards so density does not become an economy buff.
- */
-function targetFormationSize(sector: number, bossWave: boolean): number {
-  const s = Math.max(1, Math.floor(sector))
-  if (bossWave) return s < 6 ? 3 : s < 16 ? 4 : 5
-  // Preserve the authored tutorial fight. Visual density ramps after S1.
-  if (s === 1) return 2
-  if (s <= 4) return 3
-  if (s <= 8) return 4
-  if (s <= 18) return 5
-  return 6
-}
-
-function densityPressureBudget(sector: number, bossWave: boolean): number {
-  if (bossWave) {
-    if (sector <= 5) return 0.06
-    if (sector <= 15) return 0.12
-    return 0.18
-  }
-  if (sector <= 1) return 0
-  if (sector <= 4) return 0.08
-  if (sector <= 8) return 0.14
-  if (sector <= 18) return 0.22
-  return 0.28
-}
-
-function densifyEncounter(
-  units: CombatUnit[],
-  sector: number,
-  bossWave: boolean,
-): CombatUnit[] {
-  const target = targetFormationSize(sector, bossWave)
-  if (units.length >= target) return units
-  const candidates = units
-    .filter((u) => !u.isBoss)
-    .sort((a, b) => (a.hullMax + a.shieldMax) - (b.hullMax + b.shieldMax))
-  if (candidates.length === 0) return units
-
-  const missing = target - units.length
-  const authoredEhp = units.reduce((sum, u) => sum + u.hullMax + u.shieldMax, 0)
-  const authoredDps = units.reduce(
-    (sum, u) => sum + u.weapons.reduce((wSum, w) => wSum + w.damage / Math.max(0.05, w.cooldown), 0),
-    0,
-  )
-  const budget = densityPressureBudget(sector, bossWave)
-  const wingEhp = Math.max(1, (authoredEhp * budget) / Math.max(1, missing))
-  const wingDps = Math.max(0.1, (authoredDps * budget * 0.85) / Math.max(1, missing))
-  const rewardShare = Math.min(0.35, Math.max(0.12, (budget * units.length) / Math.max(1, missing)))
-
-  const out = [...units]
-  let wing = 0
-  while (out.length < target) {
-    const source = candidates[wing % candidates.length]!
-    wing += 1
-    const sourceEhp = Math.max(1, source.hullMax + source.shieldMax)
-    const shieldShare = source.shieldMax / sourceEhp
-    const shieldMax = wingEhp * shieldShare
-    const hullMax = Math.max(1, wingEhp - shieldMax)
-    const weaponCount = Math.max(1, source.weapons.length)
-    const clone: CombatUnit = {
-      ...source,
-      id: `draft-e-${source.family}-wing-${wing}`,
-      name: `${source.name} Wing ${wing}`,
-      hull: hullMax,
-      hullMax,
-      shield: shieldMax,
-      shieldMax,
-      armor: source.armor * 0.55,
-      weapons: source.weapons.map((weapon) => ({
-        ...weapon,
-        id: `draft-ew-wing-${wing}`,
-        damage: (wingDps * Math.max(0.05, weapon.cooldown)) / weaponCount,
-        cooldownLeft: 0,
-        telegraphLeft: 0,
-        telegraphToId: undefined,
-      })),
-      dots: [],
-      x: source.x + 8 + wing * 5,
-      y: packY(out.length, target),
-      phaseWarnLeft: 0,
-      regenDelay: 0,
-      rewardWeight: rewardShare,
-    }
-    out.push(clone)
-  }
-  return out
-}
-
-/** Catalog family that carries a GDD §12 wave-band idea. Bosses stay Titans. */
-export function primaryFamilyForWave(wave: number, boss = false): EnemyFamily {
-  if (boss) return 'titan'
-  const band = gddEnemyBandForWave(wave)
-  switch (band) {
-    case 'basic':
-    case 'swarm':
-    case 'skirmisher':
-      return 'swarm'
-    case 'armored':
-      return 'armored'
-    case 'shielded':
-    case 'sniper':
-    case 'support':
-      return 'ethereal'
-    case 'mixed':
-      return MIXED_FAMILIES[(Math.max(1, Math.floor(wave)) - 1) % MIXED_FAMILIES.length] ?? 'swarm'
-    case 'elite':
-      return 'divine'
-    case 'complex':
-      return COMPLEX_FAMILIES[(Math.max(1, Math.floor(wave)) - 1) % COMPLEX_FAMILIES.length] ?? 'swarm'
-  }
-}
-
-function packPatternForBand(band: GddEnemyBandId, wave: number): 0 | 1 | 2 | 3 | 4 {
-  const local = ((Math.max(1, Math.floor(wave)) - 1) % 10) + 1
-  switch (band) {
-    case 'basic':
-      return 0
-    case 'swarm': {
-      const swarmPatterns = [0, 4, 2, 0, 4, 2, 0, 4, 2] as const
-      return swarmPatterns[local - 1] ?? 0
-    }
-    case 'skirmisher':
-      return 1
-    case 'armored':
-    case 'mixed':
-    case 'elite':
-    case 'complex':
-      return ((local - 1) % 5) as 0 | 1 | 2 | 3 | 4
-    case 'shielded':
-    case 'support':
-      return 0
-    case 'sniper':
-      return 1
-  }
-}
-
-function applyWaveFormation(
-  units: CombatUnit[],
-  wave: number,
-  rng: SimRngState,
-  packageId: string,
-): void {
-  if (units.length === 0) return
-  const ctx: FormationContext = { rng, wave, packageId }
-  const formation = pickFormation(ctx)
-  const slots = formationSlots(formation, units.length, ctx)
-  units.forEach((unit, i) => {
-    const slot = slots[i] ?? slots[0]!
-    unit.x = slot.x
-    unit.y = slot.y
-    unit.heading = slot.bearing
-  })
-}
-
-/** Procedural encounter for a global Sortie Wave. Proper Bosses use the Boss provider. */
-export function encounterForWave(wave: number, extraDanger = 1, state?: GameState): WaveEncounter {
-  const w = Math.max(1, Math.floor(wave))
-  const family = primaryFamilyForWave(w, false)
-  const names = NAMES[family]
-  const name = names[(w - 1) % names.length] ?? 'Unknown Entity'
-  const waveScale = extraDanger
-  const pattern = packPatternForBand(gddEnemyBandForWave(w), w)
-  let units = buildWavePack(w, family, name, waveScale, pattern)
-  units = densifyEncounter(units, w, false)
-  const seed = state?.combat.sortieSeed ?? 0
-  const spec = threatSpecForWave(w)
-  const varied = varyPackToBudget(units, spec, seed)
-  units = varied.units
-  const density = state ? directiveDensityMult(state) * protocolEnemyDensityMult(state) : 1
-  if (density > 1 && units.length > 0) {
-    const extra = Math.max(1, Math.round(units.length * (density - 1)))
-    for (let i = 0; i < extra; i++) {
-      const src = units[i % units.length]!
-      units.push({ ...structuredClone(src), id: `${src.id}-pack${i}` })
-    }
-  }
-  const packageOrdinal = (state?.combat.packages.length ?? 0) + 1
-  const rng = formationRngFor(seed, w, packageOrdinal)
-  applyWaveFormation(units, w, rng, `w${w}`)
-  const commander = isCommanderCandidateWave(w)
-  return {
-    id: `w${w}-${family}`,
-    name: commander ? `${name} (Commander contact)` : `${name} pack (W${w})`,
-    family,
-    tags: commander ? [family, 'commander'] : [family],
-    isBoss: false,
-    scrapReward: 5 + Math.floor(w / 5),
-    dataReward: 1 + Math.floor(w / 30),
-    aiReward: 0,
-    essenceReward: 0,
-    salvageReward: salvageFromKill(w, false, undefined, state),
-    blurb: familyBlurb(family, false),
-    units,
-    threat: measureThreatRoll(units, seed, spec.budget, varied.elite),
-  }
-}
-
-/**
- * Piecewise enemy scaling aligned with Act 1 doors.
- *
- * S1 stays on tutorial hull (2-shot mites). S2–S3 grow slower so early
- * Best Δ can land at +2–4. S4–S8 steepen so W40–W80 is the wall that
- * teaches Plate. S9–S18 grow slower so later bands are bumps, not cliffs.
- * S19+ steepens again toward Challenges.
- */
 export const ENEMY_EARLY_SECTOR = 8
 export const ENEMY_MID_SECTOR = 18
-/** S1–S3 opening. S1 uses base only; S2–S3 grow slower so early Best Δ can land. */
 export const ENEMY_OPENING_SECTOR = 3
-
 export const ENEMY_HULL_BASE = 1.55
-/** Per-band hull growth for S2–S3. S1 mites stay 2-shot (base × mite HP). */
 export const ENEMY_HULL_OPENING = 1.2
-/** Per-band hull growth for S4–S8. Steeper than the opening so W40–W80 is the wall. */
 export const ENEMY_HULL_EARLY = 1.3
 export const ENEMY_HULL_MID = 1.2
 export const ENEMY_HULL_LATE = 1.215
-
 export const ENEMY_DMG_BASE = 0.9
 export const ENEMY_DMG_OPENING = 1.22
 export const ENEMY_DMG_EARLY = 1.28
 export const ENEMY_DMG_MID = 1.16
 export const ENEMY_DMG_LATE = 1.225
-
-/** Extra hull/damage per Wave inside a 10-wave band. */
 export const ENEMY_WAVE_HULL_RAMP = 0.06
-
-/** Mid-band Salvage income exponent after band 4. S1–S4 stay linear. */
 export const SALVAGE_MID_EXPONENT = 0.5
-
-export function enemyWaveScale(wave: number): number {
-  return Math.pow(1.011, Math.max(1, wave) - 1)
-}
-
-export function enemyDamageScale(wave: number): number {
-  return Math.pow(1.0085, Math.max(1, wave) - 1)
-}
-
-/**
- * After a hit, in-combat Plate regen pauses. Must cover a boss slam
- * (cooldown + telegraph + travel) or slow titans never break L0 shield.
- */
 export const SHIELD_REGEN_DELAY = 2
 
-/**
- * Wave-aware packs. Pattern is chosen from the GDD §12 band, not a sector carousel.
- */
-function buildWavePack(
-  sector: number,
-  family: EnemyFamily,
-  name: string,
-  waveScale: number,
-  pattern: 0 | 1 | 2 | 3 | 4,
-): CombatUnit[] {
-  const hullScale = enemyWaveScale(sector) * waveScale
-  const dmgScale = enemyDamageScale(sector) * waveScale
-
-  switch (family) {
-    case 'swarm':
-      return buildSwarmWave(name, hullScale, dmgScale, pattern, sector)
-    case 'armored':
-      return buildArmoredWave(name, hullScale, dmgScale, pattern, sector)
-    case 'ethereal':
-      return buildEtherealWave(name, hullScale, dmgScale, pattern, sector)
-    case 'divine':
-      return buildDivineWave(name, hullScale, dmgScale, pattern, sector)
-    default:
-      return buildSwarmWave(name, hullScale, dmgScale, pattern, sector)
-  }
-}
-
-function buildSwarmWave(
-  name: string,
-  hullScale: number,
-  dmgScale: number,
-  pattern: 0 | 1 | 2 | 3 | 4,
-  sector: number,
-): CombatUnit[] {
-  switch (pattern) {
-    case 0: // fighters — medium speed, stop a short distance out (USI Fighter)
-      return Array.from({ length: sector < 4 ? 2 : 3 }, (_, i) =>
-        makeEnemyUnit({
-          name: `${name} Fighter ${i + 1}`,
-          family: 'swarm',
-          role: 'fighter',
-          hull: 12 * hullScale,
-          damage: 2.8 * dmgScale,
-          cooldown: 0.9,
-          range: 44,
-          speed: 36,
-          engageRange: 84,
-          x: SPAWN_DISTANCE + i * 8,
-          y: packY(i, 3),
-        }),
-      )
-    case 1: // skirmishers — faster, stop in your face (USI Skirmisher)
-      return Array.from({ length: Math.min(6, 2 + Math.floor(sector / 8)) }, (_, i) =>
-        makeEnemyUnit({
-          name: `${name} Skirmisher ${i + 1}`,
-          family: 'swarm',
-          role: 'skirmisher',
-          hull: 15 * hullScale,
-          damage: 3.1 * dmgScale,
-          cooldown: 0.95,
-          range: sector < 4 ? 42 : 32,
-          speed: sector < 4 ? 38 : 50,
-          engageRange: sector < 4 ? 80 : 74,
-          x: SPAWN_DISTANCE + i * 7,
-          y: packY(i, 6),
-        }),
-      )
-    case 2: // screen fighters + sniper that holds the back line
-      return [
-        ...Array.from({ length: 3 }, (_, i) =>
-          makeEnemyUnit({
-            name: `${name} Fighter ${i + 1}`,
-            family: 'swarm',
-            role: 'fighter',
-            hull: 14 * hullScale,
-            damage: 3.0 * dmgScale,
-            cooldown: 1,
-            range: 48,
-            speed: 36,
-            engageRange: 86,
-            x: SPAWN_DISTANCE + i * 6,
-            y: packY(i, 3),
-          }),
-        ),
-        makeEnemyUnit({
-          name: `${name} Sniper`,
-          family: 'swarm',
-          role: 'sniper',
-          hull: 22 * hullScale,
-          damage: 4.2 * dmgScale,
-          cooldown: 1.6,
-          telegraphDuration: 0.55,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE + 35,
-          y: 0,
-        }),
-      ]
-    case 3: // mixed — swarm + armored wedge
-      return [
-        ...Array.from({ length: 4 }, (_, i) =>
-          makeEnemyUnit({
-            name: `${name} Skirmisher ${i + 1}`,
-            family: 'swarm',
-            role: 'skirmisher',
-            hull: 14 * hullScale,
-            damage: 3.0 * dmgScale,
-            cooldown: 0.95,
-            range: 32,
-            speed: 48,
-            engageRange: 74,
-            x: SPAWN_DISTANCE + i * 8,
-            y: packY(i, 4),
-          }),
-        ),
-        makeEnemyUnit({
-          name: `${name} Juggernaut`,
-          family: 'armored',
-          role: 'juggernaut',
-          hull: 34 * hullScale,
-          armor: 2,
-          damage: 3.8 * dmgScale,
-          cooldown: 1.35,
-          range: 80,
-          speed: 12,
-          engageRange: 70,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE + 28,
-          y: 0,
-        }),
-      ]
-    case 4: // climax — max cloud + brute
-    default: {
-      const count = Math.min(6, 3 + Math.floor(sector / 6))
-      const units = Array.from({ length: count }, (_, i) =>
-        makeEnemyUnit({
-          name: `${name} Skirmisher ${i + 1}`,
-          family: 'swarm',
-          role: 'skirmisher',
-          hull: 16 * hullScale,
-          damage: 3.2 * dmgScale,
-          cooldown: 0.9,
-          range: 32,
-          speed: 48,
-          engageRange: 74,
-          x: SPAWN_DISTANCE + i * 7,
-          y: packY(i, count),
-        }),
-      )
-      units.push(
-        makeEnemyUnit({
-          name: `${name} Juggernaut`,
-          family: 'armored',
-          role: 'juggernaut',
-          hull: 40 * hullScale,
-          armor: 3,
-          damage: 4.5 * dmgScale,
-          cooldown: 1.4,
-          range: 80,
-          speed: 12,
-          engageRange: 72,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE + 42,
-          y: 0,
-        }),
-      )
-      return units
-    }
-  }
-}
-
-function buildArmoredWave(
-  name: string,
-  hullScale: number,
-  dmgScale: number,
-  pattern: 0 | 1 | 2 | 3 | 4,
-  sector: number,
-): CombatUnit[] {
-  switch (pattern) {
-    case 0:
-      return [
-        makeEnemyUnit({
-          name: `${name} Juggernaut`,
-          family: 'armored',
-          role: 'juggernaut',
-          hull: 36 * hullScale,
-          armor: 2,
-          damage: 4 * dmgScale,
-          cooldown: 1.3,
-          range: 80,
-          speed: 12,
-          engageRange: 70,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE,
-          y: 0,
-        }),
-      ]
-    case 1: {
-      const count = Math.min(3, 2 + Math.floor(sector / 10))
-      return Array.from({ length: count }, (_, i) =>
-        makeEnemyUnit({
-          name: `${name} Juggernaut ${i + 1}`,
-          family: 'armored',
-          role: 'juggernaut',
-          hull: 44 * hullScale,
-          armor: 3 + Math.floor(sector / 6),
-          damage: 5 * dmgScale,
-          cooldown: 1.35,
-          range: 80,
-          speed: 12,
-          engageRange: 72,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE + i * 14,
-          y: packY(i, count),
-        }),
-      )
-    }
-    case 2: // siege — slow mortar + escort plate
-      return [
-        makeEnemyUnit({
-          name: `${name} Sniper`,
-          family: 'armored',
-          role: 'sniper',
-          hull: 55 * hullScale,
-          armor: 4,
-          damage: 7 * dmgScale,
-          cooldown: 1.8,
-          telegraphDuration: 0.6,
-          range: 130,
-          speed: 12,
-          engageRange: 118,
-          kite: true,
-          tags: ['kinetic', 'splash'],
-          splash: 1,
-          x: SPAWN_DISTANCE + 20,
-          y: 0,
-        }),
-        makeEnemyUnit({
-          name: `${name} Fighter`,
-          family: 'armored',
-          role: 'fighter',
-          hull: 32 * hullScale,
-          armor: 2,
-          damage: 4 * dmgScale,
-          cooldown: 1.2,
-          range: 55,
-          speed: 28,
-          engageRange: 90,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE,
-          y: -30,
-        }),
-      ]
-    case 3: // mixed — plates + ethereal spotter
-      return [
-        makeEnemyUnit({
-          name: `${name} Juggernaut 1`,
-          family: 'armored',
-          role: 'juggernaut',
-          hull: 46 * hullScale,
-          armor: 3,
-          damage: 5 * dmgScale,
-          cooldown: 1.35,
-          range: 80,
-          speed: 12,
-          engageRange: 72,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE,
-          y: -20,
-        }),
-        makeEnemyUnit({
-          name: `${name} Juggernaut 2`,
-          family: 'armored',
-          role: 'juggernaut',
-          hull: 46 * hullScale,
-          armor: 3,
-          damage: 5 * dmgScale,
-          cooldown: 1.35,
-          range: 80,
-          speed: 12,
-          engageRange: 72,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE,
-          y: 20,
-        }),
-        makeEnemyUnit({
-          name: `${name} Sniper`,
-          family: 'ethereal',
-          role: 'sniper',
-          hull: 22 * hullScale,
-          shield: 12 * hullScale,
-          evasion: 0.12,
-          damage: 3.2 * dmgScale,
-          cooldown: 1.4,
-          telegraphDuration: 0.5,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE + 30,
-          y: 0,
-        }),
-      ]
-    case 4:
-    default: {
-      const count = Math.min(4, 2 + Math.floor(sector / 8))
-      return Array.from({ length: count }, (_, i) =>
-        makeEnemyUnit({
-          name: `${name} Juggernaut ${i + 1}`,
-          family: 'armored',
-          role: 'juggernaut',
-          hull: 50 * hullScale,
-          armor: 4 + Math.floor(sector / 5),
-          damage: 5.5 * dmgScale,
-          cooldown: 1.3,
-          range: 80,
-          speed: 12,
-          engageRange: 72,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE + i * 12,
-          y: packY(i, count),
-        }),
-      )
-    }
-  }
-}
-
-function buildEtherealWave(
-  name: string,
-  hullScale: number,
-  dmgScale: number,
-  pattern: 0 | 1 | 2 | 3 | 4,
-  sector: number,
-): CombatUnit[] {
-  switch (pattern) {
-    case 0:
-      return [
-        makeEnemyUnit({
-          name: `${name} Shield Fighter`,
-          family: 'ethereal',
-          role: 'shield',
-          hull: 22 * hullScale,
-          shield: 10 * hullScale,
-          evasion: 0.1,
-          damage: 3 * dmgScale,
-          cooldown: 1.1,
-          range: 55,
-          speed: 30,
-          engageRange: 90,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE,
-          y: 0,
-        }),
-      ]
-    case 1: {
-      const count = sector <= 3 ? 2 : 3
-      return Array.from({ length: count }, (_, i) =>
-        makeEnemyUnit({
-          name: `${name} Sniper ${i + 1}`,
-          family: 'ethereal',
-          role: 'sniper',
-          hull: 26 * hullScale,
-          shield: 14 * hullScale,
-          evasion: 0.12,
-          damage: 3.5 * dmgScale,
-          cooldown: 1.45,
-          telegraphDuration: 0.5,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE + i * 10,
-          y: packY(i, count),
-        }),
-      )
-    }
-    case 2: // phase blades — closer cutters
-      return Array.from({ length: 3 }, (_, i) =>
-          makeEnemyUnit({
-            name: `${name} Skirmisher ${i + 1}`,
-            family: 'ethereal',
-            role: 'skirmisher',
-            hull: 24 * hullScale,
-            shield: 8 * hullScale,
-            evasion: 0.16,
-            damage: 4.2 * dmgScale,
-            cooldown: 0.95,
-            range: 36,
-            speed: 46,
-            engageRange: 76,
-            tags: ['energy', 'pierce'],
-            x: SPAWN_DISTANCE + i * 8,
-            y: packY(i, 3),
-          }),
-      )
-    case 3: // mixed — wisps + swarm distractors
-      return [
-        makeEnemyUnit({
-          name: `${name} Sniper 1`,
-          family: 'ethereal',
-          role: 'sniper',
-          hull: 28 * hullScale,
-          shield: 16 * hullScale,
-          evasion: 0.12,
-          damage: 3.6 * dmgScale,
-          cooldown: 1.4,
-          telegraphDuration: 0.5,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE + 15,
-          y: -24,
-        }),
-        makeEnemyUnit({
-          name: `${name} Sniper 2`,
-          family: 'ethereal',
-          role: 'sniper',
-          hull: 28 * hullScale,
-          shield: 16 * hullScale,
-          evasion: 0.12,
-          damage: 3.6 * dmgScale,
-          cooldown: 1.4,
-          telegraphDuration: 0.5,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE + 15,
-          y: 24,
-        }),
-        makeEnemyUnit({
-          name: `${name} Skirmisher`,
-          family: 'swarm',
-          role: 'skirmisher',
-          hull: 14 * hullScale,
-          damage: 2.5 * dmgScale,
-          cooldown: 0.9,
-          range: 32,
-          speed: 48,
-          engageRange: 74,
-          x: SPAWN_DISTANCE,
-          y: 0,
-        }),
-      ]
-    case 4:
-    default:
-      return Array.from({ length: 3 }, (_, i) =>
-        makeEnemyUnit({
-          name: `${name} Sniper ${i + 1}`,
-          family: 'ethereal',
-          role: 'sniper',
-          hull: 30 * hullScale,
-          shield: 18 * hullScale,
-          evasion: 0.14,
-          damage: 3.8 * dmgScale,
-          cooldown: 1.4,
-          telegraphDuration: 0.55,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy', 'antiShield'],
-          x: SPAWN_DISTANCE + i * 10,
-          y: packY(i, 3),
-        }),
-      )
-  }
-}
-
-function buildDivineWave(
-  name: string,
-  hullScale: number,
-  dmgScale: number,
-  pattern: 0 | 1 | 2 | 3 | 4,
-  _sector: number,
-): CombatUnit[] {
-  switch (pattern) {
-    case 0:
-      return [
-        makeEnemyUnit({
-          name: `${name} Sniper`,
-          family: 'divine',
-          role: 'sniper',
-          hull: 30 * hullScale,
-          shield: 8 * hullScale,
-          damage: 4 * dmgScale,
-          cooldown: 1.5,
-          telegraphDuration: 0.55,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE,
-          y: 0,
-        }),
-      ]
-    case 1:
-      return [
-        makeEnemyUnit({
-          name: `${name} Core`,
-          family: 'divine',
-          role: 'sniper',
-          hull: 38 * hullScale,
-          shield: 12 * hullScale,
-          damage: 5 * dmgScale,
-          cooldown: 1.5,
-          telegraphDuration: 0.55,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE,
-          y: 0,
-        }),
-        makeEnemyUnit({
-          name: `${name} Fighter`,
-          family: 'divine',
-          role: 'fighter',
-          hull: 22 * hullScale,
-          evasion: 0.08,
-          damage: 3.5 * dmgScale,
-          cooldown: 1,
-          range: 50,
-          speed: 32,
-          engageRange: 88,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE + 18,
-          y: -26,
-        }),
-      ]
-    case 2: // choir dive — three attendants, no core
-      return Array.from({ length: 3 }, (_, i) =>
-          makeEnemyUnit({
-            name: `${name} Skirmisher ${i + 1}`,
-            family: 'divine',
-            role: 'skirmisher',
-            hull: 26 * hullScale,
-            evasion: 0.1,
-            damage: 4 * dmgScale,
-            cooldown: 0.95,
-            range: 32,
-            speed: 46,
-            engageRange: 74,
-            tags: ['energy'],
-            x: SPAWN_DISTANCE + i * 10,
-            y: packY(i, 3),
-          }),
-      )
-    case 3: // mixed — core + armored votive
-      return [
-        makeEnemyUnit({
-          name: `${name} Core`,
-          family: 'divine',
-          role: 'sniper',
-          hull: 40 * hullScale,
-          shield: 14 * hullScale,
-          damage: 5.2 * dmgScale,
-          cooldown: 1.5,
-          telegraphDuration: 0.55,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE,
-          y: 0,
-        }),
-        makeEnemyUnit({
-          name: `${name} Juggernaut`,
-          family: 'armored',
-          role: 'juggernaut',
-          hull: 36 * hullScale,
-          armor: 3,
-          damage: 4 * dmgScale,
-          cooldown: 1.3,
-          range: 80,
-          speed: 12,
-          engageRange: 70,
-          tags: ['kinetic'],
-          x: SPAWN_DISTANCE + 22,
-          y: 28,
-        }),
-      ]
-    case 4:
-    default:
-      return [
-        makeEnemyUnit({
-          name: `${name} Core`,
-          family: 'divine',
-          role: 'sniper',
-          hull: 42 * hullScale,
-          shield: 14 * hullScale,
-          damage: 5.5 * dmgScale,
-          cooldown: 1.5,
-          telegraphDuration: 0.55,
-          range: 130,
-          speed: 14,
-          engageRange: 118,
-          kite: true,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE,
-          y: 0,
-        }),
-        makeEnemyUnit({
-          name: `${name} Fighter`,
-          family: 'divine',
-          role: 'fighter',
-          hull: 24 * hullScale,
-          evasion: 0.08,
-          damage: 3.8 * dmgScale,
-          cooldown: 1,
-          range: 50,
-          speed: 32,
-          engageRange: 88,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE + 20,
-          y: -28,
-        }),
-        makeEnemyUnit({
-          name: `${name} Fighter`,
-          family: 'divine',
-          role: 'fighter',
-          hull: 24 * hullScale,
-          evasion: 0.08,
-          damage: 3.8 * dmgScale,
-          cooldown: 1,
-          range: 50,
-          speed: 32,
-          engageRange: 88,
-          tags: ['energy'],
-          x: SPAWN_DISTANCE + 20,
-          y: 28,
-        }),
-      ]
-  }
-}
-
-function familyBlurb(family: EnemyFamily, boss: boolean): string {
-  if (boss) {
-    return 'Authored Boss encounter. Mechanics come from the Boss provider.'
-  }
-  return familyIntel(family)
-}
-
-/** Plain-language family description for Codex intel (no loadout advice). */
-export function familyIntel(family: EnemyFamily): string {
-  switch (family) {
-    case 'swarm':
-      return 'Basic fighters first, then swarms and skirmishers. Numbers punish slow targeting.'
-    case 'armored':
-      return 'High-hull plates that hold mid-range. Rewards pierce and sustained damage.'
-    case 'ethereal':
-      return 'Shield layers, charging snipers, and support that assist the pack.'
-    case 'divine':
-      return 'Elite formations: a distant core with diving attendants.'
-    case 'titan':
-      return 'Authored Boss. The provider supplies the encounter.'
-  }
-}
-
-/** Soft-counter guidance shown in the Codex once a family is unlocked. */
-export function softCounterForFamily(family: EnemyFamily): string {
-  switch (family) {
-    case 'swarm':
-      return 'Soft counter: Defense modules and Flak / Ion splash punish the rush.'
-    case 'armored':
-      return 'Soft counter: Weapon role and pierce (Lance / Rail) cut plates.'
-    case 'ethereal':
-      return 'Soft counter: Utility, Grav Tether, energy / anti-shield, or Rail reach.'
-    case 'divine':
-      return 'Soft counter: Utility / energy damage; expect diving attendants.'
-    case 'titan':
-      return 'Soft counter: Defense + Ablative Mesh; pierce helps against heavy hull.'
-  }
-}
-
-export const CODEX_ROLES: EnemyRole[] = [
-  'fighter',
-  'skirmisher',
-  'sniper',
-  'juggernaut',
-  'shield',
-  'boss',
-]
+export const CODEX_ROLES: EnemyRole[] = ['fighter', 'skirmisher', 'sniper', 'juggernaut', 'shield', 'boss', 'elite']
 
 export function roleIntel(role: EnemyRole): string {
-  switch (role) {
-    case 'fighter':
-      return 'Medium stand-off. Stops a short distance out and trades shots.'
-    case 'skirmisher':
-      return 'Faster and closer. Full dive from Wave 40; early packs keep a milder range.'
-    case 'sniper':
-      return 'Kites far back. Winds a charge laser, then a fast bolt.'
-    case 'juggernaut':
-      return 'Slow mid-range plate. Fat silhouette, heavy hull.'
-    case 'shield':
-      return 'Approaches with a shield layer. The first hit does not spill into hull.'
-    case 'boss':
-      return 'Kiting titan. Ring telegraph, then a kinetic slam orb — not a charge laser.'
-  }
+  if (role === 'elite') return 'Authored elite-role hostile. Durable, not a procedural rarity.'
+  if (role === 'boss') return 'Proper Boss. Warning, dedicated package, role-aware durability.'
+  return 'Runtime silhouette class. Not a Codex catalogue pane.'
 }
 
-export const CODEX_FAMILIES: EnemyFamily[] = [
-  'swarm',
-  'armored',
-  'ethereal',
-  'divine',
-  'titan',
-]
-
-export function familyShape(family: EnemyFamily): UnitShape {
-  return FAMILY_SHAPE[family]
+export function familyIntel(family: EnemyFamily): string {
+  if (family === 'swarm') return 'Swarm family. Canonical identity; unit mapping may still be pending.'
+  if (family === 'armored') return 'Armored family. Canonical identity; unit mapping may still be pending.'
+  if (family === 'veil') return 'Veil family. Canonical identity; unit mapping may still be pending.'
+  if (family === 'siege') return 'Siege family. Canonical identity; unit mapping may still be pending.'
+  if (family === 'choir') return 'Choir family. Canonical identity; unit mapping may still be pending.'
+  if (family === 'apex') return 'Apex family. Canonical identity; unit mapping may still be pending.'
+  return 'Family pending design.'
 }
 
-/** Record families from living (or listed) combat units into career Codex memory. */
-export function revealCodexFamilies(state: GameState, families: Iterable<string>): void {
-  if (!state.codex) state.codex = { seenFamilies: [] }
-  const seen = new Set(state.codex.seenFamilies)
-  let changed = false
-  for (const raw of families) {
-    if (!CODEX_FAMILIES.includes(raw as EnemyFamily)) continue
-    if (seen.has(raw as EnemyFamily)) continue
-    seen.add(raw as EnemyFamily)
-    changed = true
-  }
-  if (changed) {
-    state.codex.seenFamilies = CODEX_FAMILIES.filter((f) => seen.has(f))
-  }
+export function softCounterForFamily(_family: EnemyFamily): string {
+  return 'Soft counters are per hostile once mechanics are authored. No required unique counter.'
+}
+
+export function familyShape(_family: EnemyFamily): UnitShape {
+  return 'circle'
+}
+
+export function revealCodexFamilies(_state: GameState, _families: Iterable<string>): void {
+  /* Discovery is spawn-driven in codex.ts. */
 }
 
 export interface WaveRosterEntry {
@@ -1431,8 +363,8 @@ export function waveRoster(wave: number): WaveRosterEntry[] {
         isBoss: u.isBoss,
         count: 1,
         summary: u.isBoss
-          ? familyBlurb(u.family as EnemyFamily, true)
-          : familyIntel(u.family as EnemyFamily),
+          ? 'Proper Boss encounter.'
+          : familyIntel((u.family as EnemyFamily) || 'swarm'),
         ...rosterStatsFromUnit(u),
       })
   }
@@ -1606,17 +538,17 @@ export function computeFightDamage(state: GameState): FightSummary {
     playerDps *= bonus
     notes.push(`Weapons vs Armored ×${bonus.toFixed(2)}`)
   }
-  if ((family === 'ethereal' || family === 'divine') && roles.utility > 0) {
-    const bonus = 1 + 0.2 * Math.min(roles.utility, 2) * matchupScale
+  if (family === 'veil' && roles.utility > 0) {
+    const bonus = 1 + 0.12 * Math.min(roles.utility, 2) * matchupScale
     playerDps *= bonus
-    notes.push(`Utility vs ${family} ×${bonus.toFixed(2)}`)
+    notes.push(`Utility vs Veil ×${bonus.toFixed(2)}`)
   }
   if (family === 'swarm' && roles.defense > 0) {
     const reduce = Math.pow(0.88, roles.defense * matchupScale)
     incomingMult *= reduce
     notes.push(`Defense vs Swarm ×${reduce.toFixed(2)} incoming`)
   }
-  if (family === 'titan' || state.combat.isBoss) {
+  if (state.combat.isBoss) {
     if (roles.weapon > 0) {
       playerDps *= 1.1
       notes.push('Weapons vs Boss ×1.10')
@@ -1676,12 +608,8 @@ export function matchupHintForWave(wave: number, fittedModuleIds: string[]): str
   if (enemy.family === 'armored' && roles.weapon === 0) {
     return 'Hint: fit pierce Weapons against Armored.'
   }
-  if (
-    (enemy.family === 'ethereal' || enemy.family === 'divine') &&
-    roles.utility === 0 &&
-    !fittedModuleIds.includes('phase-beam')
-  ) {
-    return 'Hint: Energy weapons or Utility vs Ethereal/Divine.'
+  if (enemy.family === 'veil' && roles.utility === 0 && !fittedModuleIds.includes('phase-beam')) {
+    return 'Hint: Energy weapons or Utility vs Veil, once that family is authored.'
   }
   if (enemy.isBoss && roles.defense === 0) {
     return 'Hint: bosses punish naked hull — fit Defense.'
@@ -1766,12 +694,13 @@ function moveUnits(state: GameState, dt: number): void {
     const target = enemyApproachTarget(unit, state.combat.fightElapsed ?? 0, 0, state)
     const dist = distanceToHive(unit.x, unit.y)
     const slow = unit.controlSlowMult ?? 1
+    const speed = movementSpeed(unit) * slow
     if (dist > target) {
-      const next = moveRadially(unit.x, unit.y, -unit.speed * slow * dt)
+      const next = moveRadially(unit.x, unit.y, -speed * dt)
       unit.x = next.x
       unit.y = next.y
     } else if (dist < target && unit.kite) {
-      const next = moveRadially(unit.x, unit.y, unit.speed * slow * dt * 0.85)
+      const next = moveRadially(unit.x, unit.y, speed * dt * 0.85)
       unit.x = next.x
       unit.y = next.y
     }
@@ -1808,10 +737,7 @@ function matchupMultiplier(
   if (family === 'armored' && (tags.includes('pierce') || tags.includes('kinetic'))) {
     mult *= 1 + 0.12 * Math.max(1, roles.weapon) * matchupScale
   }
-  if (
-    (family === 'ethereal' || family === 'divine') &&
-    (tags.includes('energy') || tags.includes('antiShield'))
-  ) {
+  if (family === 'veil' && (tags.includes('energy') || tags.includes('antiShield'))) {
     mult *= 1 + 0.14 * Math.max(1, roles.utility) * matchupScale
   }
   if (family === 'swarm' && tags.includes('splash')) {
@@ -1932,24 +858,47 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     salvageKillMult(state) *
     frameSalvageMult(state) *
     (1 + salvageMarkBonus(state, unit))
-  state.resources.salvage +=
-    salvageFromKill(rewardWaveOf(unit), unit.isBoss, undefined, state) * salvageMult * rewardWeight
-  const scrap = scrapKillBonus(state, unit.isBoss) * rewardWeight * combatScrapMatterMult(state)
+  const commanderSalvage = unit.isCommander ? COMMANDER_REWARD.salvageMult : 1
+  const commanderScrap = unit.isCommander ? COMMANDER_REWARD.scrapMult : 1
+  const commanderFrag = unit.isCommander ? COMMANDER_REWARD.fragmentChanceMult : 1
+  const commanderMat = unit.isCommander ? COMMANDER_REWARD.materialChanceMult : 1
+  const salvageGain =
+    salvageFromKill(rewardWaveOf(unit), unit.isBoss, undefined, state) *
+    salvageMult *
+    rewardWeight *
+    commanderSalvage
+  state.resources.salvage += salvageGain
+  if (unit.isCommander) noteCommanderDeath(state, unit.commanderSpawnedAt, salvageGain)
+  else noteOrdinaryKillSalvage(state, salvageGain)
+  const scrap =
+    scrapKillBonus(state, unit.isBoss) * rewardWeight * commanderScrap * combatScrapMatterMult(state)
   if (scrap > 0) grantGeneratedScrap(state, scrap, 'combat-kill')
   const rng = () => combatRng(state)
-  rollEnemyPartDrop(state, unit, rng, rewardWeight)
-  rollDirectMaterialRecovery(state, unit, rng)
+  rollEnemyPartDrop(state, unit, rng, Math.min(1, rewardWeight * commanderFrag))
+  const matUnit = {
+    ...unit,
+    rewardWeight: Math.min(1, (unit.rewardWeight ?? 1) * commanderMat),
+  }
+  rollDirectMaterialRecovery(state, matUnit, rng)
   const discreteLoot = rewardWeight >= 1 || rng() < rewardWeight
   if (discreteLoot) {
     grantSignalCoreDrop(state, 'kill', { family: unit.family })
     grantFurnaceKillLoot(state, unit.isBoss)
+    if (unit.family === 'choir' && unit.familyStatus === 'authored') {
+      state.resources.choirAsh =
+        (state.resources.choirAsh ?? 0) +
+        (unit.isCommander ? COMMANDER_REWARD.choirAshMult : 1) * 0.25
+    }
   }
   choirTapOnHighValueKill(state, unit)
   grantHiveResearchKillXp(
     state,
     unit.isBoss,
-    furnaceResearchXpMult(state) * rewardWeight,
+    furnaceResearchXpMult(state) * rewardWeight * (unit.isCommander ? COMMANDER_REWARD.masteryMult : 1),
   )
+  if (unit.isCommander) recordCommanderDefeat(state, unit)
+  onHostileDeathHazards(state, unit)
+  tryReleaseReservedCommanders(state)
 }
 
 function tryLootEnemyKill(
@@ -2041,7 +990,14 @@ function applyDamageToUnit(
     target.shield -= toShield
     dealt += toShield
     target.regenDelay = Math.max(target.regenDelay ?? 0, SHIELD_REGEN_DELAY)
-    return { dealt, hullOverkill }
+    remaining = 0
+  }
+
+  if ((target.supportShield ?? 0) > 0 && remaining > 0) {
+    const toSupport = Math.min(target.supportShield ?? 0, remaining)
+    target.supportShield = (target.supportShield ?? 0) - toSupport
+    remaining -= toSupport
+    dealt += toSupport
   }
 
   if (remaining > 0 && target.hull > 0) {
@@ -2173,7 +1129,7 @@ function incomingDefenseMult(
   if (attackerFamily === 'swarm' && roles.defense > 0) {
     mult *= Math.pow(0.88, roles.defense * matchupScale)
   }
-  if ((attackerFamily === 'titan' || attackerFamily === 'armored') && target.isFlagship) {
+  if ((attackerFamily === 'apex' || attackerFamily === 'armored') && target.isFlagship) {
     if (roles.defense === 0) mult *= 1.15
     else mult *= Math.pow(0.94, roles.defense)
   }
@@ -2260,7 +1216,8 @@ function spawnProjectile(
     weaponId: weapon.id,
     sourceModuleId: from.side === 'player' ? from.coreModuleId : undefined,
     shieldBypassFrac:
-      from.coreModuleId === 'phase-beam' ? phaseRampBypassFrac(state, from) : undefined,
+      weapon.shieldBypassFrac ??
+      (from.coreModuleId === 'phase-beam' ? phaseRampBypassFrac(state, from) : undefined),
     ...tuned.profile,
   })
 }
@@ -2290,7 +1247,8 @@ function spawnBeam(
     weaponId: weapon.id,
     sourceModuleId: from.side === 'player' ? from.coreModuleId : undefined,
     shieldBypassFrac:
-      from.coreModuleId === 'phase-beam' ? phaseRampBypassFrac(state, from) : undefined,
+      weapon.shieldBypassFrac ??
+      (from.coreModuleId === 'phase-beam' ? phaseRampBypassFrac(state, from) : undefined),
     ...tuned.profile,
   })
 }
@@ -2668,6 +1626,9 @@ export function simulateCombat(
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
 
   moveUnits(state, dt)
+  tickCommanderTraits(state, dt)
+  tickChoirCrown(state, dt)
+  tickDeathHazards(state, dt)
   tickPlayerCoreTargeting(state, dt)
   for (const core of state.combat.playerUnits) {
     if (!core.isCore || core.coreModuleId !== 'phase-beam') continue
@@ -2752,7 +1713,9 @@ export function simulateCombat(
       }
 
       if (side === 'player' && unit.isCore) {
-        firePlayerCore(state, unit, dt, roles, matchupScale, bossProtocol)
+        if (!isCoreJammed(state, unit)) {
+          firePlayerCore(state, unit, dt, roles, matchupScale, bossProtocol)
+        }
         continue
       }
 
@@ -2825,7 +1788,7 @@ export function simulateCombat(
           fired = true
         }
 
-        if (fired) weapon.cooldownLeft = weapon.cooldown
+        if (fired) weapon.cooldownLeft = fireCooldown(unit, weapon.cooldown)
       }
     }
   }
@@ -2837,6 +1800,36 @@ export function simulateCombat(
   pruneDeadEnemyUnits(state)
   syncHullAggregates(state)
 }
+
+function tickDeathHazards(state: GameState, dt: number): void {
+  const hazards = ensureDeathHazards(state)
+  const hive = state.combat.playerUnits.find((u) => u.isFlagship)
+  const kept: typeof hazards = []
+  for (const hazard of hazards) {
+    hazard.delayLeft -= dt
+    if (hazard.delayLeft > 0) {
+      kept.push(hazard)
+      continue
+    }
+    for (const unit of state.combat.enemyUnits) {
+      if (unit.hull <= 0) continue
+      if (distanceBetween(unit, hazard) > hazard.radius) continue
+      unit.deathHazardImmune = true
+    }
+    if (hive && hive.hull > 0 && distanceBetween(hive, hazard) <= hazard.radius) {
+      applyDamageToUnit(hive, hazard.damage, ['kinetic', 'splash'], undefined, state)
+    }
+    for (const unit of state.combat.enemyUnits) {
+      if (unit.hull <= 0) continue
+      if (distanceBetween(unit, hazard) > hazard.radius) continue
+      const prev = unit.hull
+      applyDamageToUnit(unit, hazard.damage * 0.35, ['kinetic', 'splash'], undefined, state)
+      tryLootEnemyKill(state, unit, prev)
+    }
+  }
+  state.combat.deathHazards = kept
+}
+
 export function totalEnemyHull(encounter: WaveEncounter): number {
   return encounter.units.reduce((s, u) => s + u.hullMax, 0)
 }

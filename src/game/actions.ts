@@ -134,6 +134,7 @@ import {
   type RunUpgradeId,
 } from './workshop'
 import { ACT1_CADENCE } from './cadence'
+import { sanitizeCodexState } from './codex'
 import { buyCoreStartingLevel as buyCoreStartingLevelInternal } from './coreProgression'
 import {
   ACT1_FINAL_WAVE,
@@ -992,7 +993,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     activeChallengeId: state.prestige.activeChallengeId,
     shop: { ...state.prestige.shop },
     matterShop: { ...state.prestige.matterShop },
-    seenFamilies: [...(state.codex?.seenFamilies ?? [])],
+    codex: sanitizeCodexState(state.codex),
     workerDrones: state.base.workerDrones,
     permanentAi,
     /** Research is permanent — rebuying the tree every prestige was redundant. */
@@ -1100,7 +1101,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     matterShop: kept.matterShop,
     cycle: emptyRebuildCycle(),
   }
-  state.codex = { seenFamilies: kept.seenFamilies }
+  state.codex = kept.codex
   state.meta = kept.meta
   state.core = fresh.core
   state.network = wipeNetworkBars(state.network)

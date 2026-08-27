@@ -1,23 +1,27 @@
-import type { EnemyRole, GameState, UnitShape } from '../../game/types'
+import type { GameState, UnitShape } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
 import { ACT1_CADENCE } from '../../game/cadence'
 import {
-  CODEX_FAMILIES,
-  CODEX_ROLES,
-  familyIntel,
-  familyShape,
-  roleIntel,
-  softCounterForFamily,
-  type EnemyFamily,
-} from '../../game/combat'
+  bossCodexLines,
+  discoveredHostileRecords,
+  hostileCodexLines,
+  unknownHostilePlaceholderCount,
+  type CodexPane,
+} from '../../game/codex'
+import {
+  COMMANDER_TRAIT_BLURBS,
+  COMMANDER_TRAIT_ICONS,
+  COMMANDER_TRAIT_LABELS,
+  HOSTILE_DEFS,
+  type CommanderTraitId,
+} from '../../game/hostileCatalogue'
+import { BOSS_DEFS } from '../../game/bossRegistry'
 import { SheetTabs } from '../SheetTabs'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
 
-type CodexPane = 'families' | 'roles'
-
-const CODEX_PANES: { id: CodexPane; label: string; guide?: string }[] = [
-  { id: 'families', label: 'Families', guide: 'codex-families' },
-  { id: 'roles', label: 'Roles', guide: 'codex-roles' },
+const PANE_OPTIONS: { id: CodexPane; label: string; guide?: string }[] = [
+  { id: 'hostiles', label: 'Hostiles', guide: 'codex-hostiles' },
+  { id: 'bosses', label: 'Bosses', guide: 'codex-bosses' },
 ]
 
 interface CodexTabProps {
@@ -28,10 +32,13 @@ interface CodexTabProps {
 
 export function CodexTab({ state, onBack, guideTarget = null }: CodexTabProps) {
   const open = isSystemUnlocked(state, 'codex')
-  const seen = new Set(state.codex.seenFamilies)
-  const revealed = CODEX_FAMILIES.filter((f) => seen.has(f)).length
-  const hint = guideTarget === 'codex-roles' ? 'roles' : guideTarget === 'codex-families' ? 'families' : null
-  const [pane, setPane] = useSyncedPane<CodexPane>('families', hint)
+  const discovered = discoveredHostileRecords(state)
+  const unknownHostiles = unknownHostilePlaceholderCount(state)
+  const discoveredBosses = new Set(state.codex.discoveredBossIds ?? [])
+  const discoveredTraits = (state.codex.discoveredCommanderTraitIds ?? []) as CommanderTraitId[]
+  const hint = guideTarget === 'codex-bosses' ? 'bosses' : guideTarget === 'codex-hostiles' ? 'hostiles' : null
+  const [pane, setPane] = useSyncedPane<CodexPane>('hostiles', hint)
+  const safePane: CodexPane = pane === 'bosses' ? 'bosses' : 'hostiles'
 
   return (
     <section className="panel screen-panel">
@@ -44,69 +51,114 @@ export function CodexTab({ state, onBack, guideTarget = null }: CodexTabProps) {
         <h2>Codex</h2>
         <p>
           {open
-            ? `Families ${revealed}/${CODEX_FAMILIES.length} · hull roles always listed`
+            ? `Hostiles ${discovered.length}/${HOSTILE_DEFS.length} · Bosses ${discoveredBosses.size}/${BOSS_DEFS.length}`
             : `Reach Wave ${ACT1_CADENCE.codex} to decrypt encounter memory.`}
         </p>
       </header>
 
       {!open ? (
         <p className="muted">
-          Families already seen this career: {revealed}/{CODEX_FAMILIES.length}
-          {revealed > 0 ? ` (waiting for Wave ${ACT1_CADENCE.codex}).` : '.'}
+          Recorded from actual spawns: {discovered.length} hostiles
+          {discovered.length > 0 ? ` (waiting for Wave ${ACT1_CADENCE.codex}).` : '.'}
         </p>
       ) : (
         <>
-          <SheetTabs value={pane} onChange={setPane} options={CODEX_PANES} label="Codex panes" />
+          <SheetTabs value={safePane} onChange={setPane} options={PANE_OPTIONS} label="Codex panes" />
           <div className="panel-scroll">
-          {pane === 'families' ? (
-            <>
-          <h3 className="foundry-heading" data-guide="codex-families">
-            Families
-          </h3>
-          <ul className="sector-roster">
-            {CODEX_FAMILIES.map((family) => {
-              const known = seen.has(family)
-              return (
-                <li key={family} className="sector-roster-item">
-                  {known ? (
-                    <FamilyGlyph family={family} />
-                  ) : (
-                    <div className="enemy-glyph codex-unknown" aria-hidden="true">
-                      ?
-                    </div>
-                  )}
-                  <div>
-                    <strong>{known ? titleCase(family) : 'Unknown signature'}</strong>
-                    {known ? (
-                      <>
-                        <p className="muted">{familyIntel(family)}</p>
-                        <p>{softCounterForFamily(family)}</p>
-                      </>
-                    ) : (
-                      <p className="muted">Encounter this family in the field to unlock.</p>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-            </>
-          ) : (
-            <>
-          <h3 className="foundry-heading" data-guide="codex-roles">
-            Hull roles
-          </h3>
-          <p className="muted">Stand-off classes. Silhouettes on the lane match these names.</p>
-          {CODEX_ROLES.map((role) => (
-            <article key={role} className="network-row">
-              <div className="network-row-main">
-                <strong>{titleCase(role)}</strong>
-              </div>
-              <p className="network-row-stats">{roleIntel(role)}</p>
-            </article>
-          ))}
-            </>
-          )}
+            {safePane === 'hostiles' ? (
+              <>
+                <h3 className="foundry-heading" data-guide="codex-hostiles">
+                  Hostiles
+                </h3>
+                <ul className="sector-roster">
+                  {discovered.map((row) => {
+                    const lines = hostileCodexLines(row.def)
+                    return (
+                      <li key={row.def.id} className="sector-roster-item">
+                        <HostileGlyph shape={row.def.shape} />
+                        <div>
+                          <strong>{row.def.name}</strong>
+                          <p className="muted">{lines.family} · {lines.role}</p>
+                          <p>{lines.mechanic}</p>
+                          <p className="muted">{lines.profile}</p>
+                          <p>{lines.softCounter}</p>
+                          {row.commanderEncounters > 0 ? (
+                            <p className="muted">
+                              Commanders faced {row.commanderEncounters} · defeated {row.commanderDefeats}
+                              {row.traitsEncountered.length > 0
+                                ? ` · ${row.traitsEncountered.map((t) => COMMANDER_TRAIT_LABELS[t]).join(', ')}`
+                                : ''}
+                            </p>
+                          ) : null}
+                        </div>
+                      </li>
+                    )
+                  })}
+                  {Array.from({ length: unknownHostiles }, (_, i) => (
+                    <li key={`unknown-h-${i}`} className="sector-roster-item">
+                      <div className="enemy-glyph codex-unknown" aria-hidden="true">
+                        ?
+                      </div>
+                      <div>
+                        <strong>Unknown signature</strong>
+                        <p className="muted">Encounter this hostile in the field to unlock.</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {discoveredTraits.length > 0 ? (
+                  <>
+                    <h3 className="foundry-heading">Commander Traits</h3>
+                    <p className="muted">Discovered glossary. Not a third Codex catalogue.</p>
+                    {discoveredTraits.map((id) => (
+                      <article key={id} className="network-row">
+                        <div className="network-row-main">
+                          <strong>
+                            {COMMANDER_TRAIT_ICONS[id]} {COMMANDER_TRAIT_LABELS[id]}
+                          </strong>
+                        </div>
+                        <p className="network-row-stats">{COMMANDER_TRAIT_BLURBS[id]}</p>
+                      </article>
+                    ))}
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <h3 className="foundry-heading" data-guide="codex-bosses">
+                  Bosses
+                </h3>
+                <ul className="sector-roster">
+                  {BOSS_DEFS.filter((def) => discoveredBosses.has(def.id)).map((def) => {
+                    const lines = bossCodexLines(def.id)
+                    const cleared = (state.codex.bossClears ?? []).includes(def.id)
+                    return (
+                      <li key={def.id} className="sector-roster-item">
+                        <HostileGlyph shape="hex" prominent />
+                        <div>
+                          <strong>{def.name}</strong>
+                          <p className="muted">Wave {def.wave}{cleared ? ' · cleared' : ''}</p>
+                          <p>{lines.mechanic}</p>
+                          <p className="muted">{lines.profile}</p>
+                          <p>{lines.softAnswer}</p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                  {BOSS_DEFS.filter((def) => !discoveredBosses.has(def.id)).map((def) => (
+                    <li key={`unknown-b-${def.id}`} className="sector-roster-item">
+                      <div className="enemy-glyph codex-unknown" aria-hidden="true">
+                        ?
+                      </div>
+                      <div>
+                        <strong>Unknown boundary</strong>
+                        <p className="muted">A proper Boss has not spawned yet.</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         </>
       )}
@@ -114,10 +166,8 @@ export function CodexTab({ state, onBack, guideTarget = null }: CodexTabProps) {
   )
 }
 
-function FamilyGlyph({ family }: { family: EnemyFamily }) {
-  const fill = familyColor(family)
-  const shape = familyShape(family)
-  const gradId = `codex-${family}`
+function HostileGlyph({ shape, prominent = false }: { shape: UnitShape; prominent?: boolean }) {
+  const r = prominent ? 18 : 14
   return (
     <svg
       className="enemy-glyph"
@@ -126,16 +176,10 @@ function FamilyGlyph({ family }: { family: EnemyFamily }) {
       height="56"
       aria-hidden="true"
     >
-      <defs>
-        <radialGradient id={gradId} cx="35%" cy="30%" r="70%">
-          <stop offset="0%" stopColor={fill} stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#0e141c" stopOpacity="0.9" />
-        </radialGradient>
-      </defs>
       <rect width="64" height="64" fill="#0e141c" />
-      <circle cx="32" cy="32" r="28" fill={`url(#${gradId})`} opacity="0.35" />
-      <g transform="translate(32 32)" fill={fill} stroke="#e7edf5" strokeWidth="1.5">
-        {shapePath(shape, family === 'titan' ? 18 : 14)}
+      <circle cx="32" cy="32" r="28" fill="#1a2430" opacity="0.9" />
+      <g transform="translate(32 32)" fill="#9eb4cc" stroke="#e7edf5" strokeWidth="1.5">
+        {shapePath(shape, r)}
       </g>
     </svg>
   )
@@ -159,23 +203,4 @@ function shapePath(shape: UnitShape, r: number) {
     default:
       return <circle r={r} />
   }
-}
-
-function familyColor(family: EnemyFamily): string {
-  switch (family) {
-    case 'swarm':
-      return '#9eb4cc'
-    case 'armored':
-      return '#c4a574'
-    case 'ethereal':
-      return '#7ec8ff'
-    case 'divine':
-      return '#e0c07a'
-    case 'titan':
-      return '#ff6b6b'
-  }
-}
-
-function titleCase(value: EnemyFamily | EnemyRole): string {
-  return value.charAt(0).toUpperCase() + value.slice(1)
 }

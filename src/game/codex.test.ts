@@ -1,64 +1,54 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { buyResearch, performAscension, performPrestige } from './actions'
 import { startCombat } from './tick'
-import { revealCodexFamilies, softCounterForFamily } from './combat'
-import { isSystemUnlocked } from './progression'
+import { performRebuild } from './actions'
+import { isSystemUnlocked, maybeGrantSystemUnlocks } from './progression'
+import { ACT1_CADENCE } from './cadence'
+import { armRebuildDoor } from './testHelpers'
+import { emptyCodexState } from './codex'
 
-describe('codex', () => {
-  it('records families when a fight begins', () => {
+describe('codex discovery', () => {
+  it('records hostiles when they actually spawn', () => {
     let state = createInitialState(0)
-    expect(state.codex.seenFamilies).toEqual([])
+    expect(state.codex.discoveredHostileIds).toEqual([])
     state = startCombat(state)
-    expect(state.codex.seenFamilies).toContain('swarm')
+    expect(state.codex.discoveredHostileIds).toContain('void-mite')
+    expect(state.codex).not.toHaveProperty('seenFamilies')
   })
 
-  it('keeps seen families across prestige', () => {
-    let state = createInitialState(0)
-    state = startCombat(state)
-    expect(state.codex.seenFamilies).toContain('swarm')
-    state = performPrestige(state, 1000)
-    expect(state.codex.seenFamilies).toContain('swarm')
+  it('keeps Codex across Rebuild', () => {
+    let state = startCombat(createInitialState(0))
+    expect(state.codex.discoveredHostileIds).toContain('void-mite')
+    const armed = armRebuildDoor(state)
+    armed.codex = structuredClone(state.codex)
+    state = performRebuild(armed, {
+      frameId: armed.shipyard.frameId,
+      modules: [...armed.shipyard.modules],
+    })
+    expect(state.codex.discoveredHostileIds).toContain('void-mite')
   })
 
-  it('unlocks Codex permanently after researching once', () => {
-    let state = createInitialState(0)
-    state.meta.bestWave = 10
-    state.combat.bestWave = 10
-    state.resources.data = 50
-    state = buyResearch(state, 'tactical-codex')
-    expect(state.meta.codexUnlocked).toBe(true)
-    expect(isSystemUnlocked(state, 'codex')).toBe(true)
-
-    state = performPrestige(state, 1000)
-    expect(state.meta.codexUnlocked).toBe(true)
-    expect(state.research.unlocked).toContain('tactical-codex')
-    expect(isSystemUnlocked(state, 'codex')).toBe(true)
-
-    state.meta.act1Cleared = true
-    state.meta.bestWave = 1000
-    state.combat.bestWave = 1000
-    state = performAscension(state, 2000)
-    expect(state.meta.codexUnlocked).toBe(true)
-    expect(isSystemUnlocked(state, 'codex')).toBe(true)
+  it('unlocks Codex UI around W30 from career Best Wave', () => {
+    const locked = createInitialState(0)
+    locked.meta.bestWave = ACT1_CADENCE.codex - 1
+    expect(isSystemUnlocked(locked, 'codex')).toBe(false)
+    const open = createInitialState(0)
+    open.meta.bestWave = ACT1_CADENCE.codex
+    expect(isSystemUnlocked(open, 'codex')).toBe(true)
+    maybeGrantSystemUnlocks(open)
+    expect(open.meta.codexUnlocked).toBe(true)
   })
 
-  it('tactical-codex research is purchasable', () => {
-    let state = createInitialState(0)
-    state.resources.data = 50
-    state = buyResearch(state, 'tactical-codex')
-    expect(state.research.unlocked).toContain('tactical-codex')
-  })
-
-  it('soft counters describe each family', () => {
-    expect(softCounterForFamily('swarm').toLowerCase()).toContain('flak')
-    expect(softCounterForFamily('armored').toLowerCase()).toContain('pierce')
-    expect(softCounterForFamily('titan').toLowerCase()).toContain('defense')
-  })
-
-  it('revealCodexFamilies ignores unknown ids', () => {
+  it('sanitizes malformed Codex state', () => {
     const state = createInitialState(0)
-    revealCodexFamilies(state, ['swarm', 'nope', 'armored'])
-    expect(state.codex.seenFamilies).toEqual(['swarm', 'armored'])
+    state.codex = {
+      ...emptyCodexState(),
+      discoveredHostileIds: ['void-mite', 'not-real'],
+      discoveredBossIds: ['nope'],
+    }
+    const { sanitizeCodexState } = require('./codex') as typeof import('./codex')
+    const clean = sanitizeCodexState(state.codex)
+    expect(clean.discoveredHostileIds).toEqual(['void-mite'])
+    expect(clean.discoveredBossIds).toEqual([])
   })
 })

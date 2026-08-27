@@ -11,14 +11,15 @@ import { atCareerWave } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 import { RELIC_FAMILIES, STANDARD_RELIC_IDS } from './relicCatalogue'
 import { ECHO_RUNS, ECHO_TREE, echoFoundrySpeedMult, getEchoRun } from './echo'
-import { CODEX_ROLES, roleIntel } from './combat'
+import { ENEMY_FAMILY_IDS } from './hostileCatalogue'
+import { CODEX_PANES } from './codex'
 
 describe('encyclopedia depth', () => {
-  it('opens Codex at sector 10 without Data research', () => {
+  it('opens Codex at Wave 30 without Data research', () => {
     const locked = createInitialState(0)
     expect(isSystemUnlocked(locked, 'codex')).toBe(false)
     const open = createInitialState(0)
-    open.meta.highestSectorEver = 10
+    open.meta.bestWave = ACT1_CADENCE.codex
     expect(isSystemUnlocked(open, 'codex')).toBe(true)
     maybeGrantSystemUnlocks(open)
     expect(open.meta.codexUnlocked).toBe(true)
@@ -53,9 +54,8 @@ describe('encyclopedia depth', () => {
     expect(echoFoundrySpeedMult(s)).toBeGreaterThan(1)
   })
 
-  it('documents hull roles in the Codex catalog', () => {
-    expect(CODEX_ROLES).toContain('sniper')
-    expect(roleIntel('sniper').toLowerCase()).toContain('charge')
-    expect(roleIntel('boss').toLowerCase()).toContain('slam')
+  it('documents HOSTILES | BOSSES Codex panes and six families', () => {
+    expect([...CODEX_PANES]).toEqual(['hostiles', 'bosses'])
+    expect([...ENEMY_FAMILY_IDS]).toEqual(['swarm', 'armored', 'veil', 'siege', 'choir', 'apex'])
   })
 })

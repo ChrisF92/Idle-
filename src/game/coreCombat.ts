@@ -133,7 +133,7 @@ function fitted(state: GameState, moduleId: string): boolean {
 
 /** Boss identity only until PR7 supplies a real Commander flag. */
 export function isHighValueHostile(unit: CombatUnit): boolean {
-  return Boolean(unit.isBoss || unit.role === 'boss')
+  return Boolean(unit.isBoss || unit.role === 'boss' || unit.role === 'elite' || unit.isCommander)
 }
 
 export function choirTapAshToHeatMult(state: GameState): number {

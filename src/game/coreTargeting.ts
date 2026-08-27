@@ -37,6 +37,9 @@ import type {
 } from './types'
 import { targetingServosSlewMult } from './workshop'
 import { matterTraverseSlewMult } from './matter'
+import { suppressorModifier, SUPPRESSOR_FLOOR_MULT } from './commanderTraits'
+import { COMMANDER_PRIORITY_TERM } from './hostileSeeds'
+import { noteTargetPick } from './encounterTelemetry'
 
 /** Canonical Research node. PR9 authors the tree; PR2 only checks completion. */
 export const FIRE_CONTROL_DOCTRINE_RESEARCH_ID = 'd1-fire-control-doctrine'
@@ -237,6 +240,7 @@ export function collectTargetingModifiers(
     directiveTargetingContribution(state),
     researchTargetingContribution(state),
     challengeTargetingContribution(state),
+    suppressorModifier(state),
   ]
 }
 
@@ -299,7 +303,13 @@ export function applyTargetingStats(
 function appliedStats(state: GameState, core: CombatUnit | TargetingCoreSpec) {
   const profile = profileForCore(core)
   const mods = composeTargetingModifiers(collectTargetingModifiers(state, specOf(core)))
-  return { profile, ...applyTargetingStats(profile, mods) }
+  const stats = { profile, ...applyTargetingStats(profile, mods) }
+  const suppressor = suppressorModifier(state)
+  if (suppressor.slewRateMult != null || suppressor.acquisitionRangeMult != null) {
+    stats.slew = Math.max(profile.slewRateDegPerSec * SUPPRESSOR_FLOOR_MULT, stats.slew)
+    stats.acquire = Math.max(profile.acquisitionRange * SUPPRESSOR_FLOOR_MULT, stats.acquire)
+  }
+  return stats
 }
 
 export function effectiveCoreFireRange(state: GameState, core: CombatUnit | TargetingCoreSpec): number {
@@ -565,18 +575,36 @@ export function buildEvalBundle(state: GameState, enemies: CombatUnit[]): EvalBu
   return { enemies, metrics, focus }
 }
 
+export function commanderPriorityTerm(doctrine: TargetingDoctrineId, unit: CombatUnit): number {
+  if (!unit.isCommander) return 0
+  let n = COMMANDER_PRIORITY_TERM.base
+  const trait = unit.commanderTraitId
+  if (
+    doctrine === 'threat' &&
+    (trait === 'rallying' || trait === 'suppressor' || trait === 'breacher' || trait === 'vanguard')
+  ) {
+    n += COMMANDER_PRIORITY_TERM.threatTraitBonus
+  }
+  if (doctrine === 'heavy') n += COMMANDER_PRIORITY_TERM.heavyBonus
+  if (doctrine === 'shield' && (trait === 'wardbearer' || unit.shieldMax > 0)) {
+    n += COMMANDER_PRIORITY_TERM.shieldBonus
+  }
+  return Math.min(COMMANDER_PRIORITY_TERM.max, n)
+}
+
 export function scoreDoctrine(
   doctrine: TargetingDoctrineId,
   unit: CombatUnit,
   metrics: SharedTargetMetrics,
 ): number {
   const bossNudge = unit.isBoss || unit.role === 'boss' ? 8 : 0
+  const commanderNudge = commanderPriorityTerm(doctrine, unit)
   switch (doctrine) {
     case 'threat':
-      return metrics.danger * 12 + metrics.urgency * 18 + metrics.proximity * 10 + bossNudge
+      return metrics.danger * 12 + metrics.urgency * 18 + metrics.proximity * 10 + bossNudge + commanderNudge
     case 'focus':
       if (metrics.focusWeight >= 1) {
-        return 1_000 + metrics.focusWeight * 40 + metrics.danger * 4 + bossNudge * 0.4
+        return 1_000 + metrics.focusWeight * 40 + metrics.danger * 4 + bossNudge * 0.4 + commanderNudge * 0.4
       }
       return scoreDoctrine('threat', unit, metrics)
     case 'execution':
@@ -584,19 +612,21 @@ export function scoreDoctrine(
         metrics.finishable * 80 +
         (1 - metrics.hullFrac) * 12 +
         metrics.danger * 0.08 -
-        metrics.ehp * 0.03
+        metrics.ehp * 0.03 +
+        commanderNudge * 0.15
       )
     case 'heavy':
-      return metrics.heavyWeight * 0.12 + metrics.armor * 1.4 + bossNudge * 0.6
+      return metrics.heavyWeight * 0.12 + metrics.armor * 1.4 + bossNudge * 0.6 + commanderNudge
     case 'shield':
-      return metrics.shieldPresent * 0.45 + metrics.shieldFrac * 30
+      return metrics.shieldPresent * 0.45 + metrics.shieldFrac * 30 + commanderNudge
     case 'cluster':
       return (
         metrics.clusterCount * 18 +
         metrics.clusterWeight * 8 +
         metrics.clusterMass * 0.05 +
         metrics.danger * 0.08 +
-        metrics.proximity * 2
+        metrics.proximity * 2 +
+        commanderNudge * 0.2
       )
   }
 }
@@ -733,6 +763,7 @@ export function evaluateCoreTarget(
 
   if (!currentValid || !current) {
     setCoreTarget(core, best.target.id)
+    noteTargetPick(state, Boolean(best.target.isCommander))
     return
   }
 
@@ -742,6 +773,7 @@ export function evaluateCoreTarget(
   const currentScore = currentTargetScore(state, core, current, bundle, doctrine, used)
   if (beatsHysteresis(best.score, currentScore, switchAdvantageFor(state, core))) {
     setCoreTarget(core, best.target.id)
+    noteTargetPick(state, Boolean(best.target.isCommander))
   }
 }
 

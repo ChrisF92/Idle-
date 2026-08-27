@@ -1382,9 +1382,10 @@ export const DISCOVERY_MISSING_PART_WEIGHT = 4
 export const ENEMY_FAMILY_LABELS: Record<string, string> = {
   swarm: 'Swarm',
   armored: 'Armored',
-  ethereal: 'Ethereal',
-  divine: 'Divine',
-  titan: 'Titan',
+  veil: 'Veil',
+  siege: 'Siege',
+  choir: 'Choir',
+  apex: 'Apex',
 }
 
 export function enemyFamilyLabel(family: string): string {

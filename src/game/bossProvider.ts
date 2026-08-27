@@ -57,7 +57,7 @@ export function developmentBossFallback(ctx: BossBuildContext): BossEncounterSpe
     side: 'enemy',
     name: `Development Boundary ${ctx.wave}`,
     shape: 'hex',
-    family: 'titan',
+    family: '',
     hull: 80,
     hullMax: 80,
     shield: 0,

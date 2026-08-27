@@ -17,6 +17,8 @@ import {
 } from './waves'
 import { emptyBossBoundary } from './bossProvider'
 import { createSimRng } from './simRng'
+import { emptyEncounterTelemetry } from './encounterTelemetry'
+import { recordUnitSpawnDiscovery } from './codex'
 
 export function emptyCombatIdSeq(): CombatIdSeq {
   return { unit: 0, proj: 0, beam: 0, fx: 0, package: 0 }
@@ -34,6 +36,13 @@ export function emptyWaveRuntime(): Pick<
   | 'simAccumulator'
   | 'idSeq'
   | 'rng'
+  | 'reservedCommanders'
+  | 'commanderEventLog'
+  | 'deathHazards'
+  | 'coreJams'
+  | 'choirCrown'
+  | 'encounterTelemetry'
+  | 'commanderNotice'
 > {
   return {
     waveReached: 0,
@@ -46,6 +55,13 @@ export function emptyWaveRuntime(): Pick<
     simAccumulator: 0,
     idSeq: emptyCombatIdSeq(),
     rng: createSimRng(1),
+    reservedCommanders: [],
+    commanderEventLog: [],
+    deathHazards: [],
+    coreJams: [],
+    choirCrown: null,
+    encounterTelemetry: emptyEncounterTelemetry(),
+    commanderNotice: null,
   }
 }
 
@@ -112,6 +128,7 @@ export function admitUnitToPackage(
   if (livingEnemyCount(state) < ACTIVE_ENEMY_SOFT_CAP) {
     pkg.spawnedUnitIds.push(admitted.id)
     state.combat.enemyUnits.push(admitted)
+    recordUnitSpawnDiscovery(state, admitted)
   } else {
     enqueuePending(state, pkg, [admitted])
   }
@@ -150,6 +167,7 @@ export function drainPending(state: GameState, cap = ACTIVE_ENEMY_SOFT_CAP): Com
     const now = row.units.slice(0, room)
     const rest = row.units.slice(room)
     released.push(...now)
+    for (const unit of now) recordUnitSpawnDiscovery(state, unit)
     if (pkg) {
       pkg.pendingCount = Math.max(0, pkg.pendingCount - now.length)
       pkg.spawnedUnitIds.push(...now.map((u) => u.id))
@@ -189,7 +207,14 @@ export function beginBossHold(state: GameState, warningDuration = BOSS_WARNING_D
 }
 
 export function battlefieldClearForBoss(state: GameState): boolean {
-  return livingEnemyCount(state) === 0 && state.combat.pendingReinforcements.length === 0
+  const reserved = state.combat.reservedCommanders?.length ?? 0
+  const livingCommanders = state.combat.enemyUnits.some((u) => u.hull > 0 && u.isCommander)
+  return (
+    livingEnemyCount(state) === 0 &&
+    state.combat.pendingReinforcements.length === 0 &&
+    reserved === 0 &&
+    !livingCommanders
+  )
 }
 
 export function enterBossWarning(state: GameState, duration = BOSS_WARNING_DURATION): void {

@@ -50,7 +50,7 @@ afterEach(() => {
 
 describe('PR6 Relic save schema', () => {
   it('uses save version 47 with no shard migration', () => {
-    expect(SAVE_VERSION).toBe(47)
+    expect(SAVE_VERSION).toBe(48)
     const old = JSON.parse(JSON.stringify({ ...createInitialState(0), version: 46 }))
     expect(importSave(encodeRaw(old))).toBeNull()
   })
