@@ -10,5 +10,10 @@ text = text.replace(
     "state = \"import './directiveEncounterBridge'\n\" + state",
     "state = \"import './directiveEncounterBridge'\" + chr(10) + state",
 )
+anchor = "state = state.replace(\"import { furnaceDamageMult, furnaceShieldMult } from './furnace'\", \"import { furnaceDamageMult, furnaceHullMult, furnaceShieldMult } from './furnace'\")"
+insert = anchor + "\nstate = state.replace(\"import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'\", \"import { directiveArmorMult, directiveHullMult, directiveIncomingMult, directiveShieldRegenMult, directiveShieldMult, directiveWeaponCoreMult, directiveWeaponCycleRateMult, directiveWeaponMult } from './directives'\")"
+if anchor not in text:
+    raise SystemExit('prepare2: state import anchor missing')
+text = text.replace(anchor, insert, 1)
 p.write_text(text)
-print('fixed PR8 generated transform escaping')
+print('fixed PR8 generated transform escaping/imports')
