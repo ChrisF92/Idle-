@@ -241,6 +241,22 @@ export function FoundryTab({
             <SummaryCard title="Fabrication" value={fabSummary} onClick={() => setPane('fabrication')} />
           </div>
           <SheetTabs value={pane} onChange={setPane} options={FOUNDRY_PANES} label="Foundry navigation" />
+          {pane === 'fabrication' ? (
+            <SheetTabs
+              value={fabCategory}
+              onChange={setFabCategory}
+              options={FAB_CATEGORIES}
+              label="Fabrication category"
+            />
+          ) : null}
+          {pane === 'blueprints' ? (
+            <SheetTabs
+              value={blueprintCategory}
+              onChange={setBlueprintCategory}
+              options={BLUEPRINT_CATEGORIES}
+              label="Blueprint category"
+            />
+          ) : null}
           <div className="panel-scroll foundry-scroll">
             {pane === 'processing' ? (
               <>
@@ -334,12 +350,6 @@ export function FoundryTab({
                     </article>
                   ))}
                 </Section>
-                <SheetTabs
-                  value={fabCategory}
-                  onChange={setFabCategory}
-                  options={FAB_CATEGORIES}
-                  label="Fabrication category"
-                />
                 {fabCategory === 'core' ? (
                   <Section>
                     <SectionHeader title="Cores" />
@@ -474,12 +484,6 @@ export function FoundryTab({
 
             {pane === 'blueprints' ? (
               <>
-                <SheetTabs
-                  value={blueprintCategory}
-                  onChange={setBlueprintCategory}
-                  options={BLUEPRINT_CATEGORIES}
-                  label="Blueprint category"
-                />
                 <Section>
                   <SectionHeader title="Blueprints" />
                   <p className="ui-meta">Discovery is a design. Fabrication creates the physical item.</p>
