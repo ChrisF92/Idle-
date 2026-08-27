@@ -1,6 +1,6 @@
 /** Passive-loop helpers for expensive AI / Process automation nodes (mutate in place). */
 
-import type { FoundryRecipeId, GameState } from './types'
+import type { GameState } from './types'
 import {
   STATIONS,
   aiDoctrinesActive,
@@ -8,16 +8,11 @@ import {
   idleWorkers,
   isStationUnlocked,
 } from './catalog'
-import { BLUEPRINTS } from './blueprints'
 import {
-  assembleBlueprint,
-  buyMaxYardArms,
   buyRunUpgrade,
-  canAssembleBlueprint,
   convertAshToHeat,
   enterProtocol,
   optimiseNetwork,
-  pickFoundryUpgradeId,
   applyFurnacePreset,
 } from './actions'
 import {
@@ -30,17 +25,6 @@ import {
 import { hasProcess, noteProcessLastAction, processConfig } from './process'
 import { activeProcessProfile, evaluateProcessIntent, pickShopCategory } from './processProfiles'
 import { nextRunUpgradeCost, visibleRunUpgrades, type RunUpgradeId } from './workshop'
-import {
-  FOUNDRY_RECIPES,
-  buyFoundryUpgrade,
-  foundryMaterialCount,
-  foundryRecipeLevel,
-  foundrySlotCount,
-  foundrySalvageReserve,
-  isFoundryInfinite,
-  isFoundryRecipeUnlocked,
-  setFoundrySlot,
-} from './foundry'
 import {
   SHARDS,
   coreSocketLayout,
@@ -62,7 +46,6 @@ import {
   setResearchFocus,
 } from './hiveResearch'
 import { furnaceActiveLevel, furnaceSpendableHeat, runFurnaceManager, setFurnaceChannel } from './furnace'
-import { foundryAshHeatMult, foundryQueueCap } from './foundryBonuses'
 import { coreInstanceAtSlot } from './coreInstances'
 function adopt(state: GameState, next: GameState): void {
   if (next === state) return
@@ -107,19 +90,6 @@ export function autoMergeSignalCores(state: GameState): void {
       if (merged) break
     }
     if (!merged) break
-  }
-}
-
-/** Legacy AI doctrine now uses the same timed Fabricator path as the player. */
-export function autoFabBay(state: GameState): void {
-  if (!aiDoctrinesActive(state, 'auto-fab-bay')) return
-  if (!isStationUnlocked(state, 'fab-bay')) return
-  for (const bp of BLUEPRINTS) {
-    if (bp.productKind !== 'core') continue
-    if (!canAssembleBlueprint(state, bp.id).ok) continue
-    const next = assembleBlueprint(state, bp.id)
-    if (next !== state) adopt(state, next)
-    return
   }
 }
 
@@ -244,149 +214,6 @@ function autoBankAsh(_state: GameState): void {
   /* GDD Furnace: converting Ash is a Sortie decision, not a live tank. */
 }
 
-function pickSmartSmeltRecipe(state: GameState, busy: Set<string>): FoundryRecipeId | null {
-  const salvage = state.resources.salvage
-  const reserve = foundrySalvageReserve(state)
-  let best: FoundryRecipeId | null = null
-  let bestScore = -1
-  for (const def of FOUNDRY_RECIPES) {
-    if (!isFoundryRecipeUnlocked(state, def.id)) continue
-    if (isFoundryInfinite(state, def.id)) continue
-    if (busy.has(def.id) && foundrySlotCount(state) < 3) continue
-    if ((def.costs.salvage ?? 0) > 0 && salvage < Math.max(def.costs.salvage ?? 0, reserve)) continue
-    const level = foundryRecipeLevel(state, def.id)
-    let score = 20 - Math.min(5, level)
-    if (def.costs.materials) score += 4
-    if (score > bestScore) {
-      bestScore = score
-      best = def.id
-    }
-  }
-  if (!best && isFoundryRecipeUnlocked(state, 'recovered-stock') && !isFoundryInfinite(state, 'recovered-stock')) {
-    best = 'recovered-stock'
-  }
-  if (!best && isFoundryRecipeUnlocked(state, 'conductive-filament') && !isFoundryInfinite(state, 'conductive-filament')) {
-    best = 'conductive-filament'
-  }
-  return best
-}
-
-function pickFoundryPrereqRecipe(state: GameState, target: FoundryRecipeId): FoundryRecipeId | null {
-  const def = FOUNDRY_RECIPES.find((r) => r.id === target)
-  if (!def) return null
-  if (def.costs.materials) {
-    for (const [mat, need] of Object.entries(def.costs.materials)) {
-      if (foundryMaterialCount(state, mat) < (need ?? 0)) {
-        return pickFoundryPrereqRecipe(state, mat as FoundryRecipeId) ?? (mat as FoundryRecipeId)
-      }
-    }
-  }
-  if (!isFoundryRecipeUnlocked(state, target) || isFoundryInfinite(state, target)) return null
-  return target
-}
-
-function nextFoundryRecipe(state: GameState, busy: Set<string>): FoundryRecipeId | null {
-  const cfg = processConfig(state)
-  const intent = evaluateProcessIntent(state)
-  if (intent.foundryStock && hasProcess(state, 'foundry-stock')) {
-    const { recipeId, min } = intent.foundryStock
-    cfg.foundry.minStock = { ...cfg.foundry.minStock, [recipeId]: min }
-  }
-  if (intent.foundryTarget && hasProcess(state, 'foundry-repeat')) {
-    cfg.foundry.repeatRecipe = intent.foundryTarget
-    cfg.foundry.targetRecipe = intent.foundryTarget
-  }
-  if (hasProcess(state, 'foundry-stock')) {
-    for (const [id, min] of Object.entries(cfg.foundry.minStock ?? {})) {
-      if (foundryMaterialCount(state, id) >= (min ?? 0)) continue
-      const recipe = (hasProcess(state, 'foundry-prereqs')
-        ? pickFoundryPrereqRecipe(state, id as FoundryRecipeId)
-        : id) as FoundryRecipeId
-      if (!recipe) continue
-      if (busy.has(recipe) && foundrySlotCount(state) < 3) continue
-      if (!isFoundryRecipeUnlocked(state, recipe) || isFoundryInfinite(state, recipe)) continue
-      noteProcessLastAction(state, 'foundry-stock', `Refill ${id}`)
-      return recipe
-    }
-  }
-  if (hasProcess(state, 'foundry-queue')) {
-    for (const id of cfg.foundry.queue.slice(0, foundryQueueCap(state))) {
-      if (busy.has(id) && foundrySlotCount(state) < 3) continue
-      if (!isFoundryRecipeUnlocked(state, id) || isFoundryInfinite(state, id)) continue
-      return id
-    }
-  }
-  if (hasProcess(state, 'foundry-repeat') && cfg.foundry.repeatRecipe) {
-    const id = cfg.foundry.repeatRecipe
-    if (isFoundryRecipeUnlocked(state, id) && !isFoundryInfinite(state, id)) return id
-  }
-  if (hasProcess(state, 'foundry-prereqs') && cfg.foundry.targetRecipe) {
-    const id = pickFoundryPrereqRecipe(state, cfg.foundry.targetRecipe)
-    if (id) return id
-  }
-  if (hasProcess(state, 'smart-smelt')) return pickSmartSmeltRecipe(state, busy)
-  return null
-}
-
-function autoSmartSmelt(state: GameState): void {
-  if (
-    !hasProcess(state, 'smart-smelt') &&
-    !hasProcess(state, 'foundry-repeat') &&
-    !hasProcess(state, 'foundry-queue') &&
-    !hasProcess(state, 'foundry-prereqs') &&
-    !hasProcess(state, 'foundry-stock')
-  ) {
-    return
-  }
-  const slots = foundrySlotCount(state)
-  const busy = new Set(
-    (state.foundry?.slots ?? []).map((s) => s.recipeId).filter((id): id is FoundryRecipeId => Boolean(id)),
-  )
-  for (let i = 0; i < slots; i++) {
-    const current = state.foundry?.slots[i]?.recipeId ?? null
-    if (current) continue
-    const recipe = nextFoundryRecipe(state, busy)
-    if (!recipe) break
-    const next = setFoundrySlot(state, i, recipe)
-    if (next === state) continue
-    adopt(state, next)
-    busy.add(recipe)
-    noteProcessLastAction(state, 'foundry-repeat', `Queued ${recipe}`)
-  }
-}
-
-function autoFoundryUpgrades(state: GameState): void {
-  if (!hasProcess(state, 'foundry-auto')) return
-  if (!processConfig(state).foundry.autoBuy) return
-  let guard = 0
-  while (guard++ < 8) {
-    const bestId = pickFoundryUpgradeId(state)
-    if (!bestId) break
-    const next = buyFoundryUpgrade(state, bestId)
-    if (next === state) break
-    adopt(state, next)
-  }
-}
-
-function autoPrintAssemble(state: GameState): void {
-  const intent = evaluateProcessIntent(state)
-  const tracked = state.foundry.trackedPrintId
-  const ids =
-    intent.fabTracked && tracked
-      ? [tracked]
-      : hasProcess(state, 'print-assemble')
-        ? BLUEPRINTS.filter((bp) => bp.productKind === 'core').map((bp) => bp.id)
-        : []
-  for (const moduleId of ids) {
-    if (!canAssembleBlueprint(state, moduleId).ok) continue
-    const next = assembleBlueprint(state, moduleId)
-    if (next === state) continue
-    adopt(state, next)
-    noteProcessLastAction(state, 'print-assemble', `Started ${moduleId}`)
-    return
-  }
-}
-
 function autoSeatShards(state: GameState): void {
   if (!hasProcess(state, 'auto-relic')) return
   if (!state.combat.docked) return
@@ -451,14 +278,7 @@ function autoResearchFocus(state: GameState): void {
 }
 
 function autoFurnaceManager(state: GameState): void {
-  const next = runFurnaceManager(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
-  if (next !== state) adopt(state, next)
-}
-
-function autoYardArms(state: GameState): void {
-  if (!hasProcess(state, 'yard-auto')) return
-  if (!processConfig(state).yard.autoUpgrade) return
-  const next = buyMaxYardArms(state)
+  const next = runFurnaceManager(state, hiveResearchHeatFromAshMult(state))
   if (next !== state) adopt(state, next)
 }
 
@@ -483,19 +303,14 @@ function autoProtocolEchoRepeat(state: GameState): void {
 export function tickAutomation(state: GameState): void {
   if (challengeBlocksAi(state)) return
   autoMergeSignalCores(state)
-  autoFabBay(state)
   autoCoreTrain(state)
   autoShopUpgrades(state)
   autoFurnacePush(state)
   autoNetworkBalance(state)
   autoBankAsh(state)
-  autoSmartSmelt(state)
-  autoFoundryUpgrades(state)
-  autoPrintAssemble(state)
   autoSeatShards(state)
   autoResearchFocus(state)
   autoFurnaceManager(state)
-  autoYardArms(state)
   autoProtocolEchoRepeat(state)
 }
 

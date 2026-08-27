@@ -7,7 +7,7 @@ import { PROCESS_NODES, canBuyProcessNode, hasProcess, processOfflineBonusMs } f
 import { tickAutomation } from './automation'
 import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
 import { furnaceSalvageMult } from './furnace'
-import { foundrySalvageMult, isFoundryRecipeUnlocked } from './foundry'
+import { isFoundryRecipeUnlocked } from './foundry'
 import { HIVE_RESEARCH_NODES_PER_BRANCH } from './hiveResearch'
 import { advanceSeconds } from './tick'
 import { grantEnemyKillRewards } from './combat'
@@ -78,14 +78,14 @@ describe('Act 1 Process depth', () => {
     expect(canBuyProcessNode(furnace, 'furnace-auto').ok).toBe(true)
   })
 
-  it('Smart Smelt fills an empty smelter without starving Pulse', () => {
-    const s = createInitialState(0)
-    s.meta.highestSectorEver = 3
-    s.process.purchased = ['smart-smelt']
-    s.resources.salvage = 4
+  it('Smart Smelt no longer starts final Processing', () => {
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    s.process.purchased = ['smart-smelt', 'foundry-repeat']
+    s.process.config.foundry.repeatRecipe = 'recovered-stock'
+    s.resources.scrap = 80
     s.foundry.slots[0] = { recipeId: null, progress: 0, paid: false }
     tickAutomation(s)
-    expect(s.foundry.slots[0]?.recipeId).toBe('recovered-stock')
+    expect(s.foundry.slots[0]?.recipeId).toBeNull()
   })
 
   it('Shard Seat fits a red chip into an empty Core socket', () => {
@@ -127,7 +127,6 @@ describe('Act 1 Process depth', () => {
     buffed.furnace.wanted.recovery = 1
     buffed.furnace.active.recovery = 1
     expect(furnaceSalvageMult(buffed)).toBeCloseTo(1.4)
-    expect(foundrySalvageMult(buffed)).toBe(1)
     const before = buffed.resources.salvage
     grantEnemyKillRewards(buffed, enemy())
     expect(buffed.resources.salvage - before).toBeGreaterThan(plain)

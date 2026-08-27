@@ -27,7 +27,7 @@ import {
   networkScrapRate,
   tickNetwork,
 } from './network'
-import { tickFoundry, foundrySalvageOpsMult, foundryAshHeatMult } from './foundry'
+import { tickFoundry, foundrySalvageOpsMult } from './foundry'
 import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
@@ -282,7 +282,7 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     applyNetworkCombatRefresh(state)
   }
   tickFoundry(state, dtSeconds)
-  tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
+  tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state))
   tickResearch(state, dtSeconds)
 
   tickCoreTraining(state, dtSeconds)
@@ -331,7 +331,7 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
 
   add('scrap', networkScrapRate(state))
   add('data', networkDataRate(state))
-  add('heat', furnaceNetPerSec(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state)))
+  add('heat', furnaceNetPerSec(state, hiveResearchHeatFromAshMult(state)))
 
   return rates
 }

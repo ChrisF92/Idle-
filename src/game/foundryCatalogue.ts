@@ -73,10 +73,17 @@ export const FOUNDRY_CAPABILITY_ADVANCED_PROCESSING = 'advanced-processing'
 export const FOUNDRY_CAPABILITY_LATE_RECOVERY = 'late-choir-apex-recovery'
 export const FOUNDRY_CAPABILITY_ADVANCED_FOUNDRY = 'advanced-foundry'
 
-export type FoundryCapabilityId =
-  | typeof FOUNDRY_CAPABILITY_ADVANCED_PROCESSING
-  | typeof FOUNDRY_CAPABILITY_LATE_RECOVERY
-  | typeof FOUNDRY_CAPABILITY_ADVANCED_FOUNDRY
+export const FOUNDRY_CAPABILITY_IDS = [
+  FOUNDRY_CAPABILITY_ADVANCED_PROCESSING,
+  FOUNDRY_CAPABILITY_LATE_RECOVERY,
+  FOUNDRY_CAPABILITY_ADVANCED_FOUNDRY,
+] as const
+
+export type FoundryCapabilityId = (typeof FOUNDRY_CAPABILITY_IDS)[number]
+
+export function isFoundryCapabilityId(id: string): id is FoundryCapabilityId {
+  return (FOUNDRY_CAPABILITY_IDS as readonly string[]).includes(id)
+}
 
 export interface FoundryCost {
   salvage?: number
@@ -538,11 +545,11 @@ export function scaleFabricationCost(cost: FoundryCost, copiesOwned: number): Fo
 }
 
 export function hasFoundryCapability(state: GameState, id: FoundryCapabilityId): boolean {
-  return (state.foundry?.capabilities ?? []).includes(id)
+  return isFoundryCapabilityId(id) && (state.foundry?.capabilities ?? []).includes(id)
 }
 
-export function grantFoundryCapability(state: GameState, id: FoundryCapabilityId): void {
-  if (!state.foundry) return
+export function grantFoundryCapability(state: GameState, id: FoundryCapabilityId | string): void {
+  if (!state.foundry || !isFoundryCapabilityId(id)) return
   if (state.foundry.capabilities.includes(id)) return
   state.foundry.capabilities = [...state.foundry.capabilities, id]
 }

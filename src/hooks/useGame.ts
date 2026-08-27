@@ -22,31 +22,23 @@ import {
   buyMatterShop,
   buyNetworkLink,
   buyResearch,
-  clearFabProject,
   clearWorkerAssignments,
-  depositFabPart,
   enterChallenge,
   fillStationWorkers,
   fitModule,
-  investPartMastery,
-  launchFabProject,
   performAscension,
   performPrestige,
   performRebuild,
   selectFrame,
-  sellPart,
   setFoundrySlot,
   assembleBlueprint,
   startFabrication,
-  stopFabrication,
   setTrackedPrint,
   setLaborProfile,
   setDamageNumbers,
   setNumberNotation,
-  startFabProject,
   unfitModule,
   unequipAllModules,
-  unequipFoundryModule,
   unlockFrame,
   unlockModule,
   buyCoreStartingLevel,
@@ -55,12 +47,9 @@ import {
   buyGenericUnlock,
   cycleSortieSpeed,
   setCoreTargetingDoctrine,
-  withdrawFabPart,
   equipSignalCore,
   unequipSignalCore,
   mergeSignalCores,
-  buyFoundryUpgrade,
-  equipFoundryModule,
   equipRelicOnCore,
   removeRelicFromCore,
   upgradeRelic,
@@ -80,10 +69,6 @@ import {
   setProcessConfig,
   optimiseNetwork,
   applyNetworkPreset,
-  buyMaxFoundryUpgrades,
-  buyMaxYardArms,
-  saveYardLayout,
-  loadYardLayout,
   rankSpecialist,
   rankCapital,
   performReinforce,
@@ -110,13 +95,6 @@ type Action =
   | { type: 'fill-station'; stationId: string }
   | { type: 'sync-guides'; tab: import('../game/types').TabId }
   | { type: 'mark-hub-seen'; scope: import('../game/types').TabId }
-  | { type: 'start-fab'; moduleId: string }
-  | { type: 'launch-fab'; moduleId: string }
-  | { type: 'clear-fab' }
-  | { type: 'deposit-fab'; partType: string; qty?: number }
-  | { type: 'withdraw-fab'; partType: string; qty?: number }
-  | { type: 'sell-part'; partId: string; qty?: number }
-  | { type: 'invest-mastery'; moduleId: string }
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-essence'; upgradeId: string }
   | { type: 'buy-challenge-shop'; itemId: string }
@@ -148,12 +126,8 @@ type Action =
   | { type: 'hard-reset' }
   | { type: 'dev'; action: DevAction }
   | { type: 'foundry-slot'; slotIndex: number; recipeId: string | null }
-  | { type: 'foundry-stop-fab'; slotIndex: number }
   | { type: 'foundry-start-job'; kind: import('../game/types').FabJobKind; jobId: string }
   | { type: 'foundry-start-facility'; facilityId: import('../game/types').FacilityId }
-  | { type: 'foundry-upgrade'; upgradeId: string }
-  | { type: 'foundry-equip'; moduleId: string }
-  | { type: 'foundry-unequip'; moduleId: string }
   | { type: 'assemble-blueprint'; moduleId: string }
   | { type: 'track-print'; moduleId: string | null }
   | { type: 'number-notation'; mode: 'engineering' | 'scientific' }
@@ -170,9 +144,6 @@ type Action =
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
   | { type: 'research-start'; nodeId: string }
   | { type: 'dismiss-act1-finale' }
-  | { type: 'yard-place'; index: number; buildingId: import('../game/types').YardBuildingId }
-  | { type: 'yard-clear'; index: number }
-  | { type: 'yard-arm'; armId: import('../game/types').YardArmId }
   | { type: 'enter-protocol'; protocolId: string }
   | { type: 'abandon-protocol' }
   | { type: 'enter-echo'; echoId: string }
@@ -182,10 +153,6 @@ type Action =
   | { type: 'process-config'; config: import('../game/types').ProcessConfig }
   | { type: 'process-network-optimise' }
   | { type: 'process-network-preset'; preset: import('../game/types').ProcessNetworkPreset }
-  | { type: 'process-foundry-buy-max' }
-  | { type: 'process-yard-buy-max' }
-  | { type: 'process-save-yard-layout'; name?: string }
-  | { type: 'process-load-yard-layout'; index: number }
   | { type: 'rank-specialist'; specialistId: import('../game/types').SpecialistId }
   | { type: 'rank-capital'; capitalId: import('../game/types').CapitalId }
   | { type: 'reinforce' }
@@ -223,20 +190,6 @@ function reducer(state: GameState, action: Action): GameState {
       return syncCompletedGuides(state, action.tab)
     case 'mark-hub-seen':
       return markHubSeen(state, action.scope)
-    case 'start-fab':
-      return startFabProject(state, action.moduleId)
-    case 'launch-fab':
-      return launchFabProject(state, action.moduleId)
-    case 'clear-fab':
-      return clearFabProject(state)
-    case 'deposit-fab':
-      return depositFabPart(state, action.partType, action.qty ?? 1)
-    case 'withdraw-fab':
-      return withdrawFabPart(state, action.partType, action.qty ?? 1)
-    case 'sell-part':
-      return sellPart(state, action.partId, action.qty ?? 1)
-    case 'invest-mastery':
-      return investPartMastery(state, action.moduleId)
     case 'buy-research':
       return buyResearch(state, action.researchId)
     case 'buy-essence':
@@ -300,18 +253,10 @@ function reducer(state: GameState, action: Action): GameState {
       return applyDevAction(state, action.action)
     case 'foundry-slot':
       return setFoundrySlot(state, action.slotIndex, action.recipeId as import('../game/types').FoundryRecipeId | null)
-    case 'foundry-stop-fab':
-      return stopFabrication(state, action.slotIndex)
     case 'foundry-start-facility':
       return startFabrication(state, 'facility', action.facilityId)
     case 'foundry-start-job':
       return startFabrication(state, action.kind, action.jobId)
-    case 'foundry-upgrade':
-      return buyFoundryUpgrade(state, action.upgradeId)
-    case 'foundry-equip':
-      return equipFoundryModule(state, action.moduleId)
-    case 'foundry-unequip':
-      return unequipFoundryModule(state, action.moduleId)
     case 'assemble-blueprint':
       return assembleBlueprint(state, action.moduleId)
     case 'track-print':
@@ -344,10 +289,6 @@ function reducer(state: GameState, action: Action): GameState {
       return startResearch(state, action.nodeId)
     case 'dismiss-act1-finale':
       return dismissAct1Finale(state)
-    case 'yard-place':
-    case 'yard-clear':
-    case 'yard-arm':
-      return state
     case 'enter-protocol':
       return enterProtocol(state, action.protocolId)
     case 'abandon-protocol':
@@ -366,14 +307,6 @@ function reducer(state: GameState, action: Action): GameState {
       return optimiseNetwork(state)
     case 'process-network-preset':
       return applyNetworkPreset(state, action.preset)
-    case 'process-foundry-buy-max':
-      return buyMaxFoundryUpgrades(state)
-    case 'process-yard-buy-max':
-      return buyMaxYardArms(state)
-    case 'process-save-yard-layout':
-      return saveYardLayout(state, action.name)
-    case 'process-load-yard-layout':
-      return loadYardLayout(state, action.index)
     case 'rank-specialist':
       return rankSpecialist(state, action.specialistId)
     case 'rank-capital':
@@ -489,17 +422,6 @@ export function useGame() {
       dispatch({ type: 'sync-guides', tab }),
     markHubSeen: (scope: import('../game/types').TabId) =>
       dispatch({ type: 'mark-hub-seen', scope }),
-    startFabProject: (moduleId: string) => dispatch({ type: 'start-fab', moduleId }),
-    launchFabProject: (moduleId: string) => dispatch({ type: 'launch-fab', moduleId }),
-    clearFabProject: () => dispatch({ type: 'clear-fab' }),
-    depositFabPart: (partType: string, qty?: number) =>
-      dispatch({ type: 'deposit-fab', partType, qty }),
-    withdrawFabPart: (partType: string, qty?: number) =>
-      dispatch({ type: 'withdraw-fab', partType, qty }),
-    sellPart: (partId: string, qty?: number) =>
-      dispatch({ type: 'sell-part', partId, qty }),
-    investPartMastery: (moduleId: string) =>
-      dispatch({ type: 'invest-mastery', moduleId }),
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),
     buyEssenceUpgrade: (upgradeId: string) =>
       dispatch({ type: 'buy-essence', upgradeId }),
@@ -547,17 +469,10 @@ export function useGame() {
       dispatch({ type: 'merge-cores', defId, rank }),
     setFoundrySlot: (slotIndex: number, recipeId: string | null) =>
       dispatch({ type: 'foundry-slot', slotIndex, recipeId }),
-    stopFabrication: (slotIndex: number) => dispatch({ type: 'foundry-stop-fab', slotIndex }),
     startFacility: (facilityId: import('../game/types').FacilityId) =>
       dispatch({ type: 'foundry-start-facility', facilityId }),
     startFabricationJob: (kind: import('../game/types').FabJobKind, jobId: string) =>
       dispatch({ type: 'foundry-start-job', kind, jobId }),
-    buyFoundryUpgrade: (upgradeId: string) =>
-      dispatch({ type: 'foundry-upgrade', upgradeId }),
-    equipFoundryModule: (moduleId: string) =>
-      dispatch({ type: 'foundry-equip', moduleId }),
-    unequipFoundryModule: (moduleId: string) =>
-      dispatch({ type: 'foundry-unequip', moduleId }),
     assembleBlueprint: (moduleId: string) =>
       dispatch({ type: 'assemble-blueprint', moduleId }),
     setTrackedPrint: (moduleId: string | null) =>
@@ -585,12 +500,6 @@ export function useGame() {
       dispatch({ type: 'research-focus', branch }),
     startResearch: (nodeId: string) => dispatch({ type: 'research-start', nodeId }),
     dismissAct1Finale: () => dispatch({ type: 'dismiss-act1-finale' }),
-    placeYardBuilding: (
-      _index: number,
-      _buildingId: import('../game/types').YardBuildingId,
-    ) => undefined,
-    clearYardBuilding: (_index: number) => undefined,
-    buyYardArm: (_armId: import('../game/types').YardArmId) => undefined,
     enterProtocol: (protocolId: string) =>
       dispatch({ type: 'enter-protocol', protocolId }),
     abandonProtocol: () => dispatch({ type: 'abandon-protocol' }),
@@ -603,10 +512,6 @@ export function useGame() {
     optimiseNetwork: () => dispatch({ type: 'process-network-optimise' }),
     applyNetworkPreset: (preset: import('../game/types').ProcessNetworkPreset) =>
       dispatch({ type: 'process-network-preset', preset }),
-    buyMaxFoundryUpgrades: () => dispatch({ type: 'process-foundry-buy-max' }),
-    buyMaxYardArms: () => dispatch({ type: 'process-yard-buy-max' }),
-    saveYardLayout: (name?: string) => dispatch({ type: 'process-save-yard-layout', name }),
-    loadYardLayout: (index: number) => dispatch({ type: 'process-load-yard-layout', index }),
     rankSpecialist: (specialistId: import('../game/types').SpecialistId) =>
       dispatch({ type: 'rank-specialist', specialistId }),
     rankCapital: (capitalId: import('../game/types').CapitalId) =>

@@ -9,7 +9,6 @@ import {
   performRebuild,
 } from './actions'
 import { networkStrikeMult } from './network'
-import { foundryDamageMult } from './foundry'
 import { isSystemUnlocked } from './progression'
 import { PROTOCOL_UNLOCK_SECTOR, protocolMutes, protocolRank, tryCompleteProtocol } from './protocols'
 import { ECHO_UNLOCK_SECTOR, echoClears, echoHasNode, tryCompleteEcho, wavesForRun } from './echo'
@@ -65,14 +64,12 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(protocolMutes(s, 'network')).toBe(false)
   })
 
-  it('Cold Foundry mutes foundry combat bonuses', () => {
+  it('Cold Foundry protocol can still be entered without Foundry combat bonuses', () => {
     let s = createInitialState(0)
     s.meta.highestSectorEver = 52
     s.combat.docked = true
-    s.foundry.upgrades['fp-damage'] = 2
-    expect(foundryDamageMult(s)).toBeGreaterThan(1)
     s = enterProtocol(s, 'cold-foundry')
-    expect(foundryDamageMult(s)).toBe(1)
+    expect(s.protocols.activeId).toBe('cold-foundry')
     s = abandonProtocol(s)
     expect(s.protocols.activeId).toBeNull()
   })

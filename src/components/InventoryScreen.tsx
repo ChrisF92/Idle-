@@ -13,7 +13,6 @@ import {
 } from '../game/inventory'
 import { formatCompact } from '../game/format'
 import { canUpgradeRelic, RELIC_SOCKET_LABELS, shardEffectBlurb, getShard } from '../game/reliquary'
-import { foundryRecipeLevel } from '../game/foundry'
 import { SheetTabs } from './SheetTabs'
 import { EmptyState, FullSheet, ItemRow, Kicker, Section, SectionHeader, StatPair } from '../ui/primitives'
 import { CoreDetailSheet, FrameSheet } from './LoadoutSheets'
@@ -255,7 +254,7 @@ export function InventoryScreen({
           <>
             <div className="ui-context-bar">
               <StatPair label="Stock" value={formatCompact(material.stock)} />
-              <StatPair label="Foundry Mastery" value={foundryRecipeLevel(state, material.id) || '—'} />
+              <StatPair label="Foundry Mastery" value={material.mastery || '—'} />
             </div>
             <p className="ui-meta">Source · {material.source}</p>
             {material.consumedBy.length > 0 ? (

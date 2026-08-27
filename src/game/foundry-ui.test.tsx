@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FoundryTab } from '../components/tabs/FoundryTab'
 import { OverlayProvider } from '../ui/overlay'
@@ -20,7 +20,6 @@ function renderFoundry(
         onFabricateCore={vi.fn()}
         onStartFacility={vi.fn()}
         onStartJob={vi.fn()}
-        onStopFabrication={vi.fn()}
         onTrack={vi.fn()}
       />
     </OverlayProvider>,
@@ -73,5 +72,43 @@ describe('PR5 Foundry UI', () => {
     expect(cats.textContent).toMatch(/Workers/)
     expect(cats.textContent).toMatch(/Infrastructure/)
     expect(screen.getByText('Blueprint discovered ≠ item owned. Copy count is physical instances.')).toBeTruthy()
+  })
+
+  it('hides UNKNOWN Blueprint names and does not offer Track', () => {
+    const onTrack = vi.fn()
+    const state = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    render(
+      <OverlayProvider>
+        <FoundryTab
+          state={state}
+          requestedPane="blueprints"
+          onSetSlot={vi.fn()}
+          onFabricateCore={vi.fn()}
+          onStartFacility={vi.fn()}
+          onStartJob={vi.fn()}
+          onTrack={onTrack}
+        />
+      </OverlayProvider>,
+    )
+    expect(screen.queryByText('Rapid Aegis')).toBeNull()
+    expect(screen.queryByText('Bastion')).toBeNull()
+    expect(screen.queryByText('Nano Lathe')).toBeNull()
+    expect(screen.queryByText('Salvage Beacon')).toBeNull()
+    expect(screen.getAllByText('Unknown Core').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Unknown Frame').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getAllByText('Unknown Core')[0]!.closest('button')!)
+    expect(screen.queryByRole('button', { name: 'Track' })).toBeNull()
+    expect(onTrack).not.toHaveBeenCalled()
+    expect(screen.queryByText('Rapid Aegis')).toBeNull()
+    expect(screen.queryByText(/Shield-Lattice/)).toBeNull()
+  })
+
+  it('reveals Blueprint identity after the first fragment', () => {
+    const state = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    state.foundry.fragments['rapid-aegis'] = 1
+    renderFoundry(state, 'blueprints')
+    expect(screen.getByText('Rapid Aegis')).toBeTruthy()
+    expect(screen.getByText(/Rapid Aegis Schematic 1\/4/)).toBeTruthy()
   })
 })

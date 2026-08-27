@@ -17,10 +17,9 @@ describe('GDD system cadence', () => {
   })
 
   it('requires a mastery gate for Process; Echo never opens', () => {
-    const yard = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced - 1)
-    expect(isSystemUnlocked(yard, 'yard')).toBe(false)
+    const beforeAdvanced = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced - 1)
+    expect(isSystemUnlocked(beforeAdvanced, 'foundry')).toBe(true)
     const open = atCareerWave(createInitialState(1), ACT1_CADENCE.foundryAdvanced)
-    expect(isSystemUnlocked(open, 'yard')).toBe(false)
     expect(isSystemUnlocked(open, 'foundry')).toBe(true)
 
     const process = atCareerWave(createInitialState(1), ACT1_CADENCE.process)

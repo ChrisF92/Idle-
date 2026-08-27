@@ -4,8 +4,10 @@ import { ACT1_CADENCE } from '../../game/cadence'
 import { getModule } from '../../game/catalog'
 import {
   BLUEPRINTS,
+  blueprintDisplayName,
   blueprintFragmentCount,
   blueprintLifecycle,
+  canTrackBlueprint,
   getBlueprint,
   isBlueprintDiscovered,
   physicalProductOwned,
@@ -87,7 +89,6 @@ interface FoundryTabProps {
   onStartRelic?: (relicId: string) => void
   onStartFacility?: (id: FacilityId) => void
   onStartJob?: (kind: FabJobKind, jobId: string) => void
-  onStopFabrication?: (slotIndex: number) => void
   guideTarget?: string | null
   focusTarget?: string | null
   requestedPane?: FoundryPane | 'smelt' | 'prints' | 'build' | 'ranks' | 'fit' | null
@@ -182,7 +183,6 @@ export function FoundryTab({
   onTrack,
   onStartFacility,
   onStartJob,
-  onStopFabrication,
   guideTarget = null,
   focusTarget = null,
   requestedPane = null,
@@ -340,9 +340,6 @@ export function FoundryTab({
                           <span className="ui-progress" aria-hidden>
                             <span style={{ transform: `scaleX(${slot.progress})` }} />
                           </span>
-                          {onStopFabrication && !slot.paid ? (
-                            <button type="button" onClick={() => onStopFabrication(index)}>Stop</button>
-                          ) : null}
                         </>
                       ) : (
                         <span className="ui-meta">Idle</span>
@@ -492,6 +489,7 @@ export function FoundryTab({
                       const life = blueprintLifecycle(state, row.id)
                       const have = blueprintFragmentCount(state, row.id)
                       const tracked = state.foundry.trackedPrintId === row.id
+                      const title = blueprintDisplayName(state, row.id)
                       const meta =
                         life === 'fragmented'
                           ? `${row.schematicName} ${have}/${row.fragmentsRequired}`
@@ -505,7 +503,7 @@ export function FoundryTab({
                       return (
                         <ItemRow
                           key={row.id}
-                          title={row.name}
+                          title={title}
                           meta={meta}
                           value={tracked ? 'Tracked' : lifecycleLabel(life)}
                           onboarding={row.id === 'flak-array' ? 'onboarding.foundry.blueprint' : undefined}
@@ -581,7 +579,7 @@ export function FoundryTab({
 
       <BottomSheet
         open={Boolean(blueprint)}
-        title={blueprint?.name ?? 'Blueprint'}
+        title={blueprint ? blueprintDisplayName(state, blueprint.id) : 'Blueprint'}
         onClose={() => setBlueprintDetail(null)}
         overlayId="foundry-blueprint-detail"
       >
@@ -594,11 +592,15 @@ export function FoundryTab({
               const owned = physicalProductOwned(state, blueprint)
               const recipe = getFabricationRecipe(blueprint.productKind, blueprint.id)
               const module = getModule(blueprint.id)
+              const canTrack = Boolean(onTrack) && canTrackBlueprint(state, blueprint.id)
               return (
                 <>
                   <p>
                     <Badge>{lifecycleLabel(life)}</Badge>
                   </p>
+                  {life === 'unknown' ? (
+                    <p className="ui-meta">An unidentified schematic. First fragment reveals its identity.</p>
+                  ) : null}
                   {life === 'fragmented' ? (
                     <p>
                       {blueprint.schematicName} {have}/{blueprint.fragmentsRequired}
@@ -614,12 +616,8 @@ export function FoundryTab({
                         : 'Physical Frame owned.'}
                     </p>
                   ) : null}
-                  {life === 'unknown' ? (
-                    <p className="ui-meta">Source exists. Exact drop window is a simulator seed.</p>
-                  ) : (
-                    <p className="ui-meta">{sourceLine(blueprint.id)}</p>
-                  )}
-                  {module ? <p className="ui-meta">{module.description}</p> : null}
+                  {life !== 'unknown' ? <p className="ui-meta">{sourceLine(blueprint.id)}</p> : null}
+                  {module && life !== 'unknown' ? <p className="ui-meta">{module.description}</p> : null}
                   {recipe && (life === 'discovered' || owned) ? (
                     <button
                       type="button"
@@ -632,8 +630,13 @@ export function FoundryTab({
                       Fabricate
                     </button>
                   ) : null}
-                  {onTrack ? (
-                    <button type="button" onClick={() => onTrack(blueprint.id)}>
+                  {canTrack || state.foundry.trackedPrintId === blueprint.id ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onTrack?.(state.foundry.trackedPrintId === blueprint.id ? null : blueprint.id)
+                      }
+                    >
                       {state.foundry.trackedPrintId === blueprint.id ? 'Untrack' : 'Track'}
                     </button>
                   ) : null}

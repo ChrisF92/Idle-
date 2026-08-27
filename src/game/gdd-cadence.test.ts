@@ -54,9 +54,8 @@ describe('GDD Act 1 wave cadence', () => {
   it('has no standalone Yard door; infrastructure lives in Foundry', () => {
     const open = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
     expect(isSystemUnlocked(open, 'foundry')).toBe(true)
-    expect(isSystemUnlocked(open, 'yard')).toBe(false)
     const late = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
-    expect(isSystemUnlocked(late, 'yard')).toBe(false)
+    expect(isSystemUnlocked(late, 'foundry')).toBe(true)
   })
 
   it('stores system doors as requiresBestWave, not leftover sector bands', () => {

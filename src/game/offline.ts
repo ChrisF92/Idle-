@@ -23,7 +23,7 @@ import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
 import { tickNetwork } from './network'
-import { tickFoundry, foundryAshHeatMult, foundrySalvageOpsMult } from './foundry'
+import { tickFoundry, foundrySalvageOpsMult } from './foundry'
 import { tickFurnace } from './furnace'
 import { hiveResearchHeatFromAshMult, tickResearch } from './hiveResearch'
 import { processOfflineBonusMs } from './process'
@@ -124,7 +124,7 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
 
   tickNetwork(state, seconds)
   tickFoundry(state, seconds)
-  tickFurnace(state, seconds, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
+  tickFurnace(state, seconds, hiveResearchHeatFromAshMult(state))
   tickResearch(state, seconds)
 
   tickCoreTraining(state, seconds)

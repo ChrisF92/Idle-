@@ -438,22 +438,6 @@ export interface CombatIdSeq {
   package: number
 }
 
-export type YardGoodId = 'ore' | 'flux' | 'ingot'
-export type YardBuildingId = 'slag-heap' | 'flux-still' | 'ingot-press' | 'choir-sieve'
-export type YardArmId = 'damage' | 'shield' | 'salvage' | 'network'
-
-export interface YardCell {
-  buildingId: YardBuildingId | null
-}
-
-/** Leftover Yard save shape. Live construction is Foundry facilities. */
-export interface YardState {
-  cells: YardCell[]
-  goods: Record<YardGoodId, number>
-  pending: Partial<Record<string, number>>
-  armed: Partial<Record<string, number>>
-}
-
 export type ProtocolMute =
   | 'network'
   | 'foundry'
@@ -510,11 +494,6 @@ export interface ProcessCorePreset {
   name: string
   priority: ProcessCorePriority
   ratios: { weapon: number; shield: number; utility: number }
-}
-
-export interface ProcessYardLayout {
-  name: string
-  cells: YardCell[]
 }
 
 export type ProcessWhenKind =
@@ -651,12 +630,6 @@ export interface ProcessConfig {
     queue: HiveResearchBranch[]
     branchPriority: HiveResearchBranch[]
   }
-  yard: {
-    autoUpgrade: boolean
-    selectedArms: YardArmId[]
-    layouts: ProcessYardLayout[]
-    activeLayout: number
-  }
   sortie: {
     autoExtract: boolean
     extractHullPct: number
@@ -707,7 +680,6 @@ export type TabId =
   | 'foundry'
   | 'reliquary'
   | 'furnace'
-  | 'yard'
   | 'slag'
   | 'protocols'
   | 'echo'

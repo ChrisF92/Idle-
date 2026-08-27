@@ -51,7 +51,7 @@ export interface StationDef {
   description: string
   requiresResearch?: string
   /** System that must be unlocked before drones can be assigned. */
-  requiresSystem?: 'base' | 'network' | 'research' | 'ai' | 'prestige' | 'core' | 'yard' | 'foundry'
+  requiresSystem?: 'base' | 'network' | 'research' | 'ai' | 'prestige' | 'core' | 'foundry'
   /** Resource rates per assigned worker drone (per second). */
   rates: ResourceCost
   /** Scrap drained per assigned drone per second (Foundry-style). */

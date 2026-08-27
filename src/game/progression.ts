@@ -58,12 +58,6 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Spend Heat on temporary ship boosts.',
   },
   {
-    id: 'yard',
-    requiresBestWave: ACT1_CADENCE.yard,
-    label: 'Construction',
-    tip: 'Foundry construction. Fabricate facilities; bonuses apply as soon as the job finishes.',
-  },
-  {
     id: 'slag',
     requiresBestWave: 0,
     label: 'Matter',
@@ -682,9 +676,6 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'slag') {
     return (state.prestige.prestigeCount ?? 0) >= 1 || Object.keys(state.prestige.matterShop ?? {}).length > 0
   }
-  if (systemId === 'yard') {
-    return false
-  }
   if (systemId === 'capital' || systemId === 'specialists' || systemId === 'tasks') {
     return false
   }
@@ -744,9 +735,6 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   }
   if (systemId === 'slag') {
     return 'Rebuild once'
-  }
-  if (systemId === 'yard') {
-    return `Reach Wave ${ACT1_CADENCE.foundryAdvanced}`
   }
   if (systemId === 'capital') {
     return `Reach Wave ${ACT1_CADENCE.capital} · finish the Task List`

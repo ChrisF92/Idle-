@@ -43,7 +43,7 @@ import {
   normalizeSpend,
 } from '../../game/processProfiles'
 import { processPointSourcesByGroup } from '../../game/processPoints'
-import { FOUNDRY_RECIPES, foundryQueueCap } from '../../game/foundry'
+import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { hiveResearchQueueCap, hiveResearchStartableBranches, HIVE_RESEARCH_BRANCHES } from '../../game/hiveResearch'
 import { FURNACE_CHANNELS, FURNACE_PRESETS, furnacePriority } from '../../game/furnace'
 import { WORKER_JOB_IDS, workerJobLabel } from '../../game/workers'
@@ -306,7 +306,7 @@ function NodeConfig({
     )
   }
   if (nodeId === 'foundry-queue') {
-    const cap = foundryQueueCap(state)
+    const cap = 3
     const queue = [...cfg.foundry.queue]
     while (queue.length < cap) queue.push('' as FoundryRecipeId)
     return (

@@ -59,11 +59,9 @@ import {
   foundryHasMaterialChain,
   foundryMaterialCount,
   foundryRecipeChainLine,
-  foundryRecipeGateLine,
-  foundryRecipeLevel,
   getFoundryRecipe,
   isFoundryRecipeUnlocked,
-  scaledFoundryCost,
+  materialMasteryRank,
 } from './foundry'
 import {
   formatResearchDuration,
@@ -302,9 +300,9 @@ export function inspectFoundryRecipe(state: GameState, id: FoundryRecipeId): Ins
   const def = getFoundryRecipe(id)
   if (!def) return null
   const unlocked = isFoundryRecipeUnlocked(state, id)
-  const rank = foundryRecipeLevel(state, id)
+  const rank = materialMasteryRank(state, id)
   const stock = foundryMaterialCount(state, id)
-  const cost = scaledFoundryCost(state, id)
+  const cost = def.costs
   const time = foundryCraftTime(state, id)
   const stats: InspectStat[] = [
     { label: 'Status', value: unlocked ? `M${rank}/M5` : 'Locked' },
@@ -317,7 +315,7 @@ export function inspectFoundryRecipe(state: GameState, id: FoundryRecipeId): Ins
       { label: 'Output', value: '1' },
     )
   } else {
-    stats.push({ label: 'Gate', value: foundryRecipeGateLine(def) })
+    stats.push({ label: 'Gate', value: foundryRecipeChainLine(def) })
   }
   return {
     title: def.name,

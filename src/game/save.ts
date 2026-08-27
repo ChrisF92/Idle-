@@ -4,6 +4,7 @@ import type {
   CoreAttrId,
   CoreState,
   EchoState,
+  FabJobKind,
   FurnaceState,
   GameState,
   HiveResearchState,
@@ -29,8 +30,14 @@ import {
 } from './signalCores'
 import { createEmptyNetworkState } from './network'
 import { createEmptyFoundryState } from './foundry'
-import { FOUNDRY_INFRASTRUCTURE_IDS, isFoundryMaterialId } from './foundryCatalogue'
-import { starterBlueprintIds } from './blueprints'
+import {
+  FOUNDRY_INFRASTRUCTURE_IDS,
+  getFabricationRecipe,
+  getFoundryRecipe,
+  isFoundryCapabilityId,
+  isFoundryMaterialId,
+} from './foundryCatalogue'
+import { canTrackBlueprint, isKnownBlueprintId, starterBlueprintIds } from './blueprints'
 import { createEmptyReliquaryState, hydrateCoreFits } from './reliquary'
 import { finalizeFurnaceMigration, hydrateFurnaceState } from './furnace'
 import { createEmptyHiveResearchState, HIVE_RESEARCH_BRANCHES } from './hiveResearch'
@@ -369,6 +376,10 @@ function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
   return empty
 }
 
+function idleFabSlot(): GameState['foundry']['fabrication'][number] {
+  return { kind: null, jobId: null, progress: 0, paid: false }
+}
+
 function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['foundry'] {
   const empty = createEmptyFoundryState()
   if (!raw || typeof raw !== 'object') return empty
@@ -389,21 +400,32 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
     }
   }
   const slots = Array.isArray(raw.slots)
-    ? raw.slots.map((s) => ({
-        recipeId: s?.recipeId && isFoundryMaterialId(s.recipeId) ? s.recipeId : null,
-        progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
-        paid: s?.paid === true,
-      }))
+    ? raw.slots.map((s) => {
+        const recipeId =
+          s?.recipeId && isFoundryMaterialId(s.recipeId) && getFoundryRecipe(s.recipeId) ? s.recipeId : null
+        if (!recipeId) return { recipeId: null, progress: 0, paid: false }
+        return {
+          recipeId,
+          progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
+          paid: s?.paid === true,
+        }
+      })
     : empty.slots
-  const kindOk = (kind: unknown): kind is GameState['foundry']['fabrication'][number]['kind'] =>
+  const kindOk = (kind: unknown): kind is FabJobKind =>
     kind === 'core' || kind === 'frame' || kind === 'relic' || kind === 'worker' || kind === 'facility'
   const fabrication = Array.isArray(raw.fabrication)
-    ? raw.fabrication.map((s) => ({
-        kind: kindOk(s?.kind) ? s.kind : null,
-        jobId: typeof s?.jobId === 'string' && s.jobId.length > 0 ? s.jobId : null,
-        progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
-        paid: s?.paid === true,
-      }))
+    ? raw.fabrication.map((s) => {
+        const kind = s?.kind
+        const jobId = s?.jobId
+        if (!kindOk(kind) || typeof jobId !== 'string' || jobId.length === 0) return idleFabSlot()
+        if (!getFabricationRecipe(kind, jobId)) return idleFabSlot()
+        return {
+          kind,
+          jobId,
+          progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
+          paid: s?.paid === true,
+        }
+      })
     : empty.fabrication
   const facilities = (raw.facilities ?? []).filter((id): id is (typeof FOUNDRY_INFRASTRUCTURE_IDS)[number] =>
     (FOUNDRY_INFRASTRUCTURE_IDS as readonly string[]).includes(id),
@@ -411,17 +433,21 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
   const fragments: Record<string, number> = {}
   if (raw.fragments && typeof raw.fragments === 'object') {
     for (const [id, n] of Object.entries(raw.fragments)) {
+      if (!isKnownBlueprintId(id)) continue
       const v = Math.max(0, Math.floor(Number(n) || 0))
       if (v > 0) fragments[id] = v
     }
   }
   const discovered = new Set<string>([
     ...starterBlueprintIds(),
-    ...(Array.isArray(raw.discovered) ? raw.discovered.filter((id) => typeof id === 'string') : []),
+    ...(Array.isArray(raw.discovered) ? raw.discovered.filter((id) => isKnownBlueprintId(id)) : []),
   ])
   const capabilities = Array.isArray(raw.capabilities)
-    ? raw.capabilities.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ? raw.capabilities.filter((id): id is string => typeof id === 'string' && isFoundryCapabilityId(id))
     : []
+  const trackedRaw = typeof raw.trackedPrintId === 'string' && isKnownBlueprintId(raw.trackedPrintId)
+    ? raw.trackedPrintId
+    : null
   return {
     materials,
     masteryXp,
@@ -431,10 +457,7 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
     fragments,
     discovered: [...discovered],
     capabilities,
-    trackedPrintId:
-      typeof raw.trackedPrintId === 'string' && raw.trackedPrintId.length > 0
-        ? raw.trackedPrintId
-        : null,
+    trackedPrintId: trackedRaw,
   }
 }
 
@@ -770,6 +793,9 @@ function migrate(raw: unknown): GameState | null {
       playtest: hydratePlaytest(state.playtest),
     }
     sanitizeCoreFits(hydrated)
+    if (hydrated.foundry.trackedPrintId && !canTrackBlueprint(hydrated, hydrated.foundry.trackedPrintId)) {
+      hydrated.foundry.trackedPrintId = null
+    }
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingRegistry(hydrated)

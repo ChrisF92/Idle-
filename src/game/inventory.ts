@@ -7,7 +7,7 @@
 
 import { SHIP_FRAMES, SHIP_MODULES, getFrame, getModule, moduleMasteryRank, type ModuleRole } from './catalog'
 import { moduleCopyCount } from './coreProgression'
-import { FOUNDRY_RECIPES, foundryMaterialCount, foundryRecipeLevel, getFoundryRecipe } from './foundry'
+import { FOUNDRY_RECIPES, foundryMaterialCount, getFoundryRecipe, isFoundryMaterialId, materialMasteryRank } from './foundry'
 import {
   RELIC_SOCKET_LABELS,
   SHARDS,
@@ -206,7 +206,7 @@ export function inventoryMaterials(state: GameState): MaterialInventoryRow[] {
   for (const id of ids) {
     const def = getFoundryRecipe(id)
     const stock = foundryMaterialCount(state, id)
-    const mastery = foundryRecipeLevel(state, id)
+    const mastery = isFoundryMaterialId(id) ? materialMasteryRank(state, id) : 0
     if (stock <= 0 && mastery <= 0 && !def) continue
     const consumedBy = FOUNDRY_RECIPES.filter((recipe) => (recipe.costs.materials?.[id as never] ?? 0) > 0).map(
       (recipe) => recipe.name,

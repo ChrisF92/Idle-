@@ -14,6 +14,7 @@ import {
   type FoundryCapabilityId,
 } from './foundryCatalogue'
 import { addCoreInstance } from './coreInstances'
+import { careerBestWave } from './waves'
 
 export type BlueprintLifecycle = 'unknown' | 'fragmented' | 'discovered' | 'owned'
 
@@ -155,7 +156,7 @@ export const BLUEPRINTS: BlueprintDef[] = [
         label: 'Early Material Mastery (rank pending design)',
       },
     ],
-    fragmentEligibleFromWave: foundryWave(),
+    fragmentEligibleFromWave: Infinity,
   },
   {
     id: 'rapid-aegis',
@@ -171,7 +172,7 @@ export const BLUEPRINTS: BlueprintDef[] = [
         label: 'Shield-Lattice Material Mastery (rank pending design)',
       },
     ],
-    fragmentEligibleFromWave: foundryWave(),
+    fragmentEligibleFromWave: Infinity,
   },
   {
     id: 'nano-lathe',
@@ -186,7 +187,7 @@ export const BLUEPRINTS: BlueprintDef[] = [
         label: 'Advanced Foundry (capability pending design)',
       },
     ],
-    fragmentEligibleFromWave: foundryWave(),
+    fragmentEligibleFromWave: Infinity,
   },
   {
     id: 'ablative-mesh',
@@ -240,7 +241,7 @@ export const BLUEPRINTS: BlueprintDef[] = [
         label: 'Tempered Alloy mastery (rank pending design)',
       },
     ],
-    fragmentEligibleFromWave: foundryWave(),
+    fragmentEligibleFromWave: Infinity,
   },
   {
     id: 'reactor-frame',
@@ -294,6 +295,22 @@ export function getBlueprint(id: string): BlueprintDef | undefined {
   return BLUEPRINTS.find((row) => row.id === id)
 }
 
+export function isKnownBlueprintId(id: string): boolean {
+  return Boolean(getBlueprint(id))
+}
+
+export function unknownBlueprintLabel(def: Pick<BlueprintDef, 'productKind'>): string {
+  if (def.productKind === 'frame') return 'Unknown Frame'
+  if (def.productKind === 'relic') return 'Unknown Relic'
+  return 'Unknown Core'
+}
+
+export function blueprintDisplayName(state: GameState, id: string): string {
+  const def = getBlueprint(id)
+  if (!def) return 'Unknown'
+  return blueprintLifecycle(state, id) === 'unknown' ? unknownBlueprintLabel(def) : def.name
+}
+
 export function starterBlueprintIds(): string[] {
   return BLUEPRINTS.filter((row) => row.sources.some((source) => source.kind === 'starter')).map((row) => row.id)
 }
@@ -345,6 +362,7 @@ export function discoverBlueprint(state: GameState, id: string, log?: string): b
   if (!def) return false
   if (isBlueprintDiscovered(state, id)) return false
   state.foundry.discovered = [...state.foundry.discovered, id]
+  if (state.foundry.trackedPrintId === id) state.foundry.trackedPrintId = null
   if (def.productKind === 'core') noteBlueprintTypeKnowledge(state, id)
   if (log) state.combat.log = [log, ...state.combat.log].slice(0, 40)
   return true
@@ -393,6 +411,20 @@ export function canDropBlueprintFragment(
   if (isBlueprintDiscovered(state, id) || physicalProductOwned(state, def)) return false
   if (!Number.isFinite(def.fragmentEligibleFromWave)) return false
   return rewardWave >= def.fragmentEligibleFromWave
+}
+
+export function hasActiveFragmentPath(state: GameState, id: string): boolean {
+  return canDropBlueprintFragment(state, id, careerBestWave(state))
+}
+
+/**
+ * Tracking only helps while fragments can still drop for this Blueprint.
+ * UNKNOWN / DISCOVERED / OWNED and dormant pending-source routes cannot be tracked.
+ */
+export function canTrackBlueprint(state: GameState, id: string | null | undefined): boolean {
+  if (!id) return false
+  if (blueprintLifecycle(state, id) !== 'fragmented') return false
+  return hasActiveFragmentPath(state, id)
 }
 
 export function eligibleFragmentBlueprints(state: GameState, rewardWave: number): BlueprintDef[] {

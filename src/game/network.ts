@@ -16,7 +16,6 @@ import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 import { careerBestWave } from './progression'
-import { foundryNetworkFillMult } from './foundryBonuses'
 import { WORKER_JOB_IDS } from './workers'
 
 export type NetworkBarLayer = 'primary' | 'relay' | 'lattice'
@@ -541,7 +540,6 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       echoNetworkMult(state) *
       processNetworkSpeedMult(state) *
       furnaceNetworkMult(state) *
-      foundryNetworkFillMult(state) *
       activity) /
     cost
   )

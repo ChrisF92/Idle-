@@ -44,9 +44,9 @@ import {
   FOUNDRY_FACILITIES,
   canStartFabrication,
   foundryFacilityCommitted,
-  foundryRecipeLevel,
   foundrySlotCount,
   isFoundryRecipeUnlocked,
+  materialMasteryRank,
   startFabrication,
 } from '../foundry'
 import {
@@ -314,11 +314,11 @@ function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
     if (filOn) return 'conductive-filament'
     return temperOn ? 'tempered-alloy' : null
   }
-  const belowSoft = unlocked.filter((id) => foundryRecipeLevel(state, id) < 3)
-  const belowHard = unlocked.filter((id) => foundryRecipeLevel(state, id) < 5)
+  const belowSoft = unlocked.filter((id) => materialMasteryRank(state, id) < 3)
+  const belowHard = unlocked.filter((id) => materialMasteryRank(state, id) < 5)
   const pool = belowSoft.length ? belowSoft : belowHard
   if (!pool.length) return null
-  pool.sort((a, b) => foundryRecipeLevel(state, a) - foundryRecipeLevel(state, b))
+  pool.sort((a, b) => materialMasteryRank(state, a) - materialMasteryRank(state, b))
   return pool[0]!
 }
 

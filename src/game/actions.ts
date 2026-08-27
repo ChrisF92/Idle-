@@ -50,14 +50,11 @@ import {
   wipeNetworkBars,
 } from './network'
 import {
-  buyFoundryUpgrade,
   canStartFabrication,
-  equipFoundryModule,
   persistFoundryOnRebuild,
   setFoundrySlot,
+  setTrackedPrint,
   startFabrication,
-  stopFabrication,
-  unequipFoundryModule,
 } from './foundry'
 import { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, canUpgradeRelic } from './reliquary'
 import {
@@ -77,7 +74,6 @@ import {
   canEditTargetingNow,
 } from './coreTargeting'
 import { isTargetingCapableCoreModule, targetingProfileFor } from './targetingProfiles'
-import { foundryAshHeatMult } from './foundryBonuses'
 import { isWorkerJob, workerJobCap } from './workers'
 import {
   canEnterProtocol,
@@ -174,12 +170,9 @@ export {
 } from './signalCores'
 
 export {
-  buyFoundryUpgrade,
-  equipFoundryModule,
   setFoundrySlot,
+  setTrackedPrint,
   startFabrication,
-  stopFabrication,
-  unequipFoundryModule,
 }
 
 export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, setResearchFocus, startResearch }
@@ -192,7 +185,7 @@ export function upgradeRelic(state: GameState, relicId: string): GameState {
 export { buyFurnaceUpgrade, setFurnaceChannel, setFurnacePriority, applyFurnacePreset }
 
 export function convertAshToHeat(state: GameState): GameState {
-  return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
+  return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state))
 }
 
 export function setNumberNotation(
@@ -725,43 +718,6 @@ export function assembleBlueprint(state: GameState, moduleId: string): GameState
   const check = canAssembleBlueprint(state, moduleId)
   if (!check.ok) return state
   return startFabrication(state, 'core', moduleId)
-}
-
-export function setTrackedPrint(state: GameState, moduleId: string | null): GameState {
-  const nextId = moduleId && state.foundry.trackedPrintId === moduleId ? null : moduleId
-  if ((state.foundry.trackedPrintId ?? null) === (nextId ?? null)) return state
-  return {
-    ...state,
-    foundry: { ...state.foundry, trackedPrintId: nextId },
-  }
-}
-
-export function startFabProject(state: GameState, moduleId: string): GameState {
-  return assembleBlueprint(state, moduleId)
-}
-
-export function launchFabProject(state: GameState, moduleId: string): GameState {
-  return assembleBlueprint(state, moduleId)
-}
-
-export function clearFabProject(state: GameState): GameState {
-  return state
-}
-
-export function depositFabPart(state: GameState, _partType: string, _qty = 1): GameState {
-  return state
-}
-
-export function withdrawFabPart(state: GameState, _partType: string, _qty = 1): GameState {
-  return state
-}
-
-export function sellPart(state: GameState, _partIdStr: string, _qty = 1): GameState {
-  return state
-}
-
-export function investPartMastery(state: GameState, _moduleId: string): GameState {
-  return state
 }
 
 export function fitModule(state: GameState, moduleId: string, coreInstanceId?: string): GameState {
@@ -1487,41 +1443,3 @@ export function applyNetworkPreset(state: GameState, preset: ProcessNetworkPrese
   return optimiseNetwork(next)
 }
 
-export function pickFoundryUpgradeId(_state: GameState): string | null {
-  return null
-}
-
-export function buyMaxFoundryUpgrades(state: GameState): GameState {
-  if (!hasProcess(state, 'foundry-buy-max') && !hasProcess(state, 'foundry-auto')) return state
-  let next = state
-  let guard = 0
-  while (guard++ < 12) {
-    const id = pickFoundryUpgradeId(next)
-    if (!id) break
-    const after = buyFoundryUpgrade(next, id)
-    if (after === next) break
-    next = after
-  }
-  return next
-}
-
-export function buyMaxYardArms(state: GameState): GameState {
-  return state
-}
-
-export function saveYardLayout(state: GameState, _name = 'Layout'): GameState {
-  return state
-}
-
-export function loadYardLayout(state: GameState, _index: number): GameState {
-  return state
-}
-
-/** @deprecated buildings replaced by worker stations */
-export function upgradeBuilding(state: GameState, _buildingId: string): GameState {
-  return state
-}
-
-export function isBuildingUnlocked(_state: GameState, _buildingId: string): boolean {
-  return false
-}

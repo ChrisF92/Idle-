@@ -27,6 +27,7 @@ import {
 import {
   blueprintFragmentCount,
   canDropBlueprintFragment,
+  canTrackBlueprint,
   eligibleFragmentBlueprints,
   getBlueprint,
   grantBlueprintFragment,
@@ -114,7 +115,6 @@ import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { combinedCoreMods } from './coreProgression'
 import { grantReliquaryKillLoot, reliquaryResearchXpMult, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
-import { foundrySalvageMult, foundryPartDropMult, foundryShardDropBonus } from './foundry'
 import {
   grantHiveResearchKillXp,
   hiveResearchSalvageMult,
@@ -1850,13 +1850,15 @@ export function rollEnemyPartDrop(
   if (pool.length === 0) return []
 
   const trackedId = state.foundry?.trackedPrintId ?? null
-  const tracked = trackedId && pool.some((row) => row.id === trackedId) ? trackedId : null
+  const tracked =
+    trackedId && canTrackBlueprint(state, trackedId) && pool.some((row) => row.id === trackedId)
+      ? trackedId
+      : null
 
   let chance =
     FRAGMENT_DROP_CHANCE *
     Math.max(0, Math.min(1, rewardWeight)) *
     fragmentChanceMult(state) *
-    foundryPartDropMult(state) *
     logisticsDropMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
     (1 + challengeShopDropBonus(state.prestige.shop))
@@ -1924,7 +1926,6 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   const salvageMult =
     reliquarySalvageMult(state) *
     hiveResearchSalvageMult(state) *
-    foundrySalvageMult(state) *
     furnaceSalvageMult(state) *
     echoSalvageMult(state) *
     specialistSalvageMult(state) *
@@ -1948,7 +1949,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
       state,
       unit.isBoss,
       rng,
-      hiveResearchShardDropBonus(state) + foundryShardDropBonus(state),
+      hiveResearchShardDropBonus(state),
     )
     grantFurnaceKillLoot(state, unit.isBoss)
   }

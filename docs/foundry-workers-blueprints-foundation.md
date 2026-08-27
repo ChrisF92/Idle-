@@ -51,7 +51,7 @@ Schematic fragments are Blueprint-specific (`Heavy Lance Schematic 2/5`). Requir
 - Salvage Beacon / Rapid Aegis / Nano Lathe: 4
 - Ablative Mesh / Choir Tap / Frames (non-starter): 5
 
-Fragment drop seed: base **0.025**, boss ×**2.2**. Eligibility `max(W50, sourceWave − 40)`. Completed Blueprints do not drop.
+Fragment drop seed: base **0.025**, boss ×**2.2**. Wave-secure eligibility `max(W50, sourceWave − 40)`. Pending Material-Mastery / advanced-Foundry sources keep metadata but leave both deterministic completion **and** fragment eligibility dormant (`fragmentEligibleFromWave = Infinity`) until their exact threshold is authored. Completed Blueprints do not drop.
 
 Guaranteed Wave-secure sources (boss-secure event, not `careerBestWave` backfill):
 
@@ -73,14 +73,14 @@ Exactly:
 1. `processing-line` — Processing Line — +1 Processing slot (max 2)
 2. `fabrication-bay` — Fabrication Bay — +1 Fabrication slot (max 2)
 3. `worker-fabricator` — Worker Fabricator — enables Worker jobs (max 1)
-4. `research-annex` — Research Annex — Research speed ×1.25 seed (PR9)
+4. `research-annex` — Research Annex — facility exists; live Research speed effect is unauthored (PR9). Seed ×1.25 is stored, not applied to legacy Research.
 5. `recovery-storage` — Recovery Storage — Salvage-ops Scrap ×1.25 seed (not a storage cap)
 
 Times: 8 / 10 / 12 / 15 / 8 minutes. Matter Worker Racks is **not** a Foundry facility.
 
 ## Workers
 
-- Ownership: `base.workerDrones`. Capacity: `6 + Matter Racks + hiveResearch droneCapBonus`.
+- Ownership: `base.workerDrones`. Capacity: `6 + Matter Worker Racks + extraWorkerCapacityFromResearch()` (PR9 stub, currently 0). Legacy `hiveResearchTree` `droneCapBonus` is not consumed.
 - Worker Racks: +1 capacity, does not fabricate.
 - Worker Fabricator job: 8 Recovered Stock + 4 Conductive Filament + 20 Scrap / 90s.
 - Assignments: `assigned ≤ owned`, not capacity. Idle is allowed.
@@ -105,14 +105,15 @@ Reset: Scrap, Ash, Core Levels, cycle Workshop, assignments.
 - PR6: `kind: 'relic'` recipes empty
 - PR7: family recovery provider (`swarm`/`armored` wired; Veil/Siege/Choir/Apex keys reserved; no ethereal/divine/titan remap)
 - PR8: Choir Tap / Furnace sources metadata only; Ash consumed when recipes ask
-- PR9: Research Annex, hiveResearch slot/cap bonuses, Process automation APIs; no Processing Repeat
+- PR9: Research Annex live effect, final Research Worker capacity via `extraWorkerCapacityFromResearch`, Processing Repeat / stock targets / dependency processing / Worker presets / fabrication automation using the manual PR5 APIs. Do not drive Foundry from leftover Process config.
 - PR10: Challenge Blueprint sources metadata only
 - PR11: every numeric seed in `src/game/foundrySeeds.ts` and fabrication tables
 
 ## Design gaps left explicit
 
-- Exact M-level for Salvage Beacon, Rapid Aegis, Bastion, Nano Lathe
+- Exact M-level for Salvage Beacon, Rapid Aegis, Bastion, Nano Lathe — sources stay metadata-only; fragments stay dormant
 - Exact Crown Matrix deterministic inputs
 - What grants `advanced-processing` / `advanced-foundry`
+- Research Annex live effect (not applied to legacy hiveResearch)
 - Exact Processing ratios/times (seeds used)
 - Assignments reset on Rebuild (not listed as persist in canonical)

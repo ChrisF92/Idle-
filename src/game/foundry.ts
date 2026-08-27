@@ -9,7 +9,6 @@ import type {
   FoundryState,
   GameState,
 } from './types'
-import { hiveResearchFoundrySlots } from './hiveResearch'
 import { foundryThroughputMult } from './matter'
 import { noteSystemAction, recordPlaytest } from './playtest'
 import { ACT1_CADENCE } from './cadence'
@@ -18,6 +17,7 @@ import { grantUnlockedFrame } from './catalog'
 import { addCoreInstance } from './coreInstances'
 import { ownedWorkers, workerCapacity, workerJobContribution } from './workers'
 import {
+  canTrackBlueprint,
   discoverBlueprint,
   getBlueprint,
   isBlueprintDiscovered,
@@ -42,6 +42,7 @@ import {
   getFoundryRecipe,
   grantFoundryCapability,
   hasFoundryCapability,
+  isFoundryCapabilityId,
   isFoundryMaterialId,
   scaleFabricationCost,
   type FoundryCapabilityId,
@@ -52,7 +53,6 @@ import {
   MATERIAL_MASTERY_MAX_RANK,
   MATERIAL_MASTERY_XP_CUMULATIVE,
   MATERIAL_MASTERY_XP_PER_CYCLE,
-  RESEARCH_ANNEX_SPEED_MULT,
   RECOVERY_STORAGE_SALVAGE_OPS_MULT,
   WORKER_SPEED_PER_CONTRIBUTION,
 } from './foundrySeeds'
@@ -72,6 +72,7 @@ export {
   getFabricationRecipe,
   grantFoundryCapability,
   hasFoundryCapability,
+  isFoundryCapabilityId,
   isFoundryMaterialId,
   scaleFabricationCost,
   type FoundryCapabilityId,
@@ -133,7 +134,7 @@ export function hasFacility(state: GameState, id: FacilityId): boolean {
 }
 
 export function foundrySlotCount(state: GameState): number {
-  const extra = foundryOwnedCount(state, 'processing-line') + hiveResearchFoundrySlots(state)
+  const extra = foundryOwnedCount(state, 'processing-line')
   return Math.min(FOUNDRY_MAX_SLOTS, FOUNDRY_STARTING_SLOTS + extra)
 }
 
@@ -224,7 +225,7 @@ export function foundryCraftTime(_state: GameState, id: FoundryMaterialId): numb
 }
 
 export function fabricationJobTime(_state: GameState, kind: FabJobKind, jobId: string): number {
-  return getFabricationRecipe(kind, jobId)?.craftTime ?? 900
+  return getFabricationRecipe(kind, jobId)?.craftTime ?? 0
 }
 
 function canPayCost(state: GameState, cost: FoundryCost): boolean {
@@ -308,12 +309,15 @@ function coreCopies(state: GameState, moduleId: string): number {
 
 function completeFabrication(state: GameState, slot: FabricationSlot): void {
   if (!slot.kind || !slot.jobId) return
+  const recipe = getFabricationRecipe(slot.kind, slot.jobId)
+  if (!recipe) return
   if (slot.kind === 'facility') {
     const def = getFacility(slot.jobId)
+    if (!def) return
     state.foundry.facilities = [...(state.foundry.facilities ?? []), slot.jobId as FacilityId]
     ensureSlotCount(state)
-    pushFoundryLog(state, `${def?.name ?? 'Facility'} online.`)
-    recordPlaytest(state, 'foundry_craft', { n: def?.name ?? slot.jobId, firstKey: `facility:${slot.jobId}` })
+    pushFoundryLog(state, `${def.name} online.`)
+    recordPlaytest(state, 'foundry_craft', { n: def.name, firstKey: `facility:${slot.jobId}` })
     noteSystemAction(state, 'foundry')
     return
   }
@@ -340,9 +344,6 @@ function completeFabrication(state: GameState, slot: FabricationSlot): void {
     }
     noteSystemAction(state, 'foundry')
     return
-  }
-  if (slot.kind === 'relic') {
-    pushFoundryLog(state, 'Relic fabrication is reserved for PR6.')
   }
 }
 
@@ -371,6 +372,10 @@ function tickProcessing(state: GameState, dtSeconds: number): void {
 function tickFabrication(state: GameState, dtSeconds: number): void {
   for (const slot of state.foundry.fabrication) {
     if (!slot.kind || !slot.jobId || !slot.paid) continue
+    if (!getFabricationRecipe(slot.kind, slot.jobId)) {
+      clearFabSlot(slot)
+      continue
+    }
     const time = fabricationJobTime(state, slot.kind, slot.jobId)
     if (time <= 0) continue
     const speed = foundryFabricationSpeed(state, slot.kind)
@@ -384,6 +389,10 @@ function tickFabrication(state: GameState, dtSeconds: number): void {
 export function tickFoundry(state: GameState, dtSeconds: number): void {
   if (!state.foundry) state.foundry = createEmptyFoundryState()
   syncOwnedBlueprintsFromPhysical(state)
+  state.foundry.capabilities = (state.foundry.capabilities ?? []).filter(isFoundryCapabilityId)
+  if (state.foundry.trackedPrintId && !canTrackBlueprint(state, state.foundry.trackedPrintId)) {
+    state.foundry.trackedPrintId = null
+  }
   ensureSlotCount(state)
   tickProcessing(state, dtSeconds)
   tickFabrication(state, dtSeconds)
@@ -514,16 +523,6 @@ export function startFabrication(state: GameState, kind: FabJobKind, jobId: stri
   return next
 }
 
-export function stopFabrication(state: GameState, slotIndex: number): GameState {
-  const slot = state.foundry.fabrication[slotIndex]
-  if (!slot?.kind || slot.paid) return state
-  const next = structuredClone(state)
-  const copy = next.foundry.fabrication[slotIndex]
-  if (!copy) return state
-  clearFabSlot(copy)
-  return next
-}
-
 export function fabricationJobLabel(_state: GameState, slot: FabricationSlot): string {
   if (!slot.kind || !slot.jobId) return 'Idle'
   if (slot.kind === 'worker') return 'Worker Drone'
@@ -545,79 +544,32 @@ export function foundryHasMaterialChain(recipe: FoundryRecipeDef): boolean {
   return Object.keys(recipe.costs.materials ?? {}).length > 0
 }
 
-export function foundryResearchSpeedMult(state: GameState): number {
-  return hasFacility(state, 'research-annex') ? RESEARCH_ANNEX_SPEED_MULT : 1
+/**
+ * PR9 extension: Research Annex live effect is unauthored.
+ * Do not apply this to legacy hiveResearch in PR5.
+ */
+export function researchAnnexSpeedMult(_state: GameState): number {
+  return 1
 }
 
 export function foundrySalvageOpsMult(state: GameState): number {
   return hasFacility(state, 'recovery-storage') ? RECOVERY_STORAGE_SALVAGE_OPS_MULT : 1
 }
 
-export function foundryResearchXpMult(state: GameState): number {
-  return foundryResearchSpeedMult(state)
-}
-
-export function foundryDamageMult(_state: GameState): number {
-  return 1
-}
-
-export function foundryShieldMult(_state: GameState): number {
-  return 1
-}
-
-export function foundryFitSlots(_state: GameState): number {
-  return 0
-}
-
-export function foundryShieldFlat(_state: GameState): number {
-  return 0
-}
-
-export function foundrySalvageMult(_state: GameState): number {
-  return 1
-}
-
-export function foundryXpMult(_state: GameState): number {
-  return 1
-}
-
-export function foundryAshHeatMult(_state: GameState): number {
-  return 1
-}
-
-export function foundryPartDropMult(_state: GameState): number {
-  return 1
-}
-
-export function foundryShardDropBonus(_state: GameState): number {
-  return 1
-}
-
-export function foundryDroneCapBonus(_state: GameState): number {
-  return 0
-}
-
-export function foundryQueueCap(_state: GameState): number {
-  return 3
-}
-
 export function setTrackedPrint(state: GameState, moduleId: string | null): GameState {
-  const nextId = moduleId && state.foundry.trackedPrintId === moduleId ? null : moduleId
-  if ((state.foundry.trackedPrintId ?? null) === (nextId ?? null)) return state
+  const current = state.foundry.trackedPrintId ?? null
+  let nextId: string | null
+  if (moduleId == null) {
+    nextId = null
+  } else if (current === moduleId) {
+    nextId = null
+  } else if (!canTrackBlueprint(state, moduleId)) {
+    return state
+  } else {
+    nextId = moduleId
+  }
+  if (current === nextId) return state
   return { ...state, foundry: { ...state.foundry, trackedPrintId: nextId } }
-}
-
-/** Jobs complete immediately when the timer finishes. */
-export function claimFoundryCompletions(_state: GameState): void {}
-
-export function armPendingFacilities(_state: GameState): void {}
-
-export function scaledFoundryCost(_state: GameState, id: FoundryMaterialId): FoundryCost {
-  return getFoundryRecipe(id)?.costs ?? {}
-}
-
-export function foundryCraftOutput(_state: GameState, _id: string, _roll = 1): number {
-  return 1
 }
 
 export function foundryHasMasteryMilestone(state: GameState): boolean {
@@ -628,59 +580,3 @@ export function foundryHasChainRecipe(state: GameState): boolean {
   return FOUNDRY_RECIPES.some((r) => isFoundryRecipeUnlocked(state, r.id) && foundryHasMaterialChain(r))
 }
 
-export function buyFoundryUpgrade(state: GameState, _id: string): GameState {
-  return state
-}
-
-export function equipFoundryModule(state: GameState, _moduleId: string): GameState {
-  return state
-}
-
-export function unequipFoundryModule(state: GameState, _moduleId: string): GameState {
-  return state
-}
-
-export function foundryRecipeLevel(state: GameState, id: string): number {
-  return isFoundryMaterialId(id) ? materialMasteryRank(state, id) : 0
-}
-
-export function craftsForNextLevel(_level: number, _state?: GameState): number {
-  return MATERIAL_MASTERY_XP_CUMULATIVE[1] ?? 4
-}
-
-export function foundryMasteryEffect(_step: unknown): string {
-  return 'Material Mastery rank'
-}
-
-export function foundryMasteryStepsFor(_def: FoundryRecipeDef, _state?: GameState): Array<{ at: number; kind: string; blurb: string }> {
-  return MATERIAL_MASTERY_XP_CUMULATIVE.map((at, rank) => ({
-    at,
-    kind: 'rank',
-    blurb: `M${rank}`,
-  }))
-}
-
-export function foundryNextMastery(state: GameState, id: string): { at: number; kind: string; blurb: string } | null {
-  if (!isFoundryMaterialId(id)) return null
-  const info = materialMasteryXpIntoRank(state, id)
-  if (info.maxed) return null
-  return { at: info.rank + 1, kind: 'rank', blurb: `M${info.rank + 1}` }
-}
-
-export function foundryReachedMastery(state: GameState, id: string): Array<{ at: number; kind: string; blurb: string }> {
-  if (!isFoundryMaterialId(id)) return []
-  const rank = materialMasteryRank(state, id)
-  return Array.from({ length: rank + 1 }, (_, i) => ({ at: i, kind: 'rank', blurb: `M${i}` }))
-}
-
-export function foundryRecipeGateLine(recipe: FoundryRecipeDef): string {
-  return foundryRecipeChainLine(recipe)
-}
-
-export function foundrySalvageReserve(_state: GameState): number {
-  return 0
-}
-
-export function isFoundryInfinite(_state: GameState, _id: string): boolean {
-  return false
-}

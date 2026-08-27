@@ -15,7 +15,6 @@ export const LIVE_SCREENS: TabId[] = [
   'foundry',
   'furnace',
   'research',
-  'yard',
   'protocols',
   'process',
   'reinforce',
@@ -77,13 +76,6 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     body: [
       'Purpose: choose which underlying Hive rule improves next. Main decision: which available project to start.',
       'One project at a time. It runs during Sorties, at Dock, and offline. Worker Drones speed it up. Breakthroughs unlock mechanics. Progress persists across Rebuild. Queueing and auto-start are Process unlocks.',
-    ],
-  },
-  yard: {
-    title: 'Infrastructure',
-    body: [
-      'Purpose: expand Foundry with Processors, Fabricators, Worker capacity, and specialist facilities.',
-      'Infrastructure lives under Foundry → Fabrication.',
     ],
   },
   slag: {

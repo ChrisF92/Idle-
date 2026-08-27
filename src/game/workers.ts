@@ -2,7 +2,6 @@
 
 import type { GameState } from './types'
 import { matterWorkerCapacityBonus } from './matter'
-import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
 import {
   BASE_WORKER_CAPACITY,
   WORKER_CONTRIBUTION_EXCESS,
@@ -73,15 +72,19 @@ export function ownedWorkers(state: Pick<GameState, 'base'>): number {
   return Math.max(0, Math.floor(state.base.workerDrones ?? 0))
 }
 
+/** PR9 extension: final Research Worker capacity. Unused by PR5. */
+export function extraWorkerCapacityFromResearch(_state: GameState): number {
+  return 0
+}
+
 export function workerCapacity(
   state: {
     prestige: { matterShop?: Record<string, number> }
-    hiveResearch?: { completedIds?: string[]; completed?: Record<string, number> } | null
   },
 ): number {
   let cap = BASE_WORKER_CAPACITY
   cap += matterWorkerCapacityBonus(state)
-  cap += sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'droneCapBonus')
+  cap += extraWorkerCapacityFromResearch(state as GameState)
   return Math.max(1, Math.floor(cap))
 }
 

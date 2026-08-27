@@ -37,9 +37,6 @@ import {
 } from './network'
 import {
   createEmptyFoundryState,
-  foundryDamageMult,
-  foundryShieldFlat,
-  foundryShieldMult,
 } from './foundry'
 import { createEmptyReliquaryState, reliquaryDamageMult, reliquaryShieldMult } from './reliquary'
 import { createEmptyFurnaceState, furnaceDamageMult, furnaceShieldMult } from './furnace'
@@ -289,7 +286,6 @@ export function globalDamageMultiplier(state: GameState): number {
   const coreDmg = computeSignalCoreBonuses(state).damage
   // Signal damage is a softer half-weight layer (not a full multiply stack).
   if (coreDmg) mult *= 1 + coreDmg * 0.5
-  mult *= foundryDamageMult(state)
   mult *= reliquaryDamageMult(state)
   mult *= furnaceDamageMult(state)
   mult *= hiveResearchDamageMult(state)
@@ -428,8 +424,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   armor += signalBonuses.armor
   shieldMax += signalBonuses.shield
   evasion += signalBonuses.evasion
-  shieldMax *= foundryShieldMult(state)
-  shieldMax += foundryShieldFlat(state)
   shieldMax *= reliquaryShieldMult(state)
   shieldMax *= furnaceShieldMult(state)
   shieldMax *= hiveResearchShieldMult(state)
