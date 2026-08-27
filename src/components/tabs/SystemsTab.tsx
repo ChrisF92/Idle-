@@ -1,5 +1,4 @@
 import type { GameState } from '../../game/types'
-import { isSystemUnlocked } from '../../game/progression'
 import { systemsHubCards, type SystemsHubId } from '../../game/systemsHub'
 import { workerAllocationSummary } from '../../game/workers'
 import { formatCompact } from '../../game/format'
@@ -51,11 +50,6 @@ export function SystemsTab({ state, onManage }: Props) {
           </button>
         ))}
       </div>
-
-      {isSystemUnlocked(state, 'foundry') &&
-      state.foundry.fabrication.some((slot) => slot.kind && slot.kind !== 'facility' && slot.progress >= 1) ? (
-        <p className="panel-note">A Fabrication job is ready. Open Foundry to claim it while Docked.</p>
-      ) : null}
     </section>
   )
 }
