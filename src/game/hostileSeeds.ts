@@ -251,3 +251,6 @@ export const W10_COMMANDER_SEED = {
   traitId: 'vanguard' as const,
   status: 'pending-pairing' as const,
 }
+
+/** Brief W10 Commander-contact copy duration in simulated seconds. */
+export const COMMANDER_NOTICE_DURATION = 8

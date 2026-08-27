@@ -24,6 +24,7 @@ import { grantGeneratedScrap } from './rebuild'
 import { grantSignalCoreDrop } from './signalCores'
 import { packThreat } from './threatBudget'
 import { commanderThreatShare, shouldReserveCommander, reserveCommander } from './commanders'
+import { COMMANDER_NOTICE_DURATION } from './hostileSeeds'
 import { recordBossClearSources } from './bossClear'
 import { noteBacklogEnteringBossHold, noteBacklogEnteringCommander, noteBossEncounterEnd, noteBossEncounterStart } from './encounterTelemetry'
 
@@ -79,6 +80,7 @@ export function startWavePackage(
       state.combat.commanderNotice = {
         title: 'COMMANDER CONTACT',
         body: 'Promoted hostiles carry one enhanced trait and improved rewards.',
+        untilSim: (state.combat.simTime ?? 0) + COMMANDER_NOTICE_DURATION,
       }
     }
   }

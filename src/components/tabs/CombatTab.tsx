@@ -327,18 +327,6 @@ export function CombatTab({
               {dpsFlash ? <span className="sortie-dps-flash">{dpsFlash}</span> : null}
               <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>
             </div>
-            {commanderNotice ? (
-              <p className="muted" data-guide="commander-contact">
-                {commanderNotice.title}. {commanderNotice.body}
-              </p>
-            ) : livingCommander ? (
-              <p className="muted" data-guide="commander-plate">
-                COMMANDER · {livingCommander.name.toUpperCase()}
-                {livingCommander.commanderTraitId
-                  ? ` · ${COMMANDER_TRAIT_ICONS[livingCommander.commanderTraitId as keyof typeof COMMANDER_TRAIT_LABELS] ?? ''} ${COMMANDER_TRAIT_LABELS[livingCommander.commanderTraitId as keyof typeof COMMANDER_TRAIT_LABELS] ?? livingCommander.commanderTraitId}`.toUpperCase()
-                  : ''}
-              </p>
-            ) : null}
             <div className="sortie-menu" ref={menuRef}>
               <button
                 type="button"
@@ -430,6 +418,18 @@ export function CombatTab({
               ) : null}
             </div>
           </header>
+          {commanderNotice ? (
+            <p className="sortie-commander-line" data-guide="commander-contact">
+              {commanderNotice.title}. {commanderNotice.body}
+            </p>
+          ) : livingCommander ? (
+            <p className="sortie-commander-line" data-guide="commander-plate">
+              COMMANDER · {livingCommander.name.toUpperCase()}
+              {livingCommander.commanderTraitId
+                ? ` · ${COMMANDER_TRAIT_ICONS[livingCommander.commanderTraitId as keyof typeof COMMANDER_TRAIT_LABELS] ?? ''} ${COMMANDER_TRAIT_LABELS[livingCommander.commanderTraitId as keyof typeof COMMANDER_TRAIT_LABELS] ?? livingCommander.commanderTraitId}`
+                : ''}
+            </p>
+          ) : null}
           {isSystemUnlocked(state, 'furnace') ? (
             <p className="sortie-furnace" aria-label="Furnace">
               <span>Ash {formatCompact(state.resources.choirAsh ?? 0, 1)}</span>

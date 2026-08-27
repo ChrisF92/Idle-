@@ -1542,6 +1542,7 @@ export interface EncounterTelemetryState {
 export interface CommanderNotice {
   title: string
   body: string
+  untilSim: number
 }
 
 export interface GameState {

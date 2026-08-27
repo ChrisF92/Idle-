@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, SAVE_KEY } from './state'
 import { saveGame, loadOrCreateGame } from './save'
-import { startCombat } from './tick'
+import { advanceSeconds, startCombat } from './tick'
 import { encounterForWave } from './encounterGenerator'
 import {
+  COMMANDER_NOTICE_DURATION,
   MAX_ACTIVE_COMMANDERS,
   TRAIT_UNLOCK_WAVE,
   W10_COMMANDER_SEED,
@@ -66,6 +67,17 @@ describe('PR7 Commander generation', () => {
     expect(plan.hostileId).toBe('void-mite')
     expect(plan.traitId).toBe('vanguard')
     expect(plan.pairingStatus).toBe('pending-pairing')
+  })
+
+  it('expires W10 contact copy after the seeded duration', () => {
+    const state = startCombat(createInitialState(0))
+    state.combat.commanderNotice = {
+      title: 'COMMANDER CONTACT',
+      body: 'Promoted hostiles carry one enhanced trait and improved rewards.',
+      untilSim: (state.combat.simTime ?? 0) + COMMANDER_NOTICE_DURATION,
+    }
+    advanceSeconds(state, COMMANDER_NOTICE_DURATION + 0.25)
+    expect(state.combat.commanderNotice).toBeNull()
   })
 
   it('builds exactly one Commander from an already-introduced hostile with one unlocked Trait', () => {

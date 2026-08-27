@@ -47,7 +47,7 @@ Existing Challenge (`protocolEnemyDensityMult`) and Directive (`directiveDensity
 
 Cadence: every 10 Waves except multiples of 50.
 
-W10 pairing: Void Mite + Vanguard, **pending-pairing** (availability-constrained seed; canonical is silent).
+W10 pairing: Void Mite + Vanguard, **pending-pairing** (availability-constrained seed; canonical is silent). First-contact copy lasts `COMMANDER_NOTICE_DURATION` simulated seconds (seed 8), then the compact Commander plate replaces it.
 
 Traits: vanguard, ironclad, wardbearer, rallying, displacer, suppressor, volatile, breacher.
 

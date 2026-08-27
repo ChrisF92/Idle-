@@ -1624,6 +1624,12 @@ export function simulateCombat(
   moveUnits(state, dt)
   tickCommanderTraits(state, dt)
   tickChoirCrown(state, dt)
+  if (
+    state.combat.commanderNotice &&
+    (state.combat.simTime ?? 0) >= state.combat.commanderNotice.untilSim
+  ) {
+    state.combat.commanderNotice = null
+  }
   tickDeathHazards(state, dt)
   tickPlayerCoreTargeting(state, dt)
   for (const core of state.combat.playerUnits) {

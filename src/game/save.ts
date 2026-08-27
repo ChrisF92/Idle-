@@ -226,7 +226,16 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     coreJams: Array.isArray(combat.coreJams) ? combat.coreJams : [],
     choirCrown: combat.choirCrown ?? null,
     encounterTelemetry: combat.encounterTelemetry ?? emptyEncounterTelemetry(),
-    commanderNotice: combat.commanderNotice ?? null,
+    commanderNotice:
+      combat.commanderNotice &&
+      typeof combat.commanderNotice.title === 'string' &&
+      typeof combat.commanderNotice.body === 'string'
+        ? {
+            title: combat.commanderNotice.title,
+            body: combat.commanderNotice.body,
+            untilSim: Number(combat.commanderNotice.untilSim) || 0,
+          }
+        : null,
   }
 }
 
