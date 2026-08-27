@@ -54,6 +54,7 @@ import { createInitialState, SAVE_VERSION } from './state'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
 import { advanceSeconds, handleAppHidden, setDocked, setSortiePaused, startCombat } from './tick'
 import { ownedWorkers, workerCapacity, idleWorkers } from './workers'
+import { moduleMasteryRank } from './catalog'
 import { fragmentChanceMult } from './workshop'
 
 function atFoundry(wave = ACT1_CADENCE.foundry) {
@@ -338,6 +339,13 @@ describe('PR5 physical Core fabrication', () => {
     expect(s.workshop.coreStarts[copies[1]!.id] ?? 0).toBe(0)
     expect(s).not.toHaveProperty('moduleCopies')
     expect((s.shipyard as { moduleCopies?: unknown }).moduleCopies).toBeUndefined()
+    expect(s.foundry.discovered.filter((id) => id === 'heavy-lance')).toHaveLength(1)
+    s.meta.moduleMastery['heavy-lance'] = 4
+    copies[0]!.targetingDoctrine = 'focus'
+    copies[1]!.targetingDoctrine = 'execution'
+    expect(moduleMasteryRank(s, 'heavy-lance')).toBe(4)
+    expect(copies[0]?.targetingDoctrine).toBe('focus')
+    expect(copies[1]?.targetingDoctrine).toBe('execution')
   })
 
   it('completes fabrication during a running Sortie without changing fitted loadout', () => {
@@ -493,6 +501,52 @@ describe('PR5 Rebuild / offline / clock', () => {
     expect(loaded?.foundry.fragments['heavy-lance']).toBe(2)
     expect(loaded?.foundry.discovered).toContain('flak-array')
     expect(loaded?.foundry.facilities).toEqual(['recovery-storage'])
+  })
+
+  it('offline Core fabrication grants exactly one instance and does not duplicate on resume', () => {
+    let s = atFoundry()
+    discoverBlueprint(s, 'flak-array')
+    s.foundry.materials['recovered-stock'] = 20
+    s.foundry.materials['ballistic-composite'] = 20
+    s.foundry.materials['conductive-filament'] = 20
+    s = startFabrication(s, 'core', 'flak-array')
+    s.lastTickAt = 0
+    const encoded = exportSave(s)
+    const { state: caught } = applyOfflineCatchUp(s, 10 * 60 * 1000)
+    expect((caught.shipyard.coreInstances ?? []).filter((row) => row.moduleId === 'flak-array')).toHaveLength(1)
+    expect(caught.foundry.fabrication[0]?.kind).toBeNull()
+    const loaded = importSave(encoded)!
+    loaded.lastTickAt = 0
+    const { state: resumed } = applyOfflineCatchUp(loaded, 10 * 60 * 1000)
+    expect((resumed.shipyard.coreInstances ?? []).filter((row) => row.moduleId === 'flak-array')).toHaveLength(1)
+  })
+
+  it('offline Worker fabrication grants exactly one Worker', () => {
+    let s = atFoundry()
+    s.foundry.facilities = ['worker-fabricator']
+    s.base.workerDrones = 5
+    s.foundry.materials['recovered-stock'] = 40
+    s.foundry.materials['conductive-filament'] = 20
+    s.resources.scrap = 80
+    s = startFabrication(s, 'worker', 'worker')
+    s.lastTickAt = 0
+    const { state: next } = applyOfflineCatchUp(s, 10 * 60 * 1000)
+    expect(ownedWorkers(next)).toBe(6)
+    expect(workerCapacity(next)).toBe(6)
+    expect(next.foundry.fabrication[0]?.kind).toBeNull()
+  })
+
+  it('offline Worker Scrap is industry catch-up, not Extraction Sortie Scrap', () => {
+    let s = setDocked(markHullLost(atFoundry()), true)
+    s.base.workerDrones = 4
+    s = assignWorker(s, 'scrap-field', 2)
+    s.lastTickAt = 0
+    const extractionBefore = sortieGrossScrapGenerated(s)
+    const cycleBefore = s.prestige.cycle?.scrapGenerated ?? 0
+    const { state: next } = applyOfflineCatchUp(s, 60 * 1000)
+    expect(sortieGrossScrapGenerated(next)).toBe(extractionBefore)
+    expect(next.prestige.cycle?.scrapGenerated ?? 0).toBeGreaterThan(cycleBefore)
+    expect(next.resources.scrap).toBeGreaterThan(s.resources.scrap)
   })
 })
 

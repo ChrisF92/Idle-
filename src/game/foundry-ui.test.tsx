@@ -61,5 +61,17 @@ describe('PR5 Foundry UI', () => {
     renderFoundry(state, 'blueprints')
     expect(screen.getByText('Heavy Lance')).toBeTruthy()
     expect(screen.getByText('Pulse Cannon')).toBeTruthy()
+    expect(screen.getAllByText(/Owned · 1 physical/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Design known — fabrication required/).length).toBeGreaterThan(0)
+  })
+
+  it('Fabrication keeps Cores / Frames / Workers / Infrastructure filters on the pane', () => {
+    renderFoundry(undefined, 'fabrication')
+    const cats = screen.getByLabelText('Fabrication category')
+    expect(cats.textContent).toMatch(/Cores/)
+    expect(cats.textContent).toMatch(/Frames/)
+    expect(cats.textContent).toMatch(/Workers/)
+    expect(cats.textContent).toMatch(/Infrastructure/)
+    expect(screen.getByText('Blueprint discovered ≠ item owned. Copy count is physical instances.')).toBeTruthy()
   })
 })
