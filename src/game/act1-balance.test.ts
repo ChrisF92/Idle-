@@ -196,9 +196,10 @@ describe('Act 1 career simulations', () => {
     const run = report.runs[0]!
     expect(run.offlineSeconds).toBeGreaterThan(2 * 3600)
     // Death docks the Sortie, so 8-minute active slices no longer farm a held sector.
-    // Offline catch-up must not explode the career; a couple of bands is enough progress.
+    // Offline catch-up must not explode the career. Role-neutral PR7 combat
+    // baselines are easier than the retired GDD packs; PR11 owns final pacing.
     expect(run.highestWave).toBeGreaterThanOrEqual(1)
-    expect(run.highestWave).toBeLessThan(18)
+    expect(run.highestWave).toBeLessThan(50)
     expect(run.safety.some((s) => s.kind === 'nan')).toBe(false)
   }, 120_000)
 

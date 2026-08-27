@@ -5,7 +5,7 @@ import { performRebuild } from './actions'
 import { isSystemUnlocked, maybeGrantSystemUnlocks } from './progression'
 import { ACT1_CADENCE } from './cadence'
 import { armRebuildDoor } from './testHelpers'
-import { emptyCodexState } from './codex'
+import { emptyCodexState, sanitizeCodexState } from './codex'
 
 describe('codex discovery', () => {
   it('records hostiles when they actually spawn', () => {
@@ -46,7 +46,6 @@ describe('codex discovery', () => {
       discoveredHostileIds: ['void-mite', 'not-real'],
       discoveredBossIds: ['nope'],
     }
-    const { sanitizeCodexState } = require('./codex') as typeof import('./codex')
     const clean = sanitizeCodexState(state.codex)
     expect(clean.discoveredHostileIds).toEqual(['void-mite'])
     expect(clean.discoveredBossIds).toEqual([])

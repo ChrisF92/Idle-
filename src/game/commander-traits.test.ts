@@ -29,7 +29,7 @@ import {
   tickPlayerCoreTargeting,
   type SharedTargetMetrics,
 } from './coreTargeting'
-import { distanceBetween, playerCoreOutwardFacing } from './geometry'
+import { distanceBetween, hiveBearingOf, playerCoreOutwardFacing, shortestAngleDelta } from './geometry'
 import type { CombatUnit, GameState } from './types'
 import { isHighValueHostile } from './coreCombat'
 
@@ -165,14 +165,17 @@ describe('PR7 Commander Traits', () => {
     unit.displacerCooldownLeft = 0
     state.combat.enemyUnits = [unit]
     setCoreTarget(core, unit.id)
-    const heading0 = core.heading
-    const orbit0 = core.orbitAngle
+    const orbit0 = core.orbitAngle ?? 0
     tickCommanderTraits(state, DISPLACER_SEEDS.telegraph + DISPLACER_SEEDS.moveDuration + 0.05)
+    expect(Math.hypot(unit.x - 80, unit.y - 0)).toBeGreaterThan(1)
     tickPlayerCoreTargeting(state, 0.25)
     expect(core.currentTargetId).toBe(unit.id)
-    expect(playerCoreOutwardFacing(core)).toBe(true)
     expect(core.heading).toBe(core.orbitAngle)
-    expect(core.orbitAngle === orbit0 && core.heading !== heading0).toBe(false)
+    expect(playerCoreOutwardFacing(core)).toBe(core.orbitAngle)
+    const dest = hiveBearingOf(unit)
+    expect(Math.abs(shortestAngleDelta(core.orbitAngle ?? 0, dest))).toBeLessThanOrEqual(
+      Math.abs(shortestAngleDelta(orbit0, dest)) + 1e-6,
+    )
   })
 
   it('Suppressor bounds orbital slew/acquisition and never zeroes them or weapon damage', () => {

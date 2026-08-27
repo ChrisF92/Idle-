@@ -9,6 +9,7 @@ import {
   type HostileDef,
 } from './hostileCatalogue'
 import {
+  DENSITY_COUNT_MAX,
   DISRUPTOR_CAP_PER_PACKAGE,
   FORMATION_DISPERSION_WEIGHT,
   FORMATION_DISPERSION_WEIGHT_MAX,
@@ -16,6 +17,8 @@ import {
   ORDINARY_COUNT_MIN,
   SUPPORT_CAP_PER_PACKAGE,
 } from './hostileSeeds'
+import { protocolEnemyDensityMult } from './protocols'
+import { directiveDensityMult } from './directives'
 import { FORMATION_IDS, formationRngFor, formationSlots, pickFormation, type FormationId } from './formations'
 import { createSimRng, hashSeed, rngInt, type SimRngState } from './simRng'
 import { isBossWave } from './waves'
@@ -107,10 +110,26 @@ function applyFormation(units: CombatUnit[], wave: number, seed: number, ordinal
   return formation
 }
 
-function ordinaryEncounter(wave: number, seed: number, ordinal: number, extraDanger: number): WaveEncounter {
+/**
+ * Existing Challenge / Directive density hooks (PR8/PR10 own the systems).
+ * PR7 only applies the multiplier to ordinary count and Commander escorts.
+ */
+export function encounterDensityMult(state?: GameState): number {
+  if (!state) return 1
+  return Math.max(1, protocolEnemyDensityMult(state) * directiveDensityMult(state))
+}
+
+function ordinaryEncounter(
+  wave: number,
+  seed: number,
+  ordinal: number,
+  extraDanger: number,
+  density = 1,
+): WaveEncounter {
   const rng = encounterRng(seed, wave, ordinal)
-  const want =
+  const base =
     ORDINARY_COUNT_MIN + rngInt(rng, 0, Math.max(0, ORDINARY_COUNT_MAX - ORDINARY_COUNT_MIN))
+  const want = Math.min(DENSITY_COUNT_MAX, Math.max(ORDINARY_COUNT_MIN, Math.round(base * density)))
   const defs = pickMix(wave, rng, want)
   const units = defs.map((def, i) => {
     const unit = buildHostileUnit({ def, wave })
@@ -148,8 +167,8 @@ function ordinaryEncounter(wave: number, seed: number, ordinal: number, extraDan
   }
 }
 
-function commanderEncounter(wave: number, seed: number, state?: GameState): WaveEncounter {
-  const built = buildCommanderPackage(wave, seed, state)
+function commanderEncounter(wave: number, seed: number, state?: GameState, density = 1): WaveEncounter {
+  const built = buildCommanderPackage(wave, seed, state, density)
   if (state) recordCommanderHistory(state, built.plan, wave)
   const units = [built.commander, ...built.escorts]
   const spent = packThreat(units) * (1 + formationDispersionWeight(built.plan.formation))
@@ -197,8 +216,9 @@ export function encounterForWave(wave: number, extraDanger = 1, state?: GameStat
   }
   const seed = state?.combat.sortieSeed ?? 0
   const ordinal = (state?.combat.packages.length ?? 0) + 1
-  if (isCommanderWave(w)) return commanderEncounter(w, seed, state)
-  return ordinaryEncounter(w, seed, ordinal, extraDanger)
+  const density = encounterDensityMult(state)
+  if (isCommanderWave(w)) return commanderEncounter(w, seed, state, density)
+  return ordinaryEncounter(w, seed, ordinal, extraDanger, density)
 }
 
 export function firstContactCanAppear(wave: number): boolean {

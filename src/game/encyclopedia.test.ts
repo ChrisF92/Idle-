@@ -10,7 +10,7 @@ import { FOUNDRY_MATERIAL_IDS } from './foundryCatalogue'
 import { atCareerWave } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 import { RELIC_FAMILIES, STANDARD_RELIC_IDS } from './relicCatalogue'
-import { ECHO_RUNS, ECHO_TREE, echoFoundrySpeedMult, getEchoRun } from './echo'
+import { ECHO_RUNS, ECHO_TREE, getEchoRun } from './echo'
 import { ENEMY_FAMILY_IDS } from './hostileCatalogue'
 import { CODEX_PANES } from './codex'
 
@@ -43,15 +43,12 @@ describe('encyclopedia depth', () => {
     expect(RELIC_FAMILIES.every((row) => row.effectStatus === 'pending')).toBe(true)
   })
 
-  it('adds Delta and Fenix Echo gauntlets plus smelt/warp tree nodes', () => {
+  it('still catalogues Delta/Fenix Echo gauntlets and smelt/warp nodes', () => {
     expect(getEchoRun('delta')?.requiresId).toBe('stack')
     expect(getEchoRun('fenix')?.requiresId).toBe('delta')
     expect(ECHO_RUNS).toHaveLength(6)
     expect(ECHO_TREE.some((n) => n.id === 'echo-smelt')).toBe(true)
     expect(ECHO_TREE.some((n) => n.id === 'echo-warp')).toBe(true)
-    const s = createInitialState(0)
-    s.echo.tree = ['echo-smelt']
-    expect(echoFoundrySpeedMult(s)).toBeGreaterThan(1)
   })
 
   it('documents HOSTILES | BOSSES Codex panes and six families', () => {

@@ -91,29 +91,40 @@ export const SUPPRESSOR_FLOOR_MULT = SUPPRESSOR_SEEDS.floorMult
 
 function tickDisplacer(unit: CombatUnit, dt: number): void {
   if (unit.commanderTraitId !== 'displacer' || unit.hull <= 0) return
-  if ((unit.displacerMoveLeft ?? 0) > 0) {
-    const left = unit.displacerMoveLeft ?? 0
-    const step = Math.min(dt, left)
-    const destX = unit.displacerDestX ?? unit.x
-    const destY = unit.displacerDestY ?? unit.y
-    const t = step / Math.max(1e-4, left)
-    unit.x += (destX - unit.x) * t
-    unit.y += (destY - unit.y) * t
-    unit.heading = bearingOf(unit.x, unit.y)
-    unit.displacerMoveLeft = left - step
-    unit.phaseWarnLeft = Math.max(unit.phaseWarnLeft, 0.05)
-    return
-  }
-  if ((unit.displacerTelegraphLeft ?? 0) > 0) {
-    unit.displacerTelegraphLeft = Math.max(0, (unit.displacerTelegraphLeft ?? 0) - dt)
-    unit.phaseWarnLeft = Math.max(unit.phaseWarnLeft, unit.displacerTelegraphLeft)
-    if ((unit.displacerTelegraphLeft ?? 0) <= 0) {
-      unit.displacerMoveLeft = DISPLACER_SEEDS.moveDuration
+  let remain = dt
+  while (remain > 1e-6) {
+    if ((unit.displacerMoveLeft ?? 0) > 0) {
+      const left = unit.displacerMoveLeft ?? 0
+      const step = Math.min(remain, left)
+      const destX = unit.displacerDestX ?? unit.x
+      const destY = unit.displacerDestY ?? unit.y
+      const t = step / Math.max(1e-4, left)
+      unit.x += (destX - unit.x) * t
+      unit.y += (destY - unit.y) * t
+      unit.heading = bearingOf(unit.x, unit.y)
+      unit.displacerMoveLeft = left - step
+      unit.phaseWarnLeft = Math.max(unit.phaseWarnLeft, 0.05)
+      remain -= step
+      continue
     }
-    return
-  }
-  unit.displacerCooldownLeft = (unit.displacerCooldownLeft ?? 0) - dt
-  if ((unit.displacerCooldownLeft ?? 0) <= 0) {
+    if ((unit.displacerTelegraphLeft ?? 0) > 0) {
+      const tel = unit.displacerTelegraphLeft ?? 0
+      const step = Math.min(remain, tel)
+      unit.displacerTelegraphLeft = tel - step
+      unit.phaseWarnLeft = Math.max(unit.phaseWarnLeft, unit.displacerTelegraphLeft)
+      remain -= step
+      if ((unit.displacerTelegraphLeft ?? 0) <= 0) {
+        unit.displacerMoveLeft = DISPLACER_SEEDS.moveDuration
+      }
+      continue
+    }
+    const cool = unit.displacerCooldownLeft ?? 0
+    if (cool > remain) {
+      unit.displacerCooldownLeft = cool - remain
+      remain = 0
+      break
+    }
+    remain -= Math.max(0, cool)
     unit.displacerTelegraphLeft = DISPLACER_SEEDS.telegraph
     unit.phaseWarnLeft = DISPLACER_SEEDS.telegraph
     const b = wrapTau(bearingOf(unit.x, unit.y) + DISPLACER_SEEDS.bearingDelta)

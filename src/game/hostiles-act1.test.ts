@@ -114,8 +114,10 @@ describe('PR7 first-contact integrity', () => {
     for (const def of HOSTILE_DEFS) {
       expect(firstContactForbiddenBefore(def.id, def.firstContactWave - 1)).toBe(true)
       expect(firstContactCanAppear(def.firstContactWave)).toBe(true)
-      const before = encounterForWave(Math.max(1, def.firstContactWave - 1))
-      expect(before.units.some((u) => u.hostileId === def.id)).toBe(false)
+      if (def.firstContactWave > 1) {
+        const before = encounterForWave(def.firstContactWave - 1)
+        expect(before.units.some((u) => u.hostileId === def.id), def.id).toBe(false)
+      }
       if (def.firstContactWave % 50 === 0) continue
       const at = encounterForWave(def.firstContactWave)
       expect(at.units.some((u) => u.hostileId === def.id)).toBe(true)
@@ -180,5 +182,16 @@ describe('PR7 formations', () => {
     }
     expect(SUPPORT_CAP_PER_PACKAGE).toBe(2)
     expect(DISRUPTOR_CAP_PER_PACKAGE).toBe(2)
+  })
+})
+
+describe('PR7 density hooks', () => {
+  it('applies Challenge density to Commander escort count without inventing Challenge rules', () => {
+    const normal = encounterForWave(20, 1)
+    const swarm = createInitialState(0)
+    swarm.protocols.activeId = 'mute-network'
+    const dense = encounterForWave(20, 1, swarm)
+    expect(dense.units.length).toBeGreaterThan(normal.units.length)
+    expect(dense.units.filter((u) => u.isCommander)).toHaveLength(1)
   })
 })

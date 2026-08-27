@@ -41,6 +41,8 @@ Runtime fallback for pending combat profiles: isolated `ROLE_NEUTRAL_BASELINE` i
 
 Catalogue whose first-contact Wave ≤ N, first-contact forced at its Wave, threat budget, seven formations (`spear` … `mixed-pressure`), support/disruptor caps (seed 2/2; classification itself pending so currently vacuous), Sortie-seeded formation RNG isolated from combat/loot RNG.
 
+Existing Challenge (`protocolEnemyDensityMult`) and Directive (`directiveDensityMult`) multipliers scale ordinary pack count and Commander escort count only. PR8/PR10 own those systems; PR7 does not invent Challenge rules. Cap seed: `DENSITY_COUNT_MAX = 14`.
+
 ## Commanders
 
 Cadence: every 10 Waves except multiples of 50.

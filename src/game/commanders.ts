@@ -15,6 +15,7 @@ import {
   COMMANDER_PROMOTION,
   COMMANDER_SELF_THREAT_SHARE,
   COMMANDER_WAVE_THREAT_MULT,
+  DENSITY_COUNT_MAX,
   DISRUPTOR_CAP_PER_PACKAGE,
   IRONCLAD_SEEDS,
   MAX_ACTIVE_COMMANDERS,
@@ -226,17 +227,25 @@ function escortDefs(wave: number, commanderId: HostileId, rng: SimRngState, want
   return out
 }
 
+export function commanderEscortBase(wave: number): number {
+  return 2 + Math.min(3, Math.floor(wave / 80))
+}
+
 export function buildCommanderPackage(
   wave: number,
   seed: number,
   state?: GameState,
+  density = 1,
 ): { commander: CombatUnit; escorts: CombatUnit[]; plan: CommanderPlan; ordinaryThreat: number } {
   const plan = planCommanderEvent(wave, seed, state)
   const def = getHostileDef(plan.hostileId)!
   const commander = promoteToCommander(buildHostileUnit({ def, wave }), plan.traitId, def)
   const rng = commanderRng(seed, wave)
   rngNext(rng)
-  const escortCount = 2 + Math.min(3, Math.floor(wave / 80))
+  const escortCount = Math.min(
+    DENSITY_COUNT_MAX - 1,
+    Math.max(1, Math.round(commanderEscortBase(wave) * Math.max(1, density))),
+  )
   const escorts = escortDefs(wave, plan.hostileId, rng, escortCount).map((esc, i) => {
     const unit = buildHostileUnit({ def: esc, wave })
     unit.rewardWeight = 1

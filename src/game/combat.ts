@@ -300,10 +300,6 @@ export function familyShape(_family: EnemyFamily): UnitShape {
   return 'circle'
 }
 
-export function revealCodexFamilies(_state: GameState, _families: Iterable<string>): void {
-  /* Discovery is spawn-driven in codex.ts. */
-}
-
 export interface WaveRosterEntry {
   key: string
   name: string

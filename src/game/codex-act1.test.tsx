@@ -77,7 +77,8 @@ describe('PR7 Codex HOSTILES | BOSSES', () => {
     s.codex.discoveredCommanderTraitIds = ['vanguard']
     s.codex.hostileCommander = { 'void-mite': { encounters: 1, defeats: 0, traits: ['vanguard'] } }
     render(<CodexTab state={s} onBack={() => undefined} />)
-    expect(screen.getByText(/Vanguard/)).toBeTruthy()
+    expect(screen.getAllByText(/Vanguard/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Commander Traits/)).toBeTruthy()
     expect(screen.queryByText('Volatile')).toBeNull()
   })
 

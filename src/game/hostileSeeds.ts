@@ -107,6 +107,12 @@ export const FORMATION_DISPERSION_WEIGHT_MAX = 0.12
 export const ORDINARY_COUNT_MIN = 2
 export const ORDINARY_COUNT_MAX = 6
 
+/**
+ * Absolute ceiling after Challenge/Directive density hooks.
+ * Density itself is owned by later PRs; PR7 only consumes the existing multiplier.
+ */
+export const DENSITY_COUNT_MAX = 14
+
 /** Commander Wave total threat vs ordinary Wave of the same band. */
 export const COMMANDER_WAVE_THREAT_MULT = 1.4
 
