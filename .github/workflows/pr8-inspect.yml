@@ -12,13 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Directive and Furnace references
+      - name: PR8 combat hooks
         shell: bash
         run: |
           set -e
-          echo '=== directive references ==='
-          grep -RIn --exclude='directives.ts' --exclude-dir=node_modules -E 'directive[A-Z]|directiveOffer|combat\.directives|DIRECTIVE_|chooseDirective|queueDirectiveOffer|isDirectiveWave' src || true
-          echo '=== furnace references ==='
-          grep -RIn --exclude='furnace.ts' --exclude-dir=node_modules -E 'Furnace(Channel|Track|Upgrade|Preset|State)|furnace[A-Z]|FURNACE_|choirAsh|resources\.heat|setFurnaceChannel|convertAshToHeat|runFurnaceManager' src || true
-          echo '=== save version ==='
-          grep -RIn --exclude-dir=node_modules -E 'SAVE_VERSION|version: 48|version === 48' src/game/save.ts src/game/state.ts src/game/types.ts || true
+          echo '=== crit and damage ==='
+          grep -RIn --exclude-dir=node_modules -E 'critChance\(|critFactor\(|armorPenAdd\(|applyPlayerCombatHit\(|rawDamage|sourceModuleId|currentTargetId' src/game/combat.ts src/game/coreCombat.ts src/game/coreTargeting.ts src/game/workshop.ts | head -n 260 || true
+          echo '=== regen repair ==='
+          grep -RIn --exclude-dir=node_modules -E 'shopShieldRegen|shopHullRepair|regen|repair|NANO_LATHE|GRAV_|salvageMarkBonus|sensorTargetingModifier|choirTap' src/game/combat.ts src/game/coreCombat.ts | head -n 260 || true
+          echo '=== fragment RNG ==='
+          grep -RIn --exclude-dir=node_modules -E 'FRAGMENT_DROP|fragmentChanceMult|eligibleFragmentBlueprints|rollEnemyPartDrop' src/game/combat.ts || true
+          echo '=== launch/reset furnace ==='
+          grep -RIn --exclude-dir=node_modules -E 'endFurnaceSortie|createEmptyFurnaceState|furnace =|resources\.heat = 0|clearDirectives|directiveOffer' src/game/tick.ts src/game/actions.ts src/game/save.ts | head -n 220 || true
