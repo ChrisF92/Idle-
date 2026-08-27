@@ -117,7 +117,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   codex: {
     title: 'Codex',
     body: [
-      'Encountered hostiles and Bosses. Soft counters for the loadout you are flying.',
+      'HOSTILES | BOSSES. Encountered identities and discovered Commander Traits. Soft counters for the loadout you are flying.',
       'Opens around Wave 30. Discoveries are recorded from Wave 1 when units actually spawn.',
     ],
   },
