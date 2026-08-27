@@ -1,0 +1,52 @@
+name: PR8 implementation runner
+
+on:
+  push:
+    branches: [chatgpt/pr8-directives-furnace]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr8-implementation-runner
+  cancel-in-progress: true
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR8 branch
+        uses: actions/checkout@v4
+        with:
+          ref: chatgpt/pr8-directives-furnace
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply PR8 transform
+        run: python scripts/pr8_apply.py
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Build Pages
+        run: npm run build:pages
+      - name: Commit verified PR8 tree
+        run: |
+          rm scripts/pr8_apply.py
+          rm .github/workflows/pr8-runner.yml
+          git config user.name "ChatGPT PR8 Implementation"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "PR8: Directives and Furnace"
+          git push origin HEAD:chatgpt/pr8-directives-furnace
