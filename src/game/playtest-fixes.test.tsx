@@ -187,7 +187,7 @@ describe('playtest fix pass', () => {
     expect(screen.getByText(/assigned/)).toBeTruthy()
   })
 
-  it('does not list leftover Foundry cards for the final 14 Cores', () => {
+  it('lists roster Blueprints without leftover print-farm copy', () => {
     const state = atCareerWave(markHullLost(createInitialState(0)), 80)
     render(
       <FoundryTab
@@ -198,8 +198,9 @@ describe('playtest fix pass', () => {
       />,
     )
     expect(screen.queryByText(/fragments do not drop from this enemy family/i)).toBeNull()
-    expect(screen.queryByText(/Flak Array/)).toBeNull()
-    expect(screen.queryByText(/Heavy Lance/)).toBeNull()
+    expect(screen.getByText('Pulse Cannon')).toBeTruthy()
+    expect(screen.queryByText(/Rail Driver/)).toBeNull()
+    expect(screen.queryByText(/Charge Prism/)).toBeNull()
   })
 
   it('writes Frame, Workshop, and Systems on the playtest report', () => {

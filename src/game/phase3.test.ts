@@ -50,15 +50,15 @@ describe('phase 3: milestones, rebuild, foundry', () => {
     expect(s.shipyard.frameId).toBe('bastion-frame')
   })
 
-  it('opens Foundry at Wave 20 and hides scrap until then', () => {
+  it('opens Foundry at Wave 50 and hides scrap until then', () => {
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'foundry')).toBe(false)
     expect(visibleResourceIds(fresh)).toEqual([])
 
-    const locked = atCareerWave(createInitialState(0), 19)
+    const locked = atCareerWave(createInitialState(0), 49)
     expect(isSystemUnlocked(locked, 'foundry')).toBe(false)
 
-    let s = atCareerWave(createInitialState(0), 20)
+    let s = atCareerWave(createInitialState(0), 50)
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
     expect(visibleResourceIds(s)).toContain('scrap')
     s.meta.hullLostOnce = true

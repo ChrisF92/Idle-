@@ -9,7 +9,6 @@ import { encounterForWave, salvageFromKill } from './combat'
 import { getFrame } from './catalog'
 import { maybeGrantSystemUnlocks, isSystemUnlocked } from './progression'
 import { isRouteBUnlocked, maxLaunchSector, routeDangerMult } from './sectors'
-import { advanceSeconds } from './tick'
 
 describe('phase 7: Yard, Cruiser, A/B routes', () => {
   it('bumps save and keeps Yard locked until the first Rebuild', () => {

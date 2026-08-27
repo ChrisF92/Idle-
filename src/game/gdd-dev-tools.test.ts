@@ -101,7 +101,7 @@ describe('GDD Dev Tools', () => {
     expect(isSystemUnlocked(s, 'echo')).toBe(false)
   })
 
-  it('W20 Foundry door does not grant Wave 1000 or later systems', () => {
+  it('W50 Foundry door also opens Workers, but not later systems', () => {
     let s = createInitialState(0)
     s = applyDevAction(s, { type: 'skip-guides' })
     s = applyDevAction(s, { type: 'prep-gdd-door', wave: ACT1_CADENCE.foundry })
@@ -109,7 +109,7 @@ describe('GDD Dev Tools', () => {
     s = applyDevAction(s, { type: 'dock-heal' })
     expect(careerBestWave(s)).toBe(ACT1_CADENCE.foundry)
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
-    expect(isSystemUnlocked(s, 'network')).toBe(false)
+    expect(isSystemUnlocked(s, 'network')).toBe(true)
     expect(isSystemUnlocked(s, 'furnace')).toBe(false)
     expect(isSystemUnlocked(s, 'research')).toBe(false)
     expect(isSystemUnlocked(s, 'process')).toBe(false)

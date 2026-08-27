@@ -48,7 +48,7 @@ function firstRebuildConfig(strategy: 'active' | 'optimiser') {
 
 describe('Act 1 authored formulas', () => {
   it('keeps career doors and shop identities the redesigned systems already use', () => {
-    expect(ACT1_UNLOCKS.foundry).toBe(20)
+    expect(ACT1_UNLOCKS.foundry).toBe(50)
     expect(ACT1_UNLOCKS.reliquary).toBe(110)
     expect(ACT1_UNLOCKS.rebuildAvailable).toBe(PRESTIGE_MIN_SECTOR)
     expect(ACT1_UNLOCKS.furnace).toBe(140)

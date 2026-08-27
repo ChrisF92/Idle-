@@ -76,8 +76,8 @@ describe('player guidance helpers', () => {
 
   it('suggests idle drones and Plate from unlocked systems only', () => {
     const s = markHullLost(createInitialState(0))
-    s.meta.bestWave = 30
-    s.combat.bestWave = 30
+    s.meta.bestWave = 50
+    s.combat.bestWave = 50
     s.meta.lifetimeCoreRunBuys = 1
     s.base.workerDrones = 4
     s.base.assignments = {}
