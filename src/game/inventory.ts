@@ -2,7 +2,7 @@
  * Canonical owned-item model for Inventory.
  *
  * Each physical Core copy has a stable instance ID and its own Relic sockets.
- * Mastery remains shared by Core definition.
+ * Relics are physical instances; counts are derived.
  */
 
 import { SHIP_FRAMES, SHIP_MODULES, getFrame, getModule, moduleMasteryRank, type ModuleRole } from './catalog'
@@ -10,20 +10,13 @@ import { moduleCopyCount } from './coreProgression'
 import { FOUNDRY_RECIPES, foundryMaterialCount, getFoundryRecipe, isFoundryMaterialId, materialMasteryRank } from './foundry'
 import {
   RELIC_SOCKET_LABELS,
-  SHARDS,
   coreSocketRelics,
-  fittedRelicIds,
-  getShard,
-  relicSocketClass,
-  shardOwned,
-  type ShardDef,
-} from './reliquary'
+  coreSocketViews,
+  relicInventoryRows,
+  type RelicInventoryRow as RelicInstanceRow,
+} from './relics'
 import type { GameState, RelicSocketClass } from './types'
-import {
-  coreInstanceAtSlot,
-  coreInstanceCopyNumber,
-  resolveCoreInstance,
-} from './coreInstances'
+import { coreInstanceAtSlot } from './coreInstances'
 
 export type InventoryCategory = 'equipment' | 'relics' | 'materials'
 export type MaterialFamily = 'industrial' | 'recovered'
@@ -66,18 +59,7 @@ export interface CoreInventoryRow {
 
 export type EquipmentRow = FrameInventoryRow | CoreInventoryRow
 
-export interface RelicInventoryRow {
-  id: string
-  name: string
-  socket: RelicSocketClass
-  tier: number
-  owned: number
-  equipped: number
-  available: number
-  blurb: string
-  fittedOn: string[]
-  upgradesTo?: string
-}
+export type RelicInventoryRow = RelicInstanceRow
 
 export interface MaterialInventoryRow {
   id: string
@@ -131,47 +113,11 @@ export function inventoryEquipment(state: GameState): EquipmentRow[] {
 }
 
 export function relicCopyBreakdown(state: GameState, relicId: string): RelicInventoryRow | null {
-  const def = getShard(relicId)
-  if (!def) return null
-  return relicRowFromDef(state, def)
-}
-
-function relicRowFromDef(state: GameState, def: ShardDef): RelicInventoryRow {
-  const available = shardOwned(state, def.id)
-  const equipped = fittedRelicIds(state).filter((id) => id === def.id).length
-  const fittedOn: string[] = []
-  for (const [coreInstanceId, slots] of Object.entries(state.reliquary?.coreFits ?? {})) {
-    if (!Array.isArray(slots) || !slots.includes(def.id)) continue
-    const instance = resolveCoreInstance(state, coreInstanceId)
-    const moduleId = instance?.moduleId ?? coreInstanceId
-    const baseName = getModule(moduleId)?.name ?? moduleId
-    const copies = state.shipyard.coreInstances.filter(
-      (candidate) => candidate.moduleId === moduleId,
-    ).length
-    const name =
-      instance && copies > 1
-        ? `${baseName} #${coreInstanceCopyNumber(state, instance.id)}`
-        : baseName
-    if (!fittedOn.includes(name)) fittedOn.push(name)
-  }
-  return {
-    id: def.id,
-    name: def.name,
-    socket: relicSocketClass(def),
-    tier: def.tier ?? 1,
-    owned: available + equipped,
-    equipped,
-    available,
-    blurb: def.blurb,
-    fittedOn,
-    upgradesTo: def.upgradesTo,
-  }
+  return relicInventoryRows(state).find((row) => row.id === relicId) ?? null
 }
 
 export function inventoryRelics(state: GameState, filter: 'all' | RelicSocketClass = 'all'): RelicInventoryRow[] {
-  return SHARDS.map((def) => relicRowFromDef(state, def))
-    .filter((row) => row.owned > 0)
-    .filter((row) => filter === 'all' || row.socket === filter)
+  return relicInventoryRows(state).filter((row) => filter === 'all' || row.socket === filter)
 }
 
 export function relicAvailability(state: GameState, relicId: string): {
@@ -181,9 +127,9 @@ export function relicAvailability(state: GameState, relicId: string): {
 } {
   const row = relicCopyBreakdown(state, relicId)
   return {
-    owned: row?.owned ?? 0,
-    equipped: row?.equipped ?? 0,
-    available: row?.available ?? 0,
+    owned: row ? 1 : 0,
+    equipped: row?.fitted ? 1 : 0,
+    available: row && !row.fitted ? 1 : 0,
   }
 }
 
@@ -248,9 +194,10 @@ export function loadoutRelicFill(state: GameState): { filled: number; sockets: n
   for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
     const coreInstanceId = coreInstanceAtSlot(state, slot)?.id
     if (!coreInstanceId) continue
-    const slots = coreSocketRelics(state, coreInstanceId)
-    sockets += slots.length
-    filled += slots.filter(Boolean).length
+    const views = coreSocketViews(state, coreInstanceId)
+    const fitted = coreSocketRelics(state, coreInstanceId)
+    sockets += views.filter((row) => row.active).length
+    filled += views.filter((row, i) => row.active && fitted[i]).length
   }
   return { filled, sockets }
 }
@@ -262,4 +209,4 @@ export function frameBlurb(state: GameState): string {
 }
 
 export const RELIC_STORAGE_NOTE =
-  'Relics stay fitted to that physical Core copy, even when the Core is removed from the Frame.'
+  'Each Relic is a physical item. It fits one socket on one physical Core. Removal is free while Docked and never destroys it.'

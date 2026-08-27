@@ -127,8 +127,8 @@ const SYSTEM_TOAST: Partial<
     nav: { kind: 'tab', tab: 'network' },
   },
   reliquary: {
-    title: 'Relic sockets unlocked',
-    body: 'Matching sockets on fitted Cores. Spare copies upgrade in Fabrication.',
+    title: 'Relics unlocked',
+    body: 'Physical Relics fit typed Core sockets while Docked. One Behavioural Relic per Core.',
     label: 'VIEW LOADOUT',
     nav: { kind: 'tab', tab: 'dock', pane: 'loadout' },
   },

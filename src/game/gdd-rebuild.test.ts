@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buyMatterShop, buyWorkshopUpgrade, performRebuild } from './actions'
 import { ACT1_CADENCE } from './cadence'
-import { equipRelicOnCore } from './reliquary'
+import { equipRelicOnCore, addRelicInstance } from './relics'
 import {
   REBUILD_FIRST_MIN_SORTIES,
   canRebuild,
@@ -70,9 +70,9 @@ describe('GDD Rebuild', () => {
     s.workshop.levels['weapon-power'] = 3
     s.combat.directives = ['overcharge']
     s.foundry.masteryXp['recovered-stock'] = 4
-    s.reliquary.owned['battle-chip'] = 1
-    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
-    expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
+    const relic = addRelicInstance(s, 'power-coupler')!
+    s = equipRelicOnCore(s, 'pulse-cannon:1', relic.id)
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
     const career = s.meta.bestWave
     const before = matterGainFor(s)
 
@@ -87,7 +87,8 @@ describe('GDD Rebuild', () => {
     expect(s.workshop.levels['weapon-power'] ?? 0).toBe(0)
     expect(s.combat.directives).toEqual([])
     expect(s.foundry.masteryXp['recovered-stock']).toBe(4)
-    expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
+    expect(s.relics.instances.some((row) => row.id === relic.id)).toBe(true)
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
   })
 
   it('does not require Wave 210 again after the first Rebuild', () => {

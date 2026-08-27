@@ -1,23 +1,31 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { computeShipStats, createInitialState } from './state'
-import { atCareerWave, equipPostTutorialLoadout, forceUnlockModule } from './testHelpers'
+import { atCareerWave, equipPostTutorialLoadout } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 import { tickAutomation } from './automation'
+import { hasProcessMastery } from './process'
 import {
-  RELIC_UNIVERSAL_MASTERY,
-  canUpgradeRelic,
+  addRelicInstance,
   corePrimarySocket,
   coreRelicId,
   coreSocketRelics,
   equipRelicOnCore,
   isRelicsUnlocked,
-  reliquaryDamageMult,
   removeRelicFromCore,
-  upgradeRelic,
-} from './reliquary'
+  setRelicSocketActivationProvider,
+} from './relics'
+import { coreRelicModifiers } from './relicEffects'
 import { fitModule, unfitModule } from './actions'
 import { grantModuleCopy, masteryMilestonesFor } from './coreProgression'
 import { sanitizeCoreFits } from './save'
+import {
+  FIXTURE_POWER_BEHAVIOURAL,
+  FIXTURE_POWER_STANDARD,
+  installAuthoredRelicFixtures,
+  resetRelicTestFixtures,
+} from './relicTestFixtures'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 function relicDock(wave = ACT1_CADENCE.reliquary) {
   let s = atCareerWave(createInitialState(0), wave)
@@ -26,8 +34,13 @@ function relicDock(wave = ACT1_CADENCE.reliquary) {
   return s
 }
 
+afterEach(() => {
+  setRelicSocketActivationProvider(null)
+  resetRelicTestFixtures()
+})
+
 describe('GDD Relics in Cores', () => {
-  it('unlocks Relics at the leftover Reliquary door without inventing a PR4 socket schedule', () => {
+  it('unlocks Relics at the Act 1 door without inventing a global socket schedule', () => {
     const locked = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary - 1)
     expect(isRelicsUnlocked(locked)).toBe(false)
 
@@ -35,20 +48,26 @@ describe('GDD Relics in Cores', () => {
     expect(isRelicsUnlocked(open)).toBe(true)
     expect(corePrimarySocket('pulse-cannon')).toBe('power')
     expect(corePrimarySocket('plate-layer')).toBe('shield')
+    expect(ACT1_CADENCE.reliquary).toBe(320)
+    expect(coreSocketRelics(open, 'pulse-cannon:1').filter(Boolean)).toEqual([])
   })
 
-  it('installs a Relic into a fitted Core and applies its effect', () => {
+  it('installs a physical Relic into a fitted Core without a global damage bonus', () => {
+    installAuthoredRelicFixtures()
+    setRelicSocketActivationProvider(() => [0])
     let s = relicDock()
-    s.reliquary.owned['battle-chip'] = 1
+    const relic = addRelicInstance(s, FIXTURE_POWER_STANDARD.id)!
     const before = computeShipStats(s).damage
-    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
-    expect(coreRelicId(s, 'pulse-cannon:1')).toBe('battle-chip')
-    expect(s.reliquary.coreFits['pulse-cannon:1']).toEqual(['battle-chip'])
-    expect(reliquaryDamageMult(s)).toBeGreaterThan(1)
-    expect(computeShipStats(s).damage).toBeGreaterThan(before)
+    s = equipRelicOnCore(s, 'pulse-cannon:1', relic.id)
+    expect(coreRelicId(s, 'pulse-cannon:1')).toBe(relic.id)
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0]).toBe(relic.id)
+    expect(coreRelicModifiers(s, 'pulse-cannon:1').damageMult).toBe(1)
+    expect(computeShipStats(s).damage).toBe(before)
   })
 
   it('keeps separate Relic loadouts on duplicate Core instances', () => {
+    installAuthoredRelicFixtures()
+    setRelicSocketActivationProvider(() => [0])
     let s = relicDock()
     s.shipyard.frameId = 'swarm-frame'
     s.shipyard.unlockedFrames.push('swarm-frame')
@@ -59,157 +78,59 @@ describe('GDD Relics in Cores', () => {
     )
     expect(pulseInstances).toHaveLength(2)
 
-    s.reliquary.owned['battle-chip'] = 1
-    s.reliquary.owned['pulse-chip'] = 1
-    s = equipRelicOnCore(s, pulseInstances[0]!, 'battle-chip')
-    s = equipRelicOnCore(s, pulseInstances[1]!, 'pulse-chip')
+    const a = addRelicInstance(s, FIXTURE_POWER_STANDARD.id)!
+    const b = addRelicInstance(s, FIXTURE_POWER_BEHAVIOURAL.id)!
+    s = equipRelicOnCore(s, pulseInstances[0]!, a.id)
+    s = equipRelicOnCore(s, pulseInstances[1]!, b.id)
 
-    expect(coreSocketRelics(s, pulseInstances[0]!)[0]).toBe('battle-chip')
-    expect(coreSocketRelics(s, pulseInstances[1]!)[0]).toBe('pulse-chip')
-    expect(Object.keys(s.reliquary.coreFits)).toEqual(
-      expect.arrayContaining(pulseInstances),
-    )
+    expect(coreSocketRelics(s, pulseInstances[0]!)[0]).toBe(a.id)
+    expect(coreSocketRelics(s, pulseInstances[1]!)[0]).toBe(b.id)
 
     s = unfitModule(s, 'pulse-cannon', pulseInstances[1])
-    expect(coreSocketRelics(s, pulseInstances[1]!)[0]).toBe('pulse-chip')
-    s = fitModule(s, 'pulse-cannon', pulseInstances[1])
-    expect(coreSocketRelics(s, pulseInstances[1]!)[0]).toBe('pulse-chip')
+    expect(coreSocketRelics(s, pulseInstances[1]!)[0]).toBe(b.id)
   })
 
   it('drops type-keyed Relic fits instead of migrating them onto a physical copy', () => {
     const s = relicDock()
-    s.reliquary.coreFits = { 'pulse-cannon': ['battle-chip'] }
+    s.relics.coreFits = { 'pulse-cannon': ['power-coupler:1'] }
     sanitizeCoreFits(s)
-    expect(s.reliquary.coreFits['pulse-cannon']).toBeUndefined()
-    expect(s.reliquary.coreFits['pulse-cannon:1']).toBeUndefined()
-  })
-
-  it('seats Power Relics on Pulse and Shield Relics on Plate', () => {
-    let s = relicDock()
-    s.reliquary.owned['battle-chip'] = 1
-    s.reliquary.owned['plate-chip'] = 1
-
-    expect(equipRelicOnCore(s, 'pulse-cannon:1', 'plate-chip')).toBe(s)
-    expect(equipRelicOnCore(s, 'plate-layer:1', 'battle-chip')).toBe(s)
-
-    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
-    s = equipRelicOnCore(s, 'plate-layer:1', 'plate-chip')
-    expect(coreSocketRelics(s, 'pulse-cannon:1')[0]).toBe('battle-chip')
-    expect(coreSocketRelics(s, 'plate-layer:1')[0]).toBe('plate-chip')
-  })
-
-  it('does not treat leftover Reliquary M5 Universal as a PR4 socket unlock', () => {
-    const s = relicDock()
-    s.meta.moduleMastery = { ...s.meta.moduleMastery, 'plate-layer': RELIC_UNIVERSAL_MASTERY }
-    expect(RELIC_UNIVERSAL_MASTERY).toBe(5)
-    expect(corePrimarySocket('plate-layer')).toBe('shield')
-  })
-
-  it('refuses the same Relic family twice on one Core', () => {
-    let s = relicDock()
-    s.meta.moduleMastery = { ...s.meta.moduleMastery, 'pulse-cannon': RELIC_UNIVERSAL_MASTERY }
-    s.reliquary.owned['battle-chip'] = 2
-    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip', 0)
-    const blocked = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip', 1)
-    expect(coreSocketRelics(blocked, 'pulse-cannon:1')[0]).toBe('battle-chip')
-    expect(blocked.reliquary.owned['battle-chip']).toBe(1)
-  })
-
-  it('upgrades I to II with a spare Relic and Slag Ingots', () => {
-    let s = relicDock()
-    s.reliquary.owned['battle-chip'] = 2
-    s.foundry.materials['recovered-stock'] = 4
-    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
-    const withI = reliquaryDamageMult(s)
-    expect(canUpgradeRelic(s, 'battle-chip').ok).toBe(true)
-    s = upgradeRelic(s, 'battle-chip')
-    expect(s.reliquary.owned['battle-chip'] ?? 0).toBe(0)
-    expect(s.reliquary.owned['battle-chip-ii'] ?? 0).toBe(0)
-    expect(s.foundry.materials['recovered-stock']).toBe(0)
-    expect(coreSocketRelics(s, 'pulse-cannon:1')[0]).toBe('battle-chip-ii')
-    expect(reliquaryDamageMult(s)).toBeGreaterThan(withI)
-  })
-
-  it('lets two copies on two Cores both apply', () => {
-    let s = relicDock()
-    s.meta.moduleMastery = { ...s.meta.moduleMastery, 'plate-layer': RELIC_UNIVERSAL_MASTERY }
-    s.reliquary.owned['battle-chip'] = 2
-    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip', 0)
-    const one = reliquaryDamageMult(s)
-    s = equipRelicOnCore(s, 'plate-layer:1', 'battle-chip', 1)
-    expect(reliquaryDamageMult(s)).toBeGreaterThan(one)
-    expect(reliquaryDamageMult(s)).toBeCloseTo(1.16)
-  })
-
-  it('does not let hoarded extras raise Relic bonuses', () => {
-    let s = relicDock()
-    s.reliquary.owned['battle-chip'] = 1
-    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
-    const fitted = reliquaryDamageMult(s)
-    s.reliquary.owned['battle-chip'] = 24
-    expect(reliquaryDamageMult(s)).toBe(fitted)
-  })
-
-  it('removes Relics freely while Docked and refuses mid-Sortie swaps', () => {
-    let s = relicDock()
-    s.reliquary.owned['battle-chip'] = 1
-    s = equipRelicOnCore(s, 'pulse-cannon:1', 'battle-chip')
-    s.combat.docked = false
-    const live = removeRelicFromCore(s, 'pulse-cannon:1')
-    expect(coreRelicId(live, 'pulse-cannon:1')).toBe('battle-chip')
-
-    s.combat.docked = true
-    s = removeRelicFromCore(s, 'pulse-cannon:1')
-    expect(coreRelicId(s, 'pulse-cannon:1')).toBeNull()
-    expect(s.reliquary.owned['battle-chip']).toBe(1)
-  })
-
-  it('does not grant bonuses from leftover colour slots', () => {
-    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
-    s.reliquary.slots.red = 'battle-chip'
-    expect(reliquaryDamageMult(s)).toBe(1)
-  })
-
-  it('maps authored mature sockets, not leftover Core IDs', () => {
-    expect(corePrimarySocket('phase-beam')).toBe('optical')
-    expect(corePrimarySocket('flak-array')).toBe('ballistic')
-    expect(corePrimarySocket('heavy-lance')).toBe('ballistic')
-    expect(corePrimarySocket('pulse-cannon')).toBe('power')
+    expect(s.relics.coreFits['pulse-cannon']).toBeUndefined()
+    expect(s.relics.coreFits['pulse-cannon:1']?.some(Boolean)).toBeFalsy()
   })
 
   it('authors Pulse M20 as Relic expansion without specifying later socket counts', () => {
-    const s = relicDock()
-    s.meta.moduleMastery = { ...s.meta.moduleMastery, 'pulse-cannon': 20 }
-    expect(corePrimarySocket('pulse-cannon')).toBe('power')
+    expect(corePrimarySocket('phase-beam')).toBe('optical')
+    expect(corePrimarySocket('flak-array')).toBe('ballistic')
+    expect(corePrimarySocket('heavy-lance')).toBe('ballistic')
     expect(masteryMilestonesFor('pulse-cannon').find((ms) => ms.level === 20)?.effect).toBe(
       'socket-expand',
     )
   })
 
-  it('seats Optical Relics on Beam and Ballistic Relics on Flak', () => {
-    let s = relicDock()
-    s = forceUnlockModule(s, 'phase-beam')
-    s = forceUnlockModule(s, 'flak-array')
-    s.shipyard.modules = ['pulse-cannon', 'phase-beam', 'flak-array']
-    s.shipyard.equippedCoreIds = ['pulse-cannon:1', 'phase-beam:1', 'flak-array:1']
-    s.reliquary.owned['focus-lens'] = 1
-    s.reliquary.owned['burst-mesh'] = 1
-
-    expect(equipRelicOnCore(s, 'phase-beam:1', 'burst-mesh')).toBe(s)
-    expect(equipRelicOnCore(s, 'flak-array:1', 'focus-lens')).toBe(s)
-
-    s = equipRelicOnCore(s, 'phase-beam:1', 'focus-lens')
-    s = equipRelicOnCore(s, 'flak-array:1', 'burst-mesh')
-    expect(coreSocketRelics(s, 'phase-beam:1')[0]).toBe('focus-lens')
-    expect(coreSocketRelics(s, 'flak-array:1')[0]).toBe('burst-mesh')
+  it('does not let Process auto-fit Relics or treat ownership as Reliquary mastery', () => {
+    const s = relicDock()
+    s.process.purchased = ['auto-relic', 'reliquary-keep', 'reliquary-quality', 'reliquary-merge']
+    addRelicInstance(s, 'power-coupler')
+    expect(hasProcessMastery(s, 'reliquary')).toBe(false)
+    tickAutomation(s)
+    expect(coreSocketRelics(s, 'pulse-cannon:1')[0] ?? null).toBeNull()
+    expect(s.relics.instances).toHaveLength(1)
+    const src = readFileSync(resolve(process.cwd(), 'src/game/automation.ts'), 'utf8')
+    expect(src).not.toMatch(/autoSeatShards/)
   })
 
-  it('lets Process auto-relic fill empty Core sockets, not leftover colour slots', () => {
-    const s = relicDock()
-    s.process.purchased = ['auto-relic']
-    s.reliquary.owned['battle-chip'] = 1
-    tickAutomation(s)
-    expect(coreSocketRelics(s, 'pulse-cannon:1')[0]).toBe('battle-chip')
-    expect(s.reliquary.slots.red ?? null).toBeNull()
+  it('removes Relics freely while Docked and refuses mid-Sortie swaps', () => {
+    installAuthoredRelicFixtures()
+    setRelicSocketActivationProvider(() => [0])
+    let s = relicDock()
+    const relic = addRelicInstance(s, FIXTURE_POWER_STANDARD.id)!
+    s = equipRelicOnCore(s, 'pulse-cannon:1', relic.id)
+    s.combat.docked = false
+    const live = removeRelicFromCore(s, 'pulse-cannon:1')
+    expect(coreRelicId(live, 'pulse-cannon:1')).toBe(relic.id)
+    s.combat.docked = true
+    s = removeRelicFromCore(s, 'pulse-cannon:1')
+    expect(coreRelicId(s, 'pulse-cannon:1')).toBeNull()
+    expect(s.relics.instances.some((row) => row.id === relic.id)).toBe(true)
   })
 })

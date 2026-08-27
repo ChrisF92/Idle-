@@ -8,7 +8,7 @@ export const ACT1_CADENCE = {
   rebuild: 210,
   foundryAdvanced: 90,
   yard: 90,
-  reliquary: 110,
+  reliquary: 320,
   furnace: 140,
   research: 170,
   process: 210,

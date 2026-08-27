@@ -263,7 +263,13 @@ describe('PR5 correction: v46 malformed Foundry state', () => {
     raw.foundry.trackedPrintId = 'rapid-aegis'
     const loaded = importSave(encodeRaw(raw))
     expect(loaded).not.toBeNull()
-    expect(loaded!.foundry.fabrication[0]).toEqual({ kind: null, jobId: null, progress: 0, paid: false })
+    expect(loaded!.foundry.fabrication[0]).toEqual({
+      kind: null,
+      jobId: null,
+      progress: 0,
+      paid: false,
+      targetRelicId: null,
+    })
     expect(loaded!.foundry.fragments['ghost-print']).toBeUndefined()
     expect(loaded!.foundry.fragments['heavy-lance']).toBe(2)
     expect(loaded!.foundry.discovered).not.toContain('made-up-frame')

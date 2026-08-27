@@ -56,7 +56,8 @@ import {
   setTrackedPrint,
   startFabrication,
 } from './foundry'
-import { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, canUpgradeRelic } from './reliquary'
+import { equipRelicOnCore, removeRelicFromCore, canStartRelicUpgrade } from './relics'
+import { relicUpgradeJobId } from './relicSeeds'
 import {
   applyFurnacePreset,
   buyFurnaceUpgrade,
@@ -175,12 +176,12 @@ export {
   startFabrication,
 }
 
-export { insertShard, removeShard, equipRelicOnCore, removeRelicFromCore, setResearchFocus, startResearch }
+export { equipRelicOnCore, removeRelicFromCore, setResearchFocus, startResearch }
 
 export function upgradeRelic(state: GameState, relicId: string): GameState {
-  const check = canUpgradeRelic(state, relicId)
-  if (!check.ok || !check.nextId) return state
-  return startFabrication(state, 'relic', `${relicId}>${check.nextId}`)
+  const check = canStartRelicUpgrade(state, relicId)
+  if (!check.ok || !check.toTier) return state
+  return startFabrication(state, 'relic', relicUpgradeJobId(relicId, check.toTier))
 }
 export { buyFurnaceUpgrade, setFurnaceChannel, setFurnacePriority, applyFurnacePreset }
 
@@ -1014,7 +1015,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       seenOnboarding: [...(state.meta.seenOnboarding ?? [])],
     },
     heat: state.resources.heat ?? 0,
-    reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {}, coreFits: {} }),
+    relics: structuredClone(state.relics ?? { instances: [], nextSerial: {}, coreFits: {} }),
     furnace: structuredClone(state.furnace ?? createEmptyFurnaceState()),
     hiveResearch: structuredClone(state.hiveResearch ?? createEmptyHiveResearchState()),
     protocols: {
@@ -1104,7 +1105,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.core = fresh.core
   state.network = wipeNetworkBars(state.network)
   state.foundry = persistFoundryOnRebuild(state.foundry)
-  state.reliquary = kept.reliquary
+  state.relics = kept.relics
   state.furnace = kept.furnace
   endFurnaceSortie(state)
   state.hiveResearch = kept.hiveResearch

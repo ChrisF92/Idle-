@@ -9,7 +9,6 @@ import {
   NETWORK_ACUITY_PER_RANK,
   NETWORK_RACK_CAP_PER_RANK,
 } from './catalog'
-import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
 import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoNetworkMult } from './echo'
@@ -533,7 +532,6 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       networkCycleMult(state) *
       networkChainBoost(state, id) *
       infra *
-      reliquaryNetworkMult(state) *
       hiveResearchNetworkMult(state) *
       hiveResearchDroneEffMult(state) *
       protocolBonusMult(state, 'network') *

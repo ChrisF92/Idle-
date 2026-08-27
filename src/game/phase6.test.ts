@@ -2,19 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { computeShipStats, createInitialState, SAVE_VERSION } from './state'
 import {
   convertAshToHeat,
-  insertShard,
   performRebuild,
   setFurnaceChannel,
   setResearchFocus,
 } from './actions'
 import { grantEnemyKillRewards } from './combat'
-import {
-  grantReliquaryKillLoot,
-  insertShard as insertShardDirect,
-  reliquaryDamageMult,
-  shardOwned,
-  shardResonance,
-} from './reliquary'
+import { addRelicInstance, equipRelicOnCore, relicFamilyOwnedCount } from './relics'
 import { furnaceAshFromKill, furnaceDamageMult, grantFurnaceKillLoot } from './furnace'
 import {
   HIVE_RESEARCH_FOCUS_MULT,
@@ -60,8 +53,8 @@ function enemy(isBoss = false): CombatUnit {
 }
 
 describe('phase 6: Reliquary + Furnace + Research', () => {
-  it('opens doors at spaced sectors 16 / 28 / 34', () => {
-    expect(SAVE_VERSION).toBe(46)
+  it('opens Relic / Furnace / Research doors on the Act 1 cadence', () => {
+    expect(SAVE_VERSION).toBe(47)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'reliquary')).toBe(false)
     expect(isSystemUnlocked(fresh, 'furnace')).toBe(false)
@@ -69,13 +62,11 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     expect(isResourceVisible(fresh, 'choirAsh')).toBe(false)
     expect(isResourceVisible(fresh, 'data')).toBe(false)
 
-    const s3 = createInitialState(0)
-    s3.meta.highestSectorEver = 16
-    expect(isSystemUnlocked(s3, 'reliquary')).toBe(true)
-    expect(isSystemUnlocked(s3, 'furnace')).toBe(false)
+    const relics = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
+    expect(isSystemUnlocked(relics, 'reliquary')).toBe(true)
+    expect(isSystemUnlocked(relics, 'furnace')).toBe(true)
 
-    const s5 = createInitialState(0)
-    s5.meta.highestSectorEver = 28
+    const s5 = atCareerWave(createInitialState(0), ACT1_CADENCE.furnace)
     expect(isSystemUnlocked(s5, 'furnace')).toBe(true)
     expect(isResourceVisible(s5, 'choirAsh')).toBe(true)
     expect(isSystemUnlocked(s5, 'research')).toBe(false)
@@ -84,34 +75,25 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     s6.meta.highestSectorEver = 6
     expect(isSystemUnlocked(s6, 'research')).toBe(false)
 
-    const s7 = createInitialState(0)
-    s7.meta.highestSectorEver = 34
+    const s7 = atCareerWave(createInitialState(0), ACT1_CADENCE.research)
     expect(isSystemUnlocked(s7, 'research')).toBe(true)
     expect(isResourceVisible(s7, 'data')).toBe(true)
   })
 
-  it('inserts a shard and scales damage with resonance', () => {
-    let s = createInitialState(0)
-    s.meta.highestSectorEver = 16
-    s.reliquary.owned['battle-chip'] = 1
+  it('fits a physical Relic without a leftover global damage bonus', () => {
+    let s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
+    s.combat.docked = true
+    const relic = addRelicInstance(s, 'power-coupler')!
     const before = computeShipStats(s).damage
-    s = insertShard(s, 'battle-chip')
-    expect(s.reliquary.slots.red).toBe('battle-chip')
-    expect(reliquaryDamageMult(s)).toBeCloseTo(1.08)
-    expect(computeShipStats(s).damage).toBeGreaterThan(before)
-
-    s.reliquary.owned['battle-chip'] = 13
-    expect(shardResonance(s, 'battle-chip')).toBe(1)
-    expect(reliquaryDamageMult(s)).toBeCloseTo(1.16)
+    s = equipRelicOnCore(s, 'pulse-cannon:1', relic.id)
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
+    expect(computeShipStats(s).damage).toBe(before)
   })
 
-  it('drops shards on kill once Reliquary is open', () => {
-    const s = createInitialState(0)
-    s.meta.highestSectorEver = 16
-    const id = grantReliquaryKillLoot(s, false, () => 0)
-    expect(id).toBeTruthy()
-    expect(shardOwned(s, id!)).toBe(1)
-    expect(grantReliquaryKillLoot(s, false, () => 0.99)).toBeNull()
+  it('does not drop Relics from generic kills', () => {
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
+    grantEnemyKillRewards(s, enemy(false))
+    expect(s.relics.instances).toHaveLength(0)
   })
 
   it('banks Choir-ash into Heat and Weapons channels raise DPS', () => {
@@ -163,11 +145,11 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     expect(foundryCraftSpeed(s)).toBeGreaterThan(before)
   })
 
-  it('Rebuild keeps shards, ash, Furnace upgrades, and research; wipes salvage and Heat', () => {
-    let s = createInitialState(0)
-    s.meta.highestSectorEver = 34
-    s.reliquary.owned['battle-chip'] = 3
-    s = insertShardDirect(s, 'battle-chip')
+  it('Rebuild keeps Relics, dumps Heat, and preserves Research', () => {
+    let s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
+    s.combat.docked = true
+    addRelicInstance(s, 'power-coupler')
+    s = equipRelicOnCore(s, 'pulse-cannon:1', 'power-coupler:1')
     s.resources.choirAsh = 12
     s.resources.heat = 8
     s.furnace.upgrades.hearth = 2
@@ -177,12 +159,10 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     s.resources.salvage = 50
 
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(s.reliquary.owned['battle-chip']).toBe(3)
-    expect(s.reliquary.slots.red).toBe('battle-chip')
+    expect(relicFamilyOwnedCount(s, 'power-coupler')).toBe(1)
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
     expect(s.resources.heat).toBe(0)
-    expect(s.resources.choirAsh).toBe(12)
     expect(s.furnace.upgrades.hearth).toBe(2)
-    expect(s.furnace.wanted.weapons).toBe(2)
     expect(s.hiveResearch.completed.material).toBe(2)
     expect(s.hiveResearch.xp.material).toBe(20)
     expect(s.resources.salvage).toBeLessThan(50)

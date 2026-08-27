@@ -9,7 +9,6 @@ import type {
   GameState,
 } from './types'
 import { careerBestWave } from './progression'
-import { reliquaryAshMult } from './reliquary'
 import { protocolBonusMult, protocolModifiers, protocolMutes } from './protocols'
 import { echoAshMult } from './echo'
 import { mergeProcessConfig, processConfig, processFurnaceHooks } from './process'
@@ -440,7 +439,6 @@ export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
   const base = (0.5 + 0.1 * sector) * (isBoss ? 4 : 1)
   return (
     base *
-    reliquaryAshMult(state) *
     echoAshMult(state) *
     furnaceAshChannelMult(state) *
     frameAshMult(state) *

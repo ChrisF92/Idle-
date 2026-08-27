@@ -1,4 +1,4 @@
-import type { GameState, RelicSocketClass } from '../game/types'
+import type { GameState, RelicSocketSpec } from '../game/types'
 import { getModule, moduleMasteryRank, moduleStatPreviews } from '../game/catalog'
 import { formatCompact } from '../game/format'
 import { inspectCore, inspectShard } from '../game/inspect'
@@ -10,20 +10,23 @@ import {
   nextMasteryMilestone,
 } from '../game/coreProgression'
 import {
-  RELIC_SOCKET_LABELS,
-  SHARDS,
-  canUpgradeRelic,
-  coreSocketLayout,
+  canStartRelicUpgrade,
   coreSocketRelics,
-  getShard,
+  coreSocketViews,
+  eligibleRelicsForSocket,
+  getRelicInstance,
+  inspectRelicEffectText,
   isRelicsUnlocked,
+  matureLayoutLine,
+  relicFitBlockReason,
   relicFitsSocket,
-  relicSocketClass,
-  shardEffectBlurb,
-  shardOwned,
-} from '../game/reliquary'
+  relicTierLabel,
+  resolveRelicDescriptor,
+  socketSpecLabel,
+  unfittedRelicInstances,
+} from '../game/relics'
 import { InspectName } from './InspectName'
-import { coreInstanceAtSlot } from '../game/coreInstances'
+import { coreInstanceAtSlot, coreInstanceCopyNumber } from '../game/coreInstances'
 
 const SLOT_LABEL: Record<string, string> = {
   weapon: 'Weapon',
@@ -34,7 +37,6 @@ const SLOT_LABEL: Record<string, string> = {
 interface CoreSheetProps {
   state: GameState
   compact?: boolean
-  /** Relic install/remove/upgrade. Docked-only; omit during a live Sortie. */
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void
@@ -47,7 +49,9 @@ function RelicSocket({
   moduleId,
   coreInstanceId,
   socketIndex,
-  socket,
+  spec,
+  active,
+  unlockLabel,
   onEquipRelic,
   onRemoveRelic,
   onUpgradeRelic,
@@ -56,29 +60,42 @@ function RelicSocket({
   moduleId: string
   coreInstanceId: string
   socketIndex: number
-  socket: RelicSocketClass
+  spec: RelicSocketSpec
+  active: boolean
+  unlockLabel: string
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void
 }) {
-  const label = RELIC_SOCKET_LABELS[socket]
+  const label = socketSpecLabel(spec)
   const fittedId = coreSocketRelics(state, coreInstanceId)[socketIndex] ?? null
-  const fitted = fittedId ? getShard(fittedId) : undefined
+  const fitted = fittedId ? getRelicInstance(state, fittedId) : undefined
+  const family = fitted ? resolveRelicDescriptor(fitted.familyId) : undefined
   const docked = Boolean(state.combat.docked)
-  const canEdit = docked && Boolean(onEquipRelic || onRemoveRelic)
-  const owned = SHARDS.filter((shard) => {
-    if (shardOwned(state, shard.id) < 1) return false
-    if (shard.id === fittedId) return false
-    return relicFitsSocket(relicSocketClass(shard), socket)
+  const canEdit = docked && active && Boolean(onEquipRelic || onRemoveRelic)
+  const owned = eligibleRelicsForSocket(state, coreInstanceId, socketIndex)
+  const behaviouralBlocked = unfittedRelicInstances(state).filter((row) => {
+    const def = resolveRelicDescriptor(row.familyId)
+    if (def?.kind !== 'behavioural') return false
+    if (!relicFitsSocket(def.socket, spec)) return false
+    return !owned.some((ok) => ok.id === row.id)
   })
   return (
     <div className="relic-socket" data-guide={socketIndex === 0 ? `relic-${moduleId}` : undefined}>
       <p className="core-row-stats">
         <span className="muted">{label} </span>
-        {fitted ? (
+        {!active ? (
+          <span className="muted">{unlockLabel}</span>
+        ) : family && fitted ? (
           <>
-            <InspectName name={fitted.name} card={inspectShard(state, fitted.id)} />
-            <span className="muted"> · {shardEffectBlurb(fitted)}</span>
+            <InspectName
+              name={`${family.name} ${relicTierLabel(fitted.tier)}`}
+              card={inspectShard(state, fitted.id)}
+            />
+            <span className="muted">
+              {' '}
+              · {family.kind === 'behavioural' ? 'Behavioural' : 'Standard'} · {inspectRelicEffectText(family.id)}
+            </span>
           </>
         ) : (
           <span className="muted">{docked ? `Empty ${label} socket` : 'Empty — install at Dock'}</span>
@@ -89,24 +106,45 @@ function RelicSocket({
           Remove Relic
         </button>
       ) : null}
-      {canEdit && fittedId && onUpgradeRelic && canUpgradeRelic(state, fittedId).ok ? (
+      {canEdit && fittedId && onUpgradeRelic && canStartRelicUpgrade(state, fittedId).ok ? (
         <button type="button" className="primary" onClick={() => onUpgradeRelic(fittedId)}>
           Upgrade Relic
         </button>
+      ) : canEdit && fittedId && onUpgradeRelic ? (
+        <p className="muted">{canStartRelicUpgrade(state, fittedId).reason}</p>
       ) : null}
       {canEdit && onEquipRelic && owned.length > 0 ? (
         <div className="relic-picks">
-          {owned.map((shard) => (
-            <button
-              key={shard.id}
-              type="button"
-              className="primary"
-              onClick={() => onEquipRelic(coreInstanceId, shard.id, socketIndex)}
-            >
-              {shard.name}
-              <span className="muted"> ×{shardOwned(state, shard.id)}</span>
-            </button>
-          ))}
+          {owned.map((row) => {
+            const def = resolveRelicDescriptor(row.familyId)
+            return (
+              <button
+                key={row.id}
+                type="button"
+                className="primary"
+                onClick={() => onEquipRelic(coreInstanceId, row.id, socketIndex)}
+              >
+                {def?.name ?? row.familyId} {relicTierLabel(row.tier)}
+                <span className="muted">
+                  {' '}
+                  · {def?.kind === 'behavioural' ? 'Behavioural' : 'Standard'} · {row.id}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+      {canEdit && onEquipRelic && behaviouralBlocked.length > 0 ? (
+        <div className="relic-picks">
+          {behaviouralBlocked.map((row) => {
+            const def = resolveRelicDescriptor(row.familyId)
+            return (
+              <button key={row.id} type="button" disabled title={relicFitBlockReason('behavioural-limit')}>
+                {def?.name ?? row.familyId} {relicTierLabel(row.tier)}
+                <span className="muted"> · Behavioural · {relicFitBlockReason('behavioural-limit')}</span>
+              </button>
+            )
+          })}
         </div>
       ) : null}
     </div>
@@ -129,18 +167,21 @@ export function RelicSockets({
   onUpgradeRelic?: (relicId: string) => void
 }) {
   if (!isRelicsUnlocked(state)) return null
-  const layout = coreSocketLayout(state, coreInstanceId)
-  if (layout.length < 1) return null
+  const views = coreSocketViews(state, coreInstanceId)
+  if (views.length < 1) return null
   return (
     <div className="relic-sockets">
-      {layout.map((socket, index) => (
+      <p className="muted">Mature layout: {matureLayoutLine(moduleId)}</p>
+      {views.map((row) => (
         <RelicSocket
-          key={`${moduleId}-${socket}-${index}`}
+          key={`${moduleId}-${row.spec.type}-${row.index}`}
           state={state}
           moduleId={moduleId}
           coreInstanceId={coreInstanceId}
-          socketIndex={index}
-          socket={socket}
+          socketIndex={row.index}
+          spec={row.spec}
+          active={row.active}
+          unlockLabel={row.unlockLabel}
           onEquipRelic={onEquipRelic}
           onRemoveRelic={onRemoveRelic}
           onUpgradeRelic={onUpgradeRelic}
@@ -177,14 +218,18 @@ function CoreRow({
   const dps = coreDps(state, moduleId, coreInstanceId)
   const share = coreContributionPct(state, moduleId, coreInstanceId)
   const headline = stats.map((s) => `${s.label} ${s.current}`).join(' · ')
+  const copies = state.shipyard.coreInstances.filter((row) => row.moduleId === moduleId).length
+  const copy = coreInstanceCopyNumber(state, coreInstanceId)
+  const title = copies > 1 ? `${def.name} #${copy}` : def.name
 
   return (
     <article className="core-row" data-guide={`core-${moduleId}`} data-focus={`core-${moduleId}`}>
       <div className="core-row-main">
         <span className="muted">{SLOT_LABEL[def.role] ?? def.role}</span>
-        <InspectName name={def.name} card={inspectCore(state, moduleId)} />
+        <InspectName name={title} card={inspectCore(state, moduleId)} />
         <span className="core-row-lv">Mastery {mastery}</span>
       </div>
+      <p className="muted">{coreInstanceId}</p>
       {relicsOnly ? null : (
         <p className="core-row-stats muted">
           {xp} / {need} XP

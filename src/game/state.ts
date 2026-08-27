@@ -32,13 +32,15 @@ import {
   createEmptySignalCoresState,
 } from './signalCores'
 import { combinedCoreMods, effectiveCoreLevel } from './coreProgression'
+import { coreInstanceAtSlot } from './coreInstances'
+import { coreRelicModifiers } from './relicEffects'
 import {
   createEmptyNetworkState,
 } from './network'
 import {
   createEmptyFoundryState,
 } from './foundry'
-import { createEmptyReliquaryState, reliquaryDamageMult, reliquaryShieldMult } from './reliquary'
+import { createEmptyRelicState } from './relics'
 import { createEmptyFurnaceState, furnaceDamageMult, furnaceShieldMult } from './furnace'
 import {
   createEmptyHiveResearchState,
@@ -67,7 +69,7 @@ import {
 import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 46
+export const SAVE_VERSION = 47
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -188,7 +190,7 @@ export function createInitialState(now = Date.now()): GameState {
     },
     network: createEmptyNetworkState(),
     foundry: createEmptyFoundryState(),
-    reliquary: createEmptyReliquaryState(),
+    relics: createEmptyRelicState(),
     furnace: createEmptyFurnaceState(),
     hiveResearch: createEmptyHiveResearchState(),
     protocols: createEmptyProtocolState(),
@@ -284,9 +286,7 @@ export function globalDamageMultiplier(state: GameState): number {
   mult *= directiveWeaponMult(state)
   mult *= ballisticsDamageMult(state.core?.ranks.ballistics ?? 0)
   const coreDmg = computeSignalCoreBonuses(state).damage
-  // Signal damage is a softer half-weight layer (not a full multiply stack).
   if (coreDmg) mult *= 1 + coreDmg * 0.5
-  mult *= reliquaryDamageMult(state)
   mult *= furnaceDamageMult(state)
   mult *= hiveResearchDamageMult(state)
   mult *= echoDamageMult(state)
@@ -306,12 +306,17 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
   const level = Math.floor(effectiveCoreLevel(state, slot))
   const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
   const mods = combinedCoreMods(state, moduleId)
+  const coreId = coreInstanceAtSlot(state, slot)?.id
+  const relicMods = coreId ? coreRelicModifiers(state, coreId) : coreRelicModifiers(state, '')
   return {
     id: `${moduleId}-wpn-${slot}`,
     name: mod.weapon.name,
     damage:
       moduleWeaponDamage(mod, level, mastery) *
       mods.damageMult *
+      relicMods.damageMult *
+      relicMods.ballisticOutputMult *
+      relicMods.universalMult *
       mult *
       weaponPowerMult(state) *
       (mod.role === 'weapon' ? weaponCalibrationMult(state) : 1) *
@@ -424,7 +429,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   armor += signalBonuses.armor
   shieldMax += signalBonuses.shield
   evasion += signalBonuses.evasion
-  shieldMax *= reliquaryShieldMult(state)
   shieldMax *= furnaceShieldMult(state)
   shieldMax *= hiveResearchShieldMult(state)
   shieldMax *= echoShieldMult(state)

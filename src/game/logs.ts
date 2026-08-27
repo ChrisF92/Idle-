@@ -72,8 +72,8 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   },
   {
     id: 'reliquary',
-    title: 'Relic sockets',
-    body: 'Recovered Relics seat in matching Core sockets while Docked. Power, Optical, Ballistic, Shield, and Industrial until Mastery 5. Spare copies plus Recovered Stock raise I–III.',
+    title: 'Relics',
+    body: 'Physical Relics fit typed sockets on physical Cores while Docked. One Behavioural Relic per Core. No destruction.',
     unlock: (s) => career(s) >= ACT1_CADENCE.reliquary,
   },
   {

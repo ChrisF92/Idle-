@@ -26,17 +26,6 @@ import { hasProcess, noteProcessLastAction, processConfig } from './process'
 import { activeProcessProfile, evaluateProcessIntent, pickShopCategory } from './processProfiles'
 import { nextRunUpgradeCost, visibleRunUpgrades, type RunUpgradeId } from './workshop'
 import {
-  SHARDS,
-  coreSocketLayout,
-  coreSocketRelics,
-  equipRelicOnCore,
-  getShard,
-  relicFitsSocket,
-  relicSocketClass,
-  shardAutoScore,
-  shardOwned,
-} from './reliquary'
-import {
   HIVE_RESEARCH_BRANCHES,
   HIVE_RESEARCH_NODES,
   hiveResearchBranchUnlocked,
@@ -46,7 +35,6 @@ import {
   setResearchFocus,
 } from './hiveResearch'
 import { furnaceActiveLevel, furnaceSpendableHeat, runFurnaceManager, setFurnaceChannel } from './furnace'
-import { coreInstanceAtSlot } from './coreInstances'
 function adopt(state: GameState, next: GameState): void {
   if (next === state) return
   state.resources = next.resources
@@ -62,7 +50,7 @@ function adopt(state: GameState, next: GameState): void {
   state.prestige = next.prestige
   state.codex = next.codex
   state.foundry = next.foundry
-  state.reliquary = next.reliquary
+  state.relics = next.relics
   state.hiveResearch = next.hiveResearch
   state.furnace = next.furnace
   state.process = next.process
@@ -214,45 +202,6 @@ function autoBankAsh(_state: GameState): void {
   /* GDD Furnace: converting Ash is a Sortie decision, not a live tank. */
 }
 
-function autoSeatShards(state: GameState): void {
-  if (!hasProcess(state, 'auto-relic')) return
-  if (!state.combat.docked) return
-  const cfg = processConfig(state)
-  if (!cfg.reliquary.autoEquip) return
-  const keep = hasProcess(state, 'reliquary-keep') ? cfg.reliquary.keepMode : 'keep-all'
-  const minScore = hasProcess(state, 'reliquary-quality') ? cfg.reliquary.minScore : 0
-  for (let slotIndex = 0; slotIndex < state.shipyard.modules.length; slotIndex += 1) {
-    const coreInstanceId = coreInstanceAtSlot(state, slotIndex)?.id
-    if (!coreInstanceId) continue
-    const layout = coreSocketLayout(state, coreInstanceId)
-    for (let i = 0; i < layout.length; i += 1) {
-      const socket = layout[i]
-      if (!socket) continue
-      const seated = coreSocketRelics(state, coreInstanceId)
-      const fitted = seated[i] ?? null
-      const fittedDef = fitted ? getShard(fitted) : undefined
-      const fittedScore = fittedDef ? shardAutoScore(fittedDef) : 0
-      if (fitted && keep === 'keep-all') continue
-      let bestId: string | null = null
-      let bestScore = fitted ? fittedScore * (keep === 'upgrade-only' ? 1.15 : 1.05) : 0
-      for (const def of SHARDS) {
-        if (shardOwned(state, def.id) < 1) continue
-        if (!relicFitsSocket(relicSocketClass(def), socket)) continue
-        const score = shardAutoScore(def) + Math.min(0.04, shardOwned(state, def.id) * 0.002)
-        if (score < minScore) continue
-        if (score > bestScore) {
-          bestScore = score
-          bestId = def.id
-        }
-      }
-      if (!bestId || bestId === fitted) continue
-      const next = equipRelicOnCore(state, coreInstanceId, bestId, i)
-      if (next === state) continue
-      adopt(state, next)
-    }
-  }
-}
-
 function autoResearchFocus(state: GameState): void {
   if (!hasProcess(state, 'research-focus') && !hasProcess(state, 'research-queue')) return
   if (!state.hiveResearch) return
@@ -308,7 +257,6 @@ export function tickAutomation(state: GameState): void {
   autoFurnacePush(state)
   autoNetworkBalance(state)
   autoBankAsh(state)
-  autoSeatShards(state)
   autoResearchFocus(state)
   autoFurnaceManager(state)
   autoProtocolEchoRepeat(state)

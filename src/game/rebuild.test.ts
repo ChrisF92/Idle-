@@ -18,6 +18,7 @@ import {
 } from './rebuild'
 import { extractSortie, setDocked } from './tick'
 import { workshopLevel } from './workshop'
+import { addRelicInstance } from './relics'
 
 function docked(state = createInitialState(0)) {
   const next = markHullLost(state)
@@ -119,7 +120,7 @@ describe('Rebuild reset matrix', () => {
     s.hiveResearch.active = true
     s.hiveResearch.activeNodeId = 'priority-lock'
     s.hiveResearch.progress = 12
-    s.reliquary.owned = { 'power-shard': 1 }
+    addRelicInstance(s, 'power-coupler')
     s.foundry.fabrication = [
       { kind: 'core', jobId: 'flak-array', progress: 0.33, paid: true },
     ]
@@ -144,7 +145,7 @@ describe('Rebuild reset matrix', () => {
     expect(s.foundry.fabrication[0]?.progress).toBe(fabProgress)
     expect(s.foundry.fabrication[0]?.paid).toBe(true)
     expect(s.hiveResearch.progress).toBe(researchElapsed)
-    expect(s.reliquary.owned['power-shard']).toBe(1)
+    expect(s.relics.instances.some((row) => row.familyId === 'power-coupler')).toBe(true)
     expect(s.meta.bestWave).toBeGreaterThanOrEqual(210)
     expect(s.meta.sortieSpeed).toBe(2)
     expect(cycleScrapGenerated(s)).toBe(0)

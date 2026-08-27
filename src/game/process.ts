@@ -942,10 +942,9 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
     case 'foundry':
       return Object.values(state.foundry?.masteryXp ?? {}).some((n) => (Number(n) || 0) > 0)
     case 'reliquary':
-      return (
-        Object.values(state.reliquary?.owned ?? {}).some((n) => n > 0) ||
-        Object.values(state.reliquary?.coreFits ?? {}).some((fits) => (fits ?? []).some(Boolean))
-      )
+      // PR9 owns Relic automation. Physical Relic ownership does not satisfy
+      // leftover Process Reliquary mastery from the shard system.
+      return false
     case 'research':
       return (state.hiveResearch?.completedIds?.length ?? 0) > 0
         || Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
@@ -992,7 +991,7 @@ function masteryLockReason(kind: ProcessMastery): string {
     case 'foundry':
       return 'Finish a craft first'
     case 'reliquary':
-      return 'Fit a Relic first'
+      return 'Relic automation is owned by PR9'
     case 'research':
       return 'Complete a Research project first'
     case 'furnace':

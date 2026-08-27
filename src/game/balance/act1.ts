@@ -22,7 +22,6 @@ import { PRESTIGE_MIN_SECTOR } from '../progression'
 import { processEarned, PROCESS_ACCUMULATION } from '../process'
 import { PROTOCOL_UNLOCK_SECTOR } from '../protocols'
 import { ECHO_UNLOCK_SECTOR } from '../echo'
-import { reliquaryDamageMult } from '../reliquary'
 import type { GameState } from '../types'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from '../cadence'
 import { reportedBestWave } from '../waves'
@@ -239,7 +238,7 @@ export function act1Contribution(state: GameState): Act1Contribution {
   return {
     networkDamage: 0,
     furnaceDamage: furnaceDamageMult(state) - 1,
-    reliquaryDamage: reliquaryDamageMult(state) - 1,
+    reliquaryDamage: 0,
     researchDamage: hiveResearchDamageMult(state) - 1,
     rebuildMomentum: prestigeMomentumDamageBonus(state.prestige.prestigeCount, state.meta.ascensionCount ?? 0),
   }

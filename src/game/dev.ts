@@ -30,7 +30,7 @@ export const GDD_DOOR_PRESETS = [
   { wave: ACT1_CADENCE.workers, label: 'W50 Workers' },
   { wave: ACT1_CADENCE.directives, label: 'W50 Directives' },
   { wave: ACT1_CADENCE.rebuild, label: 'W210 Rebuild' },
-  { wave: ACT1_CADENCE.reliquary, label: 'W110 Relics' },
+  { wave: ACT1_CADENCE.reliquary, label: 'W320 Relics' },
   { wave: ACT1_CADENCE.furnace, label: 'W140 Furnace' },
   { wave: ACT1_CADENCE.research, label: 'W170 Research' },
   { wave: ACT1_CADENCE.process, label: 'W210 Process' },
@@ -134,9 +134,6 @@ function prepGddDoor(state: GameState, wave: number): void {
     armProcessGates(state)
   }
   maybeGrantSystemUnlocks(state)
-  if (w >= ACT1_CADENCE.reliquary) {
-    state.reliquary.owned['battle-chip'] = Math.max(state.reliquary.owned['battle-chip'] ?? 0, 1)
-  }
   tryCompleteAchievements(state)
 }
 

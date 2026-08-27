@@ -12,7 +12,7 @@ import { isRouteBUnlocked, maxLaunchSector, routeDangerMult } from './sectors'
 
 describe('phase 7: Yard, Cruiser, A/B routes', () => {
   it('bumps save and keeps Yard locked until the first Rebuild', () => {
-    expect(SAVE_VERSION).toBe(46)
+    expect(SAVE_VERSION).toBe(47)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'yard')).toBe(false)
     expect(getFrame('bastion-frame')?.requiresBestWave).toBe(70)

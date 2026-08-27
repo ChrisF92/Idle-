@@ -47,7 +47,6 @@ import {
   guideBodyLines,
   skipOnboarding,
 } from './progression'
-import { isReliquarySlotUnlocked } from './reliquary'
 import { exportSave, importSave } from './save'
 import { createInitialState, SAVE_VERSION } from './state'
 import { prepOnboardingDoor } from './onboarding'
@@ -116,13 +115,12 @@ describe('Research milestones: nodes and identity', () => {
     expect(furnaceChannelSlots(s)).toBe(1)
     expect(foundrySlotCount(s)).toBe(1)
     expect(isNetworkBarUnlocked(s, 'strike-relay')).toBe(true)
-    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)
   })
 })
 
 describe('Research milestones: costs', () => {
   it('keeps SAVE_VERSION at 34 and an achievable first node', () => {
-    expect(SAVE_VERSION).toBe(46)
+    expect(SAVE_VERSION).toBe(47)
     const s = atResearch()
     expect(hiveResearchNodeCost(0)).toBe(52)
     expect(hiveResearchNodeCost(0, s)).toBe(52)
@@ -214,12 +212,10 @@ describe('Research milestones: breakthrough wiring', () => {
     expect(material / energy).toBeCloseTo(HIVE_RESEARCH_FOCUS_MULT / 1.5)
   })
 
-  it('Blue Bay opens the blue Reliquary slot before its sector 40 gate', () => {
+  it('Blue Bay leftover Research colour unlock does not gate Relic Tempering', () => {
     const s = atResearch(34)
-    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(false)
     complete(s, 'observation', 6)
     expect(hiveResearchUnlocksReliquary(s, 'blue')).toBe(true)
-    expect(isReliquarySlotUnlocked(s, 'blue')).toBe(true)
   })
 
   it('Queue Hall deepens the Research Queue and feeds Protocols into the desk', () => {
@@ -286,7 +282,7 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
     s.hiveResearch.focus = 'observation'
     s.hiveResearch.xp.observation = 12
     const loaded = importSave(exportSave(s))
-    expect(SAVE_VERSION).toBe(46)
+    expect(SAVE_VERSION).toBe(47)
     expect(loaded?.hiveResearch.completed.material).toBe(6)
     expect(loaded?.hiveResearch.completed.observation).toBe(2)
     expect(loaded?.hiveResearch.focus).toBe('observation')

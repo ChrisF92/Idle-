@@ -15,6 +15,22 @@ import { ACT1_CADENCE } from './cadence'
 import { careerBestWave } from './waves'
 import { grantUnlockedFrame } from './catalog'
 import { addCoreInstance } from './coreInstances'
+import {
+  addRelicInstance,
+  canStartRelicUpgrade,
+  getRelicInstance,
+  isRelicsUnlocked,
+  transformRelicTier,
+} from './relics'
+import {
+  RELIC_DESIGN_PENDING_LABEL,
+  isRelicFamilyFabricatable,
+  isRelicFamilyId,
+  isValidRelicTier,
+  relicFamilyName,
+  resolveRelicDescriptor,
+} from './relicCatalogue'
+import { parseRelicUpgradeJob } from './relicSeeds'
 import { ownedWorkers, workerCapacity, workerJobContribution } from './workers'
 import {
   canTrackBlueprint,
@@ -36,6 +52,7 @@ import {
   FOUNDRY_MATERIAL_NAMES,
   FOUNDRY_RECIPES,
   FRAME_FABRICATION_RECIPES,
+  RELIC_FABRICATION_RECIPES,
   WORKER_FABRICATION_RECIPE,
   getFabricationRecipe,
   getFacility,
@@ -66,6 +83,7 @@ export {
   FOUNDRY_MATERIAL_NAMES,
   FOUNDRY_RECIPES,
   FRAME_FABRICATION_RECIPES,
+  RELIC_FABRICATION_RECIPES,
   WORKER_FABRICATION_RECIPE,
   getFacility,
   getFoundryRecipe,
@@ -97,7 +115,7 @@ function emptySlot(): FoundrySlot {
 }
 
 function emptyFabSlot(): FabricationSlot {
-  return { kind: null, jobId: null, progress: 0, paid: false }
+  return { kind: null, jobId: null, progress: 0, paid: false, targetRelicId: null }
 }
 
 export function createEmptyFoundryState(): FoundryState {
@@ -345,6 +363,32 @@ function completeFabrication(state: GameState, slot: FabricationSlot): void {
     noteSystemAction(state, 'foundry')
     return
   }
+  if (slot.kind === 'relic') {
+    const upgrade = parseRelicUpgradeJob(slot.jobId)
+    if (upgrade) {
+      const check = relicUpgradeJobIsAuthoritative(state, slot)
+      if (check.ok && transformRelicTier(state, check.instanceId, check.toTier)) {
+        const instance = getRelicInstance(state, check.instanceId)
+        if (instance) {
+          pushFoundryLog(
+            state,
+            `${relicFamilyName(instance.familyId)} transformed to Tier ${check.toTier === 2 ? 'II' : 'III'}.`,
+          )
+        }
+      }
+      noteSystemAction(state, 'foundry')
+      return
+    }
+    const def = resolveRelicDescriptor(slot.jobId)
+    if (!def || !isRelicFamilyFabricatable(def)) return
+    const instance = addRelicInstance(state, def.id, 1)
+    if (instance) {
+      if (isRelicFamilyId(def.id)) discoverBlueprint(state, def.id)
+      pushFoundryLog(state, `Fabricated ${relicFamilyName(def.id)} (${instance.id}).`)
+      recordPlaytest(state, 'foundry_craft', { n: instance.id, firstKey: `relic-fab:${instance.id}` })
+    }
+    noteSystemAction(state, 'foundry')
+  }
 }
 
 function clearFabSlot(slot: FabricationSlot): void {
@@ -352,6 +396,53 @@ function clearFabSlot(slot: FabricationSlot): void {
   slot.jobId = null
   slot.progress = 0
   slot.paid = false
+  slot.targetRelicId = null
+}
+
+/**
+ * Upgrade jobs are identified by the instance ID encoded in jobId.
+ * `targetRelicId`, if present, must match. Any mismatch or stale target
+ * sanitizes the slot without transforming any Relic.
+ */
+export function relicUpgradeJobIsAuthoritative(
+  state: GameState,
+  slot: Pick<FabricationSlot, 'kind' | 'jobId' | 'targetRelicId'>,
+): { ok: true; instanceId: string; toTier: 2 | 3; familyId: string } | { ok: false } {
+  if (slot.kind !== 'relic' || typeof slot.jobId !== 'string') return { ok: false }
+  const upgrade = parseRelicUpgradeJob(slot.jobId)
+  if (!upgrade) return { ok: false }
+  if (slot.targetRelicId != null && slot.targetRelicId !== upgrade.instanceId) return { ok: false }
+  const instance = getRelicInstance(state, upgrade.instanceId)
+  if (!instance) return { ok: false }
+  if (instance.id !== upgrade.instanceId) return { ok: false }
+  if (instance.familyId !== upgrade.familyId) return { ok: false }
+  if (!isValidRelicTier(upgrade.toTier)) return { ok: false }
+  if (upgrade.toTier !== instance.tier + 1) return { ok: false }
+  return { ok: true, instanceId: upgrade.instanceId, toTier: upgrade.toTier, familyId: upgrade.familyId }
+}
+
+export function sanitizeFabricationSlots(state: GameState): void {
+  if (!state.foundry) return
+  for (const slot of state.foundry.fabrication ?? []) {
+    if (!slot.kind || !slot.jobId) {
+      clearFabSlot(slot)
+      continue
+    }
+    if (slot.kind === 'relic') {
+      const upgrade = parseRelicUpgradeJob(slot.jobId)
+      if (upgrade) {
+        if (!relicUpgradeJobIsAuthoritative(state, slot).ok) clearFabSlot(slot)
+        else slot.targetRelicId = upgrade.instanceId
+        continue
+      }
+      const def = resolveRelicDescriptor(slot.jobId)
+      if (!def || !isRelicFamilyFabricatable(def) || !getFabricationRecipe('relic', slot.jobId)) {
+        clearFabSlot(slot)
+      }
+      continue
+    }
+    if (!getFabricationRecipe(slot.kind, slot.jobId)) clearFabSlot(slot)
+  }
 }
 
 function tickProcessing(state: GameState, dtSeconds: number): void {
@@ -394,6 +485,7 @@ export function tickFoundry(state: GameState, dtSeconds: number): void {
     state.foundry.trackedPrintId = null
   }
   ensureSlotCount(state)
+  sanitizeFabricationSlots(state)
   tickProcessing(state, dtSeconds)
   tickFabrication(state, dtSeconds)
 }
@@ -466,7 +558,39 @@ export function canStartFabrication(
 ): { ok: boolean; reason?: string; cost?: FoundryCost } {
   if (!isFoundryAvailable(state)) return { ok: false, reason: `Reach Wave ${ACT1_CADENCE.foundry}` }
   if (idleFabricationSlot(state) < 0) return { ok: false, reason: 'No fabrication slot' }
-  if (kind === 'relic') return { ok: false, reason: 'Relic fabrication is PR6' }
+  if (kind === 'relic') {
+    const upgrade = parseRelicUpgradeJob(jobId)
+    if (upgrade) {
+      const check = canStartRelicUpgrade(state, upgrade.instanceId)
+      if (!check.ok) return { ok: false, reason: check.reason }
+      if (check.toTier !== upgrade.toTier) return { ok: false, reason: 'Invalid Relic upgrade' }
+      const recipe = getFabricationRecipe('relic', jobId)
+      if (!recipe) return { ok: false, reason: 'Unknown Relic upgrade' }
+      if (!canPayCost(state, recipe.costs)) {
+        return { ok: false, reason: `Need ${foundryMissingCost(state, recipe.costs)}`, cost: recipe.costs }
+      }
+      return { ok: true, cost: recipe.costs }
+    }
+    if (!isRelicsUnlocked(state)) return { ok: false, reason: `Reach Wave ${ACT1_CADENCE.reliquary}` }
+    const def = resolveRelicDescriptor(jobId)
+    if (!def) return { ok: false, reason: 'Unknown Relic' }
+    if (!isRelicFamilyFabricatable(def)) {
+      return { ok: false, reason: RELIC_DESIGN_PENDING_LABEL }
+    }
+    const recipe = getFabricationRecipe('relic', jobId)
+    if (!recipe) return { ok: false, reason: 'Unknown Relic' }
+    if (isRelicFamilyId(jobId)) {
+      const bp = getBlueprint(jobId)
+      if (!bp) return { ok: false, reason: 'Unknown Relic blueprint' }
+      if (!isBlueprintDiscovered(state, jobId) && !physicalProductOwned(state, bp)) {
+        return { ok: false, reason: 'Blueprint not discovered' }
+      }
+    }
+    if (!canPayCost(state, recipe.costs)) {
+      return { ok: false, reason: `Need ${foundryMissingCost(state, recipe.costs)}`, cost: recipe.costs }
+    }
+    return { ok: true, cost: recipe.costs }
+  }
   if (kind === 'worker') {
     if (!hasFacility(state, 'worker-fabricator')) return { ok: false, reason: 'Build Worker Fabricator' }
     const queued = (state.foundry.fabrication ?? []).filter((slot) => slot.kind === 'worker').length
@@ -519,6 +643,8 @@ export function startFabrication(state: GameState, kind: FabJobKind, jobId: stri
   slot.jobId = jobId
   slot.progress = 0
   slot.paid = true
+  const upgrade = kind === 'relic' ? parseRelicUpgradeJob(jobId) : null
+  slot.targetRelicId = upgrade?.instanceId ?? null
   noteSystemAction(next, 'foundry')
   return next
 }

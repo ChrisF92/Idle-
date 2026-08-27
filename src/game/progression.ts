@@ -557,9 +557,8 @@ export function achievementProgressValue(
       )
     case 'reliquary-fitted': {
       let n = 0
-      for (const slots of Object.values(state.reliquary?.coreFits ?? {})) {
+      for (const slots of Object.values(state.relics?.coreFits ?? {})) {
         if (Array.isArray(slots)) n += slots.filter(Boolean).length
-        else if (slots) n += 1
       }
       return n
     }

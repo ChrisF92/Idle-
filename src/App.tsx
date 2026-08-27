@@ -636,6 +636,7 @@ function AppShell() {
         onSelectFrame={game.selectFrame}
         onFitCore={game.fitModule}
         onUpgradeCore={game.buyCoreStartingLevel}
+        onUpgradeRelic={game.upgradeRelic}
         onOpenFoundry={(pane) => {
           setInventoryOpen(false)
           setFoundryPane(pane)

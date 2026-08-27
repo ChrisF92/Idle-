@@ -113,12 +113,10 @@ import {
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { combinedCoreMods } from './coreProgression'
-import { grantReliquaryKillLoot, reliquaryResearchXpMult, reliquarySalvageMult } from './reliquary'
 import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
 import {
   grantHiveResearchKillXp,
   hiveResearchSalvageMult,
-  hiveResearchShardDropBonus,
 } from './hiveResearch'
 import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
@@ -1924,7 +1922,6 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   recordPlaytest(state, 'first_kill', { firstKey: 'kill' })
   const rewardWeight = Math.max(0, Math.min(1, unit.rewardWeight ?? 1))
   const salvageMult =
-    reliquarySalvageMult(state) *
     hiveResearchSalvageMult(state) *
     furnaceSalvageMult(state) *
     echoSalvageMult(state) *
@@ -1945,19 +1942,13 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   const discreteLoot = rewardWeight >= 1 || rng() < rewardWeight
   if (discreteLoot) {
     grantSignalCoreDrop(state, 'kill', { family: unit.family })
-    grantReliquaryKillLoot(
-      state,
-      unit.isBoss,
-      rng,
-      hiveResearchShardDropBonus(state),
-    )
     grantFurnaceKillLoot(state, unit.isBoss)
   }
   choirTapOnHighValueKill(state, unit)
   grantHiveResearchKillXp(
     state,
     unit.isBoss,
-    furnaceResearchXpMult(state) * reliquaryResearchXpMult(state) * rewardWeight,
+    furnaceResearchXpMult(state) * rewardWeight,
   )
 }
 

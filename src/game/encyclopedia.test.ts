@@ -9,11 +9,7 @@ import {
 import { FOUNDRY_MATERIAL_IDS } from './foundryCatalogue'
 import { atCareerWave } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
-import {
-  SHARDS,
-  shardEffectBlurb,
-  unlockedShardPool,
-} from './reliquary'
+import { RELIC_FAMILIES, STANDARD_RELIC_IDS } from './relicCatalogue'
 import { ECHO_RUNS, ECHO_TREE, echoFoundrySpeedMult, getEchoRun } from './echo'
 import { CODEX_ROLES, roleIntel } from './combat'
 
@@ -38,22 +34,12 @@ describe('encyclopedia depth', () => {
     expect(FOUNDRY_RECIPES.every((r) => !('maxLevel' in r))).toBe(true)
   })
 
-  it('gates late Reliquary shards by career sector', () => {
-    const early = createInitialState(0)
-    early.meta.highestSectorEver = 15
-    expect(unlockedShardPool(early)).toHaveLength(0)
-
-    const opened = createInitialState(0)
-    opened.meta.highestSectorEver = 16
-    expect(unlockedShardPool(opened).some((s) => s.id === 'battle-chip')).toBe(true)
-    expect(unlockedShardPool(opened).some((s) => s.id === 'warp-chip')).toBe(false)
-
-    const late = createInitialState(0)
-    late.meta.highestSectorEver = 40
-    expect(unlockedShardPool(late).some((s) => s.id === 'overdraw-chip')).toBe(true)
-    expect(unlockedShardPool(late).some((s) => s.id === 'warp-chip')).toBe(true)
-    expect(shardEffectBlurb(SHARDS.find((s) => s.id === 'warp-chip')!)).toContain('foundry')
-    expect(SHARDS.length).toBeGreaterThanOrEqual(15)
+  it('catalogues the 20 Relic families without leftover shards', () => {
+    expect(RELIC_FAMILIES).toHaveLength(20)
+    expect(STANDARD_RELIC_IDS).toHaveLength(6)
+    expect(RELIC_FAMILIES.some((row) => row.id === 'battle-chip')).toBe(false)
+    expect(RELIC_FAMILIES.some((row) => row.id === 'warp-chip')).toBe(false)
+    expect(RELIC_FAMILIES.every((row) => row.effectStatus === 'pending')).toBe(true)
   })
 
   it('adds Delta and Fenix Echo gauntlets plus smelt/warp tree nodes', () => {

@@ -11,8 +11,7 @@ import type {
   NetworkState,
   ProcessState,
   ProtocolState,
-  ReliquaryColor,
-  ReliquaryState,
+  RelicState,
   SignalCoreInstance,
   SignalCoresState,
   SortieSummary,
@@ -29,7 +28,7 @@ import {
   getSignalCoreDef,
 } from './signalCores'
 import { createEmptyNetworkState } from './network'
-import { createEmptyFoundryState } from './foundry'
+import { createEmptyFoundryState, sanitizeFabricationSlots } from './foundry'
 import {
   FOUNDRY_INFRASTRUCTURE_IDS,
   getFabricationRecipe,
@@ -38,7 +37,7 @@ import {
   isFoundryMaterialId,
 } from './foundryCatalogue'
 import { canTrackBlueprint, isKnownBlueprintId, starterBlueprintIds } from './blueprints'
-import { createEmptyReliquaryState, hydrateCoreFits } from './reliquary'
+import { createEmptyRelicState, sanitizeRelicState } from './relics'
 import { finalizeFurnaceMigration, hydrateFurnaceState } from './furnace'
 import { createEmptyHiveResearchState, HIVE_RESEARCH_BRANCHES } from './hiveResearch'
 import { createEmptyProtocolState } from './protocols'
@@ -377,7 +376,7 @@ function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
 }
 
 function idleFabSlot(): GameState['foundry']['fabrication'][number] {
-  return { kind: null, jobId: null, progress: 0, paid: false }
+  return { kind: null, jobId: null, progress: 0, paid: false, targetRelicId: null }
 }
 
 function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['foundry'] {
@@ -419,11 +418,16 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
         const jobId = s?.jobId
         if (!kindOk(kind) || typeof jobId !== 'string' || jobId.length === 0) return idleFabSlot()
         if (!getFabricationRecipe(kind, jobId)) return idleFabSlot()
+        const targetRelicId =
+          kind === 'relic' && typeof s?.targetRelicId === 'string' && s.targetRelicId.length > 0
+            ? s.targetRelicId
+            : null
         return {
           kind,
           jobId,
           progress: Math.max(0, Math.min(1, Number(s?.progress ?? 0) || 0)),
           paid: s?.paid === true,
+          targetRelicId,
         }
       })
     : empty.fabrication
@@ -461,36 +465,29 @@ function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['
   }
 }
 
-const RELIQUARY_COLORS: ReliquaryColor[] = ['red', 'orange', 'pink', 'blue', 'green']
-
-function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState {
-  const empty = createEmptyReliquaryState()
+function withRelicDefaults(raw: RelicState | undefined): RelicState {
+  const empty = createEmptyRelicState()
   if (!raw || typeof raw !== 'object') return empty
-  const owned: Record<string, number> = {}
-  if (raw.owned && typeof raw.owned === 'object') {
-    for (const [id, n] of Object.entries(raw.owned)) {
-      const v = Math.floor(Number(n))
-      if (v > 0) owned[id] = v
+  const instances = Array.isArray(raw.instances) ? raw.instances.map((row) => ({ ...row })) : []
+  const nextSerial: RelicState['nextSerial'] = {}
+  if (raw.nextSerial && typeof raw.nextSerial === 'object') {
+    for (const [id, n] of Object.entries(raw.nextSerial)) {
+      const v = Math.max(1, Math.floor(Number(n) || 1))
+      nextSerial[id] = v
     }
   }
-  const slots: ReliquaryState['slots'] = {}
-  for (const color of RELIQUARY_COLORS) {
-    const id = raw.slots?.[color]
-    slots[color] = typeof id === 'string' && id.length > 0 ? id : null
+  const coreFits: RelicState['coreFits'] = {}
+  if (raw.coreFits && typeof raw.coreFits === 'object') {
+    for (const [coreId, slots] of Object.entries(raw.coreFits)) {
+      if (!Array.isArray(slots)) continue
+      coreFits[coreId] = slots.map((id) => (typeof id === 'string' && id.length > 0 ? id : null))
+    }
   }
-  const coreFits = hydrateCoreFits(raw.coreFits)
-  return { owned, slots, coreFits }
+  return { instances, nextSerial, coreFits }
 }
 
-/** Drop malformed Relic fits that are not keyed to a physical Core instance. */
 export function sanitizeCoreFits(state: GameState): void {
-  const ids = new Set((state.shipyard.coreInstances ?? []).map((instance) => instance.id))
-  const next: ReliquaryState['coreFits'] = {}
-  for (const [key, slots] of Object.entries(state.reliquary?.coreFits ?? {})) {
-    if (!ids.has(key) || !Array.isArray(slots)) continue
-    next[key] = [...slots]
-  }
-  if (state.reliquary) state.reliquary.coreFits = next
+  sanitizeRelicState(state)
 }
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
@@ -775,7 +772,7 @@ function migrate(raw: unknown): GameState | null {
       base: migrateBase(state.base, base.base),
       network: withNetworkDefaults(state.network),
       foundry: withFoundryDefaults(state.foundry),
-      reliquary: withReliquaryDefaults(state.reliquary),
+      relics: withRelicDefaults(state.relics),
       furnace: withFurnaceDefaults(state.furnace),
       hiveResearch: withHiveResearchDefaults(state.hiveResearch),
       protocols: withProtocolDefaults(state.protocols),
@@ -793,6 +790,7 @@ function migrate(raw: unknown): GameState | null {
       playtest: hydratePlaytest(state.playtest),
     }
     sanitizeCoreFits(hydrated)
+    sanitizeFabricationSlots(hydrated)
     if (hydrated.foundry.trackedPrintId && !canTrackBlueprint(hydrated, hydrated.foundry.trackedPrintId)) {
       hydrated.foundry.trackedPrintId = null
     }
