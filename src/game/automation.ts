@@ -202,11 +202,6 @@ function autoBankAsh(_state: GameState): void {
   /* GDD Furnace: converting Ash is a Sortie decision, not a live tank. */
 }
 
-/** PR9 owns Relic automation. PR6 does not auto-fit or auto-upgrade Relics. */
-function autoSeatShards(_state: GameState): void {
-  return
-}
-
 function autoResearchFocus(state: GameState): void {
   if (!hasProcess(state, 'research-focus') && !hasProcess(state, 'research-queue')) return
   if (!state.hiveResearch) return
@@ -262,7 +257,6 @@ export function tickAutomation(state: GameState): void {
   autoFurnacePush(state)
   autoNetworkBalance(state)
   autoBankAsh(state)
-  autoSeatShards(state)
   autoResearchFocus(state)
   autoFurnaceManager(state)
   autoProtocolEchoRepeat(state)

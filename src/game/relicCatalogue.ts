@@ -1,9 +1,10 @@
 /**
  * Act 1 Relic catalogue — PR6.
  *
- * Canonical locks family identity, Standard vs Behavioural, and socket classes
- * as explicit data. Exact combat effects and deterministic acquisition sources
- * are pending unless separately authored.
+ * Canonical locks family identity, Standard vs Behavioural, and the six
+ * socket *classes*. It does not assign a socket class to each family.
+ * Exact combat effects and deterministic acquisition sources are pending
+ * unless separately authored.
  */
 
 import type { RelicSocketClass } from './types'
@@ -26,6 +27,9 @@ export const RELIC_SOCKET_LABELS: Record<RelicSocketClass, string> = {
   universal: 'Universal',
 }
 
+export const RELIC_SOCKET_PENDING_LABEL = 'Socket class pending design'
+export const RELIC_DESIGN_PENDING_LABEL = 'Design details pending'
+
 export type RelicKind = 'standard' | 'behavioural'
 export type RelicTier = 1 | 2 | 3
 export type RelicAcquisitionStage = 'early' | 'mid' | 'advanced' | 'late' | 'challenge'
@@ -35,6 +39,8 @@ export type RelicSourceKind =
   | 'boss-route'
   | 'research'
   | 'furnace'
+export type RelicSocketStatus = 'authored' | 'pending'
+export type RelicFabricationStatus = 'ready' | 'pending-design'
 
 export type RelicFamilyId =
   | 'overcharge-capacitor'
@@ -70,18 +76,38 @@ export interface RelicSourceMeta {
   pendingReason: string
 }
 
-export interface RelicFamilyDef {
-  id: RelicFamilyId
+/**
+ * Descriptor used by the generic Relic engine. Production families live in
+ * `RELIC_FAMILIES`. Test fixtures may register extra descriptors without
+ * entering the production catalogue.
+ */
+export interface RelicDescriptor {
+  id: string
   name: string
   kind: RelicKind
-  socket: RelicSocketClass
-  source: RelicSourceMeta
+  /**
+   * Socket compatibility. `null` + `socketStatus: 'pending'` means the
+   * canonical source has not assigned this family a class.
+   */
+  socket: RelicSocketClass | null
+  socketStatus: RelicSocketStatus
+  /**
+   * Production Fabrication is available only when identity, class, socket,
+   * and Tier-I effect semantics are all authored.
+   */
+  fabricationStatus: RelicFabricationStatus
   /**
    * Combat/economy effect. Canonical does not author magnitudes.
    * `pending` means UI must not invent a numeric claim.
    */
   effectStatus: 'pending' | 'authored'
   effectBlurb: string
+  source?: RelicSourceMeta
+}
+
+export interface RelicFamilyDef extends RelicDescriptor {
+  id: RelicFamilyId
+  source: RelicSourceMeta
 }
 
 const pending = (
@@ -112,192 +138,183 @@ const bossRoute = (
     routeLabel: label,
   })
 
+function family(
+  row: Omit<RelicFamilyDef, 'socket' | 'socketStatus' | 'fabricationStatus'>,
+): RelicFamilyDef {
+  return {
+    ...row,
+    socket: null,
+    socketStatus: 'pending',
+    fabricationStatus: 'pending-design',
+  }
+}
+
 export const RELIC_FAMILIES: RelicFamilyDef[] = [
-  {
+  family({
     id: 'overcharge-capacitor',
     name: 'Overcharge Capacitor',
     kind: 'behavioural',
-    socket: 'power',
     source: pending('early', 'Early Relic staging is represented; exact deterministic source is unauthored.'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'prismatic-lens',
     name: 'Prismatic Lens',
     kind: 'behavioural',
-    socket: 'optical',
     source: bossRoute('mid', 550, 'Pack Tyrant II / Prismatic route'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'focusing-array',
     name: 'Focusing Array',
     kind: 'behavioural',
-    socket: 'optical',
     source: challenge('challenge', 'dead-reckoning', 'Dead Reckoning'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'phase-needle',
     name: 'Phase Needle',
     kind: 'behavioural',
-    socket: 'optical',
     source: bossRoute('advanced', 600, 'Canticle Engine'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'fixed-mount',
     name: 'Fixed Mount',
     kind: 'behavioural',
-    socket: 'ballistic',
     source: bossRoute('advanced', 800, 'Null Battery'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'shatter-mesh',
     name: 'Shatter Mesh',
     kind: 'behavioural',
-    socket: 'ballistic',
     source: challenge('challenge', 'pressure-front', 'Pressure Front'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'penetrator-guide',
     name: 'Penetrator Guide',
     kind: 'behavioural',
-    socket: 'ballistic',
     source: bossRoute('advanced', 650, 'Iron Behemoth II'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'aegis-relay',
     name: 'Aegis Relay',
     kind: 'behavioural',
-    socket: 'shield',
     source: bossRoute('early', 400, 'Bastion Engine'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'salvage-matrix',
     name: 'Salvage Matrix',
     kind: 'behavioural',
-    socket: 'industrial',
     source: bossRoute('mid', 700, 'Reclaimer Leviathan'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'gravity-lens',
     name: 'Gravity Lens',
     kind: 'behavioural',
-    socket: 'optical',
     source: challenge('challenge', 'bare-hive', 'Bare Hive'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'nanite-reservoir',
     name: 'Nanite Reservoir',
     kind: 'behavioural',
-    socket: 'industrial',
     source: challenge('challenge', 'attrition', 'Attrition'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'shield-crossfeed',
     name: 'Shield Crossfeed',
     kind: 'behavioural',
-    socket: 'shield',
     source: pending('late', 'Late Relic staging is represented; exact deterministic source is unauthored.'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'predictive-bus',
     name: 'Predictive Bus',
     kind: 'behavioural',
-    socket: 'optical',
     source: challenge('challenge', 'silent-bridge', 'Silent Bridge'),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Exact combat behaviour is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'resonance-tap',
     name: 'Resonance Tap',
     kind: 'behavioural',
-    socket: 'industrial',
     source: pending('late', 'Furnace-facing source is PR8. Exact acquisition is unauthored.', {
       kind: 'furnace',
     }),
     effectStatus: 'pending',
     effectBlurb: 'Behavioural Relic. Furnace-facing effect provider is reserved; not wired to legacy Furnace.',
-  },
-  {
+  }),
+  family({
     id: 'power-coupler',
     name: 'Power Coupler',
     kind: 'standard',
-    socket: 'power',
     source: pending('early', 'Early Relic staging is represented; exact deterministic source is unauthored.'),
     effectStatus: 'pending',
     effectBlurb: 'Standard Relic. Magnitude is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'tracking-gimbal',
     name: 'Tracking Gimbal',
     kind: 'standard',
-    socket: 'optical',
     source: challenge('challenge', 'knife-fight', 'Knife Fight'),
     effectStatus: 'pending',
     effectBlurb: 'Standard Relic. Magnitude is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'ballistic-jacket',
     name: 'Ballistic Jacket',
     kind: 'standard',
-    socket: 'ballistic',
     source: pending('mid', 'Mid Relic staging is represented; exact deterministic source is unauthored.'),
     effectStatus: 'pending',
     effectBlurb: 'Standard Relic. Magnitude is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'reinforcement-plate',
     name: 'Reinforcement Plate',
     kind: 'standard',
-    socket: 'shield',
     source: pending('early', 'Early Relic staging is represented; exact deterministic source is unauthored.'),
     effectStatus: 'pending',
     effectBlurb: 'Standard Relic. Magnitude is not authored.',
-  },
-  {
+  }),
+  family({
     id: 'industrial-optimiser',
     name: 'Industrial Optimiser',
     kind: 'standard',
-    socket: 'industrial',
     source: pending(
       'advanced',
       'Advanced Relic staging is represented; exact scope (combat industry vs Foundry) is unauthored. Does not multiply offline Foundry.',
     ),
     effectStatus: 'pending',
     effectBlurb: 'Standard Relic. Magnitude and industrial scope are not authored. Does not affect offline Foundry.',
-  },
-  {
+  }),
+  family({
     id: 'universal-resonator',
     name: 'Universal Resonator',
     kind: 'standard',
-    socket: 'universal',
     source: bossRoute('late', 850, 'Siege Node II'),
     effectStatus: 'pending',
-    effectBlurb: 'Standard Relic. Fits Universal sockets only. Not itself a Universal socket.',
-  },
+    effectBlurb: 'Standard Relic. Socket class is unauthored. Not itself a Universal socket.',
+  }),
 ]
 
 export const RELIC_FAMILY_IDS = RELIC_FAMILIES.map((row) => row.id) as RelicFamilyId[]
@@ -318,16 +335,58 @@ export const CHALLENGE_RELIC_SOURCES: ReadonlyArray<{ familyId: RelicFamilyId; c
 
 const FAMILY_BY_ID = new Map(RELIC_FAMILIES.map((row) => [row.id, row]))
 
+/** Non-production descriptors for generic engine tests. Never listed in RELIC_FAMILIES. */
+const TEST_RELIC_DESCRIPTORS = new Map<string, RelicDescriptor>()
+
+export function registerTestRelicDescriptor(def: RelicDescriptor): void {
+  if (FAMILY_BY_ID.has(def.id as RelicFamilyId)) return
+  TEST_RELIC_DESCRIPTORS.set(def.id, def)
+}
+
+export function clearTestRelicDescriptors(): void {
+  TEST_RELIC_DESCRIPTORS.clear()
+}
+
 export function isRelicFamilyId(id: string): id is RelicFamilyId {
   return FAMILY_BY_ID.has(id as RelicFamilyId)
+}
+
+export function isKnownRelicDescriptorId(id: string): boolean {
+  return isRelicFamilyId(id) || TEST_RELIC_DESCRIPTORS.has(id)
 }
 
 export function getRelicFamily(id: string): RelicFamilyDef | undefined {
   return FAMILY_BY_ID.get(id as RelicFamilyId)
 }
 
+export function resolveRelicDescriptor(id: string): RelicDescriptor | undefined {
+  return TEST_RELIC_DESCRIPTORS.get(id) ?? getRelicFamily(id)
+}
+
 export function relicFamilyName(id: string): string {
-  return getRelicFamily(id)?.name ?? 'Unknown Relic'
+  return resolveRelicDescriptor(id)?.name ?? 'Unknown Relic'
+}
+
+export function authoredRelicSocket(def: RelicDescriptor): RelicSocketClass | null {
+  return def.socketStatus === 'authored' ? def.socket : null
+}
+
+export function relicSocketUiLabel(def: RelicDescriptor): string {
+  const cls = authoredRelicSocket(def)
+  return cls ? RELIC_SOCKET_LABELS[cls] : RELIC_SOCKET_PENDING_LABEL
+}
+
+/**
+ * Production Fabrication requires authored identity, Standard/Behavioural
+ * class, socket compatibility, and Tier-I effect semantics.
+ */
+export function isRelicFamilyFabricatable(def: RelicDescriptor): boolean {
+  return (
+    def.fabricationStatus === 'ready' &&
+    def.socketStatus === 'authored' &&
+    def.socket != null &&
+    def.effectStatus === 'authored'
+  )
 }
 
 export function relicTierLabel(tier: RelicTier): string {

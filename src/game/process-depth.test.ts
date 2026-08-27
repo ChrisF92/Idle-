@@ -3,7 +3,7 @@ import { createInitialState } from './state'
 import { buyProcessNode } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { atCareerWave } from './testHelpers'
-import { PROCESS_NODES, canBuyProcessNode, hasProcess, processOfflineBonusMs } from './process'
+import { PROCESS_NODES, canBuyProcessNode, hasProcess, hasProcessMastery, processOfflineBonusMs } from './process'
 import { tickAutomation } from './automation'
 import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
 import { furnaceSalvageMult } from './furnace'
@@ -94,6 +94,7 @@ describe('Act 1 Process depth', () => {
     s.combat.docked = true
     s.process.purchased = ['auto-relic']
     addRelicInstance(s, 'power-coupler')
+    expect(hasProcessMastery(s, 'reliquary')).toBe(false)
     tickAutomation(s)
     expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
   })

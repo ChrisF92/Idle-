@@ -86,7 +86,7 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
     const relic = addRelicInstance(s, 'power-coupler')!
     const before = computeShipStats(s).damage
     s = equipRelicOnCore(s, 'pulse-cannon:1', relic.id)
-    expect(s.relics.coreFits['pulse-cannon:1']?.[0]).toBe(relic.id)
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
     expect(computeShipStats(s).damage).toBe(before)
   })
 
@@ -160,7 +160,7 @@ describe('phase 6: Reliquary + Furnace + Research', () => {
 
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
     expect(relicFamilyOwnedCount(s, 'power-coupler')).toBe(1)
-    expect(s.relics.coreFits['pulse-cannon:1']?.[0]).toBe('power-coupler:1')
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
     expect(s.resources.heat).toBe(0)
     expect(s.furnace.upgrades.hearth).toBe(2)
     expect(s.hiveResearch.completed.material).toBe(2)

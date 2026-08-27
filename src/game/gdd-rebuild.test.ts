@@ -72,7 +72,7 @@ describe('GDD Rebuild', () => {
     s.foundry.masteryXp['recovered-stock'] = 4
     const relic = addRelicInstance(s, 'power-coupler')!
     s = equipRelicOnCore(s, 'pulse-cannon:1', relic.id)
-    expect(s.relics.coreFits['pulse-cannon:1']?.[0]).toBe(relic.id)
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
     const career = s.meta.bestWave
     const before = matterGainFor(s)
 
@@ -87,7 +87,8 @@ describe('GDD Rebuild', () => {
     expect(s.workshop.levels['weapon-power'] ?? 0).toBe(0)
     expect(s.combat.directives).toEqual([])
     expect(s.foundry.masteryXp['recovered-stock']).toBe(4)
-    expect(s.relics.coreFits['pulse-cannon:1']?.[0]).toBe(relic.id)
+    expect(s.relics.instances.some((row) => row.id === relic.id)).toBe(true)
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
   })
 
   it('does not require Wave 210 again after the first Rebuild', () => {

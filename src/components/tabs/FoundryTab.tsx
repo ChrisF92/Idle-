@@ -206,10 +206,13 @@ function productFabricationRow(
   }
   if (kind === 'relic') {
     const copies = (state.relics?.instances ?? []).filter((rowInst) => rowInst.familyId === row.productId).length
+    const pending = !check.ok && (check.reason ?? '').toLowerCase().includes('pending')
     return {
       title,
-      meta: `${copies} owned · ${costLines(row.costs)} · ${formatSeconds(row.craftTime)}`,
-      value: check.ok ? 'Fabricate' : check.reason ?? 'Locked',
+      meta: pending
+        ? `${copies} owned · Design details pending`
+        : `${copies} owned · ${costLines(row.costs)} · ${formatSeconds(row.craftTime)}`,
+      value: pending ? 'Design details pending' : check.ok ? 'Fabricate' : check.reason ?? 'Locked',
       interactive: check.ok,
     }
   }
@@ -449,7 +452,8 @@ export function FoundryTab({
                   <Section>
                     <SectionHeader title="Relics" />
                     <p className="ui-meta">
-                      Discovery is a design. Fabrication creates one physical Tier I Relic. Unknown Relics stay hidden.
+                      Discovery is a design. Production Relic Fabrication stays unavailable while socket class and
+                      Tier-I effects are pending design. Unknown Relics stay hidden.
                     </p>
                     <ItemGrid>
                       {RELIC_FABRICATION_RECIPES.filter(

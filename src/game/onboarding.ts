@@ -457,7 +457,7 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     title: 'Relic',
     body: [
       'Relics are physical items. Each one fits one socket on one physical Core.',
-      'Socket class must match, or the socket must be Universal. A Core may fit only one Behavioural Relic. Fitting is free while Docked.',
+      'Family socket class and Core socket activation are pending design. Fitting is free while Docked when both are authored. A Core may fit only one Behavioural Relic.',
     ],
     actionLabel: 'Install Relic',
     target: 'onboarding.relic.install',

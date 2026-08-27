@@ -12,7 +12,7 @@ import {
   type InventoryCategory,
 } from '../game/inventory'
 import { formatCompact } from '../game/format'
-import { canStartRelicUpgrade, RELIC_SOCKET_LABELS, relicTierLabel } from '../game/relics'
+import { canStartRelicUpgrade, relicTierLabel } from '../game/relics'
 import { SheetTabs } from './SheetTabs'
 import { EmptyState, FullSheet, ItemRow, Kicker, Section, SectionHeader, StatPair } from '../ui/primitives'
 import { CoreDetailSheet, FrameSheet } from './LoadoutSheets'
@@ -142,7 +142,7 @@ export function InventoryScreen({
               <ItemRow
                 key={row.id}
                 title={`${row.name} ${relicTierLabel(row.tier)}`}
-                meta={`${RELIC_SOCKET_LABELS[row.socket]} · ${row.kind === 'behavioural' ? 'Behavioural' : 'Standard'} · ${row.id}`}
+                meta={`${row.socketLabel} · ${row.kind === 'behavioural' ? 'Behavioural' : 'Standard'} · ${row.id}`}
                 value={row.fitted ? row.fittedCoreName ?? 'Fitted' : 'Inventory'}
                 onClick={() => setRelicId(row.id)}
               />
@@ -214,7 +214,7 @@ export function InventoryScreen({
       <FullSheet
         open={Boolean(relic)}
         title={relic ? `${relic.name} ${relicTierLabel(relic.tier)}` : 'Relic'}
-        kicker={relic ? `${RELIC_SOCKET_LABELS[relic.socket]} · ${relic.kind === 'behavioural' ? 'Behavioural' : 'Standard'} · ${relic.id}` : undefined}
+        kicker={relic ? `${relic.socketLabel} · ${relic.kind === 'behavioural' ? 'Behavioural' : 'Standard'} · ${relic.id}` : undefined}
         onClose={() => setRelicId(null)}
         overlayId="inventory-relic"
       >
@@ -224,7 +224,7 @@ export function InventoryScreen({
             <div className="ui-context-bar">
               <StatPair label="Tier" value={relicTierLabel(relic.tier)} />
               <StatPair label="Class" value={relic.kind === 'behavioural' ? 'Behavioural' : 'Standard'} />
-              <StatPair label="Socket" value={RELIC_SOCKET_LABELS[relic.socket]} />
+              <StatPair label="Socket" value={relic.socketLabel} />
             </div>
             <p className="ui-meta">
               {relic.fitted ? `Fitted to ${relic.fittedCoreName ?? relic.fittedCoreId}` : 'Unfitted · inventory'}

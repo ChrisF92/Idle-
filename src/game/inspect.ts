@@ -77,13 +77,13 @@ import {
   isResearchBreakthrough,
 } from './hiveResearch'
 import {
-  RELIC_SOCKET_LABELS,
-  getRelicFamily,
   getRelicInstance,
   inspectRelicEffectText,
   relicFitLocation,
+  relicSocketUiLabel,
   relicState,
   relicTierLabel,
+  resolveRelicDescriptor,
 } from './relics'
 import { cycleBestWave, matterGainFor } from './rebuild'
 
@@ -335,12 +335,12 @@ export function inspectFoundryModule(_state: GameState, _id: string): InspectCar
 
 export function inspectShard(state: GameState, relicId: string): InspectCard | null {
   const instance = getRelicInstance(state, relicId)
-  const def = instance ? getRelicFamily(instance.familyId) : getRelicFamily(relicId)
+  const def = instance ? resolveRelicDescriptor(instance.familyId) : resolveRelicDescriptor(relicId)
   if (!def) return null
   const loc = instance ? relicFitLocation(state, instance.id) : null
   const stats: InspectStat[] = [
     { label: 'Class', value: def.kind === 'behavioural' ? 'Behavioural' : 'Standard' },
-    { label: 'Socket', value: RELIC_SOCKET_LABELS[def.socket] },
+    { label: 'Socket', value: relicSocketUiLabel(def) },
     { label: 'Tier', value: instance ? relicTierLabel(instance.tier) : 'I' },
     { label: 'Fitted', value: loc ? loc.coreInstanceId : 'Inventory' },
   ]

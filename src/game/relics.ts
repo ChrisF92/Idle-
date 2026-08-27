@@ -5,16 +5,19 @@
  */
 
 import type { GameState, RelicInstance, RelicSocketClass, RelicSocketSpec, RelicState } from './types'
-import { getModule, moduleMasteryRank } from './catalog'
+import { getModule } from './catalog'
 import { masteryMilestonesFor, matureSocketLayout } from './coreMastery'
 import { resolveCoreInstance } from './coreInstances'
 import { noteSystemAction } from './playtest'
 import { isSystemUnlocked } from './progression'
 import {
-  getRelicFamily,
+  authoredRelicSocket,
+  isKnownRelicDescriptorId,
   isRelicFamilyId,
   isValidRelicTier,
   RELIC_SOCKET_LABELS,
+  resolveRelicDescriptor,
+  relicSocketUiLabel,
   type RelicFamilyId,
   type RelicKind,
   type RelicTier,
@@ -25,14 +28,21 @@ export {
   BEHAVIOURAL_RELIC_IDS,
   CHALLENGE_RELIC_SOURCES,
   getRelicFamily,
+  isRelicFamilyFabricatable,
   isRelicFamilyId,
+  RELIC_DESIGN_PENDING_LABEL,
   RELIC_FAMILIES,
   RELIC_FAMILY_IDS,
   RELIC_SOCKET_CLASSES,
   RELIC_SOCKET_LABELS,
+  RELIC_SOCKET_PENDING_LABEL,
   STANDARD_RELIC_IDS,
+  authoredRelicSocket,
   relicFamilyName,
+  relicSocketUiLabel,
   relicTierLabel,
+  resolveRelicDescriptor,
+  type RelicDescriptor,
   type RelicFamilyDef,
   type RelicFamilyId,
   type RelicKind,
@@ -61,20 +71,20 @@ export function getRelicInstance(state: GameState, id: string): RelicInstance | 
   return relicState(state).instances.find((row) => row.id === id)
 }
 
-export function relicInstancesOfFamily(state: GameState, familyId: RelicFamilyId): RelicInstance[] {
+export function relicInstancesOfFamily(state: GameState, familyId: RelicFamilyId | string): RelicInstance[] {
   return relicState(state).instances.filter((row) => row.familyId === familyId)
 }
 
-export function relicFamilyOwnedCount(state: GameState, familyId: RelicFamilyId): number {
+export function relicFamilyOwnedCount(state: GameState, familyId: RelicFamilyId | string): number {
   return relicInstancesOfFamily(state, familyId).length
 }
 
 export function physicalRelicOwned(state: GameState, familyId: string): boolean {
-  if (!isRelicFamilyId(familyId)) return false
+  if (!isKnownRelicDescriptorId(familyId)) return false
   return relicFamilyOwnedCount(state, familyId) > 0
 }
 
-function nextRelicId(state: GameState, familyId: RelicFamilyId): string {
+function nextRelicId(state: GameState, familyId: string): string {
   const relics = relicState(state)
   const used = new Set(relics.instances.map((row) => row.id))
   let serial = Math.max(1, Math.floor(Number(relics.nextSerial[familyId] ?? 1) || 1))
@@ -86,10 +96,10 @@ function nextRelicId(state: GameState, familyId: RelicFamilyId): string {
 /** Creates exactly one physical Relic. Does not fit it. */
 export function addRelicInstance(
   state: GameState,
-  familyId: RelicFamilyId,
+  familyId: RelicFamilyId | string,
   tier: RelicTier = 1,
 ): RelicInstance | null {
-  if (!getRelicFamily(familyId) || !isValidRelicTier(tier)) return null
+  if (!resolveRelicDescriptor(familyId) || !isValidRelicTier(tier)) return null
   const relics = relicState(state)
   const instance: RelicInstance = {
     id: nextRelicId(state, familyId),
@@ -145,15 +155,18 @@ export function coreRelicId(state: GameState, coreIdOrModuleId: string): string 
   return coreSocketRelics(state, coreIdOrModuleId).find((id) => typeof id === 'string' && id.length > 0) ?? null
 }
 
+export type RelicSocketActivationStatus = 'authored-active' | 'pending'
+
 export interface CoreSocketView {
   index: number
   spec: RelicSocketSpec
   active: boolean
-  unlock: 'relic-system' | 'mastery-20' | 'pending'
+  activationStatus: RelicSocketActivationStatus
+  unlock: 'authored' | 'pending'
   unlockLabel: string
 }
 
-function socketSpecLabel(spec: RelicSocketSpec): string {
+export function socketSpecLabel(spec: RelicSocketSpec): string {
   const primary = RELIC_SOCKET_LABELS[spec.type]
   if (spec.alt) return `${primary}/${RELIC_SOCKET_LABELS[spec.alt]}`
   return primary
@@ -164,51 +177,79 @@ export function matureLayoutLine(moduleId: string): string {
 }
 
 /**
+ * Authored activation metadata provider. Production default is empty:
+ * mature layouts stay visible, but no socket becomes active until an
+ * authored source supplies indexes. Tests inject this to drive the
+ * generic fitting engine.
+ *
+ * M20 `socket-expand` records in Core Mastery remain metadata only.
+ * They do not imply a universal first-socket or count schedule.
+ */
+export type RelicSocketActivationProvider = (
+  state: GameState,
+  coreInstanceId: string,
+  moduleId: string,
+) => readonly number[] | null | undefined
+
+let relicSocketActivationProvider: RelicSocketActivationProvider | null = null
+
+export function setRelicSocketActivationProvider(provider: RelicSocketActivationProvider | null): void {
+  relicSocketActivationProvider = provider
+}
+
+export function authoredActiveSocketIndexes(
+  state: GameState,
+  coreInstanceId: string,
+  moduleId: string,
+): number[] {
+  const provided = relicSocketActivationProvider?.(state, coreInstanceId, moduleId)
+  if (!provided) return []
+  const seen = new Set<number>()
+  const out: number[] = []
+  for (const index of provided) {
+    if (!Number.isInteger(index) || index < 0 || seen.has(index)) continue
+    seen.add(index)
+    out.push(index)
+  }
+  return out
+}
+
+/**
  * Runtime sockets for one physical Core.
  *
- * - Position 0 uses the authored first mature type once Relics are unlocked.
- * - M20 `socket-expand` activates the matching later position.
- * - Remaining positions stay pending. Slash-notation Universal is mature
- *   metadata only unless the authored expand type is already Universal.
+ * A. Mature socket metadata — always the authored layout.
+ * B. Authored activation metadata — provider, empty in production.
+ * C. Runtime active sockets — only indexes from B.
+ *
+ * Relic-system unlock and M20 expansion metadata do not activate sockets
+ * by themselves. Slash `/Universal` stays mature typing; it does not
+ * become active merely because an earlier typed socket is active.
  */
 export function coreSocketViews(state: GameState, coreIdOrModuleId: string): CoreSocketView[] {
   const instance = resolveCoreInstance(state, coreIdOrModuleId)
   const moduleId = instance?.moduleId ?? coreIdOrModuleId
   const mature = matureSocketLayout(moduleId)
-  const expand = masteryMilestonesFor(moduleId).find(
-    (ms) => ms.level === 20 && ms.effect === 'socket-expand' && ms.socket,
-  )
-  const mastery = moduleMasteryRank(state, moduleId)
-  const unlocked = isRelicsUnlocked(state) && Boolean(instance)
+  const activeIndexes = instance
+    ? new Set(authoredActiveSocketIndexes(state, instance.id, moduleId))
+    : new Set<number>()
 
   return mature.map((spec, index) => {
-    if (index === 0) {
-      return {
-        index,
-        spec: { type: spec.type },
-        active: unlocked,
-        unlock: 'relic-system',
-        unlockLabel: unlocked ? 'Active' : 'Relic system locked',
-      }
-    }
-    if (expand?.socket && spec.type === expand.socket && index === 1) {
-      const active = unlocked && mastery >= 20
-      return {
-        index,
-        spec: { type: expand.socket },
-        active,
-        unlock: 'mastery-20',
-        unlockLabel: active ? 'Active · M20' : 'Unlocks at Mastery 20',
-      }
-    }
+    const active = activeIndexes.has(index)
     return {
       index,
       spec,
-      active: false,
-      unlock: 'pending',
-      unlockLabel: 'Socket milestone pending design',
+      active,
+      activationStatus: active ? 'authored-active' : 'pending',
+      unlock: active ? 'authored' : 'pending',
+      unlockLabel: active ? 'Active' : 'Activation milestone pending design',
     }
   })
+}
+
+export function m20SocketExpandType(moduleId: string): RelicSocketClass | undefined {
+  return masteryMilestonesFor(moduleId).find(
+    (ms) => ms.level === 20 && ms.effect === 'socket-expand' && ms.socket,
+  )?.socket
 }
 
 export function activeCoreSockets(state: GameState, coreIdOrModuleId: string): RelicSocketSpec[] {
@@ -229,17 +270,27 @@ export function corePrimarySocket(moduleId: string): RelicSocketClass {
  * Universal is a SOCKET type. A Relic with class `universal` fits Universal
  * sockets (or a socket whose authored type is Universal). It does not fit
  * every typed socket.
+ *
+ * Slash `alt: 'universal'` is mature typing of that socket position: when
+ * that position is active, it accepts any Relic class. Activation of the
+ * slash position is separate from activation of earlier typed sockets.
  */
-export function relicFitsSocket(relicClass: RelicSocketClass, socket: RelicSocketSpec | RelicSocketClass): boolean {
+export function relicFitsSocket(
+  relicClass: RelicSocketClass | null | undefined,
+  socket: RelicSocketSpec | RelicSocketClass,
+): boolean {
+  if (relicClass == null) return false
   const spec: RelicSocketSpec = typeof socket === 'string' ? { type: socket } : socket
   if (spec.type === 'universal' || spec.alt === 'universal') return true
   return spec.type === relicClass || spec.alt === relicClass
 }
 
 export function socketAcceptsRelic(spec: RelicSocketSpec | RelicSocketClass, familyId: string): boolean {
-  const def = getRelicFamily(familyId)
+  const def = resolveRelicDescriptor(familyId)
   if (!def) return false
-  return relicFitsSocket(def.socket, spec)
+  const socket = authoredRelicSocket(def)
+  if (!socket) return false
+  return relicFitsSocket(socket, spec)
 }
 
 function padFits(slots: Array<string | null>, count: number): Array<string | null> {
@@ -252,7 +303,7 @@ function behaviouralFittedOnCore(state: GameState, coreInstanceId: string, ignor
   let count = 0
   for (const id of coreSocketRelics(state, coreInstanceId)) {
     if (!id || id === ignoreRelicId) continue
-    if (getRelicFamily(getRelicInstance(state, id)?.familyId ?? '')?.kind === 'behavioural') count += 1
+    if (resolveRelicDescriptor(getRelicInstance(state, id)?.familyId ?? '')?.kind === 'behavioural') count += 1
   }
   return count
 }
@@ -263,6 +314,7 @@ export type RelicFitRejectReason =
   | 'missing-core'
   | 'missing-relic'
   | 'socket-locked'
+  | 'socket-pending'
   | 'socket-mismatch'
   | 'already-fitted'
   | 'behavioural-limit'
@@ -279,12 +331,14 @@ export function canFitRelic(
   if (!core) return { ok: false, reason: 'missing-core' }
   const relic = getRelicInstance(state, relicId)
   if (!relic) return { ok: false, reason: 'missing-relic' }
-  const def = getRelicFamily(relic.familyId)
+  const def = resolveRelicDescriptor(relic.familyId)
   if (!def) return { ok: false, reason: 'missing-relic' }
+  const relicSocket = authoredRelicSocket(def)
+  if (!relicSocket) return { ok: false, reason: 'socket-pending' }
   const views = coreSocketViews(state, core.id)
   const socket = views[socketIndex]
   if (!socket?.active) return { ok: false, reason: 'socket-locked' }
-  if (!relicFitsSocket(def.socket, socket.spec)) return { ok: false, reason: 'socket-mismatch' }
+  if (!relicFitsSocket(relicSocket, socket.spec)) return { ok: false, reason: 'socket-mismatch' }
   const elsewhere = relicFitLocation(state, relicId)
   if (elsewhere && (elsewhere.coreInstanceId !== core.id || elsewhere.socketIndex !== socketIndex)) {
     return { ok: false, reason: 'already-fitted' }
@@ -307,7 +361,9 @@ export function relicFitBlockReason(reason: RelicFitRejectReason | undefined): s
     case 'missing-relic':
       return 'That physical Relic does not exist.'
     case 'socket-locked':
-      return 'This socket is not active yet.'
+      return 'Activation milestone pending design'
+    case 'socket-pending':
+      return 'Socket class pending design'
     case 'socket-mismatch':
       return 'Socket class does not accept this Relic.'
     case 'already-fitted':
@@ -328,15 +384,16 @@ export function equipRelicOnCore(
   const core = resolveCoreInstance(state, coreIdOrModuleId)
   if (!core) return state
   const views = coreSocketViews(state, core.id)
-  const def = getRelicFamily(getRelicInstance(state, relicId)?.familyId ?? '')
+  const def = resolveRelicDescriptor(getRelicInstance(state, relicId)?.familyId ?? '')
+  const relicSocket = def ? authoredRelicSocket(def) : null
   let index = socketIndex
   if (index == null) {
     index = views.findIndex(
       (row, i) =>
         row.active &&
         !coreSocketRelics(state, core.id)[i] &&
-        def &&
-        relicFitsSocket(def.socket, row.spec),
+        relicSocket != null &&
+        relicFitsSocket(relicSocket, row.spec),
     )
   }
   if (index == null || index < 0) return state
@@ -396,9 +453,10 @@ export function eligibleRelicsForSocket(
   const fittedHere = coreSocketRelics(state, coreInstanceId)[socketIndex] ?? null
   return unfittedRelicInstances(state).filter((row) => {
     if (row.id === fittedHere) return false
-    const def = getRelicFamily(row.familyId)
+    const def = resolveRelicDescriptor(row.familyId)
     if (!def) return false
-    if (!relicFitsSocket(def.socket, socket.spec)) return false
+    const relicSocket = authoredRelicSocket(def)
+    if (!relicSocket || !relicFitsSocket(relicSocket, socket.spec)) return false
     if (def.kind === 'behavioural' && behaviouralFittedOnCore(state, coreInstanceId, fittedHere ?? undefined) >= 1) {
       return false
     }
@@ -408,13 +466,13 @@ export function eligibleRelicsForSocket(
 
 export function relicKindOf(state: GameState, relicOrFamilyId: string): RelicKind | null {
   const instance = getRelicInstance(state, relicOrFamilyId)
-  const familyId = instance?.familyId ?? (isRelicFamilyId(relicOrFamilyId) ? relicOrFamilyId : null)
+  const familyId = instance?.familyId ?? (isRelicFamilyId(relicOrFamilyId) ? relicOrFamilyId : relicOrFamilyId)
   if (!familyId) return null
-  return getRelicFamily(familyId)?.kind ?? null
+  return resolveRelicDescriptor(familyId)?.kind ?? null
 }
 
 export function inspectRelicEffectText(familyId: string): string {
-  const def = getRelicFamily(familyId)
+  const def = resolveRelicDescriptor(familyId)
   if (!def) return 'Unknown Relic.'
   if (def.effectStatus === 'pending') {
     return `${def.effectBlurb} Effect detail pending design.`
@@ -424,21 +482,24 @@ export function inspectRelicEffectText(familyId: string): string {
 
 export interface RelicInventoryRow {
   id: string
-  familyId: RelicFamilyId
+  familyId: string
   name: string
   kind: RelicKind
-  socket: RelicSocketClass
+  socket: RelicSocketClass | null
+  socketStatus: 'authored' | 'pending'
+  socketLabel: string
   tier: RelicTier
   fitted: boolean
   fittedCoreId: string | null
   fittedCoreName: string | null
   effectText: string
   effectPending: boolean
+  fabricationPending: boolean
 }
 
 export function relicInventoryRows(state: GameState): RelicInventoryRow[] {
   return relicState(state).instances.flatMap((row) => {
-    const def = getRelicFamily(row.familyId)
+    const def = resolveRelicDescriptor(row.familyId)
     if (!def) return []
     const loc = relicFitLocation(state, row.id)
     const core = loc ? resolveCoreInstance(state, loc.coreInstanceId) : null
@@ -447,13 +508,16 @@ export function relicInventoryRows(state: GameState): RelicInventoryRow[] {
       familyId: def.id,
       name: def.name,
       kind: def.kind,
-      socket: def.socket,
+      socket: authoredRelicSocket(def),
+      socketStatus: def.socketStatus,
+      socketLabel: relicSocketUiLabel(def),
       tier: row.tier,
       fitted: Boolean(loc),
       fittedCoreId: loc?.coreInstanceId ?? null,
       fittedCoreName: core ? getModule(core.moduleId)?.name ?? core.moduleId : null,
       effectText: inspectRelicEffectText(row.familyId),
       effectPending: def.effectStatus !== 'authored',
+      fabricationPending: def.fabricationStatus !== 'ready',
     }]
   })
 }
@@ -494,7 +558,7 @@ export function sanitizeRelicState(state: GameState): void {
   for (const raw of relics.instances) {
     if (!raw || typeof raw !== 'object') continue
     if (typeof raw.id !== 'string' || raw.id.length < 1) continue
-    if (!isRelicFamilyId(raw.familyId)) continue
+    if (!isKnownRelicDescriptorId(raw.familyId)) continue
     if (!isValidRelicTier(raw.tier)) continue
     if (seen.has(raw.id)) continue
     seen.add(raw.id)
@@ -508,7 +572,7 @@ export function sanitizeRelicState(state: GameState): void {
     if (Number.isFinite(n)) serial[row.familyId] = Math.max(serial[row.familyId] ?? 1, Math.floor(n) + 1)
   }
   for (const [familyId, n] of Object.entries(relics.nextSerial ?? {})) {
-    if (!isRelicFamilyId(familyId)) continue
+    if (!isKnownRelicDescriptorId(familyId)) continue
     serial[familyId] = Math.max(serial[familyId] ?? 1, Math.max(1, Math.floor(Number(n) || 1)))
   }
   relics.nextSerial = serial
@@ -530,8 +594,9 @@ export function sanitizeRelicState(state: GameState): void {
       const socket = views[i]
       if (!socket?.active) continue
       const instance = instances.find((row) => row.id === id)
-      const def = instance ? getRelicFamily(instance.familyId) : undefined
-      if (!def || !relicFitsSocket(def.socket, socket.spec)) continue
+      const def = instance ? resolveRelicDescriptor(instance.familyId) : undefined
+      const relicSocket = def ? authoredRelicSocket(def) : null
+      if (!def || !relicSocket || !relicFitsSocket(relicSocket, socket.spec)) continue
       if (def.kind === 'behavioural') {
         if (behavioural >= 1) continue
         behavioural += 1

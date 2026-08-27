@@ -61,7 +61,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Relics',
     body: [
       'Purpose: deepen Core loadouts. Main decision: which Relic sits in each fitted Core.',
-      'Relics unlock around Wave 320. They are physical items fitted to physical Core sockets (Power, Optical, Ballistic, Shield, Industrial, Universal). Fitting is free while Docked. A Core may hold at most one Behavioural Relic. Tier II/III require Relic Tempering / Masterwork Tempering (PR9). Relics persist on Rebuild.',
+      'Relics unlock around Wave 320. They are physical items. Core sockets use Power, Optical, Ballistic, Shield, Industrial, and Universal classes. Family socket assignment and socket activation milestones are pending design. Fitting is free while Docked when both are authored. A Core may hold at most one Behavioural Relic. Tier II/III require Relic Tempering / Masterwork Tempering (PR9). Relics persist on Rebuild.',
     ],
   },
   furnace: {

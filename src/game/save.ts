@@ -28,7 +28,7 @@ import {
   getSignalCoreDef,
 } from './signalCores'
 import { createEmptyNetworkState } from './network'
-import { createEmptyFoundryState } from './foundry'
+import { createEmptyFoundryState, sanitizeFabricationSlots } from './foundry'
 import {
   FOUNDRY_INFRASTRUCTURE_IDS,
   getFabricationRecipe,
@@ -376,7 +376,7 @@ function withNetworkDefaults(network: NetworkState | undefined): NetworkState {
 }
 
 function idleFabSlot(): GameState['foundry']['fabrication'][number] {
-  return { kind: null, jobId: null, progress: 0, paid: false }
+  return { kind: null, jobId: null, progress: 0, paid: false, targetRelicId: null }
 }
 
 function withFoundryDefaults(raw: GameState['foundry'] | undefined): GameState['foundry'] {
@@ -790,6 +790,7 @@ function migrate(raw: unknown): GameState | null {
       playtest: hydratePlaytest(state.playtest),
     }
     sanitizeCoreFits(hydrated)
+    sanitizeFabricationSlots(hydrated)
     if (hydrated.foundry.trackedPrintId && !canTrackBlueprint(hydrated, hydrated.foundry.trackedPrintId)) {
       hydrated.foundry.trackedPrintId = null
     }

@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { computeShipStats, createInitialState } from './state'
 import { atCareerWave, equipPostTutorialLoadout } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 import { tickAutomation } from './automation'
+import { hasProcessMastery } from './process'
 import {
   addRelicInstance,
   corePrimarySocket,
@@ -11,11 +12,20 @@ import {
   equipRelicOnCore,
   isRelicsUnlocked,
   removeRelicFromCore,
+  setRelicSocketActivationProvider,
 } from './relics'
 import { coreRelicModifiers } from './relicEffects'
 import { fitModule, unfitModule } from './actions'
 import { grantModuleCopy, masteryMilestonesFor } from './coreProgression'
 import { sanitizeCoreFits } from './save'
+import {
+  FIXTURE_POWER_BEHAVIOURAL,
+  FIXTURE_POWER_STANDARD,
+  installAuthoredRelicFixtures,
+  resetRelicTestFixtures,
+} from './relicTestFixtures'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 function relicDock(wave = ACT1_CADENCE.reliquary) {
   let s = atCareerWave(createInitialState(0), wave)
@@ -23,6 +33,11 @@ function relicDock(wave = ACT1_CADENCE.reliquary) {
   s.combat.docked = true
   return s
 }
+
+afterEach(() => {
+  setRelicSocketActivationProvider(null)
+  resetRelicTestFixtures()
+})
 
 describe('GDD Relics in Cores', () => {
   it('unlocks Relics at the Act 1 door without inventing a global socket schedule', () => {
@@ -34,11 +49,14 @@ describe('GDD Relics in Cores', () => {
     expect(corePrimarySocket('pulse-cannon')).toBe('power')
     expect(corePrimarySocket('plate-layer')).toBe('shield')
     expect(ACT1_CADENCE.reliquary).toBe(320)
+    expect(coreSocketRelics(open, 'pulse-cannon:1').filter(Boolean)).toEqual([])
   })
 
   it('installs a physical Relic into a fitted Core without a global damage bonus', () => {
+    installAuthoredRelicFixtures()
+    setRelicSocketActivationProvider(() => [0])
     let s = relicDock()
-    const relic = addRelicInstance(s, 'power-coupler')!
+    const relic = addRelicInstance(s, FIXTURE_POWER_STANDARD.id)!
     const before = computeShipStats(s).damage
     s = equipRelicOnCore(s, 'pulse-cannon:1', relic.id)
     expect(coreRelicId(s, 'pulse-cannon:1')).toBe(relic.id)
@@ -48,6 +66,8 @@ describe('GDD Relics in Cores', () => {
   })
 
   it('keeps separate Relic loadouts on duplicate Core instances', () => {
+    installAuthoredRelicFixtures()
+    setRelicSocketActivationProvider(() => [0])
     let s = relicDock()
     s.shipyard.frameId = 'swarm-frame'
     s.shipyard.unlockedFrames.push('swarm-frame')
@@ -58,8 +78,8 @@ describe('GDD Relics in Cores', () => {
     )
     expect(pulseInstances).toHaveLength(2)
 
-    const a = addRelicInstance(s, 'power-coupler')!
-    const b = addRelicInstance(s, 'overcharge-capacitor')!
+    const a = addRelicInstance(s, FIXTURE_POWER_STANDARD.id)!
+    const b = addRelicInstance(s, FIXTURE_POWER_BEHAVIOURAL.id)!
     s = equipRelicOnCore(s, pulseInstances[0]!, a.id)
     s = equipRelicOnCore(s, pulseInstances[1]!, b.id)
 
@@ -87,17 +107,23 @@ describe('GDD Relics in Cores', () => {
     )
   })
 
-  it('does not let Process auto-fit Relics', () => {
+  it('does not let Process auto-fit Relics or treat ownership as Reliquary mastery', () => {
     const s = relicDock()
-    s.process.purchased = ['auto-relic']
+    s.process.purchased = ['auto-relic', 'reliquary-keep', 'reliquary-quality', 'reliquary-merge']
     addRelicInstance(s, 'power-coupler')
+    expect(hasProcessMastery(s, 'reliquary')).toBe(false)
     tickAutomation(s)
     expect(coreSocketRelics(s, 'pulse-cannon:1')[0] ?? null).toBeNull()
+    expect(s.relics.instances).toHaveLength(1)
+    const src = readFileSync(resolve(process.cwd(), 'src/game/automation.ts'), 'utf8')
+    expect(src).not.toMatch(/autoSeatShards/)
   })
 
   it('removes Relics freely while Docked and refuses mid-Sortie swaps', () => {
+    installAuthoredRelicFixtures()
+    setRelicSocketActivationProvider(() => [0])
     let s = relicDock()
-    const relic = addRelicInstance(s, 'power-coupler')!
+    const relic = addRelicInstance(s, FIXTURE_POWER_STANDARD.id)!
     s = equipRelicOnCore(s, 'pulse-cannon:1', relic.id)
     s.combat.docked = false
     const live = removeRelicFromCore(s, 'pulse-cannon:1')

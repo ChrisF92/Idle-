@@ -1,4 +1,4 @@
-import type { GameState, RelicSocketClass } from '../game/types'
+import type { GameState, RelicSocketSpec } from '../game/types'
 import { getModule, moduleMasteryRank, moduleStatPreviews } from '../game/catalog'
 import { formatCompact } from '../game/format'
 import { inspectCore, inspectShard } from '../game/inspect'
@@ -10,12 +10,10 @@ import {
   nextMasteryMilestone,
 } from '../game/coreProgression'
 import {
-  RELIC_SOCKET_LABELS,
   canStartRelicUpgrade,
   coreSocketRelics,
   coreSocketViews,
   eligibleRelicsForSocket,
-  getRelicFamily,
   getRelicInstance,
   inspectRelicEffectText,
   isRelicsUnlocked,
@@ -23,6 +21,8 @@ import {
   relicFitBlockReason,
   relicFitsSocket,
   relicTierLabel,
+  resolveRelicDescriptor,
+  socketSpecLabel,
   unfittedRelicInstances,
 } from '../game/relics'
 import { InspectName } from './InspectName'
@@ -49,7 +49,7 @@ function RelicSocket({
   moduleId,
   coreInstanceId,
   socketIndex,
-  socket,
+  spec,
   active,
   unlockLabel,
   onEquipRelic,
@@ -60,24 +60,24 @@ function RelicSocket({
   moduleId: string
   coreInstanceId: string
   socketIndex: number
-  socket: RelicSocketClass
+  spec: RelicSocketSpec
   active: boolean
   unlockLabel: string
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void
 }) {
-  const label = RELIC_SOCKET_LABELS[socket]
+  const label = socketSpecLabel(spec)
   const fittedId = coreSocketRelics(state, coreInstanceId)[socketIndex] ?? null
   const fitted = fittedId ? getRelicInstance(state, fittedId) : undefined
-  const family = fitted ? getRelicFamily(fitted.familyId) : undefined
+  const family = fitted ? resolveRelicDescriptor(fitted.familyId) : undefined
   const docked = Boolean(state.combat.docked)
   const canEdit = docked && active && Boolean(onEquipRelic || onRemoveRelic)
   const owned = eligibleRelicsForSocket(state, coreInstanceId, socketIndex)
   const behaviouralBlocked = unfittedRelicInstances(state).filter((row) => {
-    const def = getRelicFamily(row.familyId)
+    const def = resolveRelicDescriptor(row.familyId)
     if (def?.kind !== 'behavioural') return false
-    if (!relicFitsSocket(def.socket, socket)) return false
+    if (!relicFitsSocket(def.socket, spec)) return false
     return !owned.some((ok) => ok.id === row.id)
   })
   return (
@@ -116,7 +116,7 @@ function RelicSocket({
       {canEdit && onEquipRelic && owned.length > 0 ? (
         <div className="relic-picks">
           {owned.map((row) => {
-            const def = getRelicFamily(row.familyId)
+            const def = resolveRelicDescriptor(row.familyId)
             return (
               <button
                 key={row.id}
@@ -137,7 +137,7 @@ function RelicSocket({
       {canEdit && onEquipRelic && behaviouralBlocked.length > 0 ? (
         <div className="relic-picks">
           {behaviouralBlocked.map((row) => {
-            const def = getRelicFamily(row.familyId)
+            const def = resolveRelicDescriptor(row.familyId)
             return (
               <button key={row.id} type="button" disabled title={relicFitBlockReason('behavioural-limit')}>
                 {def?.name ?? row.familyId} {relicTierLabel(row.tier)}
@@ -179,7 +179,7 @@ export function RelicSockets({
           moduleId={moduleId}
           coreInstanceId={coreInstanceId}
           socketIndex={row.index}
-          socket={row.spec.type}
+          spec={row.spec}
           active={row.active}
           unlockLabel={row.unlockLabel}
           onEquipRelic={onEquipRelic}

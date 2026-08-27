@@ -18,8 +18,14 @@ import {
   WORKER_FABRICATION_COST,
   WORKER_FABRICATION_SECONDS,
 } from './foundrySeeds'
-import { RELIC_FAMILIES, isRelicFamilyId, relicFamilyName } from './relicCatalogue'
-import { parseRelicUpgradeJob, relicTier1Recipe, relicUpgradeRecipe } from './relicSeeds'
+import {
+  RELIC_DESIGN_PENDING_LABEL,
+  RELIC_FAMILIES,
+  isRelicFamilyFabricatable,
+  relicFamilyName,
+  resolveRelicDescriptor,
+} from './relicCatalogue'
+import { parseRelicUpgradeJob, relicTier1RecipeForSocket, relicUpgradeRecipe } from './relicSeeds'
 
 export const FOUNDRY_MATERIAL_IDS = [
   'recovered-stock',
@@ -493,18 +499,19 @@ export const FRAME_FABRICATION_RECIPES: FabricationRecipeDef[] = [
   },
 ]
 
-/** Relic Tier I fabrication. Upgrade jobs are synthesized in getFabricationRecipe. */
-export const RELIC_FABRICATION_RECIPES: FabricationRecipeDef[] = RELIC_FAMILIES.map((row) => {
-  const seed = relicTier1Recipe(row.id)
-  return {
-    kind: 'relic' as const,
-    productId: row.id,
-    name: row.name,
-    blurb: `${row.kind === 'behavioural' ? 'Behavioural' : 'Standard'} Relic. Fabrication creates one physical Tier I item.`,
-    craftTime: seed.craftTime,
-    costs: { materials: { ...seed.costs.materials } },
-  }
-})
+/**
+ * Production Relic catalogue rows for Foundry UI.
+ * Socket class and Tier-I effects are unauthored, so these are not startable
+ * jobs. Costs are empty on purpose — do not bind families to socket templates.
+ */
+export const RELIC_FABRICATION_RECIPES: FabricationRecipeDef[] = RELIC_FAMILIES.map((row) => ({
+  kind: 'relic' as const,
+  productId: row.id,
+  name: row.name,
+  blurb: `${row.kind === 'behavioural' ? 'Behavioural' : 'Standard'} Relic. ${RELIC_DESIGN_PENDING_LABEL}.`,
+  craftTime: 0,
+  costs: {},
+}))
 
 export const WORKER_FABRICATION_RECIPE: FabricationRecipeDef = {
   kind: 'worker',
@@ -536,17 +543,26 @@ export function getFabricationRecipe(kind: FabJobKind, productId: string): Fabri
   if (kind === 'relic') {
     const upgrade = parseRelicUpgradeJob(productId)
     if (upgrade) {
-      const familyId = upgrade.instanceId.includes(':')
-        ? upgrade.instanceId.slice(0, upgrade.instanceId.lastIndexOf(':'))
-        : upgrade.instanceId
-      if (!isRelicFamilyId(familyId)) return undefined
-      const seed = relicUpgradeRecipe(familyId, upgrade.toTier)
+      const seed = relicUpgradeRecipe(upgrade.familyId, upgrade.toTier)
       const roman = upgrade.toTier === 2 ? 'II' : 'III'
       return {
         kind: 'relic',
         productId,
-        name: `${relicFamilyName(familyId)} ${roman}`,
+        name: `${relicFamilyName(upgrade.familyId)} ${roman}`,
         blurb: `Transforms the physical Relic to Tier ${roman}.`,
+        craftTime: seed.craftTime,
+        costs: { materials: { ...seed.costs.materials } },
+      }
+    }
+    const def = resolveRelicDescriptor(productId)
+    if (def && isRelicFamilyFabricatable(def) && def.socket) {
+      const seed = relicTier1RecipeForSocket(def.socket)
+      if (!seed) return undefined
+      return {
+        kind: 'relic',
+        productId,
+        name: def.name,
+        blurb: `${def.kind === 'behavioural' ? 'Behavioural' : 'Standard'} Relic. Fabrication creates one physical Tier I item.`,
         craftTime: seed.craftTime,
         costs: { materials: { ...seed.costs.materials } },
       }
