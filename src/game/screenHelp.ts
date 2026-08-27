@@ -117,8 +117,8 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
   codex: {
     title: 'Codex',
     body: [
-      'Enemy families and hull roles. Soft counters for the loadout you are flying.',
-      'Opens around Wave 10, once enemy families are worth comparing. Optional reference.',
+      'HOSTILES | BOSSES. Encountered identities and discovered Commander Traits. Soft counters for the loadout you are flying.',
+      'Opens around Wave 30. Discoveries are recorded from Wave 1 when units actually spawn.',
     ],
   },
   stats: {

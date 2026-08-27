@@ -779,17 +779,12 @@ export interface SignalCoreBonuses {
   evasion: number
 }
 
-export type EnemyFamilyId =
-  | 'swarm'
-  | 'armored'
-  | 'ethereal'
-  | 'divine'
-  | 'titan'
+export type EnemyFamilyId = 'swarm' | 'armored' | 'veil' | 'siege' | 'choir' | 'apex'
 
 export type UnitShape = 'triangle' | 'square' | 'circle' | 'hex' | 'diamond'
 
-/** USI hull classes — stand-off, speed, and silhouette. */
-export type EnemyRole = 'fighter' | 'skirmisher' | 'sniper' | 'juggernaut' | 'shield' | 'boss'
+/** Combat silhouette classes. Elite is an authored enemy role, not a rarity tier. */
+export type EnemyRole = 'fighter' | 'skirmisher' | 'sniper' | 'juggernaut' | 'shield' | 'boss' | 'elite'
 
 export interface FragmentNotice {
   moduleId: string
@@ -918,6 +913,8 @@ export interface WeaponInstance {
   hullDamage?: number
   shieldDamage?: number
   armorDamage?: number
+  /** Modest partial Shield bypass. Not full Shield ignore. */
+  shieldBypassFrac?: number
 }
 
 export interface DotInstance {
@@ -1019,6 +1016,36 @@ export interface CombatUnit {
   regenDelay?: number
   /** Kill-reward share. Authored enemies default to 1; density wing units are fractional. */
   rewardWeight?: number
+  /** Catalogue identity. Commanders keep the base hostile id. */
+  hostileId?: string
+  familyStatus?: 'authored' | 'pending'
+  isCommander?: boolean
+  commanderTraitId?: string
+  commanderSpawnedAt?: number
+  authoredSpeed?: number
+  authoredHullMax?: number
+  authoredShieldMax?: number
+  authoredArmor?: number
+  commanderSpeedMult?: number
+  commanderCycleMult?: number
+  supportShield?: number
+  supportShieldMax?: number
+  displacerCooldownLeft?: number
+  displacerTelegraphLeft?: number
+  displacerMoveLeft?: number
+  displacerDestX?: number
+  displacerDestY?: number
+  breacherCooldownLeft?: number
+  volatileArmed?: boolean
+  resonanceArmed?: boolean
+  deathHazardImmune?: boolean
+  usesDevBaseline?: boolean
+  bossId?: string
+  isBossSupport?: boolean
+  choirCrownPhase?: 'convergence' | 'reconstruction' | 'loopbreak'
+  choirCrownPhaseStartedAt?: number
+  coreJamTelegraphLeft?: number
+  coreJamLeft?: number
 }
 
 export interface CombatFx {
@@ -1279,6 +1306,13 @@ export interface CombatState {
   directiveOffer: string[] | null
   /** Sortie-local Core combat/support runtime. */
   coreRuntime?: SortieCoreRuntime
+  reservedCommanders: ReservedCommanderState[]
+  commanderEventLog: CommanderEventRecord[]
+  deathHazards: DeathHazardState[]
+  coreJams: CoreJamState[]
+  choirCrown: ChoirCrownRuntimeState | null
+  encounterTelemetry: EncounterTelemetryState
+  commanderNotice: CommanderNotice | null
 }
 
 /**
@@ -1429,10 +1463,86 @@ export interface PrestigeState {
   cycle: RebuildCycleState
 }
 
-/** Encounter memory for the Codex — persists across prestige. */
+export interface HostileCommanderMemory {
+  encounters: number
+  defeats: number
+  traits: string[]
+}
+
+/** Encounter memory for the Codex — persists across Rebuild. */
 export interface CodexState {
-  /** Families observed in combat this career (meta). */
-  seenFamilies: EnemyFamilyId[]
+  discoveredHostileIds: string[]
+  discoveredBossIds: string[]
+  discoveredCommanderTraitIds: string[]
+  hostileCommander: Record<string, HostileCommanderMemory>
+  bossClears: string[]
+  milestones: string[]
+}
+
+export interface ReservedCommanderState {
+  unit: CombatUnit
+  packageId: string
+  wave: number
+  threat: number
+  traitId: string
+  hostileId: string
+}
+
+export interface CommanderEventRecord {
+  wave: number
+  hostileId: string
+  traitId: string
+}
+
+export interface DeathHazardState {
+  x: number
+  y: number
+  radius: number
+  damage: number
+  delayLeft: number
+  sourceId: string
+  kind: 'resonance' | 'volatile'
+}
+
+export interface CoreJamState {
+  coreId: string
+  telegraphLeft: number
+  jamLeft: number
+}
+
+export interface ChoirCrownRuntimeState {
+  phase: 'convergence' | 'reconstruction' | 'loopbreak'
+  phaseStartedAt: number
+  reconstructionSpawned: boolean
+  loopbreakSpawned: boolean
+  jamCooldownLeft: number
+}
+
+export interface EncounterTelemetryState {
+  hostileSpawns: Record<string, number>
+  firstContacts: string[]
+  commanderEvents: number
+  commanderBaseSelected: Record<string, number>
+  commanderTraitSelected: Record<string, number>
+  commanderSurvivalSamples: number[]
+  commanderOverlapPeaks: number
+  commanderRewardSalvage: number
+  ordinaryRewardSalvage: number
+  auraUptime: Record<string, number>
+  commanderTargetPicks: number
+  totalTargetPicks: number
+  bossEncounterStartedAt: number | null
+  bossEncounterDuration: number
+  bossPhaseDurations: Record<string, number>
+  bossFailurePressure: number
+  backlogEnteringBossHold: number[]
+  backlogEnteringCommander: number[]
+}
+
+export interface CommanderNotice {
+  title: string
+  body: string
+  untilSim: number
 }
 
 export interface GameState {

@@ -12,7 +12,7 @@ function testBoss(wave: number): CombatUnit {
     side: 'enemy',
     name: `Fixture Boss ${wave}`,
     shape: 'hex',
-    family: 'titan',
+    family: '',
     hull: 80,
     hullMax: 80,
     shield: 0,
@@ -88,7 +88,7 @@ describe('boss telegraphs', () => {
     boss.hull = boss.hullMax * 0.2
     simulateCombat(state, 0.2, () => undefined)
     expect(state.combat.bossPhase).toBe(0)
-    expect(boss.family).toBe('titan')
+    expect(boss.family).toBe('')
     expect(boss.phaseWarnLeft).toBe(0)
   })
 })

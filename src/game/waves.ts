@@ -18,6 +18,10 @@ export function isCommanderCandidateWave(wave: number): boolean {
   return w > 0 && w % COMMANDER_CANDIDATE_INTERVAL === 0 && w % BOSS_WAVE_INTERVAL !== 0
 }
 
+export function isCommanderWave(wave: number): boolean {
+  return isCommanderCandidateWave(wave)
+}
+
 export function isBossWave(wave: number): boolean {
   const w = Math.max(0, Math.floor(wave))
   return w > 0 && w % BOSS_WAVE_INTERVAL === 0
@@ -43,41 +47,6 @@ export function waveEncounterKind(wave: number): WaveEncounterKind {
   if (isBossWave(w)) return 'boss'
   if (isCommanderCandidateWave(w)) return 'commander'
   return 'normal'
-}
-
-/** GDD §11–12 introduction bands. Used for current procedural packs until PR7. */
-export type GddEnemyBandId =
-  | 'basic'
-  | 'swarm'
-  | 'skirmisher'
-  | 'armored'
-  | 'shielded'
-  | 'sniper'
-  | 'support'
-  | 'mixed'
-  | 'elite'
-  | 'complex'
-
-export const GDD_ENEMY_BANDS: { min: number; max: number; id: GddEnemyBandId }[] = [
-  { min: 1, max: 9, id: 'basic' },
-  { min: 10, max: 19, id: 'swarm' },
-  { min: 20, max: 39, id: 'skirmisher' },
-  { min: 40, max: 69, id: 'armored' },
-  { min: 70, max: 99, id: 'shielded' },
-  { min: 100, max: 139, id: 'sniper' },
-  { min: 140, max: 179, id: 'support' },
-  { min: 180, max: 219, id: 'mixed' },
-  { min: 220, max: 259, id: 'elite' },
-  { min: 260, max: 999, id: 'complex' },
-]
-
-export function gddEnemyBandForWave(wave: number): GddEnemyBandId {
-  const w = Math.max(1, Math.floor(wave))
-  for (let i = GDD_ENEMY_BANDS.length - 1; i >= 0; i--) {
-    const band = GDD_ENEMY_BANDS[i]!
-    if (w >= band.min) return band.id
-  }
-  return 'basic'
 }
 
 export function reportedBestWave(state: {

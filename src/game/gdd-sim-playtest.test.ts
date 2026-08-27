@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CURVE_LAYERS, ENEMY_HULL_EARLY, WORKSHOP_WEAPON_POWER_PER_LEVEL } from './balance/curves'
+import { CURVE_LAYERS, WORKSHOP_WEAPON_POWER_PER_LEVEL } from './balance/curves'
 import { ACT1_TARGETS } from './balance/act1'
 import { createInitialState } from './state'
 import {
@@ -31,7 +31,6 @@ describe('GDD Phase 9 simulator + playtest', () => {
         'reclaim',
       ]),
     )
-    expect(ENEMY_HULL_EARLY).toBeGreaterThan(1)
     expect(WORKSHOP_WEAPON_POWER_PER_LEVEL).toBe(0.08)
   })
 

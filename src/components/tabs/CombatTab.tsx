@@ -27,6 +27,7 @@ import {
   targetCapableLoadoutCores,
 } from '../../game/coreTargeting'
 import { canExtract, extractionBonusFor, extractionLockedReason, sortieGrossScrapGenerated } from '../../game/extraction'
+import { COMMANDER_TRAIT_ICONS, COMMANDER_TRAIT_LABELS } from '../../game/hostileCatalogue'
 
 type ShopTab = RunUpgradeCategory
 
@@ -234,6 +235,8 @@ export function CombatTab({
   const salvageBank = Math.floor(state.resources.salvage)
   const overlayGeom = combatOverlayGeometry(state)
   const overlayIntroPending = !lessonFinished(state, 'combat-overlay.ranges')
+  const livingCommander = combat.enemyUnits.find((u) => u.hull > 0 && u.isCommander)
+  const commanderNotice = combat.commanderNotice
 
   function toggleRate(kind: 'salvage' | 'scrap') {
     setRateView((cur) => (cur === kind ? null : kind))
@@ -415,6 +418,18 @@ export function CombatTab({
               ) : null}
             </div>
           </header>
+          {commanderNotice ? (
+            <p className="sortie-commander-line" data-guide="commander-contact">
+              {commanderNotice.title}. {commanderNotice.body}
+            </p>
+          ) : livingCommander ? (
+            <p className="sortie-commander-line" data-guide="commander-plate">
+              COMMANDER · {livingCommander.name.toUpperCase()}
+              {livingCommander.commanderTraitId
+                ? ` · ${COMMANDER_TRAIT_ICONS[livingCommander.commanderTraitId as keyof typeof COMMANDER_TRAIT_LABELS] ?? ''} ${COMMANDER_TRAIT_LABELS[livingCommander.commanderTraitId as keyof typeof COMMANDER_TRAIT_LABELS] ?? livingCommander.commanderTraitId}`
+                : ''}
+            </p>
+          ) : null}
           {isSystemUnlocked(state, 'furnace') ? (
             <p className="sortie-furnace" aria-label="Furnace">
               <span>Ash {formatCompact(state.resources.choirAsh ?? 0, 1)}</span>

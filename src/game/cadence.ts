@@ -1,6 +1,7 @@
 /** GDD §102 Act 1 doors — career best Wave, not live sector. */
 export const ACT1_CADENCE = {
-  codex: 10,
+  /** Codex UI unlock. Discoveries are recorded from W1 on actual spawn. */
+  codex: 30,
   foundry: 50,
   workers: 50,
   economy: 40,

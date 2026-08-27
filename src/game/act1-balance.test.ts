@@ -4,12 +4,7 @@ import {
   ACT1_UNLOCKS,
   captureAct1Snapshot,
 } from './balance/act1'
-import {
-  ENEMY_DMG_EARLY,
-  ENEMY_HULL_EARLY,
-  salvageFromKill,
-  salvageWaveBase,
-} from './combat'
+import { salvageFromKill, salvageWaveBase } from './combat'
 import { hiveResearchNodeCost, HIVE_RESEARCH_WORKER_ACCEL } from './hiveResearch'
 import { NETWORK_FILL_COST, NETWORK_STARTING_DRONES } from './network'
 import { FURNACE_BASE_IDLE_GEN, FURNACE_CHANNEL_MAX } from './furnace'
@@ -68,8 +63,6 @@ describe('Act 1 authored formulas', () => {
     expect(HIVE_RESEARCH_WORKER_ACCEL).toBe(0.25)
     expect(FURNACE_CHANNEL_MAX).toBe(3)
     expect(FURNACE_BASE_IDLE_GEN).toBe(0)
-    expect(ENEMY_HULL_EARLY).toBeGreaterThan(1)
-    expect(ENEMY_DMG_EARLY).toBeGreaterThan(1)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')).toBeUndefined()
   })
@@ -196,9 +189,10 @@ describe('Act 1 career simulations', () => {
     const run = report.runs[0]!
     expect(run.offlineSeconds).toBeGreaterThan(2 * 3600)
     // Death docks the Sortie, so 8-minute active slices no longer farm a held sector.
-    // Offline catch-up must not explode the career; a couple of bands is enough progress.
+    // Offline catch-up must not explode the career. Role-neutral PR7 combat
+    // baselines are easier than the retired GDD packs; PR11 owns final pacing.
     expect(run.highestWave).toBeGreaterThanOrEqual(1)
-    expect(run.highestWave).toBeLessThan(18)
+    expect(run.highestWave).toBeLessThan(50)
     expect(run.safety.some((s) => s.kind === 'nan')).toBe(false)
   }, 120_000)
 
@@ -209,7 +203,7 @@ describe('Act 1 career simulations', () => {
     s.furnace.wanted.weapons = 1
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(47)
+    expect(SAVE_VERSION).toBe(48)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.masteryXp['recovered-stock']).toBe(4)

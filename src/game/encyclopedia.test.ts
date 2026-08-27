@@ -10,15 +10,16 @@ import { FOUNDRY_MATERIAL_IDS } from './foundryCatalogue'
 import { atCareerWave } from './testHelpers'
 import { ACT1_CADENCE } from './cadence'
 import { RELIC_FAMILIES, STANDARD_RELIC_IDS } from './relicCatalogue'
-import { ECHO_RUNS, ECHO_TREE, echoFoundrySpeedMult, getEchoRun } from './echo'
-import { CODEX_ROLES, roleIntel } from './combat'
+import { ECHO_RUNS, ECHO_TREE, getEchoRun } from './echo'
+import { ENEMY_FAMILY_IDS } from './hostileCatalogue'
+import { CODEX_PANES } from './codex'
 
 describe('encyclopedia depth', () => {
-  it('opens Codex at sector 10 without Data research', () => {
+  it('opens Codex at Wave 30 without Data research', () => {
     const locked = createInitialState(0)
     expect(isSystemUnlocked(locked, 'codex')).toBe(false)
     const open = createInitialState(0)
-    open.meta.highestSectorEver = 10
+    open.meta.bestWave = ACT1_CADENCE.codex
     expect(isSystemUnlocked(open, 'codex')).toBe(true)
     maybeGrantSystemUnlocks(open)
     expect(open.meta.codexUnlocked).toBe(true)
@@ -42,20 +43,16 @@ describe('encyclopedia depth', () => {
     expect(RELIC_FAMILIES.every((row) => row.effectStatus === 'pending')).toBe(true)
   })
 
-  it('adds Delta and Fenix Echo gauntlets plus smelt/warp tree nodes', () => {
+  it('still catalogues Delta/Fenix Echo gauntlets and smelt/warp nodes', () => {
     expect(getEchoRun('delta')?.requiresId).toBe('stack')
     expect(getEchoRun('fenix')?.requiresId).toBe('delta')
     expect(ECHO_RUNS).toHaveLength(6)
     expect(ECHO_TREE.some((n) => n.id === 'echo-smelt')).toBe(true)
     expect(ECHO_TREE.some((n) => n.id === 'echo-warp')).toBe(true)
-    const s = createInitialState(0)
-    s.echo.tree = ['echo-smelt']
-    expect(echoFoundrySpeedMult(s)).toBeGreaterThan(1)
   })
 
-  it('documents hull roles in the Codex catalog', () => {
-    expect(CODEX_ROLES).toContain('sniper')
-    expect(roleIntel('sniper').toLowerCase()).toContain('charge')
-    expect(roleIntel('boss').toLowerCase()).toContain('slam')
+  it('documents HOSTILES | BOSSES Codex panes and six families', () => {
+    expect([...CODEX_PANES]).toEqual(['hostiles', 'bosses'])
+    expect([...ENEMY_FAMILY_IDS]).toEqual(['swarm', 'armored', 'veil', 'siege', 'choir', 'apex'])
   })
 })

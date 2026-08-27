@@ -26,11 +26,7 @@ import type { GameState } from '../types'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from '../cadence'
 import { reportedBestWave } from '../waves'
 import type { Act1Contribution, Act1Snapshot, BalanceTarget } from '../simulation/types'
-import { ENEMY_DMG_EARLY, ENEMY_HULL_EARLY } from './curves'
 import { coreStartingLevelAtSlot } from '../coreProgression'
-
-void ENEMY_HULL_EARLY
-void ENEMY_DMG_EARLY
 
 /** Ten-wave bands in Act 1 (W300 → 30). Leftover estimators still speak in bands. */
 export const ACT1_SECTOR = 30

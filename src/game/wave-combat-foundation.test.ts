@@ -558,7 +558,7 @@ describe('PR1 wave-only radial combat foundation', () => {
       'barrier-projector',
     ]) {
       expect(familyCanDropPrint('armored', coreId, 400)).toBe(false)
-      expect(familyCanDropPrint('titan', coreId, 400)).toBe(false)
+      expect(familyCanDropPrint('apex', coreId, 400)).toBe(false)
     }
     const leftoverHits = rollEnemyPartDrop(
       state,
@@ -669,7 +669,7 @@ describe('PR1 wave-only radial combat foundation', () => {
   it('keeps Boss provider name/family/metadata authoritative after the encounter starts', () => {
     setTestBossProvider((ctx) => {
       const unit = durableDrone('meta-boss', ctx.wave)
-      unit.family = 'ethereal'
+      unit.family = 'veil'
       unit.name = 'Unique Provider Matriarch'
       unit.isBoss = true
       return {
@@ -692,7 +692,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     tickWaveScheduler(state, 2, silentHooks())
     expect(state.combat.bossBoundary.phase).toBe('active')
     expect(state.combat.enemyName).toBe('Unique Provider Matriarch')
-    expect(state.combat.enemyFamily).toBe('ethereal')
+    expect(state.combat.enemyFamily).toBe('veil')
     expect(state.combat.enemyTags).toContain('unique-provider-id')
     expect(state.combat.bossMechanic).toBe('unique-provider-id')
   })
@@ -724,7 +724,7 @@ describe('PR1 wave-only radial combat foundation', () => {
   it('does not apply generic legacy Boss phase mutation to provider Bosses', () => {
     setTestBossProvider((ctx) => {
       const unit = durableDrone('phase-boss', ctx.wave)
-      unit.family = 'titan'
+      unit.family = 'apex'
       unit.isBoss = true
       unit.hull = 90
       unit.hullMax = 90
@@ -752,7 +752,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     simulateCombat(state, 0.5, () => undefined)
     const still = state.combat.enemyUnits.find((u) => u.id === boss.id)
     expect(state.combat.bossPhase).toBe(0)
-    expect(still?.family ?? beforeFamily).toBe('titan')
+    expect(still?.family ?? beforeFamily).toBe('apex')
     expect(state.combat.enemyFamily).not.toBe('armored')
     expect(state.combat.enemyUnits.filter((u) => u.hull > 0).length).toBeLessThanOrEqual(beforeCount)
   })
@@ -824,7 +824,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     const boss = durableDrone('actual-boss', 50)
     boss.isBoss = true
     boss.name = 'Actual Boss'
-    boss.family = 'titan'
+    boss.family = 'apex'
     const escortA = durableDrone('escort-a', 50, 0.8)
     escortA.isBoss = false
     escortA.name = 'Escort A'

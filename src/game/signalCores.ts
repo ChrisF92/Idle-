@@ -442,19 +442,25 @@ const FAMILY_COMMON_WEIGHTS: Record<string, Record<string, number>> = {
     'loom-thread': 1,
     'salvage-ping': 1,
   },
-  ethereal: {
+  veil: {
     'loom-thread': 3,
     'salvage-ping': 2,
     'kinetic-shard': 1,
     'ablative-echo': 1,
   },
-  divine: {
+  siege: {
+    'ablative-echo': 3,
+    'kinetic-shard': 2,
+    'loom-thread': 1,
+    'salvage-ping': 1,
+  },
+  choir: {
     'salvage-ping': 2,
     'loom-thread': 2,
     'ablative-echo': 2,
     'kinetic-shard': 1,
   },
-  titan: {
+  apex: {
     'kinetic-shard': 2,
     'ablative-echo': 2,
     'loom-thread': 2,

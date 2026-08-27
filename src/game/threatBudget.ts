@@ -1,23 +1,15 @@
-/** GDD §10 — controlled threat budget and Sortie RNG seed. */
+/** Controlled threat budget and Sortie RNG seed. No procedural Elite rarity. */
 
 import type { CombatUnit, GameState } from './types'
-import {
-  gddEnemyBandForWave,
-  isAct1ClimaxWave,
-  isBossWave,
-  type GddEnemyBandId,
-} from './waves'
+import { isAct1ClimaxWave, isBossWave } from './waves'
+import { FORMATION_DISPERSION_WEIGHT_MAX } from './hostileSeeds'
 
 export type ThreatDensity = 'sparse' | 'standard' | 'dense'
 
 export interface WaveThreatSpec {
   wave: number
   budget: number
-  band: GddEnemyBandId
-  primary: GddEnemyBandId
-  secondary: GddEnemyBandId[]
   density: ThreatDensity
-  eliteChance: number
   countMin: number
   countMax: number
 }
@@ -51,10 +43,6 @@ export function hashSeed(...parts: number[]): number {
   return h >>> 0
 }
 
-/**
- * Mint a new stable Sortie seed from the account's persistent Sortie serial.
- * Tests may inject `combat.sortieSeed` before launch; live Sorties always call this.
- */
 export function allocateSortieSeed(state: GameState): number {
   state.meta.sortieSerial = (state.meta.sortieSerial ?? 0) + 1
   const seed = hashSeed(
@@ -66,7 +54,6 @@ export function allocateSortieSeed(state: GameState): number {
   return seed || 1
 }
 
-/** GDD Wave 87 example is budget 100. Linear from a small W1 floor. */
 export function threatBudgetForWave(wave: number): number {
   const w = Math.max(1, Math.floor(wave))
   if (isAct1ClimaxWave(w)) return 240
@@ -76,43 +63,11 @@ export function threatBudgetForWave(wave: number): number {
 
 export function threatSpecForWave(wave: number): WaveThreatSpec {
   const w = Math.max(1, Math.floor(wave))
-  const band = gddEnemyBandForWave(w)
   const budget = threatBudgetForWave(w)
-  switch (band) {
-    case 'basic':
-      return spec(w, budget, band, [], 'sparse', 0, 2, 3)
-    case 'swarm':
-      return spec(w, budget, band, ['basic'], 'dense', 0.08, 4, 8)
-    case 'skirmisher':
-      return spec(w, budget, band, ['swarm'], 'standard', 0.1, 3, 6)
-    case 'armored':
-      return spec(w, budget, band, ['skirmisher'], 'standard', 0.12, 3, 6)
-    case 'shielded':
-      return spec(w, budget, band, ['armored'], 'standard', 0.12, 3, 5)
-    case 'sniper':
-      return spec(w, budget, band, ['skirmisher'], 'sparse', 0.14, 2, 5)
-    case 'support':
-      return spec(w, budget, band, ['shielded', 'swarm'], 'standard', 0.14, 3, 6)
-    case 'mixed':
-      return spec(w, budget, band, ['armored', 'swarm', 'skirmisher'], 'dense', 0.18, 4, 8)
-    case 'elite':
-      return spec(w, budget, band, ['mixed', 'armored'], 'standard', 0.35, 3, 6)
-    case 'complex':
-      return spec(w, budget, band, ['elite', 'support', 'sniper'], 'dense', 0.28, 5, 8)
-  }
-}
-
-function spec(
-  wave: number,
-  budget: number,
-  band: GddEnemyBandId,
-  secondary: GddEnemyBandId[],
-  density: ThreatDensity,
-  eliteChance: number,
-  countMin: number,
-  countMax: number,
-): WaveThreatSpec {
-  return { wave, budget, band, primary: band, secondary, density, eliteChance, countMin, countMax }
+  if (w < 10) return { wave: w, budget, density: 'sparse', countMin: 2, countMax: 3 }
+  if (w < 40) return { wave: w, budget, density: 'standard', countMin: 2, countMax: 5 }
+  if (w < 120) return { wave: w, budget, density: 'standard', countMin: 3, countMax: 6 }
+  return { wave: w, budget, density: 'dense', countMin: 3, countMax: 6 }
 }
 
 export function packEhp(units: CombatUnit[]): number {
@@ -130,7 +85,7 @@ export function packThreat(units: CombatUnit[]): number {
   return packEhp(units) / 12 + packDps(units) * 2.4
 }
 
-export function measureThreatRoll(units: CombatUnit[], seed: number, budget: number, elite: boolean): WaveThreatRoll {
+export function measureThreatRoll(units: CombatUnit[], seed: number, budget: number, elite = false): WaveThreatRoll {
   return {
     seed,
     budget,
@@ -158,9 +113,30 @@ export function rescalePack(units: CombatUnit[], targetEhp: number, targetDps: n
   }
 }
 
+
+/** Scale live EHP/DPS together so measured pack threat lands on a target budget. */
+export function fitPackToThreat(units: CombatUnit[], targetThreat: number): void {
+  if (units.length === 0) return
+  const target = Math.max(0.01, targetThreat)
+  const armorThreat = units.reduce((sum, unit) => sum + unit.armor * 0.5, 0)
+  const current = packThreat(units)
+  const scalable = Math.max(0, current - armorThreat)
+  const mult = scalable > 1e-9 ? Math.max(1e-6, (target - armorThreat) / scalable) : 1
+  for (const unit of units) {
+    const hullRatio = unit.hullMax > 0 ? unit.hull / unit.hullMax : 1
+    const shieldRatio = unit.shieldMax > 0 ? unit.shield / unit.shieldMax : 0
+    unit.hullMax = Math.max(1, unit.hullMax * mult)
+    unit.hull = Math.max(0, unit.hullMax * hullRatio)
+    unit.shieldMax *= mult
+    unit.shield = unit.shieldMax * shieldRatio
+    if (unit.authoredHullMax != null) unit.authoredHullMax *= mult
+    if (unit.authoredShieldMax != null) unit.authoredShieldMax *= mult
+    for (const weapon of unit.weapons) weapon.damage *= mult
+  }
+}
+
 /**
- * Controlled variation: jitter count and maybe mark an elite, then lock EHP/DPS
- * back to the canonical pack so two seeds stay comparable.
+ * Narrow count jitter only. No procedural Elite prefix or stat mutation.
  */
 export function varyPackToBudget(
   canonical: CombatUnit[],
@@ -172,7 +148,7 @@ export function varyPackToBudget(
   }
   const rng = mulberry32(hashSeed(seed, spec.wave, 17))
   const units = canonical.map((u) => structuredClone(u))
-  const extras = units.filter((u) => !u.isBoss)
+  const extras = units.filter((u) => !u.isBoss && !u.isCommander)
   const want = spec.countMin + Math.floor(rng() * (spec.countMax - spec.countMin + 1))
   if (extras.length > 0 && want > extras.length) {
     const missing = want - extras.length
@@ -180,7 +156,6 @@ export function varyPackToBudget(
       const src = extras[i % extras.length]!
       const clone = structuredClone(src)
       clone.id = `${src.id}-v${i}`
-      clone.name = `${src.name} ${i + 2}`
       clone.rewardWeight = Math.min(0.4, (src.rewardWeight ?? 1) * 0.35)
       units.push(clone)
     }
@@ -188,28 +163,14 @@ export function varyPackToBudget(
     const drop = extras.length - Math.max(spec.countMin, want)
     let removed = 0
     for (let i = units.length - 1; i >= 0 && removed < drop; i--) {
-      if (units[i]?.isBoss) continue
-      if (units.filter((u) => !u.isBoss).length <= spec.countMin) break
+      if (units[i]?.isBoss || units[i]?.isCommander) continue
+      if (units.filter((u) => !u.isBoss && !u.isCommander).length <= spec.countMin) break
       units.splice(i, 1)
       removed += 1
     }
   }
-
-  let elite = false
-  if (rng() < spec.eliteChance) {
-    const fodder = units.filter((u) => !u.isBoss)
-    const pick = fodder[Math.floor(rng() * fodder.length)]
-    if (pick) {
-      elite = true
-      pick.name = pick.name.startsWith('Elite ') ? pick.name : `Elite ${pick.name}`
-      pick.hullMax *= 1.35
-      pick.hull = pick.hullMax
-      pick.shieldMax *= 1.15
-      pick.shield = pick.shieldMax
-      pick.armor += 1
-    }
-  }
-
   rescalePack(units, packEhp(canonical), packDps(canonical))
-  return { units, elite }
+  return { units, elite: false }
 }
+
+export const DISPERSION_WEIGHT_CAP = FORMATION_DISPERSION_WEIGHT_MAX

@@ -121,7 +121,7 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     id: 'codex',
     requiresBestWave: ACT1_CADENCE.codex,
     label: 'Codex',
-    tip: 'Optional reference for enemy families and hull roles.',
+    tip: 'Optional reference for encountered hostiles and Bosses.',
   },
   {
     id: 'core',

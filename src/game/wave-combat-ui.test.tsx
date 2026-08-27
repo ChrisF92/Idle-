@@ -223,4 +223,28 @@ describe('live Sortie chrome and pause/browse contract', () => {
     expect(showGlobalBottomNav(extracted, 'dock')).toBe(true)
     expect(extracted.combat.sortiePaused).toBe(false)
   })
+
+  it('shows a compact Commander nameplate with Trait', () => {
+    const live = liveSortie()
+    live.combat.commanderNotice = undefined
+    const unit = live.combat.enemyUnits.find((u) => u.hull > 0) ?? live.combat.enemyUnits[0]
+    expect(unit).toBeTruthy()
+    unit!.isCommander = true
+    unit!.commanderTraitId = 'vanguard'
+    unit!.name = 'Void Mite'
+    render(
+      <CombatTab
+        state={live}
+        onLaunch={() => undefined}
+        onExtract={() => undefined}
+        onPause={() => undefined}
+        onResume={() => undefined}
+        onPauseAndBrowse={() => undefined}
+      />,
+    )
+    const plate = screen.getByText(/COMMANDER · VOID MITE/)
+    expect(plate.textContent).toMatch(/Vanguard/)
+    expect(plate.textContent).not.toMatch(/Elite Void Mite/)
+    expect(plate.textContent!.length).toBeLessThan(48)
+  })
 })

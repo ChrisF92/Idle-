@@ -173,7 +173,7 @@ describe('GDD Process', () => {
   })
 
   it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
-    expect(SAVE_VERSION).toBe(47)
+    expect(SAVE_VERSION).toBe(48)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-buy-max')?.cost).toBe(4)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)

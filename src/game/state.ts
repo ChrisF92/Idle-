@@ -69,7 +69,7 @@ import {
 import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 47
+export const SAVE_VERSION = 48
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -216,7 +216,12 @@ export function createInitialState(now = Date.now()): GameState {
       cycle: { bestWave: 0, normalSortiesCompleted: 0, scrapGenerated: 0 },
     },
     codex: {
-      seenFamilies: [],
+      discoveredHostileIds: [],
+      discoveredBossIds: [],
+      discoveredCommanderTraitIds: [],
+      hostileCommander: {},
+      bossClears: [],
+      milestones: [],
     },
     meta: {
       bestWave: 0,

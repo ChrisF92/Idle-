@@ -1,8 +1,9 @@
 /** Continuous Wave scheduler: reinforcement, pending threat, Boss boundaries. */
 
 import type { CombatUnit, GameState, WavePackageKind, WavePackageState } from './types'
-import { encounterForWave, pruneDeadEnemyUnits, revealCodexFamilies, syncHullAggregates } from './combat'
+import { encounterForWave, pruneDeadEnemyUnits, syncHullAggregates } from './combat'
 import { resolveBossEncounter } from './bossProvider'
+import './bossRegistry'
 import { aiDoctrinesActive } from './catalog'
 import {
   admitUnitToPackage,
@@ -21,6 +22,11 @@ import { salvageWaveBonus, scrapWaveBonus } from './workshop'
 import { combatScrapMatterMult } from './matter'
 import { grantGeneratedScrap } from './rebuild'
 import { grantSignalCoreDrop } from './signalCores'
+import { packThreat } from './threatBudget'
+import { shouldReserveCommander, reserveCommander } from './commanders'
+import { COMMANDER_NOTICE_DURATION } from './hostileSeeds'
+import { recordBossClearSources } from './bossClear'
+import { noteBacklogEnteringBossHold, noteBacklogEnteringCommander, noteBossEncounterEnd, noteBossEncounterStart } from './encounterTelemetry'
 
 export interface WaveSchedulerHooks {
   pushLog: (state: GameState, line: string) => void
@@ -44,12 +50,8 @@ function applyPresentation(state: GameState, presentation: WavePresentation, bos
 }
 
 function admitUnits(state: GameState, pkg: WavePackageState, units: CombatUnit[]): void {
-  const admitted = units.map((unit) => admitUnitToPackage(state, pkg, unit))
+  units.map((unit) => admitUnitToPackage(state, pkg, unit))
   syncHullAggregates(state)
-  revealCodexFamilies(
-    state,
-    admitted.map((u) => u.family),
-  )
 }
 
 export function startWavePackage(
@@ -62,10 +64,25 @@ export function startWavePackage(
 ): WavePackageState {
   const kind = kindOverride ?? wavePackageKindFor(wave)
   const encounter = unitsOverride ? null : encounterForWave(wave, 1, state)
-  const units = unitsOverride ?? encounter!.units.map((u) => structuredClone(u))
+  let units = unitsOverride ?? encounter!.units.map((u) => structuredClone(u))
   const pkg = createWavePackage(state, wave, kind, units.length)
   state.combat.packages.push(pkg)
   const first = markWaveReached(state, wave)
+  if (kind === 'commander') {
+    noteBacklogEnteringCommander(state)
+    const commander = units.find((u) => u.isCommander)
+    if (commander && shouldReserveCommander(state)) {
+      units = units.filter((u) => !u.isCommander)
+      reserveCommander(state, commander, pkg, packThreat([commander]))
+    }
+    if (wave === 10 && !state.combat.commanderNotice) {
+      state.combat.commanderNotice = {
+        title: 'COMMANDER CONTACT',
+        body: 'Promoted hostiles carry one enhanced trait and improved rewards.',
+        untilSim: (state.combat.simTime ?? 0) + COMMANDER_NOTICE_DURATION,
+      }
+    }
+  }
   admitUnits(state, pkg, units)
   if (presentationOverride) {
     applyPresentation(state, presentationOverride, kind === 'boss')
@@ -98,7 +115,7 @@ export function startWavePackage(
   if (first) hooks.onWaveReached?.(state, wave, kind)
   hooks.pushLog(
     state,
-    `Wave ${wave} reached${kind === 'boss' ? ' — Boss' : kind === 'commander' ? ' — Commander candidate' : ''}.`,
+    `Wave ${wave} reached${kind === 'boss' ? ' — Boss' : kind === 'commander' ? ' — Commander' : ''}.`,
   )
   return pkg
 }
@@ -126,9 +143,10 @@ export function startBossEncounter(state: GameState, hooks: WaveSchedulerHooks):
     warningDuration: spec?.warningDuration ?? state.combat.bossBoundary.warningDuration,
   }
   state.combat.bossMechanic = spec?.id
+  noteBossEncounterStart(state)
   startWavePackage(state, wave, hooks, units, 'boss', {
     name: spec?.name ?? `Boss Wave ${wave}`,
-    family: lead?.family ?? 'titan',
+    family: lead?.family ?? '',
     tags: spec ? ['boss', spec.id] : ['boss'],
   })
   state.combat.nextWave = wave + 1
@@ -148,6 +166,7 @@ function payWaveSecureReward(state: GameState, pkg: WavePackageState, hooks: Wav
   grantGeneratedScrap(state, waveScrap, 'combat-wave')
   if (pkg.kind === 'boss') {
     grantSignalCoreDrop(state, 'boss')
+    recordBossClearSources(state, pkg.wave)
   }
   hooks.pushLog(
     state,
@@ -206,6 +225,7 @@ export function tickWaveScheduler(state: GameState, dt: number, hooks: WaveSched
         warningDuration: boundary.warningDuration,
       }
       state.combat.isBoss = false
+      noteBossEncounterEnd(state)
       scheduleNextNormal(state, boundary.wave)
     }
     return
@@ -234,6 +254,7 @@ export function tickWaveScheduler(state: GameState, dt: number, hooks: WaveSched
     const wave = state.combat.nextWave
     if (wave > ACT1_FINAL_WAVE) return
     if (isBossWave(wave)) {
+      noteBacklogEnteringBossHold(state)
       beginBossHold(state, authoredWarningDuration(state, wave))
       return
     }

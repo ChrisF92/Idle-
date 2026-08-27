@@ -34,6 +34,7 @@ import {
   headingToScreenFacing,
   type CombatOverlayCoreGeom,
 } from '../game/coreTargeting'
+import { COMMANDER_TRAIT_ICONS } from '../game/hostileCatalogue'
 
 export type BattlefieldMode = 'fighting' | 'repairing' | 'holding' | 'ready' | 'docked'
 
@@ -61,6 +62,8 @@ interface Actor {
   side: 'player' | 'enemy'
   shape: UnitShape
   isBoss: boolean
+  isCommander: boolean
+  commanderTraitId?: string
   isFlagship: boolean
   hull: number
   hullMax: number
@@ -303,11 +306,13 @@ function familyShotColor(family: string): string {
       return '#9eb4cc'
     case 'armored':
       return '#c4a574'
-    case 'ethereal':
+    case 'veil':
       return '#7ec8ff'
-    case 'divine':
+    case 'siege':
+      return '#c4a574'
+    case 'choir':
       return '#e0c07a'
-    case 'titan':
+    case 'apex':
       return '#ff8a7a'
     case 'escort':
       return '#b8d4c8'
@@ -471,7 +476,7 @@ function shotStyleBase(p: VisualShot): ShotStyle {
         radius: 3.6,
         glow: 9,
       }
-    case 'ethereal':
+    case 'veil':
       return {
         shape: 'bolt',
         color: '#7ec8ff',
@@ -481,7 +486,17 @@ function shotStyleBase(p: VisualShot): ShotStyle {
         radius: 2,
         glow: 11,
       }
-    case 'divine':
+    case 'siege':
+      return {
+        shape: 'slug',
+        color: '#c4a574',
+        core: '#ffe8c0',
+        length: 18,
+        width: 3.2,
+        radius: 3.2,
+        glow: 10,
+      }
+    case 'choir':
       return {
         shape: 'lance',
         color: '#e0c07a',
@@ -491,7 +506,7 @@ function shotStyleBase(p: VisualShot): ShotStyle {
         radius: 2.2,
         glow: 10,
       }
-    case 'titan':
+    case 'apex':
       return {
         shape: 'orb',
         color: '#ff8a7a',
@@ -722,6 +737,7 @@ function primaryWeaponTag(weapons: WeaponInstance[]): string {
 function unitRadius(unit: CombatUnit): number {
   if (unit.isFlagship) return HIVE_VISUAL_RADIUS
   if (unit.isBoss || unit.role === 'boss') return 18
+  if (unit.isCommander) return 13
   switch (unit.role) {
     case 'skirmisher':
       return 7
@@ -866,6 +882,8 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     existing.shieldMax = unit.shieldMax
     existing.shape = unit.shape
     existing.isBoss = unit.isBoss
+    existing.isCommander = Boolean(unit.isCommander)
+    existing.commanderTraitId = unit.commanderTraitId
     existing.targetX = slot.x
     existing.targetY = slot.y
     existing.r = slot.r
@@ -939,6 +957,8 @@ function ensureActor(scene: Scene, unit: CombatUnit): Actor {
     side: unit.side,
     shape: unit.shape,
     isBoss: unit.isBoss,
+    isCommander: Boolean(unit.isCommander),
+    commanderTraitId: unit.commanderTraitId,
     isFlagship: unit.isFlagship,
     hull: unit.hull,
     hullMax: unit.hullMax,
@@ -1244,7 +1264,7 @@ function syncScene(
       }
     } else if (prev) {
       // Exhaust sparkles behind live rounds.
-      if (Math.random() < (p.side === 'player' || p.attackerFamily === 'titan' ? 0.55 : 0.28)) {
+      if (Math.random() < (p.side === 'player' || p.attackerFamily === 'apex' ? 0.55 : 0.28)) {
         const style = shotStyle(nextProj.get(p.id)!, scene.furnaceWeapons)
         const mag = Math.hypot(hx, hy) || 1
         scene.particles.push({
@@ -2404,6 +2424,22 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
       drawShape(ctx, actor.shape, actor.r, fill, stroke, alpha)
     }
 
+    if (actor.isCommander && actor.alive) {
+      ctx.save()
+      ctx.rotate(actor.side === 'player' ? -Math.PI / 2 : Math.PI / 2)
+      ctx.strokeStyle = '#ffe08a'
+      ctx.fillStyle = '#ffe08a'
+      ctx.globalAlpha = alpha
+      ctx.lineWidth = 1.6
+      ctx.beginPath()
+      ctx.moveTo(0, -actor.r - 7)
+      ctx.lineTo(5, -actor.r - 1)
+      ctx.lineTo(-5, -actor.r - 1)
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
+
     if (actor.muzzle > 0) {
       const hot = scene.furnaceWeapons && actor.side === 'player'
       ctx.globalAlpha = actor.muzzle
@@ -2473,6 +2509,20 @@ function drawScene(ctx: CanvasRenderingContext2D, scene: Scene): void {
         }
       }
       ctx.globalAlpha = 1
+    }
+
+    if (actor.isCommander && actor.alive) {
+      const trait = actor.commanderTraitId
+        ? COMMANDER_TRAIT_ICONS[actor.commanderTraitId as keyof typeof COMMANDER_TRAIT_ICONS]
+        : '▲'
+      ctx.save()
+      ctx.font = '11px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'bottom'
+      ctx.fillStyle = '#ffe08a'
+      ctx.globalAlpha = alpha
+      ctx.fillText(`${trait}`, ax, ay - actor.r - 8)
+      ctx.restore()
     }
   }
 

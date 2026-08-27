@@ -52,6 +52,8 @@ import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
 import { emptyWaveRuntime } from './waveRuntime'
 import { normalizeCoreInstances } from './coreInstances'
+import { sanitizeCodexState } from './codex'
+import { emptyEncounterTelemetry } from './encounterTelemetry'
 
 export function saveGame(state: GameState): void {
   try {
@@ -216,6 +218,24 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       ? combat.directiveOffer.filter((id): id is string => typeof id === 'string')
       : null,
     coreRuntime: combat.coreRuntime,
+    reservedCommanders: Array.isArray(combat.reservedCommanders)
+      ? combat.reservedCommanders
+      : runtime.reservedCommanders,
+    commanderEventLog: Array.isArray(combat.commanderEventLog) ? combat.commanderEventLog : [],
+    deathHazards: Array.isArray(combat.deathHazards) ? combat.deathHazards : [],
+    coreJams: Array.isArray(combat.coreJams) ? combat.coreJams : [],
+    choirCrown: combat.choirCrown ?? null,
+    encounterTelemetry: combat.encounterTelemetry ?? emptyEncounterTelemetry(),
+    commanderNotice:
+      combat.commanderNotice &&
+      typeof combat.commanderNotice.title === 'string' &&
+      typeof combat.commanderNotice.body === 'string'
+        ? {
+            title: combat.commanderNotice.title,
+            body: combat.commanderNotice.body,
+            untilSim: Number(combat.commanderNotice.untilSim) || 0,
+          }
+        : null,
   }
 }
 
@@ -328,9 +348,7 @@ function withResourcesDefaults(
 function withCodexDefaults(
   codex: GameState['codex'] | undefined,
 ): GameState['codex'] {
-  const allowed = new Set(['swarm', 'armored', 'ethereal', 'divine', 'titan'])
-  const seen = (codex?.seenFamilies ?? []).filter((f) => allowed.has(f))
-  return { seenFamilies: seen }
+  return sanitizeCodexState(codex)
 }
 
 function migrateBase(
@@ -733,16 +751,8 @@ function withAiDefaults(ai: GameState['ai'] | undefined): GameState['ai'] {
   return { purchased: purchased.filter((id) => known.has(id)) }
 }
 
-function backfillCodexUnlocked(
-  meta: GameState['meta'],
-  research: GameState['research'] | undefined,
-  codex: GameState['codex'] | undefined,
-): GameState['meta'] {
-  if (meta.codexUnlocked) return meta
-  const researched = research?.unlocked?.includes('tactical-codex') ?? false
-  const hadIntel = (codex?.seenFamilies?.length ?? 0) > 0 && researched
-  if (!researched && !hadIntel) return meta
-  return { ...meta, codexUnlocked: true }
+function backfillCodexUnlocked(meta: GameState['meta']): GameState['meta'] {
+  return meta
 }
 
 function migrate(raw: unknown): GameState | null {
@@ -757,11 +767,7 @@ function migrate(raw: unknown): GameState | null {
     const base = createInitialState()
     const combat = withCombatDefaults(state.combat)
     const codex = withCodexDefaults(state.codex)
-    const meta = backfillCodexUnlocked(
-      withMetaDefaults(state.meta),
-      state.research,
-      codex,
-    )
+    const meta = backfillCodexUnlocked(withMetaDefaults(state.meta))
     const hydrated: GameState = {
       ...state,
       version: SAVE_VERSION,

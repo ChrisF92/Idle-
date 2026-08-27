@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { AI_NODES, CHALLENGES, SHIP_MODULES, formatPrintSourceLine } from './catalog'
-import { roleIntel } from './combat'
 import { PROTOCOLS } from './protocols'
 import { DIRECTIVES } from './directives'
 import { inspectCopyCorpus } from './inspect'
@@ -38,7 +37,6 @@ describe('GDD Wave / Hive player-facing copy', () => {
       ...DIRECTIVES.map((row) => `${row.name} ${row.blurb}`),
       ...SYSTEM_UNLOCKS.map((row) => `${row.label} ${row.tip}`),
       ...Object.values(reinforceConsequenceLists(createInitialState(0))).flat(),
-      roleIntel('skirmisher'),
       formatPrintSourceLine('heavy-lance'),
     ])
     expect(catalog).not.toMatch(LEFTOVER)
