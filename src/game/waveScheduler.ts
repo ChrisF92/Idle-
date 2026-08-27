@@ -23,7 +23,7 @@ import { combatScrapMatterMult } from './matter'
 import { grantGeneratedScrap } from './rebuild'
 import { grantSignalCoreDrop } from './signalCores'
 import { packThreat } from './threatBudget'
-import { commanderThreatShare, shouldReserveCommander, reserveCommander } from './commanders'
+import { shouldReserveCommander, reserveCommander } from './commanders'
 import { COMMANDER_NOTICE_DURATION } from './hostileSeeds'
 import { recordBossClearSources } from './bossClear'
 import { noteBacklogEnteringBossHold, noteBacklogEnteringCommander, noteBossEncounterEnd, noteBossEncounterStart } from './encounterTelemetry'
@@ -74,7 +74,6 @@ export function startWavePackage(
     if (commander && shouldReserveCommander(state)) {
       units = units.filter((u) => !u.isCommander)
       reserveCommander(state, commander, pkg, packThreat([commander]))
-      void commanderThreatShare(wave)
     }
     if (wave === 10 && !state.combat.commanderNotice) {
       state.combat.commanderNotice = {

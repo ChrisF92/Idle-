@@ -63,10 +63,7 @@ function applyPendingDownstream(state: GameState, def: BossDef): void {
   }
   if (def.sourceKind === 'act1-complete') {
     recordCodexMilestone(state, 'act1-boss-clear')
-    if (!state.meta.act1Cleared) {
-      state.meta.act1Cleared = true
-      state.meta.act1FinalePending = true
-    }
+    if (!state.meta.act1Cleared) state.meta.act1Cleared = true
     return
   }
   if (RELIC_ROUTE_WAVES.includes(def.wave as (typeof RELIC_ROUTE_WAVES)[number])) {

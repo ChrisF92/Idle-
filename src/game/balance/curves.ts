@@ -6,7 +6,7 @@
  * without hunting magic numbers. Do not retune several layers in the same PR.
  *
  * Layers:
- * - Enemy hull / damage vs Wave (band scale still lives in combat.ts)
+ * - Enemy hull / damage vs Wave (canonical PR7 scaling lives in hostileSeeds.ts)
  * - Salvage income
  * - Scrap income
  * - Workshop starting power
@@ -14,25 +14,7 @@
  * - Reclaim compression
  */
 
-export {
-  ENEMY_HULL_BASE,
-  ENEMY_HULL_OPENING,
-  ENEMY_HULL_EARLY,
-  ENEMY_HULL_MID,
-  ENEMY_HULL_LATE,
-  ENEMY_DMG_BASE,
-  ENEMY_DMG_OPENING,
-  ENEMY_DMG_EARLY,
-  ENEMY_DMG_MID,
-  ENEMY_DMG_LATE,
-  ENEMY_OPENING_SECTOR as ENEMY_OPENING_BAND,
-  ENEMY_EARLY_SECTOR as ENEMY_EARLY_BAND,
-  ENEMY_MID_SECTOR as ENEMY_MID_BAND,
-  ENEMY_WAVE_HULL_RAMP,
-  salvageWaveBase,
-  salvageFromKill,
-  SALVAGE_MID_EXPONENT,
-} from '../combat'
+export { salvageWaveBase, salvageFromKill } from '../combat'
 
 export {
   RUN_UPGRADE_COST_BASE,

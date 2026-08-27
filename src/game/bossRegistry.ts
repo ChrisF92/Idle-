@@ -15,6 +15,7 @@ import {
   BOSS_WARNING_CROWN,
   BOSS_WARNING_DEFAULT,
   CHOIR_CROWN_SEEDS,
+  NEUTRAL_BOSS_BASELINE,
   enemyDamageScale,
   enemyWaveScale,
 } from './hostileSeeds'
@@ -159,27 +160,65 @@ function place(units: CombatUnit[], wave: number, seed: number, formation: Forma
   })
 }
 
-function scaleBossBody(unit: CombatUnit, wave: number): CombatUnit {
-  const mult = ehpMultForWave(wave)
-  const hull = Math.max(1, unit.hullMax * mult)
-  const shield = Math.max(0, Math.max(unit.shieldMax, unit.hullMax * BOSS_SCALING.shieldFrac) * hull / Math.max(1, unit.hullMax) * (wave >= 1000 ? 1.4 : 1))
-  unit.hullMax = hull
-  unit.hull = hull
-  unit.shieldMax = shield
-  unit.shield = shield
-  unit.armor = unit.armor + BOSS_SCALING.armorAdd
-  unit.authoredHullMax = hull
-  unit.authoredShieldMax = shield
-  unit.authoredArmor = unit.armor
-  unit.isBoss = true
-  unit.isFlagship = true
-  unit.role = 'boss'
-  unit.rewardWeight = 1
-  unit.shape = 'hex'
-  for (const wpn of unit.weapons) {
-    wpn.damage *= BOSS_SCALING.damageMult
+function buildNeutralBossBody(ctx: BossBuildContext, def: BossDef): CombatUnit {
+  const hullScale = enemyWaveScale(ctx.wave)
+  const damageScale = enemyDamageScale(ctx.wave)
+  const hull = NEUTRAL_BOSS_BASELINE.hull * hullScale * ehpMultForWave(ctx.wave)
+  const shield = hull * NEUTRAL_BOSS_BASELINE.shieldFrac
+  const pos = pointFromBearing(0, TYPICAL_SPAWN_RADIUS)
+  return {
+    id: `draft-boss-${def.id}`,
+    side: 'enemy',
+    name: def.name,
+    shape: 'hex',
+    family: '',
+    familyStatus: 'pending',
+    hostileId: undefined,
+    bossId: def.id,
+    hull,
+    hullMax: hull,
+    shield,
+    shieldMax: shield,
+    armor: NEUTRAL_BOSS_BASELINE.armor + BOSS_SCALING.armorAdd,
+    evasion: 0,
+    damageTakenMult: 1,
+    weapons: [
+      {
+        id: `${def.id}-neutral-wpn`,
+        name: `${def.name} strike`,
+        damage: NEUTRAL_BOSS_BASELINE.damage * damageScale * BOSS_SCALING.damageMult,
+        cooldown: NEUTRAL_BOSS_BASELINE.cooldown,
+        cooldownLeft: 0.4,
+        range: NEUTRAL_BOSS_BASELINE.range,
+        tags: ['kinetic'],
+        splash: 0,
+        dotDuration: 0,
+        dotDamage: 0,
+        telegraphDuration: 0,
+        telegraphLeft: 0,
+      },
+    ],
+    isBoss: true,
+    isFlagship: true,
+    role: 'boss',
+    dots: [],
+    x: pos.x,
+    y: pos.y,
+    heading: 0,
+    speed: NEUTRAL_BOSS_BASELINE.speed,
+    authoredSpeed: NEUTRAL_BOSS_BASELINE.speed,
+    authoredHullMax: hull,
+    authoredShieldMax: shield,
+    authoredArmor: NEUTRAL_BOSS_BASELINE.armor + BOSS_SCALING.armorAdd,
+    engageRange: NEUTRAL_BOSS_BASELINE.engageRange,
+    kite: NEUTRAL_BOSS_BASELINE.kite,
+    phaseWarnLeft: 0,
+    regenDelay: 0,
+    rewardWeight: 1,
+    resonanceArmed: false,
+    deathHazardImmune: true,
+    usesDevBaseline: false,
   }
-  return unit
 }
 
 function genericEscorts(wave: number, seed: number, count: number): CombatUnit[] {
@@ -264,13 +303,7 @@ function buildChoirCrown(ctx: BossBuildContext, def: BossDef): CombatUnit[] {
 }
 
 function buildStandardBoss(ctx: BossBuildContext, def: BossDef): CombatUnit[] {
-  const leadId = echoHostileIds(ctx.wave, ctx.seed, 1)[0] ?? 'void-mite'
-  const body = scaleBossBody(buildHostileUnit({ def: getHostileDef(leadId)!, wave: ctx.wave }), ctx.wave)
-  body.name = def.name
-  body.bossId = def.id
-  body.hostileId = undefined
-  body.family = ''
-  body.familyStatus = 'pending'
+  const body = buildNeutralBossBody(ctx, def)
   const escorts = genericEscorts(ctx.wave, ctx.seed + 17, ctx.wave >= 500 ? 2 : 1)
   const units = [body, ...escorts]
   const formation = FORMATION_IDS[hashSeed(ctx.seed, ctx.wave, 0xb055) % FORMATION_IDS.length]!
@@ -288,7 +321,7 @@ export function productionBossProvider(ctx: BossBuildContext): BossEncounterSpec
     name: def.name,
     warningDuration: def.warningDuration || BOSS_WARNING_DURATION,
     units,
-    blurb: def.mechanicSummary ?? `${def.name}. Unique mechanic pending design.`,
+    blurb: def.mechanicSummary ?? `${def.name}.`,
   }
 }
 

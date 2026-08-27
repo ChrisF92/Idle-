@@ -73,15 +73,17 @@ export function CodexTab({ state, onBack, guideTarget = null }: CodexTabProps) {
                 <ul className="sector-roster">
                   {discovered.map((row) => {
                     const lines = hostileCodexLines(row.def)
+                    const taxonomy = [lines.family, lines.role].filter((value): value is string => Boolean(value)).join(' · ')
                     return (
                       <li key={row.def.id} className="sector-roster-item">
                         <HostileGlyph shape={row.def.shape} />
                         <div>
                           <strong>{row.def.name}</strong>
-                          <p className="muted">{lines.family} · {lines.role}</p>
-                          <p>{lines.mechanic}</p>
-                          <p className="muted">{lines.profile}</p>
-                          <p>{lines.softCounter}</p>
+                          {taxonomy ? <p className="muted">{taxonomy}</p> : null}
+                          {lines.mechanic ? <p>{lines.mechanic}</p> : null}
+                          {lines.profile ? <p className="muted">{lines.profile}</p> : null}
+                          {lines.softCounter ? <p>{lines.softCounter}</p> : null}
+                          {lines.telemetry ? <p className="muted">{lines.telemetry}</p> : null}
                           {row.commanderEncounters > 0 ? (
                             <p className="muted">
                               Commanders faced {row.commanderEncounters} · defeated {row.commanderDefeats}
@@ -138,9 +140,10 @@ export function CodexTab({ state, onBack, guideTarget = null }: CodexTabProps) {
                         <div>
                           <strong>{def.name}</strong>
                           <p className="muted">Wave {def.wave}{cleared ? ' · cleared' : ''}</p>
-                          <p>{lines.mechanic}</p>
-                          <p className="muted">{lines.profile}</p>
-                          <p>{lines.softAnswer}</p>
+                          {lines.mechanic ? <p>{lines.mechanic}</p> : null}
+                          {lines.profile ? <p className="muted">{lines.profile}</p> : null}
+                          {lines.softAnswer ? <p>{lines.softAnswer}</p> : null}
+                          {lines.telemetry ? <p className="muted">{lines.telemetry}</p> : null}
                         </div>
                       </li>
                     )

@@ -1,7 +1,11 @@
 /** Choir Crown three-phase runtime. Deterministic and saveable. */
 
 import type { CombatUnit, GameState, WavePackageState } from './types'
-import { CHOIR_CROWN_SEEDS } from './hostileSeeds'
+import {
+  CHOIR_CROWN_SEEDS,
+  CHOIR_CROWN_SHELL_NODE_BASELINE,
+  enemyWaveScale,
+} from './hostileSeeds'
 import { buildHostileUnit, getHostileDef, introducedHostiles } from './hostileCatalogue'
 import { admitUnitToPackage } from './waveRuntime'
 import { noteBossPhaseDuration } from './encounterTelemetry'
@@ -45,7 +49,7 @@ function setPhase(state: GameState, boss: CombatUnit, phase: ChoirCrownPhase): v
   state.combat.bossPhase = phase === 'convergence' ? 0 : phase === 'reconstruction' ? 1 : 2
 }
 
-function spawnSupport(state: GameState, ids: string[], tag: string): void {
+function spawnHostileSupport(state: GameState, ids: string[], tag: string): void {
   const pkg = bossPackage(state)
   if (!pkg) return
   const wave = 1000
@@ -64,13 +68,57 @@ function spawnSupport(state: GameState, ids: string[], tag: string): void {
   })
 }
 
-function reconstructionIds(seed: number): string[] {
-  const pool = introducedHostiles(1000).map((d) => d.id)
-  const out: string[] = []
-  for (let i = 0; i < CHOIR_CROWN_SEEDS.reconstructionNodes; i++) {
-    out.push(pool[hashSeed(seed, 0x4ec0, i) % pool.length]!)
+function buildShellNode(index: number): CombatUnit {
+  const scale = enemyWaveScale(1000)
+  const hull = CHOIR_CROWN_SHELL_NODE_BASELINE.hull * scale
+  const shield = CHOIR_CROWN_SHELL_NODE_BASELINE.shield * scale
+  const angle = (index / Math.max(1, CHOIR_CROWN_SEEDS.reconstructionNodes)) * Math.PI * 2
+  const pos = pointFromBearing(angle, TYPICAL_SPAWN_RADIUS * 0.72)
+  return {
+    id: `draft-crown-shell-${index}`,
+    side: 'enemy',
+    name: 'Crown shell node',
+    shape: 'hex',
+    family: '',
+    familyStatus: 'pending',
+    hostileId: undefined,
+    hull,
+    hullMax: hull,
+    shield,
+    shieldMax: shield,
+    armor: CHOIR_CROWN_SHELL_NODE_BASELINE.armor,
+    evasion: 0,
+    damageTakenMult: 1,
+    weapons: [],
+    isBoss: false,
+    isBossSupport: true,
+    isFlagship: false,
+    dots: [],
+    x: pos.x,
+    y: pos.y,
+    heading: angle,
+    speed: CHOIR_CROWN_SHELL_NODE_BASELINE.speed,
+    authoredSpeed: CHOIR_CROWN_SHELL_NODE_BASELINE.speed,
+    authoredHullMax: hull,
+    authoredShieldMax: shield,
+    authoredArmor: CHOIR_CROWN_SHELL_NODE_BASELINE.armor,
+    engageRange: CHOIR_CROWN_SHELL_NODE_BASELINE.engageRange,
+    kite: true,
+    phaseWarnLeft: 0,
+    regenDelay: 0,
+    rewardWeight: 0.25,
+    deathHazardImmune: true,
+    resonanceArmed: false,
+    usesDevBaseline: false,
   }
-  return out
+}
+
+function spawnShellNodes(state: GameState): void {
+  const pkg = bossPackage(state)
+  if (!pkg) return
+  for (let i = 0; i < CHOIR_CROWN_SEEDS.reconstructionNodes; i++) {
+    admitUnitToPackage(state, pkg, buildShellNode(i))
+  }
 }
 
 function loopbreakIds(seed: number): string[] {
@@ -115,10 +163,20 @@ function tickJams(state: GameState, dt: number, crown: ChoirCrownState): void {
   crown.jamCooldownLeft -= dt
   if (crown.jamCooldownLeft > 0) return
   const cores = state.combat.playerUnits.filter((u) => u.isCore && u.coreModuleId)
-  if (cores.length === 0) return
-  const pick = cores[hashSeed(state.combat.sortieSeed ?? 1, Math.floor(state.combat.simTime ?? 0), 0x1a11) % cores.length]!
+  if (cores.length === 0) {
+    crown.jamCooldownLeft = CHOIR_CROWN_SEEDS.jamRetryDelay
+    return
+  }
+  const eligible = cores.filter((core) => {
+    const id = core.coreInstanceId ?? core.id
+    return !state.combat.coreJams.some((jam) => jam.coreId === id)
+  })
+  if (eligible.length === 0) {
+    crown.jamCooldownLeft = CHOIR_CROWN_SEEDS.jamRetryDelay
+    return
+  }
+  const pick = eligible[hashSeed(state.combat.sortieSeed ?? 1, Math.floor((state.combat.simTime ?? 0) * 10), 0x1a11) % eligible.length]!
   const id = pick.coreInstanceId ?? pick.id
-  if (state.combat.coreJams.some((j) => j.coreId === id)) return
   state.combat.coreJams.push({
     coreId: id,
     telegraphLeft: CHOIR_CROWN_SEEDS.jamTelegraph,
@@ -143,13 +201,13 @@ export function tickChoirCrown(state: GameState, dt: number): void {
     setPhase(state, boss, 'reconstruction')
     applyReconstructionProfile(boss)
     if (!crown.reconstructionSpawned) {
-      spawnSupport(state, reconstructionIds(state.combat.sortieSeed ?? 1), 'crown-node')
+      spawnShellNodes(state)
       crown.reconstructionSpawned = true
     }
   } else if (crown.phase === 'reconstruction' && hullFrac <= CHOIR_CROWN_SEEDS.loopbreakHullFrac) {
     setPhase(state, boss, 'loopbreak')
     if (!crown.loopbreakSpawned) {
-      spawnSupport(state, loopbreakIds(state.combat.sortieSeed ?? 1), 'crown-front')
+      spawnHostileSupport(state, loopbreakIds(state.combat.sortieSeed ?? 1), 'crown-front')
       crown.loopbreakSpawned = true
     }
   }

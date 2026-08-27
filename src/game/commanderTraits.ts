@@ -21,11 +21,10 @@ export function livingCommanders(state: GameState): CombatUnit[] {
   return state.combat.enemyUnits.filter((u) => u.hull > 0 && u.isCommander)
 }
 
-function strongest(state: GameState, trait: CommanderTraitId): CombatUnit | null {
-  const all = livingCommanders(state).filter((u) => u.commanderTraitId === trait)
-  if (all.length === 0) return null
-  all.sort((a, b) => b.hullMax - a.hullMax || a.id.localeCompare(b.id))
-  return all[0] ?? null
+function traitSources(state: GameState, trait: CommanderTraitId): CombatUnit[] {
+  return livingCommanders(state)
+    .filter((unit) => unit.commanderTraitId === trait)
+    .sort((a, b) => b.hullMax - a.hullMax || a.id.localeCompare(b.id))
 }
 
 function inRadius(a: CombatUnit, b: CombatUnit, radius: number): boolean {
@@ -33,54 +32,57 @@ function inRadius(a: CombatUnit, b: CombatUnit, radius: number): boolean {
 }
 
 export function applyCommanderDerivedStats(state: GameState): void {
+  const priorSupport = new Map(
+    state.combat.enemyUnits.map((unit) => [unit.id, unit.supportShield ?? 0] as const),
+  )
   for (const unit of state.combat.enemyUnits) {
-    if (unit.hull <= 0) continue
     unit.commanderSpeedMult = 1
     unit.commanderCycleMult = 1
+    unit.supportShield = 0
     unit.supportShieldMax = 0
   }
-  const vanguard = strongest(state, 'vanguard')
-  if (vanguard) {
-    vanguard.commanderSpeedMult = VANGUARD_SEEDS.selfSpeedMult
-    vanguard.commanderCycleMult = VANGUARD_SEEDS.selfCycleMult
-    for (const ally of state.combat.enemyUnits) {
-      if (ally.hull <= 0 || ally.id === vanguard.id) continue
-      if (!inRadius(vanguard, ally, VANGUARD_SEEDS.auraRadius)) continue
+
+  const vanguards = traitSources(state, 'vanguard')
+  for (const source of vanguards) {
+    source.commanderSpeedMult = Math.max(source.commanderSpeedMult ?? 1, VANGUARD_SEEDS.selfSpeedMult)
+    source.commanderCycleMult = Math.max(source.commanderCycleMult ?? 1, VANGUARD_SEEDS.selfCycleMult)
+  }
+  for (const ally of state.combat.enemyUnits) {
+    if (ally.hull <= 0) continue
+    for (const source of vanguards) {
+      if (ally.id === source.id || !inRadius(source, ally, VANGUARD_SEEDS.auraRadius)) continue
       ally.commanderSpeedMult = Math.max(ally.commanderSpeedMult ?? 1, VANGUARD_SEEDS.auraSpeedMult)
     }
-    noteAuraUptime(state, 'vanguard', 0)
   }
-  const rallying = strongest(state, 'rallying')
-  if (rallying) {
-    for (const ally of state.combat.enemyUnits) {
-      if (ally.hull <= 0 || ally.id === rallying.id) continue
-      if (!inRadius(rallying, ally, RALLYING_SEEDS.auraRadius)) continue
+
+  const rallying = traitSources(state, 'rallying')
+  for (const ally of state.combat.enemyUnits) {
+    if (ally.hull <= 0) continue
+    for (const source of rallying) {
+      if (ally.id === source.id || !inRadius(source, ally, RALLYING_SEEDS.auraRadius)) continue
       ally.commanderCycleMult = Math.max(ally.commanderCycleMult ?? 1, RALLYING_SEEDS.allyCycleMult)
       ally.commanderSpeedMult = Math.max(ally.commanderSpeedMult ?? 1, RALLYING_SEEDS.allySpeedMult)
     }
   }
-  const ward = strongest(state, 'wardbearer')
-  if (ward) {
-    for (const ally of state.combat.enemyUnits) {
-      if (ally.hull <= 0 || ally.id === ward.id) continue
-      if (!inRadius(ward, ally, WARDBEARER_SEEDS.auraRadius)) continue
-      ally.supportShieldMax = WARDBEARER_SEEDS.allySupportShield
-      ally.supportShield = Math.min(
-        ally.supportShieldMax,
-        Math.max(ally.supportShield ?? 0, ally.supportShieldMax * 0.35),
-      )
-    }
-  } else {
-    for (const ally of state.combat.enemyUnits) {
-      ally.supportShield = 0
-      ally.supportShieldMax = 0
-    }
+
+  const wards = traitSources(state, 'wardbearer')
+  for (const ally of state.combat.enemyUnits) {
+    if (ally.hull <= 0) continue
+    const applicable = wards.filter(
+      (source) => source.id !== ally.id && inRadius(source, ally, WARDBEARER_SEEDS.auraRadius),
+    )
+    if (applicable.length === 0) continue
+    const maxShield = Math.max(...applicable.map(() => WARDBEARER_SEEDS.allySupportShield))
+    ally.supportShieldMax = maxShield
+    ally.supportShield = Math.min(
+      maxShield,
+      Math.max(priorSupport.get(ally.id) ?? 0, maxShield * 0.35),
+    )
   }
 }
 
 export function suppressorModifier(state: GameState): TargetingStatModifier {
-  const suppressor = strongest(state, 'suppressor')
-  if (!suppressor) return {}
+  if (traitSources(state, 'suppressor').length === 0) return {}
   return {
     slewRateMult: SUPPRESSOR_SEEDS.slewMult,
     acquisitionRangeMult: SUPPRESSOR_SEEDS.acquireMult,
@@ -155,11 +157,10 @@ export function tickCommanderTraits(state: GameState, dt: number): void {
     tickDisplacer(unit, dt)
     tickBreacher(unit, dt)
   }
-  const vanguard = strongest(state, 'vanguard')
-  if (vanguard) noteAuraUptime(state, 'vanguard', dt)
-  if (strongest(state, 'wardbearer')) noteAuraUptime(state, 'wardbearer', dt)
-  if (strongest(state, 'rallying')) noteAuraUptime(state, 'rallying', dt)
-  if (strongest(state, 'suppressor')) noteAuraUptime(state, 'suppressor', dt)
+  if (traitSources(state, 'vanguard').length > 0) noteAuraUptime(state, 'vanguard', dt)
+  if (traitSources(state, 'wardbearer').length > 0) noteAuraUptime(state, 'wardbearer', dt)
+  if (traitSources(state, 'rallying').length > 0) noteAuraUptime(state, 'rallying', dt)
+  if (traitSources(state, 'suppressor').length > 0) noteAuraUptime(state, 'suppressor', dt)
 }
 
 export function ensureDeathHazards(state: GameState): DeathHazardState[] {

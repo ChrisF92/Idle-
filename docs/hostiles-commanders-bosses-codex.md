@@ -41,7 +41,7 @@ Runtime fallback for pending combat profiles: isolated `ROLE_NEUTRAL_BASELINE` i
 
 Catalogue whose first-contact Wave ≤ N, first-contact forced at its Wave, threat budget, seven formations (`spear` … `mixed-pressure`), support/disruptor caps (seed 2/2; classification itself pending so currently vacuous), Sortie-seeded formation RNG isolated from combat/loot RNG.
 
-Existing Challenge (`protocolEnemyDensityMult`) and Directive (`directiveDensityMult`) multipliers scale ordinary pack count and Commander escort count only. PR8/PR10 own those systems; PR7 does not invent Challenge rules. Cap seed: `DENSITY_COUNT_MAX = 14`.
+PR7 generation runs at canonical baseline pressure. A neutral typed encounter-modifier provider defaults to identity and is available for later PR8/PR10 wiring; PR7 does not consume legacy Directive/Protocol density implementations. Count safety seed: `DENSITY_COUNT_MAX = 14`.
 
 ## Commanders
 
@@ -49,7 +49,7 @@ Cadence: every 10 Waves except multiples of 50.
 
 W10 pairing: Void Mite + Vanguard, **pending-pairing** (availability-constrained seed; canonical is silent). First-contact copy lasts `COMMANDER_NOTICE_DURATION` simulated seconds (seed 8), then the compact Commander plate replaces it.
 
-Traits: vanguard, ironclad, wardbearer, rallying, displacer, suppressor, volatile, breacher.
+Traits: vanguard, ironclad, wardbearer, rallying, displacer, suppressor, volatile, breacher. While family compatibility remains pending, generated pairings are explicitly provisional runtime selections, not authored compatibility claims.
 
 Overlap: max 2 living Commanders; further Commander threat is reserved and released unchanged.
 
@@ -65,7 +65,7 @@ Boss-clear emits typed milestones. PR5 still owns W50–W350 and W500 Blueprint 
 
 ## Codex
 
-HOSTILES | BOSSES. Discovery on actual spawn. Unlock ~W30 with retroactive W1+ records. Save version **48**. No `seenFamilies` migration.
+HOSTILES | BOSSES. Discovery on actual spawn. Unlock ~W30 with retroactive W1+ records. Pending hostile silhouettes use one neutral circle rather than name-inferred identities. Player copy omits implementation-status language. Save version **48**. No `seenFamilies` migration.
 
 ## Seeds (PR11-tunable)
 

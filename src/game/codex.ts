@@ -136,32 +136,25 @@ export function unknownHostilePlaceholderCount(state: GameState): number {
   return HOSTILE_DEFS.length - ensureCodex(state).discoveredHostileIds.length
 }
 
-export function hostileCodexLines(def: ReturnType<typeof getHostileDef>): {
-  family: string
-  role: string
-  mechanic: string
-  profile: string
-  softCounter: string
-} {
+export function hostileCodexLines(def: ReturnType<typeof getHostileDef>) {
   if (!def) {
     return {
-      family: 'Unknown',
-      role: 'Unknown',
-      mechanic: 'Unknown',
-      profile: 'Unknown',
-      softCounter: 'Unknown',
+      family: null,
+      role: null,
+      mechanic: null,
+      profile: null,
+      softCounter: null,
+      telemetry: 'Insufficient encounter telemetry.',
     }
   }
   const family =
     def.familyStatus === 'authored' && def.family
       ? def.family.charAt(0).toUpperCase() + def.family.slice(1)
-      : 'Family pending design'
-  const role = def.roleStatus === 'authored' && def.role ? 'Elite' : 'Role pending design'
+      : null
+  const role = def.roleStatus === 'authored' && def.role ? 'Elite' : null
   const mechanic =
-    def.mechanicStatus === 'authored' && def.mechanicSummary
-      ? def.mechanicSummary
-      : 'Unique combat mechanic pending design'
-  const profile = def.role === 'elite' ? 'High-durability elite-role profile.' : 'Relative combat profile pending design'
+    def.mechanicStatus === 'authored' && def.mechanicSummary ? def.mechanicSummary : null
+  const profile = def.role === 'elite' ? 'Durable elite contact.' : null
   const softCounter =
     def.mechanicId === 'death-position-hazard'
       ? 'Soft answers: kill at range; Barrier/Bulwark if the hazard reaches the Hive.'
@@ -169,32 +162,35 @@ export function hostileCodexLines(def: ReturnType<typeof getHostileDef>): {
         ? 'Soft answers: interrupt during charge; Barrier, Ablative, Damage Control.'
         : def.role === 'elite'
           ? 'Soft answers: Heavy, Armor Penetration, Focus. Multiple legitimate paths.'
-          : 'Soft counters pending authored mechanics.'
-  return { family, role, mechanic, profile, softCounter }
+          : null
+  const telemetry = family || role || mechanic || profile || softCounter
+    ? null
+    : 'Insufficient encounter telemetry.'
+  return { family, role, mechanic, profile, softCounter, telemetry }
 }
 
-export function bossCodexLines(bossId: string): {
-  name: string
-  wave: number
-  mechanic: string
-  profile: string
-  softAnswer: string
-} {
+export function bossCodexLines(bossId: string) {
   const def = getBossDef(bossId)
   if (!def) {
-    return { name: 'Unknown', wave: 0, mechanic: 'Unknown', profile: 'Unknown', softAnswer: 'Unknown' }
+    return {
+      name: 'Unknown',
+      wave: 0,
+      mechanic: null,
+      profile: null,
+      softAnswer: null,
+      telemetry: 'Insufficient encounter telemetry.',
+    }
   }
+  const authored = def.mechanicStatus === 'authored' && Boolean(def.mechanicSummary)
   return {
     name: def.name,
     wave: def.wave,
-    mechanic:
-      def.mechanicStatus === 'authored' && def.mechanicSummary
-        ? def.mechanicSummary
-        : 'Unique Boss mechanic pending design',
-    profile: 'Proper Boss encounter. Role-aware durability seed; not a raw HP sponge.',
+    mechanic: authored ? def.mechanicSummary : null,
+    profile: authored ? 'Proper Boss encounter with observed phase changes.' : 'Proper Boss encounter.',
     softAnswer:
       def.id === 'choir-crown'
         ? 'Soft answers: Shield breakers in Convergence; Armor/Heavy in Reconstruction; responsive fire-control in Loopbreak.'
-        : 'Soft-answer paths pending authored unique mechanics. Generalist offense and defense remain valid.',
+        : null,
+    telemetry: authored ? null : 'Insufficient encounter telemetry.',
   }
 }

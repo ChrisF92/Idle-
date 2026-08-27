@@ -113,6 +113,28 @@ export function rescalePack(units: CombatUnit[], targetEhp: number, targetDps: n
   }
 }
 
+
+/** Scale live EHP/DPS together so measured pack threat lands on a target budget. */
+export function fitPackToThreat(units: CombatUnit[], targetThreat: number): void {
+  if (units.length === 0) return
+  const target = Math.max(0.01, targetThreat)
+  const armorThreat = units.reduce((sum, unit) => sum + unit.armor * 0.5, 0)
+  const current = packThreat(units)
+  const scalable = Math.max(0, current - armorThreat)
+  const mult = scalable > 1e-9 ? Math.max(1e-6, (target - armorThreat) / scalable) : 1
+  for (const unit of units) {
+    const hullRatio = unit.hullMax > 0 ? unit.hull / unit.hullMax : 1
+    const shieldRatio = unit.shieldMax > 0 ? unit.shield / unit.shieldMax : 0
+    unit.hullMax = Math.max(1, unit.hullMax * mult)
+    unit.hull = Math.max(0, unit.hullMax * hullRatio)
+    unit.shieldMax *= mult
+    unit.shield = unit.shieldMax * shieldRatio
+    if (unit.authoredHullMax != null) unit.authoredHullMax *= mult
+    if (unit.authoredShieldMax != null) unit.authoredShieldMax *= mult
+    for (const weapon of unit.weapons) weapon.damage *= mult
+  }
+}
+
 /**
  * Narrow count jitter only. No procedural Elite prefix or stat mutation.
  */

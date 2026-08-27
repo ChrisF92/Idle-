@@ -4,12 +4,7 @@ import {
   ACT1_UNLOCKS,
   captureAct1Snapshot,
 } from './balance/act1'
-import {
-  ENEMY_DMG_EARLY,
-  ENEMY_HULL_EARLY,
-  salvageFromKill,
-  salvageWaveBase,
-} from './combat'
+import { salvageFromKill, salvageWaveBase } from './combat'
 import { hiveResearchNodeCost, HIVE_RESEARCH_WORKER_ACCEL } from './hiveResearch'
 import { NETWORK_FILL_COST, NETWORK_STARTING_DRONES } from './network'
 import { FURNACE_BASE_IDLE_GEN, FURNACE_CHANNEL_MAX } from './furnace'
@@ -68,8 +63,6 @@ describe('Act 1 authored formulas', () => {
     expect(HIVE_RESEARCH_WORKER_ACCEL).toBe(0.25)
     expect(FURNACE_CHANNEL_MAX).toBe(3)
     expect(FURNACE_BASE_IDLE_GEN).toBe(0)
-    expect(ENEMY_HULL_EARLY).toBeGreaterThan(1)
-    expect(ENEMY_DMG_EARLY).toBeGreaterThan(1)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')).toBeUndefined()
   })

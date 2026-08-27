@@ -69,6 +69,29 @@ export const ELITE_ROLE_BASELINE = {
   kite: false,
 } as const
 
+
+/** Dedicated pending-Boss body. Never derived from an ordinary HostileDef. */
+export const NEUTRAL_BOSS_BASELINE = {
+  hull: 34,
+  shieldFrac: 0.35,
+  armor: 2,
+  damage: 5.5,
+  cooldown: 1.4,
+  range: 110,
+  speed: 14,
+  engageRange: 120,
+  kite: true,
+} as const
+
+/** Dedicated Choir Crown Reconstruction shell-node simulator profile. */
+export const CHOIR_CROWN_SHELL_NODE_BASELINE = {
+  hull: 18,
+  shield: 10,
+  armor: 3,
+  speed: 0,
+  engageRange: 140,
+} as const
+
 /** Resonance Vessel death-position hazard. Simulator seeds. */
 export const RESONANCE_VESSEL_HAZARD = {
   radius: 36,
@@ -108,8 +131,8 @@ export const ORDINARY_COUNT_MIN = 2
 export const ORDINARY_COUNT_MAX = 6
 
 /**
- * Absolute ceiling after Challenge/Directive density hooks.
- * Density itself is owned by later PRs; PR7 only consumes the existing multiplier.
+ * Absolute safety ceiling for the neutral encounter modifier extension point.
+ * PR7 itself always uses identity modifiers.
  */
 export const DENSITY_COUNT_MAX = 14
 
@@ -231,6 +254,7 @@ export const CHOIR_CROWN_SEEDS = {
   jamTelegraph: 0.8,
   jamDuration: 1.2,
   jamCooldown: 7,
+  jamRetryDelay: 0.6,
   loopbreakExtra: 2,
 } as const
 

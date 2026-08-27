@@ -185,13 +185,17 @@ describe('PR7 formations', () => {
   })
 })
 
-describe('PR7 density hooks', () => {
-  it('applies Challenge density to Commander escort count without inventing Challenge rules', () => {
-    const normal = encounterForWave(20, 1)
-    const swarm = createInitialState(0)
-    swarm.protocols.activeId = 'mute-network'
-    const dense = encounterForWave(20, 1, swarm)
-    expect(dense.units.length).toBeGreaterThan(normal.units.length)
-    expect(dense.units.filter((u) => u.isCommander)).toHaveLength(1)
+
+describe('PR7 encounter modifier boundary', () => {
+  it('does not consume legacy Challenge density from PR7 generation', () => {
+    const baseline = createInitialState(0)
+    baseline.combat.sortieSeed = 17
+    const legacy = createInitialState(0)
+    legacy.combat.sortieSeed = 17
+    legacy.protocols.activeId = 'mute-network'
+    const normal = encounterForWave(20, 1, baseline)
+    const stillBaseline = encounterForWave(20, 1, legacy)
+    expect(stillBaseline.units.length).toBe(normal.units.length)
+    expect(stillBaseline.threat?.spent).toBeCloseTo(normal.threat?.spent ?? 0, 6)
   })
 })

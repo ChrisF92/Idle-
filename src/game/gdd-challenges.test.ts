@@ -85,12 +85,13 @@ describe('GDD Challenges', () => {
     expect(furnaceDamageMult(furnace)).toBe(1)
   })
 
-  it('increases encounter density on Swarm Pressure', () => {
-    const s = challengeState()
+  it('does not wire legacy Challenge density into the PR7 encounter generator', () => {
     const normal = encounterForWave(20, 1)
+    const s = createInitialState(0)
     s.protocols.activeId = 'mute-network'
-    const swarm = encounterForWave(20, 1, s)
-    expect(swarm.units.length).toBeGreaterThan(normal.units.length)
+    const unchanged = encounterForWave(20, 1, s)
+    expect(unchanged.units.length).toBe(normal.units.length)
+    expect(unchanged.threat?.spent).toBeCloseTo(normal.threat?.spent ?? 0, 6)
   })
 
   it('requires system familiarity before a Challenge can start', () => {

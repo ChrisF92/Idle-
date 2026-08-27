@@ -13,16 +13,18 @@ import {
   DISRUPTOR_CAP_PER_PACKAGE,
   FORMATION_DISPERSION_WEIGHT,
   FORMATION_DISPERSION_WEIGHT_MAX,
-  ORDINARY_COUNT_MAX,
-  ORDINARY_COUNT_MIN,
   SUPPORT_CAP_PER_PACKAGE,
 } from './hostileSeeds'
-import { protocolEnemyDensityMult } from './protocols'
-import { directiveDensityMult } from './directives'
 import { FORMATION_IDS, formationRngFor, formationSlots, pickFormation, type FormationId } from './formations'
 import { createSimRng, hashSeed, rngInt, type SimRngState } from './simRng'
 import { isBossWave } from './waves'
-import { measureThreatRoll, packThreat, threatBudgetForWave } from './threatBudget'
+import {
+  fitPackToThreat,
+  measureThreatRoll,
+  packThreat,
+  threatBudgetForWave,
+  threatSpecForWave,
+} from './threatBudget'
 import {
   buildCommanderPackage,
   isCommanderWave,
@@ -46,6 +48,40 @@ export interface WaveEncounter {
   threat?: { seed: number; budget: number; spent: number }
   formation?: FormationId
   commanderReserved?: CombatUnit
+}
+
+/** Neutral extension point for later authored systems. PR7 installs no provider. */
+export interface EncounterGenerationModifier {
+  threatMultiplier?: number
+  countDelta?: number
+}
+
+export type EncounterModifierProvider = (
+  state: GameState,
+  wave: number,
+  kind: 'ordinary' | 'commander',
+) => EncounterGenerationModifier
+
+let encounterModifierProvider: EncounterModifierProvider | null = null
+
+export function setEncounterModifierProvider(provider: EncounterModifierProvider | null): void {
+  encounterModifierProvider = provider
+}
+
+export function resetEncounterModifierProvider(): void {
+  encounterModifierProvider = null
+}
+
+function modifierFor(
+  state: GameState | undefined,
+  wave: number,
+  kind: 'ordinary' | 'commander',
+): Required<EncounterGenerationModifier> {
+  const raw = state && encounterModifierProvider ? encounterModifierProvider(state, wave, kind) : {}
+  return {
+    threatMultiplier: Math.max(0.1, Number(raw.threatMultiplier ?? 1) || 1),
+    countDelta: Math.trunc(Number(raw.countDelta ?? 0) || 0),
+  }
 }
 
 const ENCOUNTER_CHANNEL = 0xe11c07
@@ -110,42 +146,28 @@ function applyFormation(units: CombatUnit[], wave: number, seed: number, ordinal
   return formation
 }
 
-/**
- * Existing Challenge / Directive density hooks (PR8/PR10 own the systems).
- * PR7 only applies the multiplier to ordinary count and Commander escorts.
- */
-export function encounterDensityMult(state?: GameState): number {
-  if (!state) return 1
-  return Math.max(1, protocolEnemyDensityMult(state) * directiveDensityMult(state))
-}
-
 function ordinaryEncounter(
   wave: number,
   seed: number,
   ordinal: number,
   extraDanger: number,
-  density = 1,
+  modifier: Required<EncounterGenerationModifier>,
 ): WaveEncounter {
   const rng = encounterRng(seed, wave, ordinal)
-  const base =
-    ORDINARY_COUNT_MIN + rngInt(rng, 0, Math.max(0, ORDINARY_COUNT_MAX - ORDINARY_COUNT_MIN))
-  const want = Math.min(DENSITY_COUNT_MAX, Math.max(ORDINARY_COUNT_MIN, Math.round(base * density)))
+  const spec = threatSpecForWave(wave)
+  const baseCount = spec.countMin + rngInt(rng, 0, Math.max(0, spec.countMax - spec.countMin))
+  const want = Math.min(DENSITY_COUNT_MAX, Math.max(1, baseCount + modifier.countDelta))
   const defs = pickMix(wave, rng, want)
   const units = defs.map((def, i) => {
     const unit = buildHostileUnit({ def, wave })
     unit.id = `draft-${def.id}-${i}`
-    if (extraDanger !== 1) {
-      unit.hullMax *= extraDanger
-      unit.hull = unit.hullMax
-      unit.shieldMax *= extraDanger
-      unit.shield = unit.shieldMax
-      for (const wpn of unit.weapons) wpn.damage *= extraDanger
-    }
     return unit
   })
   const formation = applyFormation(units, wave, seed, ordinal)
-  const budget = threatBudgetForWave(wave)
-  const spent = packThreat(units) * (1 + formationDispersionWeight(formation))
+  const pressure = 1 + formationDispersionWeight(formation)
+  const budget = threatBudgetForWave(wave) * Math.max(0.1, extraDanger) * modifier.threatMultiplier
+  fitPackToThreat(units, budget / pressure)
+  const spent = packThreat(units) * pressure
   const lead = units[0]
   return {
     id: `w${wave}-${lead?.hostileId ?? 'pack'}`,
@@ -167,8 +189,19 @@ function ordinaryEncounter(
   }
 }
 
-function commanderEncounter(wave: number, seed: number, state?: GameState, density = 1): WaveEncounter {
-  const built = buildCommanderPackage(wave, seed, state, density)
+function commanderEncounter(
+  wave: number,
+  seed: number,
+  state: GameState | undefined,
+  modifier: Required<EncounterGenerationModifier>,
+): WaveEncounter {
+  const built = buildCommanderPackage(
+    wave,
+    seed,
+    state,
+    modifier.threatMultiplier,
+    modifier.countDelta,
+  )
   if (state) recordCommanderHistory(state, built.plan, wave)
   const units = [built.commander, ...built.escorts]
   const spent = packThreat(units) * (1 + formationDispersionWeight(built.plan.formation))
@@ -188,14 +221,11 @@ function commanderEncounter(wave: number, seed: number, state?: GameState, densi
       : `Commander · ${built.plan.traitId}`,
     units,
     formation: built.plan.formation,
-    threat: { seed, budget: built.ordinaryThreat, spent },
+    threat: { seed, budget: built.targetThreat, spent },
   }
 }
 
-/**
- * Ordinary / Commander encounters. Proper Bosses use the Boss provider.
- * `extraDanger` remains a test multiplier only.
- */
+/** Ordinary / Commander encounters. Proper Bosses use the Boss provider. */
 export function encounterForWave(wave: number, extraDanger = 1, state?: GameState): WaveEncounter {
   const w = Math.max(1, Math.floor(wave))
   if (isBossWave(w)) {
@@ -216,9 +246,8 @@ export function encounterForWave(wave: number, extraDanger = 1, state?: GameStat
   }
   const seed = state?.combat.sortieSeed ?? 0
   const ordinal = (state?.combat.packages.length ?? 0) + 1
-  const density = encounterDensityMult(state)
-  if (isCommanderWave(w)) return commanderEncounter(w, seed, state, density)
-  return ordinaryEncounter(w, seed, ordinal, extraDanger, density)
+  if (isCommanderWave(w)) return commanderEncounter(w, seed, state, modifierFor(state, w, 'commander'))
+  return ordinaryEncounter(w, seed, ordinal, extraDanger, modifierFor(state, w, 'ordinary'))
 }
 
 export function firstContactCanAppear(wave: number): boolean {

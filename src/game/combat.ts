@@ -5,7 +5,6 @@ import type {
   CombatFx,
   CombatProjectile,
   CombatUnit,
-  EnemyRole,
   GameState,
   UnitShape,
   WeaponDelivery,
@@ -252,53 +251,8 @@ export function enemyDamageScale(wave: number): number {
   return seededDamageScale(wave)
 }
 
-/** Leftover alias used by retired sector-pacing tests. */
-export function enemySectorScale(wave: number): number {
-  return enemyWaveScale(wave)
-}
-
-export const ENEMY_EARLY_SECTOR = 8
-export const ENEMY_MID_SECTOR = 18
-export const ENEMY_OPENING_SECTOR = 3
-export const ENEMY_HULL_BASE = 1.55
-export const ENEMY_HULL_OPENING = 1.2
-export const ENEMY_HULL_EARLY = 1.3
-export const ENEMY_HULL_MID = 1.2
-export const ENEMY_HULL_LATE = 1.215
-export const ENEMY_DMG_BASE = 0.9
-export const ENEMY_DMG_OPENING = 1.22
-export const ENEMY_DMG_EARLY = 1.28
-export const ENEMY_DMG_MID = 1.16
-export const ENEMY_DMG_LATE = 1.225
-export const ENEMY_WAVE_HULL_RAMP = 0.06
-export const SALVAGE_MID_EXPONENT = 0.5
 export const SHIELD_REGEN_DELAY = 2
 
-export const CODEX_ROLES: EnemyRole[] = ['fighter', 'skirmisher', 'sniper', 'juggernaut', 'shield', 'boss', 'elite']
-
-export function roleIntel(role: EnemyRole): string {
-  if (role === 'elite') return 'Authored elite-role hostile. Durable, not a procedural rarity.'
-  if (role === 'boss') return 'Proper Boss. Warning, dedicated package, role-aware durability.'
-  return 'Runtime silhouette class. Not a Codex catalogue pane.'
-}
-
-export function familyIntel(family: EnemyFamily): string {
-  if (family === 'swarm') return 'Swarm family. Canonical identity; unit mapping may still be pending.'
-  if (family === 'armored') return 'Armored family. Canonical identity; unit mapping may still be pending.'
-  if (family === 'veil') return 'Veil family. Canonical identity; unit mapping may still be pending.'
-  if (family === 'siege') return 'Siege family. Canonical identity; unit mapping may still be pending.'
-  if (family === 'choir') return 'Choir family. Canonical identity; unit mapping may still be pending.'
-  if (family === 'apex') return 'Apex family. Canonical identity; unit mapping may still be pending.'
-  return 'Family pending design.'
-}
-
-export function softCounterForFamily(_family: EnemyFamily): string {
-  return 'Soft counters are per hostile once mechanics are authored. No required unique counter.'
-}
-
-export function familyShape(_family: EnemyFamily): UnitShape {
-  return 'circle'
-}
 
 export interface WaveRosterEntry {
   key: string
@@ -358,9 +312,7 @@ export function waveRoster(wave: number): WaveRosterEntry[] {
         shape: u.shape,
         isBoss: u.isBoss,
         count: 1,
-        summary: u.isBoss
-          ? 'Proper Boss encounter.'
-          : familyIntel((u.family as EnemyFamily) || 'swarm'),
+        summary: u.isBoss ? 'Proper Boss encounter.' : 'Recorded hostile contact.',
         ...rosterStatsFromUnit(u),
       })
   }

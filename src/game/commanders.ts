@@ -4,7 +4,6 @@ import type { CombatUnit, GameState, ReservedCommanderState, WavePackageState } 
 import {
   COMMANDER_TRAIT_IDS,
   buildHostileUnit,
-  firstContactHostile,
   getHostileDef,
   introducedHostiles,
   type CommanderTraitId,
@@ -16,19 +15,20 @@ import {
   COMMANDER_SELF_THREAT_SHARE,
   COMMANDER_WAVE_THREAT_MULT,
   DENSITY_COUNT_MAX,
+  FORMATION_DISPERSION_WEIGHT,
+  FORMATION_DISPERSION_WEIGHT_MAX,
   DISRUPTOR_CAP_PER_PACKAGE,
   IRONCLAD_SEEDS,
   MAX_ACTIVE_COMMANDERS,
   SUPPORT_CAP_PER_PACKAGE,
   TRAIT_UNLOCK_WAVE,
-  VANGUARD_SEEDS,
   WARDBEARER_SEEDS,
   W10_COMMANDER_SEED,
 } from './hostileSeeds'
 import { formationRngFor, formationSlots, pickFormation, type FormationId } from './formations'
 import { createSimRng, hashSeed, rngInt, rngNext, type SimRngState } from './simRng'
 import { isCommanderCandidateWave } from './waves'
-import { packThreat } from './threatBudget'
+import { fitPackToThreat, threatBudgetForWave } from './threatBudget'
 import { admitUnitToPackage } from './waveRuntime'
 import { noteCommanderEvent, noteCommanderOverlap } from './encounterTelemetry'
 
@@ -96,10 +96,11 @@ function selectHostile(
   wave: number,
   state: GameState | undefined,
 ): HostileDef {
-  const intro = firstContactHostile(wave)
-  if (intro?.commanderEligible) return intro
-  const pool = introducedHostiles(wave).filter((d) => d.commanderEligible)
+  const pool = introducedHostiles(wave).filter(
+    (def) => def.commanderEligible && def.firstContactWave < wave,
+  )
   const sorted = [...pool].sort((a, b) => a.id.localeCompare(b.id))
+  if (sorted.length === 0) throw new Error(`No already-known Commander base is available at Wave ${wave}`)
   const recent = recentBases(state, 2)
   const avoided = sorted.filter((d) => !recent.includes(d.id))
   const use = avoided.length > 0 ? avoided : sorted
@@ -127,6 +128,7 @@ export interface CommanderPlan {
   hostileId: HostileId
   traitId: CommanderTraitId
   pairingStatus: 'pending-pairing' | 'generated'
+  compatibilityStatus: 'provisional' | 'authored'
   formation: FormationId
 }
 
@@ -136,6 +138,7 @@ export function planCommanderEvent(wave: number, seed: number, state?: GameState
       hostileId: W10_COMMANDER_SEED.hostileId,
       traitId: W10_COMMANDER_SEED.traitId,
       pairingStatus: W10_COMMANDER_SEED.status,
+      compatibilityStatus: 'provisional',
       formation: 'spear',
     }
   }
@@ -147,6 +150,7 @@ export function planCommanderEvent(wave: number, seed: number, state?: GameState
     hostileId: def.id,
     traitId: trait,
     pairingStatus: 'generated',
+    compatibilityStatus: def.traitCompatibilityStatus === 'authored' ? 'authored' : 'provisional',
     formation,
   }
 }
@@ -174,10 +178,6 @@ export function promoteToCommander(unit: CombatUnit, trait: CommanderTraitId, de
   unit.commanderTraitId = trait
   unit.commanderSpawnedAt = 0
   unit.volatileArmed = trait === 'volatile' || unit.resonanceArmed
-  if (trait === 'vanguard') {
-    unit.speed *= VANGUARD_SEEDS.selfSpeedMult
-    unit.authoredSpeed = unit.speed
-  }
   if (trait === 'ironclad') {
     const iron = def.role === 'elite' ? IRONCLAD_SEEDS.elite : IRONCLAD_SEEDS.pending
     unit.hullMax *= iron.hullMult
@@ -208,11 +208,18 @@ function escortDefs(wave: number, commanderId: HostileId, rng: SimRngState, want
   const pool = introducedHostiles(wave)
     .filter((d) => d.id !== commanderId)
     .sort((a, b) => a.id.localeCompare(b.id))
-  const use = pool.length > 0 ? pool : introducedHostiles(wave)
+  const fallback = introducedHostiles(wave).sort((a, b) => a.id.localeCompare(b.id))
+  const use = pool.length > 0 ? pool : fallback
   const out: HostileDef[] = []
   let support = 0
   let disruptor = 0
-  for (let i = 0; i < want; i++) {
+  const firstContact = introducedHostiles(wave).find((d) => d.firstContactWave === wave)
+  if (firstContact && firstContact.id !== commanderId) {
+    out.push(firstContact)
+    if (firstContact.category === 'support') support += 1
+    if (firstContact.category === 'disruptor') disruptor += 1
+  }
+  while (out.length < want && use.length > 0) {
     const pick = use[rngInt(rng, 0, use.length - 1)]!
     if (pick.category === 'support' && support >= SUPPORT_CAP_PER_PACKAGE) continue
     if (pick.category === 'disruptor' && disruptor >= DISRUPTOR_CAP_PER_PACKAGE) continue
@@ -221,7 +228,9 @@ function escortDefs(wave: number, commanderId: HostileId, rng: SimRngState, want
     out.push(pick)
   }
   while (out.length < Math.max(1, want) && use.length > 0) {
-    out.push(use[out.length % use.length]!)
+    const pick = use[out.length % use.length]!
+    if (!out.includes(pick) || use.length === 1) out.push(pick)
+    else out.push(use[(out.length + 1) % use.length]!)
     if (out.length > 8) break
   }
   return out
@@ -235,8 +244,16 @@ export function buildCommanderPackage(
   wave: number,
   seed: number,
   state?: GameState,
-  density = 1,
-): { commander: CombatUnit; escorts: CombatUnit[]; plan: CommanderPlan; ordinaryThreat: number } {
+  threatMultiplier = 1,
+  escortDelta = 0,
+): {
+  commander: CombatUnit
+  escorts: CombatUnit[]
+  plan: CommanderPlan
+  targetThreat: number
+  commanderThreatTarget: number
+  escortThreatTarget: number
+} {
   const plan = planCommanderEvent(wave, seed, state)
   const def = getHostileDef(plan.hostileId)!
   const commander = promoteToCommander(buildHostileUnit({ def, wave }), plan.traitId, def)
@@ -244,7 +261,7 @@ export function buildCommanderPackage(
   rngNext(rng)
   const escortCount = Math.min(
     DENSITY_COUNT_MAX - 1,
-    Math.max(1, Math.round(commanderEscortBase(wave) * Math.max(1, density))),
+    Math.max(1, commanderEscortBase(wave) + Math.trunc(escortDelta)),
   )
   const escorts = escortDefs(wave, plan.hostileId, rng, escortCount).map((esc, i) => {
     const unit = buildHostileUnit({ def: esc, wave })
@@ -252,7 +269,11 @@ export function buildCommanderPackage(
     unit.id = `draft-escort-${i}`
     return unit
   })
-  const ctx = { rng: formationRngFor(seed, wave, commanderEventOrdinal(wave) + 3), wave, packageId: `cmdr-w${wave}` }
+  const ctx = {
+    rng: formationRngFor(seed, wave, commanderEventOrdinal(wave) + 3),
+    wave,
+    packageId: `cmdr-w${wave}`,
+  }
   const formation = plan.formation
   const slots = formationSlots(formation, 1 + escorts.length, ctx)
   commander.x = slots[0]?.x ?? commander.x
@@ -264,8 +285,26 @@ export function buildCommanderPackage(
     unit.y = slot.y
     unit.heading = slot.bearing
   })
-  const ordinary = packThreat([...escorts, buildHostileUnit({ def, wave })])
-  return { commander, escorts, plan, ordinaryThreat: ordinary * COMMANDER_WAVE_THREAT_MULT }
+
+  const dispersion = Math.min(
+    FORMATION_DISPERSION_WEIGHT_MAX,
+    FORMATION_DISPERSION_WEIGHT[formation] ?? 0,
+  )
+  const targetThreat =
+    threatBudgetForWave(wave) * COMMANDER_WAVE_THREAT_MULT * Math.max(0.1, threatMultiplier)
+  const rawTarget = targetThreat / (1 + dispersion)
+  const commanderThreatTarget = rawTarget * COMMANDER_SELF_THREAT_SHARE
+  const escortThreatTarget = Math.max(0.01, rawTarget - commanderThreatTarget)
+  fitPackToThreat([commander], commanderThreatTarget)
+  fitPackToThreat(escorts, escortThreatTarget)
+  return {
+    commander,
+    escorts,
+    plan,
+    targetThreat,
+    commanderThreatTarget,
+    escortThreatTarget,
+  }
 }
 
 export function livingCommanderCount(state: GameState): number {
@@ -325,9 +364,6 @@ export function tryReleaseReservedCommanders(state: GameState): CombatUnit[] {
   return released
 }
 
-export function commanderThreatShare(_wave: number): number {
-  return COMMANDER_SELF_THREAT_SHARE
-}
 
 export function shouldReserveCommander(state: GameState): boolean {
   return livingCommanderCount(state) + reservedCommanderCount(state) >= MAX_ACTIVE_COMMANDERS

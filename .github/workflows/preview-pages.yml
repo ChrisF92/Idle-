@@ -1,5 +1,10 @@
 name: Deploy PR preview
 
+# Live preview per PR at:
+#   https://chrisf92.github.io/Idle-/pr-preview/pr-<number>/
+# Same GitHub Pages site as production — no external hosting account.
+# Requires the same Pages + workflow-permission settings as deploy-pages.yml.
+
 on:
   pull_request:
     types: [opened, reopened, synchronize, closed]
@@ -16,11 +21,8 @@ jobs:
   preview:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR head
-        if: github.event.action != 'closed'
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Setup Node
         if: github.event.action != 'closed'
@@ -33,31 +35,19 @@ jobs:
         if: github.event.action != 'closed'
         run: npm ci
 
-      - name: Apply focused PR7 correction
+      - name: Test
         if: github.event.action != 'closed'
-        run: |
-          python scripts/pr7_correction.py
-          python scripts/pr7_correction_fix.py
-          python scripts/pr7_correction_fix3.py
+        run: npm test
 
-      - name: Verify focused correction
-        if: github.event.action != 'closed'
-        run: |
-          npm run lint
-          npm test
-          npm run build
-          npm run build:pages
-
-      - name: Commit verified correction and remove runner
+      - name: Build preview
         if: github.event.action != 'closed'
         env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-        run: |
-          git fetch --depth=1 origin aecd874a4e032840e6f75e7045e9a620dbca69ad
-          git show FETCH_HEAD:.github/workflows/preview-pages.yml > .github/workflows/preview-pages.yml
-          rm scripts/pr7_correction.py scripts/pr7_correction_fix.py scripts/pr7_correction_fix3.py
-          git config user.name "ChatGPT PR7 Correction"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "PR7: close audited hostiles and Boss blockers"
-          git push origin HEAD:${HEAD_REF}
+          PAGES_BASE: /Idle-/pr-preview/pr-${{ github.event.number }}/
+        run: npm run build
+
+      - name: Deploy or remove preview
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./dist
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview

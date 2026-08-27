@@ -129,6 +129,6 @@ describe('PR7 Boss-clear sources', () => {
     expect(s.codex.milestones).toContain('act1-boss-clear')
     expect(s.meta.act1Cleared).toBe(true)
     expect(s.prestige.prestigeCount).toBe(2)
-    expect(s.meta.act1FinalePending).toBe(true)
+    expect(s.meta.act1FinalePending).toBe(false)
   })
 })
