@@ -84,6 +84,7 @@ describe('GDD information architecture', () => {
 
   it('badges Systems for idle Worker Drones as well as Foundry', () => {
     const workers = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
+    workers.base.workerDrones = Math.max(2, workers.base.workerDrones)
     expect(tabAttention(workers, 'foundry').spend).toBe(true)
     expect(tabAttention(workers, 'network').spend).toBe(true)
     expect(systemsTabAttention(workers).spend).toBe(true)

@@ -485,7 +485,7 @@ describe('PR4 save round-trip', () => {
     s.combat.coreRuntime = emptySortieCoreRuntime()
     s.combat.coreRuntime.phaseRamp['pulse-cannon:1'] = 2
     const loaded = importSave(exportSave(s))!
-    expect(loaded.version).toBe(45)
+    expect(loaded.version).toBe(46)
     expect(loaded.shipyard.frameId).toBe('bastion-frame')
     expect(loaded.shipyard.coreInstances.some((c) => c.moduleId === 'pulse-cannon')).toBe(true)
     expect(coreStartingLevel(loaded, 'pulse-cannon:1')).toBe(3)

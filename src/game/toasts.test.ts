@@ -10,6 +10,7 @@ import {
   selectPresentation,
   TOAST_MAX_QUEUE,
 } from './presentation'
+import { discoverBlueprint } from './blueprints'
 import { activeOnboardingLesson, prepOnboardingDoor } from './onboarding'
 
 describe('session toasts', () => {
@@ -71,7 +72,7 @@ describe('session toasts', () => {
   it('toasts a discovered Blueprint toward Fabrication, not leftover parts', () => {
     const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.foundry)
     const prev = captureToastSnapshot(state)
-    state.foundry.discovered = [...state.foundry.discovered, 'heavy-lance']
+    discoverBlueprint(state, 'heavy-lance')
     const toasts = diffToasts(prev, captureToastSnapshot(state), state)
     expect(toasts.some((t) => t.id === 'blueprint-complete:heavy-lance' || t.category === 'BLUEPRINT COMPLETE')).toBe(true)
   })

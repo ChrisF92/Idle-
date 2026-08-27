@@ -44,7 +44,8 @@ describe('Time Compression clock', () => {
     advanceSeconds(b, 10)
     expect(b.combat.simTime).toBeCloseTo(a.combat.simTime, 4)
     expect(b.combat.wave).toBe(a.combat.wave)
-    expect(b.foundry.slots[0]?.progress ?? 0).toBeLessThan(a.foundry.slots[0]?.progress ?? 1)
+    expect(a.foundry.materials['recovered-stock'] ?? 0).toBeGreaterThan(b.foundry.materials['recovered-stock'] ?? 0)
+    expect(b.foundry.slots[0]?.progress ?? 0).toBeGreaterThan(0)
   })
 
   it('does not speed Foundry while compressing combat', () => {
