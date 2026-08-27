@@ -2,6 +2,7 @@
 
 import type { GameState, Resources, YardGoodId } from './types'
 import { AI_NODES, RESEARCH, SHIP_FRAMES, SHIP_MODULES, trimModulesToFrame } from './catalog'
+import { usableCoreSlots } from './coreSlots'
 import {
   ACT1_CADENCE,
   ACT1_FINAL_WAVE,
@@ -288,7 +289,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
           next.shipyard.unlockedFrames = [...next.shipyard.unlockedFrames, frame.id]
         }
         next.shipyard.frameId = frame.id
-        next.shipyard.modules = trimModulesToFrame(next.shipyard.modules, frame)
+        next.shipyard.modules = trimModulesToFrame(next.shipyard.modules, usableCoreSlots(next, frame.id))
         reconcileEquippedCoreIds(next.shipyard, previousModules, previousCoreIds)
         next.combat.log = [`[dev] Equipped ${frame.name}.`, ...next.combat.log].slice(0, 40)
         if (!next.combat.inFight) syncPersistedHullCaps(next)

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { fitModule, setCoreTargetingDoctrine, unfitModule } from './actions'
+import { setCoreTargetingDoctrine, unfitModule } from './actions'
 import { addCoreInstance } from './coreInstances'
 import { buildPlayerFleet, simulateCombat } from './combat'
 import {
@@ -13,6 +13,7 @@ import {
   canEditTargetingNow,
   clearCoreTarget,
   compareTargetTie,
+  combatOverlayGeometry,
   effectiveChargeDurationSec,
   effectiveCoreAcquisitionRange,
   effectiveCoreFireRange,
@@ -37,7 +38,7 @@ import {
 } from './coreTargeting'
 import { targetingProfileFor } from './targetingProfiles'
 import { SHORT_RANGE_MAX } from './catalog'
-import { bearingBetween, degToRad, distanceBetween, radToDeg, shortestAngleDelta, slewHeading } from './geometry'
+import { applyPlayerCoreOrbit, bearingBetween, degToRad, distanceBetween, hiveBearingOf, playerCoreOutwardFacing, radToDeg, shortestAngleDelta, slewHeading, wrapTau } from './geometry'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
 import { loadOrCreateGame, saveGame } from './save'
 import { advanceSeconds, setSortiePaused, startCombat } from './tick'
@@ -132,7 +133,7 @@ describe('canonical targeting profiles', () => {
     expect(targetingProfileFor('flak-array').allowedDoctrines).toEqual(['cluster', 'threat', 'execution'])
     expect(targetingProfileFor('phase-beam').defaultDoctrine).toBe('focus')
     expect(targetingProfileFor('phase-beam').allowedDoctrines).toEqual(['focus', 'heavy', 'shield'])
-    expect(targetingProfileFor('slag-spit').defaultDoctrine).toBe('cluster')
+    expect(targetingProfileFor('slag-spitter').defaultDoctrine).toBe('cluster')
     expect(targetingProfileFor('slag-spitter').allowedDoctrines).toEqual(['cluster', 'heavy', 'threat'])
   })
 
@@ -604,11 +605,11 @@ describe('Fire-Control Doctrine gate', () => {
 })
 
 describe('targeting-capable Core gate', () => {
-  it('rejects Doctrine configuration on defense Cores and still falls back for legacy weapons', () => {
+  it('rejects Doctrine configuration on defense Cores and leftover weapon IDs', () => {
     expect(isTargetingCapableCoreModule('plate-layer')).toBe(false)
     expect(isTargetingCapableCoreModule('pulse-cannon')).toBe(true)
-    expect(isTargetingCapableCoreModule('rail-driver')).toBe(true)
-    expect(targetingProfileFor('rail-driver').profileId).toBe('legacy-fallback')
+    expect(isTargetingCapableCoreModule('rail-driver')).toBe(false)
+    expect(targetingProfileFor('rail-driver').fireRange).toBe(0)
     expect(targetingProfileFor('plate-layer').fireRange).toBe(0)
 
     let state = enableFireControlDoctrineForTests(createInitialState(0))
@@ -616,50 +617,48 @@ describe('targeting-capable Core gate', () => {
     const blocked = setCoreTargetingDoctrine(state, plate.id, 'threat')
     expect(blocked).toBe(state)
     expect(blocked.shipyard.coreInstances.find((row) => row.id === plate.id)?.targetingDoctrine).toBeUndefined()
-
-    state = unfitModule(state, 'pulse-cannon')
-    const rail = addCoreInstance(state.shipyard, 'rail-driver')
-    state = fitModule(state, 'rail-driver', rail.id)
-    state = setCoreTargetingDoctrine(state, rail.id, 'focus')
-    expect(state.shipyard.coreInstances.find((row) => row.id === rail.id)?.targetingDoctrine).toBe('focus')
   })
 })
 
 describe('acquisition, slew, and firing solution', () => {
-  it('pre-acquires and slews without firing outside fire range', () => {
+  it('pre-acquires and orbitally pre-traverses without firing outside fire range', () => {
     const state = pulseSortie()
     const core = pulseCore(state)
+    applyPlayerCoreOrbit(core)
     const fire = effectiveCoreFireRange(state, core)
     const acquire = effectiveCoreAcquisitionRange(state, core)
-    const y = (fire + acquire) / 2
-    setEnemies(state, [enemy({ id: 'out', x: 0, y })])
-    const before = core.heading ?? 0
+    const y = acquire * 0.92
+    setEnemies(state, [enemy({ id: 'out', x: y, y: 0 })])
+    const before = core.orbitAngle ?? 0
+    const desired = hiveBearingOf(state.combat.enemyUnits[0]!)
     simulateCombat(state, 0.25, silent)
     expect(core.currentTargetId).toBe('out')
     expect(state.combat.projectiles.filter((p) => p.side === 'player')).toHaveLength(0)
-    const bearing = bearingBetween(core, state.combat.enemyUnits[0]!)
-    expect(Math.abs(shortestAngleDelta(core.heading ?? 0, bearing))).toBeLessThan(
-      Math.abs(shortestAngleDelta(before, bearing)),
+    expect(Math.abs(shortestAngleDelta(core.orbitAngle ?? 0, desired))).toBeLessThan(
+      Math.abs(shortestAngleDelta(before, desired)),
     )
-    state.combat.enemyUnits[0]!.y = fire * 0.6
-    core.heading = bearingBetween(core, state.combat.enemyUnits[0]!)
+    expect(firingSolution(state, core, state.combat.enemyUnits[0]!).canFire).toBe(false)
+    const target = state.combat.enemyUnits[0]!
+    target.x = Math.sin(core.orbitAngle ?? 0) * (fire * 0.6)
+    target.y = Math.cos(core.orbitAngle ?? 0) * (fire * 0.6)
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 1 / 30, silent)
     expect(state.combat.projectiles.some((p) => p.side === 'player' && p.fromId === core.id)).toBe(true)
   })
 
-  it('Heavy Lance does not pre-charge outside fire range and requires stabilised aim', () => {
+  it('Heavy Lance does not pre-charge outside fire range and requires a settled orbital solution', () => {
     let state = createInitialState(0)
     state = unfitModule(state, 'pulse-cannon')
     state.shipyard.unlockedModules.push('heavy-lance')
-    state.shipyard.modules = ['heavy-lance', 'plate-layer']
     state.shipyard.coreInstances.push({ id: 'heavy-lance:1', moduleId: 'heavy-lance' })
+    state.shipyard.modules = ['heavy-lance', 'plate-layer']
     state.shipyard.equippedCoreIds = ['heavy-lance:1', 'plate-layer:1']
     state = startCombat(state)
-    const core = state.combat.playerUnits.find((u) => u.isCore)!
+    const core = state.combat.playerUnits.find((u) => u.isCore && u.coreModuleId === 'heavy-lance')!
+    applyPlayerCoreOrbit(core)
     const fire = effectiveCoreFireRange(state, core)
     const acquire = effectiveCoreAcquisitionRange(state, core)
-    setEnemies(state, [enemy({ id: 'siege', x: 0, y: (fire + acquire) / 2, hull: 400, hullMax: 400, armor: 12 })])
+    setEnemies(state, [enemy({ id: 'siege', x: acquire * 0.9, y: 0, hull: 400, hullMax: 400, armor: 12 })])
     for (const weapon of core.weapons) weapon.damage = 0
     simulateCombat(state, 0.4, silent)
     expect(core.currentTargetId).toBe('siege')
@@ -667,30 +666,24 @@ describe('acquisition, slew, and firing solution', () => {
     expect(core.weapons[0]!.chargeReady).toBeFalsy()
 
     const target = state.combat.enemyUnits[0]!
-    target.x = core.x + 40
-    target.y = core.y + 40
-    const dist = distanceBetween(core, target)
-    expect(dist).toBeLessThan(fire)
-    core.heading = bearingBetween(core, target) + degToRad(25)
+    target.x = Math.sin(core.orbitAngle ?? 0) * (fire * 0.5)
+    target.y = Math.cos(core.orbitAngle ?? 0) * (fire * 0.5)
+    core.orbitAngle = hiveBearingOf(target) + degToRad(25)
+    applyPlayerCoreOrbit(core)
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 1 / 30, silent)
     expect(core.weapons[0]!.telegraphLeft).toBe(0)
 
-    core.heading = bearingBetween(core, target)
+    core.orbitAngle = hiveBearingOf(target)
+    applyPlayerCoreOrbit(core)
     simulateCombat(state, 1 / 30, silent)
     expect(core.weapons[0]!.telegraphLeft).toBeGreaterThan(0)
     const charging = core.weapons[0]!.telegraphLeft
-    core.heading = bearingBetween(core, target) + degToRad(2)
     simulateCombat(state, 0.2, silent)
     expect(core.weapons[0]!.telegraphLeft).toBeLessThan(charging)
     expect(core.weapons[0]!.telegraphLeft).toBeGreaterThan(0)
 
-    const siege = {
-      ...target,
-      id: 'siege',
-      x: target.x,
-      y: target.y,
-    }
+    const siege = { ...target, id: 'siege', x: target.x, y: target.y }
     setEnemies(state, [
       siege,
       enemy({ id: 'better', x: 10, y: 80, hull: 900, hullMax: 900, armor: 40 }),
@@ -707,59 +700,60 @@ describe('acquisition, slew, and firing solution', () => {
     expect(core.weapons[0]!.telegraphLeft).toBe(0)
   })
 
-  it('slew respects rate, shortest wrap, and orbiting bearing', () => {
+  it('slew respects orbital rate and shortest wrap', () => {
     expect(radToDeg(Math.abs(shortestAngleDelta(degToRad(359), degToRad(1))))).toBeCloseTo(2, 5)
     const stepped = slewHeading(degToRad(359), degToRad(1), degToRad(1))
     expect(radToDeg(stepped) % 360).toBeCloseTo(0, 0)
 
     const state = pulseSortie()
     const core = pulseCore(state)
-    setEnemies(state, [enemy({ id: 't', x: 80, y: 80 })])
+    core.orbitAngle = 0
+    applyPlayerCoreOrbit(core)
+    setEnemies(state, [enemy({ id: 't', x: 80, y: 0 })])
     core.currentTargetId = 't'
-    const start = core.heading ?? 0
+    const start = core.orbitAngle ?? 0
     const rate = effectiveCoreSlewRate(state, core)
     tickPlayerCoreTargeting(state, 0.05)
-    const moved = Math.abs(shortestAngleDelta(start, core.heading ?? 0))
+    const moved = Math.abs(shortestAngleDelta(start, core.orbitAngle ?? 0))
     expect(moved).toBeLessThanOrEqual(degToRad(rate) * 0.05 + 1e-6)
-
-    core.orbitAngle = (core.orbitAngle ?? 0) + 0.8
-    const oldBearing = bearingBetween({ x: core.x, y: core.y }, state.combat.enemyUnits[0]!)
-    simulateCombat(state, 0.5, silent)
-    const newBearing = bearingBetween(core, state.combat.enemyUnits[0]!)
-    expect(newBearing).not.toBeCloseTo(oldBearing)
+    expect(moved).toBeGreaterThan(0)
   })
 
-  it('lets Flak and Slag fire while traversing and requires Phase alignment', () => {
+  it('lets Flak and Slag fire while orbiting and requires Phase orbital alignment', () => {
     const state = pulseSortie()
     const core = pulseCore(state)
-    setEnemies(state, [enemy({ id: 'arc', x: 30, y: 110 })])
+    setEnemies(state, [enemy({ id: 'arc', x: 0, y: 120 })])
     const target = state.combat.enemyUnits[0]!
-    const bearing = bearingBetween(core, target)
     core.currentTargetId = 'arc'
+    core.orbitAngle = hiveBearingOf(target)
+    applyPlayerCoreOrbit(core)
     core.coreModuleId = 'flak-array'
-    core.heading = bearing + degToRad(80)
     expect(firingSolution(state, core, target).canFire).toBe(true)
-    core.coreModuleId = 'slag-spit'
+    expect(firingSolution(state, core, target).stabilised || targetingProfileFor('flak-array').firesWhileTraversing).toBe(true)
+    core.coreModuleId = 'slag-spitter'
     expect(firingSolution(state, core, target).canFire).toBe(true)
     core.coreModuleId = 'phase-beam'
-    core.heading = bearing + degToRad(20)
+    core.orbitAngle = hiveBearingOf(target) + degToRad(20)
+    applyPlayerCoreOrbit(core)
     expect(firingSolution(state, core, target).canConnectBeam).toBe(false)
-    core.heading = bearing
+    core.orbitAngle = hiveBearingOf(target)
+    applyPlayerCoreOrbit(core)
     expect(firingSolution(state, core, target).canConnectBeam).toBe(true)
   })
 
-  it('pulse can fire while traversing if the target is inside its broad arc', () => {
+  it('pulse can fire while its orbit angle is still changing if the target is inside the outward arc', () => {
     const state = pulseSortie()
     const core = pulseCore(state)
-    setEnemies(state, [enemy({ id: 'arc', x: 40, y: 120 })])
+    setEnemies(state, [enemy({ id: 'arc', x: 0, y: 120 })])
     core.currentTargetId = 'arc'
-    const bearing = bearingBetween(core, state.combat.enemyUnits[0]!)
-    core.heading = bearing + degToRad(40)
+    core.orbitAngle = hiveBearingOf(state.combat.enemyUnits[0]!) + degToRad(40)
+    applyPlayerCoreOrbit(core)
     const sol = firingSolution(state, core, state.combat.enemyUnits[0]!)
     expect(sol.inArc).toBe(true)
     expect(sol.canFire).toBe(true)
-    expect(sol.stabilised || targetingProfileFor('pulse-cannon').firesWhileTraversing).toBe(true)
-    core.heading = bearing + degToRad(90)
+    expect(targetingProfileFor('pulse-cannon').firesWhileTraversing).toBe(true)
+    core.orbitAngle = hiveBearingOf(state.combat.enemyUnits[0]!) + degToRad(90)
+    applyPlayerCoreOrbit(core)
     expect(firingSolution(state, core, state.combat.enemyUnits[0]!).canFire).toBe(false)
   })
 })
@@ -773,7 +767,8 @@ describe('physical shot origin and persistence', () => {
     core.y = 0
     setEnemies(state, [enemy({ id: 'p', x: 80, y: 0 })])
     core.currentTargetId = 'p'
-    core.heading = bearingBetween(core, state.combat.enemyUnits[0]!)
+    core.orbitAngle = hiveBearingOf(state.combat.enemyUnits[0]!)
+    applyPlayerCoreOrbit(core)
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 1 / 30, silent)
     const shot = state.combat.projectiles.find((p) => p.side === 'player')
@@ -795,34 +790,36 @@ describe('physical shot origin and persistence', () => {
     }
     setEnemies(state, [enemy({ id: 'p', x: 90, y: 0 })])
     core.currentTargetId = 'p'
-    core.heading = bearingBetween(core, state.combat.enemyUnits[0]!)
+    core.orbitAngle = hiveBearingOf(state.combat.enemyUnits[0]!)
+    applyPlayerCoreOrbit(core)
     simulateCombat(state, 1 / 30, silent)
     const beam = state.combat.beams.find((b) => b.side === 'player')
     expect(beam?.fromId).toBe(core.id)
     expect(Math.hypot(core.x, core.y)).toBeGreaterThan(10)
   })
 
-  it('survives save/reload without snapping heading or dropping the target', () => {
+  it('survives save/reload without moving the orbit or dropping the target', () => {
     const state = pulseSortie()
     const core = pulseCore(state)
     setEnemies(state, [enemy({ id: 'keep', x: 20, y: 150 })])
     evalNow(state)
-    core.heading = 1.7
     core.orbitAngle = 0.4
+    applyPlayerCoreOrbit(core)
     core.targetingTelemetry = { ...emptyTargetingTelemetry(), targetSwitches: 3, timeSlewLimited: 1.2 }
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     saveGame(state)
     const loaded = loadOrCreateGame()
     const loadedCore = loaded.combat.playerUnits.find((u) => u.isCore)!
     expect(loadedCore.currentTargetId).toBe(core.currentTargetId)
-    expect(loadedCore.heading).toBeCloseTo(1.7)
     expect(loadedCore.orbitAngle).toBeCloseTo(0.4)
+    expect(playerCoreOutwardFacing(loadedCore)).toBeCloseTo(0.4)
+    expect(loadedCore.heading).toBeCloseTo(loadedCore.orbitAngle ?? 0)
     expect(loadedCore.targetingTelemetry?.targetSwitches).toBe(3)
     expect(loadedCore.targetingTelemetry?.timeSlewLimited).toBeCloseTo(1.2)
     const paused = loaded.combat.simTime
     advanceSeconds(loaded, 2)
     expect(loaded.combat.simTime).toBeCloseTo(paused)
-    expect(loaded.combat.playerUnits.find((u) => u.isCore)!.heading).toBeCloseTo(1.7)
+    expect(loaded.combat.playerUnits.find((u) => u.isCore)!.orbitAngle).toBeCloseTo(0.4)
   })
 })
 
@@ -845,12 +842,13 @@ describe('determinism, telemetry, and stress', () => {
   it('records targeting telemetry and does not advance it while paused', () => {
     let state = pulseSortie()
     const core = pulseCore(state)
-    setEnemies(state, [enemy({ id: 'a', x: 0, y: 220 })])
-    core.heading = Math.PI
+    setEnemies(state, [enemy({ id: 'a', x: 230, y: 0 })])
+    core.orbitAngle = Math.PI
+    applyPlayerCoreOrbit(core)
     evalNow(state)
     expect(core.targetingTelemetry?.initialAcquisitions).toBeGreaterThan(0)
     expect(core.targetingTelemetry?.targetSwitches ?? 0).toBe(0)
-    simulateCombat(state, 0.3, silent)
+    tickPlayerCoreTargeting(state, 0.3)
     const slew = core.targetingTelemetry!.timeSlewLimited
     const out = core.targetingTelemetry!.timeAcquiredOutsideFire
     expect(slew + out + core.targetingTelemetry!.timeNoTargetWhileEnemies).toBeGreaterThan(0)
@@ -913,14 +911,13 @@ describe('range / arc identity', () => {
     const core = fleet.find((u) => u.isCore)!
     expect(effectiveCoreAcquisitionRange(state, core)).toBeGreaterThan(effectiveCoreFireRange(state, core))
     expect(effectiveCoreFiringArc(state, core)).toBe(150)
-    expect(effectiveCoreSlewRate(state, core)).toBe(360)
+    expect(effectiveCoreSlewRate(state, core)).toBeCloseTo(360 * 1.08)
   })
 
-  it('uses the isolated legacy fallback for non-final weapon IDs', () => {
+  it('returns an empty profile for leftover weapon IDs', () => {
     const profile = targetingProfileFor('rail-driver')
-    expect(profile.profileId).toBe('legacy-fallback')
-    expect(profile.defaultDoctrine).toBe('threat')
-    expect(profile.acquisitionRange).toBeCloseTo(profile.fireRange * 1.4)
+    expect(profile.fireRange).toBe(0)
+    expect(profile.acquisitionRange).toBe(0)
   })
 })
 
@@ -954,7 +951,8 @@ describe('player fire uses persistent target', () => {
       enemy({ id: 'other', x: 10, y: 80 }),
     ])
     core.currentTargetId = 'locked'
-    core.heading = bearingBetween(core, state.combat.enemyUnits[0]!)
+    core.orbitAngle = hiveBearingOf(state.combat.enemyUnits[0]!)
+    applyPlayerCoreOrbit(core)
     core.nextTargetEvalAt = state.combat.simTime + 10
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 1 / 30, silent)
@@ -1223,20 +1221,23 @@ describe('Doctrine edit contract', () => {
     const inst = state.shipyard.coreInstances.find((row) => row.moduleId === 'heavy-lance')!
     setEnemies(state, [enemy({ id: 'hold', x: core.x + 20, y: core.y + 20, hull: 400, hullMax: 400, armor: 10 })])
     core.currentTargetId = 'hold'
-    core.heading = 1.2
+    core.orbitAngle = 1.2
+    applyPlayerCoreOrbit(core)
     core.targetLockTime = 1.5
     core.weapons[0]!.telegraphLeft = 1.1
     core.weapons[0]!.telegraphToId = 'hold'
     state = setSortiePaused(state, true)
     const pausedCore = state.combat.playerUnits.find((u) => u.isCore)!
     pausedCore.currentTargetId = 'hold'
-    pausedCore.heading = 1.2
+    pausedCore.orbitAngle = 1.2
+    applyPlayerCoreOrbit(pausedCore)
     pausedCore.targetLockTime = 1.5
     pausedCore.weapons[0]!.telegraphLeft = 1.1
     state = setCoreTargetingDoctrine(state, inst.id, 'threat')
     const after = state.combat.playerUnits.find((u) => u.isCore)!
     expect(after.currentTargetId).toBe('hold')
-    expect(after.heading).toBeCloseTo(1.2)
+    expect(after.orbitAngle).toBeCloseTo(1.2)
+    expect(playerCoreOutwardFacing(after)).toBeCloseTo(1.2)
     expect(after.targetLockTime).toBeCloseTo(1.5)
     expect(after.weapons[0]!.telegraphLeft).toBeCloseTo(1.1)
     expect(after.nextTargetEvalAt).toBe(0)
@@ -1307,7 +1308,8 @@ describe('telemetry semantics', () => {
     evalNow(state)
     expect(core.targetingTelemetry?.initialAcquisitions).toBe(1)
     expect(core.targetingTelemetry?.targetSwitches ?? 0).toBe(0)
-    core.heading = bearingBetween(core, state.combat.enemyUnits[0]!)
+    core.orbitAngle = hiveBearingOf(state.combat.enemyUnits[0]!)
+    applyPlayerCoreOrbit(core)
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 1 / 30, silent)
     expect(core.targetingTelemetry?.shotsFired).toBeGreaterThanOrEqual(1)
@@ -1336,7 +1338,8 @@ describe('telemetry semantics', () => {
     expect(core.heldShotNoted).toBe(false)
     expect(core.currentTargetId).toBe('a')
 
-    core.heading = bearingBetween(core, a) + Math.PI
+    core.orbitAngle = hiveBearingOf(a) + Math.PI
+    applyPlayerCoreOrbit(core)
     core.weapons[0]!.cooldownLeft = 0
     const blockedA = firingSolution(state, core, a)
     expect(blockedA.inFireRange).toBe(true)
@@ -1349,7 +1352,8 @@ describe('telemetry semantics', () => {
 
     const b = enemy({ id: 'b', x: 0, y: 90 })
     setEnemies(state, [b])
-    core.heading = bearingBetween(core, b) + Math.PI
+    core.orbitAngle = hiveBearingOf(b) + Math.PI
+    applyPlayerCoreOrbit(core)
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 1 / 30, silent)
     expect(core.currentTargetId).toBe('b')
@@ -1378,8 +1382,10 @@ describe('Knife Fight fire-range cap', () => {
     simulateCombat(state, 0.25, silent)
     expect(core.currentTargetId).toBe('mid')
     expect(state.combat.projectiles.filter((p) => p.side === 'player')).toHaveLength(0)
-    state.combat.enemyUnits[0]!.y = fire * 0.5
-    core.heading = bearingBetween(core, state.combat.enemyUnits[0]!)
+    state.combat.enemyUnits[0]!.x = 0
+    state.combat.enemyUnits[0]!.y = Math.max(fire * 0.85, (core.orbitRadius ?? 44) + 24)
+    core.orbitAngle = hiveBearingOf(state.combat.enemyUnits[0]!)
+    applyPlayerCoreOrbit(core)
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 1 / 30, silent)
     expect(state.combat.projectiles.some((p) => p.side === 'player')).toBe(true)
@@ -1400,7 +1406,8 @@ describe('Heavy Lance cycle rate', () => {
     const target = enemy({ id: 'siege', x: core.x + 30, y: core.y + 30, hull: 400, hullMax: 400, armor: 8 })
     setEnemies(state, [target])
     core.currentTargetId = 'siege'
-    core.heading = bearingBetween(core, target)
+    core.orbitAngle = hiveBearingOf(target)
+    applyPlayerCoreOrbit(core)
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 1 / 30, silent)
     expect(core.weapons[0]!.telegraphLeft).toBeGreaterThan(2.5)
@@ -1440,7 +1447,8 @@ describe('save/reload continuation with targeting state', () => {
     core.targetLockTime = Math.max(core.targetLockTime ?? 0, 1.1)
     const target = state.combat.enemyUnits[0]!
     core.currentTargetId = 'keep'
-    core.heading = bearingBetween(core, target)
+    core.orbitAngle = hiveBearingOf(target)
+    applyPlayerCoreOrbit(core)
     core.weapons[0]!.cooldownLeft = 0
     simulateCombat(state, 0.4, silent)
     expect(core.weapons[0]!.telegraphLeft).toBeGreaterThan(0)
@@ -1473,5 +1481,95 @@ describe('save/reload continuation with targeting state', () => {
     simulateCombat(branchA, 0.9, silent)
     simulateCombat(branchB, 0.9, silent)
     expect(fingerprint(branchB)).toEqual(fingerprint(branchA))
+  })
+})
+
+describe('orbital slew geometry', () => {
+  it('keeps outward facing equal to the Hive-radial bearing', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    for (const angle of [0, 0.7, Math.PI, 4.2]) {
+      core.orbitAngle = angle
+      applyPlayerCoreOrbit(core)
+      expect(playerCoreOutwardFacing(core)).toBeCloseTo(core.orbitAngle ?? 0)
+      expect(core.heading).toBeCloseTo(core.orbitAngle ?? 0)
+      expect(wrapTau(Math.atan2(core.x, core.y))).toBeCloseTo(wrapTau(core.orbitAngle ?? 0))
+    }
+  })
+
+  it('changes orbital angle toward a target outside the current firing arc and does not independently aim', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    core.orbitAngle = 0
+    applyPlayerCoreOrbit(core)
+    const startFacing = playerCoreOutwardFacing(core)
+    setEnemies(state, [enemy({ id: 'side', x: 180, y: 0 })])
+    core.currentTargetId = 'side'
+    const startOrbit = core.orbitAngle ?? 0
+    tickPlayerCoreTargeting(state, 0.2)
+    expect(core.orbitAngle).not.toBeCloseTo(startOrbit)
+    expect(playerCoreOutwardFacing(core)).toBeCloseTo(core.orbitAngle ?? 0)
+    expect(core.heading).toBeCloseTo(core.orbitAngle ?? 0)
+    expect(core.heading).not.toBeCloseTo(bearingBetween(core, state.combat.enemyUnits[0]!))
+    expect(playerCoreOutwardFacing(core)).not.toBeCloseTo(startFacing)
+  })
+
+  it('lets a fast-slew Core close an orbital gap faster than a slow-slew Core', () => {
+    const fast = pulseSortie()
+    const slow = pulseSortie()
+    const fastCore = pulseCore(fast)
+    const slowCore = pulseCore(slow)
+    slowCore.coreModuleId = 'heavy-lance'
+    for (const core of [fastCore, slowCore]) {
+      core.orbitAngle = 0
+      applyPlayerCoreOrbit(core)
+      core.currentTargetId = 'side'
+    }
+    setEnemies(fast, [enemy({ id: 'side', x: 200, y: 0 })])
+    setEnemies(slow, [enemy({ id: 'side', x: 200, y: 0 })])
+    tickPlayerCoreTargeting(fast, 0.15)
+    tickPlayerCoreTargeting(slow, 0.15)
+    const fastMoved = Math.abs(shortestAngleDelta(0, fastCore.orbitAngle ?? 0))
+    const slowMoved = Math.abs(shortestAngleDelta(0, slowCore.orbitAngle ?? 0))
+    expect(fastMoved).toBeGreaterThan(slowMoved + degToRad(10))
+  })
+
+  it('raises orbital traverse rate through Matter Traverse Actuators and Sensor Array', () => {
+    const base = pulseSortie()
+    const matter = pulseSortie()
+    const sensor = pulseSortie()
+    matter.prestige.matterShop = { ...(matter.prestige.matterShop ?? {}), 'traverse-actuators': 4 }
+    sensor.shipyard.unlockedModules.push('sensor-array')
+    sensor.shipyard.coreInstances.push({ id: 'sensor-array:1', moduleId: 'sensor-array' })
+    sensor.shipyard.modules = ['pulse-cannon', 'sensor-array']
+    sensor.shipyard.equippedCoreIds = ['pulse-cannon:1', 'sensor-array:1']
+    expect(effectiveCoreSlewRate(matter, pulseCore(matter))).toBeGreaterThan(
+      effectiveCoreSlewRate(base, pulseCore(base)),
+    )
+    expect(effectiveCoreSlewRate(sensor, pulseCore(sensor))).toBeGreaterThan(
+      effectiveCoreSlewRate(base, pulseCore(base)),
+    )
+    for (const state of [base, matter]) {
+      const core = pulseCore(state)
+      core.orbitAngle = 0
+      applyPlayerCoreOrbit(core)
+      setEnemies(state, [enemy({ id: 'side', x: 200, y: 0 })])
+      core.currentTargetId = 'side'
+      tickPlayerCoreTargeting(state, 0.1)
+    }
+    expect(Math.abs(pulseCore(matter).orbitAngle ?? 0)).toBeGreaterThan(
+      Math.abs(pulseCore(base).orbitAngle ?? 0),
+    )
+  })
+
+  it('presentation overlay uses the same orbit position and outward facing as simulation', () => {
+    const state = pulseSortie()
+    const core = pulseCore(state)
+    core.orbitAngle = 1.1
+    applyPlayerCoreOrbit(core)
+    const overlay = combatOverlayGeometry(state).find((row) => row.coreInstanceId === core.coreInstanceId)
+    expect(overlay?.x).toBeCloseTo(core.x)
+    expect(overlay?.y).toBeCloseTo(core.y)
+    expect(overlay?.heading).toBeCloseTo(playerCoreOutwardFacing(core))
   })
 })

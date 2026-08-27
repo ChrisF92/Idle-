@@ -105,8 +105,8 @@ describe('GDD Process', () => {
 
   it('uses practised loops for the first-open history line', () => {
     const s = processState()
-    s.shipyard.moduleLevels['pulse-cannon'] = 5
-    s.workshop.levels['plate-layer'] = 3
+    s.meta.lifetimeCoreRunBuys = 5
+    s.workshop.levels['weapon-power'] = 3
     expect(processLessonCount(s)).toBe(8)
     expect(processOnlineBlurb(s)).toMatch(/8 times/)
     expect(processOnlineBlurb(s)).toMatch(/you've learned/)
@@ -173,7 +173,7 @@ describe('GDD Process', () => {
   })
 
   it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-buy-max')?.cost).toBe(4)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)

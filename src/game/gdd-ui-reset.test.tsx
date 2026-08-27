@@ -127,7 +127,6 @@ describe('UI architecture reset', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(document.querySelector('.sortie-screen')).toBeNull()
@@ -142,7 +141,6 @@ describe('UI architecture reset', () => {
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
       />,
     )
     expect(screen.getByText('Salvage')).toBeTruthy()
@@ -239,25 +237,22 @@ describe('UI architecture reset', () => {
       </OverlayProvider>,
     )
     fireEvent.click(document.querySelector('.ui-item-row[data-guide="core-pulse-cannon"]')!)
-    expect(screen.getByText(/M5 · Hardened Pulse/)).toBeTruthy()
-    expect(screen.getByText(/M10 · Tight Cycle/)).toBeTruthy()
-    expect(screen.getByText(/M20 · Optical Socket/)).toBeTruthy()
-    expect(screen.getByText(/M30 · Core Feed/)).toBeTruthy()
-    expect(screen.getByText(/M50 · Foundry Arc/)).toBeTruthy()
-    expect(screen.getByText(/M75 · Deep Pattern/)).toBeTruthy()
-    expect(screen.getByText(/M100 · True Mastery/)).toBeTruthy()
+    expect(screen.getByText(/M5 · Pulse Identity/)).toBeTruthy()
+    expect(screen.getByText(/M10 · Overkill Retarget/)).toBeTruthy()
+    expect(screen.getByText(/M20 · Relic Capability/)).toBeTruthy()
+    expect(screen.getByText(/M30 · Chain/)).toBeTruthy()
+    expect(screen.getByText(/M50 · Chain Continuation/)).toBeTruthy()
+    expect(screen.getByText(/M75 · Adaptive Lock/)).toBeTruthy()
+    expect(screen.getByText(/M100 · Convergence/)).toBeTruthy()
     const unlocked = [...document.querySelectorAll('.mastery-ms.is-unlocked')].map((el) => el.textContent)
-    expect(unlocked.some((text) => text?.includes('Hardened Pulse'))).toBe(true)
-    expect(unlocked.some((text) => text?.includes('Tight Cycle'))).toBe(true)
-    expect(unlocked.some((text) => text?.includes('Optical Socket'))).toBe(false)
-    expect(document.querySelector('.mastery-ms.is-next')?.textContent).toMatch(/Optical Socket/)
-    expect(screen.getByText(/Damage ×1\.08/)).toBeTruthy()
-    expect(screen.getByText(/RoF ×1\.08/)).toBeTruthy()
-    expect(screen.getByText(/\+1 Optical Relic socket/)).toBeTruthy()
-    expect(screen.getByText(/Core Level scaling ×1\.10/)).toBeTruthy()
-    expect(screen.getByText(/Damage ×1\.12 · Range \+10/)).toBeTruthy()
-    expect(screen.getByText(/Damage ×1\.06 · Shield ×1\.06/)).toBeTruthy()
-    expect(screen.queryByText(/Unlocks an extra Relic socket/)).toBeNull()
+    expect(unlocked.some((text) => text?.includes('Pulse Identity'))).toBe(true)
+    expect(unlocked.some((text) => text?.includes('Overkill Retarget'))).toBe(true)
+    expect(unlocked.some((text) => text?.includes('Relic Capability'))).toBe(false)
+    expect(document.querySelector('.mastery-ms.is-next')?.textContent).toMatch(/Relic Capability/)
+    expect(screen.getByText(/Leftover damage after a kill/)).toBeTruthy()
+    expect(screen.getByText(/Relic capability expands/)).toBeTruthy()
+    expect(screen.queryByText(/Damage ×1\.08/)).toBeNull()
+    expect(screen.queryByText(/Hardened Pulse/)).toBeNull()
     expect(screen.queryByText(/The Core is fully understood/)).toBeNull()
   })
 })

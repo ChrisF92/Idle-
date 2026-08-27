@@ -65,9 +65,6 @@ function buildCareerState(prestiges: number): GameState {
     'time-compression-2': prestiges >= 3 ? 1 : 0,
     'time-compression-3': prestiges >= 8 ? 1 : 0,
   }
-  state.shipyard.moduleLevels = {
-    'pulse-cannon': Math.min(16, Math.floor(prestiges * 0.55) + 1),
-  }
   if (prestiges >= 1) {
     state.shipyard.unlockedModules = ['pulse-cannon', 'plate-layer']
     state.shipyard.modules = ['pulse-cannon', 'plate-layer']

@@ -28,7 +28,7 @@ describe('GDD late Act 1 mastery', () => {
     expect(hiveResearchComputationUnlocked(locked)).toBe(false)
     expect(setResearchFocus(locked, 'computation')).toBe(locked)
     expect(coreSocketLayout(locked, 'pulse-cannon')).toEqual(['power'])
-    expect(moduleMasteryCap(locked)).toBe(10)
+    expect(moduleMasteryCap(locked)).toBe(LATE_ACT1_MODULE_MASTERY)
     expect(hiveResearchExtraUtilitySlots(locked)).toBe(0)
   })
 

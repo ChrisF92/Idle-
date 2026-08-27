@@ -30,7 +30,7 @@ import {
 } from './sortieTelemetry'
 import { captureSortieMark, closeSortie } from './sortieSummary'
 import { setDocked, startCombat, tickGame } from './tick'
-import { assembleBlueprint, fitModule, performRebuild, selectFrame, setSectorRoute, upgradeModule } from './actions'
+import { assembleBlueprint, buyCoreStartingLevel, fitModule, performRebuild, selectFrame, setSectorRoute } from './actions'
 import { markHullLost } from './testHelpers'
 import { SortieReport } from '../components/SortieReport'
 import type { SortieRunStats } from './types'
@@ -129,9 +129,9 @@ describe('local playtest log', () => {
   it('logs rebuild, route, and assembled cores from game actions', () => {
     let s = markHullLost(createInitialState(0))
     s.meta.highestSectorEver = 12
-    s.resources.salvage = 40
-    s.combat.docked = false
-    s = upgradeModule(s, 'pulse-cannon')
+    s.resources.scrap = 80
+    s.combat.docked = true
+    s = buyCoreStartingLevel(s, 'pulse-cannon:1')
     expect(s.playtest.events.some((e) => e.k === 'core_buy')).toBe(true)
     s = setSectorRoute(s, 'A')
     s.shipyard.unlockedModules = [...s.shipyard.unlockedModules, 'heavy-lance']
@@ -241,7 +241,6 @@ describe('sortie counters and pressure', () => {
 
   it('suggests only unlocked systems and never claims an optimal build', () => {
     const s = markHullLost(createInitialState(0))
-    s.shipyard.moduleLevels['pulse-cannon'] = 1
     const names = possibleImprovements(s, 'SURVIVABILITY')
     expect(names).toContain('Plate')
     expect(names).toContain('Ward')
@@ -286,8 +285,6 @@ describe('sortie counters and pressure', () => {
 
   it('shows diagnosis after the first-defeat lesson', () => {
     const s = markHullLost(createInitialState(0))
-    s.shipyard.moduleLevels['pulse-cannon'] = 2
-    s.shipyard.moduleLevels['plate-layer'] = 1
     s.combat.lastSortie = {
       ...s.combat.lastSortie,
       outcome: 'defeat',

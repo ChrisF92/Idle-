@@ -844,6 +844,7 @@ export type WeaponTag =
   | 'splash'
   | 'dot'
   | 'antiShield'
+  | 'bypass'
 
 /** How a Core or enemy gun delivers its hit. Bolts travel; beams connect; charge winds up then bolts. */
 export type WeaponDelivery = 'bolt' | 'beam' | 'charge'
@@ -875,18 +876,6 @@ export interface ShipLoadout {
   equippedCoreIds: string[]
   unlockedFrames: string[]
   unlockedModules: string[]
-  /** Fabricated copies of a Core type. Mastery is shared; loadout may use extras. */
-  moduleCopies?: Record<string, number>
-  /**
-   * Retired Core-definition levels retained only for save compatibility.
-   * @deprecated Physical Core Levels live in workshop.coreStarts by Core instance ID.
-   */
-  moduleLevels: Record<string, number>
-  /**
-   * Legacy branching milestone picks. Preserved as permanent effects;
-   * new Mastery uses fixed authored milestones instead.
-   */
-  corePicks: Record<string, Record<string, string>>
   /**
    * After the first Launch of a run, the frame cannot be changed until
    * prestige / challenge reset. Modules can still be refit between fights
@@ -1002,8 +991,13 @@ export interface CombatUnit {
    * Untargetable is not death.
    */
   targetable?: boolean
-  /** Enemies never select this unit. */
+  /** Enemies never select this unit. Player Core satellites are untargetable. */
   untargetable?: boolean
+  /**
+   * True once kill rewards have been granted for this unit this Sortie.
+   * Prevents duplicate Salvage/Scrap/kill counts from secondary hits or cleanup.
+   */
+  killRewarded?: boolean
   dots: DotInstance[]
   /** USI-style class. Optional on player units and old saves. */
   role?: EnemyRole
@@ -1016,11 +1010,12 @@ export interface CombatUnit {
    */
   y: number
   /**
-   * Mechanical weapon facing in radians. 0 is +Y (screen-up). Distinct from
-   * orbitAngle. Advanced by slew rate toward the current target.
+   * For fitted player Cores this is the outward radial facing and always
+   * equals `orbitAngle`. Independent turret-style aiming heading is not used.
+   * Enemies and projectiles still use heading as movement/aim direction.
    */
   heading?: number
-  /** Position on the Hive orbit ring in radians. Distinct from heading. */
+  /** Position on the Hive orbit ring in radians. Player-Core slew advances this. */
   orbitAngle?: number
   /** Core orbit radius in simulation units. */
   orbitRadius?: number
@@ -1047,6 +1042,11 @@ export interface CombatUnit {
   sourceWave?: number
   /** Units of world distance moved per second. */
   speed: number
+  /**
+   * Temporary movement multiplier from Grav / control. Reset each tick.
+   * Never mutate authored `speed` to apply Slow.
+   */
+  controlSlowMult?: number
   /** Preferred firing distance (enemies close to this, some kite). */
   engageRange: number
   /** If true, back off when closer than engageRange. */
@@ -1107,6 +1107,10 @@ export interface CombatProjectile {
   heading?: number
   /** Flagship weapon id (`${moduleId}-wpn`) so shots can leave that Core. */
   weaponId?: string
+  /** Player Core type that fired this shot. Used for source-owned Mastery. */
+  sourceModuleId?: string
+  /** Optional Shield Bypass fraction for this shot. */
+  shieldBypassFrac?: number
 }
 
 /** Connected beam — damage ticks while the line is up (USI Beam Laser). */
@@ -1133,6 +1137,8 @@ export interface CombatBeam {
   attackerRole?: EnemyRole
   heading?: number
   weaponId?: string
+  sourceModuleId?: string
+  shieldBypassFrac?: number
 }
 
 export type RunUpgradeCategory = 'attack' | 'defense' | 'economy'
@@ -1171,6 +1177,62 @@ export interface WorkshopState {
   coreStarts: Record<string, number>
 }
 
+export type RelicSocketSpec = {
+  type: RelicSocketClass
+  /** Alternate class this socket also accepts (e.g. Shield/Universal). */
+  alt?: RelicSocketClass
+}
+
+export type CoreSlotGrantSource =
+  | 'starter'
+  | 'early-bus'
+  | 'mid-bus'
+  | 'engineering'
+  | 'foundry'
+  | 'research'
+  | 'test'
+
+export interface CoreSlotGrant {
+  id: string
+  source: CoreSlotGrantSource
+  slots: number
+}
+
+/** Sortie-local Core combat/support runtime. Resets with the Sortie. */
+export interface SortieCoreRuntime {
+  salvageMarks: Record<string, { until: number; elite?: boolean }>
+  moltenPools: Array<{
+    id: string
+    x: number
+    y: number
+    radius: number
+    until: number
+    dps: number
+    corrosion: number
+  }>
+  barrierInterceptCooldown: number
+  barrierEmergencyUntil: number
+  barrierRearmWeak: boolean
+  ablativeLayerHp: number
+  ablativeRegenAt: number
+  tempArmor: number
+  tempArmorUntil: number
+  deferredDamage: number
+  deferredUntil: number
+  choirTapHeatGranted: number
+  choirTapFurnaceFeed: boolean
+  pulseChainAt: Record<string, number>
+  phaseRamp: Record<string, number>
+  phaseLockMemory: Record<string, { targetId: string; ramp: number; until: number }>
+  phaseExposureUntil: Record<string, number>
+  heavyFractureUntil: number
+  gravWellUntil: number
+  aegisOverflow: number
+  aegisBreakUntil: number
+  plateBreakArmorUntil: number
+  nanoLatheBurstAt: number
+}
+
 export interface CombatState {
   /** Latest Wave Reached this Sortie (0 before the first reinforcement). */
   wave: number
@@ -1179,10 +1241,6 @@ export interface CombatState {
   bestWave: number
   /** Temporary Attack/Defense/Economy ranks bought with Salvage this Sortie. */
   runUpgrades: Record<string, number>
-  /** Retired per-Sortie Core level data retained only for save compatibility. */
-  coreRunLevels?: Record<string, number>
-  /** Retired Core spend ledger retained only for save compatibility. */
-  coreSalvageSpent?: Record<string, number>
   /** Mastery rank at Sortie start, keyed by Core type. */
   coreMasteryStart?: Record<string, number>
   /** Mastery XP gained this Sortie, keyed by Core type. */
@@ -1257,6 +1315,8 @@ export interface CombatState {
   directives: string[]
   /** Pending Directive choice. Combat does not auto-engage while set. */
   directiveOffer: string[] | null
+  /** Sortie-local Core combat/support runtime. */
+  coreRuntime?: SortieCoreRuntime
 }
 
 /**
@@ -1375,6 +1435,11 @@ export interface MetaState {
   genericUpgradeUnlocks: GenericUpgradeUnlocks
   /** First Extraction sheet has been opened and explained. */
   extractionExplained?: boolean
+  /**
+   * Extra normal-bus Core positions from later systems (Engineering / Foundry)
+   * or explicit test grants. Never a Best-Wave fifth-slot shortcut.
+   */
+  coreSlotGrants?: CoreSlotGrant[]
 }
 
 export interface ResearchState {

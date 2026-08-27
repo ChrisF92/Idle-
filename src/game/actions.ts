@@ -11,7 +11,6 @@ import type {
 import {
   AI_NODES,
   MASTERY_PARTS_COST,
-  MAX_MODULE_LEVEL,
   moduleMasteryCap,
   PART_TYPES,
   RESEARCH,
@@ -47,16 +46,11 @@ import {
   isBlueprintComplete,
   isCorePrintUnlocked,
   isModuleBlockedByChallenge,
-  masteryBonus,
-  moduleLevel,
-  moduleLeveledBonus,
   moduleMasteryRank,
-  moduleWeaponDamage,
   modulePrintWave,
   parsePartId,
   partId,
   partSellScrap,
-  shopRank,
   stationBlackBarNeed,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
@@ -64,7 +58,6 @@ import {
   visibleWorkerJobIds,
   type ResourceCost,
 } from './catalog'
-import { milestonesFor } from './milestones'
 import {
   canBuyNetworkLink,
   createEmptyNetworkState,
@@ -95,7 +88,8 @@ import {
   setFurnaceChannel,
   setFurnacePriority,
 } from './furnace'
-import { hiveResearchExtraUtilitySlots, hiveResearchHeatFromAshMult, setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
+import { usableCoreSlots, trimModulesToUsableSlots } from './coreSlots'
+import { hiveResearchHeatFromAshMult, setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
 import {
   canConfigureTargetingDoctrine,
   canEditTargetingNow,
@@ -171,13 +165,7 @@ import {
 import { ACT1_CADENCE } from './cadence'
 import {
   buyCoreStartingLevel as buyCoreStartingLevelInternal,
-  buyCoreRunLevel,
-  buyCoreRunLevelByModule,
-  coreStartingLevelAtSlot,
-  coreRunLevel,
-  coreRunUpgradeCost,
   moduleCopyCount,
-  pickAutoCoreRunSlot,
 } from './coreProgression'
 import {
   ACT1_FINAL_WAVE,
@@ -626,79 +614,6 @@ export function unequipAllModules(state: GameState): GameState {
   return next
 }
 
-/** @deprecated Retired per-Sortie Core automation compatibility path. */
-export function upgradeCheapestModule(state: GameState, opts?: { force?: boolean }): GameState {
-  if (
-    !opts?.force &&
-    !state.ai.purchased.includes('salvage-optimizer') &&
-    !(state.process?.purchased ?? []).includes('auto-salvage')
-  ) {
-    return state
-  }
-  if (state.prestige.activeChallengeId === 'no-ai') return state
-  if (state.combat.docked) return state
-  const slot = pickAutoCoreRunSlot(state)
-  if (slot == null) return state
-  return buyCoreRunSlot(state, slot, 1)
-}
-
-function moduleUpgradeGain(state: GameState, moduleId: string, level: number): number {
-  const def = getModule(moduleId)
-  if (!def) return 0
-  const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
-  let gain = 0
-  if (def.weapon) {
-    gain +=
-      (moduleWeaponDamage(def, level + 1, mastery) - moduleWeaponDamage(def, level, mastery)) * 1.2
-  }
-  if (def.hullBonus || def.hullBonusPerLevel) {
-    gain +=
-      moduleLeveledBonus(def.hullBonus ?? 0, def.hullBonusPerLevel, level + 1, mastery) -
-      moduleLeveledBonus(def.hullBonus ?? 0, def.hullBonusPerLevel, level, mastery)
-  }
-  if (def.shieldBonus || def.shieldBonusPerLevel) {
-    gain +=
-      (moduleLeveledBonus(def.shieldBonus ?? 0, def.shieldBonusPerLevel, level + 1, mastery) -
-        moduleLeveledBonus(def.shieldBonus ?? 0, def.shieldBonusPerLevel, level, mastery)) *
-      0.9
-  }
-  if (gain <= 0) {
-    if (def.role === 'weapon') return 3
-    if (def.role === 'defense') return 2.4
-    return 1.4
-  }
-  return gain
-}
-
-/** @deprecated Retired per-Sortie Core automation compatibility path. */
-export function upgradeBestValueModule(state: GameState, opts?: { force?: boolean }): GameState {
-  if (
-    !opts?.force &&
-    !(state.process?.purchased ?? []).includes('smart-core')
-  ) {
-    return state
-  }
-  if (state.prestige.activeChallengeId === 'no-ai') return state
-  if (state.combat.docked) return state
-
-  let bestSlot: number | null = null
-  let bestScore = 0
-  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
-    const id = state.shipyard.modules[slot]!
-    const level = coreRunLevel(state, slot)
-    if (coreStartingLevelAtSlot(state, slot) + level >= MAX_MODULE_LEVEL) continue
-    const cost = coreRunUpgradeCost(level, id)
-    if (cost <= 0 || cost > (state.resources.salvage ?? 0)) continue
-    const score = moduleUpgradeGain(state, id, level) / cost
-    if (score > bestScore) {
-      bestSlot = slot
-      bestScore = score
-    }
-  }
-  if (bestSlot == null) return upgradeCheapestModule(state, { force: true })
-  return buyCoreRunSlot(state, bestSlot, 1)
-}
-
 export function buyResearch(state: GameState, researchId: string): GameState {
   const def = RESEARCH.find((r) => r.id === researchId)
   if (!def) return state
@@ -795,20 +710,8 @@ export function buyMatterShop(state: GameState, itemId: string): GameState {
   return next
 }
 
-export function unlockFrame(state: GameState, frameId: string): GameState {
-  const def = getFrame(frameId)
-  if (!def) return state
-  if (state.shipyard.unlockedFrames.includes(frameId)) return state
-  if (def.unlockSource === 'foundry' || def.unlockSource === 'research' || def.unlockSource === 'challenge') {
-    return state
-  }
-  if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
-  if (!canAfford(state.resources, def.unlockCost)) return state
-
-  const next = structuredClone(state)
-  pay(next.resources, def.unlockCost)
-  next.shipyard.unlockedFrames = [...next.shipyard.unlockedFrames, frameId]
-  return next
+export function unlockFrame(_state: GameState, _frameId: string): GameState {
+  return _state
 }
 
 export function selectFrame(state: GameState, frameId: string): GameState {
@@ -824,7 +727,7 @@ export function selectFrame(state: GameState, frameId: string): GameState {
   next.shipyard.frameLocked = false
   next.shipyard.frameId = frameId
   next.shipyard.modules = filterModulesForChallenge(
-    trimModulesToFrame(next.shipyard.modules, frame, { utility: hiveResearchExtraUtilitySlots(next) }),
+    trimModulesToUsableSlots(next, next.shipyard.modules, frameId),
     next.prestige.activeChallengeId,
   )
   reconcileEquippedCoreIds(next.shipyard, previousModules, previousCoreIds)
@@ -836,16 +739,7 @@ export function unlockModule(state: GameState, moduleId: string): GameState {
   const def = getModule(moduleId)
   if (!def) return state
   if (state.shipyard.unlockedModules.includes(moduleId)) return state
-  // Farmable modules unlock only via Fabrication Bay (or already unlocked).
-  if (isFarmableModule(moduleId)) return state
-  if (def.requiresChallengeShop) {
-    if (shopRank(state.prestige.shop, def.requiresChallengeShop) < 1) return state
-    const next = structuredClone(state)
-    next.shipyard.unlockedModules = [...next.shipyard.unlockedModules, moduleId]
-    addCoreInstance(next.shipyard, moduleId)
-    return next
-  }
-  if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
+  if (def.unlockSource !== 'start') return state
   if (!canAfford(state.resources, def.unlockCost)) return state
 
   const next = structuredClone(state)
@@ -1047,16 +941,7 @@ export function fitModule(state: GameState, moduleId: string, coreInstanceId?: s
   }
   const frame = getFrame(state.shipyard.frameId)
   if (!frame) return state
-  const copies = moduleCopyCount(state, moduleId)
-  if (
-    !canFitModuleOnFrame(
-      frame,
-      state.shipyard.modules,
-      moduleId,
-      { utility: hiveResearchExtraUtilitySlots(state) },
-      copies,
-    )
-  ) {
+  if (!canFitModuleOnFrame(state.shipyard.modules, moduleId, usableCoreSlots(state))) {
     return state
   }
 
@@ -1155,19 +1040,15 @@ function persistLoadout(
   frameId: string,
   modules: string[],
   activeChallengeId: string | null,
-  extra: Partial<Record<'weapon' | 'defense' | 'utility', number>> = {},
-  copies: Record<string, number> = {},
-  corePicks: Record<string, Record<string, string>> = {},
+  usableSlots = 2,
   coreInstances: CoreInstance[] = [],
   equippedCoreIds: string[] = [],
 ): GameState['shipyard'] {
   const frame = unlockedFrames.includes(frameId) ? frameId : STARTER_FRAME_ID
-  const frameDef = getFrame(frame) ?? getFrame(STARTER_FRAME_ID)!
   let fitted = filterModulesForChallenge(
     trimModulesToFrame(
       modules.filter((id) => unlockedModules.includes(id)),
-      frameDef,
-      extra,
+      usableSlots,
     ),
     activeChallengeId,
   )
@@ -1183,22 +1064,10 @@ function persistLoadout(
     equippedCoreIds: [],
     unlockedFrames,
     unlockedModules,
-    moduleLevels: {},
-    moduleCopies: {
-      ...Object.fromEntries(unlockedModules.map((id) => [id, 1])),
-      ...copies,
-    },
-    corePicks: { ...corePicks },
     frameLocked: false,
   }
   reconcileEquippedCoreIds(loadout, modules, equippedCoreIds)
   return loadout
-}
-
-/** Retired compatibility action. Core upgrades are Dock-only through buyCoreStartingLevel. */
-export function upgradeModule(state: GameState, moduleId: string): GameState {
-  void moduleId
-  return state
 }
 
 export function buyCoreStartingLevel(
@@ -1210,22 +1079,6 @@ export function buyCoreStartingLevel(
   if (next === state) return state
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
-}
-
-export function buyCoreRunUpgrade(state: GameState, moduleId: string, count = 1): GameState {
-  if (state.combat.docked) return state
-  const after = buyCoreRunLevelByModule(state, moduleId, count)
-  if (after === state) return state
-  syncFleetAfterRunUpgrade(after)
-  return after
-}
-
-export function buyCoreRunSlot(state: GameState, slot: number, count = 1): GameState {
-  if (state.combat.docked) return state
-  const after = buyCoreRunLevel(state, slot, count)
-  if (after === state) return state
-  syncFleetAfterRunUpgrade(after)
-  return after
 }
 
 function applyRunUpgradePurchase(next: GameState, id: RunUpgradeId): boolean {
@@ -1431,9 +1284,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     kept.frameId,
     kept.modules,
     kept.activeChallengeId,
-    { utility: hiveResearchExtraUtilitySlots(state) },
-    state.shipyard.moduleCopies ?? {},
-    state.shipyard.corePicks ?? {},
+    usableCoreSlots(state),
     kept.coreInstances,
     kept.equippedCoreIds,
   )
@@ -1528,40 +1379,6 @@ function applyChallengeSortieReset(state: GameState, now = Date.now(), kits = fa
   state.combat.playerShield = stats.shieldMax
 }
 
-export function pickCoreMilestone(
-  state: GameState,
-  moduleId: string,
-  milestoneId: string,
-  choiceId: string,
-): GameState {
-  const level = moduleLevel(state.shipyard.moduleLevels, moduleId)
-  const ms = milestonesFor(moduleId).find((m) => m.id === milestoneId)
-  if (!ms || level < ms.level) return state
-  if (!ms.choices.some((c) => c.id === choiceId)) return state
-  const next = structuredClone(state)
-  next.shipyard.corePicks = {
-    ...next.shipyard.corePicks,
-    [moduleId]: {
-      ...(next.shipyard.corePicks[moduleId] ?? {}),
-      [milestoneId]: choiceId,
-    },
-  }
-  if (!next.combat.inFight) {
-    syncPersistedHullCaps(next)
-    return next
-  }
-  syncPlayerFleetWeapons(next)
-  const stats = computeShipStats(next)
-  next.combat.playerHullMax = stats.hullMax
-  next.combat.playerShieldMax = stats.shieldMax
-  const flag = next.combat.playerUnits.find((u) => u.isFlagship)
-  if (flag) {
-    next.combat.playerHull = flag.hull
-    next.combat.playerShield = flag.shield
-  }
-  return next
-}
-
 export function performRebuild(
   state: GameState,
   hangar: { frameId: string; modules: string[] },
@@ -1571,17 +1388,13 @@ export function performRebuild(
   const frame = getFrame(hangar.frameId)
   if (!frame) return state
   if (!state.shipyard.unlockedFrames.includes(hangar.frameId)) return state
-  if (frame.requiresBestWave && careerBestWave(state) < frame.requiresBestWave) {
-    return state
-  }
   const next = structuredClone(state)
   const previousModules = [...next.shipyard.modules]
   const previousCoreIds = [...(next.shipyard.equippedCoreIds ?? [])]
   next.shipyard.frameId = hangar.frameId
   next.shipyard.modules = trimModulesToFrame(
     hangar.modules.filter((id) => next.shipyard.unlockedModules.includes(id)),
-    frame,
-    { utility: hiveResearchExtraUtilitySlots(next) },
+    usableCoreSlots(next, hangar.frameId),
   )
   reconcileEquippedCoreIds(next.shipyard, previousModules, previousCoreIds)
   const gain = matterGainFor(next)
@@ -1830,89 +1643,6 @@ export function setProcessConfig(state: GameState, config: GameState['process'][
   const next = structuredClone(state)
   if (!next.process) next.process = createEmptyProcessState()
   next.process.config = mergeProcessConfig(config)
-  return next
-}
-
-export function pickProcessCoreUpgrade(
-  state: GameState,
-  opts?: { force?: boolean },
-): GameState {
-  if (state.combat.docked) return state
-  const cfg = processConfig(state)
-  const priority = hasProcess(state, 'core-priority')
-    ? cfg.core.priority
-    : hasProcess(state, 'smart-core')
-      ? 'value'
-      : 'cheapest'
-  if (priority === 'value') return upgradeBestValueModule(state, { force: true })
-  if (priority === 'cheapest') return upgradeCheapestModule(state, { force: true })
-
-  const levels = { weapon: 0, shield: 0, utility: 0 }
-  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
-    const role = getModule(state.shipyard.modules[slot]!)?.role
-    const lv = coreRunLevel(state, slot)
-    if (role === 'weapon') levels.weapon += lv
-    else if (role === 'defense') levels.shield += lv
-    else if (role === 'utility') levels.utility += lv
-  }
-  const ratios = cfg.core.ratios
-  const want =
-    priority === 'weapon'
-      ? 'weapon'
-      : priority === 'shield'
-        ? 'defense'
-        : priority === 'utility'
-          ? 'utility'
-          : null
-
-  let bestSlot: number | null = null
-  let bestScore = -Infinity
-  for (let slot = 0; slot < state.shipyard.modules.length; slot += 1) {
-    const id = state.shipyard.modules[slot]!
-    const def = getModule(id)
-    if (!def) continue
-    const level = coreRunLevel(state, slot)
-    if (coreStartingLevelAtSlot(state, slot) + level >= MAX_MODULE_LEVEL) continue
-    const cost = coreRunUpgradeCost(level, id)
-    if (cost <= 0 || cost > (state.resources.salvage ?? 0)) continue
-    let score = -cost
-    if (want) {
-      score += def.role === want ? 1000 : 0
-    } else if (priority === 'balanced' || priority === 'custom') {
-      const current =
-        def.role === 'weapon' ? levels.weapon : def.role === 'defense' ? levels.shield : levels.utility
-      const target =
-        def.role === 'weapon'
-          ? Math.max(0.01, ratios.weapon)
-          : def.role === 'defense'
-            ? Math.max(0.01, ratios.shield)
-            : Math.max(0.01, ratios.utility)
-      const total = Math.max(1, levels.weapon + levels.shield + levels.utility)
-      const share = current / total
-      const wantShare = target / Math.max(0.01, ratios.weapon + ratios.shield + ratios.utility)
-      score = wantShare - share
-    }
-    if (score > bestScore) {
-      bestScore = score
-      bestSlot = slot
-    }
-  }
-  if (bestSlot == null) return opts?.force ? upgradeCheapestModule(state, { force: true }) : state
-  return buyCoreRunSlot(state, bestSlot, 1)
-}
-
-export function buyMaxCores(state: GameState): GameState {
-  if (!hasProcess(state, 'core-buy-max')) return state
-  if (state.prestige.activeChallengeId === 'no-ai') return state
-  if (state.combat.docked) return state
-  let next = state
-  let guard = 0
-  while (guard++ < 80) {
-    const after = pickProcessCoreUpgrade(next, { force: true })
-    if (after === next) break
-    if ((after.resources.salvage ?? 0) >= (next.resources.salvage ?? 0)) break
-    next = after
-  }
   return next
 }
 

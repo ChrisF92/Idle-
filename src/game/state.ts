@@ -31,7 +31,6 @@ import {
   computeSignalCoreBonuses,
   createEmptySignalCoresState,
 } from './signalCores'
-import { fittedShieldMilestoneMult } from './milestones'
 import { combinedCoreMods, effectiveCoreLevel } from './coreProgression'
 import {
   createEmptyNetworkState,
@@ -73,7 +72,7 @@ import {
 import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 44
+export const SAVE_VERSION = 45
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -118,9 +117,6 @@ export function createInitialState(now = Date.now()): GameState {
       equippedCoreIds: ['pulse-cannon:1', 'plate-layer:1'],
       unlockedFrames: [STARTER_FRAME_ID],
       unlockedModules: ['pulse-cannon', 'plate-layer'],
-      moduleLevels: {},
-      moduleCopies: { 'pulse-cannon': 1, 'plate-layer': 1 },
-      corePicks: {},
       frameLocked: false,
     },
     combat: {
@@ -128,8 +124,6 @@ export function createInitialState(now = Date.now()): GameState {
       wave: 1,
       bestWave: 0,
       runUpgrades: {},
-      coreRunLevels: {},
-      coreSalvageSpent: {},
       coreMasteryStart: {},
       coreMasteryXp: {},
       coreBossClears: {},
@@ -166,6 +160,31 @@ export function createInitialState(now = Date.now()): GameState {
       defeatTactical: false,
       directives: [],
       directiveOffer: null,
+      coreRuntime: {
+        salvageMarks: {},
+        moltenPools: [],
+        barrierInterceptCooldown: 0,
+        barrierEmergencyUntil: 0,
+        barrierRearmWeak: false,
+        ablativeLayerHp: 0,
+        ablativeRegenAt: 0,
+        tempArmor: 0,
+        tempArmorUntil: 0,
+        deferredDamage: 0,
+        deferredUntil: 0,
+        choirTapHeatGranted: 0,
+        choirTapFurnaceFeed: false,
+        pulseChainAt: {},
+        phaseRamp: {},
+        phaseLockMemory: {},
+        phaseExposureUntil: {},
+        heavyFractureUntil: 0,
+        gravWellUntil: 0,
+        aegisOverflow: 0,
+        aegisBreakUntil: 0,
+        plateBreakArmorUntil: 0,
+        nanoLatheBurstAt: 0,
+      },
     },
     workshop: createEmptyWorkshop(),
     base: {
@@ -238,6 +257,7 @@ export function createInitialState(now = Date.now()): GameState {
       extractedOnce: false,
       genericUpgradeUnlocks: emptyGenericUpgradeUnlocks(),
       extractionExplained: false,
+      coreSlotGrants: [],
     },
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),
@@ -415,7 +435,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   armor += signalBonuses.armor
   shieldMax += signalBonuses.shield
   evasion += signalBonuses.evasion
-  shieldMax *= fittedShieldMilestoneMult(state)
   shieldMax *= foundryShieldMult(state)
   shieldMax += foundryShieldFlat(state)
   shieldMax *= reliquaryShieldMult(state)

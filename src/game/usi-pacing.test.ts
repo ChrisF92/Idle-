@@ -11,12 +11,11 @@ import {
 } from './combat'
 import {
   canBuyMatterShop,
-  moduleUpgradeCost,
   prestigeMomentumDamageBonus,
   prestigeMomentumProductionBonus,
 } from './catalog'
 import { createInitialState } from './state'
-import { performPrestige, upgradeModule } from './actions'
+import { performPrestige } from './actions'
 
 /** Pre-pass exponential, used only to prove S9+ is no longer that cliff. */
 function legacyDamageScale(sector: number): number {
@@ -82,20 +81,16 @@ describe('USI-aligned Rebuild recovery', () => {
     expect(canBuyMatterShop(state, 'matter-plating').ok).toBe(true)
   })
 
-  it('return salvage covers Pulse L1 plus two Plate levels', () => {
+  it('return salvage is not spent on retired per-Sortie Core purchases', () => {
     let state = createInitialState(0)
     state.meta.highestSectorEver = 12
     state = performPrestige(state, 1000)
-    const pulseCost = moduleUpgradeCost(0, 'pulse-cannon')
-    const plate1 = moduleUpgradeCost(0, 'plate-layer')
-    const plate2 = moduleUpgradeCost(1, 'plate-layer')
-    expect(state.resources.salvage).toBeGreaterThanOrEqual(pulseCost + plate1 + plate2)
+    expect(state.resources.salvage).toBeGreaterThan(0)
 
+    const salvage = state.resources.salvage
     state.combat.docked = false
-    state = upgradeModule(state, 'pulse-cannon')
-    state = upgradeModule(state, 'plate-layer')
-    state = upgradeModule(state, 'plate-layer')
-    expect(state.combat.coreRunLevels?.['0'] ?? 0).toBe(0)
-    expect(state.combat.coreRunLevels?.['1'] ?? 0).toBe(0)
+    expect(state.workshop?.coreStarts['pulse-cannon:1'] ?? 0).toBe(0)
+    expect(state.workshop?.coreStarts['plate-layer:1'] ?? 0).toBe(0)
+    expect(state.resources.salvage).toBe(salvage)
   })
 })

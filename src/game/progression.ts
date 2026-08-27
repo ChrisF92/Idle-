@@ -11,7 +11,6 @@ import {
 import { careerBestWave, meetsWave } from './waves'
 import { rebuildDoorMet } from './rebuild'
 import { practicedCoreWork } from './corePractice'
-import { SHIP_FRAMES, grantUnlockedFrame } from './catalog'
 
 export { careerBestWave, meetsWave, ACT1_FINAL_WAVE }
 
@@ -861,12 +860,6 @@ export function maybeGrantSystemUnlocks(state: GameState): void {
 
   if (meetsWave(state, ACT1_CADENCE.codex) && !state.meta.codexUnlocked) {
     state.meta.codexUnlocked = true
-  }
-
-  for (const frame of SHIP_FRAMES) {
-    if (frame.unlockSource !== 'wave') continue
-    if ((frame.requiresBestWave ?? 0) > best) continue
-    grantUnlockedFrame(state, frame.id, `${frame.name} unlocked.`)
   }
 
   tryCompleteAchievements(state)

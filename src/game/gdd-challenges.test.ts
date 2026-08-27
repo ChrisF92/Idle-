@@ -27,12 +27,11 @@ function challengeState(opts?: { wave?: number; rebuilds?: number; research?: bo
   s.prestige.prestigeCount = opts?.rebuilds ?? CHALLENGE_MIN_REBUILDS
   if (opts?.research !== false) s.hiveResearch.completed.energy = 1
   s.combat.docked = true
-  s.shipyard.moduleLevels['pulse-cannon'] = 4
-  s.shipyard.moduleLevels['plate-layer'] = 4
   s.foundry.recipeLevels['slag-ingot'] = 1
   s.base.assignments['scrap-field'] = 2
   s.resources.choirAsh = 12
-  s.reliquary.coreFits = { 'pulse-cannon': ['relic-test'] }
+  s.workshop.coreStarts = { 'pulse-cannon:1': 4, 'plate-layer:1': 4 }
+  s.reliquary.coreFits = { 'pulse-cannon:1': ['relic-test'] }
   return s
 }
 
@@ -143,7 +142,6 @@ describe('GDD Challenges', () => {
     expect(protocolRewardSummary(challengeState(), 'glass-ward')).toMatch(/Plate Chip/)
     expect(protocolRewardSummary(challengeState(), 'quiet-guns')).toMatch(/Shop Readout/)
     expect(protocolRewardSummary(challengeState(), 'mute-network')).toMatch(/Challenge Log/)
-    expect(protocolRewardSummary(challengeState(), 'mute-network')).toMatch(/Harvester/)
 
     let swarm = enterProtocol(challengeState(), 'mute-network')
     swarm.combat.wave = protocolGoalWave(swarm, 'mute-network')

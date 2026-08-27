@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, SAVE_VERSION } from './state'
-import { buyProcessNode, convertAshToHeat, upgradeModule } from './actions'
+import { buyProcessNode, buyRunUpgrade, convertAshToHeat } from './actions'
 import { setDocked, advanceSeconds } from './tick'
 import { getModule } from './catalog'
 import { isFoundryRecipeUnlocked, foundrySlotCount, FOUNDRY_MAX_SLOTS } from './foundry'
@@ -13,15 +13,15 @@ import { SHARDS } from './reliquary'
 import { YARD_BUILDINGS } from './yard'
 
 describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
-  it('bumps save to 31', () => {
-    expect(SAVE_VERSION).toBe(44)
+  it('bumps save to 45', () => {
+    expect(SAVE_VERSION).toBe(45)
   })
 
   it('records Defeat salvage, spend, and wave on the Dock summary', () => {
     let s = createInitialState(0)
     s = setDocked(s, false)
     s.resources.salvage = 40
-    s = upgradeModule(s, 'pulse-cannon')
+    s = buyRunUpgrade(s, 'weapon-power')
     const spent = 40 - s.resources.salvage
     expect(spent).toBeGreaterThan(0)
     s = clearSector(s)

@@ -69,7 +69,6 @@ import {
   isFoundryRecipeUnlocked,
   scaledFoundryCost,
 } from './foundry'
-import { milestonesFor } from './milestones'
 import {
   formatResearchDuration,
   HIVE_RESEARCH_BRANCHES,
@@ -169,8 +168,6 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
   const instance = resolveCoreInstance(state, moduleId)
   const level = instance ? coreStartingLevel(state, instance.id) : 0
   const previews = moduleStatPreviews(moduleId, level, level < 200, mastery)
-  const picks = state.shipyard.corePicks?.[moduleId]
-  const milestones = milestonesFor(moduleId)
   const contribution = coreContributionPct(state, moduleId)
   const nextMs = nextMasteryMilestone(moduleId, mastery)
   const stats: InspectStat[] = [
@@ -203,15 +200,6 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
       value: `Hull ×${hull.toFixed(2)} · Shield ×${shield.toFixed(2)} · Armour ×${armor.toFixed(2)}`,
     })
   }
-  const taken = milestones
-    .map((ms) => {
-      const choiceId = picks?.[ms.id]
-      if (!choiceId) return null
-      const choice = ms.choices.find((c) => c.id === choiceId)
-      return choice ? `Legacy ${choice.name}` : null
-    })
-    .filter((line): line is string => Boolean(line))
-  if (taken.length > 0) stats.push({ label: 'Kept effects', value: taken.join(' · ') })
 
   const body = [def.description]
   if (def.weapon) body.push(deliveryLine(def.weapon.delivery))

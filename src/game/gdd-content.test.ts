@@ -90,10 +90,9 @@ describe('GDD Phase 8 content depth', () => {
     s.prestige.prestigeCount = 2
     s.hiveResearch.completed.energy = 1
     s.combat.docked = true
-    s.shipyard.moduleLevels['pulse-cannon'] = 2
+    s.workshop.coreStarts = { 'pulse-cannon:1': 2 }
     expect(protocolNextRewardText(s, 'glass-ward')).toMatch(/Plate Chip/)
     expect(protocolNextRewardText(s, 'quiet-guns')).toMatch(/Shop Readout/)
-    expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Frame/)
     expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Challenge Log/)
 
     applyProtocolGrant(s, { kind: 'relic', id: 'plate-chip', blurb: 'test' })

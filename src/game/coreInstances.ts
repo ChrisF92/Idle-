@@ -24,30 +24,19 @@ function nextInstanceId(instances: CoreInstance[], moduleId: string): string {
 }
 
 /**
- * Hydrates physical Core copies from the legacy count + module arrays.
- * Mutates the supplied loadout so callers can use it during save migration.
+ * `shipyard.coreInstances` is the only physical-ownership list.
+ * Knowing/unlocking a type never fabricates a copy. Malformed fitted slots
+ * without a matching instance are dropped, not reconstructed.
  */
 export function normalizeCoreInstances(loadout: ShipLoadout): ShipLoadout {
   const instances = validInstances(loadout)
-  const moduleIds = new Set<string>([
-    ...(loadout.unlockedModules ?? []),
-    ...(loadout.modules ?? []),
-    ...Object.keys(loadout.moduleCopies ?? {}),
-    ...instances.map((instance) => instance.moduleId),
-  ])
-
-  for (const moduleId of moduleIds) {
-    const fitted = (loadout.modules ?? []).filter((id) => id === moduleId).length
-    const legacyCopies = Math.max(0, Math.floor(loadout.moduleCopies?.[moduleId] ?? 0))
-    const unlocked = loadout.unlockedModules?.includes(moduleId) ? 1 : 0
-    const desired = Math.max(fitted, legacyCopies, unlocked)
-    while (instances.filter((instance) => instance.moduleId === moduleId).length < desired) {
-      instances.push({ id: nextInstanceId(instances, moduleId), moduleId })
-    }
-  }
+  loadout.coreInstances = instances
 
   const used = new Set<string>()
-  const equipped = (loadout.modules ?? []).map((moduleId, slot) => {
+  const fitted: string[] = []
+  const equipped: string[] = []
+  for (let slot = 0; slot < (loadout.modules ?? []).length; slot += 1) {
+    const moduleId = loadout.modules[slot]!
     const preferred = loadout.equippedCoreIds?.[slot]
     const preferredInstance = instances.find(
       (instance) => instance.id === preferred && instance.moduleId === moduleId && !used.has(instance.id),
@@ -55,37 +44,24 @@ export function normalizeCoreInstances(loadout: ShipLoadout): ShipLoadout {
     const instance =
       preferredInstance ??
       instances.find((candidate) => candidate.moduleId === moduleId && !used.has(candidate.id))
-    if (instance) {
-      used.add(instance.id)
-      return instance.id
-    }
-    const created = { id: nextInstanceId(instances, moduleId), moduleId }
-    instances.push(created)
-    used.add(created.id)
-    return created.id
-  })
-
-  loadout.coreInstances = instances
-  loadout.equippedCoreIds = equipped
-  loadout.moduleCopies = {
-    ...(loadout.moduleCopies ?? {}),
-    ...Object.fromEntries(
-      [...moduleIds].map((moduleId) => [
-        moduleId,
-        instances.filter((instance) => instance.moduleId === moduleId).length,
-      ]),
-    ),
+    if (!instance) continue
+    used.add(instance.id)
+    fitted.push(moduleId)
+    equipped.push(instance.id)
   }
+  loadout.modules = fitted
+  loadout.equippedCoreIds = equipped
   return loadout
 }
 
-/** Reconciles physical instance IDs after code changes the fitted module list. */
+/** Reconciles fitted instance IDs after the module list changes. Never fabricates copies. */
 export function reconcileEquippedCoreIds(
   loadout: ShipLoadout,
   previousModules: string[] = loadout.modules,
   previousCoreIds: string[] = loadout.equippedCoreIds ?? [],
 ): void {
-  normalizeCoreInstances(loadout)
+  const instances = validInstances(loadout)
+  loadout.coreInstances = instances
   const priorByModule = new Map<string, string[]>()
   previousModules.forEach((moduleId, index) => {
     const coreId = previousCoreIds[index]
@@ -96,37 +72,30 @@ export function reconcileEquippedCoreIds(
   })
 
   const used = new Set<string>()
-  loadout.equippedCoreIds = loadout.modules.map((moduleId) => {
+  const fitted: string[] = []
+  const equipped: string[] = []
+  for (const moduleId of loadout.modules) {
     const prior = priorByModule.get(moduleId)?.find(
       (coreId) =>
         !used.has(coreId) &&
-        loadout.coreInstances.some(
-          (instance) => instance.id === coreId && instance.moduleId === moduleId,
-        ),
+        instances.some((instance) => instance.id === coreId && instance.moduleId === moduleId),
     )
     const available =
       prior ??
-      loadout.coreInstances.find(
-        (instance) => instance.moduleId === moduleId && !used.has(instance.id),
-      )?.id
-    if (available) {
-      used.add(available)
-      return available
-    }
-    const created = addCoreInstance(loadout, moduleId)
-    used.add(created.id)
-    return created.id
-  })
+      instances.find((instance) => instance.moduleId === moduleId && !used.has(instance.id))?.id
+    if (!available) continue
+    used.add(available)
+    fitted.push(moduleId)
+    equipped.push(available)
+  }
+  loadout.modules = fitted
+  loadout.equippedCoreIds = equipped
 }
 
 export function addCoreInstance(loadout: ShipLoadout, moduleId: string): CoreInstance {
-  normalizeCoreInstances(loadout)
-  const instance = { id: nextInstanceId(loadout.coreInstances, moduleId), moduleId }
-  loadout.coreInstances.push(instance)
-  loadout.moduleCopies = {
-    ...(loadout.moduleCopies ?? {}),
-    [moduleId]: loadout.coreInstances.filter((item) => item.moduleId === moduleId).length,
-  }
+  const instances = validInstances(loadout)
+  const instance = { id: nextInstanceId(instances, moduleId), moduleId }
+  loadout.coreInstances = [...instances, instance]
   return instance
 }
 
@@ -137,31 +106,28 @@ export function coreInstanceAtSlot(
   const moduleId = state.shipyard.modules?.[slot]
   if (!moduleId) return null
   const coreId = state.shipyard.equippedCoreIds?.[slot]
-  const exact = state.shipyard.coreInstances?.find(
-    (instance) => instance.id === coreId && instance.moduleId === moduleId,
-  )
-  if (exact) return exact
-
-  const occurrence = state.shipyard.modules.slice(0, slot + 1).filter((id) => id === moduleId).length - 1
+  if (!coreId) return null
   return (
-    state.shipyard.coreInstances?.filter((instance) => instance.moduleId === moduleId)[occurrence] ?? {
-      id: `${moduleId}:${occurrence + 1}`,
-      moduleId,
-    }
+    state.shipyard.coreInstances?.find(
+      (instance) => instance.id === coreId && instance.moduleId === moduleId,
+    ) ?? null
   )
 }
 
+/** Physical-instance resolver. Requires an exact instance ID — never a Core type ID. */
 export function resolveCoreInstance(
   state: Pick<GameState, 'shipyard'>,
-  coreIdOrModuleId: string,
+  coreInstanceId: string,
 ): CoreInstance | null {
-  const exact = state.shipyard.coreInstances?.find((instance) => instance.id === coreIdOrModuleId)
-  if (exact) return exact
-  const slot = state.shipyard.modules?.findIndex((moduleId) => moduleId === coreIdOrModuleId) ?? -1
-  if (slot >= 0) return coreInstanceAtSlot(state, slot)
-  return (
-    state.shipyard.coreInstances?.find((instance) => instance.moduleId === coreIdOrModuleId) ?? null
-  )
+  return state.shipyard.coreInstances?.find((instance) => instance.id === coreInstanceId) ?? null
+}
+
+/** UI helper. Not the instance-state resolver. */
+export function firstOwnedCoreInstanceOfType(
+  state: Pick<GameState, 'shipyard'>,
+  moduleId: string,
+): CoreInstance | null {
+  return state.shipyard.coreInstances?.find((instance) => instance.moduleId === moduleId) ?? null
 }
 
 export function availableCoreInstances(

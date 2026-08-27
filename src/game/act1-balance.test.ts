@@ -10,7 +10,6 @@ import {
   salvageFromKill,
   salvageWaveBase,
 } from './combat'
-import { moduleUpgradeCost } from './catalog'
 import { hiveResearchNodeCost, HIVE_RESEARCH_WORKER_ACCEL } from './hiveResearch'
 import { NETWORK_FILL_COST, NETWORK_STARTING_DRONES } from './network'
 import { FURNACE_BASE_IDLE_GEN, FURNACE_CHANNEL_MAX } from './furnace'
@@ -57,8 +56,6 @@ describe('Act 1 authored formulas', () => {
     expect(ACT1_UNLOCKS.protocols).toBe(250)
     expect(ACT1_UNLOCKS.echo).toBe(275)
     expect(ACT1_UNLOCKS.act1).toBe(1000)
-    expect(moduleUpgradeCost(0, 'pulse-cannon')).toBe(3)
-    expect(moduleUpgradeCost(0, 'plate-layer')).toBe(6)
     expect(salvageFromKill(1, false)).toBe(1)
     expect(salvageFromKill(1, true)).toBe(5)
     expect(salvageFromKill(4, false)).toBe(1)
@@ -212,7 +209,7 @@ describe('Act 1 career simulations', () => {
     s.furnace.wanted.weapons = 1
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.recipeLevels['slag-ingot']).toBe(4)

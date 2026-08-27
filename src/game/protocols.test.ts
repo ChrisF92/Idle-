@@ -8,7 +8,6 @@ import {
 } from './actions'
 import { tickAutomation } from './automation'
 import { salvageFromKill } from './combat'
-import { moduleUpgradeCost } from './catalog'
 import { craftsForNextLevel, foundryCostMult } from './foundry'
 import { furnaceChannelHeatCost, furnaceDamageMult } from './furnace'
 import { hiveResearchNodeCost } from './hiveResearch'
@@ -47,12 +46,10 @@ function protocolDock(sectorEver = 52) {
 
 describe('Protocol formula rewards', () => {
   it('keeps save version and rank-0 formulas identical to the unranked game', () => {
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     const s = createInitialState(0)
     expect(protocolModifiers(s)).toEqual(emptyProtocolModifiers())
     expect(protocolBonusMult(s, 'network')).toBe(1)
-    expect(moduleUpgradeCost(1, 'pulse-cannon')).toBe(Math.ceil(3 * 1.21))
-    expect(moduleUpgradeCost(1, 'plate-layer')).toBe(Math.ceil(6 * 1.2))
     expect(salvageFromKill(1, false)).toBe(1)
     expect(salvageFromKill(4, false, 'A', s)).toBe(4)
     expect(craftsForNextLevel(10)).toBe(craftsForNextLevel(10, s))
@@ -107,12 +104,8 @@ describe('Protocol formula rewards', () => {
     s.protocols.ranks['dead-furnace'] = 3
     expect(furnaceDamageMult(s)).toBeGreaterThan(dmg0)
 
-    const pulse10 = moduleUpgradeCost(10, 'pulse-cannon')
     s.protocols.ranks['quiet-guns'] = 1
     expect(protocolCoreScalingAdd(s, 'weapon')).toBeCloseTo(-0.01)
-    expect(moduleUpgradeCost(10, 'pulse-cannon', protocolCoreScalingAdd(s, 'weapon'))).toBeLessThan(
-      pulse10,
-    )
   })
 
   it('Glass Ward does not multiply canonical Rebuild Matter; Dry Hold still eases salvage growth', () => {
@@ -144,12 +137,10 @@ describe('Protocol challenge runs', () => {
   it('wipes loadout, mutes the system, and ranks on the scaled goal', () => {
     let s = protocolDock()
     s.resources.salvage = 40
-    s.shipyard.moduleLevels = { 'pulse-cannon': 3 }
     s.network.bars.strike.levels = 5
     s = enterProtocol(s, 'mute-network')
     expect(s.protocols.activeId).toBe('mute-network')
     expect(s.resources.salvage).toBe(0)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
     expect(s.network.bars.strike.levels).toBe(0)
     expect(protocolMutes(s, 'network')).toBe(true)
     expect(networkStrikeMult(s)).toBe(1)
@@ -169,17 +160,14 @@ describe('Protocol challenge runs', () => {
 
   it('Quiet Guns, Glass Ward, and Dry Hold mute their systems', () => {
     let guns = enterProtocol(protocolDock(), 'quiet-guns')
-    guns.shipyard.moduleLevels['pulse-cannon'] = 4
     const gunIds = computeShipStats(guns)
     expect(gunIds.damage).toBeGreaterThan(0)
     expect(protocolMutes(guns, 'weapons')).toBe(true)
 
     const open = protocolDock()
-    open.shipyard.moduleLevels['pulse-cannon'] = 4
     expect(computeShipStats(open).damage).toBeGreaterThan(computeShipStats(guns).damage)
 
     let ward = enterProtocol(protocolDock(), 'glass-ward')
-    ward.shipyard.moduleLevels['plate-layer'] = 4
     expect(protocolMutes(ward, 'shields')).toBe(true)
     expect(computeShipStats(ward).shieldMax).toBe(0)
 

@@ -10,7 +10,8 @@ import { ENEMY_PARK_MAX, getModule, lowestPlayerCoreRange, MIN_CORE_WEAPON_RANGE
 import { RADIAL_EDGE_RANGE } from './combatVisual'
 import { createInitialState } from './state'
 import { startCombat } from './tick'
-import { coreOrbitRadius, coreVisualKind } from './hiveVisual'
+import { coreOrbitRadius } from './hiveVisual'
+import { pointFromBearing } from './geometry'
 
 describe('GDD Hive and orbiting Cores', () => {
   it('builds a Hive hull with weapon Cores as untargetable satellites', () => {
@@ -23,11 +24,10 @@ describe('GDD Hive and orbiting Cores', () => {
     expect(cores.length).toBeGreaterThan(0)
     expect(cores.every((core) => core.untargetable)).toBe(true)
     expect(cores.every((core) => core.hull === 0 && core.hullMax === 0)).toBe(true)
-    expect(cores.every((core) => core.weapons.length === 1)).toBe(true)
+    expect(cores.some((core) => core.coreModuleId === 'pulse-cannon' && core.weapons.length === 1)).toBe(true)
+    expect(cores.some((core) => core.coreModuleId === 'plate-layer')).toBe(true)
     expect(cores[0]!.coreModuleId).toBe('pulse-cannon')
-    expect(Math.hypot(cores[0]!.x, cores[0]!.y)).toBeCloseTo(
-      coreOrbitRadius(coreVisualKind('pulse-cannon')),
-    )
+    expect(Math.hypot(cores[0]!.x, cores[0]!.y)).toBeCloseTo(coreOrbitRadius('pulse-cannon'))
   })
 
   it('lets enemies damage only the Hive', () => {
@@ -63,15 +63,13 @@ describe('GDD Hive and orbiting Cores', () => {
     let state = startCombat(createInitialState(0))
     const hive = state.combat.playerUnits.find((u) => u.isFlagship)!
     const core = state.combat.playerUnits.find((u) => u.isCore)!
-    for (const enemy of state.combat.enemyUnits) {
-      enemy.x = 70
-      enemy.y = 0
-      enemy.engageRange = 200
-    }
     const target = state.combat.enemyUnits[0]
     if (target) {
+      const along = pointFromBearing(core.orbitAngle ?? 0, 90)
+      target.x = along.x
+      target.y = along.y
+      target.engageRange = 200
       core.currentTargetId = target.id
-      core.heading = Math.atan2(target.x - core.x, target.y - core.y)
     }
     for (const weapon of core.weapons) {
       weapon.range = 200
@@ -91,22 +89,20 @@ describe('GDD Hive and orbiting Cores', () => {
     const pulse = fleet.find((u) => u.isCore)?.weapons[0]
     const hold = enemyApproachTarget({ engageRange: 84 })
     expect(pulse?.range).toBeGreaterThanOrEqual(hold)
-    expect(hold).toBeGreaterThan(coreOrbitRadius('heavy'))
+    expect(hold).toBeGreaterThan(coreOrbitRadius('heavy-lance'))
     expect(pulse?.range).toBeGreaterThanOrEqual(ENEMY_PARK_MAX)
   })
 
-  it('keeps every Core at or past the farthest park, Rail longest, short of spawn', () => {
+  it('keeps every Core at or past the farthest park and short of spawn', () => {
     const pulse = getModule('pulse-cannon')!.weapon!.range
-    const rail = getModule('rail-driver')!.weapon!.range
     const flak = getModule('flak-array')!.weapon!.range
-    const charge = getModule('charge-prism')!.weapon!.range
     const lance = getModule('heavy-lance')!.weapon!.range
-    expect(flak).toBe(MIN_CORE_WEAPON_RANGE)
+    const phase = getModule('phase-beam')!.weapon!.range
+    expect(flak).toBeGreaterThanOrEqual(MIN_CORE_WEAPON_RANGE)
     expect(pulse).toBeGreaterThan(flak)
-    expect(pulse).toBeLessThan(RADIAL_EDGE_RANGE)
-    expect(rail).toBeGreaterThan(lance)
-    expect(rail).toBeGreaterThan(charge)
-    expect(rail).toBeLessThan(SPAWN_DISTANCE)
+    expect(lance).toBeGreaterThan(pulse)
+    expect(phase).toBeGreaterThan(pulse)
+    expect(lance).toBeLessThan(SPAWN_DISTANCE)
     expect(flak).toBe(lowestPlayerCoreRange())
     expect(RADIAL_EDGE_RANGE).toBeLessThan(SPAWN_DISTANCE)
   })

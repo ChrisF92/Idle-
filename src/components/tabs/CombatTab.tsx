@@ -40,13 +40,11 @@ interface CombatTabProps {
   onPauseAndBrowse?: () => void
   onBuyRunUpgrade?: (id: RunUpgradeId, count?: number) => void
   onViewReport?: () => void
-  onPickMilestone: (moduleId: string, milestoneId: string, choiceId: string) => void
   paused?: boolean
   onboardingTarget?: string | null
   onMarkCoresSeen?: () => void
   coresRequest?: { key: number; moduleId?: string } | null
   onCoresRequestHandled?: () => void
-  onBuyMaxCores?: () => void
   onChooseDirective?: (id: string) => void
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import {
-  buyCoreRunSlot,
   buyCoreStartingLevel,
   fitModule,
   performRebuild,
@@ -13,7 +12,6 @@ import {
   applyMasteryXp,
   awardEquippedMasteryXp,
   corePrimaryOutput,
-  coreRunLevel,
   coreStartingLevel,
   coreStartingUpgradeCost,
   masteryFrontierMult,
@@ -32,10 +30,9 @@ describe('Dock Core Levels', () => {
     let s = live()
     s.resources.salvage = 80
     const before = computeShipStats(s).damage
-    s = buyCoreRunSlot(s, 0, 1)
-    expect(coreRunLevel(s, 0)).toBe(0)
     expect(s.resources.salvage).toBe(80)
     expect(computeShipStats(s).damage).toBe(before)
+    expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(0)
   })
 
   it('buys separate physical Core levels with Scrap while sharing Mastery', () => {
@@ -68,13 +65,6 @@ describe('Dock Core Levels', () => {
     )
   })
 
-  it('ignores retired per-Sortie Core levels in combat power', () => {
-    const s = live()
-    const before = computeShipStats(s).damage
-    s.combat.coreRunLevels = { '0': 5 }
-    expect(computeShipStats(s).damage).toBe(before)
-  })
-
   it('does not survive Rebuild as a cycle rank', () => {
     let s = armRebuildDoor(createInitialState(0))
     s.resources.scrap = 100
@@ -82,7 +72,7 @@ describe('Dock Core Levels', () => {
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(1)
     s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon'] })
     expect(coreStartingLevel(s, 'pulse-cannon:1')).toBe(0)
-    expect(s.shipyard.moduleLevels['pulse-cannon'] ?? 0).toBe(0)
+    expect(s.workshop.coreStarts?.['pulse-cannon:1'] ?? 0).toBe(0)
   })
 
   it('saves and loads cycle Core Levels', () => {
@@ -163,8 +153,9 @@ describe('Core Mastery', () => {
 
   it('shares Mastery across duplicate copies', () => {
     const s = live()
-    s.shipyard.moduleCopies = { 'pulse-cannon': 2 }
+    grantModuleCopy(s, 'pulse-cannon')
     s.shipyard.modules = ['pulse-cannon', 'pulse-cannon']
+    s.shipyard.equippedCoreIds = ['pulse-cannon:1', 'pulse-cannon:2']
     awardEquippedMasteryXp(s, 10, { boss: true, newBest: true, careerBestBefore: 8 })
     expect(s.combat.coreMasteryXp['pulse-cannon']).toBeGreaterThan(0)
     expect(Object.keys(s.combat.coreMasteryXp ?? {}).filter((id) => id === 'pulse-cannon')).toHaveLength(1)
@@ -174,22 +165,57 @@ describe('Core Mastery', () => {
     let s = createInitialState(0)
     s.shipyard.unlockedFrames = [...s.shipyard.unlockedFrames, 'swarm-frame']
     s.shipyard.frameId = 'swarm-frame'
-    s.shipyard.unlockedModules = ['pulse-cannon']
-    s.shipyard.moduleCopies = { 'pulse-cannon': 2 }
-    s.shipyard.modules = ['pulse-cannon']
+    grantModuleCopy(s, 'pulse-cannon')
     s = fitModule(s, 'pulse-cannon')
     expect(s.shipyard.modules.filter((id) => id === 'pulse-cannon')).toHaveLength(2)
     expect(moduleCopyCount(s, 'pulse-cannon')).toBe(2)
   })
 })
 
+describe('physical Core ownership', () => {
+  it('does not fabricate a copy from type discovery or unlock', () => {
+    let s = createInitialState(0)
+    const before = moduleCopyCount(s, 'flak-array')
+    s.shipyard.unlockedModules = [...s.shipyard.unlockedModules, 'flak-array']
+    s.meta.discoveredModules = [...s.meta.discoveredModules, 'flak-array']
+    expect(moduleCopyCount(s, 'flak-array')).toBe(before)
+    expect(s.shipyard.coreInstances.some((row) => row.moduleId === 'flak-array')).toBe(false)
+    const loaded = importSave(exportSave(s))!
+    expect(loaded.shipyard.coreInstances.filter((row) => row.moduleId === 'flak-array')).toHaveLength(0)
+  })
+
+  it('creates a distinct ID for each explicit grant and requires instance IDs for Core Level', () => {
+    const s = createInitialState(0)
+    grantModuleCopy(s, 'pulse-cannon')
+    const ids = s.shipyard.coreInstances.filter((row) => row.moduleId === 'pulse-cannon').map((row) => row.id)
+    expect(ids).toHaveLength(2)
+    expect(new Set(ids).size).toBe(2)
+    expect(coreStartingLevel(s, 'pulse-cannon')).toBe(0)
+    s.resources.scrap = 80
+    const unchanged = s.resources.scrap
+    const afterType = buyCoreStartingLevel(s, 'pulse-cannon')
+    expect(afterType.resources.scrap).toBe(unchanged)
+    const afterExact = buyCoreStartingLevel(s, ids[1]!)
+    expect(coreStartingLevel(afterExact, ids[0]!)).toBe(0)
+    expect(coreStartingLevel(afterExact, ids[1]!)).toBe(1)
+  })
+
+  it('round-trips the exact v45 instance list without reconstructing from counts', () => {
+    const s = createInitialState(0)
+    grantModuleCopy(s, 'pulse-cannon')
+    s.shipyard.coreInstances[0]!.targetingDoctrine = 'focus'
+    const ids = s.shipyard.coreInstances.map((row) => row.id)
+    const loaded = importSave(exportSave(s))!
+    expect(loaded.shipyard.coreInstances.map((row) => row.id)).toEqual(ids)
+    expect(loaded.shipyard.coreInstances[0]!.targetingDoctrine).toBe('focus')
+    expect(moduleCopyCount(loaded, 'pulse-cannon')).toBe(2)
+  })
+})
+
 describe('Core stat composition', () => {
   it('combines shared Mastery and the physical copy Core Level', () => {
     let s = createInitialState(0)
-    s.shipyard.moduleLevels = { 'pulse-cannon': 40 }
     const leftover = computeShipStats(s).damage
-    s.shipyard.moduleLevels = {}
-    expect(computeShipStats(s).damage).toBe(leftover)
 
     applyMasteryXp(s, 'pulse-cannon', 2000)
     const mastered = computeShipStats(s).damage

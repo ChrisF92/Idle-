@@ -53,9 +53,10 @@ describe('playtest fix pass', () => {
     expect(s.shipyard.frameLocked).toBe(false)
   })
 
-  it('shows every Frame slot in Attack, Defense, Utility order', () => {
+  it('shows universal Core slots with role tags, not typed legality', () => {
     const state = createInitialState(0)
-    state.shipyard.frameId = 'bastion-frame'
+    state.shipyard.unlockedFrames = ['starter-frame', 'swarm-frame']
+    state.shipyard.frameId = 'swarm-frame'
 
     render(
       <OverlayProvider>
@@ -73,13 +74,14 @@ describe('playtest fix pass', () => {
     expect(rows.map((row) => row.querySelector('strong')?.textContent)).toEqual([
       'Pulse Cannon',
       'Plate Layer',
-      'Empty Defense Slot',
-      'Empty Defense Slot',
-      'Empty Utility Slot',
+      'Empty Core Slot 3',
     ])
     expect(rows[0]?.querySelector('.ui-meta')?.textContent).toMatch(/^Attack · Lv0 · M/)
+    expect(rows[1]?.querySelector('.ui-meta')?.textContent).toMatch(/^Defense · Lv0 · M/)
+    expect(screen.queryByText(/Empty Defense Slot/)).toBeNull()
+    expect(screen.queryByText(/Empty Utility Slot/)).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: /empty utility slot/i }))
+    fireEvent.click(screen.getByRole('button', { name: /empty core slot 3/i }))
     expect(screen.getByText('Fit Core')).toBeTruthy()
   })
 
@@ -185,7 +187,7 @@ describe('playtest fix pass', () => {
     expect(screen.getByText(/assigned/)).toBeTruthy()
   })
 
-  it('lists Fabrication drop Waves and families instead of enemy-family mismatch copy', () => {
+  it('does not list leftover Foundry cards for the final 14 Cores', () => {
     const state = atCareerWave(markHullLost(createInitialState(0)), 80)
     render(
       <FoundryTab
@@ -196,8 +198,8 @@ describe('playtest fix pass', () => {
       />,
     )
     expect(screen.queryByText(/fragments do not drop from this enemy family/i)).toBeNull()
-    expect(screen.getByText(/Flak Array/)).toBeTruthy()
-    expect(screen.getAllByText(/Swarm · Wave \d+\+/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Flak Array/)).toBeNull()
+    expect(screen.queryByText(/Heavy Lance/)).toBeNull()
   })
 
   it('writes Frame, Workshop, and Systems on the playtest report', () => {

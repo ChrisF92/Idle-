@@ -65,7 +65,6 @@ function OverlayOnboardingHarness({
       <CombatTab
         state={state}
         onLaunch={() => undefined}
-        onPickMilestone={() => undefined}
         onPause={onPause}
         onResume={onResume}
         onCombatOverlayUi={setOverlayUi}
@@ -89,7 +88,7 @@ describe('Combat Overlay UI', () => {
     render(
       wrap(
         <>
-          <CombatTab state={live} onLaunch={() => undefined} onPickMilestone={() => undefined} />
+          <CombatTab state={live} onLaunch={() => undefined} />
           {showGlobalBottomNav(live, 'combat') ? (
             <TabNav active="combat" onChange={() => undefined} state={live} />
           ) : null}
@@ -111,7 +110,6 @@ describe('Combat Overlay UI', () => {
         <CombatTab
           state={live}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
           onPause={() => {
             pauses.push(true)
             live.combat.sortiePaused = true
@@ -154,7 +152,6 @@ describe('Combat Overlay UI', () => {
         <CombatTab
           state={live}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
           onPause={() => {
             live.combat.sortiePaused = true
           }}
@@ -189,7 +186,6 @@ describe('Combat Overlay UI', () => {
         <CombatTab
           state={state}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
           onPause={() => {
             state = setSortiePaused(state, true)
           }}
@@ -208,7 +204,6 @@ describe('Combat Overlay UI', () => {
         <CombatTab
           state={state}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
         />,
       ),
     )
@@ -220,7 +215,7 @@ describe('Targeting configuration foundation', () => {
   it('does not show Targeting to a locked account', () => {
     const live = liveSortie()
     expect(targetCapableLoadoutCores(live).length).toBeGreaterThan(0)
-    render(wrap(<CombatTab state={live} onLaunch={() => undefined} onPickMilestone={() => undefined} />))
+    render(wrap(<CombatTab state={live} onLaunch={() => undefined} />))
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
     expect(screen.queryByRole('menuitem', { name: 'Targeting' })).toBeNull()
   })
@@ -272,7 +267,6 @@ describe('Targeting configuration foundation', () => {
         <CombatTab
           state={state}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
           onPause={() => {
             state = setSortiePaused(state, true)
           }}
@@ -366,7 +360,6 @@ describe('Combat Overlay onboarding', () => {
         <CombatTab
           state={state}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
           onPause={() => {
             state.combat.sortiePaused = true
           }}
@@ -389,7 +382,6 @@ describe('Combat Overlay onboarding', () => {
         <CombatTab
           state={state}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
           onPause={() => {
             state.combat.sortiePaused = true
           }}
@@ -414,7 +406,6 @@ describe('Combat Overlay onboarding', () => {
         <CombatTab
           state={live}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
           onPause={() => {
             live.combat.sortiePaused = true
           }}

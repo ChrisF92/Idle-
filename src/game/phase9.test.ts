@@ -22,7 +22,7 @@ import { waveForBand } from './waves'
 
 describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('bumps save and keeps Specialists locked until 68', () => {
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR - 1
@@ -88,7 +88,6 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
 
   it('L0 Plate still holds sector 1', () => {
     let s = createInitialState(0)
-    expect(s.shipyard.moduleLevels['plate-layer'] ?? 0).toBe(0)
     expect(computeShipStats(s).shieldMax).toBe(30)
     s = setDocked(s, false)
     advanceSeconds(s, 12)
@@ -99,7 +98,6 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('weapon-only Pulse dump dies at S8 with L0 Plate', () => {
     let s = createInitialState(0)
     s.combat.wave = waveForBand(8)
-    s.shipyard.moduleLevels = { 'pulse-cannon': 20, 'plate-layer': 0 }
     expect(computeShipStats(s).shieldMax).toBe(30)
     s = startCombat(s)
     advanceSeconds(s, 45)
@@ -110,7 +108,6 @@ describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('weapon-only Pulse dump dies at S15 with L0 Plate', () => {
     let s = createInitialState(0)
     s.combat.wave = waveForBand(15)
-    s.shipyard.moduleLevels = { 'pulse-cannon': 25, 'plate-layer': 0 }
     expect(computeShipStats(s).shieldMax).toBe(30)
     expect(enemySectorScale(15)).toBeGreaterThan(enemySectorScale(1) * 10)
     s = startCombat(s)

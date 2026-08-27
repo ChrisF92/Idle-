@@ -143,13 +143,12 @@ export const FOUNDRY_RECIPES: FoundryRecipeDef[] = [
   {
     id: 'temper-bar',
     name: 'Temper Bar',
-    blurb: 'Stock and wire pressed together. First print also unlocks the Swarm Frame.',
+    blurb: 'Stock and wire pressed together.',
     maxLevel: 100,
     craftTime: 180,
     costs: { materials: { 'slag-ingot': 2, filament: 1 } },
     requiresBestWave: 30,
     requiresRecipeLevel: { recipeId: 'slag-ingot', level: 5 },
-    unlocksFrame: 'swarm-frame',
   },
   {
     id: 'brace-pin',
@@ -787,11 +786,6 @@ function grantPendingCore(state: GameState, moduleId: string): void {
   if (!state.meta.discoveredModules.includes(moduleId)) {
     state.meta.discoveredModules = [...state.meta.discoveredModules, moduleId]
   }
-  state.shipyard.moduleCopies = {
-    ...(state.shipyard.moduleCopies ?? {}),
-    [moduleId]: Math.max(1, (state.shipyard.moduleCopies?.[moduleId] ?? 0) + 1),
-  }
-  state.meta.lifetimeFabCrafts = (state.meta.lifetimeFabCrafts ?? 0) + 1
 }
 
 function applyPendingRelic(state: GameState, relic: PendingRelicUpgrade): void {

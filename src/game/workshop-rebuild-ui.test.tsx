@@ -25,7 +25,6 @@ describe('Workshop and Rebuild onboarding UI', () => {
         <CombatTab
           state={s}
           onLaunch={() => undefined}
-          onPickMilestone={() => undefined}
         />
       </OverlayProvider>,
     )

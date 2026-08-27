@@ -24,7 +24,7 @@ import type {
 } from './types'
 import { NETWORK_BAR_IDS } from './types'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
-import { AI_NODES, resolveFrameId, getFrame, STARTER_FRAME_ID, PART_TYPES, partId } from './catalog'
+import { AI_NODES, resolveFrameId, getFrame, PART_TYPES, partId } from './catalog'
 import { CORE_ATTR_IDS, createEmptyCoreState } from './core'
 import {
   SIGNAL_CORE_MAX_RANK,
@@ -48,7 +48,7 @@ import { createFreshCareerState } from './freshStart'
 import { hydratePlaytest, noteSessionStart } from './playtest'
 import { emptySortieRunStats, hydrateSortieRunStats } from './sortieTelemetry'
 import { emptyWaveRuntime } from './waveRuntime'
-import { normalizeCoreInstances, resolveCoreInstance } from './coreInstances'
+import { normalizeCoreInstances } from './coreInstances'
 
 export function saveGame(state: GameState): void {
   try {
@@ -128,8 +128,6 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     isBoss: combat.isBoss ?? false,
     bestWave: Math.max(0, Math.floor(Number(combat.bestWave ?? 0) || 0)),
     runUpgrades: { ...(combat.runUpgrades ?? {}) },
-    coreRunLevels: {},
-    coreSalvageSpent: {},
     coreMasteryStart: { ...(combat.coreMasteryStart ?? {}) },
     coreMasteryXp: { ...(combat.coreMasteryXp ?? {}) },
     coreBossClears: { ...(combat.coreBossClears ?? {}) },
@@ -214,6 +212,7 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     directiveOffer: Array.isArray(combat.directiveOffer)
       ? combat.directiveOffer.filter((id): id is string => typeof id === 'string')
       : null,
+    coreRuntime: combat.coreRuntime,
   }
 }
 
@@ -292,14 +291,10 @@ function withShipyardDefaults(
     ...base,
     ...shipyard,
     unlockedFrames: (shipyard?.unlockedFrames ?? base.unlockedFrames)
-      .map((id) => (id === 'scout-frame' ? STARTER_FRAME_ID : id))
       .filter((id) => Boolean(getFrame(id))),
     unlockedModules: shipyard?.unlockedModules ?? base.unlockedModules,
     modules: shipyard?.modules ?? base.modules,
     frameId: resolveFrameId(shipyard?.frameId ?? base.frameId),
-    moduleLevels: shipyard?.moduleLevels ?? {},
-    moduleCopies: { ...(shipyard?.moduleCopies ?? base.moduleCopies ?? {}) },
-    corePicks: shipyard?.corePicks ?? {},
     frameLocked: shipyard?.frameLocked ?? false,
   }
   return normalizeCoreInstances(hydrated)
@@ -479,16 +474,15 @@ function withReliquaryDefaults(raw: ReliquaryState | undefined): ReliquaryState 
   return { owned, slots, coreFits }
 }
 
-/** Move legacy module-definition relic keys onto stable physical Core instance IDs. */
-export function migrateCoreFitInstances(state: GameState): void {
-  normalizeCoreInstances(state.shipyard)
-  const migrated: ReliquaryState['coreFits'] = {}
-  for (const [key, slots] of Object.entries(state.reliquary.coreFits ?? {})) {
-    const instance = resolveCoreInstance(state, key)
-    const target = instance?.id ?? key
-    if (!migrated[target]) migrated[target] = [...slots]
+/** Drop malformed Relic fits that are not keyed to a physical Core instance. */
+export function sanitizeCoreFits(state: GameState): void {
+  const ids = new Set((state.shipyard.coreInstances ?? []).map((instance) => instance.id))
+  const next: ReliquaryState['coreFits'] = {}
+  for (const [key, slots] of Object.entries(state.reliquary?.coreFits ?? {})) {
+    if (!ids.has(key) || !Array.isArray(slots)) continue
+    next[key] = [...slots]
   }
-  state.reliquary.coreFits = migrated
+  if (state.reliquary) state.reliquary.coreFits = next
 }
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
@@ -703,6 +697,12 @@ function withMetaDefaults(
       economy: Math.max(2, Math.floor(Number(meta?.genericUpgradeUnlocks?.economy ?? 2) || 2)),
     },
     extractionExplained: meta?.extractionExplained === true,
+    coreSlotGrants: Array.isArray(meta?.coreSlotGrants)
+      ? meta.coreSlotGrants.filter(
+          (row): row is NonNullable<GameState['meta']['coreSlotGrants']>[number] =>
+            Boolean(row && typeof row.id === 'string' && Number(row.slots) > 0),
+        )
+      : [],
   }
 }
 
@@ -831,7 +831,7 @@ function migrate(raw: unknown): GameState | null {
       parts: withPartsDefaults(state.parts),
       playtest: hydratePlaytest(state.playtest),
     }
-    migrateCoreFitInstances(hydrated)
+    sanitizeCoreFits(hydrated)
     finalizeProcessMigration(hydrated)
     finalizeFurnaceMigration(hydrated)
     migrateOnboardingRegistry(hydrated)

@@ -12,17 +12,12 @@ import { RUN_UPGRADES, runUpgradeEffectLine } from './workshop'
 import { YARD_ARMS, yardArmEffect } from './yard'
 
 describe('upgrade copy is quantitative', () => {
-  it('formats Plate Layer mastery from the numbers', () => {
+  it('formats Plate Layer mastery from authored slots, not invented percents', () => {
     const plate = masteryMilestonesFor('plate-layer')
-    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 5)!)).toBe('Shield ×1.12')
-    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 10)!)).toBe('Regen +2%/s')
-    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 20)!)).toBe('+1 Shield Relic socket')
-    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 30)!)).toBe('Core Level scaling ×1.10')
-    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 50)!)).toBe('Shield ×1.15 · Regen +2%/s')
-    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 75)!)).toBe('Damage ×1.06 · Shield ×1.06')
-    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 100)!)).toBe(
-      'Damage ×1.10 · Shield ×1.08 · Core Level scaling ×1.08',
-    )
+    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 5)!)).toMatch(/awaiting authored/)
+    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 10)!)).toMatch(/awaiting authored/)
+    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 20)!)).toMatch(/Relic capability expands/)
+    expect(masteryMilestoneEffect(plate.find((ms) => ms.level === 100)!)).toMatch(/Capstone Shield skin/)
   })
 
   it('formats every authored Core mastery from its fields', () => {
@@ -31,7 +26,13 @@ describe('upgrade copy is quantitative', () => {
         const line = masteryMilestoneEffect(ms)
         expect(line.length, `${id} M${ms.level}`).toBeGreaterThan(0)
         expect(line).not.toMatch(/evolves|understood|Synergy|thicken the bank|scale harder/i)
-        expect(line).toMatch(/×|\+|RoF|Range|Splash|socket|Regen|Salvage|Damage|Shield|Core Level/)
+        if (ms.pending) {
+          expect(line, `${id} M${ms.level}`).toMatch(/awaiting authored/)
+        } else if (ms.effect === 'socket-expand') {
+          expect(line, `${id} M${ms.level}`).toMatch(/Relic capability/)
+        } else {
+          expect(line, `${id} M${ms.level}`).toBe(ms.blurb)
+        }
       }
     }
   })

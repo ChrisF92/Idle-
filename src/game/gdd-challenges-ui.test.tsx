@@ -11,12 +11,11 @@ function challengeState() {
   s.prestige.prestigeCount = CHALLENGE_MIN_REBUILDS
   s.hiveResearch.completed.energy = 1
   s.combat.docked = true
-  s.shipyard.moduleLevels['pulse-cannon'] = 4
-  s.shipyard.moduleLevels['plate-layer'] = 4
   s.foundry.recipeLevels['slag-ingot'] = 1
   s.base.assignments['scrap-field'] = 2
   s.resources.choirAsh = 12
-  s.reliquary.coreFits = { 'pulse-cannon': ['relic-test'] }
+  s.workshop.coreStarts = { 'pulse-cannon:1': 4, 'plate-layer:1': 4 }
+  s.reliquary.coreFits = { 'pulse-cannon:1': ['relic-test'] }
   return s
 }
 

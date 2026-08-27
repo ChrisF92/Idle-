@@ -13,13 +13,12 @@ import {
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
 import { type BuyMode } from '../../game/workshop'
-import { type ModuleRole, frameRoleCap, getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
-import { hiveResearchExtraUtilitySlots } from '../../game/hiveResearch'
+import { type ModuleRole, getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
+import { usableCoreSlots, frameSlotSummary } from '../../game/coreSlots'
 import { isSystemUnlocked } from '../../game/progression'
 import { SheetTabs } from '../SheetTabs'
 import { CoreDetailSheet, CorePicker, FrameSheet } from '../LoadoutSheets'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
-import { frameBlurb } from '../../game/inventory'
 import { ResourceBar } from '../ResourceBar'
 import { DockHivePreview } from '../DockHivePreview'
 import { MatterShopSheet } from '../RebuildHangar'
@@ -37,7 +36,6 @@ import { coreStartingLevel } from '../../game/coreProgression'
 
 export type DockPane = 'home' | 'loadout' | 'workshop' | 'rebuild'
 
-const LOADOUT_ROLE_ORDER: ModuleRole[] = ['weapon', 'defense', 'utility']
 const LOADOUT_ROLE_LABEL: Record<ModuleRole, string> = {
   weapon: 'Attack',
   defense: 'Defense',
@@ -52,9 +50,6 @@ interface DockTabProps {
   onBuyWorkshop?: (id: RunUpgradeId, count?: number) => void
   onUnlockGeneric?: (category: RunUpgradeCategory) => void
   onBuyMatter?: (itemId: string) => void
-  onUpgrade?: (moduleId: string) => void
-  onPickMilestone?: (moduleId: string, milestoneId: string, choiceId: string) => void
-  onBuyMaxCores?: () => void
   onEquipRelic?: (moduleId: string, relicId: string, socketIndex?: number) => void
   onRemoveRelic?: (moduleId: string, socketIndex?: number) => void
   onUpgradeRelic?: (relicId: string) => void
@@ -76,9 +71,9 @@ export function DockTab({
   onBuyWorkshop,
   onUnlockGeneric,
   onBuyMatter,
-  onEquipRelic,
-  onRemoveRelic,
-  onUpgradeRelic,
+  onEquipRelic: _onEquipRelic,
+  onRemoveRelic: _onRemoveRelic,
+  onUpgradeRelic: _onUpgradeRelic,
   onSelectFrame,
   onFitCore,
   onUnfitCore,
@@ -101,17 +96,12 @@ export function DockTab({
     coreInstanceId: coreInstanceAtSlot(state, slot)?.id,
     role: getModule(moduleId)?.role,
   }))
-  const loadoutSlots = frame
-    ? LOADOUT_ROLE_ORDER.flatMap((role) => {
-        const modules = fittedCores.filter((core) => core.role === role)
-        const capacity = frameRoleCap(frame, role, { utility: hiveResearchExtraUtilitySlots(state) })
-        return Array.from({ length: capacity }, (_, index) => ({
-          role,
-          moduleId: modules[index]?.moduleId,
-          coreInstanceId: modules[index]?.coreInstanceId,
-        }))
-      })
-    : []
+  const usable = usableCoreSlots(state)
+  const loadoutSlots = Array.from({ length: usable }, (_, index) => ({
+    moduleId: fittedCores[index]?.moduleId,
+    coreInstanceId: fittedCores[index]?.coreInstanceId,
+    role: fittedCores[index]?.role,
+  }))
   const [localPane, setLocalPane] = useState<DockPane>('home')
   const pane = paneProp ?? localPane
   const setPane = (next: DockPane) => {
@@ -230,7 +220,7 @@ export function DockTab({
               <SectionHeader title="Frame" />
               <ItemRow
                 title={frame?.name ?? 'Hive'}
-                meta={frameBlurb(state)}
+                meta={`${frame?.identity ?? 'Hive'} · ${frameSlotSummary(state)}`}
                 onClick={() => setFrameOpen(true)}
               />
             </Section>
@@ -240,7 +230,7 @@ export function DockTab({
               </div>
               {loadoutSlots.map(({ role, moduleId, coreInstanceId }, index) => {
                 const def = moduleId ? getModule(moduleId) : undefined
-                const roleLabel = LOADOUT_ROLE_LABEL[role]
+                const roleTag = role ? LOADOUT_ROLE_LABEL[role] : 'Universal'
                 const copyCount = moduleId
                   ? state.shipyard.coreInstances.filter(
                       (instance) => instance.moduleId === moduleId,
@@ -253,23 +243,23 @@ export function DockTab({
                 const level = coreInstanceId
                   ? coreStartingLevel(state, coreInstanceId)
                   : 0
-                const title = moduleId ? (def?.name ?? moduleId) : `Empty ${roleLabel} Slot`
+                const title = moduleId ? (def?.name ?? moduleId) : `Empty Core Slot ${index + 1}`
                 return (
                   <div
-                    key={coreInstanceId ?? `${role}-${index}`}
+                    key={coreInstanceId ?? `slot-${index}`}
                     className={`dock-core-slot${moduleId ? ' is-equipped' : ''}`}
                   >
                     <ItemRow
                       title={title}
                       meta={
                         moduleId
-                          ? `${roleLabel}${copyLabel} · Lv${level} · M${moduleMasteryRank(state, moduleId)}`
-                          : 'Tap to fit a Core'
+                          ? `${roleTag}${copyLabel} · Lv${level} · M${moduleMasteryRank(state, moduleId)}`
+                          : 'Tap to fit any Core'
                       }
                       guide={moduleId ? `core-${moduleId}` : undefined}
                       onClick={() => {
                         if (moduleId) setCoreDetail({ moduleId, coreInstanceId })
-                        else setPicker({ role })
+                        else setPicker({})
                       }}
                     />
                     {moduleId && coreInstanceId ? (
@@ -390,9 +380,6 @@ export function DockTab({
             })
           }
           onClose={() => setCoreDetail(null)}
-          onEquipRelic={locked ? undefined : onEquipRelic}
-          onRemoveRelic={locked ? undefined : onRemoveRelic}
-          onUpgradeRelic={locked ? undefined : onUpgradeRelic}
           onUpgradeCore={locked ? undefined : onUpgradeCore}
         />
       ) : null}

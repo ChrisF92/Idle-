@@ -39,7 +39,7 @@ function furnaceReady(sector = 28) {
 
 describe('Furnace 2.0 heat tank', () => {
   it('keeps SAVE_VERSION at 34', () => {
-    expect(SAVE_VERSION).toBe(44)
+    expect(SAVE_VERSION).toBe(45)
   })
 
   it('generates idle Heat into storage up to capacity', () => {

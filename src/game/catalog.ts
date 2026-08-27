@@ -1,5 +1,6 @@
 /** Game content catalogs — costs, unlocks, and combat profiles. */
 
+import { LEGACY_CORE_IDS, SHIP_MODULE_DEFS } from './coreCatalogue'
 import { careerBestWave, isSystemUnlocked } from './progression'
 import { WORKER_JOB_IDS, workerJobContribution, workerJobHasWork } from './workers'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
@@ -17,7 +18,16 @@ import {
   type MatterShopCategory,
   type MatterShopDef,
 } from './matter'
-import type { CoreAttrId, FoundryRecipeId, GameState, PartType, Resources, WeaponDelivery, WeaponTag } from './types'
+import type {
+  CoreAttrId,
+  FoundryRecipeId,
+  GameState,
+  PartType,
+  RelicSocketSpec,
+  Resources,
+  WeaponDelivery,
+  WeaponTag,
+} from './types'
 
 export {
   MATTER_SHOP,
@@ -212,6 +222,8 @@ export interface ModuleWeaponDef {
   range: number
   tags: WeaponTag[]
   splash?: number
+  /** Flak / area weapons: explosion radius in simulation units. */
+  explosionRadius?: number
   dotDuration?: number
   dotDamage?: number
   /** USI hull / shield / armor damage multipliers. */
@@ -224,26 +236,32 @@ export interface ModuleWeaponDef {
   telegraphDuration?: number
 }
 
-/**
- * Retired per-Sortie Core level cap retained by compatibility helpers.
- * Current physical Core Levels use CORE_START_LEVEL_CAP.
- */
-export const MAX_MODULE_LEVEL = 110
-
 export type ModuleRole = 'weapon' | 'defense' | 'utility'
 
-export type FrameUnlockSource = 'start' | 'wave' | 'foundry' | 'research' | 'challenge'
+export type FrameUnlockSource = 'start' | 'wave' | 'material-mastery' | 'challenge'
+
+export type CoreUnlockSource =
+  | 'start'
+  | 'wave'
+  | 'material-mastery'
+  | 'foundry'
+  | 'challenge'
+  | 'furnace'
+
+export type CoreSlewClass = 'slow' | 'medium' | 'fast' | 'very-fast'
 
 export const STARTER_FRAME_ID = 'starter-frame'
+export const STANDARD_FRAME_ID = STARTER_FRAME_ID
+export const SWARM_FRAME_ID = 'swarm-frame'
 
 export interface ShipFrameDef {
   id: string
   name: string
   description: string
-  /** Attack / weapon module capacity. */
-  weaponSlots: number
-  defenseSlots: number
-  utilitySlots: number
+  /** Short identity line shown in Frame presentation. */
+  identity: string
+  /** Meaningful tradeoff vs other Frames. */
+  tradeoff: string
   /**
    * Intrinsic Hive weapon damage. Act 1 Frames fire only equipped Cores —
    * starter hulls use 0 (no free frame battery).
@@ -257,19 +275,23 @@ export interface ShipFrameDef {
   shieldMult?: number
   /** Multiplier on fitted Core weapon damage. */
   coreDamageMult?: number
-  /** Combat Salvage pickup multiplier. */
+  /** Combat Salvage pickup multiplier. Combat rewards only. */
   salvageMult?: number
-  /** Combat scrap drop multiplier. */
+  /** Combat scrap drop multiplier. Combat rewards only. */
   scrapMult?: number
-  /** Ash drop multiplier. */
+  /** Combat Ash drop multiplier. Combat rewards only. */
   ashMult?: number
-  /** Ash → Heat conversion multiplier. */
+  /** Ash → Heat conversion multiplier. PR8 Furnace consumes this. */
   heatMult?: number
-  /** Furnace channel output multiplier. */
+  /** Furnace channel output multiplier. PR8 consumes this. Never extra channels. */
   furnaceOutputMult?: number
+  /** Always 0 in Act 1. Exposed so PR8 does not invent extra Reactor channels. */
+  extraFurnaceChannels: 0
+  /** Modest targeting responsiveness. Composed through PR2 slew modifiers. */
+  targetingSlewMult?: number
+  /** Offline Foundry must stay 1. Harvester never exploits industry. */
+  foundryOutputMult?: number
   unlockCost: ResourceCost
-  /** Career best Wave required (wave-source Frames, or flavor floor). */
-  requiresBestWave?: number
   unlockSource: FrameUnlockSource
 }
 
@@ -278,37 +300,31 @@ export interface ShipModuleDef {
   name: string
   role: ModuleRole
   description: string
+  identity: string
+  /** Simulation orbit radius. Canonical seed band 38–58. */
+  orbitRadius: number
+  unlockSource: CoreUnlockSource
+  /** Mature Relic socket layout. PR6 consumes this; PR4 authors it. */
+  matureSockets: RelicSocketSpec[]
   /** Used for DPS estimates when no weapon profile is present. */
   damageBonus: number
   hullBonus: number
-  /** Flat hull added per Core Level. Omit to keep the old 8%/level curve. */
   hullBonusPerLevel?: number
   armorBonus?: number
   armorBonusPerLevel?: number
   shieldBonus?: number
-  /** Flat shield added per Core Level (historical USI Continuous Generator: +5). */
   shieldBonusPerLevel?: number
   /**
-   * In-combat shield regen as a fraction of max shields per second
-   * (USI Continuous Generator: 0.05).
+   * In-combat shield regen as a fraction of max shields per second.
    */
   shieldRegen?: number
   evasionBonus?: number
-  /** Multiplier on incoming damage (0.9 = take 10% less). */
   damageTakenMult: number
   weapon?: ModuleWeaponDef
-  /** Combat escort drones spawned from this module. Retired — Hiveworks keeps guns on the ship. */
   escorts?: number
-  /** Extra salvage from kills while fitted (utility Cores). */
   salvageKillBonus?: number
-  /** Retired per-Sortie cost base retained by compatibility simulations. */
-  upgradeBaseCost?: number
-  /** Retired per-Sortie cost scaling retained by compatibility simulations. */
-  upgradeCostScaling?: number
   unlockCost: ResourceCost
   requiresBestWave?: number
-  /** Challenge shop schematic id required before scrap unlock (rank ≥ 1). */
-  requiresChallengeShop?: string
 }
 
 /** Rebuild hangar gate. cadence.ts is dependency-free, so this stays cycle-safe. */
@@ -943,97 +959,92 @@ export const CHALLENGES: ChallengeDef[] = [
 export const SHIP_FRAMES: ShipFrameDef[] = [
   {
     id: STARTER_FRAME_ID,
-    name: 'Starter Frame',
-    description: 'Balanced Hive. Two slots: Pulse and Plate. Sidegrades replace this; they do not obsolete it.',
-    weaponSlots: 1,
-    defenseSlots: 1,
-    utilitySlots: 0,
+    name: 'Standard',
+    identity: 'Balanced generalist. Modest targeting responsiveness. No economic gimmick.',
+    tradeoff: 'No specialist bonus — and no specialist tax. Valid at W1000.',
+    description:
+      'Balanced Hive and a competent W1000 hull. Modest targeting responsiveness. Sidegrades specialise; they do not obsolete Standard.',
     baseDamage: 0,
     baseHull: 40,
+    targetingSlewMult: 1.08,
+    extraFurnaceChannels: 0,
+    foundryOutputMult: 1,
     unlockCost: {},
     unlockSource: 'start',
   },
   {
     id: 'bastion-frame',
-    name: 'Bastion Frame',
-    description: 'Hull, Shield, and defensive Core room. Fewer guns.',
-    weaponSlots: 1,
-    defenseSlots: 3,
-    utilitySlots: 1,
+    name: 'Bastion',
+    identity: 'Hull / Shield defensive bias with a heavier, slower feel.',
+    tradeoff: 'Lower offensive efficiency. Not immunity and not a mandatory survival hull.',
+    description:
+      'Heavier Hive with more Hull and Shield. Cores hit less hard and slew more slowly. A defensive bias, not an immunity frame.',
     baseDamage: 0,
     baseHull: 58,
     baseShield: 16,
     hullMult: 1.12,
     shieldMult: 1.2,
     coreDamageMult: 0.9,
+    targetingSlewMult: 0.82,
+    extraFurnaceChannels: 0,
+    foundryOutputMult: 1,
     unlockCost: {},
-    requiresBestWave: 70,
-    unlockSource: 'wave',
+    unlockSource: 'material-mastery',
   },
   {
-    id: 'swarm-frame',
-    name: 'Swarm Frame',
-    description: 'More Core slots. Weaker Hive and a little less punch per Core.',
-    weaponSlots: 3,
-    defenseSlots: 2,
-    utilitySlots: 1,
+    id: SWARM_FRAME_ID,
+    name: 'Swarm',
+    identity: 'Only Act 1 Frame with +1 Core position, capped at six.',
+    tradeoff: 'Weaker Hive baseline and reduced per-Core output. The extra Core is the build.',
+    description:
+      'One extra universal Core position relative to the account bus, never above six. The Hive is thinner and each Core hits less hard.',
     baseDamage: 0,
     baseHull: 30,
     hullMult: 0.88,
     coreDamageMult: 0.85,
+    extraFurnaceChannels: 0,
+    foundryOutputMult: 1,
     unlockCost: {},
-    requiresBestWave: 50,
-    unlockSource: 'foundry',
+    unlockSource: 'challenge',
   },
   {
     id: 'reactor-frame',
-    name: 'Reactor Frame',
-    description: 'Furnace and Heat run hotter. The Hive itself is thinner.',
-    weaponSlots: 2,
-    defenseSlots: 1,
-    utilitySlots: 1,
+    name: 'Reactor',
+    identity: 'Ash→Heat and Furnace output specialist. Fragile baseline. No extra channels.',
+    tradeoff: 'Thinner Hive. Furnace runs hotter; channel count does not increase.',
+    description:
+      'Improved Ash→Heat conversion and Furnace channel strength. The Hive itself is fragile. Does not grant extra Furnace channels.',
     baseDamage: 0,
     baseHull: 28,
     hullMult: 0.85,
     heatMult: 1.35,
     furnaceOutputMult: 1.2,
+    extraFurnaceChannels: 0,
+    foundryOutputMult: 1,
     unlockCost: {},
-    requiresBestWave: 170,
-    unlockSource: 'research',
+    unlockSource: 'wave',
   },
   {
     id: 'harvester-frame',
-    name: 'Harvester Frame',
-    description: 'Salvage, Scrap, and Ash. Lower direct combat.',
-    weaponSlots: 1,
-    defenseSlots: 1,
-    utilitySlots: 3,
+    name: 'Harvester',
+    identity: 'Combat-economy Frame. Salvage / Scrap / Ash bias.',
+    tradeoff: 'Lower frontier combat. Never multiplies offline Foundry production.',
+    description:
+      'Combat Salvage, Scrap, and Ash pay more. Per-Core output is lower. Foundry jobs are unchanged while this Frame is equipped.',
     baseDamage: 0,
     baseHull: 34,
     coreDamageMult: 0.8,
     salvageMult: 1.2,
     scrapMult: 1.15,
     ashMult: 1.25,
+    extraFurnaceChannels: 0,
+    foundryOutputMult: 1,
     unlockCost: {},
-    requiresBestWave: 250,
     unlockSource: 'challenge',
   },
 ]
 
-export function frameTotalSlots(frame: ShipFrameDef): number {
-  return frame.weaponSlots + frame.defenseSlots + frame.utilitySlots
-}
-
-export function frameRoleCap(
-  frame: ShipFrameDef,
-  role: ModuleRole,
-  extra: Partial<Record<ModuleRole, number>> = {},
-): number {
-  const base = role === 'weapon' ? frame.weaponSlots : role === 'defense' ? frame.defenseSlots : frame.utilitySlots
-  return base + Math.max(0, extra[role] ?? 0)
-}
-
-/** Count fitted modules by role. */
+/** Role counts for statistics / filters. Not slot legality. */
 export function fittedRoleSlotCounts(
   moduleIds: string[],
 ): Record<ModuleRole, number> {
@@ -1049,39 +1060,27 @@ export function fittedRoleSlotCounts(
   return counts
 }
 
-/** Keep modules that fit the frame's role caps (preserves order). */
-export function trimModulesToFrame(
-  moduleIds: string[],
-  frame: ShipFrameDef,
-  extra: Partial<Record<ModuleRole, number>> = {},
-): string[] {
+export function canFitModuleOnFrame(
+  fittedModuleIds: string[],
+  moduleId: string,
+  usableSlots: number,
+): boolean {
+  if (!getModule(moduleId)) return false
+  return fittedModuleIds.length < usableSlots
+}
+
+export function trimModulesToFrame(moduleIds: string[], usableSlots: number): string[] {
   const kept: string[] = []
-  const used: Record<ModuleRole, number> = {
-    weapon: 0,
-    defense: 0,
-    utility: 0,
-  }
   for (const id of moduleIds) {
-    const role = getModule(id)?.role
-    if (!role) continue
-    if (used[role] >= frameRoleCap(frame, role, extra)) continue
-    used[role] += 1
+    if (!getModule(id)) continue
+    if (kept.length >= usableSlots) break
     kept.push(id)
   }
   return kept
 }
 
-export function canFitModuleOnFrame(
-  frame: ShipFrameDef,
-  fittedModuleIds: string[],
-  moduleId: string,
-  extra: Partial<Record<ModuleRole, number>> = {},
-  _copies = 1,
-): boolean {
-  const mod = getModule(moduleId)
-  if (!mod) return false
-  const used = fittedRoleSlotCounts(fittedModuleIds)
-  return used[mod.role] < frameRoleCap(frame, mod.role, extra)
+export function frameTotalSlots(_frame: ShipFrameDef, usableSlots: number): number {
+  return usableSlots
 }
 
 export function resolveFrameId(frameId: string | undefined | null): string {
@@ -1116,18 +1115,49 @@ export function frameCoreDamageMult(state: GameState): number {
   return equippedFrame(state).coreDamageMult ?? 1
 }
 
+export function frameFoundryOutputMult(state: GameState): number {
+  return equippedFrame(state).foundryOutputMult ?? 1
+}
+
+export function frameTargetingSlewMult(state: GameState): number {
+  return equippedFrame(state).targetingSlewMult ?? 1
+}
+
+/** PR8 consumes this. Extra channels stay 0 for every Act 1 Frame. */
+export function frameFurnaceModifiers(state: GameState): {
+  ashToHeatMult: number
+  furnaceOutputMult: number
+  extraChannels: 0
+} {
+  const frame = equippedFrame(state)
+  return {
+    ashToHeatMult: frame.heatMult ?? 1,
+    furnaceOutputMult: frame.furnaceOutputMult ?? 1,
+    extraChannels: 0,
+  }
+}
+
+/**
+ * Locked Frames do not advertise unimplemented later-system acquisition.
+ * Owned / equipped state is shown by the UI separately.
+ */
 export function frameUnlockLine(frame: ShipFrameDef): string {
   switch (frame.unlockSource) {
     case 'start':
       return 'Starter Frame'
+    case 'material-mastery':
     case 'wave':
-      return `Reach Wave ${frame.requiresBestWave ?? 0}`
-    case 'foundry':
-      return 'Foundry: fabricate Temper Bar'
-    case 'research':
-      return 'Research: Extra Tap'
     case 'challenge':
-      return 'Challenge: clear Swarm Pressure'
+      return 'Not yet obtainable'
+  }
+}
+
+export function coreUnlockLine(mod: ShipModuleDef): string {
+  switch (mod.unlockSource) {
+    case 'start':
+      return 'Starter Core'
+    default:
+      return 'Not yet obtainable'
   }
 }
 
@@ -1139,452 +1169,14 @@ export function grantUnlockedFrame(state: GameState, frameId: string, log?: stri
   return true
 }
 
-export const SHIP_MODULES: ShipModuleDef[] = [
-  {
-    id: 'pulse-cannon',
-    name: 'Pulse Cannon',
-    role: 'weapon',
-    description:
-      'Starter weapon. Energy bolts with mid-field reach. Weak against armour. Salvage levels raise the damage of every shot.',
-    damageBonus: 3,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    upgradeBaseCost: 3,
-    upgradeCostScaling: 1.21,
-    weapon: {
-      name: 'Pulse',
-      damage: 10,
-      damagePerLevel: 5,
-      cooldown: 2,
-      range: 132,
-      tags: ['energy'],
-      hullDamage: 1,
-      shieldDamage: 1,
-      armorDamage: 0.25,
-    },
-    unlockCost: {},
-  },
-  {
-    id: 'plate-layer',
-    name: 'Plate Layer',
-    role: 'defense',
-    description:
-      'Starter shield. Raises the shield ceiling and regenerates in the fight. Regeneration pauses briefly after a hit. Salvage levels thicken the bank.',
-    damageBonus: 0,
-    hullBonus: 0,
-    shieldBonus: 30,
-    shieldBonusPerLevel: 5,
-    shieldRegen: 0.05,
-    damageTakenMult: 1,
-    upgradeBaseCost: 6,
-    upgradeCostScaling: 1.2,
-    unlockCost: {},
-  },
-  {
-    id: 'vector-thruster',
-    name: 'Vector Thruster',
-    role: 'utility',
-    description:
-      'Steering jets. Harder to hit, and each incoming shot hurts less. Helps against twitchy, hard-to-lock hulls.',
-    damageBonus: 0,
-    hullBonus: 0,
-    evasionBonus: 0.12,
-    damageTakenMult: 0.88,
-    unlockCost: { scrap: 30, alloys: 12 },
-    requiresBestWave: 30,
-  },
-  {
-    id: 'heavy-lance',
-    name: 'Heavy Lance',
-    role: 'weapon',
-    description:
-      'Heavy pierce lance. Hits hard and slowly. Strong against plated hulls and bosses; weaker at clearing packs.',
-    damageBonus: 10,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    weapon: {
-      name: 'Lance',
-      damage: 38,
-      cooldown: 2.5,
-      range: 152,
-      tags: ['kinetic', 'pierce'],
-    },
-    unlockCost: { scrap: 50, alloys: 20 },
-    requiresBestWave: 20,
-  },
-  {
-    id: 'flak-array',
-    name: 'Flak Array',
-    role: 'weapon',
-    description:
-      'Splash bursts. Best at shredding packs. Shortest legal Core reach — still hits every park.',
-    damageBonus: 6,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    weapon: {
-      name: 'Flak',
-      damage: 14,
-      cooldown: 1.05,
-      range: 125,
-      tags: ['kinetic', 'splash'],
-      splash: 2,
-    },
-    unlockCost: { scrap: 45, alloys: 18 },
-    requiresBestWave: 20,
-  },
-  {
-    id: 'phase-beam',
-    name: 'Phase Beam',
-    role: 'weapon',
-    description:
-      'A held energy beam that strips shields. Strong against glowing, hard-to-lock hulls once they enter range.',
-    damageBonus: 7,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    weapon: {
-      name: 'Phase Beam',
-      damage: 19,
-      cooldown: 1.4,
-      range: 148,
-      tags: ['energy', 'antiShield'],
-      delivery: 'beam',
-    },
-    unlockCost: { scrap: 55, alloys: 22, data: 8 },
-    requiresBestWave: 30,
-  },
-  {
-    id: 'barrier-projector',
-    name: 'Barrier Projector',
-    role: 'defense',
-    description:
-      'A second shield envelope plus a little hull. The bank regenerates in the fight and while you sit docked.',
-    damageBonus: 0,
-    hullBonus: 12,
-    shieldBonus: 60,
-    damageTakenMult: 1,
-    unlockCost: { scrap: 40, alloys: 16, energy: 20 },
-    requiresBestWave: 50,
-  },
-  {
-    id: 'drone-bay',
-    name: 'Salvage Beacon',
-    role: 'utility',
-    description:
-      'Marks wrecks so each kill pays more Salvage. The beacon is a Core effect, not a Worker Drone job.',
-    damageBonus: 0,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    salvageKillBonus: 0.12,
-    unlockCost: { scrap: 60, alloys: 25, energy: 15 },
-    requiresBestWave: 40,
-  },
-  {
-    id: 'rail-driver',
-    name: 'Rail Driver',
-    role: 'weapon',
-    description:
-      'Longest-range pierce rails. Punishes hulls that hang back. Slightly slower than Pulse at close range.',
-    damageBonus: 8,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    weapon: {
-      name: 'Rail',
-      damage: 26,
-      cooldown: 1.85,
-      range: 168,
-      tags: ['kinetic', 'pierce'],
-    },
-    unlockCost: { scrap: 70, alloys: 28, data: 6 },
-    requiresBestWave: 80,
-  },
-  {
-    id: 'ion-burst',
-    name: 'Ion Burst',
-    role: 'weapon',
-    description:
-      'Mid-range energy splash. Softens pack shields between Flak’s short burst and Phase Beam’s long hold.',
-    damageBonus: 6,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    weapon: {
-      name: 'Ion Burst',
-      damage: 13,
-      cooldown: 1.15,
-      range: 136,
-      tags: ['energy', 'antiShield', 'splash'],
-      splash: 1,
-    },
-    unlockCost: { scrap: 65, alloys: 24, energy: 18 },
-    requiresBestWave: 60,
-  },
-  {
-    id: 'ablative-mesh',
-    name: 'Ablative Mesh',
-    role: 'defense',
-    description:
-      'Hybrid plating: hull, armour, and a modest shield bank. Built to soak boss chip rather than dodge it.',
-    damageBonus: 0,
-    hullBonus: 30,
-    armorBonus: 3,
-    shieldBonus: 25,
-    damageTakenMult: 1,
-    unlockCost: { scrap: 55, alloys: 22 },
-    requiresBestWave: 70,
-  },
-  {
-    id: 'grav-tether',
-    name: 'Grav Tether',
-    role: 'utility',
-    description:
-      'A gravity snare. You take less from each shot and dodge more. Helps hold short-range guns on hulls that hang back.',
-    damageBonus: 0,
-    hullBonus: 10,
-    evasionBonus: 0.08,
-    damageTakenMult: 0.85,
-    unlockCost: { scrap: 50, alloys: 20, energy: 12 },
-    requiresBestWave: 90,
-  },
-  {
-    id: 'nano-lathe',
-    name: 'Nano Lathe',
-    role: 'utility',
-    description:
-      'Dockside repair lathe. Hull and shield restore faster while you sit out of the fight. Small hull pad.',
-    damageBonus: 0,
-    hullBonus: 10,
-    damageTakenMult: 1,
-    unlockCost: { scrap: 45, alloys: 18, data: 10 },
-    requiresBestWave: 100,
-  },
-  {
-    id: 'salvage-rig',
-    name: 'Salvage Rig',
-    role: 'utility',
-    description:
-      'A wreck claw. Wave clears this run pay more scrap. Comes off when you Rebuild.',
-    damageBonus: 2,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    unlockCost: { scrap: 40, alloys: 15 },
-    requiresBestWave: 40,
-  },
-  {
-    id: 'charge-prism',
-    name: 'Charge Prism',
-    role: 'weapon',
-    description:
-      'A wound energy shot. Long wind-up, then a fast bolt. Punishes shields and hulls that hang back.',
-    damageBonus: 9,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    upgradeBaseCost: 4,
-    upgradeCostScaling: 1.22,
-    weapon: {
-      name: 'Charge Prism',
-      damage: 28,
-      damagePerLevel: 8,
-      cooldown: 2.6,
-      range: 160,
-      tags: ['energy'],
-      hullDamage: 1,
-      shieldDamage: 1.35,
-      armorDamage: 0.3,
-      delivery: 'charge',
-      telegraphDuration: 0.55,
-    },
-    unlockCost: {},
-    requiresBestWave: 40,
-  },
-  {
-    id: 'swarm-rack',
-    name: 'Swarm Rack',
-    role: 'weapon',
-    description:
-      'A rack of slag-tipped missiles. Slow cycle, wide splash. Built to shred packs that bunch up.',
-    damageBonus: 7,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    upgradeBaseCost: 4,
-    upgradeCostScaling: 1.21,
-    weapon: {
-      name: 'Swarm Rack',
-      damage: 16,
-      damagePerLevel: 5,
-      cooldown: 1.9,
-      range: 144,
-      tags: ['kinetic', 'splash'],
-      splash: 2,
-      hullDamage: 1.1,
-      shieldDamage: 0.7,
-      armorDamage: 0.85,
-    },
-    unlockCost: {},
-    requiresBestWave: 60,
-  },
-  {
-    id: 'arc-lash',
-    name: 'Arc Lash',
-    role: 'weapon',
-    description:
-      'A short energy whip that jumps. Fast, mid-range, strips overlapping shields in a pack.',
-    damageBonus: 6,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    upgradeBaseCost: 3,
-    upgradeCostScaling: 1.21,
-    weapon: {
-      name: 'Arc Lash',
-      damage: 11,
-      damagePerLevel: 4,
-      cooldown: 1.05,
-      range: 140,
-      tags: ['energy', 'antiShield', 'splash'],
-      splash: 2,
-      hullDamage: 0.85,
-      shieldDamage: 1.4,
-      armorDamage: 0.35,
-    },
-    unlockCost: {},
-    requiresBestWave: 90,
-  },
-  {
-    id: 'slag-spit',
-    name: 'Slag Spit',
-    role: 'weapon',
-    description:
-      'A close slag thrower. The splash is small; the burn stays on the hull. Strong against plated packs that close in.',
-    damageBonus: 5,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    upgradeBaseCost: 4,
-    upgradeCostScaling: 1.2,
-    weapon: {
-      name: 'Slag Spit',
-      damage: 9,
-      damagePerLevel: 3.5,
-      cooldown: 1.1,
-      range: 128,
-      tags: ['kinetic', 'dot'],
-      splash: 1,
-      dotDuration: 3,
-      dotDamage: 4,
-      hullDamage: 1.15,
-      shieldDamage: 0.55,
-      armorDamage: 1.1,
-    },
-    unlockCost: {},
-    requiresBestWave: 120,
-  },
-  {
-    id: 'lattice-ward',
-    name: 'Rapid Aegis',
-    role: 'defense',
-    description:
-      'A thin shield mesh that refills fast. Lower ceiling than Plate; higher regen. Built to outlast chip, not slams.',
-    damageBonus: 0,
-    hullBonus: 0,
-    shieldBonus: 22,
-    shieldBonusPerLevel: 4,
-    shieldRegen: 0.09,
-    damageTakenMult: 1,
-    upgradeBaseCost: 6,
-    upgradeCostScaling: 1.2,
-    unlockCost: {},
-    requiresBestWave: 50,
-  },
-  {
-    id: 'keel-baffle',
-    name: 'Keel Baffle',
-    role: 'defense',
-    description:
-      'Armour baffles on the keel. Hull and plate first, a modest shield bank second. Soaks bosses that punch through wards.',
-    damageBonus: 0,
-    hullBonus: 28,
-    hullBonusPerLevel: 4,
-    armorBonus: 4,
-    armorBonusPerLevel: 0.4,
-    shieldBonus: 16,
-    shieldBonusPerLevel: 2,
-    damageTakenMult: 1,
-    upgradeBaseCost: 7,
-    upgradeCostScaling: 1.2,
-    unlockCost: {},
-    requiresBestWave: 110,
-  },
-  {
-    id: 'sensor-whisker',
-    name: 'Sensor Whisker',
-    role: 'utility',
-    description:
-      'A thin sensor mast. Harder to lock, and incoming shots miss more often. Helps keep short guns on twitchy hulls.',
-    damageBonus: 0,
-    hullBonus: 0,
-    evasionBonus: 0.14,
-    damageTakenMult: 0.94,
-    unlockCost: {},
-    requiresBestWave: 80,
-  },
-  {
-    id: 'choir-tap',
-    name: 'Choir Tap',
-    role: 'utility',
-    description:
-      'A wreck tap tuned to Choir hulls. Each kill pays more Salvage than the Salvage Beacon. Complete its Blueprint, then fabricate it.',
-    damageBonus: 0,
-    hullBonus: 0,
-    damageTakenMult: 1,
-    salvageKillBonus: 0.2,
-    unlockCost: {},
-    requiresBestWave: 140,
-  },
-  {
-    id: 'surge-capacitor',
-    name: 'Surge Capacitor',
-    role: 'utility',
-    description:
-      'Challenge schematic. You take less from each shot and gain hull. Not found as wreck loot — unlock it, then equip it.',
-    damageBonus: 0,
-    hullBonus: 20,
-    damageTakenMult: 0.9,
-    unlockCost: {},
-    requiresChallengeShop: 'schematic-surge',
-  },
-  {
-    id: 'mirror-plate',
-    name: 'Mirror Plate',
-    role: 'defense',
-    description:
-      'Challenge schematic plating. Extra hull and armour. Not found as wreck loot — unlock it, then equip it.',
-    damageBonus: 0,
-    hullBonus: 40,
-    armorBonus: 5,
-    damageTakenMult: 1,
-    unlockCost: {},
-    requiresChallengeShop: 'schematic-mirror',
-  },
-]
+export { LEGACY_CORE_IDS }
+export const SHIP_MODULES: ShipModuleDef[] = SHIP_MODULE_DEFS as ShipModuleDef[]
 
 export function moduleLevel(
   levels: Record<string, number> | undefined,
   moduleId: string,
 ): number {
   return Math.max(0, levels?.[moduleId] ?? 0)
-}
-
-/**
- * Retired per-Sortie Core cost curve retained for compatibility simulations.
- * Historical USI values: weapons 3 × 1.21^n, shields 6 × 1.2^n.
- */
-export function moduleUpgradeCost(level: number, moduleId?: string, scalingAdd = 0): number {
-  const n = Math.max(0, level)
-  const mod = moduleId ? getModule(moduleId) : undefined
-  const base =
-    mod?.upgradeBaseCost ?? (mod?.role === 'defense' ? 6 : 3)
-  const scaling = Math.max(
-    1.05,
-    (mod?.upgradeCostScaling ?? (mod?.role === 'defense' ? 1.2 : 1.21)) + scalingAdd,
-  )
-  return Math.ceil(base * scaling ** n)
 }
 
 /** Starter Core definitions used by onboarding and telemetry. */
@@ -1641,19 +1233,17 @@ export const PART_TYPES: PartType[] = ['casing', 'core', 'lens']
 /** Seconds for one fab-bay worker to finish a filled recipe. */
 export const FAB_SECONDS = 120
 
-export const MAX_MODULE_MASTERY = 10
-/** Late Act 1 mastery (W275) raises the invest cap toward GDD §23. */
-export const LATE_ACT1_MODULE_MASTERY = 20
+export const MAX_MODULE_MASTERY = 100
+export const LATE_ACT1_MODULE_MASTERY = 100
 
-export function moduleMasteryCap(state: GameState): number {
-  return meetsWave(state, ACT1_CADENCE.mastery) ? LATE_ACT1_MODULE_MASTERY : MAX_MODULE_MASTERY
+export function moduleMasteryCap(_state: GameState): number {
+  return MAX_MODULE_MASTERY
 }
 
-/** Parts consumed per mastery rank (any part types of that module). */
+/** Leftover Foundry part cost. Core Mastery is use-driven, not part-invested. */
 export const MASTERY_PARTS_COST = 3
 
 const STARTER_UNLOCK_MODULES = new Set(['pulse-cannon', 'plate-layer'])
-const SCHEMATIC_MODULES = new Set(['surge-capacitor', 'mirror-plate'])
 
 export interface BlueprintRecipe {
   moduleId: string
@@ -1719,23 +1309,16 @@ function printRecipe(
   return { moduleId, ...printFragmentNeeds(wave), ...extra }
 }
 
-/** Farmable blueprint recipes (not starter scrap unlocks, not CP schematics). */
+/** Leftover Foundry recipes. Isolated from the final 14 Cores (PR5 owns fabrication). */
 export const BLUEPRINTS: BlueprintRecipe[] = [
-  printRecipe('flak-array'),
   printRecipe('vector-thruster'),
-  printRecipe('heavy-lance'),
-  printRecipe('phase-beam'),
-  printRecipe('barrier-projector'),
   printRecipe('drone-bay'),
   printRecipe('charge-prism'),
   printRecipe('lattice-ward'),
   printRecipe('rail-driver'),
   printRecipe('ion-burst'),
   printRecipe('swarm-rack'),
-  printRecipe('ablative-mesh'),
   printRecipe('sensor-whisker'),
-  printRecipe('grav-tether'),
-  printRecipe('nano-lathe', { foundry: { 'brace-pin': 2 } }),
   printRecipe('salvage-rig'),
   printRecipe('keel-baffle', {
     foundry: { 'keel-strip': 2 },
@@ -1743,10 +1326,6 @@ export const BLUEPRINTS: BlueprintRecipe[] = [
   }),
   printRecipe('arc-lash'),
   printRecipe('slag-spit', { foundry: { 'void-slag': 2 } }),
-  printRecipe('choir-tap', {
-    foundry: { 'hearth-core': 1 },
-    requiresRecipeLevel: { recipeId: 'void-slag', level: 1 },
-  }),
 ]
 
 export function getBlueprint(moduleId: string): BlueprintRecipe | undefined {
@@ -1761,11 +1340,11 @@ export function isStarterUnlockModule(moduleId: string): boolean {
   return STARTER_UNLOCK_MODULES.has(moduleId)
 }
 
-export function isSchematicModule(moduleId: string): boolean {
-  return SCHEMATIC_MODULES.has(moduleId) || !!getModule(moduleId)?.requiresChallengeShop
+export function isSchematicModule(_moduleId: string): boolean {
+  return false
 }
 
-/** Base part drop chances — intentionally sparse; buff via Logistics / shops / cores. */
+/** Leftover Foundry fragment tables. Final 14 Core IDs are not awarded here. */
 export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
   {
     family: 'swarm',
@@ -1773,16 +1352,12 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 2.2,
     bossRolls: 2,
     entries: [
-      { moduleId: 'flak-array', partType: 'casing', weight: 4 },
-      { moduleId: 'flak-array', partType: 'core', weight: 2 },
-      { moduleId: 'flak-array', partType: 'lens', weight: 1 },
       { moduleId: 'salvage-rig', partType: 'casing', weight: 2 },
       { moduleId: 'salvage-rig', partType: 'core', weight: 1 },
       { moduleId: 'drone-bay', partType: 'casing', weight: 1 },
       { moduleId: 'swarm-rack', partType: 'casing', weight: 3 },
       { moduleId: 'swarm-rack', partType: 'core', weight: 2 },
       { moduleId: 'swarm-rack', partType: 'lens', weight: 1 },
-      { moduleId: 'choir-tap', partType: 'casing', weight: 1 },
     ],
   },
   {
@@ -1791,12 +1366,6 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 2.2,
     bossRolls: 2,
     entries: [
-      { moduleId: 'heavy-lance', partType: 'casing', weight: 3 },
-      { moduleId: 'heavy-lance', partType: 'core', weight: 2 },
-      { moduleId: 'heavy-lance', partType: 'lens', weight: 1 },
-      { moduleId: 'ablative-mesh', partType: 'casing', weight: 2 },
-      { moduleId: 'ablative-mesh', partType: 'core', weight: 2 },
-      { moduleId: 'ablative-mesh', partType: 'lens', weight: 1 },
       { moduleId: 'keel-baffle', partType: 'casing', weight: 2 },
       { moduleId: 'keel-baffle', partType: 'core', weight: 2 },
       { moduleId: 'slag-spit', partType: 'casing', weight: 2 },
@@ -1810,9 +1379,6 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
     bossChanceMult: 2.3,
     bossRolls: 2,
     entries: [
-      { moduleId: 'phase-beam', partType: 'casing', weight: 2 },
-      { moduleId: 'phase-beam', partType: 'core', weight: 2 },
-      { moduleId: 'phase-beam', partType: 'lens', weight: 2 },
       { moduleId: 'vector-thruster', partType: 'casing', weight: 3 },
       { moduleId: 'vector-thruster', partType: 'core', weight: 2 },
       { moduleId: 'vector-thruster', partType: 'lens', weight: 1 },
@@ -1836,9 +1402,6 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
       { moduleId: 'ion-burst', partType: 'casing', weight: 2 },
       { moduleId: 'ion-burst', partType: 'core', weight: 2 },
       { moduleId: 'ion-burst', partType: 'lens', weight: 2 },
-      { moduleId: 'grav-tether', partType: 'casing', weight: 2 },
-      { moduleId: 'grav-tether', partType: 'core', weight: 2 },
-      { moduleId: 'grav-tether', partType: 'lens', weight: 1 },
       { moduleId: 'arc-lash', partType: 'casing', weight: 3 },
       { moduleId: 'arc-lash', partType: 'core', weight: 2 },
       { moduleId: 'arc-lash', partType: 'lens', weight: 2 },
@@ -1855,25 +1418,15 @@ export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
       { moduleId: 'rail-driver', partType: 'casing', weight: 3 },
       { moduleId: 'rail-driver', partType: 'core', weight: 2 },
       { moduleId: 'rail-driver', partType: 'lens', weight: 2 },
-      { moduleId: 'nano-lathe', partType: 'casing', weight: 2 },
-      { moduleId: 'nano-lathe', partType: 'core', weight: 2 },
-      { moduleId: 'nano-lathe', partType: 'lens', weight: 2 },
-      { moduleId: 'barrier-projector', partType: 'casing', weight: 2 },
-      { moduleId: 'barrier-projector', partType: 'core', weight: 2 },
-      { moduleId: 'barrier-projector', partType: 'lens', weight: 1 },
       { moduleId: 'keel-baffle', partType: 'lens', weight: 2 },
-      { moduleId: 'choir-tap', partType: 'core', weight: 2 },
-      { moduleId: 'choir-tap', partType: 'lens', weight: 2 },
     ],
   },
 ]
 
-/** Extra late-module weights unlocked at higher Waves. */
 function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
   const extras: EnemyPartDropEntry[] = []
   if (wave >= 120) {
     extras.push(
-      { moduleId: 'barrier-projector', partType: 'casing', weight: 1 },
       { moduleId: 'drone-bay', partType: 'core', weight: 1 },
       { moduleId: 'salvage-rig', partType: 'lens', weight: 1 },
       { moduleId: 'sensor-whisker', partType: 'casing', weight: 1 },
@@ -1883,16 +1436,12 @@ function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
     extras.push(
       { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
       { moduleId: 'ion-burst', partType: 'core', weight: 1 },
-      { moduleId: 'ablative-mesh', partType: 'lens', weight: 1 },
       { moduleId: 'keel-baffle', partType: 'core', weight: 1 },
     )
   }
   if (wave >= 220) {
     extras.push(
-      { moduleId: 'grav-tether', partType: 'core', weight: 1 },
-      { moduleId: 'nano-lathe', partType: 'lens', weight: 1 },
       { moduleId: 'rail-driver', partType: 'lens', weight: 1 },
-      { moduleId: 'choir-tap', partType: 'lens', weight: 1 },
     )
   }
   return extras
@@ -1900,25 +1449,29 @@ function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
 
 export function modulePrintWave(moduleId: string): number {
   const originalWave = Math.max(0, getModule(moduleId)?.requiresBestWave ?? 0)
-  return Math.max(ACT1_CADENCE.foundry, originalWave)
+  if (originalWave <= 0) return ACT1_CADENCE.foundry
+  return originalWave
 }
 
-/** Career has reached the Wave that unlocks this Core print. */
+/** Career has reached the Wave that unlocks this Core print. Blueprint != ownership. */
 export function isCorePrintUnlocked(state: GameState, moduleId: string): boolean {
   return careerBestWave(state) >= modulePrintWave(moduleId)
 }
 
-/** Visible GDD Core set. Leftover USI modules stay in the catalog but hide from Blueprints and drops. */
 export const GDD_ROSTER_CORE_IDS = [
   'pulse-cannon',
-  'phase-beam',
-  'flak-array',
   'heavy-lance',
+  'flak-array',
+  'phase-beam',
+  'slag-spitter',
   'plate-layer',
+  'rapid-aegis',
+  'ablative-mesh',
   'barrier-projector',
+  'salvage-beacon',
+  'grav-tether',
   'nano-lathe',
-  'drone-bay',
-  'charge-prism',
+  'sensor-array',
   'choir-tap',
 ] as const
 
@@ -2241,10 +1794,7 @@ export function isModuleVisible(state: GameState, moduleId: string): boolean {
   if (isStarterUnlockModule(moduleId)) return true
   if (state.shipyard.unlockedModules.includes(moduleId)) return true
   if (state.meta.discoveredModules.includes(moduleId)) return true
-  const mod = getModule(moduleId)
-  if (mod?.requiresChallengeShop) {
-    return shopRank(state.prestige.shop, mod.requiresChallengeShop) >= 1
-  }
+  if (isGddRosterCore(moduleId)) return true
   if (isFarmableModule(moduleId) && isSystemUnlocked(state, 'foundry')) {
     return isCorePrintUnlocked(state, moduleId)
   }

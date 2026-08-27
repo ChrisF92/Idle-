@@ -209,7 +209,6 @@ export function applyReconstitutionCache(state: GameState): void {
 export function resetPhysicalCoreLevels(state: GameState): void {
   if (!state.workshop) state.workshop = createEmptyWorkshop()
   state.workshop.coreStarts = {}
-  state.shipyard.moduleLevels = {}
 }
 
 export function resetWorkshopCycleLevels(state: GameState): void {

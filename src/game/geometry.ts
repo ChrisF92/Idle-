@@ -63,6 +63,44 @@ export function coreWorldPosition(orbitRadius: number, orbitAngle: number): { x:
   return pointFromBearing(orbitAngle, orbitRadius)
 }
 
+/** Outward radial facing: Hive centre → Core. Equals authored orbit angle. */
+export function playerCoreOutwardFacing(core: {
+  x: number
+  y: number
+  orbitAngle?: number
+}): number {
+  if (core.orbitAngle != null && Number.isFinite(core.orbitAngle)) return wrapTau(core.orbitAngle)
+  return wrapTau(bearingOf(core.x, core.y))
+}
+
+/**
+ * Player Core pose: world position from orbit radius + angle; heading is the
+ * outward radial, never an independent turret aim.
+ */
+export function applyPlayerCoreOrbit(
+  core: {
+    x: number
+    y: number
+    orbitAngle?: number
+    orbitRadius?: number
+    heading?: number
+  },
+  fallbackRadius = 44,
+): void {
+  const orbit = core.orbitRadius ?? fallbackRadius
+  core.orbitRadius = orbit
+  core.orbitAngle = wrapTau(core.orbitAngle ?? bearingOf(core.x, core.y))
+  core.heading = core.orbitAngle
+  const pos = coreWorldPosition(orbit, core.orbitAngle)
+  core.x = pos.x
+  core.y = pos.y
+}
+
+/** Hive-relative bearing of a world point — the orbital firing solution for a Core. */
+export function hiveBearingOf(point: { x: number; y: number }): number {
+  return wrapTau(bearingOf(point.x, point.y))
+}
+
 export function wrapTau(angle: number): number {
   const tau = Math.PI * 2
   return ((angle % tau) + tau) % tau

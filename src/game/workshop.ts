@@ -532,7 +532,6 @@ export function visibleRunUpgrades(state: GameState, category?: RunUpgradeCatego
 export function applyWorkshopCoreStarts(state: GameState): void {
   if (!state.workshop) state.workshop = createEmptyWorkshop()
   state.workshop.coreStarts = { ...(state.workshop.coreStarts ?? {}) }
-  state.shipyard.moduleLevels = {}
 }
 
 export function snapshotWorkshopCoreStarts(state: GameState): void {
@@ -542,8 +541,6 @@ export function snapshotWorkshopCoreStarts(state: GameState): void {
 
 /** After a Sortie, temporary Salvage upgrades clear. Physical Core Levels persist. */
 export function resetRunCoreLevels(state: GameState): void {
-  state.combat.coreRunLevels = {}
-  state.combat.coreSalvageSpent = {}
   state.combat.coreMasteryStart = {}
   state.combat.coreMasteryXp = {}
   state.combat.coreBossClears = {}
