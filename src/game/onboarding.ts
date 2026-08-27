@@ -12,7 +12,8 @@ import { anyMatterPurchaseOwned, MATTER_SHOP } from './matter'
 import { canBuyMatterShop } from './catalog'
 import { foundryMaterialCount } from './foundry'
 import { ownedWorkers } from './workers'
-import { addRelicInstance, createEmptyRelicState, getRelicInstance } from './relics'
+import type { GameState, TabId } from './types'
+import { addRelicInstance, createEmptyRelicState } from './relics'
 import { workshopCost, workshopLevel } from './workshop'
 
 export const ONBOARDING_ENABLED = true

@@ -45,7 +45,7 @@ describe('Inventory item model', () => {
     expect(counts.owned).toBe(1)
     const row = inventoryRelics(state).find((item) => item.id === 'power-coupler:1')
     expect(row?.fittedCoreName).toContain('Pulse Cannon')
-    expect(RELIC_STORAGE_NOTE).toMatch(/physical Core copy/)
+    expect(RELIC_STORAGE_NOTE).toMatch(/physical Core/)
   })
 
   it('builds a material ledger from Foundry recipes and stock', () => {

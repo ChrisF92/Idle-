@@ -15,8 +15,6 @@ import {
   isRelicFamilyId,
   isValidRelicTier,
   RELIC_SOCKET_LABELS,
-  relicFamilyName,
-  relicTierLabel,
   type RelicFamilyId,
   type RelicKind,
   type RelicTier,
@@ -439,23 +437,24 @@ export interface RelicInventoryRow {
 }
 
 export function relicInventoryRows(state: GameState): RelicInventoryRow[] {
-  return relicState(state).instances.map((row) => {
+  return relicState(state).instances.flatMap((row) => {
     const def = getRelicFamily(row.familyId)
+    if (!def) return []
     const loc = relicFitLocation(state, row.id)
     const core = loc ? resolveCoreInstance(state, loc.coreInstanceId) : null
-    return {
+    return [{
       id: row.id,
-      familyId: row.familyId,
-      name: def?.name ?? row.familyId,
-      kind: def?.kind ?? 'standard',
-      socket: def?.socket ?? 'industrial',
+      familyId: def.id,
+      name: def.name,
+      kind: def.kind,
+      socket: def.socket,
       tier: row.tier,
       fitted: Boolean(loc),
       fittedCoreId: loc?.coreInstanceId ?? null,
       fittedCoreName: core ? getModule(core.moduleId)?.name ?? core.moduleId : null,
       effectText: inspectRelicEffectText(row.familyId),
-      effectPending: def?.effectStatus !== 'authored',
-    }
+      effectPending: def.effectStatus !== 'authored',
+    }]
   })
 }
 

@@ -55,7 +55,11 @@ describe('PR6 Relic fitting', () => {
     expect(canFitRelic(s, 'pulse-cannon:1', power.id, 1).reason).toBe('socket-mismatch')
 
     s = equipRelicOnCore(s, 'pulse-cannon:1', power.id, 0)
-    const again = canFitRelic(s, 'plate-layer:1', power.id, 0)
+    s = forceUnlockModule(s, 'choir-tap')
+    s.shipyard.modules = [...s.shipyard.modules, 'choir-tap']
+    s.shipyard.equippedCoreIds = [...s.shipyard.equippedCoreIds, 'choir-tap:1']
+    s.meta.moduleMastery = { ...s.meta.moduleMastery, 'choir-tap': 20 }
+    const again = canFitRelic(s, 'choir-tap:1', power.id, 1)
     expect(again.reason).toBe('already-fitted')
   })
 

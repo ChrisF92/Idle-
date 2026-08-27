@@ -7,7 +7,6 @@ import {
   buyProcessNode,
   convertAshToHeat,
   fitModule,
-  equipRelicOnCore,
   performPrestige,
   setFoundrySlot,
   setResearchFocus,

@@ -57,7 +57,7 @@ export function fittedRelicsOnCore(state: GameState, coreInstanceId: string) {
     if (!instance) return []
     const def = getRelicFamily(instance.familyId)
     if (!def) return []
-    if (isRelicEffectDisabledByChallenge(state, instance.familyId)) return []
+    if (isRelicEffectDisabledByChallenge(state, instance.familyId as RelicFamilyId)) return []
     return [{ instance, def }]
   })
 }
