@@ -91,12 +91,15 @@ describe('PR5 Foundry UI', () => {
       </OverlayProvider>,
     )
     expect(screen.queryByText('Rapid Aegis')).toBeNull()
-    expect(screen.queryByText('Bastion')).toBeNull()
     expect(screen.queryByText('Nano Lathe')).toBeNull()
     expect(screen.queryByText('Salvage Beacon')).toBeNull()
     expect(screen.getAllByText('Unknown Core').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Frames' }))
+    expect(screen.queryByText('Bastion')).toBeNull()
     expect(screen.getAllByText('Unknown Frame').length).toBeGreaterThan(0)
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Cores' }))
     fireEvent.click(screen.getAllByText('Unknown Core')[0]!.closest('button')!)
     expect(screen.queryByRole('button', { name: 'Track' })).toBeNull()
     expect(onTrack).not.toHaveBeenCalled()
