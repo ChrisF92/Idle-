@@ -1,0 +1,24 @@
+name: PR8 inspect
+
+on:
+  push:
+    branches: [chatgpt/pr8-directives-furnace]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Directive and Furnace references
+        shell: bash
+        run: |
+          set -e
+          echo '=== directive references ==='
+          grep -RIn --exclude='directives.ts' --exclude-dir=node_modules -E 'directive[A-Z]|directiveOffer|combat\.directives|DIRECTIVE_|chooseDirective|queueDirectiveOffer|isDirectiveWave' src || true
+          echo '=== furnace references ==='
+          grep -RIn --exclude='furnace.ts' --exclude-dir=node_modules -E 'Furnace(Channel|Track|Upgrade|Preset|State)|furnace[A-Z]|FURNACE_|choirAsh|resources\.heat|setFurnaceChannel|convertAshToHeat|runFurnaceManager' src || true
+          echo '=== save version ==='
+          grep -RIn --exclude-dir=node_modules -E 'SAVE_VERSION|version: 48|version === 48' src/game/save.ts src/game/state.ts src/game/types.ts || true
