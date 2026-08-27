@@ -8,7 +8,6 @@ import {
 } from './actions'
 import { tickAutomation } from './automation'
 import { salvageFromKill } from './combat'
-import { salvageFromKill } from './combat'
 import { furnaceChannelHeatCost, furnaceDamageMult } from './furnace'
 import { hiveResearchNodeCost } from './hiveResearch'
 import { matterGainFor } from './rebuild'

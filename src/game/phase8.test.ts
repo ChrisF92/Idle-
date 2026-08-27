@@ -110,7 +110,7 @@ describe('phase 8: Protocols, Echo, Process', () => {
     expect(hasProcess(s, 'offline-sortie')).toBe(true)
     s.combat.docked = false
     s.lastTickAt = 0
-    const { state: next, report } = applyOfflineCatchUp(s, 30 * 60 * 1000)
+    const { report } = applyOfflineCatchUp(s, 30 * 60 * 1000)
     expect(report?.sectorsCleared ?? 0).toBeGreaterThan(0)
   })
 
