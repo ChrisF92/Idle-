@@ -236,7 +236,7 @@ describe('shell UX', () => {
     render(<ScreenHelp screen="combat" />)
     fireEvent.click(screen.getByRole('button', { name: 'Sortie info' }))
     expect(screen.getByRole('dialog', { name: 'Sortie' })).toBeTruthy()
-    expect(screen.getByText(/Worker Drones unlock at Wave 30 under Systems/i)).toBeTruthy()
+    expect(screen.getByText(/Worker Drones unlock at Wave 50 under Systems/i)).toBeTruthy()
   })
 
   it('renders offline rewards as a dismissable modal', () => {

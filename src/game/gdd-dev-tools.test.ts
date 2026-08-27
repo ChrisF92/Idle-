@@ -21,6 +21,18 @@ describe('GDD Dev Tools', () => {
       ACT1_CADENCE.protocols,
       ACT1_CADENCE.reinforce,
     ])
+    expect(GDD_DOOR_PRESETS.map((d) => d.label)).toEqual([
+      'W50 Foundry',
+      'W50 Workers',
+      'W50 Directives',
+      'W210 Rebuild',
+      'W110 Relics',
+      'W140 Furnace',
+      'W170 Research',
+      'W210 Process',
+      'W250 Challenges',
+      'W1000 Reinforce',
+    ])
   })
 
   it('set-best-wave grants career doors without changing the live Wave', () => {

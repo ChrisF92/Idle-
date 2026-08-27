@@ -26,8 +26,8 @@ import { reconcileEquippedCoreIds } from './coreInstances'
 export const DEV_FLAG_KEY = 'cosmic-idle-dev'
 
 export const GDD_DOOR_PRESETS = [
-  { wave: ACT1_CADENCE.foundry, label: 'W20 Foundry' },
-  { wave: ACT1_CADENCE.workers, label: 'W30 Workers' },
+  { wave: ACT1_CADENCE.foundry, label: 'W50 Foundry' },
+  { wave: ACT1_CADENCE.workers, label: 'W50 Workers' },
   { wave: ACT1_CADENCE.directives, label: 'W50 Directives' },
   { wave: ACT1_CADENCE.rebuild, label: 'W210 Rebuild' },
   { wave: ACT1_CADENCE.reliquary, label: 'W110 Relics' },

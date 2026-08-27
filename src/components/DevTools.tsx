@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { GameState } from '../game/types'
 import type { DevAction } from '../game/dev'
 import { GDD_DOOR_PRESETS, isDevToolsEnabled, setDevToolsEnabled } from '../game/dev'
+import { ACT1_CADENCE } from '../game/cadence'
+import { BASE_WORKER_CAPACITY } from '../game/foundrySeeds'
 import { ONBOARDING_LESSON_IDS } from '../game/onboarding'
 import { SHIP_FRAMES } from '../game/catalog'
 import { PlaytestReport } from './PlaytestReport'
@@ -31,7 +33,7 @@ function prepDoor(onDevAction: (action: DevAction) => void, wave: number): void 
   onDevAction({ type: 'skip-guides' })
   onDevAction({ type: 'prep-gdd-door', wave })
   onDevAction(HIVE_RESOURCES)
-  if (wave >= 30) onDevAction({ type: 'fill-workers', count: 8 })
+  if (wave >= ACT1_CADENCE.workers) onDevAction({ type: 'fill-workers', count: BASE_WORKER_CAPACITY })
   onDevAction({ type: 'dock-heal' })
 }
 
@@ -125,7 +127,7 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
           <div className="dev-tools-row">
             {GDD_DOOR_PRESETS.map((door) => (
               <button
-                key={door.wave}
+                key={door.label}
                 type="button"
                 className="primary"
                 onClick={() => {

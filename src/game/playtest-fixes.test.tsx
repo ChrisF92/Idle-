@@ -22,7 +22,7 @@ beforeEach(() => {
 })
 
 describe('playtest fix pass', () => {
-  it('keeps W20 Foundry from unlocking later GDD doors', () => {
+  it('keeps W50 Foundry from unlocking later GDD doors', () => {
     let s = applyDevAction(createInitialState(0), { type: 'prep-gdd-door', wave: ACT1_CADENCE.foundry })
     s = applyDevAction(s, { type: 'fill-workers', count: 8 })
     expect(careerBestWave(s)).toBe(ACT1_CADENCE.foundry)
