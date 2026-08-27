@@ -47,6 +47,10 @@ text = text.replace(
     "const commander = encounterForWave(420, 77, packed)",
 )
 text = text.replace(
+    "import { NORMAL_REINFORCEMENT_INTERVAL, tickWaveScheduler } from './waveScheduler'",
+    "import { tickWaveScheduler } from './waveScheduler'\nimport { NORMAL_REINFORCEMENT_INTERVAL } from './waves'",
+)
+text = text.replace(
     "tickWaveScheduler(s, 0, {})",
     "tickWaveScheduler(s, 0, { pushLog: () => {} })",
 )
