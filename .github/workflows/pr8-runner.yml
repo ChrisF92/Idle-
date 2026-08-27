@@ -29,6 +29,7 @@ jobs:
         run: |
           python scripts/pr8_prepare.py
           python scripts/pr8_prepare2.py
+          python scripts/pr8_prepare3.py
       - name: Apply PR8 transform
         run: python scripts/pr8_apply.py
       - name: Install
@@ -57,7 +58,7 @@ jobs:
         run: npm run build:pages
       - name: Commit verified PR8 tree
         run: |
-          rm scripts/pr8_apply.py scripts/pr8_prepare.py scripts/pr8_prepare2.py
+          rm scripts/pr8_apply.py scripts/pr8_prepare.py scripts/pr8_prepare2.py scripts/pr8_prepare3.py
           rm .github/workflows/pr8-runner.yml
           rm -f .github/workflows/pr8-probe.yml
           git config user.name "ChatGPT PR8 Implementation"
