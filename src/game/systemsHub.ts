@@ -63,7 +63,7 @@ export function foundryHubStatus(state: GameState): string[] {
   if (fab) {
     const pct = Math.round((fab.progress ?? 0) * 100)
     const name = fabricationJobLabel(state, fab)
-    summaries.push(fab.complete ? `${name} ready` : `Fabricating ${name} ${pct}%`)
+    summaries.push(`Fabricating ${name} ${pct}%`)
   }
   return [
     `${foundryWorkers} Foundry worker${foundryWorkers === 1 ? '' : 's'}`,

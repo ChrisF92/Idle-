@@ -355,7 +355,7 @@ describe('shell UX', () => {
   it('does not put Foundry craft controls on Sortie', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 6
-    state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.4, paid: true }
+    state.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0.4, paid: true }
     render(
       <CombatTab
         state={state}

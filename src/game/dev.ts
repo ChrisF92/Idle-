@@ -167,11 +167,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
       break
     }
     case 'add-yard-goods': {
-      for (const [key, amount] of Object.entries(action.amounts)) {
-        const k = key as YardGoodId
-        next.yard.goods[k] = (next.yard.goods[k] ?? 0) + (amount ?? 0)
-      }
-      next.combat.log = ['[dev] Construction goods granted.', ...next.combat.log].slice(0, 40)
+      next.combat.log = ['[dev] Construction goods are retired. Use Foundry materials.', ...next.combat.log].slice(0, 40)
       break
     }
     case 'unlock-catalog': {

@@ -64,7 +64,7 @@ describe('GDD Act 1 climax and Reinforce', () => {
     let s = finaleState({ cleared: true })
     s.resources.scrap = 40
     s.workshop.levels['weapon-power'] = 2
-    s.foundry.recipeLevels['slag-ingot'] = 3
+    s.foundry.masteryXp['recovered-stock'] = 3
     const matter = s.resources.prestigeMatter
     expect(canReinforce(s).ok).toBe(true)
     s = performReinforce(s)
@@ -72,7 +72,7 @@ describe('GDD Act 1 climax and Reinforce', () => {
     expect(s.resources.prestigeMatter).toBeGreaterThan(matter)
     expect(s.resources.scrap).not.toBe(40)
     expect(s.workshop.levels['weapon-power'] ?? 0).toBe(0)
-    expect(s.foundry.recipeLevels['slag-ingot']).toBe(3)
+    expect(s.foundry.masteryXp['recovered-stock']).toBe(3)
     expect(rebuildCycle(s)).toEqual({ bestWave: 0, normalSortiesCompleted: 0, scrapGenerated: 0 })
     expect(s.meta.act1Cleared).toBe(true)
     expect(canRebuild(s)).toBe(false)

@@ -9,7 +9,6 @@ import { applyOfflineCatchUp, MAX_OFFLINE_MS } from './offline'
 import { furnaceSalvageMult } from './furnace'
 import { foundrySalvageMult, isFoundryRecipeUnlocked } from './foundry'
 import { HIVE_RESEARCH_NODES_PER_BRANCH } from './hiveResearch'
-import { BLUEPRINTS, partId } from './catalog'
 import { advanceSeconds } from './tick'
 import { grantEnemyKillRewards } from './combat'
 import type { CombatUnit } from './types'
@@ -86,7 +85,7 @@ describe('Act 1 Process depth', () => {
     s.resources.salvage = 4
     s.foundry.slots[0] = { recipeId: null, progress: 0, paid: false }
     tickAutomation(s)
-    expect(s.foundry.slots[0]?.recipeId).toBe('filament')
+    expect(s.foundry.slots[0]?.recipeId).toBe('recovered-stock')
   })
 
   it('Shard Seat fits a red chip into an empty Core socket', () => {
@@ -99,20 +98,11 @@ describe('Act 1 Process depth', () => {
     expect(s.reliquary.slots.red ?? null).toBeNull()
   })
 
-  it('Print Press assembles a complete Core print', () => {
+  it('Print Press does not assemble leftover casing/core/lens into a Core', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 42
-    s.prestige.prestigeCount = 2
-    s.research.unlocked.push('basic-optics')
-    s.process.purchased = ['smart-smelt', 'print-assemble']
-    const recipe = BLUEPRINTS.find((b) => b.moduleId === 'charge-prism')!
-    s.parts = {
-      [partId('charge-prism', 'casing')]: recipe.casing,
-      [partId('charge-prism', 'core')]: recipe.core,
-      [partId('charge-prism', 'lens')]: recipe.lens,
-    }
+    s.process.purchased = ['print-assemble']
     tickAutomation(s)
-    expect(s.shipyard.unlockedModules).toContain('charge-prism')
+    expect((s.shipyard.coreInstances ?? []).filter((row) => row.moduleId === 'charge-prism')).toHaveLength(0)
   })
 
   it('Deep Cache is Process QoL, not free', () => {
@@ -136,20 +126,19 @@ describe('Act 1 Process depth', () => {
     buffed.meta.highestSectorEver = 6
     buffed.furnace.wanted.recovery = 1
     buffed.furnace.active.recovery = 1
-    buffed.foundry.upgrades['fp-salvage'] = 2
     expect(furnaceSalvageMult(buffed)).toBeCloseTo(1.4)
-    expect(foundrySalvageMult(buffed)).toBeCloseTo(1.06)
+    expect(foundrySalvageMult(buffed)).toBe(1)
     const before = buffed.resources.salvage
     grantEnemyKillRewards(buffed, enemy())
     expect(buffed.resources.salvage - before).toBeGreaterThan(plain)
   })
 
-  it('Brace Pin unlocks at sector 6 after Slag Ingot 4', () => {
+  it('Tempered Alloy unlocks from Recovered Stock, not a Best-Wave recipe gate', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 6
-    expect(isFoundryRecipeUnlocked(s, 'brace-pin')).toBe(false)
-    s.foundry.recipeLevels['slag-ingot'] = 4
-    expect(isFoundryRecipeUnlocked(s, 'brace-pin')).toBe(true)
+    s.meta.bestWave = 50
+    s.combat.bestWave = 50
+    expect(isFoundryRecipeUnlocked(s, 'tempered-alloy')).toBe(true)
+    expect(isFoundryRecipeUnlocked(s, 'phase-crystal')).toBe(false)
   })
 
   it('buyProcessNode still spends points and Neural Link can fire from Process', () => {

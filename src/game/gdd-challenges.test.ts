@@ -27,7 +27,7 @@ function challengeState(opts?: { wave?: number; rebuilds?: number; research?: bo
   s.prestige.prestigeCount = opts?.rebuilds ?? CHALLENGE_MIN_REBUILDS
   if (opts?.research !== false) s.hiveResearch.completed.energy = 1
   s.combat.docked = true
-  s.foundry.recipeLevels['slag-ingot'] = 1
+  s.foundry.masteryXp['recovered-stock'] = 1
   s.base.assignments['scrap-field'] = 2
   s.resources.choirAsh = 12
   s.workshop.coreStarts = { 'pulse-cannon:1': 4, 'plate-layer:1': 4 }

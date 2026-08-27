@@ -29,10 +29,10 @@ describe('GDD offline Sortie freeze', () => {
     let s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
     s.combat.docked = true
     s.resources.scrap = 80
-    s = setFoundrySlot(s, 0, 'slag-ingot')
+    s = setFoundrySlot(s, 0, 'recovered-stock')
     s.lastTickAt = 0
     const { state: next } = applyOfflineCatchUp(s, 70 * 1000)
-    expect(next.foundry.materials['slag-ingot'] ?? 0).toBeGreaterThanOrEqual(2)
+    expect(next.foundry.materials['recovered-stock'] ?? 0).toBe(1)
     expect(next.combat.wave).toBe(s.combat.wave)
   })
 
@@ -44,12 +44,11 @@ describe('GDD offline Sortie freeze', () => {
       jobId: 'flak-array',
       progress: 0,
       paid: true,
-      complete: false,
     }
     s.lastTickAt = 0
     const { state: next } = applyOfflineCatchUp(s, 6 * 60 * 1000)
-    expect(next.foundry.fabrication[0]?.progress).toBeGreaterThan(0)
-    expect(next.shipyard.unlockedModules).not.toContain('flak-array')
+    expect(next.foundry.fabrication[0]?.kind).toBeNull()
+    expect((next.shipyard.coreInstances ?? []).some((row) => row.moduleId === 'flak-array')).toBe(true)
   })
 
   it('freezes a live Sortie and resumes the same fight', () => {

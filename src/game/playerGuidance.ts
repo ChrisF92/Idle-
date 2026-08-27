@@ -112,8 +112,8 @@ export function sortieNextHints(state: GameState): string[] {
     items.push('Spend Heat on Shielding')
   }
   if (isSystemUnlocked(state, 'foundry')) {
-    const slag = foundryRecipeLevel(state, 'slag-ingot')
-    const queued = state.foundry.slots.some((s) => s.recipeId === 'slag-ingot')
+    const slag = foundryRecipeLevel(state, 'recovered-stock')
+    const queued = state.foundry.slots.some((s) => s.recipeId === 'recovered-stock')
     if (slag < 2 && !queued) items.push('Start a Foundry craft')
   }
   if (isSystemUnlocked(state, 'process') && firstAffordableProcessNode(state)) {

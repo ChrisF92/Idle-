@@ -1,6 +1,7 @@
 /** Foundry bonus readers — no combat ranks. Facilities live on foundry.ts. */
 
 import type { GameState } from './types'
+import { RESEARCH_ANNEX_SPEED_MULT } from './foundrySeeds'
 
 export const FOUNDRY_QUEUE_BASE = 3
 
@@ -29,7 +30,7 @@ export function foundryAshHeatMult(_state: GameState): number {
 }
 
 export function foundryResearchXpMult(state: GameState): number {
-  return (state.foundry?.facilities ?? []).includes('research-annex') ? 1.2 : 1
+  return (state.foundry?.facilities ?? []).includes('research-annex') ? RESEARCH_ANNEX_SPEED_MULT : 1
 }
 
 export function foundryShardDropBonus(_state: GameState): number {

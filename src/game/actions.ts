@@ -2,7 +2,6 @@ import type {
   GameState,
   LaborProfile,
   NetworkLinkId,
-  PartType,
   ProcessNetworkPreset,
   Resources,
   RunUpgradeCategory,
@@ -10,23 +9,16 @@ import type {
 } from './types'
 import {
   AI_NODES,
-  MASTERY_PARTS_COST,
-  moduleMasteryCap,
-  PART_TYPES,
   RESEARCH,
   STATIONS,
   canBuyChallengeShop,
   canBuyMatterShop,
-  canDepositPart,
   challengeClearCount,
   challengeShopStartingAi,
   challengeShopStartingSalvage,
   challengeShopStartingScrap,
-  countModuleParts,
   effectiveMaxClears,
   getAiNode,
-  getBlueprint,
-  blueprintProgress,
   getChallenge,
   getChallengeShopItem,
   getEssenceUpgrade,
@@ -38,19 +30,11 @@ import {
   legacyChallengeGoalWave,
   isAiNodePermanent,
   isChallengeUnlocked,
-  isFarmableModule,
   isStationUnlocked,
   canFitModuleOnFrame,
   filterModulesForChallenge,
   idleWorkers,
-  isBlueprintComplete,
-  isCorePrintUnlocked,
   isModuleBlockedByChallenge,
-  moduleMasteryRank,
-  modulePrintWave,
-  parsePartId,
-  partId,
-  partSellScrap,
   stationBlackBarNeed,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
@@ -69,8 +53,6 @@ import {
   buyFoundryUpgrade,
   canStartFabrication,
   equipFoundryModule,
-  foundryMaterialCount,
-  foundryRecipeLevel,
   persistFoundryOnRebuild,
   setFoundrySlot,
   startFabrication,
@@ -98,13 +80,6 @@ import { isTargetingCapableCoreModule, targetingProfileFor } from './targetingPr
 import { foundryAshHeatMult } from './foundryBonuses'
 import { isWorkerJob, workerJobCap } from './workers'
 import {
-  armYardOnRebuild,
-  buyYardArm,
-  clearYardBuilding,
-  createEmptyYardState,
-  placeYardBuilding,
-} from './yard'
-import {
   canEnterProtocol,
   createEmptyProtocolState,
   getProtocol,
@@ -124,7 +99,6 @@ import {
   mergeProcessConfig,
   networkAllocationWeights,
   processConfig,
-  yardLayoutCap,
   NETWORK_BAR_IDS,
 } from './process'
 import { createEmptySpecialistState, rankSpecialist } from './specialists'
@@ -163,14 +137,10 @@ import {
   type RunUpgradeId,
 } from './workshop'
 import { ACT1_CADENCE } from './cadence'
-import {
-  buyCoreStartingLevel as buyCoreStartingLevelInternal,
-  moduleCopyCount,
-} from './coreProgression'
+import { buyCoreStartingLevel as buyCoreStartingLevelInternal } from './coreProgression'
 import {
   ACT1_FINAL_WAVE,
   careerBestWave,
-  isSystemUnlocked,
   retirePostResetOnboarding,
   tryCompleteAchievements,
 } from './progression'
@@ -220,12 +190,6 @@ export function upgradeRelic(state: GameState, relicId: string): GameState {
   return startFabrication(state, 'relic', `${relicId}>${check.nextId}`)
 }
 export { buyFurnaceUpgrade, setFurnaceChannel, setFurnacePriority, applyFurnacePreset }
-
-export {
-  placeYardBuilding,
-  clearYardBuilding,
-  buyYardArm,
-}
 
 export function convertAshToHeat(state: GameState): GameState {
   return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state) * foundryAshHeatMult(state))
@@ -753,29 +717,6 @@ export function canAssembleBlueprint(
   state: GameState,
   moduleId: string,
 ): { ok: boolean; reason?: string } {
-  if (!isFarmableModule(moduleId)) return { ok: false, reason: 'No Core Blueprint' }
-  if (!isSystemUnlocked(state, 'foundry')) return { ok: false, reason: 'Foundry closed' }
-  if (state.shipyard.unlockedModules.includes(moduleId) && moduleCopyCount(state, moduleId) >= 8) {
-    return { ok: false, reason: 'Copy limit' }
-  }
-  if (!isCorePrintUnlocked(state, moduleId)) {
-    return { ok: false, reason: `Reach Wave ${modulePrintWave(moduleId)}` }
-  }
-  const recipe = getBlueprint(moduleId)
-  if (!recipe) return { ok: false, reason: 'Unknown print' }
-  const progress = blueprintProgress(state, moduleId)
-  if (!progress?.complete) return { ok: false, reason: 'Need more fragments' }
-  if (recipe.requiresRecipeLevel) {
-    const have = foundryRecipeLevel(state, recipe.requiresRecipeLevel.recipeId)
-    if (have < recipe.requiresRecipeLevel.level) {
-      return { ok: false, reason: 'Need more Foundry mastery' }
-    }
-  }
-  for (const [id, n] of Object.entries(recipe.foundry ?? {})) {
-    if ((n ?? 0) > foundryMaterialCount(state, id)) {
-      return { ok: false, reason: 'Need Foundry stock' }
-    }
-  }
   return canStartFabrication(state, 'core', moduleId)
 }
 
@@ -787,151 +728,40 @@ export function assembleBlueprint(state: GameState, moduleId: string): GameState
 }
 
 export function setTrackedPrint(state: GameState, moduleId: string | null): GameState {
-  if (moduleId) {
-    if (!isFarmableModule(moduleId) || !isCorePrintUnlocked(state, moduleId)) return state
-  }
   const nextId = moduleId && state.foundry.trackedPrintId === moduleId ? null : moduleId
   if ((state.foundry.trackedPrintId ?? null) === (nextId ?? null)) return state
-  const next = {
+  return {
     ...state,
     foundry: { ...state.foundry, trackedPrintId: nextId },
   }
-  recordPlaytest(next, 'print_changed', {
-    n: nextId ? (getModule(nextId)?.name ?? nextId) : 'cleared',
-  })
-  noteSystemAction(next, 'foundry')
-  return next
 }
 
 export function startFabProject(state: GameState, moduleId: string): GameState {
   return assembleBlueprint(state, moduleId)
 }
 
-/** @deprecated Uses the same timed Fabricator path as Blueprint projects. */
 export function launchFabProject(state: GameState, moduleId: string): GameState {
   return assembleBlueprint(state, moduleId)
 }
 
 export function clearFabProject(state: GameState): GameState {
-  if (!state.base.fabProject) return state
-  const next = structuredClone(state)
-  refundFabContributed(next)
-  next.base.fabProject = null
-  return next
+  return state
 }
 
-function refundFabContributed(state: GameState): void {
-  const project = state.base.fabProject
-  if (!project) return
-  for (const pt of PART_TYPES) {
-    const n = project.contributed[pt] ?? 0
-    if (n <= 0) continue
-    const id = partId(project.moduleId, pt)
-    state.parts[id] = (state.parts[id] ?? 0) + n
-  }
+export function depositFabPart(state: GameState, _partType: string, _qty = 1): GameState {
+  return state
 }
 
-export function depositFabPart(
-  state: GameState,
-  partType: PartType,
-  qty = 1,
-): GameState {
-  if (!canDepositPart(state, partType, qty)) return state
-  const project = state.base.fabProject!
-  const recipe = getBlueprint(project.moduleId)!
-  const need = recipe[partType]
-  const have = project.contributed[partType] ?? 0
-  const room = need - have
-  const invKey = partId(project.moduleId, partType)
-  const inv = state.parts[invKey] ?? 0
-  const move = Math.min(qty, room, inv)
-  if (move <= 0) return state
-
-  const next = structuredClone(state)
-  next.parts[invKey] = inv - move
-  if (next.parts[invKey] <= 0) delete next.parts[invKey]
-  const proj = next.base.fabProject!
-  proj.contributed = {
-    ...proj.contributed,
-    [partType]: have + move,
-  }
-  // Incomplete recipe cannot craft; clear any stale progress.
-  if (!isBlueprintComplete(proj.contributed, recipe)) {
-    proj.progress = 0
-  }
-  return next
+export function withdrawFabPart(state: GameState, _partType: string, _qty = 1): GameState {
+  return state
 }
 
-export function withdrawFabPart(
-  state: GameState,
-  partType: PartType,
-  qty = 1,
-): GameState {
-  const project = state.base.fabProject
-  if (!project || qty <= 0) return state
-  const have = project.contributed[partType] ?? 0
-  const move = Math.min(qty, have)
-  if (move <= 0) return state
-
-  const next = structuredClone(state)
-  const proj = next.base.fabProject!
-  const left = have - move
-  const contributed = { ...proj.contributed }
-  if (left <= 0) delete contributed[partType]
-  else contributed[partType] = left
-  proj.contributed = contributed
-  proj.progress = 0
-  const invKey = partId(proj.moduleId, partType)
-  next.parts[invKey] = (next.parts[invKey] ?? 0) + move
-  return next
+export function sellPart(state: GameState, _partIdStr: string, _qty = 1): GameState {
+  return state
 }
 
-export function sellPart(state: GameState, partIdStr: string, qty = 1): GameState {
-  if (qty <= 0) return state
-  const parsed = parsePartId(partIdStr)
-  if (!parsed) return state
-  const have = state.parts[partIdStr] ?? 0
-  const sell = Math.min(qty, have)
-  if (sell <= 0) return state
-  const scrapEach = partSellScrap(partIdStr)
-  if (scrapEach <= 0) return state
-
-  const next = structuredClone(state)
-  const left = have - sell
-  if (left <= 0) delete next.parts[partIdStr]
-  else next.parts[partIdStr] = left
-  next.resources.scrap += scrapEach * sell
-  return next
-}
-
-export function investPartMastery(state: GameState, moduleId: string): GameState {
-  if (!state.shipyard.unlockedModules.includes(moduleId)) return state
-  if (!getModule(moduleId)) return state
-  const rank = moduleMasteryRank(state, moduleId)
-  if (rank >= moduleMasteryCap(state)) return state
-  if (countModuleParts(state, moduleId) < MASTERY_PARTS_COST) return state
-
-  const next = structuredClone(state)
-  let need = MASTERY_PARTS_COST
-  // Consume any parts of this module (prefer casing → core → lens).
-  for (const pt of PART_TYPES) {
-    if (need <= 0) break
-    const id = partId(moduleId, pt)
-    const have = next.parts[id] ?? 0
-    const take = Math.min(have, need)
-    if (take <= 0) continue
-    const left = have - take
-    if (left <= 0) delete next.parts[id]
-    else next.parts[id] = left
-    need -= take
-  }
-  if (need > 0) return state
-  next.meta.moduleMastery = {
-    ...next.meta.moduleMastery,
-    [moduleId]: rank + 1,
-  }
-  if (!next.combat.inFight) syncPersistedHullCaps(next)
-  return next
+export function investPartMastery(state: GameState, _moduleId: string): GameState {
+  return state
 }
 
 export function fitModule(state: GameState, moduleId: string, coreInstanceId?: string): GameState {
@@ -1207,7 +1037,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     matterShop: { ...state.prestige.matterShop },
     seenFamilies: [...(state.codex?.seenFamilies ?? [])],
     workerDrones: state.base.workerDrones,
-    manufactureProgress: state.base.manufactureProgress,
     permanentAi,
     /** Research is permanent — rebuying the tree every prestige was redundant. */
     researchUnlocked: [...state.research.unlocked],
@@ -1228,12 +1057,10 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       signalCoresCarryOver: state.meta.signalCoresCarryOver ?? false,
       seenOnboarding: [...(state.meta.seenOnboarding ?? [])],
     },
-    parts: { ...(state.parts ?? {}) },
     heat: state.resources.heat ?? 0,
     reliquary: structuredClone(state.reliquary ?? { owned: {}, slots: {}, coreFits: {} }),
     furnace: structuredClone(state.furnace ?? createEmptyFurnaceState()),
     hiveResearch: structuredClone(state.hiveResearch ?? createEmptyHiveResearchState()),
-    yard: structuredClone(state.yard ?? createEmptyYardState()),
     protocols: {
       activeId: null,
       ranks: { ...(state.protocols?.ranks ?? {}) },
@@ -1304,8 +1131,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.base = {
     workerDrones: kept.workerDrones,
     assignments: {},
-    manufactureProgress: kept.manufactureProgress,
-    fabProject: null,
   }
   state.research = { unlocked: kept.researchUnlocked }
   state.ai = { purchased: kept.permanentAi }
@@ -1327,14 +1152,12 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.furnace = kept.furnace
   endFurnaceSortie(state)
   state.hiveResearch = kept.hiveResearch
-  state.yard = armYardOnRebuild(kept.yard)
   state.protocols = kept.protocols
   state.echo = kept.echo
   state.process = kept.process
   state.specialists = kept.specialists
   state.capital = kept.capital
   state.signalCores = kept.signalCores
-  state.parts = kept.parts
 
   retirePostResetOnboarding(state)
   applyReconstitutionCache(state)
@@ -1683,52 +1506,15 @@ export function buyMaxFoundryUpgrades(state: GameState): GameState {
 }
 
 export function buyMaxYardArms(state: GameState): GameState {
-  if (!hasProcess(state, 'yard-buy-max') && !hasProcess(state, 'yard-auto')) return state
-  const selected = processConfig(state).yard.selectedArms
-  const arms = selected.length > 0 ? selected : (['damage', 'shield', 'salvage', 'network'] as const)
-  let next = state
-  let guard = 0
-  while (guard++ < 20) {
-    let bought = false
-    for (const id of arms) {
-      const after = buyYardArm(next, id)
-      if (after !== next) {
-        next = after
-        bought = true
-        break
-      }
-    }
-    if (!bought) break
-  }
-  return next
+  return state
 }
 
-export function saveYardLayout(state: GameState, name = 'Layout'): GameState {
-  if (!hasProcess(state, 'yard-layouts')) return state
-  const next = structuredClone(state)
-  if (!next.process) next.process = createEmptyProcessState()
-  const layouts = [...next.process.config.yard.layouts]
-  const cap = yardLayoutCap(next)
-  const snapshot = {
-    name,
-    cells: (next.yard?.cells ?? []).map((c) => ({ buildingId: c.buildingId })),
-  }
-  if (layouts.length >= cap) layouts[layouts.length - 1] = snapshot
-  else layouts.push(snapshot)
-  next.process.config.yard.layouts = layouts
-  next.process.config.yard.activeLayout = layouts.length - 1
-  return next
+export function saveYardLayout(state: GameState, _name = 'Layout'): GameState {
+  return state
 }
 
-export function loadYardLayout(state: GameState, index: number): GameState {
-  if (!hasProcess(state, 'yard-layouts')) return state
-  const layout = processConfig(state).yard.layouts[index]
-  if (!layout) return state
-  const next = structuredClone(state)
-  if (!next.yard) next.yard = createEmptyYardState()
-  next.yard.cells = layout.cells.map((c) => ({ buildingId: c.buildingId }))
-  next.process.config.yard.activeLayout = index
-  return next
+export function loadYardLayout(state: GameState, _index: number): GameState {
+  return state
 }
 
 /** @deprecated buildings replaced by worker stations */

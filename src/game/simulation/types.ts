@@ -377,7 +377,7 @@ export interface SimulationRunReport {
   network: NetworkSnapshot
   foundry: {
     points: number
-    recipeLevels: Record<string, number>
+    masteryXp: Record<string, number>
     upgrades: Record<string, number>
     equipped: string[]
     slotRecipes: Array<string | null>

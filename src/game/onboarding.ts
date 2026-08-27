@@ -10,6 +10,8 @@ import { firstRebuildAvailable, hasHullLostOnce, isSystemUnlocked } from './prog
 import { firstAffordableProcessNode } from './process'
 import { anyMatterPurchaseOwned, MATTER_SHOP } from './matter'
 import { canBuyMatterShop } from './catalog'
+import { foundryMaterialCount } from './foundry'
+import { ownedWorkers } from './workers'
 import type { GameState, TabId } from './types'
 import { workshopCost, workshopLevel } from './workshop'
 
@@ -19,6 +21,7 @@ export const ONBOARDING_LESSON_IDS = [
   'opening.salvage',
   'first-defeat.workshop',
   'foundry.processing',
+  'foundry.blueprint',
   'workers.assignment',
   'directives.choice',
   'rebuild.preview',
@@ -45,6 +48,7 @@ export const SEMANTIC_TARGET_IDS = [
   'onboarding.salvage.weapon-power',
   'onboarding.workshop.weapon-power',
   'onboarding.foundry.processor',
+  'onboarding.foundry.blueprint',
   'onboarding.workers.salvage',
   'onboarding.rebuild.preview',
   'onboarding.rebuild.matter',
@@ -68,6 +72,8 @@ export type OnboardingPane =
   | 'rebuild'
   | 'processing'
   | 'fabrication'
+  | 'mastery'
+  | 'blueprints'
   | 'hub'
 
 export interface OnboardingNav {
@@ -234,19 +240,14 @@ function anyRelicFitted(state: GameState): boolean {
 export function foundryFirstJobReady(state: GameState): boolean {
   if (!isSystemUnlocked(state, 'foundry')) return false
   if ((state.foundry?.slots ?? []).some((slot) => slot.recipeId)) return false
-  const slag = state.foundry?.recipeLevels?.['slag-ingot'] ?? 0
-  const filament = state.foundry?.recipeLevels?.filament ?? 0
-  if (slag >= 1 || filament >= 1) return false
-  return (state.resources.scrap ?? 0) >= 6
+  const stock = foundryMaterialCount(state, 'recovered-stock')
+  if (stock >= 1) return false
+  return (state.resources.scrap ?? 0) >= 8
 }
 
 function foundryFirstJobDone(state: GameState): boolean {
-  const slag = state.foundry?.recipeLevels?.['slag-ingot'] ?? 0
-  const filament = state.foundry?.recipeLevels?.filament ?? 0
-  if (slag >= 1 || filament >= 1) return true
-  return (state.foundry?.slots ?? []).some(
-    (slot) => slot.recipeId === 'slag-ingot' || slot.recipeId === 'filament',
-  )
+  if ((state.foundry?.materials?.['recovered-stock'] ?? 0) >= 1) return true
+  return (state.foundry?.slots ?? []).some((slot) => slot.recipeId === 'recovered-stock')
 }
 
 function recoveredScrap(state: GameState): number {
@@ -320,11 +321,11 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     id: 'foundry.processing',
     title: 'Processing',
     body: [
-      'Recovered material can now be processed.',
-      'Start a short job on Processor I. Recipe Mastery makes the next one faster, including offline.',
+      'Processing consumes inputs and produces a persistent material.',
+      'Start one Recovered Stock cycle. The output stays after Rebuild.',
     ],
-    actionLabel: 'Start a job',
-    payoff: 'The processor is running. Repeated crafts raise Recipe Mastery.',
+    actionLabel: 'Start Recovered Stock',
+    payoff: 'You now have Recovered Stock. Processing cycles also raise that material\'s Mastery.',
     target: 'onboarding.foundry.processor',
     nav: { tab: 'foundry', pane: 'processing', systemsView: 'foundry' },
     pause: false,
@@ -335,11 +336,29 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     completeWhen: foundryFirstJobDone,
   },
   {
+    id: 'foundry.blueprint',
+    title: 'Blueprint is a design',
+    body: [
+      'A discovered Blueprint is a design, not a physical Core.',
+      'Fabrication creates the actual item in inventory.',
+    ],
+    actionLabel: 'Open Blueprints',
+    payoff: 'You can see design-known versus owned. Fabrication is a separate step.',
+    target: 'onboarding.foundry.blueprint',
+    nav: { tab: 'foundry', pane: 'blueprints', systemsView: 'foundry' },
+    pause: false,
+    skippable: true,
+    required: false,
+    activation: 'visit',
+    availableWhen: (s) => isSystemUnlocked(s, 'foundry') && foundryFirstJobDone(s),
+    completeWhen: (s) => Boolean(s.foundry?.trackedPrintId) || (s.foundry?.discovered?.length ?? 0) > 2,
+  },
+  {
     id: 'workers.assignment',
     title: 'Assign a Worker',
     body: [
-      'Assign 1 Worker Drone to Salvage ops.',
-      'One drone starts producing Scrap. Jobs have a hard cap.',
+      'Workers are permanent. Capacity is not ownership.',
+      'Assign 1 owned Worker to Salvage ops. Buying Worker Racks only raises capacity.',
     ],
     actionLabel: 'Assign to Salvage',
     payoff: 'That Worker is now producing between Sorties.',
@@ -349,7 +368,8 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     skippable: true,
     required: false,
     activation: 'visit',
-    availableWhen: (s) => isSystemUnlocked(s, 'network') && (s.base.assignments['scrap-field'] ?? 0) < 1,
+    availableWhen: (s) =>
+      isSystemUnlocked(s, 'foundry') && ownedWorkers(s) >= 1 && (s.base.assignments['scrap-field'] ?? 0) < 1,
     completeWhen: (s) => (s.base.assignments['scrap-field'] ?? 0) >= 1,
   },
   {
@@ -770,6 +790,7 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
 
   const waveFor: Partial<Record<OnboardingLessonId, number>> = {
     'foundry.processing': ACT1_CADENCE.foundry,
+    'foundry.blueprint': ACT1_CADENCE.foundry,
     'workers.assignment': ACT1_CADENCE.workers,
     'directives.choice': ACT1_CADENCE.directives,
     'rebuild.preview': ACT1_CADENCE.rebuild,
@@ -817,7 +838,11 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
     case 'foundry.processing':
       next.resources.scrap = Math.max(next.resources.scrap, 12)
       next.foundry.slots = next.foundry.slots.map((slot) => ({ ...slot, recipeId: null, progress: 0, paid: false }))
-      next.foundry.recipeLevels = { ...next.foundry.recipeLevels, 'slag-ingot': 0, filament: 0 }
+      next.foundry.materials = { ...next.foundry.materials, 'recovered-stock': 0 }
+      break
+    case 'foundry.blueprint':
+      next.foundry.materials = { ...next.foundry.materials, 'recovered-stock': 1 }
+      next.foundry.discovered = [...new Set([...(next.foundry.discovered ?? []), 'flak-array'])]
       break
     case 'workers.assignment':
       next.base.assignments = { ...next.base.assignments, 'scrap-field': 0 }
@@ -897,7 +922,7 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
 
 export const STARTER_GUIDE_IDS = STARTER_LESSON_IDS
 export const NETWORK_GUIDE_IDS = ['workers.assignment'] as const
-export const FOUNDRY_V2_GUIDE_IDS = ['foundry.processing'] as const
+export const FOUNDRY_V2_GUIDE_IDS = ['foundry.processing', 'foundry.blueprint'] as const
 export const RESEARCH_V2_GUIDE_IDS = ['research.project'] as const
 export const FURNACE_V2_GUIDE_IDS = ['furnace.channel'] as const
 export const REBUILD_GUIDE_IDS = ['rebuild.preview', 'rebuild.matter'] as const

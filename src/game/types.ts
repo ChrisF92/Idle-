@@ -48,40 +48,35 @@ export interface NetworkState {
 
 export type NetworkLinkId = 'racks' | 'acuity' | 'cycle'
 
-export type FoundryRecipeId =
-  | 'slag-ingot'
-  | 'filament'
-  | 'hardened-plate'
-  | 'relay'
-  | 'choir-flux'
-  | 'keel-strip'
-  | 'focus-lens'
-  | 'void-slag'
+export type FoundryMaterialId =
+  | 'recovered-stock'
+  | 'conductive-filament'
+  | 'tempered-alloy'
+  | 'ballistic-composite'
+  | 'optical-glass'
+  | 'shield-lattice'
   | 'control-mesh'
-  | 'warp-thread'
-  | 'brace-pin'
-  | 'slag-glass'
-  | 'temper-bar'
-  | 'coil-stack'
-  | 'flux-weave'
-  | 'hearth-core'
-  | 'sight-lattice'
-  | 'keel-lattice'
+  | 'phase-crystal'
+  | 'nanite-compound'
+  | 'resonant-ceramic'
+  | 'thermal-conductor'
+  | 'crown-matrix'
 
-export type FabJobKind = 'core' | 'relic' | 'facility'
+/** Processing recipes are keyed by output material. */
+export type FoundryRecipeId = FoundryMaterialId
+
+export type FabJobKind = 'core' | 'frame' | 'relic' | 'worker' | 'facility'
 
 export type FacilityId =
   | 'processing-line'
   | 'fabrication-bay'
-  | 'drone-racks'
-  | 'drone-fabricator'
+  | 'worker-fabricator'
   | 'research-annex'
-  | 'storage-bay'
-  | 'specialised-works'
+  | 'recovery-storage'
 
 export interface FoundrySlot {
-  recipeId: FoundryRecipeId | null
-  /** 0..1 toward the current craft. */
+  recipeId: FoundryMaterialId | null
+  /** 0..1 toward the current cycle. */
   progress: number
   /** True once this cycle's costs have been paid. */
   paid: boolean
@@ -93,34 +88,24 @@ export interface FabricationSlot {
   /** 0..1 toward the current job. */
   progress: number
   paid: boolean
-  /** Finished in a live Sortie; claim when Docked / next launch. */
-  complete: boolean
-}
-
-export interface PendingRelicUpgrade {
-  from: string
-  to: string
 }
 
 export interface FoundryState {
-  recipeLevels: Record<string, number>
-  /** Crafts toward the next recipe level. */
-  recipeXp: Record<string, number>
   materials: Record<string, number>
-  /** Processing slots only. */
+  /** Cumulative Material Mastery XP per material. Rank is derived. Caps at M5. */
+  masteryXp: Record<string, number>
+  /** Processing slots. Each holds at most one paid cycle. */
   slots: FoundrySlot[]
-  /** Discrete timed jobs: Cores, Relic tiers, facilities. */
+  /** Discrete timed jobs: Cores, Frames, Workers, facilities. Relic kind is PR6. */
   fabrication: FabricationSlot[]
-  /** Single Core Blueprint the player is currently tracking. Persists across Rebuild. */
-  trackedPrintId: string | null
-  /** Facilities armed on a previous Sortie launch. */
   facilities: FacilityId[]
-  /** Leftover next-Sortie queue. Hydrate / complete now apply immediately. */
-  pendingFacilities: FacilityId[]
-  /** Cores finished mid-Sortie; unlock when Docked. */
-  pendingCores: string[]
-  /** Relic upgrades finished mid-Sortie; apply when Docked. */
-  pendingRelics: PendingRelicUpgrade[]
+  /** Blueprint-specific schematic fragments (blueprintId → count). */
+  fragments: Record<string, number>
+  /** Blueprint IDs whose design is known. Does not imply physical ownership. */
+  discovered: string[]
+  /** Explicit Foundry capabilities (advanced processing, etc.). */
+  capabilities: string[]
+  trackedPrintId: string | null
 }
 
 export type ReliquaryColor = 'red' | 'orange' | 'pink' | 'blue' | 'green'
@@ -823,17 +808,11 @@ export type UnitShape = 'triangle' | 'square' | 'circle' | 'hex' | 'diamond'
 /** USI hull classes — stand-off, speed, and silhouette. */
 export type EnemyRole = 'fighter' | 'skirmisher' | 'sniper' | 'juggernaut' | 'shield' | 'boss'
 
-/** Blueprint part kinds. PartId = `${moduleId}:${PartType}`. */
-export type PartType = 'casing' | 'core' | 'lens'
-
 export interface FragmentNotice {
   moduleId: string
-  partType: PartType
   name: string
-  partHave: number
-  partNeed: number
-  totalHave: number
-  totalNeed: number
+  have: number
+  need: number
   seq: number
 }
 
@@ -1320,27 +1299,13 @@ export interface CombatState {
 }
 
 /**
- * Worker-drone industry: permanent drone counts, run assignments to stations.
- * Legacy `buildings` may appear in old saves and is migrated away.
+ * Worker-drone industry: permanent owned Workers, distinct from capacity.
  */
-export interface FabProject {
-  moduleId: string
-  contributed: Partial<Record<PartType, number>>
-  /** 0..1 craft progress after recipe is filled. */
-  progress: number
-}
-
 export interface BaseState {
   /** Permanent manufactured worker drones (kept across prestige). */
   workerDrones: number
-  /** stationId → assigned workers (resets on prestige). */
+  /** stationId → assigned workers. Assignments are operational; ownership persists. */
   assignments: Record<string, number>
-  /** 0..1 progress toward the next manufactured worker drone. */
-  manufactureProgress: number
-  /** Active Fabrication Bay project (cleared on prestige). */
-  fabProject: FabProject | null
-  /** @deprecated migrated to worker drones + stations */
-  buildings?: Record<string, number>
 }
 
 /** Preferred industry auto-assign profile (Labor Router / Labor Loop). */
@@ -1497,7 +1462,7 @@ export interface GameState {
   base: BaseState
   /** Drone Network bars (Strike / Ward / …). Wiped on Rebuild. */
   network: NetworkState
-  /** Foundry processing, timed fabrication, and facilities. Recipes, stock, jobs, and facilities persist. */
+  /** Foundry processing, timed fabrication, infrastructure, Blueprints. Persist through Rebuild. */
   foundry: FoundryState
   /** @deprecated Shard slots leftover. Relics install on Cores. Inventory + fitted shards persist across Rebuild. */
   reliquary: ReliquaryState
@@ -1505,8 +1470,6 @@ export interface GameState {
   furnace: FurnaceState
   /** Kill-fed Material / Energy / Observation. Persist across Rebuild. */
   hiveResearch: HiveResearchState
-  /** Leftover Yard grid stub. Live construction is Foundry facilities. */
-  yard: YardState
   /** Challenges. Ranks persist; active run is Rebuild-cleared. */
   protocols: ProtocolState
   /** @deprecated Echo Runs leftover. Tree + points persist but never apply. */
@@ -1530,11 +1493,6 @@ export interface GameState {
    * Wiped on prestige unless meta.signalCoresCarryOver.
    */
   signalCores: SignalCoresState
-  /**
-   * Account-permanent blueprint parts inventory (PartId → qty).
-   * Persists across prestige / challenge resets.
-   */
-  parts: Record<string, number>
   /** Local playtest event log. Missing on old saves — hydrated empty. */
   playtest: PlaytestState
 }

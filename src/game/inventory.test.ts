@@ -47,9 +47,9 @@ describe('Inventory item model', () => {
 
   it('builds a material ledger from Foundry recipes and stock', () => {
     const state = createInitialState(0)
-    state.foundry.materials['slag-ingot'] = 12
+    state.foundry.materials['recovered-stock'] = 12
     const rows = inventoryMaterials(state)
-    const slag = rows.find((row) => row.id === 'slag-ingot')
+    const slag = rows.find((row) => row.id === 'recovered-stock')
     expect(slag?.stock).toBe(12)
     expect(slag?.family).toBe('recovered')
     expect(slag?.consumedBy.length).toBeGreaterThan(0)

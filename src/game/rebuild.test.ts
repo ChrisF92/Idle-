@@ -114,14 +114,14 @@ describe('Rebuild reset matrix', () => {
     s.prestige.matterShop['time-compression-2'] = 1
     s.prestige.matterShop['time-compression-1'] = 1
     s.foundry.slots = s.foundry.slots.map((slot, i) =>
-      i === 0 ? { ...slot, recipeId: 'slag-ingot', progress: 0.4, paid: true } : slot,
+      i === 0 ? { ...slot, recipeId: 'recovered-stock', progress: 0.4, paid: true } : slot,
     )
     s.hiveResearch.active = true
     s.hiveResearch.activeNodeId = 'priority-lock'
     s.hiveResearch.progress = 12
     s.reliquary.owned = { 'power-shard': 1 }
     s.foundry.fabrication = [
-      { kind: 'core', jobId: 'charge-prism', progress: 0.33, paid: true, complete: false },
+      { kind: 'core', jobId: 'flak-array', progress: 0.33, paid: true },
     ]
     const foundryProgress = s.foundry.slots[0]?.progress
     const fabProgress = s.foundry.fabrication[0]?.progress

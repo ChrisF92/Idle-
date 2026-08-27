@@ -11,7 +11,6 @@ import {
 } from './catalog'
 import { reliquaryNetworkMult } from './reliquary'
 import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
-import { yardNetworkMult } from './yard'
 import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
@@ -538,7 +537,6 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       reliquaryNetworkMult(state) *
       hiveResearchNetworkMult(state) *
       hiveResearchDroneEffMult(state) *
-      yardNetworkMult(state) *
       protocolBonusMult(state, 'network') *
       echoNetworkMult(state) *
       processNetworkSpeedMult(state) *

@@ -34,7 +34,6 @@ import {
 import { combinedCoreMods, effectiveCoreLevel } from './coreProgression'
 import {
   createEmptyNetworkState,
-  NETWORK_STARTING_DRONES,
 } from './network'
 import {
   createEmptyFoundryState,
@@ -49,7 +48,6 @@ import {
   hiveResearchDamageMult,
   hiveResearchShieldMult,
 } from './hiveResearch'
-import { createEmptyYardState, yardDamageMult, yardShieldMult } from './yard'
 import { createEmptyProtocolState, protocolHullMult, protocolMutes } from './protocols'
 import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
 import { createEmptyProcessState, processDamageMult, processShieldMult } from './process'
@@ -72,7 +70,7 @@ import {
 import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
 import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 45
+export const SAVE_VERSION = 46
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -188,17 +186,14 @@ export function createInitialState(now = Date.now()): GameState {
     },
     workshop: createEmptyWorkshop(),
     base: {
-      workerDrones: NETWORK_STARTING_DRONES,
+      workerDrones: 0,
       assignments: {},
-      manufactureProgress: 0,
-      fabProject: null,
     },
     network: createEmptyNetworkState(),
     foundry: createEmptyFoundryState(),
     reliquary: createEmptyReliquaryState(),
     furnace: createEmptyFurnaceState(),
     hiveResearch: createEmptyHiveResearchState(),
-    yard: createEmptyYardState(),
     protocols: createEmptyProtocolState(),
     echo: createEmptyEchoState(),
     process: createEmptyProcessState(),
@@ -261,7 +256,6 @@ export function createInitialState(now = Date.now()): GameState {
     },
     core: createEmptyCoreState(),
     signalCores: createEmptySignalCoresState(),
-    parts: {},
     playtest: createEmptyPlaytest(now),
   }
   const stats = computeShipStats(state)
@@ -299,7 +293,6 @@ export function globalDamageMultiplier(state: GameState): number {
   mult *= reliquaryDamageMult(state)
   mult *= furnaceDamageMult(state)
   mult *= hiveResearchDamageMult(state)
-  mult *= yardDamageMult(state)
   mult *= echoDamageMult(state)
   mult *= specialistDamageMult(state)
   mult *= capitalDamageMult(state)
@@ -440,7 +433,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= reliquaryShieldMult(state)
   shieldMax *= furnaceShieldMult(state)
   shieldMax *= hiveResearchShieldMult(state)
-  shieldMax *= yardShieldMult(state)
   shieldMax *= echoShieldMult(state)
   shieldMax *= specialistShieldMult(state)
   shieldMax *= capitalShieldMult(state)

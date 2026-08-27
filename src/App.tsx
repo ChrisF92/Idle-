@@ -470,6 +470,7 @@ function AppShell() {
             onFabricateCore={game.assembleBlueprint}
             onStartRelic={game.upgradeRelic}
             onStartFacility={game.startFacility}
+            onStartJob={game.startFabricationJob}
             onStopFabrication={game.stopFabrication}
             onTrack={game.setTrackedPrint}
             guideTarget={onboarding?.target}

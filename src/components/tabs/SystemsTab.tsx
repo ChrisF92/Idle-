@@ -53,7 +53,7 @@ export function SystemsTab({ state, onManage }: Props) {
       </div>
 
       {isSystemUnlocked(state, 'foundry') &&
-      state.foundry.fabrication.some((slot) => slot.complete && slot.kind !== 'facility') ? (
+      state.foundry.fabrication.some((slot) => slot.kind && slot.kind !== 'facility' && slot.progress >= 1) ? (
         <p className="panel-note">A Fabrication job is ready. Open Foundry to claim it while Docked.</p>
       ) : null}
     </section>

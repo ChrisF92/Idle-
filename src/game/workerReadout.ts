@@ -1,18 +1,13 @@
 /** Exact Worker Drone assignment consequences for the Systems workforce UI. */
 
+import { STATIONS, stationEffectiveDrones } from './catalog'
 import {
-  STATIONS,
-  WORKER_MANUFACTURE_SECONDS,
-  stationEffectiveDrones,
-  workerManufactureSpeed,
-} from './catalog'
-import {
-  FOUNDRY_RECIPES,
   fabricationJobLabel,
   fabricationJobTime,
   foundryCraftTime,
   foundryFabricationSpeed,
   foundryProcessingSpeed,
+  FOUNDRY_RECIPES,
 } from './foundry'
 import {
   formatResearchDuration,
@@ -21,9 +16,8 @@ import {
   hiveResearchProgress,
   hiveResearchSpeed,
 } from './hiveResearch'
-import { processIndustrySpeedMult } from './process'
 import type { GameState } from './types'
-import { workerJobCap, workerJobEfficientRange, workerJobLabel } from './workers'
+import { ownedWorkers, workerCapacity, workerJobCap, workerJobEfficientRange, workerJobLabel } from './workers'
 
 export interface WorkerJobConsequence {
   jobId: string
@@ -91,8 +85,8 @@ function fabricationConsequence(
 ): WorkerJobConsequence {
   const slot = state.foundry.fabrication.find((row) =>
     jobId === 'construction'
-      ? row.kind === 'facility' && !row.complete
-      : (row.kind === 'core' || row.kind === 'relic') && !row.complete,
+      ? row.kind === 'facility'
+      : row.kind === 'core' || row.kind === 'relic' || row.kind === 'frame' || row.kind === 'worker',
   )
   if (!slot?.kind || !slot.jobId) {
     return {
@@ -138,20 +132,27 @@ function researchConsequence(state: GameState, assigned: number, band: string): 
 }
 
 function droneFabricationConsequence(state: GameState, assigned: number, band: string): WorkerJobConsequence {
-  const remaining = Math.max(0, 1 - state.base.manufactureProgress)
-  const current =
-    remaining * WORKER_MANUFACTURE_SECONDS /
-    Math.max(0.01, workerManufactureSpeed(state) * processIndustrySpeedMult(state))
+  const slot = state.foundry.fabrication.find((row) => row.kind === 'worker')
+  if (!slot) {
+    return {
+      jobId: 'drone-fab',
+      title: 'Worker Fabrication',
+      assigned,
+      band,
+      current: ownedWorkers(state) >= workerCapacity(state) ? 'Capacity full' : 'No Worker job queued',
+      next: nextLine(assigned, 'drone-fab', 'no active job'),
+    }
+  }
+  const base = fabricationJobTime(state, 'worker', 'worker') * (1 - slot.progress)
+  const current = base / Math.max(0.01, foundryFabricationSpeed(state, 'worker'))
   const plus = withAssignment(state, 'drone-fab', assigned + 1)
-  const next =
-    remaining * WORKER_MANUFACTURE_SECONDS /
-    Math.max(0.01, workerManufactureSpeed(plus) * processIndustrySpeedMult(plus))
+  const next = base / Math.max(0.01, foundryFabricationSpeed(plus, 'worker'))
   return {
     jobId: 'drone-fab',
-    title: 'Worker Drone Fabrication',
+    title: 'Worker Fabrication',
     assigned,
     band,
-    current: `Next Worker Drone · ${formatSeconds(current)}`,
+    current: `${formatSeconds(current)} remaining`,
     next: nextLine(assigned, 'drone-fab', formatSeconds(next)),
   }
 }

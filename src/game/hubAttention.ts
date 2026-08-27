@@ -56,7 +56,6 @@ export function contentKeys(state: GameState, scope: HubAttentionScope): string[
     for (const print of listFarmableCores(state)) {
       keys.push(`print:${print.id}`)
     }
-    if (isSystemUnlocked(state, 'yard')) keys.push('sys:yard')
     return keys
   }
   if (scope === 'research') {

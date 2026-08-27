@@ -141,7 +141,7 @@ describe('GDD Process', () => {
 
     let defence = processState()
     defence.base.workerDrones = 10
-    defence.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0, paid: false }
+    defence.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0, paid: false }
     defence.process.purchased = ['network-optimise', 'network-presets']
     defence = applyNetworkPreset(defence, 'defence')
     expect(defence.base.assignments['repair-bay'] ?? 0).toBe(0)
@@ -173,7 +173,7 @@ describe('GDD Process', () => {
   })
 
   it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-buy-max')?.cost).toBe(4)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)

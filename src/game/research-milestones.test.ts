@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { performRebuild } from './actions'
 import { tickAutomation } from './automation'
 import { canFitModuleOnFrame, getFrame } from './catalog'
-import { foundryMasteryStepsFor, foundryRecipeGateNeed, foundrySlotCount, getFoundryRecipe } from './foundry'
+import { foundrySlotCount, getFoundryRecipe } from './foundry'
 import { furnaceChannelSlots } from './furnace'
 import {
   HIVE_RESEARCH_BRANCHES,
@@ -122,7 +122,7 @@ describe('Research milestones: nodes and identity', () => {
 
 describe('Research milestones: costs', () => {
   it('keeps SAVE_VERSION at 34 and an achievable first node', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     const s = atResearch()
     expect(hiveResearchNodeCost(0)).toBe(52)
     expect(hiveResearchNodeCost(0, s)).toBe(52)
@@ -149,16 +149,15 @@ describe('Research milestones: breakthrough wiring', () => {
     expect(hiveResearchSalvageMult(s)).toBeGreaterThan(1)
   })
 
-  it('Pattern Floor opens recipe mastery gates one rank sooner', () => {
+  it('Pattern Floor no longer shortens a 100-level Foundry grind', () => {
     const s = atResearch(5)
-    s.foundry.recipeLevels['slag-ingot'] = 3
-    expect(foundryRecipeGateNeed(s, 4)).toBe(4)
     complete(s, 'material', 6)
     expect(hiveResearchMasteryReduce(s)).toBe(1)
-    expect(foundryRecipeGateNeed(s, 4)).toBe(3)
+    expect(getFoundryRecipe('recovered-stock')).toBeTruthy()
+    expect(getFoundryRecipe('recovered-stock')).not.toHaveProperty('maxLevel')
   })
 
-  it('Keel Bay adds a utility Core slot and solves old recipes two ranks sooner', () => {
+  it('Keel Bay adds a utility Core slot; Foundry Mastery remains M0→M5', () => {
     const s = atResearch()
     const frame = getFrame('bastion-frame')!
     expect(canFitModuleOnFrame(frame, ['drone-bay'], 'vector-thruster')).toBe(false)
@@ -170,9 +169,7 @@ describe('Research milestones: breakthrough wiring', () => {
         utility: hiveResearchExtraUtilitySlots(s),
       }),
     ).toBe(true)
-    const slag = getFoundryRecipe('slag-ingot')!
-    expect(foundryMasteryStepsFor(slag).at(-1)?.at).toBe(20)
-    expect(foundryMasteryStepsFor(slag, s).at(-1)?.at).toBe(18)
+    expect(getFoundryRecipe('recovered-stock')?.id).toBe('recovered-stock')
   })
 
   it('Energy Extra Tap lights another Furnace channel; Priority Lock is targeting not damage', () => {
@@ -289,7 +286,7 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
     s.hiveResearch.focus = 'observation'
     s.hiveResearch.xp.observation = 12
     const loaded = importSave(exportSave(s))
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     expect(loaded?.hiveResearch.completed.material).toBe(6)
     expect(loaded?.hiveResearch.completed.observation).toBe(2)
     expect(loaded?.hiveResearch.focus).toBe('observation')

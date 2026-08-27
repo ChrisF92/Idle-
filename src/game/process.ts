@@ -719,7 +719,7 @@ export function processLaneNodes(state: GameState, lane: ProcessLane): ProcessNo
 export function processLessonCount(state: GameState): number {
   const cores = practicedCoreWork(state)
   const workshop = Object.values(state.workshop?.levels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
-  const recipes = Object.values(state.foundry?.recipeLevels ?? {}).reduce((sum, n) => sum + Math.max(0, n), 0)
+  const recipes = Object.values(state.foundry?.masteryXp ?? {}).reduce((sum, n) => sum + Math.max(0, Number(n) || 0), 0)
   return cores + workshop + recipes + (state.meta.lifetimeFabCrafts ?? 0)
 }
 
@@ -950,7 +950,7 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
         ([id, n]) => (n ?? 0) > 0 && isWorkerJob(id),
       )
     case 'foundry':
-      return Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0)
+      return Object.values(state.foundry?.masteryXp ?? {}).some((n) => (Number(n) || 0) > 0)
     case 'reliquary':
       return (
         Object.values(state.reliquary?.owned ?? {}).some((n) => n > 0) ||
@@ -966,7 +966,7 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
         (state.resources.heat ?? 0) > 0
       )
     case 'yard':
-      return (state.yard?.cells ?? []).some((c) => Boolean(c.buildingId))
+      return (state.foundry?.facilities ?? []).length > 0
     case 'protocols':
       return Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
     case 'echo':

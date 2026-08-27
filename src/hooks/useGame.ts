@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import type { GameState, LaborProfile, PartType } from '../game/types'
+import type { GameState, LaborProfile } from '../game/types'
 import { loadOrCreateGame, saveGame, clearSave, importSave } from '../game/save'
 import {
   tickGame,
@@ -71,9 +71,6 @@ import {
   applyFurnacePreset,
   setResearchFocus,
   startResearch,
-  placeYardBuilding,
-  clearYardBuilding,
-  buyYardArm,
   enterProtocol,
   abandonProtocol,
   enterEcho,
@@ -116,8 +113,8 @@ type Action =
   | { type: 'start-fab'; moduleId: string }
   | { type: 'launch-fab'; moduleId: string }
   | { type: 'clear-fab' }
-  | { type: 'deposit-fab'; partType: PartType; qty?: number }
-  | { type: 'withdraw-fab'; partType: PartType; qty?: number }
+  | { type: 'deposit-fab'; partType: string; qty?: number }
+  | { type: 'withdraw-fab'; partType: string; qty?: number }
   | { type: 'sell-part'; partId: string; qty?: number }
   | { type: 'invest-mastery'; moduleId: string }
   | { type: 'buy-research'; researchId: string }
@@ -152,6 +149,7 @@ type Action =
   | { type: 'dev'; action: DevAction }
   | { type: 'foundry-slot'; slotIndex: number; recipeId: string | null }
   | { type: 'foundry-stop-fab'; slotIndex: number }
+  | { type: 'foundry-start-job'; kind: import('../game/types').FabJobKind; jobId: string }
   | { type: 'foundry-start-facility'; facilityId: import('../game/types').FacilityId }
   | { type: 'foundry-upgrade'; upgradeId: string }
   | { type: 'foundry-equip'; moduleId: string }
@@ -306,6 +304,8 @@ function reducer(state: GameState, action: Action): GameState {
       return stopFabrication(state, action.slotIndex)
     case 'foundry-start-facility':
       return startFabrication(state, 'facility', action.facilityId)
+    case 'foundry-start-job':
+      return startFabrication(state, action.kind, action.jobId)
     case 'foundry-upgrade':
       return buyFoundryUpgrade(state, action.upgradeId)
     case 'foundry-equip':
@@ -345,11 +345,9 @@ function reducer(state: GameState, action: Action): GameState {
     case 'dismiss-act1-finale':
       return dismissAct1Finale(state)
     case 'yard-place':
-      return placeYardBuilding(state, action.index, action.buildingId)
     case 'yard-clear':
-      return clearYardBuilding(state, action.index)
     case 'yard-arm':
-      return buyYardArm(state, action.armId)
+      return state
     case 'enter-protocol':
       return enterProtocol(state, action.protocolId)
     case 'abandon-protocol':
@@ -494,9 +492,9 @@ export function useGame() {
     startFabProject: (moduleId: string) => dispatch({ type: 'start-fab', moduleId }),
     launchFabProject: (moduleId: string) => dispatch({ type: 'launch-fab', moduleId }),
     clearFabProject: () => dispatch({ type: 'clear-fab' }),
-    depositFabPart: (partType: PartType, qty?: number) =>
+    depositFabPart: (partType: string, qty?: number) =>
       dispatch({ type: 'deposit-fab', partType, qty }),
-    withdrawFabPart: (partType: PartType, qty?: number) =>
+    withdrawFabPart: (partType: string, qty?: number) =>
       dispatch({ type: 'withdraw-fab', partType, qty }),
     sellPart: (partId: string, qty?: number) =>
       dispatch({ type: 'sell-part', partId, qty }),
@@ -552,6 +550,8 @@ export function useGame() {
     stopFabrication: (slotIndex: number) => dispatch({ type: 'foundry-stop-fab', slotIndex }),
     startFacility: (facilityId: import('../game/types').FacilityId) =>
       dispatch({ type: 'foundry-start-facility', facilityId }),
+    startFabricationJob: (kind: import('../game/types').FabJobKind, jobId: string) =>
+      dispatch({ type: 'foundry-start-job', kind, jobId }),
     buyFoundryUpgrade: (upgradeId: string) =>
       dispatch({ type: 'foundry-upgrade', upgradeId }),
     equipFoundryModule: (moduleId: string) =>
@@ -586,12 +586,11 @@ export function useGame() {
     startResearch: (nodeId: string) => dispatch({ type: 'research-start', nodeId }),
     dismissAct1Finale: () => dispatch({ type: 'dismiss-act1-finale' }),
     placeYardBuilding: (
-      index: number,
-      buildingId: import('../game/types').YardBuildingId,
-    ) => dispatch({ type: 'yard-place', index, buildingId }),
-    clearYardBuilding: (index: number) => dispatch({ type: 'yard-clear', index }),
-    buyYardArm: (armId: import('../game/types').YardArmId) =>
-      dispatch({ type: 'yard-arm', armId }),
+      _index: number,
+      _buildingId: import('../game/types').YardBuildingId,
+    ) => undefined,
+    clearYardBuilding: (_index: number) => undefined,
+    buyYardArm: (_armId: import('../game/types').YardArmId) => undefined,
     enterProtocol: (protocolId: string) =>
       dispatch({ type: 'enter-protocol', protocolId }),
     abandonProtocol: () => dispatch({ type: 'abandon-protocol' }),

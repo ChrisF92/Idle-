@@ -205,14 +205,14 @@ describe('Act 1 career simulations', () => {
   it('roundtrips a mid-Act-1 save without bumping SAVE_VERSION', () => {
     const s = createInitialState(0)
     s.hiveResearch.completed.energy = 2
-    s.foundry.recipeLevels['slag-ingot'] = 4
+    s.foundry.masteryXp['recovered-stock'] = 4
     s.furnace.wanted.weapons = 1
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
-    expect(back!.foundry.recipeLevels['slag-ingot']).toBe(4)
+    expect(back!.foundry.masteryXp['recovered-stock']).toBe(4)
     expect(back!.furnace.wanted.weapons).toBe(1)
   })
 })

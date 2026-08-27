@@ -6,20 +6,19 @@ import { atCareerWave } from './testHelpers'
 
 function workforceState() {
   const state = atCareerWave(createInitialState(0), 170)
-  state.base.workerDrones = 16
+  state.base.workerDrones = 5
   state.base.assignments = {
     'scrap-field': 1,
-    'alloy-foundry': 3,
-    'fab-bay': 2,
-    'sensor-net': 4,
-    'drone-fab': 2,
-    construction: 2,
+    'alloy-foundry': 1,
+    'fab-bay': 1,
+    'sensor-net': 1,
+    construction: 1,
   }
-  state.foundry.facilities = ['drone-fabricator', 'drone-racks', 'drone-racks']
-  state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.4, paid: true }
+  state.foundry.facilities = ['worker-fabricator']
+  state.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0.4, paid: true }
   state.foundry.fabrication = [
-    { kind: 'core', jobId: 'flak-array', progress: 0.25, paid: true, complete: false },
-    { kind: 'facility', jobId: 'processing-line', progress: 0.5, paid: true, complete: false },
+    { kind: 'core', jobId: 'flak-array', progress: 0.25, paid: true },
+    { kind: 'facility', jobId: 'processing-line', progress: 0.5, paid: true },
   ]
   state.hiveResearch.active = true
   state.hiveResearch.focus = 'observation'
@@ -33,15 +32,17 @@ describe('Worker Drone workforce UI', () => {
   it('shows the exact workforce header and real active jobs', () => {
     render(<WorkerDronesTab state={workforceState()} onAssign={vi.fn()} />)
     const context = document.querySelector('.ui-context-bar')!
-    expect(context.textContent).toContain('Total16')
-    expect(context.textContent).toContain('Assigned14')
-    expect(context.textContent).toContain('Idle2')
-    expect(context.textContent).toContain('Capacity18')
+    expect(context.textContent).toContain('Workers')
+    expect(context.textContent).toContain('/ 6 capacity')
+    expect(context.textContent).toContain('Assigned')
+    expect(context.textContent).toContain('Idle')
+    expect(context.textContent).toMatch(/5/)
+    expect(context.textContent).not.toMatch(/Total16|Capacity18/)
 
     expect(screen.getByText('Recovered Stock Processing')).toBeTruthy()
     expect(screen.getByText('Flak Array Fabrication')).toBeTruthy()
     expect(screen.getByText('Research — Priority Lock')).toBeTruthy()
-    expect(screen.getByText('Worker Drone Fabrication')).toBeTruthy()
+    expect(screen.getByText('Worker Fabrication')).toBeTruthy()
     expect(screen.getByText('Salvage Operations')).toBeTruthy()
     expect(screen.getByText('Processing Line Infrastructure')).toBeTruthy()
     expect(screen.getAllByText(/Efficient \d+–\d+/).length).toBe(6)

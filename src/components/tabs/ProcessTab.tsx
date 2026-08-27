@@ -294,7 +294,7 @@ function NodeConfig({
                 value={stockEntries[0]?.[1] ?? 0}
                 onChange={(e) =>
                   patch((c) => {
-                    const id = (stockEntries[0]?.[0] ?? 'slag-ingot') as FoundryRecipeId
+                    const id = (stockEntries[0]?.[0] ?? 'recovered-stock') as FoundryRecipeId
                     c.foundry.minStock = { [id]: Math.max(0, Number(e.target.value) || 0) }
                   })
                 }

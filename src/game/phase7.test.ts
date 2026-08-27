@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { computeShipStats, createInitialState, SAVE_VERSION } from './state'
 import {
-  buyYardArm,
   performRebuild,
-  placeYardBuilding,
   setLaunchSector,
   setSectorRoute,
 } from './actions'
@@ -11,12 +9,11 @@ import { encounterForWave, salvageFromKill } from './combat'
 import { getFrame } from './catalog'
 import { maybeGrantSystemUnlocks, isSystemUnlocked } from './progression'
 import { isRouteBUnlocked, maxLaunchSector, routeDangerMult } from './sectors'
-import { yardGood, yardGridSize, yardArmed, YARD_EXPAND_SECTOR } from './yard'
 import { advanceSeconds } from './tick'
 
 describe('phase 7: Yard, Cruiser, A/B routes', () => {
   it('bumps save and keeps Yard locked until the first Rebuild', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'yard')).toBe(false)
     expect(getFrame('bastion-frame')?.requiresBestWave).toBe(70)
@@ -33,35 +30,20 @@ describe('phase 7: Yard, Cruiser, A/B routes', () => {
     expect(s.shipyard.unlockedFrames).not.toContain('swarm-frame')
   })
 
-  it('opens Yard at S20 after two Rebuilds; buildings produce; arms apply on the next Rebuild', () => {
-    let s = createInitialState(0)
+  it('has no standalone Yard; infrastructure lives in Foundry', () => {
+    const s = createInitialState(0)
+    expect(isSystemUnlocked(s, 'yard')).toBe(false)
     s.meta.highestSectorEver = 20
-    s.prestige.prestigeCount = 1
-    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(isSystemUnlocked(s, 'yard')).toBe(true)
-    expect(yardGridSize(s)).toBe(4)
-
-    s = placeYardBuilding(s, 0, 'slag-heap')
-    expect(s.yard.cells[0]?.buildingId).toBe('slag-heap')
-    const oreBefore = yardGood(s, 'ore')
-    advanceSeconds(s, 10)
-    expect(yardGood(s, 'ore')).toBeGreaterThan(oreBefore)
-
-    s.yard.goods.ingot = 40
-    s = buyYardArm(s, 'damage')
-    expect(s.yard.pending.damage).toBe(1)
-    const before = computeShipStats(s).damage
-    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(yardArmed(s, 'damage')).toBe(1)
-    expect(s.yard.pending.damage).toBe(0)
-    expect(computeShipStats(s).damage).toBeGreaterThan(before)
+    s.prestige.prestigeCount = 2
+    expect(isSystemUnlocked(s, 'yard')).toBe(false)
+    expect(s).not.toHaveProperty('yard')
   })
 
-  it('expands the grid at sector 14', () => {
+  it('does not expand a Yard grid', () => {
     const s = createInitialState(0)
     s.prestige.prestigeCount = 2
-    s.meta.highestSectorEver = YARD_EXPAND_SECTOR
-    expect(yardGridSize(s)).toBe(4)
+    s.meta.highestSectorEver = 140
+    expect(isSystemUnlocked(s, 'yard')).toBe(false)
   })
 
   it('opens Route B after sector 24 and makes packs harder with more salvage', () => {

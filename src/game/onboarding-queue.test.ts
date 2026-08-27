@@ -75,7 +75,7 @@ describe('onboarding queue', () => {
     const state = prepOnboardingDoor(createInitialState(0), 'foundry.processing')
     expect(activeOnboardingLesson(state, ui('dock'))?.id).not.toBe('foundry.processing')
     expect(activeOnboardingLesson(state, ui('foundry'))?.id).toBe('foundry.processing')
-    state.foundry.slots[0] = { recipeId: 'slag-ingot', progress: 0.2, paid: true }
+    state.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0.2, paid: true }
     const after = completeLesson(state, 'foundry.processing')
     expect(activeOnboardingLesson(after, ui('foundry'))).toBeNull()
   })
@@ -118,7 +118,7 @@ describe('onboarding queue', () => {
   })
 
   it('Foundry group is the processing lesson only', () => {
-    expect(FOUNDRY_V2_GUIDE_IDS).toEqual(['foundry.processing'])
+    expect(FOUNDRY_V2_GUIDE_IDS).toEqual(['foundry.processing', 'foundry.blueprint'])
   })
 
   it('Directive lesson requires three real cards', () => {

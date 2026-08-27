@@ -7,6 +7,7 @@ import { noteAttempt } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 import { isWorkerJob } from './workers'
 import { getFrame, grantUnlockedFrame } from './catalog'
+import { isFoundryMaterialId } from './foundryCatalogue'
 
 export const PROTOCOL_UNLOCK_SECTOR = ACT1_CADENCE.protocols
 export const CHALLENGE_UNLOCK_WAVE = ACT1_CADENCE.protocols
@@ -417,7 +418,7 @@ export function challengeFamiliarity(
       }
       return { ok: false, reason: 'Assign Worker Drones first' }
     case 'foundry':
-      if (Object.values(state.foundry?.recipeLevels ?? {}).some((n) => n > 0)) return { ok: true }
+      if (Object.values(state.foundry?.masteryXp ?? {}).some((n) => (Number(n) || 0) > 0)) return { ok: true }
       return { ok: false, reason: 'Finish a craft first' }
     case 'reliquary':
       if (Object.values(state.reliquary?.coreFits ?? {}).some((fits) => (fits ?? []).some(Boolean))) {
@@ -602,7 +603,8 @@ export function applyProtocolGrant(state: GameState, grant: ProtocolGrant): void
     }
     return
   }
-  state.foundry.recipeLevels[grant.id] = Math.max(1, state.foundry.recipeLevels[grant.id] ?? 0)
+  if (!isFoundryMaterialId(grant.id)) return
+  state.foundry.materials[grant.id] = Math.max(1, state.foundry.materials[grant.id] ?? 0)
 }
 
 export function protocolCumulativeLine(state: GameState, id: string): string {

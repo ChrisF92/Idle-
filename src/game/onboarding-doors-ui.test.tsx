@@ -99,6 +99,15 @@ function renderDoor(id: OnboardingLessonId) {
             onFabricateCore={noop}
           />
         )
+      case 'foundry.blueprint':
+        return (
+          <FoundryTab
+            state={state}
+            requestedPane="blueprints"
+            onSetSlot={noop}
+            onFabricateCore={noop}
+          />
+        )
       case 'workers.assignment':
         return <NetworkTab state={state} onAssign={noop} />
       case 'furnace.channel':

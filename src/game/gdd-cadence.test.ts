@@ -10,8 +10,8 @@ import { getFrame, modulePrintWave } from './catalog'
 /** GDD §102 doors. Older campaign tests are quarantined in vitest.config.ts. */
 describe('GDD Act 1 wave cadence', () => {
   it('places major doors on the GDD Wave table', () => {
-    expect(ACT1_CADENCE.foundry).toBe(20)
-    expect(ACT1_CADENCE.workers).toBe(30)
+    expect(ACT1_CADENCE.foundry).toBe(50)
+    expect(ACT1_CADENCE.workers).toBe(50)
     expect(PRESTIGE_MIN_SECTOR).toBe(210)
     expect(ACT1_CADENCE.foundryAdvanced).toBe(90)
     expect(ACT1_CADENCE.furnace).toBe(140)
@@ -27,11 +27,12 @@ describe('GDD Act 1 wave cadence', () => {
     expect(ACT1_FINAL_WAVE).toBe(1000)
   })
 
-  it('opens Foundry at Wave 20', () => {
+  it('opens Foundry at Wave 50 without a Rebuild', () => {
     expect(isSystemUnlocked(createInitialState(0), 'foundry')).toBe(false)
-    const locked = atCareerWave(createInitialState(0), 19)
+    const locked = atCareerWave(createInitialState(0), 49)
     expect(isSystemUnlocked(locked, 'foundry')).toBe(false)
-    const open = atCareerWave(createInitialState(0), 20)
+    const open = atCareerWave(createInitialState(0), 50)
+    expect(open.prestige.prestigeCount).toBe(0)
     expect(isSystemUnlocked(open, 'foundry')).toBe(true)
   })
 
@@ -50,11 +51,12 @@ describe('GDD Act 1 wave cadence', () => {
     expect(canRebuild(s)).toBe(false)
   })
 
-  it('opens Foundry construction at Wave 90 without a Yard station', () => {
-    const locked = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced - 1)
-    expect(isSystemUnlocked(locked, 'yard')).toBe(false)
-    const open = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
-    expect(isSystemUnlocked(open, 'yard')).toBe(true)
+  it('has no standalone Yard door; infrastructure lives in Foundry', () => {
+    const open = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    expect(isSystemUnlocked(open, 'foundry')).toBe(true)
+    expect(isSystemUnlocked(open, 'yard')).toBe(false)
+    const late = atCareerWave(createInitialState(0), ACT1_CADENCE.foundryAdvanced)
+    expect(isSystemUnlocked(late, 'yard')).toBe(false)
   })
 
   it('stores system doors as requiresBestWave, not leftover sector bands', () => {

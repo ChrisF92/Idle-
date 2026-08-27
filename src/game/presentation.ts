@@ -90,8 +90,8 @@ export interface ToastSnapshot {
   act1Cleared: boolean
   bestWave: number
   completePrints: string[]
-  pendingCores: string[]
-  pendingFacilities: string[]
+  ownedCoreIds: string[]
+  ownedFacilities: string[]
   researchCompleted: Partial<Record<HiveResearchBranch, number>>
   researchActive: boolean
   fabricatorBusy: boolean
@@ -108,7 +108,6 @@ const TRACKED_SYSTEMS: TabId[] = [
   'protocols',
   'process',
   'reinforce',
-  'yard',
 ]
 
 const SYSTEM_TOAST: Partial<
@@ -163,12 +162,6 @@ const SYSTEM_TOAST: Partial<
     label: 'OPEN',
     nav: { kind: 'tab', tab: 'reinforce' },
   },
-  yard: {
-    title: 'Infrastructure unlocked',
-    body: 'Infrastructure projects now use Fabricators. Their bonuses apply as soon as Fabrication finishes.',
-    label: 'VIEW PROJECTS',
-    nav: { kind: 'tab', tab: 'foundry', pane: 'fabrication', focus: 'foundry-build' },
-  },
 }
 
 function alreadyAcked(state: GameState, key: string): boolean {
@@ -191,8 +184,8 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
     return false
   }
   if (a.completePrints.length !== b.completePrints.length) return false
-  if (a.pendingCores.length !== b.pendingCores.length) return false
-  if (a.pendingFacilities.length !== b.pendingFacilities.length) return false
+  if (a.ownedCoreIds.length !== b.ownedCoreIds.length) return false
+  if (a.ownedFacilities.length !== b.ownedFacilities.length) return false
   if (a.achievements.length !== b.achievements.length) return false
   for (const id of TRACKED_SYSTEMS) {
     if (a.systems[id] !== b.systems[id]) return false
@@ -203,8 +196,8 @@ export function snapshotsEqual(a: ToastSnapshot, b: ToastSnapshot): boolean {
   const same = (x: string[], y: string[]) => x.every((v, i) => v === y[i])
   return (
     same(a.completePrints, b.completePrints) &&
-    same(a.pendingCores, b.pendingCores) &&
-    same(a.pendingFacilities, b.pendingFacilities) &&
+    same(a.ownedCoreIds, b.ownedCoreIds) &&
+    same(a.ownedFacilities, b.ownedFacilities) &&
     same(a.achievements, b.achievements)
   )
 }
@@ -215,10 +208,7 @@ function fabricatorBusy(state: GameState): boolean {
 
 function completePrintIds(state: GameState): string[] {
   return listFarmableCores(state)
-    .filter((print) => {
-      if (state.shipyard.unlockedModules.includes(print.id)) return false
-      return Boolean(blueprintProgress(state, print.id)?.complete)
-    })
+    .filter((print) => Boolean(blueprintProgress(state, print.id)?.complete))
     .map((print) => print.id)
 }
 
@@ -237,8 +227,8 @@ export function captureToastSnapshot(state: GameState): ToastSnapshot {
     act1Cleared: Boolean(state.meta.act1Cleared),
     bestWave: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
     completePrints: completePrintIds(state),
-    pendingCores: [...(state.foundry.pendingCores ?? [])],
-    pendingFacilities: [...(state.foundry.pendingFacilities ?? [])],
+    ownedCoreIds: (state.shipyard.coreInstances ?? []).map((row) => row.id),
+    ownedFacilities: [...(state.foundry.facilities ?? [])],
     researchCompleted,
     researchActive: Boolean(state.hiveResearch?.active),
     fabricatorBusy: fabricatorBusy(state),
@@ -335,7 +325,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: `blueprint-complete:${printId}`,
         category: 'BLUEPRINT COMPLETE',
         title: mod.name,
-        body: 'Ready to assemble in Fabrication.',
+        body: 'Design known — fabrication still required.',
         tier: 'action',
         action: {
           label: 'VIEW PROJECT',
@@ -346,29 +336,30 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
     )
   }
 
-  for (const printId of next.pendingCores) {
-    if (prev.pendingCores.includes(printId)) continue
-    const mod = getModule(printId)
+  for (const coreId of next.ownedCoreIds) {
+    if (prev.ownedCoreIds.includes(coreId)) continue
+    const moduleId = coreId.split(':')[0] ?? coreId
+    const mod = getModule(moduleId)
     if (!mod) continue
     pushUnique(
       out,
       {
-        id: `fab-core:${printId}`,
+        id: `fab-core:${coreId}`,
         category: 'FABRICATION',
-        title: `${mod.name.toUpperCase()} COMPLETE`,
-        body: 'Available at Dock',
+        title: `${mod.name.toUpperCase()} FABRICATED`,
+        body: 'Physical copy owned. Fit it from the loadout when Docked.',
         tier: 'action',
         action: {
           label: 'VIEW CORE',
-          nav: { kind: 'cores', moduleId: printId },
+          nav: { kind: 'cores', moduleId },
         },
       },
       seen,
     )
   }
 
-  for (const facilityId of next.pendingFacilities) {
-    if (prev.pendingFacilities.includes(facilityId)) continue
+  for (const facilityId of next.ownedFacilities) {
+    if (prev.ownedFacilities.includes(facilityId)) continue
     pushUnique(
       out,
       {

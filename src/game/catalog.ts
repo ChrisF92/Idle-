@@ -2,7 +2,8 @@
 
 import { LEGACY_CORE_IDS, SHIP_MODULE_DEFS } from './coreCatalogue'
 import { careerBestWave, isSystemUnlocked } from './progression'
-import { WORKER_JOB_IDS, workerJobContribution, workerJobHasWork } from './workers'
+import { WORKER_JOB_IDS, workerCapacity, workerJobContribution, workerJobHasWork } from './workers'
+import { BASE_WORKER_CAPACITY, WORKER_FABRICATION_SECONDS } from './foundrySeeds'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
 import { meetsWave } from './waves'
 import { formatCompact, formatStat } from './format'
@@ -14,15 +15,18 @@ import {
   getMatterShopItem as getCanonicalMatterItem,
   matterShopEffectBlurb as canonicalMatterBlurb,
   matterShopItemsIn as canonicalMatterItemsIn,
-  matterWorkerCapacityBonus,
   type MatterShopCategory,
   type MatterShopDef,
 } from './matter'
+import {
+  BLUEPRINTS as FOUNDRY_BLUEPRINTS,
+  blueprintFragmentCount,
+  getBlueprint,
+  isBlueprintDiscovered,
+} from './blueprints'
 import type {
   CoreAttrId,
-  FoundryRecipeId,
   GameState,
-  PartType,
   RelicSocketSpec,
   Resources,
   WeaponDelivery,
@@ -35,6 +39,8 @@ export {
   type MatterShopCategory,
   type MatterShopDef,
 }
+
+export { getBlueprint }
 
 export type ResourceCost = Partial<Record<keyof Resources, number>>
 
@@ -331,10 +337,10 @@ export interface ShipModuleDef {
 export const PRESTIGE_MIN_SECTOR = ACT1_CADENCE.rebuild
 
 /** Base seconds to manufacture one worker drone at 1.0 speed. */
-export const WORKER_MANUFACTURE_SECONDS = 90
+export const WORKER_MANUFACTURE_SECONDS = WORKER_FABRICATION_SECONDS
 
-/** Fresh-career worker drone corps capacity before bonuses. */
-export const BASE_DRONE_CAP = 10
+/** Fresh-career worker capacity before Matter Racks / later Research. */
+export const BASE_DRONE_CAP = BASE_WORKER_CAPACITY
 /** Lifetime drones built per +1 permanent corps capacity. */
 export const LIFETIME_DRONES_PER_CAP = 20
 /** Soft ceiling on lifetime-built capacity raises. */
@@ -391,7 +397,7 @@ export const STATIONS: StationDef[] = [
     id: 'construction',
     name: 'Infrastructure',
     description: 'Worker Drones accelerate an active Infrastructure project.',
-    requiresSystem: 'yard',
+    requiresSystem: 'foundry',
     rates: {},
     kind: 'special',
     baseSlots: 8,
@@ -1226,10 +1232,6 @@ export function fittedShieldRegenFraction(moduleIds: string[]): number {
 
 // ── Blueprint / Fabrication Bay ─────────────────────────────────────────────
 
-export type { PartType }
-
-export const PART_TYPES: PartType[] = ['casing', 'core', 'lens']
-
 /** Seconds for one fab-bay worker to finish a filled recipe. */
 export const FAB_SECONDS = 120
 
@@ -1245,91 +1247,18 @@ export const MASTERY_PARTS_COST = 3
 
 const STARTER_UNLOCK_MODULES = new Set(['pulse-cannon', 'plate-layer'])
 
-export interface BlueprintRecipe {
+interface EnemyPartDropEntry {
   moduleId: string
-  casing: number
-  core: number
-  lens: number
-  foundry?: Partial<Record<FoundryRecipeId, number>>
-  requiresRecipeLevel?: { recipeId: FoundryRecipeId; level: number }
-}
-
-export interface EnemyPartDropEntry {
-  moduleId: string
-  partType: PartType
+  partType: string
   weight: number
 }
 
-export interface EnemyPartDropTable {
+interface EnemyPartDropTable {
   family: string
   entries: EnemyPartDropEntry[]
-  /** Base chance per kill (0..1). */
   chance: number
   bossChanceMult?: number
   bossRolls?: number
-}
-
-export function partId(moduleId: string, partType: PartType): string {
-  return `${moduleId}:${partType}`
-}
-
-export function parsePartId(
-  id: string,
-): { moduleId: string; partType: PartType } | null {
-  const idx = id.lastIndexOf(':')
-  if (idx <= 0) return null
-  const moduleId = id.slice(0, idx)
-  const partType = id.slice(idx + 1) as PartType
-  if (!PART_TYPES.includes(partType)) return null
-  if (!getModule(moduleId)) return null
-  return { moduleId, partType }
-}
-
-/**
- * Fragment counts by print unlock sector. Later specialist prints still add
- * Foundry stock on top of these casing/core/lens needs.
- *
- * First 3 Foundry sectors: 4 fragments (2/1/1)
- * Next 6 sectors: 6 fragments (3/2/1)
- * Next 7 sectors: 9 fragments (4/3/2)
- * Later prints: long-farm 12 fragments (5/4/3)
- */
-export function printFragmentNeeds(unlockSector: number): Pick<BlueprintRecipe, 'casing' | 'core' | 'lens'> {
-  if (unlockSector <= ACT1_CADENCE.foundry + 2) return { casing: 2, core: 1, lens: 1 }
-  if (unlockSector <= ACT1_CADENCE.foundry + 8) return { casing: 3, core: 2, lens: 1 }
-  if (unlockSector <= ACT1_CADENCE.foundry + 15) return { casing: 4, core: 3, lens: 2 }
-  return { casing: 5, core: 4, lens: 3 }
-}
-
-function printRecipe(
-  moduleId: string,
-  extra: Partial<Pick<BlueprintRecipe, 'foundry' | 'requiresRecipeLevel'>> = {},
-): BlueprintRecipe {
-  const wave = modulePrintWave(moduleId)
-  return { moduleId, ...printFragmentNeeds(wave), ...extra }
-}
-
-/** Leftover Foundry recipes. Isolated from the final 14 Cores (PR5 owns fabrication). */
-export const BLUEPRINTS: BlueprintRecipe[] = [
-  printRecipe('vector-thruster'),
-  printRecipe('drone-bay'),
-  printRecipe('charge-prism'),
-  printRecipe('lattice-ward'),
-  printRecipe('rail-driver'),
-  printRecipe('ion-burst'),
-  printRecipe('swarm-rack'),
-  printRecipe('sensor-whisker'),
-  printRecipe('salvage-rig'),
-  printRecipe('keel-baffle', {
-    foundry: { 'keel-strip': 2 },
-    requiresRecipeLevel: { recipeId: 'keel-strip', level: 1 },
-  }),
-  printRecipe('arc-lash'),
-  printRecipe('slag-spit', { foundry: { 'void-slag': 2 } }),
-]
-
-export function getBlueprint(moduleId: string): BlueprintRecipe | undefined {
-  return BLUEPRINTS.find((b) => b.moduleId === moduleId)
 }
 
 export function isFarmableModule(moduleId: string): boolean {
@@ -1345,106 +1274,10 @@ export function isSchematicModule(_moduleId: string): boolean {
 }
 
 /** Leftover Foundry fragment tables. Final 14 Core IDs are not awarded here. */
-export const ENEMY_PART_DROPS: EnemyPartDropTable[] = [
-  {
-    family: 'swarm',
-    chance: 0.028,
-    bossChanceMult: 2.2,
-    bossRolls: 2,
-    entries: [
-      { moduleId: 'salvage-rig', partType: 'casing', weight: 2 },
-      { moduleId: 'salvage-rig', partType: 'core', weight: 1 },
-      { moduleId: 'drone-bay', partType: 'casing', weight: 1 },
-      { moduleId: 'swarm-rack', partType: 'casing', weight: 3 },
-      { moduleId: 'swarm-rack', partType: 'core', weight: 2 },
-      { moduleId: 'swarm-rack', partType: 'lens', weight: 1 },
-    ],
-  },
-  {
-    family: 'armored',
-    chance: 0.028,
-    bossChanceMult: 2.2,
-    bossRolls: 2,
-    entries: [
-      { moduleId: 'keel-baffle', partType: 'casing', weight: 2 },
-      { moduleId: 'keel-baffle', partType: 'core', weight: 2 },
-      { moduleId: 'slag-spit', partType: 'casing', weight: 2 },
-      { moduleId: 'slag-spit', partType: 'core', weight: 1 },
-      { moduleId: 'slag-spit', partType: 'lens', weight: 1 },
-    ],
-  },
-  {
-    family: 'ethereal',
-    chance: 0.026,
-    bossChanceMult: 2.3,
-    bossRolls: 2,
-    entries: [
-      { moduleId: 'vector-thruster', partType: 'casing', weight: 3 },
-      { moduleId: 'vector-thruster', partType: 'core', weight: 2 },
-      { moduleId: 'vector-thruster', partType: 'lens', weight: 1 },
-      { moduleId: 'charge-prism', partType: 'casing', weight: 3 },
-      { moduleId: 'charge-prism', partType: 'core', weight: 2 },
-      { moduleId: 'charge-prism', partType: 'lens', weight: 2 },
-      { moduleId: 'lattice-ward', partType: 'casing', weight: 2 },
-      { moduleId: 'lattice-ward', partType: 'core', weight: 2 },
-      { moduleId: 'lattice-ward', partType: 'lens', weight: 2 },
-    ],
-  },
-  {
-    family: 'divine',
-    chance: 0.024,
-    bossChanceMult: 2.4,
-    bossRolls: 2,
-    entries: [
-      { moduleId: 'charge-prism', partType: 'casing', weight: 3 },
-      { moduleId: 'charge-prism', partType: 'core', weight: 2 },
-      { moduleId: 'charge-prism', partType: 'lens', weight: 2 },
-      { moduleId: 'ion-burst', partType: 'casing', weight: 2 },
-      { moduleId: 'ion-burst', partType: 'core', weight: 2 },
-      { moduleId: 'ion-burst', partType: 'lens', weight: 2 },
-      { moduleId: 'arc-lash', partType: 'casing', weight: 3 },
-      { moduleId: 'arc-lash', partType: 'core', weight: 2 },
-      { moduleId: 'arc-lash', partType: 'lens', weight: 2 },
-      { moduleId: 'sensor-whisker', partType: 'lens', weight: 2 },
-      { moduleId: 'sensor-whisker', partType: 'core', weight: 1 },
-    ],
-  },
-  {
-    family: 'titan',
-    chance: 0.072,
-    bossChanceMult: 1.4,
-    bossRolls: 2,
-    entries: [
-      { moduleId: 'rail-driver', partType: 'casing', weight: 3 },
-      { moduleId: 'rail-driver', partType: 'core', weight: 2 },
-      { moduleId: 'rail-driver', partType: 'lens', weight: 2 },
-      { moduleId: 'keel-baffle', partType: 'lens', weight: 2 },
-    ],
-  },
-]
+export const ENEMY_PART_DROPS: EnemyPartDropTable[] = []
 
-function waveBonusDropEntries(wave: number): EnemyPartDropEntry[] {
-  const extras: EnemyPartDropEntry[] = []
-  if (wave >= 120) {
-    extras.push(
-      { moduleId: 'drone-bay', partType: 'core', weight: 1 },
-      { moduleId: 'salvage-rig', partType: 'lens', weight: 1 },
-      { moduleId: 'sensor-whisker', partType: 'casing', weight: 1 },
-    )
-  }
-  if (wave >= 160) {
-    extras.push(
-      { moduleId: 'rail-driver', partType: 'casing', weight: 1 },
-      { moduleId: 'ion-burst', partType: 'core', weight: 1 },
-      { moduleId: 'keel-baffle', partType: 'core', weight: 1 },
-    )
-  }
-  if (wave >= 220) {
-    extras.push(
-      { moduleId: 'rail-driver', partType: 'lens', weight: 1 },
-    )
-  }
-  return extras
+function waveBonusDropEntries(_wave: number): EnemyPartDropEntry[] {
+  return []
 }
 
 export function modulePrintWave(moduleId: string): number {
@@ -1498,7 +1331,7 @@ export function canDropModulePart(state: GameState, moduleId: string, fightWave?
 
 export function listFarmableCores(state: GameState): ShipModuleDef[] {
   if (!isSystemUnlocked(state, 'foundry')) return []
-  return BLUEPRINTS.map((b) => getModule(b.moduleId)).filter((m): m is ShipModuleDef => {
+  return FOUNDRY_BLUEPRINTS.map((b) => getModule(b.id)).filter((m): m is ShipModuleDef => {
     if (!m) return false
     if (state.shipyard.unlockedModules.includes(m.id)) return true
     if (!isGddRosterCore(m.id)) return false
@@ -1509,7 +1342,7 @@ export function listFarmableCores(state: GameState): ShipModuleDef[] {
 /** Foundry Fabrication list — GDD roster prints, including upcoming drop waves. */
 export function listFoundryPrintCards(state: GameState): ShipModuleDef[] {
   if (!isSystemUnlocked(state, 'foundry')) return []
-  const rows = BLUEPRINTS.map((b) => getModule(b.moduleId)).filter((m): m is ShipModuleDef => {
+  const rows = FOUNDRY_BLUEPRINTS.map((b) => getModule(b.id)).filter((m): m is ShipModuleDef => {
     if (!m) return false
     if (state.shipyard.unlockedModules.includes(m.id)) return true
     return isGddRosterCore(m.id)
@@ -1604,42 +1437,22 @@ export function formatPrintSourceLine(moduleId: string): string {
 export interface TrackedDropContext {
   trackedModuleId?: string | null
   focusModuleId?: string | null
-  owned?: Partial<Record<PartType, number>>
-  need?: Partial<Record<PartType, number>>
 }
 
 function pickFromWeightedEntries(
   entries: EnemyPartDropEntry[],
   rng: () => number,
-  ctx?: TrackedDropContext,
+  _ctx?: TrackedDropContext,
 ): EnemyPartDropEntry | null {
   if (entries.length === 0) return null
-  const targetId = ctx?.trackedModuleId || ctx?.focusModuleId
-  const missingWeight = ctx?.trackedModuleId
-    ? TRACKED_MISSING_PART_WEIGHT
-    : DISCOVERY_MISSING_PART_WEIGHT
-  const stillNeed = Boolean(
-    targetId &&
-      ctx?.need &&
-      PART_TYPES.some((pt) => (ctx.owned?.[pt] ?? 0) < (ctx.need?.[pt] ?? 0)),
-  )
-  const weighted = entries.map((entry) => {
-    let weight = entry.weight
-    if (stillNeed && entry.moduleId === targetId) {
-      const need = ctx?.need?.[entry.partType] ?? 0
-      const owned = ctx?.owned?.[entry.partType] ?? 0
-      if (owned < need) weight *= missingWeight
-    }
-    return { entry, weight }
-  })
-  const total = weighted.reduce((sum, item) => sum + item.weight, 0)
+  const total = entries.reduce((sum, item) => sum + item.weight, 0)
   if (total <= 0) return entries[entries.length - 1] ?? null
   let roll = rng() * total
-  for (const item of weighted) {
-    roll -= item.weight
-    if (roll <= 0) return item.entry
+  for (const entry of entries) {
+    roll -= entry.weight
+    if (roll <= 0) return entry
   }
-  return weighted[weighted.length - 1]?.entry ?? null
+  return entries[entries.length - 1] ?? null
 }
 
 /** Weighted pick among drop entries (+ sector extras). Pure helper for tests. */
@@ -1665,109 +1478,37 @@ export function pickWeightedDropEntry(
 }
 
 export function discoveryFocusPrint(
-  state: GameState,
-  family: string,
-  wave: number,
+  _state: GameState,
+  _family: string,
+  _wave: number,
 ): string | null {
-  const ids = [...new Set(dropTableEntries(family, wave).map((e) => e.moduleId))]
-  let best: { id: string; remaining: number; wave: number; have: number } | null = null
-  for (const id of ids) {
-    if (state.shipyard.unlockedModules.includes(id)) continue
-    const progress = blueprintProgress(state, id)
-    if (!progress) continue
-    const totals = blueprintFragmentTotals(progress.owned, progress.need)
-    const remaining = Math.max(0, totals.need - totals.have)
-    if (remaining <= 0) continue
-    const printWave = modulePrintWave(id)
-    if (
-      !best ||
-      remaining < best.remaining ||
-      (remaining === best.remaining && totals.have > best.have) ||
-      (remaining === best.remaining && totals.have === best.have && printWave < best.wave)
-    ) {
-      best = { id, remaining, wave: printWave, have: totals.have }
-    }
-  }
-  return best?.id ?? null
+  return null
 }
 
-export function blueprintFragmentTotals(
-  owned: Partial<Record<PartType, number>> | undefined,
-  need: Partial<Record<PartType, number>> | undefined,
-): { have: number; need: number } {
-  let have = 0
-  let want = 0
-  for (const pt of PART_TYPES) {
-    const n = need?.[pt] ?? 0
-    want += n
-    have += Math.min(owned?.[pt] ?? 0, n)
-  }
-  return { have, need: want }
-}
-
-export function isBlueprintComplete(
-  contributed: Partial<Record<PartType, number>> | undefined,
-  recipe: BlueprintRecipe,
-): boolean {
-  return (
-    (contributed?.casing ?? 0) >= recipe.casing &&
-    (contributed?.core ?? 0) >= recipe.core &&
-    (contributed?.lens ?? 0) >= recipe.lens
-  )
-}
-
-/** Inventory + project contributed vs recipe needs. */
 export function blueprintProgress(
   state: GameState,
   moduleId: string,
-): { owned: Record<PartType, number>; need: Record<PartType, number>; complete: boolean } | null {
+): { have: number; need: number; complete: boolean } | null {
   const recipe = getBlueprint(moduleId)
   if (!recipe) return null
-  const owned: Record<PartType, number> = { casing: 0, core: 0, lens: 0 }
-  for (const pt of PART_TYPES) {
-    owned[pt] = state.parts[partId(moduleId, pt)] ?? 0
-  }
-  const project = state.base.fabProject
-  if (project?.moduleId === moduleId) {
-    for (const pt of PART_TYPES) {
-      owned[pt] += project.contributed[pt] ?? 0
-    }
-  }
-  const need: Record<PartType, number> = {
-    casing: recipe.casing,
-    core: recipe.core,
-    lens: recipe.lens,
-  }
+  const have = blueprintFragmentCount(state, moduleId)
   return {
-    owned,
-    need,
-    complete: isBlueprintComplete(owned, recipe),
+    have,
+    need: recipe.fragmentsRequired,
+    complete: isBlueprintDiscovered(state, moduleId),
   }
 }
 
 export function canDepositPart(
-  state: GameState,
-  partType: PartType,
-  qty = 1,
+  _state: GameState,
+  _partType: string,
+  _qty = 1,
 ): boolean {
-  const project = state.base.fabProject
-  if (!project || qty <= 0) return false
-  const recipe = getBlueprint(project.moduleId)
-  if (!recipe) return false
-  const need = recipe[partType]
-  const have = project.contributed[partType] ?? 0
-  const room = need - have
-  if (room <= 0) return false
-  const inv = state.parts[partId(project.moduleId, partType)] ?? 0
-  return inv >= Math.min(qty, room)
+  return false
 }
 
-export function partSellScrap(partIdStr: string): number {
-  const parsed = parsePartId(partIdStr)
-  if (!parsed) return 0
-  if (parsed.partType === 'casing') return 4
-  if (parsed.partType === 'core') return 6
-  return 8
+export function partSellScrap(_partIdStr: string): number {
+  return 0
 }
 
 export function masteryBonus(rank: number): number {
@@ -1781,13 +1522,8 @@ export function moduleMasteryRank(
   return Math.max(0, state.meta.moduleMastery?.[moduleId] ?? 0)
 }
 
-/** Count of any parts for a module in account inventory. */
 export function countModuleParts(state: GameState, moduleId: string): number {
-  let n = 0
-  for (const pt of PART_TYPES) {
-    n += state.parts[partId(moduleId, pt)] ?? 0
-  }
-  return n
+  return blueprintFragmentCount(state, moduleId)
 }
 
 export function isModuleVisible(state: GameState, moduleId: string): boolean {
@@ -1844,33 +1580,9 @@ export function dronePower(state: DroneEconomyState): number {
   return Math.max(0.05, power)
 }
 
-/** Max worker drones the corps may hold (manufacture stops at cap). */
+/** Max worker drones the account may hold. Ownership is separate. */
 export function droneCap(state: DroneEconomyState): number {
-  let cap = BASE_DRONE_CAP
-  for (const id of state.research.unlocked) {
-    cap += RESEARCH.find((r) => r.id === id)?.droneCapBonus ?? 0
-  }
-  if (!challengeBlocksAi(state)) {
-    for (const id of state.ai.purchased) {
-      cap += getAiNode(id)?.droneCapBonus ?? 0
-    }
-  }
-  cap += matterWorkerCapacityBonus(state)
-  for (const [id, rank] of Object.entries(state.prestige.shop)) {
-    const bonus = getChallengeShopItem(id)?.droneCapBonus ?? 0
-    if (bonus) cap += bonus * Math.max(0, rank)
-  }
-  const lifetime = Math.max(0, Math.floor(state.meta?.lifetimeDronesBuilt ?? 0))
-  cap += Math.min(
-    LIFETIME_DRONE_CAP_MAX,
-    Math.floor(lifetime / LIFETIME_DRONES_PER_CAP),
-  )
-  const racks = Math.max(0, Math.floor(state.network?.links?.racks ?? 0))
-  cap += NETWORK_RACK_CAP_PER_RANK * racks
-  const droneRacks = (state.foundry?.facilities ?? []).filter((id) => id === 'drone-racks').length
-  cap += droneRacks * 4
-  cap += sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'droneCapBonus')
-  return Math.max(1, Math.floor(cap))
+  return workerCapacity(state)
 }
 
 /** Assigned bodies × power, hard-capped at station black-bar slots when set. */
@@ -2000,7 +1712,7 @@ export function isStationUnlocked(state: GameState, stationId: string): boolean 
     return false
   }
   if (stationId === 'drone-fab') {
-    return (state.foundry?.facilities ?? []).includes('drone-fabricator')
+    return (state.foundry?.facilities ?? []).includes('worker-fabricator')
   }
   return true
 }

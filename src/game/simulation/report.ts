@@ -183,7 +183,7 @@ export function formatSummary(report: SimulationReport): string {
     '',
     `Research: M${run.research.material} E${run.research.energy} O${run.research.observation}  focus ${run.research.focus}  BT ${run.research.breakthroughs}`,
     `Process: earned ${run.process.earned}  unspent ${run.process.available}  bought ${run.process.purchased.length}`,
-    `Foundry: recipes ${Object.keys(run.foundry.recipeLevels).length}  processors ${run.foundry.slotRecipes.filter(Boolean).length}`,
+    `Foundry: recipes ${Object.keys(run.foundry.masteryXp).length}  processors ${run.foundry.slotRecipes.filter(Boolean).length}`,
     `Furnace: heat +${run.furnace.heatEarned.toFixed(1)} / −${run.furnace.heatSpent.toFixed(1)}  channels ${JSON.stringify(run.furnace.active)}`,
     `Challenges: ${JSON.stringify(run.protocols.ranks)}`,
     '',
@@ -296,7 +296,7 @@ export function formatFullReport(report: SimulationReport): string {
       `${formatSimDuration(p.activeSeconds)}  ${p.name} L${p.levelAfter}  cost ${p.cost}  ${p.statBefore.toFixed(1)} → ${p.statAfter.toFixed(1)}`,
     )
   }
-  extra.push('', 'FOUNDRY', `Recipes ${JSON.stringify(run.foundry.recipeLevels)}`)
+  extra.push('', 'FOUNDRY', `Recipes ${JSON.stringify(run.foundry.masteryXp)}`)
   extra.push('', 'FURNACE', `Heat earned ${run.furnace.heatEarned.toFixed(1)} spent ${run.furnace.heatSpent.toFixed(1)}`, `Upgrades ${JSON.stringify(run.furnace.upgrades)}`, `Channels ${JSON.stringify(run.furnace.active)}`)
   if (run.detailedLog.length > 0) {
     extra.push('', 'DETAILED LOG')

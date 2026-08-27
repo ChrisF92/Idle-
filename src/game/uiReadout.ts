@@ -48,7 +48,7 @@ export function runResourceRates(state: GameState): { salvagePerSec: number; scr
 }
 
 export function fragmentCount(state: GameState): number {
-  return Object.values(state.parts ?? {}).reduce((n, v) => n + Math.max(0, Math.floor(Number(v) || 0)), 0)
+  return Object.values(state.foundry?.fragments ?? {}).reduce((n, v) => n + Math.max(0, Math.floor(Number(v) || 0)), 0)
 }
 
 export function permanentMultipliers(state: GameState): {

@@ -3,12 +3,12 @@ import { createInitialState } from './state'
 import { maybeGrantSystemUnlocks, isSystemUnlocked } from './progression'
 import {
   FOUNDRY_MAX_SLOTS,
-  FOUNDRY_MODULE_SLOTS,
-  FOUNDRY_MODULES,
   FOUNDRY_RECIPES,
-  foundryRecipeGateLine,
   isFoundryRecipeUnlocked,
 } from './foundry'
+import { FOUNDRY_MATERIAL_IDS } from './foundryCatalogue'
+import { atCareerWave } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
 import {
   SHARDS,
   shardEffectBlurb,
@@ -28,24 +28,14 @@ describe('encyclopedia depth', () => {
     expect(open.meta.codexUnlocked).toBe(true)
   })
 
-  it('grows Foundry toward Synth: recipe chains, 5 slots, extra Act 1 bits', () => {
-    expect(FOUNDRY_RECIPES.length).toBeGreaterThanOrEqual(18)
+  it('catalogues the 12-material Foundry network and M0→M5 Mastery', () => {
+    expect(FOUNDRY_RECIPES).toHaveLength(12)
+    expect(FOUNDRY_MATERIAL_IDS).toHaveLength(12)
     expect(FOUNDRY_MAX_SLOTS).toBe(5)
-    expect(FOUNDRY_MODULE_SLOTS).toBe(2)
-    expect(FOUNDRY_MODULES.some((m) => m.id === 'focus-array')).toBe(true)
-    expect(FOUNDRY_MODULES.some((m) => m.id === 'pin-brace')).toBe(true)
-    expect(FOUNDRY_MODULES.some((m) => m.id === 'warp-keel')).toBe(true)
-    expect(FOUNDRY_MODULES.some((m) => m.id === 'hearth-plate')).toBe(true)
-    expect(FOUNDRY_RECIPES.some((r) => r.id === 'hearth-core' && (r.requiresSlots ?? 0) >= 3)).toBe(true)
-
-    const s = createInitialState(0)
-    s.meta.highestSectorEver = 12
-    expect(isFoundryRecipeUnlocked(s, 'focus-lens')).toBe(false)
-    s.foundry.recipeLevels.relay = 6
-    expect(isFoundryRecipeUnlocked(s, 'focus-lens')).toBe(true)
-    expect(foundryRecipeGateLine(FOUNDRY_RECIPES.find((r) => r.id === 'focus-lens')!)).toContain(
-      'Relay Lv 6',
-    )
+    const s = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    expect(isFoundryRecipeUnlocked(s, 'recovered-stock')).toBe(true)
+    expect(isFoundryRecipeUnlocked(s, 'phase-crystal')).toBe(false)
+    expect(FOUNDRY_RECIPES.every((r) => !('maxLevel' in r))).toBe(true)
   })
 
   it('gates late Reliquary shards by career sector', () => {

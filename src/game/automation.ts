@@ -2,13 +2,13 @@
 
 import type { FoundryRecipeId, GameState } from './types'
 import {
-  BLUEPRINTS,
   STATIONS,
   aiDoctrinesActive,
   challengeBlocksAi,
   idleWorkers,
   isStationUnlocked,
 } from './catalog'
+import { BLUEPRINTS } from './blueprints'
 import {
   assembleBlueprint,
   buyMaxYardArms,
@@ -69,7 +69,6 @@ function adopt(state: GameState, next: GameState): void {
   state.resources = next.resources
   state.shipyard = next.shipyard
   state.base = next.base
-  state.parts = next.parts
   state.signalCores = next.signalCores
   state.meta = next.meta
   state.combat = next.combat
@@ -116,8 +115,9 @@ export function autoFabBay(state: GameState): void {
   if (!aiDoctrinesActive(state, 'auto-fab-bay')) return
   if (!isStationUnlocked(state, 'fab-bay')) return
   for (const bp of BLUEPRINTS) {
-    if (!canAssembleBlueprint(state, bp.moduleId).ok) continue
-    const next = assembleBlueprint(state, bp.moduleId)
+    if (bp.productKind !== 'core') continue
+    if (!canAssembleBlueprint(state, bp.id).ok) continue
+    const next = assembleBlueprint(state, bp.id)
     if (next !== state) adopt(state, next)
     return
   }
@@ -255,19 +255,18 @@ function pickSmartSmeltRecipe(state: GameState, busy: Set<string>): FoundryRecip
     if (busy.has(def.id) && foundrySlotCount(state) < 3) continue
     if ((def.costs.salvage ?? 0) > 0 && salvage < Math.max(def.costs.salvage ?? 0, reserve)) continue
     const level = foundryRecipeLevel(state, def.id)
-    let score = 20 - Math.min(12, level)
+    let score = 20 - Math.min(5, level)
     if (def.costs.materials) score += 4
-    if (def.unlocksRecipe && level + 1 >= def.unlocksRecipe.atLevel) score += 8
     if (score > bestScore) {
       bestScore = score
       best = def.id
     }
   }
-  if (!best && isFoundryRecipeUnlocked(state, 'slag-ingot') && !isFoundryInfinite(state, 'slag-ingot')) {
-    best = 'slag-ingot'
+  if (!best && isFoundryRecipeUnlocked(state, 'recovered-stock') && !isFoundryInfinite(state, 'recovered-stock')) {
+    best = 'recovered-stock'
   }
-  if (!best && isFoundryRecipeUnlocked(state, 'filament') && !isFoundryInfinite(state, 'filament')) {
-    best = 'filament'
+  if (!best && isFoundryRecipeUnlocked(state, 'conductive-filament') && !isFoundryInfinite(state, 'conductive-filament')) {
+    best = 'conductive-filament'
   }
   return best
 }
@@ -275,12 +274,6 @@ function pickSmartSmeltRecipe(state: GameState, busy: Set<string>): FoundryRecip
 function pickFoundryPrereqRecipe(state: GameState, target: FoundryRecipeId): FoundryRecipeId | null {
   const def = FOUNDRY_RECIPES.find((r) => r.id === target)
   if (!def) return null
-  if (def.requiresRecipeLevel) {
-    const have = foundryRecipeLevel(state, def.requiresRecipeLevel.recipeId)
-    if (have < def.requiresRecipeLevel.level) {
-      return pickFoundryPrereqRecipe(state, def.requiresRecipeLevel.recipeId) ?? def.requiresRecipeLevel.recipeId
-    }
-  }
   if (def.costs.materials) {
     for (const [mat, need] of Object.entries(def.costs.materials)) {
       if (foundryMaterialCount(state, mat) < (need ?? 0)) {
@@ -382,7 +375,7 @@ function autoPrintAssemble(state: GameState): void {
     intent.fabTracked && tracked
       ? [tracked]
       : hasProcess(state, 'print-assemble')
-        ? BLUEPRINTS.map((bp) => bp.moduleId)
+        ? BLUEPRINTS.filter((bp) => bp.productKind === 'core').map((bp) => bp.id)
         : []
   for (const moduleId of ids) {
     if (!canAssembleBlueprint(state, moduleId).ok) continue

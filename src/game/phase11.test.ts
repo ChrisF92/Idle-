@@ -4,17 +4,17 @@ import { buyProcessNode, buyRunUpgrade, convertAshToHeat } from './actions'
 import { setDocked, advanceSeconds } from './tick'
 import { getModule } from './catalog'
 import { isFoundryRecipeUnlocked, foundrySlotCount, FOUNDRY_MAX_SLOTS } from './foundry'
+import { FOUNDRY_FACILITIES } from './foundryCatalogue'
 import { unlockedFoundryLogs, FOUNDRY_LOGS } from './logs'
 import { getEchoRun, getEchoNode } from './echo'
 import { PROCESS_NODES } from './process'
 import { clearSector } from './testHelpers'
 import { HIVE_RESEARCH_NODES_PER_BRANCH, HIVE_RESEARCH_NODES } from './hiveResearch'
 import { SHARDS } from './reliquary'
-import { YARD_BUILDINGS } from './yard'
 
 describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
   it('bumps save to 45', () => {
-    expect(SAVE_VERSION).toBe(45)
+    expect(SAVE_VERSION).toBe(46)
   })
 
   it('records Defeat salvage, spend, and wave on the Dock summary', () => {
@@ -50,16 +50,14 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(FOUNDRY_LOGS.length).toBeGreaterThan(12)
   })
 
-  it('opens Choir Flux at 8 and a fourth smelter slot', () => {
+  it('keeps Crown Matrix locked until the recipe is authored', () => {
     const s = createInitialState(0)
-    s.meta.highestSectorEver = 8
-    expect(isFoundryRecipeUnlocked(s, 'choir-flux')).toBe(true)
-    expect(isFoundryRecipeUnlocked(s, 'keel-strip')).toBe(false)
+    s.meta.bestWave = 900
+    s.combat.bestWave = 900
+    expect(isFoundryRecipeUnlocked(s, 'crown-matrix')).toBe(false)
+    expect(isFoundryRecipeUnlocked(s, 'recovered-stock')).toBe(true)
     expect(FOUNDRY_MAX_SLOTS).toBe(5)
-    s.foundry.upgrades['fp-slot'] = 1
-    s.foundry.upgrades['fp-slot-2'] = 1
-    s.foundry.upgrades['fp-slot-3'] = 1
-    expect(foundrySlotCount(s)).toBe(4)
+    expect(foundrySlotCount(s)).toBe(1)
   })
 
   it('keeps Yield Link off the battlefield', () => {
@@ -69,7 +67,7 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(bay?.salvageKillBonus).toBeGreaterThan(0)
   })
 
-  it('adds Ash Bank, Silent Stack, extra shards, Yard sieve, and research nodes', () => {
+  it('adds Ash Bank, Silent Stack, extra shards, Foundry infrastructure, and research nodes', () => {
     expect(PROCESS_NODES.some((n) => n.id === 'auto-bank')).toBe(true)
     expect(PROCESS_NODES.some((n) => n.id === 'smart-smelt')).toBe(true)
     expect(PROCESS_NODES.some((n) => n.id === 'auto-extract')).toBe(true)
@@ -77,10 +75,9 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(getEchoRun('stack')?.requiresId).toBe('veil')
     expect(getEchoNode('echo-hold')?.requiresId).toBe('echo-yield')
     expect(SHARDS.some((s) => s.id === 'loom-chip')).toBe(true)
-    expect(YARD_BUILDINGS.some((b) => b.id === 'choir-sieve')).toBe(true)
+    expect(FOUNDRY_FACILITIES.some((b) => b.id === 'recovery-storage')).toBe(true)
     expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBeGreaterThanOrEqual(6)
     expect(HIVE_RESEARCH_NODES.material.length).toBeGreaterThanOrEqual(6)
-    expect(HIVE_RESEARCH_NODES.energy.length).toBeGreaterThanOrEqual(6)
   })
 
   it('Ash Bank does not auto-convert Choir-ash; converting Ash is a Sortie decision', () => {

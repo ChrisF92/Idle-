@@ -1,8 +1,8 @@
 /** GDD §102 Act 1 doors — career best Wave, not live sector. */
 export const ACT1_CADENCE = {
   codex: 10,
-  foundry: 20,
-  workers: 30,
+  foundry: 50,
+  workers: 50,
   economy: 40,
   directives: 50,
   rebuild: 210,

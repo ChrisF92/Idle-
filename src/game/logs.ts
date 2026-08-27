@@ -65,10 +65,10 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
     unlock: (s) => (s.prestige.prestigeCount ?? 0) >= 1,
   },
   {
-    id: 'yard',
+    id: 'infrastructure',
     title: 'Infrastructure',
-    body: 'Foundry opens Infrastructure projects at Wave 90. New Processors, Fabricators, storage, and specialist facilities all consume Fabricator time.',
-    unlock: (s) => career(s) >= ACT1_CADENCE.yard,
+    body: 'Foundry Fabrication builds Processing Lines, Fabrication Bays, the Worker Fabricator, Research Annex, and Recovery Storage. Matter Worker Racks are a Matter purchase, not a Foundry facility.',
+    unlock: (s) => career(s) >= ACT1_CADENCE.foundry,
   },
   {
     id: 'reliquary',

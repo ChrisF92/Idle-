@@ -1,10 +1,15 @@
-/** GDD Worker Drones — industrial labour. Replaces Network combat bars. */
+/** Permanent Worker Drones — physical workforce, distinct from capacity. */
 
 import type { GameState } from './types'
+import { matterWorkerCapacityBonus } from './matter'
+import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
+import {
+  BASE_WORKER_CAPACITY,
+  WORKER_CONTRIBUTION_EXCESS,
+} from './foundrySeeds'
 import { ACT1_CADENCE } from './cadence'
-import { meetsWave } from './waves'
+import { careerBestWave } from './waves'
 
-/** Production jobs a Worker Drone can be assigned to. */
 export const WORKER_JOB_IDS: readonly string[] = [
   'scrap-field',
   'sensor-net',
@@ -24,7 +29,7 @@ export const WORKER_JOB_LABELS: Record<string, string> = {
   'scrap-field': 'Salvage Operations',
   'sensor-net': 'Research',
   'alloy-foundry': 'Processing',
-  'drone-fab': 'Worker Drone Fabrication',
+  'drone-fab': 'Worker Fabrication',
   'fab-bay': 'Fabrication',
   construction: 'Infrastructure',
 }
@@ -51,13 +56,12 @@ export function workerJobCapLine(assigned: number, jobId: string): string {
   return `${assigned}/${cap.efficient} efficient · cap ${cap.hard}`
 }
 
-/** Effective bodies: full value through the efficient range, then diminishing returns. */
 export function workerJobContribution(assigned: number, jobId: string): number {
   const cap = workerJobCap(jobId)
   const bodies = Math.min(cap.hard, Math.max(0, Math.floor(assigned)))
   const efficient = Math.min(cap.efficient, bodies)
   const excess = Math.max(0, bodies - cap.efficient)
-  return efficient + excess * 0.35
+  return efficient + excess * WORKER_CONTRIBUTION_EXCESS
 }
 
 export function workerJobEfficientRange(jobId: string): string {
@@ -65,24 +69,56 @@ export function workerJobEfficientRange(jobId: string): string {
   return `Efficient ${cap.min}–${cap.efficient}`
 }
 
+export function ownedWorkers(state: Pick<GameState, 'base'>): number {
+  return Math.max(0, Math.floor(state.base.workerDrones ?? 0))
+}
+
+export function workerCapacity(
+  state: {
+    prestige: { matterShop?: Record<string, number> }
+    hiveResearch?: { completedIds?: string[]; completed?: Record<string, number> } | null
+  },
+): number {
+  let cap = BASE_WORKER_CAPACITY
+  cap += matterWorkerCapacityBonus(state)
+  cap += sumResearchNumber(resolvedResearchIds(state.hiveResearch), 'droneCapBonus')
+  return Math.max(1, Math.floor(cap))
+}
+
+export function assignedWorkerCount(state: Pick<GameState, 'base'>): number {
+  const assignments = state.base.assignments ?? {}
+  let n = 0
+  for (const id of WORKER_JOB_IDS) n += Math.max(0, Math.floor(assignments[id] ?? 0))
+  return n
+}
+
+export function idleWorkers(state: Pick<GameState, 'base'>): number {
+  return Math.max(0, ownedWorkers(state) - assignedWorkerCount(state))
+}
+
 export function workerJobHasWork(state: GameState, jobId: string): boolean {
   if (jobId === 'scrap-field') return true
-  if (jobId === 'alloy-foundry') return state.foundry.slots.some((slot) => Boolean(slot.recipeId))
+  if (jobId === 'alloy-foundry') return (state.foundry?.slots ?? []).some((slot) => Boolean(slot.recipeId))
   if (jobId === 'fab-bay') {
-    return state.foundry.fabrication.some(
-      (slot) => !slot.complete && (slot.kind === 'core' || slot.kind === 'relic'),
+    return (state.foundry?.fabrication ?? []).some(
+      (slot) => slot.kind === 'core' || slot.kind === 'frame' || slot.kind === 'relic',
     )
   }
   if (jobId === 'construction') {
-    return state.foundry.fabrication.some((slot) => !slot.complete && slot.kind === 'facility')
+    return (state.foundry?.fabrication ?? []).some((slot) => slot.kind === 'facility')
   }
   if (jobId === 'sensor-net') return Boolean(state.hiveResearch?.active)
-  if (jobId === 'drone-fab') return state.foundry.facilities.includes('drone-fabricator')
+  if (jobId === 'drone-fab') {
+    return (
+      (state.foundry?.facilities ?? []).includes('worker-fabricator') &&
+      ownedWorkers(state) < workerCapacity(state)
+    )
+  }
   return false
 }
 
-export function isWorkersUnlocked(state: GameState): boolean {
-  return meetsWave(state, ACT1_CADENCE.workers)
+export function isWorkersUnlocked(state: Pick<GameState, 'meta' | 'combat' | 'prestige'>): boolean {
+  return careerBestWave(state as GameState) >= ACT1_CADENCE.workers
 }
 
 export function isWorkerJob(stationId: string): boolean {
@@ -91,6 +127,7 @@ export function isWorkerJob(stationId: string): boolean {
 
 export function workerAllocationSummary(state: GameState): {
   total: number
+  capacity: number
   assigned: number
   idle: number
   jobs: Record<string, number>
@@ -100,9 +137,10 @@ export function workerAllocationSummary(state: GameState): {
   const jobs: Record<string, number> = {}
   for (const id of WORKER_JOB_IDS) jobs[id] = count(id)
   const assigned = Object.values(jobs).reduce((n, v) => n + v, 0)
-  const total = Math.max(0, Math.floor(state.base.workerDrones ?? 0))
+  const total = ownedWorkers(state)
   return {
     total,
+    capacity: workerCapacity(state),
     assigned,
     idle: Math.max(0, total - assigned),
     jobs,

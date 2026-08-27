@@ -7,7 +7,6 @@ import type {
   CombatUnit,
   EnemyRole,
   GameState,
-  PartType,
   UnitShape,
   WeaponDelivery,
   WeaponInstance,
@@ -15,26 +14,27 @@ import type {
 } from './types'
 import {
   aiDoctrinesActive,
-  blueprintFragmentTotals,
-  blueprintProgress,
-  canDropModulePart,
   challengeShopDropBonus,
   challengeShopMatchupBonus,
   challengeStackRepairBonus,
-  discoveryFocusPrint,
-  earlyCareerFragmentMult,
-  familyCanDropPrint,
-  getEnemyDropTable,
   getModule,
   fittedShieldRegenFraction,
-  partId,
-  pickWeightedDropEntry,
   stationRepairBonus,
   ENEMY_PARK_MAX,
   SHORT_RANGE_MAX,
   frameSalvageMult,
 } from './catalog'
-import { careerBestWave, isSystemUnlocked } from './progression'
+import {
+  blueprintFragmentCount,
+  canDropBlueprintFragment,
+  eligibleFragmentBlueprints,
+  getBlueprint,
+  grantBlueprintFragment,
+  isBlueprintDiscovered,
+} from './blueprints'
+import { rollDirectMaterialRecovery } from './foundryRecovery'
+import { FRAGMENT_DROP_BOSS_MULT, FRAGMENT_DROP_CHANCE } from './foundrySeeds'
+import { isSystemUnlocked } from './progression'
 import { buildCoreWeapon, buildFlagshipWeapons, computeShipStats } from './state'
 import {
   applyHeavyArmorFracture,
@@ -120,7 +120,6 @@ import {
   hiveResearchSalvageMult,
   hiveResearchShardDropBonus,
 } from './hiveResearch'
-import { yardSalvageMult } from './yard'
 import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
@@ -1828,17 +1827,16 @@ function matchupMultiplier(
 }
 
 export interface PartDropResult {
-  partId: string
-  moduleId: string
-  partType: PartType
+  blueprintId: string
+  have: number
+  need: number
   discovered: boolean
 }
 
 /**
- * Roll blueprint part drops for a slain enemy.
- * Parts stay offline until Alloy Foundry is unlocked (alloy-smelting + Research).
- * Mutates parts inventory + discoveredModules; appends combat log on discovery.
- * Pure-ish helper for tests (inject rng).
+ * Roll Blueprint-specific schematic fragments for a slain enemy.
+ * RNG accelerates acquisition. It never replaces guaranteed sources and
+ * never drops fragments for completed Blueprints.
  */
 export function rollEnemyPartDrop(
   state: GameState,
@@ -1846,104 +1844,65 @@ export function rollEnemyPartDrop(
   rng: () => number = Math.random,
   rewardWeight = unit.rewardWeight ?? 1,
 ): PartDropResult[] {
-  // Keep early scrap sinks meaningful — no Core prints until the Foundry door.
   if (!isSystemUnlocked(state, 'foundry')) return []
-
-  const table = getEnemyDropTable(unit.family)
-  if (!table) return []
-
   const rewardWave = rewardWaveOf(unit)
+  const pool = eligibleFragmentBlueprints(state, rewardWave)
+  if (pool.length === 0) return []
+
   const trackedId = state.foundry?.trackedPrintId ?? null
-  const trackedEligible = Boolean(
-    trackedId &&
-      canDropModulePart(state, trackedId, rewardWave) &&
-      familyCanDropPrint(unit.family, trackedId, rewardWave),
-  )
-  const earlyMult = earlyCareerFragmentMult(careerBestWave(state))
+  const tracked = trackedId && pool.some((row) => row.id === trackedId) ? trackedId : null
+
   let chance =
-    table.chance *
+    FRAGMENT_DROP_CHANCE *
     Math.max(0, Math.min(1, rewardWeight)) *
-    earlyMult *
-    logisticsDropMult(state) *
-    foundryPartDropMult(state) *
     fragmentChanceMult(state) *
+    foundryPartDropMult(state) *
+    logisticsDropMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
     (1 + challengeShopDropBonus(state.prestige.shop))
   let rolls = 1
   if (unit.isBoss) {
-    chance = Math.min(1, chance * (table.bossChanceMult ?? 2))
-    rolls = table.bossRolls ?? 2
+    chance = Math.min(1, chance * FRAGMENT_DROP_BOSS_MULT)
+    rolls = 2
   } else {
-    if (earlyMult >= 2.15) rolls += 1
     chance = Math.min(1, chance)
   }
 
   const results: PartDropResult[] = []
   for (let i = 0; i < rolls; i++) {
     if (rng() > chance) continue
-    const focusId = trackedEligible
-      ? null
-      : discoveryFocusPrint(state, unit.family, rewardWave)
-    const progressId = trackedEligible ? trackedId : focusId
-    const dropProgress = progressId ? blueprintProgress(state, progressId) : null
-    const entry = pickWeightedDropEntry(unit.family, rewardWave, rng, {
-      trackedModuleId: trackedEligible ? trackedId : null,
-      focusModuleId: focusId,
-      owned: dropProgress?.owned,
-      need: dropProgress?.need,
-    })
-    if (!entry) continue
-    const id = partId(entry.moduleId, entry.partType)
-    state.parts = {
-      ...state.parts,
-      [id]: (state.parts[id] ?? 0) + 1,
-    }
-    let discovered = false
-    if (!state.meta.discoveredModules.includes(entry.moduleId)) {
-      state.meta.discoveredModules = [
-        ...state.meta.discoveredModules,
-        entry.moduleId,
-      ]
-      discovered = true
-    }
-    const progress = blueprintProgress(state, entry.moduleId)
-    const totals = blueprintFragmentTotals(progress?.owned, progress?.need)
-    const partHave = progress?.owned[entry.partType] ?? 1
-    const partNeed = progress?.need[entry.partType] ?? 1
-    const modName = getModule(entry.moduleId)?.name ?? entry.moduleId
-    const partLabel =
-      entry.partType.charAt(0).toUpperCase() + entry.partType.slice(1)
-    state.combat.log = [
-      `${modName} · ${partLabel} ${Math.min(partHave, partNeed)}/${partNeed}`,
-      ...state.combat.log,
-    ].slice(0, 40)
+    const pick =
+      tracked && pool.some((row) => row.id === tracked)
+        ? pool.find((row) => row.id === tracked)!
+        : pool[Math.floor(rng() * pool.length)]!
+    if (!pick || !canDropBlueprintFragment(state, pick.id, rewardWave)) continue
+    const before = isBlueprintDiscovered(state, pick.id)
+    grantBlueprintFragment(state, pick.id, 1)
+    const after = isBlueprintDiscovered(state, pick.id)
+    const have = blueprintFragmentCount(state, pick.id)
+    const need = pick.fragmentsRequired
+    state.combat.log = [`${pick.schematicName} ${Math.min(have, need)}/${need}`, ...state.combat.log].slice(0, 40)
     state.combat.fragmentNotice = {
-      moduleId: entry.moduleId,
-      partType: entry.partType,
-      name: modName,
-      partHave,
-      partNeed,
-      totalHave: totals.have,
-      totalNeed: totals.need,
+      moduleId: pick.id,
+      name: pick.name,
+      have: Math.min(have, need),
+      need,
       seq: (state.combat.fragmentNotice?.seq ?? 0) + 1,
     }
     results.push({
-      partId: id,
-      moduleId: entry.moduleId,
-      partType: entry.partType,
-      discovered,
+      blueprintId: pick.id,
+      have,
+      need,
+      discovered: !before && after,
     })
   }
   return results
 }
 
-export function waveCanDropPrint(
-  wave: number,
-  moduleId: string,
-): boolean {
-  const encounter = encounterForWave(wave)
-  if (familyCanDropPrint(encounter.family, moduleId, wave)) return true
-  return encounter.units.some((unit) => familyCanDropPrint(unit.family, moduleId, wave))
+export function waveCanDropPrint(wave: number, moduleId: string): boolean {
+  const def = getBlueprint(moduleId)
+  if (!def) return false
+  return Number.isFinite(def.fragmentEligibleFromWave) && wave >= def.fragmentEligibleFromWave
 }
 
 function fittedSalvageKillMult(state: GameState): number {
@@ -1967,7 +1926,6 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     hiveResearchSalvageMult(state) *
     foundrySalvageMult(state) *
     furnaceSalvageMult(state) *
-    yardSalvageMult(state) *
     echoSalvageMult(state) *
     specialistSalvageMult(state) *
     capitalSalvageMult(state) *
@@ -1982,6 +1940,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   if (scrap > 0) grantGeneratedScrap(state, scrap, 'combat-kill')
   const rng = () => combatRng(state)
   rollEnemyPartDrop(state, unit, rng, rewardWeight)
+  rollDirectMaterialRecovery(state, unit, rng)
   const discreteLoot = rewardWeight >= 1 || rng() < rewardWeight
   if (discreteLoot) {
     grantSignalCoreDrop(state, 'kill', { family: unit.family })

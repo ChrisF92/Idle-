@@ -1,55 +1,44 @@
 import { useState } from 'react'
-import type { FabJobKind, FacilityId, FoundryRecipeId, GameState } from '../../game/types'
+import type { FabJobKind, FacilityId, FoundryMaterialId, GameState } from '../../game/types'
 import { ACT1_CADENCE } from '../../game/cadence'
+import { getModule } from '../../game/catalog'
 import {
-  PART_TYPES,
-  blueprintFragmentTotals,
-  blueprintProgress,
-  formatPrintSourceLine,
+  BLUEPRINTS,
+  blueprintFragmentCount,
+  blueprintLifecycle,
   getBlueprint,
-  getModule,
-  isCorePrintUnlocked,
-  listFoundryPrintCards,
-  modulePrintWave,
-} from '../../game/catalog'
-import { canAssembleBlueprint } from '../../game/actions'
+  isBlueprintDiscovered,
+  physicalProductOwned,
+} from '../../game/blueprints'
 import {
+  CORE_FABRICATION_RECIPES,
   FOUNDRY_FACILITIES,
   FOUNDRY_PANE_LABELS,
   FOUNDRY_RECIPES,
+  FRAME_FABRICATION_RECIPES,
+  WORKER_FABRICATION_RECIPE,
   canStartFabrication,
-  craftsForNextLevel,
+  canStartProcessing,
   fabricationJobLabel,
-  fabricationJobTime,
   formatFoundryCost,
-  foundryCraftOutput,
   foundryCraftTime,
   foundryFabSlotCount,
   foundryFabricationSpeed,
-  foundryMasteryEffect,
-  foundryMasteryStepsFor,
   foundryMaterialCount,
-  foundryMissingCost,
-  foundryNextMastery,
+  foundryOwnedCount,
   foundryProcessingSpeed,
-  foundryReachedMastery,
-  foundryRecipeLevel,
+  foundryRecipeLockReason,
   foundrySlotCount,
+  getFabricationRecipe,
   getFoundryRecipe,
-  isFoundryRecipeUnlocked,
-  scaledFoundryCost,
+  idleProcessingSlot,
+  materialMasteryXpIntoRank,
+  scaleFabricationCost,
   type FoundryCost,
   type FoundryPaneId,
 } from '../../game/foundry'
-import { formatCompact } from '../../game/format'
-import {
-  SHARDS,
-  getShard,
-  relicTier,
-  shardEffectBlurb,
-} from '../../game/reliquary'
 import { isSystemUnlocked } from '../../game/progression'
-import { workerJobCap } from '../../game/workers'
+import { ownedWorkers, workerCapacity } from '../../game/workers'
 import { SheetTabs } from '../SheetTabs'
 import {
   Badge,
@@ -66,12 +55,10 @@ import {
   SummaryCard,
 } from '../../ui/primitives'
 import { useSyncedPane } from '../../hooks/useSyncedPane'
-import { markLocalOk } from '../../hooks/useJustBecame'
 
 export type FoundryPane = FoundryPaneId
-type FabricationStateFilter = 'ready' | 'all' | 'tracked'
-type FabricationCategory = 'core' | 'relic' | 'infrastructure'
-type BlueprintCategory = 'core' | 'relic' | 'hive' | 'industry'
+type FabricationCategory = 'core' | 'frame' | 'worker' | 'infrastructure'
+type BlueprintCategory = 'core' | 'frame'
 
 const FOUNDRY_PANES: { id: FoundryPane; label: string }[] = [
   { id: 'processing', label: FOUNDRY_PANE_LABELS.processing },
@@ -80,23 +67,16 @@ const FOUNDRY_PANES: { id: FoundryPane; label: string }[] = [
   { id: 'blueprints', label: FOUNDRY_PANE_LABELS.blueprints },
 ]
 
-const FAB_STATE_FILTERS: { id: FabricationStateFilter; label: string }[] = [
-  { id: 'ready', label: 'Ready' },
-  { id: 'all', label: 'All' },
-  { id: 'tracked', label: 'Tracked' },
-]
-
 const FAB_CATEGORIES: { id: FabricationCategory; label: string }[] = [
   { id: 'core', label: 'Cores' },
-  { id: 'relic', label: 'Relics' },
+  { id: 'frame', label: 'Frames' },
+  { id: 'worker', label: 'Workers' },
   { id: 'infrastructure', label: 'Infrastructure' },
 ]
 
 const BLUEPRINT_CATEGORIES: { id: BlueprintCategory; label: string }[] = [
   { id: 'core', label: 'Cores' },
-  { id: 'relic', label: 'Relics' },
-  { id: 'hive', label: 'Hive' },
-  { id: 'industry', label: 'Industry' },
+  { id: 'frame', label: 'Frames' },
 ]
 
 interface FoundryTabProps {
@@ -106,6 +86,7 @@ interface FoundryTabProps {
   onTrack?: (moduleId: string | null) => void
   onStartRelic?: (relicId: string) => void
   onStartFacility?: (id: FacilityId) => void
+  onStartJob?: (kind: FabJobKind, jobId: string) => void
   onStopFabrication?: (slotIndex: number) => void
   guideTarget?: string | null
   focusTarget?: string | null
@@ -113,38 +94,31 @@ interface FoundryTabProps {
   onBack?: () => void
 }
 
-interface FabricationProject {
-  kind: FabJobKind
-  jobId: string
-  sourceId?: string
-  category: FabricationCategory
-  name: string
-  purpose: string
-  time: number
-  cost: FoundryCost
-  ready: boolean
-  reason?: string
-  tracked?: boolean
-  blueprintLine: string
-  effect: string
-  inProgress?: boolean
-}
-
 function paneFromHints(
   guideTarget?: string | null,
   focusTarget?: string | null,
   requestedPane?: FoundryTabProps['requestedPane'],
 ): FoundryPane | null {
-  if (requestedPane === 'processing' || requestedPane === 'fabrication' || requestedPane === 'mastery' || requestedPane === 'blueprints') {
+  if (
+    requestedPane === 'processing' ||
+    requestedPane === 'fabrication' ||
+    requestedPane === 'mastery' ||
+    requestedPane === 'blueprints'
+  ) {
     return requestedPane
   }
-  if (requestedPane === 'smelt' || requestedPane === 'ranks') return requestedPane === 'ranks' ? 'mastery' : 'processing'
+  if (requestedPane === 'smelt' || requestedPane === 'ranks') {
+    return requestedPane === 'ranks' ? 'mastery' : 'processing'
+  }
   if (requestedPane === 'prints' || requestedPane === 'fit') return 'blueprints'
   if (requestedPane === 'build') return 'fabrication'
   if (focusTarget?.startsWith('project-')) return 'fabrication'
   if (focusTarget?.startsWith('blueprint-') || focusTarget?.startsWith('print-')) return 'blueprints'
-  if (focusTarget === 'foundry-build' || guideTarget === 'foundry-build' || guideTarget === 'yard-grid') return 'fabrication'
+  if (focusTarget === 'foundry-build' || guideTarget === 'foundry-build' || guideTarget === 'yard-grid') {
+    return 'fabrication'
+  }
   if (guideTarget === 'foundry-mastery') return 'mastery'
+  if (guideTarget === 'onboarding.foundry.blueprint') return 'blueprints'
   if (
     guideTarget === 'foundry-smelters' ||
     guideTarget === 'foundry-recipes' ||
@@ -171,233 +145,34 @@ function formatSeconds(seconds: number): string {
   return `${hours}h ${minutes % 60}m`
 }
 
-function processingWorkers(state: GameState): number {
-  return Math.max(0, state.base.assignments['alloy-foundry'] ?? 0)
-}
-
-function fabricationWorkers(state: GameState, kind: FabJobKind | null): number {
-  return Math.max(0, state.base.assignments[kind === 'facility' ? 'construction' : 'fab-bay'] ?? 0)
-}
-
 function foundryWorkers(state: GameState): number {
-  return processingWorkers(state) +
+  return (
+    Math.max(0, state.base.assignments['alloy-foundry'] ?? 0) +
     Math.max(0, state.base.assignments['fab-bay'] ?? 0) +
-    Math.max(0, state.base.assignments.construction ?? 0)
-}
-
-function materialLines(cost: FoundryCost): string[] {
-  const lines: string[] = []
-  if (cost.scrap) lines.push(`${cost.scrap} Scrap`)
-  if (cost.salvage) lines.push(`${cost.salvage} Salvage`)
-  for (const [id, amount] of Object.entries(cost.materials ?? {})) {
-    if (!amount) continue
-    lines.push(`${amount} ${getFoundryRecipe(id)?.name ?? id}`)
-  }
-  return lines
-}
-
-function completeChain(recipeId: FoundryRecipeId, seen = new Set<string>()): string[] {
-  if (seen.has(recipeId)) return []
-  seen.add(recipeId)
-  const recipe = getFoundryRecipe(recipeId)
-  if (!recipe) return []
-  const lines: string[] = []
-  for (const input of Object.keys(recipe.costs.materials ?? {})) {
-    lines.push(...completeChain(input as FoundryRecipeId, seen))
-  }
-  lines.push(`${formatFoundryCost(recipe.costs)} → ${recipe.name}`)
-  return lines
-}
-
-function coreEffectLine(moduleId: string): string {
-  const def = getModule(moduleId)
-  if (!def) return 'Core definition unavailable.'
-  const bits = [def.description]
-  if (def.weapon) bits.push(`Damage ${formatCompact(def.weapon.damage)}`)
-  if (def.hullBonus) bits.push(`Hull +${formatCompact(def.hullBonus)}`)
-  if (def.shieldBonus) bits.push(`Shield +${formatCompact(def.shieldBonus)}`)
-  if (def.armorBonus) bits.push(`Armor +${formatCompact(def.armorBonus)}`)
-  return bits.join(' · ')
-}
-
-function buildProjects(state: GameState): FabricationProject[] {
-  const projects: FabricationProject[] = []
-  for (const mod of listFoundryPrintCards(state)) {
-    const recipe = getBlueprint(mod.id)
-    if (!recipe) continue
-    const check = canAssembleBlueprint(state, mod.id)
-    const cost: FoundryCost = { materials: { ...(recipe.foundry ?? {}) } }
-    const missing = foundryMissingCost(state, cost)
-    projects.push({
-      kind: 'core',
-      jobId: mod.id,
-      category: 'core',
-      name: mod.name,
-      purpose: mod.description,
-      time: fabricationJobTime(state, 'core', mod.id),
-      cost,
-      ready: check.ok,
-      reason: missing ? `Missing ${missing}` : check.reason,
-      tracked: state.foundry.trackedPrintId === mod.id,
-      blueprintLine: blueprintProgress(state, mod.id)?.complete
-        ? 'Blueprint complete'
-        : 'Blueprint fragments incomplete',
-      effect: coreEffectLine(mod.id),
-    })
-  }
-  if (isSystemUnlocked(state, 'reliquary')) {
-    for (const source of SHARDS.filter((row) => row.upgradesTo)) {
-      const target = source.upgradesTo ? getShard(source.upgradesTo) : undefined
-      if (!target) continue
-      const jobId = `${source.id}>${target.id}`
-      const check = canStartFabrication(state, 'relic', jobId)
-      const cost: FoundryCost = { materials: { 'slag-ingot': relicTier(target) >= 3 ? 10 : 4 } }
-      projects.push({
-        kind: 'relic',
-        jobId,
-        sourceId: source.id,
-        category: 'relic',
-        name: target.name,
-        purpose: target.blurb,
-        time: fabricationJobTime(state, 'relic', jobId),
-        cost,
-        ready: check.ok,
-        reason: foundryMissingCost(state, cost) ? `Missing ${foundryMissingCost(state, cost)}` : check.reason,
-        blueprintLine: `${source.name} upgrade route`,
-        effect: shardEffectBlurb(target),
-      })
-    }
-  }
-  if (isSystemUnlocked(state, 'yard')) {
-    for (const facility of FOUNDRY_FACILITIES) {
-      const check = canStartFabrication(state, 'facility', facility.id)
-      projects.push({
-        kind: 'facility',
-        jobId: facility.id,
-        category: 'infrastructure',
-        name: facility.name,
-        purpose: facility.blurb,
-        time: fabricationJobTime(state, 'facility', facility.id),
-        cost: facility.costs,
-        ready: check.ok,
-        reason: foundryMissingCost(state, facility.costs)
-          ? `Missing ${foundryMissingCost(state, facility.costs)}`
-          : check.reason,
-        blueprintLine: `Industry plan · Wave ${facility.requiresBestWave}`,
-        effect: facility.blurb,
-      })
-    }
-  }
-  return projects
-}
-
-function ProcessorCard({
-  state,
-  index,
-  onView,
-  onStop,
-}: {
-  state: GameState
-  index: number
-  onView: (id: FoundryRecipeId) => void
-  onStop: () => void
-}) {
-  const slot = state.foundry.slots[index]
-  if (!slot?.recipeId) {
-    return (
-      <article className="foundry-work-card is-idle">
-        <span className="ui-kicker">Processor {roman(index)}</span>
-        <strong>Idle</strong>
-        <span className="ui-meta">Select a material below.</span>
-      </article>
-    )
-  }
-  const recipe = getFoundryRecipe(slot.recipeId)
-  if (!recipe) return null
-  const cost = scaledFoundryCost(state, recipe.id)
-  const missing = slot.paid ? null : foundryMissingCost(state, cost)
-  const level = foundryRecipeLevel(state, recipe.id)
-  const speed = foundryProcessingSpeed(state)
-  return (
-    <article className="foundry-work-card is-active">
-      <button type="button" className="foundry-card-main" onClick={() => onView(recipe.id)}>
-        <span className="ui-kicker">Processor {roman(index)}</span>
-        <span className="foundry-card-title">
-          <strong>{recipe.name}</strong>
-          <Badge tone={missing ? 'warn' : 'ok'}>{missing ? `Waiting for ${missing}` : 'Running'}</Badge>
-        </span>
-        <span className="ui-meta">{formatFoundryCost(cost)} → ×{foundryCraftOutput(state, recipe.id)} {recipe.name}</span>
-        <span className="ui-meta">Stock {formatCompact(foundryMaterialCount(state, recipe.id))} · M{level}</span>
-        <span className="ui-progress" aria-label={`${Math.round(slot.progress * 100)}% complete`}>
-          <span style={{ transform: `scaleX(${slot.progress})` }} />
-        </span>
-        <span className="ui-meta">
-          {formatSeconds(foundryCraftTime(state, recipe.id) / Math.max(0.01, speed))} per cycle · {processingWorkers(state)} Worker Drones · ×{speed.toFixed(2)}
-        </span>
-      </button>
-      <button type="button" onClick={onStop}>Stop</button>
-    </article>
+    Math.max(0, state.base.assignments.construction ?? 0) +
+    Math.max(0, state.base.assignments['drone-fab'] ?? 0)
   )
 }
 
-function ActiveFabricatorCard({
-  state,
-  index,
-  onView,
-  onCancel,
-}: {
-  state: GameState
-  index: number
-  onView: (project: FabricationProject) => void
-  onCancel: () => void
-}) {
-  const slot = state.foundry.fabrication[index]
-  if (!slot?.kind || !slot.jobId) {
-    return (
-      <article className="foundry-work-card is-idle">
-        <span className="ui-kicker">Fabricator {roman(index)}</span>
-        <strong>Idle</strong>
-        <span className="ui-meta">Choose a project below.</span>
-      </article>
-    )
-  }
-  const project = buildProjects(state).find((row) => row.kind === slot.kind && row.jobId === slot.jobId) ?? {
-    kind: slot.kind,
-    jobId: slot.jobId,
-    category: slot.kind === 'facility' ? 'infrastructure' as const : slot.kind,
-    name: fabricationJobLabel(state, slot),
-    purpose: 'Fabrication project',
-    time: fabricationJobTime(state, slot.kind, slot.jobId),
-    cost: {},
-    ready: false,
-    blueprintLine: 'Requirements committed',
-    effect: 'Project details unavailable.',
-  }
-  const speed = foundryFabricationSpeed(state, slot.kind)
-  const remaining = slot.complete ? 0 : (project.time * (1 - slot.progress)) / Math.max(0.01, speed)
-  return (
-    <article className="foundry-work-card is-active">
-      <div className="foundry-card-main">
-        <span className="ui-kicker">Fabricator {roman(index)} · {project.category === 'infrastructure' ? 'Infrastructure' : project.category}</span>
-        <span className="foundry-card-title">
-          <strong>{project.name}</strong>
-          <Badge tone={slot.complete ? 'ok' : 'default'}>{slot.complete ? 'Complete' : `${Math.round(slot.progress * 100)}%`}</Badge>
-        </span>
-        <span className="ui-progress" aria-label={`${Math.round(slot.progress * 100)}% complete`}>
-          <span style={{ transform: `scaleX(${slot.progress})` }} />
-        </span>
-        <span className="ui-meta">{slot.complete ? 'Ready' : `${formatSeconds(remaining)} remaining`} · {fabricationWorkers(state, slot.kind)} Worker Drones</span>
-        <span className="ui-meta">
-          {slot.kind === 'core' ? 'Blueprint fragments committed ✓ · ' : ''}
-          {materialLines(project.cost).join(' · ') || 'No material cost'} · committed ✓
-        </span>
-      </div>
-      <div className="foundry-card-actions">
-        <button type="button" onClick={() => onView({ ...project, inProgress: true })}>View Item</button>
-        {!slot.complete ? <button type="button" onClick={onCancel}>Cancel</button> : null}
-      </div>
-    </article>
-  )
+function lifecycleLabel(life: ReturnType<typeof blueprintLifecycle>): string {
+  if (life === 'owned') return 'Owned'
+  if (life === 'discovered') return 'Design known — fabrication required'
+  if (life === 'fragmented') return 'Fragmented'
+  return 'Unknown'
+}
+
+function sourceLine(id: string): string {
+  const def = getBlueprint(id)
+  if (!def) return ''
+  return def.sources.map((source) => source.label).join(' · ')
+}
+
+function coreCopies(state: GameState, moduleId: string): number {
+  return (state.shipyard.coreInstances ?? []).filter((row) => row.moduleId === moduleId).length
+}
+
+function costLines(cost: FoundryCost): string {
+  return formatFoundryCost(cost)
 }
 
 export function FoundryTab({
@@ -405,8 +180,8 @@ export function FoundryTab({
   onSetSlot,
   onFabricateCore,
   onTrack,
-  onStartRelic,
   onStartFacility,
+  onStartJob,
   onStopFabrication,
   guideTarget = null,
   focusTarget = null,
@@ -416,11 +191,9 @@ export function FoundryTab({
   const open = isSystemUnlocked(state, 'foundry')
   const hint = paneFromHints(guideTarget, focusTarget, requestedPane)
   const [pane, setPane] = useSyncedPane<FoundryPane>('processing', hint)
-  const [recipeDetail, setRecipeDetail] = useState<FoundryRecipeId | null>(null)
-  const [masteryDetail, setMasteryDetail] = useState<FoundryRecipeId | null>(null)
-  const [projectDetail, setProjectDetail] = useState<FabricationProject | null>(null)
+  const [recipeDetail, setRecipeDetail] = useState<FoundryMaterialId | null>(null)
+  const [masteryDetail, setMasteryDetail] = useState<FoundryMaterialId | null>(null)
   const [blueprintDetail, setBlueprintDetail] = useState<string | null>(null)
-  const [fabState, setFabState] = useState<FabricationStateFilter>('ready')
   const [fabCategory, setFabCategory] = useState<FabricationCategory>('core')
   const [blueprintCategory, setBlueprintCategory] = useState<BlueprintCategory>('core')
 
@@ -432,29 +205,17 @@ export function FoundryTab({
   const fabSummary = activeFabricators[0]
     ? `${fabricationJobLabel(state, activeFabricators[0])} · ${Math.round(activeFabricators[0].progress * 100)}%`
     : 'Idle'
-  const projects = buildProjects(state)
-  const visibleProjects = projects.filter((project) => {
-    if (project.category !== fabCategory) return false
-    if (fabState === 'ready') return project.ready
-    if (fabState === 'tracked') return project.tracked
-    return true
-  })
-  const discoveredRecipes = FOUNDRY_RECIPES.filter((recipe) =>
-    isFoundryRecipeUnlocked(state, recipe.id) ||
-    foundryRecipeLevel(state, recipe.id) > 0 ||
-    foundryMaterialCount(state, recipe.id) > 0
-  )
-  const blueprintModule = blueprintDetail ? getModule(blueprintDetail) : undefined
-  const blueprint = blueprintDetail ? getBlueprint(blueprintDetail) : undefined
-  const blueprintParts = blueprintDetail ? blueprintProgress(state, blueprintDetail) : null
+  const speed = foundryProcessingSpeed(state)
+  const fabSpeed = foundryFabricationSpeed(state, activeFabricators[0]?.kind ?? 'core')
   const recipe = recipeDetail ? getFoundryRecipe(recipeDetail) : undefined
   const masteryRecipe = masteryDetail ? getFoundryRecipe(masteryDetail) : undefined
+  const blueprint = blueprintDetail ? getBlueprint(blueprintDetail) : undefined
+  const idle = idleProcessingSlot(state)
 
-  const startProject = (project: FabricationProject) => {
-    if (project.kind === 'core') onFabricateCore(project.jobId)
-    else if (project.kind === 'relic' && project.sourceId) onStartRelic?.(project.sourceId)
-    else if (project.kind === 'facility') onStartFacility?.(project.jobId as FacilityId)
-    setProjectDetail(null)
+  const startJob = (kind: FabJobKind, jobId: string) => {
+    if (kind === 'core') onFabricateCore(jobId)
+    else if (kind === 'facility') onStartFacility?.(jobId as FacilityId)
+    else onStartJob?.(kind, jobId)
   }
 
   return (
@@ -464,7 +225,10 @@ export function FoundryTab({
         action={onBack ? <button type="button" onClick={onBack}>Systems</button> : undefined}
       />
       {!open ? (
-        <EmptyState title={`Foundry opens at Wave ${ACT1_CADENCE.foundry}`} body="Processing and Fabrication continue offline once unlocked." />
+        <EmptyState
+          title={`Foundry opens at Wave ${ACT1_CADENCE.foundry}`}
+          body="Processing and Fabrication continue offline once unlocked. No Rebuild is required."
+        />
       ) : (
         <>
           <ContextBar>
@@ -481,32 +245,58 @@ export function FoundryTab({
             {pane === 'processing' ? (
               <>
                 <Section>
-                  <SectionHeader title="Active Processors" />
-                  <div className="foundry-work-list" data-guide="foundry-smelters">
-                    {state.foundry.slots.map((_, index) => (
-                      <ProcessorCard
-                        key={index}
-                        state={state}
-                        index={index}
-                        onView={setRecipeDetail}
-                        onStop={() => onSetSlot(index, null)}
-                      />
-                    ))}
-                  </div>
+                  <SectionHeader title="Processors" />
+                  <p className="ui-meta">
+                    Speed ×{speed.toFixed(2)} · Matter Foundry Throughput and assigned Processing Workers.
+                    Time Compression does not apply.
+                  </p>
+                  {state.foundry.slots.map((slot, index) => {
+                    const def = slot.recipeId ? getFoundryRecipe(slot.recipeId) : undefined
+                    const remaining = def
+                      ? foundryCraftTime(state, def.id) * (1 - slot.progress) / Math.max(0.01, speed)
+                      : 0
+                    return (
+                      <article key={index} className="foundry-processor-card" data-guide={`foundry-slot-${index}`}>
+                        <strong>Processor {roman(index)}</strong>
+                        {def ? (
+                          <>
+                            <span>{def.name}</span>
+                            <span className="ui-meta">
+                              {Math.round(slot.progress * 100)}% · {formatSeconds(remaining)} remaining
+                            </span>
+                            <span className="ui-progress" aria-hidden>
+                              <span style={{ transform: `scaleX(${slot.progress})` }} />
+                            </span>
+                            <span className="ui-meta">Mastery XP on completion: {def.name}</span>
+                          </>
+                        ) : (
+                          <span className="ui-meta">Idle — start one Processing cycle</span>
+                        )}
+                      </article>
+                    )
+                  })}
                 </Section>
                 <Section>
-                  <SectionHeader title="Materials" />
+                  <SectionHeader title="Recipes" />
                   <ItemGrid>
-                    {FOUNDRY_RECIPES.filter((row) => isFoundryRecipeUnlocked(state, row.id)).map((row) => {
-                      const assigned = state.foundry.slots.findIndex((slot) => slot.recipeId === row.id)
+                    {FOUNDRY_RECIPES.map((row) => {
+                      const lock = foundryRecipeLockReason(state, row.id)
+                      const check = canStartProcessing(state, row.id)
+                      const stock = foundryMaterialCount(state, row.id)
+                      const onboarding =
+                        row.id === 'recovered-stock' ? 'onboarding.foundry.processor' : undefined
                       return (
                         <ItemRow
                           key={row.id}
                           title={row.name}
-                          meta={`${formatFoundryCost(scaledFoundryCost(state, row.id))} → ×${foundryCraftOutput(state, row.id)} · Stock ${formatCompact(foundryMaterialCount(state, row.id))}`}
-                          value={assigned >= 0 ? `Processor ${roman(assigned)}` : `M${foundryRecipeLevel(state, row.id)}`}
+                          meta={
+                            lock
+                              ? lock
+                              : `${costLines(row.costs)} → 1 · ${formatSeconds(row.craftTime)} · stock ${stock}`
+                          }
+                          value={check.ok ? 'Start' : lock ? 'Locked' : check.reason}
                           guide={`foundry-recipe-${row.id}`}
-                          onboarding={row.id === 'slag-ingot' ? 'onboarding.foundry.processor' : undefined}
+                          onboarding={onboarding}
                           onClick={() => setRecipeDetail(row.id)}
                         />
                       )
@@ -519,103 +309,209 @@ export function FoundryTab({
             {pane === 'fabrication' ? (
               <>
                 <Section>
-                  <SectionHeader title="Active Fabricators" />
-                  <div className="foundry-work-list">
-                    {state.foundry.fabrication.map((_, index) => (
-                      <ActiveFabricatorCard
-                        key={index}
-                        state={state}
-                        index={index}
-                        onView={setProjectDetail}
-                        onCancel={() => onStopFabrication?.(index)}
-                      />
-                    ))}
-                  </div>
+                  <SectionHeader title="Active jobs" />
+                  <p className="ui-meta">
+                    Speed ×{fabSpeed.toFixed(2)}. Completing a job adds the physical item immediately.
+                    It does not change the live Sortie loadout.
+                  </p>
+                  {state.foundry.fabrication.map((slot, index) => (
+                    <article key={index} className="foundry-processor-card">
+                      <strong>Bay {roman(index)}</strong>
+                      {slot.kind && slot.jobId ? (
+                        <>
+                          <span>{fabricationJobLabel(state, slot)}</span>
+                          <span className="ui-meta">{Math.round(slot.progress * 100)}%</span>
+                          <span className="ui-progress" aria-hidden>
+                            <span style={{ transform: `scaleX(${slot.progress})` }} />
+                          </span>
+                          {onStopFabrication && !slot.paid ? (
+                            <button type="button" onClick={() => onStopFabrication(index)}>Stop</button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className="ui-meta">Idle</span>
+                      )}
+                    </article>
+                  ))}
                 </Section>
-                <Section>
-                  <SheetTabs value={fabState} onChange={setFabState} options={FAB_STATE_FILTERS} label="Fabrication readiness" />
-                  <SheetTabs value={fabCategory} onChange={setFabCategory} options={FAB_CATEGORIES} label="Fabrication category" />
-                  {visibleProjects.length > 0 ? (
+                <SheetTabs
+                  value={fabCategory}
+                  onChange={setFabCategory}
+                  options={FAB_CATEGORIES}
+                  label="Fabrication category"
+                />
+                {fabCategory === 'core' ? (
+                  <Section>
+                    <SectionHeader title="Cores" />
+                    <p className="ui-meta">Blueprint discovered ≠ item owned. Copy count is physical instances.</p>
                     <ItemGrid>
-                      {visibleProjects.map((project) => (
-                        <ItemRow
-                          key={`${project.kind}:${project.jobId}`}
-                          title={project.name}
-                          meta={`${project.category === 'infrastructure' ? 'Infrastructure' : project.category} · ${project.purpose} · ${formatSeconds(project.time)}`}
-                          value={project.ready ? 'Ready' : project.reason ?? 'Blocked'}
-                          onClick={() => setProjectDetail(project)}
-                        />
-                      ))}
+                      {CORE_FABRICATION_RECIPES.map((row) => {
+                        const copies = coreCopies(state, row.productId)
+                        const discovered = isBlueprintDiscovered(state, row.productId)
+                        const check = canStartFabrication(state, 'core', row.productId)
+                        const cost = scaleFabricationCost(row.costs, copies)
+                        return (
+                          <ItemRow
+                            key={row.productId}
+                            title={row.name}
+                            meta={
+                              discovered
+                                ? `${copies} owned · ${costLines(cost)} · ${formatSeconds(row.craftTime)}`
+                                : 'Blueprint not discovered'
+                            }
+                            value={check.ok ? 'Fabricate' : check.reason}
+                            onClick={() => {
+                              if (check.ok) startJob('core', row.productId)
+                            }}
+                          />
+                        )
+                      })}
                     </ItemGrid>
-                  ) : (
-                    <EmptyState title="No matching projects" body={fabState === 'ready' ? 'Choose All to inspect blocked projects.' : 'Nothing has been discovered in this category yet.'} />
-                  )}
-                </Section>
+                  </Section>
+                ) : null}
+                {fabCategory === 'frame' ? (
+                  <Section>
+                    <SectionHeader title="Frames" />
+                    <ItemGrid>
+                      {FRAME_FABRICATION_RECIPES.map((row) => {
+                        const owned = (state.shipyard.unlockedFrames ?? []).includes(row.productId)
+                        const discovered = isBlueprintDiscovered(state, row.productId)
+                        const check = canStartFabrication(state, 'frame', row.productId)
+                        return (
+                          <ItemRow
+                            key={row.productId}
+                            title={row.name}
+                            meta={
+                              owned
+                                ? 'Owned'
+                                : discovered
+                                  ? `${costLines(row.costs)} · ${formatSeconds(row.craftTime)}`
+                                  : 'Blueprint not discovered'
+                            }
+                            value={check.ok ? 'Fabricate' : check.reason}
+                            onClick={() => {
+                              if (check.ok) startJob('frame', row.productId)
+                            }}
+                          />
+                        )
+                      })}
+                    </ItemGrid>
+                  </Section>
+                ) : null}
+                {fabCategory === 'worker' ? (
+                  <Section>
+                    <SectionHeader title="Worker Fabricator" />
+                    <p className="ui-meta">
+                      Workers {ownedWorkers(state)} / {workerCapacity(state)} capacity.
+                      Capacity is not ownership.
+                    </p>
+                    {(() => {
+                      const check = canStartFabrication(state, 'worker', 'worker')
+                      const recipe = WORKER_FABRICATION_RECIPE
+                      return (
+                        <ItemRow
+                          title={recipe.name}
+                          meta={`${costLines(recipe.costs)} · ${formatSeconds(recipe.craftTime)}`}
+                          value={check.ok ? 'Fabricate' : check.reason}
+                          onboarding="onboarding.workers.fabricate"
+                          onClick={() => {
+                            if (check.ok) startJob('worker', 'worker')
+                          }}
+                        />
+                      )
+                    })()}
+                  </Section>
+                ) : null}
+                {fabCategory === 'infrastructure' ? (
+                  <Section>
+                    <SectionHeader title="Infrastructure" />
+                    <ItemGrid>
+                      {FOUNDRY_FACILITIES.map((row) => {
+                        const owned = foundryOwnedCount(state, row.id)
+                        const check = canStartFabrication(state, 'facility', row.id)
+                        return (
+                          <ItemRow
+                            key={row.id}
+                            title={row.name}
+                            meta={`${owned}/${row.maxOwned} · ${row.effect} · ${costLines(row.costs)}`}
+                            value={check.ok ? 'Build' : check.reason}
+                            onClick={() => {
+                              if (check.ok) startJob('facility', row.id)
+                            }}
+                          />
+                        )
+                      })}
+                    </ItemGrid>
+                  </Section>
+                ) : null}
               </>
             ) : null}
 
             {pane === 'mastery' ? (
               <Section>
                 <SectionHeader title="Material Mastery" />
-                <div className="foundry-mastery-list" data-guide="foundry-mastery">
-                  {discoveredRecipes.map((row) => {
-                    const level = foundryRecipeLevel(state, row.id)
-                    const xp = state.foundry.recipeXp[row.id] ?? 0
-                    const need = craftsForNextLevel(level, state)
-                    const current = foundryReachedMastery(state, row.id).slice(-2).map(foundryMasteryEffect)
-                    const next = foundryNextMastery(state, row.id)
+                <p className="ui-meta">M0→M5. XP comes from completed Processing cycles of that material.</p>
+                <ItemGrid>
+                  {FOUNDRY_RECIPES.map((row) => {
+                    const progress = materialMasteryXpIntoRank(state, row.id)
                     return (
-                      <button key={row.id} type="button" className="foundry-mastery-card" onClick={() => setMasteryDetail(row.id)}>
-                        <span className="foundry-card-title"><strong>{row.name}</strong><Badge>M{level}</Badge></span>
-                        <span className="ui-progress" aria-label={`${xp} of ${need} mastery XP`}>
-                          <span style={{ transform: `scaleX(${need > 0 ? xp / need : 1})` }} />
-                        </span>
-                        <span className="ui-meta">Current · {current.join(' · ') || 'Base recipe'}</span>
-                        <span className="ui-meta">Next · {next ? `M${next.at} ${foundryMasteryEffect(next)}` : 'Mastered'}</span>
-                      </button>
+                      <ItemRow
+                        key={row.id}
+                        title={row.name}
+                        meta={
+                          progress.maxed
+                            ? 'M5 — max'
+                            : `M${progress.rank} · ${progress.into}/${progress.need} XP to M${progress.rank + 1}`
+                        }
+                        value={`M${progress.rank}`}
+                        onClick={() => setMasteryDetail(row.id)}
+                      />
                     )
                   })}
-                </div>
+                </ItemGrid>
               </Section>
             ) : null}
 
             {pane === 'blueprints' ? (
-              <Section>
-                <SheetTabs value={blueprintCategory} onChange={setBlueprintCategory} options={BLUEPRINT_CATEGORIES} label="Blueprint category" />
-                {blueprintCategory === 'core' ? (
-                  <div className="foundry-blueprint-list">
-                    {listFoundryPrintCards(state).map((mod) => {
-                      const progress = blueprintProgress(state, mod.id)
-                      const totals = blueprintFragmentTotals(progress?.owned, progress?.need)
-                      const openBlueprint = isCorePrintUnlocked(state, mod.id)
-                      const fabricated = state.shipyard.unlockedModules.includes(mod.id)
-                      const status = fabricated ? 'FABRICATED' : progress?.complete ? 'COMPLETE' : openBlueprint ? 'DISCOVERED' : 'UNKNOWN'
-                      const tracked = state.foundry.trackedPrintId === mod.id
+              <>
+                <SheetTabs
+                  value={blueprintCategory}
+                  onChange={setBlueprintCategory}
+                  options={BLUEPRINT_CATEGORIES}
+                  label="Blueprint category"
+                />
+                <Section>
+                  <SectionHeader title="Blueprints" />
+                  <p className="ui-meta">Discovery is a design. Fabrication creates the physical item.</p>
+                  <ItemGrid>
+                    {BLUEPRINTS.filter((row) => row.productKind === blueprintCategory).map((row) => {
+                      const life = blueprintLifecycle(state, row.id)
+                      const have = blueprintFragmentCount(state, row.id)
+                      const tracked = state.foundry.trackedPrintId === row.id
+                      const meta =
+                        life === 'fragmented'
+                          ? `${row.schematicName} ${have}/${row.fragmentsRequired}`
+                          : life === 'discovered'
+                            ? 'Design known — fabrication required'
+                            : life === 'owned'
+                              ? row.productKind === 'core'
+                                ? `Owned · ${coreCopies(state, row.id)} physical`
+                                : 'Owned'
+                              : 'Unknown'
                       return (
-                        <button
-                          key={mod.id}
-                          type="button"
-                          className="foundry-blueprint-card"
-                          data-guide={`blueprint-${mod.id}`}
-                          onClick={() => setBlueprintDetail(mod.id)}
-                        >
-                          <span className="foundry-blueprint-silhouette" aria-hidden>◇</span>
-                          <span className="foundry-blueprint-copy">
-                            <span className="foundry-card-title">
-                              <strong>{status === 'UNKNOWN' ? 'Unknown Core' : mod.name}</strong>
-                              <Badge tone={status === 'COMPLETE' || status === 'FABRICATED' ? 'ok' : 'default'}>{status}</Badge>
-                            </span>
-                            <span className="ui-meta">Fragments {totals.have}/{totals.need} · {openBlueprint ? formatPrintSourceLine(mod.id) : 'Source unknown'}</span>
-                            {tracked ? <span className="ui-meta">Tracked</span> : null}
-                          </span>
-                        </button>
+                        <ItemRow
+                          key={row.id}
+                          title={row.name}
+                          meta={meta}
+                          value={tracked ? 'Tracked' : lifecycleLabel(life)}
+                          onboarding={row.id === 'flak-array' ? 'onboarding.foundry.blueprint' : undefined}
+                          onClick={() => setBlueprintDetail(row.id)}
+                        />
                       )
                     })}
-                  </div>
-                ) : (
-                  <EmptyState title={`No ${BLUEPRINT_CATEGORIES.find((row) => row.id === blueprintCategory)?.label} Blueprints discovered`} body="New Blueprint families appear here when their fragment sources enter the game." />
-                )}
-              </Section>
+                  </ItemGrid>
+                </Section>
+              </>
             ) : null}
           </div>
         </>
@@ -623,116 +519,123 @@ export function FoundryTab({
 
       <BottomSheet
         open={Boolean(recipe)}
-        title={recipe?.name ?? 'Material'}
-        kicker="Processing"
+        title={recipe?.name ?? 'Recipe'}
         onClose={() => setRecipeDetail(null)}
         overlayId="foundry-processing-detail"
-        footer={recipe ? (
-          <button
-            type="button"
-            className="primary"
-            disabled={state.foundry.slots.every((slot) => slot.recipeId && slot.recipeId !== recipe.id)}
-            onClick={(event) => {
-              const assigned = state.foundry.slots.findIndex((slot) => slot.recipeId === recipe.id)
-              const idle = state.foundry.slots.findIndex((slot) => !slot.recipeId)
-              if (assigned >= 0) onSetSlot(assigned, null)
-              else if (idle >= 0) {
-                markLocalOk(event.currentTarget)
-                onSetSlot(idle, recipe.id)
-              }
-              setRecipeDetail(null)
-            }}
-          >
-            {state.foundry.slots.some((slot) => slot.recipeId === recipe.id) ? 'Stop Processing' : 'Start Processing'}
-          </button>
-        ) : undefined}
       >
         {recipe ? (
           <>
-            <ContextBar>
-              <StatPair label="Stock" value={formatCompact(foundryMaterialCount(state, recipe.id))} />
-              <StatPair label="Output" value={`×${foundryCraftOutput(state, recipe.id)}`} />
-              <StatPair label="Cycle" value={formatSeconds(foundryCraftTime(state, recipe.id) / Math.max(0.01, foundryProcessingSpeed(state)))} />
-            </ContextBar>
             <p>{recipe.blurb}</p>
-            <Section><SectionHeader title="Complete material chain" />{completeChain(recipe.id).map((line) => <p className="ui-meta" key={line}>{line}</p>)}</Section>
-            <Section><SectionHeader title="Inputs" />{materialLines(scaledFoundryCost(state, recipe.id)).map((line) => <p className="ui-meta" key={line}>{line}</p>)}</Section>
-            <p className="ui-meta">Worker contribution · {processingWorkers(state)} assigned · ×{foundryProcessingSpeed(state).toFixed(2)} total speed</p>
-            <p className="ui-meta">Mastery XP · {state.foundry.recipeXp[recipe.id] ?? 0}/{craftsForNextLevel(foundryRecipeLevel(state, recipe.id), state)}</p>
-            <p className="ui-meta">Current bonuses · {foundryReachedMastery(state, recipe.id).slice(-2).map(foundryMasteryEffect).join(' · ') || 'Base recipe'}</p>
-            <p className="ui-meta">Next milestone · {foundryNextMastery(state, recipe.id) ? `M${foundryNextMastery(state, recipe.id)!.at} ${foundryMasteryEffect(foundryNextMastery(state, recipe.id)!)}` : 'Mastered'}</p>
+            <p className="ui-meta">{costLines(recipe.costs)} → 1 {recipe.name}</p>
+            <p className="ui-meta">Cycle {formatSeconds(recipe.craftTime)}. Mastery XP is awarded to this output.</p>
+            {foundryRecipeLockReason(state, recipe.id) ? (
+              <p className="ui-meta">{foundryRecipeLockReason(state, recipe.id)}</p>
+            ) : (
+              <button
+                type="button"
+                data-onboarding={recipe.id === 'recovered-stock' ? 'onboarding.foundry.processor' : undefined}
+                disabled={!canStartProcessing(state, recipe.id).ok || idle < 0}
+                onClick={() => {
+                  if (idle >= 0) onSetSlot(idle, recipe.id)
+                  setRecipeDetail(null)
+                }}
+              >
+                Start cycle
+              </button>
+            )}
           </>
         ) : null}
       </BottomSheet>
 
-      <BottomSheet open={Boolean(projectDetail)} title={projectDetail?.name ?? 'Project'} kicker="Fabrication project" onClose={() => setProjectDetail(null)} overlayId="foundry-project-detail" footer={projectDetail && !projectDetail.inProgress ? (
-        <button type="button" className="primary" disabled={!projectDetail.ready} onClick={() => startProject(projectDetail)}>
-          {projectDetail.ready ? 'Fabricate' : projectDetail.reason ?? 'Requirements missing'}
-        </button>
-      ) : undefined}>
-        {projectDetail ? (
-          <>
-            <p>{projectDetail.effect}</p>
-            <ContextBar>
-              <StatPair label="Type" value={projectDetail.category === 'infrastructure' ? 'Infrastructure' : projectDetail.category} />
-              <StatPair label="Duration" value={formatSeconds(projectDetail.time)} />
-            </ContextBar>
-            <Section><SectionHeader title="Materials" />{materialLines(projectDetail.cost).length > 0 ? materialLines(projectDetail.cost).map((line) => <p className="ui-meta" key={line}>{line}</p>) : <p className="ui-meta">No Foundry materials required.</p>}</Section>
-            <p className="ui-meta">Blueprint requirement · {projectDetail.blueprintLine}</p>
-            <p className="ui-meta">
-              Workers · {fabricationWorkers(state, projectDetail.kind)} assigned · efficient to {workerJobCap(projectDetail.kind === 'facility' ? 'construction' : 'fab-bay').efficient} · hard cap {workerJobCap(projectDetail.kind === 'facility' ? 'construction' : 'fab-bay').hard} · ×{foundryFabricationSpeed(state, projectDetail.kind).toFixed(2)}
-            </p>
-          </>
-        ) : null}
-      </BottomSheet>
-
-      <BottomSheet open={Boolean(masteryRecipe)} title={masteryRecipe?.name ?? 'Mastery'} kicker="Material Mastery" size="full" onClose={() => setMasteryDetail(null)} overlayId="foundry-mastery-detail">
+      <BottomSheet
+        open={Boolean(masteryRecipe)}
+        title={masteryRecipe?.name ?? 'Mastery'}
+        onClose={() => setMasteryDetail(null)}
+        overlayId="foundry-mastery-detail"
+      >
         {masteryRecipe ? (
           <>
-            <ContextBar>
-              <StatPair label="Level" value={`M${foundryRecipeLevel(state, masteryRecipe.id)}`} />
-              <StatPair label="XP" value={`${state.foundry.recipeXp[masteryRecipe.id] ?? 0}/${craftsForNextLevel(foundryRecipeLevel(state, masteryRecipe.id), state)}`} />
-            </ContextBar>
-            <Section>
-              <SectionHeader title="Milestones" />
-              {foundryMasteryStepsFor(masteryRecipe, state).map((step) => {
-                const level = foundryRecipeLevel(state, masteryRecipe.id)
-                const next = foundryNextMastery(state, masteryRecipe.id)?.at === step.at
-                return <p key={step.at} className={level >= step.at ? 'ui-meta is-done' : next ? 'ui-meta is-next' : 'ui-meta'}>M{step.at} · {foundryMasteryEffect(step)}{next ? ' · NEXT' : ''}</p>
-              })}
-            </Section>
-            <p className="ui-meta">Produced by · {masteryRecipe.name}</p>
-            <p className="ui-meta">Consumed by · {FOUNDRY_RECIPES.filter((row) => (row.costs.materials?.[masteryRecipe.id] ?? 0) > 0).map((row) => row.name).join(', ') || 'No discovered recipe'}</p>
+            {(() => {
+              const progress = materialMasteryXpIntoRank(state, masteryRecipe.id)
+              return (
+                <>
+                  <p>
+                    {progress.maxed
+                      ? 'M5. No further Material Mastery ranks.'
+                      : `M${progress.rank} · ${progress.into}/${progress.need} XP to the next rank.`}
+                  </p>
+                  <p className="ui-meta">
+                    Processing cycles grant XP. Direct recovery and owning stock do not.
+                    Rank rewards beyond recipe/source prerequisites are not authored.
+                  </p>
+                </>
+              )
+            })()}
           </>
         ) : null}
       </BottomSheet>
 
-      <BottomSheet open={Boolean(blueprintModule && blueprint)} title={blueprintModule?.name ?? 'Blueprint'} kicker="Core Blueprint" size="full" onClose={() => setBlueprintDetail(null)} overlayId="foundry-blueprint-detail" footer={blueprintModule && blueprintParts?.complete && !state.shipyard.unlockedModules.includes(blueprintModule.id) ? (
-        <button type="button" className="primary" onClick={() => {
-          const project = projects.find((row) => row.kind === 'core' && row.jobId === blueprintModule.id)
-          setBlueprintDetail(null)
-          setFabCategory('core')
-          setFabState('all')
-          setPane('fabrication')
-          if (project) setProjectDetail(project)
-        }}>View Project</button>
-      ) : undefined}>
-        {blueprintModule && blueprint && blueprintParts ? (
+      <BottomSheet
+        open={Boolean(blueprint)}
+        title={blueprint?.name ?? 'Blueprint'}
+        onClose={() => setBlueprintDetail(null)}
+        overlayId="foundry-blueprint-detail"
+      >
+        {blueprint ? (
           <>
-            <p>{blueprintModule.description}</p>
-            <ContextBar>
-              <StatPair label="Fragments" value={`${blueprintFragmentTotals(blueprintParts.owned, blueprintParts.need).have}/${blueprintFragmentTotals(blueprintParts.owned, blueprintParts.need).need}`} />
-              <StatPair label="State" value={state.shipyard.unlockedModules.includes(blueprintModule.id) ? 'Fabricated' : blueprintParts.complete ? 'Complete' : isCorePrintUnlocked(state, blueprintModule.id) ? 'Discovered' : 'Unknown'} />
-            </ContextBar>
-            <Section><SectionHeader title="Parts" />{PART_TYPES.map((part) => <p className="ui-meta" key={part}>{part} · {blueprintParts.owned[part]}/{blueprintParts.need[part]}</p>)}</Section>
-            <p className="ui-meta">Source · {isCorePrintUnlocked(state, blueprintModule.id) ? formatPrintSourceLine(blueprintModule.id) : `Unknown until Wave ${modulePrintWave(blueprintModule.id)}`}</p>
-            <p className="ui-meta">Result · {coreEffectLine(blueprintModule.id)}</p>
-            <p className="ui-meta">Fabrication requirements · {formatFoundryCost({ materials: { ...(blueprint.foundry ?? {}) } })}</p>
-            {onTrack && isCorePrintUnlocked(state, blueprintModule.id) && !blueprintParts.complete ? (
-              <button type="button" onClick={() => onTrack(state.foundry.trackedPrintId === blueprintModule.id ? null : blueprintModule.id)}>
-                {state.foundry.trackedPrintId === blueprintModule.id ? 'Tracked' : 'Track Blueprint'}
-              </button>
-            ) : null}
+            {(() => {
+              const life = blueprintLifecycle(state, blueprint.id)
+              const have = blueprintFragmentCount(state, blueprint.id)
+              const copies = blueprint.productKind === 'core' ? coreCopies(state, blueprint.id) : 0
+              const owned = physicalProductOwned(state, blueprint)
+              const recipe = getFabricationRecipe(blueprint.productKind, blueprint.id)
+              const module = getModule(blueprint.id)
+              return (
+                <>
+                  <p>
+                    <Badge>{lifecycleLabel(life)}</Badge>
+                  </p>
+                  {life === 'fragmented' ? (
+                    <p>
+                      {blueprint.schematicName} {have}/{blueprint.fragmentsRequired}
+                    </p>
+                  ) : null}
+                  {life === 'discovered' ? (
+                    <p>Design known — fabrication required. No physical copy yet.</p>
+                  ) : null}
+                  {life === 'owned' ? (
+                    <p>
+                      {blueprint.productKind === 'core'
+                        ? `${copies} physical ${copies === 1 ? 'copy' : 'copies'} in inventory.`
+                        : 'Physical Frame owned.'}
+                    </p>
+                  ) : null}
+                  {life === 'unknown' ? (
+                    <p className="ui-meta">Source exists. Exact drop window is a simulator seed.</p>
+                  ) : (
+                    <p className="ui-meta">{sourceLine(blueprint.id)}</p>
+                  )}
+                  {module ? <p className="ui-meta">{module.description}</p> : null}
+                  {recipe && (life === 'discovered' || owned) ? (
+                    <button
+                      type="button"
+                      disabled={!canStartFabrication(state, blueprint.productKind, blueprint.id).ok}
+                      onClick={() => {
+                        startJob(blueprint.productKind, blueprint.id)
+                        setBlueprintDetail(null)
+                      }}
+                    >
+                      Fabricate
+                    </button>
+                  ) : null}
+                  {onTrack ? (
+                    <button type="button" onClick={() => onTrack(blueprint.id)}>
+                      {state.foundry.trackedPrintId === blueprint.id ? 'Untrack' : 'Track'}
+                    </button>
+                  ) : null}
+                </>
+              )
+            })()}
           </>
         ) : null}
       </BottomSheet>

@@ -20,7 +20,6 @@ import {
   rebuildIneligibleReason,
   REBUILD_MIN_WAVE,
 } from '../game/rebuild'
-import { yardPendingSummary } from '../game/yard'
 import { isSystemUnlocked } from '../game/progression'
 import { rebuildConsequenceLists } from '../game/playerGuidance'
 import { ConsequencePanel } from './ConsequencePanel'
@@ -193,8 +192,8 @@ export function RebuildHangar({ state, onConfirm, onClose, onBuyMatter }: Rebuil
 
           {!ready && blocked ? <p className="muted">{blocked}</p> : null}
 
-          {isSystemUnlocked(state, 'yard') ? (
-            <p className="muted">Construction: {yardPendingSummary(state)}.</p>
+          {isSystemUnlocked(state, 'foundry') ? (
+            <p className="muted">Foundry infrastructure and Worker jobs continue through Rebuild.</p>
           ) : null}
 
           {shopAvailable ? (

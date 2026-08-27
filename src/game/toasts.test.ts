@@ -10,7 +10,6 @@ import {
   selectPresentation,
   TOAST_MAX_QUEUE,
 } from './presentation'
-import { blueprintProgress } from './catalog'
 import { activeOnboardingLesson, prepOnboardingDoor } from './onboarding'
 
 describe('session toasts', () => {
@@ -69,23 +68,12 @@ describe('session toasts', () => {
     expect(toasts.find((t) => t.id.startsWith('rebuild-ready'))?.action?.nav).toEqual({ kind: 'rebuild' })
   })
 
-  it('toasts a completed Core Print toward Fabrication', () => {
-    const state = markHullLost(createInitialState(0))
+  it('toasts a discovered Blueprint toward Fabrication, not leftover parts', () => {
+    const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.foundry)
     const prev = captureToastSnapshot(state)
-    const print = captureToastSnapshot(state).completePrints[0]
-    const farmable = captureToastSnapshot(state)
-    void farmable
-    const prints = Object.keys(state.parts)
-    void prints
-    const candidate = 'pulse-cannon'
-    state.parts[`${candidate}:casing`] = 9
-    state.parts[`${candidate}:core`] = 9
-    state.parts[`${candidate}:lens`] = 9
-    if (blueprintProgress(state, candidate)?.complete) {
-      const toasts = diffToasts(prev, captureToastSnapshot(state), state)
-      expect(toasts.some((t) => t.id === `blueprint-complete:${candidate}` || t.category === 'BLUEPRINT COMPLETE')).toBe(true)
-    }
-    expect(print === undefined || typeof print === 'string').toBe(true)
+    state.foundry.discovered = [...state.foundry.discovered, 'heavy-lance']
+    const toasts = diffToasts(prev, captureToastSnapshot(state), state)
+    expect(toasts.some((t) => t.id === 'blueprint-complete:heavy-lance' || t.category === 'BLUEPRINT COMPLETE')).toBe(true)
   })
 
   it('never shows a toast over blocking onboarding', () => {

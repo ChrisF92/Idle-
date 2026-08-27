@@ -407,7 +407,7 @@ async function runOneSeeded(
       spending,
       milestones: metrics.milestones,
       highestWave: reportedBestWave(state),
-      foundryRecipes: Object.values(state.foundry.recipeLevels).filter((n) => (n ?? 0) > 0).length,
+      foundryRecipes: Object.values(state.foundry.masteryXp).filter((n) => (n ?? 0) > 0).length,
       workerDrones: state.base.workerDrones,
       furnaceLit: Object.values(state.furnace?.active ?? {}).filter((n) => (n ?? 0) > 0).length,
       researchBreakthroughs: captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds)
@@ -475,7 +475,7 @@ async function runOneSeeded(
     network: networkSnapshot(state),
     foundry: {
       points: 0,
-      recipeLevels: { ...state.foundry.recipeLevels },
+      masteryXp: { ...state.foundry.masteryXp },
       upgrades: {},
       equipped: [],
       slotRecipes: state.foundry.slots.map((s) => s.recipeId),

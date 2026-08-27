@@ -261,7 +261,7 @@ export function captureAct1Snapshot(
     for (let i = 0; i < n; i++) if (isResearchBreakthroughIndex(i)) bts += 1
   }
   const relays = 0
-  const recipes = FOUNDRY_RECIPES.filter((r) => (state.foundry.recipeLevels[r.id] ?? 0) > 0).length
+  const recipes = FOUNDRY_RECIPES.filter((r) => (state.foundry.masteryXp[r.id] ?? 0) > 0).length
   const protocolRanks = Object.values(state.protocols?.ranks ?? {}).reduce((s, n) => s + (n ?? 0), 0)
   return {
     at,
