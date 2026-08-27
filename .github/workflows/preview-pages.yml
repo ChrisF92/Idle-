@@ -35,7 +35,9 @@ jobs:
 
       - name: Apply focused PR7 correction
         if: github.event.action != 'closed'
-        run: python scripts/pr7_correction.py
+        run: |
+          python scripts/pr7_correction.py
+          python scripts/pr7_correction_fix.py
 
       - name: Verify focused correction
         if: github.event.action != 'closed'
@@ -51,7 +53,7 @@ jobs:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           git show aecd874a4e032840e6f75e7045e9a620dbca69ad:.github/workflows/preview-pages.yml > .github/workflows/preview-pages.yml
-          rm scripts/pr7_correction.py
+          rm scripts/pr7_correction.py scripts/pr7_correction_fix.py
           git config user.name "ChatGPT PR7 Correction"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
