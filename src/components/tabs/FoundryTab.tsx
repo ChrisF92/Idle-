@@ -9,7 +9,6 @@ import {
   blueprintLifecycle,
   canTrackBlueprint,
   getBlueprint,
-  isBlueprintDiscovered,
   physicalProductOwned,
 } from '../../game/blueprints'
 import {
@@ -174,6 +173,39 @@ function coreCopies(state: GameState, moduleId: string): number {
 
 function costLines(cost: FoundryCost): string {
   return formatFoundryCost(cost)
+}
+
+function productFabricationRow(
+  state: GameState,
+  kind: 'core' | 'frame',
+  row: { productId: string; costs: FoundryCost; craftTime: number },
+): { title: string; meta: string; value: string; interactive: boolean } {
+  const life = blueprintLifecycle(state, row.productId)
+  const title = blueprintDisplayName(state, row.productId)
+  if (life === 'unknown') {
+    return { title, meta: 'Unknown', value: 'Unknown', interactive: false }
+  }
+  if (life === 'fragmented') {
+    return { title, meta: 'Fragmented — fabrication locked', value: 'Locked', interactive: false }
+  }
+  const check = canStartFabrication(state, kind, row.productId)
+  if (kind === 'core') {
+    const copies = coreCopies(state, row.productId)
+    const cost = scaleFabricationCost(row.costs, copies)
+    return {
+      title,
+      meta: `${copies} owned · ${costLines(cost)} · ${formatSeconds(row.craftTime)}`,
+      value: check.ok ? 'Fabricate' : check.reason ?? 'Locked',
+      interactive: check.ok,
+    }
+  }
+  const owned = (state.shipyard.unlockedFrames ?? []).includes(row.productId)
+  return {
+    title,
+    meta: owned ? 'Owned' : `${costLines(row.costs)} · ${formatSeconds(row.craftTime)}`,
+    value: check.ok ? 'Fabricate' : check.reason ?? 'Locked',
+    interactive: check.ok,
+  }
 }
 
 export function FoundryTab({
@@ -353,23 +385,20 @@ export function FoundryTab({
                     <p className="ui-meta">Blueprint discovered ≠ item owned. Copy count is physical instances.</p>
                     <ItemGrid>
                       {CORE_FABRICATION_RECIPES.map((row) => {
-                        const copies = coreCopies(state, row.productId)
-                        const discovered = isBlueprintDiscovered(state, row.productId)
-                        const check = canStartFabrication(state, 'core', row.productId)
-                        const cost = scaleFabricationCost(row.costs, copies)
+                        const view = productFabricationRow(state, 'core', row)
                         return (
                           <ItemRow
                             key={row.productId}
-                            title={row.name}
-                            meta={
-                              discovered
-                                ? `${copies} owned · ${costLines(cost)} · ${formatSeconds(row.craftTime)}`
-                                : 'Blueprint not discovered'
+                            title={view.title}
+                            meta={view.meta}
+                            value={view.value}
+                            onClick={
+                              view.interactive
+                                ? () => {
+                                    startJob('core', row.productId)
+                                  }
+                                : undefined
                             }
-                            value={check.ok ? 'Fabricate' : check.reason}
-                            onClick={() => {
-                              if (check.ok) startJob('core', row.productId)
-                            }}
                           />
                         )
                       })}
@@ -381,24 +410,20 @@ export function FoundryTab({
                     <SectionHeader title="Frames" />
                     <ItemGrid>
                       {FRAME_FABRICATION_RECIPES.map((row) => {
-                        const owned = (state.shipyard.unlockedFrames ?? []).includes(row.productId)
-                        const discovered = isBlueprintDiscovered(state, row.productId)
-                        const check = canStartFabrication(state, 'frame', row.productId)
+                        const view = productFabricationRow(state, 'frame', row)
                         return (
                           <ItemRow
                             key={row.productId}
-                            title={row.name}
-                            meta={
-                              owned
-                                ? 'Owned'
-                                : discovered
-                                  ? `${costLines(row.costs)} · ${formatSeconds(row.craftTime)}`
-                                  : 'Blueprint not discovered'
+                            title={view.title}
+                            meta={view.meta}
+                            value={view.value}
+                            onClick={
+                              view.interactive
+                                ? () => {
+                                    startJob('frame', row.productId)
+                                  }
+                                : undefined
                             }
-                            value={check.ok ? 'Fabricate' : check.reason}
-                            onClick={() => {
-                              if (check.ok) startJob('frame', row.productId)
-                            }}
                           />
                         )
                       })}

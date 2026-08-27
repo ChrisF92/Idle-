@@ -5,7 +5,7 @@ import { OverlayProvider } from '../ui/overlay'
 import { ACT1_CADENCE } from './cadence'
 import { createInitialState } from './state'
 import { atCareerWave } from './testHelpers'
-import { discoverBlueprint } from './blueprints'
+import { discoverBlueprint, grantBlueprintFragment } from './blueprints'
 
 function renderFoundry(
   state = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry),
@@ -113,5 +113,43 @@ describe('PR5 Foundry UI', () => {
     renderFoundry(state, 'blueprints')
     expect(screen.getByText('Rapid Aegis')).toBeTruthy()
     expect(screen.getByText(/Rapid Aegis Schematic 1\/4/)).toBeTruthy()
+  })
+
+  it('hides UNKNOWN Core and Frame names on the Fabrication pane', () => {
+    renderFoundry(undefined, 'fabrication')
+    expect(screen.queryByText('Rapid Aegis')).toBeNull()
+    expect(screen.queryByText('Nano Lathe')).toBeNull()
+    expect(screen.queryByText('Salvage Beacon')).toBeNull()
+    expect(screen.queryByText('Heavy Lance')).toBeNull()
+    expect(screen.getAllByText('Unknown Core').length).toBeGreaterThan(0)
+    expect(screen.getByText('Pulse Cannon')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Frames' }))
+    expect(screen.queryByText('Bastion')).toBeNull()
+    expect(screen.queryByText('Reactor')).toBeNull()
+    expect(screen.getAllByText('Unknown Frame').length).toBeGreaterThan(0)
+  })
+
+  it('reveals Fabrication identity after a fragment, and requirements only after discovery', () => {
+    const fragmented = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    grantBlueprintFragment(fragmented, 'heavy-lance', 1)
+    renderFoundry(fragmented, 'fabrication')
+    const heavyRow = screen.getByText('Heavy Lance').closest('button')
+    expect(heavyRow).toBeTruthy()
+    expect(heavyRow?.textContent).toMatch(/Fragmented — fabrication locked/)
+    expect(heavyRow?.textContent).not.toMatch(/Fabricate/)
+    expect(heavyRow?.textContent).not.toMatch(/Tempered Alloy/)
+    expect(heavyRow?.textContent).not.toMatch(/2m 30s/)
+    expect(heavyRow).toHaveProperty('disabled', true)
+    cleanup()
+
+    const discovered = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    discoverBlueprint(discovered, 'heavy-lance')
+    renderFoundry(discovered, 'fabrication')
+    const known = screen.getByText('Heavy Lance').closest('button')
+    expect(known?.textContent).toMatch(/Tempered Alloy/)
+    expect(known?.textContent).toMatch(/Ballistic Composite/)
+    expect(known?.textContent).toMatch(/2m 30s/)
+    expect(known?.textContent).not.toMatch(/Fragmented — fabrication locked/)
   })
 })
