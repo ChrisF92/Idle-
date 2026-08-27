@@ -11,6 +11,7 @@ import { isFoundryRecipeUnlocked } from './foundry'
 import { HIVE_RESEARCH_NODES_PER_BRANCH } from './hiveResearch'
 import { advanceSeconds } from './tick'
 import { grantEnemyKillRewards } from './combat'
+import { addRelicInstance } from './relics'
 import type { CombatUnit } from './types'
 
 function enemy(): CombatUnit {
@@ -88,14 +89,13 @@ describe('Act 1 Process depth', () => {
     expect(s.foundry.slots[0]?.recipeId).toBeNull()
   })
 
-  it('Shard Seat fits a red chip into an empty Core socket', () => {
+  it('Shard Seat no longer auto-fits Relics', () => {
     const s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
     s.combat.docked = true
     s.process.purchased = ['auto-relic']
-    s.reliquary.owned['battle-chip'] = 1
+    addRelicInstance(s, 'power-coupler')
     tickAutomation(s)
-    expect(s.reliquary.coreFits['pulse-cannon:1']?.[0]).toBe('battle-chip')
-    expect(s.reliquary.slots.red ?? null).toBeNull()
+    expect(s.relics.coreFits['pulse-cannon:1']?.[0] ?? null).toBeNull()
   })
 
   it('Print Press does not assemble leftover casing/core/lens into a Core', () => {

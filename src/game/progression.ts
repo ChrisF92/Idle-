@@ -555,11 +555,10 @@ export function achievementProgressValue(
         Object.values(state.furnace?.upgrades ?? {}).reduce((a, b) => a + b, 0) +
         Object.values(state.furnace?.wanted ?? {}).reduce((a, b) => a + b, 0)
       )
-    case 'reliquary-fitted': {
+    case 'reliquary': {
       let n = 0
-      for (const slots of Object.values(state.reliquary?.coreFits ?? {})) {
+      for (const slots of Object.values(state.relics?.coreFits ?? {})) {
         if (Array.isArray(slots)) n += slots.filter(Boolean).length
-        else if (slots) n += 1
       }
       return n
     }

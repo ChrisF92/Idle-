@@ -12,7 +12,7 @@ import { anyMatterPurchaseOwned, MATTER_SHOP } from './matter'
 import { canBuyMatterShop } from './catalog'
 import { foundryMaterialCount } from './foundry'
 import { ownedWorkers } from './workers'
-import type { GameState, TabId } from './types'
+import { addRelicInstance, createEmptyRelicState, getRelicInstance } from './relics'
 import { workshopCost, workshopLevel } from './workshop'
 
 export const ONBOARDING_ENABLED = true
@@ -227,14 +227,14 @@ export function canAffordFirstSalvageBuy(state: GameState): boolean {
 }
 
 function anyRelicOwned(state: GameState): boolean {
-  return Object.values(state.reliquary?.owned ?? {}).some((n) => (n ?? 0) > 0)
+  return (state.relics?.instances.length ?? 0) > 0
 }
 
 function anyRelicFitted(state: GameState): boolean {
-  for (const slots of Object.values(state.reliquary?.coreFits ?? {})) {
+  for (const slots of Object.values(state.relics?.coreFits ?? {})) {
     if (Array.isArray(slots) && slots.some(Boolean)) return true
   }
-  return Object.values(state.reliquary?.slots ?? {}).some(Boolean)
+  return false
 }
 
 export function foundryFirstJobReady(state: GameState): boolean {
@@ -454,7 +454,10 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
   {
     id: 'relic.install',
     title: 'Relic',
-    body: 'Open a fitted Core. Install the Relic in an empty matching socket.',
+    body: [
+      'Relics are physical items. Each one fits one socket on one physical Core.',
+      'Socket class must match, or the socket must be Universal. A Core may fit only one Behavioural Relic. Fitting is free while Docked.',
+    ],
     actionLabel: 'Install Relic',
     target: 'onboarding.relic.install',
     nav: { tab: 'dock', pane: 'loadout' },
@@ -877,9 +880,8 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
       next.meta.bestWave = Math.max(next.meta.bestWave ?? 0, ACT1_CADENCE.rebuild)
       break
     case 'relic.install':
-      next.reliquary.owned = { ...(next.reliquary.owned ?? {}), 'power-shard': 1 }
-      next.reliquary.coreFits = {}
-      next.reliquary.slots = {}
+      next.relics = createEmptyRelicState()
+      addRelicInstance(next, 'power-coupler', 1)
       break
     case 'furnace.channel':
       next.resources.choirAsh = Math.max(next.resources.choirAsh, 80)

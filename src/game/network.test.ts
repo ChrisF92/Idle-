@@ -30,7 +30,7 @@ import { exportSave, importSave } from './save'
 describe('phase 4: drone network', () => {
   it('starts with a corps; Network waits for first hull loss', () => {
     const s = createInitialState(0)
-    expect(SAVE_VERSION).toBe(46)
+    expect(SAVE_VERSION).toBe(47)
     expect(s.base.workerDrones).toBe(NETWORK_STARTING_DRONES)
     expect(droneCap(s)).toBe(10)
     expect(idleWorkers(s)).toBe(NETWORK_STARTING_DRONES)

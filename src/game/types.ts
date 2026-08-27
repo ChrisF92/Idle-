@@ -88,6 +88,8 @@ export interface FabricationSlot {
   /** 0..1 toward the current job. */
   progress: number
   paid: boolean
+  /** PR6: exact physical Relic instance being upgraded. */
+  targetRelicId?: string | null
 }
 
 export interface FoundryState {
@@ -96,7 +98,7 @@ export interface FoundryState {
   masteryXp: Record<string, number>
   /** Processing slots. Each holds at most one paid cycle. */
   slots: FoundrySlot[]
-  /** Discrete timed jobs: Cores, Frames, Workers, facilities. Relic kind is PR6. */
+  /** Discrete timed jobs: Cores, Frames, Relics, Workers, facilities. */
   fabrication: FabricationSlot[]
   facilities: FacilityId[]
   /** Blueprint-specific schematic fragments (blueprintId → count). */
@@ -108,9 +110,10 @@ export interface FoundryState {
   trackedPrintId: string | null
 }
 
+/** Leftover Research-tree colour ids. Not a Relic gameplay identity. */
 export type ReliquaryColor = 'red' | 'orange' | 'pink' | 'blue' | 'green'
 
-/** GDD §26 socket classes used in Act 1. Universal opens from Core Mastery. */
+/** Canonical Act 1 Relic socket classes. Universal is a socket type, not a Relic family. */
 export type RelicSocketClass =
   | 'power'
   | 'optical'
@@ -119,12 +122,20 @@ export type RelicSocketClass =
   | 'industrial'
   | 'universal'
 
-/** Relics installed into Cores. Colour slots remain for old saves but grant no bonuses. */
-export interface ReliquaryState {
-  owned: Record<string, number>
-  slots: Partial<Record<ReliquaryColor, string | null>>
-  /** Relics in Core sockets (physical Core instance ID → slot list). */
-  coreFits: Record<string, Array<string | null>>
+export type RelicInstanceId = string
+export type RelicTier = 1 | 2 | 3
+
+export interface RelicInstance {
+  id: RelicInstanceId
+  familyId: string
+  tier: RelicTier
+}
+
+/** Physical Relic inventory and per-Core fits. Counts are derived from instances. */
+export interface RelicState {
+  instances: RelicInstance[]
+  nextSerial: Partial<Record<string, number>>
+  coreFits: Record<string, Array<RelicInstanceId | null>>
 }
 
 /** Legacy rank tracks — kept so old saves can migrate into Furnace 2.0. */
@@ -1436,8 +1447,8 @@ export interface GameState {
   network: NetworkState
   /** Foundry processing, timed fabrication, infrastructure, Blueprints. Persist through Rebuild. */
   foundry: FoundryState
-  /** @deprecated Shard slots leftover. Relics install on Cores. Inventory + fitted shards persist across Rebuild. */
-  reliquary: ReliquaryState
+  /** Physical Relics and per-physical-Core fits. Persist through Rebuild. */
+  relics: RelicState
   /** Furnace 2.0 — upgrades and wanted channels persist; Heat resets unless Ember Lock. */
   furnace: FurnaceState
   /** Kill-fed Material / Energy / Observation. Persist across Rebuild. */

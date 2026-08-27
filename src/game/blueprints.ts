@@ -3,7 +3,7 @@
  *
  * Blueprint knowledge is design-only. Physical Cores live on
  * `shipyard.coreInstances`. Physical Frames live on `shipyard.unlockedFrames`.
- * Relic physical inventory is PR6.
+ * Relic physical inventory is `state.relics.instances`.
  */
 
 import type { FabJobKind, FoundryMaterialId, GameState } from './types'
@@ -15,6 +15,8 @@ import {
 } from './foundryCatalogue'
 import { addCoreInstance } from './coreInstances'
 import { careerBestWave } from './waves'
+import { RELIC_FAMILIES } from './relicCatalogue'
+import { physicalRelicOwned } from './relics'
 
 export type BlueprintLifecycle = 'unknown' | 'fragmented' | 'discovered' | 'owned'
 
@@ -26,6 +28,7 @@ export type BlueprintSourceKind =
   | 'furnace-progression'
   | 'challenge'
   | 'research'
+  | 'pending'
 
 export interface BlueprintSource {
   kind: BlueprintSourceKind
@@ -60,7 +63,7 @@ function eligibilityForWaveSource(sourceWave: number): number {
   return Math.max(foundryWave(), sourceWave - FRAGMENT_ELIGIBILITY_LEAD_WAVES)
 }
 
-export const BLUEPRINTS: BlueprintDef[] = [
+export const CORE_AND_FRAME_BLUEPRINTS: BlueprintDef[] = [
   {
     id: 'pulse-cannon',
     name: 'Pulse Cannon',
@@ -284,6 +287,34 @@ export const BLUEPRINTS: BlueprintDef[] = [
   },
 ]
 
+const RELIC_BLUEPRINTS: BlueprintDef[] = RELIC_FAMILIES.map((row) => {
+  const kind: BlueprintSourceKind =
+    row.source.kind === 'challenge'
+      ? 'challenge'
+      : row.source.kind === 'furnace'
+        ? 'furnace-progression'
+        : 'pending'
+  return {
+    id: row.id,
+    name: row.name,
+    schematicName: `${row.name} Schematic`,
+    productKind: 'relic' as const,
+    fragmentsRequired: 4,
+    sources: [
+      {
+        kind,
+        challengeId: row.source.challengeId,
+        label: row.source.routeLabel
+          ? `${row.source.routeLabel} (source pending)`
+          : row.source.pendingReason,
+      },
+    ],
+    fragmentEligibleFromWave: Infinity,
+  }
+})
+
+export const BLUEPRINTS: BlueprintDef[] = [...CORE_AND_FRAME_BLUEPRINTS, ...RELIC_BLUEPRINTS]
+
 export const WAVE_SECURE_BLUEPRINTS: ReadonlyArray<{ wave: number; blueprintId: string }> = BLUEPRINTS.flatMap(
   (def) =>
     def.sources
@@ -329,6 +360,9 @@ export function physicalProductOwned(state: GameState, def: BlueprintDef): boole
   }
   if (def.productKind === 'frame') {
     return (state.shipyard.unlockedFrames ?? []).includes(def.id)
+  }
+  if (def.productKind === 'relic') {
+    return physicalRelicOwned(state, def.id)
   }
   return false
 }

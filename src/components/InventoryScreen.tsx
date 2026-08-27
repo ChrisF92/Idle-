@@ -12,7 +12,7 @@ import {
   type InventoryCategory,
 } from '../game/inventory'
 import { formatCompact } from '../game/format'
-import { canUpgradeRelic, RELIC_SOCKET_LABELS, shardEffectBlurb, getShard } from '../game/reliquary'
+import { canStartRelicUpgrade, RELIC_SOCKET_LABELS, relicTierLabel } from '../game/relics'
 import { SheetTabs } from './SheetTabs'
 import { EmptyState, FullSheet, ItemRow, Kicker, Section, SectionHeader, StatPair } from '../ui/primitives'
 import { CoreDetailSheet, FrameSheet } from './LoadoutSheets'
@@ -28,6 +28,7 @@ interface InventoryScreenProps {
   onSelectFrame?: (frameId: string) => void
   onFitCore?: (moduleId: string, coreInstanceId?: string) => void
   onUpgradeCore?: (coreInstanceId: string, count?: number) => void
+  onUpgradeRelic?: (relicId: string) => void
 }
 
 export function InventoryScreen({
@@ -38,6 +39,7 @@ export function InventoryScreen({
   onSelectFrame,
   onFitCore,
   onUpgradeCore,
+  onUpgradeRelic,
 }: InventoryScreenProps) {
   const [category, setCategory] = useState<InventoryCategory>('equipment')
   const [relicFilter, setRelicFilter] = useState<'all' | RelicSocketClass>('all')
@@ -139,14 +141,14 @@ export function InventoryScreen({
             {relics.map((row) => (
               <ItemRow
                 key={row.id}
-                title={row.name}
-                meta={`${RELIC_SOCKET_LABELS[row.socket]} · Owned ×${row.owned}`}
-                value={`Eq ${row.equipped} · Free ${row.available}`}
+                title={`${row.name} ${relicTierLabel(row.tier)}`}
+                meta={`${RELIC_SOCKET_LABELS[row.socket]} · ${row.kind === 'behavioural' ? 'Behavioural' : 'Standard'} · ${row.id}`}
+                value={row.fitted ? row.fittedCoreName ?? 'Fitted' : 'Inventory'}
                 onClick={() => setRelicId(row.id)}
               />
             ))}
             {relics.length === 0 ? (
-              <EmptyState title="No Relics yet" body="Recover Relics from wrecks, then fit them at Dock." />
+              <EmptyState title="No Relics yet" body="Fabricate a discovered Relic Blueprint, then fit it to a physical Core while Docked." />
             ) : null}
           </Section>
         ) : null}
@@ -211,30 +213,33 @@ export function InventoryScreen({
 
       <FullSheet
         open={Boolean(relic)}
-        title={relic?.name ?? 'Relic'}
-        kicker={relic ? `${RELIC_SOCKET_LABELS[relic.socket]} · Tier ${relic.tier}` : undefined}
+        title={relic ? `${relic.name} ${relicTierLabel(relic.tier)}` : 'Relic'}
+        kicker={relic ? `${RELIC_SOCKET_LABELS[relic.socket]} · ${relic.kind === 'behavioural' ? 'Behavioural' : 'Standard'} · ${relic.id}` : undefined}
         onClose={() => setRelicId(null)}
         overlayId="inventory-relic"
       >
         {relic ? (
           <>
-            <p>{getShard(relic.id) ? shardEffectBlurb(getShard(relic.id)!) : relic.blurb}</p>
+            <p>{relic.effectText}</p>
             <div className="ui-context-bar">
-              <StatPair label="Owned" value={`×${relic.owned}`} />
-              <StatPair label="Equipped" value={relic.equipped} />
-              <StatPair label="Free" value={relic.available} />
+              <StatPair label="Tier" value={relicTierLabel(relic.tier)} />
+              <StatPair label="Class" value={relic.kind === 'behavioural' ? 'Behavioural' : 'Standard'} />
+              <StatPair label="Socket" value={RELIC_SOCKET_LABELS[relic.socket]} />
             </div>
             <p className="ui-meta">
-              {relic.fittedOn.length > 0 ? `On ${relic.fittedOn.join(', ')}` : 'Not fitted'}
+              {relic.fitted ? `Fitted to ${relic.fittedCoreName ?? relic.fittedCoreId}` : 'Unfitted · inventory'}
             </p>
-            {relic.upgradesTo ? (
-              <p className="ui-meta">
-                {canUpgradeRelic(state, relic.id).ok
-                  ? `Upgrade ready → ${getShard(relic.upgradesTo)?.name ?? relic.upgradesTo}`
-                  : `Upgrade route → ${getShard(relic.upgradesTo)?.name ?? relic.upgradesTo}`}
-              </p>
-            ) : null}
+            <p className="ui-meta">
+              {canStartRelicUpgrade(state, relic.id).ok
+                ? `Upgrade to Tier ${relic.tier === 1 ? 'II' : 'III'} in Foundry. Same physical item. Relic Tempering / Masterwork Tempering required.`
+                : canStartRelicUpgrade(state, relic.id).reason ?? 'Tier upgrade unavailable.'}
+            </p>
             <p className="ui-meta">{RELIC_STORAGE_NOTE}</p>
+            {canStartRelicUpgrade(state, relic.id).ok && onUpgradeRelic ? (
+              <button type="button" className="primary" onClick={() => onUpgradeRelic(relic.id)}>
+                Upgrade Relic
+              </button>
+            ) : null}
             {onOpenFoundry ? (
               <button type="button" onClick={() => onOpenFoundry('fabrication')}>
                 Open Foundry

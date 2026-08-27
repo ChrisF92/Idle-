@@ -942,10 +942,7 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
     case 'foundry':
       return Object.values(state.foundry?.masteryXp ?? {}).some((n) => (Number(n) || 0) > 0)
     case 'reliquary':
-      return (
-        Object.values(state.reliquary?.owned ?? {}).some((n) => n > 0) ||
-        Object.values(state.reliquary?.coreFits ?? {}).some((fits) => (fits ?? []).some(Boolean))
-      )
+      return (state.relics?.instances.length ?? 0) > 0
     case 'research':
       return (state.hiveResearch?.completedIds?.length ?? 0) > 0
         || Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)

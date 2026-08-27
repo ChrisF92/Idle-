@@ -421,7 +421,7 @@ export function challengeFamiliarity(
       if (Object.values(state.foundry?.masteryXp ?? {}).some((n) => (Number(n) || 0) > 0)) return { ok: true }
       return { ok: false, reason: 'Finish a craft first' }
     case 'reliquary':
-      if (Object.values(state.reliquary?.coreFits ?? {}).some((fits) => (fits ?? []).some(Boolean))) {
+      if (Object.values(state.relics?.coreFits ?? {}).some((fits) => (fits ?? []).some(Boolean))) {
         return { ok: true }
       }
       return { ok: false, reason: 'Fit a Relic first' }
@@ -592,8 +592,6 @@ export function applyProtocolGrant(state: GameState, grant: ProtocolGrant): void
     return
   }
   if (grant.kind === 'relic') {
-    if (!state.reliquary) return
-    state.reliquary.owned[grant.id] = (state.reliquary.owned[grant.id] ?? 0) + 1
     return
   }
   if (grant.kind === 'research') {

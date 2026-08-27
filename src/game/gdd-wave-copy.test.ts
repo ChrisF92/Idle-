@@ -7,9 +7,9 @@ import { inspectCopyCorpus } from './inspect'
 import { FOUNDRY_LOGS } from './logs'
 import { NETWORK_BARS, NETWORK_LINKS } from './network'
 import { ACHIEVEMENTS, SYSTEM_UNLOCKS } from './progression'
-import { SHARDS } from './reliquary'
 import { SCREEN_HELP } from './screenHelp'
 import { createInitialState } from './state'
+import { RELIC_FAMILIES } from './relicCatalogue'
 import { buildSortieDiagnostic } from './sortieTelemetry'
 import { reinforceConsequenceLists } from './playerGuidance'
 
@@ -32,7 +32,7 @@ describe('GDD Wave / Hive player-facing copy', () => {
       ...PROTOCOLS.flatMap((row) => [row.name, row.blurb, row.restriction, ...row.disabledSystems]),
       ...NETWORK_BARS.flatMap((bar) => [bar.blurb, ...bar.detail]),
       ...NETWORK_LINKS.flatMap((link) => [link.blurb, ...link.detail]),
-      ...SHARDS.map((shard) => shard.blurb),
+      ...RELIC_FAMILIES.map((row) => row.effectBlurb),
       ...ACHIEVEMENTS.map((row) => `${row.name} ${row.description}`),
       ...FOUNDRY_LOGS.map((log) => `${log.title} ${log.body}`),
       ...DIRECTIVES.map((row) => `${row.name} ${row.blurb}`),

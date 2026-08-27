@@ -1170,6 +1170,11 @@ h2 .inspect-name {
 .relic-picks button {
   width: auto;
   flex: 1 1 8rem;
+  min-height: 44px;
+}
+
+.relic-socket button {
+  min-height: 44px;
 }
 
 .directive-backdrop {

@@ -17,6 +17,7 @@ import {
   FOUNDRY_PANE_LABELS,
   FOUNDRY_RECIPES,
   FRAME_FABRICATION_RECIPES,
+  RELIC_FABRICATION_RECIPES,
   WORKER_FABRICATION_RECIPE,
   canStartFabrication,
   canStartProcessing,
@@ -40,6 +41,8 @@ import {
 } from '../../game/foundry'
 import { isSystemUnlocked } from '../../game/progression'
 import { ownedWorkers, workerCapacity } from '../../game/workers'
+import { canStartRelicUpgrade, relicInventoryRows, relicTierLabel } from '../../game/relics'
+import { relicUpgradeJobId } from '../../game/relicSeeds'
 import { SheetTabs } from '../SheetTabs'
 import {
   Badge,
@@ -58,8 +61,8 @@ import {
 import { useSyncedPane } from '../../hooks/useSyncedPane'
 
 export type FoundryPane = FoundryPaneId
-type FabricationCategory = 'core' | 'frame' | 'worker' | 'infrastructure'
-type BlueprintCategory = 'core' | 'frame'
+type FabricationCategory = 'core' | 'frame' | 'relic' | 'worker' | 'infrastructure'
+type BlueprintCategory = 'core' | 'frame' | 'relic'
 
 const FOUNDRY_PANES: { id: FoundryPane; label: string }[] = [
   { id: 'processing', label: FOUNDRY_PANE_LABELS.processing },
@@ -71,6 +74,7 @@ const FOUNDRY_PANES: { id: FoundryPane; label: string }[] = [
 const FAB_CATEGORIES: { id: FabricationCategory; label: string }[] = [
   { id: 'core', label: 'Cores' },
   { id: 'frame', label: 'Frames' },
+  { id: 'relic', label: 'Relics' },
   { id: 'worker', label: 'Workers' },
   { id: 'infrastructure', label: 'Infrastructure' },
 ]
@@ -78,6 +82,7 @@ const FAB_CATEGORIES: { id: FabricationCategory; label: string }[] = [
 const BLUEPRINT_CATEGORIES: { id: BlueprintCategory; label: string }[] = [
   { id: 'core', label: 'Cores' },
   { id: 'frame', label: 'Frames' },
+  { id: 'relic', label: 'Relics' },
 ]
 
 interface FoundryTabProps {
@@ -177,7 +182,7 @@ function costLines(cost: FoundryCost): string {
 
 function productFabricationRow(
   state: GameState,
-  kind: 'core' | 'frame',
+  kind: 'core' | 'frame' | 'relic',
   row: { productId: string; costs: FoundryCost; craftTime: number },
 ): { title: string; meta: string; value: string; interactive: boolean } {
   const life = blueprintLifecycle(state, row.productId)
@@ -199,6 +204,15 @@ function productFabricationRow(
       interactive: check.ok,
     }
   }
+  if (kind === 'relic') {
+    const copies = (state.relics?.instances ?? []).filter((rowInst) => rowInst.familyId === row.productId).length
+    return {
+      title,
+      meta: `${copies} owned · ${costLines(row.costs)} · ${formatSeconds(row.craftTime)}`,
+      value: check.ok ? 'Fabricate' : check.reason ?? 'Locked',
+      interactive: check.ok,
+    }
+  }
   const owned = (state.shipyard.unlockedFrames ?? []).includes(row.productId)
   return {
     title,
@@ -213,6 +227,7 @@ export function FoundryTab({
   onSetSlot,
   onFabricateCore,
   onTrack,
+  onStartRelic,
   onStartFacility,
   onStartJob,
   guideTarget = null,
@@ -430,6 +445,68 @@ export function FoundryTab({
                     </ItemGrid>
                   </Section>
                 ) : null}
+                {fabCategory === 'relic' ? (
+                  <Section>
+                    <SectionHeader title="Relics" />
+                    <p className="ui-meta">
+                      Discovery is a design. Fabrication creates one physical Tier I Relic. Unknown Relics stay hidden.
+                    </p>
+                    <ItemGrid>
+                      {RELIC_FABRICATION_RECIPES.filter(
+                        (row) => blueprintLifecycle(state, row.productId) !== 'unknown',
+                      ).map((row) => {
+                        const view = productFabricationRow(state, 'relic', row)
+                        return (
+                          <ItemRow
+                            key={row.productId}
+                            title={view.title}
+                            meta={view.meta}
+                            value={view.value}
+                            onClick={
+                              view.interactive
+                                ? () => {
+                                    startJob('relic', row.productId)
+                                  }
+                                : undefined
+                            }
+                          />
+                        )
+                      })}
+                    </ItemGrid>
+                    <p className="ui-meta">
+                      Tier upgrades transform one physical Relic. Relic Tempering / Masterwork Tempering are PR9 Research.
+                    </p>
+                    <ItemGrid>
+                      {relicInventoryRows(state)
+                        .filter((row) => row.tier < 3)
+                        .map((row) => {
+                          const check = canStartRelicUpgrade(state, row.id)
+                          const toTier = (row.tier + 1) as 2 | 3
+                          const recipe = getFabricationRecipe('relic', relicUpgradeJobId(row.id, toTier))
+                          return (
+                            <ItemRow
+                              key={`upgrade-${row.id}`}
+                              title={`${row.name} ${relicTierLabel(row.tier)} → ${relicTierLabel(toTier)}`}
+                              meta={
+                                recipe
+                                  ? `${costLines(recipe.costs)} · ${formatSeconds(recipe.craftTime)} · ${row.id}`
+                                  : row.id
+                              }
+                              value={check.ok ? `Upgrade to ${relicTierLabel(toTier)}` : check.reason ?? 'Unavailable'}
+                              onClick={
+                                check.ok
+                                  ? () => {
+                                      if (onStartRelic) onStartRelic(row.id)
+                                      else startJob('relic', relicUpgradeJobId(row.id, toTier))
+                                    }
+                                  : undefined
+                              }
+                            />
+                          )
+                        })}
+                    </ItemGrid>
+                  </Section>
+                ) : null}
                 {fabCategory === 'worker' ? (
                   <Section>
                     <SectionHeader title="Worker Fabricator" />
@@ -510,7 +587,11 @@ export function FoundryTab({
                   <SectionHeader title="Blueprints" />
                   <p className="ui-meta">Discovery is a design. Fabrication creates the physical item.</p>
                   <ItemGrid>
-                    {BLUEPRINTS.filter((row) => row.productKind === blueprintCategory).map((row) => {
+                    {BLUEPRINTS.filter((row) => {
+                      if (row.productKind !== blueprintCategory) return false
+                      if (row.productKind === 'relic' && blueprintLifecycle(state, row.id) === 'unknown') return false
+                      return true
+                    }).map((row) => {
                       const life = blueprintLifecycle(state, row.id)
                       const have = blueprintFragmentCount(state, row.id)
                       const tracked = state.foundry.trackedPrintId === row.id
@@ -523,7 +604,9 @@ export function FoundryTab({
                             : life === 'owned'
                               ? row.productKind === 'core'
                                 ? `Owned · ${coreCopies(state, row.id)} physical`
-                                : 'Owned'
+                                : row.productKind === 'relic'
+                                  ? `Owned · ${(state.relics?.instances ?? []).filter((inst) => inst.familyId === row.id).length} physical`
+                                  : 'Owned'
                               : 'Unknown'
                       return (
                         <ItemRow
@@ -638,7 +721,9 @@ export function FoundryTab({
                     <p>
                       {blueprint.productKind === 'core'
                         ? `${copies} physical ${copies === 1 ? 'copy' : 'copies'} in inventory.`
-                        : 'Physical Frame owned.'}
+                        : blueprint.productKind === 'relic'
+                          ? 'Physical Relic instances are in Inventory.'
+                          : 'Physical Frame owned.'}
                     </p>
                   ) : null}
                   {life !== 'unknown' ? <p className="ui-meta">{sourceLine(blueprint.id)}</p> : null}

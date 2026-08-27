@@ -26,7 +26,7 @@ describe('GDD Dev Tools', () => {
       'W50 Workers',
       'W50 Directives',
       'W210 Rebuild',
-      'W110 Relics',
+      'W320 Relics',
       'W140 Furnace',
       'W170 Research',
       'W210 Process',
@@ -74,7 +74,7 @@ describe('GDD Dev Tools', () => {
 
     const relics = applyDevAction(createInitialState(0), { type: 'prep-gdd-door', wave: ACT1_CADENCE.reliquary })
     expect(isSystemUnlocked(relics, 'reliquary')).toBe(true)
-    expect(relics.reliquary.owned['battle-chip'] ?? 0).toBeGreaterThanOrEqual(1)
+    expect(relics.relics.instances.length).toBe(0)
   })
 
   it('picks any GDD Frame without the USI hull ladder', () => {

@@ -66,9 +66,9 @@ function stock(state: ReturnType<typeof createInitialState>, id: string, n: numb
 }
 
 describe('PR5 Foundry catalogue and panes', () => {
-  it('uses save version 46 with no migration', () => {
-    expect(SAVE_VERSION).toBe(46)
-    const raw = JSON.parse(JSON.stringify({ ...createInitialState(0), version: 45 }))
+  it('uses save version 47 with no migration', () => {
+    expect(SAVE_VERSION).toBe(47)
+    const raw = JSON.parse(JSON.stringify({ ...createInitialState(0), version: 46 }))
     expect(importSave(btoa(unescape(encodeURIComponent(JSON.stringify(raw)))))).toBeNull()
   })
 
@@ -363,10 +363,11 @@ describe('PR5 physical Core fabrication', () => {
     expect(s.combat.inFight).toBe(true)
   })
 
-  it('exposes relic fabrication as an empty PR6 extension point', () => {
+  it('exposes Relic fabrication recipes as a PR6 Foundry kind, not an empty stub', () => {
     const s = atFoundry()
-    expect(RELIC_FABRICATION_RECIPES).toEqual([])
+    expect(RELIC_FABRICATION_RECIPES).toHaveLength(20)
     expect(canStartFabrication(s, 'relic', 'any').ok).toBe(false)
+    expect(canStartFabrication(s, 'relic', 'power-coupler').ok).toBe(false)
   })
 })
 

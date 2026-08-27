@@ -96,7 +96,7 @@ describe('GDD Phase 8 content depth', () => {
     expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Challenge Log/)
 
     applyProtocolGrant(s, { kind: 'relic', id: 'plate-chip', blurb: 'test' })
-    expect(s.reliquary.owned['plate-chip']).toBeGreaterThanOrEqual(1)
+    expect(s.relics.instances).toHaveLength(0)
 
     let run = enterProtocol(s, 'quiet-guns')
     expect(run.protocols.activeId).toBe('quiet-guns')

@@ -10,7 +10,8 @@ import {
 } from './hiveResearch'
 import { MORE_STATIONS, moreStationBuckets } from './moreStations'
 import { isSystemUnlocked } from './progression'
-import { coreSocketLayout } from './reliquary'
+import { coreSocketLayout, isRelicsUnlocked } from './relics'
+import { masteryMilestonesFor } from './coreProgression'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 
@@ -27,7 +28,8 @@ describe('GDD late Act 1 mastery', () => {
     const locked = masteryState({ wave: ACT1_CADENCE.mastery - 1 })
     expect(hiveResearchComputationUnlocked(locked)).toBe(false)
     expect(setResearchFocus(locked, 'computation')).toBe(locked)
-    expect(coreSocketLayout(locked, 'pulse-cannon')).toEqual(['power'])
+    expect(isRelicsUnlocked(locked)).toBe(false)
+    expect(coreSocketLayout(locked, 'pulse-cannon')).toEqual([])
     expect(moduleMasteryCap(locked)).toBe(LATE_ACT1_MODULE_MASTERY)
     expect(hiveResearchExtraUtilitySlots(locked)).toBe(0)
   })
@@ -46,7 +48,9 @@ describe('GDD late Act 1 mastery', () => {
     const next = setResearchFocus(open, 'computation')
     expect(hiveResearchActive(next)).toBe(true)
     expect(next.hiveResearch.focus).toBe('computation')
-    expect(coreSocketLayout(open, 'pulse-cannon')).toEqual(['power', 'universal'])
+    expect(isRelicsUnlocked(open)).toBe(false)
+    expect(coreSocketLayout(open, 'pulse-cannon')).toEqual([])
+    expect(masteryMilestonesFor('pulse-cannon').find((ms) => ms.level === 20)?.socket).toBe('optical')
     expect(moduleMasteryCap(open)).toBe(LATE_ACT1_MODULE_MASTERY)
     expect(hiveResearchExtraUtilitySlots(open)).toBe(1)
   })

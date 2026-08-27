@@ -10,11 +10,11 @@ import { getEchoRun, getEchoNode } from './echo'
 import { PROCESS_NODES } from './process'
 import { clearSector } from './testHelpers'
 import { HIVE_RESEARCH_NODES_PER_BRANCH, HIVE_RESEARCH_NODES } from './hiveResearch'
-import { SHARDS } from './reliquary'
+import { RELIC_FAMILIES } from './relicCatalogue'
 
 describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
   it('bumps save to 45', () => {
-    expect(SAVE_VERSION).toBe(46)
+    expect(SAVE_VERSION).toBe(47)
   })
 
   it('records Defeat salvage, spend, and wave on the Dock summary', () => {
@@ -74,7 +74,7 @@ describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
     expect(PROCESS_NODES.some((n) => n.id === 'combat-tempo')).toBe(false)
     expect(getEchoRun('stack')?.requiresId).toBe('veil')
     expect(getEchoNode('echo-hold')?.requiresId).toBe('echo-yield')
-    expect(SHARDS.some((s) => s.id === 'loom-chip')).toBe(true)
+    expect(RELIC_FAMILIES.some((row) => row.id === 'salvage-matrix')).toBe(true)
     expect(FOUNDRY_FACILITIES.some((b) => b.id === 'recovery-storage')).toBe(true)
     expect(HIVE_RESEARCH_NODES_PER_BRANCH).toBeGreaterThanOrEqual(6)
     expect(HIVE_RESEARCH_NODES.material.length).toBeGreaterThanOrEqual(6)

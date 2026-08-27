@@ -9,7 +9,6 @@ import type {
   HiveResearchBranch,
   NetworkBarId,
   NetworkLinkId,
-  ReliquaryColor,
 } from './types'
 import {
   droneCap,
@@ -78,18 +77,14 @@ import {
   isResearchBreakthrough,
 } from './hiveResearch'
 import {
-  RELIQUARY_SLOTS,
-  fittedRelicIds,
-  fittedShardId,
-  getShard,
-  isReliquarySlotUnlocked,
   RELIC_SOCKET_LABELS,
-  relicSocketClass,
-  relicTier,
-  shardEffectBlurb,
-  shardOwned,
-} from './reliquary'
-import { ACT1_CADENCE } from './cadence'
+  getRelicFamily,
+  getRelicInstance,
+  inspectRelicEffectText,
+  relicFitLocation,
+  relicState,
+  relicTierLabel,
+} from './relics'
 import { cycleBestWave, matterGainFor } from './rebuild'
 
 export interface InspectStat {
@@ -338,59 +333,33 @@ export function inspectFoundryModule(_state: GameState, _id: string): InspectCar
   return null
 }
 
-export function inspectShard(state: GameState, shardId: string): InspectCard | null {
-  const def = getShard(shardId)
+export function inspectShard(state: GameState, relicId: string): InspectCard | null {
+  const instance = getRelicInstance(state, relicId)
+  const def = instance ? getRelicFamily(instance.familyId) : getRelicFamily(relicId)
   if (!def) return null
-  const owned = shardOwned(state, shardId)
-  const fitted = fittedRelicIds(state).includes(shardId) || fittedShardId(state, def.color) === shardId
+  const loc = instance ? relicFitLocation(state, instance.id) : null
   const stats: InspectStat[] = [
-    { label: 'Owned', value: String(owned) },
-    { label: 'Socket', value: RELIC_SOCKET_LABELS[relicSocketClass(def)] },
-    { label: 'Tier', value: String(relicTier(def)) },
-    { label: 'Installed', value: fitted ? 'Yes' : 'No' },
-    { label: 'Effect', value: shardEffectBlurb(def) },
+    { label: 'Class', value: def.kind === 'behavioural' ? 'Behavioural' : 'Standard' },
+    { label: 'Socket', value: RELIC_SOCKET_LABELS[def.socket] },
+    { label: 'Tier', value: instance ? relicTierLabel(instance.tier) : 'I' },
+    { label: 'Fitted', value: loc ? loc.coreInstanceId : 'Inventory' },
   ]
   const body = [
-    def.blurb,
-    'Install Relics into matching Core sockets while Docked. Removal is free.',
-    'Duplicates go on another Core or upgrade the Relic at Foundry. They do not fill a resonance bank.',
-    `Relics drop from wrecks after Wave ${ACT1_CADENCE.reliquary}. They persist on Rebuild.`,
+    inspectRelicEffectText(def.id),
+    'Relics are physical. Fitting is free while Docked and never destroys the item.',
+    'A physical Core may fit at most one Behavioural Relic.',
+    'Tier upgrades transform this exact item. Relic Tempering / Masterwork Tempering are PR9 Research.',
   ]
-  if (def.upgradesTo) {
-    body.push('Foundry can raise this Relic to the next authored tier.')
-  }
-  if ((def.requiresBestWave ?? 0) > 0) {
-    body.push(`This Relic waits until you have reached Wave ${def.requiresBestWave}.`)
-  }
   return {
-    title: def.name,
+    title: instance ? `${def.name} ${relicTierLabel(instance.tier)}` : def.name,
     kicker: 'Relic',
     stats,
     body,
   }
 }
 
-export function inspectReliquarySlot(state: GameState, color: ReliquaryColor): InspectCard | null {
-  const slot = RELIQUARY_SLOTS.find((s) => s.color === color)
-  if (!slot) return null
-  const open = isReliquarySlotUnlocked(state, color)
-  const fitted = fittedShardId(state, color)
-  const card = fitted ? inspectShard(state, fitted) : null
-  if (card) return card
-  return {
-    title: slot.name,
-    kicker: 'Relic socket',
-    stats: [
-      {
-        label: 'Status',
-        value: open ? 'Empty' : `Opens after Wave ${slot.requiresBestWave}`,
-      },
-    ],
-    body: [
-      'Fit one Relic of this type. Extra copies of that Relic raise authored I–III tiers.',
-      'Relics persist when you Rebuild.',
-    ],
-  }
+export function inspectReliquarySlot(_state: GameState, _color: string): InspectCard | null {
+  return null
 }
 
 export function inspectProtocol(state: GameState, id: string): InspectCard | null {
@@ -471,7 +440,7 @@ export function inspectCopyCorpus(state: GameState): string[] {
   push(inspectFurnaceOverview(state))
   for (const ch of furnacePushChannels()) push(inspectFurnaceChannel(state, ch.id))
   for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
-  for (const slot of RELIQUARY_SLOTS) push(inspectReliquarySlot(state, slot.color))
+  for (const row of relicState(state).instances) push(inspectShard(state, row.id))
   for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))
   for (const b of HIVE_RESEARCH_BRANCHES) push(inspectResearchBranch(state, b.id))
   return lines

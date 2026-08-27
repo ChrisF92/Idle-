@@ -49,7 +49,7 @@ function firstRebuildConfig(strategy: 'active' | 'optimiser') {
 describe('Act 1 authored formulas', () => {
   it('keeps career doors and shop identities the redesigned systems already use', () => {
     expect(ACT1_UNLOCKS.foundry).toBe(50)
-    expect(ACT1_UNLOCKS.reliquary).toBe(110)
+    expect(ACT1_UNLOCKS.reliquary).toBe(320)
     expect(ACT1_UNLOCKS.rebuildAvailable).toBe(PRESTIGE_MIN_SECTOR)
     expect(ACT1_UNLOCKS.furnace).toBe(140)
     expect(ACT1_UNLOCKS.research).toBe(170)
@@ -140,12 +140,12 @@ describe('Act 1 onboarding audit', () => {
 })
 
 describe('Act 1 career simulations', () => {
-  it('first Rebuild door is W210, after Relics, and is eligible with three normal Sorties', () => {
+  it('first Rebuild door is W210, before Relics, and is eligible with three normal Sorties', () => {
     // PR11 owns the live grind-to-Rebuild calendar. PR3 only owns the canonical door.
     expect(ACT1_CADENCE.rebuild).toBe(210)
     expect(ACT1_UNLOCKS.rebuildAvailable).toBe(210)
-    expect(ACT1_UNLOCKS.reliquary).toBe(110)
-    expect(ACT1_UNLOCKS.reliquary).toBeLessThan(ACT1_CADENCE.rebuild)
+    expect(ACT1_UNLOCKS.reliquary).toBe(320)
+    expect(ACT1_UNLOCKS.reliquary).toBeGreaterThan(ACT1_CADENCE.rebuild)
 
     const short = atCareerWave(createInitialState(0), 209)
     short.combat.docked = true
@@ -209,7 +209,7 @@ describe('Act 1 career simulations', () => {
     s.furnace.wanted.weapons = 1
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(46)
+    expect(SAVE_VERSION).toBe(47)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.masteryXp['recovered-stock']).toBe(4)

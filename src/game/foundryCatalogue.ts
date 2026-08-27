@@ -18,6 +18,8 @@ import {
   WORKER_FABRICATION_COST,
   WORKER_FABRICATION_SECONDS,
 } from './foundrySeeds'
+import { RELIC_FAMILIES, isRelicFamilyId, relicFamilyName } from './relicCatalogue'
+import { parseRelicUpgradeJob, relicTier1Recipe, relicUpgradeRecipe } from './relicSeeds'
 
 export const FOUNDRY_MATERIAL_IDS = [
   'recovered-stock',
@@ -491,8 +493,18 @@ export const FRAME_FABRICATION_RECIPES: FabricationRecipeDef[] = [
   },
 ]
 
-/** PR6 populates Relic recipes. Engine accepts kind: 'relic'. */
-export const RELIC_FABRICATION_RECIPES: FabricationRecipeDef[] = []
+/** Relic Tier I fabrication. Upgrade jobs are synthesized in getFabricationRecipe. */
+export const RELIC_FABRICATION_RECIPES: FabricationRecipeDef[] = RELIC_FAMILIES.map((row) => {
+  const seed = relicTier1Recipe(row.id)
+  return {
+    kind: 'relic' as const,
+    productId: row.id,
+    name: row.name,
+    blurb: `${row.kind === 'behavioural' ? 'Behavioural' : 'Standard'} Relic. Fabrication creates one physical Tier I item.`,
+    craftTime: seed.craftTime,
+    costs: { materials: { ...seed.costs.materials } },
+  }
+})
 
 export const WORKER_FABRICATION_RECIPE: FabricationRecipeDef = {
   kind: 'worker',
@@ -521,7 +533,26 @@ export const INFRASTRUCTURE_FABRICATION_RECIPES: FabricationRecipeDef[] = FOUNDR
 export function getFabricationRecipe(kind: FabJobKind, productId: string): FabricationRecipeDef | undefined {
   if (kind === 'core') return CORE_FABRICATION_RECIPES.find((row) => row.productId === productId)
   if (kind === 'frame') return FRAME_FABRICATION_RECIPES.find((row) => row.productId === productId)
-  if (kind === 'relic') return RELIC_FABRICATION_RECIPES.find((row) => row.productId === productId)
+  if (kind === 'relic') {
+    const upgrade = parseRelicUpgradeJob(productId)
+    if (upgrade) {
+      const familyId = upgrade.instanceId.includes(':')
+        ? upgrade.instanceId.slice(0, upgrade.instanceId.lastIndexOf(':'))
+        : upgrade.instanceId
+      if (!isRelicFamilyId(familyId)) return undefined
+      const seed = relicUpgradeRecipe(familyId, upgrade.toTier)
+      const roman = upgrade.toTier === 2 ? 'II' : 'III'
+      return {
+        kind: 'relic',
+        productId,
+        name: `${relicFamilyName(familyId)} ${roman}`,
+        blurb: `Transforms the physical Relic to Tier ${roman}.`,
+        craftTime: seed.craftTime,
+        costs: { materials: { ...seed.costs.materials } },
+      }
+    }
+    return RELIC_FABRICATION_RECIPES.find((row) => row.productId === productId)
+  }
   if (kind === 'worker') return productId === 'worker' ? WORKER_FABRICATION_RECIPE : undefined
   if (kind === 'facility') return INFRASTRUCTURE_FABRICATION_RECIPES.find((row) => row.productId === productId)
   return undefined

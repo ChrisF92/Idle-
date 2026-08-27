@@ -60,16 +60,6 @@ import {
   setFurnaceChannel,
 } from '../furnace'
 import { PROCESS_NODES, canBuyProcessNode, hasProcess } from '../process'
-import {
-  SHARDS,
-  shardOwned,
-  getShard,
-  coreSocketLayout,
-  coreSocketRelics,
-  relicFitsSocket,
-  relicSocketClass,
-  shardAutoScore,
-} from '../reliquary'
 import { GUIDE_STEPS, isSystemUnlocked } from '../progression'
 import { ACT1_CADENCE } from '../cadence'
 import { careerBestWave } from '../waves'
@@ -443,38 +433,8 @@ export function spendRebuildMatter(state: GameState, ctx: StrategyContext): Game
   return next
 }
 
-export function tendReliquary(state: GameState, ctx: StrategyContext): GameState {
-  if (!state.combat.docked) return state
-  if (!isSystemUnlocked(state, 'reliquary')) return state
-  let next = state
-  for (const slot of equippedCoreSlots(next)) {
-    const layout = coreSocketLayout(next, slot.coreInstanceId)
-    for (let i = 0; i < layout.length; i += 1) {
-      const socket = layout[i]
-      if (!socket) continue
-      const seated = coreSocketRelics(next, slot.coreInstanceId)
-      const fitted = seated[i] ?? null
-      const fittedDef = fitted ? getShard(fitted) : undefined
-      const fittedScore = fittedDef ? shardAutoScore(fittedDef) : 0
-      let bestId: string | null = null
-      let bestScore = fitted ? fittedScore * 1.05 : 0
-      for (const def of SHARDS) {
-        if (shardOwned(next, def.id) < 1) continue
-        if (!relicFitsSocket(relicSocketClass(def), socket)) continue
-        const score = shardAutoScore(def)
-        if (score > bestScore) {
-          bestScore = score
-          bestId = def.id
-        }
-      }
-      if (!bestId || bestId === fitted) continue
-      const after = equipRelicOnCore(next, slot.coreInstanceId, bestId, i)
-      if (after === next) continue
-      ctx.recordMeaningful(`Relic ${getShard(bestId)?.name ?? bestId} → ${slot.moduleId}`)
-      next = after
-    }
-  }
-  return next
+export function tendReliquary(state: GameState, _ctx: StrategyContext): GameState {
+  return state
 }
 
 export function maybeUnlockAndFit(state: GameState, ctx: StrategyContext): GameState {

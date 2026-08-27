@@ -34,14 +34,17 @@ describe('Inventory item model', () => {
 
   it('counts Relic owned / equipped / free from instance fits', () => {
     const state = createInitialState(0)
-    state.reliquary.owned['battle-chip'] = 2
-    state.reliquary.coreFits = { 'pulse-cannon:1': ['battle-chip'] }
-    const counts = relicAvailability(state, 'battle-chip')
-    expect(counts.available).toBe(2)
+    state.relics.instances = [
+      { id: 'power-coupler:1', familyId: 'power-coupler', tier: 1 },
+      { id: 'power-coupler:2', familyId: 'power-coupler', tier: 1 },
+    ]
+    state.relics.coreFits = { 'pulse-cannon:1': ['power-coupler:1'] }
+    const counts = relicAvailability(state, 'power-coupler:1')
+    expect(counts.available).toBe(0)
     expect(counts.equipped).toBe(1)
-    expect(counts.owned).toBe(3)
-    const row = inventoryRelics(state).find((item) => item.id === 'battle-chip')
-    expect(row?.fittedOn).toContain('Pulse Cannon')
+    expect(counts.owned).toBe(1)
+    const row = inventoryRelics(state).find((item) => item.id === 'power-coupler:1')
+    expect(row?.fittedCoreName).toContain('Pulse Cannon')
     expect(RELIC_STORAGE_NOTE).toMatch(/physical Core copy/)
   })
 
