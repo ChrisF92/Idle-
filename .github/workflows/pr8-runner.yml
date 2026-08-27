@@ -35,8 +35,22 @@ jobs:
         run: npm ci
       - name: Lint
         run: npm run lint
+      - name: Focused PR8 tests
+        shell: bash
+        run: |
+          set +e
+          npx vitest run src/game/pr8-directives-furnace.test.ts src/game/gdd-directives.test.ts src/game/gdd-furnace.test.ts src/game/furnace.test.ts --reporter=verbose > pr8-focused.log 2>&1
+          code=$?
+          cat pr8-focused.log
+          exit $code
       - name: Test
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test > pr8-test.log 2>&1
+          code=$?
+          tail -n 700 pr8-test.log
+          exit $code
       - name: Build
         run: npm run build
       - name: Build Pages
