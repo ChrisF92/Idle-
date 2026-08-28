@@ -30,6 +30,16 @@ jobs:
           python scripts/pr8_prepare.py
           python scripts/pr8_prepare2.py
           python scripts/pr8_prepare3.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/pr8_prepare4.py')
+          text = p.read_text()
+          text = text.replace("FURNACE_UI_TEST = r'''", 'FURNACE_UI_TEST = r"""', 1)
+          text = text.replace("\n'''\nwrite('src/game/gdd-furnace-ui.test.tsx', FURNACE_UI_TEST)", "\n\"\"\"\nwrite('src/game/gdd-furnace-ui.test.tsx', FURNACE_UI_TEST)", 1)
+          text = text.replace("INSPECT_TEST = r'''", 'INSPECT_TEST = r"""', 1)
+          text = text.replace("\n'''\nwrite('src/game/inspect.test.ts', INSPECT_TEST)", "\n\"\"\"\nwrite('src/game/inspect.test.ts', INSPECT_TEST)", 1)
+          p.write_text(text)
+          PY
           python scripts/pr8_prepare4.py
       - name: Apply PR8 transform
         run: python scripts/pr8_apply.py
