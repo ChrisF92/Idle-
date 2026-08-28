@@ -54,7 +54,7 @@ function enemy(isBoss = false): CombatUnit {
 
 describe('phase 6: Reliquary + Furnace + Research', () => {
   it('opens Relic / Furnace / Research doors on the Act 1 cadence', () => {
-    expect(SAVE_VERSION).toBe(48)
+    expect(SAVE_VERSION).toBe(49)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'reliquary')).toBe(false)
     expect(isSystemUnlocked(fresh, 'furnace')).toBe(false)

@@ -19,6 +19,8 @@ import {
 } from './waveRuntime'
 import { ACT1_FINAL_WAVE, BOSS_WARNING_DURATION, isBossWave, NORMAL_REINFORCEMENT_INTERVAL } from './waves'
 import { salvageWaveBonus, scrapWaveBonus } from './workshop'
+import { directiveNormalReinforcementIntervalMult, directiveSalvageMult, directiveScrapMult } from './directives'
+import { furnaceSalvageMult, furnaceScrapMult } from './furnace'
 import { combatScrapMatterMult } from './matter'
 import { grantGeneratedScrap } from './rebuild'
 import { grantSignalCoreDrop } from './signalCores'
@@ -157,12 +159,12 @@ function payWaveSecureReward(state: GameState, pkg: WavePackageState, hooks: Wav
   if (pkg.rewardPaid) return
   pkg.rewardPaid = true
   pkg.secured = true
-  const salvageBonus = salvageWaveBonus(state)
+  const salvageBonus = salvageWaveBonus(state) * directiveSalvageMult(state) * furnaceSalvageMult(state)
   if (salvageBonus > 0) state.resources.salvage += salvageBonus
   let drip = Math.max(1, 5 + Math.floor(pkg.wave / 5))
   if (aiDoctrinesActive(state, 'scavenger')) drip *= 1.3
   drip = Math.max(1, Math.floor(drip))
-  const waveScrap = (drip + scrapWaveBonus(state)) * combatScrapMatterMult(state)
+  const waveScrap = (drip + scrapWaveBonus(state)) * combatScrapMatterMult(state) * directiveScrapMult(state) * furnaceScrapMult(state)
   grantGeneratedScrap(state, waveScrap, 'combat-wave')
   if (pkg.kind === 'boss') {
     grantSignalCoreDrop(state, 'boss')
@@ -195,7 +197,7 @@ function releasePending(state: GameState): void {
 
 function scheduleNextNormal(state: GameState, fromWave: number): void {
   state.combat.nextWave = fromWave + 1
-  state.combat.nextReinforcementAt = (state.combat.simTime ?? 0) + NORMAL_REINFORCEMENT_INTERVAL
+  state.combat.nextReinforcementAt = (state.combat.simTime ?? 0) + NORMAL_REINFORCEMENT_INTERVAL * directiveNormalReinforcementIntervalMult(state)
 }
 
 function authoredWarningDuration(state: GameState, wave: number): number {

@@ -472,12 +472,12 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
   },
   {
     id: 'furnace.channel',
-    title: 'Ash and Heat',
+    title: 'Ignite the Furnace',
     body: [
-      'Ash persists across Sorties this cycle. Convert it to Heat, then light Weapons.',
-      'Heat is this Sortie only and dumps when you Dock.',
+      'Ash lasts through this Rebuild cycle. Convert 10 Ash into 1 Heat during a live Sortie.',
+      'Configure up to two channels, Prime the configuration, then Ignite once. The Furnace locks until the Sortie ends.',
     ],
-    actionLabel: 'Light Weapons',
+    actionLabel: 'Configure a channel',
     target: 'onboarding.furnace.channel',
     nav: { tab: 'furnace', systemsView: 'hub' },
     pause: false,
@@ -486,9 +486,11 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     activation: 'visit',
     availableWhen: (s) =>
       isSystemUnlocked(s, 'furnace') &&
-      ((s.resources.heat ?? 0) >= 8 || (s.resources.choirAsh ?? 0) >= 80) &&
-      (s.furnace?.wanted?.weapons ?? 0) < 1,
-    completeWhen: (s) => (s.furnace?.wanted?.weapons ?? 0) >= 1,
+      !s.combat.docked &&
+      Boolean(s.combat.inFight) &&
+      !s.furnace.ignited &&
+      ((s.resources.heat ?? 0) >= 10 || (s.resources.choirAsh ?? 0) >= 100),
+    completeWhen: (s) => s.furnace.ignited,
   },
   {
     id: 'research.project',
@@ -855,7 +857,7 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
     case 'directives.choice':
       next.combat.docked = false
       next.combat.inFight = true
-      next.combat.directiveOffer = ['overcharge', 'scavenger', 'reactive']
+      next.combat.directiveOffer = ['overcharge', 'scavenger-sweep', 'reactive-array']
       next.combat.directives = []
       break
     case 'rebuild.preview':
@@ -885,9 +887,15 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
       addRelicInstance(next, 'power-coupler', 1)
       break
     case 'furnace.channel':
-      next.resources.choirAsh = Math.max(next.resources.choirAsh, 80)
-      next.resources.heat = Math.max(next.resources.heat, 8)
-      next.furnace.wanted = { ...(next.furnace.wanted ?? {}), weapons: 0 }
+      next.combat.docked = false
+      next.combat.inFight = true
+      next.resources.choirAsh = Math.max(next.resources.choirAsh, 100)
+      next.resources.heat = Math.max(next.resources.heat, 60)
+      next.furnace = {
+        ignited: false,
+        channels: { overdrive: 0, bulwark: 0, guidance: 0, harvest: 0 },
+        effectStrengthMult: 1,
+      }
       break
     case 'research.project':
       if (next.hiveResearch) next.hiveResearch.active = false

@@ -6,6 +6,7 @@
  */
 
 import { getModule } from './catalog'
+import { directiveUtilityCoreEffectMult } from './directives'
 import { hasMasteryEffect } from './coreMastery'
 import type {
   CombatProjectile,
@@ -141,25 +142,20 @@ export function choirTapAshToHeatMult(state: GameState): number {
   if (!hasMasteryEffect(state, 'choir-tap', 'choir-furnace-feed')) return 1
   const runtime = state.combat.coreRuntime
   if (!runtime?.choirTapFurnaceFeed) return 1
-  return CHOIR_FURNACE_FEED_MULT
+  return 1 + (CHOIR_FURNACE_FEED_MULT - 1) * directiveUtilityCoreEffectMult(state)
 }
 
 export function sensorTargetingModifier(state: GameState): {
   acquisitionRangeMult: number
   slewRateMult: number
 } {
-  if (!fitted(state, 'sensor-array')) {
-    return { acquisitionRangeMult: 1, slewRateMult: 1 }
-  }
-  if (hasMasteryEffect(state, 'sensor-array', 'sensor-fire-control')) {
-    return {
-      acquisitionRangeMult: SENSOR_FCN_ACQUIRE_MULT,
-      slewRateMult: SENSOR_FCN_SLEW_MULT,
-    }
-  }
+  if (!fitted(state, 'sensor-array')) return { acquisitionRangeMult: 1, slewRateMult: 1 }
+  const utility = directiveUtilityCoreEffectMult(state)
+  const acquire = hasMasteryEffect(state, 'sensor-array', 'sensor-fire-control') ? SENSOR_FCN_ACQUIRE_MULT : SENSOR_ACQUIRE_MULT
+  const slew = hasMasteryEffect(state, 'sensor-array', 'sensor-fire-control') ? SENSOR_FCN_SLEW_MULT : SENSOR_SLEW_MULT
   return {
-    acquisitionRangeMult: SENSOR_ACQUIRE_MULT,
-    slewRateMult: SENSOR_SLEW_MULT,
+    acquisitionRangeMult: 1 + (acquire - 1) * utility,
+    slewRateMult: 1 + (slew - 1) * utility,
   }
 }
 
@@ -232,7 +228,7 @@ export function salvageMarkBonus(state: GameState, unit: CombatUnit): number {
   const runtime = state.combat.coreRuntime
   const mark = runtime?.salvageMarks[unit.id]
   if (!mark || mark.until < state.combat.simTime) return 0
-  return SALVAGE_MARK_BONUS
+  return SALVAGE_MARK_BONUS * directiveUtilityCoreEffectMult(state)
 }
 
 export function markSalvageTarget(state: GameState, unit: CombatUnit, elite = false): void {
@@ -249,7 +245,8 @@ export function choirTapOnHighValueKill(state: GameState, unit: CombatUnit): voi
   if (!hasMasteryEffect(state, 'choir-tap', 'choir-hot-recovery')) return
   const runtime = ensureSortieCoreRuntime(state)
   if (runtime.choirTapHeatGranted >= CHOIR_HOT_RECOVERY_CAP) return
-  const packet = Math.min(CHOIR_HOT_RECOVERY_HEAT, CHOIR_HOT_RECOVERY_CAP - runtime.choirTapHeatGranted)
+  const boostedPacket = CHOIR_HOT_RECOVERY_HEAT * directiveUtilityCoreEffectMult(state)
+  const packet = Math.min(boostedPacket, CHOIR_HOT_RECOVERY_CAP - runtime.choirTapHeatGranted)
   runtime.choirTapHeatGranted += packet
   state.resources.heat = (state.resources.heat ?? 0) + packet
 }
@@ -381,14 +378,15 @@ export function tickMoltenPools(state: GameState, dt: number): void {
   void dt
 }
 
-function applyGravToEnemy(enemy: CombatUnit, dt: number, slow: number): void {
+function applyGravToEnemy(enemy: CombatUnit, dt: number, slow: number, strength = 1): void {
   const dist = distanceToHive(enemy.x, enemy.y)
   if (dist <= 8) return
-  const pull = Math.min(GRAV_DRAG_PER_SEC * dt, Math.max(0, dist - 10))
+  const pull = Math.min(GRAV_DRAG_PER_SEC * strength * dt, Math.max(0, dist - 10))
   const next = moveRadially(enemy.x, enemy.y, -pull)
   enemy.x = next.x
   enemy.y = next.y
-  enemy.controlSlowMult = Math.min(enemy.controlSlowMult ?? 1, slow)
+  const scaledSlow = Math.max(0.1, 1 - (1 - slow) * strength)
+  enemy.controlSlowMult = Math.min(enemy.controlSlowMult ?? 1, scaledSlow)
 }
 
 export function tickGravTether(state: GameState, dt: number): void {
@@ -397,6 +395,7 @@ export function tickGravTether(state: GameState, dt: number): void {
   }
   if (!fitted(state, 'grav-tether')) return
   const cores = state.combat.playerUnits.filter((u) => u.isCore && u.coreModuleId === 'grav-tether')
+  const utility = directiveUtilityCoreEffectMult(state)
   const well = hasMasteryEffect(state, 'grav-tether', 'grav-gravity-well')
   for (const enemy of state.combat.enemyUnits) {
     if (enemy.hull <= 0) continue
@@ -404,11 +403,11 @@ export function tickGravTether(state: GameState, dt: number): void {
       const target = enemyById(state, core.currentTargetId)
       const anchor = target ?? core
       if (distanceBetween(enemy, anchor) <= GRAV_CONTROL_RADIUS) {
-        applyGravToEnemy(enemy, dt, GRAV_SLOW_FACTOR)
+        applyGravToEnemy(enemy, dt, GRAV_SLOW_FACTOR, utility)
       }
     }
     if (well && distanceToHive(enemy.x, enemy.y) <= GRAV_WELL_RADIUS) {
-      applyGravToEnemy(enemy, dt, GRAV_WELL_SLOW)
+      applyGravToEnemy(enemy, dt, GRAV_WELL_SLOW, utility)
     }
   }
 }
@@ -419,7 +418,7 @@ export function tickNanoLathe(state: GameState, dt: number): void {
   if (!flag || flag.hull <= 0) return
   const runtime = ensureSortieCoreRuntime(state)
   const frac = flag.hullMax > 0 ? flag.hull / flag.hullMax : 1
-  let rate = NANO_LATHE_REPAIR_PER_SEC
+  let rate = NANO_LATHE_REPAIR_PER_SEC * directiveUtilityCoreEffectMult(state)
   if (frac < NANO_LATHE_TRIAGE_FRAC) rate *= NANO_LATHE_TRIAGE_MULT
   const before = flag.hull
   flag.hull = Math.min(flag.hullMax, flag.hull + rate * dt)

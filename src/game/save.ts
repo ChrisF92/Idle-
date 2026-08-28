@@ -38,7 +38,8 @@ import {
 } from './foundryCatalogue'
 import { canTrackBlueprint, isKnownBlueprintId, starterBlueprintIds } from './blueprints'
 import { createEmptyRelicState, sanitizeRelicState } from './relics'
-import { finalizeFurnaceMigration, hydrateFurnaceState } from './furnace'
+import { sanitizeFurnaceState } from './furnace'
+import { sanitizeDirectiveIds } from './directives'
 import { createEmptyHiveResearchState, HIVE_RESEARCH_BRANCHES } from './hiveResearch'
 import { createEmptyProtocolState } from './protocols'
 import { createEmptyEchoState } from './echo'
@@ -211,12 +212,11 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
       : null,
     defeatLeft: Math.max(0, Number(combat.defeatLeft ?? 0) || 0),
     defeatTactical: Boolean(combat.defeatTactical),
-    directives: Array.isArray(combat.directives)
-      ? combat.directives.filter((id): id is string => typeof id === 'string')
+    directives: sanitizeDirectiveIds(combat.directives),
+    directiveOffer: combat.directiveOffer == null ? null : sanitizeDirectiveIds(combat.directiveOffer),
+    directiveOpportunitiesConsumed: Array.isArray(combat.directiveOpportunitiesConsumed)
+      ? [...new Set(combat.directiveOpportunitiesConsumed.map((w) => Math.floor(Number(w))).filter((w) => [125, 275, 425, 575, 725, 875].includes(w)))]
       : [],
-    directiveOffer: Array.isArray(combat.directiveOffer)
-      ? combat.directiveOffer.filter((id): id is string => typeof id === 'string')
-      : null,
     coreRuntime: combat.coreRuntime,
     reservedCommanders: Array.isArray(combat.reservedCommanders)
       ? combat.reservedCommanders
@@ -509,7 +509,7 @@ export function sanitizeCoreFits(state: GameState): void {
 }
 
 function withFurnaceDefaults(raw: FurnaceState | undefined): FurnaceState {
-  return hydrateFurnaceState(raw)
+  return sanitizeFurnaceState(raw)
 }
 
 function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResearchState {
@@ -801,7 +801,6 @@ function migrate(raw: unknown): GameState | null {
       hydrated.foundry.trackedPrintId = null
     }
     finalizeProcessMigration(hydrated)
-    finalizeFurnaceMigration(hydrated)
     migrateOnboardingRegistry(hydrated)
     return hydrated
   }

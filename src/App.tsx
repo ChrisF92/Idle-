@@ -483,7 +483,7 @@ function AppShell() {
                 : () => go('stats')
             }
             onConvert={game.convertAshToHeat}
-            onSetChannel={game.setFurnaceChannel}
+            onIgnite={game.igniteFurnace}
           />
         )}
         {tab === 'research' && isHubTabOpen(game.state, 'research') && (

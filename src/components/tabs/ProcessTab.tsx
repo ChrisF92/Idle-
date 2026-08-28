@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react'
 import type {
   FoundryRecipeId,
-  FurnaceChannelId,
-  FurnacePresetId,
   GameState,
   HiveResearchBranch,
   ProcessCondition,
@@ -45,7 +43,6 @@ import {
 import { processPointSourcesByGroup } from '../../game/processPoints'
 import { FOUNDRY_RECIPES } from '../../game/foundry'
 import { hiveResearchQueueCap, hiveResearchStartableBranches, HIVE_RESEARCH_BRANCHES } from '../../game/hiveResearch'
-import { FURNACE_CHANNELS, FURNACE_PRESETS, furnacePriority } from '../../game/furnace'
 import { WORKER_JOB_IDS, workerJobLabel } from '../../game/workers'
 import { STATIONS } from '../../game/catalog'
 import { PROTOCOLS, protocolRank } from '../../game/protocols'
@@ -427,68 +424,7 @@ function NodeConfig({
   if (nodeId === 'furnace-reserve' || nodeId === 'furnace-presets' || nodeId === 'furnace-channels') {
     return (
       <div className="process-config-block">
-        {hasProcess(state, 'furnace-presets') ? (
-          <label className="process-config">
-            Preset
-            <select
-              value={cfg.furnace.preset ?? ''}
-              onChange={(e) => patch((c) => { c.furnace.preset = e.target.value || null })}
-            >
-              <option value="">None</option>
-              {(Object.keys(FURNACE_PRESETS) as FurnacePresetId[]).map((id) => (
-                <option key={id} value={id}>
-                  {FURNACE_PRESETS[id].name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        {hasProcess(state, 'furnace-channels') ? (
-          <label className="process-config">
-            <input
-              type="checkbox"
-              checked={cfg.furnace.autoChannel}
-              onChange={(e) => patch((c) => { c.furnace.autoChannel = e.target.checked })}
-            />
-            Automatic channel control
-          </label>
-        ) : null}
-        {hasProcess(state, 'furnace-reserve') ? (
-          <label className="process-config">
-            Heat reserve
-            <input
-              type="number"
-              min={0}
-              value={cfg.furnace.reserveHeat}
-              onChange={(e) => patch((c) => { c.furnace.reserveHeat = Math.max(0, Number(e.target.value) || 0) })}
-            />
-          </label>
-        ) : null}
-        {furnacePriority(state).map((id, index) => {
-          const name = FURNACE_CHANNELS.find((ch) => ch.id === id)?.name ?? id
-          return (
-            <p key={id} className="assign-row">
-              <span className="muted">
-                {index + 1}. {name}
-              </span>
-              <button
-                type="button"
-                disabled={index <= 0}
-                onClick={() =>
-                  patch((c) => {
-                    const next = [...furnacePriority(state)]
-                    const swap = next[index - 1]
-                    next[index - 1] = next[index]!
-                    next[index] = swap!
-                    c.furnace.priority = next as FurnaceChannelId[]
-                  })
-                }
-              >
-                Priority up
-              </button>
-            </p>
-          )
-        })}
+        <p className="muted">Furnace automation is unavailable until the Process rewrite. Configure and Ignite the Furnace manually.</p>
       </div>
     )
   }
@@ -651,16 +587,7 @@ function RuleEditor({
         </select>
       ) : null}
       {rule.then.kind === 'furnace-preset' ? (
-        <select
-          value={rule.then.furnacePreset ?? 'push'}
-          onChange={(e) => onChange({ ...rule, then: { ...rule.then, furnacePreset: e.target.value as FurnacePresetId } })}
-        >
-          {(Object.keys(FURNACE_PRESETS) as FurnacePresetId[]).map((id) => (
-            <option key={id} value={id}>
-              {FURNACE_PRESETS[id].name}
-            </option>
-          ))}
-        </select>
+        <p className="muted">Furnace preset automation is unavailable until the Process rewrite.</p>
       ) : null}
       {rule.then.kind === 'foundry-target' || rule.then.kind === 'repeat-recipe' || rule.then.kind === 'foundry-stock' ? (
         <>

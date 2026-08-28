@@ -2,7 +2,6 @@
 
 import type {
   FoundryRecipeId,
-  FurnacePresetId,
   GameState,
   ProcessAction,
   ProcessCondition,
@@ -173,7 +172,7 @@ export interface ProcessIntent {
   extractHullPct: number
   extractNow: boolean
   furnacePush: boolean
-  furnacePreset: FurnacePresetId | null
+  furnacePreset: string | null
   researchNext: boolean
   fabTracked: boolean
   repeatRecipe: FoundryRecipeId | null

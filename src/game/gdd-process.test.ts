@@ -55,7 +55,7 @@ describe('GDD Process', () => {
   it('opens under Systems at Wave 210 after two Rebuilds and a Research project', () => {
     const open = processState()
     expect(isSystemUnlocked(open, 'process')).toBe(true)
-    expect(systemsHubCards(open).map((c) => c.id)).toEqual(['foundry', 'furnace', 'research', 'process'])
+    expect(systemsHubCards(open).map((c) => c.id)).toEqual(['foundry', 'research', 'process'])
   })
 
   it('shows the capability graph lanes and hides retired systems', () => {
@@ -173,7 +173,7 @@ describe('GDD Process', () => {
   })
 
   it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
-    expect(SAVE_VERSION).toBe(48)
+    expect(SAVE_VERSION).toBe(49)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-buy-max')?.cost).toBe(4)
     expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)
@@ -228,9 +228,10 @@ describe('GDD Process', () => {
     )
   })
 
-  it('lets Push dump Economy at 95% of Best and light Furnace', () => {
+  it('does not let the legacy Push profile automate PR8 Furnace decisions', () => {
     const s = processState()
     s.combat.docked = false
+    s.combat.inFight = true
     s.combat.wave = Math.ceil(ACT1_CADENCE.process * 0.95)
     s.resources.choirAsh = 80
     s.resources.heat = 0
@@ -244,9 +245,9 @@ describe('GDD Process', () => {
     expect(processShouldExtract(s)).toBe(false)
 
     tickAutomation(s)
-    expect(s.furnace.wanted.weapons).toBeGreaterThanOrEqual(1)
-    expect(s.furnace.active.weapons).toBeGreaterThanOrEqual(1)
-    expect((s.resources.choirAsh ?? 0) + (s.resources.heat ?? 0) * 10).toBeLessThan(80)
+    expect(s.furnace.ignited).toBe(false)
+    expect(s.resources.choirAsh).toBe(80)
+    expect(s.resources.heat).toBe(0)
   })
 
   it('awards Process Points from mastery sources, not elapsed time', () => {

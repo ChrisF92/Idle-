@@ -59,17 +59,13 @@ import {
 import { equipRelicOnCore, removeRelicFromCore, canStartRelicUpgrade } from './relics'
 import { relicUpgradeJobId } from './relicSeeds'
 import {
-  applyFurnacePreset,
-  buyFurnaceUpgrade,
   convertAshToHeat as convertAshToHeatRaw,
   createEmptyFurnaceState,
   endFurnaceSortie,
-  furnaceRestartHeat,
-  setFurnaceChannel,
-  setFurnacePriority,
+  igniteFurnace as igniteFurnaceRaw,
 } from './furnace'
 import { usableCoreSlots, trimModulesToUsableSlots } from './coreSlots'
-import { hiveResearchHeatFromAshMult, setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
+import { setResearchFocus, startResearch, createEmptyHiveResearchState } from './hiveResearch'
 import {
   canConfigureTargetingDoctrine,
   canEditTargetingNow,
@@ -184,10 +180,27 @@ export function upgradeRelic(state: GameState, relicId: string): GameState {
   if (!check.ok || !check.toTier) return state
   return startFabrication(state, 'relic', relicUpgradeJobId(relicId, check.toTier))
 }
-export { buyFurnaceUpgrade, setFurnaceChannel, setFurnacePriority, applyFurnacePreset }
-
 export function convertAshToHeat(state: GameState): GameState {
-  return convertAshToHeatRaw(state, hiveResearchHeatFromAshMult(state))
+  return convertAshToHeatRaw(state)
+}
+
+export function igniteFurnace(
+  state: GameState,
+  channels: Partial<Record<import('./types').FurnaceChannelId, import('./types').FurnaceChannelLevel>>,
+): GameState {
+  const next = igniteFurnaceRaw(state, channels)
+  if (next === state) return state
+  const stats = computeShipStats(next)
+  const flag = next.combat.playerUnits.find((u) => u.isFlagship)
+  if (flag) {
+    flag.hullMax = stats.hullMax
+    flag.shieldMax = stats.shieldMax
+    flag.hull = Math.min(flag.hull, flag.hullMax)
+    flag.shield = Math.min(flag.shield, flag.shieldMax)
+  }
+  syncPersistedHullCaps(next)
+  syncPlayerFleetWeapons(next)
+  return next
 }
 
 export function setNumberNotation(
@@ -1015,9 +1028,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
       signalCoresCarryOver: state.meta.signalCoresCarryOver ?? false,
       seenOnboarding: [...(state.meta.seenOnboarding ?? [])],
     },
-    heat: state.resources.heat ?? 0,
     relics: structuredClone(state.relics ?? { instances: [], nextSerial: {}, coreFits: {} }),
-    furnace: structuredClone(state.furnace ?? createEmptyFurnaceState()),
     hiveResearch: structuredClone(state.hiveResearch ?? createEmptyHiveResearchState()),
     protocols: {
       activeId: null,
@@ -1061,7 +1072,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     aiPoints: kept.aiPoints,
     salvage: 0,
     choirAsh: 0,
-    heat: furnaceRestartHeat({ ...state, furnace: kept.furnace } as GameState, 0),
+    heat: 0,
   }
   state.shipyard = persistLoadout(
     kept.unlockedFrames,
@@ -1107,7 +1118,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.network = wipeNetworkBars(state.network)
   state.foundry = persistFoundryOnRebuild(state.foundry)
   state.relics = kept.relics
-  state.furnace = kept.furnace
+  state.furnace = createEmptyFurnaceState()
   endFurnaceSortie(state)
   state.hiveResearch = kept.hiveResearch
   state.protocols = kept.protocols

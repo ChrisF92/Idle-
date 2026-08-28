@@ -138,39 +138,15 @@ export interface RelicState {
   coreFits: Record<string, Array<RelicInstanceId | null>>
 }
 
-/** Legacy rank tracks — kept so old saves can migrate into Furnace 2.0. */
-export type FurnaceTrackId = 'attack' | 'defense' | 'lab' | 'workshop' | 'hold'
+export type FurnaceChannelId = 'overdrive' | 'bulwark' | 'guidance' | 'harvest'
+export type FurnaceChannelLevel = 0 | 1 | 2 | 3
 
-export type FurnaceChannelId =
-  | 'weapons'
-  | 'shielding'
-  | 'network'
-  | 'foundry'
-  | 'research'
-  | 'recovery'
-
-export type FurnaceUpgradeId =
-  | 'hearth'
-  | 'cistern'
-  | 'flue'
-  | 'bellows'
-  | 'taps'
-  | 'kindling'
-  | 'ember'
-
-export type FurnacePresetId = 'push' | 'farm' | 'industry' | 'research'
-
-/** Furnace — Ash converts to Sortie Heat. Channel lights last until Dock. */
+/** Ignited Furnace state only. Configure/Prime is UI-local draft state and is never persisted. */
 export interface FurnaceState {
-  /** True after Furnace 2.0 hydrate. Old saves omit this and still carry `ranks`. */
-  v2?: boolean
-  ranks: Record<FurnaceTrackId, number>
-  wanted: Record<FurnaceChannelId, number>
-  active: Record<FurnaceChannelId, number>
-  priority: FurnaceChannelId[]
-  upgrades: Record<FurnaceUpgradeId, number>
-  /** Player-facing starve line, or empty. */
-  starveNote: string
+  ignited: boolean
+  channels: Record<FurnaceChannelId, FurnaceChannelLevel>
+  /** Snapshot at Ignite so later Directive choices cannot rewrite a locked configuration. */
+  effectStrengthMult: number
 }
 
 export type HiveResearchBranch = 'material' | 'energy' | 'observation' | 'computation'
@@ -570,7 +546,7 @@ export interface ProcessAction {
   recipeId?: FoundryRecipeId | null
   stockMin?: number
   workerPreset?: ProcessNetworkPreset
-  furnacePreset?: FurnacePresetId
+  furnacePreset?: string
   furnaceLevel?: number
 }
 
@@ -594,7 +570,7 @@ export interface ProcessProfile {
   extractHullPct: number
   autoShop: boolean
   workerPreset?: ProcessNetworkPreset
-  furnacePreset?: FurnacePresetId | null
+  furnacePreset?: string | null
   foundryRepeat?: FoundryRecipeId | null
   researchAutoNext?: boolean
   rules: ProcessRule[]
@@ -1304,6 +1280,8 @@ export interface CombatState {
   directives: string[]
   /** Pending Directive choice. Combat does not auto-engage while set. */
   directiveOffer: string[] | null
+  /** Canonical opportunity Waves already consumed this Sortie; prevents save/reload rerolls. */
+  directiveOpportunitiesConsumed: number[]
   /** Sortie-local Core combat/support runtime. */
   coreRuntime?: SortieCoreRuntime
   reservedCommanders: ReservedCommanderState[]

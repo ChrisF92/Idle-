@@ -1,214 +1,145 @@
-import { useMemo, useState } from 'react'
-import type { FurnaceChannelId, GameState } from '../../game/types'
+import { useEffect, useMemo, useState } from 'react'
+import type { FurnaceChannelId, FurnaceChannelLevel, GameState } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
 import { ACT1_CADENCE } from '../../game/cadence'
 import {
-  ASH_PER_HEAT,
+  FURNACE_CHANNEL_IDS,
+  FURNACE_CHANNELS,
+  canIgniteFurnace,
   furnaceActiveEffectLine,
-  furnaceActiveLevel,
-  furnaceChannelPreview,
-  furnaceChannelUnlocked,
+  furnaceChannelCost,
+  furnaceChannelLimit,
   furnaceConversionLine,
-  furnaceLevelDef,
-  furnaceLightCost,
-  furnacePushChannels,
-  furnaceRoman,
-  type FurnaceChannelDef,
+  furnaceConversionPreview,
+  furnaceLitLine,
 } from '../../game/furnace'
 import { formatCompact } from '../../game/format'
-import {
-  Badge,
-  BottomSheet,
-  ContextBar,
-  Screen,
-  ScreenHeader,
-  Section,
-  StickyAction,
-  StatPair,
-} from '../../ui/primitives'
+import { ContextBar, Screen, ScreenHeader, Section, StatPair } from '../../ui/primitives'
 
 interface FurnaceTabProps {
   state: GameState
   onBack: () => void
   onConvert: () => void
-  onSetChannel: (id: FurnaceChannelId, level: number) => void
+  onIgnite: (channels: Partial<Record<FurnaceChannelId, FurnaceChannelLevel>>) => void
 }
 
-function nextTier(ch: FurnaceChannelDef, active: number): { level: number; mult: number; heat: number } | null {
-  if (active >= 3) return null
-  const level = Math.max(1, active + 1)
-  const def = ch.levels[level - 1]
-  if (!def) return null
-  const currentCost = active > 0 ? (ch.levels[active - 1]?.heat ?? 0) : 0
-  return { level, mult: def.mult, heat: Math.max(0, def.heat - currentCost) }
+function emptyDraft(): Record<FurnaceChannelId, FurnaceChannelLevel> {
+  return { overdrive: 0, bulwark: 0, guidance: 0, harvest: 0 }
 }
 
-export function FurnaceTab({ state, onBack, onConvert, onSetChannel }: FurnaceTabProps) {
+function roman(level: FurnaceChannelLevel): string {
+  return level === 0 ? 'OFF' : level === 1 ? 'I' : level === 2 ? 'II' : 'III'
+}
+
+export function FurnaceTab({ state, onBack, onConvert, onIgnite }: FurnaceTabProps) {
   const open = isSystemUnlocked(state, 'furnace')
-  const ash = state.resources.choirAsh ?? 0
-  const heat = state.resources.heat ?? 0
-  const batches = Math.floor(ash / ASH_PER_HEAT)
-  const channels = furnacePushChannels()
-  const [selectedId, setSelectedId] = useState<FurnaceChannelId | null>(null)
-  const selected = channels.find((ch) => ch.id === selectedId) ?? null
-  const selectedActive = selected ? furnaceActiveLevel(state, selected.id) : 0
+  const [draft, setDraft] = useState<Record<FurnaceChannelId, FurnaceChannelLevel>>(emptyDraft)
+  const [primed, setPrimed] = useState(false)
+  const locked = state.furnace.ignited
+  const conversion = furnaceConversionPreview(state)
+  const ignite = canIgniteFurnace(state, draft)
+  const limit = furnaceChannelLimit(state)
 
-  const sheetBody = useMemo(() => {
-    if (!selected) return null
-    return (
-      <>
-        <p>{selected.blurb}</p>
-        {selected.levels.map((lv, index) => (
-          <p key={lv.heat}>
-            {furnaceRoman(index + 1)} · {selected.stat} ×{lv.mult.toFixed(2)}
-            {lv.ashMult ? ` · Ash ×${lv.ashMult.toFixed(2)}` : ''} · {lv.heat} Heat
-          </p>
-        ))}
-        {selected.detail.map((line) => (
-          <p key={line} className="ui-meta">
-            {line}
-          </p>
-        ))}
-        <p className="ui-meta">Heat and channel lights last this Sortie only. They reset when the Sortie ends.</p>
-      </>
-    )
-  }, [selected])
+  useEffect(() => {
+    if (locked) {
+      setDraft({ ...state.furnace.channels })
+      setPrimed(false)
+    }
+  }, [locked, state.furnace.channels])
+
+  const selected = FURNACE_CHANNEL_IDS.filter((id) => draft[id] > 0).length
+  const cost = useMemo(
+    () => FURNACE_CHANNEL_IDS.reduce((sum, id) => sum + furnaceChannelCost(draft[id]), 0),
+    [draft],
+  )
+
+  function setLevel(id: FurnaceChannelId, level: FurnaceChannelLevel) {
+    if (locked) return
+    const next = { ...draft, [id]: level }
+    const count = FURNACE_CHANNEL_IDS.filter((key) => next[key] > 0).length
+    if (count > limit) return
+    setDraft(next)
+    setPrimed(false)
+  }
 
   return (
-    <Screen className="panel screen-panel furnace-screen" label="Furnace" sticky={open}>
-      <ScreenHeader
-        title="Furnace"
-        action={
-          <button type="button" onClick={onBack}>
-            Systems
-          </button>
-        }
-      />
+    <Screen className="panel screen-panel furnace-screen" label="Furnace" sticky={false}>
+      <ScreenHeader title="Furnace" action={<button type="button" onClick={onBack}>Systems</button>} />
       <ContextBar>
-        <StatPair label="Ash" value={formatCompact(ash, 1)} />
-        <StatPair label="Heat" value={formatCompact(heat, 1)} />
+        <StatPair label="Ash" value={formatCompact(state.resources.choirAsh ?? 0, 1)} />
+        <StatPair label="Heat" value={formatCompact(state.resources.heat ?? 0, 1)} />
         <StatPair label="Convert" value={furnaceConversionLine()} />
-        <StatPair label="Effects" value={furnaceActiveEffectLine(state)} />
+        <StatPair label="State" value={locked ? 'LOCK' : primed ? 'PRIME' : 'CONFIGURE'} />
       </ContextBar>
       {!open ? (
-        <p className="muted">Reach Wave {ACT1_CADENCE.furnace} to light the Furnace. Kills drop Ash after that door.</p>
+        <p className="muted">Reach Wave {ACT1_CADENCE.furnace} to unlock Furnace.</p>
       ) : (
         <div className="panel-scroll furnace-scroll">
           <Section>
-            <p className="ui-meta" data-guide="furnace-ash">
-              Ash persists across Sorties this cycle and resets on Rebuild. Heat is this Sortie only.
+            <p className="ui-meta">
+              Ash lasts through the Rebuild cycle. Heat and the Ignited Furnace last only this Sortie.
+              Configure locally, Prime to review, then Ignite once. Closing this sheet discards an un-Ignited draft.
             </p>
-            <div className="furnace-channel-list" data-guide="furnace-channels">
-              {channels.map((ch) => {
-                const unlocked = furnaceChannelUnlocked(state, ch.id)
-                const active = furnaceActiveLevel(state, ch.id)
-                const live = furnaceLevelDef(ch.id, active)
-                const next = nextTier(ch, active)
-                const currentMult = live?.mult ?? 1
+            {locked ? <p><strong>LOCKED THIS SORTIE</strong> · {furnaceLitLine(state)}</p> : null}
+            {locked ? <p className="ui-meta">{furnaceActiveEffectLine(state)}</p> : null}
+            <div className="furnace-channel-list" data-guide="furnace-channels" data-onboarding="onboarding.furnace.channel">
+              {FURNACE_CHANNELS.map((ch) => {
+                const active = locked ? state.furnace.channels[ch.id] : draft[ch.id]
                 return (
-                  <article
-                    key={ch.id}
-                    className={`furnace-channel-card${active > 0 ? ' is-lit' : ''}${unlocked ? '' : ' is-locked'}`}
-                    data-guide={ch.id === 'weapons' ? 'furnace-channel-weapons' : undefined}
-                    data-onboarding={
-                      ch.id === 'weapons' && heat >= 8 ? 'onboarding.furnace.channel' : undefined
-                    }
-                  >
-                    <button
-                      type="button"
-                      className="furnace-channel-hit"
-                      onClick={() => setSelectedId(ch.id)}
-                      aria-label={`${ch.name} details`}
-                    >
-                      <header className="furnace-channel-head">
-                        <strong className="furnace-channel-name">
-                          {ch.name.toUpperCase()} — {furnaceRoman(active)}
-                        </strong>
-                      </header>
-                      <p>
-                        {ch.stat} ×{currentMult.toFixed(2)}
+                  <article key={ch.id} className={`furnace-channel-card${active > 0 ? ' is-lit' : ''}`}>
+                    <header className="furnace-channel-head">
+                      <strong className="furnace-channel-name">{ch.name.toUpperCase()} — {roman(active)}</strong>
+                    </header>
+                    <p>{ch.blurb}</p>
+                    <div className="furnace-tier-row">
+                      {([0, 1, 2, 3] as FurnaceChannelLevel[]).map((lv) => (
+                        <button
+                          key={lv}
+                          type="button"
+                          className={active === lv ? 'primary' : undefined}
+                          disabled={locked}
+                          onClick={() => setLevel(ch.id, lv)}
+                        >
+                          {roman(lv)}{lv > 0 ? ` · ${furnaceChannelCost(lv)}` : ''}
+                        </button>
+                      ))}
+                    </div>
+                    {active > 0 ? (
+                      <p className="ui-meta">
+                        {ch.levels[active - 1]?.effect != null ? `Primary effect +${Math.round(ch.levels[active - 1]!.effect * 100)}% seed` : ''}
                       </p>
-                      {next ? (
-                        <p className="ui-meta">
-                          {furnaceRoman(next.level)} → ×{next.mult.toFixed(2)}
-                        </p>
-                      ) : (
-                        <p className="ui-meta">Maxed this Sortie</p>
-                      )}
-                      <p>{next ? `${next.heat} Heat` : `${furnaceLightCost(ch.id, active)} Heat spent`}</p>
-                      <p className="ui-meta">{ch.blurb}</p>
-                    </button>
-                    {unlocked ? (
-                      <div className="furnace-tier-row">
-                        {[0, 1, 2, 3].map((lv) => {
-                          const preview = furnaceChannelPreview(state, ch.id, lv)
-                          const selectedTier = active === lv
-                          return (
-                            <button
-                              key={lv}
-                              type="button"
-                              className={selectedTier ? 'primary' : undefined}
-                              disabled={lv > 0 && !preview.ok && !selectedTier}
-                              title={preview.reason}
-                              onClick={() => onSetChannel(ch.id, lv)}
-                            >
-                              {furnaceRoman(lv)}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="muted">Locked</p>
-                    )}
+                    ) : null}
                   </article>
                 )
               })}
             </div>
+            {!locked ? <p className="ui-meta">Selected {selected}/{limit} · Ignite cost {cost} Heat</p> : null}
+            {!locked ? (
+              <div className="furnace-ignite-actions">
+                {!primed ? (
+                  <button type="button" className="primary" disabled={!ignite.ok} title={ignite.reason} onClick={() => setPrimed(true)}>
+                    Prime configuration
+                  </button>
+                ) : (
+                  <>
+                    <p><strong>PRIMED</strong> · {selected} channel{selected === 1 ? '' : 's'} · {cost} Heat</p>
+                    <button type="button" onClick={() => setPrimed(false)}>Back to Configure</button>
+                    <button type="button" className="primary" disabled={!ignite.ok} title={ignite.reason} onClick={() => { onIgnite(draft); setPrimed(false) }}>
+                      Ignite and Lock
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </Section>
+          <Section>
+            <p className="ui-meta">Ash → Heat is manual. There is no passive Heat generation, drain, or capacity.</p>
+            <button type="button" disabled={!conversion.ok} title={conversion.reason} onClick={onConvert}>
+              {conversion.ok ? `Convert ${formatCompact(conversion.ashUsed)} Ash → ${formatCompact(conversion.heatGain, 1)} Heat` : conversion.reason ?? 'Convert Ash'}
+            </button>
           </Section>
         </div>
       )}
-      {open ? (
-        <StickyAction
-          guide="furnace-bank"
-          onboarding={heat < 8 ? 'onboarding.furnace.channel' : undefined}
-        >
-          <button type="button" className="primary" disabled={batches <= 0} onClick={onConvert}>
-            Convert {formatCompact(batches, 1)} Heat
-          </button>
-        </StickyAction>
-      ) : null}
-      <BottomSheet
-        open={Boolean(selected)}
-        title={selected?.name ?? 'Channel'}
-        kicker="Furnace channel"
-        onClose={() => setSelectedId(null)}
-        footer={
-          selected ? (
-            <div className="furnace-tier-row">
-              {[0, 1, 2, 3].map((lv) => {
-                const preview = furnaceChannelPreview(state, selected.id, lv)
-                const selectedTier = selectedActive === lv
-                return (
-                  <button
-                    key={lv}
-                    type="button"
-                    className={selectedTier ? 'primary' : undefined}
-                    disabled={lv > 0 && !preview.ok && !selectedTier}
-                    onClick={() => onSetChannel(selected.id, lv)}
-                  >
-                    {furnaceRoman(lv)}
-                    {lv > 0 ? ` · ${furnaceLightCost(selected.id, lv)}` : ''}
-                  </button>
-                )
-              })}
-            </div>
-          ) : selectedActive > 0 ? (
-            <Badge tone="ok">Lit this Sortie</Badge>
-          ) : null
-        }
-      >
-        {sheetBody}
-      </BottomSheet>
     </Screen>
   )
 }

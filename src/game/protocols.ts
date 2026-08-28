@@ -427,13 +427,13 @@ export function challengeFamiliarity(
       return { ok: false, reason: 'Fit a Relic first' }
     case 'furnace':
       if (
-        Object.values(state.furnace?.active ?? {}).some((n) => n > 0) ||
+        (state.furnace.ignited && Object.values(state.furnace.channels).some((n) => n > 0)) ||
         (state.resources.choirAsh ?? 0) > 0 ||
         (state.resources.heat ?? 0) > 0
       ) {
         return { ok: true }
       }
-      return { ok: false, reason: 'Convert Ash or light a channel first' }
+      return { ok: false, reason: 'Convert Ash or Ignite the Furnace first' }
     case 'salvage':
       return { ok: true }
     default:

@@ -7,6 +7,7 @@ import {
   canFitModuleOnFrame,
   getFrame,
   getModule,
+  frameHeatMult,
   moduleMasteryRank,
 } from './catalog'
 import { usableCoreSlots, grantAccountCoreSlots, normalAccountCoreSlots } from './coreSlots'
@@ -55,7 +56,6 @@ import { armRebuildDoor, atCareerWave, completeDefeat, forceUnlockModule } from 
 import { createInitialState, SAVE_VERSION } from './state'
 import { buildPlayerFleet } from './combat'
 import { frameSensorTargetingContribution } from './coreTargeting'
-import { furnaceAshHeatMult } from './furnace'
 
 const FINAL_FRAMES = ['starter-frame', 'bastion-frame', 'swarm-frame', 'reactor-frame', 'harvester-frame']
 const WEAPON_CORES = ['pulse-cannon', 'heavy-lance', 'flak-array', 'phase-beam', 'slag-spitter']
@@ -452,10 +452,10 @@ describe('PR4 defense and support', () => {
     tickSupportCores(s, 0)
     expect(choirTapAshToHeatMult(s)).toBeGreaterThan(1)
     const leftover = createInitialState(0)
-    expect(furnaceAshHeatMult(s)).toBe(furnaceAshHeatMult(leftover))
+    expect(frameHeatMult(s)).toBe(frameHeatMult(leftover))
     const reactor = grantFrame(s, 'reactor-frame')
     reactor.shipyard.frameId = 'reactor-frame'
-    expect(furnaceAshHeatMult(reactor)).toBeGreaterThan(furnaceAshHeatMult(s))
+    expect(frameHeatMult(reactor)).toBeGreaterThan(frameHeatMult(s))
   })
 })
 
@@ -473,7 +473,7 @@ describe('PR4 sockets metadata', () => {
 
 describe('PR4 save round-trip', () => {
   it('round-trips current version Frame, copies, Core Levels, Mastery, Doctrine, and Sortie Cores', () => {
-    expect(SAVE_VERSION).toBe(48)
+    expect(SAVE_VERSION).toBe(49)
     let s = createInitialState(0)
     s = grantFrame(s, 'bastion-frame')
     s.shipyard.frameId = 'bastion-frame'

@@ -14,7 +14,7 @@ describe('GDD Act 1 wave cadence', () => {
     expect(ACT1_CADENCE.workers).toBe(50)
     expect(PRESTIGE_MIN_SECTOR).toBe(210)
     expect(ACT1_CADENCE.foundryAdvanced).toBe(90)
-    expect(ACT1_CADENCE.furnace).toBe(140)
+    expect(ACT1_CADENCE.furnace).toBe(450)
     expect(ACT1_CADENCE.research).toBe(170)
     expect(ACT1_CADENCE.process).toBe(210)
     expect(ACT1_CADENCE.protocols).toBe(250)
@@ -60,7 +60,7 @@ describe('GDD Act 1 wave cadence', () => {
 
   it('stores system doors as requiresBestWave, not leftover sector bands', () => {
     expect(SYSTEM_UNLOCKS.find((s) => s.id === 'furnace')?.requiresBestWave).toBe(ACT1_CADENCE.furnace)
-    expect(systemUnlockRequirement('furnace')).toBe('Reach Wave 140')
+    expect(systemUnlockRequirement('furnace')).toBe('Reach Wave 450')
     expect(getFrame('bastion-frame')?.unlockSource).toBe('material-mastery')
     expect(getFrame('bastion-frame')).not.toHaveProperty('requiresBestWave')
     expect(modulePrintWave('flak-array')).toBeGreaterThanOrEqual(ACT1_CADENCE.foundry)

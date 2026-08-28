@@ -30,25 +30,25 @@ describe('GDD information architecture', () => {
 
     const afterFurnace = atCareerWave(createInitialState(0), ACT1_CADENCE.furnace)
     expect(moreStationBuckets(afterFurnace).next).toEqual([])
-    expect(nextMajorDoor(afterFurnace)?.id).toBe('research')
+    expect(nextMajorDoor(afterFurnace)?.id).not.toBe('furnace')
 
     const afterResearch = atCareerWave(createInitialState(0), ACT1_CADENCE.research)
     expect(moreStationBuckets(afterResearch).next).toEqual([])
-    expect(nextMajorDoor(afterResearch)?.id).toBe('process')
+    expect(nextMajorDoor(afterResearch)?.id).toBe('furnace')
 
     const processOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
     processOpen.prestige.prestigeCount = 2
     processOpen.hiveResearch.completed.energy = 1
     expect(moreStationBuckets(processOpen).open.map((s) => s.id)).toEqual(['codex'])
     expect(moreStationBuckets(processOpen).next).toEqual([])
-    expect(nextMajorDoor(processOpen)?.id).toBe('protocols')
+    expect(nextMajorDoor(processOpen)?.id).toBe('furnace')
 
     const challengesOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.protocols)
     challengesOpen.prestige.prestigeCount = 2
     challengesOpen.hiveResearch.completed.energy = 1
     expect(moreStationBuckets(challengesOpen).open.map((s) => s.id)).toEqual(['codex', 'protocols'])
     expect(moreStationBuckets(challengesOpen).next).toEqual([])
-    expect(nextMajorDoor(challengesOpen)?.id).toBe('reinforce')
+    expect(nextMajorDoor(challengesOpen)?.id).toBe('furnace')
   })
 
   it('lands Systems on a hub once Foundry and Workers unlock', () => {
@@ -71,15 +71,15 @@ describe('GDD information architecture', () => {
     expect(foundry.some((line) => /Processing Recovered Stock 40%/.test(line))).toBe(true)
 
     const furnace = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
-    expect(systemsHubCards(furnace).map((c) => c.id)).toEqual(['foundry', 'furnace'])
+    expect(systemsHubCards(furnace).map((c) => c.id)).toEqual(['foundry', 'furnace', 'research'])
 
     const research = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.research)
-    expect(systemsHubCards(research).map((c) => c.id)).toEqual(['foundry', 'furnace', 'research'])
+    expect(systemsHubCards(research).map((c) => c.id)).toEqual(['foundry', 'research'])
 
     const process = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.process)
     process.prestige.prestigeCount = 2
     process.hiveResearch.completed.energy = 1
-    expect(systemsHubCards(process).map((c) => c.id)).toEqual(['foundry', 'furnace', 'research', 'process'])
+    expect(systemsHubCards(process).map((c) => c.id)).toEqual(['foundry', 'research', 'process'])
   })
 
   it('badges Systems for idle Worker Drones as well as Foundry', () => {
@@ -101,7 +101,8 @@ describe('GDD information architecture', () => {
 
     const furnace = atCareerWave(createInitialState(0), ACT1_CADENCE.furnace)
     expect(isSystemUnlocked(furnace, 'furnace')).toBe(true)
-    expect(isSystemUnlocked(furnace, 'research')).toBe(false)
+    // Research remains the pre-PR9 W170 implementation in PR8, so it is already open by W450.
+    expect(isSystemUnlocked(furnace, 'research')).toBe(true)
 
     const research = atCareerWave(createInitialState(0), ACT1_CADENCE.research)
     expect(isSystemUnlocked(research, 'research')).toBe(true)

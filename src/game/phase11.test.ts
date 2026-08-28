@@ -14,7 +14,7 @@ import { RELIC_FAMILIES } from './relicCatalogue'
 
 describe('phase 11: run summary, logs, depth, Hiveworks name', () => {
   it('bumps save to 45', () => {
-    expect(SAVE_VERSION).toBe(48)
+    expect(SAVE_VERSION).toBe(49)
   })
 
   it('records Defeat salvage, spend, and wave on the Dock summary', () => {

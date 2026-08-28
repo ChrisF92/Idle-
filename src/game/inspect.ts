@@ -3,8 +3,6 @@
 import type {
   FoundryRecipeId,
   FurnaceChannelId,
-  FurnaceTrackId,
-  FurnaceUpgradeId,
   GameState,
   HiveResearchBranch,
   NetworkBarId,
@@ -40,16 +38,10 @@ import {
 } from './protocols'
 import {
   ASH_PER_HEAT,
-  canBuyFurnaceUpgrade,
-  furnaceActiveLevel,
-  furnaceChannelHeatCost,
+  FURNACE_CHANNEL_IDS,
+  furnaceChannel,
+  furnaceChannelCost,
   furnaceLevelDef,
-  furnacePushChannels,
-  furnaceUpgradeCost,
-  furnaceUpgradeRank,
-  getFurnaceChannel,
-  getFurnaceUpgrade,
-  LEGACY_TRACK_TO_CHANNEL,
 } from './furnace'
 import {
   FOUNDRY_RECIPES,
@@ -204,48 +196,21 @@ export function inspectCore(state: GameState, moduleId: string): InspectCard | n
 }
 
 export function inspectFurnaceChannel(state: GameState, id: FurnaceChannelId): InspectCard | null {
-  const def = getFurnaceChannel(id)
+  const def = furnaceChannel(id)
   if (!def) return null
-  const level = furnaceActiveLevel(state, id)
+  const level = state.furnace.ignited ? state.furnace.channels[id] : 0
   const live = furnaceLevelDef(id, level)
   const stats: InspectStat[] = [
-    { label: 'Level', value: level > 0 ? String(level) : 'Off' },
-    { label: 'Bonus', value: live ? `×${live.mult.toFixed(2)} ${def.stat}` : 'Dark' },
-    { label: 'Heat', value: formatCompact(furnaceChannelHeatCost(state, id, Math.max(level, 1)), 0) },
+    { label: 'Level', value: level > 0 ? (level === 1 ? 'I' : level === 2 ? 'II' : 'III') : 'Off' },
+    { label: 'Seed', value: live ? `+${Math.round(live.effect * 100)}%` : 'Dark' },
+    { label: 'Ignite cost', value: `${furnaceChannelCost(level > 0 ? level : 1)} Heat` },
   ]
   return {
     title: def.name,
     kicker: 'Furnace channel',
     stats,
-    body: [...def.detail],
+    body: [def.blurb, 'Configure before Ignite. Once Ignited, the Furnace is locked for the rest of the Sortie.'],
   }
-}
-
-export function inspectFurnaceUpgrade(state: GameState, id: FurnaceUpgradeId): InspectCard | null {
-  const def = getFurnaceUpgrade(id)
-  if (!def) return null
-  const rank = furnaceUpgradeRank(state, id)
-  const can = canBuyFurnaceUpgrade(state, id)
-  const cost = furnaceUpgradeCost(state, id)
-  const stats: InspectStat[] = [
-    { label: 'Rank', value: `${rank}/${def.maxRank}` },
-  ]
-  if (rank < def.maxRank) {
-    stats.push({
-      label: 'Cost',
-      value: can.ok ? `${cost} Heat` : (can.reason ?? `${cost} Heat`),
-    })
-  }
-  return {
-    title: def.name,
-    kicker: 'Furnace upgrade',
-    stats,
-    body: [def.blurb, 'Heat is spent on this Sortie. Permanent Furnace upgrades are retired.'],
-  }
-}
-
-export function inspectFurnaceTrack(state: GameState, id: FurnaceTrackId): InspectCard | null {
-  return inspectFurnaceChannel(state, LEGACY_TRACK_TO_CHANNEL[id])
 }
 
 export function inspectFurnaceOverview(state: GameState): InspectCard {
@@ -253,20 +218,20 @@ export function inspectFurnaceOverview(state: GameState): InspectCard {
   const heat = state.resources.heat ?? 0
   return {
     title: 'Furnace',
-    kicker: 'Push Heat',
+    kicker: state.furnace.ignited ? 'Locked for this Sortie' : 'Configure → Prime → Ignite',
     stats: [
       { label: 'Ash', value: formatCompact(ash, 1) },
       { label: 'Heat', value: formatCompact(heat, 1) },
       { label: 'Convert', value: `${ASH_PER_HEAT} Ash → 1 Heat` },
-      ...furnacePushChannels().map((ch) => ({
-        label: ch.name,
-        value: furnaceActiveLevel(state, ch.id) > 0 ? `Lv ${furnaceActiveLevel(state, ch.id)}` : 'Off',
-      })),
+      ...FURNACE_CHANNEL_IDS.map((id) => {
+        const lv = state.furnace.ignited ? state.furnace.channels[id] : 0
+        return { label: furnaceChannel(id).name, value: lv > 0 ? (lv === 1 ? 'I' : lv === 2 ? 'II' : 'III') : 'Off' }
+      }),
     ],
     body: [
-      'Kills drop Ash after Wave 140. Ash persists across Sorties this Rebuild cycle.',
-      'Convert Ash into Heat, then spend Heat to light Weapons, Ward, or Yield for this Sortie.',
-      'Heat and channel lights dump when you Dock. Rebuild also clears Ash.',
+      'Furnace unlocks at Wave 450. Ash lasts for the Rebuild cycle; Heat lasts only for the current Sortie.',
+      'Convert Ash to Heat, configure up to two channels, then Ignite once. There is no passive Heat generation or drain.',
+      'Ignite locks the configuration until the Sortie ends. Sortie end clears Heat and the Furnace; Rebuild also clears Ash.',
     ],
   }
 }
@@ -438,7 +403,7 @@ export function inspectCopyCorpus(state: GameState): string[] {
   push(inspectRebuildOverview(state))
   for (const id of state.shipyard.modules) push(inspectCore(state, id))
   push(inspectFurnaceOverview(state))
-  for (const ch of furnacePushChannels()) push(inspectFurnaceChannel(state, ch.id))
+  for (const id of FURNACE_CHANNEL_IDS) push(inspectFurnaceChannel(state, id))
   for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
   for (const row of relicState(state).instances) push(inspectShard(state, row.id))
   for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))

@@ -5,12 +5,12 @@ import {
   canFitModuleOnFrame,
   equippedFrame,
   frameSalvageMult,
+  frameHeatMult,
   frameUnlockLine,
   getFrame,
 } from './catalog'
 import { applyDevAction } from './dev'
 import { fitModule, selectFrame, unlockFrame } from './actions'
-import { furnaceAshHeatMult } from './furnace'
 import { computeShipStats, createInitialState, SAVE_VERSION } from './state'
 import { formatStatShift, previewLoadoutStats } from './uiReadout'
 import { salvageFromKill } from './combat'
@@ -20,7 +20,7 @@ import { forceUnlockModule } from './testHelpers'
 
 describe('GDD D8 Hive Frames', () => {
   it('replaces the USI hull ladder with five archetypes', () => {
-    expect(SAVE_VERSION).toBe(48)
+    expect(SAVE_VERSION).toBe(49)
     expect(SHIP_FRAMES.map((f) => f.id)).toEqual([
       'starter-frame',
       'bastion-frame',
@@ -106,8 +106,6 @@ describe('GDD D8 Hive Frames', () => {
     )
 
     let reactor = applyDevAction(starter, { type: 'select-frame', frameId: 'reactor-frame' })
-    reactor.meta.bestWave = 140
-    reactor.combat.bestWave = 140
-    expect(furnaceAshHeatMult(reactor)).toBeGreaterThan(furnaceAshHeatMult(starter))
+    expect(frameHeatMult(reactor)).toBeGreaterThan(frameHeatMult(starter))
   })
 })

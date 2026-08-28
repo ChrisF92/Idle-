@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { enterProtocol, performRebuild } from './actions'
 import { ACT1_CADENCE, CHALLENGE_MIN_REBUILDS } from './cadence'
 import { encounterForWave } from './combat'
-import { furnaceDamageMult } from './furnace'
 import {
   PROTOCOLS,
   canEnterProtocol,
@@ -70,19 +69,13 @@ describe('GDD Challenges', () => {
     expect(protocolDisabledLine(getProtocol('dead-furnace')!)).toMatch(/Furnace/)
   })
 
-  it('halves Hull on Glass Hive and mutes Cold Furnace', () => {
+  it('halves Hull on the existing Glass Hive challenge without pulling PR10 Furnace rules forward', () => {
     const base = challengeState()
     const hull = computeShipStats(base).hullMax
     base.protocols.activeId = 'glass-ward'
     expect(protocolHullMult(base)).toBe(0.5)
     expect(computeShipStats(base).hullMax).toBeCloseTo(hull * 0.5)
     expect(protocolMutes(base, 'shields')).toBe(true)
-
-    const furnace = challengeState()
-    furnace.furnace.active.weapons = 1
-    expect(furnaceDamageMult(furnace)).toBeGreaterThan(1)
-    furnace.protocols.activeId = 'dead-furnace'
-    expect(furnaceDamageMult(furnace)).toBe(1)
   })
 
   it('does not wire legacy Challenge density into the PR7 encounter generator', () => {

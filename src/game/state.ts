@@ -1,3 +1,4 @@
+import './directiveEncounterBridge'
 import type { GameState, Resources, ShipCombatStats, WeaponInstance } from './types'
 import {
   MIN_CORE_WEAPON_RANGE,
@@ -41,7 +42,7 @@ import {
   createEmptyFoundryState,
 } from './foundry'
 import { createEmptyRelicState } from './relics'
-import { createEmptyFurnaceState, furnaceDamageMult, furnaceShieldMult } from './furnace'
+import { createEmptyFurnaceState, furnaceDamageMult, furnaceHullMult, furnaceShieldMult } from './furnace'
 import {
   createEmptyHiveResearchState,
   hiveResearchDamageMult,
@@ -67,9 +68,9 @@ import {
   weaponPowerMult,
 } from './workshop'
 import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
-import { directiveIncomingMult, directiveShieldMult, directiveSplashMult, directiveWeaponMult } from './directives'
+import { directiveArmorMult, directiveHullMult, directiveIncomingMult, directiveShieldMult, directiveWeaponCoreMult, directiveWeaponCycleRateMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 48
+export const SAVE_VERSION = 49
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -157,6 +158,7 @@ export function createInitialState(now = Date.now()): GameState {
       defeatTactical: false,
       directives: [],
       directiveOffer: null,
+      directiveOpportunitiesConsumed: [],
       coreRuntime: {
         salvageMarks: {},
         moltenPools: [],
@@ -318,6 +320,7 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
     name: mod.weapon.name,
     damage:
       moduleWeaponDamage(mod, level, mastery) *
+      (mod.role === 'weapon' ? directiveWeaponCoreMult(state) : 1) *
       mods.damageMult *
       relicMods.damageMult *
       relicMods.ballisticOutputMult *
@@ -326,11 +329,11 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
       weaponPowerMult(state) *
       (mod.role === 'weapon' ? weaponCalibrationMult(state) : 1) *
       frameCoreDamageMult(state),
-    cooldown: (mod.weapon.cooldown * mods.cooldownMult) / cycleRateMult(state),
+    cooldown: (mod.weapon.cooldown * mods.cooldownMult) / (cycleRateMult(state) * (mod.role === 'weapon' ? directiveWeaponCycleRateMult(state) : 1)),
     cooldownLeft: 0,
     range: capRange(mod.weapon.range + mods.rangeAdd),
     tags: [...mod.weapon.tags],
-    splash: ((mod.weapon.splash ?? 0) + mods.splashAdd) * directiveSplashMult(state),
+    splash: ((mod.weapon.splash ?? 0) + mods.splashAdd),
     dotDuration: mod.weapon.dotDuration ?? 0,
     dotDamage: (mod.weapon.dotDamage ?? 0) * mult * mastery,
     telegraphDuration: mod.weapon.telegraphDuration ?? 0,
@@ -355,7 +358,7 @@ export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
       id: 'frame-battery',
       name: 'Frame Battery',
       damage: batteryDamage * mult * weaponPowerMult(state),
-      cooldown: 1 / cycleRateMult(state),
+      cooldown: 1 / (cycleRateMult(state) * directiveWeaponCycleRateMult(state)),
       cooldownLeft: 0,
       // Must reach the farthest legal enemy park, same rule as Core guns.
       range: capRange(MIN_CORE_WEAPON_RANGE),
@@ -445,10 +448,11 @@ export function computeShipStats(state: GameState): ShipCombatStats {
 
   hullMax *= protocolHullMult(state)
   hullMax *= runHullMult(state)
-  hullMax *= matterHullMult(state)
+  hullMax *= matterHullMult(state) * directiveHullMult(state) * furnaceHullMult(state)
   shieldMax *= runShieldMult(state)
   shieldMax *= matterShieldMult(state)
   armor += shopArmor(state)
+  armor *= directiveArmorMult(state)
   shieldMax *= directiveShieldMult(state)
   damageTakenMult *= directiveIncomingMult(state)
   damageTakenMult *= damageControlTakenMult(state)

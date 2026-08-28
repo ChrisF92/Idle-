@@ -9,10 +9,10 @@ import { atCareerWave, markHullLost } from './testHelpers'
 
 function furnaceState() {
   const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.furnace)
+  state.combat.docked = false
+  state.combat.inFight = true
   state.resources.choirAsh = 40
-  state.resources.heat = 20
-  state.furnace.active.weapons = 2
-  state.furnace.wanted.weapons = 2
+  state.resources.heat = 100
   return state
 }
 
@@ -21,7 +21,7 @@ function renderFurnace(state = furnaceState()) {
     state,
     onBack: vi.fn(),
     onConvert: vi.fn(),
-    onSetChannel: vi.fn(),
+    onIgnite: vi.fn(),
   }
   render(
     <OverlayProvider>
@@ -31,48 +31,48 @@ function renderFurnace(state = furnaceState()) {
   return props
 }
 
-describe('Furnace finalisation UI', () => {
+describe('PR8 Furnace UI', () => {
   afterEach(() => cleanup())
 
-  it('shows Ash, Heat, conversion, and live effects in the header', () => {
+  it('shows Ash, Heat, 10:1 conversion, and CONFIGURE state', () => {
     renderFurnace()
     const context = document.querySelector('.ui-context-bar')!
     expect(context.textContent).toContain('Ash')
     expect(context.textContent).toContain('40')
     expect(context.textContent).toContain('Heat')
-    expect(context.textContent).toContain('20')
+    expect(context.textContent).toContain('100')
     expect(context.textContent).toContain('10 Ash → 1 Heat')
-    expect(context.textContent).toContain('Weapon Output ×1.80')
+    expect(context.textContent).toContain('CONFIGURE')
   })
 
-  it('uses three large channel cards instead of network rows', () => {
+  it('renders exactly Overdrive, Bulwark, Guidance, and Harvest', () => {
     renderFurnace()
-    expect(screen.getByText(/WEAPONS — II/)).toBeTruthy()
-    expect(screen.getByText(/WARD — Off/)).toBeTruthy()
-    expect(screen.getByText(/YIELD — Off/)).toBeTruthy()
-    expect(screen.getAllByText('Weapon Output ×1.80').length).toBeGreaterThan(0)
-    expect(screen.getByText(/III → ×2\.50/)).toBeTruthy()
-    expect(screen.getByText('28 Heat')).toBeTruthy()
-    expect(document.querySelectorAll('.furnace-channel-card').length).toBe(3)
-    expect(document.querySelector('.network-row')).toBeNull()
-    expect(screen.getByRole('button', { name: /Convert 4 Heat/ })).toBeTruthy()
+    expect(screen.getByText(/OVERDRIVE — OFF/)).toBeTruthy()
+    expect(screen.getByText(/BULWARK — OFF/)).toBeTruthy()
+    expect(screen.getByText(/GUIDANCE — OFF/)).toBeTruthy()
+    expect(screen.getByText(/HARVEST — OFF/)).toBeTruthy()
+    expect(document.querySelectorAll('.furnace-channel-card').length).toBe(4)
+    expect(document.querySelector('[data-onboarding="onboarding.furnace.channel"]')).toBeTruthy()
   })
 
-  it('opens a detail sheet with tiers, costs, trade-off, and Sortie reset', () => {
+  it('requires Configure → Prime → Ignite and sends the selected locked configuration', () => {
     const props = renderFurnace()
-    fireEvent.click(screen.getByRole('button', { name: 'Weapons details' }))
-    expect(screen.getByRole('dialog', { name: 'Weapons' })).toBeTruthy()
-    expect(screen.getAllByText(/Weapon Output ×1\.40/).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/8 Heat/).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/48 Heat/).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Heat not spent on Ward or Yield/)).toBeTruthy()
-    expect(screen.getByText(/reset when the Sortie ends/i)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'II · 20' }))
-    expect(props.onSetChannel).toHaveBeenCalledWith('weapons', 2)
+    fireEvent.click(screen.getAllByRole('button', { name: 'II · 25' })[0]!)
+    expect(screen.getByText(/Selected 1\/2 · Ignite cost 25 Heat/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Prime configuration' }))
+    expect(screen.getByText(/PRIMED/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Ignite and Lock' }))
+    expect(props.onIgnite).toHaveBeenCalledWith({ overdrive: 2, bulwark: 0, guidance: 0, harvest: 0 })
   })
 
-  it('prints Ash, Heat, and active channels on the Systems card', () => {
+  it('prints Ash, Heat, and canonical lit channels on the Systems card', () => {
     const state = furnaceState()
-    expect(furnaceHubStatus(state)).toEqual(['Ash 40', 'Heat 20', 'Weapons II'])
+    state.resources.heat = 20
+    state.furnace = {
+      ignited: true,
+      channels: { overdrive: 2, bulwark: 0, guidance: 0, harvest: 1 },
+      effectStrengthMult: 1,
+    }
+    expect(furnaceHubStatus(state)).toEqual(['Ash 40', 'Heat 20', 'Overdrive II · Harvest I'])
   })
 })

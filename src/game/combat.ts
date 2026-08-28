@@ -119,7 +119,7 @@ import {
 } from './core'
 import { computeSignalCoreBonuses, grantSignalCoreDrop } from './signalCores'
 import { combinedCoreMods } from './coreProgression'
-import { grantFurnaceKillLoot, furnaceResearchXpMult, furnaceSalvageMult } from './furnace'
+import { grantFurnaceKillLoot, furnaceFragmentFindMult, furnaceSalvageMult, furnaceScrapMult } from './furnace'
 import {
   grantHiveResearchKillXp,
   hiveResearchSalvageMult,
@@ -128,6 +128,7 @@ import { echoSalvageMult } from './echo'
 import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
 import { processSalvageMult } from './process'
+import { directiveCritChanceAdd, directiveCritFactorMult, directiveFocusedFireMult, directiveFragmentFindMult, directiveHullRepairMult, directiveIncomingMult, directiveProtectedTargetDamageMult, directiveSalvageMult, directiveScrapMult, directiveSecondaryDamageMult } from './directives'
 import { protocolModifiers, protocolMutes } from './protocols'
 import { directiveShieldRegenMult } from './directives'
 import { recordPlaytest } from './playtest'
@@ -585,7 +586,7 @@ export function repairRatePerSecond(state: GameState): number {
   rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
   rate += stationRepairBonus(state)
   rate *= reactorsRepairMult(state.core?.ranks.reactors ?? 0)
-  return rate
+  return rate * directiveHullRepairMult(state)
 }
 
 export function shieldRepairRatePerSecond(state: GameState): number {
@@ -731,6 +732,8 @@ export function rollEnemyPartDrop(
     FRAGMENT_DROP_CHANCE *
     Math.max(0, Math.min(1, rewardWeight)) *
     fragmentChanceMult(state) *
+    directiveFragmentFindMult(state) *
+    furnaceFragmentFindMult(state) *
     logisticsDropMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
     (1 + challengeShopDropBonus(state.prestige.shop))
@@ -798,6 +801,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   const salvageMult =
     hiveResearchSalvageMult(state) *
     furnaceSalvageMult(state) *
+    directiveSalvageMult(state) *
     echoSalvageMult(state) *
     specialistSalvageMult(state) *
     capitalSalvageMult(state) *
@@ -819,7 +823,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   if (unit.isCommander) noteCommanderDeath(state, unit.commanderSpawnedAt, salvageGain)
   else noteOrdinaryKillSalvage(state, salvageGain)
   const scrap =
-    scrapKillBonus(state, unit.isBoss) * rewardWeight * commanderScrap * combatScrapMatterMult(state)
+    scrapKillBonus(state, unit.isBoss) * rewardWeight * commanderScrap * combatScrapMatterMult(state) * directiveScrapMult(state) * furnaceScrapMult(state)
   if (scrap > 0) grantGeneratedScrap(state, scrap, 'combat-kill')
   const rng = () => combatRng(state)
   rollEnemyPartDrop(state, unit, rng, Math.min(1, rewardWeight * commanderFrag))
@@ -842,7 +846,7 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
   grantHiveResearchKillXp(
     state,
     unit.isBoss,
-    furnaceResearchXpMult(state) * rewardWeight * (unit.isCommander ? COMMANDER_REWARD.masteryMult : 1),
+     rewardWeight * (unit.isCommander ? COMMANDER_REWARD.masteryMult : 1),
   )
   if (unit.isCommander) recordCommanderDefeat(state, unit)
   onHostileDeathHazards(state, unit)
@@ -910,6 +914,7 @@ function applyDamageToUnit(
   }
 
   if (state && target.isFlagship && target.side === 'player') {
+    remaining *= directiveIncomingMult(state)
     remaining = mitigateIncomingToHive(state, target, remaining, tags)
     if (remaining <= 0) return { dealt: 0, hullOverkill: 0 }
     if (tryBarrierIntercept(state, target, remaining)) return { dealt: 0, hullOverkill: 0 }
@@ -981,11 +986,12 @@ export function applyPlayerCombatHit(
   rawDamage: number,
   tags: WeaponTag[],
   profile?: WeaponDamageProfile,
-  opts?: { shieldBypassFrac?: number; role?: CombatUnit['role'] },
+  opts?: { shieldBypassFrac?: number; role?: CombatUnit['role']; secondary?: boolean },
 ): PlayerCombatHit {
   const prevHull = target.hull
   const prevShield = target.shield
-  const hit = applyDamageToUnit(target, rawDamage, tags, profile, state, opts)
+  const scaledDamage = opts?.secondary || tags.includes('splash') ? rawDamage * directiveSecondaryDamageMult(state) : rawDamage
+  const hit = applyDamageToUnit(target, scaledDamage, tags, profile, state, opts)
   noteCombatHit(state, 'player', target, hit.dealt, prevShield, opts?.role)
   tryLootEnemyKill(state, target, prevHull)
   return {
@@ -1017,7 +1023,7 @@ export function applyFlakDeathDetonation(
     if (enemy.id === dead.id) continue
     if (!isTargetableEnemy(state, enemy)) continue
     if (distanceBetween(origin, enemy) > FLAK_DETONATION_RADIUS) continue
-    applyPlayerCombatHit(state, enemy, damage * 0.45, ['kinetic', 'splash'])
+    applyPlayerCombatHit(state, enemy, damage * 0.45, ['kinetic', 'splash'], undefined, { secondary: true })
   }
 }
 
@@ -1122,13 +1128,17 @@ function findUnit(state: GameState, id: string): CombatUnit | undefined {
 function tunePlayerShot(
   state: GameState,
   from: CombatUnit,
+  to: CombatUnit,
   damage: number,
   profile: { hullDamage: number; shieldDamage: number; armorDamage: number },
 ): { damage: number; profile: { hullDamage: number; shieldDamage: number; armorDamage: number } } {
   if (from.side !== 'player') return { damage, profile }
-  const crit = combatRng(state) < critChance(state)
+  const chance = Math.min(0.4, critChance(state) + directiveCritChanceAdd(state))
+  const crit = combatRng(state) < chance
+  const protectedTarget = to.shield > 0 || effectiveEnemyArmor(state, to) > 0
+  const directMult = directiveProtectedTargetDamageMult(state, protectedTarget) * directiveFocusedFireMult(state, from, to.id)
   return {
-    damage: crit ? damage * critFactor(state) : damage,
+    damage: damage * directMult * (crit ? critFactor(state) * directiveCritFactorMult(state) : 1),
     profile: { ...profile, armorDamage: profile.armorDamage + armorPenAdd(state) },
   }
 }
@@ -1141,7 +1151,7 @@ function spawnProjectile(
   weapon: WeaponInstance,
 ): void {
   const tag = weapon.tags[0] ?? 'kinetic'
-  const tuned = tunePlayerShot(state, from, damage, weaponDamageProfile(weapon.tags, weapon))
+  const tuned = tunePlayerShot(state, from, to, damage, weaponDamageProfile(weapon.tags, weapon))
   state.combat.projectiles.push({
     id: nextCombatId(state, 'proj', 'proj'),
     fromId: from.id,
@@ -1177,7 +1187,7 @@ function spawnBeam(
   damage: number,
   weapon: WeaponInstance,
 ): void {
-  const tuned = tunePlayerShot(state, from, damage, weaponDamageProfile(weapon.tags, weapon))
+  const tuned = tunePlayerShot(state, from, to, damage, weaponDamageProfile(weapon.tags, weapon))
   if (!state.combat.beams) state.combat.beams = []
   state.combat.beams.push({
     id: nextCombatId(state, 'beam', 'beam'),
@@ -1607,7 +1617,7 @@ export function simulateCombat(
       masteryRegen +
       shopShieldRegen(state)) *
     directiveShieldRegenMult(state)
-  const hullRepairFrac = shopHullRepair(state)
+  const hullRepairFrac = shopHullRepair(state) * directiveHullRepairMult(state)
   for (const unit of state.combat.playerUnits) {
     if ((unit.regenDelay ?? 0) > 0) {
       unit.regenDelay = Math.max(0, (unit.regenDelay ?? 0) - dt)

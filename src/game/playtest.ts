@@ -474,7 +474,7 @@ export function formatPlaytestScript(state: GameState): string[] {
   const furnace =
     log.firsts['open:furnace'] != null ||
     log.firsts['act:furnace'] != null ||
-    Object.values(state.furnace?.active ?? {}).some((n) => (n ?? 0) > 0)
+    state.furnace.ignited && Object.values(state.furnace.channels).some((n) => n > 0)
   const challenge = Object.values(log.protocols).some((row) => row.a > 0 || row.c > 0)
   const climax = best >= ACT1_FINAL_WAVE
   return [
@@ -503,7 +503,7 @@ export function formatLastSortieTelemetry(state: GameState): string[] {
     : stats?.lastIsBoss
       ? `Defeat — ${stats.lastEnemyName || 'boss'}`
       : `Defeat — ${stats?.lastEnemyName || stats?.lastEnemyRole || 'unknown'}`
-  const furnace = Object.entries(state.furnace?.active ?? {})
+  const furnace = Object.entries(state.furnace.channels)
     .filter(([, n]) => (n ?? 0) > 0)
     .map(([id, n]) => `${id} ${n}`)
     .join(', ')

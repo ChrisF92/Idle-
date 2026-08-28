@@ -54,10 +54,7 @@ import {
   removeRelicFromCore,
   upgradeRelic,
   convertAshToHeat,
-  buyFurnaceUpgrade,
-  setFurnaceChannel,
-  setFurnacePriority,
-  applyFurnacePreset,
+  igniteFurnace,
   setResearchFocus,
   startResearch,
   enterProtocol,
@@ -137,10 +134,7 @@ type Action =
   | { type: 'relic-remove'; moduleId: string; socketIndex?: number }
   | { type: 'relic-upgrade'; relicId: string }
   | { type: 'furnace-convert' }
-  | { type: 'furnace-upgrade'; upgradeId: import('../game/types').FurnaceUpgradeId }
-  | { type: 'furnace-channel'; channelId: import('../game/types').FurnaceChannelId; level: number }
-  | { type: 'furnace-priority'; priority: import('../game/types').FurnaceChannelId[] }
-  | { type: 'furnace-preset'; preset: import('../game/types').FurnacePresetId }
+  | { type: 'furnace-ignite'; channels: Partial<Record<import('../game/types').FurnaceChannelId, import('../game/types').FurnaceChannelLevel>> }
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
   | { type: 'research-start'; nodeId: string }
   | { type: 'dismiss-act1-finale' }
@@ -275,14 +269,8 @@ function reducer(state: GameState, action: Action): GameState {
       return upgradeRelic(state, action.relicId)
     case 'furnace-convert':
       return convertAshToHeat(state)
-    case 'furnace-upgrade':
-      return buyFurnaceUpgrade(state, action.upgradeId)
-    case 'furnace-channel':
-      return setFurnaceChannel(state, action.channelId, action.level)
-    case 'furnace-priority':
-      return setFurnacePriority(state, action.priority)
-    case 'furnace-preset':
-      return applyFurnacePreset(state, action.preset)
+    case 'furnace-ignite':
+      return igniteFurnace(state, action.channels)
     case 'research-focus':
       return setResearchFocus(state, action.branch)
     case 'research-start':
@@ -488,14 +476,8 @@ export function useGame() {
       dispatch({ type: 'relic-remove', moduleId, socketIndex }),
     upgradeRelic: (relicId: string) => dispatch({ type: 'relic-upgrade', relicId }),
     convertAshToHeat: () => dispatch({ type: 'furnace-convert' }),
-    buyFurnaceUpgrade: (upgradeId: import('../game/types').FurnaceUpgradeId) =>
-      dispatch({ type: 'furnace-upgrade', upgradeId }),
-    setFurnaceChannel: (channelId: import('../game/types').FurnaceChannelId, level: number) =>
-      dispatch({ type: 'furnace-channel', channelId, level }),
-    setFurnacePriority: (priority: import('../game/types').FurnaceChannelId[]) =>
-      dispatch({ type: 'furnace-priority', priority }),
-    applyFurnacePreset: (preset: import('../game/types').FurnacePresetId) =>
-      dispatch({ type: 'furnace-preset', preset }),
+    igniteFurnace: (channels: Partial<Record<import('../game/types').FurnaceChannelId, import('../game/types').FurnaceChannelLevel>>) =>
+      dispatch({ type: 'furnace-ignite', channels }),
     setResearchFocus: (branch: import('../game/types').HiveResearchBranch) =>
       dispatch({ type: 'research-focus', branch }),
     startResearch: (nodeId: string) => dispatch({ type: 'research-start', nodeId }),

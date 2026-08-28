@@ -4,7 +4,7 @@ import {
   masteryMilestoneEffect,
   masteryMilestonesFor,
 } from './coreProgression'
-import { FURNACE_CHANNELS, furnaceChannelEffectLine } from './furnace'
+import { FURNACE_CHANNELS, furnaceChannelCost, furnaceLevelDef } from './furnace'
 import { FOUNDRY_PANE_LABELS, materialMasteryRank } from './foundry'
 import { FOUNDRY_FACILITIES, FOUNDRY_MATERIAL_IDS } from './foundryCatalogue'
 import { MATERIAL_MASTERY_MAX_RANK } from './foundrySeeds'
@@ -66,8 +66,10 @@ describe('upgrade copy is quantitative', () => {
     expect(hiveResearchNodeEffectLine(corps)).toBe('Worker contribution +12%')
     expect(protocolHookEffect({ kind: 'networkExponent', add: 0.02 })).toBe('Network exponent +0.02')
     expect(protocolHookEffect({ kind: 'furnaceDrain', mult: 0.88 })).toBe('Channel Heat cost ×0.88')
-    const weapons = FURNACE_CHANNELS.find((ch) => ch.id === 'weapons')!
-    expect(furnaceChannelEffectLine(weapons)).toBe('Weapon Output ×1.40 / ×1.80 / ×2.50')
+    const overdrive = FURNACE_CHANNELS.find((ch) => ch.id === 'overdrive')!
+    expect(overdrive.levels.map((row) => row.effect)).toEqual([0.2, 0.45, 0.8])
+    expect(furnaceLevelDef('overdrive', 3)?.effect).toBe(0.8)
+    expect([furnaceChannelCost(1), furnaceChannelCost(2), furnaceChannelCost(3)]).toEqual([10, 25, 60])
     expect(FOUNDRY_FACILITIES.map((row) => row.id)).toEqual([
       'processing-line',
       'fabrication-bay',

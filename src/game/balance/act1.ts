@@ -12,7 +12,7 @@
  */
 
 import { droneCap, prestigeMomentumDamageBonus } from '../catalog'
-import { furnaceActiveCount, furnaceChannelSlots, furnaceDamageMult } from '../furnace'
+import { furnaceChannelLimit, furnaceDamageMult, furnaceSelectedCount } from '../furnace'
 import { foundrySlotCount, FOUNDRY_RECIPES } from '../foundry'
 import {
   hiveResearchDamageMult,
@@ -281,8 +281,8 @@ export function captureAct1Snapshot(
     foundryPoints: 0,
     foundryRecipes: recipes,
     foundryInfinite: 0,
-    furnaceSlots: furnaceChannelSlots(state),
-    furnaceLit: furnaceActiveCount(state),
+    furnaceSlots: furnaceChannelLimit(state),
+    furnaceLit: state.furnace.ignited ? furnaceSelectedCount(state.furnace.channels) : 0,
     heat: state.resources.heat ?? 0,
     research: {
       material,

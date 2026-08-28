@@ -124,8 +124,11 @@ describe('GDD visual layout and Dock Core Levels', () => {
     state.combat.docked = false
     state.resources.choirAsh = 25
     state.resources.heat = 6
-    state.furnace.active.weapons = 1
-    state.furnace.active.recovery = 1
+    state.furnace = {
+      ignited: true,
+      channels: { overdrive: 1, bulwark: 0, guidance: 0, harvest: 1 },
+      effectStrengthMult: 1,
+    }
     render(
       <CombatTab
         state={state}
@@ -137,8 +140,8 @@ describe('GDD visual layout and Dock Core Levels', () => {
     expect(hud.textContent).toContain('25')
     expect(hud.textContent).toContain('Heat')
     expect(hud.textContent).toContain('6')
-    expect(hud.textContent).toContain('Weapons I')
-    expect(hud.textContent).toContain('Yield I')
+    expect(hud.textContent).toContain('Overdrive I')
+    expect(hud.textContent).toContain('Harvest I')
   })
 
   it('keeps Mastery and wipes leftover ranks on Rebuild', () => {

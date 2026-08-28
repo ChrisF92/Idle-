@@ -9,7 +9,7 @@ describe('GDD system cadence', () => {
   it('spreads major systems across the Wave table', () => {
     expect(ACT1_CADENCE.foundry).toBe(50)
     expect(PRESTIGE_MIN_SECTOR).toBe(210)
-    expect(ACT1_CADENCE.furnace).toBe(140)
+    expect(ACT1_CADENCE.furnace).toBe(450)
     expect(ACT1_CADENCE.research).toBe(170)
     expect(ACT1_CADENCE.process).toBe(210)
     expect(ACT1_CADENCE.protocols).toBe(250)
