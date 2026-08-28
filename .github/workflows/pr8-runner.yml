@@ -45,6 +45,7 @@ jobs:
           python scripts/pr8_prepare6.py
           python scripts/pr8_prepare7.py
           python scripts/pr8_prepare8.py
+          python scripts/pr8_prepare9.py
       - name: Apply PR8 transform
         run: python scripts/pr8_apply.py
       - name: Install
@@ -65,7 +66,7 @@ jobs:
           set +e
           npm test > pr8-test.log 2>&1
           code=$?
-          tail -n 700 pr8-test.log
+n          tail -n 700 pr8-test.log
           exit $code
       - name: Build
         run: npm run build
@@ -73,7 +74,7 @@ jobs:
         run: npm run build:pages
       - name: Commit verified PR8 tree
         run: |
-          rm scripts/pr8_apply.py scripts/pr8_prepare.py scripts/pr8_prepare2.py scripts/pr8_prepare3.py scripts/pr8_prepare4.py scripts/pr8_prepare5.py scripts/pr8_prepare6.py scripts/pr8_prepare7.py scripts/pr8_prepare8.py
+          rm scripts/pr8_apply.py scripts/pr8_prepare.py scripts/pr8_prepare2.py scripts/pr8_prepare3.py scripts/pr8_prepare4.py scripts/pr8_prepare5.py scripts/pr8_prepare6.py scripts/pr8_prepare7.py scripts/pr8_prepare8.py scripts/pr8_prepare9.py
           rm .github/workflows/pr8-runner.yml
           rm -f .github/workflows/pr8-probe.yml
           git config user.name "ChatGPT PR8 Implementation"
