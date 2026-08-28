@@ -33,10 +33,8 @@ export const TASKS: TaskDef[] = [
   {
     id: 'furnace',
     name: 'Light the Furnace',
-    blurb: 'Bank Heat or buy a Furnace rank.',
-    done: (s) =>
-      (s.resources.heat ?? 0) > 0 ||
-      Object.values(s.furnace?.ranks ?? {}).some((n) => (n ?? 0) > 0),
+    blurb: 'Convert Ash and Ignite a Furnace channel during a Sortie.',
+    done: (s) => (s.resources.heat ?? 0) > 0 || s.furnace.ignited,
   },
   {
     id: 'protocol',

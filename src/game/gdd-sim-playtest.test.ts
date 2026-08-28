@@ -187,7 +187,11 @@ describe('GDD Phase 9 simulator + playtest', () => {
     }
     state.playtest.firsts.rebuild = 12 * 60 * 1000
     state.playtest.playtimeMs = 31 * 60 * 1000
-    state.furnace.active = { ...state.furnace.active, weapons: 1 }
+    state.furnace = {
+      ignited: true,
+      channels: { overdrive: 1, bulwark: 0, guidance: 0, harvest: 0 },
+      effectStrengthMult: 1,
+    }
     state.playtest.protocols['pack-pressure'] = { a: 1, c: 1 }
 
     const report = buildPlaytestReport(state)

@@ -92,8 +92,8 @@ function stopReached(
     case 'unlock':
       return isSystemUnlocked(state, stop.system as never) ? `Unlocked ${stop.system}` : null
     case 'furnace-lit':
-      return (state.furnace?.wanted?.weapons ?? 0) > 0 || (state.furnace?.active?.weapons ?? 0) > 0
-        ? 'Furnace Weapons lit'
+      return state.furnace.ignited
+        ? 'Furnace Ignited'
         : null
     case 'reinforce':
       return canReinforce(state).ok || (state.meta.ascensionCount ?? 0) > 0
@@ -325,9 +325,9 @@ async function runOneSeeded(
     if (needDecide) decide()
     if (
       config.stop.type === 'furnace-lit' &&
-      ((state.furnace?.wanted?.weapons ?? 0) > 0 || (state.furnace?.active?.weapons ?? 0) > 0)
+      state.furnace.ignited
     ) {
-      stopReason = 'Furnace Weapons lit'
+      stopReason = 'Furnace Ignited'
       break
     }
 
@@ -409,7 +409,7 @@ async function runOneSeeded(
       highestWave: reportedBestWave(state),
       foundryRecipes: Object.values(state.foundry.masteryXp).filter((n) => (n ?? 0) > 0).length,
       workerDrones: state.base.workerDrones,
-      furnaceLit: Object.values(state.furnace?.active ?? {}).filter((n) => (n ?? 0) > 0).length,
+      furnaceLit: state.furnace.ignited ? Object.values(state.furnace.channels).filter((n) => n > 0).length : 0,
       researchBreakthroughs: captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds)
         .researchBreakthroughs,
       salvageEarned: metrics.resourceEarned.salvage ?? 0,
@@ -483,9 +483,9 @@ async function runOneSeeded(
     furnace: {
       heatEarned: metrics.heatEarned,
       heatSpent: metrics.heatSpent,
-      upgrades: { ...(state.furnace?.upgrades ?? {}) },
-      wanted: { ...(state.furnace?.wanted ?? {}) },
-      active: { ...(state.furnace?.active ?? {}) },
+      upgrades: {},
+      wanted: { ...state.furnace.channels },
+      active: state.furnace.ignited ? { ...state.furnace.channels } : {},
     },
     research: {
       material: state.hiveResearch?.completed.material ?? 0,

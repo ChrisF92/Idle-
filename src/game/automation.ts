@@ -10,10 +10,8 @@ import {
 } from './catalog'
 import {
   buyRunUpgrade,
-  convertAshToHeat,
   enterProtocol,
   optimiseNetwork,
-  applyFurnacePreset,
 } from './actions'
 import {
   SIGNAL_CORE_DEFS,
@@ -30,11 +28,9 @@ import {
   HIVE_RESEARCH_NODES,
   hiveResearchBranchUnlocked,
   hiveResearchCompleted,
-  hiveResearchHeatFromAshMult,
   hiveResearchQueueCap,
   setResearchFocus,
 } from './hiveResearch'
-import { furnaceActiveLevel, furnaceSpendableHeat, runFurnaceManager, setFurnaceChannel } from './furnace'
 function adopt(state: GameState, next: GameState): void {
   if (next === state) return
   state.resources = next.resources
@@ -144,29 +140,6 @@ function autoShopUpgrades(state: GameState): void {
   if (guard > 1) noteProcessLastAction(state, 'auto-shop', `Bought ${guard - 1} shop ranks`)
 }
 
-function autoFurnacePush(state: GameState): void {
-  if (state.combat.docked) return
-  const intent = evaluateProcessIntent(state)
-  if (intent.furnacePreset && hasProcess(state, 'furnace-presets')) {
-    const next = applyFurnacePreset(state, intent.furnacePreset)
-    if (next !== state) {
-      adopt(state, next)
-      state.process.config.furnace.preset = intent.furnacePreset
-      noteProcessLastAction(state, 'furnace-presets', `Applied ${intent.furnacePreset}`)
-    }
-  }
-  if (!intent.furnacePush) return
-  let next = convertAshToHeat(state)
-  const spendable = furnaceSpendableHeat(next)
-  if (spendable >= 8 && furnaceActiveLevel(next, 'weapons') < 1) {
-    const lit = setFurnaceChannel(next, 'weapons', 1)
-    if (lit !== next) next = lit
-  }
-  if (next !== state) {
-    adopt(state, next)
-    noteProcessLastAction(state, 'furnace-channels', 'Lit Weapons')
-  }
-}
 
 function autoNetworkBalance(state: GameState): void {
   if (!hasProcess(state, 'network-balance') && !hasProcess(state, 'network-tune')) return
@@ -226,10 +199,6 @@ function autoResearchFocus(state: GameState): void {
   noteProcessLastAction(state, hasProcess(state, 'research-queue') ? 'research-queue' : 'research-focus', 'Started next project')
 }
 
-function autoFurnaceManager(state: GameState): void {
-  const next = runFurnaceManager(state, hiveResearchHeatFromAshMult(state))
-  if (next !== state) adopt(state, next)
-}
 
 function autoProtocolEchoRepeat(state: GameState): void {
   const cfg = processConfig(state)
@@ -254,11 +223,9 @@ export function tickAutomation(state: GameState): void {
   autoMergeSignalCores(state)
   autoCoreTrain(state)
   autoShopUpgrades(state)
-  autoFurnacePush(state)
   autoNetworkBalance(state)
   autoBankAsh(state)
   autoResearchFocus(state)
-  autoFurnaceManager(state)
   autoProtocolEchoRepeat(state)
 }
 

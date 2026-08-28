@@ -7,7 +7,7 @@ import {
 import { salvageFromKill, salvageWaveBase } from './combat'
 import { hiveResearchNodeCost, HIVE_RESEARCH_WORKER_ACCEL } from './hiveResearch'
 import { NETWORK_FILL_COST, NETWORK_STARTING_DRONES } from './network'
-import { FURNACE_BASE_IDLE_GEN, FURNACE_CHANNEL_MAX } from './furnace'
+import { ASH_PER_HEAT, FURNACE_INITIAL_CHANNEL_LIMIT } from './furnace'
 import {
   GUIDE_STEPS,
   PRESTIGE_MIN_SECTOR,
@@ -46,7 +46,7 @@ describe('Act 1 authored formulas', () => {
     expect(ACT1_UNLOCKS.foundry).toBe(50)
     expect(ACT1_UNLOCKS.reliquary).toBe(320)
     expect(ACT1_UNLOCKS.rebuildAvailable).toBe(PRESTIGE_MIN_SECTOR)
-    expect(ACT1_UNLOCKS.furnace).toBe(140)
+    expect(ACT1_UNLOCKS.furnace).toBe(450)
     expect(ACT1_UNLOCKS.research).toBe(170)
     expect(ACT1_UNLOCKS.protocols).toBe(250)
     expect(ACT1_UNLOCKS.echo).toBe(275)
@@ -61,8 +61,8 @@ describe('Act 1 authored formulas', () => {
     expect(NETWORK_FILL_COST).toBe(12)
     expect(hiveResearchNodeCost(0)).toBeGreaterThan(60)
     expect(HIVE_RESEARCH_WORKER_ACCEL).toBe(0.25)
-    expect(FURNACE_CHANNEL_MAX).toBe(3)
-    expect(FURNACE_BASE_IDLE_GEN).toBe(0)
+    expect(FURNACE_INITIAL_CHANNEL_LIMIT).toBe(2)
+    expect(ASH_PER_HEAT).toBe(10)
     expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')).toBeUndefined()
   })
@@ -121,8 +121,11 @@ describe('Act 1 onboarding audit', () => {
 
   it('inspect sheets explain why damage, Network, Furnace, Rebuild, and Research change', () => {
     const s = createInitialState(0)
-    s.furnace.wanted.weapons = 1
-    s.furnace.active.weapons = 1
+    s.furnace = {
+      ignited: true,
+      channels: { overdrive: 1, bulwark: 0, guidance: 0, harvest: 0 },
+      effectStrengthMult: 1,
+    }
     const blob = inspectCopyCorpus(s).join('\n')
     expect(blob).not.toMatch(JARGON)
     expect(blob.toLowerCase()).toMatch(/heat/)
@@ -196,17 +199,22 @@ describe('Act 1 career simulations', () => {
     expect(run.safety.some((s) => s.kind === 'nan')).toBe(false)
   }, 120_000)
 
-  it('roundtrips a mid-Act-1 save without bumping SAVE_VERSION', () => {
+  it('roundtrips the PR8 Furnace schema at SAVE_VERSION 49', () => {
     const s = createInitialState(0)
     s.hiveResearch.completed.energy = 2
     s.foundry.masteryXp['recovered-stock'] = 4
-    s.furnace.wanted.weapons = 1
+    s.furnace = {
+      ignited: true,
+      channels: { overdrive: 1, bulwark: 0, guidance: 0, harvest: 0 },
+      effectStrengthMult: 1,
+    }
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(48)
+    expect(SAVE_VERSION).toBe(49)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.masteryXp['recovered-stock']).toBe(4)
-    expect(back!.furnace.wanted.weapons).toBe(1)
+    expect(back!.furnace.ignited).toBe(true)
+    expect(back!.furnace.channels.overdrive).toBe(1)
   })
 })

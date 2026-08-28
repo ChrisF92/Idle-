@@ -862,7 +862,7 @@ export function createEmptyProcessConfig(): ProcessConfig {
       manager: true,
       autoChannel: false,
       reserveHeat: 0,
-      priority: ['weapons', 'shielding', 'recovery', 'foundry', 'network', 'research'],
+      priority: ['overdrive', 'bulwark', 'guidance', 'harvest'],
     },
     research: {
       autoResearch: true,
@@ -950,7 +950,7 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
         || Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)
     case 'furnace':
       return (
-        Object.values(state.furnace?.active ?? {}).some((n) => n > 0) ||
+        (state.furnace.ignited && Object.values(state.furnace.channels).some((n) => n > 0)) ||
         (state.resources.choirAsh ?? 0) > 0 ||
         (state.resources.heat ?? 0) > 0
       )

@@ -106,8 +106,8 @@ export function sortieNextHints(state: GameState): string[] {
   if (isSystemUnlocked(state, 'research') && !state.hiveResearch?.active) {
     items.push('Start a Research project')
   }
-  if (isSystemUnlocked(state, 'furnace') && (state.furnace?.wanted.shielding ?? 0) <= 0) {
-    items.push('Spend Heat on Shielding')
+  if (isSystemUnlocked(state, 'furnace') && !state.furnace.ignited) {
+    items.push('Convert Ash and Ignite the Furnace during a live Sortie')
   }
   if (isSystemUnlocked(state, 'foundry')) {
     const queued = state.foundry.slots.some((s) => s.recipeId === 'recovered-stock')

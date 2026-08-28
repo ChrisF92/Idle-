@@ -28,6 +28,8 @@ import {
   targetingProfileFor,
   type CoreTargetingProfile,
 } from './targetingProfiles'
+import { directiveTargetingModifier } from './directives'
+import { furnaceGuidanceModifier } from './furnace'
 import type {
   CombatUnit,
   CoreInstance,
@@ -206,8 +208,14 @@ export function relicTargetingContribution(_state: GameState, _spec: TargetingCo
 }
 
 /** PR8 Gyro Sync Directive. */
-export function directiveTargetingContribution(_state: GameState): TargetingStatModifier {
-  return {}
+export function directiveTargetingContribution(state: GameState): TargetingStatModifier {
+  const d = directiveTargetingModifier(state)
+  return { ...d }
+}
+
+function furnaceTargetingContribution(state: GameState): TargetingStatModifier {
+  const f = furnaceGuidanceModifier(state)
+  return { ...f }
 }
 
 /** PR9 Gyroscopic Calibration / Predictive Acquisition. */
@@ -238,6 +246,7 @@ export function collectTargetingModifiers(
     frameSensorTargetingContribution(state),
     relicTargetingContribution(state, spec),
     directiveTargetingContribution(state),
+    furnaceTargetingContribution(state),
     researchTargetingContribution(state),
     challengeTargetingContribution(state),
     suppressorModifier(state),

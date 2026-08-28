@@ -43,7 +43,7 @@ describe('GDD Research', () => {
   it('opens three Act 1 disciplines at Wave 170 under Systems', () => {
     const open = researchState()
     expect(isSystemUnlocked(open, 'research')).toBe(true)
-    expect(systemsHubCards(open).map((c) => c.id)).toEqual(['foundry', 'furnace', 'research'])
+    expect(systemsHubCards(open).map((c) => c.id)).toEqual(['foundry', 'research'])
     expect(HIVE_RESEARCH_NODES.energy.length).toBeGreaterThan(5)
     expect(HIVE_RESEARCH_NODES.observation.length).toBeGreaterThan(5)
     expect(HIVE_RESEARCH_NODES.material.length).toBeGreaterThan(5)

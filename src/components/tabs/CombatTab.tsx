@@ -15,7 +15,7 @@ import {
   runScrapEarned,
   sortieSpeed,
 } from '../../game/uiReadout'
-import { DIRECTIVES, directivesUnlocked, getDirective, hasDirectiveOffer } from '../../game/directives'
+import { CONTINUE_UNCHANGED, DIRECTIVES, DIRECTIVE_WAVES, directivesUnlocked, getDirective, hasDirectiveOffer } from '../../game/directives'
 import { BuyModeRow, UpgradeGrid } from '../UpgradeGrid'
 import { isChallengeSortie } from '../../game/frontier'
 import { isSystemUnlocked } from '../../game/progression'
@@ -559,7 +559,7 @@ export function CombatTab({
                 </article>
               ))
             ) : (
-              <p className="muted">Directives pause the Sortie at Waves 50, 100, 150, 200, and 250.</p>
+              <p className="muted">Directives pause the Sortie at Waves {DIRECTIVE_WAVES.join(', ')}.</p>
             )}
           </div>
         </div>
@@ -587,6 +587,15 @@ export function CombatTab({
                   </button>
                 )
               })}
+              <button
+                type="button"
+                className="directive-pick is-continue"
+                disabled={!onChooseDirective}
+                onClick={() => onChooseDirective?.(CONTINUE_UNCHANGED)}
+              >
+                <strong>Continue Unchanged</strong>
+                <span>Consume this opportunity without adding a Directive.</span>
+              </button>
             </div>
           </div>
         </div>

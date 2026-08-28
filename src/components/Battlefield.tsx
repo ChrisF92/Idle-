@@ -51,7 +51,7 @@ interface BattlefieldProps {
   numbers?: DamageNumbersMode
   frameId?: string
   coreIds?: string[]
-  furnacePush?: { weapons: boolean; ward: boolean; yield: boolean }
+  furnacePush?: { overdrive: boolean; bulwark: boolean; guidance: boolean; harvest: boolean }
   overlayMode?: CombatOverlayMode
   overlayCoreId?: string | null
   overlayCores?: CombatOverlayCoreGeom[]
@@ -2672,9 +2672,9 @@ export function Battlefield({
       last = now
 
       scene.coreIds = p.coreIds
-      scene.furnaceWeapons = Boolean(p.furnacePush?.weapons)
-      scene.furnaceWard = Boolean(p.furnacePush?.ward)
-      scene.furnaceYield = Boolean(p.furnacePush?.yield)
+      scene.furnaceWeapons = Boolean(p.furnacePush?.overdrive)
+      scene.furnaceWard = Boolean(p.furnacePush?.bulwark)
+      scene.furnaceYield = Boolean(p.furnacePush?.harvest)
       scene.overlayMode = p.overlayMode
       scene.overlayCoreId = p.overlayCoreId
       scene.overlayCores = p.overlayCores

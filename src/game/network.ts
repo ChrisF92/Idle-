@@ -13,7 +13,6 @@ import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksR
 import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
-import { FURNACE_UNLOCK_SECTOR, furnaceNetworkMult } from './furnace'
 import { careerBestWave } from './progression'
 import { WORKER_JOB_IDS } from './workers'
 
@@ -332,14 +331,10 @@ export function networkLinkCost(
   const def = getNetworkLink(id)
   if (!def) return null
   const rank = networkLinkRank(state, id)
-  const furnace = careerBestWave(state) >= FURNACE_UNLOCK_SECTOR
-  if (def.requiresFurnace || furnace) {
-    return { resource: 'heat', amount: Math.ceil(def.heatBase * Math.pow(1.32, rank)) }
-  }
   if (def.scrapBase) {
     return { resource: 'scrap', amount: Math.ceil(def.scrapBase * Math.pow(1.4, rank)) }
   }
-  return { resource: 'heat', amount: Math.ceil(def.heatBase * Math.pow(1.32, rank)) }
+  return null
 }
 
 export function canBuyNetworkLink(
@@ -348,10 +343,8 @@ export function canBuyNetworkLink(
 ): { ok: true; cost: { resource: 'heat' | 'scrap'; amount: number } } | { ok: false; reason: string } {
   const def = getNetworkLink(id)
   if (!def) return { ok: false, reason: 'Unknown link' }
-  if (def.requiresFurnace && careerBestWave(state) < FURNACE_UNLOCK_SECTOR) {
-    return { ok: false, reason: `Furnace · Wave ${FURNACE_UNLOCK_SECTOR}` }
-  }
   const rank = networkLinkRank(state, id)
+  if (def.requiresFurnace && !def.scrapBase) return { ok: false, reason: 'Unavailable in Act 1' }
   if (rank >= def.maxRank) return { ok: false, reason: 'Maxed' }
   const cost = networkLinkCost(state, id)
   if (!cost) return { ok: false, reason: 'Unknown link' }
@@ -537,7 +530,6 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       protocolBonusMult(state, 'network') *
       echoNetworkMult(state) *
       processNetworkSpeedMult(state) *
-      furnaceNetworkMult(state) *
       activity) /
     cost
   )

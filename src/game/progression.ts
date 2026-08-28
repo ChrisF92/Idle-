@@ -551,10 +551,7 @@ export function achievementProgressValue(
     case 'foundry-recipe-level':
       return state.foundry?.masteryXp?.[condition.recipeId] ?? 0
     case 'furnace-rank-sum':
-      return (
-        Object.values(state.furnace?.upgrades ?? {}).reduce((a, b) => a + b, 0) +
-        Object.values(state.furnace?.wanted ?? {}).reduce((a, b) => a + b, 0)
-      )
+      return state.furnace.ignited ? Object.values(state.furnace.channels).reduce<number>((a, b) => a + b, 0) : 0
     case 'reliquary-fitted': {
       let n = 0
       for (const slots of Object.values(state.relics?.coreFits ?? {})) {

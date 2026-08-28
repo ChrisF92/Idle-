@@ -7,7 +7,7 @@ import { encounterForWave } from './combat'
 
 describe('phase 7 leftovers: no Yard, no Route A/B, no sector launch', () => {
   it('bumps save and has no standalone Yard', () => {
-    expect(SAVE_VERSION).toBe(48)
+    expect(SAVE_VERSION).toBe(49)
     const fresh = createInitialState(0)
     expect(fresh).not.toHaveProperty('yard')
     expect(getFrame('starter-frame')?.baseHull).toBe(40)

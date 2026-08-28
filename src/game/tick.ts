@@ -28,8 +28,8 @@ import {
   tickNetwork,
 } from './network'
 import { tickFoundry, foundrySalvageOpsMult } from './foundry'
-import { endFurnaceSortie, furnaceNetPerSec, tickFurnace } from './furnace'
-import { hiveResearchHeatFromAshMult, hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
+import { endFurnaceSortie } from './furnace'
+import { hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
 import { hasProcess, noteProcessLastAction, processConfig } from './process'
 import { evaluateProcessIntent } from './processProfiles'
@@ -282,7 +282,6 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     applyNetworkCombatRefresh(state)
   }
   tickFoundry(state, dtSeconds)
-  tickFurnace(state, dtSeconds, hiveResearchHeatFromAshMult(state))
   tickResearch(state, dtSeconds)
 
   tickCoreTraining(state, dtSeconds)
@@ -331,7 +330,6 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
 
   add('scrap', networkScrapRate(state))
   add('data', networkDataRate(state))
-  add('heat', furnaceNetPerSec(state, hiveResearchHeatFromAshMult(state)))
 
   return rates
 }
@@ -456,8 +454,8 @@ function schedulerHooks(): WaveSchedulerHooks {
         applyWaveSecureBlueprintSources(s, pkg.wave, pkg.kind)
         tryCompleteChallenge(s)
         tryCompleteProtocol(s)
-        queueDirectiveOffer(s, pkg.wave)
       }
+      queueDirectiveOffer(s, pkg.wave)
     },
   }
 }
@@ -648,6 +646,7 @@ function launchFromDock(state: GameState): void {
   state.combat.coreMilestones = {}
   snapshotCoreMasteryStart(state)
   clearDirectives(state)
+  endFurnaceSortie(state)
   state.combat.docked = false
   state.combat.sortieMark = captureSortieMark(state)
   if (isChallengeSortie(state)) state.combat.sortieMark.challengeSortie = true
