@@ -20,6 +20,7 @@ import {
 import { ACT1_FINAL_WAVE, BOSS_WARNING_DURATION, isBossWave, NORMAL_REINFORCEMENT_INTERVAL } from './waves'
 import { salvageWaveBonus, scrapWaveBonus } from './workshop'
 import { directiveNormalReinforcementIntervalMult, directiveSalvageMult, directiveScrapMult } from './directives'
+import { challengeReinforcementIntervalMult } from './challenges'
 import { furnaceSalvageMult, furnaceScrapMult } from './furnace'
 import { combatScrapMatterMult } from './matter'
 import { grantGeneratedScrap } from './rebuild'
@@ -197,7 +198,11 @@ function releasePending(state: GameState): void {
 
 function scheduleNextNormal(state: GameState, fromWave: number): void {
   state.combat.nextWave = fromWave + 1
-  state.combat.nextReinforcementAt = (state.combat.simTime ?? 0) + NORMAL_REINFORCEMENT_INTERVAL * directiveNormalReinforcementIntervalMult(state)
+  state.combat.nextReinforcementAt =
+    (state.combat.simTime ?? 0) +
+    NORMAL_REINFORCEMENT_INTERVAL *
+      directiveNormalReinforcementIntervalMult(state) *
+      challengeReinforcementIntervalMult(state)
 }
 
 function authoredWarningDuration(state: GameState, wave: number): number {

@@ -6,7 +6,6 @@ import { usableCoreSlots } from './coreSlots'
 import {
   ACT1_CADENCE,
   ACT1_FINAL_WAVE,
-  CHALLENGE_MIN_REBUILDS,
 } from './cadence'
 import {
   ACHIEVEMENTS,
@@ -32,7 +31,7 @@ export const GDD_DOOR_PRESETS = [
   { wave: ACT1_CADENCE.furnace, label: 'W450 Furnace' },
   { wave: ACT1_CADENCE.research, label: 'W525 Research' },
   { wave: ACT1_CADENCE.process, label: 'Process Kernel' },
-  { wave: ACT1_CADENCE.protocols, label: 'W250 Challenges' },
+  { wave: ACT1_CADENCE.challenges, label: 'W250 Challenges' },
   { wave: ACT1_CADENCE.reinforce, label: 'W1000 Reinforce' },
 ] as const
 
@@ -122,9 +121,6 @@ function prepGddDoor(state: GameState, wave: number): void {
   state.meta.hullLostOnce = true
   grantCareerBestWave(state, w)
   if (w >= ACT1_CADENCE.process) armProcessGates(state)
-  if (w >= ACT1_CADENCE.protocols) {
-    state.prestige.prestigeCount = Math.max(state.prestige.prestigeCount ?? 0, CHALLENGE_MIN_REBUILDS)
-  }
   if (w >= ACT1_CADENCE.reinforce) {
     state.meta.act1Cleared = true
     armProcessGates(state)

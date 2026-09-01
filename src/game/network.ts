@@ -10,7 +10,6 @@ import {
   NETWORK_RACK_CAP_PER_RANK,
 } from './catalog'
 import { hiveResearchDroneEffMult, hiveResearchNetworkMult, hiveResearchUnlocksRelay } from './hiveResearch'
-import { protocolBonusMult, protocolModifiers } from './protocols'
 import { echoNetworkMult } from './echo'
 import { processNetworkSpeedMult } from './process'
 import { careerBestWave } from './progression'
@@ -291,7 +290,7 @@ export function createEmptyNetworkState(): NetworkState {
   }
 }
 
-/** Keep Link ranks; wipe bar levels (Rebuild / Protocol). */
+/** Keep Link ranks; wipe bar levels on Rebuild. */
 export function wipeNetworkBars(network: NetworkState | undefined): NetworkState {
   const next = createEmptyNetworkState()
   const links = network?.links
@@ -413,7 +412,6 @@ export function networkLatticeId(parent: NetworkBarId): NetworkBarId | null {
   return NETWORK_BARS.find((b) => b.layer === 'lattice' && b.parent === parent)?.id ?? null
 }
 
-/** Future Protocol rewards can multiply these without a Network rewrite. */
 export interface NetworkFormulaHooks {
   fillGrowthMult: number
   droneEfficiencyMult: number
@@ -423,12 +421,12 @@ export interface NetworkFormulaHooks {
 }
 
 export function networkFormulaHooks(state: GameState): NetworkFormulaHooks {
-  const mods = protocolModifiers(state)
+  void state
   return {
-    fillGrowthMult: mods.networkFillGrowthMult,
-    droneEfficiencyMult: 1 + mods.networkDroneEffAdd,
-    relayEffectivenessMult: 1 + mods.networkRelayAdd,
-    exponentAdd: mods.networkExponentAdd,
+    fillGrowthMult: 1,
+    droneEfficiencyMult: 1,
+    relayEffectivenessMult: 1,
+    exponentAdd: 0,
     fillCapMult: 1,
   }
 }
@@ -464,8 +462,7 @@ export function networkLevelEffectiveness(state: GameState, parent: NetworkBarId
 export function networkExponent(state: GameState, parent: NetworkBarId): number {
   const hooks = networkFormulaHooks(state)
   const lattice = Math.sqrt(networkLatticeLevels(state, parent))
-  const ward = parent === 'ward' ? protocolModifiers(state).networkWardExponentAdd : 0
-  return 0.5 + 0.02 * lattice + hooks.exponentAdd + ward
+  return 0.5 + 0.02 * lattice + hooks.exponentAdd
 }
 
 export function networkFillCost(state: GameState, id: NetworkBarId): number {
@@ -527,7 +524,6 @@ export function networkRawFillRate(state: GameState, id: NetworkBarId): number {
       infra *
       hiveResearchNetworkMult(state) *
       hiveResearchDroneEffMult(state) *
-      protocolBonusMult(state, 'network') *
       echoNetworkMult(state) *
       processNetworkSpeedMult(state) *
       activity) /

@@ -16,7 +16,7 @@ import {
   skipLesson,
 } from './onboarding'
 
-function ui(tab: 'dock' | 'combat' | 'foundry' | 'network' | 'furnace' | 'research' | 'process' | 'protocols' | 'reinforce') {
+function ui(tab: 'dock' | 'combat' | 'foundry' | 'network' | 'furnace' | 'research' | 'process' | 'challenges' | 'reinforce') {
   return { tab }
 }
 

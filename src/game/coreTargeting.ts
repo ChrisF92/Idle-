@@ -9,7 +9,7 @@
 
 import { coreInstanceAtSlot, coreInstanceCopyNumber, resolveCoreInstance } from './coreInstances'
 import { hasMasteryEffect } from './coreMastery'
-import { frameTargetingSlewMult, getModule, SHORT_RANGE_MAX } from './catalog'
+import { frameTargetingSlewMult, getModule } from './catalog'
 import { phaseRampEstablished, sensorTargetingModifier, FLAK_DETONATION_RADIUS } from './coreCombat'
 import {
   applyPlayerCoreOrbit,
@@ -42,6 +42,12 @@ import { matterTraverseSlewMult } from './matter'
 import { suppressorModifier, SUPPRESSOR_FLOOR_MULT } from './commanderTraits'
 import { COMMANDER_PRIORITY_TERM } from './hostileSeeds'
 import { noteTargetPick } from './encounterTelemetry'
+import {
+  challengeAcquisitionMult,
+  challengeBlocksDoctrineConfig as doctrineConfigBlockedByChallenge,
+  challengeDisablesSensorEffects,
+  challengeFireRangeCap,
+} from './challenges'
 
 /** Canonical Research node. PR9 authors the tree; PR2 only checks completion. */
 export const FIRE_CONTROL_DOCTRINE_RESEARCH_ID = 'd1-fire-control-doctrine'
@@ -146,8 +152,8 @@ export function ensureTargetingTelemetry(unit: CombatUnit): CoreTargetingTelemet
 }
 
 /** PR10 Silent Bridge: authored defaults remain; manual config is blocked. */
-export function challengeBlocksDoctrineConfig(_state: GameState): boolean {
-  return false
+export function challengeBlocksDoctrineConfig(state: GameState): boolean {
+  return doctrineConfigBlockedByChallenge(state)
 }
 
 export function researchUnlocksDoctrineConfig(state: GameState): boolean {
@@ -195,7 +201,9 @@ export function matterTraverseContribution(state: GameState): TargetingStatModif
 
 /** PR4 Frames / Sensor Array. Composed here; never bypasses the targeting engine. */
 export function frameSensorTargetingContribution(state: GameState): TargetingStatModifier {
-  const sensor = sensorTargetingModifier(state)
+  const sensor = challengeDisablesSensorEffects(state)
+    ? { slewRateMult: 1, acquisitionRangeMult: 1 }
+    : sensorTargetingModifier(state)
   return {
     slewRateMult: frameTargetingSlewMult(state) * sensor.slewRateMult,
     acquisitionRangeMult: sensor.acquisitionRangeMult,
@@ -234,10 +242,10 @@ export function researchTargetingContribution(state: GameState): TargetingStatMo
  * the final catalogue.
  */
 export function challengeTargetingContribution(state: GameState): TargetingStatModifier {
-  if (state.prestige?.activeChallengeId === 'short-range') {
-    return { fireRangeCap: SHORT_RANGE_MAX }
+  return {
+    fireRangeCap: challengeFireRangeCap(state),
+    acquisitionRangeMult: challengeAcquisitionMult(state),
   }
-  return {}
 }
 
 export function collectTargetingModifiers(

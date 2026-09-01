@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
 import { startCombat, advanceSeconds, setDocked, freezeActiveSortie, handleAppHidden, setSortiePaused, tickGame, LIVE_TICK_CAP, extractSortie } from './tick'
-import { tryCompleteChallenge, assignWorker, setFoundrySlot } from './actions'
+import { assignWorker, setFoundrySlot } from './actions'
+import { getChallenge, tryCompleteChallenge } from './challenges'
 import {
   ACT1_FINAL_WAVE,
   ACTIVE_ENEMY_SOFT_CAP,
@@ -27,10 +28,8 @@ import type { CombatUnit, GameState } from './types'
 import {
   dropTableEntries,
   familyCanDropPrint,
-  getChallenge,
   isFarmableModule,
   isGddRosterCore,
-  legacyChallengeGoalWave,
 } from './catalog'
 import { ACT1_CADENCE } from './cadence'
 import { liveBossHp } from './uiReadout'
@@ -790,32 +789,31 @@ describe('PR1 wave-only radial combat foundation', () => {
   })
 
   it('cannot clear an active Challenge from career Best Wave alone', () => {
-    expect(legacyChallengeGoalWave({ goalSector: 30 })).toBe(300)
-    const challenge = getChallenge('mono-pulse')!
-    expect(legacyChallengeGoalWave(challenge)).toBe(300)
+    const challenge = getChallenge('glass-frame')!
+    expect(challenge.targetWave).toBe(450)
 
     const late = createInitialState(1)
-    late.prestige.activeChallengeId = 'mono-pulse'
-    late.combat.wave = 299
-    late.combat.waveReached = 299
-    tryCompleteChallenge(late)
-    expect(late.prestige.activeChallengeId).toBe('mono-pulse')
-    expect(late.prestige.challengeClears['mono-pulse'] ?? 0).toBe(0)
-    late.combat.waveReached = 300
-    late.combat.wave = 300
-    tryCompleteChallenge(late)
-    expect(late.prestige.activeChallengeId).toBeNull()
-    expect(late.prestige.challengeClears['mono-pulse']).toBe(1)
+    late.challenges.activeId = 'glass-frame'
+    late.combat.wave = 449
+    late.combat.waveReached = 449
+    tryCompleteChallenge(late, 449)
+    expect(late.challenges.activeId).toBe('glass-frame')
+    expect(late.challenges.medals['glass-frame'] ?? 0).toBe(0)
+    late.combat.waveReached = 450
+    late.combat.wave = 450
+    tryCompleteChallenge(late, 450)
+    expect(late.challenges.activeId).toBeNull()
+    expect(late.challenges.medals['glass-frame']).toBe(1)
 
     const state = createInitialState(1)
     state.meta.bestWave = 1000
     state.combat.bestWave = 1000
-    state.prestige.activeChallengeId = 'mono-pulse'
+    state.challenges.activeId = 'glass-frame'
     state.combat.wave = 1
     state.combat.waveReached = 1
-    tryCompleteChallenge(state)
-    expect(state.prestige.activeChallengeId).toBe('mono-pulse')
-    expect(state.prestige.challengeClears['mono-pulse'] ?? 0).toBe(0)
+    tryCompleteChallenge(state, 1)
+    expect(state.challenges.activeId).toBe('glass-frame')
+    expect(state.challenges.medals['glass-frame'] ?? 0).toBe(0)
   })
 
   it('keeps provider Boss identity on the authored Boss and not escorts', () => {

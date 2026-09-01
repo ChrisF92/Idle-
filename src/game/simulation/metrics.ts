@@ -304,7 +304,7 @@ export function observeState(
     ['reliquary', 'Relics'],
     ['research', 'Research'],
     ['process', 'Process'],
-    ['protocols', 'Challenges'],
+    ['challenges', 'Challenges'],
   ]
   for (const [id, label] of unlocks) {
     if (metrics.seenUnlocks.has(id)) continue
@@ -316,7 +316,7 @@ export function observeState(
     if (id === 'reliquary') addMilestone(metrics, 'reliquary-unlock', 'Relics unlock', activeSeconds, calendarSeconds)
     if (id === 'research') addMilestone(metrics, 'hive-research-unlock', 'Research unlock', activeSeconds, calendarSeconds)
     if (id === 'process') addMilestone(metrics, 'process-unlock', 'Process unlock', activeSeconds, calendarSeconds)
-    if (id === 'protocols') addMilestone(metrics, 'unlock-protocols', 'Challenges', activeSeconds, calendarSeconds)
+    if (id === 'challenges') addMilestone(metrics, 'unlock-challenges', 'Challenges', activeSeconds, calendarSeconds)
     metrics.seenUnlocks.add(id)
     noteMeaningful(metrics, `${label} unlocked`, activeSeconds)
   }

@@ -192,7 +192,7 @@ describe('PR7 encounter modifier boundary', () => {
     baseline.combat.sortieSeed = 17
     const legacy = createInitialState(0)
     legacy.combat.sortieSeed = 17
-    legacy.protocols.activeId = 'mute-network'
+    legacy.challenges.activeId = 'mute-network'
     const normal = encounterForWave(20, 1, baseline)
     const stillBaseline = encounterForWave(20, 1, legacy)
     expect(stillBaseline.units.length).toBe(normal.units.length)

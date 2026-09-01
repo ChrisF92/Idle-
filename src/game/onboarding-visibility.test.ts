@@ -94,7 +94,7 @@ describe('Hiveworks onboarding catalog', () => {
       'guide-reliquary',
       'guide-furnace-v2-ash',
       'guide-research-xp',
-      'guide-protocols',
+      'guide-challenges',
       'guide-echo',
       'guide-process-v2-what',
       'guide-prestige-tab',
@@ -104,15 +104,15 @@ describe('Hiveworks onboarding catalog', () => {
     }
   })
 
-  it('does not auto-open Reliquary, Protocols, or Echo from More', () => {
+  it('does not auto-open Reliquary, Challenges, or Echo from More', () => {
     const state = createInitialState(0)
     state.meta.highestSectorEver = 62
     state.prestige.prestigeCount = 3
     state.base.assignments.strike = 1
     state.meta.seenOnboarding = [...STARTER_GUIDE_IDS, ...NETWORK_GUIDE_IDS]
     expect(isSystemUnlocked(state, 'reliquary')).toBe(true)
-    expect(isSystemUnlocked(state, 'protocols')).toBe(true)
-    state.protocols.ranks['mute-network'] = 1
+    expect(isSystemUnlocked(state, 'challenges')).toBe(true)
+    state.challenges.medals['glass-frame'] = 1
     expect(isSystemUnlocked(state, 'echo')).toBe(false)
     expect(activeGuideStep(state, 'stats')).toBeNull()
     expect(challengesContentUnlocked(state)).toBe(true)

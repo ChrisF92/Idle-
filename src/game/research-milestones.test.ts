@@ -25,7 +25,6 @@ import {
   hiveResearchNextBreakthrough,
   hiveResearchNodeCost,
   hiveResearchOffFocusMult,
-  hiveResearchProtocolXpMult,
   hiveResearchQueueCap,
   hiveResearchSalvageMult,
   hiveResearchShieldMult,
@@ -110,7 +109,6 @@ describe('Research milestones: nodes and identity', () => {
     expect(hiveResearchDroneEffMult(s)).toBe(1)
     expect(hiveResearchOffFocusMult(s)).toBe(1)
     expect(hiveResearchQueueCap(s)).toBe(RESEARCH_QUEUE_BASE)
-    expect(hiveResearchProtocolXpMult(s)).toBe(1)
     expect(hiveResearchExtraUtilitySlots(s)).toBe(0)
     expect(furnaceChannelSlots(s)).toBe(1)
     expect(foundrySlotCount(s)).toBe(1)
@@ -120,7 +118,7 @@ describe('Research milestones: nodes and identity', () => {
 
 describe('Research milestones: costs', () => {
   it('keeps SAVE_VERSION at 34 and an achievable first node', () => {
-    expect(SAVE_VERSION).toBe(50)
+    expect(SAVE_VERSION).toBe(51)
     const s = atResearch()
     expect(hiveResearchNodeCost(0)).toBe(52)
     expect(hiveResearchNodeCost(0, s)).toBe(52)
@@ -218,14 +216,11 @@ describe('Research milestones: breakthrough wiring', () => {
     expect(hiveResearchUnlocksReliquary(s, 'blue')).toBe(true)
   })
 
-  it('Queue Hall deepens the Research Queue and feeds Protocols into the desk', () => {
+  it('Queue Hall deepens the Research Queue', () => {
     const s = atResearch()
     expect(hiveResearchQueueCap(s)).toBe(3)
     complete(s, 'observation', 9)
     expect(hiveResearchQueueCap(s)).toBe(6)
-    expect(hiveResearchProtocolXpMult(s)).toBe(1)
-    s.protocols.activeId = 'cold-foundry'
-    expect(hiveResearchProtocolXpMult(s)).toBeCloseTo(1.15)
   })
 })
 
@@ -282,7 +277,7 @@ describe('Research milestones: Rebuild, save, onboarding', () => {
     s.hiveResearch.focus = 'observation'
     s.hiveResearch.xp.observation = 12
     const loaded = importSave(exportSave(s))
-    expect(SAVE_VERSION).toBe(50)
+    expect(SAVE_VERSION).toBe(51)
     expect(loaded?.hiveResearch.completed.material).toBe(6)
     expect(loaded?.hiveResearch.completed.observation).toBe(2)
     expect(loaded?.hiveResearch.focus).toBe('observation')

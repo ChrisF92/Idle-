@@ -46,7 +46,7 @@ describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
       expect(MORE_STATIONS.some((s) => s.id === id)).toBe(false)
     }
     expect(isMoreNavTab('stats')).toBe(true)
-    expect(isMoreNavTab('protocols')).toBe(true)
+    expect(isMoreNavTab('challenges')).toBe(true)
     expect(isMoreNavTab('reinforce')).toBe(true)
     expect(isMoreNavTab('logs')).toBe(true)
     expect(isMoreNavTab('codex')).toBe(true)

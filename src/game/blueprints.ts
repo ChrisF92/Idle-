@@ -304,9 +304,11 @@ const RELIC_BLUEPRINTS: BlueprintDef[] = RELIC_FAMILIES.map((row) => {
       {
         kind,
         challengeId: row.source.challengeId,
-        label: row.source.routeLabel
-          ? `${row.source.routeLabel} (source pending)`
-          : row.source.pendingReason,
+        label: row.source.kind === 'challenge' && row.source.routeLabel
+          ? `${row.source.routeLabel} Challenge`
+          : row.source.routeLabel
+            ? `${row.source.routeLabel} (source pending)`
+            : row.source.pendingReason,
       },
     ],
     fragmentEligibleFromWave: Infinity,

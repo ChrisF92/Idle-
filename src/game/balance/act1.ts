@@ -20,7 +20,7 @@ import {
 } from '../hiveResearch'
 import { PRESTIGE_MIN_SECTOR } from '../progression'
 import { processEarned, PROCESS_ACCUMULATION } from '../process'
-import { PROTOCOL_UNLOCK_SECTOR } from '../protocols'
+import { CHALLENGE_UNLOCK_WAVE } from '../challenges'
 import { ECHO_UNLOCK_SECTOR } from '../echo'
 import type { GameState } from '../types'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from '../cadence'
@@ -41,7 +41,7 @@ export const ACT1_UNLOCKS = {
   codex: ACT1_CADENCE.codex,
   research: ACT1_CADENCE.research,
   process: ACT1_CADENCE.process,
-  protocols: PROTOCOL_UNLOCK_SECTOR,
+  challenges: CHALLENGE_UNLOCK_WAVE,
   echo: ECHO_UNLOCK_SECTOR,
   act1: ACT1_FINAL_WAVE,
 } as const
@@ -159,7 +159,7 @@ export const ACT1_TARGETS: BalanceTarget[] = [
     min: 10 * 60 * 60,
     max: 3 * 24 * 60 * 60,
     warningPad: 6 * 60 * 60,
-    milestoneId: 'unlock-protocols',
+    milestoneId: 'unlock-challenges',
     kind: 'milestone-time',
   },
   {
@@ -257,7 +257,7 @@ export function captureAct1Snapshot(
   }
   const relays = 0
   const recipes = FOUNDRY_RECIPES.filter((r) => (state.foundry.masteryXp[r.id] ?? 0) > 0).length
-  const protocolRanks = Object.values(state.protocols?.ranks ?? {}).reduce((s, n) => s + (n ?? 0), 0)
+  const challengeMedals = Object.values(state.challenges?.medals ?? {}).reduce((s, n) => s + (n ?? 0), 0)
   return {
     at,
     activeSeconds,
@@ -295,7 +295,7 @@ export function captureAct1Snapshot(
     processAvailable: state.resources.aiPoints,
     processPurchased: state.process?.purchased.length ?? 0,
     rebuilds: state.prestige.prestigeCount,
-    protocolRanks,
+    challengeMedals,
     echoNodes: state.echo?.tree?.length ?? 0,
     contribution: act1Contribution(state),
   }

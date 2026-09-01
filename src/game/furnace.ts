@@ -8,6 +8,7 @@ import { ashYieldMult } from './workshop'
 import { echoAshMult } from './echo'
 import { choirTapAshToHeatMult } from './coreCombat'
 import { directiveFurnaceEffectMult } from './directives'
+import { challengeBlocksFurnace } from './challenges'
 
 export const FURNACE_UNLOCK_WAVE = ACT1_CADENCE.furnace
 export const ASH_PER_HEAT = 10
@@ -158,6 +159,7 @@ export function canIgniteFurnace(
   channels: Partial<Record<FurnaceChannelId, FurnaceChannelLevel>>,
 ): { ok: boolean; reason?: string; cost: number } {
   const cost = furnaceConfigurationCost(channels, state)
+  if (challengeBlocksFurnace(state)) return { ok: false, reason: 'DISABLED BY CHALLENGE', cost }
   if (!furnaceUnlocked(state)) return { ok: false, reason: `Reach Wave ${FURNACE_UNLOCK_WAVE}`, cost }
   if (state.combat.docked || !state.combat.inFight) return { ok: false, reason: 'Launch a Sortie first', cost }
   if (state.furnace.ignited) return { ok: false, reason: 'Furnace is locked for this Sortie', cost }
@@ -200,6 +202,7 @@ export function furnaceConversionLine(): string {
 }
 
 export function furnaceConversionPreview(state: GameState): { ok: boolean; reason?: string; ashUsed: number; heatGain: number } {
+  if (challengeBlocksFurnace(state)) return { ok: false, reason: 'DISABLED BY CHALLENGE', ashUsed: 0, heatGain: 0 }
   if (!furnaceUnlocked(state)) return { ok: false, reason: `Reach Wave ${FURNACE_UNLOCK_WAVE}`, ashUsed: 0, heatGain: 0 }
   if (state.combat.docked || !state.combat.inFight) return { ok: false, reason: 'Launch a Sortie first', ashUsed: 0, heatGain: 0 }
   if (state.furnace.ignited) return { ok: false, reason: 'Furnace is locked; save Ash for the next Sortie', ashUsed: 0, heatGain: 0 }
@@ -220,7 +223,7 @@ export function convertAshToHeat(state: GameState): GameState {
 }
 
 function activeLevel(state: GameState, id: FurnaceChannelId): FurnaceChannelLevel {
-  return state.furnace.ignited ? level(state.furnace.channels[id]) : 0
+  return state.furnace.ignited && !challengeBlocksFurnace(state) ? level(state.furnace.channels[id]) : 0
 }
 
 function effectStrength(state: GameState): number {

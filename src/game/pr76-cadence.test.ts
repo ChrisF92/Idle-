@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
-import { ACT1_CADENCE, ECHO_MIN_PROTOCOL_RANKS } from './cadence'
+import { ACT1_CADENCE, ECHO_MIN_CHALLENGE_MEDALS } from './cadence'
 import { isSystemUnlocked, PRESTIGE_MIN_SECTOR } from './progression'
 import { matterShopRankMultiplier, modulePrintWave } from './catalog'
 import { atCareerWave } from './testHelpers'
@@ -12,7 +12,7 @@ describe('GDD system cadence', () => {
     expect(ACT1_CADENCE.furnace).toBe(450)
     expect(ACT1_CADENCE.research).toBe(525)
     expect(ACT1_CADENCE.process).toBe(525)
-    expect(ACT1_CADENCE.protocols).toBe(250)
+    expect(ACT1_CADENCE.challenges).toBe(375)
     expect(ACT1_CADENCE.echo).toBe(275)
   })
 
@@ -29,7 +29,7 @@ describe('GDD system cadence', () => {
 
     const echo = atCareerWave(createInitialState(1), ACT1_CADENCE.echo)
     expect(isSystemUnlocked(echo, 'echo')).toBe(false)
-    echo.protocols.ranks['mute-network'] = ECHO_MIN_PROTOCOL_RANKS
+    echo.challenges.medals['glass-frame'] = ECHO_MIN_CHALLENGE_MEDALS
     echo.echo.tree = ['echo-strike']
     echo.echo.clears = { rift: 1 }
     expect(isSystemUnlocked(echo, 'echo')).toBe(false)

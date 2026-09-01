@@ -10,7 +10,6 @@ import {
 import {
   STATIONS,
   aiProductionBonus,
-  challengeShopOfflineMs,
   essenceProductionMultiplier,
   isStationUnlocked,
   metaProductionMultiplier,
@@ -76,7 +75,6 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     metaProductionMultiplier(
       state.resources.prestigeMatter,
       state.prestige.matterShop,
-      state.prestige.challengeClears,
     ) *
     (1 +
       prestigeMomentumProductionBonus(
@@ -135,7 +133,6 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
 /** Hangar repair while Docked. A live Sortie is frozen, so hull does not move. */
 function applyHangarRepair(state: GameState, seconds: number): void {
   if (!state.combat.docked) return
-  if (state.prestige.activeChallengeId === 'attrition') return
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerShieldMax = stats.shieldMax
@@ -164,7 +161,7 @@ export function applyOfflineCatchUp(
     return { state: next, report: null }
   }
 
-  const maxMs = challengeShopOfflineMs(state.prestige.shop ?? []) + processOfflineBonusMs(state)
+  const maxMs = 8 * 60 * 60 * 1000 + processOfflineBonusMs(state)
   const appliedMs = Math.min(elapsedMs, maxMs)
   const seconds = appliedMs / 1000
   const capped = elapsedMs > maxMs

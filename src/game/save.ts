@@ -10,7 +10,7 @@ import type {
   HiveResearchState,
   NetworkState,
   ProcessState,
-  ProtocolState,
+  ChallengeState,
   RelicState,
   SignalCoreInstance,
   SignalCoresState,
@@ -41,7 +41,7 @@ import { createEmptyRelicState, sanitizeRelicState } from './relics'
 import { sanitizeFurnaceState } from './furnace'
 import { sanitizeDirectiveIds } from './directives'
 import { createEmptyHiveResearchState, HIVE_RESEARCH_BRANCHES } from './hiveResearch'
-import { createEmptyProtocolState } from './protocols'
+import { CHALLENGES, createEmptyChallengeState, getChallenge } from './challenges'
 import { createEmptyEchoState } from './echo'
 import { createEmptyProcessState, finalizeProcessMigration, hydrateProcessState } from './process'
 import { createEmptySpecialistState } from './specialists'
@@ -245,25 +245,6 @@ function withEssenceDefaults(state: Partial<GameState>): GameState['essence'] {
   }
 }
 
-function migrateChallengeClears(
-  prestige: Partial<GameState['prestige']> & {
-    completedChallenges?: string[]
-  },
-): Record<string, number> {
-  if (
-    prestige.challengeClears &&
-    typeof prestige.challengeClears === 'object' &&
-    !Array.isArray(prestige.challengeClears)
-  ) {
-    return { ...prestige.challengeClears }
-  }
-  const clears: Record<string, number> = {}
-  for (const id of prestige.completedChallenges ?? []) {
-    clears[id] = 1
-  }
-  return clears
-}
-
 /** Legacy string[] shop ownership → each id at rank 1. */
 function migrateShopRanks(raw: unknown): Record<string, number> {
   if (!raw) return {}
@@ -286,14 +267,11 @@ function migrateShopRanks(raw: unknown): Record<string, number> {
 }
 
 function withPrestigeDefaults(
-  prestige: (GameState['prestige'] & { completedChallenges?: string[] }) | undefined,
+  prestige: GameState['prestige'] | undefined,
 ): GameState['prestige'] {
   const cycle = (prestige?.cycle ?? {}) as Record<string, unknown>
   return {
     prestigeCount: prestige?.prestigeCount ?? 0,
-    activeChallengeId: prestige?.activeChallengeId ?? null,
-    challengeClears: migrateChallengeClears(prestige ?? {}),
-    shop: migrateShopRanks(prestige?.shop),
     matterShop: migrateShopRanks(prestige?.matterShop),
     cycle: {
       bestWave: Math.max(0, Math.floor(Number(cycle.bestWave ?? 0) || 0)),
@@ -525,37 +503,34 @@ function withHiveResearchDefaults(raw: HiveResearchState | undefined): HiveResea
   return empty
 }
 
-function withProtocolDefaults(raw: ProtocolState | undefined): ProtocolState {
-  const empty = createEmptyProtocolState()
+function withChallengeDefaults(raw: ChallengeState | undefined): ChallengeState {
+  const empty = createEmptyChallengeState()
   if (!raw || typeof raw !== 'object') return empty
-  const ranks: Record<string, number> = {}
-  if (raw.ranks && typeof raw.ranks === 'object') {
-    for (const [id, n] of Object.entries(raw.ranks)) {
+  const medals: Record<string, number> = {}
+  if (raw.medals && typeof raw.medals === 'object') {
+    for (const [id, n] of Object.entries(raw.medals)) {
+      if (!getChallenge(id)) continue
       const v = Math.max(0, Math.floor(Number(n) || 0))
-      if (v > 0) ranks[id] = v
-    }
-  }
-  const bestSector: Record<string, number> = {}
-  const rawBest = (raw as ProtocolState).bestSector
-  if (rawBest && typeof rawBest === 'object') {
-    for (const [id, n] of Object.entries(rawBest)) {
-      const v = Math.max(0, Math.floor(Number(n) || 0))
-      if (v > 0) bestSector[id] = v
+      if (v > 0) medals[id] = Math.min(3, v)
     }
   }
   const bestWave: Record<string, number> = {}
-  const rawBestWave = (raw as ProtocolState).bestWave
+  const rawBestWave = raw.bestWave
   if (rawBestWave && typeof rawBestWave === 'object') {
     for (const [id, n] of Object.entries(rawBestWave)) {
+      if (!getChallenge(id)) continue
       const v = Math.max(0, Math.floor(Number(n) || 0))
       if (v > 0) bestWave[id] = v
     }
   }
-  for (const [id, sector] of Object.entries(bestSector)) {
-    if (!bestWave[id] && sector > 0) bestWave[id] = sector * 10
-  }
-  const active = typeof raw.activeId === 'string' ? raw.activeId : null
-  return { activeId: active, ranks, bestSector, bestWave }
+  const active = typeof raw.activeId === 'string' && getChallenge(raw.activeId) ? raw.activeId : null
+  const rewardKeys = new Set(CHALLENGES.flatMap((challenge) =>
+    challenge.uniqueRewards.map((reward) => `${reward.kind}:${reward.id}`)
+  ))
+  const uniqueRewards = Array.isArray(raw.uniqueRewards)
+    ? [...new Set(raw.uniqueRewards.filter((id): id is string => typeof id === 'string' && rewardKeys.has(id)))]
+    : []
+  return { activeId: active, medals, bestWave, uniqueRewards }
 }
 
 function withEchoDefaults(raw: EchoState | undefined): EchoState {
@@ -781,7 +756,7 @@ function migrate(raw: unknown): GameState | null {
       relics: withRelicDefaults(state.relics),
       furnace: withFurnaceDefaults(state.furnace),
       hiveResearch: withHiveResearchDefaults(state.hiveResearch),
-      protocols: withProtocolDefaults(state.protocols),
+      challenges: withChallengeDefaults(state.challenges),
       echo: withEchoDefaults(state.echo),
       process: withProcessDefaults(state.process),
       specialists: withSpecialistDefaults(state.specialists),

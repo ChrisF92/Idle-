@@ -4,7 +4,6 @@ import type { GameState } from './types'
 import {
   STATIONS,
   aiDoctrinesActive,
-  challengeBlocksAi,
   idleWorkers,
   isStationUnlocked,
 } from './catalog'
@@ -63,7 +62,7 @@ function adopt(state: GameState, next: GameState): void {
   state.furnace = next.furnace
   state.process = next.process
   state.network = next.network
-  state.protocols = next.protocols
+  state.challenges = next.challenges
   state.echo = next.echo
 }
 
@@ -273,7 +272,7 @@ function autoDirectivePreference(state: GameState): void {
 }
 
 function autoProfileTrigger(state: GameState): void {
-  if (hasProcess(state, 'challenge-profile') && state.prestige.activeChallengeId) {
+  if (hasProcess(state, 'challenge-profile') && state.challenges.activeId) {
     const challenge = processConfig(state).profiles.find((profile) => profile.id === 'challenge')
     if (challenge && processConfig(state).activeProfileId !== challenge.id) {
       state.process.config.activeProfileId = challenge.id
@@ -325,7 +324,6 @@ function autoResearchFocus(state: GameState): void {
 
 /** Run all owned automation passives once per sim batch. */
 export function tickAutomation(state: GameState): void {
-  if (challengeBlocksAi(state)) return
   autoShopUpgrades(state)
   autoProfileTrigger(state)
   autoNetworkBalance(state)

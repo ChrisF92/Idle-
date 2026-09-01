@@ -89,7 +89,7 @@ export function formatSummary(report: SimulationReport): string {
     milestoneLine(run, 'hive-research-unlock', 'Research'),
     milestoneLine(run, 'first-research-bt', 'First Research BT'),
     milestoneLine(run, 'process-unlock', 'Process'),
-    milestoneLine(run, 'unlock-protocols', 'Challenges'),
+    milestoneLine(run, 'unlock-challenges', 'Challenges'),
     milestoneLine(run, 'wave-300', 'Wave 300'),
     '',
   )
@@ -185,7 +185,7 @@ export function formatSummary(report: SimulationReport): string {
     `Process: earned ${run.process.earned}  unspent ${run.process.available}  bought ${run.process.purchased.length}`,
     `Foundry: recipes ${Object.keys(run.foundry.masteryXp).length}  processors ${run.foundry.slotRecipes.filter(Boolean).length}`,
     `Furnace: heat +${run.furnace.heatEarned.toFixed(1)} / −${run.furnace.heatSpent.toFixed(1)}  channels ${JSON.stringify(run.furnace.active)}`,
-    `Challenges: ${JSON.stringify(run.protocols.ranks)}`,
+    `Challenges: ${JSON.stringify(run.challenges.medals)}`,
     '',
   )
   const snap = run.snapshots[run.snapshots.length - 1]

@@ -289,9 +289,9 @@ export type PlaytestEventKind =
   | 'route'
   | 'rebuild'
   | 'reinforce'
-  | 'protocol_start'
-  | 'protocol_end'
-  | 'protocol_clear'
+  | 'challenge_start'
+  | 'challenge_end'
+  | 'challenge_clear'
   | 'echo_start'
   | 'echo_end'
   | 'echo_clear'
@@ -340,8 +340,8 @@ export interface PlaytestState {
   events: PlaytestEvent[]
   /** Unique non-starter Core names assembled. */
   cores: string[]
-  /** Protocol id → attempts / clears. */
-  protocols: Record<string, { a: number; c: number }>
+  /** Challenge id → attempts / clears. */
+  challenges: Record<string, { a: number; c: number }>
   /** Echo id → attempts / clears. */
   echos: Record<string, { a: number; c: number }>
   /** Network bar id → drone-seconds. */
@@ -428,23 +428,15 @@ export interface CombatIdSeq {
   package: number
 }
 
-export type ProtocolMute =
-  | 'network'
-  | 'foundry'
-  | 'reliquary'
-  | 'furnace'
-  | 'weapons'
-  | 'shields'
-  | 'salvage'
-
-/** Restricted sorties that rank a muted system. Ranks persist; the run loadout does not. */
-export interface ProtocolState {
+/** Permanent medal and reward record for canonical restricted Sorties. */
+export interface ChallengeState {
   activeId: string | null
-  ranks: Record<string, number>
-  /** Best sector reached inside each Challenge, including abandoned runs. */
-  bestSector: Record<string, number>
-  /** Best Wave reached inside each Challenge. Canonical; bestSector is leftover. */
-  bestWave?: Record<string, number>
+  /** 0 none, 1 Bronze, 2 Silver, 3 Gold. Hollow Choir uses 0/1. */
+  medals: Record<string, number>
+  /** Best Wave reached inside each Challenge, including failed/abandoned attempts. */
+  bestWave: Record<string, number>
+  /** Idempotent first-clear reward keys. */
+  uniqueRewards: string[]
 }
 
 /** USI Warp Drive analogue — short gauntlets into a skill tree. */
@@ -630,11 +622,8 @@ export interface ProcessConfig {
     autoExtract: boolean
     extractHullPct: number
     autoRelaunch: boolean
-    protocolRepeat: boolean
     echoRepeat: boolean
-    lastProtocolId: string | null
     lastEchoId: string | null
-    protocolId: string | null
     directivePreference: string[]
   }
   shop: {
@@ -678,7 +667,7 @@ export type TabId =
   | 'reliquary'
   | 'furnace'
   | 'slag'
-  | 'protocols'
+  | 'challenges'
   | 'echo'
   | 'process'
   | 'specialists'
@@ -1440,11 +1429,6 @@ export interface RebuildCycleState {
 
 export interface PrestigeState {
   prestigeCount: number
-  activeChallengeId: string | null
-  /** ITRTG-style repeatable clears per challenge id. */
-  challengeClears: Record<string, number>
-  /** Permanent Challenge Point shop ranks (id → rank). */
-  shop: Record<string, number>
   /** Permanent Rebuild Matter shop ranks (id → rank). */
   matterShop: Record<string, number>
   /** Stats for the current Rebuild cycle. Reset when a Rebuild lands. */
@@ -1551,8 +1535,8 @@ export interface GameState {
   furnace: FurnaceState
   /** Kill-fed Material / Energy / Observation. Persist across Rebuild. */
   hiveResearch: HiveResearchState
-  /** Challenges. Ranks persist; active run is Rebuild-cleared. */
-  protocols: ProtocolState
+  /** Canonical Challenges. Medals/rewards persist; active attempts end on death. */
+  challenges: ChallengeState
   /** @deprecated Echo Runs leftover. Tree + points persist but never apply. */
   echo: EchoState
   /** Process automation nodes. Persist across Rebuild. */

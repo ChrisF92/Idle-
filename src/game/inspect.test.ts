@@ -7,7 +7,7 @@ import {
 } from './inspect'
 import { createInitialState } from './state'
 
-const JARGON = /USI|ITRTG|analogue|black-bar|PoC|TODO|\bFlagship\b|\bSector\b/i
+const JARGON = /\b(?:USI|ITRTG|analogue|black-bar|PoC|TODO|Flagship|Sector)\b/i
 
 describe('inspect sheets', () => {
   it('Worker Drones, Cores, and Furnace sheets carry live numbers and player copy', () => {
@@ -45,8 +45,8 @@ describe('inspect sheets', () => {
     const s = createInitialState(0)
     const blob = inspectCopyCorpus(s).join('\n')
     expect(blob).not.toMatch(JARGON)
-    expect(blob).toMatch(/Glass Hive/)
-    expect(blob).toMatch(/every level/)
+    expect(blob).toMatch(/Glass Frame/)
+    expect(blob).toMatch(/Core Levels use Scrap/)
     expect(blob).toMatch(/Worker Drones/)
   })
 })

@@ -4,8 +4,7 @@ import { LEGACY_CORE_IDS, SHIP_MODULE_DEFS } from './coreCatalogue'
 import { careerBestWave, isSystemUnlocked } from './progression'
 import { WORKER_JOB_IDS, workerCapacity, workerJobContribution, workerJobHasWork } from './workers'
 import { BASE_WORKER_CAPACITY, WORKER_FABRICATION_SECONDS } from './foundrySeeds'
-import { ACT1_CADENCE, ACT1_FINAL_WAVE } from './cadence'
-import { meetsWave } from './waves'
+import { ACT1_CADENCE } from './cadence'
 import { formatCompact, formatStat } from './format'
 import { resolvedResearchIds, sumResearchNumber } from './hiveResearchTree'
 import {
@@ -135,86 +134,6 @@ export interface EssenceUpgradeDef {
   offlineEssenceBonus?: number
   /** Fraction of Alloy Foundry scrap upkeep removed (0.25 = −25%). */
   alloyUpkeepReduction?: number
-}
-
-export interface ShopRankGate {
-  shop: 'challenge' | 'matter'
-  id: string
-  rank: number
-}
-
-/** Soft meta gate: pass if ANY listed condition is met. */
-export interface ShopMetaAnyGate {
-  act1Cleared?: boolean
-  prestiges?: number
-  bestWave?: number
-  anyChallengeClear?: boolean
-}
-
-export interface ChallengeShopDef {
-  id: string
-  name: string
-  description: string
-  costCp: number
-  /** Max purchase rank (default 1 = unique unlock). */
-  maxRank?: number
-  damageBonus?: number
-  /** Overrides default prestige sector requirement when owned. */
-  prestigeMinSector?: number
-  startingScrap?: number
-  startingAiPoints?: number
-  /** Bonus salvage at the start of each run. */
-  startingSalvage?: number
-  offlineHours?: number
-  /** Extra effectiveness on role matchup bonuses (0.15 = +15%). */
-  matchupBonus?: number
-  /** @deprecated Prefer droneCapBonus — instant grants ignored under corps cap. */
-  bonusWorkerDrones?: number
-  /** Flat corps capacity per rank (summed; not diminishing-scaled). */
-  droneCapBonus?: number
-  /** Additive drone power per rank scale (0.15 = +15% at rank 1). */
-  dronePowerBonus?: number
-  manufactureBonus?: number
-  /** Additive blueprint part drop chance (0.15 = +15% at rank 1). */
-  dropBonus?: number
-  requiresPrestiges?: number
-  requiresBestWave?: number
-  requiresAct1?: boolean
-  requiresShopRank?: ShopRankGate
-  requiresMetaAny?: ShopMetaAnyGate
-  /** When purchased rank≥1, ensure this module is in unlockedModules. */
-  unlockModuleId?: string
-}
-
-export interface ChallengeDef {
-  id: string
-  name: string
-  description: string
-  restriction: string
-  /** Legacy Sector count. Convert with `legacyChallengeGoalWave` until PR10. */
-  goalSector: number
-  rewardChallengePoints: number
-  /** ITRTG-style repeat cap (5–100). */
-  maxClears: number
-  stackDamageBonus?: number
-  stackProductionBonus?: number
-  stackRepairBonus?: number
-  /** Optional lock: requires N clears of another challenge. */
-  requiresChallengeClears?: { challengeId: string; clears: number }
-  requiresPrestiges?: number
-  /** Career highest sector ever required. */
-  requiresBestWave?: number
-  /**
-   * Career ascensions required to unlock (AND with other non-OR gates when set
-   * alone; combined with OR group when other OR gates exist — see isChallengeUnlocked).
-   */
-  requiresAscensions?: number
-  /**
-   * How the challenge is entered. Ascension-entry challenges are only startable
-   * when Ascension is available (sector 30+) and consume an Ascension rather than
-   * a Prestige (ITRTG double-rebirth style).
-   */
-  entryCost?: 'prestige' | 'ascension'
 }
 
 export interface ModuleWeaponDef {
@@ -723,112 +642,6 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   },
 ]
 
-export const CHALLENGE_SHOP: ChallengeShopDef[] = [
-  {
-    id: 'iron-will',
-    name: 'Iron Will',
-    description:
-      'Permanent +6% role matchup effectiveness per rank (extra ranks +45% of base). Not a raw damage clone.',
-    costCp: 1,
-    maxRank: 6,
-    matchupBonus: 0.06,
-  },
-  {
-    id: 'supply-cache',
-    name: 'Supply Cache',
-    description: 'Each run starts with +20 scrap per rank.',
-    costCp: 1,
-    maxRank: 4,
-    startingScrap: 20,
-  },
-  {
-    id: 'doctrine-seed',
-    name: 'Doctrine Seed',
-    description: 'Each run starts with +1 AI Point per rank.',
-    costCp: 2,
-    maxRank: 5,
-    startingAiPoints: 1,
-  },
-  {
-    id: 'deep-cache',
-    name: 'Deep Cache',
-    description: 'Offline catch-up cap becomes 12 hours.',
-    costCp: 2,
-    maxRank: 1,
-    offlineHours: 12,
-  },
-  {
-    id: 'role-drills',
-    name: 'Role Drills',
-    description: '+20% role matchup effectiveness per rank (extra ranks +45% of base).',
-    costCp: 2,
-    maxRank: 5,
-    matchupBonus: 0.2,
-  },
-  {
-    id: 'hangar-rights',
-    name: 'Hangar Rights',
-    description: 'Each run starts with +10 Salvage per rank.',
-    costCp: 2,
-    maxRank: 5,
-    startingSalvage: 10,
-  },
-  {
-    id: 'drone-bay-rights',
-    name: 'Drone Bay Rights',
-    description: '+3 worker drone corps capacity per rank.',
-    costCp: 2,
-    maxRank: 8,
-    droneCapBonus: 3,
-  },
-  {
-    id: 'schematic-surge',
-    name: 'Schematic: Surge Cap',
-    description: 'Unlocks Surge Capacitor — unique schematic not found as loot.',
-    costCp: 3,
-    maxRank: 1,
-    requiresPrestiges: 1,
-    unlockModuleId: 'surge-capacitor',
-  },
-  {
-    id: 'schematic-mirror',
-    name: 'Schematic: Mirror Plate',
-    description: 'Unlocks Mirror Plate defense — unique schematic not found as loot.',
-    costCp: 3,
-    maxRank: 1,
-    requiresPrestiges: 1,
-    unlockModuleId: 'mirror-plate',
-  },
-  {
-    id: 'deep-vault',
-    name: 'Deep Vault',
-    description: 'Offline catch-up cap becomes 24 hours. Requires Deep Cache.',
-    costCp: 4,
-    maxRank: 1,
-    offlineHours: 24,
-    requiresShopRank: { shop: 'challenge', id: 'deep-cache', rank: 1 },
-    requiresMetaAny: { act1Cleared: true, prestiges: 3, bestWave: 300 },
-  },
-  {
-    id: 'clearance-board',
-    name: 'Clearance Board',
-    description: 'Permanently +5 to every challenge’s effective max clears.',
-    costCp: 3,
-    maxRank: 1,
-    requiresMetaAny: { anyChallengeClear: true, prestiges: 2 },
-  },
-  {
-    id: 'loot-protocols',
-    name: 'Loot Sweep',
-    description:
-      'Permanent +15% blueprint part drop chance per rank (extra ranks +45% of base).',
-    costCp: 2,
-    maxRank: 6,
-    dropBonus: 0.15,
-    requiresPrestiges: 1,
-  },
-]
-
 /**
  * Farthest legal enemy park. Parks are role-authored and do not move when the
  * player swaps Cores. Every catalog weapon must reach this hold.
@@ -837,130 +650,6 @@ export const ENEMY_PARK_MAX = 125
 
 /** Shortest legal player Core range — must reach `ENEMY_PARK_MAX`. */
 export const MIN_CORE_WEAPON_RANGE = ENEMY_PARK_MAX
-
-/** Knife Fight only: runtime cap on fitted guns. Parks also compress to this. */
-export const SHORT_RANGE_MAX = 55
-
-export const CHALLENGES: ChallengeDef[] = [
-  {
-    id: 'no-ai',
-    name: 'Silent Bridge',
-    description: 'Reach Wave 300 with AI assists disabled. Repeatable.',
-    restriction: 'AI purchases and doctrines inactive',
-    goalSector: 30,
-    rewardChallengePoints: 1,
-    maxClears: 20,
-    stackDamageBonus: 0.005,
-  },
-  {
-    id: 'thin-hull',
-    name: 'Glass Frame',
-    description: 'Reach Wave 300 with half hull. Stacks boost Paused repair.',
-    restriction: 'Player hull max ×0.5',
-    goalSector: 30,
-    rewardChallengePoints: 1,
-    maxClears: 15,
-    stackRepairBonus: 0.015,
-    requiresPrestiges: 1,
-  },
-  {
-    id: 'data-drought',
-    name: 'Data Drought',
-    description: 'Reach Wave 300 without Data gains from combat. Repeatable.',
-    restriction: 'Combat data drops disabled',
-    goalSector: 30,
-    rewardChallengePoints: 2,
-    maxClears: 10,
-    stackProductionBonus: 0.008,
-    requiresChallengeClears: { challengeId: 'no-ai', clears: 1 },
-  },
-  {
-    id: 'no-utility',
-    name: 'Bare Rig',
-    description: 'Reach Wave 300 without utility modules. Repeatable.',
-    restriction: 'Utility modules unequipped and blocked',
-    goalSector: 30,
-    rewardChallengePoints: 1,
-    maxClears: 15,
-    stackDamageBonus: 0.006,
-    requiresPrestiges: 1,
-  },
-  {
-    id: 'short-range',
-    name: 'Knife Fight',
-    description: 'Reach Wave 300 with all weapons capped to flak range. Repeatable.',
-    restriction: `Weapon range capped at ${SHORT_RANGE_MAX}`,
-    goalSector: 30,
-    rewardChallengePoints: 2,
-    maxClears: 12,
-    stackRepairBonus: 0.015,
-    requiresChallengeClears: { challengeId: 'no-utility', clears: 1 },
-  },
-  {
-    id: 'mono-pulse',
-    name: 'Mono Pulse',
-    description: 'Reach Wave 300 with only the Pulse Cannon weapon module. Repeatable.',
-    restriction: 'Only Pulse Cannon weapon modules (Frame Battery ok)',
-    goalSector: 30,
-    rewardChallengePoints: 2,
-    maxClears: 12,
-    stackDamageBonus: 0.005,
-    requiresChallengeClears: { challengeId: 'short-range', clears: 1 },
-    requiresPrestiges: 2,
-  },
-  {
-    id: 'attrition',
-    name: 'Attrition',
-    description:
-      'Reach Wave 300 with no hangar or field repair — hull only recovers on death warp. Repeatable.',
-    restriction: 'No Pause / field hull or shield repair',
-    goalSector: 30,
-    rewardChallengePoints: 2,
-    maxClears: 12,
-    stackRepairBonus: 0.015,
-    requiresChallengeClears: { challengeId: 'thin-hull', clears: 1 },
-  },
-  {
-    id: 'long-haul',
-    name: 'Long Haul',
-    description:
-      'Ascension challenge: reach Wave 300. Entering costs an Ascension (not a Prestige).',
-    restriction: 'None — endurance goal · starts via Ascension',
-    goalSector: 30,
-    rewardChallengePoints: 3,
-    maxClears: 8,
-    stackProductionBonus: 0.012,
-    requiresAscensions: 0,
-    entryCost: 'ascension',
-  },
-  {
-    id: 'null-signal',
-    name: 'Null Signal',
-    description:
-      'Ascension challenge: reach Wave 300 with no Signal Cores. First clear stabilizes the Signal bank.',
-    restriction: 'Signal Cores unequipped and cannot be equipped · starts via Ascension',
-    goalSector: 30,
-    rewardChallengePoints: 4,
-    maxClears: 5,
-    stackProductionBonus: 0.012,
-    requiresAscensions: 0,
-    entryCost: 'ascension',
-  },
-  {
-    id: 'hollow-choir',
-    name: 'Hollow Choir',
-    description:
-      'Ascension challenge: reach Wave 300 with AI assists disabled and half hull. Requires 1 prior Ascension.',
-    restriction: 'AI inactive · hull ×0.5 · starts via Ascension',
-    goalSector: 30,
-    rewardChallengePoints: 5,
-    maxClears: 6,
-    stackDamageBonus: 0.008,
-    stackRepairBonus: 0.02,
-    requiresAscensions: 1,
-    entryCost: 'ascension',
-  },
-]
 
 export const SHIP_FRAMES: ShipFrameDef[] = [
   {
@@ -1548,8 +1237,6 @@ export type DroneEconomyState = {
   research: { unlocked: string[] }
   ai: { purchased: string[] }
   prestige: {
-    activeChallengeId: string | null
-    shop: Record<string, number>
     matterShop: Record<string, number>
   }
   meta?: { lifetimeDronesBuilt?: number }
@@ -1571,10 +1258,6 @@ export function dronePower(state: DroneEconomyState): number {
   let power = aiDroneEfficiencyMult(state)
   for (const id of state.research.unlocked) {
     power += RESEARCH.find((r) => r.id === id)?.dronePowerBonus ?? 0
-  }
-  for (const [id, rank] of Object.entries(state.prestige.shop)) {
-    const bonus = getChallengeShopItem(id)?.dronePowerBonus ?? 0
-    if (bonus) power += bonus * matterShopEffectScale(rank)
   }
   const acuity = Math.max(0, Math.floor(state.network?.links?.acuity ?? 0))
   power += NETWORK_ACUITY_PER_RANK * acuity
@@ -1665,27 +1348,11 @@ export function lowestPlayerCoreRange(): number {
     const range = mod.weapon?.range
     if (typeof range === 'number' && range > 0) min = Math.min(min, range)
   }
-  return Number.isFinite(min) ? min : SHORT_RANGE_MAX
-}
-
-export function getChallenge(id: string): ChallengeDef | undefined {
-  return CHALLENGES.find((c) => c.id === id)
-}
-
-/**
- * Temporary until PR10 replaces the Challenge catalogue.
- * Legacy `goalSector` is a Sector count (30 → Wave 300).
- */
-export function legacyChallengeGoalWave(challenge: { goalSector: number }): number {
-  return Math.max(1, Math.floor(challenge.goalSector)) * 10
+  return Number.isFinite(min) ? min : MIN_CORE_WEAPON_RANGE
 }
 
 export function getEssenceUpgrade(id: string): EssenceUpgradeDef | undefined {
   return ESSENCE_UPGRADES.find((e) => e.id === id)
-}
-
-export function getChallengeShopItem(id: string): ChallengeShopDef | undefined {
-  return CHALLENGE_SHOP.find((c) => c.id === id)
 }
 
 export function getMatterShopItem(id: string): MatterShopDef | undefined {
@@ -1751,7 +1418,7 @@ export function nextShopCost(baseCost: number, currentRank: number): number {
   return Math.ceil(baseCost * 2 ** Math.max(0, currentRank))
 }
 
-/** Legacy soft stacking used by Challenge-shop and probability-like effects. */
+/** Soft stacking used by probability-like Matter effects. */
 export function matterShopEffectScale(rank: number): number {
   if (rank <= 0) return 0
   return 1 + 0.45 * (rank - 1)
@@ -1778,104 +1445,12 @@ export function shopMaxRank(def: { maxRank?: number }): number {
   return def.maxRank ?? 1
 }
 
-function metaAnyGatePasses(
-  state: {
-    prestige: { prestigeCount: number; challengeClears: Record<string, number> }
-    meta: { act1Cleared: boolean; bestWave?: number }
-    combat?: { bestWave?: number }
-  },
-  gate: ShopMetaAnyGate,
-): boolean {
-  if (gate.act1Cleared && state.meta.act1Cleared) return true
-  if (gate.prestiges != null && state.prestige.prestigeCount >= gate.prestiges) return true
-  if (gate.bestWave != null) {
-    if (careerBestWave(state) >= gate.bestWave) return true
-  }
-  if (gate.anyChallengeClear) {
-    const clears = Object.values(state.prestige.challengeClears).some((n) => n > 0)
-    if (clears) return true
-  }
-  return false
-}
-
 export type ShopBuyCheck =
   | { ok: true; cost: number; nextRank: number; maxRank: number }
   | { ok: false; reason: string; cost?: number; nextRank?: number; maxRank?: number }
 
 export function canBuyMatterShop(state: GameState, itemId: string): ShopBuyCheck {
   return canBuyCanonicalMatterShop(state, itemId)
-}
-
-export function canBuyChallengeShop(
-  state: {
-    resources: { challengePoints: number }
-    prestige: {
-      prestigeCount: number
-      shop: Record<string, number>
-      matterShop: Record<string, number>
-      challengeClears: Record<string, number>
-    }
-    meta: { act1Cleared: boolean; bestWave?: number }
-  },
-  itemId: string,
-): ShopBuyCheck {
-  const def = getChallengeShopItem(itemId)
-  if (!def) return { ok: false, reason: 'Unknown item' }
-  const current = shopRank(state.prestige.shop, itemId)
-  const maxRank = shopMaxRank(def)
-  const nextRank = current + 1
-  const cost = nextShopCost(def.costCp, current)
-  if (current >= maxRank) {
-    return { ok: false, reason: 'Max rank', cost, nextRank, maxRank }
-  }
-  if (def.requiresPrestiges != null && state.prestige.prestigeCount < def.requiresPrestiges) {
-    return {
-      ok: false,
-      reason: `Need ${def.requiresPrestiges} prestige${def.requiresPrestiges === 1 ? '' : 's'}`,
-      cost,
-      nextRank,
-      maxRank,
-    }
-  }
-  if (def.requiresBestWave != null) {
-    if (!meetsWave(state, def.requiresBestWave)) {
-      return {
-        ok: false,
-        reason: `Reach Wave ${def.requiresBestWave}`,
-        cost,
-        nextRank,
-        maxRank,
-      }
-    }
-  }
-  if (def.requiresAct1 && !state.meta.act1Cleared) {
-    return { ok: false, reason: 'Need Act 1 cleared', cost, nextRank, maxRank }
-  }
-  if (def.requiresShopRank) {
-    const ranks =
-      def.requiresShopRank.shop === 'matter'
-        ? state.prestige.matterShop
-        : state.prestige.shop
-    if (shopRank(ranks, def.requiresShopRank.id) < def.requiresShopRank.rank) {
-      const need = getChallengeShopItem(def.requiresShopRank.id)?.name
-        ?? getMatterShopItem(def.requiresShopRank.id)?.name
-        ?? def.requiresShopRank.id
-      return {
-        ok: false,
-        reason: `Need ${need} rank ${def.requiresShopRank.rank}`,
-        cost,
-        nextRank,
-        maxRank,
-      }
-    }
-  }
-  if (def.requiresMetaAny && !metaAnyGatePasses(state, def.requiresMetaAny)) {
-    return { ok: false, reason: 'Meta requirements not met', cost, nextRank, maxRank }
-  }
-  if (state.resources.challengePoints < cost) {
-    return { ok: false, reason: `Need ${cost} CP`, cost, nextRank, maxRank }
-  }
-  return { ok: true, cost, nextRank, maxRank }
 }
 
 /** Total manufacture speed multiplier (1 = baseline). */
@@ -1886,10 +1461,6 @@ export function workerManufactureSpeed(state: DroneEconomyState): number {
   }
   for (const id of state.ai.purchased) {
     speed += getAiNode(id)?.manufactureBonus ?? 0
-  }
-  for (const [id, rank] of Object.entries(state.prestige.shop)) {
-    const bonus = getChallengeShopItem(id)?.manufactureBonus ?? 0
-    if (bonus) speed += bonus * matterShopEffectScale(rank)
   }
   const fab = stationEffectiveDrones(state, 'drone-fab')
   const fabDef = getStation('drone-fab')
@@ -2183,26 +1754,21 @@ export function researchEssenceMultiplier(unlocked: string[]): number {
 export function metaDamageMultiplier(
   prestigeMatter: number,
   challengePoints: number,
-  shop: Record<string, number> = {},
   matterShop: Record<string, number> = {},
-  challengeClears: Record<string, number> = {},
 ): number {
   void prestigeMatter
   void challengePoints
-  void shop
   void matterShop
-  void challengeClears
   return 1
 }
 
 export function metaProductionMultiplier(
   prestigeMatter: number,
   matterShop: Record<string, number> = {},
-  challengeClears: Record<string, number> = {},
 ): number {
   void prestigeMatter
   void matterShop
-  return 1 + challengeStackProductionBonus(challengeClears)
+  return 1
 }
 
 /**
@@ -2228,134 +1794,24 @@ export function prestigeMomentumProductionBonus(
   return fromPrestige * fromAscension - 1
 }
 
-/** Additive blueprint part drop chance from Challenge shop ranks. */
-export function challengeShopDropBonus(shop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(shop)) {
-    const bonus = getChallengeShopItem(id)?.dropBonus ?? 0
-    if (bonus) total += bonus * matterShopEffectScale(rank)
-  }
-  return total
-}
-
-export function challengeShopStartingScrap(shop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(shop)) {
-    const base = getChallengeShopItem(id)?.startingScrap ?? 0
-    if (base) total += base * rank
-  }
-  return total
-}
-
-export function challengeShopStartingAi(shop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(shop)) {
-    const base = getChallengeShopItem(id)?.startingAiPoints ?? 0
-    if (base) total += base * rank
-  }
-  return total
-}
-
-export function challengeShopStartingSalvage(shop: Record<string, number>): number {
-  let total = 0
-  for (const [id, rank] of Object.entries(shop)) {
-    const base = getChallengeShopItem(id)?.startingSalvage ?? 0
-    if (base) total += base * rank
-  }
-  return total
-}
-
-export function challengeShopOfflineMs(shop: Record<string, number>): number {
-  let hours = 8
-  for (const [id, rank] of Object.entries(shop)) {
-    if (rank < 1) continue
-    const h = getChallengeShopItem(id)?.offlineHours
-    if (h) hours = Math.max(hours, h)
-  }
-  return hours * 60 * 60 * 1000
-}
-
-export function challengeShopMatchupBonus(shop: Record<string, number>): number {
-  let bonus = 0
-  for (const [id, rank] of Object.entries(shop)) {
-    const base = getChallengeShopItem(id)?.matchupBonus ?? 0
-    if (base) bonus += base * matterShopEffectScale(rank)
-  }
-  return bonus
-}
-
-export function effectiveMaxClears(
-  def: ChallengeDef,
-  shopRanks: Record<string, number>,
-): number {
-  const bonus = shopRank(shopRanks, 'clearance-board') >= 1 ? 5 : 0
-  return def.maxClears + bonus
-}
-
 /** Short UI blurb for matter shop total effect at rank. */
 export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string {
   return canonicalMatterBlurb(def, rank)
 }
 
-/** Short UI blurb for challenge shop total effect at rank. */
-export function challengeShopEffectBlurb(def: ChallengeShopDef, rank: number): string {
-  if (rank <= 0) return 'Not owned'
-  const s = matterShopEffectScale(rank)
-  const bits: string[] = []
-  if (def.damageBonus) bits.push(`+${(def.damageBonus * s * 100).toFixed(1)}% dmg`)
-  if (def.prestigeMinSector) bits.push(`prestige from Wave ${def.prestigeMinSector}`)
-  if (def.startingScrap) bits.push(`+${def.startingScrap * rank} start scrap`)
-  if (def.startingAiPoints) bits.push(`+${def.startingAiPoints * rank} start AIP`)
-  if (def.startingSalvage) bits.push(`+${def.startingSalvage * rank} start salvage`)
-  if (def.offlineHours) bits.push(`${def.offlineHours}h offline cap`)
-  if (def.matchupBonus) bits.push(`+${(def.matchupBonus * s * 100).toFixed(0)}% matchup`)
-  if (def.droneCapBonus) bits.push(`+${def.droneCapBonus * rank} drone cap`)
-  if (def.dronePowerBonus) {
-    bits.push(`×${matterShopRankMultiplier(def.dronePowerBonus, rank).toFixed(2)} drone power`)
-  }
-  if (def.dropBonus) bits.push(`+${(def.dropBonus * s * 100).toFixed(1)}% part drops`)
-  if (def.unlockModuleId) {
-    const mod = getModule(def.unlockModuleId)
-    bits.push(`unlocks ${mod?.name ?? def.unlockModuleId}`)
-  }
-  if (def.id === 'clearance-board') bits.push('+5 max clears on all challenges')
-  return bits.join(' · ') || 'Owned'
-}
-
-/** Silent Bridge / Hollow Choir — AI purchases and doctrines inactive. */
-export function challengeBlocksAi(state: {
-  prestige: { activeChallengeId: string | null }
-}): boolean {
-  const id = state.prestige.activeChallengeId
-  return id === 'no-ai' || id === 'hollow-choir'
-}
-
-/** Glass Frame / Hollow Choir — player hull max ×0.5. */
-export function challengeThinHull(state: {
-  prestige: { activeChallengeId: string | null }
-}): boolean {
-  const id = state.prestige.activeChallengeId
-  return id === 'thin-hull' || id === 'hollow-choir'
-}
-
-/** AI combat doctrines are disabled during Silent Bridge / Hollow Choir. */
 export function aiDoctrinesActive(
   state: {
-    prestige: { activeChallengeId: string | null }
     ai: { purchased: string[] }
   },
   nodeId: string,
 ): boolean {
-  if (challengeBlocksAi(state)) return false
   return state.ai.purchased.includes(nodeId)
 }
 
 /** Additive station production from AI (non-combat). */
 export function aiProductionBonus(state: {
-  prestige: { activeChallengeId: string | null }
   ai: { purchased: string[] }
 }): number {
-  if (challengeBlocksAi(state)) return 0
   let bonus = 0
   for (const id of state.ai.purchased) {
     bonus += getAiNode(id)?.productionBonus ?? 0
@@ -2365,10 +1821,8 @@ export function aiProductionBonus(state: {
 
 /** Additive Fab Bay craft speed from AI (non-combat). */
 export function aiFabBonus(state: {
-  prestige: { activeChallengeId: string | null }
   ai: { purchased: string[] }
 }): number {
-  if (challengeBlocksAi(state)) return 0
   let bonus = 0
   for (const id of state.ai.purchased) {
     bonus += getAiNode(id)?.fabBonus ?? 0
@@ -2376,120 +1830,13 @@ export function aiFabBonus(state: {
   return bonus
 }
 
-/** True when an active challenge forbids fitting this module. */
-export function isModuleBlockedByChallenge(
-  activeChallengeId: string | null,
-  moduleId: string,
-): boolean {
-  if (!activeChallengeId) return false
-  const mod = getModule(moduleId)
-  if (!mod) return false
-  if (activeChallengeId === 'no-utility' && mod.role === 'utility') return true
-  if (
-    activeChallengeId === 'mono-pulse' &&
-    mod.role === 'weapon' &&
-    moduleId !== 'pulse-cannon'
-  ) {
-    return true
-  }
-  return false
-}
-
-/** Drop modules forbidden by the active challenge (Bare Rig strips utilities). */
-export function filterModulesForChallenge(
-  moduleIds: string[],
-  activeChallengeId: string | null,
-): string[] {
-  if (!activeChallengeId) return moduleIds
-  return moduleIds.filter((id) => !isModuleBlockedByChallenge(activeChallengeId, id))
-}
-
-export function challengeClearCount(
-  clears: Record<string, number> | undefined,
-  challengeId: string,
-): number {
-  return clears?.[challengeId] ?? 0
-}
-
-export function challengeStackDamageBonus(clears: Record<string, number> = {}): number {
-  let bonus = 0
-  for (const def of CHALLENGES) {
-    const n = challengeClearCount(clears, def.id)
-    if (n > 0 && def.stackDamageBonus) bonus += n * def.stackDamageBonus
-  }
-  return bonus
-}
-
-export function challengeStackProductionBonus(clears: Record<string, number> = {}): number {
-  let bonus = 0
-  for (const def of CHALLENGES) {
-    const n = challengeClearCount(clears, def.id)
-    if (n > 0 && def.stackProductionBonus) bonus += n * def.stackProductionBonus
-  }
-  return bonus
-}
-
-export function challengeStackRepairBonus(clears: Record<string, number> = {}): number {
-  let bonus = 0
-  for (const def of CHALLENGES) {
-    const n = challengeClearCount(clears, def.id)
-    if (n > 0 && def.stackRepairBonus) bonus += n * def.stackRepairBonus
-  }
-  return bonus
-}
-
-export function isChallengeUnlocked(
-  state: {
-    prestige: { challengeClears: Record<string, number>; prestigeCount: number }
-    meta?: { act1Cleared?: boolean; ascensionCount?: number; bestWave?: number }
-    combat?: { bestWave?: number }
-  },
-  challengeId: string,
-): boolean {
-  const def = getChallenge(challengeId)
-  if (!def) return false
-
-  // Ascension-entry challenges only appear once Act 1 is cleared (ascension available).
-  if (def.entryCost === 'ascension') {
-    const act1 = state.meta?.act1Cleared === true || meetsWave(state, ACT1_FINAL_WAVE)
-    if (!act1) return false
-    if ((state.meta?.ascensionCount ?? 0) < (def.requiresAscensions ?? 0)) {
-      return false
-    }
-    return true
-  }
-
-  const gates: boolean[] = []
-  if (def.requiresPrestiges != null) {
-    gates.push(state.prestige.prestigeCount >= def.requiresPrestiges)
-  }
-  if (def.requiresChallengeClears) {
-    const have = challengeClearCount(
-      state.prestige.challengeClears,
-      def.requiresChallengeClears.challengeId,
-    )
-    gates.push(have >= def.requiresChallengeClears.clears)
-  }
-  if (def.requiresBestWave != null) {
-    gates.push(meetsWave(state, def.requiresBestWave))
-  }
-  if (def.requiresAscensions != null) {
-    gates.push((state.meta?.ascensionCount ?? 0) >= def.requiresAscensions)
-  }
-  // No gates → unlocked; multiple gates are OR (e.g. Mono Pulse).
-  if (gates.length === 0) return true
-  return gates.some(Boolean)
-}
-
 /**
  * AI drone power mult (highest owned wins).
  * Feeds dronePower() saturation — not a post-BB output multiplier.
  */
 export function aiDroneEfficiencyMult(state: {
-  prestige: { activeChallengeId: string | null }
   ai: { purchased: string[] }
 }): number {
-  if (challengeBlocksAi(state)) return 1
   let best = 1
   for (const id of state.ai.purchased) {
     const m = getAiNode(id)?.droneEfficiencyMult

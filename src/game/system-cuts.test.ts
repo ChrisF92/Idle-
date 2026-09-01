@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import { buyAiNode, buyMatterShop, buyResearch } from './actions'
 import {
-  CHALLENGES,
   RESEARCH,
   getMatterShopItem,
   researchDamageMultiplier,
   researchEssenceMultiplier,
   workerManufactureSpeed,
 } from './catalog'
+import { CHALLENGES } from './challenges'
 
 describe('system cuts', () => {
   it('basic-optics and entity-anatomy grant no research damage', () => {
@@ -54,7 +54,9 @@ describe('system cuts', () => {
     expect(workerManufactureSpeed(state)).toBeGreaterThan(withFab)
   })
 
-  it('every challenge goalSector is 30', () => {
-    expect(CHALLENGES.every((c) => c.goalSector === 30)).toBe(true)
+  it('uses the ten authored secured-Wave targets', () => {
+    expect(CHALLENGES.map((challenge) => challenge.targetWave)).toEqual([
+      450, 500, 550, 600, 650, 700, 725, 800, 850, 1000,
+    ])
   })
 })

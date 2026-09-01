@@ -62,8 +62,8 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Spend Rebuild Matter inside the Rebuild hangar.',
   },
   {
-    id: 'protocols',
-    requiresBestWave: ACT1_CADENCE.protocols,
+    id: 'challenges',
+    requiresBestWave: ACT1_CADENCE.challenges,
     label: 'Challenges',
     tip: 'Solve a modified version of the normal Sortie rules.',
   },
@@ -162,7 +162,7 @@ export type AchievementCondition =
   | { type: 'furnace-rank-sum'; min: number }
   | { type: 'reliquary-fitted'; min: number }
   | { type: 'hive-research-nodes'; min: number }
-  | { type: 'protocol-rank-sum'; min: number }
+  | { type: 'challenge-medal-sum'; min: number }
   | { type: 'echo-clear-sum'; min: number }
   | { type: 'yard-building-count'; min: number }
 
@@ -400,11 +400,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     condition: { type: 'hive-research-nodes', min: 3 },
   },
   {
-    id: 'protocol-clear',
+    id: 'challenge-clear',
     name: 'Challenge Cleared',
     description: 'Complete any Challenge.',
     rewardAiPoints: 3,
-    condition: { type: 'protocol-rank-sum', min: 1 },
+    condition: { type: 'challenge-medal-sum', min: 1 },
   },
   {
     id: 'yard-plot',
@@ -500,7 +500,7 @@ export function achievementBaseThreshold(condition: AchievementCondition): numbe
     case 'furnace-rank-sum':
     case 'reliquary-fitted':
     case 'hive-research-nodes':
-    case 'protocol-rank-sum':
+    case 'challenge-medal-sum':
     case 'echo-clear-sum':
     case 'yard-building-count':
       return condition.min
@@ -529,7 +529,7 @@ export function achievementProgressValue(
     case 'ascension-count':
       return state.meta.ascensionCount ?? 0
     case 'challenge-clears-total':
-      return Object.values(state.prestige.challengeClears).reduce((a, b) => a + b, 0)
+      return Object.values(state.challenges.medals).reduce((a, b) => a + b, 0)
     case 'modules-unlocked':
       return state.shipyard.unlockedModules.length
     case 'core-rank-sum':
@@ -559,8 +559,8 @@ export function achievementProgressValue(
     }
     case 'hive-research-nodes':
       return Object.values(state.hiveResearch?.completed ?? {}).reduce((a, b) => a + b, 0)
-    case 'protocol-rank-sum':
-      return Object.values(state.protocols?.ranks ?? {}).reduce((a, b) => a + b, 0)
+    case 'challenge-medal-sum':
+      return Object.values(state.challenges?.medals ?? {}).reduce((a, b) => a + b, 0)
     case 'echo-clear-sum':
       return Object.values(state.echo?.clears ?? {}).reduce((a, b) => a + b, 0)
     case 'yard-building-count':
@@ -681,9 +681,9 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   if (systemId === 'research') {
     return meetsWave(state, ACT1_CADENCE.research)
   }
-  if (systemId === 'protocols') {
-    const used = Boolean(state.protocols?.activeId) || Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
-    return used || meetsWave(state, ACT1_CADENCE.protocols)
+  if (systemId === 'challenges') {
+    const used = Boolean(state.challenges?.activeId) || Object.values(state.challenges?.medals ?? {}).some((n) => n > 0)
+    return used || meetsWave(state, ACT1_CADENCE.challenges)
   }
   if (systemId === 'echo') {
     return false
@@ -726,8 +726,8 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
   if (systemId === 'ai' || systemId === 'process') {
     return 'Complete Process Kernel in Computational Systems Research'
   }
-  if (systemId === 'protocols') {
-    return `Reach Wave ${ACT1_CADENCE.protocols}`
+  if (systemId === 'challenges') {
+    return `Reach Wave ${ACT1_CADENCE.challenges}`
   }
   if (systemId === 'codex') {
     return `Reach Wave ${ACT1_CADENCE.codex}`
@@ -783,7 +783,7 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
     case 'challengePoints':
       return (
         state.resources.challengePoints > 0 ||
-        Object.values(state.prestige.challengeClears).some((n) => n > 0)
+        Object.values(state.challenges.medals).some((n) => n > 0)
       )
     default:
       return true
@@ -814,12 +814,12 @@ export function firstRebuildAvailable(state: GameState): boolean {
 }
 
 /**
- * Challenges + Challenge shop unlock after the Act 1 finale (Wave 1000).
+ * Challenges unlock at their Act 1 cadence door.
  * Stay visible while a challenge is already running so Abandon remains available.
  */
 export function challengesContentUnlocked(state: GameState): boolean {
-  if (state.prestige.activeChallengeId) return true
-  return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE)
+  if (state.challenges.activeId) return true
+  return meetsWave(state, ACT1_CADENCE.challenges)
 }
 
 /** Grant Base starter drones; update career flags; check achievements. */
@@ -862,7 +862,7 @@ export {
   ONBOARDING_ENABLED,
   ONBOARDING_LESSONS,
   ONBOARDING_LESSONS as GUIDE_STEPS,
-  PROTOCOL_V2_GUIDE_IDS,
+  CHALLENGE_GUIDE_IDS,
   REBUILD_GUIDE_IDS,
   RESEARCH_V2_GUIDE_IDS,
   STARTER_GUIDE_IDS,

@@ -178,7 +178,6 @@ const LEGACY_TOUR_MARKERS = [
   'guide-furnace-v2-ash',
   'guide-research-xp',
   'guide-process-v2-what',
-  'guide-protocol-restrict',
   'guide-reliquary-slots',
   'guide-prestige-hangar',
 ] as const
@@ -528,13 +527,13 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     title: 'Challenge',
     body: 'Restriction, goal, reward, disabled systems, and current best are listed. Confirm before launch.',
     target: 'onboarding.challenges.list',
-    nav: { tab: 'protocols' },
+    nav: { tab: 'challenges' },
     pause: false,
     skippable: true,
     required: false,
     activation: 'visit',
-    availableWhen: (s) => isSystemUnlocked(s, 'protocols') && !s.protocols?.activeId,
-    completeWhen: (s) => Boolean(s.protocols?.activeId),
+    availableWhen: (s) => isSystemUnlocked(s, 'challenges') && !s.challenges?.activeId,
+    completeWhen: (s) => Boolean(s.challenges?.activeId),
   },
   {
     id: 'reinforce',
@@ -806,7 +805,7 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
     'furnace.channel': ACT1_CADENCE.furnace,
     'research.project': ACT1_CADENCE.research,
     'process.capability': ACT1_CADENCE.process,
-    'challenges.start': ACT1_CADENCE.protocols,
+    'challenges.start': ACT1_CADENCE.challenges,
     reinforce: ACT1_CADENCE.reinforce,
   }
 
@@ -912,7 +911,7 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
       next.hiveResearch.completed.computation = Math.max(next.hiveResearch.completed.computation ?? 0, 4)
       break
     case 'challenges.start':
-      if (next.protocols) next.protocols.activeId = null
+      if (next.challenges) next.challenges.activeId = null
       next.prestige.prestigeCount = Math.max(next.prestige.prestigeCount, 2)
       break
     case 'reinforce':
@@ -936,4 +935,4 @@ export const RESEARCH_V2_GUIDE_IDS = ['research.project'] as const
 export const FURNACE_V2_GUIDE_IDS = ['furnace.channel'] as const
 export const REBUILD_GUIDE_IDS = ['rebuild.preview', 'rebuild.matter'] as const
 export const NETWORK_RELAY_GUIDE_IDS = [] as const
-export const PROTOCOL_V2_GUIDE_IDS = [] as const
+export const CHALLENGE_GUIDE_IDS = [] as const

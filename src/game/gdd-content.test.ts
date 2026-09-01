@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { buyGenericUnlock, buyWorkshopUpgrade, enterProtocol } from './actions'
+import { buyGenericUnlock, buyWorkshopUpgrade } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import { metaDamageMultiplier } from './catalog'
 import { FOUNDRY_LOGS, unlockedFoundryLogs } from './logs'
-import {
-  PROTOCOLS,
-  applyProtocolGrant,
-  protocolNextRewardText,
-  tryCompleteProtocol,
-} from './protocols'
+import { CHALLENGES } from './challenges'
 import { getHiveResearchNode } from './hiveResearch'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 import { availableSortieSpeeds } from './uiReadout'
 import { RUN_UPGRADES, scrapKillBonus, shopArmor, visibleRunUpgrades } from './workshop'
-import { processPointsEarned } from './processPoints'
 
 describe('GDD Phase 8 content depth', () => {
   it('keeps the canonical 18 generic upgrades without Best-Wave shop gates', () => {
@@ -80,37 +74,19 @@ describe('GDD Phase 8 content depth', () => {
     expect(availableSortieSpeeds(fresh)).toEqual([1])
   })
 
-  it('shows Challenge grants that expand the tested system, not global damage', () => {
-    expect(PROTOCOLS.every((def) => def.firstGrant || def.unlocksFrame)).toBe(true)
-    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'relic')).toBe(true)
-    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'process-points')).toBe(true)
-    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'recipe')).toBe(true)
-    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'research')).toBe(false)
-
-    const s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.protocols)
-    s.prestige.prestigeCount = 2
-    s.hiveResearch.completed.energy = 1
-    s.combat.docked = true
-    s.workshop.coreStarts = { 'pulse-cannon:1': 2 }
-    expect(protocolNextRewardText(s, 'glass-ward')).toMatch(/Plate Chip/)
-    expect(protocolNextRewardText(s, 'quiet-guns')).toMatch(/2 Process Points/)
-    expect(protocolNextRewardText(s, 'mute-network')).toMatch(/2 Process Points/)
-
-    applyProtocolGrant(s, { kind: 'relic', id: 'plate-chip', blurb: 'test' })
-    expect(s.relics.instances).toHaveLength(0)
-
-    let run = enterProtocol(s, 'quiet-guns')
-    expect(run.protocols.activeId).toBe('quiet-guns')
-    const beforePoints = processPointsEarned(run)
-    run.combat.wave = 100
-    tryCompleteProtocol(run)
-    expect(run.process.purchased).not.toContain('shop-readout')
-    expect(processPointsEarned(run)).toBe(beforePoints + 2)
+  it('routes every Challenge first clear to a deterministic unique reward', () => {
+    expect(CHALLENGES).toHaveLength(10)
+    expect(CHALLENGES.every((def) => def.uniqueRewards.length > 0)).toBe(true)
+    expect(CHALLENGES.flatMap((def) => def.uniqueRewards).some((reward) => reward.kind === 'blueprint')).toBe(true)
+    expect(CHALLENGES.find((def) => def.id === 'hollow-choir')?.uniqueRewards.map((reward) => reward.kind)).toEqual([
+      'account-unlock',
+      'cosmetic',
+    ])
   })
 
   it('keeps leftover Challenge Marks from buying global damage', () => {
-    const bare = metaDamageMultiplier(0, 0, {}, {}, {})
-    const stacked = metaDamageMultiplier(0, 80, { 'old-rank': 4 }, {}, { 'no-ai': 12 })
+    const bare = metaDamageMultiplier(0, 0, {})
+    const stacked = metaDamageMultiplier(0, 80, {})
     expect(stacked).toBe(bare)
   })
 

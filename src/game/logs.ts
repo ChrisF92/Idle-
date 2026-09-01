@@ -95,10 +95,10 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
     unlock: (s) => career(s) >= ACT1_CADENCE.process || (s.process?.purchased?.length ?? 0) > 0,
   },
   {
-    id: 'protocols',
+    id: 'challenges',
     title: 'Restricted sortie',
     body: 'Mute a system. Clear the goal Wave. The reward expands that system — Relic, recipe, Process, or Frame. Not a global damage chip.',
-    unlock: (s) => career(s) >= ACT1_CADENCE.protocols,
+    unlock: (s) => career(s) >= ACT1_CADENCE.challenges,
   },
   {
     id: 'act1',

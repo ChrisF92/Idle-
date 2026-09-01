@@ -11,7 +11,7 @@ import {
   setResearchFocus,
   unlockModule,
   assignWorker,
-  enterProtocol,
+  enterChallenge,
   buyWorkshopUpgrade,
   buyRunUpgrade,
   buyCoreStartingLevel,
@@ -52,7 +52,7 @@ import { GUIDE_STEPS, isSystemUnlocked } from '../progression'
 import { ACT1_CADENCE } from '../cadence'
 import { careerBestWave } from '../waves'
 import { workerJobCap } from '../workers'
-import { PROTOCOLS, PROTOCOL_MAX_RANK, canEnterProtocol, protocolRank } from '../protocols'
+import { CHALLENGES, CHALLENGE_MAX_MEDAL, canEnterChallenge, challengeMedalRank } from '../challenges'
 import type { SimulationSpendProfile, StrategyContext } from './types'
 import {
   RUN_UPGRADES,
@@ -495,14 +495,16 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
   return after
 }
 
-export function tendProtocols(state: GameState, ctx: StrategyContext): GameState {
+export function tendChallenges(state: GameState, ctx: StrategyContext): GameState {
   if (!state.combat.docked) return state
-  if (state.protocols?.activeId) return state
+  if (state.challenges?.activeId) return state
   if ((state.meta.lifetimeCoreRunBuys ?? 0) > 0) return state
-  const pick = PROTOCOLS.find((p) => canEnterProtocol(state, p.id).ok && protocolRank(state, p.id) < PROTOCOL_MAX_RANK)
+  const pick = CHALLENGES.find((challenge) =>
+    canEnterChallenge(state, challenge.id).ok && challengeMedalRank(state, challenge.id) < CHALLENGE_MAX_MEDAL
+  )
   if (!pick) return state
-  const after = enterProtocol(state, pick.id)
-  if (after !== state) ctx.recordMeaningful(`Protocol ${pick.name}`)
+  const after = enterChallenge(state, pick.id)
+  if (after !== state) ctx.recordMeaningful(`Challenge ${pick.name}`)
   return after
 }
 
@@ -687,6 +689,6 @@ export function industryPass(
   next = tendProcess(next, ctx)
   next = tendReliquary(next, ctx)
   next = spendRebuildMatter(next, ctx)
-  if (profile === 'optimiser') next = tendProtocols(next, ctx)
+  if (profile === 'optimiser') next = tendChallenges(next, ctx)
   return next
 }

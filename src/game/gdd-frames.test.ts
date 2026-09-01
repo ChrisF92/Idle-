@@ -20,7 +20,7 @@ import { forceUnlockModule } from './testHelpers'
 
 describe('GDD D8 Hive Frames', () => {
   it('replaces the USI hull ladder with five archetypes', () => {
-    expect(SAVE_VERSION).toBe(50)
+    expect(SAVE_VERSION).toBe(51)
     expect(SHIP_FRAMES.map((f) => f.id)).toEqual([
       'starter-frame',
       'bastion-frame',

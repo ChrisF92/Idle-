@@ -89,7 +89,7 @@ describe('combat speed vs industry', () => {
   it('Challenge sorties still cannot buy Time Compression from AI', () => {
     let state = createInitialState(0)
     state.ai.purchased = ['drone-efficiency-1']
-    state.prestige.activeChallengeId = 'no-ai'
+    state.challenges.activeId = 'glass-frame'
     expect(availableTimeCompressionSpeeds(state)).toEqual([1])
   })
 })

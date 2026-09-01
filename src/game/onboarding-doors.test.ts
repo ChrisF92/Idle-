@@ -31,7 +31,7 @@ const TAB_FOR: Record<OnboardingLessonId, Parameters<typeof activeOnboardingLess
   'furnace.channel': 'furnace',
   'research.project': 'research',
   'process.capability': 'process',
-  'challenges.start': 'protocols',
+  'challenges.start': 'challenges',
   reinforce: 'reinforce',
   'combat-overlay.ranges': 'combat',
 }

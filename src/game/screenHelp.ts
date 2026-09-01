@@ -15,7 +15,7 @@ export const LIVE_SCREENS: TabId[] = [
   'foundry',
   'furnace',
   'research',
-  'protocols',
+  'challenges',
   'process',
   'reinforce',
   'logs',
@@ -85,7 +85,7 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
       'The Matter shop lives inside the Rebuild hangar.',
     ],
   },
-  protocols: {
+  challenges: {
     title: 'Challenges',
     body: [
       'Purpose: prove this account can solve a modified version of the normal rules. Main decision: which restriction you take into a Sortie.',

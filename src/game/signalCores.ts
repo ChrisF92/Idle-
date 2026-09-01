@@ -262,7 +262,8 @@ export function findSignalCore(
 }
 
 export function isSignalCoreEquipBlocked(state: GameState): boolean {
-  return state.prestige.activeChallengeId === 'null-signal'
+  void state
+  return false
 }
 
 export function canEquipSignalCore(

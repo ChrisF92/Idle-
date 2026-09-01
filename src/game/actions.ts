@@ -11,30 +11,18 @@ import {
   AI_NODES,
   RESEARCH,
   STATIONS,
-  canBuyChallengeShop,
   canBuyMatterShop,
-  challengeClearCount,
-  challengeShopStartingAi,
-  challengeShopStartingSalvage,
-  challengeShopStartingScrap,
-  effectiveMaxClears,
   getAiNode,
-  getChallenge,
-  getChallengeShopItem,
   getEssenceUpgrade,
   getFrame,
   STARTER_FRAME_ID,
   getMatterShopItem,
   getModule,
   getStation,
-  legacyChallengeGoalWave,
   isAiNodePermanent,
-  isChallengeUnlocked,
   isStationUnlocked,
   canFitModuleOnFrame,
-  filterModulesForChallenge,
   idleWorkers,
-  isModuleBlockedByChallenge,
   stationBlackBarNeed,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
@@ -73,13 +61,12 @@ import {
 import { isTargetingCapableCoreModule, targetingProfileFor } from './targetingProfiles'
 import { isWorkerJob, workerJobCap } from './workers'
 import {
-  canEnterProtocol,
-  createEmptyProtocolState,
-  getProtocol,
-  noteProtocolProgress,
-  protocolGoalWave,
-  wipeProtocolLoadout,
-} from './protocols'
+  canEnterChallenge,
+  challengeGoalWave,
+  getChallenge,
+  isCoreBlockedByChallenge,
+  noteChallengeProgress,
+} from './challenges'
 import {
   createEmptyEchoState,
 } from './echo'
@@ -130,7 +117,6 @@ import {
   workshopCost,
   type RunUpgradeId,
 } from './workshop'
-import { ACT1_CADENCE } from './cadence'
 import { sanitizeCodexState } from './codex'
 import { buyCoreStartingLevel as buyCoreStartingLevelInternal } from './coreProgression'
 import {
@@ -150,7 +136,6 @@ import {
 } from './rebuild'
 import {
   createEmptySignalCoresState,
-  unequipAllSignalCores,
 } from './signalCores'
 import { emptyWaveRuntime } from './waveRuntime'
 import { clearDirectives } from './directives'
@@ -522,7 +507,6 @@ export function autoBalanceWorkers(
   profile?: LaborProfile,
 ): GameState {
   if (!state.ai.purchased.includes('auto-assign-workers')) return state
-  if (state.prestige.activeChallengeId === 'no-ai') return state
   const stations = laborStations(state)
   if (stations.length === 0 || state.base.workerDrones <= 0) return state
 
@@ -545,7 +529,6 @@ export function clearWorkerAssignments(
   opts?: { includeTraining?: boolean },
 ): GameState {
   if (!state.ai.purchased.includes('auto-assign-workers')) return state
-  if (state.prestige.activeChallengeId === 'no-ai') return state
   const next = structuredClone(state)
   if (opts?.includeTraining) {
     next.base.assignments = {}
@@ -565,7 +548,6 @@ export function clearWorkerAssignments(
  */
 export function fillStationWorkers(state: GameState, stationId: string): GameState {
   if (!state.ai.purchased.includes('auto-assign-workers')) return state
-  if (state.prestige.activeChallengeId === 'no-ai') return state
   if (!isStationUnlocked(state, stationId)) return state
   const idle = idleWorkers(state)
   if (idle <= 0) return state
@@ -610,12 +592,6 @@ export function buyAiNode(state: GameState, nodeId: string): GameState {
   if (!def) return state
   if (state.ai.purchased.includes(nodeId)) return state
   if (state.resources.aiPoints < def.costAiPoints) return state
-  if (
-    state.prestige.activeChallengeId === 'no-ai' ||
-    state.prestige.activeChallengeId === 'hollow-choir'
-  ) {
-    return state
-  }
   if ((def.requiresBestWave ?? 0) > careerBestWave(state)) return state
   if (def.requiresAiNode && !state.ai.purchased.includes(def.requiresAiNode)) {
     return state
@@ -637,31 +613,6 @@ export function buyEssenceUpgrade(state: GameState, upgradeId: string): GameStat
   const next = structuredClone(state)
   next.resources.essence -= def.costEssence
   next.essence.purchased = [...next.essence.purchased, upgradeId]
-  if (!next.combat.inFight) syncPersistedHullCaps(next)
-  return next
-}
-
-export function buyChallengeShop(state: GameState, itemId: string): GameState {
-  const def = getChallengeShopItem(itemId)
-  if (!def) return state
-  const check = canBuyChallengeShop(state, itemId)
-  if (!check.ok) return state
-
-  const next = structuredClone(state)
-  next.resources.challengePoints -= check.cost
-  next.prestige.shop = {
-    ...next.prestige.shop,
-    [itemId]: check.nextRank,
-  }
-  // Cap / power shop ranks are derived — no instant drone grants.
-  if (def.unlockModuleId && check.nextRank >= 1) {
-    if (!next.shipyard.unlockedModules.includes(def.unlockModuleId)) {
-      next.shipyard.unlockedModules = [
-        ...next.shipyard.unlockedModules,
-        def.unlockModuleId,
-      ]
-    }
-  }
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
 }
@@ -699,10 +650,7 @@ export function selectFrame(state: GameState, frameId: string): GameState {
   const previousCoreIds = [...(next.shipyard.equippedCoreIds ?? [])]
   next.shipyard.frameLocked = false
   next.shipyard.frameId = frameId
-  next.shipyard.modules = filterModulesForChallenge(
-    trimModulesToUsableSlots(next, next.shipyard.modules, frameId),
-    next.prestige.activeChallengeId,
-  )
+  next.shipyard.modules = trimModulesToUsableSlots(next, next.shipyard.modules, frameId)
   reconcileEquippedCoreIds(next.shipyard, previousModules, previousCoreIds)
   if (!next.combat.inFight) syncPersistedHullCaps(next)
   return next
@@ -738,8 +686,10 @@ export function assembleBlueprint(state: GameState, moduleId: string): GameState
 
 export function fitModule(state: GameState, moduleId: string, coreInstanceId?: string): GameState {
   if (!state.shipyard.unlockedModules.includes(moduleId)) return state
-  if (isModuleBlockedByChallenge(state.prestige.activeChallengeId, moduleId)) {
-    return state
+  if (isCoreBlockedByChallenge(state, moduleId)) return state
+  if (state.challenges.activeId === 'single-pattern' && getModule(moduleId)?.role === 'weapon') {
+    const fittedWeapons = state.shipyard.modules.filter((id) => getModule(id)?.role === 'weapon')
+    if (fittedWeapons.some((id) => id !== moduleId)) return state
   }
   const frame = getFrame(state.shipyard.frameId)
   if (!frame) return state
@@ -813,46 +763,25 @@ export function setCoreTargetingDoctrine(
 
 /** Ascension unlocks after Act 1; soft-resets the run and boosts future PM gains. */
 export function canAscend(state: GameState): boolean {
-  if (state.prestige.activeChallengeId) return false
+  if (state.challenges.activeId) return false
   if (!state.meta.act1Cleared) return false
   return careerBestWave(state) >= ACT1_FINAL_WAVE
 }
 
-export function canEnterChallenge(state: GameState, challengeId: string): boolean {
-  if (state.prestige.activeChallengeId) return false
-  if (!state.meta.act1Cleared && careerBestWave(state) < ACT1_CADENCE.protocols) {
-    return false
-  }
-  const challenge = getChallenge(challengeId)
-  if (!challenge) return false
-  if (!isChallengeUnlocked(state, challengeId)) return false
-  const clears = challengeClearCount(state.prestige.challengeClears, challengeId)
-  if (clears >= effectiveMaxClears(challenge, state.prestige.shop)) return false
-  // Ascension-entry challenges (ITRTG double-rebirth style) start from S30+.
-  if (challenge.entryCost === 'ascension') {
-    return canAscend(state)
-  }
-  return careerBestWave(state) >= ACT1_CADENCE.protocols
-}
-
-/** Persist fitted loadout; drop modules that conflict with an active challenge. */
+/** Persist fitted loadout across Rebuild. */
 function persistLoadout(
   unlockedFrames: string[],
   unlockedModules: string[],
   frameId: string,
   modules: string[],
-  activeChallengeId: string | null,
   usableSlots = 2,
   coreInstances: CoreInstance[] = [],
   equippedCoreIds: string[] = [],
 ): GameState['shipyard'] {
   const frame = unlockedFrames.includes(frameId) ? frameId : STARTER_FRAME_ID
-  let fitted = filterModulesForChallenge(
-    trimModulesToFrame(
-      modules.filter((id) => unlockedModules.includes(id)),
-      usableSlots,
-    ),
-    activeChallengeId,
+  let fitted = trimModulesToFrame(
+    modules.filter((id) => unlockedModules.includes(id)),
+    usableSlots,
   )
 
   if (fitted.length === 0 && unlockedModules.includes('pulse-cannon')) {
@@ -1003,9 +932,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     coreInstances: structuredClone(state.shipyard.coreInstances ?? []),
     equippedCoreIds: [...(state.shipyard.equippedCoreIds ?? [])],
     prestigeCount: state.prestige.prestigeCount,
-    challengeClears: { ...state.prestige.challengeClears },
-    activeChallengeId: state.prestige.activeChallengeId,
-    shop: { ...state.prestige.shop },
     matterShop: { ...state.prestige.matterShop },
     codex: sanitizeCodexState(state.codex),
     workerDrones: state.base.workerDrones,
@@ -1031,11 +957,11 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     },
     relics: structuredClone(state.relics ?? { instances: [], nextSerial: {}, coreFits: {} }),
     hiveResearch: structuredClone(state.hiveResearch ?? createEmptyHiveResearchState()),
-    protocols: {
+    challenges: {
       activeId: null,
-      ranks: { ...(state.protocols?.ranks ?? {}) },
-      bestSector: { ...(state.protocols?.bestSector ?? {}) },
-      bestWave: { ...(state.protocols?.bestWave ?? {}) },
+      medals: { ...(state.challenges?.medals ?? {}) },
+      bestWave: { ...(state.challenges?.bestWave ?? {}) },
+      uniqueRewards: [...(state.challenges?.uniqueRewards ?? [])],
     },
     echo: {
       ...createEmptyEchoState(),
@@ -1080,7 +1006,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     kept.unlockedModules,
     kept.frameId,
     kept.modules,
-    kept.activeChallengeId,
     usableCoreSlots(state),
     kept.coreInstances,
     kept.equippedCoreIds,
@@ -1107,9 +1032,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.essence = { purchased: kept.essencePurchased }
   state.prestige = {
     prestigeCount: kept.prestigeCount,
-    activeChallengeId: kept.activeChallengeId,
-    challengeClears: kept.challengeClears,
-    shop: kept.shop,
     matterShop: kept.matterShop,
     cycle: emptyRebuildCycle(),
   }
@@ -1122,7 +1044,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
   state.furnace = createEmptyFurnaceState()
   endFurnaceSortie(state)
   state.hiveResearch = kept.hiveResearch
-  state.protocols = kept.protocols
+  state.challenges = kept.challenges
   state.echo = kept.echo
   state.process = kept.process
   state.specialists = kept.specialists
@@ -1140,7 +1062,7 @@ function applyRunReset(state: GameState, now = Date.now()): void {
 }
 
 /** Challenge Sortie reset — does not Rebuild, award Matter, or clear the normal cycle. */
-function applyChallengeSortieReset(state: GameState, now = Date.now(), kits = false): void {
+function applyChallengeSortieReset(state: GameState, now = Date.now()): void {
   state.lastTickAt = now
   state.combat.inFight = false
   state.combat.sortiePaused = false
@@ -1160,11 +1082,6 @@ function applyChallengeSortieReset(state: GameState, now = Date.now(), kits = fa
   clearDirectives(state)
   endFurnaceSortie(state)
   state.resources.salvage = 0
-  if (kits) {
-    state.resources.scrap = (state.resources.scrap ?? 0) + challengeShopStartingScrap(state.prestige.shop)
-    state.resources.salvage = challengeShopStartingSalvage(state.prestige.shop)
-    state.resources.aiPoints += challengeShopStartingAi(state.prestige.shop)
-  }
   const stats = computeShipStats(state)
   state.combat.playerHullMax = stats.hullMax
   state.combat.playerHull = stats.hullMax
@@ -1193,7 +1110,7 @@ export function performRebuild(
   const gain = matterGainFor(next)
   next.resources.prestigeMatter += gain
   next.prestige.prestigeCount += 1
-  next.prestige.activeChallengeId = null
+  next.challenges.activeId = null
   applyRunReset(next, now)
   tryCompleteAchievements(next)
   next.combat.log = [
@@ -1223,7 +1140,7 @@ export function performAscension(state: GameState, now = Date.now()): GameState 
   const gain = Math.max(1, Math.floor(matterGainFor(next) * 0.5))
   next.resources.prestigeMatter += gain
   next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
-  next.prestige.activeChallengeId = null
+  next.challenges.activeId = null
   applyRunReset(next, now)
   tryCompleteAchievements(next)
   next.combat.log = [
@@ -1237,140 +1154,55 @@ export function performAscension(state: GameState, now = Date.now()): GameState 
   return next
 }
 
-export function enterChallenge(
-  state: GameState,
-  challengeId: string,
-  now = Date.now(),
-): GameState {
-  if (!canEnterChallenge(state, challengeId)) return state
-  const challenge = getChallenge(challengeId)
-  if (!challenge) return state
-
-  const next = structuredClone(state)
-  const cycle = { ...next.prestige.cycle }
-  const prestigeCount = next.prestige.prestigeCount
-  const matter = next.resources.prestigeMatter
-  if (challenge.entryCost === 'ascension') {
-    next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
-  }
-  next.prestige.activeChallengeId = challengeId
-  applyChallengeSortieReset(next, now, true)
-  next.prestige.cycle = cycle
-  next.prestige.prestigeCount = prestigeCount
-  next.resources.prestigeMatter = matter
-  if (challengeId === 'null-signal') {
-    unequipAllSignalCores(next)
-  }
-  tryCompleteAchievements(next)
-  next.combat.log = [
-    `Entered challenge: ${challenge.name}. Goal: Wave ${legacyChallengeGoalWave(challenge)}. This is not a Rebuild.`,
-    ...next.combat.log,
-  ]
-  return next
-}
-
-export function abandonChallenge(state: GameState, now = Date.now()): GameState {
-  const activeId = state.prestige.activeChallengeId
-  if (!activeId) return state
-  const next = structuredClone(state)
-  const name = getChallenge(activeId)?.name ?? 'Challenge'
-  const cycle = { ...next.prestige.cycle }
-  const prestigeCount = next.prestige.prestigeCount
-  const matter = next.resources.prestigeMatter
-  next.prestige.activeChallengeId = null
-  applyChallengeSortieReset(next, now, false)
-  next.prestige.cycle = cycle
-  next.prestige.prestigeCount = prestigeCount
-  next.resources.prestigeMatter = matter
-  next.combat.log = [`Abandoned ${name}.`, ...next.combat.log]
-  return next
-}
-
-export function tryCompleteChallenge(state: GameState): void {
-  const id = state.prestige.activeChallengeId
-  if (!id) return
-  const challenge = getChallenge(id)
-  if (!challenge) return
-  const runWave = Math.max(0, state.combat.waveReached ?? 0)
-  if (runWave < legacyChallengeGoalWave(challenge)) return
-
-  const maxClears = effectiveMaxClears(challenge, state.prestige.shop)
-  const prev = challengeClearCount(state.prestige.challengeClears, id)
-  if (prev >= maxClears) {
-    state.prestige.activeChallengeId = null
-    state.combat.log = [
-      `Challenge ${challenge.name} already at max clears (${maxClears}).`,
-      ...state.combat.log,
-    ]
-    return
-  }
-
-  const nextClears = prev + 1
-  state.prestige.challengeClears = {
-    ...state.prestige.challengeClears,
-    [id]: nextClears,
-  }
-  state.prestige.activeChallengeId = null
-  state.resources.challengePoints += challenge.rewardChallengePoints
-  if (id === 'null-signal' && prev === 0) {
-    state.meta.signalCoresCarryOver = true
-    state.combat.log = [
-      'Signal bank stabilized — Signal Cores now persist across prestige.',
-      ...state.combat.log,
-    ]
-  }
-  tryCompleteAchievements(state)
-  state.combat.log = [
-    `Challenge complete: ${challenge.name} (${nextClears}/${maxClears}). +${challenge.rewardChallengePoints} Challenge Marks.`,
-    ...state.combat.log,
-  ]
-}
-
-export function enterProtocol(state: GameState, protocolId: string, opts?: { automated?: boolean }): GameState {
-  if (!canEnterProtocol(state, protocolId, opts).ok) return state
-  const def = getProtocol(protocolId)
+export function enterChallenge(state: GameState, challengeId: string, opts?: { automated?: boolean }, now = Date.now()): GameState {
+  if (!canEnterChallenge(state, challengeId, opts).ok) return state
+  const def = getChallenge(challengeId)
   if (!def) return state
   const next = structuredClone(state)
-  if (!next.protocols) next.protocols = createEmptyProtocolState()
-  next.protocols.activeId = protocolId
+  next.challenges.activeId = challengeId
+  applyChallengeSortieReset(next, now)
   if (!next.process) next.process = createEmptyProcessState()
-  next.process.config.sortie.lastProtocolId = protocolId
-  wipeProtocolLoadout(next)
-  next.network = wipeNetworkBars(next.network)
-  next.combat.wave = 1
-  next.combat.waveReached = 0
-  next.combat.docked = true
-  next.combat.inFight = false
-  next.combat.playerUnits = []
-  next.combat.enemyUnits = []
+  const kept: string[] = []
+  const keptCoreIds: string[] = []
+  let weaponPattern: string | null = null
+  next.shipyard.modules.forEach((moduleId, index) => {
+    const module = getModule(moduleId)
+    if (!module) return
+    if (def.restrictions.includes('no-utility') && module.role === 'utility') return
+    if (def.restrictions.includes('single-pattern') && module.role === 'weapon') {
+      weaponPattern ??= moduleId
+      if (moduleId !== weaponPattern) return
+    }
+    kept.push(moduleId)
+    const coreId = next.shipyard.equippedCoreIds[index]
+    if (coreId) keptCoreIds.push(coreId)
+  })
+  next.shipyard.modules = kept
+  next.shipyard.equippedCoreIds = keptCoreIds
   const stats = computeShipStats(next)
   next.combat.playerHullMax = stats.hullMax
   next.combat.playerHull = stats.hullMax
   next.combat.playerShieldMax = stats.shieldMax
   next.combat.playerShield = stats.shieldMax
-  const goal = protocolGoalWave(next, protocolId)
+  const goal = challengeGoalWave(next, challengeId)
   next.combat.log = [
     `Challenge ${def.name}. Goal: reach Wave ${goal}. Salvage and run upgrades reset. ${def.restriction}`,
     ...next.combat.log,
   ]
-  noteAttempt(next, 'protocol', protocolId, 'start', def.name)
+  noteAttempt(next, 'challenge', challengeId, 'start', def.name)
   return next
 }
 
-export function abandonProtocol(state: GameState): GameState {
-  const def = getProtocol(state.protocols?.activeId ?? '')
-  if (!state.protocols?.activeId) return state
+export function abandonChallenge(state: GameState, now = Date.now()): GameState {
+  const def = getChallenge(state.challenges.activeId ?? '')
+  if (!state.challenges.activeId) return state
   const next = structuredClone(state)
-  noteProtocolProgress(next)
-  next.protocols.activeId = null
+  noteChallengeProgress(next)
+  next.challenges.activeId = null
   if (!next.process) next.process = createEmptyProcessState()
-  next.process.config.sortie.lastProtocolId = null
-  wipeProtocolLoadout(next)
-  next.network = wipeNetworkBars(next.network)
-  next.combat.docked = true
-  next.combat.inFight = false
+  applyChallengeSortieReset(next, now)
   next.combat.log = [`Abandoned ${def?.name ?? 'Challenge'}.`, ...next.combat.log]
-  noteAttempt(next, 'protocol', def?.id ?? 'protocol', 'end', def?.name)
+  noteAttempt(next, 'challenge', def?.id ?? 'challenge', 'end', def?.name)
   return next
 }
 
@@ -1398,7 +1230,7 @@ export function performReinforce(state: GameState, now = Date.now()): GameState 
   const gain = Math.max(1, Math.floor(matterGainFor(next) * 0.5))
   next.resources.prestigeMatter += gain
   next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
-  next.prestige.activeChallengeId = null
+  next.challenges.activeId = null
   applyRunReset(next, now)
   tryCompleteAchievements(next)
   next.combat.log = [

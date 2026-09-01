@@ -21,7 +21,6 @@ import {
 import { tickAutomation } from './automation'
 import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
-import { tryCompleteChallenge } from './actions'
 import {
   networkDataRate,
   networkScrapRate,
@@ -30,7 +29,12 @@ import {
 import { tickFoundry, foundrySalvageOpsMult } from './foundry'
 import { endFurnaceSortie } from './furnace'
 import { hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
-import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
+import {
+  challengeBlocksHullRepair,
+  endChallengeAttempt,
+  noteChallengeProgress,
+  tryCompleteChallenge,
+} from './challenges'
 import { hasProcess, noteProcessLastAction, processConfig, syncProcessPointLedger } from './process'
 import { evaluateProcessIntent, processShouldExtract } from './processProfiles'
 import { WORKER_JOB_IDS } from './workers'
@@ -147,9 +151,11 @@ function finishSortie(
   note: string,
   at: { sector: number; wave: number },
   extractBonus = false,
+  completedChallenge = false,
 ): void {
+  const wasChallenge = completedChallenge || Boolean(state.challenges.activeId)
   const previousBest = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
-  const newBest = noteBestWave(state, at.wave)
+  const newBest = wasChallenge ? false : noteBestWave(state, at.wave)
   const gross = Math.max(0, state.combat.sortieMark?.grossScrapGenerated ?? 0)
   const bonus = extractBonus && outcome === 'extract' ? extractionBonusFor(state) : 0
   if (bonus > 0) {
@@ -162,7 +168,8 @@ function finishSortie(
     newBest,
     previousBest,
   })
-  noteRebuildCycleSortie(state)
+  endChallengeAttempt(state, outcome)
+  if (!wasChallenge) noteRebuildCycleSortie(state)
   endFurnaceSortie(state)
   state.resources.salvage = 0
   resetRunCoreLevels(state)
@@ -201,7 +208,6 @@ function productionMeta(state: GameState): number {
     metaProductionMultiplier(
       state.resources.prestigeMatter,
       state.prestige.matterShop,
-      state.prestige.challengeClears,
     ) *
     (1 +
       prestigeMomentumProductionBonus(
@@ -446,14 +452,17 @@ function schedulerHooks(): WaveSchedulerHooks {
     onWaveSecured: (s, pkg) => {
       s.meta.lifetimeWaveClears = (s.meta.lifetimeWaveClears ?? 0) + 1
       if (pkg.kind === 'boss') {
-        noteProtocolProgress(s)
+        noteChallengeProgress(s)
         s.meta.lifetimeSectorClears = (s.meta.lifetimeSectorClears ?? 0) + 1
         noteSectorClear(s)
         if (pkg.wave >= ACT1_FINAL_WAVE) completeAct1(s)
         maybeGrantSystemUnlocks(s)
         applyWaveSecureBlueprintSources(s, pkg.wave, pkg.kind)
-        tryCompleteChallenge(s)
-        tryCompleteProtocol(s)
+      }
+      const challengeResult = tryCompleteChallenge(s, pkg.wave)
+      if (challengeResult) {
+        finishSortie(s, 'extract', challengeResult, { sector: 0, wave: pkg.wave }, false, true)
+        return
       }
       queueDirectiveOffer(s, pkg.wave)
     },
@@ -483,7 +492,7 @@ function tickCombat(state: GameState, dt: number): void {
  * Attrition challenge blocks all hangar / field repair.
  */
 function fieldRepairMultiplier(state: GameState): number {
-  if (state.prestige.activeChallengeId === 'attrition') return 0
+  if (challengeBlocksHullRepair(state)) return 0
   if (state.combat.docked) return 1
   let mult = aiDoctrinesActive(state, 'auto-launch-ready') ? 0.85 : 0.4
   if (
@@ -759,7 +768,7 @@ function maybeProcessRelaunch(state: GameState): void {
   if (!intentLaunch && !autoLaunch) return
   if (!state.combat.docked) return
   if ((state.combat.defeatLeft ?? 0) > 0) return
-  if (state.protocols?.activeId) return
+  if (state.challenges.activeId) return
   if (starterRefitGate(state)) return
   if (tutorialBlocksAutoLaunch(state)) return
   if (state.combat.playerHullMax <= 0) return

@@ -37,7 +37,7 @@ import {
   tickPlayerCoreTargeting,
 } from './coreTargeting'
 import { targetingProfileFor } from './targetingProfiles'
-import { SHORT_RANGE_MAX } from './catalog'
+import { KNIFE_FIGHT_RANGE_CAP } from './challenges'
 import { applyPlayerCoreOrbit, bearingBetween, degToRad, distanceBetween, hiveBearingOf, playerCoreOutwardFacing, radToDeg, shortestAngleDelta, slewHeading, wrapTau } from './geometry'
 import { createInitialState, SAVE_KEY, SAVE_VERSION } from './state'
 import { loadOrCreateGame, saveGame } from './save'
@@ -806,7 +806,7 @@ describe('physical shot origin and persistence', () => {
     core.orbitAngle = 0.4
     applyPlayerCoreOrbit(core)
     core.targetingTelemetry = { ...emptyTargetingTelemetry(), targetSwitches: 3, timeSlewLimited: 1.2 }
-    expect(SAVE_VERSION).toBe(50)
+    expect(SAVE_VERSION).toBe(51)
     saveGame(state)
     const loaded = loadOrCreateGame()
     const loadedCore = loaded.combat.playerUnits.find((u) => u.isCore)!
@@ -1371,10 +1371,10 @@ describe('Knife Fight fire-range cap', () => {
     const state = pulseSortie()
     const core = pulseCore(state)
     expect(effectiveCoreFireRange(state, core)).toBe(170)
-    state.prestige.activeChallengeId = 'short-range'
+    state.challenges.activeId = 'knife-fight'
     const fire = effectiveCoreFireRange(state, core)
     const acquire = effectiveCoreAcquisitionRange(state, core)
-    expect(fire).toBe(SHORT_RANGE_MAX)
+    expect(fire).toBe(KNIFE_FIGHT_RANGE_CAP)
     expect(acquire).toBeGreaterThan(fire)
     expect(acquire).toBeGreaterThanOrEqual(fire * ACQUISITION_FIRE_GAP)
     const y = (fire + acquire) / 2

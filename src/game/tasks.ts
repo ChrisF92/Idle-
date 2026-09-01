@@ -37,10 +37,10 @@ export const TASKS: TaskDef[] = [
     done: (s) => (s.resources.heat ?? 0) > 0 || s.furnace.ignited,
   },
   {
-    id: 'protocol',
+    id: 'challenge',
     name: 'Rank a Challenge',
     blurb: 'Finish one restricted sortie.',
-    done: (s) => Object.values(s.protocols?.ranks ?? {}).some((n) => (n ?? 0) > 0),
+    done: (s) => Object.values(s.challenges?.medals ?? {}).some((n) => (n ?? 0) > 0),
   },
   {
     id: 'echo',

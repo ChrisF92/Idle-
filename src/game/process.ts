@@ -19,6 +19,7 @@ import type {
   ProcessWhenKind,
   TabId,
 } from './types'
+import { challengeBlocksFurnace } from './challenges'
 import { createDefaultProcessProfiles, withDefaultProfiles } from './processProfiles'
 import { NETWORK_BAR_IDS } from './types'
 import { careerBestWave, isSystemUnlocked } from './progression'
@@ -46,7 +47,7 @@ export type ProcessMastery =
   | 'research'
   | 'furnace'
   | 'yard'
-  | 'protocols'
+  | 'challenges'
   | 'echo'
 
 export interface ProcessNodeDef {
@@ -187,7 +188,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
   { id: 'auto-extract', name: 'Auto Extract', category: 'sortie', kind: 'automation', blurb: 'Extracts only under an explicit late rule.', cost: 8, requiresId: 'rule-builder', requiresBestWave: 210 },
   { id: 'profile-triggers', name: 'Profile Triggers', category: 'logic', kind: 'automation', blurb: 'Switches automation profiles from bounded rule triggers.', cost: 10, requiresId: 'process-profiles' },
   { id: 'repeat-sortie', name: 'Repeat Sortie', category: 'sortie', kind: 'automation', blurb: 'Foreground-only repeat launch, disabled by default.', cost: 10, requiresId: 'process-profiles' },
-  { id: 'challenge-profile', name: 'Challenge Profile', category: 'sortie', kind: 'automation', blurb: 'Applies a saved restricted-run profile while respecting every Challenge rule.', cost: 8, requiresId: 'process-profiles', requiresSystem: 'protocols' },
+  { id: 'challenge-profile', name: 'Challenge Profile', category: 'sortie', kind: 'automation', blurb: 'Applies a saved restricted-run profile while respecting every Challenge rule.', cost: 8, requiresId: 'process-profiles', requiresSystem: 'challenges' },
 ]
 
 export const PROCESS_HIDDEN_IDS = new Set<string>()
@@ -334,11 +335,8 @@ export function createEmptyProcessConfig(): ProcessConfig {
       autoExtract: false,
       extractHullPct: 0.35,
       autoRelaunch: false,
-      protocolRepeat: false,
       echoRepeat: false,
-      lastProtocolId: null,
       lastEchoId: null,
-      protocolId: null,
       directivePreference: [],
     },
     shop: {
@@ -424,8 +422,8 @@ export function hasProcessMastery(state: GameState, kind: ProcessMastery): boole
       )
     case 'yard':
       return false
-    case 'protocols':
-      return Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
+    case 'challenges':
+      return Object.values(state.challenges?.medals ?? {}).some((n) => n > 0)
     case 'echo':
       return Object.values(state.echo?.clears ?? {}).some((n) => n > 0)
   }
@@ -441,7 +439,7 @@ function systemLockReason(system: TabId): string {
       return 'Furnace dark'
     case 'research':
       return 'Research closed'
-    case 'protocols':
+    case 'challenges':
       return 'Challenges closed'
     case 'echo':
       return 'Retired'
@@ -466,7 +464,7 @@ function masteryLockReason(kind: ProcessMastery): string {
       return 'Convert Ash or light a channel first'
     case 'yard':
       return 'Place a building first'
-    case 'protocols':
+    case 'challenges':
       return 'Clear a Challenge first'
     case 'echo':
       return 'Clear an Echo first'
@@ -643,11 +641,8 @@ export function mergeProcessConfig(raw: unknown): ProcessConfig {
       autoExtract: sortie.autoExtract === true,
       extractHullPct: Math.min(0.9, Math.max(0.05, num(sortie.extractHullPct, 0.35))),
       autoRelaunch: sortie.autoRelaunch === true,
-      protocolRepeat: sortie.protocolRepeat === true,
       echoRepeat: sortie.echoRepeat === true,
-      lastProtocolId: typeof sortie.lastProtocolId === 'string' ? sortie.lastProtocolId : null,
       lastEchoId: typeof sortie.lastEchoId === 'string' ? sortie.lastEchoId : null,
-      protocolId: typeof sortie.protocolId === 'string' ? sortie.protocolId : null,
       directivePreference: Array.isArray(sortie.directivePreference)
         ? sortie.directivePreference.filter((id): id is string => typeof id === 'string')
         : [],
@@ -1152,11 +1147,16 @@ export function processAutomationCards(state: GameState): ProcessAutomationCard[
     })
   }
   if (hasProcess(state, 'furnace-auto-ignite')) {
+    const disabled = challengeBlocksFurnace(state)
     cards.push({
       id: 'furnace-auto-ignite',
       name: 'Furnace Auto-Ignite',
-      enabled: cfg.furnace.autoChannel,
-      summary: hasProcess(state, 'ash-budgeting') ? `Maximum ${cfg.furnace.reserveHeat} Ash` : 'Needs an Ash budget',
+      enabled: cfg.furnace.autoChannel && !disabled,
+      summary: disabled
+        ? 'DISABLED BY CHALLENGE'
+        : hasProcess(state, 'ash-budgeting')
+          ? `Maximum ${cfg.furnace.reserveHeat} Ash`
+          : 'Needs an Ash budget',
       lastAction: lastNote(state, 'furnace-auto-ignite'),
     })
   }
@@ -1164,8 +1164,8 @@ export function processAutomationCards(state: GameState): ProcessAutomationCard[
     cards.push({
       id: 'challenge-profile',
       name: 'Challenge Profile',
-      enabled: Boolean(state.prestige.activeChallengeId),
-      summary: state.prestige.activeChallengeId ? 'CHALLENGE profile loaded' : 'Waiting for an active Challenge',
+      enabled: Boolean(state.challenges.activeId),
+      summary: state.challenges.activeId ? 'CHALLENGE profile loaded' : 'Waiting for an active Challenge',
       lastAction: lastNote(state, 'challenge-profile'),
     })
   }

@@ -351,7 +351,7 @@ export interface Act1Snapshot {
   processAvailable: number
   processPurchased: number
   rebuilds: number
-  protocolRanks: number
+  challengeMedals: number
   echoNodes: number
   contribution: Act1Contribution
 }
@@ -401,8 +401,8 @@ export interface SimulationRunReport {
     available: number
     purchased: string[]
   }
-  protocols: {
-    ranks: Record<string, number>
+  challenges: {
+    medals: Record<string, number>
     activeId: string | null
   }
   echo: {
@@ -482,4 +482,3 @@ export type WorkerMessage =
   | { type: 'progress'; progress: SimulationProgress }
   | { type: 'done'; report: SimulationReport }
   | { type: 'error'; message: string }
-

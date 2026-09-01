@@ -3,7 +3,6 @@
 import type { GameState, HiveResearchBranch, HiveResearchState, NetworkBarId, ReliquaryColor } from './types'
 import { careerBestWave } from './progression'
 import { processResearchSpeedMult } from './process'
-import { protocolModifiers } from './protocols'
 import { recordPlaytest, noteSystemAction } from './playtest'
 import { ACT1_CADENCE } from './cadence'
 import { getFrame, grantUnlockedFrame, stationEffectiveDrones } from './catalog'
@@ -163,8 +162,8 @@ export function hiveResearchHasNode(state: GameState, id: string): boolean {
 }
 
 export function hiveResearchNodeDuration(node: HiveResearchNodeDef, state?: GameState): number {
-  const mult = state ? protocolModifiers(state).researchCostMult : 1
-  return Math.max(1, Math.floor(node.duration * mult))
+  void state
+  return Math.max(1, Math.floor(node.duration))
 }
 
 /** @deprecated Prefer hiveResearchNodeDuration(node). Index maps onto Hive Engineering layout order. */
@@ -229,7 +228,6 @@ interface HiveBonuses {
   extraUtilitySlots: number
   offFocusAdd: number
   researchQueueSlots: number
-  protocolXp: number
   unlockRelays: NetworkBarId[]
   unlockReliquary: ReliquaryColor[]
   focusFire: boolean
@@ -264,7 +262,6 @@ function emptyHiveBonuses(): HiveBonuses {
     extraUtilitySlots: 0,
     offFocusAdd: 0,
     researchQueueSlots: 0,
-    protocolXp: 0,
     unlockRelays: [],
     unlockReliquary: [],
     focusFire: false,
@@ -299,7 +296,6 @@ function addNode(out: HiveBonuses, node: HiveResearchNodeDef): void {
   out.extraUtilitySlots += node.extraUtilitySlots ?? 0
   out.offFocusAdd += node.offFocusAdd ?? 0
   out.researchQueueSlots += node.researchQueueSlots ?? 0
-  out.protocolXp += node.protocolXp ?? 0
   out.coreStartLevel += node.coreStartLevel ?? 0
   out.workshopStartRanks += node.workshopStartRanks ?? 0
   out.salvageOpsMult += node.salvageOpsMult ?? 0
@@ -393,11 +389,6 @@ export function hiveResearchOffFocusMult(state: GameState): number {
 
 export function hiveResearchQueueCap(state: GameState): number {
   return RESEARCH_QUEUE_BASE + hiveResearchBonuses(state).researchQueueSlots
-}
-
-export function hiveResearchProtocolXpMult(state: GameState): number {
-  if (!state.protocols?.activeId) return 1
-  return 1 + hiveResearchBonuses(state).protocolXp
 }
 
 export function hiveResearchUnlocksRelay(state: GameState, id: NetworkBarId): boolean {
@@ -534,7 +525,6 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.droneEfficiency) bits.push(`Worker contribution +${Math.round(node.droneEfficiency * 100)}%`)
   if (node.offFocusAdd) bits.push(`Idle research crawl +${Math.round(node.offFocusAdd * 100)}%`)
   if (node.researchQueueSlots) bits.push(`Research queue +${node.researchQueueSlots}`)
-  if (node.protocolXp) bits.push(`Challenge research +${Math.round(node.protocolXp * 100)}%`)
   if (node.unlockReliquary) bits.push(`Opens the ${node.unlockReliquary} Relic socket`)
   if (node.coreStartLevel) bits.push(`Cycle Core Level +${node.coreStartLevel}`)
   if (node.workshopStartRanks) bits.push(`Rebuild Workshop ranks +${node.workshopStartRanks}`)
@@ -573,8 +563,7 @@ export function hiveResearchSpeed(state: GameState): number {
   return (
     labor *
     hiveResearchXpMult(state) *
-    processResearchSpeedMult(state) *
-    hiveResearchProtocolXpMult(state)
+    processResearchSpeedMult(state)
   )
 }
 
