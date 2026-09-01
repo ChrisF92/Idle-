@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { AI_NODES, CHALLENGES, SHIP_MODULES, formatPrintSourceLine } from './catalog'
-import { PROTOCOLS } from './protocols'
+import { AI_NODES, SHIP_MODULES, formatPrintSourceLine } from './catalog'
+import { CHALLENGES } from './challenges'
 import { DIRECTIVES } from './directives'
 import { inspectCopyCorpus } from './inspect'
 import { FOUNDRY_LOGS } from './logs'
@@ -28,7 +28,7 @@ describe('GDD Wave / Hive player-facing copy', () => {
       ...SHIP_MODULES.map((mod) => `${mod.name} ${mod.description}`),
       ...AI_NODES.map((node) => `${node.name} ${node.description}`),
       ...CHALLENGES.map((row) => `${row.name} ${row.description}`),
-      ...PROTOCOLS.flatMap((row) => [row.name, row.blurb, row.restriction, ...row.disabledSystems]),
+      ...CHALLENGES.flatMap((row) => [row.name, row.description, row.restriction]),
       ...NETWORK_BARS.flatMap((bar) => [bar.blurb, ...bar.detail]),
       ...NETWORK_LINKS.flatMap((link) => [link.blurb, ...link.detail]),
       ...RELIC_FAMILIES.map((row) => row.effectBlurb),

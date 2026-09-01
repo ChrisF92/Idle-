@@ -13,7 +13,7 @@ describe('Extraction', () => {
     expect(canExtract(s)).toBe(false)
     s.meta.bestWave = 210
     expect(canExtract(s)).toBe(true)
-    s.prestige.activeChallengeId = 'no-ai'
+    s.challenges.activeId = 'glass-frame'
     s.combat.sortieMark = { ...s.combat.sortieMark!, challengeSortie: true }
     expect(canExtract(s)).toBe(false)
   })

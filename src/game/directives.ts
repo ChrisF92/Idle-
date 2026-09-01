@@ -4,6 +4,7 @@ import type { GameState } from './types'
 import { ACT1_CADENCE } from './cadence'
 import { eligibleFragmentBlueprints } from './blueprints'
 import { getModule } from './catalog'
+import { challengeBlocksDirectives } from './challenges'
 
 export const DIRECTIVE_WAVES = [125, 275, 425, 575, 725, 875] as const
 export const DIRECTIVE_OFFER_SIZE = 3
@@ -112,10 +113,12 @@ export function isDirectiveWave(wave: number): boolean {
 }
 
 export function hasDirective(state: GameState, id: DirectiveId): boolean {
+  if (challengeBlocksDirectives(state)) return false
   return (state.combat.directives ?? []).includes(id)
 }
 
 export function hasDirectiveOffer(state: GameState): boolean {
+  if (challengeBlocksDirectives(state)) return false
   return (state.combat.directiveOffer?.length ?? 0) > 0
 }
 
@@ -169,6 +172,7 @@ export function makeDirectiveOffer(state: GameState, wave: number): DirectiveId[
 }
 
 export function queueDirectiveOffer(state: GameState, clearedWave: number): boolean {
+  if (challengeBlocksDirectives(state)) return false
   if (!isDirectiveWave(clearedWave) || hasDirectiveOffer(state)) return false
   const offer = makeDirectiveOffer(state, clearedWave)
   if (offer.length === 0) return false

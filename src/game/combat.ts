@@ -13,14 +13,10 @@ import type {
 } from './types'
 import {
   aiDoctrinesActive,
-  challengeShopDropBonus,
-  challengeShopMatchupBonus,
-  challengeStackRepairBonus,
   getModule,
   fittedShieldRegenFraction,
   stationRepairBonus,
   ENEMY_PARK_MAX,
-  SHORT_RANGE_MAX,
   frameSalvageMult,
 } from './catalog'
 import {
@@ -129,7 +125,7 @@ import { specialistSalvageMult } from './specialists'
 import { capitalSalvageMult } from './capital'
 import { processSalvageMult } from './process'
 import { directiveCritChanceAdd, directiveCritFactorMult, directiveFocusedFireMult, directiveFragmentFindMult, directiveHullRepairMult, directiveIncomingMult, directiveProtectedTargetDamageMult, directiveSalvageMult, directiveScrapMult, directiveSecondaryDamageMult } from './directives'
-import { protocolModifiers, protocolMutes } from './protocols'
+import { challengeBlocksHullRepair, challengeFireRangeCap } from './challenges'
 import { directiveShieldRegenMult } from './directives'
 import { recordPlaytest } from './playtest'
 import {
@@ -207,10 +203,9 @@ export function salvageFromKill(
   wave: number,
   isBoss: boolean,
   _route?: string,
-  state?: GameState,
+  _state?: GameState,
 ): number {
-  if (state && protocolMutes(state, 'salvage')) return 0
-  const exp = 1 + (state ? protocolModifiers(state).salvageSectorExpAdd : 0)
+  const exp = 1
   const raw = (isBoss ? BOSS_KILL_SALVAGE_MULT : 1) * Math.pow(salvageWaveBase(wave), exp)
   return Math.max(1, Math.floor(raw))
 }
@@ -475,7 +470,6 @@ export function computeFightDamage(state: GameState): FightSummary {
   const notes: string[] = []
   const matchupScale =
     1 +
-    challengeShopMatchupBonus(state.prestige.shop) +
     sensorsMatchupBonus(state.core?.ranks.sensors ?? 0) +
     computeSignalCoreBonuses(state).matchup
 
@@ -583,7 +577,6 @@ export function syncHullAggregates(state: GameState): void {
 export function repairRatePerSecond(state: GameState): number {
   let rate = 5
   if (aiDoctrinesActive(state, 'auto-engage')) rate *= 2
-  rate *= 1 + challengeStackRepairBonus(state.prestige.challengeClears)
   rate += stationRepairBonus(state)
   rate *= reactorsRepairMult(state.core?.ranks.reactors ?? 0)
   return rate * directiveHullRepairMult(state)
@@ -606,7 +599,7 @@ function combatDistance(a: { x: number; y: number }, b: { x: number; y: number }
 
 /** Furthest legal park. Loadout does not move this — Knife Fight is the only compress. */
 export function hiveParkRangeCap(state?: GameState): number {
-  if (state?.prestige.activeChallengeId === 'short-range') return SHORT_RANGE_MAX
+  if (state) return challengeFireRangeCap(state) ?? ENEMY_PARK_MAX
   return ENEMY_PARK_MAX
 }
 
@@ -736,7 +729,7 @@ export function rollEnemyPartDrop(
     furnaceFragmentFindMult(state) *
     logisticsDropMult(state) *
     (1 + computeSignalCoreBonuses(state).drop) *
-    (1 + challengeShopDropBonus(state.prestige.shop))
+    1
   let rolls = 1
   if (unit.isBoss) {
     chance = Math.min(1, chance * FRAGMENT_DROP_BOSS_MULT)
@@ -1578,7 +1571,6 @@ export function simulateCombat(
   const roles = fittedRoles(state)
   const matchupScale =
     1 +
-    challengeShopMatchupBonus(state.prestige.shop) +
     sensorsMatchupBonus(state.core?.ranks.sensors ?? 0) +
     computeSignalCoreBonuses(state).matchup
   const bossProtocol = aiDoctrinesActive(state, 'boss-protocol')
@@ -1617,7 +1609,9 @@ export function simulateCombat(
       masteryRegen +
       shopShieldRegen(state)) *
     directiveShieldRegenMult(state)
-  const hullRepairFrac = shopHullRepair(state) * directiveHullRepairMult(state)
+  const hullRepairFrac = challengeBlocksHullRepair(state)
+    ? 0
+    : shopHullRepair(state) * directiveHullRepairMult(state)
   for (const unit of state.combat.playerUnits) {
     if ((unit.regenDelay ?? 0) > 0) {
       unit.regenDelay = Math.max(0, (unit.regenDelay ?? 0) - dt)

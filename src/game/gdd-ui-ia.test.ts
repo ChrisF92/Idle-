@@ -9,7 +9,7 @@ import { isSystemUnlocked } from './progression'
 
 describe('GDD information architecture', () => {
   it('keeps More to unlocked secondary systems and hides locked doors', () => {
-    expect(MORE_STATIONS.map((s) => s.id)).toEqual(['codex', 'protocols', 'reinforce'])
+    expect(MORE_STATIONS.map((s) => s.id)).toEqual(['codex', 'challenges', 'reinforce'])
     expect(MORE_STATIONS.some((s) => s.id === 'network')).toBe(false)
     expect(MORE_STATIONS.some((s) => s.id === 'furnace')).toBe(false)
     expect(MORE_STATIONS.some((s) => s.id === 'research')).toBe(false)
@@ -38,14 +38,14 @@ describe('GDD information architecture', () => {
 
     const processOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
     processOpen.hiveResearch.completedIds = ['c1-queue-buffer', 'c2-combat-telemetry', 'c3-deep-queue', 'c4-process-kernel']
-    expect(moreStationBuckets(processOpen).open.map((s) => s.id)).toEqual(['codex', 'protocols'])
+    expect(moreStationBuckets(processOpen).open.map((s) => s.id)).toEqual(['codex', 'challenges'])
     expect(moreStationBuckets(processOpen).next).toEqual([])
     expect(nextMajorDoor(processOpen)?.id).toBe('reinforce')
 
-    const challengesOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.protocols)
+    const challengesOpen = atCareerWave(createInitialState(0), ACT1_CADENCE.challenges)
     challengesOpen.prestige.prestigeCount = 2
     challengesOpen.hiveResearch.completed.energy = 1
-    expect(moreStationBuckets(challengesOpen).open.map((s) => s.id)).toEqual(['codex', 'protocols'])
+    expect(moreStationBuckets(challengesOpen).open.map((s) => s.id)).toEqual(['codex', 'challenges'])
     expect(moreStationBuckets(challengesOpen).next).toEqual([])
     expect(nextMajorDoor(challengesOpen)?.id).toBe('furnace')
   })

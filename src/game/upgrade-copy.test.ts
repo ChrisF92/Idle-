@@ -10,7 +10,6 @@ import { FOUNDRY_FACILITIES, FOUNDRY_MATERIAL_IDS } from './foundryCatalogue'
 import { MATERIAL_MASTERY_MAX_RANK } from './foundrySeeds'
 import { createInitialState } from './state'
 import { HIVE_RESEARCH_NODES, hiveResearchNodeEffectLine } from './hiveResearch'
-import { protocolHookEffect } from './protocols'
 import { RUN_UPGRADES, runUpgradeEffectLine } from './workshop'
 
 describe('upgrade copy is quantitative', () => {
@@ -64,8 +63,6 @@ describe('upgrade copy is quantitative', () => {
     expect(hiveResearchNodeEffectLine(thermal)).toMatch(/Heat cost −10%/)
     const corps = HIVE_RESEARCH_NODES.observation.find((n) => n.name === 'Worker Calibration')!
     expect(hiveResearchNodeEffectLine(corps)).toBe('Worker contribution +12%')
-    expect(protocolHookEffect({ kind: 'networkExponent', add: 0.02 })).toBe('Network exponent +0.02')
-    expect(protocolHookEffect({ kind: 'furnaceDrain', mult: 0.88 })).toBe('Channel Heat cost ×0.88')
     const overdrive = FURNACE_CHANNELS.find((ch) => ch.id === 'overdrive')!
     expect(overdrive.levels.map((row) => row.effect)).toEqual([0.2, 0.45, 0.8])
     expect(furnaceLevelDef('overdrive', 3)?.effect).toBe(0.8)

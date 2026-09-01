@@ -253,7 +253,7 @@ export function conditionMet(state: GameState, cond: ProcessCondition): boolean 
     case 'workers-idle-gte':
       return idleWorkers(state) >= Math.max(0, cond.value ?? 1)
     case 'challenge-active':
-      return Boolean(state.prestige.activeChallengeId)
+      return Boolean(state.challenges.activeId)
     case 'profile-is':
       return Boolean(cond.profileId) && cfg(state)?.activeProfileId === cond.profileId
   }

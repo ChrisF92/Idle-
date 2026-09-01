@@ -70,7 +70,7 @@ describe('PR9 canonical Process', () => {
     const state = processState()
     state.process.purchased = ['rule-builder', 'process-profiles']
     state.process.config.activeProfileId = 'farm'
-    state.prestige.activeChallengeId = 'thin-hull'
+    state.challenges.activeId = 'glass-frame'
     expect(conditionMet(state, { kind: 'challenge-active' })).toBe(true)
     expect(conditionMet(state, { kind: 'profile-is', profileId: 'farm' })).toBe(true)
     state.combat.docked = false

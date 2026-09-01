@@ -17,7 +17,6 @@ import {
   assignWorker,
   autoBalanceWorkers,
   buyAiNode,
-  buyChallengeShop,
   buyEssenceUpgrade,
   buyMatterShop,
   buyNetworkLink,
@@ -57,8 +56,6 @@ import {
   igniteFurnace,
   setResearchFocus,
   startResearch,
-  enterProtocol,
-  abandonProtocol,
   enterEcho,
   abandonEcho,
   buyEchoNode,
@@ -94,7 +91,6 @@ type Action =
   | { type: 'mark-hub-seen'; scope: import('../game/types').TabId }
   | { type: 'buy-research'; researchId: string }
   | { type: 'buy-essence'; upgradeId: string }
-  | { type: 'buy-challenge-shop'; itemId: string }
   | { type: 'buy-matter-shop'; itemId: string }
   | { type: 'buy-ai'; nodeId: string }
   | { type: 'unlock-frame'; frameId: string }
@@ -138,8 +134,6 @@ type Action =
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
   | { type: 'research-start'; nodeId: string }
   | { type: 'dismiss-act1-finale' }
-  | { type: 'enter-protocol'; protocolId: string }
-  | { type: 'abandon-protocol' }
   | { type: 'enter-echo'; echoId: string }
   | { type: 'abandon-echo' }
   | { type: 'buy-echo'; nodeId: string }
@@ -188,8 +182,6 @@ function reducer(state: GameState, action: Action): GameState {
       return buyResearch(state, action.researchId)
     case 'buy-essence':
       return buyEssenceUpgrade(state, action.upgradeId)
-    case 'buy-challenge-shop':
-      return buyChallengeShop(state, action.itemId)
     case 'buy-matter-shop':
       return buyMatterShop(state, action.itemId)
     case 'buy-ai':
@@ -277,10 +269,6 @@ function reducer(state: GameState, action: Action): GameState {
       return startResearch(state, action.nodeId)
     case 'dismiss-act1-finale':
       return dismissAct1Finale(state)
-    case 'enter-protocol':
-      return enterProtocol(state, action.protocolId)
-    case 'abandon-protocol':
-      return abandonProtocol(state)
     case 'enter-echo':
       return enterEcho(state, action.echoId)
     case 'abandon-echo':
@@ -413,8 +401,6 @@ export function useGame() {
     buyResearch: (researchId: string) => dispatch({ type: 'buy-research', researchId }),
     buyEssenceUpgrade: (upgradeId: string) =>
       dispatch({ type: 'buy-essence', upgradeId }),
-    buyChallengeShop: (itemId: string) =>
-      dispatch({ type: 'buy-challenge-shop', itemId }),
     buyMatterShop: (itemId: string) => dispatch({ type: 'buy-matter-shop', itemId }),
     buyAiNode: (nodeId: string) => dispatch({ type: 'buy-ai', nodeId }),
     unlockFrame: (frameId: string) => dispatch({ type: 'unlock-frame', frameId }),
@@ -482,9 +468,6 @@ export function useGame() {
       dispatch({ type: 'research-focus', branch }),
     startResearch: (nodeId: string) => dispatch({ type: 'research-start', nodeId }),
     dismissAct1Finale: () => dispatch({ type: 'dismiss-act1-finale' }),
-    enterProtocol: (protocolId: string) =>
-      dispatch({ type: 'enter-protocol', protocolId }),
-    abandonProtocol: () => dispatch({ type: 'abandon-protocol' }),
     enterEcho: (echoId: string) => dispatch({ type: 'enter-echo', echoId }),
     abandonEcho: () => dispatch({ type: 'abandon-echo' }),
     buyEchoNode: (nodeId: string) => dispatch({ type: 'buy-echo', nodeId }),

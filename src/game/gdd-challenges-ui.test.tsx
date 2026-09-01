@@ -1,15 +1,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ProtocolsTab } from '../components/tabs/ProtocolsTab'
+import { ChallengesTab } from '../components/tabs/ChallengesTab'
 import { OverlayProvider } from '../ui/overlay'
-import { ACT1_CADENCE, CHALLENGE_MIN_REBUILDS } from './cadence'
+import { ACT1_CADENCE } from './cadence'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 
 function challengeState() {
-  const s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.protocols)
-  s.prestige.prestigeCount = CHALLENGE_MIN_REBUILDS
-  s.hiveResearch.completed.energy = 1
+  const s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.challenges)
   s.combat.docked = true
   s.foundry.masteryXp['recovered-stock'] = 1
   s.base.assignments['scrap-field'] = 2
@@ -28,7 +26,7 @@ function renderChallenges(state = challengeState()) {
   }
   render(
     <OverlayProvider>
-      <ProtocolsTab {...props} />
+      <ChallengesTab {...props} />
     </OverlayProvider>,
   )
   return props
@@ -39,10 +37,10 @@ describe('Challenges UI', () => {
 
   it('prints glance cards without dumping the full restriction sheet', () => {
     renderChallenges()
-    expect(screen.getByText('Glass Hive')).toBeTruthy()
-    expect(screen.getByText(/Hull is halved/)).toBeTruthy()
-    expect(screen.getByText(/Goal Wave 80/)).toBeTruthy()
-    expect(screen.getByText(/Plate Chip/)).toBeTruthy()
+    expect(screen.getByText('Glass Frame')).toBeTruthy()
+    expect(screen.getByText(/Maximum Hull reduced by 50%/)).toBeTruthy()
+    expect(screen.getByText(/Next target W450/)).toBeTruthy()
+    expect(screen.getByText(/Ablative Mesh Blueprint/)).toBeTruthy()
     expect(document.querySelector('.network-row')).toBeNull()
     expect(screen.queryByText('Disabled systems.')).toBeNull()
     expect(screen.queryByText('Modified Hive')).toBeNull()
@@ -52,16 +50,16 @@ describe('Challenges UI', () => {
 
   it('opens a full sheet with restriction, modifiers, Hive stats, and Start Challenge', () => {
     const props = renderChallenges()
-    fireEvent.click(screen.getByRole('button', { name: /Glass Hive/ }))
-    expect(screen.getByRole('dialog', { name: 'Glass Hive' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Glass Frame/ }))
+    expect(screen.getByRole('dialog', { name: 'Glass Frame' })).toBeTruthy()
     expect(screen.getByText('Disabled systems.')).toBeTruthy()
-    expect(screen.getByText(/Hull integrity/)).toBeTruthy()
-    expect(screen.getByText(/Uses the normal Sortie engine/)).toBeTruthy()
-    expect(screen.getByText(/Every Challenge starts at Wave 1/)).toBeTruthy()
+    expect(screen.getAllByText(/Maximum Hull reduced by 50%/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/normal account and starts a fresh Sortie at Wave 1/)).toBeTruthy()
+    expect(screen.getByText(/No entry currency and no Rebuild is consumed/)).toBeTruthy()
     expect(screen.getByText('Modified Hive')).toBeTruthy()
     expect(screen.getByText('Starting Wave')).toBeTruthy()
-    expect(screen.getByText('Hull modifier')).toBeTruthy()
+    expect(screen.getByText('Hull')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Start Challenge' }))
-    expect(props.onEnter).toHaveBeenCalledWith('glass-ward')
+    expect(props.onEnter).toHaveBeenCalledWith('glass-frame')
   })
 })

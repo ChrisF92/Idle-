@@ -80,7 +80,7 @@ describe('Extraction UI', () => {
 
   it('hides Extract during an active Challenge', () => {
     const s = liveCombat(210)
-    s.prestige.activeChallengeId = 'no-ai'
+    s.challenges.activeId = 'glass-frame'
     s.combat.sortieMark = { ...s.combat.sortieMark!, challengeSortie: true }
     renderCombat(s)
     fireEvent.click(screen.getByRole('button', { name: /menu|more/i }))

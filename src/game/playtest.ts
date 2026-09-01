@@ -27,7 +27,7 @@ export function createEmptyPlaytest(now = Date.now()): PlaytestState {
     sectorAtPlaytime: 0,
     events: [],
     cores: [],
-    protocols: {},
+    challenges: {},
     echos: {},
     drones: {},
     activeCombatMs: 0,
@@ -75,7 +75,7 @@ export function hydratePlaytest(raw: unknown, now = Date.now()): PlaytestState {
     cores: Array.isArray(src.cores)
       ? src.cores.filter((n): n is string => typeof n === 'string' && n.length > 0).slice(0, 40)
       : [],
-    protocols: hydrateAttemptMap(src.protocols),
+    challenges: hydrateAttemptMap(src.challenges),
     echos: hydrateAttemptMap(src.echos),
     drones: hydrateNumberMap(src.drones),
     activeCombatMs: Math.max(0, Math.floor(Number(src.activeCombatMs ?? 0) || 0)),
@@ -271,23 +271,23 @@ export function noteCareerWave(state: GameState, wave: number): void {
 
 export function noteAttempt(
   state: GameState,
-  kind: 'protocol' | 'echo',
+  kind: 'challenge' | 'echo',
   id: string,
   result: 'start' | 'end' | 'clear',
   name?: string,
 ): void {
   const log = ensurePlaytest(state)
-  const bag = kind === 'protocol' ? log.protocols : log.echos
+  const bag = kind === 'challenge' ? log.challenges : log.echos
   if (!bag[id]) bag[id] = { a: 0, c: 0 }
   if (result === 'start') bag[id].a += 1
   if (result === 'clear') bag[id].c += 1
   const eventKind =
-    kind === 'protocol'
+    kind === 'challenge'
       ? result === 'start'
-        ? 'protocol_start'
+        ? 'challenge_start'
         : result === 'clear'
-          ? 'protocol_clear'
-          : 'protocol_end'
+          ? 'challenge_clear'
+          : 'challenge_end'
       : result === 'start'
         ? 'echo_start'
         : result === 'clear'
@@ -433,7 +433,7 @@ function formatCareerSnapshot(state: GameState): string[] {
   if (meetsWave(state, ACT1_CADENCE.furnace)) systems.push('Furnace')
   if (meetsWave(state, ACT1_CADENCE.research)) systems.push('Research')
   if (meetsWave(state, ACT1_CADENCE.process)) systems.push('Process')
-  if (meetsWave(state, ACT1_CADENCE.protocols)) systems.push('Challenges')
+  if (meetsWave(state, ACT1_CADENCE.challenges)) systems.push('Challenges')
   if (meetsWave(state, ACT1_CADENCE.reinforce) || state.meta.act1Cleared) systems.push('Reinforce')
   return [
     `Frame: ${frame}`,
@@ -475,17 +475,17 @@ export function formatPlaytestScript(state: GameState): string[] {
     log.firsts['open:furnace'] != null ||
     log.firsts['act:furnace'] != null ||
     state.furnace.ignited && Object.values(state.furnace.channels).some((n) => n > 0)
-  const challenge = Object.values(log.protocols).some((row) => row.a > 0 || row.c > 0)
+  const challenge = Object.values(log.challenges).some((row) => row.a > 0 || row.c > 0)
   const climax = best >= ACT1_FINAL_WAVE
   return [
     'GDD PLAYTEST SCRIPT',
     checked(thirty, 'First 30 min from a wipe', formatPlaytimeMs(log.playtimeMs)),
     checked(rebuilt, 'First Rebuild (W210 preset)', rebuilt ? formatPlaytimeMs(log.firsts.rebuild) : 'not yet'),
     checked(furnace, 'One Furnace push', furnace ? 'channel lit or system opened' : 'not yet'),
-    checked(challenge, 'One Challenge', challenge ? formatAttempts(log.protocols) : 'not yet'),
+    checked(challenge, 'One Challenge', challenge ? formatAttempts(log.challenges) : 'not yet'),
     checked(climax, 'W1000 finale', `Best W${best}`),
     '',
-    `Cadence doors: Foundry W${ACT1_CADENCE.foundry} · Workers W${ACT1_CADENCE.workers} · Rebuild W${ACT1_CADENCE.rebuild} · Process W${ACT1_CADENCE.process} · Challenges W${ACT1_CADENCE.protocols}`,
+    `Cadence doors: Foundry W${ACT1_CADENCE.foundry} · Workers W${ACT1_CADENCE.workers} · Rebuild W${ACT1_CADENCE.rebuild} · Process W${ACT1_CADENCE.process} · Challenges W${ACT1_CADENCE.challenges}`,
   ]
 }
 
@@ -567,7 +567,7 @@ export function buildPlaytestReport(state: GameState, now = Date.now()): string 
   lines.push(mostUsedDrones(state))
   lines.push('')
   lines.push('Challenge attempts:')
-  lines.push(formatAttempts(log.protocols))
+  lines.push(formatAttempts(log.challenges))
   lines.push('')
   lines.push('Combat clocks')
   lines.push(`Active Sortie time: ${formatPlaytimeMs(log.activeCombatMs ?? 0)}`)

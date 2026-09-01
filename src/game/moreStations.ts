@@ -20,7 +20,7 @@ export interface MajorDoorDef extends MoreStationDef {
 /** Secondary systems only. Industrial doors live under Systems. */
 export const MORE_STATIONS: MoreStationDef[] = [
   { id: 'codex', name: 'Codex', blurb: 'HOSTILES | BOSSES. Encountered identities, not a family/role encyclopedia.' },
-  { id: 'protocols', name: 'Challenges', blurb: 'Can this account solve a modified version of the normal rules?' },
+  { id: 'challenges', name: 'Challenges', blurb: 'Can this account solve a modified version of the normal rules?' },
   { id: 'reinforce', name: 'Reinforce', blurb: 'Defeat the Wave 1000 Choir Crown. Change the scale of progression.' },
 ]
 
@@ -73,10 +73,10 @@ export const MAJOR_DOORS: MajorDoorDef[] = [
     home: 'systems',
   },
   {
-    id: 'protocols',
+    id: 'challenges',
     name: 'Challenges',
     blurb: 'Can this account solve a modified version of the normal rules?',
-    wave: ACT1_CADENCE.protocols,
+    wave: ACT1_CADENCE.challenges,
     home: 'more',
   },
   {
@@ -131,5 +131,5 @@ export function isRemovedAct1Tab(tab: TabId): boolean {
 }
 
 export function isMoreNavTab(tab: TabId): boolean {
-  return tab === 'stats' || tab === 'protocols' || tab === 'reinforce' || tab === 'logs' || tab === 'codex'
+  return tab === 'stats' || tab === 'challenges' || tab === 'reinforce' || tab === 'logs' || tab === 'codex'
 }

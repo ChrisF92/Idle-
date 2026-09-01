@@ -18,7 +18,7 @@ describe('GDD Dev Tools', () => {
       ACT1_CADENCE.furnace,
       ACT1_CADENCE.research,
       ACT1_CADENCE.process,
-      ACT1_CADENCE.protocols,
+      ACT1_CADENCE.challenges,
       ACT1_CADENCE.reinforce,
     ])
     expect(GDD_DOOR_PRESETS.map((d) => d.label)).toEqual([
@@ -48,13 +48,13 @@ describe('GDD Dev Tools', () => {
   })
 
   it('opens each GDD door from a wipe', () => {
-    const cases: Array<{ wave: number; id: 'foundry' | 'network' | 'furnace' | 'research' | 'process' | 'protocols' | 'reinforce' }> = [
+    const cases: Array<{ wave: number; id: 'foundry' | 'network' | 'furnace' | 'research' | 'process' | 'challenges' | 'reinforce' }> = [
       { wave: ACT1_CADENCE.foundry, id: 'foundry' },
       { wave: ACT1_CADENCE.workers, id: 'network' },
       { wave: ACT1_CADENCE.furnace, id: 'furnace' },
       { wave: ACT1_CADENCE.research, id: 'research' },
       { wave: ACT1_CADENCE.process, id: 'process' },
-      { wave: ACT1_CADENCE.protocols, id: 'protocols' },
+      { wave: ACT1_CADENCE.challenges, id: 'challenges' },
     ]
     for (const { wave, id } of cases) {
       let s = applyDevAction(createInitialState(0), { type: 'prep-gdd-door', wave })

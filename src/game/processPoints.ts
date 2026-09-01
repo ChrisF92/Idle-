@@ -47,7 +47,7 @@ function researchCount(state: GameState): number {
 function challengeMedals(state: GameState): { preFinalePoints: number; hollow: boolean } {
   let preFinalePoints = 0
   let hollow = false
-  for (const [id, raw] of Object.entries(state.protocols?.ranks ?? {})) {
+  for (const [id, raw] of Object.entries(state.challenges?.medals ?? {})) {
     const rank = Math.max(0, Math.min(3, Math.floor(Number(raw) || 0)))
     if (id === 'hollow-choir') hollow = rank > 0
     else if (rank > 0) preFinalePoints += 2 + Math.max(0, rank - 1)

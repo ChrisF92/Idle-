@@ -26,16 +26,16 @@ import { formatCompact } from './format'
 import { coreContributionPct } from './uiReadout'
 import { workerAllocationSummary } from './workers'
 import {
-  PROTOCOL_MAX_RANK,
-  PROTOCOLS,
-  getProtocol,
-  protocolBestWave,
-  protocolCumulativeLine,
-  protocolDisabledLine,
-  protocolGoalWave,
-  protocolNextRewardText,
-  protocolRank,
-} from './protocols'
+  CHALLENGE_MAX_MEDAL,
+  CHALLENGES,
+  challengeBestWave,
+  challengeDisabledSystems,
+  challengeGoalWave,
+  challengeMedalLabel,
+  challengeMedalRank,
+  challengeRewardSummary,
+  getChallenge,
+} from './challenges'
 import {
   ASH_PER_HEAT,
   FURNACE_CHANNEL_IDS,
@@ -327,27 +327,28 @@ export function inspectReliquarySlot(_state: GameState, _color: string): Inspect
   return null
 }
 
-export function inspectProtocol(state: GameState, id: string): InspectCard | null {
-  const def = getProtocol(id)
+export function inspectChallenge(state: GameState, id: string): InspectCard | null {
+  const def = getChallenge(id)
   if (!def) return null
-  const rank = protocolRank(state, id)
-  const goal = protocolGoalWave(state, id)
-  const best = protocolBestWave(state, id)
+  const rank = challengeMedalRank(state, id)
+  const goal = challengeGoalWave(state, id)
+  const best = challengeBestWave(state, id)
   return {
     title: def.name,
     kicker: 'Challenge',
     stats: [
-      { label: 'Clears', value: `${rank}/${PROTOCOL_MAX_RANK}` },
+      { label: 'Medal', value: challengeMedalLabel(state, id) },
+      { label: 'Progress', value: def.finale ? `${rank}/1` : `${rank}/${CHALLENGE_MAX_MEDAL}` },
       { label: 'Goal', value: `Wave ${goal}` },
       { label: 'Best', value: best > 0 ? `Wave ${best}` : '—' },
-      { label: 'Disabled', value: protocolDisabledLine(def) },
-      { label: 'Next', value: protocolNextRewardText(state, id) },
+      { label: 'Disabled', value: challengeDisabledSystems(def) },
+      { label: 'Next', value: challengeRewardSummary(state, id) },
     ],
     body: [
       def.restriction,
-      'Starting this Challenge resets Salvage, run upgrades, and the current Sortie. Core Levels persist until Rebuild.',
-      rank > 0 ? protocolCumulativeLine(state, id) : def.blurb,
-      'Repeat clears still pay at every level. Later ranks raise the goal Wave.',
+      'Every attempt starts at Wave 1, spends no entry currency, and never consumes a Rebuild.',
+      rank > 0 ? `Best result: ${challengeMedalLabel(state, id)}.` : def.description,
+      def.finale ? 'Hollow Choir has one post-finale clear.' : 'Bronze, Silver, and Gold each have a higher secured-Wave target.',
     ],
   }
 }
@@ -404,7 +405,7 @@ export function inspectCopyCorpus(state: GameState): string[] {
   for (const id of state.shipyard.modules) push(inspectCore(state, id))
   push(inspectFurnaceOverview(state))
   for (const id of FURNACE_CHANNEL_IDS) push(inspectFurnaceChannel(state, id))
-  for (const p of PROTOCOLS) push(inspectProtocol(state, p.id))
+  for (const challenge of CHALLENGES) push(inspectChallenge(state, challenge.id))
   for (const row of relicState(state).instances) push(inspectShard(state, row.id))
   for (const r of FOUNDRY_RECIPES) push(inspectFoundryRecipe(state, r.id))
   for (const b of HIVE_RESEARCH_BRANCHES) push(inspectResearchBranch(state, b.id))

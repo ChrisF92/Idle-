@@ -14,12 +14,12 @@ function seedTasks(s: ReturnType<typeof createInitialState>) {
   s.resources.heat = 10
   s.specialists.ranks.gunner = 1
   s.echo.clears = { rift: 1 }
-  s.protocols.ranks = { 'mute-network': 1 }
+  s.challenges.medals = { 'glass-frame': 1 }
 }
 
 describe('phase 10: Task List, Capital, Reinforce, logs', () => {
   it('bumps save and keeps Task List / Capital / Reinforce on USI doors', () => {
-    expect(SAVE_VERSION).toBe(50)
+    expect(SAVE_VERSION).toBe(51)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'tasks')).toBe(false)
     expect(isSystemUnlocked(fresh, 'capital')).toBe(false)

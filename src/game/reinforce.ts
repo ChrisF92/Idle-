@@ -20,7 +20,7 @@ export function canReinforce(state: GameState): { ok: boolean; reason?: string }
   if (!state.combat.docked) {
     return { ok: false, reason: 'Dock first' }
   }
-  if (state.prestige.activeChallengeId) {
+  if (state.challenges.activeId) {
     return { ok: false, reason: 'Finish or abandon the active run' }
   }
   return { ok: true }

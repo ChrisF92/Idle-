@@ -21,7 +21,7 @@ describe('screen help and More buckets', () => {
     expect(early.open.map((s) => s.id)).toEqual([])
     expect(early.next).toEqual([])
     expect(early.later).toEqual([])
-    expect(MORE_STATIONS.map((s) => s.id)).toEqual(['codex', 'protocols', 'reinforce'])
+    expect(MORE_STATIONS.map((s) => s.id)).toEqual(['codex', 'challenges', 'reinforce'])
     expect(MORE_STATIONS.some((s) => s.id === 'logs')).toBe(false)
 
     const rebuilt = createInitialState(0)

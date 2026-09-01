@@ -192,7 +192,7 @@ describe('GDD Phase 9 simulator + playtest', () => {
       channels: { overdrive: 1, bulwark: 0, guidance: 0, harvest: 0 },
       effectStrengthMult: 1,
     }
-    state.playtest.protocols['pack-pressure'] = { a: 1, c: 1 }
+    state.playtest.challenges['pack-pressure'] = { a: 1, c: 1 }
 
     const report = buildPlaytestReport(state)
     const script = formatPlaytestScript(state).join('\n')

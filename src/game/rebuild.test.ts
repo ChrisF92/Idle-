@@ -36,7 +36,7 @@ describe('Matter formula', () => {
     expect(capped.scrapScore).toBe(Math.floor(capped.waveScore * 0.3))
   })
 
-  it('is independent of banked Scrap, Workshop, Rebuild count, Ascension, and protocols', () => {
+  it('is independent of banked Scrap, Workshop, Rebuild count, Ascension, and Challenge medals', () => {
     const base = armRebuildDoor(docked())
     base.prestige.cycle.scrapGenerated = 8000
     const a = structuredClone(base)
@@ -45,7 +45,7 @@ describe('Matter formula', () => {
     b.workshop.levels['weapon-power'] = 20
     b.prestige.prestigeCount = 50
     b.meta.ascensionCount = 9
-    b.protocols = { ...b.protocols, ranks: { 'matter-protocol': 5 } as never }
+    b.challenges = { ...b.challenges, medals: { 'glass-frame': 3 } }
     expect(matterGainFor(a)).toBe(matterGainFor(b))
     expect(matterGainBreakdown(a).cycleScrapGenerated).toBe(8000)
   })
@@ -68,10 +68,10 @@ describe('Rebuild gate', () => {
 
   it('blocks Challenges and undocked Sorties', () => {
     const s = armRebuildDoor(docked())
-    s.prestige.activeChallengeId = 'no-ai'
+    s.challenges.activeId = 'glass-frame'
     expect(canRebuild(s)).toBe(false)
     const live = structuredClone(s)
-    live.prestige.activeChallengeId = null
+    live.challenges.activeId = null
     live.combat.docked = false
     expect(canRebuild(live)).toBe(false)
   })
@@ -169,7 +169,7 @@ describe('Challenge / Rebuild separation', () => {
     const cycle = { ...s.prestige.cycle }
     const matter = s.resources.prestigeMatter
     const rebuilds = s.prestige.prestigeCount
-    s = enterChallenge(s, 'no-ai')
+    s = enterChallenge(s, 'glass-frame')
     expect(s.resources.prestigeMatter).toBe(matter)
     expect(s.prestige.prestigeCount).toBe(rebuilds)
     expect(s.prestige.cycle.bestWave).toBe(cycle.bestWave)
@@ -185,7 +185,7 @@ describe('Challenge / Rebuild separation', () => {
     let s = armRebuildDoor(docked())
     s.meta.act1Cleared = true
     const before = cycleBestWave(s)
-    s = enterChallenge(s, 'no-ai')
+    s = enterChallenge(s, 'glass-frame')
     s.combat.wave = 80
     s.combat.waveReached = 80
     expect(cycleBestWave(s)).toBe(before)
@@ -240,11 +240,8 @@ describe('physical Core Level lifecycle', () => {
 })
 
 describe('normal Rebuild starting kits', () => {
-  it('starts with zero Scrap without Reconstitution Cache, even with Challenge-shop cache rank', () => {
+  it('starts with zero Scrap without Reconstitution Cache', () => {
     let s = armRebuildDoor(docked())
-    s.prestige.shop['supply-cache'] = 4
-    s.prestige.shop['hangar-rights'] = 2
-    s.prestige.shop['doctrine-seed'] = 3
     s = performRebuild(s, { frameId: s.shipyard.frameId, modules: s.shipyard.modules })
     expect(s.resources.scrap).toBe(0)
     expect(s.resources.salvage).toBe(0)
@@ -264,30 +261,25 @@ describe('normal Rebuild starting kits', () => {
     let s = armRebuildDoor(docked())
     s.resources.prestigeMatter = 40
     s = buyMatterShop(s, 'sortie-provisioning')
-    s.prestige.shop['hangar-rights'] = 4
     s = performRebuild(s, { frameId: s.shipyard.frameId, modules: s.shipyard.modules })
     expect(s.resources.salvage).toBe(0)
     s = setDocked(s, false)
     expect(s.resources.salvage).toBe(8)
   })
 
-  it('keeps Challenge-shop kits on Challenge entry only', () => {
+  it('does not invent a Challenge-entry resource kit', () => {
     let s = armRebuildDoor(docked())
     s.meta.act1Cleared = true
     s.meta.bestWave = 1000
-    s.prestige.shop['supply-cache'] = 1
-    s.prestige.shop['hangar-rights'] = 1
-    s.prestige.shop['doctrine-seed'] = 1
     const ai = s.resources.aiPoints
     s.resources.scrap = 0
     s.resources.salvage = 0
-    s = enterChallenge(s, 'no-ai')
-    expect(s.prestige.activeChallengeId).toBe('no-ai')
-    expect(s.resources.scrap).toBe(20)
-    expect(s.resources.salvage).toBe(10)
-    expect(s.resources.aiPoints).toBeGreaterThanOrEqual(ai + 1)
+    s = enterChallenge(s, 'glass-frame')
+    expect(s.challenges.activeId).toBe('glass-frame')
+    expect(s.resources.scrap).toBe(0)
+    expect(s.resources.salvage).toBe(0)
+    expect(s.resources.aiPoints).toBe(ai)
     s = setDocked(s, false)
-    expect(s.resources.salvage).toBe(10)
+    expect(s.resources.salvage).toBe(0)
   })
 })
-

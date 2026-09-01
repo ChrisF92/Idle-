@@ -17,8 +17,7 @@ function normalizeRoute(_route?: string | null): string {
 
 export function isChallengeSortie(state: GameState): boolean {
   return Boolean(
-    state.prestige?.activeChallengeId ||
-      state.protocols?.activeId ||
+    state.challenges?.activeId ||
       state.echo?.activeId ||
       state.combat?.sortieMark?.challengeSortie,
   )

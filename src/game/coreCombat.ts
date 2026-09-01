@@ -16,6 +16,7 @@ import type {
   WeaponTag,
 } from './types'
 import { distanceBetween, distanceToHive, moveRadially } from './geometry'
+import { challengeBlocksHullRepair } from './challenges'
 
 function enemyById(state: GameState, id: string | undefined): CombatUnit | undefined {
   if (!id) return undefined
@@ -413,6 +414,7 @@ export function tickGravTether(state: GameState, dt: number): void {
 }
 
 export function tickNanoLathe(state: GameState, dt: number): void {
+  if (challengeBlocksHullRepair(state)) return
   if (!fitted(state, 'nano-lathe')) return
   const flag = hive(state)
   if (!flag || flag.hull <= 0) return

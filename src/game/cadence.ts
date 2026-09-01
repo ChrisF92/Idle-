@@ -14,7 +14,7 @@ export const ACT1_CADENCE = {
   research: 525,
   /** Process is exposed by Computational Research: Process Kernel. */
   process: 525,
-  protocols: 250,
+  challenges: 375,
   /** @deprecated Echo is retired. Key kept so old saves / tests still resolve. */
   echo: 275,
   mastery: 275,
@@ -51,8 +51,7 @@ export const NETWORK_CADENCE = {
 export const YARD_MIN_REBUILDS = 2
 export const PROCESS_MIN_REBUILDS = 0
 export const PROCESS_MIN_RESEARCH = 4
-export const CHALLENGE_MIN_REBUILDS = 2
-export const ECHO_MIN_PROTOCOL_RANKS = 1
+export const ECHO_MIN_CHALLENGE_MEDALS = 1
 
 /**
  * Core-print sector floor from the old S2→S6 Foundry move.

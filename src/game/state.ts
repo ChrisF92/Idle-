@@ -2,7 +2,6 @@ import './directiveEncounterBridge'
 import type { GameState, Resources, ShipCombatStats, WeaponInstance } from './types'
 import {
   MIN_CORE_WEAPON_RANGE,
-  SHORT_RANGE_MAX,
   STARTER_FRAME_ID,
   aiDoctrinesActive,
   equippedFrame,
@@ -48,7 +47,12 @@ import {
   hiveResearchDamageMult,
   hiveResearchShieldMult,
 } from './hiveResearch'
-import { createEmptyProtocolState, protocolHullMult, protocolMutes } from './protocols'
+import {
+  challengeDisablesSensorEffects,
+  challengeFireRangeCap,
+  challengeHullMult,
+  createEmptyChallengeState,
+} from './challenges'
 import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
 import { createEmptyProcessState, processDamageMult, processShieldMult } from './process'
 import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult } from './specialists'
@@ -70,7 +74,7 @@ import {
 import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
 import { directiveArmorMult, directiveHullMult, directiveIncomingMult, directiveShieldMult, directiveWeaponCoreMult, directiveWeaponCycleRateMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 50
+export const SAVE_VERSION = 51
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
@@ -81,7 +85,7 @@ export const RESOURCE_LABELS: Record<keyof Resources, string> = {
   essence: 'Essence',
   aiPoints: 'Process',
   prestigeMatter: 'Rebuild Matter',
-  challengePoints: 'Challenge Marks',
+  challengePoints: 'Challenge Points',
   salvage: 'Salvage',
   choirAsh: 'Ash',
   heat: 'Heat',
@@ -195,7 +199,7 @@ export function createInitialState(now = Date.now()): GameState {
     relics: createEmptyRelicState(),
     furnace: createEmptyFurnaceState(),
     hiveResearch: createEmptyHiveResearchState(),
-    protocols: createEmptyProtocolState(),
+    challenges: createEmptyChallengeState(),
     echo: createEmptyEchoState(),
     process: createEmptyProcessState(),
     specialists: createEmptySpecialistState(),
@@ -211,9 +215,6 @@ export function createInitialState(now = Date.now()): GameState {
     },
     prestige: {
       prestigeCount: 0,
-      activeChallengeId: null,
-      challengeClears: {},
-      shop: {},
       matterShop: {},
       cycle: { bestWave: 0, normalSortiesCompleted: 0, scrapGenerated: 0 },
     },
@@ -284,9 +285,7 @@ export function globalDamageMultiplier(state: GameState): number {
   mult *= metaDamageMultiplier(
     state.resources.prestigeMatter,
     state.resources.challengePoints,
-    state.prestige.shop,
     state.prestige.matterShop,
-    state.prestige.challengeClears,
   )
   if (aiDoctrinesActive(state, 'focus-fire')) mult *= 1.06
   mult *= processDamageMult(state)
@@ -306,10 +305,9 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
   const moduleId = state.shipyard.modules[slot]
   const mod = getModule(moduleId)
   if (!mod?.weapon) return null
-  if (protocolMutes(state, 'weapons') && mod.role === 'weapon') return null
   const mult = globalDamageMultiplier(state)
-  const shortRange = state.prestige.activeChallengeId === 'short-range'
-  const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
+  const rangeCap = challengeFireRangeCap(state)
+  const capRange = (range: number) => rangeCap == null ? range : Math.min(range, rangeCap)
   const level = Math.floor(effectiveCoreLevel(state, slot))
   const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
   const mods = combinedCoreMods(state, moduleId)
@@ -348,11 +346,10 @@ export function buildCoreWeapon(state: GameState, slot: number): WeaponInstance 
 export function buildFlagshipWeapons(state: GameState): WeaponInstance[] {
   const frame = equippedFrame(state)
   const mult = globalDamageMultiplier(state)
-  const shortRange = state.prestige.activeChallengeId === 'short-range'
-  const capRange = (range: number) => (shortRange ? Math.min(range, SHORT_RANGE_MAX) : range)
+  const rangeCap = challengeFireRangeCap(state)
+  const capRange = (range: number) => rangeCap == null ? range : Math.min(range, rangeCap)
   const weapons: WeaponInstance[] = []
-  const muteGuns = protocolMutes(state, 'weapons')
-  const batteryDamage = frame.baseDamage > 0 ? frame.baseDamage : muteGuns ? 5 : 0
+  const batteryDamage = frame.baseDamage > 0 ? frame.baseDamage : 0
   if (batteryDamage > 0) {
     weapons.push({
       id: 'frame-battery',
@@ -399,7 +396,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
     const moduleId = state.shipyard.modules[slot]!
     const mod = getModule(moduleId)
     if (!mod) continue
-    if (protocolMutes(state, 'shields') && mod.role === 'defense') continue
     const level = Math.floor(effectiveCoreLevel(state, slot))
     const mastery = masteryBonus(moduleMasteryRank(state, moduleId))
     const mods = combinedCoreMods(state, moduleId)
@@ -417,20 +413,13 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   hullMax *= frame.hullMult ?? 1
   shieldMax *= frame.shieldMult ?? 1
 
-  if (
-    state.prestige.activeChallengeId === 'thin-hull' ||
-    state.prestige.activeChallengeId === 'hollow-choir'
-  ) {
-    hullMax *= 0.5
-  }
-
   const platingRank = state.core?.ranks.plating ?? 0
   const reactorsRank = state.core?.ranks.reactors ?? 0
   const sensorsRank = state.core?.ranks.sensors ?? 0
   hullMax *= platingHullMult(platingRank)
   armor += platingArmorBonus(platingRank)
   shieldMax += reactorsShieldBonus(reactorsRank)
-  evasion += sensorsEvasionBonus(sensorsRank)
+  if (!challengeDisablesSensorEffects(state)) evasion += sensorsEvasionBonus(sensorsRank)
 
   const signalBonuses = computeSignalCoreBonuses(state)
   if (signalBonuses.hull) hullMax *= 1 + signalBonuses.hull
@@ -444,9 +433,7 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   shieldMax *= capitalShieldMult(state)
   shieldMax *= processShieldMult(state)
 
-  if (protocolMutes(state, 'shields')) shieldMax = 0
-
-  hullMax *= protocolHullMult(state)
+  hullMax *= challengeHullMult(state)
   hullMax *= runHullMult(state)
   hullMax *= matterHullMult(state) * directiveHullMult(state) * furnaceHullMult(state)
   shieldMax *= runShieldMult(state)

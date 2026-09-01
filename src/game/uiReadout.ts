@@ -59,9 +59,7 @@ export function permanentMultipliers(state: GameState): {
   const damage = metaDamageMultiplier(
     state.resources.prestigeMatter ?? 0,
     state.resources.challengePoints ?? 0,
-    state.prestige.shop,
     state.prestige.matterShop,
-    state.prestige.challengeClears,
   ) * weaponCalibrationMult(state)
   return {
     damage,
@@ -69,7 +67,6 @@ export function permanentMultipliers(state: GameState): {
     industry: metaProductionMultiplier(
       state.resources.prestigeMatter,
       state.prestige.matterShop,
-      state.prestige.challengeClears,
     ),
   }
 }

@@ -500,9 +500,9 @@ async function runOneSeeded(
       available: state.resources.aiPoints,
       purchased: [...(state.process?.purchased ?? [])],
     },
-    protocols: {
-      ranks: { ...(state.protocols?.ranks ?? {}) },
-      activeId: state.protocols?.activeId ?? null,
+    challenges: {
+      medals: { ...(state.challenges?.medals ?? {}) },
+      activeId: state.challenges?.activeId ?? null,
     },
     echo: {
       points: state.echo?.points ?? 0,

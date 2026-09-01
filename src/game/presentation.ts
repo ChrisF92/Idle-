@@ -105,7 +105,7 @@ const TRACKED_SYSTEMS: TabId[] = [
   'reliquary',
   'furnace',
   'research',
-  'protocols',
+  'challenges',
   'process',
   'reinforce',
 ]
@@ -144,11 +144,11 @@ const SYSTEM_TOAST: Partial<
     label: 'VIEW RESEARCH',
     nav: { kind: 'tab', tab: 'research' },
   },
-  protocols: {
+  challenges: {
     title: 'Challenges unlocked',
     body: 'Restriction, goal, reward, and disabled systems are listed before launch.',
     label: 'VIEW CHALLENGES',
-    nav: { kind: 'tab', tab: 'protocols' },
+    nav: { kind: 'tab', tab: 'challenges' },
   },
   process: {
     title: 'Process online',

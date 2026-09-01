@@ -38,7 +38,7 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   if (isSystemUnlocked(state, 'reliquary')) keep.push('Relics')
   if (isSystemUnlocked(state, 'research')) keep.push('Research')
   if (isSystemUnlocked(state, 'process')) keep.push('Process')
-  if (isSystemUnlocked(state, 'protocols')) keep.push('Challenge ranks')
+  if (isSystemUnlocked(state, 'challenges')) keep.push('Challenge ranks')
 
   return { gain, keep, reset, change }
 }
@@ -76,10 +76,10 @@ function reinforceCountLabel(state: GameState): string {
   return n === 0 ? 'none yet' : `×${n}`
 }
 
-export function protocolStartLists(def: { reward: string }): ConsequenceLists {
+export function challengeStartLists(def: { reward: string }): ConsequenceLists {
   return {
     gain: [def.reward],
-    keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge ranks'],
+    keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge medals'],
     reset: ['Salvage', 'Run upgrades', 'Network bar levels', 'Current sortie'],
     change: [],
   }

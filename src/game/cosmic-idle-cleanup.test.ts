@@ -40,7 +40,7 @@ describe('Cosmic Idle UI cleanup', () => {
 
   it('names Rebuild Matter in the header and Rebuild log', () => {
     expect(RESOURCE_LABELS.prestigeMatter).toBe('Rebuild Matter')
-    expect(RESOURCE_LABELS.challengePoints).toBe('Challenge Marks')
+    expect(RESOURCE_LABELS.challengePoints).toBe('Challenge Points')
 
     let state = armRebuildDoor(createInitialState(0))
     expect(CATALOG_PRESTIGE_MIN).toBe(PRESTIGE_MIN_SECTOR)

@@ -6,7 +6,7 @@ import { FoundryTab } from '../components/tabs/FoundryTab'
 import { FurnaceTab } from '../components/tabs/FurnaceTab'
 import { NetworkTab } from '../components/tabs/NetworkTab'
 import { ProcessTab } from '../components/tabs/ProcessTab'
-import { ProtocolsTab } from '../components/tabs/ProtocolsTab'
+import { ChallengesTab } from '../components/tabs/ChallengesTab'
 import { ReinforceTab } from '../components/tabs/ReinforceTab'
 import { ResearchTab } from '../components/tabs/ResearchTab'
 import { TabNav } from '../components/TabNav'
@@ -124,7 +124,7 @@ function renderDoor(id: OnboardingLessonId) {
           />
         )
       case 'challenges.start':
-        return <ProtocolsTab state={state} onBack={noop} onEnter={noop} onAbandon={noop} />
+        return <ChallengesTab state={state} onBack={noop} onEnter={noop} onAbandon={noop} />
       case 'reinforce':
         return <ReinforceTab state={state} onBack={noop} onReinforce={noop} />
       default:

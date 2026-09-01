@@ -132,13 +132,13 @@ export function matterGainBreakdown(state: GameState): MatterGainBreakdown {
   return matterScoresFrom(cycleBestWave(state), cycleScrapGenerated(state))
 }
 
-/** Canonical Matter payout. No protocol, workshop, rebuild-count, or Ascension multipliers. */
+/** Canonical Matter payout. No Challenge, workshop, rebuild-count, or Ascension multipliers. */
 export function matterGainFor(state: GameState): number {
   return matterGainBreakdown(state).total
 }
 
 export function rebuildIneligibleReason(state: GameState): string | null {
-  if (state.prestige.activeChallengeId) return 'Finish or abandon the active Challenge first'
+  if (state.challenges.activeId) return 'Finish or abandon the active Challenge first'
   if (!state.combat.docked) return 'Dock to Rebuild'
   const sorties = cycleNormalSorties(state)
   const first = (state.prestige.prestigeCount ?? 0) === 0
@@ -161,7 +161,7 @@ export function rebuildIneligibleReason(state: GameState): string | null {
  * W210 is a first-Rebuild discovery door, not a per-cycle frontier requirement.
  */
 export function rebuildDoorMet(state: GameState): boolean {
-  if (state.prestige.activeChallengeId) return false
+  if (state.challenges.activeId) return false
   const sorties = cycleNormalSorties(state)
   const first = (state.prestige.prestigeCount ?? 0) === 0
   if (first) {

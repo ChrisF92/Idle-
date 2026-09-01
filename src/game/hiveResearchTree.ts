@@ -51,7 +51,6 @@ export interface HiveResearchNodeDef {
   foundryInfiniteReduce?: number
   extraUtilitySlots?: number
   offFocusAdd?: number
-  protocolXp?: number
   processCostMult?: number
   unlockRelay?: import('./types').NetworkBarId
   unlockReliquary?: import('./types').ReliquaryColor

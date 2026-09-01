@@ -35,7 +35,7 @@ import { FoundryTab, type FoundryPane } from './components/tabs/FoundryTab'
 import { SystemsTab } from './components/tabs/SystemsTab'
 import { FurnaceTab } from './components/tabs/FurnaceTab'
 import { ResearchTab } from './components/tabs/ResearchTab'
-import { ProtocolsTab } from './components/tabs/ProtocolsTab'
+import { ChallengesTab } from './components/tabs/ChallengesTab'
 import { ProcessTab } from './components/tabs/ProcessTab'
 import { ReinforceTab } from './components/tabs/ReinforceTab'
 import { LogsTab } from './components/tabs/LogsTab'
@@ -204,7 +204,7 @@ function AppShell() {
       const station =
         tab === 'furnace' ||
         tab === 'research' ||
-        tab === 'protocols' ||
+        tab === 'challenges' ||
         tab === 'process' ||
         tab === 'reinforce' ||
         tab === 'logs' ||
@@ -501,12 +501,12 @@ function AppShell() {
             guideTarget={onboarding?.target}
           />
         )}
-        {tab === 'protocols' && (
-          <ProtocolsTab
+        {tab === 'challenges' && (
+          <ChallengesTab
             state={game.state}
             onBack={() => go('stats')}
-            onEnter={game.enterProtocol}
-            onAbandon={game.abandonProtocol}
+            onEnter={game.enterChallenge}
+            onAbandon={game.abandonChallenge}
           />
         )}
         {tab === 'process' && isHubTabOpen(game.state, 'process') && (

@@ -25,7 +25,7 @@ import { canRebuild } from './rebuild'
 import { ACT1_CADENCE } from './cadence'
 import { atCareerWave } from './testHelpers'
 
-const JARGON = /USI|ITRTG|analogue|black-bar/i
+const JARGON = /\b(?:USI|ITRTG|analogue|black-bar)\b/i
 
 function firstRebuildConfig(strategy: 'active' | 'optimiser') {
   return defaultSimulationConfig({
@@ -48,7 +48,7 @@ describe('Act 1 authored formulas', () => {
     expect(ACT1_UNLOCKS.rebuildAvailable).toBe(PRESTIGE_MIN_SECTOR)
     expect(ACT1_UNLOCKS.furnace).toBe(450)
     expect(ACT1_UNLOCKS.research).toBe(525)
-    expect(ACT1_UNLOCKS.protocols).toBe(250)
+    expect(ACT1_UNLOCKS.challenges).toBe(375)
     expect(ACT1_UNLOCKS.echo).toBe(275)
     expect(ACT1_UNLOCKS.act1).toBe(1000)
     expect(salvageFromKill(1, false)).toBe(1)
@@ -210,7 +210,7 @@ describe('Act 1 career simulations', () => {
     }
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(50)
+    expect(SAVE_VERSION).toBe(51)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.masteryXp['recovered-stock']).toBe(4)
