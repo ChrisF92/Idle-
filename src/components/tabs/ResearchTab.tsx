@@ -6,8 +6,8 @@ import {
   HIVE_RESEARCH_BRANCHES,
   formatResearchDuration,
   getHiveResearchNode,
-  hiveResearchActive,
   hiveResearchActiveNode,
+  hiveResearchActiveNodes,
   hiveResearchBranchUnlocked,
   hiveResearchExtraUtilitySlots,
   hiveResearchFurnaceSlots,
@@ -15,6 +15,7 @@ import {
   hiveResearchNodeEffectLine,
   hiveResearchProcessCostMult,
   hiveResearchProgress,
+  hiveResearchProjectSlots,
   hiveResearchQueueCap,
   hiveResearchRemaining,
   hiveResearchSpeed,
@@ -72,7 +73,7 @@ function workerDuration(state: GameState, node: HiveResearchNodeDef, extraWorker
 function effectPreview(state: GameState, node: HiveResearchNodeDef): string[] {
   const lines: string[] = []
   if (node.furnaceSlots) {
-    const now = 1 + hiveResearchFurnaceSlots(state)
+    const now = 2 + hiveResearchFurnaceSlots(state)
     lines.push(`Furnace channels ${now} → ${now + node.furnaceSlots}`)
   }
   if (node.foundrySlots) {
@@ -185,6 +186,8 @@ function ResearchGraph({
 export function ResearchTab({ state, onBack, onStart, requestedBranch, guideTarget }: ResearchTabProps) {
   const open = isSystemUnlocked(state, 'research')
   const running = hiveResearchActiveNode(state)
+  const runningNodes = hiveResearchActiveNodes(state)
+  const projectSlots = hiveResearchProjectSlots(state)
   const defaultBranch = running?.branch ?? 'energy'
   const [branch, setBranch] = useSyncedPane<HiveResearchBranch>(defaultBranch, requestedBranch)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -239,7 +242,7 @@ export function ResearchTab({ state, onBack, onStart, requestedBranch, guideTarg
         }
       />
       <ContextBar>
-        <StatPair label="Project" value={running?.name ?? 'Idle'} />
+        <StatPair label="Project" value={runningNodes.length > 1 ? `${runningNodes.length} active` : running?.name ?? 'Idle'} />
         <StatPair label="Progress" value={running ? `${pct}%` : '—'} />
         <StatPair label="Remaining" value={running ? formatResearchDuration(left) : '—'} />
         <StatPair label="Speed" value={`×${speed.toFixed(2)}`} />
@@ -265,7 +268,7 @@ export function ResearchTab({ state, onBack, onStart, requestedBranch, guideTarg
               />
               <p className="ui-meta">{discipline.blurb}</p>
               {locked ? (
-                <p className="muted">Opens at Wave {ACT1_CADENCE.mastery} after Process.</p>
+                <p className="muted">Reach Wave {ACT1_CADENCE.research} to open this discipline.</p>
               ) : (
                 <ResearchGraph
                   state={state}
@@ -294,7 +297,7 @@ export function ResearchTab({ state, onBack, onStart, requestedBranch, guideTarg
               data-onboarding={
                 guideTarget === 'onboarding.research.available-node' ? 'onboarding.research.available-node' : undefined
               }
-              disabled={hiveResearchActive(state)}
+              disabled={runningNodes.length >= projectSlots}
               onClick={() => {
                 onStart(selected.id)
                 setSelectedId(null)

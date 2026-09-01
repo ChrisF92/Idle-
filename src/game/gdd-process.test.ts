@@ -1,271 +1,119 @@
 import { describe, expect, it } from 'vitest'
-import { applyNetworkPreset, performRebuild } from './actions'
-import { tickAutomation } from './automation'
-import { ACT1_CADENCE, PROCESS_MIN_REBUILDS } from './cadence'
-import { shopReadoutUnlocked } from './disclosure'
+import { buyProcessNode } from './actions'
+import { ACT1_CADENCE } from './cadence'
 import {
-  NETWORK_PRESETS,
-  PROCESS_HIDDEN_IDS,
+  PROCESS_ACCUMULATION,
   PROCESS_NODES,
   canBuyProcessNode,
-  hasProcessMastery,
-  mergeProcessConfig,
-  networkAllocationWeights,
-  processConfig,
-  processFurnaceHooks,
-  processLessonCount,
-  processOnlineBlurb,
-  processVisibleNodes,
+  processAvailable,
+  processDamageMult,
+  processFoundrySpeedMult,
+  processResearchSpeedMult,
 } from './process'
-import { processPointSourcesByGroup } from './processPoints'
-import {
-  evaluateProcessIntent,
-  formatProcessRule,
-  processShouldExtract,
-  shopCategorySpend,
-} from './processProfiles'
+import { ACT1_PROCESS_POINT_TOTAL, processPointsEarned } from './processPoints'
+import { conditionMet, evaluateProcessIntent, processShouldExtract } from './processProfiles'
+import { tickAutomation } from './automation'
 import { isSystemUnlocked } from './progression'
-import { createInitialState, SAVE_VERSION } from './state'
-import { systemsHubCards } from './systemsHub'
-import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
-import { shopEconomyRoi, shopTimeToAfford } from './workshop'
+import { createInitialState } from './state'
+import { atCareerWave, markHullLost } from './testHelpers'
 
-function processState(opts?: { wave?: number; rebuilds?: number; research?: boolean }) {
-  const s = atCareerWave(markHullLost(createInitialState(0)), opts?.wave ?? ACT1_CADENCE.process)
-  s.prestige.prestigeCount = opts?.rebuilds ?? PROCESS_MIN_REBUILDS
-  if (opts?.research !== false) s.hiveResearch.completed.energy = 1
-  return s
+function processState() {
+  const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.process)
+  state.hiveResearch.completedIds = [
+    'c1-queue-buffer', 'c2-combat-telemetry', 'c3-deep-queue', 'c4-process-kernel',
+  ]
+  state.hiveResearch.completed.computation = 4
+  return state
 }
 
-describe('GDD Process', () => {
-  it('stays locked before Wave 210', () => {
-    const locked = processState({ wave: ACT1_CADENCE.process - 1 })
+describe('PR9 canonical Process', () => {
+  it('unlocks only from Process Kernel and exposes banked achievement PP', () => {
+    const locked = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
     expect(isSystemUnlocked(locked, 'process')).toBe(false)
-    expect(systemsHubCards(locked).map((c) => c.id)).not.toContain('process')
-  })
-
-  it('stays locked at Wave 210 without Rebuilds or Research', () => {
-    const noRebuild = processState({ rebuilds: 1 })
-    expect(isSystemUnlocked(noRebuild, 'process')).toBe(false)
-
-    const noResearch = processState({ research: false })
-    expect(isSystemUnlocked(noResearch, 'process')).toBe(false)
-  })
-
-  it('opens under Systems at Wave 210 after two Rebuilds and a Research project', () => {
     const open = processState()
     expect(isSystemUnlocked(open, 'process')).toBe(true)
-    expect(systemsHubCards(open).map((c) => c.id)).toEqual(['foundry', 'research', 'process'])
+    expect(processAvailable(open)).toBe(processPointsEarned(open))
+    expect(processAvailable(open)).toBeGreaterThan(0)
   })
 
-  it('shows the capability graph lanes and hides retired systems', () => {
-    const open = processState()
-    const ids = processVisibleNodes(open).map((n) => n.id)
-    expect(ids).toContain('buy-ten')
-    expect(ids).toContain('shop-buy-max')
-    expect(ids).toContain('shop-readout')
-    expect(ids).toContain('auto-shop')
-    expect(ids).toContain('spend-ratios')
-    expect(ids).toContain('rule-builder')
-    expect(ids).toContain('run-profiles')
-    expect(ids).toContain('furnace-presets')
-    expect(ids).toContain('furnace-reserve')
-    expect(ids).toContain('furnace-channels')
-    expect(ids).toContain('foundry-stock')
-    expect(ids).toContain('logic-and')
-    expect(ids).not.toContain('core-buy-max')
-    expect(ids).not.toContain('auto-salvage')
-    expect(ids).not.toContain('core-priority')
-    expect(ids).not.toContain('foundry-priority')
-    expect(ids).not.toContain('foundry-buy-max')
-    expect(ids).not.toContain('foundry-auto')
-    expect(ids).not.toContain('auto-relic')
-    expect(ids).not.toContain('echo-repeat')
-    for (const hidden of PROCESS_HIDDEN_IDS) {
-      expect(ids).not.toContain(hidden)
-    }
-    expect(canBuyProcessNode(open, 'auto-bank').ok).toBe(false)
-    expect(canBuyProcessNode(open, 'offline-sortie').ok).toBe(false)
+  it('defines the exact 28-capability, 151 PP tree against 160 available PP', () => {
+    expect(PROCESS_NODES).toHaveLength(28)
+    expect(PROCESS_NODES.reduce((sum, node) => sum + node.cost, 0)).toBe(151)
+    expect(ACT1_PROCESS_POINT_TOTAL).toBe(160)
+    expect(PROCESS_ACCUMULATION).toEqual([])
+    expect(PROCESS_NODES.map((node) => node.name)).toEqual(expect.arrayContaining([
+      'Bulk Purchase', 'Worker Presets', 'Research Queue Assist', 'Rule Builder',
+      'Furnace Auto-Ignite', 'Directive Preference', 'Auto Extract', 'Challenge Profile',
+    ]))
   })
 
-  it('counts industrial Worker jobs as mastery, not Strike or Ward bars', () => {
-    const s = processState()
-    s.base.assignments.strike = 3
-    s.base.assignments.ward = 2
-    expect(hasProcessMastery(s, 'network')).toBe(false)
-    s.base.assignments['scrap-field'] = 1
-    expect(hasProcessMastery(s, 'network')).toBe(true)
+  it('enforces logical prerequisites and spends permanent PP once', () => {
+    let state = processState()
+    expect(canBuyProcessNode(state, 'buy-max').ok).toBe(false)
+    const before = processAvailable(state)
+    state = buyProcessNode(state, 'bulk-purchase')
+    expect(state.process.purchased).toContain('bulk-purchase')
+    expect(processAvailable(state)).toBe(before - 2)
+    expect(canBuyProcessNode(state, 'buy-max').ok).toBe(true)
+    expect(buyProcessNode(state, 'bulk-purchase')).toBe(state)
   })
 
-  it('never auto-feeds the Furnace, even if the old Auto Feed node is owned', () => {
-    const s = processState()
-    s.process.purchased = ['auto-bank']
-    expect(processFurnaceHooks(s).autoFeed).toBe(false)
+  it('adds no passive combat, production, or Research multiplier', () => {
+    const state = processState()
+    state.process.purchased = PROCESS_NODES.map((node) => node.id)
+    expect(processDamageMult(state)).toBe(1)
+    expect(processFoundrySpeedMult(state)).toBe(1)
+    expect(processResearchSpeedMult(state)).toBe(1)
   })
 
-  it('uses practised loops for the first-open history line', () => {
-    const s = processState()
-    s.meta.lifetimeCoreRunBuys = 5
-    s.workshop.levels['weapon-power'] = 3
-    expect(processLessonCount(s)).toBe(8)
-    expect(processOnlineBlurb(s)).toMatch(/8 times/)
-    expect(processOnlineBlurb(s)).toMatch(/you've learned/)
+  it('supports bounded challenge/profile conditions and capability-gated extraction', () => {
+    const state = processState()
+    state.process.purchased = ['rule-builder', 'process-profiles']
+    state.process.config.activeProfileId = 'farm'
+    state.prestige.activeChallengeId = 'thin-hull'
+    expect(conditionMet(state, { kind: 'challenge-active' })).toBe(true)
+    expect(conditionMet(state, { kind: 'profile-is', profileId: 'farm' })).toBe(true)
+    state.combat.docked = false
+    state.combat.wave = 20
+    state.combat.playerHullMax = 100
+    state.combat.playerHull = 20
+    expect(evaluateProcessIntent(state).autoExtract).toBe(false)
+    expect(processShouldExtract(state)).toBe(false)
+    state.process.purchased.push('auto-extract')
+    expect(evaluateProcessIntent(state).autoExtract).toBe(true)
+    expect(processShouldExtract(state)).toBe(true)
   })
 
-  it('keeps Process purchases and Earned across Rebuild', () => {
-    let s = armRebuildDoor(createInitialState(0))
-    s = atCareerWave(s, ACT1_CADENCE.process)
-    s.combat.docked = true
-    s.prestige.prestigeCount = PROCESS_MIN_REBUILDS
-    s.hiveResearch.completed.energy = 1
-    s.process.purchased = ['buy-ten']
-    s.process.earned = 40
-    s.resources.aiPoints = 36
-    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(s.process.purchased).toContain('buy-ten')
-    expect(s.process.earned).toBeGreaterThanOrEqual(40)
+  it('starts only explicitly queued Research and consumes that queue entry', () => {
+    const state = processState()
+    state.process.purchased = ['research-queue-assist']
+    state.process.config.research.queue = ['e1-cycle-engineering']
+    tickAutomation(state)
+    expect(state.hiveResearch.activeNodeId).toBe('e1-cycle-engineering')
+    expect(state.process.config.research.queue).toEqual([])
   })
 
-  it('maps Worker presets onto industrial jobs, not Strike or Ward', () => {
-    expect(NETWORK_PRESETS.farm['scrap-field']).toBeGreaterThan(NETWORK_PRESETS.farm.strike ?? 0)
-    expect(NETWORK_PRESETS.push.strike).toBeUndefined()
-    expect(NETWORK_PRESETS.defence.ward).toBeUndefined()
-
-    let farm = processState()
-    farm.base.workerDrones = 10
-    farm.process.purchased = ['network-optimise', 'network-presets']
-    farm = applyNetworkPreset(farm, 'farm')
-    expect(farm.base.assignments.strike ?? 0).toBe(0)
-    expect(farm.base.assignments.ward ?? 0).toBe(0)
-    expect(farm.base.assignments['scrap-field'] ?? 0).toBeGreaterThan(0)
-
-    let defence = processState()
-    defence.base.workerDrones = 10
-    defence.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0, paid: false }
-    defence.process.purchased = ['network-optimise', 'network-presets']
-    defence = applyNetworkPreset(defence, 'defence')
-    expect(defence.base.assignments['repair-bay'] ?? 0).toBe(0)
-    expect(defence.base.assignments['alloy-foundry'] ?? 0).toBeGreaterThan(0)
+  it('chooses an offered Directive by preference without rerolling', () => {
+    const state = processState()
+    state.process.purchased = ['directive-preference']
+    state.process.config.sortie.directivePreference = ['scavenger-sweep', 'overcharge']
+    state.combat.directiveOffer = ['overcharge', 'scavenger-sweep', 'reactive-array']
+    tickAutomation(state)
+    expect(state.combat.directives).toContain('scavenger-sweep')
+    expect(state.combat.directiveOffer).toBeNull()
   })
 
-  it('leans Farm toward Salvage Operations while flying after Worker Sortie Bias', () => {
-    const s = processState()
-    s.combat.docked = false
-    s.process.purchased = ['network-tune']
-    s.process.config = {
-      ...processConfig(s),
-      network: { ...processConfig(s).network, preset: 'farm' },
-    }
-    const flying = networkAllocationWeights(s)
-    s.combat.docked = true
-    const docked = networkAllocationWeights(s)
-    expect(flying['scrap-field']).toBeGreaterThan(docked['scrap-field'])
-  })
-
-  it('rewrites leftover Yield/Loom/Archive ratio keys onto jobs', () => {
-    const cfg = mergeProcessConfig({
-      network: { preset: 'custom', ratios: { yield: 5, loom: 3, archive: 2 } },
-    })
-    expect(cfg.network.ratios['scrap-field']).toBe(5)
-    expect(cfg.network.ratios['drone-fab']).toBe(3)
-    expect(cfg.network.ratios['sensor-net']).toBe(2)
-    expect(cfg.network.ratios.yield).toBeUndefined()
-  })
-
-  it('prices the Process shop ladder and hides leftover Sortie / Furnace nodes', () => {
-    expect(SAVE_VERSION).toBe(49)
-    expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
-    expect(PROCESS_NODES.find((n) => n.id === 'shop-buy-max')?.cost).toBe(4)
-    expect(PROCESS_NODES.find((n) => n.id === 'shop-readout')?.cost).toBe(2)
-    expect(PROCESS_NODES.find((n) => n.id === 'auto-shop')?.cost).toBe(8)
-    expect(PROCESS_NODES.find((n) => n.id === 'spend-ratios')?.cost).toBe(8)
-    expect(PROCESS_NODES.find((n) => n.id === 'rule-builder')?.cost).toBe(12)
-    expect(PROCESS_NODES.find((n) => n.id === 'run-profiles')?.cost).toBe(10)
-    expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')).toBeUndefined()
-    expect(PROCESS_HIDDEN_IDS.has('offline-sortie')).toBe(true)
-    expect(PROCESS_HIDDEN_IDS.has('auto-bank')).toBe(true)
-    expect(PROCESS_HIDDEN_IDS.has('echo-repeat')).toBe(true)
-    expect(PROCESS_HIDDEN_IDS.has('network-tune')).toBe(true)
-    expect(PROCESS_HIDDEN_IDS.has('foundry-buy-max')).toBe(true)
-    expect(PROCESS_HIDDEN_IDS.has('foundry-auto')).toBe(true)
-    expect(PROCESS_HIDDEN_IDS.has('furnace-presets')).toBe(false)
-  })
-
-  it('shows time-to-afford and Economy ROI only after Shop Readout', () => {
-    const s = processState()
-    s.combat.docked = false
-    s.combat.fightElapsed = 20
-    s.resources.salvage = 3
-    expect(shopReadoutUnlocked(s)).toBe(false)
-    expect(shopTimeToAfford(s, 8, 3)).toBeNull()
-    expect(shopEconomyRoi(s, 'salvage-kill')).toBeNull()
-    s.process.purchased = ['shop-readout']
-    expect(shopReadoutUnlocked(s)).toBe(true)
-    expect(shopTimeToAfford(s, 8, 20)).toBe('Affordable now')
-    expect(shopEconomyRoi(s, 'salvage-kill')).toMatch(/ROI/)
-  })
-
-  it('lets Farm auto-buy Economy first and Extract under half hull', () => {
-    const s = processState()
-    s.combat.docked = false
-    s.combat.wave = 8
-    s.combat.playerHull = 40
-    s.combat.playerHullMax = 100
-    s.resources.salvage = 400
-    s.process.purchased = ['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']
-    s.process.config = { ...processConfig(s), activeProfileId: 'farm' }
-
-    const intent = evaluateProcessIntent(s)
-    expect(intent.spend.economy).toBeGreaterThan(intent.spend.attack)
-    expect(intent.autoShop).toBe(true)
-    expect(intent.autoExtract).toBe(true)
-    expect(processShouldExtract(s)).toBe(true)
-
-    tickAutomation(s)
-    expect(shopCategorySpend(s, 'economy')).toBeGreaterThan(shopCategorySpend(s, 'attack'))
-    expect((s.combat.runUpgrades['salvage-kill'] ?? 0) + (s.combat.runUpgrades['salvage-wave'] ?? 0)).toBeGreaterThan(
-      s.combat.runUpgrades['weapon-power'] ?? 0,
-    )
-  })
-
-  it('does not let the legacy Push profile automate PR8 Furnace decisions', () => {
-    const s = processState()
-    s.combat.docked = false
-    s.combat.inFight = true
-    s.combat.wave = Math.ceil(ACT1_CADENCE.process * 0.95)
-    s.resources.choirAsh = 80
-    s.resources.heat = 0
-    s.process.purchased = ['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']
-    s.process.config = { ...processConfig(s), activeProfileId: 'push' }
-
-    const intent = evaluateProcessIntent(s)
-    expect(intent.spend.economy).toBe(0)
-    expect(intent.furnacePush).toBe(true)
-    expect(intent.autoExtract).toBe(false)
-    expect(processShouldExtract(s)).toBe(false)
-
-    tickAutomation(s)
-    expect(s.furnace.ignited).toBe(false)
-    expect(s.resources.choirAsh).toBe(80)
-    expect(s.resources.heat).toBe(0)
-  })
-
-  it('awards Process Points from mastery sources, not elapsed time', () => {
-    const s = processState()
-    const groups = processPointSourcesByGroup(s)
-    expect(groups.map((g) => g.group)).toEqual(['wave', 'rebuild', 'foundry', 'research', 'challenge', 'mastery'])
-    expect(groups.find((g) => g.group === 'wave')?.upcoming.length).toBeGreaterThan(0)
-    expect(groups.some((g) => g.earned.concat(g.upcoming).some((row) => /time passed|offline hour/i.test(row.name)))).toBe(false)
-  })
-
-  it('prints Challenge rules from Hull, not Threat', () => {
-    const s = processState()
-    s.process.purchased = ['rule-builder', 'run-profiles']
-    s.process.config = { ...processConfig(s), activeProfileId: 'challenge' }
-    const rule = processConfig(s).profiles.find((p) => p.id === 'challenge')!.rules[0]!
-    const view = formatProcessRule(rule)
-    expect(view.when.join(' ')).toMatch(/Hull/)
-    expect(view.when.join(' ')).not.toMatch(/Threat|Pressure/)
-    expect(view.then).toMatch(/DEFENSE/)
+  it('never rewrites an Ignited Furnace or fabricates first-time unique items', () => {
+    const state = processState()
+    state.process.purchased = PROCESS_NODES.map((node) => node.id)
+    state.process.config.activeProfileId = 'push'
+    state.process.config.furnace.autoChannel = true
+    state.furnace.ignited = true
+    state.furnace.channels = { overdrive: 1, bulwark: 0, guidance: 0, harvest: 0 }
+    const channels = structuredClone(state.furnace.channels)
+    const fabrication = structuredClone(state.foundry.fabrication)
+    tickAutomation(state)
+    expect(state.furnace.channels).toEqual(channels)
+    expect(state.foundry.fabrication).toEqual(fabrication)
   })
 })

@@ -72,9 +72,9 @@ export function ownedWorkers(state: Pick<GameState, 'base'>): number {
   return Math.max(0, Math.floor(state.base.workerDrones ?? 0))
 }
 
-/** PR9 extension: final Research Worker capacity. Unused by PR5. */
-export function extraWorkerCapacityFromResearch(_state: GameState): number {
-  return 0
+/** Drone Racks is the sole PR9 Research capacity increase. */
+export function extraWorkerCapacityFromResearch(state: GameState): number {
+  return state.hiveResearch?.completedIds?.includes('d5-drone-racks') ? 2 : 0
 }
 
 export function workerCapacity(

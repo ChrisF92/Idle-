@@ -330,22 +330,22 @@ describe('PR5 correction: Workers and Research decoupling', () => {
     expect(ownedWorkers(s)).toBe(6)
   })
 
-  it('legacy Research droneCapBonus does not change PR5 Worker capacity', () => {
+  it('PR9 Drone Racks raises permanent Worker capacity', () => {
     const s = atFoundry(ACT1_CADENCE.research)
     s.base.workerDrones = 6
     const before = workerCapacity(s)
-    s.hiveResearch.completedIds = ['drone-racks']
-    expect(hiveResearchDroneCapBonus(s)).toBe(4)
-    expect(extraWorkerCapacityFromResearch(s)).toBe(0)
-    expect(workerCapacity(s)).toBe(before)
+    s.hiveResearch.completedIds = ['d5-drone-racks']
+    expect(hiveResearchDroneCapBonus(s)).toBe(2)
+    expect(extraWorkerCapacityFromResearch(s)).toBe(2)
+    expect(workerCapacity(s)).toBe(before + 2)
   })
 
-  it('legacy Research foundrySlots do not add PR5 Processors', () => {
+  it('PR9 Second Processor adds a Foundry Processor', () => {
     const s = atFoundry(ACT1_CADENCE.research)
     expect(foundrySlotCount(s)).toBe(1)
-    s.hiveResearch.completedIds = ['second-processor']
+    s.hiveResearch.completedIds = ['i1-second-processor']
     expect(hiveResearchFoundrySlots(s)).toBe(1)
-    expect(foundrySlotCount(s)).toBe(1)
+    expect(foundrySlotCount(s)).toBe(2)
   })
 
   it('Research Annex does not modify legacy Research speed', () => {

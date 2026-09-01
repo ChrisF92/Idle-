@@ -15,13 +15,13 @@ export interface RelicTemperCapabilityProvider {
 }
 
 const DORMANT_TEMPER: RelicTemperCapabilityProvider = {
-  canUpgradeRelicToTier2: () => false,
-  canUpgradeRelicToTier3: () => false,
+  canUpgradeRelicToTier2: (state) => (state.hiveResearch?.completedIds ?? []).includes('i3-relic-tempering'),
+  canUpgradeRelicToTier3: (state) => (state.hiveResearch?.completedIds ?? []).includes('i8-masterwork-tempering'),
 }
 
 let temperProvider: RelicTemperCapabilityProvider = DORMANT_TEMPER
 
-/** Test injection. Production stays dormant until PR9 supplies the final Research interface. */
+/** Test injection; null restores the canonical PR9 Research provider. */
 export function setRelicTemperCapabilityProvider(provider: RelicTemperCapabilityProvider | null): void {
   temperProvider = provider ?? DORMANT_TEMPER
 }

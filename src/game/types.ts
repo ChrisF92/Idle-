@@ -377,6 +377,9 @@ export interface HiveResearchState {
   activeNodeId?: string | null
   /** Seconds of progress toward `activeNodeId`. */
   progress?: number
+  /** Second simultaneous project, unlocked only by Parallel Analysis. */
+  secondaryNodeId?: string | null
+  secondaryProgress?: number
   /** Completed node ids. Authoritative. */
   completedIds: string[]
   /** Seconds of progress toward that branch's next node. Migrated into `progress`. */
@@ -501,6 +504,8 @@ export type ProcessWhenKind =
   | 'stock-gte'
   | 'research-idle'
   | 'workers-idle-gte'
+  | 'challenge-active'
+  | 'profile-is'
   /** @deprecated Migrated to hull-lte on load. */
   | 'threat'
   /** @deprecated Migrated to processor-idle on load. */
@@ -520,6 +525,7 @@ export type ProcessThenKind =
   | 'launch-sortie'
   | 'repeat-recipe'
   | 'fab-tracked'
+  | 'switch-profile'
 
 export type ProcessThreatId = 'SURVIVABILITY' | 'DAMAGE' | 'MIXED' | 'HEALTHY'
 
@@ -531,6 +537,7 @@ export interface ProcessCondition {
   recipeId?: FoundryRecipeId
   /** @deprecated Migrated away on load. */
   threat?: ProcessThreatId
+  profileId?: string
 }
 
 export interface ProcessSpendMix {
@@ -548,6 +555,7 @@ export interface ProcessAction {
   workerPreset?: ProcessNetworkPreset
   furnacePreset?: string
   furnaceLevel?: number
+  profileId?: string
 }
 
 export interface ProcessRule {
@@ -559,7 +567,7 @@ export interface ProcessRule {
   then: ProcessAction
 }
 
-export type ProcessProfileId = 'farm' | 'push' | 'challenge' | 'custom'
+export type ProcessProfileId = 'farm' | 'push' | 'blueprint' | 'challenge' | 'custom'
 
 export interface ProcessProfile {
   id: string
@@ -614,7 +622,8 @@ export interface ProcessConfig {
   }
   research: {
     autoResearch: boolean
-    queue: HiveResearchBranch[]
+    /** Explicit visible Research node ids; never hidden or inferred projects. */
+    queue: string[]
     branchPriority: HiveResearchBranch[]
   }
   sortie: {
@@ -626,6 +635,7 @@ export interface ProcessConfig {
     lastProtocolId: string | null
     lastEchoId: string | null
     protocolId: string | null
+    directivePreference: string[]
   }
   shop: {
     autoBuy: boolean

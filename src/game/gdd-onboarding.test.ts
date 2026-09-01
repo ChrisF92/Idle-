@@ -81,14 +81,15 @@ describe('GDD progressive disclosure', () => {
     expect(advancedReadoutsUnlocked(state)).toBe(false)
     expect(coreContributionPct(state, 'pulse-cannon')).toBeNull()
 
-    state.process.purchased = ['buy-ten']
+    state.process.purchased = ['bulk-purchase']
     expect(shopBulkTenUnlocked(state)).toBe(true)
     expect(unlockedBuyModes(state)).toEqual([1, 10])
-    expect(advancedReadoutsUnlocked(state)).toBe(true)
+    expect(advancedReadoutsUnlocked(state)).toBe(false)
 
-    state.process.purchased = ['shop-buy-max']
+    state.process.purchased = ['bulk-purchase', 'buy-max', 'live-readouts']
     expect(shopBuyMaxUnlocked(state)).toBe(true)
     expect(unlockedBuyModes(state)).toContain('max')
+    expect(advancedReadoutsUnlocked(state)).toBe(true)
   })
 })
 

@@ -21,7 +21,7 @@ import { waveForBand } from './waves'
 
 describe('phase 9: Specialists, hulls, rebalance, dev tools', () => {
   it('bumps save and keeps Specialists locked until 68', () => {
-    expect(SAVE_VERSION).toBe(49)
+    expect(SAVE_VERSION).toBe(50)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'specialists')).toBe(false)
     fresh.meta.highestSectorEver = SPECIALIST_UNLOCK_SECTOR - 1

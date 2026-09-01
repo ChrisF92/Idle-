@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
-import { ACT1_CADENCE, ECHO_MIN_PROTOCOL_RANKS, PROCESS_MIN_REBUILDS } from './cadence'
+import { ACT1_CADENCE, ECHO_MIN_PROTOCOL_RANKS } from './cadence'
 import { isSystemUnlocked, PRESTIGE_MIN_SECTOR } from './progression'
 import { matterShopRankMultiplier, modulePrintWave } from './catalog'
 import { atCareerWave } from './testHelpers'
@@ -10,8 +10,8 @@ describe('GDD system cadence', () => {
     expect(ACT1_CADENCE.foundry).toBe(50)
     expect(PRESTIGE_MIN_SECTOR).toBe(210)
     expect(ACT1_CADENCE.furnace).toBe(450)
-    expect(ACT1_CADENCE.research).toBe(170)
-    expect(ACT1_CADENCE.process).toBe(210)
+    expect(ACT1_CADENCE.research).toBe(525)
+    expect(ACT1_CADENCE.process).toBe(525)
     expect(ACT1_CADENCE.protocols).toBe(250)
     expect(ACT1_CADENCE.echo).toBe(275)
   })
@@ -23,9 +23,8 @@ describe('GDD system cadence', () => {
     expect(isSystemUnlocked(open, 'foundry')).toBe(true)
 
     const process = atCareerWave(createInitialState(1), ACT1_CADENCE.process)
-    process.prestige.prestigeCount = PROCESS_MIN_REBUILDS
     expect(isSystemUnlocked(process, 'process')).toBe(false)
-    process.hiveResearch.completed.energy = 1
+    process.hiveResearch.completedIds = ['c1-queue-buffer', 'c2-combat-telemetry', 'c3-deep-queue', 'c4-process-kernel']
     expect(isSystemUnlocked(process, 'process')).toBe(true)
 
     const echo = atCareerWave(createInitialState(1), ACT1_CADENCE.echo)

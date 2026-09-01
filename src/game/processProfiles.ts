@@ -125,6 +125,20 @@ export function createDefaultProcessProfiles(): ProcessProfile[] {
       ],
     },
     {
+      id: 'blueprint',
+      name: 'Blueprint',
+      spend: { attack: 25, defense: 20, economy: 55 },
+      salvageReserve: 10,
+      autoExtract: false,
+      extractHullPct: 0.3,
+      autoShop: true,
+      workerPreset: 'industry',
+      furnacePreset: 'farm',
+      foundryRepeat: null,
+      researchAutoNext: false,
+      rules: [],
+    },
+    {
       id: 'challenge',
       name: 'Challenge',
       spend: { attack: 30, defense: 50, economy: 20 },
@@ -173,6 +187,7 @@ export interface ProcessIntent {
   extractNow: boolean
   furnacePush: boolean
   furnacePreset: string | null
+  furnaceTriggered: boolean
   researchNext: boolean
   fabTracked: boolean
   repeatRecipe: FoundryRecipeId | null
@@ -180,6 +195,7 @@ export interface ProcessIntent {
   foundryTarget: FoundryRecipeId | null
   foundryStock: { recipeId: FoundryRecipeId; min: number } | null
   launchSortie: boolean
+  switchProfileId: string | null
 }
 
 export function conditionMet(state: GameState, cond: ProcessCondition): boolean {
@@ -236,6 +252,10 @@ export function conditionMet(state: GameState, cond: ProcessCondition): boolean 
       return !state.hiveResearch?.active
     case 'workers-idle-gte':
       return idleWorkers(state) >= Math.max(0, cond.value ?? 1)
+    case 'challenge-active':
+      return Boolean(state.prestige.activeChallengeId)
+    case 'profile-is':
+      return Boolean(cond.profileId) && cfg(state)?.activeProfileId === cond.profileId
   }
 }
 
@@ -281,9 +301,11 @@ function applyAction(intent: ProcessIntent, action: ProcessAction): void {
       break
     case 'furnace-push':
       intent.furnacePush = true
+      intent.furnaceTriggered = true
       break
     case 'furnace-preset':
       intent.furnacePreset = action.furnacePreset ?? intent.furnacePreset
+      intent.furnaceTriggered = true
       break
     case 'worker-preset':
       intent.workerPreset = action.workerPreset ?? intent.workerPreset
@@ -297,11 +319,14 @@ function applyAction(intent: ProcessIntent, action: ProcessAction): void {
     case 'launch-sortie':
       intent.launchSortie = true
       break
+    case 'switch-profile':
+      intent.switchProfileId = action.profileId ?? null
+      break
   }
 }
 
 export function activeProcessProfile(state: GameState): ProcessProfile | null {
-  if (!owns(state, 'run-profiles')) return null
+  if (!owns(state, 'process-profiles')) return null
   const id = cfg(state)?.activeProfileId
   if (!id) return null
   return (cfg(state)?.profiles ?? []).find((p) => p.id === id) ?? null
@@ -321,12 +346,13 @@ export function evaluateProcessIntent(state: GameState): ProcessIntent {
   const intent: ProcessIntent = {
     spend: normalizeSpend(profile?.spend ?? shop.ratios),
     salvageReserve: profile?.salvageReserve ?? shop.salvageReserve ?? 0,
-    autoShop: profile ? profile.autoShop : shop.autoBuy && owns(state, 'auto-shop'),
-    autoExtract: profile ? profile.autoExtract : config?.sortie.autoExtract ?? false,
+    autoShop: owns(state, 'sortie-auto-buy') && (profile ? profile.autoShop : shop.autoBuy),
+    autoExtract: owns(state, 'auto-extract') && (profile ? profile.autoExtract : config?.sortie.autoExtract ?? false),
     extractHullPct: profile?.extractHullPct ?? config?.sortie.extractHullPct ?? 0.35,
     extractNow: false,
     furnacePush: false,
     furnacePreset: profile?.furnacePreset ?? null,
+    furnaceTriggered: false,
     researchNext: Boolean(profile?.researchAutoNext),
     fabTracked: false,
     repeatRecipe: profile?.foundryRepeat ?? config?.foundry.repeatRecipe ?? null,
@@ -334,12 +360,13 @@ export function evaluateProcessIntent(state: GameState): ProcessIntent {
     foundryTarget: config?.foundry.targetRecipe ?? null,
     foundryStock: null,
     launchSortie: false,
+    switchProfileId: null,
   }
-  if (owns(state, 'spend-ratios') && !profile) {
+  if (owns(state, 'spend-profiles') && !profile) {
     intent.spend = normalizeSpend(shop.ratios)
     intent.salvageReserve = shop.salvageReserve
   }
-  if (owns(state, 'rule-builder') || owns(state, 'run-profiles')) {
+  if (owns(state, 'rule-builder') || owns(state, 'process-profiles')) {
     for (const rule of rulesForIntent(state)) {
       if (ruleFires(state, rule)) applyAction(intent, rule.then)
     }
@@ -388,9 +415,9 @@ export function processShouldExtract(state: GameState): boolean {
   if (state.combat.docked) return false
   if (!hasHullLostOnce(state) && (state.combat.wave ?? 1) <= 1) return false
   const intent = evaluateProcessIntent(state)
-  if (intent.extractNow) return owns(state, 'auto-extract') || owns(state, 'rule-builder')
+  if (intent.extractNow) return owns(state, 'auto-extract')
   if (!intent.autoExtract) return false
-  if (!owns(state, 'auto-extract') && !owns(state, 'run-profiles')) return false
+  if (!owns(state, 'auto-extract')) return false
   const max = state.combat.playerHullMax ?? 0
   if (max <= 0) return false
   return state.combat.playerHull / max < intent.extractHullPct
@@ -414,6 +441,8 @@ export const PROCESS_WHEN_OPTIONS: { id: ProcessWhenKind; label: string; needsVa
   { id: 'stock-gte', label: 'Material stock ≥', needsValue: true, needsRecipe: true },
   { id: 'research-idle', label: 'Research idle' },
   { id: 'workers-idle-gte', label: 'Worker Drones idle ≥', needsValue: true },
+  { id: 'challenge-active', label: 'Challenge active' },
+  { id: 'profile-is', label: 'Profile is active' },
 ]
 
 export const PROCESS_THEN_OPTIONS: { id: ProcessThenKind; label: string }[] = [
@@ -429,6 +458,7 @@ export const PROCESS_THEN_OPTIONS: { id: ProcessThenKind; label: string }[] = [
   { id: 'launch-sortie', label: 'Launch Sortie' },
   { id: 'repeat-recipe', label: 'Repeat recipe' },
   { id: 'fab-tracked', label: 'Fabricate tracked project' },
+  { id: 'switch-profile', label: 'Switch automation profile' },
 ]
 
 const FURNACE_PRESET_LABELS: Record<string, string> = {
@@ -450,6 +480,7 @@ export function formatProcessCondition(cond: ProcessCondition): string {
     const cmp = cond.kind === 'stock-lte' ? '≤' : '≥'
     return `${recipeName(cond.recipeId)} ${cmp} ${Math.max(0, cond.value ?? 0)}`
   }
+  if (cond.kind === 'profile-is') return `Profile is ${cond.profileId ?? 'unset'}`
   if (!opt) return cond.kind
   if (!opt.needsValue) return opt.label
   const suffix = opt.suffix ?? ''
@@ -488,6 +519,8 @@ export function formatProcessAction(action: ProcessAction): string {
       return 'Launch Sortie'
     case 'fab-tracked':
       return 'Fabricate tracked project'
+    case 'switch-profile':
+      return `Profile → ${action.profileId ?? 'unset'}`
   }
 }
 

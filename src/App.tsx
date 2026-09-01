@@ -435,7 +435,7 @@ function AppShell() {
           <NetworkTab
             state={game.state}
             onAssign={game.assignWorker}
-            onOptimise={hasProcess(game.state, 'network-optimise') ? game.optimiseNetwork : undefined}
+            onOptimise={hasProcess(game.state, 'worker-auto-fill') ? game.optimiseNetwork : undefined}
             guideTarget={onboarding?.target}
             onBack={
               showSystemsHub(game.state)

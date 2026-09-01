@@ -87,7 +87,8 @@ import {
   canBuyProcessNode,
   createEmptyProcessState,
   getProcessNode,
-  processNodeCost,
+  processAvailable,
+  reconstructProcessEarned,
   hasProcess,
   mergeProcessConfig,
   networkAllocationWeights,
@@ -1414,17 +1415,15 @@ export function buyProcessNode(state: GameState, nodeId: string): GameState {
   if (!def) return state
   const next = structuredClone(state)
   if (!next.process) next.process = createEmptyProcessState()
-  next.resources.aiPoints -= processNodeCost(next, def)
+  next.process.earned = Math.max(next.process.earned ?? 0, reconstructProcessEarned(next))
   next.process.purchased = [...next.process.purchased, nodeId]
   if (nodeId === 'rule-builder' && !next.process.config.activeProfileId) {
     next.process.config.activeProfileId = 'custom'
   }
-  if (nodeId === 'furnace-channels') {
-    next.process.config.furnace.autoChannel = true
-  }
   if (nodeId === 'furnace-presets' && !next.process.config.furnace.preset) {
     next.process.config.furnace.preset = 'push'
   }
+  next.resources.aiPoints = processAvailable(next)
   recordPlaytest(next, 'process_buy', { n: def.name })
   noteSystemAction(next, 'process')
   tryCompleteAchievements(next)
@@ -1439,7 +1438,7 @@ export function setProcessConfig(state: GameState, config: GameState['process'][
 }
 
 export function optimiseNetwork(state: GameState): GameState {
-  if (!hasProcess(state, 'network-optimise') && !hasProcess(state, 'network-balance')) return state
+  if (!hasProcess(state, 'worker-auto-fill')) return state
   const next = structuredClone(state)
   for (const id of NETWORK_BAR_IDS) {
     delete next.base.assignments[id]
@@ -1448,11 +1447,10 @@ export function optimiseNetwork(state: GameState): GameState {
 }
 
 export function applyNetworkPreset(state: GameState, preset: ProcessNetworkPreset): GameState {
-  if (!hasProcess(state, 'network-presets')) return state
+  if (!hasProcess(state, 'worker-presets')) return state
   const next = setProcessConfig(state, {
     ...processConfig(state),
     network: { ...processConfig(state).network, preset },
   })
   return optimiseNetwork(next)
 }
-

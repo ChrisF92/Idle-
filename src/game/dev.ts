@@ -7,8 +7,6 @@ import {
   ACT1_CADENCE,
   ACT1_FINAL_WAVE,
   CHALLENGE_MIN_REBUILDS,
-  PROCESS_MIN_REBUILDS,
-  PROCESS_MIN_RESEARCH,
 } from './cadence'
 import {
   ACHIEVEMENTS,
@@ -31,9 +29,9 @@ export const GDD_DOOR_PRESETS = [
   { wave: ACT1_CADENCE.directives, label: 'W50 Directives' },
   { wave: ACT1_CADENCE.rebuild, label: 'W210 Rebuild' },
   { wave: ACT1_CADENCE.reliquary, label: 'W320 Relics' },
-  { wave: ACT1_CADENCE.furnace, label: 'W140 Furnace' },
-  { wave: ACT1_CADENCE.research, label: 'W170 Research' },
-  { wave: ACT1_CADENCE.process, label: 'W210 Process' },
+  { wave: ACT1_CADENCE.furnace, label: 'W450 Furnace' },
+  { wave: ACT1_CADENCE.research, label: 'W525 Research' },
+  { wave: ACT1_CADENCE.process, label: 'Process Kernel' },
   { wave: ACT1_CADENCE.protocols, label: 'W250 Challenges' },
   { wave: ACT1_CADENCE.reinforce, label: 'W1000 Reinforce' },
 ] as const
@@ -105,11 +103,9 @@ export function grantCareerBestWave(state: GameState, wave: number): void {
 }
 
 function armProcessGates(state: GameState): void {
-  state.prestige.prestigeCount = Math.max(state.prestige.prestigeCount ?? 0, PROCESS_MIN_REBUILDS)
-  const done = Object.values(state.hiveResearch.completed ?? {}).filter((n) => n > 0).length
-  if (done < PROCESS_MIN_RESEARCH) {
-    state.hiveResearch.completed.energy = Math.max(state.hiveResearch.completed.energy ?? 0, 1)
-  }
+  const kernelPath = ['c1-queue-buffer', 'c2-combat-telemetry', 'c3-deep-queue', 'c4-process-kernel']
+  state.hiveResearch.completedIds = [...new Set([...state.hiveResearch.completedIds, ...kernelPath])]
+  state.hiveResearch.completed.computation = Math.max(state.hiveResearch.completed.computation ?? 0, 4)
 }
 
 function clearFight(state: GameState): void {
@@ -286,7 +282,7 @@ export function applyDevAction(state: GameState, action: DevAction): GameState {
     }
     case 'inject-process-profile': {
       prepGddDoor(next, ACT1_CADENCE.process)
-      const nodes = ['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']
+      const nodes = ['bulk-purchase', 'sortie-auto-buy', 'spend-profiles', 'rule-builder', 'process-profiles']
       next.process.purchased = [...new Set([...(next.process.purchased ?? []), ...nodes])]
       if (!next.process.config.profiles.length) {
         next.process.config.profiles = createDefaultProcessProfiles()

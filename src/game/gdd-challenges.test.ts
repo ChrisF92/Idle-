@@ -20,6 +20,7 @@ import { isSystemUnlocked } from './progression'
 import { computeShipStats, createInitialState } from './state'
 import { moreStationBuckets } from './moreStations'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
+import { processPointsEarned } from './processPoints'
 
 function challengeState(opts?: { wave?: number; rebuilds?: number; research?: boolean }) {
   const s = atCareerWave(markHullLost(createInitialState(0)), opts?.wave ?? ACT1_CADENCE.protocols)
@@ -41,11 +42,11 @@ describe('GDD Challenges', () => {
     expect(moreStationBuckets(locked).open.map((s) => s.id)).not.toContain('protocols')
   })
 
-  it('stays locked at Wave 250 until Process is online', () => {
+  it('does not make the existing Challenge door depend on Process Kernel', () => {
     const noRebuild = challengeState({ rebuilds: 1 })
-    expect(isSystemUnlocked(noRebuild, 'protocols')).toBe(false)
+    expect(isSystemUnlocked(noRebuild, 'protocols')).toBe(true)
     const noResearch = challengeState({ research: false })
-    expect(isSystemUnlocked(noResearch, 'protocols')).toBe(false)
+    expect(isSystemUnlocked(noResearch, 'protocols')).toBe(true)
   })
 
   it('opens on More at Wave 250 after two Rebuilds', () => {
@@ -130,16 +131,18 @@ describe('GDD Challenges', () => {
     expect(challengeScenarioLines(getProtocol('dry-hold')!).some((line) => /Wave 1/.test(line))).toBe(true)
   })
 
-  it('grants Relics, Process, recipes, Research, and Frames rather than a global damage chip', () => {
+  it('leaves obsolete direct Process/Research grants inert and awards achievement PP', () => {
     const kinds = PROTOCOLS.map((def) => def.firstGrant?.kind).filter(Boolean)
-    expect(kinds).toEqual(expect.arrayContaining(['relic', 'process', 'recipe', 'research']))
+    expect(kinds).toEqual(expect.arrayContaining(['relic', 'process-points', 'recipe']))
     expect(protocolRewardSummary(challengeState(), 'glass-ward')).toMatch(/Plate Chip/)
-    expect(protocolRewardSummary(challengeState(), 'quiet-guns')).toMatch(/Shop Readout/)
-    expect(protocolRewardSummary(challengeState(), 'mute-network')).toMatch(/Challenge Log/)
+    expect(protocolRewardSummary(challengeState(), 'quiet-guns')).toMatch(/2 Process Points/)
+    expect(protocolRewardSummary(challengeState(), 'mute-network')).toMatch(/2 Process Points/)
 
     let swarm = enterProtocol(challengeState(), 'mute-network')
+    const beforePoints = processPointsEarned(swarm)
     swarm.combat.wave = protocolGoalWave(swarm, 'mute-network')
     tryCompleteProtocol(swarm)
-    expect(swarm.hiveResearch.completedIds).toContain('challenge-log')
+    expect(swarm.hiveResearch.completedIds).not.toContain('challenge-log')
+    expect(processPointsEarned(swarm)).toBe(beforePoints + 2)
   })
 })

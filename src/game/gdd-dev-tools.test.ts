@@ -27,9 +27,9 @@ describe('GDD Dev Tools', () => {
       'W50 Directives',
       'W210 Rebuild',
       'W320 Relics',
-      'W140 Furnace',
-      'W170 Research',
-      'W210 Process',
+      'W450 Furnace',
+      'W525 Research',
+      'Process Kernel',
       'W250 Challenges',
       'W1000 Reinforce',
     ])
@@ -95,7 +95,7 @@ describe('GDD Dev Tools', () => {
     let farm = applyDevAction(createInitialState(0), { type: 'inject-process-profile', profileId: 'farm' })
     expect(isSystemUnlocked(farm, 'process')).toBe(true)
     expect(farm.process.purchased).toEqual(
-      expect.arrayContaining(['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']),
+      expect.arrayContaining(['bulk-purchase', 'sortie-auto-buy', 'spend-profiles', 'rule-builder', 'process-profiles']),
     )
     expect(farm.process.config.activeProfileId).toBe('farm')
     expect(farm.process.config.profiles.map((p) => p.id)).toEqual(

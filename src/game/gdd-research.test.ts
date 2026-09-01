@@ -1,164 +1,88 @@
 import { describe, expect, it } from 'vitest'
-import { assignWorker, performRebuild, setResearchFocus, startResearch } from './actions'
+import { performRebuild } from './actions'
 import { ACT1_CADENCE } from './cadence'
 import {
-  getHiveResearchNode,
-  grantHiveResearchKillXp,
-  hiveResearchActive,
-  hiveResearchActiveNode,
-  hiveResearchAvailableNodes,
-  hiveResearchCompleted,
-  hiveResearchCompletedIds,
-  hiveResearchFocusFire,
-  hiveResearchFurnaceSlots,
-  hiveResearchNodeDuration,
-  hiveResearchNodeEffectLine,
-  hiveResearchSpeed,
-  hiveResearchUpcoming,
-  hiveResearchVisibleNodes,
-  hiveResearchXp,
+  HIVE_RESEARCH_BRANCHES,
   HIVE_RESEARCH_NODES,
   HIVE_RESEARCH_WORKER_ACCEL,
-  researchNodeViewState,
+  getHiveResearchNode,
+  hiveResearchActiveNodes,
+  hiveResearchBranchUnlocked,
+  hiveResearchNodeDuration,
+  hiveResearchProjectSlots,
+  hiveResearchSpeed,
+  startResearch,
 } from './hiveResearch'
 import { applyOfflineCatchUp } from './offline'
 import { isSystemUnlocked } from './progression'
 import { createInitialState } from './state'
-import { systemsHubCards } from './systemsHub'
 import { armRebuildDoor, atCareerWave, markHullLost } from './testHelpers'
 import { advanceSeconds } from './tick'
 
-function researchState(wave = ACT1_CADENCE.research) {
-  return atCareerWave(markHullLost(createInitialState(0)), wave)
+function researchState() {
+  return atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.research)
 }
 
-describe('GDD Research', () => {
-  it('stays locked before Wave 170', () => {
-    const locked = researchState(ACT1_CADENCE.research - 1)
+describe('PR9 canonical Research', () => {
+  it('opens all four ten-project disciplines at Wave 525', () => {
+    const locked = atCareerWave(createInitialState(0), ACT1_CADENCE.research - 1)
     expect(isSystemUnlocked(locked, 'research')).toBe(false)
-    expect(setResearchFocus(locked, 'energy')).toBe(locked)
-    expect(systemsHubCards(locked).map((c) => c.id)).not.toContain('research')
-  })
-
-  it('opens three Act 1 disciplines at Wave 170 under Systems', () => {
     const open = researchState()
     expect(isSystemUnlocked(open, 'research')).toBe(true)
-    expect(systemsHubCards(open).map((c) => c.id)).toEqual(['foundry', 'research'])
-    expect(HIVE_RESEARCH_NODES.energy.length).toBeGreaterThan(5)
-    expect(HIVE_RESEARCH_NODES.observation.length).toBeGreaterThan(5)
-    expect(HIVE_RESEARCH_NODES.material.length).toBeGreaterThan(5)
-    expect(setResearchFocus(open, 'computation')).toBe(open)
+    expect(HIVE_RESEARCH_BRANCHES.map((row) => row.name)).toEqual([
+      'Hive Engineering', 'Drone Systems', 'Industrial Science', 'Computational Systems',
+    ])
+    expect(Object.values(HIVE_RESEARCH_NODES).every((nodes) => nodes.length === 10)).toBe(true)
+    expect(HIVE_RESEARCH_BRANCHES.every((row) => hiveResearchBranchUnlocked(open, row.id))).toBe(true)
   })
 
-  it('runs one timed project and does not take kill XP', () => {
-    let s = researchState()
-    s.combat.docked = true
-    s = setResearchFocus(s, 'energy')
-    expect(hiveResearchActive(s)).toBe(true)
-    expect(s.hiveResearch.focus).toBe('energy')
-    const before = hiveResearchXp(s, 'energy')
-    grantHiveResearchKillXp(s, true)
-    expect(hiveResearchXp(s, 'energy')).toBe(before)
-    advanceSeconds(s, 10)
-    expect(hiveResearchXp(s, 'energy')).toBeGreaterThan(before)
-    expect(hiveResearchCompleted(s, 'material')).toBe(0)
+  it('uses the authored catalogue and totals forty unaccelerated hours', () => {
+    expect(HIVE_RESEARCH_NODES.energy.map((node) => node.name)).toEqual([
+      'Cycle Engineering', 'Workshop Tooling', 'Thermal Conduits', 'Core Priming', 'Frame Calibration',
+      'Workshop Template', 'Reclaim Routing', 'Thermal Recovery', 'Cycle Memory', 'Reconstruction Accelerator',
+    ])
+    const total = Object.values(HIVE_RESEARCH_NODES).flat().reduce((sum, node) => sum + node.duration, 0)
+    expect(total).toBe(40 * 60 * 60)
+    expect(getHiveResearchNode('c4-process-kernel')?.prerequisites).toEqual(['c3-deep-queue'])
   })
 
-  it('lets assigned Worker Drones accelerate the active Research project', () => {
-    let slow = researchState()
-    slow.combat.docked = true
-    slow = setResearchFocus(slow, 'energy')
+  it('runs one timed project, with Worker acceleration and offline progress', () => {
+    const slow = startResearch(researchState(), 'e1-cycle-engineering')
     const base = hiveResearchSpeed(slow)
-
     let fast = researchState()
-    fast.combat.docked = true
-    fast.base.workerDrones = 8
-    fast = setResearchFocus(fast, 'energy')
-    fast = assignWorker(fast, 'sensor-net', 4)
-    expect(hiveResearchSpeed(fast)).toBeCloseTo(base + HIVE_RESEARCH_WORKER_ACCEL * 4)
-    expect(hiveResearchSpeed(fast)).toBeGreaterThan(base)
+    fast.base.workerDrones = 4
+    fast.base.assignments['sensor-net'] = 4
+    fast = startResearch(fast, 'e1-cycle-engineering')
+    expect(hiveResearchSpeed(fast)).toBeCloseTo(base + 4 * HIVE_RESEARCH_WORKER_ACCEL)
+    const before = fast.hiveResearch.progress
+    fast.lastTickAt = 0
+    const { state: caughtUp } = applyOfflineCatchUp(fast, 60_000)
+    expect(caughtUp.hiveResearch.progress).toBeGreaterThan(before)
+    expect(hiveResearchActiveNodes(slow)).toHaveLength(1)
   })
 
-  it('completes the project and frees the slot', () => {
-    let s = researchState()
-    s.combat.docked = true
-    s = setResearchFocus(s, 'energy')
-    const node = hiveResearchActiveNode(s)!
-    const need = hiveResearchNodeDuration(node, s)
-    s.hiveResearch.progress = need - 1
-    s.hiveResearch.xp.energy = need - 1
-    advanceSeconds(s, 2)
-    expect(hiveResearchCompleted(s, 'energy')).toBe(1)
-    expect(hiveResearchActive(s)).toBe(false)
+  it('keeps completed projects across Rebuild', () => {
+    let state = armRebuildDoor(createInitialState(0))
+    state = atCareerWave(state, ACT1_CADENCE.research)
+    state.hiveResearch.completedIds = ['e1-cycle-engineering']
+    state.hiveResearch.completed.energy = 1
+    state = startResearch(state, 'e2-workshop-tooling')
+    state = performRebuild(state, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
+    expect(state.hiveResearch.completedIds).toContain('e1-cycle-engineering')
+    expect(state.hiveResearch.activeNodeId).toBe('e2-workshop-tooling')
   })
 
-  it('opens Drone Systems on a targeting rule, not a percent shop', () => {
-    let s = researchState()
-    s.combat.docked = true
-    s = startResearch(s, 'priority-lock')
-    const first = hiveResearchActiveNode(s)
-    expect(first?.name).toBe('Priority Lock')
-    expect(first?.kind).toBe('breakthrough')
-    expect(first?.focusFire).toBe(true)
-    expect(hiveResearchNodeEffectLine(first!)).toMatch(/wounded hulls/)
-    expect(hiveResearchUpcoming(s, 'observation')).toHaveLength(0)
-    expect(researchNodeViewState(s, getHiveResearchNode('worker-calibration')!)).toBe('locked')
-
-    const need = hiveResearchNodeDuration(first!, s)
-    s.hiveResearch.progress = need - 1
-    advanceSeconds(s, 2)
-    expect(s.hiveResearch.completedIds).toContain('priority-lock')
-    expect(hiveResearchFocusFire(s)).toBe(true)
-    expect(hiveResearchActive(s)).toBe(false)
-    expect(hiveResearchAvailableNodes(s, 'observation').map((n) => n.id).sort()).toEqual(
-      ['combat-sim', 'worker-calibration'].sort(),
-    )
-  })
-
-  it('keeps Research across Rebuild and continues offline', () => {
-    let s = armRebuildDoor(createInitialState(0))
-    s = atCareerWave(s, ACT1_CADENCE.research)
-    s.combat.docked = true
-    s = setResearchFocus(s, 'material')
-    s.hiveResearch.progress = 40
-    s.hiveResearch.xp.material = 40
-    s.hiveResearch.completedIds = ['plate-bank', 'extra-tap']
-    s.hiveResearch.completed.energy = 2
-    s = performRebuild(s, { frameId: 'starter-frame', modules: ['pulse-cannon', 'plate-layer'] })
-    expect(s.hiveResearch.completedIds).toEqual(expect.arrayContaining(['plate-bank', 'extra-tap']))
-    expect(s.hiveResearch.xp.material).toBe(40)
-    expect(hiveResearchActive(s)).toBe(true)
-
-    s.lastTickAt = 0
-    const xp = hiveResearchXp(s, 'material')
-    const { state: next } = applyOfflineCatchUp(s, 60 * 1000)
-    expect(hiveResearchXp(next, 'material')).toBeGreaterThan(xp)
-  })
-
-  it('forks and later reconnects instead of a linear 1-2-3 sequence', () => {
-    const s = researchState()
-    const extra = getHiveResearchNode('extra-tap')!
-    const keel = getHiveResearchNode('keel-bay')!
-    const hangar = getHiveResearchNode('hangar-swap')!
-    expect(extra.prerequisites).toEqual(['plate-bank'])
-    expect(keel.prerequisites).toEqual(['plate-bank'])
-    expect(hangar.prerequisites).toEqual(['extra-tap', 'keel-bay'])
-    expect(hiveResearchVisibleNodes(s, 'energy').map((n) => n.id)).toEqual(['plate-bank'])
-    s.hiveResearch.completedIds = ['plate-bank']
-    s.hiveResearch.completed.energy = 1
-    const opened = hiveResearchAvailableNodes(s, 'energy').map((n) => n.id)
-    expect(opened).toEqual(expect.arrayContaining(['extra-tap', 'keel-bay', 'workshop-primer']))
-    expect(opened.length).toBeGreaterThanOrEqual(3)
-    expect(researchNodeViewState(s, hangar)).toBe('hidden')
-    s.hiveResearch.completedIds = ['plate-bank', 'extra-tap']
-    expect(researchNodeViewState(s, hangar)).toBe('locked')
-  })
-
-  it('maps old sequential energy ranks onto the new branching ids', () => {
-    const s = researchState()
-    s.hiveResearch.completed.energy = 3
-    expect(hiveResearchCompletedIds(s)).toEqual(['priority-lock', 'plate-bank', 'extra-tap'])
-    expect(hiveResearchFurnaceSlots(s)).toBe(1)
-    expect(hiveResearchFocusFire(s)).toBe(true)
+  it('unlocks Process only at Process Kernel and parallel Research at Parallel Analysis', () => {
+    const state = researchState()
+    state.hiveResearch.completedIds = ['c1-queue-buffer', 'c2-combat-telemetry', 'c3-deep-queue']
+    state.hiveResearch.completed.computation = 3
+    expect(isSystemUnlocked(state, 'process')).toBe(false)
+    const kernel = getHiveResearchNode('c4-process-kernel')!
+    const running = startResearch(state, kernel.id)
+    running.hiveResearch.progress = hiveResearchNodeDuration(kernel, running) - 1
+    advanceSeconds(running, 2)
+    expect(isSystemUnlocked(running, 'process')).toBe(true)
+    running.hiveResearch.completedIds.push('c5-pressure-analysis', 'c6-comparative-inspect', 'c7-profile-memory', 'c8-parallel-analysis')
+    expect(hiveResearchProjectSlots(running)).toBe(2)
   })
 })

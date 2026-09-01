@@ -22,7 +22,7 @@ function workforceState() {
   ]
   state.hiveResearch.active = true
   state.hiveResearch.focus = 'observation'
-  state.hiveResearch.activeNodeId = 'priority-lock'
+  state.hiveResearch.activeNodeId = 'd4-worker-calibration'
   return state
 }
 
@@ -41,7 +41,7 @@ describe('Worker Drone workforce UI', () => {
 
     expect(screen.getByText('Recovered Stock Processing')).toBeTruthy()
     expect(screen.getByText('Flak Array Fabrication')).toBeTruthy()
-    expect(screen.getByText('Research — Priority Lock')).toBeTruthy()
+    expect(screen.getByText('Research — Worker Calibration')).toBeTruthy()
     expect(screen.getByText('Worker Fabrication')).toBeTruthy()
     expect(screen.getByText('Salvage Operations')).toBeTruthy()
     expect(screen.getByText('Processing Line Infrastructure')).toBeTruthy()

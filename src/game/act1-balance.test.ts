@@ -47,7 +47,7 @@ describe('Act 1 authored formulas', () => {
     expect(ACT1_UNLOCKS.reliquary).toBe(320)
     expect(ACT1_UNLOCKS.rebuildAvailable).toBe(PRESTIGE_MIN_SECTOR)
     expect(ACT1_UNLOCKS.furnace).toBe(450)
-    expect(ACT1_UNLOCKS.research).toBe(170)
+    expect(ACT1_UNLOCKS.research).toBe(525)
     expect(ACT1_UNLOCKS.protocols).toBe(250)
     expect(ACT1_UNLOCKS.echo).toBe(275)
     expect(ACT1_UNLOCKS.act1).toBe(1000)
@@ -63,7 +63,7 @@ describe('Act 1 authored formulas', () => {
     expect(HIVE_RESEARCH_WORKER_ACCEL).toBe(0.25)
     expect(FURNACE_INITIAL_CHANNEL_LIMIT).toBe(2)
     expect(ASH_PER_HEAT).toBe(10)
-    expect(PROCESS_NODES.find((n) => n.id === 'buy-ten')?.cost).toBe(2)
+    expect(PROCESS_NODES.find((n) => n.id === 'bulk-purchase')?.cost).toBe(2)
     expect(PROCESS_NODES.find((n) => n.id === 'core-buy-max')).toBeUndefined()
   })
 
@@ -199,7 +199,7 @@ describe('Act 1 career simulations', () => {
     expect(run.safety.some((s) => s.kind === 'nan')).toBe(false)
   }, 120_000)
 
-  it('roundtrips the PR8 Furnace schema at SAVE_VERSION 49', () => {
+  it('roundtrips the PR8 Furnace schema at SAVE_VERSION 50', () => {
     const s = createInitialState(0)
     s.hiveResearch.completed.energy = 2
     s.foundry.masteryXp['recovered-stock'] = 4
@@ -210,7 +210,7 @@ describe('Act 1 career simulations', () => {
     }
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(49)
+    expect(SAVE_VERSION).toBe(50)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.masteryXp['recovered-stock']).toBe(4)

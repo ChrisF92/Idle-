@@ -114,10 +114,14 @@ export function furnaceUnlocked(state: GameState): boolean {
 }
 
 /** PR9 Engineering may populate this extension point; PR8 production limit is 2. */
-let channelLimitProvider: (state: GameState) => number = () => FURNACE_INITIAL_CHANNEL_LIMIT
+const canonicalChannelLimit = (state: GameState) =>
+  (state.hiveResearch?.completedIds ?? []).includes('e8-thermal-recovery')
+    ? FURNACE_ACT1_CHANNEL_LIMIT
+    : FURNACE_INITIAL_CHANNEL_LIMIT
+let channelLimitProvider: (state: GameState) => number = canonicalChannelLimit
 
 export function setFurnaceChannelLimitProvider(provider: ((state: GameState) => number) | null): void {
-  channelLimitProvider = provider ?? (() => FURNACE_INITIAL_CHANNEL_LIMIT)
+  channelLimitProvider = provider ?? canonicalChannelLimit
 }
 
 export function furnaceChannelLimit(state: GameState): number {
@@ -138,8 +142,11 @@ export function furnaceChannelCost(lv: FurnaceChannelLevel): number {
   return FURNACE_LEVEL_COST[lv]
 }
 
-export function furnaceConfigurationCost(channels: Partial<Record<FurnaceChannelId, FurnaceChannelLevel>>): number {
-  return FURNACE_CHANNEL_IDS.reduce((sum, id) => sum + furnaceChannelCost(level(channels[id])), 0)
+export function furnaceConfigurationCost(channels: Partial<Record<FurnaceChannelId, FurnaceChannelLevel>>, state?: GameState): number {
+  const base = FURNACE_CHANNEL_IDS.reduce((sum, id) => sum + furnaceChannelCost(level(channels[id])), 0)
+  return state && (state.hiveResearch?.completedIds ?? []).includes('e8-thermal-recovery')
+    ? Math.ceil(base * 0.9)
+    : base
 }
 
 export function furnaceSelectedCount(channels: Partial<Record<FurnaceChannelId, FurnaceChannelLevel>>): number {
@@ -150,7 +157,7 @@ export function canIgniteFurnace(
   state: GameState,
   channels: Partial<Record<FurnaceChannelId, FurnaceChannelLevel>>,
 ): { ok: boolean; reason?: string; cost: number } {
-  const cost = furnaceConfigurationCost(channels)
+  const cost = furnaceConfigurationCost(channels, state)
   if (!furnaceUnlocked(state)) return { ok: false, reason: `Reach Wave ${FURNACE_UNLOCK_WAVE}`, cost }
   if (state.combat.docked || !state.combat.inFight) return { ok: false, reason: 'Launch a Sortie first', cost }
   if (state.furnace.ignited) return { ok: false, reason: 'Furnace is locked for this Sortie', cost }
@@ -198,7 +205,8 @@ export function furnaceConversionPreview(state: GameState): { ok: boolean; reaso
   if (state.furnace.ignited) return { ok: false, reason: 'Furnace is locked; save Ash for the next Sortie', ashUsed: 0, heatGain: 0 }
   const batches = Math.floor((state.resources.choirAsh ?? 0) / ASH_PER_HEAT)
   if (batches <= 0) return { ok: false, reason: `Need ${ASH_PER_HEAT} Ash`, ashUsed: 0, heatGain: 0 }
-  const conversionMult = frameHeatMult(state) * choirTapAshToHeatMult(state)
+  const researchMult = (state.hiveResearch?.completedIds ?? []).includes('e3-thermal-conduits') ? 1.2 : 1
+  const conversionMult = frameHeatMult(state) * choirTapAshToHeatMult(state) * researchMult
   return { ok: true, ashUsed: batches * ASH_PER_HEAT, heatGain: batches * conversionMult }
 }
 

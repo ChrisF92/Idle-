@@ -14,6 +14,7 @@ import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 import { availableSortieSpeeds } from './uiReadout'
 import { RUN_UPGRADES, scrapKillBonus, shopArmor, visibleRunUpgrades } from './workshop'
+import { processPointsEarned } from './processPoints'
 
 describe('GDD Phase 8 content depth', () => {
   it('keeps the canonical 18 generic upgrades without Best-Wave shop gates', () => {
@@ -72,9 +73,9 @@ describe('GDD Phase 8 content depth', () => {
     expect(availableSortieSpeeds(rebuild)).toEqual([1, 1.5])
 
     const research = structuredClone(fresh)
-    research.hiveResearch.completedIds = ['combat-sim']
+    research.hiveResearch.completedIds = ['d1-fire-control-doctrine']
     research.hiveResearch.completed.observation = 1
-    expect(getHiveResearchNode('combat-sim')).toBeTruthy()
+    expect(getHiveResearchNode('d1-fire-control-doctrine')).toBeTruthy()
     expect(availableSortieSpeeds(research)).toEqual([1])
     expect(availableSortieSpeeds(fresh)).toEqual([1])
   })
@@ -82,9 +83,9 @@ describe('GDD Phase 8 content depth', () => {
   it('shows Challenge grants that expand the tested system, not global damage', () => {
     expect(PROTOCOLS.every((def) => def.firstGrant || def.unlocksFrame)).toBe(true)
     expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'relic')).toBe(true)
-    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'process')).toBe(true)
+    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'process-points')).toBe(true)
     expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'recipe')).toBe(true)
-    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'research')).toBe(true)
+    expect(PROTOCOLS.some((def) => def.firstGrant?.kind === 'research')).toBe(false)
 
     const s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.protocols)
     s.prestige.prestigeCount = 2
@@ -92,17 +93,19 @@ describe('GDD Phase 8 content depth', () => {
     s.combat.docked = true
     s.workshop.coreStarts = { 'pulse-cannon:1': 2 }
     expect(protocolNextRewardText(s, 'glass-ward')).toMatch(/Plate Chip/)
-    expect(protocolNextRewardText(s, 'quiet-guns')).toMatch(/Shop Readout/)
-    expect(protocolNextRewardText(s, 'mute-network')).toMatch(/Challenge Log/)
+    expect(protocolNextRewardText(s, 'quiet-guns')).toMatch(/2 Process Points/)
+    expect(protocolNextRewardText(s, 'mute-network')).toMatch(/2 Process Points/)
 
     applyProtocolGrant(s, { kind: 'relic', id: 'plate-chip', blurb: 'test' })
     expect(s.relics.instances).toHaveLength(0)
 
     let run = enterProtocol(s, 'quiet-guns')
     expect(run.protocols.activeId).toBe('quiet-guns')
+    const beforePoints = processPointsEarned(run)
     run.combat.wave = 100
     tryCompleteProtocol(run)
-    expect(run.process.purchased).toContain('shop-readout')
+    expect(run.process.purchased).not.toContain('shop-readout')
+    expect(processPointsEarned(run)).toBe(beforePoints + 2)
   })
 
   it('keeps leftover Challenge Marks from buying global damage', () => {

@@ -252,8 +252,8 @@ describe('PR6 mature Core socket layouts', () => {
   })
 })
 
-describe('PR6 PR9 capability boundary', () => {
-  it('keeps Tier II/III dormant and ignores leftover Research colour unlocks', () => {
+describe('PR9 Relic tempering Research', () => {
+  it('unlocks Tier II/III from the authored Industrial nodes', () => {
     const s = atCareerWave(createInitialState(0), ACT1_CADENCE.reliquary)
     addRelicInstance(s, 'power-coupler', 1)
     expect(canUpgradeRelicToTier2(s)).toBe(false)
@@ -262,9 +262,9 @@ describe('PR6 PR9 capability boundary', () => {
     s.hiveResearch.completedIds = Object.values(HIVE_RESEARCH_NODES).flatMap((nodes) =>
       nodes.map((n) => n.id),
     )
-    expect(hiveResearchUnlocksReliquary(s, 'blue')).toBe(true)
-    expect(canUpgradeRelicToTier2(s)).toBe(false)
-    expect(canUpgradeRelicToTier3(s)).toBe(false)
+    expect(hiveResearchUnlocksReliquary(s, 'blue')).toBe(false)
+    expect(canUpgradeRelicToTier2(s)).toBe(true)
+    expect(canUpgradeRelicToTier3(s)).toBe(true)
 
     setRelicTemperCapabilityProvider({
       canUpgradeRelicToTier2: () => true,

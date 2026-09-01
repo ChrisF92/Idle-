@@ -31,8 +31,8 @@ import { tickFoundry, foundrySalvageOpsMult } from './foundry'
 import { endFurnaceSortie } from './furnace'
 import { hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
 import { noteProtocolProgress, tryCompleteProtocol } from './protocols'
-import { hasProcess, noteProcessLastAction, processConfig } from './process'
-import { evaluateProcessIntent } from './processProfiles'
+import { hasProcess, noteProcessLastAction, processConfig, syncProcessPointLedger } from './process'
+import { evaluateProcessIntent, processShouldExtract } from './processProfiles'
 import { WORKER_JOB_IDS } from './workers'
 import {
   captureSortieMark,
@@ -728,8 +728,13 @@ export function advanceSeconds(state: GameState, seconds: number): void {
     left -= dt
   }
   tickAutomation(state)
+  if (processShouldExtract(state) && canExtract(state)) {
+    endActiveSortieAsExtract(state, true)
+    noteProcessLastAction(state, 'auto-extract', 'Extracted under the active rule')
+  }
   maybeProcessRelaunch(state)
   tryCompleteAchievements(state)
+  syncProcessPointLedger(state)
 }
 
 function tutorialBlocksAutoLaunch(state: GameState): boolean {
@@ -746,8 +751,11 @@ function workshopNeedsFirstLesson(state: GameState): boolean {
 }
 
 function maybeProcessRelaunch(state: GameState): void {
-  const intentLaunch = evaluateProcessIntent(state).launchSortie && hasProcess(state, 'rule-builder')
-  const autoLaunch = hasProcess(state, 'sortie-relaunch') && processConfig(state).sortie.autoRelaunch
+  const intentLaunch =
+    evaluateProcessIntent(state).launchSortie &&
+    hasProcess(state, 'rule-builder') &&
+    hasProcess(state, 'repeat-sortie')
+  const autoLaunch = hasProcess(state, 'repeat-sortie') && processConfig(state).sortie.autoRelaunch
   if (!intentLaunch && !autoLaunch) return
   if (!state.combat.docked) return
   if ((state.combat.defeatLeft ?? 0) > 0) return
@@ -757,7 +765,7 @@ function maybeProcessRelaunch(state: GameState): void {
   if (state.combat.playerHullMax <= 0) return
   if (state.combat.playerHull + 0.5 < state.combat.playerHullMax) return
   launchFromDock(state)
-  noteProcessLastAction(state, 'sortie-relaunch', 'Launched Sortie')
+  noteProcessLastAction(state, 'repeat-sortie', 'Launched foreground Sortie')
 }
 
 /**

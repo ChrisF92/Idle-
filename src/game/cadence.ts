@@ -11,8 +11,9 @@ export const ACT1_CADENCE = {
   yard: 90,
   reliquary: 320,
   furnace: 450,
-  research: 170,
-  process: 210,
+  research: 525,
+  /** Process is exposed by Computational Research: Process Kernel. */
+  process: 525,
   protocols: 250,
   /** @deprecated Echo is retired. Key kept so old saves / tests still resolve. */
   echo: 275,
@@ -48,8 +49,8 @@ export const NETWORK_CADENCE = {
 } as const
 
 export const YARD_MIN_REBUILDS = 2
-export const PROCESS_MIN_REBUILDS = 2
-export const PROCESS_MIN_RESEARCH = 1
+export const PROCESS_MIN_REBUILDS = 0
+export const PROCESS_MIN_RESEARCH = 4
 export const CHALLENGE_MIN_REBUILDS = 2
 export const ECHO_MIN_PROTOCOL_RANKS = 1
 

@@ -2,16 +2,15 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ProcessTab } from '../components/tabs/ProcessTab'
 import { OverlayProvider } from '../ui/overlay'
-import { ACT1_CADENCE, PROCESS_MIN_REBUILDS } from './cadence'
+import { ACT1_CADENCE } from './cadence'
 import { processConfig } from './process'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 
 function processState() {
   const s = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.process)
-  s.prestige.prestigeCount = PROCESS_MIN_REBUILDS
-  s.hiveResearch.completed.energy = 1
-  s.resources.aiPoints = 40
+  s.hiveResearch.completedIds = ['c1-queue-buffer', 'c2-combat-telemetry', 'c3-deep-queue', 'c4-process-kernel']
+  s.hiveResearch.completed.computation = 4
   return s
 }
 
@@ -53,7 +52,7 @@ describe('Process 3.0 UI', () => {
 
   it('lists owned automations with ON/OFF and last action', () => {
     const state = processState()
-    state.process.purchased = ['auto-shop', 'spend-ratios']
+    state.process.purchased = ['sortie-auto-buy', 'spend-profiles']
     state.process.config = {
       ...processConfig(state),
       shop: { autoBuy: true, ratios: { attack: 50, defense: 30, economy: 20 }, salvageReserve: 2000 },
@@ -69,7 +68,7 @@ describe('Process 3.0 UI', () => {
 
   it('edits a rule in a full-height sheet with chips, not syntax', () => {
     const state = processState()
-    state.process.purchased = ['buy-ten', 'auto-shop', 'spend-ratios', 'rule-builder', 'run-profiles']
+    state.process.purchased = ['bulk-purchase', 'sortie-auto-buy', 'spend-profiles', 'rule-builder', 'process-profiles']
     state.process.config = { ...processConfig(state), activeProfileId: 'farm' }
     renderProcess(state)
     fireEvent.click(screen.getByRole('tab', { name: 'Rules' }))
@@ -85,12 +84,13 @@ describe('Process 3.0 UI', () => {
 
   it('summarises Farm, Push, Challenge, and Custom profiles', () => {
     const state = processState()
-    state.process.purchased = ['rule-builder', 'run-profiles']
+    state.process.purchased = ['rule-builder', 'process-profiles']
     state.process.config = { ...processConfig(state), activeProfileId: 'farm' }
     renderProcess(state)
     fireEvent.click(screen.getByRole('tab', { name: 'Profiles' }))
     expect(screen.getAllByText('Farm').length).toBeGreaterThan(0)
     expect(screen.getByText('Push')).toBeTruthy()
+    expect(screen.getByText('Blueprint')).toBeTruthy()
     expect(screen.getByText('Challenge')).toBeTruthy()
     expect(screen.getByText('Custom')).toBeTruthy()
     expect(screen.getAllByText(/Sortie/).length).toBeGreaterThan(0)

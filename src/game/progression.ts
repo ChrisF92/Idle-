@@ -5,8 +5,6 @@ import { noteHighestSector } from './playtest'
 import {
   ACT1_CADENCE,
   ACT1_FINAL_WAVE,
-  PROCESS_MIN_REBUILDS,
-  PROCESS_MIN_RESEARCH,
 } from './cadence'
 import { careerBestWave, meetsWave } from './waves'
 import { rebuildDoorMet } from './rebuild'
@@ -598,15 +596,10 @@ function grantAchievementTier(state: GameState, def: AchievementDef): void {
   if (!state.meta.completedAchievements.includes(def.id)) {
     state.meta.completedAchievements = [...state.meta.completedAchievements, def.id]
   }
-  state.resources.aiPoints += def.rewardAiPoints
-  if (state.process) {
-    state.process.earned = (state.process.earned ?? 0) + def.rewardAiPoints
-  }
-  if (!state.meta.aiUnlocked) state.meta.aiUnlocked = true
   const tier = state.meta.achievementCompletions[def.id]
   const label = def.repeatable ? `${def.name} ×${tier}` : def.name
   state.combat.log = [
-    `Achievement: ${label} (+${def.rewardAiPoints} Process).`,
+    `Achievement: ${label}.`,
     ...state.combat.log,
   ].slice(0, 40)
 }
@@ -680,12 +673,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   }
   if (systemId === 'ai' || systemId === 'process') {
     const used = (state.process?.purchased?.length ?? 0) > 0 || state.ai.purchased.length > 0
-    const researchProgress = Object.values(state.hiveResearch?.completed ?? {}).filter((n) => n > 0).length
-    return used || (
-      careerBestWave(state) >= ACT1_CADENCE.process &&
-      (state.prestige.prestigeCount ?? 0) >= PROCESS_MIN_REBUILDS &&
-      researchProgress >= PROCESS_MIN_RESEARCH
-    )
+    return used || (state.hiveResearch?.completedIds ?? []).includes('c4-process-kernel')
   }
   if (systemId === 'codex') {
     return meetsWave(state, ACT1_CADENCE.codex)
@@ -695,10 +683,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
   }
   if (systemId === 'protocols') {
     const used = Boolean(state.protocols?.activeId) || Object.values(state.protocols?.ranks ?? {}).some((n) => n > 0)
-    return used || (
-      meetsWave(state, ACT1_CADENCE.protocols) &&
-      isSystemUnlocked(state, 'process')
-    )
+    return used || meetsWave(state, ACT1_CADENCE.protocols)
   }
   if (systemId === 'echo') {
     return false
@@ -739,10 +724,10 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return null
   }
   if (systemId === 'ai' || systemId === 'process') {
-    return `Reach Wave ${ACT1_CADENCE.process} · Rebuild ${PROCESS_MIN_REBUILDS} times · complete any Research`
+    return 'Complete Process Kernel in Computational Systems Research'
   }
   if (systemId === 'protocols') {
-    return `Reach Wave ${ACT1_CADENCE.protocols} · Process online`
+    return `Reach Wave ${ACT1_CADENCE.protocols}`
   }
   if (systemId === 'codex') {
     return `Reach Wave ${ACT1_CADENCE.codex}`
@@ -912,4 +897,3 @@ export function guidePausesSimulation(step: { pause?: boolean } | null | undefin
 export function guideAutoTabs(_step: unknown): boolean {
   return false
 }
-
