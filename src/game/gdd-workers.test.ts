@@ -166,10 +166,11 @@ describe('GDD Worker Drones', () => {
     expect(retired.base.assignments).toEqual({})
 
     const process = atCareerWave(createInitialState(0), ACT1_CADENCE.process)
+    process.hiveResearch.completedIds = ['c1-queue-buffer', 'c2-combat-telemetry', 'c3-deep-queue', 'c4-process-kernel']
     process.base.workerDrones = 8
     process.resources.scrap = 80
     process.foundry.slots[0] = { recipeId: 'recovered-stock', progress: 0, paid: false }
-    process.process.purchased = ['network-optimise', 'network-presets', 'network-balance']
+    process.process.purchased = ['worker-presets', 'worker-auto-fill']
     process.process.config.network.enabled = true
     tickAutomation(process)
     expect(Object.values(process.base.assignments).reduce((sum, n) => sum + n, 0)).toBeGreaterThan(0)

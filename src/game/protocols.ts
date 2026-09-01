@@ -8,6 +8,7 @@ import { ACT1_CADENCE } from './cadence'
 import { isWorkerJob } from './workers'
 import { getFrame, grantUnlockedFrame } from './catalog'
 import { isFoundryMaterialId } from './foundryCatalogue'
+import { getHiveResearchNode } from './hiveResearchTree'
 
 export const PROTOCOL_UNLOCK_SECTOR = ACT1_CADENCE.protocols
 export const CHALLENGE_UNLOCK_WAVE = ACT1_CADENCE.protocols
@@ -46,7 +47,7 @@ export interface ProtocolRewardStep {
   blurb: string
 }
 
-export type ProtocolGrantKind = 'process' | 'relic' | 'recipe' | 'research'
+export type ProtocolGrantKind = 'process-points' | 'relic' | 'recipe' | 'research'
 
 /** First-clear grant that expands the tested system (GDD §98). */
 export interface ProtocolGrant {
@@ -103,7 +104,7 @@ export const PROTOCOLS: ProtocolDef[] = [
     disabledSystems: ['Weapon Cores'],
     mute: 'weapons',
     goalWave: 100,
-    firstGrant: { kind: 'process', id: 'shop-readout', blurb: 'First clear unlocks Shop Readout in Process.' },
+    firstGrant: { kind: 'process-points', id: 'bronze-pp', blurb: 'Bronze first clear awards 2 Process Points.' },
     rewards: [
       { at: 1, hook: { kind: 'coreCostScaling', add: -0.01 }, blurb: 'Weapon Core Level costs grow a little slower.' },
       { at: 2, hook: { kind: 'coreCostScaling', add: -0.008 }, blurb: 'Weapon cost growth eases again.' },
@@ -125,9 +126,9 @@ export const PROTOCOLS: ProtocolDef[] = [
     goalWave: 100,
     enemyDensityMult: 2.2,
     firstGrant: {
-      kind: 'research',
-      id: 'challenge-log',
-      blurb: 'First clear unlocks Challenge Log in Research.',
+      kind: 'process-points',
+      id: 'bronze-pp',
+      blurb: 'Bronze first clear awards 2 Process Points.',
     },
     rewards: [
       { at: 1, hook: { kind: 'foundryXpNeed', mult: 0.98 }, blurb: 'Material Mastery needs slightly fewer crafts.' },
@@ -342,8 +343,8 @@ function grantSummary(grant: ProtocolGrant): string {
   switch (grant.kind) {
     case 'relic':
       return grant.blurb.replace(/^First clear seats a /i, '').replace(/\.$/, '')
-    case 'process':
-      return grant.blurb.replace(/^First clear unlocks /i, '').replace(/ in Process\.$/i, '')
+    case 'process-points':
+      return '2 Process Points'
     case 'recipe':
       return grant.blurb.replace(/^First clear unlocks the /i, '').replace(/\.$/, '')
     case 'research':
@@ -585,10 +586,8 @@ export function protocolNextRewardText(state: GameState, id: string): string {
 }
 
 export function applyProtocolGrant(state: GameState, grant: ProtocolGrant): void {
-  if (grant.kind === 'process') {
-    if (!state.process.purchased.includes(grant.id)) {
-      state.process.purchased = [...state.process.purchased, grant.id]
-    }
+  if (grant.kind === 'process-points') {
+    // PP is reconstructed from permanent medal ranks; no mutable grant is needed.
     return
   }
   if (grant.kind === 'relic') {
@@ -596,6 +595,7 @@ export function applyProtocolGrant(state: GameState, grant: ProtocolGrant): void
   }
   if (grant.kind === 'research') {
     if (!state.hiveResearch) return
+    if (!getHiveResearchNode(grant.id)) return
     if (!state.hiveResearch.completedIds.includes(grant.id)) {
       state.hiveResearch.completedIds = [...state.hiveResearch.completedIds, grant.id]
     }

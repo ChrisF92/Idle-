@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import type {
   FoundryRecipeId,
   GameState,
-  HiveResearchBranch,
   ProcessCondition,
   ProcessNetworkPreset,
   ProcessProfile,
@@ -11,7 +10,6 @@ import type {
   ProcessWhenKind,
 } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
-import { ACT1_CADENCE, PROCESS_MIN_REBUILDS } from '../../game/cadence'
 import {
   NETWORK_PRESET_LABELS,
   PROCESS_LANES,
@@ -42,10 +40,14 @@ import {
 } from '../../game/processProfiles'
 import { processPointSourcesByGroup } from '../../game/processPoints'
 import { FOUNDRY_RECIPES } from '../../game/foundry'
-import { hiveResearchQueueCap, hiveResearchStartableBranches, HIVE_RESEARCH_BRANCHES } from '../../game/hiveResearch'
+import {
+  hiveResearchAvailableNodes,
+  hiveResearchQueueCap,
+  HIVE_RESEARCH_BRANCHES,
+} from '../../game/hiveResearch'
 import { WORKER_JOB_IDS, workerJobLabel } from '../../game/workers'
 import { STATIONS } from '../../game/catalog'
-import { PROTOCOLS, protocolRank } from '../../game/protocols'
+import { DIRECTIVES } from '../../game/directives'
 import { SheetTabs } from '../SheetTabs'
 import {
   Badge,
@@ -149,10 +151,10 @@ function NodeConfig({
   const cfg = processConfig(state)
   const patch = (mutate: (next: GameState['process']['config']) => void) => patchConfig(state, onConfig, mutate)
 
-  if (nodeId === 'auto-shop' || nodeId === 'spend-ratios') {
+  if (nodeId === 'sortie-auto-buy' || nodeId === 'spend-profiles') {
     return (
       <div className="process-config-block" data-guide="process-config">
-        {nodeId === 'auto-shop' ? (
+        {nodeId === 'sortie-auto-buy' ? (
           <label className="process-config">
             <input
               type="checkbox"
@@ -185,7 +187,7 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'network-presets' || nodeId === 'network-balance' || nodeId === 'worker-conditional') {
+  if (nodeId === 'worker-presets' || nodeId === 'worker-auto-fill') {
     return (
       <div className="process-config-block" data-guide="process-config">
         <label className="process-config">
@@ -203,7 +205,7 @@ function NodeConfig({
             onChange={(e) => patch((c) => { c.network.preset = e.target.value as ProcessNetworkPreset })}
           >
             {(Object.keys(NETWORK_PRESET_LABELS) as ProcessNetworkPreset[])
-              .filter((id) => id !== 'custom' || hasProcess(state, 'network-ratios'))
+              .filter((id) => id !== 'custom' || hasProcess(state, 'worker-weights'))
               .map((id) => (
                 <option key={id} value={id}>
                   {NETWORK_PRESET_LABELS[id]}
@@ -214,7 +216,7 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'network-ratios') {
+  if (nodeId === 'worker-weights') {
     const jobs = STATIONS.filter((station) => WORKER_JOB_IDS.includes(station.id))
     return (
       <div className="process-config-block">
@@ -237,19 +239,19 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'foundry-repeat' || nodeId === 'foundry-prereqs' || nodeId === 'foundry-stock') {
+  if (nodeId === 'processing-repeat' || nodeId === 'dependency-processing' || nodeId === 'material-stock-targets') {
     const stockEntries = Object.entries(cfg.foundry.minStock ?? {})
     return (
       <div className="process-config-block">
-        {nodeId !== 'foundry-stock' ? (
+        {nodeId !== 'material-stock-targets' ? (
           <label className="process-config">
-            {nodeId === 'foundry-prereqs' ? 'Target' : 'Repeat'}
+            {nodeId === 'dependency-processing' ? 'Target' : 'Repeat'}
             <select
-              value={(nodeId === 'foundry-prereqs' ? cfg.foundry.targetRecipe : cfg.foundry.repeatRecipe) ?? ''}
+              value={(nodeId === 'dependency-processing' ? cfg.foundry.targetRecipe : cfg.foundry.repeatRecipe) ?? ''}
               onChange={(e) =>
                 patch((c) => {
                   const id = (e.target.value || null) as FoundryRecipeId | null
-                  if (nodeId === 'foundry-prereqs') c.foundry.targetRecipe = id
+                  if (nodeId === 'dependency-processing') c.foundry.targetRecipe = id
                   else c.foundry.repeatRecipe = id
                 })
               }
@@ -302,7 +304,7 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'foundry-queue') {
+  if (nodeId === 'dependency-processing') {
     const cap = 3
     const queue = [...cfg.foundry.queue]
     while (queue.length < cap) queue.push('' as FoundryRecipeId)
@@ -335,7 +337,7 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'auto-extract' || nodeId === 'sortie-relaunch') {
+  if (nodeId === 'auto-extract' || nodeId === 'repeat-sortie') {
     return (
       <div className="process-config-block">
         <label className="process-config">
@@ -360,7 +362,7 @@ function NodeConfig({
             }
           />
         </label>
-        {hasProcess(state, 'sortie-relaunch') ? (
+        {hasProcess(state, 'repeat-sortie') ? (
           <label className="process-config">
             <input
               type="checkbox"
@@ -373,24 +375,64 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'research-queue' || nodeId === 'research-priorities' || nodeId === 'research-focus') {
-    const branches = hiveResearchStartableBranches(state)
+  if (nodeId === 'directive-preference') {
+    const choices = Array.from({ length: 3 }, (_, index) => cfg.sortie.directivePreference[index] ?? '')
+    return (
+      <div className="process-config-block">
+        <p className="muted">Pick the highest offered Directive in this order. If none appear, continue unchanged.</p>
+        {choices.map((id, index) => (
+          <label key={index} className="process-config">
+            Priority {index + 1}
+            <select
+              value={id}
+              onChange={(e) => patch((c) => {
+                const next = [...c.sortie.directivePreference]
+                next[index] = e.target.value
+                c.sortie.directivePreference = next.filter(Boolean).filter((value, i, all) => all.indexOf(value) === i)
+              })}
+            >
+              <option value="">None</option>
+              {DIRECTIVES.map((directive) => (
+                <option key={directive.id} value={directive.id}>{directive.name}</option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+    )
+  }
+  if (nodeId === 'research-queue-assist' || nodeId === 'research-preference') {
+    const available = hiveResearchAvailableNodes(state)
     const cap = hiveResearchQueueCap(state)
     const queue = [...cfg.research.queue]
-    while (queue.length < cap) queue.push('' as HiveResearchBranch)
+    while (queue.length < cap) queue.push('')
     return (
       <div className="process-config-block" data-guide="process-research-queue">
-        {hasProcess(state, 'research-focus') ? (
-          <label className="process-config" data-guide="process-research-auto">
-            <input
-              type="checkbox"
-              checked={cfg.research.autoResearch}
-              onChange={(e) => patch((c) => { c.research.autoResearch = e.target.checked })}
-            />
-            Auto-next
-          </label>
+        {hasProcess(state, 'research-preference') ? (
+          <>
+            <label className="process-config" data-guide="process-research-auto">
+              <input
+                type="checkbox"
+                checked={cfg.research.autoResearch}
+                onChange={(e) => patch((c) => { c.research.autoResearch = e.target.checked })}
+              />
+              Continue visible branch after queue exhaustion
+            </label>
+            <label className="process-config">
+              Preferred discipline
+              <select
+                value={cfg.research.branchPriority[0] ?? 'energy'}
+                onChange={(e) => patch((c) => {
+                  const selected = e.target.value as (typeof c.research.branchPriority)[number]
+                  c.research.branchPriority = [selected, ...c.research.branchPriority.filter((id) => id !== selected)]
+                })}
+              >
+                {HIVE_RESEARCH_BRANCHES.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+              </select>
+            </label>
+          </>
         ) : null}
-        {hasProcess(state, 'research-queue') ? (
+        {hasProcess(state, 'research-queue-assist') ? (
           <>
             <p className="muted">Queue · {cap} slots</p>
             {queue.slice(0, cap).map((id, i) => (
@@ -401,16 +443,16 @@ function NodeConfig({
                   onChange={(e) =>
                     patch((c) => {
                       const next = [...c.research.queue]
-                      while (next.length < cap) next.push('' as HiveResearchBranch)
-                      next[i] = e.target.value as HiveResearchBranch
-                      c.research.queue = next.filter(Boolean) as HiveResearchBranch[]
+                      while (next.length < cap) next.push('')
+                      next[i] = e.target.value
+                      c.research.queue = next.filter(Boolean)
                     })
                   }
                 >
                   <option value="">Empty</option>
-                  {branches.map((b) => (
-                    <option key={b} value={b}>
-                      {HIVE_RESEARCH_BRANCHES.find((d) => d.id === b)?.name ?? b}
+                  {available.map((node) => (
+                    <option key={node.id} value={node.id}>
+                      {node.name}
                     </option>
                   ))}
                 </select>
@@ -421,39 +463,38 @@ function NodeConfig({
       </div>
     )
   }
-  if (nodeId === 'furnace-reserve' || nodeId === 'furnace-presets' || nodeId === 'furnace-channels') {
+  if (nodeId === 'ash-budgeting' || nodeId === 'furnace-presets' || nodeId === 'furnace-auto-ignite') {
     return (
       <div className="process-config-block">
-        <p className="muted">Furnace automation is unavailable until the Process rewrite. Configure and Ignite the Furnace manually.</p>
+        <label className="process-config">
+          Preset
+          <select value={cfg.furnace.preset ?? 'push'} onChange={(e) => patch((c) => { c.furnace.preset = e.target.value })}>
+            <option value="push">Push</option>
+            <option value="farm">Farm</option>
+            <option value="industry">Industry</option>
+            <option value="research">Research</option>
+          </select>
+        </label>
+        {hasProcess(state, 'ash-budgeting') ? (
+          <label className="process-config">
+            Maximum Ash budget
+            <input type="number" min={0} value={cfg.furnace.reserveHeat} onChange={(e) => patch((c) => { c.furnace.reserveHeat = Math.max(0, Number(e.target.value) || 0) })} />
+          </label>
+        ) : null}
+        {hasProcess(state, 'furnace-auto-ignite') ? (
+          <label className="process-config">
+            <input type="checkbox" checked={cfg.furnace.autoChannel} onChange={(e) => patch((c) => { c.furnace.autoChannel = e.target.checked })} />
+            Allow one-time Ignite when an enabled rule triggers
+          </label>
+        ) : null}
+        <p className="muted">Process cannot alter an Ignited Furnace.</p>
       </div>
     )
   }
-  if (nodeId === 'protocol-repeat' || nodeId === 'protocol-presets') {
+  if (nodeId === 'challenge-profile') {
     return (
       <div className="process-config-block">
-        <label className="process-config">
-          <input
-            type="checkbox"
-            checked={cfg.sortie.protocolRepeat}
-            onChange={(e) => patch((c) => { c.sortie.protocolRepeat = e.target.checked })}
-          />
-          Repeat last cleared Challenge
-        </label>
-        <label className="process-config">
-          Challenge
-          <select
-            value={cfg.sortie.protocolId ?? cfg.sortie.lastProtocolId ?? ''}
-            onChange={(e) => patch((c) => { c.sortie.protocolId = e.target.value || null })}
-          >
-            <option value="">Last started</option>
-            {PROTOCOLS.map((p) => (
-              <option key={p.id} value={p.id} disabled={protocolRank(state, p.id) < 1}>
-                {p.name}
-                {protocolRank(state, p.id) < 1 ? ' · clear by hand first' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
+        <p className="muted">Loads the CHALLENGE automation profile during an active Challenge. It never starts or bypasses a Challenge.</p>
       </div>
     )
   }
@@ -516,6 +557,17 @@ function RuleEditor({
                   <option key={r.id} value={r.id}>
                     {r.name}
                   </option>
+                ))}
+              </select>
+            ) : null}
+            {cond.kind === 'profile-is' ? (
+              <select
+                value={cond.profileId ?? ''}
+                onChange={(e) => setWhen(index, { ...cond, profileId: e.target.value })}
+              >
+                <option value="">Choose profile</option>
+                {processConfig(state).profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
                 ))}
               </select>
             ) : null}
@@ -587,7 +639,26 @@ function RuleEditor({
         </select>
       ) : null}
       {rule.then.kind === 'furnace-preset' ? (
-        <p className="muted">Furnace preset automation is unavailable until the Process rewrite.</p>
+        <select
+          value={rule.then.furnacePreset ?? 'push'}
+          onChange={(e) => onChange({ ...rule, then: { ...rule.then, furnacePreset: e.target.value } })}
+        >
+          <option value="push">Push</option>
+          <option value="farm">Farm</option>
+          <option value="industry">Industry</option>
+          <option value="research">Research</option>
+        </select>
+      ) : null}
+      {rule.then.kind === 'switch-profile' ? (
+        <select
+          value={rule.then.profileId ?? ''}
+          onChange={(e) => onChange({ ...rule, then: { ...rule.then, profileId: e.target.value } })}
+        >
+          <option value="">Choose profile</option>
+          {processConfig(state).profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>{profile.name}</option>
+          ))}
+        </select>
       ) : null}
       {rule.then.kind === 'foundry-target' || rule.then.kind === 'repeat-recipe' || rule.then.kind === 'foundry-stock' ? (
         <>
@@ -680,7 +751,7 @@ export function ProcessTab({
           }
         />
         <p className="muted">
-          Reach Wave {ACT1_CADENCE.process} after {PROCESS_MIN_REBUILDS} Rebuilds and a Research project.
+          Complete Process Kernel in Computational Systems Research.
         </p>
       </Screen>
     )
@@ -731,19 +802,18 @@ export function ProcessTab({
                 <article key={card.id} className="process-auto-card">
                   <header>
                     <strong>{card.name}</strong>
-                    {onConfig ? (
+                    {onConfig && ['sortie-auto-buy', 'auto-extract', 'repeat-sortie', 'worker-auto-fill', 'research-preference', 'furnace-auto-ignite'].includes(card.id) ? (
                       <button
                         type="button"
                         className={card.enabled ? 'sheet-tab active' : 'sheet-tab'}
                         onClick={() =>
                           patchConfig(state, onConfig, (next) => {
-                            if (card.id === 'auto-shop') next.shop.autoBuy = !next.shop.autoBuy
+                            if (card.id === 'sortie-auto-buy') next.shop.autoBuy = !next.shop.autoBuy
                             if (card.id === 'auto-extract') next.sortie.autoExtract = !next.sortie.autoExtract
-                            if (card.id === 'sortie-relaunch') next.sortie.autoRelaunch = !next.sortie.autoRelaunch
-                            if (card.id === 'network-balance') next.network.enabled = !next.network.enabled
-                            if (card.id === 'research-focus') next.research.autoResearch = !next.research.autoResearch
-                            if (card.id === 'furnace-channels') next.furnace.autoChannel = !next.furnace.autoChannel
-                            if (card.id === 'protocol-repeat') next.sortie.protocolRepeat = !next.sortie.protocolRepeat
+                            if (card.id === 'repeat-sortie') next.sortie.autoRelaunch = !next.sortie.autoRelaunch
+                            if (card.id === 'worker-auto-fill') next.network.enabled = !next.network.enabled
+                            if (card.id === 'research-preference') next.research.autoResearch = !next.research.autoResearch
+                            if (card.id === 'furnace-auto-ignite') next.furnace.autoChannel = !next.furnace.autoChannel
                           })
                         }
                       >
@@ -815,14 +885,14 @@ export function ProcessTab({
                 value={cfg.activeProfileId === row.id ? 'Active' : 'Preset'}
                 secondary={profileSummary(row).join(' · ')}
                 onClick={
-                  onConfig && hasProcess(state, 'run-profiles')
+                  onConfig && hasProcess(state, 'process-profiles')
                     ? () => patchConfig(state, onConfig, (next) => { next.activeProfileId = row.id })
                     : undefined
                 }
               />
             ))}
-            {!hasProcess(state, 'run-profiles') ? (
-              <p className="ui-meta">Buy Run Profiles to activate Farm, Push, Challenge, or Custom.</p>
+            {!hasProcess(state, 'process-profiles') ? (
+              <p className="ui-meta">Buy Process Profiles to activate Farm, Push, Blueprint, Challenge, or Custom.</p>
             ) : null}
           </Section>
         ) : null}

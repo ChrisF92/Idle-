@@ -219,8 +219,12 @@ function furnaceTargetingContribution(state: GameState): TargetingStatModifier {
 }
 
 /** PR9 Gyroscopic Calibration / Predictive Acquisition. */
-export function researchTargetingContribution(_state: GameState): TargetingStatModifier {
-  return {}
+export function researchTargetingContribution(state: GameState): TargetingStatModifier {
+  const completed = new Set(state.hiveResearch?.completedIds ?? [])
+  return {
+    slewRateMult: completed.has('d2-gyroscopic-calibration') ? 1.1 : 1,
+    acquisitionRangeMult: completed.has('d3-predictive-acquisition') ? 1.08 : 1,
+  }
 }
 
 /**

@@ -1,9 +1,6 @@
-/** Branching Act 1 Research trees. One completed node may unlock two or more alternatives. */
+/** Canonical Act 1 Research catalogue. Four ordered disciplines, ten projects each. */
 
-import type { HiveResearchBranch, NetworkBarId, ReliquaryColor } from './types'
-
-export const RESEARCH_INCREMENTAL_S = 8 * 60
-export const RESEARCH_BREAKTHROUGH_S = 20 * 60
+import type { HiveResearchBranch } from './types'
 
 export type HiveResearchNodeKind = 'incremental' | 'breakthrough'
 export type ResearchNodeViewState = 'completed' | 'active' | 'available' | 'locked' | 'hidden'
@@ -19,496 +16,143 @@ export interface HiveResearchNodeDef {
   row: number
   duration: number
   kind: HiveResearchNodeKind
-  salvage?: number
   foundrySpeed?: number
-  damage?: number
-  shield?: number
   heatFromAsh?: number
-  networkFill?: number
-  data?: number
-  shardDrop?: number
-  researchXp?: number
-  furnaceSlots?: number
+  furnaceHeatCostMult?: number
   foundrySlots?: number
   foundryFitSlots?: number
-  foundryMasteryReduce?: number
-  foundryInfiniteReduce?: number
   droneEfficiency?: number
-  extraUtilitySlots?: number
-  offFocusAdd?: number
   researchQueueSlots?: number
-  protocolXp?: number
-  unlockRelay?: NetworkBarId
-  unlockReliquary?: ReliquaryColor
-  unlockFrame?: string
-  focusFire?: boolean
+  researchProjectSlots?: number
   coreStartLevel?: number
   workshopStartRanks?: number
   salvageOpsMult?: number
   droneCapBonus?: number
   workerManufacture?: number
   foundryOutput?: number
-  processCostMult?: number
   inspectDetail?: boolean
-  /** Systems hub prints remaining time and the exact effect. */
   hubIntel?: boolean
+  reclaimRouting?: number
+  relicTier?: 2 | 3
+  processKernel?: boolean
+  doctrineProfiles?: boolean
+  targetingSlew?: number
+  targetingAcquisition?: number
+  /** Neutral compatibility fields consumed by generic bonus readers. Canonical nodes leave these unset. */
+  salvage?: number
+  damage?: number
+  shield?: number
+  networkFill?: number
+  data?: number
+  shardDrop?: number
+  researchXp?: number
+  furnaceSlots?: number
+  foundryMasteryReduce?: number
+  foundryInfiniteReduce?: number
+  extraUtilitySlots?: number
+  offFocusAdd?: number
+  protocolXp?: number
+  processCostMult?: number
+  unlockRelay?: import('./types').NetworkBarId
+  unlockReliquary?: import('./types').ReliquaryColor
+  unlockFrame?: string
+  focusFire?: boolean
 }
 
-const BT = RESEARCH_BREAKTHROUGH_S
-const INC = RESEARCH_INCREMENTAL_S
+const MIN = 60
+export const RESEARCH_INCREMENTAL_S = 15 * MIN
+export const RESEARCH_BREAKTHROUGH_S = 45 * MIN
+const durations = [15, 25, 35, 45, 55, 65, 75, 85, 95, 105].map((minutes) => minutes * MIN)
 
-export const RESEARCH_TREE: HiveResearchNodeDef[] = [
-  // Hive Engineering — hull / Workshop / Frames / reclaim. Three-way fork, later reconnect.
-  {
-    id: 'plate-bank',
-    name: 'Plate Bank',
-    shortName: 'Plate',
-    blurb: 'Each physical Core begins a cycle one Core Level higher. Hull strength is planned at the dock.',
-    branch: 'energy',
-    prerequisites: [],
-    col: 0,
-    row: 1,
-    duration: BT,
-    kind: 'breakthrough',
-    coreStartLevel: 1,
-  },
-  {
-    id: 'extra-tap',
-    name: 'Extra Tap',
-    shortName: 'Tap',
-    blurb: 'Lights one more Furnace channel and unlocks the Reactor Frame.',
-    branch: 'energy',
-    prerequisites: ['plate-bank'],
-    col: 1,
-    row: 0,
-    duration: BT * 1.2,
-    kind: 'breakthrough',
-    furnaceSlots: 1,
-  },
-  {
-    id: 'workshop-primer',
-    name: 'Workshop Primer',
-    shortName: 'Primer',
-    blurb: 'Rebuilds start with one Attack and one Defense Workshop rank already bought.',
-    branch: 'energy',
-    prerequisites: ['plate-bank'],
-    col: 1,
-    row: 1,
-    duration: INC * 1.5,
-    kind: 'incremental',
-    workshopStartRanks: 1,
-  },
-  {
-    id: 'keel-bay',
-    name: 'Keel Bay',
-    shortName: 'Keel',
-    blurb: 'One extra utility Core slot on the hull, and Foundry mastery gates open sooner.',
-    branch: 'energy',
-    prerequisites: ['plate-bank'],
-    col: 1,
-    row: 2,
-    duration: BT * 1.2,
-    kind: 'breakthrough',
-    extraUtilitySlots: 1,
-    foundryInfiniteReduce: 2,
-  },
-  {
-    id: 'heat-routing',
-    name: 'Heat Routing',
-    shortName: 'Heat',
-    blurb: 'Lights one more Furnace channel.',
-    branch: 'energy',
-    prerequisites: ['extra-tap'],
-    col: 2,
-    row: 0,
-    duration: BT * 1.4,
-    kind: 'breakthrough',
-    furnaceSlots: 1,
-  },
-  {
-    id: 'reclaim-loop',
-    name: 'Reclaim Loop',
-    shortName: 'Reclaim',
-    blurb: 'Salvage Operations haul Scrap at double the base job rate.',
-    branch: 'energy',
-    prerequisites: ['extra-tap'],
-    col: 2,
-    row: 1,
-    duration: INC * 2,
-    kind: 'incremental',
-    salvageOpsMult: 1,
-  },
-  {
-    id: 'hangar-swap',
-    name: 'Hangar Calibration',
-    shortName: 'Hangar',
-    blurb: 'Adds a Fabrication slot. Frames and Cores can be built side by side.',
-    branch: 'energy',
-    prerequisites: ['extra-tap', 'keel-bay'],
-    col: 3,
-    row: 1,
-    duration: BT * 1.6,
-    kind: 'breakthrough',
-    foundryFitSlots: 1,
-  },
-
-  // Drone Systems — targeting, Core behaviour, Worker manufacturing. Split then reconnect.
-  {
-    id: 'priority-lock',
-    name: 'Priority Lock',
-    shortName: 'Lock',
-    blurb: 'Cores lock wounded hulls and bosses first. A permanent targeting rule.',
-    branch: 'observation',
-    prerequisites: [],
-    col: 0,
-    row: 1,
-    duration: BT,
-    kind: 'breakthrough',
-    focusFire: true,
-  },
-  {
-    id: 'worker-calibration',
-    name: 'Worker Calibration',
-    shortName: 'Calibrate',
-    blurb: 'Worker Drones contribute more to Processing, Fabrication, and Research.',
-    branch: 'observation',
-    prerequisites: ['priority-lock'],
-    col: 1,
-    row: 0,
-    duration: BT * 1.2,
-    kind: 'breakthrough',
-    droneEfficiency: 0.12,
-  },
-  {
-    id: 'combat-sim',
-    name: 'Combat Sim',
-    shortName: 'Sim',
-    blurb: 'Improves combat telemetry. Time Compression is the combat-speed track.',
-    branch: 'observation',
-    prerequisites: ['priority-lock'],
-    col: 1,
-    row: 2,
-    duration: INC * 1.5,
-    kind: 'incremental',
-  },
-  {
-    id: 'drone-racks',
-    name: 'Drone Racks',
-    shortName: 'Racks',
-    blurb: 'Raises Worker Drone capacity by four.',
-    branch: 'observation',
-    prerequisites: ['worker-calibration'],
-    col: 2,
-    row: 0,
-    duration: INC * 2,
-    kind: 'incremental',
-    droneCapBonus: 4,
-  },
-  {
-    id: 'drone-line',
-    name: 'Drone Line',
-    shortName: 'Line',
-    blurb: 'Staffed Worker Drone fabrication runs faster.',
-    branch: 'observation',
-    prerequisites: ['worker-calibration'],
-    col: 2,
-    row: 1,
-    duration: INC * 2,
-    kind: 'incremental',
-    workerManufacture: 0.35,
-  },
-  {
-    id: 'blue-bay',
-    name: 'Blue Bay',
-    shortName: 'Blue',
-    blurb: 'Opens the blue Relic socket. A new colour of chip can be fitted.',
-    branch: 'observation',
-    prerequisites: ['combat-sim'],
-    col: 2,
-    row: 2,
-    duration: BT * 1.4,
-    kind: 'breakthrough',
-    unlockReliquary: 'blue',
-  },
-  {
-    id: 'workforce-sync',
-    name: 'Workforce Sync',
-    shortName: 'Sync',
-    blurb: 'Targeting data feeds the floor. Assigned Worker Drones fill jobs a little harder.',
-    branch: 'observation',
-    prerequisites: ['drone-racks', 'combat-sim'],
-    col: 3,
-    row: 1,
-    duration: INC * 2.5,
-    kind: 'incremental',
-    droneEfficiency: 0.04,
-  },
-
-  // Industrial Science — Processing, Fabrication, Mastery, infrastructure.
-  {
-    id: 'second-processor',
-    name: 'Second Processor',
-    shortName: 'Processor',
-    blurb: 'Adds a Foundry Processor. The floor can run another material recipe at once.',
-    branch: 'material',
-    prerequisites: [],
-    col: 0,
-    row: 1,
-    duration: BT,
-    kind: 'breakthrough',
-    foundrySlots: 1,
-  },
-  {
-    id: 'pattern-floor',
-    name: 'Pattern Floor',
-    shortName: 'Pattern',
-    blurb: 'Recipe mastery gates open one rank sooner. Advanced stock comes online earlier.',
-    branch: 'material',
-    prerequisites: ['second-processor'],
-    col: 1,
-    row: 0,
-    duration: BT * 1.2,
-    kind: 'breakthrough',
-    foundryMasteryReduce: 1,
-  },
-  {
-    id: 'fab-machinery',
-    name: 'Fabrication Machinery',
-    shortName: 'Fab',
-    blurb: 'Adds a Fabrication slot for Cores, Relics, and Infrastructure.',
-    branch: 'material',
-    prerequisites: ['second-processor'],
-    col: 1,
-    row: 2,
-    duration: INC * 1.5,
-    kind: 'incremental',
-    foundryFitSlots: 1,
-  },
-  {
-    id: 'mastery-loop',
-    name: 'Mastery Loop',
-    shortName: 'Mastery',
-    blurb: 'Late mastery gates open two ranks sooner.',
-    branch: 'material',
-    prerequisites: ['pattern-floor'],
-    col: 2,
-    row: 0,
-    duration: INC * 2,
-    kind: 'incremental',
-    foundryInfiniteReduce: 1,
-  },
-  {
-    id: 'temper-line',
-    name: 'Temper Line',
-    shortName: 'Temper',
-    blurb: 'Every Processing cycle yields one extra piece.',
-    branch: 'material',
-    prerequisites: ['fab-machinery'],
-    col: 2,
-    row: 2,
-    duration: INC * 2,
-    kind: 'incremental',
-    foundryOutput: 1,
-  },
-  {
-    id: 'hearth-line',
-    name: 'Hearth Line',
-    shortName: 'Hearth',
-    blurb: 'Adds a third Processor once Mastery and Fabrication both stand.',
-    branch: 'material',
-    prerequisites: ['pattern-floor', 'fab-machinery'],
-    col: 3,
-    row: 1,
-    duration: BT * 1.6,
-    kind: 'breakthrough',
-    foundrySlots: 1,
-  },
-
-  // Computational Systems — analytics, UI intelligence, Process rule complexity.
-  {
-    id: 'queue-desk',
-    name: 'Queue Desk',
-    shortName: 'Queue',
-    blurb: 'The Research Queue holds one more project. Process still decides whether it runs itself.',
-    branch: 'computation',
-    prerequisites: [],
-    col: 0,
-    row: 1,
-    duration: BT,
-    kind: 'breakthrough',
-    researchQueueSlots: 1,
-  },
-  {
-    id: 'inspect-layer',
-    name: 'Inspect Layer',
-    shortName: 'Inspect',
-    blurb: 'Inspect sheets show current and resulting values for the next Research project.',
-    branch: 'computation',
-    prerequisites: ['queue-desk'],
-    col: 1,
-    row: 0,
-    duration: INC * 1.5,
-    kind: 'incremental',
-    inspectDetail: true,
-  },
-  {
-    id: 'process-primer',
-    name: 'Rule Primer',
-    shortName: 'Rules',
-    blurb: 'Process nodes cost 15% fewer Process points.',
-    branch: 'computation',
-    prerequisites: ['queue-desk'],
-    col: 1,
-    row: 2,
-    duration: INC * 1.5,
-    kind: 'incremental',
-    processCostMult: 0.85,
-  },
-  {
-    id: 'background-notes',
-    name: 'Watch Desk',
-    shortName: 'Watch',
-    blurb: 'The Systems hub prints the active project’s remaining time and exact effect. Research is readable from the dock.',
-    branch: 'computation',
-    prerequisites: ['inspect-layer'],
-    col: 2,
-    row: 0,
-    duration: BT * 1.2,
-    kind: 'breakthrough',
-    hubIntel: true,
-  },
-  {
-    id: 'challenge-log',
-    name: 'Challenge Log',
-    shortName: 'Log',
-    blurb: 'Active Challenges grant extra Research speed. The desk learns from restricted sorties.',
-    branch: 'computation',
-    prerequisites: ['process-primer'],
-    col: 2,
-    row: 2,
-    duration: INC * 2,
-    kind: 'incremental',
-    protocolXp: 0.15,
-  },
-  {
-    id: 'auto-desk',
-    name: 'Auto Desk',
-    shortName: 'Auto',
-    blurb: 'Deepens the Research Queue. Process can keep more projects in motion.',
-    branch: 'computation',
-    prerequisites: ['inspect-layer', 'process-primer'],
-    col: 3,
-    row: 1,
-    duration: BT * 1.6,
-    kind: 'breakthrough',
-    researchQueueSlots: 2,
-  },
-]
-
-/** Old sequential index → new node id, so existing saves keep breakthroughs. */
-export const LEGACY_RESEARCH_SEQUENCE: Record<HiveResearchBranch, string[]> = {
-  energy: [
-    'priority-lock',
-    'plate-bank',
-    'extra-tap',
-    'combat-sim',
-    'workshop-primer',
-    'worker-calibration',
-    'keel-bay',
-    'heat-routing',
-    'hangar-swap',
-  ],
-  observation: [
-    'priority-lock',
-    'combat-sim',
-    'worker-calibration',
-    'drone-racks',
-    'drone-line',
-    'blue-bay',
-    'workforce-sync',
-  ],
-  material: [
-    'second-processor',
-    'pattern-floor',
-    'fab-machinery',
-    'mastery-loop',
-    'temper-line',
-    'hearth-line',
-  ],
-  computation: [
-    'queue-desk',
-    'inspect-layer',
-    'process-primer',
-    'background-notes',
-    'challenge-log',
-    'auto-desk',
-  ],
+interface Seed extends Omit<HiveResearchNodeDef, 'branch' | 'prerequisites' | 'col' | 'row' | 'duration' | 'kind'> {
+  effect?: Partial<HiveResearchNodeDef>
 }
 
-function byLayout(a: HiveResearchNodeDef, b: HiveResearchNodeDef): number {
-  return a.col - b.col || a.row - b.row || a.id.localeCompare(b.id)
+function discipline(branch: HiveResearchBranch, seeds: Seed[]): HiveResearchNodeDef[] {
+  return seeds.map(({ effect, ...seed }, index) => ({
+    ...seed,
+    ...effect,
+    branch,
+    prerequisites: index === 0 ? [] : [seeds[index - 1]!.id],
+    col: index,
+    row: 1,
+    duration: durations[index]!,
+    kind: index === 0 || index === 3 || index === 7 ? 'breakthrough' : 'incremental',
+  }))
 }
 
-export const RESEARCH_NODE_BY_ID: Record<string, HiveResearchNodeDef> = Object.fromEntries(
-  RESEARCH_TREE.map((node) => [node.id, node]),
-)
+const ENGINEERING = discipline('energy', [
+  { id: 'e1-cycle-engineering', name: 'Cycle Engineering', shortName: 'Cycle', blurb: 'Improves the repeatable Rebuild-cycle foundation.' },
+  { id: 'e2-workshop-tooling', name: 'Workshop Tooling', shortName: 'Tooling', blurb: 'Improves Workshop preparation between Sorties.', effect: { workshopStartRanks: 1 } },
+  { id: 'e3-thermal-conduits', name: 'Thermal Conduits', shortName: 'Conduits', blurb: 'Improves Ash-to-Heat conversion efficiency.', effect: { heatFromAsh: 0.2 } },
+  { id: 'e4-core-priming', name: 'Core Priming', shortName: 'Priming', blurb: 'Physical Cores begin each Rebuild cycle one Core Level higher.', effect: { coreStartLevel: 1 } },
+  { id: 'e5-frame-calibration', name: 'Frame Calibration', shortName: 'Frames', blurb: 'Calibrates late Frame and Core-bus interfaces.' },
+  { id: 'e6-workshop-template', name: 'Workshop Template', shortName: 'Template', blurb: 'Preserves a stronger Workshop starting template.', effect: { workshopStartRanks: 1 } },
+  { id: 'e7-reclaim-routing', name: 'Reclaim Routing', shortName: 'Reclaim', blurb: 'Reduces empty reinforcement waiting on deeply solved Waves.', effect: { reclaimRouting: 1 } },
+  { id: 'e8-thermal-recovery', name: 'Thermal Recovery', shortName: 'Recovery', blurb: 'Modestly reduces Heat required by selected Furnace channels and opens the late third channel.', effect: { furnaceHeatCostMult: 0.9, furnaceSlots: 1 } },
+  { id: 'e9-cycle-memory', name: 'Cycle Memory', shortName: 'Memory', blurb: 'Carries more learned setup into the next Rebuild cycle.', effect: { coreStartLevel: 1 } },
+  { id: 'e10-reconstruction-accelerator', name: 'Reconstruction Accelerator', shortName: 'Accelerator', blurb: 'Further compresses proven, pressure-free Wave downtime.', effect: { reclaimRouting: 1 } },
+])
 
-export function getHiveResearchNode(id: string): HiveResearchNodeDef | undefined {
-  return RESEARCH_NODE_BY_ID[id]
-}
+const DRONES = discipline('observation', [
+  { id: 'd1-fire-control-doctrine', name: 'Fire-Control Doctrine', shortName: 'Doctrine', blurb: 'Unlocks per-physical-Core targeting Doctrine configuration.' },
+  { id: 'd2-gyroscopic-calibration', name: 'Gyroscopic Calibration', shortName: 'Gyros', blurb: 'Improves Core slew without erasing authored handling.', effect: { targetingSlew: 0.1 } },
+  { id: 'd3-predictive-acquisition', name: 'Predictive Acquisition', shortName: 'Predict', blurb: 'Improves pre-acquisition and firing preparation.', effect: { targetingAcquisition: 0.08 } },
+  { id: 'd4-worker-calibration', name: 'Worker Calibration', shortName: 'Workers', blurb: 'Worker Drones contribute more to Research and industry.', effect: { droneEfficiency: 0.12 } },
+  { id: 'd5-drone-racks', name: 'Drone Racks', shortName: 'Racks', blurb: 'Raises permanent Worker Drone capacity.', effect: { droneCapBonus: 2 } },
+  { id: 'd6-fabrication-assistants', name: 'Fabrication Assistants', shortName: 'Assist', blurb: 'Assigned Workers accelerate fabrication more effectively.', effect: { workerManufacture: 0.2 } },
+  { id: 'd7-salvage-coordination', name: 'Salvage Coordination', shortName: 'Salvage', blurb: 'Improves staffed Salvage Operations.', effect: { salvageOpsMult: 0.25 } },
+  { id: 'd8-auxiliary-interfaces', name: 'Auxiliary Interfaces', shortName: 'Aux', blurb: 'Opens advanced Drone and Frame interfaces.' },
+  { id: 'd9-doctrine-memory', name: 'Doctrine Memory', shortName: 'Memory', blurb: 'Preserves deliberate Doctrine choices across loadout use.' },
+  { id: 'd10-fire-control-profiles', name: 'Fire-Control Profiles', shortName: 'Profiles', blurb: 'Unlocks saved targeting profiles loaded manually or once at launch.', effect: { doctrineProfiles: true } },
+])
 
-/** Prefer completedIds; fall back to legacy per-discipline counts. */
-export function resolvedResearchIds(research?: {
-  completedIds?: string[]
-  completed?: Partial<Record<HiveResearchBranch, number>>
-} | null): string[] {
+const INDUSTRY = discipline('material', [
+  { id: 'i1-second-processor', name: 'Second Processor', shortName: 'Processor', blurb: 'Adds a second simultaneous Foundry Processor.', effect: { foundrySlots: 1 } },
+  { id: 'i2-fabrication-machinery', name: 'Fabrication Machinery', shortName: 'Machinery', blurb: 'Adds Fabrication capacity.', effect: { foundryFitSlots: 1 } },
+  { id: 'i3-relic-tempering', name: 'Relic Tempering', shortName: 'Temper II', blurb: 'Allows physical Tier I Relics to be transformed into Tier II.', effect: { relicTier: 2 } },
+  { id: 'i4-pattern-recovery', name: 'Pattern Recovery', shortName: 'Recovery', blurb: 'Improves deterministic pattern and Processing recovery.', effect: { foundrySpeed: 0.08 } },
+  { id: 'i5-material-yield', name: 'Material Yield', shortName: 'Yield', blurb: 'Processing cycles yield one additional material.', effect: { foundryOutput: 1 } },
+  { id: 'i6-worker-jigs', name: 'Worker Jigs', shortName: 'Jigs', blurb: 'Improves Worker-assisted Foundry throughput.', effect: { droneEfficiency: 0.08 } },
+  { id: 'i7-duplicate-tooling', name: 'Duplicate Tooling', shortName: 'Duplicate', blurb: 'Reduces friction when fabricating known duplicate designs.', effect: { foundrySpeed: 0.08 } },
+  { id: 'i8-masterwork-tempering', name: 'Masterwork Tempering', shortName: 'Temper III', blurb: 'Allows physical Tier II Relics to be transformed into Tier III.', effect: { relicTier: 3 } },
+  { id: 'i9-parallel-fabrication', name: 'Parallel Fabrication', shortName: 'Parallel', blurb: 'Adds another Fabrication slot.', effect: { foundryFitSlots: 1 } },
+  { id: 'i10-pattern-archive', name: 'Pattern Archive', shortName: 'Archive', blurb: 'Completes the Act 1 industrial pattern archive.', effect: { foundrySpeed: 0.1 } },
+])
+
+const COMPUTE = discipline('computation', [
+  { id: 'c1-queue-buffer', name: 'Queue Buffer', shortName: 'Buffer', blurb: 'Adds one explicit Research queue slot.', effect: { researchQueueSlots: 1 } },
+  { id: 'c2-combat-telemetry', name: 'Combat Telemetry', shortName: 'Telemetry', blurb: 'Exposes useful live combat readouts.', effect: { inspectDetail: true } },
+  { id: 'c3-deep-queue', name: 'Deep Queue', shortName: 'Deep Queue', blurb: 'Adds two explicit Research queue slots.', effect: { researchQueueSlots: 2 } },
+  { id: 'c4-process-kernel', name: 'Process Kernel', shortName: 'Kernel', blurb: 'Unlocks Process and exposes all banked Process Points.', effect: { processKernel: true } },
+  { id: 'c5-pressure-analysis', name: 'Pressure Analysis', shortName: 'Pressure', blurb: 'Adds backlog and defensive-pressure conditions to Process.' },
+  { id: 'c6-comparative-inspect', name: 'Comparative Inspect', shortName: 'Compare', blurb: 'Shows current and resulting values in advanced inspection.', effect: { inspectDetail: true } },
+  { id: 'c7-profile-memory', name: 'Profile Memory', shortName: 'Memory', blurb: 'Preserves named automation profiles.' },
+  { id: 'c8-parallel-analysis', name: 'Parallel Analysis', shortName: 'Parallel', blurb: 'Allows a second simultaneous Research project.', effect: { researchProjectSlots: 1 } },
+  { id: 'c9-systems-overview', name: 'Systems Overview', shortName: 'Overview', blurb: 'Shows active system state and remaining time from Systems.', effect: { hubIntel: true } },
+  { id: 'c10-failure-analysis', name: 'Failure Analysis', shortName: 'Failure', blurb: 'Adds late diagnostic context without changing combat outcomes.', effect: { inspectDetail: true } },
+])
+
+export const RESEARCH_TREE: HiveResearchNodeDef[] = [...ENGINEERING, ...DRONES, ...INDUSTRY, ...COMPUTE]
+export const RESEARCH_NODE_BY_ID: Record<string, HiveResearchNodeDef> = Object.fromEntries(RESEARCH_TREE.map((node) => [node.id, node]))
+
+export function getHiveResearchNode(id: string): HiveResearchNodeDef | undefined { return RESEARCH_NODE_BY_ID[id] }
+
+export function resolvedResearchIds(research?: { completedIds?: string[]; completed?: Partial<Record<HiveResearchBranch, number>> } | null): string[] {
   if (!research) return []
-  const fromSave = (research.completedIds ?? []).filter(
-    (id): id is string => typeof id === 'string' && Boolean(RESEARCH_NODE_BY_ID[id]),
-  )
-  if (fromSave.length > 0) return [...new Set(fromSave)]
-  const derived: string[] = []
-  for (const branch of ['energy', 'observation', 'material', 'computation'] as const) {
-    const n = Math.max(0, Math.floor(Number(research.completed?.[branch] ?? 0) || 0))
-    const seq = LEGACY_RESEARCH_SEQUENCE[branch]
-    for (let i = 0; i < n; i++) {
-      const id = seq[i]
-      if (id) derived.push(id)
-    }
-  }
-  return [...new Set(derived)]
+  return [...new Set((research.completedIds ?? []).filter((id) => Boolean(RESEARCH_NODE_BY_ID[id])))]
 }
 
-export function sumResearchNumber(
-  ids: string[] | undefined,
-  field:
-    | 'coreStartLevel'
-    | 'workshopStartRanks'
-    | 'salvageOpsMult'
-    | 'droneCapBonus'
-    | 'workerManufacture'
-    | 'foundryOutput',
-): number {
-  let total = 0
-  for (const id of ids ?? []) {
-    const node = getHiveResearchNode(id)
-    total += Number(node?.[field] ?? 0)
-  }
-  return total
+export function sumResearchNumber(ids: string[] | undefined, field: 'coreStartLevel' | 'workshopStartRanks' | 'salvageOpsMult' | 'droneCapBonus' | 'workerManufacture' | 'foundryOutput'): number {
+  return (ids ?? []).reduce((sum, id) => sum + Number(getHiveResearchNode(id)?.[field] ?? 0), 0)
 }
 
-export function researchProcessCostMult(ids: string[] | undefined): number {
-  let mult = 1
-  for (const id of ids ?? []) {
-    const node = getHiveResearchNode(id)
-    if (node?.processCostMult) mult *= node.processCostMult
-  }
-  return mult
-}
+/** Process costs are fixed seed costs; Research never discounts them. */
+export function researchProcessCostMult(_ids: string[] | undefined): number { return 1 }
 
 export const HIVE_RESEARCH_NODES: Record<HiveResearchBranch, HiveResearchNodeDef[]> = {
-  energy: RESEARCH_TREE.filter((node) => node.branch === 'energy').sort(byLayout),
-  observation: RESEARCH_TREE.filter((node) => node.branch === 'observation').sort(byLayout),
-  material: RESEARCH_TREE.filter((node) => node.branch === 'material').sort(byLayout),
-  computation: RESEARCH_TREE.filter((node) => node.branch === 'computation').sort(byLayout),
+  energy: ENGINEERING,
+  observation: DRONES,
+  material: INDUSTRY,
+  computation: COMPUTE,
 }

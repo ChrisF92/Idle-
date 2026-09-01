@@ -55,7 +55,7 @@ describe('player guidance helpers', () => {
     s.combat.bestWave = 170
     const lists = rebuildConsequenceLists(s)
     expect(lists.gain[0]).toMatch(/Rebuild Matter/)
-    expect(lists.keep).toEqual(expect.arrayContaining(['Research', 'Foundry recipes, stock, and facilities']))
+    expect(lists.keep).toEqual(expect.arrayContaining(['Foundry / Research', 'Foundry recipes, stock, and facilities']))
     expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Workshop levels', 'Core Levels']))
     expect(lists.change).toEqual([])
   })

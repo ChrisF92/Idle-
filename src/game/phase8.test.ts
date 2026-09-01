@@ -18,7 +18,7 @@ import { beginFight } from './tick'
 
 describe('phase 8: Protocols, Echo, Process', () => {
   it('bumps save and keeps Protocols / Echo locked until 52 / 62', () => {
-    expect(SAVE_VERSION).toBe(49)
+    expect(SAVE_VERSION).toBe(50)
     const fresh = createInitialState(0)
     expect(isSystemUnlocked(fresh, 'protocols')).toBe(false)
     expect(isSystemUnlocked(fresh, 'echo')).toBe(false)

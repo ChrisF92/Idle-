@@ -473,7 +473,7 @@ describe('PR4 sockets metadata', () => {
 
 describe('PR4 save round-trip', () => {
   it('round-trips current version Frame, copies, Core Levels, Mastery, Doctrine, and Sortie Cores', () => {
-    expect(SAVE_VERSION).toBe(49)
+    expect(SAVE_VERSION).toBe(50)
     let s = createInitialState(0)
     s = grantFrame(s, 'bastion-frame')
     s.shipyard.frameId = 'bastion-frame'

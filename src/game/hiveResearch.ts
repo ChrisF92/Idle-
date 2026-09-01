@@ -1,7 +1,7 @@
 /** Hive Research — branching timed projects. Progress persists across Rebuild. */
 
 import type { GameState, HiveResearchBranch, HiveResearchState, NetworkBarId, ReliquaryColor } from './types'
-import { careerBestWave, isSystemUnlocked, meetsWave } from './progression'
+import { careerBestWave } from './progression'
 import { processResearchSpeedMult } from './process'
 import { protocolModifiers } from './protocols'
 import { recordPlaytest, noteSystemAction } from './playtest'
@@ -10,7 +10,6 @@ import { getFrame, grantUnlockedFrame, stationEffectiveDrones } from './catalog'
 import {
   getHiveResearchNode,
   HIVE_RESEARCH_NODES,
-  LEGACY_RESEARCH_SEQUENCE,
   RESEARCH_BREAKTHROUGH_S,
   RESEARCH_INCREMENTAL_S,
   RESEARCH_TREE,
@@ -23,7 +22,6 @@ import {
 export {
   getHiveResearchNode,
   HIVE_RESEARCH_NODES,
-  LEGACY_RESEARCH_SEQUENCE,
   RESEARCH_BREAKTHROUGH_S,
   RESEARCH_INCREMENTAL_S,
   RESEARCH_TREE,
@@ -34,8 +32,8 @@ export type { HiveResearchNodeDef, HiveResearchNodeKind, ResearchNodeViewState }
 export const HIVE_RESEARCH_UNLOCK_SECTOR = ACT1_CADENCE.research
 /** @deprecated GDD uses one active project, not a focus multiplier. */
 export const HIVE_RESEARCH_FOCUS_MULT = 1
-export const HIVE_RESEARCH_NODES_PER_BRANCH = 7
-export const RESEARCH_QUEUE_BASE = 3
+export const HIVE_RESEARCH_NODES_PER_BRANCH = 10
+export const RESEARCH_QUEUE_BASE = 1
 /** Show only the next revealed layer so the mature tree stays hidden (GDD §138). */
 export const RESEARCH_PREVIEW = 1
 /** Each Research Worker adds this much research speed. */
@@ -85,6 +83,8 @@ export function createEmptyHiveResearchState(): HiveResearchState {
     active: false,
     activeNodeId: null,
     progress: 0,
+    secondaryNodeId: null,
+    secondaryProgress: 0,
     completedIds: [],
     xp,
     completed,
@@ -114,6 +114,11 @@ export function migrateHiveResearchState(raw: HiveResearchState | undefined): Hi
       ? savedActive
       : null
   empty.progress = Math.max(0, Number(raw.progress ?? 0) || 0)
+  const secondary = typeof raw.secondaryNodeId === 'string' ? raw.secondaryNodeId : null
+  empty.secondaryNodeId = secondary && getHiveResearchNode(secondary) && !empty.completedIds.includes(secondary)
+    ? secondary
+    : null
+  empty.secondaryProgress = empty.secondaryNodeId ? Math.max(0, Number(raw.secondaryProgress ?? 0) || 0) : 0
   if (empty.active && !empty.activeNodeId) {
     const next = firstAvailableNode({ hiveResearch: empty } as GameState, empty.focus)
     empty.activeNodeId = next?.id ?? null
@@ -135,11 +140,11 @@ function syncCompletedCounts(research: HiveResearchState): void {
 }
 
 export function hiveResearchComputationUnlocked(state: GameState): boolean {
-  return meetsWave(state, ACT1_CADENCE.mastery) && isSystemUnlocked(state, 'process')
+  return careerBestWave(state) >= HIVE_RESEARCH_UNLOCK_SECTOR
 }
 
 export function hiveResearchBranchUnlocked(state: GameState, branch: HiveResearchBranch): boolean {
-  if (branch === 'computation') return hiveResearchComputationUnlocked(state)
+  void branch
   return careerBestWave(state) >= HIVE_RESEARCH_UNLOCK_SECTOR
 }
 
@@ -172,7 +177,7 @@ export function hiveResearchNodeCost(nodeOrIndex: HiveResearchNodeDef | number, 
 }
 
 export function isResearchBreakthroughIndex(index: number): boolean {
-  return index === 2 || index === 5 || index === 8
+  return index === 0 || index === 3 || index === 7
 }
 
 export function isResearchBreakthrough(node: HiveResearchNodeDef): boolean {
@@ -404,8 +409,7 @@ export function hiveResearchUnlocksReliquary(state: GameState, color: ReliquaryC
 }
 
 export function hiveResearchExtraUtilitySlots(state: GameState): number {
-  const late = meetsWave(state, ACT1_CADENCE.mastery) ? 1 : 0
-  return hiveResearchBonuses(state).extraUtilitySlots + late
+  return hiveResearchBonuses(state).extraUtilitySlots
 }
 
 export function hiveResearchFocusFire(state: GameState): boolean {
@@ -454,11 +458,14 @@ export function hiveResearchPrerequisitesMet(state: GameState, node: HiveResearc
 
 export function researchNodeViewState(state: GameState, node: HiveResearchNodeDef): ResearchNodeViewState {
   if (hiveResearchHasNode(state, node.id)) return 'completed'
-  if (state.hiveResearch?.activeNodeId === node.id && hiveResearchActive(state)) return 'active'
+  if (
+    (state.hiveResearch?.activeNodeId === node.id && state.hiveResearch.active) ||
+    state.hiveResearch?.secondaryNodeId === node.id
+  ) return 'active'
   if (!hiveResearchBranchUnlocked(state, node.branch)) return 'hidden'
   if (hiveResearchPrerequisitesMet(state, node)) return 'available'
   const parentRevealed = node.prerequisites.some(
-    (id) => hiveResearchHasNode(state, id) || (state.hiveResearch?.activeNodeId === id && hiveResearchActive(state)),
+    (id) => hiveResearchHasNode(state, id) || state.hiveResearch?.activeNodeId === id || state.hiveResearch?.secondaryNodeId === id,
   )
   return parentRevealed ? 'locked' : 'hidden'
 }
@@ -538,6 +545,15 @@ export function hiveResearchNodeEffectLine(node: HiveResearchNodeDef): string {
   if (node.processCostMult) bits.push(`Process costs ×${node.processCostMult}`)
   if (node.inspectDetail) bits.push('Inspect shows current → result')
   if (node.hubIntel) bits.push('Systems hub shows remaining time and effect')
+  if (node.id === 'd1-fire-control-doctrine') bits.push('Unlocks per-Core Targeting Doctrine')
+  if (node.relicTier === 2) bits.push('Unlocks Relic Tier II tempering')
+  if (node.relicTier === 3) bits.push('Unlocks Relic Tier III tempering')
+  if (node.processKernel) bits.push('Unlocks Process and banked Process Points')
+  if (node.doctrineProfiles) bits.push('Unlocks saved Fire-Control Profiles')
+  if (node.reclaimRouting) bits.push('Compresses empty, deeply solved Wave waiting')
+  if (node.furnaceHeatCostMult) bits.push('Selected Furnace Heat cost −10%')
+  if (node.targetingSlew) bits.push(`Core slew +${Math.round(node.targetingSlew * 100)}%`)
+  if (node.targetingAcquisition) bits.push(`Acquisition range +${Math.round(node.targetingAcquisition * 100)}%`)
   if (node.salvage) bits.push(`+${Math.round(node.salvage * 100)}% salvage`)
   if (node.foundrySpeed) bits.push(`+${Math.round(node.foundrySpeed * 100)}% craft speed`)
   if (node.damage) bits.push(`+${Math.round(node.damage * 100)}% damage`)
@@ -563,7 +579,19 @@ export function hiveResearchSpeed(state: GameState): number {
 }
 
 export function hiveResearchActive(state: GameState): boolean {
-  return Boolean(state.hiveResearch?.active)
+  return Boolean(state.hiveResearch?.active || state.hiveResearch?.secondaryNodeId)
+}
+
+export function hiveResearchProjectSlots(state: GameState): number {
+  return 1 + (hiveResearchHasNode(state, 'c8-parallel-analysis') ? 1 : 0)
+}
+
+export function hiveResearchActiveNodes(state: GameState): HiveResearchNodeDef[] {
+  const ids = [
+    state.hiveResearch?.active ? state.hiveResearch.activeNodeId : null,
+    state.hiveResearch?.secondaryNodeId,
+  ]
+  return ids.map((id) => id ? getHiveResearchNode(id) : undefined).filter((node): node is HiveResearchNodeDef => Boolean(node))
 }
 
 export function hiveResearchActiveNode(state: GameState): HiveResearchNodeDef | null {
@@ -592,7 +620,7 @@ export function formatResearchDuration(seconds: number): string {
   return r > 0 ? `${m}m ${r}s` : `${m}m`
 }
 
-function finishNode(state: GameState, node: HiveResearchNodeDef): void {
+function finishNode(state: GameState, node: HiveResearchNodeDef, slot: 'primary' | 'secondary' = 'primary'): void {
   if (!state.hiveResearch) state.hiveResearch = createEmptyHiveResearchState()
   if (!state.hiveResearch.completedIds.includes(node.id)) {
     state.hiveResearch.completedIds = [...state.hiveResearch.completedIds, node.id]
@@ -610,10 +638,55 @@ function finishNode(state: GameState, node: HiveResearchNodeDef): void {
     recordPlaytest(state, 'research_break', { n: node.name, v: node.branch })
   }
   noteSystemAction(state, 'research')
-  state.hiveResearch.active = false
-  state.hiveResearch.activeNodeId = null
-  state.hiveResearch.progress = 0
-  state.hiveResearch.xp[node.branch] = 0
+  if (slot === 'secondary') {
+    state.hiveResearch.secondaryNodeId = null
+    state.hiveResearch.secondaryProgress = 0
+  } else {
+    state.hiveResearch.active = false
+    state.hiveResearch.activeNodeId = null
+    state.hiveResearch.progress = 0
+    state.hiveResearch.xp[node.branch] = 0
+  }
+}
+
+function startQueuedResearchInPlace(state: GameState): boolean {
+  const process = state.process
+  if (!process?.purchased?.includes('research-queue-assist')) return false
+  const queue = process.config.research.queue ?? []
+  for (const id of queue) {
+    const node = getHiveResearchNode(id)
+    if (!node || hiveResearchHasNode(state, id) || !hiveResearchPrerequisitesMet(state, node)) continue
+    if (hiveResearchActiveNodes(state).some((active) => active.id === id)) continue
+    if (!state.hiveResearch.active) {
+      state.hiveResearch.active = true
+      state.hiveResearch.activeNodeId = id
+      state.hiveResearch.focus = node.branch
+      state.hiveResearch.progress = 0
+    } else if (hiveResearchProjectSlots(state) > 1 && !state.hiveResearch.secondaryNodeId) {
+      state.hiveResearch.secondaryNodeId = id
+      state.hiveResearch.secondaryProgress = 0
+    } else return false
+    process.config.research.queue = queue.filter((queued) => queued !== id)
+    return true
+  }
+  if (!process.purchased.includes('research-preference') || !process.config.research.autoResearch) return false
+  for (const branch of process.config.research.branchPriority) {
+    const node = hiveResearchAvailableNodes(state, branch).find(
+      (candidate) => !hiveResearchActiveNodes(state).some((active) => active.id === candidate.id),
+    )
+    if (!node) continue
+    if (!state.hiveResearch.active) {
+      state.hiveResearch.active = true
+      state.hiveResearch.activeNodeId = node.id
+      state.hiveResearch.focus = node.branch
+      state.hiveResearch.progress = 0
+    } else if (hiveResearchProjectSlots(state) > 1 && !state.hiveResearch.secondaryNodeId) {
+      state.hiveResearch.secondaryNodeId = node.id
+      state.hiveResearch.secondaryProgress = 0
+    } else return false
+    return true
+  }
+  return false
 }
 
 export function tickResearch(state: GameState, dtSeconds: number): void {
@@ -623,22 +696,24 @@ export function tickResearch(state: GameState, dtSeconds: number): void {
   if (!state.hiveResearch.completedIds) {
     Object.assign(state.hiveResearch, migrateHiveResearchState(state.hiveResearch))
   }
-  if (!state.hiveResearch.active) return
-  const node = hiveResearchActiveNode(state)
-  if (!node || !hiveResearchBranchUnlocked(state, node.branch)) {
-    state.hiveResearch.active = false
-    state.hiveResearch.activeNodeId = null
-    return
-  }
+  startQueuedResearchInPlace(state)
   const speed = hiveResearchSpeed(state)
   if (speed <= 0) return
-  if ((state.hiveResearch.progress ?? 0) <= 0) {
-    state.hiveResearch.progress = Math.max(0, state.hiveResearch.xp[node.branch] ?? 0)
+  const tickSlot = (slot: 'primary' | 'secondary') => {
+    const id = slot === 'primary' ? state.hiveResearch.activeNodeId : state.hiveResearch.secondaryNodeId
+    const node = id ? getHiveResearchNode(id) : null
+    if (!node) return
+    const current = slot === 'primary' ? Math.max(0, state.hiveResearch.progress ?? 0) : Math.max(0, state.hiveResearch.secondaryProgress ?? 0)
+    const progress = current + dtSeconds * speed
+    if (slot === 'primary') {
+      state.hiveResearch.progress = progress
+      state.hiveResearch.xp[node.branch] = progress
+    } else state.hiveResearch.secondaryProgress = progress
+    if (progress + 1e-6 >= hiveResearchNodeDuration(node, state)) finishNode(state, node, slot)
   }
-  state.hiveResearch.progress = hiveResearchProgress(state) + dtSeconds * speed
-  state.hiveResearch.xp[node.branch] = state.hiveResearch.progress
-  const need = hiveResearchNodeDuration(node, state)
-  if (state.hiveResearch.progress + 1e-6 >= need) finishNode(state, node)
+  tickSlot('primary')
+  tickSlot('secondary')
+  startQueuedResearchInPlace(state)
 }
 
 /** Combat no longer feeds every branch. Research ticks on time instead. */
@@ -657,14 +732,20 @@ export function startResearch(state: GameState, nodeId: string): GameState {
   if (hiveResearchHasNode(state, nodeId)) return state
   if (!hiveResearchPrerequisitesMet(state, node)) return state
   if (state.hiveResearch?.activeNodeId === nodeId && state.hiveResearch.active) return state
-  if (hiveResearchActive(state) && state.hiveResearch?.activeNodeId !== nodeId) return state
+  if (hiveResearchActiveNodes(state).some((active) => active.id === nodeId)) return state
+  if (hiveResearchActiveNodes(state).length >= hiveResearchProjectSlots(state)) return state
   const next = structuredClone(state)
   if (!next.hiveResearch) next.hiveResearch = createEmptyHiveResearchState()
-  next.hiveResearch.focus = node.branch
-  next.hiveResearch.active = true
-  next.hiveResearch.activeNodeId = node.id
-  next.hiveResearch.progress = 0
-  next.hiveResearch.xp[node.branch] = 0
+  if (!next.hiveResearch.active) {
+    next.hiveResearch.focus = node.branch
+    next.hiveResearch.active = true
+    next.hiveResearch.activeNodeId = node.id
+    next.hiveResearch.progress = 0
+    next.hiveResearch.xp[node.branch] = 0
+  } else {
+    next.hiveResearch.secondaryNodeId = node.id
+    next.hiveResearch.secondaryProgress = 0
+  }
   noteSystemAction(next, 'research')
   return next
 }

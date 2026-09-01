@@ -901,21 +901,19 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
       if (next.hiveResearch) next.hiveResearch.active = false
       break
     case 'process.capability':
-      next.resources.aiPoints = Math.max(next.resources.aiPoints, 8)
       next.process.purchased = []
-      next.prestige.prestigeCount = Math.max(next.prestige.prestigeCount, 2)
-      next.hiveResearch.completed = {
-        ...next.hiveResearch.completed,
-        energy: Math.max(next.hiveResearch.completed?.energy ?? 0, 1),
-      }
+      next.hiveResearch.completedIds = [...new Set([
+        ...next.hiveResearch.completedIds,
+        'c1-queue-buffer',
+        'c2-combat-telemetry',
+        'c3-deep-queue',
+        'c4-process-kernel',
+      ])]
+      next.hiveResearch.completed.computation = Math.max(next.hiveResearch.completed.computation ?? 0, 4)
       break
     case 'challenges.start':
       if (next.protocols) next.protocols.activeId = null
       next.prestige.prestigeCount = Math.max(next.prestige.prestigeCount, 2)
-      next.hiveResearch.completed = {
-        ...next.hiveResearch.completed,
-        energy: Math.max(next.hiveResearch.completed?.energy ?? 0, 1),
-      }
       break
     case 'reinforce':
       next.meta.act1Cleared = true

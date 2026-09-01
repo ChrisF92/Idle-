@@ -153,12 +153,15 @@ export function hasFacility(state: GameState, id: FacilityId): boolean {
 
 export function foundrySlotCount(state: GameState): number {
   const extra = foundryOwnedCount(state, 'processing-line')
-  return Math.min(FOUNDRY_MAX_SLOTS, FOUNDRY_STARTING_SLOTS + extra)
+  const research = state.hiveResearch?.completedIds?.includes('i1-second-processor') ? 1 : 0
+  return Math.min(FOUNDRY_MAX_SLOTS, FOUNDRY_STARTING_SLOTS + extra + research)
 }
 
 export function foundryFabSlotCount(state: GameState): number {
   const extra = foundryOwnedCount(state, 'fabrication-bay')
-  return Math.min(FOUNDRY_MAX_FAB_SLOTS, FOUNDRY_STARTING_FAB_SLOTS + extra)
+  const completed = state.hiveResearch?.completedIds ?? []
+  const research = Number(completed.includes('i2-fabrication-machinery')) + Number(completed.includes('i9-parallel-fabrication'))
+  return Math.min(FOUNDRY_MAX_FAB_SLOTS, FOUNDRY_STARTING_FAB_SLOTS + extra + research)
 }
 
 export function foundryMaterialCount(state: GameState, id: string): number {
@@ -705,4 +708,3 @@ export function foundryHasMasteryMilestone(state: GameState): boolean {
 export function foundryHasChainRecipe(state: GameState): boolean {
   return FOUNDRY_RECIPES.some((r) => isFoundryRecipeUnlocked(state, r.id) && foundryHasMaterialChain(r))
 }
-

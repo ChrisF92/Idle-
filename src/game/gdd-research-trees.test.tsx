@@ -3,83 +3,43 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ResearchTab } from '../components/tabs/ResearchTab'
 import { OverlayProvider } from '../ui/overlay'
 import { ACT1_CADENCE } from './cadence'
-import { getHiveResearchNode, HIVE_RESEARCH_NODES } from './hiveResearch'
 import { createInitialState } from './state'
 import { atCareerWave, markHullLost } from './testHelpers'
 
-function researchState() {
-  return atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.research)
-}
-
-function renderResearch(state = researchState()) {
-  const props = {
-    state,
-    onBack: vi.fn(),
-    onStart: vi.fn(),
-  }
-  render(
-    <OverlayProvider>
-      <ResearchTab {...props} />
-    </OverlayProvider>,
-  )
+function renderResearch() {
+  const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.research)
+  const props = { state, onBack: vi.fn(), onStart: vi.fn() }
+  render(<OverlayProvider><ResearchTab {...props} /></OverlayProvider>)
   return props
 }
 
-describe('branching Research interface', () => {
-  afterEach(() => cleanup())
+describe('PR9 Research interface', () => {
+  afterEach(cleanup)
 
-  it('shows the compact header and four discipline tabs', () => {
+  it('shows four mobile discipline tabs and only the next available project', () => {
     renderResearch()
-    const context = document.querySelector('.ui-context-bar')!
-    expect(context.textContent).toMatch(/Project/)
-    expect(context.textContent).toMatch(/Progress/)
-    expect(context.textContent).toMatch(/Remaining/)
-    expect(context.textContent).toMatch(/Speed/)
-    expect(context.textContent).toMatch(/Workers/)
-    expect(screen.getByRole('tab', { name: 'Engineering' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Drones' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Industry' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Compute' })).toBeTruthy()
+    for (const name of ['Engineering', 'Drones', 'Industry', 'Compute']) {
+      expect(screen.getByRole('tab', { name })).toBeTruthy()
+    }
+    expect(screen.getByRole('button', { name: 'Cycle Engineering' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Workshop Tooling' })).toBeNull()
   })
 
-  it('reveals only the root until a project is chosen, then opens a sheet', () => {
-    renderResearch()
-    expect(screen.getByRole('button', { name: 'Plate Bank' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Extra Tap' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Plate Bank' }))
-    expect(screen.getByRole('dialog', { name: 'Plate Bank' })).toBeTruthy()
-    expect(screen.getAllByText(/Cycle Core Level/).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Duration/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Start Research' })).toBeTruthy()
-  })
-
-  it('starts the chosen project from the sheet', () => {
+  it('starts an authored project from its detail sheet', () => {
     const props = renderResearch()
-    fireEvent.click(screen.getByRole('button', { name: 'Plate Bank' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cycle Engineering' }))
+    expect(screen.getByRole('dialog', { name: 'Cycle Engineering' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Start Research' }))
-    expect(props.onStart).toHaveBeenCalledWith('plate-bank')
+    expect(props.onStart).toHaveBeenCalledWith('e1-cycle-engineering')
   })
 
-  it('opens Drone Systems on Priority Lock and keeps Compute locked until Process', () => {
+  it('opens each discipline at the Research door', () => {
     renderResearch()
     fireEvent.click(screen.getByRole('tab', { name: 'Drones' }))
-    expect(screen.getByRole('button', { name: 'Priority Lock' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Fire-Control Doctrine' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Industry' }))
+    expect(screen.getByRole('button', { name: 'Second Processor' })).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Compute' }))
-    expect(screen.getByText(/Opens at Wave/)).toBeTruthy()
-  })
-
-  it('keeps genuine forks in the authored trees', () => {
-    const children = (id: string) =>
-      Object.values(HIVE_RESEARCH_NODES)
-        .flat()
-        .filter((node) => node.prerequisites.includes(id))
-        .map((node) => node.id)
-    expect(children('plate-bank').length).toBeGreaterThanOrEqual(2)
-    expect(children('priority-lock').length).toBeGreaterThanOrEqual(2)
-    expect(children('second-processor').length).toBeGreaterThanOrEqual(2)
-    expect(getHiveResearchNode('hangar-swap')?.prerequisites).toEqual(['extra-tap', 'keel-bay'])
-    expect(getHiveResearchNode('hearth-line')?.prerequisites).toEqual(['pattern-floor', 'fab-machinery'])
-    expect(getHiveResearchNode('workforce-sync')?.prerequisites).toEqual(['drone-racks', 'combat-sim'])
-    expect(getHiveResearchNode('auto-desk')?.prerequisites).toEqual(['inspect-layer', 'process-primer'])
+    expect(screen.getByRole('button', { name: 'Queue Buffer' })).toBeTruthy()
   })
 })

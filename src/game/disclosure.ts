@@ -9,8 +9,8 @@ function processOwns(state: GameState, id: string): boolean {
 /** ×10 on Salvage / Workshop shops. */
 export function shopBulkTenUnlocked(state: GameState): boolean {
   return (
-    processOwns(state, 'buy-ten') ||
-    processOwns(state, 'shop-buy-max') ||
+    processOwns(state, 'bulk-purchase') ||
+    processOwns(state, 'buy-max') ||
     processOwns(state, 'foundry-buy-max')
   )
 }
@@ -18,7 +18,7 @@ export function shopBulkTenUnlocked(state: GameState): boolean {
 /** MAX on Salvage / Workshop shops. */
 export function shopBuyMaxUnlocked(state: GameState): boolean {
   return (
-    processOwns(state, 'shop-buy-max') ||
+    processOwns(state, 'buy-max') ||
     processOwns(state, 'foundry-buy-max') ||
     processOwns(state, 'yard-buy-max')
   )
@@ -26,13 +26,10 @@ export function shopBuyMaxUnlocked(state: GameState): boolean {
 
 /** DPS share, ROI-style breakdowns, and other expert readouts. */
 export function advancedReadoutsUnlocked(state: GameState): boolean {
-  if ((state.process?.purchased?.length ?? 0) > 0) return true
-  if (Object.values(state.hiveResearch?.completed ?? {}).some((n) => n > 0)) return true
-  if ((state.research?.unlocked?.length ?? 0) > 0) return true
-  return false
+  return processOwns(state, 'live-readouts') || (state.hiveResearch?.completedIds ?? []).includes('c2-combat-telemetry')
 }
 
 /** Time-to-afford and Economy ROI on shop tiles. */
 export function shopReadoutUnlocked(state: GameState): boolean {
-  return processOwns(state, 'shop-readout')
+  return processOwns(state, 'live-readouts')
 }

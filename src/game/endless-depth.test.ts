@@ -102,7 +102,7 @@ describe('achievements pack', () => {
     const newly = tryCompleteAchievements(state)
     expect(newly.filter((id) => id === 'sector-grind').length).toBeGreaterThanOrEqual(2)
     expect(achievementCompletions(state, 'sector-grind')).toBeGreaterThanOrEqual(2)
-    expect(state.resources.aiPoints).toBeGreaterThanOrEqual(2)
+    expect(state.resources.aiPoints).toBe(0)
   })
 
   it('grants merge achievement on signal core merge', () => {
@@ -120,8 +120,8 @@ describe('achievements pack', () => {
   })
 })
 
-describe('automation AI', () => {
-  it('auto-merge collapses triples during sim', () => {
+describe('retired automation AI', () => {
+  it('does not merge physical inventory during the sim', () => {
     let state = createInitialState(0)
     state.meta.bestWave = 220
     state.combat.bestWave = 220
@@ -141,8 +141,8 @@ describe('automation AI', () => {
     const rank2 = state.signalCores.inventory.filter(
       (c) => c.defId === 'salvage-ping' && c.rank === 2,
     ).length
-    expect(rank2).toBeGreaterThanOrEqual(2)
-    expect(rank1).toBe(0)
+    expect(rank2).toBe(0)
+    expect(rank1).toBe(6)
   })
 
   it('catalog documents expensive automation nodes', () => {
