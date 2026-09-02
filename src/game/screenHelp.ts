@@ -89,22 +89,22 @@ export const SCREEN_HELP: Record<string, ScreenHelpDef> = {
     title: 'Challenges',
     body: [
       'Purpose: prove this account can solve a modified version of the normal rules. Main decision: which restriction you take into a Sortie.',
-      'Opens at Wave 250 after Process is online. Landing cards show name, restriction, goal Wave, best, reward, and rank. Tap for the exact sheet, then Start Challenge. Every run uses the normal Sortie engine from Wave 1.',
+      'Opens at Wave 375. Landing cards show name, restriction, goal Wave, best, reward, and rank. Tap for the exact sheet, then Start Challenge. Every run uses the normal Sortie engine from Wave 1.',
     ],
   },
   process: {
     title: 'Process',
     body: [
       'Purpose: automate behaviours you have already learned. Manual → QoL → Automation → Priorities → Conditions → cross-system orchestration.',
-      'Opens at Wave 210 after two Rebuilds and a completed Research project. Process Points come from account mastery, never from time passing. Spend them on a capability graph; Automations, Rules, and Profiles sit on their own panes.',
+      'Revealed by Process Kernel in Computational Systems Research. Process Points come from account mastery, never from time passing. Spend them on a capability graph; Automations, Rules, and Profiles sit on their own panes.',
       'Late Act 1 automates repetitive within-run and industrial actions. Process does not fly Sorties while the app is closed.',
     ],
   },
   reinforce: {
     title: 'Reinforce',
     body: [
-      'Higher-order reset after Rebuild. The current loop has gone as far as it can.',
-      'Revealed after defeating the Wave 1000 Choir Crown. The screen prints YOU RESET, YOU KEEP, and WHAT CHANGES. Confirm reconstructs the Hive. No Act 2 shop opens here.',
+      'A possible future direction beyond Rebuild, revealed by the temporal fault at the end of Act 1.',
+      'Revealed after defeating the Wave 1000 Choir Crown. It is not an active reset: no resources are spent, no account state changes, and no Act 2 economy opens here.',
     ],
   },
   logs: {

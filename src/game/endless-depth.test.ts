@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import {
-  buyAiNode,
-  buyMatterShop,
-  canAscend,
-  performAscension,
-  performPrestige,
-} from './actions'
+import * as actions from './actions'
+import { buyAiNode, buyMatterShop } from './actions'
 import {
   canBuyMatterShop,
   aiProductionBonus,
@@ -14,7 +9,6 @@ import {
   getMatterShopItem,
   getAiNode,
 } from './catalog'
-import { matterGainFor } from './rebuild'
 import { availableTimeCompressionSpeeds } from './matter'
 import {
   ACHIEVEMENTS,
@@ -26,7 +20,7 @@ import { importSave } from './save'
 import { mergeSignalCores } from './signalCores'
 import type { SignalCoreInstance } from './types'
 
-describe('deep matter shop + ascension', () => {
+describe('deep Matter shop and Act 1 boundary', () => {
   it('caps canonical Matter nodes well below old 25-rank trees', () => {
     expect(shopMaxRank(getMatterShopItem('weapon-calibration')!)).toBe(5)
     expect(getMatterShopItem('matter-blade')).toBeUndefined()
@@ -39,26 +33,10 @@ describe('deep matter shop + ascension', () => {
     expect(canBuyMatterShop(state, 'weapon-calibration').reason).toMatch(/Max/)
   })
 
-  it('ascension does not multiply Rebuild Matter', () => {
-    let state = createInitialState(0)
-    state.meta.act1Cleared = true
-    state.meta.bestWave = 1000
-    state.combat.bestWave = 1000
-    state.prestige.cycle.bestWave = 1000
-    expect(canAscend(state)).toBe(true)
-    const before = matterGainFor(state)
-    state = performAscension(state, 1000)
-    expect(state.meta.ascensionCount).toBe(1)
-    state.prestige.cycle.bestWave = 1000
-    expect(matterGainFor(state)).toBe(before)
-  })
-
-  it('keeps ascension across prestige', () => {
-    let state = createInitialState(0)
-    state.meta.act1Cleared = true
-    state.meta.ascensionCount = 2
-    state = performPrestige(state, 2000)
-    expect(state.meta.ascensionCount).toBe(2)
+  it('does not expose Ascension or a Reinforce reset action', () => {
+    expect('canAscend' in actions).toBe(false)
+    expect('performAscension' in actions).toBe(false)
+    expect('performReinforce' in actions).toBe(false)
   })
 })
 
@@ -161,7 +139,6 @@ describe('save migrate v18', () => {
       meta: {
         ...legacy.meta,
         completedAchievements: ['first-blood'],
-        ascensionCount: undefined,
       },
     }
     ;(raw as { version: number }).version = 17

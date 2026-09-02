@@ -82,9 +82,8 @@ import {
   processConfig,
   NETWORK_BAR_IDS,
 } from './process'
-import { createEmptySpecialistState, rankSpecialist } from './specialists'
-import { createEmptyCapitalState, rankCapital } from './capital'
-import { canReinforce } from './reinforce'
+import { createEmptySpecialistState } from './specialists'
+import { createEmptyCapitalState } from './capital'
 import { noteSalvageSpend } from './sortieSummary'
 import { availableSortieSpeeds, chosenSortieSpeed } from './uiReadout'
 import {
@@ -119,12 +118,7 @@ import {
 } from './workshop'
 import { sanitizeCodexState } from './codex'
 import { buyCoreStartingLevel as buyCoreStartingLevelInternal } from './coreProgression'
-import {
-  ACT1_FINAL_WAVE,
-  careerBestWave,
-  retirePostResetOnboarding,
-  tryCompleteAchievements,
-} from './progression'
+import { careerBestWave, retirePostResetOnboarding, tryCompleteAchievements } from './progression'
 import {
   applyReconstitutionCache,
   canRebuild,
@@ -761,13 +755,6 @@ export function setCoreTargetingDoctrine(
   return next
 }
 
-/** Ascension unlocks after Act 1; soft-resets the run and boosts future PM gains. */
-export function canAscend(state: GameState): boolean {
-  if (state.challenges.activeId) return false
-  if (!state.meta.act1Cleared) return false
-  return careerBestWave(state) >= ACT1_FINAL_WAVE
-}
-
 /** Persist fitted loadout across Rebuild. */
 function persistLoadout(
   unlockedFrames: string[],
@@ -940,7 +927,6 @@ function applyRunReset(state: GameState, now = Date.now()): void {
     researchUnlocked: [...state.research.unlocked],
     meta: {
       ...state.meta,
-      ascensionCount: state.meta.ascensionCount ?? 0,
       codexUnlocked: state.meta.codexUnlocked === true,
       laborProfile: state.meta.laborProfile ?? 'balanced',
       achievementCompletions: { ...(state.meta.achievementCompletions ?? {}) },
@@ -1134,26 +1120,6 @@ export function performPrestige(state: GameState, now = Date.now()): GameState {
   )
 }
 
-export function performAscension(state: GameState, now = Date.now()): GameState {
-  if (!canAscend(state)) return state
-  const next = structuredClone(state)
-  const gain = Math.max(1, Math.floor(matterGainFor(next) * 0.5))
-  next.resources.prestigeMatter += gain
-  next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
-  next.challenges.activeId = null
-  applyRunReset(next, now)
-  tryCompleteAchievements(next)
-  next.combat.log = [
-    `Ascended (×${next.meta.ascensionCount}). +${gain} PM. Future prestige gains +${(
-      0.4 *
-      next.meta.ascensionCount *
-      100
-    ).toFixed(0)}%.`,
-    ...next.combat.log,
-  ]
-  return next
-}
-
 export function enterChallenge(state: GameState, challengeId: string, opts?: { automated?: boolean }, now = Date.now()): GameState {
   if (!canEnterChallenge(state, challengeId, opts).ok) return state
   const def = getChallenge(challengeId)
@@ -1203,41 +1169,6 @@ export function abandonChallenge(state: GameState, now = Date.now()): GameState 
   applyChallengeSortieReset(next, now)
   next.combat.log = [`Abandoned ${def?.name ?? 'Challenge'}.`, ...next.combat.log]
   noteAttempt(next, 'challenge', def?.id ?? 'challenge', 'end', def?.name)
-  return next
-}
-
-export function enterEcho(state: GameState, _echoId: string): GameState {
-  return state
-}
-
-export function abandonEcho(state: GameState): GameState {
-  if (!state.echo?.activeId) return state
-  const next = structuredClone(state)
-  if (!next.echo) next.echo = createEmptyEchoState()
-  next.echo.activeId = null
-  return next
-}
-
-export function buyEchoNode(state: GameState, _nodeId: string): GameState {
-  return state
-}
-
-export { rankSpecialist, rankCapital }
-
-export function performReinforce(state: GameState, now = Date.now()): GameState {
-  if (!canReinforce(state).ok) return state
-  const next = structuredClone(state)
-  const gain = Math.max(1, Math.floor(matterGainFor(next) * 0.5))
-  next.resources.prestigeMatter += gain
-  next.meta.ascensionCount = (next.meta.ascensionCount ?? 0) + 1
-  next.challenges.activeId = null
-  applyRunReset(next, now)
-  tryCompleteAchievements(next)
-  next.combat.log = [
-    `Reinforced (×${next.meta.ascensionCount}). The Hive's starting architecture shifts. Future Rebuild kits grow.`,
-    ...next.combat.log,
-  ]
-  recordPlaytest(next, 'reinforce', { v: next.meta.ascensionCount })
   return next
 }
 

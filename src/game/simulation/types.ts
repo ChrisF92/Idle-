@@ -1,6 +1,7 @@
 /** Career simulator types. UI-free; no React. */
 
 import type { GameState, NetworkBarId, ResourceId } from '../types'
+import { ACT1_BUILD_PROFILE_IDS, type Act1BuildProfileId } from './buildProfiles'
 
 /** GDD §153 profiles, plus leftover aliases (`active` = Balanced, `idle` = no spend). */
 export type SimulationStrategyId =
@@ -21,14 +22,7 @@ export type SimulationSpendProfile =
   | 'economy-first'
   | 'optimiser'
 
-export const GDD_SIM_PROFILES: SimulationSpendProfile[] = [
-  'casual',
-  'balanced',
-  'offensive',
-  'defensive',
-  'economy-first',
-  'optimiser',
-]
+export const GDD_SIM_PROFILES = ACT1_BUILD_PROFILE_IDS
 
 export type SimulationAccuracy = 'accurate'
 
@@ -42,12 +36,10 @@ export type SimulationStop =
   | { type: 'first-rebuild' }
   | { type: 'rebuilds'; count: number }
   | { type: 'wave'; wave: number }
-  | { type: 'sector'; sector: number }
   | { type: 'duration'; calendarSeconds: number }
   | { type: 'active-duration'; seconds: number }
   | { type: 'unlock'; system: string }
   | { type: 'furnace-lit' }
-  | { type: 'reinforce' }
   | { type: 'safety' }
 
 export interface CasualSessionProfile {
@@ -70,6 +62,7 @@ export interface SimulationConfig {
   start: SimulationStart
   stop: SimulationStop
   strategy: SimulationStrategyId
+  buildProfile: Act1BuildProfileId
   seed: number
   runs: number
   accuracy: SimulationAccuracy
@@ -130,7 +123,6 @@ export type MilestoneId =
   | 'first-process-purchase'
   | 'first-rebuild'
   | 'first-research-bt'
-  | 'first-reinforce'
   | `wave-${number}`
   | `rebuild-${number}`
   | `unlock-${string}`

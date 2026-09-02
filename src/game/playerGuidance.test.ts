@@ -6,7 +6,6 @@ import {
   isEstablishedCareer,
   migrateOnboardingState,
   rebuildConsequenceLists,
-  reinforceConsequenceLists,
   isFirstDefeatReport,
   sortieNextHints,
   processCoreHintReady,
@@ -58,13 +57,6 @@ describe('player guidance helpers', () => {
     expect(lists.keep).toEqual(expect.arrayContaining(['Foundry / Research', 'Foundry recipes, stock, and facilities']))
     expect(lists.reset).toEqual(expect.arrayContaining(['Salvage', 'Workshop levels', 'Core Levels']))
     expect(lists.change).toEqual([])
-  })
-
-  it('Reinforce lists keep Foundry and still reset the run', () => {
-    const s = markHullLost(createInitialState(0))
-    const lists = reinforceConsequenceLists(s)
-    expect(lists.gain.join(' ')).toMatch(/Rebuild Matter/)
-    expect(lists.reset).toContain('Salvage')
   })
 
   it('flags the first defeat until the starter Cores have been used', () => {

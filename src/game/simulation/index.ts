@@ -24,3 +24,11 @@ export type {
 export { SIM_HISTORY_KEY, SIM_SAVE_KEY_GUARD, GDD_SIM_PROFILES, GDD_WARNING_CODES } from './types'
 export { spendProfileFor } from './strategies'
 export { detectGddWarnings } from './analysis'
+export {
+  ACT1_BUILD_PROFILES,
+  ACT1_BUILD_PROFILE_IDS,
+  getAct1BuildProfile,
+  type Act1BuildProfile,
+  type Act1BuildProfileId,
+  type AccountInvestmentStrategy,
+} from './buildProfiles'

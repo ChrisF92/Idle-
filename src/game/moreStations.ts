@@ -21,7 +21,7 @@ export interface MajorDoorDef extends MoreStationDef {
 export const MORE_STATIONS: MoreStationDef[] = [
   { id: 'codex', name: 'Codex', blurb: 'HOSTILES | BOSSES. Encountered identities, not a family/role encyclopedia.' },
   { id: 'challenges', name: 'Challenges', blurb: 'Can this account solve a modified version of the normal rules?' },
-  { id: 'reinforce', name: 'Reinforce', blurb: 'Defeat the Wave 1000 Choir Crown. Change the scale of progression.' },
+  { id: 'reinforce', name: 'Reinforce', blurb: 'Defeat the Wave 1000 Choir Crown to reveal the direction beyond Act 1.' },
 ]
 
 /**
@@ -82,7 +82,7 @@ export const MAJOR_DOORS: MajorDoorDef[] = [
   {
     id: 'reinforce',
     name: 'Reinforce',
-    blurb: 'Defeat the Wave 1000 Choir Crown. Change the scale of progression.',
+    blurb: 'Defeat the Wave 1000 Choir Crown to reveal the direction beyond Act 1.',
     wave: ACT1_CADENCE.reinforce,
     home: 'more',
   },

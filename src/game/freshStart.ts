@@ -5,7 +5,7 @@ import { createInitialState } from './state'
 import { beginFight, setDocked } from './tick'
 import type { GameState } from './types'
 
-/** Docked baseline used by tests and Rebuild/Reinforce templates. Never auto-launches. */
+/** Docked baseline used by tests and Rebuild templates. Never auto-launches. */
 export function createDockedBaseline(now = Date.now()): GameState {
   return createInitialState(now)
 }

@@ -5,7 +5,6 @@ import { ACT1_CADENCE } from './cadence'
 import { careerBestWave } from './progression'
 import { frameAshMult, frameFurnaceOutputMult, frameHeatMult } from './catalog'
 import { ashYieldMult } from './workshop'
-import { echoAshMult } from './echo'
 import { choirTapAshToHeatMult } from './coreCombat'
 import { directiveFurnaceEffectMult } from './directives'
 import { challengeBlocksFurnace } from './challenges'
@@ -305,7 +304,7 @@ export function furnaceCombatFx(state: GameState): { overdrive: boolean; bulwark
 export function furnaceAshFromKill(state: GameState, isBoss: boolean): number {
   if (!furnaceUnlocked(state)) return 0
   const base = FURNACE_ASH_PER_KILL_SEED * (isBoss ? FURNACE_BOSS_ASH_MULT_SEED : 1)
-  return base * echoAshMult(state) * frameAshMult(state) * ashYieldMult(state)
+  return base * frameAshMult(state) * ashYieldMult(state)
 }
 
 export function grantFurnaceKillLoot(state: GameState, isBoss: boolean): number {

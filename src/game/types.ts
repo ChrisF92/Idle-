@@ -1315,8 +1315,6 @@ export interface MetaState {
   act1Cleared: boolean
   /** First Wave 1000 clear — pending Act 1 completion presentation. */
   act1FinalePending?: boolean
-  /** Light second layer after Act 1 — boosts future Prestige Matter gains. */
-  ascensionCount: number
   /** Legacy onboarding ids. Kept in sync with `onboarding` for save migration. */
   seenOnboarding: string[]
   /** Terminal lesson state only. Unseen/active are not persisted. */
@@ -1332,7 +1330,7 @@ export interface MetaState {
   aiUnlocked: boolean
   /**
    * Codex permanently unlocked once Tactical Codex is researched.
-   * Survives prestige / ascension (research itself still wipes).
+   * Survives Rebuild.
    */
   codexUnlocked: boolean
   /** Preferred Labor Router profile for auto-assign buttons / Labor Loop. */

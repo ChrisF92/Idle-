@@ -610,7 +610,6 @@ function withMetaDefaults(
     sortieSerial: Math.max(0, Math.floor(Number(meta?.sortieSerial ?? 0) || 0)),
     act1Cleared: meta?.act1Cleared ?? false,
     act1FinalePending: meta?.act1FinalePending === true,
-    ascensionCount: Math.max(0, Math.floor(Number(meta?.ascensionCount ?? 0))),
     seenOnboarding: meta?.seenOnboarding ?? [],
     onboarding:
       meta?.onboarding && typeof meta.onboarding === 'object' ? { ...meta.onboarding } : {},
@@ -641,7 +640,6 @@ function withMetaDefaults(
     hullLostOnce:
       meta?.hullLostOnce === true ||
       (meta?.bestWave ?? 0) > 0 ||
-      (meta?.ascensionCount ?? 0) > 0 ||
       (meta?.seenOnboarding ?? []).some(
         (id) =>
           id === 'guide-salvage-lesson' ||

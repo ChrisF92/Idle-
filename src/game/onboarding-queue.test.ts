@@ -98,12 +98,12 @@ describe('onboarding queue', () => {
     expect(lessonPausesSimulation(activeOnboardingLesson(state, ui('research')))).toBe(false)
   })
 
-  it('does not lecture Process, Challenges, or Reinforce until visited', () => {
+  it('keeps Process and Challenges event-driven without a future-reset lesson', () => {
     const ids = new Set(ONBOARDING_LESSONS.map((s) => s.id))
     expect(ids.has('process.capability')).toBe(true)
     expect(ids.has('challenges.start')).toBe(true)
-    expect(ids.has('reinforce')).toBe(true)
-    expect(ONBOARDING_LESSONS.length).toBe(16)
+    expect(ids.has('reinforce' as never)).toBe(false)
+    expect(ONBOARDING_LESSONS.length).toBe(15)
   })
 
   it('Skip on Workers dismisses that lesson only', () => {

@@ -529,7 +529,6 @@ function AppShell() {
           <ReinforceTab
             state={game.state}
             onBack={() => go('stats')}
-            onReinforce={game.performReinforce}
           />
         )}
         {tab === 'logs' && <LogsTab state={game.state} onBack={() => go('stats')} />}

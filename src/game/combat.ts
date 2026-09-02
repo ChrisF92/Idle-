@@ -120,9 +120,6 @@ import {
   grantHiveResearchKillXp,
   hiveResearchSalvageMult,
 } from './hiveResearch'
-import { echoSalvageMult } from './echo'
-import { specialistSalvageMult } from './specialists'
-import { capitalSalvageMult } from './capital'
 import { processSalvageMult } from './process'
 import { directiveCritChanceAdd, directiveCritFactorMult, directiveFocusedFireMult, directiveFragmentFindMult, directiveHullRepairMult, directiveIncomingMult, directiveProtectedTargetDamageMult, directiveSalvageMult, directiveScrapMult, directiveSecondaryDamageMult } from './directives'
 import { challengeBlocksHullRepair, challengeFireRangeCap } from './challenges'
@@ -795,9 +792,6 @@ export function grantEnemyKillRewards(state: GameState, unit: CombatUnit): void 
     hiveResearchSalvageMult(state) *
     furnaceSalvageMult(state) *
     directiveSalvageMult(state) *
-    echoSalvageMult(state) *
-    specialistSalvageMult(state) *
-    capitalSalvageMult(state) *
     fittedSalvageKillMult(state) *
     processSalvageMult(state) *
     salvageKillMult(state) *

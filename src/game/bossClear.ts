@@ -11,6 +11,7 @@ import { recordBossClearId, recordCodexMilestone } from './codex'
 import { grantDirectMaterial } from './foundryRecovery'
 import { W950_CROWN_MATRIX_GRANT } from './hostileSeeds'
 import { getRelicFamily } from './relicCatalogue'
+import { completeAct1 } from './progression'
 
 export const RELIC_ROUTE_WAVES = [400, 550, 600, 650, 700, 800, 850] as const
 
@@ -63,7 +64,7 @@ function applyPendingDownstream(state: GameState, def: BossDef): void {
   }
   if (def.sourceKind === 'act1-complete') {
     recordCodexMilestone(state, 'act1-boss-clear')
-    if (!state.meta.act1Cleared) state.meta.act1Cleared = true
+    completeAct1(state)
     return
   }
   if (RELIC_ROUTE_WAVES.includes(def.wave as (typeof RELIC_ROUTE_WAVES)[number])) {

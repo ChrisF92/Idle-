@@ -7,7 +7,7 @@ import { atCareerWave } from './testHelpers'
 import { careerBestWave } from './waves'
 import { getFrame, modulePrintWave } from './catalog'
 
-/** GDD §102 doors. Older campaign tests are quarantined in vitest.config.ts. */
+/** Canonical Act 1 Wave doors. */
 describe('GDD Act 1 wave cadence', () => {
   it('places major doors on the GDD Wave table', () => {
     expect(ACT1_CADENCE.foundry).toBe(50)
@@ -18,13 +18,11 @@ describe('GDD Act 1 wave cadence', () => {
     expect(ACT1_CADENCE.research).toBe(525)
     expect(ACT1_CADENCE.process).toBe(525)
     expect(ACT1_CADENCE.challenges).toBe(375)
-    expect(ACT1_CADENCE.mastery).toBe(275)
-    expect(ACT1_CADENCE.specialists).toBe(999)
-    expect(ACT1_CADENCE.tasks).toBe(999)
-    expect(ACT1_CADENCE.capital).toBe(999)
-    expect(ACT1_CADENCE.routeB).toBe(999)
     expect(ACT1_CADENCE.reinforce).toBe(1000)
     expect(ACT1_FINAL_WAVE).toBe(1000)
+    expect(SYSTEM_UNLOCKS.map((door) => door.id)).not.toEqual(
+      expect.arrayContaining(['echo', 'specialists', 'tasks', 'capital']),
+    )
   })
 
   it('opens Foundry at Wave 50 without a Rebuild', () => {

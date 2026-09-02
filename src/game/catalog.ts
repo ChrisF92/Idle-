@@ -361,7 +361,7 @@ export const RESEARCH: ResearchDef[] = [
     id: 'tactical-codex',
     name: 'Tactical Codex',
     description:
-      'Unlocks the Codex permanently: enemy family intel and soft counters (survives prestige / ascension).',
+      'Unlocks the Codex permanently: enemy family intel and soft counters (survives Rebuild).',
     costData: 50,
   },
   {
@@ -1772,26 +1772,20 @@ export function metaProductionMultiplier(
 }
 
 /**
- * Soft USI-style run acceleration from career prestiges / ascensions.
+ * Soft run acceleration from career Rebuilds.
  * Each Rebuild should feel like a USI core-swap recover, not a dead zone.
  * Caps keep late-game from exploding; shops remain the main sink.
  */
 export function prestigeMomentumDamageBonus(
   prestigeCount: number,
-  ascensionCount: number,
 ): number {
-  const fromPrestige = Math.pow(1.08, Math.max(0, prestigeCount))
-  const fromAscension = Math.pow(1.18, Math.max(0, ascensionCount))
-  return fromPrestige * fromAscension - 1
+  return Math.pow(1.08, Math.max(0, prestigeCount)) - 1
 }
 
 export function prestigeMomentumProductionBonus(
   prestigeCount: number,
-  ascensionCount: number,
 ): number {
-  const fromPrestige = Math.pow(1.06, Math.max(0, prestigeCount))
-  const fromAscension = Math.pow(1.15, Math.max(0, ascensionCount))
-  return fromPrestige * fromAscension - 1
+  return Math.pow(1.06, Math.max(0, prestigeCount)) - 1
 }
 
 /** Short UI blurb for matter shop total effect at rank. */

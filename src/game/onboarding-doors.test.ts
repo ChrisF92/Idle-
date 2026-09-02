@@ -55,7 +55,7 @@ function actionToast() {
 
 describe('onboarding doors', () => {
   it('covers every lesson with a matching screen, pane, and target', () => {
-    expect(ONBOARDING_LESSON_IDS).toHaveLength(16)
+    expect(ONBOARDING_LESSON_IDS).toHaveLength(15)
     for (const id of ONBOARDING_LESSON_IDS) {
       const lesson = ONBOARDING_LESSONS.find((row) => row.id === id)!
       const state = prepOnboardingDoor(createInitialState(0), id)

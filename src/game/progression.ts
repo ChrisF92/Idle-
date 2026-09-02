@@ -68,40 +68,16 @@ export const SYSTEM_UNLOCKS: SystemUnlockDef[] = [
     tip: 'Solve a modified version of the normal Sortie rules.',
   },
   {
-    id: 'echo',
-    requiresBestWave: 999,
-    label: 'Retired run type',
-    tip: 'Retired. Challenges cover alternate combat tests.',
-  },
-  {
     id: 'process',
     requiresBestWave: ACT1_CADENCE.process,
     label: 'Process',
     tip: 'Automate behaviours you have already learned.',
   },
   {
-    id: 'specialists',
-    requiresBestWave: ACT1_CADENCE.specialists,
-    label: 'Deferred crew layer',
-    tip: 'Deferred from Act 1. Frame, Core, and Relic identity is enough.',
-  },
-  {
-    id: 'tasks',
-    requiresBestWave: ACT1_CADENCE.tasks,
-    label: 'Deferred checklist',
-    tip: 'Deferred from Act 1. Not a live door.',
-  },
-  {
-    id: 'capital',
-    requiresBestWave: ACT1_CADENCE.capital,
-    label: 'Deferred late layer',
-    tip: 'Deferred from Act 1. Not a live door.',
-  },
-  {
     id: 'reinforce',
     requiresBestWave: ACT1_CADENCE.reinforce,
     label: 'Reinforce',
-    tip: 'Defeat the Wave 1000 Choir Crown. Rebuild has reached the limit of this loop.',
+    tip: 'Defeat the Wave 1000 Choir Crown to reveal the direction beyond Act 1.',
   },
   {
     id: 'logs',
@@ -148,7 +124,6 @@ export type AchievementCondition =
   | { type: 'prestige-count'; min: number }
   | { type: 'ai-purchase-count'; min: number }
   | { type: 'act1-cleared' }
-  | { type: 'ascension-count'; min: number }
   | { type: 'challenge-clears-total'; min: number }
   | { type: 'modules-unlocked'; min: number }
   | { type: 'core-rank-sum'; min: number }
@@ -272,13 +247,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     description: 'Defeat the Wave 1000 Choir Crown and finish Act 1.',
     rewardAiPoints: 3,
     condition: { type: 'act1-cleared' },
-  },
-  {
-    id: 'first-ascension',
-    name: 'Second Horizon',
-    description: 'Ascend for the first time after Act 1.',
-    rewardAiPoints: 5,
-    condition: { type: 'ascension-count', min: 1 },
   },
   {
     id: 'prestiges-5',
@@ -487,7 +455,6 @@ export function achievementBaseThreshold(condition: AchievementCondition): numbe
     case 'research-count':
     case 'prestige-count':
     case 'ai-purchase-count':
-    case 'ascension-count':
     case 'challenge-clears-total':
     case 'modules-unlocked':
     case 'core-rank-sum':
@@ -526,8 +493,6 @@ export function achievementProgressValue(
       return state.meta.act1Cleared || meetsWave(state, ACT1_FINAL_WAVE)
         ? 1
         : 0
-    case 'ascension-count':
-      return state.meta.ascensionCount ?? 0
     case 'challenge-clears-total':
       return Object.values(state.challenges.medals).reduce((a, b) => a + b, 0)
     case 'modules-unlocked':
@@ -689,8 +654,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     return false
   }
   if (systemId === 'reinforce') {
-    const used = (state.meta.ascensionCount ?? 0) > 0
-    return used || Boolean(state.meta.act1Cleared)
+    return Boolean(state.meta.act1Cleared)
   }
   const def = SYSTEM_UNLOCKS.find((s) => s.id === systemId)
   if (!def) return true
@@ -718,7 +682,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return 'Rebuild once'
   }
   if (systemId === 'capital') {
-    return `Reach Wave ${ACT1_CADENCE.capital} · finish the Task List`
+    return null
   }
   if (systemId === 'logs') {
     return null
@@ -777,8 +741,7 @@ export function isResourceVisible(state: GameState, id: keyof Resources): boolea
     case 'prestigeMatter':
       return (
         state.prestige.prestigeCount > 0 ||
-        state.resources.prestigeMatter > 0 ||
-        (state.meta.ascensionCount ?? 0) > 0
+        state.resources.prestigeMatter > 0
       )
     case 'challengePoints':
       return (
@@ -840,7 +803,7 @@ export function completeAct1(state: GameState): void {
   state.meta.act1Cleared = true
   state.meta.act1FinalePending = true
   state.combat.log = [
-    `Act 1 complete — Wave ${ACT1_FINAL_WAVE}. The Hive remembers this reconstruction. Reinforce is open on More.`,
+    `Act 1 complete — Wave ${ACT1_FINAL_WAVE}. The Hive remembers this reconstruction. A direction beyond Act 1 is visible on More.`,
     ...state.combat.log,
   ].slice(0, 40)
 }

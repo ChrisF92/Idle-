@@ -10,7 +10,6 @@ import { SCREEN_HELP } from './screenHelp'
 import { createInitialState } from './state'
 import { RELIC_FAMILIES } from './relicCatalogue'
 import { buildSortieDiagnostic } from './sortieTelemetry'
-import { reinforceConsequenceLists } from './playerGuidance'
 
 const LEFTOVER =
   /\bFlagship\b|\bflagship\b|\bSector\b|\bsector\b|Frontier Hold|Route B|Foundry Points|\bPrints\b|Boss Protocol|Scavenger Protocol|Reliquary|Echo Mapped|Echo Runs|Slag Ingot|\bSpecialists\b|\bTask List\b|\bCapital\b/
@@ -36,7 +35,6 @@ describe('GDD Wave / Hive player-facing copy', () => {
       ...FOUNDRY_LOGS.map((log) => `${log.title} ${log.body}`),
       ...DIRECTIVES.map((row) => `${row.name} ${row.blurb}`),
       ...SYSTEM_UNLOCKS.map((row) => `${row.label} ${row.tip}`),
-      ...Object.values(reinforceConsequenceLists(createInitialState(0))).flat(),
       formatPrintSourceLine('heavy-lance'),
     ])
     expect(catalog).not.toMatch(LEFTOVER)

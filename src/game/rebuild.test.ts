@@ -36,7 +36,7 @@ describe('Matter formula', () => {
     expect(capped.scrapScore).toBe(Math.floor(capped.waveScore * 0.3))
   })
 
-  it('is independent of banked Scrap, Workshop, Rebuild count, Ascension, and Challenge medals', () => {
+  it('is independent of banked Scrap, Workshop, Rebuild count, and Challenge medals', () => {
     const base = armRebuildDoor(docked())
     base.prestige.cycle.scrapGenerated = 8000
     const a = structuredClone(base)
@@ -44,7 +44,6 @@ describe('Matter formula', () => {
     b.resources.scrap = 99999
     b.workshop.levels['weapon-power'] = 20
     b.prestige.prestigeCount = 50
-    b.meta.ascensionCount = 9
     b.challenges = { ...b.challenges, medals: { 'glass-frame': 3 } }
     expect(matterGainFor(a)).toBe(matterGainFor(b))
     expect(matterGainBreakdown(a).cycleScrapGenerated).toBe(8000)
