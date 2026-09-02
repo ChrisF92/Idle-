@@ -7,11 +7,11 @@
  * Windows are **engaged active time** unless labelled calendar.
  * Casual sessions stretch the same beats across offline catch-up.
  *
- * Canonical pads (first defeat 3–5 min, Rebuild 2–4 h, Process 24–36 h,
+ * Canonical pads (first defeat 3–5 min, Rebuild after the W210-era gate, Process 24–36 h,
  * W1000 80–100 h) are the live acceptance windows. Tune one named curve at a time.
  */
 
-import { droneCap, prestigeMomentumDamageBonus } from '../catalog'
+import { droneCap } from '../catalog'
 import { furnaceChannelLimit, furnaceDamageMult, furnaceSelectedCount } from '../furnace'
 import { foundrySlotCount, FOUNDRY_RECIPES } from '../foundry'
 import {
@@ -55,9 +55,9 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   {
     id: 'first-wave',
     label: 'First Wave',
-    min: 20,
-    max: 4 * 60,
-    warningPad: 45,
+    min: 0,
+    max: 5,
+    warningPad: 5,
     milestoneId: 'wave-1',
     kind: 'milestone-time',
   },
@@ -100,9 +100,9 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   {
     id: 'first-rebuild',
     label: 'First Rebuild',
-    min: 2 * 60 * 60,
-    max: 4 * 60 * 60,
-    warningPad: 45 * 60,
+    min: 6 * 60 * 60,
+    max: 12 * 60 * 60,
+    warningPad: 2 * 60 * 60,
     milestoneId: 'first-rebuild',
     kind: 'milestone-time',
   },
@@ -266,7 +266,6 @@ export function act1Contribution(state: GameState): Act1Contribution {
     furnaceDamage: furnaceDamageMult(state) - 1,
     reliquaryDamage: 0,
     researchDamage: hiveResearchDamageMult(state) - 1,
-    rebuildMomentum: prestigeMomentumDamageBonus(state.prestige.prestigeCount),
   }
 }
 
@@ -277,12 +276,13 @@ export function captureAct1Snapshot(
   calendarSeconds: number,
   salvageEarned = 0,
 ): Act1Snapshot {
-  const research = state.hiveResearch?.completed ?? { material: 0, energy: 0, observation: 0 }
+  const research = state.hiveResearch?.completed ?? { material: 0, energy: 0, observation: 0, computation: 0 }
   const material = research.material ?? 0
   const energy = research.energy ?? 0
   const observation = research.observation ?? 0
+  const computation = research.computation ?? 0
   let bts = 0
-  for (const n of [material, energy, observation]) {
+  for (const n of [material, energy, observation, computation]) {
     for (let i = 0; i < n; i++) if (isResearchBreakthroughIndex(i)) bts += 1
   }
   const relays = 0
@@ -318,6 +318,7 @@ export function captureAct1Snapshot(
       material,
       energy,
       observation,
+      computation,
       focus: state.hiveResearch?.focus ?? 'material',
     },
     researchBreakthroughs: bts,

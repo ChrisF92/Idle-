@@ -7,6 +7,7 @@ import { isResearchBreakthroughIndex } from '../hiveResearch'
 import { reportedBestWave } from '../waves'
 import { ACT1_CADENCE } from '../cadence'
 import { coreStartingLevelAtSlot } from '../coreProgression'
+import { cycleBestWave } from '../rebuild'
 import type {
   CorePurchaseRecord,
   CoreSpendingSummary,
@@ -17,12 +18,17 @@ import type {
   RebuildRecord,
   SectorRecord,
   SimulationWarning,
+  SimulationCombatTelemetry,
   SortieRecord,
   StrategyLimitation,
 } from './types'
 import { median } from './format'
+import { aggregateTenWaveBands } from './analysis'
 
-const TRACKED_WAVES = [1, 10, 20, 30, 50, 70, 100, 110, 140, 170, 210, 250, 300]
+export const TRACKED_WAVES = [
+  1, 10, 20, 30, 50, 70, 100, 110, 140, 170, 200, 210, 250, 300,
+  400, 500, 600, 700, 800, 900, 1000,
+]
 
 export interface MetricsState {
   milestones: MilestoneRecord[]
@@ -56,6 +62,9 @@ export interface MetricsState {
   sorties: SortieRecord[]
   lastLaunchAt: number
   failedPushStreak: number
+  closedBossDurations: number[]
+  closedBacklogSamples: number[]
+  closedTargeting: Omit<SimulationCombatTelemetry, 'bossFights' | 'bossTtkAverage' | 'bossTtkPeak' | 'backlogAverage' | 'backlogPeak'>
 }
 
 function emptySector(sector: number, active: number): SectorRecord {
@@ -108,13 +117,16 @@ export function createMetrics(state: GameState): MetricsState {
     sorties: [],
     lastLaunchAt: 0,
     failedPushStreak: 0,
+    closedBossDurations: [],
+    closedBacklogSamples: [],
+    closedTargeting: emptyTargetingTotals(),
   }
 }
 
 function hiveNodes(state: GameState): number {
   const c = state.hiveResearch?.completed
   if (!c) return 0
-  return (c.material ?? 0) + (c.energy ?? 0) + (c.observation ?? 0)
+  return (c.material ?? 0) + (c.energy ?? 0) + (c.observation ?? 0) + (c.computation ?? 0)
 }
 
 /** Fields observeState compares across a tick. Avoids cloning the whole save. */
@@ -128,6 +140,35 @@ export interface ObservePrev {
   prestigeCount: number
   processPurchased: number
   hiveCompleted: Record<string, number> | null
+  bossDuration: number
+  backlogSamples: number[]
+  targeting: ReturnType<typeof targetingTotals>
+}
+
+function emptyTargetingTotals() {
+  return {
+    initialAcquisitions: 0,
+    targetSwitches: 0,
+    acquisitionDelaySeconds: 0,
+    slewDowntimeSeconds: 0,
+    activeFiringSeconds: 0,
+    shotsFired: 0,
+  }
+}
+
+function targetingTotals(state: GameState) {
+  const total = emptyTargetingTotals()
+  for (const unit of state.combat.playerUnits) {
+    const row = unit.targetingTelemetry
+    if (!row) continue
+    total.initialAcquisitions += row.initialAcquisitions ?? 0
+    total.targetSwitches += row.targetSwitches ?? 0
+    total.acquisitionDelaySeconds += row.acquisitionDelayAccum ?? 0
+    total.slewDowntimeSeconds += row.timeSlewLimited ?? 0
+    total.activeFiringSeconds += row.timeActivelyFiring ?? 0
+    total.shotsFired += row.shotsFired ?? 0
+  }
+  return total
 }
 
 export function captureObservePrev(state: GameState): ObservePrev {
@@ -141,6 +182,12 @@ export function captureObservePrev(state: GameState): ObservePrev {
     prestigeCount: state.prestige.prestigeCount,
     processPurchased: state.process?.purchased.length ?? 0,
     hiveCompleted: state.hiveResearch?.completed ? { ...state.hiveResearch.completed } : null,
+    bossDuration: state.combat.encounterTelemetry?.bossEncounterDuration ?? 0,
+    backlogSamples: [
+      ...(state.combat.encounterTelemetry?.backlogEnteringBossHold ?? []),
+      ...(state.combat.encounterTelemetry?.backlogEnteringCommander ?? []),
+    ],
+    targeting: targetingTotals(state),
   }
 }
 
@@ -195,7 +242,10 @@ export function observeState(
 
   const sector = state.combat.wave
   if (!metrics.sectors.has(sector)) {
-    metrics.sectors.set(sector, emptySector(sector, activeSeconds))
+    metrics.sectors.set(
+      sector,
+      emptySector(sector, state.combat.docked ? activeSeconds : Math.max(0, activeSeconds - dt)),
+    )
   }
   const row = metrics.sectors.get(sector)!
   if (!state.combat.docked) row.holdSeconds += 0
@@ -208,34 +258,40 @@ export function observeState(
   const salvageGain = state.resources.salvage - prev.salvage
   if (salvageGain > 0) row.salvageEarned += salvageGain
 
-  if (Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0) > metrics.lastHighest) {
-    const cleared = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
-    const clearedRow = metrics.sectors.get(cleared) ?? emptySector(cleared, activeSeconds)
-    if (clearedRow.firstClearActive == null) {
-      clearedRow.firstClearActive = activeSeconds
-      clearedRow.clearDuration = activeSeconds - clearedRow.firstEntryActive
-      clearedRow.pulseLevelOnClear = coreStartingLevelAtSlot(state, 0)
-      clearedRow.plateLevelOnClear = coreStartingLevelAtSlot(state, 1)
-    }
-    metrics.sectors.set(cleared, clearedRow)
-    const clearedWave = cleared * 10
-    if (TRACKED_WAVES.includes(clearedWave)) {
-      addMilestone(metrics, `wave-${clearedWave}`, `Wave ${clearedWave}`, activeSeconds, calendarSeconds)
-    }
-    metrics.lastHighest = cleared
-    metrics.lastHighestAt = activeSeconds
-    noteMeaningful(metrics, `Wave ${clearedWave} band clear`, activeSeconds)
-  }
-
   const bestWave = reportedBestWave(state)
   if (bestWave > metrics.lastBestWave) {
+    const priorBest = metrics.lastBestWave
+    const clears = Math.max(1, bestWave - priorBest)
+    let priorClearAt = activeSeconds - dt
+    for (let wave = priorBest + 1; wave <= bestWave; wave += 1) {
+      const clearAt = activeSeconds - dt + dt * ((wave - priorBest) / clears)
+      const clearedRow = metrics.sectors.get(wave) ?? emptySector(wave, priorClearAt)
+      if (clearedRow.firstClearActive == null) {
+        clearedRow.firstClearActive = clearAt
+        clearedRow.clearDuration = Math.max(0.001, clearAt - clearedRow.firstEntryActive)
+        clearedRow.pulseLevelOnClear = coreStartingLevelAtSlot(state, 0)
+        clearedRow.plateLevelOnClear = coreStartingLevelAtSlot(state, 1)
+        if (wave % 50 === 0) {
+          const bossDuration = Math.max(
+            prev.bossDuration,
+            state.combat.encounterTelemetry?.bossEncounterDuration ?? 0,
+          )
+          clearedRow.bossClearSeconds = bossDuration > 0 ? bossDuration : null
+          if (bossDuration > 0) metrics.closedBossDurations.push(bossDuration)
+        }
+      }
+      metrics.sectors.set(wave, clearedRow)
+      priorClearAt = clearAt
+    }
     for (const wave of TRACKED_WAVES) {
       if (bestWave >= wave && metrics.lastBestWave < wave) {
         addMilestone(metrics, `wave-${wave}`, `Wave ${wave}`, activeSeconds, calendarSeconds)
-        if (wave === 1) noteMeaningful(metrics, 'First Wave', activeSeconds)
+        noteMeaningful(metrics, wave === 1 ? 'First Wave' : `Wave ${wave} clear`, activeSeconds)
       }
     }
     metrics.lastBestWave = bestWave
+    metrics.lastHighest = bestWave
+    metrics.lastHighestAt = activeSeconds
   }
 
   if (state.meta.hullLostOnce && !prev.hullLostOnce) {
@@ -270,6 +326,10 @@ export function observeState(
       summary.salvageSpent > 0 || summary.wave >= Math.max(1, summary.previousBest * 0.7)
     if (summary.newBest) metrics.failedPushStreak = 0
     else if (meaningful && !metrics.pendingRepush) metrics.failedPushStreak += 1
+    metrics.closedBacklogSamples.push(...prev.backlogSamples)
+    for (const key of Object.keys(metrics.closedTargeting) as Array<keyof typeof metrics.closedTargeting>) {
+      metrics.closedTargeting[key] += prev.targeting[key]
+    }
   }
   if (state.combat.consecutiveLosses > prev.consecutiveLosses) {
     const diedAt = prev.sector
@@ -348,16 +408,40 @@ export function observeState(
 
   if (metrics.pendingRepush) {
     const pending = metrics.pendingRepush
-    if (Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0) >= pending.target) {
+    if (cycleBestWave(state) >= pending.target) {
       const rec = metrics.rebuildLog.find((r) => r.index === pending.rebuildIndex)
       if (rec && rec.repushSeconds == null) {
         rec.repushSeconds = activeSeconds - pending.start
         rec.repushRatio =
           rec.previousPushSeconds > 0 ? rec.repushSeconds / rec.previousPushSeconds : null
-        rec.newHighestAfter = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
+        rec.newHighestAfter = cycleBestWave(state)
       }
       metrics.pendingRepush = null
     }
+  }
+}
+
+export function combatTelemetry(metrics: MetricsState, state: GameState): SimulationCombatTelemetry {
+  const bosses = [...metrics.closedBossDurations]
+  const liveBacklog = state.combat.docked
+    ? []
+    : [
+        ...(state.combat.encounterTelemetry?.backlogEnteringBossHold ?? []),
+        ...(state.combat.encounterTelemetry?.backlogEnteringCommander ?? []),
+      ]
+  const backlog = [...metrics.closedBacklogSamples, ...liveBacklog]
+  const targeting = { ...metrics.closedTargeting }
+  if (!state.combat.docked) {
+    const live = targetingTotals(state)
+    for (const key of Object.keys(targeting) as Array<keyof typeof targeting>) targeting[key] += live[key]
+  }
+  return {
+    bossFights: bosses.length,
+    bossTtkAverage: bosses.length ? bosses.reduce((sum, n) => sum + n, 0) / bosses.length : null,
+    bossTtkPeak: bosses.length ? Math.max(...bosses) : null,
+    backlogAverage: backlog.length ? backlog.reduce((sum, n) => sum + n, 0) / backlog.length : null,
+    backlogPeak: backlog.length ? Math.max(...backlog) : null,
+    ...targeting,
   }
 }
 
@@ -369,7 +453,6 @@ export function recordRebuildRow(metrics: MetricsState, row: RebuildRecord): voi
   metrics.rebuildLog.push(row)
   metrics.lastRebuildActive = row.activeSeconds
   metrics.previousHighestAtRebuild = row.highestSector
-  metrics.lastHighest = 0
   metrics.lastHighestAt = row.activeSeconds
   metrics.pendingRepush = {
     rebuildIndex: row.index,
@@ -460,7 +543,7 @@ export function pacingFrom(actions: MeaningfulAction[]): {
 }
 
 export function recentClearMedian(metrics: MetricsState): number | null {
-  const clears = [...metrics.sectors.values()]
+  const clears = aggregateTenWaveBands([...metrics.sectors.values()])
     .filter((s) => s.clearDuration != null)
     .slice(-5)
     .map((s) => s.clearDuration!)

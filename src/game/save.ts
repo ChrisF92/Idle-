@@ -189,6 +189,10 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     lastSortie: withLastSortieDefaults(combat.lastSortie, 0, combat.wave ?? 1),
     sortieMark: combat.sortieMark
       ? {
+          previousBest: Math.max(
+            0,
+            Math.floor(Number(combat.sortieMark.previousBest ?? combat.bestWave ?? 0) || 0),
+          ),
           salvage: Math.max(0, Number(combat.sortieMark.salvage ?? 0) || 0),
           salvageSpent: Math.max(0, Number(combat.sortieMark.salvageSpent ?? 0) || 0),
           scrap: Math.max(0, Number(combat.sortieMark.scrap ?? 0) || 0),

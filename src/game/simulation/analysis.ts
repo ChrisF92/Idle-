@@ -9,8 +9,31 @@ import type {
 } from './types'
 import { median } from './format'
 
+export function aggregateTenWaveBands(sectors: SectorRecord[]): SectorRecord[] {
+  const bands = new Map<number, SectorRecord>()
+  for (const row of sectors) {
+    const endWave = Math.ceil(row.sector / 10) * 10
+    const current = bands.get(endWave)
+    if (!current) {
+      bands.set(endWave, { ...row, sector: endWave })
+      continue
+    }
+    current.firstEntryActive = Math.min(current.firstEntryActive, row.firstEntryActive)
+    current.firstClearActive = row.firstClearActive ?? current.firstClearActive
+    current.clearDuration = (current.clearDuration ?? 0) + (row.clearDuration ?? 0)
+    current.deaths += row.deaths
+    current.relaunches += row.relaunches
+    current.salvageEarned += row.salvageEarned
+    current.holdSeconds += row.holdSeconds
+    current.pulseLevelOnClear = row.pulseLevelOnClear ?? current.pulseLevelOnClear
+    current.plateLevelOnClear = row.plateLevelOnClear ?? current.plateLevelOnClear
+    current.bossClearSeconds = row.bossClearSeconds ?? current.bossClearSeconds
+  }
+  return [...bands.values()].sort((a, b) => a.sector - b.sector)
+}
+
 export function detectWalls(sectors: SectorRecord[]): ProgressionWall[] {
-  const cleared = sectors
+  const cleared = aggregateTenWaveBands(sectors)
     .filter((s) => s.clearDuration != null && s.clearDuration > 0)
     .sort((a, b) => a.sector - b.sector)
   const walls: ProgressionWall[] = []
@@ -139,7 +162,7 @@ export function detectGddWarnings(input: GddWarningInput): SimulationWarning[] {
   const hardFromStreak = input.failedPushStreak >= 6
   const hardWall = hardFromStreak
     ? {
-        sector: Math.floor(input.highestWave / 10),
+        sector: input.highestWave,
         ratio: input.failedPushStreak,
         likelyConstraint: 'Failed push streak',
         detail: `${input.failedPushStreak} meaningful Sorties without a New Best`,
@@ -161,7 +184,7 @@ export function detectGddWarnings(input: GddWarningInput): SimulationWarning[] {
     out.push(
       warn(
         'WALL',
-        `Wave ${w.sector * 10} stalled (${w.likelyConstraint}) after several slower pushes.`,
+        `Wave ${w.sector} stalled (${w.likelyConstraint}) after several slower pushes.`,
       ),
     )
   } else if (input.rebuildLog.length === 0 && input.activeSeconds >= 25 * 60 && input.highestWave < 70) {
@@ -170,8 +193,8 @@ export function detectGddWarnings(input: GddWarningInput): SimulationWarning[] {
 
   if (firstRebuild != null && firstRebuild < 15 * 60) {
     out.push(warn('STEAMROLL', 'First Rebuild landed far faster than the authored slope.'))
-  } else if (input.highestWave >= 40 && input.activeSeconds > 0 && input.activeSeconds < 8 * 60) {
-    out.push(warn('STEAMROLL', `Best Wave jumped to ${input.highestWave} in under eight minutes.`))
+  } else if (input.highestWave >= 100 && input.activeSeconds > 0 && input.activeSeconds < 90 * 60) {
+    out.push(warn('STEAMROLL', `Best Wave jumped to ${input.highestWave} well before the authored W100 window.`))
   }
 
   if (
@@ -234,8 +257,8 @@ export function detectGddWarnings(input: GddWarningInput): SimulationWarning[] {
 
   if (input.rebuildLog.some((r) => r.repushRatio != null && r.repushRatio > 0.9)) {
     out.push(warn('REBUILD WEAK', 'A Rebuild barely accelerated the next push (repush ≈ previous push).'))
-  } else if (firstRebuild != null && firstRebuild > 4 * 60 * 60) {
-    out.push(warn('REBUILD WEAK', 'First Rebuild arrived after the 2–4h engaged window.'))
+  } else if (firstRebuild != null && firstRebuild > 12 * 60 * 60) {
+    out.push(warn('REBUILD WEAK', 'First Rebuild arrived well after the W210-era pacing window.'))
   }
 
   const explosive = input.rebuildLog.find(

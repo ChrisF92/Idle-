@@ -13,7 +13,6 @@ import {
   essenceProductionMultiplier,
   isStationUnlocked,
   metaProductionMultiplier,
-  prestigeMomentumProductionBonus,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   visibleWorkerJobIds,
@@ -75,8 +74,6 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       state.resources.prestigeMatter,
       state.prestige.matterShop,
     ) *
-    (1 +
-      prestigeMomentumProductionBonus(state.prestige.prestigeCount)) *
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
     (1 + aiProductionBonus(state)) *

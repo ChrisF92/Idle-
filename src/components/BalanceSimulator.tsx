@@ -364,7 +364,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
               </p>
               {run0.walls[0] ? (
                 <p>
-                  🔴 Wave {run0.walls[0].sector * 10} wall · {run0.walls[0].likelyConstraint} ·{' '}
+                  🔴 Wave {run0.walls[0].sector} wall · {run0.walls[0].likelyConstraint} ·{' '}
                   {run0.walls[0].ratio.toFixed(1)}× recent median
                 </p>
               ) : null}
@@ -424,7 +424,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                   run0.sectors
                     .map(
                       (s) =>
-                        `W${s.sector * 10}  ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : 'open'}  deaths ${s.deaths}`,
+                        `W${s.sector}  ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : 'open'}  deaths ${s.deaths}`,
                     )
                     .join('\n') || 'None',
                 ],
@@ -434,7 +434,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                   run0.rebuildLog
                     .map(
                       (r) =>
-                        `#${r.index} W${r.highestSector * 10} +${r.matterEarned} Matter\n${r.reasons.join('; ')}`,
+                        `#${r.index} W${r.highestSector} +${r.matterEarned} Matter\n${r.reasons.join('; ')}`,
                     )
                     .join('\n\n') || 'None',
                 ],
@@ -471,7 +471,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                 [
                   'walls',
                   'Progression Walls',
-                  run0.walls.map((w) => `W${w.sector * 10} ${w.ratio.toFixed(1)}×  ${w.likelyConstraint}\n${w.detail}`).join('\n\n') ||
+                  run0.walls.map((w) => `W${w.sector} ${w.ratio.toFixed(1)}×  ${w.likelyConstraint}\n${w.detail}`).join('\n\n') ||
                     'None flagged',
                 ],
                 [

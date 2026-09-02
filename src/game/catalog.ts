@@ -1771,23 +1771,6 @@ export function metaProductionMultiplier(
   return 1
 }
 
-/**
- * Soft run acceleration from career Rebuilds.
- * Each Rebuild should feel like a USI core-swap recover, not a dead zone.
- * Caps keep late-game from exploding; shops remain the main sink.
- */
-export function prestigeMomentumDamageBonus(
-  prestigeCount: number,
-): number {
-  return Math.pow(1.08, Math.max(0, prestigeCount)) - 1
-}
-
-export function prestigeMomentumProductionBonus(
-  prestigeCount: number,
-): number {
-  return Math.pow(1.06, Math.max(0, prestigeCount)) - 1
-}
-
 /** Short UI blurb for matter shop total effect at rank. */
 export function matterShopEffectBlurb(def: MatterShopDef, rank: number): string {
   return canonicalMatterBlurb(def, rank)

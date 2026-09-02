@@ -73,6 +73,7 @@ function networkLevelsSum(state: GameState): number {
 
 export function captureSortieMark(state: GameState): SortieMark {
   return {
+    previousBest: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
     salvage: state.resources.salvage ?? 0,
     salvageSpent: 0,
     scrap: state.resources.scrap ?? 0,

@@ -200,6 +200,8 @@ export interface CoreSortieRecord {
 
 /** Snapshot taken at Launch; closed into lastSortie on Extract / Defeat. */
 export interface SortieMark {
+  /** Career best when this Sortie launched; used to score frontier progress at close. */
+  previousBest: number
   salvage: number
   salvageSpent: number
   scrap: number

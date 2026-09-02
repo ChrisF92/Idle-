@@ -16,7 +16,6 @@ import {
   moduleLevelMultiplier,
   moduleWeaponDamage,
   moduleMasteryRank,
-  prestigeMomentumDamageBonus,
   researchDamageMultiplier,
 } from './catalog'
 import {
@@ -275,9 +274,6 @@ export function createInitialState(now = Date.now()): GameState {
 export function globalDamageMultiplier(state: GameState): number {
   let mult = researchDamageMultiplier(state.research.unlocked)
   mult *= essenceDamageMultiplier(state.essence.purchased)
-  mult *=
-    1 +
-    prestigeMomentumDamageBonus(state.prestige.prestigeCount)
   mult *= metaDamageMultiplier(
     state.resources.prestigeMatter,
     state.resources.challengePoints,

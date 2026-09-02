@@ -161,6 +161,20 @@ export interface SortieRecord {
   outcome: 'extract' | 'defeat' | null
 }
 
+export interface SimulationCombatTelemetry {
+  bossFights: number
+  bossTtkAverage: number | null
+  bossTtkPeak: number | null
+  backlogAverage: number | null
+  backlogPeak: number | null
+  initialAcquisitions: number
+  targetSwitches: number
+  acquisitionDelaySeconds: number
+  slewDowntimeSeconds: number
+  activeFiringSeconds: number
+  shotsFired: number
+}
+
 export interface CorePurchaseRecord {
   moduleId: string
   name: string
@@ -283,7 +297,6 @@ export interface Act1Contribution {
   furnaceDamage: number
   reliquaryDamage: number
   researchDamage: number
-  rebuildMomentum: number
 }
 
 export type GddWarningCode =
@@ -337,7 +350,7 @@ export interface Act1Snapshot {
   furnaceSlots: number
   furnaceLit: number
   heat: number
-  research: { material: number; energy: number; observation: number; focus: string }
+  research: { material: number; energy: number; observation: number; computation: number; focus: string }
   researchBreakthroughs: number
   processEarned: number
   processAvailable: number
@@ -364,6 +377,7 @@ export interface SimulationRunReport {
   milestones: MilestoneRecord[]
   sectors: SectorRecord[]
   sorties: SortieRecord[]
+  combatTelemetry: SimulationCombatTelemetry
   corePurchases: CorePurchaseRecord[]
   coreSpending: CoreSpendingSummary[]
   network: NetworkSnapshot
@@ -385,6 +399,7 @@ export interface SimulationRunReport {
     material: number
     energy: number
     observation: number
+    computation: number
     focus: string
     breakthroughs: number
   }
@@ -417,6 +432,15 @@ export interface SimulationRunReport {
   safety: SafetyFlag[]
   limitations: StrategyLimitation[]
   detailedLog: string[]
+  loadout: {
+    intendedFrame: string
+    actualFrame: string
+    intendedCores: string[]
+    actualCores: string[]
+    intendedRelics: string[]
+    actualRelics: string[]
+    doctrines: Array<string | null>
+  }
 }
 
 export interface SimulationAggregate {
