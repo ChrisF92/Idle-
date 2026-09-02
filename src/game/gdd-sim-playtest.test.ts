@@ -114,6 +114,8 @@ describe('GDD Phase 9 simulator + playtest', () => {
       salvageSpentOnRunUpgrades: 10,
       salvageSpentOnCores: 10,
       scrapEarned: 1,
+      scrapResetLost: 0,
+      scrapAllocation: [],
       workshopLevels: {},
       failedPushStreak: 7,
       activeSeconds: 20 * 60,

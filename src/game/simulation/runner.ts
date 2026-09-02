@@ -17,12 +17,17 @@ import {
   coreSpending,
   createMetrics,
   economyBuckets,
+  highestSecuredWave,
   networkSnapshot,
   noteMeaningful,
   observeState,
   pacingFrom,
   recentClearMedian,
+  recordResourceEarn,
+  recordResourceSpend,
   recordRebuildRow,
+  scrapAllocation,
+  syncResourceBalances,
 } from './metrics'
 import { inspectNumericSafety } from './safety'
 import { closeSession, getStrategy, spendProfileFor } from './strategies'
@@ -33,6 +38,9 @@ import { aggregateMilestones } from './report'
 import { captureAct1Snapshot } from '../balance/act1'
 import { coreStartingLevelAtSlot } from '../coreProgression'
 import { getAct1BuildProfile } from './buildProfiles'
+import { usableCoreSlots } from '../coreSlots'
+import { canConfigureTargetingDoctrine } from '../coreTargeting'
+import { ACT1_CADENCE } from '../cadence'
 import type {
   Act1Snapshot,
   CorePurchaseRecord,
@@ -66,6 +74,7 @@ function stopReached(
   calendarSeconds: number,
   rebuildsAtStart: number,
   firstRebuildAt: number | null,
+  securedWave: number,
 ): string | null {
   const stop = config.stop
   if (calendarSeconds >= config.maxCalendarSeconds) return 'Safety calendar cap'
@@ -81,7 +90,7 @@ function stopReached(
         ? `Reached ${stop.count} Rebuilds`
         : null
     case 'wave':
-      return reportedBestWave(state) >= stop.wave ? `Reached Wave ${stop.wave}` : null
+      return securedWave >= stop.wave ? `Secured Wave ${stop.wave}` : null
     case 'duration':
       return calendarSeconds >= stop.calendarSeconds ? 'Calendar duration reached' : null
     case 'active-duration':
@@ -238,12 +247,22 @@ async function runOneSeeded(
         limitations.push({ system, note })
       }
     },
+    recordResourceSpend: (resource, amount, category) => {
+      recordResourceSpend(metrics, resource, amount, category)
+    },
+    recordResourceEarn: (resource, amount) => {
+      recordResourceEarn(metrics, resource, amount)
+    },
+    syncResourceBalances: (nextState) => {
+      syncResourceBalances(metrics, nextState, false)
+    },
   })
 
   const decide = () => {
     const ctx = ctxFor()
     const before = state
     state = strategy.decide(state, ctx)
+    syncResourceBalances(metrics, state)
     lastDecisionAt = activeSeconds
     if (state !== before && config.logging === 'detailed') {
       metrics.detailedLog.push(`${activeSeconds.toFixed(1)}s  decide`)
@@ -266,6 +285,7 @@ async function runOneSeeded(
       calendarSeconds,
       rebuildsAtStart,
       firstRebuildAt,
+      highestSecuredWave(metrics),
     )
     if (halt) {
       stopReason = halt
@@ -289,10 +309,12 @@ async function runOneSeeded(
     if (config.strategy === 'casual' && sessionLeft <= 0) {
       state = closeSession(state)
       state = industryPass(state, ctxFor(), 'casual')
+      syncResourceBalances(metrics, state)
       const offline = config.session?.offlineSeconds ?? 4 * 3600
       state.lastTickAt = simNow
       const caught = applyOfflineCatchUp(state, simNow + offline * 1000)
       state = caught.state
+      syncResourceBalances(metrics, state)
       simNow += offline * 1000
       calendarSeconds += offline
       offlineSeconds += offline
@@ -303,8 +325,7 @@ async function runOneSeeded(
 
     const needDecide =
       activeSeconds - lastDecisionAt >= config.decisionIntervalSeconds ||
-      state.combat.docked ||
-      !state.combat.inFight
+      state.combat.docked
     if (needDecide) decide()
     if (
       config.stop.type === 'furnace-lit' &&
@@ -375,12 +396,16 @@ async function runOneSeeded(
   if (config.strategy !== 'idle') {
     const mode = spendProfileFor(config.strategy)
     state = industryPass(state, ctxFor(), mode)
+    syncResourceBalances(metrics, state)
   }
 
   const spending = coreSpending(metrics.corePurchases)
   const walls = detectWalls([...metrics.sectors.values()])
   const salvageSpentOnCores = spending.reduce((s, r) => s + r.salvageSpent, 0)
   const salvageSpentOnRunUpgrades = metrics.sorties.reduce((s, row) => s + row.salvageSpent, 0)
+  const scrapBreakdown = scrapAllocation(metrics)
+  const economy = economyBuckets(state, metrics)
+  const scrapEconomy = economy.find((row) => row.id === 'scrap')
   const warnings = [
     ...coreWarnings(spending),
     ...workerWarnings(metrics.networkIdleHint ?? false, state.base.workerDrones),
@@ -399,6 +424,8 @@ async function runOneSeeded(
       salvageSpentOnRunUpgrades,
       salvageSpentOnCores,
       scrapEarned: metrics.resourceEarned.scrap ?? 0,
+      scrapResetLost: scrapEconomy?.resetLost ?? 0,
+      scrapAllocation: scrapBreakdown,
       workshopLevels: { ...(state.workshop?.levels ?? {}) },
       failedPushStreak: metrics.failedPushStreak,
       activeSeconds,
@@ -422,12 +449,20 @@ async function runOneSeeded(
 
   const matterEarned = metrics.rebuildLog.reduce((s, r) => s + r.matterEarned, 0)
   const intendedProfile = getAct1BuildProfile(config.buildProfile)
+  const slotCapacity = usableCoreSlots(state)
   const fittedRelicIds = new Set(
     Object.values(state.relics?.coreFits ?? {}).flatMap((ids) => ids.filter((id): id is string => Boolean(id))),
   )
   const actualRelics = (state.relics?.instances ?? [])
     .filter((relic) => fittedRelicIds.has(relic.id))
     .map((relic) => relic.familyId)
+  const acquiredIntendedCores = intendedProfile.coreIds.filter((id) =>
+    state.shipyard.unlockedModules.includes(id),
+  )
+  const intendedFittedCount = state.shipyard.modules.filter((id) => intendedProfile.coreIds.includes(id)).length
+  const expectedFittedCount = Math.min(slotCapacity, intendedProfile.coreIds.length)
+  const relicsUnlocked = isSystemUnlocked(state, 'reliquary')
+  const doctrineUnlocked = canConfigureTargetingDoctrine(state)
   if (reportedBestWave(state) >= 320 && intendedProfile.relicFamilyIds.some((id) => !actualRelics.includes(id))) {
     limitations.push({
       system: 'Relic profile execution',
@@ -461,6 +496,8 @@ async function runOneSeeded(
     calendarSeconds,
     offlineSeconds,
     highestSector: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
+    highestWaveReached: reportedBestWave(state),
+    highestWaveSecured: highestSecuredWave(metrics),
     highestWave: reportedBestWave(state),
     rebuilds: state.prestige.prestigeCount,
     prestigeMatterEarned: matterEarned,
@@ -511,7 +548,8 @@ async function runOneSeeded(
       ...snapshots,
       captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds, metrics.resourceEarned.salvage ?? 0),
     ],
-    economy: economyBuckets(state, metrics),
+    economy,
+    scrapAllocation: scrapBreakdown,
     rebuildLog: metrics.rebuildLog,
     meaningfulActions: metrics.meaningful,
     pacing: pacingFrom(metrics.meaningful),
@@ -531,6 +569,15 @@ async function runOneSeeded(
       doctrines: (state.shipyard.equippedCoreIds ?? []).map((id) =>
         state.shipyard.coreInstances?.find((row) => row.id === id)?.targetingDoctrine ?? null,
       ),
+      slotCapacity,
+      acquiredIntendedCores,
+      coreStatus: `${intendedFittedCount}/${expectedFittedCount} intended Cores fitted for ${slotCapacity} available slots`,
+      relicStatus: relicsUnlocked
+        ? `${actualRelics.length}/${intendedProfile.relicFamilyIds.length} intended Relics fitted`
+        : `Locked until Wave ${ACT1_CADENCE.reliquary}`,
+      doctrineStatus: doctrineUnlocked
+        ? 'Fire-Control Doctrine available'
+        : 'Authored defaults active; Fire-Control Doctrine not yet researched',
     },
   }
   return run

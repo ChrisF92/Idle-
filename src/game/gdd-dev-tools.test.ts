@@ -23,14 +23,14 @@ describe('GDD Dev Tools', () => {
     ])
     expect(GDD_DOOR_PRESETS.map((d) => d.label)).toEqual([
       'W50 Foundry',
-      'W50 Workers',
-      'W50 Directives',
+      'W110 Workers',
+      'W125 Directives',
       'W210 Rebuild',
       'W320 Relics',
       'W450 Furnace',
       'W525 Research',
       'Process Kernel',
-      'W250 Challenges',
+      'W375 Challenges',
       'W1000 Reinforce',
     ])
   })
@@ -113,13 +113,17 @@ describe('GDD Dev Tools', () => {
     expect(isSystemUnlocked(s, 'echo')).toBe(false)
   })
 
-  it('W50 Foundry door also opens Workers, but not later systems', () => {
+  it('keeps the W50 Foundry and W110 Worker doors distinct', () => {
     let s = createInitialState(0)
     s = applyDevAction(s, { type: 'skip-guides' })
     s = applyDevAction(s, { type: 'prep-gdd-door', wave: ACT1_CADENCE.foundry })
+    expect(careerBestWave(s)).toBe(ACT1_CADENCE.foundry)
+    expect(isSystemUnlocked(s, 'foundry')).toBe(true)
+    expect(isSystemUnlocked(s, 'network')).toBe(false)
+    s = applyDevAction(s, { type: 'prep-gdd-door', wave: ACT1_CADENCE.workers })
     s = applyDevAction(s, { type: 'fill-workers', count: 8 })
     s = applyDevAction(s, { type: 'dock-heal' })
-    expect(careerBestWave(s)).toBe(ACT1_CADENCE.foundry)
+    expect(careerBestWave(s)).toBe(ACT1_CADENCE.workers)
     expect(isSystemUnlocked(s, 'foundry')).toBe(true)
     expect(isSystemUnlocked(s, 'network')).toBe(true)
     expect(isSystemUnlocked(s, 'furnace')).toBe(false)

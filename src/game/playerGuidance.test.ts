@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { exportSave, importSave } from './save'
 import { markHullLost } from './testHelpers'
+import { ACT1_CADENCE } from './cadence'
 import {
   isEstablishedCareer,
   migrateOnboardingState,
@@ -68,8 +69,8 @@ describe('player guidance helpers', () => {
 
   it('suggests idle drones and Plate from unlocked systems only', () => {
     const s = markHullLost(createInitialState(0))
-    s.meta.bestWave = 50
-    s.combat.bestWave = 50
+    s.meta.bestWave = ACT1_CADENCE.workers
+    s.combat.bestWave = ACT1_CADENCE.workers
     s.meta.lifetimeCoreRunBuys = 1
     s.base.workerDrones = 4
     s.base.assignments = {}

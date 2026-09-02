@@ -11,7 +11,7 @@ import { getFrame, modulePrintWave } from './catalog'
 describe('GDD Act 1 wave cadence', () => {
   it('places major doors on the GDD Wave table', () => {
     expect(ACT1_CADENCE.foundry).toBe(50)
-    expect(ACT1_CADENCE.workers).toBe(50)
+    expect(ACT1_CADENCE.workers).toBe(110)
     expect(PRESTIGE_MIN_SECTOR).toBe(210)
     expect(ACT1_CADENCE.foundryAdvanced).toBe(90)
     expect(ACT1_CADENCE.furnace).toBe(450)

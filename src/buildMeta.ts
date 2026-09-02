@@ -1,5 +1,5 @@
 /** Bump when shipping UI that players must refresh to see (PWA cache). */
-export const APP_BUILD = '2026-09-02a'
+export const APP_BUILD = '2026-09-02b'
 
 export interface SimulationBuildMeta {
   appBuild: string
