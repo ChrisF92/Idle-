@@ -27,7 +27,7 @@ describe('PR11 W1 → W1000 integration', () => {
     expect(ACT1_CADENCE).toMatchObject({
       codex: 30,
       foundry: 50,
-      workers: 50,
+      workers: 110,
       directives: 125,
       rebuild: 210,
       reliquary: 320,

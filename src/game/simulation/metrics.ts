@@ -19,6 +19,7 @@ import type {
   SectorRecord,
   SimulationWarning,
   SimulationCombatTelemetry,
+  ScrapAllocationBucket,
   SortieRecord,
   StrategyLimitation,
 } from './types'
@@ -43,9 +44,13 @@ export interface MetricsState {
   heatSpent: number
   resourceEarned: Record<string, number>
   resourceSpent: Record<string, number>
+  resourceSpendByCategory: Record<string, number>
+  resourceStarting: Record<string, number>
   lastResources: Record<string, number>
   lastHighest: number
   lastBestWave: number
+  lastSecuredWave: number
+  seenSecuredWaves: Set<number>
   lastHighestAt: number
   lastMeaningfulAt: number
   lastRebuildActive: number | null
@@ -62,9 +67,10 @@ export interface MetricsState {
   sorties: SortieRecord[]
   lastLaunchAt: number
   failedPushStreak: number
-  closedBossDurations: number[]
+  closedBossDurations: Array<{ wave: number; seconds: number }>
   closedBacklogSamples: number[]
-  closedTargeting: Omit<SimulationCombatTelemetry, 'bossFights' | 'bossTtkAverage' | 'bossTtkPeak' | 'backlogAverage' | 'backlogPeak'>
+  closedTargeting: ReturnType<typeof emptyTargetingTotals>
+  currentSortieSalvageRecorded: number
 }
 
 function emptySector(sector: number, active: number): SectorRecord {
@@ -85,6 +91,11 @@ function emptySector(sector: number, active: number): SectorRecord {
 
 export function createMetrics(state: GameState): MetricsState {
   const resources: Record<string, number> = { ...state.resources }
+  const securedWaves = state.combat.sortieMark?.challengeSortie
+    ? []
+    : state.combat.packages
+        .filter((pkg) => pkg.secured || pkg.rewardPaid)
+        .map((pkg) => pkg.wave)
   return {
     milestones: [],
     sectors: new Map(),
@@ -98,9 +109,13 @@ export function createMetrics(state: GameState): MetricsState {
     heatSpent: 0,
     resourceEarned: {},
     resourceSpent: {},
+    resourceSpendByCategory: {},
+    resourceStarting: { ...resources },
     lastResources: resources,
     lastHighest: Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
     lastBestWave: reportedBestWave(state),
+    lastSecuredWave: securedWaves.length ? Math.max(...securedWaves) : 0,
+    seenSecuredWaves: new Set(securedWaves),
     lastHighestAt: 0,
     lastMeaningfulAt: 0,
     lastRebuildActive: null,
@@ -120,6 +135,7 @@ export function createMetrics(state: GameState): MetricsState {
     closedBossDurations: [],
     closedBacklogSamples: [],
     closedTargeting: emptyTargetingTotals(),
+    currentSortieSalvageRecorded: 0,
   }
 }
 
@@ -216,9 +232,40 @@ export function noteMeaningful(metrics: MetricsState, label: string, activeSecon
   metrics.lastMeaningfulAt = activeSeconds
 }
 
-function addEarned(metrics: MetricsState, key: string, amount: number): void {
-  if (amount > 0) metrics.resourceEarned[key] = (metrics.resourceEarned[key] ?? 0) + amount
-  if (amount < 0) metrics.resourceSpent[key] = (metrics.resourceSpent[key] ?? 0) + -amount
+export function recordResourceEarn(metrics: MetricsState, key: string, amount: number): void {
+  if (!(amount > 0)) return
+  metrics.resourceEarned[key] = (metrics.resourceEarned[key] ?? 0) + amount
+  if (key === 'heat') metrics.heatEarned += amount
+  if (key === 'salvage') metrics.currentSortieSalvageRecorded += amount
+}
+
+export function recordResourceSpend(
+  metrics: MetricsState,
+  key: string,
+  amount: number,
+  category: string,
+): void {
+  if (!(amount > 0)) return
+  metrics.resourceSpent[key] = (metrics.resourceSpent[key] ?? 0) + amount
+  if (key === 'heat') metrics.heatSpent += amount
+  if (key === 'scrap') {
+    metrics.resourceSpendByCategory[category] =
+      (metrics.resourceSpendByCategory[category] ?? 0) + amount
+  }
+}
+
+/** Capture generation between player decisions. Losses are resets, never purchases. */
+export function syncResourceBalances(
+  metrics: MetricsState,
+  state: Pick<GameState, 'resources'>,
+  countPositive = true,
+): void {
+  for (const [key, value] of Object.entries(state.resources)) {
+    const before = metrics.lastResources[key] ?? 0
+    const delta = (value ?? 0) - before
+    if (countPositive && delta > 0) recordResourceEarn(metrics, key, delta)
+    metrics.lastResources[key] = value ?? 0
+  }
 }
 
 export function observeState(
@@ -229,16 +276,7 @@ export function observeState(
   calendarSeconds: number,
   dt: number,
 ): void {
-  for (const [key, value] of Object.entries(state.resources)) {
-    const before = metrics.lastResources[key] ?? 0
-    const delta = (value ?? 0) - before
-    addEarned(metrics, key, delta)
-    if (key === 'heat') {
-      if (delta > 0) metrics.heatEarned += delta
-      if (delta < 0) metrics.heatSpent += -delta
-    }
-    metrics.lastResources[key] = value ?? 0
-  }
+  syncResourceBalances(metrics, state)
 
   const sector = state.combat.wave
   if (!metrics.sectors.has(sector)) {
@@ -261,37 +299,45 @@ export function observeState(
   const bestWave = reportedBestWave(state)
   if (bestWave > metrics.lastBestWave) {
     const priorBest = metrics.lastBestWave
-    const clears = Math.max(1, bestWave - priorBest)
-    let priorClearAt = activeSeconds - dt
     for (let wave = priorBest + 1; wave <= bestWave; wave += 1) {
-      const clearAt = activeSeconds - dt + dt * ((wave - priorBest) / clears)
-      const clearedRow = metrics.sectors.get(wave) ?? emptySector(wave, priorClearAt)
-      if (clearedRow.firstClearActive == null) {
-        clearedRow.firstClearActive = clearAt
-        clearedRow.clearDuration = Math.max(0.001, clearAt - clearedRow.firstEntryActive)
-        clearedRow.pulseLevelOnClear = coreStartingLevelAtSlot(state, 0)
-        clearedRow.plateLevelOnClear = coreStartingLevelAtSlot(state, 1)
-        if (wave % 50 === 0) {
-          const bossDuration = Math.max(
-            prev.bossDuration,
-            state.combat.encounterTelemetry?.bossEncounterDuration ?? 0,
-          )
-          clearedRow.bossClearSeconds = bossDuration > 0 ? bossDuration : null
-          if (bossDuration > 0) metrics.closedBossDurations.push(bossDuration)
-        }
-      }
-      metrics.sectors.set(wave, clearedRow)
-      priorClearAt = clearAt
-    }
-    for (const wave of TRACKED_WAVES) {
-      if (bestWave >= wave && metrics.lastBestWave < wave) {
-        addMilestone(metrics, `wave-${wave}`, `Wave ${wave}`, activeSeconds, calendarSeconds)
-        noteMeaningful(metrics, wave === 1 ? 'First Wave' : `Wave ${wave} clear`, activeSeconds)
-      }
+      const entryAt = activeSeconds - dt + dt * ((wave - priorBest) / Math.max(1, bestWave - priorBest))
+      if (!metrics.sectors.has(wave)) metrics.sectors.set(wave, emptySector(wave, entryAt))
     }
     metrics.lastBestWave = bestWave
     metrics.lastHighest = bestWave
     metrics.lastHighestAt = activeSeconds
+  }
+
+  if (!state.combat.sortieMark?.challengeSortie) {
+    const newlySecured = state.combat.packages
+      .filter((pkg) => (pkg.secured || pkg.rewardPaid) && !metrics.seenSecuredWaves.has(pkg.wave))
+      .sort((a, b) => a.wave - b.wave)
+    for (const pkg of newlySecured) {
+      const securedRow = metrics.sectors.get(pkg.wave) ?? emptySector(pkg.wave, Math.max(0, activeSeconds - dt))
+      if (securedRow.firstClearActive == null) {
+        securedRow.firstClearActive = activeSeconds
+        securedRow.clearDuration = Math.max(0.001, activeSeconds - securedRow.firstEntryActive)
+        securedRow.pulseLevelOnClear = coreStartingLevelAtSlot(state, 0)
+        securedRow.plateLevelOnClear = coreStartingLevelAtSlot(state, 1)
+        if (pkg.kind === 'boss') {
+          const bossDuration = Math.max(
+            prev.bossDuration,
+            state.combat.encounterTelemetry?.bossEncounterDuration ?? 0,
+          )
+          securedRow.bossClearSeconds = bossDuration > 0 ? bossDuration : null
+          if (bossDuration > 0) metrics.closedBossDurations.push({ wave: pkg.wave, seconds: bossDuration })
+        }
+      }
+      metrics.sectors.set(pkg.wave, securedRow)
+      metrics.seenSecuredWaves.add(pkg.wave)
+      metrics.lastSecuredWave = Math.max(metrics.lastSecuredWave, pkg.wave)
+    }
+    for (const wave of TRACKED_WAVES) {
+      if (metrics.lastSecuredWave >= wave && !metrics.milestones.some((m) => m.id === `wave-${wave}`)) {
+        addMilestone(metrics, `wave-${wave}`, `Wave ${wave}`, activeSeconds, calendarSeconds)
+        noteMeaningful(metrics, wave === 1 ? 'First Wave' : `Wave ${wave} secured`, activeSeconds)
+      }
+    }
   }
 
   if (state.meta.hullLostOnce && !prev.hullLostOnce) {
@@ -309,6 +355,9 @@ export function observeState(
   }
   if (!prev.docked && state.combat.docked && state.combat.lastSortie.outcome) {
     const summary = state.combat.lastSortie
+    const unrecordedSalvage = Math.max(0, summary.salvageGained - metrics.currentSortieSalvageRecorded)
+    if (unrecordedSalvage > 0) recordResourceEarn(metrics, 'salvage', unrecordedSalvage)
+    metrics.currentSortieSalvageRecorded = 0
     const duration = Math.max(0, activeSeconds - metrics.lastLaunchAt)
     metrics.sorties.push({
       index: metrics.sorties.length + 1,
@@ -435,14 +484,25 @@ export function combatTelemetry(metrics: MetricsState, state: GameState): Simula
     const live = targetingTotals(state)
     for (const key of Object.keys(targeting) as Array<keyof typeof targeting>) targeting[key] += live[key]
   }
+  const measuredCoreSeconds =
+    targeting.acquisitionDelaySeconds + targeting.slewDowntimeSeconds + targeting.activeFiringSeconds
   return {
     bossFights: bosses.length,
-    bossTtkAverage: bosses.length ? bosses.reduce((sum, n) => sum + n, 0) / bosses.length : null,
-    bossTtkPeak: bosses.length ? Math.max(...bosses) : null,
+    bossTtks: bosses,
+    bossTtkAverage: bosses.length ? bosses.reduce((sum, row) => sum + row.seconds, 0) / bosses.length : null,
+    bossTtkPeak: bosses.length ? Math.max(...bosses.map((row) => row.seconds)) : null,
     backlogAverage: backlog.length ? backlog.reduce((sum, n) => sum + n, 0) / backlog.length : null,
     backlogPeak: backlog.length ? Math.max(...backlog) : null,
     ...targeting,
+    measuredCoreSeconds,
+    acquisitionDelayShare: measuredCoreSeconds > 0 ? targeting.acquisitionDelaySeconds / measuredCoreSeconds : null,
+    slewDowntimeShare: measuredCoreSeconds > 0 ? targeting.slewDowntimeSeconds / measuredCoreSeconds : null,
+    activeFiringShare: measuredCoreSeconds > 0 ? targeting.activeFiringSeconds / measuredCoreSeconds : null,
   }
+}
+
+export function highestSecuredWave(metrics: MetricsState): number {
+  return metrics.lastSecuredWave
 }
 
 function careerGate(state: GameState): number {
@@ -506,11 +566,40 @@ export function economyBuckets(state: GameState, metrics: MetricsState): Economy
     .map((id) => ({
       id,
       label: RESOURCE_LABELS[id],
+      starting: metrics.resourceStarting[id] ?? 0,
       earned: metrics.resourceEarned[id] ?? 0,
       spent: metrics.resourceSpent[id] ?? 0,
+      resetLost: Math.max(
+        0,
+        (metrics.resourceStarting[id] ?? 0) +
+          (metrics.resourceEarned[id] ?? 0) -
+          (metrics.resourceSpent[id] ?? 0) -
+          (state.resources[id] ?? 0),
+      ),
       ending: state.resources[id] ?? 0,
     }))
     .filter((row) => row.earned > 0.01 || row.spent > 0.01 || row.ending > 0.01)
+}
+
+const SCRAP_ALLOCATION_LABELS: Record<string, string> = {
+  workshop: 'Workshop',
+  cores: 'Physical Core Levels',
+  foundry: 'Foundry / fabrication',
+  infrastructure: 'Worker / infrastructure',
+  permanent: 'Permanent unlocks',
+  other: 'Other',
+}
+
+export function scrapAllocation(metrics: MetricsState): ScrapAllocationBucket[] {
+  const total = Object.values(metrics.resourceSpendByCategory).reduce((sum, value) => sum + value, 0)
+  return Object.entries(metrics.resourceSpendByCategory)
+    .map(([category, spent]) => ({
+      category,
+      label: SCRAP_ALLOCATION_LABELS[category] ?? category,
+      spent,
+      share: total > 0 ? spent / total : 0,
+    }))
+    .sort((a, b) => b.spent - a.spent)
 }
 
 export function pacingFrom(actions: MeaningfulAction[]): {

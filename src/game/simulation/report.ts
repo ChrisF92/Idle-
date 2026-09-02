@@ -26,18 +26,6 @@ function milestoneLine(run: SimulationRunReport, id: string, fallback: string): 
   return m ? `${fallback.padEnd(24)} ${formatSimDuration(m.activeSeconds)}` : `${fallback.padEnd(24)} —`
 }
 
-function multisetMatches(actual: string[], intended: string[]): number {
-  const remaining = [...actual]
-  let matched = 0
-  for (const id of intended) {
-    const index = remaining.indexOf(id)
-    if (index < 0) continue
-    remaining.splice(index, 1)
-    matched += 1
-  }
-  return matched
-}
-
 export function formatSummary(report: SimulationReport): string {
   const run = report.runs[0]
   if (!run) return 'No simulation runs.'
@@ -62,7 +50,8 @@ export function formatSummary(report: SimulationReport): string {
     `Calendar Time: ${formatSimDuration(run.calendarSeconds)}`,
     `Active Time: ${formatSimDuration(run.activeSeconds)}`,
     `Offline Time: ${formatSimDuration(run.offlineSeconds)}`,
-    `Highest Wave: ${run.highestWave}`,
+    `Highest Wave Reached: ${run.highestWaveReached}`,
+    `Highest Wave Secured: ${run.highestWaveSecured}`,
     `Rebuilds: ${run.rebuilds}`,
     `Stop: ${run.stopReason}`,
     run.cancelled ? 'Cancelled: yes (partial report)' : '',
@@ -158,10 +147,13 @@ export function formatSummary(report: SimulationReport): string {
     'COMBAT TELEMETRY',
     '----------------------------------------',
     '',
-    `Boss fights: ${telemetry.bossFights}  average TTK ${telemetry.bossTtkAverage == null ? '—' : formatSimDuration(telemetry.bossTtkAverage)}  peak ${telemetry.bossTtkPeak == null ? '—' : formatSimDuration(telemetry.bossTtkPeak)}`,
+    `Boss fights secured: ${telemetry.bossFights}  average TTK ${telemetry.bossTtkAverage == null ? '—' : formatSimDuration(telemetry.bossTtkAverage)}  peak ${telemetry.bossTtkPeak == null ? '—' : formatSimDuration(telemetry.bossTtkPeak)}`,
+    telemetry.bossTtks.length
+      ? `Boss TTKs: ${telemetry.bossTtks.map((row) => `W${row.wave} ${formatSimDuration(row.seconds)}`).join(' · ')}`
+      : 'Boss TTKs: —',
     `Backlog: average ${telemetry.backlogAverage?.toFixed(1) ?? '—'}  peak ${telemetry.backlogPeak ?? '—'}`,
     `Targeting: acquisitions ${telemetry.initialAcquisitions}  switches ${telemetry.targetSwitches}  shots ${telemetry.shotsFired}`,
-    `Targeting core-time: acquisition delay ${formatSimDuration(telemetry.acquisitionDelaySeconds)}  slew-limited ${formatSimDuration(telemetry.slewDowntimeSeconds)}  firing ${formatSimDuration(telemetry.activeFiringSeconds)}`,
+    `Targeting core-time (${formatSimDuration(telemetry.measuredCoreSeconds)} measured): acquisition ${(100 * (telemetry.acquisitionDelayShare ?? 0)).toFixed(1)}%  slew-limited ${(100 * (telemetry.slewDowntimeShare ?? 0)).toFixed(1)}%  firing ${(100 * (telemetry.activeFiringShare ?? 0)).toFixed(1)}%`,
     '',
   )
   if (run.rebuildLog.length > 0) {
@@ -236,11 +228,12 @@ export function formatSummary(report: SimulationReport): string {
     '----------------------------------------',
     '',
     `Frame: ${run.loadout.actualFrame} (intended ${run.loadout.intendedFrame})`,
-    `Cores: ${run.loadout.actualCores.join(', ') || 'none'} (${multisetMatches(run.loadout.actualCores, run.loadout.intendedCores)}/${run.loadout.intendedCores.length} intended)`,
-    `Intended Cores: ${run.loadout.intendedCores.join(', ')}`,
-    `Relics: ${run.loadout.actualRelics.join(', ') || 'none'} (${multisetMatches(run.loadout.actualRelics, run.loadout.intendedRelics)}/${run.loadout.intendedRelics.length} intended)`,
-    `Intended Relics: ${run.loadout.intendedRelics.join(', ')}`,
-    `Doctrines: ${run.loadout.doctrines.map((id) => id ?? 'default').join(', ') || 'defaults'}`,
+    `Cores: ${run.loadout.actualCores.join(', ') || 'none'} (${run.loadout.coreStatus})`,
+    `Known planned Core types: ${run.loadout.acquiredIntendedCores.join(', ') || 'none'}`,
+    `Full planned Core profile: ${run.loadout.intendedCores.join(', ')}`,
+    `Relics: ${run.loadout.actualRelics.join(', ') || 'none'} (${run.loadout.relicStatus})`,
+    `Full planned Relic profile: ${run.loadout.intendedRelics.join(', ')}`,
+    `Doctrines: ${run.loadout.doctrines.map((id) => id ?? 'authored default').join(', ') || 'authored defaults'} (${run.loadout.doctrineStatus})`,
     '',
   )
   const snap = run.snapshots[run.snapshots.length - 1]
@@ -264,7 +257,16 @@ export function formatSummary(report: SimulationReport): string {
   if (run.economy.length > 0) {
     lines.push('----------------------------------------', 'ECONOMY', '----------------------------------------', '')
     for (const row of run.economy) {
-      lines.push(`${row.label}  earned ${row.earned.toFixed(1)}  spent ${row.spent.toFixed(1)}  end ${row.ending.toFixed(1)}`)
+      lines.push(
+        `${row.label}  start ${row.starting.toFixed(1)}  earned ${row.earned.toFixed(1)}  spent ${row.spent.toFixed(1)}  reset ${row.resetLost.toFixed(1)}  end ${row.ending.toFixed(1)}`,
+      )
+    }
+    lines.push('')
+  }
+  if (run.scrapAllocation.length > 0) {
+    lines.push('----------------------------------------', 'SCRAP ALLOCATION', '----------------------------------------', '')
+    for (const row of run.scrapAllocation) {
+      lines.push(`${row.label}  ${row.spent.toFixed(1)}  ${(row.share * 100).toFixed(1)}%`)
     }
     lines.push('')
   }
@@ -343,7 +345,7 @@ export function formatFullReport(report: SimulationReport): string {
   for (const s of aggregateTenWaveBands(run.sectors)) {
     const start = Math.max(1, s.sector - 9)
     extra.push(
-      `W${start}–${s.sector}  clear ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : '—'}  deaths ${s.deaths}  salvage +${s.salvageEarned.toFixed(1)}  pulse ${s.pulseLevelOnClear ?? '—'} plate ${s.plateLevelOnClear ?? '—'}`,
+      `W${start}–${s.sector}  elapsed ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : '—'}  secured at ${s.firstClearActive != null ? formatSimDuration(s.firstClearActive) : '—'}  deaths ${s.deaths}  salvage +${s.salvageEarned.toFixed(1)}  pulse ${s.pulseLevelOnClear ?? '—'} plate ${s.plateLevelOnClear ?? '—'}`,
     )
   }
   extra.push('', 'CORE PURCHASES')
@@ -371,12 +373,13 @@ export function reportToJson(report: SimulationReport): string {
 export function reportToCsv(report: SimulationReport): string {
   const run = report.runs[0]
   if (!run) return 'wave,clearSeconds,deaths,salvage\n'
-  const rows = ['wave,clearSeconds,deaths,relaunches,salvage,pulse,plate,holdSeconds']
+  const rows = ['wave,bandElapsedSeconds,securedAtSeconds,deaths,relaunches,salvage,pulse,plate,holdSeconds']
   for (const s of aggregateTenWaveBands(run.sectors)) {
     rows.push(
       [
         s.sector,
         s.clearDuration ?? '',
+        s.firstClearActive ?? '',
         s.deaths,
         s.relaunches,
         s.salvageEarned.toFixed(2),

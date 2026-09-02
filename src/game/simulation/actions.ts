@@ -10,7 +10,6 @@ import type {
 } from '../types'
 import {
   buyMatterShop,
-  buyNetworkLink,
   buyProcessNode,
   fitModule,
   performPrestige,
@@ -49,8 +48,6 @@ import {
 } from '../coreProgression'
 import {
   NETWORK_BARS,
-  NETWORK_LINKS,
-  canBuyNetworkLink,
   networkLevels,
 } from '../network'
 import {
@@ -237,39 +234,27 @@ function assignUpToJobCap(state: GameState, jobId: string, delta: number): GameS
   return assignWorker(state, jobId, n)
 }
 
-export function buyUsefulNetworkLinks(state: GameState, ctx: StrategyContext): GameState {
-  let next = state
-  for (const def of NETWORK_LINKS) {
-    const check = canBuyNetworkLink(next, def.id)
-    if (!check.ok) continue
-    // Racks first (more drones), then cycle, then acuity.
-    const after = buyNetworkLink(next, def.id)
-    if (after !== next) {
-      ctx.recordMeaningful(`Network Link ${def.name}`)
-      next = after
-      if (ctx.logging !== 'detailed') break
-    }
-  }
-  return next
-}
-
 export function tendFoundry(state: GameState, ctx: StrategyContext): GameState {
   if (!isSystemUnlocked(state, 'foundry')) return state
   let next = state
   const slots = foundrySlotCount(next)
+  const occupied = new Set(
+    next.foundry.slots
+      .map((slot) => slot.recipeId)
+      .filter((id): id is FoundryRecipeId => id != null),
+  )
   for (let i = 0; i < slots; i++) {
     const current = next.foundry.slots[i]?.recipeId ?? null
-    const progress = next.foundry.slots[i]?.progress ?? 0
-    const recipe = pickProcessingRecipe(next)
+    // Processing is a paid, explicit cycle. Let it finish instead of changing
+    // the player's selection between decision ticks.
+    if (current) continue
+    const recipe = pickProcessingRecipe(next, occupied)
     if (!recipe) continue
-    if (current === recipe) continue
-    const currentStock = current ? foundryStock(next, current) : 0
-    const canSwitch = !current || progress < 0.05 || currentStock >= 8
-    if (!canSwitch) continue
     const after = setFoundrySlot(next, i, recipe)
     if (after !== next) {
-      ctx.record(`foundry-slot ${recipe}`)
+      if (materialMasteryRank(next, recipe) === 0) ctx.record(`foundry-first-cycle ${recipe}`)
       next = after
+      occupied.add(recipe)
     }
   }
 
@@ -280,8 +265,11 @@ function foundryStock(state: GameState, id: FoundryRecipeId): number {
   return Math.max(0, Math.floor(state.foundry.materials?.[id] ?? 0))
 }
 
-/** Player-like: stock the Fabricator chain after W90, otherwise keep Recovered Stock running. */
-function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
+/** Player-like: stock the Fabricator chain, then broaden Material Mastery. */
+function pickProcessingRecipe(
+  state: GameState,
+  occupied: ReadonlySet<FoundryRecipeId>,
+): FoundryRecipeId | null {
   const stockOn = isFoundryRecipeUnlocked(state, 'recovered-stock')
   const filOn = isFoundryRecipeUnlocked(state, 'conductive-filament')
   const temperOn = isFoundryRecipeUnlocked(state, 'tempered-alloy')
@@ -292,9 +280,9 @@ function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
   const fabDone = foundryFacilityCommitted(state, 'worker-fabricator') > 0
   const wantFab = !fabDone && careerBestWave(state) >= ACT1_CADENCE.foundry
   if (wantFab) {
-    if (temperOn && temper < 8 && stock >= 2) return 'tempered-alloy'
-    if (filOn && filament < 6) return 'conductive-filament'
-    if (stockOn && stock < 12 + Math.max(0, 8 - temper) * 2) return 'recovered-stock'
+    if (temperOn && temper < 8 && stock >= 2 && !occupied.has('tempered-alloy')) return 'tempered-alloy'
+    if (filOn && filament < 6 && !occupied.has('conductive-filament')) return 'conductive-filament'
+    if (stockOn && stock < 12 + Math.max(0, 8 - temper) * 2 && !occupied.has('recovered-stock')) return 'recovered-stock'
   }
   const processing: FoundryRecipeId[] = [
     'recovered-stock',
@@ -303,18 +291,21 @@ function pickProcessingRecipe(state: GameState): FoundryRecipeId | null {
     'ballistic-composite',
     'optical-glass',
   ]
-  const unlocked = processing.filter((id) => isFoundryRecipeUnlocked(state, id))
+  const unlocked = processing.filter(
+    (id) => isFoundryRecipeUnlocked(state, id) && !occupied.has(id),
+  )
   if (!unlocked.length) {
-    if (stockOn) return 'recovered-stock'
-    if (filOn) return 'conductive-filament'
-    return temperOn ? 'tempered-alloy' : null
+    if (stockOn && !occupied.has('recovered-stock')) return 'recovered-stock'
+    if (filOn && !occupied.has('conductive-filament')) return 'conductive-filament'
+    return temperOn && !occupied.has('tempered-alloy') ? 'tempered-alloy' : null
   }
   const belowSoft = unlocked.filter((id) => materialMasteryRank(state, id) < 3)
   const belowHard = unlocked.filter((id) => materialMasteryRank(state, id) < 5)
   const pool = belowSoft.length ? belowSoft : belowHard
   if (!pool.length) {
-    unlocked.sort((a, b) => foundryStock(state, a) - foundryStock(state, b))
-    return unlocked[0] ?? null
+    const belowStockFloor = unlocked.filter((id) => foundryStock(state, id) < 20)
+    belowStockFloor.sort((a, b) => foundryStock(state, a) - foundryStock(state, b))
+    return belowStockFloor[0] ?? null
   }
   pool.sort((a, b) => materialMasteryRank(state, a) - materialMasteryRank(state, b))
   return pool[0]!
@@ -333,8 +324,15 @@ export function tendFurnace(state: GameState, ctx: StrategyContext): GameState {
           ? { overdrive: 1, guidance: 1 }
           : { overdrive: 1, bulwark: 1 }
   let next = convertAshToHeat(state)
+  const ashConverted = Math.max(0, (state.resources.choirAsh ?? 0) - (next.resources.choirAsh ?? 0))
+  const heatCreated = Math.max(0, (next.resources.heat ?? 0) - (state.resources.heat ?? 0))
+  if (ashConverted > 0) ctx.recordResourceSpend?.('choirAsh', ashConverted, 'furnace')
+  if (heatCreated > 0) ctx.recordResourceEarn?.('heat', heatCreated)
+  const heatBeforeIgnite = next.resources.heat ?? 0
   const ignited = igniteFurnace(next, configured)
   if (ignited !== next) {
+    const heatSpent = Math.max(0, heatBeforeIgnite - (ignited.resources.heat ?? 0))
+    if (heatSpent > 0) ctx.recordResourceSpend?.('heat', heatSpent, 'furnace')
     ctx.recordMeaningful(`Furnace ${Object.keys(configured).join(' + ')}`)
     next = ignited
   }
@@ -604,6 +602,11 @@ export function doRebuild(state: GameState, ctx: StrategyContext, reasons: strin
     ctx.lastRebuildActive == null ? ctx.activeSeconds : ctx.activeSeconds - ctx.lastRebuildActive
   const after = performPrestige(state)
   if (after === state) return state
+  ctx.recordResourceEarn?.('prestigeMatter', gain)
+  if (after.resources.scrap > 0) ctx.recordResourceEarn?.('scrap', after.resources.scrap)
+  if (after.resources.salvage > 0) ctx.recordResourceEarn?.('salvage', after.resources.salvage)
+  // Rebuild destroys cycle wallets; those losses are reset boundaries, not spending.
+  ctx.syncResourceBalances?.(after)
   ctx.recordRebuild({
     index: after.prestige.prestigeCount,
     activeSeconds: ctx.activeSeconds,
@@ -809,20 +812,29 @@ export function industryPass(
 ): GameState {
   const profile = resolveSpendProfile(mode)
   let next = state
-  next = maybeUnlockAndFit(next, ctx)
-  next = spendSalvageOnRunUpgrades(next, ctx, profile)
-  next = tendFoundry(next, ctx)
-  next = tendProfileFabrication(next, ctx)
-  next = tendFoundryFacilities(next, ctx)
-  next = spendScrapOnWorkshop(next, ctx, profile)
-  next = spendScrapOnCoreStarts(next, ctx, profile)
+  const tracked = (category: string, action: (current: GameState) => GameState) => {
+    const before = next
+    const after = action(next)
+    for (const [resource, amount] of Object.entries(before.resources)) {
+      const spent = (amount ?? 0) - (after.resources[resource as keyof GameState['resources']] ?? 0)
+      if (spent > 0) ctx.recordResourceSpend?.(resource, spent, category)
+    }
+    next = after
+  }
+
+  tracked('permanent', (current) => maybeUnlockAndFit(current, ctx))
+  tracked('other', (current) => spendSalvageOnRunUpgrades(current, ctx, profile))
+  tracked('foundry', (current) => tendFoundry(current, ctx))
+  tracked('foundry', (current) => tendProfileFabrication(current, ctx))
+  tracked('foundry', (current) => tendFoundryFacilities(current, ctx))
+  tracked('workshop', (current) => spendScrapOnWorkshop(current, ctx, profile))
+  tracked('cores', (current) => spendScrapOnCoreStarts(current, ctx, profile))
   next = rebalanceNetwork(next, ctx, profile)
-  next = buyUsefulNetworkLinks(next, ctx)
   next = tendFurnace(next, ctx)
-  next = tendHiveResearch(next, ctx, profile)
-  next = tendProcess(next, ctx)
+  tracked('other', (current) => tendHiveResearch(current, ctx, profile))
+  tracked('other', (current) => tendProcess(current, ctx))
   next = tendReliquary(next, ctx)
-  next = spendRebuildMatter(next, ctx)
+  tracked('other', (current) => spendRebuildMatter(current, ctx))
   next = tendChallenges(next, ctx, profile === 'optimiser')
   return next
 }

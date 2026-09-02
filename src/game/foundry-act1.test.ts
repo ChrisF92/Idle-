@@ -61,6 +61,10 @@ function atFoundry(wave = ACT1_CADENCE.foundry) {
   return atCareerWave(createInitialState(0), wave)
 }
 
+function atWorkers() {
+  return atFoundry(ACT1_CADENCE.workers)
+}
+
 function stock(state: ReturnType<typeof createInitialState>, id: string, n: number) {
   state.foundry.materials[id] = n
 }
@@ -373,7 +377,7 @@ describe('PR5 physical Core fabrication', () => {
 
 describe('PR5 Workers', () => {
   it('keeps ownership and capacity distinct; Worker Racks raise capacity only', () => {
-    let s = atFoundry()
+    let s = atWorkers()
     s.base.workerDrones = 6
     expect(ownedWorkers(s)).toBe(6)
     expect(workerCapacity(s)).toBe(6)
@@ -385,7 +389,7 @@ describe('PR5 Workers', () => {
   })
 
   it('Worker Fabricator creates exactly one Worker and cannot exceed capacity', () => {
-    let s = atFoundry()
+    let s = atWorkers()
     s.foundry.facilities = ['worker-fabricator']
     s.base.workerDrones = 5
     s.foundry.materials['recovered-stock'] = 40
@@ -400,7 +404,7 @@ describe('PR5 Workers', () => {
   })
 
   it('assignments cannot exceed owned workforce', () => {
-    let s = atFoundry()
+    let s = atWorkers()
     s.base.workerDrones = 2
     s = assignWorker(s, 'scrap-field', 2)
     expect(s.base.assignments['scrap-field']).toBe(2)
@@ -410,7 +414,7 @@ describe('PR5 Workers', () => {
   })
 
   it('passive Worker Scrap is industry, not Extraction Sortie Scrap', () => {
-    let s = setDocked(markHullLost(atFoundry()), false)
+    let s = setDocked(markHullLost(atWorkers()), false)
     s = startCombat(s)
     s.base.workerDrones = 4
     s = assignWorker(s, 'scrap-field', 2)
@@ -523,7 +527,7 @@ describe('PR5 Rebuild / offline / clock', () => {
   })
 
   it('offline Worker fabrication grants exactly one Worker', () => {
-    let s = atFoundry()
+    let s = atWorkers()
     s.foundry.facilities = ['worker-fabricator']
     s.base.workerDrones = 5
     s.foundry.materials['recovered-stock'] = 40
@@ -538,7 +542,7 @@ describe('PR5 Rebuild / offline / clock', () => {
   })
 
   it('offline Worker Scrap is industry catch-up, not Extraction Sortie Scrap', () => {
-    let s = setDocked(markHullLost(atFoundry()), true)
+    let s = setDocked(markHullLost(atWorkers()), true)
     s.base.workerDrones = 4
     s = assignWorker(s, 'scrap-field', 2)
     s.lastTickAt = 0

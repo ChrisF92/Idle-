@@ -82,10 +82,10 @@ describe('Act 1 authored formulas', () => {
     expect(ids).not.toContain('sector-1')
     const rebuild = ACT1_TARGETS.find((t) => t.id === 'first-rebuild')!
     expect([rebuild.min / 3600, rebuild.max / 3600]).toEqual([6, 12])
-    const hourBeats = ACT1_TARGETS.filter((t) =>
-      ['first-wave', 'foundry-unlock'].includes(t.id),
-    )
-    expect(hourBeats.every((t) => t.max <= 60 * 60)).toBe(true)
+    const foundry = ACT1_TARGETS.find((t) => t.id === 'foundry-unlock')!
+    const workers = ACT1_TARGETS.find((t) => t.id === 'workers-unlock')!
+    expect([foundry.min / 60, foundry.max / 60]).toEqual([30, 120])
+    expect([workers.min / 3600, workers.max / 3600]).toEqual([2, 5])
   })
 })
 

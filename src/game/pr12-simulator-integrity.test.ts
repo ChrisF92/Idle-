@@ -13,6 +13,7 @@ import { formatSummary } from './simulation/report'
 import { runSimulation } from './simulation/runner'
 import { tendChallenges, tendFurnace, tendHiveResearch, tendProfileFabrication } from './simulation/actions'
 import type { StrategyContext } from './simulation/types'
+import { createWavePackage } from './waveRuntime'
 
 function context(buildProfile: StrategyContext['config']['buildProfile']): StrategyContext {
   return {
@@ -50,6 +51,10 @@ describe('PR12 simulator integrity', () => {
     state.meta.bestWave = 100
     state.combat.bestWave = 100
     state.combat.wave = 101
+    const package100 = createWavePackage(state, 100, 'boss', 1)
+    package100.secured = true
+    package100.rewardPaid = true
+    state.combat.packages.push(package100)
     state.combat.encounterTelemetry.bossEncounterDuration = 42
     observeState(metrics, state, prev, 120, 120, 1)
 

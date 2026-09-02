@@ -3,7 +3,7 @@ export const ACT1_CADENCE = {
   /** Codex UI unlock. Discoveries are recorded from W1 on actual spawn. */
   codex: 30,
   foundry: 50,
-  workers: 50,
+  workers: 110,
   economy: 40,
   directives: 125,
   rebuild: 210,

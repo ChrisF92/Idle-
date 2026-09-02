@@ -163,6 +163,7 @@ export interface SortieRecord {
 
 export interface SimulationCombatTelemetry {
   bossFights: number
+  bossTtks: Array<{ wave: number; seconds: number }>
   bossTtkAverage: number | null
   bossTtkPeak: number | null
   backlogAverage: number | null
@@ -173,6 +174,10 @@ export interface SimulationCombatTelemetry {
   slewDowntimeSeconds: number
   activeFiringSeconds: number
   shotsFired: number
+  measuredCoreSeconds: number
+  acquisitionDelayShare: number | null
+  slewDowntimeShare: number | null
+  activeFiringShare: number | null
 }
 
 export interface CorePurchaseRecord {
@@ -234,9 +239,18 @@ export interface RebuildRecord {
 export interface EconomyBucket {
   id: ResourceId | string
   label: string
+  starting: number
   earned: number
   spent: number
+  resetLost: number
   ending: number
+}
+
+export interface ScrapAllocationBucket {
+  category: string
+  label: string
+  spent: number
+  share: number
 }
 
 export interface MeaningfulAction {
@@ -371,6 +385,11 @@ export interface SimulationRunReport {
   calendarSeconds: number
   offlineSeconds: number
   highestSector: number
+  /** Highest Wave whose package spawned. */
+  highestWaveReached: number
+  /** Highest Wave whose package was defeated and reward secured. */
+  highestWaveSecured: number
+  /** @deprecated Use highestWaveReached / highestWaveSecured explicitly. */
   highestWave: number
   rebuilds: number
   prestigeMatterEarned: number
@@ -418,6 +437,7 @@ export interface SimulationRunReport {
   }
   snapshots: Act1Snapshot[]
   economy: EconomyBucket[]
+  scrapAllocation: ScrapAllocationBucket[]
   rebuildLog: RebuildRecord[]
   meaningfulActions: MeaningfulAction[]
   pacing: {
@@ -440,6 +460,11 @@ export interface SimulationRunReport {
     intendedRelics: string[]
     actualRelics: string[]
     doctrines: Array<string | null>
+    slotCapacity: number
+    acquiredIntendedCores: string[]
+    coreStatus: string
+    relicStatus: string
+    doctrineStatus: string
   }
 }
 
@@ -479,6 +504,9 @@ export interface StrategyContext {
   recordRebuild: (row: Omit<RebuildRecord, 'repushSeconds' | 'repushRatio' | 'newHighestAfter' | 'permanentPurchases'> & { permanentPurchases?: string[] }) => void
   attachRebuildPurchase: (label: string) => void
   noteLimitation: (system: string, note: string) => void
+  recordResourceSpend?: (resource: ResourceId | string, amount: number, category: string) => void
+  recordResourceEarn?: (resource: ResourceId | string, amount: number) => void
+  syncResourceBalances?: (state: GameState) => void
 }
 
 export interface PlayerStrategy {

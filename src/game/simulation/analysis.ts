@@ -10,26 +10,41 @@ import type {
 import { median } from './format'
 
 export function aggregateTenWaveBands(sectors: SectorRecord[]): SectorRecord[] {
-  const bands = new Map<number, SectorRecord>()
+  const bands = new Map<number, SectorRecord[]>()
   for (const row of sectors) {
     const endWave = Math.ceil(row.sector / 10) * 10
-    const current = bands.get(endWave)
-    if (!current) {
-      bands.set(endWave, { ...row, sector: endWave })
-      continue
-    }
-    current.firstEntryActive = Math.min(current.firstEntryActive, row.firstEntryActive)
-    current.firstClearActive = row.firstClearActive ?? current.firstClearActive
-    current.clearDuration = (current.clearDuration ?? 0) + (row.clearDuration ?? 0)
-    current.deaths += row.deaths
-    current.relaunches += row.relaunches
-    current.salvageEarned += row.salvageEarned
-    current.holdSeconds += row.holdSeconds
-    current.pulseLevelOnClear = row.pulseLevelOnClear ?? current.pulseLevelOnClear
-    current.plateLevelOnClear = row.plateLevelOnClear ?? current.plateLevelOnClear
-    current.bossClearSeconds = row.bossClearSeconds ?? current.bossClearSeconds
+    const current = bands.get(endWave) ?? []
+    current.push(row)
+    bands.set(endWave, current)
   }
-  return [...bands.values()].sort((a, b) => a.sector - b.sector)
+
+  let previousBandClear = 0
+  return [...bands.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([endWave, rows]) => {
+      const sorted = [...rows].sort((a, b) => a.sector - b.sector)
+      const first = sorted[0]!
+      const end = sorted.find((row) => row.sector === endWave)
+      const endClear = end?.firstClearActive ?? null
+      const complete = endClear != null
+      const band: SectorRecord = {
+        ...first,
+        sector: endWave,
+        firstEntryActive: Math.min(...sorted.map((row) => row.firstEntryActive)),
+        firstClearActive: endClear,
+        // Career-band elapsed time, not the sum of one-second wave-security lags.
+        clearDuration: complete ? Math.max(0, endClear - previousBandClear) : null,
+        deaths: sorted.reduce((sum, row) => sum + row.deaths, 0),
+        relaunches: sorted.reduce((sum, row) => sum + row.relaunches, 0),
+        salvageEarned: sorted.reduce((sum, row) => sum + row.salvageEarned, 0),
+        holdSeconds: sorted.reduce((sum, row) => sum + row.holdSeconds, 0),
+        pulseLevelOnClear: end?.pulseLevelOnClear ?? null,
+        plateLevelOnClear: end?.plateLevelOnClear ?? null,
+        bossClearSeconds: end?.bossClearSeconds ?? null,
+      }
+      if (complete) previousBandClear = endClear
+      return band
+    })
 }
 
 export function detectWalls(sectors: SectorRecord[]): ProgressionWall[] {
@@ -143,6 +158,8 @@ export interface GddWarningInput {
   salvageSpentOnRunUpgrades: number
   salvageSpentOnCores: number
   scrapEarned: number
+  scrapResetLost: number
+  scrapAllocation: Array<{ label: string; spent: number; share: number }>
   workshopLevels: Record<string, number>
   failedPushStreak: number
   activeSeconds: number
@@ -191,10 +208,11 @@ export function detectGddWarnings(input: GddWarningInput): SimulationWarning[] {
     out.push(warn('WALL', 'Several push Sorties without a New Best toward Rebuild.'))
   }
 
-  if (firstRebuild != null && firstRebuild < 15 * 60) {
-    out.push(warn('STEAMROLL', 'First Rebuild landed far faster than the authored slope.'))
-  } else if (input.highestWave >= 100 && input.activeSeconds > 0 && input.activeSeconds < 90 * 60) {
-    out.push(warn('STEAMROLL', `Best Wave jumped to ${input.highestWave} well before the authored W100 window.`))
+  const wave100At = milestoneAt(input.milestones, 'wave-100')
+  if (firstRebuild != null && firstRebuild < 6 * 60 * 60) {
+    out.push(warn('STEAMROLL', 'First Rebuild landed before the authored 6-hour floor.', 'fail'))
+  } else if (wave100At != null && wave100At < 2 * 60 * 60) {
+    out.push(warn('STEAMROLL', `Wave 100 was secured in ${Math.round(wave100At / 60)} minutes; the authored floor is 2 hours.`, 'fail'))
   }
 
   if (
@@ -207,6 +225,29 @@ export function detectGddWarnings(input: GddWarningInput): SimulationWarning[] {
       warn(
         'ECON TRAP',
         'Salvage piled up while run upgrades and Scrap spends stayed too low for the remaining run.',
+      ),
+    )
+  }
+
+  const dominantScrap = input.scrapAllocation.find((row) =>
+    (row.label.includes('infrastructure') || row.label.includes('Foundry'))
+      ? row.share >= 0.6
+      : row.share >= 0.75,
+  )
+  if (dominantScrap) {
+    out.push(
+      warn(
+        dominantScrap.label.includes('infrastructure') ? 'SYSTEM DOMINANT' : 'DOMINANT UPGRADE',
+        `${dominantScrap.label} consumed ${(dominantScrap.share * 100).toFixed(0)}% of tracked Scrap spending.`,
+      ),
+    )
+  }
+
+  if (input.scrapEarned > 0 && input.scrapResetLost >= input.scrapEarned * 0.2) {
+    out.push(
+      warn(
+        'ECON TRAP',
+        `${(100 * input.scrapResetLost / input.scrapEarned).toFixed(0)}% of earned Scrap was erased at Rebuild boundaries.`,
       ),
     )
   }

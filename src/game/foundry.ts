@@ -595,6 +595,9 @@ export function canStartFabrication(
     return { ok: true, cost: recipe.costs }
   }
   if (kind === 'worker') {
+    if (careerBestWave(state) < ACT1_CADENCE.workers) {
+      return { ok: false, reason: `Reach Wave ${ACT1_CADENCE.workers}` }
+    }
     if (!hasFacility(state, 'worker-fabricator')) return { ok: false, reason: 'Build Worker Fabricator' }
     const queued = (state.foundry.fabrication ?? []).filter((slot) => slot.kind === 'worker').length
     if (ownedWorkers(state) + queued >= workerCapacity(state)) {

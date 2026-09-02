@@ -20,15 +20,15 @@ import { startFabrication } from './foundry'
 import { tickAutomation } from './automation'
 
 describe('GDD Worker Drones', () => {
-  it('stays locked before Wave 50, even after the first hull loss', () => {
-    const dead = markHullLost(atCareerWave(createInitialState(0), 49))
+  it('stays locked before Wave 110, even after the first hull loss', () => {
+    const dead = markHullLost(atCareerWave(createInitialState(0), ACT1_CADENCE.workers - 1))
     expect(isWorkersUnlocked(dead)).toBe(false)
     expect(isSystemUnlocked(dead, 'network')).toBe(false)
     expect(isSystemUnlocked(dead, 'base')).toBe(false)
     expect(isStationUnlocked(dead, 'scrap-field')).toBe(false)
   })
 
-  it('opens industrial jobs with Foundry at Wave 50', () => {
+  it('opens industrial jobs at the Wave 110 Worker door', () => {
     const open = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     expect(isWorkersUnlocked(open)).toBe(true)
     expect(isSystemUnlocked(open, 'network')).toBe(true)
@@ -139,7 +139,7 @@ describe('GDD Worker Drones', () => {
   })
 
   it('manufactures Worker Drones only through the Worker Fabricator job', () => {
-    let idle = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    let idle = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     idle.foundry.facilities = ['worker-fabricator']
     idle.foundry.materials['recovered-stock'] = 40
     idle.foundry.materials['conductive-filament'] = 20
@@ -148,7 +148,7 @@ describe('GDD Worker Drones', () => {
     advanceSeconds(idle, 120)
     expect(idle.base.workerDrones).toBe(before)
 
-    let staffed = atCareerWave(createInitialState(0), ACT1_CADENCE.foundry)
+    let staffed = atCareerWave(createInitialState(0), ACT1_CADENCE.workers)
     staffed.foundry.facilities = ['worker-fabricator']
     staffed.foundry.materials['recovered-stock'] = 40
     staffed.foundry.materials['conductive-filament'] = 20
