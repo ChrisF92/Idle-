@@ -15,11 +15,14 @@ import {
   buyWorkshopUpgrade,
   buyRunUpgrade,
   buyCoreStartingLevel,
+  selectFrame,
+  unequipAllModules,
 } from '../actions'
 import { canRebuild, matterGainFor } from '../rebuild'
 import { setDocked, chooseDirective } from '../tick'
 import {
   canBuyMatterShop,
+  getFrame,
   getMatterShopItem,
   getModule,
   idleWorkers,
@@ -54,6 +57,7 @@ import { careerBestWave } from '../waves'
 import { workerJobCap } from '../workers'
 import { CHALLENGES, CHALLENGE_MAX_MEDAL, canEnterChallenge, challengeMedalRank } from '../challenges'
 import type { SimulationSpendProfile, StrategyContext } from './types'
+import { getAct1BuildProfile } from './buildProfiles'
 import {
   RUN_UPGRADES,
   nextRunUpgradeCost,
@@ -395,20 +399,34 @@ export function tendReliquary(state: GameState, _ctx: StrategyContext): GameStat
 export function maybeUnlockAndFit(state: GameState, ctx: StrategyContext): GameState {
   let next = state
   for (const mod of SHIP_MODULES) {
-    if (next.shipyard.unlockedModules.includes(mod.id)) {
-      if (!next.shipyard.modules.includes(mod.id) && next.combat.docked) {
-        const fitted = fitModule(next, mod.id)
-        if (fitted !== next) {
-          ctx.recordMeaningful(`Fitted ${mod.name}`)
-          next = fitted
-        }
-      }
-      continue
-    }
+    if (next.shipyard.unlockedModules.includes(mod.id)) continue
     const after = unlockModule(next, mod.id)
     if (after !== next) {
       ctx.recordMeaningful(`Unlocked ${mod.name}`)
       next = after
+    }
+  }
+  if (!next.combat.docked) return next
+
+  const profile = getAct1BuildProfile(ctx.config.buildProfile)
+  if (next.shipyard.unlockedFrames.includes(profile.frameId) && next.shipyard.frameId !== profile.frameId) {
+    const framed = selectFrame(next, profile.frameId)
+    if (framed !== next) {
+      ctx.recordMeaningful(`Frame ${getFrame(profile.frameId)?.name ?? profile.frameId}`)
+      next = framed
+    }
+  }
+
+  const desired = profile.coreIds.filter((id) => next.shipyard.unlockedModules.includes(id))
+  const alreadyProfiled = next.shipyard.modules.length === desired.length &&
+    next.shipyard.modules.every((id, index) => id === desired[index])
+  if (!alreadyProfiled && desired.length > 0) {
+    next = unequipAllModules(next)
+    for (const id of desired) {
+      const fitted = fitModule(next, id)
+      if (fitted === next) continue
+      next = fitted
+      ctx.recordMeaningful(`Fitted ${getModule(id)?.name ?? id} · ${profile.label}`)
     }
   }
   return next

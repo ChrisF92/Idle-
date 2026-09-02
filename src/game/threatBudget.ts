@@ -49,7 +49,6 @@ export function allocateSortieSeed(state: GameState): number {
     0x51e3d7e,
     state.meta.sortieSerial,
     state.prestige.prestigeCount ?? 0,
-    state.meta.ascensionCount ?? 0,
   )
   return seed || 1
 }

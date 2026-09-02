@@ -21,7 +21,6 @@ import {
 import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
 import { repairRatePerSecond, shieldRepairRatePerSecond } from './combat'
-import { tickNetwork } from './network'
 import { tickFoundry, foundrySalvageOpsMult } from './foundry'
 import { tickResearch } from './hiveResearch'
 import { processOfflineBonusMs } from './process'
@@ -77,10 +76,7 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
       state.prestige.matterShop,
     ) *
     (1 +
-      prestigeMomentumProductionBonus(
-        state.prestige.prestigeCount,
-        state.meta.ascensionCount ?? 0,
-      )) *
+      prestigeMomentumProductionBonus(state.prestige.prestigeCount)) *
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
     (1 + aiProductionBonus(state)) *
@@ -119,7 +115,6 @@ function applyIndustryOnly(state: GameState, seconds: number): void {
     }
   }
 
-  tickNetwork(state, seconds)
   tickFoundry(state, seconds)
   tickResearch(state, seconds)
 

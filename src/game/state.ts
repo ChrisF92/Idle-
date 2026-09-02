@@ -53,10 +53,10 @@ import {
   challengeHullMult,
   createEmptyChallengeState,
 } from './challenges'
-import { createEmptyEchoState, echoDamageMult, echoShieldMult } from './echo'
+import { createEmptyEchoState } from './echo'
 import { createEmptyProcessState, processDamageMult, processShieldMult } from './process'
-import { createEmptySpecialistState, specialistDamageMult, specialistShieldMult } from './specialists'
-import { createEmptyCapitalState, capitalDamageMult, capitalShieldMult } from './capital'
+import { createEmptySpecialistState } from './specialists'
+import { createEmptyCapitalState } from './capital'
 import { emptyLastSortie } from './sortieSummary'
 import { createEmptyPlaytest } from './playtest'
 import { emptyWaveRuntime } from './waveRuntime'
@@ -231,7 +231,6 @@ export function createInitialState(now = Date.now()): GameState {
       sortieSerial: 0,
       act1Cleared: false,
       act1FinalePending: false,
-      ascensionCount: 0,
       seenOnboarding: [],
       onboarding: {},
       acknowledgedEvents: [],
@@ -278,10 +277,7 @@ export function globalDamageMultiplier(state: GameState): number {
   mult *= essenceDamageMultiplier(state.essence.purchased)
   mult *=
     1 +
-    prestigeMomentumDamageBonus(
-      state.prestige.prestigeCount,
-      state.meta.ascensionCount ?? 0,
-    )
+    prestigeMomentumDamageBonus(state.prestige.prestigeCount)
   mult *= metaDamageMultiplier(
     state.resources.prestigeMatter,
     state.resources.challengePoints,
@@ -295,9 +291,6 @@ export function globalDamageMultiplier(state: GameState): number {
   if (coreDmg) mult *= 1 + coreDmg * 0.5
   mult *= furnaceDamageMult(state)
   mult *= hiveResearchDamageMult(state)
-  mult *= echoDamageMult(state)
-  mult *= specialistDamageMult(state)
-  mult *= capitalDamageMult(state)
   return mult
 }
 
@@ -428,9 +421,6 @@ export function computeShipStats(state: GameState): ShipCombatStats {
   evasion += signalBonuses.evasion
   shieldMax *= furnaceShieldMult(state)
   shieldMax *= hiveResearchShieldMult(state)
-  shieldMax *= echoShieldMult(state)
-  shieldMax *= specialistShieldMult(state)
-  shieldMax *= capitalShieldMult(state)
   shieldMax *= processShieldMult(state)
 
   hullMax *= challengeHullMult(state)

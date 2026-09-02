@@ -103,14 +103,14 @@ export const FOUNDRY_LOGS: FoundryLogDef[] = [
   {
     id: 'act1',
     title: 'Wave 1000',
-    body: 'The Act 1 wall is the Wave 1000 Choir Crown. Rebuild has reached the limit of this architecture. Reinforce opens after that defeat.',
+    body: 'The Act 1 wall is the Wave 1000 Choir Crown. Its defeat reveals Reinforce as a direction beyond Act 1.',
     unlock: (s) => career(s) >= ACT1_CADENCE.reinforce || s.meta.act1Cleared,
   },
   {
     id: 'reinforce',
     title: 'The loop ceiling',
-    body: 'Rebuild carries knowledge backward. Reinforce changes the starting architecture of the Hive and the loop itself. No Act 2 shop.',
-    unlock: (s) => s.meta.act1Cleared || (s.meta.ascensionCount ?? 0) > 0,
+    body: 'Rebuild carries knowledge backward. Reinforce names a possible future direction; no second reset or Act 2 economy is defined yet.',
+    unlock: (s) => s.meta.act1Cleared,
   },
 ]
 

@@ -49,7 +49,6 @@ describe('Act 1 authored formulas', () => {
     expect(ACT1_UNLOCKS.furnace).toBe(450)
     expect(ACT1_UNLOCKS.research).toBe(525)
     expect(ACT1_UNLOCKS.challenges).toBe(375)
-    expect(ACT1_UNLOCKS.echo).toBe(275)
     expect(ACT1_UNLOCKS.act1).toBe(1000)
     expect(salvageFromKill(1, false)).toBe(1)
     expect(salvageFromKill(1, true)).toBe(5)
@@ -119,7 +118,7 @@ describe('Act 1 onboarding audit', () => {
     expect(activeGuideStep(skipped, 'research')).toBeNull()
   })
 
-  it('inspect sheets explain why damage, Network, Furnace, Rebuild, and Research change', () => {
+  it('inspect sheets explain why damage, Furnace, Rebuild, and Research change', () => {
     const s = createInitialState(0)
     s.furnace = {
       ignited: true,
@@ -155,8 +154,8 @@ describe('Act 1 career simulations', () => {
     expect(canRebuild(ready)).toBe(true)
   })
 
-  it.skip('optimiser first Rebuild is not a spam-reset and still spends Cores', () => {
-    const report = runSimulation(firstRebuildConfig('optimiser'))
+  it('optimiser first Rebuild is not a spam-reset and still spends Cores', async () => {
+    const report = await runSimulation(firstRebuildConfig('optimiser'))
     const run = report.runs[0]!
     expect(run.rebuilds).toBeGreaterThanOrEqual(1)
     expect(run.coreSpending.some((c) => c.levelsPurchased > 0)).toBe(true)

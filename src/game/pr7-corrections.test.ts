@@ -278,17 +278,15 @@ describe('PR7 correction E/F/G/H — presentation and boundaries', () => {
     }
   })
 
-  it('records W1000 exactly once without opening PR11 finale/Reinforce flow', () => {
+  it('records W1000 exactly once and hands off to the PR11 finale', () => {
     const state = createInitialState(0)
-    const ascension = state.meta.ascensionCount
     const rebuilds = state.prestige.prestigeCount
     recordBossClearSources(state, 1000)
     recordBossClearSources(state, 1000)
     expect(state.meta.act1Cleared).toBe(true)
-    expect(Boolean(state.meta.act1FinalePending)).toBe(false)
+    expect(Boolean(state.meta.act1FinalePending)).toBe(true)
     expect(state.codex.milestones.filter((id) => id === bossClearMilestoneId(1000))).toHaveLength(1)
     expect(state.codex.milestones.filter((id) => id === 'act1-boss-clear')).toHaveLength(1)
-    expect(state.meta.ascensionCount).toBe(ascension)
     expect(state.prestige.prestigeCount).toBe(rebuilds)
   })
 })

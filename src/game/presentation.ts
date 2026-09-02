@@ -158,7 +158,7 @@ const SYSTEM_TOAST: Partial<
   },
   reinforce: {
     title: 'Reinforce unlocked',
-    body: 'Rebuild has reached the limit of this loop. Reinforce changes the Hive’s starting architecture.',
+    body: 'The Choir Crown revealed a possible direction beyond Act 1. No second reset is active.',
     label: 'OPEN',
     nav: { kind: 'tab', tab: 'reinforce' },
   },
@@ -293,7 +293,7 @@ export function diffToasts(prev: ToastSnapshot, next: ToastSnapshot, state: Game
         id: 'sys:act1',
         category: 'CAMPAIGN',
         title: 'Act 1 complete',
-        body: 'The Choir Crown is destroyed. Reinforce is open on More.',
+        body: 'The Choir Crown is destroyed. A direction beyond Act 1 is visible on More.',
         tier: 'major',
         action: { label: 'OPEN', nav: { kind: 'tab', tab: 'reinforce' } },
       },

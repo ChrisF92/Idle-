@@ -7,8 +7,8 @@
  * Windows are **engaged active time** unless labelled calendar.
  * Casual sessions stretch the same beats across offline catch-up.
  *
- * GDD §155 pads (first defeat 3–5 min, Rebuild 2–4 h, Process 24–36 h,
- * W300 70–100 h) are the live CI windows. Tune one named curve at a time.
+ * Canonical pads (first defeat 3–5 min, Rebuild 2–4 h, Process 24–36 h,
+ * W1000 80–100 h) are the live acceptance windows. Tune one named curve at a time.
  */
 
 import { droneCap, prestigeMomentumDamageBonus } from '../catalog'
@@ -21,7 +21,6 @@ import {
 import { PRESTIGE_MIN_SECTOR } from '../progression'
 import { processEarned, PROCESS_ACCUMULATION } from '../process'
 import { CHALLENGE_UNLOCK_WAVE } from '../challenges'
-import { ECHO_UNLOCK_SECTOR } from '../echo'
 import type { GameState } from '../types'
 import { ACT1_CADENCE, ACT1_FINAL_WAVE } from '../cadence'
 import { reportedBestWave } from '../waves'
@@ -42,7 +41,6 @@ export const ACT1_UNLOCKS = {
   research: ACT1_CADENCE.research,
   process: ACT1_CADENCE.process,
   challenges: CHALLENGE_UNLOCK_WAVE,
-  echo: ECHO_UNLOCK_SECTOR,
   act1: ACT1_FINAL_WAVE,
 } as const
 
@@ -138,9 +136,9 @@ export const ACT1_TARGETS: BalanceTarget[] = [
   {
     id: 'wave-100',
     label: 'Wave 100',
-    min: 3 * 60 * 60,
-    max: 12 * 60 * 60,
-    warningPad: 2 * 60 * 60,
+    min: 2 * 60 * 60,
+    max: 4 * 60 * 60,
+    warningPad: 60 * 60,
     milestoneId: 'wave-100',
     kind: 'milestone-time',
   },
@@ -163,9 +161,41 @@ export const ACT1_TARGETS: BalanceTarget[] = [
     kind: 'milestone-time',
   },
   {
+    id: 'wave-200', label: 'Wave 200', min: 6 * 60 * 60, max: 10 * 60 * 60,
+    warningPad: 2 * 60 * 60, milestoneId: 'wave-200', kind: 'milestone-time',
+  },
+  {
+    id: 'wave-300', label: 'Wave 300', min: 12 * 60 * 60, max: 18 * 60 * 60,
+    warningPad: 3 * 60 * 60, milestoneId: 'wave-300', kind: 'milestone-time',
+  },
+  {
+    id: 'wave-400', label: 'Wave 400', min: 20 * 60 * 60, max: 28 * 60 * 60,
+    warningPad: 4 * 60 * 60, milestoneId: 'wave-400', kind: 'milestone-time',
+  },
+  {
+    id: 'wave-500', label: 'Wave 500', min: 30 * 60 * 60, max: 40 * 60 * 60,
+    warningPad: 5 * 60 * 60, milestoneId: 'wave-500', kind: 'milestone-time',
+  },
+  {
+    id: 'wave-600', label: 'Wave 600', min: 42 * 60 * 60, max: 54 * 60 * 60,
+    warningPad: 6 * 60 * 60, milestoneId: 'wave-600', kind: 'milestone-time',
+  },
+  {
+    id: 'wave-700', label: 'Wave 700', min: 52 * 60 * 60, max: 66 * 60 * 60,
+    warningPad: 7 * 60 * 60, milestoneId: 'wave-700', kind: 'milestone-time',
+  },
+  {
+    id: 'wave-800', label: 'Wave 800', min: 62 * 60 * 60, max: 78 * 60 * 60,
+    warningPad: 8 * 60 * 60, milestoneId: 'wave-800', kind: 'milestone-time',
+  },
+  {
+    id: 'wave-900', label: 'Wave 900', min: 72 * 60 * 60, max: 90 * 60 * 60,
+    warningPad: 9 * 60 * 60, milestoneId: 'wave-900', kind: 'milestone-time',
+  },
+  {
     id: 'w1000',
     label: 'Wave 1000',
-    min: 70 * 60 * 60,
+    min: 80 * 60 * 60,
     max: 100 * 60 * 60,
     warningPad: 20 * 60 * 60,
     milestoneId: 'wave-1000',
@@ -236,7 +266,7 @@ export function act1Contribution(state: GameState): Act1Contribution {
     furnaceDamage: furnaceDamageMult(state) - 1,
     reliquaryDamage: 0,
     researchDamage: hiveResearchDamageMult(state) - 1,
-    rebuildMomentum: prestigeMomentumDamageBonus(state.prestige.prestigeCount, state.meta.ascensionCount ?? 0),
+    rebuildMomentum: prestigeMomentumDamageBonus(state.prestige.prestigeCount),
   }
 }
 

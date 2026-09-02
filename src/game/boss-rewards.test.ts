@@ -118,7 +118,7 @@ describe('PR7 Boss-clear sources', () => {
     expect(JSON.stringify(s.furnace ?? createEmptyFurnaceState())).toBe(before)
   })
 
-  it('W900/W950/W1000 are milestone sources without Act 2 reset', () => {
+  it('W900/W950/W1000 hand off to the finale without an Act 2 reset', () => {
     const s = createInitialState(0)
     s.prestige.prestigeCount = 2
     recordBossClearSources(s, 900)
@@ -129,6 +129,6 @@ describe('PR7 Boss-clear sources', () => {
     expect(s.codex.milestones).toContain('act1-boss-clear')
     expect(s.meta.act1Cleared).toBe(true)
     expect(s.prestige.prestigeCount).toBe(2)
-    expect(s.meta.act1FinalePending).toBe(false)
+    expect(s.meta.act1FinalePending).toBe(true)
   })
 })

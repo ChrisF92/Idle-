@@ -1,60 +1,20 @@
-import { useEffect, useState } from 'react'
 import type { GameState } from '../../game/types'
 import { isSystemUnlocked } from '../../game/progression'
-import { REINFORCE_UNLOCK_SECTOR, canReinforce, reinforceCount } from '../../game/reinforce'
-import { reinforceConsequenceLists } from '../../game/playerGuidance'
-import { ConsequencePanel } from '../ConsequencePanel'
-import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion'
-import {
-  ConfirmModal,
-  ContextBar,
-  Screen,
-  ScreenHeader,
-  Section,
-  StatPair,
-  StickyAction,
-} from '../../ui/primitives'
+import { REINFORCE_UNLOCK_WAVE } from '../../game/reinforce'
+import { ContextBar, Screen, ScreenHeader, Section, StatPair } from '../../ui/primitives'
 
 interface ReinforceTabProps {
   state: GameState
   onBack: () => void
-  onReinforce: () => void
 }
 
-const PRESENTATION_MS = 2800
-
-export function ReinforceTab({ state, onBack, onReinforce }: ReinforceTabProps) {
+export function ReinforceTab({ state, onBack }: ReinforceTabProps) {
   const open = isSystemUnlocked(state, 'reinforce')
-  const check = canReinforce(state)
-  const count = reinforceCount(state)
-  const [confirm, setConfirm] = useState(false)
-  const [presenting, setPresenting] = useState(false)
-  const lists = reinforceConsequenceLists(state)
-  const reduced = usePrefersReducedMotion()
-
-  useEffect(() => {
-    if (!presenting) return
-    if (reduced) return
-    const id = window.setTimeout(() => {
-      onReinforce()
-      setPresenting(false)
-    }, PRESENTATION_MS)
-    return () => window.clearTimeout(id)
-  }, [presenting, reduced, onReinforce])
-
-  const beginReinforce = () => {
-    setConfirm(false)
-    setPresenting(true)
-    if (reduced) {
-      onReinforce()
-      setPresenting(false)
-    }
-  }
 
   return (
-    <Screen className="panel screen-panel reinforce-screen" label="Reinforce" sticky={open}>
+    <Screen className="panel screen-panel reinforce-screen" label="Beyond Act 1">
       <ScreenHeader
-        title="Reinforce"
+        title="Beyond Act 1"
         action={
           <button type="button" onClick={onBack}>
             More
@@ -62,67 +22,33 @@ export function ReinforceTab({ state, onBack, onReinforce }: ReinforceTabProps) 
         }
       />
       <ContextBar>
-        <StatPair label="Act 1" value={state.meta.act1Cleared ? 'Complete' : 'Open'} />
-        <StatPair label="Reinforce count" value={count} />
-        <StatPair label="Door" value={`Wave ${REINFORCE_UNLOCK_SECTOR}`} />
+        <StatPair label="Act 1" value={state.meta.act1Cleared ? 'Complete' : 'In progress'} />
+        <StatPair label="Finale" value="Choir Crown" />
+        <StatPair label="Door" value={`Wave ${REINFORCE_UNLOCK_WAVE}`} />
       </ContextBar>
       {!open ? (
         <p className="muted">
-          Clear Wave {REINFORCE_UNLOCK_SECTOR} to reveal Reinforce. Rebuild carries knowledge backward.
-          Reinforce reconstructs the Hive. No Act 2 shop opens here.
+          Defeat the Wave {REINFORCE_UNLOCK_WAVE} Choir Crown to reveal what lies beyond Act 1.
         </p>
       ) : (
         <div className="panel-scroll">
           <Section>
             <p>
-              Act 1 is complete. Rebuild has carried knowledge as far as this loop allows. Reinforce is a
-              larger reconstruction — the Hive’s starting architecture, not another Matter shop.
+              Act 1 is complete. The Crown's collapse exposes a deeper temporal fault: the Hive has been
+              reconstructed before, and Rebuild is only the smallest expression of that loop.
             </p>
-            <ConsequencePanel lists={lists} variant="reinforce" />
+            <p>
+              <strong>Reinforce is a future direction, not an active reset.</strong> Its exact role, reset
+              boundary, and whether Hiveworks needs a second prestige layer will be decided from Act 1
+              simulator and playtest evidence.
+            </p>
+            <p className="muted">
+              No resources are spent, no account state is reset, and no Act 2 economy is available here.
+              Hollow Choir is now available under Challenges.
+            </p>
           </Section>
-          <StickyAction guide="reinforce-go">
-            <button
-              type="button"
-              className="primary"
-              data-guide="reinforce-go"
-              data-onboarding="onboarding.reinforce.cta"
-              disabled={!check.ok}
-              onClick={() => setConfirm(true)}
-            >
-              {check.ok ? 'Reinforce' : check.reason}
-            </button>
-          </StickyAction>
         </div>
       )}
-      <ConfirmModal
-        open={confirm}
-        title="Reinforce"
-        overlayId="reinforce-confirm"
-        onClose={() => setConfirm(false)}
-      >
-        <p>This reconstructs the Hive. Confirm the lists, then continue.</p>
-        <ConsequencePanel lists={lists} variant="reinforce" />
-        <div className="modal-actions">
-          <button type="button" onClick={() => setConfirm(false)}>
-            Cancel
-          </button>
-          <button type="button" className="primary" onClick={beginReinforce}>
-            Confirm Reinforce
-          </button>
-        </div>
-      </ConfirmModal>
-      {presenting && !reduced ? (
-        <div
-          className="reinforce-presentation"
-          role="dialog"
-          aria-labelledby="reinforce-presentation-title"
-          aria-modal="true"
-        >
-          <p className="ui-kicker">Temporal reconstruction</p>
-          <h3 id="reinforce-presentation-title">The Hive destabilises</h3>
-          <p>Time around the lattice distorts. Reconstruction begins.</p>
-        </div>
-      ) : null}
     </Screen>
   )
 }

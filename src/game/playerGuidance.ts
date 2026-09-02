@@ -43,44 +43,11 @@ export function rebuildConsequenceLists(state: GameState): ConsequenceLists {
   return { gain, keep, reset, change }
 }
 
-export function reinforceConsequenceLists(state: GameState): ConsequenceLists {
-  const lists = rebuildConsequenceLists(state)
-  const reset = [
-    ...lists.reset,
-    'Current loop position',
-    'This cycle’s Sortie path',
-  ]
-  const keep = [
-    ...lists.keep,
-    'Act 1 completion',
-    `Reinforce count (${reinforceCountLabel(state)})`,
-  ]
-  const change = [
-    `+${Math.max(1, Math.floor(matterGainFor(state) * 0.5))} Rebuild Matter — smaller cash than a Rebuild, larger change to the loop`,
-    'The Hive’s starting architecture reconstructs',
-    'Future Rebuild kits grow',
-    'Rebuild is no longer the top of the ladder',
-    'No Act 2 shop opens',
-    ...lists.change,
-  ]
-  return {
-    gain: change,
-    keep,
-    reset,
-    change,
-  }
-}
-
-function reinforceCountLabel(state: GameState): string {
-  const n = Math.max(0, Math.floor(state.meta.ascensionCount ?? 0))
-  return n === 0 ? 'none yet' : `×${n}`
-}
-
 export function challengeStartLists(def: { reward: string }): ConsequenceLists {
   return {
     gain: [def.reward],
     keep: ['Foundry', 'Relics', 'Research', 'Process', 'Challenge medals'],
-    reset: ['Salvage', 'Run upgrades', 'Network bar levels', 'Current sortie'],
+    reset: ['Salvage', 'temporary upgrades', 'Directives', 'Heat', 'current Sortie'],
     change: [],
   }
 }

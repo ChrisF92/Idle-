@@ -21,11 +21,6 @@ import {
 import { tickAutomation } from './automation'
 import { logisticsProdMult, tickCoreTraining } from './core'
 import { computeSignalCoreBonuses } from './signalCores'
-import {
-  networkDataRate,
-  networkScrapRate,
-  tickNetwork,
-} from './network'
 import { tickFoundry, foundrySalvageOpsMult } from './foundry'
 import { endFurnaceSortie } from './furnace'
 import { hiveResearchSalvageOpsMult, tickResearch } from './hiveResearch'
@@ -210,10 +205,7 @@ function productionMeta(state: GameState): number {
       state.prestige.matterShop,
     ) *
     (1 +
-      prestigeMomentumProductionBonus(
-        state.prestige.prestigeCount,
-        state.meta.ascensionCount ?? 0,
-      )) *
+      prestigeMomentumProductionBonus(state.prestige.prestigeCount)) *
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
     (1 + aiProductionBonus(state)) *
@@ -284,9 +276,6 @@ function applyProduction(state: GameState, dtSeconds: number): void {
     }
   }
 
-  if (tickNetwork(state, dtSeconds)) {
-    applyNetworkCombatRefresh(state)
-  }
   tickFoundry(state, dtSeconds)
   tickResearch(state, dtSeconds)
 
@@ -334,8 +323,6 @@ export function computeResourceRates(state: GameState): Partial<Resources> {
     }
   }
 
-  add('scrap', networkScrapRate(state))
-  add('data', networkDataRate(state))
 
   return rates
 }
@@ -353,7 +340,6 @@ export const STARTER_UPGRADE_LEVEL = 1
 /** Fresh career still running the death → Plate → salvage combat lesson. */
 export function isStarterCombatTutorial(state: GameState): boolean {
   if (state.prestige.prestigeCount > 0) return false
-  if ((state.meta.ascensionCount ?? 0) > 0) return false
   return (state.meta.starterCombatLesson ?? 0) < 2
 }
 

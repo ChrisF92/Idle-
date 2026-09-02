@@ -25,6 +25,10 @@ import {
 import { startSimulationHost, type SimulationHandle } from '../game/simulation/host'
 import { simulationBuildMeta } from '../buildMeta'
 import { DEFAULT_CASUAL_SESSION } from '../game/simulation/presets'
+import {
+  ACT1_BUILD_PROFILES,
+  type Act1BuildProfileId,
+} from '../game/simulation/buildProfiles'
 
 interface BalanceSimulatorProps {
   onClose: () => void
@@ -51,8 +55,9 @@ async function copyText(text: string): Promise<boolean> {
 
 export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
   const [strategy, setStrategy] = useState<SimulationStrategyId>('balanced')
+  const [buildProfile, setBuildProfile] = useState<Act1BuildProfileId>('balanced-generalist')
   const [stopKind, setStopKind] = useState<SimulationStop['type']>('first-rebuild')
-  const [wave, setWave] = useState(300)
+  const [wave, setWave] = useState(1000)
   const [rebuilds, setRebuilds] = useState(10)
   const [days, setDays] = useState(7)
   const [runs, setRuns] = useState(1)
@@ -73,14 +78,14 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
     let stop: SimulationStop
     if (stopKind === 'first-rebuild') stop = { type: 'first-rebuild' }
     else if (stopKind === 'rebuilds') stop = { type: 'rebuilds', count: rebuilds }
-    else if (stopKind === 'wave' || stopKind === 'sector') stop = { type: 'wave', wave }
+    else if (stopKind === 'wave') stop = { type: 'wave', wave }
     else if (stopKind === 'duration') stop = { type: 'duration', calendarSeconds: days * 86400 }
     else if (stopKind === 'safety') stop = { type: 'safety' }
-    else if (stopKind === 'reinforce') stop = { type: 'reinforce' }
     else stop = { type: 'first-rebuild' }
     return defaultSimulationConfig({
       start: { type: 'fresh' },
       strategy,
+      buildProfile,
       stop,
       seed,
       runs: Math.max(1, Math.min(20, runs)),
@@ -90,15 +95,15 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
         offlineSeconds: Math.max(60, offlineHours * 3600),
       },
     })
-  }, [strategy, stopKind, wave, rebuilds, days, runs, seed, logging, activeMin, offlineHours])
+  }, [strategy, buildProfile, stopKind, wave, rebuilds, days, runs, seed, logging, activeMin, offlineHours])
 
   const applyPreset = (id: string) => {
     const preset = SIMULATION_PRESETS.find((p) => p.id === id)
     if (!preset) return
     setStrategy(preset.config.strategy)
+    setBuildProfile(preset.config.buildProfile)
     setStopKind(preset.config.stop.type)
     if (preset.config.stop.type === 'wave') setWave(preset.config.stop.wave)
-    if (preset.config.stop.type === 'sector') setWave(preset.config.stop.sector * 10)
     if (preset.config.stop.type === 'rebuilds') setRebuilds(preset.config.stop.count)
     if (preset.config.stop.type === 'duration') {
       setDays(Math.max(1, Math.round(preset.config.stop.calendarSeconds / 86400)))
@@ -186,7 +191,7 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
             </select>
           </label>
           <label className="sim-field">
-            Strategy
+            Player pattern
             <select
               value={strategy}
               onChange={(e) => setStrategy(e.target.value as SimulationStrategyId)}
@@ -201,6 +206,17 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
             </select>
           </label>
           <label className="sim-field">
+            Build profile
+            <select
+              value={buildProfile}
+              onChange={(e) => setBuildProfile(e.target.value as Act1BuildProfileId)}
+            >
+              {ACT1_BUILD_PROFILES.map((profile) => (
+                <option key={profile.id} value={profile.id}>{profile.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="sim-field">
             Run Until
             <select
               value={stopKind}
@@ -211,10 +227,9 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
               <option value="rebuilds">Rebuild count</option>
               <option value="duration">Calendar days</option>
               <option value="safety">Long safety run</option>
-              <option value="reinforce">First Reinforce</option>
             </select>
           </label>
-          {stopKind === 'wave' || stopKind === 'sector' ? (
+          {stopKind === 'wave' ? (
             <label className="sim-field">
               Wave
               <input

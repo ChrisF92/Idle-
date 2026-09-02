@@ -434,7 +434,7 @@ function formatCareerSnapshot(state: GameState): string[] {
   if (meetsWave(state, ACT1_CADENCE.research)) systems.push('Research')
   if (meetsWave(state, ACT1_CADENCE.process)) systems.push('Process')
   if (meetsWave(state, ACT1_CADENCE.challenges)) systems.push('Challenges')
-  if (meetsWave(state, ACT1_CADENCE.reinforce) || state.meta.act1Cleared) systems.push('Reinforce')
+  if (state.meta.act1Cleared) systems.push('Beyond Act 1')
   return [
     `Frame: ${frame}`,
     `Workshop starts: ${workshop}`,

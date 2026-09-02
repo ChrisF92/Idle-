@@ -33,7 +33,6 @@ export const ONBOARDING_LESSON_IDS = [
   'research.project',
   'process.capability',
   'challenges.start',
-  'reinforce',
   'combat-overlay.ranges',
 ] as const
 
@@ -60,7 +59,6 @@ export const SEMANTIC_TARGET_IDS = [
   'onboarding.relic.install',
   'onboarding.furnace.channel',
   'onboarding.challenges.list',
-  'onboarding.reinforce.cta',
   'onboarding.combat-overlay.core-selector',
 ] as const
 
@@ -166,7 +164,6 @@ const LEGACY_LESSON_MAP: Record<string, OnboardingLessonId> = {
   'guide-challenge': 'challenges.start',
   'guide-rebuild': 'rebuild.preview',
   'guide-rebuild-matter': 'rebuild.preview',
-  'guide-reinforce': 'reinforce',
 }
 
 const STARTER_LESSON_IDS: OnboardingLessonId[] = ['opening.salvage', 'first-defeat.workshop']
@@ -536,19 +533,6 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
     completeWhen: (s) => Boolean(s.challenges?.activeId),
   },
   {
-    id: 'reinforce',
-    title: 'Reinforce',
-    body: 'Rebuild has reached the limit of this loop. Reinforce changes the starting architecture of the Hive.',
-    target: 'onboarding.reinforce.cta',
-    nav: { tab: 'reinforce' },
-    pause: false,
-    skippable: true,
-    required: false,
-    activation: 'visit',
-    availableWhen: (s) => isSystemUnlocked(s, 'reinforce') && (s.meta.ascensionCount ?? 0) < 1,
-    completeWhen: (s) => (s.meta.ascensionCount ?? 0) > 0,
-  },
-  {
     id: 'combat-overlay.ranges',
     title: 'Combat Overlay',
     body: [
@@ -706,16 +690,10 @@ export function resetOnboardingRegistry(state: GameState): GameState {
 
 export function retirePostResetOnboarding(state: GameState): void {
   const prestiged = state.prestige.prestigeCount > 0
-  const ascended = (state.meta.ascensionCount ?? 0) > 0
-  if (!prestiged && !ascended) return
+  if (!prestiged) return
   ensureOnboardingRegistry(state)
   for (const id of STARTER_LESSON_IDS) {
     if (!lessonFinished(state, id)) setLessonStatus(state, id, 'complete')
-  }
-  if (ascended) {
-    for (const id of ONBOARDING_LESSON_IDS) {
-      if (!lessonFinished(state, id)) setLessonStatus(state, id, 'complete')
-    }
   }
   if ((state.meta.starterCombatLesson ?? 0) < 2) state.meta.starterCombatLesson = 2
   if (!state.meta.hullLostOnce) state.meta.hullLostOnce = true
@@ -723,7 +701,6 @@ export function retirePostResetOnboarding(state: GameState): void {
 
 export function isEstablishedCareer(state: GameState): boolean {
   if ((state.prestige.prestigeCount ?? 0) > 0) return true
-  if ((state.meta.ascensionCount ?? 0) > 0) return true
   if ((state.meta.bestWave ?? 0) >= 50) return true
   const seen = state.meta.seenOnboarding ?? []
   if (seen.length >= 12) return true
@@ -806,7 +783,6 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
     'research.project': ACT1_CADENCE.research,
     'process.capability': ACT1_CADENCE.process,
     'challenges.start': ACT1_CADENCE.challenges,
-    reinforce: ACT1_CADENCE.reinforce,
   }
 
   const wave = waveFor[id]
@@ -913,9 +889,6 @@ export function prepOnboardingDoor(state: GameState, id: OnboardingLessonId): Ga
     case 'challenges.start':
       if (next.challenges) next.challenges.activeId = null
       next.prestige.prestigeCount = Math.max(next.prestige.prestigeCount, 2)
-      break
-    case 'reinforce':
-      next.meta.act1Cleared = true
       break
     case 'combat-overlay.ranges':
       next.combat.docked = false

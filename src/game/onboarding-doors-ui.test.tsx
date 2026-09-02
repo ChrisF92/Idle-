@@ -7,7 +7,6 @@ import { FurnaceTab } from '../components/tabs/FurnaceTab'
 import { NetworkTab } from '../components/tabs/NetworkTab'
 import { ProcessTab } from '../components/tabs/ProcessTab'
 import { ChallengesTab } from '../components/tabs/ChallengesTab'
-import { ReinforceTab } from '../components/tabs/ReinforceTab'
 import { ResearchTab } from '../components/tabs/ResearchTab'
 import { TabNav } from '../components/TabNav'
 import { OverlayProvider } from '../ui/overlay'
@@ -125,8 +124,6 @@ function renderDoor(id: OnboardingLessonId) {
         )
       case 'challenges.start':
         return <ChallengesTab state={state} onBack={noop} onEnter={noop} onAbandon={noop} />
-      case 'reinforce':
-        return <ReinforceTab state={state} onBack={noop} onReinforce={noop} />
       default:
         return null
     }
@@ -147,7 +144,6 @@ describe('onboarding door targets', () => {
     'research.project',
     'process.capability',
     'challenges.start',
-    'reinforce',
     'combat-overlay.ranges',
   ] as OnboardingLessonId[])('mounts %s on the correct screen', (id) => {
     const { state, lesson } = renderDoor(id)

@@ -32,15 +32,15 @@ export function Act1FinaleOverlay({ open, onContinue, onOpenReinforce }: Act1Fin
           Hive remembers this reconstruction — a stutter in time, as if the lattice has folded shut before.
         </p>
         <p>
-          Reinforce is open. It is substantially larger than Rebuild: the starting architecture of the Hive
-          changes. No Act 2 shop opens here.
+          A deeper loop has been exposed. Reinforce is now visible as a possible future direction, but no
+          second reset or Act 2 economy is defined here.
         </p>
         <div className="modal-actions">
           <button type="button" onClick={onContinue}>
             Continue
           </button>
           <button type="button" className="primary" onClick={onOpenReinforce}>
-            Open Reinforce
+            View what lies beyond
           </button>
         </div>
       </div>

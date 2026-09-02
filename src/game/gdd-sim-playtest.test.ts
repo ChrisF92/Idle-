@@ -10,7 +10,8 @@ import {
 } from './playtest'
 import { detectGddWarnings } from './simulation/analysis'
 import { GDD_SIM_PROFILES, GDD_WARNING_CODES } from './simulation/types'
-import { getStrategy, spendProfileFor, STRATEGIES } from './simulation/strategies'
+import { getStrategy, spendProfileFor } from './simulation/strategies'
+import { ACT1_BUILD_PROFILES } from './simulation/buildProfiles'
 import { defaultSimulationConfig, SIMULATION_PRESETS, stopLabel } from './simulation/presets'
 import { runSimulation } from './simulation/runner'
 import { formatSummary } from './simulation/report'
@@ -34,18 +35,16 @@ describe('GDD Phase 9 simulator + playtest', () => {
     expect(WORKSHOP_WEAPON_POWER_PER_LEVEL).toBe(0.08)
   })
 
-  it('exposes all six GDD profiles and keeps Balanced as the active alias', () => {
+  it('exposes all six canonical build profiles and keeps Balanced as the active alias', () => {
     expect(GDD_SIM_PROFILES).toEqual([
-      'casual',
-      'balanced',
-      'offensive',
-      'defensive',
-      'economy-first',
-      'optimiser',
+      'balanced-generalist',
+      'swarm-control',
+      'boss-killer',
+      'shield-breaker',
+      'defensive-sustain',
+      'economy-farm',
     ])
-    for (const id of GDD_SIM_PROFILES) {
-      expect(STRATEGIES[id]?.label).toBeTruthy()
-    }
+    expect(ACT1_BUILD_PROFILES.map((profile) => profile.id)).toEqual(GDD_SIM_PROFILES)
     expect(spendProfileFor('active')).toBe('balanced')
     expect(getStrategy('balanced').label).toBe('Balanced')
     expect(getStrategy('active').label).toBe('Balanced')
@@ -53,12 +52,10 @@ describe('GDD Phase 9 simulator + playtest', () => {
 
   it('stops and presets speak Wave, not leftover Sector 30', () => {
     expect(stopLabel({ type: 'wave', wave: 300 })).toBe('Wave 300')
-    expect(stopLabel({ type: 'sector', sector: 30 })).toBe('Wave 300')
     expect(SIMULATION_PRESETS.some((p) => p.id === 'fresh-wave-300')).toBe(true)
     expect(SIMULATION_PRESETS.some((p) => /sector 30/i.test(p.label + p.blurb))).toBe(false)
-    expect(SIMULATION_PRESETS.map((p) => p.config.strategy)).toEqual(
-      expect.arrayContaining(['casual', 'balanced', 'offensive', 'defensive', 'economy-first', 'optimiser']),
-    )
+    expect(SIMULATION_PRESETS.filter((p) => p.config.stop.type === 'wave' && p.config.stop.wave === 1000)
+      .map((p) => p.config.buildProfile)).toEqual(expect.arrayContaining([...GDD_SIM_PROFILES]))
   })
 
   it('keeps Act 1 targets on GDD beats and drops Echo', () => {

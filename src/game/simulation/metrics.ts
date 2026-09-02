@@ -126,7 +126,6 @@ export interface ObservePrev {
   sector: number
   lifetimeCoreRunBuys: number
   prestigeCount: number
-  ascensionCount: number
   processPurchased: number
   hiveCompleted: Record<string, number> | null
 }
@@ -140,7 +139,6 @@ export function captureObservePrev(state: GameState): ObservePrev {
     sector: state.combat.wave,
     lifetimeCoreRunBuys: state.meta.lifetimeCoreRunBuys ?? 0,
     prestigeCount: state.prestige.prestigeCount,
-    ascensionCount: state.meta.ascensionCount ?? 0,
     processPurchased: state.process?.purchased.length ?? 0,
     hiveCompleted: state.hiveResearch?.completed ? { ...state.hiveResearch.completed } : null,
   }
@@ -346,10 +344,6 @@ export function observeState(
       activeSeconds,
       calendarSeconds,
     )
-  }
-
-  if ((state.meta.ascensionCount ?? 0) > prev.ascensionCount) {
-    addMilestone(metrics, 'first-reinforce', 'Reinforce / Ascension', activeSeconds, calendarSeconds)
   }
 
   if (metrics.pendingRepush) {

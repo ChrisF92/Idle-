@@ -1,4 +1,5 @@
 import type { CasualSessionProfile, SimulationConfig, SimulationStop, SimulationStrategyId } from './types'
+import type { Act1BuildProfileId } from './buildProfiles'
 
 export const DEFAULT_CASUAL_SESSION: CasualSessionProfile = {
   activeSeconds: 10 * 60,
@@ -21,6 +22,7 @@ export function defaultSimulationConfig(
     start: partial.start ?? { type: 'fresh' },
     stop: partial.stop,
     strategy: partial.strategy,
+    buildProfile: partial.buildProfile ?? 'balanced-generalist',
     seed: partial.seed ?? 1,
     runs: partial.runs ?? 1,
     accuracy: partial.accuracy ?? 'accurate',
@@ -58,7 +60,24 @@ function preset(
   }
 }
 
+function act1ProfilePreset(id: Act1BuildProfileId, label: string): SimulationPreset {
+  return preset(
+    `act1-${id}`,
+    `${label} → Wave 1000`,
+    `Full Act 1 acceptance run for the ${label} build profile.`,
+    id === 'economy-farm' ? 'economy-first' : id === 'defensive-sustain' ? 'defensive' : 'balanced',
+    { type: 'wave', wave: 1000 },
+    { buildProfile: id, maxCalendarSeconds: 21 * 24 * 3600, deadlockSeconds: 2 * 60 * 60 },
+  )
+}
+
 export const SIMULATION_PRESETS: SimulationPreset[] = [
+  act1ProfilePreset('balanced-generalist', 'Balanced Generalist'),
+  act1ProfilePreset('swarm-control', 'Swarm Control'),
+  act1ProfilePreset('boss-killer', 'Boss Killer'),
+  act1ProfilePreset('shield-breaker', 'Shield Breaker'),
+  act1ProfilePreset('defensive-sustain', 'Defensive Sustain'),
+  act1ProfilePreset('economy-farm', 'Economy/Farm'),
   preset(
     'fresh-first-rebuild',
     'Balanced → First Rebuild',
@@ -115,7 +134,7 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
   preset(
     'fresh-wave-300',
     'Balanced → Wave 300',
-    'Balanced career through the Act 1 climax and Reinforce door.',
+    'Balanced career through the early-mid Act 1 progression spine.',
     'balanced',
     { type: 'wave', wave: 300 },
     { maxCalendarSeconds: 21 * 24 * 3600, deadlockSeconds: 90 * 60 },
@@ -169,8 +188,6 @@ export function stopLabel(stop: SimulationStop): string {
       return `Rebuild ×${stop.count}`
     case 'wave':
       return `Wave ${stop.wave}`
-    case 'sector':
-      return `Wave ${stop.sector * 10}`
     case 'duration':
       return `${Math.round(stop.calendarSeconds / 3600)}h calendar`
     case 'active-duration':
@@ -179,8 +196,6 @@ export function stopLabel(stop: SimulationStop): string {
       return `Unlock ${stop.system}`
     case 'furnace-lit':
       return 'Furnace Weapons lit'
-    case 'reinforce':
-      return 'First Reinforce'
     case 'safety':
       return 'Long safety run'
   }

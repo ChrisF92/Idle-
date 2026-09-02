@@ -25,7 +25,6 @@ import {
   enterChallenge,
   fillStationWorkers,
   fitModule,
-  performAscension,
   performPrestige,
   performRebuild,
   selectFrame,
@@ -56,16 +55,10 @@ import {
   igniteFurnace,
   setResearchFocus,
   startResearch,
-  enterEcho,
-  abandonEcho,
-  buyEchoNode,
   buyProcessNode,
   setProcessConfig,
   optimiseNetwork,
   applyNetworkPreset,
-  rankSpecialist,
-  rankCapital,
-  performReinforce,
 } from '../game/actions'
 import { acknowledgeOnboarding, skipOnboarding, syncCompletedGuides, dismissAct1Finale } from '../game/progression'
 import { acknowledgeEvent } from '../game/presentation'
@@ -110,7 +103,6 @@ type Action =
   | { type: 'skip-onboarding'; tipId: string }
   | { type: 'ack-event'; key: string }
   | { type: 'prestige' }
-  | { type: 'ascend' }
   | { type: 'enter-challenge'; challengeId: string }
   | { type: 'abandon-challenge' }
   | { type: 'equip-core'; uid: string; slotKey: string }
@@ -134,16 +126,10 @@ type Action =
   | { type: 'research-focus'; branch: import('../game/types').HiveResearchBranch }
   | { type: 'research-start'; nodeId: string }
   | { type: 'dismiss-act1-finale' }
-  | { type: 'enter-echo'; echoId: string }
-  | { type: 'abandon-echo' }
-  | { type: 'buy-echo'; nodeId: string }
   | { type: 'buy-process'; nodeId: string }
   | { type: 'process-config'; config: import('../game/types').ProcessConfig }
   | { type: 'process-network-optimise' }
   | { type: 'process-network-preset'; preset: import('../game/types').ProcessNetworkPreset }
-  | { type: 'rank-specialist'; specialistId: import('../game/types').SpecialistId }
-  | { type: 'rank-capital'; capitalId: import('../game/types').CapitalId }
-  | { type: 'reinforce' }
   | { type: 'session-end' }
   | { type: 'set-sortie-paused'; paused: boolean }
   | { type: 'visibility-hidden' }
@@ -220,8 +206,6 @@ function reducer(state: GameState, action: Action): GameState {
       return acknowledgeEvent(state, action.key)
     case 'prestige':
       return performPrestige(state)
-    case 'ascend':
-      return performAscension(state)
     case 'enter-challenge':
       return enterChallenge(state, action.challengeId)
     case 'abandon-challenge':
@@ -269,12 +253,6 @@ function reducer(state: GameState, action: Action): GameState {
       return startResearch(state, action.nodeId)
     case 'dismiss-act1-finale':
       return dismissAct1Finale(state)
-    case 'enter-echo':
-      return enterEcho(state, action.echoId)
-    case 'abandon-echo':
-      return abandonEcho(state)
-    case 'buy-echo':
-      return buyEchoNode(state, action.nodeId)
     case 'buy-process':
       return buyProcessNode(state, action.nodeId)
     case 'process-config':
@@ -283,12 +261,6 @@ function reducer(state: GameState, action: Action): GameState {
       return optimiseNetwork(state)
     case 'process-network-preset':
       return applyNetworkPreset(state, action.preset)
-    case 'rank-specialist':
-      return rankSpecialist(state, action.specialistId)
-    case 'rank-capital':
-      return rankCapital(state, action.capitalId)
-    case 'reinforce':
-      return performReinforce(state)
     case 'session-end': {
       const next = structuredClone(state)
       noteSessionEnd(next)
@@ -431,7 +403,6 @@ export function useGame() {
     skipOnboarding: (tipId: string) => dispatch({ type: 'skip-onboarding', tipId }),
     acknowledgeEvent: (key: string) => dispatch({ type: 'ack-event', key }),
     prestige: () => dispatch({ type: 'prestige' }),
-    ascend: () => dispatch({ type: 'ascend' }),
     enterChallenge: (challengeId: string) =>
       dispatch({ type: 'enter-challenge', challengeId }),
     abandonChallenge: () => dispatch({ type: 'abandon-challenge' }),
@@ -468,20 +439,12 @@ export function useGame() {
       dispatch({ type: 'research-focus', branch }),
     startResearch: (nodeId: string) => dispatch({ type: 'research-start', nodeId }),
     dismissAct1Finale: () => dispatch({ type: 'dismiss-act1-finale' }),
-    enterEcho: (echoId: string) => dispatch({ type: 'enter-echo', echoId }),
-    abandonEcho: () => dispatch({ type: 'abandon-echo' }),
-    buyEchoNode: (nodeId: string) => dispatch({ type: 'buy-echo', nodeId }),
     buyProcessNode: (nodeId: string) => dispatch({ type: 'buy-process', nodeId }),
     setProcessConfig: (config: import('../game/types').ProcessConfig) =>
       dispatch({ type: 'process-config', config }),
     optimiseNetwork: () => dispatch({ type: 'process-network-optimise' }),
     applyNetworkPreset: (preset: import('../game/types').ProcessNetworkPreset) =>
       dispatch({ type: 'process-network-preset', preset }),
-    rankSpecialist: (specialistId: import('../game/types').SpecialistId) =>
-      dispatch({ type: 'rank-specialist', specialistId }),
-    rankCapital: (capitalId: import('../game/types').CapitalId) =>
-      dispatch({ type: 'rank-capital', capitalId }),
-    performReinforce: () => dispatch({ type: 'reinforce' }),
     hardReset: () => dispatch({ type: 'hard-reset' }),
     applyDevAction: (action: DevAction) => dispatch({ type: 'dev', action }),
     applyImportedSave: (code: string) => {

@@ -1,7 +1,6 @@
 import type { GameState } from '../types'
 import { applyOfflineCatchUp } from '../offline'
 import { isSystemUnlocked } from '../progression'
-import { canReinforce } from '../reinforce'
 import { advanceSeconds } from '../tick'
 import { simulationBuildMeta } from '../../buildMeta'
 import {
@@ -81,10 +80,6 @@ function stopReached(
         : null
     case 'wave':
       return reportedBestWave(state) >= stop.wave ? `Reached Wave ${stop.wave}` : null
-    case 'sector':
-      return reportedBestWave(state) >= stop.sector * 10
-        ? `Reached Wave ${stop.sector * 10}`
-        : null
     case 'duration':
       return calendarSeconds >= stop.calendarSeconds ? 'Calendar duration reached' : null
     case 'active-duration':
@@ -92,13 +87,7 @@ function stopReached(
     case 'unlock':
       return isSystemUnlocked(state, stop.system as never) ? `Unlocked ${stop.system}` : null
     case 'furnace-lit':
-      return state.furnace.ignited
-        ? 'Furnace Ignited'
-        : null
-    case 'reinforce':
-      return canReinforce(state).ok || (state.meta.ascensionCount ?? 0) > 0
-        ? 'Reinforce available / used'
-        : null
+      return state.furnace.ignited ? 'Furnace Ignited' : null
     case 'safety':
       return calendarSeconds >= config.maxCalendarSeconds ? 'Safety duration reached' : null
   }
@@ -444,6 +433,7 @@ async function runOneSeeded(
       startType: config.start.type === 'fresh' ? 'Fresh' : 'Supplied state',
       stop: config.stop,
       strategy: config.strategy,
+      buildProfile: config.buildProfile,
       seed: config.seed,
       runs: config.runs,
       accuracy: config.accuracy,

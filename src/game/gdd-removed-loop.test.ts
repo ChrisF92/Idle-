@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
 import { setDocked } from './tick'
-import { enterEcho } from './actions'
 import { MORE_STATIONS, REMOVED_ACT1_TABS, isMoreNavTab, isRemovedAct1Tab } from './moreStations'
 import { LIVE_SCREENS } from './screenHelp'
 import { isSystemUnlocked } from './progression'
@@ -66,7 +65,6 @@ describe('GDD removed Route A/B, Frontier Hold, and Echo', () => {
     s.echo.activeId = 'rift'
     s.echo.points = 8
     expect(isSystemUnlocked(s, 'echo')).toBe(false)
-    expect(enterEcho(s, 'rift')).toBe(s)
     expect(echoDamageMult(s)).toBe(1)
     expect(canEnterEcho(s, 'rift').ok).toBe(false)
   })
