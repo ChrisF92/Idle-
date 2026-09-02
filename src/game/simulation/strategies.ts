@@ -9,7 +9,6 @@ import {
   skipGuides,
 } from './actions'
 import { setSortiePaused } from '../tick'
-import { spendModeForBuildProfile } from './buildProfiles'
 
 export function spendProfileFor(id: SimulationStrategyId): SimulationSpendProfile {
   if (id === 'casual') return 'casual'
@@ -21,9 +20,7 @@ export function spendProfileFor(id: SimulationStrategyId): SimulationSpendProfil
 }
 
 function playSession(state: GameState, ctx: StrategyContext, mode: SimulationSpendProfile): GameState {
-  const spendMode = mode === 'casual' || mode === 'optimiser'
-    ? mode
-    : spendModeForBuildProfile(ctx.config.buildProfile)
+  const spendMode = mode
   let next = skipGuides(state)
   next = industryPass(next, ctx, spendMode)
   const rebuild = shouldRebuild(next, ctx)

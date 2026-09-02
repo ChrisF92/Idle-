@@ -13,7 +13,6 @@ import {
   essenceProductionMultiplier,
   isStationUnlocked,
   metaProductionMultiplier,
-  prestigeMomentumProductionBonus,
   stationEffectiveDrones,
   stationUpkeepScrapPerDrone,
   visibleWorkerJobIds,
@@ -149,8 +148,12 @@ function finishSortie(
   completedChallenge = false,
 ): void {
   const wasChallenge = completedChallenge || Boolean(state.challenges.activeId)
-  const previousBest = Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0)
-  const newBest = wasChallenge ? false : noteBestWave(state, at.wave)
+  const previousBest = Math.max(
+    0,
+    state.combat.sortieMark?.previousBest ?? Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0),
+  )
+  if (!wasChallenge) noteBestWave(state, at.wave)
+  const newBest = wasChallenge ? false : at.wave > previousBest
   const gross = Math.max(0, state.combat.sortieMark?.grossScrapGenerated ?? 0)
   const bonus = extractBonus && outcome === 'extract' ? extractionBonusFor(state) : 0
   if (bonus > 0) {
@@ -204,8 +207,6 @@ function productionMeta(state: GameState): number {
       state.resources.prestigeMatter,
       state.prestige.matterShop,
     ) *
-    (1 +
-      prestigeMomentumProductionBonus(state.prestige.prestigeCount)) *
     essenceProductionMultiplier(state.essence.purchased) *
     logisticsProdMult(state.core?.ranks.logistics ?? 0) *
     (1 + aiProductionBonus(state)) *

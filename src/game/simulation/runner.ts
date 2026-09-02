@@ -13,6 +13,7 @@ import { mulberry32 } from './format'
 import {
   addMilestone,
   captureObservePrev,
+  combatTelemetry,
   coreSpending,
   createMetrics,
   economyBuckets,
@@ -31,6 +32,7 @@ import { stopLabel, FIRST_SALVAGE_LESSON_SECONDS } from './presets'
 import { aggregateMilestones } from './report'
 import { captureAct1Snapshot } from '../balance/act1'
 import { coreStartingLevelAtSlot } from '../coreProgression'
+import { getAct1BuildProfile } from './buildProfiles'
 import type {
   Act1Snapshot,
   CorePurchaseRecord,
@@ -147,16 +149,8 @@ async function runOneSeeded(
   const safety: SafetyFlag[] = []
   const limitations: StrategyLimitation[] = [
     {
-      system: 'Challenges',
-      note: 'Only the Optimiser profile enters Challenges. Casual and Balanced are the CI gates.',
-    },
-    {
       system: 'Deferred systems',
       note: 'Specialists, Capital, and the Task List are not operated. They stay hidden from the shipped loop.',
-    },
-    {
-      system: 'Legacy AI nodes / Data research tree',
-      note: 'Not purchased: the current Process / Research UI is what a real player sees.',
     },
   ]
 
@@ -427,6 +421,19 @@ async function runOneSeeded(
   const targets = BALANCE_TARGETS.map((t) => evaluateTarget(t, milestoneTime(t.milestoneId ?? t.id)))
 
   const matterEarned = metrics.rebuildLog.reduce((s, r) => s + r.matterEarned, 0)
+  const intendedProfile = getAct1BuildProfile(config.buildProfile)
+  const fittedRelicIds = new Set(
+    Object.values(state.relics?.coreFits ?? {}).flatMap((ids) => ids.filter((id): id is string => Boolean(id))),
+  )
+  const actualRelics = (state.relics?.instances ?? [])
+    .filter((relic) => fittedRelicIds.has(relic.id))
+    .map((relic) => relic.familyId)
+  if (reportedBestWave(state) >= 320 && intendedProfile.relicFamilyIds.some((id) => !actualRelics.includes(id))) {
+    limitations.push({
+      system: 'Relic profile execution',
+      note: 'Canonical Relic effects, socket classes, and fabrication recipes remain marked pending-design; the simulator reports the gap and does not invent them.',
+    })
+  }
 
   const run: SimulationRunReport = {
     config: {
@@ -460,6 +467,7 @@ async function runOneSeeded(
     milestones: metrics.milestones,
     sectors: [...metrics.sectors.values()].sort((a, b) => a.sector - b.sector),
     sorties: metrics.sorties,
+    combatTelemetry: combatTelemetry(metrics, state),
     corePurchases: metrics.corePurchases,
     coreSpending: spending,
     network: networkSnapshot(state),
@@ -481,6 +489,7 @@ async function runOneSeeded(
       material: state.hiveResearch?.completed.material ?? 0,
       energy: state.hiveResearch?.completed.energy ?? 0,
       observation: state.hiveResearch?.completed.observation ?? 0,
+      computation: state.hiveResearch?.completed.computation ?? 0,
       focus: state.hiveResearch?.focus ?? 'material',
       breakthroughs: captureAct1Snapshot(state, 'end', activeSeconds, calendarSeconds)
         .researchBreakthroughs,
@@ -512,6 +521,17 @@ async function runOneSeeded(
     safety,
     limitations,
     detailedLog: config.logging === 'detailed' ? metrics.detailedLog : [],
+    loadout: {
+      intendedFrame: intendedProfile.frameId,
+      actualFrame: state.shipyard.frameId,
+      intendedCores: [...intendedProfile.coreIds],
+      actualCores: [...state.shipyard.modules],
+      intendedRelics: [...intendedProfile.relicFamilyIds],
+      actualRelics,
+      doctrines: (state.shipyard.equippedCoreIds ?? []).map((id) =>
+        state.shipyard.coreInstances?.find((row) => row.id === id)?.targetingDoctrine ?? null,
+      ),
+    },
   }
   return run
 }

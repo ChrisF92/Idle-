@@ -1,6 +1,7 @@
 import type { SimulationAggregate, SimulationConfig, SimulationReport, SimulationRunReport } from './types'
 import { formatSimDuration, median, percentile } from './format'
 import { stopLabel } from './presets'
+import { aggregateTenWaveBands } from './analysis'
 
 export function formatConfigText(config: SimulationConfig, seed: number): string {
   const session =
@@ -25,12 +26,25 @@ function milestoneLine(run: SimulationRunReport, id: string, fallback: string): 
   return m ? `${fallback.padEnd(24)} ${formatSimDuration(m.activeSeconds)}` : `${fallback.padEnd(24)} —`
 }
 
+function multisetMatches(actual: string[], intended: string[]): number {
+  const remaining = [...actual]
+  let matched = 0
+  for (const id of intended) {
+    const index = remaining.indexOf(id)
+    if (index < 0) continue
+    remaining.splice(index, 1)
+    matched += 1
+  }
+  return matched
+}
+
 export function formatSummary(report: SimulationReport): string {
   const run = report.runs[0]
   if (!run) return 'No simulation runs.'
   const pass = run.targets.filter((t) => t.severity === 'PASS').length
   const warn = run.targets.filter((t) => t.severity === 'WARNING').length
   const fail = run.targets.filter((t) => t.severity === 'FAIL').length
+  const skip = run.targets.filter((t) => t.severity === 'SKIP').length
   const major = run.walls[0]
   const lines: string[] = [
     '========================================',
@@ -60,12 +74,19 @@ export function formatSummary(report: SimulationReport): string {
     `PASS: ${pass}`,
     `WARNING: ${warn}`,
     `FAIL: ${fail}`,
+    `SKIP: ${skip}`,
     '',
   ]
+  for (const target of run.targets) {
+    lines.push(
+      `[${target.severity}] ${target.label}: ${target.simulatedLabel} (target ${target.targetLabel})${target.note ? ` — ${target.note}` : ''}`,
+    )
+  }
+  if (run.targets.length > 0) lines.push('')
   if (major) {
     lines.push(
       `Major issue:`,
-      `Wave ${major.sector * 10} progression wall`,
+      `Wave ${major.sector} progression wall`,
       `Clear time: ${formatSimDuration(major.clearSeconds)}`,
       `Recent wave-band median: ${formatSimDuration(major.recentMedian)}`,
       `Difference: ${major.ratio.toFixed(1)}×`,
@@ -92,7 +113,16 @@ export function formatSummary(report: SimulationReport): string {
     milestoneLine(run, 'first-research-bt', 'First Research BT'),
     milestoneLine(run, 'process-unlock', 'Process'),
     milestoneLine(run, 'unlock-challenges', 'Challenges'),
+    milestoneLine(run, 'wave-100', 'Wave 100'),
+    milestoneLine(run, 'wave-200', 'Wave 200'),
     milestoneLine(run, 'wave-300', 'Wave 300'),
+    milestoneLine(run, 'wave-400', 'Wave 400'),
+    milestoneLine(run, 'wave-500', 'Wave 500'),
+    milestoneLine(run, 'wave-600', 'Wave 600'),
+    milestoneLine(run, 'wave-700', 'Wave 700'),
+    milestoneLine(run, 'wave-800', 'Wave 800'),
+    milestoneLine(run, 'wave-900', 'Wave 900'),
+    milestoneLine(run, 'wave-1000', 'Wave 1000'),
     '',
   )
   if (run.sorties.length > 0) {
@@ -122,6 +152,18 @@ export function formatSummary(report: SimulationReport): string {
       '',
     )
   }
+  const telemetry = run.combatTelemetry
+  lines.push(
+    '----------------------------------------',
+    'COMBAT TELEMETRY',
+    '----------------------------------------',
+    '',
+    `Boss fights: ${telemetry.bossFights}  average TTK ${telemetry.bossTtkAverage == null ? '—' : formatSimDuration(telemetry.bossTtkAverage)}  peak ${telemetry.bossTtkPeak == null ? '—' : formatSimDuration(telemetry.bossTtkPeak)}`,
+    `Backlog: average ${telemetry.backlogAverage?.toFixed(1) ?? '—'}  peak ${telemetry.backlogPeak ?? '—'}`,
+    `Targeting: acquisitions ${telemetry.initialAcquisitions}  switches ${telemetry.targetSwitches}  shots ${telemetry.shotsFired}`,
+    `Targeting core-time: acquisition delay ${formatSimDuration(telemetry.acquisitionDelaySeconds)}  slew-limited ${formatSimDuration(telemetry.slewDowntimeSeconds)}  firing ${formatSimDuration(telemetry.activeFiringSeconds)}`,
+    '',
+  )
   if (run.rebuildLog.length > 0) {
     lines.push('----------------------------------------', 'REBUILDS', '----------------------------------------', '')
     const recs = run.rebuildLog
@@ -133,7 +175,7 @@ export function formatSummary(report: SimulationReport): string {
       lines.push(
         `Rebuild #${rec.index}`,
         `Run duration: ${formatSimDuration(rec.previousPushSeconds)}`,
-        `Highest Wave: ${rec.highestSector * 10}`,
+        `Highest Wave: ${rec.highestSector}`,
         `Matter earned: ${rec.matterEarned}`,
         `Why: ${rec.reasons.join('; ') || 'heuristic'}`,
         rec.permanentPurchases.length
@@ -183,11 +225,22 @@ export function formatSummary(report: SimulationReport): string {
     'RESEARCH / PROCESS / FOUNDRY / FURNACE',
     '----------------------------------------',
     '',
-    `Research: M${run.research.material} E${run.research.energy} O${run.research.observation}  focus ${run.research.focus}  BT ${run.research.breakthroughs}`,
+    `Research: M${run.research.material} E${run.research.energy} O${run.research.observation} C${run.research.computation}  focus ${run.research.focus}  BT ${run.research.breakthroughs}`,
     `Process: earned ${run.process.earned}  unspent ${run.process.available}  bought ${run.process.purchased.length}`,
     `Foundry: recipes ${Object.keys(run.foundry.masteryXp).length}  processors ${run.foundry.slotRecipes.filter(Boolean).length}`,
     `Furnace: heat +${run.furnace.heatEarned.toFixed(1)} / −${run.furnace.heatSpent.toFixed(1)}  channels ${JSON.stringify(run.furnace.active)}`,
     `Challenges: ${JSON.stringify(run.challenges.medals)}`,
+    '',
+    '----------------------------------------',
+    'BUILD PROFILE EXECUTION',
+    '----------------------------------------',
+    '',
+    `Frame: ${run.loadout.actualFrame} (intended ${run.loadout.intendedFrame})`,
+    `Cores: ${run.loadout.actualCores.join(', ') || 'none'} (${multisetMatches(run.loadout.actualCores, run.loadout.intendedCores)}/${run.loadout.intendedCores.length} intended)`,
+    `Intended Cores: ${run.loadout.intendedCores.join(', ')}`,
+    `Relics: ${run.loadout.actualRelics.join(', ') || 'none'} (${multisetMatches(run.loadout.actualRelics, run.loadout.intendedRelics)}/${run.loadout.intendedRelics.length} intended)`,
+    `Intended Relics: ${run.loadout.intendedRelics.join(', ')}`,
+    `Doctrines: ${run.loadout.doctrines.map((id) => id ?? 'default').join(', ') || 'defaults'}`,
     '',
   )
   const snap = run.snapshots[run.snapshots.length - 1]
@@ -199,12 +252,12 @@ export function formatSummary(report: SimulationReport): string {
       '----------------------------------------',
       '',
       `At ${snap.at}  active ${formatSimDuration(snap.activeSeconds)}  calendar ${formatSimDuration(snap.calendarSeconds)}`,
-      `Wave ${snap.bestWave} (band ${snap.highestEver})  Pulse ${snap.pulse}  Plate ${snap.plate}`,
+      `Wave ${snap.bestWave} (career best ${snap.highestEver})  Pulse ${snap.pulse}  Plate ${snap.plate}`,
       `Workers ${snap.drones}/${snap.droneCap}`,
       `Foundry recipes ${snap.foundryRecipes} furnace lit ${snap.furnaceLit}/${snap.furnaceSlots}`,
-      `Research M${snap.research.material} E${snap.research.energy} O${snap.research.observation} BT ${snap.researchBreakthroughs}`,
+      `Research M${snap.research.material} E${snap.research.energy} O${snap.research.observation} C${snap.research.computation} BT ${snap.researchBreakthroughs}`,
       `Process earned ${snap.processEarned} bought ${snap.processPurchased} Rebuilds ${snap.rebuilds}`,
-      `Damage extras: Furnace +${(c.furnaceDamage * 100).toFixed(0)}%  Relics +${(c.reliquaryDamage * 100).toFixed(0)}%  Research +${(c.researchDamage * 100).toFixed(0)}%  Rebuild momentum +${(c.rebuildMomentum * 100).toFixed(0)}%`,
+      `Damage extras: Furnace +${(c.furnaceDamage * 100).toFixed(0)}%  Relics +${(c.reliquaryDamage * 100).toFixed(0)}%  Research +${(c.researchDamage * 100).toFixed(0)}%`,
       '',
     )
   }
@@ -219,7 +272,7 @@ export function formatSummary(report: SimulationReport): string {
     lines.push('----------------------------------------', 'PROGRESSION WALLS', '----------------------------------------', '')
     for (const wall of run.walls) {
       lines.push(
-        `Wave ${wall.sector * 10}`,
+        `Wave ${wall.sector}`,
         `Clear time: ${formatSimDuration(wall.clearSeconds)}`,
         `Recent wave-band median: ${formatSimDuration(wall.recentMedian)}`,
         `Difference: ${wall.ratio.toFixed(1)}×`,
@@ -287,9 +340,10 @@ export function formatFullReport(report: SimulationReport): string {
     '',
     'WAVE BANDS',
   ]
-  for (const s of run.sectors) {
+  for (const s of aggregateTenWaveBands(run.sectors)) {
+    const start = Math.max(1, s.sector - 9)
     extra.push(
-      `W${s.sector * 10}  clear ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : '—'}  deaths ${s.deaths}  salvage +${s.salvageEarned.toFixed(1)}  pulse ${s.pulseLevelOnClear ?? '—'} plate ${s.plateLevelOnClear ?? '—'}`,
+      `W${start}–${s.sector}  clear ${s.clearDuration != null ? formatSimDuration(s.clearDuration) : '—'}  deaths ${s.deaths}  salvage +${s.salvageEarned.toFixed(1)}  pulse ${s.pulseLevelOnClear ?? '—'} plate ${s.plateLevelOnClear ?? '—'}`,
     )
   }
   extra.push('', 'CORE PURCHASES')
@@ -318,10 +372,10 @@ export function reportToCsv(report: SimulationReport): string {
   const run = report.runs[0]
   if (!run) return 'wave,clearSeconds,deaths,salvage\n'
   const rows = ['wave,clearSeconds,deaths,relaunches,salvage,pulse,plate,holdSeconds']
-  for (const s of run.sectors) {
+  for (const s of aggregateTenWaveBands(run.sectors)) {
     rows.push(
       [
-        s.sector * 10,
+        s.sector,
         s.clearDuration ?? '',
         s.deaths,
         s.relaunches,

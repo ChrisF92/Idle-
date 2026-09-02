@@ -1,5 +1,6 @@
 import type { CasualSessionProfile, SimulationConfig, SimulationStop, SimulationStrategyId } from './types'
 import type { Act1BuildProfileId } from './buildProfiles'
+import { spendModeForBuildProfile } from './buildProfiles'
 
 export const DEFAULT_CASUAL_SESSION: CasualSessionProfile = {
   activeSeconds: 10 * 60,
@@ -48,7 +49,7 @@ function preset(
   id: string,
   label: string,
   blurb: string,
-  strategy: SimulationStrategyId,
+    strategy: SimulationStrategyId,
   stop: SimulationStop,
   extra: Partial<SimulationConfig> = {},
 ): SimulationPreset {
@@ -65,7 +66,7 @@ function act1ProfilePreset(id: Act1BuildProfileId, label: string): SimulationPre
     `act1-${id}`,
     `${label} → Wave 1000`,
     `Full Act 1 acceptance run for the ${label} build profile.`,
-    id === 'economy-farm' ? 'economy-first' : id === 'defensive-sustain' ? 'defensive' : 'balanced',
+    spendModeForBuildProfile(id),
     { type: 'wave', wave: 1000 },
     { buildProfile: id, maxCalendarSeconds: 21 * 24 * 3600, deadlockSeconds: 2 * 60 * 60 },
   )
