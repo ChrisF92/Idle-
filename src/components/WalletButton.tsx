@@ -22,7 +22,7 @@ const WALLET_ORDER: ResourceId[] = [
 export function walletResourceIds(state: GameState): ResourceId[] {
   const visible = new Set(visibleResourceIds(state))
   return WALLET_ORDER.filter(
-    (id) => visible.has(id) || isResourceVisible(state, id) || (state.resources[id] ?? 0) > 0,
+    (id) => visible.has(id) || isResourceVisible(state, id),
   )
 }
 

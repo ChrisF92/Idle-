@@ -719,7 +719,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
 export function isResourceVisible(state: GameState, id: keyof Resources): boolean {
   switch (id) {
     case 'scrap':
-      return isSystemUnlocked(state, 'foundry')
+      return hasHullLostOnce(state) || isSystemUnlocked(state, 'foundry')
     case 'alloys':
       return (
         isSystemUnlocked(state, 'base') ||
