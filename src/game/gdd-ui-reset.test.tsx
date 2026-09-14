@@ -208,8 +208,8 @@ describe('UI architecture reset', () => {
     expect(screen.getByText('onboard:no')).toBeTruthy()
   })
 
-  it('opens a Wallet modal of currencies from the header icon', () => {
-    const state = createInitialState(0)
+  it('opens a Wallet modal after Scrap is discovered', () => {
+    const state = markHullLost(createInitialState(0))
     state.resources.scrap = 47
     render(
       <OverlayProvider>
