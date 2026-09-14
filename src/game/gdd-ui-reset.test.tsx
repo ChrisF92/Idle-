@@ -50,6 +50,15 @@ function OverlayProbe({
 }
 
 describe('UI architecture reset', () => {
+  it('hides the Wallet before a persistent resource is discovered', () => {
+    render(
+      <OverlayProvider>
+        <WalletButton state={createInitialState(0)} />
+      </OverlayProvider>,
+    )
+    expect(screen.queryByRole('button', { name: 'Wallet' })).toBeNull()
+  })
+
   it('stretches Dock across one full-width grid column', () => {
     const polish = readFileSync(resolve(process.cwd(), 'src/polish.css'), 'utf8')
     const app = readFileSync(resolve(process.cwd(), 'src/App.css'), 'utf8')
@@ -81,7 +90,7 @@ describe('UI architecture reset', () => {
   })
 
   it('keeps Dock as a home hub with Launch and own screens', () => {
-    const state = markHullLost(createInitialState(0))
+    const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.rebuild)
     render(
       <OverlayProvider>
         <DockTab

@@ -13,7 +13,7 @@ import { OverlayProvider } from '../ui/overlay'
 import { GuideOverlay } from '../components/GuideOverlay'
 import { ToastStack } from '../components/ToastStack'
 import { createInitialState } from './state'
-import { createFreshCareerState } from './freshStart'
+import { createFreshCareerState, startOpeningSortie } from './freshStart'
 import {
   ONBOARDING_LESSONS,
   activeOnboardingLesson,
@@ -183,7 +183,7 @@ describe('onboarding door targets', () => {
   })
 
   it('hides bottom nav while a Sortie is live and shows it when Docked', () => {
-    const live = createFreshCareerState(0)
+    const live = startOpeningSortie(createFreshCareerState(0))
     expect(live.combat.docked).toBe(false)
     const docked = createInitialState(0)
     const { rerender } = render(<TabNav active="dock" onChange={() => undefined} state={docked} />)

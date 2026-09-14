@@ -81,7 +81,7 @@ export function DockHivePreview({
     <button
       type="button"
       className="dock-hive-preview dock-hive-button"
-      aria-label="Open Loadout"
+      aria-label="Inspect fitted Hive"
       onClick={onOpen}
     >
       <canvas ref={canvasRef} className="dock-hive-canvas" width={240} height={240} aria-hidden />

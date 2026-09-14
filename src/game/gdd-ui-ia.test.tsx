@@ -15,6 +15,14 @@ beforeEach(() => {
 })
 
 describe('GDD shell information architecture', () => {
+  it('shows Dock and More on a fresh save while Systems stays hidden', () => {
+    const state = createInitialState(0)
+    render(<TabNav active="dock" onChange={() => undefined} state={state} />)
+    expect(screen.getByRole('button', { name: /Dock/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /More/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Systems/ })).toBeNull()
+  })
+
   it('marks Systems active while Worker Drones are open', () => {
     const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
     render(<TabNav active="network" onChange={() => undefined} state={state} />)
@@ -51,7 +59,7 @@ describe('GDD shell information architecture', () => {
     expect(screen.queryByText('Workers')).toBeNull()
   })
 
-  it('groups Dock around Best Wave, Scrap, Matter, Loadout, Workshop, and Rebuild', () => {
+  it('progressively reveals Dock workflows without teasing Rebuild', () => {
     const state = markHullLost(createInitialState(0))
     state.resources.scrap = 40
     render(
@@ -66,7 +74,7 @@ describe('GDD shell information architecture', () => {
     expect(screen.getByText('Best Wave')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Loadout/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Workshop/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Rebuild/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Rebuild/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Inventory' })).toBeNull()
     expect(screen.queryByText(/Permanent strength is Mastery/i)).toBeNull()
     expect(screen.queryByText(/Equip Cores and Relics here/i)).toBeNull()

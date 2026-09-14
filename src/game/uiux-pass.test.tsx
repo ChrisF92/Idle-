@@ -9,6 +9,8 @@ import { completeDefeat, markHullLost } from './testHelpers'
 import { setDocked } from './tick'
 import { buyRunUpgrade, buyWorkshopUpgrade } from './actions'
 import { nextRunUpgradeCost, runPurchasedLevel, runUpgradeCost, workshopLevel } from './workshop'
+import { ACT1_CADENCE } from './cadence'
+import { atCareerWave } from './testHelpers'
 
 afterEach(cleanup)
 
@@ -57,10 +59,8 @@ describe('UI/UX pass regression', () => {
     expect(screen.getByText(/Loadout is locked until this Sortie docks/i)).toBeTruthy()
   })
 
-  it('keeps Worker Drones as the Systems header without Manage buttons', () => {
-    const state = markHullLost(createInitialState(0))
-    state.meta.bestWave = 40
-    state.combat.bestWave = 40
+  it('keeps Worker Drones as the Systems header without Manage buttons after unlock', () => {
+    const state = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
     render(<SystemsTab state={state} onManage={() => undefined} />)
     expect(screen.getByRole('heading', { name: 'Systems' })).toBeTruthy()
     expect(screen.getByText('Worker Drones')).toBeTruthy()

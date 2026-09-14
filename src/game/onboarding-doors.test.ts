@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { createFreshCareerState } from './freshStart'
+import { createFreshCareerState, startOpeningSortie } from './freshStart'
 import { markHullLost } from './testHelpers'
 import { setDocked } from './tick'
 import { buyRunUpgrade, buyWorkshopUpgrade, unfitModule } from './actions'
@@ -139,12 +139,15 @@ describe('onboarding doors', () => {
 })
 
 describe('new save vs existing docked save', () => {
-  it('starts a genuine new career in Wave 1 combat', () => {
+  it('starts a genuine new career at Dock and launches Wave 1 explicitly', () => {
     const fresh = createFreshCareerState(0)
-    expect(fresh.combat.docked).toBe(false)
-    expect(fresh.combat.inFight).toBe(true)
-    expect(fresh.combat.wave).toBe(1)
-    expect(activeOnboardingLesson(fresh, { tab: 'combat' })).toBeNull()
+    expect(fresh.combat.docked).toBe(true)
+    expect(fresh.combat.inFight).toBe(false)
+    const live = startOpeningSortie(fresh)
+    expect(live.combat.docked).toBe(false)
+    expect(live.combat.inFight).toBe(true)
+    expect(live.combat.wave).toBe(1)
+    expect(activeOnboardingLesson(live, { tab: 'combat' })).toBeNull()
   })
 
   it('does not auto-launch an existing docked save', () => {

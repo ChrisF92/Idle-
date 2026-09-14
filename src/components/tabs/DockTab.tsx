@@ -104,6 +104,7 @@ export function DockTab({
   }))
   const equipped = loadoutSlots.filter((slot) => Boolean(slot.moduleId)).length
   const loadoutReady = equipped === usable
+  const frameLabel = frame?.name?.endsWith('Frame') ? frame.name : `${frame?.name ?? 'Hive'} Frame`
   const showRebuild = isSystemUnlocked(state, 'prestige')
   const [localPane, setLocalPane] = useState<DockPane>('home')
   const pane = paneProp ?? localPane
@@ -195,7 +196,7 @@ export function DockTab({
             {locked ? <p className="ui-meta">Prep is locked until this Sortie docks.</p> : null}
             <ItemRow
               title="Loadout"
-              meta={`${frame?.name ?? 'Hive'} · ${equipped}/${usable} Cores · ${loadoutReady ? 'Ready' : 'Slots open'}`}
+              meta={`${frameLabel} · ${equipped}/${usable} Cores · ${loadoutReady ? 'Ready' : 'Slots open'}`}
               guide="dock-cores"
               onClick={() => setPane('loadout')}
             />
