@@ -73,7 +73,7 @@ import {
 import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
 import { directiveArmorMult, directiveHullMult, directiveIncomingMult, directiveShieldMult, directiveWeaponCoreMult, directiveWeaponCycleRateMult, directiveWeaponMult } from './directives'
 
-export const SAVE_VERSION = 51
+export const SAVE_VERSION = 52
 export const SAVE_KEY = 'cosmic-idle-save'
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {

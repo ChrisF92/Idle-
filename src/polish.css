@@ -2351,8 +2351,13 @@ button.just-ok {
 
 .extract-confirm-actions {
   display: flex;
+  flex-direction: column;
   gap: 0.75rem;
   margin-top: 1rem;
+}
+
+.extract-confirm-actions p {
+  margin: -0.4rem 0 0;
 }
 
 .extract-confirm-actions button {
@@ -2371,5 +2376,4 @@ button.just-ok {
 .upgrade-tile-level {
   white-space: normal;
 }
-
 

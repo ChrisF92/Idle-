@@ -137,7 +137,7 @@ describe('GDD Phase 9 simulator + playtest', () => {
       }),
     )
     const run = report.runs[0]!
-    expect(run.sorties.reduce((s, row) => s + row.salvageSpent, 0)).toBeGreaterThan(0)
+    expect(run.economy.find((row) => row.id === 'salvage')?.spent ?? 0).toBeGreaterThan(0)
     expect(run.milestones.some((m) => m.id === 'first-defeat' || m.id === 'wave-1')).toBe(true)
   }, 40_000)
 

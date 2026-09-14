@@ -4,7 +4,7 @@ import {
   encounterForWave,
   resetEncounterModifierProvider,
 } from './encounterGenerator'
-import { packDps, packEhp, packThreat, threatBudgetForWave } from './threatBudget'
+import { ordinarySpawnRate } from './spawnDirector'
 import {
   planCommanderEvent,
   promoteToCommander,
@@ -20,8 +20,6 @@ import {
 } from './hostileCatalogue'
 import {
   COMMANDER_PROMOTION,
-  COMMANDER_SELF_THREAT_SHARE,
-  COMMANDER_WAVE_THREAT_MULT,
   CHOIR_CROWN_SEEDS,
   VANGUARD_SEEDS,
 } from './hostileSeeds'
@@ -54,33 +52,28 @@ function commanderFrom(
 
 afterEach(() => resetEncounterModifierProvider())
 
-describe('PR7 correction A — controlled threat budgets', () => {
-  it('keeps ordinary same-Wave seeds tightly budgeted and broadly comparable', () => {
+describe('PR14 replacement A — weighted ordinary spawning', () => {
+  it('keeps ordinary same-Wave seeds deterministic and bounded without stat fitting', () => {
     for (const wave of [41, 201, 401, 601]) {
       const rows = Array.from({ length: 24 }, (_, seed) => encounterForWave(wave, 1, stateForSeed(seed + 1)))
-      const spent = rows.map((row) => row.threat!.spent)
-      const ehp = rows.map((row) => packEhp(row.units))
-      const dps = rows.map((row) => packDps(row.units))
-      for (const value of spent) {
-        expect(value / threatBudgetForWave(wave)).toBeGreaterThanOrEqual(0.98)
-        expect(value / threatBudgetForWave(wave)).toBeLessThanOrEqual(1.02)
+      for (const row of rows) {
+        expect(row.spawn!.rate).toBeCloseTo(ordinarySpawnRate(wave), 8)
+        expect(row.units.length).toBeGreaterThanOrEqual(2)
+        expect(row.units.length).toBeLessThanOrEqual(10)
+        expect(row.spawn!.offsets[0]).toBe(0)
       }
-      expect(Math.max(...ehp) / Math.min(...ehp)).toBeLessThan(1.35)
-      expect(Math.max(...dps) / Math.min(...dps)).toBeLessThan(1.35)
+      expect(encounterForWave(wave, 1, stateForSeed(7))).toEqual(encounterForWave(wave, 1, stateForSeed(7)))
     }
   })
 
-  it('targets Commander Waves at 1.30–1.50x and enforces Commander self share', () => {
+  it('keeps Commander identity singular and uses authored promotion stats', () => {
     for (const wave of [40, 290, 740, 890]) {
       for (const seed of [1, 7, 19, 43]) {
         const row = encounterForWave(wave, 1, stateForSeed(seed))
-        const ratio = row.threat!.spent / threatBudgetForWave(wave)
-        expect(ratio).toBeGreaterThanOrEqual(1.3)
-        expect(ratio).toBeLessThanOrEqual(1.5)
-        expect(row.threat!.budget / threatBudgetForWave(wave)).toBeCloseTo(COMMANDER_WAVE_THREAT_MULT, 6)
         const commander = row.units.find((unit) => unit.isCommander)!
-        const selfShare = packThreat([commander]) / packThreat(row.units)
-        expect(selfShare).toBeCloseTo(COMMANDER_SELF_THREAT_SHARE, 2)
+        expect(row.units.filter((unit) => unit.isCommander)).toHaveLength(1)
+        expect(commander.authoredHullMax).toBeCloseTo(commander.hullMax, 8)
+        expect(commander.hullMax).toBeGreaterThan(0)
       }
     }
   })

@@ -86,7 +86,6 @@ describe('PR7 Boss boundary', () => {
         unit: state.combat.playerUnits[0]!,
         packageId: 'x',
         wave: 40,
-        threat: 4,
         traitId: 'vanguard',
         hostileId: 'void-mite',
       },

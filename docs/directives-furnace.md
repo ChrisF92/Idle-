@@ -6,7 +6,7 @@ This note maps the PR8 implementation to `docs/act1-canonical-design.md`. It doe
 
 Opportunities are exactly W125 / W275 / W425 / W575 / W725 / W875. Each opportunity persists a deterministic three-card offer derived from Sortie seed + milestone + eligible pool, plus **Continue Unchanged**. Offers do not consume combat RNG and cannot reroll on reload. A picked Directive cannot repeat in the same Sortie. All Directives reset at Sortie end.
 
-The 14 mechanical identities use the user-approved PR8 mechanics addendum. Numeric magnitudes are centralized in `DIRECTIVE_SEEDS` for PR11 tuning. High Tempo changes only normal reinforcement interval. Pack Hunter increases the controlled ordinary/Commander-escort threat budget and never creates extra Commanders. Blueprint Hunt accelerates fragment RNG only. Burn Hot snapshots Furnace effect strength at Ignite, so choosing it later cannot rewrite an already-locked Furnace.
+The 14 mechanical identities use the user-approved PR8 mechanics addendum. Numeric magnitudes are centralized in `DIRECTIVE_SEEDS` for PR11 tuning. High Tempo changes only normal reinforcement interval. Pack Hunter increases ordinary spawn rate and Commander escort pressure, and never creates extra Commanders. Blueprint Hunt accelerates fragment RNG only. Burn Hot snapshots Furnace effect strength at Ignite, so choosing it later cannot rewrite an already-locked Furnace.
 
 ## Furnace
 

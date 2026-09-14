@@ -428,12 +428,12 @@ export const ONBOARDING_LESSONS: OnboardingLesson[] = [
   },
   {
     id: 'extraction.first-use',
-    title: 'Extraction',
+    title: 'Withdrawal',
     body: [
-      'Extract is a safe Sortie end. You keep persistent rewards.',
+      'Withdraw is a safe Sortie end. You keep persistent rewards.',
       'Bonus is Scrap only. This is not a Rebuild. No Matter is awarded.',
     ],
-    actionLabel: 'Review Extract',
+    actionLabel: 'Review Withdrawal',
     target: 'onboarding.extraction.first-use',
     nav: { tab: 'combat' },
     pause: true,

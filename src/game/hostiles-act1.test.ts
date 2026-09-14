@@ -12,9 +12,10 @@ import {
 } from './hostileCatalogue'
 import { encounterForWave, firstContactCanAppear, firstContactForbiddenBefore } from './encounterGenerator'
 import { FORMATION_IDS, formationRngFor } from './formations'
-import { formationPositionsFor, formationDispersionWeight } from './encounterGenerator'
+import { formationPositionsFor } from './encounterGenerator'
 import { createSimRng, rngNext } from './simRng'
-import { SUPPORT_CAP_PER_PACKAGE, DISRUPTOR_CAP_PER_PACKAGE, FORMATION_DISPERSION_WEIGHT_MAX } from './hostileSeeds'
+import { SUPPORT_CAP_PER_PACKAGE, DISRUPTOR_CAP_PER_PACKAGE } from './hostileSeeds'
+import { ordinarySpawnPlan } from './spawnDirector'
 import { createInitialState } from './state'
 import { admitUnitToPackage, createWavePackage } from './waveRuntime'
 import { startCombat } from './tick'
@@ -175,11 +176,10 @@ describe('PR7 formations', () => {
     expect(formRng.s).not.toBe(combat.s)
   })
 
-  it('bounds angular-dispersion contribution and support/disruptor caps', () => {
-    expect(FORMATION_DISPERSION_WEIGHT_MAX).toBeLessThanOrEqual(0.12)
-    for (const id of FORMATION_IDS) {
-      expect(formationDispersionWeight(id)).toBeLessThanOrEqual(FORMATION_DISPERSION_WEIGHT_MAX)
-    }
+  it('keeps formation out of stat scaling and enforces support/disruptor caps', () => {
+    const plan = ordinarySpawnPlan({ wave: 1000, sortieSeed: 4, packageOrdinal: 1 })
+    expect(plan.defs.filter((def) => def.category === 'support').length).toBeLessThanOrEqual(SUPPORT_CAP_PER_PACKAGE)
+    expect(plan.defs.filter((def) => def.category === 'disruptor').length).toBeLessThanOrEqual(DISRUPTOR_CAP_PER_PACKAGE)
     expect(SUPPORT_CAP_PER_PACKAGE).toBe(2)
     expect(DISRUPTOR_CAP_PER_PACKAGE).toBe(2)
   })
@@ -196,6 +196,6 @@ describe('PR7 encounter modifier boundary', () => {
     const normal = encounterForWave(20, 1, baseline)
     const stillBaseline = encounterForWave(20, 1, legacy)
     expect(stillBaseline.units.length).toBe(normal.units.length)
-    expect(stillBaseline.threat?.spent).toBeCloseTo(normal.threat?.spent ?? 0, 6)
+    expect(stillBaseline.spawn).toEqual(normal.spawn)
   })
 })

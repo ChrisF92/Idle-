@@ -64,7 +64,7 @@ Locked 2026-08-22 from owner answers. GDD Appendix E: D1 is an explicit review, 
 | **D4** | Delete gated leftovers? | **LOCKED** (default kept) | Unwire from UI now. Delete or isolate. Capital / Specialists / Tasks stay deferred, not half-reachable. |
 | **D5** | PWA only vs Play Store? | **LOCKED** | **PWA and a Play Store wrap** of the same build. Portrait-first. See Phase 10. |
 | **D6** | Supporter upgrade / cosmetics at launch? | **OPEN** | A **supporter SKU** is a Play/App Store product id for an optional “thank you” pack (themes, Hive skins, non-power cosmetics). GDD §162 allows it and forbids P2W. **Not wired.** Stay **no IAP** until you want that pack; the wrap in Phase 10 does not require Billing. |
-| **D7** | How authored is combat content? | **LOCKED** (default kept) | Procedural normal waves with a threat budget. Authored mechanic per 10-wave boss band + W300. |
+| **D7** | How authored is combat content? | **SUPERSEDED BY PR14** | Deterministic weighted ordinary spawns. Commanders and proper Bosses remain authored special encounters. |
 | **D8** | Replace USI hull ladder with GDD Frames? | **LOCKED** | **Yes, one cut.** Starter + Bastion / Swarm / Reactor / Harvester. Old hull ids wipe (pre-1.0). |
 | **D9** | Enable onboarding for launch? | **LOCKED** (default kept) | Yes. Rewrite to GDD §125–140. Skip always available. |
 | **D10** | Save policy? | **LOCKED** | **No migration before 1.0.** Hard wipes are fine. After the public tag, migrate. **Dev tools and playtests must be updated with the game** — not left on sector / Echo / Task List cheats. |
@@ -95,7 +95,7 @@ Main already has the **GDD spine**, locked by `src/game/gdd-*.test.ts`:
 | Nav: Sortie / Dock / Systems / More | `TabNav.tsx` |
 | PWA + local save + export/import + sim harness | existing |
 | Hive Frames: Starter + Bastion / Swarm / Reactor / Harvester (D8) | `catalog.ts` `SHIP_FRAMES`, `gdd-frames.test.ts` |
-| Threat budget + named 10-wave boss mechanics | `threatBudget.ts`, `bossMechanics.ts`, `gdd-threat-budget.test.ts` |
+| Weighted spawn director + authored Commander/Boss encounters | `spawnDirector.ts`, `encounterGenerator.ts`, `gdd-weighted-spawns.test.ts` |
 | Player copy uses Wave / Hive, not Sector / Flagship | HUD, inspect, Codex, Stats, Sortie diagnostics |
 | Relic sockets + GDD Core roster | Optical / Ballistic families; leftovers hidden from Prints |
 | Foundry factory presentation | Processing / Fabrication panes; Worker efficient/hard copy |
@@ -162,7 +162,7 @@ Status: **DONE** matches GDD · **PARTIAL** exists but diverges · **MISSING** �
 | Loadout comparison UI | PARTIAL | Inspect exists; Frame/Core before-after not GDD §117 |
 | Game speed ×1.5/×2/×3 | PARTIAL | `sortieSpeed` / reclaim exist; unlock story is unclear |
 | Enemy families GDD §11 | PARTIAL | Swarm/Armored/Ethereal/Divine/Titan — no Skirmisher/Shielded/Sniper/Support/Elite taxonomy |
-| Threat-budget wave variation | DONE | `threatBudget.ts`; Sortie seed; W87 budget 100; packs vary from Wave 11 |
+| Weighted-spawn wave variation | DONE (PR14 replacement) | `spawnDirector.ts`; Sortie seed; repeated checks, spawn-rate curve and eligible-hostile weights |
 | Authored bosses | DONE | Named mechanic every 10th Wave; W300 is `climax-choir` |
 | Offline freeze | DONE | |
 | PWA / portrait | PARTIAL | Works; description still says “USI-style”; orientation `any` |

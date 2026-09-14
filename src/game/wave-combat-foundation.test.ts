@@ -250,6 +250,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     w1.spawnedUnitIds = ['w1-hold']
     w1.pendingCount = 0
     w1.totalUnits = 1
+    state.combat.pendingReinforcements = []
     const scrapAtW1 = state.resources.scrap
     advanceSeconds(state, NORMAL_REINFORCEMENT_INTERVAL + 0.05)
     expect(state.combat.waveReached).toBeGreaterThanOrEqual(2)
@@ -258,6 +259,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     expect(state.combat.enemyUnits.some((u) => u.id === 'w1-hold' && u.hull > 0)).toBe(true)
     expect(w1.secured).toBe(false)
 
+    advanceSeconds(state, 6.5)
     for (const unit of state.combat.enemyUnits) {
       if (unit.sourceWave === 2 || unit.packageId === w2?.id) kill(state, unit)
     }
@@ -391,6 +393,7 @@ describe('PR1 wave-only radial combat foundation', () => {
     const backlog = durableDrone('pre-boss', 49)
     backlog.packageId = 'pkg-pre'
     state.combat.enemyUnits = [backlog]
+    state.combat.pendingReinforcements = []
     tickWaveScheduler(state, 0, silentHooks())
     expect(state.combat.bossBoundary.phase).toBe('idle')
 

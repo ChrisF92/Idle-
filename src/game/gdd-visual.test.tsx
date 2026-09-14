@@ -52,7 +52,7 @@ describe('GDD visual layout and Dock Core Levels', () => {
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
   })
 
-  it('keeps Core upgrades out of the Sortie shop and Extract in the menu', () => {
+  it('keeps Core upgrades out of the Sortie shop and Leave Sortie in the menu', () => {
     const state = markHullLost(createInitialState(0))
     state.combat.docked = false
     state.resources.scrap = 80
@@ -68,7 +68,7 @@ describe('GDD visual layout and Dock Core Levels', () => {
     expect(screen.getByRole('tab', { name: 'Attack' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
     expect(screen.queryByRole('menuitem', { name: 'Extract' })).toBeNull()
-    expect(screen.getByText(/Extract/)).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Leave Sortie' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Core Performance' })).toBeNull()
   })
 

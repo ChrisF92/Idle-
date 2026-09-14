@@ -96,6 +96,6 @@ describe('Process 3.0 UI', () => {
     expect(screen.getAllByText(/Sortie/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Workers/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Furnace/).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Extract/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Withdraw/).length).toBeGreaterThan(0)
   })
 })

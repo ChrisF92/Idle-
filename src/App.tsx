@@ -23,6 +23,7 @@ import {
   type ToastSnapshot,
 } from './game/presentation'
 import { collectPauseReasons, isSimPaused } from './game/pause'
+import { canExtract } from './game/extraction'
 import { lessonFinished } from './game/onboarding'
 import { prefersReducedMotion } from './hooks/usePrefersReducedMotion'
 import { WalletButton } from './components/WalletButton'
@@ -407,9 +408,8 @@ function AppShell() {
               setDockPane('home')
               setTab('dock')
             }}
-            onExtractSheetOpen={() => {
-              game.setSortiePaused(true)
-              game.markExtractionExplained()
+            onLeaveSheetOpen={() => {
+              if (canExtract(game.state)) game.markExtractionExplained()
             }}
             onPause={() => game.setSortiePaused(true)}
             onResume={() => game.setSortiePaused(false)}

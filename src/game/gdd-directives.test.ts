@@ -3,7 +3,7 @@ import {
   CONTINUE_UNCHANGED,
   DIRECTIVE_WAVES,
   chooseDirective,
-  directiveEncounterThreatMult,
+  directiveEncounterSpawnRateMult,
   directiveNormalReinforcementIntervalMult,
   directiveScrapMult,
   hasDirectiveOffer,
@@ -53,7 +53,7 @@ describe('PR8 Directives', () => {
     s = chooseDirective(s, 'pack-hunter')
     s.combat.directiveOffer = ['high-tempo', 'scavenger-sweep', 'overcharge']
     s = chooseDirective(s, 'high-tempo')
-    expect(directiveEncounterThreatMult(s)).toBeCloseTo(1.15)
+    expect(directiveEncounterSpawnRateMult(s)).toBeCloseTo(1.15)
     expect(directiveNormalReinforcementIntervalMult(s)).toBeCloseTo(0.85)
     expect(makeDirectiveOffer(s, 875)).not.toContain('pack-hunter')
     expect(makeDirectiveOffer(s, 875)).not.toContain('high-tempo')

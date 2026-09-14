@@ -185,7 +185,7 @@ export const PROCESS_NODES: ProcessNodeDef[] = [
 
   { id: 'furnace-auto-ignite', name: 'Furnace Auto-Ignite', category: 'furnace', kind: 'automation', blurb: 'Ignites a saved preset once when its explicit trigger and Ash budget allow.', cost: 10, requiresIds: ['furnace-presets', 'ash-budgeting', 'rule-builder'], requiresSystem: 'furnace' },
   { id: 'directive-preference', name: 'Directive Preference', category: 'sortie', kind: 'automation', blurb: 'Chooses the highest offered item from an ordered preference; never rerolls.', cost: 8, requiresBestWave: 125 },
-  { id: 'auto-extract', name: 'Auto Extract', category: 'sortie', kind: 'automation', blurb: 'Extracts only under an explicit late rule.', cost: 8, requiresId: 'rule-builder', requiresBestWave: 210 },
+  { id: 'auto-extract', name: 'Auto Withdraw', category: 'sortie', kind: 'automation', blurb: 'Withdraws only under an explicit late rule.', cost: 8, requiresId: 'rule-builder', requiresBestWave: 210 },
   { id: 'profile-triggers', name: 'Profile Triggers', category: 'logic', kind: 'automation', blurb: 'Switches automation profiles from bounded rule triggers.', cost: 10, requiresId: 'process-profiles' },
   { id: 'repeat-sortie', name: 'Repeat Sortie', category: 'sortie', kind: 'automation', blurb: 'Foreground-only repeat launch, disabled by default.', cost: 10, requiresId: 'process-profiles' },
   { id: 'challenge-profile', name: 'Challenge Profile', category: 'sortie', kind: 'automation', blurb: 'Applies a saved restricted-run profile while respecting every Challenge rule.', cost: 8, requiresId: 'process-profiles', requiresSystem: 'challenges' },
@@ -1066,7 +1066,7 @@ export function processAutomationCards(state: GameState): ProcessAutomationCard[
   if (hasProcess(state, 'auto-extract')) {
     cards.push({
       id: 'auto-extract',
-      name: 'Auto Extract',
+      name: 'Auto Withdraw',
       enabled: cfg.sortie.autoExtract,
       summary: `Hull ≤ ${Math.round(cfg.sortie.extractHullPct * 100)}%`,
       lastAction: lastNote(state, 'auto-extract'),

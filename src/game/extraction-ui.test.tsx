@@ -2,10 +2,10 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CombatTab } from '../components/tabs/CombatTab'
 import { OverlayProvider } from '../ui/overlay'
+import { grantGeneratedScrap } from './rebuild'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
-import { grantGeneratedScrap } from './rebuild'
-import { setDocked, setSortiePaused } from './tick'
+import { setDocked } from './tick'
 import type { GameState } from './types'
 
 afterEach(cleanup)
@@ -15,13 +15,16 @@ beforeEach(() => {
 })
 
 function liveCombat(bestWave = 1): GameState {
-  let s = setDocked(markHullLost(createInitialState(0)), false)
-  s.meta.bestWave = bestWave
-  s.combat.bestWave = Math.max(s.combat.bestWave ?? 0, bestWave)
-  return s
+  const state = setDocked(markHullLost(createInitialState(0)), false)
+  state.meta.bestWave = bestWave
+  state.combat.bestWave = Math.max(state.combat.bestWave ?? 0, bestWave)
+  return state
 }
 
-function renderCombat(state: GameState, handlers: Partial<{ extract: () => void; pause: () => void }> = {}) {
+function renderCombat(
+  state: GameState,
+  handlers: Partial<{ extract: () => void; pause: () => void; resume: () => void; browse: () => void }> = {},
+) {
   return render(
     <OverlayProvider>
       <div style={{ width: 360 }}>
@@ -30,69 +33,72 @@ function renderCombat(state: GameState, handlers: Partial<{ extract: () => void;
           onLaunch={() => undefined}
           onExtract={handlers.extract}
           onPause={handlers.pause}
-          onResume={() => undefined}
-          onPauseAndBrowse={() => undefined}
+          onResume={handlers.resume}
+          onPauseAndBrowse={handlers.browse}
         />
       </div>
     </OverlayProvider>,
   )
 }
 
-describe('Extraction UI', () => {
-  it('does not offer a functional Extract before W210', () => {
+function openLeaveSheet() {
+  fireEvent.click(screen.getByRole('button', { name: /menu|more/i }))
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Leave Sortie' }))
+  return screen.getByRole('dialog', { name: 'Leave Sortie' })
+}
+
+describe('Leave Sortie UI', () => {
+  it('always offers Suspend but keeps Withdraw locked before W210', () => {
     renderCombat(liveCombat(20))
-    fireEvent.click(screen.getByRole('button', { name: /menu|more/i }))
-    expect(screen.getByText(/Unlocks at Best Wave 210/i)).toBeTruthy()
-    expect(screen.queryByRole('menuitem', { name: /^Extract$/ })).toBeNull()
+    const dialog = openLeaveSheet()
+    expect(within(dialog).getByRole('button', { name: 'Suspend Sortie' })).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Withdraw' }).hasAttribute('disabled')).toBe(true)
+    expect(within(dialog).getByText(/Unlocks at Best Wave 210/i)).toBeTruthy()
   })
 
-  it('opens confirmation, keeps PAUSED on cancel, and extracts on confirm', () => {
-    let paused = false
-    let extracted = false
-    let s = liveCombat(210)
-    grantGeneratedScrap(s, 100, 'combat-kill')
-    renderCombat(s, {
-      pause: () => {
-        paused = true
-      },
-      extract: () => {
-        extracted = true
-      },
+  it('pauses on open, resumes on Keep Fighting, and withdraws only on confirmation', () => {
+    let paused = 0
+    let resumed = 0
+    let withdrawn = 0
+    const state = liveCombat(210)
+    grantGeneratedScrap(state, 100, 'combat-kill')
+    renderCombat(state, {
+      pause: () => { paused += 1 },
+      resume: () => { resumed += 1 },
+      extract: () => { withdrawn += 1 },
     })
-    fireEvent.click(screen.getByRole('button', { name: /menu|more/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Extract$/ }))
-    const dialog = screen.getByRole('dialog', { name: /extract/i })
+    let dialog = openLeaveSheet()
     expect(within(dialog).getByText(/No Matter/i)).toBeTruthy()
-    expect(within(dialog).getByText(/Extraction bonus \+12/)).toBeTruthy()
-    fireEvent.click(within(dialog).getByRole('button', { name: /Continue Sortie/i }))
-    expect(extracted).toBe(false)
-    expect(paused).toBe(true)
-    expect(screen.queryByRole('dialog', { name: /extract/i })).toBeNull()
-    expect(s.combat.docked).toBe(false)
-    expect(s.combat.lastSortie?.extractionBonusScrap ?? 0).toBe(0)
+    expect(within(dialog).getByText(/Withdrawal bonus \+12/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep Fighting' }))
+    expect(paused).toBe(1)
+    expect(resumed).toBe(1)
+    expect(withdrawn).toBe(0)
 
-    fireEvent.click(screen.getByRole('button', { name: /menu|more/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Extract$/ }))
-    fireEvent.click(screen.getByRole('button', { name: /^Extract$/ }))
-    expect(extracted).toBe(true)
-    expect(paused).toBe(true)
+    dialog = openLeaveSheet()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }))
+    expect(withdrawn).toBe(1)
   })
 
-  it('hides Extract during an active Challenge', () => {
-    const s = liveCombat(210)
-    s.challenges.activeId = 'glass-frame'
-    s.combat.sortieMark = { ...s.combat.sortieMark!, challengeSortie: true }
-    renderCombat(s)
-    fireEvent.click(screen.getByRole('button', { name: /menu|more/i }))
-    expect(screen.queryByRole('menuitem', { name: /^Extract$/ })).toBeNull()
-    expect(screen.getByText(/Challenges cannot Extract/i)).toBeTruthy()
+  it('suspends to browse while keeping the live loadout locked', () => {
+    let browsed = false
+    const state = liveCombat(210)
+    state.shipyard.frameLocked = true
+    renderCombat(state, { browse: () => { browsed = true } })
+    const dialog = openLeaveSheet()
+    expect(within(dialog).getByText(/loadout stays locked/i)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend Sortie' }))
+    expect(browsed).toBe(true)
+    expect(state.shipyard.frameLocked).toBe(true)
   })
-})
 
-describe('Extraction pause contract', () => {
-  it('opening Extract from a running Sortie is intended to pause', () => {
-    let s = liveCombat(210)
-    s = setSortiePaused(s, false)
-    expect(s.combat.sortiePaused).toBe(false)
+  it('keeps Withdraw disabled during an active Challenge', () => {
+    const state = liveCombat(210)
+    state.challenges.activeId = 'glass-frame'
+    state.combat.sortieMark = { ...state.combat.sortieMark!, challengeSortie: true }
+    renderCombat(state)
+    const dialog = openLeaveSheet()
+    expect(within(dialog).getByRole('button', { name: 'Withdraw' }).hasAttribute('disabled')).toBe(true)
+    expect(within(dialog).getByText(/Challenges cannot Withdraw/i)).toBeTruthy()
   })
 })

@@ -12,11 +12,7 @@ import {
 } from './hostileCatalogue'
 import {
   COMMANDER_PROMOTION,
-  COMMANDER_SELF_THREAT_SHARE,
-  COMMANDER_WAVE_THREAT_MULT,
   DENSITY_COUNT_MAX,
-  FORMATION_DISPERSION_WEIGHT,
-  FORMATION_DISPERSION_WEIGHT_MAX,
   DISRUPTOR_CAP_PER_PACKAGE,
   IRONCLAD_SEEDS,
   MAX_ACTIVE_COMMANDERS,
@@ -28,7 +24,6 @@ import {
 import { formationRngFor, formationSlots, pickFormation, type FormationId } from './formations'
 import { createSimRng, hashSeed, rngInt, rngNext, type SimRngState } from './simRng'
 import { isCommanderCandidateWave } from './waves'
-import { fitPackToThreat, threatBudgetForWave } from './threatBudget'
 import { admitUnitToPackage } from './waveRuntime'
 import { noteCommanderEvent, noteCommanderOverlap } from './encounterTelemetry'
 
@@ -244,24 +239,22 @@ export function buildCommanderPackage(
   wave: number,
   seed: number,
   state?: GameState,
-  threatMultiplier = 1,
+  escortRateMultiplier = 1,
   escortDelta = 0,
 ): {
   commander: CombatUnit
   escorts: CombatUnit[]
   plan: CommanderPlan
-  targetThreat: number
-  commanderThreatTarget: number
-  escortThreatTarget: number
 } {
   const plan = planCommanderEvent(wave, seed, state)
   const def = getHostileDef(plan.hostileId)!
   const commander = promoteToCommander(buildHostileUnit({ def, wave }), plan.traitId, def)
   const rng = commanderRng(seed, wave)
   rngNext(rng)
+  const escortRate = commanderEscortBase(wave) * Math.max(0.1, escortRateMultiplier)
   const escortCount = Math.min(
     DENSITY_COUNT_MAX - 1,
-    Math.max(1, commanderEscortBase(wave) + Math.trunc(escortDelta)),
+    Math.max(1, Math.round(escortRate) + Math.trunc(escortDelta)),
   )
   const escorts = escortDefs(wave, plan.hostileId, rng, escortCount).map((esc, i) => {
     const unit = buildHostileUnit({ def: esc, wave })
@@ -286,24 +279,10 @@ export function buildCommanderPackage(
     unit.heading = slot.bearing
   })
 
-  const dispersion = Math.min(
-    FORMATION_DISPERSION_WEIGHT_MAX,
-    FORMATION_DISPERSION_WEIGHT[formation] ?? 0,
-  )
-  const targetThreat =
-    threatBudgetForWave(wave) * COMMANDER_WAVE_THREAT_MULT * Math.max(0.1, threatMultiplier)
-  const rawTarget = targetThreat / (1 + dispersion)
-  const commanderThreatTarget = rawTarget * COMMANDER_SELF_THREAT_SHARE
-  const escortThreatTarget = Math.max(0.01, rawTarget - commanderThreatTarget)
-  fitPackToThreat([commander], commanderThreatTarget)
-  fitPackToThreat(escorts, escortThreatTarget)
   return {
     commander,
     escorts,
     plan,
-    targetThreat,
-    commanderThreatTarget,
-    escortThreatTarget,
   }
 }
 
@@ -325,13 +304,12 @@ export function recordCommanderHistory(state: GameState, plan: CommanderPlan, wa
   noteCommanderEvent(state, plan.hostileId, plan.traitId)
 }
 
-export function reserveCommander(state: GameState, unit: CombatUnit, pkg: WavePackageState, threat: number): void {
+export function reserveCommander(state: GameState, unit: CombatUnit, pkg: WavePackageState): void {
   if (!state.combat.reservedCommanders) state.combat.reservedCommanders = []
   const reserved: ReservedCommanderState = {
     unit: structuredClone(unit),
     packageId: pkg.id,
     wave: pkg.wave,
-    threat,
     traitId: unit.commanderTraitId ?? 'vanguard',
     hostileId: unit.hostileId ?? '',
   }

@@ -410,6 +410,8 @@ export interface PendingReinforcement {
   wave: number
   kind: WavePackageKind
   units: CombatUnit[]
+  /** Earliest Sortie simTime this spawn-check result may enter combat. */
+  releaseAt?: number
 }
 
 export type BossBoundaryPhase = 'idle' | 'holding' | 'warning' | 'active' | 'cleared'
@@ -1242,8 +1244,8 @@ export interface CombatState {
   idSeq: CombatIdSeq
   /** Named mechanic on the current proper Boss, if any. */
   bossMechanic?: string
-  /** Threat budget roll for the live wave. */
-  waveThreat?: { seed: number; budget: number; spent: number }
+  /** Weighted-spawn readout for the most recently reached ordinary Wave. */
+  waveSpawn?: { rate: number; checkCount: number; planned: number }
   bossPhase: number
   /** Seconds elapsed in the current Sortie (same as simTime while live). */
   fightElapsed: number
@@ -1455,7 +1457,6 @@ export interface ReservedCommanderState {
   unit: CombatUnit
   packageId: string
   wave: number
-  threat: number
   traitId: string
   hostileId: string
 }

@@ -6,7 +6,7 @@
 
 > **Implementation authority:** This document plus the final PR prompt is authoritative. Existing legacy code is not authoritative where it conflicts with this design.
 
-> **v1.0 implementation clarification:** The player may pause an active Sortie and browse account systems without ending the run. Sortie combat resumes only when explicitly resumed. Combat does not continue while browsing.
+> **v1.1 implementation clarification:** The player may suspend an active Sortie and browse account systems without ending the run. Sortie combat resumes only when explicitly resumed. Combat does not continue while browsing. Ordinary reinforcement composition is driven by deterministic spawn checks, an authored spawn-rate curve, and eligible-hostile weights rather than a numerical threat budget or automatic pack stat fitting.
 
 > **Breaking-redesign rule:** Hiveworks is pre-release. **No save migration or backwards compatibility is required.** Old saves may be invalidated/reset. **Do not retain deprecated systems, compatibility aliases, migration code, legacy tests, or dead implementation merely to support the old game.** When a system is replaced, remove the obsolete implementation cleanly.
 
@@ -26,7 +26,7 @@
 - The player may pause an active Sortie and browse account systems without ending the run. Sortie combat resumes only when explicitly resumed.
 - RUNNING Sortie on the combat screen, and PAUSED Sortie on the combat screen, hide global bottom nav completely. Use Sortie-specific controls.
 - PAUSED Sortie while browsing Dock / Systems / More shows **DOCK | SYSTEMS | MORE**. There is no supported Act 1 state where the player browses another account screen while live Sortie combat continues.
-- Sortie hamburger: **Pause**, **Pause & Browse**, **Extract**. Later PRs add Furnace, Targeting, Combat Overlay, Codex, Run Details as unlocked.
+- Sortie hamburger: **Leave Sortie** opens one decision sheet. **Suspend Sortie** freezes the exact run and returns to account screens; **Withdraw** permanently ends an eligible Sortie with the existing Extraction reward; **Keep Fighting** closes the sheet and resumes. Later PRs add Furnace, Targeting, Combat Overlay, Codex, Run Details as unlocked.
 - Hive anchored, slightly below screen centre; enemies attack 360°.
 - Cores are autonomous orbiting combat/support units; Worker Drones are industrial workforce.
 - No Route A/B, Echo, abstract Network bars, standalone Reliquary, Specialists or Capital in Act 1.
@@ -40,7 +40,9 @@
 - **Wave Reached** = reinforcement starts; **Wave Secured** = its package is fully dead.
 - Kills reward immediately; Wave rewards pay on Wave Secured.
 - Existing enemies persist; backlog accumulates.
-- Mobile target roughly 50–60 active simulated enemies; if threatened, delay/consolidate pending threat rather than delete/weaken it.
+- Ordinary Waves use deterministic repeated spawn checks across the seven-second Wave interval. The spawn-rate curve controls how many checks succeed; eligible-hostile weights control which introduced hostile fills each successful check.
+- First contacts remain guaranteed. Support/disruptor caps, Commander events, proper Bosses and formations remain authored special rules rather than entries in the ordinary weighted pool.
+- Mobile target roughly 50–60 active simulated enemies; if threatened, delay/consolidate pending reinforcements rather than delete/weaken them.
 - Commander event approximately every 10 Waves.
 - Proper Boss every 50 Waves; every 100 is a signature milestone.
 - Boss pauses normal Wave timer; W1000 requires Boss defeat.
@@ -150,7 +152,7 @@ Families: Swarm, Armored, Veil, Siege, Choir, Apex.
 First-contact seed Waves:
 1 Void Mite; 30 Needle Skitter; 85 Brood Splitter; 115 Carapace Walker; 140 Cinder Diver; 175 Phase Wisp; 190 Bulwark; 260 Iron Ram; 290 Veil Sniper; 325 Mortar Cyst; 365 Bastion Husk; 395 Mirror Shade; 440 Ashen Chorister; 470 Suppressor Node; 515 Prism Warder; 565 Cantor; 665 Resonance Vessel; 690 Reclaimer; 740 Breach Engine; 815 Choir Sentinel; 865 Null Shepherd; 935 Crowned Husk.
 
-Controlled formation templates: Spear, Pincer, Encirclement, Screen, Siege, Swarm Burst, Mixed Pressure. Support/disruptor density caps. Angular dispersion participates in threat budget.
+Controlled formation templates: Spear, Pincer, Encirclement, Screen, Siege, Swarm Burst, Mixed Pressure. Support/disruptor density caps. Formation changes geometry and targeting pressure but never triggers automatic HP/DPS rescaling.
 
 Codex derives from enemy definitions; sections HOSTILES | BOSSES; discovery on actual first spawn; relative profiles and soft counters, no future spoilers/raw scaling numbers.
 
@@ -245,7 +247,7 @@ Capability progression:
 - Basic automation: Sortie Auto-Buy; Spend Profiles (Attack/Defense/Economy + Salvage reserve); Worker Auto-Fill; Material Stock Targets; Research Queue Assist; Furnace Presets.
 - Priorities: Upgrade Priorities; Worker Weights; Dependency Processing; Research Preference; Ash Budgeting.
 - Rules: Rule Builder; AND; OR; Extra Rule Slots; Condition Complexity; Profiles.
-- Late cross-system: Furnace Auto-Ignite; Directive Preference; Auto Extract; Profile Triggers; foreground-only Repeat Sortie; Challenge Profile.
+- Late cross-system: Furnace Auto-Ignite; Directive Preference; Auto Withdraw; Profile Triggers; foreground-only Repeat Sortie; Challenge Profile.
 
 Sortie auto-buy spends **Salvage only** on already-unlocked temporary upgrades. No automated Scrap investment.
 
@@ -619,12 +621,12 @@ First Commander at W10 uses an authored simple pairing so onboarding is determin
 A Commander event contains:
 - exactly **one Commander unit** under normal conditions,
 - an escort package from already-introduced hostiles,
-- a higher total threat budget than an ordinary Wave.
+- a larger authored escort package than an ordinary Wave.
 
-Seed threat budget:
-- normal Commander Wave total threat approximately **1.30–1.50×** an ordinary Wave of the same band.
-- the Commander itself consumes a substantial portion of that budget.
-- exact value is simulator-tuned.
+Seed pressure:
+- one promoted Commander uses its authored promotion and Trait modifiers,
+- escort count derives from the Commander escort-rate seed rather than HP/DPS fitting,
+- exact escort rate and promotion values are simulator-tuned.
 
 The generator selects:
 1. an eligible already-introduced base hostile,
@@ -647,8 +649,8 @@ Because Waves are continuous, a weak build may still have a previous Commander a
 
 Act 1 safety:
 - target maximum **2 simultaneously active Commanders**,
-- if two Commanders are already alive when another Commander package becomes due, reserve the Commander portion of that Wave's threat and deploy it once a Commander slot becomes available,
-- do not delete or silently convert away that reserved threat,
+- if two Commanders are already alive when another Commander package becomes due, reserve that Commander and deploy it once a Commander slot becomes available,
+- do not delete or silently convert away that reserved unit,
 - normal non-Commander escorts may still enter if simulation safety allows,
 - same-type Commander aura effects never stack multiplicatively; strongest/current applicable effect wins unless a specific rule states otherwise.
 
@@ -1097,7 +1099,7 @@ Cumulative: 97 PP.
 ### Tier E — late cross-system automation — 54 PP
 - Furnace Auto-Ignite: 10
 - Directive Preference: 8
-- Auto Extract: 8
+- Auto Withdraw: 8
 - Profile Triggers: 10
 - Repeat Sortie: 10
 - Challenge Profile: 8
@@ -1113,7 +1115,7 @@ Logical prerequisite edges remain required even if the player has enough PP:
 - Rule logic upgrades → Rule Builder
 - Furnace Auto-Ignite → Furnace Presets + Ash Budgeting + Rule Builder
 - Directive Preference requires Directives already learned
-- Auto Extract requires Extraction already learned
+- Auto Withdraw requires Withdrawal already learned
 - Repeat Sortie is late and requires Process Profiles
 
 Costs are seed balance, but the stage structure, achievement-only earning model and automation boundaries are locked.
@@ -1252,9 +1254,9 @@ No casing/core/lens multi-part Blueprint system.
 
 Guaranteed discovery immediately completes the Blueprint regardless of current fragment count. Existing partial progress is simply superseded; there is no fragment refund requirement. Once a Blueprint is discovered, its fragments stop dropping.
 
-## 29.7 Extraction
+## 29.7 Withdrawal
 
-Extraction becomes available with the Rebuild-era account loop, seed around **W210**.
+Withdrawal becomes available with the Rebuild-era account loop, seed around **W210**. It is the permanent-end option inside **Leave Sortie**; suspending is available from the start and does not end the run.
 
 - Voluntary.
 - Ends active Sortie safely and returns to Dock.
@@ -1262,7 +1264,7 @@ Extraction becomes available with the Rebuild-era account loop, seed around **W2
 - Seed bonus: **+12.5% Scrap earned during that Sortie**.
 - Does not multiply Ash, materials, Blueprint fragments or prior cycle Scrap.
 - No death penalty is added simply to make Extraction attractive.
-- Late Process may Auto Extract under explicit player-authored conditions.
+- Late Process may Auto Withdraw under explicit player-authored conditions.
 
 Exact bonus tunes within the previously approved ~10–15% range.
 
@@ -1282,7 +1284,10 @@ Exact bonus tunes within the previously approved ~10–15% range.
 - High Tempo seed: **15% shorter interval** → ~5.95s
 - Deep solved-Wave reclaim may reduce otherwise-empty interval toward a seed floor of ~1.5–2.0 simulated seconds, then smoothly return toward 7.0s as the run approaches meaningful pressure/frontier
 - Proper Boss warning/entrance: approximately 1.5–2.5 simulated seconds before Boss becomes fully active, authored per encounter
-- Active-enemy simulation target: ~50–60; pending threat is preserved if safety throttling occurs
+- Ordinary spawn checks: every 0.5 simulated seconds across the Wave window; W1 is one immediate tutorial contact and the early introduction Waves compress deployment before reaching the full 6.5-second window
+- Ordinary spawn-rate seed: about 3 successful checks per Wave at W1, rising smoothly toward 6 at W1000; actual deterministic results vary by Sortie seed
+- Eligible-hostile weights favour recent contacts, taper older contacts, and keep authored elite roles rare; first contact is always guaranteed
+- Active-enemy simulation target: ~50–60; pending reinforcements are preserved if safety throttling occurs
 
 ## 30.2 Global enemy scaling seed
 
@@ -1295,7 +1300,7 @@ Seed:
 
 Armor should primarily come from authored enemy profile/band progression and diminishing-return formulas rather than scaling linearly to immunity.
 
-Boss/Commander profiles apply separate authored threat multipliers; do not simply multiply every stat equally.
+Boss/Commander profiles apply separate authored profiles and promotion modifiers; do not automatically fit HP/DPS to a numerical pressure target.
 
 The simulator is expected to change these growth constants.
 
@@ -1441,8 +1446,8 @@ Starting-resource cache design target:
 
 ## 30.8 Commander/Boss seeds
 
-Commander Wave total threat:
-- ~1.4× ordinary Wave seed, role-adjusted
+Commander Wave pressure:
+- exactly one promoted Commander under normal conditions plus an authored escort-rate curve
 
 Commander reward:
 - Salvage ~3–5× equivalent unit
@@ -1646,7 +1651,7 @@ Stress test:
 No gameplay rule should depend on animation frame rate.
 
 If performance cap is reached:
-- preserve threat/rewards deterministically via pending/consolidated packages
+- preserve scheduled units/rewards deterministically via pending/consolidated packages
 - never silently despawn enemies or reduce their reward value
 
 ---
@@ -1683,7 +1688,7 @@ This section explicitly resolves possible ambiguity across earlier design discus
 26. **No offline combat / autonomous offline Sorties in Act 1.**
 27. **Challenges use the player's normal account unless a stated restriction disables something.** Matter Sortie Provisioning applies unless a specific Challenge says otherwise.
 28. **Codex unlocked around W30 retroactively knows already encountered Void Mite/Commander contact; it does not spoil future hostiles.**
-29. **Extraction unlocks in the Rebuild era (~W210), with ~12.5% Sortie-Scrap seed bonus.**
+29. **Withdrawal unlocks in the Rebuild era (~W210), with ~12.5% Sortie-Scrap seed bonus. Suspend Sortie is available earlier and never ends the run.**
 30. **Permanent generic upgrade unlocks persist through Rebuild; their Workshop levels do not.**
 31. **Fresh UI reveal is not the same as account unlock.** The six starter-known generic upgrades are Weapon Power, Cycle Rate, Hull, Shield Capacity, Salvage/Kill, Salvage/Wave; first-run onboarding initially reveals only three.
 32. **No direct battlefield Core tapping is required.** Stationary selector is the reliable accessibility/mobile control.

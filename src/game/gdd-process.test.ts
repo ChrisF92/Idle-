@@ -43,7 +43,7 @@ describe('PR9 canonical Process', () => {
     expect(PROCESS_ACCUMULATION).toEqual([])
     expect(PROCESS_NODES.map((node) => node.name)).toEqual(expect.arrayContaining([
       'Bulk Purchase', 'Worker Presets', 'Research Queue Assist', 'Rule Builder',
-      'Furnace Auto-Ignite', 'Directive Preference', 'Auto Extract', 'Challenge Profile',
+      'Furnace Auto-Ignite', 'Directive Preference', 'Auto Withdraw', 'Challenge Profile',
     ]))
   })
 

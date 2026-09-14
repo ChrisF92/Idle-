@@ -6,8 +6,6 @@
  * `docs/act1-canonical-design.md`.
  */
 
-import type { FormationId } from './formations'
-
 export type CommanderTraitId =
   | 'vanguard'
   | 'ironclad'
@@ -111,22 +109,6 @@ export const BREACH_ENGINE_SPIKE = {
 export const SUPPORT_CAP_PER_PACKAGE = 2
 export const DISRUPTOR_CAP_PER_PACKAGE = 2
 
-/**
- * Bounded formation/dispersion contribution to threat.
- * Wide angular spread adds targeting pressure without wild multipliers.
- */
-export const FORMATION_DISPERSION_WEIGHT: Record<FormationId, number> = {
-  spear: 0,
-  pincer: 0.04,
-  encirclement: 0.1,
-  screen: 0.06,
-  siege: 0.05,
-  'swarm-burst': 0.03,
-  'mixed-pressure': 0.08,
-}
-
-export const FORMATION_DISPERSION_WEIGHT_MAX = 0.12
-
 export const ORDINARY_COUNT_MIN = 2
 export const ORDINARY_COUNT_MAX = 6
 
@@ -135,12 +117,6 @@ export const ORDINARY_COUNT_MAX = 6
  * PR7 itself always uses identity modifiers.
  */
 export const DENSITY_COUNT_MAX = 14
-
-/** Commander Wave total threat vs ordinary Wave of the same band. */
-export const COMMANDER_WAVE_THREAT_MULT = 1.4
-
-/** Commander itself consumes this share of the Commander-wave threat. */
-export const COMMANDER_SELF_THREAT_SHARE = 0.45
 
 export const COMMANDER_PROMOTION = {
   pending: { hull: 2.2, shield: 1.8, damage: 1.18, speed: 1, armorAdd: 0 },

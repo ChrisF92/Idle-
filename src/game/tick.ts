@@ -55,7 +55,7 @@ import {
   repairRatePerSecond,
   shieldRepairRatePerSecond,
 } from './combat'
-import { allocateSortieSeed } from './threatBudget'
+import { allocateSortieSeed } from './spawnDirector'
 import { consumeSimSteps, SIM_FIXED_DT } from './simClock'
 import { emptyWaveRuntime } from './waveRuntime'
 import { createSimRng } from './simRng'
@@ -116,7 +116,7 @@ function clearEnemiesOnly(state: GameState): void {
   state.combat.isBoss = false
   state.combat.bossPhase = 0
   state.combat.bossMechanic = undefined
-  state.combat.waveThreat = undefined
+  state.combat.waveSpawn = undefined
   state.combat.enemyUnits = []
   state.combat.enemyHull = 0
   state.combat.enemyHullMax = 0
@@ -158,7 +158,7 @@ function finishSortie(
   const bonus = extractBonus && outcome === 'extract' ? extractionBonusFor(state) : 0
   if (bonus > 0) {
     grantGeneratedScrap(state, bonus, 'extraction')
-    note = `${note} Extraction +${bonus} Scrap.`
+    note = `${note} Withdrawal +${bonus} Scrap.`
   }
   closeSortie(state, outcome, note, at, {
     scrapEarned: gross,
@@ -662,7 +662,7 @@ function endActiveSortieAsExtract(state: GameState, withBonus: boolean): void {
     persistFlagshipHull(state)
     clearEnemy(state)
   }
-  finishSortie(state, 'extract', `Extracted at Wave ${at.wave}.`, at, withBonus)
+  finishSortie(state, 'extract', `Withdrew at Wave ${at.wave}.`, at, withBonus)
   pushLog(state, state.combat.lastSortie.note)
 }
 
@@ -726,7 +726,7 @@ export function advanceSeconds(state: GameState, seconds: number): void {
   tickAutomation(state)
   if (processShouldExtract(state) && canExtract(state)) {
     endActiveSortieAsExtract(state, true)
-    noteProcessLastAction(state, 'auto-extract', 'Extracted under the active rule')
+    noteProcessLastAction(state, 'auto-extract', 'Withdrew under the active rule')
   }
   maybeProcessRelaunch(state)
   tryCompleteAchievements(state)
