@@ -16,26 +16,20 @@ export type CommanderTraitId =
   | 'volatile'
   | 'breacher'
 
-/** Ordinary Hull/Shield: 1.011 ^ (Wave - 1). */
-export const ENEMY_HULL_SHIELD_SCALE = 1.011
-
-/** Ordinary outgoing damage: 1.0085 ^ (Wave - 1). */
-export const ENEMY_DAMAGE_SCALE = 1.0085
-
-/** Ordinary reward value: 1.0065 ^ (Wave - 1). */
-export const ENEMY_REWARD_SCALE = 1.0065
-
-export function enemyWaveScale(wave: number): number {
-  return Math.pow(ENEMY_HULL_SHIELD_SCALE, Math.max(1, wave) - 1)
-}
-
-export function enemyDamageScale(wave: number): number {
-  return Math.pow(ENEMY_DAMAGE_SCALE, Math.max(1, wave) - 1)
-}
-
-export function salvageWaveBase(wave: number): number {
-  return Math.pow(ENEMY_REWARD_SCALE, Math.max(1, wave) - 1)
-}
+/**
+ * Compatibility exports for encounter builders and reward callers.
+ * The single source of truth lives in enemyScaling.ts.
+ */
+export {
+  ACT1_ENEMY_SCALING,
+  ENEMY_DAMAGE_SCALE,
+  ENEMY_HULL_SHIELD_SCALE,
+  ENEMY_REWARD_SCALE,
+  enemyDamageScale,
+  enemyScalingAtWave,
+  enemyWaveScale,
+  salvageWaveBase,
+} from './enemyScaling'
 
 /**
  * Role-neutral development/simulator baseline used when a hostile's unique

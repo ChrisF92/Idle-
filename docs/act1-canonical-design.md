@@ -1298,6 +1298,13 @@ Seed:
 - ordinary outgoing damage scale: approximately `1.0085 ^ (Wave - 1)`
 - ordinary reward-value scale: approximately `1.0065 ^ (Wave - 1)`
 
+Implementation and tuning rule:
+
+- these are three uninterrupted global exponential curves, not hand-authored per-Wave stat bands
+- hostile base profiles define identity; spawn rate and eligible-hostile weights define density/composition pressure
+- Commander Traits, Boss profiles and authored mechanics may create readable encounters above the ordinary curve, but must not silently rewrite it
+- hold the enemy baseline stable while tuning player power across Workshop, Cores, Matter, Foundry, Furnace and Research; change only one named balance layer per tuning PR
+
 Armor should primarily come from authored enemy profile/band progression and diminishing-return formulas rather than scaling linearly to immunity.
 
 Boss/Commander profiles apply separate authored profiles and promotion modifiers; do not automatically fit HP/DPS to a numerical pressure target.
