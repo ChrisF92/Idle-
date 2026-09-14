@@ -86,7 +86,7 @@ describe('live Sortie chrome and pause/browse contract', () => {
     expect(document.querySelector('.tab-nav, nav.tab-nav, [aria-label="Game systems"]')).toBeNull()
   })
 
-  it('lists Pause and Pause & Browse; Extract stays locked before W210', () => {
+  it('offers one Leave Sortie decision instead of separate Pause and Extract actions', () => {
     const live = liveSortie()
     render(
       <CombatTab
@@ -95,10 +95,9 @@ describe('live Sortie chrome and pause/browse contract', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
-    expect(screen.getByRole('menuitem', { name: 'Pause' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Pause & Browse' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Leave Sortie' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Pause' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Extract' })).toBeNull()
-    expect(screen.getByText(/Unlocks at Best Wave 210/i)).toBeTruthy()
   })
 
   it('Pause freezes simTime, enemies, Wave timers, and cooldowns until Resume', () => {
@@ -184,7 +183,8 @@ describe('live Sortie chrome and pause/browse contract', () => {
     }
     render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Pause & Browse' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Leave Sortie' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend Sortie' }))
     expect(state.combat.sortiePaused).toBe(true)
     expect(state.combat.docked).toBe(false)
     expect(isSortieActive(state)).toBe(true)

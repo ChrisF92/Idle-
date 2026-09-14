@@ -448,7 +448,7 @@ export const PROCESS_WHEN_OPTIONS: { id: ProcessWhenKind; label: string; needsVa
 export const PROCESS_THEN_OPTIONS: { id: ProcessThenKind; label: string }[] = [
   { id: 'spend-profile', label: 'Apply spending profile' },
   { id: 'spend-ratios', label: 'Set Attack / Defense / Economy' },
-  { id: 'extract', label: 'Extract' },
+  { id: 'extract', label: 'Withdraw' },
   { id: 'furnace-preset', label: 'Set Furnace profile' },
   { id: 'furnace-push', label: 'Light Furnace' },
   { id: 'worker-preset', label: 'Assign Worker preset' },
@@ -501,7 +501,7 @@ export function formatProcessAction(action: ProcessAction): string {
     case 'economy-target':
       return `Economy → ${Math.max(0, action.economyPct ?? 0)}%`
     case 'extract':
-      return 'Extract'
+      return 'Withdraw'
     case 'furnace-preset':
       return `Furnace → ${action.furnacePreset ? FURNACE_PRESET_LABELS[action.furnacePreset] ?? 'Preset' : 'Preset'}`
     case 'furnace-push':

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { createInitialState, computeShipStats } from './state'
 import { chooseDirective, makeDirectiveOffer, queueDirectiveOffer } from './directives'
 import { encounterForWave } from './encounterGenerator'
-import { packThreat } from './threatBudget'
 import { tickWaveScheduler } from './waveScheduler'
 import { NORMAL_REINFORCEMENT_INTERVAL } from './waves'
 import { canIgniteFurnace, convertAshToHeat, furnaceDamageMult, igniteFurnace } from './furnace'
@@ -26,14 +25,15 @@ describe('PR8 integrated Directives + Furnace', () => {
     expect(makeDirectiveOffer(next, 275)).not.toContain(picked)
   })
 
-  it('Pack Hunter increases controlled threat without changing Commander identity/count rules', () => {
+  it('Pack Hunter increases spawn pressure without changing Commander identity rules', () => {
     let base = mature()
     base.combat.directives = []
     const ordinary = encounterForWave(421, 77, base)
     let packed = structuredClone(base)
     packed.combat.directives = ['pack-hunter']
     const pressured = encounterForWave(421, 77, packed)
-    expect(packThreat(pressured.units)).toBeGreaterThan(packThreat(ordinary.units) * 1.1)
+    expect(pressured.spawn!.rate).toBeGreaterThan(ordinary.spawn!.rate * 1.1)
+    expect(pressured.units.length).toBeGreaterThanOrEqual(ordinary.units.length)
     const commander = encounterForWave(420, 77, packed)
     expect(commander.units.filter((u) => u.isCommander)).toHaveLength(1)
   })

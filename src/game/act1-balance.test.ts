@@ -208,7 +208,7 @@ describe('Act 1 career simulations', () => {
     }
     const json = exportSave(s)
     const back = importSave(json)
-    expect(SAVE_VERSION).toBe(51)
+    expect(SAVE_VERSION).toBe(52)
     expect(back).toBeTruthy()
     expect(back!.hiveResearch.completed.energy).toBe(2)
     expect(back!.foundry.masteryXp['recovered-stock']).toBe(4)

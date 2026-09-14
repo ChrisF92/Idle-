@@ -153,7 +153,7 @@ describe('UI architecture reset', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sortie menu' }))
     expect(document.querySelector('.sortie-menu-pop')).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: 'Extract' })).toBeNull()
-    expect(screen.getByText(/Extract/)).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Leave Sortie' })).toBeTruthy()
     expect(document.querySelector('.sheet-overlay')).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Attack' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Show upgrades' }))

@@ -1,4 +1,4 @@
-/** Wave-package runtime: reached/secured, pending threat, Boss-boundary flow. */
+/** Wave-package runtime: reached/secured, scheduled/pending units, Boss-boundary flow. */
 
 import type {
   BossBoundaryState,
@@ -136,10 +136,29 @@ export function admitUnitToPackage(
   return admitted
 }
 
+/** Queue an already-authored spawn-check result for its deterministic simTime. */
+export function scheduleUnitToPackage(
+  state: GameState,
+  pkg: WavePackageState,
+  unit: CombatUnit,
+  releaseAt: number,
+): CombatUnit {
+  const scheduled: CombatUnit = {
+    ...structuredClone(unit),
+    id: nextCombatId(state, 'unit', `${pkg.id}-u`),
+    packageId: pkg.id,
+    sourceWave: pkg.wave,
+  }
+  enqueuePending(state, pkg, [scheduled], Math.max(state.combat.simTime ?? 0, releaseAt))
+  pkg.totalUnits = Math.max(pkg.totalUnits, pkg.spawnedUnitIds.length + pkg.pendingCount)
+  return scheduled
+}
+
 export function enqueuePending(
   state: GameState,
   pkg: WavePackageState,
   units: CombatUnit[],
+  releaseAt?: number,
 ): void {
   if (units.length === 0) return
   const id = nextCombatId(state, 'package', `pend-${pkg.id}`)
@@ -149,6 +168,7 @@ export function enqueuePending(
     wave: pkg.wave,
     kind: pkg.kind,
     units,
+    releaseAt,
   })
   pkg.pendingCount += units.length
 }
@@ -159,6 +179,10 @@ export function drainPending(state: GameState, cap = ACTIVE_ENEMY_SOFT_CAP): Com
   for (const row of state.combat.pendingReinforcements) {
     const pkg = state.combat.packages.find((p) => p.id === row.packageId)
     if (row.units.length === 0) continue
+    if ((row.releaseAt ?? 0) > (state.combat.simTime ?? 0) + 1e-9) {
+      leftover.push(row)
+      continue
+    }
     const room = Math.max(0, cap - livingEnemyCount(state) - released.length)
     if (room <= 0) {
       leftover.push(row)

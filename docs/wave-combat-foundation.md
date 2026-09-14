@@ -25,15 +25,15 @@ Gameplay IDs (units, projectiles, beams, FX, packages) come from serialised `com
 
 Wave/formation scheduling uses an independent stream `hash(sortieSeed, wave, packageOrdinal, FORMATION_CHANNEL)`. Combat/loot RNG is a separate serialised stream. Consuming extra combat rolls must not change a future Wave's formation.
 
-## Pending threat
+## Scheduled and pending reinforcements
 
-`ACTIVE_ENEMY_SOFT_CAP` (55) is the central live-enemy safety limit. Overflow units go into `pendingReinforcements` with the same package identity, Wave, and rewards. A Wave cannot Secure while it still has pending units.
+`ACTIVE_ENEMY_SOFT_CAP` (55) is the central live-enemy safety limit. Ordinary weighted-spawn checks and capacity overflow both use `pendingReinforcements` with the same package identity, Wave, rewards, and optional deterministic release time. A Wave cannot Secure while it still has scheduled or pending units.
 
 Nothing is despawned, weakened, or auto-killed to relieve pressure.
 
 ## Exact Sortie freeze / resume
 
-Closing or reloading freezes live combat. Offline elapsed time advances combat by **0 seconds**. The save schema (`SAVE_VERSION` 42) stores Wave/package/pending state, sim clock, RNG, Hive hull/shield, Core orbit pose, weapon cooldowns, projectiles/beams, and Boss-boundary phase.
+Closing or reloading freezes live combat. Offline elapsed time advances combat by **0 seconds**. The save schema (`SAVE_VERSION` 52) stores Wave/package/scheduled-pending state, sim clock, RNG, Hive hull/shield, Core orbit pose, weapon cooldowns, projectiles/beams, and Boss-boundary phase.
 
 The simulation clock uses a fixed 1/30s step. `simTime` advances **before** each combat step so reinforcement, cooldowns, and movement all observe the same timestamp. `simulationRate()` is the single future Time Compression hook (PR3); PR1 keeps it at 1×.
 

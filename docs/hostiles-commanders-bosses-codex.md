@@ -39,7 +39,7 @@ Runtime fallback for pending combat profiles: isolated `ROLE_NEUTRAL_BASELINE` i
 
 ## Ordinary encounters
 
-Catalogue whose first-contact Wave ≤ N, first-contact forced at its Wave, threat budget, seven formations (`spear` … `mixed-pressure`), support/disruptor caps (seed 2/2; classification itself pending so currently vacuous), Sortie-seeded formation RNG isolated from combat/loot RNG.
+Catalogue whose first-contact Wave ≤ N, first-contact forced at its Wave, deterministic spawn checks plus eligible-hostile weights, seven formations (`spear` … `mixed-pressure`), support/disruptor caps (seed 2/2; classification itself pending so currently vacuous), and Sortie-seeded spawn/formation RNG isolated from combat/loot RNG.
 
 PR7 generation runs at canonical baseline pressure. A neutral typed encounter-modifier provider defaults to identity and is available for later PR8/PR10 wiring; PR7 does not consume legacy Directive/Protocol density implementations. Count safety seed: `DENSITY_COUNT_MAX = 14`.
 

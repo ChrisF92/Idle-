@@ -33,7 +33,7 @@ export function extractionLockedReason(state: GameState): string | null {
   if (state.combat.docked || !state.combat.inFight) return 'No active Sortie'
   if (liveHiveHull(state) <= 0) return 'Hive destroyed'
   if ((state.combat.defeatLeft ?? 0) > 0) return 'Defeat sequence'
-  if (isChallengeSortie(state)) return 'Challenges cannot Extract'
+  if (isChallengeSortie(state)) return 'Challenges cannot Withdraw'
   if (careerBestWave(state) < EXTRACTION_UNLOCK_WAVE) {
     return `Unlocks at Best Wave ${EXTRACTION_UNLOCK_WAVE}`
   }

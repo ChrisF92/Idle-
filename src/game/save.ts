@@ -147,7 +147,12 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     nextReinforcementAt: Number(combat.nextReinforcementAt ?? 0) || 0,
     packages: Array.isArray(combat.packages) ? combat.packages : [],
     pendingReinforcements: Array.isArray(combat.pendingReinforcements)
-      ? combat.pendingReinforcements
+      ? combat.pendingReinforcements.map((row) => ({
+          ...row,
+          releaseAt: Number.isFinite(row.releaseAt)
+            ? Math.max(0, Number(row.releaseAt))
+            : undefined,
+        }))
       : [],
     bossBoundary: combat.bossBoundary ?? runtime.bossBoundary,
     simTime: Math.max(0, Number(combat.simTime ?? 0) || 0),
@@ -159,12 +164,12 @@ function withCombatDefaults(combat: GameState['combat']): GameState['combat'] {
     bossPhase: combat.bossPhase ?? 0,
     sortieSeed: Math.max(0, Math.floor(Number(combat.sortieSeed ?? 0) || 0)),
     bossMechanic: typeof combat.bossMechanic === 'string' ? combat.bossMechanic : undefined,
-    waveThreat:
-      combat.waveThreat && typeof combat.waveThreat === 'object'
+    waveSpawn:
+      combat.waveSpawn && typeof combat.waveSpawn === 'object'
         ? {
-            seed: Math.max(0, Math.floor(Number(combat.waveThreat.seed ?? 0) || 0)),
-            budget: Math.max(0, Number(combat.waveThreat.budget ?? 0) || 0),
-            spent: Math.max(0, Number(combat.waveThreat.spent ?? 0) || 0),
+            rate: Math.max(0, Number(combat.waveSpawn.rate ?? 0) || 0),
+            checkCount: Math.max(0, Math.floor(Number(combat.waveSpawn.checkCount ?? 0) || 0)),
+            planned: Math.max(0, Math.floor(Number(combat.waveSpawn.planned ?? 0) || 0)),
           }
         : undefined,
     fightElapsed: Math.max(0, Number(combat.fightElapsed ?? 0) || 0),

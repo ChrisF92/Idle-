@@ -45,7 +45,7 @@ export const DIRECTIVE_SEEDS = {
   focusMax: 1.30,
   focusSecondary: 0.80,
   packSecondary: 1.20,
-  packThreat: 1.15,
+  packSpawnRate: 1.15,
   gyroSlew: 1.25,
   gyroAcquisition: 1.10,
   gyroArcDegrees: 8,
@@ -73,7 +73,7 @@ export const DIRECTIVES: DirectiveDef[] = [
   { id: 'precision-protocol', name: 'Precision Protocol', blurb: 'Crit Chance +10 points and Crit Factor +10%; secondary blast/chain damage -15%.' },
   { id: 'siege-calibration', name: 'Siege Calibration', blurb: '+20% direct damage into Armor or Shield. Weapon cycle rate -10%.' },
   { id: 'focused-fire', name: 'Focused Fire', blurb: 'Weapon Cores concentrating a target gain up to +30% direct damage. Secondary damage -20%.' },
-  { id: 'pack-hunter', name: 'Pack Hunter', blurb: 'Secondary blast/chain damage +20%. Ordinary and Commander-escort threat +15%.' },
+  { id: 'pack-hunter', name: 'Pack Hunter', blurb: 'Secondary blast/chain damage +20%. Ordinary spawn rate and Commander escorts +15%.' },
   { id: 'gyro-sync', name: 'Gyro Sync', blurb: 'Core slew +25%, Acquisition +10%, firing arc +8°.' },
   { id: 'reactive-array', name: 'Reactive Array', blurb: 'Max Shield +35%. Shield Regen -25%.' },
   { id: 'reinforced-bulkheads', name: 'Reinforced Bulkheads', blurb: 'Max Hull +35%, Armor effectiveness +10%. Core slew -12%.' },
@@ -314,8 +314,8 @@ export function directiveTargetingModifier(state: GameState): { acquisitionRange
   return { acquisitionRangeMult, slewRateMult, firingArcAdd }
 }
 
-export function directiveEncounterThreatMult(state: GameState): number {
-  return hasDirective(state, 'pack-hunter') ? DIRECTIVE_SEEDS.packThreat : 1
+export function directiveEncounterSpawnRateMult(state: GameState): number {
+  return hasDirective(state, 'pack-hunter') ? DIRECTIVE_SEEDS.packSpawnRate : 1
 }
 
 export function directiveNormalReinforcementIntervalMult(state: GameState): number {

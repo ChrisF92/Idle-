@@ -102,7 +102,7 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
                 </div>
                 {summary.outcome === 'extract' ? (
                   <div>
-                    <span className="muted">Extraction bonus</span>
+                    <span className="muted">Withdrawal bonus</span>
                     <strong>+{formatCompact(summary.extractionBonusScrap ?? 0)}</strong>
                   </div>
                 ) : null}
@@ -184,7 +184,7 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
             <section>
               <p className="combat-hud-kicker">Sortie facts</p>
               <ul>
-                {defeat ? <li>Hull reached zero.</li> : <li>Extraction · Safe return. No Matter.</li>}
+                {defeat ? <li>Hull reached zero.</li> : <li>Withdrawal · Safe return. No Matter.</li>}
                 {bossLeft != null ? <li>Boss remained at {bossLeft}% HP.</li> : null}
                 {stats?.finalFightTime > 0 ? (
                   <li>Final encounter {formatRunTime(stats.finalFightTime)}.</li>

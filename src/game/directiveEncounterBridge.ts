@@ -1,7 +1,7 @@
-import { directiveEncounterThreatMult } from './directives'
+import { directiveEncounterSpawnRateMult } from './directives'
 import { setEncounterModifierProvider } from './encounterGenerator'
 
 setEncounterModifierProvider((state) => ({
-  threatMultiplier: directiveEncounterThreatMult(state),
+  spawnRateMultiplier: directiveEncounterSpawnRateMult(state),
   countDelta: 0,
 }))

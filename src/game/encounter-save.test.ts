@@ -42,7 +42,6 @@ describe('PR7 encounter save integrity', () => {
         unit: reserved,
         packageId: 'pkg-w30-1',
         wave: 30,
-        threat: 18,
         traitId: 'vanguard',
         hostileId: 'void-mite',
       },

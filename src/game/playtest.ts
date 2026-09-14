@@ -499,7 +499,7 @@ export function formatLastSortieTelemetry(state: GameState): string[] {
   const share = (n: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : '0%')
   const stats = last.stats
   const cause = last.outcome === 'extract'
-    ? 'Extract'
+    ? 'Withdraw'
     : stats?.lastIsBoss
       ? `Defeat — ${stats.lastEnemyName || 'boss'}`
       : `Defeat — ${stats?.lastEnemyName || stats?.lastEnemyRole || 'unknown'}`
@@ -511,7 +511,7 @@ export function formatLastSortieTelemetry(state: GameState): string[] {
   const delta = last.newBest ? Math.max(0, last.wave - (last.previousBest ?? 0)) : 0
   return [
     'LAST SORTIE',
-    `Outcome: ${last.outcome === 'extract' ? 'Extract' : 'Defeat'}`,
+    `Outcome: ${last.outcome === 'extract' ? 'Withdraw' : 'Defeat'}`,
     `Seed: ${stats?.sortieSeed ?? state.combat.sortieSeed ?? 0}`,
     `Start Best: W${last.previousBest ?? 0}`,
     `End Wave: W${last.wave}`,

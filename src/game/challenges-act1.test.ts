@@ -36,7 +36,7 @@ function encodeRaw(state: object): string {
 
 describe('PR10 canonical Challenges', () => {
   it('bumps the breaking save and authors exactly the ten Act 1 Challenges', () => {
-    expect(SAVE_VERSION).toBe(51)
+    expect(SAVE_VERSION).toBe(52)
     expect(CHALLENGES.map(({ id, name, targetWave }) => [id, name, targetWave])).toEqual([
       ['glass-frame', 'Glass Frame', 450],
       ['knife-fight', 'Knife Fight', 500],

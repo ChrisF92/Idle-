@@ -1,4 +1,4 @@
-/** Continuous Wave scheduler: reinforcement, pending threat, Boss boundaries. */
+/** Continuous Wave scheduler: timed reinforcement, pending units, Boss boundaries. */
 
 import type { CombatUnit, GameState, WavePackageKind, WavePackageState } from './types'
 import { encounterForWave, pruneDeadEnemyUnits, syncHullAggregates } from './combat'
@@ -15,6 +15,7 @@ import {
   enterBossWarning,
   markWaveReached,
   packageHasLivingOrPending,
+  scheduleUnitToPackage,
   wavePackageKindFor,
 } from './waveRuntime'
 import { ACT1_FINAL_WAVE, BOSS_WARNING_DURATION, isBossWave, NORMAL_REINFORCEMENT_INTERVAL } from './waves'
@@ -25,7 +26,6 @@ import { furnaceSalvageMult, furnaceScrapMult } from './furnace'
 import { combatScrapMatterMult } from './matter'
 import { grantGeneratedScrap } from './rebuild'
 import { grantSignalCoreDrop } from './signalCores'
-import { packThreat } from './threatBudget'
 import { shouldReserveCommander, reserveCommander } from './commanders'
 import { COMMANDER_NOTICE_DURATION } from './hostileSeeds'
 import { recordBossClearSources } from './bossClear'
@@ -41,7 +41,7 @@ export interface WavePresentation {
   name: string
   family: string
   tags: string[]
-  threat?: { seed: number; budget: number; spent: number }
+  spawn?: { rate: number; checkCount: number; planned: number }
 }
 
 function applyPresentation(state: GameState, presentation: WavePresentation, boss: boolean): void {
@@ -49,11 +49,26 @@ function applyPresentation(state: GameState, presentation: WavePresentation, bos
   state.combat.enemyFamily = presentation.family
   state.combat.enemyTags = [...presentation.tags]
   state.combat.isBoss = boss
-  state.combat.waveThreat = presentation.threat
+  state.combat.waveSpawn = presentation.spawn
 }
 
 function admitUnits(state: GameState, pkg: WavePackageState, units: CombatUnit[]): void {
   units.map((unit) => admitUnitToPackage(state, pkg, unit))
+  syncHullAggregates(state)
+}
+
+function admitOrdinarySpawns(
+  state: GameState,
+  pkg: WavePackageState,
+  units: CombatUnit[],
+  offsets: readonly number[],
+): void {
+  const now = state.combat.simTime ?? 0
+  units.forEach((unit, index) => {
+    const offset = Math.max(0, offsets[index] ?? 0)
+    if (offset <= 1e-9) admitUnitToPackage(state, pkg, unit)
+    else scheduleUnitToPackage(state, pkg, unit, now + offset)
+  })
   syncHullAggregates(state)
 }
 
@@ -76,7 +91,7 @@ export function startWavePackage(
     const commander = units.find((u) => u.isCommander)
     if (commander && shouldReserveCommander(state)) {
       units = units.filter((u) => !u.isCommander)
-      reserveCommander(state, commander, pkg, packThreat([commander]))
+      reserveCommander(state, commander, pkg)
     }
     if (wave === 10 && !state.combat.commanderNotice) {
       state.combat.commanderNotice = {
@@ -86,7 +101,11 @@ export function startWavePackage(
       }
     }
   }
-  admitUnits(state, pkg, units)
+  if (kind === 'normal' && encounter?.spawn) {
+    admitOrdinarySpawns(state, pkg, units, encounter.spawn.offsets)
+  } else {
+    admitUnits(state, pkg, units)
+  }
   if (presentationOverride) {
     applyPresentation(state, presentationOverride, kind === 'boss')
   } else if (encounter) {
@@ -96,8 +115,12 @@ export function startWavePackage(
         name: encounter.name,
         family: encounter.family,
         tags: [...encounter.tags],
-        threat: encounter.threat
-          ? { seed: encounter.threat.seed, budget: encounter.threat.budget, spent: encounter.threat.spent }
+        spawn: encounter.spawn
+          ? {
+              rate: encounter.spawn.rate,
+              checkCount: encounter.spawn.checkCount,
+              planned: encounter.units.length,
+            }
           : undefined,
       },
       kind === 'boss',

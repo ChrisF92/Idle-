@@ -346,7 +346,7 @@ function NodeConfig({
             checked={cfg.sortie.autoExtract}
             onChange={(e) => patch((c) => { c.sortie.autoExtract = e.target.checked })}
           />
-          Auto Extract
+          Auto Withdraw
         </label>
         <label className="process-config">
           Hull %
@@ -692,7 +692,7 @@ function profileSummary(profile: ProcessProfile): string[] {
     `Sortie ${spend.attack}/${spend.defense}/${spend.economy} · Reserve ${profile.salvageReserve}`,
     `Workers ${profile.workerPreset ? NETWORK_PRESET_LABELS[profile.workerPreset] : '—'}`,
     `Furnace ${profile.furnacePreset ?? '—'}`,
-    `Extract ${profile.autoExtract ? `ON · Hull ${Math.round(profile.extractHullPct * 100)}%` : 'Off'}`,
+    `Withdraw ${profile.autoExtract ? `ON · Hull ${Math.round(profile.extractHullPct * 100)}%` : 'Off'}`,
     `Foundry ${profile.foundryRepeat ?? '—'} · Research ${profile.researchAutoNext ? 'auto-next' : 'manual'}`,
   ]
 }

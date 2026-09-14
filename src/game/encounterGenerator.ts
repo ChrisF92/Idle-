@@ -5,26 +5,13 @@ import {
   buildHostileUnit,
   firstContactHostile,
   getHostileDef,
-  introducedHostiles,
-  type HostileDef,
 } from './hostileCatalogue'
 import {
   DENSITY_COUNT_MAX,
-  DISRUPTOR_CAP_PER_PACKAGE,
-  FORMATION_DISPERSION_WEIGHT,
-  FORMATION_DISPERSION_WEIGHT_MAX,
-  SUPPORT_CAP_PER_PACKAGE,
 } from './hostileSeeds'
 import { FORMATION_IDS, formationRngFor, formationSlots, pickFormation, type FormationId } from './formations'
-import { createSimRng, hashSeed, rngInt, type SimRngState } from './simRng'
 import { isBossWave } from './waves'
-import {
-  fitPackToThreat,
-  measureThreatRoll,
-  packThreat,
-  threatBudgetForWave,
-  threatSpecForWave,
-} from './threatBudget'
+import { ordinarySpawnPlan } from './spawnDirector'
 import {
   buildCommanderPackage,
   isCommanderWave,
@@ -45,14 +32,19 @@ export interface WaveEncounter {
   blurb: string
   units: CombatUnit[]
   mechanicId?: string
-  threat?: { seed: number; budget: number; spent: number }
+  spawn?: {
+    rate: number
+    checkCount: number
+    weights: Array<{ hostileId: string; weight: number }>
+    offsets: number[]
+  }
   formation?: FormationId
   commanderReserved?: CombatUnit
 }
 
 /** Neutral extension point for later authored systems. PR7 installs no provider. */
 export interface EncounterGenerationModifier {
-  threatMultiplier?: number
+  spawnRateMultiplier?: number
   countDelta?: number
 }
 
@@ -79,29 +71,9 @@ function modifierFor(
 ): Required<EncounterGenerationModifier> {
   const raw = state && encounterModifierProvider ? encounterModifierProvider(state, wave, kind) : {}
   return {
-    threatMultiplier: Math.max(0.1, Number(raw.threatMultiplier ?? 1) || 1),
+    spawnRateMultiplier: Math.max(0.1, Number(raw.spawnRateMultiplier ?? 1) || 1),
     countDelta: Math.trunc(Number(raw.countDelta ?? 0) || 0),
   }
-}
-
-const ENCOUNTER_CHANNEL = 0xe11c07
-
-function encounterRng(seed: number, wave: number, ordinal: number): SimRngState {
-  return createSimRng(hashSeed(seed >>> 0, wave, ordinal, ENCOUNTER_CHANNEL))
-}
-
-function respectCaps(picks: HostileDef[]): HostileDef[] {
-  let support = 0
-  let disruptor = 0
-  const out: HostileDef[] = []
-  for (const def of picks) {
-    if (def.category === 'support' && support >= SUPPORT_CAP_PER_PACKAGE) continue
-    if (def.category === 'disruptor' && disruptor >= DISRUPTOR_CAP_PER_PACKAGE) continue
-    if (def.category === 'support') support += 1
-    if (def.category === 'disruptor') disruptor += 1
-    out.push(def)
-  }
-  return out
 }
 
 export function supportDisruptorCounts(units: CombatUnit[]): { support: number; disruptor: number } {
@@ -113,23 +85,6 @@ export function supportDisruptorCounts(units: CombatUnit[]): { support: number; 
     if (def?.category === 'disruptor') disruptor += 1
   }
   return { support, disruptor }
-}
-
-export function formationDispersionWeight(id: FormationId): number {
-  return Math.min(FORMATION_DISPERSION_WEIGHT_MAX, FORMATION_DISPERSION_WEIGHT[id] ?? 0)
-}
-
-function pickMix(wave: number, rng: SimRngState, count: number): HostileDef[] {
-  const intro = firstContactHostile(wave)
-  const pool = introducedHostiles(wave).sort((a, b) => a.id.localeCompare(b.id))
-  const picks: HostileDef[] = []
-  if (intro) picks.push(intro)
-  while (picks.length < count && pool.length > 0) {
-    picks.push(pool[rngInt(rng, 0, pool.length - 1)]!)
-  }
-  const capped = respectCaps(picks)
-  if (intro && !capped.some((d) => d.id === intro.id)) capped.unshift(intro)
-  return capped.slice(0, Math.max(count, intro ? 1 : 0))
 }
 
 function applyFormation(units: CombatUnit[], wave: number, seed: number, ordinal: number): FormationId {
@@ -153,21 +108,20 @@ function ordinaryEncounter(
   extraDanger: number,
   modifier: Required<EncounterGenerationModifier>,
 ): WaveEncounter {
-  const rng = encounterRng(seed, wave, ordinal)
-  const spec = threatSpecForWave(wave)
-  const baseCount = spec.countMin + rngInt(rng, 0, Math.max(0, spec.countMax - spec.countMin))
-  const want = Math.min(DENSITY_COUNT_MAX, Math.max(1, baseCount + modifier.countDelta))
-  const defs = pickMix(wave, rng, want)
+  const plan = ordinarySpawnPlan({
+    wave,
+    sortieSeed: seed,
+    packageOrdinal: ordinal,
+    spawnRateMultiplier: Math.max(0.1, extraDanger) * modifier.spawnRateMultiplier,
+    countDelta: modifier.countDelta,
+  })
+  const defs = plan.defs.slice(0, DENSITY_COUNT_MAX)
   const units = defs.map((def, i) => {
     const unit = buildHostileUnit({ def, wave })
     unit.id = `draft-${def.id}-${i}`
     return unit
   })
   const formation = applyFormation(units, wave, seed, ordinal)
-  const pressure = 1 + formationDispersionWeight(formation)
-  const budget = threatBudgetForWave(wave) * Math.max(0.1, extraDanger) * modifier.threatMultiplier
-  fitPackToThreat(units, budget / pressure)
-  const spent = packThreat(units) * pressure
   const lead = units[0]
   return {
     id: `w${wave}-${lead?.hostileId ?? 'pack'}`,
@@ -185,7 +139,12 @@ function ordinaryEncounter(
       : 'Ordinary reinforcement from introduced hostiles.',
     units,
     formation,
-    threat: { ...measureThreatRoll(units, seed, budget, false), spent },
+    spawn: {
+      rate: plan.spawnRate,
+      checkCount: plan.checkCount,
+      weights: plan.weights,
+      offsets: plan.offsets.slice(0, units.length),
+    },
   }
 }
 
@@ -199,12 +158,11 @@ function commanderEncounter(
     wave,
     seed,
     state,
-    modifier.threatMultiplier,
+    modifier.spawnRateMultiplier,
     modifier.countDelta,
   )
   if (state) recordCommanderHistory(state, built.plan, wave)
   const units = [built.commander, ...built.escorts]
-  const spent = packThreat(units) * (1 + formationDispersionWeight(built.plan.formation))
   return {
     id: `w${wave}-commander`,
     name: `COMMANDER · ${built.commander.name}`,
@@ -221,7 +179,6 @@ function commanderEncounter(
       : `Commander · ${built.plan.traitId}`,
     units,
     formation: built.plan.formation,
-    threat: { seed, budget: built.targetThreat, spent },
   }
 }
 
