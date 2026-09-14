@@ -482,7 +482,7 @@ Also:
 
 **Work:**
 
-1. **Done (first land).** Named curves in `src/game/balance/curves.ts` re-export live combat / Workshop / Scrap / Matter constants. Change **one layer per later balance PR**. This land does not retune HP / Salvage / Scrap / Matter.
+1. **Done (PR15 enemy-scaling foundation).** Ordinary Hull/Shield, outgoing damage and reward value use three central uninterrupted exponential Wave curves in `src/game/enemyScaling.ts`; `src/game/balance/curves.ts` exposes them to balancing tools. Hostile profiles and weighted spawn density remain separate pressure levers. Change **one layer per later balance PR**. PR15 preserves the canonical seed values and does not retune player power, Scrap or Matter.
 2. **Done (first land).** Simulator profiles: Casual, Balanced, Offensive, Defensive, Economy First, Optimiser (GDD §153). `active` is a Balanced alias. CI still gates Casual/Balanced first-Rebuild, not Optimiser.
 3. **Done (first land).** Warning detectors emit GDD §155 codes: WALL, HARD WALL, STEAMROLL, ECON TRAP, DEAD/DOMINANT UPGRADE, SYSTEM IRRELEVANT/DOMINANT, REBUILD WEAK/EXPLOSIVE.
 4. **Done (validate only).** Targets (do not hard-code as time gates; live first-Rebuild window stays 30 min–5 h so this land does not force a combat retune):

@@ -6,7 +6,7 @@
  * without hunting magic numbers. Do not retune several layers in the same PR.
  *
  * Layers:
- * - Enemy hull / damage vs Wave (canonical PR7 scaling lives in hostileSeeds.ts)
+ * - Enemy hull / damage vs Wave (central exponential curves live in enemyScaling.ts)
  * - Salvage income
  * - Scrap income
  * - Workshop starting power
@@ -15,6 +15,16 @@
  */
 
 export { salvageWaveBase, salvageFromKill } from '../combat'
+
+export {
+  ACT1_ENEMY_SCALING,
+  ENEMY_DAMAGE_SCALE,
+  ENEMY_HULL_SHIELD_SCALE,
+  ENEMY_REWARD_SCALE,
+  enemyDamageScale,
+  enemyScalingAtWave,
+  enemyWaveScale,
+} from '../enemyScaling'
 
 export {
   RUN_UPGRADE_COST_BASE,
