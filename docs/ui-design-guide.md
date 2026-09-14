@@ -1,5 +1,7 @@
 # Hiveworks UI Design Guide
 
+> **Revision 1.1 navigation addendum (2026-09-14):** The approved [UI & Navigation Implementation Specification](./ui-navigation-implementation-spec.md) supersedes conflicting examples below. In particular: fresh careers start at Dock and launch manually; Fresh Dock includes an interactive Hive preview; More is available fresh; Systems appears with Foundry; Sortie is not a tab; and its compact HUD/drawer follow the new specification.
+
 **Authority for all Hiveworks UI.** Any future new screen or major UI change must follow this guide unless this document explicitly overrides it.
 
 This is not a visual reskin. Keep the dark industrial sci-fi palette, orange accent, Chakra Petch display type, IBM Plex Mono for numbers and metadata, and the existing Hiveworks aesthetic. The problem this guide solves is **information architecture and screen composition**.

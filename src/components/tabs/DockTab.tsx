@@ -102,6 +102,9 @@ export function DockTab({
     coreInstanceId: fittedCores[index]?.coreInstanceId,
     role: fittedCores[index]?.role,
   }))
+  const equipped = loadoutSlots.filter((slot) => Boolean(slot.moduleId)).length
+  const loadoutReady = equipped === usable
+  const showRebuild = isSystemUnlocked(state, 'prestige')
   const [localPane, setLocalPane] = useState<DockPane>('home')
   const pane = paneProp ?? localPane
   const setPane = (next: DockPane) => {
@@ -156,7 +159,7 @@ export function DockTab({
       <div className="dock-screen-head">
         <ContextBar>
           {pane === 'home' ? (
-            <StatPair label="Best Wave" value={bestWave ? `W${bestWave}` : '—'} />
+            <StatPair label="Best Wave" value={`W${bestWave}`} />
           ) : (
             <button type="button" className="dock-back-btn" onClick={() => setPane('home')}>
               Dock
@@ -188,11 +191,11 @@ export function DockTab({
       <div className="dock-pane">
         {pane === 'home' ? (
           <div className="dock-home">
-            <DockHivePreview state={state} />
+            <DockHivePreview state={state} onOpen={() => setPane('loadout')} />
             {locked ? <p className="ui-meta">Prep is locked until this Sortie docks.</p> : null}
             <ItemRow
               title="Loadout"
-              meta="Frame and Cores"
+              meta={`${frame?.name ?? 'Hive'} · ${equipped}/${usable} Cores · ${loadoutReady ? 'Ready' : 'Slots open'}`}
               guide="dock-cores"
               onClick={() => setPane('loadout')}
             />
@@ -204,12 +207,14 @@ export function DockTab({
                 onClick={() => setPane('workshop')}
               />
             ) : null}
-            <ItemRow
-              title="Rebuild"
-              meta={hangarOpen ? 'Available' : 'Inactive'}
-              guide="rebuild-btn"
-              onClick={() => setPane('rebuild')}
-            />
+            {showRebuild ? (
+              <ItemRow
+                title="Rebuild"
+                meta={hangarOpen ? 'Available' : 'Inactive'}
+                guide="rebuild-btn"
+                onClick={() => setPane('rebuild')}
+              />
+            ) : null}
           </div>
         ) : null}
 

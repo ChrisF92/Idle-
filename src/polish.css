@@ -2377,3 +2377,20 @@ button.just-ok {
   white-space: normal;
 }
 
+
+
+.dock-hive-button {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+}
+
+.dock-hive-button:hover,
+.dock-hive-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 3px;
+}

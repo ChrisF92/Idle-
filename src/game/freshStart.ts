@@ -1,4 +1,4 @@
-/** Brand-new careers start inside Wave 1. Existing saves never auto-launch. */
+/** Brand-new careers begin at Dock. Existing saves preserve their current state. */
 
 import { hasDirectiveOffer } from './directives'
 import { createInitialState } from './state'
@@ -11,14 +11,14 @@ export function createDockedBaseline(now = Date.now()): GameState {
 }
 
 /**
- * Genuinely new game: starter Frame + Cores already fitted, Wave 1 Sortie live.
- * Callers that mean "no save yet" / hard reset must use this — not createInitialState.
+ * Genuinely new game: starter Frame + Cores already fitted, waiting at Dock.
+ * The first Sortie begins only after the player presses Launch Sortie.
  */
 export function createFreshCareerState(now = Date.now()): GameState {
-  return startOpeningSortie(createInitialState(now))
+  return createInitialState(now)
 }
 
-/** Launch Wave 1 and begin combat. No-op if already undocked and fighting. */
+/** Explicitly launch Wave 1 and begin combat. No-op if already undocked and fighting. */
 export function startOpeningSortie(state: GameState): GameState {
   if (!state.combat.docked && state.combat.inFight) return state
   let next = state
@@ -27,7 +27,7 @@ export function startOpeningSortie(state: GameState): GameState {
   const live = structuredClone(next)
   beginFight(live)
   live.combat.log = [
-    'Wave 1 — the Hive is already in the field.',
+    'Wave 1 — the Hive enters the field.',
     ...live.combat.log.filter((line) => !/Launch a sortie when ready/i.test(line)),
   ].slice(0, 40)
   return live

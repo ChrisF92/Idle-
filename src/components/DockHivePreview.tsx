@@ -10,7 +10,13 @@ import { coreRoleColor } from '../game/combatVisual'
 import type { GameState } from '../game/types'
 
 /** Square, centered Dock hive — same station art as Sortie, never a side-scroll dart. */
-export function DockHivePreview({ state }: { state: GameState }) {
+export function DockHivePreview({
+  state,
+  onOpen,
+}: {
+  state: GameState
+  onOpen?: () => void
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const frameId = state.shipyard.frameId
   const coreKey = state.shipyard.modules.join('|')
@@ -72,8 +78,13 @@ export function DockHivePreview({ state }: { state: GameState }) {
   }, [frameId, coreKey])
 
   return (
-    <div className="dock-hive-preview">
+    <button
+      type="button"
+      className="dock-hive-preview dock-hive-button"
+      aria-label="Open Loadout"
+      onClick={onOpen}
+    >
       <canvas ref={canvasRef} className="dock-hive-canvas" width={240} height={240} aria-hidden />
-    </div>
+    </button>
   )
 }
