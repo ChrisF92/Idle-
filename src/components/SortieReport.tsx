@@ -70,9 +70,11 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
             </h3>
             <p className="muted">{formatRunTime(stats?.finalFightTime ?? 0)}</p>
           </div>
-          <button type="button" onClick={onClose}>
-            Close
-          </button>
+          {!firstDefeat ? (
+            <button type="button" onClick={onClose}>
+              Close
+            </button>
+          ) : null}
         </header>
 
         {firstDefeat ? (
@@ -89,6 +91,15 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
               Salvage from that Sortie is gone. Scrap survives. Spend it in Workshop so the next Sortie
               starts stronger.
             </p>
+            <details className="sortie-report-details">
+              <summary>Run details</summary>
+              <ul>
+                <li>{stats?.kills ?? 0} hostiles destroyed.</li>
+                <li>Damage dealt {formatCompact(stats?.damageDealt ?? 0)}.</li>
+                <li>Damage taken {formatCompact(stats?.damageTaken ?? 0)}.</li>
+                <li>Final encounter {formatRunTime(stats?.finalFightTime ?? 0)}.</li>
+              </ul>
+            </details>
           </>
         ) : (
           <>
@@ -197,12 +208,20 @@ export function SortieReport({ summary, state, onClose, onDock, onRunAgain, onVi
         )}
 
         <p className="assign-row sortie-report-actions">
-          <button type="button" onClick={goDock}>
-            Dock
-          </button>
-          <button type="button" className="primary" onClick={runAgain}>
-            {firstDefeat ? 'Continue' : 'Run Again'}
-          </button>
+          {firstDefeat ? (
+            <button type="button" className="primary" onClick={goDock}>
+              Return to Dock
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={goDock}>
+                Dock
+              </button>
+              <button type="button" className="primary" onClick={runAgain}>
+                Run Again
+              </button>
+            </>
+          )}
         </p>
       </div>
     </div>

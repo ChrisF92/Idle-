@@ -4,6 +4,7 @@ import { formatCompact } from '../game/format'
 import {
   canUnlockNextGeneric,
   effectiveUpgradeLevel,
+  firstWorkshopPurchasePending,
   maxAffordableRunPurchases,
   maxAffordableWorkshopPurchases,
   nextUnlockDef,
@@ -79,9 +80,10 @@ export function UpgradeGrid({
 }: UpgradeGridProps) {
   const rows = visibleRunUpgrades(state, category)
   const [infoId, setInfoId] = useState<string | null>(null)
-  const next = kind === 'workshop' ? nextUnlockDef(state, category) : null
-  const nextCost = kind === 'workshop' ? nextUnlockCost(state, category) : null
-  const unlockCheck = kind === 'workshop' ? canUnlockNextGeneric(state, category) : null
+  const revealPending = kind === 'workshop' && firstWorkshopPurchasePending(state)
+  const next = kind === 'workshop' && !revealPending ? nextUnlockDef(state, category) : null
+  const nextCost = kind === 'workshop' && !revealPending ? nextUnlockCost(state, category) : null
+  const unlockCheck = kind === 'workshop' && !revealPending ? canUnlockNextGeneric(state, category) : null
   if (rows.length === 0 && !next) {
     return <p className="muted">No upgrades in this category yet.</p>
   }

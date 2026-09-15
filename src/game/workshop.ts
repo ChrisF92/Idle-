@@ -170,6 +170,15 @@ export function tutorialSortieShopActive(state: GameState): boolean {
   return !state.meta.hullLostOnce
 }
 
+/**
+ * The first Workshop visit reveals one starter-known row per category.
+ * Buying any first row completes the reveal without changing permanent unlock ownership.
+ */
+export function firstWorkshopPurchasePending(state: GameState): boolean {
+  if (!state.combat.docked || !state.meta.hullLostOnce) return false
+  return Object.values(state.workshop?.levels ?? {}).every((level) => Number(level) <= 0)
+}
+
 export function createEmptyWorkshop(): WorkshopState {
   return { levels: {}, coreStarts: {} }
 }
@@ -522,9 +531,11 @@ export function shopEconomyRoi(state: GameState, id: RunUpgradeId): string | nul
 
 export function visibleRunUpgrades(state: GameState, category?: RunUpgradeCategory): RunUpgradeDef[] {
   const tutorial = tutorialSortieShopActive(state) && !state.combat.docked
+  const firstWorkshop = firstWorkshopPurchasePending(state)
   return RUN_UPGRADES.filter((def) => {
     if (tutorial) return TUTORIAL_SORTIE_UPGRADE_IDS.includes(def.id)
     if (category && def.category !== category) return false
+    if (firstWorkshop && def.chainIndex > 0) return false
     return isUpgradePermanentlyKnown(state, def.id)
   })
 }
