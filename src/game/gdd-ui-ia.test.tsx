@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { DockTab } from '../components/tabs/DockTab'
 import { StatsTab } from '../components/tabs/StatsTab'
@@ -40,6 +40,22 @@ describe('GDD shell information architecture', () => {
     expect(screen.queryByRole('button', { name: /Manage/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Worker Drones/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /^Foundry/ })).toBeTruthy()
+  })
+
+  it('reveals Systems progressively and exposes card attention accessibly', () => {
+    const foundry = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.foundry)
+    render(<SystemsTab state={foundry} onManage={() => undefined} />)
+    expect(screen.getByRole('button', { name: /Foundry, ready to spend, new/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Worker Drones/ })).toBeNull()
+    expect(screen.queryByText('Furnace')).toBeNull()
+    cleanup()
+
+    const workers = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
+    workers.base.workerDrones = Math.max(2, workers.base.workerDrones)
+    const onManage = vi.fn()
+    render(<SystemsTab state={workers} onManage={onManage} />)
+    fireEvent.click(screen.getByRole('button', { name: /Worker Drones, ready to spend, new/ }))
+    expect(onManage).toHaveBeenCalledWith('network')
   })
 
   it('hides locked More doors instead of teasing the next system', () => {
