@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { GameState, RelicSocketClass, TabId } from '../game/types'
 import {
-  INVENTORY_CATEGORIES,
+  visibleInventoryCategories,
   RELIC_FILTERS,
   RELIC_STORAGE_NOTE,
   filterInventoryRows,
@@ -53,6 +53,12 @@ export function InventoryScreen({
   const [materialId, setMaterialId] = useState<string | null>(null)
   const showSearch = inventorySearchUseful(state)
   const docked = Boolean(state.combat.docked)
+  const categories = useMemo(() => visibleInventoryCategories(state), [state])
+  const detailOpen = Boolean(coreId || frameOpen || relicId || materialId)
+
+  useEffect(() => {
+    if (!categories.some((option) => option.id === category)) setCategory('equipment')
+  }, [categories, category])
 
   const equipment = useMemo(() => {
     const rows = inventoryEquipment(state)
@@ -90,8 +96,13 @@ export function InventoryScreen({
 
   return (
     <>
-      <FullSheet open={open} title="Inventory" onClose={onClose} overlayId="inventory" kicker="Owned items">
-        <SheetTabs value={category} onChange={setCategory} options={INVENTORY_CATEGORIES} label="Inventory categories" />
+      <FullSheet open={open && !detailOpen} title="Inventory" onClose={onClose} overlayId="inventory" kicker="Owned items">
+        {!docked ? (
+          <p className="notice" role="status">Inventory is read-only while a Sortie is live.</p>
+        ) : null}
+        {categories.length > 1 ? (
+          <SheetTabs value={category} onChange={setCategory} options={categories} label="Inventory categories" />
+        ) : null}
         {category === 'relics' ? (
           <SheetTabs value={relicFilter} onChange={setRelicFilter} options={RELIC_FILTERS} label="Relic filters" />
         ) : null}
@@ -184,6 +195,7 @@ export function InventoryScreen({
           moduleId={coreId.moduleId}
           coreInstanceId={coreId.coreInstanceId}
           locked={!docked}
+          actionLabel={state.shipyard.equippedCoreIds.includes(coreId.coreInstanceId) ? 'Equipped' : 'Fit Core'}
           onUpgradeCore={docked ? onUpgradeCore : undefined}
           onChange={
             docked &&
@@ -203,6 +215,7 @@ export function InventoryScreen({
         <FrameSheet
           state={state}
           locked={!docked}
+          ownedOnly
           onEquip={(id) => {
             onSelectFrame?.(id)
             setFrameOpen(false)
@@ -235,7 +248,8 @@ export function InventoryScreen({
                 : canStartRelicUpgrade(state, relic.id).reason ?? 'Tier upgrade unavailable.'}
             </p>
             <p className="ui-meta">{RELIC_STORAGE_NOTE}</p>
-            {canStartRelicUpgrade(state, relic.id).ok && onUpgradeRelic ? (
+            {!docked ? <p className="notice">Relic changes are locked until Dock.</p> : null}
+            {docked && canStartRelicUpgrade(state, relic.id).ok && onUpgradeRelic ? (
               <button type="button" className="primary" onClick={() => onUpgradeRelic(relic.id)}>
                 Upgrade Relic
               </button>

@@ -48,18 +48,19 @@ const ROLE_LABEL: Record<ModuleRole, string> = {
 interface FrameSheetProps {
   state: GameState
   locked?: boolean
+  ownedOnly?: boolean
   onEquip?: (frameId: string) => void
   onClose: () => void
 }
 
-export function FrameSheet({ state, locked, onEquip, onClose }: FrameSheetProps) {
+export function FrameSheet({ state, locked, ownedOnly = false, onEquip, onClose }: FrameSheetProps) {
   const current = getFrame(state.shipyard.frameId)
   const slotsNow = usableCoreSlots(state)
 
   return (
     <BottomSheet open title="Hive Frame" onClose={onClose} overlayId="frame-sheet" size="full">
         {locked ? <p className="muted">Frame changes are locked until Dock.</p> : null}
-          {SHIP_FRAMES.map((frame) => {
+          {SHIP_FRAMES.filter((frame) => !ownedOnly || state.shipyard.unlockedFrames.includes(frame.id)).map((frame) => {
             const owned = state.shipyard.unlockedFrames.includes(frame.id)
             const nextSlots = usableCoreSlots(state, frame.id)
             const nextModules = trimModulesToFrame(state.shipyard.modules, nextSlots)
@@ -126,6 +127,8 @@ interface CoreDetailSheetProps {
   moduleId: string
   coreInstanceId?: string
   locked?: boolean
+  actionLabel?: string
+  showAction?: boolean
   onChange?: () => void
   onClose: () => void
   onUpgradeCore?: (coreInstanceId: string, count?: number) => void
@@ -136,6 +139,8 @@ export function CoreDetailSheet({
   moduleId,
   coreInstanceId = moduleId,
   locked,
+  actionLabel = 'Change Core',
+  showAction = true,
   onChange,
   onClose,
   onUpgradeCore,
@@ -168,11 +173,11 @@ export function CoreDetailSheet({
       onClose={onClose}
       overlayId={`core-detail-${moduleId}`}
       size="full"
-      footer={
+      footer={showAction ? (
         <button type="button" className="primary" disabled={locked || !onChange} onClick={onChange}>
-          {locked ? 'Locked until Dock' : 'Change Core'}
+          {locked ? 'Locked until Dock' : actionLabel}
         </button>
-      }
+      ) : undefined}
     >
       <Kicker>Mastery {mastery}</Kicker>
       <span className="ui-progress" aria-hidden>

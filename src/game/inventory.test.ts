@@ -8,10 +8,32 @@ import {
   inventoryMaterials,
   inventoryRelics,
   relicAvailability,
+  visibleInventoryCategories,
 } from './inventory'
 import { grantModuleCopy } from './coreProgression'
+import { ACT1_CADENCE } from './cadence'
+import { atCareerWave } from './testHelpers'
 
 describe('Inventory item model', () => {
+  it('reveals categories only when they become useful', () => {
+    const fresh = createInitialState(0)
+    expect(visibleInventoryCategories(fresh).map((row) => row.id)).toEqual(['equipment'])
+
+    const foundry = atCareerWave(fresh, ACT1_CADENCE.foundry)
+    expect(visibleInventoryCategories(foundry).map((row) => row.id)).toEqual([
+      'equipment',
+      'materials',
+    ])
+
+    fresh.relics.instances = [
+      { id: 'power-coupler:1', familyId: 'power-coupler', tier: 1 },
+    ]
+    expect(visibleInventoryCategories(fresh).map((row) => row.id)).toEqual([
+      'equipment',
+      'relics',
+    ])
+  })
+
   it('counts Core copies as owned / equipped / available', () => {
     const state = createInitialState(0)
     expect(equippedCoreCount(state, 'pulse-cannon')).toBe(1)

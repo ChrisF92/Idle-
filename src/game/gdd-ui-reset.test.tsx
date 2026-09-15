@@ -179,7 +179,7 @@ describe('UI architecture reset', () => {
     expect(screen.getByText('Salvage /s')).toBeTruthy()
   })
 
-  it('lists Inventory categories and physical Core copies', () => {
+  it('keeps fresh Inventory focused on owned equipment and physical Core copies', () => {
     const state = createInitialState(0)
     grantModuleCopy(state, 'pulse-cannon')
     render(
@@ -187,15 +187,10 @@ describe('UI architecture reset', () => {
         <InventoryScreen state={state} open onClose={() => undefined} />
       </OverlayProvider>,
     )
-    expect(screen.getByRole('tab', { name: 'Equipment' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Relics' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Materials' })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Relics' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Materials' })).toBeNull()
     expect(screen.getByText(/Attack Core · Copy 1 · Equipped/)).toBeTruthy()
     expect(screen.getByText(/Attack Core · Copy 2 · Available/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: 'Relics' }))
-    expect(screen.getByText(/No Relics yet/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: 'Materials' }))
-    expect(screen.getByText('Industrial')).toBeTruthy()
   })
 
   it('blocks onboarding while an update overlay is active', () => {
