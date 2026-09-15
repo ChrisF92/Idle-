@@ -1,7 +1,15 @@
 export { runSimulation, runOne, isolateGameState } from './runner'
 export type { SimulationHooks } from './runner'
 export { defaultSimulationConfig, SIMULATION_PRESETS, presetById, stopLabel } from './presets'
-export { formatSummary, formatFullReport, formatConfigText, reportToJson, reportToCsv } from './report'
+export {
+  aggregateTargetResults,
+  formatSummary,
+  formatFullReport,
+  formatConfigText,
+  reportToJson,
+  reportToCsv,
+  simulationBatchSummary,
+} from './report'
 export {
   loadRecentSimulations,
   saveRecentSimulation,

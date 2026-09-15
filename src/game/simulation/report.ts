@@ -3,6 +3,68 @@ import type { SimulationAggregate, SimulationConfig, SimulationReport, Simulatio
 import { formatSimDuration, median, percentile } from './format'
 import { stopLabel } from './presets'
 import { aggregateTenWaveBands } from './analysis'
+import { ACT1_TARGETS } from '../balance/act1'
+import { evaluateTarget } from './targets'
+
+export interface SimulationBatchSummary {
+  total: number
+  completed: number
+  deadlocked: number
+  cancelled: number
+  safetyRuns: number
+}
+
+function completedRequestedTarget(run: SimulationRunReport): boolean {
+  const stop = run.config.stop
+  if (run.cancelled) return false
+  if (stop.type === 'first-rebuild') {
+    return run.milestones.some((row) => row.id === 'first-rebuild')
+  }
+  if (stop.type === 'rebuilds') return run.rebuilds >= stop.count
+  if (stop.type === 'wave') return run.highestWaveSecured >= stop.wave
+  if (stop.type === 'duration') return run.calendarSeconds >= stop.calendarSeconds
+  if (stop.type === 'active-duration') return run.activeSeconds >= stop.seconds
+  if (stop.type === 'furnace-lit') return run.furnace.heatSpent > 0
+  if (stop.type === 'unlock') return run.stopReason.startsWith('Unlocked ')
+  return !/deadlock|iteration cap|safety calendar cap/i.test(run.stopReason)
+}
+
+export function simulationBatchSummary(report: SimulationReport): SimulationBatchSummary {
+  return {
+    total: report.runs.length,
+    completed: report.runs.filter(completedRequestedTarget).length,
+    deadlocked: report.runs.filter((run) => /deadlock/i.test(run.stopReason)).length,
+    cancelled: report.runs.filter((run) => run.cancelled).length,
+    safetyRuns: report.runs.filter((run) => run.safety.length > 0).length,
+  }
+}
+
+/** Grade a multi-run batch by milestone medians instead of silently grading seed 1. */
+export function aggregateTargetResults(report: SimulationReport) {
+  if (report.runs.length <= 1) return report.runs[0]?.targets ?? []
+  const total = report.runs.length
+  const firstStop = report.runs[0]?.config.stop
+  return ACT1_TARGETS.map((target) => {
+    const milestoneId = target.milestoneId ?? target.id
+    const samples = report.runs
+      .map((run) => run.milestones.find((row) => row.id === milestoneId)?.activeSeconds)
+      .filter((value): value is number => value != null && Number.isFinite(value))
+      .sort((a, b) => a - b)
+    const med = samples.length ? median(samples) : null
+    const result = evaluateTarget(target, med)
+    const p10 = samples.length ? percentile(samples, 0.1) : null
+    const p90 = samples.length ? percentile(samples, 0.9) : null
+    const requiredCompletion = firstStop?.type === 'first-rebuild' && target.id === 'first-rebuild'
+    if (requiredCompletion && samples.length < total) result.severity = 'FAIL'
+    result.simulatedLabel = med == null ? 'not reached' : `median ${formatSimDuration(med)}`
+    result.note = samples.length
+      ? `${result.note ? `${result.note} ` : ''}Reached ${samples.length}/${total} runs; P10 ${formatSimDuration(p10 ?? med!)}–P90 ${formatSimDuration(p90 ?? med!)}.`
+      : requiredCompletion
+        ? `Reached 0/${total} runs; the requested target was not completed.`
+        : result.note
+    return result
+  })
+}
 
 export function formatConfigText(config: SimulationConfig, seed: number): string {
   const session =
@@ -30,10 +92,12 @@ function milestoneLine(run: SimulationRunReport, id: string, fallback: string): 
 export function formatSummary(report: SimulationReport): string {
   const run = report.runs[0]
   if (!run) return 'No simulation runs.'
-  const pass = run.targets.filter((t) => t.severity === 'PASS').length
-  const warn = run.targets.filter((t) => t.severity === 'WARNING').length
-  const fail = run.targets.filter((t) => t.severity === 'FAIL').length
-  const skip = run.targets.filter((t) => t.severity === 'SKIP').length
+  const targetResults = aggregateTargetResults(report)
+  const batch = simulationBatchSummary(report)
+  const pass = targetResults.filter((t) => t.severity === 'PASS').length
+  const warn = targetResults.filter((t) => t.severity === 'WARNING').length
+  const fail = targetResults.filter((t) => t.severity === 'FAIL').length
+  const skip = targetResults.filter((t) => t.severity === 'SKIP').length
   const major = run.walls[0]
   const lines: string[] = [
     '========================================',
@@ -46,7 +110,11 @@ export function formatSummary(report: SimulationReport): string {
     `Build profile: ${run.config.buildProfile}`,
     `Start: ${run.config.startType}`,
     `Target: ${stopLabel(run.config.stop)}`,
-    `Seed: ${run.seed}`,
+    `Seed: ${run.seed}${batch.total > 1 ? ` · Runs ${batch.total}` : ''}`,
+    '',
+    batch.total > 1 ? `Requested target completed: ${batch.completed}/${batch.total}` : '',
+    batch.total > 1 ? `Deadlocked: ${batch.deadlocked} · Safety flags: ${batch.safetyRuns} · Cancelled: ${batch.cancelled}` : '',
+    batch.total > 1 ? 'Representative detail below: first seed in the batch.' : '',
     '',
     `Calendar Time: ${formatSimDuration(run.calendarSeconds)}`,
     `Active Time: ${formatSimDuration(run.activeSeconds)}`,
@@ -58,7 +126,7 @@ export function formatSummary(report: SimulationReport): string {
     run.cancelled ? 'Cancelled: yes (partial report)' : '',
     '',
     '----------------------------------------',
-    'BALANCE STATUS',
+    batch.total > 1 ? `BATCH BALANCE STATUS · MEDIAN OF ${batch.total} RUNS` : 'BALANCE STATUS',
     '----------------------------------------',
     '',
     `PASS: ${pass}`,
@@ -67,7 +135,7 @@ export function formatSummary(report: SimulationReport): string {
     `SKIP: ${skip}`,
     '',
   ]
-  for (const target of run.targets) {
+  for (const target of targetResults) {
     lines.push(
       `[${target.severity}] ${target.label}: ${target.simulatedLabel} (target ${target.targetLabel})${target.note ? ` — ${target.note}` : ''}`,
     )

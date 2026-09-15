@@ -29,11 +29,11 @@ export function defaultSimulationConfig(
     accuracy: partial.accuracy ?? 'accurate',
     logging: partial.logging ?? 'milestones',
     session: partial.session ?? DEFAULT_CASUAL_SESSION,
-    decisionIntervalSeconds: partial.decisionIntervalSeconds ?? (partial.strategy === 'casual' ? 5 : 2),
+    decisionIntervalSeconds: partial.decisionIntervalSeconds ?? 5,
     maxCalendarSeconds: partial.maxCalendarSeconds ?? 14 * 24 * 3600,
     maxIterations: partial.maxIterations ?? 2_000_000,
     deadlockSeconds: partial.deadlockSeconds ?? 45 * 60,
-    postRebuildSeconds: partial.postRebuildSeconds ?? 3 * 60,
+    postRebuildSeconds: partial.postRebuildSeconds ?? 0,
     rebuild: partial.rebuild ?? { ...DEFAULT_REBUILD },
   }
 }
@@ -82,7 +82,7 @@ export const SIMULATION_PRESETS: SimulationPreset[] = [
   preset(
     'fresh-first-rebuild',
     'Balanced → First Rebuild',
-    'Balanced player from a fresh save until the first Rebuild, then a short repush.',
+    'Balanced player from a fresh save until the first Rebuild.',
     'balanced',
     { type: 'first-rebuild' },
   ),

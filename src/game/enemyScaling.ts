@@ -16,10 +16,15 @@ export interface ExponentialEnemyCurve {
 }
 
 export const ACT1_ENEMY_SCALING = {
-  hullShield: { base: 1, growth: 1.011 },
+  hullShield: { base: 1, growth: 1.0205 },
   outgoingDamage: { base: 1, growth: 1.0085 },
   rewardValue: { base: 1, growth: 1.0065 },
 } as const
+
+/** Base Scrap paid when a Wave is secured, before authored modifiers. */
+export function securedWaveScrapBase(wave: number): number {
+  return Math.max(1, 1 + Math.floor(Math.max(1, wave) / 20))
+}
 
 /** Compatibility names used by existing combat and simulator callers. */
 export const ENEMY_HULL_SHIELD_SCALE = ACT1_ENEMY_SCALING.hullShield.growth

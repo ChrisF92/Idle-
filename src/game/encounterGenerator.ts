@@ -9,6 +9,7 @@ import {
 import {
   DENSITY_COUNT_MAX,
 } from './hostileSeeds'
+import { securedWaveScrapBase } from './enemyScaling'
 import { FORMATION_IDS, formationRngFor, formationSlots, pickFormation, type FormationId } from './formations'
 import { isBossWave } from './waves'
 import { ordinarySpawnPlan } from './spawnDirector'
@@ -129,7 +130,7 @@ function ordinaryEncounter(
     family: lead?.family ?? '',
     tags: [formation, ...(lead?.hostileId ? [lead.hostileId] : [])],
     isBoss: false,
-    scrapReward: 5 + Math.floor(wave / 5),
+    scrapReward: securedWaveScrapBase(wave),
     dataReward: 1 + Math.floor(wave / 30),
     aiReward: 0,
     essenceReward: 0,
@@ -169,7 +170,7 @@ function commanderEncounter(
     family: built.commander.family ?? '',
     tags: ['commander', built.plan.traitId, built.plan.formation],
     isBoss: false,
-    scrapReward: 5 + Math.floor(wave / 5),
+    scrapReward: securedWaveScrapBase(wave),
     dataReward: 1 + Math.floor(wave / 30),
     aiReward: 0,
     essenceReward: 0,

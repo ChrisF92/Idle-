@@ -132,6 +132,10 @@ export function ordinarySpawnPlan(opts: {
   let offsets = successfulCheckOffsets(rng, spawnRate)
   // W1 is a single immediate tutorial contact; repeated checks begin at W2.
   if (wave === 1) offsets = [0]
+  // Keep the readable pre-Commander tutorial deterministic. Random early
+  // check spikes previously made otherwise identical fresh saves die anywhere
+  // from W4 / 25 seconds to W22 / four minutes.
+  else if (wave < 10) offsets = [0, ORDINARY_SPAWN_WINDOW * 0.65]
   const countDelta = Math.trunc(opts.countDelta ?? 0)
   if (countDelta > 0) {
     for (let i = 0; i < countDelta && offsets.length < ORDINARY_SPAWN_MAX; i += 1) {

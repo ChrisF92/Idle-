@@ -25,6 +25,7 @@ import { challengeReinforcementIntervalMult } from './challenges'
 import { furnaceSalvageMult, furnaceScrapMult } from './furnace'
 import { combatScrapMatterMult } from './matter'
 import { grantGeneratedScrap } from './rebuild'
+import { securedWaveScrapBase } from './enemyScaling'
 import { grantSignalCoreDrop } from './signalCores'
 import { shouldReserveCommander, reserveCommander } from './commanders'
 import { COMMANDER_NOTICE_DURATION } from './hostileSeeds'
@@ -185,9 +186,12 @@ function payWaveSecureReward(state: GameState, pkg: WavePackageState, hooks: Wav
   pkg.secured = true
   const salvageBonus = salvageWaveBonus(state) * directiveSalvageMult(state) * furnaceSalvageMult(state)
   if (salvageBonus > 0) state.resources.salvage += salvageBonus
-  let drip = Math.max(1, 5 + Math.floor(pkg.wave / 5))
+  // Scrap is permanent-cycle power. Its base drip rises deliberately slower
+  // than Wave pressure so repeated shallow defeats cannot finance a runaway
+  // Workshop snowball before the W210 Rebuild era.
+  let drip = securedWaveScrapBase(pkg.wave)
   if (aiDoctrinesActive(state, 'scavenger')) drip *= 1.3
-  drip = Math.max(1, Math.floor(drip))
+  drip = Math.max(1, drip)
   const waveScrap = (drip + scrapWaveBonus(state)) * combatScrapMatterMult(state) * directiveScrapMult(state) * furnaceScrapMult(state)
   grantGeneratedScrap(state, waveScrap, 'combat-wave')
   if (pkg.kind === 'boss') {

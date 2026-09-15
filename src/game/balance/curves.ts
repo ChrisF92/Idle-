@@ -24,6 +24,7 @@ export {
   enemyDamageScale,
   enemyScalingAtWave,
   enemyWaveScale,
+  securedWaveScrapBase,
 } from '../enemyScaling'
 
 export {
