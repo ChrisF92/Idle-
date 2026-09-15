@@ -77,12 +77,17 @@ describe('AI doctrines', () => {
   })
 
   it('scavenger increases scrap rewards', () => {
-    let state = createInitialState(0)
-    state.resources.aiPoints = 2
-    state = buyAiNode(state, 'scavenger')
-    state = startCombat(state)
-    const scrapBefore = state.resources.scrap
-    state = clearCurrentWave(state)
-    expect(state.resources.scrap - scrapBefore).toBeGreaterThan(5)
+    const waveReward = (scavenger: boolean) => {
+      let state = createInitialState(0)
+      if (scavenger) {
+        state.resources.aiPoints = 2
+        state = buyAiNode(state, 'scavenger')
+      }
+      state = startCombat(state)
+      const scrapBefore = state.resources.scrap
+      state = clearCurrentWave(state)
+      return state.resources.scrap - scrapBefore
+    }
+    expect(waveReward(true)).toBeGreaterThan(waveReward(false))
   })
 })

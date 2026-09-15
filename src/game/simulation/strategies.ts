@@ -121,3 +121,9 @@ export function closeSession(state: GameState): GameState {
   if (state.combat.docked) return state
   return setSortiePaused(state, true)
 }
+
+/** Resume the same foreground Sortie when a Casual session reopens. */
+export function openSession(state: GameState): GameState {
+  if (state.combat.docked) return state
+  return setSortiePaused(state, false)
+}

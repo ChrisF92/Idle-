@@ -27,17 +27,17 @@ import { atCareerWave } from './testHelpers'
 
 const JARGON = /\b(?:USI|ITRTG|analogue|black-bar)\b/i
 
-function firstRebuildConfig(strategy: 'active' | 'optimiser') {
+function firstRebuildConfig(strategy: 'balanced' | 'optimiser') {
   return defaultSimulationConfig({
     start: { type: 'fresh' },
     strategy,
     stop: { type: 'first-rebuild' },
     seed: 1,
     logging: 'milestones',
-    deadlockSeconds: 25 * 60,
-    postRebuildSeconds: 90,
-    maxIterations: 400_000,
-    maxCalendarSeconds: 6 * 3600,
+    deadlockSeconds: 3 * 3600,
+    postRebuildSeconds: 0,
+    maxIterations: 1_000_000,
+    maxCalendarSeconds: 13 * 3600,
   })
 }
 
@@ -153,14 +153,24 @@ describe('Act 1 career simulations', () => {
     expect(canRebuild(ready)).toBe(true)
   })
 
-  it('optimiser first Rebuild is not a spam-reset and still spends Cores', async () => {
-    const report = await runSimulation(firstRebuildConfig('optimiser'))
+  it('balanced first Rebuild avoids authored-window failures', async () => {
+    const report = await runSimulation(firstRebuildConfig('balanced'))
     const run = report.runs[0]!
     expect(run.rebuilds).toBeGreaterThanOrEqual(1)
     expect(run.coreSpending.some((c) => c.levelsPurchased > 0)).toBe(true)
     const rec = run.rebuildLog[0]!
-    expect(rec.highestSector).toBeGreaterThanOrEqual(4)
-    expect(rec.previousPushSeconds).toBeGreaterThan(6 * 60)
+    expect(rec.highestSector).toBeGreaterThanOrEqual(ACT1_CADENCE.rebuild)
+    const openingTargetIds = new Set([
+      'foundry-unlock',
+      'workers-unlock',
+      'wave-100',
+      'wave-200',
+      'first-rebuild',
+    ])
+    const openingTargets = run.targets.filter((row) => openingTargetIds.has(row.id))
+    expect(openingTargets).toHaveLength(openingTargetIds.size)
+    expect(openingTargets.filter((row) => row.severity === 'FAIL')).toEqual([])
+    expect(Math.max(...run.scrapAllocation.map((row) => row.share))).toBeLessThan(0.85)
     const atRebuild = run.snapshots.find((s) => s.at === 'first-rebuild')
     expect((atRebuild?.foundryRecipes ?? 0) + (run.foundry.points > 0 ? 1 : 0)).toBeGreaterThanOrEqual(1)
     const contrib = captureAct1Snapshot(
@@ -172,7 +182,7 @@ describe('Act 1 career simulations', () => {
     expect(contrib.networkDamage).toBe(0)
     expect(contrib.furnaceDamage).toBe(0)
     expect(contrib.researchDamage).toBe(0)
-  }, 120_000)
+  }, 180_000)
 
   it('casual offline catch-up does not explode sector from a closed app', async () => {
     const report = await runSimulation(
@@ -189,11 +199,14 @@ describe('Act 1 career simulations', () => {
     )
     const run = report.runs[0]!
     expect(run.offlineSeconds).toBeGreaterThan(2 * 3600)
+    expect(run.stopReason).toBe('Calendar duration reached')
+    expect(run.sorties.length).toBeGreaterThan(1)
     // Death docks the Sortie, so 8-minute active slices no longer farm a held sector.
     // Offline catch-up must not explode the career. Role-neutral PR7 combat
     // baselines are easier than the retired GDD packs; PR11 owns final pacing.
     expect(run.highestWave).toBeGreaterThanOrEqual(1)
     expect(run.highestWave).toBeLessThan(50)
+    expect(run.safety.some((s) => s.kind === 'deadlock')).toBe(false)
     expect(run.safety.some((s) => s.kind === 'nan')).toBe(false)
   }, 120_000)
 

@@ -9,6 +9,7 @@ import type {
 } from '../game/simulation/types'
 import {
   SIMULATION_PRESETS,
+  aggregateTargetResults,
   defaultSimulationConfig,
   deleteRecentSimulation,
   formatConfigText,
@@ -19,6 +20,7 @@ import {
   reportToCsv,
   reportToJson,
   saveRecentSimulation,
+  simulationBatchSummary,
   stopLabel,
   type RecentSimSummary,
 } from '../game/simulation'
@@ -158,9 +160,11 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
   const ping = (ok: boolean, good: string) => setToast(ok ? good : 'Copy failed')
 
   const run0 = report?.runs[0]
-  const pass = run0?.targets.filter((t) => t.severity === 'PASS').length ?? 0
-  const warn = run0?.targets.filter((t) => t.severity === 'WARNING').length ?? 0
-  const fail = run0?.targets.filter((t) => t.severity === 'FAIL').length ?? 0
+  const displayedTargets = report ? aggregateTargetResults(report) : []
+  const batch = report ? simulationBatchSummary(report) : null
+  const pass = displayedTargets.filter((t) => t.severity === 'PASS').length
+  const warn = displayedTargets.filter((t) => t.severity === 'WARNING').length
+  const fail = displayedTargets.filter((t) => t.severity === 'FAIL').length
 
   return (
     <div className="sim-overlay">
@@ -359,6 +363,12 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
               <p>Calendar Time: {formatSimDuration(run0.calendarSeconds)}</p>
               <p>Highest Wave: {run0.highestWave}</p>
               <p>Rebuilds: {run0.rebuilds}</p>
+              {batch && batch.total > 1 ? (
+                <p>
+                  Completed {batch.completed}/{batch.total} · Deadlocked {batch.deadlocked} · Safety flags{' '}
+                  {batch.safetyRuns}
+                </p>
+              ) : null}
               <p>
                 🟢 {pass} targets · 🟡 {warn} issues · 🔴 {fail} fails
               </p>
@@ -408,8 +418,8 @@ export function BalanceSimulator({ onClose }: BalanceSimulatorProps) {
                 [
                   'status',
                   'Balance Status',
-                  run0.targets
-                    .map((t) => `${t.severity}  ${t.label}: ${t.simulatedLabel} (target ${t.targetLabel})\n${t.note}`)
+                  displayedTargets
+                    .map((t) => `${t.severity}  ${t.label}: ${t.simulatedLabel} (target ${t.targetLabel})${t.note ? `\n${t.note}` : ''}`)
                     .join('\n\n') || 'No evaluated targets.',
                 ],
                 [

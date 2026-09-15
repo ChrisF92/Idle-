@@ -277,8 +277,16 @@ function pickProcessingRecipe(
   const stock = foundryStock(state, 'recovered-stock')
   const filament = foundryStock(state, 'conductive-filament')
   const temper = foundryStock(state, 'tempered-alloy')
-  const fabDone = foundryFacilityCommitted(state, 'worker-fabricator') > 0
-  const wantFab = !fabDone && careerBestWave(state) >= ACT1_CADENCE.foundry
+  const workerFabricatorCommitted = foundryFacilityCommitted(state, 'worker-fabricator') > 0
+  const queuedWorkers = queuedFabrication(state, 'worker', 'worker')
+  const wantWorkerStock =
+    workerFabricatorCommitted &&
+    state.base.workerDrones + queuedWorkers < Math.min(6, droneCap(state))
+  if (wantWorkerStock) {
+    if (filOn && filament < 4 && !occupied.has('conductive-filament')) return 'conductive-filament'
+    if (stockOn && stock < 8 && !occupied.has('recovered-stock')) return 'recovered-stock'
+  }
+  const wantFab = !workerFabricatorCommitted && careerBestWave(state) >= ACT1_CADENCE.foundry
   if (wantFab) {
     if (temperOn && temper < 8 && stock >= 2 && !occupied.has('tempered-alloy')) return 'tempered-alloy'
     if (filOn && filament < 6 && !occupied.has('conductive-filament')) return 'conductive-filament'
@@ -719,7 +727,11 @@ export function spendScrapOnCoreStarts(
     : intended
   const wp = workshopLevel(state, 'weapon-power')
   let next = state
-  const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? 2 : 6
+  const budget = profile === 'optimiser'
+    ? 6
+    : profile === 'offensive' || profile === 'defensive'
+      ? 4
+      : 2
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     const ranked = [...equippedCoreSlots(next)].sort((a, b) => {
@@ -762,6 +774,13 @@ export function spendScrapOnCoreStarts(
 export function tendFoundryFacilities(state: GameState, ctx: StrategyContext): GameState {
   if (!isSystemUnlocked(state, 'foundry')) return state
   const prefer = ['worker-fabricator', 'processing-line', 'fabrication-bay', 'research-annex', 'recovery-storage']
+  // The first fabrication slot is scarce. Do not let a cheaper convenience
+  // facility occupy it while the Worker Fabricator's dependency chain is
+  // still being stocked.
+  if (foundryFacilityCommitted(state, 'worker-fabricator') === 0) {
+    const workerFabricator = FOUNDRY_FACILITIES.find((row) => row.id === 'worker-fabricator')
+    if (!workerFabricator || !canStartFabrication(state, 'facility', workerFabricator.id).ok) return state
+  }
   for (const id of prefer) {
     const def = FOUNDRY_FACILITIES.find((row) => row.id === id)
     if (!def) continue
@@ -786,7 +805,11 @@ export function spendScrapOnWorkshop(
   const preferDefense = state.combat.consecutiveLosses >= 2
   const order = shopOrderFor(profile, preferDefense)
   let next = state
-  const budget = profile === 'casual' ? 2 : profile === 'economy-first' ? 6 : 4
+  const budget = profile === 'optimiser'
+    ? 4
+    : profile === 'economy-first'
+      ? 4
+      : 2
   for (let n = 0; n < budget; n += 1) {
     let bought = false
     for (const id of order) {

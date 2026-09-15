@@ -30,7 +30,7 @@ import {
   syncResourceBalances,
 } from './metrics'
 import { inspectNumericSafety } from './safety'
-import { closeSession, getStrategy, spendProfileFor } from './strategies'
+import { closeSession, getStrategy, openSession, spendProfileFor } from './strategies'
 import { reportedBestWave } from '../waves'
 import { BALANCE_TARGETS, evaluateTarget } from './targets'
 import { stopLabel, FIRST_SALVAGE_LESSON_SECONDS } from './presets'
@@ -82,7 +82,9 @@ function stopReached(
     case 'first-rebuild': {
       if (state.prestige.prestigeCount <= rebuildsAtStart) return null
       if (firstRebuildAt == null) return null
-      if (activeSeconds - firstRebuildAt >= config.postRebuildSeconds) return 'First Rebuild + repush window'
+      if (activeSeconds - firstRebuildAt >= config.postRebuildSeconds) {
+        return config.postRebuildSeconds > 0 ? 'First Rebuild + repush window' : 'First Rebuild'
+      }
       return null
     }
     case 'rebuilds':
@@ -272,6 +274,12 @@ async function runOneSeeded(
   decide()
 
   while (iterations++ < config.maxIterations) {
+    // Long accurate runs still use the canonical 30 Hz combat clock. Yield
+    // periodically so Web Worker cancel/progress messages and test-runner
+    // heartbeats are not starved by a multi-hour simulated career.
+    if (iterations % 512 === 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    }
     if (hooks?.shouldCancel?.()) {
       cancelled = true
       stopReason = 'Cancelled'
@@ -319,6 +327,7 @@ async function runOneSeeded(
       calendarSeconds += offline
       offlineSeconds += offline
       sessionLeft = config.session?.activeSeconds ?? 10 * 60
+      state = openSession(state)
       decide()
       continue
     }
