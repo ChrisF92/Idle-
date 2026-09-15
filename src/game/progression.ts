@@ -593,16 +593,17 @@ export function tryCompleteAchievements(state: GameState): string[] {
   return newly
 }
 
-/** First hull-loss dock — Salvage, Cores spend, Network, and More wait for this. */
+/** First hull-loss dock — Salvage and post-defeat progression wait for this. */
 export function hasHullLostOnce(state: GameState): boolean {
   return state.meta.hullLostOnce === true || state.combat.lastSortie?.outcome === 'defeat'
 }
 
-/** Hub tabs the player may open. First live sortie stays on Sortie until hull loss. */
+/** Hub tabs the player may open. A live Sortie must be explicitly paused before browsing. */
 export function isHubTabOpen(state: GameState, systemId: TabId): boolean {
   if (
     !hasHullLostOnce(state) &&
     !state.combat.docked &&
+    !state.combat.sortiePaused &&
     (state.combat.defeatLeft ?? 0) <= 0 &&
     systemId !== 'combat'
   ) {
@@ -616,7 +617,7 @@ export function isSystemUnlocked(state: GameState, systemId: TabId): boolean {
     return true
   }
   if (systemId === 'stats') {
-    return hasHullLostOnce(state)
+    return true
   }
   if (systemId === 'network') {
     return meetsWave(state, ACT1_CADENCE.workers)
@@ -670,7 +671,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
     return null
   }
   if (systemId === 'stats') {
-    return 'First hull loss'
+    return null
   }
   if (systemId === 'network') {
     return `Reach Wave ${ACT1_CADENCE.workers}`
@@ -718,7 +719,7 @@ export function systemUnlockRequirement(systemId: TabId): string | null {
 export function isResourceVisible(state: GameState, id: keyof Resources): boolean {
   switch (id) {
     case 'scrap':
-      return isSystemUnlocked(state, 'foundry')
+      return hasHullLostOnce(state) || isSystemUnlocked(state, 'foundry')
     case 'alloys':
       return (
         isSystemUnlocked(state, 'base') ||

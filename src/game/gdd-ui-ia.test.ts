@@ -50,9 +50,13 @@ describe('GDD information architecture', () => {
     expect(nextMajorDoor(challengesOpen)?.id).toBe('furnace')
   })
 
-  it('lands Systems on a hub once Foundry and Workers unlock', () => {
+  it('lands Systems on a hub as soon as Foundry unlocks', () => {
     const pre = atCareerWave(markHullLost(createInitialState(0)), 49)
     expect(showSystemsHub(pre)).toBe(false)
+
+    const foundryDoor = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.foundry)
+    expect(showSystemsHub(foundryDoor)).toBe(true)
+    expect(systemsHubCards(foundryDoor).map((c) => c.id)).toEqual(['foundry'])
 
     const workers = atCareerWave(markHullLost(createInitialState(0)), ACT1_CADENCE.workers)
     expect(showSystemsHub(workers)).toBe(true)

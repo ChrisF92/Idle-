@@ -5,13 +5,20 @@ import { exportSave, importSave, loadOrCreateGame } from './save'
 import { completeDefeat, markHullLost } from './testHelpers'
 
 describe('fresh save vs existing docked save', () => {
-  it('creates a genuinely new game already fighting Wave 1', () => {
+  it('creates a genuinely new game at Dock with the starter loadout fitted', () => {
     const fresh = createFreshCareerState(0)
     expect(fresh.shipyard.frameId).toBe('starter-frame')
     expect(fresh.shipyard.equippedCoreIds.length).toBeGreaterThan(0)
-    expect(fresh.combat.docked).toBe(false)
-    expect(fresh.combat.inFight).toBe(true)
+    expect(fresh.combat.docked).toBe(true)
+    expect(fresh.combat.inFight).toBe(false)
     expect(fresh.combat.wave).toBe(1)
+  })
+
+  it('launches Wave 1 only after the explicit launch action', () => {
+    const launched = startOpeningSortie(createFreshCareerState(0))
+    expect(launched.combat.docked).toBe(false)
+    expect(launched.combat.inFight).toBe(true)
+    expect(launched.combat.wave).toBe(1)
   })
 
   it('leaves a docked baseline docked — no auto-launch', () => {
@@ -31,7 +38,7 @@ describe('fresh save vs existing docked save', () => {
   })
 
   it('does not auto-launch after extract/defeat/rebuild-style docking', () => {
-    let state = createFreshCareerState(0)
+    let state = startOpeningSortie(createFreshCareerState(0))
     state = completeDefeat(state)
     expect(state.combat.docked).toBe(true)
     expect(state.combat.inFight).toBe(false)
@@ -39,11 +46,11 @@ describe('fresh save vs existing docked save', () => {
     expect(again.combat.docked).toBe(false)
   })
 
-  it('loadOrCreateGame with no save uses the opening Sortie', () => {
+  it('loadOrCreateGame with no save waits at Dock', () => {
     localStorage.clear()
     const state = loadOrCreateGame(0)
-    expect(state.combat.docked).toBe(false)
-    expect(state.combat.inFight).toBe(true)
+    expect(state.combat.docked).toBe(true)
+    expect(state.combat.inFight).toBe(false)
     expect(state.combat.wave).toBe(1)
   })
 })

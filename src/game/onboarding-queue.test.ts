@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState } from './state'
-import { createFreshCareerState } from './freshStart'
+import { createFreshCareerState, startOpeningSortie } from './freshStart'
 import { setDocked } from './tick'
 import { markHullLost } from './testHelpers'
 import {
@@ -27,15 +27,18 @@ describe('onboarding queue', () => {
     expect(activeOnboardingLesson(state, ui('network'))).toBeNull()
   })
 
-  it('starts a genuine new career already fighting Wave 1', () => {
-    const live = createFreshCareerState(0)
+  it('keeps a genuine new career at Dock until Wave 1 is launched', () => {
+    const fresh = createFreshCareerState(0)
+    expect(fresh.combat.docked).toBe(true)
+    expect(fresh.combat.inFight).toBe(false)
+    const live = startOpeningSortie(fresh)
     expect(live.combat.docked).toBe(false)
     expect(live.combat.inFight).toBe(true)
     expect(activeOnboardingLesson(live, ui('combat'))).toBeNull()
   })
 
   it('pauses for first Salvage once the player can afford Weapon Power', () => {
-    const live = createFreshCareerState(0)
+    const live = startOpeningSortie(createFreshCareerState(0))
     live.resources.salvage = 8
     const step = activeOnboardingLesson(live, ui('combat'))
     expect(step?.id).toBe('opening.salvage')

@@ -22,12 +22,15 @@ const WALLET_ORDER: ResourceId[] = [
 export function walletResourceIds(state: GameState): ResourceId[] {
   const visible = new Set(visibleResourceIds(state))
   return WALLET_ORDER.filter(
-    (id) => visible.has(id) || isResourceVisible(state, id) || (state.resources[id] ?? 0) > 0 || id === 'scrap',
+    (id) => visible.has(id) || isResourceVisible(state, id),
   )
 }
 
 export function WalletButton({ state }: { state: GameState }) {
   const [open, setOpen] = useState(false)
+  const resourceIds = walletResourceIds(state)
+  if (resourceIds.length === 0) return null
+
   return (
     <>
       <button type="button" className="wallet-btn" aria-label="Wallet" onClick={() => setOpen(true)}>
@@ -35,7 +38,7 @@ export function WalletButton({ state }: { state: GameState }) {
       </button>
       <ConfirmModal open={open} title="Wallet" onClose={() => setOpen(false)} overlayId="wallet">
         <div className="wallet-list">
-          {walletResourceIds(state).map((id) => (
+          {resourceIds.map((id) => (
             <StatPair
               key={id}
               label={RESOURCE_LABELS[id]}

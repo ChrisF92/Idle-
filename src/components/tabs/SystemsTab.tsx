@@ -3,6 +3,7 @@ import { systemsHubCards, type SystemsHubId } from '../../game/systemsHub'
 import { workerAllocationSummary } from '../../game/workers'
 import { formatCompact } from '../../game/format'
 import { droneCap } from '../../game/catalog'
+import { isSystemUnlocked } from '../../game/progression'
 
 type Props = {
   state: GameState
@@ -12,6 +13,7 @@ type Props = {
 export function SystemsTab({ state, onManage }: Props) {
   const cards = systemsHubCards(state)
   const workers = workerAllocationSummary(state)
+  const workersUnlocked = isSystemUnlocked(state, 'network')
 
   return (
     <section className="tab-panel systems-tab systems-dashboard" aria-label="Systems">
@@ -19,20 +21,22 @@ export function SystemsTab({ state, onManage }: Props) {
         <h2>Systems</h2>
       </header>
 
-      <button
-        type="button"
-        className="systems-workers-card"
-        data-guide="systems-workers"
-        onClick={() => onManage('network')}
-      >
-        <div className="systems-workers-title">
-          <strong>Worker Drones</strong>
-          <span className="systems-workers-total">{formatCompact(workers.total)}</span>
-        </div>
-        <p className="systems-workers-line">
-          {formatCompact(workers.assigned)} assigned · {formatCompact(workers.idle)} idle · capacity {formatCompact(droneCap(state))}
-        </p>
-      </button>
+      {workersUnlocked ? (
+        <button
+          type="button"
+          className="systems-workers-card"
+          data-guide="systems-workers"
+          onClick={() => onManage('network')}
+        >
+          <div className="systems-workers-title">
+            <strong>Worker Drones</strong>
+            <span className="systems-workers-total">{formatCompact(workers.total)}</span>
+          </div>
+          <p className="systems-workers-line">
+            {formatCompact(workers.assigned)} assigned · {formatCompact(workers.idle)} idle · capacity {formatCompact(droneCap(state))}
+          </p>
+        </button>
+      ) : null}
 
       <div className="systems-dash-grid">
         {cards.map((card) => (

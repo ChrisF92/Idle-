@@ -36,7 +36,7 @@ export interface SystemsHubCard {
 }
 
 export function showSystemsHub(state: GameState): boolean {
-  return isSystemUnlocked(state, 'network')
+  return isSystemUnlocked(state, 'foundry')
 }
 
 function recipeName(id: string): string {

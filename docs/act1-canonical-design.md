@@ -1,5 +1,7 @@
 # Hiveworks — Act 1 Canonical Design v1.0
 
+> **UI/navigation v1.1 clarification (2026-09-14):** A brand-new career opens Docked with its starter loadout fitted and launches Wave 1 only after the player presses **Launch Sortie**. Top-level navigation is progressively revealed as **Dock | Systems | More**; fresh saves show Dock and More, and Systems appears with Foundry at Wave 50. Sortie is a focused mode, never a bottom tab. See [UI & Navigation Implementation Specification](./ui-navigation-implementation-spec.md). This clarification supersedes older fresh-Wave-1 and navigation wording in this document.
+
 **Status:** **FROZEN DESIGN BASELINE FOR ACT 1 IMPLEMENTATION**  
 **Act 1 target:** Wave 1 → Wave 1000  
 **Purpose:** Preserve agreed design so implementation prompts do not depend on chat memory.

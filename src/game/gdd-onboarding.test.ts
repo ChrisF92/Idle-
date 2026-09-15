@@ -10,7 +10,7 @@ import {
   lessonPausesSimulation,
   skipLesson,
 } from './onboarding'
-import { createFreshCareerState } from './freshStart'
+import { createFreshCareerState, startOpeningSortie } from './freshStart'
 import { createInitialState } from './state'
 import { markHullLost } from './testHelpers'
 import { captureToastSnapshot, diffToasts, enqueueToasts, expireToasts, selectPresentation } from './presentation'
@@ -22,9 +22,12 @@ function ui(tab: 'dock' | 'combat' | 'foundry' | 'network' | 'stats' = 'dock') {
 }
 
 describe('GDD onboarding first hour', () => {
-  it('is enabled and a fresh career starts in Wave 1 with no Launch lesson', () => {
+  it('is enabled and a fresh career launches Wave 1 only on command', () => {
     expect(ONBOARDING_ENABLED).toBe(true)
-    const live = createFreshCareerState(0)
+    const fresh = createFreshCareerState(0)
+    expect(fresh.combat.docked).toBe(true)
+    expect(fresh.combat.inFight).toBe(false)
+    const live = startOpeningSortie(fresh)
     expect(live.combat.docked).toBe(false)
     expect(live.combat.inFight).toBe(true)
     expect(live.combat.wave).toBe(1)
@@ -34,7 +37,7 @@ describe('GDD onboarding first hour', () => {
   })
 
   it('walks Salvage buy → death → Workshop buy without a Launch tutorial', () => {
-    let state = createFreshCareerState(0)
+    let state = startOpeningSortie(createFreshCareerState(0))
     expect(activeOnboardingLesson(state, ui('combat'))).toBeNull()
 
     state.resources.salvage = 8
@@ -106,7 +109,7 @@ describe('GDD toast tiers', () => {
   })
 
   it('keeps a live-sortie unlock toast waiting while onboarding is up', () => {
-    let state = createFreshCareerState(0)
+    let state = startOpeningSortie(createFreshCareerState(0))
     state.resources.salvage = 8
     const toasts = [
       {
