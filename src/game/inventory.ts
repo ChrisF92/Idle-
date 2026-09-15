@@ -17,6 +17,7 @@ import {
 } from './relics'
 import type { GameState, RelicSocketClass } from './types'
 import { coreInstanceAtSlot } from './coreInstances'
+import { isSystemUnlocked } from './progression'
 
 export type InventoryCategory = 'equipment' | 'relics' | 'materials'
 export type MaterialFamily = 'industrial' | 'recovered'
@@ -26,6 +27,20 @@ export const INVENTORY_CATEGORIES: { id: InventoryCategory; label: string }[] = 
   { id: 'relics', label: 'Relics' },
   { id: 'materials', label: 'Materials' },
 ]
+
+export function visibleInventoryCategories(state: GameState): { id: InventoryCategory; label: string }[] {
+  const categories = [INVENTORY_CATEGORIES[0]]
+  if (isSystemUnlocked(state, 'reliquary') || inventoryRelics(state).length > 0) {
+    categories.push(INVENTORY_CATEGORIES[1])
+  }
+  const hasMaterialProgress =
+    Object.values(state.foundry?.materials ?? {}).some((value) => Number(value) > 0) ||
+    Object.values(state.foundry?.masteryXp ?? {}).some((value) => Number(value) > 0)
+  if (isSystemUnlocked(state, 'foundry') || hasMaterialProgress) {
+    categories.push(INVENTORY_CATEGORIES[2])
+  }
+  return categories
+}
 
 export const RELIC_FILTERS: { id: 'all' | RelicSocketClass; label: string }[] = [
   { id: 'all', label: 'All' },
