@@ -26,6 +26,7 @@ import { collectPauseReasons, isSimPaused } from './game/pause'
 import { canExtract } from './game/extraction'
 import { lessonFinished } from './game/onboarding'
 import { prefersReducedMotion } from './hooks/usePrefersReducedMotion'
+import { useChildScreenBack } from './hooks/useChildScreenBack'
 import { WalletButton } from './components/WalletButton'
 import { TabNav } from './components/TabNav'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -166,6 +167,30 @@ function AppShell() {
     setSystemsView(showSystemsHub(game.state) ? 'hub' : 'foundry')
     setTab('foundry')
   }, [game.state])
+
+  const childRoute =
+    tab === 'dock' && dockPane !== 'home'
+      ? `dock:${dockPane}`
+      : tab === 'foundry' && systemsView === 'foundry'
+        ? 'systems:foundry'
+        : tab === 'network' || tab === 'furnace' || tab === 'research' || tab === 'process'
+          ? `systems:${tab}`
+          : tab === 'challenges' || tab === 'reinforce' || tab === 'logs' || tab === 'codex'
+            ? `more:${tab}`
+            : null
+
+  useChildScreenBack(childRoute, () => {
+    if (tab === 'dock') {
+      setDockPane('home')
+      return
+    }
+    if (tab === 'foundry' || tab === 'network' || tab === 'furnace' || tab === 'research' || tab === 'process') {
+      setSystemsView('hub')
+      setTab('foundry')
+      return
+    }
+    setTab('stats')
+  })
 
   const applyToastNav = useCallback(
     (nav: PresentationNav) => {

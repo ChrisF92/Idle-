@@ -206,7 +206,7 @@ export function useOverlayLayer(opts: {
       if (!pushed.current) return
       pushed.current = false
       if (history.state?.hwOverlay === opts.id) {
-        history.replaceState({ ...(history.state ?? {}), hwOverlay: undefined }, '')
+        history.back()
       }
     }
   }, [opts.open, opts.id, allowed, closeOnBack])
