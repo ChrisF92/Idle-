@@ -52,16 +52,22 @@ import { ToastStack } from './components/ToastStack'
 import { InventoryScreen } from './components/InventoryScreen'
 import { LiveWaveControl } from './components/LiveWaveControl'
 import { Act1FinaleOverlay } from './components/Act1FinaleOverlay'
+import { PlaytestReport } from './components/PlaytestReport'
+import { isDevToolsEnabled } from './game/dev'
 import { OverlayProvider, useOverlay, useOverlayLayer } from './ui/overlay'
 import './ui/tokens.css'
 import './ui/primitives.css'
 import './App.css'
 import './polish.css'
 
-const BalanceSimulator = lazy(async () => {
-  const mod = await import('./components/BalanceSimulator')
-  return { default: mod.BalanceSimulator }
-})
+const DEV_TOOLS_BUILD = import.meta.env.DEV || import.meta.env.VITE_HIVEWORKS_DEVTOOLS === '1'
+
+const BalanceSimulator = DEV_TOOLS_BUILD
+  ? lazy(async () => {
+      const mod = await import('./components/BalanceSimulator')
+      return { default: mod.BalanceSimulator }
+    })
+  : null
 
 function foundryPaneFromNav(nav: { pane?: string; focus?: string }): FoundryPane | null {
   if (nav.pane === 'processing' || nav.pane === 'smelt') return 'processing'
@@ -90,6 +96,8 @@ function AppShell() {
   const [hangarOpen, setHangarOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [simulatorOpen, setSimulatorOpen] = useState(false)
+  const [playtestReportOpen, setPlaytestReportOpen] = useState(false)
+  const [devToolsEnabled, setDevToolsEnabled] = useState(() => isDevToolsEnabled())
   const [toasts, setToasts] = useState<QueuedToast[]>([])
   const [focusTarget, setFocusTarget] = useState<string | null>(null)
   const [foundryPane, setFoundryPane] = useState<FoundryPane | null>(null)
@@ -108,6 +116,18 @@ function AppShell() {
     kind: 'confirm',
     open: hangarOpen,
     onClose: () => setHangarOpen(false),
+  })
+  useOverlayLayer({
+    id: 'playtest-report',
+    kind: 'modal',
+    open: playtestReportOpen,
+    onClose: () => setPlaytestReportOpen(false),
+  })
+  useOverlayLayer({
+    id: 'balance-simulator',
+    kind: 'modal',
+    open: simulatorOpen,
+    onClose: () => setSimulatorOpen(false),
   })
   useOverlayLayer({
     id: 'sortie-report',
@@ -362,10 +382,16 @@ function AppShell() {
         onboarding?.pause ? 'app-guide-lock' : '',
         tab === 'combat' && sortieLive ? 'is-sortie' : '',
         tab !== 'combat' && sortieLive && game.state.combat.sortiePaused ? 'is-sortie-away' : '',
+        devToolsEnabled ? 'is-dev-lab' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
+      {devToolsEnabled ? (
+        <div className="dev-mode-banner" role="status">
+          DEV LAB · ISOLATED SAVE
+        </div>
+      ) : null}
       {tab !== 'combat' ? (
         <div className="chrome-top">
           <header className={`topbar is-${tab === 'dock' ? 'dock' : tab === 'stats' ? 'more' : 'systems'}`}>
@@ -571,8 +597,14 @@ function AppShell() {
             onDamageNumbers={game.setDamageNumbers}
             onOpenStation={go}
             onOpenSimulator={() => setSimulatorOpen(true)}
+            onOpenPlaytestReport={() => setPlaytestReportOpen(true)}
             guideTarget={onboarding?.target}
             onOpenInventory={() => setInventoryOpen(true)}
+            devToolsEnabled={devToolsEnabled}
+            onDisableDevTools={() => {
+              setDevToolsEnabled(false)
+              setSimulatorOpen(false)
+            }}
           />
         )}
       </main>
@@ -647,10 +679,14 @@ function AppShell() {
         />
       ) : null}
 
-      {simulatorOpen ? (
+      {simulatorOpen && BalanceSimulator ? (
         <Suspense fallback={null}>
           <BalanceSimulator onClose={() => setSimulatorOpen(false)} />
         </Suspense>
+      ) : null}
+
+      {playtestReportOpen ? (
+        <PlaytestReport state={game.state} onClose={() => setPlaytestReportOpen(false)} />
       ) : null}
 
       <InventoryScreen

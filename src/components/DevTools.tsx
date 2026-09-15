@@ -6,12 +6,13 @@ import { ACT1_CADENCE } from '../game/cadence'
 import { BASE_WORKER_CAPACITY } from '../game/foundrySeeds'
 import { ONBOARDING_LESSON_IDS } from '../game/onboarding'
 import { SHIP_FRAMES } from '../game/catalog'
-import { PlaytestReport } from './PlaytestReport'
 
 interface DevToolsProps {
   state?: GameState
   onDevAction: (action: DevAction) => void
   onOpenSimulator?: () => void
+  onOpenPlaytestReport?: () => void
+  onDisable?: () => void
 }
 
 const HIVE_RESOURCES: DevAction = {
@@ -37,11 +38,16 @@ function prepDoor(onDevAction: (action: DevAction) => void, wave: number): void 
   onDevAction({ type: 'dock-heal' })
 }
 
-export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps) {
+export function DevTools({
+  state,
+  onDevAction,
+  onOpenSimulator,
+  onOpenPlaytestReport,
+  onDisable,
+}: DevToolsProps) {
   const [enabled, setEnabled] = useState(() => isDevToolsEnabled())
   const [bestWave, setBestWave] = useState('210')
   const [open, setOpen] = useState(true)
-  const [reportOpen, setReportOpen] = useState(false)
 
   if (!enabled) {
     if (!import.meta.env.DEV) return null
@@ -76,6 +82,7 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
           onClick={() => {
             setDevToolsEnabled(false)
             setEnabled(false)
+            onDisable?.()
           }}
         >
           Disable
@@ -92,15 +99,15 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
               <button type="button" className="primary" onClick={onOpenSimulator}>
                 Balance Simulator
               </button>
-              {state ? (
-                <button type="button" className="primary" onClick={() => setReportOpen(true)}>
+              {state && onOpenPlaytestReport ? (
+                <button type="button" className="primary" onClick={onOpenPlaytestReport}>
                   Playtest report
                 </button>
               ) : null}
             </p>
-          ) : state ? (
+          ) : state && onOpenPlaytestReport ? (
             <p className="assign-row">
-              <button type="button" className="primary" onClick={() => setReportOpen(true)}>
+              <button type="button" className="primary" onClick={onOpenPlaytestReport}>
                 Playtest report
               </button>
             </p>
@@ -218,7 +225,6 @@ export function DevTools({ state, onDevAction, onOpenSimulator }: DevToolsProps)
           </div>
         </div>
       ) : null}
-      {reportOpen && state ? <PlaytestReport state={state} onClose={() => setReportOpen(false)} /> : null}
     </div>
   )
 }

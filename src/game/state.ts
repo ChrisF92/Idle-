@@ -72,9 +72,10 @@ import {
 } from './workshop'
 import { matterHullMult, matterShieldMult, weaponCalibrationMult } from './matter'
 import { directiveArmorMult, directiveHullMult, directiveIncomingMult, directiveShieldMult, directiveWeaponCoreMult, directiveWeaponCycleRateMult, directiveWeaponMult } from './directives'
+import { appStorageKey } from './buildMode'
 
 export const SAVE_VERSION = 52
-export const SAVE_KEY = 'cosmic-idle-save'
+export const SAVE_KEY = appStorageKey('cosmic-idle-save')
 
 export const RESOURCE_LABELS: Record<keyof Resources, string> = {
   scrap: 'Scrap',
