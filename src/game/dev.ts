@@ -19,8 +19,9 @@ import { CORE_MASTERY_CAP } from './coreProgression'
 import { createDefaultProcessProfiles } from './processProfiles'
 import { noteCareerWave } from './playtest'
 import { reconcileEquippedCoreIds } from './coreInstances'
+import { appStorageKey, DEV_TOOLS_AVAILABLE } from './buildMode'
 
-export const DEV_FLAG_KEY = 'cosmic-idle-dev'
+export const DEV_FLAG_KEY = appStorageKey('cosmic-idle-dev')
 
 export const GDD_DOOR_PRESETS = [
   { wave: ACT1_CADENCE.foundry, label: 'W50 Foundry' },
@@ -44,11 +45,13 @@ export function isDevToolsEnabled(): boolean {
         localStorage.removeItem(DEV_FLAG_KEY)
         return false
       }
+      if (!DEV_TOOLS_AVAILABLE) return false
       localStorage.setItem(DEV_FLAG_KEY, '1')
     }
   } catch {
     // ignore
   }
+  if (!DEV_TOOLS_AVAILABLE) return false
   if (import.meta.env.DEV) return true
   try {
     return localStorage.getItem(DEV_FLAG_KEY) === '1'
@@ -63,6 +66,17 @@ export function setDevToolsEnabled(on: boolean): void {
     else localStorage.removeItem(DEV_FLAG_KEY)
   } catch {
     // ignore
+  }
+  if (!on && typeof window !== 'undefined') {
+    try {
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('dev')) {
+        url.searchParams.delete('dev')
+        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+      }
+    } catch {
+      // ignore history restrictions
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import { SIM_HISTORY_KEY } from './types'
 import type { SimulationAggregate, SimulationConfig, SimulationReport, SimulationRunReport } from './types'
 import { formatSimDuration, median, percentile } from './format'
 import { stopLabel } from './presets'
@@ -431,7 +432,7 @@ const MAX_RECENT = 8
 export function loadRecentSimulations(): RecentSimSummary[] {
   if (typeof window === 'undefined') return []
   try {
-    const raw = window.localStorage.getItem('hiveworks-sim-history')
+    const raw = window.localStorage.getItem(SIM_HISTORY_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as RecentSimSummary[]
     return Array.isArray(parsed) ? parsed.slice(0, MAX_RECENT) : []
@@ -444,7 +445,7 @@ export function saveRecentSimulation(entry: RecentSimSummary): RecentSimSummary[
   const next = [entry, ...loadRecentSimulations().filter((e) => e.id !== entry.id)].slice(0, MAX_RECENT)
   if (typeof window !== 'undefined') {
     try {
-      window.localStorage.setItem('hiveworks-sim-history', JSON.stringify(next))
+      window.localStorage.setItem(SIM_HISTORY_KEY, JSON.stringify(next))
     } catch {
       // ignore quota
     }
@@ -456,7 +457,7 @@ export function deleteRecentSimulation(id: string): RecentSimSummary[] {
   const next = loadRecentSimulations().filter((e) => e.id !== id)
   if (typeof window !== 'undefined') {
     try {
-      window.localStorage.setItem('hiveworks-sim-history', JSON.stringify(next))
+      window.localStorage.setItem(SIM_HISTORY_KEY, JSON.stringify(next))
     } catch {
       // ignore
     }

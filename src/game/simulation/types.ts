@@ -1,6 +1,7 @@
 /** Career simulator types. UI-free; no React. */
 
 import type { GameState, NetworkBarId, ResourceId } from '../types'
+import { appStorageKey } from '../buildMode'
 import { ACT1_BUILD_PROFILE_IDS, type Act1BuildProfileId } from './buildProfiles'
 
 /** GDD §153 profiles, plus leftover aliases (`active` = Balanced, `idle` = no spend). */
@@ -515,8 +516,8 @@ export interface PlayerStrategy {
   decide(state: GameState, ctx: StrategyContext): GameState
 }
 
-export const SIM_HISTORY_KEY = 'hiveworks-sim-history'
-export const SIM_SAVE_KEY_GUARD = 'cosmic-idle-save'
+export const SIM_HISTORY_KEY = appStorageKey('hiveworks-sim-history')
+export const SIM_SAVE_KEY_GUARD = appStorageKey('cosmic-idle-save')
 
 export type HostMessage =
   | { type: 'start'; config: SimulationConfig }

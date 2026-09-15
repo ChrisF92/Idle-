@@ -1,7 +1,7 @@
 # Hiveworks UI & Navigation Implementation Specification
 
 **Status:** Approved implementation contract  
-**Revision:** 1.1 — 2026-09-14  
+**Revision:** 1.2 — 2026-09-15 \
 **Scope:** Act 1 navigation, fresh-save screens, progressive systems, and interaction rules
 
 This ledger records the approved UI decisions for implementation. It supersedes older UI or onboarding language where it conflicts with this document. The Act 1 canonical design remains authoritative for mechanics, cadence, formulas, and content.
@@ -58,7 +58,7 @@ Fresh entries, in order:
 4. Save Data
 5. About
 
-Career Statistics appears after the first completed Sortie. Codex and Challenges appear only when unlocked. Save Data is separate from Settings. Developer tools and the balance simulator are absent from normal production UI.
+Career Statistics appears after the first completed Sortie. Codex and Challenges appear only when unlocked. Save Data is separate from Settings. Developer tools and the balance simulator are absent from normal production UI. About may expose a read-only local playtest report; it must not grant cheats or simulator access.
 
 ## 3. Sortie
 
@@ -165,7 +165,16 @@ Fire-Control Doctrine uses canonical per-Core doctrines, never generic closest/f
 - Challenges may block configuration.
 - Process may load a doctrine once but may not dynamically flip it during combat.
 
-## 11. Implementation slices
+## 11. Developer and playtest access
+
+- The public production build and ordinary PR-preview builds must not enable Developer Lab, even when `?dev=1` is supplied.
+- A separate `/dev-lab/` build may include developer tools and the balance simulator.
+- The Dev Lab remains hidden until its browser explicitly opts in with `?dev=1`; Disable or `?dev=0` removes that opt-in.
+- Enabled Dev Lab builds show a persistent amber identity banner.
+- Dev Lab career saves, developer preference, and simulation history use a separate storage namespace from production.
+- The public build may expose a read-only playtest report from About. It never changes state or uploads data automatically.
+
+## 12. Implementation slices
 
 1. ✅ Fresh Dock and navigation foundation.
 2. ✅ More single-list conversion and utility child screens.
@@ -174,5 +183,6 @@ Fire-Control Doctrine uses canonical per-Core doctrines, never generic closest/f
 5. ✅ Report and first-Workshop loop.
 6. ✅ Progressive Systems and later-system screen passes.
 7. ✅ Accessibility, Back behavior, responsive polish, and end-to-end navigation tests.
+8. ✅ Build-gated, save-isolated Developer Lab and read-only public playtest diagnostics.
 
 Each slice must update focused tests and this ledger when behavior changes.

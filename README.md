@@ -13,7 +13,7 @@ Working package name was `cosmic-idle`; the PWA title is **Hiveworks**. Save ver
 - **Vite + React + TypeScript**
 - **PWA** (`vite-plugin-pwa`) — installable on Android from a deployed HTTPS URL
 - **Play Store wrap (1.0)** — Trusted Web Activity around the same PWA (see release plan Phase 10)
-- Local save (`localStorage`) + export/import codes
+- Local save (`localStorage`) + export/import codes. The Dev Lab uses an isolated storage namespace.
 - Simulation core under `src/game/` (UI-free, unit-tested)
 
 ## Systems (tabs)
@@ -95,13 +95,24 @@ Each open PR gets a live preview on the same GitHub Pages site:
 - Closing a PR removes its preview folder.
 - **Same origin as production** — `localStorage` is shared. Export a save or use a private window / different browser profile when playtesting a branch.
 
+### Developer Lab
+
+Production and PR-preview builds do not expose developer cheats or the balance simulator. A separate build from current `main` is deployed to:
+
+`https://chrisf92.github.io/Idle-/dev-lab/`
+
+- Append `?dev=1` once to enable **Developer Lab** at the bottom of More.
+- Use **Disable** in Developer Lab, or append `?dev=0`, to hide it again.
+- The amber `DEV LAB · ISOLATED SAVE` banner confirms that cheats cannot affect the production career.
+- More → About → **Open playtest report** remains read-only and available in the public build so testers can copy diagnostics without gaining developer access.
+
 ## Notes
 
 - Game logic stays in `src/game/`; React is presentation + input.
 - Solo project: **one feature per branch/PR**.
 - Header resources appear only once their system is unlocked or the resource is earned.
 - An **info** button next to the title explains the current screen.
-- Dev tools (More tab): toggle anytime, or `?dev=1` / `?dev=0`. Jump, boss force, achievements, guide skip.
+- Dev tools are compiled into the isolated Dev Lab build only. `?dev=1` has no effect on the public production or PR-preview build.
 - Onboarding follows the GDD (§125–140) and is enabled through `ONBOARDING_ENABLED`.
 - Locked release calls: physical Core copies take independent Scrap-funded Levels at Dock, share permanent type Mastery, and carry independent Relic loadouts; Sortie Salvage buys only global Attack / Defense / Economy upgrades; orbiting Cores around a central Hive; GDD Frames in one cut; Process rule builder in 1.0; no save migration before 1.0; Dev Tools and playtests stay on the GDD cadence.
 - Art is UI/text-first with canvas combat. The GDD target is a central Hive and orbiting Cores; the live battlefield is still mid-migration (see the release plan, Phase 2).

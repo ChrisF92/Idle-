@@ -5,6 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 /** Set `PAGES_BASE=/Idle-/` for GitHub Pages project site builds. */
 const base = process.env.PAGES_BASE || '/'
 const previewBuild = base.includes('/pr-preview/')
+const devLabBuild = base.includes('/dev-lab/')
+const nestedBuild = previewBuild || devLabBuild
 
 export default defineConfig({
   base,
@@ -20,11 +22,11 @@ export default defineConfig({
         'apple-touch-icon.png',
       ],
       manifest: {
-        name: 'Hiveworks',
-        short_name: 'Hiveworks',
+        name: devLabBuild ? 'Hiveworks Dev Lab' : 'Hiveworks',
+        short_name: devLabBuild ? 'Hiveworks Lab' : 'Hiveworks',
         description:
           'Portrait incremental auto-combat. Launch Hive Sorties from Wave 1, spend Salvage and Scrap, Rebuild, and clear Wave 1000.',
-        theme_color: '#12100e',
+        theme_color: devLabBuild ? '#f1a33a' : '#12100e',
         background_color: '#12100e',
         display: 'standalone',
         orientation: 'portrait-primary',
@@ -70,7 +72,9 @@ export default defineConfig({
         clientsClaim: true,
         // Production SW scope is /Idle-/ and would otherwise serve the
         // production shell for PR preview URLs under /Idle-/pr-preview/.
-        ...(previewBuild ? {} : { navigateFallbackDenylist: [/\/pr-preview\//] }),
+        ...(nestedBuild
+          ? {}
+          : { navigateFallbackDenylist: [/\/pr-preview\//, /\/dev-lab\//] }),
       },
       devOptions: {
         enabled: false,

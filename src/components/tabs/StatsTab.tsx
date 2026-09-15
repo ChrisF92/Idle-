@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { GameState, TabId } from '../../game/types'
 import type { DevAction } from '../../game/dev'
 import { exportSave } from '../../game/save'
@@ -12,7 +12,16 @@ import { AttentionPips } from '../AttentionPips'
 import { ItemRow, Section, SectionHeader, StatPair } from '../../ui/primitives'
 import { useChildScreenBack } from '../../hooks/useChildScreenBack'
 
-type MorePane = 'home' | 'help' | 'settings' | 'save' | 'about' | 'career'
+const DEV_TOOLS_BUILD = import.meta.env.DEV || import.meta.env.VITE_HIVEWORKS_DEVTOOLS === '1'
+
+const DevTools = DEV_TOOLS_BUILD
+  ? lazy(async () => {
+      const mod = await import('../DevTools')
+      return { default: mod.DevTools }
+    })
+  : null
+
+type MorePane = 'home' | 'help' | 'settings' | 'save' | 'about' | 'career' | 'developer'
 
 interface StatsTabProps {
   state: GameState
@@ -24,7 +33,10 @@ interface StatsTabProps {
   onDamageNumbers?: (mode: 'minimal' | 'standard' | 'detailed') => void
   onOpenStation?: (tab: TabId) => void
   onOpenSimulator?: () => void
+  onOpenPlaytestReport?: () => void
   onOpenInventory?: () => void
+  devToolsEnabled?: boolean
+  onDisableDevTools?: () => void
   guideTarget?: string | null
 }
 
@@ -34,6 +46,7 @@ const PANE_TITLES: Record<Exclude<MorePane, 'home'>, string> = {
   save: 'Save Data',
   about: 'About',
   career: 'Career Statistics',
+  developer: 'Developer Lab',
 }
 
 function MoreHeader({ pane, onBack }: { pane: MorePane; onBack: () => void }) {
@@ -84,13 +97,16 @@ export function StatsTab({
   state,
   onHardReset,
   onImport,
-  onDevAction: _onDevAction,
+  onDevAction,
   onRebuild: _onRebuild,
   onNotation,
   onDamageNumbers,
   onOpenStation,
-  onOpenSimulator: _onOpenSimulator,
+  onOpenSimulator,
+  onOpenPlaytestReport,
   onOpenInventory,
+  devToolsEnabled = false,
+  onDisableDevTools,
 }: StatsTabProps) {
   const [pane, setPane] = useState<MorePane>('home')
   const [importCode, setImportCode] = useState('')
@@ -163,6 +179,13 @@ export function StatsTab({
               meta="Build, save version, and installation information"
               onClick={() => openPane('about')}
             />
+            {DEV_TOOLS_BUILD && devToolsEnabled ? (
+              <ItemRow
+                title="Developer Lab"
+                meta="Simulator, test reports, progression presets, and cheats"
+                onClick={() => openPane('developer')}
+              />
+            ) : null}
           </div>
         ) : null}
 
@@ -331,6 +354,15 @@ export function StatsTab({
               <SectionHeader title="Installation" />
               <p>On Android Chrome, use Install App or Add to Home screen. Saves remain in this browser until exported or cleared.</p>
             </Section>
+            {onOpenPlaytestReport ? (
+              <Section>
+                <SectionHeader title="Playtest diagnostics" />
+                <p className="muted">Generate a read-only report from this career. Nothing is uploaded automatically.</p>
+                <button type="button" className="more-wide-action" onClick={onOpenPlaytestReport}>
+                  Open playtest report
+                </button>
+              </Section>
+            ) : null}
           </div>
         ) : null}
 
@@ -349,6 +381,23 @@ export function StatsTab({
               </p>
               <p className="muted">Scrap earned: {Math.floor(state.combat.lastSortie.scrapEarned)}</p>
             </Section>
+          </div>
+        ) : null}
+
+        {pane === 'developer' && DEV_TOOLS_BUILD && devToolsEnabled && DevTools ? (
+          <div className="more-child">
+            <Suspense fallback={<p className="muted">Loading Developer Lab…</p>}>
+              <DevTools
+                state={state}
+                onDevAction={onDevAction}
+                onOpenSimulator={onOpenSimulator}
+                onOpenPlaytestReport={onOpenPlaytestReport}
+                onDisable={() => {
+                  onDisableDevTools?.()
+                  openPane('home')
+                }}
+              />
+            </Suspense>
           </div>
         ) : null}
       </div>

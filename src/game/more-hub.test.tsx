@@ -8,8 +8,10 @@ import { ACT1_CADENCE } from './cadence'
 afterEach(cleanup)
 
 function renderMore(state = createInitialState(0), onOpenStation = vi.fn()) {
+  const onOpenPlaytestReport = vi.fn()
   return {
     onOpenStation,
+    onOpenPlaytestReport,
     ...render(
       <StatsTab
         state={state}
@@ -20,6 +22,7 @@ function renderMore(state = createInitialState(0), onOpenStation = vi.fn()) {
         onDamageNumbers={() => undefined}
         onOpenStation={onOpenStation}
         onOpenSimulator={() => undefined}
+        onOpenPlaytestReport={onOpenPlaytestReport}
         onOpenInventory={() => undefined}
       />,
     ),
@@ -77,5 +80,29 @@ describe('More hub navigation', () => {
     expect(open).toHaveBeenCalledWith('codex')
     expect(screen.queryByText('Challenges')).toBeNull()
     expect(screen.queryByText('Reinforce')).toBeNull()
+  })
+
+  it('offers read-only playtest diagnostics from About', () => {
+    const { onOpenPlaytestReport } = renderMore()
+    fireEvent.click(screen.getByRole('button', { name: /About/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open playtest report' }))
+    expect(onOpenPlaytestReport).toHaveBeenCalledOnce()
+    expect(screen.queryByText(/Balance Simulator/)).toBeNull()
+  })
+
+  it('shows Developer Lab only for an enabled developer-capable build', async () => {
+    render(
+      <StatsTab
+        state={createInitialState(0)}
+        onHardReset={() => undefined}
+        onImport={() => false}
+        onDevAction={() => undefined}
+        onOpenSimulator={() => undefined}
+        onOpenPlaytestReport={() => undefined}
+        devToolsEnabled
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Developer Lab/ }))
+    expect(await screen.findByRole('button', { name: 'Balance Simulator' })).toBeTruthy()
   })
 })

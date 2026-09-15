@@ -1,6 +1,7 @@
 name: Deploy GitHub Pages
 
 # Production site on the gh-pages branch (repo root).
+# A developer-only-capable build is assembled under dev-lab/ with isolated storage.
 # PR previews share that branch under pr-preview/ — see preview-pages.yml.
 # Requires: Settings → Pages → Source: Deploy from branch → gh-pages / (root)
 #           Settings → Actions → General → Workflow permissions: Read and write
@@ -41,11 +42,23 @@ jobs:
           PAGES_BASE: /Idle-/
         run: npm run build
 
+      - name: Build isolated Dev Lab
+        env:
+          PAGES_BASE: /Idle-/dev-lab/
+          VITE_HIVEWORKS_DEVTOOLS: '1'
+          VITE_HIVEWORKS_STORAGE_NAMESPACE: dev-lab
+        run: npx vite build --outDir dist-dev-lab
+
+      - name: Add Dev Lab to deployment
+        run: |
+          mkdir -p dist/dev-lab
+          cp -R dist-dev-lab/. dist/dev-lab/
+
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          # Keep PR preview folders under pr-preview/
+          # Keep PR preview folders under pr-preview/.
           keep_files: true
           commit_message: 'Deploy production from ${{ github.sha }}'
