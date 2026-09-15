@@ -170,6 +170,19 @@ export function tutorialSortieShopActive(state: GameState): boolean {
   return !state.meta.hullLostOnce
 }
 
+/**
+ * The first Workshop visit reveals one starter-known row per category.
+ * Buying any first row completes the reveal without changing permanent unlock ownership.
+ */
+export function firstWorkshopPurchasePending(state: GameState): boolean {
+  if (!state.combat.docked || !state.meta.hullLostOnce) return false
+  if ((state.prestige.prestigeCount ?? 0) > 0) return false
+  if (Math.max(state.meta.bestWave ?? 0, state.combat.bestWave ?? 0) >= 50) return false
+  const lesson = state.meta.onboarding?.['first-defeat.workshop']
+  if (lesson === 'complete' || lesson === 'skipped') return false
+  return Object.values(state.workshop?.levels ?? {}).every((level) => Number(level) <= 0)
+}
+
 export function createEmptyWorkshop(): WorkshopState {
   return { levels: {}, coreStarts: {} }
 }

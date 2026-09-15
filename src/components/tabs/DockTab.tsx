@@ -12,7 +12,7 @@ import {
 } from '../../game/rebuild'
 import { formatCompact } from '../../game/format'
 import { markLocalOk } from '../../hooks/useJustBecame'
-import { type BuyMode } from '../../game/workshop'
+import { firstWorkshopPurchasePending, type BuyMode } from '../../game/workshop'
 import { type ModuleRole, getFrame, getModule, moduleMasteryRank } from '../../game/catalog'
 import { usableCoreSlots, frameSlotSummary } from '../../game/coreSlots'
 import { isSystemUnlocked } from '../../game/progression'
@@ -297,6 +297,7 @@ export function DockTab({
               buyMode={buyMode}
               onBuy={locked ? undefined : (id, count) => onBuyWorkshop?.(id, count)}
               onUnlock={locked ? undefined : onUnlockGeneric}
+              guidedFirstRow={firstWorkshopPurchasePending(state)}
             />
           </div>
         ) : null}

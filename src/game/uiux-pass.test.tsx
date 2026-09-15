@@ -38,8 +38,9 @@ describe('UI/UX pass regression', () => {
       />,
     )
     expect(screen.queryByText(/Pressure/i)).toBeNull()
-    expect(screen.getByRole('button', { name: 'Dock' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Continue|Run Again/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Return to Dock' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Dock' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Continue|Run Again/ })).toBeNull()
   })
 
   it('locks Dock loadout copy while a Sortie is live', () => {

@@ -67,9 +67,27 @@ describe('Workshop and Rebuild onboarding UI', () => {
         />
       </OverlayProvider>,
     )
+    expect(screen.getByText('Weapon Power')).toBeTruthy()
+    expect(screen.queryByText('Cycle Rate')).toBeNull()
+    expect(screen.queryByText('NEXT UPGRADE')).toBeNull()
+    expect(screen.queryByText('PERMANENT UNLOCK')).toBeNull()
+    s = buyWorkshopUpgrade(s, 'weapon-power')
+    cleanup()
+    render(
+      <OverlayProvider>
+        <DockTab
+          state={s}
+          pane="workshop"
+          onLaunch={() => undefined}
+          onOpenSortie={() => undefined}
+          onRebuild={() => undefined}
+          onBuyWorkshop={() => undefined}
+        />
+      </OverlayProvider>,
+    )
+    expect(screen.getByText('Cycle Rate')).toBeTruthy()
     expect(screen.getByText('NEXT UPGRADE')).toBeTruthy()
     expect(screen.getByText('PERMANENT UNLOCK')).toBeTruthy()
-    s = buyWorkshopUpgrade(s, 'weapon-power')
     const payoff = activeOnboardingLesson(s, { tab: 'dock' })
     expect(payoff?.phase).toBe('payoff')
   })
