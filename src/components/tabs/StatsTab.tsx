@@ -2,24 +2,16 @@ import { useEffect, useState } from 'react'
 import type { GameState, TabId } from '../../game/types'
 import type { DevAction } from '../../game/dev'
 import { exportSave } from '../../game/save'
-import { DevTools } from '../DevTools'
 import type { NumberNotation } from '../../game/format'
 import { APP_BUILD } from '../../buildMeta'
 import { forceReloadApp } from '../../pwaReload'
-import { isSystemUnlocked, systemUnlockRequirement } from '../../game/progression'
 import { careerBestWave } from '../../game/waves'
-import { attentionAria, moreStationAttention } from '../../game/hubAttention'
-import { moreStationBuckets, type MajorDoorDef, type MoreStationDef } from '../../game/moreStations'
+import { moreStationAttention } from '../../game/hubAttention'
+import { moreStationBuckets, type MoreStationDef } from '../../game/moreStations'
 import { AttentionPips } from '../AttentionPips'
-import { SheetTabs } from '../SheetTabs'
-import { useSyncedPane } from '../../hooks/useSyncedPane'
+import { ItemRow, Section, SectionHeader, StatPair } from '../../ui/primitives'
 
-type MorePane = 'stations' | 'settings'
-
-const MORE_PANES: { id: MorePane; label: string }[] = [
-  { id: 'stations', label: 'Stations' },
-  { id: 'settings', label: 'Settings' },
-]
+type MorePane = 'home' | 'help' | 'settings' | 'save' | 'about' | 'career'
 
 interface StatsTabProps {
   state: GameState
@@ -35,6 +27,33 @@ interface StatsTabProps {
   guideTarget?: string | null
 }
 
+const PANE_TITLES: Record<Exclude<MorePane, 'home'>, string> = {
+  help: 'Help & Guides',
+  settings: 'Settings',
+  save: 'Save Data',
+  about: 'About',
+  career: 'Career Statistics',
+}
+
+function MoreHeader({ pane, onBack }: { pane: MorePane; onBack: () => void }) {
+  if (pane === 'home') {
+    return (
+      <header className="panel-header more-header">
+        <h2>More</h2>
+        <p>Inventory, guidance, preferences, and unlocked secondary systems.</p>
+      </header>
+    )
+  }
+  return (
+    <header className="panel-header more-header is-child">
+      <button type="button" className="more-back-btn" onClick={onBack}>
+        More
+      </button>
+      <h2>{PANE_TITLES[pane]}</h2>
+    </header>
+  )
+}
+
 function StationRow({
   station,
   state,
@@ -44,60 +63,19 @@ function StationRow({
   state: GameState
   onOpen: (tab: TabId) => void
 }) {
-  const unlocked = isSystemUnlocked(state, station.id)
-  const need = systemUnlockRequirement(station.id)
   const flags = moreStationAttention(state, station.id)
   return (
-    <article
-      className={unlocked ? (flags.spend ? 'network-row is-affordable' : 'network-row is-ready') : 'network-row locked'}
-      data-focus={`station-${station.id}`}
-    >
-      <div className="network-row-main">
-        <strong>
+    <ItemRow
+      title={
+        <>
           {station.name}
           <AttentionPips spend={flags.spend} fresh={flags.fresh} layout="inline" />
-        </strong>
-        <span className="muted">{unlocked ? 'Open' : need ?? 'Locked'}</span>
-      </div>
-      <p className="network-row-stats">{station.blurb}</p>
-      <button
-        type="button"
-        className="primary"
-        data-guide={`station-${station.id}`}
-        disabled={!unlocked}
-        aria-label={attentionAria(unlocked ? `Open ${station.name}` : need ?? 'Locked', flags)}
-        onClick={() => unlocked && onOpen(station.id)}
-      >
-        {unlocked ? 'Open' : need ?? 'Locked'}
-      </button>
-    </article>
-  )
-}
-
-function DoorRow({
-  door,
-  state,
-  onOpen,
-}: {
-  door: MajorDoorDef
-  state: GameState
-  onOpen: (tab: TabId) => void
-}) {
-  if (door.home === 'more') {
-    return <StationRow station={door} state={state} onOpen={onOpen} />
-  }
-  const need = `Wave ${door.wave}`
-  return (
-    <article className="network-row locked" data-focus={`station-${door.id}`}>
-      <div className="network-row-main">
-        <strong>{door.name}</strong>
-        <span className="muted">Systems · {need}</span>
-      </div>
-      <p className="network-row-stats">{door.blurb}</p>
-      <button type="button" className="primary" disabled>
-        {need}
-      </button>
-    </article>
+        </>
+      }
+      meta={station.blurb}
+      guide={`station-${station.id}`}
+      onClick={() => onOpen(station.id)}
+    />
   )
 }
 
@@ -105,217 +83,271 @@ export function StatsTab({
   state,
   onHardReset,
   onImport,
-  onDevAction,
-  onRebuild,
+  onDevAction: _onDevAction,
+  onRebuild: _onRebuild,
   onNotation,
   onDamageNumbers,
   onOpenStation,
-  onOpenSimulator,
+  onOpenSimulator: _onOpenSimulator,
   onOpenInventory,
-  guideTarget = null,
 }: StatsTabProps) {
+  const [pane, setPane] = useState<MorePane>('home')
   const [importCode, setImportCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
-  const buckets = moreStationBuckets(state)
-  const hint =
-    guideTarget === 'rebuild-btn' || guideTarget === 'station-logs' ? 'settings' : guideTarget?.startsWith('station-') ? 'stations' : null
-  const [pane, setPane] = useSyncedPane<MorePane>('stations', hint)
+  const stations = moreStationBuckets(state).open
+  const careerAvailable = Boolean(state.combat.lastSortie.outcome)
 
   useEffect(() => {
-    // Nudge waiting service workers when the player opens Stats.
     if (!('serviceWorker' in navigator)) return
     void navigator.serviceWorker.getRegistration().then((reg) => {
       void reg?.update()
     })
   }, [])
 
+  function openPane(next: MorePane) {
+    setMessage(null)
+    setPane(next)
+  }
+
   return (
-    <section className="panel screen-panel">
-      <header className="panel-header">
-        <h2>More</h2>
-        <p>Secondary systems, Codex, and settings. Locked doors stay hidden.</p>
-      </header>
-      <SheetTabs value={pane} onChange={setPane} options={MORE_PANES} label="More panes" />
-      <div className="panel-scroll">
-      {pane === 'stations' && onOpenStation ? (
-        <div>
-          {onOpenInventory ? (
-            <p className="assign-row">
-              <button type="button" className="primary" onClick={onOpenInventory}>
-                Inventory
-              </button>
-            </p>
-          ) : null}
-          {buckets.open.length > 0 ? (
-            <>
-              <h3 className="foundry-heading">Open</h3>
-              {buckets.open.map((station) => (
-                <StationRow
-                  key={station.id}
-                  station={station}
-                  state={state}
-                  onOpen={onOpenStation}
-                />
-              ))}
-            </>
-          ) : null}
-          {buckets.next.length > 0 ? (
-            <>
-              <h3 className="foundry-heading">Next system</h3>
-              {buckets.next.map((door) => (
-                <DoorRow key={door.id} door={door} state={state} onOpen={onOpenStation} />
-              ))}
-            </>
-          ) : null}
-        </div>
-      ) : null}
+    <section className="panel screen-panel more-screen" aria-label="More">
+      <MoreHeader pane={pane} onBack={() => openPane('home')} />
 
-      {pane === 'settings' ? (
-        <div className="stack">
-        {onNotation ? (
-          <div>
-            <p className="muted">Numbers over 999</p>
-            <div className="sheet-tabs notation-tabs">
-              <button
-                type="button"
-                className={state.meta.numberNotation !== 'scientific' ? 'sheet-tab active' : 'sheet-tab'}
-                onClick={() => onNotation('engineering')}
-              >
-                Engineering
-              </button>
-              <button
-                type="button"
-                className={state.meta.numberNotation === 'scientific' ? 'sheet-tab active' : 'sheet-tab'}
-                onClick={() => onNotation('scientific')}
-              >
-                Scientific
-              </button>
-            </div>
-            <p className="muted">
-              {state.meta.numberNotation === 'scientific' ? '1.23e4' : '12.3e3'}
-            </p>
-          </div>
-        ) : null}
-
-        {onDamageNumbers ? (
-          <div>
-            <p className="muted">Combat numbers</p>
-            <div className="sheet-tabs notation-tabs">
-              {(['minimal', 'standard', 'detailed'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={(state.meta.damageNumbers ?? 'standard') === mode ? 'sheet-tab active' : 'sheet-tab'}
-                  onClick={() => onDamageNumbers(mode)}
-                >
-                  {mode === 'minimal' ? 'Minimal' : mode === 'detailed' ? 'Detailed' : 'Standard'}
-                </button>
-              ))}
-            </div>
-            <p className="muted">Restrained by default. Detailed shows every hit.</p>
-          </div>
-        ) : null}
-
-        {onRebuild ? (
-          <p className="assign-row">
-            <button type="button" className="primary" data-guide="rebuild-btn" onClick={onRebuild}>
-              Rebuild hangar
-            </button>
-          </p>
-        ) : null}
-
-        {onOpenStation ? (
-          <p className="assign-row">
-            <button type="button" data-guide="station-logs" onClick={() => onOpenStation('logs')}>
-              Foundry Logs
-            </button>
-          </p>
-        ) : null}
-
-        <div className="stat-row">
-          <div>
-            <span className="muted">App build</span>
-            <strong>{APP_BUILD}</strong>
-          </div>
-          <div>
-            <span className="muted">Save version</span>
-            <strong>{state.version}</strong>
-          </div>
-          <div>
-            <span className="muted">Best Wave</span>
-            <strong>{careerBestWave(state) || '—'}</strong>
-          </div>
-          <div>
-            <span className="muted">Rebuilds</span>
-            <strong>{state.prestige.prestigeCount}</strong>
-          </div>
-        </div>
-
-        <p className="muted">
-          If More looks outdated, tap <strong>Reload latest build</strong> — installed PWAs can keep
-          an old cache.
-        </p>
-        <p className="assign-row">
-          <button type="button" className="primary" onClick={() => void forceReloadApp()}>
-            Reload latest build
-          </button>
-        </p>
-
-        <DevTools state={state} onDevAction={onDevAction} onOpenSimulator={onOpenSimulator} />
-
-        <p className="muted">
-          Progressive Web App: after deploy to GitHub Pages (HTTPS), Android Chrome can Install /
-          Add to Home screen. Offline shell caches the last build; saves stay in this browser&apos;s
-          local storage (export/import to move devices).
-        </p>
-
-        <div className="stack">
-          <button
-            type="button"
-            onClick={() => {
-              void navigator.clipboard?.writeText(exportSave(state))
-              setMessage('Save copied to clipboard.')
-            }}
-          >
-            Copy export code
-          </button>
-
-          <label className="stack">
-            <span className="muted">Import save code</span>
-            <textarea
-              value={importCode}
-              onChange={(e) => setImportCode(e.target.value)}
-              rows={3}
-              placeholder="Paste save code…"
+      <div className="panel-scroll more-scroll">
+        {pane === 'home' ? (
+          <div className="more-list">
+            {onOpenInventory ? (
+              <ItemRow
+                title="Inventory"
+                meta="Frames, physical Cores, Relics, and materials"
+                onClick={onOpenInventory}
+              />
+            ) : null}
+            <ItemRow
+              title="Help & Guides"
+              meta="How the Hive, resources, and navigation work"
+              onClick={() => openPane('help')}
             />
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              const ok = onImport(importCode)
-              setMessage(ok ? 'Save imported.' : 'Import failed — invalid code.')
-            }}
-          >
-            Import
-          </button>
+            {careerAvailable ? (
+              <ItemRow
+                title="Career Statistics"
+                meta="Lifetime progress and latest Sortie"
+                onClick={() => openPane('career')}
+              />
+            ) : null}
+            {onOpenStation
+              ? stations.map((station) => (
+                  <StationRow
+                    key={station.id}
+                    station={station}
+                    state={state}
+                    onOpen={onOpenStation}
+                  />
+                ))
+              : null}
+            <ItemRow
+              title="Settings"
+              meta="Number notation, combat readouts, and app refresh"
+              onClick={() => openPane('settings')}
+            />
+            <ItemRow
+              title="Save Data"
+              meta="Export, import, or clear this local save"
+              onClick={() => openPane('save')}
+            />
+            <ItemRow
+              title="About"
+              meta="Build, save version, and installation information"
+              onClick={() => openPane('about')}
+            />
+          </div>
+        ) : null}
 
-          <button
-            type="button"
-            className="danger"
-            onClick={() => {
-              if (window.confirm('Delete local save and start over?')) {
-                onHardReset()
-                setMessage('Save cleared.')
-              }
-            }}
-          >
-            Hard reset
-          </button>
-        </div>
-        </div>
-      ) : null}
+        {pane === 'help' ? (
+          <div className="more-child">
+            <Section>
+              <SectionHeader title="Getting started" />
+              <p>Fit your Frame and Cores at Dock, then launch a Sortie. Combat advances only while the Sortie is running.</p>
+            </Section>
+            <Section>
+              <SectionHeader title="Resources" />
+              <p>Salvage powers temporary Sortie upgrades. Scrap and later materials persist and have dedicated spending homes.</p>
+            </Section>
+            <Section>
+              <SectionHeader title="Navigation" />
+              <p>Dock owns preparation. Systems owns industry. More owns inventory, guidance, preferences, and secondary records.</p>
+            </Section>
+            <Section>
+              <SectionHeader title="Need context?" />
+              <p>Use the ? control in a screen header for help specific to the screen you are viewing.</p>
+            </Section>
+          </div>
+        ) : null}
 
-      {message ? <p className="notice">{message}</p> : null}
+        {pane === 'settings' ? (
+          <div className="more-child">
+            {onNotation ? (
+              <Section>
+                <SectionHeader title="Number notation" />
+                <div className="sheet-tabs notation-tabs" role="tablist" aria-label="Number notation">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={state.meta.numberNotation !== 'scientific'}
+                    className={state.meta.numberNotation !== 'scientific' ? 'sheet-tab active' : 'sheet-tab'}
+                    onClick={() => onNotation('engineering')}
+                  >
+                    Engineering
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={state.meta.numberNotation === 'scientific'}
+                    className={state.meta.numberNotation === 'scientific' ? 'sheet-tab active' : 'sheet-tab'}
+                    onClick={() => onNotation('scientific')}
+                  >
+                    Scientific
+                  </button>
+                </div>
+                <p className="muted">
+                  Preview: {state.meta.numberNotation === 'scientific' ? '1.23e4' : '12.3e3'}
+                </p>
+              </Section>
+            ) : null}
+
+            {onDamageNumbers ? (
+              <Section>
+                <SectionHeader title="Combat numbers" />
+                <div className="sheet-tabs notation-tabs" role="tablist" aria-label="Combat numbers">
+                  {(['minimal', 'standard', 'detailed'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="tab"
+                      aria-selected={(state.meta.damageNumbers ?? 'standard') === mode}
+                      className={(state.meta.damageNumbers ?? 'standard') === mode ? 'sheet-tab active' : 'sheet-tab'}
+                      onClick={() => onDamageNumbers(mode)}
+                    >
+                      {mode === 'minimal' ? 'Minimal' : mode === 'detailed' ? 'Detailed' : 'Standard'}
+                    </button>
+                  ))}
+                </div>
+                <p className="muted">Standard is restrained. Detailed shows every hit.</p>
+              </Section>
+            ) : null}
+
+            <Section>
+              <SectionHeader title="Application" />
+              <p className="muted">Installed versions can retain an older cached build.</p>
+              <button type="button" className="primary more-wide-action" onClick={() => void forceReloadApp()}>
+                Reload latest build
+              </button>
+            </Section>
+          </div>
+        ) : null}
+
+        {pane === 'save' ? (
+          <div className="more-child">
+            <Section>
+              <SectionHeader title="Export" />
+              <p className="muted">Keep this code somewhere safe or use it to move your career to another device.</p>
+              <textarea
+                className="more-save-code"
+                value={exportSave(state)}
+                readOnly
+                rows={3}
+                aria-label="Export save code"
+              />
+              <button
+                type="button"
+                className="primary more-wide-action"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(exportSave(state))
+                  setMessage('Save copied to clipboard.')
+                }}
+              >
+                Copy export code
+              </button>
+            </Section>
+
+            <Section>
+              <SectionHeader title="Import" />
+              <label className="stack">
+                <span className="muted">Paste save code</span>
+                <textarea
+                  value={importCode}
+                  onChange={(event) => setImportCode(event.target.value)}
+                  rows={3}
+                  placeholder="Paste save code…"
+                  aria-label="Import save code"
+                />
+              </label>
+              <button
+                type="button"
+                className="more-wide-action"
+                onClick={() => {
+                  const ok = onImport(importCode)
+                  setMessage(ok ? 'Save imported.' : 'Import failed — invalid code.')
+                }}
+              >
+                Import save
+              </button>
+            </Section>
+
+            <Section>
+              <SectionHeader title="Delete local data" />
+              <p className="muted">This cannot be undone unless you have exported the save.</p>
+              <button
+                type="button"
+                className="danger more-wide-action"
+                onClick={() => {
+                  if (window.confirm('Delete local save and start over?')) {
+                    onHardReset()
+                    setMessage('Save cleared.')
+                  }
+                }}
+              >
+                Hard reset
+              </button>
+            </Section>
+            {message ? <p className="notice" role="status">{message}</p> : null}
+          </div>
+        ) : null}
+
+        {pane === 'about' ? (
+          <div className="more-child">
+            <Section>
+              <SectionHeader title="Hiveworks" />
+              <p>A layered idle defense game about rebuilding a modular Hive and pushing deeper into the Choir.</p>
+            </Section>
+            <div className="more-stat-grid">
+              <StatPair label="App build" value={APP_BUILD} />
+              <StatPair label="Save version" value={state.version} />
+            </div>
+            <Section>
+              <SectionHeader title="Installation" />
+              <p>On Android Chrome, use Install App or Add to Home screen. Saves remain in this browser until exported or cleared.</p>
+            </Section>
+          </div>
+        ) : null}
+
+        {pane === 'career' ? (
+          <div className="more-child">
+            <div className="more-stat-grid">
+              <StatPair label="Best Wave" value={careerBestWave(state) ? `W${careerBestWave(state)}` : 'W0'} />
+              <StatPair label="Rebuilds" value={state.prestige.prestigeCount} />
+              <StatPair label="Waves cleared" value={state.meta.lifetimeWaveClears} />
+              <StatPair label="Sorties launched" value={state.meta.sortieSerial} />
+            </div>
+            <Section>
+              <SectionHeader title="Latest Sortie" />
+              <p>
+                {state.combat.lastSortie.outcome === 'defeat' ? 'Defeat' : 'Withdrawn'} at Wave {state.combat.lastSortie.wave}.
+              </p>
+              <p className="muted">Scrap earned: {Math.floor(state.combat.lastSortie.scrapEarned)}</p>
+            </Section>
+          </div>
+        ) : null}
       </div>
     </section>
   )

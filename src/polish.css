@@ -2394,3 +2394,87 @@ button.just-ok {
   outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
   outline-offset: 3px;
 }
+
+
+.more-screen {
+  min-width: 0;
+}
+
+.more-header.is-child {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.more-header.is-child h2 {
+  margin: 0;
+}
+
+.more-back-btn {
+  min-height: var(--touch);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-brand);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.more-back-btn::before {
+  content: '‹ ';
+}
+
+.more-scroll,
+.more-list,
+.more-child {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+}
+
+.more-list {
+  gap: 0;
+}
+
+.more-list .ui-item-row {
+  min-height: 4.5rem;
+}
+
+.more-child {
+  width: 100%;
+  min-width: 0;
+}
+
+.more-child .ui-section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.more-child p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.more-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.more-stat-grid .ui-stat-pair {
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--elev-1);
+}
+
+.more-save-code {
+  width: 100%;
+  resize: vertical;
+}
+
+.more-wide-action {
+  width: 100%;
+  min-height: var(--touch);
+}
