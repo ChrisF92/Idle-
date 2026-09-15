@@ -10,6 +10,7 @@ import { moreStationAttention } from '../../game/hubAttention'
 import { moreStationBuckets, type MoreStationDef } from '../../game/moreStations'
 import { AttentionPips } from '../AttentionPips'
 import { ItemRow, Section, SectionHeader, StatPair } from '../../ui/primitives'
+import { useChildScreenBack } from '../../hooks/useChildScreenBack'
 
 type MorePane = 'home' | 'help' | 'settings' | 'save' | 'about' | 'career'
 
@@ -108,6 +109,8 @@ export function StatsTab({
     setMessage(null)
     setPane(next)
   }
+
+  useChildScreenBack(pane === 'home' ? null : `more:${pane}`, () => openPane('home'))
 
   return (
     <section className="panel screen-panel more-screen" aria-label="More">

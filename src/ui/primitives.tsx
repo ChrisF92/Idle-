@@ -1,5 +1,6 @@
 import { useId, type CSSProperties, type ReactNode } from 'react'
 import { useOverlayLayer, type OverlayKind } from './overlay'
+import { useDialogFocus } from './useDialogFocus'
 
 export function Kicker({ children }: { children: ReactNode }) {
   return <p className="ui-kicker">{children}</p>
@@ -218,15 +219,19 @@ export function ConfirmModal({
     open,
     onClose,
   })
+  const focus = useDialogFocus(open && allowed)
   if (!open || !allowed) return null
   const titleId = `${overlayId}-title`
   return (
     <div className="ui-modal-backdrop" role="presentation" onClick={onClose}>
       <div
+        ref={focus.dialogRef}
         className="ui-modal-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={focus.onKeyDown}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="modal-header">
@@ -270,6 +275,7 @@ export function BottomSheet({
     open,
     onClose,
   })
+  const focus = useDialogFocus(open && allowed)
   if (!open || !allowed) return null
   const titleId = `${id}-title`
   const height: CSSProperties = {
@@ -279,11 +285,14 @@ export function BottomSheet({
   return (
     <div className={`ui-sheet-overlay is-${size}`} role="presentation" onClick={onClose}>
       <div
+        ref={focus.dialogRef}
         className={`ui-sheet-card is-${size}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         style={height}
+        onKeyDown={focus.onKeyDown}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="modal-header">
