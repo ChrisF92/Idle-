@@ -884,9 +884,10 @@ button.just-ok {
 }
 
 .sortie-screen.is-shop-open .sortie-shop {
-  flex: 0 1 auto;
+  flex: 0 0 68dvh;
   width: 100%;
-  max-height: 80%;
+  height: 68dvh;
+  max-height: 68dvh;
 }
 
 .sortie-status {

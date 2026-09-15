@@ -28,6 +28,7 @@ import {
 } from '../../game/coreTargeting'
 import { canExtract, extractionBonusFor, extractionLockedReason, sortieGrossScrapGenerated } from '../../game/extraction'
 import { COMMANDER_TRAIT_ICONS, COMMANDER_TRAIT_LABELS } from '../../game/hostileCatalogue'
+import { BottomSheet, StatPair } from '../../ui/primitives'
 
 type ShopTab = RunUpgradeCategory
 
@@ -87,6 +88,8 @@ export function CombatTab({
   const [overlayCoreId, setOverlayCoreId] = useState<string | null>(null)
   const [directivesOpen, setDirectivesOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
+  const [runDetailsOpen, setRunDetailsOpen] = useState(false)
+  const runDetailsPausedRun = useRef(false)
   const [rateView, setRateView] = useState<'salvage' | 'scrap' | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const hullPct = stats.hullMax > 0 ? combat.playerHull / stats.hullMax : 1
@@ -242,6 +245,18 @@ export function CombatTab({
     setRateView((cur) => (cur === kind ? null : kind))
   }
 
+  function openRunDetails() {
+    runDetailsPausedRun.current = !combat.sortiePaused
+    if (runDetailsPausedRun.current) onPause?.()
+    setRunDetailsOpen(true)
+  }
+
+  function closeRunDetails() {
+    setRunDetailsOpen(false)
+    if (runDetailsPausedRun.current) onResume?.()
+    runDetailsPausedRun.current = false
+  }
+
   return (
     <section
       className={[
@@ -317,15 +332,6 @@ export function CombatTab({
             </div>
             <div className="sortie-hud-mid">
               <strong className="sortie-wave">W{combat.wave}</strong>
-              <span>
-                {combat.enemyUnits.filter((u) => u.hull > 0).length} hostiles
-                {(combat.pendingReinforcements?.reduce((n, row) => n + row.units.length, 0) ?? 0) > 0
-                  ? ` +${combat.pendingReinforcements.reduce((n, row) => n + row.units.length, 0)} pending`
-                  : ''}
-              </span>
-              <span>DPS {formatCompact(stats.damage)}</span>
-              {dpsFlash ? <span className="sortie-dps-flash">{dpsFlash}</span> : null}
-              <span>{formatRunTime(combat.fightElapsed ?? 0)}</span>
             </div>
             <div className="sortie-menu" ref={menuRef}>
               <button
@@ -343,6 +349,16 @@ export function CombatTab({
                 <div className="sortie-menu-pop" id={`${titleId}-menu`} role="menu" aria-label="Sortie">
                   {live && !dying ? (
                     <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          openRunDetails()
+                        }}
+                      >
+                        Run Details
+                      </button>
                       <button
                         type="button"
                         role="menuitem"
@@ -462,7 +478,7 @@ export function CombatTab({
         ) : null}
       </div>
 
-      <div className={`sortie-shop${shopCollapsed ? ' is-collapsed' : ''}`}>
+      <div className={`sortie-shop${shopCollapsed ? ' is-collapsed' : ''}`} aria-label="Sortie upgrades">
         {dying ? (
           <p className="muted">Sortie ending…</p>
         ) : (
@@ -574,75 +590,100 @@ export function CombatTab({
           </div>
         </div>
       ) : null}
-      {leaveOpen ? (
-        <div className="sheet-overlay extract-confirm" role="dialog" aria-modal="true" aria-labelledby="leave-sortie-title">
-          <div className="sheet-card">
-            <header className="modal-header">
-              <h3 id="leave-sortie-title">Leave Sortie</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setLeaveOpen(false)
-                  onResume?.()
-                }}
-              >
-                Close
-              </button>
-            </header>
-            {!state.meta.extractionExplained && canExtract(state) ? (
-              <div data-onboarding="onboarding.extraction.first-use">
-                <p>Withdraw safely ends the Sortie. Persistent rewards stay. Salvage and temporary upgrades reset.</p>
-                <p>The Withdrawal bonus is Scrap only. This is not a Rebuild. No Matter is awarded.</p>
-              </div>
-            ) : null}
-            <p>Wave {Math.max(1, combat.waveReached || combat.wave)}</p>
-            <div className="extract-confirm-actions">
-              <button
-                type="button"
-                className="primary"
-                onClick={() => {
-                  setLeaveOpen(false)
-                  onPauseAndBrowse?.()
-                }}
-              >
-                Suspend Sortie
-              </button>
-              <p className="muted">Freeze this exact run and return to account screens. Your loadout stays locked.</p>
-              <button
-                type="button"
-                className="extract-confirm-btn"
-                data-guide="extract-confirm"
-                disabled={!canExtract(state)}
-                onClick={() => {
-                  setLeaveOpen(false)
-                  onExtract?.()
-                }}
-              >
-                Withdraw
-              </button>
-              {canExtract(state) ? (
-                <p>
-                  Permanently end this run. Scrap earned {formatCompact(sortieGrossScrapGenerated(state))}
-                  {' · '}Withdrawal bonus +{extractionBonusFor(state)}
-                </p>
-              ) : (
-                <p className="muted">Withdraw · {extractionLockedReason(state)}</p>
-              )}
-              <p className="muted">Workshop and Core Levels persist. Salvage does not.</p>
-              <button
-                type="button"
-                className="extract-cancel-btn"
-                onClick={() => {
-                  setLeaveOpen(false)
-                  onResume?.()
-                }}
-              >
-                Keep Fighting
-              </button>
-            </div>
-          </div>
+      <BottomSheet
+        open={runDetailsOpen}
+        title="Run Details"
+        kicker={`Wave ${combat.wave}`}
+        onClose={closeRunDetails}
+        overlayId="sortie-run-details"
+        size="standard"
+      >
+        <div className="ui-context-bar">
+          <StatPair label="DPS" value={formatCompact(stats.damage)} />
+          <StatPair label="Elapsed" value={formatRunTime(combat.fightElapsed ?? 0)} />
+          <StatPair
+            label="Hostiles"
+            value={
+              combat.enemyUnits.filter((unit) => unit.hull > 0).length +
+              (combat.pendingReinforcements?.reduce((count, row) => count + row.units.length, 0) ?? 0)
+            }
+          />
         </div>
-      ) : null}
+        {dpsFlash ? <p className="notice">{dpsFlash}</p> : null}
+        <p>
+          Current contact · <strong>{combat.enemyName || 'No active contact'}</strong>
+          {combat.isBoss ? ' · Boss' : ''}
+        </p>
+        <p className="ui-meta">
+          Run Scrap +{formatCompact(Math.floor(scrapRun))} · Salvage {formatCompact(salvageBank)}
+        </p>
+        <p className="ui-meta">
+          Income · {formatCompact(rates.salvagePerSec)}/s Salvage · {formatCompact(rates.scrapPerSec)}/s Scrap
+        </p>
+      </BottomSheet>
+
+      <BottomSheet
+        open={leaveOpen}
+        title="Leave Sortie"
+        onClose={() => {
+          setLeaveOpen(false)
+          onResume?.()
+        }}
+        overlayId="leave-sortie"
+        size="standard"
+      >
+        {!state.meta.extractionExplained && canExtract(state) ? (
+          <div data-onboarding="onboarding.extraction.first-use">
+            <p>Withdraw safely ends the Sortie. Persistent rewards stay. Salvage and temporary upgrades reset.</p>
+            <p>The Withdrawal bonus is Scrap only. This is not a Rebuild. No Matter is awarded.</p>
+          </div>
+        ) : null}
+        <p>Wave {Math.max(1, combat.waveReached || combat.wave)}</p>
+        <div className="extract-confirm-actions">
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              setLeaveOpen(false)
+              onPauseAndBrowse?.()
+            }}
+          >
+            Suspend Sortie
+          </button>
+          <p className="muted">Freeze this exact run and return to account screens. Your loadout stays locked.</p>
+          <button
+            type="button"
+            className="extract-confirm-btn"
+            data-guide="extract-confirm"
+            disabled={!canExtract(state)}
+            onClick={() => {
+              setLeaveOpen(false)
+              onExtract?.()
+            }}
+          >
+            Withdraw
+          </button>
+          {canExtract(state) ? (
+            <p>
+              Permanently end this run. Scrap earned {formatCompact(sortieGrossScrapGenerated(state))}
+              {' · '}Withdrawal bonus +{extractionBonusFor(state)}
+            </p>
+          ) : (
+            <p className="muted">Withdraw · {extractionLockedReason(state)}</p>
+          )}
+          <p className="muted">Workshop and Core Levels persist. Salvage does not.</p>
+          <button
+            type="button"
+            className="extract-cancel-btn"
+            onClick={() => {
+              setLeaveOpen(false)
+              onResume?.()
+            }}
+          >
+            Keep Fighting
+          </button>
+        </div>
+      </BottomSheet>
       <CombatOverlaySheet
         open={overlaySheetOpen}
         state={state}
