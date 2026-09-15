@@ -4,7 +4,6 @@ import { formatCompact } from '../game/format'
 import {
   canUnlockNextGeneric,
   effectiveUpgradeLevel,
-  firstWorkshopPurchasePending,
   maxAffordableRunPurchases,
   maxAffordableWorkshopPurchases,
   nextUnlockDef,
@@ -34,6 +33,7 @@ interface UpgradeGridProps {
   buyMode: BuyMode
   onBuy?: (id: RunUpgradeId, count: number) => void
   onUnlock?: (category: RunUpgradeCategory) => void
+  guidedFirstRow?: boolean
 }
 
 function purchaseCount(state: GameState, id: RunUpgradeId, kind: UpgradeGridKind, mode: BuyMode): number {
@@ -77,10 +77,12 @@ export function UpgradeGrid({
   buyMode,
   onBuy,
   onUnlock,
+  guidedFirstRow = false,
 }: UpgradeGridProps) {
-  const rows = visibleRunUpgrades(state, category)
+  const allRows = visibleRunUpgrades(state, category)
+  const rows = guidedFirstRow ? allRows.filter((row) => row.chainIndex === 0) : allRows
   const [infoId, setInfoId] = useState<string | null>(null)
-  const revealPending = kind === 'workshop' && firstWorkshopPurchasePending(state)
+  const revealPending = kind === 'workshop' && guidedFirstRow
   const next = kind === 'workshop' && !revealPending ? nextUnlockDef(state, category) : null
   const nextCost = kind === 'workshop' && !revealPending ? nextUnlockCost(state, category) : null
   const unlockCheck = kind === 'workshop' && !revealPending ? canUnlockNextGeneric(state, category) : null

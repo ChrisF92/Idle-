@@ -531,11 +531,9 @@ export function shopEconomyRoi(state: GameState, id: RunUpgradeId): string | nul
 
 export function visibleRunUpgrades(state: GameState, category?: RunUpgradeCategory): RunUpgradeDef[] {
   const tutorial = tutorialSortieShopActive(state) && !state.combat.docked
-  const firstWorkshop = firstWorkshopPurchasePending(state)
   return RUN_UPGRADES.filter((def) => {
     if (tutorial) return TUTORIAL_SORTIE_UPGRADE_IDS.includes(def.id)
     if (category && def.category !== category) return false
-    if (firstWorkshop && def.chainIndex > 0) return false
     return isUpgradePermanentlyKnown(state, def.id)
   })
 }
