@@ -170,7 +170,7 @@ Fire-Control Doctrine uses canonical per-Core doctrines, never generic closest/f
 1. ✅ Fresh Dock and navigation foundation.
 2. ✅ More single-list conversion and utility child screens.
 3. ✅ Loadout and Inventory workflow polish.
-4. Sortie HUD, upgrade drawer, pause/browse, and Leave Sortie.
+4. ✅ Sortie HUD, upgrade drawer, pause/browse, and Leave Sortie.
 5. Report and first-Workshop loop.
 6. Progressive Systems and later-system screen passes.
 7. Accessibility, Back behavior, responsive polish, and end-to-end navigation tests.
